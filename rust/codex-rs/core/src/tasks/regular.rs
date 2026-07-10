@@ -7,8 +7,8 @@ use crate::session::turn::run_turn;
 use crate::session::turn_context::TurnContext;
 use crate::session_startup_prewarm::SessionStartupPrewarmResolution;
 use crate::state::TaskKind;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::TurnStartedEvent;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::TurnStartedEvent;
 use tracing::Instrument;
 use tracing::trace_span;
 

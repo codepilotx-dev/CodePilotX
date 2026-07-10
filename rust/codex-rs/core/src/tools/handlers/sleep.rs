@@ -6,12 +6,12 @@ use crate::tools::context::boxed_tool_output;
 use crate::tools::handlers::parse_arguments;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
-use codex_protocol::items::SleepItem;
-use codex_protocol::items::TurnItem;
-use codex_tools::JsonSchema;
-use codex_tools::ResponsesApiTool;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
+use codepilotx_protocol::items::SleepItem;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_tools::JsonSchema;
+use codepilotx_tools::ResponsesApiTool;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSpec;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -60,7 +60,7 @@ impl ToolExecutor<ToolInvocation> for SleepHandler {
         create_sleep_tool()
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(async move {
             let ToolInvocation {
                 session,

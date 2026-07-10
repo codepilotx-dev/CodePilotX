@@ -1,54 +1,54 @@
-use codex_config::ConfigLayerStack;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::ModelClient;
-use codex_core::NewThread;
-use codex_core::Prompt;
-use codex_core::ResponseEvent;
-use codex_core::ThreadManager;
-use codex_core::resolve_installation_id;
-use codex_core::thread_store_from_config;
-use codex_extension_api::empty_extension_registry;
-use codex_features::Feature;
-use codex_login::AuthKeyringBackendKind;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::default_client::originator;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::WireApi;
-use codex_model_provider_info::built_in_model_providers;
-use codex_models_manager::bundled_models_response;
-use codex_otel::SessionTelemetry;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::ModelProviderAuthInfo;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::Settings;
-use codex_protocol::config_types::Verbosity;
-use codex_protocol::error::CodexErr;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::DEFAULT_IMAGE_DETAIL;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::models::LocalShellAction;
-use codex_protocol::models::LocalShellExecAction;
-use codex_protocol::models::LocalShellStatus;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ReasoningItemContent;
-use codex_protocol::models::ReasoningItemReasoningSummary;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::models::WebSearchAction;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::user_input::UserInput;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_core::ModelClient;
+use codepilotx_core::NewThread;
+use codepilotx_core::Prompt;
+use codepilotx_core::ResponseEvent;
+use codepilotx_core::ThreadManager;
+use codepilotx_core::resolve_installation_id;
+use codepilotx_core::thread_store_from_config;
+use codepilotx_extension_api::empty_extension_registry;
+use codepilotx_features::Feature;
+use codepilotx_login::AuthKeyringBackendKind;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CodexAuth;
+use codepilotx_login::default_client::originator;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_model_provider_info::WireApi;
+use codepilotx_model_provider_info::built_in_model_providers;
+use codepilotx_models_manager::bundled_models_response;
+use codepilotx_otel::SessionTelemetry;
+use codepilotx_otel::TelemetryAuthMode;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::CollaborationMode;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::ModelProviderAuthInfo;
+use codepilotx_protocol::config_types::ReasoningSummary;
+use codepilotx_protocol::config_types::Settings;
+use codepilotx_protocol::config_types::Verbosity;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::DEFAULT_IMAGE_DETAIL;
+use codepilotx_protocol::models::FunctionCallOutputContentItem;
+use codepilotx_protocol::models::FunctionCallOutputPayload;
+use codepilotx_protocol::models::ImageDetail;
+use codepilotx_protocol::models::LocalShellAction;
+use codepilotx_protocol::models::LocalShellExecAction;
+use codepilotx_protocol::models::LocalShellStatus;
+use codepilotx_protocol::models::MessagePhase;
+use codepilotx_protocol::models::ReasoningItemContent;
+use codepilotx_protocol::models::ReasoningItemReasoningSummary;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::models::WebSearchAction;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::RolloutLine;
+use codepilotx_protocol::protocol::SessionMeta;
+use codepilotx_protocol::protocol::SessionMetaLine;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::PathBufExt;
 use core_test_support::TestCodexResponsesRequestKind;
 use core_test_support::apps_test_server::AppsTestServer;
@@ -99,7 +99,7 @@ const TEST_INSTALLATION_ID: &str = "11111111-1111-4111-8111-111111111111";
 fn test_turn_responses_metadata(
     _client: &ModelClient,
     thread_id: ThreadId,
-) -> codex_core::CodexResponsesMetadata {
+) -> codepilotx_core::CodexResponsesMetadata {
     let thread_id = thread_id.to_string();
     test_responses_metadata(
         TEST_INSTALLATION_ID,
@@ -151,7 +151,7 @@ fn response_message_item_id(request: &ResponsesRequest, role: &str, text: &str) 
         .unwrap_or_else(|| panic!("missing item ID for {role} message {text:?}"))
 }
 
-fn assert_codex_client_metadata(
+fn assert_codepilotx_client_metadata(
     request_body: &serde_json::Value,
     installation_id: &str,
     session_id: &str,
@@ -358,11 +358,11 @@ async fn response_item_ids_are_sent_for_all_remote_v2_compaction_requests() -> a
     Ok(())
 }
 
-/// Writes an `auth.json` into the provided `codex_home` with the specified parameters.
+/// Writes an `auth.json` into the provided `codepilotx_home` with the specified parameters.
 /// Returns the fake JWT string written to `tokens.id_token`.
 #[expect(clippy::unwrap_used)]
 fn write_auth_json(
-    codex_home: &TempDir,
+    codepilotx_home: &TempDir,
     openai_api_key: Option<&str>,
     chatgpt_plan_type: &str,
     access_token: &str,
@@ -402,7 +402,7 @@ fn write_auth_json(
     });
 
     std::fs::write(
-        codex_home.path().join("auth.json"),
+        codepilotx_home.path().join("auth.json"),
         serde_json::to_string_pretty(&auth_json).unwrap(),
     )
     .unwrap();
@@ -490,7 +490,7 @@ move /y tokens.next tokens.txt >nul
             // Match the model-provider default to avoid brittle shell-startup timing in CI.
             timeout_ms: non_zero_u64(/*value*/ 5_000),
             refresh_interval_ms: 60_000,
-            cwd: codex_utils_absolute_path::AbsolutePathBuf::try_from(self.tempdir.path())
+            cwd: codepilotx_utils_absolute_path::AbsolutePathBuf::try_from(self.tempdir.path())
                 .expect("tempdir should be absolute"),
         }
     }
@@ -529,10 +529,10 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
     .unwrap();
 
     // Prior item: user message (should be delivered)
-    let prior_user = codex_protocol::models::ResponseItem::Message {
+    let prior_user = codepilotx_protocol::models::ResponseItem::Message {
         id: None,
         role: "user".to_string(),
-        content: vec![codex_protocol::models::ContentItem::InputText {
+        content: vec![codepilotx_protocol::models::ContentItem::InputText {
             text: "resumed user message".to_string(),
         }],
         phase: None,
@@ -551,10 +551,10 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
     .unwrap();
 
     // Prior item: system message (excluded from API history)
-    let prior_system = codex_protocol::models::ResponseItem::Message {
+    let prior_system = codepilotx_protocol::models::ResponseItem::Message {
         id: None,
         role: "system".to_string(),
-        content: vec![codex_protocol::models::ContentItem::OutputText {
+        content: vec![codepilotx_protocol::models::ContentItem::OutputText {
             text: "resumed system instruction".to_string(),
         }],
         phase: None,
@@ -573,10 +573,10 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
     .unwrap();
 
     // Prior item: assistant message
-    let prior_item = codex_protocol::models::ResponseItem::Message {
+    let prior_item = codepilotx_protocol::models::ResponseItem::Message {
         id: None,
         role: "assistant".to_string(),
-        content: vec![codex_protocol::models::ContentItem::OutputText {
+        content: vec![codepilotx_protocol::models::ContentItem::OutputText {
             text: "resumed assistant message".to_string(),
         }],
         phase: Some(MessagePhase::Commentary),
@@ -604,14 +604,14 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
     .await;
 
     // Configure Codex to resume from our file
-    let codex_home = Arc::new(TempDir::new().unwrap());
+    let codepilotx_home = Arc::new(TempDir::new().unwrap());
     let mut builder = test_codex()
-        .with_home(codex_home.clone())
+        .with_home(codepilotx_home.clone())
         .with_pre_build_hook(|home| {
             std::fs::write(home.join("AGENTS.md"), "be nice").expect("write global instructions");
         });
     let test = builder
-        .resume(&server, codex_home, session_path.clone())
+        .resume(&server, codepilotx_home, session_path.clone())
         .await
         .expect("resume conversation");
     let codex = test.codex.clone();
@@ -788,10 +788,10 @@ async fn resume_replays_legacy_js_repl_image_rollout_shapes() {
     )
     .await;
 
-    let codex_home = Arc::new(TempDir::new().unwrap());
+    let codepilotx_home = Arc::new(TempDir::new().unwrap());
     let mut builder = test_codex().with_model("gpt-5.4");
     let test = builder
-        .resume(&server, codex_home, session_path.clone())
+        .resume(&server, codepilotx_home, session_path.clone())
         .await
         .expect("resume conversation");
     test.submit_turn("after resume").await.unwrap();
@@ -946,10 +946,10 @@ async fn resume_replays_image_tool_outputs_with_detail() {
     )
     .await;
 
-    let codex_home = Arc::new(TempDir::new().unwrap());
+    let codepilotx_home = Arc::new(TempDir::new().unwrap());
     let mut builder = test_codex().with_model("gpt-5.4");
     let test = builder
-        .resume(&server, codex_home, session_path.clone())
+        .resume(&server, codepilotx_home, session_path.clone())
         .await
         .expect("resume conversation");
     test.submit_turn("after resume").await.unwrap();
@@ -1031,7 +1031,7 @@ async fn includes_session_id_thread_id_and_model_headers_in_request() {
     let request_originator = request.header("originator").expect("originator header");
     let request_body = request.body_json();
     let installation_id =
-        std::fs::read_to_string(test.codex_home_path().join(INSTALLATION_ID_FILENAME))
+        std::fs::read_to_string(test.codepilotx_home_path().join(INSTALLATION_ID_FILENAME))
             .expect("read installation id");
     let session_id_string = expected_session_id.to_string();
     let thread_id_string = expected_thread_id.to_string();
@@ -1044,7 +1044,7 @@ async fn includes_session_id_thread_id_and_model_headers_in_request() {
         request_body["prompt_cache_key"].as_str(),
         Some(thread_id_string.as_str())
     );
-    assert_codex_client_metadata(
+    assert_codepilotx_client_metadata(
         &request_body,
         installation_id.as_str(),
         session_id_string.as_str(),
@@ -1126,17 +1126,17 @@ async fn send_provider_auth_request(server: &MockServer, auth: ModelProviderAuth
         supports_websockets: false,
     };
 
-    let codex_home = TempDir::new().unwrap();
-    let mut config = load_default_config_for_test(&codex_home).await;
+    let codepilotx_home = TempDir::new().unwrap();
+    let mut config = load_default_config_for_test(&codepilotx_home).await;
     config.model_provider_id = provider.name.clone();
     config.model_provider = provider.clone();
     let effort = config.model_reasoning_effort.clone();
     let summary = config.model_reasoning_summary;
-    let model = codex_core::test_support::get_model_offline(config.model.as_deref());
+    let model = codepilotx_core::test_support::get_model_offline(config.model.as_deref());
     config.model = Some(model.clone());
     let config = Arc::new(config);
     let model_info =
-        codex_core::test_support::construct_model_info_offline(model.as_str(), &config);
+        codepilotx_core::test_support::construct_model_info_offline(model.as_str(), &config);
     let thread_id = ThreadId::new();
     let session_telemetry = SessionTelemetry::new(
         thread_id,
@@ -1186,7 +1186,7 @@ async fn send_provider_auth_request(server: &MockServer, auth: ModelProviderAuth
             summary.unwrap_or(ReasoningSummary::Auto),
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &codepilotx_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("responses stream to start");
@@ -1265,7 +1265,7 @@ async fn chatgpt_auth_sends_correct_request() {
     model_provider.base_url = Some(format!("{}/api/codex", server.uri()));
     model_provider.supports_websockets = false;
     let mut builder = test_codex()
-        .with_auth(create_dummy_codex_auth())
+        .with_auth(create_dummy_codepilotx_auth())
         .with_config(move |config| {
             config.model_provider = model_provider;
         });
@@ -1307,7 +1307,7 @@ async fn chatgpt_auth_sends_correct_request() {
     let request_session_id = request.header("session-id").expect("session-id header");
     let request_thread_id = request.header("thread-id").expect("thread-id header");
     let installation_id =
-        std::fs::read_to_string(test.codex_home_path().join(INSTALLATION_ID_FILENAME))
+        std::fs::read_to_string(test.codepilotx_home_path().join(INSTALLATION_ID_FILENAME))
             .expect("read installation id");
     let session_id_string = expected_session_id.to_string();
     let thread_id_string = expected_thread_id.to_string();
@@ -1317,7 +1317,7 @@ async fn chatgpt_auth_sends_correct_request() {
     assert_eq!(request_originator, originator().value);
     assert_eq!(request_authorization, "Bearer Access Token");
     assert_eq!(request_chatgpt_account_id, "account_id");
-    assert_codex_client_metadata(
+    assert_codepilotx_client_metadata(
         &request_body,
         installation_id.as_str(),
         session_id_string.as_str(),
@@ -1360,40 +1360,40 @@ async fn prefers_apikey_when_config_prefers_apikey_even_with_chatgpt_tokens() {
     };
 
     // Init session
-    let codex_home = TempDir::new().unwrap();
+    let codepilotx_home = TempDir::new().unwrap();
     // Write auth.json that contains both API key and ChatGPT tokens for a plan that should prefer ChatGPT,
     // but config will force API key preference.
     let _jwt = write_auth_json(
-        &codex_home,
+        &codepilotx_home,
         Some("sk-test-key"),
         "pro",
         "Access-123",
         Some("acc-123"),
     );
 
-    let mut config = load_default_config_for_test(&codex_home).await;
+    let mut config = load_default_config_for_test(&codepilotx_home).await;
     config.model_provider = model_provider;
 
     let auth = CodexAuth::from_auth_storage(
-        codex_home.path(),
+        codepilotx_home.path(),
         AuthCredentialsStoreMode::File,
         /*chatgpt_base_url*/ None,
         AuthKeyringBackendKind::default(),
     )
     .await
     .expect("Failed to load CodexAuth")
-    .expect("No CodexAuth found in codex_home");
-    let auth_manager = codex_core::test_support::auth_manager_from_auth(auth);
-    let installation_id = resolve_installation_id(&config.codex_home)
+    .expect("No CodexAuth found in codepilotx_home");
+    let auth_manager = codepilotx_core::test_support::auth_manager_from_auth(auth);
+    let installation_id = resolve_installation_id(&config.codepilotx_home)
         .await
         .expect("resolve installation id");
     let thread_manager = ThreadManager::new(
         &config,
         auth_manager,
         SessionSource::Exec,
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         empty_extension_registry(),
-        Arc::new(codex_core::test_support::EmptyUserInstructionsProvider),
+        Arc::new(codepilotx_core::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
         thread_store_from_config(&config, /*state_db*/ None),
         /*state_db*/ None,
@@ -1519,7 +1519,7 @@ async fn includes_apps_guidance_as_developer_message_for_chatgpt_auth() {
     .await;
 
     let mut builder = test_codex()
-        .with_auth(create_dummy_codex_auth())
+        .with_auth(create_dummy_codepilotx_auth())
         .with_config(move |config| {
             config
                 .features
@@ -1640,7 +1640,7 @@ async fn omits_apps_guidance_when_configured_off() {
     .await;
 
     let mut builder = test_codex()
-        .with_auth(create_dummy_codex_auth())
+        .with_auth(create_dummy_codepilotx_auth())
         .with_config(move |config| {
             config
                 .features
@@ -1704,7 +1704,7 @@ async fn omits_apps_guidance_when_orchestrator_mcp_is_disabled() {
                     read_call_id,
                     "read_mcp_resource",
                     &json!({
-                        "server": "codex_apps",
+                        "server": "codepilotx_apps",
                         "uri": "skill://demo/SKILL.md",
                     })
                     .to_string(),
@@ -1717,7 +1717,7 @@ async fn omits_apps_guidance_when_orchestrator_mcp_is_disabled() {
     .await;
 
     let mut builder = test_codex()
-        .with_auth(create_dummy_codex_auth())
+        .with_auth(create_dummy_codepilotx_auth())
         .with_config(move |config| {
             config
                 .features
@@ -1757,8 +1757,8 @@ async fn omits_apps_guidance_when_orchestrator_mcp_is_disabled() {
         request.body_json()["input"]
     );
     assert!(
-        !request.body_contains_text("mcp__codex_apps"),
-        "did not expect codex_apps MCP tools when orchestrator MCP is disabled, got {:?}",
+        !request.body_contains_text("mcp__codepilotx_apps"),
+        "did not expect codepilotx_apps MCP tools when orchestrator MCP is disabled, got {:?}",
         request.body_json()["tools"]
     );
     let list_output = requests[1]
@@ -1792,7 +1792,7 @@ async fn omits_apps_guidance_when_orchestrator_mcp_is_disabled() {
         .collect::<Vec<_>>();
     assert!(
         resource_methods.is_empty(),
-        "did not expect codex_apps resource calls: {resource_methods:?}"
+        "did not expect codepilotx_apps resource calls: {resource_methods:?}"
     );
 }
 
@@ -1849,8 +1849,8 @@ async fn skills_append_to_developer_message() {
     )
     .await;
 
-    let codex_home = Arc::new(TempDir::new().unwrap());
-    let skill_dir = codex_home.path().join("skills/demo");
+    let codepilotx_home = Arc::new(TempDir::new().unwrap());
+    let skill_dir = codepilotx_home.path().join("skills/demo");
     std::fs::create_dir_all(&skill_dir).expect("create skill dir");
     std::fs::write(
         skill_dir.join("SKILL.md"),
@@ -1858,12 +1858,12 @@ async fn skills_append_to_developer_message() {
     )
     .expect("write skill");
 
-    let codex_home_path = codex_home.path().to_path_buf();
+    let codepilotx_home_path = codepilotx_home.path().to_path_buf();
     let mut builder = test_codex()
-        .with_home(codex_home.clone())
+        .with_home(codepilotx_home.clone())
         .with_auth(CodexAuth::from_api_key("Test API Key"))
         .with_config(move |config| {
-            config.cwd = codex_home_path.abs();
+            config.cwd = codepilotx_home_path.abs();
         });
     let codex = builder
         .build(&server)
@@ -1904,7 +1904,7 @@ async fn skills_append_to_developer_message() {
         developer_text.contains(&expected_path_str),
         "expected path {expected_path_str} in developer message: {developer_messages:?}"
     );
-    let _codex_home_guard = codex_home;
+    let _codepilotx_home_guard = codepilotx_home;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -1918,13 +1918,13 @@ async fn skills_use_aliases_in_developer_message_under_budget_pressure() {
     )
     .await;
 
-    let codex_home_parent = TempDir::new().unwrap();
-    let long_home_parent = codex_home_parent
+    let codepilotx_home_parent = TempDir::new().unwrap();
+    let long_home_parent = codepilotx_home_parent
         .path()
         .join("codex-home-with-long-shared-prefix-for-skill-alias-budget-test");
     std::fs::create_dir_all(&long_home_parent).expect("create long home parent");
-    let codex_home = Arc::new(TempDir::new_in(long_home_parent).unwrap());
-    let skill_root = codex_home.path().join("skills");
+    let codepilotx_home = Arc::new(TempDir::new_in(long_home_parent).unwrap());
+    let skill_root = codepilotx_home.path().join("skills");
     for index in 0..12 {
         let skill_dir = skill_root.join(format!("s{index:02}"));
         std::fs::create_dir_all(&skill_dir).expect("create skill dir");
@@ -1935,13 +1935,13 @@ async fn skills_use_aliases_in_developer_message_under_budget_pressure() {
         .expect("write skill");
     }
 
-    let codex_home_path = codex_home.path().to_path_buf();
+    let codepilotx_home_path = codepilotx_home.path().to_path_buf();
     let mut builder = test_codex()
-        .with_home(codex_home.clone())
+        .with_home(codepilotx_home.clone())
         .with_auth(CodexAuth::from_api_key("Test API Key"))
         .with_config(move |config| {
-            config.cwd = codex_home_path.abs();
-            let user_config_path = codex_home_path.join("config.toml").abs();
+            config.cwd = codepilotx_home_path.abs();
+            let user_config_path = codepilotx_home_path.join("config.toml").abs();
             config.config_layer_stack = ConfigLayerStack::default().with_user_config(
                 &user_config_path,
                 toml! { skills = { bundled = { enabled = false } } }.into(),
@@ -1993,8 +1993,8 @@ async fn skills_use_aliases_in_developer_message_under_budget_pressure() {
         ),
         "expected alias-specific skill instructions: {developer_messages:?}"
     );
-    let _codex_home_guard = codex_home;
-    let _codex_home_parent_guard = codex_home_parent;
+    let _codepilotx_home_guard = codepilotx_home;
+    let _codepilotx_home_parent_guard = codepilotx_home_parent;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -2160,7 +2160,7 @@ async fn user_turn_collaboration_mode_overrides_model_and_effort() -> anyhow::Re
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(config.cwd.clone())),
                 approval_policy: Some(config.permissions.approval_policy.value()),
                 sandbox_policy: Some(config.legacy_sandbox_policy()),
@@ -2334,14 +2334,14 @@ async fn user_turn_explicit_reasoning_summary_overrides_model_catalog_default() 
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(config.cwd.clone())),
                 approval_policy: Some(config.permissions.approval_policy.value()),
                 sandbox_policy: Some(config.legacy_sandbox_policy()),
                 summary: Some(ReasoningSummary::Concise),
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                    mode: codepilotx_protocol::config_types::ModeKind::Default,
+                    settings: codepilotx_protocol::config_types::Settings {
                         model: session_configured.model,
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -2736,20 +2736,20 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
         supports_websockets: false,
     };
 
-    let codex_home = TempDir::new().unwrap();
-    let mut config = load_default_config_for_test(&codex_home).await;
+    let codepilotx_home = TempDir::new().unwrap();
+    let mut config = load_default_config_for_test(&codepilotx_home).await;
     config.model_provider_id = provider.name.clone();
     config.model_provider = provider.clone();
     let effort = config.model_reasoning_effort.clone();
     let summary = config.model_reasoning_summary;
-    let model = codex_core::test_support::get_model_offline(config.model.as_deref());
+    let model = codepilotx_core::test_support::get_model_offline(config.model.as_deref());
     config.model = Some(model.clone());
     let config = Arc::new(config);
     let model_info =
-        codex_core::test_support::construct_model_info_offline(model.as_str(), &config);
+        codepilotx_core::test_support::construct_model_info_offline(model.as_str(), &config);
     let thread_id = ThreadId::new();
     let auth_manager =
-        codex_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("Test API Key"));
+        codepilotx_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("Test API Key"));
     let session_telemetry = SessionTelemetry::new(
         thread_id,
         model.as_str(),
@@ -2860,7 +2860,7 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
             summary.unwrap_or(ReasoningSummary::Auto),
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &codepilotx_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("responses stream to start");
@@ -2980,7 +2980,7 @@ async fn token_count_includes_rate_limits_snapshot() {
                     "reasoning_output_tokens": 0,
                     "total_tokens": 123
                 },
-                // Default model is gpt-5.4 in tests â†’ 95% usable context window
+                // Default model is gpt-5.4 in tests â†?95% usable context window
                 "model_context_window": 258400
             },
             "rate_limits": {
@@ -3056,8 +3056,8 @@ async fn usage_limit_error_emits_rate_limit_event() -> anyhow::Result<()> {
         .await;
 
     let mut builder = test_codex();
-    let codex_fixture = builder.build(&server).await?;
-    let codex = codex_fixture.codex.clone();
+    let codepilotx_fixture = builder.build(&server).await?;
+    let codex = codepilotx_fixture.codex.clone();
 
     let expected_limits = json!({
         "limit_id": "codex",
@@ -3301,7 +3301,7 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
     // Mock server
     let server = MockServer::start().await;
 
-    // First request â€“ must NOT include `previous_response_id`.
+    // First request â€?must NOT include `previous_response_id`.
     let first = ResponseTemplate::new(200)
         .insert_header("content-type", "text/event-stream")
         .set_body_raw(
@@ -3356,7 +3356,7 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
 
     // Init session
     let mut builder = test_codex()
-        .with_auth(create_dummy_codex_auth())
+        .with_auth(create_dummy_codepilotx_auth())
         .with_config(move |config| {
             config.model_provider = provider;
         });
@@ -3390,7 +3390,7 @@ async fn env_var_overrides_loaded_auth() {
     // Mock server
     let server = MockServer::start().await;
 
-    // First request â€“ must NOT include `previous_response_id`.
+    // First request â€?must NOT include `previous_response_id`.
     let first = ResponseTemplate::new(200)
         .insert_header("content-type", "text/event-stream")
         .set_body_raw(
@@ -3445,7 +3445,7 @@ async fn env_var_overrides_loaded_auth() {
 
     // Init session
     let mut builder = test_codex()
-        .with_auth(create_dummy_codex_auth())
+        .with_auth(create_dummy_codepilotx_auth())
         .with_config(move |config| {
             config.model_provider = provider;
         });
@@ -3472,7 +3472,7 @@ async fn env_var_overrides_loaded_auth() {
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 }
 
-fn create_dummy_codex_auth() -> CodexAuth {
+fn create_dummy_codepilotx_auth() -> CodexAuth {
     CodexAuth::create_dummy_chatgpt_auth_for_testing()
 }
 

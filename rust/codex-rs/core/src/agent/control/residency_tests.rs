@@ -1,20 +1,20 @@
 use crate::ThreadManager;
 use crate::agent::AgentControl;
-use crate::codex_thread::CodexThread;
+use crate::codepilotx_thread::CodexThread;
 use crate::config::Config;
 use crate::config::test_config;
 use crate::thread_manager::ThreadManagerState;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_protocol::ThreadId;
-use codex_protocol::error::CodexErr;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::ThreadSource;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::TurnCompleteEvent;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_protocol::protocol::ThreadSource;
+use codepilotx_protocol::protocol::TurnAbortReason;
+use codepilotx_protocol::protocol::TurnAbortedEvent;
+use codepilotx_protocol::protocol::TurnCompleteEvent;
 use pretty_assertions::assert_eq;
 use std::sync::Arc;
 
@@ -24,13 +24,13 @@ async fn residency_slot_reservation_unloads_oldest_idle_v2_agent() {
     let _ = config.features.enable(Feature::MultiAgentV2);
     config.multi_agent_v2.max_concurrent_threads_per_session = 2;
     let temp_home = tempfile::tempdir().expect("create temp home");
-    config.codex_home = temp_home.path().to_path_buf().try_into().unwrap();
+    config.codepilotx_home = temp_home.path().to_path_buf().try_into().unwrap();
     config.cwd = temp_home.path().to_path_buf().try_into().unwrap();
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
-        config.codex_home.to_path_buf(),
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        config.codepilotx_home.to_path_buf(),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
     );
     let root = manager
         .start_thread(config.clone())
@@ -70,13 +70,13 @@ async fn interrupted_v2_agent_is_lost_after_residency_eviction() {
     let _ = config.features.enable(Feature::MultiAgentV2);
     config.multi_agent_v2.max_concurrent_threads_per_session = 2;
     let temp_home = tempfile::tempdir().expect("create temp home");
-    config.codex_home = temp_home.path().to_path_buf().try_into().unwrap();
+    config.codepilotx_home = temp_home.path().to_path_buf().try_into().unwrap();
     config.cwd = temp_home.path().to_path_buf().try_into().unwrap();
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
-        config.codex_home.to_path_buf(),
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        config.codepilotx_home.to_path_buf(),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
     );
     let root = manager
         .start_thread(config.clone())

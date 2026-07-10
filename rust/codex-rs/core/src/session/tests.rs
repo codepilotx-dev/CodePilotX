@@ -1,6 +1,6 @@
 use super::turn_context::TurnEnvironment;
 use super::*;
-use crate::codex_thread::TryStartTurnIfIdleRejectionReason;
+use crate::codepilotx_thread::TryStartTurnIfIdleRejectionReason;
 use crate::config::ConfigBuilder;
 use crate::config::ConfigOverrides;
 use crate::config::test_config;
@@ -14,55 +14,55 @@ use crate::skills::SkillRenderSideEffects;
 use crate::skills::render::SkillMetadataBudget;
 use crate::test_support::models_manager_with_provider;
 use crate::tools::format_exec_output_str;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::LoaderOverrides;
-use codex_config::NetworkConstraints;
-use codex_config::NetworkDomainPermissionToml;
-use codex_config::NetworkDomainPermissionsToml;
-use codex_config::RequirementSource;
-use codex_config::Sourced;
-use codex_config::loader::project_trust_key;
-use codex_config::types::ToolSuggestDisabledTool;
-use codex_core_skills::HostSkillsSnapshot;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::ConfigLayerStackOrdering;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_config::NetworkConstraints;
+use codepilotx_config::NetworkDomainPermissionToml;
+use codepilotx_config::NetworkDomainPermissionsToml;
+use codepilotx_config::RequirementSource;
+use codepilotx_config::Sourced;
+use codepilotx_config::loader::project_trust_key;
+use codepilotx_config::types::ToolSuggestDisabledTool;
+use codepilotx_core_skills::HostSkillsSnapshot;
 use core_test_support::test_codex::local_selections;
 
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_models_manager::bundled_models_response;
-use codex_models_manager::model_info;
-use codex_models_manager::test_support::construct_model_info_offline_for_tests;
-use codex_models_manager::test_support::get_model_offline_for_tests;
-use codex_protocol::AgentPath;
-use codex_protocol::SessionId;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::AgentMessageInputContent;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
-use codex_protocol::models::FileSystemPermissions;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::SandboxEnforcement;
-use codex_protocol::openai_models::ModelServiceTier;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::protocol::NonSteerableTurnKind;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::TurnEnvironmentSelections;
-use codex_protocol::request_permissions::PermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionProfile;
-use codex_utils_path_uri::PathUri;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_models_manager::bundled_models_response;
+use codepilotx_models_manager::model_info;
+use codepilotx_models_manager::test_support::construct_model_info_offline_for_tests;
+use codepilotx_models_manager::test_support::get_model_offline_for_tests;
+use codepilotx_protocol::AgentPath;
+use codepilotx_protocol::SessionId;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+use codepilotx_protocol::config_types::ServiceTier;
+use codepilotx_protocol::config_types::TrustLevel;
+use codepilotx_protocol::exec_output::ExecToolCallOutput;
+use codepilotx_protocol::models::ActivePermissionProfile;
+use codepilotx_protocol::models::AgentMessageInputContent;
+use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
+use codepilotx_protocol::models::FileSystemPermissions;
+use codepilotx_protocol::models::FunctionCallOutputBody;
+use codepilotx_protocol::models::FunctionCallOutputContentItem;
+use codepilotx_protocol::models::FunctionCallOutputPayload;
+use codepilotx_protocol::models::ImageDetail;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::models::SandboxEnforcement;
+use codepilotx_protocol::openai_models::ModelServiceTier;
+use codepilotx_protocol::permissions::FileSystemAccessMode;
+use codepilotx_protocol::permissions::FileSystemPath;
+use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::permissions::FileSystemSpecialPath;
+use codepilotx_protocol::protocol::NonSteerableTurnKind;
+use codepilotx_protocol::protocol::SandboxPolicy;
+use codepilotx_protocol::protocol::TurnEnvironmentSelections;
+use codepilotx_protocol::request_permissions::PermissionGrantScope;
+use codepilotx_protocol::request_permissions::RequestPermissionProfile;
+use codepilotx_utils_path_uri::PathUri;
 use tracing::Span;
 
 use crate::rollout::recorder::RolloutRecorder;
@@ -82,66 +82,66 @@ use crate::tools::handlers::ShellCommandHandler;
 use crate::tools::registry::ToolExecutor;
 use crate::tools::router::ToolCallSource;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use codex_app_server_protocol::AppInfo;
-use codex_app_server_protocol::McpElicitationSchema;
-use codex_config::config_toml::ConfigToml;
-use codex_config::config_toml::ProjectConfig;
-use codex_config::permissions_toml::FilesystemPermissionToml;
-use codex_config::permissions_toml::FilesystemPermissionsToml;
-use codex_config::permissions_toml::NetworkToml;
-use codex_config::permissions_toml::PermissionProfileToml;
-use codex_config::permissions_toml::PermissionsToml;
-use codex_execpolicy::Decision;
-use codex_execpolicy::NetworkRuleProtocol;
-use codex_execpolicy::Policy;
-use codex_network_proxy::NetworkProxyConfig;
-use codex_otel::MetricsClient;
-use codex_otel::MetricsConfig;
-use codex_otel::THREAD_SKILLS_DESCRIPTION_TRUNCATED_CHARS_METRIC;
-use codex_otel::THREAD_SKILLS_ENABLED_TOTAL_METRIC;
-use codex_otel::THREAD_SKILLS_KEPT_TOTAL_METRIC;
-use codex_otel::THREAD_SKILLS_TRUNCATED_METRIC;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Settings;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::models::ResponseItemMetadata;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::ConversationAudioParams;
-use codex_protocol::protocol::CreditsSnapshot;
-use codex_protocol::protocol::GranularApprovalConfig;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::NetworkApprovalProtocol;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::RateLimitWindow;
-use codex_protocol::protocol::RealtimeAudioFrame;
-use codex_protocol::protocol::RealtimeConversationListVoicesResponseEvent;
-use codex_protocol::protocol::RealtimeVoice;
-use codex_protocol::protocol::RealtimeVoicesList;
-use codex_protocol::protocol::ResumedHistory;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SkillScope;
-use codex_protocol::protocol::Submission;
-use codex_protocol::protocol::ThreadRolledBackEvent;
-use codex_protocol::protocol::ThreadSettingsOverrides;
-use codex_protocol::protocol::TokenCountEvent;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::TurnCompleteEvent;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_protocol::protocol::UserMessageEvent;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_rmcp_client::ElicitationAction;
+use codepilotx_app_server_protocol::AppInfo;
+use codepilotx_app_server_protocol::McpElicitationSchema;
+use codepilotx_config::config_toml::ConfigToml;
+use codepilotx_config::config_toml::ProjectConfig;
+use codepilotx_config::permissions_toml::FilesystemPermissionToml;
+use codepilotx_config::permissions_toml::FilesystemPermissionsToml;
+use codepilotx_config::permissions_toml::NetworkToml;
+use codepilotx_config::permissions_toml::PermissionProfileToml;
+use codepilotx_config::permissions_toml::PermissionsToml;
+use codepilotx_execpolicy::Decision;
+use codepilotx_execpolicy::NetworkRuleProtocol;
+use codepilotx_execpolicy::Policy;
+use codepilotx_network_proxy::NetworkProxyConfig;
+use codepilotx_otel::MetricsClient;
+use codepilotx_otel::MetricsConfig;
+use codepilotx_otel::THREAD_SKILLS_DESCRIPTION_TRUNCATED_CHARS_METRIC;
+use codepilotx_otel::THREAD_SKILLS_ENABLED_TOTAL_METRIC;
+use codepilotx_otel::THREAD_SKILLS_KEPT_TOTAL_METRIC;
+use codepilotx_otel::THREAD_SKILLS_TRUNCATED_METRIC;
+use codepilotx_otel::TelemetryAuthMode;
+use codepilotx_protocol::config_types::CollaborationMode;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::Settings;
+use codepilotx_protocol::models::BaseInstructions;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::models::ResponseItemMetadata;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::CodexErrorInfo;
+use codepilotx_protocol::protocol::CompactedItem;
+use codepilotx_protocol::protocol::ConversationAudioParams;
+use codepilotx_protocol::protocol::CreditsSnapshot;
+use codepilotx_protocol::protocol::GranularApprovalConfig;
+use codepilotx_protocol::protocol::InitialHistory;
+use codepilotx_protocol::protocol::InterAgentCommunication;
+use codepilotx_protocol::protocol::MultiAgentVersion;
+use codepilotx_protocol::protocol::NetworkApprovalProtocol;
+use codepilotx_protocol::protocol::RateLimitSnapshot;
+use codepilotx_protocol::protocol::RateLimitWindow;
+use codepilotx_protocol::protocol::RealtimeAudioFrame;
+use codepilotx_protocol::protocol::RealtimeConversationListVoicesResponseEvent;
+use codepilotx_protocol::protocol::RealtimeVoice;
+use codepilotx_protocol::protocol::RealtimeVoicesList;
+use codepilotx_protocol::protocol::ResumedHistory;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::SessionMeta;
+use codepilotx_protocol::protocol::SessionMetaLine;
+use codepilotx_protocol::protocol::SkillScope;
+use codepilotx_protocol::protocol::Submission;
+use codepilotx_protocol::protocol::ThreadRolledBackEvent;
+use codepilotx_protocol::protocol::ThreadSettingsOverrides;
+use codepilotx_protocol::protocol::TokenCountEvent;
+use codepilotx_protocol::protocol::TokenUsage;
+use codepilotx_protocol::protocol::TokenUsageInfo;
+use codepilotx_protocol::protocol::TurnAbortedEvent;
+use codepilotx_protocol::protocol::TurnCompleteEvent;
+use codepilotx_protocol::protocol::TurnStartedEvent;
+use codepilotx_protocol::protocol::UserMessageEvent;
+use codepilotx_protocol::protocol::W3cTraceContext;
+use codepilotx_rmcp_client::ElicitationAction;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
 use core_test_support::context_snapshot;
@@ -172,7 +172,7 @@ use tokio::time::timeout;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use uuid::Uuid;
 
-use codex_protocol::mcp::CallToolResult as McpCallToolResult;
+use codepilotx_protocol::mcp::CallToolResult as McpCallToolResult;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use serde_json::json;
@@ -367,7 +367,7 @@ async fn request_mcp_server_elicitation_auto_accepts_when_auto_deny_is_enabled()
             McpServerElicitationRequestParams {
                 thread_id: session.thread_id.to_string(),
                 turn_id: Some(turn_context.sub_id.clone()),
-                server_name: "codex_apps".to_string(),
+                server_name: "codepilotx_apps".to_string(),
                 request: McpServerElicitationRequest::Form {
                     meta: None,
                     message: "Allow this request?".to_string(),
@@ -456,7 +456,7 @@ fn test_model_client_session() -> crate::client::ModelClientSession {
         /*auth_manager*/ None,
         thread_id,
         ModelProviderInfo::create_openai_provider(/* base_url */ /*base_url*/ None),
-        codex_protocol::protocol::SessionSource::Exec,
+        codepilotx_protocol::protocol::SessionSource::Exec,
         /*model_verbosity*/ None,
         /*enable_request_compression*/ false,
         /*include_timing_metrics*/ false,
@@ -544,11 +544,11 @@ fn write_project_hooks(dot_codex: &Path) -> std::io::Result<()> {
 }
 
 async fn write_project_trust_config(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     trusted_projects: &[(&Path, TrustLevel)],
 ) -> std::io::Result<()> {
     tokio::fs::write(
-        codex_home.join(codex_config::CONFIG_TOML_FILE),
+        codepilotx_home.join(codepilotx_config::CONFIG_TOML_FILE),
         toml::to_string(&ConfigToml {
             projects: Some(
                 trusted_projects
@@ -572,7 +572,7 @@ async fn write_project_trust_config(
 
 async fn preview_session_start_hooks(
     config: &crate::config::Config,
-) -> std::io::Result<Vec<codex_protocol::protocol::HookRunSummary>> {
+) -> std::io::Result<Vec<codepilotx_protocol::protocol::HookRunSummary>> {
     let hooks = Hooks::new(HooksConfig {
         feature_enabled: true,
         config_layer_stack: Some(config.config_layer_stack.clone()),
@@ -580,14 +580,14 @@ async fn preview_session_start_hooks(
     });
 
     Ok(
-        hooks.preview_session_start(&codex_hooks::SessionStartRequest {
+        hooks.preview_session_start(&codepilotx_hooks::SessionStartRequest {
             session_id: ThreadId::new(),
             cwd: config.cwd.clone(),
             transcript_path: None,
             model: "gpt-5.2".to_string(),
             permission_mode: "default".to_string(),
-            target: codex_hooks::StartHookTarget::SessionStart {
-                source: codex_hooks::SessionStartSource::Startup,
+            target: codepilotx_hooks::StartHookTarget::SessionStart {
+                source: codepilotx_hooks::SessionStartSource::Startup,
             },
         }),
     )
@@ -817,11 +817,11 @@ async fn managed_network_proxy_decider_survives_full_access_start() -> anyhow::R
     )?;
     let exec_policy = Policy::empty();
     let decider_calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let network_policy_decider: Arc<dyn codex_network_proxy::NetworkPolicyDecider> = Arc::new({
+    let network_policy_decider: Arc<dyn codepilotx_network_proxy::NetworkPolicyDecider> = Arc::new({
         let decider_calls = Arc::clone(&decider_calls);
         move |_request| {
             decider_calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            async { codex_network_proxy::NetworkDecision::ask("not_allowed") }
+            async { codepilotx_network_proxy::NetworkDecision::ask("not_allowed") }
         }
     });
 
@@ -1011,8 +1011,8 @@ async fn danger_full_access_tool_attempts_do_not_enforce_managed_network() -> an
     }
 
     impl crate::tools::sandboxing::Sandboxable for ProbeToolRuntime {
-        fn sandbox_preference(&self) -> codex_sandboxing::SandboxablePreference {
-            codex_sandboxing::SandboxablePreference::Auto
+        fn sandbox_preference(&self) -> codepilotx_sandboxing::SandboxablePreference {
+            codepilotx_sandboxing::SandboxablePreference::Auto
         }
     }
 
@@ -1063,7 +1063,7 @@ async fn danger_full_access_tool_attempts_do_not_enforce_managed_network() -> an
             RequirementSource::LegacyManagedConfigTomlFromMdm,
         ));
         let mut requirements_toml = config.config_layer_stack.requirements_toml().clone();
-        requirements_toml.network = Some(codex_config::NetworkRequirementsToml {
+        requirements_toml.network = Some(codepilotx_config::NetworkRequirementsToml {
             enabled: Some(true),
             ..Default::default()
         });
@@ -1081,7 +1081,7 @@ async fn danger_full_access_tool_attempts_do_not_enforce_managed_network() -> an
         session: Arc::clone(&session),
         turn: Arc::clone(&turn),
         call_id: "probe-call".to_string(),
-        tool_name: codex_tools::ToolName::plain("probe"),
+        tool_name: codepilotx_tools::ToolName::plain("probe"),
     };
 
     orchestrator
@@ -1235,9 +1235,9 @@ async fn get_base_instructions_no_user_content() {
 #[tokio::test]
 async fn reload_user_config_layer_updates_effective_apps_config() {
     let (session, _turn_context) = make_session_and_context().await;
-    let codex_home = session.codex_home().await;
-    std::fs::create_dir_all(&codex_home).expect("create codex home");
-    let config_toml_path = codex_home.join(CONFIG_TOML_FILE);
+    let codepilotx_home = session.codepilotx_home().await;
+    std::fs::create_dir_all(&codepilotx_home).expect("create codex home");
+    let config_toml_path = codepilotx_home.join(CONFIG_TOML_FILE);
     std::fs::write(
         &config_toml_path,
         "[apps.calendar]\nenabled = false\ndestructive_enabled = false\n",
@@ -1254,7 +1254,7 @@ async fn reload_user_config_layer_updates_effective_apps_config() {
         .and_then(|table| table.get("apps"))
         .cloned()
         .expect("apps table");
-    let apps = codex_config::types::AppsConfigToml::deserialize(apps_toml)
+    let apps = codepilotx_config::types::AppsConfigToml::deserialize(apps_toml)
         .expect("deserialize apps config");
     let app = apps
         .apps
@@ -1268,10 +1268,10 @@ async fn reload_user_config_layer_updates_effective_apps_config() {
 #[tokio::test]
 async fn reload_user_config_layer_updates_base_and_selected_profile_layers() {
     let (session, _turn_context) = make_session_and_context().await;
-    let codex_home = session.codex_home().await;
-    std::fs::create_dir_all(&codex_home).expect("create codex home");
-    let base_config_path = codex_home.join(CONFIG_TOML_FILE);
-    let profile_config_path = codex_home.join("work.config.toml");
+    let codepilotx_home = session.codepilotx_home().await;
+    std::fs::create_dir_all(&codepilotx_home).expect("create codex home");
+    let base_config_path = codepilotx_home.join(CONFIG_TOML_FILE);
+    let profile_config_path = codepilotx_home.join("work.config.toml");
     std::fs::write(
         &base_config_path,
         "model = \"base\"\napproval_policy = \"on-failure\"\n",
@@ -1280,7 +1280,7 @@ async fn reload_user_config_layer_updates_base_and_selected_profile_layers() {
     std::fs::write(&profile_config_path, "model = \"profile-old\"\n")
         .expect("write profile user config");
     let config = ConfigBuilder::without_managed_config_for_tests()
-        .codex_home(codex_home.to_path_buf())
+        .codepilotx_home(codepilotx_home.to_path_buf())
         .loader_overrides(LoaderOverrides {
             user_config_path: Some(profile_config_path.abs()),
             user_config_profile: Some("work".parse().expect("profile-v2 name")),
@@ -1308,7 +1308,7 @@ async fn reload_user_config_layer_updates_base_and_selected_profile_layers() {
         config
             .config_layer_stack
             .get_user_config_file()
-            .map(codex_utils_absolute_path::AbsolutePathBuf::as_path),
+            .map(codepilotx_utils_absolute_path::AbsolutePathBuf::as_path),
         Some(profile_config_path.as_path())
     );
     let effective_user_config = config
@@ -1338,10 +1338,10 @@ async fn reload_user_config_layer_refreshes_hooks() -> anyhow::Result<()> {
             .expect("enable Codex hooks");
     })
     .await?;
-    let codex_home = session.codex_home().await;
-    std::fs::create_dir_all(&codex_home)?;
-    let config_toml_path = codex_home.join(CONFIG_TOML_FILE);
-    let user_config: codex_config::TomlValue = serde_json::from_value(serde_json::json!({
+    let codepilotx_home = session.codepilotx_home().await;
+    std::fs::create_dir_all(&codepilotx_home)?;
+    let config_toml_path = codepilotx_home.join(CONFIG_TOML_FILE);
+    let user_config: codepilotx_config::TomlValue = serde_json::from_value(serde_json::json!({
         "hooks": {
             "SessionStart": [{
                 "hooks": [{
@@ -1352,35 +1352,35 @@ async fn reload_user_config_layer_refreshes_hooks() -> anyhow::Result<()> {
         },
     }))?;
 
-    let request = codex_hooks::SessionStartRequest {
+    let request = codepilotx_hooks::SessionStartRequest {
         session_id: session.thread_id,
         cwd: session.get_config().await.cwd.clone(),
         transcript_path: None,
         model: "gpt-5.2".to_string(),
         permission_mode: "default".to_string(),
-        target: codex_hooks::StartHookTarget::SessionStart {
-            source: codex_hooks::SessionStartSource::Startup,
+        target: codepilotx_hooks::StartHookTarget::SessionStart {
+            source: codepilotx_hooks::SessionStartSource::Startup,
         },
     };
     assert!(session.hooks().preview_session_start(&request).is_empty());
 
     let config = session.get_config().await;
-    let hook_list = codex_hooks::list_hooks(codex_hooks::HooksConfig {
+    let hook_list = codepilotx_hooks::list_hooks(codepilotx_hooks::HooksConfig {
         feature_enabled: true,
         config_layer_stack: Some(
             config
                 .config_layer_stack
                 .with_user_config(&config_toml_path, user_config.clone()),
         ),
-        ..codex_hooks::HooksConfig::default()
+        ..codepilotx_hooks::HooksConfig::default()
     });
     assert_eq!(hook_list.hooks.len(), 1);
     assert_eq!(
         hook_list.hooks[0].trust_status,
-        codex_protocol::protocol::HookTrustStatus::Untrusted
+        codepilotx_protocol::protocol::HookTrustStatus::Untrusted
     );
 
-    let trusted_user_config: codex_config::TomlValue = serde_json::from_value(serde_json::json!({
+    let trusted_user_config: codepilotx_config::TomlValue = serde_json::from_value(serde_json::json!({
         "hooks": {
             "SessionStart": [{
                 "hooks": [{
@@ -1415,21 +1415,21 @@ async fn refresh_runtime_config_refreshes_hooks() -> anyhow::Result<()> {
             .expect("enable Codex hooks");
         state.session_configuration.original_config_do_not_use = Arc::new(config);
     }
-    let codex_home = session.codex_home().await;
-    std::fs::create_dir_all(&codex_home)?;
-    let config_toml_path = codex_home.join(CONFIG_TOML_FILE);
+    let codepilotx_home = session.codepilotx_home().await;
+    std::fs::create_dir_all(&codepilotx_home)?;
+    let config_toml_path = codepilotx_home.join(CONFIG_TOML_FILE);
     #[derive(serde::Serialize)]
     struct NormalizedHookIdentity {
         event_name: &'static str,
         #[serde(flatten)]
-        group: codex_config::MatcherGroup,
+        group: codepilotx_config::MatcherGroup,
     }
     let trusted_hash = {
         let identity = NormalizedHookIdentity {
             event_name: "session_start",
-            group: codex_config::MatcherGroup {
+            group: codepilotx_config::MatcherGroup {
                 matcher: None,
-                hooks: vec![codex_config::HookHandlerConfig::Command {
+                hooks: vec![codepilotx_config::HookHandlerConfig::Command {
                     command: "python3 /tmp/user.py".to_string(),
                     command_windows: None,
                     timeout_sec: Some(600),
@@ -1438,11 +1438,11 @@ async fn refresh_runtime_config_refreshes_hooks() -> anyhow::Result<()> {
                 }],
             },
         };
-        let identity = codex_config::TomlValue::try_from(identity)?;
-        codex_config::version_for_toml(&identity)
+        let identity = codepilotx_config::TomlValue::try_from(identity)?;
+        codepilotx_config::version_for_toml(&identity)
     };
     let hook_key = format!("{}:session_start:0:0", config_toml_path.display());
-    let trusted_user_config: codex_config::TomlValue = serde_json::from_value(serde_json::json!({
+    let trusted_user_config: codepilotx_config::TomlValue = serde_json::from_value(serde_json::json!({
         "hooks": {
             "SessionStart": [{
                 "hooks": [{
@@ -1459,14 +1459,14 @@ async fn refresh_runtime_config_refreshes_hooks() -> anyhow::Result<()> {
     }))?;
     std::fs::write(&config_toml_path, toml::to_string(&trusted_user_config)?)?;
 
-    let request = codex_hooks::SessionStartRequest {
+    let request = codepilotx_hooks::SessionStartRequest {
         session_id: session.thread_id,
         cwd: session.get_config().await.cwd.clone(),
         transcript_path: None,
         model: "gpt-5.2".to_string(),
         permission_mode: "default".to_string(),
-        target: codex_hooks::StartHookTarget::SessionStart {
-            source: codex_hooks::SessionStartSource::Startup,
+        target: codepilotx_hooks::StartHookTarget::SessionStart {
+            source: codepilotx_hooks::SessionStartSource::Startup,
         },
     };
     assert!(session.hooks().preview_session_start(&request).is_empty());
@@ -1481,9 +1481,9 @@ async fn refresh_runtime_config_refreshes_hooks() -> anyhow::Result<()> {
 #[tokio::test]
 async fn reload_user_config_layer_updates_effective_tool_suggest_config() {
     let (session, _turn_context) = make_session_and_context().await;
-    let codex_home = session.codex_home().await;
-    std::fs::create_dir_all(&codex_home).expect("create codex home");
-    let config_toml_path = codex_home.join(CONFIG_TOML_FILE);
+    let codepilotx_home = session.codepilotx_home().await;
+    std::fs::create_dir_all(&codepilotx_home).expect("create codex home");
+    let config_toml_path = codepilotx_home.join(CONFIG_TOML_FILE);
     std::fs::write(
         &config_toml_path,
         r#"[tool_suggest]
@@ -1511,10 +1511,10 @@ disabled_tools = [
 async fn refresh_runtime_config_updates_runtime_refreshable_fields_and_keeps_session_static_settings()
  {
     let (session, _turn_context) = make_session_and_context().await;
-    let codex_home = session.codex_home().await;
-    std::fs::create_dir_all(&codex_home).expect("create codex home");
+    let codepilotx_home = session.codepilotx_home().await;
+    std::fs::create_dir_all(&codepilotx_home).expect("create codex home");
     std::fs::write(
-        codex_home.join(CONFIG_TOML_FILE),
+        codepilotx_home.join(CONFIG_TOML_FILE),
         r#"[apps.calendar]
 enabled = false
 destructive_enabled = false
@@ -1543,7 +1543,7 @@ disabled_tools = [
         .and_then(|table| table.get("apps"))
         .cloned()
         .expect("apps table");
-    let apps = codex_config::types::AppsConfigToml::deserialize(apps_toml)
+    let apps = codepilotx_config::types::AppsConfigToml::deserialize(apps_toml)
         .expect("deserialize apps config");
     let app = apps
         .apps
@@ -2100,14 +2100,14 @@ async fn record_token_usage_info_notifies_extension_contributors() {
         records: Arc<std::sync::Mutex<Vec<RecordedTokenUsage>>>,
     }
 
-    impl codex_extension_api::TokenUsageContributor for TokenUsageRecorder {
+    impl codepilotx_extension_api::TokenUsageContributor for TokenUsageRecorder {
         fn on_token_usage<'a>(
             &'a self,
-            session_store: &'a codex_extension_api::ExtensionData,
-            thread_store: &'a codex_extension_api::ExtensionData,
-            turn_store: &'a codex_extension_api::ExtensionData,
+            session_store: &'a codepilotx_extension_api::ExtensionData,
+            thread_store: &'a codepilotx_extension_api::ExtensionData,
+            turn_store: &'a codepilotx_extension_api::ExtensionData,
             token_usage: &'a TokenUsageInfo,
-        ) -> codex_extension_api::ExtensionFuture<'a, ()> {
+        ) -> codepilotx_extension_api::ExtensionFuture<'a, ()> {
             Box::pin(async move {
                 self.records
                     .lock()
@@ -2126,7 +2126,7 @@ async fn record_token_usage_info_notifies_extension_contributors() {
 
     let (mut session, turn_context) = make_session_and_context().await;
     let records = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.token_usage_contributor(Arc::new(TokenUsageRecorder {
         records: Arc::clone(&records),
     }));
@@ -2221,11 +2221,11 @@ async fn turn_start_lifecycle_exposes_turn_metadata_and_token_baseline() {
         records: Arc<std::sync::Mutex<Vec<RecordedTurnStart>>>,
     }
 
-    impl codex_extension_api::TurnLifecycleContributor for TurnStartRecorder {
+    impl codepilotx_extension_api::TurnLifecycleContributor for TurnStartRecorder {
         fn on_turn_start<'a>(
             &'a self,
-            input: codex_extension_api::TurnStartInput<'a>,
-        ) -> codex_extension_api::ExtensionFuture<'a, ()> {
+            input: codepilotx_extension_api::TurnStartInput<'a>,
+        ) -> codepilotx_extension_api::ExtensionFuture<'a, ()> {
             Box::pin(async move {
                 self.records
                     .lock()
@@ -2252,7 +2252,7 @@ async fn turn_start_lifecycle_exposes_turn_metadata_and_token_baseline() {
 
     let (mut session, turn_context) = make_session_and_context().await;
     let records = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.turn_lifecycle_contributor(Arc::new(TurnStartRecorder {
         records: Arc::clone(&records),
     }));
@@ -2326,11 +2326,11 @@ async fn turn_error_lifecycle_exposes_error_and_stores() {
         records: Arc<std::sync::Mutex<Vec<RecordedTurnError>>>,
     }
 
-    impl codex_extension_api::TurnLifecycleContributor for TurnErrorRecorder {
+    impl codepilotx_extension_api::TurnLifecycleContributor for TurnErrorRecorder {
         fn on_turn_error<'a>(
             &'a self,
-            input: codex_extension_api::TurnErrorInput<'a>,
-        ) -> codex_extension_api::ExtensionFuture<'a, ()> {
+            input: codepilotx_extension_api::TurnErrorInput<'a>,
+        ) -> codepilotx_extension_api::ExtensionFuture<'a, ()> {
             Box::pin(async move {
                 self.records
                     .lock()
@@ -2356,7 +2356,7 @@ async fn turn_error_lifecycle_exposes_error_and_stores() {
 
     let (mut session, turn_context) = make_session_and_context().await;
     let records = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.turn_lifecycle_contributor(Arc::new(TurnErrorRecorder {
         records: Arc::clone(&records),
     }));
@@ -2411,11 +2411,11 @@ async fn config_change_contributor_observes_effective_config_changes() {
         records: Arc<std::sync::Mutex<Vec<RecordedConfigChange>>>,
     }
 
-    impl codex_extension_api::ConfigContributor<crate::config::Config> for ConfigRecorder {
+    impl codepilotx_extension_api::ConfigContributor<crate::config::Config> for ConfigRecorder {
         fn on_config_changed(
             &self,
-            session_store: &codex_extension_api::ExtensionData,
-            thread_store: &codex_extension_api::ExtensionData,
+            session_store: &codepilotx_extension_api::ExtensionData,
+            thread_store: &codepilotx_extension_api::ExtensionData,
             previous_config: &crate::config::Config,
             new_config: &crate::config::Config,
         ) {
@@ -2435,7 +2435,7 @@ async fn config_change_contributor_observes_effective_config_changes() {
 
     let (mut session, _turn_context) = make_session_and_context().await;
     let records = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.config_contributor(Arc::new(ConfigRecorder {
         records: Arc::clone(&records),
     }));
@@ -2474,10 +2474,10 @@ async fn config_change_contributor_observes_effective_config_changes() {
         .await
         .expect("update settings");
 
-    let codex_home = session.codex_home().await;
-    std::fs::create_dir_all(&codex_home).expect("create codex home");
+    let codepilotx_home = session.codepilotx_home().await;
+    std::fs::create_dir_all(&codepilotx_home).expect("create codex home");
     std::fs::write(
-        codex_home.join(CONFIG_TOML_FILE),
+        codepilotx_home.join(CONFIG_TOML_FILE),
         r#"[tool_suggest]
 disabled_tools = [
   { type = "connector", id = " calendar " },
@@ -2537,7 +2537,7 @@ async fn session_configured_reports_permission_profile_for_external_sandbox() ->
 {
     let server = start_mock_server().await;
     let sandbox_policy = SandboxPolicy::ExternalSandbox {
-        network_access: codex_protocol::protocol::NetworkAccess::Restricted,
+        network_access: codepilotx_protocol::protocol::NetworkAccess::Restricted,
     };
     let permission_profile = PermissionProfile::External {
         network: NetworkSandboxPolicy::Restricted,
@@ -2564,12 +2564,12 @@ async fn session_configured_reports_permission_profile_for_external_sandbox() ->
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn session_permission_profile_rebinds_runtime_workspace_roots() -> anyhow::Result<()> {
-    let codex_home = tempfile::TempDir::new()?;
+    let codepilotx_home = tempfile::TempDir::new()?;
     let cwd = tempfile::TempDir::new()?;
     let old_root = test_path_buf("/workspace/old").abs();
     let new_root = test_path_buf("/workspace/new").abs();
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .harness_overrides(crate::config::ConfigOverrides {
             cwd: Some(cwd.path().to_path_buf()),
             default_permissions: Some(BUILT_IN_PERMISSION_PROFILE_WORKSPACE.to_string()),
@@ -2624,7 +2624,7 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
 
     let mut builder = test_codex().with_config(|config| {
         config.permissions.approval_policy =
-            codex_config::Constrained::allow_any(AskForApproval::OnRequest);
+            codepilotx_config::Constrained::allow_any(AskForApproval::OnRequest);
     });
     let initial = builder.build(&server).await?;
     let rollout_path = initial
@@ -2658,7 +2658,7 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
 
     let mut fork_config = initial.config.clone();
     fork_config.permissions.approval_policy =
-        codex_config::Constrained::allow_any(AskForApproval::UnlessTrusted);
+        codepilotx_config::Constrained::allow_any(AskForApproval::UnlessTrusted);
     let forked = initial
         .thread_manager
         .fork_thread(
@@ -2712,7 +2712,7 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
     settings.set_prepend_module_to_snapshot(false);
     settings.bind(|| {
         insta::assert_snapshot!(
-            "codex_core__codex_tests__fork_startup_context_then_first_turn_diff",
+            "codepilotx_core__codepilotx_tests__fork_startup_context_then_first_turn_diff",
             snapshot
         );
     });
@@ -2744,7 +2744,7 @@ async fn record_initial_history_forked_hydrates_previous_turn_settings() {
         multi_agent_mode: None,
         realtime_active: Some(turn_context.realtime_active),
         effort: turn_context.reasoning_effort.clone(),
-        summary: codex_protocol::config_types::ReasoningSummary::Auto,
+        summary: codepilotx_protocol::config_types::ReasoningSummary::Auto,
     };
     let turn_id = previous_context_item
         .turn_id
@@ -2752,7 +2752,7 @@ async fn record_initial_history_forked_hydrates_previous_turn_settings() {
         .expect("thread settings should have turn_id");
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            codepilotx_protocol::protocol::TurnStartedEvent {
                 turn_id: turn_id.clone(),
                 trace_id: None,
                 started_at: None,
@@ -2761,7 +2761,7 @@ async fn record_initial_history_forked_hydrates_previous_turn_settings() {
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            codepilotx_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "forked seed".to_string(),
                 images: None,
@@ -2772,7 +2772,7 @@ async fn record_initial_history_forked_hydrates_previous_turn_settings() {
         )),
         RolloutItem::TurnContext(previous_context_item.clone()),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            codepilotx_protocol::protocol::TurnCompleteEvent {
                 turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -2918,7 +2918,7 @@ async fn thread_rollback_fails_without_persisted_thread_history() {
         "thread rollback requires persisted thread history"
     );
     assert_eq!(
-        error_event.codex_error_info,
+        error_event.codepilotx_error_info,
         Some(CodexErrorInfo::ThreadRollbackFailed)
     );
     assert_eq!(sess.clone_history().await.raw_items(), initial_context);
@@ -2951,7 +2951,7 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
 
     sess.persist_rollout_items(&[
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            codepilotx_protocol::protocol::TurnStartedEvent {
                 turn_id: first_turn_id.clone(),
                 trace_id: None,
                 started_at: None,
@@ -2960,7 +2960,7 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            codepilotx_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "turn 1 user".to_string(),
                 images: None,
@@ -2980,7 +2980,7 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
             time_to_first_token_ms: None,
         })),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            codepilotx_protocol::protocol::TurnStartedEvent {
                 turn_id: rolled_back_turn_id.clone(),
                 trace_id: None,
                 started_at: None,
@@ -2989,7 +2989,7 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            codepilotx_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "turn 2 user".to_string(),
                 images: None,
@@ -3071,7 +3071,7 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
 
     sess.persist_rollout_items(&[
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            codepilotx_protocol::protocol::TurnStartedEvent {
                 turn_id: first_turn_id.clone(),
                 trace_id: None,
                 started_at: None,
@@ -3098,7 +3098,7 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
             time_to_first_token_ms: None,
         })),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            codepilotx_protocol::protocol::TurnStartedEvent {
                 turn_id: compact_turn_id.clone(),
                 trace_id: None,
                 started_at: None,
@@ -3122,7 +3122,7 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
             time_to_first_token_ms: None,
         })),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            codepilotx_protocol::protocol::TurnStartedEvent {
                 turn_id: rolled_back_turn_id.clone(),
                 trace_id: None,
                 started_at: None,
@@ -3200,7 +3200,7 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
 
     sess.persist_rollout_items(&[
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            codepilotx_protocol::protocol::TurnStartedEvent {
                 turn_id: "turn-1".to_string(),
                 trace_id: None,
                 started_at: None,
@@ -3227,7 +3227,7 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
             time_to_first_token_ms: None,
         })),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            codepilotx_protocol::protocol::TurnStartedEvent {
                 turn_id: "turn-2".to_string(),
                 trace_id: None,
                 started_at: None,
@@ -3254,7 +3254,7 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
             time_to_first_token_ms: None,
         })),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            codepilotx_protocol::protocol::TurnStartedEvent {
                 turn_id: "turn-3".to_string(),
                 trace_id: None,
                 started_at: None,
@@ -3325,7 +3325,7 @@ async fn thread_rollback_fails_when_turn_in_progress() {
 
     let error_event = wait_for_thread_rollback_failed(&rx).await;
     assert_eq!(
-        error_event.codex_error_info,
+        error_event.codepilotx_error_info,
         Some(CodexErrorInfo::ThreadRollbackFailed)
     );
 
@@ -3346,7 +3346,7 @@ async fn thread_rollback_fails_when_num_turns_is_zero() {
     let error_event = wait_for_thread_rollback_failed(&rx).await;
     assert_eq!(error_event.message, "num_turns must be >= 1");
     assert_eq!(
-        error_event.codex_error_info,
+        error_event.codepilotx_error_info,
         Some(CodexErrorInfo::ThreadRollbackFailed)
     );
 
@@ -3356,8 +3356,8 @@ async fn thread_rollback_fails_when_num_turns_is_zero() {
 
 #[tokio::test]
 async fn set_rate_limits_retains_previous_credits() {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
-    let config = build_test_config(codex_home.path()).await;
+    let codepilotx_home = tempfile::tempdir().expect("create temp dir");
+    let config = build_test_config(codepilotx_home.path()).await;
     let config = Arc::new(config);
     let model = get_model_offline_for_tests(config.model.as_deref());
     let model_info =
@@ -3391,7 +3391,7 @@ async fn set_rate_limits_retains_previous_credits() {
         windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
         environments: TurnEnvironmentSelections::new(config.cwd.clone(), Vec::new()),
         workspace_roots: config.workspace_roots.clone(),
-        codex_home: config.codex_home.clone(),
+        codepilotx_home: config.codepilotx_home.clone(),
         thread_name: None,
         original_config_do_not_use: Arc::clone(&config),
         metrics_service_name: None,
@@ -3421,14 +3421,14 @@ async fn set_rate_limits_retains_previous_credits() {
             balance: Some("10.00".to_string()),
         }),
         individual_limit: None,
-        plan_type: Some(codex_protocol::account::PlanType::Plus),
+        plan_type: Some(codepilotx_protocol::account::PlanType::Plus),
         rate_limit_reached_type: None,
     };
     state.set_rate_limits(initial.clone());
 
     let update = RateLimitSnapshot {
-        limit_id: Some("codex_other".to_string()),
-        limit_name: Some("codex_other".to_string()),
+        limit_id: Some("codepilotx_other".to_string()),
+        limit_name: Some("codepilotx_other".to_string()),
         primary: Some(RateLimitWindow {
             used_percent: 40.0,
             window_minutes: Some(30),
@@ -3449,8 +3449,8 @@ async fn set_rate_limits_retains_previous_credits() {
     assert_eq!(
         state.latest_rate_limits,
         Some(RateLimitSnapshot {
-            limit_id: Some("codex_other".to_string()),
-            limit_name: Some("codex_other".to_string()),
+            limit_id: Some("codepilotx_other".to_string()),
+            limit_name: Some("codepilotx_other".to_string()),
             primary: update.primary.clone(),
             secondary: update.secondary,
             credits: initial.credits,
@@ -3463,8 +3463,8 @@ async fn set_rate_limits_retains_previous_credits() {
 
 #[tokio::test]
 async fn set_rate_limits_updates_plan_type_when_present() {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
-    let config = build_test_config(codex_home.path()).await;
+    let codepilotx_home = tempfile::tempdir().expect("create temp dir");
+    let config = build_test_config(codepilotx_home.path()).await;
     let config = Arc::new(config);
     let model = get_model_offline_for_tests(config.model.as_deref());
     let model_info =
@@ -3498,7 +3498,7 @@ async fn set_rate_limits_updates_plan_type_when_present() {
         windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
         environments: TurnEnvironmentSelections::new(config.cwd.clone(), Vec::new()),
         workspace_roots: config.workspace_roots.clone(),
-        codex_home: config.codex_home.clone(),
+        codepilotx_home: config.codepilotx_home.clone(),
         thread_name: None,
         original_config_do_not_use: Arc::clone(&config),
         metrics_service_name: None,
@@ -3532,7 +3532,7 @@ async fn set_rate_limits_updates_plan_type_when_present() {
             balance: Some("15.00".to_string()),
         }),
         individual_limit: None,
-        plan_type: Some(codex_protocol::account::PlanType::Plus),
+        plan_type: Some(codepilotx_protocol::account::PlanType::Plus),
         rate_limit_reached_type: None,
     };
     state.set_rate_limits(initial.clone());
@@ -3548,7 +3548,7 @@ async fn set_rate_limits_updates_plan_type_when_present() {
         secondary: None,
         credits: None,
         individual_limit: None,
-        plan_type: Some(codex_protocol::account::PlanType::Pro),
+        plan_type: Some(codepilotx_protocol::account::PlanType::Pro),
         rate_limit_reached_type: None,
     };
     state.set_rate_limits(update.clone());
@@ -3736,7 +3736,7 @@ async fn wait_for_thread_rollback_failed(rx: &async_channel::Receiver<Event>) ->
             .expect("event");
         match evt.msg {
             EventMsg::Error(payload)
-                if payload.codex_error_info == Some(CodexErrorInfo::ThreadRollbackFailed) =>
+                if payload.codepilotx_error_info == Some(CodexErrorInfo::ThreadRollbackFailed) =>
             {
                 return payload;
             }
@@ -3792,9 +3792,9 @@ fn text_block(s: &str) -> serde_json::Value {
     })
 }
 
-async fn build_test_config(codex_home: &Path) -> Config {
+async fn build_test_config(codepilotx_home: &Path) -> Config {
     ConfigBuilder::without_managed_config_for_tests()
-        .codex_home(codex_home.to_path_buf())
+        .codepilotx_home(codepilotx_home.to_path_buf())
         .build()
         .await
         .expect("load default test config")
@@ -3990,8 +3990,8 @@ async fn session_settings_legacy_fast_service_tier_update_uses_priority_request_
 }
 
 pub(crate) async fn make_session_configuration_for_tests() -> SessionConfiguration {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
-    let config = build_test_config(codex_home.path()).await;
+    let codepilotx_home = tempfile::tempdir().expect("create temp dir");
+    let config = build_test_config(codepilotx_home.path()).await;
     let config = Arc::new(config);
     let model = get_model_offline_for_tests(config.model.as_deref());
     let model_info =
@@ -4026,7 +4026,7 @@ pub(crate) async fn make_session_configuration_for_tests() -> SessionConfigurati
         windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
         environments: TurnEnvironmentSelections::new(config.cwd.clone(), Vec::new()),
         workspace_roots: config.workspace_roots.clone(),
-        codex_home: config.codex_home.clone(),
+        codepilotx_home: config.codepilotx_home.clone(),
         thread_name: None,
         original_config_do_not_use: Arc::clone(&config),
         metrics_service_name: None,
@@ -4098,7 +4098,7 @@ async fn emit_subagent_session_started_includes_fork_lineage_from_session_config
                     if let Some(event) = payload["events"].as_array().and_then(|events| {
                         events
                             .iter()
-                            .find(|event| event["event_type"] == "codex_thread_initialized")
+                            .find(|event| event["event_type"] == "codepilotx_thread_initialized")
                     }) {
                         break 'wait_for_event event.clone();
                     }
@@ -4227,7 +4227,7 @@ async fn session_configuration_apply_permission_profile_preserves_existing_deny_
         &workspace_policy,
         session_configuration.cwd().as_path(),
     );
-    let permission_profile = codex_protocol::models::PermissionProfile::from_runtime_permissions(
+    let permission_profile = codepilotx_protocol::models::PermissionProfile::from_runtime_permissions(
         &requested_file_system_policy,
         NetworkSandboxPolicy::Restricted,
     );
@@ -4256,7 +4256,7 @@ async fn session_configuration_apply_permission_profile_accepts_direct_write_roo
         TurnEnvironmentSelections::new(cwd.path().abs(), Vec::new());
     let external_write_dir = tempfile::tempdir().expect("create external write root");
     let external_write_path = AbsolutePathBuf::from_absolute_path(
-        codex_utils_absolute_path::canonicalize_preserving_symlinks(external_write_dir.path())
+        codepilotx_utils_absolute_path::canonicalize_preserving_symlinks(external_write_dir.path())
             .expect("canonical temp dir"),
     )
     .expect("canonical temp dir should be absolute");
@@ -4385,7 +4385,7 @@ async fn session_configuration_apply_retargets_implicit_workspace_root_on_cwd_up
 
 #[tokio::test]
 async fn active_profile_update_rebuilds_network_proxy_config() -> std::io::Result<()> {
-    let codex_home = tempfile::tempdir().expect("create codex home");
+    let codepilotx_home = tempfile::tempdir().expect("create codex home");
     let cwd = tempfile::tempdir().expect("create cwd");
     let permissions = PermissionsToml {
         entries: std::collections::BTreeMap::from([
@@ -4435,12 +4435,12 @@ async fn active_profile_update_rebuilds_network_proxy_config() -> std::io::Resul
         ..Default::default()
     };
     std::fs::write(
-        codex_home.path().join(codex_config::CONFIG_TOML_FILE),
+        codepilotx_home.path().join(codepilotx_config::CONFIG_TOML_FILE),
         toml::to_string(&base_config).expect("serialize config"),
     )?;
     let locked_config = Arc::new(
         ConfigBuilder::default()
-            .codex_home(codex_home.path().to_path_buf())
+            .codepilotx_home(codepilotx_home.path().to_path_buf())
             .harness_overrides(ConfigOverrides {
                 cwd: Some(cwd.path().to_path_buf()),
                 ..Default::default()
@@ -4458,7 +4458,7 @@ async fn active_profile_update_rebuilds_network_proxy_config() -> std::io::Resul
         Some("127.0.0.1:43128")
     );
     let selected_config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .harness_overrides(ConfigOverrides {
             cwd: Some(cwd.path().to_path_buf()),
             default_permissions: Some("web-enabled".to_string()),
@@ -4496,8 +4496,8 @@ async fn active_profile_update_rebuilds_network_proxy_config() -> std::io::Resul
 async fn new_default_turn_uses_config_aware_skills_for_role_overrides() {
     let (session, _turn_context) = make_session_and_context().await;
     let parent_config = session.get_config().await;
-    let codex_home = parent_config.codex_home.clone();
-    let skill_dir = codex_home.join("skills").join("demo");
+    let codepilotx_home = parent_config.codepilotx_home.clone();
+    let skill_dir = codepilotx_home.join("skills").join("demo");
     std::fs::create_dir_all(&skill_dir).expect("create skill dir");
     let skill_path = skill_dir.join("SKILL.md");
     std::fs::write(
@@ -4512,7 +4512,7 @@ async fn new_default_turn_uses_config_aware_skills_for_role_overrides() {
         .environment_manager()
         .default_environment()
         .map(|environment| environment.get_filesystem())
-        .unwrap_or_else(|| std::sync::Arc::clone(&codex_exec_server::LOCAL_FS));
+        .unwrap_or_else(|| std::sync::Arc::clone(&codepilotx_exec_server::LOCAL_FS));
     let parent_snapshot = session
         .services
         .skills_service
@@ -4530,7 +4530,7 @@ async fn new_default_turn_uses_config_aware_skills_for_role_overrides() {
         .expect("demo skill should be discovered");
     assert_eq!(parent_outcome.is_skill_enabled(parent_skill), true);
 
-    let role_path = codex_home.join("skills-role.toml");
+    let role_path = codepilotx_home.join("skills-role.toml");
     std::fs::write(
         &role_path,
         format!(
@@ -4847,8 +4847,8 @@ async fn absolute_cwd_update_with_turn_environment_is_allowed() {
 
 #[tokio::test]
 async fn session_new_fails_when_zsh_fork_enabled_without_packaged_zsh() {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
-    let mut config = build_test_config(codex_home.path()).await;
+    let codepilotx_home = tempfile::tempdir().expect("create temp dir");
+    let mut config = build_test_config(codepilotx_home.path()).await;
     config
         .features
         .enable(Feature::ShellZshFork)
@@ -4858,7 +4858,7 @@ async fn session_new_fails_when_zsh_fork_enabled_without_packaged_zsh() {
 
     let auth_manager = AuthManager::from_auth_for_testing(CodexAuth::from_api_key("Test API Key"));
     let models_manager = models_manager_with_provider(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
         auth_manager.clone(),
         config.model_provider.clone(),
     );
@@ -4893,7 +4893,7 @@ async fn session_new_fails_when_zsh_fork_enabled_without_packaged_zsh() {
         windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
         environments: TurnEnvironmentSelections::new(config.cwd.clone(), Vec::new()),
         workspace_roots: config.workspace_roots.clone(),
-        codex_home: config.codex_home.clone(),
+        codepilotx_home: config.codepilotx_home.clone(),
         thread_name: None,
         original_config_do_not_use: Arc::clone(&config),
         metrics_service_name: None,
@@ -4909,10 +4909,10 @@ async fn session_new_fails_when_zsh_fork_enabled_without_packaged_zsh() {
 
     let (tx_event, _rx_event) = async_channel::unbounded();
     let (agent_status_tx, _agent_status_rx) = watch::channel(AgentStatus::PendingInit);
-    let plugins_manager = Arc::new(PluginsManager::new(config.codex_home.to_path_buf()));
+    let plugins_manager = Arc::new(PluginsManager::new(config.codepilotx_home.to_path_buf()));
     let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
     let skills_service = Arc::new(SkillsService::new(
-        config.codex_home.clone(),
+        config.codepilotx_home.clone(),
         /*bundled_skills_enabled*/ true,
     ));
     let environment_manager = Arc::new(EnvironmentManager::default_for_tests());
@@ -4931,18 +4931,18 @@ async fn session_new_fails_when_zsh_fork_enabled_without_packaged_zsh() {
         skills_service,
         plugins_manager,
         mcp_manager,
-        Arc::new(codex_extension_api::ExtensionRegistryBuilder::new().build()),
-        codex_extension_api::ExtensionDataInit::default(),
+        Arc::new(codepilotx_extension_api::ExtensionRegistryBuilder::new().build()),
+        codepilotx_extension_api::ExtensionDataInit::default(),
         /*supports_openai_form_elicitation*/ false,
         AgentControl::default(),
         environment_manager,
         /*inherited_environments*/ None,
         /*analytics_events_client*/ None,
-        Arc::new(codex_thread_store::LocalThreadStore::new(
-            codex_thread_store::LocalThreadStoreConfig::from_config(config.as_ref()),
+        Arc::new(codepilotx_thread_store::LocalThreadStore::new(
+            codepilotx_thread_store::LocalThreadStoreConfig::from_config(config.as_ref()),
             /*state_db*/ None,
         )),
-        codex_rollout_trace::ThreadTraceContext::disabled(),
+        codepilotx_rollout_trace::ThreadTraceContext::disabled(),
         /*attestation_provider*/ None,
         /*external_time_provider*/ None,
         Some(config.multi_agent_version_from_features()),
@@ -4960,13 +4960,13 @@ async fn session_new_fails_when_zsh_fork_enabled_without_packaged_zsh() {
 // todo: use online model info
 pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
     let (tx_event, _rx_event) = async_channel::unbounded();
-    let codex_home = tempfile::tempdir().expect("create temp dir");
-    let config = build_test_config(codex_home.path()).await;
+    let codepilotx_home = tempfile::tempdir().expect("create temp dir");
+    let config = build_test_config(codepilotx_home.path()).await;
     let config = Arc::new(config);
     let thread_id = ThreadId::default();
     let auth_manager = AuthManager::from_auth_for_testing(CodexAuth::from_api_key("Test API Key"));
     let models_manager = models_manager_with_provider(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
         auth_manager.clone(),
         config.model_provider.clone(),
     );
@@ -5006,7 +5006,7 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
         environments: TurnEnvironmentSelections::new(config.cwd.clone(), default_environments),
         workspace_roots: config.workspace_roots.clone(),
-        codex_home: config.codex_home.clone(),
+        codepilotx_home: config.codepilotx_home.clone(),
         thread_name: None,
         original_config_do_not_use: Arc::clone(&config),
         metrics_service_name: None,
@@ -5049,10 +5049,10 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
             .expect("primary environment")
             .environment,
     );
-    let plugins_manager = Arc::new(PluginsManager::new(config.codex_home.to_path_buf()));
+    let plugins_manager = Arc::new(PluginsManager::new(config.codepilotx_home.to_path_buf()));
     let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
     let skills_service = Arc::new(SkillsService::new(
-        config.codex_home.clone(),
+        config.codepilotx_home.clone(),
         /*bundled_skills_enabled*/ true,
     ));
     let network_approval = Arc::new(NetworkApprovalService::default());
@@ -5079,7 +5079,7 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
             legacy_notify_argv: config.notify.clone(),
             ..HooksConfig::default()
         })),
-        rollout_thread_trace: codex_rollout_trace::ThreadTraceContext::disabled(),
+        rollout_thread_trace: codepilotx_rollout_trace::ThreadTraceContext::disabled(),
         user_shell: Arc::new(default_user_shell()),
         show_raw_agent_reasoning: config.show_raw_agent_reasoning,
         exec_policy,
@@ -5093,12 +5093,12 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         skills_service,
         plugins_manager,
         mcp_manager,
-        extensions: Arc::new(codex_extension_api::ExtensionRegistryBuilder::new().build()),
-        session_extension_data: codex_extension_api::ExtensionData::new(
+        extensions: Arc::new(codepilotx_extension_api::ExtensionRegistryBuilder::new().build()),
+        session_extension_data: codepilotx_extension_api::ExtensionData::new(
             agent_control.session_id().to_string(),
         ),
-        thread_extension_data: codex_extension_api::ExtensionData::new(thread_id.to_string()),
-        mcp_thread_init: codex_extension_api::ExtensionDataInit::default(),
+        thread_extension_data: codepilotx_extension_api::ExtensionData::new(thread_id.to_string()),
+        mcp_thread_init: codepilotx_extension_api::ExtensionDataInit::default(),
         supports_openai_form_elicitation: std::sync::atomic::AtomicBool::new(false),
         agent_control,
         network_proxy: arc_swap::ArcSwapOption::from(None),
@@ -5107,8 +5107,8 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         network_approval: Arc::clone(&network_approval),
         state_db: None,
         live_thread: None,
-        thread_store: Arc::new(codex_thread_store::LocalThreadStore::new(
-            codex_thread_store::LocalThreadStoreConfig::from_config(config.as_ref()),
+        thread_store: Arc::new(codepilotx_thread_store::LocalThreadStore::new(
+            codepilotx_thread_store::LocalThreadStoreConfig::from_config(config.as_ref()),
             /*state_db*/ None,
         )),
         attestation_provider: None,
@@ -5200,7 +5200,7 @@ async fn make_session_with_config(
 async fn load_latest_config_for_session(session: &Session) -> Config {
     let config = session.get_config().await;
     ConfigBuilder::default()
-        .codex_home(config.codex_home.to_path_buf())
+        .codepilotx_home(config.codepilotx_home.to_path_buf())
         .fallback_cwd(Some(config.cwd.to_path_buf()))
         .build()
         .await
@@ -5210,13 +5210,13 @@ async fn load_latest_config_for_session(session: &Session) -> Config {
 async fn make_session_with_config_and_rx(
     mutator: impl FnOnce(&mut Config),
 ) -> anyhow::Result<(Arc<Session>, async_channel::Receiver<Event>)> {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
-    let mut config = build_test_config(codex_home.path()).await;
+    let codepilotx_home = tempfile::tempdir().expect("create temp dir");
+    let mut config = build_test_config(codepilotx_home.path()).await;
     mutator(&mut config);
     let config = Arc::new(config);
     let auth_manager = AuthManager::from_auth_for_testing(CodexAuth::from_api_key("Test API Key"));
     let models_manager = models_manager_with_provider(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
         auth_manager.clone(),
         config.model_provider.clone(),
     );
@@ -5252,7 +5252,7 @@ async fn make_session_with_config_and_rx(
         windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
         environments: TurnEnvironmentSelections::new(config.cwd.clone(), default_environments),
         workspace_roots: config.workspace_roots.clone(),
-        codex_home: config.codex_home.clone(),
+        codepilotx_home: config.codepilotx_home.clone(),
         thread_name: None,
         original_config_do_not_use: Arc::clone(&config),
         metrics_service_name: None,
@@ -5268,10 +5268,10 @@ async fn make_session_with_config_and_rx(
 
     let (tx_event, rx_event) = async_channel::unbounded();
     let (agent_status_tx, _agent_status_rx) = watch::channel(AgentStatus::PendingInit);
-    let plugins_manager = Arc::new(PluginsManager::new(config.codex_home.to_path_buf()));
+    let plugins_manager = Arc::new(PluginsManager::new(config.codepilotx_home.to_path_buf()));
     let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
     let skills_service = Arc::new(SkillsService::new(
-        config.codex_home.clone(),
+        config.codepilotx_home.clone(),
         /*bundled_skills_enabled*/ true,
     ));
     let environment_manager = Arc::new(EnvironmentManager::default_for_tests());
@@ -5291,18 +5291,18 @@ async fn make_session_with_config_and_rx(
         skills_service,
         plugins_manager,
         mcp_manager,
-        Arc::new(codex_extension_api::ExtensionRegistryBuilder::new().build()),
-        codex_extension_api::ExtensionDataInit::default(),
+        Arc::new(codepilotx_extension_api::ExtensionRegistryBuilder::new().build()),
+        codepilotx_extension_api::ExtensionDataInit::default(),
         /*supports_openai_form_elicitation*/ false,
         AgentControl::default(),
         environment_manager,
         /*inherited_environments*/ None,
         /*analytics_events_client*/ None,
-        Arc::new(codex_thread_store::LocalThreadStore::new(
-            codex_thread_store::LocalThreadStoreConfig::from_config(config.as_ref()),
+        Arc::new(codepilotx_thread_store::LocalThreadStore::new(
+            codepilotx_thread_store::LocalThreadStoreConfig::from_config(config.as_ref()),
             /*state_db*/ None,
         )),
-        codex_rollout_trace::ThreadTraceContext::disabled(),
+        codepilotx_rollout_trace::ThreadTraceContext::disabled(),
         /*attestation_provider*/ None,
         /*external_time_provider*/ None,
         Some(config.multi_agent_version_from_features()),
@@ -5317,13 +5317,13 @@ async fn make_session_with_history_source_and_agent_control_and_rx(
     session_source: SessionSource,
     agent_control: AgentControl,
 ) -> anyhow::Result<(Arc<Session>, async_channel::Receiver<Event>)> {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
-    let mut config = build_test_config(codex_home.path()).await;
+    let codepilotx_home = tempfile::tempdir().expect("create temp dir");
+    let mut config = build_test_config(codepilotx_home.path()).await;
     config.ephemeral = true;
     let config = Arc::new(config);
     let auth_manager = AuthManager::from_auth_for_testing(CodexAuth::from_api_key("Test API Key"));
     let models_manager = models_manager_with_provider(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
         auth_manager.clone(),
         config.model_provider.clone(),
     );
@@ -5359,7 +5359,7 @@ async fn make_session_with_history_source_and_agent_control_and_rx(
         windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
         environments: TurnEnvironmentSelections::new(config.cwd.clone(), default_environments),
         workspace_roots: config.workspace_roots.clone(),
-        codex_home: config.codex_home.clone(),
+        codepilotx_home: config.codepilotx_home.clone(),
         thread_name: None,
         original_config_do_not_use: Arc::clone(&config),
         metrics_service_name: None,
@@ -5375,10 +5375,10 @@ async fn make_session_with_history_source_and_agent_control_and_rx(
 
     let (tx_event, rx_event) = async_channel::unbounded();
     let (agent_status_tx, _agent_status_rx) = watch::channel(AgentStatus::PendingInit);
-    let plugins_manager = Arc::new(PluginsManager::new(config.codex_home.to_path_buf()));
+    let plugins_manager = Arc::new(PluginsManager::new(config.codepilotx_home.to_path_buf()));
     let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
     let skills_service = Arc::new(SkillsService::new(
-        config.codex_home.clone(),
+        config.codepilotx_home.clone(),
         /*bundled_skills_enabled*/ true,
     ));
     let environment_manager = Arc::new(EnvironmentManager::default_for_tests());
@@ -5398,17 +5398,17 @@ async fn make_session_with_history_source_and_agent_control_and_rx(
         skills_service,
         plugins_manager,
         mcp_manager,
-        Arc::new(codex_extension_api::ExtensionRegistryBuilder::new().build()),
-        codex_extension_api::ExtensionDataInit::default(),
+        Arc::new(codepilotx_extension_api::ExtensionRegistryBuilder::new().build()),
+        codepilotx_extension_api::ExtensionDataInit::default(),
         /*supports_openai_form_elicitation*/ false,
         agent_control,
         environment_manager,
         /*inherited_environments*/ None,
         /*analytics_events_client*/ None,
-        Arc::new(codex_thread_store::LocalThreadStore::new(
-            codex_thread_store::LocalThreadStoreConfig::from_config(config.as_ref()),
+        Arc::new(codepilotx_thread_store::LocalThreadStore::new(
+            codepilotx_thread_store::LocalThreadStoreConfig::from_config(config.as_ref()),
             Some(
-                codex_state::StateRuntime::init(
+                codepilotx_state::StateRuntime::init(
                     config.sqlite_home.clone(),
                     config.model_provider_id.clone(),
                 )
@@ -5416,7 +5416,7 @@ async fn make_session_with_history_source_and_agent_control_and_rx(
                 .expect("state db should initialize"),
             ),
         )),
-        codex_rollout_trace::ThreadTraceContext::disabled(),
+        codepilotx_rollout_trace::ThreadTraceContext::disabled(),
         /*attestation_provider*/ None,
         /*external_time_provider*/ None,
         Some(config.multi_agent_version_from_features()),
@@ -5495,9 +5495,9 @@ async fn notify_request_permissions_response_ignores_unmatched_call_id() {
     session
         .notify_request_permissions_response(
             "missing",
-            codex_protocol::request_permissions::RequestPermissionsResponse {
+            codepilotx_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: RequestPermissionProfile {
-                    network: Some(codex_protocol::models::NetworkPermissions {
+                    network: Some(codepilotx_protocol::models::NetworkPermissions {
                         enabled: Some(true),
                     }),
                     ..RequestPermissionProfile::default()
@@ -5510,7 +5510,7 @@ async fn notify_request_permissions_response_ignores_unmatched_call_id() {
 
     assert_eq!(
         session
-            .granted_turn_permissions(codex_exec_server::LOCAL_ENVIRONMENT_ID)
+            .granted_turn_permissions(codepilotx_exec_server::LOCAL_ENVIRONMENT_ID)
             .await,
         None
     );
@@ -5528,19 +5528,19 @@ async fn record_granted_request_permissions_for_turn_uses_originating_turn() {
     *session.active_turn.lock().await = Some(current_active_turn);
 
     let requested_permissions = RequestPermissionProfile {
-        network: Some(codex_protocol::models::NetworkPermissions {
+        network: Some(codepilotx_protocol::models::NetworkPermissions {
             enabled: Some(true),
         }),
         ..RequestPermissionProfile::default()
     };
     session
         .record_granted_request_permissions_for_turn(
-            &codex_protocol::request_permissions::RequestPermissionsResponse {
+            &codepilotx_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: requested_permissions.clone(),
                 scope: PermissionGrantScope::Turn,
                 strict_auto_review: false,
             },
-            codex_exec_server::LOCAL_ENVIRONMENT_ID,
+            codepilotx_exec_server::LOCAL_ENVIRONMENT_ID,
             Some(&originating_turn_state),
         )
         .await;
@@ -5549,19 +5549,19 @@ async fn record_granted_request_permissions_for_turn_uses_originating_turn() {
         originating_turn_state
             .lock()
             .await
-            .granted_permissions(codex_exec_server::LOCAL_ENVIRONMENT_ID),
+            .granted_permissions(codepilotx_exec_server::LOCAL_ENVIRONMENT_ID),
         Some(requested_permissions.into())
     );
     assert_eq!(
         current_turn_state
             .lock()
             .await
-            .granted_permissions(codex_exec_server::LOCAL_ENVIRONMENT_ID),
+            .granted_permissions(codepilotx_exec_server::LOCAL_ENVIRONMENT_ID),
         None
     );
     assert_eq!(
         session
-            .granted_turn_permissions(codex_exec_server::LOCAL_ENVIRONMENT_ID)
+            .granted_turn_permissions(codepilotx_exec_server::LOCAL_ENVIRONMENT_ID)
             .await,
         None
     );
@@ -5575,14 +5575,14 @@ async fn request_permission_grants_are_environment_keyed() {
     *session.active_turn.lock().await = Some(originating_active_turn);
 
     let requested_permissions = RequestPermissionProfile {
-        network: Some(codex_protocol::models::NetworkPermissions {
+        network: Some(codepilotx_protocol::models::NetworkPermissions {
             enabled: Some(true),
         }),
         ..RequestPermissionProfile::default()
     };
     session
         .record_granted_request_permissions_for_turn(
-            &codex_protocol::request_permissions::RequestPermissionsResponse {
+            &codepilotx_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: requested_permissions.clone(),
                 scope: PermissionGrantScope::Turn,
                 strict_auto_review: false,
@@ -5603,7 +5603,7 @@ async fn request_permission_grants_are_environment_keyed() {
 
     session
         .record_granted_request_permissions_for_turn(
-            &codex_protocol::request_permissions::RequestPermissionsResponse {
+            &codepilotx_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: requested_permissions.clone(),
                 scope: PermissionGrantScope::Session,
                 strict_auto_review: false,
@@ -5628,19 +5628,19 @@ async fn enable_strict_auto_review_for_turn_uses_originating_turn() {
     *session.active_turn.lock().await = Some(originating_active_turn);
 
     let requested_permissions = RequestPermissionProfile {
-        network: Some(codex_protocol::models::NetworkPermissions {
+        network: Some(codepilotx_protocol::models::NetworkPermissions {
             enabled: Some(true),
         }),
         ..RequestPermissionProfile::default()
     };
     session
         .record_granted_request_permissions_for_turn(
-            &codex_protocol::request_permissions::RequestPermissionsResponse {
+            &codepilotx_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: requested_permissions.clone(),
                 scope: PermissionGrantScope::Turn,
                 strict_auto_review: true,
             },
-            codex_exec_server::LOCAL_ENVIRONMENT_ID,
+            codepilotx_exec_server::LOCAL_ENVIRONMENT_ID,
             Some(&originating_turn_state),
         )
         .await;
@@ -5656,7 +5656,7 @@ async fn enable_strict_auto_review_for_turn_uses_originating_turn() {
 #[test]
 fn strict_auto_review_session_scope_grants_no_permissions() {
     let requested_permissions = RequestPermissionProfile {
-        network: Some(codex_protocol::models::NetworkPermissions {
+        network: Some(codepilotx_protocol::models::NetworkPermissions {
             enabled: Some(true),
         }),
         ..RequestPermissionProfile::default()
@@ -5664,7 +5664,7 @@ fn strict_auto_review_session_scope_grants_no_permissions() {
 
     let response = Session::normalize_request_permissions_response(
         requested_permissions.clone(),
-        codex_protocol::request_permissions::RequestPermissionsResponse {
+        codepilotx_protocol::request_permissions::RequestPermissionsResponse {
             permissions: requested_permissions,
             scope: PermissionGrantScope::Session,
             strict_auto_review: true,
@@ -5674,7 +5674,7 @@ fn strict_auto_review_session_scope_grants_no_permissions() {
 
     assert_eq!(
         response,
-        codex_protocol::request_permissions::RequestPermissionsResponse {
+        codepilotx_protocol::request_permissions::RequestPermissionsResponse {
             permissions: RequestPermissionProfile::default(),
             scope: PermissionGrantScope::Turn,
             strict_auto_review: false,
@@ -5701,9 +5701,9 @@ async fn request_permissions_emits_event_when_granular_policy_allows_requests() 
     let session = Arc::new(session);
     let turn_context = Arc::new(turn_context);
     let call_id = "call-1".to_string();
-    let expected_response = codex_protocol::request_permissions::RequestPermissionsResponse {
+    let expected_response = codepilotx_protocol::request_permissions::RequestPermissionsResponse {
         permissions: RequestPermissionProfile {
-            network: Some(codex_protocol::models::NetworkPermissions {
+            network: Some(codepilotx_protocol::models::NetworkPermissions {
                 enabled: Some(true),
             }),
             ..RequestPermissionProfile::default()
@@ -5726,11 +5726,11 @@ async fn request_permissions_emits_event_when_granular_policy_allows_requests() 
                 .request_permissions_for_environment(
                     &turn_context,
                     call_id,
-                    codex_protocol::request_permissions::RequestPermissionsArgs {
+                    codepilotx_protocol::request_permissions::RequestPermissionsArgs {
                         environment_id: None,
                         reason: Some("need network".to_string()),
                         permissions: RequestPermissionProfile {
-                            network: Some(codex_protocol::models::NetworkPermissions {
+                            network: Some(codepilotx_protocol::models::NetworkPermissions {
                                 enabled: Some(true),
                             }),
                             ..RequestPermissionProfile::default()
@@ -5753,7 +5753,7 @@ async fn request_permissions_emits_event_when_granular_policy_allows_requests() 
     assert_eq!(request.call_id, call_id);
     assert_eq!(
         request.environment_id.as_deref(),
-        Some(codex_exec_server::LOCAL_ENVIRONMENT_ID)
+        Some(codepilotx_exec_server::LOCAL_ENVIRONMENT_ID)
     );
     #[allow(deprecated)]
     let turn_cwd = turn_context.cwd.clone();
@@ -5816,7 +5816,7 @@ async fn request_permissions_tool_resolves_relative_paths_against_selected_envir
                     cancellation_token: CancellationToken::new(),
                     tracker,
                     call_id,
-                    tool_name: codex_tools::ToolName::plain("request_permissions"),
+                    tool_name: codepilotx_tools::ToolName::plain("request_permissions"),
                     source: ToolCallSource::Direct,
                     payload: ToolPayload::Function {
                         arguments: json!({
@@ -5866,7 +5866,7 @@ async fn request_permissions_tool_resolves_relative_paths_against_selected_envir
     session
         .notify_request_permissions_response(
             &request.call_id,
-            codex_protocol::request_permissions::RequestPermissionsResponse {
+            codepilotx_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: request.permissions,
                 scope: PermissionGrantScope::Turn,
                 strict_auto_review: false,
@@ -5890,7 +5890,7 @@ async fn request_permissions_tool_rejects_unknown_environment_id() {
             cancellation_token: CancellationToken::new(),
             tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
             call_id: "call-1".to_string(),
-            tool_name: codex_tools::ToolName::plain("request_permissions"),
+            tool_name: codepilotx_tools::ToolName::plain("request_permissions"),
             source: ToolCallSource::Direct,
             payload: ToolPayload::Function {
                 arguments: json!({
@@ -5959,7 +5959,7 @@ async fn request_permissions_response_materializes_session_cwd_grants_before_rec
                 .request_permissions_for_environment(
                     &turn_context,
                     call_id,
-                    codex_protocol::request_permissions::RequestPermissionsArgs {
+                    codepilotx_protocol::request_permissions::RequestPermissionsArgs {
                         environment_id: None,
                         reason: Some("need cwd write".to_string()),
                         permissions: requested_permissions,
@@ -5980,14 +5980,14 @@ async fn request_permissions_response_materializes_session_cwd_grants_before_rec
     };
     assert_eq!(
         request.environment_id.as_deref(),
-        Some(codex_exec_server::LOCAL_ENVIRONMENT_ID)
+        Some(codepilotx_exec_server::LOCAL_ENVIRONMENT_ID)
     );
     let request_cwd = request.cwd.clone().expect("request cwd");
 
     session
         .notify_request_permissions_response(
             &request.call_id,
-            codex_protocol::request_permissions::RequestPermissionsResponse {
+            codepilotx_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: request.permissions,
                 scope: PermissionGrantScope::Session,
                 strict_auto_review: false,
@@ -6002,7 +6002,7 @@ async fn request_permissions_response_materializes_session_cwd_grants_before_rec
         )),
         ..Default::default()
     };
-    let expected_response = codex_protocol::request_permissions::RequestPermissionsResponse {
+    let expected_response = codepilotx_protocol::request_permissions::RequestPermissionsResponse {
         permissions: expected_permissions.clone(),
         scope: PermissionGrantScope::Session,
         strict_auto_review: false,
@@ -6016,7 +6016,7 @@ async fn request_permissions_response_materializes_session_cwd_grants_before_rec
     assert_eq!(response, Some(expected_response));
     assert_eq!(
         session
-            .granted_session_permissions(codex_exec_server::LOCAL_ENVIRONMENT_ID)
+            .granted_session_permissions(codepilotx_exec_server::LOCAL_ENVIRONMENT_ID)
             .await,
         Some(expected_permissions.into())
     );
@@ -6050,11 +6050,11 @@ async fn request_permissions_is_auto_denied_when_granular_policy_blocks_tool_req
         .request_permissions_for_environment(
             &turn_context,
             call_id,
-            codex_protocol::request_permissions::RequestPermissionsArgs {
+            codepilotx_protocol::request_permissions::RequestPermissionsArgs {
                 environment_id: None,
                 reason: Some("need network".to_string()),
                 permissions: RequestPermissionProfile {
-                    network: Some(codex_protocol::models::NetworkPermissions {
+                    network: Some(codepilotx_protocol::models::NetworkPermissions {
                         enabled: Some(true),
                     }),
                     ..RequestPermissionProfile::default()
@@ -6068,7 +6068,7 @@ async fn request_permissions_is_auto_denied_when_granular_policy_blocks_tool_req
     assert_eq!(
         response,
         Some(
-            codex_protocol::request_permissions::RequestPermissionsResponse {
+            codepilotx_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: RequestPermissionProfile::default(),
                 scope: PermissionGrantScope::Turn,
                 strict_auto_review: false,
@@ -6263,16 +6263,16 @@ async fn user_turn_updates_approvals_reviewer() {
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(config.cwd.clone())),
                 approval_policy: Some(config.permissions.approval_policy.value()),
-                approvals_reviewer: Some(codex_config::types::ApprovalsReviewer::AutoReview),
+                approvals_reviewer: Some(codepilotx_config::types::ApprovalsReviewer::AutoReview),
                 sandbox_policy: Some(config.legacy_sandbox_policy()),
                 summary: config.model_reasoning_summary,
                 personality: config.personality,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                    mode: codepilotx_protocol::config_types::ModeKind::Default,
+                    settings: codepilotx_protocol::config_types::Settings {
                         model: turn_context.model_info.slug.clone(),
                         reasoning_effort: config.model_reasoning_effort.clone(),
                         developer_instructions: None,
@@ -6288,7 +6288,7 @@ async fn user_turn_updates_approvals_reviewer() {
     let state = session.state.lock().await;
     assert_eq!(
         state.session_configuration.approvals_reviewer,
-        codex_config::types::ApprovalsReviewer::AutoReview
+        codepilotx_config::types::ApprovalsReviewer::AutoReview
     );
 }
 
@@ -6415,7 +6415,7 @@ async fn primary_environment_uses_first_turn_environment() {
     let first_environment = turn_context.environments.turn_environments[0].clone();
     #[allow(deprecated)]
     let second_cwd = turn_context.cwd.join("second");
-    let second_cwd_uri = codex_utils_path_uri::PathUri::from_abs_path(&second_cwd);
+    let second_cwd_uri = codepilotx_utils_path_uri::PathUri::from_abs_path(&second_cwd);
     turn_context
         .environments
         .turn_environments
@@ -6567,8 +6567,8 @@ async fn spawn_task_turn_span_inherits_dispatch_trace_context() {
         .clone()
         .expect("turn task should capture the current span trace context");
     let submission_context =
-        codex_otel::context_from_w3c_trace_context(&submission_trace).expect("submission");
-    let task_context = codex_otel::context_from_w3c_trace_context(&task_trace).expect("task trace");
+        codepilotx_otel::context_from_w3c_trace_context(&submission_trace).expect("submission");
+    let task_context = codepilotx_otel::context_from_w3c_trace_context(&task_trace).expect("task trace");
 
     assert_eq!(
         task_context.span().span_context().trace_id(),
@@ -6584,8 +6584,8 @@ async fn spawn_task_turn_span_inherits_dispatch_trace_context() {
 #[tokio::test]
 async fn shutdown_complete_does_not_append_to_thread_store_after_shutdown() {
     let (mut session, _turn_context) = make_session_and_context().await;
-    let store = Arc::new(codex_thread_store::InMemoryThreadStore::default());
-    let thread_store: Arc<dyn codex_thread_store::ThreadStore> = store.clone();
+    let store = Arc::new(codepilotx_thread_store::InMemoryThreadStore::default());
+    let thread_store: Arc<dyn codepilotx_thread_store::ThreadStore> = store.clone();
     let config = session.get_config().await;
     let live_thread = LiveThread::create(
         Arc::clone(&thread_store),
@@ -6619,7 +6619,7 @@ async fn shutdown_complete_does_not_append_to_thread_store_after_shutdown() {
     assert!(handlers::shutdown(&session, "sub-1".to_string()).await);
 
     assert_eq!(
-        codex_thread_store::InMemoryThreadStoreCalls {
+        codepilotx_thread_store::InMemoryThreadStoreCalls {
             create_thread: 1,
             shutdown_thread: 1,
             ..Default::default()
@@ -6638,11 +6638,11 @@ async fn submission_loop_channel_close_emits_thread_stop_lifecycle() {
         expected_thread_id: ThreadId,
     }
 
-    impl codex_extension_api::ThreadLifecycleContributor<crate::config::Config> for ThreadStopRecorder {
+    impl codepilotx_extension_api::ThreadLifecycleContributor<crate::config::Config> for ThreadStopRecorder {
         fn on_thread_stop<'a>(
             &'a self,
-            input: codex_extension_api::ThreadStopInput<'a>,
-        ) -> codex_extension_api::ExtensionFuture<'a, ()> {
+            input: codepilotx_extension_api::ThreadStopInput<'a>,
+        ) -> codepilotx_extension_api::ExtensionFuture<'a, ()> {
             Box::pin(async move {
                 assert_eq!(
                     self.expected_thread_id.to_string(),
@@ -6657,7 +6657,7 @@ async fn submission_loop_channel_close_emits_thread_stop_lifecycle() {
 
     let (mut session, turn_context) = make_session_and_context().await;
     let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.thread_lifecycle_contributor(Arc::new(ThreadStopRecorder {
         calls: Arc::clone(&calls),
         expected_thread_id: session.thread_id,
@@ -6688,11 +6688,11 @@ async fn submission_loop_channel_close_aborts_active_turn_before_thread_stop_lif
         expected_turn_id: String,
     }
 
-    impl codex_extension_api::ThreadLifecycleContributor<crate::config::Config> for LifecycleRecorder {
+    impl codepilotx_extension_api::ThreadLifecycleContributor<crate::config::Config> for LifecycleRecorder {
         fn on_thread_stop<'a>(
             &'a self,
-            input: codex_extension_api::ThreadStopInput<'a>,
-        ) -> codex_extension_api::ExtensionFuture<'a, ()> {
+            input: codepilotx_extension_api::ThreadStopInput<'a>,
+        ) -> codepilotx_extension_api::ExtensionFuture<'a, ()> {
             Box::pin(async move {
                 assert_eq!(
                     self.expected_thread_id.to_string(),
@@ -6706,11 +6706,11 @@ async fn submission_loop_channel_close_aborts_active_turn_before_thread_stop_lif
         }
     }
 
-    impl codex_extension_api::TurnLifecycleContributor for LifecycleRecorder {
+    impl codepilotx_extension_api::TurnLifecycleContributor for LifecycleRecorder {
         fn on_turn_abort<'a>(
             &'a self,
-            input: codex_extension_api::TurnAbortInput<'a>,
-        ) -> codex_extension_api::ExtensionFuture<'a, ()> {
+            input: codepilotx_extension_api::TurnAbortInput<'a>,
+        ) -> codepilotx_extension_api::ExtensionFuture<'a, ()> {
             Box::pin(async move {
                 assert_eq!(
                     self.expected_thread_id.to_string(),
@@ -6733,7 +6733,7 @@ async fn submission_loop_channel_close_aborts_active_turn_before_thread_stop_lif
         expected_thread_id: session.thread_id,
         expected_turn_id: turn_context.sub_id.clone(),
     });
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.thread_lifecycle_contributor(recorder.clone());
     builder.turn_lifecycle_contributor(recorder);
     session.services.extensions = Arc::new(builder.build());
@@ -6995,11 +6995,11 @@ async fn make_session_and_context_with_auth_and_config_and_rx<F>(
 where
     F: FnOnce(&mut Config),
 {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
+    let codepilotx_home = tempfile::tempdir().expect("create temp dir");
     make_session_and_context_with_auth_config_home_and_rx(
         auth,
         dynamic_tools,
-        codex_home.path(),
+        codepilotx_home.path(),
         configure_config,
     )
     .await
@@ -7008,7 +7008,7 @@ where
 async fn make_session_and_context_with_auth_config_home_and_rx<F>(
     auth: CodexAuth,
     dynamic_tools: Vec<DynamicToolSpec>,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     configure_config: F,
 ) -> (
     Arc<Session>,
@@ -7019,14 +7019,14 @@ where
     F: FnOnce(&mut Config),
 {
     let (tx_event, rx_event) = async_channel::unbounded();
-    let mut config = build_test_config(codex_home).await;
+    let mut config = build_test_config(codepilotx_home).await;
     configure_config(&mut config);
     let state_db = None;
     let config = Arc::new(config);
     let thread_id = ThreadId::default();
     let auth_manager = AuthManager::from_auth_for_testing(auth);
     let models_manager = models_manager_with_provider(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
         auth_manager.clone(),
         config.model_provider.clone(),
     );
@@ -7066,7 +7066,7 @@ where
         windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
         environments: TurnEnvironmentSelections::new(config.cwd.clone(), default_environments),
         workspace_roots: config.workspace_roots.clone(),
-        codex_home: config.codex_home.clone(),
+        codepilotx_home: config.codepilotx_home.clone(),
         thread_name: None,
         original_config_do_not_use: Arc::clone(&config),
         metrics_service_name: None,
@@ -7108,10 +7108,10 @@ where
             .expect("primary environment")
             .environment,
     );
-    let plugins_manager = Arc::new(PluginsManager::new(config.codex_home.to_path_buf()));
+    let plugins_manager = Arc::new(PluginsManager::new(config.codepilotx_home.to_path_buf()));
     let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
     let skills_service = Arc::new(SkillsService::new(
-        config.codex_home.clone(),
+        config.codepilotx_home.clone(),
         /*bundled_skills_enabled*/ true,
     ));
     let network_approval = Arc::new(NetworkApprovalService::default());
@@ -7138,7 +7138,7 @@ where
             legacy_notify_argv: config.notify.clone(),
             ..HooksConfig::default()
         })),
-        rollout_thread_trace: codex_rollout_trace::ThreadTraceContext::disabled(),
+        rollout_thread_trace: codepilotx_rollout_trace::ThreadTraceContext::disabled(),
         user_shell: Arc::new(default_user_shell()),
         show_raw_agent_reasoning: config.show_raw_agent_reasoning,
         exec_policy,
@@ -7152,12 +7152,12 @@ where
         skills_service,
         plugins_manager,
         mcp_manager,
-        extensions: Arc::new(codex_extension_api::ExtensionRegistryBuilder::new().build()),
-        session_extension_data: codex_extension_api::ExtensionData::new(
+        extensions: Arc::new(codepilotx_extension_api::ExtensionRegistryBuilder::new().build()),
+        session_extension_data: codepilotx_extension_api::ExtensionData::new(
             agent_control.session_id().to_string(),
         ),
-        thread_extension_data: codex_extension_api::ExtensionData::new(thread_id.to_string()),
-        mcp_thread_init: codex_extension_api::ExtensionDataInit::default(),
+        thread_extension_data: codepilotx_extension_api::ExtensionData::new(thread_id.to_string()),
+        mcp_thread_init: codepilotx_extension_api::ExtensionDataInit::default(),
         supports_openai_form_elicitation: std::sync::atomic::AtomicBool::new(false),
         agent_control,
         network_proxy: arc_swap::ArcSwapOption::from(None),
@@ -7166,8 +7166,8 @@ where
         network_approval: Arc::clone(&network_approval),
         state_db: state_db.clone(),
         live_thread: None,
-        thread_store: Arc::new(codex_thread_store::LocalThreadStore::new(
-            codex_thread_store::LocalThreadStoreConfig::from_config(config.as_ref()),
+        thread_store: Arc::new(codepilotx_thread_store::LocalThreadStore::new(
+            codepilotx_thread_store::LocalThreadStoreConfig::from_config(config.as_ref()),
             state_db,
         )),
         attestation_provider: None,
@@ -7650,20 +7650,20 @@ struct TurnContextExtensionTestState {
     expected_model_context_window: Option<i64>,
 }
 
-impl codex_extension_api::ContextContributor for PromptExtensionTestContributor {
+impl codepilotx_extension_api::ContextContributor for PromptExtensionTestContributor {
     fn contribute_thread_context<'a>(
         &'a self,
-        _session_store: &'a codex_extension_api::ExtensionData,
-        thread_store: &'a codex_extension_api::ExtensionData,
+        _session_store: &'a codepilotx_extension_api::ExtensionData,
+        thread_store: &'a codepilotx_extension_api::ExtensionData,
     ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Vec<codex_extension_api::PromptFragment>> + Send + 'a>,
+        Box<dyn std::future::Future<Output = Vec<codepilotx_extension_api::PromptFragment>> + Send + 'a>,
     > {
         Box::pin(async move {
             thread_store
                 .get::<PromptExtensionTestState>()
                 .is_some()
                 .then(|| {
-                    codex_extension_api::PromptFragment::developer_policy(
+                    codepilotx_extension_api::PromptFragment::developer_policy(
                         "prompt extension enabled",
                     )
                 })
@@ -7674,18 +7674,18 @@ impl codex_extension_api::ContextContributor for PromptExtensionTestContributor 
 }
 
 fn prompt_extension_test_registry()
--> Arc<codex_extension_api::ExtensionRegistry<crate::config::Config>> {
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::new();
+-> Arc<codepilotx_extension_api::ExtensionRegistry<crate::config::Config>> {
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::new();
     builder.prompt_contributor(Arc::new(PromptExtensionTestContributor));
     Arc::new(builder.build())
 }
 
-impl codex_extension_api::ContextContributor for TurnContextExtensionTestContributor {
+impl codepilotx_extension_api::ContextContributor for TurnContextExtensionTestContributor {
     fn contribute_turn_context<'a>(
         &'a self,
-        input: codex_extension_api::TurnContextContributionInput<'a>,
+        input: codepilotx_extension_api::TurnContextContributionInput<'a>,
     ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Vec<codex_extension_api::PromptFragment>> + Send + 'a>,
+        Box<dyn std::future::Future<Output = Vec<codepilotx_extension_api::PromptFragment>> + Send + 'a>,
     > {
         Box::pin(async move {
             let Some(state) = input.turn_store.get::<TurnContextExtensionTestState>() else {
@@ -7695,7 +7695,7 @@ impl codex_extension_api::ContextContributor for TurnContextExtensionTestContrib
                 && input.model_context_window.is_some()
                 && !input.turn_id.is_empty())
             .then(|| {
-                codex_extension_api::PromptFragment::developer_policy(
+                codepilotx_extension_api::PromptFragment::developer_policy(
                     "turn context extension enabled",
                 )
             })
@@ -7729,7 +7729,7 @@ async fn build_initial_context_includes_prompt_fragments_from_extensions() {
 #[tokio::test]
 async fn build_initial_context_includes_turn_context_fragments_from_extensions() {
     let (mut session, mut turn_context) = make_session_and_context().await;
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::new();
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::new();
     builder.prompt_contributor(Arc::new(TurnContextExtensionTestContributor));
     session.services.extensions = Arc::new(builder.build());
     turn_context.model_info.context_window = Some(100);
@@ -7755,7 +7755,7 @@ async fn build_initial_context_includes_turn_context_fragments_from_extensions()
 #[tokio::test]
 async fn record_context_updates_includes_turn_context_fragments_on_steady_state_turns() {
     let (mut session, mut turn_context) = make_session_and_context().await;
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::new();
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::new();
     builder.prompt_contributor(Arc::new(TurnContextExtensionTestContributor));
     session.services.extensions = Arc::new(builder.build());
     turn_context.model_info.context_window = Some(200);
@@ -8164,7 +8164,7 @@ async fn handle_output_item_done_records_image_save_history_message() {
     let turn_context = Arc::new(turn_context);
     let call_id = "ig_history_records_message";
     let expected_saved_path = crate::stream_events_utils::image_generation_artifact_path(
-        &turn_context.config.codex_home,
+        &turn_context.config.codepilotx_home,
         &session.thread_id.to_string(),
         call_id,
     );
@@ -8180,7 +8180,7 @@ async fn handle_output_item_done_records_image_save_history_message() {
     let mut ctx = HandleOutputCtx {
         sess: Arc::clone(&session),
         turn_context: Arc::clone(&turn_context),
-        turn_store: Arc::new(codex_extension_api::ExtensionData::new(
+        turn_store: Arc::new(codepilotx_extension_api::ExtensionData::new(
             turn_context.sub_id.clone(),
         )),
         tool_runtime: test_tool_runtime(Arc::clone(&session), Arc::clone(&turn_context)),
@@ -8192,7 +8192,7 @@ async fn handle_output_item_done_records_image_save_history_message() {
 
     let history = session.clone_history().await;
     let image_output_path = crate::stream_events_utils::image_generation_artifact_path(
-        &turn_context.config.codex_home,
+        &turn_context.config.codepilotx_home,
         &session.thread_id.to_string(),
         "<image_id>",
     );
@@ -8221,7 +8221,7 @@ async fn handle_output_item_done_skips_image_save_message_when_save_fails() {
     let turn_context = Arc::new(turn_context);
     let call_id = "ig_history_no_message";
     let expected_saved_path = crate::stream_events_utils::image_generation_artifact_path(
-        &turn_context.config.codex_home,
+        &turn_context.config.codepilotx_home,
         &session.thread_id.to_string(),
         call_id,
     );
@@ -8237,7 +8237,7 @@ async fn handle_output_item_done_skips_image_save_message_when_save_fails() {
     let mut ctx = HandleOutputCtx {
         sess: Arc::clone(&session),
         turn_context: Arc::clone(&turn_context),
-        turn_store: Arc::new(codex_extension_api::ExtensionData::new(
+        turn_store: Arc::new(codepilotx_extension_api::ExtensionData::new(
             turn_context.sub_id.clone(),
         )),
         tool_runtime: test_tool_runtime(Arc::clone(&session), Arc::clone(&turn_context)),
@@ -8967,8 +8967,8 @@ async fn task_finish_emits_turn_item_lifecycle_for_leftover_pending_user_input()
 
     while rx.try_recv().is_ok() {}
 
-    let text_element = codex_protocol::user_input::TextElement::new(
-        codex_protocol::user_input::ByteRange { start: 5, end: 12 },
+    let text_element = codepilotx_protocol::user_input::TextElement::new(
+        codepilotx_protocol::user_input::ByteRange { start: 5, end: 12 },
         Some("pending marker".to_string()),
     );
     let pending_user_input = vec![UserInput::Text {
@@ -9075,11 +9075,11 @@ async fn task_finish_emits_thread_idle_lifecycle_after_active_turn_clears() {
         expected_thread_id: ThreadId,
     }
 
-    impl codex_extension_api::ThreadLifecycleContributor<crate::config::Config> for ThreadIdleRecorder {
+    impl codepilotx_extension_api::ThreadLifecycleContributor<crate::config::Config> for ThreadIdleRecorder {
         fn on_thread_idle<'a>(
             &'a self,
-            input: codex_extension_api::ThreadIdleInput<'a>,
-        ) -> codex_extension_api::ExtensionFuture<'a, ()> {
+            input: codepilotx_extension_api::ThreadIdleInput<'a>,
+        ) -> codepilotx_extension_api::ExtensionFuture<'a, ()> {
             Box::pin(async move {
                 assert_eq!(
                     self.expected_thread_id.to_string(),
@@ -9094,7 +9094,7 @@ async fn task_finish_emits_thread_idle_lifecycle_after_active_turn_clears() {
     let (mut session, turn_context) = make_session_and_context().await;
     let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let (idle_tx, idle_rx) = async_channel::bounded(1);
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.thread_lifecycle_contributor(Arc::new(ThreadIdleRecorder {
         calls: Arc::clone(&calls),
         idle_tx,
@@ -9121,11 +9121,11 @@ async fn thread_idle_lifecycle_waits_for_trigger_turn_mailbox_work() {
         calls: Arc<std::sync::atomic::AtomicUsize>,
     }
 
-    impl codex_extension_api::ThreadLifecycleContributor<crate::config::Config> for ThreadIdleRecorder {
+    impl codepilotx_extension_api::ThreadLifecycleContributor<crate::config::Config> for ThreadIdleRecorder {
         fn on_thread_idle<'a>(
             &'a self,
-            _input: codex_extension_api::ThreadIdleInput<'a>,
-        ) -> codex_extension_api::ExtensionFuture<'a, ()> {
+            _input: codepilotx_extension_api::ThreadIdleInput<'a>,
+        ) -> codepilotx_extension_api::ExtensionFuture<'a, ()> {
             Box::pin(async move {
                 self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             })
@@ -9134,7 +9134,7 @@ async fn thread_idle_lifecycle_waits_for_trigger_turn_mailbox_work() {
 
     let (mut session, _turn_context) = make_session_and_context().await;
     let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.thread_lifecycle_contributor(Arc::new(ThreadIdleRecorder {
         calls: Arc::clone(&calls),
     }));
@@ -9693,7 +9693,7 @@ async fn tool_calls_reopen_mailbox_delivery_for_current_turn() {
     let mut ctx = HandleOutputCtx {
         sess: Arc::clone(&sess),
         turn_context: Arc::clone(&tc),
-        turn_store: Arc::new(codex_extension_api::ExtensionData::new(tc.sub_id.clone())),
+        turn_store: Arc::new(codepilotx_extension_api::ExtensionData::new(tc.sub_id.clone())),
         tool_runtime: test_tool_runtime(Arc::clone(&sess), Arc::clone(&tc)),
         cancellation_token: CancellationToken::new(),
     };
@@ -10030,8 +10030,8 @@ async fn rejects_escalated_permissions_when_policy_not_on_request() {
     use crate::sandboxing::SandboxPermissions;
     use crate::tools::sandboxing::ExecApprovalRequirement;
     use crate::turn_diff_tracker::TurnDiffTracker;
-    use codex_protocol::protocol::AskForApproval;
-    use codex_tools::ShellCommandBackendConfig;
+    use codepilotx_protocol::protocol::AskForApproval;
+    use codepilotx_tools::ShellCommandBackendConfig;
 
     let (session, mut turn_context_raw) = make_session_and_context().await;
     // Ensure policy is NOT OnRequest so the early rejection path triggers
@@ -10061,7 +10061,7 @@ async fn rejects_escalated_permissions_when_policy_not_on_request() {
             cancellation_token: CancellationToken::new(),
             tracker: Arc::clone(&turn_diff_tracker),
             call_id,
-            tool_name: codex_tools::ToolName::plain(tool_name),
+            tool_name: codepilotx_tools::ToolName::plain(tool_name),
             source: crate::tools::context::ToolCallSource::Direct,
             payload: ToolPayload::Function {
                 arguments: serde_json::json!({
@@ -10081,14 +10081,14 @@ async fn rejects_escalated_permissions_when_policy_not_on_request() {
     };
 
     let expected = format!(
-        "approval policy is {policy:?}; reject command â€” you should not ask for escalated permissions if the approval policy is {policy:?}",
+        "approval policy is {policy:?}; reject command â€?you should not ask for escalated permissions if the approval policy is {policy:?}",
         policy = turn_context.approval_policy.value()
     );
 
     pretty_assertions::assert_eq!(output, expected);
     pretty_assertions::assert_eq!(
         session
-            .granted_turn_permissions(codex_exec_server::LOCAL_ENVIRONMENT_ID)
+            .granted_turn_permissions(codepilotx_exec_server::LOCAL_ENVIRONMENT_ID)
             .await,
         None
     );
@@ -10195,7 +10195,7 @@ while :; do sleep 1; done"#,
 async fn unified_exec_rejects_escalated_permissions_when_policy_not_on_request() {
     use crate::sandboxing::SandboxPermissions;
     use crate::turn_diff_tracker::TurnDiffTracker;
-    use codex_protocol::protocol::AskForApproval;
+    use codepilotx_protocol::protocol::AskForApproval;
 
     let (session, mut turn_context_raw) = make_session_and_context().await;
     turn_context_raw
@@ -10214,7 +10214,7 @@ async fn unified_exec_rejects_escalated_permissions_when_policy_not_on_request()
             cancellation_token: CancellationToken::new(),
             tracker: Arc::clone(&tracker),
             call_id: "exec-call".to_string(),
-            tool_name: codex_tools::ToolName::plain("exec_command"),
+            tool_name: codepilotx_tools::ToolName::plain("exec_command"),
             source: crate::tools::context::ToolCallSource::Direct,
             payload: ToolPayload::Function {
                 arguments: serde_json::json!({
@@ -10232,7 +10232,7 @@ async fn unified_exec_rejects_escalated_permissions_when_policy_not_on_request()
     };
 
     let expected = format!(
-        "approval policy is {policy:?}; reject command â€” you cannot ask for escalated permissions if the approval policy is {policy:?}",
+        "approval policy is {policy:?}; reject command â€?you cannot ask for escalated permissions if the approval policy is {policy:?}",
         policy = turn_context.approval_policy.value()
     );
 
@@ -10242,31 +10242,31 @@ async fn unified_exec_rejects_escalated_permissions_when_policy_not_on_request()
 #[tokio::test]
 async fn session_start_hooks_only_load_from_trusted_project_layers() -> std::io::Result<()> {
     let temp = tempfile::tempdir()?;
-    let codex_home = temp.path().join("home");
+    let codepilotx_home = temp.path().join("home");
     let project_root = temp.path().join("project");
     let nested = project_root.join("nested");
     let root_dot_codex = project_root.join(".codex");
     let nested_dot_codex = nested.join(".codex");
 
-    std::fs::create_dir_all(&codex_home)?;
+    std::fs::create_dir_all(&codepilotx_home)?;
     std::fs::create_dir_all(&nested_dot_codex)?;
     std::fs::write(project_root.join(".git"), "gitdir: here")?;
     write_project_hooks(&root_dot_codex)?;
     write_project_hooks(&nested_dot_codex)?;
-    write_project_trust_config(&codex_home, &[(&nested, TrustLevel::Trusted)]).await?;
+    write_project_trust_config(&codepilotx_home, &[(&nested, TrustLevel::Trusted)]).await?;
 
     let config = ConfigBuilder::default()
-        .codex_home(codex_home)
+        .codepilotx_home(codepilotx_home)
         .fallback_cwd(Some(nested))
         .build()
         .await?;
 
-    let hook_list = codex_hooks::list_hooks(codex_hooks::HooksConfig {
+    let hook_list = codepilotx_hooks::list_hooks(codepilotx_hooks::HooksConfig {
         feature_enabled: true,
         config_layer_stack: Some(config.config_layer_stack.clone()),
-        ..codex_hooks::HooksConfig::default()
+        ..codepilotx_hooks::HooksConfig::default()
     });
-    let expected_source_path = codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(
+    let expected_source_path = codepilotx_utils_absolute_path::AbsolutePathBuf::from_absolute_path(
         nested_dot_codex.join("hooks.json"),
     )?;
     assert_eq!(
@@ -10279,7 +10279,7 @@ async fn session_start_hooks_only_load_from_trusted_project_layers() -> std::io:
     );
     assert_eq!(
         hook_list.hooks[0].trust_status,
-        codex_protocol::protocol::HookTrustStatus::Untrusted
+        codepilotx_protocol::protocol::HookTrustStatus::Untrusted
     );
     assert!(preview_session_start_hooks(&config).await?.is_empty());
 
@@ -10311,20 +10311,20 @@ async fn session_start_hooks_require_project_trust_without_config_toml() -> std:
     ];
 
     for (name, trust_entries, expected_hooks) in cases {
-        let codex_home = temp.path().join(format!("home_{name}"));
-        std::fs::create_dir_all(&codex_home)?;
-        write_project_trust_config(&codex_home, &trust_entries).await?;
+        let codepilotx_home = temp.path().join(format!("home_{name}"));
+        std::fs::create_dir_all(&codepilotx_home)?;
+        write_project_trust_config(&codepilotx_home, &trust_entries).await?;
 
         let config = ConfigBuilder::default()
-            .codex_home(codex_home)
+            .codepilotx_home(codepilotx_home)
             .fallback_cwd(Some(nested.clone()))
             .build()
             .await?;
 
-        let hook_list = codex_hooks::list_hooks(codex_hooks::HooksConfig {
+        let hook_list = codepilotx_hooks::list_hooks(codepilotx_hooks::HooksConfig {
             feature_enabled: true,
             config_layer_stack: Some(config.config_layer_stack.clone()),
-            ..codex_hooks::HooksConfig::default()
+            ..codepilotx_hooks::HooksConfig::default()
         });
         assert_eq!(
             hook_list.hooks.len(),
@@ -10335,7 +10335,7 @@ async fn session_start_hooks_require_project_trust_without_config_toml() -> std:
         if expected_hooks == 1 {
             assert_eq!(
                 hook_list.hooks[0].trust_status,
-                codex_protocol::protocol::HookTrustStatus::Untrusted
+                codepilotx_protocol::protocol::HookTrustStatus::Untrusted
             );
         }
     }

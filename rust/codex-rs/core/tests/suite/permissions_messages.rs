@@ -1,17 +1,17 @@
 use anyhow::Result;
-use codex_config::ConfigLayerStack;
-use codex_core::ForkSnapshot;
-use codex_core::config::Constrained;
-use codex_core::context::ContextualUserFragment;
-use codex_core::context::PermissionsInstructions;
-use codex_core::load_exec_policy;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_core::ForkSnapshot;
+use codepilotx_core::config::Constrained;
+use codepilotx_core::context::ContextualUserFragment;
+use codepilotx_core::context::PermissionsInstructions;
+use codepilotx_core::load_exec_policy;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
@@ -105,7 +105,7 @@ async fn permissions_message_added_on_override_change() -> Result<()> {
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        codepilotx_protocol::protocol::ThreadSettingsOverrides {
             approval_policy: Some(AskForApproval::Never),
             ..Default::default()
         },
@@ -234,7 +234,7 @@ async fn permissions_message_omitted_when_disabled() -> Result<()> {
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        codepilotx_protocol::protocol::ThreadSettingsOverrides {
             approval_policy: Some(AskForApproval::Never),
             ..Default::default()
         },
@@ -316,7 +316,7 @@ async fn resume_replays_permissions_messages() -> Result<()> {
 
     core_test_support::submit_thread_settings(
         &initial.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        codepilotx_protocol::protocol::ThreadSettingsOverrides {
             approval_policy: Some(AskForApproval::Never),
             ..Default::default()
         },
@@ -416,7 +416,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
 
     core_test_support::submit_thread_settings(
         &initial.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        codepilotx_protocol::protocol::ThreadSettingsOverrides {
             approval_policy: Some(AskForApproval::Never),
             ..Default::default()
         },

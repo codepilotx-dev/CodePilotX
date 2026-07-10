@@ -18,21 +18,21 @@ use crate::tools::sandboxing::ToolCtx;
 use crate::tools::sandboxing::ToolError;
 use crate::tools::sandboxing::ToolRuntime;
 use crate::tools::sandboxing::with_cached_approval;
-use codex_apply_patch::AppliedPatchDelta;
-use codex_apply_patch::ApplyPatchAction;
-use codex_exec_server::FileSystemSandboxContext;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::exec_output::StreamOutput;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::ReviewDecision;
-use codex_sandboxing::SandboxType;
-use codex_sandboxing::SandboxablePreference;
-use codex_sandboxing::policy_transforms::effective_permission_profile;
-use codex_utils_path_uri::PathUri;
+use codepilotx_apply_patch::AppliedPatchDelta;
+use codepilotx_apply_patch::ApplyPatchAction;
+use codepilotx_exec_server::FileSystemSandboxContext;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::SandboxErr;
+use codepilotx_protocol::exec_output::ExecToolCallOutput;
+use codepilotx_protocol::exec_output::StreamOutput;
+use codepilotx_protocol::models::AdditionalPermissionProfile;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::FileChange;
+use codepilotx_protocol::protocol::ReviewDecision;
+use codepilotx_sandboxing::SandboxType;
+use codepilotx_sandboxing::SandboxablePreference;
+use codepilotx_sandboxing::policy_transforms::effective_permission_profile;
+use codepilotx_utils_path_uri::PathUri;
 use futures::future::BoxFuture;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -249,7 +249,7 @@ impl ToolRuntime<ApplyPatchRequest, ApplyPatchRuntimeOutput> for ApplyPatchRunti
         let sandbox = Self::file_system_sandbox_context_for_attempt(req, attempt);
         let mut stdout = Vec::new();
         let mut stderr = Vec::new();
-        let result = codex_apply_patch::apply_patch(
+        let result = codepilotx_apply_patch::apply_patch(
             &req.action.patch,
             &req.action.cwd,
             &mut stdout,

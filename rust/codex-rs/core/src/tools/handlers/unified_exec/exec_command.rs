@@ -26,17 +26,17 @@ use crate::unified_exec::UnifiedExecContext;
 use crate::unified_exec::UnifiedExecError;
 use crate::unified_exec::UnifiedExecProcessManager;
 use crate::unified_exec::generate_chunk_id;
-use codex_features::Feature;
-use codex_otel::SessionTelemetry;
-use codex_otel::TOOL_CALL_UNIFIED_EXEC_METRIC;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxType;
-use codex_sandboxing::SandboxablePreference;
-use codex_shell_command::shell_detect::detect_shell_type;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
-use codex_utils_output_truncation::approx_token_count;
-use codex_utils_path_uri::PathConvention;
+use codepilotx_features::Feature;
+use codepilotx_otel::SessionTelemetry;
+use codepilotx_otel::TOOL_CALL_UNIFIED_EXEC_METRIC;
+use codepilotx_sandboxing::SandboxManager;
+use codepilotx_sandboxing::SandboxType;
+use codepilotx_sandboxing::SandboxablePreference;
+use codepilotx_shell_command::shell_detect::detect_shell_type;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSpec;
+use codepilotx_utils_output_truncation::approx_token_count;
+use codepilotx_utils_path_uri::PathConvention;
 
 use super::super::shell_spec::CommandToolOptions;
 use super::super::shell_spec::create_exec_command_tool_with_environment_id;
@@ -97,7 +97,7 @@ impl ToolExecutor<ToolInvocation> for ExecCommandHandler {
         true
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }
@@ -235,7 +235,7 @@ impl ExecCommandHandler {
         .map_err(FunctionCallError::RespondToModel)?;
         let command = resolved_command.command;
         let shell_type = resolved_command.shell_type;
-        let command_for_display = codex_shell_command::parse_command::shlex_join(&command);
+        let command_for_display = codepilotx_shell_command::parse_command::shlex_join(&command);
 
         let ExecCommandArgs {
             tty,
@@ -273,13 +273,13 @@ impl ExecCommandHandler {
             && !effective_additional_permissions.permissions_preapproved
             && !matches!(
                 context.turn.approval_policy.value(),
-                codex_protocol::protocol::AskForApproval::OnRequest
+                codepilotx_protocol::protocol::AskForApproval::OnRequest
             )
         {
             let approval_policy = context.turn.approval_policy.value();
             manager.release_process_id(process_id).await;
             return Err(FunctionCallError::RespondToModel(format!(
-                "approval policy is {approval_policy:?}; reject command â€” you cannot ask for escalated permissions if the approval policy is {approval_policy:?}"
+                "approval policy is {approval_policy:?}; reject command â€?you cannot ask for escalated permissions if the approval policy is {approval_policy:?}"
             )));
         }
 

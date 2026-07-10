@@ -1,12 +1,12 @@
-use codex_core::config::Constrained;
-use codex_core::sandboxing::SandboxPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::ReviewRequest;
-use codex_protocol::protocol::ReviewTarget;
+use codepilotx_core::config::Constrained;
+use codepilotx_core::sandboxing::SandboxPermissions;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::ReviewDecision;
+use codepilotx_protocol::protocol::ReviewRequest;
+use codepilotx_protocol::protocol::ReviewTarget;
 use core_test_support::responses::ev_apply_patch_custom_tool_call;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -26,7 +26,7 @@ use pretty_assertions::assert_eq;
 /// after parent submits an approval decision.
 #[ignore = "TODO once we have a delegate that can ask for approvals"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn codex_delegate_forwards_exec_approval_and_proceeds_on_approval() {
+async fn codepilotx_delegate_forwards_exec_approval_and_proceeds_on_approval() {
     skip_if_no_network!();
 
     // Sub-agent turn 1: emit a shell_command function_call requiring approval, then complete.
@@ -120,7 +120,7 @@ async fn codex_delegate_forwards_exec_approval_and_proceeds_on_approval() {
 /// so the sub-agent can proceed to completion.
 #[ignore = "TODO once we have a delegate that can ask for approvals"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn codex_delegate_forwards_patch_approval_and_proceeds_on_decision() {
+async fn codepilotx_delegate_forwards_patch_approval_and_proceeds_on_decision() {
     skip_if_no_network!();
 
     let call_id = "call-patch-1";
@@ -197,7 +197,7 @@ async fn codex_delegate_forwards_patch_approval_and_proceeds_on_decision() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn codex_delegate_ignores_legacy_deltas() {
+async fn codepilotx_delegate_ignores_legacy_deltas() {
     skip_if_no_network!();
 
     // Single response with reasoning summary deltas.

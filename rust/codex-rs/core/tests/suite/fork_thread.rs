@@ -1,14 +1,14 @@
-use codex_core::ForkSnapshot;
-use codex_core::NewThread;
-use codex_core::parse_turn_item;
-use codex_protocol::items::TurnItem;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ResumedHistory;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::user_input::UserInput;
+use codepilotx_core::ForkSnapshot;
+use codepilotx_core::NewThread;
+use codepilotx_core::parse_turn_item;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::InitialHistory;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::ResumedHistory;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::RolloutLine;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::sse;
@@ -32,7 +32,7 @@ async fn fork_thread_twice_drops_to_first_message() {
         .insert_header("content-type", "text/event-stream")
         .set_body_raw(sse.clone(), "text/event-stream");
 
-    // Expect three calls to /v1/responses â€“ one per user input.
+    // Expect three calls to /v1/responses â€?one per user input.
     Mock::given(method("POST"))
         .and(path("/v1/responses"))
         .respond_with(first)
@@ -87,15 +87,15 @@ async fn fork_thread_twice_drops_to_first_message() {
     };
     let user_inputs = find_user_input_positions(&base_items);
 
-    // After cutting at nth user input (n=1 â†’ second user message), cut strictly before that input.
+    // After cutting at nth user input (n=1 â†?second user message), cut strictly before that input.
     let cut1 = user_inputs.get(1).copied().unwrap_or(0);
     let expected_after_first: Vec<RolloutItem> = base_items[..cut1].to_vec();
 
     // After dropping again (n=1 on fork1), compute expected relative to fork1's rollout.
 
-    // Fork once with n=1 â†’ drops the last user input and everything after.
+    // Fork once with n=1 â†?drops the last user input and everything after.
     let NewThread {
-        thread: codex_fork1,
+        thread: codepilotx_fork1,
         ..
     } = thread_manager
         .fork_thread(
@@ -108,7 +108,7 @@ async fn fork_thread_twice_drops_to_first_message() {
         .await
         .expect("fork 1");
 
-    let fork1_path = codex_fork1.rollout_path().expect("rollout path");
+    let fork1_path = codepilotx_fork1.rollout_path().expect("rollout path");
 
     // GetHistory on fork1 flushed; the file is ready.
     let fork1_items = read_rollout_items(&fork1_path);
@@ -117,9 +117,9 @@ async fn fork_thread_twice_drops_to_first_message() {
         serde_json::to_value(&expected_after_first).unwrap()
     );
 
-    // Fork again with n=0 â†’ drops the (new) last user message, leaving only the first.
+    // Fork again with n=0 â†?drops the (new) last user message, leaving only the first.
     let NewThread {
-        thread: codex_fork2,
+        thread: codepilotx_fork2,
         ..
     } = thread_manager
         .fork_thread(
@@ -132,7 +132,7 @@ async fn fork_thread_twice_drops_to_first_message() {
         .await
         .expect("fork 2");
 
-    let fork2_path = codex_fork2.rollout_path().expect("rollout path");
+    let fork2_path = codepilotx_fork2.rollout_path().expect("rollout path");
     // GetHistory on fork2 flushed; the file is ready.
     let fork1_items = read_rollout_items(&fork1_path);
     let fork1_user_inputs = find_user_input_positions(&fork1_items);

@@ -1,11 +1,11 @@
-use codex_protocol::ThreadId;
+use codepilotx_protocol::ThreadId;
 #[cfg(test)]
-use codex_protocol::config_types::EnvironmentVariablePattern;
-use codex_protocol::config_types::ShellEnvironmentPolicy;
-use codex_protocol::shell_environment;
+use codepilotx_protocol::config_types::EnvironmentVariablePattern;
+use codepilotx_protocol::config_types::ShellEnvironmentPolicy;
+use codepilotx_protocol::shell_environment;
 use std::collections::HashMap;
 
-pub use codex_protocol::shell_environment::CODEX_THREAD_ID_ENV_VAR;
+pub use codepilotx_protocol::shell_environment::codepilotx_THREAD_ID_ENV_VAR;
 
 /// Construct an environment map based on the rules in the specified policy. The
 /// resulting map can be passed directly to `Command::envs()` after calling
@@ -15,7 +15,7 @@ pub use codex_protocol::shell_environment::CODEX_THREAD_ID_ENV_VAR;
 /// The derivation follows the algorithm documented in the struct-level comment
 /// for [`ShellEnvironmentPolicy`].
 ///
-/// `CODEX_THREAD_ID` is injected when a thread id is provided, even when
+/// `codepilotx_THREAD_ID` is injected when a thread id is provided, even when
 /// `include_only` is set.
 pub fn create_env(
     policy: &ShellEnvironmentPolicy,

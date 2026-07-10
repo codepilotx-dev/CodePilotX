@@ -10,21 +10,21 @@ use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
 use crate::tools::registry::ToolExposure;
 use crate::turn_timing::now_unix_timestamp_ms;
-use codex_protocol::dynamic_tools::DynamicToolCallRequest;
-use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceSpec;
-use codex_protocol::dynamic_tools::DynamicToolResponse;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::protocol::DynamicToolCallResponseEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_tools::ResponsesApiNamespace;
-use codex_tools::ResponsesApiNamespaceTool;
-use codex_tools::ToolName;
-use codex_tools::ToolSearchInfo;
-use codex_tools::ToolSearchSourceInfo;
-use codex_tools::ToolSpec;
-use codex_tools::default_namespace_description;
-use codex_tools::dynamic_tool_to_responses_api_tool;
+use codepilotx_protocol::dynamic_tools::DynamicToolCallRequest;
+use codepilotx_protocol::dynamic_tools::DynamicToolFunctionSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolNamespaceSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolResponse;
+use codepilotx_protocol::models::FunctionCallOutputContentItem;
+use codepilotx_protocol::protocol::DynamicToolCallResponseEvent;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_tools::ResponsesApiNamespace;
+use codepilotx_tools::ResponsesApiNamespaceTool;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSearchInfo;
+use codepilotx_tools::ToolSearchSourceInfo;
+use codepilotx_tools::ToolSpec;
+use codepilotx_tools::default_namespace_description;
+use codepilotx_tools::dynamic_tool_to_responses_api_tool;
 use serde_json::Value;
 use std::time::Instant;
 use tokio::sync::oneshot;
@@ -106,7 +106,7 @@ impl ToolExecutor<ToolInvocation> for DynamicToolHandler {
         )
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }

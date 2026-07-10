@@ -1,5 +1,5 @@
 use super::ContextualUserFragment;
-use codex_tools::DiscoverableTool;
+use codepilotx_tools::DiscoverableTool;
 
 const RECOMMENDED_PLUGINS_INTRO: &str = "Here is a list of plugins that are available but not installed. If the user's query would benefit from one of these plugins, use the `request_plugin_install` tool to suggest that they install it. Pass the parenthesized ID as `plugin_id`. For example, suggest the Google Drive plugin if the query could possibly be better answered with access to Google Drive.";
 const MAX_RECOMMENDED_PLUGINS: usize = 50;

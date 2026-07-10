@@ -5,11 +5,11 @@ use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_config::types::AppToolApproval;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::config::Config;
-use codex_features::Feature;
+use codepilotx_config::types::AppToolApproval;
+use codepilotx_config::types::McpServerConfig;
+use codepilotx_config::types::McpServerTransportConfig;
+use codepilotx_core::config::Config;
+use codepilotx_features::Feature;
 use core_test_support::hooks::trust_discovered_hooks;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -191,7 +191,7 @@ fn insert_rmcp_test_server(config: &mut Config, command: String, approval_mode: 
                 env_vars: Vec::new(),
                 cwd: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: codepilotx_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -304,7 +304,7 @@ async fn pre_tool_use_blocks_mcp_tool_before_execution(
         "blocked MCP tool output should surface the hook reason and tool name",
     );
 
-    let hook_inputs = read_hook_inputs(test.codex_home_path(), "pre_tool_use_hook_log.jsonl")?;
+    let hook_inputs = read_hook_inputs(test.codepilotx_home_path(), "pre_tool_use_hook_log.jsonl")?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(
         json!({
@@ -394,7 +394,7 @@ async fn pre_tool_use_rewrites_mcp_tool_before_execution() -> Result<()> {
         "MCP tool should not execute the original input",
     );
 
-    let hook_inputs = read_hook_inputs(test.codex_home_path(), "pre_tool_use_hook_log.jsonl")?;
+    let hook_inputs = read_hook_inputs(test.codepilotx_home_path(), "pre_tool_use_hook_log.jsonl")?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(
         hook_inputs[0]["tool_input"],
@@ -493,7 +493,7 @@ async fn post_tool_use_records_mcp_tool_payload_and_context(
         "MCP tool output should still reach the model",
     );
 
-    let hook_inputs = read_hook_inputs(test.codex_home_path(), "post_tool_use_hook_log.jsonl")?;
+    let hook_inputs = read_hook_inputs(test.codepilotx_home_path(), "post_tool_use_hook_log.jsonl")?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(
         json!({

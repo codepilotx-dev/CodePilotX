@@ -2,12 +2,12 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use codex_core::config::Config;
-use codex_core::config::Constrained;
-use codex_features::Feature;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
+use codepilotx_core::config::Config;
+use codepilotx_core::config::Constrained;
+use codepilotx_features::Feature;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_protocol::protocol::AskForApproval;
 
 use crate::test_codex::TestCodex;
 use crate::test_codex::test_codex;
@@ -64,7 +64,7 @@ pub fn zsh_fork_runtime(test_name: &str) -> Result<Option<ZshForkRuntime>> {
         );
         return Ok(None);
     }
-    let Ok(main_execve_wrapper_exe) = codex_utils_cargo_bin::cargo_bin("codex-execve-wrapper")
+    let Ok(main_execve_wrapper_exe) = codepilotx_utils_cargo_bin::cargo_bin("codex-execve-wrapper")
     else {
         eprintln!("skipping {test_name}: unable to resolve `codex-execve-wrapper` binary");
         return Ok(None);
@@ -122,7 +122,7 @@ where
 }
 
 fn find_test_zsh_path() -> Result<Option<PathBuf>> {
-    let repo_root = codex_utils_cargo_bin::repo_root()?;
+    let repo_root = codepilotx_utils_cargo_bin::repo_root()?;
     let dotslash_zsh = repo_root.join("codex-rs/app-server/tests/suite/zsh");
     if !dotslash_zsh.is_file() {
         eprintln!(

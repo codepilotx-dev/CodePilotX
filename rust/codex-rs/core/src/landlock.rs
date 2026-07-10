@@ -1,12 +1,12 @@
 use crate::spawn::SpawnChildRequest;
 use crate::spawn::StdioPolicy;
 use crate::spawn::spawn_child_async;
-use codex_network_proxy::NetworkProxy;
-use codex_protocol::models::PermissionProfile;
-use codex_sandboxing::landlock::CODEX_LINUX_SANDBOX_ARG0;
-use codex_sandboxing::landlock::allow_network_for_proxy;
-use codex_sandboxing::landlock::create_linux_sandbox_command_args_for_permission_profile;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_network_proxy::NetworkProxy;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_sandboxing::landlock::codepilotx_LINUX_SANDBOX_ARG0;
+use codepilotx_sandboxing::landlock::allow_network_for_proxy;
+use codepilotx_sandboxing::landlock::create_linux_sandbox_command_args_for_permission_profile;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashMap;
 use std::path::Path;
 use tokio::process::Child;
@@ -20,7 +20,7 @@ use tokio::process::Child;
 /// as JSON and let the helper derive the runtime filesystem/network policies.
 #[allow(clippy::too_many_arguments)]
 pub async fn spawn_command_under_linux_sandbox<P>(
-    codex_linux_sandbox_exe: P,
+    codepilotx_linux_sandbox_exe: P,
     command: Vec<String>,
     command_cwd: AbsolutePathBuf,
     permission_profile: &PermissionProfile,
@@ -42,22 +42,22 @@ where
         use_legacy_landlock,
         allow_network_for_proxy(/*enforce_managed_network*/ false),
     );
-    let codex_linux_sandbox_exe = codex_linux_sandbox_exe.as_ref();
+    let codepilotx_linux_sandbox_exe = codepilotx_linux_sandbox_exe.as_ref();
     // Preserve the helper alias when we already have it; otherwise force argv0
     // so arg0 dispatch still reaches the Linux sandbox path.
-    let arg0 = if codex_linux_sandbox_exe
+    let arg0 = if codepilotx_linux_sandbox_exe
         .file_name()
         .and_then(|name| name.to_str())
-        == Some(CODEX_LINUX_SANDBOX_ARG0)
+        == Some(codepilotx_LINUX_SANDBOX_ARG0)
     {
         // Old bubblewrap builds without `--argv0` need a real helper path whose
         // basename still dispatches to the Linux sandbox entrypoint.
-        codex_linux_sandbox_exe.to_string_lossy().into_owned()
+        codepilotx_linux_sandbox_exe.to_string_lossy().into_owned()
     } else {
-        CODEX_LINUX_SANDBOX_ARG0.to_string()
+        codepilotx_LINUX_SANDBOX_ARG0.to_string()
     };
     spawn_child_async(SpawnChildRequest {
-        program: codex_linux_sandbox_exe.to_path_buf(),
+        program: codepilotx_linux_sandbox_exe.to_path_buf(),
         args,
         arg0: Some(&arg0),
         cwd: command_cwd,

@@ -2,8 +2,7 @@
 Module: orchestrator
 
 Central place for approvals + sandbox selection + retry semantics. Drives a
-simple sequence for any ToolRuntime: approval â†’ select sandbox â†’ attempt â†’
-retry with an escalated sandbox strategy on denial (no reâ€‘approval thanks to
+simple sequence for any ToolRuntime: approval â†?select sandbox â†?attempt â†?retry with an escalated sandbox strategy on denial (no reâ€‘approval thanks to
 caching).
 */
 use crate::guardian::guardian_rejection_message;
@@ -29,17 +28,17 @@ use crate::tools::sandboxing::ToolRuntime;
 use crate::tools::sandboxing::default_exec_approval_requirement;
 use crate::tools::sandboxing::sandbox_override_for_first_attempt;
 use crate::tools::sandboxing::unsandboxed_execution_allowed;
-use codex_hooks::PermissionRequestDecision;
-use codex_otel::ToolDecisionSource;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::NetworkPolicyRuleAction;
-use codex_protocol::protocol::ReviewDecision;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxType;
-use codex_utils_path_uri::PathUri;
+use codepilotx_hooks::PermissionRequestDecision;
+use codepilotx_otel::ToolDecisionSource;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::SandboxErr;
+use codepilotx_protocol::exec_output::ExecToolCallOutput;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::NetworkPolicyRuleAction;
+use codepilotx_protocol::protocol::ReviewDecision;
+use codepilotx_sandboxing::SandboxManager;
+use codepilotx_sandboxing::SandboxType;
+use codepilotx_utils_path_uri::PathUri;
 use std::time::Instant;
 
 pub(crate) struct ToolOrchestrator {
@@ -91,7 +90,7 @@ impl ToolOrchestrator {
             manager: attempt.manager,
             sandbox_cwd: attempt.sandbox_cwd,
             workspace_roots: attempt.workspace_roots,
-            codex_linux_sandbox_exe: attempt.codex_linux_sandbox_exe,
+            codepilotx_linux_sandbox_exe: attempt.codepilotx_linux_sandbox_exe,
             use_legacy_landlock: attempt.use_legacy_landlock,
             windows_sandbox_level: attempt.windows_sandbox_level,
             windows_sandbox_private_desktop: attempt.windows_sandbox_private_desktop,
@@ -266,7 +265,7 @@ impl ToolOrchestrator {
             manager: &self.sandbox,
             sandbox_cwd: &sandbox_policy_cwd,
             workspace_roots: workspace_roots.as_slice(),
-            codex_linux_sandbox_exe: turn_ctx.config.codex_linux_sandbox_exe.as_ref(),
+            codepilotx_linux_sandbox_exe: turn_ctx.config.codepilotx_linux_sandbox_exe.as_ref(),
             use_legacy_landlock,
             windows_sandbox_level: turn_ctx.windows_sandbox_level,
             windows_sandbox_private_desktop: turn_ctx
@@ -434,10 +433,10 @@ impl ToolOrchestrator {
                 } else {
                     SandboxType::None
                 };
-                let retry_codex_linux_sandbox_exe = if unsandboxed_allowed {
+                let retry_codepilotx_linux_sandbox_exe = if unsandboxed_allowed {
                     None
                 } else {
-                    turn_ctx.config.codex_linux_sandbox_exe.as_ref()
+                    turn_ctx.config.codepilotx_linux_sandbox_exe.as_ref()
                 };
                 let retry_attempt = SandboxAttempt {
                     sandbox: retry_sandbox,
@@ -448,7 +447,7 @@ impl ToolOrchestrator {
                     manager: &self.sandbox,
                     sandbox_cwd: &sandbox_policy_cwd,
                     workspace_roots: workspace_roots.as_slice(),
-                    codex_linux_sandbox_exe: retry_codex_linux_sandbox_exe,
+                    codepilotx_linux_sandbox_exe: retry_codepilotx_linux_sandbox_exe,
                     use_legacy_landlock,
                     windows_sandbox_level: turn_ctx.windows_sandbox_level,
                     windows_sandbox_private_desktop: turn_ctx
@@ -517,7 +516,7 @@ impl ToolOrchestrator {
         approval_ctx: ApprovalCtx<'_>,
         tool_ctx: &ToolCtx,
         evaluate_permission_request_hooks: bool,
-        otel: &codex_otel::SessionTelemetry,
+        otel: &codepilotx_otel::SessionTelemetry,
     ) -> Result<ReviewDecision, ToolError>
     where
         T: ToolRuntime<Rq, Out>,

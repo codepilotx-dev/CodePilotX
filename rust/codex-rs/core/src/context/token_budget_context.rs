@@ -1,5 +1,5 @@
 use super::ContextualUserFragment;
-use codex_protocol::ThreadId;
+use codepilotx_protocol::ThreadId;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

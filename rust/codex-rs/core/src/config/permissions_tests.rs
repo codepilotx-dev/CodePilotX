@@ -1,23 +1,23 @@
 use super::*;
 use crate::config::Config;
 use crate::config::ConfigOverrides;
-use codex_config::config_toml::ConfigToml;
-use codex_config::permissions_toml::FilesystemPermissionToml;
-use codex_config::permissions_toml::FilesystemPermissionsToml;
-use codex_config::permissions_toml::NetworkDomainPermissionToml;
-use codex_config::permissions_toml::NetworkDomainPermissionsToml;
-use codex_config::permissions_toml::NetworkToml;
-use codex_config::permissions_toml::NetworkUnixSocketPermissionToml;
-use codex_config::permissions_toml::NetworkUnixSocketPermissionsToml;
-use codex_config::permissions_toml::PermissionProfileToml;
-use codex_config::permissions_toml::PermissionsToml;
-use codex_config::permissions_toml::WorkspaceRootsToml;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_config::config_toml::ConfigToml;
+use codepilotx_config::permissions_toml::FilesystemPermissionToml;
+use codepilotx_config::permissions_toml::FilesystemPermissionsToml;
+use codepilotx_config::permissions_toml::NetworkDomainPermissionToml;
+use codepilotx_config::permissions_toml::NetworkDomainPermissionsToml;
+use codepilotx_config::permissions_toml::NetworkToml;
+use codepilotx_config::permissions_toml::NetworkUnixSocketPermissionToml;
+use codepilotx_config::permissions_toml::NetworkUnixSocketPermissionsToml;
+use codepilotx_config::permissions_toml::PermissionProfileToml;
+use codepilotx_config::permissions_toml::PermissionsToml;
+use codepilotx_config::permissions_toml::WorkspaceRootsToml;
+use codepilotx_protocol::permissions::FileSystemAccessMode;
+use codepilotx_protocol::permissions::FileSystemPath;
+use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::permissions::FileSystemSpecialPath;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 use tempfile::TempDir;
@@ -47,9 +47,9 @@ fn windows_verbatim_path_prefix_does_not_count_as_glob_syntax() {
 async fn restricted_read_implicitly_allows_helper_executables() -> std::io::Result<()> {
     let temp_dir = TempDir::new()?;
     let cwd = temp_dir.path().join("workspace");
-    let codex_home = temp_dir.path().join(".codex");
+    let codepilotx_home = temp_dir.path().join(".codex");
     let zsh_path = temp_dir.path().join("runtime").join("zsh");
-    let arg0_root = codex_home.join("tmp").join("arg0");
+    let arg0_root = codepilotx_home.join("tmp").join("arg0");
     let allowed_arg0_dir = arg0_root.join("codex-arg0-session");
     let sibling_arg0_dir = arg0_root.join("codex-arg0-other-session");
     let execve_wrapper = allowed_arg0_dir.join("codex-execve-wrapper");
@@ -86,7 +86,7 @@ async fn restricted_read_implicitly_allows_helper_executables() -> std::io::Resu
             main_execve_wrapper_exe: Some(execve_wrapper),
             ..Default::default()
         },
-        AbsolutePathBuf::from_absolute_path(&codex_home)?,
+        AbsolutePathBuf::from_absolute_path(&codepilotx_home)?,
     )
     .await?;
 
@@ -221,7 +221,7 @@ fn network_toml_overlays_unix_socket_permissions_by_path() {
 
     assert_eq!(
         config.network.unix_sockets,
-        Some(codex_network_proxy::NetworkUnixSocketPermissions {
+        Some(codepilotx_network_proxy::NetworkUnixSocketPermissions {
             entries: BTreeMap::from([
                 (
                     "/tmp/base.sock".to_string(),
@@ -422,10 +422,10 @@ fn profile_network_proxy_config_keeps_proxy_disabled_for_proxy_policy() {
     assert!(!config.network.enable_socks5);
     assert_eq!(
         config.network.domains,
-        Some(codex_network_proxy::NetworkDomainPermissions {
-            entries: vec![codex_network_proxy::NetworkDomainPermissionEntry {
+        Some(codepilotx_network_proxy::NetworkDomainPermissions {
+            entries: vec![codepilotx_network_proxy::NetworkDomainPermissionEntry {
                 pattern: "openai.com".to_string(),
-                permission: codex_network_proxy::NetworkDomainPermission::Allow,
+                permission: codepilotx_network_proxy::NetworkDomainPermission::Allow,
             }],
         })
     );

@@ -1,28 +1,28 @@
 use anyhow::Result;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::config::Config;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceTool;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::UserMessageEvent;
-use codex_protocol::user_input::UserInput;
-use codex_web_search_extension::install as install_web_search_extension;
+use codepilotx_config::types::McpServerConfig;
+use codepilotx_config::types::McpServerTransportConfig;
+use codepilotx_core::config::Config;
+use codepilotx_extension_api::ExtensionRegistryBuilder;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::WebSearchMode;
+use codepilotx_protocol::dynamic_tools::DynamicToolFunctionSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolNamespaceSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolNamespaceTool;
+use codepilotx_protocol::dynamic_tools::DynamicToolSpec;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::RolloutLine;
+use codepilotx_protocol::protocol::SessionMeta;
+use codepilotx_protocol::protocol::SessionMetaLine;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::UserMessageEvent;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_web_search_extension::install as install_web_search_extension;
 use core_test_support::responses;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
@@ -65,7 +65,7 @@ async fn new_thread_is_recorded_in_state_db() -> Result<()> {
 
     let thread_id = test.session_configured.thread_id;
     let rollout_path = test.codex.rollout_path().expect("rollout path");
-    let db_path = codex_state::state_db_path(test.config.sqlite_home.as_path());
+    let db_path = codepilotx_state::state_db_path(test.config.sqlite_home.as_path());
 
     for _ in 0..100 {
         if tokio::fs::try_exists(&db_path).await.unwrap_or(false) {
@@ -348,8 +348,8 @@ async fn backfill_scans_existing_rollouts() -> Result<()> {
     let rollout_rel_path_for_hook = rollout_rel_path.clone();
 
     let mut builder = test_codex()
-        .with_pre_build_hook(move |codex_home| {
-            let rollout_path = codex_home.join(&rollout_rel_path_for_hook);
+        .with_pre_build_hook(move |codepilotx_home| {
+            let rollout_path = codepilotx_home.join(&rollout_rel_path_for_hook);
             let parent = rollout_path
                 .parent()
                 .expect("rollout path should have parent");
@@ -360,7 +360,7 @@ async fn backfill_scans_existing_rollouts() -> Result<()> {
                     forked_from_id: None,
                     parent_thread_id: None,
                     timestamp: "2026-01-27T12:00:00Z".to_string(),
-                    cwd: codex_home.to_path_buf(),
+                    cwd: codepilotx_home.to_path_buf(),
                     originator: "test".to_string(),
                     cli_version: "test".to_string(),
                     source: SessionSource::default(),
@@ -411,8 +411,8 @@ async fn backfill_scans_existing_rollouts() -> Result<()> {
 
     let test = builder.build(&server).await?;
 
-    let db_path = codex_state::state_db_path(test.config.sqlite_home.as_path());
-    let rollout_path = test.config.codex_home.join(&rollout_rel_path);
+    let db_path = codepilotx_state::state_db_path(test.config.sqlite_home.as_path());
+    let rollout_path = test.config.codepilotx_home.join(&rollout_rel_path);
     let default_provider = test.config.model_provider_id.clone();
 
     for _ in 0..20 {
@@ -462,7 +462,7 @@ async fn user_messages_persist_in_state_db() -> Result<()> {
     });
     let test = builder.build(&server).await?;
 
-    let db_path = codex_state::state_db_path(test.config.sqlite_home.as_path());
+    let db_path = codepilotx_state::state_db_path(test.config.sqlite_home.as_path());
     for _ in 0..100 {
         if tokio::fs::try_exists(&db_path).await.unwrap_or(false) {
             break;
@@ -572,7 +572,7 @@ async fn standalone_web_search_marks_thread_memory_mode_polluted_when_configured
     .await;
 
     let auth = CodexAuth::from_api_key("dummy");
-    let auth_manager = codex_core::test_support::auth_manager_from_auth(auth.clone());
+    let auth_manager = codepilotx_core::test_support::auth_manager_from_auth(auth.clone());
     let mut extension_builder = ExtensionRegistryBuilder::<Config>::new();
     install_web_search_extension(&mut extension_builder, auth_manager);
     let mut builder = test_codex()
@@ -703,14 +703,14 @@ async fn mcp_call_marks_thread_memory_mode_polluted_when_configured() -> Result<
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(cwd)),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                    mode: codepilotx_protocol::config_types::ModeKind::Default,
+                    settings: codepilotx_protocol::config_types::Settings {
                         model: test.session_configured.model.clone(),
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -779,7 +779,7 @@ async fn tool_call_logs_include_thread_id() -> Result<()> {
 
     test.submit_turn("run a shell command").await?;
 
-    let log_db_layer = codex_state::log_db::start(db.clone());
+    let log_db_layer = codepilotx_state::log_db::start(db.clone());
     let subscriber = tracing_subscriber::registry().with(log_db_layer.clone());
     let dispatch = tracing::Dispatch::new(subscriber);
     tracing::dispatcher::with_default(&dispatch, || {
@@ -791,7 +791,7 @@ async fn tool_call_logs_include_thread_id() -> Result<()> {
 
     let mut found = None;
     for _ in 0..80 {
-        let query = codex_state::LogQuery {
+        let query = codepilotx_state::LogQuery {
             descending: true,
             limit: Some(20),
             ..Default::default()

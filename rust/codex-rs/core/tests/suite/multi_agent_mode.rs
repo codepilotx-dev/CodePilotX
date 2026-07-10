@@ -1,11 +1,11 @@
 use anyhow::Result;
-use codex_features::Feature;
-use codex_protocol::config_types::MultiAgentMode;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::MULTI_AGENT_MODE_OPEN_TAG;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ThreadSettingsOverrides;
-use codex_protocol::user_input::UserInput;
+use codepilotx_features::Feature;
+use codepilotx_protocol::config_types::MultiAgentMode;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::MULTI_AGENT_MODE_OPEN_TAG;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::ThreadSettingsOverrides;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_once;
@@ -36,7 +36,7 @@ fn count_containing(texts: &[&str], target: &str) -> usize {
 }
 
 async fn submit_turn(
-    codex: &codex_core::CodexThread,
+    codex: &codepilotx_core::CodexThread,
     prompt: &str,
     mode: Option<MultiAgentMode>,
 ) -> Result<()> {

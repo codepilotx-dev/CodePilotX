@@ -1,8 +1,8 @@
 use super::*;
 use crate::tools::handlers::multi_agents_spec::create_interrupt_agent_tool_v2;
 use crate::turn_timing::now_unix_timestamp_ms;
-use codex_protocol::error::CodexErr;
-use codex_tools::ToolSpec;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_tools::ToolSpec;
 
 pub(crate) struct Handler;
 
@@ -15,7 +15,7 @@ impl ToolExecutor<ToolInvocation> for Handler {
         create_interrupt_agent_tool_v2()
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(async move {
             handle_interrupt_agent(invocation)
                 .await

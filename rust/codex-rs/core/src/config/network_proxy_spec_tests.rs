@@ -1,10 +1,10 @@
 use super::*;
-use codex_config::NetworkDomainPermissionToml;
-use codex_config::NetworkDomainPermissionsToml;
-use codex_network_proxy::NetworkDomainPermission;
-use codex_protocol::models::ManagedFileSystemPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_config::NetworkDomainPermissionToml;
+use codepilotx_config::NetworkDomainPermissionsToml;
+use codepilotx_network_proxy::NetworkDomainPermission;
+use codepilotx_protocol::models::ManagedFileSystemPermissions;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
 use pretty_assertions::assert_eq;
 
 fn domain_permissions(

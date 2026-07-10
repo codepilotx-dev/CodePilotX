@@ -11,7 +11,7 @@ const BACKOFF_FACTOR: f64 = 2.0;
 /// Emit structured feedback metadata as key/value pairs.
 ///
 /// This logs a tracing event with `target: "feedback_tags"`. If
-/// `codex_feedback::CodexFeedback::metadata_layer()` is installed, these fields are captured and
+/// `codepilotx_feedback::CodexFeedback::metadata_layer()` is installed, these fields are captured and
 /// later attached as tags when feedback is uploaded.
 ///
 /// Values are wrapped with [`tracing::field::DebugValue`], so the expression only needs to
@@ -20,8 +20,8 @@ const BACKOFF_FACTOR: f64 = 2.0;
 /// Example:
 ///
 /// ```rust
-/// codex_core::feedback_tags!(model = "gpt-5", cached = true);
-/// codex_core::feedback_tags!(provider = provider_id, request_id = request_id);
+/// codepilotx_core::feedback_tags!(model = "gpt-5", cached = true);
+/// codepilotx_core::feedback_tags!(provider = provider_id, request_id = request_id);
 /// ```
 #[macro_export]
 macro_rules! feedback_tags {

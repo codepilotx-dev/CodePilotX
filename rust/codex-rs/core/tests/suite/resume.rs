@@ -1,9 +1,9 @@
 use anyhow::Result;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::TextElement;
-use codex_protocol::user_input::UserInput;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::user_input::ByteRange;
+use codepilotx_protocol::user_input::TextElement;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_reasoning_item;
@@ -425,7 +425,7 @@ async fn resume_model_switch_is_not_duplicated_after_pre_turn_override() -> Resu
     let resumed = resume_builder.resume(&server, home, rollout_path).await?;
     core_test_support::submit_thread_settings(
         &resumed.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        codepilotx_protocol::protocol::ThreadSettingsOverrides {
             model: Some("gpt-5.4".to_string()),
             ..Default::default()
         },

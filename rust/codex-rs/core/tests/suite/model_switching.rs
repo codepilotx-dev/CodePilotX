@@ -1,26 +1,26 @@
 use anyhow::Result;
-use codex_config::types::Personality;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelServiceTier;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::openai_models::default_input_modalities;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
+use codepilotx_config::types::Personality;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_models_manager::manager::RefreshStrategy;
+use codepilotx_protocol::config_types::ReasoningSummary;
+use codepilotx_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+use codepilotx_protocol::config_types::ServiceTier;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::openai_models::ConfigShellToolType;
+use codepilotx_protocol::openai_models::InputModality;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_protocol::openai_models::ModelServiceTier;
+use codepilotx_protocol::openai_models::ModelVisibility;
+use codepilotx_protocol::openai_models::ModelsResponse;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::openai_models::ReasoningEffortPreset;
+use codepilotx_protocol::openai_models::TruncationPolicyConfig;
+use codepilotx_protocol::openai_models::default_input_modalities;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::responses::ev_completed_with_tokens;
 use core_test_support::responses::ev_image_generation_call;
 use core_test_support::responses::ev_response_created;
@@ -49,14 +49,14 @@ fn read_only_user_turn(test: &TestCodex, items: Vec<UserInput>, model: String) -
         final_output_json_schema: None,
         responsesapi_client_metadata: None,
         additional_context: Default::default(),
-        thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+        thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
             environments: Some(local_selections(test.config.cwd.clone())),
             approval_policy: Some(AskForApproval::Never),
             sandbox_policy: Some(sandbox_policy),
             permission_profile,
-            collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                mode: codex_protocol::config_types::ModeKind::Default,
-                settings: codex_protocol::config_types::Settings {
+            collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                mode: codepilotx_protocol::config_types::ModeKind::Default,
+                settings: codepilotx_protocol::config_types::Settings {
                     model,
                     reasoning_effort: test.config.model_reasoning_effort.clone(),
                     developer_instructions: None,
@@ -67,7 +67,7 @@ fn read_only_user_turn(test: &TestCodex, items: Vec<UserInput>, model: String) -
     }
 }
 
-fn image_generation_artifact_path(codex_home: &Path, session_id: &str, call_id: &str) -> PathBuf {
+fn image_generation_artifact_path(codepilotx_home: &Path, session_id: &str, call_id: &str) -> PathBuf {
     fn sanitize(value: &str) -> String {
         let mut sanitized: String = value
             .chars()
@@ -85,7 +85,7 @@ fn image_generation_artifact_path(codex_home: &Path, session_id: &str, call_id: 
         sanitized
     }
 
-    codex_home
+    codepilotx_home
         .join("generated_images")
         .join(sanitize(session_id))
         .join(format!("{}.png", sanitize(call_id)))
@@ -171,7 +171,7 @@ async fn model_change_appends_model_instructions_developer_message() -> Result<(
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        codepilotx_protocol::protocol::ThreadSettingsOverrides {
             model: Some(next_model.to_string()),
             ..Default::default()
         },
@@ -243,7 +243,7 @@ async fn model_and_personality_change_only_appends_model_instructions() -> Resul
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        codepilotx_protocol::protocol::ThreadSettingsOverrides {
             model: Some(next_model.to_string()),
             personality: Some(Personality::Pragmatic),
             ..Default::default()
@@ -603,7 +603,7 @@ async fn generated_image_is_replayed_for_image_capable_models() -> Result<()> {
         });
     let test = builder.build(&server).await?;
     let saved_path = image_generation_artifact_path(
-        test.codex_home_path(),
+        test.codepilotx_home_path(),
         &test.session_configured.thread_id.to_string(),
         "ig_123",
     );
@@ -717,7 +717,7 @@ async fn model_change_from_generated_image_to_text_preserves_prior_generated_ima
         });
     let test = builder.build(&server).await?;
     let saved_path = image_generation_artifact_path(
-        test.codex_home_path(),
+        test.codepilotx_home_path(),
         &test.session_configured.thread_id.to_string(),
         "ig_123",
     );
@@ -833,7 +833,7 @@ async fn thread_rollback_after_generated_image_drops_entire_image_turn_history()
         });
     let test = builder.build(&server).await?;
     let saved_path = image_generation_artifact_path(
-        test.codex_home_path(),
+        test.codepilotx_home_path(),
         &test.session_configured.thread_id.to_string(),
         "ig_rollback",
     );
@@ -1054,7 +1054,7 @@ async fn model_switch_to_smaller_model_updates_token_context_window() -> Result<
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        codepilotx_protocol::protocol::ThreadSettingsOverrides {
             model: Some(smaller_model_slug.to_string()),
             ..Default::default()
         },

@@ -1,25 +1,25 @@
 use anyhow::Context;
 use anyhow::Result;
-use codex_config::types::ApprovalsReviewer;
-use codex_core::config::Constrained;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::LOCAL_ENVIRONMENT_ID;
-use codex_exec_server::REMOTE_ENVIRONMENT_ID;
-use codex_exec_server::RemoveOptions;
-use codex_features::Feature;
-use codex_protocol::approvals::NetworkApprovalContext;
-use codex_protocol::approvals::NetworkApprovalProtocol;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_protocol::protocol::TurnEnvironmentSelections;
-use codex_protocol::user_input::UserInput;
-use codex_utils_path_uri::PathUri;
+use codepilotx_config::types::ApprovalsReviewer;
+use codepilotx_core::config::Constrained;
+use codepilotx_exec_server::CreateDirectoryOptions;
+use codepilotx_exec_server::LOCAL_ENVIRONMENT_ID;
+use codepilotx_exec_server::REMOTE_ENVIRONMENT_ID;
+use codepilotx_exec_server::RemoveOptions;
+use codepilotx_features::Feature;
+use codepilotx_protocol::approvals::NetworkApprovalContext;
+use codepilotx_protocol::approvals::NetworkApprovalProtocol;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::ExecApprovalRequestEvent;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::ReviewDecision;
+use codepilotx_protocol::protocol::TurnEnvironmentSelection;
+use codepilotx_protocol::protocol::TurnEnvironmentSelections;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_utils_path_uri::PathUri;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
 use core_test_support::get_remote_test_env;
@@ -261,15 +261,15 @@ async fn submit_managed_network_turn(
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(turn_environment_selections),
                 approval_policy: Some(AskForApproval::OnFailure),
                 approvals_reviewer: Some(ApprovalsReviewer::User),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                    mode: codepilotx_protocol::config_types::ModeKind::Default,
+                    settings: codepilotx_protocol::config_types::Settings {
                         model: test.session_configured.model.clone(),
                         reasoning_effort: None,
                         developer_instructions: None,

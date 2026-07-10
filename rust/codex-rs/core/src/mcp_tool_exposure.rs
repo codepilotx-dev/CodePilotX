@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
-use codex_connectors::AppToolPolicyEvaluator;
-use codex_connectors::AppToolPolicyInput;
-use codex_features::Feature;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_mcp::ToolInfo as McpToolInfo;
-use codex_mcp::tool_is_model_visible;
+use codepilotx_connectors::AppToolPolicyEvaluator;
+use codepilotx_connectors::AppToolPolicyInput;
+use codepilotx_features::Feature;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
+use codepilotx_mcp::ToolInfo as McpToolInfo;
+use codepilotx_mcp::tool_is_model_visible;
 use tracing::instrument;
 
 use crate::config::Config;
@@ -25,9 +25,9 @@ pub(crate) fn build_mcp_tool_exposure(
     config: &Config,
     search_tool_enabled: bool,
 ) -> McpToolExposure {
-    let mut deferred_tools = filter_non_codex_apps_mcp_tools_only(all_mcp_tools);
+    let mut deferred_tools = filter_non_codepilotx_apps_mcp_tools_only(all_mcp_tools);
     if let Some(connectors) = connectors {
-        deferred_tools.extend(filter_codex_apps_mcp_tools(
+        deferred_tools.extend(filter_codepilotx_apps_mcp_tools(
             all_mcp_tools,
             connectors,
             config,
@@ -53,17 +53,17 @@ pub(crate) fn build_mcp_tool_exposure(
     }
 }
 
-fn filter_non_codex_apps_mcp_tools_only(mcp_tools: &[McpToolInfo]) -> Vec<McpToolInfo> {
+fn filter_non_codepilotx_apps_mcp_tools_only(mcp_tools: &[McpToolInfo]) -> Vec<McpToolInfo> {
     mcp_tools
         .iter()
         .filter(|tool| {
-            tool.server_name != CODEX_APPS_MCP_SERVER_NAME && tool_is_model_visible(tool)
+            tool.server_name != codepilotx_APPS_MCP_SERVER_NAME && tool_is_model_visible(tool)
         })
         .cloned()
         .collect()
 }
 
-fn filter_codex_apps_mcp_tools(
+fn filter_codepilotx_apps_mcp_tools(
     mcp_tools: &[McpToolInfo],
     connectors: &[connectors::AppInfo],
     config: &Config,
@@ -77,7 +77,7 @@ fn filter_codex_apps_mcp_tools(
     mcp_tools
         .iter()
         .filter(|tool| {
-            if tool.server_name != CODEX_APPS_MCP_SERVER_NAME {
+            if tool.server_name != codepilotx_APPS_MCP_SERVER_NAME {
                 return false;
             }
             if !tool_is_model_visible(tool) {

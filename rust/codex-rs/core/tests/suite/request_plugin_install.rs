@@ -2,25 +2,25 @@
 #![allow(clippy::unwrap_used)]
 
 use anyhow::Result;
-use codex_config::types::ToolSuggestDisabledTool;
-use codex_config::types::ToolSuggestDiscoverable;
-use codex_config::types::ToolSuggestDiscoverableType;
-use codex_core::config::Config;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_models_manager::bundled_models_response;
-use codex_protocol::approvals::ElicitationAction;
-use codex_protocol::approvals::ElicitationRequest;
-use codex_protocol::approvals::ElicitationRequestEvent;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Settings;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ThreadSettingsOverrides;
-use codex_protocol::user_input::UserInput;
+use codepilotx_config::types::ToolSuggestDisabledTool;
+use codepilotx_config::types::ToolSuggestDiscoverable;
+use codepilotx_config::types::ToolSuggestDiscoverableType;
+use codepilotx_core::config::Config;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_models_manager::bundled_models_response;
+use codepilotx_protocol::approvals::ElicitationAction;
+use codepilotx_protocol::approvals::ElicitationRequest;
+use codepilotx_protocol::approvals::ElicitationRequestEvent;
+use codepilotx_protocol::config_types::CollaborationMode;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::Settings;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::ThreadSettingsOverrides;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -52,7 +52,7 @@ const DISCOVERABLE_GMAIL_ID: &str = "connector_68df038e0ba48191908c8434991bbac2"
 const REMOTE_CALENDAR_PLUGIN_CONFIG_ID: &str = "calendar@openai-curated-remote";
 const REMOTE_CALENDAR_PLUGIN_ID: &str = "plugin_calendar";
 const CALENDAR_CONNECTOR_ID: &str = "calendar";
-const CALENDAR_NAMESPACE: &str = "mcp__codex_apps__calendar";
+const CALENDAR_NAMESPACE: &str = "mcp__codepilotx_apps__calendar";
 const CALENDAR_CREATE_EVENT_TOOL: &str = "_create_event";
 
 fn tool_names(body: &Value) -> Vec<String> {

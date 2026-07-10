@@ -1,11 +1,11 @@
 use anyhow::Result;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::config::TokenBudgetConfig;
-use codex_features::Feature;
-use codex_model_provider_info::built_in_model_providers;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
+use codepilotx_config::types::McpServerConfig;
+use codepilotx_config::types::McpServerTransportConfig;
+use codepilotx_core::config::TokenBudgetConfig;
+use codepilotx_features::Feature;
+use codepilotx_model_provider_info::built_in_model_providers;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
 use core_test_support::PathBufExt;
 use core_test_support::assert_regex_match;
 use core_test_support::context_snapshot;
@@ -43,7 +43,7 @@ fn token_budget_contexts(request: &ResponsesRequest) -> Vec<String> {
 
 fn token_budget_window_ids(
     text: &str,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: codepilotx_protocol::ThreadId,
 ) -> (String, Option<String>, String) {
     let captures = assert_regex_match(
         &format!(

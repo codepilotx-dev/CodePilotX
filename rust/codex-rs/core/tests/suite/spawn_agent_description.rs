@@ -2,20 +2,20 @@
 #![allow(clippy::unwrap_used)]
 
 use anyhow::Result;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelServiceTier;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::openai_models::default_input_modalities;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_models_manager::manager::RefreshStrategy;
+use codepilotx_models_manager::manager::SharedModelsManager;
+use codepilotx_protocol::config_types::ReasoningSummary;
+use codepilotx_protocol::openai_models::ConfigShellToolType;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_protocol::openai_models::ModelServiceTier;
+use codepilotx_protocol::openai_models::ModelVisibility;
+use codepilotx_protocol::openai_models::ModelsResponse;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::openai_models::ReasoningEffortPreset;
+use codepilotx_protocol::openai_models::TruncationPolicyConfig;
+use codepilotx_protocol::openai_models::default_input_modalities;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_models_once;

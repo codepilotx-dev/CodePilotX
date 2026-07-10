@@ -15,11 +15,11 @@ use crate::session::INITIAL_SUBMIT_ID;
 use crate::session::session::Session;
 use crate::session::turn::build_prompt;
 use crate::session::turn::built_tools;
-use codex_otel::STARTUP_PREWARM_AGE_AT_FIRST_TURN_METRIC;
-use codex_otel::STARTUP_PREWARM_DURATION_METRIC;
-use codex_otel::SessionTelemetry;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::models::BaseInstructions;
+use codepilotx_otel::STARTUP_PREWARM_AGE_AT_FIRST_TURN_METRIC;
+use codepilotx_otel::STARTUP_PREWARM_DURATION_METRIC;
+use codepilotx_otel::SessionTelemetry;
+use codepilotx_protocol::error::Result as CodexResult;
+use codepilotx_protocol::models::BaseInstructions;
 
 pub(crate) struct SessionStartupPrewarmHandle {
     task: AbortOnDropHandle<CodexResult<ModelClientSession>>,

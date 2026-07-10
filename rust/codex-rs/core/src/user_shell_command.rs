@@ -1,5 +1,5 @@
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::models::ResponseItem;
+use codepilotx_protocol::exec_output::ExecToolCallOutput;
+use codepilotx_protocol::models::ResponseItem;
 
 use crate::context::ContextualUserFragment;
 use crate::context::UserShellCommand;

@@ -1,34 +1,34 @@
 use anyhow::Context;
 use anyhow::Result;
-use codex_config::types::ApprovalsReviewer;
-use codex_core::config::Constrained;
-use codex_exec_server::CopyOptions;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::FileSystemSandboxContext;
-use codex_exec_server::LOCAL_ENVIRONMENT_ID;
-use codex_exec_server::REMOTE_ENVIRONMENT_ID;
-use codex_exec_server::RemoveOptions;
-use codex_features::Feature;
-use codex_protocol::models::FileSystemPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_protocol::request_permissions::PermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionProfile;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_config::types::ApprovalsReviewer;
+use codepilotx_core::config::Constrained;
+use codepilotx_exec_server::CopyOptions;
+use codepilotx_exec_server::CreateDirectoryOptions;
+use codepilotx_exec_server::FileSystemSandboxContext;
+use codepilotx_exec_server::LOCAL_ENVIRONMENT_ID;
+use codepilotx_exec_server::REMOTE_ENVIRONMENT_ID;
+use codepilotx_exec_server::RemoveOptions;
+use codepilotx_features::Feature;
+use codepilotx_protocol::models::FileSystemPermissions;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::permissions::FileSystemAccessMode;
+use codepilotx_protocol::permissions::FileSystemPath;
+use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::ReviewDecision;
+use codepilotx_protocol::protocol::SandboxPolicy;
+use codepilotx_protocol::protocol::TurnEnvironmentSelection;
+use codepilotx_protocol::request_permissions::PermissionGrantScope;
+use codepilotx_protocol::request_permissions::RequestPermissionProfile;
+use codepilotx_protocol::request_permissions::RequestPermissionsResponse;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
 use core_test_support::TestEnvironment;
@@ -76,7 +76,7 @@ async fn submit_turn_with_approval_and_environments(
     prompt: &str,
     environments: Vec<TurnEnvironmentSelection>,
 ) -> Result<()> {
-    let turn_environment_selections = codex_protocol::protocol::TurnEnvironmentSelections::new(
+    let turn_environment_selections = codepilotx_protocol::protocol::TurnEnvironmentSelections::new(
         test.config.cwd.clone(),
         environments,
     );
@@ -89,14 +89,14 @@ async fn submit_turn_with_approval_and_environments(
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(turn_environment_selections),
                 approval_policy: Some(AskForApproval::OnRequest),
                 approvals_reviewer: Some(ApprovalsReviewer::User),
                 sandbox_policy: Some(SandboxPolicy::new_read_only_policy()),
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                    mode: codepilotx_protocol::config_types::ModeKind::Default,
+                    settings: codepilotx_protocol::config_types::Settings {
                         model: test.session_configured.model.clone(),
                         reasoning_effort: None,
                         developer_instructions: None,

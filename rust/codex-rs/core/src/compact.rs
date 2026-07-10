@@ -17,38 +17,38 @@ use crate::session::session::Session;
 use crate::session::turn::get_last_assistant_message_from_turn;
 use crate::session::turn_context::TurnContext;
 use crate::util::backoff;
-use codex_analytics::CodexCompactionEvent;
-use codex_analytics::CompactionImplementation;
-use codex_analytics::CompactionPhase;
-use codex_analytics::CompactionReason;
-use codex_analytics::CompactionStatus;
-use codex_analytics::CompactionStrategy;
-use codex_analytics::CompactionTrigger;
-use codex_analytics::now_unix_seconds;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::items::ContextCompactionItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::models::ResponseItemMetadata;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::user_input::UserInput;
-use codex_rollout_trace::InferenceTraceContext;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::approx_token_count;
-use codex_utils_output_truncation::truncate_text;
+use codepilotx_analytics::CodexCompactionEvent;
+use codepilotx_analytics::CompactionImplementation;
+use codepilotx_analytics::CompactionPhase;
+use codepilotx_analytics::CompactionReason;
+use codepilotx_analytics::CompactionStatus;
+use codepilotx_analytics::CompactionStrategy;
+use codepilotx_analytics::CompactionTrigger;
+use codepilotx_analytics::now_unix_seconds;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result as CodexResult;
+use codepilotx_protocol::items::ContextCompactionItem;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::ResponseInputItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::models::ResponseItemMetadata;
+use codepilotx_protocol::protocol::CompactedItem;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::TurnStartedEvent;
+use codepilotx_protocol::protocol::WarningEvent;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_rollout_trace::InferenceTraceContext;
+use codepilotx_utils_output_truncation::TruncationPolicy;
+use codepilotx_utils_output_truncation::approx_token_count;
+use codepilotx_utils_output_truncation::truncate_text;
 use futures::prelude::*;
 use tracing::error;
 
-use codex_model_provider_info::ModelProviderInfo;
+use codepilotx_model_provider_info::ModelProviderInfo;
 
-pub use codex_prompts::SUMMARIZATION_PROMPT;
-pub use codex_prompts::SUMMARY_PREFIX;
+pub use codepilotx_prompts::SUMMARIZATION_PROMPT;
+pub use codepilotx_prompts::SUMMARY_PREFIX;
 const COMPACT_USER_MESSAGE_MAX_TOKENS: usize = 20_000;
 
 /// Controls whether compaction replacement history must include initial context.
@@ -173,7 +173,7 @@ async fn run_compact_task_inner(
     )
     .await;
     let status = compaction_status_from_result(&result);
-    let codex_error = result.as_ref().err();
+    let codepilotx_error = result.as_ref().err();
     if result.is_ok() {
         let post_compact_outcome = run_post_compact_hooks(&sess, &turn_context, trigger).await;
         if let PostCompactHookOutcome::Stopped = post_compact_outcome {
@@ -181,7 +181,7 @@ async fn run_compact_task_inner(
                 .track(
                     sess.as_ref(),
                     status,
-                    codex_error,
+                    codepilotx_error,
                     CompactionAnalyticsDetails::default(),
                 )
                 .await;
@@ -192,7 +192,7 @@ async fn run_compact_task_inner(
         .track(
             sess.as_ref(),
             status,
-            codex_error,
+            codepilotx_error,
             CompactionAnalyticsDetails::default(),
         )
         .await;
@@ -268,7 +268,7 @@ async fn run_compact_task_inner_impl(
                     continue;
                 }
                 sess.set_total_tokens_full(turn_context.as_ref()).await;
-                sess.track_turn_codex_error(turn_context.as_ref(), &e);
+                sess.track_turn_codepilotx_error(turn_context.as_ref(), &e);
                 let event = EventMsg::Error(e.to_error_event(/*message_prefix*/ None));
                 sess.send_event(&turn_context, event).await;
                 return Err(e);
@@ -286,7 +286,7 @@ async fn run_compact_task_inner_impl(
                     tokio::time::sleep(delay).await;
                     continue;
                 } else {
-                    sess.track_turn_codex_error(turn_context.as_ref(), &e);
+                    sess.track_turn_codepilotx_error(turn_context.as_ref(), &e);
                     let event = EventMsg::Error(e.to_error_event(/*message_prefix*/ None));
                     sess.send_event(&turn_context, event).await;
                     return Err(e);
@@ -389,7 +389,7 @@ impl CompactionAnalyticsAttempt {
         self,
         sess: &Session,
         status: CompactionStatus,
-        codex_error: Option<&CodexErr>,
+        codepilotx_error: Option<&CodexErr>,
         details: CompactionAnalyticsDetails,
     ) {
         let CompactionAnalyticsDetails {
@@ -412,8 +412,8 @@ impl CompactionAnalyticsAttempt {
                 phase: self.phase,
                 strategy: CompactionStrategy::Memento,
                 status,
-                codex_error_kind: codex_error.map(Into::into),
-                codex_error_http_status_code: codex_error
+                codepilotx_error_kind: codepilotx_error.map(Into::into),
+                codepilotx_error_http_status_code: codepilotx_error
                     .and_then(CodexErr::http_status_code_value),
                 active_context_tokens_before,
                 active_context_tokens_after,

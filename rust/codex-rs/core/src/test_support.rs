@@ -7,24 +7,24 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use codex_exec_server::EnvironmentManager;
-use codex_extension_api::LoadUserInstructionsFuture;
-use codex_extension_api::LoadedUserInstructions;
-use codex_extension_api::UserInstructionsProvider;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_model_provider::create_model_provider;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_models_manager::bundled_models_response;
-use codex_models_manager::collaboration_mode_presets;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_models_manager::test_support::construct_model_info_offline_for_tests;
-use codex_models_manager::test_support::get_model_offline_for_tests;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::protocol::SessionSource;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_extension_api::LoadUserInstructionsFuture;
+use codepilotx_extension_api::LoadedUserInstructions;
+use codepilotx_extension_api::UserInstructionsProvider;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CodexAuth;
+use codepilotx_model_provider::create_model_provider;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_models_manager::bundled_models_response;
+use codepilotx_models_manager::collaboration_mode_presets;
+use codepilotx_models_manager::manager::SharedModelsManager;
+use codepilotx_models_manager::test_support::construct_model_info_offline_for_tests;
+use codepilotx_models_manager::test_support::get_model_offline_for_tests;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::CollaborationModeMask;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_protocol::openai_models::ModelPreset;
+use codepilotx_protocol::protocol::SessionSource;
 use once_cell::sync::Lazy;
 
 use crate::ThreadManager;
@@ -67,8 +67,8 @@ pub fn auth_manager_from_auth(auth: CodexAuth) -> Arc<AuthManager> {
     AuthManager::from_auth_for_testing(auth)
 }
 
-pub fn auth_manager_from_auth_with_home(auth: CodexAuth, codex_home: PathBuf) -> Arc<AuthManager> {
-    AuthManager::from_auth_for_testing_with_home(auth, codex_home)
+pub fn auth_manager_from_auth_with_home(auth: CodexAuth, codepilotx_home: PathBuf) -> Arc<AuthManager> {
+    AuthManager::from_auth_for_testing_with_home(auth, codepilotx_home)
 }
 
 pub fn thread_manager_with_models_provider(
@@ -81,13 +81,13 @@ pub fn thread_manager_with_models_provider(
 pub fn thread_manager_with_models_provider_and_home(
     auth: CodexAuth,
     provider: ModelProviderInfo,
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     environment_manager: Arc<EnvironmentManager>,
 ) -> ThreadManager {
     ThreadManager::with_models_provider_and_home_for_tests(
         auth,
         provider,
-        codex_home,
+        codepilotx_home,
         environment_manager,
     )
 }
@@ -95,14 +95,14 @@ pub fn thread_manager_with_models_provider_and_home(
 pub fn thread_manager_with_models_provider_home_and_state(
     auth: CodexAuth,
     provider: ModelProviderInfo,
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     environment_manager: Arc<EnvironmentManager>,
     state_db: Option<crate::StateDbHandle>,
 ) -> ThreadManager {
     ThreadManager::with_models_provider_home_and_state_for_tests(
         auth,
         provider,
-        codex_home,
+        codepilotx_home,
         environment_manager,
         state_db,
     )
@@ -113,7 +113,7 @@ pub async fn start_thread_with_user_shell_override(
     config: Config,
     user_shell_override: crate::shell::Shell,
     supports_openai_form_elicitation: bool,
-) -> codex_protocol::error::Result<crate::NewThread> {
+) -> codepilotx_protocol::error::Result<crate::NewThread> {
     thread_manager
         .start_thread_with_user_shell_override_for_tests(
             config,
@@ -130,7 +130,7 @@ pub async fn resume_thread_from_rollout_with_user_shell_override(
     auth_manager: Arc<AuthManager>,
     user_shell_override: crate::shell::Shell,
     supports_openai_form_elicitation: bool,
-) -> codex_protocol::error::Result<crate::NewThread> {
+) -> codepilotx_protocol::error::Result<crate::NewThread> {
     thread_manager
         .resume_thread_from_rollout_with_user_shell_override_for_tests(
             config,
@@ -143,12 +143,12 @@ pub async fn resume_thread_from_rollout_with_user_shell_override(
 }
 
 pub fn models_manager_with_provider(
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     auth_manager: Arc<AuthManager>,
     provider: ModelProviderInfo,
 ) -> SharedModelsManager {
     let provider = create_model_provider(provider, Some(auth_manager));
-    provider.models_manager(codex_home, /*config_model_catalog*/ None)
+    provider.models_manager(codepilotx_home, /*config_model_catalog*/ None)
 }
 
 pub fn get_model_offline(model: Option<&str>) -> String {

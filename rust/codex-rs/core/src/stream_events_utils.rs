@@ -3,11 +3,11 @@ use std::sync::Arc;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_extension_api::ExtensionData;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::items::ImageGenerationItem;
-use codex_protocol::items::TurnItem;
-use codex_utils_stream_parser::strip_citations;
+use codepilotx_extension_api::ExtensionData;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::items::ImageGenerationItem;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_utils_stream_parser::strip_citations;
 use tokio_util::sync::CancellationToken;
 
 use crate::context::ContextualUserFragment;
@@ -18,19 +18,19 @@ use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::tools::parallel::ToolCallRuntime;
 use crate::tools::router::ToolRouter;
-use codex_memories_read::citations::parse_memory_citation;
-use codex_memories_read::citations::thread_ids_from_memory_citation;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
-use codex_protocol::memory_citation::MemoryCitation;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_rollout::state_db;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_stream_parser::strip_proposed_plan_blocks;
+use codepilotx_memories_read::citations::parse_memory_citation;
+use codepilotx_memories_read::citations::thread_ids_from_memory_citation;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result;
+use codepilotx_protocol::memory_citation::MemoryCitation;
+use codepilotx_protocol::models::FunctionCallOutputBody;
+use codepilotx_protocol::models::FunctionCallOutputPayload;
+use codepilotx_protocol::models::MessagePhase;
+use codepilotx_protocol::models::ResponseInputItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_rollout::state_db;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_stream_parser::strip_proposed_plan_blocks;
 use futures::Future;
 use tracing::debug;
 use tracing::instrument;
@@ -40,7 +40,7 @@ const GENERATED_IMAGE_ARTIFACTS_DIR: &str = "generated_images";
 
 /// Returns the host-owned default artifact path for a generated image.
 pub fn image_generation_artifact_path(
-    codex_home: &AbsolutePathBuf,
+    codepilotx_home: &AbsolutePathBuf,
     session_id: &str,
     call_id: &str,
 ) -> AbsolutePathBuf {
@@ -61,7 +61,7 @@ pub fn image_generation_artifact_path(
         sanitized
     };
 
-    codex_home
+    codepilotx_home
         .join(GENERATED_IMAGE_ARTIFACTS_DIR)
         .join(sanitize(session_id))
         .join(format!("{}.png", sanitize(call_id)))
@@ -81,7 +81,7 @@ fn strip_hidden_assistant_markup_and_parse_memory_citation(
     plan_mode: bool,
 ) -> (
     String,
-    Option<codex_protocol::memory_citation::MemoryCitation>,
+    Option<codepilotx_protocol::memory_citation::MemoryCitation>,
 ) {
     let (without_citations, citations) = strip_citations(text);
     let visible_text = if plan_mode {
@@ -99,7 +99,7 @@ pub(crate) fn raw_assistant_output_text_from_item(item: &ResponseItem) -> Option
         let combined = content
             .iter()
             .filter_map(|ci| match ci {
-                codex_protocol::models::ContentItem::OutputText { text } => Some(text.as_str()),
+                codepilotx_protocol::models::ContentItem::OutputText { text } => Some(text.as_str()),
                 _ => None,
             })
             .collect::<String>();
@@ -109,7 +109,7 @@ pub(crate) fn raw_assistant_output_text_from_item(item: &ResponseItem) -> Option
 }
 
 async fn save_image_generation_result(
-    codex_home: &AbsolutePathBuf,
+    codepilotx_home: &AbsolutePathBuf,
     session_id: &str,
     call_id: &str,
     result: &str,
@@ -119,7 +119,7 @@ async fn save_image_generation_result(
         .map_err(|err| {
             CodexErr::InvalidRequest(format!("invalid image generation payload: {err}"))
         })?;
-    let path = image_generation_artifact_path(codex_home, session_id, call_id);
+    let path = image_generation_artifact_path(codepilotx_home, session_id, call_id);
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent).await?;
     }
@@ -135,7 +135,7 @@ pub(crate) async fn persist_image_generation_item(
     image_item.saved_path = None;
     let session_id = sess.thread_id.to_string();
     match save_image_generation_result(
-        &turn_context.config.codex_home,
+        &turn_context.config.codepilotx_home,
         &session_id,
         &image_item.id,
         &image_item.result,
@@ -148,13 +148,13 @@ pub(crate) async fn persist_image_generation_item(
         }
         Err(err) => {
             let output_path = image_generation_artifact_path(
-                &turn_context.config.codex_home,
+                &turn_context.config.codepilotx_home,
                 &session_id,
                 &image_item.id,
             );
             let output_dir = output_path
                 .parent()
-                .unwrap_or_else(|| turn_context.config.codex_home.clone());
+                .unwrap_or_else(|| turn_context.config.codepilotx_home.clone());
             tracing::warn!(
                 call_id = %image_item.id,
                 output_dir = %output_dir.display(),
@@ -175,10 +175,10 @@ async fn record_image_generation_instructions(
     }
     let session_id = sess.thread_id.to_string();
     let image_output_path =
-        image_generation_artifact_path(&turn_context.config.codex_home, &session_id, "<image_id>");
+        image_generation_artifact_path(&turn_context.config.codepilotx_home, &session_id, "<image_id>");
     let image_output_dir = image_output_path
         .parent()
-        .unwrap_or_else(|| turn_context.config.codex_home.clone());
+        .unwrap_or_else(|| turn_context.config.codepilotx_home.clone());
     let message: ResponseItem = ContextualUserFragment::into(ImageGenerationInstructions::new(
         image_output_dir.display(),
         image_output_path.display(),
@@ -371,7 +371,7 @@ pub(crate) async fn finalize_non_tool_response_item(
                     .content
                     .iter()
                     .map(|entry| match entry {
-                        codex_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
+                        codepilotx_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
                     })
                     .collect::<String>();
                 let last_agent_message = if combined.trim().is_empty() {
@@ -567,13 +567,13 @@ pub(crate) async fn finalize_turn_item(
             .content
             .iter()
             .map(|entry| match entry {
-                codex_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
+                codepilotx_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
             })
             .collect::<String>();
         let (stripped, memory_citation) =
             strip_hidden_assistant_markup_and_parse_memory_citation(&combined, plan_mode);
         agent_message.content =
-            vec![codex_protocol::items::AgentMessageContent::Text { text: stripped }];
+            vec![codepilotx_protocol::items::AgentMessageContent::Text { text: stripped }];
         if agent_message.memory_citation.is_none() {
             agent_message.memory_citation = memory_citation;
         }

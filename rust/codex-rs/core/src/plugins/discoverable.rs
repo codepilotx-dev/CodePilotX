@@ -1,9 +1,9 @@
 use crate::config::Config;
-use codex_config::types::ToolSuggestDiscoverableType;
-use codex_core_plugins::PluginsManager;
-use codex_core_plugins::ToolSuggestPluginDiscoveryInput;
-use codex_login::CodexAuth;
-use codex_tools::DiscoverablePluginInfo;
+use codepilotx_config::types::ToolSuggestDiscoverableType;
+use codepilotx_core_plugins::PluginsManager;
+use codepilotx_core_plugins::ToolSuggestPluginDiscoveryInput;
+use codepilotx_login::CodexAuth;
+use codepilotx_tools::DiscoverablePluginInfo;
 use std::collections::HashSet;
 use tracing::instrument;
 

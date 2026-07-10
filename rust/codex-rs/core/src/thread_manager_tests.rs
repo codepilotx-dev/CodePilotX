@@ -7,23 +7,23 @@ use crate::session::session::SessionSettingsUpdate;
 use crate::session::tests::make_session_and_context;
 use crate::tasks::InterruptedTurnHistoryMarker;
 use crate::tasks::interrupted_turn_history_marker;
-use codex_extension_api::empty_extension_registry;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::capabilities::CapabilityRootLocation;
-use codex_protocol::capabilities::SelectedCapabilityRoot;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ReasoningItemReasoningSummary;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::protocol::AgentMessageEvent;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::InternalSessionSource;
-use codex_protocol::protocol::ResumedHistory;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::ThreadSource;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_protocol::protocol::UserMessageEvent;
-use codex_utils_path_uri::PathUri;
+use codepilotx_extension_api::empty_extension_registry;
+use codepilotx_models_manager::manager::RefreshStrategy;
+use codepilotx_protocol::capabilities::CapabilityRootLocation;
+use codepilotx_protocol::capabilities::SelectedCapabilityRoot;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::ReasoningItemReasoningSummary;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::openai_models::ModelsResponse;
+use codepilotx_protocol::protocol::AgentMessageEvent;
+use codepilotx_protocol::protocol::InitialHistory;
+use codepilotx_protocol::protocol::InternalSessionSource;
+use codepilotx_protocol::protocol::ResumedHistory;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::ThreadSource;
+use codepilotx_protocol::protocol::TurnStartedEvent;
+use codepilotx_protocol::protocol::UserMessageEvent;
+use codepilotx_utils_path_uri::PathUri;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
 use core_test_support::responses::mount_models_once;
@@ -265,15 +265,15 @@ async fn ignores_session_prefix_messages_when_truncating() {
 async fn shutdown_all_threads_bounded_submits_shutdown_to_every_thread() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.codex_home = temp_dir.path().join("codex-home").abs();
-    config.cwd = config.codex_home.abs();
-    std::fs::create_dir_all(&config.codex_home).expect("create codex home");
+    config.codepilotx_home = temp_dir.path().join("codex-home").abs();
+    config.cwd = config.codepilotx_home.abs();
+    std::fs::create_dir_all(&config.codepilotx_home).expect("create codex home");
 
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
-        config.codex_home.to_path_buf(),
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        config.codepilotx_home.to_path_buf(),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
     );
     let thread_1 = manager
         .start_thread(config.clone())
@@ -302,15 +302,15 @@ async fn shutdown_all_threads_bounded_submits_shutdown_to_every_thread() {
 async fn start_thread_keeps_internal_threads_hidden_from_normal_lookups() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.codex_home = temp_dir.path().join("codex-home").abs();
-    config.cwd = config.codex_home.abs();
-    std::fs::create_dir_all(&config.codex_home).expect("create codex home");
+    config.codepilotx_home = temp_dir.path().join("codex-home").abs();
+    config.cwd = config.codepilotx_home.abs();
+    std::fs::create_dir_all(&config.codepilotx_home).expect("create codex home");
 
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
-        config.codex_home.to_path_buf(),
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        config.codepilotx_home.to_path_buf(),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
     );
     let thread = manager
         .start_thread_with_options(StartThreadOptions {
@@ -350,11 +350,11 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
         mcp_observed: Arc<std::sync::Mutex<Vec<String>>>,
     }
 
-    impl codex_extension_api::ThreadLifecycleContributor<Config> for InitialDataRecorder {
+    impl codepilotx_extension_api::ThreadLifecycleContributor<Config> for InitialDataRecorder {
         fn on_thread_start<'a>(
             &'a self,
-            input: codex_extension_api::ThreadStartInput<'a, Config>,
-        ) -> codex_extension_api::ExtensionFuture<'a, ()> {
+            input: codepilotx_extension_api::ThreadStartInput<'a, Config>,
+        ) -> codepilotx_extension_api::ExtensionFuture<'a, ()> {
             Box::pin(async move {
                 let selected_root = input
                     .thread_store
@@ -372,15 +372,15 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
         }
     }
 
-    impl codex_extension_api::McpServerContributor<Config> for InitialDataRecorder {
+    impl codepilotx_extension_api::McpServerContributor<Config> for InitialDataRecorder {
         fn id(&self) -> &'static str {
             "selected_root_test"
         }
 
         fn contribute<'a>(
             &'a self,
-            context: codex_extension_api::McpServerContributionContext<'a, Config>,
-        ) -> codex_extension_api::ExtensionFuture<'a, Vec<codex_extension_api::McpServerContribution>>
+            context: codepilotx_extension_api::McpServerContributionContext<'a, Config>,
+        ) -> codepilotx_extension_api::ExtensionFuture<'a, Vec<codepilotx_extension_api::McpServerContribution>>
         {
             Box::pin(async move {
                 let thread_init = context
@@ -394,7 +394,7 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .push(selected_root.id.clone());
-                let mut server = codex_mcp::codex_apps_mcp_server_config(
+                let mut server = codepilotx_mcp::codepilotx_apps_mcp_server_config(
                     "https://selected.invalid",
                     /*apps_mcp_product_sku*/ None,
                 );
@@ -403,7 +403,7 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
                 server.environment_id = environment_id.clone();
                 server.enabled = false;
                 let plugin_id = selected_root.id;
-                vec![codex_extension_api::McpServerContribution::SelectedPlugin {
+                vec![codepilotx_extension_api::McpServerContribution::SelectedPlugin {
                     name: plugin_id.clone(),
                     plugin_display_name: plugin_id.clone(),
                     plugin_id,
@@ -416,9 +416,9 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
 
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.codex_home = temp_dir.path().join("codex-home").abs();
-    config.cwd = config.codex_home.abs();
-    std::fs::create_dir_all(&config.codex_home).expect("create codex home");
+    config.codepilotx_home = temp_dir.path().join("codex-home").abs();
+    config.cwd = config.codepilotx_home.abs();
+    std::fs::create_dir_all(&config.codepilotx_home).expect("create codex home");
 
     let lifecycle_observed = Arc::new(std::sync::Mutex::new(Vec::new()));
     let mcp_observed = Arc::new(std::sync::Mutex::new(Vec::new()));
@@ -426,14 +426,14 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
         lifecycle_observed: Arc::clone(&lifecycle_observed),
         mcp_observed: Arc::clone(&mcp_observed),
     });
-    let mut extensions = codex_extension_api::ExtensionRegistryBuilder::new();
+    let mut extensions = codepilotx_extension_api::ExtensionRegistryBuilder::new();
     extensions.thread_lifecycle_contributor(recorder.clone());
     extensions.mcp_server_contributor(recorder);
     let manager = ThreadManager::new(
         &config,
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing()),
         SessionSource::Exec,
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         Arc::new(extensions.build()),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
@@ -444,7 +444,7 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
         /*external_time_provider*/ None,
     );
     let selected_root_init = |id: &str, environment_id: &str| {
-        let mut init = codex_extension_api::ExtensionDataInit::new();
+        let mut init = codepilotx_extension_api::ExtensionDataInit::new();
         init.insert(vec![SelectedCapabilityRoot {
             id: id.to_string(),
             location: CapabilityRootLocation::Environment {
@@ -513,8 +513,8 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
             "selected-b".to_string(),
         ]
     );
-    let selected_servers = |config: &codex_mcp::McpConfig| {
-        codex_mcp::configured_mcp_servers(config)
+    let selected_servers = |config: &codepilotx_mcp::McpConfig| {
+        codepilotx_mcp::configured_mcp_servers(config)
             .into_iter()
             .filter(|(name, _)| name.starts_with("selected-"))
             .map(|(name, server)| (name, server.environment_id))
@@ -534,9 +534,9 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
 async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.codex_home = temp_dir.path().join("codex-home").abs();
-    config.cwd = config.codex_home.abs();
-    std::fs::create_dir_all(&config.codex_home).expect("create codex home");
+    config.codepilotx_home = temp_dir.path().join("codex-home").abs();
+    config.cwd = config.codepilotx_home.abs();
+    std::fs::create_dir_all(&config.codepilotx_home).expect("create codex home");
 
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
@@ -544,7 +544,7 @@ async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
@@ -653,12 +653,12 @@ async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
 }
 
 #[tokio::test]
-async fn explicit_installation_id_skips_codex_home_file() {
+async fn explicit_installation_id_skips_codepilotx_home_file() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.codex_home = temp_dir.path().join("codex-home").abs();
-    config.cwd = config.codex_home.abs();
-    std::fs::create_dir_all(&config.codex_home).expect("create codex home");
+    config.codepilotx_home = temp_dir.path().join("codex-home").abs();
+    config.cwd = config.codepilotx_home.abs();
+    std::fs::create_dir_all(&config.codepilotx_home).expect("create codex home");
 
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
@@ -669,7 +669,7 @@ async fn explicit_installation_id_skips_codex_home_file() {
         &config,
         auth_manager,
         SessionSource::Exec,
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
@@ -685,7 +685,7 @@ async fn explicit_installation_id_skips_codex_home_file() {
         .await
         .expect("start thread with explicit installation id");
 
-    assert!(!config.codex_home.join(INSTALLATION_ID_FILENAME).exists());
+    assert!(!config.codepilotx_home.join(INSTALLATION_ID_FILENAME).exists());
     assert_eq!(thread.thread.codex.session.installation_id, installation_id);
 
     thread
@@ -700,9 +700,9 @@ async fn explicit_installation_id_skips_codex_home_file() {
 async fn resume_active_thread_from_rollout_returns_running_thread() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.codex_home = temp_dir.path().join("codex-home").abs();
-    config.cwd = config.codex_home.abs();
-    std::fs::create_dir_all(&config.codex_home).expect("create codex home");
+    config.codepilotx_home = temp_dir.path().join("codex-home").abs();
+    config.cwd = config.codepilotx_home.abs();
+    std::fs::create_dir_all(&config.codepilotx_home).expect("create codex home");
 
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
@@ -710,7 +710,7 @@ async fn resume_active_thread_from_rollout_returns_running_thread() {
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
@@ -760,9 +760,9 @@ async fn resume_active_thread_from_rollout_returns_running_thread() {
 async fn resume_stopped_thread_from_rollout_spawns_new_thread() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.codex_home = temp_dir.path().join("codex-home").abs();
-    config.cwd = config.codex_home.abs();
-    std::fs::create_dir_all(&config.codex_home).expect("create codex home");
+    config.codepilotx_home = temp_dir.path().join("codex-home").abs();
+    config.cwd = config.codepilotx_home.abs();
+    std::fs::create_dir_all(&config.codepilotx_home).expect("create codex home");
 
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
@@ -770,7 +770,7 @@ async fn resume_stopped_thread_from_rollout_spawns_new_thread() {
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
@@ -825,9 +825,9 @@ async fn resume_stopped_thread_from_rollout_spawns_new_thread() {
 async fn resume_stopped_thread_from_rollout_preserves_thread_source() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.codex_home = temp_dir.path().join("codex-home").abs();
-    config.cwd = config.codex_home.abs();
-    std::fs::create_dir_all(&config.codex_home).expect("create codex home");
+    config.codepilotx_home = temp_dir.path().join("codex-home").abs();
+    config.cwd = config.codepilotx_home.abs();
+    std::fs::create_dir_all(&config.codepilotx_home).expect("create codex home");
 
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
@@ -837,7 +837,7 @@ async fn resume_stopped_thread_from_rollout_preserves_thread_source() {
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
@@ -913,12 +913,12 @@ async fn resume_stopped_thread_from_rollout_preserves_thread_source() {
 async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.codex_home = temp_dir.path().join("codex-home").abs();
-    config.cwd = config.codex_home.abs();
+    config.codepilotx_home = temp_dir.path().join("codex-home").abs();
+    config.cwd = config.codepilotx_home.abs();
     config.experimental_thread_store = ThreadStoreConfig::InMemory {
         id: format!("thread-manager-{}", uuid::Uuid::new_v4()),
     };
-    std::fs::create_dir_all(&config.codex_home).expect("create codex home");
+    std::fs::create_dir_all(&config.codepilotx_home).expect("create codex home");
 
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
@@ -932,7 +932,7 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
@@ -955,7 +955,7 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
     let _ = manager.remove_thread(&source.thread_id).await;
 
     let rollout_path = config
-        .codex_home
+        .codepilotx_home
         .join("rollouts/source.jsonl")
         .to_path_buf();
     let resumed = manager
@@ -1025,9 +1025,9 @@ async fn new_uses_active_provider_for_model_refresh() {
 
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.codex_home = temp_dir.path().join("codex-home").abs();
-    config.cwd = config.codex_home.abs();
-    std::fs::create_dir_all(&config.codex_home).expect("create codex home");
+    config.codepilotx_home = temp_dir.path().join("codex-home").abs();
+    config.cwd = config.codepilotx_home.abs();
+    std::fs::create_dir_all(&config.codepilotx_home).expect("create codex home");
     config.model_catalog = None;
     config.model_provider.base_url = Some(server.uri());
 
@@ -1037,7 +1037,7 @@ async fn new_uses_active_provider_for_model_refresh() {
         &config,
         auth_manager,
         SessionSource::Exec,
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
@@ -1248,9 +1248,9 @@ fn mixed_response_and_legacy_user_event_history_is_mid_turn() {
 async fn interrupted_fork_snapshot_does_not_synthesize_turn_id_for_legacy_history() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.codex_home = temp_dir.path().join("codex-home").abs();
-    config.cwd = config.codex_home.abs();
-    std::fs::create_dir_all(&config.codex_home).expect("create codex home");
+    config.codepilotx_home = temp_dir.path().join("codex-home").abs();
+    config.cwd = config.codepilotx_home.abs();
+    std::fs::create_dir_all(&config.codepilotx_home).expect("create codex home");
 
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
@@ -1259,7 +1259,7 @@ async fn interrupted_fork_snapshot_does_not_synthesize_turn_id_for_legacy_histor
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
@@ -1357,9 +1357,9 @@ async fn interrupted_fork_snapshot_does_not_synthesize_turn_id_for_legacy_histor
 async fn interrupted_fork_snapshot_preserves_explicit_turn_id() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.codex_home = temp_dir.path().join("codex-home").abs();
-    config.cwd = config.codex_home.abs();
-    std::fs::create_dir_all(&config.codex_home).expect("create codex home");
+    config.codepilotx_home = temp_dir.path().join("codex-home").abs();
+    config.cwd = config.codepilotx_home.abs();
+    std::fs::create_dir_all(&config.codepilotx_home).expect("create codex home");
 
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
@@ -1368,7 +1368,7 @@ async fn interrupted_fork_snapshot_preserves_explicit_turn_id() {
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
@@ -1456,9 +1456,9 @@ async fn interrupted_fork_snapshot_preserves_explicit_turn_id() {
 async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_source() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.codex_home = temp_dir.path().join("codex-home").abs();
-    config.cwd = config.codex_home.abs();
-    std::fs::create_dir_all(&config.codex_home).expect("create codex home");
+    config.codepilotx_home = temp_dir.path().join("codex-home").abs();
+    config.cwd = config.codepilotx_home.abs();
+    std::fs::create_dir_all(&config.codepilotx_home).expect("create codex home");
 
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
@@ -1467,7 +1467,7 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,

@@ -1,7 +1,7 @@
 #![cfg(not(target_os = "windows"))]
 
 use anyhow::Result;
-use codex_protocol::models::PermissionProfile;
+use codepilotx_protocol::models::PermissionProfile;
 use core_test_support::assert_regex_match;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -449,7 +449,7 @@ async fn shell_command_output_is_not_truncated_over_10k_bytes() -> Result<()> {
     let expected_pattern = r"(?s)^Exit code: 0
 Wall time: [0-9]+(?:\.[0-9]+)? seconds
 Output:
-1*â€¦1 chars truncatedâ€¦1*$";
+1*â€? chars truncatedâ€?*$";
     assert_regex_match(expected_pattern, output);
 
     Ok(())

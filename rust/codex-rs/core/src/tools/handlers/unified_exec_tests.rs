@@ -1,11 +1,11 @@
 use super::*;
 use crate::shell::ShellType;
 use crate::shell::default_user_shell;
-use codex_exec_server::Environment;
-use codex_tools::UnifiedExecShellMode;
-use codex_tools::ZshForkConfig;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_output_truncation::TruncationPolicy;
+use codepilotx_exec_server::Environment;
+use codepilotx_tools::UnifiedExecShellMode;
+use codepilotx_tools::ZshForkConfig;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_output_truncation::TruncationPolicy;
 use pretty_assertions::assert_eq;
 use std::sync::Arc;
 
@@ -33,7 +33,7 @@ async fn invocation_for_payload(
         cancellation_token: tokio_util::sync::CancellationToken::new(),
         tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
         call_id: call_id.to_string(),
-        tool_name: codex_tools::ToolName::plain(tool_name),
+        tool_name: codepilotx_tools::ToolName::plain(tool_name),
         source: ToolCallSource::Direct,
         payload,
     }
@@ -245,7 +245,7 @@ async fn exec_command_pre_tool_use_payload_uses_raw_command() {
             cancellation_token: tokio_util::sync::CancellationToken::new(),
             tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
             call_id: "call-43".to_string(),
-            tool_name: codex_tools::ToolName::plain("exec_command"),
+            tool_name: codepilotx_tools::ToolName::plain("exec_command"),
             source: crate::tools::context::ToolCallSource::Direct,
             payload,
         }),
@@ -271,7 +271,7 @@ async fn exec_command_pre_tool_use_payload_skips_write_stdin() {
             cancellation_token: tokio_util::sync::CancellationToken::new(),
             tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
             call_id: "call-44".to_string(),
-            tool_name: codex_tools::ToolName::plain("write_stdin"),
+            tool_name: codepilotx_tools::ToolName::plain("write_stdin"),
             source: crate::tools::context::ToolCallSource::Direct,
             payload,
         }),

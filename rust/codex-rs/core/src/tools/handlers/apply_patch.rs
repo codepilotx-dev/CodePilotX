@@ -35,24 +35,24 @@ use crate::tools::registry::ToolExecutor;
 use crate::tools::runtimes::apply_patch::ApplyPatchRequest;
 use crate::tools::runtimes::apply_patch::ApplyPatchRuntime;
 use crate::tools::sandboxing::ToolCtx;
-use codex_apply_patch::ApplyPatchAction;
-use codex_apply_patch::ApplyPatchFileChange;
-use codex_apply_patch::Hunk;
-use codex_apply_patch::StreamingPatchParser;
-use codex_exec_server::ExecutorFileSystem;
-use codex_features::Feature;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_protocol::models::FileSystemPermissions;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::PatchApplyUpdatedEvent;
-use codex_sandboxing::policy_transforms::effective_file_system_sandbox_policy;
-use codex_sandboxing::policy_transforms::merge_permission_profiles;
-use codex_sandboxing::policy_transforms::normalize_additional_permissions;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_apply_patch::ApplyPatchAction;
+use codepilotx_apply_patch::ApplyPatchFileChange;
+use codepilotx_apply_patch::Hunk;
+use codepilotx_apply_patch::StreamingPatchParser;
+use codepilotx_exec_server::ExecutorFileSystem;
+use codepilotx_features::Feature;
+use codepilotx_protocol::models::AdditionalPermissionProfile;
+use codepilotx_protocol::models::FileSystemPermissions;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::FileChange;
+use codepilotx_protocol::protocol::PatchApplyUpdatedEvent;
+use codepilotx_sandboxing::policy_transforms::effective_file_system_sandbox_policy;
+use codepilotx_sandboxing::policy_transforms::merge_permission_profiles;
+use codepilotx_sandboxing::policy_transforms::normalize_additional_permissions;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSpec;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 
 const APPLY_PATCH_ARGUMENT_DIFF_BUFFER_INTERVAL: Duration = Duration::from_millis(500);
 /// Handles freeform `apply_patch` requests and routes verified patches to the
@@ -171,7 +171,7 @@ fn hunk_source_path(hunk: &Hunk) -> &Path {
     }
 }
 
-fn format_update_chunks_for_progress(chunks: &[codex_apply_patch::UpdateFileChunk]) -> String {
+fn format_update_chunks_for_progress(chunks: &[codepilotx_apply_patch::UpdateFileChunk]) -> String {
     let mut unified_diff = String::new();
     for chunk in chunks {
         match &chunk.change_context {
@@ -220,7 +220,7 @@ fn file_paths_for_action(action: &ApplyPatchAction) -> Vec<PathUri> {
 
 fn write_permissions_for_paths(
     file_paths: &[AbsolutePathBuf],
-    file_system_sandbox_policy: &codex_protocol::permissions::FileSystemSandboxPolicy,
+    file_system_sandbox_policy: &codepilotx_protocol::permissions::FileSystemSandboxPolicy,
     cwd: &AbsolutePathBuf,
 ) -> Option<AdditionalPermissionProfile> {
     let write_paths = file_paths
@@ -267,7 +267,7 @@ async fn effective_patch_permissions(
 ) -> std::io::Result<(
     Vec<PathUri>,
     crate::tools::handlers::EffectiveAdditionalPermissions,
-    codex_protocol::permissions::FileSystemSandboxPolicy,
+    codepilotx_protocol::permissions::FileSystemSandboxPolicy,
 )> {
     let file_paths = file_paths_for_action(action);
     let native_cwd = cwd.to_abs_path()?;
@@ -311,7 +311,7 @@ fn patch_permissions_without_path_matching(
 ) -> (
     Vec<PathUri>,
     crate::tools::handlers::EffectiveAdditionalPermissions,
-    codex_protocol::permissions::FileSystemSandboxPolicy,
+    codepilotx_protocol::permissions::FileSystemSandboxPolicy,
 ) {
     // TODO(anp): Make permission matching operate on PathUri. Until then, foreign paths skip
     // permission matching; a managed turn still fails closed at the platform sandbox boundary.
@@ -322,7 +322,7 @@ fn patch_permissions_without_path_matching(
             additional_permissions: None,
             permissions_preapproved: false,
         },
-        codex_protocol::permissions::FileSystemSandboxPolicy::unrestricted(),
+        codepilotx_protocol::permissions::FileSystemSandboxPolicy::unrestricted(),
     )
 }
 
@@ -335,7 +335,7 @@ impl ToolExecutor<ToolInvocation> for ApplyPatchHandler {
         create_apply_patch_freeform_tool(self.multi_environment)
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }
@@ -360,7 +360,7 @@ impl ApplyPatchHandler {
                 "apply_patch handler received unsupported payload".to_string(),
             ));
         };
-        let args = match codex_apply_patch::parse_patch(&patch_input) {
+        let args = match codepilotx_apply_patch::parse_patch(&patch_input) {
             Ok(args) => args,
             Err(parse_error) => {
                 return Err(FunctionCallError::RespondToModel(format!(
@@ -384,7 +384,7 @@ impl ApplyPatchHandler {
             /*additional_permissions*/ None,
             turn_environment.cwd(),
         );
-        match codex_apply_patch::verify_apply_patch_args(
+        match codepilotx_apply_patch::verify_apply_patch_args(
             args,
             turn_environment.cwd(),
             fs.as_ref(),
@@ -392,7 +392,7 @@ impl ApplyPatchHandler {
         )
         .await
         {
-            codex_apply_patch::MaybeApplyPatchVerified::Body(changes) => {
+            codepilotx_apply_patch::MaybeApplyPatchVerified::Body(changes) => {
                 let (file_paths, effective_additional_permissions, file_system_sandbox_policy) =
                     effective_patch_permissions(
                         session.as_ref(),
@@ -470,18 +470,18 @@ impl ApplyPatchHandler {
                     }
                 }
             }
-            codex_apply_patch::MaybeApplyPatchVerified::CorrectnessError(parse_error) => {
+            codepilotx_apply_patch::MaybeApplyPatchVerified::CorrectnessError(parse_error) => {
                 Err(FunctionCallError::RespondToModel(format!(
                     "apply_patch verification failed: {parse_error}"
                 )))
             }
-            codex_apply_patch::MaybeApplyPatchVerified::ShellParseError(error) => {
+            codepilotx_apply_patch::MaybeApplyPatchVerified::ShellParseError(error) => {
                 tracing::trace!("Failed to parse apply_patch input, {error:?}");
                 Err(FunctionCallError::RespondToModel(
                     "apply_patch handler received invalid patch input".to_string(),
                 ))
             }
-            codex_apply_patch::MaybeApplyPatchVerified::NotApplyPatch => {
+            codepilotx_apply_patch::MaybeApplyPatchVerified::NotApplyPatch => {
                 Err(FunctionCallError::RespondToModel(
                     "apply_patch handler received non-apply_patch input".to_string(),
                 ))
@@ -552,10 +552,10 @@ pub(crate) async fn intercept_apply_patch(
     tool_name: &str,
 ) -> Result<Option<FunctionToolOutput>, FunctionCallError> {
     let sandbox = turn.file_system_sandbox_context(/*additional_permissions*/ None, cwd);
-    match codex_apply_patch::maybe_parse_apply_patch_verified(command, cwd, fs, Some(&sandbox))
+    match codepilotx_apply_patch::maybe_parse_apply_patch_verified(command, cwd, fs, Some(&sandbox))
         .await
     {
-        codex_apply_patch::MaybeApplyPatchVerified::Body(changes) => {
+        codepilotx_apply_patch::MaybeApplyPatchVerified::Body(changes) => {
             let (approval_keys, effective_additional_permissions, file_system_sandbox_policy) =
                 effective_patch_permissions(
                     session.as_ref(),
@@ -633,16 +633,16 @@ pub(crate) async fn intercept_apply_patch(
                 }
             }
         }
-        codex_apply_patch::MaybeApplyPatchVerified::CorrectnessError(parse_error) => {
+        codepilotx_apply_patch::MaybeApplyPatchVerified::CorrectnessError(parse_error) => {
             Err(FunctionCallError::RespondToModel(format!(
                 "apply_patch verification failed: {parse_error}"
             )))
         }
-        codex_apply_patch::MaybeApplyPatchVerified::ShellParseError(error) => {
+        codepilotx_apply_patch::MaybeApplyPatchVerified::ShellParseError(error) => {
             tracing::trace!("Failed to parse apply_patch input, {error:?}");
             Ok(None)
         }
-        codex_apply_patch::MaybeApplyPatchVerified::NotApplyPatch => Ok(None),
+        codepilotx_apply_patch::MaybeApplyPatchVerified::NotApplyPatch => Ok(None),
     }
 }
 

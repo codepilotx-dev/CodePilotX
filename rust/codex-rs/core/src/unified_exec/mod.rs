@@ -11,7 +11,7 @@
 //!
 //! Flow at a glance (open process)
 //! 1) Build a small request `{ command, cwd }`.
-//! 2) Orchestrator: approval (bypass/cache/prompt) â†’ select sandbox â†’ run.
+//! 2) Orchestrator: approval (bypass/cache/prompt) â†?select sandbox â†?run.
 //! 3) Runtime: transform `SandboxTransformRequest` -> `ExecRequest` -> spawn PTY.
 //! 4) If denial, orchestrator retries with `SandboxType::None`.
 //! 5) Process handle is returned with streaming output + metadata.
@@ -27,11 +27,11 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::Weak;
 
-use codex_network_proxy::NetworkProxy;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_tools::UnifiedExecShellMode;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_path_uri::PathUri;
+use codepilotx_network_proxy::NetworkProxy;
+use codepilotx_protocol::models::AdditionalPermissionProfile;
+use codepilotx_tools::UnifiedExecShellMode;
+use codepilotx_utils_output_truncation::TruncationPolicy;
+use codepilotx_utils_path_uri::PathUri;
 use rand::Rng;
 use rand::rng;
 use tokio::sync::Mutex;

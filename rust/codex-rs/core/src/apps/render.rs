@@ -1,8 +1,8 @@
 use crate::context::AppsInstructions;
 use crate::context::ContextualUserFragment;
-use codex_app_server_protocol::AppInfo;
-use codex_protocol::protocol::APPS_INSTRUCTIONS_CLOSE_TAG;
-use codex_protocol::protocol::APPS_INSTRUCTIONS_OPEN_TAG;
+use codepilotx_app_server_protocol::AppInfo;
+use codepilotx_protocol::protocol::APPS_INSTRUCTIONS_CLOSE_TAG;
+use codepilotx_protocol::protocol::APPS_INSTRUCTIONS_OPEN_TAG;
 
 pub(crate) fn render_apps_section(connectors: &[AppInfo]) -> Option<String> {
     AppsInstructions::from_connectors(connectors).map(|instructions| instructions.render())

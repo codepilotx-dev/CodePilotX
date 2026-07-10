@@ -1,7 +1,7 @@
 use crate::windows_sandbox::run_setup_refresh_with_extra_read_roots;
 use anyhow::Result;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
@@ -11,7 +11,7 @@ pub fn grant_read_root_non_elevated(
     workspace_roots: &[AbsolutePathBuf],
     command_cwd: &Path,
     env_map: &HashMap<String, String>,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     read_root: &Path,
 ) -> Result<PathBuf> {
     if !read_root.is_absolute() {
@@ -30,7 +30,7 @@ pub fn grant_read_root_non_elevated(
         workspace_roots,
         command_cwd,
         env_map,
-        codex_home,
+        codepilotx_home,
         vec![canonical_root.clone()],
     )?;
     Ok(canonical_root)

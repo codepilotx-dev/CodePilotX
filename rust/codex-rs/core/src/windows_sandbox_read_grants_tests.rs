@@ -1,6 +1,6 @@
 use super::grant_read_root_non_elevated;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashMap;
 use std::path::Path;
 use tempfile::TempDir;

@@ -1,8 +1,8 @@
-use codex_extension_api::ToolCallOutcome;
-use codex_extension_api::ToolCallSource as ExtensionToolCallSource;
-use codex_extension_api::ToolFinishInput;
-use codex_extension_api::ToolStartInput;
-use codex_tools::ToolName;
+use codepilotx_extension_api::ToolCallOutcome;
+use codepilotx_extension_api::ToolCallSource as ExtensionToolCallSource;
+use codepilotx_extension_api::ToolFinishInput;
+use codepilotx_extension_api::ToolStartInput;
+use codepilotx_tools::ToolName;
 
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;

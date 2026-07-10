@@ -1,5 +1,5 @@
-use codex_rollout::state_db as rollout_state_db;
-pub use codex_rollout::state_db::StateDbHandle;
+use codepilotx_rollout::state_db as rollout_state_db;
+pub use codepilotx_rollout::state_db::StateDbHandle;
 
 use crate::config::Config;
 

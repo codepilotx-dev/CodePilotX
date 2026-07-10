@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use codex_protocol::user_input::UserInput;
+use codepilotx_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 
 use super::collect_explicit_app_ids;

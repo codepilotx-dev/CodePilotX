@@ -1,4 +1,4 @@
-use codex_protocol::protocol::AgentStatus;
+use codepilotx_protocol::protocol::AgentStatus;
 
 use super::ContextualUserFragment;
 

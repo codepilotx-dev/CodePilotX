@@ -1,20 +1,20 @@
 use std::collections::BTreeMap;
 
-use codex_config::Constrained;
-use codex_config::ConstrainedWithSource;
-use codex_config::ConstraintError;
-use codex_config::ConstraintResult;
-use codex_config::FeatureRequirementsToml;
-use codex_config::RequirementSource;
-use codex_config::Sourced;
+use codepilotx_config::Constrained;
+use codepilotx_config::ConstrainedWithSource;
+use codepilotx_config::ConstraintError;
+use codepilotx_config::ConstraintResult;
+use codepilotx_config::FeatureRequirementsToml;
+use codepilotx_config::RequirementSource;
+use codepilotx_config::Sourced;
 
-use codex_config::config_toml::ConfigToml;
-use codex_features::Feature;
-use codex_features::FeatureConfigSource;
-use codex_features::FeatureOverrides;
-use codex_features::Features;
-use codex_features::canonical_feature_for_key;
-use codex_features::feature_for_key;
+use codepilotx_config::config_toml::ConfigToml;
+use codepilotx_features::Feature;
+use codepilotx_features::FeatureConfigSource;
+use codepilotx_features::FeatureOverrides;
+use codepilotx_features::Features;
+use codepilotx_features::canonical_feature_for_key;
+use codepilotx_features::feature_for_key;
 
 /// Wrapper around [`Features`] which enforces constraints defined in
 /// `FeatureRequirementsToml` and provides normalization to ensure constraints

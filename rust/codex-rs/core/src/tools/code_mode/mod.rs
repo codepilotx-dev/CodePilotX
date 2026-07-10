@@ -8,12 +8,12 @@ pub(crate) mod wait_spec;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_code_mode::CellId;
-use codex_code_mode::CodeModeNestedToolCall;
-use codex_code_mode::CodeModeSession;
-use codex_code_mode::CodeModeToolKind;
-use codex_code_mode::RuntimeResponse;
-use codex_protocol::models::FunctionCallOutputContentItem;
+use codepilotx_code_mode::CellId;
+use codepilotx_code_mode::CodeModeNestedToolCall;
+use codepilotx_code_mode::CodeModeSession;
+use codepilotx_code_mode::CodeModeToolKind;
+use codepilotx_code_mode::RuntimeResponse;
+use codepilotx_protocol::models::FunctionCallOutputContentItem;
 use serde_json::Value as JsonValue;
 use tokio_util::sync::CancellationToken;
 
@@ -31,11 +31,11 @@ use crate::tools::parallel::ToolCallRuntime;
 use crate::tools::router::ToolCall;
 use crate::tools::router::ToolCallSource;
 use crate::unified_exec::resolve_max_tokens;
-use codex_protocol::openai_models::ToolMode;
-use codex_tools::ToolName;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::formatted_truncate_text_content_items_with_policy;
-use codex_utils_output_truncation::truncate_function_output_items_with_policy;
+use codepilotx_protocol::openai_models::ToolMode;
+use codepilotx_tools::ToolName;
+use codepilotx_utils_output_truncation::TruncationPolicy;
+use codepilotx_utils_output_truncation::formatted_truncate_text_content_items_with_policy;
+use codepilotx_utils_output_truncation::truncate_function_output_items_with_policy;
 
 use delegate::CodeModeDispatchBroker;
 use delegate::CodeModeDispatchWorker;
@@ -43,9 +43,9 @@ pub(crate) use execute_handler::CodeModeExecuteHandler;
 use response_adapter::into_function_call_output_content_items;
 pub(crate) use wait_handler::CodeModeWaitHandler;
 
-pub(crate) const PUBLIC_TOOL_NAME: &str = codex_code_mode::PUBLIC_TOOL_NAME;
-pub(crate) const WAIT_TOOL_NAME: &str = codex_code_mode::WAIT_TOOL_NAME;
-pub(crate) const DEFAULT_WAIT_YIELD_TIME_MS: u64 = codex_code_mode::DEFAULT_WAIT_YIELD_TIME_MS;
+pub(crate) const PUBLIC_TOOL_NAME: &str = codepilotx_code_mode::PUBLIC_TOOL_NAME;
+pub(crate) const WAIT_TOOL_NAME: &str = codepilotx_code_mode::WAIT_TOOL_NAME;
+pub(crate) const DEFAULT_WAIT_YIELD_TIME_MS: u64 = codepilotx_code_mode::DEFAULT_WAIT_YIELD_TIME_MS;
 
 /// Returns true for the un-namespaced code-mode `exec` tool.
 pub(crate) fn is_exec_tool_name(tool_name: &ToolName) -> bool {
@@ -67,7 +67,7 @@ impl CodeModeService {
     pub(crate) fn new() -> Self {
         let dispatch_broker = Arc::new(CodeModeDispatchBroker::new());
         Self {
-            session: Some(Arc::new(codex_code_mode::CodeModeService::with_delegate(
+            session: Some(Arc::new(codepilotx_code_mode::CodeModeService::with_delegate(
                 dispatch_broker.clone(),
             ))),
             dispatch_broker,
@@ -76,22 +76,22 @@ impl CodeModeService {
 
     pub(crate) async fn execute(
         &self,
-        request: codex_code_mode::ExecuteRequest,
-    ) -> Result<codex_code_mode::StartedCell, String> {
+        request: codepilotx_code_mode::ExecuteRequest,
+    ) -> Result<codepilotx_code_mode::StartedCell, String> {
         self.session()?.execute(request).await
     }
 
     pub(crate) async fn wait(
         &self,
-        request: codex_code_mode::WaitRequest,
-    ) -> Result<codex_code_mode::WaitOutcome, String> {
+        request: codepilotx_code_mode::WaitRequest,
+    ) -> Result<codepilotx_code_mode::WaitOutcome, String> {
         self.session()?.wait(request).await
     }
 
     pub(crate) async fn terminate(
         &self,
         cell_id: CellId,
-    ) -> Result<codex_code_mode::WaitOutcome, String> {
+    ) -> Result<codepilotx_code_mode::WaitOutcome, String> {
         self.session()?.terminate(cell_id).await
     }
 
@@ -102,7 +102,7 @@ impl CodeModeService {
         }
     }
 
-    pub(crate) fn mark_cell_ready_for_dispatch(&self, cell_id: &codex_code_mode::CellId) {
+    pub(crate) fn mark_cell_ready_for_dispatch(&self, cell_id: &codepilotx_code_mode::CellId) {
         self.dispatch_broker.mark_cell_ready_for_dispatch(cell_id);
     }
 
@@ -325,9 +325,9 @@ mod tests {
     use super::build_nested_tool_payload;
     use super::truncate_code_mode_result;
     use crate::tools::context::ToolPayload;
-    use codex_code_mode::CodeModeToolKind;
-    use codex_protocol::models::FunctionCallOutputContentItem;
-    use codex_tools::ToolName;
+    use codepilotx_code_mode::CodeModeToolKind;
+    use codepilotx_protocol::models::FunctionCallOutputContentItem;
+    use codepilotx_tools::ToolName;
     use serde_json::json;
 
     #[test]
@@ -376,7 +376,7 @@ mod tests {
                 text: concat!(
                     "Warning: truncated output (original token count: 10)\n",
                     "Total output lines: 1\n\n",
-                    "0123456789â€¦5 tokens truncatedâ€¦0123456789"
+                    "0123456789â€? tokens truncatedâ€?123456789"
                 )
                 .to_string(),
             }]

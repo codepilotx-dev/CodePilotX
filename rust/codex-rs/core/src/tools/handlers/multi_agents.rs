@@ -19,24 +19,24 @@ use crate::tools::handlers::multi_agents_spec::MULTI_AGENT_V1_NAMESPACE;
 use crate::tools::handlers::parse_arguments;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
-use codex_protocol::ThreadId;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::CollabAgentInteractionBeginEvent;
-use codex_protocol::protocol::CollabAgentInteractionEndEvent;
-use codex_protocol::protocol::CollabAgentRef;
-use codex_protocol::protocol::CollabAgentSpawnBeginEvent;
-use codex_protocol::protocol::CollabAgentSpawnEndEvent;
-use codex_protocol::protocol::CollabCloseBeginEvent;
-use codex_protocol::protocol::CollabCloseEndEvent;
-use codex_protocol::protocol::CollabResumeBeginEvent;
-use codex_protocol::protocol::CollabResumeEndEvent;
-use codex_protocol::protocol::CollabWaitingBeginEvent;
-use codex_protocol::protocol::CollabWaitingEndEvent;
-use codex_protocol::user_input::UserInput;
-use codex_tools::ToolName;
-use codex_tools::ToolSearchInfo;
-use codex_tools::ToolSearchSourceInfo;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::models::ResponseInputItem;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::protocol::CollabAgentInteractionBeginEvent;
+use codepilotx_protocol::protocol::CollabAgentInteractionEndEvent;
+use codepilotx_protocol::protocol::CollabAgentRef;
+use codepilotx_protocol::protocol::CollabAgentSpawnBeginEvent;
+use codepilotx_protocol::protocol::CollabAgentSpawnEndEvent;
+use codepilotx_protocol::protocol::CollabCloseBeginEvent;
+use codepilotx_protocol::protocol::CollabCloseEndEvent;
+use codepilotx_protocol::protocol::CollabResumeBeginEvent;
+use codepilotx_protocol::protocol::CollabResumeEndEvent;
+use codepilotx_protocol::protocol::CollabWaitingBeginEvent;
+use codepilotx_protocol::protocol::CollabWaitingEndEvent;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSearchInfo;
+use codepilotx_tools::ToolSearchSourceInfo;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -67,7 +67,7 @@ pub(crate) fn parse_agent_id_targets(
 
 fn multi_agent_tool_search_info(
     search_text: &str,
-    spec: codex_tools::ToolSpec,
+    spec: codepilotx_tools::ToolSpec,
 ) -> Option<ToolSearchInfo> {
     ToolSearchInfo::from_spec(
         search_text.to_string(),

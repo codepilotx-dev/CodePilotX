@@ -1,5 +1,5 @@
 use anyhow::Result;
-use codex_features::Feature;
+use codepilotx_features::Feature;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::apps_test_server::SEARCH_CALENDAR_CREATE_TOOL;
 use core_test_support::apps_test_server::SEARCH_CALENDAR_NAMESPACE;
@@ -76,7 +76,7 @@ async fn code_mode_only_exposes_direct_model_only_mcp_namespaces() -> Result<()>
     });
     assert!(
         exec_description.is_some_and(|description| {
-            !description.contains("mcp__codex_apps__calendar_create_event(args:")
+            !description.contains("mcp__codepilotx_apps__calendar_create_event(args:")
         }),
         "direct-model-only MCP namespace should not be available through exec: {body}"
     );

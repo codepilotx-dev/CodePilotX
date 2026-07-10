@@ -1,7 +1,7 @@
 use super::session::Session;
 use super::turn_context::TurnContext;
 use crate::context::ContextualUserFragment;
-use codex_features::Feature;
+use codepilotx_features::Feature;
 
 pub(super) async fn maybe_record(
     sess: &Session,

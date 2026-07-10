@@ -4,24 +4,24 @@ use crate::session::turn_context::TurnContext;
 use crate::tools::context::SharedTurnDiffTracker;
 use crate::tools::sandboxing::ToolError;
 use crate::turn_timing::now_unix_timestamp_ms;
-use codex_apply_patch::AppliedPatchDelta;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::items::FileChangeItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::parse_command::ParsedCommand;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandBeginEvent;
-use codex_protocol::protocol::ExecCommandEndEvent;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_protocol::protocol::ExecCommandStatus;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::PatchApplyStatus;
-use codex_protocol::protocol::TurnDiffEvent;
-use codex_shell_command::parse_command::parse_command;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_apply_patch::AppliedPatchDelta;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::SandboxErr;
+use codepilotx_protocol::exec_output::ExecToolCallOutput;
+use codepilotx_protocol::items::FileChangeItem;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::parse_command::ParsedCommand;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::ExecCommandBeginEvent;
+use codepilotx_protocol::protocol::ExecCommandEndEvent;
+use codepilotx_protocol::protocol::ExecCommandSource;
+use codepilotx_protocol::protocol::ExecCommandStatus;
+use codepilotx_protocol::protocol::FileChange;
+use codepilotx_protocol::protocol::PatchApplyStatus;
+use codepilotx_protocol::protocol::TurnDiffEvent;
+use codepilotx_shell_command::parse_command::parse_command;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -626,13 +626,13 @@ mod tests {
     use super::*;
     use crate::session::tests::make_session_and_context_with_dynamic_tools_and_rx;
     use crate::turn_diff_tracker::TurnDiffTracker;
-    use codex_exec_server::LOCAL_FS;
-    use codex_protocol::error::CodexErr;
-    use codex_protocol::error::SandboxErr;
-    use codex_protocol::exec_output::ExecToolCallOutput;
-    use codex_protocol::items::TurnItem;
-    use codex_protocol::protocol::PatchApplyStatus;
-    use codex_utils_path_uri::PathUri;
+    use codepilotx_exec_server::LOCAL_FS;
+    use codepilotx_protocol::error::CodexErr;
+    use codepilotx_protocol::error::SandboxErr;
+    use codepilotx_protocol::exec_output::ExecToolCallOutput;
+    use codepilotx_protocol::items::TurnItem;
+    use codepilotx_protocol::protocol::PatchApplyStatus;
+    use codepilotx_utils_path_uri::PathUri;
     use std::sync::Arc;
     use tempfile::tempdir;
     use tokio::sync::Mutex;
@@ -648,7 +648,7 @@ mod tests {
         let cwd = PathUri::from_path(dir.path()).expect("absolute cwd");
         let mut stdout = Vec::new();
         let mut stderr = Vec::new();
-        let delta = codex_apply_patch::apply_patch(
+        let delta = codepilotx_apply_patch::apply_patch(
             "*** Begin Patch\n*** Add File: out/dest.txt\n+after\n*** End Patch",
             &cwd,
             &mut stdout,
@@ -737,7 +737,7 @@ mod tests {
         ] {
             let mut stdout = Vec::new();
             let mut stderr = Vec::new();
-            let delta = codex_apply_patch::apply_patch(
+            let delta = codepilotx_apply_patch::apply_patch(
                 patch,
                 &cwd,
                 &mut stdout,
@@ -785,7 +785,7 @@ mod tests {
         let cwd = PathUri::from_path(dir.path()).expect("absolute cwd");
         let mut stdout = Vec::new();
         let mut stderr = Vec::new();
-        let delta = codex_apply_patch::apply_patch(
+        let delta = codepilotx_apply_patch::apply_patch(
             "*** Begin Patch\n*** Add File: a.txt\n+one\n*** End Patch",
             &cwd,
             &mut stdout,

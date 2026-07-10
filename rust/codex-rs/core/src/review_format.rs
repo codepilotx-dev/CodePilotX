@@ -1,5 +1,5 @@
-use codex_protocol::protocol::ReviewFinding;
-use codex_protocol::protocol::ReviewOutputEvent;
+use codepilotx_protocol::protocol::ReviewFinding;
+use codepilotx_protocol::protocol::ReviewOutputEvent;
 
 // Note: We keep this module UI-agnostic. It returns plain strings that
 // higher layers (e.g., TUI) may style as needed.
@@ -19,7 +19,7 @@ const REVIEW_FALLBACK_MESSAGE: &str = "Reviewer failed to output a response.";
 ///   "[x]" for selected items and "[ ]" for unselected. Missing indices
 ///   default to selected.
 /// - When `selection` is `None`, the marker is omitted and a simple bullet is
-///   rendered ("- Title â€” path:start-end").
+///   rendered ("- Title â€?path:start-end").
 pub fn format_review_findings_block(
     findings: &[ReviewFinding],
     selection: Option<&[bool]>,
@@ -44,9 +44,9 @@ pub fn format_review_findings_block(
             // Default to selected if index is out of bounds.
             let checked = flags.get(idx).copied().unwrap_or(true);
             let marker = if checked { "[x]" } else { "[ ]" };
-            lines.push(format!("- {marker} {title} â€” {location}"));
+            lines.push(format!("- {marker} {title} â€?{location}"));
         } else {
-            lines.push(format!("- {title} â€” {location}"));
+            lines.push(format!("- {title} â€?{location}"));
         }
 
         for body_line in item.body.lines() {

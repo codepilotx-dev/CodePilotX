@@ -1,6 +1,6 @@
-use codex_protocol::items::HookPromptItem;
-use codex_protocol::items::parse_hook_prompt_fragment;
-use codex_protocol::models::ContentItem;
+use codepilotx_protocol::items::HookPromptItem;
+use codepilotx_protocol::items::parse_hook_prompt_fragment;
+use codepilotx_protocol::models::ContentItem;
 
 use super::AdditionalContextUserFragment;
 use super::EnvironmentContext;

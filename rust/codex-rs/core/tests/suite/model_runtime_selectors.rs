@@ -1,21 +1,21 @@
 use anyhow::Result;
-use codex_core::config::Config;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_models_manager::model_info::model_info_from_slug;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ToolMode;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ThreadSettingsOverrides;
-use codex_protocol::user_input::UserInput;
+use codepilotx_core::config::Config;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_models_manager::manager::RefreshStrategy;
+use codepilotx_models_manager::manager::SharedModelsManager;
+use codepilotx_models_manager::model_info::model_info_from_slug;
+use codepilotx_protocol::openai_models::InputModality;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_protocol::openai_models::ModelPreset;
+use codepilotx_protocol::openai_models::ModelVisibility;
+use codepilotx_protocol::openai_models::ModelsResponse;
+use codepilotx_protocol::openai_models::ToolMode;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::MultiAgentVersion;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::ThreadSettingsOverrides;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -158,8 +158,8 @@ async fn remote_tool_mode_selector_overrides_feature_flags() -> Result<()> {
     assert!(
         direct_tools
             .iter()
-            .all(|name| name != codex_code_mode::PUBLIC_TOOL_NAME
-                && name != codex_code_mode::WAIT_TOOL_NAME),
+            .all(|name| name != codepilotx_code_mode::PUBLIC_TOOL_NAME
+                && name != codepilotx_code_mode::WAIT_TOOL_NAME),
         "direct mode should override enabled code mode flags: {direct_tools:?}"
     );
 
@@ -171,8 +171,8 @@ async fn remote_tool_mode_selector_overrides_feature_flags() -> Result<()> {
         tool_names(&code_mode_only_body),
         vec![
             // Code-mode entrypoints.
-            codex_code_mode::PUBLIC_TOOL_NAME.to_string(),
-            codex_code_mode::WAIT_TOOL_NAME.to_string(),
+            codepilotx_code_mode::PUBLIC_TOOL_NAME.to_string(),
+            codepilotx_code_mode::WAIT_TOOL_NAME.to_string(),
             "request_user_input".to_string(),
             // Hosted Responses tools.
             "web_search".to_string(),

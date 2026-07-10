@@ -1,11 +1,11 @@
 use super::compact::COMPACT_WARNING_MESSAGE;
 use anyhow::Result;
-use codex_core::CodexThread;
-use codex_core::compact::SUMMARIZATION_PROMPT;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::user_input::UserInput;
+use codepilotx_core::CodexThread;
+use codepilotx_core::compact::SUMMARIZATION_PROMPT;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::WarningEvent;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;

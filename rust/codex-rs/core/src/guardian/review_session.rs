@@ -5,35 +5,35 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::anyhow;
-use codex_analytics::GuardianReviewAnalyticsResult;
-use codex_analytics::GuardianReviewSessionAnalyticsParams;
-use codex_analytics::GuardianReviewSessionKind;
-use codex_extension_api::UserInstructions;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::AutoCompactTokenLimitScope;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::TokenUsage;
+use codepilotx_analytics::GuardianReviewAnalyticsResult;
+use codepilotx_analytics::GuardianReviewSessionAnalyticsParams;
+use codepilotx_analytics::GuardianReviewSessionKind;
+use codepilotx_extension_api::UserInstructions;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::AutoCompactTokenLimitScope;
+use codepilotx_protocol::config_types::Personality;
+use codepilotx_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::CodexErrorInfo;
+use codepilotx_protocol::protocol::ErrorEvent;
+use codepilotx_protocol::protocol::Event;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::InitialHistory;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_protocol::protocol::TokenUsage;
 use serde_json::Value;
 use tokio::sync::Mutex;
 use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-use crate::codex_delegate::run_codex_thread_interactive;
+use crate::codepilotx_delegate::run_codepilotx_thread_interactive;
 use crate::config::Config;
 use crate::config::Constrained;
 use crate::config::ManagedFeatures;
@@ -44,10 +44,10 @@ use crate::context::GuardianFollowupReviewReminder;
 use crate::session::Codex;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
-use codex_config::types::McpServerConfig;
-use codex_features::Feature;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_config::types::McpServerConfig;
+use codepilotx_features::Feature;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 use super::GUARDIAN_REVIEWER_NAME;
 use super::GuardianApprovalRequest;
@@ -161,7 +161,7 @@ struct GuardianReviewSessionReuseKey {
     compact_prompt: Option<String>,
     cwd: AbsolutePathBuf,
     mcp_servers: Constrained<HashMap<String, McpServerConfig>>,
-    codex_linux_sandbox_exe: Option<PathBuf>,
+    codepilotx_linux_sandbox_exe: Option<PathBuf>,
     main_execve_wrapper_exe: Option<PathBuf>,
     zsh_path: Option<PathBuf>,
     features: ManagedFeatures,
@@ -189,7 +189,7 @@ impl GuardianReviewSessionReuseKey {
             compact_prompt: spawn_config.compact_prompt.clone(),
             cwd: spawn_config.cwd.clone(),
             mcp_servers: spawn_config.mcp_servers.clone(),
-            codex_linux_sandbox_exe: spawn_config.codex_linux_sandbox_exe.clone(),
+            codepilotx_linux_sandbox_exe: spawn_config.codepilotx_linux_sandbox_exe.clone(),
             main_execve_wrapper_exe: spawn_config.main_execve_wrapper_exe.clone(),
             zsh_path: spawn_config.zsh_path.clone(),
             features: spawn_config.features.clone(),
@@ -619,7 +619,7 @@ async fn spawn_guardian_review_session(
         ),
         None => (None, 0, None),
     };
-    let codex = Box::pin(run_codex_thread_interactive(
+    let codex = Box::pin(run_codepilotx_thread_interactive(
         spawn_config,
         params.parent_session.services.auth_manager.clone(),
         params.parent_session.services.models_manager.clone(),
@@ -767,8 +767,8 @@ async fn run_review_on_session(
             final_output_json_schema: Some(params.schema.clone()),
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
-                environments: Some(codex_protocol::protocol::TurnEnvironmentSelections::new(
+            thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
+                environments: Some(codepilotx_protocol::protocol::TurnEnvironmentSelections::new(
                     parent_turn_legacy_fallback_cwd,
                     parent_turn_environments,
                 )),
@@ -777,9 +777,9 @@ async fn run_review_on_session(
                 permission_profile: Some(guardian_permission_profile),
                 summary: Some(params.reasoning_summary),
                 personality: params.personality,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                    mode: codepilotx_protocol::config_types::ModeKind::Default,
+                    settings: codepilotx_protocol::config_types::Settings {
                         model: params.model.clone(),
                         reasoning_effort: params.reasoning_effort.clone(),
                         developer_instructions: None,
@@ -900,7 +900,7 @@ async fn wait_for_guardian_review(
                                 return (
                                     GuardianReviewSessionOutcome::SessionFailed {
                                         error: anyhow!(error.message),
-                                        error_info: error.codex_error_info,
+                                        error_info: error.codepilotx_error_info,
                                     },
                                     true,
                                     true,
@@ -949,9 +949,9 @@ fn event_matches_turn(event: &Event, expected_turn_id: &str) -> bool {
 
 pub(crate) fn build_guardian_review_session_config(
     parent_config: &Config,
-    live_network_config: Option<codex_network_proxy::NetworkProxyConfig>,
+    live_network_config: Option<codepilotx_network_proxy::NetworkProxyConfig>,
     active_model: &str,
-    reasoning_effort: Option<codex_protocol::openai_models::ReasoningEffort>,
+    reasoning_effort: Option<codepilotx_protocol::openai_models::ReasoningEffort>,
 ) -> anyhow::Result<Config> {
     let mut guardian_config = parent_config.clone();
     guardian_config.model = Some(active_model.to_string());
@@ -1081,12 +1081,12 @@ async fn interrupt_and_drain_turn(codex: &Codex, expected_turn_id: &str) -> anyh
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::protocol::AgentStatus;
-    use codex_protocol::protocol::ErrorEvent;
-    use codex_protocol::protocol::Submission;
-    use codex_protocol::protocol::TurnAbortReason;
-    use codex_protocol::protocol::TurnAbortedEvent;
-    use codex_protocol::protocol::TurnCompleteEvent;
+    use codepilotx_protocol::protocol::AgentStatus;
+    use codepilotx_protocol::protocol::ErrorEvent;
+    use codepilotx_protocol::protocol::Submission;
+    use codepilotx_protocol::protocol::TurnAbortReason;
+    use codepilotx_protocol::protocol::TurnAbortedEvent;
+    use codepilotx_protocol::protocol::TurnCompleteEvent;
 
     async fn test_review_session() -> (
         GuardianReviewSession,
@@ -1597,7 +1597,7 @@ mod tests {
                 id: "prior-turn".to_string(),
                 msg: EventMsg::Error(ErrorEvent {
                     message: "stale guardian error".to_string(),
-                    codex_error_info: None,
+                    codepilotx_error_info: None,
                 }),
             })
             .await
@@ -1638,7 +1638,7 @@ mod tests {
                 id: "current-turn".to_string(),
                 msg: EventMsg::Error(ErrorEvent {
                     message: "temporary failure".to_string(),
-                    codex_error_info: Some(CodexErrorInfo::ServerOverloaded),
+                    codepilotx_error_info: Some(CodexErrorInfo::ServerOverloaded),
                 }),
             })
             .await

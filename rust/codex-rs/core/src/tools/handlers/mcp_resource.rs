@@ -2,14 +2,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_protocol::items::McpToolCallError;
-use codex_protocol::items::McpToolCallItem;
-use codex_protocol::items::McpToolCallStatus;
-use codex_protocol::items::TurnItem;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::protocol::TruncationPolicy;
-use codex_utils_output_truncation::truncate_text;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
+use codepilotx_protocol::items::McpToolCallError;
+use codepilotx_protocol::items::McpToolCallItem;
+use codepilotx_protocol::items::McpToolCallStatus;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::mcp::CallToolResult;
+use codepilotx_protocol::protocol::TruncationPolicy;
+use codepilotx_utils_output_truncation::truncate_text;
 use rmcp::model::ListResourceTemplatesResult;
 use rmcp::model::ListResourcesResult;
 use rmcp::model::ReadResourceResult;
@@ -24,7 +24,7 @@ use crate::function_tool::FunctionCallError;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::tools::context::FunctionToolOutput;
-use codex_protocol::protocol::McpInvocation;
+use codepilotx_protocol::protocol::McpInvocation;
 
 mod list_mcp_resource_templates;
 mod list_mcp_resources;
@@ -35,7 +35,7 @@ pub use list_mcp_resources::ListMcpResourcesHandler;
 pub use read_mcp_resource::ReadMcpResourceHandler;
 
 fn model_can_access_mcp_server(turn: &TurnContext, server: &str) -> bool {
-    turn.config.orchestrator_mcp_enabled || server != CODEX_APPS_MCP_SERVER_NAME
+    turn.config.orchestrator_mcp_enabled || server != codepilotx_APPS_MCP_SERVER_NAME
 }
 
 fn ensure_model_can_access_mcp_server(

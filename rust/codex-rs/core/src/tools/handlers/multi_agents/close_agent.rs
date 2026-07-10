@@ -1,8 +1,8 @@
 use super::*;
 use crate::tools::handlers::multi_agents_spec::create_close_agent_tool_v1;
 use crate::turn_timing::now_unix_timestamp_ms;
-use codex_protocol::error::CodexErr;
-use codex_tools::ToolSpec;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_tools::ToolSpec;
 
 pub(crate) struct Handler;
 
@@ -22,7 +22,7 @@ impl ToolExecutor<ToolInvocation> for Handler {
         )
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(async move { handle_close_agent(invocation).await.map(boxed_tool_output) })
     }
 }

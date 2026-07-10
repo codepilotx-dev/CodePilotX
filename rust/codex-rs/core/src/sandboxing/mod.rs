@@ -12,21 +12,21 @@ use crate::exec::ExecExpiration;
 use crate::exec::StdoutStream;
 use crate::exec::execute_exec_request;
 #[cfg(target_os = "macos")]
-use crate::spawn::CODEX_SANDBOX_ENV_VAR;
-use crate::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR;
-use codex_file_system::FileSystemSandboxContext;
-use codex_network_proxy::NetworkProxy;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::models::PermissionProfile;
-pub use codex_protocol::models::SandboxPermissions;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_sandboxing::SandboxExecRequest;
-use codex_sandboxing::SandboxType;
-use codex_sandboxing::WindowsSandboxFilesystemOverrides;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use crate::spawn::codepilotx_SANDBOX_ENV_VAR;
+use crate::spawn::codepilotx_SANDBOX_NETWORK_DISABLED_ENV_VAR;
+use codepilotx_file_system::FileSystemSandboxContext;
+use codepilotx_network_proxy::NetworkProxy;
+use codepilotx_protocol::config_types::WindowsSandboxLevel;
+use codepilotx_protocol::exec_output::ExecToolCallOutput;
+use codepilotx_protocol::models::PermissionProfile;
+pub use codepilotx_protocol::models::SandboxPermissions;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_sandboxing::SandboxExecRequest;
+use codepilotx_sandboxing::SandboxType;
+use codepilotx_sandboxing::WindowsSandboxFilesystemOverrides;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -37,7 +37,7 @@ pub(crate) struct ExecOptions {
 
 #[derive(Clone, Debug)]
 pub(crate) struct ExecServerEnvConfig {
-    pub(crate) policy: codex_exec_server::ExecEnvPolicy,
+    pub(crate) policy: codepilotx_exec_server::ExecEnvPolicy,
     pub(crate) local_policy_env: HashMap<String, String>,
 }
 
@@ -136,13 +136,13 @@ impl ExecRequest {
         } = options;
         if !network_sandbox_policy.is_enabled() {
             env.insert(
-                CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR.to_string(),
+                codepilotx_SANDBOX_NETWORK_DISABLED_ENV_VAR.to_string(),
                 "1".to_string(),
             );
         }
         #[cfg(target_os = "macos")]
         if sandbox == SandboxType::MacosSeatbelt {
-            env.insert(CODEX_SANDBOX_ENV_VAR.to_string(), "seatbelt".to_string());
+            env.insert(codepilotx_SANDBOX_ENV_VAR.to_string(), "seatbelt".to_string());
         }
         Self {
             command,
@@ -172,7 +172,7 @@ impl ExecRequest {
 pub async fn execute_env(
     exec_request: ExecRequest,
     stdout_stream: Option<StdoutStream>,
-) -> codex_protocol::error::Result<ExecToolCallOutput> {
+) -> codepilotx_protocol::error::Result<ExecToolCallOutput> {
     execute_exec_request(exec_request, stdout_stream, /*after_spawn*/ None).await
 }
 
@@ -180,6 +180,6 @@ pub async fn execute_exec_request_with_after_spawn(
     exec_request: ExecRequest,
     stdout_stream: Option<StdoutStream>,
     after_spawn: Option<Box<dyn FnOnce() + Send>>,
-) -> codex_protocol::error::Result<ExecToolCallOutput> {
+) -> codepilotx_protocol::error::Result<ExecToolCallOutput> {
     execute_exec_request(exec_request, stdout_stream, after_spawn).await
 }

@@ -1,4 +1,4 @@
-use codex_prompts::BACKEND_PROMPT;
+use codepilotx_prompts::BACKEND_PROMPT;
 const DEFAULT_USER_FIRST_NAME: &str = "there";
 const USER_FIRST_NAME_PLACEHOLDER: &str = "{{ user_first_name }}";
 

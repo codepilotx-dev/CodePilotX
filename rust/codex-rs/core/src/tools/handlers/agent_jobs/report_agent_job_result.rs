@@ -6,8 +6,8 @@ use crate::tools::context::boxed_tool_output;
 use crate::tools::handlers::agent_jobs_spec::create_report_agent_job_result_tool;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSpec;
 
 use super::*;
 
@@ -22,7 +22,7 @@ impl ToolExecutor<ToolInvocation> for ReportAgentJobResultHandler {
         create_report_agent_job_result_tool()
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }

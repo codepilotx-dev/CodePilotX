@@ -1,7 +1,7 @@
 use super::ContextualUserFragment;
-use codex_prompts::END_INSTRUCTIONS;
-use codex_protocol::protocol::REALTIME_CONVERSATION_CLOSE_TAG;
-use codex_protocol::protocol::REALTIME_CONVERSATION_OPEN_TAG;
+use codepilotx_prompts::END_INSTRUCTIONS;
+use codepilotx_protocol::protocol::REALTIME_CONVERSATION_CLOSE_TAG;
+use codepilotx_protocol::protocol::REALTIME_CONVERSATION_OPEN_TAG;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RealtimeEndInstructions {

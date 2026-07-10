@@ -2,28 +2,28 @@ use core_test_support::test_codex::local_selections;
 use std::fs;
 
 use anyhow::Result;
-use codex_core::compact::SUMMARY_PREFIX;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceTool;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::ConversationStartParams;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ItemCompletedEvent;
-use codex_protocol::protocol::ItemStartedEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RealtimeConversationRealtimeEvent;
-use codex_protocol::protocol::RealtimeEvent;
-use codex_protocol::protocol::RealtimeOutputModality;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::user_input::UserInput;
+use codepilotx_core::compact::SUMMARY_PREFIX;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_protocol::config_types::ServiceTier;
+use codepilotx_protocol::dynamic_tools::DynamicToolFunctionSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolNamespaceSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolNamespaceTool;
+use codepilotx_protocol::dynamic_tools::DynamicToolSpec;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::protocol::ConversationStartParams;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::ItemCompletedEvent;
+use codepilotx_protocol::protocol::ItemStartedEvent;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::RealtimeConversationRealtimeEvent;
+use codepilotx_protocol::protocol::RealtimeEvent;
+use codepilotx_protocol::protocol::RealtimeOutputModality;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::RolloutLine;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::PathBufExt;
 use core_test_support::apps_test_server::configure_search_capable_model;
 use core_test_support::context_snapshot;
@@ -169,7 +169,7 @@ fn test_codex() -> TestCodexBuilder {
     })
 }
 
-fn remote_realtime_test_codex_builder(
+fn remote_realtime_test_codepilotx_builder(
     realtime_server: &responses::WebSocketTestServer,
 ) -> TestCodexBuilder {
     let realtime_base_url = realtime_server.uri().to_string();
@@ -200,13 +200,13 @@ async fn start_remote_realtime_server() -> responses::WebSocketTestServer {
     .await
 }
 
-async fn start_realtime_conversation(codex: &codex_core::CodexThread) -> Result<()> {
+async fn start_realtime_conversation(codex: &codepilotx_core::CodexThread) -> Result<()> {
     codex
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             client_managed_handoffs: false,
-            codex_responses_as_items: false,
-            codex_response_item_prefix: None,
-            codex_response_handoff_prefix: None,
+            codepilotx_responses_as_items: false,
+            codepilotx_response_item_prefix: None,
+            codepilotx_response_handoff_prefix: None,
             model: None,
             output_modality: RealtimeOutputModality::Audio,
             include_startup_context: true,
@@ -241,7 +241,7 @@ async fn start_realtime_conversation(codex: &codex_core::CodexThread) -> Result<
     Ok(())
 }
 
-async fn close_realtime_conversation(codex: &codex_core::CodexThread) -> Result<()> {
+async fn close_realtime_conversation(codex: &codepilotx_core::CodexThread) -> Result<()> {
     codex.submit(Op::RealtimeConversationClose).await?;
     wait_for_event_match(codex, |msg| match msg {
         EventMsg::RealtimeConversationClosed(closed) => Some(closed.clone()),
@@ -294,7 +294,7 @@ fn assert_request_contains_realtime_end(request: &responses::ResponsesRequest) {
     );
 }
 
-async fn wait_for_turn_complete(codex: &codex_core::CodexThread) {
+async fn wait_for_turn_complete(codex: &codepilotx_core::CodexThread) {
     wait_for_event_with_timeout(
         codex,
         |ev| matches!(ev, EventMsg::TurnComplete(_)),
@@ -1156,7 +1156,7 @@ async fn remote_compact_filters_deferred_dynamic_tools() -> Result<()> {
         "additionalProperties": false,
     });
     let dynamic_tools = vec![DynamicToolSpec::Namespace(DynamicToolNamespaceSpec {
-        name: "codex_app".to_string(),
+        name: "codepilotx_app".to_string(),
         description: "Codex app tools.".to_string(),
         tools: vec![
             DynamicToolNamespaceTool::Function(DynamicToolFunctionSpec {
@@ -1223,11 +1223,11 @@ async fn remote_compact_filters_deferred_dynamic_tools() -> Result<()> {
     assert_tools_payload_does_not_defer(&first_response_body);
     assert_tools_payload_does_not_defer(&compact_body);
     assert_eq!(
-        namespace_child_tool_names(&first_response_body, "codex_app"),
+        namespace_child_tool_names(&first_response_body, "codepilotx_app"),
         vec![visible_tool.to_string()]
     );
     assert_eq!(
-        namespace_child_tool_names(&compact_body, "codex_app"),
+        namespace_child_tool_names(&compact_body, "codepilotx_app"),
         vec![visible_tool.to_string()]
     );
 
@@ -1795,7 +1795,7 @@ async fn remote_compact_trims_tool_search_output_to_empty_tools_array() -> Resul
         "additionalProperties": false,
     });
     let dynamic_tool = DynamicToolSpec::Namespace(DynamicToolNamespaceSpec {
-        name: "codex_app".to_string(),
+        name: "codepilotx_app".to_string(),
         description: "Codex app tools.".to_string(),
         tools: vec![DynamicToolNamespaceTool::Function(
             DynamicToolFunctionSpec {
@@ -2727,7 +2727,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_sta
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_codex_builder(&realtime_server).with_config(|config| {
+    let mut builder = remote_realtime_test_codepilotx_builder(&realtime_server).with_config(|config| {
         config.model_auto_compact_token_limit = Some(200);
     });
     let test = builder.build(&server).await?;
@@ -2820,7 +2820,7 @@ async fn remote_request_uses_custom_experimental_realtime_start_instructions() -
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
     let custom_instructions = "custom realtime start instructions";
-    let mut builder = remote_realtime_test_codex_builder(&realtime_server).with_config({
+    let mut builder = remote_realtime_test_codepilotx_builder(&realtime_server).with_config({
         let custom_instructions = custom_instructions.to_string();
         move |config| {
             config.experimental_realtime_start_instructions = Some(custom_instructions);
@@ -2869,7 +2869,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_end
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_codex_builder(&realtime_server).with_config(|config| {
+    let mut builder = remote_realtime_test_codepilotx_builder(&realtime_server).with_config(|config| {
         config.model_auto_compact_token_limit = Some(200);
     });
     let test = builder.build(&server).await?;
@@ -2962,7 +2962,7 @@ async fn snapshot_request_shape_remote_manual_compact_restates_realtime_start() 
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_codex_builder(&realtime_server);
+    let mut builder = remote_realtime_test_codepilotx_builder(&realtime_server);
     let test = builder.build(&server).await?;
 
     let responses_mock = responses::mount_sse_sequence(
@@ -3056,7 +3056,7 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_does_not_restate_real
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_codex_builder(&realtime_server).with_config(|config| {
+    let mut builder = remote_realtime_test_codepilotx_builder(&realtime_server).with_config(|config| {
         config.model_auto_compact_token_limit = Some(200);
     });
     let test = builder.build(&server).await?;
@@ -3162,7 +3162,7 @@ async fn snapshot_request_shape_remote_compact_resume_restates_realtime_end() ->
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_codex_builder(&realtime_server);
+    let mut builder = remote_realtime_test_codepilotx_builder(&realtime_server);
     let initial = builder.build(&server).await?;
     let home = initial.home.clone();
     let rollout_path = initial
@@ -3310,7 +3310,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_including_incoming_us
         if user == "USER_THREE" {
             core_test_support::submit_thread_settings(
                 &codex,
-                codex_protocol::protocol::ThreadSettingsOverrides {
+                codepilotx_protocol::protocol::ThreadSettingsOverrides {
                     environments: Some(local_selections(
                         test_path_buf(PRETURN_CONTEXT_DIFF_CWD).abs(),
                     )),
@@ -3422,7 +3422,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_strips_incoming_model
 
     core_test_support::submit_thread_settings(
         &codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        codepilotx_protocol::protocol::ThreadSettingsOverrides {
             model: Some(next_model.to_string()),
             ..Default::default()
         },

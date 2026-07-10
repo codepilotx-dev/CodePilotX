@@ -11,24 +11,24 @@ use crate::session::turn_context::TurnContext;
 use crate::state::SessionServices;
 use crate::tools::hook_names::HookToolName;
 use crate::tools::network_approval::NetworkApprovalSpec;
-use codex_file_system::FileSystemSandboxContext;
-use codex_network_proxy::NetworkProxy;
-use codex_protocol::approvals::ExecPolicyAmendment;
-use codex_protocol::approvals::NetworkApprovalContext;
-use codex_protocol::error::CodexErr;
-use codex_protocol::permissions::FileSystemSandboxKind;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::ReviewDecision;
-use codex_sandboxing::SandboxCommand;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxTransformRequest;
-use codex_sandboxing::SandboxType;
-use codex_sandboxing::SandboxablePreference;
-use codex_sandboxing::policy_transforms::effective_permission_profile;
-use codex_tools::ToolName;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_file_system::FileSystemSandboxContext;
+use codepilotx_network_proxy::NetworkProxy;
+use codepilotx_protocol::approvals::ExecPolicyAmendment;
+use codepilotx_protocol::approvals::NetworkApprovalContext;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::permissions::FileSystemSandboxKind;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::ReviewDecision;
+use codepilotx_sandboxing::SandboxCommand;
+use codepilotx_sandboxing::SandboxManager;
+use codepilotx_sandboxing::SandboxTransformRequest;
+use codepilotx_sandboxing::SandboxType;
+use codepilotx_sandboxing::SandboxablePreference;
+use codepilotx_sandboxing::policy_transforms::effective_permission_profile;
+use codepilotx_tools::ToolName;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 use futures::Future;
 use futures::future::BoxFuture;
 use serde::Serialize;
@@ -412,16 +412,16 @@ pub(crate) struct SandboxAttempt<'a> {
     pub sandbox: SandboxType,
     /// Whether policy requested sandboxing, independent of this host's concrete wrapper.
     pub sandbox_requested: bool,
-    pub permissions: &'a codex_protocol::models::PermissionProfile,
+    pub permissions: &'a codepilotx_protocol::models::PermissionProfile,
     /// Canonical permissions before this host materializes workspace roots.
-    pub exec_server_permissions: &'a codex_protocol::models::PermissionProfile,
+    pub exec_server_permissions: &'a codepilotx_protocol::models::PermissionProfile,
     pub enforce_managed_network: bool,
     pub(crate) manager: &'a SandboxManager,
     pub(crate) sandbox_cwd: &'a PathUri,
     pub(crate) workspace_roots: &'a [AbsolutePathBuf],
-    pub codex_linux_sandbox_exe: Option<&'a std::path::PathBuf>,
+    pub codepilotx_linux_sandbox_exe: Option<&'a std::path::PathBuf>,
     pub use_legacy_landlock: bool,
-    pub windows_sandbox_level: codex_protocol::config_types::WindowsSandboxLevel,
+    pub windows_sandbox_level: codepilotx_protocol::config_types::WindowsSandboxLevel,
     pub windows_sandbox_private_desktop: bool,
     pub network_denial_cancellation_token: Option<CancellationToken>,
 }
@@ -444,8 +444,8 @@ impl<'a> SandboxAttempt<'a> {
                 environment_id,
                 network,
                 sandbox_policy_cwd: self.sandbox_cwd,
-                codex_linux_sandbox_exe: self
-                    .codex_linux_sandbox_exe
+                codepilotx_linux_sandbox_exe: self
+                    .codepilotx_linux_sandbox_exe
                     .map(std::path::PathBuf::as_path),
                 use_legacy_landlock: self.use_legacy_landlock,
                 windows_sandbox_level: self.windows_sandbox_level,
@@ -481,7 +481,7 @@ impl<'a> SandboxAttempt<'a> {
                 environment_id,
                 network,
                 sandbox_policy_cwd: self.sandbox_cwd,
-                codex_linux_sandbox_exe: None,
+                codepilotx_linux_sandbox_exe: None,
                 use_legacy_landlock: self.use_legacy_landlock,
                 windows_sandbox_level: self.windows_sandbox_level,
                 windows_sandbox_private_desktop: self.windows_sandbox_private_desktop,

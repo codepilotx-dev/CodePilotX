@@ -1,11 +1,11 @@
-use codex_config::Constrained;
-use codex_config::ConstraintResult;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_config::Constrained;
+use codepilotx_config::ConstraintResult;
+use codepilotx_protocol::models::ActivePermissionProfile;
+use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
+use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
+use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BuiltInPermissionProfileId {

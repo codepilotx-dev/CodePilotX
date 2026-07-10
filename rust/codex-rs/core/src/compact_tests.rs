@@ -1,8 +1,8 @@
 use super::*;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::WireApi;
-use codex_protocol::models::DEFAULT_IMAGE_DETAIL;
-use codex_protocol::models::ResponseItemMetadata;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_model_provider_info::WireApi;
+use codepilotx_protocol::models::DEFAULT_IMAGE_DETAIL;
+use codepilotx_protocol::models::ResponseItemMetadata;
 use pretty_assertions::assert_eq;
 
 async fn process_compacted_history_with_test_session(

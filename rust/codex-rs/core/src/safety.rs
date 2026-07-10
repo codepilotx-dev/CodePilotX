@@ -2,15 +2,15 @@ use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_apply_patch::ApplyPatchAction;
-use codex_apply_patch::ApplyPatchFileChange;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_sandboxing::SandboxType;
-use codex_sandboxing::get_platform_sandbox;
-use codex_utils_path_uri::PathUri;
+use codepilotx_apply_patch::ApplyPatchAction;
+use codepilotx_apply_patch::ApplyPatchFileChange;
+use codepilotx_protocol::config_types::WindowsSandboxLevel;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_sandboxing::SandboxType;
+use codepilotx_sandboxing::get_platform_sandbox;
+use codepilotx_utils_path_uri::PathUri;
 
 const PATCH_REJECTED_OUTSIDE_PROJECT_REASON: &str =
     "writing outside of the project; rejected by user approval settings";

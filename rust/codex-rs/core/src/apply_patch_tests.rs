@@ -1,5 +1,5 @@
 use super::*;
-use codex_utils_path_uri::PathUri;
+use codepilotx_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 
 use tempfile::tempdir;

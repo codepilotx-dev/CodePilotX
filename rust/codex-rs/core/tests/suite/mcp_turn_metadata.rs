@@ -2,21 +2,21 @@
 #![allow(clippy::unwrap_used)]
 
 use anyhow::Result;
-use codex_config::types::AppToolApproval;
-use codex_core::config::Config;
-use codex_features::Feature;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Settings;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::ElicitationAction;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::request_user_input::RequestUserInputAnswer;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_protocol::user_input::UserInput;
+use codepilotx_config::types::AppToolApproval;
+use codepilotx_core::config::Config;
+use codepilotx_features::Feature;
+use codepilotx_protocol::config_types::ApprovalsReviewer;
+use codepilotx_protocol::config_types::CollaborationMode;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::Settings;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::ElicitationAction;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::request_user_input::RequestUserInputAnswer;
+use codepilotx_protocol::request_user_input::RequestUserInputResponse;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::PathExt;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::apps_test_server::SEARCH_CALENDAR_CREATE_TOOL;
@@ -47,7 +47,7 @@ fn set_calendar_approval_mode(config: &mut Config, approval_mode: AppToolApprova
         AppToolApproval::Prompt => "prompt",
         AppToolApproval::Approve => "approve",
     };
-    let user_config_path = config.codex_home.join("config.toml").abs();
+    let user_config_path = config.codepilotx_home.join("config.toml").abs();
     let user_config = toml::from_str(&format!(
         r#"
 [apps.calendar]
@@ -70,7 +70,7 @@ fn set_default_app_approval_mode_and_reviewer(
         AppToolApproval::Prompt => "prompt",
         AppToolApproval::Approve => "approve",
     };
-    let user_config_path = config.codex_home.join("config.toml").abs();
+    let user_config_path = config.codepilotx_home.join("config.toml").abs();
     let user_config = toml::from_str(&format!(
         r#"
 [apps._default]
@@ -102,15 +102,15 @@ async fn submit_user_turn(
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(test.config.cwd.clone())),
                 approval_policy: Some(approval_policy),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
                 collaboration_mode: collaboration_mode.or({
-                    Some(codex_protocol::config_types::CollaborationMode {
-                        mode: codex_protocol::config_types::ModeKind::Default,
-                        settings: codex_protocol::config_types::Settings {
+                    Some(codepilotx_protocol::config_types::CollaborationMode {
+                        mode: codepilotx_protocol::config_types::ModeKind::Default,
+                        settings: codepilotx_protocol::config_types::Settings {
                             model: session_model,
                             reasoning_effort: None,
                             developer_instructions: None,

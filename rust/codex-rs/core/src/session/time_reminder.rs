@@ -1,5 +1,5 @@
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result as CodexResult;
 
 use super::session::Session;
 use super::turn_context::TurnContext;

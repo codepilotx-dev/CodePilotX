@@ -1,22 +1,22 @@
 #![cfg(not(target_os = "windows"))]
 
 use anyhow::Ok;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Settings;
-use codex_protocol::items::AgentMessageContent;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::WebSearchAction;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ItemCompletedEvent;
-use codex_protocol::protocol::ItemStartedEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::TextElement;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_protocol::config_types::CollaborationMode;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::Settings;
+use codepilotx_protocol::items::AgentMessageContent;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::models::WebSearchAction;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::ItemCompletedEvent;
+use codepilotx_protocol::protocol::ItemStartedEvent;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::user_input::ByteRange;
+use codepilotx_protocol::user_input::TextElement;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::PathBufExt;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -60,7 +60,7 @@ fn disabled_plan_turn(
         final_output_json_schema: None,
         responsesapi_client_metadata: None,
         additional_context: Default::default(),
-        thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+        thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
             environments: Some(local_selections(cwd)),
             approval_policy: Some(AskForApproval::Never),
             sandbox_policy: Some(sandbox_policy),
@@ -71,7 +71,7 @@ fn disabled_plan_turn(
     })
 }
 
-fn image_generation_artifact_path(codex_home: &Path, session_id: &str, call_id: &str) -> PathBuf {
+fn image_generation_artifact_path(codepilotx_home: &Path, session_id: &str, call_id: &str) -> PathBuf {
     fn sanitize(value: &str) -> String {
         let mut sanitized: String = value
             .chars()
@@ -89,7 +89,7 @@ fn image_generation_artifact_path(codex_home: &Path, session_id: &str, call_id: 
         sanitized
     }
 
-    codex_home
+    codepilotx_home
         .join("generated_images")
         .join(sanitize(session_id))
         .join(format!("{}.png", sanitize(call_id)))
@@ -202,7 +202,7 @@ async fn assistant_message_item_is_emitted() -> anyhow::Result<()> {
     .await;
 
     assert_eq!(started.id, completed.id);
-    let Some(codex_protocol::items::AgentMessageContent::Text { text }) = completed.content.first()
+    let Some(codepilotx_protocol::items::AgentMessageContent::Text { text }) = completed.content.first()
     else {
         panic!("expected agent message text content");
     };
@@ -361,7 +361,7 @@ async fn builtin_image_generation_call_persisted() -> anyhow::Result<()> {
     } = test_codex().build(&server).await?;
     let call_id = "ig_image_saved_to_temp_dir_default";
     let expected_saved_path = image_generation_artifact_path(
-        config.codex_home.as_path(),
+        config.codepilotx_home.as_path(),
         &session_configured.thread_id.to_string(),
         call_id,
     );
@@ -448,7 +448,7 @@ async fn image_generation_call_event_is_emitted_when_image_save_fails() -> anyho
         ..
     } = test_codex().build(&server).await?;
     let expected_saved_path = image_generation_artifact_path(
-        config.codex_home.as_path(),
+        config.codepilotx_home.as_path(),
         &session_configured.thread_id.to_string(),
         "ig_invalid",
     );

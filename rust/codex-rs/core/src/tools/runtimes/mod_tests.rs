@@ -6,25 +6,25 @@ use crate::shell::ShellType;
 use crate::tools::sandboxing::SandboxAttempt;
 use crate::tools::sandboxing::managed_network_for_sandbox_permissions;
 #[cfg(target_os = "macos")]
-use codex_network_proxy::CODEX_PROXY_GIT_SSH_COMMAND_MARKER;
-use codex_network_proxy::CUSTOM_CA_ENV_KEYS;
-use codex_network_proxy::ConfigReloader;
-use codex_network_proxy::ConfigReloaderFuture;
-use codex_network_proxy::ConfigState;
-use codex_network_proxy::NetworkProxy;
-use codex_network_proxy::NetworkProxyConfig;
-use codex_network_proxy::NetworkProxyConstraints;
-use codex_network_proxy::NetworkProxyState;
-use codex_network_proxy::PROXY_ACTIVE_ENV_KEY;
-use codex_network_proxy::PROXY_ENV_KEYS;
+use codepilotx_network_proxy::codepilotx_PROXY_GIT_SSH_COMMAND_MARKER;
+use codepilotx_network_proxy::CUSTOM_CA_ENV_KEYS;
+use codepilotx_network_proxy::ConfigReloader;
+use codepilotx_network_proxy::ConfigReloaderFuture;
+use codepilotx_network_proxy::ConfigState;
+use codepilotx_network_proxy::NetworkProxy;
+use codepilotx_network_proxy::NetworkProxyConfig;
+use codepilotx_network_proxy::NetworkProxyConstraints;
+use codepilotx_network_proxy::NetworkProxyState;
+use codepilotx_network_proxy::PROXY_ACTIVE_ENV_KEY;
+use codepilotx_network_proxy::PROXY_ENV_KEYS;
 #[cfg(target_os = "macos")]
-use codex_network_proxy::PROXY_GIT_SSH_COMMAND_ENV_KEY;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::PermissionProfile;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxType;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_network_proxy::PROXY_GIT_SSH_COMMAND_ENV_KEY;
+use codepilotx_protocol::config_types::WindowsSandboxLevel;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_sandboxing::SandboxManager;
+use codepilotx_sandboxing::SandboxType;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 use core_test_support::PathBufExt;
 use pretty_assertions::assert_eq;
 use std::path::PathBuf;
@@ -63,7 +63,7 @@ fn shell_with_snapshot(
 }
 
 async fn test_network_proxy() -> anyhow::Result<NetworkProxy> {
-    let state = codex_network_proxy::build_config_state(
+    let state = codepilotx_network_proxy::build_config_state(
         NetworkProxyConfig::default(),
         NetworkProxyConstraints::default(),
     )?;
@@ -113,7 +113,7 @@ async fn explicit_escalation_prepares_exec_without_managed_network() -> anyhow::
         manager: &manager,
         sandbox_cwd: &sandbox_policy_cwd,
         workspace_roots: std::slice::from_ref(&native_sandbox_policy_cwd),
-        codex_linux_sandbox_exe: None,
+        codepilotx_linux_sandbox_exe: None,
         use_legacy_landlock: false,
         windows_sandbox_level: WindowsSandboxLevel::Disabled,
         windows_sandbox_private_desktop: false,
@@ -304,7 +304,7 @@ fn apply_zsh_fork_path_prepend_moves_existing_shell_parent_to_front() {
 }
 
 #[test]
-fn explicit_escalation_keeps_user_proxy_env_without_codex_marker() {
+fn explicit_escalation_keeps_user_proxy_env_without_codepilotx_marker() {
     let env = HashMap::from([
         (
             "HTTP_PROXY".to_string(),
@@ -501,12 +501,12 @@ fn maybe_wrap_shell_lc_with_snapshot_restores_explicit_override_precedence() {
 }
 
 #[test]
-fn maybe_wrap_shell_lc_with_snapshot_restores_codex_thread_id_from_env() {
+fn maybe_wrap_shell_lc_with_snapshot_restores_codepilotx_thread_id_from_env() {
     let dir = tempdir().expect("create temp dir");
     let snapshot_path = dir.path().join("snapshot.sh");
     std::fs::write(
         &snapshot_path,
-        "# Snapshot file\nexport CODEX_THREAD_ID='parent-thread'\n",
+        "# Snapshot file\nexport codepilotx_THREAD_ID='parent-thread'\n",
     )
     .expect("write snapshot");
     let (session_shell, shell_snapshot) =
@@ -514,19 +514,19 @@ fn maybe_wrap_shell_lc_with_snapshot_restores_codex_thread_id_from_env() {
     let command = vec![
         "/bin/bash".to_string(),
         "-lc".to_string(),
-        "printf '%s' \"$CODEX_THREAD_ID\"".to_string(),
+        "printf '%s' \"$codepilotx_THREAD_ID\"".to_string(),
     ];
     let rewritten = maybe_wrap_shell_lc_with_snapshot(
         &command,
         &session_shell,
         Some(&shell_snapshot),
         &HashMap::new(),
-        &HashMap::from([("CODEX_THREAD_ID".to_string(), "nested-thread".to_string())]),
+        &HashMap::from([("codepilotx_THREAD_ID".to_string(), "nested-thread".to_string())]),
         &RuntimePathPrepends::default(),
     );
     let output = Command::new(&rewritten[0])
         .args(&rewritten[1..])
-        .env("CODEX_THREAD_ID", "nested-thread")
+        .env("codepilotx_THREAD_ID", "nested-thread")
         .output()
         .expect("run rewritten command");
 
@@ -585,14 +585,14 @@ fn maybe_wrap_shell_lc_with_snapshot_restores_proxy_env_from_process_env() {
 
 #[cfg(target_os = "macos")]
 #[test]
-fn maybe_wrap_shell_lc_with_snapshot_refreshes_codex_proxy_git_ssh_command() {
+fn maybe_wrap_shell_lc_with_snapshot_refreshes_codepilotx_proxy_git_ssh_command() {
     let dir = tempdir().expect("create temp dir");
     let snapshot_path = dir.path().join("snapshot.sh");
     let stale_command = format!(
-        "{CODEX_PROXY_GIT_SSH_COMMAND_MARKER}ssh -o ProxyCommand='nc -X 5 -x 127.0.0.1:8081 %h %p'"
+        "{codepilotx_PROXY_GIT_SSH_COMMAND_MARKER}ssh -o ProxyCommand='nc -X 5 -x 127.0.0.1:8081 %h %p'"
     );
     let fresh_command = format!(
-        "{CODEX_PROXY_GIT_SSH_COMMAND_MARKER}ssh -o ProxyCommand='nc -X 5 -x 127.0.0.1:48081 %h %p'"
+        "{codepilotx_PROXY_GIT_SSH_COMMAND_MARKER}ssh -o ProxyCommand='nc -X 5 -x 127.0.0.1:48081 %h %p'"
     );
     std::fs::write(
         &snapshot_path,
@@ -633,7 +633,7 @@ fn maybe_wrap_shell_lc_with_snapshot_restores_custom_git_ssh_command() {
     let dir = tempdir().expect("create temp dir");
     let snapshot_path = dir.path().join("snapshot.sh");
     let stale_command = format!(
-        "{CODEX_PROXY_GIT_SSH_COMMAND_MARKER}ssh -o ProxyCommand='nc -X 5 -x 127.0.0.1:8081 %h %p'"
+        "{codepilotx_PROXY_GIT_SSH_COMMAND_MARKER}ssh -o ProxyCommand='nc -X 5 -x 127.0.0.1:8081 %h %p'"
     );
     let custom_command = "ssh -o ProxyCommand='tsh proxy ssh --cluster=dev %r@%h:%p'";
     std::fs::write(
@@ -671,11 +671,11 @@ fn maybe_wrap_shell_lc_with_snapshot_restores_custom_git_ssh_command() {
 
 #[cfg(target_os = "macos")]
 #[test]
-fn maybe_wrap_shell_lc_with_snapshot_clears_stale_codex_git_ssh_command_without_live_command() {
+fn maybe_wrap_shell_lc_with_snapshot_clears_stale_codepilotx_git_ssh_command_without_live_command() {
     let dir = tempdir().expect("create temp dir");
     let snapshot_path = dir.path().join("snapshot.sh");
     let stale_command = format!(
-        "{CODEX_PROXY_GIT_SSH_COMMAND_MARKER}ssh -o ProxyCommand='nc -X 5 -x 127.0.0.1:8081 %h %p'"
+        "{codepilotx_PROXY_GIT_SSH_COMMAND_MARKER}ssh -o ProxyCommand='nc -X 5 -x 127.0.0.1:8081 %h %p'"
     );
     std::fs::write(
         &snapshot_path,
@@ -1044,7 +1044,7 @@ fn maybe_wrap_shell_lc_with_snapshot_preserves_unset_override_variables() {
     let snapshot_path = dir.path().join("snapshot.sh");
     std::fs::write(
         &snapshot_path,
-        "# Snapshot file\nexport CODEX_TEST_UNSET_OVERRIDE='snapshot-value'\n",
+        "# Snapshot file\nexport codepilotx_TEST_UNSET_OVERRIDE='snapshot-value'\n",
     )
     .expect("write snapshot");
     let (session_shell, shell_snapshot) =
@@ -1052,10 +1052,10 @@ fn maybe_wrap_shell_lc_with_snapshot_preserves_unset_override_variables() {
     let command = vec![
             "/bin/bash".to_string(),
             "-lc".to_string(),
-            "if [ \"${CODEX_TEST_UNSET_OVERRIDE+x}\" = x ]; then printf 'set:%s' \"$CODEX_TEST_UNSET_OVERRIDE\"; else printf 'unset'; fi".to_string(),
+            "if [ \"${codepilotx_TEST_UNSET_OVERRIDE+x}\" = x ]; then printf 'set:%s' \"$codepilotx_TEST_UNSET_OVERRIDE\"; else printf 'unset'; fi".to_string(),
         ];
     let explicit_env_overrides = HashMap::from([(
-        "CODEX_TEST_UNSET_OVERRIDE".to_string(),
+        "codepilotx_TEST_UNSET_OVERRIDE".to_string(),
         "worktree-value".to_string(),
     )]);
     let rewritten = maybe_wrap_shell_lc_with_snapshot(
@@ -1069,7 +1069,7 @@ fn maybe_wrap_shell_lc_with_snapshot_preserves_unset_override_variables() {
 
     let output = Command::new(&rewritten[0])
         .args(&rewritten[1..])
-        .env_remove("CODEX_TEST_UNSET_OVERRIDE")
+        .env_remove("codepilotx_TEST_UNSET_OVERRIDE")
         .output()
         .expect("run rewritten command");
     assert!(output.status.success(), "command failed: {output:?}");

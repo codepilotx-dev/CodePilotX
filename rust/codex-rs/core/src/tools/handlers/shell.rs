@@ -1,5 +1,5 @@
-use codex_features::Feature;
-use codex_protocol::models::ShellCommandToolCallParams;
+use codepilotx_features::Feature;
+use codepilotx_protocol::models::ShellCommandToolCallParams;
 use serde_json::Value as JsonValue;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
@@ -23,10 +23,10 @@ use crate::tools::runtimes::shell::ShellRequest;
 use crate::tools::runtimes::shell::ShellRuntime;
 use crate::tools::runtimes::shell::ShellRuntimeBackend;
 use crate::tools::sandboxing::ToolCtx;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_tools::ToolName;
-use codex_utils_path_uri::PathUri;
+use codepilotx_protocol::models::AdditionalPermissionProfile;
+use codepilotx_protocol::protocol::ExecCommandSource;
+use codepilotx_tools::ToolName;
+use codepilotx_utils_path_uri::PathUri;
 
 mod shell_command;
 
@@ -130,12 +130,12 @@ async fn run_exec_like(args: RunExecLikeArgs) -> Result<FunctionToolOutput, Func
         && !effective_additional_permissions.permissions_preapproved
         && !matches!(
             turn.approval_policy.value(),
-            codex_protocol::protocol::AskForApproval::OnRequest
+            codepilotx_protocol::protocol::AskForApproval::OnRequest
         )
     {
         let approval_policy = turn.approval_policy.value();
         return Err(FunctionCallError::RespondToModel(format!(
-            "approval policy is {approval_policy:?}; reject command â€” you should not ask for escalated permissions if the approval policy is {approval_policy:?}"
+            "approval policy is {approval_policy:?}; reject command â€?you should not ask for escalated permissions if the approval policy is {approval_policy:?}"
         )));
     }
 
@@ -176,7 +176,7 @@ async fn run_exec_like(args: RunExecLikeArgs) -> Result<FunctionToolOutput, Func
             permission_profile: turn.permission_profile(),
             windows_sandbox_level: turn.windows_sandbox_level,
             sandbox_permissions: if effective_additional_permissions.permissions_preapproved {
-                codex_protocol::models::SandboxPermissions::UseDefault
+                codepilotx_protocol::models::SandboxPermissions::UseDefault
             } else {
                 effective_additional_permissions.sandbox_permissions
             },
@@ -239,7 +239,7 @@ async fn run_exec_like(args: RunExecLikeArgs) -> Result<FunctionToolOutput, Func
         .await?;
     Ok(FunctionToolOutput {
         body: vec![
-            codex_protocol::models::FunctionCallOutputContentItem::InputText { text: content },
+            codepilotx_protocol::models::FunctionCallOutputContentItem::InputText { text: content },
         ],
         success: Some(true),
         post_tool_use_response,

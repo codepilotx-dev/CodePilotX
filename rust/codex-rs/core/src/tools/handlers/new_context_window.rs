@@ -7,8 +7,8 @@ use crate::tools::handlers::new_context_window_spec::NEW_CONTEXT_WINDOW_TOOL_NAM
 use crate::tools::handlers::new_context_window_spec::create_new_context_window_tool;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSpec;
 
 pub(crate) const NEW_CONTEXT_WINDOW_MESSAGE: &str =
     "A new context window will start without summarizing conversation history.";
@@ -24,7 +24,7 @@ impl ToolExecutor<ToolInvocation> for NewContextWindowHandler {
         create_new_context_window_tool()
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(async move {
             if !matches!(invocation.payload, ToolPayload::Function { .. }) {
                 return Err(FunctionCallError::RespondToModel(

@@ -6,18 +6,18 @@ use anyhow::Result;
 use anyhow::anyhow;
 use chrono::DateTime;
 use chrono::Utc;
-use codex_core::TimeFuture;
-use codex_core::TimeProvider;
-use codex_core::config::CurrentTimeReminderConfig;
-use codex_features::CurrentTimeSource;
-use codex_features::Feature;
-use codex_model_provider_info::built_in_model_providers;
-use codex_protocol::ThreadId;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
+use codepilotx_core::TimeFuture;
+use codepilotx_core::TimeProvider;
+use codepilotx_core::config::CurrentTimeReminderConfig;
+use codepilotx_features::CurrentTimeSource;
+use codepilotx_features::Feature;
+use codepilotx_model_provider_info::built_in_model_providers;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::protocol::CodexErrorInfo;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::assert_regex_match;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
@@ -74,7 +74,7 @@ fn current_time_reminders(request: &ResponsesRequest) -> Vec<String> {
 }
 
 fn enable_current_time_reminder(
-    config: &mut codex_core::config::Config,
+    config: &mut codepilotx_core::config::Config,
     interval: u64,
     clock_source: CurrentTimeSource,
 ) {
@@ -263,7 +263,7 @@ async fn time_provider_failure_stops_before_inference() -> Result<()> {
         error.message,
         "Fatal error: failed to read current time: test clock unavailable"
     );
-    assert_eq!(error.codex_error_info, Some(CodexErrorInfo::Other));
+    assert_eq!(error.codepilotx_error_info, Some(CodexErrorInfo::Other));
 
     wait_for_event(&test.codex, |event| {
         matches!(event, EventMsg::TurnComplete(_))

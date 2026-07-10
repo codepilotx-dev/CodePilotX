@@ -49,112 +49,112 @@ use async_channel::Receiver;
 use async_channel::Sender;
 use chrono::Local;
 use chrono::Utc;
-use codex_analytics::AnalyticsEventsClient;
-use codex_analytics::SubAgentThreadStartedInput;
-use codex_analytics::TurnCodexErrorFact;
-use codex_app_server_protocol::McpServerElicitationRequest;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_config::types::OAuthCredentialsStoreMode;
-use codex_exec_server::Environment;
-use codex_exec_server::EnvironmentManager;
-use codex_extension_api::ExtensionDataInit;
-use codex_extension_api::LoadedUserInstructions;
-use codex_extension_api::PromptFragment;
-use codex_extension_api::PromptSlot;
-use codex_extension_api::TurnContextContributionInput;
-use codex_features::FEATURES;
-use codex_features::Feature;
-use codex_features::unstable_features_warning_event;
-use codex_hooks::Hooks;
-use codex_hooks::HooksConfig;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::auth_env_telemetry::collect_auth_env_telemetry;
-use codex_login::default_client::originator;
-use codex_mcp::McpConnectionManager;
-use codex_mcp::McpResourceClient;
-use codex_mcp::McpRuntimeContext;
-use codex_mcp::codex_apps_tools_cache_key;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_network_proxy::NetworkProxy;
-use codex_network_proxy::NetworkProxyAuditMetadata;
-use codex_network_proxy::normalize_host;
-use codex_otel::current_span_trace_id;
-use codex_otel::current_span_w3c_trace_context;
-use codex_otel::set_parent_from_w3c_trace_context;
-use codex_protocol::SessionId;
-use codex_protocol::ThreadId;
-use codex_protocol::approvals::ElicitationRequestEvent;
-use codex_protocol::approvals::ExecPolicyAmendment;
-use codex_protocol::approvals::NetworkPolicyAmendment;
-use codex_protocol::approvals::NetworkPolicyRuleAction;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::AutoCompactTokenLimitScope;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::MultiAgentMode;
-use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
-use codex_protocol::config_types::Settings;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::dynamic_tools::DynamicToolResponse;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::items::TurnItem;
-use codex_protocol::items::UserMessageItem;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::SandboxEnforcement;
-use codex_protocol::models::format_allow_prefixes;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AdditionalContextEntry;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::HasLegacyEvent;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::ItemCompletedEvent;
-use codex_protocol::protocol::ItemStartedEvent;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::RawResponseItemEvent;
-use codex_protocol::protocol::ReviewRequest;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::ThreadSource;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnContextItem;
-use codex_protocol::protocol::TurnContextNetworkItem;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_protocol::protocol::TurnEnvironmentSelections;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_protocol::request_permissions::PermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionProfile;
-use codex_protocol::request_permissions::RequestPermissionsArgs;
-use codex_protocol::request_permissions::RequestPermissionsEvent;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
-use codex_protocol::request_user_input::RequestUserInputArgs;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_rmcp_client::ElicitationResponse;
-use codex_rollout::state_db;
-use codex_rollout_trace::AgentResultTracePayload;
-use codex_rollout_trace::ThreadStartedTraceMetadata;
-use codex_rollout_trace::ThreadTraceContext;
-use codex_sandboxing::policy_transforms::intersect_permission_profiles;
-use codex_shell_command::parse_command::parse_command;
-use codex_terminal_detection::user_agent;
-use codex_thread_store::CreateThreadParams;
-use codex_thread_store::LiveThread;
-use codex_thread_store::LiveThreadInitGuard;
-use codex_thread_store::LocalThreadStore;
-use codex_thread_store::ReadThreadParams;
-use codex_thread_store::ResumeThreadParams;
-use codex_thread_store::ThreadPersistenceMetadata;
-use codex_thread_store::ThreadStore;
-use codex_utils_path_uri::PathUri;
+use codepilotx_analytics::AnalyticsEventsClient;
+use codepilotx_analytics::SubAgentThreadStartedInput;
+use codepilotx_analytics::TurnCodexErrorFact;
+use codepilotx_app_server_protocol::McpServerElicitationRequest;
+use codepilotx_app_server_protocol::McpServerElicitationRequestParams;
+use codepilotx_config::types::AuthKeyringBackendKind;
+use codepilotx_config::types::OAuthCredentialsStoreMode;
+use codepilotx_exec_server::Environment;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_extension_api::ExtensionDataInit;
+use codepilotx_extension_api::LoadedUserInstructions;
+use codepilotx_extension_api::PromptFragment;
+use codepilotx_extension_api::PromptSlot;
+use codepilotx_extension_api::TurnContextContributionInput;
+use codepilotx_features::FEATURES;
+use codepilotx_features::Feature;
+use codepilotx_features::unstable_features_warning_event;
+use codepilotx_hooks::Hooks;
+use codepilotx_hooks::HooksConfig;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CodexAuth;
+use codepilotx_login::auth_env_telemetry::collect_auth_env_telemetry;
+use codepilotx_login::default_client::originator;
+use codepilotx_mcp::McpConnectionManager;
+use codepilotx_mcp::McpResourceClient;
+use codepilotx_mcp::McpRuntimeContext;
+use codepilotx_mcp::codepilotx_apps_tools_cache_key;
+use codepilotx_models_manager::manager::RefreshStrategy;
+use codepilotx_models_manager::manager::SharedModelsManager;
+use codepilotx_network_proxy::NetworkProxy;
+use codepilotx_network_proxy::NetworkProxyAuditMetadata;
+use codepilotx_network_proxy::normalize_host;
+use codepilotx_otel::current_span_trace_id;
+use codepilotx_otel::current_span_w3c_trace_context;
+use codepilotx_otel::set_parent_from_w3c_trace_context;
+use codepilotx_protocol::SessionId;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::approvals::ElicitationRequestEvent;
+use codepilotx_protocol::approvals::ExecPolicyAmendment;
+use codepilotx_protocol::approvals::NetworkPolicyAmendment;
+use codepilotx_protocol::approvals::NetworkPolicyRuleAction;
+use codepilotx_protocol::config_types::ApprovalsReviewer;
+use codepilotx_protocol::config_types::AutoCompactTokenLimitScope;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::MultiAgentMode;
+use codepilotx_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+use codepilotx_protocol::config_types::Settings;
+use codepilotx_protocol::config_types::WebSearchMode;
+use codepilotx_protocol::dynamic_tools::DynamicToolResponse;
+use codepilotx_protocol::dynamic_tools::DynamicToolSpec;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::items::UserMessageItem;
+use codepilotx_protocol::mcp::CallToolResult;
+use codepilotx_protocol::models::ActivePermissionProfile;
+use codepilotx_protocol::models::AdditionalPermissionProfile;
+use codepilotx_protocol::models::BaseInstructions;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::models::SandboxEnforcement;
+use codepilotx_protocol::models::format_allow_prefixes;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_protocol::openai_models::ModelPreset;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_protocol::protocol::AdditionalContextEntry;
+use codepilotx_protocol::protocol::FileChange;
+use codepilotx_protocol::protocol::HasLegacyEvent;
+use codepilotx_protocol::protocol::InterAgentCommunication;
+use codepilotx_protocol::protocol::ItemCompletedEvent;
+use codepilotx_protocol::protocol::ItemStartedEvent;
+use codepilotx_protocol::protocol::MultiAgentVersion;
+use codepilotx_protocol::protocol::RawResponseItemEvent;
+use codepilotx_protocol::protocol::ReviewRequest;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_protocol::protocol::ThreadSource;
+use codepilotx_protocol::protocol::TurnAbortReason;
+use codepilotx_protocol::protocol::TurnContextItem;
+use codepilotx_protocol::protocol::TurnContextNetworkItem;
+use codepilotx_protocol::protocol::TurnEnvironmentSelection;
+use codepilotx_protocol::protocol::TurnEnvironmentSelections;
+use codepilotx_protocol::protocol::W3cTraceContext;
+use codepilotx_protocol::request_permissions::PermissionGrantScope;
+use codepilotx_protocol::request_permissions::RequestPermissionProfile;
+use codepilotx_protocol::request_permissions::RequestPermissionsArgs;
+use codepilotx_protocol::request_permissions::RequestPermissionsEvent;
+use codepilotx_protocol::request_permissions::RequestPermissionsResponse;
+use codepilotx_protocol::request_user_input::RequestUserInputArgs;
+use codepilotx_protocol::request_user_input::RequestUserInputResponse;
+use codepilotx_rmcp_client::ElicitationResponse;
+use codepilotx_rollout::state_db;
+use codepilotx_rollout_trace::AgentResultTracePayload;
+use codepilotx_rollout_trace::ThreadStartedTraceMetadata;
+use codepilotx_rollout_trace::ThreadTraceContext;
+use codepilotx_sandboxing::policy_transforms::intersect_permission_profiles;
+use codepilotx_shell_command::parse_command::parse_command;
+use codepilotx_terminal_detection::user_agent;
+use codepilotx_thread_store::CreateThreadParams;
+use codepilotx_thread_store::LiveThread;
+use codepilotx_thread_store::LiveThreadInitGuard;
+use codepilotx_thread_store::LocalThreadStore;
+use codepilotx_thread_store::ReadThreadParams;
+use codepilotx_thread_store::ResumeThreadParams;
+use codepilotx_thread_store::ThreadPersistenceMetadata;
+use codepilotx_thread_store::ThreadStore;
+use codepilotx_utils_path_uri::PathUri;
 use futures::future::BoxFuture;
 use futures::future::Shared;
 use futures::prelude::*;
@@ -185,7 +185,7 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::client::ModelClient;
-use crate::codex_thread::ThreadConfigSnapshot;
+use crate::codepilotx_thread::ThreadConfigSnapshot;
 #[cfg(test)]
 use crate::compact::collect_user_messages;
 use crate::config::Config;
@@ -197,15 +197,15 @@ use crate::config::StartedNetworkProxy;
 use crate::config::resolve_web_search_mode_for_turn;
 use crate::context_manager::ContextManager;
 use crate::thread_rollout_truncation::initial_history_has_prior_user_turns;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerSource;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::types::McpServerConfig;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
+use codepilotx_config::CONFIG_TOML_FILE;
+use codepilotx_config::ConfigLayerSource;
+use codepilotx_config::ConfigLayerStackOrdering;
+use codepilotx_config::types::McpServerConfig;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result as CodexResult;
 #[cfg(test)]
-use codex_protocol::exec_output::StreamOutput;
+use codepilotx_protocol::exec_output::StreamOutput;
 
 mod config_lock;
 mod handlers;
@@ -258,11 +258,11 @@ impl SteerInputError {
         match self {
             Self::NoActiveTurn(_) => ErrorEvent {
                 message: "no active turn to steer".to_string(),
-                codex_error_info: Some(CodexErrorInfo::BadRequest),
+                codepilotx_error_info: Some(CodexErrorInfo::BadRequest),
             },
             Self::ExpectedTurnMismatch { expected, actual } => ErrorEvent {
                 message: format!("expected active turn id `{expected}` but found `{actual}`"),
-                codex_error_info: Some(CodexErrorInfo::BadRequest),
+                codepilotx_error_info: Some(CodexErrorInfo::BadRequest),
             },
             Self::ActiveTurnNotSteerable { turn_kind } => {
                 let turn_kind_label = match turn_kind {
@@ -271,14 +271,14 @@ impl SteerInputError {
                 };
                 ErrorEvent {
                     message: format!("cannot steer a {turn_kind_label} turn"),
-                    codex_error_info: Some(CodexErrorInfo::ActiveTurnNotSteerable {
+                    codepilotx_error_info: Some(CodexErrorInfo::ActiveTurnNotSteerable {
                         turn_kind: *turn_kind,
                     }),
                 }
             }
             Self::EmptyInput => ErrorEvent {
                 message: "input must not be empty".to_string(),
-                codex_error_info: Some(CodexErrorInfo::BadRequest),
+                codepilotx_error_info: Some(CodexErrorInfo::BadRequest),
             },
         }
     }
@@ -331,62 +331,62 @@ use crate::turn_timing::TurnTimingState;
 use crate::turn_timing::record_turn_ttfm_metric;
 use crate::unified_exec::UnifiedExecProcessManager;
 use crate::windows_sandbox::WindowsSandboxLevelExt;
-use codex_core_plugins::PluginsManager;
-use codex_core_plugins::RecommendedPluginCandidatesInput;
-use codex_git_utils::get_git_repo_root;
-use codex_mcp::McpConfig;
-use codex_mcp::compute_auth_statuses;
-use codex_mcp::effective_mcp_servers_from_configured;
-use codex_mcp::host_owned_codex_apps_enabled;
-use codex_otel::SessionTelemetry;
-use codex_otel::THREAD_STARTED_METRIC;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::LocalImagePreparation;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::DeprecationNoticeEvent;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::McpServerRefreshConfig;
-use codex_protocol::protocol::ModelRerouteEvent;
-use codex_protocol::protocol::ModelRerouteReason;
-use codex_protocol::protocol::ModelVerification;
-use codex_protocol::protocol::ModelVerificationEvent;
-use codex_protocol::protocol::NetworkApprovalContext;
-use codex_protocol::protocol::NonSteerableTurnKind;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::RequestUserInputEvent;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_protocol::protocol::SessionNetworkProxyRuntime;
-use codex_protocol::protocol::StreamErrorEvent;
-use codex_protocol::protocol::Submission;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_protocol::protocol::TokenCountEvent;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::TurnModerationMetadataEvent;
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::user_input::UserInput;
-use codex_tools::ToolEnvironmentMode;
-use codex_tools::UnifiedExecShellMode;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_core_plugins::PluginsManager;
+use codepilotx_core_plugins::RecommendedPluginCandidatesInput;
+use codepilotx_git_utils::get_git_repo_root;
+use codepilotx_mcp::McpConfig;
+use codepilotx_mcp::compute_auth_statuses;
+use codepilotx_mcp::effective_mcp_servers_from_configured;
+use codepilotx_mcp::host_owned_codepilotx_apps_enabled;
+use codepilotx_otel::SessionTelemetry;
+use codepilotx_otel::THREAD_STARTED_METRIC;
+use codepilotx_otel::TelemetryAuthMode;
+use codepilotx_protocol::config_types::CollaborationMode;
+use codepilotx_protocol::config_types::Personality;
+use codepilotx_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use codepilotx_protocol::config_types::WindowsSandboxLevel;
+use codepilotx_protocol::models::LocalImagePreparation;
+use codepilotx_protocol::models::ResponseInputItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use codepilotx_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::CodexErrorInfo;
+use codepilotx_protocol::protocol::CompactedItem;
+use codepilotx_protocol::protocol::DeprecationNoticeEvent;
+use codepilotx_protocol::protocol::ErrorEvent;
+use codepilotx_protocol::protocol::Event;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::ExecApprovalRequestEvent;
+use codepilotx_protocol::protocol::InitialHistory;
+use codepilotx_protocol::protocol::McpServerRefreshConfig;
+use codepilotx_protocol::protocol::ModelRerouteEvent;
+use codepilotx_protocol::protocol::ModelRerouteReason;
+use codepilotx_protocol::protocol::ModelVerification;
+use codepilotx_protocol::protocol::ModelVerificationEvent;
+use codepilotx_protocol::protocol::NetworkApprovalContext;
+use codepilotx_protocol::protocol::NonSteerableTurnKind;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::RateLimitSnapshot;
+use codepilotx_protocol::protocol::RequestUserInputEvent;
+use codepilotx_protocol::protocol::ReviewDecision;
+use codepilotx_protocol::protocol::SandboxPolicy;
+use codepilotx_protocol::protocol::SessionConfiguredEvent;
+use codepilotx_protocol::protocol::SessionNetworkProxyRuntime;
+use codepilotx_protocol::protocol::StreamErrorEvent;
+use codepilotx_protocol::protocol::Submission;
+use codepilotx_protocol::protocol::ThreadMemoryMode;
+use codepilotx_protocol::protocol::TokenCountEvent;
+use codepilotx_protocol::protocol::TokenUsage;
+use codepilotx_protocol::protocol::TokenUsageInfo;
+use codepilotx_protocol::protocol::TurnModerationMetadataEvent;
+use codepilotx_protocol::protocol::WarningEvent;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_tools::ToolEnvironmentMode;
+use codepilotx_tools::UnifiedExecShellMode;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 #[cfg(test)]
-use codex_utils_stream_parser::ProposedPlanSegment;
+use codepilotx_utils_stream_parser::ProposedPlanSegment;
 
 /// The high-level interface to the Codex system.
 /// It operates as a queue pair where you send submissions and receive events.
@@ -420,7 +420,7 @@ pub(crate) struct CodexSpawnArgs {
     pub(crate) skills_service: Arc<SkillsService>,
     pub(crate) plugins_manager: Arc<PluginsManager>,
     pub(crate) mcp_manager: Arc<McpManager>,
-    pub(crate) extensions: Arc<codex_extension_api::ExtensionRegistry<crate::config::Config>>,
+    pub(crate) extensions: Arc<codepilotx_extension_api::ExtensionRegistry<crate::config::Config>>,
     pub(crate) conversation_history: InitialHistory,
     pub(crate) session_source: SessionSource,
     pub(crate) forked_from_thread_id: Option<ThreadId>,
@@ -477,7 +477,7 @@ impl Codex {
     pub(crate) async fn spawn(args: CodexSpawnArgs) -> CodexResult<CodexSpawnOk> {
         let parent_trace = match args.parent_trace {
             Some(trace) => {
-                if codex_otel::context_from_w3c_trace_context(&trace).is_some() {
+                if codepilotx_otel::context_from_w3c_trace_context(&trace).is_some() {
                     Some(trace)
                 } else {
                     warn!("ignoring invalid thread spawn trace carrier");
@@ -561,14 +561,14 @@ impl Codex {
 
         let config = Arc::new(config);
         let refresh_strategy = if session_source.is_non_root_agent() {
-            codex_models_manager::manager::RefreshStrategy::Offline
+            codepilotx_models_manager::manager::RefreshStrategy::Offline
         } else {
-            codex_models_manager::manager::RefreshStrategy::OnlineIfUncached
+            codepilotx_models_manager::manager::RefreshStrategy::OnlineIfUncached
         };
         if config.model.is_none()
             || !matches!(
                 refresh_strategy,
-                codex_models_manager::manager::RefreshStrategy::Offline
+                codepilotx_models_manager::manager::RefreshStrategy::Offline
             )
         {
             let _ = models_manager.list_models(refresh_strategy).await;
@@ -637,7 +637,7 @@ impl Codex {
                 environment_selections,
             ),
             workspace_roots: config.workspace_roots.clone(),
-            codex_home: config.codex_home.clone(),
+            codepilotx_home: config.codepilotx_home.clone(),
             thread_name: None,
             original_config_do_not_use: Arc::clone(&config),
             metrics_service_name,
@@ -686,7 +686,7 @@ impl Codex {
         .await
         .map_err(|e| {
             error!("Failed to create session: {e:#}");
-            map_session_init_error(&e, &config.codex_home)
+            map_session_init_error(&e, &config.codepilotx_home)
         })?;
         let thread_id = session.thread_id;
 
@@ -766,7 +766,7 @@ impl Codex {
     /// and does not involve the model.
     pub async fn set_thread_memory_mode(
         &self,
-        mode: codex_protocol::protocol::ThreadMemoryMode,
+        mode: codepilotx_protocol::protocol::ThreadMemoryMode,
     ) -> anyhow::Result<()> {
         handlers::persist_thread_memory_mode_update(&self.session, mode).await
     }
@@ -994,10 +994,10 @@ impl Session {
 
     async fn start_managed_network_proxy(
         spec: &crate::config::NetworkProxySpec,
-        exec_policy: &codex_execpolicy::Policy,
+        exec_policy: &codepilotx_execpolicy::Policy,
         permission_profile: &PermissionProfile,
-        network_policy_decider: Option<Arc<dyn codex_network_proxy::NetworkPolicyDecider>>,
-        blocked_request_observer: Option<Arc<dyn codex_network_proxy::BlockedRequestObserver>>,
+        network_policy_decider: Option<Arc<dyn codepilotx_network_proxy::NetworkPolicyDecider>>,
+        blocked_request_observer: Option<Arc<dyn codepilotx_network_proxy::BlockedRequestObserver>>,
         managed_network_requirements_enabled: bool,
         audit_metadata: NetworkProxyAuditMetadata,
     ) -> anyhow::Result<(StartedNetworkProxy, SessionNetworkProxyRuntime)> {
@@ -1103,9 +1103,9 @@ impl Session {
     }
 
     #[cfg(test)]
-    pub(crate) async fn codex_home(&self) -> AbsolutePathBuf {
+    pub(crate) async fn codepilotx_home(&self) -> AbsolutePathBuf {
         let state = self.state.lock().await;
-        state.session_configuration.codex_home().clone()
+        state.session_configuration.codepilotx_home().clone()
     }
 
     pub(crate) fn subscribe_out_of_band_elicitation_pause_state(&self) -> watch::Receiver<bool> {
@@ -1523,7 +1523,7 @@ impl Session {
             .clone()
     }
 
-    pub(crate) async fn user_instructions(&self) -> Option<codex_extension_api::UserInstructions> {
+    pub(crate) async fn user_instructions(&self) -> Option<codepilotx_extension_api::UserInstructions> {
         let state = self.state.lock().await;
         state
             .session_configuration
@@ -1628,7 +1628,7 @@ impl Session {
                 vec![
                     state
                         .session_configuration
-                        .codex_home
+                        .codepilotx_home
                         .join(CONFIG_TOML_FILE),
                 ]
             } else {
@@ -1698,10 +1698,10 @@ impl Session {
     }
 
     /// Record a terminal CodexErr before the app-server completion notification is reduced.
-    pub(crate) fn track_turn_codex_error(&self, turn_context: &TurnContext, error: &CodexErr) {
+    pub(crate) fn track_turn_codepilotx_error(&self, turn_context: &TurnContext, error: &CodexErr) {
         self.services
             .analytics_events_client
-            .track_turn_codex_error(TurnCodexErrorFact::from_codex_err(
+            .track_turn_codepilotx_error(TurnCodexErrorFact::from_codepilotx_err(
                 self.thread_id.to_string(),
                 turn_context.sub_id.clone(),
                 error,
@@ -1713,7 +1713,7 @@ impl Session {
         let legacy_source = msg.clone();
         if let EventMsg::Error(error) = &legacy_source
             && error
-                .codex_error_info
+                .codepilotx_error_info
                 .as_ref()
                 .is_some_and(CodexErrorInfo::affects_turn_status)
         {
@@ -1725,7 +1725,7 @@ impl Session {
         }
         self.services
             .rollout_thread_trace
-            .record_codex_turn_event(&turn_context.sub_id, &legacy_source);
+            .record_codepilotx_turn_event(&turn_context.sub_id, &legacy_source);
         self.services
             .rollout_thread_trace
             .record_tool_call_event(turn_context.sub_id.clone(), &legacy_source);
@@ -1805,13 +1805,13 @@ impl Session {
         &self,
         turn_context: &TurnContext,
         parent_thread_id: ThreadId,
-        child_agent_path: &codex_protocol::AgentPath,
+        child_agent_path: &codepilotx_protocol::AgentPath,
         status: AgentStatus,
     ) {
         let Some(parent_agent_path) = child_agent_path
             .as_str()
             .rsplit_once('/')
-            .and_then(|(parent, _)| codex_protocol::AgentPath::try_from(parent).ok())
+            .and_then(|(parent, _)| codepilotx_protocol::AgentPath::try_from(parent).ok())
         else {
             return;
         };
@@ -1940,17 +1940,17 @@ impl Session {
         &self,
         amendment: &ExecPolicyAmendment,
     ) -> Result<(), ExecPolicyUpdateError> {
-        let codex_home = self
+        let codepilotx_home = self
             .state
             .lock()
             .await
             .session_configuration
-            .codex_home()
+            .codepilotx_home()
             .clone();
 
         self.services
             .exec_policy
-            .append_amendment_and_update(&codex_home, amendment)
+            .append_amendment_and_update(&codepilotx_home, amendment)
             .await?;
 
         Ok(())
@@ -2004,12 +2004,12 @@ impl Session {
             .map_err(|_| anyhow::anyhow!("managed network proxy refresh semaphore closed"))?;
         let host =
             Self::validated_network_policy_amendment_host(amendment, network_approval_context)?;
-        let codex_home = self
+        let codepilotx_home = self
             .state
             .lock()
             .await
             .session_configuration
-            .codex_home()
+            .codepilotx_home()
             .clone();
         let execpolicy_amendment =
             execpolicy_network_rule_amendment(amendment, network_approval_context, &host);
@@ -2031,7 +2031,7 @@ impl Session {
         self.services
             .exec_policy
             .append_network_rule_and_update(
-                &codex_home,
+                &codepilotx_home,
                 &host,
                 execpolicy_amendment.protocol,
                 execpolicy_amendment.decision,
@@ -2271,7 +2271,7 @@ impl Session {
                 review_id,
                 request,
                 /*retry_reason*/ None,
-                codex_analytics::GuardianApprovalRequestSource::MainTurn,
+                codepilotx_analytics::GuardianApprovalRequestSource::MainTurn,
                 cancellation_token.clone(),
             );
             let decision = tokio::select! {
@@ -2894,7 +2894,7 @@ impl Session {
         }
         {
             let mut state = self.state.lock().await;
-            state.queue_pending_session_start_source(codex_hooks::SessionStartSource::Compact);
+            state.queue_pending_session_start_source(codepilotx_hooks::SessionStartSource::Compact);
         }
     }
 
@@ -3385,7 +3385,7 @@ impl Session {
         .await;
         {
             let mut state = self.state.lock().await;
-            state.queue_pending_session_start_source(codex_hooks::SessionStartSource::Compact);
+            state.queue_pending_session_start_source(codepilotx_hooks::SessionStartSource::Compact);
         }
         self.recompute_token_usage(turn_context).await;
         Some(window_number)
@@ -3629,15 +3629,15 @@ impl Session {
         &self,
         turn_context: &TurnContext,
         message: impl Into<String>,
-        codex_error: CodexErr,
+        codepilotx_error: CodexErr,
     ) {
-        let additional_details = codex_error.to_string();
-        let codex_error_info = CodexErrorInfo::ResponseStreamDisconnected {
-            http_status_code: codex_error.http_status_code_value(),
+        let additional_details = codepilotx_error.to_string();
+        let codepilotx_error_info = CodexErrorInfo::ResponseStreamDisconnected {
+            http_status_code: codepilotx_error.http_status_code_value(),
         };
         let event = EventMsg::StreamError(StreamErrorEvent {
             message: message.into(),
-            codex_error_info: Some(codex_error_info),
+            codepilotx_error_info: Some(codepilotx_error_info),
             additional_details: Some(additional_details),
         });
         self.send_event(turn_context, event).await;
@@ -3773,7 +3773,7 @@ impl Session {
 
     pub(crate) async fn take_pending_session_start_source(
         &self,
-    ) -> Option<codex_hooks::SessionStartSource> {
+    ) -> Option<codepilotx_hooks::SessionStartSource> {
         let mut state = self.state.lock().await;
         state.take_pending_session_start_source()
     }

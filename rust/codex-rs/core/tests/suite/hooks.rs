@@ -3,25 +3,25 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_core::config::Config;
-use codex_core::config::Constrained;
-use codex_features::Feature;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::built_in_model_providers;
-use codex_plugin::PluginHookSource;
-use codex_plugin::PluginId;
-use codex_protocol::items::parse_hook_prompt_fragment;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_core::config::Config;
+use codepilotx_core::config::Constrained;
+use codepilotx_features::Feature;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_model_provider_info::built_in_model_providers;
+use codepilotx_plugin::PluginHookSource;
+use codepilotx_plugin::PluginId;
+use codepilotx_protocol::items::parse_hook_prompt_fragment;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::RolloutLine;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::hooks::trust_discovered_hooks;
 use core_test_support::hooks::trust_hooks;
 use core_test_support::managed_network_requirements_loader;
@@ -108,11 +108,11 @@ fn trust_plugin_hooks(config: &mut Config, plugin_hook_sources: Vec<PluginHookSo
         .features
         .enable(Feature::CodexHooks)
         .expect("test config should allow feature update");
-    let listed = codex_hooks::list_hooks(codex_hooks::HooksConfig {
+    let listed = codepilotx_hooks::list_hooks(codepilotx_hooks::HooksConfig {
         feature_enabled: true,
         config_layer_stack: Some(config.config_layer_stack.clone()),
         plugin_hook_sources,
-        ..codex_hooks::HooksConfig::default()
+        ..codepilotx_hooks::HooksConfig::default()
     });
     assert!(
         !listed.hooks.is_empty(),
@@ -1121,7 +1121,7 @@ async fn stop_hook_can_block_multiple_times_in_same_turn() -> Result<()> {
         "third request should retain hook prompts in user history",
     );
 
-    let hook_inputs = read_stop_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_stop_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 3);
     let stop_turn_ids = hook_inputs
         .iter()
@@ -1198,7 +1198,7 @@ async fn session_start_hook_sees_materialized_transcript_path() -> Result<()> {
 
     test.submit_turn("hello").await?;
 
-    let hook_inputs = read_session_start_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_session_start_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(
         hook_inputs[0]
@@ -1237,7 +1237,7 @@ async fn session_start_runs_before_user_prompt_submit_on_first_turn() -> Result<
 
     test.submit_turn("hello").await?;
 
-    let hook_inputs = read_hook_order_inputs(test.codex_home_path())?;
+    let hook_inputs = read_hook_order_inputs(test.codepilotx_home_path())?;
     assert_eq!(
         hook_inputs
             .iter()
@@ -1424,7 +1424,7 @@ async fn compact_session_start_hook_records_additional_context_for_next_turn() -
         "compact matcher should inject additional context before the next model turn",
     );
 
-    let hook_inputs = read_session_start_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_session_start_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(
         hook_inputs[0].get("source").and_then(Value::as_str),
@@ -1518,7 +1518,7 @@ async fn resumed_thread_runs_resume_then_compact_session_start_hooks() -> Result
         "compact matcher should inject additional context before the next model turn",
     );
 
-    let hook_inputs = read_session_start_hook_inputs(resumed.codex_home_path())?;
+    let hook_inputs = read_session_start_hook_inputs(resumed.codepilotx_home_path())?;
     assert_eq!(
         hook_inputs
             .iter()
@@ -1753,7 +1753,7 @@ async fn blocked_user_prompt_submit_persists_additional_context_for_next_turn() 
         "second request should include the accepted prompt",
     );
 
-    let hook_inputs = read_user_prompt_submit_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_user_prompt_submit_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 2);
     assert_eq!(
         hook_inputs
@@ -1891,7 +1891,7 @@ async fn blocked_queued_prompt_does_not_strand_earlier_accepted_prompt() -> Resu
         "second request should not include the blocked queued prompt",
     );
 
-    let hook_inputs = read_user_prompt_submit_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_user_prompt_submit_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 3);
     assert_eq!(
         hook_inputs
@@ -1995,7 +1995,7 @@ async fn permission_request_hook_allows_shell_command_without_user_approval() ->
     );
 
     let hook_inputs = assert_single_permission_request_hook_input(
-        test.codex_home_path(),
+        test.codepilotx_home_path(),
         &command,
         /*description*/ None,
     )?;
@@ -2075,7 +2075,7 @@ async fn permission_request_hook_allows_apply_patch_with_write_alias() -> Result
     );
 
     assert_single_permission_request_hook_input_for_tool(
-        test.codex_home_path(),
+        test.codepilotx_home_path(),
         "apply_patch",
         &patch,
         /*description*/ None,
@@ -2153,7 +2153,7 @@ async fn permission_request_hook_sees_raw_exec_command_input() -> Result<()> {
     );
 
     assert_single_permission_request_hook_input(
-        test.codex_home_path(),
+        test.codepilotx_home_path(),
         &command,
         Some(justification),
     )?;
@@ -2243,7 +2243,7 @@ allow_local_binding = true
     timeout(Duration::from_secs(10), async {
         loop {
             if test
-                .codex_home_path()
+                .codepilotx_home_path()
                 .join("permission_request_hook_log.jsonl")
                 .exists()
             {
@@ -2269,7 +2269,7 @@ allow_local_binding = true
     );
 
     assert_single_permission_request_hook_input(
-        test.codex_home_path(),
+        test.codepilotx_home_path(),
         command,
         Some("network-access http://codex-network-test.invalid:80"),
     )?;
@@ -2340,7 +2340,7 @@ async fn permission_request_hook_sees_retry_context_after_sandbox_denial() -> Re
     );
 
     assert_single_permission_request_hook_input(
-        test.codex_home_path(),
+        test.codepilotx_home_path(),
         &command,
         /*description*/ None,
     )?;
@@ -2416,7 +2416,7 @@ async fn pre_tool_use_blocks_shell_command_before_execution() -> Result<()> {
         "blocked command should not create marker file"
     );
 
-    let hook_inputs = read_pre_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_pre_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["hook_event_name"], "PreToolUse");
     assert_eq!(hook_inputs[0]["tool_name"], "Bash");
@@ -2695,7 +2695,7 @@ async fn assert_pre_tool_use_rewrites_bash_surface(surface: BashRewriteSurface) 
         "rewritten"
     );
 
-    let hook_inputs = read_pre_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_pre_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["tool_input"]["command"], original_command);
 
@@ -2795,7 +2795,7 @@ text(output.output);
         "rewritten"
     );
 
-    let hook_inputs = read_pre_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_pre_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["tool_input"]["command"], original_command);
 
@@ -2870,7 +2870,7 @@ try {{
         "PreToolUse-blocked nested command should not execute"
     );
 
-    let hook_inputs = read_pre_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_pre_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["tool_input"]["command"], command);
 
@@ -2954,7 +2954,7 @@ try {{
         "PostToolUse should run after the nested command executes"
     );
 
-    let hook_inputs = read_post_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_post_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["tool_input"]["command"], command);
     assert_eq!(
@@ -3079,7 +3079,7 @@ print(json.dumps({{
         plugin_data_root,
         source_path: plugin_hooks_path_abs,
         source_relative_path: "hooks/hooks.json".to_string(),
-        hooks: serde_json::from_str::<codex_config::HooksFile>(plugin_hooks_json)
+        hooks: serde_json::from_str::<codepilotx_config::HooksFile>(plugin_hooks_json)
             .context("parse plugin hooks")?
             .hooks,
     }];
@@ -3101,7 +3101,7 @@ print(json.dumps({{
 
     test.submit_turn_with_policy(
         "run the shell command blocked by a plugin hook",
-        codex_protocol::protocol::SandboxPolicy::DangerFullAccess,
+        codepilotx_protocol::protocol::SandboxPolicy::DangerFullAccess,
     )
     .await?;
 
@@ -3203,7 +3203,7 @@ async fn pre_tool_use_blocks_shell_when_defined_in_config_toml() -> Result<()> {
     );
 
     let hook_inputs = read_hook_inputs_from_log(
-        test.codex_home_path()
+        test.codepilotx_home_path()
             .join("pre_tool_use_config_hook_log.jsonl")
             .as_path(),
     )?;
@@ -3276,7 +3276,7 @@ async fn pre_tool_use_merges_hooks_json_and_config_toml() -> Result<()> {
         "shell command output should still reach the model",
     );
 
-    let json_hook_inputs = read_pre_tool_use_hook_inputs(test.codex_home_path())?
+    let json_hook_inputs = read_pre_tool_use_hook_inputs(test.codepilotx_home_path())?
         .into_iter()
         .map(|hook_input| {
             serde_json::json!({
@@ -3288,7 +3288,7 @@ async fn pre_tool_use_merges_hooks_json_and_config_toml() -> Result<()> {
         })
         .collect::<Vec<_>>();
     let toml_hook_inputs = read_hook_inputs_from_log(
-        test.codex_home_path()
+        test.codepilotx_home_path()
             .join("pre_tool_use_toml_hook_log.jsonl")
             .as_path(),
     )?
@@ -3384,7 +3384,7 @@ async fn pre_tool_use_blocks_exec_command_before_execution() -> Result<()> {
     );
     assert!(!marker.exists(), "blocked exec command should not execute");
 
-    let hook_inputs = read_pre_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_pre_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["tool_use_id"], call_id);
     assert_eq!(hook_inputs[0]["tool_input"]["command"], command);
@@ -3460,7 +3460,7 @@ async fn pre_tool_use_blocks_apply_patch_before_execution() -> Result<()> {
         "blocked apply_patch should not create the file"
     );
 
-    let hook_inputs = read_pre_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_pre_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["tool_name"], "apply_patch");
     assert_eq!(hook_inputs[0]["tool_use_id"], call_id);
@@ -3532,7 +3532,7 @@ async fn pre_tool_use_rewrites_apply_patch_before_execution() -> Result<()> {
         "rewritten\n"
     );
 
-    let hook_inputs = read_pre_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_pre_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["tool_input"]["command"], original_patch);
 
@@ -3598,7 +3598,7 @@ async fn pre_tool_use_blocks_apply_patch_with_write_alias() -> Result<()> {
         "blocked apply_patch should not create the file"
     );
 
-    let hook_inputs = read_pre_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_pre_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["tool_name"], "apply_patch");
     assert_eq!(hook_inputs[0]["tool_use_id"], call_id);
@@ -3658,7 +3658,7 @@ async fn pre_tool_use_blocks_local_function_tool_before_execution() -> Result<()
         "blocked local function output should surface the hook reason and tool name",
     );
 
-    let hook_inputs = read_pre_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_pre_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["hook_event_name"], "PreToolUse");
     assert_eq!(hook_inputs[0]["tool_name"], "test_sync_tool");
@@ -3723,7 +3723,7 @@ async fn pre_tool_use_rewrites_local_function_tool_before_execution() -> Result<
         .expect("rewritten local function tool output string");
     assert_eq!(output, "ok");
 
-    let hook_inputs = read_pre_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_pre_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["tool_input"], original_args);
 
@@ -3789,7 +3789,7 @@ async fn post_tool_use_records_additional_context_for_shell_command() -> Result<
         "shell command output should still reach the model",
     );
 
-    let hook_inputs = read_post_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_post_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["hook_event_name"], "PostToolUse");
     assert_eq!(hook_inputs[0]["tool_name"], "Bash");
@@ -3869,7 +3869,7 @@ async fn post_tool_use_block_decision_replaces_shell_command_output_with_reason(
         .expect("shell command output string");
     assert_eq!(output, reason);
 
-    let hook_inputs = read_post_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_post_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(
         hook_inputs[0]["tool_response"],
@@ -3930,7 +3930,7 @@ async fn post_tool_use_continue_false_replaces_shell_command_output_with_stop_re
         .expect("shell command output string");
     assert_eq!(output, stop_reason);
 
-    let hook_inputs = read_post_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_post_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(
         hook_inputs[0]["tool_response"],
@@ -3997,7 +3997,7 @@ async fn post_tool_use_exit_two_replaces_one_shot_exec_command_output_with_feedb
         .expect("exec command output string");
     assert_eq!(output, "blocked by post hook");
 
-    let hook_inputs = read_post_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_post_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["tool_use_id"], call_id);
     assert_eq!(hook_inputs[0]["tool_input"]["command"], command);
@@ -4153,13 +4153,13 @@ async fn post_tool_use_blocks_when_exec_session_completes_via_write_stdin() -> R
         .expect("write_stdin output string");
     assert_eq!(output, feedback);
 
-    let pre_hook_inputs = read_pre_tool_use_hook_inputs(test.codex_home_path())?;
+    let pre_hook_inputs = read_pre_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(pre_hook_inputs.len(), 1);
     assert_eq!(pre_hook_inputs[0]["tool_name"], "Bash");
     assert_eq!(pre_hook_inputs[0]["tool_use_id"], start_call_id);
     assert_eq!(pre_hook_inputs[0]["tool_input"]["command"], command);
 
-    let post_hook_inputs = read_post_tool_use_hook_inputs(test.codex_home_path())?;
+    let post_hook_inputs = read_post_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(post_hook_inputs.len(), 1);
     assert_eq!(post_hook_inputs[0]["hook_event_name"], "PostToolUse");
     assert_eq!(post_hook_inputs[0]["tool_name"], "Bash");
@@ -4232,7 +4232,7 @@ async fn post_tool_use_records_additional_context_for_apply_patch() -> Result<()
         "apply_patch should create the file"
     );
 
-    let hook_inputs = read_post_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_post_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["tool_name"], "apply_patch");
     assert_eq!(hook_inputs[0]["tool_use_id"], call_id);
@@ -4304,7 +4304,7 @@ async fn post_tool_use_records_apply_patch_context_with_edit_alias() -> Result<(
         "apply_patch should create the file"
     );
 
-    let hook_inputs = read_post_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_post_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["tool_name"], "apply_patch");
     assert_eq!(hook_inputs[0]["tool_use_id"], call_id);

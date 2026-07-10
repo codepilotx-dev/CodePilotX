@@ -1,24 +1,24 @@
-use codex_protocol::items::AgentMessageContent;
-use codex_protocol::items::AgentMessageItem;
-use codex_protocol::items::ReasoningItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::items::UserMessageItem;
-use codex_protocol::items::WebSearchItem;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ReasoningItemContent;
-use codex_protocol::models::ReasoningItemReasoningSummary;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::models::WebSearchAction;
-use codex_protocol::models::is_image_close_tag_text;
-use codex_protocol::models::is_image_open_tag_text;
-use codex_protocol::models::is_local_image_close_tag_text;
-use codex_protocol::models::is_local_image_open_tag_text;
-use codex_protocol::protocol::COLLABORATION_MODE_OPEN_TAG;
-use codex_protocol::protocol::MULTI_AGENT_MODE_OPEN_TAG;
-use codex_protocol::protocol::REALTIME_CONVERSATION_OPEN_TAG;
-use codex_protocol::protocol::SKILLS_INSTRUCTIONS_OPEN_TAG;
-use codex_protocol::user_input::UserInput;
+use codepilotx_protocol::items::AgentMessageContent;
+use codepilotx_protocol::items::AgentMessageItem;
+use codepilotx_protocol::items::ReasoningItem;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::items::UserMessageItem;
+use codepilotx_protocol::items::WebSearchItem;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::MessagePhase;
+use codepilotx_protocol::models::ReasoningItemContent;
+use codepilotx_protocol::models::ReasoningItemReasoningSummary;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::models::WebSearchAction;
+use codepilotx_protocol::models::is_image_close_tag_text;
+use codepilotx_protocol::models::is_image_open_tag_text;
+use codepilotx_protocol::models::is_local_image_close_tag_text;
+use codepilotx_protocol::models::is_local_image_open_tag_text;
+use codepilotx_protocol::protocol::COLLABORATION_MODE_OPEN_TAG;
+use codepilotx_protocol::protocol::MULTI_AGENT_MODE_OPEN_TAG;
+use codepilotx_protocol::protocol::REALTIME_CONVERSATION_OPEN_TAG;
+use codepilotx_protocol::protocol::SKILLS_INSTRUCTIONS_OPEN_TAG;
+use codepilotx_protocol::user_input::UserInput;
 use tracing::warn;
 use uuid::Uuid;
 
@@ -205,7 +205,7 @@ pub fn parse_turn_item(item: &ResponseItem) -> Option<TurnItem> {
             result,
             ..
         } => Some(TurnItem::ImageGeneration(
-            codex_protocol::items::ImageGenerationItem {
+            codepilotx_protocol::items::ImageGenerationItem {
                 id: id.clone()?,
                 status: status.clone(),
                 revised_prompt: revised_prompt.clone(),

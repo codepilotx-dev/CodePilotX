@@ -1,26 +1,26 @@
 use std::collections::HashSet;
 
-use codex_app_server_protocol::AppInfo;
-use codex_config::types::ToolSuggestDisabledTool;
-use codex_core_plugins::remote::REMOTE_GLOBAL_MARKETPLACE_NAME;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_rmcp_client::ElicitationAction;
-use codex_rmcp_client::ElicitationResponse;
-use codex_tools::DiscoverableTool;
-use codex_tools::DiscoverableToolAction;
-use codex_tools::DiscoverableToolType;
-use codex_tools::LIST_AVAILABLE_PLUGINS_TO_INSTALL_TOOL_NAME;
-use codex_tools::REQUEST_PLUGIN_INSTALL_PERSIST_ALWAYS_VALUE;
-use codex_tools::REQUEST_PLUGIN_INSTALL_PERSIST_KEY;
-use codex_tools::REQUEST_PLUGIN_INSTALL_TOOL_NAME;
-use codex_tools::RequestPluginInstallArgs;
-use codex_tools::RequestPluginInstallResult;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
-use codex_tools::all_requested_connectors_picked_up;
-use codex_tools::build_request_plugin_install_elicitation_request;
-use codex_tools::filter_request_plugin_install_discoverable_tools_for_client;
-use codex_tools::verified_connector_install_completed;
+use codepilotx_app_server_protocol::AppInfo;
+use codepilotx_config::types::ToolSuggestDisabledTool;
+use codepilotx_core_plugins::remote::REMOTE_GLOBAL_MARKETPLACE_NAME;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
+use codepilotx_rmcp_client::ElicitationAction;
+use codepilotx_rmcp_client::ElicitationResponse;
+use codepilotx_tools::DiscoverableTool;
+use codepilotx_tools::DiscoverableToolAction;
+use codepilotx_tools::DiscoverableToolType;
+use codepilotx_tools::LIST_AVAILABLE_PLUGINS_TO_INSTALL_TOOL_NAME;
+use codepilotx_tools::REQUEST_PLUGIN_INSTALL_PERSIST_ALWAYS_VALUE;
+use codepilotx_tools::REQUEST_PLUGIN_INSTALL_PERSIST_KEY;
+use codepilotx_tools::REQUEST_PLUGIN_INSTALL_TOOL_NAME;
+use codepilotx_tools::RequestPluginInstallArgs;
+use codepilotx_tools::RequestPluginInstallResult;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSpec;
+use codepilotx_tools::all_requested_connectors_picked_up;
+use codepilotx_tools::build_request_plugin_install_elicitation_request;
+use codepilotx_tools::filter_request_plugin_install_discoverable_tools_for_client;
+use codepilotx_tools::verified_connector_install_completed;
 use rmcp::model::RequestId;
 use serde::Deserialize;
 use serde_json::Value;
@@ -77,7 +77,7 @@ impl ToolExecutor<ToolInvocation> for RequestPluginInstallHandler {
         true
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }
@@ -174,7 +174,7 @@ impl RequestPluginInstallHandler {
 
         let request_id = RequestId::String(format!("request_plugin_install_{call_id}").into());
         let params = build_request_plugin_install_elicitation_request(
-            CODEX_APPS_MCP_SERVER_NAME,
+            codepilotx_APPS_MCP_SERVER_NAME,
             session.thread_id.to_string(),
             turn.sub_id.clone(),
             suggest_reason,
@@ -259,7 +259,7 @@ async fn maybe_persist_disabled_install_request(
         return;
     }
 
-    if let Err(err) = persist_disabled_install_request(&turn.config.codex_home, tool).await {
+    if let Err(err) = persist_disabled_install_request(&turn.config.codepilotx_home, tool).await {
         warn!(
             error = %err,
             tool_id = tool.id(),
@@ -288,10 +288,10 @@ fn request_plugin_install_response_requests_persistent_disable(
 }
 
 async fn persist_disabled_install_request(
-    codex_home: &codex_utils_absolute_path::AbsolutePathBuf,
+    codepilotx_home: &codepilotx_utils_absolute_path::AbsolutePathBuf,
     tool: &DiscoverableTool,
 ) -> anyhow::Result<()> {
-    ConfigEditsBuilder::new(codex_home)
+    ConfigEditsBuilder::new(codepilotx_home)
         .with_edits([ConfigEdit::AddToolSuggestDisabledTool(
             disabled_install_request(tool),
         )])
@@ -312,7 +312,7 @@ async fn verify_request_plugin_install_completed(
     session: &crate::session::session::Session,
     turn: &crate::session::turn_context::TurnContext,
     tool: &DiscoverableTool,
-    auth: Option<&codex_login::CodexAuth>,
+    auth: Option<&codepilotx_login::CodexAuth>,
 ) -> bool {
     match tool {
         DiscoverableTool::Connector(connector) => refresh_missing_requested_connectors(
@@ -374,7 +374,7 @@ async fn verify_request_plugin_install_completed(
 async fn refresh_remote_installed_plugins_cache_after_install(
     session: &crate::session::session::Session,
     turn: &crate::session::turn_context::TurnContext,
-    auth: Option<&codex_login::CodexAuth>,
+    auth: Option<&codepilotx_login::CodexAuth>,
     tool_id: &str,
 ) {
     let plugins_manager = &session.services.plugins_manager;
@@ -403,7 +403,7 @@ fn is_remote_plugin_install_suggestion(plugin_id: &str) -> bool {
 async fn refresh_missing_requested_connectors(
     session: &crate::session::session::Session,
     turn: &crate::session::turn_context::TurnContext,
-    auth: Option<&codex_login::CodexAuth>,
+    auth: Option<&codepilotx_login::CodexAuth>,
     expected_connector_ids: &[String],
     tool_id: &str,
 ) -> Option<Vec<AppInfo>> {
@@ -421,7 +421,7 @@ async fn refresh_missing_requested_connectors(
         return Some(accessible_connectors);
     }
 
-    match manager.hard_refresh_codex_apps_tools_cache().await {
+    match manager.hard_refresh_codepilotx_apps_tools_cache().await {
         Ok(mcp_tools) => {
             let accessible_connectors = connectors::with_app_enabled_state(
                 connectors::accessible_connectors_from_mcp_tools(&mcp_tools),
@@ -446,7 +446,7 @@ async fn refresh_missing_requested_connectors(
 fn verified_plugin_install_completed(
     tool_id: &str,
     config: &crate::config::Config,
-    plugins_manager: &codex_core_plugins::PluginsManager,
+    plugins_manager: &codepilotx_core_plugins::PluginsManager,
 ) -> bool {
     let plugins_input = config.plugins_config_input();
     plugins_manager

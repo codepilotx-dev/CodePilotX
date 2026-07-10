@@ -13,10 +13,10 @@
 
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
-use codex_api::OPENAI_FILE_UPLOAD_LIMIT_BYTES;
-use codex_api::upload_openai_file;
-use codex_login::CodexAuth;
-use codex_utils_path_uri::PathUri;
+use codepilotx_api::OPENAI_FILE_UPLOAD_LIMIT_BYTES;
+use codepilotx_api::upload_openai_file;
+use codepilotx_login::CodexAuth;
+use codepilotx_utils_path_uri::PathUri;
 use serde_json::Value as JsonValue;
 
 pub(crate) async fn rewrite_mcp_tool_arguments_for_openai_files(
@@ -114,7 +114,7 @@ async fn build_uploaded_argument_value(
     let Some(auth) = auth else {
         return Err("ChatGPT auth is required to upload files for Codex Apps tools".to_string());
     };
-    if !auth.uses_codex_backend() {
+    if !auth.uses_codepilotx_backend() {
         return Err("ChatGPT auth is required to upload files for Codex Apps tools".to_string());
     }
     let Some(turn_environment) = turn_context.environments.primary() else {
@@ -158,7 +158,7 @@ async fn build_uploaded_argument_value(
         .and_then(|value| value.to_str())
         .unwrap_or("file")
         .to_string();
-    let upload_auth = codex_model_provider::auth_provider_from_auth(auth);
+    let upload_auth = codepilotx_model_provider::auth_provider_from_auth(auth);
     let uploaded = upload_openai_file(
         turn_context.config.chatgpt_base_url.trim_end_matches('/'),
         upload_auth.as_ref(),
@@ -183,8 +183,8 @@ mod tests {
     use super::*;
     use crate::session::tests::make_session_and_context;
     use crate::session::turn_context::TurnEnvironment;
-    use codex_utils_absolute_path::AbsolutePathBuf;
-    use codex_utils_path_uri::PathUri;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_utils_path_uri::PathUri;
     use pretty_assertions::assert_eq;
     use std::path::Path;
     use std::sync::Arc;
@@ -192,7 +192,7 @@ mod tests {
 
     fn set_primary_environment_cwd(turn_context: &mut TurnContext, cwd: &Path) {
         let cwd = AbsolutePathBuf::try_from(cwd).expect("absolute path");
-        turn_context.permission_profile = codex_protocol::models::PermissionProfile::Disabled;
+        turn_context.permission_profile = codepilotx_protocol::models::PermissionProfile::Disabled;
         let primary = turn_context
             .environments
             .turn_environments

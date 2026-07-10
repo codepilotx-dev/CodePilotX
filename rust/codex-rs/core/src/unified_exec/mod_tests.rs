@@ -1,6 +1,6 @@
 use super::head_tail_buffer::HeadTailBuffer;
 use super::*;
-use crate::codex_thread::BackgroundTerminalInfo;
+use crate::codepilotx_thread::BackgroundTerminalInfo;
 use crate::exec::ExecCapturePolicy;
 use crate::exec::ExecExpiration;
 use crate::sandboxing::ExecRequest;
@@ -10,19 +10,19 @@ use crate::session::turn_context::TurnContext;
 use crate::tools::context::ExecCommandToolOutput;
 use crate::unified_exec::WriteStdinRequest;
 use crate::unified_exec::process::OutputHandles;
-use codex_exec_server::ExecProcess;
-use codex_exec_server::ExecProcessEventReceiver;
-use codex_exec_server::ExecProcessFuture;
-use codex_exec_server::ProcessId;
-use codex_exec_server::ProcessSignal;
-use codex_exec_server::ReadResponse;
-use codex_exec_server::StartedExecProcess;
-use codex_exec_server::WriteResponse;
-use codex_exec_server::WriteStatus;
-use codex_sandboxing::SandboxType;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::approx_token_count;
+use codepilotx_exec_server::ExecProcess;
+use codepilotx_exec_server::ExecProcessEventReceiver;
+use codepilotx_exec_server::ExecProcessFuture;
+use codepilotx_exec_server::ProcessId;
+use codepilotx_exec_server::ProcessSignal;
+use codepilotx_exec_server::ReadResponse;
+use codepilotx_exec_server::StartedExecProcess;
+use codepilotx_exec_server::WriteResponse;
+use codepilotx_exec_server::WriteStatus;
+use codepilotx_sandboxing::SandboxType;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_output_truncation::TruncationPolicy;
+use codepilotx_utils_output_truncation::approx_token_count;
 use core_test_support::get_remote_test_env;
 use core_test_support::skip_if_sandbox;
 use core_test_support::test_codex::test_env as remote_test_env;
@@ -220,7 +220,7 @@ struct BlockingTerminateExecProcess {
 }
 
 impl BlockingTerminateExecProcess {
-    async fn read(&self) -> Result<ReadResponse, codex_exec_server::ExecServerError> {
+    async fn read(&self) -> Result<ReadResponse, codepilotx_exec_server::ExecServerError> {
         Ok(ReadResponse {
             chunks: Vec::new(),
             next_seq: 1,
@@ -231,13 +231,13 @@ impl BlockingTerminateExecProcess {
         })
     }
 
-    async fn write(&self) -> Result<WriteResponse, codex_exec_server::ExecServerError> {
+    async fn write(&self) -> Result<WriteResponse, codepilotx_exec_server::ExecServerError> {
         Ok(WriteResponse {
             status: WriteStatus::Accepted,
         })
     }
 
-    async fn terminate(&self) -> Result<(), codex_exec_server::ExecServerError> {
+    async fn terminate(&self) -> Result<(), codepilotx_exec_server::ExecServerError> {
         let _ = self.terminate_started.send(true);
         self.allow_terminate.notified().await;
         Ok(())
@@ -379,7 +379,7 @@ async fn unified_exec_persists_across_requests() -> anyhow::Result<()> {
     write_stdin(
         &session,
         process_id,
-        "export CODEX_INTERACTIVE_SHELL_VAR=codex\n",
+        "export codepilotx_INTERACTIVE_SHELL_VAR=codex\n",
         /*yield_time_ms*/ 2_500,
     )
     .await?;
@@ -387,7 +387,7 @@ async fn unified_exec_persists_across_requests() -> anyhow::Result<()> {
     let out_2 = write_stdin(
         &session,
         process_id,
-        "echo $CODEX_INTERACTIVE_SHELL_VAR\n",
+        "echo $codepilotx_INTERACTIVE_SHELL_VAR\n",
         /*yield_time_ms*/ 2_500,
     )
     .await?;
@@ -420,7 +420,7 @@ async fn multi_unified_exec_sessions() -> anyhow::Result<()> {
     write_stdin(
         &session,
         session_a,
-        "export CODEX_INTERACTIVE_SHELL_VAR=codex\n",
+        "export codepilotx_INTERACTIVE_SHELL_VAR=codex\n",
         /*yield_time_ms*/ 2_500,
     )
     .await?;
@@ -428,7 +428,7 @@ async fn multi_unified_exec_sessions() -> anyhow::Result<()> {
     let out_2 = exec_command(
         &session,
         &turn,
-        "echo $CODEX_INTERACTIVE_SHELL_VAR",
+        "echo $codepilotx_INTERACTIVE_SHELL_VAR",
         /*yield_time_ms*/ 2_500,
         /*workdir*/ None,
     )
@@ -448,7 +448,7 @@ async fn multi_unified_exec_sessions() -> anyhow::Result<()> {
     let out_3 = write_stdin(
         &session,
         shell_a.process_id.expect("expected process id"),
-        "echo $CODEX_INTERACTIVE_SHELL_VAR\n",
+        "echo $codepilotx_INTERACTIVE_SHELL_VAR\n",
         /*yield_time_ms*/ 2_500,
     )
     .await?;
@@ -479,7 +479,7 @@ async fn unified_exec_timeouts() -> anyhow::Result<()> {
     write_stdin(
         &session,
         process_id,
-        format!("export CODEX_INTERACTIVE_SHELL_VAR={TEST_VAR_VALUE}\n").as_str(),
+        format!("export codepilotx_INTERACTIVE_SHELL_VAR={TEST_VAR_VALUE}\n").as_str(),
         /*yield_time_ms*/ 2_500,
     )
     .await?;
@@ -487,7 +487,7 @@ async fn unified_exec_timeouts() -> anyhow::Result<()> {
     let out_2 = write_stdin(
         &session,
         process_id,
-        "sleep 5 && echo $CODEX_INTERACTIVE_SHELL_VAR\n",
+        "sleep 5 && echo $codepilotx_INTERACTIVE_SHELL_VAR\n",
         /*yield_time_ms*/ 10,
     )
     .await?;
@@ -809,7 +809,7 @@ async fn completed_pipe_commands_preserve_exit_code() -> anyhow::Result<()> {
         shell_env(),
     );
 
-    let environment = codex_exec_server::Environment::default_for_tests();
+    let environment = codepilotx_exec_server::Environment::default_for_tests();
     let process = UnifiedExecProcessManager::default()
         .open_session_with_prepared_exec_env(
             /*process_id*/ 1234,

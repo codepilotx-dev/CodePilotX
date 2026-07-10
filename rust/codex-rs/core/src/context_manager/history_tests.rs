@@ -1,29 +1,29 @@
 use super::*;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_protocol::AgentPath;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::DEFAULT_IMAGE_DETAIL;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::models::LocalShellAction;
-use codex_protocol::models::LocalShellExecAction;
-use codex_protocol::models::LocalShellStatus;
-use codex_protocol::models::ReasoningItemContent;
-use codex_protocol::models::ReasoningItemReasoningSummary;
-use codex_protocol::models::ResponseItemMetadata;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::default_input_modalities;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::TurnContextItem;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::truncate_text;
+use codepilotx_protocol::AgentPath;
+use codepilotx_protocol::models::BaseInstructions;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::DEFAULT_IMAGE_DETAIL;
+use codepilotx_protocol::models::FunctionCallOutputBody;
+use codepilotx_protocol::models::FunctionCallOutputContentItem;
+use codepilotx_protocol::models::FunctionCallOutputPayload;
+use codepilotx_protocol::models::ImageDetail;
+use codepilotx_protocol::models::LocalShellAction;
+use codepilotx_protocol::models::LocalShellExecAction;
+use codepilotx_protocol::models::LocalShellStatus;
+use codepilotx_protocol::models::ReasoningItemContent;
+use codepilotx_protocol::models::ReasoningItemReasoningSummary;
+use codepilotx_protocol::models::ResponseItemMetadata;
+use codepilotx_protocol::openai_models::InputModality;
+use codepilotx_protocol::openai_models::default_input_modalities;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::InterAgentCommunication;
+use codepilotx_protocol::protocol::SandboxPolicy;
+use codepilotx_protocol::protocol::TurnContextItem;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_output_truncation::TruncationPolicy;
+use codepilotx_utils_output_truncation::truncate_text;
 use image::ImageBuffer;
 use image::ImageFormat;
 use image::Luma;
@@ -149,7 +149,7 @@ fn reference_context_item() -> TurnContextItem {
         multi_agent_mode: None,
         realtime_active: Some(false),
         effort: None,
-        summary: codex_protocol::config_types::ReasoningSummary::Auto,
+        summary: codepilotx_protocol::config_types::ReasoningSummary::Auto,
     }
 }
 
@@ -1184,7 +1184,7 @@ fn assert_truncated_message_matches(message: &str, line: &str, expected_removed:
 
 fn truncated_message_pattern(line: &str) -> String {
     let escaped_line = regex_lite::escape(line);
-    format!(r"(?s)^(?P<body>{escaped_line}.*?)(?:\r?)?â€¦(?P<removed>\d+) tokens truncatedâ€¦(?:.*)?$")
+    format!(r"(?s)^(?P<body>{escaped_line}.*?)(?:\r?)?â€??P<removed>\d+) tokens truncatedâ€??:.*)?$")
 }
 
 #[test]

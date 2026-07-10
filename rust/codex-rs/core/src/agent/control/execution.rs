@@ -1,10 +1,10 @@
 use super::AgentControl;
-use codex_protocol::ThreadId;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SessionSource;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result as CodexResult;
+use codepilotx_protocol::protocol::MultiAgentVersion;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::SessionSource;
 use std::sync::Arc;
 use std::sync::OnceLock;
 use std::sync::atomic::AtomicUsize;

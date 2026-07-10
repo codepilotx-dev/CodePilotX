@@ -30,61 +30,61 @@ use std::sync::OnceLock;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
-use codex_api::ApiError;
-use codex_api::AuthProvider;
-use codex_api::CompactClient as ApiCompactClient;
-use codex_api::CompactionInput as ApiCompactionInput;
-use codex_api::Compression;
-use codex_api::MemoriesClient as ApiMemoriesClient;
-use codex_api::MemorySummarizeInput as ApiMemorySummarizeInput;
-use codex_api::MemorySummarizeOutput as ApiMemorySummarizeOutput;
-use codex_api::Provider as ApiProvider;
-use codex_api::RawMemory as ApiRawMemory;
-use codex_api::RealtimeCallClient as ApiRealtimeCallClient;
-use codex_api::RealtimeSessionConfig as ApiRealtimeSessionConfig;
-use codex_api::Reasoning;
-use codex_api::ReasoningContext;
-use codex_api::RequestTelemetry;
-use codex_api::ReqwestTransport;
-use codex_api::ResponseCreateWsRequest;
-use codex_api::ResponsesApiRequest;
-use codex_api::ResponsesClient as ApiResponsesClient;
-use codex_api::ResponsesOptions as ApiResponsesOptions;
-use codex_api::ResponsesWebsocketClient as ApiWebSocketResponsesClient;
-use codex_api::ResponsesWebsocketConnection as ApiWebSocketConnection;
-use codex_api::ResponsesWsRequest;
-use codex_api::SharedAuthProvider;
-use codex_api::SseTelemetry;
-use codex_api::TransportError;
-use codex_api::WebsocketTelemetry;
-use codex_api::auth_header_telemetry;
-use codex_api::build_session_headers;
-use codex_api::create_text_param_for_request;
-use codex_api::response_create_client_metadata;
-use codex_app_server_protocol::AuthMode;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::RefreshTokenError;
-use codex_login::UnauthorizedRecovery;
-use codex_login::default_client::build_reqwest_client;
-use codex_otel::SessionTelemetry;
-use codex_otel::current_span_w3c_trace_context;
+use codepilotx_api::ApiError;
+use codepilotx_api::AuthProvider;
+use codepilotx_api::CompactClient as ApiCompactClient;
+use codepilotx_api::CompactionInput as ApiCompactionInput;
+use codepilotx_api::Compression;
+use codepilotx_api::MemoriesClient as ApiMemoriesClient;
+use codepilotx_api::MemorySummarizeInput as ApiMemorySummarizeInput;
+use codepilotx_api::MemorySummarizeOutput as ApiMemorySummarizeOutput;
+use codepilotx_api::Provider as ApiProvider;
+use codepilotx_api::RawMemory as ApiRawMemory;
+use codepilotx_api::RealtimeCallClient as ApiRealtimeCallClient;
+use codepilotx_api::RealtimeSessionConfig as ApiRealtimeSessionConfig;
+use codepilotx_api::Reasoning;
+use codepilotx_api::ReasoningContext;
+use codepilotx_api::RequestTelemetry;
+use codepilotx_api::ReqwestTransport;
+use codepilotx_api::ResponseCreateWsRequest;
+use codepilotx_api::ResponsesApiRequest;
+use codepilotx_api::ResponsesClient as ApiResponsesClient;
+use codepilotx_api::ResponsesOptions as ApiResponsesOptions;
+use codepilotx_api::ResponsesWebsocketClient as ApiWebSocketResponsesClient;
+use codepilotx_api::ResponsesWebsocketConnection as ApiWebSocketConnection;
+use codepilotx_api::ResponsesWsRequest;
+use codepilotx_api::SharedAuthProvider;
+use codepilotx_api::SseTelemetry;
+use codepilotx_api::TransportError;
+use codepilotx_api::WebsocketTelemetry;
+use codepilotx_api::auth_header_telemetry;
+use codepilotx_api::build_session_headers;
+use codepilotx_api::create_text_param_for_request;
+use codepilotx_api::response_create_client_metadata;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CodexAuth;
+use codepilotx_login::RefreshTokenError;
+use codepilotx_login::UnauthorizedRecovery;
+use codepilotx_login::default_client::build_reqwest_client;
+use codepilotx_otel::SessionTelemetry;
+use codepilotx_otel::current_span_w3c_trace_context;
 
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
-use codex_protocol::config_types::Verbosity as VerbosityConfig;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::protocol::InternalSessionSource;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_rollout_trace::CompactionTraceContext;
-use codex_rollout_trace::InferenceTraceAttempt;
-use codex_rollout_trace::InferenceTraceContext;
-use codex_tools::ToolSpec;
-use codex_tools::create_tools_json_for_responses_api;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use codepilotx_protocol::config_types::Verbosity as VerbosityConfig;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use codepilotx_protocol::protocol::InternalSessionSource;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::W3cTraceContext;
+use codepilotx_rollout_trace::CompactionTraceContext;
+use codepilotx_rollout_trace::InferenceTraceAttempt;
+use codepilotx_rollout_trace::InferenceTraceContext;
+use codepilotx_tools::ToolSpec;
+use codepilotx_tools::create_tools_json_for_responses_api;
 use eventsource_stream::Event;
 use eventsource_stream::EventStreamError;
 use eventsource_stream::Eventsource;
@@ -119,40 +119,40 @@ use crate::feedback_tags;
 use crate::responses_metadata::CodexResponsesMetadata;
 use crate::responses_metadata::subagent_header_value;
 use crate::util::emit_feedback_auth_recovery_tags;
-use codex_api::map_api_error;
-use codex_feedback::FeedbackRequestTags;
-use codex_feedback::emit_feedback_request_tags_with_auth_env;
-use codex_login::auth_env_telemetry::AuthEnvTelemetry;
-use codex_login::auth_env_telemetry::collect_auth_env_telemetry;
-use codex_model_provider::SharedModelProvider;
-use codex_model_provider::create_model_provider;
+use codepilotx_api::map_api_error;
+use codepilotx_feedback::FeedbackRequestTags;
+use codepilotx_feedback::emit_feedback_request_tags_with_auth_env;
+use codepilotx_login::auth_env_telemetry::AuthEnvTelemetry;
+use codepilotx_login::auth_env_telemetry::collect_auth_env_telemetry;
+use codepilotx_model_provider::SharedModelProvider;
+use codepilotx_model_provider::create_model_provider;
 #[cfg(test)]
-use codex_model_provider_info::DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::WireApi;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
-use codex_response_debug_context::extract_response_debug_context;
-use codex_response_debug_context::extract_response_debug_context_from_api_error;
-use codex_response_debug_context::telemetry_api_error_message;
-use codex_response_debug_context::telemetry_transport_error_message;
+use codepilotx_model_provider_info::DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_model_provider_info::WireApi;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result;
+use codepilotx_response_debug_context::extract_response_debug_context;
+use codepilotx_response_debug_context::extract_response_debug_context_from_api_error;
+use codepilotx_response_debug_context::telemetry_api_error_message;
+use codepilotx_response_debug_context::telemetry_transport_error_message;
 
 pub const OPENAI_BETA_HEADER: &str = "OpenAI-Beta";
-pub const X_CODEX_INSTALLATION_ID_HEADER: &str = "x-codex-installation-id";
-pub const X_CODEX_TURN_STATE_HEADER: &str = "x-codex-turn-state";
-pub const X_CODEX_TURN_METADATA_HEADER: &str = "x-codex-turn-metadata";
-pub const X_CODEX_PARENT_THREAD_ID_HEADER: &str = "x-codex-parent-thread-id";
-pub const X_CODEX_WINDOW_ID_HEADER: &str = "x-codex-window-id";
+pub const X_codepilotx_INSTALLATION_ID_HEADER: &str = "x-codex-installation-id";
+pub const X_codepilotx_TURN_STATE_HEADER: &str = "x-codex-turn-state";
+pub const X_codepilotx_TURN_METADATA_HEADER: &str = "x-codex-turn-metadata";
+pub const X_codepilotx_PARENT_THREAD_ID_HEADER: &str = "x-codex-parent-thread-id";
+pub const X_codepilotx_WINDOW_ID_HEADER: &str = "x-codex-window-id";
 pub const X_OPENAI_MEMGEN_REQUEST_HEADER: &str = "x-openai-memgen-request";
 pub const X_OPENAI_SUBAGENT_HEADER: &str = "x-openai-subagent";
 pub const X_RESPONSESAPI_INCLUDE_TIMING_METRICS_HEADER: &str =
     "x-responsesapi-include-timing-metrics";
-const X_CODEX_WS_STREAM_REQUEST_START_MS_CLIENT_METADATA_KEY: &str =
+const X_codepilotx_WS_STREAM_REQUEST_START_MS_CLIENT_METADATA_KEY: &str =
     "x-codex-ws-stream-request-start-ms";
 const WS_REQUEST_HEADER_RESPONSES_LITE_CLIENT_METADATA_KEY: &str =
-    "ws_request_header_x_openai_internal_codex_responses_lite";
+    "ws_request_header_x_openai_internal_codepilotx_responses_lite";
 const RESPONSES_WEBSOCKETS_V2_BETA_HEADER_VALUE: &str = "responses_websockets=2026-02-06";
-const X_OPENAI_INTERNAL_CODEX_RESPONSES_LITE_HEADER: &str =
+const X_OPENAI_INTERNAL_codepilotx_RESPONSES_LITE_HEADER: &str =
     "x-openai-internal-codex-responses-lite";
 const RESPONSES_ENDPOINT: &str = "/responses";
 const ANTHROPIC_MESSAGES_ENDPOINT: &str = "/messages";
@@ -604,12 +604,12 @@ impl ModelClient {
         attestation_provider: Option<Arc<dyn AttestationProvider>>,
     ) -> Self {
         let model_provider = create_model_provider(provider_info, auth_manager);
-        let codex_api_key_env_enabled = model_provider
+        let codepilotx_api_key_env_enabled = model_provider
             .auth_manager()
             .as_ref()
-            .is_some_and(|manager| manager.codex_api_key_env_enabled());
+            .is_some_and(|manager| manager.codepilotx_api_key_env_enabled());
         let auth_env_telemetry =
-            collect_auth_env_telemetry(model_provider.info(), codex_api_key_env_enabled);
+            collect_auth_env_telemetry(model_provider.info(), codepilotx_api_key_env_enabled);
         let include_attestation = model_provider.supports_attestation();
         Self {
             state: Arc::new(ModelClientState {
@@ -768,7 +768,7 @@ impl ModelClient {
 
         let mut extra_headers = ApiHeaderMap::new();
         if let Ok(header_value) = HeaderValue::from_str(&responses_metadata.installation_id) {
-            extra_headers.insert(X_CODEX_INSTALLATION_ID_HEADER, header_value);
+            extra_headers.insert(X_codepilotx_INSTALLATION_ID_HEADER, header_value);
         }
         extra_headers.extend(build_responses_headers(
             self.state.beta_features_header.as_deref(),
@@ -992,7 +992,7 @@ impl ModelClient {
     #[allow(clippy::too_many_arguments)]
     fn build_responses_request(
         &self,
-        provider: &codex_api::Provider,
+        provider: &codepilotx_api::Provider,
         prompt: &Prompt,
         model_info: &ModelInfo,
         effort: Option<ReasoningEffortConfig>,
@@ -1444,7 +1444,7 @@ impl ModelClient {
     async fn connect_websocket(
         &self,
         session_telemetry: &SessionTelemetry,
-        api_provider: codex_api::Provider,
+        api_provider: codepilotx_api::Provider,
         api_auth: SharedAuthProvider,
         responses_metadata: &CodexResponsesMetadata,
         auth_context: AuthRequestTelemetryContext,
@@ -1463,7 +1463,7 @@ impl ModelClient {
             websocket_connect_timeout,
             ApiWebSocketResponsesClient::new(api_provider, api_auth).connect(
                 headers,
-                codex_login::default_client::default_headers(),
+                codepilotx_login::default_client::default_headers(),
                 /*turn_state*/ None,
                 Some(websocket_telemetry),
             ),
@@ -1812,7 +1812,7 @@ impl ModelClientSession {
 
     fn responses_request_compression(&self, auth: Option<&CodexAuth>) -> Compression {
         if self.client.state.enable_request_compression
-            && auth.is_some_and(CodexAuth::uses_codex_backend)
+            && auth.is_some_and(CodexAuth::uses_codepilotx_backend)
             && self.client.state.provider.info().is_openai()
         {
             Compression::Zstd
@@ -2000,7 +2000,7 @@ impl ModelClientSession {
         &self,
         client_setup: &CurrentClientSetup,
         request: &AnthropicMessagesRequest,
-    ) -> std::result::Result<codex_api::ResponseStream, ApiError> {
+    ) -> std::result::Result<codepilotx_api::ResponseStream, ApiError> {
         let url = client_setup
             .api_provider
             .url_for_path(ANTHROPIC_MESSAGES_ENDPOINT);
@@ -2098,7 +2098,7 @@ impl ModelClientSession {
         &self,
         client_setup: &CurrentClientSetup,
         request: &ChatCompletionsRequest,
-    ) -> std::result::Result<codex_api::ResponseStream, ApiError> {
+    ) -> std::result::Result<codepilotx_api::ResponseStream, ApiError> {
         let url = client_setup
             .api_provider
             .url_for_path(CHAT_COMPLETIONS_ENDPOINT);
@@ -2201,7 +2201,7 @@ impl ModelClientSession {
                 .client
                 .build_ws_client_metadata(responses_metadata, model_info.use_responses_lite);
             if let Some(turn_state) = self.turn_state.get() {
-                client_metadata.insert(X_CODEX_TURN_STATE_HEADER.to_string(), turn_state.clone());
+                client_metadata.insert(X_codepilotx_TURN_STATE_HEADER.to_string(), turn_state.clone());
             }
             let mut ws_payload = ResponseCreateWsRequest {
                 client_metadata: response_create_client_metadata(
@@ -2504,7 +2504,7 @@ fn stamp_ws_stream_request_start_ms(request: &mut ResponsesWsRequest) {
         .client_metadata
         .get_or_insert_with(HashMap::new)
         .insert(
-            X_CODEX_WS_STREAM_REQUEST_START_MS_CLIENT_METADATA_KEY.to_string(),
+            X_codepilotx_WS_STREAM_REQUEST_START_MS_CLIENT_METADATA_KEY.to_string(),
             crate::turn_timing::now_unix_timestamp_ms().to_string(),
         );
 }
@@ -2530,7 +2530,7 @@ fn build_responses_headers(
         && let Some(state) = turn_state.get()
         && let Ok(header_value) = HeaderValue::from_str(state)
     {
-        headers.insert(X_CODEX_TURN_STATE_HEADER, header_value);
+        headers.insert(X_codepilotx_TURN_STATE_HEADER, header_value);
     }
     headers
 }
@@ -2538,7 +2538,7 @@ fn build_responses_headers(
 fn add_responses_lite_header(headers: &mut ApiHeaderMap, use_responses_lite: bool) {
     if use_responses_lite {
         headers.insert(
-            X_OPENAI_INTERNAL_CODEX_RESPONSES_LITE_HEADER,
+            X_OPENAI_INTERNAL_codepilotx_RESPONSES_LITE_HEADER,
             HeaderValue::from_static("true"),
         );
     }
@@ -2560,7 +2560,7 @@ fn anthropic_text_from_content_items(content: &[ContentItem]) -> String {
         .join("\n")
 }
 
-fn chat_completions_output_text(output: &codex_protocol::models::FunctionCallOutputPayload) -> String {
+fn chat_completions_output_text(output: &codepilotx_protocol::models::FunctionCallOutputPayload) -> String {
     output.body.to_text().unwrap_or_default()
 }
 
@@ -2633,7 +2633,7 @@ fn spawn_anthropic_messages_stream<S, E>(
     event_stream: S,
     idle_timeout: Duration,
     upstream_request_id: Option<String>,
-) -> codex_api::ResponseStream
+) -> codepilotx_api::ResponseStream
 where
     S: Stream<Item = std::result::Result<Event, EventStreamError<E>>> + Send + 'static,
     E: std::fmt::Display + Send + Sync + 'static,
@@ -2841,7 +2841,7 @@ where
                     }
                 }
                 "content_block_stop" => {
-                    // Content block finished â€” tool call aggregation completes on message_stop
+                    // Content block finished â€?tool call aggregation completes on message_stop
                 }
                 "message_stop" => {
                     ensure_started!();
@@ -2877,7 +2877,7 @@ where
         }
     });
 
-    codex_api::ResponseStream {
+    codepilotx_api::ResponseStream {
         rx_event,
         upstream_request_id,
     }
@@ -2892,7 +2892,7 @@ fn spawn_chat_completions_stream<S, E>(
     event_stream: S,
     idle_timeout: Duration,
     upstream_request_id: Option<String>,
-) -> codex_api::ResponseStream
+) -> codepilotx_api::ResponseStream
 where
     S: Stream<Item = std::result::Result<Event, EventStreamError<E>>> + Send + 'static,
     E: std::fmt::Display + Send + Sync + 'static,
@@ -2947,7 +2947,7 @@ where
                 }
             };
 
-            // `data: [DONE]` â€” stream terminator
+            // `data: [DONE]` â€?stream terminator
             if event.data.trim() == "[DONE]" {
                 break;
             }
@@ -3040,7 +3040,7 @@ where
                             return;
                         }
                         "tool_calls" => {
-                            // Emit assistant message (always â€” even with empty text,
+                            // Emit assistant message (always â€?even with empty text,
                             // so history has a Message to anchor tool_calls to).
                             send_ev!(ResponseEvent::OutputItemDone(ResponseItem::Message {
                                 id: Some(assistant_item_id.clone()),
@@ -3084,7 +3084,7 @@ where
                             return;
                         }
                         _ => {
-                            // Unknown finish reason â€” treat as stop
+                            // Unknown finish reason â€?treat as stop
                             if !assistant_text.is_empty() {
                                 send_ev!(ResponseEvent::OutputItemDone(ResponseItem::Message {
                                     id: Some(assistant_item_id.clone()),
@@ -3129,22 +3129,22 @@ where
         }
     });
 
-    codex_api::ResponseStream {
+    codepilotx_api::ResponseStream {
         rx_event,
         upstream_request_id,
     }
 }
 
 fn map_response_stream(
-    api_stream: codex_api::ResponseStream,
+    api_stream: codepilotx_api::ResponseStream,
     session_telemetry: SessionTelemetry,
     inference_trace_attempt: InferenceTraceAttempt,
 ) -> (ResponseStream, oneshot::Receiver<LastResponse>) {
-    let codex_api::ResponseStream {
+    let codepilotx_api::ResponseStream {
         rx_event,
         upstream_request_id,
     } = api_stream;
-    let api_stream = codex_api::ResponseStream {
+    let api_stream = codepilotx_api::ResponseStream {
         rx_event,
         upstream_request_id: None,
     };
@@ -3366,7 +3366,7 @@ impl AuthRequestTelemetryContext {
 
 struct WebsocketConnectParams<'a> {
     session_telemetry: &'a SessionTelemetry,
-    api_provider: codex_api::Provider,
+    api_provider: codepilotx_api::Provider,
     api_auth: SharedAuthProvider,
     responses_metadata: &'a CodexResponsesMetadata,
     auth_context: AuthRequestTelemetryContext,

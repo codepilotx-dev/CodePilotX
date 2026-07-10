@@ -1,7 +1,7 @@
-use codex_protocol::AgentPath;
-use codex_protocol::protocol::AgentStatus;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::truncate_text;
+use codepilotx_protocol::AgentPath;
+use codepilotx_protocol::protocol::AgentStatus;
+use codepilotx_utils_output_truncation::TruncationPolicy;
+use codepilotx_utils_output_truncation::truncate_text;
 
 use crate::context::ContextualUserFragment;
 use crate::context::InterAgentCompletionMessage;

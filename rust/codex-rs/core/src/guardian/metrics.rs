@@ -1,22 +1,22 @@
 use std::time::Duration;
 
-use codex_analytics::GuardianApprovalRequestSource;
-use codex_analytics::GuardianReviewAnalyticsResult;
-use codex_analytics::GuardianReviewDecision;
-use codex_analytics::GuardianReviewFailureReason;
-use codex_analytics::GuardianReviewSessionKind;
-use codex_analytics::GuardianReviewTerminalStatus;
-use codex_analytics::GuardianReviewedAction;
-use codex_otel::GUARDIAN_REVIEW_COUNT_METRIC;
-use codex_otel::GUARDIAN_REVIEW_DURATION_METRIC;
-use codex_otel::GUARDIAN_REVIEW_TOKEN_USAGE_METRIC;
-use codex_otel::GUARDIAN_REVIEW_TTFT_DURATION_METRIC;
-use codex_otel::SessionTelemetry;
-use codex_otel::sanitize_metric_tag_value;
-use codex_protocol::protocol::GuardianAssessmentOutcome;
-use codex_protocol::protocol::GuardianRiskLevel;
-use codex_protocol::protocol::GuardianUserAuthorization;
-use codex_protocol::protocol::TokenUsage;
+use codepilotx_analytics::GuardianApprovalRequestSource;
+use codepilotx_analytics::GuardianReviewAnalyticsResult;
+use codepilotx_analytics::GuardianReviewDecision;
+use codepilotx_analytics::GuardianReviewFailureReason;
+use codepilotx_analytics::GuardianReviewSessionKind;
+use codepilotx_analytics::GuardianReviewTerminalStatus;
+use codepilotx_analytics::GuardianReviewedAction;
+use codepilotx_otel::GUARDIAN_REVIEW_COUNT_METRIC;
+use codepilotx_otel::GUARDIAN_REVIEW_DURATION_METRIC;
+use codepilotx_otel::GUARDIAN_REVIEW_TOKEN_USAGE_METRIC;
+use codepilotx_otel::GUARDIAN_REVIEW_TTFT_DURATION_METRIC;
+use codepilotx_otel::SessionTelemetry;
+use codepilotx_otel::sanitize_metric_tag_value;
+use codepilotx_protocol::protocol::GuardianAssessmentOutcome;
+use codepilotx_protocol::protocol::GuardianRiskLevel;
+use codepilotx_protocol::protocol::GuardianUserAuthorization;
+use codepilotx_protocol::protocol::TokenUsage;
 
 pub(crate) fn emit_guardian_review_metrics(
     session_telemetry: &SessionTelemetry,
@@ -235,10 +235,10 @@ fn outcome_tag(outcome: Option<GuardianAssessmentOutcome>) -> &'static str {
 mod tests {
     use super::*;
 
-    use codex_otel::MetricsClient;
-    use codex_otel::MetricsConfig;
-    use codex_protocol::ThreadId;
-    use codex_protocol::protocol::SessionSource;
+    use codepilotx_otel::MetricsClient;
+    use codepilotx_otel::MetricsConfig;
+    use codepilotx_protocol::ThreadId;
+    use codepilotx_protocol::protocol::SessionSource;
     use opentelemetry::KeyValue;
     use opentelemetry_sdk::metrics::InMemoryMetricExporter;
     use opentelemetry_sdk::metrics::data::AggregatedMetrics;
@@ -361,7 +361,7 @@ mod tests {
             &result,
             GuardianApprovalRequestSource::DelegatedSubagent,
             &GuardianReviewedAction::NetworkAccess {
-                protocol: codex_protocol::approvals::NetworkApprovalProtocol::Https,
+                protocol: codepilotx_protocol::approvals::NetworkApprovalProtocol::Https,
                 port: 443,
             },
             /*completion_latency_ms*/ 456,

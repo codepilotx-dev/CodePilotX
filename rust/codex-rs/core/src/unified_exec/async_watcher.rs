@@ -16,13 +16,13 @@ use crate::tools::events::ToolEventCtx;
 use crate::tools::events::ToolEventFailure;
 use crate::tools::events::ToolEventStage;
 use crate::unified_exec::head_tail_buffer::HeadTailBuffer;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::exec_output::StreamOutput;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandOutputDeltaEvent;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_protocol::protocol::ExecOutputStream;
-use codex_utils_path_uri::PathUri;
+use codepilotx_protocol::exec_output::ExecToolCallOutput;
+use codepilotx_protocol::exec_output::StreamOutput;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::ExecCommandOutputDeltaEvent;
+use codepilotx_protocol::protocol::ExecCommandSource;
+use codepilotx_protocol::protocol::ExecOutputStream;
+use codepilotx_utils_path_uri::PathUri;
 
 pub(crate) const TRAILING_OUTPUT_GRACE: Duration = Duration::from_millis(100);
 
@@ -35,7 +35,7 @@ pub(crate) const TRAILING_OUTPUT_GRACE: Duration = Duration::from_millis(100);
 const UNIFIED_EXEC_OUTPUT_DELTA_MAX_BYTES: usize = 8192;
 
 /// Spawn a background task that continuously reads from the PTY, appends to the
-/// shared transcript, and emits ExecCommandOutputDelta events on UTFâ€‘8
+/// shared transcript, and emits ExecCommandOutputDelta events on UTFâ€?
 /// boundaries.
 pub(crate) fn start_streaming_output(
     process: &UnifiedExecProcess,

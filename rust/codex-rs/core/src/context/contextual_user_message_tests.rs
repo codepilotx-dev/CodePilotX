@@ -3,9 +3,9 @@ use crate::context::ContextualUserFragment;
 use crate::context::InternalContextSource;
 use crate::context::InternalModelContextFragment;
 use crate::context::SubagentNotification;
-use codex_protocol::items::HookPromptFragment;
-use codex_protocol::items::build_hook_prompt_message;
-use codex_protocol::models::ResponseItem;
+use codepilotx_protocol::items::HookPromptFragment;
+use codepilotx_protocol::items::build_hook_prompt_message;
+use codepilotx_protocol::models::ResponseItem;
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -68,7 +68,7 @@ fn detects_internal_model_context_fragment() {
 
     assert_eq!(
         text,
-        "<codex_internal_context source=\"extension\">\nInternal steering.\n</codex_internal_context>"
+        "<codepilotx_internal_context source=\"extension\">\nInternal steering.\n</codepilotx_internal_context>"
     );
     assert!(is_contextual_user_fragment(&ContentItem::InputText {
         text
@@ -101,7 +101,7 @@ fn does_not_hide_arbitrary_context_tags() {
 #[test]
 fn rejects_invalid_internal_model_context_source() {
     assert!(!is_contextual_user_fragment(&ContentItem::InputText {
-        text: "<codex_internal_context source=\"Extension\">\nbody\n</codex_internal_context>"
+        text: "<codepilotx_internal_context source=\"Extension\">\nbody\n</codepilotx_internal_context>"
             .to_string(),
     }));
 }
@@ -115,7 +115,7 @@ fn contextual_user_fragment_is_dyn_compatible() {
 
     assert_eq!(
         fragment.render(),
-        "<codex_internal_context source=\"extension\">\nInternal steering.\n</codex_internal_context>"
+        "<codepilotx_internal_context source=\"extension\">\nInternal steering.\n</codepilotx_internal_context>"
     );
 }
 

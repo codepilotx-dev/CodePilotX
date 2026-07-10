@@ -1,5 +1,5 @@
-use codex_protocol::protocol::AgentStatus;
-use codex_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::AgentStatus;
+use codepilotx_protocol::protocol::EventMsg;
 
 /// Derive the next agent status from a single emitted event.
 /// Returns `None` when the event does not affect status tracking.
@@ -8,8 +8,8 @@ pub(crate) fn agent_status_from_event(msg: &EventMsg) -> Option<AgentStatus> {
         EventMsg::TurnStarted(_) => Some(AgentStatus::Running),
         EventMsg::TurnComplete(ev) => Some(AgentStatus::Completed(ev.last_agent_message.clone())),
         EventMsg::TurnAborted(ev) => match ev.reason {
-            codex_protocol::protocol::TurnAbortReason::Interrupted
-            | codex_protocol::protocol::TurnAbortReason::BudgetLimited => {
+            codepilotx_protocol::protocol::TurnAbortReason::Interrupted
+            | codepilotx_protocol::protocol::TurnAbortReason::BudgetLimited => {
                 Some(AgentStatus::Interrupted)
             }
             _ => Some(AgentStatus::Errored(format!("{:?}", ev.reason))),

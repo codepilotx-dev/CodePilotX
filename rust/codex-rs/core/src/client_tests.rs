@@ -3,10 +3,10 @@ use super::AuthRequestTelemetryContext;
 use super::ModelClient;
 use super::PendingUnauthorizedRetry;
 use super::UnauthorizedRecoveryExecution;
-use super::X_CODEX_INSTALLATION_ID_HEADER;
-use super::X_CODEX_PARENT_THREAD_ID_HEADER;
-use super::X_CODEX_TURN_METADATA_HEADER;
-use super::X_CODEX_WINDOW_ID_HEADER;
+use super::X_codepilotx_INSTALLATION_ID_HEADER;
+use super::X_codepilotx_PARENT_THREAD_ID_HEADER;
+use super::X_codepilotx_TURN_METADATA_HEADER;
+use super::X_codepilotx_WINDOW_ID_HEADER;
 use super::X_OPENAI_SUBAGENT_HEADER;
 use crate::AttestationContext;
 use crate::AttestationProvider;
@@ -14,31 +14,31 @@ use crate::GenerateAttestationFuture;
 use crate::responses_metadata::CodexResponsesMetadata;
 use crate::test_support::TestCodexResponsesRequestKind;
 use crate::test_support::responses_metadata as test_responses_metadata;
-use codex_api::ApiError;
-use codex_api::ResponseEvent;
-use codex_app_server_protocol::AuthMode;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_model_provider::BearerAuthProvider;
-use codex_model_provider_info::CHATGPT_CODEX_BASE_URL;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::WireApi;
-use codex_model_provider_info::create_oss_provider_with_base_url;
-use codex_otel::SessionTelemetry;
-use codex_protocol::ThreadId;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::protocol::InternalSessionSource;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_rollout_trace::ExecutionStatus;
-use codex_rollout_trace::InferenceTraceAttempt;
-use codex_rollout_trace::InferenceTraceContext;
-use codex_rollout_trace::RawTraceEventPayload;
-use codex_rollout_trace::RolloutTrace;
-use codex_rollout_trace::TraceWriter;
-use codex_rollout_trace::replay_bundle;
+use codepilotx_api::ApiError;
+use codepilotx_api::ResponseEvent;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CodexAuth;
+use codepilotx_model_provider::BearerAuthProvider;
+use codepilotx_model_provider_info::CHATGPT_codepilotx_BASE_URL;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_model_provider_info::WireApi;
+use codepilotx_model_provider_info::create_oss_provider_with_base_url;
+use codepilotx_otel::SessionTelemetry;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_protocol::protocol::InternalSessionSource;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_rollout_trace::ExecutionStatus;
+use codepilotx_rollout_trace::InferenceTraceAttempt;
+use codepilotx_rollout_trace::InferenceTraceContext;
+use codepilotx_rollout_trace::RawTraceEventPayload;
+use codepilotx_rollout_trace::RolloutTrace;
+use codepilotx_rollout_trace::TraceWriter;
+use codepilotx_rollout_trace::replay_bundle;
 use futures::StreamExt;
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -198,7 +198,7 @@ fn started_inference_attempt(temp: &TempDir) -> anyhow::Result<InferenceTraceAtt
         metadata_payload: None,
     })?;
     writer.append(RawTraceEventPayload::CodexTurnStarted {
-        codex_turn_id: "turn-1".to_string(),
+        codepilotx_turn_id: "turn-1".to_string(),
         thread_id: "thread-root".to_string(),
     })?;
 
@@ -321,13 +321,13 @@ fn build_ws_client_metadata_includes_window_lineage_and_turn_metadata() {
     let parent_thread_id = parent_thread_id.to_string();
     let turn_metadata: serde_json::Value = serde_json::from_str(
         client_metadata
-            .get(X_CODEX_TURN_METADATA_HEADER)
+            .get(X_codepilotx_TURN_METADATA_HEADER)
             .expect("turn metadata"),
     )
     .expect("valid turn metadata");
     for (client_key, metadata_key, expected) in [
         (
-            X_CODEX_INSTALLATION_ID_HEADER,
+            X_codepilotx_INSTALLATION_ID_HEADER,
             "installation_id",
             "11111111-1111-4111-8111-111111111111",
         ),
@@ -335,12 +335,12 @@ fn build_ws_client_metadata_includes_window_lineage_and_turn_metadata() {
         ("thread_id", "thread_id", thread_id.as_str()),
         ("turn_id", "turn_id", "turn-123"),
         (
-            X_CODEX_WINDOW_ID_HEADER,
+            X_codepilotx_WINDOW_ID_HEADER,
             "window_id",
             expected_window_id.as_str(),
         ),
         (
-            X_CODEX_PARENT_THREAD_ID_HEADER,
+            X_codepilotx_PARENT_THREAD_ID_HEADER,
             "parent_thread_id",
             parent_thread_id.as_str(),
         ),
@@ -553,7 +553,7 @@ fn model_client_with_counting_attestation(
             Some(AuthManager::from_auth_for_testing(
                 CodexAuth::create_dummy_chatgpt_auth_for_testing(),
             )),
-            ModelProviderInfo::create_openai_provider(Some(CHATGPT_CODEX_BASE_URL.to_string())),
+            ModelProviderInfo::create_openai_provider(Some(CHATGPT_codepilotx_BASE_URL.to_string())),
         )
     } else {
         (
@@ -579,7 +579,7 @@ fn model_client_with_counting_attestation(
 }
 
 #[tokio::test]
-async fn websocket_handshake_includes_attestation_for_chatgpt_codex_responses() {
+async fn websocket_handshake_includes_attestation_for_chatgpt_codepilotx_responses() {
     let (model_client, attestation_calls) =
         model_client_with_counting_attestation(/*include_attestation*/ true);
     let responses_metadata = test_responses_metadata_for_client(
@@ -604,7 +604,7 @@ async fn websocket_handshake_includes_attestation_for_chatgpt_codex_responses() 
 }
 
 #[tokio::test]
-async fn non_chatgpt_codex_endpoints_omit_attestation_generation() {
+async fn non_chatgpt_codepilotx_endpoints_omit_attestation_generation() {
     let (model_client, attestation_calls) =
         model_client_with_counting_attestation(/*include_attestation*/ false);
     let mut response_headers = http::HeaderMap::new();
@@ -701,7 +701,7 @@ async fn anthropic_stream_tool_use_with_delta_produces_clean_arguments() {
         results.push(event);
     }
 
-    // Find the FunctionCall Done event — its arguments should be clean JSON
+    // Find the FunctionCall Done event �?its arguments should be clean JSON
     let function_call_args = results.iter().find_map(|r| match r {
         Ok(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall {
             arguments, ..
@@ -768,9 +768,9 @@ async fn anthropic_stream_tool_use_without_delta_produces_empty_object() {
 #[test]
 fn malformed_tool_arguments_in_request_builder_fallback_to_empty_object() {
     // Verifies the defensive pattern used in build_anthropic_messages_request:
-    // malformed arguments → {} object, not a string.
+    // malformed arguments �?{} object, not a string.
 
-    // Invalid JSON → empty object
+    // Invalid JSON �?empty object
     let bad_args = "not valid json";
     let input: JsonValue = match serde_json::from_str(bad_args) {
         Ok(v @ JsonValue::Object(_)) => v,
@@ -779,7 +779,7 @@ fn malformed_tool_arguments_in_request_builder_fallback_to_empty_object() {
     assert!(input.is_object(), "malformed args must produce object, not string");
     assert_eq!(input.as_object().unwrap().len(), 0);
 
-    // String JSON → still not an object, fallback
+    // String JSON �?still not an object, fallback
     let string_args = r#""a plain string""#;
     let input: JsonValue = match serde_json::from_str(string_args) {
         Ok(v @ JsonValue::Object(_)) => v,
@@ -862,7 +862,7 @@ async fn chat_completions_stream_tool_calls_without_text_emits_message() {
         results.len(),
     );
 
-    // Find the Message Done event — must exist even with empty text
+    // Find the Message Done event �?must exist even with empty text
     let message_done = results.iter().find(|r| match r {
         Ok(ResponseEvent::OutputItemDone(ResponseItem::Message { content, .. })) => content.is_empty(),
         _ => false,
@@ -872,7 +872,7 @@ async fn chat_completions_stream_tool_calls_without_text_emits_message() {
         "Message Done should be emitted with empty content when model produces only tool calls",
     );
 
-    // Find the FunctionCall Done event — arguments must be clean JSON
+    // Find the FunctionCall Done event �?arguments must be clean JSON
     let function_call_args = results.iter().find_map(|r| match r {
         Ok(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall {
             arguments, ..
@@ -886,7 +886,7 @@ async fn chat_completions_stream_tool_calls_without_text_emits_message() {
     );
 }
 
-// ── Chat Completions request builder: tool call → tool result pairing ─
+// ── Chat Completions request builder: tool call �?tool result pairing ─
 
 #[tokio::test]
 async fn chat_completions_request_builder_flushes_tool_calls_before_result() {
@@ -894,7 +894,7 @@ async fn chat_completions_request_builder_flushes_tool_calls_before_result() {
     let model_info = test_model_info();
 
     // Construct a Prompt whose input has:
-    //   user message → FunctionCall → FunctionCallOutput
+    //   user message �?FunctionCall �?FunctionCallOutput
     let prompt = crate::client_common::Prompt {
         input: vec![
             serde_json::from_value(json!({
@@ -913,7 +913,7 @@ async fn chat_completions_request_builder_flushes_tool_calls_before_result() {
             ResponseItem::FunctionCallOutput {
                 id: Some("fco-1".to_string()),
                 call_id: "call_1".to_string(),
-                output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+                output: codepilotx_protocol::models::FunctionCallOutputPayload::from_text(
                     "file1.txt\nfile2.txt".to_string(),
                 ),
                 metadata: None,
@@ -964,7 +964,7 @@ async fn chat_completions_request_builder_flushes_tool_calls_before_result() {
     );
 }
 
-// ── Anthropic request builder: tool_use → tool_result pairing ─────
+// ── Anthropic request builder: tool_use �?tool_result pairing ─────
 
 #[tokio::test]
 async fn anthropic_request_builder_creates_assistant_anchor_for_tool_use() {
@@ -972,10 +972,10 @@ async fn anthropic_request_builder_creates_assistant_anchor_for_tool_use() {
     let model_info = test_model_info();
 
     // Construct a Prompt whose input has:
-    //   user message → FunctionCall → FunctionCallOutput
+    //   user message �?FunctionCall �?FunctionCallOutput
     // Without the fix, the FunctionCall tool_use was silently dropped because
     // the last message was "user" instead of "assistant", producing:
-    //   user → user(tool_result)
+    //   user �?user(tool_result)
     // which triggers MiniMax "tool call result does not follow tool call (2013)".
     let prompt = crate::client_common::Prompt {
         input: vec![
@@ -995,7 +995,7 @@ async fn anthropic_request_builder_creates_assistant_anchor_for_tool_use() {
             ResponseItem::FunctionCallOutput {
                 id: Some("fco-1".to_string()),
                 call_id: "call_1".to_string(),
-                output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+                output: codepilotx_protocol::models::FunctionCallOutputPayload::from_text(
                     "file1.txt\nfile2.txt".to_string(),
                 ),
                 metadata: None,
@@ -1086,7 +1086,7 @@ async fn anthropic_request_builder_appends_tool_use_to_existing_assistant() {
     let model_info = test_model_info();
 
     // Construct a Prompt whose input has:
-    //   assistant message (text) → FunctionCall → FunctionCallOutput
+    //   assistant message (text) �?FunctionCall �?FunctionCallOutput
     // The tool_use must be appended to the existing assistant message,
     // not placed in a separate one.
     let prompt = crate::client_common::Prompt {
@@ -1107,7 +1107,7 @@ async fn anthropic_request_builder_appends_tool_use_to_existing_assistant() {
             ResponseItem::FunctionCallOutput {
                 id: Some("fco-2".to_string()),
                 call_id: "call_2".to_string(),
-                output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+                output: codepilotx_protocol::models::FunctionCallOutputPayload::from_text(
                     "result".to_string(),
                 ),
                 metadata: None,

@@ -1,1 +1,1 @@
-pub use codex_utils_path::*;
+pub use codepilotx_utils_path::*;

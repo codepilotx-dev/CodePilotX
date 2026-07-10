@@ -1,10 +1,10 @@
 use super::*;
-use codex_apply_patch::AppliedPatchDelta;
-use codex_apply_patch::MaybeApplyPatchVerified;
-use codex_exec_server::LOCAL_FS;
-use codex_git_utils::ApplyGitRequest;
-use codex_git_utils::apply_git_patch;
-use codex_utils_path_uri::PathUri;
+use codepilotx_apply_patch::AppliedPatchDelta;
+use codepilotx_apply_patch::MaybeApplyPatchVerified;
+use codepilotx_exec_server::LOCAL_FS;
+use codepilotx_git_utils::ApplyGitRequest;
+use codepilotx_git_utils::apply_git_patch;
+use codepilotx_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ fn git_blob_sha1_hex(data: &str) -> String {
 async fn apply_verified_patch(root: &Path, patch: &str) -> AppliedPatchDelta {
     let cwd = PathUri::from_path(root).expect("absolute tempdir path");
     let argv = vec!["apply_patch".to_string(), patch.to_string()];
-    match codex_apply_patch::maybe_parse_apply_patch_verified(
+    match codepilotx_apply_patch::maybe_parse_apply_patch_verified(
         &argv,
         &cwd,
         LOCAL_FS.as_ref(),
@@ -34,7 +34,7 @@ async fn apply_verified_patch(root: &Path, patch: &str) -> AppliedPatchDelta {
 
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
-    codex_apply_patch::apply_patch(
+    codepilotx_apply_patch::apply_patch(
         patch,
         &cwd,
         &mut stdout,

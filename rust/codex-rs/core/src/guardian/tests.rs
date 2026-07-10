@@ -9,48 +9,48 @@ use crate::guardian::approval_request::guardian_request_target_item_id;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::test_support;
-use codex_analytics::GuardianApprovalRequestSource;
-use codex_config::ConfigLayerStack;
-use codex_config::FeatureRequirementsToml;
-use codex_config::NetworkConstraints;
-use codex_config::NetworkDomainPermissionToml;
-use codex_config::NetworkDomainPermissionsToml;
-use codex_config::RequirementSource;
-use codex_config::Sourced;
-use codex_config::config_toml::ConfigToml;
-use codex_config::types::McpServerConfig;
-use codex_exec_server::LOCAL_FS;
-use codex_features::Feature;
-use codex_model_provider::create_model_provider;
-use codex_model_provider_info::AMAZON_BEDROCK_GPT_5_4_MODEL_ID;
-use codex_model_provider_info::AMAZON_BEDROCK_PROVIDER_ID;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::OPENAI_PROVIDER_ID;
-use codex_models_manager::manager::StaticModelsManager;
-use codex_network_proxy::NetworkProxyConfig;
-use codex_protocol::ThreadId;
-use codex_protocol::approvals::NetworkApprovalProtocol;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::GranularApprovalConfig;
-use codex_protocol::protocol::GuardianAssessmentStatus;
-use codex_protocol::protocol::GuardianRiskLevel;
-use codex_protocol::protocol::GuardianUserAuthorization;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::TurnCompleteEvent;
+use codepilotx_analytics::GuardianApprovalRequestSource;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::FeatureRequirementsToml;
+use codepilotx_config::NetworkConstraints;
+use codepilotx_config::NetworkDomainPermissionToml;
+use codepilotx_config::NetworkDomainPermissionsToml;
+use codepilotx_config::RequirementSource;
+use codepilotx_config::Sourced;
+use codepilotx_config::config_toml::ConfigToml;
+use codepilotx_config::types::McpServerConfig;
+use codepilotx_exec_server::LOCAL_FS;
+use codepilotx_features::Feature;
+use codepilotx_model_provider::create_model_provider;
+use codepilotx_model_provider_info::AMAZON_BEDROCK_GPT_5_4_MODEL_ID;
+use codepilotx_model_provider_info::AMAZON_BEDROCK_PROVIDER_ID;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_model_provider_info::OPENAI_PROVIDER_ID;
+use codepilotx_models_manager::manager::StaticModelsManager;
+use codepilotx_network_proxy::NetworkProxyConfig;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::approvals::NetworkApprovalProtocol;
+use codepilotx_protocol::config_types::ApprovalsReviewer;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::openai_models::ModelsResponse;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::permissions::FileSystemAccessMode;
+use codepilotx_protocol::permissions::FileSystemPath;
+use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::Event;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::GranularApprovalConfig;
+use codepilotx_protocol::protocol::GuardianAssessmentStatus;
+use codepilotx_protocol::protocol::GuardianRiskLevel;
+use codepilotx_protocol::protocol::GuardianUserAuthorization;
+use codepilotx_protocol::protocol::ReviewDecision;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::TurnCompleteEvent;
 use core_test_support::PathBufExt;
 use core_test_support::TempDirExt;
 use core_test_support::context_snapshot;
@@ -93,11 +93,11 @@ struct GuardianMemoryContextEnabled(bool);
 
 struct GuardianMemoryContextProbe;
 
-impl codex_extension_api::ThreadLifecycleContributor<Config> for GuardianMemoryContextProbe {
+impl codepilotx_extension_api::ThreadLifecycleContributor<Config> for GuardianMemoryContextProbe {
     fn on_thread_start<'a>(
         &'a self,
-        input: codex_extension_api::ThreadStartInput<'a, Config>,
-    ) -> codex_extension_api::ExtensionFuture<'a, ()> {
+        input: codepilotx_extension_api::ThreadStartInput<'a, Config>,
+    ) -> codepilotx_extension_api::ExtensionFuture<'a, ()> {
         Box::pin(async move {
             input.thread_store.insert(GuardianMemoryContextEnabled(
                 input.config.memories.use_memories,
@@ -106,18 +106,18 @@ impl codex_extension_api::ThreadLifecycleContributor<Config> for GuardianMemoryC
     }
 }
 
-impl codex_extension_api::ContextContributor for GuardianMemoryContextProbe {
+impl codepilotx_extension_api::ContextContributor for GuardianMemoryContextProbe {
     fn contribute_thread_context<'a>(
         &'a self,
-        _session_store: &'a codex_extension_api::ExtensionData,
-        thread_store: &'a codex_extension_api::ExtensionData,
-    ) -> codex_extension_api::ExtensionFuture<'a, Vec<codex_extension_api::PromptFragment>> {
+        _session_store: &'a codepilotx_extension_api::ExtensionData,
+        thread_store: &'a codepilotx_extension_api::ExtensionData,
+    ) -> codepilotx_extension_api::ExtensionFuture<'a, Vec<codepilotx_extension_api::PromptFragment>> {
         Box::pin(async move {
             if thread_store
                 .get::<GuardianMemoryContextEnabled>()
                 .is_some_and(|enabled| enabled.0)
             {
-                vec![codex_extension_api::PromptFragment::developer_policy(
+                vec![codepilotx_extension_api::PromptFragment::developer_policy(
                     GUARDIAN_MEMORY_CONTEXT_PROBE,
                 )]
             } else {
@@ -236,7 +236,7 @@ async fn guardian_test_session_turn_and_rx(
     config.model_provider.base_url = Some(format!("{}/v1", server.uri()));
     let config = Arc::new(config);
     let models_manager = test_support::models_manager_with_provider(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
         Arc::clone(&session.services.auth_manager),
         config.model_provider.clone(),
     );
@@ -273,7 +273,7 @@ async fn guardian_test_session_and_turn_with_base_url(
     config.model_provider.base_url = Some(format!("{base_url}/v1"));
     let config = Arc::new(config);
     let models_manager = test_support::models_manager_with_provider(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
         Arc::clone(&session.services.auth_manager),
         config.model_provider.clone(),
     );
@@ -311,7 +311,7 @@ async fn seed_guardian_parent_history(session: &Arc<Session>, turn: &Arc<TurnCon
                 ResponseItem::FunctionCallOutput {
                     id: None,
                     call_id: "call-1".to_string(),
-                    output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+                    output: codepilotx_protocol::models::FunctionCallOutputPayload::from_text(
                         "repo visibility: public".to_string(),
                     ),
                     metadata: None,
@@ -373,11 +373,11 @@ fn normalize_guardian_snapshot_paths(text: String) -> String {
     text
 }
 
-fn guardian_prompt_text(items: &[codex_protocol::user_input::UserInput]) -> String {
+fn guardian_prompt_text(items: &[codepilotx_protocol::user_input::UserInput]) -> String {
     items
         .iter()
         .map(|item| match item {
-            codex_protocol::user_input::UserInput::Text { text, .. } => text.as_str(),
+            codepilotx_protocol::user_input::UserInput::Text { text, .. } => text.as_str(),
             _ => "",
         })
         .collect::<String>()
@@ -468,7 +468,7 @@ async fn build_guardian_prompt_includes_parent_turn_denied_reads() -> anyhow::Re
         &FileSystemSandboxPolicy::restricted(vec![
             FileSystemSandboxEntry {
                 path: FileSystemPath::Special {
-                    value: codex_protocol::permissions::FileSystemSpecialPath::Root,
+                    value: codepilotx_protocol::permissions::FileSystemSpecialPath::Root,
                 },
                 access: FileSystemAccessMode::Read,
             },
@@ -830,7 +830,7 @@ fn collect_guardian_transcript_entries_includes_recent_tool_calls_and_output() {
         ResponseItem::FunctionCallOutput {
             id: None,
             call_id: "call-1".to_string(),
-            output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+            output: codepilotx_protocol::models::FunctionCallOutputPayload::from_text(
                 "repo is public".to_string(),
             ),
             metadata: None,
@@ -1059,7 +1059,7 @@ async fn build_guardian_prompt_items_explains_network_access_review_scope() -> a
     settings.set_prepend_module_to_snapshot(false);
     settings.bind(|| {
         assert_snapshot!(
-            "codex_core__guardian__tests__network_access_guardian_prompt_layout",
+            "codepilotx_core__guardian__tests__network_access_guardian_prompt_layout",
             normalize_guardian_snapshot_paths(text)
         );
     });
@@ -1425,7 +1425,7 @@ async fn guardian_request_model_for_auto_review(
     String,
     String,
     String,
-    codex_analytics::GuardianReviewAnalyticsResult,
+    codepilotx_analytics::GuardianReviewAnalyticsResult,
 )> {
     let server = start_mock_server().await;
     let guardian_assessment = serde_json::json!({
@@ -1657,19 +1657,19 @@ async fn guardian_review_request_layout_matches_model_visible_request_snapshot()
         .expect("memory tool feature is configurable");
     let config = Arc::new(config);
     let models_manager = test_support::models_manager_with_provider(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
         Arc::clone(&session.services.auth_manager),
         config.model_provider.clone(),
     );
     session.services.models_manager = models_manager;
     let memory_extension = Arc::new(GuardianMemoryContextProbe);
-    let mut extensions = codex_extension_api::ExtensionRegistryBuilder::<Config>::new();
+    let mut extensions = codepilotx_extension_api::ExtensionRegistryBuilder::<Config>::new();
     extensions.thread_lifecycle_contributor(memory_extension.clone());
     extensions.prompt_contributor(memory_extension);
     session.services.extensions = Arc::new(extensions.build());
 
     let skill_dir = config
-        .codex_home
+        .codepilotx_home
         .to_path_buf()
         .join("skills")
         .join(GUARDIAN_SKILL_NAME);
@@ -1739,7 +1739,7 @@ async fn guardian_review_request_layout_matches_model_visible_request_snapshot()
     ThreadId::from_string(guardian_thread_id).expect("guardian thread id should be a valid UUID");
     assert!(matches!(
         metadata.guardian_session_kind,
-        Some(codex_analytics::GuardianReviewSessionKind::TrunkNew)
+        Some(codepilotx_analytics::GuardianReviewSessionKind::TrunkNew)
     ));
     let request = request_log.single_request();
     let request_body = request.body_json();
@@ -1809,7 +1809,7 @@ async fn guardian_review_request_layout_matches_model_visible_request_snapshot()
     settings.set_prepend_module_to_snapshot(false);
     settings.bind(|| {
         assert_snapshot!(
-            "codex_core__guardian__tests__guardian_review_request_layout",
+            "codepilotx_core__guardian__tests__guardian_review_request_layout",
             normalize_guardian_snapshot_paths(context_snapshot::format_labeled_requests_snapshot(
                 "Guardian review request layout",
                 &[("Guardian Review Request", &request)],
@@ -1842,8 +1842,8 @@ async fn build_guardian_prompt_items_includes_parent_session_id() -> anyhow::Res
         .items
         .into_iter()
         .map(|item| match item {
-            codex_protocol::user_input::UserInput::Text { text, .. } => text,
-            codex_protocol::user_input::UserInput::Image { .. } => String::new(),
+            codepilotx_protocol::user_input::UserInput::Text { text, .. } => text,
+            codepilotx_protocol::user_input::UserInput::Image { .. } => String::new(),
             _ => String::new(),
         })
         .collect::<String>();
@@ -2025,15 +2025,15 @@ async fn guardian_reuses_prompt_cache_key_and_appends_prior_reviews() -> anyhow:
     assert_eq!(third_assessment.outcome, GuardianAssessmentOutcome::Allow);
     assert!(matches!(
         first_metadata.guardian_session_kind,
-        Some(codex_analytics::GuardianReviewSessionKind::TrunkNew)
+        Some(codepilotx_analytics::GuardianReviewSessionKind::TrunkNew)
     ));
     assert!(matches!(
         second_metadata.guardian_session_kind,
-        Some(codex_analytics::GuardianReviewSessionKind::TrunkReused)
+        Some(codepilotx_analytics::GuardianReviewSessionKind::TrunkReused)
     ));
     assert!(matches!(
         third_metadata.guardian_session_kind,
-        Some(codex_analytics::GuardianReviewSessionKind::TrunkReused)
+        Some(codepilotx_analytics::GuardianReviewSessionKind::TrunkReused)
     ));
     ThreadId::from_string(
         first_metadata
@@ -2133,7 +2133,7 @@ async fn guardian_reuses_prompt_cache_key_and_appends_prior_reviews() -> anyhow:
     settings.set_prepend_module_to_snapshot(false);
     settings.bind(|| {
         assert_snapshot!(
-            "codex_core__guardian__tests__guardian_followup_review_request_layout",
+            "codepilotx_core__guardian__tests__guardian_followup_review_request_layout",
             format!(
                 "{}\n\nshared_prompt_cache_key: {}\nfollowup_contains_first_rationale: {}",
                 normalize_guardian_snapshot_paths(
@@ -2207,7 +2207,7 @@ async fn guardian_reused_trunk_ignores_stale_prior_turn_completion() -> anyhow::
     assert_eq!(first_assessment.rationale, "first guardian rationale");
     assert!(matches!(
         first_metadata.guardian_session_kind,
-        Some(codex_analytics::GuardianReviewSessionKind::TrunkNew)
+        Some(codepilotx_analytics::GuardianReviewSessionKind::TrunkNew)
     ));
 
     session
@@ -2252,7 +2252,7 @@ async fn guardian_reused_trunk_ignores_stale_prior_turn_completion() -> anyhow::
     assert_eq!(second_assessment.rationale, "second guardian rationale");
     assert!(matches!(
         second_metadata.guardian_session_kind,
-        Some(codex_analytics::GuardianReviewSessionKind::TrunkReused)
+        Some(codepilotx_analytics::GuardianReviewSessionKind::TrunkReused)
     ));
 
     assert_eq!(
@@ -2291,7 +2291,7 @@ async fn guardian_review_surfaces_responses_api_errors_in_rejection_reason() -> 
     config.model_provider.base_url = Some(format!("{}/v1", server.uri()));
     let config = Arc::new(config);
     let models_manager = test_support::models_manager_with_provider(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
         Arc::clone(&session.services.auth_manager),
         config.model_provider.clone(),
     );
@@ -2425,7 +2425,7 @@ async fn guardian_review_retries_transient_session_failure_then_approves() -> an
     assert_eq!(metadata.attempt_count, 2);
     assert!(matches!(
         metadata.guardian_session_kind,
-        Some(codex_analytics::GuardianReviewSessionKind::TrunkReused)
+        Some(codepilotx_analytics::GuardianReviewSessionKind::TrunkReused)
     ));
     assert_eq!(request_log.requests().len(), 2);
     Ok(())
@@ -2516,7 +2516,7 @@ async fn guardian_review_retries_two_parse_failures_then_approves() -> anyhow::R
     assert_eq!(metadata.attempt_count, 3);
     assert!(matches!(
         metadata.guardian_session_kind,
-        Some(codex_analytics::GuardianReviewSessionKind::TrunkReused)
+        Some(codepilotx_analytics::GuardianReviewSessionKind::TrunkReused)
     ));
     assert_eq!(request_log.requests().len(), 3);
     Ok(())
@@ -2896,7 +2896,7 @@ async fn guardian_review_session_config_preserves_parent_network_proxy() {
         &parent_config,
         /*live_network_config*/ None,
         "parent-active-model",
-        Some(codex_protocol::openai_models::ReasoningEffort::Low),
+        Some(codepilotx_protocol::openai_models::ReasoningEffort::Low),
     )
     .expect("guardian config");
 
@@ -2907,7 +2907,7 @@ async fn guardian_review_session_config_preserves_parent_network_proxy() {
     );
     assert_eq!(
         guardian_config.model_reasoning_effort,
-        Some(codex_protocol::openai_models::ReasoningEffort::Low)
+        Some(codepilotx_protocol::openai_models::ReasoningEffort::Low)
     );
     assert_eq!(
         guardian_config.permissions.approval_policy,
@@ -3118,12 +3118,12 @@ async fn guardian_review_session_config_keeps_bedrock_provider_for_bedrock_gpt_5
 
 #[tokio::test]
 async fn guardian_review_session_config_uses_requirements_guardian_policy_config() {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
+    let codepilotx_home = tempfile::tempdir().expect("create temp dir");
     let workspace = tempfile::tempdir().expect("create temp dir");
     let config_layer_stack = ConfigLayerStack::new(
         Vec::new(),
         Default::default(),
-        codex_config::ConfigRequirementsToml {
+        codepilotx_config::ConfigRequirementsToml {
             guardian_policy_config: Some(
                 "  Use the workspace-managed guardian policy.  ".to_string(),
             ),
@@ -3138,7 +3138,7 @@ async fn guardian_review_session_config_uses_requirements_guardian_policy_config
             cwd: Some(workspace.path().to_path_buf()),
             ..Default::default()
         },
-        codex_home.abs(),
+        codepilotx_home.abs(),
         config_layer_stack,
     )
     .await
@@ -3164,7 +3164,7 @@ async fn guardian_review_session_config_uses_requirements_guardian_policy_config
 #[tokio::test]
 async fn guardian_review_session_config_uses_default_guardian_policy_without_requirements_override()
 {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
+    let codepilotx_home = tempfile::tempdir().expect("create temp dir");
     let workspace = tempfile::tempdir().expect("create temp dir");
     let config_layer_stack =
         ConfigLayerStack::new(Vec::new(), Default::default(), Default::default())
@@ -3176,7 +3176,7 @@ async fn guardian_review_session_config_uses_default_guardian_policy_without_req
             cwd: Some(workspace.path().to_path_buf()),
             ..Default::default()
         },
-        codex_home.abs(),
+        codepilotx_home.abs(),
         config_layer_stack,
     )
     .await

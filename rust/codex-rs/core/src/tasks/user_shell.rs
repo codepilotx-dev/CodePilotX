@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_async_utils::CancelErr;
-use codex_async_utils::OrCancelExt;
-use codex_network_proxy::PROXY_ACTIVE_ENV_KEY;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_async_utils::CancelErr;
+use codepilotx_async_utils::OrCancelExt;
+use codepilotx_network_proxy::PROXY_ACTIVE_ENV_KEY;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
 use uuid::Uuid;
@@ -27,23 +27,23 @@ use crate::tools::runtimes::maybe_wrap_shell_lc_with_snapshot;
 use crate::tools::runtimes::strip_managed_proxy_env;
 use crate::turn_timing::now_unix_timestamp_ms;
 use crate::user_shell_command::user_shell_command_record_item;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::exec_output::StreamOutput;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandBeginEvent;
-use codex_protocol::protocol::ExecCommandEndEvent;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_protocol::protocol::ExecCommandStatus;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_sandboxing::SandboxType;
-use codex_shell_command::parse_command::parse_command;
+use codepilotx_protocol::exec_output::ExecToolCallOutput;
+use codepilotx_protocol::exec_output::StreamOutput;
+use codepilotx_protocol::protocol::ErrorEvent;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::ExecCommandBeginEvent;
+use codepilotx_protocol::protocol::ExecCommandEndEvent;
+use codepilotx_protocol::protocol::ExecCommandSource;
+use codepilotx_protocol::protocol::ExecCommandStatus;
+use codepilotx_protocol::protocol::TurnStartedEvent;
+use codepilotx_sandboxing::SandboxType;
+use codepilotx_shell_command::parse_command::parse_command;
 
 use super::SessionTask;
 use super::SessionTaskContext;
 use super::SessionTaskResult;
 use crate::session::session::Session;
-use codex_protocol::models::PermissionProfile;
+use codepilotx_protocol::models::PermissionProfile;
 
 const USER_SHELL_TIMEOUT_MS: u64 = 60 * 60 * 1000; // 1 hour
 
@@ -371,7 +371,7 @@ async fn send_user_shell_error(session: &Session, turn_context: &TurnContext, me
             turn_context,
             EventMsg::Error(ErrorEvent {
                 message: message.to_string(),
-                codex_error_info: None,
+                codepilotx_error_info: None,
             }),
         )
         .await;

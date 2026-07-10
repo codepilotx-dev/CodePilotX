@@ -1,8 +1,8 @@
 //! Session-wide mutable state.
 
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_protocol::models::ResponseItem;
-use codex_sandboxing::policy_transforms::merge_permission_profiles;
+use codepilotx_protocol::models::AdditionalPermissionProfile;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_sandboxing::policy_transforms::merge_permission_profiles;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -16,11 +16,11 @@ use crate::session::PreviousTurnSettings;
 use crate::session::session::SessionConfiguration;
 use crate::session::time_reminder::CurrentTimeReminderState;
 use crate::session_startup_prewarm::SessionStartupPrewarmHandle;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::TurnContextItem;
-use codex_utils_output_truncation::TruncationPolicy;
+use codepilotx_protocol::protocol::RateLimitSnapshot;
+use codepilotx_protocol::protocol::TokenUsage;
+use codepilotx_protocol::protocol::TokenUsageInfo;
+use codepilotx_protocol::protocol::TurnContextItem;
+use codepilotx_utils_output_truncation::TruncationPolicy;
 
 /// Persistent, session-scoped state previously stored directly on `Session`.
 pub(crate) struct SessionState {
@@ -40,7 +40,7 @@ pub(crate) struct SessionState {
     pub(crate) startup_prewarm: Option<SessionStartupPrewarmHandle>,
     pub(crate) current_time_reminder: CurrentTimeReminderState,
     pub(crate) active_connector_selection: HashSet<String>,
-    pub(crate) pending_session_start_sources: VecDeque<codex_hooks::SessionStartSource>,
+    pub(crate) pending_session_start_sources: VecDeque<codepilotx_hooks::SessionStartSource>,
     granted_permissions_by_environment_id: HashMap<String, AdditionalPermissionProfile>,
     next_turn_is_first: bool,
 }
@@ -265,14 +265,14 @@ impl SessionState {
 
     pub(crate) fn queue_pending_session_start_source(
         &mut self,
-        value: codex_hooks::SessionStartSource,
+        value: codepilotx_hooks::SessionStartSource,
     ) {
         self.pending_session_start_sources.push_back(value);
     }
 
     pub(crate) fn take_pending_session_start_source(
         &mut self,
-    ) -> Option<codex_hooks::SessionStartSource> {
+    ) -> Option<codepilotx_hooks::SessionStartSource> {
         self.pending_session_start_sources.pop_front()
     }
 

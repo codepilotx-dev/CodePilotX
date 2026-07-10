@@ -5,8 +5,8 @@ use crate::tools::context::ToolPayload;
 use crate::tools::context::boxed_tool_output;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSpec;
 
 use super::ExecContext;
 use super::PUBLIC_TOOL_NAME;
@@ -34,16 +34,16 @@ impl CodeModeExecuteHandler {
         code: String,
     ) -> Result<FunctionToolOutput, FunctionCallError> {
         let args =
-            codex_code_mode::parse_exec_source(&code).map_err(FunctionCallError::RespondToModel)?;
+            codepilotx_code_mode::parse_exec_source(&code).map_err(FunctionCallError::RespondToModel)?;
         let exec = ExecContext { session, turn };
         let enabled_tools =
-            codex_tools::collect_code_mode_tool_definitions(&self.nested_tool_specs);
+            codepilotx_tools::collect_code_mode_tool_definitions(&self.nested_tool_specs);
         let started_at = std::time::Instant::now();
         let started_cell = exec
             .session
             .services
             .code_mode_service
-            .execute(codex_code_mode::ExecuteRequest {
+            .execute(codepilotx_code_mode::ExecuteRequest {
                 tool_call_id: call_id.clone(),
                 enabled_tools,
                 source: args.code.clone(),
@@ -78,7 +78,7 @@ impl CodeModeExecuteHandler {
         code_cell_trace.record_initial_response(&response);
         // Yielded cells keep running, so terminal lifecycle is only emitted
         // here when the first response also ended the runtime.
-        if !matches!(response, codex_code_mode::RuntimeResponse::Yielded { .. }) {
+        if !matches!(response, codepilotx_code_mode::RuntimeResponse::Yielded { .. }) {
             code_cell_trace.record_ended(&response);
             exec.session
                 .services
@@ -100,7 +100,7 @@ impl ToolExecutor<ToolInvocation> for CodeModeExecuteHandler {
         self.spec.clone()
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }

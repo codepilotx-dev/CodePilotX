@@ -12,20 +12,20 @@ use crate::session::tests::make_session_and_context;
 use crate::tools::ToolRouter;
 use crate::tools::parallel::ToolCallRuntime;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use codex_extension_api::ExtensionData;
-use codex_extension_api::TurnItemContributor;
-use codex_protocol::error::CodexErr;
-use codex_protocol::items::AgentMessageContent;
-use codex_protocol::items::TurnItem;
-use codex_protocol::memory_citation::MemoryCitation;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::LocalShellAction;
-use codex_protocol::models::LocalShellExecAction;
-use codex_protocol::models::LocalShellStatus;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ResponseItem;
-use codex_utils_absolute_path::test_support::PathExt;
+use codepilotx_extension_api::ExtensionData;
+use codepilotx_extension_api::TurnItemContributor;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::items::AgentMessageContent;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::memory_citation::MemoryCitation;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::FunctionCallOutputPayload;
+use codepilotx_protocol::models::LocalShellAction;
+use codepilotx_protocol::models::LocalShellExecAction;
+use codepilotx_protocol::models::LocalShellStatus;
+use codepilotx_protocol::models::MessagePhase;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_utils_absolute_path::test_support::PathExt;
 use pretty_assertions::assert_eq;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
@@ -159,7 +159,7 @@ async fn handle_non_tool_response_item_strips_citations_from_assistant_message()
         .content
         .iter()
         .map(|entry| match entry {
-            codex_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
+            codepilotx_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
         })
         .collect::<String>();
     assert_eq!(text, "hello world");
@@ -185,7 +185,7 @@ impl TurnItemContributor for TestTurnItemContributor {
         _thread_store: &'a ExtensionData,
         turn_store: &'a ExtensionData,
         item: &'a mut TurnItem,
-    ) -> codex_extension_api::ExtensionFuture<'a, Result<(), String>> {
+    ) -> codepilotx_extension_api::ExtensionFuture<'a, Result<(), String>> {
         Box::pin(async move {
             turn_store.insert(TurnItemContributorRan);
             if let TurnItem::AgentMessage(agent_message) = item {
@@ -207,7 +207,7 @@ impl TurnItemContributor for RewriteAgentMessageContributor {
         _thread_store: &'a ExtensionData,
         _turn_store: &'a ExtensionData,
         item: &'a mut TurnItem,
-    ) -> codex_extension_api::ExtensionFuture<'a, Result<(), String>> {
+    ) -> codepilotx_extension_api::ExtensionFuture<'a, Result<(), String>> {
         Box::pin(async move {
             if let TurnItem::AgentMessage(agent_message) = item {
                 agent_message.content = vec![AgentMessageContent::Text {
@@ -222,7 +222,7 @@ impl TurnItemContributor for RewriteAgentMessageContributor {
 #[tokio::test]
 async fn handle_non_tool_response_item_runs_turn_item_contributors_only_when_requested() {
     let (mut session, turn_context) = make_session_and_context().await;
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::new();
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::new();
     builder.turn_item_contributor(Arc::new(TestTurnItemContributor));
     session.services.extensions = Arc::new(builder.build());
     let turn_store = ExtensionData::new(turn_context.sub_id.clone());
@@ -265,7 +265,7 @@ async fn handle_non_tool_response_item_runs_turn_item_contributors_only_when_req
         .content
         .iter()
         .map(|entry| match entry {
-            codex_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
+            codepilotx_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
         })
         .collect::<String>();
     assert_eq!(text, "hello world");
@@ -274,7 +274,7 @@ async fn handle_non_tool_response_item_runs_turn_item_contributors_only_when_req
 #[tokio::test]
 async fn handle_output_item_done_returns_contributed_last_agent_message() {
     let (mut session, turn_context) = make_session_and_context().await;
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::new();
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::new();
     builder.turn_item_contributor(Arc::new(RewriteAgentMessageContributor));
     session.services.extensions = Arc::new(builder.build());
     let session = Arc::new(session);
@@ -319,7 +319,7 @@ async fn handle_output_item_done_returns_contributed_last_agent_message() {
 #[tokio::test]
 async fn finalized_turn_item_defers_mailbox_for_contributed_visible_text() {
     let (mut session, turn_context) = make_session_and_context().await;
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::new();
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::new();
     builder.turn_item_contributor(Arc::new(RewriteAgentMessageContributor));
     session.services.extensions = Arc::new(builder.build());
     let turn_store = ExtensionData::new(turn_context.sub_id.clone());
@@ -345,7 +345,7 @@ async fn finalized_turn_item_defers_mailbox_for_contributed_visible_text() {
 #[tokio::test]
 async fn finalized_turn_item_keeps_mailbox_open_for_commentary_text() {
     let (mut session, turn_context) = make_session_and_context().await;
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::new();
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::new();
     builder.turn_item_contributor(Arc::new(RewriteAgentMessageContributor));
     session.services.extensions = Arc::new(builder.build());
     let turn_store = ExtensionData::new(turn_context.sub_id.clone());
@@ -434,14 +434,14 @@ fn completed_item_defers_mailbox_delivery_for_image_generation_calls() {
 }
 
 #[tokio::test]
-async fn save_image_generation_result_saves_base64_to_png_in_codex_home() {
-    let codex_home = tempfile::tempdir().expect("create codex home");
-    let codex_home = codex_home.path().abs();
-    let expected_path = image_generation_artifact_path(&codex_home, "session-1", "ig_save_base64");
+async fn save_image_generation_result_saves_base64_to_png_in_codepilotx_home() {
+    let codepilotx_home = tempfile::tempdir().expect("create codex home");
+    let codepilotx_home = codepilotx_home.path().abs();
+    let expected_path = image_generation_artifact_path(&codepilotx_home, "session-1", "ig_save_base64");
     let _ = std::fs::remove_file(&expected_path);
 
     let saved_path =
-        save_image_generation_result(&codex_home, "session-1", "ig_save_base64", "Zm9v")
+        save_image_generation_result(&codepilotx_home, "session-1", "ig_save_base64", "Zm9v")
             .await
             .expect("image should be saved");
 
@@ -453,10 +453,10 @@ async fn save_image_generation_result_saves_base64_to_png_in_codex_home() {
 #[tokio::test]
 async fn save_image_generation_result_rejects_data_url_payload() {
     let result = "data:image/jpeg;base64,Zm9v";
-    let codex_home = tempfile::tempdir().expect("create codex home");
-    let codex_home = codex_home.path().abs();
+    let codepilotx_home = tempfile::tempdir().expect("create codex home");
+    let codepilotx_home = codepilotx_home.path().abs();
 
-    let err = save_image_generation_result(&codex_home, "session-1", "ig_456", result)
+    let err = save_image_generation_result(&codepilotx_home, "session-1", "ig_456", result)
         .await
         .expect_err("data url payload should error");
     assert!(matches!(err, CodexErr::InvalidRequest(_)));
@@ -464,9 +464,9 @@ async fn save_image_generation_result_rejects_data_url_payload() {
 
 #[tokio::test]
 async fn save_image_generation_result_overwrites_existing_file() {
-    let codex_home = tempfile::tempdir().expect("create codex home");
-    let codex_home = codex_home.path().abs();
-    let existing_path = image_generation_artifact_path(&codex_home, "session-1", "ig_overwrite");
+    let codepilotx_home = tempfile::tempdir().expect("create codex home");
+    let codepilotx_home = codepilotx_home.path().abs();
+    let existing_path = image_generation_artifact_path(&codepilotx_home, "session-1", "ig_overwrite");
     std::fs::create_dir_all(
         existing_path
             .parent()
@@ -475,7 +475,7 @@ async fn save_image_generation_result_overwrites_existing_file() {
     .expect("create image output dir");
     std::fs::write(&existing_path, b"existing").expect("seed existing image");
 
-    let saved_path = save_image_generation_result(&codex_home, "session-1", "ig_overwrite", "Zm9v")
+    let saved_path = save_image_generation_result(&codepilotx_home, "session-1", "ig_overwrite", "Zm9v")
         .await
         .expect("image should be saved");
 
@@ -485,13 +485,13 @@ async fn save_image_generation_result_overwrites_existing_file() {
 }
 
 #[tokio::test]
-async fn save_image_generation_result_sanitizes_call_id_for_codex_home_output_path() {
-    let codex_home = tempfile::tempdir().expect("create codex home");
-    let codex_home = codex_home.path().abs();
-    let expected_path = image_generation_artifact_path(&codex_home, "session-1", "../ig/..");
+async fn save_image_generation_result_sanitizes_call_id_for_codepilotx_home_output_path() {
+    let codepilotx_home = tempfile::tempdir().expect("create codex home");
+    let codepilotx_home = codepilotx_home.path().abs();
+    let expected_path = image_generation_artifact_path(&codepilotx_home, "session-1", "../ig/..");
     let _ = std::fs::remove_file(&expected_path);
 
-    let saved_path = save_image_generation_result(&codex_home, "session-1", "../ig/..", "Zm9v")
+    let saved_path = save_image_generation_result(&codepilotx_home, "session-1", "../ig/..", "Zm9v")
         .await
         .expect("image should be saved");
 
@@ -502,9 +502,9 @@ async fn save_image_generation_result_sanitizes_call_id_for_codex_home_output_pa
 
 #[tokio::test]
 async fn save_image_generation_result_rejects_non_standard_base64() {
-    let codex_home = tempfile::tempdir().expect("create codex home");
-    let codex_home = codex_home.path().abs();
-    let err = save_image_generation_result(&codex_home, "session-1", "ig_urlsafe", "_-8")
+    let codepilotx_home = tempfile::tempdir().expect("create codex home");
+    let codepilotx_home = codepilotx_home.path().abs();
+    let err = save_image_generation_result(&codepilotx_home, "session-1", "ig_urlsafe", "_-8")
         .await
         .expect_err("non-standard base64 should error");
     assert!(matches!(err, CodexErr::InvalidRequest(_)));
@@ -512,10 +512,10 @@ async fn save_image_generation_result_rejects_non_standard_base64() {
 
 #[tokio::test]
 async fn save_image_generation_result_rejects_non_base64_data_urls() {
-    let codex_home = tempfile::tempdir().expect("create codex home");
-    let codex_home = codex_home.path().abs();
+    let codepilotx_home = tempfile::tempdir().expect("create codex home");
+    let codepilotx_home = codepilotx_home.path().abs();
     let err = save_image_generation_result(
-        &codex_home,
+        &codepilotx_home,
         "session-1",
         "ig_svg",
         "data:image/svg+xml,<svg/>",

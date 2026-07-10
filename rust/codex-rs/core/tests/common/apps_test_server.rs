@@ -1,10 +1,10 @@
 use crate::test_codex::TestCodexBuilder;
 use crate::test_codex::test_codex;
 use anyhow::Result;
-use codex_core::config::Config;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_models_manager::bundled_models_response;
+use codepilotx_core::config::Config;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_models_manager::bundled_models_response;
 use serde_json::Value;
 use serde_json::json;
 use std::sync::atomic::AtomicUsize;
@@ -24,7 +24,7 @@ const CONNECTOR_NAME: &str = "Calendar";
 const DISCOVERABLE_CALENDAR_ID: &str = "connector_2128aebfecb84f64a069897515042a44";
 const DISCOVERABLE_GMAIL_ID: &str = "connector_68df038e0ba48191908c8434991bbac2";
 const CONNECTOR_DESCRIPTION: &str = "Plan events and manage your calendar.";
-const CODEX_APPS_META_KEY: &str = "_codex_apps";
+const codepilotx_APPS_META_KEY: &str = "_codepilotx_apps";
 const PROTOCOL_VERSION: &str = "2025-11-25";
 const SERVER_NAME: &str = "codex-apps-test";
 const SERVER_VERSION: &str = "1.0.0";
@@ -33,11 +33,11 @@ const CALENDAR_CREATE_EVENT_TOOL_NAME: &str = "calendar_create_event";
 const CALENDAR_APP_ONLY_TOOL_NAME: &str = "calendar_app_only_action";
 pub const CALENDAR_EXTRACT_TEXT_TOOL_NAME: &str = "calendar_extract_text";
 const CALENDAR_LIST_EVENTS_TOOL_NAME: &str = "calendar_list_events";
-pub const DIRECT_CALENDAR_CREATE_EVENT_TOOL: &str = "mcp__codex_apps__calendar__create_event";
-pub const DIRECT_CALENDAR_APP_ONLY_TOOL: &str = "mcp__codex_apps__calendar__app_only_action";
-pub const DIRECT_CALENDAR_LIST_EVENTS_TOOL: &str = "mcp__codex_apps__calendar__list_events";
-pub const DIRECT_CALENDAR_EXTRACT_TEXT_TOOL: &str = "mcp__codex_apps__calendar__extract_text";
-pub const SEARCH_CALENDAR_NAMESPACE: &str = "mcp__codex_apps__calendar";
+pub const DIRECT_CALENDAR_CREATE_EVENT_TOOL: &str = "mcp__codepilotx_apps__calendar__create_event";
+pub const DIRECT_CALENDAR_APP_ONLY_TOOL: &str = "mcp__codepilotx_apps__calendar__app_only_action";
+pub const DIRECT_CALENDAR_LIST_EVENTS_TOOL: &str = "mcp__codepilotx_apps__calendar__list_events";
+pub const DIRECT_CALENDAR_EXTRACT_TEXT_TOOL: &str = "mcp__codepilotx_apps__calendar__extract_text";
+pub const SEARCH_CALENDAR_NAMESPACE: &str = "mcp__codepilotx_apps__calendar";
 pub const SEARCH_CALENDAR_APP_ONLY_TOOL: &str = "_app_only_action";
 pub const SEARCH_CALENDAR_CREATE_TOOL: &str = "_create_event";
 pub const SEARCH_CALENDAR_EXTRACT_TEXT_TOOL: &str = "_extract_text";
@@ -208,7 +208,7 @@ pub fn search_capable_apps_builder(apps_base_url: impl Into<String>) -> TestCode
 fn apps_tool_call_id(body: &Value) -> Option<&str> {
     body.get("params")?
         .get("_meta")?
-        .get(CODEX_APPS_META_KEY)?
+        .get(codepilotx_APPS_META_KEY)?
         .get("call_id")?
         .as_str()
 }
@@ -415,7 +415,7 @@ impl Respond for CodexAppsJsonRpcResponder {
                                     "connector_name": self.connector_name.clone(),
                                     "connector_description": self.connector_description.clone(),
                                     "openai/outputTemplate": CALENDAR_CREATE_EVENT_MCP_APP_RESOURCE_URI,
-                                    "_codex_apps": {
+                                    "_codepilotx_apps": {
                                         "resource_uri": CALENDAR_CREATE_EVENT_RESOURCE_URI,
                                         "contains_mcp_source": true,
                                         "connector_id": CONNECTOR_ID
@@ -441,7 +441,7 @@ impl Respond for CodexAppsJsonRpcResponder {
                                     "link_id": LINK_ID,
                                     "connector_name": self.connector_name.clone(),
                                     "connector_description": self.connector_description.clone(),
-                                    "_codex_apps": {
+                                    "_codepilotx_apps": {
                                         "resource_uri": CALENDAR_LIST_EVENTS_RESOURCE_URI,
                                         "contains_mcp_source": true,
                                         "connector_id": CONNECTOR_ID
@@ -475,7 +475,7 @@ impl Respond for CodexAppsJsonRpcResponder {
                                     "connector_name": self.connector_name.clone(),
                                     "connector_description": self.connector_description.clone(),
                                     "openai/fileParams": ["file"],
-                                    "_codex_apps": {
+                                    "_codepilotx_apps": {
                                         "resource_uri": DOCUMENT_EXTRACT_TEXT_RESOURCE_URI,
                                         "contains_mcp_source": true,
                                         "connector_id": CONNECTOR_ID
@@ -565,7 +565,7 @@ impl Respond for CodexAppsJsonRpcResponder {
                     .pointer("/params/arguments/file/file_id")
                     .and_then(Value::as_str)
                     .unwrap_or_default();
-                let codex_apps_meta = body.pointer("/params/_meta/_codex_apps").cloned();
+                let codepilotx_apps_meta = body.pointer("/params/_meta/_codepilotx_apps").cloned();
 
                 ResponseTemplate::new(200).set_body_json(json!({
                     "jsonrpc": "2.0",
@@ -576,7 +576,7 @@ impl Respond for CodexAppsJsonRpcResponder {
                             "text": format!("called {tool_name} for {title} at {starts_at} with {file_id}")
                         }],
                         "structuredContent": {
-                            "_codex_apps": codex_apps_meta,
+                            "_codepilotx_apps": codepilotx_apps_meta,
                         },
                         "isError": false
                     }

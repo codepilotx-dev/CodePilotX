@@ -1,13 +1,13 @@
 use crate::plugins::test_support::load_plugins_config;
 use crate::plugins::test_support::write_file;
 use crate::plugins::test_support::write_openai_curated_marketplace;
-use codex_core_plugins::PluginsManager;
-use codex_core_plugins::remote::REMOTE_GLOBAL_MARKETPLACE_NAME;
-use codex_core_plugins::remote::RemotePluginServiceConfig;
-use codex_core_plugins::remote::fetch_and_cache_global_remote_plugin_catalog;
-use codex_core_plugins::startup_sync::curated_plugins_repo_path;
-use codex_protocol::protocol::Product;
-use codex_tools::DiscoverablePluginInfo;
+use codepilotx_core_plugins::PluginsManager;
+use codepilotx_core_plugins::remote::REMOTE_GLOBAL_MARKETPLACE_NAME;
+use codepilotx_core_plugins::remote::RemotePluginServiceConfig;
+use codepilotx_core_plugins::remote::fetch_and_cache_global_remote_plugin_catalog;
+use codepilotx_core_plugins::startup_sync::curated_plugins_repo_path;
+use codepilotx_protocol::protocol::Product;
+use codepilotx_tools::DiscoverablePluginInfo;
 use pretty_assertions::assert_eq;
 use tempfile::tempdir;
 
@@ -21,13 +21,13 @@ async fn list_discoverable_plugins(
 
 async fn list_discoverable_plugins_with_auth(
     config: &crate::config::Config,
-    auth: Option<&codex_login::CodexAuth>,
+    auth: Option<&codepilotx_login::CodexAuth>,
     loaded_plugin_app_connector_ids: &[String],
 ) -> anyhow::Result<Vec<DiscoverablePluginInfo>> {
     let plugins_manager = PluginsManager::new_with_options(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
         Some(Product::Codex),
-        auth.map(codex_login::CodexAuth::api_auth_mode),
+        auth.map(codepilotx_login::CodexAuth::api_auth_mode),
     );
     list_discoverable_plugins_with_manager_and_auth(
         config,
@@ -41,7 +41,7 @@ async fn list_discoverable_plugins_with_auth(
 async fn list_discoverable_plugins_with_manager_and_auth(
     config: &crate::config::Config,
     plugins_manager: &PluginsManager,
-    auth: Option<&codex_login::CodexAuth>,
+    auth: Option<&codepilotx_login::CodexAuth>,
     loaded_plugin_app_connector_ids: &[String],
 ) -> anyhow::Result<Vec<DiscoverablePluginInfo>> {
     super::list_tool_suggest_discoverable_plugins(
@@ -55,7 +55,7 @@ async fn list_discoverable_plugins_with_manager_and_auth(
 
 #[tokio::test]
 async fn list_tool_suggest_discoverable_plugins_includes_cached_remote_global_plugins() {
-    use codex_login::CodexAuth;
+    use codepilotx_login::CodexAuth;
     use serde_json::json;
     use wiremock::Mock;
     use wiremock::MockServer;
@@ -64,9 +64,9 @@ async fn list_tool_suggest_discoverable_plugins_includes_cached_remote_global_pl
     use wiremock::matchers::path;
     use wiremock::matchers::query_param;
 
-    let codex_home = tempdir().expect("tempdir should succeed");
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
     write_file(
-        &codex_home.path().join(crate::config::CONFIG_TOML_FILE),
+        &codepilotx_home.path().join(crate::config::CONFIG_TOML_FILE),
         r#"[features]
 plugins = true
 remote_plugin = true
@@ -217,11 +217,11 @@ remote_plugin = true
         .await;
 
     let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
-    let mut config = load_plugins_config(codex_home.path()).await;
+    let mut config = load_plugins_config(codepilotx_home.path()).await;
     config.chatgpt_base_url = format!("{}/backend-api", server.uri());
-    let plugins_manager = PluginsManager::new(config.codex_home.to_path_buf());
+    let plugins_manager = PluginsManager::new(config.codepilotx_home.to_path_buf());
     fetch_and_cache_global_remote_plugin_catalog(
-        codex_home.path(),
+        codepilotx_home.path(),
         &RemotePluginServiceConfig {
             chatgpt_base_url: config.chatgpt_base_url.clone(),
         },
@@ -303,7 +303,7 @@ remote_plugin = true
     );
 
     write_file(
-        &codex_home.path().join(crate::config::CONFIG_TOML_FILE),
+        &codepilotx_home.path().join(crate::config::CONFIG_TOML_FILE),
         r#"[features]
 plugins = true
 remote_plugin = true
@@ -314,7 +314,7 @@ disabled_tools = [
 ]
 "#,
     );
-    let mut config_with_disabled_remote_plugin = load_plugins_config(codex_home.path()).await;
+    let mut config_with_disabled_remote_plugin = load_plugins_config(codepilotx_home.path()).await;
     config_with_disabled_remote_plugin.chatgpt_base_url = config.chatgpt_base_url.clone();
     let discoverable_plugins = list_discoverable_plugins_with_manager_and_auth(
         &config_with_disabled_remote_plugin,
@@ -333,17 +333,17 @@ disabled_tools = [
 
 #[tokio::test]
 async fn list_tool_suggest_discoverable_plugins_returns_empty_when_plugins_feature_disabled() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["slack"]);
     write_file(
-        &codex_home.path().join(crate::config::CONFIG_TOML_FILE),
+        &codepilotx_home.path().join(crate::config::CONFIG_TOML_FILE),
         r#"[features]
 plugins = false
 "#,
     );
 
-    let config = load_plugins_config(codex_home.path()).await;
+    let config = load_plugins_config(codepilotx_home.path()).await;
     let discoverable_plugins = list_discoverable_plugins(&config, &[]).await.unwrap();
 
     assert_eq!(discoverable_plugins, Vec::<DiscoverablePluginInfo>::new());
@@ -351,11 +351,11 @@ plugins = false
 
 #[tokio::test]
 async fn list_tool_suggest_discoverable_plugins_omits_disabled_tool_suggestions() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["slack"]);
     write_file(
-        &codex_home.path().join(crate::config::CONFIG_TOML_FILE),
+        &codepilotx_home.path().join(crate::config::CONFIG_TOML_FILE),
         r#"[features]
 plugins = true
 
@@ -366,7 +366,7 @@ disabled_tools = [
 "#,
     );
 
-    let config = load_plugins_config(codex_home.path()).await;
+    let config = load_plugins_config(codepilotx_home.path()).await;
     let discoverable_plugins = list_discoverable_plugins(&config, &[]).await.unwrap();
 
     assert_eq!(discoverable_plugins, Vec::<DiscoverablePluginInfo>::new());
@@ -374,11 +374,11 @@ disabled_tools = [
 
 #[tokio::test]
 async fn list_tool_suggest_discoverable_plugins_includes_configured_plugin_ids() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["sample"]);
     write_file(
-        &codex_home.path().join(crate::config::CONFIG_TOML_FILE),
+        &codepilotx_home.path().join(crate::config::CONFIG_TOML_FILE),
         r#"[features]
 plugins = true
 
@@ -387,7 +387,7 @@ discoverables = [{ type = "plugin", id = "sample@openai-curated" }]
 "#,
     );
 
-    let config = load_plugins_config(codex_home.path()).await;
+    let config = load_plugins_config(codepilotx_home.path()).await;
     let discoverable_plugins = list_discoverable_plugins(&config, &[]).await.unwrap();
 
     assert_eq!(

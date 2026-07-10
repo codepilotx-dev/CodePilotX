@@ -1,13 +1,13 @@
 use super::input_queue::TurnInput;
 use super::session::Session;
 use super::turn_context::TurnContext;
-use crate::codex_thread::TryStartTurnIfIdleError;
-use crate::codex_thread::TryStartTurnIfIdleRejectionReason;
+use crate::codepilotx_thread::TryStartTurnIfIdleError;
+use crate::codepilotx_thread::TryStartTurnIfIdleRejectionReason;
 use crate::state::ActiveTurn;
 use crate::state::TurnState;
 use crate::tasks::RegularTask;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::models::ResponseItem;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::models::ResponseItem;
 use std::sync::Arc;
 
 impl Session {

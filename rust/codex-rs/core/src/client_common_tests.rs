@@ -1,10 +1,10 @@
-use codex_api::OpenAiVerbosity;
-use codex_api::ResponsesApiRequest;
-use codex_api::TextControls;
-use codex_api::create_text_param_for_request;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ImageDetail;
+use codepilotx_api::OpenAiVerbosity;
+use codepilotx_api::ResponsesApiRequest;
+use codepilotx_api::TextControls;
+use codepilotx_api::create_text_param_for_request;
+use codepilotx_protocol::config_types::ServiceTier;
+use codepilotx_protocol::models::FunctionCallOutputPayload;
+use codepilotx_protocol::models::ImageDetail;
 use pretty_assertions::assert_eq;
 
 use super::*;
@@ -177,7 +177,7 @@ fn serializes_text_schema_with_strict_format() {
 
     assert_eq!(
         format.get("name"),
-        Some(&serde_json::Value::String("codex_output_schema".into()))
+        Some(&serde_json::Value::String("codepilotx_output_schema".into()))
     );
     assert_eq!(
         format.get("type"),

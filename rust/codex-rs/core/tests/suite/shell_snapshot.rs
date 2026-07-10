@@ -1,12 +1,12 @@
 use anyhow::Result;
-use codex_features::Feature;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandBeginEvent;
-use codex_protocol::protocol::ExecCommandEndEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
+use codepilotx_features::Feature;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::ExecCommandBeginEvent;
+use codepilotx_protocol::protocol::ExecCommandEndEvent;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
@@ -35,12 +35,12 @@ struct SnapshotRun {
     end: ExecCommandEndEvent,
     snapshot_path: PathBuf,
     snapshot_content: String,
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
 }
 
 const POLICY_PATH_FOR_TEST: &str = "/codex/policy/path";
 const SNAPSHOT_PATH_FOR_TEST: &str = "/codex/snapshot/path";
-const SNAPSHOT_MARKER_VAR: &str = "CODEX_SNAPSHOT_POLICY_MARKER";
+const SNAPSHOT_MARKER_VAR: &str = "codepilotx_SNAPSHOT_POLICY_MARKER";
 const SNAPSHOT_MARKER_VALUE: &str = "from_snapshot";
 const POLICY_SUCCESS_OUTPUT: &str = "policy-after-snapshot";
 
@@ -49,8 +49,8 @@ struct SnapshotRunOptions {
     shell_environment_set: HashMap<String, String>,
 }
 
-async fn wait_for_snapshot(codex_home: &Path) -> Result<PathBuf> {
-    let snapshot_dir = codex_home.join("shell_snapshots");
+async fn wait_for_snapshot(codepilotx_home: &Path) -> Result<PathBuf> {
+    let snapshot_dir = codepilotx_home.join("shell_snapshots");
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
         if let Ok(mut entries) = fs::read_dir(&snapshot_dir).await {
@@ -151,7 +151,7 @@ async fn run_snapshot_command_with_options(
 
     let test = harness.test();
     let codex = test.codex.clone();
-    let codex_home = test.home.path().to_path_buf();
+    let codepilotx_home = test.home.path().to_path_buf();
     let session_model = test.session_configured.model.clone();
     let cwd = test.config.cwd.clone();
     let (sandbox_policy, permission_profile) =
@@ -166,14 +166,14 @@ async fn run_snapshot_command_with_options(
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(cwd)),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                    mode: codepilotx_protocol::config_types::ModeKind::Default,
+                    settings: codepilotx_protocol::config_types::Settings {
                         model: session_model,
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -189,7 +189,7 @@ async fn run_snapshot_command_with_options(
         _ => None,
     })
     .await;
-    let snapshot_path = wait_for_snapshot(&codex_home).await?;
+    let snapshot_path = wait_for_snapshot(&codepilotx_home).await?;
     let snapshot_content = fs::read_to_string(&snapshot_path).await?;
 
     let end = wait_for_event_match(&codex, |ev| match ev {
@@ -205,7 +205,7 @@ async fn run_snapshot_command_with_options(
         end,
         snapshot_path,
         snapshot_content,
-        codex_home,
+        codepilotx_home,
     })
 }
 
@@ -249,7 +249,7 @@ async fn run_shell_command_snapshot_with_options(
 
     let test = harness.test();
     let codex = test.codex.clone();
-    let codex_home = test.home.path().to_path_buf();
+    let codepilotx_home = test.home.path().to_path_buf();
     let session_model = test.session_configured.model.clone();
     let cwd = test.config.cwd.clone();
     let (sandbox_policy, permission_profile) =
@@ -264,14 +264,14 @@ async fn run_shell_command_snapshot_with_options(
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(cwd)),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                    mode: codepilotx_protocol::config_types::ModeKind::Default,
+                    settings: codepilotx_protocol::config_types::Settings {
                         model: session_model,
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -287,7 +287,7 @@ async fn run_shell_command_snapshot_with_options(
         _ => None,
     })
     .await;
-    let snapshot_path = wait_for_snapshot(&codex_home).await?;
+    let snapshot_path = wait_for_snapshot(&codepilotx_home).await?;
     let snapshot_content = fs::read_to_string(&snapshot_path).await?;
 
     let end = wait_for_event_match(&codex, |ev| match ev {
@@ -303,7 +303,7 @@ async fn run_shell_command_snapshot_with_options(
         end,
         snapshot_path,
         snapshot_content,
-        codex_home,
+        codepilotx_home,
     })
 }
 
@@ -343,14 +343,14 @@ async fn run_tool_turn_on_harness(
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(cwd)),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                    mode: codepilotx_protocol::config_types::ModeKind::Default,
+                    settings: codepilotx_protocol::config_types::Settings {
                         model: session_model,
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -400,7 +400,7 @@ async fn linux_unified_exec_uses_shell_snapshot() -> Result<()> {
     assert_eq!(run.begin.command.get(1).map(String::as_str), Some("-lc"));
     assert_eq!(run.begin.command.get(2).map(String::as_str), Some(command));
     assert_eq!(run.begin.command.len(), 3);
-    assert!(run.snapshot_path.starts_with(&run.codex_home));
+    assert!(run.snapshot_path.starts_with(&run.codepilotx_home));
     assert_posix_snapshot_sections(&run.snapshot_content);
     assert_eq!(run.end.exit_code, 0);
     assert!(
@@ -420,7 +420,7 @@ async fn linux_shell_command_uses_shell_snapshot() -> Result<()> {
     assert_eq!(run.begin.command.get(1).map(String::as_str), Some("-lc"));
     assert_eq!(run.begin.command.get(2).map(String::as_str), Some(command));
     assert_eq!(run.begin.command.len(), 3);
-    assert!(run.snapshot_path.starts_with(&run.codex_home));
+    assert!(run.snapshot_path.starts_with(&run.codepilotx_home));
     assert_posix_snapshot_sections(&run.snapshot_content);
     assert_eq!(
         normalize_newlines(&run.end.stdout).trim(),
@@ -442,7 +442,7 @@ async fn shell_command_snapshot_preserves_shell_environment_policy_set() -> Resu
         config.permissions.shell_environment_policy.r#set = policy_set_path_for_test();
     });
     let harness = TestCodexHarness::with_builder(builder).await?;
-    let codex_home = harness.test().home.path().to_path_buf();
+    let codepilotx_home = harness.test().home.path().to_path_buf();
     run_tool_turn_on_harness(
         &harness,
         "warm up shell snapshot",
@@ -454,7 +454,7 @@ async fn shell_command_snapshot_preserves_shell_environment_policy_set() -> Resu
         }),
     )
     .await?;
-    let snapshot_path = wait_for_snapshot(&codex_home).await?;
+    let snapshot_path = wait_for_snapshot(&codepilotx_home).await?;
     fs::write(&snapshot_path, snapshot_override_content_for_policy_test()).await?;
 
     let command = command_asserting_policy_after_snapshot();
@@ -475,7 +475,7 @@ async fn shell_command_snapshot_preserves_shell_environment_policy_set() -> Resu
         POLICY_SUCCESS_OUTPUT
     );
     assert_eq!(end.exit_code, 0);
-    assert!(snapshot_path.starts_with(codex_home));
+    assert!(snapshot_path.starts_with(codepilotx_home));
 
     Ok(())
 }
@@ -496,7 +496,7 @@ async fn linux_unified_exec_snapshot_preserves_shell_environment_policy_set() ->
         config.permissions.shell_environment_policy.r#set = policy_set_path_for_test();
     });
     let harness = TestCodexHarness::with_builder(builder).await?;
-    let codex_home = harness.test().home.path().to_path_buf();
+    let codepilotx_home = harness.test().home.path().to_path_buf();
     run_tool_turn_on_harness(
         &harness,
         "warm up unified exec shell snapshot",
@@ -508,7 +508,7 @@ async fn linux_unified_exec_snapshot_preserves_shell_environment_policy_set() ->
         }),
     )
     .await?;
-    let snapshot_path = wait_for_snapshot(&codex_home).await?;
+    let snapshot_path = wait_for_snapshot(&codepilotx_home).await?;
     fs::write(&snapshot_path, snapshot_override_content_for_policy_test()).await?;
 
     let command = command_asserting_policy_after_snapshot();
@@ -529,7 +529,7 @@ async fn linux_unified_exec_snapshot_preserves_shell_environment_policy_set() ->
         POLICY_SUCCESS_OUTPUT
     );
     assert_eq!(end.exit_code, 0);
-    assert!(snapshot_path.starts_with(codex_home));
+    assert!(snapshot_path.starts_with(codepilotx_home));
 
     Ok(())
 }
@@ -548,7 +548,7 @@ async fn shell_command_snapshot_still_intercepts_apply_patch() -> Result<()> {
     let test = harness.test();
     let codex = test.codex.clone();
     let cwd = test.config.cwd.clone();
-    let codex_home = test.home.path().to_path_buf();
+    let codepilotx_home = test.home.path().to_path_buf();
     let target = cwd.join("snapshot-apply.txt");
 
     let script = "apply_patch <<'EOF'\n*** Begin Patch\n*** Add File: snapshot-apply.txt\n+hello from snapshot\n*** End Patch\nEOF\n";
@@ -586,14 +586,14 @@ async fn shell_command_snapshot_still_intercepts_apply_patch() -> Result<()> {
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(cwd.clone())),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                    mode: codepilotx_protocol::config_types::ModeKind::Default,
+                    settings: codepilotx_protocol::config_types::Settings {
                         model,
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -604,7 +604,7 @@ async fn shell_command_snapshot_still_intercepts_apply_patch() -> Result<()> {
         })
         .await?;
 
-    let snapshot_path = wait_for_snapshot(&codex_home).await?;
+    let snapshot_path = wait_for_snapshot(&codepilotx_home).await?;
     let snapshot_content = fs::read_to_string(&snapshot_path).await?;
     assert_posix_snapshot_sections(&snapshot_content);
 
@@ -654,10 +654,10 @@ async fn shell_snapshot_deleted_after_shutdown_with_skills() -> Result<()> {
     });
     let harness = TestCodexHarness::with_builder(builder).await?;
     let home = harness.test().home.clone();
-    let codex_home = home.path().to_path_buf();
+    let codepilotx_home = home.path().to_path_buf();
     let codex = harness.test().codex.clone();
 
-    let snapshot_path = wait_for_snapshot(&codex_home).await?;
+    let snapshot_path = wait_for_snapshot(&codepilotx_home).await?;
     assert!(snapshot_path.exists());
 
     codex.submit(Op::Shutdown {}).await?;
@@ -701,7 +701,7 @@ async fn macos_unified_exec_uses_shell_snapshot() -> Result<()> {
     assert_eq!(run.begin.command.get(5).map(String::as_str), Some("-c"));
     assert_eq!(run.begin.command.last(), Some(&command.to_string()));
 
-    assert!(run.snapshot_path.starts_with(&run.codex_home));
+    assert!(run.snapshot_path.starts_with(&run.codepilotx_home));
     assert_posix_snapshot_sections(&run.snapshot_content);
     assert_eq!(normalize_newlines(&run.end.stdout).trim(), "snapshot-macos");
     assert_eq!(run.end.exit_code, 0);
@@ -732,7 +732,7 @@ async fn windows_unified_exec_uses_shell_snapshot() -> Result<()> {
     assert!(snapshot_index > 0);
     assert_eq!(run.begin.command.last(), Some(&command.to_string()));
 
-    assert!(run.snapshot_path.starts_with(&run.codex_home));
+    assert!(run.snapshot_path.starts_with(&run.codepilotx_home));
     assert!(run.snapshot_content.contains("# Snapshot file"));
     assert!(run.snapshot_content.contains("# aliases "));
     assert!(run.snapshot_content.contains("# exports "));

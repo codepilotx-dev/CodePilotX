@@ -1,5 +1,5 @@
 use anyhow::Result;
-use codex_features::Feature;
+use codepilotx_features::Feature;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;

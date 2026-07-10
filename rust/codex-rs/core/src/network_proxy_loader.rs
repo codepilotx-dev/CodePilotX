@@ -1,4 +1,4 @@
-use crate::config::find_codex_home;
+use crate::config::find_codepilotx_home;
 use crate::config::is_builtin_permission_profile_name;
 use crate::config::reject_unknown_builtin_permission_profile;
 use crate::config::resolve_permission_profile;
@@ -7,32 +7,32 @@ use crate::exec_policy::format_exec_policy_error_with_source;
 use crate::exec_policy::load_exec_policy;
 use anyhow::Context;
 use anyhow::Result;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::LoaderOverrides;
-use codex_config::loader::load_config_layers_state;
-use codex_config::merge_toml_values;
-use codex_config::permissions_toml::NetworkMitmActionToml;
-use codex_config::permissions_toml::NetworkMitmHookToml;
-use codex_config::permissions_toml::NetworkMitmToml;
-use codex_config::permissions_toml::NetworkToml;
-use codex_config::permissions_toml::PermissionsToml;
-use codex_config::permissions_toml::overlay_network_domain_permissions;
-use codex_exec_server::LOCAL_FS;
-use codex_network_proxy::ConfigReloader;
-use codex_network_proxy::ConfigReloaderFuture;
-use codex_network_proxy::ConfigState;
-use codex_network_proxy::NetworkMode;
-use codex_network_proxy::NetworkProxyConfig;
-use codex_network_proxy::NetworkProxyConstraintError;
-use codex_network_proxy::NetworkProxyConstraints;
-use codex_network_proxy::NetworkProxyState;
-use codex_network_proxy::build_config_state;
-use codex_network_proxy::normalize_host;
-use codex_network_proxy::validate_policy_against_constraints;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::ConfigLayerSource;
+use codepilotx_config::CONFIG_TOML_FILE;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::ConfigLayerStackOrdering;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_config::loader::load_config_layers_state;
+use codepilotx_config::merge_toml_values;
+use codepilotx_config::permissions_toml::NetworkMitmActionToml;
+use codepilotx_config::permissions_toml::NetworkMitmHookToml;
+use codepilotx_config::permissions_toml::NetworkMitmToml;
+use codepilotx_config::permissions_toml::NetworkToml;
+use codepilotx_config::permissions_toml::PermissionsToml;
+use codepilotx_config::permissions_toml::overlay_network_domain_permissions;
+use codepilotx_exec_server::LOCAL_FS;
+use codepilotx_network_proxy::ConfigReloader;
+use codepilotx_network_proxy::ConfigReloaderFuture;
+use codepilotx_network_proxy::ConfigState;
+use codepilotx_network_proxy::NetworkMode;
+use codepilotx_network_proxy::NetworkProxyConfig;
+use codepilotx_network_proxy::NetworkProxyConstraintError;
+use codepilotx_network_proxy::NetworkProxyConstraints;
+use codepilotx_network_proxy::NetworkProxyState;
+use codepilotx_network_proxy::build_config_state;
+use codepilotx_network_proxy::normalize_host;
+use codepilotx_network_proxy::validate_policy_against_constraints;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -50,16 +50,16 @@ pub async fn build_network_proxy_state_and_reloader() -> Result<(ConfigState, Mt
 }
 
 async fn build_config_state_with_mtimes() -> Result<(ConfigState, Vec<LayerMtime>)> {
-    let codex_home = find_codex_home().context("failed to resolve CODEX_HOME")?;
+    let codepilotx_home = find_codepilotx_home().context("failed to resolve codepilotx_HOME")?;
     let cli_overrides = Vec::new();
     let overrides = LoaderOverrides::default();
     let config_layer_stack = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        &codex_home,
+        &codepilotx_home,
         /*cwd*/ None,
         &cli_overrides,
         overrides,
-        &codex_config::NoopThreadConfigLoader,
+        &codepilotx_config::NoopThreadConfigLoader,
     )
     .await
     .context("failed to load Codex config")?;
@@ -67,7 +67,7 @@ async fn build_config_state_with_mtimes() -> Result<(ConfigState, Vec<LayerMtime
     let (exec_policy, warning) = match load_exec_policy(&config_layer_stack).await {
         Ok(policy) => (policy, None),
         Err(err @ ExecPolicyError::ParsePolicy { .. }) => {
-            (codex_execpolicy::Policy::empty(), Some(err))
+            (codepilotx_execpolicy::Policy::empty(), Some(err))
         }
         Err(err) => return Err(err.into()),
     };
@@ -97,8 +97,8 @@ fn collect_layer_mtimes(stack: &ConfigLayerStack) -> Vec<LayerMtime> {
             let path = match &layer.name {
                 ConfigLayerSource::System { file } => Some(file.clone()),
                 ConfigLayerSource::User { file, .. } => Some(file.clone()),
-                ConfigLayerSource::Project { dot_codex_folder } => {
-                    Some(dot_codex_folder.join(CONFIG_TOML_FILE))
+                ConfigLayerSource::Project { dot_codepilotx_folder } => {
+                    Some(dot_codepilotx_folder.join(CONFIG_TOML_FILE))
                 }
                 ConfigLayerSource::LegacyManagedConfigTomlFromFile { file } => Some(file.clone()),
                 _ => None,
@@ -268,7 +268,7 @@ impl NetworkConfigAccumulator {
 
 fn config_from_layers(
     layers: &ConfigLayerStack,
-    exec_policy: &codex_execpolicy::Policy,
+    exec_policy: &codepilotx_execpolicy::Policy,
 ) -> Result<NetworkProxyConfig> {
     let mut merged = toml::Value::Table(toml::map::Map::new());
     for layer in layers.get_layers(
@@ -287,21 +287,21 @@ fn config_from_layers(
 
 fn apply_exec_policy_network_rules(
     config: &mut NetworkProxyConfig,
-    exec_policy: &codex_execpolicy::Policy,
+    exec_policy: &codepilotx_execpolicy::Policy,
 ) {
     let (allowed_domains, denied_domains) = exec_policy.compiled_network_domains();
     for host in allowed_domains {
         upsert_network_domain(
             config,
             host,
-            codex_network_proxy::NetworkDomainPermission::Allow,
+            codepilotx_network_proxy::NetworkDomainPermission::Allow,
         );
     }
     for host in denied_domains {
         upsert_network_domain(
             config,
             host,
-            codex_network_proxy::NetworkDomainPermission::Deny,
+            codepilotx_network_proxy::NetworkDomainPermission::Deny,
         );
     }
 }
@@ -309,7 +309,7 @@ fn apply_exec_policy_network_rules(
 fn upsert_network_domain(
     config: &mut NetworkProxyConfig,
     host: String,
-    permission: codex_network_proxy::NetworkDomainPermission,
+    permission: codepilotx_network_proxy::NetworkDomainPermission,
 ) {
     config
         .network

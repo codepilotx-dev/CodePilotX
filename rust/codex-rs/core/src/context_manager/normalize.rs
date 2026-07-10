@@ -1,8 +1,8 @@
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::InputModality;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::FunctionCallOutputContentItem;
+use codepilotx_protocol::models::FunctionCallOutputPayload;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::openai_models::InputModality;
 use std::collections::HashSet;
 
 use crate::util::error_or_panic;

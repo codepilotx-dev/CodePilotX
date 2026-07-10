@@ -3,11 +3,11 @@ use crate::safety::SafetyCheck;
 use crate::safety::assess_patch_safety;
 use crate::session::turn_context::TurnContext;
 use crate::tools::sandboxing::ExecApprovalRequirement;
-use codex_apply_patch::ApplyPatchAction;
-use codex_apply_patch::ApplyPatchFileChange;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::FileSystemSandboxPolicy;
-use codex_utils_path_uri::PathUri;
+use codepilotx_apply_patch::ApplyPatchAction;
+use codepilotx_apply_patch::ApplyPatchFileChange;
+use codepilotx_protocol::protocol::FileChange;
+use codepilotx_protocol::protocol::FileSystemSandboxPolicy;
+use codepilotx_utils_path_uri::PathUri;
 use std::collections::HashMap;
 use std::path::PathBuf;
 

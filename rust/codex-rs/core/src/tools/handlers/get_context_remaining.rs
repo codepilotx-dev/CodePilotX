@@ -9,9 +9,9 @@ use crate::tools::handlers::get_context_remaining_spec::GET_CONTEXT_REMAINING_TO
 use crate::tools::handlers::get_context_remaining_spec::create_get_context_remaining_tool;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
-use codex_protocol::models::ResponseInputItem;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
+use codepilotx_protocol::models::ResponseInputItem;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSpec;
 use serde_json::Value as JsonValue;
 use serde_json::json;
 
@@ -67,7 +67,7 @@ impl ToolExecutor<ToolInvocation> for GetContextRemainingHandler {
         create_get_context_remaining_tool()
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(async move {
             if !matches!(invocation.payload, ToolPayload::Function { .. }) {
                 return Err(FunctionCallError::RespondToModel(

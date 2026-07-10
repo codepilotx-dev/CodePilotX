@@ -1,12 +1,12 @@
 use super::*;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigRequirements;
-use codex_config::ConfigRequirementsToml;
-use codex_config::FeatureRequirementsToml;
-use codex_config::RequirementSource;
-use codex_config::Sourced;
-use codex_config::config_toml::ConfigToml;
-use codex_features::FeaturesToml;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::ConfigRequirements;
+use codepilotx_config::ConfigRequirementsToml;
+use codepilotx_config::FeatureRequirementsToml;
+use codepilotx_config::RequirementSource;
+use codepilotx_config::Sourced;
+use codepilotx_config::config_toml::ConfigToml;
+use codepilotx_features::FeaturesToml;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 

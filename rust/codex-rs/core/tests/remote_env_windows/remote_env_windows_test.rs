@@ -7,24 +7,24 @@ use app_test_support::TestAppServer;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnEnvironmentParams;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_exec_server::REMOTE_ENVIRONMENT_ID;
-use codex_exec_server::CODEX_EXEC_SERVER_URL_ENV_VAR;
-use codex_features::Feature;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandStatus;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_protocol::protocol::TurnEnvironmentSelections;
-use codex_protocol::user_input::UserInput;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::TurnEnvironmentParams;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStartResponse;
+use codepilotx_app_server_protocol::UserInput as V2UserInput;
+use codepilotx_exec_server::REMOTE_ENVIRONMENT_ID;
+use codepilotx_exec_server::codepilotx_EXEC_SERVER_URL_ENV_VAR;
+use codepilotx_features::Feature;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::ExecCommandStatus;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::TurnEnvironmentSelection;
+use codepilotx_protocol::protocol::TurnEnvironmentSelections;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
@@ -35,9 +35,9 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
-use codex_utils_path_uri::LegacyAppPathString;
-use codex_utils_path_uri::PathConvention;
-use codex_utils_path_uri::PathUri;
+use codepilotx_utils_path_uri::LegacyAppPathString;
+use codepilotx_utils_path_uri::PathConvention;
+use codepilotx_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -142,14 +142,14 @@ async fn windows_exec_server_runs_with_native_shell_and_cwd() -> Result<()> {
                     final_output_json_schema: None,
                     responsesapi_client_metadata: None,
                     additional_context: Default::default(),
-                    thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+                    thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
                         environments: Some(environments),
                         approval_policy: Some(AskForApproval::Never),
                         sandbox_policy: Some(sandbox_policy),
                         permission_profile,
-                        collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                            mode: codex_protocol::config_types::ModeKind::Default,
-                            settings: codex_protocol::config_types::Settings {
+                        collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                            mode: codepilotx_protocol::config_types::ModeKind::Default,
+                            settings: codepilotx_protocol::config_types::Settings {
                                 model: test.session_configured.model.clone(),
                                 reasoning_effort: None,
                                 developer_instructions: None,
@@ -258,10 +258,10 @@ async fn app_server_starts_thread_with_windows_environment_native_cwd() -> Resul
                 AGENTS_INSTRUCTIONS,
             )?;
 
-            let codex_home = TempDir::new()?;
+            let codepilotx_home = TempDir::new()?;
             let server = create_mock_responses_server_repeating_assistant("done").await;
             write_mock_responses_config_toml(
-                codex_home.path(),
+                codepilotx_home.path(),
                 &server.uri(),
                 &BTreeMap::new(),
                 100_000,
@@ -270,9 +270,9 @@ async fn app_server_starts_thread_with_windows_environment_native_cwd() -> Resul
                 "compact",
             )?;
             let mut app_server = TestAppServer::new_with_env(
-                codex_home.path(),
+                codepilotx_home.path(),
                 &[(
-                    CODEX_EXEC_SERVER_URL_ENV_VAR,
+                    codepilotx_EXEC_SERVER_URL_ENV_VAR,
                     Some(exec_server_url.as_str()),
                 )],
             )
@@ -295,7 +295,7 @@ async fn app_server_starts_thread_with_windows_environment_native_cwd() -> Resul
             .await??;
             let response: ThreadStartResponse = to_response(response)?;
             assert!(!response.thread.id.is_empty());
-            let host_cwd = codex_home.path().to_path_buf().abs();
+            let host_cwd = codepilotx_home.path().to_path_buf().abs();
             // TODO(anp): Return the selected environment's native cwd from thread/start.
             assert_eq!(response.cwd, host_cwd);
             // TODO(anp): Derive runtime workspace roots from the selected remote environment.
@@ -383,7 +383,7 @@ async fn app_server_starts_thread_with_windows_environment_native_cwd() -> Resul
             );
             let host_workspace_roots = format!(
                 "<workspace_roots><root>{}</root></workspace_roots>",
-                codex_home.path().display()
+                codepilotx_home.path().display()
             );
             // TODO(anp): Derive model-visible workspace roots from the selected remote environment
             // and render them using its native path convention.

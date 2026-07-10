@@ -7,8 +7,8 @@ use super::emit_compact_metric;
 use crate::session::TurnInput;
 use crate::session::turn_context::TurnContext;
 use crate::state::TaskKind;
-use codex_protocol::error::CodexErr;
-use codex_protocol::user_input::UserInput;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::user_input::UserInput;
 use tokio_util::sync::CancellationToken;
 
 #[derive(Clone, Copy, Default)]
@@ -35,7 +35,7 @@ impl SessionTask for CompactTask {
             if ctx
                 .config
                 .features
-                .enabled(codex_features::Feature::RemoteCompactionV2)
+                .enabled(codepilotx_features::Feature::RemoteCompactionV2)
             {
                 emit_compact_metric(
                     &session.services.session_telemetry,

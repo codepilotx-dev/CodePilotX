@@ -4,8 +4,8 @@ use super::ContextualUserFragment;
 use std::error::Error;
 use std::fmt;
 
-const CONTEXT_START_MARKER: &str = "<codex_internal_context";
-const CONTEXT_END_MARKER: &str = "</codex_internal_context>";
+const CONTEXT_START_MARKER: &str = "<codepilotx_internal_context";
+const CONTEXT_END_MARKER: &str = "</codepilotx_internal_context>";
 const LEGACY_GOAL_CONTEXT_START_MARKER: &str = "<goal_context>";
 const LEGACY_GOAL_CONTEXT_END_MARKER: &str = "</goal_context>";
 const SOURCE_ATTR_START: &str = " source=\"";

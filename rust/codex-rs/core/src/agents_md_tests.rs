@@ -2,24 +2,24 @@ use super::*;
 use crate::config::ConfigBuilder;
 use crate::environment_selection::TurnEnvironmentSnapshot;
 use crate::session::turn_context::TurnEnvironment;
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigRequirements;
-use codex_config::ConfigRequirementsToml;
-use codex_exec_server::CopyOptions;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::Environment;
-use codex_exec_server::ExecutorFileSystemFuture;
-use codex_exec_server::FileMetadata;
-use codex_exec_server::FileSystemReadStream;
-use codex_exec_server::FileSystemSandboxContext;
-use codex_exec_server::LOCAL_FS;
-use codex_exec_server::ReadDirectoryEntry;
-use codex_exec_server::RemoveOptions;
-use codex_extension_api::UserInstructions;
-use codex_features::Feature;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_config::ConfigLayerEntry;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::ConfigRequirements;
+use codepilotx_config::ConfigRequirementsToml;
+use codepilotx_exec_server::CopyOptions;
+use codepilotx_exec_server::CreateDirectoryOptions;
+use codepilotx_exec_server::Environment;
+use codepilotx_exec_server::ExecutorFileSystemFuture;
+use codepilotx_exec_server::FileMetadata;
+use codepilotx_exec_server::FileSystemReadStream;
+use codepilotx_exec_server::FileSystemSandboxContext;
+use codepilotx_exec_server::LOCAL_FS;
+use codepilotx_exec_server::ReadDirectoryEntry;
+use codepilotx_exec_server::RemoveOptions;
+use codepilotx_extension_api::UserInstructions;
+use codepilotx_features::Feature;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 use core_test_support::PathBufExt;
 use core_test_support::TempDirExt;
 use core_test_support::create_directory_symlink;
@@ -380,13 +380,13 @@ Windows instructions
 
 /// Helper that returns a `Config` pointing at `root` and using `limit` as
 /// the maximum number of bytes to embed from AGENTS.md. The caller can
-/// optionally specify a custom `instructions` string â€“ when `None` the
+/// optionally specify a custom `instructions` string â€?when `None` the
 /// value is cleared to mimic a scenario where no system instructions have
 /// been configured.
 async fn make_config(root: &TempDir, limit: usize, instructions: Option<&str>) -> TestConfig {
-    let codex_home = TempDir::new().unwrap();
+    let codepilotx_home = TempDir::new().unwrap();
     let mut config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .build()
         .await
         .expect("defaults for test should always succeed");
@@ -396,7 +396,7 @@ async fn make_config(root: &TempDir, limit: usize, instructions: Option<&str>) -
 
     let user_instructions = instructions.map(|text| UserInstructions {
         text: text.to_owned(),
-        source: config.codex_home.join(DEFAULT_AGENTS_MD_FILENAME),
+        source: config.codepilotx_home.join(DEFAULT_AGENTS_MD_FILENAME),
     });
     TestConfig {
         config,
@@ -424,7 +424,7 @@ async fn make_config_with_project_root_markers(
     instructions: Option<&str>,
     markers: &[&str],
 ) -> TestConfig {
-    let codex_home = TempDir::new().unwrap();
+    let codepilotx_home = TempDir::new().unwrap();
     let cli_overrides = vec![(
         "project_root_markers".to_string(),
         TomlValue::Array(
@@ -435,7 +435,7 @@ async fn make_config_with_project_root_markers(
         ),
     )];
     let mut config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .cli_overrides(cli_overrides)
         .build()
         .await
@@ -445,7 +445,7 @@ async fn make_config_with_project_root_markers(
     config.project_doc_max_bytes = limit;
     let user_instructions = instructions.map(|text| UserInstructions {
         text: text.to_owned(),
-        source: config.codex_home.join(DEFAULT_AGENTS_MD_FILENAME),
+        source: config.codepilotx_home.join(DEFAULT_AGENTS_MD_FILENAME),
     });
     TestConfig {
         config,
@@ -453,7 +453,7 @@ async fn make_config_with_project_root_markers(
     }
 }
 
-/// AGENTS.md missing â€“ should yield `None`.
+/// AGENTS.md missing â€?should yield `None`.
 #[tokio::test]
 async fn no_doc_file_returns_none() {
     let tmp = tempfile::tempdir().expect("tempdir");
@@ -1016,9 +1016,9 @@ async fn project_layers_do_not_override_project_root_markers() {
 
     let mut config = make_config(&root, /*limit*/ 4096, /*instructions*/ None).await;
     config.cwd = nested.abs();
-    let project_layer = |dot_codex_folder: AbsolutePathBuf, marker: &str| {
+    let project_layer = |dot_codepilotx_folder: AbsolutePathBuf, marker: &str| {
         ConfigLayerEntry::new(
-            ConfigLayerSource::Project { dot_codex_folder },
+            ConfigLayerSource::Project { dot_codepilotx_folder },
             TomlValue::Table(
                 [(
                     "project_root_markers".to_string(),
@@ -1079,8 +1079,8 @@ async fn instruction_sources_include_global_before_agents_md_docs() {
     fs::write(tmp.path().join("AGENTS.md"), "project doc").unwrap();
 
     let cfg = make_config(&tmp, /*limit*/ 4096, Some("global doc")).await;
-    let global_agents = cfg.codex_home.join(DEFAULT_AGENTS_MD_FILENAME);
-    fs::create_dir_all(&cfg.codex_home).unwrap();
+    let global_agents = cfg.codepilotx_home.join(DEFAULT_AGENTS_MD_FILENAME);
+    fs::create_dir_all(&cfg.codepilotx_home).unwrap();
     fs::write(&global_agents, "global doc").unwrap();
 
     let loaded = load_agents_md(&cfg).await.expect("instructions expected");
@@ -1249,7 +1249,7 @@ async fn skills_are_not_appended_to_agents_md() {
 
     let cfg = make_config(&tmp, /*limit*/ 4096, /*instructions*/ None).await;
     create_skill(
-        cfg.codex_home.to_path_buf(),
+        cfg.codepilotx_home.to_path_buf(),
         "pdf-processing",
         "extract from pdfs",
     );
@@ -1288,8 +1288,8 @@ async fn apps_feature_does_not_append_to_agents_md_user_instructions() {
     assert_eq!(res, "base doc");
 }
 
-fn create_skill(codex_home: PathBuf, name: &str, description: &str) {
-    let skill_dir = codex_home.join(format!("skills/{name}"));
+fn create_skill(codepilotx_home: PathBuf, name: &str, description: &str) {
+    let skill_dir = codepilotx_home.join(format!("skills/{name}"));
     fs::create_dir_all(&skill_dir).unwrap();
     let content = format!("---\nname: {name}\ndescription: {description}\n---\n\n# Body\n");
     fs::write(skill_dir.join("SKILL.md"), content).unwrap();

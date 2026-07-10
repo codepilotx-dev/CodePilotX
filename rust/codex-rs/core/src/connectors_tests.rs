@@ -1,20 +1,20 @@
 use super::*;
 use crate::config::CONFIG_TOML_FILE;
 use crate::config::ConfigBuilder;
-use codex_config::AppRequirementToml;
-use codex_config::AppsRequirementsToml;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigRequirements;
-use codex_config::ConfigRequirementsToml;
-use codex_config::test_support::CloudConfigBundleFixture;
-use codex_config::types::ApprovalsReviewer;
-use codex_connectors::merge::plugin_connector_to_app_info;
-use codex_connectors::metadata::connector_install_url;
-use codex_connectors::metadata::sanitize_name;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_mcp::ToolInfo;
+use codepilotx_config::AppRequirementToml;
+use codepilotx_config::AppsRequirementsToml;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::ConfigRequirements;
+use codepilotx_config::ConfigRequirementsToml;
+use codepilotx_config::test_support::CloudConfigBundleFixture;
+use codepilotx_config::types::ApprovalsReviewer;
+use codepilotx_connectors::merge::plugin_connector_to_app_info;
+use codepilotx_connectors::metadata::connector_install_url;
+use codepilotx_connectors::metadata::sanitize_name;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
+use codepilotx_mcp::ToolInfo;
 use pretty_assertions::assert_eq;
 use rmcp::model::JsonObject;
 use rmcp::model::Meta;
@@ -50,7 +50,7 @@ fn test_tool_definition(tool_name: &str) -> Tool {
     Tool::new_with_raw(tool_name.to_string(), None, Arc::new(JsonObject::default()))
 }
 
-fn codex_app_tool(
+fn codepilotx_app_tool(
     tool_name: &str,
     connector_id: &str,
     connector_name: Option<&str>,
@@ -58,11 +58,11 @@ fn codex_app_tool(
 ) -> ToolInfo {
     let tool_namespace = connector_name
         .map(sanitize_name)
-        .map(|connector_name| format!("mcp__{CODEX_APPS_MCP_SERVER_NAME}__{connector_name}"))
-        .unwrap_or_else(|| CODEX_APPS_MCP_SERVER_NAME.to_string());
+        .map(|connector_name| format!("mcp__{codepilotx_APPS_MCP_SERVER_NAME}__{connector_name}"))
+        .unwrap_or_else(|| codepilotx_APPS_MCP_SERVER_NAME.to_string());
 
     ToolInfo {
-        server_name: CODEX_APPS_MCP_SERVER_NAME.to_string(),
+        server_name: codepilotx_APPS_MCP_SERVER_NAME.to_string(),
         supports_parallel_tool_calls: false,
         server_origin: None,
         callable_name: tool_name.to_string(),
@@ -93,13 +93,13 @@ fn with_accessible_connectors_cache_cleared<R>(f: impl FnOnce() -> R) -> R {
 #[test]
 fn accessible_connectors_from_mcp_tools_carries_plugin_display_names() {
     let tools = vec![
-        codex_app_tool(
+        codepilotx_app_tool(
             "calendar_list_events",
             "calendar",
             /*connector_name*/ None,
             &["sample", "sample"],
         ),
-        codex_app_tool(
+        codepilotx_app_tool(
             "calendar_create_event",
             "calendar",
             Some("Google Calendar"),
@@ -143,11 +143,11 @@ fn accessible_connectors_from_mcp_tools_carries_plugin_display_names() {
 
 #[test]
 fn synthetic_links_are_exposed_to_the_agent_but_not_accessible_in_app_list() {
-    let mut synthetic_tool = codex_app_tool("gmail_batch_read_email", "gmail", Some("Gmail"), &[]);
+    let mut synthetic_tool = codepilotx_app_tool("gmail_batch_read_email", "gmail", Some("Gmail"), &[]);
     synthetic_tool.tool.meta = Some(Meta(
         serde_json::json!({
             "resource_name": "gmail.batch_read_email",
-            "_codex_apps": {
+            "_codepilotx_apps": {
                 "resource_uri": "/connector/gmail/batch_read_email",
                 "contains_mcp_source": false,
                 "synthetic_link": true
@@ -159,7 +159,7 @@ fn synthetic_links_are_exposed_to_the_agent_but_not_accessible_in_app_list() {
     ));
     let tools = vec![
         synthetic_tool,
-        codex_app_tool("calendar_list_events", "calendar", Some("Calendar"), &[]),
+        codepilotx_app_tool("calendar_list_events", "calendar", Some("Calendar"), &[]),
     ];
 
     let calendar = AppInfo {
@@ -206,22 +206,22 @@ fn synthetic_links_are_exposed_to_the_agent_but_not_accessible_in_app_list() {
 
 #[tokio::test]
 async fn refresh_accessible_connectors_cache_from_mcp_tools_writes_latest_installed_apps() {
-    let codex_home = tempdir().expect("tempdir should succeed");
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
     let mut config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .build()
         .await
         .expect("config should load");
     let _ = config.features.set_enabled(Feature::Apps, /*enabled*/ true);
     let cache_key = accessible_connectors_cache_key(&config, /*auth*/ None);
     let tools = vec![
-        codex_app_tool(
+        codepilotx_app_tool(
             "calendar_list_events",
             "calendar",
             Some("Google Calendar"),
             &["calendar-plugin"],
         ),
-        codex_app_tool(
+        codepilotx_app_tool(
             "openai_hidden",
             "connector_openai_hidden",
             Some("Hidden"),
@@ -274,11 +274,11 @@ async fn refresh_accessible_connectors_cache_from_mcp_tools_writes_latest_instal
 #[test]
 fn accessible_connectors_from_mcp_tools_preserves_description() {
     let mcp_tools = vec![ToolInfo {
-        server_name: CODEX_APPS_MCP_SERVER_NAME.to_string(),
+        server_name: codepilotx_APPS_MCP_SERVER_NAME.to_string(),
         supports_parallel_tool_calls: false,
         server_origin: None,
         callable_name: "calendar_create_event".to_string(),
-        callable_namespace: "mcp__codex_apps__calendar".to_string(),
+        callable_namespace: "mcp__codepilotx_apps__calendar".to_string(),
         namespace_description: Some("Plan events".to_string()),
         tool: Tool::new(
             "calendar_create_event",
@@ -330,9 +330,9 @@ async fn app_approvals_reviewer_uses_app_then_default_then_global() {
             ApprovalsReviewer::AutoReview,
         ),
     ] {
-        let codex_home = tempdir().expect("tempdir should succeed");
+        let codepilotx_home = tempdir().expect("tempdir should succeed");
         std::fs::write(
-            codex_home.path().join(CONFIG_TOML_FILE),
+            codepilotx_home.path().join(CONFIG_TOML_FILE),
             format!(
                 r#"
 approvals_reviewer = "{global}"
@@ -347,23 +347,23 @@ approvals_reviewer = "{app}"
         )
         .expect("write config");
         let config = ConfigBuilder::default()
-            .codex_home(codex_home.path().to_path_buf())
+            .codepilotx_home(codepilotx_home.path().to_path_buf())
             .build()
             .await
             .expect("config should build");
 
         assert_eq!(
-            mcp_approvals_reviewer(&config, CODEX_APPS_MCP_SERVER_NAME, Some("calendar")),
+            mcp_approvals_reviewer(&config, codepilotx_APPS_MCP_SERVER_NAME, Some("calendar")),
             expected_app
         );
         assert_eq!(
-            mcp_approvals_reviewer(&config, CODEX_APPS_MCP_SERVER_NAME, Some("drive")),
+            mcp_approvals_reviewer(&config, codepilotx_APPS_MCP_SERVER_NAME, Some("drive")),
             expected_default
         );
         assert_eq!(
             mcp_approvals_reviewer(
                 &config,
-                CODEX_APPS_MCP_SERVER_NAME,
+                codepilotx_APPS_MCP_SERVER_NAME,
                 /*connector_id*/ None
             ),
             expected_default
@@ -377,9 +377,9 @@ approvals_reviewer = "{app}"
 
 #[tokio::test]
 async fn default_app_approvals_reviewer_respects_global_reviewer_requirements() {
-    let codex_home = tempdir().expect("tempdir should succeed");
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
     std::fs::write(
-        codex_home.path().join(CONFIG_TOML_FILE),
+        codepilotx_home.path().join(CONFIG_TOML_FILE),
         r#"
 approvals_reviewer = "auto_review"
 
@@ -389,7 +389,7 @@ approvals_reviewer = "user"
     )
     .expect("write config");
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .cloud_config_bundle(
             CloudConfigBundleFixture::loader_with_enterprise_requirement(
                 r#"allowed_approvals_reviewers = ["auto_review"]"#,
@@ -400,16 +400,16 @@ approvals_reviewer = "user"
         .expect("config should build");
 
     assert_eq!(
-        mcp_approvals_reviewer(&config, CODEX_APPS_MCP_SERVER_NAME, Some("calendar")),
+        mcp_approvals_reviewer(&config, codepilotx_APPS_MCP_SERVER_NAME, Some("calendar")),
         ApprovalsReviewer::AutoReview
     );
 }
 
 #[tokio::test]
 async fn app_approvals_reviewer_respects_global_reviewer_requirements() {
-    let codex_home = tempdir().expect("tempdir should succeed");
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
     std::fs::write(
-        codex_home.path().join(CONFIG_TOML_FILE),
+        codepilotx_home.path().join(CONFIG_TOML_FILE),
         r#"
 approvals_reviewer = "auto_review"
 
@@ -419,7 +419,7 @@ approvals_reviewer = "user"
     )
     .expect("write config");
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .cloud_config_bundle(
             CloudConfigBundleFixture::loader_with_enterprise_requirement(
                 r#"allowed_approvals_reviewers = ["auto_review"]"#,
@@ -430,17 +430,17 @@ approvals_reviewer = "user"
         .expect("config should build");
 
     assert_eq!(
-        mcp_approvals_reviewer(&config, CODEX_APPS_MCP_SERVER_NAME, Some("calendar")),
+        mcp_approvals_reviewer(&config, codepilotx_APPS_MCP_SERVER_NAME, Some("calendar")),
         ApprovalsReviewer::AutoReview
     );
 }
 
 #[tokio::test]
 async fn with_app_enabled_state_preserves_unrelated_disabled_connector() {
-    let codex_home = tempdir().expect("tempdir should succeed");
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
     let mut config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
-        .fallback_cwd(Some(codex_home.path().to_path_buf()))
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
+        .fallback_cwd(Some(codepilotx_home.path().to_path_buf()))
         .build()
         .await
         .expect("config should build");
@@ -475,9 +475,9 @@ async fn with_app_enabled_state_preserves_unrelated_disabled_connector() {
 
 #[tokio::test]
 async fn tool_suggest_connector_ids_include_configured_tool_suggest_discoverables() {
-    let codex_home = tempdir().expect("tempdir should succeed");
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
     std::fs::write(
-        codex_home.path().join(CONFIG_TOML_FILE),
+        codepilotx_home.path().join(CONFIG_TOML_FILE),
         r#"
 [tool_suggest]
 discoverables = [
@@ -489,7 +489,7 @@ discoverables = [
     )
     .expect("write config");
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .build()
         .await
         .expect("config should load");
@@ -502,9 +502,9 @@ discoverables = [
 
 #[tokio::test]
 async fn tool_suggest_connector_ids_exclude_disabled_tool_suggestions() {
-    let codex_home = tempdir().expect("tempdir should succeed");
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
     std::fs::write(
-        codex_home.path().join(CONFIG_TOML_FILE),
+        codepilotx_home.path().join(CONFIG_TOML_FILE),
         r#"
 [tool_suggest]
 discoverables = [
@@ -518,7 +518,7 @@ disabled_tools = [
     )
     .expect("write config");
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .build()
         .await
         .expect("config should load");
@@ -531,9 +531,9 @@ disabled_tools = [
 
 #[tokio::test]
 async fn tool_suggest_uses_connector_id_fallback_when_directory_cache_is_empty() {
-    let codex_home = tempdir().expect("tempdir should succeed");
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
     std::fs::write(
-        codex_home.path().join(CONFIG_TOML_FILE),
+        codepilotx_home.path().join(CONFIG_TOML_FILE),
         r#"
 [features]
 apps = true
@@ -546,12 +546,12 @@ discoverables = [
     )
     .expect("write config");
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .build()
         .await
         .expect("config should load");
     let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
-    let plugins_manager = PluginsManager::new(config.codex_home.to_path_buf());
+    let plugins_manager = PluginsManager::new(config.codepilotx_home.to_path_buf());
 
     let discoverable_tools = list_tool_suggest_discoverable_tools_with_auth(
         &config,
@@ -573,9 +573,9 @@ discoverables = [
 
 #[tokio::test]
 async fn tool_suggest_includes_connectors_from_loaded_plugin_apps() {
-    let codex_home = tempdir().expect("tempdir should succeed");
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
     std::fs::write(
-        codex_home.path().join(CONFIG_TOML_FILE),
+        codepilotx_home.path().join(CONFIG_TOML_FILE),
         r#"
 [features]
 apps = true
@@ -583,13 +583,13 @@ apps = true
     )
     .expect("write config");
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .build()
         .await
         .expect("config should load");
     let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
     let loaded_plugin_app_connector_ids = vec!["asdk_app_databricks_workspace".to_string()];
-    let plugins_manager = PluginsManager::new(config.codex_home.to_path_buf());
+    let plugins_manager = PluginsManager::new(config.codepilotx_home.to_path_buf());
 
     let discoverable_tools = list_tool_suggest_discoverable_tools_with_auth(
         &config,

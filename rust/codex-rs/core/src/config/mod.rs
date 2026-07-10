@@ -6,111 +6,111 @@ use crate::unified_exec::MIN_EMPTY_YIELD_TIME_MS;
 use crate::windows_sandbox::WindowsSandboxLevelExt;
 use crate::windows_sandbox::resolve_windows_sandbox_mode;
 use crate::windows_sandbox::resolve_windows_sandbox_private_desktop;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::ConfigLayerSource;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::ConfigRequirements;
-use codex_config::ConfigRequirementsToml;
-use codex_config::ConstrainedWithSource;
-use codex_config::FeatureRequirementsToml;
-use codex_config::McpServerIdentity;
-use codex_config::McpServerRequirement;
-use codex_config::PluginRequirementsToml;
-use codex_config::ProfileV2Name;
-use codex_config::ResidencyRequirement;
-use codex_config::SandboxModeRequirement;
-use codex_config::Sourced;
-use codex_config::ThreadConfigLoader;
-use codex_config::config_toml::ConfigLockfileToml;
-use codex_config::config_toml::ConfigToml;
-use codex_config::config_toml::DEFAULT_PROJECT_DOC_MAX_BYTES;
-use codex_config::config_toml::ProjectConfig;
-use codex_config::config_toml::RealtimeAudioConfig;
-use codex_config::config_toml::RealtimeConfig;
-use codex_config::config_toml::ThreadStoreToml;
-use codex_config::config_toml::validate_model_providers;
-use codex_config::loader::load_config_layers_state;
-use codex_config::loader::project_trust_key;
-use codex_config::permissions_toml::PermissionsToml;
-use codex_config::sandbox_mode_requirement_for_permission_profile;
-use codex_config::types::ApprovalsReviewer;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_config::types::History;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerDisabledReason;
-use codex_config::types::McpServerTransportConfig;
-use codex_config::types::MemoriesConfig;
-use codex_config::types::ModelAvailabilityNuxConfig;
-use codex_config::types::Notice;
-use codex_config::types::OAuthCredentialsStoreMode;
-use codex_config::types::SessionPickerViewMode;
-use codex_config::types::ToolSuggestConfig;
-use codex_config::types::ToolSuggestDisabledTool;
-use codex_config::types::ToolSuggestDiscoverable;
-use codex_config::types::TuiKeymap;
-use codex_config::types::TuiNotificationSettings;
-use codex_config::types::TuiPetAnchor;
-use codex_config::types::UriBasedFileOpener;
-use codex_config::types::WindowsSandboxModeToml;
-use codex_core_plugins::PluginsConfigInput;
-use codex_exec_server::ExecutorFileSystem;
-use codex_exec_server::LOCAL_FS;
-use codex_features::CodeModeConfigToml;
-use codex_features::CurrentTimeReminderConfigToml;
-use codex_features::CurrentTimeSource;
-use codex_features::Feature;
-use codex_features::FeatureConfigSource;
-use codex_features::FeatureOverrides;
-use codex_features::FeatureToml;
-use codex_features::Features;
-use codex_features::FeaturesToml;
-use codex_features::MultiAgentV2ConfigToml;
-use codex_features::NetworkProxyConfigToml;
-use codex_features::TokenBudgetConfigToml;
-use codex_git_utils::resolve_root_git_project_for_trust;
-use codex_install_context::InstallContext;
-use codex_login::AuthManagerConfig;
-use codex_mcp::McpConfig;
-use codex_mcp::McpPluginAttribution;
-use codex_mcp::McpServerRegistration;
-use codex_mcp::ResolvedMcpCatalog;
-use codex_memories_read::memory_root;
-use codex_model_provider_info::LEGACY_OLLAMA_CHAT_PROVIDER_ID;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::OLLAMA_CHAT_PROVIDER_REMOVED_ERROR;
-use codex_model_provider_info::built_in_model_providers;
-use codex_model_provider_info::merge_configured_model_providers;
-use codex_models_manager::ModelsManagerConfig;
-use codex_protocol::config_types::AltScreenMode;
-use codex_protocol::config_types::AutoCompactTokenLimitScope;
-use codex_protocol::config_types::ForcedLoginMethod;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::ShellEnvironmentPolicy;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::config_types::Verbosity;
-use codex_protocol::config_types::WebSearchConfig;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::SandboxEnforcement;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::SandboxPolicy;
-pub use codex_thread_store::ExtraConfig;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::AbsolutePathBufGuard;
-use codex_utils_path_uri::PathUri;
+use codepilotx_config::CloudConfigBundleLoader;
+use codepilotx_config::ConfigLayerSource;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::ConfigLayerStackOrdering;
+use codepilotx_config::ConfigRequirements;
+use codepilotx_config::ConfigRequirementsToml;
+use codepilotx_config::ConstrainedWithSource;
+use codepilotx_config::FeatureRequirementsToml;
+use codepilotx_config::McpServerIdentity;
+use codepilotx_config::McpServerRequirement;
+use codepilotx_config::PluginRequirementsToml;
+use codepilotx_config::ProfileV2Name;
+use codepilotx_config::ResidencyRequirement;
+use codepilotx_config::SandboxModeRequirement;
+use codepilotx_config::Sourced;
+use codepilotx_config::ThreadConfigLoader;
+use codepilotx_config::config_toml::ConfigLockfileToml;
+use codepilotx_config::config_toml::ConfigToml;
+use codepilotx_config::config_toml::DEFAULT_PROJECT_DOC_MAX_BYTES;
+use codepilotx_config::config_toml::ProjectConfig;
+use codepilotx_config::config_toml::RealtimeAudioConfig;
+use codepilotx_config::config_toml::RealtimeConfig;
+use codepilotx_config::config_toml::ThreadStoreToml;
+use codepilotx_config::config_toml::validate_model_providers;
+use codepilotx_config::loader::load_config_layers_state;
+use codepilotx_config::loader::project_trust_key;
+use codepilotx_config::permissions_toml::PermissionsToml;
+use codepilotx_config::sandbox_mode_requirement_for_permission_profile;
+use codepilotx_config::types::ApprovalsReviewer;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_config::types::AuthKeyringBackendKind;
+use codepilotx_config::types::History;
+use codepilotx_config::types::McpServerConfig;
+use codepilotx_config::types::McpServerDisabledReason;
+use codepilotx_config::types::McpServerTransportConfig;
+use codepilotx_config::types::MemoriesConfig;
+use codepilotx_config::types::ModelAvailabilityNuxConfig;
+use codepilotx_config::types::Notice;
+use codepilotx_config::types::OAuthCredentialsStoreMode;
+use codepilotx_config::types::SessionPickerViewMode;
+use codepilotx_config::types::ToolSuggestConfig;
+use codepilotx_config::types::ToolSuggestDisabledTool;
+use codepilotx_config::types::ToolSuggestDiscoverable;
+use codepilotx_config::types::TuiKeymap;
+use codepilotx_config::types::TuiNotificationSettings;
+use codepilotx_config::types::TuiPetAnchor;
+use codepilotx_config::types::UriBasedFileOpener;
+use codepilotx_config::types::WindowsSandboxModeToml;
+use codepilotx_core_plugins::PluginsConfigInput;
+use codepilotx_exec_server::ExecutorFileSystem;
+use codepilotx_exec_server::LOCAL_FS;
+use codepilotx_features::CodeModeConfigToml;
+use codepilotx_features::CurrentTimeReminderConfigToml;
+use codepilotx_features::CurrentTimeSource;
+use codepilotx_features::Feature;
+use codepilotx_features::FeatureConfigSource;
+use codepilotx_features::FeatureOverrides;
+use codepilotx_features::FeatureToml;
+use codepilotx_features::Features;
+use codepilotx_features::FeaturesToml;
+use codepilotx_features::MultiAgentV2ConfigToml;
+use codepilotx_features::NetworkProxyConfigToml;
+use codepilotx_features::TokenBudgetConfigToml;
+use codepilotx_git_utils::resolve_root_git_project_for_trust;
+use codepilotx_install_context::InstallContext;
+use codepilotx_login::AuthManagerConfig;
+use codepilotx_mcp::McpConfig;
+use codepilotx_mcp::McpPluginAttribution;
+use codepilotx_mcp::McpServerRegistration;
+use codepilotx_mcp::ResolvedMcpCatalog;
+use codepilotx_memories_read::memory_root;
+use codepilotx_model_provider_info::LEGACY_OLLAMA_CHAT_PROVIDER_ID;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_model_provider_info::OLLAMA_CHAT_PROVIDER_REMOVED_ERROR;
+use codepilotx_model_provider_info::built_in_model_providers;
+use codepilotx_model_provider_info::merge_configured_model_providers;
+use codepilotx_models_manager::ModelsManagerConfig;
+use codepilotx_protocol::config_types::AltScreenMode;
+use codepilotx_protocol::config_types::AutoCompactTokenLimitScope;
+use codepilotx_protocol::config_types::ForcedLoginMethod;
+use codepilotx_protocol::config_types::Personality;
+use codepilotx_protocol::config_types::ReasoningSummary;
+use codepilotx_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+use codepilotx_protocol::config_types::SandboxMode;
+use codepilotx_protocol::config_types::ServiceTier;
+use codepilotx_protocol::config_types::ShellEnvironmentPolicy;
+use codepilotx_protocol::config_types::TrustLevel;
+use codepilotx_protocol::config_types::Verbosity;
+use codepilotx_protocol::config_types::WebSearchConfig;
+use codepilotx_protocol::config_types::WebSearchMode;
+use codepilotx_protocol::config_types::WindowsSandboxLevel;
+use codepilotx_protocol::models::ActivePermissionProfile;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::models::SandboxEnforcement;
+use codepilotx_protocol::openai_models::ModelsResponse;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::MultiAgentVersion;
+use codepilotx_protocol::protocol::SandboxPolicy;
+pub use codepilotx_thread_store::ExtraConfig;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBufGuard;
+use codepilotx_utils_path_uri::PathUri;
 use rmcp::model::ElicitationCapability;
 use rmcp::model::FormElicitationCapability;
 use rmcp::model::UrlElicitationCapability;
@@ -131,13 +131,13 @@ use crate::config::permissions::builtin_permission_profile;
 use crate::config::permissions::compile_permission_profile_selection;
 use crate::config::permissions::compile_permission_profile_workspace_roots;
 use crate::config::permissions::default_builtin_permission_profile_name;
-use crate::config::permissions::get_readable_roots_required_for_codex_runtime;
+use crate::config::permissions::get_readable_roots_required_for_codepilotx_runtime;
 use crate::config::permissions::network_proxy_config_for_profile_selection;
 use crate::config::permissions::validate_user_permission_profile_names;
 use crate::config_lock::config_without_lock_controls;
 use crate::config_lock::lock_layer_from_config;
 use crate::config_lock::read_config_lock_from_path;
-use codex_network_proxy::NetworkProxyConfig;
+use codepilotx_network_proxy::NetworkProxyConfig;
 use toml::Value as TomlValue;
 use toml_edit::DocumentMut;
 
@@ -152,14 +152,14 @@ mod resolved_permission_profile;
 #[cfg(test)]
 mod schema;
 pub use auth_keyring::resolve_bootstrap_auth_keyring_backend_kind;
-pub use codex_config::ConfigLoadOptions;
-pub use codex_config::Constrained;
-pub use codex_config::ConstraintError;
-pub use codex_config::ConstraintResult;
-pub use codex_config::LoaderOverrides;
-pub use codex_network_proxy::NetworkProxyAuditMetadata;
-use codex_sandboxing::compatibility_sandbox_policy_for_permission_profile;
-pub use codex_sandboxing::system_bwrap_warning;
+pub use codepilotx_config::ConfigLoadOptions;
+pub use codepilotx_config::Constrained;
+pub use codepilotx_config::ConstraintError;
+pub use codepilotx_config::ConstraintResult;
+pub use codepilotx_config::LoaderOverrides;
+pub use codepilotx_network_proxy::NetworkProxyAuditMetadata;
+use codepilotx_sandboxing::compatibility_sandbox_policy_for_permission_profile;
+pub use codepilotx_sandboxing::system_bwrap_warning;
 pub use managed_features::ManagedFeatures;
 pub use network_proxy_spec::NetworkProxySpec;
 pub use network_proxy_spec::StartedNetworkProxy;
@@ -265,7 +265,7 @@ pub const CONFIG_TOML_FILE: &str = "config.toml";
 const CONFIG_PROFILE_V2_SUFFIX: &str = ".config.toml";
 
 fn resolve_sqlite_home_env(resolved_cwd: &Path) -> Option<PathBuf> {
-    let raw = std::env::var(codex_state::SQLITE_HOME_ENV).ok()?;
+    let raw = std::env::var(codepilotx_state::SQLITE_HOME_ENV).ok()?;
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return None;
@@ -306,11 +306,11 @@ fn resolve_mcp_oauth_credentials_store_mode(
 
 #[cfg(test)]
 pub(crate) async fn test_config() -> Config {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
+    let codepilotx_home = tempfile::tempdir().expect("create temp dir");
     Config::load_from_base_config_with_overrides(
         ConfigToml::default(),
         ConfigOverrides::default(),
-        AbsolutePathBuf::from_absolute_path(codex_home.path()).expect("temp dir should resolve"),
+        AbsolutePathBuf::from_absolute_path(codepilotx_home.path()).expect("temp dir should resolve"),
     )
     .await
     .expect("load default test config")
@@ -558,7 +558,7 @@ fn profile_allows_configured_network_proxy(permission_profile: &PermissionProfil
 
 fn build_network_proxy_spec(
     configured_network_proxy_config: NetworkProxyConfig,
-    network_requirements: Option<Sourced<codex_config::NetworkConstraints>>,
+    network_requirements: Option<Sourced<codepilotx_config::NetworkConstraints>>,
     permission_profile: &PermissionProfile,
 ) -> std::io::Result<Option<NetworkProxySpec>> {
     let (network_requirements, network_requirements_source) = match network_requirements {
@@ -818,7 +818,7 @@ pub struct Config {
     /// keyring: Use an OS-specific keyring service.
     ///          Credentials stored in the keyring will only be readable by Codex unless the user explicitly grants access via OS-level keyring access.
     ///          https://github.com/openai/codex/blob/main/codex-rs/rmcp-client/src/oauth.rs#L2
-    /// file: CODEX_HOME/.credentials.json
+    /// file: codepilotx_HOME/.credentials.json
     ///       This file will be readable to Codex and other applications running as the same user.
     /// auto (default): keyring if available, otherwise file.
     pub mcp_oauth_credentials_store_mode: OAuthCredentialsStoreMode,
@@ -865,13 +865,13 @@ pub struct Config {
     pub memories: MemoriesConfig,
 
     /// Directory containing all Codex state (defaults to `~/.codex` but can be
-    /// overridden by the `CODEX_HOME` environment variable).
-    pub codex_home: AbsolutePathBuf,
+    /// overridden by the `codepilotx_HOME` environment variable).
+    pub codepilotx_home: AbsolutePathBuf,
 
     /// Directory where Codex stores the SQLite state DB.
     pub sqlite_home: PathBuf,
 
-    /// Directory where Codex writes log files (defaults to `$CODEX_HOME/log`).
+    /// Directory where Codex writes log files (defaults to `$codepilotx_HOME/log`).
     pub log_dir: PathBuf,
 
     /// Directory where Codex writes effective session config lock files.
@@ -879,7 +879,7 @@ pub struct Config {
 
     /// Whether config lock replay ignores Codex version drift between the
     /// lock metadata and the regenerated lock.
-    pub config_lock_allow_codex_version_mismatch: bool,
+    pub config_lock_allow_codepilotx_version_mismatch: bool,
 
     /// Whether config lock creation saves values resolved from the model
     /// catalog/session configuration.
@@ -908,15 +908,15 @@ pub struct Config {
 
     /// Path to the current Codex executable. This cannot be set in the config
     /// file: it must be set in code via [`ConfigOverrides`].
-    pub codex_self_exe: Option<PathBuf>,
+    pub codepilotx_self_exe: Option<PathBuf>,
 
     /// Path to the `codex-linux-sandbox` executable. This must be set if
-    /// [`codex_sandboxing::SandboxType::LinuxSeccomp`] is used. Note that this
+    /// [`codepilotx_sandboxing::SandboxType::LinuxSeccomp`] is used. Note that this
     /// cannot be set in the config file: it must be set in code via
     /// [`ConfigOverrides`].
     ///
     /// When this program is invoked, arg0 will be set to `codex-linux-sandbox`.
-    pub codex_linux_sandbox_exe: Option<PathBuf>,
+    pub codepilotx_linux_sandbox_exe: Option<PathBuf>,
 
     /// Path to the `codex-execve-wrapper` executable used for shell
     /// escalation. This cannot be set in the config file: it must be set in
@@ -1069,7 +1069,7 @@ pub struct Config {
     pub tool_suggest: ToolSuggestConfig,
 
     /// OTEL configuration (exporter type, endpoint, headers, etc.).
-    pub otel: codex_config::types::OtelConfig,
+    pub otel: codepilotx_config::types::OtelConfig,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
@@ -1186,8 +1186,8 @@ pub struct TerminalResizeReflowConfig {
 }
 
 impl AuthManagerConfig for Config {
-    fn codex_home(&self) -> PathBuf {
-        self.codex_home.to_path_buf()
+    fn codepilotx_home(&self) -> PathBuf {
+        self.codepilotx_home.to_path_buf()
     }
 
     fn cli_auth_credentials_store_mode(&self) -> AuthCredentialsStoreMode {
@@ -1209,7 +1209,7 @@ impl AuthManagerConfig for Config {
 
 #[derive(Clone, Default)]
 pub struct ConfigBuilder {
-    codex_home: Option<PathBuf>,
+    codepilotx_home: Option<PathBuf>,
     cli_overrides: Option<Vec<(String, TomlValue)>>,
     harness_overrides: Option<ConfigOverrides>,
     loader_overrides: Option<LoaderOverrides>,
@@ -1220,8 +1220,8 @@ pub struct ConfigBuilder {
 }
 
 impl ConfigBuilder {
-    pub fn codex_home(mut self, codex_home: PathBuf) -> Self {
-        self.codex_home = Some(codex_home);
+    pub fn codepilotx_home(mut self, codepilotx_home: PathBuf) -> Self {
+        self.codepilotx_home = Some(codepilotx_home);
         self
     }
 
@@ -1270,7 +1270,7 @@ impl ConfigBuilder {
 
     async fn build_inner(self) -> std::io::Result<Config> {
         let Self {
-            codex_home,
+            codepilotx_home,
             cli_overrides,
             harness_overrides,
             loader_overrides,
@@ -1279,9 +1279,9 @@ impl ConfigBuilder {
             thread_config_loader,
             fallback_cwd,
         } = self;
-        let codex_home = match codex_home {
-            Some(codex_home) => AbsolutePathBuf::from_absolute_path(codex_home)?,
-            None => find_codex_home()?,
+        let codepilotx_home = match codepilotx_home {
+            Some(codepilotx_home) => AbsolutePathBuf::from_absolute_path(codepilotx_home)?,
+            None => find_codepilotx_home()?,
         };
         let cli_overrides = cli_overrides.unwrap_or_default();
         let mut harness_overrides = harness_overrides.unwrap_or_default();
@@ -1294,7 +1294,7 @@ impl ConfigBuilder {
         harness_overrides.cwd = Some(cwd.to_path_buf());
         let config_layer_stack = load_config_layers_state(
             LOCAL_FS.as_ref(),
-            &codex_home,
+            &codepilotx_home,
             Some(cwd),
             &cli_overrides,
             ConfigLoadOptions {
@@ -1304,7 +1304,7 @@ impl ConfigBuilder {
             },
             thread_config_loader
                 .as_deref()
-                .unwrap_or(&codex_config::NoopThreadConfigLoader),
+                .unwrap_or(&codepilotx_config::NoopThreadConfigLoader),
         )
         .await?;
         let merged_toml = config_layer_stack.effective_config();
@@ -1316,13 +1316,13 @@ impl ConfigBuilder {
         let config_toml: ConfigToml = match merged_toml.try_into() {
             Ok(config_toml) => config_toml,
             Err(err) => {
-                if let Some(config_error) = codex_config::first_layer_config_error::<ConfigToml>(
+                if let Some(config_error) = codepilotx_config::first_layer_config_error::<ConfigToml>(
                     &config_layer_stack,
-                    codex_config::CONFIG_TOML_FILE,
+                    codepilotx_config::CONFIG_TOML_FILE,
                 )
                 .await
                 {
-                    return Err(codex_config::io_error_from_config_error(
+                    return Err(codepilotx_config::io_error_from_config_error(
                         std::io::ErrorKind::InvalidData,
                         config_error,
                         Some(err),
@@ -1338,8 +1338,8 @@ impl ConfigBuilder {
         if let Some(config_lock_load_path) =
             config_lock_settings.and_then(|config_lock| config_lock.load_path.as_ref())
         {
-            let allow_codex_version_mismatch = config_lock_settings
-                .and_then(|config_lock| config_lock.allow_codex_version_mismatch)
+            let allow_codepilotx_version_mismatch = config_lock_settings
+                .and_then(|config_lock| config_lock.allow_codepilotx_version_mismatch)
                 .unwrap_or(false);
             let save_fields_resolved_from_model_catalog = config_lock_settings
                 .and_then(|config_lock| config_lock.save_fields_resolved_from_model_catalog)
@@ -1357,12 +1357,12 @@ impl ConfigBuilder {
                 LOCAL_FS.as_ref(),
                 lock_config_toml,
                 harness_overrides,
-                codex_home,
+                codepilotx_home,
                 lock_config_layer_stack,
             )
             .await?;
             config.config_lock_toml = Some(Arc::new(expected_lock_config));
-            config.config_lock_allow_codex_version_mismatch = allow_codex_version_mismatch;
+            config.config_lock_allow_codepilotx_version_mismatch = allow_codepilotx_version_mismatch;
             config.config_lock_save_fields_resolved_from_model_catalog =
                 save_fields_resolved_from_model_catalog;
             return Ok(config);
@@ -1371,7 +1371,7 @@ impl ConfigBuilder {
             LOCAL_FS.as_ref(),
             config_toml,
             harness_overrides,
-            codex_home,
+            codepilotx_home,
             config_layer_stack,
         )
         .await
@@ -1490,7 +1490,7 @@ impl Config {
 
     pub async fn to_mcp_config(
         &self,
-        plugins_manager: &codex_core_plugins::PluginsManager,
+        plugins_manager: &codepilotx_core_plugins::PluginsManager,
     ) -> McpConfig {
         self.to_mcp_config_with_plugin_registrations(
             plugins_manager,
@@ -1501,7 +1501,7 @@ impl Config {
 
     pub(crate) async fn to_mcp_config_with_plugin_registrations(
         &self,
-        plugins_manager: &codex_core_plugins::PluginsManager,
+        plugins_manager: &codepilotx_core_plugins::PluginsManager,
         additional_plugin_registrations: impl IntoIterator<Item = McpServerRegistration>,
     ) -> McpConfig {
         let plugins_input = self.plugins_config_input();
@@ -1541,7 +1541,7 @@ impl Config {
         McpConfig {
             chatgpt_base_url: self.chatgpt_base_url.clone(),
             apps_mcp_product_sku: self.apps_mcp_product_sku.clone(),
-            codex_home: self.codex_home.to_path_buf(),
+            codepilotx_home: self.codepilotx_home.to_path_buf(),
             mcp_oauth_credentials_store_mode: self.mcp_oauth_credentials_store_mode,
             auth_keyring_backend_kind: self.auth_keyring_backend_kind(),
             mcp_oauth_callback_port: self.mcp_oauth_callback_port,
@@ -1550,7 +1550,7 @@ impl Config {
                 .features
                 .enabled(Feature::SkillMcpDependencyInstall),
             approval_policy: self.permissions.approval_policy.clone(),
-            codex_linux_sandbox_exe: self.codex_linux_sandbox_exe.clone(),
+            codepilotx_linux_sandbox_exe: self.codepilotx_linux_sandbox_exe.clone(),
             use_legacy_landlock: self.features.use_legacy_landlock(),
             apps_enabled: self.features.enabled(Feature::Apps),
             prefix_mcp_tool_names: self.prefix_mcp_tool_names(),
@@ -1630,7 +1630,7 @@ impl Config {
                 default_zsh_path,
                 ..Default::default()
             },
-            refreshed_config.codex_home.clone(),
+            refreshed_config.codepilotx_home.clone(),
             config_layer_stack,
         )
         .await
@@ -1650,9 +1650,9 @@ impl Config {
     pub async fn load_default_with_cli_overrides(
         cli_overrides: Vec<(String, TomlValue)>,
     ) -> std::io::Result<Self> {
-        let codex_home = find_codex_home()?;
-        Self::load_default_with_cli_overrides_for_codex_home(
-            codex_home.to_path_buf(),
+        let codepilotx_home = find_codepilotx_home()?;
+        Self::load_default_with_cli_overrides_for_codepilotx_home(
+            codepilotx_home.to_path_buf(),
             cli_overrides,
         )
         .await
@@ -1660,8 +1660,8 @@ impl Config {
 
     /// Load a default configuration for a specific Codex home without reading
     /// user, project, or system config layers.
-    pub async fn load_default_with_cli_overrides_for_codex_home(
-        codex_home: PathBuf,
+    pub async fn load_default_with_cli_overrides_for_codepilotx_home(
+        codepilotx_home: PathBuf,
         cli_overrides: Vec<(String, TomlValue)>,
     ) -> std::io::Result<Self> {
         let mut merged = toml::Value::try_from(ConfigToml::default()).map_err(|e| {
@@ -1670,15 +1670,15 @@ impl Config {
                 format!("failed to serialize default config: {e}"),
             )
         })?;
-        let cli_layer = codex_config::build_cli_overrides_layer(&cli_overrides);
-        codex_config::merge_toml_values(&mut merged, &cli_layer);
-        let codex_home = AbsolutePathBuf::from_absolute_path_checked(codex_home)?;
-        let config_toml = deserialize_config_toml_with_base(merged, &codex_home)?;
+        let cli_layer = codepilotx_config::build_cli_overrides_layer(&cli_overrides);
+        codepilotx_config::merge_toml_values(&mut merged, &cli_layer);
+        let codepilotx_home = AbsolutePathBuf::from_absolute_path_checked(codepilotx_home)?;
+        let config_toml = deserialize_config_toml_with_base(merged, &codepilotx_home)?;
         Self::load_config_with_layer_stack(
             LOCAL_FS.as_ref(),
             config_toml,
             ConfigOverrides::default(),
-            codex_home,
+            codepilotx_home,
             ConfigLayerStack::default(),
         )
         .await
@@ -1689,7 +1689,7 @@ impl Config {
     /// designed to use [AskForApproval::Never] exclusively.
     ///
     /// Further, [ConfigOverrides] contains some options that are not supported
-    /// in [ConfigToml], such as `cwd`, `codex_self_exe`, `codex_linux_sandbox_exe`, and
+    /// in [ConfigToml], such as `cwd`, `codepilotx_self_exe`, `codepilotx_linux_sandbox_exe`, and
     /// `main_execve_wrapper_exe`.
     pub async fn load_with_cli_overrides_and_harness_overrides(
         cli_overrides: Vec<(String, TomlValue)>,
@@ -1704,12 +1704,12 @@ impl Config {
 }
 
 pub fn resolve_profile_v2_config_path(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     profile_name: &ProfileV2Name,
 ) -> AbsolutePathBuf {
     AbsolutePathBuf::resolve_path_against_base(
         format!("{profile_name}{CONFIG_PROFILE_V2_SUFFIX}"),
-        codex_home,
+        codepilotx_home,
     )
 }
 
@@ -1717,13 +1717,13 @@ pub fn resolve_profile_v2_config_path(
 /// with [ConfigToml] directly means that [ConfigRequirements] have not been
 /// applied yet, which risks failing to enforce required constraints.
 pub async fn load_config_as_toml_with_cli_overrides(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     cwd: Option<&AbsolutePathBuf>,
     cli_overrides: Vec<(String, TomlValue)>,
     loader_overrides: LoaderOverrides,
 ) -> std::io::Result<ConfigToml> {
     load_config_as_toml_with_cli_and_loader_overrides(
-        codex_home,
+        codepilotx_home,
         cwd,
         cli_overrides,
         loader_overrides,
@@ -1736,12 +1736,12 @@ pub async fn load_config_as_toml_with_cli_overrides(
 /// [ConfigRequirements] have not been applied yet, which risks skipping
 /// required constraints.
 pub async fn load_config_as_toml_with_cli_and_loader_overrides(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     cwd: Option<&AbsolutePathBuf>,
     cli_overrides: Vec<(String, TomlValue)>,
     loader_overrides: LoaderOverrides,
 ) -> std::io::Result<ConfigToml> {
-    load_config_as_toml_with_cli_and_load_options(codex_home, cwd, cli_overrides, loader_overrides)
+    load_config_as_toml_with_cli_and_load_options(codepilotx_home, cwd, cli_overrides, loader_overrides)
         .await
 }
 
@@ -1750,12 +1750,12 @@ pub async fn load_config_as_toml_with_cli_and_loader_overrides(
 /// [ConfigRequirements] have not been applied yet, which risks skipping
 /// required constraints.
 pub async fn load_config_as_toml_with_cli_and_load_options(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     cwd: Option<&AbsolutePathBuf>,
     cli_overrides: Vec<(String, TomlValue)>,
     options: impl Into<ConfigLoadOptions>,
 ) -> std::io::Result<ConfigToml> {
-    load_config_toml_with_layer_stack(codex_home, cwd, cli_overrides, options)
+    load_config_toml_with_layer_stack(codepilotx_home, cwd, cli_overrides, options)
         .await
         .map(|result| result.config_toml)
 }
@@ -1773,23 +1773,23 @@ pub struct ConfigTomlLoadResult {
 /// Loads the partially merged config together with the layer stack used to
 /// derive it, before constructing a full [`Config`].
 pub async fn load_config_toml_with_layer_stack(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     cwd: Option<&AbsolutePathBuf>,
     cli_overrides: Vec<(String, TomlValue)>,
     options: impl Into<ConfigLoadOptions>,
 ) -> std::io::Result<ConfigTomlLoadResult> {
     let config_layer_stack = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        codex_home,
+        codepilotx_home,
         cwd.cloned(),
         &cli_overrides,
         options,
-        &codex_config::NoopThreadConfigLoader,
+        &codepilotx_config::NoopThreadConfigLoader,
     )
     .await?;
 
     let merged_toml = config_layer_stack.effective_config();
-    let cfg = deserialize_config_toml_with_base(merged_toml, codex_home).map_err(|e| {
+    let cfg = deserialize_config_toml_with_base(merged_toml, codepilotx_home).map_err(|e| {
         tracing::error!("Failed to deserialize overridden config: {e}");
         e
     })?;
@@ -1978,7 +1978,7 @@ fn mcp_server_matches_requirement(
 }
 
 pub async fn load_global_mcp_servers(
-    codex_home: &Path,
+    codepilotx_home: &Path,
 ) -> std::io::Result<BTreeMap<String, McpServerConfig>> {
     // In general, Config::load_with_cli_overrides() should be used to load the
     // full config with requirements.toml applied, but in this case, we need
@@ -1993,11 +1993,11 @@ pub async fn load_global_mcp_servers(
     let cwd: Option<AbsolutePathBuf> = None;
     let config_layer_stack = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        codex_home,
+        codepilotx_home,
         cwd,
         &cli_overrides,
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &codepilotx_config::NoopThreadConfigLoader,
     )
     .await?;
     let merged_toml = config_layer_stack.effective_config();
@@ -2103,23 +2103,23 @@ pub(crate) fn set_project_trust_level_inner(
     Ok(())
 }
 
-/// Patch `CODEX_HOME/config.toml` project state to set trust level.
+/// Patch `codepilotx_HOME/config.toml` project state to set trust level.
 /// Use with caution.
 pub fn set_project_trust_level(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     project_path: &Path,
     trust_level: TrustLevel,
 ) -> anyhow::Result<()> {
     use crate::config::edit::ConfigEditsBuilder;
 
-    ConfigEditsBuilder::new(codex_home)
+    ConfigEditsBuilder::new(codepilotx_home)
         .set_project_trust_level(project_path, trust_level)
         .apply_blocking()
 }
 
 /// Save the default OSS provider preference to config.toml
-pub fn set_default_oss_provider(codex_home: &Path, provider: &str) -> std::io::Result<()> {
-    codex_config::config_toml::validate_oss_provider(provider)?;
+pub fn set_default_oss_provider(codepilotx_home: &Path, provider: &str) -> std::io::Result<()> {
+    codepilotx_config::config_toml::validate_oss_provider(provider)?;
     use toml_edit::value;
 
     let edits = [ConfigEdit::SetPath {
@@ -2127,7 +2127,7 @@ pub fn set_default_oss_provider(codex_home: &Path, provider: &str) -> std::io::R
         value: value(provider),
     }];
 
-    ConfigEditsBuilder::new(codex_home)
+    ConfigEditsBuilder::new(codepilotx_home)
         .with_edits(edits)
         .apply_blocking()
         .map_err(|err| std::io::Error::other(format!("failed to persist config.toml: {err}")))
@@ -2344,23 +2344,23 @@ fn resolve_permission_config_syntax(
 
 fn apply_managed_filesystem_constraints(
     file_system_sandbox_policy: &mut FileSystemSandboxPolicy,
-    filesystem_constraints: &codex_config::FilesystemConstraints,
+    filesystem_constraints: &codepilotx_config::FilesystemConstraints,
 ) {
     for deny_read in &filesystem_constraints.deny_read {
         let deny_entry = if deny_read.contains_glob() {
-            codex_protocol::permissions::FileSystemSandboxEntry {
-                path: codex_protocol::permissions::FileSystemPath::GlobPattern {
+            codepilotx_protocol::permissions::FileSystemSandboxEntry {
+                path: codepilotx_protocol::permissions::FileSystemPath::GlobPattern {
                     pattern: deny_read.as_str().to_string(),
                 },
-                access: codex_protocol::permissions::FileSystemAccessMode::Deny,
+                access: codepilotx_protocol::permissions::FileSystemAccessMode::Deny,
             }
         } else {
             let Ok(path) = AbsolutePathBuf::try_from(deny_read.as_str()) else {
                 continue;
             };
-            codex_protocol::permissions::FileSystemSandboxEntry {
-                path: codex_protocol::permissions::FileSystemPath::Path { path },
-                access: codex_protocol::permissions::FileSystemAccessMode::Deny,
+            codepilotx_protocol::permissions::FileSystemSandboxEntry {
+                path: codepilotx_protocol::permissions::FileSystemPath::Path { path },
+                access: codepilotx_protocol::permissions::FileSystemAccessMode::Deny,
             }
         };
         if !file_system_sandbox_policy
@@ -2386,8 +2386,8 @@ pub struct ConfigOverrides {
     pub default_permissions: Option<String>,
     pub model_provider: Option<String>,
     pub service_tier: Option<Option<String>>,
-    pub codex_self_exe: Option<PathBuf>,
-    pub codex_linux_sandbox_exe: Option<PathBuf>,
+    pub codepilotx_self_exe: Option<PathBuf>,
+    pub codepilotx_linux_sandbox_exe: Option<PathBuf>,
     pub main_execve_wrapper_exe: Option<PathBuf>,
     pub default_zsh_path: Option<AbsolutePathBuf>,
     pub base_instructions: Option<String>,
@@ -2456,7 +2456,7 @@ fn resolve_experimental_request_user_input_enabled(config_toml: &ConfigToml) -> 
 }
 
 fn resolve_orchestrator_feature_enabled(
-    feature: Option<&codex_config::config_toml::OrchestratorFeatureToml>,
+    feature: Option<&codepilotx_config::config_toml::OrchestratorFeatureToml>,
 ) -> bool {
     feature.and_then(|feature| feature.enabled).unwrap_or(true)
 }
@@ -2865,7 +2865,7 @@ impl Config {
     async fn load_from_base_config_with_overrides(
         cfg: ConfigToml,
         overrides: ConfigOverrides,
-        codex_home: AbsolutePathBuf,
+        codepilotx_home: AbsolutePathBuf,
     ) -> std::io::Result<Self> {
         // Note this ignores requirements.toml enforcement for tests.
         let config_layer_stack = ConfigLayerStack::default();
@@ -2873,7 +2873,7 @@ impl Config {
             LOCAL_FS.as_ref(),
             cfg,
             overrides,
-            codex_home,
+            codepilotx_home,
             config_layer_stack,
         )
         .await
@@ -2883,7 +2883,7 @@ impl Config {
         fs: &dyn ExecutorFileSystem,
         cfg: ConfigToml,
         overrides: ConfigOverrides,
-        codex_home: AbsolutePathBuf,
+        codepilotx_home: AbsolutePathBuf,
         config_layer_stack: ConfigLayerStack,
     ) -> std::io::Result<Self> {
         // Keep the large config-construction future off small test thread stacks.
@@ -2942,8 +2942,8 @@ impl Config {
             default_permissions: default_permissions_override,
             model_provider,
             service_tier: service_tier_override,
-            codex_self_exe,
-            codex_linux_sandbox_exe,
+            codepilotx_self_exe,
+            codepilotx_linux_sandbox_exe,
             main_execve_wrapper_exe,
             default_zsh_path,
             base_instructions,
@@ -3100,7 +3100,7 @@ impl Config {
             None => WindowsSandboxLevel::Disabled,
         };
         let memories_config: MemoriesConfig = cfg.memories.clone().unwrap_or_default().into();
-        let memories_root = memory_root(&codex_home);
+        let memories_root = memory_root(&codepilotx_home);
 
         let profiles_are_active = effective_permission_selection.profiles_are_active(
             default_permissions_override.as_deref(),
@@ -3512,7 +3512,7 @@ impl Config {
         let forced_chatgpt_workspace_id = cfg
             .forced_chatgpt_workspace_id
             .clone()
-            .map(codex_config::config_toml::ForcedChatgptWorkspaceIds::into_vec)
+            .map(codepilotx_config::config_toml::ForcedChatgptWorkspaceIds::into_vec)
             .map(|values| {
                 values
                     .into_iter()
@@ -3612,13 +3612,13 @@ impl Config {
             .log_dir
             .as_ref()
             .map(AbsolutePathBuf::to_path_buf)
-            .unwrap_or_else(|| codex_home.join("log").to_path_buf());
+            .unwrap_or_else(|| codepilotx_home.join("log").to_path_buf());
         let sqlite_home = cfg
             .sqlite_home
             .as_ref()
             .map(AbsolutePathBuf::to_path_buf)
             .or_else(|| resolve_sqlite_home_env(&resolved_cwd))
-            .unwrap_or_else(|| codex_home.to_path_buf());
+            .unwrap_or_else(|| codepilotx_home.to_path_buf());
         let original_permission_profile = permission_profile.clone();
         apply_requirement_constrained_value(
             "approval_policy",
@@ -3698,8 +3698,8 @@ impl Config {
             network_requirements,
             &network_permission_profile,
         )?;
-        let mut helper_readable_roots = get_readable_roots_required_for_codex_runtime(
-            &codex_home,
+        let mut helper_readable_roots = get_readable_roots_required_for_codepilotx_runtime(
+            &codepilotx_home,
             zsh_path.as_ref(),
             main_execve_wrapper_exe.as_ref(),
         );
@@ -3819,7 +3819,7 @@ impl Config {
             memories: memories_config,
             agent_job_max_runtime_seconds,
             agent_interrupt_message_enabled,
-            codex_home,
+            codepilotx_home,
             sqlite_home,
             log_dir,
             config_lock_export_dir: cfg
@@ -3827,11 +3827,11 @@ impl Config {
                 .as_ref()
                 .and_then(|debug| debug.config_lockfile.as_ref())
                 .and_then(|config_lock| config_lock.export_dir.clone()),
-            config_lock_allow_codex_version_mismatch: cfg
+            config_lock_allow_codepilotx_version_mismatch: cfg
                 .debug
                 .as_ref()
                 .and_then(|debug| debug.config_lockfile.as_ref())
-                .and_then(|config_lock| config_lock.allow_codex_version_mismatch)
+                .and_then(|config_lock| config_lock.allow_codepilotx_version_mismatch)
                 .unwrap_or(false),
             config_lock_save_fields_resolved_from_model_catalog: cfg
                 .debug
@@ -3846,8 +3846,8 @@ impl Config {
             extra_config: None,
             bypass_hook_trust,
             file_opener: cfg.file_opener.unwrap_or(UriBasedFileOpener::VsCode),
-            codex_self_exe,
-            codex_linux_sandbox_exe,
+            codepilotx_self_exe,
+            codepilotx_linux_sandbox_exe,
             main_execve_wrapper_exe,
             zsh_path,
 
@@ -4284,16 +4284,16 @@ fn normalize_guardian_policy_config(value: Option<&str>) -> Option<String> {
     })
 }
 
-/// Returns the path to the Codex configuration directory, which can be
-/// specified by the `CODEX_HOME` environment variable. If not set, defaults to
-/// `~/.codex`.
+/// Returns the path to the CodePilotX configuration directory, using the
+/// following resolution order:
 ///
-/// - If `CODEX_HOME` is set, the value must exist and be a directory. The
-///   value will be canonicalized and this function will Err otherwise.
-/// - If `CODEX_HOME` is not set, this function does not verify that the
-///   directory exists.
-pub fn find_codex_home() -> std::io::Result<AbsolutePathBuf> {
-    codex_utils_home_dir::find_codex_home()
+/// 1. `CODEPILOTX_CONFIG_DIR` environment variable
+/// 2. `codepilotx_HOME` environment variable (legacy)
+/// 3. Existing `~/.codepilotx` directory
+/// 4. Existing `~/.codex` directory (legacy)
+/// 5. `~/.codepilotx` (default, not created)
+pub fn find_codepilotx_home() -> std::io::Result<AbsolutePathBuf> {
+    codepilotx_utils_home_dir::find_codepilotx_home()
 }
 
 /// Returns the path to the folder where Codex logs are stored. Does not verify

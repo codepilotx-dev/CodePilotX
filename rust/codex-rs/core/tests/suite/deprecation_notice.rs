@@ -1,9 +1,9 @@
 #![cfg(not(target_os = "windows"))]
 
 use anyhow::Ok;
-use codex_features::Feature;
-use codex_protocol::protocol::DeprecationNoticeEvent;
-use codex_protocol::protocol::EventMsg;
+use codepilotx_features::Feature;
+use codepilotx_protocol::protocol::DeprecationNoticeEvent;
+use codepilotx_protocol::protocol::EventMsg;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_codex::TestCodex;

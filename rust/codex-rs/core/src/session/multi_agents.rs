@@ -1,9 +1,9 @@
 use crate::config::MultiAgentV2Config;
 use crate::session::turn_context::TurnContext;
-use codex_protocol::config_types::MultiAgentMode;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
+use codepilotx_protocol::config_types::MultiAgentMode;
+use codepilotx_protocol::protocol::MultiAgentVersion;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
 
 pub(super) fn usage_hint_text<'a>(
     turn_context: &'a TurnContext,

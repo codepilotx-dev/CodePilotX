@@ -6,9 +6,9 @@ use crate::tools::context::boxed_tool_output;
 use crate::tools::handlers::agent_jobs_spec::create_spawn_agents_on_csv_tool;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSpec;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 use super::*;
 
@@ -23,7 +23,7 @@ impl ToolExecutor<ToolInvocation> for SpawnAgentsOnCsvHandler {
         create_spawn_agents_on_csv_tool()
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }
@@ -142,7 +142,7 @@ pub async fn handle(
             .zip(row.iter())
             .map(|(header, value)| (header.clone(), Value::String(value.clone())))
             .collect::<serde_json::Map<_, _>>();
-        items.push(codex_state::AgentJobItemCreateParams {
+        items.push(codepilotx_state::AgentJobItemCreateParams {
             item_id,
             row_index: idx as i64,
             source_id,
@@ -163,7 +163,7 @@ pub async fn handle(
     )?;
     let _job = db
         .create_agent_job(
-            &codex_state::AgentJobCreateParams {
+            &codepilotx_state::AgentJobCreateParams {
                 id: job_id.clone(),
                 name: job_name,
                 instruction: args.instruction,
@@ -249,7 +249,7 @@ pub async fn handle(
         let items = db
             .list_agent_job_items(
                 job_id.as_str(),
-                Some(codex_state::AgentJobItemStatus::Failed),
+                Some(codepilotx_state::AgentJobItemStatus::Failed),
                 Some(5),
             )
             .await

@@ -3,28 +3,28 @@
 use anyhow::Result;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::config::Config;
-use codex_core::config::CurrentTimeReminderConfig;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_features::CurrentTimeSource;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_models_manager::bundled_models_response;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::dynamic_tools::DynamicToolCallOutputContentItem;
-use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceTool;
-use codex_protocol::dynamic_tools::DynamicToolResponse;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
-use codex_web_search_extension::install as install_web_search_extension;
+use codepilotx_config::types::McpServerConfig;
+use codepilotx_config::types::McpServerTransportConfig;
+use codepilotx_core::config::Config;
+use codepilotx_core::config::CurrentTimeReminderConfig;
+use codepilotx_extension_api::ExtensionRegistryBuilder;
+use codepilotx_features::CurrentTimeSource;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_models_manager::bundled_models_response;
+use codepilotx_protocol::config_types::WebSearchMode;
+use codepilotx_protocol::dynamic_tools::DynamicToolCallOutputContentItem;
+use codepilotx_protocol::dynamic_tools::DynamicToolFunctionSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolNamespaceSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolNamespaceTool;
+use codepilotx_protocol::dynamic_tools::DynamicToolResponse;
+use codepilotx_protocol::dynamic_tools::DynamicToolSpec;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_web_search_extension::install as install_web_search_extension;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::apps_test_server::AppsTestToolLoading;
 use core_test_support::apps_test_server::DIRECT_CALENDAR_APP_ONLY_TOOL;
@@ -274,7 +274,7 @@ text(result);
     .await;
 
     let auth = CodexAuth::from_api_key("dummy");
-    let auth_manager = codex_core::test_support::auth_manager_from_auth(auth.clone());
+    let auth_manager = codepilotx_core::test_support::auth_manager_from_auth(auth.clone());
     let mut extension_builder = ExtensionRegistryBuilder::<Config>::new();
     install_web_search_extension(&mut extension_builder, auth_manager);
     let mut builder = test_codex()
@@ -544,7 +544,7 @@ async fn code_mode_only_guides_all_tools_search_and_calls_deferred_app_tools() -
                 "exec",
                 r#"
 const tool = ALL_TOOLS.find(
-  ({ name }) => name === "mcp__codex_apps__calendar_timezone_option_99"
+  ({ name }) => name === "mcp__codepilotx_apps__calendar_timezone_option_99"
 );
 if (!tool) {
   text(JSON.stringify({ found: false }));
@@ -679,7 +679,7 @@ text(JSON.stringify({{
   error,
 }}));
 "#,
-        visible_tool_name = "mcp__codex_apps__calendar_timezone_option_99",
+        visible_tool_name = "mcp__codepilotx_apps__calendar_timezone_option_99",
         tool_name = DIRECT_CALENDAR_APP_ONLY_TOOL,
     );
 
@@ -1028,7 +1028,7 @@ text(result.output);
             &custom_tool_output_items(&second_mock.single_request(), "call-1"),
             /*index*/ 1
         ),
-        "Warning: truncated output (original token count: 10)\nTotal output lines: 1\n\n0123456789â€¦5 tokens truncatedâ€¦0123456789"
+        "Warning: truncated output (original token count: 10)\nTotal output lines: 1\n\n0123456789â€? tokens truncatedâ€?123456789"
     );
 
     Ok(())
@@ -1091,7 +1091,7 @@ const result = await tools.exec_command({
   cmd: "python3 -c \"import sys; sys.stdout.write('A' * 90000)\"",
   max_output_tokens: 20000
 });
-const resultVariableWasTruncated = result.output.includes("â€¦2500 tokens truncatedâ€¦");
+const resultVariableWasTruncated = result.output.includes("â€?500 tokens truncatedâ€?);
 text(`Variable truncated: ${resultVariableWasTruncated ? "True" : "False"}. Variable: ${result.output}`);
 "#,
         TOKEN_POLICY_TEST_MODEL,
@@ -1273,7 +1273,7 @@ text(result.output);
             &custom_tool_output_items(&second_mock.single_request(), "call-1"),
             /*index*/ 1
         ),
-        "Warning: truncated output (original token count: 10)\nTotal output lines: 1\n\n0123456789â€¦5 tokens truncatedâ€¦0123456789"
+        "Warning: truncated output (original token count: 10)\nTotal output lines: 1\n\n0123456789â€? tokens truncatedâ€?123456789"
     );
 
     Ok(())
@@ -2492,7 +2492,7 @@ text("token one token two token three token four token five token six token seve
 Warning:\ truncated\ output\ \(original\ token\ count:\ \d+\)\n
 Total\ output\ lines:\ 1\n
 \n
-.*â€¦\d+\ tokens\ truncatedâ€¦.*
+.*â€¦\d+\ tokens\ truncatedâ€?*
 \z
 "#;
     assert_regex_match(expected_pattern, text_item(&second_items, /*index*/ 1));
@@ -3444,7 +3444,7 @@ async fn code_mode_can_call_hidden_dynamic_tools() -> Result<()> {
         .start_thread_with_tools(
             base_test.config.clone(),
             vec![DynamicToolSpec::Namespace(DynamicToolNamespaceSpec {
-                name: "codex_app".to_string(),
+                name: "codepilotx_app".to_string(),
                 description: "Codex app tools.".to_string(),
                 tools: vec![DynamicToolNamespaceTool::Function(
                     DynamicToolFunctionSpec {
@@ -3469,8 +3469,8 @@ async fn code_mode_can_call_hidden_dynamic_tools() -> Result<()> {
     test.session_configured = new_thread.session_configured;
 
     let code = r#"
-const tool = ALL_TOOLS.find(({ name }) => name === "codex_app__hidden_dynamic_tool");
-const out = await tools.codex_app__hidden_dynamic_tool({ city: "Paris" });
+const tool = ALL_TOOLS.find(({ name }) => name === "codepilotx_app__hidden_dynamic_tool");
+const out = await tools.codepilotx_app__hidden_dynamic_tool({ city: "Paris" });
 text(
   JSON.stringify({
     name: tool?.name ?? null,
@@ -3512,17 +3512,17 @@ text(
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
-                environments: Some(codex_protocol::protocol::TurnEnvironmentSelections::new(
+            thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
+                environments: Some(codepilotx_protocol::protocol::TurnEnvironmentSelections::new(
                     cwd,
                     Vec::new(),
                 )),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                    mode: codepilotx_protocol::config_types::ModeKind::Default,
+                    settings: codepilotx_protocol::config_types::Settings {
                         model: test.session_configured.model.clone(),
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -3543,7 +3543,7 @@ text(
         _ => None,
     })
     .await;
-    assert_eq!(request.namespace.as_deref(), Some("codex_app"));
+    assert_eq!(request.namespace.as_deref(), Some("codepilotx_app"));
     assert_eq!(request.tool, "hidden_dynamic_tool");
     assert_eq!(request.arguments, serde_json::json!({ "city": "Paris" }));
     test.codex
@@ -3577,7 +3577,7 @@ text(
     )?;
     assert_eq!(
         parsed.get("name"),
-        Some(&Value::String("codex_app__hidden_dynamic_tool".to_string()))
+        Some(&Value::String("codepilotx_app__hidden_dynamic_tool".to_string()))
     );
     assert_eq!(
         parsed.get("out"),
@@ -3591,7 +3591,7 @@ text(
                 description.contains("Codex app tools.")
                     && description.contains("A hidden dynamic tool.")
                     && description.contains("declare const tools:")
-                    && description.contains("codex_app__hidden_dynamic_tool(args:")
+                    && description.contains("codepilotx_app__hidden_dynamic_tool(args:")
             })
     );
 

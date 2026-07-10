@@ -2,23 +2,23 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::config::Config;
-use codex_config::McpServerConfig;
-use codex_core_plugins::PluginsManager;
-use codex_extension_api::ExtensionDataInit;
-use codex_extension_api::ExtensionRegistry;
-use codex_extension_api::McpServerContribution;
-use codex_extension_api::McpServerContributionContext;
-use codex_login::CodexAuth;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_mcp::EffectiveMcpServer;
-use codex_mcp::McpConfig;
-use codex_mcp::McpPluginAttribution;
-use codex_mcp::McpServerRegistration;
-use codex_mcp::codex_apps_mcp_server_config;
-use codex_mcp::configured_mcp_servers;
-use codex_mcp::effective_mcp_servers;
+use codepilotx_config::McpServerConfig;
+use codepilotx_core_plugins::PluginsManager;
+use codepilotx_extension_api::ExtensionDataInit;
+use codepilotx_extension_api::ExtensionRegistry;
+use codepilotx_extension_api::McpServerContribution;
+use codepilotx_extension_api::McpServerContributionContext;
+use codepilotx_login::CodexAuth;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
+use codepilotx_mcp::EffectiveMcpServer;
+use codepilotx_mcp::McpConfig;
+use codepilotx_mcp::McpPluginAttribution;
+use codepilotx_mcp::McpServerRegistration;
+use codepilotx_mcp::codepilotx_apps_mcp_server_config;
+use codepilotx_mcp::configured_mcp_servers;
+use codepilotx_mcp::effective_mcp_servers;
 
-const LEGACY_CODEX_APPS_REGISTRATION_ID: &str = "legacy_codex_apps";
+const LEGACY_codepilotx_APPS_REGISTRATION_ID: &str = "legacy_codepilotx_apps";
 
 enum OrderedMcpOverlay {
     Set {
@@ -44,7 +44,7 @@ impl McpManager {
     pub fn new(plugins_manager: Arc<PluginsManager>) -> Self {
         Self {
             plugins_manager,
-            extensions: codex_extension_api::empty_extension_registry(),
+            extensions: codepilotx_extension_api::empty_extension_registry(),
         }
     }
 
@@ -135,17 +135,17 @@ impl McpManager {
         let mut catalog = mcp_config.mcp_server_catalog.to_builder();
         if mcp_config.apps_enabled {
             catalog.register(McpServerRegistration::from_compatibility(
-                CODEX_APPS_MCP_SERVER_NAME.to_string(),
-                LEGACY_CODEX_APPS_REGISTRATION_ID,
-                codex_apps_mcp_server_config(
+                codepilotx_APPS_MCP_SERVER_NAME.to_string(),
+                LEGACY_codepilotx_APPS_REGISTRATION_ID,
+                codepilotx_apps_mcp_server_config(
                     &mcp_config.chatgpt_base_url,
                     mcp_config.apps_mcp_product_sku.as_deref(),
                 ),
             ));
         } else {
             catalog.remove_compatibility(
-                CODEX_APPS_MCP_SERVER_NAME.to_string(),
-                LEGACY_CODEX_APPS_REGISTRATION_ID,
+                codepilotx_APPS_MCP_SERVER_NAME.to_string(),
+                LEGACY_codepilotx_APPS_REGISTRATION_ID,
             );
         }
 

@@ -17,8 +17,8 @@ use crate::tools::handlers::parse_arguments;
 use crate::tools::handlers::test_sync_spec::create_test_sync_tool;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSpec;
 
 pub struct TestSyncHandler;
 
@@ -70,7 +70,7 @@ impl ToolExecutor<ToolInvocation> for TestSyncHandler {
         true
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }

@@ -1,6 +1,6 @@
-use codex_tools::JsonSchema;
-use codex_tools::ResponsesApiTool;
-use codex_tools::ToolSpec;
+use codepilotx_tools::JsonSchema;
+use codepilotx_tools::ResponsesApiTool;
+use codepilotx_tools::ToolSpec;
 use std::collections::BTreeMap;
 
 pub fn create_list_mcp_resources_tool() -> ToolSpec {

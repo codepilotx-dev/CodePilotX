@@ -5,38 +5,38 @@ use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_config::permissions_toml::FilesystemPermissionToml;
-use codex_config::permissions_toml::FilesystemPermissionsToml;
-use codex_config::permissions_toml::NetworkDomainPermissionToml;
-use codex_config::permissions_toml::NetworkDomainPermissionsToml;
-use codex_config::permissions_toml::NetworkToml;
-use codex_config::permissions_toml::NetworkUnixSocketPermissionToml;
-use codex_config::permissions_toml::NetworkUnixSocketPermissionsToml;
-use codex_config::permissions_toml::PermissionProfileToml;
-use codex_config::permissions_toml::PermissionsToml;
-use codex_config::permissions_toml::WorkspaceRootsToml;
-use codex_config::types::SandboxWorkspaceWrite;
-use codex_features::NetworkProxyConfigToml;
-use codex_features::NetworkProxyDomainPermissionToml;
-use codex_features::NetworkProxyModeToml;
-use codex_features::NetworkProxyUnixSocketPermissionToml;
-use codex_network_proxy::NetworkMode;
-use codex_network_proxy::NetworkProxyConfig;
+use codepilotx_config::permissions_toml::FilesystemPermissionToml;
+use codepilotx_config::permissions_toml::FilesystemPermissionsToml;
+use codepilotx_config::permissions_toml::NetworkDomainPermissionToml;
+use codepilotx_config::permissions_toml::NetworkDomainPermissionsToml;
+use codepilotx_config::permissions_toml::NetworkToml;
+use codepilotx_config::permissions_toml::NetworkUnixSocketPermissionToml;
+use codepilotx_config::permissions_toml::NetworkUnixSocketPermissionsToml;
+use codepilotx_config::permissions_toml::PermissionProfileToml;
+use codepilotx_config::permissions_toml::PermissionsToml;
+use codepilotx_config::permissions_toml::WorkspaceRootsToml;
+use codepilotx_config::types::SandboxWorkspaceWrite;
+use codepilotx_features::NetworkProxyConfigToml;
+use codepilotx_features::NetworkProxyDomainPermissionToml;
+use codepilotx_features::NetworkProxyModeToml;
+use codepilotx_features::NetworkProxyUnixSocketPermissionToml;
+use codepilotx_network_proxy::NetworkMode;
+use codepilotx_network_proxy::NetworkProxyConfig;
 #[cfg(test)]
-use codex_network_proxy::NetworkUnixSocketPermission as ProxyNetworkUnixSocketPermission;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::permissions::project_roots_glob_pattern;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_network_proxy::NetworkUnixSocketPermission as ProxyNetworkUnixSocketPermission;
+use codepilotx_protocol::config_types::WindowsSandboxLevel;
+use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
+use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
+use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::permissions::FileSystemAccessMode;
+use codepilotx_protocol::permissions::FileSystemPath;
+use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::permissions::FileSystemSpecialPath;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_protocol::permissions::project_roots_glob_pattern;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 use super::ProjectConfig;
 
@@ -478,12 +478,12 @@ pub(crate) fn reject_unknown_builtin_permission_profile(profile_name: &str) -> i
 /// Returns a list of paths that must be readable by shell tools in order
 /// for Codex to function. These should always be added to the
 /// `FileSystemSandboxPolicy` for a thread.
-pub(crate) fn get_readable_roots_required_for_codex_runtime(
-    codex_home: &Path,
+pub(crate) fn get_readable_roots_required_for_codepilotx_runtime(
+    codepilotx_home: &Path,
     zsh_path: Option<&PathBuf>,
     main_execve_wrapper_exe: Option<&PathBuf>,
 ) -> Vec<AbsolutePathBuf> {
-    let arg0_root = AbsolutePathBuf::from_absolute_path(codex_home.join("tmp").join("arg0")).ok();
+    let arg0_root = AbsolutePathBuf::from_absolute_path(codepilotx_home.join("tmp").join("arg0")).ok();
     let zsh_path = zsh_path.and_then(|path| AbsolutePathBuf::from_absolute_path(path).ok());
     let execve_wrapper_root = main_execve_wrapper_exe.and_then(|path| {
         let path = AbsolutePathBuf::from_absolute_path(path).ok()?;

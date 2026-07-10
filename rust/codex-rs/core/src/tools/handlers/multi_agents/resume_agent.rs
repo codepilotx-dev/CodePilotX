@@ -2,7 +2,7 @@ use super::*;
 use crate::agent::next_thread_spawn_depth;
 use crate::tools::handlers::multi_agents_spec::create_resume_agent_tool;
 use crate::turn_timing::now_unix_timestamp_ms;
-use codex_tools::ToolSpec;
+use codepilotx_tools::ToolSpec;
 use std::sync::Arc;
 
 pub(crate) struct Handler;
@@ -23,7 +23,7 @@ impl ToolExecutor<ToolInvocation> for Handler {
         )
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(async move { handle_resume_agent(invocation).await.map(boxed_tool_output) })
     }
 }

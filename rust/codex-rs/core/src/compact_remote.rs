@@ -18,23 +18,23 @@ use crate::responses_metadata::CompactionTurnMetadata;
 use crate::session::session::Session;
 use crate::session::turn::built_tools;
 use crate::session::turn_context::TurnContext;
-use codex_analytics::CompactionImplementation;
-use codex_analytics::CompactionPhase;
-use codex_analytics::CompactionReason;
-use codex_analytics::CompactionTrigger;
-use codex_app_server_protocol::AuthMode;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::items::ContextCompactionItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_rollout_trace::CompactionCheckpointTracePayload;
+use codepilotx_analytics::CompactionImplementation;
+use codepilotx_analytics::CompactionPhase;
+use codepilotx_analytics::CompactionReason;
+use codepilotx_analytics::CompactionTrigger;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result as CodexResult;
+use codepilotx_protocol::items::ContextCompactionItem;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::models::BaseInstructions;
+use codepilotx_protocol::models::FunctionCallOutputBody;
+use codepilotx_protocol::models::FunctionCallOutputPayload;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::protocol::CompactedItem;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::TurnStartedEvent;
+use codepilotx_rollout_trace::CompactionCheckpointTracePayload;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 
@@ -124,7 +124,7 @@ async fn run_remote_compact_task_inner(
             attempt
                 .track(
                     sess.as_ref(),
-                    codex_analytics::CompactionStatus::Interrupted,
+                    codepilotx_analytics::CompactionStatus::Interrupted,
                     Some(&error),
                     analytics_details,
                 )
@@ -142,21 +142,21 @@ async fn run_remote_compact_task_inner(
     )
     .await;
     let status = compaction_status_from_result(&result);
-    let codex_error = result.as_ref().err();
+    let codepilotx_error = result.as_ref().err();
     if result.is_ok() {
         let post_compact_outcome = run_post_compact_hooks(sess, turn_context, trigger).await;
         if let PostCompactHookOutcome::Stopped = post_compact_outcome {
             attempt
-                .track(sess.as_ref(), status, codex_error, analytics_details)
+                .track(sess.as_ref(), status, codepilotx_error, analytics_details)
                 .await;
             return Err(CodexErr::TurnAborted);
         }
     }
     attempt
-        .track(sess.as_ref(), status, codex_error, analytics_details)
+        .track(sess.as_ref(), status, codepilotx_error, analytics_details)
         .await;
     if let Err(err) = result {
-        sess.track_turn_codex_error(turn_context, &err);
+        sess.track_turn_codepilotx_error(turn_context, &err);
         let event = EventMsg::Error(
             err.to_error_event(Some("Error running remote compact task".to_string())),
         );

@@ -6,8 +6,8 @@ use anyhow::Result;
 use anyhow::anyhow;
 use chrono::DateTime;
 use chrono::Utc;
-use codex_features::CurrentTimeSource;
-use codex_protocol::ThreadId;
+use codepilotx_features::CurrentTimeSource;
+use codepilotx_protocol::ThreadId;
 
 use crate::config::CurrentTimeReminderConfig;
 

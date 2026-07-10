@@ -10,45 +10,45 @@ use async_channel::Sender;
 use async_channel::TrySendError;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_api::ApiError;
-use codex_api::Provider as ApiProvider;
-use codex_api::RealtimeAudioFrame;
-use codex_api::RealtimeEvent;
-use codex_api::RealtimeEventParser;
-use codex_api::RealtimeSessionConfig;
-use codex_api::RealtimeSessionMode;
-use codex_api::RealtimeWebsocketClient;
-use codex_api::RealtimeWebsocketEvents;
-use codex_api::RealtimeWebsocketWriter;
-use codex_api::map_api_error;
-use codex_app_server_protocol::AuthMode;
-use codex_config::config_toml::RealtimeWsMode;
-use codex_config::config_toml::RealtimeWsVersion;
-use codex_login::CodexAuth;
-use codex_login::default_client::default_headers;
-use codex_login::read_openai_api_key_from_env;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::ConversationAudioParams;
-use codex_protocol::protocol::ConversationSpeechParams;
-use codex_protocol::protocol::ConversationStartParams;
-use codex_protocol::protocol::ConversationStartTransport;
-use codex_protocol::protocol::ConversationTextParams;
-use codex_protocol::protocol::ConversationTextRole;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::RealtimeConversationClosedEvent;
-use codex_protocol::protocol::RealtimeConversationRealtimeEvent;
-use codex_protocol::protocol::RealtimeConversationSdpEvent;
-use codex_protocol::protocol::RealtimeConversationStartedEvent;
-use codex_protocol::protocol::RealtimeHandoffRequested;
-use codex_protocol::protocol::RealtimeOutputModality;
-use codex_protocol::protocol::RealtimeVoice;
-use codex_protocol::protocol::RealtimeVoicesList;
+use codepilotx_api::ApiError;
+use codepilotx_api::Provider as ApiProvider;
+use codepilotx_api::RealtimeAudioFrame;
+use codepilotx_api::RealtimeEvent;
+use codepilotx_api::RealtimeEventParser;
+use codepilotx_api::RealtimeSessionConfig;
+use codepilotx_api::RealtimeSessionMode;
+use codepilotx_api::RealtimeWebsocketClient;
+use codepilotx_api::RealtimeWebsocketEvents;
+use codepilotx_api::RealtimeWebsocketWriter;
+use codepilotx_api::map_api_error;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_config::config_toml::RealtimeWsMode;
+use codepilotx_config::config_toml::RealtimeWsVersion;
+use codepilotx_login::CodexAuth;
+use codepilotx_login::default_client::default_headers;
+use codepilotx_login::read_openai_api_key_from_env;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result as CodexResult;
+use codepilotx_protocol::models::MessagePhase;
+use codepilotx_protocol::protocol::CodexErrorInfo;
+use codepilotx_protocol::protocol::ConversationAudioParams;
+use codepilotx_protocol::protocol::ConversationSpeechParams;
+use codepilotx_protocol::protocol::ConversationStartParams;
+use codepilotx_protocol::protocol::ConversationStartTransport;
+use codepilotx_protocol::protocol::ConversationTextParams;
+use codepilotx_protocol::protocol::ConversationTextRole;
+use codepilotx_protocol::protocol::ErrorEvent;
+use codepilotx_protocol::protocol::Event;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::RealtimeConversationClosedEvent;
+use codepilotx_protocol::protocol::RealtimeConversationRealtimeEvent;
+use codepilotx_protocol::protocol::RealtimeConversationSdpEvent;
+use codepilotx_protocol::protocol::RealtimeConversationStartedEvent;
+use codepilotx_protocol::protocol::RealtimeHandoffRequested;
+use codepilotx_protocol::protocol::RealtimeOutputModality;
+use codepilotx_protocol::protocol::RealtimeVoice;
+use codepilotx_protocol::protocol::RealtimeVoicesList;
 use http::HeaderMap;
 use http::HeaderValue;
 use http::header::AUTHORIZATION;
@@ -108,9 +108,9 @@ struct RealtimeHandoffState {
     active_handoff: Arc<Mutex<Option<String>>>,
     last_output_text: Arc<Mutex<Option<String>>>,
     client_managed_handoffs: bool,
-    codex_responses_as_items: bool,
-    codex_response_item_prefix: Option<String>,
-    codex_response_handoff_prefix: Option<String>,
+    codepilotx_responses_as_items: bool,
+    codepilotx_response_item_prefix: Option<String>,
+    codepilotx_response_handoff_prefix: Option<String>,
     session_kind: RealtimeSessionKind,
 }
 
@@ -214,9 +214,9 @@ impl RealtimeHandoffState {
     fn new(
         output_tx: Sender<RealtimeOutbound>,
         client_managed_handoffs: bool,
-        codex_responses_as_items: bool,
-        codex_response_item_prefix: Option<String>,
-        codex_response_handoff_prefix: Option<String>,
+        codepilotx_responses_as_items: bool,
+        codepilotx_response_item_prefix: Option<String>,
+        codepilotx_response_handoff_prefix: Option<String>,
         session_kind: RealtimeSessionKind,
     ) -> Self {
         Self {
@@ -224,9 +224,9 @@ impl RealtimeHandoffState {
             active_handoff: Arc::new(Mutex::new(None)),
             last_output_text: Arc::new(Mutex::new(None)),
             client_managed_handoffs,
-            codex_responses_as_items,
-            codex_response_item_prefix,
-            codex_response_handoff_prefix,
+            codepilotx_responses_as_items,
+            codepilotx_response_item_prefix,
+            codepilotx_response_handoff_prefix,
             session_kind,
         }
     }
@@ -247,9 +247,9 @@ struct RealtimeStart {
     api_provider: ApiProvider,
     extra_headers: Option<HeaderMap>,
     client_managed_handoffs: bool,
-    codex_responses_as_items: bool,
-    codex_response_item_prefix: Option<String>,
-    codex_response_handoff_prefix: Option<String>,
+    codepilotx_responses_as_items: bool,
+    codepilotx_response_item_prefix: Option<String>,
+    codepilotx_response_handoff_prefix: Option<String>,
     realtime_call_api_provider: Option<ApiProvider>,
     session_config: RealtimeSessionConfig,
     model_client: ModelClient,
@@ -304,9 +304,9 @@ impl RealtimeConversationManager {
             api_provider,
             extra_headers,
             client_managed_handoffs,
-            codex_responses_as_items,
-            codex_response_item_prefix,
-            codex_response_handoff_prefix,
+            codepilotx_responses_as_items,
+            codepilotx_response_item_prefix,
+            codepilotx_response_handoff_prefix,
             realtime_call_api_provider,
             session_config,
             model_client,
@@ -331,9 +331,9 @@ impl RealtimeConversationManager {
         let handoff = RealtimeHandoffState::new(
             handoff_output_tx,
             client_managed_handoffs,
-            codex_responses_as_items,
-            codex_response_item_prefix,
-            codex_response_handoff_prefix,
+            codepilotx_responses_as_items,
+            codepilotx_response_item_prefix,
+            codepilotx_response_handoff_prefix,
             session_kind,
         );
         let input_channels = RealtimeInputChannels {
@@ -508,7 +508,7 @@ impl RealtimeConversationManager {
             return Ok(());
         }
         let response_handoff_prefix = match phase {
-            Some(MessagePhase::Commentary) => handoff.codex_response_handoff_prefix.clone(),
+            Some(MessagePhase::Commentary) => handoff.codepilotx_response_handoff_prefix.clone(),
             Some(MessagePhase::FinalAnswer) | None => None,
         };
         let active_handoff = handoff.active_handoff.lock().await.clone();
@@ -516,15 +516,15 @@ impl RealtimeConversationManager {
             Some(handoff_id) => {
                 let output_text = realtime_backend_output(output_text, handoff.session_kind);
                 *handoff.last_output_text.lock().await = Some(output_text.clone());
-                if handoff.codex_responses_as_items {
+                if handoff.codepilotx_responses_as_items {
                     RealtimeOutbound::ConversationItem {
                         text: realtime_backend_item(
                             output_text,
-                            handoff.codex_response_item_prefix.as_deref(),
+                            handoff.codepilotx_response_item_prefix.as_deref(),
                         ),
                     }
                 } else if handoff.session_kind == RealtimeSessionKind::V1
-                    && handoff.codex_response_handoff_prefix.is_some()
+                    && handoff.codepilotx_response_handoff_prefix.is_some()
                 {
                     RealtimeOutbound::HandoffAppend {
                         handoff_id,
@@ -543,11 +543,11 @@ impl RealtimeConversationManager {
             None if output_text.trim().is_empty() => return Ok(()),
             None => {
                 let output_text = realtime_backend_output(output_text, handoff.session_kind);
-                if handoff.codex_responses_as_items {
+                if handoff.codepilotx_responses_as_items {
                     RealtimeOutbound::ConversationItem {
                         text: realtime_backend_item(
                             output_text,
-                            handoff.codex_response_item_prefix.as_deref(),
+                            handoff.codepilotx_response_item_prefix.as_deref(),
                         ),
                     }
                 } else {
@@ -617,7 +617,7 @@ impl RealtimeConversationManager {
             return Ok(());
         };
 
-        let output = if handoff.codex_responses_as_items {
+        let output = if handoff.codepilotx_responses_as_items {
             RealtimeOutbound::HandoffCompleteAck { handoff_id }
         } else {
             RealtimeOutbound::CompletedHandoff {
@@ -715,9 +715,9 @@ struct PreparedRealtimeConversationStart {
     api_provider: ApiProvider,
     extra_headers: Option<HeaderMap>,
     client_managed_handoffs: bool,
-    codex_responses_as_items: bool,
-    codex_response_item_prefix: Option<String>,
-    codex_response_handoff_prefix: Option<String>,
+    codepilotx_responses_as_items: bool,
+    codepilotx_response_item_prefix: Option<String>,
+    codepilotx_response_handoff_prefix: Option<String>,
     realtime_call_api_provider: Option<ApiProvider>,
     requested_realtime_session_id: Option<String>,
     version: RealtimeWsVersion,
@@ -796,9 +796,9 @@ async fn prepare_realtime_start(
         api_provider,
         extra_headers,
         client_managed_handoffs: params.client_managed_handoffs,
-        codex_responses_as_items: params.codex_responses_as_items,
-        codex_response_item_prefix: params.codex_response_item_prefix,
-        codex_response_handoff_prefix: params.codex_response_handoff_prefix,
+        codepilotx_responses_as_items: params.codepilotx_responses_as_items,
+        codepilotx_response_item_prefix: params.codepilotx_response_item_prefix,
+        codepilotx_response_handoff_prefix: params.codepilotx_response_handoff_prefix,
         realtime_call_api_provider,
         requested_realtime_session_id,
         version,
@@ -962,9 +962,9 @@ async fn handle_start_inner(
         api_provider,
         extra_headers,
         client_managed_handoffs,
-        codex_responses_as_items,
-        codex_response_item_prefix,
-        codex_response_handoff_prefix,
+        codepilotx_responses_as_items,
+        codepilotx_response_item_prefix,
+        codepilotx_response_handoff_prefix,
         realtime_call_api_provider,
         requested_realtime_session_id,
         version,
@@ -980,9 +980,9 @@ async fn handle_start_inner(
         api_provider,
         extra_headers,
         client_managed_handoffs,
-        codex_responses_as_items,
-        codex_response_item_prefix,
-        codex_response_handoff_prefix,
+        codepilotx_responses_as_items,
+        codepilotx_response_item_prefix,
+        codepilotx_response_handoff_prefix,
         realtime_call_api_provider,
         session_config,
         model_client: sess.services.model_client.clone(),
@@ -1745,13 +1745,13 @@ async fn send_conversation_error(
     sess: &Arc<Session>,
     sub_id: String,
     message: String,
-    codex_error_info: CodexErrorInfo,
+    codepilotx_error_info: CodexErrorInfo,
 ) {
     sess.send_event_raw(Event {
         id: sub_id,
         msg: EventMsg::Error(ErrorEvent {
             message,
-            codex_error_info: Some(codex_error_info),
+            codepilotx_error_info: Some(codepilotx_error_info),
         }),
     })
     .await;

@@ -1,11 +1,11 @@
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::models::ResponseItem;
-use codex_utils_image::ImageProcessingError;
-use codex_utils_image::PromptImageMode;
-use codex_utils_image::PromptImageResizeLimits;
-use codex_utils_image::load_data_url_for_prompt;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::FunctionCallOutputContentItem;
+use codepilotx_protocol::models::ImageDetail;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_utils_image::ImageProcessingError;
+use codepilotx_utils_image::PromptImageMode;
+use codepilotx_utils_image::PromptImageResizeLimits;
+use codepilotx_utils_image::load_data_url_for_prompt;
 use tracing::warn;
 
 pub(crate) const IMAGE_PROCESSING_ERROR_PLACEHOLDER: &str =

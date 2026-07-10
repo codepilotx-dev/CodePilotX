@@ -7,15 +7,15 @@ use std::time::Instant;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_core::sandboxing::SandboxPermissions;
-use codex_features::Feature;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
+use codepilotx_core::sandboxing::SandboxPermissions;
+use codepilotx_features::Feature;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::permissions::FileSystemAccessMode;
+use codepilotx_protocol::permissions::FileSystemPath;
+use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_protocol::protocol::AskForApproval;
 use core_test_support::assert_regex_match;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -245,7 +245,7 @@ async fn shell_command_escalated_permissions_rejected_then_ok() -> Result<()> {
 
     let policy = AskForApproval::Never;
     let expected_message = format!(
-        "approval policy is {policy:?}; reject command â€” you should not ask for escalated permissions if the approval policy is {policy:?}"
+        "approval policy is {policy:?}; reject command â€?you should not ask for escalated permissions if the approval policy is {policy:?}"
     );
 
     let blocked_output = second_mock

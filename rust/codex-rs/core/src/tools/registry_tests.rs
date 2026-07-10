@@ -2,19 +2,19 @@ use super::*;
 use pretty_assertions::assert_eq;
 
 struct TestHandler {
-    tool_name: codex_tools::ToolName,
+    tool_name: codepilotx_tools::ToolName,
 }
 
 impl ToolExecutor<ToolInvocation> for TestHandler {
-    fn tool_name(&self) -> codex_tools::ToolName {
+    fn tool_name(&self) -> codepilotx_tools::ToolName {
         self.tool_name.clone()
     }
 
-    fn spec(&self) -> codex_tools::ToolSpec {
+    fn spec(&self) -> codepilotx_tools::ToolSpec {
         test_spec(&self.tool_name)
     }
 
-    fn handle(&self, _invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, _invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(async {
             Ok(
                 Box::new(crate::tools::context::FunctionToolOutput::from_text(
@@ -35,20 +35,20 @@ enum LifecycleTestResult {
 }
 
 struct LifecycleTestHandler {
-    tool_name: codex_tools::ToolName,
+    tool_name: codepilotx_tools::ToolName,
     result: LifecycleTestResult,
 }
 
 impl ToolExecutor<ToolInvocation> for LifecycleTestHandler {
-    fn tool_name(&self) -> codex_tools::ToolName {
+    fn tool_name(&self) -> codepilotx_tools::ToolName {
         self.tool_name.clone()
     }
 
-    fn spec(&self) -> codex_tools::ToolSpec {
+    fn spec(&self) -> codepilotx_tools::ToolSpec {
         test_spec(&self.tool_name)
     }
 
-    fn handle(&self, _invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, _invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call())
     }
 }
@@ -74,13 +74,13 @@ impl LifecycleTestHandler {
 
 impl CoreToolRuntime for LifecycleTestHandler {}
 
-fn test_spec(tool_name: &codex_tools::ToolName) -> codex_tools::ToolSpec {
-    codex_tools::ToolSpec::Function(codex_tools::ResponsesApiTool {
+fn test_spec(tool_name: &codepilotx_tools::ToolName) -> codepilotx_tools::ToolSpec {
+    codepilotx_tools::ToolSpec::Function(codepilotx_tools::ResponsesApiTool {
         name: tool_name.name.clone(),
         description: "Test tool.".to_string(),
         strict: false,
         defer_loading: None,
-        parameters: codex_tools::JsonSchema::default(),
+        parameters: codepilotx_tools::JsonSchema::default(),
         output_schema: None,
     })
 }
@@ -89,12 +89,12 @@ fn test_spec(tool_name: &codex_tools::ToolName) -> codex_tools::ToolSpec {
 enum RecordedToolLifecycle {
     Start {
         call_id: String,
-        tool_name: codex_tools::ToolName,
+        tool_name: codepilotx_tools::ToolName,
     },
     Finish {
         call_id: String,
-        tool_name: codex_tools::ToolName,
-        outcome: codex_extension_api::ToolCallOutcome,
+        tool_name: codepilotx_tools::ToolName,
+        outcome: codepilotx_extension_api::ToolCallOutcome,
     },
 }
 
@@ -102,11 +102,11 @@ struct ToolLifecycleRecorder {
     records: Arc<std::sync::Mutex<Vec<RecordedToolLifecycle>>>,
 }
 
-impl codex_extension_api::ToolLifecycleContributor for ToolLifecycleRecorder {
+impl codepilotx_extension_api::ToolLifecycleContributor for ToolLifecycleRecorder {
     fn on_tool_start<'a>(
         &'a self,
-        input: codex_extension_api::ToolStartInput<'a>,
-    ) -> codex_extension_api::ToolLifecycleFuture<'a> {
+        input: codepilotx_extension_api::ToolStartInput<'a>,
+    ) -> codepilotx_extension_api::ToolLifecycleFuture<'a> {
         let records = Arc::clone(&self.records);
         let record = RecordedToolLifecycle::Start {
             call_id: input.call_id.to_string(),
@@ -122,8 +122,8 @@ impl codex_extension_api::ToolLifecycleContributor for ToolLifecycleRecorder {
 
     fn on_tool_finish<'a>(
         &'a self,
-        input: codex_extension_api::ToolFinishInput<'a>,
-    ) -> codex_extension_api::ToolLifecycleFuture<'a> {
+        input: codepilotx_extension_api::ToolFinishInput<'a>,
+    ) -> codepilotx_extension_api::ToolLifecycleFuture<'a> {
         let records = Arc::clone(&self.records);
         let record = RecordedToolLifecycle::Finish {
             call_id: input.call_id.to_string(),
@@ -141,10 +141,10 @@ impl codex_extension_api::ToolLifecycleContributor for ToolLifecycleRecorder {
 
 #[test]
 fn handler_looks_up_namespaced_aliases_explicitly() {
-    let namespace = "mcp__codex_apps__gmail";
+    let namespace = "mcp__codepilotx_apps__gmail";
     let tool_name = "gmail_get_recent_emails";
-    let plain_name = codex_tools::ToolName::plain(tool_name);
-    let namespaced_name = codex_tools::ToolName::namespaced(namespace, tool_name);
+    let plain_name = codepilotx_tools::ToolName::plain(tool_name);
+    let namespaced_name = codepilotx_tools::ToolName::namespaced(namespace, tool_name);
     let plain_handler = Arc::new(TestHandler {
         tool_name: plain_name.clone(),
     }) as Arc<dyn CoreToolRuntime>;
@@ -158,8 +158,8 @@ fn handler_looks_up_namespaced_aliases_explicitly() {
 
     let plain = registry.tool(&plain_name);
     let namespaced = registry.tool(&namespaced_name);
-    let missing_namespaced = registry.tool(&codex_tools::ToolName::namespaced(
-        "mcp__codex_apps__calendar",
+    let missing_namespaced = registry.tool(&codepilotx_tools::ToolName::namespaced(
+        "mcp__codepilotx_apps__calendar",
         tool_name,
     ));
 
@@ -181,7 +181,7 @@ fn handler_looks_up_namespaced_aliases_explicitly() {
 #[tokio::test]
 async fn function_tools_expose_default_hook_payloads_and_rewrites() -> anyhow::Result<()> {
     let (session, turn) = crate::session::tests::make_session_and_context().await;
-    let tool_name = codex_tools::ToolName::namespaced("functions.", "echo");
+    let tool_name = codepilotx_tools::ToolName::namespaced("functions.", "echo");
     let handler = TestHandler {
         tool_name: tool_name.clone(),
     };
@@ -227,7 +227,7 @@ async fn function_tools_expose_default_hook_payloads_and_rewrites() -> anyhow::R
 #[tokio::test]
 async fn function_hook_input_defaults_empty_arguments_to_object() {
     let (session, turn) = crate::session::tests::make_session_and_context().await;
-    let tool_name = codex_tools::ToolName::plain("echo");
+    let tool_name = codepilotx_tools::ToolName::plain("echo");
     let handler = TestHandler {
         tool_name: tool_name.clone(),
     };
@@ -254,8 +254,8 @@ async fn spawn_agent_function_tools_use_agent_matcher_alias() {
     let turn = Arc::new(turn);
 
     let hook_payloads = [
-        codex_tools::ToolName::plain("spawn_agent"),
-        codex_tools::ToolName::namespaced(MULTI_AGENT_V1_NAMESPACE, "spawn_agent"),
+        codepilotx_tools::ToolName::plain("spawn_agent"),
+        codepilotx_tools::ToolName::namespaced(MULTI_AGENT_V1_NAMESPACE, "spawn_agent"),
     ]
     .into_iter()
     .map(|tool_name| {
@@ -326,7 +326,7 @@ fn post_tool_use_feedback_output_keeps_code_mode_result_typed() {
             arguments: "{}".to_string(),
         },
         result: Box::new(PostToolUseFeedbackOutput {
-            original: Box::new(codex_tools::JsonToolOutput::new(
+            original: Box::new(codepilotx_tools::JsonToolOutput::new(
                 serde_json::json!({ "typed": true }),
             )),
             model_visible: crate::tools::context::FunctionToolOutput::from_text(
@@ -341,7 +341,7 @@ fn post_tool_use_feedback_output_keeps_code_mode_result_typed() {
         result.into_response(),
         ResponseInputItem::FunctionCallOutput {
             call_id: "call-1".to_string(),
-            output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+            output: codepilotx_protocol::models::FunctionCallOutputPayload::from_text(
                 "hook feedback".to_string()
             ),
         }
@@ -353,7 +353,7 @@ fn post_tool_use_feedback_output_keeps_code_mode_result_typed() {
             arguments: "{}".to_string(),
         },
         result: Box::new(PostToolUseFeedbackOutput {
-            original: Box::new(codex_tools::JsonToolOutput::new(
+            original: Box::new(codepilotx_tools::JsonToolOutput::new(
                 serde_json::json!({ "typed": true }),
             )),
             model_visible: crate::tools::context::FunctionToolOutput::from_text(
@@ -374,14 +374,14 @@ fn post_tool_use_feedback_output_keeps_code_mode_result_typed() {
 async fn dispatch_notifies_tool_lifecycle_contributors() -> anyhow::Result<()> {
     let (mut session, turn) = crate::session::tests::make_session_and_context().await;
     let records = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.tool_lifecycle_contributor(Arc::new(ToolLifecycleRecorder {
         records: Arc::clone(&records),
     }));
     session.services.extensions = Arc::new(builder.build());
 
-    let ok_tool = codex_tools::ToolName::plain("ok_tool");
-    let failing_tool = codex_tools::ToolName::plain("failing_tool");
+    let ok_tool = codepilotx_tools::ToolName::plain("ok_tool");
+    let failing_tool = codepilotx_tools::ToolName::plain("failing_tool");
     let ok_handler = Arc::new(LifecycleTestHandler {
         tool_name: ok_tool.clone(),
         result: LifecycleTestResult::Ok { success: false },
@@ -427,7 +427,7 @@ async fn dispatch_notifies_tool_lifecycle_contributors() -> anyhow::Result<()> {
         RecordedToolLifecycle::Finish {
             call_id: "ok-call".to_string(),
             tool_name: ok_tool,
-            outcome: codex_extension_api::ToolCallOutcome::Completed { success: false },
+            outcome: codepilotx_extension_api::ToolCallOutcome::Completed { success: false },
         },
         RecordedToolLifecycle::Start {
             call_id: "failing-call".to_string(),
@@ -436,7 +436,7 @@ async fn dispatch_notifies_tool_lifecycle_contributors() -> anyhow::Result<()> {
         RecordedToolLifecycle::Finish {
             call_id: "failing-call".to_string(),
             tool_name: failing_tool,
-            outcome: codex_extension_api::ToolCallOutcome::Failed {
+            outcome: codepilotx_extension_api::ToolCallOutcome::Failed {
                 handler_executed: true,
             },
         },
@@ -455,7 +455,7 @@ fn test_invocation(
     session: Arc<crate::session::session::Session>,
     turn: Arc<crate::session::turn_context::TurnContext>,
     call_id: &str,
-    tool_name: codex_tools::ToolName,
+    tool_name: codepilotx_tools::ToolName,
 ) -> ToolInvocation {
     ToolInvocation {
         session,

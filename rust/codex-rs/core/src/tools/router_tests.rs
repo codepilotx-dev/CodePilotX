@@ -4,25 +4,25 @@ use crate::config::Config;
 use crate::session::tests::make_session_and_context;
 use crate::tools::context::ToolPayload;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use codex_extension_api::ExtensionData;
-use codex_extension_api::ExtensionRegistry;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::ResponsesApiTool;
-use codex_extension_api::ToolCall as ExtensionToolCall;
-use codex_extension_api::ToolExecutor;
-use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceTool;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_tools::ResponsesApiNamespace;
-use codex_tools::ResponsesApiNamespaceTool;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
-use codex_tools::default_namespace_description;
+use codepilotx_extension_api::ExtensionData;
+use codepilotx_extension_api::ExtensionRegistry;
+use codepilotx_extension_api::ExtensionRegistryBuilder;
+use codepilotx_extension_api::ResponsesApiTool;
+use codepilotx_extension_api::ToolCall as ExtensionToolCall;
+use codepilotx_extension_api::ToolExecutor;
+use codepilotx_protocol::dynamic_tools::DynamicToolFunctionSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolNamespaceSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolNamespaceTool;
+use codepilotx_protocol::dynamic_tools::DynamicToolSpec;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::FunctionCallOutputBody;
+use codepilotx_protocol::models::ResponseInputItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_tools::ResponsesApiNamespace;
+use codepilotx_tools::ResponsesApiNamespaceTool;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSpec;
+use codepilotx_tools::default_namespace_description;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use tokio_util::sync::CancellationToken;
@@ -35,7 +35,7 @@ use super::extension_tool_executors;
 
 struct ExtensionEchoContributor;
 
-impl codex_extension_api::ToolContributor for ExtensionEchoContributor {
+impl codepilotx_extension_api::ToolContributor for ExtensionEchoContributor {
     fn tools(
         &self,
         _session_store: &ExtensionData,
@@ -60,7 +60,7 @@ impl ToolExecutor<ExtensionToolCall> for ExtensionEchoExecutor {
                 name: "echo".to_string(),
                 description: "Echoes arguments through an extension tool.".to_string(),
                 strict: true,
-                parameters: codex_extension_api::parse_tool_input_schema(&json!({
+                parameters: codepilotx_extension_api::parse_tool_input_schema(&json!({
                     "type": "object",
                     "properties": {
                         "message": { "type": "string" },
@@ -75,7 +75,7 @@ impl ToolExecutor<ExtensionToolCall> for ExtensionEchoExecutor {
         })
     }
 
-    fn handle(&self, call: ExtensionToolCall) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, call: ExtensionToolCall) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(call))
     }
 }
@@ -84,15 +84,15 @@ impl ExtensionEchoExecutor {
     async fn handle_call(
         &self,
         call: ExtensionToolCall,
-    ) -> Result<Box<dyn codex_tools::ToolOutput>, codex_tools::FunctionCallError> {
+    ) -> Result<Box<dyn codepilotx_tools::ToolOutput>, codepilotx_tools::FunctionCallError> {
         let arguments: serde_json::Value =
             serde_json::from_str(call.function_arguments()?).expect("test arguments should parse");
-        Ok(Box::new(codex_tools::JsonToolOutput::new(json!({
+        Ok(Box::new(codepilotx_tools::JsonToolOutput::new(json!({
             "arguments": arguments,
             "callId": call.call_id,
             "conversationHistory": call.conversation_history.items(),
             "ok": true,
-        }))) as Box<dyn codex_tools::ToolOutput>)
+        }))) as Box<dyn codepilotx_tools::ToolOutput>)
     }
 }
 
@@ -154,7 +154,7 @@ async fn build_tool_call_uses_namespace_for_registry_name() -> anyhow::Result<()
     let call = ToolRouter::build_tool_call(ResponseItem::FunctionCall {
         id: None,
         name: tool_name.clone(),
-        namespace: Some("mcp__codex_apps__calendar".to_string()),
+        namespace: Some("mcp__codepilotx_apps__calendar".to_string()),
         arguments: "{}".to_string(),
         call_id: "call-namespace".to_string(),
         metadata: None,
@@ -163,7 +163,7 @@ async fn build_tool_call_uses_namespace_for_registry_name() -> anyhow::Result<()
 
     assert_eq!(
         call.tool_name,
-        ToolName::namespaced("mcp__codex_apps__calendar", tool_name)
+        ToolName::namespaced("mcp__codepilotx_apps__calendar", tool_name)
     );
     assert_eq!(call.call_id, "call-namespace");
     match call.payload {
@@ -257,7 +257,7 @@ async fn specs_filter_deferred_dynamic_tools() -> anyhow::Result<()> {
     let hidden_tool = "hidden_dynamic_tool";
     let visible_tool = "visible_dynamic_tool";
     let dynamic_tools = vec![DynamicToolSpec::Namespace(DynamicToolNamespaceSpec {
-        name: "codex_app".to_string(),
+        name: "codepilotx_app".to_string(),
         description: "Codex app tools.".to_string(),
         tools: vec![
             DynamicToolNamespaceTool::Function(DynamicToolFunctionSpec {
@@ -296,7 +296,7 @@ async fn specs_filter_deferred_dynamic_tools() -> anyhow::Result<()> {
     );
 
     assert_eq!(
-        namespace_function_names(&router.model_visible_specs(), "codex_app"),
+        namespace_function_names(&router.model_visible_specs(), "codepilotx_app"),
         vec![visible_tool.to_string()]
     );
 
@@ -308,8 +308,8 @@ fn mcp_tool_info(
     supports_parallel_tool_calls: bool,
     callable_namespace: &str,
     tool_name: &str,
-) -> codex_mcp::ToolInfo {
-    codex_mcp::ToolInfo {
+) -> codepilotx_mcp::ToolInfo {
+    codepilotx_mcp::ToolInfo {
         server_name: server_name.to_string(),
         supports_parallel_tool_calls,
         server_origin: None,

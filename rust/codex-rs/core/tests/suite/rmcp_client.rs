@@ -17,35 +17,35 @@ use std::time::Duration;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerEnvVar;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::config::Config;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::Environment;
-use codex_exec_server::HttpRequestParams;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_mcp::MCP_SANDBOX_STATE_META_CAPABILITY;
-use codex_models_manager::manager::RefreshStrategy;
+use codepilotx_config::types::McpServerConfig;
+use codepilotx_config::types::McpServerEnvVar;
+use codepilotx_config::types::McpServerTransportConfig;
+use codepilotx_core::config::Config;
+use codepilotx_exec_server::CreateDirectoryOptions;
+use codepilotx_exec_server::Environment;
+use codepilotx_exec_server::HttpRequestParams;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_mcp::MCP_SANDBOX_STATE_META_CAPABILITY;
+use codepilotx_models_manager::manager::RefreshStrategy;
 
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::McpInvocation;
-use codex_protocol::protocol::McpToolCallBeginEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
-use codex_utils_cargo_bin::cargo_bin;
-use codex_utils_path_uri::PathUri;
+use codepilotx_protocol::config_types::ReasoningSummary;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::openai_models::ConfigShellToolType;
+use codepilotx_protocol::openai_models::InputModality;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_protocol::openai_models::ModelVisibility;
+use codepilotx_protocol::openai_models::ModelsResponse;
+use codepilotx_protocol::openai_models::ReasoningEffortPreset;
+use codepilotx_protocol::openai_models::TruncationPolicyConfig;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::McpInvocation;
+use codepilotx_protocol::protocol::McpToolCallBeginEvent;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_utils_cargo_bin::cargo_bin;
+use codepilotx_utils_path_uri::PathUri;
 use core_test_support::assert_regex_match;
 use core_test_support::responses;
 use core_test_support::responses::mount_models_once;
@@ -138,13 +138,13 @@ fn user_turn_with_permission_profile(
         final_output_json_schema: None,
         responsesapi_client_metadata: None,
         additional_context: Default::default(),
-        thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+        thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
             approval_policy: Some(AskForApproval::Never),
             sandbox_policy: Some(sandbox_policy),
             permission_profile,
-            collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                mode: codex_protocol::config_types::ModeKind::Default,
-                settings: codex_protocol::config_types::Settings {
+            collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                mode: codepilotx_protocol::config_types::ModeKind::Default,
+                settings: codepilotx_protocol::config_types::Settings {
                     model,
                     reasoning_effort: None,
                     developer_instructions: None,
@@ -167,7 +167,7 @@ fn remote_aware_environment_id() -> String {
     if test_environment().is_remote() {
         REMOTE_MCP_ENVIRONMENT.to_string()
     } else {
-        codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string()
+        codepilotx_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string()
     }
 }
 
@@ -272,7 +272,7 @@ struct TestMcpServerOptions {
 impl Default for TestMcpServerOptions {
     fn default() -> Self {
         Self {
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: codepilotx_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             supports_parallel_tool_calls: false,
             tool_timeout_sec: None,
         }
@@ -1620,7 +1620,7 @@ async fn stdio_image_responses_are_sanitized_for_text_only_model() -> anyhow::Re
                 description: Some("Test model without image input support".to_string()),
                 default_reasoning_level: None,
                 supported_reasoning_levels: vec![ReasoningEffortPreset {
-                    effort: codex_protocol::openai_models::ReasoningEffort::Medium,
+                    effort: codepilotx_protocol::openai_models::ReasoningEffort::Medium,
                     description: "Medium".to_string(),
                 }],
                 shell_type: ConfigShellToolType::Default,
@@ -2069,7 +2069,7 @@ async fn remote_stdio_env_var_source_does_not_copy_local_env() -> anyhow::Result
 }
 
 /// Remote runtime websocket URL used by remote-aware MCP integration tests.
-const REMOTE_EXEC_SERVER_URL_ENV_VAR: &str = "CODEX_TEST_REMOTE_EXEC_SERVER_URL";
+const REMOTE_EXEC_SERVER_URL_ENV_VAR: &str = "codepilotx_TEST_REMOTE_EXEC_SERVER_URL";
 /// OAuth metadata path served by the Streamable HTTP MCP test server.
 const STREAMABLE_HTTP_METADATA_PATH: &str = "/.well-known/oauth-authorization-server/mcp";
 
@@ -2292,10 +2292,10 @@ async fn streamable_http_tool_call_round_trip() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// This test writes to a fallback credentials file in CODEX_HOME.
-/// Ideally, we wouldn't need to serialize the test but it's much more cumbersome to wire CODEX_HOME through the code.
+/// This test writes to a fallback credentials file in codepilotx_HOME.
+/// Ideally, we wouldn't need to serialize the test but it's much more cumbersome to wire codepilotx_HOME through the code.
 #[test]
-#[serial(codex_home)]
+#[serial(codepilotx_home)]
 fn streamable_http_with_oauth_round_trip() -> anyhow::Result<()> {
     const TEST_STACK_SIZE_BYTES: usize = 8 * 1024 * 1024;
 
@@ -2368,10 +2368,10 @@ async fn streamable_http_with_oauth_round_trip_impl() -> anyhow::Result<()> {
     };
     let server_url = http_server.url().to_string();
 
-    // Phase 3: seed an isolated CODEX_HOME with fallback OAuth tokens for this
+    // Phase 3: seed an isolated codepilotx_HOME with fallback OAuth tokens for this
     // server so the test does not share credentials with other suite cases.
     let temp_home = Arc::new(tempdir()?);
-    let _codex_home_guard = EnvVarGuard::set("CODEX_HOME", temp_home.path().as_os_str());
+    let _codepilotx_home_guard = EnvVarGuard::set("codepilotx_HOME", temp_home.path().as_os_str());
     write_fallback_oauth_tokens(
         temp_home.path(),
         server_name,

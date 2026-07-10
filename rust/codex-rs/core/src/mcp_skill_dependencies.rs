@@ -1,17 +1,17 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use codex_config::ConfigEditsBuilder;
-use codex_config::McpServerConfig;
-use codex_config::McpServerTransportConfig;
-use codex_config::load_global_mcp_servers;
-use codex_login::default_client::is_first_party_originator;
-use codex_login::default_client::originator;
-use codex_protocol::request_user_input::RequestUserInputArgs;
-use codex_protocol::request_user_input::RequestUserInputQuestion;
-use codex_protocol::request_user_input::RequestUserInputQuestionOption;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_rmcp_client::perform_oauth_login;
+use codepilotx_config::ConfigEditsBuilder;
+use codepilotx_config::McpServerConfig;
+use codepilotx_config::McpServerTransportConfig;
+use codepilotx_config::load_global_mcp_servers;
+use codepilotx_login::default_client::is_first_party_originator;
+use codepilotx_login::default_client::originator;
+use codepilotx_protocol::request_user_input::RequestUserInputArgs;
+use codepilotx_protocol::request_user_input::RequestUserInputQuestion;
+use codepilotx_protocol::request_user_input::RequestUserInputQuestionOption;
+use codepilotx_protocol::request_user_input::RequestUserInputResponse;
+use codepilotx_rmcp_client::perform_oauth_login;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
@@ -19,13 +19,13 @@ use crate::SkillMetadata;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::skills::model::SkillToolDependency;
-use codex_mcp::ElicitationReviewerHandle;
-use codex_mcp::McpOAuthLoginSupport;
-use codex_mcp::McpPermissionPromptAutoApproveContext;
-use codex_mcp::mcp_permission_prompt_is_auto_approved;
-use codex_mcp::oauth_login_support;
-use codex_mcp::resolve_oauth_scopes;
-use codex_mcp::should_retry_without_scopes;
+use codepilotx_mcp::ElicitationReviewerHandle;
+use codepilotx_mcp::McpOAuthLoginSupport;
+use codepilotx_mcp::McpPermissionPromptAutoApproveContext;
+use codepilotx_mcp::mcp_permission_prompt_is_auto_approved;
+use codepilotx_mcp::oauth_login_support;
+use codepilotx_mcp::resolve_oauth_scopes;
+use codepilotx_mcp::should_retry_without_scopes;
 
 const SKILL_MCP_DEPENDENCY_PROMPT_ID: &str = "skill_mcp_dependency_install";
 const MCP_DEPENDENCY_OPTION_INSTALL: &str = "Install";
@@ -48,7 +48,7 @@ pub(crate) async fn maybe_prompt_and_install_mcp_dependencies(
     if mentioned_skills.is_empty()
         || !config
             .features
-            .enabled(codex_features::Feature::SkillMcpDependencyInstall)
+            .enabled(codepilotx_features::Feature::SkillMcpDependencyInstall)
     {
         return;
     }
@@ -88,19 +88,19 @@ pub(crate) async fn maybe_install_mcp_dependencies(
     if mentioned_skills.is_empty()
         || !config
             .features
-            .enabled(codex_features::Feature::SkillMcpDependencyInstall)
+            .enabled(codepilotx_features::Feature::SkillMcpDependencyInstall)
     {
         return;
     }
 
-    let codex_home = config.codex_home.clone();
+    let codepilotx_home = config.codepilotx_home.clone();
     let installed = sess.runtime_mcp_servers(config).await;
     let missing = collect_missing_mcp_dependencies(mentioned_skills, &installed);
     if missing.is_empty() {
         return;
     }
 
-    let mut servers = match load_global_mcp_servers(&codex_home).await {
+    let mut servers = match load_global_mcp_servers(&codepilotx_home).await {
         Ok(servers) => servers,
         Err(err) => {
             warn!("failed to load MCP servers while installing skill dependencies: {err}");
@@ -123,7 +123,7 @@ pub(crate) async fn maybe_install_mcp_dependencies(
         return;
     }
 
-    if let Err(err) = ConfigEditsBuilder::new(&codex_home)
+    if let Err(err) = ConfigEditsBuilder::new(&codepilotx_home)
         .replace_mcp_servers(&servers)
         .apply()
         .await
@@ -363,7 +363,7 @@ fn mcp_dependency_to_server_config(
                 http_headers: None,
                 env_http_headers: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: codepilotx_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -393,7 +393,7 @@ fn mcp_dependency_to_server_config(
                 env_vars: Vec::new(),
                 cwd: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: codepilotx_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,

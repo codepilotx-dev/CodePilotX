@@ -1,15 +1,15 @@
 use crate::path_utils::resolve_symlink_write_paths;
 use crate::path_utils::write_atomically;
 use anyhow::Context;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::types::McpServerConfig;
-use codex_config::types::SessionPickerViewMode;
-use codex_config::types::ToolSuggestDisabledTool;
-use codex_features::FEATURES;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::openai_models::ReasoningEffort;
+use codepilotx_config::CONFIG_TOML_FILE;
+use codepilotx_config::types::McpServerConfig;
+use codepilotx_config::types::SessionPickerViewMode;
+use codepilotx_config::types::ToolSuggestDisabledTool;
+use codepilotx_features::FEATURES;
+use codepilotx_protocol::config_types::Personality;
+use codepilotx_protocol::config_types::ServiceTier;
+use codepilotx_protocol::config_types::TrustLevel;
+use codepilotx_protocol::openai_models::ReasoningEffort;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -688,8 +688,8 @@ fn write_skill_config_selector(table: &mut TomlTable, selector: &SkillConfigSele
 }
 
 /// Persist edits using a blocking strategy.
-pub fn apply_blocking(codex_home: &Path, edits: &[ConfigEdit]) -> anyhow::Result<()> {
-    let config_path = codex_home.join(CONFIG_TOML_FILE);
+pub fn apply_blocking(codepilotx_home: &Path, edits: &[ConfigEdit]) -> anyhow::Result<()> {
+    let config_path = codepilotx_home.join(CONFIG_TOML_FILE);
     apply_blocking_to_resolved_file(&config_path, edits)
 }
 
@@ -740,9 +740,9 @@ fn apply_blocking_to_resolved_file(
 
 /// Persist edits asynchronously by offloading the blocking writer.
 ///
-pub async fn apply(codex_home: &Path, edits: Vec<ConfigEdit>) -> anyhow::Result<()> {
-    let codex_home = codex_home.to_path_buf();
-    let config_path = codex_home.join(CONFIG_TOML_FILE);
+pub async fn apply(codepilotx_home: &Path, edits: Vec<ConfigEdit>) -> anyhow::Result<()> {
+    let codepilotx_home = codepilotx_home.to_path_buf();
+    let config_path = codepilotx_home.join(CONFIG_TOML_FILE);
     task::spawn_blocking(move || apply_blocking_to_resolved_file(&config_path, &edits))
         .await
         .context("config persistence task panicked")?
@@ -756,16 +756,16 @@ pub struct ConfigEditsBuilder {
 }
 
 impl ConfigEditsBuilder {
-    pub fn new(codex_home: &Path) -> Self {
-        Self::for_config_path(&codex_home.join(CONFIG_TOML_FILE))
+    pub fn new(codepilotx_home: &Path) -> Self {
+        Self::for_config_path(&codepilotx_home.join(CONFIG_TOML_FILE))
     }
 
     pub fn for_config(config: &crate::config::Config) -> Self {
         let config_path = config
             .config_layer_stack
             .get_user_config_file()
-            .map(codex_utils_absolute_path::AbsolutePathBuf::to_path_buf)
-            .unwrap_or_else(|| config.codex_home.join(CONFIG_TOML_FILE).to_path_buf());
+            .map(codepilotx_utils_absolute_path::AbsolutePathBuf::to_path_buf)
+            .unwrap_or_else(|| config.codepilotx_home.join(CONFIG_TOML_FILE).to_path_buf());
         Self::for_config_path(&config_path)
     }
 

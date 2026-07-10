@@ -2,9 +2,9 @@
 
 use std::os::unix::fs::PermissionsExt;
 
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::fs_wait;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
@@ -54,7 +54,7 @@ mv "${tmp_path}" "${payload_path}""#,
         .build(&server)
         .await?;
 
-    // 1) Normal user input â€“ should hit server once.
+    // 1) Normal user input â€?should hit server once.
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {

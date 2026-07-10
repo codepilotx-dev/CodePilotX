@@ -6,11 +6,11 @@ use std::time::Duration;
 use std::time::Instant;
 
 use anyhow::Result;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
@@ -108,11 +108,11 @@ fn write_plugin_app_plugin_with_name(home: &TempDir, app_name: &str) {
 
 async fn build_analytics_plugin_test_codex(
     server: &MockServer,
-    codex_home: Arc<TempDir>,
+    codepilotx_home: Arc<TempDir>,
 ) -> Result<TestCodex> {
     let chatgpt_base_url = server.uri();
     let mut builder = test_codex()
-        .with_home(codex_home)
+        .with_home(codepilotx_home)
         .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
         .with_model("gpt-5.2")
         .with_config(move |config| {
@@ -126,11 +126,11 @@ async fn build_analytics_plugin_test_codex(
 
 async fn build_apps_enabled_plugin_test_codex(
     server: &MockServer,
-    codex_home: Arc<TempDir>,
+    codepilotx_home: Arc<TempDir>,
     chatgpt_base_url: String,
 ) -> Result<TestCodex> {
     let mut builder = test_codex()
-        .with_home(codex_home)
+        .with_home(codepilotx_home)
         .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(move |config| {
             config
@@ -174,12 +174,12 @@ async fn capability_sections_render_in_developer_message_in_order() -> Result<()
     )
     .await;
 
-    let codex_home = Arc::new(TempDir::new()?);
-    write_plugin_skill_plugin(codex_home.as_ref());
-    write_plugin_app_plugin(codex_home.as_ref());
+    let codepilotx_home = Arc::new(TempDir::new()?);
+    write_plugin_skill_plugin(codepilotx_home.as_ref());
+    write_plugin_app_plugin(codepilotx_home.as_ref());
     let test_codex = build_apps_enabled_plugin_test_codex(
         &server,
-        Arc::clone(&codex_home),
+        Arc::clone(&codepilotx_home),
         apps_server.chatgpt_base_url,
     )
     .await?;
@@ -187,7 +187,7 @@ async fn capability_sections_render_in_developer_message_in_order() -> Result<()
 
     codex
         .submit(Op::UserInput {
-            items: vec![codex_protocol::user_input::UserInput::Text {
+            items: vec![codepilotx_protocol::user_input::UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
@@ -243,7 +243,7 @@ async fn explicit_plugin_mentions_use_apps_for_chatgpt_dual_surface_plugins() ->
     )
     .await;
 
-    let codex_home = Arc::new(TempDir::new()?);
+    let codepilotx_home = Arc::new(TempDir::new()?);
     let rmcp_test_server_bin = match stdio_server_bin() {
         Ok(bin) => bin,
         Err(err) => {
@@ -251,19 +251,19 @@ async fn explicit_plugin_mentions_use_apps_for_chatgpt_dual_surface_plugins() ->
             return Ok(());
         }
     };
-    write_plugin_skill_plugin(codex_home.as_ref());
-    write_plugin_mcp_plugin(codex_home.as_ref(), &rmcp_test_server_bin);
-    write_plugin_app_plugin(codex_home.as_ref());
+    write_plugin_skill_plugin(codepilotx_home.as_ref());
+    write_plugin_mcp_plugin(codepilotx_home.as_ref(), &rmcp_test_server_bin);
+    write_plugin_app_plugin(codepilotx_home.as_ref());
 
     let test_codex =
-        build_apps_enabled_plugin_test_codex(&server, codex_home, apps_server.chatgpt_base_url)
+        build_apps_enabled_plugin_test_codex(&server, codepilotx_home, apps_server.chatgpt_base_url)
             .await?;
     let codex = Arc::clone(&test_codex.codex);
-    wait_for_mcp_server(&codex, CODEX_APPS_MCP_SERVER_NAME).await?;
+    wait_for_mcp_server(&codex, codepilotx_APPS_MCP_SERVER_NAME).await?;
 
     codex
         .submit(Op::UserInput {
-            items: vec![codex_protocol::user_input::UserInput::Mention {
+            items: vec![codepilotx_protocol::user_input::UserInput::Mention {
                 name: "sample".into(),
                 path: format!("plugin://{SAMPLE_PLUGIN_CONFIG_NAME}"),
             }],
@@ -300,7 +300,7 @@ async fn explicit_plugin_mentions_use_apps_for_chatgpt_dual_surface_plugins() ->
     assert!(
         request_tools
             .iter()
-            .any(|name| name == "mcp__codex_apps__google_calendar"),
+            .any(|name| name == "mcp__codepilotx_apps__google_calendar"),
         "expected plugin app tools to become visible for this turn: {request_tools:?}"
     );
     assert!(
@@ -308,7 +308,7 @@ async fn explicit_plugin_mentions_use_apps_for_chatgpt_dual_surface_plugins() ->
         "expected plugin MCP tool to be suppressed for ChatGPT auth"
     );
     let calendar_tool = request
-        .tool_by_name("mcp__codex_apps__google_calendar", "_create_event")
+        .tool_by_name("mcp__codepilotx_apps__google_calendar", "_create_event")
         .expect("plugin app tool should be present");
     let calendar_description = calendar_tool
         .get("description")
@@ -333,7 +333,7 @@ async fn explicit_plugin_mentions_keep_non_conflicting_mcp_for_chatgpt_auth() ->
     )
     .await;
 
-    let codex_home = Arc::new(TempDir::new()?);
+    let codepilotx_home = Arc::new(TempDir::new()?);
     let rmcp_test_server_bin = match stdio_server_bin() {
         Ok(bin) => bin,
         Err(err) => {
@@ -341,19 +341,19 @@ async fn explicit_plugin_mentions_keep_non_conflicting_mcp_for_chatgpt_auth() ->
             return Ok(());
         }
     };
-    write_plugin_skill_plugin(codex_home.as_ref());
-    write_plugin_mcp_plugin(codex_home.as_ref(), &rmcp_test_server_bin);
-    write_plugin_app_plugin_with_name(codex_home.as_ref(), "sample_app");
+    write_plugin_skill_plugin(codepilotx_home.as_ref());
+    write_plugin_mcp_plugin(codepilotx_home.as_ref(), &rmcp_test_server_bin);
+    write_plugin_app_plugin_with_name(codepilotx_home.as_ref(), "sample_app");
 
     let test_codex =
-        build_apps_enabled_plugin_test_codex(&server, codex_home, apps_server.chatgpt_base_url)
+        build_apps_enabled_plugin_test_codex(&server, codepilotx_home, apps_server.chatgpt_base_url)
             .await?;
     let codex = Arc::clone(&test_codex.codex);
     wait_for_mcp_server(&codex, "sample").await?;
 
     codex
         .submit(Op::UserInput {
-            items: vec![codex_protocol::user_input::UserInput::Mention {
+            items: vec![codepilotx_protocol::user_input::UserInput::Mention {
                 name: "sample".into(),
                 path: format!("plugin://{SAMPLE_PLUGIN_CONFIG_NAME}"),
             }],
@@ -384,7 +384,7 @@ async fn explicit_plugin_mentions_keep_non_conflicting_mcp_for_chatgpt_auth() ->
     assert!(
         request_tools
             .iter()
-            .any(|name| name == "mcp__codex_apps__google_calendar"),
+            .any(|name| name == "mcp__codepilotx_apps__google_calendar"),
         "expected plugin app tools to become visible for this turn: {request_tools:?}"
     );
     let echo_tool = request
@@ -412,7 +412,7 @@ async fn explicit_plugin_mentions_use_mcp_for_api_key_dual_surface_plugins() -> 
     )
     .await;
 
-    let codex_home = Arc::new(TempDir::new()?);
+    let codepilotx_home = Arc::new(TempDir::new()?);
     let rmcp_test_server_bin = match stdio_server_bin() {
         Ok(bin) => bin,
         Err(err) => {
@@ -420,12 +420,12 @@ async fn explicit_plugin_mentions_use_mcp_for_api_key_dual_surface_plugins() -> 
             return Ok(());
         }
     };
-    write_plugin_skill_plugin(codex_home.as_ref());
-    write_plugin_mcp_plugin(codex_home.as_ref(), &rmcp_test_server_bin);
-    write_plugin_app_plugin(codex_home.as_ref());
+    write_plugin_skill_plugin(codepilotx_home.as_ref());
+    write_plugin_mcp_plugin(codepilotx_home.as_ref(), &rmcp_test_server_bin);
+    write_plugin_app_plugin(codepilotx_home.as_ref());
 
     let mut builder = test_codex()
-        .with_home(codex_home)
+        .with_home(codepilotx_home)
         .with_auth(CodexAuth::from_api_key("Test API Key"))
         .with_config(move |config| {
             config
@@ -442,7 +442,7 @@ async fn explicit_plugin_mentions_use_mcp_for_api_key_dual_surface_plugins() -> 
 
     codex
         .submit(Op::UserInput {
-            items: vec![codex_protocol::user_input::UserInput::Mention {
+            items: vec![codepilotx_protocol::user_input::UserInput::Mention {
                 name: "sample".into(),
                 path: format!("plugin://{SAMPLE_PLUGIN_CONFIG_NAME}"),
             }],
@@ -479,7 +479,7 @@ async fn explicit_plugin_mentions_use_mcp_for_api_key_dual_surface_plugins() -> 
     assert!(
         !request_tools
             .iter()
-            .any(|name| name == "mcp__codex_apps__google_calendar"),
+            .any(|name| name == "mcp__codepilotx_apps__google_calendar"),
         "expected plugin app tools to be hidden for API-key auth: {request_tools:?}"
     );
     let echo_tool = request
@@ -507,14 +507,14 @@ async fn explicit_plugin_mentions_track_plugin_used_analytics() -> Result<()> {
     )
     .await;
 
-    let codex_home = Arc::new(TempDir::new()?);
-    write_plugin_skill_plugin(codex_home.as_ref());
-    let test_codex = build_analytics_plugin_test_codex(&server, codex_home).await?;
+    let codepilotx_home = Arc::new(TempDir::new()?);
+    write_plugin_skill_plugin(codepilotx_home.as_ref());
+    let test_codex = build_analytics_plugin_test_codex(&server, codepilotx_home).await?;
     let codex = Arc::clone(&test_codex.codex);
 
     codex
         .submit(Op::UserInput {
-            items: vec![codex_protocol::user_input::UserInput::Mention {
+            items: vec![codepilotx_protocol::user_input::UserInput::Mention {
                 name: "sample".into(),
                 path: format!("plugin://{SAMPLE_PLUGIN_CONFIG_NAME}"),
             }],
@@ -537,7 +537,7 @@ async fn explicit_plugin_mentions_track_plugin_used_analytics() -> Result<()> {
                 payload["events"].as_array().and_then(|events| {
                     events
                         .iter()
-                        .find(|event| event["event_type"] == "codex_plugin_used")
+                        .find(|event| event["event_type"] == "codepilotx_plugin_used")
                         .cloned()
                 })
             })
@@ -566,7 +566,7 @@ async fn explicit_plugin_mentions_track_plugin_used_analytics() -> Result<()> {
     );
     assert_eq!(
         event["event_params"]["product_client_id"],
-        serde_json::json!(codex_login::default_client::originator().value)
+        serde_json::json!(codepilotx_login::default_client::originator().value)
     );
     assert_eq!(event["event_params"]["model_slug"], "gpt-5.2");
     assert!(event["event_params"]["thread_id"].as_str().is_some());

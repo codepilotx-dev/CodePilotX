@@ -1,8 +1,8 @@
 #![allow(clippy::unwrap_used)]
 
-use codex_features::Feature;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::models::PermissionProfile;
+use codepilotx_features::Feature;
+use codepilotx_protocol::config_types::WebSearchMode;
+use codepilotx_protocol::models::PermissionProfile;
 use core_test_support::responses;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;

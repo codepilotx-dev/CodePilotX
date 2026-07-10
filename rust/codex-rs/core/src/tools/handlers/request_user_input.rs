@@ -11,10 +11,10 @@ use crate::tools::handlers::request_user_input_spec::request_user_input_tool_des
 use crate::tools::handlers::request_user_input_spec::request_user_input_unavailable_message;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::request_user_input::RequestUserInputArgs;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::request_user_input::RequestUserInputArgs;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSpec;
 
 pub struct RequestUserInputHandler {
     pub available_modes: Vec<ModeKind>,
@@ -29,7 +29,7 @@ impl ToolExecutor<ToolInvocation> for RequestUserInputHandler {
         create_request_user_input_tool(request_user_input_tool_description(&self.available_modes))
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }

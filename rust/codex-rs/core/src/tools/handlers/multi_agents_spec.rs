@@ -1,9 +1,9 @@
-use codex_protocol::openai_models::ModelPreset;
-use codex_tools::JsonSchema;
-use codex_tools::ResponsesApiNamespace;
-use codex_tools::ResponsesApiNamespaceTool;
-use codex_tools::ResponsesApiTool;
-use codex_tools::ToolSpec;
+use codepilotx_protocol::openai_models::ModelPreset;
+use codepilotx_tools::JsonSchema;
+use codepilotx_tools::ResponsesApiNamespace;
+use codepilotx_tools::ResponsesApiNamespaceTool;
+use codepilotx_tools::ResponsesApiTool;
+use codepilotx_tools::ToolSpec;
 use serde_json::Value;
 use serde_json::json;
 use std::collections::BTreeMap;

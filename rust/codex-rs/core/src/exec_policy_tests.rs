@@ -1,31 +1,31 @@
 use super::*;
 use crate::config::Config;
 use crate::config::ConfigBuilder;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::ConfigRequirements;
-use codex_config::ConfigRequirementsToml;
-use codex_config::LoaderOverrides;
-use codex_config::RequirementSource;
-use codex_config::RequirementsExecPolicy;
-use codex_config::Sourced;
-use codex_config::config_toml::ConfigToml;
-use codex_config::config_toml::ProjectConfig;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::GranularApprovalConfig;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::ConfigLayerSource;
+use codepilotx_config::CONFIG_TOML_FILE;
+use codepilotx_config::ConfigLayerEntry;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::ConfigLayerStackOrdering;
+use codepilotx_config::ConfigRequirements;
+use codepilotx_config::ConfigRequirementsToml;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_config::RequirementSource;
+use codepilotx_config::RequirementsExecPolicy;
+use codepilotx_config::Sourced;
+use codepilotx_config::config_toml::ConfigToml;
+use codepilotx_config::config_toml::ProjectConfig;
+use codepilotx_protocol::config_types::TrustLevel;
+use codepilotx_protocol::config_types::WindowsSandboxLevel;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::permissions::FileSystemAccessMode;
+use codepilotx_protocol::permissions::FileSystemPath;
+use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::permissions::FileSystemSpecialPath;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::GranularApprovalConfig;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::Path;
@@ -39,11 +39,11 @@ use toml::Value as TomlValue;
 #[path = "exec_policy_windows_tests.rs"]
 mod windows_tests;
 
-fn config_stack_for_dot_codex_folder(dot_codex_folder: &Path) -> ConfigLayerStack {
-    let dot_codex_folder =
-        AbsolutePathBuf::from_absolute_path(dot_codex_folder).expect("absolute dot_codex_folder");
+fn config_stack_for_dot_codepilotx_folder(dot_codepilotx_folder: &Path) -> ConfigLayerStack {
+    let dot_codepilotx_folder =
+        AbsolutePathBuf::from_absolute_path(dot_codepilotx_folder).expect("absolute dot_codepilotx_folder");
     let layer = ConfigLayerEntry::new(
-        ConfigLayerSource::Project { dot_codex_folder },
+        ConfigLayerSource::Project { dot_codepilotx_folder },
         TomlValue::Table(Default::default()),
     );
     ConfigLayerStack::new(
@@ -80,11 +80,11 @@ fn starlark_string(value: &str) -> String {
 }
 
 async fn write_project_trust_config(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     trusted_projects: &[(&Path, TrustLevel)],
 ) -> std::io::Result<()> {
     tokio::fs::write(
-        codex_home.join(codex_config::CONFIG_TOML_FILE),
+        codepilotx_home.join(codepilotx_config::CONFIG_TOML_FILE),
         toml::to_string(&ConfigToml {
             projects: Some(
                 trusted_projects
@@ -109,7 +109,7 @@ async fn write_project_trust_config(
 async fn test_config() -> (TempDir, Config) {
     let home = TempDir::new().expect("create temp dir");
     let config = ConfigBuilder::without_managed_config_for_tests()
-        .codex_home(home.path().to_path_buf())
+        .codepilotx_home(home.path().to_path_buf())
         .build()
         .await
         .expect("load default test config");
@@ -211,7 +211,7 @@ async fn child_does_not_use_parent_exec_policy_when_requirements_exec_policy_dif
 #[tokio::test]
 async fn returns_empty_policy_when_no_policy_files_exist() {
     let temp_dir = tempdir().expect("create temp dir");
-    let config_stack = config_stack_for_dot_codex_folder(temp_dir.path());
+    let config_stack = config_stack_for_dot_codepilotx_folder(temp_dir.path());
 
     let manager = ExecPolicyManager::load(&config_stack)
         .await
@@ -237,7 +237,7 @@ async fn rules_path_file_returns_read_dir_error() {
     let temp_dir = tempdir().expect("create temp dir");
     let rules_path = temp_dir.path().join(RULES_DIR_NAME);
     fs::write(&rules_path, "rules should be a directory").expect("write malformed rules path");
-    let config_stack = config_stack_for_dot_codex_folder(temp_dir.path());
+    let config_stack = config_stack_for_dot_codepilotx_folder(temp_dir.path());
 
     let err = load_exec_policy(&config_stack)
         .await
@@ -267,7 +267,7 @@ async fn collect_policy_files_returns_empty_when_dir_missing() {
 #[tokio::test]
 async fn format_exec_policy_error_with_source_renders_range() {
     let temp_dir = tempdir().expect("create temp dir");
-    let config_stack = config_stack_for_dot_codex_folder(temp_dir.path());
+    let config_stack = config_stack_for_dot_codepilotx_folder(temp_dir.path());
     let policy_dir = temp_dir.path().join(RULES_DIR_NAME);
     fs::create_dir_all(&policy_dir).expect("create policy dir");
     let broken_path = policy_dir.join("broken.rules");
@@ -312,7 +312,7 @@ fn parse_starlark_line_from_message_rejects_zero_line() {
 #[tokio::test]
 async fn loads_policies_from_policy_subdirectory() {
     let temp_dir = tempdir().expect("create temp dir");
-    let config_stack = config_stack_for_dot_codex_folder(temp_dir.path());
+    let config_stack = config_stack_for_dot_codepilotx_folder(temp_dir.path());
     let policy_dir = temp_dir.path().join(RULES_DIR_NAME);
     fs::create_dir_all(&policy_dir).expect("create policy dir");
     fs::write(
@@ -346,21 +346,21 @@ async fn merges_requirements_exec_policy_network_rules() -> anyhow::Result<()> {
     let mut requirements_exec_policy = Policy::empty();
     requirements_exec_policy.add_network_rule(
         "blocked.example.com",
-        codex_execpolicy::NetworkRuleProtocol::Https,
+        codepilotx_execpolicy::NetworkRuleProtocol::Https,
         Decision::Forbidden,
         /*justification*/ None,
     )?;
 
     let requirements = ConfigRequirements {
-        exec_policy: Some(codex_config::Sourced::new(
-            codex_config::RequirementsExecPolicy::new(requirements_exec_policy),
-            codex_config::RequirementSource::Unknown,
+        exec_policy: Some(codepilotx_config::Sourced::new(
+            codepilotx_config::RequirementsExecPolicy::new(requirements_exec_policy),
+            codepilotx_config::RequirementSource::Unknown,
         )),
         ..ConfigRequirements::default()
     };
-    let dot_codex_folder = AbsolutePathBuf::from_absolute_path(temp_dir.path())?;
+    let dot_codepilotx_folder = AbsolutePathBuf::from_absolute_path(temp_dir.path())?;
     let layer = ConfigLayerEntry::new(
-        ConfigLayerSource::Project { dot_codex_folder },
+        ConfigLayerSource::Project { dot_codepilotx_folder },
         TomlValue::Table(Default::default()),
     );
     let config_stack =
@@ -393,21 +393,21 @@ host_executable(name = "git", paths = ["{git_path_literal}"])
     let mut requirements_exec_policy = Policy::empty();
     requirements_exec_policy.add_network_rule(
         "blocked.example.com",
-        codex_execpolicy::NetworkRuleProtocol::Https,
+        codepilotx_execpolicy::NetworkRuleProtocol::Https,
         Decision::Forbidden,
         /*justification*/ None,
     )?;
 
     let requirements = ConfigRequirements {
-        exec_policy: Some(codex_config::Sourced::new(
-            codex_config::RequirementsExecPolicy::new(requirements_exec_policy),
-            codex_config::RequirementSource::Unknown,
+        exec_policy: Some(codepilotx_config::Sourced::new(
+            codepilotx_config::RequirementsExecPolicy::new(requirements_exec_policy),
+            codepilotx_config::RequirementSource::Unknown,
         )),
         ..ConfigRequirements::default()
     };
-    let dot_codex_folder = AbsolutePathBuf::from_absolute_path(temp_dir.path())?;
+    let dot_codepilotx_folder = AbsolutePathBuf::from_absolute_path(temp_dir.path())?;
     let layer = ConfigLayerEntry::new(
-        ConfigLayerSource::Project { dot_codex_folder },
+        ConfigLayerSource::Project { dot_codepilotx_folder },
         TomlValue::Table(Default::default()),
     );
     let config_stack =
@@ -429,7 +429,7 @@ host_executable(name = "git", paths = ["{git_path_literal}"])
 #[tokio::test]
 async fn ignores_policies_outside_policy_dir() {
     let temp_dir = tempdir().expect("create temp dir");
-    let config_stack = config_stack_for_dot_codex_folder(temp_dir.path());
+    let config_stack = config_stack_for_dot_codepilotx_folder(temp_dir.path());
     fs::write(
         temp_dir.path().join("root.rules"),
         r#"prefix_rule(pattern=["ls"], decision="prompt")"#,
@@ -462,7 +462,7 @@ async fn ignores_policy_files_when_config_stack_disables_exec_policy_rules() {
         r#"prefix_rule(pattern=["curl"], decision="allow")"#,
     )
     .expect("write policy file");
-    let config_stack = config_stack_for_dot_codex_folder(temp_dir.path())
+    let config_stack = config_stack_for_dot_codepilotx_folder(temp_dir.path())
         .with_user_and_project_exec_policy_rules_ignored(
             /*ignore_user_and_project_exec_policy_rules*/ true,
         );
@@ -491,7 +491,7 @@ async fn ignore_user_project_rules_keeps_system_policy_files() {
     )
     .expect("write policy file");
     let config_file =
-        AbsolutePathBuf::from_absolute_path(config_dir.join(codex_config::CONFIG_TOML_FILE))
+        AbsolutePathBuf::from_absolute_path(config_dir.join(codepilotx_config::CONFIG_TOML_FILE))
             .expect("absolute config file");
     let layer = ConfigLayerEntry::new(
         ConfigLayerSource::System { file: config_file },
@@ -529,10 +529,10 @@ async fn ignores_rules_from_untrusted_project_layers() -> anyhow::Result<()> {
         r#"prefix_rule(pattern=["ls"], decision="forbidden")"#,
     )?;
 
-    let project_dot_codex_folder = AbsolutePathBuf::from_absolute_path(project_dir.path())?;
+    let project_dot_codepilotx_folder = AbsolutePathBuf::from_absolute_path(project_dir.path())?;
     let layers = vec![ConfigLayerEntry::new_disabled(
         ConfigLayerSource::Project {
-            dot_codex_folder: project_dot_codex_folder,
+            dot_codepilotx_folder: project_dot_codepilotx_folder,
         },
         TomlValue::Table(Default::default()),
         "marked untrusted",
@@ -579,7 +579,7 @@ async fn loads_policies_from_multiple_config_layers() -> anyhow::Result<()> {
 
     let user_config_toml =
         AbsolutePathBuf::from_absolute_path(user_dir.path().join("config.toml"))?;
-    let project_dot_codex_folder = AbsolutePathBuf::from_absolute_path(project_dir.path())?;
+    let project_dot_codepilotx_folder = AbsolutePathBuf::from_absolute_path(project_dir.path())?;
     let layers = vec![
         ConfigLayerEntry::new(
             ConfigLayerSource::User {
@@ -590,7 +590,7 @@ async fn loads_policies_from_multiple_config_layers() -> anyhow::Result<()> {
         ),
         ConfigLayerEntry::new(
             ConfigLayerSource::Project {
-                dot_codex_folder: project_dot_codex_folder,
+                dot_codepilotx_folder: project_dot_codepilotx_folder,
             },
             TomlValue::Table(Default::default()),
         ),
@@ -687,11 +687,11 @@ fn commands_for_exec_policy_falls_back_for_whitespace_shell_script() {
 #[tokio::test]
 async fn ignore_user_config_keeps_user_policy_files() -> std::io::Result<()> {
     let temp = tempdir()?;
-    let codex_home = temp.path().join("home_ignore_user_config");
-    let rules_dir = codex_home.join(RULES_DIR_NAME);
+    let codepilotx_home = temp.path().join("home_ignore_user_config");
+    let rules_dir = codepilotx_home.join(RULES_DIR_NAME);
     fs::create_dir_all(&rules_dir)?;
     fs::write(
-        codex_home.join(CONFIG_TOML_FILE),
+        codepilotx_home.join(CONFIG_TOML_FILE),
         "model = \"from-user-config\"\ninvalid = [",
     )?;
     fs::write(
@@ -700,7 +700,7 @@ async fn ignore_user_config_keeps_user_policy_files() -> std::io::Result<()> {
     )?;
 
     let config = ConfigBuilder::default()
-        .codex_home(codex_home)
+        .codepilotx_home(codepilotx_home)
         .fallback_cwd(Some(temp.path().to_path_buf()))
         .loader_overrides(LoaderOverrides {
             ignore_user_config: true,
@@ -1566,12 +1566,12 @@ async fn heuristics_apply_when_other_commands_match_policy() {
 
 #[tokio::test]
 async fn append_execpolicy_amendment_updates_policy_and_file() {
-    let codex_home = tempdir().expect("create temp dir");
+    let codepilotx_home = tempdir().expect("create temp dir");
     let prefix = vec!["echo".to_string(), "hello".to_string()];
     let manager = ExecPolicyManager::default();
 
     manager
-        .append_amendment_and_update(codex_home.path(), &ExecPolicyAmendment::from(prefix))
+        .append_amendment_and_update(codepilotx_home.path(), &ExecPolicyAmendment::from(prefix))
         .await
         .expect("update policy");
     let updated_policy = manager.current();
@@ -1588,7 +1588,7 @@ async fn append_execpolicy_amendment_updates_policy_and_file() {
         }
     ));
 
-    let contents = fs::read_to_string(default_policy_path(codex_home.path()))
+    let contents = fs::read_to_string(default_policy_path(codepilotx_home.path()))
         .expect("policy file should have been created");
     assert_eq!(
         contents,
@@ -1599,11 +1599,11 @@ async fn append_execpolicy_amendment_updates_policy_and_file() {
 
 #[tokio::test]
 async fn append_execpolicy_amendment_rejects_empty_prefix() {
-    let codex_home = tempdir().expect("create temp dir");
+    let codepilotx_home = tempdir().expect("create temp dir");
     let manager = ExecPolicyManager::default();
 
     let result = manager
-        .append_amendment_and_update(codex_home.path(), &ExecPolicyAmendment::from(vec![]))
+        .append_amendment_and_update(codepilotx_home.path(), &ExecPolicyAmendment::from(vec![]))
         .await;
 
     assert!(matches!(
@@ -2188,13 +2188,13 @@ async fn assert_exec_approval_requirement_for_command(
 #[tokio::test]
 async fn exec_policies_only_load_from_trusted_project_layers() -> std::io::Result<()> {
     let temp = tempfile::tempdir()?;
-    let codex_home = temp.path().join("home_execpolicy_nested");
+    let codepilotx_home = temp.path().join("home_execpolicy_nested");
     let project_root = temp.path().join("project_execpolicy_nested");
     let nested = project_root.join("nested");
     let root_rules = project_root.join(".codex").join(RULES_DIR_NAME);
     let nested_rules = nested.join(".codex").join(RULES_DIR_NAME);
 
-    fs::create_dir_all(&codex_home)?;
+    fs::create_dir_all(&codepilotx_home)?;
     fs::create_dir_all(&nested_rules)?;
     fs::write(project_root.join(".git"), "gitdir: here")?;
     fs::create_dir_all(&root_rules)?;
@@ -2206,10 +2206,10 @@ async fn exec_policies_only_load_from_trusted_project_layers() -> std::io::Resul
         nested_rules.join("deny-mv.rules"),
         r#"prefix_rule(pattern=["mv"], decision="forbidden")"#,
     )?;
-    write_project_trust_config(&codex_home, &[(&nested, TrustLevel::Trusted)]).await?;
+    write_project_trust_config(&codepilotx_home, &[(&nested, TrustLevel::Trusted)]).await?;
 
     let config = ConfigBuilder::default()
-        .codex_home(codex_home)
+        .codepilotx_home(codepilotx_home)
         .fallback_cwd(Some(nested))
         .build()
         .await?;
@@ -2266,12 +2266,12 @@ async fn exec_policies_require_project_trust_without_config_toml() -> std::io::R
     ];
 
     for (name, trust_entries, expected_decision) in cases {
-        let codex_home = temp.path().join(format!("home_execpolicy_{name}"));
-        fs::create_dir_all(&codex_home)?;
-        write_project_trust_config(&codex_home, &trust_entries).await?;
+        let codepilotx_home = temp.path().join(format!("home_execpolicy_{name}"));
+        fs::create_dir_all(&codepilotx_home)?;
+        write_project_trust_config(&codepilotx_home, &trust_entries).await?;
 
         let config = ConfigBuilder::default()
-            .codex_home(codex_home)
+            .codepilotx_home(codepilotx_home)
             .fallback_cwd(Some(nested.clone()))
             .build()
             .await?;
@@ -2318,12 +2318,12 @@ async fn exec_policy_warnings_ignore_untrusted_project_rules_without_config_toml
     ];
 
     for (name, trust_entries, expect_warning) in cases {
-        let codex_home = temp.path().join(format!("home_execpolicy_warning_{name}"));
-        fs::create_dir_all(&codex_home)?;
-        write_project_trust_config(&codex_home, &trust_entries).await?;
+        let codepilotx_home = temp.path().join(format!("home_execpolicy_warning_{name}"));
+        fs::create_dir_all(&codepilotx_home)?;
+        write_project_trust_config(&codepilotx_home, &trust_entries).await?;
 
         let config = ConfigBuilder::default()
-            .codex_home(codex_home)
+            .codepilotx_home(codepilotx_home)
             .fallback_cwd(Some(nested.clone()))
             .build()
             .await?;

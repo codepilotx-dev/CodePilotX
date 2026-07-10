@@ -23,66 +23,66 @@ use crate::session::turn_context::TurnContext;
 use crate::tools::hook_names::HookToolName;
 use crate::tools::sandboxing::PermissionRequestPayload;
 use crate::turn_metadata::McpTurnMetadataContext;
-use codex_analytics::AppInvocation;
-use codex_analytics::InvocationType;
-use codex_analytics::build_track_events_context;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_app_server_protocol::McpElicitationObjectType;
-use codex_app_server_protocol::McpElicitationSchema;
-use codex_app_server_protocol::McpServerElicitationRequest;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
-use codex_config::types::AppToolApproval;
-use codex_config::types::ApprovalsReviewer;
-use codex_connectors::AppToolPolicy;
-use codex_connectors::AppToolPolicyEvaluator;
-use codex_connectors::AppToolPolicyInput;
-use codex_features::Feature;
-use codex_hooks::PermissionRequestDecision;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_mcp::MCP_TOOL_CODEX_APPS_META_KEY;
-use codex_mcp::McpPermissionPromptAutoApproveContext;
-use codex_mcp::SandboxState;
-use codex_mcp::auth_elicitation_completed_result;
-use codex_mcp::build_auth_elicitation_plan;
-use codex_mcp::declared_openai_file_input_param_names;
-use codex_mcp::mcp_permission_prompt_is_auto_approved;
-use codex_otel::sanitize_metric_tag_value;
-use codex_protocol::items::McpToolCallError;
-use codex_protocol::items::McpToolCallItem;
-use codex_protocol::items::McpToolCallStatus;
-use codex_protocol::items::TurnItem;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::mcp_approval_meta::APPROVAL_KIND_KEY as MCP_TOOL_APPROVAL_KIND_KEY;
-use codex_protocol::mcp_approval_meta::APPROVAL_KIND_MCP_TOOL_CALL as MCP_TOOL_APPROVAL_KIND_MCP_TOOL_CALL;
-use codex_protocol::mcp_approval_meta::CONNECTOR_DESCRIPTION_KEY as MCP_TOOL_APPROVAL_CONNECTOR_DESCRIPTION_KEY;
-use codex_protocol::mcp_approval_meta::CONNECTOR_ID_KEY as MCP_TOOL_APPROVAL_CONNECTOR_ID_KEY;
-use codex_protocol::mcp_approval_meta::CONNECTOR_NAME_KEY as MCP_TOOL_APPROVAL_CONNECTOR_NAME_KEY;
-use codex_protocol::mcp_approval_meta::PERSIST_ALWAYS as MCP_TOOL_APPROVAL_PERSIST_ALWAYS;
-use codex_protocol::mcp_approval_meta::PERSIST_KEY as MCP_TOOL_APPROVAL_PERSIST_KEY;
-use codex_protocol::mcp_approval_meta::PERSIST_SESSION as MCP_TOOL_APPROVAL_PERSIST_SESSION;
-use codex_protocol::mcp_approval_meta::SOURCE_CONNECTOR as MCP_TOOL_APPROVAL_SOURCE_CONNECTOR;
-use codex_protocol::mcp_approval_meta::SOURCE_KEY as MCP_TOOL_APPROVAL_SOURCE_KEY;
-use codex_protocol::mcp_approval_meta::TOOL_DESCRIPTION_KEY as MCP_TOOL_APPROVAL_TOOL_DESCRIPTION_KEY;
-use codex_protocol::mcp_approval_meta::TOOL_PARAMS_DISPLAY_KEY as MCP_TOOL_APPROVAL_TOOL_PARAMS_DISPLAY_KEY;
-use codex_protocol::mcp_approval_meta::TOOL_PARAMS_KEY as MCP_TOOL_APPROVAL_TOOL_PARAMS_KEY;
-use codex_protocol::mcp_approval_meta::TOOL_TITLE_KEY as MCP_TOOL_APPROVAL_TOOL_TITLE_KEY;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::McpInvocation;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::request_user_input::RequestUserInputAnswer;
-use codex_protocol::request_user_input::RequestUserInputArgs;
-use codex_protocol::request_user_input::RequestUserInputQuestion;
-use codex_protocol::request_user_input::RequestUserInputQuestionOption;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_rmcp_client::ElicitationAction;
-use codex_rmcp_client::ElicitationResponse;
-use codex_rollout::state_db;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::truncate_text;
-use codex_utils_path_uri::PathUri;
-use codex_utils_pty::DEFAULT_OUTPUT_BYTES_CAP;
+use codepilotx_analytics::AppInvocation;
+use codepilotx_analytics::InvocationType;
+use codepilotx_analytics::build_track_events_context;
+use codepilotx_app_server_protocol::ConfigLayerSource;
+use codepilotx_app_server_protocol::McpElicitationObjectType;
+use codepilotx_app_server_protocol::McpElicitationSchema;
+use codepilotx_app_server_protocol::McpServerElicitationRequest;
+use codepilotx_app_server_protocol::McpServerElicitationRequestParams;
+use codepilotx_config::types::AppToolApproval;
+use codepilotx_config::types::ApprovalsReviewer;
+use codepilotx_connectors::AppToolPolicy;
+use codepilotx_connectors::AppToolPolicyEvaluator;
+use codepilotx_connectors::AppToolPolicyInput;
+use codepilotx_features::Feature;
+use codepilotx_hooks::PermissionRequestDecision;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
+use codepilotx_mcp::MCP_TOOL_codepilotx_APPS_META_KEY;
+use codepilotx_mcp::McpPermissionPromptAutoApproveContext;
+use codepilotx_mcp::SandboxState;
+use codepilotx_mcp::auth_elicitation_completed_result;
+use codepilotx_mcp::build_auth_elicitation_plan;
+use codepilotx_mcp::declared_openai_file_input_param_names;
+use codepilotx_mcp::mcp_permission_prompt_is_auto_approved;
+use codepilotx_otel::sanitize_metric_tag_value;
+use codepilotx_protocol::items::McpToolCallError;
+use codepilotx_protocol::items::McpToolCallItem;
+use codepilotx_protocol::items::McpToolCallStatus;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::mcp::CallToolResult;
+use codepilotx_protocol::mcp_approval_meta::APPROVAL_KIND_KEY as MCP_TOOL_APPROVAL_KIND_KEY;
+use codepilotx_protocol::mcp_approval_meta::APPROVAL_KIND_MCP_TOOL_CALL as MCP_TOOL_APPROVAL_KIND_MCP_TOOL_CALL;
+use codepilotx_protocol::mcp_approval_meta::CONNECTOR_DESCRIPTION_KEY as MCP_TOOL_APPROVAL_CONNECTOR_DESCRIPTION_KEY;
+use codepilotx_protocol::mcp_approval_meta::CONNECTOR_ID_KEY as MCP_TOOL_APPROVAL_CONNECTOR_ID_KEY;
+use codepilotx_protocol::mcp_approval_meta::CONNECTOR_NAME_KEY as MCP_TOOL_APPROVAL_CONNECTOR_NAME_KEY;
+use codepilotx_protocol::mcp_approval_meta::PERSIST_ALWAYS as MCP_TOOL_APPROVAL_PERSIST_ALWAYS;
+use codepilotx_protocol::mcp_approval_meta::PERSIST_KEY as MCP_TOOL_APPROVAL_PERSIST_KEY;
+use codepilotx_protocol::mcp_approval_meta::PERSIST_SESSION as MCP_TOOL_APPROVAL_PERSIST_SESSION;
+use codepilotx_protocol::mcp_approval_meta::SOURCE_CONNECTOR as MCP_TOOL_APPROVAL_SOURCE_CONNECTOR;
+use codepilotx_protocol::mcp_approval_meta::SOURCE_KEY as MCP_TOOL_APPROVAL_SOURCE_KEY;
+use codepilotx_protocol::mcp_approval_meta::TOOL_DESCRIPTION_KEY as MCP_TOOL_APPROVAL_TOOL_DESCRIPTION_KEY;
+use codepilotx_protocol::mcp_approval_meta::TOOL_PARAMS_DISPLAY_KEY as MCP_TOOL_APPROVAL_TOOL_PARAMS_DISPLAY_KEY;
+use codepilotx_protocol::mcp_approval_meta::TOOL_PARAMS_KEY as MCP_TOOL_APPROVAL_TOOL_PARAMS_KEY;
+use codepilotx_protocol::mcp_approval_meta::TOOL_TITLE_KEY as MCP_TOOL_APPROVAL_TOOL_TITLE_KEY;
+use codepilotx_protocol::openai_models::InputModality;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::McpInvocation;
+use codepilotx_protocol::protocol::ReviewDecision;
+use codepilotx_protocol::request_user_input::RequestUserInputAnswer;
+use codepilotx_protocol::request_user_input::RequestUserInputArgs;
+use codepilotx_protocol::request_user_input::RequestUserInputQuestion;
+use codepilotx_protocol::request_user_input::RequestUserInputQuestionOption;
+use codepilotx_protocol::request_user_input::RequestUserInputResponse;
+use codepilotx_rmcp_client::ElicitationAction;
+use codepilotx_rmcp_client::ElicitationResponse;
+use codepilotx_rollout::state_db;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_output_truncation::TruncationPolicy;
+use codepilotx_utils_output_truncation::truncate_text;
+use codepilotx_utils_path_uri::PathUri;
+use codepilotx_utils_pty::DEFAULT_OUTPUT_BYTES_CAP;
 use rmcp::model::ToolAnnotations;
 use serde::Deserialize;
 use serde::Serialize;
@@ -144,7 +144,7 @@ pub(crate) async fn handle_mcp_tool_call(
     let metadata =
         lookup_mcp_tool_metadata(sess.as_ref(), turn_context.as_ref(), &server, &tool_name).await;
     let item_metadata = McpToolCallItemMetadata::from_tool_metadata(&server, metadata.as_ref());
-    let app_tool_policy = if server == CODEX_APPS_MCP_SERVER_NAME {
+    let app_tool_policy = if server == codepilotx_APPS_MCP_SERVER_NAME {
         let annotations = metadata
             .as_ref()
             .and_then(|metadata| metadata.annotations.as_ref());
@@ -164,7 +164,7 @@ pub(crate) async fn handle_mcp_tool_call(
     } else {
         AppToolPolicy::default()
     };
-    let approval_mode = if server == CODEX_APPS_MCP_SERVER_NAME {
+    let approval_mode = if server == codepilotx_APPS_MCP_SERVER_NAME {
         app_tool_policy.approval
     } else if let Some(approval_mode) = {
         // Selected-plugin registrations are absent from config.toml and the legacy plugin manager,
@@ -180,7 +180,7 @@ pub(crate) async fn handle_mcp_tool_call(
             .await
     };
 
-    if server == CODEX_APPS_MCP_SERVER_NAME && !app_tool_policy.enabled {
+    if server == codepilotx_APPS_MCP_SERVER_NAME && !app_tool_policy.enabled {
         let result = notify_mcp_tool_call_skip(
             sess.as_ref(),
             turn_context.as_ref(),
@@ -315,7 +315,7 @@ struct McpToolCallItemMetadata {
 
 impl McpToolCallItemMetadata {
     fn from_tool_metadata(server: &str, metadata: Option<&McpToolApprovalMetadata>) -> Self {
-        let trusted_mcp_app_metadata = if server == CODEX_APPS_MCP_SERVER_NAME {
+        let trusted_mcp_app_metadata = if server == codepilotx_APPS_MCP_SERVER_NAME {
             metadata
         } else {
             None
@@ -410,7 +410,7 @@ async fn handle_approved_mcp_tool_call(
         truncate_mcp_tool_result_for_event(&result),
     )
     .await;
-    maybe_track_codex_app_used(sess, turn_context, &server, &tool_name).await;
+    maybe_track_codepilotx_app_used(sess, turn_context, &server, &tool_name).await;
 
     let status = if result.is_ok() { "ok" } else { "error" };
     emit_mcp_call_metrics(
@@ -612,7 +612,7 @@ async fn execute_mcp_tool_call(
             .contains(&InputModality::Image),
         Ok(result),
     )?;
-    Ok(maybe_request_codex_apps_auth_elicitation(
+    Ok(maybe_request_codepilotx_apps_auth_elicitation(
         sess,
         turn_context,
         call_id,
@@ -623,7 +623,7 @@ async fn execute_mcp_tool_call(
     .await)
 }
 
-async fn maybe_request_codex_apps_auth_elicitation(
+async fn maybe_request_codepilotx_apps_auth_elicitation(
     sess: &Session,
     turn_context: &TurnContext,
     call_id: &str,
@@ -635,7 +635,7 @@ async fn maybe_request_codex_apps_auth_elicitation(
         .services
         .mcp_connection_manager
         .load_full()
-        .is_host_owned_codex_apps_server(server)
+        .is_host_owned_codepilotx_apps_server(server)
     {
         return result;
     }
@@ -662,7 +662,7 @@ async fn maybe_request_codex_apps_auth_elicitation(
     let connector_id = metadata.and_then(|metadata| metadata.connector_id.as_deref());
     let connector_name = metadata.and_then(|metadata| metadata.connector_name.as_deref());
     let install_url = connector_id.map(|connector_id| {
-        codex_connectors::metadata::connector_install_url(
+        codepilotx_connectors::metadata::connector_install_url(
             connector_name.unwrap_or(connector_id),
             connector_id,
         )
@@ -677,7 +677,7 @@ async fn maybe_request_codex_apps_auth_elicitation(
     let params = McpServerElicitationRequestParams {
         thread_id: sess.thread_id.to_string(),
         turn_id: Some(turn_context.sub_id.clone()),
-        server_name: CODEX_APPS_MCP_SERVER_NAME.to_string(),
+        server_name: codepilotx_APPS_MCP_SERVER_NAME.to_string(),
         request: McpServerElicitationRequest::Url {
             meta: Some(plan.elicitation.meta),
             message: plan.elicitation.message,
@@ -696,14 +696,14 @@ async fn maybe_request_codex_apps_auth_elicitation(
         return result;
     }
 
-    refresh_codex_apps_after_connector_auth(sess, turn_context).await;
+    refresh_codepilotx_apps_after_connector_auth(sess, turn_context).await;
     auth_elicitation_completed_result(&plan.auth_failure, result.meta)
 }
 
-async fn refresh_codex_apps_after_connector_auth(sess: &Session, turn_context: &TurnContext) {
+async fn refresh_codepilotx_apps_after_connector_auth(sess: &Session, turn_context: &TurnContext) {
     let mcp_tools_result = {
         let manager = sess.services.mcp_connection_manager.load_full();
-        manager.hard_refresh_codex_apps_tools_cache().await
+        manager.hard_refresh_codepilotx_apps_tools_cache().await
     };
 
     match mcp_tools_result {
@@ -738,14 +738,14 @@ async fn augment_mcp_tool_request_meta_with_sandbox_state(
 
     let server_environment_id = mcp_connection_manager
         .server_environment_id(server)
-        .unwrap_or(codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID);
+        .unwrap_or(codepilotx_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID);
     let Some(sandbox_cwd) = sandbox_cwd_for_mcp_server(turn_context, server_environment_id) else {
         return Ok(meta);
     };
     let permission_profile = turn_context.permission_profile();
     let sandbox_state = serde_json::to_value(SandboxState {
         permission_profile: Some(permission_profile),
-        codex_linux_sandbox_exe: turn_context.config.codex_linux_sandbox_exe.clone(),
+        codepilotx_linux_sandbox_exe: turn_context.config.codepilotx_linux_sandbox_exe.clone(),
         sandbox_cwd,
         use_legacy_landlock: turn_context.config.features.use_legacy_landlock(),
     })?;
@@ -753,7 +753,7 @@ async fn augment_mcp_tool_request_meta_with_sandbox_state(
     match meta.as_mut() {
         Some(serde_json::Value::Object(map)) => {
             map.insert(
-                codex_mcp::MCP_SANDBOX_STATE_META_CAPABILITY.to_string(),
+                codepilotx_mcp::MCP_SANDBOX_STATE_META_CAPABILITY.to_string(),
                 sandbox_state,
             );
         }
@@ -761,7 +761,7 @@ async fn augment_mcp_tool_request_meta_with_sandbox_state(
         None => {
             let mut map = serde_json::Map::new();
             map.insert(
-                codex_mcp::MCP_SANDBOX_STATE_META_CAPABILITY.to_string(),
+                codepilotx_mcp::MCP_SANDBOX_STATE_META_CAPABILITY.to_string(),
                 sandbox_state,
             );
             meta = Some(serde_json::Value::Object(map));
@@ -781,7 +781,7 @@ fn sandbox_cwd_for_mcp_server(turn_context: &TurnContext, environment_id: &str) 
         return Some(environment.cwd().clone());
     }
 
-    if environment_id == codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID {
+    if environment_id == codepilotx_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID {
         #[allow(deprecated)]
         return Some(PathUri::from_abs_path(&turn_context.cwd));
     }
@@ -964,13 +964,13 @@ struct McpAppUsageMetadata {
     app_name: Option<String>,
 }
 
-async fn maybe_track_codex_app_used(
+async fn maybe_track_codepilotx_app_used(
     sess: &Session,
     turn_context: &TurnContext,
     server: &str,
     tool_name: &str,
 ) {
-    if server != CODEX_APPS_MCP_SERVER_NAME {
+    if server != codepilotx_APPS_MCP_SERVER_NAME {
         return;
     }
     let metadata = lookup_mcp_app_usage_metadata(sess, server, tool_name).await;
@@ -1022,7 +1022,7 @@ pub(crate) struct McpToolApprovalMetadata {
     tool_title: Option<String>,
     tool_description: Option<String>,
     mcp_app_resource_uri: Option<String>,
-    codex_apps_meta: Option<serde_json::Map<String, serde_json::Value>>,
+    codepilotx_apps_meta: Option<serde_json::Map<String, serde_json::Value>>,
     openai_file_input_params: Option<Vec<String>>,
 }
 
@@ -1046,7 +1046,7 @@ async fn custom_mcp_tool_approval_mode(
         .and_then(|table| table.get("mcp_servers"))
         .cloned()
         .and_then(|value| {
-            HashMap::<String, codex_config::types::McpServerConfig>::deserialize(value).ok()
+            HashMap::<String, codepilotx_config::types::McpServerConfig>::deserialize(value).ok()
         })
         .and_then(|servers| {
             let server_config = servers.get(server)?;
@@ -1097,22 +1097,22 @@ fn build_mcp_tool_call_request_meta(
         })
     {
         request_meta.insert(
-            crate::X_CODEX_TURN_METADATA_HEADER.to_string(),
+            crate::X_codepilotx_TURN_METADATA_HEADER.to_string(),
             turn_metadata,
         );
     }
 
-    if server == CODEX_APPS_MCP_SERVER_NAME {
-        let mut codex_apps_meta = metadata
-            .and_then(|metadata| metadata.codex_apps_meta.clone())
+    if server == codepilotx_APPS_MCP_SERVER_NAME {
+        let mut codepilotx_apps_meta = metadata
+            .and_then(|metadata| metadata.codepilotx_apps_meta.clone())
             .unwrap_or_default();
-        codex_apps_meta.insert(
+        codepilotx_apps_meta.insert(
             "call_id".to_string(),
             serde_json::Value::String(call_id.to_string()),
         );
         request_meta.insert(
-            MCP_TOOL_CODEX_APPS_META_KEY.to_string(),
-            serde_json::Value::Object(codex_apps_meta),
+            MCP_TOOL_codepilotx_APPS_META_KEY.to_string(),
+            serde_json::Value::Object(codepilotx_apps_meta),
         );
     }
     if let Some(plugin_id) = metadata.and_then(|metadata| metadata.plugin_id.as_ref()) {
@@ -1172,7 +1172,7 @@ pub(crate) const MCP_TOOL_APPROVAL_ACCEPT_FOR_SESSION: &str = "Allow for this se
 // RequestUserInput compatibility path. That legacy MCP prompt has allow/cancel labels but no
 // real "Decline" answer, so this lets guardian denials round-trip distinctly from user cancel.
 // This is not a user-facing option.
-pub(crate) const MCP_TOOL_APPROVAL_DECLINE_SYNTHETIC: &str = "__codex_mcp_decline__";
+pub(crate) const MCP_TOOL_APPROVAL_DECLINE_SYNTHETIC: &str = "__codepilotx_mcp_decline__";
 const MCP_TOOL_APPROVAL_ACCEPT_AND_REMEMBER: &str = "Allow and don't ask me again";
 const MCP_TOOL_APPROVAL_CANCEL: &str = "Cancel";
 
@@ -1407,7 +1407,7 @@ fn session_mcp_tool_approval_key(
     }
 
     let connector_id = metadata.and_then(|metadata| metadata.connector_id.clone());
-    if invocation.server == CODEX_APPS_MCP_SERVER_NAME && connector_id.is_none() {
+    if invocation.server == codepilotx_APPS_MCP_SERVER_NAME && connector_id.is_none() {
         return None;
     }
 
@@ -1485,7 +1485,7 @@ pub(crate) async fn lookup_mcp_tool_metadata(
     let tool_info = tools
         .into_iter()
         .find(|tool_info| tool_info.server_name == server && tool_info.tool.name == tool_name)?;
-    let connector_description = if server == CODEX_APPS_MCP_SERVER_NAME {
+    let connector_description = if server == codepilotx_APPS_MCP_SERVER_NAME {
         let connectors = match connectors::list_cached_accessible_connectors_from_mcp_tools(
             turn_context.config.as_ref(),
         )
@@ -1525,11 +1525,11 @@ pub(crate) async fn lookup_mcp_tool_metadata(
         tool_title: tool_info.tool.title,
         tool_description: tool_info.tool.description.map(std::borrow::Cow::into_owned),
         mcp_app_resource_uri: get_mcp_app_resource_uri(tool_info.tool.meta.as_deref()),
-        codex_apps_meta: tool_info
+        codepilotx_apps_meta: tool_info
             .tool
             .meta
             .as_ref()
-            .and_then(|meta| meta.get(MCP_TOOL_CODEX_APPS_META_KEY))
+            .and_then(|meta| meta.get(MCP_TOOL_codepilotx_APPS_META_KEY))
             .and_then(serde_json::Value::as_object)
             .cloned(),
         // Disallow custom MCPs from uploading files via fileParams.
@@ -1544,7 +1544,7 @@ fn openai_file_input_params_for_server(
     server: &str,
     meta: Option<&serde_json::Map<String, serde_json::Value>>,
 ) -> Option<Vec<String>> {
-    (server == CODEX_APPS_MCP_SERVER_NAME)
+    (server == codepilotx_APPS_MCP_SERVER_NAME)
         .then_some(declared_openai_file_input_param_names(meta))
         .filter(|params| !params.is_empty())
 }
@@ -1649,7 +1649,7 @@ fn build_mcp_tool_approval_fallback_message(
         .filter(|name| !name.is_empty())
         .map(ToString::to_string)
         .unwrap_or_else(|| {
-            if server == CODEX_APPS_MCP_SERVER_NAME {
+            if server == codepilotx_APPS_MCP_SERVER_NAME {
                 "this app".to_string()
             } else {
                 format!("the {server} MCP server")
@@ -1743,7 +1743,7 @@ fn build_mcp_tool_approval_elicitation_meta(
                 serde_json::Value::String(tool_description.clone()),
             );
         }
-        if server == CODEX_APPS_MCP_SERVER_NAME
+        if server == codepilotx_APPS_MCP_SERVER_NAME
             && (metadata.connector_id.is_some()
                 || metadata.connector_name.is_some()
                 || metadata.connector_description.is_some())
@@ -1970,12 +1970,12 @@ async fn maybe_persist_mcp_tool_approval(
 ) {
     let tool_name = key.tool_name.clone();
 
-    let persist_result = if key.server == CODEX_APPS_MCP_SERVER_NAME {
+    let persist_result = if key.server == codepilotx_APPS_MCP_SERVER_NAME {
         let Some(connector_id) = key.connector_id.clone() else {
             remember_mcp_tool_approval(sess, key).await;
             return;
         };
-        persist_codex_app_tool_approval(&turn_context.config, &connector_id, &tool_name).await
+        persist_codepilotx_app_tool_approval(&turn_context.config, &connector_id, &tool_name).await
     } else {
         persist_non_app_mcp_tool_approval(sess, &turn_context.config, &key.server, &tool_name).await
     };
@@ -1995,7 +1995,7 @@ async fn maybe_persist_mcp_tool_approval(
     remember_mcp_tool_approval(sess, key).await;
 }
 
-async fn persist_codex_app_tool_approval(
+async fn persist_codepilotx_app_tool_approval(
     config: &Config,
     connector_id: &str,
     tool_name: &str,
@@ -2115,7 +2115,7 @@ fn user_mcp_server_is_configured(config: &Config, server: &str) -> anyhow::Resul
         return Ok(false);
     };
     let servers =
-        HashMap::<String, codex_config::types::McpServerConfig>::deserialize(mcp_servers_toml)?;
+        HashMap::<String, codepilotx_config::types::McpServerConfig>::deserialize(mcp_servers_toml)?;
     Ok(servers.contains_key(server))
 }
 
@@ -2138,7 +2138,7 @@ fn project_mcp_tool_approval_config_folder(
                 .and_then(|table| table.get("mcp_servers"))
                 .cloned()
                 .and_then(|value| {
-                    HashMap::<String, codex_config::types::McpServerConfig>::deserialize(value).ok()
+                    HashMap::<String, codepilotx_config::types::McpServerConfig>::deserialize(value).ok()
                 })?;
             if servers.contains_key(server) {
                 layer.config_folder()

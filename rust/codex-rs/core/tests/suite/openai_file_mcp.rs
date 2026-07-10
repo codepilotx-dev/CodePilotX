@@ -5,9 +5,9 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_utils_path_uri::PathUri;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_utils_path_uri::PathUri;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::apps_test_server::CALENDAR_EXTRACT_TEXT_TOOL_NAME;
 use core_test_support::apps_test_server::DIRECT_CALENDAR_EXTRACT_TEXT_TOOL as DOCUMENT_EXTRACT_HOOK_MATCHER;
@@ -170,7 +170,7 @@ async fn run_extract_turn(test: &TestCodex, server: &MockServer) -> Result<Respo
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn codex_apps_file_params_upload_environment_files_before_mcp_tool_call() -> Result<()> {
+async fn codepilotx_apps_file_params_upload_environment_files_before_mcp_tool_call() -> Result<()> {
     let server = start_mock_server().await;
     let apps_server = AppsTestServer::mount(&server).await?;
     mount_file_upload_mocks(&server, STREAMED_FILE_SIZE as u64).await;
@@ -213,7 +213,7 @@ async fn codex_apps_file_params_upload_environment_files_before_mcp_tool_call() 
         Some(&uploaded_file(&server, STREAMED_FILE_SIZE as u64))
     );
     assert_eq!(
-        apps_tool_call.pointer("/params/_meta/_codex_apps"),
+        apps_tool_call.pointer("/params/_meta/_codepilotx_apps"),
         Some(&json!({
             "call_id": "extract-call-1",
             "resource_uri": DOCUMENT_EXTRACT_TEXT_RESOURCE_URI,
@@ -227,7 +227,7 @@ async fn codex_apps_file_params_upload_environment_files_before_mcp_tool_call() 
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn codex_apps_file_params_pass_uploaded_file_to_post_tool_use_hook() -> Result<()> {
+async fn codepilotx_apps_file_params_pass_uploaded_file_to_post_tool_use_hook() -> Result<()> {
     let server = start_mock_server().await;
     let apps_server = AppsTestServer::mount(&server).await?;
     mount_file_upload_mocks(&server, /*file_size_bytes*/ 11).await;
@@ -245,7 +245,7 @@ async fn codex_apps_file_params_pass_uploaded_file_to_post_tool_use_hook() -> Re
     tokio::fs::write(test.cwd.path().join("report.txt"), b"hello world").await?;
     let _responses = run_extract_turn(&test, &server).await?;
 
-    let hook_inputs = read_post_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_post_tool_use_hook_inputs(test.codepilotx_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(
         hook_inputs[0]["tool_input"]["file"],

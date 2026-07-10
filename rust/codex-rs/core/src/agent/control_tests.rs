@@ -10,28 +10,28 @@ use crate::context::ContextualUserFragment;
 use crate::context::SubagentNotification;
 use crate::init_state_db;
 use assert_matches::assert_matches;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_protocol::AgentPath;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::MultiAgentMode;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::TurnCompleteEvent;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_thread_store::ArchiveThreadParams;
-use codex_thread_store::LocalThreadStore;
-use codex_thread_store::LocalThreadStoreConfig;
-use codex_thread_store::ThreadStore;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_protocol::AgentPath;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::MultiAgentMode;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::MessagePhase;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::protocol::CompactedItem;
+use codepilotx_protocol::protocol::ErrorEvent;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::InterAgentCommunication;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_protocol::protocol::TurnAbortReason;
+use codepilotx_protocol::protocol::TurnAbortedEvent;
+use codepilotx_protocol::protocol::TurnCompleteEvent;
+use codepilotx_protocol::protocol::TurnStartedEvent;
+use codepilotx_thread_store::ArchiveThreadParams;
+use codepilotx_thread_store::LocalThreadStore;
+use codepilotx_thread_store::LocalThreadStoreConfig;
+use codepilotx_thread_store::ThreadStore;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::Duration;
@@ -44,7 +44,7 @@ async fn test_config_with_cli_overrides(
 ) -> (TempDir, Config) {
     let home = TempDir::new().expect("create temp dir");
     let config = ConfigBuilder::without_managed_config_for_tests()
-        .codex_home(home.path().to_path_buf())
+        .codepilotx_home(home.path().to_path_buf())
         .cli_overrides(cli_overrides)
         .build()
         .await
@@ -115,8 +115,8 @@ impl AgentControlHarness {
         let manager = ThreadManager::with_models_provider_home_and_state_for_tests(
             CodexAuth::from_api_key("dummy"),
             config.model_provider.clone(),
-            config.codex_home.to_path_buf(),
-            std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+            config.codepilotx_home.to_path_buf(),
+            std::sync::Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
             state_db.clone(),
         );
         let control = manager.agent_control();
@@ -320,7 +320,7 @@ async fn on_event_updates_status_from_task_complete() {
 async fn on_event_updates_status_from_error() {
     let status = agent_status_from_event(&EventMsg::Error(ErrorEvent {
         message: "boom".to_string(),
-        codex_error_info: None,
+        codepilotx_error_info: None,
     }));
 
     let expected = AgentStatus::Errored("boom".to_string());
@@ -701,8 +701,8 @@ async fn resume_agent_from_rollout_does_not_reopen_v2_descendants() {
     let resumed_manager = ThreadManager::with_models_provider_home_and_state_for_tests(
         CodexAuth::from_api_key("dummy"),
         harness.config.model_provider.clone(),
-        harness.config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        harness.config.codepilotx_home.to_path_buf(),
+        std::sync::Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         harness.state_db.clone(),
     );
     let resumed_control = resumed_manager.agent_control();
@@ -1663,8 +1663,8 @@ async fn spawn_agent_respects_max_threads_limit() {
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
-        config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        config.codepilotx_home.to_path_buf(),
+        std::sync::Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
     );
     let control = manager.agent_control();
 
@@ -1715,8 +1715,8 @@ async fn spawn_agent_releases_slot_after_shutdown() {
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
-        config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        config.codepilotx_home.to_path_buf(),
+        std::sync::Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
     );
     let control = manager.agent_control();
 
@@ -1758,8 +1758,8 @@ async fn spawn_agent_limit_shared_across_clones() {
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
-        config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        config.codepilotx_home.to_path_buf(),
+        std::sync::Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
     );
     let control = manager.agent_control();
     let cloned = control.clone();
@@ -1803,8 +1803,8 @@ async fn resume_agent_respects_max_threads_limit() {
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
-        config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        config.codepilotx_home.to_path_buf(),
+        std::sync::Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
     );
     let control = manager.agent_control();
 
@@ -1859,8 +1859,8 @@ async fn resume_agent_releases_slot_after_resume_failure() {
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
-        config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        config.codepilotx_home.to_path_buf(),
+        std::sync::Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
     );
     let control = manager.agent_control();
 
@@ -2265,8 +2265,8 @@ async fn resume_thread_subagent_restores_stored_metadata_and_effective_multi_age
     let manager = ThreadManager::with_models_provider_home_and_state_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
-        config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        config.codepilotx_home.to_path_buf(),
+        std::sync::Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         state_db.clone(),
     );
     let control = manager.agent_control();
@@ -2615,8 +2615,8 @@ async fn list_agent_subtree_thread_ids_finds_live_descendants_of_unloaded_root()
     let manager = ThreadManager::with_models_provider_home_and_state_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
-        config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        config.codepilotx_home.to_path_buf(),
+        std::sync::Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         /*state_db*/ None,
     );
     let control = manager.agent_control();

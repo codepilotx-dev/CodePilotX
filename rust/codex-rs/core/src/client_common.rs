@@ -1,10 +1,10 @@
-pub use codex_api::ResponseEvent;
-use codex_protocol::error::Result;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_tools::ToolSpec;
+pub use codepilotx_api::ResponseEvent;
+use codepilotx_protocol::error::Result;
+use codepilotx_protocol::models::BaseInstructions;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::FunctionCallOutputContentItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_tools::ToolSpec;
 use futures::Stream;
 use serde_json::Value;
 use std::pin::Pin;

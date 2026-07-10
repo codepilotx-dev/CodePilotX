@@ -7,10 +7,10 @@ use crate::tools::context::boxed_tool_output;
 use crate::tools::handlers::mcp_resource_spec::create_list_mcp_resources_tool;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
-use codex_protocol::models::function_call_output_content_items_to_text;
-use codex_protocol::protocol::McpInvocation;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
+use codepilotx_protocol::models::function_call_output_content_items_to_text;
+use codepilotx_protocol::protocol::McpInvocation;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSpec;
 
 use rmcp::model::PaginatedRequestParams;
 
@@ -41,7 +41,7 @@ impl ToolExecutor<ToolInvocation> for ListMcpResourcesHandler {
         true
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }

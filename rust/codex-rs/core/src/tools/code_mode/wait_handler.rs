@@ -9,8 +9,8 @@ use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::PostToolUsePayload;
 use crate::tools::registry::PreToolUsePayload;
 use crate::tools::registry::ToolExecutor;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::ToolSpec;
 
 use super::DEFAULT_WAIT_YIELD_TIME_MS;
 use super::ExecContext;
@@ -53,7 +53,7 @@ impl ToolExecutor<ToolInvocation> for CodeModeWaitHandler {
         create_wait_tool()
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }
@@ -78,7 +78,7 @@ impl CodeModeWaitHandler {
                 let args: ExecWaitArgs = parse_arguments(&arguments)?;
                 let exec = ExecContext { session, turn };
                 let started_at = std::time::Instant::now();
-                let cell_id = codex_code_mode::CellId::new(args.cell_id);
+                let cell_id = codepilotx_code_mode::CellId::new(args.cell_id);
                 let wait_response = if args.terminate {
                     exec.session
                         .services
@@ -89,23 +89,23 @@ impl CodeModeWaitHandler {
                     exec.session
                         .services
                         .code_mode_service
-                        .wait(codex_code_mode::WaitRequest {
+                        .wait(codepilotx_code_mode::WaitRequest {
                             cell_id,
                             yield_time_ms: args.yield_time_ms,
                         })
                         .await
                 }
                 .map_err(FunctionCallError::RespondToModel)?;
-                if let codex_code_mode::WaitOutcome::LiveCell(response) = &wait_response
-                    && !matches!(response, codex_code_mode::RuntimeResponse::Yielded { .. })
+                if let codepilotx_code_mode::WaitOutcome::LiveCell(response) = &wait_response
+                    && !matches!(response, codepilotx_code_mode::RuntimeResponse::Yielded { .. })
                 {
                     // Only a live-cell wait can close a CodeCell. A missing
                     // cell is still an ordinary `wait` tool result, but there
                     // is no runtime object for the reducer to complete.
                     let runtime_cell_id = match response {
-                        codex_code_mode::RuntimeResponse::Yielded { cell_id, .. }
-                        | codex_code_mode::RuntimeResponse::Terminated { cell_id, .. }
-                        | codex_code_mode::RuntimeResponse::Result { cell_id, .. } => cell_id,
+                        codepilotx_code_mode::RuntimeResponse::Yielded { cell_id, .. }
+                        | codepilotx_code_mode::RuntimeResponse::Terminated { cell_id, .. }
+                        | codepilotx_code_mode::RuntimeResponse::Result { cell_id, .. } => cell_id,
                     };
                     exec.session
                         .services

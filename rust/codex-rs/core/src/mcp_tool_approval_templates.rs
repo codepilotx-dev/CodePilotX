@@ -200,7 +200,7 @@ mod tests {
     fn renders_exact_match_with_readable_param_labels() {
         let templates = vec![ConsequentialToolMessageTemplate {
             connector_id: "calendar".to_string(),
-            server_name: "codex_apps".to_string(),
+            server_name: "codepilotx_apps".to_string(),
             tool_title: "create_event".to_string(),
             template: "Allow {connector_name} to create an event?".to_string(),
             template_params: vec![
@@ -217,7 +217,7 @@ mod tests {
 
         let rendered = render_mcp_tool_approval_template_from_templates(
             &templates,
-            "codex_apps",
+            "codepilotx_apps",
             Some("calendar"),
             Some("Calendar"),
             Some("create_event"),
@@ -263,7 +263,7 @@ mod tests {
     fn returns_none_when_no_exact_match_exists() {
         let templates = vec![ConsequentialToolMessageTemplate {
             connector_id: "calendar".to_string(),
-            server_name: "codex_apps".to_string(),
+            server_name: "codepilotx_apps".to_string(),
             tool_title: "create_event".to_string(),
             template: "Allow {connector_name} to create an event?".to_string(),
             template_params: Vec::new(),
@@ -272,7 +272,7 @@ mod tests {
         assert_eq!(
             render_mcp_tool_approval_template_from_templates(
                 &templates,
-                "codex_apps",
+                "codepilotx_apps",
                 Some("calendar"),
                 Some("Calendar"),
                 Some("delete_event"),
@@ -286,7 +286,7 @@ mod tests {
     fn returns_none_when_relabeling_would_collide() {
         let templates = vec![ConsequentialToolMessageTemplate {
             connector_id: "calendar".to_string(),
-            server_name: "codex_apps".to_string(),
+            server_name: "codepilotx_apps".to_string(),
             tool_title: "create_event".to_string(),
             template: "Allow {connector_name} to create an event?".to_string(),
             template_params: vec![ConsequentialToolTemplateParam {
@@ -298,7 +298,7 @@ mod tests {
         assert_eq!(
             render_mcp_tool_approval_template_from_templates(
                 &templates,
-                "codex_apps",
+                "codepilotx_apps",
                 Some("calendar"),
                 Some("Calendar"),
                 Some("create_event"),
@@ -320,7 +320,7 @@ mod tests {
     fn renders_literal_template_without_connector_substitution() {
         let templates = vec![ConsequentialToolMessageTemplate {
             connector_id: "github".to_string(),
-            server_name: "codex_apps".to_string(),
+            server_name: "codepilotx_apps".to_string(),
             tool_title: "add_comment".to_string(),
             template: "Allow GitHub to add a comment to a pull request?".to_string(),
             template_params: Vec::new(),
@@ -328,7 +328,7 @@ mod tests {
 
         let rendered = render_mcp_tool_approval_template_from_templates(
             &templates,
-            "codex_apps",
+            "codepilotx_apps",
             Some("github"),
             /*connector_name*/ None,
             Some("add_comment"),
@@ -350,7 +350,7 @@ mod tests {
     fn returns_none_when_connector_placeholder_has_no_value() {
         let templates = vec![ConsequentialToolMessageTemplate {
             connector_id: "calendar".to_string(),
-            server_name: "codex_apps".to_string(),
+            server_name: "codepilotx_apps".to_string(),
             tool_title: "create_event".to_string(),
             template: "Allow {connector_name} to create an event?".to_string(),
             template_params: Vec::new(),
@@ -359,7 +359,7 @@ mod tests {
         assert_eq!(
             render_mcp_tool_approval_template_from_templates(
                 &templates,
-                "codex_apps",
+                "codepilotx_apps",
                 Some("calendar"),
                 /*connector_name*/ None,
                 Some("create_event"),

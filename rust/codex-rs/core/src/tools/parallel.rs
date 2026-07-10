@@ -24,8 +24,8 @@ use crate::tools::registry::ToolArgumentDiffConsumer;
 use crate::tools::router::ToolCall;
 use crate::tools::router::ToolCallSource;
 use crate::tools::router::ToolRouter;
-use codex_protocol::error::CodexErr;
-use codex_protocol::models::ResponseInputItem;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::models::ResponseInputItem;
 
 #[derive(Clone)]
 pub(crate) struct ToolCallRuntime {
@@ -54,7 +54,7 @@ impl ToolCallRuntime {
 
     pub(crate) fn create_diff_consumer(
         &self,
-        tool_name: &codex_tools::ToolName,
+        tool_name: &codepilotx_tools::ToolName,
     ) -> Option<Box<dyn ToolArgumentDiffConsumer>> {
         self.router.create_diff_consumer(tool_name)
     }
@@ -195,15 +195,15 @@ impl ToolCallRuntime {
             ToolPayload::Custom { .. } => ResponseInputItem::CustomToolCallOutput {
                 call_id: call.call_id,
                 name: None,
-                output: codex_protocol::models::FunctionCallOutputPayload {
-                    body: codex_protocol::models::FunctionCallOutputBody::Text(message),
+                output: codepilotx_protocol::models::FunctionCallOutputPayload {
+                    body: codepilotx_protocol::models::FunctionCallOutputBody::Text(message),
                     success: Some(false),
                 },
             },
             _ => ResponseInputItem::FunctionCallOutput {
                 call_id: call.call_id,
-                output: codex_protocol::models::FunctionCallOutputPayload {
-                    body: codex_protocol::models::FunctionCallOutputBody::Text(message),
+                output: codepilotx_protocol::models::FunctionCallOutputPayload {
+                    body: codepilotx_protocol::models::FunctionCallOutputBody::Text(message),
                     success: Some(false),
                 },
             },
@@ -246,34 +246,34 @@ mod tests {
     use crate::tools::registry::ToolExecutor;
     use crate::tools::registry::ToolRegistry;
     use crate::turn_diff_tracker::TurnDiffTracker;
-    use codex_extension_api::ToolCallOutcome;
-    use codex_protocol::models::FunctionCallOutputBody;
-    use codex_protocol::models::FunctionCallOutputPayload;
+    use codepilotx_extension_api::ToolCallOutcome;
+    use codepilotx_protocol::models::FunctionCallOutputBody;
+    use codepilotx_protocol::models::FunctionCallOutputPayload;
     use pretty_assertions::assert_eq;
     use tokio::sync::Notify;
     use tokio::sync::oneshot;
 
     struct ImmediateHandler {
-        tool_name: codex_tools::ToolName,
+        tool_name: codepilotx_tools::ToolName,
     }
 
     impl ToolExecutor<ToolInvocation> for ImmediateHandler {
-        fn tool_name(&self) -> codex_tools::ToolName {
+        fn tool_name(&self) -> codepilotx_tools::ToolName {
             self.tool_name.clone()
         }
 
-        fn spec(&self) -> codex_tools::ToolSpec {
-            codex_tools::ToolSpec::Function(codex_tools::ResponsesApiTool {
+        fn spec(&self) -> codepilotx_tools::ToolSpec {
+            codepilotx_tools::ToolSpec::Function(codepilotx_tools::ResponsesApiTool {
                 name: self.tool_name.name.clone(),
                 description: "Immediate test tool.".to_string(),
                 strict: false,
                 defer_loading: None,
-                parameters: codex_tools::JsonSchema::default(),
+                parameters: codepilotx_tools::JsonSchema::default(),
                 output_schema: None,
             })
         }
 
-        fn handle(&self, _invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+        fn handle(&self, _invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
             Box::pin(async {
                 Ok(
                     Box::new(FunctionToolOutput::from_text("ok".to_string(), Some(true)))
@@ -286,29 +286,29 @@ mod tests {
     impl CoreToolRuntime for ImmediateHandler {}
 
     struct CancellationCleanupHandler {
-        tool_name: codex_tools::ToolName,
+        tool_name: codepilotx_tools::ToolName,
         started: std::sync::Mutex<Option<oneshot::Sender<()>>>,
         cleanup_started: std::sync::Mutex<Option<oneshot::Sender<()>>>,
         allow_cleanup: Arc<Notify>,
     }
 
     impl ToolExecutor<ToolInvocation> for CancellationCleanupHandler {
-        fn tool_name(&self) -> codex_tools::ToolName {
+        fn tool_name(&self) -> codepilotx_tools::ToolName {
             self.tool_name.clone()
         }
 
-        fn spec(&self) -> codex_tools::ToolSpec {
-            codex_tools::ToolSpec::Function(codex_tools::ResponsesApiTool {
+        fn spec(&self) -> codepilotx_tools::ToolSpec {
+            codepilotx_tools::ToolSpec::Function(codepilotx_tools::ResponsesApiTool {
                 name: self.tool_name.name.clone(),
                 description: "Cancellation cleanup test tool.".to_string(),
                 strict: false,
                 defer_loading: None,
-                parameters: codex_tools::JsonSchema::default(),
+                parameters: codepilotx_tools::JsonSchema::default(),
                 output_schema: None,
             })
         }
 
-        fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+        fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
             Box::pin(self.handle_call(invocation))
         }
     }
@@ -353,11 +353,11 @@ mod tests {
         records: Arc<std::sync::Mutex<Vec<ToolCallOutcome>>>,
     }
 
-    impl codex_extension_api::ToolLifecycleContributor for FinishRecorder {
+    impl codepilotx_extension_api::ToolLifecycleContributor for FinishRecorder {
         fn on_tool_finish<'a>(
             &'a self,
-            input: codex_extension_api::ToolFinishInput<'a>,
-        ) -> codex_extension_api::ToolLifecycleFuture<'a> {
+            input: codepilotx_extension_api::ToolFinishInput<'a>,
+        ) -> codepilotx_extension_api::ToolLifecycleFuture<'a> {
             let records = Arc::clone(&self.records);
             let outcome = input.outcome;
             Box::pin(async move {
@@ -375,11 +375,11 @@ mod tests {
         allow_finish: Arc<Notify>,
     }
 
-    impl codex_extension_api::ToolLifecycleContributor for BlockingFinishContributor {
+    impl codepilotx_extension_api::ToolLifecycleContributor for BlockingFinishContributor {
         fn on_tool_finish<'a>(
             &'a self,
-            input: codex_extension_api::ToolFinishInput<'a>,
-        ) -> codex_extension_api::ToolLifecycleFuture<'a> {
+            input: codepilotx_extension_api::ToolFinishInput<'a>,
+        ) -> codepilotx_extension_api::ToolLifecycleFuture<'a> {
             let records = Arc::clone(&self.records);
             let allow_finish = Arc::clone(&self.allow_finish);
             let finish_started = self
@@ -409,7 +409,7 @@ mod tests {
         let (finish_started_tx, finish_started_rx) = oneshot::channel();
         let allow_finish = Arc::new(Notify::new());
         let mut builder =
-            codex_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+            codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
         builder.tool_lifecycle_contributor(Arc::new(BlockingFinishContributor {
             records: Arc::clone(&records),
             finish_started: std::sync::Mutex::new(Some(finish_started_tx)),
@@ -419,7 +419,7 @@ mod tests {
 
         let session = Arc::new(session);
         let turn_context = Arc::new(turn_context);
-        let tool_name = codex_tools::ToolName::plain("test_tool");
+        let tool_name = codepilotx_tools::ToolName::plain("test_tool");
         let handler = Arc::new(ImmediateHandler {
             tool_name: tool_name.clone(),
         }) as Arc<dyn CoreToolRuntime>;
@@ -477,7 +477,7 @@ mod tests {
         let (mut session, turn_context) = crate::session::tests::make_session_and_context().await;
         let records = Arc::new(std::sync::Mutex::new(Vec::new()));
         let mut builder =
-            codex_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+            codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
         builder.tool_lifecycle_contributor(Arc::new(FinishRecorder {
             records: Arc::clone(&records),
         }));
@@ -485,7 +485,7 @@ mod tests {
 
         let session = Arc::new(session);
         let turn_context = Arc::new(turn_context);
-        let tool_name = codex_tools::ToolName::plain("cleanup_tool");
+        let tool_name = codepilotx_tools::ToolName::plain("cleanup_tool");
         let (started_tx, started_rx) = oneshot::channel();
         let (cleanup_started_tx, cleanup_started_rx) = oneshot::channel();
         let allow_cleanup = Arc::new(Notify::new());

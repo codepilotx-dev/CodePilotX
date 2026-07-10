@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::ExecServerRuntimePaths;
-use codex_extension_api::UserInstructionsProvider;
-use codex_login::AuthManager;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::user_input::UserInput;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_exec_server::ExecServerRuntimePaths;
+use codepilotx_extension_api::UserInstructionsProvider;
+use codepilotx_login::AuthManager;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result as CodexResult;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::user_input::UserInput;
 use tokio_util::sync::CancellationToken;
 
 use crate::config::Config;
@@ -19,7 +19,7 @@ use crate::session::turn::built_tools;
 use crate::state_db_bridge::StateDbHandle;
 use crate::thread_manager::ThreadManager;
 use crate::thread_manager::thread_store_from_config;
-use codex_extension_api::empty_extension_registry;
+use codepilotx_extension_api::empty_extension_registry;
 
 /// Build the model-visible `input` list for a single debug turn.
 #[doc(hidden)]
@@ -32,22 +32,22 @@ pub async fn build_prompt_input(
     config.ephemeral = true;
 
     let auth_manager =
-        AuthManager::shared_from_config(&config, /*enable_codex_api_key_env*/ false).await;
+        AuthManager::shared_from_config(&config, /*enable_codepilotx_api_key_env*/ false).await;
 
     let local_runtime_paths = ExecServerRuntimePaths::from_optional_paths(
-        config.codex_self_exe.clone(),
-        config.codex_linux_sandbox_exe.clone(),
+        config.codepilotx_self_exe.clone(),
+        config.codepilotx_linux_sandbox_exe.clone(),
     )?;
 
     let thread_store = thread_store_from_config(&config, state_db.clone());
-    let installation_id = resolve_installation_id(&config.codex_home).await?;
+    let installation_id = resolve_installation_id(&config.codepilotx_home).await?;
     let thread_manager = ThreadManager::new(
         &config,
         Arc::clone(&auth_manager),
         SessionSource::Exec,
         Arc::new(
-            EnvironmentManager::from_codex_home(
-                config.codex_home.clone(),
+            EnvironmentManager::from_codepilotx_home(
+                config.codepilotx_home.clone(),
                 Some(local_runtime_paths),
             )
             .await

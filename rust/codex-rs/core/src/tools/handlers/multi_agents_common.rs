@@ -8,20 +8,20 @@ use crate::session::turn_context::TurnContext;
 use crate::tools::context::FunctionToolOutput;
 use crate::tools::context::ToolOutput;
 use crate::tools::context::ToolPayload;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::AgentPath;
-use codex_protocol::ThreadId;
-use codex_protocol::error::CodexErr;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::protocol::CollabAgentRef;
-use codex_protocol::protocol::CollabAgentStatusEntry;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::user_input::UserInput;
+use codepilotx_models_manager::manager::RefreshStrategy;
+use codepilotx_protocol::AgentPath;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::models::BaseInstructions;
+use codepilotx_protocol::models::ResponseInputItem;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::openai_models::ReasoningEffortPreset;
+use codepilotx_protocol::protocol::CollabAgentRef;
+use codepilotx_protocol::protocol::CollabAgentStatusEntry;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_protocol::user_input::UserInput;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -381,7 +381,7 @@ pub(crate) async fn apply_spawn_agent_service_tier(
 }
 
 fn find_spawn_agent_model_name(
-    available_models: &[codex_protocol::openai_models::ModelPreset],
+    available_models: &[codepilotx_protocol::openai_models::ModelPreset],
     requested_model: &str,
 ) -> Result<String, FunctionCallError> {
     available_models

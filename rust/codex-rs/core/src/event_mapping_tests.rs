@@ -4,19 +4,19 @@ use super::parse_turn_item;
 use crate::context::ContextualUserFragment;
 use crate::context::InternalContextSource;
 use crate::context::InternalModelContextFragment;
-use codex_protocol::items::AgentMessageContent;
-use codex_protocol::items::HookPromptFragment;
-use codex_protocol::items::TurnItem;
-use codex_protocol::items::WebSearchItem;
-use codex_protocol::items::build_hook_prompt_message;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::DEFAULT_IMAGE_DETAIL;
-use codex_protocol::models::ReasoningItemContent;
-use codex_protocol::models::ReasoningItemReasoningSummary;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::models::WebSearchAction;
-use codex_protocol::protocol::SKILLS_INSTRUCTIONS_OPEN_TAG;
-use codex_protocol::user_input::UserInput;
+use codepilotx_protocol::items::AgentMessageContent;
+use codepilotx_protocol::items::HookPromptFragment;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::items::WebSearchItem;
+use codepilotx_protocol::items::build_hook_prompt_message;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::DEFAULT_IMAGE_DETAIL;
+use codepilotx_protocol::models::ReasoningItemContent;
+use codepilotx_protocol::models::ReasoningItemReasoningSummary;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::models::WebSearchAction;
+use codepilotx_protocol::protocol::SKILLS_INSTRUCTIONS_OPEN_TAG;
+use codepilotx_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -174,7 +174,7 @@ fn parses_assistant_message_input_text_for_backward_compatibility() {
 #[test]
 fn skips_unnamed_image_label_text() {
     let image_url = "data:image/png;base64,abc".to_string();
-    let label = codex_protocol::models::image_open_tag_text();
+    let label = codepilotx_protocol::models::image_open_tag_text();
     let user_text = "Please review this image.".to_string();
 
     let item = ResponseItem::Message {
@@ -187,7 +187,7 @@ fn skips_unnamed_image_label_text() {
                 detail: Some(DEFAULT_IMAGE_DETAIL),
             },
             ContentItem::InputText {
-                text: codex_protocol::models::image_close_tag_text(),
+                text: codepilotx_protocol::models::image_close_tag_text(),
             },
             ContentItem::InputText {
                 text: user_text.clone(),

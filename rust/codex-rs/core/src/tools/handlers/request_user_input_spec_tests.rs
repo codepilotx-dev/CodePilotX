@@ -1,11 +1,11 @@
 use super::*;
-use codex_features::Feature;
-use codex_features::Features;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::request_user_input::RequestUserInputQuestion;
-use codex_protocol::request_user_input::RequestUserInputQuestionOption;
-use codex_tools::JsonSchema;
-use codex_tools::request_user_input_available_modes;
+use codepilotx_features::Feature;
+use codepilotx_features::Features;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::request_user_input::RequestUserInputQuestion;
+use codepilotx_protocol::request_user_input::RequestUserInputQuestionOption;
+use codepilotx_tools::JsonSchema;
+use codepilotx_tools::request_user_input_available_modes;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 

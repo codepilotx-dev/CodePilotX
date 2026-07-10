@@ -2,40 +2,40 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_analytics::CompactionTrigger;
-use codex_analytics::HookRunFact;
-use codex_analytics::build_track_events_context;
-use codex_hooks::PermissionRequestDecision;
-use codex_hooks::PermissionRequestOutcome;
-use codex_hooks::PermissionRequestRequest;
-use codex_hooks::PostToolUseOutcome;
-use codex_hooks::PostToolUseRequest;
-use codex_hooks::PreToolUseOutcome;
-use codex_hooks::PreToolUseRequest;
-use codex_hooks::SessionStartOutcome;
-use codex_hooks::StartHookTarget;
-use codex_hooks::StopHookTarget;
-use codex_hooks::StopOutcome;
-use codex_hooks::SubagentHookContext;
-use codex_hooks::UserPromptSubmitOutcome;
-use codex_hooks::UserPromptSubmitRequest;
-use codex_otel::HOOK_RUN_DURATION_METRIC;
-use codex_otel::HOOK_RUN_METRIC;
-use codex_protocol::items::TurnItem;
-use codex_protocol::items::UserMessageItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::HookCompletedEvent;
-use codex_protocol::protocol::HookEventName;
-use codex_protocol::protocol::HookRunStatus;
-use codex_protocol::protocol::HookRunSummary;
-use codex_protocol::protocol::HookSource;
-use codex_protocol::protocol::HookStartedEvent;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_thread_store::ReadThreadParams;
+use codepilotx_analytics::CompactionTrigger;
+use codepilotx_analytics::HookRunFact;
+use codepilotx_analytics::build_track_events_context;
+use codepilotx_hooks::PermissionRequestDecision;
+use codepilotx_hooks::PermissionRequestOutcome;
+use codepilotx_hooks::PermissionRequestRequest;
+use codepilotx_hooks::PostToolUseOutcome;
+use codepilotx_hooks::PostToolUseRequest;
+use codepilotx_hooks::PreToolUseOutcome;
+use codepilotx_hooks::PreToolUseRequest;
+use codepilotx_hooks::SessionStartOutcome;
+use codepilotx_hooks::StartHookTarget;
+use codepilotx_hooks::StopHookTarget;
+use codepilotx_hooks::StopOutcome;
+use codepilotx_hooks::SubagentHookContext;
+use codepilotx_hooks::UserPromptSubmitOutcome;
+use codepilotx_hooks::UserPromptSubmitRequest;
+use codepilotx_otel::HOOK_RUN_DURATION_METRIC;
+use codepilotx_otel::HOOK_RUN_METRIC;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::items::UserMessageItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::CodexErrorInfo;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::HookCompletedEvent;
+use codepilotx_protocol::protocol::HookEventName;
+use codepilotx_protocol::protocol::HookRunStatus;
+use codepilotx_protocol::protocol::HookRunSummary;
+use codepilotx_protocol::protocol::HookSource;
+use codepilotx_protocol::protocol::HookStartedEvent;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_thread_store::ReadThreadParams;
 use serde_json::Value;
 use tracing::instrument;
 
@@ -112,7 +112,7 @@ pub(crate) async fn run_pending_session_start_hooks(
             SessionSource::SubAgent(SubAgentSource::ThreadSpawn { agent_role, .. })
                 if matches!(
                     session_start_source,
-                    codex_hooks::SessionStartSource::Startup
+                    codepilotx_hooks::SessionStartSource::Startup
                 ) =>
             {
                 let context = subagent_hook_context(sess, agent_role);
@@ -127,7 +127,7 @@ pub(crate) async fn run_pending_session_start_hooks(
                 source: session_start_source,
             },
         };
-        let request = codex_hooks::SessionStartRequest {
+        let request = codepilotx_hooks::SessionStartRequest {
             session_id: sess.session_id().into(),
             #[allow(deprecated)]
             cwd: turn_context.cwd.clone(),
@@ -345,7 +345,7 @@ pub(crate) async fn run_turn_stop_hooks(
         SessionSource::SubAgent(_) => return StopOutcome::default(),
         _ => (StopHookTarget::Stop, sess.hook_transcript_path().await),
     };
-    let request = codex_hooks::StopRequest {
+    let request = codepilotx_hooks::StopRequest {
         session_id: sess.session_id().into(),
         turn_id: turn_context.sub_id.clone(),
         #[allow(deprecated)]
@@ -370,7 +370,7 @@ pub(crate) async fn run_pre_compact_hooks(
     turn_context: &Arc<TurnContext>,
     trigger: CompactionTrigger,
 ) -> PreCompactHookOutcome {
-    let request = codex_hooks::PreCompactRequest {
+    let request = codepilotx_hooks::PreCompactRequest {
         session_id: sess.session_id().into(),
         turn_id: turn_context.sub_id.clone(),
         subagent: thread_spawn_subagent_hook_context(sess, turn_context),
@@ -407,7 +407,7 @@ pub(crate) async fn run_post_compact_hooks(
     turn_context: &Arc<TurnContext>,
     trigger: CompactionTrigger,
 ) -> PostCompactHookOutcome {
-    let request = codex_hooks::PostCompactRequest {
+    let request = codepilotx_hooks::PostCompactRequest {
         session_id: sess.session_id().into(),
         turn_id: turn_context.sub_id.clone(),
         subagent: thread_spawn_subagent_hook_context(sess, turn_context),
@@ -446,14 +446,14 @@ pub(crate) async fn run_legacy_after_agent_hook(
         .collect();
     let hooks = sess.hooks();
     for hook_outcome in hooks
-        .dispatch(codex_hooks::HookPayload {
+        .dispatch(codepilotx_hooks::HookPayload {
             session_id: sess.session_id().into(),
             #[allow(deprecated)]
             cwd: turn_context.cwd.clone(),
             client: turn_context.app_server_client_name.clone(),
             triggered_at: chrono::Utc::now(),
-            hook_event: codex_hooks::HookEvent::AfterAgent {
-                event: codex_hooks::HookEventAfterAgent {
+            hook_event: codepilotx_hooks::HookEvent::AfterAgent {
+                event: codepilotx_hooks::HookEventAfterAgent {
                     thread_id: sess.thread_id,
                     turn_id: turn_context.sub_id.clone(),
                     input_messages,
@@ -465,9 +465,9 @@ pub(crate) async fn run_legacy_after_agent_hook(
     {
         let hook_name = hook_outcome.hook_name;
         let (error, should_abort) = match hook_outcome.result {
-            codex_hooks::HookResult::Success => continue,
-            codex_hooks::HookResult::FailedContinue(error) => (error, false),
-            codex_hooks::HookResult::FailedAbort(error) => (error, true),
+            codepilotx_hooks::HookResult::Success => continue,
+            codepilotx_hooks::HookResult::FailedContinue(error) => (error, false),
+            codepilotx_hooks::HookResult::FailedAbort(error) => (error, true),
         };
         let action = if should_abort {
             "aborting operation"
@@ -489,9 +489,9 @@ pub(crate) async fn run_legacy_after_agent_hook(
     let Some(message) = abort_message else {
         return false;
     };
-    let event = EventMsg::Error(codex_protocol::protocol::ErrorEvent {
+    let event = EventMsg::Error(codepilotx_protocol::protocol::ErrorEvent {
         message,
-        codex_error_info: Some(CodexErrorInfo::Other),
+        codepilotx_error_info: Some(CodexErrorInfo::Other),
     });
     sess.send_event(turn_context, event).await;
     true
@@ -676,7 +676,7 @@ fn hook_run_analytics_payload(
     thread_id: String,
     turn_context: &TurnContext,
     completed: &HookCompletedEvent,
-) -> (codex_analytics::TrackEventsContext, HookRunFact) {
+) -> (codepilotx_analytics::TrackEventsContext, HookRunFact) {
     (
         build_track_events_context(
             turn_context.model_info.slug.clone(),
@@ -776,23 +776,23 @@ fn compaction_trigger_label(value: CompactionTrigger) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use codex_protocol::models::ContentItem;
-    use codex_protocol::protocol::HookEventName;
-    use codex_protocol::protocol::HookExecutionMode;
-    use codex_protocol::protocol::HookHandlerType;
-    use codex_protocol::protocol::HookRunStatus;
-    use codex_protocol::protocol::HookScope;
-    use codex_protocol::protocol::HookSource;
+    use codepilotx_protocol::models::ContentItem;
+    use codepilotx_protocol::protocol::HookEventName;
+    use codepilotx_protocol::protocol::HookExecutionMode;
+    use codepilotx_protocol::protocol::HookHandlerType;
+    use codepilotx_protocol::protocol::HookRunStatus;
+    use codepilotx_protocol::protocol::HookScope;
+    use codepilotx_protocol::protocol::HookSource;
     use pretty_assertions::assert_eq;
 
     use super::additional_context_messages;
     use super::hook_run_analytics_payload;
     use super::hook_run_metric_tags;
     use crate::session::tests::make_session_and_context;
-    use codex_protocol::protocol::HookCompletedEvent;
-    use codex_protocol::protocol::HookRunSummary;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use codepilotx_protocol::protocol::HookCompletedEvent;
+    use codepilotx_protocol::protocol::HookRunSummary;
+    use codepilotx_utils_absolute_path::test_support::PathBufExt;
+    use codepilotx_utils_absolute_path::test_support::test_path_buf;
 
     #[test]
     fn additional_context_messages_stay_separate_and_ordered() {
@@ -806,7 +806,7 @@ mod tests {
             messages
                 .iter()
                 .map(|message| match message {
-                    codex_protocol::models::ResponseItem::Message { role, content, .. } => {
+                    codepilotx_protocol::models::ResponseItem::Message { role, content, .. } => {
                         let text = content
                             .iter()
                             .map(|item| match item {

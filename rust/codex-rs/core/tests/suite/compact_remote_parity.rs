@@ -3,14 +3,14 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::user_input::UserInput;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_protocol::config_types::ServiceTier;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::RolloutLine;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::hooks::trust_discovered_hooks;
 use core_test_support::responses;
 use core_test_support::responses::ResponseMock;
@@ -22,7 +22,7 @@ use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
 
-const FIXED_CWD: &str = "/tmp/codex_remote_compaction_parity_workspace";
+const FIXED_CWD: &str = "/tmp/codepilotx_remote_compaction_parity_workspace";
 const IMAGE_URL: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 const SUMMARY: &str = "REMOTE_COMPACTION_PARITY_ENCRYPTED_SUMMARY";
 const DUMMY_FUNCTION_NAME: &str = "test_tool";
@@ -477,7 +477,7 @@ async fn run_manual_hook_session(mode: Mode) -> Result<Value> {
         assert_eq!(compact_mock.requests().len(), 1);
     }
 
-    let home = harness.test().codex_home_path();
+    let home = harness.test().codepilotx_home_path();
     let pre = hook_log_view(&home.join("pre_compact_manual_log.jsonl"))?;
     let post = hook_log_view(&home.join("post_compact_manual_log.jsonl"))?;
     Ok(json!({
@@ -517,7 +517,7 @@ async fn build_harness_inner(
         builder = builder.with_pre_build_hook(write_manual_compact_hooks);
     }
     TestCodexHarness::with_builder(builder.with_config(move |config| {
-        config.cwd = codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(PathBuf::from(
+        config.cwd = codepilotx_utils_absolute_path::AbsolutePathBuf::from_absolute_path(PathBuf::from(
             FIXED_CWD,
         ))
         .expect("fixed cwd should be absolute");
@@ -564,7 +564,7 @@ fn follow_up_index(request_count: usize) -> usize {
 
 async fn capture_from_requests(
     mode: Mode,
-    codex: &codex_core::CodexThread,
+    codex: &codepilotx_core::CodexThread,
     rollout_path: &Path,
     responses_mock: &ResponseMock,
     compact_mock: Option<&ResponseMock>,
@@ -602,7 +602,7 @@ async fn capture_from_requests(
     })
 }
 
-async fn submit_user_input(codex: &codex_core::CodexThread, items: Vec<UserInput>) -> Result<()> {
+async fn submit_user_input(codex: &codepilotx_core::CodexThread, items: Vec<UserInput>) -> Result<()> {
     codex
         .submit(Op::UserInput {
             items,
@@ -616,7 +616,7 @@ async fn submit_user_input(codex: &codex_core::CodexThread, items: Vec<UserInput
     Ok(())
 }
 
-async fn wait_for_turn_complete(codex: &codex_core::CodexThread) {
+async fn wait_for_turn_complete(codex: &codepilotx_core::CodexThread) {
     wait_for_event(codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 }
 
@@ -995,8 +995,8 @@ fn normalize_tmp_prefix_before_marker(text: &mut String, marker: &str) {
             .or_else(|| prefix.rfind("/tmp/.tmp"))
             .or(windows_appdata_temp_start);
         if let Some(start_index) = start {
-            text.replace_range(start_index..marker_index, "<CODEX_HOME>");
-            search_start = start_index + "<CODEX_HOME>".len() + marker.len();
+            text.replace_range(start_index..marker_index, "<codepilotx_HOME>");
+            search_start = start_index + "<codepilotx_HOME>".len() + marker.len();
         } else {
             search_start = marker_index + marker.len();
         }
@@ -1012,8 +1012,8 @@ fn normalize_string_rewrites_linux_temp_skill_paths() {
 
     assert_eq!(
         text,
-        "file: <CODEX_HOME>/skills/.system/imagegen/SKILL.md and \
-         <CODEX_HOME>/skills/custom/SKILL.md"
+        "file: <codepilotx_HOME>/skills/.system/imagegen/SKILL.md and \
+         <codepilotx_HOME>/skills/custom/SKILL.md"
     );
 }
 
@@ -1026,8 +1026,8 @@ fn normalize_string_rewrites_windows_temp_skill_paths() {
 
     assert_eq!(
         text,
-        "file: <CODEX_HOME>/skills/.system/imagegen/SKILL.md and \
-         <CODEX_HOME>\\skills\\custom\\SKILL.md"
+        "file: <codepilotx_HOME>/skills/.system/imagegen/SKILL.md and \
+         <codepilotx_HOME>\\skills\\custom\\SKILL.md"
     );
 }
 

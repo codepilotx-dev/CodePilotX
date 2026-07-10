@@ -6,8 +6,8 @@
 use super::*;
 use crate::tools::context::FunctionToolOutput;
 use crate::turn_timing::now_unix_timestamp_ms;
-use codex_protocol::models::ResponseItemMetadata;
-use codex_protocol::protocol::InterAgentCommunication;
+use codepilotx_protocol::models::ResponseItemMetadata;
+use codepilotx_protocol::protocol::InterAgentCommunication;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum MessageDeliveryMode {

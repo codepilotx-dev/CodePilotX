@@ -5,27 +5,27 @@ use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigLayerStackOrdering;
-use codex_execpolicy::AmendError;
-use codex_execpolicy::Decision;
-use codex_execpolicy::Error as ExecPolicyRuleError;
-use codex_execpolicy::Evaluation;
-use codex_execpolicy::MatchOptions;
-use codex_execpolicy::NetworkRuleProtocol;
-use codex_execpolicy::Policy;
-use codex_execpolicy::PolicyParser;
-use codex_execpolicy::RuleMatch;
-use codex_execpolicy::blocking_append_allow_prefix_rule;
-use codex_execpolicy::blocking_append_network_rule;
-use codex_protocol::approvals::ExecPolicyAmendment;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemSandboxKind;
-use codex_protocol::protocol::AskForApproval;
-use codex_shell_command::is_dangerous_command::command_might_be_dangerous;
-use codex_shell_command::is_safe_command::is_known_safe_command;
+use codepilotx_app_server_protocol::ConfigLayerSource;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::ConfigLayerStackOrdering;
+use codepilotx_execpolicy::AmendError;
+use codepilotx_execpolicy::Decision;
+use codepilotx_execpolicy::Error as ExecPolicyRuleError;
+use codepilotx_execpolicy::Evaluation;
+use codepilotx_execpolicy::MatchOptions;
+use codepilotx_execpolicy::NetworkRuleProtocol;
+use codepilotx_execpolicy::Policy;
+use codepilotx_execpolicy::PolicyParser;
+use codepilotx_execpolicy::RuleMatch;
+use codepilotx_execpolicy::blocking_append_allow_prefix_rule;
+use codepilotx_execpolicy::blocking_append_network_rule;
+use codepilotx_protocol::approvals::ExecPolicyAmendment;
+use codepilotx_protocol::config_types::WindowsSandboxLevel;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::permissions::FileSystemSandboxKind;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_shell_command::is_dangerous_command::command_might_be_dangerous;
+use codepilotx_shell_command::is_safe_command::is_known_safe_command;
 use thiserror::Error;
 use tokio::fs;
 use tokio::sync::Semaphore;
@@ -35,9 +35,9 @@ use tracing::instrument;
 use crate::config::Config;
 use crate::sandboxing::SandboxPermissions;
 use crate::tools::sandboxing::ExecApprovalRequirement;
-use codex_shell_command::bash::parse_shell_lc_plain_commands;
-use codex_shell_command::bash::parse_shell_lc_single_command_prefix;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_shell_command::bash::parse_shell_lc_plain_commands;
+use codepilotx_shell_command::bash::parse_shell_lc_single_command_prefix;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use shlex::try_join as shlex_try_join;
 
 const PROMPT_CONFLICT_REASON: &str =
@@ -143,7 +143,7 @@ pub(crate) fn child_uses_parent_exec_policy(parent_config: &Config, child_config
                 /*include_disabled*/ false,
             )
             .into_iter()
-            .filter_map(codex_config::ConfigLayerEntry::config_folder)
+            .filter_map(codepilotx_config::ConfigLayerEntry::config_folder)
             .collect()
     }
 
@@ -213,7 +213,7 @@ pub enum ExecPolicyError {
     #[error("failed to parse rules file {path}: {source}")]
     ParsePolicy {
         path: String,
-        source: codex_execpolicy::Error,
+        source: codepilotx_execpolicy::Error,
     },
 }
 
@@ -376,7 +376,7 @@ impl ExecPolicyManager {
 
     pub(crate) async fn append_amendment_and_update(
         &self,
-        codex_home: &Path,
+        codepilotx_home: &Path,
         amendment: &ExecPolicyAmendment,
     ) -> Result<(), ExecPolicyUpdateError> {
         let _update_guard =
@@ -388,7 +388,7 @@ impl ExecPolicyManager {
                         "exec policy update semaphore closed".to_string(),
                     ),
                 })?;
-        let policy_path = default_policy_path(codex_home);
+        let policy_path = default_policy_path(codepilotx_home);
         spawn_blocking({
             let policy_path = policy_path.clone();
             let prefix = amendment.command.clone();
@@ -426,7 +426,7 @@ impl ExecPolicyManager {
 
     pub(crate) async fn append_network_rule_and_update(
         &self,
-        codex_home: &Path,
+        codepilotx_home: &Path,
         host: &str,
         protocol: NetworkRuleProtocol,
         decision: Decision,
@@ -441,7 +441,7 @@ impl ExecPolicyManager {
                         "exec policy update semaphore closed".to_string(),
                     ),
                 })?;
-        let policy_path = default_policy_path(codex_home);
+        let policy_path = default_policy_path(codepilotx_home);
         let host = host.to_string();
         spawn_blocking({
             let policy_path = policy_path.clone();
@@ -484,7 +484,7 @@ pub async fn check_execpolicy_for_warnings(
     Ok(warning)
 }
 
-fn exec_policy_message_for_display(source: &codex_execpolicy::Error) -> String {
+fn exec_policy_message_for_display(source: &codepilotx_execpolicy::Error) -> String {
     let message = source.to_string();
     if let Some(line) = message
         .lines()
@@ -642,7 +642,7 @@ pub(crate) fn render_decision_for_unmatched_command(
         ExecPolicyCommandOrigin::Generic => is_known_safe_command(command),
         #[cfg(windows)]
         ExecPolicyCommandOrigin::PowerShell => {
-            codex_shell_command::is_safe_command::is_safe_powershell_words(command)
+            codepilotx_shell_command::is_safe_command::is_safe_powershell_words(command)
         }
     };
 
@@ -672,7 +672,7 @@ pub(crate) fn render_decision_for_unmatched_command(
         ExecPolicyCommandOrigin::Generic => command_might_be_dangerous(command),
         #[cfg(windows)]
         ExecPolicyCommandOrigin::PowerShell => {
-            codex_shell_command::is_dangerous_command::is_dangerous_powershell_words(command)
+            codepilotx_shell_command::is_dangerous_command::is_dangerous_powershell_words(command)
         }
     };
     if command_is_dangerous || windows_managed_fs_restrictions_without_sandbox_backend {
@@ -754,8 +754,8 @@ fn profile_has_managed_filesystem_restrictions(permission_profile: &PermissionPr
         && !file_system_sandbox_policy.has_full_disk_write_access()
 }
 
-fn default_policy_path(codex_home: &Path) -> PathBuf {
-    codex_home.join(RULES_DIR_NAME).join(DEFAULT_POLICY_FILE)
+fn default_policy_path(codepilotx_home: &Path) -> PathBuf {
+    codepilotx_home.join(RULES_DIR_NAME).join(DEFAULT_POLICY_FILE)
 }
 
 fn commands_for_exec_policy(command: &[String]) -> ExecPolicyCommands {
@@ -772,7 +772,7 @@ fn commands_for_exec_policy(command: &[String]) -> ExecPolicyCommands {
     #[cfg(windows)]
     {
         if let Some(commands) =
-            codex_shell_command::powershell::parse_powershell_command_into_plain_commands(command)
+            codepilotx_shell_command::powershell::parse_powershell_command_into_plain_commands(command)
             && !commands.is_empty()
         {
             return ExecPolicyCommands {

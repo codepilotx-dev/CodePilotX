@@ -1,11 +1,11 @@
 use anyhow::Result;
-use codex_core::config::Constrained;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Settings;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
+use codepilotx_core::config::Constrained;
+use codepilotx_protocol::config_types::CollaborationMode;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::Settings;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
 use core_test_support::TempDirExt;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
@@ -38,7 +38,7 @@ async fn thread_settings_update_without_user_turn_does_not_record_permissions_up
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        codepilotx_protocol::protocol::ThreadSettingsOverrides {
             approval_policy: Some(AskForApproval::Never),
             ..Default::default()
         },
@@ -68,7 +68,7 @@ async fn thread_settings_update_without_user_turn_does_not_record_environment_up
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        codepilotx_protocol::protocol::ThreadSettingsOverrides {
             environments: Some(local_selections(new_cwd.abs())),
             ..Default::default()
         },
@@ -99,7 +99,7 @@ async fn thread_settings_update_without_user_turn_does_not_record_collaboration_
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        codepilotx_protocol::protocol::ThreadSettingsOverrides {
             collaboration_mode: Some(collaboration_mode),
             ..Default::default()
         },

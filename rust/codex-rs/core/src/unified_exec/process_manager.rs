@@ -11,8 +11,8 @@ use tokio::time::Duration;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
-use crate::codex_thread::BackgroundTerminalInfo;
-use crate::exec_env::CODEX_THREAD_ID_ENV_VAR;
+use crate::codepilotx_thread::BackgroundTerminalInfo;
+use crate::exec_env::codepilotx_THREAD_ID_ENV_VAR;
 use crate::exec_env::create_env;
 use crate::exec_policy::ExecApprovalRequest;
 use crate::sandboxing::ExecOptions;
@@ -52,15 +52,15 @@ use crate::unified_exec::process::OutputBuffer;
 use crate::unified_exec::process::OutputHandles;
 use crate::unified_exec::process::SpawnLifecycleHandle;
 use crate::unified_exec::process::UnifiedExecProcess;
-use codex_network_proxy::NetworkProxy;
-use codex_protocol::config_types::ShellEnvironmentPolicy;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_sandboxing::SandboxCommand;
-use codex_tools::ToolName;
-use codex_utils_output_truncation::approx_token_count;
-use codex_utils_path_uri::PathUri;
+use codepilotx_network_proxy::NetworkProxy;
+use codepilotx_protocol::config_types::ShellEnvironmentPolicy;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::SandboxErr;
+use codepilotx_protocol::protocol::ExecCommandSource;
+use codepilotx_sandboxing::SandboxCommand;
+use codepilotx_tools::ToolName;
+use codepilotx_utils_output_truncation::approx_token_count;
+use codepilotx_utils_path_uri::PathUri;
 
 const UNIFIED_EXEC_ENV: [(&str, &str); 10] = [
     ("NO_COLOR", "1"),
@@ -72,7 +72,7 @@ const UNIFIED_EXEC_ENV: [(&str, &str); 10] = [
     ("PAGER", "cat"),
     ("GIT_PAGER", "cat"),
     ("GH_PAGER", "cat"),
-    ("CODEX_CI", "1"),
+    ("codepilotx_CI", "1"),
 ];
 const NETWORK_ACCESS_DENIED_MESSAGE: &str =
     "Network access was denied by the Codex sandbox network proxy.";
@@ -106,8 +106,8 @@ fn apply_unified_exec_env(mut env: HashMap<String, String>) -> HashMap<String, S
 
 fn exec_env_policy_from_shell_policy(
     policy: &ShellEnvironmentPolicy,
-) -> codex_exec_server::ExecEnvPolicy {
-    codex_exec_server::ExecEnvPolicy {
+) -> codepilotx_exec_server::ExecEnvPolicy {
+    codepilotx_exec_server::ExecEnvPolicy {
         inherit: policy.inherit.clone(),
         ignore_default_excludes: policy.ignore_default_excludes,
         exclude: policy
@@ -138,7 +138,7 @@ fn env_overlay_for_exec_server(
 fn exec_server_env_for_request(
     request: &ExecRequest,
 ) -> (
-    Option<codex_exec_server::ExecEnvPolicy>,
+    Option<codepilotx_exec_server::ExecEnvPolicy>,
     HashMap<String, String>,
 ) {
     if let Some(exec_server_env_config) = &request.exec_server_env_config {
@@ -155,9 +155,9 @@ fn exec_server_params_for_request(
     process_id: i32,
     request: &ExecRequest,
     tty: bool,
-) -> codex_exec_server::ExecParams {
+) -> codepilotx_exec_server::ExecParams {
     let (env_policy, env) = exec_server_env_for_request(request);
-    codex_exec_server::ExecParams {
+    codepilotx_exec_server::ExecParams {
         process_id: exec_server_process_id(process_id).into(),
         argv: request.command.clone(),
         cwd: request.cwd.clone(),
@@ -362,7 +362,7 @@ impl UnifiedExecProcessManager {
                     .map(|m| std::cmp::max(m, 999) + 1)
                     .unwrap_or(1000)
             } else {
-                // production mode â†’ random
+                // production mode â†?random
                 rand::rng().random_range(1_000..100_000)
             };
 
@@ -904,7 +904,7 @@ impl UnifiedExecProcessManager {
         exec_server_env_config: Option<ExecServerEnvConfig>,
         tty: bool,
         spawn_lifecycle: SpawnLifecycleHandle,
-        environment: &codex_exec_server::Environment,
+        environment: &codepilotx_exec_server::Environment,
     ) -> Result<UnifiedExecProcess, ToolError> {
         let mut request = if environment.is_remote() {
             attempt.env_for_exec_server(command, options, network, environment_id)
@@ -938,12 +938,12 @@ impl UnifiedExecProcessManager {
         request: &ExecRequest,
         tty: bool,
         mut spawn_lifecycle: SpawnLifecycleHandle,
-        environment: &codex_exec_server::Environment,
+        environment: &codepilotx_exec_server::Environment,
     ) -> Result<UnifiedExecProcess, UnifiedExecError> {
         let inherited_fds = spawn_lifecycle.inherited_fds();
 
         #[cfg(target_os = "windows")]
-        if request.sandbox == codex_sandboxing::SandboxType::WindowsRestrictedToken {
+        if request.sandbox == codepilotx_sandboxing::SandboxType::WindowsRestrictedToken {
             // TODO(anp): Keep PathUri through the Windows sandbox launch boundary.
             let native_cwd =
                 request
@@ -952,9 +952,9 @@ impl UnifiedExecProcessManager {
                     .map_err(|_| UnifiedExecError::ForeignPath {
                         path: request.cwd.clone(),
                     })?;
-            let codex_home = crate::config::find_codex_home().map_err(|err| {
+            let codepilotx_home = crate::config::find_codepilotx_home().map_err(|err| {
                 UnifiedExecError::create_process(format!(
-                    "windows sandbox: failed to resolve codex_home: {err}"
+                    "windows sandbox: failed to resolve codepilotx_home: {err}"
                 ))
             })?;
             let additional_deny_write_paths = request
@@ -980,11 +980,11 @@ impl UnifiedExecProcessManager {
                 .as_ref()
                 .and_then(|overrides| overrides.write_roots_override.clone());
             let spawned = match request.windows_sandbox_level {
-                codex_protocol::config_types::WindowsSandboxLevel::Elevated => {
-                    codex_windows_sandbox::spawn_windows_sandbox_session_elevated_for_permission_profile(
+                codepilotx_protocol::config_types::WindowsSandboxLevel::Elevated => {
+                    codepilotx_windows_sandbox::spawn_windows_sandbox_session_elevated_for_permission_profile(
                         &request.permission_profile,
                         request.windows_sandbox_workspace_roots.as_slice(),
-                        codex_home.as_ref(),
+                        codepilotx_home.as_ref(),
                         request.command.clone(),
                         native_cwd.as_path(),
                         request.env.clone(),
@@ -1001,12 +1001,12 @@ impl UnifiedExecProcessManager {
                     )
                     .await
                 }
-                codex_protocol::config_types::WindowsSandboxLevel::RestrictedToken
-                | codex_protocol::config_types::WindowsSandboxLevel::Disabled => {
-                    codex_windows_sandbox::spawn_windows_sandbox_session_legacy(
+                codepilotx_protocol::config_types::WindowsSandboxLevel::RestrictedToken
+                | codepilotx_protocol::config_types::WindowsSandboxLevel::Disabled => {
+                    codepilotx_windows_sandbox::spawn_windows_sandbox_session_legacy(
                         &request.permission_profile,
                         request.windows_sandbox_workspace_roots.as_slice(),
-                        codex_home.as_ref(),
+                        codepilotx_home.as_ref(),
                         request.command.clone(),
                         native_cwd.as_path(),
                         request.env.clone(),
@@ -1057,18 +1057,18 @@ impl UnifiedExecProcessManager {
             .split_first()
             .ok_or(UnifiedExecError::MissingCommandLine)?;
         let spawn_result = if tty {
-            codex_utils_pty::pty::spawn_process_with_inherited_fds(
+            codepilotx_utils_pty::pty::spawn_process_with_inherited_fds(
                 program,
                 args,
                 native_cwd.as_path(),
                 &request.env,
                 &request.arg0,
-                codex_utils_pty::TerminalSize::default(),
+                codepilotx_utils_pty::TerminalSize::default(),
                 &inherited_fds,
             )
             .await
         } else {
-            codex_utils_pty::pipe::spawn_process_no_stdin_with_inherited_fds(
+            codepilotx_utils_pty::pipe::spawn_process_no_stdin_with_inherited_fds(
                 program,
                 args,
                 native_cwd.as_path(),
@@ -1096,7 +1096,7 @@ impl UnifiedExecProcessManager {
         );
         let mut env = local_policy_env.clone();
         env.insert(
-            CODEX_THREAD_ID_ENV_VAR.to_string(),
+            codepilotx_THREAD_ID_ENV_VAR.to_string(),
             context.session.thread_id.to_string(),
         );
         let env = apply_unified_exec_env(env);

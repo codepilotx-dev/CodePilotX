@@ -3,48 +3,48 @@ use crate::config::ConstraintResult;
 use crate::session::Codex;
 use crate::session::SessionSettingsUpdate;
 use crate::session::SteerInputError;
-use codex_features::Feature;
-use codex_otel::SessionTelemetry;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::MultiAgentMode;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::AdditionalContextEntry;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::Submission;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_protocol::protocol::ThreadSource;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_protocol::protocol::TurnEnvironmentSelections;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_protocol::user_input::UserInput;
-use codex_thread_store::StoredThread;
-use codex_thread_store::StoredThreadHistory;
-use codex_thread_store::ThreadMetadataPatch;
-use codex_thread_store::ThreadStoreError;
-use codex_thread_store::ThreadStoreResult;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::LegacyAppPathString;
-use codex_utils_path_uri::PathUri;
+use codepilotx_features::Feature;
+use codepilotx_otel::SessionTelemetry;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::ApprovalsReviewer;
+use codepilotx_protocol::config_types::CollaborationMode;
+use codepilotx_protocol::config_types::MultiAgentMode;
+use codepilotx_protocol::config_types::Personality;
+use codepilotx_protocol::config_types::ReasoningSummary;
+use codepilotx_protocol::config_types::WindowsSandboxLevel;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result as CodexResult;
+use codepilotx_protocol::mcp::CallToolResult;
+use codepilotx_protocol::models::ActivePermissionProfile;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::protocol::AdditionalContextEntry;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::Event;
+use codepilotx_protocol::protocol::MultiAgentVersion;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::SandboxPolicy;
+use codepilotx_protocol::protocol::SessionConfiguredEvent;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::Submission;
+use codepilotx_protocol::protocol::ThreadMemoryMode;
+use codepilotx_protocol::protocol::ThreadSource;
+use codepilotx_protocol::protocol::TokenUsageInfo;
+use codepilotx_protocol::protocol::TurnEnvironmentSelection;
+use codepilotx_protocol::protocol::TurnEnvironmentSelections;
+use codepilotx_protocol::protocol::W3cTraceContext;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_thread_store::StoredThread;
+use codepilotx_thread_store::StoredThreadHistory;
+use codepilotx_thread_store::ThreadMetadataPatch;
+use codepilotx_thread_store::ThreadStoreError;
+use codepilotx_thread_store::ThreadStoreResult;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::LegacyAppPathString;
+use codepilotx_utils_path_uri::PathUri;
 use rmcp::model::ReadResourceRequestParams;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -53,7 +53,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::watch;
 
-use codex_rollout::state_db::StateDbHandle;
+use codepilotx_rollout::state_db::StateDbHandle;
 
 #[derive(Clone, Debug)]
 pub struct ThreadConfigSnapshot {
@@ -129,7 +129,7 @@ impl ThreadConfigSnapshot {
     }
 
     pub fn sandbox_policy(&self) -> SandboxPolicy {
-        codex_sandboxing::compatibility_sandbox_policy_for_permission_profile(
+        codepilotx_sandboxing::compatibility_sandbox_policy_for_permission_profile(
             &self.permission_profile,
             self.cwd().as_path(),
         )
@@ -218,7 +218,7 @@ impl CodexThread {
             .thread_lifecycle_contributors()
         {
             contributor
-                .on_thread_resume(codex_extension_api::ThreadResumeInput {
+                .on_thread_resume(codepilotx_extension_api::ThreadResumeInput {
                     session_store: &self.codex.session.services.session_extension_data,
                     thread_store: &self.codex.session.services.thread_extension_data,
                 })
@@ -588,7 +588,7 @@ impl CodexThread {
     }
 
     /// Resolves the MCP runtime configuration using this thread's extension data.
-    pub async fn runtime_mcp_config(&self, config: &crate::config::Config) -> codex_mcp::McpConfig {
+    pub async fn runtime_mcp_config(&self, config: &crate::config::Config) -> codepilotx_mcp::McpConfig {
         self.codex.session.runtime_mcp_config(config).await
     }
 

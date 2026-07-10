@@ -1,9 +1,9 @@
 use super::*;
 use crate::session::tests::make_session_configuration_for_tests;
 use crate::state::AutoCompactWindowSnapshot;
-use codex_protocol::protocol::CreditsSnapshot;
-use codex_protocol::protocol::RateLimitWindow;
-use codex_protocol::protocol::SpendControlLimitSnapshot;
+use codepilotx_protocol::protocol::CreditsSnapshot;
+use codepilotx_protocol::protocol::RateLimitWindow;
+use codepilotx_protocol::protocol::SpendControlLimitSnapshot;
 use pretty_assertions::assert_eq;
 
 #[tokio::test]
@@ -36,7 +36,7 @@ async fn clear_connector_selection_removes_entries() {
 }
 
 #[tokio::test]
-async fn set_rate_limits_defaults_limit_id_to_codex_when_missing() {
+async fn set_rate_limits_defaults_limit_id_to_codepilotx_when_missing() {
     let session_configuration = make_session_configuration_for_tests().await;
     let mut state = SessionState::new(session_configuration);
 
@@ -81,13 +81,13 @@ async fn replace_history_clears_auto_compact_window_prefill() {
 }
 
 #[tokio::test]
-async fn set_rate_limits_defaults_to_codex_when_limit_id_missing_after_other_bucket() {
+async fn set_rate_limits_defaults_to_codepilotx_when_limit_id_missing_after_other_bucket() {
     let session_configuration = make_session_configuration_for_tests().await;
     let mut state = SessionState::new(session_configuration);
 
     state.set_rate_limits(RateLimitSnapshot {
-        limit_id: Some("codex_other".to_string()),
-        limit_name: Some("codex_other".to_string()),
+        limit_id: Some("codepilotx_other".to_string()),
+        limit_name: Some("codepilotx_other".to_string()),
         primary: Some(RateLimitWindow {
             used_percent: 20.0,
             window_minutes: Some(60),
@@ -124,7 +124,7 @@ async fn set_rate_limits_defaults_to_codex_when_limit_id_missing_after_other_buc
 }
 
 #[tokio::test]
-async fn set_rate_limits_carries_account_metadata_from_codex_to_codex_other() {
+async fn set_rate_limits_carries_account_metadata_from_codepilotx_to_codepilotx_other() {
     let session_configuration = make_session_configuration_for_tests().await;
     let mut state = SessionState::new(session_configuration);
 
@@ -148,12 +148,12 @@ async fn set_rate_limits_carries_account_metadata_from_codex_to_codex_other() {
             remaining_percent: 68,
             resets_at: 300,
         }),
-        plan_type: Some(codex_protocol::account::PlanType::Plus),
+        plan_type: Some(codepilotx_protocol::account::PlanType::Plus),
         rate_limit_reached_type: None,
     });
 
     state.set_rate_limits(RateLimitSnapshot {
-        limit_id: Some("codex_other".to_string()),
+        limit_id: Some("codepilotx_other".to_string()),
         limit_name: None,
         primary: Some(RateLimitWindow {
             used_percent: 30.0,
@@ -170,7 +170,7 @@ async fn set_rate_limits_carries_account_metadata_from_codex_to_codex_other() {
     assert_eq!(
         state.latest_rate_limits,
         Some(RateLimitSnapshot {
-            limit_id: Some("codex_other".to_string()),
+            limit_id: Some("codepilotx_other".to_string()),
             limit_name: None,
             primary: Some(RateLimitWindow {
                 used_percent: 30.0,
@@ -189,7 +189,7 @@ async fn set_rate_limits_carries_account_metadata_from_codex_to_codex_other() {
                 remaining_percent: 68,
                 resets_at: 300,
             }),
-            plan_type: Some(codex_protocol::account::PlanType::Plus),
+            plan_type: Some(codepilotx_protocol::account::PlanType::Plus),
             rate_limit_reached_type: None,
         })
     );

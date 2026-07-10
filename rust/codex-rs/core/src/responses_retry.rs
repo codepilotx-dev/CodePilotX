@@ -6,9 +6,9 @@ use crate::client::ModelClientSession;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::util::backoff;
-use codex_protocol::error::CodexErr;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::WarningEvent;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::WarningEvent;
 use tracing::warn;
 
 #[derive(Debug, Clone, Copy)]

@@ -1,41 +1,41 @@
 #![allow(clippy::unwrap_used)]
-use codex_api::WS_REQUEST_HEADER_TRACEPARENT_CLIENT_METADATA_KEY;
-use codex_api::WS_REQUEST_HEADER_TRACESTATE_CLIENT_METADATA_KEY;
-use codex_core::CodexResponsesMetadata;
-use codex_core::ModelClient;
-use codex_core::ModelClientSession;
-use codex_core::Prompt;
-use codex_core::ResponseEvent;
-use codex_core::X_RESPONSESAPI_INCLUDE_TIMING_METRICS_HEADER;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::WireApi;
-use codex_otel::MetricsClient;
-use codex_otel::MetricsConfig;
-use codex_otel::SessionTelemetry;
-use codex_otel::TelemetryAuthMode;
-use codex_otel::current_span_w3c_trace_context;
-use codex_protocol::SessionId;
-use codex_protocol::ThreadId;
-use codex_protocol::account::PlanType;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_protocol::user_input::UserInput;
-use codex_rollout_trace::ConversationPart;
-use codex_rollout_trace::InferenceTraceContext;
-use codex_rollout_trace::RawTraceEventPayload;
-use codex_rollout_trace::TraceWriter;
-use codex_rollout_trace::replay_bundle;
+use codepilotx_api::WS_REQUEST_HEADER_TRACEPARENT_CLIENT_METADATA_KEY;
+use codepilotx_api::WS_REQUEST_HEADER_TRACESTATE_CLIENT_METADATA_KEY;
+use codepilotx_core::CodexResponsesMetadata;
+use codepilotx_core::ModelClient;
+use codepilotx_core::ModelClientSession;
+use codepilotx_core::Prompt;
+use codepilotx_core::ResponseEvent;
+use codepilotx_core::X_RESPONSESAPI_INCLUDE_TIMING_METRICS_HEADER;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_model_provider_info::WireApi;
+use codepilotx_otel::MetricsClient;
+use codepilotx_otel::MetricsConfig;
+use codepilotx_otel::SessionTelemetry;
+use codepilotx_otel::TelemetryAuthMode;
+use codepilotx_otel::current_span_w3c_trace_context;
+use codepilotx_protocol::SessionId;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::account::PlanType;
+use codepilotx_protocol::config_types::ReasoningSummary;
+use codepilotx_protocol::config_types::ServiceTier;
+use codepilotx_protocol::models::BaseInstructions;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::W3cTraceContext;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_rollout_trace::ConversationPart;
+use codepilotx_rollout_trace::InferenceTraceContext;
+use codepilotx_rollout_trace::RawTraceEventPayload;
+use codepilotx_rollout_trace::TraceWriter;
+use codepilotx_rollout_trace::replay_bundle;
 use core_test_support::TestCodexResponsesRequestKind;
 use core_test_support::load_default_config_for_test;
 use core_test_support::responses::WebSocketConnectionConfig;
@@ -66,10 +66,10 @@ const USER_AGENT_HEADER: &str = "user-agent";
 const WS_V2_BETA_HEADER_VALUE: &str = "responses_websockets=2026-02-06";
 const X_CLIENT_REQUEST_ID_HEADER: &str = "x-client-request-id";
 const WS_REQUEST_HEADER_RESPONSES_LITE_CLIENT_METADATA_KEY: &str =
-    "ws_request_header_x_openai_internal_codex_responses_lite";
+    "ws_request_header_x_openai_internal_codepilotx_responses_lite";
 const TEST_INSTALLATION_ID: &str = "11111111-1111-4111-8111-111111111111";
 const TEST_WINDOW_ID: &str = "test-thread:0";
-const X_CODEX_WS_STREAM_REQUEST_START_MS_CLIENT_METADATA_KEY: &str =
+const X_codepilotx_WS_STREAM_REQUEST_START_MS_CLIENT_METADATA_KEY: &str =
     "x-codex-ws-stream-request-start-ms";
 
 fn assert_request_trace_matches(body: &serde_json::Value, expected_trace: &W3cTraceContext) {
@@ -99,7 +99,7 @@ fn assert_request_trace_matches(body: &serde_json::Value, expected_trace: &W3cTr
 }
 
 struct WebsocketTestHarness {
-    _codex_home: TempDir,
+    _codepilotx_home: TempDir,
     client: ModelClient,
     session_id: SessionId,
     thread_id: ThreadId,
@@ -190,14 +190,14 @@ async fn responses_websocket_streams_request() {
     );
     assert_eq!(
         handshake.header(USER_AGENT_HEADER),
-        Some(codex_login::default_client::get_codex_user_agent())
+        Some(codepilotx_login::default_client::get_codepilotx_user_agent())
     );
     assert_eq!(
         body["client_metadata"]["x-codex-installation-id"].as_str(),
         Some(TEST_INSTALLATION_ID)
     );
     let stream_request_start_ms = body["client_metadata"]
-        [X_CODEX_WS_STREAM_REQUEST_START_MS_CLIENT_METADATA_KEY]
+        [X_codepilotx_WS_STREAM_REQUEST_START_MS_CLIENT_METADATA_KEY]
         .as_str()
         .expect("missing websocket stream request start timestamp")
         .parse::<i64>()
@@ -272,7 +272,7 @@ async fn responses_websocket_reuses_connection_with_per_turn_trace_payloads() {
     assert_eq!(server.handshakes().len(), 1);
     assert_eq!(
         server.single_handshake().header(USER_AGENT_HEADER),
-        Some(codex_login::default_client::get_codex_user_agent())
+        Some(codepilotx_login::default_client::get_codepilotx_user_agent())
     );
     let connection = server.single_connection();
     assert_eq!(connection.len(), 2);
@@ -363,7 +363,7 @@ async fn responses_websocket_preconnect_reuses_connection() {
     assert_eq!(server.handshakes().len(), 1);
     assert_eq!(
         server.single_handshake().header(USER_AGENT_HEADER),
-        Some(codex_login::default_client::get_codex_user_agent())
+        Some(codepilotx_login::default_client::get_codepilotx_user_agent())
     );
     assert_eq!(
         server.single_handshake().header("x-codex-window-id"),
@@ -406,7 +406,7 @@ async fn responses_websocket_request_prewarm_reuses_connection() {
     assert_eq!(server.handshakes().len(), 1);
     assert_eq!(
         server.single_handshake().header(USER_AGENT_HEADER),
-        Some(codex_login::default_client::get_codex_user_agent())
+        Some(codepilotx_login::default_client::get_codepilotx_user_agent())
     );
     let connection = server.single_connection();
     assert_eq!(connection.len(), 2);
@@ -529,7 +529,7 @@ async fn responses_websocket_request_prewarm_traces_logical_request() {
         .expect("thread started");
     writer
         .append(RawTraceEventPayload::CodexTurnStarted {
-            codex_turn_id: "turn-1".to_string(),
+            codepilotx_turn_id: "turn-1".to_string(),
             thread_id: harness.thread_id.to_string(),
         })
         .expect("turn started");
@@ -725,7 +725,7 @@ async fn responses_websocket_preconnect_is_reused_even_with_header_changes() {
             harness.summary,
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &codepilotx_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");
@@ -778,7 +778,7 @@ async fn responses_websocket_request_prewarm_is_reused_even_with_header_changes(
             harness.summary,
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &codepilotx_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");
@@ -1188,7 +1188,7 @@ async fn responses_websocket_emits_reasoning_included_event() {
             harness.summary,
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &codepilotx_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");
@@ -1263,7 +1263,7 @@ async fn responses_websocket_emits_rate_limit_events() {
             harness.summary,
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &codepilotx_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");
@@ -1507,8 +1507,8 @@ async fn responses_websocket_connection_limit_error_reconnects_and_completes() {
     assert_eq!(
         handshake_user_agents,
         vec![
-            Some(codex_login::default_client::get_codex_user_agent()),
-            Some(codex_login::default_client::get_codex_user_agent()),
+            Some(codepilotx_login::default_client::get_codepilotx_user_agent()),
+            Some(codepilotx_login::default_client::get_codepilotx_user_agent()),
         ]
     );
 
@@ -1914,7 +1914,7 @@ async fn responses_websocket_v2_after_error_uses_full_create_without_previous_re
             harness.summary,
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &codepilotx_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");
@@ -2003,7 +2003,7 @@ async fn responses_websocket_v2_surfaces_terminal_error_without_close_handshake(
             harness.summary,
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &codepilotx_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");
@@ -2146,8 +2146,8 @@ async fn websocket_harness_with_provider_options(
     provider: ModelProviderInfo,
     runtime_metrics_enabled: bool,
 ) -> WebsocketTestHarness {
-    let codex_home = TempDir::new().unwrap();
-    let mut config = load_default_config_for_test(&codex_home).await;
+    let codepilotx_home = TempDir::new().unwrap();
+    let mut config = load_default_config_for_test(&codepilotx_home).await;
     config.model = Some(MODEL.to_string());
     if runtime_metrics_enabled {
         config
@@ -2156,11 +2156,11 @@ async fn websocket_harness_with_provider_options(
             .expect("test config should allow feature update");
     }
     let config = Arc::new(config);
-    let model_info = codex_core::test_support::construct_model_info_offline(MODEL, &config);
+    let model_info = codepilotx_core::test_support::construct_model_info_offline(MODEL, &config);
     let thread_id = ThreadId::new();
     let session_id = SessionId::new();
     let auth_manager =
-        codex_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("Test API Key"));
+        codepilotx_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("Test API Key"));
     let exporter = InMemoryMetricExporter::default();
     let metrics = MetricsClient::new(
         MetricsConfig::in_memory("test", "codex-core", env!("CARGO_PKG_VERSION"), exporter)
@@ -2196,7 +2196,7 @@ async fn websocket_harness_with_provider_options(
     );
 
     WebsocketTestHarness {
-        _codex_home: codex_home,
+        _codepilotx_home: codepilotx_home,
         client,
         session_id,
         thread_id,
@@ -2238,7 +2238,7 @@ async fn stream_until_complete_with_model_info(
             harness.summary,
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &codepilotx_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");
@@ -2287,7 +2287,7 @@ async fn stream_until_complete_with_metadata(
             harness.summary,
             service_tier.map(|service_tier| service_tier.request_value().to_string()),
             responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &codepilotx_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");

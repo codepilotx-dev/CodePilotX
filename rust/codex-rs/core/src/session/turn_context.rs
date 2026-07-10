@@ -2,20 +2,20 @@ use super::*;
 use crate::agents_md::LoadedAgentsMd;
 use crate::environment_selection::TurnEnvironmentSnapshot;
 use crate::shell_snapshot::ShellSnapshotFile;
-use codex_core_skills::HostSkillsSnapshot;
-use codex_file_system::FileSystemSandboxContext;
-use codex_model_provider::SharedModelProvider;
-use codex_model_provider::create_model_provider;
-use codex_protocol::SessionId;
-use codex_protocol::ThreadId;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_sandboxing::compatibility_sandbox_policy_for_permission_profile;
-use codex_sandboxing::policy_transforms::effective_file_system_sandbox_policy;
-use codex_sandboxing::policy_transforms::effective_network_sandbox_policy;
-use codex_utils_path_uri::PathUri;
+use codepilotx_core_skills::HostSkillsSnapshot;
+use codepilotx_file_system::FileSystemSandboxContext;
+use codepilotx_model_provider::SharedModelProvider;
+use codepilotx_model_provider::create_model_provider;
+use codepilotx_protocol::SessionId;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::models::AdditionalPermissionProfile;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_protocol::protocol::MultiAgentVersion;
+use codepilotx_protocol::protocol::TurnEnvironmentSelection;
+use codepilotx_sandboxing::compatibility_sandbox_policy_for_permission_profile;
+use codepilotx_sandboxing::policy_transforms::effective_file_system_sandbox_policy;
+use codepilotx_sandboxing::policy_transforms::effective_network_sandbox_policy;
+use codepilotx_utils_path_uri::PathUri;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use futures::future::Shared;
@@ -137,7 +137,7 @@ pub struct TurnContext {
     pub(crate) final_output_json_schema: Option<Value>,
     pub(crate) dynamic_tools: Vec<DynamicToolSpec>,
     pub(crate) turn_metadata_state: Arc<TurnMetadataState>,
-    pub(crate) extension_data: Arc<codex_extension_api::ExtensionData>,
+    pub(crate) extension_data: Arc<codepilotx_extension_api::ExtensionData>,
     pub(crate) turn_skills: TurnSkillsContext,
     pub(crate) turn_timing_state: Arc<TurnTimingState>,
     pub(crate) terminal_error: Arc<Mutex<Option<String>>>,
@@ -197,13 +197,13 @@ impl TurnContext {
     }
 
     pub(crate) fn apps_enabled(&self) -> bool {
-        let uses_codex_backend = self
+        let uses_codepilotx_backend = self
             .auth_manager
             .as_deref()
-            .is_some_and(AuthManager::current_auth_uses_codex_backend);
+            .is_some_and(AuthManager::current_auth_uses_codepilotx_backend);
         self.config
             .features
-            .apps_enabled_for_auth(uses_codex_backend)
+            .apps_enabled_for_auth(uses_codepilotx_backend)
             && self.config.orchestrator_mcp_enabled
     }
 
@@ -408,12 +408,12 @@ impl TurnContext {
             allowed_domains: network
                 .domains
                 .as_ref()
-                .and_then(codex_config::NetworkDomainPermissionsToml::allowed_domains)
+                .and_then(codepilotx_config::NetworkDomainPermissionsToml::allowed_domains)
                 .unwrap_or_default(),
             denied_domains: network
                 .domains
                 .as_ref()
-                .and_then(codex_config::NetworkDomainPermissionsToml::denied_domains)
+                .and_then(codepilotx_config::NetworkDomainPermissionsToml::denied_domains)
                 .unwrap_or_default(),
         })
     }
@@ -519,7 +519,7 @@ impl Session {
         let session_telemetry_for_context = session_telemetry;
         let available_models = models_manager.try_list_models().unwrap_or_default();
         let unified_exec_shell_mode = UnifiedExecShellMode::for_session(
-            codex_tools::unified_exec_feature_mode_for_features(per_turn_config.features.get()),
+            codepilotx_tools::unified_exec_feature_mode_for_features(per_turn_config.features.get()),
             crate::tools::tool_user_shell_type(user_shell),
             shell_zsh_path,
             main_execve_wrapper_exe,
@@ -545,7 +545,7 @@ impl Session {
             network.is_some(),
         ));
         let (current_date, timezone) = local_time_context();
-        let extension_data = Arc::new(codex_extension_api::ExtensionData::new(sub_id.clone()));
+        let extension_data = Arc::new(codepilotx_extension_api::ExtensionData::new(sub_id.clone()));
         extension_data.insert(skills_snapshot.clone());
         TurnContext {
             sub_id,
@@ -639,7 +639,7 @@ impl Session {
                         id: sub_id.clone(),
                         msg: EventMsg::Error(ErrorEvent {
                             message: message.clone(),
-                            codex_error_info: Some(CodexErrorInfo::BadRequest),
+                            codepilotx_error_info: Some(CodexErrorInfo::BadRequest),
                         }),
                     })
                     .await;

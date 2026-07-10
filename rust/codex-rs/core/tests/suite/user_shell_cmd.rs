@@ -1,15 +1,15 @@
 use anyhow::Context;
-use codex_features::Feature;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandEndEvent;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_protocol::protocol::ExecOutputStream;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::user_input::UserInput;
+use codepilotx_features::Feature;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::ExecCommandEndEvent;
+use codepilotx_protocol::protocol::ExecCommandSource;
+use codepilotx_protocol::protocol::ExecOutputStream;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::TurnAbortReason;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::PathBufExt;
 use core_test_support::assert_regex_match;
 use core_test_support::responses;
@@ -107,8 +107,8 @@ async fn user_shell_command_without_local_environment_emits_error() -> anyhow::R
     let test = builder.build(&server).await?;
     submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
-            environments: Some(codex_protocol::protocol::TurnEnvironmentSelections::new(
+        codepilotx_protocol::protocol::ThreadSettingsOverrides {
+            environments: Some(codepilotx_protocol::protocol::TurnEnvironmentSelections::new(
                 test.config.cwd.clone(),
                 vec![],
             )),
@@ -129,7 +129,7 @@ async fn user_shell_command_without_local_environment_emits_error() -> anyhow::R
         unreachable!()
     };
     assert_eq!(error.message, "shell is unavailable in this session");
-    assert_eq!(error.codex_error_info, None);
+    assert_eq!(error.codepilotx_error_info, None);
 
     Ok(())
 }
@@ -218,14 +218,14 @@ async fn user_shell_command_does_not_replace_active_turn() -> anyhow::Result<()>
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(cwd)),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                    mode: codepilotx_protocol::config_types::ModeKind::Default,
+                    settings: codepilotx_protocol::config_types::Settings {
                         model: fixture.session_configured.model.clone(),
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -310,9 +310,9 @@ async fn user_shell_command_history_is_persisted_and_shared_with_model() -> anyh
     let test = builder.build(&server).await?;
 
     #[cfg(windows)]
-    let command = r#"$val = $env:CODEX_SANDBOX; if ([string]::IsNullOrEmpty($val)) { $val = 'not-set' } ; [System.Console]::Write($val)"#.to_string();
+    let command = r#"$val = $env:codepilotx_SANDBOX; if ([string]::IsNullOrEmpty($val)) { $val = 'not-set' } ; [System.Console]::Write($val)"#.to_string();
     #[cfg(not(windows))]
-    let command = r#"sh -c "printf '%s' \"${CODEX_SANDBOX:-not-set}\"""#.to_string();
+    let command = r#"sh -c "printf '%s' \"${codepilotx_SANDBOX:-not-set}\"""#.to_string();
 
     test.codex
         .submit(Op::RunUserShellCommand {
@@ -396,10 +396,10 @@ async fn user_shell_command_does_not_set_network_sandbox_env_var() -> anyhow::Re
     let test = builder.build(&server).await?;
 
     #[cfg(windows)]
-    let command = r#"$val = $env:CODEX_SANDBOX_NETWORK_DISABLED; if ([string]::IsNullOrEmpty($val)) { $val = 'not-set' } ; [System.Console]::Write($val)"#.to_string();
+    let command = r#"$val = $env:codepilotx_SANDBOX_NETWORK_DISABLED; if ([string]::IsNullOrEmpty($val)) { $val = 'not-set' } ; [System.Console]::Write($val)"#.to_string();
     #[cfg(not(windows))]
     let command =
-        r#"sh -c "printf '%s' \"${CODEX_SANDBOX_NETWORK_DISABLED:-not-set}\"""#.to_string();
+        r#"sh -c "printf '%s' \"${codepilotx_SANDBOX_NETWORK_DISABLED:-not-set}\"""#.to_string();
 
     test.codex
         .submit(Op::RunUserShellCommand { command })
@@ -477,7 +477,7 @@ async fn user_shell_command_output_is_truncated_in_history() -> anyhow::Result<(
     let head = (1..=69).map(|i| format!("{i}\n")).collect::<String>();
     let tail = (352..=400).map(|i| format!("{i}\n")).collect::<String>();
     let truncated_body = format!(
-        "Warning: truncated output (original token count: 373)\nTotal output lines: 400\n\n{head}70â€¦273 tokens truncatedâ€¦351\n{tail}"
+        "Warning: truncated output (original token count: 373)\nTotal output lines: 400\n\n{head}70â€?73 tokens truncatedâ€?51\n{tail}"
     );
     let escaped_command = escape(&command);
     let escaped_truncated_body = escape(&truncated_body);

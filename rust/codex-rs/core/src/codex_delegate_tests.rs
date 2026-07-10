@@ -2,28 +2,28 @@ use super::*;
 use crate::mcp_tool_call::MCP_TOOL_APPROVAL_DECLINE_SYNTHETIC;
 use crate::mcp_tool_call::MCP_TOOL_APPROVAL_QUESTION_ID_PREFIX;
 use async_channel::bounded;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::models::NetworkPermissions;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AgentStatus;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::GuardianAssessmentAction;
-use codex_protocol::protocol::GuardianAssessmentStatus;
-use codex_protocol::protocol::GuardianCommandSource;
-use codex_protocol::protocol::McpInvocation;
-use codex_protocol::protocol::RawResponseItemEvent;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::request_permissions::RequestPermissionProfile;
-use codex_protocol::request_permissions::RequestPermissionsEvent;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
-use codex_protocol::request_user_input::RequestUserInputAnswer;
-use codex_protocol::request_user_input::RequestUserInputEvent;
-use codex_protocol::request_user_input::RequestUserInputQuestion;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
+use codepilotx_protocol::config_types::ApprovalsReviewer;
+use codepilotx_protocol::models::NetworkPermissions;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::protocol::AgentStatus;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::ExecApprovalRequestEvent;
+use codepilotx_protocol::protocol::GuardianAssessmentAction;
+use codepilotx_protocol::protocol::GuardianAssessmentStatus;
+use codepilotx_protocol::protocol::GuardianCommandSource;
+use codepilotx_protocol::protocol::McpInvocation;
+use codepilotx_protocol::protocol::RawResponseItemEvent;
+use codepilotx_protocol::protocol::ReviewDecision;
+use codepilotx_protocol::protocol::TurnAbortReason;
+use codepilotx_protocol::protocol::TurnAbortedEvent;
+use codepilotx_protocol::request_permissions::RequestPermissionProfile;
+use codepilotx_protocol::request_permissions::RequestPermissionsEvent;
+use codepilotx_protocol::request_permissions::RequestPermissionsResponse;
+use codepilotx_protocol::request_user_input::RequestUserInputAnswer;
+use codepilotx_protocol::request_user_input::RequestUserInputEvent;
+use codepilotx_protocol::request_user_input::RequestUserInputQuestion;
 use core_test_support::PathBufExt;
 use core_test_support::test_path_buf;
 use pretty_assertions::assert_eq;
@@ -132,7 +132,7 @@ async fn forward_ops_preserves_submission_trace_context() {
         id: "sub-1".to_string(),
         op: Op::Interrupt,
         client_user_message_id: None,
-        trace: Some(codex_protocol::protocol::W3cTraceContext {
+        trace: Some(codepilotx_protocol::protocol::W3cTraceContext {
             traceparent: Some(
                 "00-1234567890abcdef1234567890abcdef-1234567890abcdef-01".to_string(),
             ),
@@ -157,7 +157,7 @@ async fn forward_ops_preserves_submission_trace_context() {
 }
 
 #[tokio::test]
-async fn run_codex_thread_interactive_respects_pre_cancelled_spawn() {
+async fn run_codepilotx_thread_interactive_respects_pre_cancelled_spawn() {
     let (parent_session, parent_ctx, _rx_events) =
         crate::session::tests::make_session_and_context_with_rx().await;
     let cancel_token = CancellationToken::new();
@@ -165,7 +165,7 @@ async fn run_codex_thread_interactive_respects_pre_cancelled_spawn() {
 
     let result = timeout(
         Duration::from_secs(/*secs*/ 1),
-        run_codex_thread_interactive(
+        run_codepilotx_thread_interactive(
             parent_ctx.config.as_ref().clone(),
             Arc::clone(&parent_session.services.auth_manager),
             Arc::clone(&parent_session.services.models_manager),
@@ -461,7 +461,7 @@ async fn delegated_mcp_user_reviewer_returns_none_without_metadata() {
     let pending_mcp_invocations = Arc::new(Mutex::new(HashMap::from([(
         "call-1".to_string(),
         McpInvocation {
-            server: CODEX_APPS_MCP_SERVER_NAME.to_string(),
+            server: codepilotx_APPS_MCP_SERVER_NAME.to_string(),
             tool: "dangerous_tool".to_string(),
             arguments: None,
         },

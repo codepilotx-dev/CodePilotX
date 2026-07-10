@@ -1,5 +1,5 @@
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_utils_path_uri::PathUri;
+use codepilotx_protocol::exec_output::ExecToolCallOutput;
+use codepilotx_utils_path_uri::PathUri;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

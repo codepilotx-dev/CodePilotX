@@ -1,4 +1,4 @@
-use codex_protocol::models::WebSearchAction;
+use codepilotx_protocol::models::WebSearchAction;
 
 fn search_action_detail(query: &Option<String>, queries: &Option<Vec<String>>) -> String {
     query.clone().filter(|q| !q.is_empty()).unwrap_or_else(|| {

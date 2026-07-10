@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use codex_protocol::models::ResponseItem;
-use codex_protocol::models::plaintext_agent_message_content;
-use codex_protocol::protocol::GuardianRiskLevel;
-use codex_protocol::protocol::GuardianUserAuthorization;
-use codex_protocol::user_input::UserInput;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::models::plaintext_agent_message_content;
+use codepilotx_protocol::protocol::GuardianRiskLevel;
+use codepilotx_protocol::protocol::GuardianUserAuthorization;
+use codepilotx_protocol::user_input::UserInput;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -12,9 +12,9 @@ use crate::compact::content_items_to_text;
 use crate::event_mapping::is_contextual_user_message_content;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
-use codex_utils_output_truncation::approx_bytes_for_tokens;
-use codex_utils_output_truncation::approx_token_count;
-use codex_utils_output_truncation::approx_tokens_from_byte_count;
+use codepilotx_utils_output_truncation::approx_bytes_for_tokens;
+use codepilotx_utils_output_truncation::approx_token_count;
+use codepilotx_utils_output_truncation::approx_tokens_from_byte_count;
 
 use super::AUTO_REVIEW_DENIED_ACTION_APPROVAL_DEVELOPER_PREFIX;
 use super::GUARDIAN_MAX_MESSAGE_ENTRY_TOKENS;

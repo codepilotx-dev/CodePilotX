@@ -5,9 +5,9 @@ use super::realtime_request_headers;
 use super::realtime_text_from_handoff_request;
 use super::wrap_realtime_delegation_input;
 use async_channel::bounded;
-use codex_config::config_toml::RealtimeWsVersion;
-use codex_protocol::protocol::RealtimeHandoffRequested;
-use codex_protocol::protocol::RealtimeTranscriptEntry;
+use codepilotx_config::config_toml::RealtimeWsVersion;
+use codepilotx_protocol::protocol::RealtimeHandoffRequested;
+use codepilotx_protocol::protocol::RealtimeTranscriptEntry;
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -131,9 +131,9 @@ async fn clears_active_handoff_explicitly() {
     let state = RealtimeHandoffState::new(
         tx,
         /*client_managed_handoffs*/ false,
-        /*codex_responses_as_items*/ false,
-        /*codex_response_item_prefix*/ None,
-        /*codex_response_handoff_prefix*/ None,
+        /*codepilotx_responses_as_items*/ false,
+        /*codepilotx_response_item_prefix*/ None,
+        /*codepilotx_response_handoff_prefix*/ None,
         RealtimeSessionKind::V1,
     );
 

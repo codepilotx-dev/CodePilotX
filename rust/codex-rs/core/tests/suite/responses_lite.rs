@@ -2,19 +2,19 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_core::config::Config;
-use codex_extension_api::ExtensionRegistry;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_features::Feature;
-use codex_image_generation_extension::install as install_image_generation_extension;
-use codex_login::CodexAuth;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
-use codex_web_search_extension::install as install_web_search_extension;
+use codepilotx_core::config::Config;
+use codepilotx_extension_api::ExtensionRegistry;
+use codepilotx_extension_api::ExtensionRegistryBuilder;
+use codepilotx_features::Feature;
+use codepilotx_image_generation_extension::install as install_image_generation_extension;
+use codepilotx_login::CodexAuth;
+use codepilotx_protocol::config_types::WebSearchMode;
+use codepilotx_protocol::models::ImageDetail;
+use codepilotx_protocol::openai_models::InputModality;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_web_search_extension::install as install_web_search_extension;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_codex::test_codex;
@@ -25,7 +25,7 @@ use serde_json::Value;
 const RESPONSES_LITE_HEADER: &str = "x-openai-internal-codex-responses-lite";
 
 fn responses_extensions(auth: &CodexAuth) -> Arc<ExtensionRegistry<Config>> {
-    let auth_manager = codex_core::test_support::auth_manager_from_auth(auth.clone());
+    let auth_manager = codepilotx_core::test_support::auth_manager_from_auth(auth.clone());
     let mut extension_builder = ExtensionRegistryBuilder::<Config>::new();
     install_web_search_extension(&mut extension_builder, Arc::clone(&auth_manager));
     install_image_generation_extension(&mut extension_builder, auth_manager);
@@ -44,7 +44,7 @@ fn configure_responses_tools(config: &mut Config) {
     assert!(config.features.disable(Feature::ImageGenExt).is_ok());
 }
 
-fn configure_image_capable_model(model_info: &mut codex_protocol::openai_models::ModelInfo) {
+fn configure_image_capable_model(model_info: &mut codepilotx_protocol::openai_models::ModelInfo) {
     model_info.input_modalities = vec![InputModality::Text, InputModality::Image];
 }
 

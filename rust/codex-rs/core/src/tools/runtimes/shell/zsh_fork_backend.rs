@@ -5,8 +5,8 @@ use crate::tools::sandboxing::SandboxAttempt;
 use crate::tools::sandboxing::ToolCtx;
 use crate::tools::sandboxing::ToolError;
 use crate::unified_exec::SpawnLifecycleHandle;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_tools::ZshForkConfig;
+use codepilotx_protocol::exec_output::ExecToolCallOutput;
+use codepilotx_tools::ZshForkConfig;
 
 pub(crate) struct PreparedUnifiedExecSpawn {
     pub(crate) exec_request: ExecRequest,
@@ -48,8 +48,8 @@ mod imp {
     use super::*;
     use crate::tools::runtimes::shell::unix_escalation;
     use crate::unified_exec::SpawnLifecycle;
-    use codex_shell_escalation::ESCALATE_SOCKET_ENV_VAR;
-    use codex_shell_escalation::EscalationSession;
+    use codepilotx_shell_escalation::ESCALATE_SOCKET_ENV_VAR;
+    use codepilotx_shell_escalation::EscalationSession;
 
     #[derive(Debug)]
     struct ZshForkSpawnLifecycle {

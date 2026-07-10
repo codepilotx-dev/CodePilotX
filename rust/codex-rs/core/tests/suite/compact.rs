@@ -1,31 +1,31 @@
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_core::compact::SUMMARIZATION_PROMPT;
-use codex_core::compact::SUMMARY_PREFIX;
-use codex_core::config::Config;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::built_in_model_providers;
-use codex_models_manager::bundled_models_response;
-use codex_protocol::config_types::AutoCompactTokenLimitScope;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::HookEventName;
-use codex_protocol::protocol::HookRunStatus;
-use codex_protocol::protocol::ItemCompletedEvent;
-use codex_protocol::protocol::ItemStartedEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_core::compact::SUMMARIZATION_PROMPT;
+use codepilotx_core::compact::SUMMARY_PREFIX;
+use codepilotx_core::config::Config;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_model_provider_info::built_in_model_providers;
+use codepilotx_models_manager::bundled_models_response;
+use codepilotx_protocol::config_types::AutoCompactTokenLimitScope;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_protocol::openai_models::ModelsResponse;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::HookEventName;
+use codepilotx_protocol::protocol::HookRunStatus;
+use codepilotx_protocol::protocol::ItemCompletedEvent;
+use codepilotx_protocol::protocol::ItemStartedEvent;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::RolloutLine;
+use codepilotx_protocol::protocol::WarningEvent;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 use core_test_support::PathBufExt;
 use core_test_support::context_snapshot;
 use core_test_support::context_snapshot::ContextSnapshotOptions;
@@ -111,14 +111,14 @@ fn disabled_permission_user_turn(text: impl Into<String>, cwd: PathBuf, model: S
         final_output_json_schema: None,
         responsesapi_client_metadata: None,
         additional_context: Default::default(),
-        thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+        thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
             environments: Some(local_selections(cwd.abs())),
             approval_policy: Some(AskForApproval::Never),
             sandbox_policy: Some(sandbox_policy),
             permission_profile,
-            collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                mode: codex_protocol::config_types::ModeKind::Default,
-                settings: codex_protocol::config_types::Settings {
+            collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
+                mode: codepilotx_protocol::config_types::ModeKind::Default,
+                settings: codepilotx_protocol::config_types::Settings {
                     model,
                     reasoning_effort: None,
                     developer_instructions: None,
@@ -403,7 +403,7 @@ fn assert_pre_sampling_switch_compaction_requests(
     );
 }
 
-async fn assert_compaction_uses_turn_lifecycle_id(codex: &std::sync::Arc<codex_core::CodexThread>) {
+async fn assert_compaction_uses_turn_lifecycle_id(codex: &std::sync::Arc<codepilotx_core::CodexThread>) {
     let mut turn_started_id = None;
     let mut turn_completed_id = None;
     let mut compact_started_id = None;
@@ -498,7 +498,7 @@ async fn summarize_context_three_requests_and_instructions() {
     let codex = test.codex.clone();
     let rollout_path = test.session_configured.rollout_path.expect("rollout path");
 
-    // 1) Normal user input â€“ should hit server once.
+    // 1) Normal user input â€?should hit server once.
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
@@ -514,7 +514,7 @@ async fn summarize_context_three_requests_and_instructions() {
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    // 2) Summarize â€“ second hit should include the summarization prompt.
+    // 2) Summarize â€?second hit should include the summarization prompt.
     codex.submit(Op::Compact).await.unwrap();
     let warning_event = wait_for_event(&codex, |ev| matches!(ev, EventMsg::Warning(_))).await;
     let EventMsg::Warning(WarningEvent { message }) = warning_event else {
@@ -523,7 +523,7 @@ async fn summarize_context_three_requests_and_instructions() {
     assert_eq!(message, COMPACT_WARNING_MESSAGE);
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    // 3) Next user input â€“ third hit; history should include only the summary.
+    // 3) Next user input â€?third hit; history should include only the summary.
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
@@ -731,7 +731,7 @@ async fn manual_pre_compact_block_decision_does_not_block_compaction() {
         "unsupported PreCompact block output should not prevent the compact request"
     );
 
-    let hook_inputs = read_hook_inputs(&test.codex_home_path().join("pre_compact_block_log.jsonl"));
+    let hook_inputs = read_hook_inputs(&test.codepilotx_home_path().join("pre_compact_block_log.jsonl"));
     assert_eq!(hook_inputs.len(), 1);
     let input = &hook_inputs[0];
     assert_eq!(input["hook_event_name"], "PreCompact");
@@ -789,14 +789,14 @@ async fn compact_hooks_respect_matchers_and_post_runs_after_compaction() {
     assert_eq!(request_log.requests().len(), 2);
     assert!(
         !test
-            .codex_home_path()
+            .codepilotx_home_path()
             .join("pre_compact_auto_log.jsonl")
             .exists(),
         "auto matcher should not run for manual compaction"
     );
 
     let hook_inputs =
-        read_hook_inputs(&test.codex_home_path().join("post_compact_manual_log.jsonl"));
+        read_hook_inputs(&test.codepilotx_home_path().join("post_compact_manual_log.jsonl"));
     assert_eq!(hook_inputs.len(), 1);
     let input = &hook_inputs[0];
     assert_eq!(input["hook_event_name"], "PostCompact");
@@ -1986,16 +1986,16 @@ async fn auto_compact_runs_after_resume_when_token_usage_is_over_limit() {
     let remote_summary = "REMOTE_COMPACT_SUMMARY";
 
     let compacted_history = vec![
-        codex_protocol::models::ResponseItem::Message {
+        codepilotx_protocol::models::ResponseItem::Message {
             id: None,
             role: "assistant".to_string(),
-            content: vec![codex_protocol::models::ContentItem::OutputText {
+            content: vec![codepilotx_protocol::models::ContentItem::OutputText {
                 text: remote_summary.to_string(),
             }],
             phase: None,
             metadata: None,
         },
-        codex_protocol::models::ResponseItem::Compaction {
+        codepilotx_protocol::models::ResponseItem::Compaction {
             id: None,
             encrypted_content: "ENCRYPTED_COMPACTION_SUMMARY".to_string(),
             metadata: None,
@@ -3986,16 +3986,16 @@ async fn auto_compact_counts_encrypted_reasoning_before_last_user() {
     .await;
 
     let compacted_history = vec![
-        codex_protocol::models::ResponseItem::Message {
+        codepilotx_protocol::models::ResponseItem::Message {
             id: None,
             role: "assistant".to_string(),
-            content: vec![codex_protocol::models::ContentItem::OutputText {
+            content: vec![codepilotx_protocol::models::ContentItem::OutputText {
                 text: "REMOTE_COMPACT_SUMMARY".to_string(),
             }],
             phase: None,
             metadata: None,
         },
-        codex_protocol::models::ResponseItem::Compaction {
+        codepilotx_protocol::models::ResponseItem::Compaction {
             id: None,
             encrypted_content: "ENCRYPTED_COMPACTION_SUMMARY".to_string(),
             metadata: None,
@@ -4114,16 +4114,16 @@ async fn auto_compact_runs_when_reasoning_header_clears_between_turns() {
     mount_response_sequence(&server, responses).await;
 
     let compacted_history = vec![
-        codex_protocol::models::ResponseItem::Message {
+        codepilotx_protocol::models::ResponseItem::Message {
             id: None,
             role: "assistant".to_string(),
-            content: vec![codex_protocol::models::ContentItem::OutputText {
+            content: vec![codepilotx_protocol::models::ContentItem::OutputText {
                 text: "REMOTE_COMPACT_SUMMARY".to_string(),
             }],
             phase: None,
             metadata: None,
         },
-        codex_protocol::models::ResponseItem::Compaction {
+        codepilotx_protocol::models::ResponseItem::Compaction {
             id: None,
             encrypted_content: "ENCRYPTED_COMPACTION_SUMMARY".to_string(),
             metadata: None,
@@ -4224,7 +4224,7 @@ async fn snapshot_request_shape_pre_turn_compaction_including_incoming_user_mess
     }
     core_test_support::submit_thread_settings(
         &codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        codepilotx_protocol::protocol::ThreadSettingsOverrides {
             environments: Some(local_selections(
                 test_path_buf(PRETURN_CONTEXT_DIFF_CWD).abs(),
             )),

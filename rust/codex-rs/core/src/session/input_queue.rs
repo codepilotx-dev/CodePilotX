@@ -1,9 +1,9 @@
 use crate::state::ActiveTurn;
 use crate::state::MailboxDeliveryPhase;
 use crate::state::TurnState;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::user_input::UserInput;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::protocol::InterAgentCommunication;
+use codepilotx_protocol::user_input::UserInput;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -263,7 +263,7 @@ impl TurnInputQueue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::AgentPath;
+    use codepilotx_protocol::AgentPath;
     use pretty_assertions::assert_eq;
 
     fn make_mail(

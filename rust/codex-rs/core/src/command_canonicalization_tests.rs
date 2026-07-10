@@ -42,7 +42,7 @@ fn canonicalizes_heredoc_scripts_to_stable_script_key() {
     assert_eq!(
         canonicalize_command_for_approval(&command_a),
         vec![
-            "__codex_shell_script__".to_string(),
+            "__codepilotx_shell_script__".to_string(),
             "-lc".to_string(),
             script.to_string(),
         ]
@@ -71,7 +71,7 @@ fn canonicalizes_powershell_wrappers_to_stable_script_key() {
     assert_eq!(
         canonicalize_command_for_approval(&command_a),
         vec![
-            "__codex_powershell_script__".to_string(),
+            "__codepilotx_powershell_script__".to_string(),
             script.to_string(),
         ]
     );

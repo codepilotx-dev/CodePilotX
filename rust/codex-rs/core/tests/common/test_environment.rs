@@ -1,13 +1,13 @@
 use std::ffi::OsStr;
 
 use anyhow::Result;
-use codex_utils_path_uri::LegacyAppPathString;
-use codex_utils_path_uri::PathConvention;
-use codex_utils_path_uri::PathUri;
+use codepilotx_utils_path_uri::LegacyAppPathString;
+use codepilotx_utils_path_uri::PathConvention;
+use codepilotx_utils_path_uri::PathUri;
 
-pub const TEST_ENVIRONMENT_ENV_VAR: &str = "CODEX_TEST_ENVIRONMENT";
-pub const LEGACY_REMOTE_ENV_ENV_VAR: &str = "CODEX_TEST_REMOTE_ENV";
-pub const DOCKER_CONTAINER_ENV_VAR: &str = "CODEX_TEST_REMOTE_ENV_CONTAINER_NAME";
+pub const TEST_ENVIRONMENT_ENV_VAR: &str = "codepilotx_TEST_ENVIRONMENT";
+pub const LEGACY_REMOTE_ENV_ENV_VAR: &str = "codepilotx_TEST_REMOTE_ENV";
+pub const DOCKER_CONTAINER_ENV_VAR: &str = "codepilotx_TEST_REMOTE_ENV_CONTAINER_NAME";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TestEnvironment {

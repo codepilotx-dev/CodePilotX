@@ -3,7 +3,7 @@ use super::message_tool::MessageDeliveryMode;
 use super::message_tool::handle_message_string_tool;
 use super::*;
 use crate::tools::handlers::multi_agents_spec::create_followup_task_tool;
-use codex_tools::ToolSpec;
+use codepilotx_tools::ToolSpec;
 
 pub(crate) struct Handler;
 
@@ -16,7 +16,7 @@ impl ToolExecutor<ToolInvocation> for Handler {
         create_followup_task_tool()
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> codepilotx_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }

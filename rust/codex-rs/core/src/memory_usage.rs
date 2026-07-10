@@ -2,9 +2,9 @@ use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
 use crate::tools::flat_tool_name;
 use crate::tools::handlers::unified_exec::ExecCommandArgs;
-use codex_memories_read::usage::MEMORIES_USAGE_METRIC;
-use codex_memories_read::usage::memories_usage_kinds_from_command;
-use codex_protocol::models::ShellCommandToolCallParams;
+use codepilotx_memories_read::usage::MEMORIES_USAGE_METRIC;
+use codepilotx_memories_read::usage::memories_usage_kinds_from_command;
+use codepilotx_protocol::models::ShellCommandToolCallParams;
 
 pub(crate) fn emit_metric_for_tool_read(invocation: &ToolInvocation, success: bool) {
     let Some(command) = shell_script_for_invocation(invocation) else {

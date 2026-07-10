@@ -66,50 +66,50 @@ use crate::tools::spec_plan::tool_suggest_enabled;
 use crate::turn_diff_tracker::TurnDiffTracker;
 use crate::turn_timing::record_turn_ttft_metric;
 use crate::util::error_or_panic;
-use codex_analytics::AppInvocation;
-use codex_analytics::CompactionPhase;
-use codex_analytics::CompactionReason;
-use codex_analytics::InvocationType;
-use codex_analytics::TurnResolvedConfigFact;
-use codex_analytics::build_track_events_context;
-use codex_async_utils::OrCancelExt;
-use codex_core_plugins::RecommendedPluginCandidatesInput;
-use codex_core_skills::injection::InjectedHostSkillPrompts;
-use codex_extension_api::TurnInputContext;
-use codex_extension_api::TurnInputEnvironment;
-use codex_features::Feature;
-use codex_git_utils::get_git_repo_root_with_fs;
-use codex_protocol::config_types::AutoCompactTokenLimitScope;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::items::PlanItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::items::build_hook_prompt_message;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AgentMessageContentDeltaEvent;
-use codex_protocol::protocol::AgentReasoningSectionBreakEvent;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::PlanDeltaEvent;
-use codex_protocol::protocol::ReasoningContentDeltaEvent;
-use codex_protocol::protocol::ReasoningRawContentDeltaEvent;
-use codex_protocol::protocol::TurnDiffEvent;
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::user_input::UserInput;
-use codex_tools::ToolName;
-use codex_tools::filter_request_plugin_install_discoverable_tools_for_client;
-use codex_utils_stream_parser::AssistantTextChunk;
-use codex_utils_stream_parser::AssistantTextStreamParser;
-use codex_utils_stream_parser::ProposedPlanSegment;
-use codex_utils_stream_parser::extract_proposed_plan_text;
-use codex_utils_stream_parser::strip_citations;
+use codepilotx_analytics::AppInvocation;
+use codepilotx_analytics::CompactionPhase;
+use codepilotx_analytics::CompactionReason;
+use codepilotx_analytics::InvocationType;
+use codepilotx_analytics::TurnResolvedConfigFact;
+use codepilotx_analytics::build_track_events_context;
+use codepilotx_async_utils::OrCancelExt;
+use codepilotx_core_plugins::RecommendedPluginCandidatesInput;
+use codepilotx_core_skills::injection::InjectedHostSkillPrompts;
+use codepilotx_extension_api::TurnInputContext;
+use codepilotx_extension_api::TurnInputEnvironment;
+use codepilotx_features::Feature;
+use codepilotx_git_utils::get_git_repo_root_with_fs;
+use codepilotx_protocol::config_types::AutoCompactTokenLimitScope;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::ServiceTier;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result as CodexResult;
+use codepilotx_protocol::items::PlanItem;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::items::build_hook_prompt_message;
+use codepilotx_protocol::models::BaseInstructions;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::MessagePhase;
+use codepilotx_protocol::models::ResponseInputItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::protocol::AgentMessageContentDeltaEvent;
+use codepilotx_protocol::protocol::AgentReasoningSectionBreakEvent;
+use codepilotx_protocol::protocol::CodexErrorInfo;
+use codepilotx_protocol::protocol::ErrorEvent;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::PlanDeltaEvent;
+use codepilotx_protocol::protocol::ReasoningContentDeltaEvent;
+use codepilotx_protocol::protocol::ReasoningRawContentDeltaEvent;
+use codepilotx_protocol::protocol::TurnDiffEvent;
+use codepilotx_protocol::protocol::WarningEvent;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::filter_request_plugin_install_discoverable_tools_for_client;
+use codepilotx_utils_stream_parser::AssistantTextChunk;
+use codepilotx_utils_stream_parser::AssistantTextStreamParser;
+use codepilotx_utils_stream_parser::ProposedPlanSegment;
+use codepilotx_utils_stream_parser::extract_proposed_plan_text;
+use codepilotx_utils_stream_parser::strip_citations;
 use futures::future::BoxFuture;
 use futures::prelude::*;
 use futures::stream::FuturesOrdered;
@@ -140,7 +140,7 @@ use tracing::warn;
 pub(crate) async fn run_turn(
     sess: Arc<Session>,
     turn_context: Arc<TurnContext>,
-    turn_extension_data: Arc<codex_extension_api::ExtensionData>,
+    turn_extension_data: Arc<codepilotx_extension_api::ExtensionData>,
     input: Vec<TurnInput>,
     prewarmed_client_session: Option<ModelClientSession>,
     cancellation_token: CancellationToken,
@@ -155,7 +155,7 @@ pub(crate) async fn run_turn(
         if matches!(err, CodexErr::TurnAborted) {
             return Err(err);
         }
-        let error = err.to_codex_protocol_error();
+        let error = err.to_codepilotx_protocol_error();
         sess.emit_turn_error_lifecycle(turn_context.as_ref(), error.clone())
             .await;
         error!("Failed to run pre-sampling compact");
@@ -347,7 +347,7 @@ pub(crate) async fn run_turn(
                         if matches!(err, CodexErr::TurnAborted) {
                             return Err(err);
                         }
-                        let error = err.to_codex_protocol_error();
+                        let error = err.to_codepilotx_protocol_error();
                         sess.emit_turn_error_lifecycle(turn_context.as_ref(), error.clone())
                             .await;
                         return Ok(None);
@@ -406,7 +406,7 @@ pub(crate) async fn run_turn(
             Err(err @ CodexErr::TurnAborted) => {
                 return Err(err);
             }
-            Err(codex_error @ CodexErr::InvalidImageRequest()) => {
+            Err(codepilotx_error @ CodexErr::InvalidImageRequest()) => {
                 {
                     let mut state = sess.state.lock().await;
                     error_or_panic(
@@ -417,24 +417,24 @@ pub(crate) async fn run_turn(
                     }
                 }
 
-                sess.track_turn_codex_error(turn_context.as_ref(), &codex_error);
+                sess.track_turn_codepilotx_error(turn_context.as_ref(), &codepilotx_error);
                 let error = CodexErrorInfo::BadRequest;
                 sess.emit_turn_error_lifecycle(turn_context.as_ref(), error.clone())
                     .await;
                 let event = EventMsg::Error(ErrorEvent {
                     message: "Invalid image in your last message. Please remove it and try again."
                         .to_string(),
-                    codex_error_info: Some(error),
+                    codepilotx_error_info: Some(error),
                 });
                 sess.send_event(&turn_context, event).await;
                 break;
             }
             Err(e) => {
                 info!("Turn error: {e:#}");
-                let error = e.to_codex_protocol_error();
+                let error = e.to_codepilotx_protocol_error();
                 sess.emit_turn_error_lifecycle(turn_context.as_ref(), error.clone())
                     .await;
-                sess.track_turn_codex_error(turn_context.as_ref(), &e);
+                sess.track_turn_codepilotx_error(turn_context.as_ref(), &e);
                 let event = EventMsg::Error(e.to_error_event(/*message_prefix*/ None));
                 sess.send_event(&turn_context, event).await;
                 // let the user continue the conversation
@@ -550,7 +550,7 @@ async fn build_skills_and_plugins(
         Vec::new()
     };
     let available_connectors = if turn_context.apps_enabled() {
-        let connectors = codex_connectors::merge::merge_plugin_connectors_with_accessible(
+        let connectors = codepilotx_connectors::merge::merge_plugin_connectors_with_accessible(
             loaded_plugins
                 .effective_apps()
                 .into_iter()
@@ -1049,7 +1049,7 @@ pub(super) fn collect_explicit_app_ids_from_skill_items(
 
     let connector_slug_counts = build_connector_slug_counts(connectors);
     for connector in connectors {
-        let slug = codex_connectors::metadata::connector_mention_slug(connector);
+        let slug = codepilotx_connectors::metadata::connector_mention_slug(connector);
         let connector_count = connector_slug_counts.get(&slug).copied().unwrap_or(0);
         let skill_count = skill_name_counts_lower.get(&slug).copied().unwrap_or(0);
         if connector_count == 1 && skill_count == 0 && mention_names_lower.contains(&slug) {
@@ -1092,7 +1092,7 @@ pub(crate) fn build_prompt(
 async fn run_sampling_request(
     sess: Arc<Session>,
     turn_context: Arc<TurnContext>,
-    turn_store: Arc<codex_extension_api::ExtensionData>,
+    turn_store: Arc<codepilotx_extension_api::ExtensionData>,
     turn_diff_tracker: SharedTurnDiffTracker,
     client_session: &mut ModelClientSession,
     responses_metadata: &CodexResponsesMetadata,
@@ -1219,7 +1219,7 @@ pub(crate) async fn built_tools(
             connectors::with_app_enabled_state(connectors.clone(), &turn_context.config)
         });
     let connectors = if apps_enabled {
-        let connectors = codex_connectors::merge::merge_plugin_connectors_with_accessible(
+        let connectors = codepilotx_connectors::merge::merge_plugin_connectors_with_accessible(
             loaded_plugins
                 .effective_apps()
                 .into_iter()
@@ -1494,11 +1494,11 @@ async fn maybe_emit_pending_agent_message_start(
 }
 
 /// Agent messages are text-only today; concatenate all text entries.
-fn agent_message_text(item: &codex_protocol::items::AgentMessageItem) -> String {
+fn agent_message_text(item: &codepilotx_protocol::items::AgentMessageItem) -> String {
     item.content
         .iter()
         .map(|entry| match entry {
-            codex_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
+            codepilotx_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
         })
         .collect()
 }
@@ -1751,7 +1751,7 @@ async fn maybe_complete_plan_item_from_message(
 async fn emit_agent_message_in_plan_mode(
     sess: &Session,
     turn_context: &TurnContext,
-    agent_message: codex_protocol::items::AgentMessageItem,
+    agent_message: codepilotx_protocol::items::AgentMessageItem,
     state: &mut PlanModeStreamState,
 ) {
     let agent_message_id = agent_message.id.clone();
@@ -1772,7 +1772,7 @@ async fn emit_agent_message_in_plan_mode(
             .pending_agent_message_items
             .remove(&agent_message_id)
             .unwrap_or_else(|| {
-                TurnItem::AgentMessage(codex_protocol::items::AgentMessageItem {
+                TurnItem::AgentMessage(codepilotx_protocol::items::AgentMessageItem {
                     id: agent_message_id.clone(),
                     content: Vec::new(),
                     phase: None,
@@ -1815,7 +1815,7 @@ async fn emit_turn_item_in_plan_mode(
 async fn handle_assistant_item_done_in_plan_mode(
     sess: &Session,
     turn_context: &TurnContext,
-    turn_store: &codex_extension_api::ExtensionData,
+    turn_store: &codepilotx_extension_api::ExtensionData,
     item: &ResponseItem,
     state: &mut PlanModeStreamState,
     previously_active_item: Option<&TurnItem>,
@@ -1904,7 +1904,7 @@ async fn try_run_sampling_request(
     tool_runtime: ToolCallRuntime,
     sess: Arc<Session>,
     turn_context: Arc<TurnContext>,
-    turn_store: Arc<codex_extension_api::ExtensionData>,
+    turn_store: Arc<codepilotx_extension_api::ExtensionData>,
     client_session: &mut ModelClientSession,
     responses_metadata: &CodexResponsesMetadata,
     turn_diff_tracker: SharedTurnDiffTracker,
@@ -1980,7 +1980,7 @@ async fn try_run_sampling_request(
             .await
         {
             Ok(event) => event,
-            Err(codex_async_utils::CancelErr::Cancelled) => break Err(CodexErr::TurnAborted),
+            Err(codepilotx_async_utils::CancelErr::Cancelled) => break Err(CodexErr::TurnAborted),
         };
 
         let event = match event {
@@ -2125,7 +2125,7 @@ async fn try_run_sampling_request(
                             assistant_message_stream_parsers.seed_item_text(&item_id, &raw_text);
                         if let TurnItem::AgentMessage(agent_message) = &mut turn_item {
                             agent_message.content =
-                                vec![codex_protocol::items::AgentMessageContent::Text {
+                                vec![codepilotx_protocol::items::AgentMessageContent::Text {
                                     text: if plan_mode {
                                         String::new()
                                     } else {

@@ -2,23 +2,23 @@
 #![allow(clippy::unwrap_used)]
 
 use anyhow::Result;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_protocol::dynamic_tools::DynamicToolCallOutputContentItem;
-use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceTool;
-use codex_protocol::dynamic_tools::DynamicToolResponse;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::McpInvocation;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
+use codepilotx_config::types::McpServerConfig;
+use codepilotx_config::types::McpServerTransportConfig;
+use codepilotx_features::Feature;
+use codepilotx_login::CodexAuth;
+use codepilotx_protocol::dynamic_tools::DynamicToolCallOutputContentItem;
+use codepilotx_protocol::dynamic_tools::DynamicToolFunctionSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolNamespaceSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolNamespaceTool;
+use codepilotx_protocol::dynamic_tools::DynamicToolResponse;
+use codepilotx_protocol::dynamic_tools::DynamicToolSpec;
+use codepilotx_protocol::models::FunctionCallOutputPayload;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::McpInvocation;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::user_input::UserInput;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::apps_test_server::AppsTestToolLoading;
 use core_test_support::apps_test_server::CALENDAR_CREATE_EVENT_MCP_APP_RESOURCE_URI;
@@ -569,7 +569,7 @@ async fn tool_search_returns_deferred_tools_without_follow_up_tool_injection() -
     assert_eq!(
         end.invocation,
         McpInvocation {
-            server: "codex_apps".to_string(),
+            server: "codepilotx_apps".to_string(),
             tool: "calendar_create_event".to_string(),
             arguments: Some(json!({
                 "title": "Lunch",
@@ -583,7 +583,7 @@ async fn tool_search_returns_deferred_tools_without_follow_up_tool_injection() -
             .expect("tool call should succeed")
             .structured_content,
         Some(json!({
-            "_codex_apps": {
+            "_codepilotx_apps": {
                 "call_id": "calendar-call-1",
                 "resource_uri": CALENDAR_CREATE_EVENT_RESOURCE_URI,
                 "contains_mcp_source": true,
@@ -604,7 +604,7 @@ async fn tool_search_returns_deferred_tools_without_follow_up_tool_injection() -
     let apps_tool_call = recorded_apps_tool_call_by_call_id(&server, "calendar-call-1").await;
 
     assert_eq!(
-        apps_tool_call.pointer("/params/_meta/_codex_apps"),
+        apps_tool_call.pointer("/params/_meta/_codepilotx_apps"),
         Some(&json!({
             "call_id": "calendar-call-1",
             "resource_uri": CALENDAR_CREATE_EVENT_RESOURCE_URI,
@@ -896,7 +896,7 @@ async fn tool_search_returns_deferred_dynamic_tool_and_routes_follow_up_call() -
                     "item": {
                         "type": "function_call",
                         "call_id": dynamic_call_id,
-                        "namespace": "codex_app",
+                        "namespace": "codepilotx_app",
                         "name": tool_name,
                         "arguments": tool_call_arguments,
                     }
@@ -921,7 +921,7 @@ async fn tool_search_returns_deferred_dynamic_tool_and_routes_follow_up_call() -
         "additionalProperties": false,
     });
     let dynamic_tool = DynamicToolSpec::Namespace(DynamicToolNamespaceSpec {
-        name: "codex_app".to_string(),
+        name: "codepilotx_app".to_string(),
         description: "Automation tools.".to_string(),
         tools: vec![DynamicToolNamespaceTool::Function(
             DynamicToolFunctionSpec {
@@ -964,7 +964,7 @@ async fn tool_search_returns_deferred_dynamic_tool_and_routes_follow_up_call() -
         unreachable!("event guard guarantees DynamicToolCallRequest");
     };
     assert_eq!(request.call_id, dynamic_call_id);
-    assert_eq!(request.namespace.as_deref(), Some("codex_app"));
+    assert_eq!(request.namespace.as_deref(), Some("codepilotx_app"));
     assert_eq!(request.tool, tool_name);
     assert_eq!(request.arguments, tool_args);
 
@@ -1006,7 +1006,7 @@ async fn tool_search_returns_deferred_dynamic_tool_and_routes_follow_up_call() -
         tools,
         vec![json!({
             "type": "namespace",
-            "name": "codex_app",
+            "name": "codepilotx_app",
             "description": "Automation tools.",
             "tools": [{
                 "type": "function",

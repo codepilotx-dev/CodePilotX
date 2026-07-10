@@ -36,11 +36,11 @@ pub(crate) mod unified_exec;
 mod view_image;
 pub(crate) mod view_image_spec;
 
-use codex_sandboxing::policy_transforms::intersect_permission_profiles;
-use codex_sandboxing::policy_transforms::merge_permission_profiles;
-use codex_sandboxing::policy_transforms::normalize_additional_permissions;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::AbsolutePathBufGuard;
+use codepilotx_sandboxing::policy_transforms::intersect_permission_profiles;
+use codepilotx_sandboxing::policy_transforms::merge_permission_profiles;
+use codepilotx_sandboxing::policy_transforms::normalize_additional_permissions;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBufGuard;
 use serde::Deserialize;
 use serde_json::Map;
 use serde_json::Value;
@@ -54,8 +54,8 @@ use crate::session::turn_context::TurnEnvironment;
 pub(crate) use crate::tools::code_mode::CodeModeExecuteHandler;
 pub(crate) use crate::tools::code_mode::CodeModeWaitHandler;
 pub use apply_patch::ApplyPatchHandler;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_protocol::protocol::AskForApproval;
+use codepilotx_protocol::models::AdditionalPermissionProfile;
+use codepilotx_protocol::protocol::AskForApproval;
 pub use current_time::CurrentTimeHandler;
 pub use dynamic::DynamicToolHandler;
 pub use get_context_remaining::GetContextRemainingHandler;
@@ -201,7 +201,7 @@ pub(crate) fn normalize_and_validate_additional_permissions(
     if uses_additional_permissions {
         if !permissions_preapproved && !matches!(approval_policy, AskForApproval::OnRequest) {
             return Err(format!(
-                "approval policy is {approval_policy:?}; reject command â€” you cannot request additional permissions unless the approval policy is OnRequest"
+                "approval policy is {approval_policy:?}; reject command â€?you cannot request additional permissions unless the approval policy is OnRequest"
             ));
         }
         let Some(additional_permissions) = additional_permissions else {
@@ -320,18 +320,18 @@ mod tests {
     use super::normalize_and_validate_additional_permissions;
     use super::permissions_are_preapproved;
     use crate::sandboxing::SandboxPermissions;
-    use codex_protocol::models::AdditionalPermissionProfile;
-    use codex_protocol::models::FileSystemPermissions;
-    use codex_protocol::models::NetworkPermissions;
-    use codex_protocol::permissions::FileSystemAccessMode;
-    use codex_protocol::permissions::FileSystemPath;
-    use codex_protocol::permissions::FileSystemSandboxEntry;
-    use codex_protocol::permissions::FileSystemSpecialPath;
-    use codex_protocol::protocol::AskForApproval;
-    use codex_protocol::protocol::GranularApprovalConfig;
-    use codex_sandboxing::policy_transforms::intersect_permission_profiles;
-    use codex_sandboxing::policy_transforms::merge_permission_profiles;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_protocol::models::AdditionalPermissionProfile;
+    use codepilotx_protocol::models::FileSystemPermissions;
+    use codepilotx_protocol::models::NetworkPermissions;
+    use codepilotx_protocol::permissions::FileSystemAccessMode;
+    use codepilotx_protocol::permissions::FileSystemPath;
+    use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+    use codepilotx_protocol::permissions::FileSystemSpecialPath;
+    use codepilotx_protocol::protocol::AskForApproval;
+    use codepilotx_protocol::protocol::GranularApprovalConfig;
+    use codepilotx_sandboxing::policy_transforms::intersect_permission_profiles;
+    use codepilotx_sandboxing::policy_transforms::merge_permission_profiles;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use tempfile::tempdir;
 

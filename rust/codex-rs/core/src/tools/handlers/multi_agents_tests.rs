@@ -15,46 +15,46 @@ use crate::tools::handlers::multi_agents_v2::SendMessageHandler as SendMessageHa
 use crate::tools::handlers::multi_agents_v2::SpawnAgentHandler as SpawnAgentHandlerV2;
 use crate::tools::handlers::multi_agents_v2::WaitAgentHandler as WaitAgentHandlerV2;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use codex_extension_api::empty_extension_registry;
-use codex_features::Feature;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_model_provider::create_model_provider;
-use codex_model_provider_info::built_in_model_providers;
-use codex_protocol::AgentPath;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::MultiAgentMode;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::ShellEnvironmentPolicy;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::models::SandboxEnforcement;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::AgentStatus;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::FileSystemAccessMode;
-use codex_protocol::protocol::FileSystemPath;
-use codex_protocol::protocol::FileSystemSandboxEntry;
-use codex_protocol::protocol::FileSystemSandboxPolicy;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::NetworkSandboxPolicy;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::TurnCompleteEvent;
-use codex_protocol::user_input::UserInput;
-use codex_state::DirectionalThreadSpawnEdgeStatus;
+use codepilotx_extension_api::empty_extension_registry;
+use codepilotx_features::Feature;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CodexAuth;
+use codepilotx_model_provider::create_model_provider;
+use codepilotx_model_provider_info::built_in_model_providers;
+use codepilotx_protocol::AgentPath;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::ApprovalsReviewer;
+use codepilotx_protocol::config_types::MultiAgentMode;
+use codepilotx_protocol::config_types::ServiceTier;
+use codepilotx_protocol::config_types::ShellEnvironmentPolicy;
+use codepilotx_protocol::models::BaseInstructions;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::FunctionCallOutputBody;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::models::ResponseInputItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::models::SandboxEnforcement;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::protocol::AgentStatus;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::FileSystemAccessMode;
+use codepilotx_protocol::protocol::FileSystemPath;
+use codepilotx_protocol::protocol::FileSystemSandboxEntry;
+use codepilotx_protocol::protocol::FileSystemSandboxPolicy;
+use codepilotx_protocol::protocol::InitialHistory;
+use codepilotx_protocol::protocol::InterAgentCommunication;
+use codepilotx_protocol::protocol::NetworkSandboxPolicy;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::SandboxPolicy;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_protocol::protocol::TurnAbortReason;
+use codepilotx_protocol::protocol::TurnAbortedEvent;
+use codepilotx_protocol::protocol::TurnCompleteEvent;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_state::DirectionalThreadSpawnEdgeStatus;
 use core_test_support::TempDirExt;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
@@ -79,7 +79,7 @@ fn invocation(
         cancellation_token: CancellationToken::new(),
         tracker: Arc::new(Mutex::new(TurnDiffTracker::default())),
         call_id: "call-1".to_string(),
-        tool_name: codex_tools::ToolName::plain(tool_name),
+        tool_name: codepilotx_tools::ToolName::plain(tool_name),
         source: crate::tools::context::ToolCallSource::Direct,
         payload,
     }
@@ -104,12 +104,12 @@ fn thread_manager() -> ThreadManager {
 
 async fn install_role_with_model_override(turn: &mut TurnContext) -> String {
     let role_name = "fork-context-role".to_string();
-    tokio::fs::create_dir_all(&turn.config.codex_home)
+    tokio::fs::create_dir_all(&turn.config.codepilotx_home)
         .await
         .expect("codex home should be created");
     let role_config_path = turn
         .config
-        .codex_home
+        .codepilotx_home
         .as_path()
         .join("fork-context-role.toml");
     tokio::fs::write(
@@ -157,7 +157,7 @@ where
             let content = match output.body {
                 FunctionCallOutputBody::Text(text) => text,
                 FunctionCallOutputBody::ContentItems(items) => {
-                    codex_protocol::models::function_call_output_content_items_to_text(&items)
+                    codepilotx_protocol::models::function_call_output_content_items_to_text(&items)
                         .unwrap_or_default()
                 }
             };
@@ -394,7 +394,7 @@ async fn multi_agent_v2_spawn_fork_turns_all_rejects_agent_type_override() {
         .expect("test config should allow feature update");
     let turn = TurnContext {
         config: Arc::new(config),
-        multi_agent_version: codex_protocol::protocol::MultiAgentVersion::V2,
+        multi_agent_version: codepilotx_protocol::protocol::MultiAgentVersion::V2,
         ..turn
     };
 
@@ -653,12 +653,12 @@ async fn spawn_agent_service_tier_inheritance_preserves_supported_or_configured_
 
     {
         let (mut session, mut turn) = make_session_and_context().await;
-        tokio::fs::create_dir_all(&turn.config.codex_home)
+        tokio::fs::create_dir_all(&turn.config.codepilotx_home)
             .await
             .expect("codex home should be created");
         let role_config_path = turn
             .config
-            .codex_home
+            .codepilotx_home
             .as_path()
             .join("service-tier-role.toml");
         tokio::fs::write(
@@ -729,10 +729,10 @@ async fn spawn_agent_role_service_tier_falls_back_to_supported_parent_tier() {
     let mut turn = turn
         .with_model("gpt-5.4".to_string(), &session.services.models_manager)
         .await;
-    tokio::fs::create_dir_all(&turn.config.codex_home)
+    tokio::fs::create_dir_all(&turn.config.codepilotx_home)
         .await
         .expect("codex home should be created");
-    let role_config_path = turn.config.codex_home.as_path().join("tiered-role.toml");
+    let role_config_path = turn.config.codepilotx_home.as_path().join("tiered-role.toml");
     tokio::fs::write(
         &role_config_path,
         r#"model = "gpt-5.4"
@@ -793,10 +793,10 @@ service_tier = "turbo"
 #[tokio::test]
 async fn spawn_agent_role_service_tier_does_not_hide_invalid_spawn_request() {
     let (session, mut turn) = make_session_and_context().await;
-    tokio::fs::create_dir_all(&turn.config.codex_home)
+    tokio::fs::create_dir_all(&turn.config.codepilotx_home)
         .await
         .expect("codex home should be created");
-    let role_config_path = turn.config.codex_home.as_path().join("tiered-role.toml");
+    let role_config_path = turn.config.codepilotx_home.as_path().join("tiered-role.toml");
     tokio::fs::write(
         &role_config_path,
         r#"model = "gpt-5.4"
@@ -972,7 +972,7 @@ async fn multi_agent_v2_spawn_partial_fork_turns_allows_agent_type_override() {
         .expect("test config should allow feature update");
     let turn = TurnContext {
         config: Arc::new(config),
-        multi_agent_version: codex_protocol::protocol::MultiAgentVersion::V2,
+        multi_agent_version: codepilotx_protocol::protocol::MultiAgentVersion::V2,
         ..turn
     };
 
@@ -3951,8 +3951,8 @@ async fn multi_agent_v2_interrupt_agent_accepts_unloaded_task_name_target() {
     let manager = ThreadManager::with_models_provider_home_and_state_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
-        config.codex_home.to_path_buf(),
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        config.codepilotx_home.to_path_buf(),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         Some(state_db.clone()),
     );
     let root = manager
@@ -4281,7 +4281,7 @@ async fn tool_handlers_cascade_close_and_resume_and_keep_explicitly_closed_subtr
         &config,
         AuthManager::from_auth_for_testing(CodexAuth::from_api_key("dummy")),
         SessionSource::Exec,
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(codepilotx_exec_server::EnvironmentManager::default_for_tests()),
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
@@ -4512,7 +4512,7 @@ async fn build_agent_spawn_config_uses_turn_context_values() {
         use_profile: true,
         ..ShellEnvironmentPolicy::default()
     };
-    config.codex_linux_sandbox_exe = Some(PathBuf::from("/bin/echo"));
+    config.codepilotx_linux_sandbox_exe = Some(PathBuf::from("/bin/echo"));
     turn.config = Arc::new(config);
     let temp_dir = tempfile::tempdir().expect("temp dir");
     #[allow(deprecated)]

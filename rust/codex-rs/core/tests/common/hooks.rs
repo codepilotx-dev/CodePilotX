@@ -1,10 +1,10 @@
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerStack;
-use codex_config::TomlValue;
-use codex_core::config::Config;
-use codex_features::Feature;
-use codex_hooks::HookListEntry;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_config::CONFIG_TOML_FILE;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::TomlValue;
+use codepilotx_core::config::Config;
+use codepilotx_features::Feature;
+use codepilotx_hooks::HookListEntry;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 pub fn trust_discovered_hooks(config: &mut Config) {
     config
@@ -12,10 +12,10 @@ pub fn trust_discovered_hooks(config: &mut Config) {
         .enable(Feature::CodexHooks)
         .expect("test config should allow feature update");
 
-    let listed = codex_hooks::list_hooks(codex_hooks::HooksConfig {
+    let listed = codepilotx_hooks::list_hooks(codepilotx_hooks::HooksConfig {
         feature_enabled: true,
         config_layer_stack: Some(config.config_layer_stack.clone()),
-        ..codex_hooks::HooksConfig::default()
+        ..codepilotx_hooks::HooksConfig::default()
     });
     assert!(
         !listed.hooks.is_empty(),
@@ -26,12 +26,12 @@ pub fn trust_discovered_hooks(config: &mut Config) {
 
 pub fn trust_hooks(config: &mut Config, hooks: Vec<HookListEntry>) {
     config.config_layer_stack =
-        trusted_config_layer_stack(&config.config_layer_stack, &config.codex_home, hooks);
+        trusted_config_layer_stack(&config.config_layer_stack, &config.codepilotx_home, hooks);
 }
 
 pub fn trusted_config_layer_stack(
     config_layer_stack: &ConfigLayerStack,
-    codex_home: &AbsolutePathBuf,
+    codepilotx_home: &AbsolutePathBuf,
     hooks: Vec<HookListEntry>,
 ) -> ConfigLayerStack {
     let mut user_config = config_layer_stack
@@ -63,5 +63,5 @@ pub fn trusted_config_layer_stack(
         state_table.insert(hook.key, hook_state);
     }
 
-    config_layer_stack.with_user_config(&codex_home.join(CONFIG_TOML_FILE), user_config)
+    config_layer_stack.with_user_config(&codepilotx_home.join(CONFIG_TOML_FILE), user_config)
 }

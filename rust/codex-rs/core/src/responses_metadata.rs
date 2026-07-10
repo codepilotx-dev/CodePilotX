@@ -1,25 +1,25 @@
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 
-use codex_analytics::CompactionImplementation;
-use codex_analytics::CompactionPhase;
-use codex_analytics::CompactionReason;
-use codex_analytics::CompactionStrategy;
-use codex_analytics::CompactionTrigger;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::InternalSessionSource;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_utils_string::to_ascii_json_string;
+use codepilotx_analytics::CompactionImplementation;
+use codepilotx_analytics::CompactionPhase;
+use codepilotx_analytics::CompactionReason;
+use codepilotx_analytics::CompactionStrategy;
+use codepilotx_analytics::CompactionTrigger;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::InternalSessionSource;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_utils_string::to_ascii_json_string;
 use http::HeaderMap as ApiHeaderMap;
 use http::HeaderValue;
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::client::X_CODEX_INSTALLATION_ID_HEADER;
-use crate::client::X_CODEX_PARENT_THREAD_ID_HEADER;
-use crate::client::X_CODEX_TURN_METADATA_HEADER;
-use crate::client::X_CODEX_WINDOW_ID_HEADER;
+use crate::client::X_codepilotx_INSTALLATION_ID_HEADER;
+use crate::client::X_codepilotx_PARENT_THREAD_ID_HEADER;
+use crate::client::X_codepilotx_TURN_METADATA_HEADER;
+use crate::client::X_codepilotx_WINDOW_ID_HEADER;
 use crate::client::X_OPENAI_SUBAGENT_HEADER;
 
 pub(crate) const INSTALLATION_ID_KEY: &str = "installation_id";
@@ -41,14 +41,14 @@ pub(crate) const WORKSPACES_KEY: &str = "workspaces";
 // when submitting a turn, but they must not override fields owned by core.
 const RESERVED_METADATA_KEYS: &[&str] = &[
     INSTALLATION_ID_KEY,
-    X_CODEX_INSTALLATION_ID_HEADER,
+    X_codepilotx_INSTALLATION_ID_HEADER,
     SESSION_ID_KEY,
     THREAD_ID_KEY,
     TURN_ID_KEY,
     WINDOW_ID_KEY,
-    X_CODEX_WINDOW_ID_HEADER,
-    X_CODEX_TURN_METADATA_HEADER,
-    X_CODEX_PARENT_THREAD_ID_HEADER,
+    X_codepilotx_WINDOW_ID_HEADER,
+    X_codepilotx_TURN_METADATA_HEADER,
+    X_codepilotx_PARENT_THREAD_ID_HEADER,
     X_OPENAI_SUBAGENT_HEADER,
     REQUEST_KIND_KEY,
     COMPACTION_KEY,
@@ -189,12 +189,12 @@ impl CodexResponsesMetadata {
     pub(crate) fn client_metadata(&self) -> HashMap<String, String> {
         let mut client_metadata = HashMap::from([
             (
-                X_CODEX_INSTALLATION_ID_HEADER.to_string(),
+                X_codepilotx_INSTALLATION_ID_HEADER.to_string(),
                 self.installation_id.clone(),
             ),
             (SESSION_ID_KEY.to_string(), self.session_id.clone()),
             (THREAD_ID_KEY.to_string(), self.thread_id.clone()),
-            (X_CODEX_WINDOW_ID_HEADER.to_string(), self.window_id.clone()),
+            (X_codepilotx_WINDOW_ID_HEADER.to_string(), self.window_id.clone()),
         ]);
         if let Some(turn_id) = &self.turn_id {
             client_metadata.insert(TURN_ID_KEY.to_string(), turn_id.clone());
@@ -207,21 +207,21 @@ impl CodexResponsesMetadata {
         }
         if let Some(parent_thread_id) = self.parent_thread_id {
             client_metadata.insert(
-                X_CODEX_PARENT_THREAD_ID_HEADER.to_string(),
+                X_codepilotx_PARENT_THREAD_ID_HEADER.to_string(),
                 parent_thread_id.to_string(),
             );
         }
         if self.has_turn_metadata()
             && let Some(turn_metadata_json) = self.turn_metadata_json()
         {
-            client_metadata.insert(X_CODEX_TURN_METADATA_HEADER.to_string(), turn_metadata_json);
+            client_metadata.insert(X_codepilotx_TURN_METADATA_HEADER.to_string(), turn_metadata_json);
         }
         client_metadata
     }
 
     pub(crate) fn compatibility_headers(&self) -> ApiHeaderMap {
         let mut headers = ApiHeaderMap::new();
-        insert_header(&mut headers, X_CODEX_WINDOW_ID_HEADER, &self.window_id);
+        insert_header(&mut headers, X_codepilotx_WINDOW_ID_HEADER, &self.window_id);
         // Direct x-codex-turn-metadata is compatibility output. New per-request consumers should
         // prefer client_metadata["x-codex-turn-metadata"], which is rendered from this same object.
         if self.has_turn_metadata()
@@ -229,14 +229,14 @@ impl CodexResponsesMetadata {
         {
             insert_header(
                 &mut headers,
-                X_CODEX_TURN_METADATA_HEADER,
+                X_codepilotx_TURN_METADATA_HEADER,
                 &turn_metadata_json,
             );
         }
         if let Some(parent_thread_id) = self.parent_thread_id {
             insert_header(
                 &mut headers,
-                X_CODEX_PARENT_THREAD_ID_HEADER,
+                X_codepilotx_PARENT_THREAD_ID_HEADER,
                 &parent_thread_id.to_string(),
             );
         }

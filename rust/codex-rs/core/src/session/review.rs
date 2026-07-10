@@ -30,7 +30,7 @@ pub(super) async fn spawn_review_thread(
         .list_models(RefreshStrategy::OnlineIfUncached)
         .await;
     let unified_exec_shell_mode = UnifiedExecShellMode::for_session(
-        codex_tools::unified_exec_feature_mode_for_features(review_features.get()),
+        codepilotx_tools::unified_exec_feature_mode_for_features(review_features.get()),
         crate::tools::tool_user_shell_type(sess.services.user_shell.as_ref()),
         sess.services.shell_zsh_path.as_ref(),
         sess.services.main_execve_wrapper_exe.as_ref(),
@@ -50,8 +50,8 @@ pub(super) async fn spawn_review_thread(
         .permissions
         .shell_environment_policy
         .clone();
-    per_turn_config.codex_linux_sandbox_exe =
-        parent_turn_context.config.codex_linux_sandbox_exe.clone();
+    per_turn_config.codepilotx_linux_sandbox_exe =
+        parent_turn_context.config.codepilotx_linux_sandbox_exe.clone();
     per_turn_config.compact_prompt = parent_turn_context.config.compact_prompt.clone();
     if let Err(err) = per_turn_config.web_search_mode.set(review_web_search_mode) {
         let fallback_value = per_turn_config.web_search_mode.value();
@@ -96,7 +96,7 @@ pub(super) async fn spawn_review_thread(
         parent_turn_context.network.is_some(),
     ));
 
-    let extension_data = Arc::new(codex_extension_api::ExtensionData::new(
+    let extension_data = Arc::new(codepilotx_extension_api::ExtensionData::new(
         review_turn_id.clone(),
     ));
     extension_data.insert(parent_turn_context.turn_skills.snapshot.clone());
