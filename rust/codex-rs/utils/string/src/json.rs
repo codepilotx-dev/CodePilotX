@@ -75,7 +75,7 @@ mod tests {
             where
                 S: serde::Serializer,
             {
-                let workspaces = BTreeMap::from([("/tmp/東京", TestWorkspace)]);
+                let workspaces = BTreeMap::from([("/tmp/", TestWorkspace)]);
                 let mut state = serializer.serialize_struct("TestPayload", 1)?;
                 state.serialize_field("workspaces", &workspaces)?;
                 state.end()
@@ -90,8 +90,8 @@ mod tests {
                 S: serde::Serializer,
             {
                 let mut state = serializer.serialize_struct("TestWorkspace", 2)?;
-                state.serialize_field("label", "Agentlarım")?;
-                state.serialize_field("emoji", "🚀")?;
+                state.serialize_field("label", "Agentlarm")?;
+                state.serialize_field("emoji", "")?;
                 state.end()
             }
         }
@@ -99,9 +99,9 @@ mod tests {
         let value = TestPayload;
         let expected_value = json!({
             "workspaces": {
-                "/tmp/東京": {
-                    "label": "Agentlarım",
-                    "emoji": "🚀"
+                "/tmp/": {
+                    "label": "Agentlarm",
+                    "emoji": ""
                 }
             }
         });
@@ -113,9 +113,9 @@ mod tests {
             r#"{"workspaces":{"/tmp/\u6771\u4eac":{"label":"Agentlar\u0131m","emoji":"\ud83d\ude80"}}}"#
         );
         assert!(serialized.is_ascii());
-        assert!(!serialized.contains("東京"));
-        assert!(!serialized.contains("Agentlarım"));
-        assert!(!serialized.contains("🚀"));
+        assert!(!serialized.contains(""));
+        assert!(!serialized.contains("Agentlarm"));
+        assert!(!serialized.contains(""));
         let parsed: Value = serde_json::from_str(&serialized).expect("serialized json");
         assert_eq!(parsed, expected_value);
     }

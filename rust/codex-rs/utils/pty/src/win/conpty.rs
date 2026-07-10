@@ -79,7 +79,8 @@ impl RawConPty {
     }
 
     pub fn pseudoconsole_handle(&self) -> RawHandle {
-        self.con.raw_handle()
+        // HPCON (winapi::ctypes::c_void) -> RawHandle (std::ffi::c_void)
+        self.con.raw_handle() as RawHandle
     }
 
     pub fn into_handles(self) -> (PsuedoCon, FileDescriptor, FileDescriptor) {

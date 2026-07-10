@@ -8,7 +8,7 @@
 /// lowercased haystack back to the original character index in `haystack`.
 /// This ensures the returned indices can be safely used with
 /// `str::chars().enumerate()` consumers for highlighting, even when
-/// lowercasing expands certain characters (e.g., ß → ss, İ → i̇).
+/// lowercasing expands certain characters (e.g.,   ss,   i).
 pub fn fuzzy_match(haystack: &str, needle: &str) -> Option<(Vec<usize>, i32)> {
     if needle.is_empty() {
         return Some((Vec::new(), i32::MAX));
@@ -53,7 +53,7 @@ pub fn fuzzy_match(haystack: &str, needle: &str) -> Option<(Vec<usize>, i32)> {
             .unwrap_or(0)
     };
     // last defaults to first for single-hit; score = extra span between first/last hit
-    // minus needle len (≥0).
+    // minus needle len (0).
     // Strongly reward prefix matches by subtracting 100 when the first hit is at index 0.
     let last_lower_pos = last_lower_pos.unwrap_or(first_lower_pos);
     let window =
@@ -85,7 +85,7 @@ mod tests {
 
     #[test]
     fn unicode_dotted_i_istanbul_highlighting() {
-        let (idx, score) = match fuzzy_match("İstanbul", "is") {
+        let (idx, score) = match fuzzy_match("stanbul", "is") {
             Some(v) => v,
             None => panic!("expected a match"),
         };
@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn unicode_german_sharp_s_casefold() {
-        assert!(fuzzy_match("straße", "strasse").is_none());
+        assert!(fuzzy_match("strae", "strasse").is_none());
     }
 
     #[test]
@@ -157,12 +157,12 @@ mod tests {
     #[test]
     fn indices_are_deduped_for_multichar_lowercase_expansion() {
         let needle = "\u{0069}\u{0307}"; // "i" + combining dot above
-        let (idx, score) = match fuzzy_match("İ", needle) {
+        let (idx, score) = match fuzzy_match("", needle) {
             Some(v) => v,
             None => panic!("expected a match"),
         };
         assert_eq!(idx, vec![0]);
-        // Lowercasing 'İ' expands to two chars; contiguous prefix -> window 0 with bonus
+        // Lowercasing '' expands to two chars; contiguous prefix -> window 0 with bonus
         assert_eq!(score, -100);
     }
 }

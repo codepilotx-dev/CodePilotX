@@ -266,16 +266,16 @@ mod tests {
     fn generic_inline_parser_supports_non_ascii_tag_delimiters() {
         let mut parser = InlineHiddenTagParser::new(vec![InlineTagSpec {
             tag: Tag::A,
-            open: "<é>",
-            close: "</é>",
+            open: "<>",
+            close: "</>",
         }]);
 
-        let out = collect_chunks(&mut parser, &["a<", "é>中</", "é>b"]);
+        let out = collect_chunks(&mut parser, &["a<", "></", ">b"]);
 
         assert_eq!(out.visible_text, "ab");
         assert_eq!(out.extracted.len(), 1);
         assert_eq!(out.extracted[0].tag, Tag::A);
-        assert_eq!(out.extracted[0].content, "中");
+        assert_eq!(out.extracted[0].content, "");
     }
 
     #[test]

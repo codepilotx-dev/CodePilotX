@@ -40,7 +40,7 @@ impl Error for Utf8StreamParserError {}
 /// Wraps a [`StreamTextParser`] and accepts raw bytes, buffering partial UTF-8 code points.
 ///
 /// This is useful when upstream data arrives as `&[u8]` and a code point may be split across
-/// chunk boundaries (for example `0xC3` followed by `0xA9` for `é`).
+/// chunk boundaries (for example `0xC3` followed by `0xA9` for ``).
 #[derive(Debug)]
 pub struct Utf8StreamParser<P> {
     inner: P,
@@ -217,8 +217,8 @@ mod tests {
             Err(err) => panic!("valid UTF-8 stream should parse: {err}"),
         };
 
-        assert_eq!(out.visible_text, "AéZ");
-        assert_eq!(out.extracted, vec!["中".to_string()]);
+        assert_eq!(out.visible_text, "AZ");
+        assert_eq!(out.extracted, vec!["".to_string()]);
     }
 
     #[test]
@@ -252,7 +252,7 @@ mod tests {
             Err(err) => panic!("stream should finish: {err}"),
         };
 
-        assert_eq!(second.visible_text, "éx");
+        assert_eq!(second.visible_text, "x");
         assert!(second.extracted.is_empty());
         assert!(tail.is_empty());
     }

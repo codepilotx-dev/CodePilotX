@@ -84,7 +84,7 @@ const RENDER_CASES: &[RenderCase] = &[
     RenderCase::round_trips("file:///tmp/", PathConvention::Posix, "/tmp/"),
     RenderCase::round_trips("file:///C:/Project", PathConvention::Posix, "/C:/Project"),
     RenderCase::round_trips("file:///C:", PathConvention::Posix, "/C:"),
-    RenderCase::round_trips("file:///tmp/%E2%98%83", PathConvention::Posix, "/tmp/â˜?),
+    RenderCase::round_trips("file:///tmp/%E2%98%83", PathConvention::Posix, "/tmp/?),
     RenderCase::round_trips("file:///tmp/a%5Cb", PathConvention::Posix, "/tmp/a\\b"),
     RenderCase::round_trips(
         "file:///tmp/100%25/file",
@@ -135,7 +135,7 @@ const RENDER_CASES: &[RenderCase] = &[
     RenderCase::round_trips(
         "file:///d:/snowman/%E2%98%83",
         PathConvention::Windows,
-        r"d:\snowman\â˜?,
+        r"d:\snowman\?,
     ),
     RenderCase::round_trips("file:///C:/tmp/", PathConvention::Windows, "C:\\tmp\\"),
     RenderCase::round_trips(
@@ -151,7 +151,7 @@ const RENDER_CASES: &[RenderCase] = &[
     RenderCase::round_trips(
         "file:///C:/Source/Z%C3%BCrich%20or%20Zurich%20(%CB%88zj%CA%8A%C9%99r%C9%AAk,/Code/resources/app/plugins/c%23/plugin.json",
         PathConvention::Windows,
-        r"C:\Source\ZÃ¼rich or Zurich (ËˆzjÊŠÉ™rÉªk,\Code\resources\app\plugins\c#\plugin.json",
+        r"C:\Source\Zrich or Zurich (zjrk,\Code\resources\app\plugins\c#\plugin.json",
     ),
     RenderCase::round_trips(
         "file:///C:/project/owner's_file/database.sqlite",
@@ -198,7 +198,7 @@ const RENDER_CASES: &[RenderCase] = &[
     RenderCase::renders_lossily(
         "file:///%00/bad/path/L3RtcC9udWxsLQAt_y1ieXRl",
         PathConvention::Posix,
-        "/tmp/null-\0-ï¿?byte",
+        "/tmp/null-\0-?byte",
     ),
     RenderCase::round_trips(
         "file:///%00/bad/path/XABcAC4AXABDAE8ATQAxAFwA",
@@ -242,12 +242,12 @@ const RENDER_CASES: &[RenderCase] = &[
     RenderCase::renders_lossily(
         "file:///tmp/non-utf8-%FF",
         PathConvention::Posix,
-        "/tmp/non-utf8-ï¿?,
+        "/tmp/non-utf8-?,
     ),
     RenderCase::renders_lossily(
         "file:///tmp/non-utf8-%A0",
         PathConvention::Posix,
-        "/tmp/non-utf8-ï¿?,
+        "/tmp/non-utf8-?,
     ),
     RenderCase::renders_lossily("file:///tmp/a%2Fb", PathConvention::Posix, "/tmp/a/b"),
     RenderCase::renders_lossily("file:///C:/a%2Fb", PathConvention::Windows, "C:\\a/b"),
@@ -527,14 +527,14 @@ fn renders_native_non_unicode_windows_fallback_lossily() {
 
     assert_eq!(
         LegacyAppPathString::from_abs_path(&native_path),
-        LegacyAppPathString(r"C:\bad\ï¿?.to_string())
+        LegacyAppPathString(r"C:\bad\?.to_string())
     );
 
     let path = PathUri::from_abs_path(&native_path);
 
     assert_eq!(
         LegacyAppPathString::from_path_uri(&path, PathConvention::Windows),
-        Ok(LegacyAppPathString(r"C:\bad\ï¿?.to_string()))
+        Ok(LegacyAppPathString(r"C:\bad\?.to_string()))
     );
     assert_eq!(
         LegacyAppPathString::from_path_uri(&path, PathConvention::Posix),

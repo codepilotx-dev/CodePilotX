@@ -418,7 +418,7 @@ async fn test_timeout() {
 }
 
 /// Helper that runs `cmd` under the Linux sandbox and asserts that the command
-/// does NOT succeed (i.e. returns a nonâ€‘zero exit code) **unless** the binary
+/// does NOT succeed (i.e. returns a nonzero exit code) **unless** the binary
 /// is missing in which case we silently treat it as an accepted skip so the
 /// suite remains green on leaner CI images.
 async fn assert_network_blocked(cmd: &[&str]) {
@@ -467,8 +467,8 @@ async fn assert_network_blocked(cmd: &[&str]) {
     dbg!(&output.exit_code);
 
     // A completely missing binary exits with 127.  Anything else should also
-    // be nonâ€‘zero (EPERM from seccomp will usually bubble up as 1, 2, 13â€?
-    // Ifâ€?and only if*â€”the command exits 0 we consider the sandbox breached.
+    // be nonzero (EPERM from seccomp will usually bubble up as 1, 2, 13?
+    // If?and only if*the command exits 0 we consider the sandbox breached.
 
     if output.exit_code == 0 {
         panic!(
@@ -490,13 +490,13 @@ async fn sandbox_blocks_wget() {
 
 #[tokio::test]
 async fn sandbox_blocks_ping() {
-    // ICMP requires raw socket â€?should be denied quickly with EPERM.
+    // ICMP requires raw socket ?should be denied quickly with EPERM.
     assert_network_blocked(&["ping", "-c", "1", "8.8.8.8"]).await;
 }
 
 #[tokio::test]
 async fn sandbox_blocks_nc() {
-    // Zeroâ€‘length connection attempt to localhost.
+    // Zerolength connection attempt to localhost.
     assert_network_blocked(&["nc", "-z", "127.0.0.1", "80"]).await;
 }
 
@@ -979,7 +979,7 @@ async fn sandbox_blocks_getent() {
 #[tokio::test]
 async fn sandbox_blocks_dev_tcp_redirection() {
     // This syntax is only supported by bash and zsh. We try bash first.
-    // Fallback generic socket attempt using /bin/sh with bashâ€‘style /dev/tcp.  Not
+    // Fallback generic socket attempt using /bin/sh with bashstyle /dev/tcp.  Not
     // all images ship bash, so we guard against 127 as well.
     assert_network_blocked(&["bash", "-c", "echo hi > /dev/tcp/127.0.0.1/80"]).await;
 }

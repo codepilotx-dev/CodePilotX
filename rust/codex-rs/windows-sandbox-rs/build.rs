@@ -1,7 +1,7 @@
 use std::env;
 use std::path::PathBuf;
 
-const SETUP_BIN: &str = "codex-windows-sandbox-setup";
+const SETUP_BIN: &str = "codepilotx-windows-sandbox-setup";
 const SETUP_MANIFEST: &str = "codex-windows-sandbox-setup.manifest";
 
 fn main() -> Result<(), String> {

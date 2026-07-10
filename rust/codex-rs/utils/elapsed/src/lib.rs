@@ -52,7 +52,7 @@ mod tests {
 
     #[test]
     fn test_format_duration_minutes() {
-        // Durations ≥ 1 minute should be printed mmss.
+        // Durations  1 minute should be printed mmss.
         let dur = Duration::from_millis(75_000); // 1m15s
         assert_eq!(format_duration(dur), "1m 15s");
 

@@ -2,7 +2,7 @@
 //!
 //! This module encapsulates ConPTY creation and process spawn with the required
 //! `PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE` plumbing. It is shared by both the legacy
-//! restricted‑token path and the elevated runner path when unified_exec runs with
+//! restrictedtoken path and the elevated runner path when unified_exec runs with
 //! `tty=true`. The helpers are not tied to the IPC layer and can be reused by other
 //! Windows sandbox flows that need a PTY.
 

@@ -46,9 +46,7 @@ windows = { version = "0.58", features = [
     "Win32_System_Variant",
 ] }
 
-[dependencies.codex-protocol]
-package = "codepilotx-protocol"
-path = "../protocol"
+codepilotx-protocol = { workspace = true }
 
 [dependencies.rand]
 default-features = false

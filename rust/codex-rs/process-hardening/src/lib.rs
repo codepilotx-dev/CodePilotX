@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn env_keys_with_prefix_handles_non_utf8_entries() {
-        // RÖDBURK
+        // RDBURK
         let non_utf8_key1 = OsStr::from_bytes(b"R\xD6DBURK").to_os_string();
         assert!(non_utf8_key1.clone().into_string().is_err());
         let non_utf8_key2 = OsString::from_vec(vec![b'L', b'D', b'_', 0xF0]);

@@ -1,10 +1,10 @@
 //! Framed IPC protocol used between the parent (CLI) and the elevated command runner.
 //!
 //! This module defines the JSON message schema (spawn request/ready, output, stdin,
-//! exit, error, terminate) plus length‑prefixed framing helpers for a byte stream.
+//! exit, error, terminate) plus lengthprefixed framing helpers for a byte stream.
 //! It is **elevated-path only**: the parent uses it to bootstrap the runner and
-//! stream unified_exec I/O over named pipes. The legacy restricted‑token path does
-//! not use this protocol, and non‑unified exec capture uses it only when running
+//! stream unified_exec I/O over named pipes. The legacy restrictedtoken path does
+//! not use this protocol, and nonunified exec capture uses it only when running
 //! through the elevated runner.
 
 use anyhow::Result;

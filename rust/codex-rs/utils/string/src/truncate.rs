@@ -130,9 +130,9 @@ fn split_budget(budget: usize) -> (usize, usize) {
 
 fn format_truncation_marker(use_tokens: bool, removed_count: u64) -> String {
     if use_tokens {
-        format!("…{removed_count} tokens truncated…")
+        format!("{removed_count} tokens truncated")
     } else {
-        format!("…{removed_count} chars truncated…")
+        format!("{removed_count} chars truncated")
     }
 }
 

@@ -1,10 +1,10 @@
 //! Named pipe helpers for the elevated Windows sandbox runner.
 //!
-//! This module generates paired pipe names, creates server‑side pipes with
+//! This module generates paired pipe names, creates serverside pipes with
 //! sandbox-user-scoped ACLs, and waits for the runner to connect. It is
 //! **elevated-path only** and is
 //! used by the parent to establish the IPC channel for both unified_exec sessions
-//! and elevated capture. The legacy restricted‑token path spawns the child directly
+//! and elevated capture. The legacy restrictedtoken path spawns the child directly
 //! and does not use these helpers.
 
 use crate::helper_materialization::HelperExecutable;

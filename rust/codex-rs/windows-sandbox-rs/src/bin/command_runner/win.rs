@@ -4,7 +4,7 @@
 //! Elevated. It connects to the IPC pipes, reads the framed `SpawnRequest`, derives a
 //! restricted token from the sandbox user, and spawns the child process via ConPTY
 //! (`tty=true`) or pipes (`tty=false`). It then streams output frames back to the parent,
-//! accepts stdin/terminate frames, and emits a final exit frame. The legacy restricted‑token
+//! accepts stdin/terminate frames, and emits a final exit frame. The legacy restrictedtoken
 //! path spawns the child directly and does not use this runner.
 
 #![allow(unsafe_op_in_unsafe_fn)]
