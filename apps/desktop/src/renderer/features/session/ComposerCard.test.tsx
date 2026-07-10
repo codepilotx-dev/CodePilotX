@@ -133,7 +133,7 @@ test('ComposerCard exposes the migrated chat input dropdown agents', () => {
 
 test('ChatInputDropdown adds --bottom modifier class when side is "bottom"', () => {
   const html = renderToStaticMarkup(
-    <ChatInputDropdown open onClose={() => {}} side="bottom">
+    <ChatInputDropdown open onClose={() => {}} side="bottom" width={320}>
       <span>item</span>
     </ChatInputDropdown>,
   )

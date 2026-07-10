@@ -15,6 +15,7 @@ let planCardPresentation: typeof import('./ConversationPage.js').planCardPresent
 let buildDebugAskUserQuestionRequest: typeof import('./ConversationPage.js').buildDebugAskUserQuestionRequest
 let buildDebugPlanCardSummary: typeof import('./ConversationPage.js').buildDebugPlanCardSummary
 let deriveConversationTurnNavItems: typeof import('./ConversationPage.js').deriveConversationTurnNavItems
+let shouldShowComposerStatusSummary: typeof import('./ConversationPage.js').shouldShowComposerStatusSummary
 
 beforeAll(async () => {
   Object.defineProperty(globalThis, 'window', {
@@ -39,6 +40,20 @@ beforeAll(async () => {
     conversationPage.buildDebugPlanCardSummary
   deriveConversationTurnNavItems =
     conversationPage.deriveConversationTurnNavItems
+  shouldShowComposerStatusSummary =
+    conversationPage.shouldShowComposerStatusSummary
+})
+
+test('shows the composer status summary only when a plan or changes exist', () => {
+  expect(
+    shouldShowComposerStatusSummary({ hasPlan: false, changedFileCount: 0 }),
+  ).toBe(false)
+  expect(
+    shouldShowComposerStatusSummary({ hasPlan: true, changedFileCount: 0 }),
+  ).toBe(true)
+  expect(
+    shouldShowComposerStatusSummary({ hasPlan: false, changedFileCount: 1 }),
+  ).toBe(true)
 })
 
 test('marks only the final assistant message after a completed turn', () => {

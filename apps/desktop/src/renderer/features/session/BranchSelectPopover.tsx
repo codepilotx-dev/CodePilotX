@@ -5,6 +5,7 @@ import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import { SearchablePopoverContent } from '../../components/ui/SearchablePopoverContent.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import type { PopoverSizingProps } from '../../components/ui/popoverSizing.js'
 
 type BranchSelectPopoverProps = BranchSelectPopoverContentProps & {
   align?: 'start' | 'center' | 'end'
@@ -15,7 +16,7 @@ type BranchSelectPopoverProps = BranchSelectPopoverContentProps & {
   sideOffset?: number
   trigger: React.ReactNode
   onOpenChange: (open: boolean) => void
-}
+} & PopoverSizingProps
 
 export function BranchSelectPopover({
   align,
@@ -25,6 +26,7 @@ export function BranchSelectPopover({
   side,
   sideOffset,
   trigger,
+  width,
   onOpenChange,
   ...contentProps
 }: BranchSelectPopoverProps): React.ReactNode {
@@ -37,6 +39,7 @@ export function BranchSelectPopover({
       side={side}
       sideOffset={sideOffset}
       trigger={trigger}
+      width={width}
       onOpenChange={onOpenChange}
     >
       <BranchSelectPopoverContent

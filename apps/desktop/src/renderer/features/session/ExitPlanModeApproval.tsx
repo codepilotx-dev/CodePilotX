@@ -102,7 +102,7 @@ export function ExitPlanModeApproval({
                 collisionPadding={12}
                 side="bottom"
                 sideOffset={6}
-                style={buildPopoverSizingStyle()}
+                style={buildPopoverSizingStyle({ width: 200 })}
               >
                 <div className="rm-model-menu-scroll-content">
                   <DropdownMenu.Item
@@ -161,6 +161,7 @@ export function ExitPlanModeApproval({
                               alignOffset={-6}
                               sideOffset={8}
                               style={buildPopoverSizingStyle({
+                                width: "auto",
                                 maxWidth:
                                   "min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px))",
                               })}

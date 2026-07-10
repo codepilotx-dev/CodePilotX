@@ -852,6 +852,7 @@ export function ComposerCard({
         <ChatInputDropdown
           open={showSlashContextDropdown}
           side="bottom"
+          width="100%"
           maxWidth="100%"
           disableOutsideDismiss={debugMode}
           onClose={() => {
@@ -868,6 +869,7 @@ export function ComposerCard({
         <ChatInputDropdown
           open={Boolean(activeMention)}
           side="bottom"
+          width="100%"
           maxWidth="100%"
           disableOutsideDismiss={debugMode}
           onClose={() => {
@@ -935,7 +937,7 @@ export function ComposerCard({
                   position="popper"
                   side="bottom"
                   sideOffset={6}
-                  style={buildPopoverSizingStyle()}
+                  style={buildPopoverSizingStyle({ width: 300 })}
                   onPointerDownOutside={(event) => {
                     preventOutsideDismissWhenDebug(debugMode, event);
                   }}
@@ -1169,7 +1171,7 @@ export function ComposerCard({
                   align="end"
                   side="top"
                   sideOffset={6}
-                  style={buildPopoverSizingStyle()}
+                  style={buildPopoverSizingStyle({ width: 200 })}
                   onPointerDownOutside={(event) => {
                     preventOutsideDismissWhenDebug(debugMode, event);
                   }}
@@ -1315,6 +1317,7 @@ export function ComposerCard({
                             alignOffset={-6}
                             sideOffset={8}
                             style={buildPopoverSizingStyle({
+                              width: "auto",
                               maxWidth:
                                 "min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px))",
                             })}
@@ -1392,6 +1395,8 @@ export function ComposerCard({
           onClose={closeDropdown}
           disableOutsideDismiss={debugMode}
           side={contextDropdownSide}
+          width="100%"
+          maxWidth="100%"
         >
           <UnifiedMenuContent
             items={unifiedMenuItems}
@@ -1405,6 +1410,7 @@ export function ComposerCard({
         <ProjectSwitcherPopover
           side="top"
           open={openDropdown === "project"}
+          width={200}
           onOpenChange={(open) => setOpenDropdown(open ? "project" : null)}
           disableOutsideDismiss={debugMode}
           recentWorkspaces={recentWorkspaces}
@@ -1439,6 +1445,7 @@ export function ComposerCard({
               disableOutsideDismiss={debugMode}
               open={openDropdown === "mode"}
               side="top"
+              width={200}
               onOpenChange={(open) => setOpenDropdown(open ? "mode" : null)}
               trigger={
                 <MetaChip
@@ -1475,6 +1482,7 @@ export function ComposerCard({
               disableOutsideDismiss={debugMode}
               open={openDropdown === "branch"}
               side="top"
+              width={200}
               onBranchSearchChange={setBranchSearch}
               onBranchSelect={onBranchSelect}
               onCreateBranch={onCreateBranch}

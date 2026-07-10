@@ -63,7 +63,7 @@ export function QuickChatView(): React.ReactNode {
                     {workspaceName}
                   </button>
                 }
-                width="min(380px, calc(100vw - 64px))"
+                width={200}
                 workspace={currentWorkspace}
                 onChooseWorkspace={() => {
                   void onChooseWorkspace();

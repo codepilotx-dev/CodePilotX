@@ -23,6 +23,7 @@ import {
   Info,
   Laptop,
   LayoutList,
+  LoaderCircle,
   MessageSquarePlus,
   MoreHorizontal,
   PanelRight,
@@ -86,6 +87,7 @@ import {
 import { useTypewriterText } from "./TypewriterText.js";
 import { PopoverItem } from "../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../components/ui/PopoverMenu.js";
+import { buildPopoverSizingStyle } from "../../components/ui/popoverSizing.js";
 import { Tooltip } from "../../components/ui/Tooltip.js";
 import { ScrollArea } from "../../components/ui/ScrollArea.js";
 import {
@@ -417,9 +419,14 @@ export function ConversationPage(): React.ReactNode {
   const showEnvironmentPanel = Boolean(
     workspacePath && showPinnedSummary && !rightDockOpen,
   );
-  const showComposerChangeSummary = Boolean(
-    workspacePath && gitStatus && gitStatus.files.length > 0,
+  const changedFileCount = workspacePath ? (gitStatus?.files.length ?? 0) : 0;
+  const hasComposerPlan = timelineEvents.some(
+    (event) => event.type === "proposed_plan",
   );
+  const showComposerStatusSummary = shouldShowComposerStatusSummary({
+    hasPlan: hasComposerPlan,
+    changedFileCount,
+  });
   const composerDiffSummary = React.useMemo(() => summarizeDiff(diff), [diff]);
   const sourceLinks = React.useMemo(
     () => extractSourceLinks(timelineEvents),
@@ -442,7 +449,7 @@ export function ConversationPage(): React.ReactNode {
   const composerTransition = useHeightTransition([
     composerMode,
     activePermissionRequest?.requestId ?? "",
-    showComposerChangeSummary,
+    showComposerStatusSummary,
     composer ? "mounted" : "unmounted",
   ]);
 
@@ -645,6 +652,7 @@ export function ConversationPage(): React.ReactNode {
           align="start"
           className="popover-session-actions"
           open={sessionMenuOpen}
+          width={220}
           trigger={
             <button
               aria-label="更多会话操作"
@@ -776,6 +784,7 @@ export function ConversationPage(): React.ReactNode {
             className="popover-open-targets"
             open={openTargetMenuOpen}
             sideOffset={4}
+            width={220}
             trigger={
               <button
                 aria-label="切换默认打开目标"
@@ -1052,7 +1061,10 @@ export function ConversationPage(): React.ReactNode {
               </ContextMenu.Trigger>
               {showConversationContextMenu ? (
                 <ContextMenu.Portal>
-                  <ContextMenu.Content className="sidebar-context-menu-content">
+                  <ContextMenu.Content
+                    className="sidebar-context-menu-content"
+                    style={buildPopoverSizingStyle({ width: 240 })}
+                  >
                     <ContextMenu.Item
                       className="sidebar-context-menu-item"
                       onSelect={handleAddToConversation}
@@ -1078,22 +1090,36 @@ export function ConversationPage(): React.ReactNode {
                 className="workflow-page__composer-inner"
                 style={composerTransition.style}
               >
-                {showComposerChangeSummary ? (
+                {showComposerStatusSummary ? (
                   <div className="composer-change-summary">
-                    <span>
-                      {gitStatus?.files.length ?? 0} 个文件已更改
-                      <strong>
-                        {" "}
-                        +{formatPanelNumber(composerDiffSummary.additions)}
-                      </strong>
-                      <em>
-                        {" "}
-                        -{formatPanelNumber(composerDiffSummary.deletions)}
-                      </em>
-                    </span>
-                    <button type="button" onClick={handleRunCodeReview}>
-                      审查
-                    </button>
+                    {hasComposerPlan ? (
+                      <span className="composer-change-summary__plan">
+                        <LoaderCircle
+                          aria-hidden="true"
+                          size={APP_ICON_SIZE}
+                          strokeWidth={APP_ICON_STROKE_WIDTH}
+                        />
+                        计划
+                      </span>
+                    ) : null}
+                    {hasComposerPlan && changedFileCount > 0 ? (
+                      <span aria-hidden="true" className="composer-change-summary__separator">
+                        ·
+                      </span>
+                    ) : null}
+                    {changedFileCount > 0 ? (
+                      <span className="composer-change-summary__changes">
+                        {changedFileCount} 个文件已更改
+                        <strong>
+                          {" "}
+                          +{formatPanelNumber(composerDiffSummary.additions)}
+                        </strong>
+                        <em>
+                          {" "}
+                          -{formatPanelNumber(composerDiffSummary.deletions)}
+                        </em>
+                      </span>
+                    ) : null}
                   </div>
                 ) : null}
                 {activePermissionRequest ? (
@@ -1431,8 +1457,9 @@ function SessionSubmenu({
       <DropdownMenu.Portal>
         <DropdownMenu.SubContent
           alignOffset={-6}
-          className="popover-surface popover popover-sub-content popover-auto-width"
+          className="popover-surface popover popover-sub-content"
           sideOffset={8}
+          style={buildPopoverSizingStyle({ width: "auto" })}
         >
           {children}
         </DropdownMenu.SubContent>
@@ -1774,6 +1801,16 @@ function workflowComposerMode(
   if (request.toolName === "AskUserQuestion") return "brainstorm";
   if (request.toolName === "ExitPlanMode") return "plan";
   return "permission";
+}
+
+export function shouldShowComposerStatusSummary({
+  hasPlan,
+  changedFileCount,
+}: {
+  hasPlan: boolean;
+  changedFileCount: number;
+}): boolean {
+  return hasPlan || changedFileCount > 0;
 }
 
 function buildWorkflowNodes({
@@ -2975,6 +3012,7 @@ function ReviewSidebar({
             className="popover-review-turns"
             open={turnMenuOpen}
             sideOffset={4}
+            width={220}
             trigger={
               <button
                 className="review-sidebar-title-button"
@@ -3090,6 +3128,7 @@ function ReviewSidebar({
             className="popover-review-filter"
             open={filterMenuOpen}
             sideOffset={4}
+            width={220}
             trigger={
               <Tooltip content="筛选">
                 <button
@@ -3982,6 +4021,7 @@ function EnvironmentPanel({
           branches={branches}
           className="popover-environment-branch"
           currentBranchDetail={`未提交：${changedFileCount} 个文件`}
+          width={200}
           currentBranchName={currentBranchName}
           open={branchPopoverOpen}
           side="left"
