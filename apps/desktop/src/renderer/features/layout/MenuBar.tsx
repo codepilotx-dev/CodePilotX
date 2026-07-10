@@ -103,7 +103,7 @@ function MenuItem({
 }: MenuItemProps): React.ReactNode {
   return (
     <Menubar.Item
-      className={['menubar-item', shortcut ? 'rich' : ''].join(' ')}
+      className="menubar-item"
       disabled={disabled}
       onSelect={event => {
         if (disabled) {
@@ -114,9 +114,11 @@ function MenuItem({
       }}
     >
       <span className="menubar-item-label">{children}</span>
-      {shortcut ? (
-        <span className="menubar-shortcut">{shortcut}</span>
-      ) : null}
+      <span className="menubar-item-trailing">
+        {shortcut ? (
+          <span className="menubar-shortcut">{shortcut}</span>
+        ) : null}
+      </span>
     </Menubar.Item>
   )
 }

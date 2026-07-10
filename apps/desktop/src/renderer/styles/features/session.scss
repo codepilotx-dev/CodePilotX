@@ -958,16 +958,13 @@
   }
 }
 
-.environment-panel-header,
-.environment-action-row {
-  display: flex;
-  align-items: center;
-  padding: 0 10px;
-}
-
 .environment-panel-header {
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: var(--app-icon-size) minmax(0, 1fr) max-content;
+  align-items: center;
+  column-gap: 10px;
   margin-bottom: 12px;
+  padding: 0 10px;
   color: var(--color-text-soft);
   font-size: var(--font-size-14);
 }
@@ -979,7 +976,10 @@
 
 .environment-action-row {
   width: 100%;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: var(--app-icon-size) minmax(0, 1fr) max-content;
+  align-items: center;
+  column-gap: 10px;
   padding: 6px 10px;
   border: 0;
   border-radius: var(--radius-4);
@@ -998,20 +998,28 @@
     cursor: default;
     opacity: 0.6;
   }
-
-  svg {
-    width: var(--app-icon-size);
-    height: var(--app-icon-size);
-    display: block;
-    flex: 0 0 auto;
-    color: var(--color-icon);
-    stroke-width: var(--app-icon-stroke-width);
-  }
 }
 
-.environment-action-row span:nth-child(2) {
+.environment-panel-leading,
+.environment-action-leading {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.environment-action-leading svg,
+.environment-action-trailing svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: block;
+  color: var(--color-icon);
+  stroke-width: var(--app-icon-stroke-width);
+}
+
+.environment-action-label {
   min-width: 0;
-  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1021,13 +1029,20 @@
   color: var(--color-icon-arrow);
 }
 
+.environment-panel-trailing,
+.environment-action-trailing {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  justify-self: end;
+}
+
 .environment-diff-counts {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
   gap: 5px;
-  flex: 0 0 auto !important;
-  margin-left: auto;
   font-size: var(--font-size-13);
   font-variant-numeric: tabular-nums;
 

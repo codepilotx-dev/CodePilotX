@@ -1450,9 +1450,13 @@ function SessionSubmenu({
         disabled={disabled}
         tabIndex={-1}
       >
-        <span className="popover-item-icon">{icon}</span>
+        <span className="popover-item-leading">
+          <span className="popover-item-icon">{icon}</span>
+        </span>
         <span className="popover-item-label">{label}</span>
-        <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} />
+        <span className="popover-item-trailing">
+          <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} />
+        </span>
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal>
         <DropdownMenu.SubContent
@@ -3990,7 +3994,9 @@ function EnvironmentPanel({
   return (
     <aside className="environment-panel" aria-label="环境信息">
       <header className="environment-panel-header">
-        <span>环境信息</span>
+        <span className="environment-panel-leading" />
+        <span className="environment-panel-title">环境信息</span>
+        <span className="environment-panel-trailing" />
       </header>
       <div className="environment-action-list">
         <button
@@ -3999,11 +4005,17 @@ function EnvironmentPanel({
           type="button"
           onClick={onRefreshDiff}
         >
-          <FileDiff size={APP_ICON_SIZE} />
-          <span>变更{changedFileCount ? ` (${changedFileCount})` : ""}</span>
-          <span className="environment-diff-counts">
-            <strong>+{formatPanelNumber(diffSummary.additions)}</strong>
-            <em>-{formatPanelNumber(diffSummary.deletions)}</em>
+          <span className="environment-action-leading">
+            <FileDiff size={APP_ICON_SIZE} />
+          </span>
+          <span className="environment-action-label">
+            变更{changedFileCount ? ` (${changedFileCount})` : ""}
+          </span>
+          <span className="environment-action-trailing">
+            <span className="environment-diff-counts">
+              <strong>+{formatPanelNumber(diffSummary.additions)}</strong>
+              <em>-{formatPanelNumber(diffSummary.deletions)}</em>
+            </span>
           </span>
         </button>
         <button
@@ -4012,8 +4024,11 @@ function EnvironmentPanel({
           type="button"
           onClick={onOpenWorkspacePath}
         >
-          <Laptop size={APP_ICON_SIZE} />
-          <span>本地</span>
+          <span className="environment-action-leading">
+            <Laptop size={APP_ICON_SIZE} />
+          </span>
+          <span className="environment-action-label">本地</span>
+          <span className="environment-action-trailing" />
         </button>
         <BranchSelectPopover
           align="start"
@@ -4036,12 +4051,16 @@ function EnvironmentPanel({
               title={gitLabel}
               type="button"
             >
-              <GitBranch size={APP_ICON_SIZE} />
-              <span>{gitLabel}</span>
-              <ChevronDown
-                className="environment-row-chevron"
-                size={APP_ICON_SIZE}
-              />
+              <span className="environment-action-leading">
+                <GitBranch size={APP_ICON_SIZE} />
+              </span>
+              <span className="environment-action-label">{gitLabel}</span>
+              <span className="environment-action-trailing">
+                <ChevronDown
+                  className="environment-row-chevron"
+                  size={APP_ICON_SIZE}
+                />
+              </span>
             </button>
           }
           onOpenChange={setBranchPopoverOpen}
@@ -4052,8 +4071,11 @@ function EnvironmentPanel({
           type="button"
           onClick={onCommitOrPush}
         >
-          <Upload size={APP_ICON_SIZE} />
-          <span>提交或推送</span>
+          <span className="environment-action-leading">
+            <Upload size={APP_ICON_SIZE} />
+          </span>
+          <span className="environment-action-label">提交或推送</span>
+          <span className="environment-action-trailing" />
         </button>
         <button
           className="environment-action-row"
@@ -4061,8 +4083,11 @@ function EnvironmentPanel({
           type="button"
           onClick={onCreatePullRequest}
         >
-          <GitPullRequest size={APP_ICON_SIZE} />
-          <span>创建拉取请求</span>
+          <span className="environment-action-leading">
+            <GitPullRequest size={APP_ICON_SIZE} />
+          </span>
+          <span className="environment-action-label">创建拉取请求</span>
+          <span className="environment-action-trailing" />
         </button>
       </div>
       <div className="environment-source">

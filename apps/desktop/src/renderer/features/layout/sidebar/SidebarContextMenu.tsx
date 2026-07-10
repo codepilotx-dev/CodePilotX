@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 import * as ContextMenu from '@radix-ui/react-context-menu'
+import { ChevronRight } from 'lucide-react'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
@@ -76,8 +78,15 @@ function renderAction(
       return (
         <ContextMenu.Sub key={key}>
           <ContextMenu.SubTrigger className="sidebar-context-menu-sub-trigger">
-            {action.icon}
-            {action.label}
+            <span className="sidebar-context-menu-leading">{action.icon}</span>
+            <span className="sidebar-context-menu-label">{action.label}</span>
+            <span className="sidebar-context-menu-trailing">
+              <ChevronRight
+                className="sidebar-context-menu-arrow"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            </span>
           </ContextMenu.SubTrigger>
           <ContextMenu.Portal>
             <ContextMenu.SubContent
@@ -100,13 +109,15 @@ function renderAction(
           disabled={action.disabled}
           onSelect={action.onSelect}
         >
-          {action.icon}
+          <span className="sidebar-context-menu-leading">{action.icon}</span>
           <span className="sidebar-context-menu-label">{action.label}</span>
-          {action.shortcut ? (
-            <span className="sidebar-context-menu-shortcut">
-              {action.shortcut}
-            </span>
-          ) : null}
+          <span className="sidebar-context-menu-trailing">
+            {action.shortcut ? (
+              <span className="sidebar-context-menu-shortcut">
+                {action.shortcut}
+              </span>
+            ) : null}
+          </span>
         </ContextMenu.Item>
       )
   }

@@ -72,12 +72,6 @@
 
 .menubar-item {
   box-sizing: border-box;
-
-  &.rich {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) max-content;
-    column-gap: 18px;
-  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -91,15 +85,18 @@
 }
 
 .menubar-item-label {
-  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.menubar-item-trailing {
+  justify-self: end;
+  min-width: 0;
+}
+
 .menubar-shortcut {
-  flex: 0 0 auto;
   color: var(--color-text-meta);
   font-size: var(--font-size-11);
   white-space: nowrap;

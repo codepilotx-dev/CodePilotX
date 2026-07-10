@@ -61,7 +61,9 @@ export function PopoverItem({
         onClick?.()
       }}
     >
-      {icon ? <span className="popover-item-icon">{icon}</span> : null}
+      <span className="popover-item-leading">
+        {icon ? <span className="popover-item-icon">{icon}</span> : null}
+      </span>
       {hasRichContent ? (
         <span className="popover-item-rich">
           <span className="popover-item-label">{children}</span>
@@ -69,20 +71,22 @@ export function PopoverItem({
       ) : (
         <span className="popover-item-label">{children}</span>
       )}
-      {shortcut ? (
-        <span className="popover-item-shortcut">{shortcut}</span>
-      ) : null}
-      {selected && withCheck ? (
-        <Check className="popover-item-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-      ) : withArrow ? (
-        arrowDirection === 'down' ? (
-          <ChevronDown className="popover-item-arrow" size={APP_ICON_SIZE} />
-        ) : arrowDirection === 'up' ? (
-          <ChevronUp className="popover-item-arrow" size={APP_ICON_SIZE} />
-        ) : (
-          <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} />
-        )
-      ) : null}
+      <span className="popover-item-trailing">
+        {shortcut ? (
+          <span className="popover-item-shortcut">{shortcut}</span>
+        ) : null}
+        {selected && withCheck ? (
+          <Check className="popover-item-check" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+        ) : withArrow ? (
+          arrowDirection === 'down' ? (
+            <ChevronDown className="popover-item-arrow" size={APP_ICON_SIZE} />
+          ) : arrowDirection === 'up' ? (
+            <ChevronUp className="popover-item-arrow" size={APP_ICON_SIZE} />
+          ) : (
+            <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZE} />
+          )
+        ) : null}
+      </span>
     </DropdownMenu.Item>
   )
 

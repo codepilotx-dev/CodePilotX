@@ -20,9 +20,7 @@
   position: relative;
   width: 100%;
   min-height: 32px;
-  display: flex;
   align-items: center;
-  gap: 8px;
   padding: 5px;
   border-radius: 8px;
   color: var(--color-text);
@@ -35,6 +33,30 @@
   transition: background var(--motion-fast) var(--ease-out);
   -webkit-app-region: no-drag;
   overflow: hidden;
+}
+
+.popover-item,
+.popover-sub-trigger,
+.sidebar-context-menu-item,
+.sidebar-context-menu-sub-trigger {
+  display: grid;
+  grid-template-columns: var(--app-icon-size) minmax(min-content, 1fr) max-content;
+  column-gap: 8px;
+}
+
+.menubar-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  column-gap: 18px;
+}
+
+.popover-menu-heading,
+.settings-dropdown-item,
+.permission-select-item,
+.rm-model-menu .rm-menu-item,
+.rm-model-menu .rm-sub-trigger {
+  display: flex;
+  gap: 8px;
 }
 
 /* --- Disabled State --- */
