@@ -63,6 +63,7 @@ export function PersonalizationSettings({
             autoSave
             control={
               <SettingsDropdown
+                width={240}
                 ariaLabel="个性"
                 value={draft.values.personality}
                 options={PERSONALITY_OPTIONS}

@@ -226,6 +226,7 @@ export function ConfigSettings(): React.ReactNode {
           actions={
             <div className="settings-inline-actions">
               <SettingsDropdown
+                width={240}
                 value="user"
                 ariaLabel="用户配置"
                 options={[{ value: 'user', label: '用户配置' }]}
@@ -248,6 +249,7 @@ export function ConfigSettings(): React.ReactNode {
             description="选择 CodePilotX 何时请求批准"
             control={
               <SettingsDropdown
+                width={260}
                 ariaLabel="批准策略"
                 value={draft.values.permissionMode}
                 options={PERMISSION_MODE_OPTIONS.map(option => ({
@@ -270,6 +272,7 @@ export function ConfigSettings(): React.ReactNode {
             description="选择 CodePilotX 的命令执行权限"
             control={
               <SettingsDropdown
+                width={240}
                 ariaLabel="沙盒设置"
                 value={draft.values.sandboxMode}
                 options={SANDBOX_MODE_OPTIONS}

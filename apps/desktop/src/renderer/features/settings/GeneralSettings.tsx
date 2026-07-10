@@ -368,6 +368,7 @@ export function GeneralSettings({
             description='默认打开文件和文件夹的位置'
             control={
               <SettingsDropdown
+                width={240}
                 value={defaultOpenTargetId}
                 options={openTargetOptions}
                 onChange={setDefaultOpenTargetId}
@@ -380,6 +381,7 @@ export function GeneralSettings({
             description='选择要在集成终端中打开的 Shell。'
             control={
               <SettingsDropdown
+                width={240}
                 value={terminalShell}
                 options={TERMINAL_SHELL_OPTIONS}
                 onChange={setTerminalShell}
@@ -392,6 +394,7 @@ export function GeneralSettings({
             description='应用 UI 语言'
             control={
               <SettingsDropdown
+                width={220}
                 value={language}
                 options={LANGUAGE_OPTIONS}
                 onChange={setLanguage}
@@ -415,6 +418,7 @@ export function GeneralSettings({
             description='选择用于聊天、子智能体和压缩的推理层级'
             control={
               <SettingsDropdown
+                width={260}
                 value={speed}
                 options={SPEED_OPTIONS}
                 onChange={setSpeed}
@@ -565,6 +569,7 @@ export function GeneralSettings({
             description='听写应能识别的单词或短语'
             control={
               <SettingsDropdown
+                width={220}
                 value=''
                 options={[{ value: '', label: '未选择' }]}
                 onChange={() => {}}
@@ -584,6 +589,7 @@ export function GeneralSettings({
             description='设置 CodePilotX 完成任务时的提醒'
             control={
               <SettingsDropdown
+                width={260}
                 value={notifyOnComplete}
                 options={[
                   { value: 'always', label: '总是' },

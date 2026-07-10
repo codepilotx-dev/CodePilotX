@@ -313,7 +313,7 @@ export function ColorPickerControl({
           align="start"
           aria-label={ariaLabel}
           style={buildPopoverSizingStyle({
-            width: width ?? 'calc(224px + var(--popover-width-extra))',
+            width,
             maxWidth,
           })}
           onPointerDownOutside={event => {

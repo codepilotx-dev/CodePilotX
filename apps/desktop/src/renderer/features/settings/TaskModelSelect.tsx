@@ -233,6 +233,7 @@ export function TaskModelSelect({
 
   return (
     <SettingsDropdown
+      width={360}
       ariaLabel={label}
       value={displayValue}
       options={options}

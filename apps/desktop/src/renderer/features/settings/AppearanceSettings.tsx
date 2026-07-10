@@ -574,6 +574,7 @@ export function AppearanceSettings() {
                 导出
               </button>
               <SettingsDropdown
+                width={260}
                 value={activeThemeId}
                 options={activeThemeOptions}
                 onChange={themeId => handleSelectTheme(resolvedVariant, themeId)}
@@ -586,6 +587,7 @@ export function AppearanceSettings() {
               title="强调色"
               control={
                 <ColorPickerControl
+                  width="calc(224px + var(--popover-width-extra))"
                   ariaLabel="强调色"
                   value={activeTheme.theme.accent}
                   onChange={accent => updateThemeTokens({ accent })}
@@ -596,6 +598,7 @@ export function AppearanceSettings() {
               title="背景"
               control={
                 <ColorPickerControl
+                  width="calc(224px + var(--popover-width-extra))"
                   ariaLabel="背景"
                   value={activeTheme.theme.surface}
                   onChange={surface => updateThemeTokens({ surface })}
@@ -606,6 +609,7 @@ export function AppearanceSettings() {
               title="前景"
               control={
                 <ColorPickerControl
+                  width="calc(224px + var(--popover-width-extra))"
                   ariaLabel="前景"
                   value={activeTheme.theme.ink}
                   onChange={ink => updateThemeTokens({ ink })}
@@ -738,6 +742,7 @@ export function AppearanceSettings() {
             description="在 UI 中显示虚拟宠物"
             control={
               <SettingsDropdown
+                width={240}
                 value={pet}
                 options={[
                   { value: 'codex', label: 'CodePilotX' },

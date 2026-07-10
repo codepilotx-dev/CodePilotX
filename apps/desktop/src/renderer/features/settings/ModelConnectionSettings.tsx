@@ -691,6 +691,7 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
             description={providerDescription(selectedProvider)}
             control={
               <SettingsDropdown
+                width={360}
                 ariaLabel="模型供应商"
                 value={providerID}
                 options={providerOptions}

@@ -281,6 +281,7 @@ export function McpSettings(): React.ReactNode {
             description="user 写入全局配置；project 写入 .mcp.json；local 写入当前项目本地配置。"
             control={
               <SettingsDropdown
+                width={240}
                 value={form.scope}
                 options={SCOPE_OPTIONS}
                 onChange={value =>
@@ -298,6 +299,7 @@ export function McpSettings(): React.ReactNode {
             description="切换模板会替换下方 JSON。"
             control={
               <SettingsDropdown
+                width={240}
                 value={form.type}
                 options={TYPE_OPTIONS}
                 onChange={value => updateType(value as McpTransportTemplate)}
