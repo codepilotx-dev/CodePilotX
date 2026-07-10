@@ -2251,7 +2251,7 @@ async fn turn_start_exec_approval_toggle_v2() -> Result<()> {
     .await??;
     let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
 
-    // turn/start â€?expect CommandExecutionRequestApproval request from server
+    // turn/start ?expect CommandExecutionRequestApproval request from server
     let first_turn_id = mcp
         .send_turn_start_request(TurnStartParams {
             thread_id: thread.id.clone(),

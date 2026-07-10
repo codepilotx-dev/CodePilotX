@@ -241,17 +241,17 @@ async fn try_verify_apply_patch_args(
 /// Extract the heredoc body (and optional `cd` workdir) from a `bash -lc` script
 /// that invokes the apply_patch tool using a heredoc.
 ///
-/// Supported top‑level forms (must be the only top‑level statement):
+/// Supported toplevel forms (must be the only toplevel statement):
 /// - `apply_patch <<'EOF'\n...\nEOF`
 /// - `cd <path> && apply_patch <<'EOF'\n...\nEOF`
 ///
 /// Notes about matching:
-/// - Parsed with Tree‑sitter Bash and a strict query that uses anchors so the
-///   heredoc‑redirected statement is the only top‑level statement.
+/// - Parsed with Treesitter Bash and a strict query that uses anchors so the
+///   heredocredirected statement is the only toplevel statement.
 /// - The connector between `cd` and `apply_patch` must be `&&` (not `|` or `||`).
 /// - Exactly one positional `word` argument is allowed for `cd` (no flags, no quoted
 ///   strings, no second argument).
-/// - The apply command is validated in‑query via `#any-of?` to allow `apply_patch`
+/// - The apply command is validated inquery via `#any-of?` to allow `apply_patch`
 ///   or `applypatch`.
 /// - Preceding or trailing commands (e.g., `echo ...;` or `... && echo done`) do not match.
 ///
@@ -772,7 +772,7 @@ PATCH"#,
 
     #[tokio::test]
     async fn test_unified_diff_insert_at_eof() {
-        // Insert a new line at end‑of‑file.
+        // Insert a new line at endoffile.
         let dir = tempdir().unwrap();
         let path = dir.path().join("insert.txt");
         fs::write(&path, "foo\nbar\nbaz\n").unwrap();

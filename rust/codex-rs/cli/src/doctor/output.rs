@@ -196,12 +196,12 @@ fn write_detail_line(out: &mut String, detail: HumanDetail, options: HumanOutput
             let _ = writeln!(
                 out,
                 "    {} {}",
-                very_dim(if options.ascii { "-" } else { "·" }, options),
+                very_dim(if options.ascii { "-" } else { "" }, options),
                 dim(&highlight_actions(&value, options), options)
             );
         }
         HumanDetail::Remedy(value) => {
-            let marker = if options.ascii { "->" } else { "�? };
+            let marker = if options.ascii { "->" } else { "? };
             let _ = writeln!(
                 out,
                 "    {} {}",
@@ -220,7 +220,7 @@ fn row_description(check: &DoctorCheck, options: HumanOutputOptions) -> String {
     if matches!(check.status, CheckStatus::Warning | CheckStatus::Fail)
         && let Some(remediation) = &check.remediation
     {
-        let dash = if options.ascii { " - " } else { " �?" };
+        let dash = if options.ascii { " - " } else { " ?" };
         let summary = &check.summary;
         return format!("{summary}{dash}{remediation}");
     }
@@ -290,11 +290,11 @@ fn status_marker(status: DisplayStatus, options: HumanOutputOptions) -> String {
         }
     } else {
         match status {
-            DisplayStatus::Ok => "�?,
-            DisplayStatus::Update => "�?,
-            DisplayStatus::Note | DisplayStatus::Warning => "�?,
-            DisplayStatus::Fail => "�?,
-            DisplayStatus::Idle => "�?,
+            DisplayStatus::Ok => "?,
+            DisplayStatus::Update => "?,
+            DisplayStatus::Note | DisplayStatus::Warning => "?,
+            DisplayStatus::Fail => "?,
+            DisplayStatus::Idle => "?,
         }
     };
 
@@ -329,7 +329,7 @@ fn detail_marker(is_issue: bool, options: HumanOutputOptions) -> String {
     if !is_issue {
         return " ".to_string();
     }
-    orange(if options.ascii { ">" } else { "�? }, options)
+    orange(if options.ascii { ">" } else { "? }, options)
 }
 
 fn style_note_summary(note: &DoctorNote, options: HumanOutputOptions) -> String {
@@ -365,7 +365,7 @@ fn style_update_note_summary(summary: &str, options: HumanOutputOptions) -> Stri
 fn summary_line(report: &DoctorReport, options: HumanOutputOptions) -> String {
     let notes = notes_for_report(report);
     let counts = StatusCounts::from_report(report, notes.len());
-    let separator = dim(if options.ascii { " | " } else { " · " }, options);
+    let separator = dim(if options.ascii { " | " } else { "  " }, options);
     let status = overall_status_label(report.overall_status);
     let mut parts = vec![count_label(counts.ok, "ok", DisplayStatus::Ok, options)];
     if counts.idle > 0 {
@@ -485,7 +485,7 @@ fn header_suffix(report: &DoctorReport) -> String {
         .find(|check| check.category == "runtime")
         .and_then(|check| detail::detail_value(check, "platform"))
         .map_or(version.clone(), |platform| {
-            format!("{version} · {platform}")
+            format!("{version}  {platform}")
         })
 }
 
@@ -554,7 +554,7 @@ fn rollout_note(check: &DoctorCheck) -> Option<DoctorNote> {
         status: DisplayStatus::Warning,
         name: "rollouts".to_string(),
         summary: format!(
-            "{} active files · {} on disk",
+            "{} active files  {} on disk",
             detail::format_count(files),
             detail::format_bytes(bytes)
         ),
@@ -570,7 +570,7 @@ fn sandbox_note(check: &DoctorCheck) -> Option<DoctorNote> {
     Some(DoctorNote {
         status: DisplayStatus::Warning,
         name: "sandbox".to_string(),
-        summary: format!("filesystem {filesystem} · network {network}"),
+        summary: format!("filesystem {filesystem}  network {network}"),
     })
 }
 
@@ -680,7 +680,7 @@ fn terminal_summary(check: &DoctorCheck) -> String {
     if parts.is_empty() {
         check.summary.clone()
     } else {
-        parts.join(" · ")
+        parts.join("  ")
     }
 }
 
@@ -689,7 +689,7 @@ fn title_summary(check: &DoctorCheck, options: HumanOutputOptions) -> String {
     let project = detail::detail_value(check, "terminal title project value");
     match (source, project) {
         (Some(source), Some(project)) => {
-            let separator = if options.ascii { " | " } else { " · " };
+            let separator = if options.ascii { " | " } else { "  " };
             format!("{source}{separator}project {project}")
         }
         (Some(source), None) => source,
@@ -727,10 +727,10 @@ fn mcp_summary(check: &DoctorCheck) -> String {
         .map(|(transport, count)| format!("{count} {transport}"))
         .collect::<Vec<_>>();
     if transports.is_empty() {
-        format!("{count} servers · {disabled} disabled")
+        format!("{count} servers  {disabled} disabled")
     } else {
         format!(
-            "{} server ({}) · {} disabled",
+            "{} server ({})  {} disabled",
             count,
             transports.join(", "),
             disabled
@@ -744,7 +744,7 @@ fn sandbox_summary(check: &DoctorCheck) -> String {
     let network = detail::detail_value(check, "network sandbox");
     match (approval, filesystem, network) {
         (Some(approval), Some(filesystem), Some(network)) => {
-            format!("{filesystem} fs + {network} network · approval {approval}")
+            format!("{filesystem} fs + {network} network  approval {approval}")
         }
         _ => check.summary.clone(),
     }
@@ -768,7 +768,7 @@ fn websocket_summary(check: &DoctorCheck) -> String {
     let timeout = detail::detail_value(check, "connect timeout")
         .map(|value| value.replace("000 ms", "s").replace(" ms", "ms"));
     match (status, timeout) {
-        (Some(status), Some(timeout)) => format!("connected ({status}) · {timeout} timeout"),
+        (Some(status), Some(timeout)) => format!("connected ({status})  {timeout} timeout"),
         _ => check.summary.clone(),
     }
 }
@@ -786,7 +786,7 @@ fn separator(options: HumanOutputOptions) -> String {
     if options.ascii {
         "-".repeat(SEPARATOR_WIDTH)
     } else {
-        "─".repeat(SEPARATOR_WIDTH)
+        "".repeat(SEPARATOR_WIDTH)
     }
 }
 
@@ -1244,12 +1244,12 @@ mod tests {
 Codex Doctor v0.0.0
 
 Notes
-   �?terminal     narrow terminal
-   �?auth         token expired - Run `codex login`.
-─────────────────────────────────────────────────────────────
+   ?terminal     narrow terminal
+   ?auth         token expired - Run `codex login`.
+
 
 Environment
-  �?system       en-US
+  ?system       en-US
       os                       macOS 15.0
       OS language              en-US
       VISUAL                   code --wait
@@ -1258,42 +1258,42 @@ Environment
       GIT_PAGER                delta
       GH_PAGER                 less
       LESS                     -FRX
-  �?runtime      running local build on darwin-arm64
-  �?install      consistent
-      managed by               npm: no · bun: no · package root �?  �?search       search is OK (bundled)
-  �?git          git version 2.54.0
+  ?runtime      running local build on darwin-arm64
+  ?install      consistent
+      managed by               npm: no  bun: no  package root ?  ?search       search is OK (bundled)
+  ?git          git version 2.54.0
       selected git             /usr/bin/git
       version                  git version 2.54.0
       repo detected            true
-  �?terminal     narrow terminal
-  �?title        default · project codex
+  ?terminal     narrow terminal
+  ?title        default  project codex
       title source             default
       title items              activity, project-name
       project value            codex
-  �?state        state paths inspectable
+  ?state        state paths inspectable
 
 Configuration
-  �?auth         token expired �?Run `codex login`.
+  ?auth         token expired ?Run `codex login`.
       OPENAI_API_KEY           present
 
 Updates
-  �?updates      update configuration is locally consistent
+  ?updates      update configuration is locally consistent
 
 Connectivity
-  �?network      network environment readable
-  �?websocket    Responses WebSocket handshake succeeded
-  �?reachability active provider endpoints are reachable over HTTP
+  ?network      network environment readable
+  ?websocket    Responses WebSocket handshake succeeded
+  ?reachability active provider endpoints are reachable over HTTP
 
 Background Server
-  �?app-server   background server is not running
+  ?app-server   background server is not running
 
 {}
-12 ok · 2 notes · 1 warn · 1 fail failed
+12 ok  2 notes  1 warn  1 fail failed
 
 --summary compact output           --all expand truncated lists
 --json redacted report
 ",
-            "─".repeat(SEPARATOR_WIDTH)
+            "".repeat(SEPARATOR_WIDTH)
         );
         assert_eq!(rendered, expected);
     }
@@ -1314,41 +1314,41 @@ Background Server
 Codex Doctor v0.0.0
 
 Notes
-   �?terminal     narrow terminal
-   �?auth         token expired - Run `codex login`.
-─────────────────────────────────────────────────────────────
+   ?terminal     narrow terminal
+   ?auth         token expired - Run `codex login`.
+
 
 Environment
-  �?system       en-US
-  �?runtime      running local build on darwin-arm64
-  �?install      consistent
-  �?search       search is OK (bundled)
-  �?git          git version 2.54.0
-  �?terminal     narrow terminal
-  �?title        default · project codex
-  �?state        state paths inspectable
+  ?system       en-US
+  ?runtime      running local build on darwin-arm64
+  ?install      consistent
+  ?search       search is OK (bundled)
+  ?git          git version 2.54.0
+  ?terminal     narrow terminal
+  ?title        default  project codex
+  ?state        state paths inspectable
 
 Configuration
-  �?auth         token expired �?Run `codex login`.
+  ?auth         token expired ?Run `codex login`.
 
 Updates
-  �?updates      update configuration is locally consistent
+  ?updates      update configuration is locally consistent
 
 Connectivity
-  �?network      network environment readable
-  �?websocket    Responses WebSocket handshake succeeded
-  �?reachability active provider endpoints are reachable over HTTP
+  ?network      network environment readable
+  ?websocket    Responses WebSocket handshake succeeded
+  ?reachability active provider endpoints are reachable over HTTP
 
 Background Server
-  �?app-server   background server is not running
+  ?app-server   background server is not running
 
 {}
-12 ok · 2 notes · 1 warn · 1 fail failed
+12 ok  2 notes  1 warn  1 fail failed
 
 Run codex doctor without --summary for detailed diagnostics.
 --all expand truncated lists       --json redacted report
 ",
-            "─".repeat(SEPARATOR_WIDTH)
+            "".repeat(SEPARATOR_WIDTH)
         );
         assert_eq!(rendered, expected);
     }
@@ -1402,8 +1402,8 @@ Run codex doctor without --summary for detailed diagnostics.
 
         let rendered = render_human_report(&report, detailed_no_color_unicode_options());
 
-        assert!(rendered.contains("�?state        databases healthy"));
-        assert!(rendered.contains("memories DB              /tmp/memories.sqlite · integrity ok"));
+        assert!(rendered.contains("?state        databases healthy"));
+        assert!(rendered.contains("memories DB              /tmp/memories.sqlite  integrity ok"));
     }
 
     #[test]
@@ -1507,11 +1507,11 @@ Run codex doctor without --summary for detailed diagnostics.
         let rendered = render_human_report(&report, detailed_no_color_unicode_options());
 
         assert!(
-            rendered.contains("�?terminal     width 79 cols - output may wrap (recommended >=80)")
+            rendered.contains("?terminal     width 79 cols - output may wrap (recommended >=80)")
         );
-        assert!(rendered.contains("�?terminal size            79x26 (expected >= 80 columns)"));
-        assert!(rendered.contains("�?resize the window to at least 80 columns"));
-        assert!(!rendered.contains("�?terminal     Ghostty 1.3.1"));
+        assert!(rendered.contains("?terminal size            79x26 (expected >= 80 columns)"));
+        assert!(rendered.contains("?resize the window to at least 80 columns"));
+        assert!(!rendered.contains("?terminal     Ghostty 1.3.1"));
     }
 
     #[test]
@@ -1580,16 +1580,16 @@ Run codex doctor without --summary for detailed diagnostics.
 
         let rendered = render_human_report(&report, summary_no_color_unicode_options());
 
-        assert!(rendered.contains("Notes\n   �?updates"));
+        assert!(rendered.contains("Notes\n   ?updates"));
         assert!(rendered.contains("0.130.0 available (current 0.0.0, dismissed 0.128.0)"));
-        assert!(rendered.contains("�?rollouts"));
-        assert!(rendered.contains("�?sandbox"));
-        assert!(rendered.contains("�?mcp"));
+        assert!(rendered.contains("?rollouts"));
+        assert!(rendered.contains("?sandbox"));
+        assert!(rendered.contains("?mcp"));
         assert!(rendered.contains(
-            "�?auth         mixed auth signals: ChatGPT login plus API key env var; HTTP reachability uses API-key mode"
+            "?auth         mixed auth signals: ChatGPT login plus API key env var; HTTP reachability uses API-key mode"
         ));
-        assert!(rendered.contains("�?app-server   not running (ephemeral mode)"));
-        assert!(rendered.contains("5 ok · 1 idle · 5 notes · 1 warn · 0 fail degraded"));
+        assert!(rendered.contains("?app-server   not running (ephemeral mode)"));
+        assert!(rendered.contains("5 ok  1 idle  5 notes  1 warn  0 fail degraded"));
     }
 
     #[test]
@@ -1615,7 +1615,7 @@ Run codex doctor without --summary for detailed diagnostics.
         assert!(!compact.contains("enabled flags"));
         assert!(
             compact.contains(
-                "feature flags            3 enabled · 1 overridden (full list with --all)"
+                "feature flags            3 enabled  1 overridden (full list with --all)"
             )
         );
         assert!(expanded.contains("enabled flags            shell_tool, memories, goals"));
@@ -1624,7 +1624,7 @@ Run codex doctor without --summary for detailed diagnostics.
     #[test]
     fn detail_value_colors_inline_statuses_and_low_signal_values() {
         let rendered = detail_value(
-            "npm: no · commit unknown · integrity ok · ~/code/codex/target/debug/codex · <redacted>",
+            "npm: no  commit unknown  integrity ok  ~/code/codex/target/debug/codex  <redacted>",
             detailed_color_unicode_options(),
         );
 

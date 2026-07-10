@@ -754,12 +754,12 @@ fn compute_replacements(
         // Otherwise, try to match the existing lines in the file with the old lines
         // from the chunk. If found, schedule that region for replacement.
         // Attempt to locate the `old_lines` verbatim within the file.  In many
-        // realâ€‘world diffs the last element of `old_lines` is an *empty* string
+        // realworld diffs the last element of `old_lines` is an *empty* string
         // representing the terminating newline of the region being replaced.
         // This sentinel is not present in `original_lines` because we strip the
         // trailing empty slice emitted by `split('\n')`.  If a direct search
         // fails and the pattern ends with an empty string, retry without that
-        // final element so that modifications touching the endâ€‘ofâ€‘file can be
+        // final element so that modifications touching the endoffile can be
         // located reliably.
 
         let mut pattern: &[String] = &chunk.old_lines;
@@ -1217,7 +1217,7 @@ mod tests {
     }
 
     /// A more involved `Update File` hunk that exercises additions, deletions and
-    /// replacements in separate chunks that appear in nonâ€‘adjacent parts of the
+    /// replacements in separate chunks that appear in nonadjacent parts of the
     /// file.  Verifies that all edits are applied and that the summary lists the
     /// file only once.
     #[tokio::test]
@@ -1229,9 +1229,9 @@ mod tests {
         fs::write(&path, "a\nb\nc\nd\ne\nf\n").unwrap();
 
         // Patch performs:
-        //  â€?Replace `b` â†?`B`
-        //  â€?Replace `e` â†?`E` (using surrounding context)
-        //  â€?Append new line `g` at the endâ€‘ofâ€‘file
+        //  ?Replace `b` ?`B`
+        //  ?Replace `e` ?`E` (using surrounding context)
+        //  ?Append new line `g` at the endoffile
         let patch = wrap_patch(&format!(
             r#"*** Update File: {}
 @@
@@ -1509,7 +1509,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_unified_diff_insert_at_eof() {
-        // Insert a new line at endâ€‘ofâ€‘file.
+        // Insert a new line at endoffile.
         let dir = tempdir().unwrap();
         let path = dir.path().join("insert.txt");
         fs::write(&path, "foo\nbar\nbaz\n").unwrap();

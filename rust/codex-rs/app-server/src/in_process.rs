@@ -153,7 +153,7 @@ pub struct InProcessStartArgs {
 /// Event emitted from the app-server to the in-process client.
 ///
 /// [`Lagged`](Self::Lagged) is a transport health marker, not an application
-/// event â€?it signals that the consumer fell behind and some events were dropped.
+/// event ?it signals that the consumer fell behind and some events were dropped.
 #[derive(Debug, Clone)]
 pub enum InProcessServerEvent {
     /// Server request that requires client response/rejection.

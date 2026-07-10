@@ -22,7 +22,7 @@ pub fn win_path_to_wsl(path: &str) -> Option<String> {
     Some(format!("/mnt/{drive}/{tail}"))
 }
 
-/// If under WSL and given a Windows-style path, return the equivalent `/mnt/<drive>/…` path.
+/// If under WSL and given a Windows-style path, return the equivalent `/mnt/<drive>/` path.
 /// Otherwise returns the input unchanged.
 pub fn normalize_for_wsl<P: AsRef<OsStr>>(path: P) -> String {
     let value = path.as_ref().to_string_lossy().to_string();

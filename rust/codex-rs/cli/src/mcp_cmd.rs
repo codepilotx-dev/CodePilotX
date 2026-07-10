@@ -32,12 +32,12 @@ use codepilotx_utils_cli::CliConfigOverrides;
 use codepilotx_utils_cli::format_env_display;
 
 /// Subcommands:
-/// - `list`   â€?list configured servers (with `--json`)
-/// - `get`    â€?show a single server (with `--json`)
-/// - `add`    â€?add a server launcher entry to `~/.codex/config.toml`
-/// - `remove` â€?delete a server entry
-/// - `login`  â€?authenticate with MCP server using OAuth
-/// - `logout` â€?remove OAuth credentials for MCP server
+/// - `list`   ?list configured servers (with `--json`)
+/// - `get`    ?show a single server (with `--json`)
+/// - `add`    ?add a server launcher entry to `~/.codex/config.toml`
+/// - `remove` ?delete a server entry
+/// - `login`  ?authenticate with MCP server using OAuth
+/// - `logout` ?remove OAuth credentials for MCP server
 #[derive(Debug, clap::Parser)]
 pub struct McpCli {
     #[clap(flatten)]
@@ -237,7 +237,7 @@ async fn perform_oauth_login_retry_without_scopes(
     {
         Ok(()) => Ok(()),
         Err(err) if should_retry_without_scopes(resolved_scopes, &err) => {
-            println!("OAuth provider rejected discovered scopes. Retrying without scopesâ€?);
+            println!("OAuth provider rejected discovered scopes. Retrying without scopes?);
             perform_oauth_login(
                 name,
                 url,
@@ -377,7 +377,7 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
 
     match oauth_login_support(&transport).await {
         McpOAuthLoginSupport::Supported(oauth_config) => {
-            println!("Detected OAuth support. Starting OAuth flowâ€?);
+            println!("Detected OAuth support. Starting OAuth flow?);
             let resolved_scopes = resolve_oauth_scopes(
                 /*explicit_scopes*/ None,
                 /*configured_scopes*/ None,

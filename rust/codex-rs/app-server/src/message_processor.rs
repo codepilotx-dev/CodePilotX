@@ -34,6 +34,7 @@ use crate::request_processors::MarketplaceRequestProcessor;
 use crate::request_processors::McpRequestProcessor;
 use crate::request_processors::PluginRequestProcessor;
 use crate::request_processors::ProcessExecRequestProcessor;
+use crate::request_processors::ProviderAuthRequestProcessor;
 use crate::request_processors::RemoteControlRequestProcessor;
 use crate::request_processors::SearchRequestProcessor;
 use crate::request_processors::ThreadGoalRequestProcessor;
@@ -202,6 +203,7 @@ pub(crate) struct MessageProcessor {
     marketplace_processor: MarketplaceRequestProcessor,
     mcp_processor: McpRequestProcessor,
     plugin_processor: PluginRequestProcessor,
+    provider_auth_processor: ProviderAuthRequestProcessor,
     remote_control_processor: RemoteControlRequestProcessor,
     search_processor: SearchRequestProcessor,
     thread_goal_processor: ThreadGoalRequestProcessor,
@@ -469,6 +471,9 @@ impl MessageProcessor {
             config_manager.clone(),
             workspace_settings_cache,
         );
+        let provider_auth_processor = ProviderAuthRequestProcessor::new(
+            config.codepilotx_home.to_path_buf(),
+        );
         let remote_control_processor = RemoteControlRequestProcessor::new(remote_control_handle);
         let search_processor = SearchRequestProcessor::new(outgoing.clone());
         let thread_goal_processor = ThreadGoalRequestProcessor::new(
@@ -571,6 +576,7 @@ impl MessageProcessor {
             marketplace_processor,
             mcp_processor,
             plugin_processor,
+            provider_auth_processor,
             remote_control_processor,
             search_processor,
             thread_goal_processor,
@@ -1497,6 +1503,50 @@ impl MessageProcessor {
             }
             ClientRequest::FeedbackUpload { params, .. } => {
                 self.feedback_processor.feedback_upload(params).await
+            }
+
+            //  Provider auth 
+            ClientRequest::ProviderAuthReadStatus { params, .. } => {
+                self.provider_auth_processor
+                    .read_status(params)
+                    .await
+                    .map(|r| Some(r.into()))
+            }
+            ClientRequest::ProviderAuthStartLogin { params, .. } => {
+                self.provider_auth_processor
+                    .start_login(params)
+                    .await
+                    .map(|r| Some(r.into()))
+            }
+            ClientRequest::ProviderAuthPollLogin { params, .. } => {
+                self.provider_auth_processor
+                    .poll_login(params)
+                    .await
+                    .map(|r| Some(r.into()))
+            }
+            ClientRequest::ProviderAuthCancelLogin { params, .. } => {
+                self.provider_auth_processor
+                    .cancel_login(params)
+                    .await
+                    .map(|r| Some(r.into()))
+            }
+            ClientRequest::ProviderAuthLogout { params, .. } => {
+                self.provider_auth_processor
+                    .logout(params)
+                    .await
+                    .map(|r| Some(r.into()))
+            }
+            ClientRequest::ProviderRepoList { params, .. } => {
+                self.provider_auth_processor
+                    .list_repos(params)
+                    .await
+                    .map(|r| Some(r.into()))
+            }
+            ClientRequest::ProviderRepoClone { params, .. } => {
+                self.provider_auth_processor
+                    .clone_repo(params)
+                    .await
+                    .map(|r| Some(r.into()))
             }
         };
 

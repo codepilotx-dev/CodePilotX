@@ -458,7 +458,7 @@ fn unix_sock_body() {
         let sent = libc::write(fds[0], msg.as_ptr() as *const libc::c_void, msg.len());
         assert!(sent >= 0, "write() failed: {}", io::Error::last_os_error());
 
-        // recvfrom() on the other end. We don’t need the address for socketpair,
+        // recvfrom() on the other end. We dont need the address for socketpair,
         // so we pass null pointers for src address.
         let mut buf = [0u8; 64];
         let recvd = libc::recvfrom(

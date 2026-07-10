@@ -225,7 +225,7 @@ pub struct ResumeArgs {
 impl From<ResumeArgsRaw> for ResumeArgs {
     fn from(raw: ResumeArgsRaw) -> Self {
         // When --last is used without an explicit prompt, treat the positional as the prompt
-        // (clap can’t express this conditional positional meaning cleanly).
+        // (clap cant express this conditional positional meaning cleanly).
         let (session_id, prompt) = if raw.last && raw.prompt.is_none() {
             (None, raw.session_id)
         } else {

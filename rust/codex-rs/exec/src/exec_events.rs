@@ -28,7 +28,7 @@ pub enum ThreadEvent {
     /// Emitted when an item is updated.
     #[serde(rename = "item.updated")]
     ItemUpdated(ItemUpdatedEvent),
-    /// Signals that an item has reached a terminal state—either success or failure.
+    /// Signals that an item has reached a terminal stateeither success or failure.
     #[serde(rename = "item.completed")]
     ItemCompleted(ItemCompletedEvent),
     /// Represents an unrecoverable error emitted directly by the event stream.

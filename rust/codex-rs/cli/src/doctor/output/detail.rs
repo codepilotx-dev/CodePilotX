@@ -106,7 +106,7 @@ pub(super) fn rollout_summary(value: &str) -> Option<String> {
     let total_bytes = total_bytes.trim().parse::<u64>().ok()?;
     let average_bytes = average_bytes.trim().parse::<u64>().ok()?;
     Some(format!(
-        "{} files 路 {} (avg {})",
+        "{} files  {} (avg {})",
         format_count(files),
         format_bytes(total_bytes),
         format_bytes(average_bytes)
@@ -215,11 +215,11 @@ fn install_details(parsed: &[ParsedDetail], options: HumanOutputOptions) -> Vec<
     out.push(HumanDetail::Row {
         label: "managed by".to_string(),
         value: format!(
-            "npm: {} 路 bun: {} 路 package root {}",
+            "npm: {}  bun: {}  package root {}",
             yes_no(managed_by_npm),
             yes_no(managed_by_bun),
             if is_falsy(package_root) {
-                "鈥?.to_string()
+                "?.to_string()
             } else {
                 package_root.to_string()
             }
@@ -250,7 +250,7 @@ fn install_details(parsed: &[ParsedDetail], options: HumanOutputOptions) -> Vec<
         );
         if shown < total {
             out.push(HumanDetail::Continuation(
-                "鈥?(full list with --all)".to_string(),
+                "?(full list with --all)".to_string(),
             ));
         }
     }
@@ -305,7 +305,7 @@ fn git_details(parsed: &[ParsedDetail], options: HumanOutputOptions) -> Vec<Huma
         );
         if shown < total {
             out.push(HumanDetail::Continuation(
-                "鈥?(full list with --all)".to_string(),
+                "?(full list with --all)".to_string(),
             ));
         }
     }
@@ -367,7 +367,7 @@ fn config_details(parsed: &[ParsedDetail], options: HumanOutputOptions) -> Vec<H
     if let Some(model) = value(parsed, "model") {
         let value = value(parsed, "model provider").map_or_else(
             || model.to_string(),
-            |provider| format!("{model} 路 {provider}"),
+            |provider| format!("{model}  {provider}"),
         );
         out.push(HumanDetail::Row {
             label: "model".to_string(),
@@ -497,7 +497,7 @@ fn push_feature_flags(
     };
     out.push(HumanDetail::Row {
         label: "feature flags".to_string(),
-        value: format!("{enabled_count} enabled 路 {override_count} overridden{hint}"),
+        value: format!("{enabled_count} enabled  {override_count} overridden{hint}"),
         expected: None,
     });
 
@@ -530,7 +530,7 @@ fn push_list_row(
         .collect::<Vec<_>>()
         .join(", ");
     if limit < items.len() {
-        value.push_str(", 鈥?(full list with --all)");
+        value.push_str(", ?(full list with --all)");
     }
     out.push(HumanDetail::Row {
         label: label.to_string(),
@@ -546,7 +546,7 @@ fn push_database_row(out: &mut Vec<HumanDetail>, parsed: &[ParsedDetail], label:
     let integrity = value(parsed, &format!("{label} integrity"));
     let value = integrity.map_or_else(
         || path.to_string(),
-        |integrity| format!("{path} 路 integrity {integrity}"),
+        |integrity| format!("{path}  integrity {integrity}"),
     );
     out.push(HumanDetail::Row {
         label: label.to_string(),
@@ -717,7 +717,7 @@ fn middle_truncate(value: &str, max_chars: usize) -> String {
         .chars()
         .rev()
         .collect::<String>();
-    format!("{head}鈥tail}")
+    format!("{head}{tail}")
 }
 
 fn looks_like_path(value: &str) -> bool {
@@ -779,6 +779,6 @@ fn yes_no(value: &str) -> &'static str {
 pub(super) fn is_falsy(value: &str) -> bool {
     matches!(
         value.trim().to_ascii_lowercase().as_str(),
-        "" | "false" | "none" | "not set" | "unknown" | "missing" | "absent" | "no" | "鈥? | "-"
+        "" | "false" | "none" | "not set" | "unknown" | "missing" | "absent" | "no" | "? | "-"
     )
 }

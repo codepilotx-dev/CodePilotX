@@ -394,7 +394,7 @@ async fn thread_list_pagination_next_cursor_none_on_last_page() -> Result<()> {
 
     let mut mcp = init_mcp(codepilotx_home.path()).await?;
 
-    // Page 1: limit 2 â†?expect next_cursor Some.
+    // Page 1: limit 2 ?expect next_cursor Some.
     let ThreadListResponse {
         data: data1,
         next_cursor: cursor1,
@@ -422,7 +422,7 @@ async fn thread_list_pagination_next_cursor_none_on_last_page() -> Result<()> {
     }
     let cursor1 = cursor1.expect("expected nextCursor on first page");
 
-    // Page 2: with cursor â†?expect next_cursor None when no more results.
+    // Page 2: with cursor ?expect next_cursor None when no more results.
     let ThreadListResponse {
         data: data2,
         next_cursor: cursor2,

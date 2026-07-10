@@ -95,9 +95,9 @@ use codepilotx_terminal_detection::TerminalName;
 #[clap(
     author,
     version,
-    // If a sub‑command is given, ignore requirements of the default args.
+    // If a subcommand is given, ignore requirements of the default args.
     subcommand_negates_reqs = true,
-    // The executable is sometimes invoked via a platform‑specific name like
+    // The executable is sometimes invoked via a platformspecific name like
     // `codex-x86_64-unknown-linux-musl`, but the help output should always use
     // the generic `codex` command name that users run.
     bin_name = "codepilotx",
@@ -792,7 +792,7 @@ fn run_update_action(action: UpdateAction) -> anyhow::Result<()> {
     if !status.success() {
         anyhow::bail!("`{cmd_str}` failed with status {status}");
     }
-    println!("\n🎉 Update ran successfully! Please restart Codex.");
+    println!("\n Update ran successfully! Please restart Codex.");
     Ok(())
 }
 

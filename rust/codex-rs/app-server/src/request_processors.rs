@@ -492,6 +492,7 @@ mod marketplace_processor;
 mod mcp_processor;
 mod plugins;
 mod process_exec_processor;
+mod provider_auth_processor;
 mod remote_control_processor;
 mod search;
 mod thread_processor;
