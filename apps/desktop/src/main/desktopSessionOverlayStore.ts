@@ -31,6 +31,7 @@ export type PersistedDesktopSessionOverlayStore = {
 export type DesktopSessionOverlay = {
   id: string
   appServerThreadId?: string | null
+  appServerThreadPending?: boolean
   workspace: DesktopWorkspace
   settings: DesktopSessionSettingsSnapshot
   standalone?: boolean

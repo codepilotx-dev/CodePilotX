@@ -478,6 +478,7 @@ export async function saveDesktopSessionStore(
       return {
         id: overlay.id,
         appServerThreadId: overlay.appServerThreadId,
+        appServerThreadPending: overlay.appServerThreadPending,
         workspace: overlay.workspace,
         settings: overlay.settings,
         standalone: overlay.standalone,
@@ -530,6 +531,7 @@ export function createDesktopSessionSnapshot(params: {
   standalone: boolean
   settings: DesktopSessionSettingsSnapshot
   appServerThreadId?: string | null
+  appServerThreadPending?: boolean
 }): DesktopSessionSnapshot {
   const now = new Date()
   const lastMessageAt = now.toISOString()
@@ -540,6 +542,7 @@ export function createDesktopSessionSnapshot(params: {
   const rolloutPath = getRolloutPath(workspace.path, params.sessionId)
   return {
     appServerThreadId: params.appServerThreadId ?? null,
+    appServerThreadPending: params.appServerThreadPending === true,
     item: {
       id: params.sessionId,
       appServerThreadId: params.appServerThreadId ?? null,
@@ -892,6 +895,7 @@ function normalizeSessionOverlay(value: unknown): DesktopSessionOverlay[] {
     {
       id: raw.id,
       appServerThreadId: nullableString(raw.appServerThreadId),
+      appServerThreadPending: raw.appServerThreadPending === true,
       workspace: normalizedWorkspace,
       settings,
       standalone: isStandaloneSession(
@@ -973,6 +977,8 @@ function normalizeSessionSnapshot(value: unknown): DesktopSessionSnapshot[] {
         nullableString((snapshot as Record<string, unknown>).appServerThreadId) ??
         item.appServerThreadId ??
         null,
+      appServerThreadPending:
+        (snapshot as Record<string, unknown>).appServerThreadPending === true,
       item: {
         ...item,
         workspaceName: normalizedWorkspace.name,
@@ -1166,6 +1172,7 @@ function snapshotFromOverlay(overlay: DesktopSessionOverlay): DesktopSessionSnap
   const standalone = isStandaloneSession(workspace, overlay.standalone === true)
   return {
     appServerThreadId: overlay?.appServerThreadId ?? null,
+    appServerThreadPending: overlay?.appServerThreadPending === true,
     item: {
       id: overlay.id,
       appServerThreadId: overlay.appServerThreadId ?? null,
@@ -1236,6 +1243,7 @@ function overlayFromSnapshot(
       normalizedSnapshot.appServerThreadId ??
       normalizedSnapshot.item.appServerThreadId ??
       null,
+    appServerThreadPending: normalizedSnapshot.appServerThreadPending === true,
     workspace: normalizedSnapshot.workspace,
     settings: normalizedSnapshot.settings,
     standalone: normalizedSnapshot.item.standalone === true,

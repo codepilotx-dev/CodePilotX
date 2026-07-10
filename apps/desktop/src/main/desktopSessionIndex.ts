@@ -252,6 +252,7 @@ export function snapshotFromSessionRow(
 
   return {
     appServerThreadId: item.appServerThreadId ?? null,
+    appServerThreadPending: overlay?.appServerThreadPending === true,
     item,
     workspace,
     settings,
@@ -322,11 +323,7 @@ export function syncDesktopSnapshotToSqlite(
  * Remove a session from the SQLite index entirely.
  */
 export function removeSessionFromIndex(sessionId: string): void {
-  try {
-    deleteSession(sessionId)
-  } catch {
-    // best-effort
-  }
+  deleteSession(sessionId)
 }
 
 // ---------------------------------------------------------------------------
