@@ -114,6 +114,7 @@ import type {
   DesktopSlashCommandSuggestion,
   DesktopGitOperationResult,
   DesktopSessionMetadataPatch,
+  DesktopSessionCatalogStatus,
   DesktopSessionSnapshot,
   DesktopStoredSettings,
   DesktopToolchainDiagnosticReport,
@@ -150,13 +151,18 @@ export type DesktopApiHandlerDependencies = {
   createSession(
     options: CreateDesktopSessionOptions,
   ): Promise<CreateDesktopSessionResult>
-  listSessions(): Promise<DesktopSessionSnapshot[]>
+  listSessions(options?: { archived?: boolean }): Promise<DesktopSessionSnapshot[]>
+  getSessionCatalogStatus(): Promise<DesktopSessionCatalogStatus>
   getSession(sessionId: string): Promise<DesktopSessionSnapshot>
   getActiveSessionId(): Promise<string | null>
   setActiveSession(sessionId: string | null): Promise<void>
   updateSessionMetadata(
     sessionId: string,
     patch: DesktopSessionMetadataPatch,
+  ): Promise<DesktopSessionSnapshot>
+  renameSession(
+    sessionId: string,
+    name: string,
   ): Promise<DesktopSessionSnapshot>
   saveSessionReviewComment(
     input: SaveSessionReviewCommentInput,
@@ -348,10 +354,12 @@ export function buildDesktopApiHandlers(
     saveThemeSettings: saveDesktopThemeSettings,
     createSession: dependencies.createSession,
     listSessions: dependencies.listSessions,
+    getSessionCatalogStatus: dependencies.getSessionCatalogStatus,
     getSession: dependencies.getSession,
     getActiveSessionId: dependencies.getActiveSessionId,
     setActiveSession: dependencies.setActiveSession,
     updateSessionMetadata: dependencies.updateSessionMetadata,
+    renameSession: dependencies.renameSession,
     saveSessionReviewComment: dependencies.saveSessionReviewComment,
     resolveSessionReviewComment: dependencies.resolveSessionReviewComment,
     deleteSessionReviewComment: dependencies.deleteSessionReviewComment,

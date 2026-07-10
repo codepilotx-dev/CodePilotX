@@ -108,6 +108,16 @@ import {
   desktopAgentEventToRolloutItems,
   type RolloutWriteScheduler,
 } from './desktopRolloutPersistence.js'
+import {
+  DesktopSessionCatalog,
+  type DesktopSessionCatalogService,
+} from './desktopSessionCatalog.js'
+import {
+  disposeDesktopSession,
+  removeDesktopSessionLocalState,
+  removeSessionIndexWithRetry as retrySessionIndexRemoval,
+} from './desktopSessionRemoval.js'
+import { RustAppServerControlService } from './rustAppServerControlService.js'
 import { createSessionPersistScheduler } from './sessionPersistScheduler.js'
 import { createSessionStoreChangeEmitter } from './sessionStoreChangeEmitter.js'
 import { shouldMarkSessionUnread } from '../shared/sessionUnread.js'
@@ -126,6 +136,7 @@ import type {
   DesktopReviewComment,
   DesktopSlashCommandSuggestion,
   DesktopSessionMetadataPatch,
+  DesktopSessionCatalogStatus,
   DesktopSessionSnapshot,
   DesktopThinkingMode,
   DesktopUserMessageContent,
@@ -177,6 +188,7 @@ process.env[CODEPILOTX_CONFIG_DIR_ENV] = desktopConfigHomeDir
 process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV] = desktopConfigHomeDir
 
 const sessions = new Map<string, DesktopSessionRecord>()
+let desktopSessionCatalog: DesktopSessionCatalog | null = null
 const turnRestoreBaselines = new Map<
   string,
   {
@@ -574,6 +586,7 @@ function createRuntimeForRecord(record: DesktopSessionRecord): DesktopAgentSessi
         record.snapshot = {
           ...record.snapshot,
           appServerThreadId: threadId,
+          appServerThreadPending: false,
           item: { ...record.snapshot.item, appServerThreadId: threadId },
           updatedAt: new Date().toISOString(),
         }
@@ -586,9 +599,62 @@ function createRuntimeForRecord(record: DesktopSessionRecord): DesktopAgentSessi
   return session
 }
 
-async function listSessions(): Promise<DesktopSessionSnapshot[]> {
+async function listSessions(
+  options: { archived?: boolean } = {},
+): Promise<DesktopSessionSnapshot[]> {
   await ensureSessionStoreLoaded()
-  return [...sessions.values()].map(record => record.snapshot)
+  const result = await getDesktopSessionCatalog().list({
+    archived: options.archived === true,
+    localSnapshots: [...sessions.values()].map(record => record.snapshot),
+  })
+  if (result.status.state === 'unavailable') {
+    // The renderer must not fall back to local sessions while the server
+    // catalog is unavailable. Keep local recovery data intact, but clear the
+    // in-memory active selection for this catalog view.
+    activeSessionId = null
+    return []
+  }
+
+  let changed = false
+  for (const sessionId of result.removeLocalSessionIds) {
+    const record = sessions.get(sessionId)
+    if (!record) continue
+    await removeDesktopSessionLocalState({
+      sessionId,
+      removeIndex: removeSessionIndexWithRetry,
+      removeLocalState: () => {
+        sessions.delete(sessionId)
+        changed = true
+      },
+      disposeRuntime: async () => {
+        await record.session?.dispose()
+      },
+    })
+  }
+  for (const snapshot of result.sessions) {
+    const record = sessions.get(snapshot.item.id)
+    if (record) {
+      record.snapshot = snapshot
+    } else {
+      sessions.set(snapshot.item.id, {
+        session: null,
+        snapshot,
+        resumeExistingSession: true,
+      })
+    }
+    registerAllowedWorkspace(snapshot.workspace.path)
+    changed = true
+  }
+  if (activeSessionId && !sessions.has(activeSessionId)) {
+    activeSessionId = result.sessions[0]?.item.id ?? null
+    changed = true
+  }
+  if (changed) persistSessionStore({ immediate: true })
+  return result.sessions
+}
+
+async function getSessionCatalogStatus(): Promise<DesktopSessionCatalogStatus> {
+  return getDesktopSessionCatalog().getStatus()
 }
 
 async function getSession(sessionId: string): Promise<DesktopSessionSnapshot> {
@@ -642,6 +708,34 @@ async function setActiveSession(sessionId: string | null): Promise<void> {
   persistSessionStore({ immediate: true })
 }
 
+function getDesktopSessionCatalog(): DesktopSessionCatalog {
+  if (desktopSessionCatalog) return desktopSessionCatalog
+  desktopSessionCatalog = new DesktopSessionCatalog(
+    new RustAppServerControlService({
+      context: {
+        sessionId: 'desktop-session-catalog',
+        workspacePath: process.cwd(),
+        configDirectoryPath: getOpenAgentConfigHomeDir(),
+        runtimePreference: getDesktopRuntimeSelection().preference,
+        emit: () => {},
+        requestPermission: async () => ({ behavior: 'deny' as const }),
+      },
+    }) satisfies DesktopSessionCatalogService,
+  )
+  return desktopSessionCatalog
+}
+
+/** Injectable catalog seam for tests; does not start a Rust process. */
+export function setDesktopSessionCatalogForTesting(
+  service: DesktopSessionCatalogService | null,
+): void {
+  desktopSessionCatalog = service ? new DesktopSessionCatalog(service) : null
+}
+
+function getDesktopSessionCatalogService(): DesktopSessionCatalogService {
+  return getDesktopSessionCatalog().getControlService()
+}
+
 async function updateSessionMetadata(
   sessionId: string,
   patch: DesktopSessionMetadataPatch,
@@ -656,6 +750,12 @@ async function updateSessionMetadata(
     nextItem.pinnedAt = normalizeNullableTimestamp(patch.pinnedAt)
   }
   if ('archivedAt' in patch) {
+    const appServerThreadId = requireAppServerThreadId(record.snapshot)
+    if (patch.archivedAt) {
+      await getDesktopSessionCatalogService().archiveThread(appServerThreadId)
+    } else {
+      await getDesktopSessionCatalogService().unarchiveThread(appServerThreadId)
+    }
     nextItem.archivedAt = normalizeNullableTimestamp(patch.archivedAt)
   }
 
@@ -671,6 +771,25 @@ async function updateSessionMetadata(
           item.snapshot.item.id !== sessionId &&
           !item.snapshot.item.archivedAt,
       )?.snapshot.item.id ?? null
+  }
+  persistSessionStore({ immediate: true })
+  return record.snapshot
+}
+
+async function renameSession(
+  sessionId: string,
+  name: string,
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(sessionId)
+  const normalizedName = requireNonEmptyString(name, 'Desktop session name')
+  await getDesktopSessionCatalogService().setThreadName(
+    requireAppServerThreadId(record.snapshot),
+    normalizedName,
+  )
+  record.snapshot = {
+    ...record.snapshot,
+    item: { ...record.snapshot.item, sessionName: normalizedName },
+    updatedAt: new Date().toISOString(),
   }
   persistSessionStore({ immediate: true })
   return record.snapshot
@@ -1018,6 +1137,7 @@ async function createSession(
         createdRecord.snapshot = {
           ...createdRecord.snapshot,
           appServerThreadId: threadId,
+          appServerThreadPending: false,
           item: { ...createdRecord.snapshot.item, appServerThreadId: threadId },
           updatedAt: new Date().toISOString(),
         }
@@ -1030,6 +1150,7 @@ async function createSession(
     resumeExistingSession: false,
     snapshot: createDesktopSessionSnapshot({
       sessionId: session.sessionId,
+      appServerThreadPending: true,
       workspace,
       standalone,
       settings,
@@ -1509,19 +1630,25 @@ async function interruptSession(sessionId: string): Promise<void> {
 
 async function disposeSession(sessionId: string): Promise<void> {
   const record = await getSessionRecord(sessionId)
-  sessions.delete(sessionId)
-  if (activeSessionId === sessionId) {
-    activeSessionId = [...sessions.keys()][0] ?? null
-  }
-  // Remove from SQLite index
-  try {
-    const { removeSessionFromIndex } = await import('./desktopSessionIndex.js')
-    removeSessionFromIndex(sessionId)
-  } catch {
-    // best-effort
-  }
-  persistSessionStore({ immediate: true })
-  await record.session?.dispose()
+  await disposeDesktopSession({
+    sessionId,
+    appServerThreadId:
+      record.snapshot.appServerThreadId ?? record.snapshot.item.appServerThreadId,
+    appServerThreadPending: record.snapshot.appServerThreadPending === true,
+    deleteThread: threadId =>
+      getDesktopSessionCatalogService().deleteThread(threadId),
+    removeIndex: removeSessionIndexWithRetry,
+    removeLocalState: () => {
+      sessions.delete(sessionId)
+      if (activeSessionId === sessionId) {
+        activeSessionId = [...sessions.keys()][0] ?? null
+      }
+      persistSessionStore({ immediate: true })
+    },
+    disposeRuntime: async () => {
+      await record.session?.dispose()
+    },
+  })
 }
 
 function disposeAllSessions(): void {
@@ -1541,6 +1668,21 @@ async function getSessionRecord(sessionId: string): Promise<DesktopSessionRecord
     throw new Error(`Unknown desktop session: ${normalizedSessionId}`)
   }
   return record
+}
+
+function requireAppServerThreadId(snapshot: DesktopSessionSnapshot): string {
+  const threadId = snapshot.appServerThreadId ?? snapshot.item.appServerThreadId
+  if (!threadId?.trim()) {
+    throw new Error('This desktop session is not backed by an app-server Thread.')
+  }
+  return threadId
+}
+
+async function removeSessionIndexWithRetry(sessionId: string): Promise<void> {
+  await retrySessionIndexRemoval(sessionId, async sessionId => {
+    const { removeSessionFromIndex } = await import('./desktopSessionIndex.js')
+    removeSessionFromIndex(sessionId)
+  })
 }
 
 function requireNonEmptyString(value: unknown, label: string): string {
@@ -1669,10 +1811,12 @@ const desktopApiHandlers = buildDesktopApiHandlers({
   getMcpRuntimeStatus,
   createSession,
   listSessions,
+  getSessionCatalogStatus,
   getSession,
   getActiveSessionId,
   setActiveSession,
   updateSessionMetadata,
+  renameSession,
   saveSessionReviewComment,
   resolveSessionReviewComment,
   deleteSessionReviewComment,

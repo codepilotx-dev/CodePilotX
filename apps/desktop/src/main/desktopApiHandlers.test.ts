@@ -164,6 +164,26 @@ describe('desktopApiHandlers debug hard-disable', () => {
   })
 })
 
+describe('desktopApiHandlers session catalog', () => {
+  test('exposes catalog status and delegates server-backed rename operations', async () => {
+    const getSessionCatalogStatus = mock(async () => ({
+      state: 'unavailable' as const,
+      error: 'The app-server is unavailable. Please try again.',
+    }))
+    const renameSession = mock(async () => ({ item: { id: 'session-1' } }))
+    const deps = buildDependencies({ getSessionCatalogStatus, renameSession })
+    const { buildDesktopApiHandlers } = await import('./desktopApiHandlers.js')
+    const handlers = buildDesktopApiHandlers(deps)
+
+    await expect(handlers.getSessionCatalogStatus()).resolves.toEqual({
+      state: 'unavailable',
+      error: 'The app-server is unavailable. Please try again.',
+    })
+    await handlers.renameSession('session-1', 'Renamed server thread')
+    expect(renameSession).toHaveBeenCalledWith('session-1', 'Renamed server thread')
+  })
+})
+
 // --- dummy dependencies ---
 
 const dummyWindowService = {
