@@ -303,6 +303,7 @@ export function DesktopLayout(): React.ReactNode {
   const {
     sessionId,
     sessionsHydrated,
+    catalogStatus,
     sessions,
     sessionFallbackTitles,
     sessionStatus,
@@ -1561,6 +1562,7 @@ export function DesktopLayout(): React.ReactNode {
   const appSidebarContent = (
     <DesktopSidebar
       activeSessionId={sessionId}
+      catalogStatus={catalogStatus}
       pendingPermissionSessionIds={pendingPermissionSessionIds}
       recentWorkspaces={recentWorkspaces}
       removedWorkspaces={removedWorkspaces}

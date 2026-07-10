@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopAgentEvent,
   DesktopContextUsage,
+  DesktopSessionCatalogStatus,
   DesktopPermissionDecision,
   DesktopPermissionMode,
   DesktopPermissionRequest,
@@ -90,6 +91,7 @@ export type UseSessionStateOptions = {
 export type UseSessionStateResult = {
   sessionId: string | null
   sessionsHydrated: boolean
+  catalogStatus: DesktopSessionCatalogStatus
   sessions: SessionListItem[]
   sessionFallbackTitles: Record<string, string>
   sessionStatus: DesktopSessionStatus
@@ -180,6 +182,10 @@ export function useSessionState(
 
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [sessionsHydrated, setSessionsHydrated] = useState(false)
+  const [catalogStatus, setCatalogStatus] = useState<DesktopSessionCatalogStatus>({
+    state: 'loading',
+    error: null,
+  })
   const [sessions, setSessions] = useState<SessionListItem[]>([])
   const [sessionFallbackTitles, setSessionFallbackTitles] = useState<
     Record<string, string>
@@ -526,7 +532,10 @@ export function useSessionState(
     async function hydrateSessions(): Promise<void> {
       try {
         const sessionSnapshots = await desktopClient.listSessions()
+        const nextCatalogStatus = await desktopClient.getSessionCatalogStatus()
         if (disposed) return
+
+        setCatalogStatus(nextCatalogStatus)
 
         const nextSessions = sortSessionsByRecency(
           sessionSnapshots.map(snapshot => snapshot.item),
@@ -569,6 +578,10 @@ export function useSessionState(
         setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
         setSessionsHydrated(true)
       } catch (error) {
+        setCatalogStatus({
+          state: 'unavailable',
+          error: 'The app-server is unavailable. Please try again.',
+        })
         onErrorRef.current(errorMessageOf(error))
         setSessionsHydrated(true)
       }
@@ -839,6 +852,7 @@ export function useSessionState(
   return {
     sessionId,
     sessionsHydrated,
+    catalogStatus,
     sessions,
     sessionFallbackTitles,
     sessionStatus,

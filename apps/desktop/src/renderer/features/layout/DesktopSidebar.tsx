@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   DesktopRemovedWorkspace,
+  DesktopSessionCatalogStatus,
   DesktopSessionMetadataPatch,
   DesktopWorkspace,
   SidebarSectionId,
@@ -14,6 +15,7 @@ import { SidebarTopNav } from "./sidebar/SidebarTopNav.js";
 
 type Props = {
   activeSessionId: string | null;
+  catalogStatus: DesktopSessionCatalogStatus;
   pendingPermissionSessionIds: ReadonlySet<string>;
   recentWorkspaces: DesktopWorkspace[];
   removedWorkspaces: DesktopRemovedWorkspace[];
@@ -38,6 +40,7 @@ type Props = {
 
 export function DesktopSidebar({
   activeSessionId,
+  catalogStatus,
   pendingPermissionSessionIds,
   recentWorkspaces,
   removedWorkspaces,
@@ -136,6 +139,11 @@ export function DesktopSidebar({
   return (
     <div className="sidebar-layout">
       <SidebarTopNav isActiveView={isActiveView} />
+      {catalogStatus.state === 'unavailable' ? (
+        <p className="sidebar-empty" role="status">
+          {catalogStatus.error ?? 'The app-server is unavailable. Please try again.'}
+        </p>
+      ) : null}
       <SidebarBody
         activeSessionId={activeSessionId}
         pendingPermissionSessionIds={pendingPermissionSessionIds}

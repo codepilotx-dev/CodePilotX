@@ -13,7 +13,7 @@ export function ArchivedConversationsSettings(): React.ReactNode {
 
   const loadSessions = useCallback(async (): Promise<void> => {
     try {
-      const snapshots = await desktopClient.listSessions()
+      const snapshots = await desktopClient.listSessions({ archived: true })
       setSessions(snapshots.map(snapshot => snapshot.item))
       setError(null)
     } catch (loadError) {
