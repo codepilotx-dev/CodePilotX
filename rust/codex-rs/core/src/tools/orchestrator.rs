@@ -2,7 +2,7 @@
 Module: orchestrator
 
 Central place for approvals + sandbox selection + retry semantics. Drives a
-simple sequence for any ToolRuntime: approval â†?select sandbox â†?attempt â†?retry with an escalated sandbox strategy on denial (no reâ€‘approval thanks to
+simple sequence for any ToolRuntime: approval ?select sandbox ?attempt ?retry with an escalated sandbox strategy on denial (no reapproval thanks to
 caching).
 */
 use crate::guardian::guardian_rejection_message;

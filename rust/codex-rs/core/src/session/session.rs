@@ -92,7 +92,7 @@ pub(crate) struct SessionConfiguration {
     /// Optional user-facing name for the thread, updated during the session.
     pub(super) thread_name: Option<String>,
 
-    // TODO(pakrym): Remove config from here
+    //TODO(pakrym): Remove config from here
     pub(super) original_config_do_not_use: Arc<Config>,
     /// Optional service name tag for session metrics.
     pub(super) metrics_service_name: Option<String>,

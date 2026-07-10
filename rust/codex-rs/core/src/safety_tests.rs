@@ -21,7 +21,7 @@ fn test_writable_roots_constraint() {
     let cwd_uri = PathUri::from_abs_path(&cwd);
     let parent = cwd.parent().unwrap();
 
-    // Helper to build a single‑entry patch that adds a file at `p`.
+    // Helper to build a singleentry patch that adds a file at `p`.
     let make_add_change = |p: AbsolutePathBuf| {
         ApplyPatchAction::new_add_for_test(&PathUri::from_abs_path(&p), "".to_string())
     };

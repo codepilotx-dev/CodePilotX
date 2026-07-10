@@ -11,7 +11,7 @@ use tempfile::TempDir;
 
 fn require_api_key() -> String {
     std::env::var("OPENAI_API_KEY")
-        .expect("OPENAI_API_KEY env var not set â€?skip running live tests")
+        .expect("OPENAI_API_KEY env var not set ?skip running live tests")
 }
 
 /// Helper that spawns the binary inside a TempDir with minimal flags. Returns (Assert, TempDir).
@@ -27,7 +27,7 @@ fn run_live(prompt: &str) -> (assert_cmd::assert::Assert, TempDir) {
     std::fs::create_dir_all(&codepilotx_home).unwrap();
 
     // Build a plain `std::process::Command` so we have full control over the underlying stdio
-    // handles. `assert_cmd`â€™s own `Command` wrapper always forces stdout/stderr to be piped
+    // handles. `assert_cmd`s own `Command` wrapper always forces stdout/stderr to be piped
     // internally which prevents us from streaming them live to the terminal (see its `spawn`
     // implementation). Instead we configure the std `Command` ourselves, then later hand the
     // resulting `Output` to `assert_cmd` for the familiar assertions.
@@ -39,15 +39,15 @@ fn run_live(prompt: &str) -> (assert_cmd::assert::Assert, TempDir) {
     cmd.env("codepilotx_HOME", &codepilotx_home);
 
     // We want three things at once:
-    //   1. live streaming of the childâ€™s stdout/stderr while the test is running
-    //   2. captured output so we can keep using assert_cmdâ€™s `Assert` helpers
-    //   3. crossâ€‘platform behavior (best effort)
+    //   1. live streaming of the childs stdout/stderr while the test is running
+    //   2. captured output so we can keep using assert_cmds `Assert` helpers
+    //   3. crossplatform behavior (best effort)
     //
     // To get that we:
-    //   â€?set both stdout and stderr to `piped()` so we can read them programmatically
-    //   â€?spawn a thread for each stream that copies bytes into two sinks:
-    //       â€?the parent processâ€?stdout/stderr for live visibility
-    //       â€?an inâ€‘memory buffer so we can pass it to `assert_cmd` later
+    //   ?set both stdout and stderr to `piped()` so we can read them programmatically
+    //   ?spawn a thread for each stream that copies bytes into two sinks:
+    //       ?the parent process?stdout/stderr for live visibility
+    //       ?an inmemory buffer so we can pass it to `assert_cmd` later
 
     // Pass the prompt through the `--` separator so the CLI knows when user input ends.
     cmd.arg("--allow-no-git-exec")
@@ -69,7 +69,7 @@ fn run_live(prompt: &str) -> (assert_cmd::assert::Assert, TempDir) {
         .write_all(b"\n")
         .expect("failed to write to child stdin");
 
-    // Helper that tees a ChildStdout/ChildStderr into both the parentâ€™s stdio and a Vec<u8>.
+    // Helper that tees a ChildStdout/ChildStderr into both the parents stdio and a Vec<u8>.
     fn tee<R: Read + Send + 'static>(
         mut reader: R,
         mut writer: impl Write + Send + 'static,
@@ -118,7 +118,7 @@ fn run_live(prompt: &str) -> (assert_cmd::assert::Assert, TempDir) {
 #[test]
 fn live_create_file_hello_txt() {
     if std::env::var("OPENAI_API_KEY").is_err() {
-        eprintln!("skipping live_create_file_hello_txt â€?OPENAI_API_KEY not set");
+        eprintln!("skipping live_create_file_hello_txt ?OPENAI_API_KEY not set");
         return;
     }
 
@@ -140,7 +140,7 @@ fn live_create_file_hello_txt() {
 #[test]
 fn live_print_working_directory() {
     if std::env::var("OPENAI_API_KEY").is_err() {
-        eprintln!("skipping live_print_working_directory â€?OPENAI_API_KEY not set");
+        eprintln!("skipping live_print_working_directory ?OPENAI_API_KEY not set");
         return;
     }
 

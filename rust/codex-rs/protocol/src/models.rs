@@ -979,7 +979,7 @@ pub enum ResponseItem {
         #[ts(optional)]
         namespace: Option<String>,
         // The Responses API returns the function call arguments as a *string* that contains
-        // JSON, not as an already‑parsed object. We keep it as a raw string here and let
+        // JSON, not as an alreadyparsed object. We keep it as a raw string here and let
         // Session::handle_function_call parse it into a Value.
         arguments: String,
         call_id: String,

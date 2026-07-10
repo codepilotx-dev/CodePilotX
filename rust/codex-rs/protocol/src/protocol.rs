@@ -847,14 +847,14 @@ impl Op {
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum AskForApproval {
-    /// Under this policy, only "known safe" commands—as determined by
-    /// `is_safe_command()`—that **only read files** are auto‑approved.
+    /// Under this policy, only "known safe" commandsas determined by
+    /// `is_safe_command()`that **only read files** are autoapproved.
     /// Everything else will ask the user to approve.
     #[serde(rename = "untrusted")]
     #[strum(serialize = "untrusted")]
     UnlessTrusted,
 
-    /// DEPRECATED: *All* commands are auto‑approved, but they are expected to
+    /// DEPRECATED: *All* commands are autoapproved, but they are expected to
     /// run inside a sandbox where network access is disabled and writes are
     /// confined to a specific set of paths. If the command fails, it will be
     /// escalated to the user to approve execution without a sandbox.
@@ -991,7 +991,7 @@ pub enum SandboxPolicy {
 }
 
 /// A writable root path accompanied by a list of subpaths that should remain
-/// read‑only even when the root is writable. This is primarily used to ensure
+/// readonly even when the root is writable. This is primarily used to ensure
 /// that folders containing files that could be modified to escalate the
 /// privileges of the agent (e.g. `.codex`, `.git`, notably `.git/hooks`) under
 /// a writable root are not modified by the agent.
@@ -1111,7 +1111,7 @@ impl SandboxPolicy {
     }
 
     /// Returns the list of writable roots (tailored to the current working
-    /// directory) together with subpaths that should remain read‑only under
+    /// directory) together with subpaths that should remain readonly under
     /// each writable root.
     pub fn get_writable_roots_with_cwd(&self, cwd: &Path) -> Vec<WritableRoot> {
         match self {
@@ -1272,7 +1272,7 @@ pub enum EventMsg {
     TurnComplete(TurnCompleteEvent),
 
     /// Usage update for the current session, including totals and last turn.
-    /// Optional means unknown �?UIs should not display when `None`.
+    /// Optional means unknown; UIs should not display when `None`.
     TokenCount(TokenCountEvent),
 
     /// Agent text output message
@@ -1354,7 +1354,7 @@ pub enum EventMsg {
     StreamError(StreamErrorEvent),
 
     /// Notification that the agent is about to apply a code patch. Mirrors
-    /// `ExecCommandBegin` so front‑ends can show progress indicators.
+    /// `ExecCommandBegin` so frontends can show progress indicators.
     PatchApplyBegin(PatchApplyBeginEvent),
 
     /// Latest model-generated structured changes for an `apply_patch` call.

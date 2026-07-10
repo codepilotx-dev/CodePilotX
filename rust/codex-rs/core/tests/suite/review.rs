@@ -163,7 +163,7 @@ async fn review_op_emits_lifecycle_and_review_output() {
                         if text.contains("full review output from reviewer model") {
                             saw_header = true;
                         }
-                        if text.contains("- Prefer Stylize helpers â€?/tmp/file.rs:10-20") {
+                        if text.contains("- Prefer Stylize helpers ?/tmp/file.rs:10-20") {
                             saw_finding_line = true;
                         }
                     }

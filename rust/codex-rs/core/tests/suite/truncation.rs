@@ -182,7 +182,7 @@ async fn tool_call_output_exceeds_limit_truncated_chars_limit() -> Result<()> {
         "expected truncated shell output to be plain text"
     );
 
-    let truncated_pattern = r#"(?s)^Exit code: 0\nWall time: [0-9]+(?:\.[0-9]+)? seconds\nTotal output lines: 100000\nOutput:\n.*?â€¦\d+ chars truncatedâ€?*$"#;
+    let truncated_pattern = r#"(?s)^Exit code: 0\nWall time: [0-9]+(?:\.[0-9]+)? seconds\nTotal output lines: 100000\nOutput:\n.*?\d+ chars truncated?*$"#;
 
     assert_regex_match(truncated_pattern, &output);
 
@@ -267,7 +267,7 @@ Output:
 4
 5
 6
-.*â€?37224 tokens truncated.*
+.*?37224 tokens truncated.*
 99999
 100000
 $"#;

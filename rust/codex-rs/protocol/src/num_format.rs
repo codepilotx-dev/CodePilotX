@@ -59,7 +59,7 @@ fn format_si_suffix_with_formatter(n: i64, formatter: &DecimalFormatter) -> Stri
         }
     }
 
-    // Above 1000G, keep whole‑G precision.
+    // Above 1000G, keep wholeG precision.
     format!(
         "{}G",
         format_with_separators_with_formatter(((n as f64) / 1e9).round() as i64, formatter)
@@ -97,7 +97,7 @@ mod tests {
         assert_eq!(fmt(999_950_000), "1.00G");
         assert_eq!(fmt(1_000_000_000), "1.00G");
         assert_eq!(fmt(1_234_000_000), "1.23G");
-        // Above 1000G we keep whole‑G precision (no higher unit supported here).
+        // Above 1000G we keep wholeG precision (no higher unit supported here).
         assert_eq!(fmt(1_234_000_000_000), "1,234G");
     }
 }

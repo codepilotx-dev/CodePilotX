@@ -79,6 +79,7 @@ use codepilotx_protocol::openai_models::ModelInfo;
 use codepilotx_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
 use codepilotx_protocol::protocol::InternalSessionSource;
 use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::TokenUsage;
 use codepilotx_protocol::protocol::W3cTraceContext;
 use codepilotx_rollout_trace::CompactionTraceContext;
 use codepilotx_rollout_trace::InferenceTraceAttempt;
@@ -299,7 +300,7 @@ impl RequestRouteTelemetry {
     }
 }
 
-// ── Chat Completions types ──────────────────────────────────────────
+//  Chat Completions types 
 
 #[derive(Debug, Serialize)]
 struct ChatCompletionsRequest {
@@ -379,12 +380,15 @@ struct ChatCompletionToolFunction {
     strict: Option<bool>,
 }
 
-// ── Chat Completions streaming types ─────────────────────────────────
+//  Chat Completions streaming types 
 
 #[derive(Debug, Deserialize)]
 struct ChatCompletionChunk {
     #[serde(default)]
     choices: Vec<ChatCompletionChoice>,
+    /// Final usage object (OpenAI-compatible streaming). Populated in the last chunk before `[DONE]`.
+    #[serde(default)]
+    usage: Option<ChatCompletionUsage>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -425,6 +429,62 @@ struct ChatCompletionDeltaFunction {
     name: Option<String>,
     #[serde(default)]
     arguments: Option<String>,
+}
+
+/// Usage information carried in an OpenAI-compatible Chat Completions SSE stream.
+///
+/// DeepSeek (and other OpenAI-compatible providers) include a `usage` object
+/// when `stream_options.include_usage` is `true`. In practice the usage may arrive:
+/// - On the **same chunk** that carries `finish_reason` (DeepSeek commonly sends it this way).
+/// - On a separate trailing chunk with empty `choices` right before `[DONE]`.
+/// The stream handler reads both cases via the `chunk.usage` field on every chunk.
+#[derive(Debug, Deserialize)]
+struct ChatCompletionUsage {
+    prompt_tokens: i64,
+    completion_tokens: i64,
+    total_tokens: i64,
+    #[serde(default)]
+    prompt_cache_hit_tokens: Option<i64>,
+    #[allow(dead_code)]
+    #[serde(default)]
+    prompt_cache_miss_tokens: Option<i64>,
+    #[serde(default)]
+    prompt_tokens_details: Option<PromptTokensDetails>,
+    #[serde(default)]
+    completion_tokens_details: Option<CompletionTokensDetails>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PromptTokensDetails {
+    #[serde(default)]
+    cached_tokens: i64,
+}
+
+#[derive(Debug, Deserialize)]
+struct CompletionTokensDetails {
+    #[serde(default)]
+    reasoning_tokens: i64,
+}
+
+/// Convert OpenAI-compatible `ChatCompletionUsage` into the canonical `TokenUsage`.
+fn chat_completion_usage_to_token_usage(usage: &ChatCompletionUsage) -> TokenUsage {
+    // Prefer explicit prompt_cache_hit_tokens over input_tokens_details.cached_tokens
+    let cached = usage
+        .prompt_cache_hit_tokens
+        .or_else(|| usage.prompt_tokens_details.as_ref().map(|d| d.cached_tokens))
+        .unwrap_or(0);
+    let reasoning = usage
+        .completion_tokens_details
+        .as_ref()
+        .map(|d| d.reasoning_tokens)
+        .unwrap_or(0);
+    TokenUsage {
+        input_tokens: usage.prompt_tokens,
+        cached_input_tokens: cached,
+        output_tokens: usage.completion_tokens,
+        reasoning_output_tokens: reasoning,
+        total_tokens: usage.total_tokens,
+    }
 }
 
 /// A session-scoped client for model-provider API calls.
@@ -1302,7 +1362,7 @@ impl ModelClient {
                     }
                     // Ensure pending tool calls are flushed to an Assistant message
                     // before pushing this Tool result, so the provider sees a valid
-                    // assistant→tool sequence.
+                    // assistanttool sequence.
                     if !pending_tool_calls.is_empty() {
                         if let Some(ChatCompletionRequestMessage::Assistant { tool_calls, .. }) =
                             messages.last_mut()
@@ -1390,7 +1450,7 @@ impl ModelClient {
             messages,
             stream: true,
             stream_options: Some(ChatCompletionStreamOptions {
-                include_usage: false,
+                include_usage: true,
             }),
             tools,
             tool_choice,
@@ -2053,7 +2113,7 @@ impl ModelClientSession {
         ))
     }
 
-    // ── Chat Completions API ────────────────────────────────────────
+    //  Chat Completions API 
 
     async fn stream_chat_completions_api(
         &self,
@@ -2841,7 +2901,7 @@ where
                     }
                 }
                 "content_block_stop" => {
-                    // Content block finished �?tool call aggregation completes on message_stop
+                    // Content block finished ?tool call aggregation completes on message_stop
                 }
                 "message_stop" => {
                     ensure_started!();
@@ -2888,6 +2948,11 @@ where
 /// Handles the standard OpenAI-compatible Chat Completions streaming format:
 /// - `data: {"choices":[{"delta":{"content":"..."},"finish_reason":null}]}`
 /// - `data: [DONE]` as stream terminator
+///
+/// When `stream_options.include_usage` is `true` the provider includes a
+/// `usage` object in the last chunk (either alongside `finish_reason` or in
+/// a trailing empty-choices chunk). The handler captures this and emits
+/// `ResponseEvent::Completed { token_usage: Some(...) }`.
 fn spawn_chat_completions_stream<S, E>(
     event_stream: S,
     idle_timeout: Duration,
@@ -2907,6 +2972,8 @@ where
         let assistant_item_id = format!("{}-assistant", &response_id);
         let mut assistant_text = String::new();
         let mut started = false;
+        let mut finished = false;
+        let mut captured_usage: Option<TokenUsage> = None;
 
         // Tool call accumulation: keyed by delta index
         struct PendingToolCall {
@@ -2947,7 +3014,7 @@ where
                 }
             };
 
-            // `data: [DONE]` �?stream terminator
+            // `data: [DONE]`  stream terminator
             if event.data.trim() == "[DONE]" {
                 break;
             }
@@ -2955,6 +3022,18 @@ where
             let Ok(chunk) = serde_json::from_str::<ChatCompletionChunk>(&event.data) else {
                 continue;
             };
+
+            // Capture usage from the chunk (may be in the same chunk as finish_reason
+            // or in a separate trailing chunk with empty choices).
+            if let Some(ref usage) = chunk.usage {
+                captured_usage = Some(chat_completion_usage_to_token_usage(usage));
+            }
+
+            // If we already saw a finish_reason, skip choice processing and
+            // continue reading until [DONE] to capture any trailing usage chunk.
+            if finished {
+                continue;
+            }
 
             for choice in &chunk.choices {
                 // Ensure output item started before first content
@@ -3032,15 +3111,11 @@ where
                                     metadata: None,
                                 }));
                             }
-                            send_ev!(ResponseEvent::Completed {
-                                response_id: response_id.clone(),
-                                token_usage: None,
-                                end_turn: Some(true),
-                            });
-                            return;
+                            finished = true;
+                            break;
                         }
                         "tool_calls" => {
-                            // Emit assistant message (always �?even with empty text,
+                            // Emit assistant message (always  even with empty text,
                             // so history has a Message to anchor tool_calls to).
                             send_ev!(ResponseEvent::OutputItemDone(ResponseItem::Message {
                                 id: Some(assistant_item_id.clone()),
@@ -3076,15 +3151,11 @@ where
                                 }));
                             }
                             pending_tool_calls.clear();
-                            send_ev!(ResponseEvent::Completed {
-                                response_id: response_id.clone(),
-                                token_usage: None,
-                                end_turn: Some(true),
-                            });
-                            return;
+                            finished = true;
+                            break;
                         }
                         _ => {
-                            // Unknown finish reason �?treat as stop
+                            // Unknown finish reason  treat as stop
                             if !assistant_text.is_empty() {
                                 send_ev!(ResponseEvent::OutputItemDone(ResponseItem::Message {
                                     id: Some(assistant_item_id.clone()),
@@ -3096,34 +3167,34 @@ where
                                     metadata: None,
                                 }));
                             }
-                            send_ev!(ResponseEvent::Completed {
-                                response_id: response_id.clone(),
-                                token_usage: None,
-                                end_turn: Some(true),
-                            });
-                            return;
+                            finished = true;
+                            break;
                         }
                     }
                 }
             }
         }
 
-        // Stream ended without explicit completion
+        // Stream ended ([DONE] or stream closed)
         if started {
-            if !assistant_text.is_empty() {
-                send_ev!(ResponseEvent::OutputItemDone(ResponseItem::Message {
-                    id: Some(assistant_item_id),
-                    role: "assistant".to_string(),
-                    content: vec![ContentItem::OutputText {
-                        text: assistant_text,
-                    }],
-                    phase: None,
-                    metadata: None,
-                }));
+            // If the stream ended without an explicit finish_reason, flush
+            // any remaining text before sending Completed.
+            if !finished {
+                if !assistant_text.is_empty() {
+                    send_ev!(ResponseEvent::OutputItemDone(ResponseItem::Message {
+                        id: Some(assistant_item_id),
+                        role: "assistant".to_string(),
+                        content: vec![ContentItem::OutputText {
+                            text: assistant_text,
+                        }],
+                        phase: None,
+                        metadata: None,
+                    }));
+                }
             }
             send_ev!(ResponseEvent::Completed {
                 response_id: response_id.clone(),
-                token_usage: None,
+                token_usage: captured_usage,
                 end_turn: Some(true),
             });
         }

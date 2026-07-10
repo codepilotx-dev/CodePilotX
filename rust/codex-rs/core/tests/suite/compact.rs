@@ -498,7 +498,7 @@ async fn summarize_context_three_requests_and_instructions() {
     let codex = test.codex.clone();
     let rollout_path = test.session_configured.rollout_path.expect("rollout path");
 
-    // 1) Normal user input â€?should hit server once.
+    // 1) Normal user input ?should hit server once.
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
@@ -514,7 +514,7 @@ async fn summarize_context_three_requests_and_instructions() {
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    // 2) Summarize â€?second hit should include the summarization prompt.
+    // 2) Summarize ?second hit should include the summarization prompt.
     codex.submit(Op::Compact).await.unwrap();
     let warning_event = wait_for_event(&codex, |ev| matches!(ev, EventMsg::Warning(_))).await;
     let EventMsg::Warning(WarningEvent { message }) = warning_event else {
@@ -523,7 +523,7 @@ async fn summarize_context_three_requests_and_instructions() {
     assert_eq!(message, COMPACT_WARNING_MESSAGE);
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    // 3) Next user input â€?third hit; history should include only the summary.
+    // 3) Next user input ?third hit; history should include only the summary.
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {

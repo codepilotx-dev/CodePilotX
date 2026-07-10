@@ -636,7 +636,7 @@ async fn non_chatgpt_codepilotx_endpoints_omit_attestation_generation() {
     assert_eq!(attestation_calls.load(Ordering::Relaxed), 0);
 }
 
-// ── Anthropic tool input argument aggregation ───────────────────────
+//  Anthropic tool input argument aggregation 
 
 #[test]
 fn anthropic_tool_input_arguments_skips_empty_object() {
@@ -701,7 +701,7 @@ async fn anthropic_stream_tool_use_with_delta_produces_clean_arguments() {
         results.push(event);
     }
 
-    // Find the FunctionCall Done event �?its arguments should be clean JSON
+    // Find the FunctionCall Done event ?its arguments should be clean JSON
     let function_call_args = results.iter().find_map(|r| match r {
         Ok(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall {
             arguments, ..
@@ -768,9 +768,9 @@ async fn anthropic_stream_tool_use_without_delta_produces_empty_object() {
 #[test]
 fn malformed_tool_arguments_in_request_builder_fallback_to_empty_object() {
     // Verifies the defensive pattern used in build_anthropic_messages_request:
-    // malformed arguments �?{} object, not a string.
+    // malformed arguments ?{} object, not a string.
 
-    // Invalid JSON �?empty object
+    // Invalid JSON ?empty object
     let bad_args = "not valid json";
     let input: JsonValue = match serde_json::from_str(bad_args) {
         Ok(v @ JsonValue::Object(_)) => v,
@@ -779,7 +779,7 @@ fn malformed_tool_arguments_in_request_builder_fallback_to_empty_object() {
     assert!(input.is_object(), "malformed args must produce object, not string");
     assert_eq!(input.as_object().unwrap().len(), 0);
 
-    // String JSON �?still not an object, fallback
+    // String JSON ?still not an object, fallback
     let string_args = r#""a plain string""#;
     let input: JsonValue = match serde_json::from_str(string_args) {
         Ok(v @ JsonValue::Object(_)) => v,
@@ -801,7 +801,7 @@ fn malformed_tool_arguments_in_request_builder_fallback_to_empty_object() {
     );
 }
 
-// ── Chat Completions stream: tool_calls with empty text ─────────────
+//  Chat Completions stream: tool_calls with empty text 
 
 #[tokio::test]
 async fn chat_completions_stream_tool_calls_without_text_emits_message() {
@@ -862,7 +862,7 @@ async fn chat_completions_stream_tool_calls_without_text_emits_message() {
         results.len(),
     );
 
-    // Find the Message Done event �?must exist even with empty text
+    // Find the Message Done event ?must exist even with empty text
     let message_done = results.iter().find(|r| match r {
         Ok(ResponseEvent::OutputItemDone(ResponseItem::Message { content, .. })) => content.is_empty(),
         _ => false,
@@ -872,7 +872,7 @@ async fn chat_completions_stream_tool_calls_without_text_emits_message() {
         "Message Done should be emitted with empty content when model produces only tool calls",
     );
 
-    // Find the FunctionCall Done event �?arguments must be clean JSON
+    // Find the FunctionCall Done event ?arguments must be clean JSON
     let function_call_args = results.iter().find_map(|r| match r {
         Ok(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall {
             arguments, ..
@@ -886,7 +886,358 @@ async fn chat_completions_stream_tool_calls_without_text_emits_message() {
     );
 }
 
-// ── Chat Completions request builder: tool call �?tool result pairing ─
+//  Chat Completions stream: usage (finish_reason + usage in same chunk) 
+
+#[tokio::test]
+async fn chat_completions_stream_usage_in_finish_reason_chunk() {
+    let events: Vec<Result<eventsource_stream::Event, eventsource_stream::EventStreamError<Infallible>>> = vec![
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{"role":"assistant","content":"Hello"},"finish_reason":null}]}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{"content":" world"},"finish_reason":null}]}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        // Usage and finish_reason in the same chunk (DeepSeek's common pattern)
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: "[DONE]".to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+    ];
+
+    let stream = futures::stream::iter(events);
+    let mut response_stream = super::spawn_chat_completions_stream(
+        stream,
+        Duration::from_secs(30),
+        Some("test-usage-1".to_string()),
+    );
+
+    let mut results: Vec<Result<ResponseEvent, ApiError>> = Vec::new();
+    while let Some(event) = response_stream.next().await {
+        results.push(event);
+    }
+
+    // Find the Completed event and check token_usage
+    let completed = results.iter().find_map(|r| match r {
+        Ok(ResponseEvent::Completed { token_usage, .. }) => token_usage.clone(),
+        _ => None,
+    });
+
+    assert!(
+        completed.is_some(),
+        "Completed event should have token_usage when usage is present",
+    );
+    let usage = completed.unwrap();
+    assert_eq!(usage.input_tokens, 10, "prompt_tokens -> input_tokens");
+    assert_eq!(usage.output_tokens, 5, "completion_tokens -> output_tokens");
+    assert_eq!(usage.total_tokens, 15, "total_tokens");
+}
+
+//  Chat Completions stream: usage in trailing empty-choices chunk 
+
+#[tokio::test]
+async fn chat_completions_stream_usage_in_separate_chunk() {
+    let events: Vec<Result<eventsource_stream::Event, eventsource_stream::EventStreamError<Infallible>>> = vec![
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{"role":"assistant","content":"Hi"},"finish_reason":null}]}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        // Finish reason without usage
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{},"finish_reason":"stop"}]}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        // Separate trailing usage chunk (empty choices)
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[],"usage":{"prompt_tokens":20,"completion_tokens":8,"total_tokens":28}}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: "[DONE]".to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+    ];
+
+    let stream = futures::stream::iter(events);
+    let mut response_stream = super::spawn_chat_completions_stream(
+        stream,
+        Duration::from_secs(30),
+        Some("test-usage-2".to_string()),
+    );
+
+    let mut results: Vec<Result<ResponseEvent, ApiError>> = Vec::new();
+    while let Some(event) = response_stream.next().await {
+        results.push(event);
+    }
+
+    let completed = results.iter().find_map(|r| match r {
+        Ok(ResponseEvent::Completed { token_usage, .. }) => token_usage.clone(),
+        _ => None,
+    });
+
+    assert!(
+        completed.is_some(),
+        "Completed event should have token_usage from trailing chunk",
+    );
+    let usage = completed.unwrap();
+    assert_eq!(usage.input_tokens, 20);
+    assert_eq!(usage.output_tokens, 8);
+    assert_eq!(usage.total_tokens, 28);
+}
+
+//  Chat Completions stream: prompt_cache_hit_tokens has priority 
+
+#[tokio::test]
+async fn chat_completions_stream_usage_prompt_cache_hit_tokens_priority() {
+    let events: Vec<Result<eventsource_stream::Event, eventsource_stream::EventStreamError<Infallible>>> = vec![
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{"role":"assistant","content":"A"},"finish_reason":null}]}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        // Both prompt_cache_hit_tokens AND prompt_tokens_details.cached_tokens present
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":100,"completion_tokens":50,"total_tokens":150,"prompt_cache_hit_tokens":30,"prompt_tokens_details":{"cached_tokens":999}}}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: "[DONE]".to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+    ];
+
+    let stream = futures::stream::iter(events);
+    let mut response_stream = super::spawn_chat_completions_stream(
+        stream,
+        Duration::from_secs(30),
+        Some("test-usage-3".to_string()),
+    );
+
+    let mut results: Vec<Result<ResponseEvent, ApiError>> = Vec::new();
+    while let Some(event) = response_stream.next().await {
+        results.push(event);
+    }
+
+    let completed = results.iter().find_map(|r| match r {
+        Ok(ResponseEvent::Completed { token_usage, .. }) => token_usage.clone(),
+        _ => None,
+    });
+
+    let usage = completed.expect("token_usage should be present");
+    assert_eq!(
+        usage.cached_input_tokens, 30,
+        "prompt_cache_hit_tokens should take priority over prompt_tokens_details.cached_tokens (999)",
+    );
+    assert_eq!(
+        usage.input_tokens, 100,
+        "input_tokens should be prompt_tokens",
+    );
+    assert_eq!(usage.output_tokens, 50);
+    assert_eq!(usage.total_tokens, 150);
+}
+
+//  Chat Completions stream: reasoning_tokens in completion_tokens_details 
+
+#[tokio::test]
+async fn chat_completions_stream_usage_reasoning_tokens() {
+    let events: Vec<Result<eventsource_stream::Event, eventsource_stream::EventStreamError<Infallible>>> = vec![
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{"role":"assistant","content":"Think"},"finish_reason":null}]}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":100,"completion_tokens":50,"total_tokens":150,"completion_tokens_details":{"reasoning_tokens":20}}}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: "[DONE]".to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+    ];
+
+    let stream = futures::stream::iter(events);
+    let mut response_stream = super::spawn_chat_completions_stream(
+        stream,
+        Duration::from_secs(30),
+        Some("test-usage-4".to_string()),
+    );
+
+    let mut results: Vec<Result<ResponseEvent, ApiError>> = Vec::new();
+    while let Some(event) = response_stream.next().await {
+        results.push(event);
+    }
+
+    let completed = results.iter().find_map(|r| match r {
+        Ok(ResponseEvent::Completed { token_usage, .. }) => token_usage.clone(),
+        _ => None,
+    });
+
+    let usage = completed.expect("token_usage should be present");
+    assert_eq!(
+        usage.reasoning_output_tokens, 20,
+        "completion_tokens_details.reasoning_tokens -> reasoning_output_tokens",
+    );
+    assert_eq!(usage.cached_input_tokens, 0, "no cache tokens in this payload");
+}
+
+//  Chat Completions stream: no usage (legacy format) 
+
+#[tokio::test]
+async fn chat_completions_stream_no_usage_is_none() {
+    let events: Vec<Result<eventsource_stream::Event, eventsource_stream::EventStreamError<Infallible>>> = vec![
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{"role":"assistant","content":"Hello"},"finish_reason":null}]}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{},"finish_reason":"stop"}]}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: "[DONE]".to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+    ];
+
+    let stream = futures::stream::iter(events);
+    let mut response_stream = super::spawn_chat_completions_stream(
+        stream,
+        Duration::from_secs(30),
+        Some("test-usage-5".to_string()),
+    );
+
+    let mut results: Vec<Result<ResponseEvent, ApiError>> = Vec::new();
+    while let Some(event) = response_stream.next().await {
+        results.push(event);
+    }
+
+    let completed = results.iter().find_map(|r| match r {
+        Ok(ResponseEvent::Completed { token_usage, .. }) => token_usage.clone(),
+        _ => None,
+    });
+
+    assert!(
+        completed.is_none(),
+        "Completed should have token_usage: None when no usage was sent",
+    );
+}
+
+//  Chat Completions stream: prompt_cache_hit_tokens fallback to details.cached_tokens 
+
+#[tokio::test]
+async fn chat_completions_stream_usage_cache_fallback_to_details() {
+    let events: Vec<Result<eventsource_stream::Event, eventsource_stream::EventStreamError<Infallible>>> = vec![
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{"role":"assistant","content":"Hi"},"finish_reason":null}]}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        // Only prompt_tokens_details.cached_tokens, no explicit prompt_cache_hit_tokens
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: r#"{"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":200,"completion_tokens":80,"total_tokens":280,"prompt_tokens_details":{"cached_tokens":50}}}"#.to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+        Ok(eventsource_stream::Event {
+            event: String::new(),
+            data: "[DONE]".to_string(),
+            id: String::new(),
+            retry: None,
+        }),
+    ];
+
+    let stream = futures::stream::iter(events);
+    let mut response_stream = super::spawn_chat_completions_stream(
+        stream,
+        Duration::from_secs(30),
+        Some("test-usage-6".to_string()),
+    );
+
+    let mut results: Vec<Result<ResponseEvent, ApiError>> = Vec::new();
+    while let Some(event) = response_stream.next().await {
+        results.push(event);
+    }
+
+    let completed = results.iter().find_map(|r| match r {
+        Ok(ResponseEvent::Completed { token_usage, .. }) => token_usage.clone(),
+        _ => None,
+    });
+
+    let usage = completed.expect("token_usage should be present");
+    assert_eq!(
+        usage.cached_input_tokens, 50,
+        "should fall back to prompt_tokens_details.cached_tokens",
+    );
+    assert_eq!(usage.input_tokens, 200);
+}
+
+//  Chat Completions request builder: include_usage=true 
+
+#[test]
+fn chat_completions_request_builder_sets_include_usage_true() {
+    let client = test_model_client(SessionSource::Cli);
+    let model_info = test_model_info();
+
+    let prompt = crate::client_common::Prompt {
+        input: vec![],
+        ..Default::default()
+    };
+
+    let request = client.build_chat_completions_request(&prompt, &model_info);
+
+    // Since ChatCompletionsRequest derives Serialize, we can check the JSON
+    let json: serde_json::Value = serde_json::to_value(&request).unwrap();
+
+    assert_eq!(
+        json.get("stream_options")
+            .and_then(|o| o.get("include_usage"))
+            .and_then(|v| v.as_bool()),
+        Some(true),
+        "stream_options.include_usage must be true for DeepSeek usage tracking",
+    );
+}
+
+//  Chat Completions request builder: tool call ?tool result pairing 
 
 #[tokio::test]
 async fn chat_completions_request_builder_flushes_tool_calls_before_result() {
@@ -894,7 +1245,7 @@ async fn chat_completions_request_builder_flushes_tool_calls_before_result() {
     let model_info = test_model_info();
 
     // Construct a Prompt whose input has:
-    //   user message �?FunctionCall �?FunctionCallOutput
+    //   user message ?FunctionCall ?FunctionCallOutput
     let prompt = crate::client_common::Prompt {
         input: vec![
             serde_json::from_value(json!({
@@ -964,7 +1315,7 @@ async fn chat_completions_request_builder_flushes_tool_calls_before_result() {
     );
 }
 
-// ── Anthropic request builder: tool_use �?tool_result pairing ─────
+//  Anthropic request builder: tool_use ?tool_result pairing 
 
 #[tokio::test]
 async fn anthropic_request_builder_creates_assistant_anchor_for_tool_use() {
@@ -972,10 +1323,10 @@ async fn anthropic_request_builder_creates_assistant_anchor_for_tool_use() {
     let model_info = test_model_info();
 
     // Construct a Prompt whose input has:
-    //   user message �?FunctionCall �?FunctionCallOutput
+    //   user message ?FunctionCall ?FunctionCallOutput
     // Without the fix, the FunctionCall tool_use was silently dropped because
     // the last message was "user" instead of "assistant", producing:
-    //   user �?user(tool_result)
+    //   user ?user(tool_result)
     // which triggers MiniMax "tool call result does not follow tool call (2013)".
     let prompt = crate::client_common::Prompt {
         input: vec![
@@ -1086,7 +1437,7 @@ async fn anthropic_request_builder_appends_tool_use_to_existing_assistant() {
     let model_info = test_model_info();
 
     // Construct a Prompt whose input has:
-    //   assistant message (text) �?FunctionCall �?FunctionCallOutput
+    //   assistant message (text) ?FunctionCall ?FunctionCallOutput
     // The tool_use must be appended to the existing assistant message,
     // not placed in a separate one.
     let prompt = crate::client_common::Prompt {

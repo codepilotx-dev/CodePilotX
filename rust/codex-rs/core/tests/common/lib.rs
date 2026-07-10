@@ -186,7 +186,7 @@ pub fn fetch_dotslash_file(
 
 /// Returns a default `Config` whose on-disk state is confined to the provided
 /// temporary directory. Using a per-test directory keeps tests hermetic and
-/// avoids clobbering a developer’s real `~/.codex`.
+/// avoids clobbering a developers real `~/.codex`.
 pub async fn load_default_config_for_test(codepilotx_home: &TempDir) -> Config {
     load_default_config_for_test_with_cloud_config_bundle(
         codepilotx_home,

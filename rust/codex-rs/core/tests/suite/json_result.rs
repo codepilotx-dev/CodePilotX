@@ -75,7 +75,7 @@ async fn codepilotx_returns_json_result(model: String) -> anyhow::Result<()> {
     let (sandbox_policy, permission_profile) =
         turn_permission_fields(PermissionProfile::Disabled, cwd.as_path());
 
-    // 1) Normal user input â€?should hit server once.
+    // 1) Normal user input ?should hit server once.
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {

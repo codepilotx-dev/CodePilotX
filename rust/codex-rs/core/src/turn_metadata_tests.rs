@@ -110,7 +110,7 @@ async fn create_clean_git_repo(repo_name: &str) -> (TempDir, AbsolutePathBuf) {
 
 #[tokio::test]
 async fn detached_memory_responses_metadata_omits_turn_identity() {
-    let (_temp_dir, repo_path) = create_clean_git_repo("repo-東京").await;
+    let (_temp_dir, repo_path) = create_clean_git_repo("repo-").await;
 
     let header = detached_memory_responses_metadata(
         String::new(),
@@ -125,7 +125,7 @@ async fn detached_memory_responses_metadata_omits_turn_identity() {
     .turn_metadata_json()
     .expect("header");
     assert!(header.is_ascii());
-    assert!(!header.contains("東京"));
+    assert!(!header.contains(""));
     let parsed: Value = serde_json::from_str(&header).expect("valid json");
     assert_eq!(parsed["request_kind"].as_str(), Some("memory"));
     assert!(parsed.get("session_id").is_none());
@@ -570,7 +570,7 @@ fn turn_metadata_state_merges_client_metadata_without_replacing_reserved_fields(
     );
     state.set_responsesapi_client_metadata(HashMap::from([
         ("fiber_run_id".to_string(), "fiber-123".to_string()),
-        ("origin".to_string(), "東京".to_string()),
+        ("origin".to_string(), "".to_string()),
         ("workspace_kind".to_string(), "projectless".to_string()),
         ("model".to_string(), "client-supplied".to_string()),
         (
@@ -614,11 +614,11 @@ fn turn_metadata_state_merges_client_metadata_without_replacing_reserved_fields(
 
     let header = test_turn_metadata_header(&state);
     assert!(header.is_ascii());
-    assert!(!header.contains("東京"));
+    assert!(!header.contains(""));
     let json: Value = serde_json::from_str(&header).expect("json");
 
     assert_eq!(json["fiber_run_id"].as_str(), Some("fiber-123"));
-    assert_eq!(json["origin"].as_str(), Some("東京"));
+    assert_eq!(json["origin"].as_str(), Some(""));
     assert_eq!(json["workspace_kind"].as_str(), Some("projectless"));
     assert_eq!(json["model"].as_str(), Some("client-supplied"));
     assert_eq!(json["reasoning_effort"].as_str(), Some("client-supplied"));

@@ -269,16 +269,16 @@ async fn unicode_output(login: bool) -> anyhow::Result<()> {
         // We use a child process on Windows instead of a PowerShell command
         // like `Write-Output` to ensure that the Powershell config is set
         // correctly.
-        "cmd.exe /c echo naïve_café"
+        "cmd.exe /c echo nave_caf"
     } else {
-        "echo \"naïve_café\""
+        "echo \"nave_caf\""
     };
     mount_shell_responses_with_timeout(&harness, call_id, command, Some(login), MEDIUM_TIMEOUT)
         .await;
     harness.submit("run the command without login").await?;
 
     let output = harness.function_call_stdout(call_id).await;
-    assert_shell_command_output(&output, "naïve_café")?;
+    assert_shell_command_output(&output, "nave_caf")?;
 
     Ok(())
 }
@@ -295,7 +295,7 @@ async fn unicode_output_with_newlines(login: bool) -> anyhow::Result<()> {
     mount_shell_responses_with_timeout(
         &harness,
         call_id,
-        "echo 'line1\nnaïve café\nline3'",
+        "echo 'line1\nnave caf\nline3'",
         Some(login),
         MEDIUM_TIMEOUT,
     )
@@ -303,7 +303,7 @@ async fn unicode_output_with_newlines(login: bool) -> anyhow::Result<()> {
     harness.submit("run the command without login").await?;
 
     let output = harness.function_call_stdout(call_id).await;
-    assert_shell_command_output(&output, "line1\\nnaïve café\\nline3")?;
+    assert_shell_command_output(&output, "line1\\nnave caf\\nline3")?;
 
     Ok(())
 }

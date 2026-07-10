@@ -41,7 +41,7 @@ pub(super) async fn spawn_review_thread(
     let auth_manager = parent_turn_context.auth_manager.clone();
     let model_info = review_model_info.clone();
 
-    // Build per‑turn client with the requested model/family.
+    // Build perturn client with the requested model/family.
     let mut per_turn_config = (*config).clone();
     per_turn_config.model = Some(model.clone());
     per_turn_config.features = review_features.clone();

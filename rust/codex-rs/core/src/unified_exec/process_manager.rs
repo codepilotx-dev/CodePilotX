@@ -362,7 +362,7 @@ impl UnifiedExecProcessManager {
                     .map(|m| std::cmp::max(m, 999) + 1)
                     .unwrap_or(1000)
             } else {
-                // production mode â†?random
+                // production mode ?random
                 rand::rng().random_range(1_000..100_000)
             };
 
@@ -557,7 +557,7 @@ impl UnifiedExecProcessManager {
                 }
             }
         } else {
-            // Shortâ€‘lived command: emit ExecCommandEnd immediately using the
+            // Shortlived command: emit ExecCommandEnd immediately using the
             // same helper as the background watcher, so all end events share
             // one implementation.
             let finish_result = finish_deferred_network_approval_after_process_exit_for_session(

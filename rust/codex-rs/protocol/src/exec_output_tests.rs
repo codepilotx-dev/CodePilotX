@@ -9,19 +9,19 @@ use pretty_assertions::assert_eq;
 #[test]
 fn test_utf8_shell_output() {
     // Baseline: UTF-8 output should bypass the detector and remain unchanged.
-    assert_eq!(decode_shell_output("пример".as_bytes()), "пример");
+    assert_eq!(decode_shell_output("".as_bytes()), "");
 }
 
 #[test]
 fn test_cp1251_shell_output() {
     // VS Code shells on Windows frequently surface CP1251 bytes for Cyrillic text.
-    assert_eq!(decode_shell_output(b"\xEF\xF0\xE8\xEC\xE5\xF0"), "пример");
+    assert_eq!(decode_shell_output(b"\xEF\xF0\xE8\xEC\xE5\xF0"), "");
 }
 
 #[test]
 fn test_cp866_shell_output() {
     // Native cmd.exe still defaults to CP866; make sure we recognize that too.
-    assert_eq!(decode_shell_output(b"\xAF\xE0\xA8\xAC\xA5\xE0"), "пример");
+    assert_eq!(decode_shell_output(b"\xAF\xE0\xA8\xAC\xA5\xE0"), "");
 }
 
 #[test]
@@ -50,14 +50,14 @@ fn test_smart_decoding_improves_over_lossy_utf8() {
 
 #[test]
 fn test_mixed_ascii_and_legacy_encoding() {
-    // Commands tend to mix ASCII status text with Latin-1 bytes (e.g. café).
-    assert_eq!(decode_shell_output(b"Output: caf\xE9"), "Output: café"); // codespell:ignore caf
+    // Commands tend to mix ASCII status text with Latin-1 bytes (e.g. caf).
+    assert_eq!(decode_shell_output(b"Output: caf\xE9"), "Output: caf"); // codespell:ignore caf
 }
 
 #[test]
 fn test_pure_latin1_shell_output() {
     // Latin-1 by itself should still decode correctly (regression coverage for the older tests).
-    assert_eq!(decode_shell_output(b"caf\xE9"), "café"); // codespell:ignore caf
+    assert_eq!(decode_shell_output(b"caf\xE9"), "caf"); // codespell:ignore caf
 }
 
 #[test]

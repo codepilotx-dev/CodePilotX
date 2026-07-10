@@ -22,7 +22,7 @@ pub enum UserInput {
         #[serde(default)]
         text_elements: Vec<TextElement>,
     },
-    /// Pre‑encoded data: URI image.
+    /// Preencoded data: URI image.
     Image {
         image_url: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]

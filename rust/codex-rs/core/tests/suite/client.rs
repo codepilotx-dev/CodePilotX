@@ -2980,7 +2980,7 @@ async fn token_count_includes_rate_limits_snapshot() {
                     "reasoning_output_tokens": 0,
                     "total_tokens": 123
                 },
-                // Default model is gpt-5.4 in tests â†?95% usable context window
+                // Default model is gpt-5.4 in tests ?95% usable context window
                 "model_context_window": 258400
             },
             "rate_limits": {
@@ -3301,7 +3301,7 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
     // Mock server
     let server = MockServer::start().await;
 
-    // First request â€?must NOT include `previous_response_id`.
+    // First request ?must NOT include `previous_response_id`.
     let first = ResponseTemplate::new(200)
         .insert_header("content-type", "text/event-stream")
         .set_body_raw(
@@ -3390,7 +3390,7 @@ async fn env_var_overrides_loaded_auth() {
     // Mock server
     let server = MockServer::start().await;
 
-    // First request â€?must NOT include `previous_response_id`.
+    // First request ?must NOT include `previous_response_id`.
     let first = ResponseTemplate::new(200)
         .insert_header("content-type", "text/event-stream")
         .set_body_raw(

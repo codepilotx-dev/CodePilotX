@@ -54,7 +54,7 @@ mv "${tmp_path}" "${payload_path}""#,
         .build(&server)
         .await?;
 
-    // 1) Normal user input â€?should hit server once.
+    // 1) Normal user input ?should hit server once.
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {

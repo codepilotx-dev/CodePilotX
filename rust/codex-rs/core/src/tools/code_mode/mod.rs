@@ -376,7 +376,7 @@ mod tests {
                 text: concat!(
                     "Warning: truncated output (original token count: 10)\n",
                     "Total output lines: 1\n\n",
-                    "0123456789â€? tokens truncatedâ€?123456789"
+                    "0123456789? tokens truncated?123456789"
                 )
                 .to_string(),
             }]

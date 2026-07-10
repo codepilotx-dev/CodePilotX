@@ -1184,7 +1184,7 @@ fn assert_truncated_message_matches(message: &str, line: &str, expected_removed:
 
 fn truncated_message_pattern(line: &str) -> String {
     let escaped_line = regex_lite::escape(line);
-    format!(r"(?s)^(?P<body>{escaped_line}.*?)(?:\r?)?â€??P<removed>\d+) tokens truncatedâ€??:.*)?$")
+    format!(r"(?s)^(?P<body>{escaped_line}.*?)(?:\r?)???P<removed>\d+) tokens truncated??:.*)?$")
 }
 
 #[test]

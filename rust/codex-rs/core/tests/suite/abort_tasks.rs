@@ -17,7 +17,7 @@ use core_test_support::wait_for_event;
 use regex_lite::Regex;
 use serde_json::json;
 
-/// Integration test: spawn a long‑running shell_command tool via a mocked Responses SSE
+/// Integration test: spawn a longrunning shell_command tool via a mocked Responses SSE
 /// function call, then interrupt the session and expect TurnAborted.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn interrupt_long_running_tool_emits_turn_aborted() {

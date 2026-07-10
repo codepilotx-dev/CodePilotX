@@ -380,7 +380,7 @@ Windows instructions
 
 /// Helper that returns a `Config` pointing at `root` and using `limit` as
 /// the maximum number of bytes to embed from AGENTS.md. The caller can
-/// optionally specify a custom `instructions` string â€?when `None` the
+/// optionally specify a custom `instructions` string ?when `None` the
 /// value is cleared to mimic a scenario where no system instructions have
 /// been configured.
 async fn make_config(root: &TempDir, limit: usize, instructions: Option<&str>) -> TestConfig {
@@ -453,7 +453,7 @@ async fn make_config_with_project_root_markers(
     }
 }
 
-/// AGENTS.md missing â€?should yield `None`.
+/// AGENTS.md missing ?should yield `None`.
 #[tokio::test]
 async fn no_doc_file_returns_none() {
     let tmp = tempfile::tempdir().expect("tempdir");

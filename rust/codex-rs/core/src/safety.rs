@@ -80,7 +80,7 @@ pub fn assess_patch_safety(
                 user_explicitly_approved: false,
             }
         } else {
-            // Only auto‑approve when we can actually enforce a sandbox. Otherwise
+            // Only autoapprove when we can actually enforce a sandbox. Otherwise
             // fall back to asking the user because the patch may touch arbitrary
             // paths outside the project.
             match get_platform_sandbox(windows_sandbox_level != WindowsSandboxLevel::Disabled) {

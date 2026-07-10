@@ -586,7 +586,7 @@ async fn mcp_result_telemetry_truncates_long_target_id() {
 
 #[test]
 fn truncates_strings_on_char_boundaries() {
-    let prefix = "á".repeat(MCP_RESULT_TELEMETRY_TARGET_ID_MAX_CHARS);
+    let prefix = "".repeat(MCP_RESULT_TELEMETRY_TARGET_ID_MAX_CHARS);
     let value = format!("{prefix}tail");
     let truncated = truncate_str_to_char_boundary(&value, MCP_RESULT_TELEMETRY_TARGET_ID_MAX_CHARS);
 

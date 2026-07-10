@@ -10081,7 +10081,7 @@ async fn rejects_escalated_permissions_when_policy_not_on_request() {
     };
 
     let expected = format!(
-        "approval policy is {policy:?}; reject command â€?you should not ask for escalated permissions if the approval policy is {policy:?}",
+        "approval policy is {policy:?}; reject command ?you should not ask for escalated permissions if the approval policy is {policy:?}",
         policy = turn_context.approval_policy.value()
     );
 
@@ -10232,7 +10232,7 @@ async fn unified_exec_rejects_escalated_permissions_when_policy_not_on_request()
     };
 
     let expected = format!(
-        "approval policy is {policy:?}; reject command â€?you cannot ask for escalated permissions if the approval policy is {policy:?}",
+        "approval policy is {policy:?}; reject command ?you cannot ask for escalated permissions if the approval policy is {policy:?}",
         policy = turn_context.approval_policy.value()
     );
 

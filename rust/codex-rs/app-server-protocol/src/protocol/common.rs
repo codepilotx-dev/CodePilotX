@@ -1169,13 +1169,58 @@ client_request_definitions! {
         serialization: fuzzy_session_id(params.session_id),
         response: FuzzyFileSearchSessionUpdateResponse,
     },
-    #[experimental("fuzzyFileSearch/sessionStop")]
-    FuzzyFileSearchSessionStop => "fuzzyFileSearch/sessionStop" {
-        params: FuzzyFileSearchSessionStopParams,
-        serialization: fuzzy_session_id(params.session_id),
-        response: FuzzyFileSearchSessionStopResponse,
-    },
-}
+	    #[experimental("fuzzyFileSearch/sessionStop")]
+	    FuzzyFileSearchSessionStop => "fuzzyFileSearch/sessionStop" {
+	        params: FuzzyFileSearchSessionStopParams,
+	        serialization: fuzzy_session_id(params.session_id),
+	        response: FuzzyFileSearchSessionStopResponse,
+	    },
+
+	    //  Provider auth (GitHub, Copilot, etc.) 
+
+	    /// Read the authentication status of a provider (e.g. `github-repositories`).
+	    ProviderAuthReadStatus => "providerAuth/readStatus" {
+	        params: v2::ProviderAuthReadStatusParams,
+	        serialization: None,
+	        response: v2::ProviderAuthReadStatusResponse,
+	    },
+	    /// Start a device-code login flow for the given provider.
+	    ProviderAuthStartLogin => "providerAuth/startLogin" {
+	        params: v2::ProviderAuthStartLoginParams,
+	        serialization: None,
+	        response: v2::ProviderAuthStartLoginResponse,
+	    },
+	    /// Poll an in-progress device-code login.
+	    ProviderAuthPollLogin => "providerAuth/pollLogin" {
+	        params: v2::ProviderAuthPollLoginParams,
+	        serialization: None,
+	        response: v2::ProviderAuthPollLoginResponse,
+	    },
+	    /// Cancel an in-progress device-code login.
+	    ProviderAuthCancelLogin => "providerAuth/cancelLogin" {
+	        params: v2::ProviderAuthCancelLoginParams,
+	        serialization: None,
+	        response: v2::ProviderAuthCancelLoginResponse,
+	    },
+	    /// Log out a provider and delete stored credentials.
+	    ProviderAuthLogout => "providerAuth/logout" {
+	        params: v2::ProviderAuthLogoutParams,
+	        serialization: None,
+	        response: v2::ProviderAuthLogoutResponse,
+	    },
+	    /// List repositories for the given provider.
+	    ProviderRepoList => "providerAuth/repoList" {
+	        params: v2::ProviderRepoListParams,
+	        serialization: None,
+	        response: v2::ProviderRepoListResponse,
+	    },
+	    /// Clone a repository via the app-server (credentials never leave the backend).
+	    ProviderRepoClone => "providerAuth/repoClone" {
+	        params: v2::ProviderRepoCloneParams,
+	        serialization: None,
+	        response: v2::ProviderRepoCloneResponse,
+	    },
+	}
 
 /// Generates an `enum ServerRequest` where each variant is a request that the
 /// server can send to the client along with the corresponding params and

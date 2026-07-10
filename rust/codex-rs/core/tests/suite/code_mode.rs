@@ -999,7 +999,7 @@ text(JSON.stringify(results));
 }
 
 // This model uses token-based tool-output truncation, giving the downstream
-// history assertions a stable `â€¦N tokens truncatedâ€¦` marker.
+// history assertions a stable `N tokens truncated` marker.
 const TOKEN_POLICY_TEST_MODEL: &str = "gpt-5.4";
 
 // A nested `exec_command` limit applies to `result.output` inside JavaScript.
@@ -1028,7 +1028,7 @@ text(result.output);
             &custom_tool_output_items(&second_mock.single_request(), "call-1"),
             /*index*/ 1
         ),
-        "Warning: truncated output (original token count: 10)\nTotal output lines: 1\n\n0123456789â€? tokens truncatedâ€?123456789"
+        "Warning: truncated output (original token count: 10)\nTotal output lines: 1\n\n0123456789? tokens truncated?123456789"
     );
 
     Ok(())
@@ -1065,7 +1065,7 @@ text(`Variable truncated: ${resultVariableWasTruncated ? "True" : "False"}. Vari
     let items = custom_tool_output_items(&second_mock.single_request(), "call-1");
     let output = text_item(&items, /*index*/ 1);
     assert_regex_match(
-        r"^Variable truncated: False\. Variable: x+â€¦\d+ tokens truncatedâ€¦x+$",
+        r"^Variable truncated: False\. Variable: x+\d+ tokens truncatedx+$",
         output,
     );
 
@@ -1091,7 +1091,7 @@ const result = await tools.exec_command({
   cmd: "python3 -c \"import sys; sys.stdout.write('A' * 90000)\"",
   max_output_tokens: 20000
 });
-const resultVariableWasTruncated = result.output.includes("â€?500 tokens truncatedâ€?);
+const resultVariableWasTruncated = result.output.includes("?500 tokens truncated?);
 text(`Variable truncated: ${resultVariableWasTruncated ? "True" : "False"}. Variable: ${result.output}`);
 "#,
         TOKEN_POLICY_TEST_MODEL,
@@ -1111,7 +1111,7 @@ text(`Variable truncated: ${resultVariableWasTruncated ? "True" : "False"}. Vari
     // The boolean describes the nested result; the marker below comes from
     // history truncating the value emitted with `text` afterward.
     assert_regex_match(
-        r"(?s)^Variable truncated: True\. Variable: .*â€¦\d+ tokens truncatedâ€¦A+$",
+        r"(?s)^Variable truncated: True\. Variable: .*\d+ tokens truncatedA+$",
         output,
     );
 
@@ -1158,7 +1158,7 @@ text(`Variable truncated: ${resultVariableWasTruncated ? "True" : "False"}. Vari
         output.len()
     );
     assert_regex_match(
-        r"^Variable truncated: False\. Variable: x+â€¦\d+ tokens truncatedâ€¦x+$",
+        r"^Variable truncated: False\. Variable: x+\d+ tokens truncatedx+$",
         output,
     );
 
@@ -1195,7 +1195,7 @@ text(`Variable truncated: ${resultVariableWasTruncated ? "True" : "False"}. Vari
     let items = custom_tool_output_items(&second_mock.single_request(), "call-1");
     let output = text_item(&items, /*index*/ 1);
     assert_regex_match(
-        r"^Variable truncated: False\. Variable: x+â€¦\d+ tokens truncatedâ€¦x+$",
+        r"^Variable truncated: False\. Variable: x+\d+ tokens truncatedx+$",
         output,
     );
 
@@ -1241,7 +1241,7 @@ text(`Variable truncated: ${resultVariableWasTruncated ? "True" : "False"}. Vari
         output.len()
     );
     assert_regex_match(
-        r"^Variable truncated: False\. Variable: x+â€¦\d+ tokens truncatedâ€¦x+$",
+        r"^Variable truncated: False\. Variable: x+\d+ tokens truncatedx+$",
         output,
     );
 
@@ -1273,7 +1273,7 @@ text(result.output);
             &custom_tool_output_items(&second_mock.single_request(), "call-1"),
             /*index*/ 1
         ),
-        "Warning: truncated output (original token count: 10)\nTotal output lines: 1\n\n0123456789â€? tokens truncatedâ€?123456789"
+        "Warning: truncated output (original token count: 10)\nTotal output lines: 1\n\n0123456789? tokens truncated?123456789"
     );
 
     Ok(())
@@ -2492,7 +2492,7 @@ text("token one token two token three token four token five token six token seve
 Warning:\ truncated\ output\ \(original\ token\ count:\ \d+\)\n
 Total\ output\ lines:\ 1\n
 \n
-.*â€¦\d+\ tokens\ truncatedâ€?*
+.*\d+\ tokens\ truncated?*
 \z
 "#;
     assert_regex_match(expected_pattern, text_item(&second_items, /*index*/ 1));

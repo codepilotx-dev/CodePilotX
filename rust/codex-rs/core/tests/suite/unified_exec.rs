@@ -1553,7 +1553,7 @@ async fn exec_command_clamps_model_requested_max_output_tokens_to_policy() -> Re
     assert_eq!(output.original_token_count, Some(8_991));
     let output_text = output.output.replace("\r\n", "\n");
     assert_regex_match(
-        r"^Warning: truncated output \(original token count: 8991\)\nTotal output lines: 999\n\nEXEC-LINE-0001 x{20}\nEXEC-LINE-0002 x{20}\nEXEC-LINE-0003 x{13}â€?941 tokens truncatedâ€¦E-0997 x{20}\nEXEC-LINE-0998 x{20}\nEXEC-LINE-0999 x{20}\n$",
+        r"^Warning: truncated output \(original token count: 8991\)\nTotal output lines: 999\n\nEXEC-LINE-0001 x{20}\nEXEC-LINE-0002 x{20}\nEXEC-LINE-0003 x{13}?941 tokens truncatedE-0997 x{20}\nEXEC-LINE-0998 x{20}\nEXEC-LINE-0999 x{20}\n$",
         &output_text,
     );
 
@@ -1644,7 +1644,7 @@ async fn write_stdin_clamps_model_requested_max_output_tokens_to_policy() -> Res
     assert_eq!(stdin_output.original_token_count, Some(9_492));
     let stdin_output_text = stdin_output.output.replace("\r\n", "\n");
     assert_regex_match(
-        r"^Warning: truncated output \(original token count: 9492\)\nTotal output lines: 1000\n\ngo\nSTDIN-LINE-0001 y{20}\nSTDIN-LINE-0002 y{20}\nSTDIN-LINE-0003 yyyyâ€?442 tokens truncatedâ€? y{20}\nSTDIN-LINE-0998 y{20}\nSTDIN-LINE-0999 y{20}\n$",
+        r"^Warning: truncated output \(original token count: 9492\)\nTotal output lines: 1000\n\ngo\nSTDIN-LINE-0001 y{20}\nSTDIN-LINE-0002 y{20}\nSTDIN-LINE-0003 yyyy?442 tokens truncated? y{20}\nSTDIN-LINE-0998 y{20}\nSTDIN-LINE-0999 y{20}\n$",
         &stdin_output_text,
     );
 
@@ -2959,7 +2959,7 @@ PY
     let large_output = outputs.get(call_id).expect("missing large output summary");
 
     let output_text = large_output.output.replace("\r\n", "\n");
-    let truncated_pattern = r"(?s)^Warning: truncated output \(original token count: \d+\)\nTotal output lines: \d+\n\n(token token \n){5,}.*â€¦\d+ tokens truncatedâ€?*(token token \n){5,}$";
+    let truncated_pattern = r"(?s)^Warning: truncated output \(original token count: \d+\)\nTotal output lines: \d+\n\n(token token \n){5,}.*\d+ tokens truncated?*(token token \n){5,}$";
     assert_regex_match(truncated_pattern, &output_text);
 
     let original_tokens = large_output

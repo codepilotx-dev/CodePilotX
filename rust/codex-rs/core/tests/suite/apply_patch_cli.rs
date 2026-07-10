@@ -1021,7 +1021,7 @@ async fn apply_patch_cli_can_use_shell_command_output_as_patch_input() -> Result
         apply_patch_harness_with(|builder| builder.with_model("gpt-5.4").with_windows_cmd_shell())
             .await?;
 
-    let source_contents = "line1\nnaïve café\nline3\n";
+    let source_contents = "line1\nnave caf\nline3\n";
     harness.write_file("source.txt", source_contents).await?;
 
     let read_call_id = "read-source";
