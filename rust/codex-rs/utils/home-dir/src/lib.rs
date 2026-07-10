@@ -1,57 +1,54 @@
 use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use dirs::home_dir;
+use std::path::Path;
 use std::path::PathBuf;
 
 /// Returns the path to the CodePilotX configuration directory, using the
 /// following resolution order:
 ///
 /// 1. `CODEPILOTX_CONFIG_DIR` environment variable (must exist and be a directory)
-/// 2. `codepilotx_HOME` environment variable (legacy, must exist and be a directory)
-/// 3. Existing `~/.codepilotx` directory
-/// 4. Existing `~/.codex` directory (legacy)
-/// 5. `~/.codepilotx` (created if it does not exist)
+/// 2. `CODEPILOTX_HOME` environment variable (must exist and be a directory)
+/// 3. `CODEX_HOME` environment variable (legacy, must exist and be a directory)
+/// 4. Existing `~/.codepilotx` directory
+/// 5. Existing `~/.codex` directory (legacy)
+/// 6. `~/.codepilotx`
 ///
 /// For env-var paths, the value will be canonicalized and this function will Err
 /// if the path does not exist or is not a directory.
 pub fn find_codepilotx_home() -> std::io::Result<AbsolutePathBuf> {
-    // 1. CODEPILOTX_CONFIG_DIR (new canonical env var)
-    if let Some(val) = std::env::var("CODEPILOTX_CONFIG_DIR")
-        .ok()
-        .filter(|val| !val.is_empty())
-    {
-        return resolve_home_env_var(&val, "CODEPILOTX_CONFIG_DIR");
-    }
-
-    // 2. codepilotx_HOME (legacy env var)
-    if let Some(val) = std::env::var("codepilotx_HOME")
-        .ok()
-        .filter(|val| !val.is_empty())
-    {
-        return resolve_home_env_var(&val, "codepilotx_HOME");
-    }
-
     let home = home_dir().ok_or_else(|| {
         std::io::Error::new(
             std::io::ErrorKind::NotFound,
             "Could not find home directory",
         )
     })?;
+    find_codepilotx_home_with(&home, |name| {
+        std::env::var(name).ok().filter(|value| !value.is_empty())
+    })
+}
 
-    // 3. Existing ~/.codepilotx
+fn find_codepilotx_home_with(
+    home: &Path,
+    mut get_env: impl FnMut(&str) -> Option<String>,
+) -> std::io::Result<AbsolutePathBuf> {
+    for name in ["CODEPILOTX_CONFIG_DIR", "CODEPILOTX_HOME", "CODEX_HOME"] {
+        if let Some(value) = get_env(name).filter(|value| !value.is_empty()) {
+            return resolve_home_env_var(&value, name);
+        }
+    }
+
     let codepilotx_dir = home.join(".codepilotx");
     if codepilotx_dir.is_dir() {
         let canonical = codepilotx_dir.canonicalize()?;
         return AbsolutePathBuf::from_absolute_path(canonical);
     }
 
-    // 4. Existing ~/.codex (legacy)
-    let codepilotx_dir = home.join(".codex");
-    if codepilotx_dir.is_dir() {
-        let canonical = codepilotx_dir.canonicalize()?;
+    let codex_dir = home.join(".codex");
+    if codex_dir.is_dir() {
+        let canonical = codex_dir.canonicalize()?;
         return AbsolutePathBuf::from_absolute_path(canonical);
     }
 
-    // 5. Default ~/.codepilotx (return path, do not create)
     AbsolutePathBuf::from_absolute_path(codepilotx_dir)
 }
 
@@ -86,14 +83,74 @@ fn resolve_home_env_var(val: &str, var_name: &str) -> std::io::Result<AbsolutePa
 
 #[cfg(test)]
 mod tests {
-    use super::find_codepilotx_home;
+    use super::find_codepilotx_home_with;
     use super::resolve_home_env_var;
     use codepilotx_utils_absolute_path::AbsolutePathBuf;
-    use dirs::home_dir;
     use pretty_assertions::assert_eq;
+    use std::collections::HashMap;
     use std::fs;
     use std::io::ErrorKind;
     use tempfile::TempDir;
+
+    #[test]
+    fn home_resolution_follows_documented_priority() {
+        let temp_home = TempDir::new().expect("temp home");
+        let config_dir = temp_home.path().join("config-dir");
+        let codepilotx_home = temp_home.path().join("codepilotx-home");
+        let codex_home = temp_home.path().join("codex-home");
+        let dot_codepilotx = temp_home.path().join(".codepilotx");
+        let dot_codex = temp_home.path().join(".codex");
+        for path in [
+            &config_dir,
+            &codepilotx_home,
+            &codex_home,
+            &dot_codepilotx,
+            &dot_codex,
+        ] {
+            fs::create_dir(path).expect("create candidate home");
+        }
+
+        let candidates = [
+            ("CODEPILOTX_CONFIG_DIR", &config_dir),
+            ("CODEPILOTX_HOME", &codepilotx_home),
+            ("CODEX_HOME", &codex_home),
+        ];
+        for first_enabled in 0..=candidates.len() {
+            let env = candidates[first_enabled..]
+                .iter()
+                .map(|(name, path)| ((*name).to_string(), path.display().to_string()))
+                .collect::<HashMap<_, _>>();
+            let resolved =
+                find_codepilotx_home_with(temp_home.path(), |name| env.get(name).cloned())
+                    .expect("resolve home");
+            let expected_path = match first_enabled {
+                0..=2 => candidates[first_enabled]
+                    .1
+                    .canonicalize()
+                    .expect("canonical env home"),
+                _ => dot_codepilotx
+                    .canonicalize()
+                    .expect("canonical .codepilotx"),
+            };
+            let expected =
+                AbsolutePathBuf::from_absolute_path(expected_path).expect("absolute expected home");
+            assert_eq!(resolved, expected);
+        }
+
+        fs::remove_dir(&dot_codepilotx).expect("remove .codepilotx");
+        let resolved = find_codepilotx_home_with(temp_home.path(), |_| None).expect("legacy home");
+        let expected = AbsolutePathBuf::from_absolute_path(
+            dot_codex.canonicalize().expect("canonical .codex"),
+        )
+        .expect("absolute legacy home");
+        assert_eq!(resolved, expected);
+
+        fs::remove_dir(&dot_codex).expect("remove .codex");
+        let resolved = find_codepilotx_home_with(temp_home.path(), |_| None).expect("default home");
+        let expected = AbsolutePathBuf::from_absolute_path(temp_home.path().join(".codepilotx"))
+            .expect("absolute default home");
+        assert_eq!(resolved, expected);
+    }
 
     #[test]
     fn codepilotx_config_dir_env_missing_path_is_fatal() {
@@ -134,9 +191,7 @@ mod tests {
         let temp_home = TempDir::new().expect("temp home");
         let file_path = temp_home.path().join("codepilotx-home.txt");
         fs::write(&file_path, "not a directory").expect("write temp file");
-        let file_str = file_path
-            .to_str()
-            .expect("file path should be valid utf-8");
+        let file_str = file_path.to_str().expect("file path should be valid utf-8");
 
         let err = resolve_home_env_var(file_str, "CODEPILOTX_CONFIG_DIR")
             .expect_err("file CODEPILOTX_CONFIG_DIR");
@@ -163,85 +218,5 @@ mod tests {
             .expect("canonicalize temp home");
         let expected = AbsolutePathBuf::from_absolute_path(expected).expect("absolute home");
         assert_eq!(resolved, expected);
-    }
-
-    #[test]
-    fn find_codepilotx_home_without_env_or_existing_dir_uses_default() {
-        let temp_home = TempDir::new().expect("temp home");
-        // Override home dir for the test scope
-        let resolved = find_codepilotx_home().expect("default config dir");
-        let mut expected = home_dir().expect("home dir");
-        expected.push(".codepilotx");
-        let expected = AbsolutePathBuf::from_absolute_path(expected).expect("absolute home");
-        assert_eq!(resolved, expected);
-    }
-
-    #[test]
-    fn find_codepilotx_home_falls_back_to_existing_dot_codex() {
-        let temp_home = TempDir::new().expect("temp home");
-        let old_dir = temp_home.path().join(".codex");
-        fs::create_dir(&old_dir).expect("create .codex dir");
-
-        // Temporarily override home dir
-        let _guard = TempHomeGuard(temp_home);
-        let resolved = find_codepilotx_home().expect("should find .codex");
-        let expected = old_dir.canonicalize().expect("canonicalize");
-        assert_eq!(
-            resolved,
-            AbsolutePathBuf::from_absolute_path(expected).expect("absolute")
-        );
-    }
-
-    #[test]
-    fn find_codepilotx_home_prefers_dot_codepilotx_over_dot_codex() {
-        let temp_home = TempDir::new().expect("temp home");
-        let new_dir = temp_home.path().join(".codepilotx");
-        let old_dir = temp_home.path().join(".codex");
-        fs::create_dir(&new_dir).expect("create .codepilotx dir");
-        fs::create_dir(&old_dir).expect("create .codex dir");
-
-        let _guard = TempHomeGuard(temp_home);
-        let resolved = find_codepilotx_home().expect("should prefer .codepilotx");
-        let expected = new_dir.canonicalize().expect("canonicalize");
-        assert_eq!(
-            resolved,
-            AbsolutePathBuf::from_absolute_path(expected).expect("absolute")
-        );
-    }
-
-    #[test]
-    fn find_codepilotx_home_codepilotx_config_dir_beats_codepilotx_home() {
-        let temp_home = TempDir::new().expect("temp home");
-        let new_env = temp_home.path().join("dot-codepilotx");
-        let old_env = temp_home.path().join("dot-codex");
-        fs::create_dir(&new_env).expect("create new env dir");
-        fs::create_dir(&old_env).expect("create old env dir");
-
-        let guard_new = EnvVarGuard("CODEPILOTX_CONFIG_DIR", Some(new_env.to_str().unwrap().to_string()));
-        let _guard_old = EnvVarGuard("codepilotx_HOME", Some(old_env.to_str().unwrap().to_string()));
-
-        let _ = &guard_new;
-        let resolved = find_codepilotx_home().expect("CODEPILOTX_CONFIG_DIR should win");
-        let expected = new_env.canonicalize().expect("canonicalize");
-        assert_eq!(
-            resolved,
-            AbsolutePathBuf::from_absolute_path(expected).expect("absolute")
-        );
-    }
-
-    /// Temporarily override the home directory by patching `dirs::home_dir`
-    struct TempHomeGuard(TempDir);
-    impl Drop for TempHomeGuard {
-        fn drop(&mut self) {}
-    }
-
-    struct EnvVarGuard(&'static str, Option<String>);
-    impl Drop for EnvVarGuard {
-        fn drop(&mut self) {
-            match &self.1 {
-                Some(val) => std::env::set_var(self.0, val),
-                None => std::env::remove_var(self.0),
-            }
-        }
     }
 }

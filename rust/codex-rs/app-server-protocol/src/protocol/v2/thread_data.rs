@@ -225,7 +225,42 @@ pub enum TurnItemsView {
 #[error("{message}")]
 pub struct TurnError {
     pub message: String,
+    #[serde(rename = "codexErrorInfo")]
+    #[ts(rename = "codexErrorInfo")]
     pub codepilotx_error_info: Option<CodexErrorInfo>,
     #[serde(default)]
     pub additional_details: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ts_rs::TS;
+
+    #[test]
+    fn turn_error_preserves_legacy_codex_error_info_wire_key() {
+        let value = serde_json::to_value(TurnError {
+            message: "failed".to_string(),
+            codepilotx_error_info: Some(CodexErrorInfo::BadRequest),
+            additional_details: None,
+        })
+        .expect("serialize TurnError");
+
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "message": "failed",
+                "codexErrorInfo": "badRequest",
+                "additionalDetails": null,
+            })
+        );
+    }
+
+    #[test]
+    fn turn_error_typescript_preserves_legacy_codex_error_info_key() {
+        let declaration = TurnError::decl();
+
+        assert!(declaration.contains("codexErrorInfo:"));
+        assert!(!declaration.contains("codepilotxErrorInfo:"));
+    }
 }
