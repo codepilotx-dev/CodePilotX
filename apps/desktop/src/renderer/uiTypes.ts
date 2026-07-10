@@ -32,8 +32,8 @@ export function sessionDisplayTitle(
     session.customTitle ??
     fallbackTitle ??
     session.aiTitle ??
-    session.sessionName ??
     session.firstPrompt ??
+    session.sessionName ??
     session.workspaceName
   )
 }

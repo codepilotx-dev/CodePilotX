@@ -30,6 +30,18 @@ test('sessionDisplayTitle uses hydrated fallback before default session name', (
   )
 })
 
+test('sessionDisplayTitle uses stored first prompt before default session name', () => {
+  const session = {
+    sessionName: 'ClaudeCode',
+    customTitle: null,
+    aiTitle: null,
+    firstPrompt: '添加中文提交',
+    workspaceName: 'ClaudeCode',
+  } as SessionListItem
+
+  expect(sessionDisplayTitle(session)).toBe('添加中文提交')
+})
+
 test('sessionDisplayTitle keeps custom title before hydrated fallback', () => {
   const session = {
     sessionName: 'ClaudeCode',

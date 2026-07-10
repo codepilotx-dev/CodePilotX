@@ -834,6 +834,7 @@ export type DesktopContextUsage = AgentContextUsage
 
 export type DesktopSessionListItem = {
   id: string
+  appServerThreadId?: string | null
   sessionName: string | null
   aiTitle: string | null
   localRouterMode?: LocalRouterMode
@@ -915,6 +916,7 @@ export type DesktopSessionEventType = AgentSessionEventType
 export type DesktopSessionEvent = AgentSessionEvent
 
 export type DesktopSessionSnapshot = {
+  appServerThreadId?: string | null
   item: DesktopSessionListItem
   workspace: DesktopWorkspace
   settings: DesktopSessionSettingsSnapshot
@@ -946,6 +948,7 @@ export type DesktopAgentEvent = AgentRuntimeEvent
 export type DesktopWorkflowEvent = ThreadEvent
 
 export type CreateDesktopSessionOptions = {
+  appServerThreadId?: string | null
   localRouterMode?: LocalRouterMode
   workspacePath?: string
   permissionProfile?: DesktopPermissionProfile
