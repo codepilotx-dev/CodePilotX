@@ -24,14 +24,14 @@ type AskUserQuestion = {
   multiSelect: boolean
 }
 
+export const CUSTOM_OPTION_ID = '__custom'
+
 export type QuestionState = {
   selected: string[]
   custom: string
   answered: boolean
   focused?: string
 }
-
-export const CUSTOM_OPTION_FOCUS_VALUE = '__custom'
 
 export type AskUserQuestionApprovalProps = {
   request: DesktopPermissionRequest
@@ -51,6 +51,7 @@ export function AskUserQuestionApproval({
   const [currentQuestionIndex, setCurrentQuestionIndex] = React.useState(0)
   const [error, setError] = React.useState<string | null>(null)
   const customInputRef = React.useRef<HTMLTextAreaElement | null>(null)
+  const approvalRef = React.useRef<HTMLDivElement | null>(null)
   const questionCount = questions?.length ?? 0
 
   React.useEffect(() => {
@@ -65,6 +66,14 @@ export function AskUserQuestionApproval({
     input.style.height = 'auto'
     input.style.height = `${Math.min(input.scrollHeight, 120)}px`
   }, [currentQuestionIndex, questionStates])
+
+  React.useLayoutEffect(() => {
+    if (typeof window === 'undefined') return
+    const frame = window.requestAnimationFrame(() => {
+      approvalRef.current?.focus()
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [request.requestId])
 
   React.useEffect(() => {
     if (!questions || typeof window === 'undefined') return
@@ -106,7 +115,7 @@ export function AskUserQuestionApproval({
           questionStates[currentQuestion.question] ??
           initialQuestionState(currentQuestion)
         const focusedCustom =
-          currentState.focused === CUSTOM_OPTION_FOCUS_VALUE
+          currentState.focused === CUSTOM_OPTION_ID
         if (focusedCustom && !currentState.custom.trim()) {
           event.preventDefault()
           customInputRef.current?.focus()
@@ -126,7 +135,11 @@ export function AskUserQuestionApproval({
 
   if (!questions) {
     return (
-      <div className="ask-user-question-approval">
+      <div
+        ref={approvalRef}
+        className="ask-user-question-approval"
+        tabIndex={-1}
+      >
         <p className="ask-user-question-error">
           无法解析 AskUserQuestion 的选项，请拒绝后让 CodePilotX 重新提问。
         </p>
@@ -241,24 +254,9 @@ export function AskUserQuestionApproval({
     updateQuestion(question.question, current => {
       const currentLabel =
         current.focused ?? current.selected[0] ?? question.options[0]?.label
-      const nextLabel = nextCustomOptionLabel(question, currentLabel, delta)
+      const nextLabel = nextQuestionOptionId(question, currentLabel, delta)
       if (nextLabel === undefined) return current
-      if (nextLabel === CUSTOM_OPTION_FOCUS_VALUE) {
-        const baseState = question.multiSelect
-          ? current
-          : { ...current, selected: [], custom: '' }
-        const next = { ...baseState, focused: CUSTOM_OPTION_FOCUS_VALUE }
-        return question.multiSelect ? next : { ...next, answered: false }
-      }
-      if (question.multiSelect) {
-        return { ...current, focused: nextLabel }
-      }
-      return {
-        ...current,
-        selected: [nextLabel],
-        custom: '',
-        answered: false,
-      }
+      return selectQuestionOption(current, nextLabel, question.multiSelect, 'focus')
     })
   }
 
@@ -266,15 +264,7 @@ export function AskUserQuestionApproval({
     updateQuestion(question.question, current => {
       const label = current.focused ?? current.selected[0] ?? question.options[0]?.label
       if (!label) return current
-      if (label === CUSTOM_OPTION_FOCUS_VALUE) {
-        const hasCustom = Boolean(current.custom.trim())
-        return {
-          ...current,
-          focused: CUSTOM_OPTION_FOCUS_VALUE,
-          answered: current.selected.length > 0 || hasCustom,
-        }
-      }
-      return toggleMultiSelectOption(current, label)
+      return selectQuestionOption(current, label, question.multiSelect, 'toggle')
     })
   }
 
@@ -301,9 +291,22 @@ export function AskUserQuestionApproval({
     currentQuestionIndex,
   )
   const controls = footerControls(currentQuestionIndex, questionCount)
+  const questionOptions = [
+    ...currentQuestion.options.map((option, index) => ({
+      kind: 'choice' as const,
+      id: option.label,
+      option,
+      index,
+    })),
+    { kind: 'custom' as const, id: CUSTOM_OPTION_ID },
+  ]
 
   return (
-    <div className="ask-user-question-approval">
+    <div
+      ref={approvalRef}
+      className="ask-user-question-approval"
+      tabIndex={-1}
+    >
       <div className="ask-user-question-progress">
         <span>
           问题 {currentQuestionIndex + 1}/{questionCount}
@@ -316,12 +319,87 @@ export function AskUserQuestionApproval({
           className="inline-approval-options"
           role={currentQuestion.multiSelect ? 'group' : 'radiogroup'}
         >
-          {currentQuestion.options.map((option, index) => {
+          {questionOptions.map(questionOption => {
+            if (questionOption.kind === 'custom') {
+              const focused = state.focused === questionOption.id
+              return (
+                <div
+                  aria-checked={Boolean(state.custom.trim())}
+                  className={[
+                    'inline-approval-option custom',
+                    focused ? 'focused' : '',
+                    state.custom.trim() ? 'filled' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  key={questionOption.id}
+                  role={currentQuestion.multiSelect ? 'checkbox' : 'radio'}
+                  tabIndex={0}
+                  onClick={event => {
+                    if (
+                      event.target instanceof HTMLElement &&
+                      (event.target.tagName === 'TEXTAREA' ||
+                        event.target.isContentEditable)
+                    ) {
+                      return
+                    }
+                    focusCustomInput()
+                    updateQuestion(currentQuestion.question, current =>
+                      selectQuestionOption(
+                        current,
+                        questionOption.id,
+                        currentQuestion.multiSelect,
+                        'focus',
+                      ),
+                    )
+                  }}
+                >
+                  <span
+                    className="inline-approval-option-custom-icon"
+                    aria-hidden="true"
+                  >
+                    <PenLine size={14} />
+                  </span>
+                  <textarea
+                    ref={customInputRef}
+                    className="ask-user-question-custom-input"
+                    placeholder="否，请告知 CodePilotX 如何调整"
+                    rows={1}
+                    value={state.custom}
+                    onFocus={() => {
+                      updateQuestion(currentQuestion.question, current =>
+                        selectQuestionOption(
+                          current,
+                          questionOption.id,
+                          currentQuestion.multiSelect,
+                          'focus',
+                        ),
+                      )
+                    }}
+                    onChange={event => {
+                      const custom = event.target.value
+                      updateQuestion(currentQuestion.question, current => ({
+                        ...selectQuestionOption(
+                          current,
+                          questionOption.id,
+                          currentQuestion.multiSelect,
+                          'focus',
+                        ),
+                        custom,
+                        answered:
+                          Boolean(custom.trim()) ||
+                          (currentQuestion.multiSelect &&
+                            current.selected.length > 0),
+                      }))
+                    }}
+                  />
+                </div>
+              )
+            }
+
+            const { option, index } = questionOption
             const selected = state.selected.includes(option.label)
-            const focused =
-              currentQuestion.multiSelect &&
-              (state.focused ?? state.selected[0] ?? currentQuestion.options[0]?.label) ===
-                option.label
+            const focused = state.focused === questionOption.id
             return (
               <button
                 aria-checked={selected}
@@ -339,17 +417,14 @@ export function AskUserQuestionApproval({
                 title={option.description || undefined}
                 type="button"
                 onClick={() => {
-                  updateQuestion(currentQuestion.question, current => {
-                    if (!currentQuestion.multiSelect) {
-                      return {
-                        ...current,
-                        custom: '',
-                        selected: [option.label],
-                        answered: true,
-                      }
-                    }
-                    return toggleMultiSelectOption(current, option.label)
-                  })
+                  updateQuestion(currentQuestion.question, current =>
+                    selectQuestionOption(
+                      current,
+                      option.label,
+                      currentQuestion.multiSelect,
+                      'toggle',
+                    ),
+                  )
                   if (shouldSubmitOptionClick(currentQuestion)) {
                     submitCurrentSelection(currentQuestion, option.label)
                   }
@@ -402,119 +477,51 @@ export function AskUserQuestionApproval({
               </button>
             )
           })}
-          <div
-            aria-checked={Boolean(state.custom.trim())}
-            className={[
-              'inline-approval-option custom',
-              state.focused === CUSTOM_OPTION_FOCUS_VALUE ? 'focused' : '',
-              state.custom.trim() ? 'filled' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            role={currentQuestion.multiSelect ? 'checkbox' : 'radio'}
-            tabIndex={0}
-            onClick={event => {
-              if (
-                event.target instanceof HTMLElement &&
-                (event.target.tagName === 'TEXTAREA' ||
-                  event.target.isContentEditable)
-              ) {
-                return
-              }
-              focusCustomInput()
-              updateQuestion(currentQuestion.question, current => ({
-                ...current,
-                focused: CUSTOM_OPTION_FOCUS_VALUE,
-                selected:
-                  !currentQuestion.multiSelect ? [] : current.selected,
-                answered:
-                  currentQuestion.multiSelect &&
-                  (current.selected.length > 0 || Boolean(current.custom.trim())),
-              }))
-            }}
-          >
-            <span className="inline-approval-option-custom-icon" aria-hidden="true">
-              <PenLine size={14} />
-            </span>
-            <textarea
-              ref={customInputRef}
-              className="ask-user-question-custom-input"
-              placeholder="否，请告知 CodePilotX 如何调整"
-              rows={1}
-              value={state.custom}
-              onFocus={() => {
-                updateQuestion(currentQuestion.question, current => {
-                  if (current.focused === CUSTOM_OPTION_FOCUS_VALUE) {
-                    return current
-                  }
-                  return {
-                    ...current,
-                    focused: CUSTOM_OPTION_FOCUS_VALUE,
-                    selected:
-                      !currentQuestion.multiSelect ? [] : current.selected,
-                  }
-                })
-              }}
-              onChange={event => {
-                const custom = event.target.value
-                updateQuestion(currentQuestion.question, current => ({
-                  ...current,
-                  focused: CUSTOM_OPTION_FOCUS_VALUE,
-                  custom,
-                  answered: Boolean(custom.trim()),
-                  selected:
-                    !currentQuestion.multiSelect && custom.trim()
-                      ? []
-                      : current.selected,
-                }))
-              }}
-            />
-          </div>
           <div className="inline-approval-split ask-user-question-actions">
-          <button
-            aria-label="跳过当前问题"
-            className="inline-approval-skip"
-            title="按 Esc 跳过"
-            type="button"
-            onClick={onReject}
-          >
-            跳过
-          </button>
-          {controls.showPrevious || controls.showNext ? (
-            <div className="ask-user-question-navigation">
-              {controls.showPrevious ? (
-                <button
-                  className="ask-user-question-nav-button"
-                  type="button"
-                  onClick={() => goToQuestion(-1)}
-                >
-                  <ChevronLeft size={14} />
-                  上一题
-                </button>
-              ) : null}
-              {controls.showNext ? (
-                <button
-                  className="ask-user-question-nav-button"
-                  type="button"
-                  onClick={() => goToQuestion(1)}
-                >
-                  下一题
-                  <ChevronRight size={14} />
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-          {controls.showSubmit ? (
             <button
-              className="inline-approval-submit"
-              disabled={!canSubmit}
+              aria-label="跳过当前问题"
+              className="inline-approval-skip"
+              title="按 Esc 跳过"
               type="button"
-              onClick={() => confirmCurrentQuestionAndAdvance(currentQuestion)}
+              onClick={onReject}
             >
-              提交
-              <CornerDownLeft size={16} />
+              跳过
             </button>
-          ) : null}
+            {controls.showPrevious || controls.showNext ? (
+              <div className="ask-user-question-navigation">
+                {controls.showPrevious ? (
+                  <button
+                    className="ask-user-question-nav-button"
+                    type="button"
+                    onClick={() => goToQuestion(-1)}
+                  >
+                    <ChevronLeft size={14} />
+                    上一题
+                  </button>
+                ) : null}
+                {controls.showNext ? (
+                  <button
+                    className="ask-user-question-nav-button"
+                    type="button"
+                    onClick={() => goToQuestion(1)}
+                  >
+                    下一题
+                    <ChevronRight size={14} />
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {controls.showSubmit ? (
+              <button
+                className="inline-approval-submit"
+                disabled={!canSubmit}
+                type="button"
+                onClick={() => confirmCurrentQuestionAndAdvance(currentQuestion)}
+              >
+                提交
+                <CornerDownLeft size={16} />
+              </button>
+            ) : null}
           </div>
         </div>
       </section>
@@ -659,33 +666,60 @@ export function nextOptionLabel(
   return question.options[nextIndex]?.label
 }
 
-export function nextCustomOptionLabel(
+export function questionOptionIds(
+  question: { options: Array<{ label: string }> },
+): string[] {
+  return [...question.options.map(option => option.label), CUSTOM_OPTION_ID]
+}
+
+export function nextQuestionOptionId(
   question: { options: Array<{ label: string }> },
   currentLabel: string | undefined,
   delta: -1 | 1,
 ): string | undefined {
-  if (
-    currentLabel === CUSTOM_OPTION_FOCUS_VALUE ||
-    currentLabel === undefined
-  ) {
-    if (delta < 0) {
-      return question.options[question.options.length - 1]?.label
+  const optionIds = questionOptionIds(question)
+  const currentIndex = Math.max(0, optionIds.indexOf(currentLabel ?? ''))
+  const nextIndex = nextQuestionIndex(currentIndex, delta, optionIds.length)
+  return optionIds[nextIndex]
+}
+
+export function selectQuestionOption(
+  current: QuestionState,
+  optionId: string,
+  multiSelect: boolean,
+  intent: 'focus' | 'toggle',
+): QuestionState {
+  if (optionId === CUSTOM_OPTION_ID) {
+    const selected = multiSelect ? current.selected : []
+    return {
+      ...current,
+      selected,
+      focused: optionId,
+      answered:
+        Boolean(current.custom.trim()) ||
+        (multiSelect && selected.length > 0),
     }
-    return CUSTOM_OPTION_FOCUS_VALUE
   }
-  const lastIndex = question.options.length - 1
-  const currentIndex = question.options.findIndex(
-    option => option.label === currentLabel,
-  )
-  if (currentIndex < 0) return undefined
-  if (currentIndex === lastIndex && delta > 0) {
-    return CUSTOM_OPTION_FOCUS_VALUE
+
+  if (multiSelect && intent === 'toggle') {
+    const selected = current.selected.includes(optionId)
+      ? current.selected.filter(item => item !== optionId)
+      : [...current.selected, optionId]
+    return {
+      ...current,
+      selected,
+      focused: optionId,
+      answered: selected.length > 0 || Boolean(current.custom.trim()),
+    }
   }
-  if (currentIndex === 0 && delta < 0) {
-    return undefined
+
+  return {
+    ...current,
+    selected: multiSelect ? current.selected : [optionId],
+    custom: multiSelect ? current.custom : '',
+    focused: optionId,
+    answered: intent === 'toggle' ? true : multiSelect ? current.answered : false,
   }
-  const nextIndex = nextQuestionIndex(currentIndex, delta, question.options.length)
-  return question.options[nextIndex]?.label
 }
 
 function buildAnswers(

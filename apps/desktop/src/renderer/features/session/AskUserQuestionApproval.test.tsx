@@ -3,6 +3,7 @@ import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import {
   AskUserQuestionApproval,
+  CUSTOM_OPTION_ID,
   answerForSelectedOption,
   areAllQuestionsAnswered,
   canSubmitFromCurrentQuestion,
@@ -11,10 +12,13 @@ import {
   footerControls,
   initialQuestionState,
   nextOptionLabel,
+  nextQuestionOptionId,
   nextQuestionIndex,
   parseAskUserQuestions,
   shouldDeferAskUserQuestionShortcutToTextEntry,
   shouldSubmitOptionClick,
+  questionOptionIds,
+  selectQuestionOption,
   toggleMultiSelectOption,
 } from './AskUserQuestionApproval.js'
 import type { DesktopPermissionRequest } from '../../../shared/types.js'
@@ -112,6 +116,7 @@ test('AskUserQuestionApproval renders the custom answer as an option row', () =>
   expect(html).toContain('class="inline-approval-skip"')
   expect(html).toContain('type="button">跳过</button>')
   expect(html).not.toContain('inline-approval-footer')
+  expect(html).toContain('tabindex="-1"')
 })
 
 test('AskUserQuestionApproval exposes the custom answer as a checkbox in multi-select', () => {
@@ -251,21 +256,47 @@ test('nextOptionLabel clamps keyboard option navigation', () => {
   expect(nextOptionLabel(question, 'B', -1)).toBe('A')
 })
 
-test('nextCustomOptionLabel lets the keyboard cycle into the custom row from the last option', async () => {
-  const {
-    nextCustomOptionLabel,
-    CUSTOM_OPTION_FOCUS_VALUE,
-  } = await import('./AskUserQuestionApproval.js')
-  const [question] = parseRequestQuestions(1)
+test('question navigation treats the custom input as the last option', () => {
+  const question = {
+    options: [{ label: 'A' }, { label: 'B' }, { label: 'C' }],
+  }
 
-  expect(nextCustomOptionLabel(question, 'B', 1)).toBe(
-    CUSTOM_OPTION_FOCUS_VALUE,
+  expect(questionOptionIds(question)).toEqual(['A', 'B', 'C', CUSTOM_OPTION_ID])
+  expect(nextQuestionOptionId(question, 'C', 1)).toBe(CUSTOM_OPTION_ID)
+  expect(nextQuestionOptionId(question, CUSTOM_OPTION_ID, -1)).toBe('C')
+  expect(nextQuestionOptionId(question, 'C', -1)).toBe('B')
+  expect(nextQuestionOptionId(question, 'A', -1)).toBe('A')
+  expect(nextQuestionOptionId(question, CUSTOM_OPTION_ID, 1)).toBe(CUSTOM_OPTION_ID)
+})
+
+test('selectQuestionOption updates focus when leaving the custom input', () => {
+  const customState = selectQuestionOption(
+    { selected: ['C'], custom: '', answered: false },
+    CUSTOM_OPTION_ID,
+    false,
+    'focus',
   )
-  expect(nextCustomOptionLabel(question, 'A', 1)).toBe('B')
-  expect(nextCustomOptionLabel(question, '__custom', -1)).toBe('B')
-  expect(nextCustomOptionLabel(question, '__custom', 1)).toBe(
-    CUSTOM_OPTION_FOCUS_VALUE,
+  expect(customState).toMatchObject({
+    selected: [],
+    focused: CUSTOM_OPTION_ID,
+    answered: false,
+  })
+
+  const thirdOptionState = selectQuestionOption(
+    customState,
+    'C',
+    false,
+    'focus',
   )
+  expect(thirdOptionState).toMatchObject({
+    selected: ['C'],
+    focused: 'C',
+    custom: '',
+  })
+  expect(selectQuestionOption(thirdOptionState, 'B', false, 'focus')).toMatchObject({
+    selected: ['B'],
+    focused: 'B',
+  })
 })
 
 test('single-select option clicks submit but multi-select clicks only toggle', () => {
