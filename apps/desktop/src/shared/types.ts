@@ -917,6 +917,8 @@ export type DesktopSessionEvent = AgentSessionEvent
 
 export type DesktopSessionSnapshot = {
   appServerThreadId?: string | null
+  /** A newly-created desktop session has not started its persistent Thread yet. */
+  appServerThreadPending?: boolean
   item: DesktopSessionListItem
   workspace: DesktopWorkspace
   settings: DesktopSessionSettingsSnapshot
@@ -932,6 +934,11 @@ export type DesktopSessionSnapshot = {
 export type DesktopSessionStoreChange = {
   activeSessionId: string | null
   sessions: DesktopSessionSnapshot[]
+}
+
+export type DesktopSessionCatalogStatus = {
+  state: 'loading' | 'ready' | 'unavailable'
+  error: string | null
 }
 
 export type DesktopSettingsChange = {
@@ -1372,13 +1379,18 @@ export type DesktopApi = {
   getThemeSettings(): Promise<DesktopThemeSettings>
   saveThemeSettings(settings: DesktopThemeSettings): Promise<void>
   createSession(options: CreateDesktopSessionOptions): Promise<CreateDesktopSessionResult>
-  listSessions(): Promise<DesktopSessionSnapshot[]>
+  listSessions(options?: { archived?: boolean }): Promise<DesktopSessionSnapshot[]>
+  getSessionCatalogStatus(): Promise<DesktopSessionCatalogStatus>
   getSession(sessionId: string): Promise<DesktopSessionSnapshot>
   getActiveSessionId(): Promise<string | null>
   setActiveSession(sessionId: string | null): Promise<void>
   updateSessionMetadata(
     sessionId: string,
     patch: DesktopSessionMetadataPatch,
+  ): Promise<DesktopSessionSnapshot>
+  renameSession(
+    sessionId: string,
+    name: string,
   ): Promise<DesktopSessionSnapshot>
   saveSessionReviewComment(
     input: SaveSessionReviewCommentInput,
