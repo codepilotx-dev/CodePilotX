@@ -3,7 +3,7 @@ import type React from 'react'
 export type PopoverSize = number | string
 
 export type PopoverSizingProps = {
-  width?: PopoverSize
+  width: PopoverSize
   maxWidth?: PopoverSize
 }
 
@@ -19,11 +19,13 @@ export function formatPopoverSize(size: PopoverSize): string {
 export function buildPopoverSizingStyle({
   width,
   maxWidth,
-}: PopoverSizingProps = {}): PopoverSizingStyle {
-  const style: PopoverSizingStyle = {}
-  if (width !== undefined) {
-    style['--popover-width'] = formatPopoverSize(width)
+}: Partial<PopoverSizingProps> = {}): PopoverSizingStyle {
+  if (width === undefined) {
+    throw new Error('Popover width is required. Pass a number, CSS size, or "auto".')
   }
+
+  const style: PopoverSizingStyle = {}
+  style['--popover-width'] = formatPopoverSize(width)
   if (maxWidth !== undefined) {
     style['--popover-max-width'] = formatPopoverSize(maxWidth)
   }

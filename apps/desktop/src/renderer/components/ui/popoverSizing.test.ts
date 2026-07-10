@@ -9,8 +9,14 @@ test('formatPopoverSize keeps CSS string sizes unchanged', () => {
   expect(formatPopoverSize('min(420px, 80vw)')).toBe('min(420px, 80vw)')
 })
 
-test('buildPopoverSizingStyle omits style entries when no sizes are provided', () => {
-  expect(buildPopoverSizingStyle()).toEqual({})
+test('buildPopoverSizingStyle rejects missing widths', () => {
+  expect(() => buildPopoverSizingStyle()).toThrow('Popover width is required')
+})
+
+test('buildPopoverSizingStyle accepts an explicit automatic width', () => {
+  expect(buildPopoverSizingStyle({ width: 'auto' })).toEqual({
+    '--popover-width': 'auto',
+  })
 })
 
 test('buildPopoverSizingStyle writes width and maxWidth custom properties', () => {

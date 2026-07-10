@@ -12,7 +12,6 @@ type Props = {
   collisionPadding?: number
   avoidCollisions?: boolean
   trigger: React.ReactNode
-  autoWidth?: boolean
   disableOutsideDismiss?: boolean
   textMode?: 'nowrap' | 'wrap'
   onOpenChange: (open: boolean) => void
@@ -28,7 +27,6 @@ export function PopoverMenu({
   collisionPadding,
   avoidCollisions,
   trigger,
-  autoWidth = false,
   disableOutsideDismiss,
   textMode = 'nowrap',
   width,
@@ -48,7 +46,6 @@ export function PopoverMenu({
   return (
     <Dropdown
       align={dropdownAlign}
-      autoWidth={autoWidth}
       className={className}
       disableOutsideDismiss={disableOutsideDismiss}
       open={open}

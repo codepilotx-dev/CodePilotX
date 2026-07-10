@@ -10,7 +10,6 @@ type Props = {
   className?: string
   trigger: React.ReactNode
   align?: 'start' | 'center' | 'end'
-  autoWidth?: boolean
   disableOutsideDismiss?: boolean
   open?: boolean
   side?: 'top' | 'right' | 'bottom' | 'left'
@@ -26,7 +25,6 @@ export function Dropdown({
   className = '',
   trigger,
   align = 'start',
-  autoWidth = false,
   disableOutsideDismiss = readDesktopBrowserDebugMode(),
   open,
   side = 'bottom',
@@ -56,7 +54,6 @@ export function Dropdown({
             'popover-surface',
             'popover',
             className,
-            autoWidth ? 'popover-auto-width' : '',
             textMode === 'wrap' ? 'popover-text-wrap' : '',
           ].join(' ')}
           collisionPadding={collisionPadding}
