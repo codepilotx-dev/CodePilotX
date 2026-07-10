@@ -1,5 +1,5 @@
-use codex_protocol::ThreadId;
-use codex_rollout::ThreadItem;
+use codepilotx_protocol::ThreadId;
+use codepilotx_rollout::ThreadItem;
 use pretty_assertions::assert_eq;
 
 use super::ThreadSearchItem;

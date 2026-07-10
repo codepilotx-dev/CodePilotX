@@ -35,11 +35,11 @@ impl TraceReducer {
             );
         }
         self.thread_mut(&started.thread_id)?;
-        let Some(turn) = self.rollout.codex_turns.get(&started.codex_turn_id) else {
+        let Some(turn) = self.rollout.codepilotx_turns.get(&started.codepilotx_turn_id) else {
             bail!(
                 "compaction request {} referenced unknown codex turn {}",
                 started.compaction_request_id,
-                started.codex_turn_id
+                started.codepilotx_turn_id
             );
         };
         if turn.thread_id != started.thread_id {
@@ -47,7 +47,7 @@ impl TraceReducer {
                 "compaction request {} used thread {}, but codex turn {} belongs to {}",
                 started.compaction_request_id,
                 started.thread_id,
-                started.codex_turn_id,
+                started.codepilotx_turn_id,
                 turn.thread_id
             );
         }
@@ -58,7 +58,7 @@ impl TraceReducer {
                 compaction_request_id: started.compaction_request_id,
                 compaction_id: started.compaction_id,
                 thread_id: started.thread_id,
-                codex_turn_id: started.codex_turn_id,
+                codepilotx_turn_id: started.codepilotx_turn_id,
                 execution: ExecutionWindow {
                     started_at_unix_ms: wall_time_unix_ms,
                     started_seq: seq,
@@ -118,7 +118,7 @@ impl TraceReducer {
         &mut self,
         wall_time_unix_ms: i64,
         thread_id: String,
-        codex_turn_id: String,
+        codepilotx_turn_id: String,
         compaction_id: String,
         checkpoint_payload: RawPayloadRef,
     ) -> Result<()> {
@@ -126,21 +126,21 @@ impl TraceReducer {
             bail!("duplicate compaction install for {compaction_id}");
         }
         self.thread_mut(&thread_id)?;
-        let Some(turn) = self.rollout.codex_turns.get(&codex_turn_id) else {
+        let Some(turn) = self.rollout.codepilotx_turns.get(&codepilotx_turn_id) else {
             bail!(
-                "compaction install {compaction_id} referenced unknown codex turn {codex_turn_id}"
+                "compaction install {compaction_id} referenced unknown codex turn {codepilotx_turn_id}"
             );
         };
         if turn.thread_id != thread_id {
             bail!(
-                "compaction install {compaction_id} used thread {thread_id}, but codex turn {codex_turn_id} belongs to {}",
+                "compaction install {compaction_id} used thread {thread_id}, but codex turn {codepilotx_turn_id} belongs to {}",
                 turn.thread_id
             );
         }
         let checkpoint = self.reduce_compaction_checkpoint(
             wall_time_unix_ms,
             &thread_id,
-            codex_turn_id.as_str(),
+            codepilotx_turn_id.as_str(),
             &compaction_id,
             &checkpoint_payload,
         )?;
@@ -159,7 +159,7 @@ impl TraceReducer {
             Compaction {
                 compaction_id,
                 thread_id,
-                codex_turn_id,
+                codepilotx_turn_id,
                 installed_at_unix_ms: wall_time_unix_ms,
                 marker_item_id: checkpoint.marker_item_id,
                 request_ids,
@@ -176,7 +176,7 @@ pub(super) struct StartedCompactionRequest {
     pub(super) compaction_id: String,
     pub(super) compaction_request_id: String,
     pub(super) thread_id: String,
-    pub(super) codex_turn_id: String,
+    pub(super) codepilotx_turn_id: String,
     pub(super) model: String,
     pub(super) provider_name: String,
     pub(super) request_payload: RawPayloadRef,

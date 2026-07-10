@@ -1,12 +1,12 @@
 use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
-use codex_protocol::ThreadId;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::ThreadSource;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::SandboxPolicy;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::ThreadSource;
 use sqlx::Row;
 use sqlx::sqlite::SqliteRow;
 use std::path::PathBuf;
@@ -530,8 +530,8 @@ mod tests {
     use super::ThreadRow;
     use chrono::DateTime;
     use chrono::Utc;
-    use codex_protocol::ThreadId;
-    use codex_protocol::openai_models::ReasoningEffort;
+    use codepilotx_protocol::ThreadId;
+    use codepilotx_protocol::openai_models::ReasoningEffort;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
 

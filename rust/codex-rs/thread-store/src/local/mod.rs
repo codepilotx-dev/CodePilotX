@@ -12,9 +12,9 @@ mod update_thread_metadata;
 #[cfg(test)]
 mod test_support;
 
-use codex_protocol::ThreadId;
-use codex_rollout::RolloutRecorder;
-use codex_rollout::StateDbHandle;
+use codepilotx_protocol::ThreadId;
+use codepilotx_rollout::RolloutRecorder;
+use codepilotx_rollout::StateDbHandle;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::path::PathBuf;
@@ -67,16 +67,16 @@ pub struct LocalThreadStore {
 /// as cwd, provider, and memory mode is supplied when live persistence is opened.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LocalThreadStoreConfig {
-    pub codex_home: PathBuf,
+    pub codepilotx_home: PathBuf,
     pub sqlite_home: PathBuf,
     /// Provider used only when older local metadata does not contain one.
     pub default_model_provider_id: String,
 }
 
 impl LocalThreadStoreConfig {
-    pub fn from_config(config: &impl codex_rollout::RolloutConfigView) -> Self {
+    pub fn from_config(config: &impl codepilotx_rollout::RolloutConfigView) -> Self {
         Self {
-            codex_home: config.codex_home().to_path_buf(),
+            codepilotx_home: config.codepilotx_home().to_path_buf(),
             sqlite_home: config.sqlite_home().to_path_buf(),
             default_model_provider_id: config.model_provider_id().to_string(),
         }
@@ -174,7 +174,7 @@ impl LocalThreadStore {
         if let Ok(rollout_path) = live_writer::rollout_path(self, params.thread_id).await {
             if !params.include_archived
                 && helpers::rollout_path_is_archived(
-                    self.config.codex_home.as_path(),
+                    self.config.codepilotx_home.as_path(),
                     rollout_path.as_path(),
                 )
             {
@@ -312,19 +312,19 @@ impl ThreadStore for LocalThreadStore {
 mod tests {
     use std::sync::Arc;
 
-    use codex_protocol::ThreadId;
-    use codex_protocol::models::BaseInstructions;
-    use codex_protocol::models::FunctionCallOutputPayload;
-    use codex_protocol::models::MessagePhase;
-    use codex_protocol::models::ResponseItem;
-    use codex_protocol::protocol::AgentMessageEvent;
-    use codex_protocol::protocol::EventMsg;
-    use codex_protocol::protocol::RolloutItem;
-    use codex_protocol::protocol::SessionSource;
-    use codex_protocol::protocol::ThreadMemoryMode;
-    use codex_protocol::protocol::TurnCompleteEvent;
-    use codex_protocol::protocol::TurnStartedEvent;
-    use codex_protocol::protocol::UserMessageEvent;
+    use codepilotx_protocol::ThreadId;
+    use codepilotx_protocol::models::BaseInstructions;
+    use codepilotx_protocol::models::FunctionCallOutputPayload;
+    use codepilotx_protocol::models::MessagePhase;
+    use codepilotx_protocol::models::ResponseItem;
+    use codepilotx_protocol::protocol::AgentMessageEvent;
+    use codepilotx_protocol::protocol::EventMsg;
+    use codepilotx_protocol::protocol::RolloutItem;
+    use codepilotx_protocol::protocol::SessionSource;
+    use codepilotx_protocol::protocol::ThreadMemoryMode;
+    use codepilotx_protocol::protocol::TurnCompleteEvent;
+    use codepilotx_protocol::protocol::TurnStartedEvent;
+    use codepilotx_protocol::protocol::UserMessageEvent;
     use tempfile::TempDir;
 
     use super::*;
@@ -389,7 +389,7 @@ mod tests {
         // metadata updates must use LiveThread or call update_thread_metadata explicitly.
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -424,7 +424,7 @@ mod tests {
     async fn live_thread_observes_appended_items_into_sqlite_metadata() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -459,7 +459,7 @@ mod tests {
     async fn live_thread_output_advances_updated_at_but_not_recency_at() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -516,7 +516,7 @@ mod tests {
                     metadata: None,
                 }),
                 RolloutItem::EventMsg(EventMsg::TokenCount(
-                    codex_protocol::protocol::TokenCountEvent {
+                    codepilotx_protocol::protocol::TokenCountEvent {
                         info: None,
                         rate_limits: None,
                     },
@@ -546,7 +546,7 @@ mod tests {
     async fn live_thread_shutdown_does_not_materialize_empty_thread_metadata() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -582,7 +582,7 @@ mod tests {
     async fn live_thread_shutdown_with_buffered_items_materializes_before_metadata_read() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -600,7 +600,7 @@ mod tests {
 
         live_thread
             .append_items(&[RolloutItem::EventMsg(EventMsg::TokenCount(
-                codex_protocol::protocol::TokenCountEvent {
+                codepilotx_protocol::protocol::TokenCountEvent {
                     info: None,
                     rate_limits: None,
                 },
@@ -626,7 +626,7 @@ mod tests {
     async fn live_thread_resume_loads_history_before_observing_metadata() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -680,7 +680,7 @@ mod tests {
         let home = TempDir::new().expect("temp dir");
         let external_home = TempDir::new().expect("external temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )

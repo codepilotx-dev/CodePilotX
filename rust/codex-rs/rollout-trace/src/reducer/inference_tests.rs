@@ -83,7 +83,7 @@ fn cancelled_turn_closes_running_inference_call() -> anyhow::Result<()> {
     )?;
     append_inference_start(&writer, "inference-1", "turn-1", request)?;
     let turn_end = writer.append(RawTraceEventPayload::CodexTurnEnded {
-        codex_turn_id: "turn-1".to_string(),
+        codepilotx_turn_id: "turn-1".to_string(),
         status: ExecutionStatus::Cancelled,
     })?;
 
@@ -110,7 +110,7 @@ fn late_cancelled_inference_preserves_turn_end_status() -> anyhow::Result<()> {
     )?;
     append_inference_start(&writer, "inference-1", "turn-1", request)?;
     let turn_end = writer.append(RawTraceEventPayload::CodexTurnEnded {
-        codex_turn_id: "turn-1".to_string(),
+        codepilotx_turn_id: "turn-1".to_string(),
         status: ExecutionStatus::Failed,
     })?;
 

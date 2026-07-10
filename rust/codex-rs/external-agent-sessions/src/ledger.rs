@@ -1,5 +1,5 @@
 use crate::now_unix_seconds;
-use codex_protocol::ThreadId;
+use codepilotx_protocol::ThreadId;
 use serde::Deserialize;
 use serde::Serialize;
 use sha2::Digest;
@@ -44,21 +44,21 @@ pub(super) struct ImportedSourceState {
 }
 
 pub fn has_current_session_been_imported(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     source_path: &Path,
 ) -> io::Result<bool> {
-    load_import_ledger(codex_home)?.contains_current_source(source_path)
+    load_import_ledger(codepilotx_home)?.contains_current_source(source_path)
 }
 
 #[cfg(test)]
 pub(crate) fn record_imported_session(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     source_path: &Path,
     imported_thread_id: ThreadId,
 ) -> io::Result<()> {
     let source_path = canonical_source_path(source_path)?;
     record_completed_session_imports(
-        codex_home,
+        codepilotx_home,
         vec![CompletedExternalAgentSessionImport {
             source_content_sha256: session_content_sha256(&source_path)?,
             source_path,
@@ -68,13 +68,13 @@ pub(crate) fn record_imported_session(
 }
 
 pub fn record_completed_session_imports(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     imports: Vec<CompletedExternalAgentSessionImport>,
 ) -> io::Result<()> {
     if imports.is_empty() {
         return Ok(());
     }
-    let mut ledger = load_import_ledger(codex_home)?;
+    let mut ledger = load_import_ledger(codepilotx_home)?;
     let imported_at = now_unix_seconds();
     for import in imports {
         let source_modified_at = session_modified_at(&import.source_path).ok().flatten();
@@ -97,7 +97,7 @@ pub fn record_completed_session_imports(
             source_modified_at,
         });
     }
-    save_import_ledger(codex_home, &ledger)
+    save_import_ledger(codepilotx_home, &ledger)
 }
 
 impl ImportedExternalAgentSessionLedger {
@@ -161,9 +161,9 @@ impl ImportedExternalAgentSessionLedger {
 }
 
 pub(super) fn load_import_ledger(
-    codex_home: &Path,
+    codepilotx_home: &Path,
 ) -> io::Result<ImportedExternalAgentSessionLedger> {
-    let path = import_ledger_path(codex_home);
+    let path = import_ledger_path(codepilotx_home);
     let raw = match fs::read_to_string(path) {
         Ok(raw) => raw,
         Err(err) if err.kind() == io::ErrorKind::NotFound => {
@@ -180,17 +180,17 @@ pub(super) fn load_import_ledger(
 }
 
 pub(super) fn save_import_ledger(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     ledger: &ImportedExternalAgentSessionLedger,
 ) -> io::Result<()> {
-    fs::create_dir_all(codex_home)?;
-    let path = import_ledger_path(codex_home);
+    fs::create_dir_all(codepilotx_home)?;
+    let path = import_ledger_path(codepilotx_home);
     let raw = serde_json::to_vec_pretty(ledger).map_err(io::Error::other)?;
     fs::write(path, raw)
 }
 
-fn import_ledger_path(codex_home: &Path) -> PathBuf {
-    codex_home.join(SESSION_IMPORT_LEDGER_FILE)
+fn import_ledger_path(codepilotx_home: &Path) -> PathBuf {
+    codepilotx_home.join(SESSION_IMPORT_LEDGER_FILE)
 }
 
 fn canonical_source_path(path: &Path) -> io::Result<PathBuf> {

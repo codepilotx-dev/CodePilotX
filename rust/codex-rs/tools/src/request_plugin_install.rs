@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
-use codex_app_server_protocol::AppInfo;
-use codex_app_server_protocol::McpElicitationObjectType;
-use codex_app_server_protocol::McpElicitationSchema;
-use codex_app_server_protocol::McpServerElicitationRequest;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
+use codepilotx_app_server_protocol::AppInfo;
+use codepilotx_app_server_protocol::McpElicitationObjectType;
+use codepilotx_app_server_protocol::McpElicitationSchema;
+use codepilotx_app_server_protocol::McpServerElicitationRequest;
+use codepilotx_app_server_protocol::McpServerElicitationRequestParams;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
@@ -38,7 +38,7 @@ pub struct RequestPluginInstallResult {
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct RequestPluginInstallMeta<'a> {
-    pub codex_approval_kind: &'static str,
+    pub codepilotx_approval_kind: &'static str,
     pub persist: &'static str,
     pub tool_type: DiscoverableToolType,
     pub suggest_type: DiscoverableToolAction,
@@ -114,7 +114,7 @@ fn build_request_plugin_install_meta<'a>(
         ),
     };
     RequestPluginInstallMeta {
-        codex_approval_kind: REQUEST_PLUGIN_INSTALL_APPROVAL_KIND_VALUE,
+        codepilotx_approval_kind: REQUEST_PLUGIN_INSTALL_APPROVAL_KIND_VALUE,
         persist: REQUEST_PLUGIN_INSTALL_PERSIST_ALWAYS_VALUE,
         tool_type,
         suggest_type: DiscoverableToolAction::Install,

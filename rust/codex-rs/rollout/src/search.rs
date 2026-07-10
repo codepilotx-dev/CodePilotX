@@ -4,12 +4,12 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::USER_MESSAGE_BEGIN;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::RolloutLine;
+use codepilotx_protocol::protocol::USER_MESSAGE_BEGIN;
 use regex::Regex;
 use regex::RegexBuilder;
 use tokio::process::Command;
@@ -26,12 +26,12 @@ pub type RolloutSearchMatches = HashMap<PathBuf, Option<String>>;
 
 pub async fn search_rollout_paths(
     rg_command: &Path,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     archived: bool,
     search_term: &str,
 ) -> io::Result<HashSet<PathBuf>> {
     Ok(
-        search_rollout_matches(rg_command, codex_home, archived, search_term)
+        search_rollout_matches(rg_command, codepilotx_home, archived, search_term)
             .await?
             .into_keys()
             .collect(),
@@ -40,11 +40,11 @@ pub async fn search_rollout_paths(
 
 pub async fn search_rollout_matches(
     rg_command: &Path,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     archived: bool,
     search_term: &str,
 ) -> io::Result<RolloutSearchMatches> {
-    let root = codex_home.join(if archived {
+    let root = codepilotx_home.join(if archived {
         ARCHIVED_SESSIONS_SUBDIR
     } else {
         SESSIONS_SUBDIR

@@ -8,7 +8,7 @@ mod registry;
 mod schema;
 mod types;
 
-use codex_protocol::protocol::HookEventName;
+use codepilotx_protocol::protocol::HookEventName;
 
 pub use config_rules::hook_states_from_stack;
 pub use declarations::PluginHookDeclaration;

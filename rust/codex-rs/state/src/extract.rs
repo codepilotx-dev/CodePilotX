@@ -1,11 +1,11 @@
 use crate::model::ThreadMetadata;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::TurnContextItem;
-use codex_protocol::protocol::USER_MESSAGE_BEGIN;
-use codex_protocol::protocol::UserMessageEvent;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::SessionMetaLine;
+use codepilotx_protocol::protocol::TurnContextItem;
+use codepilotx_protocol::protocol::USER_MESSAGE_BEGIN;
+use codepilotx_protocol::protocol::UserMessageEvent;
 use serde::Serialize;
 use serde_json::Value;
 
@@ -158,24 +158,24 @@ mod tests {
     use crate::model::ThreadMetadata;
     use chrono::DateTime;
     use chrono::Utc;
-    use codex_protocol::ThreadId;
-    use codex_protocol::models::ContentItem;
-    use codex_protocol::models::PermissionProfile;
-    use codex_protocol::models::ResponseItem;
-    use codex_protocol::openai_models::ReasoningEffort;
-    use codex_protocol::protocol::AskForApproval;
-    use codex_protocol::protocol::EventMsg;
-    use codex_protocol::protocol::RolloutItem;
-    use codex_protocol::protocol::SandboxPolicy;
-    use codex_protocol::protocol::SessionMeta;
-    use codex_protocol::protocol::SessionMetaLine;
-    use codex_protocol::protocol::SessionSource;
-    use codex_protocol::protocol::ThreadGoal;
-    use codex_protocol::protocol::ThreadGoalStatus;
-    use codex_protocol::protocol::ThreadGoalUpdatedEvent;
-    use codex_protocol::protocol::TurnContextItem;
-    use codex_protocol::protocol::USER_MESSAGE_BEGIN;
-    use codex_protocol::protocol::UserMessageEvent;
+    use codepilotx_protocol::ThreadId;
+    use codepilotx_protocol::models::ContentItem;
+    use codepilotx_protocol::models::PermissionProfile;
+    use codepilotx_protocol::models::ResponseItem;
+    use codepilotx_protocol::openai_models::ReasoningEffort;
+    use codepilotx_protocol::protocol::AskForApproval;
+    use codepilotx_protocol::protocol::EventMsg;
+    use codepilotx_protocol::protocol::RolloutItem;
+    use codepilotx_protocol::protocol::SandboxPolicy;
+    use codepilotx_protocol::protocol::SessionMeta;
+    use codepilotx_protocol::protocol::SessionMetaLine;
+    use codepilotx_protocol::protocol::SessionSource;
+    use codepilotx_protocol::protocol::ThreadGoal;
+    use codepilotx_protocol::protocol::ThreadGoalStatus;
+    use codepilotx_protocol::protocol::ThreadGoalUpdatedEvent;
+    use codepilotx_protocol::protocol::TurnContextItem;
+    use codepilotx_protocol::protocol::USER_MESSAGE_BEGIN;
+    use codepilotx_protocol::protocol::UserMessageEvent;
 
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
@@ -328,7 +328,7 @@ mod tests {
                     parent_thread_id: None,
                     timestamp: "2026-02-26T00:00:00.000Z".to_string(),
                     cwd: PathBuf::from("/child/worktree"),
-                    originator: "codex_cli_rs".to_string(),
+                    originator: "codepilotx_cli_rs".to_string(),
                     cli_version: "0.0.0".to_string(),
                     source: SessionSource::Cli,
                     thread_source: None,
@@ -371,7 +371,7 @@ mod tests {
                 multi_agent_mode: None,
                 realtime_active: None,
                 effort: None,
-                summary: codex_protocol::config_types::ReasoningSummary::Auto,
+                summary: codepilotx_protocol::config_types::ReasoningSummary::Auto,
             }),
             "test-provider",
         );
@@ -416,7 +416,7 @@ mod tests {
                 multi_agent_mode: None,
                 realtime_active: None,
                 effort: None,
-                summary: codex_protocol::config_types::ReasoningSummary::Auto,
+                summary: codepilotx_protocol::config_types::ReasoningSummary::Auto,
             }),
             "test-provider",
         );
@@ -457,7 +457,7 @@ mod tests {
                 multi_agent_mode: None,
                 realtime_active: None,
                 effort: Some(ReasoningEffort::High),
-                summary: codex_protocol::config_types::ReasoningSummary::Auto,
+                summary: codepilotx_protocol::config_types::ReasoningSummary::Auto,
             }),
             "test-provider",
         );
@@ -495,7 +495,7 @@ mod tests {
                 multi_agent_mode: None,
                 realtime_active: None,
                 effort: Some(ReasoningEffort::High),
-                summary: codex_protocol::config_types::ReasoningSummary::Auto,
+                summary: codepilotx_protocol::config_types::ReasoningSummary::Auto,
             }),
             "test-provider",
         );
@@ -518,7 +518,7 @@ mod tests {
                     parent_thread_id: None,
                     timestamp: "2026-02-26T00:00:00.000Z".to_string(),
                     cwd: PathBuf::from("/workspace"),
-                    originator: "codex_cli_rs".to_string(),
+                    originator: "codepilotx_cli_rs".to_string(),
                     cli_version: "0.0.0".to_string(),
                     source: SessionSource::Cli,
                     thread_source: None,

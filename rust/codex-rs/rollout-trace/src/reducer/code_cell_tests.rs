@@ -34,7 +34,7 @@ fn code_cell_lifecycle_links_nested_tools_waits_and_outputs() -> anyhow::Result<
     writer.append(RawTraceEventPayload::InferenceStarted {
         inference_call_id: "inference-1".to_string(),
         thread_id: "thread-root".to_string(),
-        codex_turn_id: "turn-1".to_string(),
+        codepilotx_turn_id: "turn-1".to_string(),
         model: "gpt-test".to_string(),
         provider_name: "test-provider".to_string(),
         request_payload: request,
@@ -117,7 +117,7 @@ fn code_cell_lifecycle_links_nested_tools_waits_and_outputs() -> anyhow::Result<
     writer.append(RawTraceEventPayload::InferenceStarted {
         inference_call_id: "inference-2".to_string(),
         thread_id: "thread-root".to_string(),
-        codex_turn_id: "turn-2".to_string(),
+        codepilotx_turn_id: "turn-2".to_string(),
         model: "gpt-test".to_string(),
         provider_name: "test-provider".to_string(),
         request_payload: followup,
@@ -204,7 +204,7 @@ fn fast_code_cell_lifecycle_waits_for_source_item() -> anyhow::Result<()> {
     writer.append(RawTraceEventPayload::InferenceStarted {
         inference_call_id: "inference-1".to_string(),
         thread_id: "thread-root".to_string(),
-        codex_turn_id: "turn-1".to_string(),
+        codepilotx_turn_id: "turn-1".to_string(),
         model: "gpt-test".to_string(),
         provider_name: "test-provider".to_string(),
         request_payload: request,
@@ -283,7 +283,7 @@ fn cancelled_turn_terminates_unfinished_code_cell() -> anyhow::Result<()> {
     writer.append(RawTraceEventPayload::InferenceStarted {
         inference_call_id: "inference-1".to_string(),
         thread_id: "thread-root".to_string(),
-        codex_turn_id: "turn-1".to_string(),
+        codepilotx_turn_id: "turn-1".to_string(),
         model: "gpt-test".to_string(),
         provider_name: "test-provider".to_string(),
         request_payload: request,
@@ -317,7 +317,7 @@ fn cancelled_turn_terminates_unfinished_code_cell() -> anyhow::Result<()> {
     let turn_end = writer.append_with_context(
         trace_context("turn-1"),
         RawTraceEventPayload::CodexTurnEnded {
-            codex_turn_id: "turn-1".to_string(),
+            codepilotx_turn_id: "turn-1".to_string(),
             status: ExecutionStatus::Cancelled,
         },
     )?;
@@ -363,7 +363,7 @@ fn runtime_code_cell_ids_can_repeat_across_threads() -> anyhow::Result<()> {
         writer.append(RawTraceEventPayload::InferenceStarted {
             inference_call_id: inference_call_id.to_string(),
             thread_id: thread_id.to_string(),
-            codex_turn_id: turn_id.to_string(),
+            codepilotx_turn_id: turn_id.to_string(),
             model: "gpt-test".to_string(),
             provider_name: "test-provider".to_string(),
             request_payload: request,

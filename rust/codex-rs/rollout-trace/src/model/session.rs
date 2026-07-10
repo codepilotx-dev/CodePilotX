@@ -102,7 +102,7 @@ pub enum ExecutionStatus {
 /// `ConversationItem`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CodexTurn {
-    pub codex_turn_id: CodexTurnId,
+    pub codepilotx_turn_id: CodexTurnId,
     pub thread_id: AgentThreadId,
     pub execution: ExecutionWindow,
     /// Conversation items that directly triggered this activation, when known.

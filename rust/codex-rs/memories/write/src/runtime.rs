@@ -1,39 +1,39 @@
-use codex_core::CodexThread;
-use codex_core::ModelClient;
-use codex_core::NewThread;
-use codex_core::Prompt;
-use codex_core::ResponseEvent;
-use codex_core::StartThreadOptions;
-use codex_core::ThreadManager;
-use codex_core::config::Config;
-use codex_core::content_items_to_text;
-use codex_core::detached_memory_responses_metadata;
-use codex_core::resolve_installation_id;
-use codex_features::Feature;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::auth_env_telemetry::collect_auth_env_telemetry;
-use codex_login::default_client::originator;
-use codex_model_provider::ModelProvider;
-use codex_model_provider::SharedModelProvider;
-use codex_model_provider::create_model_provider;
-use codex_otel::SessionTelemetry;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::SessionId;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::InternalSessionSource;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::ThreadSource;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::user_input::UserInput;
-use codex_rollout_trace::InferenceTraceContext;
-use codex_state::StateRuntime;
-use codex_terminal_detection::user_agent;
+use codepilotx_core::CodexThread;
+use codepilotx_core::ModelClient;
+use codepilotx_core::NewThread;
+use codepilotx_core::Prompt;
+use codepilotx_core::ResponseEvent;
+use codepilotx_core::StartThreadOptions;
+use codepilotx_core::ThreadManager;
+use codepilotx_core::config::Config;
+use codepilotx_core::content_items_to_text;
+use codepilotx_core::detached_memory_responses_metadata;
+use codepilotx_core::resolve_installation_id;
+use codepilotx_features::Feature;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CodexAuth;
+use codepilotx_login::auth_env_telemetry::collect_auth_env_telemetry;
+use codepilotx_login::default_client::originator;
+use codepilotx_model_provider::ModelProvider;
+use codepilotx_model_provider::SharedModelProvider;
+use codepilotx_model_provider::create_model_provider;
+use codepilotx_otel::SessionTelemetry;
+use codepilotx_otel::TelemetryAuthMode;
+use codepilotx_protocol::SessionId;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::ReasoningSummary;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::protocol::InitialHistory;
+use codepilotx_protocol::protocol::InternalSessionSource;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::ThreadSource;
+use codepilotx_protocol::protocol::TokenUsage;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_rollout_trace::InferenceTraceContext;
+use codepilotx_state::StateRuntime;
+use codepilotx_terminal_detection::user_agent;
 use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
@@ -53,7 +53,7 @@ pub(crate) struct StageOneRequestContext {
 }
 
 impl StageOneRequestContext {
-    pub(crate) fn start_timer(&self, name: &str) -> Option<codex_otel::Timer> {
+    pub(crate) fn start_timer(&self, name: &str) -> Option<codepilotx_otel::Timer> {
         self.session_telemetry.start_timer(name, &[]).ok()
     }
 
@@ -137,7 +137,7 @@ impl MemoryStartupContext {
         let model = config.model.as_deref().unwrap_or("unknown");
         let auth_env_telemetry = collect_auth_env_telemetry(
             &config.model_provider,
-            auth_manager.codex_api_key_env_enabled(),
+            auth_manager.codepilotx_api_key_env_enabled(),
         );
         let session_telemetry = SessionTelemetry::new(
             thread_id,
@@ -183,7 +183,7 @@ impl MemoryStartupContext {
         self.session_telemetry.histogram(name, value, tags);
     }
 
-    pub(crate) fn start_timer(&self, name: &str) -> Option<codex_otel::Timer> {
+    pub(crate) fn start_timer(&self, name: &str) -> Option<codepilotx_otel::Timer> {
         self.session_telemetry.start_timer(name, &[]).ok()
     }
 
@@ -221,7 +221,7 @@ impl MemoryStartupContext {
         prompt: &Prompt,
         context: &StageOneRequestContext,
     ) -> anyhow::Result<(String, Option<TokenUsage>)> {
-        let installation_id = resolve_installation_id(&config.codex_home).await?;
+        let installation_id = resolve_installation_id(&config.codepilotx_home).await?;
         let config_snapshot = self.thread.config_snapshot().await;
         let session_source = config_snapshot.session_source;
         let session_id = SessionId::from(self.thread_id);
@@ -271,7 +271,7 @@ impl MemoryStartupContext {
                 ResponseEvent::OutputTextDelta(delta) => result.push_str(&delta),
                 ResponseEvent::OutputItemDone(item) => {
                     if result.is_empty()
-                        && let codex_protocol::models::ResponseItem::Message { content, .. } = item
+                        && let codepilotx_protocol::models::ResponseItem::Message { content, .. } = item
                         && let Some(text) = content_items_to_text(&content)
                     {
                         result.push_str(&text);

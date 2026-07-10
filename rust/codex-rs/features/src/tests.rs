@@ -7,8 +7,8 @@ use crate::FeaturesToml;
 use crate::Stage;
 use crate::feature_for_key;
 use crate::unstable_features_warning_event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::WarningEvent;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::WarningEvent;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 use toml::Table;
@@ -378,9 +378,9 @@ fn collab_is_legacy_alias_for_multi_agent() {
 }
 
 #[test]
-fn codex_hooks_is_legacy_alias_for_hooks() {
+fn codepilotx_hooks_is_legacy_alias_for_hooks() {
     assert_eq!(feature_for_key("hooks"), Some(Feature::CodexHooks));
-    assert_eq!(feature_for_key("codex_hooks"), Some(Feature::CodexHooks));
+    assert_eq!(feature_for_key("codepilotx_hooks"), Some(Feature::CodexHooks));
 }
 
 #[test]

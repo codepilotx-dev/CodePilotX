@@ -11,9 +11,9 @@ use std::time::Duration;
 
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_login::AuthEnvTelemetry;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionSource;
+use codepilotx_login::AuthEnvTelemetry;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::SessionSource;
 use tracing::Event;
 use tracing::Level;
 use tracing::field::Visit;
@@ -145,8 +145,8 @@ pub fn emit_feedback_request_tags_with_auth_env(
         auth_recovery_followup_success = tracing::field::debug(&snapshot.auth_recovery_followup_success),
         auth_recovery_followup_status = tracing::field::debug(&snapshot.auth_recovery_followup_status),
         auth_env_openai_api_key_present = tracing::field::debug(auth_env.openai_api_key_env_present),
-        auth_env_codex_api_key_present = tracing::field::debug(auth_env.codex_api_key_env_present),
-        auth_env_codex_api_key_enabled = tracing::field::debug(auth_env.codex_api_key_env_enabled),
+        auth_env_codepilotx_api_key_present = tracing::field::debug(auth_env.codepilotx_api_key_env_present),
+        auth_env_codepilotx_api_key_enabled = tracing::field::debug(auth_env.codepilotx_api_key_env_enabled),
         // Custom provider `env_key` is arbitrary config text, so emit only a safe bucket.
         auth_env_provider_key_name = tracing::field::debug(
             auth_env.provider_env_key_name.as_deref().unwrap_or("")

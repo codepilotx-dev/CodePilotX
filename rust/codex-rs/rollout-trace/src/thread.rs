@@ -5,9 +5,9 @@
 //! thread-local event methods here avoids repeatedly plumbing `thread_id`
 //! through session code.
 
-use codex_protocol::protocol::AgentStatus;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::AgentStatus;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::SessionSource;
 use serde::Serialize;
 use std::path::Path;
 use std::path::PathBuf;
@@ -32,7 +32,7 @@ use crate::ToolCallId;
 use crate::ToolDispatchInvocation;
 use crate::ToolDispatchTraceContext;
 use crate::TraceWriter;
-use crate::protocol_event::codex_turn_trace_event;
+use crate::protocol_event::codepilotx_turn_trace_event;
 use crate::protocol_event::tool_runtime_trace_event;
 use crate::protocol_event::wrapped_protocol_event_type;
 
@@ -41,7 +41,7 @@ use crate::protocol_event::wrapped_protocol_event_type;
 /// The value is a root directory. Each independent root session gets one child
 /// bundle directory. Spawned child threads share their root session's bundle so
 /// one reduced `state.json` describes the whole multi-agent rollout tree.
-pub const CODEX_ROLLOUT_TRACE_ROOT_ENV: &str = "CODEX_ROLLOUT_TRACE_ROOT";
+pub const codepilotx_ROLLOUT_TRACE_ROOT_ENV: &str = "codepilotx_ROLLOUT_TRACE_ROOT";
 
 /// Metadata captured once at thread/session start.
 ///
@@ -98,13 +98,13 @@ impl ThreadTraceContext {
         }
     }
 
-    /// Starts a root thread trace from `CODEX_ROLLOUT_TRACE_ROOT`, or disables tracing.
+    /// Starts a root thread trace from `codepilotx_ROLLOUT_TRACE_ROOT`, or disables tracing.
     ///
     /// Trace startup is best-effort. A tracing failure must not make the Codex
     /// session unusable, because traces are diagnostic and can be enabled while
     /// debugging unrelated production failures.
     pub fn start_root_or_disabled(metadata: ThreadStartedTraceMetadata) -> Self {
-        let Some(root) = std::env::var_os(CODEX_ROLLOUT_TRACE_ROOT_ENV) else {
+        let Some(root) = std::env::var_os(codepilotx_ROLLOUT_TRACE_ROOT_ENV) else {
             return Self::disabled();
         };
         let root = PathBuf::from(root);
@@ -214,12 +214,12 @@ impl ThreadTraceContext {
     }
 
     /// Emits typed Codex turn lifecycle events from protocol lifecycle events.
-    pub fn record_codex_turn_event(&self, default_turn_id: &str, event: &EventMsg) {
+    pub fn record_codepilotx_turn_event(&self, default_turn_id: &str, event: &EventMsg) {
         let ThreadTraceContextState::Enabled(context) = &self.state else {
             return;
         };
         let Some(trace_event) =
-            codex_turn_trace_event(context.thread_id.clone(), default_turn_id, event)
+            codepilotx_turn_trace_event(context.thread_id.clone(), default_turn_id, event)
         else {
             return;
         };
@@ -234,7 +234,7 @@ impl ThreadTraceContext {
     /// These events are runtime observations on an already-dispatched tool. The
     /// dispatch trace records the caller-facing boundary; these payloads explain
     /// what Codex did while executing that boundary.
-    pub fn record_tool_call_event(&self, codex_turn_id: impl Into<CodexTurnId>, event: &EventMsg) {
+    pub fn record_tool_call_event(&self, codepilotx_turn_id: impl Into<CodexTurnId>, event: &EventMsg) {
         let ThreadTraceContextState::Enabled(context) = &self.state else {
             return;
         };
@@ -244,7 +244,7 @@ impl ThreadTraceContext {
         let Some(payload) = context.raw_tool_runtime_payload(trace_event) else {
             return;
         };
-        context.append_with_context_best_effort(codex_turn_id.into(), payload);
+        context.append_with_context_best_effort(codepilotx_turn_id.into(), payload);
     }
 
     /// Emits the v2 child-to-parent completion message as an explicit graph edge.
@@ -255,26 +255,26 @@ impl ThreadTraceContext {
     /// the edge from a later parent prompt snapshot.
     pub fn record_agent_result_interaction(
         &self,
-        child_codex_turn_id: impl Into<CodexTurnId>,
+        child_codepilotx_turn_id: impl Into<CodexTurnId>,
         parent_thread_id: impl Into<AgentThreadId>,
         payload: &AgentResultTracePayload<'_>,
     ) {
         let ThreadTraceContextState::Enabled(context) = &self.state else {
             return;
         };
-        let child_codex_turn_id = child_codex_turn_id.into();
+        let child_codepilotx_turn_id = child_codepilotx_turn_id.into();
         let parent_thread_id = parent_thread_id.into();
         let carried_payload =
             context.write_json_payload_best_effort(RawPayloadKind::AgentResult, payload);
         context.append_with_context_best_effort(
-            child_codex_turn_id.clone(),
+            child_codepilotx_turn_id.clone(),
             RawTraceEventPayload::AgentResultObserved {
                 edge_id: format!(
-                    "edge:agent_result:{}:{child_codex_turn_id}:{parent_thread_id}",
+                    "edge:agent_result:{}:{child_codepilotx_turn_id}:{parent_thread_id}",
                     context.thread_id
                 ),
                 child_thread_id: context.thread_id.clone(),
-                child_codex_turn_id,
+                child_codepilotx_turn_id,
                 parent_thread_id,
                 message: payload.message.to_string(),
                 carried_payload,
@@ -287,15 +287,15 @@ impl ThreadTraceContext {
     /// Most production turn lifecycle wiring lives outside this PR layer, but
     /// trace-focused integration tests need a small explicit hook so reducer
     /// inputs remain valid without exercising the full session loop.
-    pub fn record_codex_turn_started(&self, codex_turn_id: impl Into<CodexTurnId>) {
+    pub fn record_codepilotx_turn_started(&self, codepilotx_turn_id: impl Into<CodexTurnId>) {
         let ThreadTraceContextState::Enabled(context) = &self.state else {
             return;
         };
-        let codex_turn_id = codex_turn_id.into();
+        let codepilotx_turn_id = codepilotx_turn_id.into();
         context.append_with_context_best_effort(
-            codex_turn_id.clone(),
+            codepilotx_turn_id.clone(),
             RawTraceEventPayload::CodexTurnStarted {
-                codex_turn_id,
+                codepilotx_turn_id,
                 thread_id: context.thread_id.clone(),
             },
         );
@@ -304,12 +304,12 @@ impl ThreadTraceContext {
     /// Starts a first-class code-mode cell lifecycle and returns its trace handle.
     pub fn start_code_cell_trace(
         &self,
-        codex_turn_id: impl Into<CodexTurnId>,
+        codepilotx_turn_id: impl Into<CodexTurnId>,
         runtime_cell_id: impl Into<String>,
         model_visible_call_id: impl Into<String>,
         source_js: impl Into<String>,
     ) -> CodeCellTraceContext {
-        let context = self.code_cell_trace_context(codex_turn_id, runtime_cell_id);
+        let context = self.code_cell_trace_context(codepilotx_turn_id, runtime_cell_id);
         context.record_started(model_visible_call_id, source_js);
         context
     }
@@ -317,7 +317,7 @@ impl ThreadTraceContext {
     /// Builds a trace handle for an already-started code-mode runtime cell.
     pub fn code_cell_trace_context(
         &self,
-        codex_turn_id: impl Into<CodexTurnId>,
+        codepilotx_turn_id: impl Into<CodexTurnId>,
         runtime_cell_id: impl Into<String>,
     ) -> CodeCellTraceContext {
         let ThreadTraceContextState::Enabled(context) = &self.state else {
@@ -326,7 +326,7 @@ impl ThreadTraceContext {
         CodeCellTraceContext::enabled(
             Arc::clone(&context.writer),
             context.thread_id.clone(),
-            codex_turn_id,
+            codepilotx_turn_id,
             runtime_cell_id,
         )
     }
@@ -356,7 +356,7 @@ impl ThreadTraceContext {
     /// only after it has built the concrete request payload for that attempt.
     pub fn inference_trace_context(
         &self,
-        codex_turn_id: impl Into<CodexTurnId>,
+        codepilotx_turn_id: impl Into<CodexTurnId>,
         model: impl Into<String>,
         provider_name: impl Into<String>,
     ) -> InferenceTraceContext {
@@ -366,7 +366,7 @@ impl ThreadTraceContext {
         InferenceTraceContext::enabled(
             Arc::clone(&context.writer),
             context.thread_id.clone(),
-            codex_turn_id.into(),
+            codepilotx_turn_id.into(),
             model.into(),
             provider_name.into(),
         )
@@ -380,7 +380,7 @@ impl ThreadTraceContext {
     /// replacement history is installed.
     pub fn compaction_trace_context(
         &self,
-        codex_turn_id: impl Into<CodexTurnId>,
+        codepilotx_turn_id: impl Into<CodexTurnId>,
         compaction_id: impl Into<CompactionId>,
         model: impl Into<String>,
         provider_name: impl Into<String>,
@@ -391,7 +391,7 @@ impl ThreadTraceContext {
         CompactionTraceContext::enabled(
             Arc::clone(&context.writer),
             context.thread_id.clone(),
-            codex_turn_id.into(),
+            codepilotx_turn_id.into(),
             compaction_id.into(),
             model.into(),
             provider_name.into(),
@@ -511,12 +511,12 @@ impl EnabledThreadTraceContext {
 
     fn append_with_context_best_effort(
         &self,
-        codex_turn_id: CodexTurnId,
+        codepilotx_turn_id: CodexTurnId,
         payload: RawTraceEventPayload,
     ) {
         let event_context = RawTraceEventContext {
             thread_id: Some(self.thread_id.clone()),
-            codex_turn_id: Some(codex_turn_id),
+            codepilotx_turn_id: Some(codepilotx_turn_id),
         };
         if let Err(err) = self.writer.append_with_context(event_context, payload) {
             warn!("failed to append rollout trace event: {err:#}");

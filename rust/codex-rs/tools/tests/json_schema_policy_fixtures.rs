@@ -1,6 +1,6 @@
 #![allow(clippy::expect_used)]
-use codex_tools::ToolName;
-use codex_tools::mcp_tool_to_responses_api_tool;
+use codepilotx_tools::ToolName;
+use codepilotx_tools::mcp_tool_to_responses_api_tool;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
@@ -184,7 +184,7 @@ fn json_schema_policy_oversized_golden_schema_triggers_compaction() {
 }
 
 fn load_fixture<T: DeserializeOwned>(path: &str) -> T {
-    let path = codex_utils_cargo_bin::find_resource!(path).expect("fixture should resolve");
+    let path = codepilotx_utils_cargo_bin::find_resource!(path).expect("fixture should resolve");
     let fixture = fs::read_to_string(&path).expect("fixture should be readable");
     serde_json::from_str(&fixture).expect("fixture should contain valid JSON")
 }
@@ -192,7 +192,7 @@ fn load_fixture<T: DeserializeOwned>(path: &str) -> T {
 fn convert_fixture_tool(
     fixture: &FixtureFile,
     fixture_tool: &FixtureTool,
-) -> codex_tools::ResponsesApiTool {
+) -> codepilotx_tools::ResponsesApiTool {
     let name = &fixture_tool.name;
     let input_schema = fixture_tool
         .input_schema

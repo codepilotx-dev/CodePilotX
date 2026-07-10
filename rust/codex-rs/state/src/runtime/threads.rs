@@ -1,6 +1,6 @@
 use super::*;
 use crate::SortDirection;
-use codex_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SessionSource;
 use std::sync::atomic::AtomicI64;
 use std::sync::atomic::Ordering;
 
@@ -552,7 +552,7 @@ ON CONFLICT(id) DO NOTHING
             metadata
                 .thread_source
                 .as_ref()
-                .map(codex_protocol::protocol::ThreadSource::as_str),
+                .map(codepilotx_protocol::protocol::ThreadSource::as_str),
         )
         .bind(metadata.agent_nickname.as_deref())
         .bind(metadata.agent_role.as_deref())
@@ -832,7 +832,7 @@ ON CONFLICT(id) DO UPDATE SET
             metadata
                 .thread_source
                 .as_ref()
-                .map(codex_protocol::protocol::ThreadSource::as_str),
+                .map(codepilotx_protocol::protocol::ThreadSource::as_str),
         )
         .bind(metadata.agent_nickname.as_deref())
         .bind(metadata.agent_role.as_deref())
@@ -1341,24 +1341,24 @@ mod tests {
     use crate::runtime::test_support::test_thread_metadata;
     use crate::runtime::test_support::unique_temp_dir;
     use anyhow::Result;
-    use codex_protocol::protocol::EventMsg;
-    use codex_protocol::protocol::GitInfo;
-    use codex_protocol::protocol::SessionMeta;
-    use codex_protocol::protocol::SessionMetaLine;
-    use codex_protocol::protocol::SessionSource;
+    use codepilotx_protocol::protocol::EventMsg;
+    use codepilotx_protocol::protocol::GitInfo;
+    use codepilotx_protocol::protocol::SessionMeta;
+    use codepilotx_protocol::protocol::SessionMetaLine;
+    use codepilotx_protocol::protocol::SessionSource;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::path::PathBuf;
 
     #[tokio::test]
     async fn upsert_thread_keeps_creation_memory_mode_for_existing_rows() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let thread_id =
             ThreadId::from_string("00000000-0000-0000-0000-000000000123").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let mut metadata = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
 
         runtime
             .upsert_thread_with_creation_memory_mode(&metadata, Some("disabled"))
@@ -1390,15 +1390,15 @@ mod tests {
 
     #[tokio::test]
     async fn delete_thread_cleans_associated_state() -> Result<()> {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string()).await?;
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string()).await?;
         let thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000401")?;
         let child_thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000402")?;
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id,
-                codex_home.clone(),
+                codepilotx_home.clone(),
             ))
             .await?;
         seed_thread_cleanup_state(&runtime, thread_id, child_thread_id).await?;
@@ -1481,15 +1481,15 @@ mod tests {
 
     #[tokio::test]
     async fn delete_thread_keeps_retry_graph_on_cleanup_failure() -> Result<()> {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string()).await?;
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string()).await?;
         let thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000405")?;
         let child_thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000406")?;
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id,
-                codex_home.clone(),
+                codepilotx_home.clone(),
             ))
             .await?;
         seed_thread_cleanup_state(&runtime, thread_id, child_thread_id).await?;
@@ -1564,8 +1564,8 @@ mod tests {
 
     #[tokio::test]
     async fn list_threads_updated_after_returns_oldest_changes_first() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let older_id =
@@ -1584,7 +1584,7 @@ mod tests {
             (newer_id, newer_updated_at),
             (middle_id, newer_updated_at),
         ] {
-            let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+            let mut metadata = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
             metadata.updated_at = updated_at;
             metadata.first_user_message = Some("hello".to_string());
             runtime
@@ -1650,8 +1650,8 @@ mod tests {
 
     #[tokio::test]
     async fn list_threads_filters_by_cwd() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let first_id =
@@ -1660,16 +1660,16 @@ mod tests {
             ThreadId::from_string("00000000-0000-0000-0000-000000000102").expect("valid thread id");
         let other_id =
             ThreadId::from_string("00000000-0000-0000-0000-000000000103").expect("valid thread id");
-        let first_cwd = codex_home.join("first");
-        let second_cwd = codex_home.join("second");
-        let other_cwd = codex_home.join("other");
+        let first_cwd = codepilotx_home.join("first");
+        let second_cwd = codepilotx_home.join("second");
+        let other_cwd = codepilotx_home.join("other");
 
         for (thread_id, cwd, updated_at) in [
             (first_id, first_cwd.clone(), 1_700_000_100),
             (second_id, second_cwd.clone(), 1_700_000_300),
             (other_id, other_cwd, 1_700_000_500),
         ] {
-            let mut metadata = test_thread_metadata(&codex_home, thread_id, cwd);
+            let mut metadata = test_thread_metadata(&codepilotx_home, thread_id, cwd);
             metadata.updated_at =
                 DateTime::<Utc>::from_timestamp(updated_at, 0).expect("valid timestamp");
             runtime
@@ -1758,8 +1758,8 @@ mod tests {
 
     #[tokio::test]
     async fn list_threads_uses_indexes_matching_cwd_filters() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home, "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home, "test-provider".to_string())
             .await
             .expect("state db should initialize");
 
@@ -1844,8 +1844,8 @@ mod tests {
 
     #[tokio::test]
     async fn list_threads_by_parent_filters_direct_children_with_keyset_pagination() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let parent_id = ThreadId::new();
@@ -1860,7 +1860,7 @@ mod tests {
             (second_child_id, 1_700_000_200),
             (grandchild_id, 1_700_000_300),
         ] {
-            let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+            let mut metadata = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
             metadata.created_at =
                 DateTime::<Utc>::from_timestamp(created_at, 0).expect("valid timestamp");
             metadata.updated_at = metadata.created_at;
@@ -1936,13 +1936,13 @@ mod tests {
 
     #[tokio::test]
     async fn apply_rollout_items_restores_memory_mode_from_session_meta() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let thread_id =
             ThreadId::from_string("00000000-0000-0000-0000-000000000456").expect("valid thread id");
-        let metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let metadata = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
 
         runtime
             .upsert_thread(&metadata)
@@ -1995,13 +1995,13 @@ mod tests {
 
     #[tokio::test]
     async fn apply_rollout_items_preserves_existing_git_branch_and_fills_missing_git_fields() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let thread_id =
             ThreadId::from_string("00000000-0000-0000-0000-000000000457").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let mut metadata = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
         metadata.git_branch = Some("sqlite-branch".to_string());
 
         runtime
@@ -2037,7 +2037,7 @@ mod tests {
                 multi_agent_version: None,
             },
             git: Some(GitInfo {
-                commit_hash: Some(codex_git_utils::GitSha::new("rollout-sha")),
+                commit_hash: Some(codepilotx_git_utils::GitSha::new("rollout-sha")),
                 branch: Some("rollout-branch".to_string()),
                 repository_url: Some("git@example.com:openai/codex.git".to_string()),
             }),
@@ -2066,13 +2066,13 @@ mod tests {
 
     #[tokio::test]
     async fn upsert_thread_preserves_existing_git_fields_atomically() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let thread_id =
             ThreadId::from_string("00000000-0000-0000-0000-000000000458").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let mut metadata = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
         metadata.git_sha = Some("sqlite-sha".to_string());
         metadata.git_branch = Some("sqlite-branch".to_string());
         metadata.git_origin_url = Some("git@example.com:openai/codex.git".to_string());
@@ -2107,13 +2107,13 @@ mod tests {
 
     #[tokio::test]
     async fn upsert_thread_preserves_existing_preview_when_incoming_preview_is_empty() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let thread_id =
             ThreadId::from_string("00000000-0000-0000-0000-000000000459").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let mut metadata = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
         metadata.first_user_message = None;
         metadata.preview = Some("migrated goal preview".to_string());
 
@@ -2140,13 +2140,13 @@ mod tests {
 
     #[tokio::test]
     async fn set_thread_preview_if_empty_only_fills_blank_preview() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let thread_id =
             ThreadId::from_string("00000000-0000-0000-0000-000000000460").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let mut metadata = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
         metadata.first_user_message = None;
         metadata.preview = None;
 
@@ -2181,13 +2181,13 @@ mod tests {
 
     #[tokio::test]
     async fn update_thread_git_info_preserves_newer_non_git_metadata() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let thread_id =
             ThreadId::from_string("00000000-0000-0000-0000-000000000789").expect("valid thread id");
-        let metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let metadata = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
 
         runtime
             .upsert_thread(&metadata)
@@ -2243,14 +2243,14 @@ mod tests {
 
     #[tokio::test]
     async fn insert_thread_if_absent_preserves_existing_metadata() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let thread_id =
             ThreadId::from_string("00000000-0000-0000-0000-000000000791").expect("valid thread id");
 
-        let mut existing = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let mut existing = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
         existing.tokens_used = 123;
         existing.first_user_message = Some("newer preview".to_string());
         existing.preview = Some("newer preview".to_string());
@@ -2260,7 +2260,7 @@ mod tests {
             .await
             .expect("initial upsert should succeed");
 
-        let mut fallback = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let mut fallback = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
         fallback.tokens_used = 0;
         fallback.first_user_message = None;
         fallback.preview = None;
@@ -2291,13 +2291,13 @@ mod tests {
 
     #[tokio::test]
     async fn update_thread_git_info_can_clear_fields() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let thread_id =
             ThreadId::from_string("00000000-0000-0000-0000-000000000790").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let mut metadata = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
         metadata.git_sha = Some("abc123".to_string());
         metadata.git_branch = Some("feature/branch".to_string());
         metadata.git_origin_url = Some("git@example.com:openai/codex.git".to_string());
@@ -2325,13 +2325,13 @@ mod tests {
 
     #[tokio::test]
     async fn touch_thread_updated_at_updates_only_updated_at() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let thread_id =
             ThreadId::from_string("00000000-0000-0000-0000-000000000791").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let mut metadata = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
         metadata.title = "original title".to_string();
         metadata.first_user_message = Some("first-user-message".to_string());
         metadata.preview = None;
@@ -2364,13 +2364,13 @@ mod tests {
 
     #[tokio::test]
     async fn touch_thread_recency_at_is_monotonic_and_survives_stale_upsert() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let thread_id =
             ThreadId::from_string("00000000-0000-0000-0000-000000000792").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let mut metadata = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
         let original_recency_at = metadata.recency_at;
         runtime
             .upsert_thread(&metadata)
@@ -2423,8 +2423,8 @@ mod tests {
 
     #[tokio::test]
     async fn list_threads_orders_and_pages_by_recency_at() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let first_id =
@@ -2437,7 +2437,7 @@ mod tests {
             DateTime::<Utc>::from_timestamp_millis(1_700_002_000_456).expect("timestamp");
 
         for thread_id in [first_id, second_id, third_id] {
-            let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+            let mut metadata = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
             metadata.recency_at = recency_at;
             runtime
                 .upsert_thread(&metadata)
@@ -2544,8 +2544,8 @@ mod tests {
 
     #[tokio::test]
     async fn thread_updated_at_uses_unique_epoch_millis_and_reads_legacy_seconds() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let first_id =
@@ -2556,10 +2556,10 @@ mod tests {
             ThreadId::from_string("00000000-0000-0000-0000-000000000903").expect("valid thread id");
         let updated_at =
             DateTime::<Utc>::from_timestamp_millis(1_700_001_111_123).expect("timestamp millis");
-        let mut first = test_thread_metadata(&codex_home, first_id, codex_home.clone());
+        let mut first = test_thread_metadata(&codepilotx_home, first_id, codepilotx_home.clone());
         first.updated_at = updated_at;
         first.recency_at = updated_at;
-        let mut second = test_thread_metadata(&codex_home, second_id, codex_home.clone());
+        let mut second = test_thread_metadata(&codepilotx_home, second_id, codepilotx_home.clone());
         second.updated_at = updated_at;
         second.recency_at = updated_at;
 
@@ -2617,7 +2617,7 @@ mod tests {
 
         let older_updated_at =
             DateTime::<Utc>::from_timestamp_millis(1_700_001_100_123).expect("timestamp millis");
-        let mut older = test_thread_metadata(&codex_home, older_id, codex_home.clone());
+        let mut older = test_thread_metadata(&codepilotx_home, older_id, codepilotx_home.clone());
         older.updated_at = older_updated_at;
         runtime
             .upsert_thread(&older)
@@ -2652,13 +2652,13 @@ mod tests {
 
     #[tokio::test]
     async fn apply_rollout_items_uses_override_updated_at_when_provided() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let thread_id =
             ThreadId::from_string("00000000-0000-0000-0000-000000000792").expect("valid thread id");
-        let metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let metadata = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.clone());
 
         runtime
             .upsert_thread(&metadata)
@@ -2672,16 +2672,16 @@ mod tests {
             SessionSource::Cli,
         );
         let items = vec![RolloutItem::EventMsg(EventMsg::TokenCount(
-            codex_protocol::protocol::TokenCountEvent {
-                info: Some(codex_protocol::protocol::TokenUsageInfo {
-                    total_token_usage: codex_protocol::protocol::TokenUsage {
+            codepilotx_protocol::protocol::TokenCountEvent {
+                info: Some(codepilotx_protocol::protocol::TokenUsageInfo {
+                    total_token_usage: codepilotx_protocol::protocol::TokenUsage {
                         input_tokens: 0,
                         cached_input_tokens: 0,
                         output_tokens: 0,
                         reasoning_output_tokens: 0,
                         total_tokens: 321,
                     },
-                    last_token_usage: codex_protocol::protocol::TokenUsage::default(),
+                    last_token_usage: codepilotx_protocol::protocol::TokenUsage::default(),
                     model_context_window: None,
                 }),
                 rate_limits: None,
@@ -2711,8 +2711,8 @@ mod tests {
 
     #[tokio::test]
     async fn thread_spawn_edges_track_directional_status() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home, "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home, "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let parent_thread_id =
@@ -2807,8 +2807,8 @@ mod tests {
 
     #[tokio::test]
     async fn thread_spawn_children_without_status_filter_lists_all_statuses() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home, "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home, "test-provider".to_string())
             .await
             .expect("state db should initialize");
         let parent_thread_id =

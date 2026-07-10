@@ -1,14 +1,14 @@
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
-use codex_protocol::protocol::CollabAgentInteractionBeginEvent;
-use codex_protocol::protocol::CollabAgentInteractionEndEvent;
-use codex_protocol::protocol::CollabAgentSpawnEndEvent;
-use codex_protocol::protocol::CollabCloseBeginEvent;
-use codex_protocol::protocol::CollabCloseEndEvent;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::SubAgentActivityEvent;
-use codex_protocol::protocol::SubAgentActivityKind;
+use codepilotx_protocol::protocol::CollabAgentInteractionBeginEvent;
+use codepilotx_protocol::protocol::CollabAgentInteractionEndEvent;
+use codepilotx_protocol::protocol::CollabAgentSpawnEndEvent;
+use codepilotx_protocol::protocol::CollabCloseBeginEvent;
+use codepilotx_protocol::protocol::CollabCloseEndEvent;
+use codepilotx_protocol::protocol::InterAgentCommunication;
+use codepilotx_protocol::protocol::SubAgentActivityEvent;
+use codepilotx_protocol::protocol::SubAgentActivityKind;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -51,7 +51,7 @@ pub(in crate::reducer) struct ObservedAgentResultEdge {
     pub(in crate::reducer) wall_time_unix_ms: i64,
     pub(in crate::reducer) edge_id: String,
     pub(in crate::reducer) child_thread_id: String,
-    pub(in crate::reducer) child_codex_turn_id: String,
+    pub(in crate::reducer) child_codepilotx_turn_id: String,
     pub(in crate::reducer) parent_thread_id: String,
     pub(in crate::reducer) message: String,
     pub(in crate::reducer) carried_payload: Option<RawPayloadRef>,
@@ -479,7 +479,7 @@ impl TraceReducer {
         let message_author = self.agent_path_for_thread(&observed.child_thread_id)?;
         let source = if let Some(source_item_id) = self.latest_assistant_message_item_for_turn(
             &observed.child_thread_id,
-            &observed.child_codex_turn_id,
+            &observed.child_codepilotx_turn_id,
         ) {
             TraceAnchor::ConversationItem {
                 item_id: source_item_id,
@@ -727,14 +727,14 @@ impl TraceReducer {
     fn latest_assistant_message_item_for_turn(
         &self,
         thread_id: &str,
-        codex_turn_id: &str,
+        codepilotx_turn_id: &str,
     ) -> Option<String> {
         self.rollout
             .conversation_items
             .values()
             .filter(|item| {
                 item.thread_id == thread_id
-                    && item.codex_turn_id.as_deref() == Some(codex_turn_id)
+                    && item.codepilotx_turn_id.as_deref() == Some(codepilotx_turn_id)
                     && item.role == ConversationRole::Assistant
                     && item.kind == ConversationItemKind::Message
                     && item.agent_message.is_none()

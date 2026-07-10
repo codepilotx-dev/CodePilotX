@@ -3,7 +3,7 @@ use crate::ToolDefinition;
 use crate::ToolName;
 use crate::parse_dynamic_tool;
 use crate::parse_mcp_tool;
-use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolFunctionSpec;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;

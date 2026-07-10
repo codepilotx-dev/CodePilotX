@@ -7,11 +7,11 @@
 use std::io::ErrorKind;
 use std::path::Path;
 
-use codex_rollout::ARCHIVED_SESSIONS_SUBDIR;
-use codex_rollout::SESSIONS_SUBDIR;
-use codex_rollout::find_archived_thread_path_by_id_str;
-use codex_rollout::find_thread_path_by_id_str;
-use codex_rollout::remove_thread_name_entries;
+use codepilotx_rollout::ARCHIVED_SESSIONS_SUBDIR;
+use codepilotx_rollout::SESSIONS_SUBDIR;
+use codepilotx_rollout::find_archived_thread_path_by_id_str;
+use codepilotx_rollout::find_thread_path_by_id_str;
+use codepilotx_rollout::remove_thread_name_entries;
 
 use super::LocalThreadStore;
 use super::helpers::matching_rollout_file_name;
@@ -30,7 +30,7 @@ pub(super) async fn delete_thread(
     let mut rollout_paths = Vec::new();
 
     match find_thread_path_by_id_str(
-        store.config.codex_home.as_path(),
+        store.config.codepilotx_home.as_path(),
         thread_id_str.as_str(),
         state_db_ctx.as_deref(),
     )
@@ -46,7 +46,7 @@ pub(super) async fn delete_thread(
     }
 
     match find_archived_thread_path_by_id_str(
-        store.config.codex_home.as_path(),
+        store.config.codepilotx_home.as_path(),
         thread_id_str.as_str(),
         state_db_ctx.as_deref(),
     )
@@ -69,7 +69,7 @@ pub(super) async fn delete_thread(
     for rollout_path in rollout_paths {
         delete_rollout_file(store, rollout_path.as_path(), thread_id)?;
     }
-    remove_thread_name_entries(store.config.codex_home.as_path(), thread_id)
+    remove_thread_name_entries(store.config.codepilotx_home.as_path(), thread_id)
         .await
         .map_err(|err| ThreadStoreError::Internal {
             message: format!("failed to delete thread name index entries for {thread_id}: {err}"),
@@ -87,9 +87,9 @@ pub(super) async fn delete_thread(
 fn delete_rollout_file(
     store: &LocalThreadStore,
     rollout_path: &Path,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: codepilotx_protocol::ThreadId,
 ) -> ThreadStoreResult<bool> {
-    let plain_path = codex_rollout::plain_rollout_path(rollout_path);
+    let plain_path = codepilotx_rollout::plain_rollout_path(rollout_path);
     let compressed_path = plain_path.with_extension("jsonl.zst");
     let deleted_plain = delete_rollout_path(store, plain_path.as_path(), thread_id)?;
     let deleted_compressed = delete_rollout_path(store, compressed_path.as_path(), thread_id)?;
@@ -99,16 +99,16 @@ fn delete_rollout_file(
 fn delete_rollout_path(
     store: &LocalThreadStore,
     rollout_path: &Path,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: codepilotx_protocol::ThreadId,
 ) -> ThreadStoreResult<bool> {
     let canonical_rollout_path = scoped_rollout_path(
-        store.config.codex_home.join(SESSIONS_SUBDIR),
+        store.config.codepilotx_home.join(SESSIONS_SUBDIR),
         rollout_path,
         "sessions",
     )
     .or_else(|_| {
         scoped_rollout_path(
-            store.config.codex_home.join(ARCHIVED_SESSIONS_SUBDIR),
+            store.config.codepilotx_home.join(ARCHIVED_SESSIONS_SUBDIR),
             rollout_path,
             "archived sessions",
         )
@@ -132,7 +132,7 @@ fn delete_rollout_path(
 
 #[cfg(test)]
 mod tests {
-    use codex_protocol::ThreadId;
+    use codepilotx_protocol::ThreadId;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use uuid::Uuid;

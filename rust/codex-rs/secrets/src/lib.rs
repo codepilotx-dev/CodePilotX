@@ -4,9 +4,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
-use codex_git_utils::get_git_repo_root;
-use codex_keyring_store::DefaultKeyringStore;
-use codex_keyring_store::KeyringStore;
+use codepilotx_git_utils::get_git_repo_root;
+use codepilotx_keyring_store::DefaultKeyringStore;
+use codepilotx_keyring_store::KeyringStore;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -100,38 +100,38 @@ pub struct SecretsManager {
 }
 
 impl SecretsManager {
-    pub fn new(codex_home: PathBuf, backend_kind: SecretsBackendKind) -> Self {
+    pub fn new(codepilotx_home: PathBuf, backend_kind: SecretsBackendKind) -> Self {
         let backend: Arc<dyn SecretsBackend> = match backend_kind {
             SecretsBackendKind::Local => {
                 let keyring_store: Arc<dyn KeyringStore> = Arc::new(DefaultKeyringStore);
-                Arc::new(LocalSecretsBackend::new(codex_home, keyring_store))
+                Arc::new(LocalSecretsBackend::new(codepilotx_home, keyring_store))
             }
         };
         Self { backend }
     }
 
     pub fn new_with_keyring_store(
-        codex_home: PathBuf,
+        codepilotx_home: PathBuf,
         backend_kind: SecretsBackendKind,
         keyring_store: Arc<dyn KeyringStore>,
     ) -> Self {
         let backend: Arc<dyn SecretsBackend> = match backend_kind {
             SecretsBackendKind::Local => {
-                Arc::new(LocalSecretsBackend::new(codex_home, keyring_store))
+                Arc::new(LocalSecretsBackend::new(codepilotx_home, keyring_store))
             }
         };
         Self { backend }
     }
 
     pub fn new_with_keyring_store_and_namespace(
-        codex_home: PathBuf,
+        codepilotx_home: PathBuf,
         backend_kind: SecretsBackendKind,
         keyring_store: Arc<dyn KeyringStore>,
         namespace: LocalSecretsNamespace,
     ) -> Self {
         let backend: Arc<dyn SecretsBackend> = match backend_kind {
             SecretsBackendKind::Local => Arc::new(LocalSecretsBackend::new_with_namespace(
-                codex_home,
+                codepilotx_home,
                 keyring_store,
                 namespace,
             )),
@@ -180,10 +180,10 @@ pub fn environment_id_from_cwd(cwd: &Path) -> String {
 }
 
 /// Computes the OS keyring account name used to store the local secrets passphrase.
-pub fn compute_keyring_account(codex_home: &Path) -> String {
-    let canonical = codex_home
+pub fn compute_keyring_account(codepilotx_home: &Path) -> String {
+    let canonical = codepilotx_home
         .canonicalize()
-        .unwrap_or_else(|_| codex_home.to_path_buf())
+        .unwrap_or_else(|_| codepilotx_home.to_path_buf())
         .to_string_lossy()
         .into_owned();
     let mut hasher = Sha256::new();
@@ -201,7 +201,7 @@ pub(crate) fn keyring_service() -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_keyring_store::tests::MockKeyringStore;
+    use codepilotx_keyring_store::tests::MockKeyringStore;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -224,10 +224,10 @@ mod tests {
 
     #[test]
     fn manager_round_trips_local_backend() -> Result<()> {
-        let codex_home = tempfile::tempdir().expect("tempdir");
+        let codepilotx_home = tempfile::tempdir().expect("tempdir");
         let keyring = Arc::new(MockKeyringStore::default());
         let manager = SecretsManager::new_with_keyring_store(
-            codex_home.path().to_path_buf(),
+            codepilotx_home.path().to_path_buf(),
             SecretsBackendKind::Local,
             keyring,
         );

@@ -33,8 +33,8 @@ use crate::telemetry::DbKind;
 use crate::telemetry::DbTelemetry;
 use chrono::DateTime;
 use chrono::Utc;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::RolloutItem;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::RolloutItem;
 use log::LevelFilter;
 use serde_json::Value;
 use sqlx::ConnectOptions;
@@ -107,8 +107,8 @@ struct RuntimeDbSpec {
 }
 
 impl RuntimeDbSpec {
-    fn path(self, codex_home: &Path) -> PathBuf {
-        codex_home.join(self.filename)
+    fn path(self, codepilotx_home: &Path) -> PathBuf {
+        codepilotx_home.join(self.filename)
     }
 }
 
@@ -154,7 +154,7 @@ pub struct RuntimeDbPath {
 
 #[derive(Clone)]
 pub struct StateRuntime {
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     default_provider: String,
     pool: Arc<sqlx::SqlitePool>,
     logs_pool: Arc<sqlx::SqlitePool>,
@@ -167,12 +167,12 @@ pub struct StateRuntime {
 impl StateRuntime {
     /// Initialize the state runtime using the provided Codex home and default provider.
     ///
-    /// This opens (and migrates) the SQLite databases under `codex_home`,
+    /// This opens (and migrates) the SQLite databases under `codepilotx_home`,
     /// keeping logs in a dedicated file to reduce lock contention with the
     /// rest of the state store.
-    pub async fn init(codex_home: PathBuf, default_provider: String) -> anyhow::Result<Arc<Self>> {
+    pub async fn init(codepilotx_home: PathBuf, default_provider: String) -> anyhow::Result<Arc<Self>> {
         Self::init_inner(
-            codex_home,
+            codepilotx_home,
             default_provider,
             /*telemetry_override*/ None,
         )
@@ -181,27 +181,27 @@ impl StateRuntime {
 
     #[cfg(test)]
     pub(crate) async fn init_with_telemetry_for_tests(
-        codex_home: PathBuf,
+        codepilotx_home: PathBuf,
         default_provider: String,
         telemetry_override: &dyn DbTelemetry,
     ) -> anyhow::Result<Arc<Self>> {
-        Self::init_inner(codex_home, default_provider, Some(telemetry_override)).await
+        Self::init_inner(codepilotx_home, default_provider, Some(telemetry_override)).await
     }
 
     async fn init_inner(
-        codex_home: PathBuf,
+        codepilotx_home: PathBuf,
         default_provider: String,
         telemetry_override: Option<&dyn DbTelemetry>,
     ) -> anyhow::Result<Arc<Self>> {
-        tokio::fs::create_dir_all(&codex_home).await?;
+        tokio::fs::create_dir_all(&codepilotx_home).await?;
         let state_migrator = runtime_state_migrator();
         let logs_migrator = runtime_logs_migrator();
         let goals_migrator = runtime_goals_migrator();
         let memories_migrator = runtime_memories_migrator();
-        let state_path = STATE_DB.path(codex_home.as_path());
-        let logs_path = LOGS_DB.path(codex_home.as_path());
-        let goals_path = GOALS_DB.path(codex_home.as_path());
-        let memories_path = MEMORIES_DB.path(codex_home.as_path());
+        let state_path = STATE_DB.path(codepilotx_home.as_path());
+        let logs_path = LOGS_DB.path(codepilotx_home.as_path());
+        let goals_path = GOALS_DB.path(codepilotx_home.as_path());
+        let memories_path = MEMORIES_DB.path(codepilotx_home.as_path());
         let pool = match open_state_sqlite(&state_path, &state_migrator, telemetry_override).await {
             Ok(db) => Arc::new(db),
             Err(err) => {
@@ -299,7 +299,7 @@ impl StateRuntime {
             memories: MemoryStore::new(Arc::clone(&memories_pool), Arc::clone(&pool)),
             pool,
             logs_pool,
-            codex_home,
+            codepilotx_home,
             default_provider,
             thread_updated_at_millis: Arc::new(AtomicI64::new(thread_updated_at_millis)),
             thread_recency_at_millis: Arc::new(AtomicI64::new(thread_recency_at_millis)),
@@ -314,8 +314,8 @@ impl StateRuntime {
     }
 
     /// Return the configured Codex home directory for this runtime.
-    pub fn codex_home(&self) -> &Path {
-        self.codex_home.as_path()
+    pub fn codepilotx_home(&self) -> &Path {
+        self.codepilotx_home.as_path()
     }
 
     pub fn thread_goals(&self) -> &GoalStore {
@@ -480,40 +480,40 @@ pub fn state_db_filename() -> String {
     STATE_DB.filename.to_string()
 }
 
-pub fn state_db_path(codex_home: &Path) -> PathBuf {
-    STATE_DB.path(codex_home)
+pub fn state_db_path(codepilotx_home: &Path) -> PathBuf {
+    STATE_DB.path(codepilotx_home)
 }
 
 pub fn logs_db_filename() -> String {
     LOGS_DB.filename.to_string()
 }
 
-pub fn logs_db_path(codex_home: &Path) -> PathBuf {
-    LOGS_DB.path(codex_home)
+pub fn logs_db_path(codepilotx_home: &Path) -> PathBuf {
+    LOGS_DB.path(codepilotx_home)
 }
 
 pub fn goals_db_filename() -> String {
     GOALS_DB.filename.to_string()
 }
 
-pub fn goals_db_path(codex_home: &Path) -> PathBuf {
-    GOALS_DB.path(codex_home)
+pub fn goals_db_path(codepilotx_home: &Path) -> PathBuf {
+    GOALS_DB.path(codepilotx_home)
 }
 
 pub fn memories_db_filename() -> String {
     MEMORIES_DB.filename.to_string()
 }
 
-pub fn memories_db_path(codex_home: &Path) -> PathBuf {
-    MEMORIES_DB.path(codex_home)
+pub fn memories_db_path(codepilotx_home: &Path) -> PathBuf {
+    MEMORIES_DB.path(codepilotx_home)
 }
 
-pub fn runtime_db_paths(codex_home: &Path) -> Vec<RuntimeDbPath> {
+pub fn runtime_db_paths(codepilotx_home: &Path) -> Vec<RuntimeDbPath> {
     RUNTIME_DBS
         .iter()
         .map(|spec| RuntimeDbPath {
             label: spec.label,
-            path: spec.path(codex_home),
+            path: spec.path(codepilotx_home),
         })
         .collect()
 }
@@ -619,11 +619,11 @@ mod tests {
 
     #[tokio::test]
     async fn sqlite_integrity_check_reports_ok_for_valid_db() {
-        let codex_home = unique_temp_dir();
-        tokio::fs::create_dir_all(&codex_home)
+        let codepilotx_home = unique_temp_dir();
+        tokio::fs::create_dir_all(&codepilotx_home)
             .await
             .expect("create codex home");
-        let path = state_db_path(codex_home.as_path());
+        let path = state_db_path(codepilotx_home.as_path());
         let pool = SqlitePool::connect_with(
             SqliteConnectOptions::new()
                 .filename(&path)
@@ -642,16 +642,16 @@ mod tests {
             .expect("integrity check should run");
 
         assert_eq!(result, vec!["ok".to_string()]);
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn open_state_sqlite_tolerates_newer_applied_migrations() {
-        let codex_home = unique_temp_dir();
-        tokio::fs::create_dir_all(&codex_home)
+        let codepilotx_home = unique_temp_dir();
+        tokio::fs::create_dir_all(&codepilotx_home)
             .await
             .expect("create codex home");
-        let state_path = state_db_path(codex_home.as_path());
+        let state_path = state_db_path(codepilotx_home.as_path());
         let pool = SqlitePool::connect_with(
             SqliteConnectOptions::new()
                 .filename(&state_path)
@@ -694,16 +694,16 @@ mod tests {
         .expect("runtime migrator should tolerate newer applied migrations");
         tolerant_pool.close().await;
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn init_records_successful_sqlite_init_phases_to_explicit_telemetry() {
-        let codex_home = unique_temp_dir();
+        let codepilotx_home = unique_temp_dir();
         let telemetry = TestTelemetry::default();
 
         let runtime = StateRuntime::init_with_telemetry_for_tests(
-            codex_home.clone(),
+            codepilotx_home.clone(),
             "test-provider".to_string(),
             &telemetry,
         )
@@ -736,6 +736,6 @@ mod tests {
 
         runtime.pool.close().await;
         runtime.logs_pool.close().await;
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 }

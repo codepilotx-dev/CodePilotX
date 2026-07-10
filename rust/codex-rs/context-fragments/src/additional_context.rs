@@ -1,4 +1,4 @@
-use codex_utils_string::truncate_middle_with_token_budget;
+use codepilotx_utils_string::truncate_middle_with_token_budget;
 
 use crate::ContextualUserFragment;
 

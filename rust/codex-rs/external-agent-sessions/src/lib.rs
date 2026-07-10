@@ -5,7 +5,7 @@ mod export;
 mod ledger;
 mod records;
 
-use codex_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::RolloutItem;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
@@ -43,10 +43,10 @@ pub struct PendingSessionImport {
 }
 
 pub fn prepare_validated_session_import(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     session: ExternalAgentSessionMigration,
 ) -> io::Result<Option<PendingSessionImport>> {
-    let has_been_imported = has_current_session_been_imported(codex_home, &session.path)?;
+    let has_been_imported = has_current_session_been_imported(codepilotx_home, &session.path)?;
     if has_been_imported {
         return Ok(None);
     }
@@ -117,7 +117,7 @@ fn now_unix_seconds() -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::ThreadId;
+    use codepilotx_protocol::ThreadId;
     use sha2::Digest;
     use sha2::Sha256;
     use tempfile::TempDir;
@@ -125,14 +125,14 @@ mod tests {
     #[test]
     fn skips_session_that_was_already_imported() {
         let root = TempDir::new().expect("tempdir");
-        let codex_home = root.path().join("codex-home");
+        let codepilotx_home = root.path().join("codex-home");
         let source_path = root.path().join("session.jsonl");
         std::fs::write(&source_path, "{}\n").expect("session");
-        ledger::record_imported_session(&codex_home, &source_path, ThreadId::new())
+        ledger::record_imported_session(&codepilotx_home, &source_path, ThreadId::new())
             .expect("record import");
 
         let pending =
-            prepare_validated_session_import(&codex_home, session_migration(&source_path))
+            prepare_validated_session_import(&codepilotx_home, session_migration(&source_path))
                 .expect("already imported session should be skipped");
 
         assert!(pending.is_none());

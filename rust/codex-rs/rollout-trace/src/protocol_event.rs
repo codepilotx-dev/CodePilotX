@@ -11,18 +11,18 @@
 //! variants a compile-time prompt to decide whether the trace should capture
 //! them.
 
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandBeginEvent;
-use codex_protocol::protocol::ExecCommandEndEvent;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_protocol::protocol::ExecCommandStatus;
-use codex_protocol::protocol::McpToolCallBeginEvent;
-use codex_protocol::protocol::McpToolCallEndEvent;
-use codex_protocol::protocol::PatchApplyBeginEvent;
-use codex_protocol::protocol::PatchApplyEndEvent;
-use codex_protocol::protocol::PatchApplyStatus;
-use codex_protocol::protocol::SubAgentActivityEvent;
-use codex_protocol::protocol::TurnAbortReason;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::ExecCommandBeginEvent;
+use codepilotx_protocol::protocol::ExecCommandEndEvent;
+use codepilotx_protocol::protocol::ExecCommandSource;
+use codepilotx_protocol::protocol::ExecCommandStatus;
+use codepilotx_protocol::protocol::McpToolCallBeginEvent;
+use codepilotx_protocol::protocol::McpToolCallEndEvent;
+use codepilotx_protocol::protocol::PatchApplyBeginEvent;
+use codepilotx_protocol::protocol::PatchApplyEndEvent;
+use codepilotx_protocol::protocol::PatchApplyStatus;
+use codepilotx_protocol::protocol::SubAgentActivityEvent;
+use codepilotx_protocol::protocol::TurnAbortReason;
 use serde::Serialize;
 use std::time::Duration;
 
@@ -36,41 +36,41 @@ pub(crate) struct CodexTurnTraceEvent {
     pub payload: RawTraceEventPayload,
 }
 
-pub(crate) fn codex_turn_trace_event(
+pub(crate) fn codepilotx_turn_trace_event(
     thread_id: AgentThreadId,
     default_turn_id: &str,
     event: &EventMsg,
 ) -> Option<CodexTurnTraceEvent> {
     match event {
         EventMsg::TurnStarted(event) => {
-            let codex_turn_id = event.turn_id.clone();
+            let codepilotx_turn_id = event.turn_id.clone();
             Some(CodexTurnTraceEvent {
-                context_turn_id: codex_turn_id.clone(),
+                context_turn_id: codepilotx_turn_id.clone(),
                 payload: RawTraceEventPayload::CodexTurnStarted {
-                    codex_turn_id,
+                    codepilotx_turn_id,
                     thread_id,
                 },
             })
         }
         EventMsg::TurnComplete(event) => {
-            let codex_turn_id = event.turn_id.clone();
+            let codepilotx_turn_id = event.turn_id.clone();
             Some(CodexTurnTraceEvent {
-                context_turn_id: codex_turn_id.clone(),
+                context_turn_id: codepilotx_turn_id.clone(),
                 payload: RawTraceEventPayload::CodexTurnEnded {
-                    codex_turn_id,
+                    codepilotx_turn_id,
                     status: ExecutionStatus::Completed,
                 },
             })
         }
         EventMsg::TurnAborted(event) => {
-            let codex_turn_id = event
+            let codepilotx_turn_id = event
                 .turn_id
                 .clone()
                 .unwrap_or_else(|| default_turn_id.to_string());
             Some(CodexTurnTraceEvent {
-                context_turn_id: codex_turn_id.clone(),
+                context_turn_id: codepilotx_turn_id.clone(),
                 payload: RawTraceEventPayload::CodexTurnEnded {
-                    codex_turn_id,
+                    codepilotx_turn_id,
                     status: execution_status_for_abort_reason(&event.reason),
                 },
             })
@@ -104,14 +104,14 @@ pub(crate) enum ToolRuntimePayload<'a> {
     PatchApplyEnd(&'a PatchApplyEndEvent),
     McpToolCallBegin(&'a McpToolCallBeginEvent),
     McpToolCallEnd(&'a McpToolCallEndEvent),
-    CollabAgentSpawnBegin(&'a codex_protocol::protocol::CollabAgentSpawnBeginEvent),
-    CollabAgentSpawnEnd(&'a codex_protocol::protocol::CollabAgentSpawnEndEvent),
-    CollabAgentInteractionBegin(&'a codex_protocol::protocol::CollabAgentInteractionBeginEvent),
-    CollabAgentInteractionEnd(&'a codex_protocol::protocol::CollabAgentInteractionEndEvent),
-    CollabWaitingBegin(&'a codex_protocol::protocol::CollabWaitingBeginEvent),
-    CollabWaitingEnd(&'a codex_protocol::protocol::CollabWaitingEndEvent),
-    CollabCloseBegin(&'a codex_protocol::protocol::CollabCloseBeginEvent),
-    CollabCloseEnd(&'a codex_protocol::protocol::CollabCloseEndEvent),
+    CollabAgentSpawnBegin(&'a codepilotx_protocol::protocol::CollabAgentSpawnBeginEvent),
+    CollabAgentSpawnEnd(&'a codepilotx_protocol::protocol::CollabAgentSpawnEndEvent),
+    CollabAgentInteractionBegin(&'a codepilotx_protocol::protocol::CollabAgentInteractionBeginEvent),
+    CollabAgentInteractionEnd(&'a codepilotx_protocol::protocol::CollabAgentInteractionEndEvent),
+    CollabWaitingBegin(&'a codepilotx_protocol::protocol::CollabWaitingBeginEvent),
+    CollabWaitingEnd(&'a codepilotx_protocol::protocol::CollabWaitingEndEvent),
+    CollabCloseBegin(&'a codepilotx_protocol::protocol::CollabCloseBeginEvent),
+    CollabCloseEnd(&'a codepilotx_protocol::protocol::CollabCloseEndEvent),
     SubAgentActivity(&'a SubAgentActivityEvent),
 }
 
@@ -157,7 +157,7 @@ struct ExecCommandBeginTracePayload<'a> {
     started_at_ms: i64,
     command: &'a [String],
     cwd: String,
-    parsed_cmd: &'a [codex_protocol::parse_command::ParsedCommand],
+    parsed_cmd: &'a [codepilotx_protocol::parse_command::ParsedCommand],
     source: ExecCommandSource,
     #[serde(skip_serializing_if = "Option::is_none")]
     interaction_input: Option<&'a str>,
@@ -203,7 +203,7 @@ struct ExecCommandEndTracePayload<'a> {
     completed_at_ms: i64,
     command: &'a [String],
     cwd: String,
-    parsed_cmd: &'a [codex_protocol::parse_command::ParsedCommand],
+    parsed_cmd: &'a [codepilotx_protocol::parse_command::ParsedCommand],
     source: ExecCommandSource,
     #[serde(skip_serializing_if = "Option::is_none")]
     interaction_input: Option<&'a str>,

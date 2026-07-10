@@ -27,7 +27,7 @@ pub struct ConversationItem {
     pub item_id: ConversationItemId,
     pub thread_id: AgentThreadId,
     /// Runtime activation that first introduced this item locally, when known.
-    pub codex_turn_id: Option<CodexTurnId>,
+    pub codepilotx_turn_id: Option<CodexTurnId>,
     pub first_seen_at_unix_ms: i64,
     pub role: ConversationRole,
     /// Codex channel for assistant/tool content, when the item is channel-specific.
@@ -161,7 +161,7 @@ pub enum ProducerRef {
 pub struct InferenceCall {
     pub inference_call_id: InferenceCallId,
     pub thread_id: AgentThreadId,
-    pub codex_turn_id: CodexTurnId,
+    pub codepilotx_turn_id: CodexTurnId,
     pub execution: ExecutionWindow,
     pub model: String,
     pub provider_name: String,

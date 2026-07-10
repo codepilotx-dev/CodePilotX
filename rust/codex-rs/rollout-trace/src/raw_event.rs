@@ -38,7 +38,7 @@ pub struct RawTraceEvent {
     pub wall_time_unix_ms: i64,
     pub rollout_id: String,
     pub thread_id: Option<AgentThreadId>,
-    pub codex_turn_id: Option<CodexTurnId>,
+    pub codepilotx_turn_id: Option<CodexTurnId>,
     pub payload: RawTraceEventPayload,
 }
 
@@ -46,7 +46,7 @@ pub struct RawTraceEvent {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RawTraceEventContext {
     pub thread_id: Option<AgentThreadId>,
-    pub codex_turn_id: Option<CodexTurnId>,
+    pub codepilotx_turn_id: Option<CodexTurnId>,
 }
 
 /// Runtime requester as observed at the raw tool boundary.
@@ -85,17 +85,17 @@ pub enum RawTraceEventPayload {
         status: RolloutStatus,
     },
     CodexTurnStarted {
-        codex_turn_id: CodexTurnId,
+        codepilotx_turn_id: CodexTurnId,
         thread_id: AgentThreadId,
     },
     CodexTurnEnded {
-        codex_turn_id: CodexTurnId,
+        codepilotx_turn_id: CodexTurnId,
         status: ExecutionStatus,
     },
     InferenceStarted {
         inference_call_id: InferenceCallId,
         thread_id: AgentThreadId,
-        codex_turn_id: CodexTurnId,
+        codepilotx_turn_id: CodexTurnId,
         model: String,
         provider_name: String,
         request_payload: RawPayloadRef,
@@ -184,7 +184,7 @@ pub enum RawTraceEventPayload {
         compaction_id: CompactionId,
         compaction_request_id: CompactionRequestId,
         thread_id: AgentThreadId,
-        codex_turn_id: CodexTurnId,
+        codepilotx_turn_id: CodexTurnId,
         model: String,
         provider_name: String,
         request_payload: RawPayloadRef,
@@ -209,7 +209,7 @@ pub enum RawTraceEventPayload {
     AgentResultObserved {
         edge_id: EdgeId,
         child_thread_id: AgentThreadId,
-        child_codex_turn_id: CodexTurnId,
+        child_codepilotx_turn_id: CodexTurnId,
         parent_thread_id: AgentThreadId,
         message: String,
         /// Raw notification payload. This is evidence for the runtime delivery,

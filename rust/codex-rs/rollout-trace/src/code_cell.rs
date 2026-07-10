@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use codex_code_mode::RuntimeResponse;
+use codepilotx_code_mode::RuntimeResponse;
 use serde::Serialize;
 use tracing::warn;
 
@@ -37,7 +37,7 @@ enum CodeCellTraceContextState {
 struct EnabledCodeCellTraceContext {
     writer: Arc<TraceWriter>,
     thread_id: AgentThreadId,
-    codex_turn_id: CodexTurnId,
+    codepilotx_turn_id: CodexTurnId,
     runtime_cell_id: String,
 }
 
@@ -64,14 +64,14 @@ impl CodeCellTraceContext {
     pub(crate) fn enabled(
         writer: Arc<TraceWriter>,
         thread_id: impl Into<AgentThreadId>,
-        codex_turn_id: impl Into<CodexTurnId>,
+        codepilotx_turn_id: impl Into<CodexTurnId>,
         runtime_cell_id: impl Into<String>,
     ) -> Self {
         Self {
             state: CodeCellTraceContextState::Enabled(EnabledCodeCellTraceContext {
                 writer,
                 thread_id: thread_id.into(),
-                codex_turn_id: codex_turn_id.into(),
+                codepilotx_turn_id: codepilotx_turn_id.into(),
                 runtime_cell_id: runtime_cell_id.into(),
             }),
         }
@@ -177,7 +177,7 @@ fn append_with_context_best_effort(
 ) {
     let event_context = RawTraceEventContext {
         thread_id: Some(context.thread_id.clone()),
-        codex_turn_id: Some(context.codex_turn_id.clone()),
+        codepilotx_turn_id: Some(context.codepilotx_turn_id.clone()),
     };
     if let Err(err) = context.writer.append_with_context(event_context, payload) {
         warn!("failed to append rollout trace event: {err:#}");

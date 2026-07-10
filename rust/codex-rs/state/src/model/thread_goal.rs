@@ -2,7 +2,7 @@ use anyhow::Result;
 use anyhow::anyhow;
 use chrono::DateTime;
 use chrono::Utc;
-use codex_protocol::ThreadId;
+use codepilotx_protocol::ThreadId;
 use serde::Serialize;
 use sqlx::Row;
 use sqlx::sqlite::SqliteRow;

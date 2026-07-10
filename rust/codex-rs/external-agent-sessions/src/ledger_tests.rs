@@ -1,7 +1,7 @@
 use super::CompletedExternalAgentSessionImport;
 use super::ImportedExternalAgentSessionLedger;
 use super::record_completed_session_imports;
-use codex_protocol::ThreadId;
+use codepilotx_protocol::ThreadId;
 use sha2::Digest;
 use sha2::Sha256;
 use tempfile::TempDir;
@@ -21,7 +21,7 @@ fn empty_ledger_does_not_read_source() {
 #[test]
 fn completed_imports_do_not_read_source_files() {
     let root = TempDir::new().expect("tempdir");
-    let codex_home = root.path().join("codex-home");
+    let codepilotx_home = root.path().join("codex-home");
     let source_path = root.path().join("session.jsonl");
     let contents = b"session contents";
     std::fs::write(&source_path, contents).expect("source");
@@ -30,7 +30,7 @@ fn completed_imports_do_not_read_source_files() {
     let imported_thread_id = ThreadId::new();
 
     record_completed_session_imports(
-        &codex_home,
+        &codepilotx_home,
         vec![CompletedExternalAgentSessionImport {
             source_path: source_path.clone(),
             source_content_sha256: format!("{:x}", Sha256::digest(contents)),
@@ -39,7 +39,7 @@ fn completed_imports_do_not_read_source_files() {
     )
     .expect("record completed imports");
 
-    let ledger = super::load_import_ledger(&codex_home).expect("ledger");
+    let ledger = super::load_import_ledger(&codepilotx_home).expect("ledger");
     assert_eq!(ledger.records.len(), 1);
     assert_eq!(ledger.records[0].source_path, source_path);
     assert_eq!(ledger.records[0].imported_thread_id, imported_thread_id);
@@ -49,7 +49,7 @@ fn completed_imports_do_not_read_source_files() {
 #[test]
 fn completed_import_refreshes_existing_record_metadata() {
     let root = TempDir::new().expect("tempdir");
-    let codex_home = root.path().join("codex-home");
+    let codepilotx_home = root.path().join("codex-home");
     let source_path = root.path().join("session.jsonl");
     let contents = b"session contents";
     std::fs::write(&source_path, contents).expect("source");
@@ -59,7 +59,7 @@ fn completed_import_refreshes_existing_record_metadata() {
     let second_thread_id = ThreadId::new();
 
     record_completed_session_imports(
-        &codex_home,
+        &codepilotx_home,
         vec![CompletedExternalAgentSessionImport {
             source_path: source_path.clone(),
             source_content_sha256: content_sha256.clone(),
@@ -68,7 +68,7 @@ fn completed_import_refreshes_existing_record_metadata() {
     )
     .expect("record first import");
     record_completed_session_imports(
-        &codex_home,
+        &codepilotx_home,
         vec![CompletedExternalAgentSessionImport {
             source_path: source_path.clone(),
             source_content_sha256: content_sha256,
@@ -77,7 +77,7 @@ fn completed_import_refreshes_existing_record_metadata() {
     )
     .expect("record replacement import");
 
-    let ledger = super::load_import_ledger(&codex_home).expect("ledger");
+    let ledger = super::load_import_ledger(&codepilotx_home).expect("ledger");
     assert_eq!(ledger.records.len(), 1);
     assert_eq!(ledger.records[0].source_path, source_path);
     assert_eq!(ledger.records[0].imported_thread_id, second_thread_id);

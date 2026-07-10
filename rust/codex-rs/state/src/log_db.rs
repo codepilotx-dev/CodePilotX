@@ -8,10 +8,10 @@
 //! ## Usage
 //!
 //! ```no_run
-//! use codex_state::log_db;
+//! use codepilotx_state::log_db;
 //! use tracing_subscriber::prelude::*;
 //!
-//! # async fn example(state_db: std::sync::Arc<codex_state::StateRuntime>) {
+//! # async fn example(state_db: std::sync::Arc<codepilotx_state::StateRuntime>) {
 //! let layer = log_db::start(state_db);
 //! let _ = tracing_subscriber::registry()
 //!     .with(layer)
@@ -480,7 +480,7 @@ mod tests {
 
     use super::*;
 
-    fn temp_codex_home() -> std::path::PathBuf {
+    fn temp_codepilotx_home() -> std::path::PathBuf {
         std::env::temp_dir().join(format!("codepilotx-state-log-db-{}", Uuid::new_v4()))
     }
 
@@ -561,8 +561,8 @@ mod tests {
 
     #[tokio::test]
     async fn sqlite_feedback_logs_match_feedback_formatter_shape() {
-        let codex_home = temp_codex_home();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = temp_codepilotx_home();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
         let writer = SharedWriter::default();
@@ -614,13 +614,13 @@ mod tests {
             without_timestamps(&feedback_logs)
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn flush_persists_logs_for_query() {
-        let codex_home = temp_codex_home();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = temp_codepilotx_home();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
         let layer = start(runtime.clone());
@@ -645,13 +645,13 @@ mod tests {
         assert_eq!(after_flush.len(), 1);
         assert_eq!(after_flush[0].message.as_deref(), Some("buffered-log"));
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn configured_batch_size_flushes_without_explicit_flush() {
-        let codex_home = temp_codex_home();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = temp_codepilotx_home();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
         let layer = LogDbLayer::start_with_config(
@@ -694,13 +694,13 @@ mod tests {
             vec![Some("first-batch-log"), Some("second-batch-log")]
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn configured_flush_interval_persists_buffered_logs() {
-        let codex_home = temp_codex_home();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = temp_codepilotx_home();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
         let layer = LogDbLayer::start_with_config(
@@ -727,7 +727,7 @@ mod tests {
 
         assert_eq!(after_interval[0].message.as_deref(), Some("interval-log"));
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]

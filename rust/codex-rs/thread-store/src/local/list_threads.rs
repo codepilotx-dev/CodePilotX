@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use codex_protocol::ThreadId;
-use codex_rollout::RolloutConfig;
-use codex_rollout::RolloutRecorder;
-use codex_rollout::find_thread_names_by_ids;
-use codex_rollout::parse_cursor;
+use codepilotx_protocol::ThreadId;
+use codepilotx_rollout::RolloutConfig;
+use codepilotx_rollout::RolloutRecorder;
+use codepilotx_rollout::find_thread_names_by_ids;
+use codepilotx_rollout::parse_cursor;
 
 use super::LocalThreadStore;
 use super::helpers::distinct_thread_metadata_title;
@@ -32,19 +32,19 @@ pub(super) async fn list_threads(
         })
         .transpose()?;
     let sort_key = match params.sort_key {
-        ThreadSortKey::CreatedAt => codex_rollout::ThreadSortKey::CreatedAt,
-        ThreadSortKey::UpdatedAt => codex_rollout::ThreadSortKey::UpdatedAt,
-        ThreadSortKey::RecencyAt => codex_rollout::ThreadSortKey::RecencyAt,
+        ThreadSortKey::CreatedAt => codepilotx_rollout::ThreadSortKey::CreatedAt,
+        ThreadSortKey::UpdatedAt => codepilotx_rollout::ThreadSortKey::UpdatedAt,
+        ThreadSortKey::RecencyAt => codepilotx_rollout::ThreadSortKey::RecencyAt,
     };
     let sort_direction = match params.sort_direction {
-        SortDirection::Asc => codex_rollout::SortDirection::Asc,
-        SortDirection::Desc => codex_rollout::SortDirection::Desc,
+        SortDirection::Asc => codepilotx_rollout::SortDirection::Asc,
+        SortDirection::Desc => codepilotx_rollout::SortDirection::Desc,
     };
     let state_db = store.state_db().await;
     let rollout_config = RolloutConfig {
-        codex_home: store.config.codex_home.clone(),
+        codepilotx_home: store.config.codepilotx_home.clone(),
         sqlite_home: store.config.sqlite_home.clone(),
-        cwd: store.config.codex_home.clone(),
+        cwd: store.config.codepilotx_home.clone(),
         model_provider_id: store.config.default_model_provider_id.clone(),
         generate_memories: false,
     };
@@ -93,7 +93,7 @@ pub(super) async fn list_threads(
     }
     if names.len() < thread_ids.len()
         && let Ok(legacy_names) =
-            find_thread_names_by_ids(store.config.codex_home.as_path(), &thread_ids).await
+            find_thread_names_by_ids(store.config.codepilotx_home.as_path(), &thread_ids).await
     {
         for (thread_id, title) in legacy_names {
             names.entry(thread_id).or_insert(title);
@@ -109,18 +109,18 @@ pub(super) async fn list_threads(
 }
 
 pub(super) async fn list_rollout_threads(
-    state_db: Option<codex_rollout::StateDbHandle>,
+    state_db: Option<codepilotx_rollout::StateDbHandle>,
     config: &RolloutConfig,
     default_model_provider_id: &str,
     params: &ListThreadsParams,
-    cursor: Option<&codex_rollout::Cursor>,
-    sort_key: codex_rollout::ThreadSortKey,
-    sort_direction: codex_rollout::SortDirection,
-) -> ThreadStoreResult<codex_rollout::ThreadsPage> {
+    cursor: Option<&codepilotx_rollout::Cursor>,
+    sort_key: codepilotx_rollout::ThreadSortKey,
+    sort_direction: codepilotx_rollout::SortDirection,
+) -> ThreadStoreResult<codepilotx_rollout::ThreadsPage> {
     if let Some(parent_thread_id) = params.parent_thread_id {
-        let page = codex_rollout::state_db::list_threads_db(
+        let page = codepilotx_rollout::state_db::list_threads_db(
             state_db.as_deref(),
-            config.codex_home.as_path(),
+            config.codepilotx_home.as_path(),
             params.page_size,
             cursor,
             sort_key,
@@ -136,7 +136,7 @@ pub(super) async fn list_rollout_threads(
         .ok_or_else(|| ThreadStoreError::Internal {
             message: "state DB unavailable for parent-filtered thread listing".to_string(),
         })?;
-        let mut page: codex_rollout::ThreadsPage = page.into();
+        let mut page: codepilotx_rollout::ThreadsPage = page.into();
         for item in &mut page.items {
             item.parent_thread_id = Some(parent_thread_id);
         }
@@ -212,8 +212,8 @@ pub(super) async fn list_rollout_threads(
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
-    use codex_protocol::ThreadId;
-    use codex_protocol::protocol::SessionSource;
+    use codepilotx_protocol::ThreadId;
+    use codepilotx_protocol::protocol::SessionSource;
     use pretty_assertions::assert_eq;
     use std::fs;
     use tempfile::TempDir;
@@ -271,7 +271,7 @@ mod tests {
         let rollout_path = home.path().join("rollout-title-search.jsonl");
         fs::write(&rollout_path, "").expect("placeholder rollout file");
 
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             home.path().to_path_buf(),
             config.default_model_provider_id.clone(),
         )
@@ -283,7 +283,7 @@ mod tests {
             .await
             .expect("backfill should be complete");
         let created_at = Utc::now();
-        let mut builder = codex_state::ThreadMetadataBuilder::new(
+        let mut builder = codepilotx_state::ThreadMetadataBuilder::new(
             thread_id,
             rollout_path,
             created_at,

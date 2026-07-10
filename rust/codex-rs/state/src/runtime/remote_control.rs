@@ -166,8 +166,8 @@ mod tests {
 
     #[tokio::test]
     async fn remote_control_enrollment_round_trips_by_target_and_account() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -241,13 +241,13 @@ mod tests {
             None
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn delete_remote_control_enrollment_removes_only_matching_entry() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -321,13 +321,13 @@ mod tests {
             })
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn migration_preserves_legacy_remote_control_preference_as_null() {
-        let codex_home = unique_temp_dir();
-        tokio::fs::create_dir_all(&codex_home)
+        let codepilotx_home = unique_temp_dir();
+        tokio::fs::create_dir_all(&codepilotx_home)
             .await
             .expect("create codex home");
         let old_state_migrator = Migrator {
@@ -340,7 +340,7 @@ mod tests {
         };
         let pool = SqlitePool::connect_with(
             SqliteConnectOptions::new()
-                .filename(state_db_path(codex_home.as_path()))
+                .filename(state_db_path(codepilotx_home.as_path()))
                 .create_if_missing(true),
         )
         .await
@@ -362,7 +362,7 @@ mod tests {
         .expect("insert legacy enrollment");
         pool.close().await;
 
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
         let actual = runtime
@@ -376,6 +376,6 @@ mod tests {
             .expect("legacy enrollment should remain");
         assert_eq!(actual.remote_control_enabled, None);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 }

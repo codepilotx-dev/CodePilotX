@@ -15,7 +15,7 @@ const SESSION_IMPORT_MAX_AGE: Duration = Duration::from_secs(30 * 24 * 60 * 60);
 
 pub fn detect_recent_sessions(
     external_agent_home: &Path,
-    codex_home: &Path,
+    codepilotx_home: &Path,
 ) -> io::Result<Vec<ExternalAgentSessionMigration>> {
     let projects_root = external_agent_home.join("projects");
     if !projects_root.is_dir() {
@@ -23,7 +23,7 @@ pub fn detect_recent_sessions(
     }
 
     let now = now_unix_seconds();
-    let mut ledger = load_import_ledger(codex_home)?;
+    let mut ledger = load_import_ledger(codepilotx_home)?;
     let source_states = ledger.source_states();
     let mut file_candidates = BinaryHeap::with_capacity(SESSION_IMPORT_MAX_COUNT + 1);
     for project_entry in fs::read_dir(projects_root)? {
@@ -102,7 +102,7 @@ pub fn detect_recent_sessions(
         migrations.push(migration);
     }
     if ledger_changed {
-        save_import_ledger(codex_home, &ledger)?;
+        save_import_ledger(codepilotx_home, &ledger)?;
     }
 
     Ok(migrations)
@@ -112,7 +112,7 @@ pub fn detect_recent_sessions(
 mod tests {
     use super::*;
     use crate::ledger::record_imported_session;
-    use codex_protocol::ThreadId;
+    use codepilotx_protocol::ThreadId;
     use serde_json::Value as JsonValue;
     use std::fs::FileTimes;
     use std::fs::OpenOptions;

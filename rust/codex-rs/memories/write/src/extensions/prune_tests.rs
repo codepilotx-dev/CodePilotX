@@ -5,8 +5,8 @@ use tempfile::TempDir;
 
 #[tokio::test]
 async fn prunes_only_old_resources_from_extensions_with_instructions() {
-    let codex_home = TempDir::new().expect("create temp codex home");
-    let memory_root = codex_home.path().join("memories");
+    let codepilotx_home = TempDir::new().expect("create temp codex home");
+    let memory_root = codepilotx_home.path().join("memories");
     let extensions_root = memory_extensions_root(&memory_root);
     let chronicle_resources = extensions_root.join("chronicle/resources");
     tokio::fs::create_dir_all(&chronicle_resources)

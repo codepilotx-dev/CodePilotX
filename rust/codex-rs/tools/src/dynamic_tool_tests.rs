@@ -1,7 +1,7 @@
 use super::parse_dynamic_tool;
 use crate::JsonSchema;
 use crate::ToolDefinition;
-use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolFunctionSpec;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 

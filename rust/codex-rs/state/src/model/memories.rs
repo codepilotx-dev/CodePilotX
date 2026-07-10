@@ -1,6 +1,6 @@
 use chrono::DateTime;
 use chrono::Utc;
-use codex_protocol::ThreadId;
+use codepilotx_protocol::ThreadId;
 use std::path::PathBuf;
 
 use super::ThreadMetadata;

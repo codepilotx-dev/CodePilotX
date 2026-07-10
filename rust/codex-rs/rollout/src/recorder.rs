@@ -10,9 +10,9 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use chrono::SecondsFormat;
-use codex_protocol::ThreadId;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::models::BaseInstructions;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::dynamic_tools::DynamicToolSpec;
+use codepilotx_protocol::models::BaseInstructions;
 use serde_json::Value;
 use time::OffsetDateTime;
 use time::format_description::FormatItem;
@@ -48,20 +48,20 @@ use crate::config::RolloutConfigView;
 use crate::default_client::originator;
 use crate::state_db;
 use crate::state_db::StateDbHandle;
-use codex_git_utils::collect_git_info;
-use codex_git_utils::get_git_repo_root;
-use codex_protocol::protocol::GitInfo as ProtocolGitInfo;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::ResumedHistory;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::ThreadSource;
-use codex_state::StateRuntime;
-use codex_utils_path as path_utils;
+use codepilotx_git_utils::collect_git_info;
+use codepilotx_git_utils::get_git_repo_root;
+use codepilotx_protocol::protocol::GitInfo as ProtocolGitInfo;
+use codepilotx_protocol::protocol::InitialHistory;
+use codepilotx_protocol::protocol::MultiAgentVersion;
+use codepilotx_protocol::protocol::ResumedHistory;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::RolloutLine;
+use codepilotx_protocol::protocol::SessionMeta;
+use codepilotx_protocol::protocol::SessionMetaLine;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::ThreadSource;
+use codepilotx_state::StateRuntime;
+use codepilotx_utils_path as path_utils;
 
 /// Writes canonical session rollout items to JSONL.
 ///
@@ -356,7 +356,7 @@ impl RolloutRecorder {
         repair_mode: ThreadListRepairMode,
         search_term: Option<&str>,
     ) -> std::io::Result<ThreadsPage> {
-        let codex_home = config.codex_home();
+        let codepilotx_home = config.codepilotx_home();
         let archived = match archive_filter {
             ThreadListArchiveFilter::Active => false,
             ThreadListArchiveFilter::Archived => true,
@@ -368,7 +368,7 @@ impl RolloutRecorder {
         if matches!(repair_mode, ThreadListRepairMode::StateDbOnly) {
             return Ok(state_db::list_threads_db(
                 state_db_ctx.as_deref(),
-                codex_home,
+                codepilotx_home,
                 page_size,
                 cursor,
                 sort_key,
@@ -395,7 +395,7 @@ impl RolloutRecorder {
         let fs_page = match sort_direction {
             SortDirection::Asc => {
                 list_threads_from_files_asc(
-                    codex_home,
+                    codepilotx_home,
                     page_size,
                     cursor,
                     sort_key,
@@ -410,7 +410,7 @@ impl RolloutRecorder {
             }
             SortDirection::Desc => {
                 list_threads_from_files_desc(
-                    codex_home,
+                    codepilotx_home,
                     page_size.saturating_mul(2),
                     cursor,
                     sort_key,
@@ -428,7 +428,7 @@ impl RolloutRecorder {
         if state_db_ctx.is_none() {
             // Keep legacy behavior when SQLite is unavailable: return filesystem results
             // at the requested page size.
-            codex_state::record_fallback(
+            codepilotx_state::record_fallback(
                 "list_threads",
                 "db_unavailable",
                 /*telemetry_override*/ None,
@@ -477,7 +477,7 @@ impl RolloutRecorder {
 
         let db_page = state_db::list_threads_db(
             state_db_ctx.as_deref(),
-            codex_home,
+            codepilotx_home,
             page_size,
             cursor,
             sort_key,
@@ -506,7 +506,7 @@ impl RolloutRecorder {
                 }
                 if let Some(repaired_db_page) = state_db::list_threads_db(
                     state_db_ctx.as_deref(),
-                    codex_home,
+                    codepilotx_home,
                     page_size,
                     cursor,
                     sort_key,
@@ -546,7 +546,7 @@ impl RolloutRecorder {
                 if sort_key == ThreadSortKey::RecencyAt {
                     if let Some(repaired_db_page) = state_db::list_threads_db(
                         state_db_ctx.as_deref(),
-                        codex_home,
+                        codepilotx_home,
                         page_size,
                         cursor,
                         sort_key,
@@ -564,7 +564,7 @@ impl RolloutRecorder {
                     }
                     return Ok(db_page.into());
                 }
-                codex_state::record_fallback(
+                codepilotx_state::record_fallback(
                     "list_threads",
                     "metadata_filter",
                     /*telemetry_override*/ None,
@@ -580,7 +580,7 @@ impl RolloutRecorder {
         }
         if listing_has_metadata_filters {
             let page = page_from_filesystem_scan(fs_page, sort_direction, page_size, sort_key);
-            codex_state::record_fallback(
+            codepilotx_state::record_fallback(
                 "list_threads",
                 "db_error",
                 /*telemetry_override*/ None,
@@ -594,7 +594,7 @@ impl RolloutRecorder {
         // If SQLite listing still fails, return the filesystem page rather than failing the list.
         tracing::error!("Falling back on rollout system");
         tracing::warn!("state db discrepancy during list_threads_with_db_fallback: falling_back");
-        codex_state::record_fallback("list_threads", "db_error", /*telemetry_override*/ None);
+        codepilotx_state::record_fallback("list_threads", "db_error", /*telemetry_override*/ None);
         Ok(page_from_filesystem_scan(
             fs_page,
             sort_direction,
@@ -616,7 +616,7 @@ impl RolloutRecorder {
         default_provider: &str,
         filter_cwd: Option<&Path>,
     ) -> std::io::Result<Option<PathBuf>> {
-        let codex_home = config.codex_home();
+        let codepilotx_home = config.codepilotx_home();
         let cwd_filter = filter_cwd.map(Path::to_path_buf);
         let mut fallback_reason = state_db_ctx.is_none().then_some("db_unavailable");
         if state_db_ctx.is_some() {
@@ -624,7 +624,7 @@ impl RolloutRecorder {
             loop {
                 let Some(db_page) = state_db::list_threads_db(
                     state_db_ctx.as_deref(),
-                    codex_home,
+                    codepilotx_home,
                     page_size,
                     db_cursor.as_ref(),
                     sort_key,
@@ -654,7 +654,7 @@ impl RolloutRecorder {
             }
         }
         if let Some(reason) = fallback_reason {
-            codex_state::record_fallback(
+            codepilotx_state::record_fallback(
                 "find_latest_thread_path",
                 reason,
                 /*telemetry_override*/ None,
@@ -664,7 +664,7 @@ impl RolloutRecorder {
         let mut cursor = cursor.cloned();
         loop {
             let page = get_threads(
-                codex_home,
+                codepilotx_home,
                 page_size,
                 cursor.as_ref(),
                 sort_key,
@@ -764,7 +764,7 @@ impl RolloutRecorder {
         let cwd = config.cwd().to_path_buf();
 
         // A reasonably-sized bounded channel. If the buffer fills up the send
-        // future will yield, which is fine â€“ we only need to ensure we do not
+        // future will yield, which is fine â€?we only need to ensure we do not
         // perform *blocking* I/O on the caller's thread.
         let (tx, rx) = mpsc::channel::<RolloutCmd>(256);
         // Spawn a Tokio task that owns the file handle and performs async
@@ -1127,7 +1127,7 @@ fn fill_missing_thread_item_metadata(item: &mut ThreadItem, state_item: ThreadIt
 
 #[allow(clippy::too_many_arguments)]
 async fn list_threads_from_files_desc(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     page_size: usize,
     cursor: Option<&Cursor>,
     sort_key: ThreadSortKey,
@@ -1147,7 +1147,7 @@ async fn list_threads_from_files_desc(
 
         loop {
             let mut page = list_threads_from_files_desc_unfiltered(
-                codex_home,
+                codepilotx_home,
                 scan_page_size,
                 page_cursor.as_ref(),
                 sort_key,
@@ -1160,7 +1160,7 @@ async fn list_threads_from_files_desc(
             .await?;
             scanned_files = scanned_files.saturating_add(page.num_scanned_files);
             reached_scan_cap |= page.reached_scan_cap;
-            filter_thread_items_by_search_term(codex_home, &mut page.items, Some(search_term))
+            filter_thread_items_by_search_term(codepilotx_home, &mut page.items, Some(search_term))
                 .await?;
             matching_items.extend(page.items);
             page_cursor = page.next_cursor;
@@ -1189,7 +1189,7 @@ async fn list_threads_from_files_desc(
     }
 
     list_threads_from_files_desc_unfiltered(
-        codex_home,
+        codepilotx_home,
         page_size,
         cursor,
         sort_key,
@@ -1204,7 +1204,7 @@ async fn list_threads_from_files_desc(
 
 #[allow(clippy::too_many_arguments)]
 async fn list_threads_from_files_desc_unfiltered(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     page_size: usize,
     cursor: Option<&Cursor>,
     sort_key: ThreadSortKey,
@@ -1215,7 +1215,7 @@ async fn list_threads_from_files_desc_unfiltered(
     archived: bool,
 ) -> std::io::Result<ThreadsPage> {
     if archived {
-        let root = codex_home.join(ARCHIVED_SESSIONS_SUBDIR);
+        let root = codepilotx_home.join(ARCHIVED_SESSIONS_SUBDIR);
         get_threads_in_root(
             root,
             page_size,
@@ -1232,7 +1232,7 @@ async fn list_threads_from_files_desc_unfiltered(
         .await
     } else {
         get_threads(
-            codex_home,
+            codepilotx_home,
             page_size,
             cursor,
             sort_key,
@@ -1247,7 +1247,7 @@ async fn list_threads_from_files_desc_unfiltered(
 
 #[allow(clippy::too_many_arguments)]
 async fn list_threads_from_files_asc(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     page_size: usize,
     cursor: Option<&Cursor>,
     sort_key: ThreadSortKey,
@@ -1265,7 +1265,7 @@ async fn list_threads_from_files_asc(
     let scan_page_size = page_size.saturating_mul(8).clamp(256, 2048);
     loop {
         let page = list_threads_from_files_desc(
-            codex_home,
+            codepilotx_home,
             scan_page_size,
             page_cursor.as_ref(),
             sort_key,
@@ -1286,7 +1286,7 @@ async fn list_threads_from_files_asc(
         }
     }
 
-    filter_thread_items_by_search_term(codex_home, &mut all_items, search_term).await?;
+    filter_thread_items_by_search_term(codepilotx_home, &mut all_items, search_term).await?;
 
     let mut keyed_items = all_items
         .into_iter()
@@ -1334,7 +1334,7 @@ async fn list_threads_from_files_asc(
 }
 
 async fn filter_thread_items_by_search_term(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     items: &mut Vec<ThreadItem>,
     search_term: Option<&str>,
 ) -> std::io::Result<()> {
@@ -1349,7 +1349,7 @@ async fn filter_thread_items_by_search_term(
         .iter()
         .filter_map(|item| item.thread_id)
         .collect::<HashSet<_>>();
-    let thread_names = find_thread_names_by_ids(codex_home, &thread_ids).await?;
+    let thread_names = find_thread_names_by_ids(codepilotx_home, &thread_ids).await?;
     items.retain(|item| {
         item.thread_id
             .and_then(|thread_id| thread_names.get(&thread_id))
@@ -1411,7 +1411,7 @@ fn precompute_log_file_info(
     // Resolve ~/.codex/sessions/YYYY/MM/DD path.
     let timestamp = OffsetDateTime::now_local()
         .map_err(|e| IoError::other(format!("failed to get local time: {e}")))?;
-    let mut dir = config.codex_home().to_path_buf();
+    let mut dir = config.codepilotx_home().to_path_buf();
     dir.push(SESSIONS_SUBDIR);
     dir.push(timestamp.year().to_string());
     dir.push(format!("{:02}", u8::from(timestamp.month())));
@@ -1741,8 +1741,8 @@ impl JsonlWriter {
     }
 }
 
-impl From<codex_state::ThreadsPage> for ThreadsPage {
-    fn from(db_page: codex_state::ThreadsPage) -> Self {
+impl From<codepilotx_state::ThreadsPage> for ThreadsPage {
+    fn from(db_page: codepilotx_state::ThreadsPage) -> Self {
         let items = db_page
             .items
             .into_iter()
@@ -1757,7 +1757,7 @@ impl From<codex_state::ThreadsPage> for ThreadsPage {
     }
 }
 
-fn thread_item_from_state_metadata(item: codex_state::ThreadMetadata) -> ThreadItem {
+fn thread_item_from_state_metadata(item: codepilotx_state::ThreadMetadata) -> ThreadItem {
     ThreadItem {
         path: item.rollout_path,
         thread_id: Some(item.id),
@@ -1837,7 +1837,7 @@ async fn resume_candidate_matches_cwd(
 }
 
 async fn select_resume_path_from_db_page(
-    page: &codex_state::ThreadsPage,
+    page: &codepilotx_state::ThreadsPage,
     filter_cwd: Option<&Path>,
     default_provider: &str,
 ) -> Option<PathBuf> {

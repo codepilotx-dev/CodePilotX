@@ -2,18 +2,18 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use chrono::Utc;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::GitInfo;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_rollout::ARCHIVED_SESSIONS_SUBDIR;
-use codex_rollout::append_rollout_item_to_path;
-use codex_rollout::append_thread_name;
-use codex_rollout::find_archived_thread_path_by_id_str;
-use codex_rollout::find_thread_path_by_id_str;
-use codex_rollout::read_session_meta_line;
-use codex_state::ThreadMetadataBuilder;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::GitInfo;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::ThreadMemoryMode;
+use codepilotx_rollout::ARCHIVED_SESSIONS_SUBDIR;
+use codepilotx_rollout::append_rollout_item_to_path;
+use codepilotx_rollout::append_thread_name;
+use codepilotx_rollout::find_archived_thread_path_by_id_str;
+use codepilotx_rollout::find_thread_path_by_id_str;
+use codepilotx_rollout::read_session_meta_line;
+use codepilotx_state::ThreadMetadataBuilder;
 use tracing::warn;
 
 use super::LocalThreadStore;
@@ -80,7 +80,7 @@ pub(super) async fn update_thread_metadata(
     }
 
     let state_db_ctx = store.state_db().await;
-    codex_rollout::state_db::reconcile_rollout(
+    codepilotx_rollout::state_db::reconcile_rollout(
         state_db_ctx.as_deref(),
         resolved_rollout_path.path.as_path(),
         store.config.default_model_provider_id.as_str(),
@@ -176,7 +176,7 @@ pub(super) async fn update_thread_metadata(
 }
 
 async fn refresh_resolved_rollout_path(resolved: &mut ResolvedRolloutPath) {
-    if let Some(path) = codex_rollout::existing_rollout_path(resolved.path.as_path()).await {
+    if let Some(path) = codepilotx_rollout::existing_rollout_path(resolved.path.as_path()).await {
         resolved.path = path;
     }
 }
@@ -423,7 +423,7 @@ fn enum_to_string<T: serde::Serialize>(value: &T) -> String {
 }
 
 fn normalize_cwd(cwd: PathBuf) -> PathBuf {
-    codex_utils_path::normalize_for_path_comparison(cwd.as_path()).unwrap_or(cwd)
+    codepilotx_utils_path::normalize_for_path_comparison(cwd.as_path()).unwrap_or(cwd)
 }
 
 async fn apply_thread_git_info(
@@ -500,7 +500,7 @@ async fn apply_thread_git_info_to_rollout(
     }
 
     session_meta.git = Some(GitInfo {
-        commit_hash: sha.as_deref().map(codex_git_utils::GitSha::new),
+        commit_hash: sha.as_deref().map(codepilotx_git_utils::GitSha::new),
         branch: branch.clone(),
         repository_url: origin_url.clone(),
     });
@@ -531,7 +531,7 @@ async fn apply_thread_name(
         }
     }
 
-    append_thread_name(store.config.codex_home.as_path(), thread_id, &name)
+    append_thread_name(store.config.codepilotx_home.as_path(), thread_id, &name)
         .await
         .map_err(|err| ThreadStoreError::Internal {
             message: format!("failed to index thread name: {err}"),
@@ -588,7 +588,7 @@ async fn resolve_rollout_path(
 
     let state_db_ctx = store.state_db().await;
     let active_path = find_thread_path_by_id_str(
-        store.config.codex_home.as_path(),
+        store.config.codepilotx_home.as_path(),
         &thread_id.to_string(),
         state_db_ctx.as_deref(),
     )
@@ -608,7 +608,7 @@ async fn resolve_rollout_path(
         });
     }
     find_archived_thread_path_by_id_str(
-        store.config.codex_home.as_path(),
+        store.config.codepilotx_home.as_path(),
         &thread_id.to_string(),
         state_db_ctx.as_deref(),
     )
@@ -626,12 +626,12 @@ async fn resolve_rollout_path(
 }
 
 fn rollout_path_is_archived(store: &LocalThreadStore, path: &Path) -> bool {
-    path.starts_with(store.config.codex_home.join(ARCHIVED_SESSIONS_SUBDIR))
+    path.starts_with(store.config.codepilotx_home.join(ARCHIVED_SESSIONS_SUBDIR))
 }
 
 #[cfg(test)]
 mod tests {
-    use codex_protocol::models::PermissionProfile;
+    use codepilotx_protocol::models::PermissionProfile;
     use pretty_assertions::assert_eq;
     use serde_json::Value;
     use serde_json::json;
@@ -673,7 +673,7 @@ mod tests {
             .expect("set thread name");
 
         assert_eq!(thread.name.as_deref(), Some("A sharper name"));
-        let latest_name = codex_rollout::find_thread_name_by_id(home.path(), &thread_id)
+        let latest_name = codepilotx_rollout::find_thread_name_by_id(home.path(), &thread_id)
             .await
             .expect("find thread name");
         assert_eq!(latest_name.as_deref(), Some("A sharper name"));
@@ -687,7 +687,7 @@ mod tests {
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         let path =
             write_session_file(home.path(), "2025-01-03T14-30-00", uuid).expect("session file");
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             home.path().to_path_buf(),
             config.default_model_provider_id.clone(),
         )
@@ -727,7 +727,7 @@ mod tests {
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         let path =
             write_session_file(home.path(), "2025-01-03T18-30-00", uuid).expect("session file");
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -771,7 +771,7 @@ mod tests {
         assert_eq!(appended["payload"]["memory_mode"], "disabled");
         assert_eq!(appended["payload"]["git"]["branch"], "feature");
 
-        codex_rollout::state_db::reconcile_rollout(
+        codepilotx_rollout::state_db::reconcile_rollout(
             Some(runtime.as_ref()),
             path.as_path(),
             config.default_model_provider_id.as_str(),
@@ -832,7 +832,7 @@ mod tests {
     async fn update_thread_metadata_sets_git_info() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -875,7 +875,7 @@ mod tests {
     async fn update_thread_metadata_sets_permission_profile() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -915,7 +915,7 @@ mod tests {
     async fn update_thread_metadata_partially_updates_git_info() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -973,7 +973,7 @@ mod tests {
     async fn update_thread_metadata_clears_git_info_fields() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -1022,7 +1022,7 @@ mod tests {
         assert_eq!(appended["type"], "session_meta");
         assert_eq!(appended["payload"]["git"], json!({}));
 
-        codex_rollout::state_db::reconcile_rollout(
+        codepilotx_rollout::state_db::reconcile_rollout(
             Some(runtime.as_ref()),
             path.as_path(),
             config.default_model_provider_id.as_str(),
@@ -1056,7 +1056,7 @@ mod tests {
         let appended = last_rollout_item(path.as_path());
         assert_eq!(appended["type"], "session_meta");
         assert_eq!(appended["payload"].get("git"), None);
-        codex_rollout::state_db::reconcile_rollout(
+        codepilotx_rollout::state_db::reconcile_rollout(
             Some(runtime.as_ref()),
             path.as_path(),
             config.default_model_provider_id.as_str(),
@@ -1116,7 +1116,7 @@ mod tests {
         let appended = last_rollout_item(path.as_path());
         assert_eq!(appended["type"], "session_meta");
         assert_eq!(appended["payload"].get("git"), None);
-        codex_rollout::state_db::reconcile_rollout(
+        codepilotx_rollout::state_db::reconcile_rollout(
             Some(runtime.as_ref()),
             path.as_path(),
             config.default_model_provider_id.as_str(),
@@ -1176,7 +1176,7 @@ mod tests {
     async fn update_thread_metadata_applies_combined_explicit_patch() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             home.path().to_path_buf(),
             config.default_model_provider_id.clone(),
         )
@@ -1214,7 +1214,7 @@ mod tests {
         assert_eq!(appended["type"], "session_meta");
         assert_eq!(appended["payload"]["memory_mode"], "disabled");
         assert_eq!(appended["payload"]["git"]["branch"], "combined");
-        let latest_name = codex_rollout::find_thread_name_by_id(home.path(), &thread_id)
+        let latest_name = codepilotx_rollout::find_thread_name_by_id(home.path(), &thread_id)
             .await
             .expect("find thread name");
         assert_eq!(latest_name.as_deref(), Some("Combined metadata"));
@@ -1269,7 +1269,7 @@ mod tests {
     async fn metadata_patch_applies_title_over_existing_name() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             home.path().to_path_buf(),
             config.default_model_provider_id.clone(),
         )
@@ -1312,7 +1312,7 @@ mod tests {
     async fn metadata_patch_applies_latest_preview_and_first_user_message() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             home.path().to_path_buf(),
             config.default_model_provider_id.clone(),
         )
@@ -1370,7 +1370,7 @@ mod tests {
     async fn observed_metadata_rejects_unknown_thread_without_rollout() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             home.path().to_path_buf(),
             config.default_model_provider_id.clone(),
         )
@@ -1412,7 +1412,7 @@ mod tests {
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         write_archived_session_file(home.path(), "2025-01-03T19-30-00", uuid)
             .expect("archived session file");
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             home.path().to_path_buf(),
             config.default_model_provider_id.clone(),
         )
@@ -1448,7 +1448,7 @@ mod tests {
     async fn observed_metadata_normalizes_cwd_for_list_filters() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             home.path().to_path_buf(),
             config.default_model_provider_id.clone(),
         )
@@ -1462,7 +1462,7 @@ mod tests {
         let child = workspace.join("child");
         std::fs::create_dir_all(child.as_path()).expect("create workspace");
         let unnormalized_cwd = child.join("..");
-        let normalized_cwd = codex_utils_path::normalize_for_path_comparison(workspace.as_path())
+        let normalized_cwd = codepilotx_utils_path::normalize_for_path_comparison(workspace.as_path())
             .expect("normalize cwd");
 
         store
@@ -1517,7 +1517,7 @@ mod tests {
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         let archived_path = write_archived_session_file(home.path(), "2025-01-03T16-00-00", uuid)
             .expect("archived session file");
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             home.path().to_path_buf(),
             config.default_model_provider_id.clone(),
         )
@@ -1528,7 +1528,7 @@ mod tests {
             .mark_backfill_complete(/*last_watermark*/ None)
             .await
             .expect("backfill should be complete");
-        codex_rollout::state_db::reconcile_rollout(
+        codepilotx_rollout::state_db::reconcile_rollout(
             Some(runtime.as_ref()),
             archived_path.as_path(),
             config.default_model_provider_id.as_str(),
@@ -1580,7 +1580,7 @@ mod tests {
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         let archived_path = write_archived_session_file(home.path(), "2025-01-03T16-30-00", uuid)
             .expect("archived session file");
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             home.path().to_path_buf(),
             config.default_model_provider_id.clone(),
         )
@@ -1591,7 +1591,7 @@ mod tests {
             .mark_backfill_complete(/*last_watermark*/ None)
             .await
             .expect("backfill should be complete");
-        codex_rollout::state_db::reconcile_rollout(
+        codepilotx_rollout::state_db::reconcile_rollout(
             Some(runtime.as_ref()),
             archived_path.as_path(),
             config.default_model_provider_id.as_str(),

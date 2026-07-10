@@ -19,7 +19,7 @@ use anyhow::Context;
 use anyhow::Result;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_keyring_store::KeyringStore;
+use codepilotx_keyring_store::KeyringStore;
 use rand::TryRngCore;
 use rand::rngs::OsRng;
 use serde::Deserialize;
@@ -35,7 +35,7 @@ use super::keyring_service;
 
 const SECRETS_VERSION: u8 = 1;
 const LOCAL_SECRETS_FILENAME: &str = "local.age";
-const CODEX_AUTH_SECRETS_FILENAME: &str = "codex_auth.age";
+const codepilotx_AUTH_SECRETS_FILENAME: &str = "codepilotx_auth.age";
 const MCP_OAUTH_SECRETS_FILENAME: &str = "mcp_oauth.age";
 
 /// Selects the local encrypted file used by a `LocalSecretsBackend`.
@@ -67,27 +67,27 @@ impl SecretsFile {
 
 #[derive(Debug, Clone)]
 pub struct LocalSecretsBackend {
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     keyring_store: Arc<dyn KeyringStore>,
     namespace: LocalSecretsNamespace,
 }
 
 impl LocalSecretsBackend {
-    pub fn new(codex_home: PathBuf, keyring_store: Arc<dyn KeyringStore>) -> Self {
+    pub fn new(codepilotx_home: PathBuf, keyring_store: Arc<dyn KeyringStore>) -> Self {
         Self::new_with_namespace(
-            codex_home,
+            codepilotx_home,
             keyring_store,
             LocalSecretsNamespace::ManagedSecrets,
         )
     }
 
     pub fn new_with_namespace(
-        codex_home: PathBuf,
+        codepilotx_home: PathBuf,
         keyring_store: Arc<dyn KeyringStore>,
         namespace: LocalSecretsNamespace,
     ) -> Self {
         Self {
-            codex_home,
+            codepilotx_home,
             keyring_store,
             namespace,
         }
@@ -136,13 +136,13 @@ impl LocalSecretsBackend {
     }
 
     fn secrets_dir(&self) -> PathBuf {
-        self.codex_home.join("secrets")
+        self.codepilotx_home.join("secrets")
     }
 
     fn secrets_path(&self) -> PathBuf {
         let filename = match self.namespace {
             LocalSecretsNamespace::ManagedSecrets => LOCAL_SECRETS_FILENAME,
-            LocalSecretsNamespace::CodexAuth => CODEX_AUTH_SECRETS_FILENAME,
+            LocalSecretsNamespace::CodexAuth => codepilotx_AUTH_SECRETS_FILENAME,
             LocalSecretsNamespace::McpOAuth => MCP_OAUTH_SECRETS_FILENAME,
         };
         self.secrets_dir().join(filename)
@@ -190,7 +190,7 @@ impl LocalSecretsBackend {
     }
 
     fn load_or_create_passphrase(&self) -> Result<SecretString> {
-        let account = compute_keyring_account(&self.codex_home);
+        let account = compute_keyring_account(&self.codepilotx_home);
         let loaded = self
             .keyring_store
             .load(keyring_service(), &account)
@@ -372,15 +372,15 @@ fn parse_canonical_key(canonical_key: &str) -> Option<SecretListEntry> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_keyring_store::tests::MockKeyringStore;
+    use codepilotx_keyring_store::tests::MockKeyringStore;
     use keyring::Error as KeyringError;
     use pretty_assertions::assert_eq;
 
     #[test]
     fn load_file_rejects_newer_schema_versions() -> Result<()> {
-        let codex_home = tempfile::tempdir().expect("tempdir");
+        let codepilotx_home = tempfile::tempdir().expect("tempdir");
         let keyring = Arc::new(MockKeyringStore::default());
-        let backend = LocalSecretsBackend::new(codex_home.path().to_path_buf(), keyring);
+        let backend = LocalSecretsBackend::new(codepilotx_home.path().to_path_buf(), keyring);
 
         let file = SecretsFile {
             version: SECRETS_VERSION + 1,
@@ -400,15 +400,15 @@ mod tests {
 
     #[test]
     fn set_fails_when_keyring_is_unavailable() -> Result<()> {
-        let codex_home = tempfile::tempdir().expect("tempdir");
+        let codepilotx_home = tempfile::tempdir().expect("tempdir");
         let keyring = Arc::new(MockKeyringStore::default());
-        let account = compute_keyring_account(codex_home.path());
+        let account = compute_keyring_account(codepilotx_home.path());
         keyring.set_error(
             &account,
             KeyringError::Invalid("error".into(), "load".into()),
         );
 
-        let backend = LocalSecretsBackend::new(codex_home.path().to_path_buf(), keyring);
+        let backend = LocalSecretsBackend::new(codepilotx_home.path().to_path_buf(), keyring);
         let scope = SecretScope::Global;
         let name = SecretName::new("TEST_SECRET")?;
         let error = backend
@@ -425,9 +425,9 @@ mod tests {
 
     #[test]
     fn save_file_does_not_leave_temp_files() -> Result<()> {
-        let codex_home = tempfile::tempdir().expect("tempdir");
+        let codepilotx_home = tempfile::tempdir().expect("tempdir");
         let keyring = Arc::new(MockKeyringStore::default());
-        let backend = LocalSecretsBackend::new(codex_home.path().to_path_buf(), keyring);
+        let backend = LocalSecretsBackend::new(codepilotx_home.path().to_path_buf(), keyring);
 
         let scope = SecretScope::Global;
         let name = SecretName::new("TEST_SECRET")?;
@@ -451,26 +451,26 @@ mod tests {
 
     #[test]
     fn local_namespaces_write_separate_files() -> Result<()> {
-        let codex_home = tempfile::tempdir().expect("tempdir");
+        let codepilotx_home = tempfile::tempdir().expect("tempdir");
         let keyring = Arc::new(MockKeyringStore::default());
-        let codex_auth_backend = LocalSecretsBackend::new_with_namespace(
-            codex_home.path().to_path_buf(),
+        let codepilotx_auth_backend = LocalSecretsBackend::new_with_namespace(
+            codepilotx_home.path().to_path_buf(),
             keyring.clone(),
             LocalSecretsNamespace::CodexAuth,
         );
         let mcp_backend = LocalSecretsBackend::new_with_namespace(
-            codex_home.path().to_path_buf(),
+            codepilotx_home.path().to_path_buf(),
             keyring,
             LocalSecretsNamespace::McpOAuth,
         );
         let scope = SecretScope::Global;
         let name = SecretName::new("TEST_SECRET")?;
 
-        codex_auth_backend.set(&scope, &name, "codex-auth-value")?;
+        codepilotx_auth_backend.set(&scope, &name, "codex-auth-value")?;
         mcp_backend.set(&scope, &name, "mcp-value")?;
 
         assert_eq!(
-            codex_auth_backend.get(&scope, &name)?,
+            codepilotx_auth_backend.get(&scope, &name)?,
             Some("codex-auth-value".to_string())
         );
         assert_eq!(
@@ -478,20 +478,20 @@ mod tests {
             Some("mcp-value".to_string())
         );
         assert!(
-            codex_home
+            codepilotx_home
                 .path()
                 .join("secrets")
-                .join("codex_auth.age")
+                .join("codepilotx_auth.age")
                 .exists()
         );
         assert!(
-            codex_home
+            codepilotx_home
                 .path()
                 .join("secrets")
                 .join("mcp_oauth.age")
                 .exists()
         );
-        assert!(!codex_home.path().join("secrets").join("local.age").exists());
+        assert!(!codepilotx_home.path().join("secrets").join("local.age").exists());
         Ok(())
     }
 }

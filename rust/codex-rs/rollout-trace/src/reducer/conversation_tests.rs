@@ -1040,7 +1040,7 @@ fn tool_call_links_model_call_and_followup_output_items() -> anyhow::Result<()> 
 }
 
 #[test]
-fn inference_start_rejects_unknown_codex_turn() -> anyhow::Result<()> {
+fn inference_start_rejects_unknown_codepilotx_turn() -> anyhow::Result<()> {
     let temp = TempDir::new()?;
     let writer = create_started_writer(&temp)?;
 

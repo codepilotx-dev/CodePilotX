@@ -1015,7 +1015,7 @@ mod tests {
     }
 
     #[test]
-    fn turn_scoped_hook_inputs_include_codex_turn_id_extension() {
+    fn turn_scoped_hook_inputs_include_codepilotx_turn_id_extension() {
         // Codex intentionally diverges from Claude's public hook docs here so
         // internal hook consumers can key off the active turn.
         let pre_tool_use: Value = serde_json::from_slice(

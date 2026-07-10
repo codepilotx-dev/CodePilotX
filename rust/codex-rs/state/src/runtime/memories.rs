@@ -1671,7 +1671,7 @@ mod tests {
     use crate::model::Stage1StartupClaimParams;
     use chrono::Duration;
     use chrono::Utc;
-    use codex_protocol::ThreadId;
+    use codepilotx_protocol::ThreadId;
     use pretty_assertions::assert_eq;
     use sqlx::Row;
     use std::sync::Arc;
@@ -1697,13 +1697,13 @@ mod tests {
 
     #[tokio::test]
     async fn stage1_claim_skips_when_up_to_date() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
         let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let metadata = test_thread_metadata(&codex_home, thread_id, codex_home.join("a"));
+        let metadata = test_thread_metadata(&codepilotx_home, thread_id, codepilotx_home.join("a"));
         runtime
             .upsert_thread(&metadata)
             .await
@@ -1760,22 +1760,22 @@ mod tests {
             "newer source_updated_at should be claimable"
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn stage1_running_stale_can_be_stolen_but_fresh_running_is_skipped() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
         let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
         let owner_a = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         let owner_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
-        let cwd = codex_home.join("workspace");
+        let cwd = codepilotx_home.join("workspace");
         runtime
-            .upsert_thread(&test_thread_metadata(&codex_home, thread_id, cwd))
+            .upsert_thread(&test_thread_metadata(&codepilotx_home, thread_id, cwd))
             .await
             .expect("upsert thread");
 
@@ -1815,22 +1815,22 @@ mod tests {
             Stage1JobClaimOutcome::Claimed { .. }
         ));
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn stage1_concurrent_claim_for_same_thread_is_conflict_safe() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
         let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id,
-                codex_home.join("workspace"),
+                codepilotx_home.join("workspace"),
             ))
             .await
             .expect("upsert thread");
@@ -1883,13 +1883,13 @@ mod tests {
             "unexpected claim outcomes: {claim_outcomes:?}"
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn stage1_concurrent_claims_respect_running_cap() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -1897,17 +1897,17 @@ mod tests {
         let thread_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_a,
-                codex_home.join("workspace-a"),
+                codepilotx_home.join("workspace-a"),
             ))
             .await
             .expect("upsert thread a");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_b,
-                codex_home.join("workspace-b"),
+                codepilotx_home.join("workspace-b"),
             ))
             .await
             .expect("upsert thread b");
@@ -1951,13 +1951,13 @@ mod tests {
             "one concurrent claim should be throttled by running cap: {claim_outcomes:?}"
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn claim_stage1_jobs_filters_by_age_idle_and_current_thread() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -1979,7 +1979,7 @@ mod tests {
             ThreadId::from_string(&Uuid::new_v4().to_string()).expect("old thread id");
 
         let mut current =
-            test_thread_metadata(&codex_home, current_thread_id, codex_home.join("current"));
+            test_thread_metadata(&codepilotx_home, current_thread_id, codepilotx_home.join("current"));
         current.created_at = now;
         current.updated_at = now;
         runtime
@@ -1988,15 +1988,15 @@ mod tests {
             .expect("upsert current");
 
         let mut fresh =
-            test_thread_metadata(&codex_home, fresh_thread_id, codex_home.join("fresh"));
+            test_thread_metadata(&codepilotx_home, fresh_thread_id, codepilotx_home.join("fresh"));
         fresh.created_at = fresh_at;
         fresh.updated_at = fresh_at;
         runtime.upsert_thread(&fresh).await.expect("upsert fresh");
 
         let mut just_under_idle = test_thread_metadata(
-            &codex_home,
+            &codepilotx_home,
             just_under_idle_thread_id,
-            codex_home.join("just-under-idle"),
+            codepilotx_home.join("just-under-idle"),
         );
         just_under_idle.created_at = just_under_idle_at;
         just_under_idle.updated_at = just_under_idle_at;
@@ -2006,9 +2006,9 @@ mod tests {
             .expect("upsert just-under-idle");
 
         let mut eligible_idle = test_thread_metadata(
-            &codex_home,
+            &codepilotx_home,
             eligible_idle_thread_id,
-            codex_home.join("eligible-idle"),
+            codepilotx_home.join("eligible-idle"),
         );
         eligible_idle.created_at = eligible_idle_at;
         eligible_idle.updated_at = eligible_idle_at;
@@ -2017,7 +2017,7 @@ mod tests {
             .await
             .expect("upsert eligible-idle");
 
-        let mut old = test_thread_metadata(&codex_home, old_thread_id, codex_home.join("old"));
+        let mut old = test_thread_metadata(&codepilotx_home, old_thread_id, codepilotx_home.join("old"));
         old.created_at = old_at;
         old.updated_at = old_at;
         runtime.upsert_thread(&old).await.expect("upsert old");
@@ -2041,13 +2041,13 @@ mod tests {
         assert_eq!(claims.len(), 1);
         assert_eq!(claims[0].thread.id, eligible_idle_thread_id);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn claim_stage1_jobs_bounds_state_scan_before_memory_probes() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -2064,7 +2064,7 @@ mod tests {
         let worker_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("worker id");
 
         let mut current =
-            test_thread_metadata(&codex_home, current_thread_id, codex_home.join("current"));
+            test_thread_metadata(&codepilotx_home, current_thread_id, codepilotx_home.join("current"));
         current.created_at = now;
         current.updated_at = now;
         runtime
@@ -2073,9 +2073,9 @@ mod tests {
             .expect("upsert current thread");
 
         let mut up_to_date = test_thread_metadata(
-            &codex_home,
+            &codepilotx_home,
             up_to_date_thread_id,
-            codex_home.join("up-to-date"),
+            codepilotx_home.join("up-to-date"),
         );
         up_to_date.created_at = eligible_newer_at;
         up_to_date.updated_at = eligible_newer_at;
@@ -2114,7 +2114,7 @@ mod tests {
         );
 
         let mut stale =
-            test_thread_metadata(&codex_home, stale_thread_id, codex_home.join("stale"));
+            test_thread_metadata(&codepilotx_home, stale_thread_id, codepilotx_home.join("stale"));
         stale.created_at = eligible_older_at;
         stale.updated_at = eligible_older_at;
         runtime
@@ -2156,13 +2156,13 @@ mod tests {
         assert_eq!(claims.len(), 1);
         assert_eq!(claims[0].thread.id, stale_thread_id);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn claim_stage1_jobs_skips_threads_with_disabled_memory_mode() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -2177,7 +2177,7 @@ mod tests {
             ThreadId::from_string(&Uuid::new_v4().to_string()).expect("enabled thread id");
 
         let mut current =
-            test_thread_metadata(&codex_home, current_thread_id, codex_home.join("current"));
+            test_thread_metadata(&codepilotx_home, current_thread_id, codepilotx_home.join("current"));
         current.created_at = now;
         current.updated_at = now;
         runtime
@@ -2186,7 +2186,7 @@ mod tests {
             .expect("upsert current thread");
 
         let mut disabled =
-            test_thread_metadata(&codex_home, disabled_thread_id, codex_home.join("disabled"));
+            test_thread_metadata(&codepilotx_home, disabled_thread_id, codepilotx_home.join("disabled"));
         disabled.created_at = eligible_at;
         disabled.updated_at = eligible_at;
         runtime
@@ -2200,7 +2200,7 @@ mod tests {
             .expect("disable thread memory mode");
 
         let mut enabled =
-            test_thread_metadata(&codex_home, enabled_thread_id, codex_home.join("enabled"));
+            test_thread_metadata(&codepilotx_home, enabled_thread_id, codepilotx_home.join("enabled"));
         enabled.created_at = eligible_at;
         enabled.updated_at = eligible_at;
         runtime
@@ -2227,13 +2227,13 @@ mod tests {
         assert_eq!(claims.len(), 1);
         assert_eq!(claims[0].thread.id, enabled_thread_id);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn clear_memory_data_clears_rows_and_preserves_thread_memory_modes() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -2245,7 +2245,7 @@ mod tests {
             ThreadId::from_string(&Uuid::new_v4().to_string()).expect("disabled thread id");
 
         let mut enabled =
-            test_thread_metadata(&codex_home, enabled_thread_id, codex_home.join("enabled"));
+            test_thread_metadata(&codepilotx_home, enabled_thread_id, codepilotx_home.join("enabled"));
         enabled.created_at = now;
         enabled.updated_at = now;
         runtime
@@ -2287,7 +2287,7 @@ mod tests {
             .expect("enqueue global consolidation");
 
         let mut disabled =
-            test_thread_metadata(&codex_home, disabled_thread_id, codex_home.join("disabled"));
+            test_thread_metadata(&codepilotx_home, disabled_thread_id, codepilotx_home.join("disabled"));
         disabled.created_at = now;
         disabled.updated_at = now;
         runtime
@@ -2336,13 +2336,13 @@ mod tests {
                 .expect("read disabled thread memory mode");
         assert_eq!(disabled_memory_mode, "disabled");
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn claim_stage1_jobs_enforces_global_running_cap() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -2350,9 +2350,9 @@ mod tests {
             ThreadId::from_string(&Uuid::new_v4().to_string()).expect("current thread id");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 current_thread_id,
-                codex_home.join("current"),
+                codepilotx_home.join("current"),
             ))
             .await
             .expect("upsert current");
@@ -2367,9 +2367,9 @@ mod tests {
         for idx in 0..total_candidates {
             let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
             let mut metadata = test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id,
-                codex_home.join(format!("thread-{idx}")),
+                codepilotx_home.join(format!("thread-{idx}")),
             );
             metadata.created_at = eligible_at - Duration::seconds(idx as i64);
             metadata.updated_at = eligible_at - Duration::seconds(idx as i64);
@@ -2463,20 +2463,20 @@ WHERE kind = 'memory_stage1'
             .expect("claim stage1 jobs with cap reached");
         assert_eq!(more_claims.len(), 0);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn claim_stage1_jobs_processes_two_full_batches_across_startup_passes() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
         let current_thread_id =
             ThreadId::from_string(&Uuid::new_v4().to_string()).expect("current thread id");
         let mut current =
-            test_thread_metadata(&codex_home, current_thread_id, codex_home.join("current"));
+            test_thread_metadata(&codepilotx_home, current_thread_id, codepilotx_home.join("current"));
         current.created_at = Utc::now();
         current.updated_at = Utc::now();
         runtime
@@ -2488,9 +2488,9 @@ WHERE kind = 'memory_stage1'
         for idx in 0..200 {
             let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
             let mut metadata = test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id,
-                codex_home.join(format!("thread-{idx}")),
+                codepilotx_home.join(format!("thread-{idx}")),
             );
             metadata.created_at = eligible_at - Duration::seconds(idx as i64);
             metadata.updated_at = eligible_at - Duration::seconds(idx as i64);
@@ -2550,21 +2550,21 @@ WHERE kind = 'memory_stage1'
             .expect("second stage1 startup claim");
         assert_eq!(second_claims.len(), 64);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn delete_thread_removes_stage1_output_and_enqueues_phase2_when_selected() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
         let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
         let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
-        let cwd = codex_home.join("workspace");
+        let cwd = codepilotx_home.join("workspace");
         runtime
-            .upsert_thread(&test_thread_metadata(&codex_home, thread_id, cwd))
+            .upsert_thread(&test_thread_metadata(&codepilotx_home, thread_id, cwd))
             .await
             .expect("upsert thread");
 
@@ -2675,13 +2675,13 @@ WHERE kind = ? AND job_key = ?
             .expect("list stage1 outputs after thread delete");
         assert_eq!(visible_outputs.len(), 0);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn mark_stage1_job_succeeded_no_output_skips_phase2_when_output_was_already_absent() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -2690,9 +2690,9 @@ WHERE kind = ? AND job_key = ?
         let owner_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id,
-                codex_home.join("workspace"),
+                codepilotx_home.join("workspace"),
             ))
             .await
             .expect("upsert thread");
@@ -2750,13 +2750,13 @@ WHERE kind = ? AND job_key = ?
             "no-output without an existing stage1 output should not enqueue phase2"
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn mark_stage1_job_succeeded_no_output_enqueues_phase2_when_deleting_output() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -2765,9 +2765,9 @@ WHERE kind = ? AND job_key = ?
         let owner_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id,
-                codex_home.join("workspace"),
+                codepilotx_home.join("workspace"),
             ))
             .await
             .expect("upsert thread");
@@ -2875,13 +2875,13 @@ WHERE kind = ? AND job_key = ?
                 .expect("mark phase2 succeeded after no-output delete")
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn stage1_retry_exhaustion_does_not_block_newer_watermark() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -2889,9 +2889,9 @@ WHERE kind = ? AND job_key = ?
         let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id,
-                codex_home.join("workspace"),
+                codepilotx_home.join("workspace"),
             ))
             .await
             .expect("upsert thread");
@@ -2971,13 +2971,13 @@ WHERE kind = ? AND job_key = ?
             101
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn phase2_global_lock_respects_success_cooldown() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -3033,13 +3033,13 @@ WHERE kind = ? AND job_key = ?
             Phase2JobClaimOutcome::Claimed { .. }
         ));
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn phase2_global_lock_can_be_claimed_after_retry_budget_is_exhausted() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -3103,13 +3103,13 @@ WHERE kind = ? AND job_key = ?
             "phase2 claim should only lock; workspace diffing decides whether there is work"
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn list_stage1_outputs_for_global_returns_latest_outputs() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -3118,14 +3118,14 @@ WHERE kind = ? AND job_key = ?
         let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id_a,
-                codex_home.join("workspace-a"),
+                codepilotx_home.join("workspace-a"),
             ))
             .await
             .expect("upsert thread a");
         let mut metadata_b =
-            test_thread_metadata(&codex_home, thread_id_b, codex_home.join("workspace-b"));
+            test_thread_metadata(&codepilotx_home, thread_id_b, codepilotx_home.join("workspace-b"));
         metadata_b.git_branch = Some("feature/stage1-b".to_string());
         runtime
             .upsert_thread(&metadata_b)
@@ -3198,21 +3198,21 @@ WHERE kind = ? AND job_key = ?
         assert_eq!(outputs[0].thread_id, thread_id_b);
         assert_eq!(outputs[0].rollout_summary, "summary b");
         assert_eq!(outputs[0].rollout_slug.as_deref(), Some("rollout-b"));
-        assert_eq!(outputs[0].cwd, codex_home.join("workspace-b"));
+        assert_eq!(outputs[0].cwd, codepilotx_home.join("workspace-b"));
         assert_eq!(outputs[0].git_branch.as_deref(), Some("feature/stage1-b"));
         assert_eq!(outputs[1].thread_id, thread_id_a);
         assert_eq!(outputs[1].rollout_summary, "summary a");
         assert_eq!(outputs[1].rollout_slug, None);
-        assert_eq!(outputs[1].cwd, codex_home.join("workspace-a"));
+        assert_eq!(outputs[1].cwd, codepilotx_home.join("workspace-a"));
         assert_eq!(outputs[1].git_branch, None);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn list_stage1_outputs_for_global_skips_empty_payloads() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -3222,17 +3222,17 @@ WHERE kind = ? AND job_key = ?
             ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id_non_empty,
-                codex_home.join("workspace-non-empty"),
+                codepilotx_home.join("workspace-non-empty"),
             ))
             .await
             .expect("upsert non-empty thread");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id_empty,
-                codex_home.join("workspace-empty"),
+                codepilotx_home.join("workspace-empty"),
             ))
             .await
             .expect("upsert empty thread");
@@ -3273,15 +3273,15 @@ VALUES (?, ?, ?, ?, ?)
         assert_eq!(outputs.len(), 1);
         assert_eq!(outputs[0].thread_id, thread_id_non_empty);
         assert_eq!(outputs[0].rollout_summary, "summary");
-        assert_eq!(outputs[0].cwd, codex_home.join("workspace-non-empty"));
+        assert_eq!(outputs[0].cwd, codepilotx_home.join("workspace-non-empty"));
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn list_stage1_outputs_for_global_skips_polluted_threads() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -3297,9 +3297,9 @@ VALUES (?, ?, ?, ?, ?)
         ] {
             runtime
                 .upsert_thread(&test_thread_metadata(
-                    &codex_home,
+                    &codepilotx_home,
                     thread_id,
-                    codex_home.join(workspace),
+                    codepilotx_home.join(workspace),
                 ))
                 .await
                 .expect("upsert thread");
@@ -3343,13 +3343,13 @@ VALUES (?, ?, ?, ?, ?)
         assert_eq!(outputs.len(), 1);
         assert_eq!(outputs[0].thread_id, thread_id_enabled);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn get_phase2_input_selection_returns_current_selected_rows() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -3365,9 +3365,9 @@ VALUES (?, ?, ?, ?, ?)
         ] {
             runtime
                 .upsert_thread(&test_thread_metadata(
-                    &codex_home,
+                    &codepilotx_home,
                     thread_id,
-                    codex_home.join(workspace),
+                    codepilotx_home.join(workspace),
                 ))
                 .await
                 .expect("upsert thread");
@@ -3455,16 +3455,16 @@ VALUES (?, ?, ?, ?, ?)
             .expect("thread c should be selected");
         assert_eq!(
             selected_c.rollout_path,
-            codex_home.join(format!("rollout-{thread_id_c}.jsonl"))
+            codepilotx_home.join(format!("rollout-{thread_id_c}.jsonl"))
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn get_phase2_input_selection_excludes_polluted_previous_selection() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -3477,9 +3477,9 @@ VALUES (?, ?, ?, ?, ?)
         for (thread_id, updated_at) in [(thread_id_enabled, 100), (thread_id_polluted, 101)] {
             runtime
                 .upsert_thread(&test_thread_metadata(
-                    &codex_home,
+                    &codepilotx_home,
                     thread_id,
-                    codex_home.join(thread_id.to_string()),
+                    codepilotx_home.join(thread_id.to_string()),
                 ))
                 .await
                 .expect("upsert thread");
@@ -3551,13 +3551,13 @@ VALUES (?, ?, ?, ?, ?)
         assert_eq!(selection.len(), 1);
         assert_eq!(selection[0].thread_id, thread_id_enabled);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn mark_thread_memory_mode_polluted_enqueues_phase2_for_selected_threads() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -3565,9 +3565,9 @@ VALUES (?, ?, ?, ?, ?)
         let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id,
-                codex_home.join("workspace"),
+                codepilotx_home.join("workspace"),
             ))
             .await
             .expect("upsert thread");
@@ -3640,13 +3640,13 @@ VALUES (?, ?, ?, ?, ?)
             .expect("claim phase2 after pollution");
         assert!(matches!(next_claim, Phase2JobClaimOutcome::Claimed { .. }));
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn mark_thread_memory_mode_polluted_enqueues_phase2_when_already_polluted() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -3654,9 +3654,9 @@ VALUES (?, ?, ?, ?, ?)
         let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id,
-                codex_home.join("workspace"),
+                codepilotx_home.join("workspace"),
             ))
             .await
             .expect("upsert thread");
@@ -3735,13 +3735,13 @@ VALUES (?, ?, ?, ?, ?)
             .expect("claim phase2 after already-polluted enqueue");
         assert!(matches!(next_claim, Phase2JobClaimOutcome::Claimed { .. }));
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn get_phase2_input_selection_returns_regenerated_selected_rows() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -3749,9 +3749,9 @@ VALUES (?, ?, ?, ?, ?)
         let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id,
-                codex_home.join("workspace"),
+                codepilotx_home.join("workspace"),
             ))
             .await
             .expect("upsert thread");
@@ -3854,13 +3854,13 @@ VALUES (?, ?, ?, ?, ?)
         assert_eq!(selected_for_phase2, 1);
         assert_eq!(selected_for_phase2_source_updated_at, Some(100));
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn get_phase2_input_selection_uses_current_ranking_after_refreshes() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -3878,9 +3878,9 @@ VALUES (?, ?, ?, ?, ?)
         ] {
             runtime
                 .upsert_thread(&test_thread_metadata(
-                    &codex_home,
+                    &codepilotx_home,
                     thread_id,
-                    codex_home.join(workspace),
+                    codepilotx_home.join(workspace),
                 ))
                 .await
                 .expect("upsert thread");
@@ -3997,13 +3997,13 @@ VALUES (?, ?, ?, ?, ?)
             vec![thread_id_c, thread_id_d]
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn mark_global_phase2_job_succeeded_updates_selected_snapshot_timestamp() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -4011,9 +4011,9 @@ VALUES (?, ?, ?, ?, ?)
         let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id,
-                codex_home.join("workspace"),
+                codepilotx_home.join("workspace"),
             ))
             .await
             .expect("upsert thread");
@@ -4147,13 +4147,13 @@ VALUES (?, ?, ?, ?, ?)
         assert_eq!(selected_for_phase2, 1);
         assert_eq!(selected_for_phase2_source_updated_at, Some(101));
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn mark_global_phase2_job_succeeded_only_marks_exact_selected_snapshots() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -4161,9 +4161,9 @@ VALUES (?, ?, ?, ?, ?)
         let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_id,
-                codex_home.join("workspace"),
+                codepilotx_home.join("workspace"),
             ))
             .await
             .expect("upsert thread");
@@ -4267,13 +4267,13 @@ VALUES (?, ?, ?, ?, ?)
         assert_eq!(selection.len(), 1);
         assert_eq!(selection[0].source_updated_at.timestamp(), 101);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn record_stage1_output_usage_updates_usage_metadata() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -4284,17 +4284,17 @@ VALUES (?, ?, ?, ?, ?)
 
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_a,
-                codex_home.join("workspace-a"),
+                codepilotx_home.join("workspace-a"),
             ))
             .await
             .expect("upsert thread a");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_b,
-                codex_home.join("workspace-b"),
+                codepilotx_home.join("workspace-b"),
             ))
             .await
             .expect("upsert thread b");
@@ -4386,13 +4386,13 @@ VALUES (?, ?, ?, ?, ?)
         assert_eq!(last_usage_a, last_usage_b);
         assert!(last_usage_a > 0);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn get_phase2_input_selection_prioritizes_usage_count_then_recent_usage() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -4409,9 +4409,9 @@ VALUES (?, ?, ?, ?, ?)
         ] {
             runtime
                 .upsert_thread(&test_thread_metadata(
-                    &codex_home,
+                    &codepilotx_home,
                     thread_id,
-                    codex_home.join(workspace),
+                    codepilotx_home.join(workspace),
                 ))
                 .await
                 .expect("upsert thread");
@@ -4482,13 +4482,13 @@ VALUES (?, ?, ?, ?, ?)
             vec![thread_b]
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn get_phase2_input_selection_excludes_stale_used_memories_but_keeps_fresh_never_used() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -4505,9 +4505,9 @@ VALUES (?, ?, ?, ?, ?)
         ] {
             runtime
                 .upsert_thread(&test_thread_metadata(
-                    &codex_home,
+                    &codepilotx_home,
                     thread_id,
-                    codex_home.join(workspace),
+                    codepilotx_home.join(workspace),
                 ))
                 .await
                 .expect("upsert thread");
@@ -4578,13 +4578,13 @@ VALUES (?, ?, ?, ?, ?)
             vec![thread_b, thread_c]
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn get_phase2_input_selection_prefers_recent_thread_updates_over_recent_generation() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -4600,9 +4600,9 @@ VALUES (?, ?, ?, ?, ?)
         ] {
             runtime
                 .upsert_thread(&test_thread_metadata(
-                    &codex_home,
+                    &codepilotx_home,
                     thread_id,
-                    codex_home.join(workspace),
+                    codepilotx_home.join(workspace),
                 ))
                 .await
                 .expect("upsert thread");
@@ -4664,13 +4664,13 @@ VALUES (?, ?, ?, ?, ?)
         assert_eq!(selection[0].thread_id, newer_thread);
         assert_eq!(selection[0].source_updated_at.timestamp(), 200);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn prune_stage1_outputs_for_retention_prunes_stale_unselected_rows_only() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -4690,9 +4690,9 @@ VALUES (?, ?, ?, ?, ?)
         ] {
             runtime
                 .upsert_thread(&test_thread_metadata(
-                    &codex_home,
+                    &codepilotx_home,
                     thread_id,
-                    codex_home.join(workspace),
+                    codepilotx_home.join(workspace),
                 ))
                 .await
                 .expect("upsert thread");
@@ -4806,13 +4806,13 @@ VALUES (?, ?, ?, ?, ?)
                 .expect("count stage1 jobs after prune");
         assert_eq!(after_jobs_count, before_jobs_count);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn prune_stage1_outputs_for_retention_respects_batch_limit() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -4828,9 +4828,9 @@ VALUES (?, ?, ?, ?, ?)
         ] {
             runtime
                 .upsert_thread(&test_thread_metadata(
-                    &codex_home,
+                    &codepilotx_home,
                     thread_id,
-                    codex_home.join(workspace),
+                    codepilotx_home.join(workspace),
                 ))
                 .await
                 .expect("upsert thread");
@@ -4884,13 +4884,13 @@ VALUES (?, ?, ?, ?, ?)
             .expect("count remaining stage1 outputs");
         assert_eq!(remaining_count, 1);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn mark_stage1_job_succeeded_enqueues_global_consolidation() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -4900,17 +4900,17 @@ VALUES (?, ?, ?, ?, ?)
 
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_a,
-                codex_home.join("workspace-a"),
+                codepilotx_home.join("workspace-a"),
             ))
             .await
             .expect("upsert thread a");
         runtime
             .upsert_thread(&test_thread_metadata(
-                &codex_home,
+                &codepilotx_home,
                 thread_b,
-                codex_home.join("workspace-b"),
+                codepilotx_home.join("workspace-b"),
             ))
             .await
             .expect("upsert thread b");
@@ -4979,13 +4979,13 @@ VALUES (?, ?, ?, ?, ?)
         };
         assert_eq!(input_watermark, 101);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn phase2_global_lock_allows_only_one_fresh_runner() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -5012,13 +5012,13 @@ VALUES (?, ?, ?, ?, ?)
             .expect("claim global lock from second owner");
         assert_eq!(second_claim, Phase2JobClaimOutcome::SkippedRunning);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn phase2_global_lock_creates_missing_job_row() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -5062,13 +5062,13 @@ VALUES (?, ?, ?, ?, ?)
             .expect("claim global phase2 lock after success");
         assert_eq!(claim_after_success, Phase2JobClaimOutcome::SkippedCooldown);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn phase2_global_lock_stale_lease_allows_takeover() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -5137,13 +5137,13 @@ VALUES (?, ?, ?, ?, ?)
             "takeover owner should finalize consolidation"
         );
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn enqueue_global_consolidation_keeps_phase2_input_watermark_monotonic() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -5201,13 +5201,13 @@ VALUES (?, ?, ?, ?, ?)
             other => panic!("unexpected lower-watermark phase2 claim outcome: {other:?}"),
         }
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn phase2_failure_fallback_updates_unowned_running_job() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -5265,6 +5265,6 @@ VALUES (?, ?, ?, ?, ?)
             .expect("claim after fallback failure");
         assert_eq!(claim, Phase2JobClaimOutcome::SkippedRetryUnavailable);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 }

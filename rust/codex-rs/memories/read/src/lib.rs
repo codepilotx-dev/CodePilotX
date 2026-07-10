@@ -8,8 +8,8 @@ pub mod citations;
 mod metrics;
 pub mod usage;
 
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
-pub fn memory_root(codex_home: &AbsolutePathBuf) -> AbsolutePathBuf {
-    codex_home.join("memories")
+pub fn memory_root(codepilotx_home: &AbsolutePathBuf) -> AbsolutePathBuf {
+    codepilotx_home.join("memories")
 }

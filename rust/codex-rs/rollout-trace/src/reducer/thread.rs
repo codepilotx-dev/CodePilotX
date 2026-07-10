@@ -124,23 +124,23 @@ impl TraceReducer {
     }
 
     /// Starts a Codex turn inside an existing thread.
-    pub(super) fn start_codex_turn(
+    pub(super) fn start_codepilotx_turn(
         &mut self,
         seq: RawEventSeq,
         wall_time_unix_ms: i64,
-        codex_turn_id: CodexTurnId,
+        codepilotx_turn_id: CodexTurnId,
         thread_id: String,
     ) -> Result<()> {
-        if self.rollout.codex_turns.contains_key(&codex_turn_id) {
-            bail!("duplicate codex turn start for {codex_turn_id}");
+        if self.rollout.codepilotx_turns.contains_key(&codepilotx_turn_id) {
+            bail!("duplicate codex turn start for {codepilotx_turn_id}");
         }
 
         self.thread_mut(&thread_id)?;
 
-        self.rollout.codex_turns.insert(
-            codex_turn_id.clone(),
+        self.rollout.codepilotx_turns.insert(
+            codepilotx_turn_id.clone(),
             CodexTurn {
-                codex_turn_id,
+                codepilotx_turn_id,
                 thread_id,
                 execution: ExecutionWindow {
                     started_at_unix_ms: wall_time_unix_ms,
@@ -156,27 +156,27 @@ impl TraceReducer {
     }
 
     /// Marks a Codex turn terminal and validates any thread id carried by the raw event.
-    pub(super) fn end_codex_turn(
+    pub(super) fn end_codepilotx_turn(
         &mut self,
         seq: RawEventSeq,
         wall_time_unix_ms: i64,
         thread_id: Option<String>,
-        codex_turn_id: CodexTurnId,
+        codepilotx_turn_id: CodexTurnId,
         status: ExecutionStatus,
     ) -> Result<()> {
         if let Some(event_thread_id) = thread_id.as_deref()
-            && let Some(turn) = self.rollout.codex_turns.get(&codex_turn_id)
+            && let Some(turn) = self.rollout.codepilotx_turns.get(&codepilotx_turn_id)
             && turn.thread_id != event_thread_id
         {
             bail!(
-                "codex turn end for {codex_turn_id} used thread {event_thread_id}, \
+                "codex turn end for {codepilotx_turn_id} used thread {event_thread_id}, \
                  but the turn belongs to {}",
                 turn.thread_id
             );
         }
 
-        let Some(turn) = self.rollout.codex_turns.get_mut(&codex_turn_id) else {
-            bail!("codex turn end referenced unknown turn {codex_turn_id}");
+        let Some(turn) = self.rollout.codepilotx_turns.get_mut(&codepilotx_turn_id) else {
+            bail!("codex turn end referenced unknown turn {codepilotx_turn_id}");
         };
         turn.execution.ended_at_unix_ms = Some(wall_time_unix_ms);
         turn.execution.ended_seq = Some(seq);
@@ -184,13 +184,13 @@ impl TraceReducer {
         self.terminate_running_code_cells_for_turn_end(
             seq,
             wall_time_unix_ms,
-            &codex_turn_id,
+            &codepilotx_turn_id,
             &status,
         )?;
         self.close_running_inference_calls_for_turn_end(
             seq,
             wall_time_unix_ms,
-            &codex_turn_id,
+            &codepilotx_turn_id,
             &status,
         );
         Ok(())

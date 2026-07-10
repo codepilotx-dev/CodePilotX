@@ -6,11 +6,11 @@ use chrono::DateTime;
 use chrono::NaiveDateTime;
 use chrono::Timelike;
 use chrono::Utc;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::UserMessageEvent;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::RolloutLine;
+use codepilotx_protocol::protocol::SessionMeta;
+use codepilotx_protocol::protocol::SessionMetaLine;
+use codepilotx_protocol::protocol::UserMessageEvent;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use tempfile::TempDir;
@@ -50,7 +50,7 @@ fn cursor_to_anchor_preserves_recency_tie_breaker() {
 async fn try_init_waits_for_concurrent_startup_backfill() -> anyhow::Result<()> {
     let home = TempDir::new().expect("temp dir");
     let runtime =
-        codex_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".to_string())
+        codepilotx_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".to_string())
             .await?;
     let claimed = runtime.try_claim_backfill(/*lease_seconds*/ 60).await?;
     assert!(claimed);
@@ -72,7 +72,7 @@ async fn try_init_waits_for_concurrent_startup_backfill() -> anyhow::Result<()> 
     complete_backfill.await??;
     assert_eq!(
         initialized.get_backfill_state().await?.status,
-        codex_state::BackfillStatus::Complete
+        codepilotx_state::BackfillStatus::Complete
     );
 
     Ok(())
@@ -82,7 +82,7 @@ async fn try_init_waits_for_concurrent_startup_backfill() -> anyhow::Result<()> 
 async fn try_init_times_out_waiting_for_stuck_startup_backfill() -> anyhow::Result<()> {
     let home = TempDir::new().expect("temp dir");
     let runtime =
-        codex_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".to_string())
+        codepilotx_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".to_string())
             .await?;
     let claimed = runtime.try_claim_backfill(/*lease_seconds*/ 60).await?;
     assert!(claimed);
@@ -113,7 +113,7 @@ async fn reconcile_rollout_preserves_existing_explicit_title() -> anyhow::Result
     let thread_id = ThreadId::new();
     let rollout_path = write_rollout_with_user_message(home.path(), thread_id, "Hey")?;
     let runtime =
-        codex_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".to_string())
+        codepilotx_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".to_string())
             .await?;
 
     let mut metadata =

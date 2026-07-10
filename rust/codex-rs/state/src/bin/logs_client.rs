@@ -5,9 +5,9 @@ use anyhow::Context;
 use chrono::DateTime;
 use clap::Parser;
 use clap::ValueEnum;
-use codex_state::LogQuery;
-use codex_state::LogRow;
-use codex_state::StateRuntime;
+use codepilotx_state::LogQuery;
+use codepilotx_state::LogRow;
+use codepilotx_state::StateRuntime;
 use dirs::home_dir;
 use owo_colors::OwoColorize;
 
@@ -15,9 +15,9 @@ use owo_colors::OwoColorize;
 #[command(name = "codex-state-logs")]
 #[command(about = "Tail Codex logs from the dedicated logs SQLite DB with simple filters")]
 struct Args {
-    /// Path to CODEX_HOME. Defaults to $CODEX_HOME or ~/.codex.
-    #[arg(long, env = "CODEX_HOME")]
-    codex_home: Option<PathBuf>,
+    /// Path to codepilotx_HOME. Defaults to $codepilotx_HOME or ~/.codex.
+    #[arg(long, env = "codepilotx_HOME")]
+    codepilotx_home: Option<PathBuf>,
 
     /// Direct path to the logs SQLite database. Overrides --codex-home.
     #[arg(long)]
@@ -107,11 +107,11 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let db_path = resolve_db_path(&args)?;
     let filter = build_filter(&args)?;
-    let codex_home = db_path
+    let codepilotx_home = db_path
         .parent()
         .map(ToOwned::to_owned)
         .unwrap_or_else(|| PathBuf::from("."));
-    let runtime = StateRuntime::init(codex_home, "logs-client".to_string()).await?;
+    let runtime = StateRuntime::init(codepilotx_home, "logs-client".to_string()).await?;
 
     let mut last_id =
         print_backfill(runtime.as_ref(), &filter, args.backfill, args.compact).await?;
@@ -135,11 +135,11 @@ fn resolve_db_path(args: &Args) -> anyhow::Result<PathBuf> {
         return Ok(db.clone());
     }
 
-    let codex_home = args.codex_home.clone().unwrap_or_else(default_codex_home);
-    Ok(codex_state::logs_db_path(codex_home.as_path()))
+    let codepilotx_home = args.codepilotx_home.clone().unwrap_or_else(default_codepilotx_home);
+    Ok(codepilotx_state::logs_db_path(codepilotx_home.as_path()))
 }
 
-fn default_codex_home() -> PathBuf {
+fn default_codepilotx_home() -> PathBuf {
     if let Some(home) = home_dir() {
         return home.join(".codex");
     }

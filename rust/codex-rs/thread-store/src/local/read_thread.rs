@@ -1,16 +1,16 @@
 use chrono::DateTime;
 use chrono::Utc;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource;
-use codex_rollout::RolloutRecorder;
-use codex_rollout::find_archived_thread_path_by_id_str;
-use codex_rollout::find_thread_name_by_id;
-use codex_rollout::find_thread_path_by_id_str;
-use codex_rollout::read_session_meta_line;
-use codex_rollout::read_thread_item_from_rollout;
-use codex_state::ThreadMetadata;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::SessionMetaLine;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_rollout::RolloutRecorder;
+use codepilotx_rollout::find_archived_thread_path_by_id_str;
+use codepilotx_rollout::find_thread_name_by_id;
+use codepilotx_rollout::find_thread_path_by_id_str;
+use codepilotx_rollout::read_session_meta_line;
+use codepilotx_rollout::read_thread_item_from_rollout;
+use codepilotx_state::ThreadMetadata;
 
 use super::LocalThreadStore;
 use super::helpers::distinct_thread_metadata_title;
@@ -35,7 +35,7 @@ pub(super) async fn read_thread(
         && (params.include_archived
             || (metadata.archived_at.is_none()
                 && !rollout_path_is_archived(
-                    store.config.codex_home.as_path(),
+                    store.config.codepilotx_home.as_path(),
                     metadata.rollout_path.as_path(),
                 )))
         && (!params.include_history
@@ -89,9 +89,9 @@ pub(super) async fn read_thread(
 async fn sqlite_rollout_path_can_load_history_for_thread(
     store: &LocalThreadStore,
     path: &std::path::Path,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: codepilotx_protocol::ThreadId,
 ) -> bool {
-    if codex_rollout::existing_rollout_path(path).await.is_none() {
+    if codepilotx_rollout::existing_rollout_path(path).await.is_none() {
         return false;
     }
     // SQLite metadata can outlive a moved/recreated rollout path. When history is
@@ -141,7 +141,7 @@ async fn resolve_requested_rollout_path(
     rollout_path: std::path::PathBuf,
 ) -> ThreadStoreResult<std::path::PathBuf> {
     let path = if rollout_path.is_relative() {
-        store.config.codex_home.join(rollout_path)
+        store.config.codepilotx_home.join(rollout_path)
     } else {
         rollout_path
     };
@@ -164,7 +164,7 @@ async fn resolve_requested_rollout_path(
         }
         _ => {}
     }
-    let Some(path) = codex_rollout::existing_rollout_path(path.as_path()).await else {
+    let Some(path) = codepilotx_rollout::existing_rollout_path(path.as_path()).await else {
         return Err(ThreadStoreError::InvalidRequest {
             message: format!(
                 "failed to resolve rollout path `{}`: file does not exist",
@@ -197,14 +197,14 @@ async fn attach_history_if_requested(
 
 async fn resolve_rollout_path(
     store: &LocalThreadStore,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: codepilotx_protocol::ThreadId,
     include_archived: bool,
 ) -> ThreadStoreResult<Option<std::path::PathBuf>> {
     if let Ok(path) = live_writer::rollout_path(store, thread_id).await
-        && codex_rollout::existing_rollout_path(path.as_path())
+        && codepilotx_rollout::existing_rollout_path(path.as_path())
             .await
             .is_some()
-        && (include_archived || !rollout_path_is_archived(store.config.codex_home.as_path(), &path))
+        && (include_archived || !rollout_path_is_archived(store.config.codepilotx_home.as_path(), &path))
     {
         return Ok(Some(path));
     }
@@ -212,7 +212,7 @@ async fn resolve_rollout_path(
     let state_db_ctx = store.state_db().await;
     if include_archived {
         match find_thread_path_by_id_str(
-            store.config.codex_home.as_path(),
+            store.config.codepilotx_home.as_path(),
             &thread_id.to_string(),
             state_db_ctx.as_deref(),
         )
@@ -222,7 +222,7 @@ async fn resolve_rollout_path(
         })? {
             Some(path) => Ok(Some(path)),
             None => find_archived_thread_path_by_id_str(
-                store.config.codex_home.as_path(),
+                store.config.codepilotx_home.as_path(),
                 &thread_id.to_string(),
                 state_db_ctx.as_deref(),
             )
@@ -233,7 +233,7 @@ async fn resolve_rollout_path(
         }
     } else {
         find_thread_path_by_id_str(
-            store.config.codex_home.as_path(),
+            store.config.codepilotx_home.as_path(),
             &thread_id.to_string(),
             state_db_ctx.as_deref(),
         )
@@ -251,7 +251,7 @@ async fn read_thread_from_rollout_path(
     let Some(item) = read_thread_item_from_rollout(path.clone()).await else {
         return stored_thread_from_session_meta(store, path).await;
     };
-    let archived = rollout_path_is_archived(store.config.codex_home.as_path(), path.as_path());
+    let archived = rollout_path_is_archived(store.config.codepilotx_home.as_path(), path.as_path());
     let mut thread = stored_thread_from_rollout_item(
         item,
         archived,
@@ -260,7 +260,7 @@ async fn read_thread_from_rollout_path(
     .ok_or_else(|| ThreadStoreError::Internal {
         message: format!("failed to read thread id from {}", path.display()),
     })?;
-    thread.rollout_path = Some(codex_rollout::plain_rollout_path(path.as_path()));
+    thread.rollout_path = Some(codepilotx_rollout::plain_rollout_path(path.as_path()));
     if let Ok(meta_line) = read_session_meta_line(path.as_path()).await {
         thread.forked_from_id = meta_line.meta.forked_from_id;
         thread.parent_thread_id = meta_line.meta.parent_thread_id;
@@ -273,7 +273,7 @@ async fn read_thread_from_rollout_path(
         }
     }
     if let Ok(Some(title)) =
-        find_thread_name_by_id(store.config.codex_home.as_path(), &thread.thread_id).await
+        find_thread_name_by_id(store.config.codepilotx_home.as_path(), &thread.thread_id).await
     {
         set_thread_name_from_title(&mut thread, title);
     }
@@ -282,7 +282,7 @@ async fn read_thread_from_rollout_path(
 
 async fn load_history_items(
     path: &std::path::Path,
-) -> ThreadStoreResult<Vec<codex_protocol::protocol::RolloutItem>> {
+) -> ThreadStoreResult<Vec<codepilotx_protocol::protocol::RolloutItem>> {
     let (items, _, _) = RolloutRecorder::load_rollout_items(path)
         .await
         .map_err(|err| ThreadStoreError::Internal {
@@ -293,7 +293,7 @@ async fn load_history_items(
 
 async fn read_sqlite_metadata(
     store: &LocalThreadStore,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: codepilotx_protocol::ThreadId,
 ) -> Option<ThreadMetadata> {
     let runtime = store.state_db().await?;
     runtime.get_thread(thread_id).await.ok().flatten()
@@ -305,7 +305,7 @@ async fn stored_thread_from_sqlite_metadata(
 ) -> StoredThread {
     let name = match distinct_thread_metadata_title(&metadata) {
         Some(title) => Some(title),
-        None => find_thread_name_by_id(store.config.codex_home.as_path(), &metadata.id)
+        None => find_thread_name_by_id(store.config.codepilotx_home.as_path(), &metadata.id)
             .await
             .ok()
             .flatten()
@@ -315,7 +315,7 @@ async fn stored_thread_from_sqlite_metadata(
         .await
         .ok()
         .map(|meta_line| meta_line.meta);
-    let rollout_path = codex_rollout::plain_rollout_path(metadata.rollout_path.as_path());
+    let rollout_path = codepilotx_rollout::plain_rollout_path(metadata.rollout_path.as_path());
     let forked_from_id = session_meta.as_ref().and_then(|meta| meta.forked_from_id);
     let parent_thread_id = session_meta.as_ref().and_then(|meta| meta.parent_thread_id);
     let preview = metadata
@@ -373,7 +373,7 @@ async fn stored_thread_from_session_meta(
         .map_err(|err| ThreadStoreError::Internal {
             message: format!("failed to read thread {}: {err}", path.display()),
         })?;
-    let archived = rollout_path_is_archived(store.config.codex_home.as_path(), path.as_path());
+    let archived = rollout_path_is_archived(store.config.codepilotx_home.as_path(), path.as_path());
     Ok(stored_thread_from_meta_line(
         store, meta_line, path, archived,
     ))
@@ -391,7 +391,7 @@ fn stored_thread_from_meta_line(
         .and_then(|meta| meta.modified().ok())
         .map(DateTime::<Utc>::from)
         .unwrap_or(created_at);
-    let rollout_path = codex_rollout::plain_rollout_path(path.as_path());
+    let rollout_path = codepilotx_rollout::plain_rollout_path(path.as_path());
     StoredThread {
         thread_id: meta_line.meta.id,
         extra_config: None,
@@ -454,10 +454,10 @@ mod tests {
     use std::path::PathBuf;
 
     use chrono::Utc;
-    use codex_protocol::ThreadId;
-    use codex_protocol::protocol::SandboxPolicy;
-    use codex_protocol::protocol::SessionSource;
-    use codex_state::ThreadMetadataBuilder;
+    use codepilotx_protocol::ThreadId;
+    use codepilotx_protocol::protocol::SandboxPolicy;
+    use codepilotx_protocol::protocol::SessionSource;
+    use codepilotx_state::ThreadMetadataBuilder;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use uuid::Uuid;
@@ -536,7 +536,7 @@ mod tests {
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         let active_path =
             write_session_file(home.path(), "2025-01-03T12-00-00", uuid).expect("session file");
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -688,7 +688,7 @@ mod tests {
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         let rollout_path =
             write_session_file(home.path(), "2025-01-03T12-00-00", uuid).expect("session file");
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -728,7 +728,7 @@ mod tests {
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         let rollout_path =
             write_session_file(home.path(), "2025-01-03T12-00-00", uuid).expect("session file");
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -769,7 +769,7 @@ mod tests {
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         let rollout_path =
             write_session_file(home.path(), "2025-01-03T12-00-00", uuid).expect("session file");
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -803,7 +803,7 @@ mod tests {
     async fn read_thread_preserves_rollout_cwd_when_sqlite_metadata_exists() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -896,7 +896,7 @@ mod tests {
         let uuid = Uuid::from_u128(213);
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T12-00-00", uuid).expect("session file");
-        codex_rollout::append_thread_name(home.path(), thread_id, "Legacy title")
+        codepilotx_rollout::append_thread_name(home.path(), thread_id, "Legacy title")
             .await
             .expect("append legacy thread name");
 
@@ -937,7 +937,7 @@ mod tests {
         });
         writeln!(file, "{meta}").expect("write session meta");
 
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -991,7 +991,7 @@ mod tests {
         let rollout_path =
             write_session_file(home.path(), "2025-01-03T12-00-00", uuid).expect("session file");
         let stale_path = external.path().join("missing-rollout.jsonl");
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -1042,7 +1042,7 @@ mod tests {
         let other_uuid = Uuid::from_u128(222);
         let stale_path = write_session_file(external.path(), "2025-01-04T12-00-00", other_uuid)
             .expect("other session file");
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -1140,7 +1140,7 @@ mod tests {
         let rollout_path = external
             .path()
             .join(format!("rollout-2025-01-03T12-00-00-{uuid}.jsonl"));
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -1202,7 +1202,7 @@ mod tests {
         let rollout_path = external
             .path()
             .join(format!("rollout-2025-01-03T12-00-00-{uuid}.jsonl"));
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -1257,7 +1257,7 @@ mod tests {
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         let archived_path = write_archived_session_file(home.path(), "2025-01-03T12-00-00", uuid)
             .expect("archived session file");
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = codepilotx_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )

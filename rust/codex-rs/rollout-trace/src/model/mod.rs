@@ -69,7 +69,7 @@ pub struct RolloutTrace {
     pub status: RolloutStatus,
     pub root_thread_id: AgentThreadId,
     pub threads: BTreeMap<AgentThreadId, AgentThread>,
-    pub codex_turns: BTreeMap<CodexTurnId, CodexTurn>,
+    pub codepilotx_turns: BTreeMap<CodexTurnId, CodexTurn>,
     pub conversation_items: BTreeMap<ConversationItemId, ConversationItem>,
     pub inference_calls: BTreeMap<InferenceCallId, InferenceCall>,
     /// Model-authored `exec` JavaScript cells keyed by reducer-owned cell ID.
@@ -107,7 +107,7 @@ impl RolloutTrace {
             status: RolloutStatus::Running,
             root_thread_id,
             threads: BTreeMap::new(),
-            codex_turns: BTreeMap::new(),
+            codepilotx_turns: BTreeMap::new(),
             conversation_items: BTreeMap::new(),
             inference_calls: BTreeMap::new(),
             code_cells: BTreeMap::new(),

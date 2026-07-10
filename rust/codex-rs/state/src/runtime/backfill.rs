@@ -118,8 +118,8 @@ mod tests {
 
     #[tokio::test]
     async fn backfill_state_persists_progress_and_completion() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -166,17 +166,17 @@ mod tests {
         );
         assert!(completed.last_success_at.is_some());
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn get_backfill_state_succeeds_while_another_connection_holds_writer_slot() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
         let mut write_connection = sqlx::SqliteConnection::connect_with(&base_sqlite_options(
-            &crate::state_db_path(codex_home.as_path()),
+            &crate::state_db_path(codepilotx_home.as_path()),
         ))
         .await
         .expect("open write connection");
@@ -195,13 +195,13 @@ mod tests {
             .rollback()
             .await
             .expect("release write lock");
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn get_backfill_state_repairs_a_missing_singleton_row() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
         sqlx::query("DELETE FROM backfill_state WHERE id = 1")
@@ -221,13 +221,13 @@ mod tests {
                 .expect("count repaired backfill state rows");
         assert_eq!(row_count, 1);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 
     #[tokio::test]
     async fn backfill_claim_is_singleton_until_stale_and_blocked_when_complete() {
-        let codex_home = unique_temp_dir();
-        let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+        let codepilotx_home = unique_temp_dir();
+        let runtime = StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
             .await
             .expect("initialize runtime");
 
@@ -273,6 +273,6 @@ WHERE id = 1
             .expect("claim after complete");
         assert_eq!(claim_after_complete, false);
 
-        let _ = tokio::fs::remove_dir_all(codex_home).await;
+        let _ = tokio::fs::remove_dir_all(codepilotx_home).await;
     }
 }

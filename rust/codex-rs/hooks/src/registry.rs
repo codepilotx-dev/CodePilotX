@@ -1,5 +1,5 @@
-use codex_config::ConfigLayerStack;
-use codex_plugin::PluginHookSource;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_plugin::PluginHookSource;
 use tokio::process::Command;
 
 use crate::engine::ClaudeHooksEngine;
@@ -109,28 +109,28 @@ impl Hooks {
     pub fn preview_session_start(
         &self,
         request: &SessionStartRequest,
-    ) -> Vec<codex_protocol::protocol::HookRunSummary> {
+    ) -> Vec<codepilotx_protocol::protocol::HookRunSummary> {
         self.engine.preview_session_start(request)
     }
 
     pub fn preview_pre_tool_use(
         &self,
         request: &PreToolUseRequest,
-    ) -> Vec<codex_protocol::protocol::HookRunSummary> {
+    ) -> Vec<codepilotx_protocol::protocol::HookRunSummary> {
         self.engine.preview_pre_tool_use(request)
     }
 
     pub fn preview_permission_request(
         &self,
         request: &PermissionRequestRequest,
-    ) -> Vec<codex_protocol::protocol::HookRunSummary> {
+    ) -> Vec<codepilotx_protocol::protocol::HookRunSummary> {
         self.engine.preview_permission_request(request)
     }
 
     pub fn preview_post_tool_use(
         &self,
         request: &PostToolUseRequest,
-    ) -> Vec<codex_protocol::protocol::HookRunSummary> {
+    ) -> Vec<codepilotx_protocol::protocol::HookRunSummary> {
         self.engine.preview_post_tool_use(request)
     }
 
@@ -160,7 +160,7 @@ impl Hooks {
     pub fn preview_pre_compact(
         &self,
         request: &PreCompactRequest,
-    ) -> Vec<codex_protocol::protocol::HookRunSummary> {
+    ) -> Vec<codepilotx_protocol::protocol::HookRunSummary> {
         self.engine.preview_pre_compact(request)
     }
 
@@ -171,7 +171,7 @@ impl Hooks {
     pub fn preview_post_compact(
         &self,
         request: &PostCompactRequest,
-    ) -> Vec<codex_protocol::protocol::HookRunSummary> {
+    ) -> Vec<codepilotx_protocol::protocol::HookRunSummary> {
         self.engine.preview_post_compact(request)
     }
 
@@ -182,7 +182,7 @@ impl Hooks {
     pub fn preview_user_prompt_submit(
         &self,
         request: &UserPromptSubmitRequest,
-    ) -> Vec<codex_protocol::protocol::HookRunSummary> {
+    ) -> Vec<codepilotx_protocol::protocol::HookRunSummary> {
         self.engine.preview_user_prompt_submit(request)
     }
 
@@ -196,7 +196,7 @@ impl Hooks {
     pub fn preview_stop(
         &self,
         request: &StopRequest,
-    ) -> Vec<codex_protocol::protocol::HookRunSummary> {
+    ) -> Vec<codepilotx_protocol::protocol::HookRunSummary> {
         self.engine.preview_stop(request)
     }
 

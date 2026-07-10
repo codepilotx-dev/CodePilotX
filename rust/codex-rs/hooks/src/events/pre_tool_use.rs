@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::HookCompletedEvent;
-use codex_protocol::protocol::HookEventName;
-use codex_protocol::protocol::HookOutputEntry;
-use codex_protocol::protocol::HookOutputEntryKind;
-use codex_protocol::protocol::HookRunStatus;
-use codex_protocol::protocol::HookRunSummary;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::HookCompletedEvent;
+use codepilotx_protocol::protocol::HookEventName;
+use codepilotx_protocol::protocol::HookOutputEntry;
+use codepilotx_protocol::protocol::HookOutputEntryKind;
+use codepilotx_protocol::protocol::HookRunStatus;
+use codepilotx_protocol::protocol::HookRunSummary;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use serde_json::Value;
 
 use super::common;
@@ -314,13 +314,13 @@ fn serialization_failure_outcome(hook_events: Vec<HookCompletedEvent>) -> PreToo
 
 #[cfg(test)]
 mod tests {
-    use codex_protocol::ThreadId;
-    use codex_protocol::protocol::HookEventName;
-    use codex_protocol::protocol::HookOutputEntry;
-    use codex_protocol::protocol::HookOutputEntryKind;
-    use codex_protocol::protocol::HookRunStatus;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use codepilotx_protocol::ThreadId;
+    use codepilotx_protocol::protocol::HookEventName;
+    use codepilotx_protocol::protocol::HookOutputEntry;
+    use codepilotx_protocol::protocol::HookOutputEntryKind;
+    use codepilotx_protocol::protocol::HookRunStatus;
+    use codepilotx_utils_absolute_path::test_support::PathBufExt;
+    use codepilotx_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
 
     use super::PreToolUseHandlerData;
@@ -746,7 +746,7 @@ mod tests {
             timeout_sec: 5,
             status_message: None,
             source_path: test_path_buf("/tmp/hooks.json").abs(),
-            source: codex_protocol::protocol::HookSource::User,
+            source: codepilotx_protocol::protocol::HookSource::User,
             display_order: 0,
             env: std::collections::HashMap::new(),
         }

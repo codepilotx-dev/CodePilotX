@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
-use codex_protocol::models::ResponseItem;
+use codepilotx_protocol::models::ResponseItem;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use tracing::warn;
@@ -46,7 +46,7 @@ enum CompactionTraceContextState {
 struct EnabledCompactionTraceContext {
     writer: Arc<TraceWriter>,
     thread_id: AgentThreadId,
-    codex_turn_id: CodexTurnId,
+    codepilotx_turn_id: CodexTurnId,
     compaction_id: CompactionId,
     model: String,
     provider_name: String,
@@ -98,7 +98,7 @@ impl CompactionTraceContext {
     pub fn enabled(
         writer: Arc<TraceWriter>,
         thread_id: AgentThreadId,
-        codex_turn_id: CodexTurnId,
+        codepilotx_turn_id: CodexTurnId,
         compaction_id: CompactionId,
         model: String,
         provider_name: String,
@@ -107,7 +107,7 @@ impl CompactionTraceContext {
             state: CompactionTraceContextState::Enabled(EnabledCompactionTraceContext {
                 writer,
                 thread_id,
-                codex_turn_id,
+                codepilotx_turn_id,
                 compaction_id,
                 model,
                 provider_name,
@@ -152,7 +152,7 @@ impl CompactionTraceContext {
 
         let event_context = RawTraceEventContext {
             thread_id: Some(context.thread_id.clone()),
-            codex_turn_id: Some(context.codex_turn_id.clone()),
+            codepilotx_turn_id: Some(context.codepilotx_turn_id.clone()),
         };
         if let Err(err) = context.writer.append_with_context(
             event_context,
@@ -192,7 +192,7 @@ impl CompactionTraceAttempt {
                 compaction_id: attempt.context.compaction_id.clone(),
                 compaction_request_id: attempt.compaction_request_id.clone(),
                 thread_id: attempt.context.thread_id.clone(),
-                codex_turn_id: attempt.context.codex_turn_id.clone(),
+                codepilotx_turn_id: attempt.context.codepilotx_turn_id.clone(),
                 model: attempt.context.model.clone(),
                 provider_name: attempt.context.provider_name.clone(),
                 request_payload,
@@ -273,7 +273,7 @@ fn append_with_context_best_effort(
 ) {
     let event_context = RawTraceEventContext {
         thread_id: Some(context.thread_id.clone()),
-        codex_turn_id: Some(context.codex_turn_id.clone()),
+        codepilotx_turn_id: Some(context.codepilotx_turn_id.clone()),
     };
     let _ = context.writer.append_with_context(event_context, payload);
 }

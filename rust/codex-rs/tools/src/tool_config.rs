@@ -1,10 +1,10 @@
-use codex_features::Feature;
-use codex_features::Features;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::TUI_VISIBLE_COLLABORATION_MODES;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::ModelInfo;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_features::Feature;
+use codepilotx_features::Features;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::TUI_VISIBLE_COLLABORATION_MODES;
+use codepilotx_protocol::openai_models::ConfigShellToolType;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -105,7 +105,7 @@ pub fn shell_type_for_model_and_features(
         match unified_exec_feature_mode {
             UnifiedExecFeatureMode::Disabled => shell_command_type,
             UnifiedExecFeatureMode::Direct | UnifiedExecFeatureMode::ZshFork => {
-                if codex_utils_pty::conpty_supported() {
+                if codepilotx_utils_pty::conpty_supported() {
                     ConfigShellToolType::UnifiedExec
                 } else {
                     ConfigShellToolType::ShellCommand

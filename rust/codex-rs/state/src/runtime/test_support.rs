@@ -3,13 +3,13 @@ use chrono::DateTime;
 #[cfg(test)]
 use chrono::Utc;
 #[cfg(test)]
-use codex_protocol::ThreadId;
+use codepilotx_protocol::ThreadId;
 #[cfg(test)]
-use codex_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::openai_models::ReasoningEffort;
 #[cfg(test)]
-use codex_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::AskForApproval;
 #[cfg(test)]
-use codex_protocol::protocol::SandboxPolicy;
+use codepilotx_protocol::protocol::SandboxPolicy;
 #[cfg(test)]
 use std::path::Path;
 #[cfg(test)]
@@ -37,14 +37,14 @@ pub(super) fn unique_temp_dir() -> PathBuf {
 
 #[cfg(test)]
 pub(super) fn test_thread_metadata(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     thread_id: ThreadId,
     cwd: PathBuf,
 ) -> ThreadMetadata {
     let now = DateTime::<Utc>::from_timestamp(1_700_000_000, 0).expect("timestamp");
     ThreadMetadata {
         id: thread_id,
-        rollout_path: codex_home.join(format!("rollout-{thread_id}.jsonl")),
+        rollout_path: codepilotx_home.join(format!("rollout-{thread_id}.jsonl")),
         created_at: now,
         updated_at: now,
         recency_at: now,

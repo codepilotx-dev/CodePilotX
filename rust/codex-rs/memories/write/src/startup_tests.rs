@@ -4,29 +4,29 @@ use crate::phase1;
 use crate::phase2;
 use crate::runtime::MemoryStartupContext;
 use crate::start_memories_startup_task;
-use codex_config::types::MemoriesConfig;
-use codex_features::Feature;
-use codex_git_utils::diff_since_latest_init;
-use codex_git_utils::reset_git_repository;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_model_provider::ModelProvider;
-use codex_model_provider::ModelProviderFuture;
-use codex_model_provider::ProviderAccountResult;
-use codex_model_provider::SharedModelProvider;
-use codex_model_provider::create_model_provider;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionSource;
+use codepilotx_config::types::MemoriesConfig;
+use codepilotx_features::Feature;
+use codepilotx_git_utils::diff_since_latest_init;
+use codepilotx_git_utils::reset_git_repository;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CodexAuth;
+use codepilotx_model_provider::ModelProvider;
+use codepilotx_model_provider::ModelProviderFuture;
+use codepilotx_model_provider::ProviderAccountResult;
+use codepilotx_model_provider::SharedModelProvider;
+use codepilotx_model_provider::create_model_provider;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::ServiceTier;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::openai_models::ModelsResponse;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::Op;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::RolloutLine;
+use codepilotx_protocol::protocol::SessionSource;
 use core_test_support::responses::ResponseMock;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
@@ -282,7 +282,7 @@ async fn memories_startup_phase1_uses_live_thread_service_tier_and_detached_meta
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        codepilotx_protocol::protocol::ThreadSettingsOverrides {
             service_tier: Some(Some(ServiceTier::Fast.request_value().to_string())),
             ..Default::default()
         },
@@ -328,7 +328,7 @@ async fn memories_startup_phase1_uses_live_thread_service_tier_and_detached_meta
     context
         .stream_stage_one_prompt(
             &test.config,
-            &codex_core::Prompt::default(),
+            &codepilotx_core::Prompt::default(),
             &request_context,
         )
         .await?;
@@ -420,7 +420,7 @@ async fn run_memory_phase_one_model_request_test(
     home: Arc<TempDir>,
     memories: MemoriesConfig,
 ) -> anyhow::Result<ResponsesRequest> {
-    let test = build_test_codex_with_memories_config(server, Arc::clone(&home), memories).await?;
+    let test = build_test_codepilotx_with_memories_config(server, Arc::clone(&home), memories).await?;
     let provider = Arc::new(MockMemoryModelProvider::new(
         test.config.model_provider.clone(),
         Some(test.thread_manager.auth_manager()),
@@ -461,7 +461,7 @@ async fn run_memory_phase_two_model_request_test(
     home: Arc<TempDir>,
     memories: MemoriesConfig,
 ) -> anyhow::Result<ResponsesRequest> {
-    let test = build_test_codex_with_memories_config(server, home.clone(), memories).await?;
+    let test = build_test_codepilotx_with_memories_config(server, home.clone(), memories).await?;
     let provider = Arc::new(MockMemoryModelProvider::new(
         test.config.model_provider.clone(),
         Some(test.thread_manager.auth_manager()),
@@ -491,7 +491,7 @@ async fn run_memory_phase_two_model_request_test(
     .await;
 
     let (context, config) = memory_startup_context_with_provider(&test, provider).await;
-    let root = memory_root(&config.codex_home);
+    let root = memory_root(&config.codepilotx_home);
     tokio::fs::create_dir_all(&root).await?;
     seed_extension_instructions(&root).await?;
     phase2::run(context, config).await;
@@ -513,10 +513,10 @@ async fn build_test_codex(
     server: &wiremock::MockServer,
     home: Arc<TempDir>,
 ) -> anyhow::Result<TestCodex> {
-    build_test_codex_with_memories_config(server, home, startup_test_memories_config()).await
+    build_test_codepilotx_with_memories_config(server, home, startup_test_memories_config()).await
 }
 
-async fn build_test_codex_with_memories_config(
+async fn build_test_codepilotx_with_memories_config(
     server: &wiremock::MockServer,
     home: Arc<TempDir>,
     memories: MemoriesConfig,
@@ -534,9 +534,9 @@ async fn build_test_codex_with_memories_config(
         .await
 }
 
-async fn init_state_db(home: &Arc<TempDir>) -> anyhow::Result<Arc<codex_state::StateRuntime>> {
+async fn init_state_db(home: &Arc<TempDir>) -> anyhow::Result<Arc<codepilotx_state::StateRuntime>> {
     let db =
-        codex_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".into()).await?;
+        codepilotx_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".into()).await?;
     db.mark_backfill_complete(/*last_watermark*/ None).await?;
     Ok(db)
 }
@@ -561,7 +561,7 @@ async fn trigger_memories_startup(test: &TestCodex) {
 async fn memory_startup_context_with_provider(
     test: &TestCodex,
     provider: SharedModelProvider,
-) -> (Arc<MemoryStartupContext>, Arc<codex_core::config::Config>) {
+) -> (Arc<MemoryStartupContext>, Arc<codepilotx_core::config::Config>) {
     let config_snapshot = test.codex.config_snapshot().await;
     let mut config = test.config.clone();
     config
@@ -626,30 +626,30 @@ impl ModelProvider for MockMemoryModelProvider {
 
     fn models_manager(
         &self,
-        codex_home: PathBuf,
+        codepilotx_home: PathBuf,
         config_model_catalog: Option<ModelsResponse>,
-    ) -> codex_models_manager::manager::SharedModelsManager {
+    ) -> codepilotx_models_manager::manager::SharedModelsManager {
         self.delegate
-            .models_manager(codex_home, config_model_catalog)
+            .models_manager(codepilotx_home, config_model_catalog)
     }
 }
 
 async fn seed_stage1_output(
-    db: &codex_state::StateRuntime,
-    codex_home: &Path,
+    db: &codepilotx_state::StateRuntime,
+    codepilotx_home: &Path,
     updated_at: chrono::DateTime<chrono::Utc>,
     raw_memory: &str,
     rollout_summary: &str,
     rollout_slug: &str,
 ) -> anyhow::Result<ThreadId> {
     let thread_id = ThreadId::new();
-    let mut metadata_builder = codex_state::ThreadMetadataBuilder::new(
+    let mut metadata_builder = codepilotx_state::ThreadMetadataBuilder::new(
         thread_id,
-        codex_home.join(format!("rollout-{thread_id}.jsonl")),
+        codepilotx_home.join(format!("rollout-{thread_id}.jsonl")),
         updated_at,
         SessionSource::Cli,
     );
-    metadata_builder.cwd = codex_home.join(format!("workspace-{rollout_slug}"));
+    metadata_builder.cwd = codepilotx_home.join(format!("workspace-{rollout_slug}"));
     metadata_builder.model_provider = Some("test-provider".to_string());
     metadata_builder.git_branch = Some(format!("branch-{rollout_slug}"));
     let metadata = metadata_builder.build("test-provider");
@@ -669,13 +669,13 @@ async fn seed_stage1_output(
 }
 
 async fn seed_stage1_candidate(
-    db: &codex_state::StateRuntime,
-    codex_home: &Path,
+    db: &codepilotx_state::StateRuntime,
+    codepilotx_home: &Path,
     updated_at: chrono::DateTime<chrono::Utc>,
     rollout_slug: &str,
 ) -> anyhow::Result<ThreadId> {
     let thread_id = ThreadId::new();
-    let rollout_path = codex_home.join(format!("rollout-{thread_id}.jsonl"));
+    let rollout_path = codepilotx_home.join(format!("rollout-{thread_id}.jsonl"));
     let line = RolloutLine {
         timestamp: updated_at.to_rfc3339(),
         item: RolloutItem::ResponseItem(ResponseItem::Message {
@@ -691,13 +691,13 @@ async fn seed_stage1_candidate(
     let jsonl = serde_json::to_string(&line)?;
     tokio::fs::write(&rollout_path, format!("{jsonl}\n")).await?;
 
-    let mut metadata_builder = codex_state::ThreadMetadataBuilder::new(
+    let mut metadata_builder = codepilotx_state::ThreadMetadataBuilder::new(
         thread_id,
         rollout_path,
         updated_at,
         SessionSource::Cli,
     );
-    metadata_builder.cwd = codex_home.join(format!("workspace-{rollout_slug}"));
+    metadata_builder.cwd = codepilotx_home.join(format!("workspace-{rollout_slug}"));
     metadata_builder.model_provider = Some("test-provider".to_string());
     metadata_builder.git_branch = Some(format!("branch-{rollout_slug}"));
     let mut metadata = metadata_builder.build("test-provider");
@@ -762,7 +762,7 @@ async fn wait_for_request(mock: &ResponseMock, expected_count: usize) -> Vec<Res
 async fn wait_for_service_tier(
     test: &TestCodex,
     expected_service_tier: Option<String>,
-) -> anyhow::Result<codex_core::ThreadConfigSnapshot> {
+) -> anyhow::Result<codepilotx_core::ThreadConfigSnapshot> {
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         let config_snapshot = test.codex.config_snapshot().await;
@@ -804,7 +804,7 @@ async fn wait_for_phase2_workspace_reset(memory_root: &Path) -> anyhow::Result<(
 }
 
 async fn seed_stage1_output_for_existing_thread(
-    db: &codex_state::StateRuntime,
+    db: &codepilotx_state::StateRuntime,
     thread_id: ThreadId,
     updated_at: i64,
     raw_memory: &str,
@@ -820,7 +820,7 @@ async fn seed_stage1_output_for_existing_thread(
         )
         .await?;
     let ownership_token = match claim {
-        codex_state::Stage1JobClaimOutcome::Claimed { ownership_token } => ownership_token,
+        codepilotx_state::Stage1JobClaimOutcome::Claimed { ownership_token } => ownership_token,
         other => panic!("unexpected stage-1 claim outcome: {other:?}"),
     };
 

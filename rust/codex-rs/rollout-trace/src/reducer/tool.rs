@@ -50,7 +50,7 @@ impl TraceReducer {
         seq: RawEventSeq,
         wall_time_unix_ms: i64,
         thread_id: Option<String>,
-        codex_turn_id: Option<String>,
+        codepilotx_turn_id: Option<String>,
         started: ToolCallStarted,
     ) -> Result<()> {
         let tool_call_id = started.tool_call_id.clone();
@@ -62,8 +62,8 @@ impl TraceReducer {
             &tool_call_id,
         )?;
 
-        let thread_id = self.tool_thread_id(thread_id, codex_turn_id.as_deref())?;
-        self.validate_tool_turn(&thread_id, codex_turn_id.as_deref())?;
+        let thread_id = self.tool_thread_id(thread_id, codepilotx_turn_id.as_deref())?;
+        self.validate_tool_turn(&thread_id, codepilotx_turn_id.as_deref())?;
 
         let model_visible_call_id = started.model_visible_call_id.clone();
         let requester = self.reduce_tool_call_requester(&thread_id, started.requester.clone())?;
@@ -133,7 +133,7 @@ impl TraceReducer {
                 model_visible_call_id,
                 code_mode_runtime_tool_id: started.code_mode_runtime_tool_id,
                 thread_id,
-                started_by_codex_turn_id: codex_turn_id,
+                started_by_codepilotx_turn_id: codepilotx_turn_id,
                 execution: ExecutionWindow {
                     started_at_unix_ms: wall_time_unix_ms,
                     started_seq: seq,
@@ -372,34 +372,34 @@ impl TraceReducer {
     fn tool_thread_id(
         &self,
         thread_id: Option<String>,
-        codex_turn_id: Option<&str>,
+        codepilotx_turn_id: Option<&str>,
     ) -> Result<String> {
         if let Some(thread_id) = thread_id {
             return Ok(thread_id);
         }
-        let Some(codex_turn_id) = codex_turn_id else {
+        let Some(codepilotx_turn_id) = codepilotx_turn_id else {
             bail!("tool call start did not include thread or Codex turn context");
         };
         self.rollout
-            .codex_turns
-            .get(codex_turn_id)
+            .codepilotx_turns
+            .get(codepilotx_turn_id)
             .map(|turn| turn.thread_id.clone())
             .with_context(|| {
-                format!("tool call start referenced unknown Codex turn {codex_turn_id}")
+                format!("tool call start referenced unknown Codex turn {codepilotx_turn_id}")
             })
     }
 
-    fn validate_tool_turn(&self, thread_id: &str, codex_turn_id: Option<&str>) -> Result<()> {
+    fn validate_tool_turn(&self, thread_id: &str, codepilotx_turn_id: Option<&str>) -> Result<()> {
         if !self.rollout.threads.contains_key(thread_id) {
             bail!("tool call start referenced unknown thread {thread_id}");
         }
-        if let Some(codex_turn_id) = codex_turn_id {
-            let Some(turn) = self.rollout.codex_turns.get(codex_turn_id) else {
-                bail!("tool call start referenced unknown Codex turn {codex_turn_id}");
+        if let Some(codepilotx_turn_id) = codepilotx_turn_id {
+            let Some(turn) = self.rollout.codepilotx_turns.get(codepilotx_turn_id) else {
+                bail!("tool call start referenced unknown Codex turn {codepilotx_turn_id}");
             };
             if turn.thread_id != thread_id {
                 bail!(
-                    "tool call start used thread {thread_id}, but Codex turn {codex_turn_id} \
+                    "tool call start used thread {thread_id}, but Codex turn {codepilotx_turn_id} \
                      belongs to {}",
                     turn.thread_id
                 );

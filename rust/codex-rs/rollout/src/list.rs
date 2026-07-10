@@ -1,6 +1,6 @@
 #![allow(warnings, clippy::all)]
 
-use codex_utils_path as path_utils;
+use codepilotx_utils_path as path_utils;
 use std::cmp::Reverse;
 use std::ffi::OsStr;
 use std::io;
@@ -20,13 +20,13 @@ use super::SESSIONS_SUBDIR;
 use super::compression;
 use crate::protocol::EventMsg;
 use crate::state_db;
-use codex_file_search as file_search;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::USER_MESSAGE_BEGIN;
+use codepilotx_file_search as file_search;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::RolloutLine;
+use codepilotx_protocol::protocol::SessionMetaLine;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::USER_MESSAGE_BEGIN;
 
 /// Returned page of thread (thread) summaries.
 #[derive(Debug, Default, PartialEq)]
@@ -316,8 +316,8 @@ impl<'de> serde::Deserialize<'de> for Cursor {
     }
 }
 
-impl From<codex_state::Anchor> for Cursor {
-    fn from(anchor: codex_state::Anchor) -> Self {
+impl From<codepilotx_state::Anchor> for Cursor {
+    fn from(anchor: codepilotx_state::Anchor) -> Self {
         let ts = anchor
             .ts
             .timestamp_nanos_opt()
@@ -332,7 +332,7 @@ impl From<codex_state::Anchor> for Cursor {
 /// concurrent new sessions being appended. Ordering is stable by the requested sort key
 /// (timestamp desc).
 pub async fn get_threads(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     page_size: usize,
     cursor: Option<&Cursor>,
     sort_key: ThreadSortKey,
@@ -341,7 +341,7 @@ pub async fn get_threads(
     cwd_filters: Option<&[PathBuf]>,
     default_provider: &str,
 ) -> io::Result<ThreadsPage> {
-    let root = codex_home.join(SESSIONS_SUBDIR);
+    let root = codepilotx_home.join(SESSIONS_SUBDIR);
     get_threads_in_root(
         root,
         page_size,
@@ -1289,10 +1289,10 @@ fn truncate_to_millis(dt: OffsetDateTime) -> Option<OffsetDateTime> {
 }
 
 async fn find_thread_path_by_id_str_in_subdir(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     subdir: &str,
     id_str: &str,
-    state_db_ctx: Option<&codex_state::StateRuntime>,
+    state_db_ctx: Option<&codepilotx_state::StateRuntime>,
 ) -> io::Result<Option<PathBuf>> {
     // Validate UUID format early.
     if Uuid::parse_str(id_str).is_err() {
@@ -1333,7 +1333,7 @@ async fn find_thread_path_by_id_str_in_subdir(
                             tracing::warn!(
                                 "state db discrepancy during find_thread_path_by_id_str_in_subdir: mismatched_db_path"
                             );
-                            codex_state::record_fallback(
+                            codepilotx_state::record_fallback(
                                 "find_thread_path",
                                 "mismatch",
                                 /*telemetry_override*/ None,
@@ -1355,7 +1355,7 @@ async fn find_thread_path_by_id_str_in_subdir(
                     tracing::warn!(
                         "state db discrepancy during find_thread_path_by_id_str_in_subdir: stale_db_path"
                     );
-                    codex_state::record_fallback(
+                    codepilotx_state::record_fallback(
                         "find_thread_path",
                         "stale_path",
                         /*telemetry_override*/ None,
@@ -1372,7 +1372,7 @@ async fn find_thread_path_by_id_str_in_subdir(
         }
     }
 
-    let mut root = codex_home.to_path_buf();
+    let mut root = codepilotx_home.to_path_buf();
     root.push(subdir);
     if !root.exists() {
         return Ok(unverified_db_path);
@@ -1434,7 +1434,7 @@ async fn find_thread_path_by_id_str_in_subdir(
             "state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back"
         );
         if let Some(reason) = fallback_reason {
-            codex_state::record_fallback(
+            codepilotx_state::record_fallback(
                 "find_thread_path",
                 reason,
                 /*telemetry_override*/ None,
@@ -1496,20 +1496,20 @@ async fn find_rollout_path_by_id_from_filenames(
 /// paginated listing implementation. Returns `Ok(Some(path))` if found, `Ok(None)` if not present
 /// or the id is invalid.
 pub async fn find_thread_path_by_id_str(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     id_str: &str,
-    state_db_ctx: Option<&codex_state::StateRuntime>,
+    state_db_ctx: Option<&codepilotx_state::StateRuntime>,
 ) -> io::Result<Option<PathBuf>> {
-    find_thread_path_by_id_str_in_subdir(codex_home, SESSIONS_SUBDIR, id_str, state_db_ctx).await
+    find_thread_path_by_id_str_in_subdir(codepilotx_home, SESSIONS_SUBDIR, id_str, state_db_ctx).await
 }
 
 /// Locate an archived thread rollout file by its UUID string.
 pub async fn find_archived_thread_path_by_id_str(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     id_str: &str,
-    state_db_ctx: Option<&codex_state::StateRuntime>,
+    state_db_ctx: Option<&codepilotx_state::StateRuntime>,
 ) -> io::Result<Option<PathBuf>> {
-    find_thread_path_by_id_str_in_subdir(codex_home, ARCHIVED_SESSIONS_SUBDIR, id_str, state_db_ctx)
+    find_thread_path_by_id_str_in_subdir(codepilotx_home, ARCHIVED_SESSIONS_SUBDIR, id_str, state_db_ctx)
         .await
 }
 

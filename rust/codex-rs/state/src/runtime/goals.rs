@@ -560,9 +560,9 @@ mod tests {
 
     async fn upsert_test_thread(runtime: &StateRuntime, thread_id: ThreadId) {
         let metadata = test_thread_metadata(
-            runtime.codex_home(),
+            runtime.codepilotx_home(),
             thread_id,
-            runtime.codex_home().join("workspace"),
+            runtime.codepilotx_home().join("workspace"),
         );
         runtime
             .upsert_thread(&metadata)

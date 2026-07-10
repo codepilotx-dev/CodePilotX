@@ -3,22 +3,22 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigLayerSource;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::HookEventsToml;
-use codex_config::HookHandlerConfig;
-use codex_config::HookStateToml;
-use codex_config::HooksFile;
-use codex_config::ManagedHooksRequirementsToml;
-use codex_config::MatcherGroup;
-use codex_config::RequirementSource;
-use codex_config::TomlValue;
-use codex_config::version_for_toml;
-use codex_plugin::PluginHookSource;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_config::CONFIG_TOML_FILE;
+use codepilotx_config::ConfigLayerEntry;
+use codepilotx_config::ConfigLayerSource;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::ConfigLayerStackOrdering;
+use codepilotx_config::HookEventsToml;
+use codepilotx_config::HookHandlerConfig;
+use codepilotx_config::HookStateToml;
+use codepilotx_config::HooksFile;
+use codepilotx_config::ManagedHooksRequirementsToml;
+use codepilotx_config::MatcherGroup;
+use codepilotx_config::RequirementSource;
+use codepilotx_config::TomlValue;
+use codepilotx_config::version_for_toml;
+use codepilotx_plugin::PluginHookSource;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -27,9 +27,9 @@ use super::HookListEntry;
 use crate::config_rules::hook_states_from_stack;
 use crate::events::common::matcher_pattern_for_event;
 use crate::events::common::validate_matcher_pattern;
-use codex_protocol::protocol::HookHandlerType;
-use codex_protocol::protocol::HookSource;
-use codex_protocol::protocol::HookTrustStatus;
+use codepilotx_protocol::protocol::HookHandlerType;
+use codepilotx_protocol::protocol::HookSource;
+use codepilotx_protocol::protocol::HookTrustStatus;
 
 pub(crate) struct DiscoveryResult {
     pub handlers: Vec<ConfiguredHandler>,
@@ -368,9 +368,9 @@ fn config_toml_source_path(layer: &ConfigLayerEntry) -> AbsolutePathBuf {
         ConfigLayerSource::System { file }
         | ConfigLayerSource::User { file, .. }
         | ConfigLayerSource::LegacyManagedConfigTomlFromFile { file } => file.clone(),
-        ConfigLayerSource::Project { dot_codex_folder } => layer
+        ConfigLayerSource::Project { dot_codepilotx_folder } => layer
             .hooks_config_folder()
-            .unwrap_or_else(|| dot_codex_folder.clone())
+            .unwrap_or_else(|| dot_codepilotx_folder.clone())
             .join(CONFIG_TOML_FILE),
         ConfigLayerSource::Mdm { domain, key } => {
             synthetic_layer_path(&format!("<mdm:{domain}:{key}>/{CONFIG_TOML_FILE}"))
@@ -444,7 +444,7 @@ fn append_matcher_groups(
     warnings: &mut Vec<String>,
     display_order: &mut i64,
     source: &HookHandlerSource<'_>,
-    event_name: codex_protocol::protocol::HookEventName,
+    event_name: codepilotx_protocol::protocol::HookEventName,
     groups: Vec<MatcherGroup>,
 ) {
     for (group_index, group) in groups.into_iter().enumerate() {
@@ -568,7 +568,7 @@ struct NormalizedHookIdentity {
 }
 
 fn command_hook_hash(
-    event_name: codex_protocol::protocol::HookEventName,
+    event_name: codepilotx_protocol::protocol::HookEventName,
     matcher: Option<&str>,
     group: &MatcherGroup,
     normalized_handler: HookHandlerConfig,
@@ -653,24 +653,24 @@ fn hook_source_for_requirement_source(source: Option<&RequirementSource>) -> Hoo
 
 #[cfg(test)]
 mod tests {
-    use codex_config::ConfigLayerEntry;
-    use codex_config::ConfigLayerSource;
-    use codex_config::HookEventsToml;
-    use codex_config::RequirementSource;
-    use codex_protocol::protocol::HookEventName;
-    use codex_protocol::protocol::HookSource;
-    use codex_utils_absolute_path::AbsolutePathBuf;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use codepilotx_config::ConfigLayerEntry;
+    use codepilotx_config::ConfigLayerSource;
+    use codepilotx_config::HookEventsToml;
+    use codepilotx_config::RequirementSource;
+    use codepilotx_protocol::protocol::HookEventName;
+    use codepilotx_protocol::protocol::HookSource;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_utils_absolute_path::test_support::PathBufExt;
+    use codepilotx_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
 
     use super::ConfiguredHandler;
     use super::append_matcher_groups;
-    use codex_config::HookHandlerConfig;
-    use codex_config::HookStateToml;
-    use codex_config::MatcherGroup;
-    use codex_config::TomlValue;
-    use codex_protocol::protocol::HookTrustStatus;
+    use codepilotx_config::HookHandlerConfig;
+    use codepilotx_config::HookStateToml;
+    use codepilotx_config::MatcherGroup;
+    use codepilotx_config::TomlValue;
+    use codepilotx_protocol::protocol::HookTrustStatus;
 
     fn source_path() -> AbsolutePathBuf {
         test_path_buf("/tmp/hooks.json").abs()
@@ -1038,7 +1038,7 @@ mod tests {
     #[test]
     fn hook_metadata_for_config_layer_source_discards_source_details() {
         let config_file = test_path_buf("/tmp/.codex/config.toml").abs();
-        let dot_codex_folder = test_path_buf("/tmp/worktree/.codex").abs();
+        let dot_codepilotx_folder = test_path_buf("/tmp/worktree/.codex").abs();
 
         assert_eq!(
             super::hook_metadata_for_config_layer_source(&ConfigLayerSource::System {
@@ -1055,7 +1055,7 @@ mod tests {
         );
         assert_eq!(
             super::hook_metadata_for_config_layer_source(&ConfigLayerSource::Project {
-                dot_codex_folder
+                dot_codepilotx_folder
             }),
             (HookSource::Project, false),
         );

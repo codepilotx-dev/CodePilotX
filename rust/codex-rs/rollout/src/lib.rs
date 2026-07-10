@@ -2,7 +2,7 @@
 
 use std::sync::LazyLock;
 
-use codex_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SessionSource;
 
 pub(crate) mod compression;
 pub(crate) mod config;
@@ -16,10 +16,10 @@ mod sqlite_metrics;
 pub mod state_db;
 
 pub(crate) mod default_client {
-    pub use codex_login::default_client::*;
+    pub use codepilotx_login::default_client::*;
 }
 
-pub(crate) use codex_protocol::protocol;
+pub(crate) use codepilotx_protocol::protocol;
 
 pub const SESSIONS_SUBDIR: &str = "sessions";
 pub const ARCHIVED_SESSIONS_SUBDIR: &str = "archived_sessions";
@@ -32,7 +32,7 @@ pub static INTERACTIVE_SESSION_SOURCES: LazyLock<Vec<SessionSource>> = LazyLock:
     ]
 });
 
-pub use codex_protocol::protocol::SessionMeta;
+pub use codepilotx_protocol::protocol::SessionMeta;
 pub use compression::RolloutLineReader;
 pub use compression::existing_rollout_path;
 pub use compression::open_rollout_line_reader;

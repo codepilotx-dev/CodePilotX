@@ -1,9 +1,9 @@
-use codex_protocol::ThreadId;
-use codex_protocol::items::HookPromptFragment;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::approx_token_count;
-use codex_utils_output_truncation::formatted_truncate_text;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::items::HookPromptFragment;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_output_truncation::TruncationPolicy;
+use codepilotx_utils_output_truncation::approx_token_count;
+use codepilotx_utils_output_truncation::formatted_truncate_text;
 use tokio::fs;
 use tracing::warn;
 use uuid::Uuid;

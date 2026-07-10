@@ -1,6 +1,6 @@
 use crate::ToolDefinition;
 use crate::parse_tool_input_schema;
-use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolFunctionSpec;
 
 pub fn parse_dynamic_tool(
     tool: &DynamicToolFunctionSpec,

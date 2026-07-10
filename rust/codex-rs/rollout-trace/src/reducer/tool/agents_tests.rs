@@ -723,7 +723,7 @@ fn agent_result_edge_links_child_result_to_parent_notification() -> anyhow::Resu
         RawTraceEventPayload::AgentResultObserved {
             edge_id: "edge:agent_result:thread-child:turn-child-1:thread-root".to_string(),
             child_thread_id: "019d0000-0000-7000-8000-000000000002".to_string(),
-            child_codex_turn_id: "turn-child-1".to_string(),
+            child_codepilotx_turn_id: "turn-child-1".to_string(),
             parent_thread_id: "019d0000-0000-7000-8000-000000000001".to_string(),
             message: notification.to_string(),
             carried_payload: Some(carried_payload.clone()),
@@ -818,7 +818,7 @@ fn agent_result_edge_falls_back_to_child_thread_without_result_message() -> anyh
         RawTraceEventPayload::AgentResultObserved {
             edge_id: "edge:agent_result:thread-child:turn-child-1:thread-root".to_string(),
             child_thread_id: "019d0000-0000-7000-8000-000000000002".to_string(),
-            child_codex_turn_id: "turn-child-1".to_string(),
+            child_codepilotx_turn_id: "turn-child-1".to_string(),
             parent_thread_id: "019d0000-0000-7000-8000-000000000001".to_string(),
             message: notification.to_string(),
             carried_payload: Some(carried_payload.clone()),

@@ -2,10 +2,10 @@ use super::LocalThreadStore;
 use crate::CreateThreadParams;
 use crate::ThreadStoreError;
 use crate::ThreadStoreResult;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_rollout::RolloutConfig;
-use codex_rollout::RolloutRecorder;
-use codex_rollout::RolloutRecorderParams;
+use codepilotx_protocol::protocol::ThreadMemoryMode;
+use codepilotx_rollout::RolloutConfig;
+use codepilotx_rollout::RolloutRecorder;
+use codepilotx_rollout::RolloutRecorderParams;
 
 pub(super) async fn create_thread(
     store: &LocalThreadStore,
@@ -19,7 +19,7 @@ pub(super) async fn create_thread(
             message: "local thread store requires a cwd".to_string(),
         })?;
     let config = RolloutConfig {
-        codex_home: store.config.codex_home.clone(),
+        codepilotx_home: store.config.codepilotx_home.clone(),
         sqlite_home: store.config.sqlite_home.clone(),
         cwd,
         model_provider_id: params.metadata.model_provider.clone(),

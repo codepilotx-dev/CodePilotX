@@ -5,13 +5,13 @@ use crate::metrics::MEMORY_STARTUP;
 use crate::phase1;
 use crate::phase2;
 use crate::runtime::MemoryStartupContext;
-use codex_core::CodexThread;
-use codex_core::ThreadManager;
-use codex_core::config::Config;
-use codex_features::Feature;
-use codex_login::AuthManager;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionSource;
+use codepilotx_core::CodexThread;
+use codepilotx_core::ThreadManager;
+use codepilotx_core::config::Config;
+use codepilotx_features::Feature;
+use codepilotx_login::AuthManager;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::SessionSource;
 use std::sync::Arc;
 use tracing::warn;
 
@@ -49,7 +49,7 @@ pub fn start_memories_startup_task(
     }
 
     tokio::spawn(async move {
-        let root = memory_root(&config.codex_home);
+        let root = memory_root(&config.codepilotx_home);
         if let Err(err) = tokio::fs::create_dir_all(&root).await {
             warn!("failed creating memories root: {err}");
             return;

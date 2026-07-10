@@ -9,8 +9,8 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::TokenUsage;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::protocol::TokenUsage;
 use http::HeaderMap;
 use http::HeaderValue;
 use serde::Serialize;
@@ -48,7 +48,7 @@ enum InferenceTraceContextState {
 struct EnabledInferenceTraceContext {
     writer: Arc<TraceWriter>,
     thread_id: AgentThreadId,
-    codex_turn_id: CodexTurnId,
+    codepilotx_turn_id: CodexTurnId,
     model: String,
     provider_name: String,
 }
@@ -103,7 +103,7 @@ impl InferenceTraceContext {
     pub fn enabled(
         writer: Arc<TraceWriter>,
         thread_id: AgentThreadId,
-        codex_turn_id: CodexTurnId,
+        codepilotx_turn_id: CodexTurnId,
         model: String,
         provider_name: String,
     ) -> Self {
@@ -111,7 +111,7 @@ impl InferenceTraceContext {
             state: InferenceTraceContextState::Enabled(EnabledInferenceTraceContext {
                 writer,
                 thread_id,
-                codex_turn_id,
+                codepilotx_turn_id,
                 model,
                 provider_name,
             }),
@@ -188,7 +188,7 @@ impl InferenceTraceAttempt {
             RawTraceEventPayload::InferenceStarted {
                 inference_call_id: attempt.inference_call_id.clone(),
                 thread_id: attempt.context.thread_id.clone(),
-                codex_turn_id: attempt.context.codex_turn_id.clone(),
+                codepilotx_turn_id: attempt.context.codepilotx_turn_id.clone(),
                 model: attempt.context.model.clone(),
                 provider_name: attempt.context.provider_name.clone(),
                 request_payload,
@@ -382,7 +382,7 @@ fn append_with_context_best_effort(
 ) {
     let event_context = RawTraceEventContext {
         thread_id: Some(context.thread_id.clone()),
-        codex_turn_id: Some(context.codex_turn_id.clone()),
+        codepilotx_turn_id: Some(context.codepilotx_turn_id.clone()),
     };
     let _ = context.writer.append_with_context(event_context, payload);
 }
@@ -391,8 +391,8 @@ fn append_with_context_best_effort(
 mod tests {
     use std::sync::Arc;
 
-    use codex_protocol::models::ReasoningItemContent;
-    use codex_protocol::models::ReasoningItemReasoningSummary;
+    use codepilotx_protocol::models::ReasoningItemContent;
+    use codepilotx_protocol::models::ReasoningItemReasoningSummary;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use tempfile::TempDir;
@@ -454,7 +454,7 @@ mod tests {
             metadata_payload: None,
         })?;
         writer.append(RawTraceEventPayload::CodexTurnStarted {
-            codex_turn_id: "turn-1".to_string(),
+            codepilotx_turn_id: "turn-1".to_string(),
             thread_id: "thread-root".to_string(),
         })?;
         let context = InferenceTraceContext::enabled(
@@ -485,7 +485,7 @@ mod tests {
 
         assert_eq!(rollout.inference_calls.len(), 1);
         assert_eq!(inference.thread_id, "thread-root");
-        assert_eq!(inference.codex_turn_id, "turn-1");
+        assert_eq!(inference.codepilotx_turn_id, "turn-1");
         assert_eq!(inference.execution.status, ExecutionStatus::Completed);
         assert_eq!(inference.upstream_request_id, Some("req-1".to_string()));
         assert_eq!(rollout.raw_payloads.len(), 2);

@@ -123,7 +123,7 @@ impl TraceWriter {
             wall_time_unix_ms: unix_time_ms(),
             rollout_id: inner.manifest.rollout_id.clone(),
             thread_id: context.thread_id,
-            codex_turn_id: context.codex_turn_id,
+            codepilotx_turn_id: context.codepilotx_turn_id,
             payload,
         };
         inner.next_seq += 1;
@@ -194,7 +194,7 @@ mod tests {
             metadata_payload: Some(metadata_payload.clone()),
         })?;
         writer.append(RawTraceEventPayload::CodexTurnStarted {
-            codex_turn_id: "turn-1".to_string(),
+            codepilotx_turn_id: "turn-1".to_string(),
             thread_id: "thread-root".to_string(),
         })?;
         let inference_request = writer.write_json_payload(
@@ -211,7 +211,7 @@ mod tests {
         writer.append(RawTraceEventPayload::InferenceStarted {
             inference_call_id: "inference-1".to_string(),
             thread_id: "thread-root".to_string(),
-            codex_turn_id: "turn-1".to_string(),
+            codepilotx_turn_id: "turn-1".to_string(),
             model: "gpt-test".to_string(),
             provider_name: "test-provider".to_string(),
             request_payload: inference_request.clone(),
@@ -230,7 +230,7 @@ mod tests {
             response_payload: inference_response.clone(),
         })?;
         writer.append(RawTraceEventPayload::CodexTurnEnded {
-            codex_turn_id: "turn-1".to_string(),
+            codepilotx_turn_id: "turn-1".to_string(),
             status: ExecutionStatus::Completed,
         })?;
         writer.append(RawTraceEventPayload::RolloutEnded {
@@ -242,9 +242,9 @@ mod tests {
         assert_eq!(rollout.status, RolloutStatus::Completed);
         assert_eq!(rollout.root_thread_id, "thread-root");
         assert_eq!(rollout.threads["thread-root"].agent_path, "/root");
-        assert_eq!(rollout.codex_turns["turn-1"].thread_id, "thread-root");
+        assert_eq!(rollout.codepilotx_turns["turn-1"].thread_id, "thread-root");
         assert_eq!(
-            rollout.codex_turns["turn-1"].execution.status,
+            rollout.codepilotx_turns["turn-1"].execution.status,
             ExecutionStatus::Completed,
         );
         assert_eq!(

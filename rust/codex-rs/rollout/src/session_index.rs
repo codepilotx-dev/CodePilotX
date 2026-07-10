@@ -11,8 +11,8 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 use std::sync::Mutex;
 
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionMetaLine;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::SessionMetaLine;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::io::AsyncBufReadExt;
@@ -31,7 +31,7 @@ pub struct SessionIndexEntry {
 /// Append a thread name update to the session index.
 /// Name updates are append-only; the most recent entry wins when resolving names or ids.
 pub async fn append_thread_name(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     thread_id: ThreadId,
     name: &str,
 ) -> std::io::Result<()> {
@@ -46,19 +46,19 @@ pub async fn append_thread_name(
         thread_name: name.to_string(),
         updated_at,
     };
-    append_session_index_entry(codex_home, &entry).await
+    append_session_index_entry(codepilotx_home, &entry).await
 }
 
 /// Append a raw session index entry to `session_index.jsonl`.
 /// Consumers scan from the end to find the newest match.
 pub async fn append_session_index_entry(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     entry: &SessionIndexEntry,
 ) -> std::io::Result<()> {
     let _guard = SESSION_INDEX_LOCK
         .lock()
         .map_err(|err| std::io::Error::other(err.to_string()))?;
-    let path = session_index_path(codex_home);
+    let path = session_index_path(codepilotx_home);
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -72,13 +72,13 @@ pub async fn append_session_index_entry(
 
 /// Remove all recorded names for a thread from the session index.
 pub async fn remove_thread_name_entries(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     thread_id: ThreadId,
 ) -> std::io::Result<()> {
     let _guard = SESSION_INDEX_LOCK
         .lock()
         .map_err(|err| std::io::Error::other(err.to_string()))?;
-    let path = session_index_path(codex_home);
+    let path = session_index_path(codepilotx_home);
     let contents = match std::fs::read_to_string(&path) {
         Ok(contents) => contents,
         Err(err) if err.kind() == ErrorKind::NotFound => return Ok(()),
@@ -106,10 +106,10 @@ pub async fn remove_thread_name_entries(
 
 /// Find the latest thread name for a thread id, if any.
 pub async fn find_thread_name_by_id(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     thread_id: &ThreadId,
 ) -> std::io::Result<Option<String>> {
-    let path = session_index_path(codex_home);
+    let path = session_index_path(codepilotx_home);
     if !path.exists() {
         return Ok(None);
     }
@@ -122,10 +122,10 @@ pub async fn find_thread_name_by_id(
 
 /// Find the latest thread names for a batch of thread ids.
 pub async fn find_thread_names_by_ids(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     thread_ids: &HashSet<ThreadId>,
 ) -> std::io::Result<HashMap<ThreadId, String>> {
-    let path = session_index_path(codex_home);
+    let path = session_index_path(codepilotx_home);
     if thread_ids.is_empty() || !path.exists() {
         return Ok(HashMap::new());
     }
@@ -155,14 +155,14 @@ pub async fn find_thread_names_by_ids(
 /// Locate a recorded thread rollout and read its session metadata by thread name.
 /// Returns the newest indexed name that still has a readable rollout header.
 pub async fn find_thread_meta_by_name_str(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     name: &str,
-    state_db_ctx: Option<&codex_state::StateRuntime>,
+    state_db_ctx: Option<&codepilotx_state::StateRuntime>,
 ) -> std::io::Result<Option<(PathBuf, SessionMetaLine)>> {
     if name.trim().is_empty() {
         return Ok(None);
     }
-    let path = session_index_path(codex_home);
+    let path = session_index_path(codepilotx_home);
     if !path.exists() {
         return Ok(None);
     }
@@ -177,7 +177,7 @@ pub async fn find_thread_meta_by_name_str(
         // Keep walking until a matching id resolves to a loadable rollout so an unsaved or partial
         // rename cannot shadow an older persisted session with the same name.
         if let Some(path) = super::list::find_thread_path_by_id_str(
-            codex_home,
+            codepilotx_home,
             &thread_id.to_string(),
             state_db_ctx,
         )
@@ -194,8 +194,8 @@ pub async fn find_thread_meta_by_name_str(
     Ok(None)
 }
 
-fn session_index_path(codex_home: &Path) -> PathBuf {
-    codex_home.join(SESSION_INDEX_FILE)
+fn session_index_path(codepilotx_home: &Path) -> PathBuf {
+    codepilotx_home.join(SESSION_INDEX_FILE)
 }
 
 fn scan_index_from_end_by_id(

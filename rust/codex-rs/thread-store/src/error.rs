@@ -1,4 +1,4 @@
-use codex_protocol::ThreadId;
+use codepilotx_protocol::ThreadId;
 
 /// Result type returned by thread-store operations.
 pub type ThreadStoreResult<T> = Result<T, ThreadStoreError>;

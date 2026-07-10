@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_rollout::persisted_rollout_items;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::ThreadMemoryMode;
+use codepilotx_rollout::persisted_rollout_items;
 use tokio::sync::Mutex;
 use tracing::warn;
 

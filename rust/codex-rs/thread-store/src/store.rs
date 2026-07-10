@@ -1,4 +1,4 @@
-use codex_protocol::ThreadId;
+use codepilotx_protocol::ThreadId;
 use std::any::Any;
 use std::future::Future;
 use std::pin::Pin;

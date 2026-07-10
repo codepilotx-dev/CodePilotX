@@ -8,7 +8,7 @@ use super::tool_definition_to_responses_api_tool;
 use crate::JsonSchema;
 use crate::ToolDefinition;
 use crate::ToolName;
-use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
+use codepilotx_protocol::dynamic_tools::DynamicToolFunctionSpec;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -101,7 +101,7 @@ fn mcp_tool_to_deferred_responses_api_tool_sets_defer_loading() {
 
     assert_eq!(
         mcp_tool_to_deferred_responses_api_tool(
-            &ToolName::namespaced("mcp__codex_apps__", "lookup_order"),
+            &ToolName::namespaced("mcp__codepilotx_apps__", "lookup_order"),
             &tool,
         )
         .expect("convert deferred tool"),
@@ -126,7 +126,7 @@ fn mcp_tool_to_deferred_responses_api_tool_sets_defer_loading() {
 #[test]
 fn loadable_tool_spec_namespace_serializes_with_deferred_child_tools() {
     let namespace = LoadableToolSpec::Namespace(ResponsesApiNamespace {
-        name: "mcp__codex_apps__calendar".to_string(),
+        name: "mcp__codepilotx_apps__calendar".to_string(),
         description: "Plan events".to_string(),
         tools: vec![ResponsesApiNamespaceTool::Function(ResponsesApiTool {
             name: "create_event".to_string(),
@@ -148,7 +148,7 @@ fn loadable_tool_spec_namespace_serializes_with_deferred_child_tools() {
         value,
         json!({
             "type": "namespace",
-            "name": "mcp__codex_apps__calendar",
+            "name": "mcp__codepilotx_apps__calendar",
             "description": "Plan events",
             "tools": [
                 {

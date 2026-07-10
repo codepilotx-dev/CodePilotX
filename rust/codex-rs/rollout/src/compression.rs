@@ -24,10 +24,10 @@ static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 /// Starts a best-effort background job that compresses cold local rollout files.
 ///
 /// The worker is fire-and-forget: failures are logged, startup is not blocked,
-/// and a run marker under `codex_home` prevents overlapping or too-frequent
+/// and a run marker under `codepilotx_home` prevents overlapping or too-frequent
 /// compression runs from the same local store.
-pub fn spawn_rollout_compression_worker(codex_home: PathBuf) {
-    worker::spawn(codex_home)
+pub fn spawn_rollout_compression_worker(codepilotx_home: PathBuf) {
+    worker::spawn(codepilotx_home)
 }
 
 /// Returns the modified time for the existing plain or compressed rollout file.
@@ -271,8 +271,8 @@ mod worker {
     }
 
     impl CompressionRunMarker {
-        pub(super) fn try_claim(codex_home: &Path) -> io::Result<Option<Self>> {
-            let marker_dir = codex_home.join(".tmp");
+        pub(super) fn try_claim(codepilotx_home: &Path) -> io::Result<Option<Self>> {
+            let marker_dir = codepilotx_home.join(".tmp");
             std::fs::create_dir_all(marker_dir.as_path())?;
             let path = marker_dir.join(RUN_MARKER_FILE_NAME);
             match create_run_marker_file(path.as_path()) {
@@ -321,33 +321,33 @@ mod worker {
         }
     }
 
-    pub(super) fn spawn(codex_home: PathBuf) {
+    pub(super) fn spawn(codepilotx_home: PathBuf) {
         let Ok(handle) = tokio::runtime::Handle::try_current() else {
             metrics::run("skipped_no_runtime");
             warn!(
                 "failed to start rollout compression worker for {}: no Tokio runtime",
-                codex_home.display()
+                codepilotx_home.display()
             );
             return;
         };
         handle.spawn(async move {
-            if let Err(err) = run(codex_home.clone()).await {
+            if let Err(err) = run(codepilotx_home.clone()).await {
                 warn!(
                     "rollout compression worker failed for {}: {err}",
-                    codex_home.display()
+                    codepilotx_home.display()
                 );
             }
         });
     }
 
-    pub(super) async fn run(codex_home: PathBuf) -> io::Result<()> {
-        let marker = match CompressionRunMarker::try_claim(codex_home.as_path()) {
+    pub(super) async fn run(codepilotx_home: PathBuf) -> io::Result<()> {
+        let marker = match CompressionRunMarker::try_claim(codepilotx_home.as_path()) {
             Ok(Some(marker)) => marker,
             Ok(None) => {
                 metrics::run("skipped_already_running");
                 debug!(
                     "rollout compression worker recently ran or is already running for {}",
-                    codex_home.display()
+                    codepilotx_home.display()
                 );
                 return Ok(());
             }
@@ -360,11 +360,11 @@ mod worker {
         metrics::run("started");
         let started_at = Instant::now();
         let result = async {
-            cleanup_stale_temps(codex_home.as_path()).await?;
+            cleanup_stale_temps(codepilotx_home.as_path()).await?;
             let mut stats = CompressionStats::default();
             for root in [
-                codex_home.join(ARCHIVED_SESSIONS_SUBDIR),
-                codex_home.join(SESSIONS_SUBDIR),
+                codepilotx_home.join(ARCHIVED_SESSIONS_SUBDIR),
+                codepilotx_home.join(SESSIONS_SUBDIR),
             ] {
                 if started_at.elapsed() >= WORKER_MAX_RUNTIME {
                     break;
@@ -723,10 +723,10 @@ mod worker {
         file.set_permissions(permissions.clone())
     }
 
-    async fn cleanup_stale_temps(codex_home: &Path) -> io::Result<()> {
+    async fn cleanup_stale_temps(codepilotx_home: &Path) -> io::Result<()> {
         for root in [
-            codex_home.join(SESSIONS_SUBDIR),
-            codex_home.join(ARCHIVED_SESSIONS_SUBDIR),
+            codepilotx_home.join(SESSIONS_SUBDIR),
+            codepilotx_home.join(ARCHIVED_SESSIONS_SUBDIR),
         ] {
             cleanup_stale_temps_in_root(root.as_path()).await?;
         }
@@ -872,21 +872,21 @@ mod metrics {
     }
 
     fn counter(name: &str, tags: &[(&str, &str)]) {
-        let Some(metrics) = codex_otel::global() else {
+        let Some(metrics) = codepilotx_otel::global() else {
             return;
         };
         let _ = metrics.counter(name, /*inc*/ 1, tags);
     }
 
     fn histogram(name: &str, value: i64, tags: &[(&str, &str)]) {
-        let Some(metrics) = codex_otel::global() else {
+        let Some(metrics) = codepilotx_otel::global() else {
             return;
         };
         let _ = metrics.histogram(name, value, tags);
     }
 
     fn duration_histogram(name: &str, duration: Duration, tags: &[(&str, &str)]) {
-        let Some(metrics) = codex_otel::global() else {
+        let Some(metrics) = codepilotx_otel::global() else {
             return;
         };
         let _ = metrics.record_duration(name, duration, tags);

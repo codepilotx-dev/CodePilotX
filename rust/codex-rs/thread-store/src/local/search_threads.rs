@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use codex_install_context::InstallContext;
-use codex_protocol::ThreadId;
-use codex_rollout::RolloutConfig;
-use codex_rollout::find_thread_names_by_ids;
-use codex_rollout::first_rollout_content_match_snippet;
-use codex_rollout::parse_cursor;
-use codex_rollout::search_rollout_matches;
+use codepilotx_install_context::InstallContext;
+use codepilotx_protocol::ThreadId;
+use codepilotx_rollout::RolloutConfig;
+use codepilotx_rollout::find_thread_names_by_ids;
+use codepilotx_rollout::first_rollout_content_match_snippet;
+use codepilotx_rollout::parse_cursor;
+use codepilotx_rollout::search_rollout_matches;
 
 use super::LocalThreadStore;
 use super::helpers::distinct_thread_metadata_title;
@@ -28,7 +28,7 @@ use crate::ThreadStoreResult;
 mod tests;
 
 struct ThreadSearchItem {
-    item: codex_rollout::ThreadItem,
+    item: codepilotx_rollout::ThreadItem,
     snippet: String,
 }
 
@@ -52,26 +52,26 @@ pub(super) async fn search_threads(
         })
         .transpose()?;
     let sort_key = match params.sort_key {
-        ThreadSortKey::CreatedAt => codex_rollout::ThreadSortKey::CreatedAt,
-        ThreadSortKey::UpdatedAt => codex_rollout::ThreadSortKey::UpdatedAt,
-        ThreadSortKey::RecencyAt => codex_rollout::ThreadSortKey::RecencyAt,
+        ThreadSortKey::CreatedAt => codepilotx_rollout::ThreadSortKey::CreatedAt,
+        ThreadSortKey::UpdatedAt => codepilotx_rollout::ThreadSortKey::UpdatedAt,
+        ThreadSortKey::RecencyAt => codepilotx_rollout::ThreadSortKey::RecencyAt,
     };
     let sort_direction = match params.sort_direction {
-        SortDirection::Asc => codex_rollout::SortDirection::Asc,
-        SortDirection::Desc => codex_rollout::SortDirection::Desc,
+        SortDirection::Asc => codepilotx_rollout::SortDirection::Asc,
+        SortDirection::Desc => codepilotx_rollout::SortDirection::Desc,
     };
     let state_db = store.state_db().await;
     let rollout_config = RolloutConfig {
-        codex_home: store.config.codex_home.clone(),
+        codepilotx_home: store.config.codepilotx_home.clone(),
         sqlite_home: store.config.sqlite_home.clone(),
-        cwd: store.config.codex_home.clone(),
+        cwd: store.config.codepilotx_home.clone(),
         model_provider_id: store.config.default_model_provider_id.clone(),
         generate_memories: false,
     };
     let rg_command = InstallContext::current().rg_command();
     let matching_rollouts = search_rollout_matches(
         rg_command.as_path(),
-        store.config.codex_home.as_path(),
+        store.config.codepilotx_home.as_path(),
         params.archived,
         search_term,
     )
@@ -115,7 +115,7 @@ pub(super) async fn search_threads(
         )
         .await?;
         for item in page.items {
-            let logical_path = codex_rollout::plain_rollout_path(item.path.as_path());
+            let logical_path = codepilotx_rollout::plain_rollout_path(item.path.as_path());
             let Some(snippet) = (match remaining_rollouts.remove(logical_path.as_path()) {
                 Some(Some(snippet)) => Some(snippet),
                 Some(None) => first_rollout_content_match_snippet(item.path.as_path(), search_term)
@@ -176,7 +176,7 @@ pub(super) async fn search_threads(
 fn cursor_from_thread_search_item(
     item: &ThreadSearchItem,
     sort_key: ThreadSortKey,
-) -> Option<codex_rollout::Cursor> {
+) -> Option<codepilotx_rollout::Cursor> {
     let timestamp = match sort_key {
         ThreadSortKey::CreatedAt => item.item.created_at.as_deref()?,
         ThreadSortKey::UpdatedAt => item
@@ -218,7 +218,7 @@ async fn set_thread_search_result_names(
     }
     if names.len() < thread_ids.len()
         && let Ok(legacy_names) =
-            find_thread_names_by_ids(store.config.codex_home.as_path(), &thread_ids).await
+            find_thread_names_by_ids(store.config.codepilotx_home.as_path(), &thread_ids).await
     {
         for (thread_id, title) in legacy_names {
             names.entry(thread_id).or_insert(title);

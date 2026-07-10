@@ -1,7 +1,7 @@
 //! Migration helpers for importing external-agent configuration into Codex.
 
-use codex_hooks::HOOK_EVENT_NAMES;
-use codex_hooks::HOOK_EVENT_NAMES_WITH_MATCHERS;
+use codepilotx_hooks::HOOK_EVENT_NAMES;
+use codepilotx_hooks::HOOK_EVENT_NAMES_WITH_MATCHERS;
 use serde_json::Value as JsonValue;
 use serde_yaml::Value as YamlValue;
 use std::collections::BTreeMap;
@@ -1712,7 +1712,7 @@ command = "enabled-server"
     }
 
     #[test]
-    fn command_skill_names_must_fit_codex_skill_loader_limit() {
+    fn command_skill_names_must_fit_codepilotx_skill_loader_limit() {
         let root = source_path("commands");
         let file = source_path("commands/this/is/a/deeply/nested/command/with/a/very/long/name.md");
         let document = parse_document_content("---\ndescription: Review PR\n---\nReview\n");
@@ -1801,7 +1801,7 @@ command = "enabled-server"
     }
 
     #[test]
-    fn subagent_requires_minimum_codex_agent_fields() {
+    fn subagent_requires_minimum_codepilotx_agent_fields() {
         let missing_description =
             parse_document_content("---\nname: incomplete\n---\nInvestigate carefully.\n");
         let missing_body =

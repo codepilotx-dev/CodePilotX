@@ -40,7 +40,7 @@ fn build_request_plugin_install_elicitation_request_uses_expected_shape() {
             server_name: "codex-apps".to_string(),
             request: McpServerElicitationRequest::Form {
                 meta: Some(json!(RequestPluginInstallMeta {
-                    codex_approval_kind: REQUEST_PLUGIN_INSTALL_APPROVAL_KIND_VALUE,
+                    codepilotx_approval_kind: REQUEST_PLUGIN_INSTALL_APPROVAL_KIND_VALUE,
                     persist: REQUEST_PLUGIN_INSTALL_PERSIST_ALWAYS_VALUE,
                     tool_type: DiscoverableToolType::Connector,
                     suggest_type: DiscoverableToolAction::Install,
@@ -93,7 +93,7 @@ fn build_request_plugin_install_elicitation_request_injects_plugin_metadata() {
             server_name: "codex-apps".to_string(),
             request: McpServerElicitationRequest::Form {
                 meta: Some(json!(RequestPluginInstallMeta {
-                    codex_approval_kind: REQUEST_PLUGIN_INSTALL_APPROVAL_KIND_VALUE,
+                    codepilotx_approval_kind: REQUEST_PLUGIN_INSTALL_APPROVAL_KIND_VALUE,
                     persist: REQUEST_PLUGIN_INSTALL_PERSIST_ALWAYS_VALUE,
                     tool_type: DiscoverableToolType::Plugin,
                     suggest_type: DiscoverableToolAction::Install,
@@ -141,7 +141,7 @@ fn build_request_plugin_install_meta_uses_expected_shape() {
     assert_eq!(
         meta,
         RequestPluginInstallMeta {
-            codex_approval_kind: REQUEST_PLUGIN_INSTALL_APPROVAL_KIND_VALUE,
+            codepilotx_approval_kind: REQUEST_PLUGIN_INSTALL_APPROVAL_KIND_VALUE,
             persist: REQUEST_PLUGIN_INSTALL_PERSIST_ALWAYS_VALUE,
             tool_type: DiscoverableToolType::Connector,
             suggest_type: DiscoverableToolAction::Install,

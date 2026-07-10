@@ -1,9 +1,9 @@
-use codex_protocol::protocol::HookCompletedEvent;
-use codex_protocol::protocol::HookEventName;
-use codex_protocol::protocol::HookOutputEntry;
-use codex_protocol::protocol::HookOutputEntryKind;
-use codex_protocol::protocol::HookRunStatus;
-use codex_protocol::protocol::HookRunSummary;
+use codepilotx_protocol::protocol::HookCompletedEvent;
+use codepilotx_protocol::protocol::HookEventName;
+use codepilotx_protocol::protocol::HookOutputEntry;
+use codepilotx_protocol::protocol::HookOutputEntryKind;
+use codepilotx_protocol::protocol::HookRunStatus;
+use codepilotx_protocol::protocol::HookRunSummary;
 
 use crate::engine::ConfiguredHandler;
 use crate::engine::dispatcher;
@@ -166,7 +166,7 @@ fn is_exact_matcher(matcher: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use codex_protocol::protocol::HookEventName;
+    use codepilotx_protocol::protocol::HookEventName;
     use pretty_assertions::assert_eq;
 
     use super::matcher_pattern_for_event;

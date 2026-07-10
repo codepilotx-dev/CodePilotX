@@ -53,7 +53,7 @@ pub(super) struct PendingCodeCellStart {
     pub(super) seq: RawEventSeq,
     pub(super) wall_time_unix_ms: i64,
     pub(super) thread_id: String,
-    pub(super) codex_turn_id: Option<String>,
+    pub(super) codepilotx_turn_id: Option<String>,
     pub(super) started: StartedCodeCell,
 }
 
@@ -133,20 +133,20 @@ impl TraceReducer {
             seq,
             wall_time_unix_ms,
             thread_id,
-            codex_turn_id,
+            codepilotx_turn_id,
             started,
         } = pending;
         if self.rollout.code_cells.contains_key(&started.code_cell_id) {
             bail!("duplicate code cell start for {}", started.code_cell_id);
         }
 
-        let Some(codex_turn_id) = codex_turn_id else {
+        let Some(codepilotx_turn_id) = codepilotx_turn_id else {
             bail!(
                 "code cell start {} did not include a Codex turn id",
                 started.code_cell_id
             );
         };
-        self.validate_code_cell_turn(&thread_id, &codex_turn_id)?;
+        self.validate_code_cell_turn(&thread_id, &codepilotx_turn_id)?;
 
         let source_item_id = self.source_item_id_for_code_cell_start(
             &thread_id,
@@ -178,7 +178,7 @@ impl TraceReducer {
                 code_cell_id: started.code_cell_id.clone(),
                 model_visible_call_id: started.model_visible_call_id,
                 thread_id: thread_id.clone(),
-                codex_turn_id,
+                codepilotx_turn_id,
                 source_item_id,
                 output_item_ids: output_item_ids.clone(),
                 runtime_cell_id: Some(started.runtime_cell_id),
@@ -354,7 +354,7 @@ impl TraceReducer {
         &mut self,
         seq: RawEventSeq,
         wall_time_unix_ms: i64,
-        codex_turn_id: &str,
+        codepilotx_turn_id: &str,
         turn_status: &ExecutionStatus,
     ) -> Result<()> {
         let runtime_status = match turn_status {
@@ -369,7 +369,7 @@ impl TraceReducer {
             .code_cells
             .values()
             .filter(|cell| {
-                cell.codex_turn_id == codex_turn_id
+                cell.codepilotx_turn_id == codepilotx_turn_id
                     && cell.execution.status == ExecutionStatus::Running
             })
             .map(|cell| cell.code_cell_id.clone())
@@ -533,23 +533,23 @@ impl TraceReducer {
     pub(super) fn code_cell_event_thread_id(
         &self,
         thread_id: Option<String>,
-        codex_turn_id: Option<&str>,
+        codepilotx_turn_id: Option<&str>,
         runtime_cell_id: &str,
         event_name: &str,
     ) -> Result<String> {
         if let Some(thread_id) = thread_id {
             return Ok(thread_id);
         }
-        let Some(codex_turn_id) = codex_turn_id else {
+        let Some(codepilotx_turn_id) = codepilotx_turn_id else {
             bail!("{event_name} {runtime_cell_id} did not include a thread id");
         };
         self.rollout
-            .codex_turns
-            .get(codex_turn_id)
+            .codepilotx_turns
+            .get(codepilotx_turn_id)
             .map(|turn| turn.thread_id.clone())
             .with_context(|| {
                 format!(
-                    "{event_name} {runtime_cell_id} referenced unknown Codex turn {codex_turn_id}"
+                    "{event_name} {runtime_cell_id} referenced unknown Codex turn {codepilotx_turn_id}"
                 )
             })
     }
@@ -637,16 +637,16 @@ impl TraceReducer {
         }
     }
 
-    fn validate_code_cell_turn(&self, thread_id: &str, codex_turn_id: &str) -> Result<()> {
+    fn validate_code_cell_turn(&self, thread_id: &str, codepilotx_turn_id: &str) -> Result<()> {
         if !self.rollout.threads.contains_key(thread_id) {
             bail!("code cell start referenced unknown thread {thread_id}");
         }
-        let Some(turn) = self.rollout.codex_turns.get(codex_turn_id) else {
-            bail!("code cell start referenced unknown Codex turn {codex_turn_id}");
+        let Some(turn) = self.rollout.codepilotx_turns.get(codepilotx_turn_id) else {
+            bail!("code cell start referenced unknown Codex turn {codepilotx_turn_id}");
         };
         if turn.thread_id != thread_id {
             bail!(
-                "code cell start used thread {thread_id}, but Codex turn {codex_turn_id} belongs \
+                "code cell start used thread {thread_id}, but Codex turn {codepilotx_turn_id} belongs \
                  to {}",
                 turn.thread_id
             );
