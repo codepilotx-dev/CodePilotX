@@ -1,16 +1,16 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use codex_core_skills::SkillMetadata;
-use codex_core_skills::filter_skill_load_outcome_for_product;
-use codex_core_skills::loader::SkillRoot;
-use codex_core_skills::loader::load_skills_from_roots;
-use codex_exec_server::EnvironmentManager;
-use codex_protocol::capabilities::CapabilityRootLocation;
-use codex_protocol::protocol::Product;
-use codex_protocol::protocol::SkillScope;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_core_skills::SkillMetadata;
+use codepilotx_core_skills::filter_skill_load_outcome_for_product;
+use codepilotx_core_skills::loader::SkillRoot;
+use codepilotx_core_skills::loader::load_skills_from_roots;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_protocol::capabilities::CapabilityRootLocation;
+use codepilotx_protocol::protocol::Product;
+use codepilotx_protocol::protocol::SkillScope;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 
 use crate::catalog::SkillAuthority;
 use crate::catalog::SkillCatalog;

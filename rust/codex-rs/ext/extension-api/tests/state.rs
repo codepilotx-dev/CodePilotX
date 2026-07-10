@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
-use codex_extension_api::ExtensionData;
+use codepilotx_extension_api::ExtensionData;
 use pretty_assertions::assert_eq;
 
 #[test]

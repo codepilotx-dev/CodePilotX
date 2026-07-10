@@ -4,62 +4,62 @@ use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
-use codex_core_skills::HostSkillsSnapshot;
-use codex_core_skills::SKILLS_HOW_TO_USE_WITH_ABSOLUTE_PATHS;
-use codex_core_skills::SKILLS_INTRO_WITH_ABSOLUTE_PATHS;
-use codex_core_skills::SkillLoadOutcome;
-use codex_core_skills::SkillMetadata;
-use codex_core_skills::injection::InjectedHostSkillPrompts;
-use codex_extension_api::ConversationHistory;
-use codex_extension_api::ExtensionData;
-use codex_extension_api::ExtensionEventSink;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::NoopTurnItemEmitter;
-use codex_extension_api::ThreadStartInput;
-use codex_extension_api::ToolCall;
-use codex_extension_api::ToolPayload;
-use codex_extension_api::TurnInputContext;
-use codex_protocol::capabilities::CapabilityRootLocation;
-use codex_protocol::capabilities::SelectedCapabilityRoot;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::SKILLS_INSTRUCTIONS_CLOSE_TAG;
-use codex_protocol::protocol::SKILLS_INSTRUCTIONS_OPEN_TAG;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SkillScope;
-use codex_protocol::protocol::TruncationPolicy;
-use codex_protocol::user_input::UserInput;
-use codex_skills_extension::SkillProviders;
-use codex_skills_extension::SkillsExtensionConfig;
-use codex_skills_extension::catalog::SkillAuthority;
-use codex_skills_extension::catalog::SkillCatalog;
-use codex_skills_extension::catalog::SkillCatalogEntry;
-use codex_skills_extension::catalog::SkillPackageId;
-use codex_skills_extension::catalog::SkillProviderError;
-use codex_skills_extension::catalog::SkillReadResult;
-use codex_skills_extension::catalog::SkillResourceId;
-use codex_skills_extension::catalog::SkillSearchResult;
-use codex_skills_extension::catalog::SkillSourceKind;
-use codex_skills_extension::install;
-use codex_skills_extension::install_with_providers;
-use codex_skills_extension::provider::SkillListQuery;
-use codex_skills_extension::provider::SkillProvider;
-use codex_skills_extension::provider::SkillProviderFuture;
-use codex_skills_extension::provider::SkillReadRequest;
-use codex_skills_extension::provider::SkillSearchRequest;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_core_skills::HostSkillsSnapshot;
+use codepilotx_core_skills::SKILLS_HOW_TO_USE_WITH_ABSOLUTE_PATHS;
+use codepilotx_core_skills::SKILLS_INTRO_WITH_ABSOLUTE_PATHS;
+use codepilotx_core_skills::SkillLoadOutcome;
+use codepilotx_core_skills::SkillMetadata;
+use codepilotx_core_skills::injection::InjectedHostSkillPrompts;
+use codepilotx_extension_api::ConversationHistory;
+use codepilotx_extension_api::ExtensionData;
+use codepilotx_extension_api::ExtensionEventSink;
+use codepilotx_extension_api::ExtensionRegistryBuilder;
+use codepilotx_extension_api::NoopTurnItemEmitter;
+use codepilotx_extension_api::ThreadStartInput;
+use codepilotx_extension_api::ToolCall;
+use codepilotx_extension_api::ToolPayload;
+use codepilotx_extension_api::TurnInputContext;
+use codepilotx_protocol::capabilities::CapabilityRootLocation;
+use codepilotx_protocol::capabilities::SelectedCapabilityRoot;
+use codepilotx_protocol::protocol::Event;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::SKILLS_INSTRUCTIONS_CLOSE_TAG;
+use codepilotx_protocol::protocol::SKILLS_INSTRUCTIONS_OPEN_TAG;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SkillScope;
+use codepilotx_protocol::protocol::TruncationPolicy;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_skills_extension::SkillProviders;
+use codepilotx_skills_extension::SkillsExtensionConfig;
+use codepilotx_skills_extension::catalog::SkillAuthority;
+use codepilotx_skills_extension::catalog::SkillCatalog;
+use codepilotx_skills_extension::catalog::SkillCatalogEntry;
+use codepilotx_skills_extension::catalog::SkillPackageId;
+use codepilotx_skills_extension::catalog::SkillProviderError;
+use codepilotx_skills_extension::catalog::SkillReadResult;
+use codepilotx_skills_extension::catalog::SkillResourceId;
+use codepilotx_skills_extension::catalog::SkillSearchResult;
+use codepilotx_skills_extension::catalog::SkillSourceKind;
+use codepilotx_skills_extension::install;
+use codepilotx_skills_extension::install_with_providers;
+use codepilotx_skills_extension::provider::SkillListQuery;
+use codepilotx_skills_extension::provider::SkillProvider;
+use codepilotx_skills_extension::provider::SkillProviderFuture;
+use codepilotx_skills_extension::provider::SkillReadRequest;
+use codepilotx_skills_extension::provider::SkillSearchRequest;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-static NEXT_CODEX_HOME_ID: AtomicUsize = AtomicUsize::new(0);
+static NEXT_codepilotx_HOME_ID: AtomicUsize = AtomicUsize::new(0);
 const DEMO_SKILL_CONTENTS: &str =
     "---\nname: demo\ndescription: Demo skill.\n---\n# Demo\n\nUse the demo skill.\n";
 
 #[tokio::test]
 async fn installed_extension_uses_host_service_snapshot() -> TestResult {
-    let codex_home = test_codex_home();
-    let skill_path = codex_home.join("skills").join("demo").join("SKILL.md");
+    let codepilotx_home = test_codepilotx_home();
+    let skill_path = codepilotx_home.join("skills").join("demo").join("SKILL.md");
     std::fs::create_dir_all(
         skill_path
             .parent()
@@ -138,7 +138,7 @@ async fn installed_extension_uses_host_service_snapshot() -> TestResult {
         .ok_or("host skill prompt marker should be set")?;
     assert!(injected_host_skill_prompts.contains_path(&skill_path_string));
 
-    std::fs::remove_dir_all(codex_home)?;
+    std::fs::remove_dir_all(codepilotx_home)?;
     Ok(())
 }
 
@@ -265,7 +265,7 @@ async fn default_context_truncates_catalog_descriptions() -> TestResult {
     let description = "x".repeat(1_025);
     let mut entry = test_entry(
         SkillSourceKind::Orchestrator,
-        "codex_apps",
+        "codepilotx_apps",
         "orchestrator/long-description",
         "skill://orchestrator/long-description/SKILL.md",
     );
@@ -315,7 +315,7 @@ async fn skills_list_truncates_catalog_descriptions_in_tool_output() -> TestResu
     let description = "x".repeat(1_025);
     let mut entry = test_entry(
         SkillSourceKind::Orchestrator,
-        "codex_apps",
+        "codepilotx_apps",
         "orchestrator/long-description",
         "skill://orchestrator/long-description/SKILL.md",
     );
@@ -390,7 +390,7 @@ async fn orchestrator_catalog_snapshot_caches_failure() -> TestResult {
             catalog: SkillCatalog {
                 entries: vec![test_entry(
                     SkillSourceKind::Orchestrator,
-                    "codex_apps",
+                    "codepilotx_apps",
                     "orchestrator/first",
                     "skill://orchestrator/first/SKILL.md",
                 )],
@@ -711,8 +711,8 @@ fn skills_extension_config(config: &TestConfig) -> SkillsExtensionConfig {
     }
 }
 
-fn test_codex_home() -> PathBuf {
-    let id = NEXT_CODEX_HOME_ID.fetch_add(1, Ordering::Relaxed);
+fn test_codepilotx_home() -> PathBuf {
+    let id = NEXT_codepilotx_HOME_ID.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!(
         "codex-skills-extension-test-{}-{id}",
         std::process::id(),

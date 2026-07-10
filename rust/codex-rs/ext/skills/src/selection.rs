@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use codex_core_skills::injection::extract_tool_mentions;
-use codex_protocol::user_input::UserInput;
+use codepilotx_core_skills::injection::extract_tool_mentions;
+use codepilotx_protocol::user_input::UserInput;
 
 use crate::catalog::SkillAuthority;
 use crate::catalog::SkillCatalog;

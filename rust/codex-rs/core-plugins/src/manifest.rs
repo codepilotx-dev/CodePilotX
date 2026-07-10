@@ -1,6 +1,6 @@
-use codex_config::HooksFile;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_plugins::find_plugin_manifest_path;
+use codepilotx_config::HooksFile;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_plugins::find_plugin_manifest_path;
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use std::fs;
@@ -9,12 +9,12 @@ use std::path::Path;
 const MAX_DEFAULT_PROMPT_COUNT: usize = 3;
 const MAX_DEFAULT_PROMPT_LEN: usize = 128;
 
-pub type PluginManifest = codex_plugin::manifest::PluginManifest<AbsolutePathBuf>;
-pub type PluginManifestHooks = codex_plugin::manifest::PluginManifestHooks<AbsolutePathBuf>;
-pub type PluginManifestInterface = codex_plugin::manifest::PluginManifestInterface<AbsolutePathBuf>;
+pub type PluginManifest = codepilotx_plugin::manifest::PluginManifest<AbsolutePathBuf>;
+pub type PluginManifestHooks = codepilotx_plugin::manifest::PluginManifestHooks<AbsolutePathBuf>;
+pub type PluginManifestInterface = codepilotx_plugin::manifest::PluginManifestInterface<AbsolutePathBuf>;
 pub type PluginManifestMcpServers =
-    codex_plugin::manifest::PluginManifestMcpServers<AbsolutePathBuf>;
-pub type PluginManifestPaths = codex_plugin::manifest::PluginManifestPaths<AbsolutePathBuf>;
+    codepilotx_plugin::manifest::PluginManifestMcpServers<AbsolutePathBuf>;
+pub type PluginManifestPaths = codepilotx_plugin::manifest::PluginManifestPaths<AbsolutePathBuf>;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -470,13 +470,13 @@ mod tests {
     use super::MAX_DEFAULT_PROMPT_LEN;
     use super::PluginManifest;
     use super::load_plugin_manifest;
-    use codex_exec_server::EnvironmentManager;
-    use codex_exec_server::LOCAL_ENVIRONMENT_ID;
-    use codex_plugin::PluginProvider;
-    use codex_plugin::ResolvedPlugin;
-    use codex_protocol::capabilities::CapabilityRootLocation;
-    use codex_protocol::capabilities::SelectedCapabilityRoot;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_exec_server::EnvironmentManager;
+    use codepilotx_exec_server::LOCAL_ENVIRONMENT_ID;
+    use codepilotx_plugin::PluginProvider;
+    use codepilotx_plugin::ResolvedPlugin;
+    use codepilotx_protocol::capabilities::CapabilityRootLocation;
+    use codepilotx_protocol::capabilities::SelectedCapabilityRoot;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::fs;
     use std::path::Path;

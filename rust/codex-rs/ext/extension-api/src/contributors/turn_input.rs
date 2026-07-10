@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use codex_protocol::user_input::UserInput;
+use codepilotx_protocol::user_input::UserInput;
 
 /// Host-owned turn environment summary visible to turn-input contributors.
 #[derive(Debug, Clone)]

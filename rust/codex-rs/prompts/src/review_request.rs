@@ -1,8 +1,8 @@
-use codex_git_utils::merge_base_with_head;
-use codex_protocol::protocol::ReviewRequest;
-use codex_protocol::protocol::ReviewTarget;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_template::Template;
+use codepilotx_git_utils::merge_base_with_head;
+use codepilotx_protocol::protocol::ReviewRequest;
+use codepilotx_protocol::protocol::ReviewTarget;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_template::Template;
 use std::sync::LazyLock;
 
 /// Review thread system prompt.

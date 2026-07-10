@@ -4,12 +4,12 @@ use std::fmt;
 use std::io;
 use std::sync::Arc;
 
-use codex_exec_server::ExecutorFileSystem;
-use codex_exec_server::LOCAL_FS;
-use codex_protocol::protocol::Product;
-use codex_protocol::protocol::SkillScope;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_exec_server::ExecutorFileSystem;
+use codepilotx_exec_server::LOCAL_FS;
+use codepilotx_protocol::protocol::Product;
+use codepilotx_protocol::protocol::SkillScope;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SkillMetadata {

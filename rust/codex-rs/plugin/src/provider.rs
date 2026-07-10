@@ -1,6 +1,6 @@
 use crate::manifest::PluginManifest;
-use codex_protocol::capabilities::SelectedCapabilityRoot;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_protocol::capabilities::SelectedCapabilityRoot;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use std::error::Error as StdError;
 use std::future::Future;
 use thiserror::Error;

@@ -6,43 +6,43 @@ use std::sync::PoisonError;
 use std::sync::Weak;
 use std::time::Duration;
 
-use codex_analytics::AnalyticsEventsClient;
-use codex_extension_api::ExtensionData;
-use codex_extension_api::ExtensionEventSink;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::FunctionCallError;
-use codex_extension_api::NoopTurnItemEmitter;
-use codex_extension_api::ThreadResumeInput;
-use codex_extension_api::ThreadStartInput;
-use codex_extension_api::ThreadStopInput;
-use codex_extension_api::ToolCall;
-use codex_extension_api::ToolCallOutcome;
-use codex_extension_api::ToolCallSource;
-use codex_extension_api::ToolExecutor;
-use codex_extension_api::ToolFinishInput;
-use codex_extension_api::ToolPayload;
-use codex_extension_api::TurnErrorInput;
-use codex_extension_api::TurnStartInput;
-use codex_extension_api::TurnStopInput;
-use codex_goal_extension::GoalObjectiveUpdate;
-use codex_goal_extension::GoalRuntimeHandle;
-use codex_goal_extension::GoalService;
-use codex_goal_extension::GoalSetRequest;
-use codex_goal_extension::GoalTokenBudgetUpdate;
-use codex_goal_extension::install_with_backend;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Settings;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::ThreadGoalStatus;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::TruncationPolicy;
+use codepilotx_analytics::AnalyticsEventsClient;
+use codepilotx_extension_api::ExtensionData;
+use codepilotx_extension_api::ExtensionEventSink;
+use codepilotx_extension_api::ExtensionRegistryBuilder;
+use codepilotx_extension_api::FunctionCallError;
+use codepilotx_extension_api::NoopTurnItemEmitter;
+use codepilotx_extension_api::ThreadResumeInput;
+use codepilotx_extension_api::ThreadStartInput;
+use codepilotx_extension_api::ThreadStopInput;
+use codepilotx_extension_api::ToolCall;
+use codepilotx_extension_api::ToolCallOutcome;
+use codepilotx_extension_api::ToolCallSource;
+use codepilotx_extension_api::ToolExecutor;
+use codepilotx_extension_api::ToolFinishInput;
+use codepilotx_extension_api::ToolPayload;
+use codepilotx_extension_api::TurnErrorInput;
+use codepilotx_extension_api::TurnStartInput;
+use codepilotx_extension_api::TurnStopInput;
+use codepilotx_goal_extension::GoalObjectiveUpdate;
+use codepilotx_goal_extension::GoalRuntimeHandle;
+use codepilotx_goal_extension::GoalService;
+use codepilotx_goal_extension::GoalSetRequest;
+use codepilotx_goal_extension::GoalTokenBudgetUpdate;
+use codepilotx_goal_extension::install_with_backend;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::CollaborationMode;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::Settings;
+use codepilotx_protocol::protocol::CodexErrorInfo;
+use codepilotx_protocol::protocol::Event;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_protocol::protocol::ThreadGoalStatus;
+use codepilotx_protocol::protocol::TokenUsage;
+use codepilotx_protocol::protocol::TokenUsageInfo;
+use codepilotx_protocol::protocol::TruncationPolicy;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use tempfile::TempDir;
@@ -409,7 +409,7 @@ async fn budget_limited_goal_keeps_accruing_until_turn_stop() -> anyhow::Result<
         .await?
         .ok_or_else(|| anyhow::anyhow!("goal should exist"))?;
     assert_eq!(35, goal.tokens_used);
-    assert_eq!(codex_state::ThreadGoalStatus::BudgetLimited, goal.status);
+    assert_eq!(codepilotx_state::ThreadGoalStatus::BudgetLimited, goal.status);
 
     assert_eq!(
         vec![
@@ -486,7 +486,7 @@ async fn budget_limited_goal_keeps_accounting_after_later_tool_finish() -> anyho
         .await?
         .ok_or_else(|| anyhow::anyhow!("goal should exist"))?;
     assert_eq!(35, goal.tokens_used);
-    assert_eq!(codex_state::ThreadGoalStatus::BudgetLimited, goal.status);
+    assert_eq!(codepilotx_state::ThreadGoalStatus::BudgetLimited, goal.status);
     Ok(())
 }
 
@@ -528,7 +528,7 @@ async fn turn_error_usage_limit_accounts_progress_and_clears_accounting() -> any
         .await?
         .ok_or_else(|| anyhow::anyhow!("goal should exist"))?;
     assert_eq!(23, goal.tokens_used);
-    assert_eq!(codex_state::ThreadGoalStatus::UsageLimited, goal.status);
+    assert_eq!(codepilotx_state::ThreadGoalStatus::UsageLimited, goal.status);
     assert_eq!(
         vec![
             CapturedGoalEvent {
@@ -568,7 +568,7 @@ async fn turn_error_usage_limit_accounts_progress_and_clears_accounting() -> any
         .await?
         .ok_or_else(|| anyhow::anyhow!("goal should exist"))?;
     assert_eq!(23, goal.tokens_used);
-    assert_eq!(codex_state::ThreadGoalStatus::UsageLimited, goal.status);
+    assert_eq!(codepilotx_state::ThreadGoalStatus::UsageLimited, goal.status);
     Ok(())
 }
 
@@ -598,7 +598,7 @@ async fn turn_error_blocks_goal() -> anyhow::Result<()> {
         .get_thread_goal(thread_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("goal should exist"))?;
-    assert_eq!(codex_state::ThreadGoalStatus::Blocked, goal.status);
+    assert_eq!(codepilotx_state::ThreadGoalStatus::Blocked, goal.status);
     Ok(())
 }
 
@@ -660,7 +660,7 @@ async fn usage_limit_budget_limited_goal_accounts_remaining_progress() -> anyhow
         .await?
         .ok_or_else(|| anyhow::anyhow!("goal should exist"))?;
     assert_eq!(35, goal.tokens_used);
-    assert_eq!(codex_state::ThreadGoalStatus::UsageLimited, goal.status);
+    assert_eq!(codepilotx_state::ThreadGoalStatus::UsageLimited, goal.status);
     assert_eq!(
         vec![
             CapturedGoalEvent {
@@ -713,7 +713,7 @@ async fn usage_limit_plan_turn_does_not_stop_goal() -> anyhow::Result<()> {
         .get_thread_goal(thread_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("goal should exist"))?;
-    assert_eq!(codex_state::ThreadGoalStatus::Active, goal.status);
+    assert_eq!(codepilotx_state::ThreadGoalStatus::Active, goal.status);
     assert_eq!(Vec::<CapturedGoalEvent>::new(), harness.sink.goal_events());
     Ok(())
 }
@@ -750,7 +750,7 @@ async fn usage_limit_stale_turn_does_not_stop_current_goal() -> anyhow::Result<(
         .get_thread_goal(thread_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("goal should exist"))?;
-    assert_eq!(codex_state::ThreadGoalStatus::Active, goal.status);
+    assert_eq!(codepilotx_state::ThreadGoalStatus::Active, goal.status);
     assert_eq!(Vec::<CapturedGoalEvent>::new(), harness.sink.goal_events());
     Ok(())
 }
@@ -815,7 +815,7 @@ async fn update_goal_can_block_and_accounts_final_progress() -> anyhow::Result<(
         .await?
         .ok_or_else(|| anyhow::anyhow!("goal should exist"))?;
     assert_eq!(23, goal.tokens_used);
-    assert_eq!(codex_state::ThreadGoalStatus::Blocked, goal.status);
+    assert_eq!(codepilotx_state::ThreadGoalStatus::Blocked, goal.status);
 
     assert_eq!(
         vec![
@@ -1015,7 +1015,7 @@ async fn thread_resume_rehydrates_active_goal_idle_accounting() -> anyhow::Resul
         .replace_thread_goal(
             thread_id,
             "ship goal extension backend",
-            codex_state::ThreadGoalStatus::Active,
+            codepilotx_state::ThreadGoalStatus::Active,
             /*token_budget*/ None,
         )
         .await?;
@@ -1094,7 +1094,7 @@ async fn goal_service_sets_gets_and_clears_thread_goal() -> anyhow::Result<()> {
 }
 
 async fn installed_tools(
-    runtime: Arc<codex_state::StateRuntime>,
+    runtime: Arc<codepilotx_state::StateRuntime>,
     thread_id: ThreadId,
 ) -> Vec<Arc<dyn ToolExecutor<ToolCall>>> {
     installed_tools_with_start(
@@ -1107,7 +1107,7 @@ async fn installed_tools(
 }
 
 async fn installed_tools_with_start(
-    runtime: Arc<codex_state::StateRuntime>,
+    runtime: Arc<codepilotx_state::StateRuntime>,
     thread_id: ThreadId,
     session_source: SessionSource,
     persistent_thread_state_available: bool,
@@ -1151,7 +1151,7 @@ fn tool_names(tools: &[Arc<dyn ToolExecutor<ToolCall>>]) -> Vec<String> {
 }
 
 struct GoalExtensionHarness {
-    registry: codex_extension_api::ExtensionRegistry<()>,
+    registry: codepilotx_extension_api::ExtensionRegistry<()>,
     session_store: ExtensionData,
     thread_store: ExtensionData,
     goal_service: Arc<GoalService>,
@@ -1160,7 +1160,7 @@ struct GoalExtensionHarness {
 
 impl GoalExtensionHarness {
     async fn new(
-        runtime: Arc<codex_state::StateRuntime>,
+        runtime: Arc<codepilotx_state::StateRuntime>,
         thread_id: ThreadId,
     ) -> anyhow::Result<Self> {
         let sink = Arc::new(RecordingEventSink::default());
@@ -1287,7 +1287,7 @@ impl GoalExtensionHarness {
 
     async fn notify_tool_finish(&self, turn_id: &str, call_id: &str, tool_name: &str) {
         let turn_store = ExtensionData::new(turn_id);
-        let tool_name = codex_extension_api::ToolName::plain(tool_name);
+        let tool_name = codepilotx_extension_api::ToolName::plain(tool_name);
         for contributor in self.registry.tool_lifecycle_contributors() {
             contributor
                 .on_tool_finish(ToolFinishInput {
@@ -1340,10 +1340,10 @@ fn tool_call(tool_name: &str, call_id: &str, arguments: serde_json::Value) -> To
     ToolCall {
         turn_id: "turn-1".to_string(),
         call_id: call_id.to_string(),
-        tool_name: codex_extension_api::ToolName::plain(tool_name),
+        tool_name: codepilotx_extension_api::ToolName::plain(tool_name),
         model: "gpt-test".to_string(),
         truncation_policy: TruncationPolicy::Bytes(1024),
-        conversation_history: codex_extension_api::ConversationHistory::default(),
+        conversation_history: codepilotx_extension_api::ConversationHistory::default(),
         turn_item_emitter: Arc::new(NoopTurnItemEmitter),
         environments: Vec::new(),
         payload: ToolPayload::Function {
@@ -1352,9 +1352,9 @@ fn tool_call(tool_name: &str, call_id: &str, arguments: serde_json::Value) -> To
     }
 }
 
-async fn test_runtime() -> anyhow::Result<Arc<codex_state::StateRuntime>> {
+async fn test_runtime() -> anyhow::Result<Arc<codepilotx_state::StateRuntime>> {
     let tempdir = TempDir::new()?;
-    codex_state::StateRuntime::init(tempdir.keep(), "test-provider".to_string()).await
+    codepilotx_state::StateRuntime::init(tempdir.keep(), "test-provider".to_string()).await
 }
 
 fn test_thread_id() -> anyhow::Result<ThreadId> {
@@ -1362,13 +1362,13 @@ fn test_thread_id() -> anyhow::Result<ThreadId> {
 }
 
 async fn seed_thread_metadata(
-    runtime: &codex_state::StateRuntime,
+    runtime: &codepilotx_state::StateRuntime,
     thread_id: ThreadId,
 ) -> anyhow::Result<()> {
-    let builder = codex_state::ThreadMetadataBuilder::new(
+    let builder = codepilotx_state::ThreadMetadataBuilder::new(
         thread_id,
         runtime
-            .codex_home()
+            .codepilotx_home()
             .join(format!("rollout-{thread_id}.jsonl")),
         chrono::Utc::now(),
         SessionSource::Cli,
@@ -1447,13 +1447,13 @@ fn token_usage(
     }
 }
 
-fn protocol_status(status: codex_state::ThreadGoalStatus) -> ThreadGoalStatus {
+fn protocol_status(status: codepilotx_state::ThreadGoalStatus) -> ThreadGoalStatus {
     match status {
-        codex_state::ThreadGoalStatus::Active => ThreadGoalStatus::Active,
-        codex_state::ThreadGoalStatus::Paused => ThreadGoalStatus::Paused,
-        codex_state::ThreadGoalStatus::Blocked => ThreadGoalStatus::Blocked,
-        codex_state::ThreadGoalStatus::UsageLimited => ThreadGoalStatus::UsageLimited,
-        codex_state::ThreadGoalStatus::BudgetLimited => ThreadGoalStatus::BudgetLimited,
-        codex_state::ThreadGoalStatus::Complete => ThreadGoalStatus::Complete,
+        codepilotx_state::ThreadGoalStatus::Active => ThreadGoalStatus::Active,
+        codepilotx_state::ThreadGoalStatus::Paused => ThreadGoalStatus::Paused,
+        codepilotx_state::ThreadGoalStatus::Blocked => ThreadGoalStatus::Blocked,
+        codepilotx_state::ThreadGoalStatus::UsageLimited => ThreadGoalStatus::UsageLimited,
+        codepilotx_state::ThreadGoalStatus::BudgetLimited => ThreadGoalStatus::BudgetLimited,
+        codepilotx_state::ThreadGoalStatus::Complete => ThreadGoalStatus::Complete,
     }
 }

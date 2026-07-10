@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 use std::time::Duration;
 
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_protocol::mcp::Resource;
-use codex_protocol::mcp::ResourceContent;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
+use codepilotx_protocol::mcp::Resource;
+use codepilotx_protocol::mcp::ResourceContent;
 use url::Url;
 
 use crate::catalog::SkillAuthority;
@@ -51,7 +51,7 @@ impl SkillProvider for OrchestratorSkillProvider {
             let Some(client) = query.mcp_resources else {
                 return Ok(SkillCatalog::default());
             };
-            if !client.has_server(CODEX_APPS_MCP_SERVER_NAME).await {
+            if !client.has_server(codepilotx_APPS_MCP_SERVER_NAME).await {
                 return Ok(SkillCatalog::default());
             }
 
@@ -68,7 +68,7 @@ impl SkillProvider for OrchestratorSkillProvider {
             for _ in 0..MAX_RESOURCE_PAGES {
                 let page = match tokio::time::timeout_at(
                     discovery_deadline,
-                    client.list_resources(CODEX_APPS_MCP_SERVER_NAME, cursor.clone()),
+                    client.list_resources(codepilotx_APPS_MCP_SERVER_NAME, cursor.clone()),
                 )
                 .await
                 {
@@ -151,7 +151,7 @@ impl SkillProvider for OrchestratorSkillProvider {
     fn read(&self, request: SkillReadRequest) -> SkillProviderFuture<'_, SkillReadResult> {
         Box::pin(async move {
             if request.authority
-                != SkillAuthority::new(SkillSourceKind::Orchestrator, CODEX_APPS_MCP_SERVER_NAME)
+                != SkillAuthority::new(SkillSourceKind::Orchestrator, codepilotx_APPS_MCP_SERVER_NAME)
             {
                 return Err(SkillProviderError::new(format!(
                     "orchestrator skill provider cannot read authority {}",
@@ -171,7 +171,7 @@ impl SkillProvider for OrchestratorSkillProvider {
             };
             let result = tokio::time::timeout(
                 ORCHESTRATOR_SKILL_READ_TIMEOUT,
-                client.read_resource(CODEX_APPS_MCP_SERVER_NAME, request.resource.as_str()),
+                client.read_resource(codepilotx_APPS_MCP_SERVER_NAME, request.resource.as_str()),
             )
             .await
             .map_err(|_| {
@@ -238,7 +238,7 @@ fn catalog_entry_from_resource(resource: &Resource) -> Option<SkillCatalogEntry>
     Some(
         SkillCatalogEntry::new(
             SkillPackageId(uri.to_string()),
-            SkillAuthority::new(SkillSourceKind::Orchestrator, CODEX_APPS_MCP_SERVER_NAME),
+            SkillAuthority::new(SkillSourceKind::Orchestrator, codepilotx_APPS_MCP_SERVER_NAME),
             name,
             description,
             SkillResourceId::new(main_prompt),

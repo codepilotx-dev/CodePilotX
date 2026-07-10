@@ -1,9 +1,9 @@
-use codex_core::context::ContextualUserFragment;
-use codex_core::context::InternalContextSource;
-use codex_core::context::InternalModelContextFragment;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::ThreadGoal;
-use codex_utils_template::Template;
+use codepilotx_core::context::ContextualUserFragment;
+use codepilotx_core::context::InternalContextSource;
+use codepilotx_core::context::InternalModelContextFragment;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::protocol::ThreadGoal;
+use codepilotx_utils_template::Template;
 use std::sync::LazyLock;
 
 static CONTINUATION_PROMPT_TEMPLATE: LazyLock<Template> = LazyLock::new(|| {

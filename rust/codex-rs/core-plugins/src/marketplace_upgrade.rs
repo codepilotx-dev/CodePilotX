@@ -8,14 +8,14 @@ use self::git::clone_git_source;
 use self::git::git_remote_revision;
 use crate::marketplace::find_marketplace_manifest_path;
 use crate::marketplace::validate_marketplace_root;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerStack;
-use codex_config::MarketplaceConfigUpdate;
-use codex_config::record_user_marketplace;
-use codex_config::types::MarketplaceConfig;
-use codex_config::types::MarketplaceSourceType;
-use codex_plugin::validate_plugin_segment;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_config::CONFIG_TOML_FILE;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::MarketplaceConfigUpdate;
+use codepilotx_config::record_user_marketplace;
+use codepilotx_config::types::MarketplaceConfig;
+use codepilotx_config::types::MarketplaceSourceType;
+use codepilotx_plugin::validate_plugin_segment;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
@@ -63,7 +63,7 @@ pub fn configured_git_marketplace_names(config_layer_stack: &ConfigLayerStack) -
 }
 
 pub fn upgrade_configured_git_marketplaces(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     config_layer_stack: &ConfigLayerStack,
     marketplace_name: Option<&str>,
 ) -> ConfiguredMarketplaceUpgradeOutcome {
@@ -75,7 +75,7 @@ pub fn upgrade_configured_git_marketplaces(
         return ConfiguredMarketplaceUpgradeOutcome::default();
     }
 
-    let install_root = marketplace_install_root(codex_home);
+    let install_root = marketplace_install_root(codepilotx_home);
     let selected_marketplaces = marketplaces
         .iter()
         .map(|marketplace| marketplace.name.clone())
@@ -83,7 +83,7 @@ pub fn upgrade_configured_git_marketplaces(
     let mut upgraded_roots = Vec::new();
     let mut errors = Vec::new();
     for marketplace in marketplaces {
-        match upgrade_configured_git_marketplace(codex_home, &install_root, &marketplace) {
+        match upgrade_configured_git_marketplace(codepilotx_home, &install_root, &marketplace) {
             Ok(Some(upgraded_root)) => upgraded_roots.push(upgraded_root),
             Ok(None) => {}
             Err(err) => {
@@ -102,8 +102,8 @@ pub fn upgrade_configured_git_marketplaces(
     }
 }
 
-fn marketplace_install_root(codex_home: &Path) -> PathBuf {
-    codex_home.join(INSTALLED_MARKETPLACES_DIR)
+fn marketplace_install_root(codepilotx_home: &Path) -> PathBuf {
+    codepilotx_home.join(INSTALLED_MARKETPLACES_DIR)
 }
 
 fn configured_git_marketplaces(
@@ -166,7 +166,7 @@ fn configured_git_marketplace_from_config(
 }
 
 fn upgrade_configured_git_marketplace(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     install_root: &Path,
     marketplace: &ConfiguredGitMarketplace,
 ) -> Result<Option<AbsolutePathBuf>, String> {
@@ -228,8 +228,8 @@ fn upgrade_configured_git_marketplace(
         sparse_paths: &marketplace.sparse_paths,
     };
     activate_marketplace_root(&destination, staged_dir, || {
-        ensure_configured_git_marketplace_unchanged(codex_home, marketplace)?;
-        record_user_marketplace(codex_home, &marketplace.name, &update).map_err(|err| {
+        ensure_configured_git_marketplace_unchanged(codepilotx_home, marketplace)?;
+        record_user_marketplace(codepilotx_home, &marketplace.name, &update).map_err(|err| {
             format!(
                 "failed to record upgraded marketplace `{}` in user config.toml: {err}",
                 marketplace.name
@@ -242,10 +242,10 @@ fn upgrade_configured_git_marketplace(
         .map_err(|err| format!("upgraded marketplace path is not absolute: {err}"))
 }
 fn ensure_configured_git_marketplace_unchanged(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     expected: &ConfiguredGitMarketplace,
 ) -> Result<(), String> {
-    let current = read_configured_git_marketplace(codex_home, &expected.name)?;
+    let current = read_configured_git_marketplace(codepilotx_home, &expected.name)?;
     match current {
         Some(current) if current == *expected => Ok(()),
         Some(_) => Err(format!(
@@ -260,10 +260,10 @@ fn ensure_configured_git_marketplace_unchanged(
 }
 
 fn read_configured_git_marketplace(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     marketplace_name: &str,
 ) -> Result<Option<ConfiguredGitMarketplace>, String> {
-    let config_path = codex_home.join(CONFIG_TOML_FILE);
+    let config_path = codepilotx_home.join(CONFIG_TOML_FILE);
     let raw_config = match std::fs::read_to_string(&config_path) {
         Ok(raw_config) => raw_config,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),

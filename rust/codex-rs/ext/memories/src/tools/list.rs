@@ -1,9 +1,9 @@
-use codex_extension_api::JsonToolOutput;
-use codex_extension_api::ToolCall;
-use codex_extension_api::ToolExecutor;
-use codex_extension_api::ToolName;
-use codex_extension_api::ToolSpec;
-use codex_otel::MetricsClient;
+use codepilotx_extension_api::JsonToolOutput;
+use codepilotx_extension_api::ToolCall;
+use codepilotx_extension_api::ToolExecutor;
+use codepilotx_extension_api::ToolName;
+use codepilotx_extension_api::ToolSpec;
+use codepilotx_otel::MetricsClient;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::json;
@@ -54,7 +54,7 @@ where
         )
     }
 
-    fn handle(&self, call: ToolCall) -> codex_extension_api::ToolExecutorFuture<'_> {
+    fn handle(&self, call: ToolCall) -> codepilotx_extension_api::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(call))
     }
 }
@@ -66,7 +66,7 @@ where
     async fn handle_call(
         &self,
         call: ToolCall,
-    ) -> Result<Box<dyn codex_extension_api::ToolOutput>, codex_extension_api::FunctionCallError>
+    ) -> Result<Box<dyn codepilotx_extension_api::ToolOutput>, codepilotx_extension_api::FunctionCallError>
     {
         let backend = self.backend.clone();
         let args: ListArgs = parse_args(&call)?;

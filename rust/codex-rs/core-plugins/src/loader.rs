@@ -15,35 +15,35 @@ use crate::remote::RemoteInstalledPlugin;
 use crate::store::PluginStore;
 use crate::store::plugin_version_for_source;
 use crate::store::plugin_version_for_source_with_fallback_manifest;
-use codex_app_server_protocol::AuthMode;
-use codex_config::ConfigLayerStack;
-use codex_config::HooksFile;
-use codex_config::types::McpServerConfig;
-use codex_config::types::PluginConfig;
-use codex_config::types::PluginMcpServerConfig;
-use codex_core_skills::PluginSkillSnapshots;
-use codex_core_skills::SkillMetadata;
-use codex_core_skills::config_rules::SkillConfigRules;
-use codex_core_skills::config_rules::resolve_disabled_skill_paths;
-use codex_core_skills::config_rules::skill_config_rules_from_stack;
-use codex_core_skills::loader::SkillRoot;
-use codex_core_skills::loader::load_skills_from_roots;
-use codex_exec_server::LOCAL_FS;
-use codex_mcp::PluginMcpServerPlacement;
-use codex_mcp::parse_plugin_mcp_config;
-use codex_plugin::AppConnectorId;
-use codex_plugin::AppDeclaration;
-use codex_plugin::LoadedPlugin;
-use codex_plugin::PluginCapabilitySummary;
-use codex_plugin::PluginHookSource;
-use codex_plugin::PluginId;
-use codex_plugin::PluginIdError;
-use codex_plugin::PluginTelemetryMetadata;
-use codex_plugin::app_connector_ids_from_declarations;
-use codex_protocol::protocol::Product;
-use codex_protocol::protocol::SkillScope;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_plugins::find_plugin_manifest_path;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::HooksFile;
+use codepilotx_config::types::McpServerConfig;
+use codepilotx_config::types::PluginConfig;
+use codepilotx_config::types::PluginMcpServerConfig;
+use codepilotx_core_skills::PluginSkillSnapshots;
+use codepilotx_core_skills::SkillMetadata;
+use codepilotx_core_skills::config_rules::SkillConfigRules;
+use codepilotx_core_skills::config_rules::resolve_disabled_skill_paths;
+use codepilotx_core_skills::config_rules::skill_config_rules_from_stack;
+use codepilotx_core_skills::loader::SkillRoot;
+use codepilotx_core_skills::loader::load_skills_from_roots;
+use codepilotx_exec_server::LOCAL_FS;
+use codepilotx_mcp::PluginMcpServerPlacement;
+use codepilotx_mcp::parse_plugin_mcp_config;
+use codepilotx_plugin::AppConnectorId;
+use codepilotx_plugin::AppDeclaration;
+use codepilotx_plugin::LoadedPlugin;
+use codepilotx_plugin::PluginCapabilitySummary;
+use codepilotx_plugin::PluginHookSource;
+use codepilotx_plugin::PluginId;
+use codepilotx_plugin::PluginIdError;
+use codepilotx_plugin::PluginTelemetryMetadata;
+use codepilotx_plugin::app_connector_ids_from_declarations;
+use codepilotx_protocol::protocol::Product;
+use codepilotx_protocol::protocol::SkillScope;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_plugins::find_plugin_manifest_path;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
@@ -300,13 +300,13 @@ pub fn remote_installed_plugins_to_config(
 }
 
 pub fn refresh_curated_plugin_cache(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     plugin_version: &str,
     configured_curated_plugin_ids: &[PluginId],
 ) -> Result<bool, String> {
     let cache_plugin_version = curated_plugin_cache_version(plugin_version);
-    let store = PluginStore::try_new(codex_home.to_path_buf()).map_err(|err| err.to_string())?;
-    let curated_marketplace_paths = curated_marketplace_paths_for_cache_refresh(codex_home)?;
+    let store = PluginStore::try_new(codepilotx_home.to_path_buf()).map_err(|err| err.to_string())?;
+    let curated_marketplace_paths = curated_marketplace_paths_for_cache_refresh(codepilotx_home)?;
     let mut loaded_marketplace_names = HashSet::<String>::new();
     let mut marketplace_plugin_keys = HashSet::<String>::new();
     let mut plugin_sources = HashMap::<String, AbsolutePathBuf>::new();
@@ -391,17 +391,17 @@ pub fn refresh_curated_plugin_cache(
 }
 
 fn curated_marketplace_paths_for_cache_refresh(
-    codex_home: &Path,
+    codepilotx_home: &Path,
 ) -> Result<Vec<AbsolutePathBuf>, String> {
     let curated_marketplace_path = AbsolutePathBuf::try_from(
-        codex_home
+        codepilotx_home
             .join(".tmp/plugins")
             .join(".agents/plugins/marketplace.json"),
     )
     .map_err(|_| "local curated marketplace is not available".to_string())?;
     let mut paths = vec![curated_marketplace_path];
 
-    let api_marketplace_path = codex_home
+    let api_marketplace_path = codepilotx_home
         .join(".tmp/plugins")
         .join(".agents/plugins/api_marketplace.json");
     if api_marketplace_path.is_file() {
@@ -423,35 +423,35 @@ pub fn curated_plugin_cache_version(plugin_version: &str) -> String {
 }
 
 pub fn refresh_non_curated_plugin_cache(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     additional_roots: &[AbsolutePathBuf],
 ) -> Result<bool, String> {
     refresh_non_curated_plugin_cache_with_mode(
-        codex_home,
+        codepilotx_home,
         additional_roots,
         NonCuratedCacheRefreshMode::IfVersionChanged,
     )
 }
 
 pub fn refresh_non_curated_plugin_cache_force_reinstall(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     additional_roots: &[AbsolutePathBuf],
 ) -> Result<bool, String> {
     refresh_non_curated_plugin_cache_with_mode(
-        codex_home,
+        codepilotx_home,
         additional_roots,
         NonCuratedCacheRefreshMode::ForceReinstall,
     )
 }
 
 fn refresh_non_curated_plugin_cache_with_mode(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     additional_roots: &[AbsolutePathBuf],
     mode: NonCuratedCacheRefreshMode,
 ) -> Result<bool, String> {
     let configured_non_curated_plugin_ids =
-        non_curated_plugin_ids_from_config_keys(configured_plugins_from_codex_home(
-            codex_home,
+        non_curated_plugin_ids_from_config_keys(configured_plugins_from_codepilotx_home(
+            codepilotx_home,
             "failed to read user config while refreshing non-curated plugin cache",
             "failed to parse user config while refreshing non-curated plugin cache",
         ));
@@ -463,7 +463,7 @@ fn refresh_non_curated_plugin_cache_with_mode(
         .map(PluginId::as_key)
         .collect::<HashSet<_>>();
 
-    let store = PluginStore::try_new(codex_home.to_path_buf()).map_err(|err| err.to_string())?;
+    let store = PluginStore::try_new(codepilotx_home.to_path_buf()).map_err(|err| err.to_string())?;
     let marketplace_outcome = list_marketplaces(additional_roots)
         .map_err(|err| format!("failed to discover marketplaces for cache refresh: {err}"))?;
     let mut plugin_sources = HashMap::<String, (MarketplacePluginSource, Option<String>)>::new();
@@ -528,7 +528,7 @@ fn refresh_non_curated_plugin_cache_with_mode(
             continue;
         };
         let materialized =
-            materialize_marketplace_plugin_source(codex_home, &source).map_err(|err| {
+            materialize_marketplace_plugin_source(codepilotx_home, &source).map_err(|err| {
                 format!("failed to materialize plugin source for {plugin_key}: {err}")
             })?;
         let source_path = materialized.path.clone();
@@ -591,12 +591,12 @@ fn configured_plugins_from_user_config_value(
     }
 }
 
-fn configured_plugins_from_codex_home(
-    codex_home: &Path,
+fn configured_plugins_from_codepilotx_home(
+    codepilotx_home: &Path,
     read_error_message: &str,
     parse_error_message: &str,
 ) -> HashMap<String, PluginConfig> {
-    let config_path = codex_home.join(CONFIG_TOML_FILE);
+    let config_path = codepilotx_home.join(CONFIG_TOML_FILE);
     let user_config = match fs::read_to_string(&config_path) {
         Ok(user_config) => user_config,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => return HashMap::new(),
@@ -673,9 +673,9 @@ fn non_curated_plugin_ids_from_config_keys(
     configured_non_curated_plugin_ids
 }
 
-pub fn configured_curated_plugin_ids_from_codex_home(codex_home: &Path) -> Vec<PluginId> {
-    curated_plugin_ids_from_config_keys(configured_plugins_from_codex_home(
-        codex_home,
+pub fn configured_curated_plugin_ids_from_codepilotx_home(codepilotx_home: &Path) -> Vec<PluginId> {
+    curated_plugin_ids_from_config_keys(configured_plugins_from_codepilotx_home(
+        codepilotx_home,
         "failed to read user config while refreshing curated plugin cache",
         "failed to parse user config while refreshing curated plugin cache",
     ))
@@ -1280,10 +1280,10 @@ pub(crate) async fn load_plugin_mcp_servers_from_manifest(
 }
 
 pub async fn installed_plugin_telemetry_metadata(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     plugin_id: &PluginId,
 ) -> PluginTelemetryMetadata {
-    let store = match PluginStore::try_new(codex_home.to_path_buf()) {
+    let store = match PluginStore::try_new(codepilotx_home.to_path_buf()) {
         Ok(store) => store,
         Err(err) => {
             warn!("failed to resolve plugin cache root: {err}");
@@ -1372,7 +1372,7 @@ pub struct MaterializedMarketplacePluginSource {
 }
 
 pub fn materialize_marketplace_plugin_source(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     source: &MarketplacePluginSource,
 ) -> Result<MaterializedMarketplacePluginSource, String> {
     match source {
@@ -1386,7 +1386,7 @@ pub fn materialize_marketplace_plugin_source(
             ref_name,
             sha,
         } => {
-            let staging_root = codex_home.join("plugins/.marketplace-plugin-source-staging");
+            let staging_root = codepilotx_home.join("plugins/.marketplace-plugin-source-staging");
             fs::create_dir_all(&staging_root).map_err(|err| {
                 format!(
                     "failed to create marketplace plugin source staging directory {}: {err}",

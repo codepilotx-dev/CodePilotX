@@ -6,14 +6,14 @@ use std::path::Path;
 
 use crate::model::SkillLoadOutcome;
 use crate::model::SkillMetadata;
-use codex_otel::SessionTelemetry;
-use codex_otel::THREAD_SKILLS_DESCRIPTION_TRUNCATED_CHARS_METRIC;
-use codex_otel::THREAD_SKILLS_ENABLED_TOTAL_METRIC;
-use codex_otel::THREAD_SKILLS_KEPT_TOTAL_METRIC;
-use codex_otel::THREAD_SKILLS_TRUNCATED_METRIC;
-use codex_protocol::protocol::SkillScope;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_output_truncation::approx_token_count;
+use codepilotx_otel::SessionTelemetry;
+use codepilotx_otel::THREAD_SKILLS_DESCRIPTION_TRUNCATED_CHARS_METRIC;
+use codepilotx_otel::THREAD_SKILLS_ENABLED_TOTAL_METRIC;
+use codepilotx_otel::THREAD_SKILLS_KEPT_TOTAL_METRIC;
+use codepilotx_otel::THREAD_SKILLS_TRUNCATED_METRIC;
+use codepilotx_protocol::protocol::SkillScope;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_output_truncation::approx_token_count;
 
 const DEFAULT_SKILL_METADATA_CHAR_BUDGET: usize = 8_000;
 const SKILL_METADATA_CONTEXT_WINDOW_PERCENT: usize = 2;
@@ -932,8 +932,8 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use codepilotx_utils_absolute_path::test_support::PathBufExt;
+    use codepilotx_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
 
     fn make_skill(name: &str, scope: SkillScope) -> SkillMetadata {

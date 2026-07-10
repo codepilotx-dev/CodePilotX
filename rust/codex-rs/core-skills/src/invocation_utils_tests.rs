@@ -4,9 +4,9 @@ use super::canonicalize_if_exists;
 use super::detect_skill_doc_read;
 use super::detect_skill_script_run;
 use super::script_run_token;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::test_support::PathBufExt;
-use codex_utils_absolute_path::test_support::test_path_buf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::test_support::PathBufExt;
+use codepilotx_utils_absolute_path::test_support::test_path_buf;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -20,7 +20,7 @@ fn test_skill_metadata(skill_doc_path: AbsolutePathBuf) -> SkillMetadata {
         dependencies: None,
         policy: None,
         path_to_skills_md: skill_doc_path,
-        scope: codex_protocol::protocol::SkillScope::User,
+        scope: codepilotx_protocol::protocol::SkillScope::User,
         plugin_id: None,
     }
 }

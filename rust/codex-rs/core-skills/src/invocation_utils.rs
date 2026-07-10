@@ -3,9 +3,9 @@ use std::path::Path;
 
 use crate::SkillLoadOutcome;
 use crate::SkillMetadata;
-use codex_protocol::parse_command::ParsedCommand;
-use codex_shell_command::parse_command::parse_command_impl;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_protocol::parse_command::ParsedCommand;
+use codepilotx_shell_command::parse_command::parse_command_impl;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 pub(crate) fn build_implicit_skill_path_indexes(
     skills: Vec<SkillMetadata>,

@@ -1,12 +1,12 @@
 use super::*;
-use codex_execpolicy::Decision;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::test_support::test_path_buf;
+use codepilotx_execpolicy::Decision;
+use codepilotx_protocol::permissions::FileSystemAccessMode;
+use codepilotx_protocol::permissions::FileSystemPath;
+use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+use codepilotx_protocol::permissions::FileSystemSandboxPolicy;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::test_support::test_path_buf;
 use pretty_assertions::assert_eq;
 use std::path::PathBuf;
 
@@ -94,7 +94,7 @@ fn builds_permissions_from_profile_with_denied_reads() {
         &FileSystemSandboxPolicy::restricted(vec![
             FileSystemSandboxEntry {
                 path: FileSystemPath::Special {
-                    value: codex_protocol::permissions::FileSystemSpecialPath::Root,
+                    value: codepilotx_protocol::permissions::FileSystemSpecialPath::Root,
                 },
                 access: FileSystemAccessMode::Read,
             },

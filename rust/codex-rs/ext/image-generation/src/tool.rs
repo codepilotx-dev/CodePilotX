@@ -1,39 +1,39 @@
 use std::collections::HashSet;
 
-use codex_api::ImageBackground;
-use codex_api::ImageEditRequest;
-use codex_api::ImageGenerationRequest;
-use codex_api::ImageQuality;
-use codex_api::ImageUrl;
-use codex_core::context::extension_image_generation_output_hint;
-use codex_core::image_generation_artifact_path;
-use codex_extension_api::ExtensionTurnItem;
-use codex_extension_api::FunctionCallError;
-use codex_extension_api::ToolCall;
-use codex_extension_api::ToolEnvironment;
-use codex_extension_api::ToolExecutor;
-use codex_extension_api::ToolName;
-use codex_extension_api::ToolOutput;
-use codex_extension_api::ToolPayload;
-use codex_extension_api::ToolSpec;
-use codex_extension_api::parse_tool_input_schema;
-use codex_protocol::items::ImageGenerationItem;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::DEFAULT_IMAGE_DETAIL;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_tools::ResponsesApiNamespace;
-use codex_tools::ResponsesApiNamespaceTool;
-use codex_tools::ResponsesApiTool;
-use codex_tools::ToolExposure;
-use codex_tools::default_namespace_description;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_image::PromptImageMode;
-use codex_utils_image::load_for_prompt_bytes;
-use codex_utils_path_uri::PathUri;
+use codepilotx_api::ImageBackground;
+use codepilotx_api::ImageEditRequest;
+use codepilotx_api::ImageGenerationRequest;
+use codepilotx_api::ImageQuality;
+use codepilotx_api::ImageUrl;
+use codepilotx_core::context::extension_image_generation_output_hint;
+use codepilotx_core::image_generation_artifact_path;
+use codepilotx_extension_api::ExtensionTurnItem;
+use codepilotx_extension_api::FunctionCallError;
+use codepilotx_extension_api::ToolCall;
+use codepilotx_extension_api::ToolEnvironment;
+use codepilotx_extension_api::ToolExecutor;
+use codepilotx_extension_api::ToolName;
+use codepilotx_extension_api::ToolOutput;
+use codepilotx_extension_api::ToolPayload;
+use codepilotx_extension_api::ToolSpec;
+use codepilotx_extension_api::parse_tool_input_schema;
+use codepilotx_protocol::items::ImageGenerationItem;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::DEFAULT_IMAGE_DETAIL;
+use codepilotx_protocol::models::FunctionCallOutputBody;
+use codepilotx_protocol::models::FunctionCallOutputContentItem;
+use codepilotx_protocol::models::FunctionCallOutputPayload;
+use codepilotx_protocol::models::ResponseInputItem;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_tools::ResponsesApiNamespace;
+use codepilotx_tools::ResponsesApiNamespaceTool;
+use codepilotx_tools::ResponsesApiTool;
+use codepilotx_tools::ToolExposure;
+use codepilotx_tools::default_namespace_description;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_image::PromptImageMode;
+use codepilotx_utils_image::load_for_prompt_bytes;
+use codepilotx_utils_path_uri::PathUri;
 use schemars::JsonSchema;
 use schemars::r#gen::SchemaSettings;
 use serde::Deserialize;
@@ -51,7 +51,7 @@ const IMAGEGEN_DESCRIPTION: &str = include_str!("../imagegen_description.md");
 #[derive(Clone)]
 pub(crate) struct ImageGenerationTool {
     backend: CodexImagesBackend,
-    codex_home: AbsolutePathBuf,
+    codepilotx_home: AbsolutePathBuf,
     thread_id: String,
 }
 
@@ -59,12 +59,12 @@ impl ImageGenerationTool {
     /// Creates an image-generation tool backed by an image API executor.
     pub(crate) fn new(
         backend: CodexImagesBackend,
-        codex_home: AbsolutePathBuf,
+        codepilotx_home: AbsolutePathBuf,
         thread_id: String,
     ) -> Self {
         Self {
             backend,
-            codex_home,
+            codepilotx_home,
             thread_id,
         }
     }
@@ -97,7 +97,7 @@ impl ToolExecutor<ToolCall> for ImageGenerationTool {
     }
 
     /// Executes the selected image operation and returns the completed image result.
-    fn handle(&self, call: ToolCall) -> codex_extension_api::ToolExecutorFuture<'_> {
+    fn handle(&self, call: ToolCall) -> codepilotx_extension_api::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(call))
     }
 }
@@ -155,10 +155,10 @@ impl ImageGenerationTool {
             }))
             .await;
         let output_path =
-            image_generation_artifact_path(&self.codex_home, &self.thread_id, &call.call_id);
+            image_generation_artifact_path(&self.codepilotx_home, &self.thread_id, &call.call_id);
         let output_dir = output_path
             .parent()
-            .unwrap_or_else(|| self.codex_home.clone());
+            .unwrap_or_else(|| self.codepilotx_home.clone());
         let output_hint =
             extension_image_generation_output_hint(output_dir.display(), output_path.display());
         Ok(Box::new(GeneratedImageOutput {

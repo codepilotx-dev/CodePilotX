@@ -1,9 +1,9 @@
 use super::*;
-use codex_app_server_protocol::PluginAuthPolicy;
-use codex_app_server_protocol::PluginInstallPolicy;
-use codex_app_server_protocol::PluginInterface;
-use codex_login::CodexAuth;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::PluginAuthPolicy;
+use codepilotx_app_server_protocol::PluginInstallPolicy;
+use codepilotx_app_server_protocol::PluginInterface;
+use codepilotx_login::CodexAuth;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -51,12 +51,12 @@ fn write_test_plugin(root: &Path, plugin_name: &str) -> PathBuf {
 }
 
 fn write_plugin_share_local_path_mapping(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     remote_plugin_id: &str,
     plugin_path: &AbsolutePathBuf,
 ) {
     write_file(
-        &codex_home.join(".tmp/plugin-share-local-paths-v1.json"),
+        &codepilotx_home.join(".tmp/plugin-share-local-paths-v1.json"),
         &format!(
             "{}\n",
             serde_json::to_string_pretty(&json!({
@@ -164,7 +164,7 @@ fn expected_plugin_interface() -> PluginInterface {
 
 #[tokio::test]
 async fn save_remote_plugin_share_creates_workspace_plugin() {
-    let codex_home = TempDir::new().unwrap();
+    let codepilotx_home = TempDir::new().unwrap();
     let temp_dir = TempDir::new().unwrap();
     let plugin_path =
         AbsolutePathBuf::try_from(write_test_plugin(temp_dir.path(), "demo-plugin")).unwrap();
@@ -232,7 +232,7 @@ async fn save_remote_plugin_share_creates_workspace_plugin() {
     let result = save_remote_plugin_share(
         &config,
         Some(&auth),
-        codex_home.path(),
+        codepilotx_home.path(),
         &plugin_path,
         /*remote_plugin_id*/ None,
         RemotePluginShareAccessPolicy {
@@ -255,7 +255,7 @@ async fn save_remote_plugin_share_creates_workspace_plugin() {
         }
     );
     assert_eq!(
-        local_paths::load_plugin_share_local_paths(codex_home.path()).unwrap(),
+        local_paths::load_plugin_share_local_paths(codepilotx_home.path()).unwrap(),
         BTreeMap::from([("plugins_123".to_string(), plugin_path)])
     );
 
@@ -356,7 +356,7 @@ fn archive_plugin_for_upload_round_trips_through_plugin_bundle_archive_with_long
 
 #[tokio::test]
 async fn save_remote_plugin_share_updates_existing_workspace_plugin() {
-    let codex_home = TempDir::new().unwrap();
+    let codepilotx_home = TempDir::new().unwrap();
     let temp_dir = TempDir::new().unwrap();
     let plugin_path =
         AbsolutePathBuf::try_from(write_test_plugin(temp_dir.path(), "demo-plugin")).unwrap();
@@ -405,7 +405,7 @@ async fn save_remote_plugin_share_updates_existing_workspace_plugin() {
     let result = save_remote_plugin_share(
         &config,
         Some(&auth),
-        codex_home.path(),
+        codepilotx_home.path(),
         &plugin_path,
         Some("plugins_123"),
         RemotePluginShareAccessPolicy::default(),
@@ -518,10 +518,10 @@ async fn update_remote_plugin_share_targets_updates_targets() {
 
 #[tokio::test]
 async fn list_remote_plugin_shares_fetches_created_workspace_plugins() {
-    let codex_home = TempDir::new().unwrap();
+    let codepilotx_home = TempDir::new().unwrap();
     let local_plugin_path =
-        AbsolutePathBuf::try_from(codex_home.path().join("local-plugin")).unwrap();
-    write_plugin_share_local_path_mapping(codex_home.path(), "plugins_123", &local_plugin_path);
+        AbsolutePathBuf::try_from(codepilotx_home.path().join("local-plugin")).unwrap();
+    write_plugin_share_local_path_mapping(codepilotx_home.path(), "plugins_123", &local_plugin_path);
     let server = MockServer::start().await;
     let config = test_config(&server);
     let auth = test_auth();
@@ -605,7 +605,7 @@ async fn list_remote_plugin_shares_fetches_created_workspace_plugins() {
         .mount(&server)
         .await;
 
-    let result = list_remote_plugin_shares(&config, Some(&auth), codex_home.path())
+    let result = list_remote_plugin_shares(&config, Some(&auth), codepilotx_home.path())
         .await
         .unwrap();
 
@@ -694,10 +694,10 @@ async fn list_remote_plugin_shares_fetches_created_workspace_plugins() {
 
 #[tokio::test]
 async fn delete_remote_plugin_share_deletes_workspace_plugin() {
-    let codex_home = TempDir::new().unwrap();
+    let codepilotx_home = TempDir::new().unwrap();
     let local_plugin_path =
-        AbsolutePathBuf::try_from(codex_home.path().join("local-plugin")).unwrap();
-    write_plugin_share_local_path_mapping(codex_home.path(), "plugins_123", &local_plugin_path);
+        AbsolutePathBuf::try_from(codepilotx_home.path().join("local-plugin")).unwrap();
+    write_plugin_share_local_path_mapping(codepilotx_home.path(), "plugins_123", &local_plugin_path);
     let server = MockServer::start().await;
     let config = test_config(&server);
     let auth = test_auth();
@@ -711,11 +711,11 @@ async fn delete_remote_plugin_share_deletes_workspace_plugin() {
         .mount(&server)
         .await;
 
-    delete_remote_plugin_share(&config, Some(&auth), codex_home.path(), "plugins_123")
+    delete_remote_plugin_share(&config, Some(&auth), codepilotx_home.path(), "plugins_123")
         .await
         .unwrap();
     assert_eq!(
-        local_paths::load_plugin_share_local_paths(codex_home.path()).unwrap(),
+        local_paths::load_plugin_share_local_paths(codepilotx_home.path()).unwrap(),
         BTreeMap::new()
     );
 }

@@ -1,5 +1,5 @@
 use super::*;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use tempfile::tempdir;
 use tokio::fs as tokio_fs;
@@ -7,8 +7,8 @@ use tokio::fs as tokio_fs;
 #[tokio::test]
 async fn build_memory_tool_developer_instructions_renders_embedded_template() {
     let temp = tempdir().unwrap();
-    let codex_home = AbsolutePathBuf::from_absolute_path(temp.path()).unwrap();
-    let memories_dir = codex_home.join("memories");
+    let codepilotx_home = AbsolutePathBuf::from_absolute_path(temp.path()).unwrap();
+    let memories_dir = codepilotx_home.join("memories");
     tokio_fs::create_dir_all(&memories_dir).await.unwrap();
     tokio_fs::write(
         memories_dir.join("memory_summary.md"),
@@ -17,7 +17,7 @@ async fn build_memory_tool_developer_instructions_renders_embedded_template() {
     .await
     .unwrap();
 
-    let instructions = build_memory_tool_developer_instructions(&codex_home)
+    let instructions = build_memory_tool_developer_instructions(&codepilotx_home)
         .await
         .unwrap();
 

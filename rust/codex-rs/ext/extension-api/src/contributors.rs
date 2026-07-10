@@ -2,12 +2,12 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use codex_context_fragments::ContextualUserFragment;
-use codex_protocol::items::TurnItem;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_tools::ToolCall;
-use codex_tools::ToolExecutor;
+use codepilotx_context_fragments::ContextualUserFragment;
+use codepilotx_protocol::items::TurnItem;
+use codepilotx_protocol::protocol::ReviewDecision;
+use codepilotx_protocol::protocol::TokenUsageInfo;
+use codepilotx_tools::ToolCall;
+use codepilotx_tools::ToolExecutor;
 
 use crate::ExtensionData;
 

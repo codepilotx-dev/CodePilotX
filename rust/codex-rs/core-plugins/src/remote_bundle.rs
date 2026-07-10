@@ -5,11 +5,11 @@ use crate::store::PluginInstallResult;
 use crate::store::PluginStore;
 use crate::store::PluginStoreError;
 use crate::store::validate_plugin_version_segment;
-use codex_login::default_client::build_reqwest_client;
-use codex_plugin::PluginId;
-use codex_plugin::PluginIdError;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_plugins::find_plugin_manifest_path;
+use codepilotx_login::default_client::build_reqwest_client;
+use codepilotx_plugin::PluginId;
+use codepilotx_plugin::PluginIdError;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_plugins::find_plugin_manifest_path;
 use reqwest::Response;
 use reqwest::StatusCode;
 use serde_json::Value as JsonValue;
@@ -28,7 +28,7 @@ const REMOTE_PLUGIN_BUNDLE_MAX_EXTRACTED_BYTES: u64 = 250 * 1024 * 1024;
 const REMOTE_PLUGIN_INSTALL_STAGING_DIR: &str = "plugins/.remote-plugin-install-staging";
 #[cfg(debug_assertions)]
 const TEST_ALLOW_LOOPBACK_HTTP_REMOTE_PLUGIN_BUNDLES_ENV: &str =
-    "CODEX_TEST_ALLOW_HTTP_REMOTE_PLUGIN_BUNDLE_DOWNLOADS";
+    "codepilotx_TEST_ALLOW_HTTP_REMOTE_PLUGIN_BUNDLE_DOWNLOADS";
 
 #[derive(Debug, Clone)]
 pub struct ValidatedRemotePluginBundle {
@@ -224,7 +224,7 @@ fn is_loopback_url(url: &Url) -> bool {
 }
 
 pub async fn download_and_install_remote_plugin_bundle(
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     bundle: ValidatedRemotePluginBundle,
 ) -> Result<PluginInstallResult, RemotePluginBundleInstallError> {
     let bundle_bytes = download_remote_plugin_bundle_with_limit(
@@ -233,7 +233,7 @@ pub async fn download_and_install_remote_plugin_bundle(
     )
     .await?;
     tokio::task::spawn_blocking(move || {
-        install_remote_plugin_bundle(codex_home, bundle, bundle_bytes)
+        install_remote_plugin_bundle(codepilotx_home, bundle, bundle_bytes)
     })
     .await
     .map_err(|err| {
@@ -372,11 +372,11 @@ fn enforce_download_size_limit(
 }
 
 fn install_remote_plugin_bundle(
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     bundle: ValidatedRemotePluginBundle,
     bundle_bytes: Vec<u8>,
 ) -> Result<PluginInstallResult, RemotePluginBundleInstallError> {
-    let staging_root = codex_home.join(REMOTE_PLUGIN_INSTALL_STAGING_DIR);
+    let staging_root = codepilotx_home.join(REMOTE_PLUGIN_INSTALL_STAGING_DIR);
     fs::create_dir_all(&staging_root).map_err(|source| {
         RemotePluginBundleInstallError::io(
             "failed to create remote plugin bundle staging directory",
@@ -402,7 +402,7 @@ fn install_remote_plugin_bundle(
         ))
     })?;
 
-    let store = PluginStore::try_new(codex_home)?;
+    let store = PluginStore::try_new(codepilotx_home)?;
     store
         .install_with_version(plugin_root, bundle.plugin_id, bundle.plugin_version)
         .map_err(RemotePluginBundleInstallError::from)
@@ -715,11 +715,11 @@ mod tests {
 
     #[test]
     fn install_rejects_invalid_tar_gz_bundle() {
-        let codex_home = tempdir().expect("tempdir");
+        let codepilotx_home = tempdir().expect("tempdir");
         let bundle = valid_remote_plugin_bundle();
 
         let err = install_remote_plugin_bundle(
-            codex_home.path().to_path_buf(),
+            codepilotx_home.path().to_path_buf(),
             bundle,
             b"not a tar.gz".to_vec(),
         )
@@ -730,11 +730,11 @@ mod tests {
 
     #[test]
     fn install_rejects_bundle_without_standard_plugin_root() {
-        let codex_home = tempdir().expect("tempdir");
+        let codepilotx_home = tempdir().expect("tempdir");
         let bundle = valid_remote_plugin_bundle();
 
         let err = install_remote_plugin_bundle(
-            codex_home.path().to_path_buf(),
+            codepilotx_home.path().to_path_buf(),
             bundle,
             tar_gz_bytes(&[("README.md", b"missing plugin manifest", /*mode*/ 0o644)]),
         )
@@ -747,7 +747,7 @@ mod tests {
 
     #[test]
     fn install_preserves_non_global_bundle_manifest_metadata() {
-        let codex_home = tempdir().expect("tempdir");
+        let codepilotx_home = tempdir().expect("tempdir");
         let bundle = validate_remote_plugin_bundle(
             REMOTE_PLUGIN_ID,
             "workspace-shared-with-me",
@@ -765,7 +765,7 @@ mod tests {
         .expect("valid install plan");
 
         let result = install_remote_plugin_bundle(
-            codex_home.path().to_path_buf(),
+            codepilotx_home.path().to_path_buf(),
             bundle,
             tar_gz_bytes(&[
                 (

@@ -2,10 +2,10 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
-use codex_extension_api::ContextContributor;
-use codex_extension_api::ExtensionData;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::PromptFragment;
+use codepilotx_extension_api::ContextContributor;
+use codepilotx_extension_api::ExtensionData;
+use codepilotx_extension_api::ExtensionRegistryBuilder;
+use codepilotx_extension_api::PromptFragment;
 
 /// Installs the tutorial contributors used by the example host.
 pub fn install(registry: &mut ExtensionRegistryBuilder<()>) {

@@ -1,6 +1,6 @@
 use crate::installed_marketplaces::marketplace_install_root;
 use crate::is_openai_curated_marketplace_name;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -48,10 +48,10 @@ pub enum MarketplaceAddError {
 }
 
 pub async fn add_marketplace(
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     request: MarketplaceAddRequest,
 ) -> Result<MarketplaceAddOutcome, MarketplaceAddError> {
-    tokio::task::spawn_blocking(move || add_marketplace_sync(codex_home.as_path(), request))
+    tokio::task::spawn_blocking(move || add_marketplace_sync(codepilotx_home.as_path(), request))
         .await
         .map_err(|err| MarketplaceAddError::Internal(format!("failed to add marketplace: {err}")))?
 }
@@ -67,14 +67,14 @@ pub fn is_local_marketplace_source(
 }
 
 fn add_marketplace_sync(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     request: MarketplaceAddRequest,
 ) -> Result<MarketplaceAddOutcome, MarketplaceAddError> {
-    add_marketplace_sync_with_cloner(codex_home, request, clone_git_source)
+    add_marketplace_sync_with_cloner(codepilotx_home, request, clone_git_source)
 }
 
 fn add_marketplace_sync_with_cloner<F>(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     request: MarketplaceAddRequest,
     clone_source: F,
 ) -> Result<MarketplaceAddOutcome, MarketplaceAddError>
@@ -93,7 +93,7 @@ where
         ));
     }
 
-    let install_root = marketplace_install_root(codex_home);
+    let install_root = marketplace_install_root(codepilotx_home);
     fs::create_dir_all(&install_root).map_err(|err| {
         MarketplaceAddError::Internal(format!(
             "failed to create marketplace install directory {}: {err}",
@@ -103,10 +103,10 @@ where
 
     let install_metadata = MarketplaceInstallMetadata::from_source(&source, &sparse_paths);
     if let Some(existing_root) =
-        installed_marketplace_root_for_source(codex_home, &install_root, &install_metadata)?
+        installed_marketplace_root_for_source(codepilotx_home, &install_root, &install_metadata)?
     {
         let marketplace_name = validate_marketplace_source_root(&existing_root)?;
-        record_added_marketplace_entry(codex_home, &marketplace_name, &install_metadata)?;
+        record_added_marketplace_entry(codepilotx_home, &marketplace_name, &install_metadata)?;
         return Ok(MarketplaceAddOutcome {
             marketplace_name,
             source_display: source.display(),
@@ -126,12 +126,12 @@ where
                 "marketplace '{marketplace_name}' is reserved and cannot be added from this source"
             )));
         }
-        if find_marketplace_root_by_name(codex_home, &install_root, &marketplace_name)?.is_some() {
+        if find_marketplace_root_by_name(codepilotx_home, &install_root, &marketplace_name)?.is_some() {
             return Err(MarketplaceAddError::InvalidRequest(format!(
                 "marketplace '{marketplace_name}' is already added from a different source; remove it before adding this source"
             )));
         }
-        record_added_marketplace_entry(codex_home, &marketplace_name, &install_metadata)?;
+        record_added_marketplace_entry(codepilotx_home, &marketplace_name, &install_metadata)?;
         return Ok(MarketplaceAddOutcome {
             marketplace_name,
             source_display: source.display(),
@@ -186,7 +186,7 @@ where
         ))
     })?;
     if let Err(err) =
-        record_added_marketplace_entry(codex_home, &marketplace_name, &install_metadata)
+        record_added_marketplace_entry(codepilotx_home, &marketplace_name, &install_metadata)
     {
         if let Err(rollback_err) = fs::rename(&destination, &staged_root) {
             return Err(MarketplaceAddError::Internal(format!(
@@ -218,12 +218,12 @@ mod tests {
 
     #[test]
     fn add_marketplace_sync_installs_marketplace_and_updates_config() -> Result<()> {
-        let codex_home = TempDir::new()?;
+        let codepilotx_home = TempDir::new()?;
         let source_root = TempDir::new()?;
         write_marketplace_source(source_root.path(), "remote copy")?;
 
         let result = add_marketplace_sync_with_cloner(
-            codex_home.path(),
+            codepilotx_home.path(),
             MarketplaceAddRequest {
                 source: "https://github.com/owner/repo.git".to_string(),
                 ref_name: None,
@@ -246,7 +246,7 @@ mod tests {
                 .is_file()
         );
 
-        let config = fs::read_to_string(codex_home.path().join(codex_config::CONFIG_TOML_FILE))?;
+        let config = fs::read_to_string(codepilotx_home.path().join(codepilotx_config::CONFIG_TOML_FILE))?;
         assert!(config.contains("[marketplaces.debug]"));
         assert!(config.contains("source_type = \"git\""));
         assert!(config.contains("source = \"https://github.com/owner/repo.git\""));
@@ -255,12 +255,12 @@ mod tests {
 
     #[test]
     fn add_marketplace_sync_installs_local_directory_source_and_updates_config() -> Result<()> {
-        let codex_home = TempDir::new()?;
+        let codepilotx_home = TempDir::new()?;
         let source_root = TempDir::new()?;
         write_marketplace_source(source_root.path(), "local copy")?;
 
         let result = add_marketplace_sync_with_cloner(
-            codex_home.path(),
+            codepilotx_home.path(),
             MarketplaceAddRequest {
                 source: source_root.path().display().to_string(),
                 ref_name: None,
@@ -279,12 +279,12 @@ mod tests {
         assert_eq!(result.installed_root, expected_installed_root);
         assert!(!result.already_added);
         assert!(
-            !marketplace_install_root(codex_home.path())
+            !marketplace_install_root(codepilotx_home.path())
                 .join("debug")
                 .exists()
         );
 
-        let config = fs::read_to_string(codex_home.path().join(codex_config::CONFIG_TOML_FILE))?;
+        let config = fs::read_to_string(codepilotx_home.path().join(codepilotx_config::CONFIG_TOML_FILE))?;
         let config: toml::Value = toml::from_str(&config)?;
         assert_eq!(
             config["marketplaces"]["debug"]["source_type"].as_str(),
@@ -299,12 +299,12 @@ mod tests {
 
     #[test]
     fn add_marketplace_sync_rejects_sparse_checkout_for_local_directory_source() -> Result<()> {
-        let codex_home = TempDir::new()?;
+        let codepilotx_home = TempDir::new()?;
         let source_root = TempDir::new()?;
         write_marketplace_source(source_root.path(), "local copy")?;
 
         let err = add_marketplace_sync_with_cloner(
-            codex_home.path(),
+            codepilotx_home.path(),
             MarketplaceAddRequest {
                 source: source_root.path().display().to_string(),
                 ref_name: None,
@@ -321,9 +321,9 @@ mod tests {
             "--sparse is only supported for git marketplace sources"
         );
         assert!(
-            !codex_home
+            !codepilotx_home
                 .path()
-                .join(codex_config::CONFIG_TOML_FILE)
+                .join(codepilotx_config::CONFIG_TOML_FILE)
                 .exists()
         );
         Ok(())
@@ -332,7 +332,7 @@ mod tests {
     #[test]
     fn add_marketplace_sync_treats_existing_local_directory_source_as_already_added() -> Result<()>
     {
-        let codex_home = TempDir::new()?;
+        let codepilotx_home = TempDir::new()?;
         let source_root = TempDir::new()?;
         write_marketplace_source(source_root.path(), "local copy")?;
 
@@ -341,12 +341,12 @@ mod tests {
             ref_name: None,
             sparse_paths: Vec::new(),
         };
-        let first_result = add_marketplace_sync_with_cloner(codex_home.path(), request.clone(), {
+        let first_result = add_marketplace_sync_with_cloner(codepilotx_home.path(), request.clone(), {
             |_url, _ref_name, _sparse_paths, _destination| {
                 panic!("git cloner should not be called for local marketplace sources")
             }
         })?;
-        let second_result = add_marketplace_sync_with_cloner(codex_home.path(), request, {
+        let second_result = add_marketplace_sync_with_cloner(codepilotx_home.path(), request, {
             |_url, _ref_name, _sparse_paths, _destination| {
                 panic!("git cloner should not be called for local marketplace sources")
             }

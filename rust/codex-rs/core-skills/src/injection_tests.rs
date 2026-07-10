@@ -1,7 +1,7 @@
 use super::*;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::test_support::PathBufExt;
-use codex_utils_absolute_path::test_support::test_path_buf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::test_support::PathBufExt;
+use codepilotx_utils_absolute_path::test_support::test_path_buf;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -15,7 +15,7 @@ fn make_skill(name: &str, path: &str) -> SkillMetadata {
         dependencies: None,
         policy: None,
         path_to_skills_md: test_path_buf(path).abs(),
-        scope: codex_protocol::protocol::SkillScope::User,
+        scope: codepilotx_protocol::protocol::SkillScope::User,
         plugin_id: None,
     }
 }

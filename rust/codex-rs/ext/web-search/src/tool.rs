@@ -1,27 +1,27 @@
-use codex_api::ReqwestTransport;
-use codex_api::SearchClient;
-use codex_api::SearchCommands;
-use codex_api::SearchQuery;
-use codex_api::SearchRequest;
-use codex_api::SearchSettings;
-use codex_core::web_search_action_detail;
-use codex_extension_api::ExtensionTurnItem;
-use codex_extension_api::FunctionCallError;
-use codex_extension_api::ResponsesApiTool;
-use codex_extension_api::ToolCall;
-use codex_extension_api::ToolExecutor;
-use codex_extension_api::ToolName;
-use codex_extension_api::ToolOutput;
-use codex_extension_api::ToolSpec;
-use codex_extension_api::parse_tool_input_schema_without_compaction;
-use codex_login::default_client::build_reqwest_client;
-use codex_model_provider::SharedModelProvider;
-use codex_protocol::items::WebSearchItem;
-use codex_protocol::models::WebSearchAction;
-use codex_tools::ResponsesApiNamespace;
-use codex_tools::ResponsesApiNamespaceTool;
-use codex_tools::ToolExposure;
-use codex_tools::default_namespace_description;
+use codepilotx_api::ReqwestTransport;
+use codepilotx_api::SearchClient;
+use codepilotx_api::SearchCommands;
+use codepilotx_api::SearchQuery;
+use codepilotx_api::SearchRequest;
+use codepilotx_api::SearchSettings;
+use codepilotx_core::web_search_action_detail;
+use codepilotx_extension_api::ExtensionTurnItem;
+use codepilotx_extension_api::FunctionCallError;
+use codepilotx_extension_api::ResponsesApiTool;
+use codepilotx_extension_api::ToolCall;
+use codepilotx_extension_api::ToolExecutor;
+use codepilotx_extension_api::ToolName;
+use codepilotx_extension_api::ToolOutput;
+use codepilotx_extension_api::ToolSpec;
+use codepilotx_extension_api::parse_tool_input_schema_without_compaction;
+use codepilotx_login::default_client::build_reqwest_client;
+use codepilotx_model_provider::SharedModelProvider;
+use codepilotx_protocol::items::WebSearchItem;
+use codepilotx_protocol::models::WebSearchAction;
+use codepilotx_tools::ResponsesApiNamespace;
+use codepilotx_tools::ResponsesApiNamespaceTool;
+use codepilotx_tools::ToolExposure;
+use codepilotx_tools::default_namespace_description;
 use http::HeaderMap;
 use url::Url;
 
@@ -73,7 +73,7 @@ impl ToolExecutor<ToolCall> for WebSearchTool {
         true
     }
 
-    fn handle(&self, call: ToolCall) -> codex_extension_api::ToolExecutorFuture<'_> {
+    fn handle(&self, call: ToolCall) -> codepilotx_extension_api::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(call))
     }
 }
@@ -190,8 +190,8 @@ fn web_search_item(call_id: &str, action: WebSearchAction) -> ExtensionTurnItem 
 
 #[cfg(test)]
 mod tests {
-    use codex_api::SearchCommands;
-    use codex_protocol::models::WebSearchAction;
+    use codepilotx_api::SearchCommands;
+    use codepilotx_protocol::models::WebSearchAction;
     use pretty_assertions::assert_eq;
 
     use super::command_action;

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use crate::metadata::connector_install_url;
 use crate::metadata::sort_connectors_by_accessibility_and_name;
-use codex_app_server_protocol::AppInfo;
+use codepilotx_app_server_protocol::AppInfo;
 
 pub fn merge_connectors(
     connectors: Vec<AppInfo>,
@@ -99,7 +99,7 @@ where
 pub fn plugin_connector_to_app_info(connector_id: String) -> AppInfo {
     // Leave the placeholder name as the connector id so merge_connectors() can
     // replace it with canonical app metadata from directory fetches or
-    // connector_name values from codex_apps tool discovery.
+    // connector_name values from codepilotx_apps tool discovery.
     let name = connector_id.clone();
     AppInfo {
         id: connector_id.clone(),

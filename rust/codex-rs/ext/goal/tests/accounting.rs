@@ -4,8 +4,8 @@
 mod accounting;
 
 use accounting::GoalAccountingState;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::protocol::TokenUsage;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::protocol::TokenUsage;
 use pretty_assertions::assert_eq;
 
 #[test]

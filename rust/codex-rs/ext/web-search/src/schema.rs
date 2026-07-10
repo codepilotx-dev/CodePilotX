@@ -1,4 +1,4 @@
-use codex_api::SearchCommands;
+use codepilotx_api::SearchCommands;
 use schemars::r#gen::SchemaSettings;
 use serde_json::Map;
 use serde_json::Value;

@@ -1,4 +1,4 @@
-use codex_utils_template::Template;
+use codepilotx_utils_template::Template;
 use std::borrow::Cow;
 use std::sync::LazyLock;
 

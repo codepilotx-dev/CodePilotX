@@ -1,19 +1,19 @@
 use std::sync::Arc;
 
-use codex_core::config::Config;
-use codex_extension_api::ConfigContributor;
-use codex_extension_api::ExtensionData;
-use codex_extension_api::ExtensionFuture;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::ThreadLifecycleContributor;
-use codex_extension_api::ThreadStartInput;
-use codex_extension_api::ToolCall;
-use codex_extension_api::ToolContributor;
-use codex_extension_api::ToolExecutor;
-use codex_login::AuthManager;
-use codex_model_provider::create_model_provider;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_core::config::Config;
+use codepilotx_extension_api::ConfigContributor;
+use codepilotx_extension_api::ExtensionData;
+use codepilotx_extension_api::ExtensionFuture;
+use codepilotx_extension_api::ExtensionRegistryBuilder;
+use codepilotx_extension_api::ThreadLifecycleContributor;
+use codepilotx_extension_api::ThreadStartInput;
+use codepilotx_extension_api::ToolCall;
+use codepilotx_extension_api::ToolContributor;
+use codepilotx_extension_api::ToolExecutor;
+use codepilotx_login::AuthManager;
+use codepilotx_model_provider::create_model_provider;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 use crate::backend::CodexImagesBackend;
 use crate::tool::ImageGenerationTool;
@@ -27,7 +27,7 @@ struct ImageGenerationExtension {
 struct ImageGenerationExtensionConfig {
     available: bool,
     provider: ModelProviderInfo,
-    codex_home: AbsolutePathBuf,
+    codepilotx_home: AbsolutePathBuf,
 }
 
 impl From<&Config> for ImageGenerationExtensionConfig {
@@ -37,7 +37,7 @@ impl From<&Config> for ImageGenerationExtensionConfig {
             // Core selects this executor per turn using the feature flag or model metadata.
             available: config.model_provider.is_openai(),
             provider: config.model_provider.clone(),
-            codex_home: config.codex_home.clone(),
+            codepilotx_home: config.codepilotx_home.clone(),
         }
     }
 }
@@ -79,7 +79,7 @@ impl ToolContributor for ImageGenerationExtension {
         let Some(config) = thread_store.get::<ImageGenerationExtensionConfig>() else {
             return Vec::new();
         };
-        if !config.available || !self.auth_manager.current_auth_uses_codex_backend() {
+        if !config.available || !self.auth_manager.current_auth_uses_codepilotx_backend() {
             return Vec::new();
         }
 
@@ -88,7 +88,7 @@ impl ToolContributor for ImageGenerationExtension {
                 config.provider.clone(),
                 Some(self.auth_manager.clone()),
             )),
-            config.codex_home.clone(),
+            config.codepilotx_home.clone(),
             thread_store.level_id().to_string(),
         ))]
     }

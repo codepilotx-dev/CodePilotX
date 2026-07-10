@@ -1,26 +1,26 @@
 use std::sync::Arc;
 
-use codex_api::AllowedCaller;
-use codex_api::ApproximateLocation;
-use codex_api::ExternalWebAccess;
-use codex_api::ExternalWebAccessMode;
-use codex_api::LocationType;
-use codex_api::SearchContextSize;
-use codex_api::SearchFilters;
-use codex_api::SearchSettings;
-use codex_core::config::Config;
-use codex_extension_api::ConfigContributor;
-use codex_extension_api::ExtensionData;
-use codex_extension_api::ExtensionFuture;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::ThreadLifecycleContributor;
-use codex_extension_api::ThreadStartInput;
-use codex_extension_api::ToolContributor;
-use codex_login::AuthManager;
-use codex_model_provider::create_model_provider;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_protocol::config_types::WebSearchContextSize;
-use codex_protocol::config_types::WebSearchMode;
+use codepilotx_api::AllowedCaller;
+use codepilotx_api::ApproximateLocation;
+use codepilotx_api::ExternalWebAccess;
+use codepilotx_api::ExternalWebAccessMode;
+use codepilotx_api::LocationType;
+use codepilotx_api::SearchContextSize;
+use codepilotx_api::SearchFilters;
+use codepilotx_api::SearchSettings;
+use codepilotx_core::config::Config;
+use codepilotx_extension_api::ConfigContributor;
+use codepilotx_extension_api::ExtensionData;
+use codepilotx_extension_api::ExtensionFuture;
+use codepilotx_extension_api::ExtensionRegistryBuilder;
+use codepilotx_extension_api::ThreadLifecycleContributor;
+use codepilotx_extension_api::ThreadStartInput;
+use codepilotx_extension_api::ToolContributor;
+use codepilotx_login::AuthManager;
+use codepilotx_model_provider::create_model_provider;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_protocol::config_types::WebSearchContextSize;
+use codepilotx_protocol::config_types::WebSearchMode;
 
 use crate::tool::WebSearchTool;
 
@@ -118,7 +118,7 @@ impl ToolContributor for WebSearchExtension {
         &self,
         session_store: &ExtensionData,
         thread_store: &ExtensionData,
-    ) -> Vec<Arc<dyn codex_extension_api::ToolExecutor<codex_extension_api::ToolCall>>> {
+    ) -> Vec<Arc<dyn codepilotx_extension_api::ToolExecutor<codepilotx_extension_api::ToolCall>>> {
         let Some(config) = thread_store.get::<WebSearchExtensionConfig>() else {
             return Vec::new();
         };
@@ -146,11 +146,11 @@ pub fn install(registry: &mut ExtensionRegistryBuilder<Config>, auth_manager: Ar
 
 #[cfg(test)]
 mod tests {
-    use codex_extension_api::ExtensionData;
-    use codex_extension_api::ExtensionRegistryBuilder;
-    use codex_extension_api::ToolName;
-    use codex_login::CodexAuth;
-    use codex_model_provider_info::ModelProviderInfo;
+    use codepilotx_extension_api::ExtensionData;
+    use codepilotx_extension_api::ExtensionRegistryBuilder;
+    use codepilotx_extension_api::ToolName;
+    use codepilotx_login::CodexAuth;
+    use codepilotx_model_provider_info::ModelProviderInfo;
     use pretty_assertions::assert_eq;
 
     use super::AuthManager;
@@ -160,9 +160,9 @@ mod tests {
     use super::install;
     use crate::tool::RUN_TOOL_NAME;
     use crate::tool::WEB_NAMESPACE;
-    use codex_api::ExternalWebAccess;
-    use codex_api::ExternalWebAccessMode;
-    use codex_protocol::config_types::WebSearchMode;
+    use codepilotx_api::ExternalWebAccess;
+    use codepilotx_api::ExternalWebAccessMode;
+    use codepilotx_protocol::config_types::WebSearchMode;
 
     #[test]
     fn external_web_access_preserves_legacy_values_until_indexed() {

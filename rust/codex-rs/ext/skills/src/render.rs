@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use codex_utils_string::take_bytes_at_char_boundary;
+use codepilotx_utils_string::take_bytes_at_char_boundary;
 
 use crate::catalog::SkillCatalog;
 use crate::catalog::SkillCatalogEntry;

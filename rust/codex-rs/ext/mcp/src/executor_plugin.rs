@@ -1,12 +1,12 @@
-use codex_core::config::Config;
-use codex_core_plugins::ExecutorPluginProvider;
-use codex_exec_server::EnvironmentManager;
-use codex_extension_api::ExtensionDataInit;
-use codex_extension_api::ExtensionFuture;
-use codex_extension_api::McpServerContribution;
-use codex_extension_api::McpServerContributionContext;
-use codex_extension_api::McpServerContributor;
-use codex_protocol::capabilities::SelectedCapabilityRoot;
+use codepilotx_core::config::Config;
+use codepilotx_core_plugins::ExecutorPluginProvider;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_extension_api::ExtensionDataInit;
+use codepilotx_extension_api::ExtensionFuture;
+use codepilotx_extension_api::McpServerContribution;
+use codepilotx_extension_api::McpServerContributionContext;
+use codepilotx_extension_api::McpServerContributor;
+use codepilotx_protocol::capabilities::SelectedCapabilityRoot;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
@@ -24,7 +24,7 @@ struct SelectedPluginMcpServers {
     plugin_id: String,
     plugin_display_name: String,
     selection_order: usize,
-    servers: Vec<(String, codex_config::McpServerConfig)>,
+    servers: Vec<(String, codepilotx_config::McpServerConfig)>,
 }
 
 #[derive(Default)]

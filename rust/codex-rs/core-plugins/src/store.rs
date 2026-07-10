@@ -1,10 +1,10 @@
 use crate::manifest::PluginManifest;
 use crate::manifest::load_plugin_manifest;
 use crate::manifest::parse_plugin_manifest;
-use codex_plugin::PluginId;
-use codex_plugin::validate_plugin_segment;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_plugins::find_plugin_manifest_path;
+use codepilotx_plugin::PluginId;
+use codepilotx_plugin::validate_plugin_segment;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_plugins::find_plugin_manifest_path;
 use semver::Version;
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
@@ -38,16 +38,16 @@ enum InstallManifest<'a> {
 }
 
 impl PluginStore {
-    pub fn new(codex_home: PathBuf) -> Self {
-        Self::try_new(codex_home)
+    pub fn new(codepilotx_home: PathBuf) -> Self {
+        Self::try_new(codepilotx_home)
             .unwrap_or_else(|err| panic!("plugin cache root should be absolute: {err}"))
     }
 
-    pub fn try_new(codex_home: PathBuf) -> Result<Self, PluginStoreError> {
-        let root = AbsolutePathBuf::from_absolute_path_checked(codex_home.join(PLUGINS_CACHE_DIR))
+    pub fn try_new(codepilotx_home: PathBuf) -> Result<Self, PluginStoreError> {
+        let root = AbsolutePathBuf::from_absolute_path_checked(codepilotx_home.join(PLUGINS_CACHE_DIR))
             .map_err(|err| PluginStoreError::io("failed to resolve plugin cache root", err))?;
         let data_root =
-            AbsolutePathBuf::from_absolute_path_checked(codex_home.join(PLUGINS_DATA_DIR))
+            AbsolutePathBuf::from_absolute_path_checked(codepilotx_home.join(PLUGINS_DATA_DIR))
                 .map_err(|err| PluginStoreError::io("failed to resolve plugin data root", err))?;
 
         Ok(Self { root, data_root })

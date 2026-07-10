@@ -1,5 +1,5 @@
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::truncate_text;
+use codepilotx_utils_output_truncation::TruncationPolicy;
+use codepilotx_utils_output_truncation::truncate_text;
 
 use crate::DEFAULT_READ_MAX_TOKENS;
 use crate::backend::MemoriesBackendError;

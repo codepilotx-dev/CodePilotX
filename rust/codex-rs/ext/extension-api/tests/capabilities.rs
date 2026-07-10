@@ -1,13 +1,13 @@
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use codex_extension_api::AgentSpawnFuture;
-use codex_extension_api::AgentSpawner;
-use codex_extension_api::NoopResponseItemInjector;
-use codex_extension_api::ResponseItemInjector;
-use codex_protocol::ThreadId;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseInputItem;
+use codepilotx_extension_api::AgentSpawnFuture;
+use codepilotx_extension_api::AgentSpawner;
+use codepilotx_extension_api::NoopResponseItemInjector;
+use codepilotx_extension_api::ResponseItemInjector;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::models::ContentItem;
+use codepilotx_protocol::models::ResponseInputItem;
 use pretty_assertions::assert_eq;
 
 #[tokio::test]

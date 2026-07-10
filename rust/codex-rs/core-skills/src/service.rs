@@ -3,12 +3,12 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::RwLock;
 
-use codex_config::ConfigLayerStack;
-use codex_exec_server::ExecutorFileSystem;
-use codex_protocol::protocol::Product;
-use codex_protocol::protocol::SkillScope;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_plugins::PluginSkillRoot;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_exec_server::ExecutorFileSystem;
+use codepilotx_protocol::protocol::Product;
+use codepilotx_protocol::protocol::SkillScope;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_plugins::PluginSkillRoot;
 use tracing::info;
 use tracing::instrument;
 use tracing::warn;
@@ -25,7 +25,7 @@ use crate::loader::load_skills_from_roots;
 use crate::loader::skill_roots;
 use crate::system::install_system_skills;
 use crate::system::uninstall_system_skills;
-use codex_config::SkillsConfig;
+use codepilotx_config::SkillsConfig;
 
 #[derive(Debug, Clone)]
 pub struct SkillsLoadInput {
@@ -66,7 +66,7 @@ impl SkillsLoadInput {
 ///
 /// Source-specific model exposure remains the responsibility of the skills extension.
 pub struct SkillsService {
-    codex_home: AbsolutePathBuf,
+    codepilotx_home: AbsolutePathBuf,
     restriction_product: Option<Product>,
     extra_roots: RwLock<Vec<AbsolutePathBuf>>,
     cache_by_cwd: RwLock<HashMap<AbsolutePathBuf, HostSkillsSnapshot>>,
@@ -74,17 +74,17 @@ pub struct SkillsService {
 }
 
 impl SkillsService {
-    pub fn new(codex_home: AbsolutePathBuf, bundled_skills_enabled: bool) -> Self {
-        Self::new_with_restriction_product(codex_home, bundled_skills_enabled, Some(Product::Codex))
+    pub fn new(codepilotx_home: AbsolutePathBuf, bundled_skills_enabled: bool) -> Self {
+        Self::new_with_restriction_product(codepilotx_home, bundled_skills_enabled, Some(Product::Codex))
     }
 
     pub fn new_with_restriction_product(
-        codex_home: AbsolutePathBuf,
+        codepilotx_home: AbsolutePathBuf,
         bundled_skills_enabled: bool,
         restriction_product: Option<Product>,
     ) -> Self {
         let service = Self {
-            codex_home,
+            codepilotx_home,
             restriction_product,
             extra_roots: RwLock::new(Vec::new()),
             cache_by_cwd: RwLock::new(HashMap::new()),
@@ -93,8 +93,8 @@ impl SkillsService {
         if !bundled_skills_enabled {
             // The loader caches bundled skills under `skills/.system`. Clearing that directory is
             // best-effort cleanup; root selection still enforces the config even if removal fails.
-            uninstall_system_skills(&service.codex_home);
-        } else if let Err(err) = install_system_skills(&service.codex_home) {
+            uninstall_system_skills(&service.codepilotx_home);
+        } else if let Err(err) = install_system_skills(&service.codepilotx_home) {
             tracing::error!("failed to install system skills: {err}");
         }
         service
@@ -275,7 +275,7 @@ struct ConfigSkillsCacheKey {
 }
 
 pub fn bundled_skills_enabled_from_stack(
-    config_layer_stack: &codex_config::ConfigLayerStack,
+    config_layer_stack: &codepilotx_config::ConfigLayerStack,
 ) -> bool {
     let effective_config = config_layer_stack.effective_config();
     let Some(skills_value) = effective_config

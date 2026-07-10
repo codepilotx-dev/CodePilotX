@@ -2,19 +2,19 @@ use crate::app_mcp_routing::apply_app_mcp_routing_policy;
 use crate::loader::plugin_app_declarations_from_value;
 use crate::store::PLUGINS_CACHE_DIR;
 use crate::store::PluginStore;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::PluginAuthPolicy;
-use codex_app_server_protocol::PluginAvailability;
-use codex_app_server_protocol::PluginInstallPolicy;
-use codex_app_server_protocol::PluginInterface;
-use codex_app_server_protocol::SkillInterface;
-use codex_login::CodexAuth;
-use codex_login::default_client::build_reqwest_client;
-use codex_plugin::AppConnectorId;
-use codex_plugin::AppDeclaration;
-use codex_plugin::PluginId;
-use codex_plugin::app_connector_ids_from_declarations;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::JSONRPCErrorError;
+use codepilotx_app_server_protocol::PluginAuthPolicy;
+use codepilotx_app_server_protocol::PluginAvailability;
+use codepilotx_app_server_protocol::PluginInstallPolicy;
+use codepilotx_app_server_protocol::PluginInterface;
+use codepilotx_app_server_protocol::SkillInterface;
+use codepilotx_login::CodexAuth;
+use codepilotx_login::default_client::build_reqwest_client;
+use codepilotx_plugin::AppConnectorId;
+use codepilotx_plugin::AppDeclaration;
+use codepilotx_plugin::PluginId;
+use codepilotx_plugin::app_connector_ids_from_declarations;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use reqwest::RequestBuilder;
 use serde::Deserialize;
 use serde::Serialize;
@@ -78,7 +78,7 @@ pub const REMOTE_WORKSPACE_SHARED_WITH_ME_UNLISTED_MARKETPLACE_DISPLAY_NAME: &st
 
 const OPENAI_CURATED_REMOTE_COLLECTION_KEY: &str = "vertical";
 const OAI_PRODUCT_SKU_HEADER: &str = "OAI-Product-Sku";
-const CODEX_PRODUCT_SKU: &str = "codex";
+const codepilotx_PRODUCT_SKU: &str = "codex";
 const REMOTE_PLUGIN_CATALOG_TIMEOUT: Duration = Duration::from_secs(30);
 const RECOMMENDED_PLUGINS_TIMEOUT: Duration = Duration::from_secs(5);
 const REMOTE_PLUGIN_LIST_PAGE_LIMIT: u32 = 200;
@@ -655,10 +655,10 @@ pub async fn fetch_remote_marketplaces(
         match source {
             RemoteMarketplaceSource::Global => {
                 let scope = RemotePluginScope::Global;
-                if let Some(codex_home) = global_catalog_cache_path
+                if let Some(codepilotx_home) = global_catalog_cache_path
                     && let Some(directory_plugins) =
                         catalog_cache::load_cached_global_directory_plugins(
-                            codex_home, config, auth,
+                            codepilotx_home, config, auth,
                         )
                 {
                     let installed_plugins =
@@ -689,11 +689,11 @@ pub async fn fetch_remote_marketplaces(
                 )? {
                     marketplaces.push(marketplace);
                 }
-                if let (Some(codex_home), Some(directory_plugins)) =
+                if let (Some(codepilotx_home), Some(directory_plugins)) =
                     (global_catalog_cache_path, directory_plugins_for_cache)
                 {
                     catalog_cache::write_cached_global_directory_plugins(
-                        codex_home,
+                        codepilotx_home,
                         config,
                         auth,
                         &directory_plugins,
@@ -795,14 +795,14 @@ pub async fn fetch_remote_marketplaces(
 }
 
 pub async fn fetch_and_cache_global_remote_plugin_catalog(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     config: &RemotePluginServiceConfig,
     auth: Option<&CodexAuth>,
 ) -> Result<(), RemotePluginCatalogError> {
     let auth = ensure_chatgpt_auth(auth)?;
     let plugins =
         fetch_directory_plugins_for_scope(config, auth, RemotePluginScope::Global).await?;
-    catalog_cache::write_cached_global_directory_plugins(codex_home, config, auth, &plugins);
+    catalog_cache::write_cached_global_directory_plugins(codepilotx_home, config, auth, &plugins);
     Ok(())
 }
 
@@ -888,22 +888,22 @@ fn recommended_plugins_mode(response: RecommendedPluginsResponse) -> Recommended
 }
 
 pub fn has_cached_global_remote_plugin_catalog(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     config: &RemotePluginServiceConfig,
     auth: Option<&CodexAuth>,
 ) -> bool {
     let Ok(auth) = ensure_chatgpt_auth(auth) else {
         return false;
     };
-    catalog_cache::load_cached_global_directory_plugins(codex_home, config, auth).is_some()
+    catalog_cache::load_cached_global_directory_plugins(codepilotx_home, config, auth).is_some()
 }
 
 pub fn cached_global_remote_discoverable_plugins(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     config: &RemotePluginServiceConfig,
     auth: &CodexAuth,
 ) -> Vec<RemoteDiscoverablePlugin> {
-    catalog_cache::load_cached_global_directory_plugins(codex_home, config, auth)
+    catalog_cache::load_cached_global_directory_plugins(codepilotx_home, config, auth)
         .unwrap_or_default()
         .into_iter()
         .filter_map(|plugin| match remote_discoverable_plugin_from_directory_item(&plugin) {
@@ -1306,7 +1306,7 @@ pub async fn install_remote_plugin(
 pub async fn uninstall_remote_plugin(
     config: &RemotePluginServiceConfig,
     auth: Option<&CodexAuth>,
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     plugin_id: &str,
 ) -> Result<(), RemotePluginCatalogError> {
     let auth = ensure_chatgpt_auth(auth)?;
@@ -1338,7 +1338,7 @@ pub async fn uninstall_remote_plugin(
 
     let legacy_plugin_id = plugin_id.to_string();
     tokio::task::spawn_blocking(move || {
-        remove_remote_plugin_cache(codex_home, marketplace_name, plugin_name, legacy_plugin_id)
+        remove_remote_plugin_cache(codepilotx_home, marketplace_name, plugin_name, legacy_plugin_id)
     })
     .await
     .map_err(|err| {
@@ -1352,12 +1352,12 @@ pub async fn uninstall_remote_plugin(
 }
 
 fn remove_remote_plugin_cache(
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     marketplace_name: String,
     plugin_name: String,
     legacy_plugin_id: String,
 ) -> Result<(), String> {
-    let store = PluginStore::try_new(codex_home.clone())
+    let store = PluginStore::try_new(codepilotx_home.clone())
         .map_err(|err| format!("failed to resolve remote plugin cache root: {err}"))?;
     let plugin_id =
         PluginId::new(plugin_name.clone(), marketplace_name.clone()).map_err(|err| {
@@ -1373,7 +1373,7 @@ fn remove_remote_plugin_cache(
         )
     })?;
 
-    let legacy_remote_plugin_cache_root = codex_home
+    let legacy_remote_plugin_cache_root = codepilotx_home
         .join(PLUGINS_CACHE_DIR)
         .join(marketplace_name)
         .join(legacy_plugin_id);
@@ -1816,7 +1816,7 @@ fn ensure_chatgpt_auth(auth: Option<&CodexAuth>) -> Result<&CodexAuth, RemotePlu
     let Some(auth) = auth else {
         return Err(RemotePluginCatalogError::AuthRequired);
     };
-    if !auth.uses_codex_backend() {
+    if !auth.uses_codepilotx_backend() {
         return Err(RemotePluginCatalogError::UnsupportedAuthMode);
     }
     Ok(auth)
@@ -1828,8 +1828,8 @@ fn authenticated_request(
 ) -> Result<RequestBuilder, RemotePluginCatalogError> {
     Ok(request
         .timeout(REMOTE_PLUGIN_CATALOG_TIMEOUT)
-        .headers(codex_model_provider::auth_provider_from_auth(auth).to_auth_headers())
-        .header(OAI_PRODUCT_SKU_HEADER, CODEX_PRODUCT_SKU))
+        .headers(codepilotx_model_provider::auth_provider_from_auth(auth).to_auth_headers())
+        .header(OAI_PRODUCT_SKU_HEADER, codepilotx_PRODUCT_SKU))
 }
 
 async fn send_and_decode<T: for<'de> Deserialize<'de>>(

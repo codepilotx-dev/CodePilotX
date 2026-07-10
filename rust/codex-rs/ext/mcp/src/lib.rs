@@ -1,11 +1,11 @@
-use codex_core::config::Config;
-use codex_extension_api::ExtensionFuture;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::McpServerContribution;
-use codex_extension_api::McpServerContributionContext;
-use codex_extension_api::McpServerContributor;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_mcp::hosted_plugin_runtime_mcp_server_config;
+use codepilotx_core::config::Config;
+use codepilotx_extension_api::ExtensionFuture;
+use codepilotx_extension_api::ExtensionRegistryBuilder;
+use codepilotx_extension_api::McpServerContribution;
+use codepilotx_extension_api::McpServerContributionContext;
+use codepilotx_extension_api::McpServerContributor;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
+use codepilotx_mcp::hosted_plugin_runtime_mcp_server_config;
 
 mod executor_plugin;
 
@@ -22,8 +22,8 @@ impl McpServerContributor<Config> for HostedPluginRuntimeExtension {
     ) -> ExtensionFuture<'a, Vec<McpServerContribution>> {
         Box::pin(async move {
             let config = context.config();
-            let name = CODEX_APPS_MCP_SERVER_NAME.to_string();
-            if !config.features.enabled(codex_features::Feature::Apps) {
+            let name = codepilotx_APPS_MCP_SERVER_NAME.to_string();
+            if !config.features.enabled(codepilotx_features::Feature::Apps) {
                 return vec![McpServerContribution::Remove { name }];
             }
 
@@ -45,7 +45,7 @@ pub fn install(builder: &mut ExtensionRegistryBuilder<Config>) {
 /// Installs discovery for MCP servers declared by thread-selected executor plugins.
 pub fn install_executor_plugins(
     builder: &mut ExtensionRegistryBuilder<Config>,
-    environment_manager: std::sync::Arc<codex_exec_server::EnvironmentManager>,
+    environment_manager: std::sync::Arc<codepilotx_exec_server::EnvironmentManager>,
 ) {
     builder.mcp_server_contributor(std::sync::Arc::new(
         executor_plugin::SelectedExecutorPluginMcpContributor::new(environment_manager),
@@ -54,7 +54,7 @@ pub fn install_executor_plugins(
 
 /// Seeds the per-thread snapshot used by selected executor plugin MCP discovery.
 pub fn initialize_executor_plugin_thread_data(
-    thread_init: &mut codex_extension_api::ExtensionDataInit,
+    thread_init: &mut codepilotx_extension_api::ExtensionDataInit,
 ) {
     executor_plugin::seed_thread_state(thread_init);
 }

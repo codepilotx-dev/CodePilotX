@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use codex_core::config::Config;
-use codex_extension_api::AgentSpawnFuture;
-use codex_extension_api::AgentSpawner;
-use codex_extension_api::ExtensionFuture;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::ThreadLifecycleContributor;
-use codex_extension_api::ThreadStartInput;
-use codex_protocol::ThreadId;
+use codepilotx_core::config::Config;
+use codepilotx_extension_api::AgentSpawnFuture;
+use codepilotx_extension_api::AgentSpawner;
+use codepilotx_extension_api::ExtensionFuture;
+use codepilotx_extension_api::ExtensionRegistryBuilder;
+use codepilotx_extension_api::ThreadLifecycleContributor;
+use codepilotx_extension_api::ThreadStartInput;
+use codepilotx_protocol::ThreadId;
 
 /// Guardian extension dependencies supplied by the host at construction time.
 #[derive(Clone, Debug)]

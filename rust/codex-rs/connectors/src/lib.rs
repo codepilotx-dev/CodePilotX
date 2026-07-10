@@ -5,9 +5,9 @@ use std::sync::Mutex as StdMutex;
 use std::time::Duration;
 use std::time::Instant;
 
-use codex_app_server_protocol::AppBranding;
-use codex_app_server_protocol::AppInfo;
-use codex_app_server_protocol::AppMetadata;
+use codepilotx_app_server_protocol::AppBranding;
+use codepilotx_app_server_protocol::AppInfo;
+use codepilotx_app_server_protocol::AppMetadata;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -488,8 +488,8 @@ mod tests {
         )
     }
 
-    fn cache_context(codex_home: &TempDir, id: &str) -> ConnectorDirectoryCacheContext {
-        ConnectorDirectoryCacheContext::new(codex_home.path().to_path_buf(), cache_key(id))
+    fn cache_context(codepilotx_home: &TempDir, id: &str) -> ConnectorDirectoryCacheContext {
+        ConnectorDirectoryCacheContext::new(codepilotx_home.path().to_path_buf(), cache_key(id))
     }
 
     fn clear_directory_memory_cache() {
@@ -524,8 +524,8 @@ mod tests {
 
         let calls = Arc::new(AtomicUsize::new(0));
         let call_counter = Arc::clone(&calls);
-        let codex_home = TempDir::new()?;
-        let cache_context = cache_context(&codex_home, "shared");
+        let codepilotx_home = TempDir::new()?;
+        let cache_context = cache_context(&codepilotx_home, "shared");
 
         let first = list_all_connectors_with_options(
             cache_context.clone(),
@@ -567,8 +567,8 @@ mod tests {
     async fn list_all_connectors_merges_and_normalizes_directory_apps() -> anyhow::Result<()> {
         let _cache_guard = CONNECTOR_DIRECTORY_CACHE_TEST_LOCK.lock().await;
 
-        let codex_home = TempDir::new()?;
-        let cache_context = cache_context(&codex_home, "merged");
+        let codepilotx_home = TempDir::new()?;
+        let cache_context = cache_context(&codepilotx_home, "merged");
         let calls = Arc::new(AtomicUsize::new(0));
         let call_counter = Arc::clone(&calls);
 
@@ -645,8 +645,8 @@ mod tests {
     async fn cached_directory_connectors_reads_directory_disk_cache() -> anyhow::Result<()> {
         let _cache_guard = CONNECTOR_DIRECTORY_CACHE_TEST_LOCK.lock().await;
 
-        let codex_home = TempDir::new()?;
-        let cache_context = cache_context(&codex_home, "disk");
+        let codepilotx_home = TempDir::new()?;
+        let cache_context = cache_context(&codepilotx_home, "disk");
         let calls = Arc::new(AtomicUsize::new(0));
         let call_counter = Arc::clone(&calls);
 
@@ -685,8 +685,8 @@ mod tests {
     -> anyhow::Result<()> {
         let _cache_guard = CONNECTOR_DIRECTORY_CACHE_TEST_LOCK.lock().await;
 
-        let codex_home = TempDir::new()?;
-        let cache_context = cache_context(&codex_home, "disk-refresh");
+        let codepilotx_home = TempDir::new()?;
+        let cache_context = cache_context(&codepilotx_home, "disk-refresh");
         let calls = Arc::new(AtomicUsize::new(0));
         let call_counter = Arc::clone(&calls);
 
@@ -748,8 +748,8 @@ mod tests {
         let _cache_guard = CONNECTOR_DIRECTORY_CACHE_TEST_LOCK.lock().await;
 
         clear_directory_memory_cache();
-        let codex_home = TempDir::new()?;
-        let cache_context = cache_context(&codex_home, "stale-schema");
+        let codepilotx_home = TempDir::new()?;
+        let cache_context = cache_context(&codepilotx_home, "stale-schema");
         let cache_path = cache_context.cache_path();
         std::fs::create_dir_all(cache_path.parent().expect("cache parent"))?;
         std::fs::write(

@@ -1,11 +1,11 @@
 use super::*;
 use crate::manifest::load_plugin_manifest;
 use crate::test_support::write_file;
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigLayerSource;
-use codex_config::ConfigRequirements;
-use codex_config::ConfigRequirementsToml;
-use codex_plugin::PluginId;
+use codepilotx_config::ConfigLayerEntry;
+use codepilotx_config::ConfigLayerSource;
+use codepilotx_config::ConfigRequirements;
+use codepilotx_config::ConfigRequirementsToml;
+use codepilotx_plugin::PluginId;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 
@@ -454,7 +454,7 @@ fn load_plugin_hooks_supports_inline_manifest_hook_list() {
 
 #[test]
 fn materialize_git_subdir_uses_sparse_checkout() {
-    let codex_home = tempfile::tempdir().expect("create codex home");
+    let codepilotx_home = tempfile::tempdir().expect("create codex home");
     let repo = tempfile::tempdir().expect("create git repo");
     let plugin_dir = repo.path().join("plugins/toolkit");
     fs::create_dir_all(&plugin_dir).expect("create plugin directory");
@@ -474,7 +474,7 @@ fn materialize_git_subdir_uses_sparse_checkout() {
     run_git(&["commit", "-m", "init"], Some(repo.path())).expect("commit git repo");
 
     let materialized = materialize_marketplace_plugin_source(
-        codex_home.path(),
+        codepilotx_home.path(),
         &MarketplacePluginSource::Git {
             url: repo.path().display().to_string(),
             path: Some("plugins/toolkit".to_string()),

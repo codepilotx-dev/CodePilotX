@@ -1,10 +1,10 @@
-use codex_app_server_protocol::AuthMode;
-use codex_plugin::AppDeclaration;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_plugin::AppDeclaration;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
 pub fn apps_route_available(auth_mode: Option<AuthMode>) -> bool {
-    auth_mode.is_some_and(AuthMode::uses_codex_backend)
+    auth_mode.is_some_and(AuthMode::uses_codepilotx_backend)
 }
 
 pub(crate) fn apply_app_mcp_routing_policy<M>(

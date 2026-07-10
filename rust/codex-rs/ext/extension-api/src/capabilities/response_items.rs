@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use codex_protocol::models::ResponseInputItem;
+use codepilotx_protocol::models::ResponseInputItem;
 
 /// Future returned when an extension asks the host to inject model-visible input.
 pub type ResponseItemInjectionFuture<'a> =

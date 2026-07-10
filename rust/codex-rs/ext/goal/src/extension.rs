@@ -1,36 +1,36 @@
 use std::sync::Arc;
 use std::sync::Weak;
 
-use codex_analytics::AnalyticsEventsClient;
-use codex_core::ThreadManager;
-use codex_extension_api::ConfigContributor;
-use codex_extension_api::ExtensionData;
-use codex_extension_api::ExtensionEventSink;
-use codex_extension_api::ExtensionFuture;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::ThreadIdleInput;
-use codex_extension_api::ThreadLifecycleContributor;
-use codex_extension_api::ThreadResumeInput;
-use codex_extension_api::ThreadStartInput;
-use codex_extension_api::ThreadStopInput;
-use codex_extension_api::TokenUsageContributor;
-use codex_extension_api::ToolCallOutcome;
-use codex_extension_api::ToolContributor;
-use codex_extension_api::ToolFinishInput;
-use codex_extension_api::ToolLifecycleContributor;
-use codex_extension_api::ToolLifecycleFuture;
-use codex_extension_api::TurnAbortInput;
-use codex_extension_api::TurnErrorInput;
-use codex_extension_api::TurnLifecycleContributor;
-use codex_extension_api::TurnStartInput;
-use codex_extension_api::TurnStopInput;
-use codex_otel::MetricsClient;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::ThreadGoalStatus;
-use codex_protocol::protocol::TokenUsageInfo;
+use codepilotx_analytics::AnalyticsEventsClient;
+use codepilotx_core::ThreadManager;
+use codepilotx_extension_api::ConfigContributor;
+use codepilotx_extension_api::ExtensionData;
+use codepilotx_extension_api::ExtensionEventSink;
+use codepilotx_extension_api::ExtensionFuture;
+use codepilotx_extension_api::ExtensionRegistryBuilder;
+use codepilotx_extension_api::ThreadIdleInput;
+use codepilotx_extension_api::ThreadLifecycleContributor;
+use codepilotx_extension_api::ThreadResumeInput;
+use codepilotx_extension_api::ThreadStartInput;
+use codepilotx_extension_api::ThreadStopInput;
+use codepilotx_extension_api::TokenUsageContributor;
+use codepilotx_extension_api::ToolCallOutcome;
+use codepilotx_extension_api::ToolContributor;
+use codepilotx_extension_api::ToolFinishInput;
+use codepilotx_extension_api::ToolLifecycleContributor;
+use codepilotx_extension_api::ToolLifecycleFuture;
+use codepilotx_extension_api::TurnAbortInput;
+use codepilotx_extension_api::TurnErrorInput;
+use codepilotx_extension_api::TurnLifecycleContributor;
+use codepilotx_extension_api::TurnStartInput;
+use codepilotx_extension_api::TurnStopInput;
+use codepilotx_otel::MetricsClient;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::CodexErrorInfo;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_protocol::protocol::ThreadGoalStatus;
+use codepilotx_protocol::protocol::TokenUsageInfo;
 
 use crate::accounting::BudgetLimitedGoalDisposition;
 use crate::accounting::GoalAccountingState;
@@ -58,7 +58,7 @@ impl GoalExtensionConfig {
 
 #[derive(Clone)]
 pub struct GoalExtension<C> {
-    state_dbs: Arc<codex_state::StateRuntime>,
+    state_dbs: Arc<codepilotx_state::StateRuntime>,
     analytics: GoalAnalytics,
     event_emitter: GoalEventEmitter,
     metrics: GoalMetrics,
@@ -75,7 +75,7 @@ impl<C> std::fmt::Debug for GoalExtension<C> {
 
 impl<C> GoalExtension<C> {
     pub(crate) fn new_with_host_capabilities(
-        state_dbs: Arc<codex_state::StateRuntime>,
+        state_dbs: Arc<codepilotx_state::StateRuntime>,
         analytics_events_client: AnalyticsEventsClient,
         event_sink: Arc<dyn ExtensionEventSink>,
         metrics_client: Option<MetricsClient>,
@@ -215,7 +215,7 @@ where
             );
             if matches!(
                 input.collaboration_mode.mode,
-                codex_protocol::config_types::ModeKind::Plan
+                codepilotx_protocol::config_types::ModeKind::Plan
             ) {
                 accounting.clear_current_turn_goal();
                 return;
@@ -231,8 +231,8 @@ where
             if let Some(goal) = goal
                 && matches!(
                     goal.status,
-                    codex_state::ThreadGoalStatus::Active
-                        | codex_state::ThreadGoalStatus::BudgetLimited
+                    codepilotx_state::ThreadGoalStatus::Active
+                        | codepilotx_state::ThreadGoalStatus::BudgetLimited
                 )
             {
                 accounting.mark_turn_goal_active(input.turn_id, goal.goal_id);
@@ -254,7 +254,7 @@ where
                 .account_active_goal_progress(
                     turn_id,
                     &format!("{turn_id}:turn-stop"),
-                    codex_state::GoalAccountingMode::ActiveOnly,
+                    codepilotx_state::GoalAccountingMode::ActiveOnly,
                     BudgetLimitedGoalDisposition::ClearActive,
                 )
                 .await
@@ -282,7 +282,7 @@ where
                 .account_active_goal_progress(
                     turn_id,
                     &format!("{turn_id}:turn-abort"),
-                    codex_state::GoalAccountingMode::ActiveOnly,
+                    codepilotx_state::GoalAccountingMode::ActiveOnly,
                     BudgetLimitedGoalDisposition::ClearActive,
                 )
                 .await
@@ -373,7 +373,7 @@ where
                 .account_active_goal_progress(
                     turn_id,
                     input.call_id,
-                    codex_state::GoalAccountingMode::ActiveOnly,
+                    codepilotx_state::GoalAccountingMode::ActiveOnly,
                     BudgetLimitedGoalDisposition::KeepActive,
                 )
                 .await
@@ -411,7 +411,7 @@ where
         &self,
         _session_store: &ExtensionData,
         thread_store: &ExtensionData,
-    ) -> Vec<Arc<dyn codex_extension_api::ToolExecutor<codex_extension_api::ToolCall>>> {
+    ) -> Vec<Arc<dyn codepilotx_extension_api::ToolExecutor<codepilotx_extension_api::ToolCall>>> {
         let Some(runtime) = goal_runtime_handle(thread_store) else {
             return Vec::new();
         };
@@ -450,7 +450,7 @@ where
 
 pub fn install_with_backend<C>(
     registry: &mut ExtensionRegistryBuilder<C>,
-    state_dbs: Arc<codex_state::StateRuntime>,
+    state_dbs: Arc<codepilotx_state::StateRuntime>,
     analytics_events_client: AnalyticsEventsClient,
     metrics_client: Option<MetricsClient>,
     thread_manager: Weak<ThreadManager>,

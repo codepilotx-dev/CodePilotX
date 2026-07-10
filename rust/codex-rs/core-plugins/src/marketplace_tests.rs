@@ -1,5 +1,5 @@
 use super::*;
-use codex_protocol::protocol::Product;
+use codepilotx_protocol::protocol::Product;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use tempfile::tempdir;

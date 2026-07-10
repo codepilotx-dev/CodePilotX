@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 /// User instructions supplied by the host.
 ///

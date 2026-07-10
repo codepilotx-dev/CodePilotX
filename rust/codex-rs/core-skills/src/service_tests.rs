@@ -2,16 +2,16 @@ use super::*;
 use crate::SkillMetadata;
 use crate::config_rules::resolve_disabled_skill_paths;
 use crate::config_rules::skill_config_rules_from_stack;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigRequirementsToml;
-use codex_exec_server::LOCAL_FS;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::test_support::PathBufExt;
-use codex_utils_absolute_path::test_support::PathExt;
-use codex_utils_plugins::PluginSkillRoot;
+use codepilotx_app_server_protocol::ConfigLayerSource;
+use codepilotx_config::CONFIG_TOML_FILE;
+use codepilotx_config::ConfigLayerEntry;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::ConfigRequirementsToml;
+use codepilotx_exec_server::LOCAL_FS;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::test_support::PathBufExt;
+use codepilotx_utils_absolute_path::test_support::PathExt;
+use codepilotx_utils_plugins::PluginSkillRoot;
 use pretty_assertions::assert_eq;
 use std::collections::HashSet;
 use std::fs;
@@ -20,22 +20,22 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tempfile::TempDir;
 
-fn write_user_skill(codex_home: &TempDir, dir: &str, name: &str, description: &str) {
-    let skill_dir = codex_home.path().join("skills").join(dir);
+fn write_user_skill(codepilotx_home: &TempDir, dir: &str, name: &str, description: &str) {
+    let skill_dir = codepilotx_home.path().join("skills").join(dir);
     fs::create_dir_all(&skill_dir).unwrap();
     let content = format!("---\nname: {name}\ndescription: {description}\n---\n\n# Body\n");
     fs::write(skill_dir.join("SKILL.md"), content).unwrap();
 }
 
 fn write_plugin_skill(
-    codex_home: &TempDir,
+    codepilotx_home: &TempDir,
     marketplace: &str,
     plugin_name: &str,
     dir: &str,
     name: &str,
     description: &str,
 ) -> PathBuf {
-    let plugin_root = codex_home
+    let plugin_root = codepilotx_home
         .path()
         .join("plugins/cache")
         .join(marketplace)
@@ -104,8 +104,8 @@ fn write_demo_skill(tempdir: &TempDir) -> PathBuf {
     skill_path
 }
 
-fn user_config_layer(codex_home: &TempDir, config_toml: &str) -> ConfigLayerEntry {
-    let config_path = AbsolutePathBuf::try_from(codex_home.path().join(CONFIG_TOML_FILE))
+fn user_config_layer(codepilotx_home: &TempDir, config_toml: &str) -> ConfigLayerEntry {
+    let config_path = AbsolutePathBuf::try_from(codepilotx_home.path().join(CONFIG_TOML_FILE))
         .expect("user config path should be absolute");
     ConfigLayerEntry::new(
         ConfigLayerSource::User {
@@ -116,9 +116,9 @@ fn user_config_layer(codex_home: &TempDir, config_toml: &str) -> ConfigLayerEntr
     )
 }
 
-fn config_stack(codex_home: &TempDir, user_config_toml: &str) -> ConfigLayerStack {
+fn config_stack(codepilotx_home: &TempDir, user_config_toml: &str) -> ConfigLayerStack {
     ConfigLayerStack::new(
-        vec![user_config_layer(codex_home, user_config_toml)],
+        vec![user_config_layer(codepilotx_home, user_config_toml)],
         Default::default(),
         ConfigRequirementsToml::default(),
     )
@@ -126,13 +126,13 @@ fn config_stack(codex_home: &TempDir, user_config_toml: &str) -> ConfigLayerStac
 }
 
 fn config_stack_with_session_flags(
-    codex_home: &TempDir,
+    codepilotx_home: &TempDir,
     user_config_toml: &str,
     session_flags_toml: &str,
 ) -> ConfigLayerStack {
     ConfigLayerStack::new(
         vec![
-            user_config_layer(codex_home, user_config_toml),
+            user_config_layer(codepilotx_home, user_config_toml),
             ConfigLayerEntry::new(
                 ConfigLayerSource::SessionFlags,
                 toml::from_str(session_flags_toml).expect("session layer toml"),
@@ -184,34 +184,34 @@ async fn skills_for_config_with_stack(
 
 #[test]
 fn new_with_disabled_bundled_skills_removes_stale_cached_system_skills() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
-    let stale_system_skill_dir = codex_home.path().join("skills/.system/stale-skill");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
+    let stale_system_skill_dir = codepilotx_home.path().join("skills/.system/stale-skill");
     fs::create_dir_all(&stale_system_skill_dir).expect("create stale system skill dir");
     fs::write(stale_system_skill_dir.join("SKILL.md"), "# stale\n")
         .expect("write stale system skill");
 
     let _skills_service = SkillsService::new(
-        codex_home.path().abs(),
+        codepilotx_home.path().abs(),
         /*bundled_skills_enabled*/ false,
     );
 
     assert!(
-        !codex_home.path().join("skills/.system").exists(),
+        !codepilotx_home.path().join("skills/.system").exists(),
         "expected disabling system skills to remove stale cached bundled skills"
     );
 }
 
 #[tokio::test]
 async fn skills_for_config_reuses_cache_for_same_effective_config() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let cwd = tempfile::tempdir().expect("tempdir");
-    let config_layer_stack = config_stack(&codex_home, "");
+    let config_layer_stack = config_stack(&codepilotx_home, "");
     let skills_service = SkillsService::new(
-        codex_home.path().abs(),
+        codepilotx_home.path().abs(),
         /*bundled_skills_enabled*/ true,
     );
 
-    write_user_skill(&codex_home, "a", "skill-a", "from a");
+    write_user_skill(&codepilotx_home, "a", "skill-a", "from a");
     let outcome1 =
         skills_for_config_with_stack(&skills_service, &cwd, &config_layer_stack, &[]).await;
     assert!(
@@ -221,7 +221,7 @@ async fn skills_for_config_reuses_cache_for_same_effective_config() {
 
     // Write a new skill after the first call; the second call should reuse the config-aware cache
     // entry because the effective skill config is unchanged.
-    write_user_skill(&codex_home, "b", "skill-b", "from b");
+    write_user_skill(&codepilotx_home, "b", "skill-b", "from b");
     let outcome2 =
         skills_for_config_with_stack(&skills_service, &cwd, &config_layer_stack, &[]).await;
     assert_eq!(outcome2.errors, outcome1.errors);
@@ -230,12 +230,12 @@ async fn skills_for_config_reuses_cache_for_same_effective_config() {
 
 #[tokio::test]
 async fn set_extra_roots_replaces_runtime_roots_and_clears_cache() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let cwd = tempfile::tempdir().expect("tempdir");
     let extra_root = tempfile::tempdir().expect("tempdir");
-    let config_layer_stack = config_stack(&codex_home, "");
+    let config_layer_stack = config_stack(&codepilotx_home, "");
     let skills_service = SkillsService::new(
-        codex_home.path().abs(),
+        codepilotx_home.path().abs(),
         /*bundled_skills_enabled*/ true,
     );
 
@@ -305,12 +305,12 @@ async fn set_extra_roots_replaces_runtime_roots_and_clears_cache() {
 
 #[tokio::test]
 async fn set_extra_roots_applies_to_config_loads_and_empty_clears() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let cwd = tempfile::tempdir().expect("tempdir");
     let extra_root = tempfile::tempdir().expect("tempdir");
-    let config_layer_stack = config_stack(&codex_home, "");
+    let config_layer_stack = config_stack(&codepilotx_home, "");
     let skills_service = SkillsService::new(
-        codex_home.path().abs(),
+        codepilotx_home.path().abs(),
         /*bundled_skills_enabled*/ true,
     );
 
@@ -355,10 +355,10 @@ async fn set_extra_roots_applies_to_config_loads_and_empty_clears() {
 
 #[tokio::test]
 async fn skills_for_config_disables_plugin_skills_by_name() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let cwd = tempfile::tempdir().expect("tempdir");
     let skill_path = write_plugin_skill(
-        &codex_home,
+        &codepilotx_home,
         "test",
         "sample",
         "sample-search",
@@ -366,13 +366,13 @@ async fn skills_for_config_disables_plugin_skills_by_name() {
         "search sample data",
     );
     let config_layer_stack = config_stack(
-        &codex_home,
+        &codepilotx_home,
         &name_toggle_config("sample:sample-search", /*enabled*/ false),
     );
     let plugin_skill_root =
         plugin_skill_root_for_skill_path(&skill_path, "test-plugin@test", "sample");
     let skills_service = SkillsService::new(
-        codex_home.path().abs(),
+        codepilotx_home.path().abs(),
         /*bundled_skills_enabled*/ true,
     );
 
@@ -404,12 +404,12 @@ async fn skills_for_config_disables_plugin_skills_by_name() {
 
 #[tokio::test]
 async fn skills_for_cwd_loads_repo_and_user_roots_with_local_fs() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let cwd = tempfile::tempdir().expect("tempdir");
     let repo_dot_codex = cwd.path().join(".codex");
     fs::create_dir_all(&repo_dot_codex).expect("create repo config dir");
 
-    write_user_skill(&codex_home, "user", "user-skill", "from local user root");
+    write_user_skill(&codepilotx_home, "user", "user-skill", "from local user root");
     let repo_skill_dir = repo_dot_codex.join("skills/repo");
     fs::create_dir_all(&repo_skill_dir).expect("create repo skill dir");
     fs::write(
@@ -420,10 +420,10 @@ async fn skills_for_cwd_loads_repo_and_user_roots_with_local_fs() {
 
     let config_layer_stack = ConfigLayerStack::new(
         vec![
-            user_config_layer(&codex_home, ""),
+            user_config_layer(&codepilotx_home, ""),
             ConfigLayerEntry::new(
                 ConfigLayerSource::Project {
-                    dot_codex_folder: repo_dot_codex.abs(),
+                    dot_codepilotx_folder: repo_dot_codex.abs(),
                 },
                 toml::Value::Table(toml::map::Map::new()),
             ),
@@ -439,7 +439,7 @@ async fn skills_for_cwd_loads_repo_and_user_roots_with_local_fs() {
         bundled_skills_enabled_from_stack(&config_layer_stack),
     );
     let skills_service = SkillsService::new(
-        codex_home.path().abs(),
+        codepilotx_home.path().abs(),
         /*bundled_skills_enabled*/ true,
     );
 
@@ -468,12 +468,12 @@ async fn skills_for_cwd_loads_repo_and_user_roots_with_local_fs() {
 
 #[tokio::test]
 async fn skills_for_cwd_without_fs_skips_repo_roots() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let cwd = tempfile::tempdir().expect("tempdir");
     let repo_dot_codex = cwd.path().join(".codex");
     fs::create_dir_all(&repo_dot_codex).expect("create repo config dir");
 
-    write_user_skill(&codex_home, "user", "user-skill", "from local user root");
+    write_user_skill(&codepilotx_home, "user", "user-skill", "from local user root");
     let repo_skill_dir = repo_dot_codex.join("skills/repo");
     fs::create_dir_all(&repo_skill_dir).expect("create repo skill dir");
     fs::write(
@@ -484,10 +484,10 @@ async fn skills_for_cwd_without_fs_skips_repo_roots() {
 
     let config_layer_stack = ConfigLayerStack::new(
         vec![
-            user_config_layer(&codex_home, ""),
+            user_config_layer(&codepilotx_home, ""),
             ConfigLayerEntry::new(
                 ConfigLayerSource::Project {
-                    dot_codex_folder: repo_dot_codex.abs(),
+                    dot_codepilotx_folder: repo_dot_codex.abs(),
                 },
                 toml::Value::Table(toml::map::Map::new()),
             ),
@@ -503,7 +503,7 @@ async fn skills_for_cwd_without_fs_skips_repo_roots() {
         bundled_skills_enabled_from_stack(&config_layer_stack),
     );
     let skills_service = SkillsService::new(
-        codex_home.path().abs(),
+        codepilotx_home.path().abs(),
         /*bundled_skills_enabled*/ true,
     );
 
@@ -528,18 +528,18 @@ async fn skills_for_cwd_without_fs_skips_repo_roots() {
 
 #[tokio::test]
 async fn skills_for_config_excludes_bundled_skills_when_disabled_in_config() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let cwd = tempfile::tempdir().expect("tempdir");
-    let bundled_skill_dir = codex_home.path().join("skills/.system/bundled-skill");
+    let bundled_skill_dir = codepilotx_home.path().join("skills/.system/bundled-skill");
     fs::create_dir_all(&bundled_skill_dir).expect("create bundled skill dir");
     fs::write(
         bundled_skill_dir.join("SKILL.md"),
         "---\nname: bundled-skill\ndescription: from bundled root\n---\n\n# Body\n",
     )
     .expect("write bundled skill");
-    let config_layer_stack = config_stack(&codex_home, "[skills.bundled]\nenabled = false\n");
+    let config_layer_stack = config_stack(&codepilotx_home, "[skills.bundled]\nenabled = false\n");
     let skills_service = SkillsService::new(
-        codex_home.path().abs(),
+        codepilotx_home.path().abs(),
         /*bundled_skills_enabled*/ false,
     );
 
@@ -570,11 +570,11 @@ async fn skills_for_config_excludes_bundled_skills_when_disabled_in_config() {
 
 #[tokio::test]
 async fn skills_for_cwd_uses_cached_result_until_force_reload() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let cwd = tempfile::tempdir().expect("tempdir");
-    let config_layer_stack = config_stack(&codex_home, "");
+    let config_layer_stack = config_stack(&codepilotx_home, "");
     let skills_service = SkillsService::new(
-        codex_home.path().abs(),
+        codepilotx_home.path().abs(),
         /*bundled_skills_enabled*/ true,
     );
     let _ = skills_for_config_with_stack(&skills_service, &cwd, &config_layer_stack, &[]).await;
@@ -599,7 +599,7 @@ async fn skills_for_cwd_uses_cached_result_until_force_reload() {
             .all(|skill| skill.name != "late-skill")
     );
 
-    write_user_skill(&codex_home, "late", "late-skill", "added after cache");
+    write_user_skill(&codepilotx_home, "late", "late-skill", "added after cache");
 
     let snapshot_b = skills_service
         .snapshot_for_cwd(
@@ -776,9 +776,9 @@ fn disabled_paths_for_skills_allows_name_selector_to_override_path_selector() {
 #[cfg_attr(windows, ignore)]
 #[tokio::test]
 async fn skills_for_config_ignores_cwd_cache_when_session_flags_reenable_skill() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let cwd = tempfile::tempdir().expect("tempdir");
-    let skill_dir = codex_home.path().join("skills").join("demo");
+    let skill_dir = codepilotx_home.path().join("skills").join("demo");
     fs::create_dir_all(&skill_dir).expect("create skill dir");
     let skill_path = skill_dir.join("SKILL.md");
     fs::write(
@@ -788,11 +788,11 @@ async fn skills_for_config_ignores_cwd_cache_when_session_flags_reenable_skill()
     .expect("write skill");
     let disabled_skill_config = path_toggle_config(&skill_path, /*enabled*/ false);
     let enabled_skill_config = path_toggle_config(&skill_path, /*enabled*/ true);
-    let parent_stack = config_stack(&codex_home, &disabled_skill_config);
+    let parent_stack = config_stack(&codepilotx_home, &disabled_skill_config);
     let child_stack =
-        config_stack_with_session_flags(&codex_home, &disabled_skill_config, &enabled_skill_config);
+        config_stack_with_session_flags(&codepilotx_home, &disabled_skill_config, &enabled_skill_config);
     let skills_service = SkillsService::new(
-        codex_home.path().abs(),
+        codepilotx_home.path().abs(),
         /*bundled_skills_enabled*/ true,
     );
     let parent_input = SkillsLoadInput::new(

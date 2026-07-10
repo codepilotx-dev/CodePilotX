@@ -5,13 +5,13 @@ use std::sync::Mutex;
 use std::sync::PoisonError;
 use std::sync::Weak;
 
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::ThreadGoal;
-use codex_protocol::protocol::ThreadGoalStatus;
-use codex_protocol::protocol::ThreadGoalUpdatedEvent;
-use codex_protocol::protocol::validate_thread_goal_objective;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::protocol::EventMsg;
+use codepilotx_protocol::protocol::RolloutItem;
+use codepilotx_protocol::protocol::ThreadGoal;
+use codepilotx_protocol::protocol::ThreadGoalStatus;
+use codepilotx_protocol::protocol::ThreadGoalUpdatedEvent;
+use codepilotx_protocol::protocol::validate_thread_goal_objective;
 
 use crate::runtime::GoalRuntimeHandle;
 use crate::runtime::PreviousGoalSnapshot;
@@ -59,7 +59,7 @@ pub struct GoalSetRequest<'a> {
 #[derive(Clone, Debug)]
 pub struct GoalSetOutcome {
     pub goal: ThreadGoal,
-    state_goal: codex_state::ThreadGoal,
+    state_goal: codepilotx_state::ThreadGoal,
     previous_goal: Option<PreviousGoalSnapshot>,
 }
 
@@ -95,7 +95,7 @@ impl GoalService {
 
     pub async fn get_thread_goal(
         &self,
-        state_db: &codex_state::StateRuntime,
+        state_db: &codepilotx_state::StateRuntime,
         thread_id: ThreadId,
     ) -> Result<Option<ThreadGoal>, GoalServiceError> {
         state_db
@@ -108,7 +108,7 @@ impl GoalService {
 
     pub async fn set_thread_goal(
         &self,
-        state_db: &codex_state::StateRuntime,
+        state_db: &codepilotx_state::StateRuntime,
         request: GoalSetRequest<'_>,
     ) -> Result<GoalSetOutcome, GoalServiceError> {
         let GoalSetRequest {
@@ -167,7 +167,7 @@ impl GoalService {
                     .thread_goals()
                     .update_thread_goal(
                         thread_id,
-                        codex_state::GoalUpdate {
+                        codepilotx_state::GoalUpdate {
                             objective: Some(objective.to_string()),
                             status,
                             token_budget,
@@ -190,7 +190,7 @@ impl GoalService {
                     .replace_thread_goal(
                         thread_id,
                         objective,
-                        status.unwrap_or(codex_state::ThreadGoalStatus::Active),
+                        status.unwrap_or(codepilotx_state::ThreadGoalStatus::Active),
                         token_budget.flatten(),
                     )
                     .await
@@ -218,7 +218,7 @@ impl GoalService {
                 .thread_goals()
                 .update_thread_goal(
                     thread_id,
-                    codex_state::GoalUpdate {
+                    codepilotx_state::GoalUpdate {
                         objective: None,
                         status,
                         token_budget,
@@ -249,7 +249,7 @@ impl GoalService {
 
     pub async fn clear_thread_goal(
         &self,
-        state_db: &codex_state::StateRuntime,
+        state_db: &codepilotx_state::StateRuntime,
         thread_id: ThreadId,
     ) -> Result<bool, GoalServiceError> {
         let runtime = self.runtime_for_thread(thread_id);

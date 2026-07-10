@@ -5,16 +5,16 @@ use std::sync::Arc;
 use crate::SkillLoadOutcome;
 use crate::SkillMetadata;
 use crate::build_skill_name_counts;
-use codex_analytics::AnalyticsEventsClient;
-use codex_analytics::InvocationType;
-use codex_analytics::SkillInvocation;
-use codex_analytics::TrackEventsContext;
-use codex_exec_server::LOCAL_FS;
-use codex_otel::SessionTelemetry;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
-use codex_utils_plugins::mention_syntax::TOOL_MENTION_SIGIL;
+use codepilotx_analytics::AnalyticsEventsClient;
+use codepilotx_analytics::InvocationType;
+use codepilotx_analytics::SkillInvocation;
+use codepilotx_analytics::TrackEventsContext;
+use codepilotx_exec_server::LOCAL_FS;
+use codepilotx_otel::SessionTelemetry;
+use codepilotx_protocol::user_input::UserInput;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
+use codepilotx_utils_plugins::mention_syntax::TOOL_MENTION_SIGIL;
 
 #[derive(Debug, Default)]
 pub struct SkillInjections {

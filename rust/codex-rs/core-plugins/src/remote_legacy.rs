@@ -1,7 +1,7 @@
 use crate::remote::RemotePluginServiceConfig;
-use codex_login::CodexAuth;
-use codex_login::default_client::build_reqwest_client;
-use codex_protocol::protocol::Product;
+use codepilotx_login::CodexAuth;
+use codepilotx_login::default_client::build_reqwest_client;
+use codepilotx_protocol::protocol::Product;
 use serde::Deserialize;
 use std::time::Duration;
 use url::Url;
@@ -111,9 +111,9 @@ pub async fn fetch_remote_featured_plugin_ids(
         )])
         .timeout(REMOTE_FEATURED_PLUGIN_FETCH_TIMEOUT);
 
-    if let Some(auth) = auth.filter(|auth| auth.uses_codex_backend()) {
+    if let Some(auth) = auth.filter(|auth| auth.uses_codepilotx_backend()) {
         request =
-            request.headers(codex_model_provider::auth_provider_from_auth(auth).to_auth_headers());
+            request.headers(codepilotx_model_provider::auth_provider_from_auth(auth).to_auth_headers());
     }
 
     let response = request
@@ -153,13 +153,13 @@ pub async fn uninstall_remote_plugin(
     Ok(())
 }
 
-fn ensure_codex_backend_auth(
+fn ensure_codepilotx_backend_auth(
     auth: Option<&CodexAuth>,
 ) -> Result<&CodexAuth, RemotePluginMutationError> {
     let Some(auth) = auth else {
         return Err(RemotePluginMutationError::AuthRequired);
     };
-    if !auth.uses_codex_backend() {
+    if !auth.uses_codepilotx_backend() {
         return Err(RemotePluginMutationError::UnsupportedAuthMode);
     }
     Ok(auth)
@@ -171,13 +171,13 @@ async fn post_remote_plugin_mutation(
     plugin_id: &str,
     action: &str,
 ) -> Result<RemotePluginMutationResponse, RemotePluginMutationError> {
-    let auth = ensure_codex_backend_auth(auth)?;
+    let auth = ensure_codepilotx_backend_auth(auth)?;
     let url = remote_plugin_mutation_url(config, plugin_id, action)?;
     let client = build_reqwest_client();
     let request = client
         .post(url.clone())
         .timeout(REMOTE_PLUGIN_MUTATION_TIMEOUT)
-        .headers(codex_model_provider::auth_provider_from_auth(auth).to_auth_headers());
+        .headers(codepilotx_model_provider::auth_provider_from_auth(auth).to_auth_headers());
 
     let response = request
         .send()

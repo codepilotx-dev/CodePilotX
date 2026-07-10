@@ -1,19 +1,19 @@
 use std::sync::Arc;
 
-use codex_extension_api::FunctionCallError;
-use codex_extension_api::JsonToolOutput;
-use codex_extension_api::ResponsesApiTool;
-use codex_extension_api::ToolCall;
-use codex_extension_api::ToolExecutor;
-use codex_extension_api::ToolName;
-use codex_extension_api::ToolOutput;
-use codex_extension_api::ToolSpec;
-use codex_extension_api::parse_tool_input_schema;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_mcp::McpResourceClient;
-use codex_tools::ResponsesApiNamespace;
-use codex_tools::ResponsesApiNamespaceTool;
-use codex_tools::default_namespace_description;
+use codepilotx_extension_api::FunctionCallError;
+use codepilotx_extension_api::JsonToolOutput;
+use codepilotx_extension_api::ResponsesApiTool;
+use codepilotx_extension_api::ToolCall;
+use codepilotx_extension_api::ToolExecutor;
+use codepilotx_extension_api::ToolName;
+use codepilotx_extension_api::ToolOutput;
+use codepilotx_extension_api::ToolSpec;
+use codepilotx_extension_api::parse_tool_input_schema;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
+use codepilotx_mcp::McpResourceClient;
+use codepilotx_tools::ResponsesApiNamespace;
+use codepilotx_tools::ResponsesApiNamespaceTool;
+use codepilotx_tools::default_namespace_description;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -90,7 +90,7 @@ enum SkillToolAuthority {
 impl SkillToolAuthority {
     fn from_authority(authority: &SkillAuthority) -> Option<Self> {
         if authority
-            != &SkillAuthority::new(SkillSourceKind::Orchestrator, CODEX_APPS_MCP_SERVER_NAME)
+            != &SkillAuthority::new(SkillSourceKind::Orchestrator, codepilotx_APPS_MCP_SERVER_NAME)
         {
             return None;
         }
@@ -100,7 +100,7 @@ impl SkillToolAuthority {
     fn into_authority(self) -> SkillAuthority {
         match self {
             Self::Orchestrator => {
-                SkillAuthority::new(SkillSourceKind::Orchestrator, CODEX_APPS_MCP_SERVER_NAME)
+                SkillAuthority::new(SkillSourceKind::Orchestrator, codepilotx_APPS_MCP_SERVER_NAME)
             }
         }
     }

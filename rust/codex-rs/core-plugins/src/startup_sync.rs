@@ -6,15 +6,15 @@ use std::process::Output;
 use std::process::Stdio;
 use std::time::Duration;
 
-use codex_otel::CURATED_PLUGINS_STARTUP_SYNC_FINAL_METRIC;
-use codex_otel::CURATED_PLUGINS_STARTUP_SYNC_METRIC;
+use codepilotx_otel::CURATED_PLUGINS_STARTUP_SYNC_FINAL_METRIC;
+use codepilotx_otel::CURATED_PLUGINS_STARTUP_SYNC_METRIC;
 use reqwest::Client;
 use serde::Deserialize;
 use tempfile::TempDir;
 use tracing::warn;
 use zip::ZipArchive;
 
-use codex_login::default_client::build_reqwest_client;
+use codepilotx_login::default_client::build_reqwest_client;
 
 const GITHUB_API_BASE_URL: &str = "https://api.github.com";
 const GITHUB_API_ACCEPT_HEADER: &str = "application/vnd.github+json";
@@ -55,25 +55,25 @@ struct CuratedPluginsBackupArchiveResponse {
     download_url: String,
 }
 
-pub fn curated_plugins_repo_path(codex_home: &Path) -> PathBuf {
-    codex_home.join(CURATED_PLUGINS_RELATIVE_DIR)
+pub fn curated_plugins_repo_path(codepilotx_home: &Path) -> PathBuf {
+    codepilotx_home.join(CURATED_PLUGINS_RELATIVE_DIR)
 }
 
-pub fn curated_plugins_api_marketplace_path(codex_home: &Path) -> PathBuf {
-    curated_plugins_repo_path(codex_home).join(".agents/plugins/api_marketplace.json")
+pub fn curated_plugins_api_marketplace_path(codepilotx_home: &Path) -> PathBuf {
+    curated_plugins_repo_path(codepilotx_home).join(".agents/plugins/api_marketplace.json")
 }
 
-pub fn read_curated_plugins_sha(codex_home: &Path) -> Option<String> {
-    read_sha_file(curated_plugins_sha_path(codex_home).as_path())
+pub fn read_curated_plugins_sha(codepilotx_home: &Path) -> Option<String> {
+    read_sha_file(curated_plugins_sha_path(codepilotx_home).as_path())
 }
 
-fn curated_plugins_sha_path(codex_home: &Path) -> PathBuf {
-    codex_home.join(CURATED_PLUGINS_SHA_FILE)
+fn curated_plugins_sha_path(codepilotx_home: &Path) -> PathBuf {
+    codepilotx_home.join(CURATED_PLUGINS_SHA_FILE)
 }
 
-pub fn sync_openai_plugins_repo(codex_home: &Path) -> Result<String, String> {
+pub fn sync_openai_plugins_repo(codepilotx_home: &Path) -> Result<String, String> {
     sync_openai_plugins_repo_with_transport_overrides(
-        codex_home,
+        codepilotx_home,
         "git",
         GITHUB_API_BASE_URL,
         CURATED_PLUGINS_BACKUP_ARCHIVE_API_URL,
@@ -81,14 +81,14 @@ pub fn sync_openai_plugins_repo(codex_home: &Path) -> Result<String, String> {
 }
 
 fn sync_openai_plugins_repo_with_transport_overrides(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     git_binary: &str,
     api_base_url: &str,
     backup_archive_api_url: &str,
 ) -> Result<String, String> {
-    let _file_guard = lock_curated_plugins_startup_sync(codex_home)?;
+    let _file_guard = lock_curated_plugins_startup_sync(codepilotx_home)?;
 
-    match sync_openai_plugins_repo_via_git(codex_home, git_binary) {
+    match sync_openai_plugins_repo_via_git(codepilotx_home, git_binary) {
         Ok(remote_sha) => {
             emit_curated_plugins_startup_sync_metric("git", "success");
             emit_curated_plugins_startup_sync_final_metric("git", "success");
@@ -101,7 +101,7 @@ fn sync_openai_plugins_repo_with_transport_overrides(
                 git_binary,
                 "git sync failed for curated plugin sync; falling back to GitHub HTTP"
             );
-            match sync_openai_plugins_repo_via_http(codex_home, api_base_url) {
+            match sync_openai_plugins_repo_via_http(codepilotx_home, api_base_url) {
                 Ok(remote_sha) => {
                     emit_curated_plugins_startup_sync_metric("http", "success");
                     emit_curated_plugins_startup_sync_final_metric("http", "success");
@@ -109,7 +109,7 @@ fn sync_openai_plugins_repo_with_transport_overrides(
                 }
                 Err(http_err) => {
                     emit_curated_plugins_startup_sync_metric("http", "failure");
-                    if has_local_curated_plugins_snapshot(codex_home) {
+                    if has_local_curated_plugins_snapshot(codepilotx_home) {
                         emit_curated_plugins_startup_sync_final_metric("http", "failure");
                         warn!(
                             error = %http_err,
@@ -127,7 +127,7 @@ fn sync_openai_plugins_repo_with_transport_overrides(
                             "GitHub HTTP sync failed for curated plugin sync; falling back to export archive"
                         );
                         let result = sync_openai_plugins_repo_via_backup_archive(
-                            codex_home,
+                            codepilotx_home,
                             backup_archive_api_url,
                         );
                         let status = if result.is_ok() { "success" } else { "failure" };
@@ -145,9 +145,9 @@ fn sync_openai_plugins_repo_with_transport_overrides(
     }
 }
 
-fn lock_curated_plugins_startup_sync(codex_home: &Path) -> Result<File, String> {
-    let lock_path = codex_home.join(CURATED_PLUGINS_SYNC_LOCK_FILE);
-    std::fs::create_dir_all(codex_home.join(".tmp"))
+fn lock_curated_plugins_startup_sync(codepilotx_home: &Path) -> Result<File, String> {
+    let lock_path = codepilotx_home.join(CURATED_PLUGINS_SYNC_LOCK_FILE);
+    std::fs::create_dir_all(codepilotx_home.join(".tmp"))
         .map_err(|err| format!("failed to create curated plugins sync directory: {err}"))?;
     let lock_file = File::options()
         .write(true)
@@ -161,9 +161,9 @@ fn lock_curated_plugins_startup_sync(codex_home: &Path) -> Result<File, String> 
     Ok(lock_file)
 }
 
-fn sync_openai_plugins_repo_via_git(codex_home: &Path, git_binary: &str) -> Result<String, String> {
-    let repo_path = curated_plugins_repo_path(codex_home);
-    let sha_path = codex_home.join(CURATED_PLUGINS_SHA_FILE);
+fn sync_openai_plugins_repo_via_git(codepilotx_home: &Path, git_binary: &str) -> Result<String, String> {
+    let repo_path = curated_plugins_repo_path(codepilotx_home);
+    let sha_path = codepilotx_home.join(CURATED_PLUGINS_SHA_FILE);
     let remote_sha = git_ls_remote_head_sha(git_binary)?;
     let local_sha = read_local_git_or_sha_file(&repo_path, &sha_path, git_binary);
 
@@ -290,11 +290,11 @@ fn run_git_in_repo(
 }
 
 fn sync_openai_plugins_repo_via_http(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     api_base_url: &str,
 ) -> Result<String, String> {
-    let repo_path = curated_plugins_repo_path(codex_home);
-    let sha_path = codex_home.join(CURATED_PLUGINS_SHA_FILE);
+    let repo_path = curated_plugins_repo_path(codepilotx_home);
+    let sha_path = codepilotx_home.join(CURATED_PLUGINS_SHA_FILE);
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -316,11 +316,11 @@ fn sync_openai_plugins_repo_via_http(
 }
 
 fn sync_openai_plugins_repo_via_backup_archive(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     backup_archive_api_url: &str,
 ) -> Result<String, String> {
-    let repo_path = curated_plugins_repo_path(codex_home);
-    let sha_path = curated_plugins_sha_path(codex_home);
+    let repo_path = curated_plugins_repo_path(codepilotx_home);
+    let sha_path = curated_plugins_sha_path(codepilotx_home);
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -338,11 +338,11 @@ fn sync_openai_plugins_repo_via_backup_archive(
     Ok(export_version)
 }
 
-pub fn has_local_curated_plugins_snapshot(codex_home: &Path) -> bool {
-    curated_plugins_repo_path(codex_home)
+pub fn has_local_curated_plugins_snapshot(codepilotx_home: &Path) -> bool {
+    curated_plugins_repo_path(codepilotx_home)
         .join(".agents/plugins/marketplace.json")
         .is_file()
-        && codex_home.join(CURATED_PLUGINS_SHA_FILE).is_file()
+        && codepilotx_home.join(CURATED_PLUGINS_SHA_FILE).is_file()
 }
 
 fn prepare_curated_repo_parent_and_temp_dir(repo_path: &Path) -> Result<TempDir, String> {
@@ -478,7 +478,7 @@ fn emit_curated_plugins_startup_sync_counter(
     transport: &'static str,
     status: &'static str,
 ) {
-    let Some(metrics) = codex_otel::global() else {
+    let Some(metrics) = codepilotx_otel::global() else {
         return;
     };
     let tags = [("transport", transport), ("status", status)];

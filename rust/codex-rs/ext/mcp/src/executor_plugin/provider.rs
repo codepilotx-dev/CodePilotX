@@ -1,15 +1,15 @@
-use codex_config::McpServerConfig;
-use codex_config::McpServerTransportConfig;
-use codex_core_plugins::ResolvedExecutorPlugin;
-use codex_exec_server::ExecutorFileSystem;
-use codex_mcp::PluginMcpServerPlacement;
-use codex_mcp::parse_plugin_mcp_config;
-use codex_plugin::PluginResourceLocator;
-use codex_plugin::ResolvedPlugin;
-use codex_plugin::ResolvedPluginLocation;
-use codex_plugin::manifest::PluginManifestMcpServers;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_config::McpServerConfig;
+use codepilotx_config::McpServerTransportConfig;
+use codepilotx_core_plugins::ResolvedExecutorPlugin;
+use codepilotx_exec_server::ExecutorFileSystem;
+use codepilotx_mcp::PluginMcpServerPlacement;
+use codepilotx_mcp::parse_plugin_mcp_config;
+use codepilotx_plugin::PluginResourceLocator;
+use codepilotx_plugin::ResolvedPlugin;
+use codepilotx_plugin::ResolvedPluginLocation;
+use codepilotx_plugin::manifest::PluginManifestMcpServers;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 use std::io;
 use thiserror::Error;
 

@@ -1,5 +1,5 @@
 use super::*;
-use codex_plugin::PluginId;
+use codepilotx_plugin::PluginId;
 use pretty_assertions::assert_eq;
 use tempfile::tempdir;
 
@@ -34,7 +34,7 @@ fn write_plugin(root: &Path, dir_name: &str, manifest_name: &str) {
 }
 
 #[test]
-fn try_new_rejects_relative_codex_home() {
+fn try_new_rejects_relative_codepilotx_home() {
     let err = PluginStore::try_new(PathBuf::from("relative"))
         .expect_err("relative codex home should fail");
     let err = err.to_string().replace('\\', "/");

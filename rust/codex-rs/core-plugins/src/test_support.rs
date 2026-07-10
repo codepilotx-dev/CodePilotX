@@ -4,11 +4,11 @@ use std::path::Path;
 use crate::OPENAI_API_CURATED_MARKETPLACE_NAME;
 use crate::OPENAI_CURATED_MARKETPLACE_NAME;
 use crate::PluginsConfigInput;
-use codex_config::LoaderOverrides;
-use codex_config::NoopThreadConfigLoader;
-use codex_config::loader::load_config_layers_state;
-use codex_exec_server::LOCAL_FS;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_config::NoopThreadConfigLoader;
+use codepilotx_config::loader::load_config_layers_state;
+use codepilotx_exec_server::LOCAL_FS;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use toml::Value;
 
 pub(crate) const TEST_CURATED_PLUGIN_SHA: &str = "0123456789abcdef0123456789abcdef01234567";
@@ -125,16 +125,16 @@ fn write_curated_marketplace(
     }
 }
 
-pub(crate) fn write_curated_plugin_sha_with(codex_home: &Path, sha: &str) {
-    write_file(&codex_home.join(".tmp/plugins.sha"), &format!("{sha}\n"));
+pub(crate) fn write_curated_plugin_sha_with(codepilotx_home: &Path, sha: &str) {
+    write_file(&codepilotx_home.join(".tmp/plugins.sha"), &format!("{sha}\n"));
 }
 
-pub(crate) async fn load_plugins_config(codex_home: &Path, cwd: &Path) -> PluginsConfigInput {
-    let codex_home = AbsolutePathBuf::try_from(codex_home).expect("codex home should be absolute");
+pub(crate) async fn load_plugins_config(codepilotx_home: &Path, cwd: &Path) -> PluginsConfigInput {
+    let codepilotx_home = AbsolutePathBuf::try_from(codepilotx_home).expect("codex home should be absolute");
     let cwd = AbsolutePathBuf::try_from(cwd).expect("cwd should be absolute");
     let config_layer_stack = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        codex_home.as_path(),
+        codepilotx_home.as_path(),
         Some(cwd),
         &[],
         LoaderOverrides::without_managed_config_for_tests(),

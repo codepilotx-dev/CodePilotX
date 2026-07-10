@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use codex_extension_api::FunctionCallError;
-use codex_extension_api::ResponsesApiTool;
-use codex_extension_api::ToolCall;
-use codex_extension_api::ToolExecutor;
-use codex_extension_api::ToolName;
-use codex_extension_api::ToolSpec;
-use codex_extension_api::parse_tool_input_schema;
-use codex_otel::MetricsClient;
-use codex_tools::ResponsesApiNamespace;
-use codex_tools::ResponsesApiNamespaceTool;
-use codex_tools::default_namespace_description;
+use codepilotx_extension_api::FunctionCallError;
+use codepilotx_extension_api::ResponsesApiTool;
+use codepilotx_extension_api::ToolCall;
+use codepilotx_extension_api::ToolExecutor;
+use codepilotx_extension_api::ToolName;
+use codepilotx_extension_api::ToolSpec;
+use codepilotx_extension_api::parse_tool_input_schema;
+use codepilotx_otel::MetricsClient;
+use codepilotx_tools::ResponsesApiNamespace;
+use codepilotx_tools::ResponsesApiNamespaceTool;
+use codepilotx_tools::default_namespace_description;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;

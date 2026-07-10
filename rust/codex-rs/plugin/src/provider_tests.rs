@@ -6,7 +6,7 @@ use crate::manifest::PluginManifestHooks;
 use crate::manifest::PluginManifestInterface;
 use crate::manifest::PluginManifestMcpServers;
 use crate::manifest::PluginManifestPaths;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 
 fn absolute(path: impl AsRef<std::path::Path>) -> AbsolutePathBuf {

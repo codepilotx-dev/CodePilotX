@@ -1,14 +1,14 @@
-use codex_config::test_support::CloudConfigBundleFixture;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::LOCAL_ENVIRONMENT_ID;
-use codex_extension_api::ExtensionDataInit;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::McpServerContribution;
-use codex_extension_api::McpServerContributionContext;
-use codex_protocol::capabilities::CapabilityRootLocation;
-use codex_protocol::capabilities::SelectedCapabilityRoot;
+use codepilotx_config::test_support::CloudConfigBundleFixture;
+use codepilotx_core::config::Config;
+use codepilotx_core::config::ConfigBuilder;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_exec_server::LOCAL_ENVIRONMENT_ID;
+use codepilotx_extension_api::ExtensionDataInit;
+use codepilotx_extension_api::ExtensionRegistryBuilder;
+use codepilotx_extension_api::McpServerContribution;
+use codepilotx_extension_api::McpServerContributionContext;
+use codepilotx_protocol::capabilities::CapabilityRootLocation;
+use codepilotx_protocol::capabilities::SelectedCapabilityRoot;
 use pretty_assertions::assert_eq;
 use std::sync::Arc;
 
@@ -25,7 +25,7 @@ struct ContributionSummary {
 
 #[tokio::test]
 async fn selected_plugin_servers_use_managed_requirements_for_the_selected_root_id() -> TestResult {
-    let codex_home = tempfile::tempdir()?;
+    let codepilotx_home = tempfile::tempdir()?;
     let plugin_root = tempfile::tempdir()?;
     std::fs::create_dir_all(plugin_root.path().join(".codex-plugin"))?;
     std::fs::write(
@@ -43,8 +43,8 @@ async fn selected_plugin_servers_use_managed_requirements_for_the_selected_root_
 }"#,
     )?;
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
-        .fallback_cwd(Some(codex_home.path().to_path_buf()))
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
+        .fallback_cwd(Some(codepilotx_home.path().to_path_buf()))
         .cloud_config_bundle(
             CloudConfigBundleFixture::loader_with_enterprise_requirement(
                 r#"
@@ -95,7 +95,7 @@ async fn selected_plugin_contributions(
     plugin_root: &std::path::Path,
 ) -> Vec<ContributionSummary> {
     let mut builder = ExtensionRegistryBuilder::new();
-    codex_mcp_extension::install_executor_plugins(
+    codepilotx_mcp_extension::install_executor_plugins(
         &mut builder,
         Arc::new(EnvironmentManager::default_for_tests()),
     );
@@ -108,7 +108,7 @@ async fn selected_plugin_contributions(
             path: plugin_root.to_string_lossy().into_owned(),
         },
     }]);
-    codex_mcp_extension::initialize_executor_plugin_thread_data(&mut thread_init);
+    codepilotx_mcp_extension::initialize_executor_plugin_thread_data(&mut thread_init);
 
     registry.mcp_server_contributors()[0]
         .contribute(McpServerContributionContext::for_thread(

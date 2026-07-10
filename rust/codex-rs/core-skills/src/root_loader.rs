@@ -4,7 +4,7 @@ use std::fmt;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use codex_utils_plugins::PluginSkillRoot;
+use codepilotx_utils_plugins::PluginSkillRoot;
 
 use crate::SkillLoadOutcome;
 use crate::loader::SkillRoot;
@@ -91,8 +91,8 @@ where
 }
 
 fn merge_skill_root_snapshots(snapshots: Vec<SkillRootSnapshot>) -> SkillLoadOutcome {
-    fn scope_rank(scope: codex_protocol::protocol::SkillScope) -> u8 {
-        use codex_protocol::protocol::SkillScope;
+    fn scope_rank(scope: codepilotx_protocol::protocol::SkillScope) -> u8 {
+        use codepilotx_protocol::protocol::SkillScope;
 
         // Higher-priority scopes first (matches root scan order for dedupe).
         match scope {

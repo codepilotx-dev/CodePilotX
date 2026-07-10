@@ -1,21 +1,21 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use codex_extension_api::ContextContributor;
-use codex_extension_api::ExtensionData;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::NoopTurnItemEmitter;
-use codex_extension_api::PromptSlot;
-use codex_extension_api::ToolCall;
-use codex_extension_api::ToolContributor;
-use codex_extension_api::ToolExecutor;
-use codex_extension_api::ToolName;
-use codex_extension_api::ToolPayload;
-use codex_tools::ToolOutput;
-use codex_utils_absolute_path::test_support::PathBufExt;
-use codex_utils_absolute_path::test_support::PathExt;
-use codex_utils_absolute_path::test_support::test_path_buf;
-use codex_utils_output_truncation::TruncationPolicy;
+use codepilotx_extension_api::ContextContributor;
+use codepilotx_extension_api::ExtensionData;
+use codepilotx_extension_api::ExtensionRegistryBuilder;
+use codepilotx_extension_api::NoopTurnItemEmitter;
+use codepilotx_extension_api::PromptSlot;
+use codepilotx_extension_api::ToolCall;
+use codepilotx_extension_api::ToolContributor;
+use codepilotx_extension_api::ToolExecutor;
+use codepilotx_extension_api::ToolName;
+use codepilotx_extension_api::ToolPayload;
+use codepilotx_tools::ToolOutput;
+use codepilotx_utils_absolute_path::test_support::PathBufExt;
+use codepilotx_utils_absolute_path::test_support::PathExt;
+use codepilotx_utils_absolute_path::test_support::test_path_buf;
+use codepilotx_utils_output_truncation::TruncationPolicy;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
@@ -54,7 +54,7 @@ fn tools_are_not_contributed_when_disabled() {
     thread_store.insert(MemoriesExtensionConfig {
         enabled: false,
         dedicated_tools: true,
-        codex_home: test_path_buf("/tmp/codex-home").abs(),
+        codepilotx_home: test_path_buf("/tmp/codex-home").abs(),
     });
 
     assert!(
@@ -71,7 +71,7 @@ fn tools_are_not_contributed_when_dedicated_tools_disabled() {
     thread_store.insert(MemoriesExtensionConfig {
         enabled: true,
         dedicated_tools: false,
-        codex_home: test_path_buf("/tmp/codex-home").abs(),
+        codepilotx_home: test_path_buf("/tmp/codex-home").abs(),
     });
 
     assert!(
@@ -88,7 +88,7 @@ fn tools_are_contributed_when_enabled_with_dedicated_tools() {
     thread_store.insert(MemoriesExtensionConfig {
         enabled: true,
         dedicated_tools: true,
-        codex_home: test_path_buf("/tmp/codex-home").abs(),
+        codepilotx_home: test_path_buf("/tmp/codex-home").abs(),
     });
 
     let tool_names = extension
@@ -110,14 +110,14 @@ fn tools_are_contributed_when_enabled_with_dedicated_tools() {
 
 #[test]
 fn install_registers_dedicated_tool_contributor() {
-    let mut builder = ExtensionRegistryBuilder::<codex_core::config::Config>::new();
+    let mut builder = ExtensionRegistryBuilder::<codepilotx_core::config::Config>::new();
     crate::install(&mut builder, /*metrics_client*/ None);
     let registry = builder.build();
     let thread_store = ExtensionData::new("thread");
     thread_store.insert(MemoriesExtensionConfig {
         enabled: true,
         dedicated_tools: true,
-        codex_home: test_path_buf("/tmp/codex-home").abs(),
+        codepilotx_home: test_path_buf("/tmp/codex-home").abs(),
     });
 
     let tool_names = registry
@@ -177,7 +177,7 @@ async fn prompt_contribution_uses_memory_summary_when_enabled() {
     thread_store.insert(MemoriesExtensionConfig {
         enabled: true,
         dedicated_tools: false,
-        codex_home: tempdir.path().abs(),
+        codepilotx_home: tempdir.path().abs(),
     });
 
     let fragments = extension
@@ -213,7 +213,7 @@ async fn add_ad_hoc_note_tool_creates_note_file() {
             tool_name: memory_tool_name(crate::ADD_AD_HOC_NOTE_TOOL_NAME),
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
-            conversation_history: codex_extension_api::ConversationHistory::default(),
+            conversation_history: codepilotx_extension_api::ConversationHistory::default(),
             turn_item_emitter: Arc::new(NoopTurnItemEmitter),
             environments: Vec::new(),
             payload: payload.clone(),
@@ -257,7 +257,7 @@ async fn add_ad_hoc_note_tool_rejects_paths_as_filenames() {
             tool_name: memory_tool_name(crate::ADD_AD_HOC_NOTE_TOOL_NAME),
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
-            conversation_history: codex_extension_api::ConversationHistory::default(),
+            conversation_history: codepilotx_extension_api::ConversationHistory::default(),
             turn_item_emitter: Arc::new(NoopTurnItemEmitter),
             environments: Vec::new(),
             payload,
@@ -302,7 +302,7 @@ async fn read_tool_reads_memory_file() {
             tool_name: memory_tool_name(crate::READ_TOOL_NAME),
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
-            conversation_history: codex_extension_api::ConversationHistory::default(),
+            conversation_history: codepilotx_extension_api::ConversationHistory::default(),
             turn_item_emitter: Arc::new(NoopTurnItemEmitter),
             environments: Vec::new(),
             payload: payload.clone(),
@@ -350,7 +350,7 @@ async fn search_tool_accepts_multiple_queries() {
             tool_name: memory_tool_name(crate::SEARCH_TOOL_NAME),
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
-            conversation_history: codex_extension_api::ConversationHistory::default(),
+            conversation_history: codepilotx_extension_api::ConversationHistory::default(),
             turn_item_emitter: Arc::new(NoopTurnItemEmitter),
             environments: Vec::new(),
             payload: payload.clone(),
@@ -424,7 +424,7 @@ async fn search_tool_accepts_windowed_all_match_mode() {
             tool_name: memory_tool_name(crate::SEARCH_TOOL_NAME),
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
-            conversation_history: codex_extension_api::ConversationHistory::default(),
+            conversation_history: codepilotx_extension_api::ConversationHistory::default(),
             turn_item_emitter: Arc::new(NoopTurnItemEmitter),
             environments: Vec::new(),
             payload: payload.clone(),
@@ -478,7 +478,7 @@ async fn search_tool_rejects_legacy_single_query() {
             tool_name: memory_tool_name(crate::SEARCH_TOOL_NAME),
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
-            conversation_history: codex_extension_api::ConversationHistory::default(),
+            conversation_history: codepilotx_extension_api::ConversationHistory::default(),
             turn_item_emitter: Arc::new(NoopTurnItemEmitter),
             environments: Vec::new(),
             payload,

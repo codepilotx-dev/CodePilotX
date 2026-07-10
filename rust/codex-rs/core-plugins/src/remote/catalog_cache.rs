@@ -1,6 +1,6 @@
 use super::RemotePluginDirectoryItem;
 use super::RemotePluginServiceConfig;
-use codex_login::CodexAuth;
+use codepilotx_login::CodexAuth;
 use serde::Deserialize;
 use serde::Serialize;
 use std::path::Path;
@@ -36,12 +36,12 @@ struct RemotePluginCatalogDiskCache {
 }
 
 pub(crate) fn load_cached_global_directory_plugins(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     config: &RemotePluginServiceConfig,
     auth: &CodexAuth,
 ) -> Option<Vec<RemotePluginDirectoryItem>> {
     let cache_path = cache_path(
-        codex_home,
+        codepilotx_home,
         &RemotePluginCatalogCacheKey::global(config, auth),
     );
     let bytes = match std::fs::read(&cache_path) {
@@ -75,13 +75,13 @@ pub(crate) fn load_cached_global_directory_plugins(
 }
 
 pub(crate) fn write_cached_global_directory_plugins(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     config: &RemotePluginServiceConfig,
     auth: &CodexAuth,
     plugins: &[RemotePluginDirectoryItem],
 ) {
     let cache_path = cache_path(
-        codex_home,
+        codepilotx_home,
         &RemotePluginCatalogCacheKey::global(config, auth),
     );
     if let Some(parent) = cache_path.parent()
@@ -98,14 +98,14 @@ pub(crate) fn write_cached_global_directory_plugins(
     let _ = std::fs::write(cache_path, bytes);
 }
 
-fn cache_path(codex_home: &Path, cache_key: &RemotePluginCatalogCacheKey) -> PathBuf {
+fn cache_path(codepilotx_home: &Path, cache_key: &RemotePluginCatalogCacheKey) -> PathBuf {
     let cache_key_json = serde_json::to_vec(cache_key).unwrap_or_default();
     let mut cache_key_hash = 0xcbf29ce484222325_u64;
     for byte in cache_key_json {
         cache_key_hash ^= u64::from(byte);
         cache_key_hash = cache_key_hash.wrapping_mul(0x100000001b3);
     }
-    codex_home
+    codepilotx_home
         .join(REMOTE_PLUGIN_CATALOG_DISK_CACHE_DIR)
         .join(format!("{cache_key_hash:016x}.json"))
 }

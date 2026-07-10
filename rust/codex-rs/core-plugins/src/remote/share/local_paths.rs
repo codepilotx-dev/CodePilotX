@@ -1,4 +1,4 @@
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -18,31 +18,31 @@ struct PluginShareLocalPaths {
 }
 
 pub(crate) fn load_plugin_share_local_paths(
-    codex_home: &Path,
+    codepilotx_home: &Path,
 ) -> io::Result<BTreeMap<String, AbsolutePathBuf>> {
     let _guard = lock_plugin_share_local_paths()?;
-    read_plugin_share_local_paths(codex_home)
+    read_plugin_share_local_paths(codepilotx_home)
 }
 
 pub(crate) fn record_plugin_share_local_path(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     remote_plugin_id: &str,
     plugin_path: AbsolutePathBuf,
 ) -> io::Result<()> {
     let _guard = lock_plugin_share_local_paths()?;
-    let mut mapping = read_plugin_share_local_paths_for_update(codex_home)?;
+    let mut mapping = read_plugin_share_local_paths_for_update(codepilotx_home)?;
     mapping.insert(remote_plugin_id.to_string(), plugin_path);
-    write_plugin_share_local_paths(codex_home, mapping)
+    write_plugin_share_local_paths(codepilotx_home, mapping)
 }
 
 pub(crate) fn remove_plugin_share_local_path(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     remote_plugin_id: &str,
 ) -> io::Result<()> {
     let _guard = lock_plugin_share_local_paths()?;
-    let mut mapping = read_plugin_share_local_paths_for_update(codex_home)?;
+    let mut mapping = read_plugin_share_local_paths_for_update(codepilotx_home)?;
     mapping.remove(remote_plugin_id);
-    write_plugin_share_local_paths(codex_home, mapping)
+    write_plugin_share_local_paths(codepilotx_home, mapping)
 }
 
 fn lock_plugin_share_local_paths() -> io::Result<std::sync::MutexGuard<'static, ()>> {
@@ -52,9 +52,9 @@ fn lock_plugin_share_local_paths() -> io::Result<std::sync::MutexGuard<'static, 
 }
 
 fn read_plugin_share_local_paths(
-    codex_home: &Path,
+    codepilotx_home: &Path,
 ) -> io::Result<BTreeMap<String, AbsolutePathBuf>> {
-    let path = plugin_share_local_paths_path(codex_home);
+    let path = plugin_share_local_paths_path(codepilotx_home);
     let contents = match std::fs::read_to_string(&path) {
         Ok(contents) => contents,
         Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(BTreeMap::new()),
@@ -74,9 +74,9 @@ fn read_plugin_share_local_paths(
 }
 
 fn read_plugin_share_local_paths_for_update(
-    codex_home: &Path,
+    codepilotx_home: &Path,
 ) -> io::Result<BTreeMap<String, AbsolutePathBuf>> {
-    match read_plugin_share_local_paths(codex_home) {
+    match read_plugin_share_local_paths(codepilotx_home) {
         Ok(mapping) => Ok(mapping),
         // This is a best-effort cache under .tmp, so malformed state should not
         // permanently block future share saves or deletes.
@@ -86,10 +86,10 @@ fn read_plugin_share_local_paths_for_update(
 }
 
 fn write_plugin_share_local_paths(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     mapping: BTreeMap<String, AbsolutePathBuf>,
 ) -> io::Result<()> {
-    let path = plugin_share_local_paths_path(codex_home);
+    let path = plugin_share_local_paths_path(codepilotx_home);
     if mapping.is_empty() {
         match std::fs::remove_file(&path) {
             Ok(()) => return Ok(()),
@@ -119,6 +119,6 @@ fn write_atomically(write_path: &Path, contents: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn plugin_share_local_paths_path(codex_home: &Path) -> std::path::PathBuf {
-    codex_home.join(PLUGIN_SHARE_LOCAL_PATHS_FILE)
+fn plugin_share_local_paths_path(codepilotx_home: &Path) -> std::path::PathBuf {
+    codepilotx_home.join(PLUGIN_SHARE_LOCAL_PATHS_FILE)
 }

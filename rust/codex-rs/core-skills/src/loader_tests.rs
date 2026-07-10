@@ -1,15 +1,15 @@
 use super::*;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigRequirements;
-use codex_config::ConfigRequirementsToml;
-use codex_exec_server::LOCAL_FS;
-use codex_protocol::protocol::Product;
-use codex_protocol::protocol::SkillScope;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::test_support::PathBufExt;
-use codex_utils_absolute_path::test_support::PathExt;
+use codepilotx_config::CONFIG_TOML_FILE;
+use codepilotx_config::ConfigLayerEntry;
+use codepilotx_config::ConfigLayerStack;
+use codepilotx_config::ConfigRequirements;
+use codepilotx_config::ConfigRequirementsToml;
+use codepilotx_exec_server::LOCAL_FS;
+use codepilotx_protocol::protocol::Product;
+use codepilotx_protocol::protocol::SkillScope;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::test_support::PathBufExt;
+use codepilotx_utils_absolute_path::test_support::PathExt;
 use dunce::canonicalize as canonicalize_path;
 use pretty_assertions::assert_eq;
 use std::fs;
@@ -26,8 +26,8 @@ struct TestConfig {
     config_layer_stack: ConfigLayerStack,
 }
 
-async fn make_config(codex_home: &TempDir) -> TestConfig {
-    make_config_for_cwd(codex_home, codex_home.path().to_path_buf()).await
+async fn make_config(codepilotx_home: &TempDir) -> TestConfig {
+    make_config_for_cwd(codepilotx_home, codepilotx_home.path().to_path_buf()).await
 }
 
 fn config_file(path: PathBuf) -> AbsolutePathBuf {
@@ -70,7 +70,7 @@ fn project_layers_for_cwd(cwd: &Path) -> Vec<ConfigLayerEntry> {
             dot_codex.is_dir().then(|| {
                 ConfigLayerEntry::new(
                     ConfigLayerSource::Project {
-                        dot_codex_folder: dot_codex.abs(),
+                        dot_codepilotx_folder: dot_codex.abs(),
                     },
                     TomlValue::Table(toml::map::Map::new()),
                 )
@@ -79,9 +79,9 @@ fn project_layers_for_cwd(cwd: &Path) -> Vec<ConfigLayerEntry> {
         .collect()
 }
 
-async fn make_config_for_cwd(codex_home: &TempDir, cwd: PathBuf) -> TestConfig {
-    let user_config_path = codex_home.path().join(CONFIG_TOML_FILE);
-    let system_config_path = codex_home.path().join("etc/codex/config.toml");
+async fn make_config_for_cwd(codepilotx_home: &TempDir, cwd: PathBuf) -> TestConfig {
+    let user_config_path = codepilotx_home.path().join(CONFIG_TOML_FILE);
+    let system_config_path = codepilotx_home.path().join("etc/codex/config.toml");
     fs::create_dir_all(
         system_config_path
             .parent()
@@ -235,7 +235,7 @@ async fn skill_roots_from_layer_stack_includes_disabled_project_layers() -> anyh
         ),
         ConfigLayerEntry::new_disabled(
             ConfigLayerSource::Project {
-                dot_codex_folder: project_dot_codex,
+                dot_codepilotx_folder: project_dot_codex,
             },
             TomlValue::Table(toml::map::Map::new()),
             "marked untrusted",
@@ -340,13 +340,13 @@ async fn loads_skills_from_home_agents_dir_for_user_scope() -> anyhow::Result<()
     Ok(())
 }
 
-fn write_skill(codex_home: &TempDir, dir: &str, name: &str, description: &str) -> PathBuf {
-    write_skill_at(&codex_home.path().join("skills"), dir, name, description)
+fn write_skill(codepilotx_home: &TempDir, dir: &str, name: &str, description: &str) -> PathBuf {
+    write_skill_at(&codepilotx_home.path().join("skills"), dir, name, description)
 }
 
-fn write_system_skill(codex_home: &TempDir, dir: &str, name: &str, description: &str) -> PathBuf {
+fn write_system_skill(codepilotx_home: &TempDir, dir: &str, name: &str, description: &str) -> PathBuf {
     write_skill_at(
-        &codex_home.path().join("skills/.system"),
+        &codepilotx_home.path().join("skills/.system"),
         dir,
         name,
         description,
@@ -390,8 +390,8 @@ fn write_skill_interface_at(skill_dir: &Path, contents: &str) -> PathBuf {
 
 #[tokio::test]
 async fn loads_skill_dependencies_metadata_from_yaml() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
-    let skill_path = write_skill(&codex_home, "demo", "dep-skill", "from json");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
+    let skill_path = write_skill(&codepilotx_home, "demo", "dep-skill", "from json");
     let skill_dir = skill_path.parent().expect("skill dir");
 
     write_skill_metadata_at(
@@ -425,7 +425,7 @@ async fn loads_skill_dependencies_metadata_from_yaml() {
 "#,
     );
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
 
     assert!(
@@ -478,8 +478,8 @@ async fn loads_skill_dependencies_metadata_from_yaml() {
 
 #[tokio::test]
 async fn loads_skill_interface_metadata_from_yaml() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
-    let skill_path = write_skill(&codex_home, "demo", "ui-skill", "from json");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
+    let skill_path = write_skill(&codepilotx_home, "demo", "ui-skill", "from json");
     let skill_dir = skill_path.parent().expect("skill dir");
     let normalized_skill_dir = normalized(skill_dir);
 
@@ -496,7 +496,7 @@ interface:
 "##,
     );
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
 
     assert!(
@@ -534,8 +534,8 @@ interface:
 
 #[tokio::test]
 async fn loads_skill_policy_from_yaml() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
-    let skill_path = write_skill(&codex_home, "demo", "policy-skill", "from json");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
+    let skill_path = write_skill(&codepilotx_home, "demo", "policy-skill", "from json");
     let skill_dir = skill_path.parent().expect("skill dir");
 
     write_skill_metadata_at(
@@ -546,7 +546,7 @@ policy:
 "#,
     );
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
 
     assert!(
@@ -567,8 +567,8 @@ policy:
 
 #[tokio::test]
 async fn empty_skill_policy_defaults_to_allow_implicit_invocation() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
-    let skill_path = write_skill(&codex_home, "demo", "policy-empty", "from json");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
+    let skill_path = write_skill(&codepilotx_home, "demo", "policy-empty", "from json");
     let skill_dir = skill_path.parent().expect("skill dir");
 
     write_skill_metadata_at(
@@ -578,7 +578,7 @@ policy: {}
 "#,
     );
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
 
     assert!(
@@ -602,8 +602,8 @@ policy: {}
 
 #[tokio::test]
 async fn loads_skill_policy_products_from_yaml() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
-    let skill_path = write_skill(&codex_home, "demo", "policy-products", "from yaml");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
+    let skill_path = write_skill(&codepilotx_home, "demo", "policy-products", "from yaml");
     let skill_dir = skill_path.parent().expect("skill dir");
 
     write_skill_metadata_at(
@@ -617,7 +617,7 @@ policy:
 "#,
     );
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
 
     assert!(
@@ -637,8 +637,8 @@ policy:
 
 #[tokio::test]
 async fn accepts_icon_paths_under_assets_dir() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
-    let skill_path = write_skill(&codex_home, "demo", "ui-skill", "from json");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
+    let skill_path = write_skill(&codepilotx_home, "demo", "ui-skill", "from json");
     let skill_dir = skill_path.parent().expect("skill dir");
     let normalized_skill_dir = normalized(skill_dir);
 
@@ -655,7 +655,7 @@ async fn accepts_icon_paths_under_assets_dir() {
 "#,
     );
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
 
     assert!(
@@ -688,8 +688,8 @@ async fn accepts_icon_paths_under_assets_dir() {
 
 #[tokio::test]
 async fn ignores_invalid_brand_color() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
-    let skill_path = write_skill(&codex_home, "demo", "ui-skill", "from json");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
+    let skill_path = write_skill(&codepilotx_home, "demo", "ui-skill", "from json");
     let skill_dir = skill_path.parent().expect("skill dir");
 
     write_skill_interface_at(
@@ -703,7 +703,7 @@ async fn ignores_invalid_brand_color() {
 "#,
     );
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
 
     assert!(
@@ -729,8 +729,8 @@ async fn ignores_invalid_brand_color() {
 
 #[tokio::test]
 async fn ignores_default_prompt_over_max_length() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
-    let skill_path = write_skill(&codex_home, "demo", "ui-skill", "from json");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
+    let skill_path = write_skill(&codepilotx_home, "demo", "ui-skill", "from json");
     let skill_dir = skill_path.parent().expect("skill dir");
     let normalized_skill_dir = normalized(skill_dir);
     let too_long = "x".repeat(MAX_DEFAULT_PROMPT_LEN + 1);
@@ -750,7 +750,7 @@ async fn ignores_default_prompt_over_max_length() {
         ),
     );
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
 
     assert!(
@@ -783,8 +783,8 @@ async fn ignores_default_prompt_over_max_length() {
 
 #[tokio::test]
 async fn drops_interface_when_icons_are_invalid() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
-    let skill_path = write_skill(&codex_home, "demo", "ui-skill", "from json");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
+    let skill_path = write_skill(&codepilotx_home, "demo", "ui-skill", "from json");
     let skill_dir = skill_path.parent().expect("skill dir");
 
     write_skill_interface_at(
@@ -799,7 +799,7 @@ async fn drops_interface_when_icons_are_invalid() {
 "#,
     );
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
 
     assert!(
@@ -954,15 +954,15 @@ fn symlink_file(target: &Path, link: &Path) {
 #[tokio::test]
 #[cfg(unix)]
 async fn loads_skills_via_symlinked_subdir_for_user_scope() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let shared = tempfile::tempdir().expect("tempdir");
 
     let shared_skill_path = write_skill_at(shared.path(), "demo", "linked-skill", "from link");
 
-    fs::create_dir_all(codex_home.path().join("skills")).unwrap();
-    symlink_dir(shared.path(), &codex_home.path().join("skills/shared"));
+    fs::create_dir_all(codepilotx_home.path().join("skills")).unwrap();
+    symlink_dir(shared.path(), &codepilotx_home.path().join("skills/shared"));
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
 
     assert!(
@@ -989,16 +989,16 @@ async fn loads_skills_via_symlinked_subdir_for_user_scope() {
 #[tokio::test]
 #[cfg(unix)]
 async fn ignores_symlinked_skill_file_for_user_scope() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let shared = tempfile::tempdir().expect("tempdir");
 
     let shared_skill_path = write_skill_at(shared.path(), "demo", "linked-file-skill", "from link");
 
-    let skill_dir = codex_home.path().join("skills/demo");
+    let skill_dir = codepilotx_home.path().join("skills/demo");
     fs::create_dir_all(&skill_dir).unwrap();
     symlink_file(&shared_skill_path, &skill_dir.join(SKILLS_FILENAME));
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
 
     assert!(
@@ -1012,17 +1012,17 @@ async fn ignores_symlinked_skill_file_for_user_scope() {
 #[tokio::test]
 #[cfg(unix)]
 async fn does_not_loop_on_symlink_cycle_for_user_scope() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
 
     // Create a cycle:
-    //   $CODEX_HOME/skills/cycle/loop -> $CODEX_HOME/skills/cycle
-    let cycle_dir = codex_home.path().join("skills/cycle");
+    //   $codepilotx_HOME/skills/cycle/loop -> $codepilotx_HOME/skills/cycle
+    let cycle_dir = codepilotx_home.path().join("skills/cycle");
     fs::create_dir_all(&cycle_dir).unwrap();
     symlink_dir(&cycle_dir, &cycle_dir.join("loop"));
 
     let skill_path = write_skill_at(&cycle_dir, "demo", "cycle-skill", "still loads");
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
 
     assert!(
@@ -1094,7 +1094,7 @@ async fn loads_skills_via_symlinked_subdir_for_admin_scope() {
 #[tokio::test]
 #[cfg(unix)]
 async fn loads_skills_via_symlinked_subdir_for_repo_scope() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let repo_dir = tempfile::tempdir().expect("tempdir");
     mark_as_git_repo(repo_dir.path());
     let shared = tempfile::tempdir().expect("tempdir");
@@ -1107,7 +1107,7 @@ async fn loads_skills_via_symlinked_subdir_for_repo_scope() {
     fs::create_dir_all(&repo_skills_root).unwrap();
     symlink_dir(shared.path(), &repo_skills_root.join("shared"));
 
-    let cfg = make_config_for_cwd(&codex_home, repo_dir.path().to_path_buf()).await;
+    let cfg = make_config_for_cwd(&codepilotx_home, repo_dir.path().to_path_buf()).await;
     let outcome = load_skills_for_test(&cfg).await;
 
     assert!(
@@ -1134,12 +1134,12 @@ async fn loads_skills_via_symlinked_subdir_for_repo_scope() {
 #[tokio::test]
 #[cfg(unix)]
 async fn system_scope_ignores_symlinked_subdir() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let shared = tempfile::tempdir().expect("tempdir");
 
     write_skill_at(shared.path(), "demo", "system-linked-skill", "from link");
 
-    let system_root = codex_home.path().join("skills/.system");
+    let system_root = codepilotx_home.path().join("skills/.system");
     fs::create_dir_all(&system_root).unwrap();
     symlink_dir(shared.path(), &system_root.join("shared"));
 
@@ -1165,22 +1165,22 @@ async fn system_scope_ignores_symlinked_subdir() {
 
 #[tokio::test]
 async fn respects_max_scan_depth_for_user_scope() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
 
     let within_depth_path = write_skill(
-        &codex_home,
+        &codepilotx_home,
         "d0/d1/d2/d3/d4/d5",
         "within-depth-skill",
         "loads",
     );
     let _too_deep_path = write_skill(
-        &codex_home,
+        &codepilotx_home,
         "d0/d1/d2/d3/d4/d5/d6",
         "too-deep-skill",
         "should not load",
     );
 
-    let skills_root = codex_home.path().join("skills");
+    let skills_root = codepilotx_home.path().join("skills");
     let outcome = load_skills_from_roots(
         [SkillRoot {
             path: skills_root.abs(),
@@ -1217,9 +1217,9 @@ async fn respects_max_scan_depth_for_user_scope() {
 
 #[tokio::test]
 async fn loads_valid_skill() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
-    let skill_path = write_skill(&codex_home, "demo", "demo-skill", "does things\ncarefully");
-    let cfg = make_config(&codex_home).await;
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
+    let skill_path = write_skill(&codepilotx_home, "demo", "demo-skill", "does things\ncarefully");
+    let cfg = make_config(&codepilotx_home).await;
 
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
@@ -1245,13 +1245,13 @@ async fn loads_valid_skill() {
 
 #[tokio::test]
 async fn falls_back_to_directory_name_when_skill_name_is_missing() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let skill_path = write_raw_skill_at(
-        &codex_home.path().join("skills"),
+        &codepilotx_home.path().join("skills"),
         "directory-derived",
         "description: fallback name",
     );
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
 
     let outcome = load_skills_for_test(&cfg).await;
 
@@ -1414,14 +1414,14 @@ async fn plugin_skill_name_length_limit_rejects_overlong_qualified_name() {
 
 #[tokio::test]
 async fn loads_short_description_from_metadata() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
-    let skill_dir = codex_home.path().join("skills/demo");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
+    let skill_dir = codepilotx_home.path().join("skills/demo");
     fs::create_dir_all(&skill_dir).unwrap();
     let contents = "---\nname: demo-skill\ndescription: long description\nmetadata:\n  short-description: short summary\n---\n\n# Body\n";
     let skill_path = skill_dir.join(SKILLS_FILENAME);
     fs::write(&skill_path, contents).unwrap();
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
         outcome.errors.is_empty(),
@@ -1446,14 +1446,14 @@ async fn loads_short_description_from_metadata() {
 
 #[tokio::test]
 async fn loads_unquoted_description_containing_colon_space() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let skill_path = write_raw_skill_at(
-        &codex_home.path().join("skills"),
+        &codepilotx_home.path().join("skills"),
         "colon-description",
         "name: colon-description\ndescription: AWS deployment patterns: ECS Fargate, Lambda, and S3",
     );
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
         outcome.errors.is_empty(),
@@ -1478,14 +1478,14 @@ async fn loads_unquoted_description_containing_colon_space() {
 
 #[tokio::test]
 async fn loads_unquoted_short_description_containing_colon_space_and_apostrophe() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let skill_path = write_raw_skill_at(
-        &codex_home.path().join("skills"),
+        &codepilotx_home.path().join("skills"),
         "colon-short-description",
         "name: colon-short-description\ndescription: long description\nmetadata:\n  short-description: What's included: builds and tests",
     );
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
         outcome.errors.is_empty(),
@@ -1510,14 +1510,14 @@ async fn loads_unquoted_short_description_containing_colon_space_and_apostrophe(
 
 #[tokio::test]
 async fn loads_unrecognized_frontmatter_fields_that_need_quotes() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let skill_path = write_raw_skill_at(
-        &codex_home.path().join("skills"),
+        &codepilotx_home.path().join("skills"),
         "repaired-unknown-fields",
         "name: repaired-unknown-fields\ndescription: valid description\nargument-hint: <duration: e.g. 7d, 2w>\ntags: [next,@supabase/ssr]",
     );
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
         outcome.errors.is_empty(),
@@ -1542,14 +1542,14 @@ async fn loads_unrecognized_frontmatter_fields_that_need_quotes() {
 
 #[tokio::test]
 async fn preserves_block_scalar_body_while_repairing_other_fields() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let skill_path = write_raw_skill_at(
-        &codex_home.path().join("skills"),
+        &codepilotx_home.path().join("skills"),
         "block-description-with-repair",
         "name: block-description-with-repair\ndescription: |-\n  Build for AWS: ECS\nargument-hint: <duration: e.g. 7d>",
     );
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
         outcome.errors.is_empty(),
@@ -1574,8 +1574,8 @@ async fn preserves_block_scalar_body_while_repairing_other_fields() {
 
 #[tokio::test]
 async fn preserves_overlong_short_descriptions() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
-    let skill_dir = codex_home.path().join("skills/demo");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
+    let skill_dir = codepilotx_home.path().join("skills/demo");
     fs::create_dir_all(&skill_dir).unwrap();
     let too_long = "x".repeat(MAX_SHORT_DESCRIPTION_LEN + 1);
     let contents = format!(
@@ -1583,7 +1583,7 @@ async fn preserves_overlong_short_descriptions() {
     );
     fs::write(skill_dir.join(SKILLS_FILENAME), contents).unwrap();
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
         outcome.errors.is_empty(),
@@ -1596,8 +1596,8 @@ async fn preserves_overlong_short_descriptions() {
 
 #[tokio::test]
 async fn skips_hidden_and_invalid() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
-    let hidden_dir = codex_home.path().join("skills/.hidden");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
+    let hidden_dir = codepilotx_home.path().join("skills/.hidden");
     fs::create_dir_all(&hidden_dir).unwrap();
     fs::write(
         hidden_dir.join(SKILLS_FILENAME),
@@ -1606,11 +1606,11 @@ async fn skips_hidden_and_invalid() {
     .unwrap();
 
     // Invalid because missing closing frontmatter.
-    let invalid_dir = codex_home.path().join("skills/invalid");
+    let invalid_dir = codepilotx_home.path().join("skills/invalid");
     fs::create_dir_all(&invalid_dir).unwrap();
     fs::write(invalid_dir.join(SKILLS_FILENAME), "---\nname: bad").unwrap();
 
-    let cfg = make_config(&codex_home).await;
+    let cfg = make_config(&codepilotx_home).await;
     let outcome = load_skills_for_test(&cfg).await;
     assert_eq!(outcome.skills.len(), 0);
     assert_eq!(outcome.errors.len(), 1);
@@ -1624,10 +1624,10 @@ async fn skips_hidden_and_invalid() {
 
 #[tokio::test]
 async fn preserves_overlong_descriptions() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let max_desc = "\u{1F4A1}".repeat(MAX_DESCRIPTION_LEN);
-    write_skill(&codex_home, "max-len", "max-len", &max_desc);
-    let cfg = make_config(&codex_home).await;
+    write_skill(&codepilotx_home, "max-len", "max-len", &max_desc);
+    let cfg = make_config(&codepilotx_home).await;
 
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
@@ -1638,7 +1638,7 @@ async fn preserves_overlong_descriptions() {
     assert_eq!(outcome.skills.len(), 1);
 
     let too_long_desc = "\u{1F4A1}".repeat(MAX_DESCRIPTION_LEN + 1);
-    write_skill(&codex_home, "too-long", "too-long", &too_long_desc);
+    write_skill(&codepilotx_home, "too-long", "too-long", &too_long_desc);
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
         outcome.errors.is_empty(),
@@ -1656,7 +1656,7 @@ async fn preserves_overlong_descriptions() {
 
 #[tokio::test]
 async fn loads_skills_from_repo_root() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let repo_dir = tempfile::tempdir().expect("tempdir");
     mark_as_git_repo(repo_dir.path());
 
@@ -1665,7 +1665,7 @@ async fn loads_skills_from_repo_root() {
         .join(REPO_ROOT_CONFIG_DIR_NAME)
         .join(SKILLS_DIR_NAME);
     let skill_path = write_skill_at(&skills_root, "repo", "repo-skill", "from repo");
-    let cfg = make_config_for_cwd(&codex_home, repo_dir.path().to_path_buf()).await;
+    let cfg = make_config_for_cwd(&codepilotx_home, repo_dir.path().to_path_buf()).await;
 
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
@@ -1690,8 +1690,8 @@ async fn loads_skills_from_repo_root() {
 }
 
 #[tokio::test]
-async fn loads_skills_from_agents_dir_without_codex_dir() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+async fn loads_skills_from_agents_dir_without_codepilotx_dir() {
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let repo_dir = tempfile::tempdir().expect("tempdir");
     mark_as_git_repo(repo_dir.path());
 
@@ -1701,7 +1701,7 @@ async fn loads_skills_from_agents_dir_without_codex_dir() {
         "agents-skill",
         "from agents",
     );
-    let cfg = make_config_for_cwd(&codex_home, repo_dir.path().to_path_buf()).await;
+    let cfg = make_config_for_cwd(&codepilotx_home, repo_dir.path().to_path_buf()).await;
 
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
@@ -1726,8 +1726,8 @@ async fn loads_skills_from_agents_dir_without_codex_dir() {
 }
 
 #[tokio::test]
-async fn loads_skills_from_all_codex_dirs_under_project_root() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+async fn loads_skills_from_all_codepilotx_dirs_under_project_root() {
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let repo_dir = tempfile::tempdir().expect("tempdir");
     mark_as_git_repo(repo_dir.path());
 
@@ -1754,7 +1754,7 @@ async fn loads_skills_from_all_codex_dirs_under_project_root() {
         "from nested",
     );
 
-    let cfg = make_config_for_cwd(&codex_home, nested_dir).await;
+    let cfg = make_config_for_cwd(&codepilotx_home, nested_dir).await;
 
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
@@ -1792,8 +1792,8 @@ async fn loads_skills_from_all_codex_dirs_under_project_root() {
 }
 
 #[tokio::test]
-async fn loads_skills_from_codex_dir_when_not_git_repo() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+async fn loads_skills_from_codepilotx_dir_when_not_git_repo() {
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let work_dir = tempfile::tempdir().expect("tempdir");
 
     let skill_path = write_skill_at(
@@ -1806,7 +1806,7 @@ async fn loads_skills_from_codex_dir_when_not_git_repo() {
         "from cwd",
     );
 
-    let cfg = make_config_for_cwd(&codex_home, work_dir.path().to_path_buf()).await;
+    let cfg = make_config_for_cwd(&codepilotx_home, work_dir.path().to_path_buf()).await;
 
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
@@ -1882,11 +1882,11 @@ async fn deduplicates_by_path_preferring_first_root() {
 
 #[tokio::test]
 async fn keeps_duplicate_names_from_repo_and_user() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let repo_dir = tempfile::tempdir().expect("tempdir");
     mark_as_git_repo(repo_dir.path());
 
-    let user_skill_path = write_skill(&codex_home, "user", "dupe-skill", "from user");
+    let user_skill_path = write_skill(&codepilotx_home, "user", "dupe-skill", "from user");
     let repo_skill_path = write_skill_at(
         &repo_dir
             .path()
@@ -1897,7 +1897,7 @@ async fn keeps_duplicate_names_from_repo_and_user() {
         "from repo",
     );
 
-    let cfg = make_config_for_cwd(&codex_home, repo_dir.path().to_path_buf()).await;
+    let cfg = make_config_for_cwd(&codepilotx_home, repo_dir.path().to_path_buf()).await;
 
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
@@ -1935,8 +1935,8 @@ async fn keeps_duplicate_names_from_repo_and_user() {
 }
 
 #[tokio::test]
-async fn keeps_duplicate_names_from_nested_codex_dirs() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+async fn keeps_duplicate_names_from_nested_codepilotx_dirs() {
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let repo_dir = tempfile::tempdir().expect("tempdir");
     mark_as_git_repo(repo_dir.path());
 
@@ -1963,7 +1963,7 @@ async fn keeps_duplicate_names_from_nested_codex_dirs() {
         "from nested",
     );
 
-    let cfg = make_config_for_cwd(&codex_home, nested_dir).await;
+    let cfg = make_config_for_cwd(&codepilotx_home, nested_dir).await;
     let outcome = load_skills_for_test(&cfg).await;
 
     assert!(
@@ -2010,7 +2010,7 @@ async fn keeps_duplicate_names_from_nested_codex_dirs() {
 
 #[tokio::test]
 async fn repo_skills_search_does_not_escape_repo_root() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let outer_dir = tempfile::tempdir().expect("tempdir");
     let repo_dir = outer_dir.path().join("repo");
     fs::create_dir_all(&repo_dir).unwrap();
@@ -2026,7 +2026,7 @@ async fn repo_skills_search_does_not_escape_repo_root() {
     );
     mark_as_git_repo(&repo_dir);
 
-    let cfg = make_config_for_cwd(&codex_home, repo_dir).await;
+    let cfg = make_config_for_cwd(&codepilotx_home, repo_dir).await;
 
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
@@ -2039,7 +2039,7 @@ async fn repo_skills_search_does_not_escape_repo_root() {
 
 #[tokio::test]
 async fn loads_skills_when_cwd_is_file_in_repo() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let repo_dir = tempfile::tempdir().expect("tempdir");
     mark_as_git_repo(repo_dir.path());
 
@@ -2055,7 +2055,7 @@ async fn loads_skills_when_cwd_is_file_in_repo() {
     let file_path = repo_dir.path().join("some-file.txt");
     fs::write(&file_path, "contents").unwrap();
 
-    let cfg = make_config_for_cwd(&codex_home, file_path).await;
+    let cfg = make_config_for_cwd(&codepilotx_home, file_path).await;
 
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
@@ -2081,7 +2081,7 @@ async fn loads_skills_when_cwd_is_file_in_repo() {
 
 #[tokio::test]
 async fn non_git_repo_skills_search_does_not_walk_parents() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let outer_dir = tempfile::tempdir().expect("tempdir");
     let nested_dir = outer_dir.path().join("nested/inner");
     fs::create_dir_all(&nested_dir).unwrap();
@@ -2096,7 +2096,7 @@ async fn non_git_repo_skills_search_does_not_walk_parents() {
         "from outer",
     );
 
-    let cfg = make_config_for_cwd(&codex_home, nested_dir).await;
+    let cfg = make_config_for_cwd(&codepilotx_home, nested_dir).await;
 
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
@@ -2109,12 +2109,12 @@ async fn non_git_repo_skills_search_does_not_walk_parents() {
 
 #[tokio::test]
 async fn loads_skills_from_system_cache_when_present() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
     let work_dir = tempfile::tempdir().expect("tempdir");
 
-    let skill_path = write_system_skill(&codex_home, "system", "system-skill", "from system");
+    let skill_path = write_system_skill(&codepilotx_home, "system", "system-skill", "from system");
 
-    let cfg = make_config_for_cwd(&codex_home, work_dir.path().to_path_buf()).await;
+    let cfg = make_config_for_cwd(&codepilotx_home, work_dir.path().to_path_buf()).await;
 
     let outcome = load_skills_for_test(&cfg).await;
     assert!(
@@ -2140,8 +2140,8 @@ async fn loads_skills_from_system_cache_when_present() {
 
 #[tokio::test]
 async fn skill_roots_include_admin_with_lowest_priority() {
-    let codex_home = tempfile::tempdir().expect("tempdir");
-    let cfg = make_config(&codex_home).await;
+    let codepilotx_home = tempfile::tempdir().expect("tempdir");
+    let cfg = make_config(&codepilotx_home).await;
 
     let scopes: Vec<SkillScope> = super::skill_roots(
         Some(Arc::clone(&LOCAL_FS)),

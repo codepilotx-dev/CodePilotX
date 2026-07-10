@@ -15,10 +15,10 @@ use crate::test_support::write_curated_plugin_sha_with;
 use crate::test_support::write_file;
 use crate::test_support::write_openai_api_curated_marketplace;
 use crate::test_support::write_openai_curated_marketplace;
-use codex_app_server_protocol::AuthMode;
-use codex_config::CONFIG_TOML_FILE;
-use codex_login::CodexAuth;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_config::CONFIG_TOML_FILE;
+use codepilotx_login::CodexAuth;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::HashSet;
@@ -35,13 +35,13 @@ use wiremock::matchers::path;
 use wiremock::matchers::query_param;
 
 #[tokio::test]
-async fn returns_fallback_plugins_when_remote_disabled_for_codex_auth() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+async fn returns_fallback_plugins_when_remote_disabled_for_codepilotx_auth() {
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["sample", "slack", "openai-developers"]);
 
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     plugins_manager.set_auth_mode(Some(AuthMode::Chatgpt));
     let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
     let discoverable_plugins = list_discoverable_plugins(
@@ -65,13 +65,13 @@ async fn returns_fallback_plugins_when_remote_disabled_for_codex_auth() {
 
 #[tokio::test]
 async fn returns_api_curated_fallback_plugins_for_direct_provider_auth() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_api_curated_marketplace(&curated_root, &["sample", "slack", "openai-developers"]);
 
-    let mut plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
+    let mut plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
     plugins.remote_plugin_enabled = true;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     plugins_manager.set_auth_mode(Some(AuthMode::ApiKey));
     let auth = CodexAuth::from_api_key("test-api-key");
     let discoverable_plugins = list_discoverable_plugins(
@@ -95,16 +95,16 @@ async fn returns_api_curated_fallback_plugins_for_direct_provider_auth() {
 
 #[tokio::test]
 async fn returns_microsoft_fallback_plugins() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(
         &curated_root,
         &["teams", "sharepoint", "outlook-email", "outlook-calendar"],
     );
-    install_marketplace_plugin(codex_home.path(), curated_root.as_path(), "teams").await;
+    install_marketplace_plugin(codepilotx_home.path(), curated_root.as_path(), "teams").await;
 
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     let discoverable_plugins = list_discoverable_plugins(
         &plugins_manager,
         discovery_input(plugins, &[], &[], &[]),
@@ -126,13 +126,13 @@ async fn returns_microsoft_fallback_plugins() {
 }
 
 #[tokio::test]
-async fn omits_openai_curated_but_keeps_configured_marketplaces_for_remote_codex_auth() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+async fn omits_openai_curated_but_keeps_configured_marketplaces_for_remote_codepilotx_auth() {
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["slack"]);
 
     let bundled_marketplace_name = OPENAI_BUNDLED_MARKETPLACE_NAME;
-    let bundled_marketplace_root = codex_home
+    let bundled_marketplace_root = codepilotx_home
         .path()
         .join(format!(".tmp/marketplaces/{bundled_marketplace_name}"));
     write_file(
@@ -149,7 +149,7 @@ async fn omits_openai_curated_but_keeps_configured_marketplaces_for_remote_codex
     );
     write_curated_plugin(&bundled_marketplace_root, "chrome");
     write_file(
-        &codex_home.path().join(CONFIG_TOML_FILE),
+        &codepilotx_home.path().join(CONFIG_TOML_FILE),
         &format!(
             r#"[features]
 plugins = true
@@ -162,8 +162,8 @@ source = "/tmp/{bundled_marketplace_name}"
         ),
     );
 
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     plugins_manager.set_auth_mode(Some(AuthMode::Chatgpt));
     let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
     let discoverable_plugins = list_discoverable_plugins(
@@ -184,13 +184,13 @@ source = "/tmp/{bundled_marketplace_name}"
 
 #[tokio::test]
 async fn includes_openai_curated_when_remote_enabled_without_auth() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["slack"]);
 
-    let mut plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
+    let mut plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
     plugins.remote_plugin_enabled = true;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     let discoverable_plugins = list_discoverable_plugins(
         &plugins_manager,
         discovery_input(plugins, &[], &[], &[]),
@@ -209,11 +209,11 @@ async fn includes_openai_curated_when_remote_enabled_without_auth() {
 
 #[tokio::test]
 async fn deduplicates_and_reprojects_cached_configured_marketplace_plugin() {
-    let codex_home = tempdir().expect("tempdir should succeed");
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
     let plugin_name = "sample";
     let marketplace_name = OPENAI_BUNDLED_MARKETPLACE_NAME;
     let plugin_id = format!("{plugin_name}@{marketplace_name}");
-    let marketplace_root = codex_home
+    let marketplace_root = codepilotx_home
         .path()
         .join(format!(".tmp/marketplaces/{marketplace_name}"));
     write_file(
@@ -236,7 +236,7 @@ async fn deduplicates_and_reprojects_cached_configured_marketplace_plugin() {
         "connector_sample",
     );
     write_file(
-        &codex_home.path().join(CONFIG_TOML_FILE),
+        &codepilotx_home.path().join(CONFIG_TOML_FILE),
         &format!(
             r#"[features]
 plugins = true
@@ -247,8 +247,8 @@ source = "/tmp/{marketplace_name}"
 "#
         ),
     );
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     assert!(plugins_manager.set_auth_mode(Some(AuthMode::Chatgpt)));
     let chatgpt_projection = list_discoverable_plugins(
         &plugins_manager,
@@ -288,12 +288,12 @@ source = "/tmp/{marketplace_name}"
 
 #[tokio::test]
 async fn reprojects_cached_skill_availability_for_current_config() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["slack"]);
 
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     let expected = ToolSuggestDiscoverablePlugin {
         id: "slack@openai-curated".to_string(),
         remote_plugin_id: None,
@@ -314,13 +314,13 @@ async fn reprojects_cached_skill_availability_for_current_config() {
     assert_eq!(initial, vec![expected.clone()]);
 
     write_file(
-        &codex_home.path().join(CONFIG_TOML_FILE),
+        &codepilotx_home.path().join(CONFIG_TOML_FILE),
         r#"[[skills.config]]
 name = "slack:sample"
 enabled = false
 "#,
     );
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
     let after_skill_disabled = list_discoverable_plugins(
         &plugins_manager,
         discovery_input(plugins, &[], &[], &[]),
@@ -338,16 +338,16 @@ enabled = false
 
 #[tokio::test]
 async fn does_not_advertise_skills_when_skill_loading_fails() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["slack"]);
     write_file(
         &curated_root.join("plugins/slack/skills/SKILL.md"),
         "---\nname: bad",
     );
 
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     let discoverable_plugins = list_discoverable_plugins(
         &plugins_manager,
         discovery_input(plugins, &[], &[], &[]),
@@ -373,8 +373,8 @@ async fn does_not_advertise_skills_when_skill_loading_fails() {
 
 #[tokio::test]
 async fn clear_cache_invalidates_cached_tool_suggest_metadata() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["slack"]);
     let plugin_manifest = curated_root.join("plugins/slack/.codex-plugin/plugin.json");
     write_file(
@@ -385,8 +385,8 @@ async fn clear_cache_invalidates_cached_tool_suggest_metadata() {
 }"#,
     );
 
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     let input = discovery_input(plugins, &[], &[], &[]);
     let expected_cached = vec![ToolSuggestDiscoverablePlugin {
         id: "slack@openai-curated".to_string(),
@@ -424,11 +424,11 @@ async fn clear_cache_invalidates_cached_tool_suggest_metadata() {
 
 #[tokio::test]
 async fn ignores_missing_marketplace_plugin() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["installed", "slack"]);
     let marketplace_name = OPENAI_BUNDLED_MARKETPLACE_NAME;
-    let marketplace_root = codex_home
+    let marketplace_root = codepilotx_home
         .path()
         .join(format!(".tmp/marketplaces/{marketplace_name}"));
     write_file(
@@ -444,7 +444,7 @@ async fn ignores_missing_marketplace_plugin() {
         ),
     );
     write_file(
-        &codex_home.path().join(CONFIG_TOML_FILE),
+        &codepilotx_home.path().join(CONFIG_TOML_FILE),
         &format!(
             r#"[features]
 plugins = true
@@ -455,10 +455,10 @@ source = "/tmp/{marketplace_name}"
 "#
         ),
     );
-    install_marketplace_plugin(codex_home.path(), curated_root.as_path(), "installed").await;
+    install_marketplace_plugin(codepilotx_home.path(), curated_root.as_path(), "installed").await;
 
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     let discoverable_plugins = list_discoverable_plugins(
         &plugins_manager,
         discovery_input(plugins, &[], &[], &[]),
@@ -472,8 +472,8 @@ source = "/tmp/{marketplace_name}"
 
 #[tokio::test]
 async fn normalizes_description() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["installed", "slack"]);
     write_file(
         &curated_root.join("plugins/slack/.codex-plugin/plugin.json"),
@@ -482,10 +482,10 @@ async fn normalizes_description() {
   "description": "  Plugin\n   with   extra   spacing  "
 }"#,
     );
-    install_marketplace_plugin(codex_home.path(), curated_root.as_path(), "installed").await;
+    install_marketplace_plugin(codepilotx_home.path(), curated_root.as_path(), "installed").await;
 
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     let discoverable_plugins = list_discoverable_plugins(
         &plugins_manager,
         discovery_input(plugins, &[], &[], &[]),
@@ -509,13 +509,13 @@ async fn normalizes_description() {
 
 #[tokio::test]
 async fn omits_installed_curated_plugins() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["slack"]);
-    install_marketplace_plugin(codex_home.path(), curated_root.as_path(), "slack").await;
+    install_marketplace_plugin(codepilotx_home.path(), curated_root.as_path(), "slack").await;
 
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     let discoverable_plugins = list_discoverable_plugins(
         &plugins_manager,
         discovery_input(plugins, &[], &[], &[]),
@@ -528,8 +528,8 @@ async fn omits_installed_curated_plugins() {
 
 #[tokio::test]
 async fn omits_not_available_curated_plugins() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_file(
         &curated_root.join(".agents/plugins/marketplace.json"),
         r#"{
@@ -566,10 +566,10 @@ async fn omits_not_available_curated_plugins() {
     write_curated_plugin(&curated_root, "installed");
     write_curated_plugin(&curated_root, "slack");
     write_curated_plugin(&curated_root, "gmail");
-    install_marketplace_plugin(codex_home.path(), curated_root.as_path(), "installed").await;
+    install_marketplace_plugin(codepilotx_home.path(), curated_root.as_path(), "installed").await;
 
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     let discoverable_plugins = list_discoverable_plugins(
         &plugins_manager,
         discovery_input(plugins, &[], &[], &[]),
@@ -588,10 +588,10 @@ async fn omits_not_available_curated_plugins() {
 
 #[tokio::test]
 async fn does_not_reload_marketplace_per_plugin() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["slack", "gmail", "openai-developers"]);
-    install_marketplace_plugin(codex_home.path(), curated_root.as_path(), "slack").await;
+    install_marketplace_plugin(codepilotx_home.path(), curated_root.as_path(), "slack").await;
 
     let too_long_prompt = "x".repeat(129);
     for plugin_name in ["gmail", "openai-developers"] {
@@ -609,8 +609,8 @@ async fn does_not_reload_marketplace_per_plugin() {
         );
     }
 
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     let buffer: &'static std::sync::Mutex<Vec<u8>> =
         Box::leak(Box::new(std::sync::Mutex::new(Vec::new())));
     let subscriber = tracing_subscriber::fmt()
@@ -651,14 +651,14 @@ async fn does_not_reload_marketplace_per_plugin() {
 
 #[tokio::test]
 async fn does_not_expand_local_plugins_by_installed_apps() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["sample", "slack", "hubspot"]);
     write_plugin_app(&curated_root, "sample", "sample", "connector_sample");
-    install_marketplace_plugin(codex_home.path(), curated_root.as_path(), "slack").await;
+    install_marketplace_plugin(codepilotx_home.path(), curated_root.as_path(), "slack").await;
 
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     let discoverable_plugins = list_discoverable_plugins(
         &plugins_manager,
         discovery_input(plugins, &[], &[], &[]),
@@ -673,8 +673,8 @@ async fn does_not_expand_local_plugins_by_installed_apps() {
 async fn does_not_read_local_plugins_for_loaded_apps() {
     let hubspot_app_id = "asdk_app_697acb8e53d88191bf7a79e62012ae14";
     let granola_app_id = "asdk_app_697761cab6f48191b5ed345919a3ce8b";
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["hubspot", "granola", "sample"]);
     write_plugin_app(&curated_root, "hubspot", "hubspot", hubspot_app_id);
     write_plugin_app(&curated_root, "granola", "granola", granola_app_id);
@@ -683,8 +683,8 @@ async fn does_not_read_local_plugins_for_loaded_apps() {
         "invalid json",
     );
 
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     let buffer: &'static std::sync::Mutex<Vec<u8>> =
         Box::leak(Box::new(std::sync::Mutex::new(Vec::new())));
     let subscriber = tracing_subscriber::fmt()
@@ -715,15 +715,15 @@ async fn does_not_expand_local_sales_apps() {
     let hubspot_app_id = "asdk_app_697acb8e53d88191bf7a79e62012ae14";
     let granola_app_id = "asdk_app_697761cab6f48191b5ed345919a3ce8b";
     let test_app_id = "asdk_app_test_source";
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = curated_plugins_repo_path(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
+    let curated_root = curated_plugins_repo_path(codepilotx_home.path());
     write_openai_curated_marketplace(&curated_root, &["hubspot", "granola", "test-source"]);
     write_plugin_app(&curated_root, "hubspot", "hubspot", hubspot_app_id);
     write_plugin_app(&curated_root, "granola", "granola", granola_app_id);
     write_plugin_app(&curated_root, "test-source", "test_source", test_app_id);
 
     let sales_marketplace_name = "oai-maintained-plugins";
-    let sales_marketplace_root = codex_home
+    let sales_marketplace_root = codepilotx_home
         .path()
         .join(format!(".tmp/marketplaces/{sales_marketplace_name}"));
     write_file(
@@ -756,7 +756,7 @@ async fn does_not_expand_local_sales_apps() {
         ),
     );
     write_file(
-        &codex_home.path().join(CONFIG_TOML_FILE),
+        &codepilotx_home.path().join(CONFIG_TOML_FILE),
         &format!(
             r#"[features]
 plugins = true
@@ -767,10 +767,10 @@ source = "/tmp/{sales_marketplace_name}"
 "#
         ),
     );
-    install_marketplace_plugin(codex_home.path(), sales_marketplace_root.as_path(), "sales").await;
+    install_marketplace_plugin(codepilotx_home.path(), sales_marketplace_root.as_path(), "sales").await;
 
-    let plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     let discoverable_plugins = list_discoverable_plugins(
         &plugins_manager,
         discovery_input(plugins, &[], &[], &[]),
@@ -783,9 +783,9 @@ source = "/tmp/{sales_marketplace_name}"
 
 #[tokio::test]
 async fn expands_cached_remote_plugins_by_loaded_apps() {
-    let codex_home = tempdir().expect("tempdir should succeed");
+    let codepilotx_home = tempdir().expect("tempdir should succeed");
     write_file(
-        &codex_home.path().join(CONFIG_TOML_FILE),
+        &codepilotx_home.path().join(CONFIG_TOML_FILE),
         r#"[features]
 plugins = true
 remote_plugin = true
@@ -843,11 +843,11 @@ remote_plugin = true
         .await;
 
     let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
-    let mut plugins = load_plugins_config(codex_home.path(), codex_home.path()).await;
+    let mut plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
     plugins.chatgpt_base_url = format!("{}/backend-api", server.uri());
-    let plugins_manager = PluginsManager::new(codex_home.path().to_path_buf());
+    let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
     fetch_and_cache_global_remote_plugin_catalog(
-        codex_home.path(),
+        codepilotx_home.path(),
         &RemotePluginServiceConfig {
             chatgpt_base_url: plugins.chatgpt_base_url.clone(),
         },
@@ -930,9 +930,9 @@ fn string_set(values: &[&str]) -> HashSet<String> {
     values.iter().map(ToString::to_string).collect()
 }
 
-async fn install_marketplace_plugin(codex_home: &Path, marketplace_root: &Path, plugin_name: &str) {
-    write_curated_plugin_sha_with(codex_home, TEST_CURATED_PLUGIN_SHA);
-    PluginsManager::new(codex_home.to_path_buf())
+async fn install_marketplace_plugin(codepilotx_home: &Path, marketplace_root: &Path, plugin_name: &str) {
+    write_curated_plugin_sha_with(codepilotx_home, TEST_CURATED_PLUGIN_SHA);
+    PluginsManager::new(codepilotx_home.to_path_buf())
         .install_plugin(PluginInstallRequest {
             plugin_name: plugin_name.to_string(),
             marketplace_path: AbsolutePathBuf::try_from(
