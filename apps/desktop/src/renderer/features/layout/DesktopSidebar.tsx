@@ -13,8 +13,8 @@ import { SidebarFooter } from "./sidebar/SidebarFooter.js";
 import { SidebarTopNav } from "./sidebar/SidebarTopNav.js";
 
 type Props = {
-  activePendingPermissionSessionId?: string | null;
   activeSessionId: string | null;
+  pendingPermissionSessionIds: ReadonlySet<string>;
   recentWorkspaces: DesktopWorkspace[];
   removedWorkspaces: DesktopRemovedWorkspace[];
   sessionFallbackTitles: Record<string, string>;
@@ -37,8 +37,8 @@ type Props = {
 };
 
 export function DesktopSidebar({
-  activePendingPermissionSessionId,
   activeSessionId,
+  pendingPermissionSessionIds,
   recentWorkspaces,
   removedWorkspaces,
   sessionFallbackTitles,
@@ -138,7 +138,7 @@ export function DesktopSidebar({
       <SidebarTopNav isActiveView={isActiveView} />
       <SidebarBody
         activeSessionId={activeSessionId}
-        activePendingPermissionSessionId={activePendingPermissionSessionId}
+        pendingPermissionSessionIds={pendingPermissionSessionIds}
         collapsedProjectPaths={collapsedProjectPaths}
         now={relativeNow}
         pinnedSessions={pinnedSessions}

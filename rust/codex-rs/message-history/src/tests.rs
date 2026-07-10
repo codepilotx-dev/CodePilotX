@@ -1,5 +1,5 @@
 use super::*;
-use codex_config::types::History;
+use codepilotx_config::types::History;
 use pretty_assertions::assert_eq;
 use std::fs::File;
 use std::io::Write;
@@ -108,15 +108,15 @@ async fn lookup_uses_stable_log_id_after_appends() {
 
 #[tokio::test]
 async fn append_entry_trims_history_when_beyond_max_bytes() {
-    let codex_home = TempDir::new().expect("create temp dir");
+    let codepilotx_home = TempDir::new().expect("create temp dir");
     let mut history = History::default();
-    let mut config = HistoryConfig::new(codex_home.path(), &history);
+    let mut config = HistoryConfig::new(codepilotx_home.path(), &history);
     let conversation_id = "conversation-id";
 
     let entry_one = "a".repeat(200);
     let entry_two = "b".repeat(200);
 
-    let history_path = codex_home.path().join("history.jsonl");
+    let history_path = codepilotx_home.path().join("history.jsonl");
 
     append_entry(&entry_one, &conversation_id, &config)
         .await
@@ -126,7 +126,7 @@ async fn append_entry_trims_history_when_beyond_max_bytes() {
     let limit_bytes = first_len + 10;
 
     history.max_bytes = Some(usize::try_from(limit_bytes).expect("limit should fit into usize"));
-    config = HistoryConfig::new(codex_home.path(), &history);
+    config = HistoryConfig::new(codepilotx_home.path(), &history);
 
     append_entry(&entry_two, &conversation_id, &config)
         .await
@@ -150,15 +150,15 @@ async fn append_entry_trims_history_when_beyond_max_bytes() {
 
 #[tokio::test]
 async fn append_entry_trims_history_to_soft_cap() {
-    let codex_home = TempDir::new().expect("create temp dir");
+    let codepilotx_home = TempDir::new().expect("create temp dir");
     let mut history = History::default();
-    let mut config = HistoryConfig::new(codex_home.path(), &history);
+    let mut config = HistoryConfig::new(codepilotx_home.path(), &history);
     let conversation_id = "conversation-id";
 
     let short_entry = "a".repeat(200);
     let long_entry = "b".repeat(400);
 
-    let history_path = codex_home.path().join("history.jsonl");
+    let history_path = codepilotx_home.path().join("history.jsonl");
 
     append_entry(&short_entry, &conversation_id, &config)
         .await
@@ -180,7 +180,7 @@ async fn append_entry_trims_history_to_soft_cap() {
         usize::try_from((2 * long_entry_len) + (short_entry_len / 2))
             .expect("max bytes should fit into usize"),
     );
-    config = HistoryConfig::new(codex_home.path(), &history);
+    config = HistoryConfig::new(codepilotx_home.path(), &history);
 
     append_entry(&long_entry, &conversation_id, &config)
         .await

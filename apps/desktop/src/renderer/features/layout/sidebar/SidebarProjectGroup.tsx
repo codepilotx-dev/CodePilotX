@@ -30,11 +30,11 @@ import {
 } from "./SidebarContextMenu.js";
 
 type Props = {
-  activePendingPermissionSessionId?: string | null;
   activeSessionId: string | null;
   collapsedProjectPaths: Set<string>;
   isUnavailable: boolean;
   now: number;
+  pendingPermissionSessionIds: ReadonlySet<string>;
   project: DesktopWorkspace;
   sessionFallbackTitles: Record<string, string>;
   sessions: SessionListItem[];
@@ -52,11 +52,11 @@ type Props = {
 };
 
 export function SidebarProjectGroup({
-  activePendingPermissionSessionId,
   activeSessionId,
   collapsedProjectPaths,
   isUnavailable,
   now,
+  pendingPermissionSessionIds,
   project,
   sessionFallbackTitles,
   sessions,
@@ -311,7 +311,7 @@ export function SidebarProjectGroup({
       {projectSessions.length > 0 && isExpanded ? (
         <SidebarSessionGroup
           activeSessionId={activeSessionId}
-          activePendingPermissionSessionId={activePendingPermissionSessionId}
+          pendingPermissionSessionIds={pendingPermissionSessionIds}
           groupKey={groupKey}
           now={now}
           sessionFallbackTitles={sessionFallbackTitles}

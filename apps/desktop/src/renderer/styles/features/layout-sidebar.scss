@@ -431,7 +431,9 @@
 
 .sidebar-session-title {
   flex: 1;
-  color: inherit;
+  color: var(--color-text-strong);
+  font-size: var(--font-size-14);
+  font-weight: var(--font-weight-label);
 }
 
 .sidebar-session-list {

@@ -16,6 +16,7 @@
   display: flex;
   flex-direction: column;
   position: relative;
+  container-type: inline-size;
   margin: 0 auto;
 }
 
@@ -32,20 +33,57 @@
 
 .session-timeline-env-main {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 /* Wide layout: side-by-side grid */
 @container (min-width: 1140px) {
   .session-timeline-env-lane {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) var(--session-environment-panel-column-w, auto);
+    grid-template-columns:
+      minmax(0, 1fr)
+      var(--session-environment-panel-column-w, auto);
   }
 
   .session-timeline-env-main {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    min-width: 0;
     min-height: 0;
+    overflow: hidden;
+  }
+
+  .session-timeline-env-lane {
+    --session-timeline-left-column-w: calc(
+      100% - var(--session-environment-panel-column-w, 0px)
+    );
+    --session-timeline-content-w: min(
+      var(--layout-content-w, 760px),
+      calc(
+        var(--session-timeline-left-column-w) -
+          (var(--session-content-inline-gutter, 32px) * 2)
+      )
+    );
+  }
+
+  .session-timeline-env-lane .session-timeline-vlist > :first-child,
+  .session-timeline-env-lane .workflow-debug-timeline {
+    width: var(--session-timeline-content-w);
+    max-width: var(--session-timeline-content-w);
+    margin-left: max(
+      0px,
+      calc(
+        (
+            var(--session-timeline-left-column-w) -
+              var(--session-timeline-content-w)
+          ) / 2
+      )
+    );
+    margin-right: auto;
   }
 }
 
@@ -53,6 +91,7 @@
 
 .session-timeline-container {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   width: 100%;
   position: relative;

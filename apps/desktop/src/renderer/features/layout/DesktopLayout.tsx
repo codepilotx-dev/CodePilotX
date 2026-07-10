@@ -44,7 +44,11 @@ import type {
 } from './MenuBar.js'
 import { QuickChatContext } from '../session/QuickChatContext.js'
 import { SearchContext } from '../search/SearchContext.js'
-import { sessionViewFallbackTitle, type SessionListItem } from '../../uiTypes.js'
+import {
+  sessionDisplayTitle,
+  sessionViewFallbackTitle,
+  type SessionListItem,
+} from '../../uiTypes.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
 import {
   SIDEBAR_MAX_WIDTH,
@@ -1393,11 +1397,6 @@ export function DesktopLayout(): React.ReactNode {
     recentWorkspaces,
     sessions,
   })
-  const quickChatSessionTitle =
-    activeSessionItem?.sessionName ??
-    activeSessionItem?.customTitle ??
-    activeSessionItem?.aiTitle ??
-    null
   const activeSessionFallbackTitle = useMemo(
     () => {
       const workflowTitleEvents = deriveWorkflowSessionState(
@@ -1415,6 +1414,9 @@ export function DesktopLayout(): React.ReactNode {
     },
     [events, messages, sessionId, sessionStatus, workflowEvents],
   )
+  const quickChatSessionTitle = activeSessionItem
+    ? sessionDisplayTitle(activeSessionItem, activeSessionFallbackTitle)
+    : activeSessionFallbackTitle
   const sidebarSessionFallbackTitles = useMemo(() => {
     if (!sessionId || !activeSessionFallbackTitle) return sessionFallbackTitles
     if (sessionFallbackTitles[sessionId] === activeSessionFallbackTitle) {
@@ -1425,15 +1427,6 @@ export function DesktopLayout(): React.ReactNode {
       [sessionId]: activeSessionFallbackTitle,
     }
   }, [activeSessionFallbackTitle, sessionFallbackTitles, sessionId])
-  const quickChatSessionTitleSource =
-    activeSessionItem?.sessionName
-      ? 'sessionName'
-      : activeSessionItem?.customTitle
-        ? 'customTitle'
-        : activeSessionItem?.aiTitle
-          ? 'aiTitle'
-          : null
-
   const handleRemoveWorkspace = useCallback(
     (target: DesktopWorkspace): void => {
       // Record removal so the project doesn't reappear from sessions

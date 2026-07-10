@@ -25,10 +25,10 @@ import { SidebarProjectGroup } from "./SidebarProjectGroup.js";
 import { SidebarSessionGroup } from "./SidebarSessionGroup.js";
 
 type Props = {
-  activePendingPermissionSessionId?: string | null;
   activeSessionId: string | null;
   collapsedProjectPaths: Set<string>;
   now: number;
+  pendingPermissionSessionIds: ReadonlySet<string>;
   pinnedSessions: SessionListItem[];
   pinnedWorkspaces: DesktopWorkspace[];
   projectWorkspaces: DesktopWorkspace[];
@@ -53,10 +53,10 @@ type Props = {
 };
 
 export function SidebarBody({
-  activePendingPermissionSessionId,
   activeSessionId,
   collapsedProjectPaths,
   now,
+  pendingPermissionSessionIds,
   pinnedSessions,
   pinnedWorkspaces,
   projectWorkspaces,
@@ -99,9 +99,7 @@ export function SidebarBody({
                 {pinnedSessions.length > 0 ? (
                   <SidebarSessionGroup
                     activeSessionId={activeSessionId}
-                    activePendingPermissionSessionId={
-                      activePendingPermissionSessionId
-                    }
+                    pendingPermissionSessionIds={pendingPermissionSessionIds}
                     groupKey="pinned"
                     now={now}
                     sessionFallbackTitles={sessionFallbackTitles}
@@ -115,9 +113,7 @@ export function SidebarBody({
                 {pinnedWorkspaces.map((project) => (
                   <SidebarProjectGroup
                     activeSessionId={activeSessionId}
-                    activePendingPermissionSessionId={
-                      activePendingPermissionSessionId
-                    }
+                    pendingPermissionSessionIds={pendingPermissionSessionIds}
                     collapsedProjectPaths={collapsedProjectPaths}
                     key={project.path}
                     isUnavailable={unavailableWorkspacePaths.has(project.path)}
@@ -160,9 +156,7 @@ export function SidebarBody({
               projectWorkspaces.map((project) => (
                 <SidebarProjectGroup
                   activeSessionId={activeSessionId}
-                  activePendingPermissionSessionId={
-                    activePendingPermissionSessionId
-                  }
+                  pendingPermissionSessionIds={pendingPermissionSessionIds}
                   collapsedProjectPaths={collapsedProjectPaths}
                   key={project.path}
                   isUnavailable={unavailableWorkspacePaths.has(project.path)}
@@ -201,9 +195,7 @@ export function SidebarBody({
             ) : (
               <SidebarSessionGroup
                 activeSessionId={activeSessionId}
-                activePendingPermissionSessionId={
-                  activePendingPermissionSessionId
-                }
+                pendingPermissionSessionIds={pendingPermissionSessionIds}
                 groupKey="standalone"
                 now={now}
                 sessionFallbackTitles={sessionFallbackTitles}

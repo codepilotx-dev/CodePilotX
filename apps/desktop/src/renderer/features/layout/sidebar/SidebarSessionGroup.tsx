@@ -19,10 +19,10 @@ const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
 
 type Props = {
-  activePendingPermissionSessionId?: string | null;
   activeSessionId: string | null;
   groupKey: string;
   now: number;
+  pendingPermissionSessionIds: ReadonlySet<string>;
   sessionFallbackTitles: Record<string, string>;
   sessions: SessionListItem[];
   onArchiveSession: (session: SessionListItem) => void;
@@ -32,10 +32,10 @@ type Props = {
 };
 
 export function SidebarSessionGroup({
-  activePendingPermissionSessionId,
   activeSessionId,
   groupKey,
   now,
+  pendingPermissionSessionIds,
   sessionFallbackTitles,
   sessions,
   onArchiveSession,
@@ -103,7 +103,7 @@ export function SidebarSessionGroup({
   function renderSessionRow(session: SessionListItem): React.ReactNode {
     const awaitingApproval =
       session.status === "waiting" ||
-      session.id === activePendingPermissionSessionId;
+      pendingPermissionSessionIds.has(session.id);
     const metaClassName = [
       "sidebar-session-meta",
       awaitingApproval ? "sidebar-session-meta--approval" : null,

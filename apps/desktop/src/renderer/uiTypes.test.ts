@@ -16,6 +16,34 @@ test('sessionDisplayTitle uses hydrated fallback before prompt and workspace', (
   )
 })
 
+test('sessionDisplayTitle uses hydrated fallback before default session name', () => {
+  const session = {
+    sessionName: 'ClaudeCode',
+    customTitle: null,
+    aiTitle: null,
+    firstPrompt: null,
+    workspaceName: 'ClaudeCode',
+  } as SessionListItem
+
+  expect(sessionDisplayTitle(session, '你可以跟我说说这个项目是做什么的吗')).toBe(
+    '你可以跟我说说这个项目是做什么的吗',
+  )
+})
+
+test('sessionDisplayTitle keeps custom title before hydrated fallback', () => {
+  const session = {
+    sessionName: 'ClaudeCode',
+    customTitle: '手动命名',
+    aiTitle: null,
+    firstPrompt: null,
+    workspaceName: 'ClaudeCode',
+  } as SessionListItem
+
+  expect(sessionDisplayTitle(session, '你可以跟我说说这个项目是做什么的吗')).toBe(
+    '手动命名',
+  )
+})
+
 test('sessionViewFallbackTitle matches conversation title fallback', () => {
   const view = {
     events: [

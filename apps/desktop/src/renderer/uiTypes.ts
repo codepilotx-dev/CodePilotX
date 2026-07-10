@@ -29,10 +29,10 @@ export function sessionDisplayTitle(
   fallbackTitle?: string | null,
 ): string {
   return (
-    session.sessionName ??
     session.customTitle ??
-    session.aiTitle ??
     fallbackTitle ??
+    session.aiTitle ??
+    session.sessionName ??
     session.firstPrompt ??
     session.workspaceName
   )

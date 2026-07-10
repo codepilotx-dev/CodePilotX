@@ -98,6 +98,7 @@ export type UseSessionStateResult = {
   workflowEvents: DesktopWorkflowEvent[]
   toolLog: ToolLogEntry[]
   pendingPermissions: DesktopPermissionRequest[]
+  pendingPermissionSessionIds: ReadonlySet<string>
   contextUsage: DesktopContextUsage | null
   activeSessionItem: SessionListItem | null
   planModeActive: boolean
@@ -192,6 +193,8 @@ export function useSessionState(
   const [pendingPermissions, setPendingPermissions] = useState<
     DesktopPermissionRequest[]
   >([])
+  const [pendingPermissionSessionIds, setPendingPermissionSessionIds] =
+    useState<Set<string>>(() => new Set())
   const [contextUsage, setContextUsage] =
     useState<DesktopContextUsage | null>(null)
   const [input, setInput] = useState('')
@@ -264,6 +267,13 @@ export function useSessionState(
     setInput(value)
   }, [])
 
+  const syncPendingPermissionSessionIds = useCallback((): void => {
+    const next = buildPendingPermissionSessionIds(sessionViewsRef.current)
+    setPendingPermissionSessionIds(current =>
+      sameSessionIdSet(current, next) ? current : next,
+    )
+  }, [])
+
   const updateSessionView = useCallback<UpdateSessionView>(
     (targetSessionId, updater) => {
       updateSessionViewState(
@@ -272,6 +282,7 @@ export function useSessionState(
         targetSessionId,
         updater,
       )
+      syncPendingPermissionSessionIds()
       setSessionFallbackTitles(current =>
         updateSessionFallbackTitle(
           current,
@@ -280,7 +291,7 @@ export function useSessionState(
         ),
       )
     },
-    [viewRefs, viewSetters],
+    [syncPendingPermissionSessionIds, viewRefs, viewSetters],
   )
 
   const addToolLogEntry = useCallback<AddToolLogEntry>(
@@ -330,6 +341,7 @@ export function useSessionState(
         ...sessionViewsRef.current,
         [snapshot.item.id]: nextView,
       }
+      syncPendingPermissionSessionIds()
       setSessionFallbackTitles(current =>
         updateSessionFallbackTitle(current, snapshot.item.id, nextView),
       )
@@ -354,7 +366,7 @@ export function useSessionState(
         applySessionView(nextView, viewSetters)
       }
     },
-    [viewSetters],
+    [syncPendingPermissionSessionIds, viewSetters],
   )
 
   const hydrateSessionDetails = useCallback(
@@ -486,6 +498,7 @@ export function useSessionState(
       sessionViewsRef.current = nextViews
       sessionWorkspacesRef.current = nextWorkspaces
       sessionsRef.current = nextSessions
+      setPendingPermissionSessionIds(buildPendingPermissionSessionIds(nextViews))
       setSessions(nextSessions)
       setSessionFallbackTitles(buildSessionFallbackTitles(nextViews))
 
@@ -543,6 +556,9 @@ export function useSessionState(
         sessionViewsRef.current = nextViews
         sessionWorkspacesRef.current = nextWorkspaces
         sessionsRef.current = nextSessions
+        setPendingPermissionSessionIds(
+          buildPendingPermissionSessionIds(nextViews),
+        )
         setSessions(nextSessions)
         setSessionFallbackTitles(buildSessionFallbackTitles(nextViews))
 
@@ -831,6 +847,7 @@ export function useSessionState(
     workflowEvents,
     toolLog,
     pendingPermissions,
+    pendingPermissionSessionIds,
     contextUsage,
     activeSessionItem,
     planModeActive: effectivePlanModeActive,
@@ -870,6 +887,29 @@ function buildSessionFallbackTitles(
     }
   }
   return titles
+}
+
+function buildPendingPermissionSessionIds(
+  views: Record<string, SessionViewState>,
+): Set<string> {
+  const ids = new Set<string>()
+  for (const [sessionId, view] of Object.entries(views)) {
+    if (view.pendingPermissions.length > 0) {
+      ids.add(sessionId)
+    }
+  }
+  return ids
+}
+
+function sameSessionIdSet(
+  left: ReadonlySet<string>,
+  right: ReadonlySet<string>,
+): boolean {
+  if (left.size !== right.size) return false
+  for (const id of left) {
+    if (!right.has(id)) return false
+  }
+  return true
 }
 
 function updateSessionFallbackTitle(
