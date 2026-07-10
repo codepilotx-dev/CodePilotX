@@ -502,11 +502,11 @@
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border: 0;
+  border: 1px transparent solid;
   border-radius: var(--radius-6);
   background: transparent;
   color: var(--color-text-strong);
-  font-size: var(--font-size-15);
+  font-size: var(--font-size-14);
   font-weight: var(--font-weight-label);
   text-align: left;
 
@@ -548,14 +548,10 @@
   background: var(--color-bg-soft);
   color: var(--color-text-meta);
   flex: 0 0 auto;
-
-  
 }
 
-.inline-approval-option-custom-icon .lucide-pen-line{
-
-    width: 12px;
-
+.inline-approval-option-custom-icon .lucide-pen-line {
+  width: 12px;
 }
 
 .inline-approval-option.custom.selected .inline-approval-option-custom-icon,
@@ -584,18 +580,13 @@
   color: var(--color-text-placeholder);
 }
 
-.inline-approval-option.focused {
-  outline: 1px solid var(--color-border);
-  outline-offset: -1px;
-}
-
 .inline-approval-option-checkbox {
   width: 20px;
   height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-border);
+  border-color: var(--color-border);
   border-radius: var(--radius-2);
   color: var(--color-bg);
   background: transparent;
@@ -781,13 +772,13 @@
 }
 
 .inline-approval-skip {
-  min-height: 34px;
+  height: 100%;
   padding: 0 12px;
   border: 0;
   border-radius: var(--radius-6);
   background: transparent;
   color: var(--color-text-meta);
-  font-size: var(--font-size-13);
+  font-size: var(--font-size-14);
   font-weight: 500;
   cursor: pointer;
   transition:
@@ -1788,7 +1779,7 @@
 .conversation-page .inline-approval-card,
 .workflow-composer-card {
   gap: 10px;
-  padding: 0 10px;
+  padding: 10px;
   border-color: var(--color-panel-border);
   border-radius: var(--radius-panel);
   background: var(--color-panel-bg);
@@ -1813,25 +1804,19 @@
 .exit-plan-mode-title {
   font-size: var(--font-size-14);
   font-weight: var(--font-weight-label);
-  line-height: 1.6;
 }
 
 .ask-user-question-block {
   padding: 0;
 }
 
-.ask-user-question-approval,
 .exit-plan-mode-approval {
   gap: 5px;
 }
 
 .ask-user-question-heading {
   margin: 0;
-  padding: 4px 4px 2px;
   color: var(--color-text-strong);
-  font-size: var(--font-size-15);
-  font-weight: var(--font-weight-label);
-  line-height: 1.4;
 }
 
 .exit-plan-mode-approval {
@@ -2801,8 +2786,7 @@
 
 .workflow-composer-card-question .inline-approval-option.custom:focus-within,
 .workflow-composer-card-question .inline-approval-option.custom.focused {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-a3);
+  border: 1px solid var(--color-accent);
 }
 
 .workflow-composer-card-question .inline-approval-option.selected,
@@ -3176,25 +3160,12 @@
     color-mix(in srgb, var(--color-border-soft) 62%, transparent);
 }
 
-/* --- Ask user question --- */
-.ask-user-question-approval {
-  display: grid;
-  gap: 14px;
-}
-
+.ask-user-question-approval,
 .ask-user-question-block {
   display: flex;
   flex-direction: column;
-}
-
-.ask-user-question-approval {
-  display: flex;
-  flex-direction: column;
-}
-
-.ask-user-question-block {
-  display: flex;
-  flex-direction: column;
+  gap: 10px;
+  outline: none;
 }
 
 .ask-user-question-progress {
@@ -3202,7 +3173,7 @@
   align-items: center;
   justify-content: space-between;
   color: var(--color-text-meta);
-  font-size: var(--font-size-12);
+  font-size: var(--font-size-14);
 }
 
 .workflow-composer-card-question .inline-approval-options {
@@ -3227,6 +3198,7 @@
   .inline-approval-options
   > .inline-approval-split {
   grid-column: 2;
+  align-self: stretch;
 }
 
 .workflow-composer-card-question .inline-approval-split {
@@ -3243,6 +3215,7 @@
 }
 
 .ask-user-question-navigation {
+  height: 100%;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -3252,17 +3225,18 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: 30px;
+  height: 100%;
   padding: 0 10px;
-  border: 1px solid var(--color-border-faint);
+
+  background: var(--color-ink);
   border-radius: var(--radius-6);
-  background: transparent;
-  color: var(--color-text-soft);
-  font-size: var(--font-size-12);
+  color: var(--color-bg);
+
+  font-size: var(--font-size-14);
 
   &:not(:disabled):hover {
-    background: var(--color-bg-soft);
-    color: var(--color-text);
+    cursor: default;
+    opacity: 0.45;
   }
 
   &:disabled {
@@ -3319,11 +3293,6 @@
 .inline-approval-actions {
   width: 140px;
   justify-content: space-evenly;
-}
-
-.inline-approval-skip,
-.workflow-composer-card-question .inline-approval-submit {
-  min-height: 30px;
 }
 
 .workflow-composer-card-question .inline-approval-footer,
