@@ -5,7 +5,7 @@ use crate::policy::normalize_host;
 use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use globset::GlobBuilder;
 use globset::GlobMatcher;
 use rama_http::HeaderValue;
@@ -672,7 +672,7 @@ mod tests {
                 strip_request_headers: vec!["authorization".to_string()],
                 inject_request_headers: vec![InjectedHeaderConfig {
                     name: "authorization".to_string(),
-                    secret_env_var: Some("CODEX_GITHUB_TOKEN".to_string()),
+                    secret_env_var: Some("codepilotx_GITHUB_TOKEN".to_string()),
                     secret_file: None,
                     prefix: Some("Bearer ".to_string()),
                 }],
@@ -745,7 +745,7 @@ mod tests {
 
         let hooks = compile_mitm_hooks_with_resolvers(
             &config,
-            |name| (name == "CODEX_GITHUB_TOKEN").then(|| "ghp-secret".to_string()),
+            |name| (name == "codepilotx_GITHUB_TOKEN").then(|| "ghp-secret".to_string()),
             |_| Err(anyhow!("unexpected file lookup")),
         )
         .unwrap();
@@ -754,7 +754,7 @@ mod tests {
         assert_eq!(compiled.len(), 1);
         assert_eq!(
             compiled[0].actions.inject_request_headers[0].source,
-            SecretSource::EnvVar("CODEX_GITHUB_TOKEN".to_string())
+            SecretSource::EnvVar("codepilotx_GITHUB_TOKEN".to_string())
         );
         assert_eq!(
             compiled[0].actions.inject_request_headers[0].value,

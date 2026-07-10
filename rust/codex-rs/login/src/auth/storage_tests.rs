@@ -2,22 +2,22 @@ use super::*;
 use crate::token_data::IdTokenInfo;
 use anyhow::Context;
 use base64::Engine;
-use codex_secrets::LocalSecretsNamespace;
-use codex_secrets::SecretScope;
-use codex_secrets::SecretsBackendKind;
-use codex_secrets::SecretsManager;
-use codex_secrets::compute_keyring_account;
+use codepilotx_secrets::LocalSecretsNamespace;
+use codepilotx_secrets::SecretScope;
+use codepilotx_secrets::SecretsBackendKind;
+use codepilotx_secrets::SecretsManager;
+use codepilotx_secrets::compute_keyring_account;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use tempfile::tempdir;
 
-use codex_keyring_store::tests::MockKeyringStore;
+use codepilotx_keyring_store::tests::MockKeyringStore;
 use keyring::Error as KeyringError;
 
 #[tokio::test]
 async fn file_storage_load_returns_auth_dot_json() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
-    let storage = FileAuthStorage::new(codex_home.path().to_path_buf());
+    let codepilotx_home = tempdir()?;
+    let storage = FileAuthStorage::new(codepilotx_home.path().to_path_buf());
     let auth_dot_json = AuthDotJson {
         auth_mode: Some(AuthMode::ApiKey),
         openai_api_key: Some("test-key".to_string()),
@@ -39,8 +39,8 @@ async fn file_storage_load_returns_auth_dot_json() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn file_storage_save_persists_auth_dot_json() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
-    let storage = FileAuthStorage::new(codex_home.path().to_path_buf());
+    let codepilotx_home = tempdir()?;
+    let storage = FileAuthStorage::new(codepilotx_home.path().to_path_buf());
     let auth_dot_json = AuthDotJson {
         auth_mode: Some(AuthMode::ApiKey),
         openai_api_key: Some("test-key".to_string()),
@@ -51,7 +51,7 @@ async fn file_storage_save_persists_auth_dot_json() -> anyhow::Result<()> {
         bedrock_api_key: None,
     };
 
-    let file = get_auth_file(codex_home.path());
+    let file = get_auth_file(codepilotx_home.path());
     storage
         .save(&auth_dot_json)
         .context("failed to save auth file")?;
@@ -65,8 +65,8 @@ async fn file_storage_save_persists_auth_dot_json() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn file_storage_round_trips_agent_identity_auth() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
-    let storage = FileAuthStorage::new(codex_home.path().to_path_buf());
+    let codepilotx_home = tempdir()?;
+    let storage = FileAuthStorage::new(codepilotx_home.path().to_path_buf());
     let agent_identity = jwt_with_payload(json!({
         "agent_runtime_id": "agent-runtime-id",
         "agent_private_key": "private-key",
@@ -95,8 +95,8 @@ async fn file_storage_round_trips_agent_identity_auth() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn file_storage_round_trips_registered_agent_identity_auth() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
-    let storage = FileAuthStorage::new(codex_home.path().to_path_buf());
+    let codepilotx_home = tempdir()?;
+    let storage = FileAuthStorage::new(codepilotx_home.path().to_path_buf());
     let record = AgentIdentityAuthRecord {
         agent_runtime_id: "agent-runtime-id".to_string(),
         agent_private_key: "private-key".to_string(),
@@ -126,8 +126,8 @@ async fn file_storage_round_trips_registered_agent_identity_auth() -> anyhow::Re
 
 #[tokio::test]
 async fn file_storage_round_trips_personal_access_token_auth() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
-    let storage = FileAuthStorage::new(codex_home.path().to_path_buf());
+    let codepilotx_home = tempdir()?;
+    let storage = FileAuthStorage::new(codepilotx_home.path().to_path_buf());
     let auth_dot_json = AuthDotJson {
         auth_mode: Some(AuthMode::PersonalAccessToken),
         openai_api_key: None,
@@ -147,8 +147,8 @@ async fn file_storage_round_trips_personal_access_token_auth() -> anyhow::Result
 
 #[tokio::test]
 async fn file_storage_loads_agent_identity_as_jwt() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
-    let storage = FileAuthStorage::new(codex_home.path().to_path_buf());
+    let codepilotx_home = tempdir()?;
+    let storage = FileAuthStorage::new(codepilotx_home.path().to_path_buf());
     let agent_identity_jwt = jwt_with_payload(json!({
         "agent_runtime_id": "agent-runtime-id",
         "agent_private_key": "private-key",
@@ -158,7 +158,7 @@ async fn file_storage_loads_agent_identity_as_jwt() -> anyhow::Result<()> {
         "plan_type": "pro",
         "chatgpt_account_is_fedramp": false,
     }));
-    let auth_file = get_auth_file(codex_home.path());
+    let auth_file = get_auth_file(codepilotx_home.path());
     std::fs::write(
         &auth_file,
         serde_json::to_string_pretty(&json!({
@@ -234,39 +234,39 @@ fn ephemeral_storage_save_load_delete_is_in_memory_only() -> anyhow::Result<()> 
 
 fn seed_secrets_backend_and_fallback_auth_file_for_delete(
     mock_keyring: &MockKeyringStore,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     auth: &AuthDotJson,
 ) -> anyhow::Result<PathBuf> {
     let manager = SecretsManager::new_with_keyring_store_and_namespace(
-        codex_home.to_path_buf(),
+        codepilotx_home.to_path_buf(),
         SecretsBackendKind::Local,
         Arc::new(mock_keyring.clone()),
         LocalSecretsNamespace::CodexAuth,
     );
     manager.set(
         &SecretScope::Global,
-        &CODEX_AUTH_SECRET_NAME,
+        &codepilotx_AUTH_SECRET_NAME,
         &serde_json::to_string(auth)?,
     )?;
-    let auth_file = get_auth_file(codex_home);
+    let auth_file = get_auth_file(codepilotx_home);
     std::fs::write(&auth_file, "stale")?;
     Ok(auth_file)
 }
 
 fn seed_secrets_backend_with_auth(
     mock_keyring: &MockKeyringStore,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     auth: &AuthDotJson,
 ) -> anyhow::Result<()> {
     let manager = SecretsManager::new_with_keyring_store_and_namespace(
-        codex_home.to_path_buf(),
+        codepilotx_home.to_path_buf(),
         SecretsBackendKind::Local,
         Arc::new(mock_keyring.clone()),
         LocalSecretsNamespace::CodexAuth,
     );
     manager.set(
         &SecretScope::Global,
-        &CODEX_AUTH_SECRET_NAME,
+        &codepilotx_AUTH_SECRET_NAME,
         &serde_json::to_string(auth)?,
     )?;
     Ok(())
@@ -274,32 +274,32 @@ fn seed_secrets_backend_with_auth(
 
 fn assert_keyring_saved_auth_and_removed_fallback(
     mock_keyring: &MockKeyringStore,
-    codex_home: &Path,
+    codepilotx_home: &Path,
     expected: &AuthDotJson,
 ) -> anyhow::Result<()> {
     let manager = SecretsManager::new_with_keyring_store_and_namespace(
-        codex_home.to_path_buf(),
+        codepilotx_home.to_path_buf(),
         SecretsBackendKind::Local,
         Arc::new(mock_keyring.clone()),
         LocalSecretsNamespace::CodexAuth,
     );
     let saved_value = manager
-        .get(&SecretScope::Global, &CODEX_AUTH_SECRET_NAME)?
+        .get(&SecretScope::Global, &codepilotx_AUTH_SECRET_NAME)?
         .context("encrypted auth entry should exist")?;
     let expected_serialized = serde_json::to_string(expected)?;
     assert_eq!(saved_value, expected_serialized);
-    let old_key = compute_store_key(codex_home)?;
+    let old_key = compute_store_key(codepilotx_home)?;
     assert!(
         mock_keyring.saved_value(&old_key).is_none(),
         "legacy keyring auth entry should not be used"
     );
-    let secrets_key = compute_keyring_account(codex_home);
+    let secrets_key = compute_keyring_account(codepilotx_home);
     assert!(
         mock_keyring.saved_value(&secrets_key).is_some(),
         "secrets backend should persist an encryption passphrase in the keyring"
     );
-    assert!(encrypted_auth_file(codex_home).exists());
-    let auth_file = get_auth_file(codex_home);
+    assert!(encrypted_auth_file(codepilotx_home).exists());
+    let auth_file = get_auth_file(codepilotx_home);
     assert!(
         !auth_file.exists(),
         "fallback auth.json should be removed after keyring save"
@@ -307,8 +307,8 @@ fn assert_keyring_saved_auth_and_removed_fallback(
     Ok(())
 }
 
-fn encrypted_auth_file(codex_home: &Path) -> PathBuf {
-    codex_home.join("secrets").join("codex_auth.age")
+fn encrypted_auth_file(codepilotx_home: &Path) -> PathBuf {
+    codepilotx_home.join("secrets").join("codepilotx_auth.age")
 }
 
 fn id_token_with_prefix(prefix: &str) -> IdTokenInfo {
@@ -364,10 +364,10 @@ fn jwt_with_payload(payload: serde_json::Value) -> String {
 
 #[test]
 fn secrets_keyring_auth_storage_load_returns_deserialized_auth() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
+    let codepilotx_home = tempdir()?;
     let mock_keyring = MockKeyringStore::default();
     let storage = SecretsKeyringAuthStorage::new(
-        codex_home.path().to_path_buf(),
+        codepilotx_home.path().to_path_buf(),
         Arc::new(mock_keyring.clone()),
     );
     let expected = AuthDotJson {
@@ -379,7 +379,7 @@ fn secrets_keyring_auth_storage_load_returns_deserialized_auth() -> anyhow::Resu
         personal_access_token: None,
         bedrock_api_key: None,
     };
-    seed_secrets_backend_with_auth(&mock_keyring, codex_home.path(), &expected)?;
+    seed_secrets_backend_with_auth(&mock_keyring, codepilotx_home.path(), &expected)?;
 
     let loaded = storage.load()?;
     assert_eq!(Some(expected), loaded);
@@ -388,9 +388,9 @@ fn secrets_keyring_auth_storage_load_returns_deserialized_auth() -> anyhow::Resu
 
 #[test]
 fn keyring_auth_storage_compute_store_key_for_home_directory() -> anyhow::Result<()> {
-    let codex_home = PathBuf::from("~/.codex");
+    let codepilotx_home = PathBuf::from("~/.codex");
 
-    let key = compute_store_key(codex_home.as_path())?;
+    let key = compute_store_key(codepilotx_home.as_path())?;
 
     assert_eq!(key, "cli|940db7b1d0e4eb40");
     Ok(())
@@ -398,24 +398,24 @@ fn keyring_auth_storage_compute_store_key_for_home_directory() -> anyhow::Result
 
 #[test]
 fn direct_keyring_auth_storage_saves_legacy_keyring_entry() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
+    let codepilotx_home = tempdir()?;
     let mock_keyring = MockKeyringStore::default();
     let storage = DirectKeyringAuthStorage::new(
-        codex_home.path().to_path_buf(),
+        codepilotx_home.path().to_path_buf(),
         Arc::new(mock_keyring.clone()),
     );
-    let auth_file = get_auth_file(codex_home.path());
+    let auth_file = get_auth_file(codepilotx_home.path());
     std::fs::write(&auth_file, "stale")?;
     let auth = auth_with_prefix("direct");
 
     storage.save(&auth)?;
 
-    let legacy_key = compute_store_key(codex_home.path())?;
+    let legacy_key = compute_store_key(codepilotx_home.path())?;
     let saved_value = mock_keyring
         .saved_value(&legacy_key)
         .context("direct keyring auth entry should exist")?;
     assert_eq!(saved_value, serde_json::to_string(&auth)?);
-    assert!(!encrypted_auth_file(codex_home.path()).exists());
+    assert!(!encrypted_auth_file(codepilotx_home.path()).exists());
     assert!(
         !auth_file.exists(),
         "fallback auth.json should be removed after keyring save"
@@ -426,15 +426,15 @@ fn direct_keyring_auth_storage_saves_legacy_keyring_entry() -> anyhow::Result<()
 
 #[test]
 fn direct_keyring_auth_storage_delete_removes_keyring_and_file() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
+    let codepilotx_home = tempdir()?;
     let mock_keyring = MockKeyringStore::default();
     let storage = DirectKeyringAuthStorage::new(
-        codex_home.path().to_path_buf(),
+        codepilotx_home.path().to_path_buf(),
         Arc::new(mock_keyring.clone()),
     );
     let auth = auth_with_prefix("direct-delete");
     storage.save(&auth)?;
-    let auth_file = get_auth_file(codex_home.path());
+    let auth_file = get_auth_file(codepilotx_home.path());
     std::fs::write(&auth_file, "stale")?;
 
     let removed = storage.delete()?;
@@ -443,7 +443,7 @@ fn direct_keyring_auth_storage_delete_removes_keyring_and_file() -> anyhow::Resu
     assert_eq!(storage.load()?, None, "keyring auth should be removed");
     assert!(
         mock_keyring
-            .saved_value(&compute_store_key(codex_home.path())?)
+            .saved_value(&compute_store_key(codepilotx_home.path())?)
             .is_none(),
         "legacy keyring auth entry should be removed"
     );
@@ -451,7 +451,7 @@ fn direct_keyring_auth_storage_delete_removes_keyring_and_file() -> anyhow::Resu
         !auth_file.exists(),
         "fallback auth.json should be removed after keyring delete"
     );
-    assert!(!encrypted_auth_file(codex_home.path()).exists());
+    assert!(!encrypted_auth_file(codepilotx_home.path()).exists());
     Ok(())
 }
 
@@ -495,13 +495,13 @@ fn factory_uses_secrets_backend_only_when_requested() -> anyhow::Result<()> {
 
 #[test]
 fn secrets_keyring_auth_storage_save_persists_and_removes_fallback_file() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
+    let codepilotx_home = tempdir()?;
     let mock_keyring = MockKeyringStore::default();
     let storage = SecretsKeyringAuthStorage::new(
-        codex_home.path().to_path_buf(),
+        codepilotx_home.path().to_path_buf(),
         Arc::new(mock_keyring.clone()),
     );
-    let auth_file = get_auth_file(codex_home.path());
+    let auth_file = get_auth_file(codepilotx_home.path());
     std::fs::write(&auth_file, "stale")?;
     let auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
@@ -520,22 +520,22 @@ fn secrets_keyring_auth_storage_save_persists_and_removes_fallback_file() -> any
 
     storage.save(&auth)?;
 
-    assert_keyring_saved_auth_and_removed_fallback(&mock_keyring, codex_home.path(), &auth)?;
+    assert_keyring_saved_auth_and_removed_fallback(&mock_keyring, codepilotx_home.path(), &auth)?;
     Ok(())
 }
 
 #[test]
 fn secrets_keyring_auth_storage_delete_removes_keyring_and_file() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
+    let codepilotx_home = tempdir()?;
     let mock_keyring = MockKeyringStore::default();
     let storage = SecretsKeyringAuthStorage::new(
-        codex_home.path().to_path_buf(),
+        codepilotx_home.path().to_path_buf(),
         Arc::new(mock_keyring.clone()),
     );
     let auth = auth_with_prefix("to-delete");
     let auth_file = seed_secrets_backend_and_fallback_auth_file_for_delete(
         &mock_keyring,
-        codex_home.path(),
+        codepilotx_home.path(),
         &auth,
     )?;
 
@@ -552,21 +552,21 @@ fn secrets_keyring_auth_storage_delete_removes_keyring_and_file() -> anyhow::Res
 
 #[test]
 fn secrets_keyring_auth_storage_delete_removes_legacy_direct_keyring_entry() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
+    let codepilotx_home = tempdir()?;
     let mock_keyring = MockKeyringStore::default();
     let direct_storage = DirectKeyringAuthStorage::new(
-        codex_home.path().to_path_buf(),
+        codepilotx_home.path().to_path_buf(),
         Arc::new(mock_keyring.clone()),
     );
     direct_storage.save(&auth_with_prefix("legacy-direct"))?;
     let storage = SecretsKeyringAuthStorage::new(
-        codex_home.path().to_path_buf(),
+        codepilotx_home.path().to_path_buf(),
         Arc::new(mock_keyring.clone()),
     );
     let auth = auth_with_prefix("to-delete");
     let auth_file = seed_secrets_backend_and_fallback_auth_file_for_delete(
         &mock_keyring,
-        codex_home.path(),
+        codepilotx_home.path(),
         &auth,
     )?;
 
@@ -588,15 +588,15 @@ fn secrets_keyring_auth_storage_delete_removes_legacy_direct_keyring_entry() -> 
 
 #[test]
 fn auto_auth_storage_load_prefers_keyring_value() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
+    let codepilotx_home = tempdir()?;
     let mock_keyring = MockKeyringStore::default();
     let storage = AutoAuthStorage::new(
-        codex_home.path().to_path_buf(),
+        codepilotx_home.path().to_path_buf(),
         Arc::new(mock_keyring.clone()),
         AuthKeyringBackendKind::Secrets,
     );
     let keyring_auth = auth_with_prefix("keyring");
-    seed_secrets_backend_with_auth(&mock_keyring, codex_home.path(), &keyring_auth)?;
+    seed_secrets_backend_with_auth(&mock_keyring, codepilotx_home.path(), &keyring_auth)?;
 
     let file_auth = auth_with_prefix("file");
     storage.file_storage.save(&file_auth)?;
@@ -608,10 +608,10 @@ fn auto_auth_storage_load_prefers_keyring_value() -> anyhow::Result<()> {
 
 #[test]
 fn auto_auth_storage_load_uses_file_when_keyring_empty() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
+    let codepilotx_home = tempdir()?;
     let mock_keyring = MockKeyringStore::default();
     let storage = AutoAuthStorage::new(
-        codex_home.path().to_path_buf(),
+        codepilotx_home.path().to_path_buf(),
         Arc::new(mock_keyring),
         AuthKeyringBackendKind::Secrets,
     );
@@ -626,17 +626,17 @@ fn auto_auth_storage_load_uses_file_when_keyring_empty() -> anyhow::Result<()> {
 
 #[test]
 fn auto_auth_storage_load_falls_back_when_keyring_errors() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
+    let codepilotx_home = tempdir()?;
     let mock_keyring = MockKeyringStore::default();
     let storage = AutoAuthStorage::new(
-        codex_home.path().to_path_buf(),
+        codepilotx_home.path().to_path_buf(),
         Arc::new(mock_keyring.clone()),
         AuthKeyringBackendKind::Secrets,
     );
-    let key = compute_keyring_account(codex_home.path());
+    let key = compute_keyring_account(codepilotx_home.path());
 
     let encrypted = auth_with_prefix("encrypted");
-    seed_secrets_backend_with_auth(&mock_keyring, codex_home.path(), &encrypted)?;
+    seed_secrets_backend_with_auth(&mock_keyring, codepilotx_home.path(), &encrypted)?;
     mock_keyring.set_error(&key, KeyringError::Invalid("error".into(), "load".into()));
 
     let expected = auth_with_prefix("fallback");
@@ -649,10 +649,10 @@ fn auto_auth_storage_load_falls_back_when_keyring_errors() -> anyhow::Result<()>
 
 #[test]
 fn auto_auth_storage_save_prefers_keyring() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
+    let codepilotx_home = tempdir()?;
     let mock_keyring = MockKeyringStore::default();
     let storage = AutoAuthStorage::new(
-        codex_home.path().to_path_buf(),
+        codepilotx_home.path().to_path_buf(),
         Arc::new(mock_keyring.clone()),
         AuthKeyringBackendKind::Secrets,
     );
@@ -662,26 +662,26 @@ fn auto_auth_storage_save_prefers_keyring() -> anyhow::Result<()> {
     let expected = auth_with_prefix("to-save");
     storage.save(&expected)?;
 
-    assert_keyring_saved_auth_and_removed_fallback(&mock_keyring, codex_home.path(), &expected)?;
+    assert_keyring_saved_auth_and_removed_fallback(&mock_keyring, codepilotx_home.path(), &expected)?;
     Ok(())
 }
 
 #[test]
 fn auto_auth_storage_save_falls_back_when_keyring_errors() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
+    let codepilotx_home = tempdir()?;
     let mock_keyring = MockKeyringStore::default();
     let storage = AutoAuthStorage::new(
-        codex_home.path().to_path_buf(),
+        codepilotx_home.path().to_path_buf(),
         Arc::new(mock_keyring.clone()),
         AuthKeyringBackendKind::Secrets,
     );
-    let key = compute_keyring_account(codex_home.path());
+    let key = compute_keyring_account(codepilotx_home.path());
     mock_keyring.set_error(&key, KeyringError::Invalid("error".into(), "save".into()));
 
     let auth = auth_with_prefix("fallback");
     storage.save(&auth)?;
 
-    let auth_file = get_auth_file(codex_home.path());
+    let auth_file = get_auth_file(codepilotx_home.path());
     assert!(
         auth_file.exists(),
         "fallback auth.json should be created when keyring save fails"
@@ -700,17 +700,17 @@ fn auto_auth_storage_save_falls_back_when_keyring_errors() -> anyhow::Result<()>
 
 #[test]
 fn auto_auth_storage_delete_removes_keyring_and_file() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
+    let codepilotx_home = tempdir()?;
     let mock_keyring = MockKeyringStore::default();
     let storage = AutoAuthStorage::new(
-        codex_home.path().to_path_buf(),
+        codepilotx_home.path().to_path_buf(),
         Arc::new(mock_keyring.clone()),
         AuthKeyringBackendKind::Secrets,
     );
     let auth = auth_with_prefix("to-delete");
     let auth_file = seed_secrets_backend_and_fallback_auth_file_for_delete(
         &mock_keyring,
-        codex_home.path(),
+        codepilotx_home.path(),
         &auth,
     )?;
 

@@ -3,11 +3,11 @@ use chrono::Local;
 use chrono::Utc;
 use reqwest::header::HeaderMap;
 
-use codex_core::config::Config;
-use codex_login::AuthManager;
+use codepilotx_core::config::Config;
+use codepilotx_login::AuthManager;
 
 pub fn set_user_agent_suffix(suffix: &str) {
-    if let Ok(mut guard) = codex_login::default_client::USER_AGENT_SUFFIX.lock() {
+    if let Ok(mut guard) = codepilotx_login::default_client::USER_AGENT_SUFFIX.lock() {
         guard.replace(suffix.to_string());
     }
 }
@@ -46,8 +46,8 @@ pub async fn load_auth_manager(chatgpt_base_url: Option<String>) -> Option<AuthM
     let config = Config::load_with_cli_overrides(Vec::new()).await.ok()?;
     Some(
         AuthManager::new(
-            config.codex_home.to_path_buf(),
-            /*enable_codex_api_key_env*/ false,
+            config.codepilotx_home.to_path_buf(),
+            /*enable_codepilotx_api_key_env*/ false,
             config.cli_auth_credentials_store_mode,
             config.forced_chatgpt_workspace_id.clone(),
             chatgpt_base_url.or(Some(config.chatgpt_base_url.clone())),
@@ -63,8 +63,8 @@ pub async fn build_chatgpt_headers() -> HeaderMap {
     use reqwest::header::HeaderValue;
     use reqwest::header::USER_AGENT;
 
-    set_user_agent_suffix("codex_cloud_tasks_tui");
-    let ua = codex_login::default_client::get_codex_user_agent();
+    set_user_agent_suffix("codepilotx_cloud_tasks_tui");
+    let ua = codepilotx_login::default_client::get_codepilotx_user_agent();
     let mut headers = HeaderMap::new();
     headers.insert(
         USER_AGENT,
@@ -72,9 +72,9 @@ pub async fn build_chatgpt_headers() -> HeaderMap {
     );
     if let Some(am) = load_auth_manager(/*chatgpt_base_url*/ None).await
         && let Some(auth) = am.auth().await
-        && auth.uses_codex_backend()
+        && auth.uses_codepilotx_backend()
     {
-        headers.extend(codex_model_provider::auth_provider_from_auth(&auth).to_auth_headers());
+        headers.extend(codepilotx_model_provider::auth_provider_from_auth(&auth).to_auth_headers());
     }
     headers
 }

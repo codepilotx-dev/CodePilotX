@@ -6,9 +6,9 @@ use crate::ConfigRequirements;
 use crate::ConfigRequirementsToml;
 use crate::config_toml::ConfigToml;
 use crate::first_layer_config_error_from_entries;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::test_support::PathBufExt;
-use codex_utils_absolute_path::test_support::test_path_buf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::test_support::PathBufExt;
+use codepilotx_utils_absolute_path::test_support::test_path_buf;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 

@@ -1,19 +1,19 @@
 use anyhow::Context;
 use anyhow::Result;
 use base64::Engine;
-use codex_app_server_protocol::AuthMode;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_login::AuthDotJson;
-use codex_login::AuthKeyringBackendKind;
-use codex_login::AuthManager;
-use codex_login::CLIENT_ID;
-use codex_login::CLIENT_ID_OVERRIDE_ENV_VAR;
-use codex_login::CODEX_ACCESS_TOKEN_ENV_VAR;
-use codex_login::REVOKE_TOKEN_URL_OVERRIDE_ENV_VAR;
-use codex_login::logout_with_revoke;
-use codex_login::save_auth;
-use codex_login::token_data::IdTokenInfo;
-use codex_login::token_data::TokenData;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_login::AuthDotJson;
+use codepilotx_login::AuthKeyringBackendKind;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CLIENT_ID;
+use codepilotx_login::CLIENT_ID_OVERRIDE_ENV_VAR;
+use codepilotx_login::codepilotx_ACCESS_TOKEN_ENV_VAR;
+use codepilotx_login::REVOKE_TOKEN_URL_OVERRIDE_ENV_VAR;
+use codepilotx_login::logout_with_revoke;
+use codepilotx_login::save_auth;
+use codepilotx_login::token_data::IdTokenInfo;
+use codepilotx_login::token_data::TokenData;
 use core_test_support::skip_if_no_network;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
@@ -49,23 +49,23 @@ async fn logout_with_revoke_revokes_refresh_token_then_removes_auth() -> Result<
         format!("{}/oauth/revoke", server.uri()),
     );
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     save_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         &chatgpt_auth(),
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
     )?;
 
     let removed = logout_with_revoke(
-        codex_home.path(),
+        codepilotx_home.path(),
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
     )
     .await?;
 
     assert!(removed);
-    assert!(!codex_home.path().join("auth.json").exists());
+    assert!(!codepilotx_home.path().join("auth.json").exists());
 
     let requests = server
         .received_requests()
@@ -103,27 +103,27 @@ async fn logout_with_revoke_uses_stored_auth_when_access_token_env_is_set() -> R
         format!("{}/oauth/revoke", server.uri()),
     );
     let _access_token_env_guard = EnvGuard::set(
-        CODEX_ACCESS_TOKEN_ENV_VAR,
+        codepilotx_ACCESS_TOKEN_ENV_VAR,
         "at-environment-token".to_string(),
     );
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     save_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         &chatgpt_auth(),
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
     )?;
 
     let removed = logout_with_revoke(
-        codex_home.path(),
+        codepilotx_home.path(),
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
     )
     .await?;
 
     assert!(removed);
-    assert!(!codex_home.path().join("auth.json").exists());
+    assert!(!codepilotx_home.path().join("auth.json").exists());
     server.verify().await;
     Ok(())
 }
@@ -149,23 +149,23 @@ async fn logout_with_revoke_removes_auth_when_revoke_fails() -> Result<()> {
         format!("{}/oauth/revoke", server.uri()),
     );
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     save_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         &chatgpt_auth(),
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
     )?;
 
     let removed = logout_with_revoke(
-        codex_home.path(),
+        codepilotx_home.path(),
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
     )
     .await?;
 
     assert!(removed);
-    assert!(!codex_home.path().join("auth.json").exists());
+    assert!(!codepilotx_home.path().join("auth.json").exists());
 
     server.verify().await;
     Ok(())
@@ -190,16 +190,16 @@ async fn auth_manager_logout_with_revoke_uses_cached_auth() -> Result<()> {
         format!("{}/oauth/revoke", server.uri()),
     );
 
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     save_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         &chatgpt_auth_with_refresh_token(REFRESH_TOKEN),
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
     )?;
     let manager = AuthManager::new(
-        codex_home.path().to_path_buf(),
-        /*enable_codex_api_key_env*/ false,
+        codepilotx_home.path().to_path_buf(),
+        /*enable_codepilotx_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
         /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
@@ -207,7 +207,7 @@ async fn auth_manager_logout_with_revoke_uses_cached_auth() -> Result<()> {
     )
     .await;
     save_auth(
-        codex_home.path(),
+        codepilotx_home.path(),
         &chatgpt_auth_with_refresh_token("newer-disk-refresh-token"),
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
@@ -217,7 +217,7 @@ async fn auth_manager_logout_with_revoke_uses_cached_auth() -> Result<()> {
 
     assert!(removed);
     assert!(manager.auth_cached().is_none());
-    assert!(!codex_home.path().join("auth.json").exists());
+    assert!(!codepilotx_home.path().join("auth.json").exists());
 
     let requests = server
         .received_requests()

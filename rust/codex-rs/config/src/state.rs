@@ -7,10 +7,10 @@ use super::key_aliases::normalized_with_key_aliases;
 use super::merge::merge_toml_values;
 use crate::CloudConfigBundleLoader;
 use crate::ProfileV2Name;
-use codex_app_server_protocol::ConfigLayer;
-use codex_app_server_protocol::ConfigLayerMetadata;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::ConfigLayer;
+use codepilotx_app_server_protocol::ConfigLayerMetadata;
+use codepilotx_app_server_protocol::ConfigLayerSource;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::path::Path;
@@ -89,12 +89,12 @@ impl LoaderOverrides {
         }
     }
 
-    pub fn user_config_path(&self, codex_home: &Path) -> std::io::Result<AbsolutePathBuf> {
+    pub fn user_config_path(&self, codepilotx_home: &Path) -> std::io::Result<AbsolutePathBuf> {
         match self.user_config_path.as_ref() {
             Some(path) => Ok(path.clone()),
             None => Ok(AbsolutePathBuf::resolve_path_against_base(
                 crate::CONFIG_TOML_FILE,
-                codex_home,
+                codepilotx_home,
             )),
         }
     }
@@ -210,7 +210,7 @@ impl ConfigLayerEntry {
             ConfigLayerSource::System { file } => file.parent(),
             ConfigLayerSource::EnterpriseManaged { .. } => None,
             ConfigLayerSource::User { file, .. } => file.parent(),
-            ConfigLayerSource::Project { dot_codex_folder } => Some(dot_codex_folder.clone()),
+            ConfigLayerSource::Project { dot_codepilotx_folder } => Some(dot_codepilotx_folder.clone()),
             ConfigLayerSource::SessionFlags => None,
             ConfigLayerSource::LegacyManagedConfigTomlFromFile { .. } => None,
             ConfigLayerSource::LegacyManagedConfigTomlFromMdm => None,
@@ -245,7 +245,7 @@ pub struct ConfigLayerStack {
     /// Index into [layers] of the active user config layer, if any.
     ///
     /// When profile config is active, there can be more than one user layer:
-    /// the base `$CODEX_HOME/config.toml` layer followed by the profile override
+    /// the base `$codepilotx_HOME/config.toml` layer followed by the profile override
     /// layer. This index points at the highest-precedence user layer because that
     /// is the writable layer for profile-aware edits.
     user_layer_index: Option<usize>,
@@ -311,7 +311,7 @@ impl ConfigLayerStack {
     ///
     /// This does not merge other config layers or apply any requirements. When
     /// a profile-v2 layer is active, this returns that profile layer rather than
-    /// the base `$CODEX_HOME/config.toml` layer because the active layer is the
+    /// the base `$codepilotx_HOME/config.toml` layer because the active layer is the
     /// writable target for profile-aware edits.
     pub fn get_active_user_layer(&self) -> Option<&ConfigLayerEntry> {
         self.user_layer_index
@@ -554,25 +554,25 @@ fn verify_layer_ordering(layers: &[ConfigLayerEntry]) -> std::io::Result<Option<
     // user layers are allowed so a profile override can layer on top of the base
     // user config.
     let mut user_layer_index: Option<usize> = None;
-    let mut previous_project_dot_codex_folder: Option<&AbsolutePathBuf> = None;
+    let mut previous_project_dot_codepilotx_folder: Option<&AbsolutePathBuf> = None;
     for (index, layer) in layers.iter().enumerate() {
         if matches!(layer.name, ConfigLayerSource::User { .. }) {
             user_layer_index = Some(index);
         }
 
         if let ConfigLayerSource::Project {
-            dot_codex_folder: current_project_dot_codex_folder,
+            dot_codepilotx_folder: current_project_dot_codepilotx_folder,
         } = &layer.name
         {
-            if let Some(previous) = previous_project_dot_codex_folder {
+            if let Some(previous) = previous_project_dot_codepilotx_folder {
                 let Some(parent) = previous.as_path().parent() else {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::InvalidData,
                         "project layer has no parent directory",
                     ));
                 };
-                if previous == current_project_dot_codex_folder
-                    || !current_project_dot_codex_folder
+                if previous == current_project_dot_codepilotx_folder
+                    || !current_project_dot_codepilotx_folder
                         .as_path()
                         .ancestors()
                         .any(|ancestor| ancestor == parent)
@@ -583,7 +583,7 @@ fn verify_layer_ordering(layers: &[ConfigLayerEntry]) -> std::io::Result<Option<
                     ));
                 }
             }
-            previous_project_dot_codex_folder = Some(current_project_dot_codex_folder);
+            previous_project_dot_codepilotx_folder = Some(current_project_dot_codepilotx_folder);
         }
     }
 

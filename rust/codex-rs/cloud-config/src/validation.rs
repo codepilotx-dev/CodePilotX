@@ -1,9 +1,9 @@
-use codex_config::AbsolutePathBuf;
-use codex_config::CloudConfigBundle;
-use codex_config::CloudConfigBundleLayers;
-use codex_config::CloudConfigBundleLoadError;
-use codex_config::CloudConfigBundleLoadErrorCode;
-use codex_config::compose_requirements;
+use codepilotx_config::AbsolutePathBuf;
+use codepilotx_config::CloudConfigBundle;
+use codepilotx_config::CloudConfigBundleLayers;
+use codepilotx_config::CloudConfigBundleLoadError;
+use codepilotx_config::CloudConfigBundleLoadErrorCode;
+use codepilotx_config::compose_requirements;
 
 pub(crate) fn validate_bundle(
     bundle: &CloudConfigBundle,

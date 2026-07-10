@@ -5,20 +5,20 @@ mod mantle;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use codex_api::Provider;
-use codex_api::SharedAuthProvider;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::auth::BedrockApiKeyAuth;
-use codex_model_provider_info::AMAZON_BEDROCK_GPT_5_4_MODEL_ID;
-use codex_model_provider_info::ModelProviderAwsAuthInfo;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_models_manager::manager::StaticModelsManager;
-use codex_protocol::account::AmazonBedrockCredentialSource;
-use codex_protocol::account::ProviderAccount;
-use codex_protocol::error::Result;
-use codex_protocol::openai_models::ModelsResponse;
+use codepilotx_api::Provider;
+use codepilotx_api::SharedAuthProvider;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CodexAuth;
+use codepilotx_login::auth::BedrockApiKeyAuth;
+use codepilotx_model_provider_info::AMAZON_BEDROCK_GPT_5_4_MODEL_ID;
+use codepilotx_model_provider_info::ModelProviderAwsAuthInfo;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_models_manager::manager::SharedModelsManager;
+use codepilotx_models_manager::manager::StaticModelsManager;
+use codepilotx_protocol::account::AmazonBedrockCredentialSource;
+use codepilotx_protocol::account::ProviderAccount;
+use codepilotx_protocol::error::Result;
+use codepilotx_protocol::openai_models::ModelsResponse;
 
 use crate::provider::ModelProvider;
 use crate::provider::ModelProviderFuture;
@@ -156,7 +156,7 @@ impl ModelProvider for AmazonBedrockModelProvider {
 
     fn models_manager(
         &self,
-        _codex_home: PathBuf,
+        _codepilotx_home: PathBuf,
         config_model_catalog: Option<ModelsResponse>,
     ) -> SharedModelsManager {
         Arc::new(StaticModelsManager::new(

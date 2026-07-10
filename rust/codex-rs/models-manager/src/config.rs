@@ -1,4 +1,4 @@
-use codex_protocol::openai_models::ModelsResponse;
+use codepilotx_protocol::openai_models::ModelsResponse;
 
 #[derive(Debug, Clone, Default)]
 pub struct ModelsManagerConfig {

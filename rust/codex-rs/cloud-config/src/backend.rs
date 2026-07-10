@@ -1,12 +1,12 @@
-use codex_backend_client::Client as BackendClient;
-use codex_backend_client::ConfigBundleResponse;
-use codex_backend_client::DeliveredTomlFragment;
-use codex_config::CloudConfigBundle;
-use codex_config::CloudConfigFragment;
-use codex_config::CloudConfigTomlBundle;
-use codex_config::CloudRequirementsFragment;
-use codex_config::CloudRequirementsTomlBundle;
-use codex_login::CodexAuth;
+use codepilotx_backend_client::Client as BackendClient;
+use codepilotx_backend_client::ConfigBundleResponse;
+use codepilotx_backend_client::DeliveredTomlFragment;
+use codepilotx_config::CloudConfigBundle;
+use codepilotx_config::CloudConfigFragment;
+use codepilotx_config::CloudConfigTomlBundle;
+use codepilotx_config::CloudRequirementsFragment;
+use codepilotx_config::CloudRequirementsTomlBundle;
+use codepilotx_login::CodexAuth;
 use std::future::Future;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

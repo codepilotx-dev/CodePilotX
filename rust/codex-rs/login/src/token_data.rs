@@ -1,7 +1,7 @@
 use base64::Engine;
 use chrono::DateTime;
 use chrono::Utc;
-use codex_protocol::auth::PlanType;
+use codepilotx_protocol::auth::PlanType;
 use serde::Deserialize;
 use serde::Serialize;
 use serde::de::DeserializeOwned;

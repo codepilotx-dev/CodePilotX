@@ -4,16 +4,16 @@ use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use codex_api::Provider;
-use codex_api::SharedAuthProvider;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_models_manager::manager::OpenAiModelsManager;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_models_manager::manager::StaticModelsManager;
-use codex_protocol::account::ProviderAccount;
-use codex_protocol::openai_models::ModelsResponse;
+use codepilotx_api::Provider;
+use codepilotx_api::SharedAuthProvider;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CodexAuth;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_models_manager::manager::OpenAiModelsManager;
+use codepilotx_models_manager::manager::SharedModelsManager;
+use codepilotx_models_manager::manager::StaticModelsManager;
+use codepilotx_protocol::account::ProviderAccount;
+use codepilotx_protocol::openai_models::ModelsResponse;
 
 use crate::amazon_bedrock::AmazonBedrockModelProvider;
 use crate::auth::auth_manager_for_provider;
@@ -146,7 +146,7 @@ pub trait ModelProvider: fmt::Debug + Send + Sync {
     fn account_state(&self) -> ProviderAccountResult;
 
     /// Returns provider configuration adapted for the API client.
-    fn api_provider(&self) -> ModelProviderFuture<'_, codex_protocol::error::Result<Provider>> {
+    fn api_provider(&self) -> ModelProviderFuture<'_, codepilotx_protocol::error::Result<Provider>> {
         Box::pin(async move {
             let auth = self.auth().await;
             self.info()
@@ -157,14 +157,14 @@ pub trait ModelProvider: fmt::Debug + Send + Sync {
     /// Returns the provider base URL that will be used at request time.
     fn runtime_base_url(
         &self,
-    ) -> ModelProviderFuture<'_, codex_protocol::error::Result<Option<String>>> {
+    ) -> ModelProviderFuture<'_, codepilotx_protocol::error::Result<Option<String>>> {
         Box::pin(async { Ok(self.info().base_url.clone()) })
     }
 
     /// Returns the auth provider used to attach request credentials.
     fn api_auth(
         &self,
-    ) -> ModelProviderFuture<'_, codex_protocol::error::Result<SharedAuthProvider>> {
+    ) -> ModelProviderFuture<'_, codepilotx_protocol::error::Result<SharedAuthProvider>> {
         Box::pin(async move {
             let auth = self.auth().await;
             resolve_provider_auth(auth.as_ref(), self.info())
@@ -174,7 +174,7 @@ pub trait ModelProvider: fmt::Debug + Send + Sync {
     /// Creates the model manager implementation appropriate for this provider.
     fn models_manager(
         &self,
-        codex_home: PathBuf,
+        codepilotx_home: PathBuf,
         config_model_catalog: Option<ModelsResponse>,
     ) -> SharedModelsManager;
 }
@@ -282,7 +282,7 @@ impl ModelProvider for ConfiguredModelProvider {
 
     fn models_manager(
         &self,
-        codex_home: PathBuf,
+        codepilotx_home: PathBuf,
         config_model_catalog: Option<ModelsResponse>,
     ) -> SharedModelsManager {
         match config_model_catalog {
@@ -296,7 +296,7 @@ impl ModelProvider for ConfiguredModelProvider {
                     self.auth_manager.clone(),
                 ));
                 Arc::new(OpenAiModelsManager::new(
-                    codex_home,
+                    codepilotx_home,
                     endpoint,
                     self.auth_manager.clone(),
                 ))
@@ -309,13 +309,13 @@ impl ModelProvider for ConfiguredModelProvider {
 mod tests {
     use std::num::NonZeroU64;
 
-    use codex_login::auth::BedrockApiKeyAuth;
-    use codex_model_provider_info::ModelProviderAwsAuthInfo;
-    use codex_model_provider_info::WireApi;
-    use codex_models_manager::manager::RefreshStrategy;
-    use codex_protocol::config_types::ModelProviderAuthInfo;
-    use codex_protocol::openai_models::ModelInfo;
-    use codex_protocol::openai_models::ModelsResponse;
+    use codepilotx_login::auth::BedrockApiKeyAuth;
+    use codepilotx_model_provider_info::ModelProviderAwsAuthInfo;
+    use codepilotx_model_provider_info::WireApi;
+    use codepilotx_models_manager::manager::RefreshStrategy;
+    use codepilotx_protocol::config_types::ModelProviderAuthInfo;
+    use codepilotx_protocol::openai_models::ModelInfo;
+    use codepilotx_protocol::openai_models::ModelsResponse;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use wiremock::Mock;
@@ -344,7 +344,7 @@ mod tests {
         }
     }
 
-    fn test_codex_home() -> std::path::PathBuf {
+    fn test_codepilotx_home() -> std::path::PathBuf {
         std::env::temp_dir().join(format!("codex-model-provider-test-{}", std::process::id()))
     }
 
@@ -579,7 +579,7 @@ mod tests {
             Ok(ProviderAccountState {
                 account: Some(ProviderAccount::AmazonBedrock {
                     credential_source:
-                        codex_protocol::account::AmazonBedrockCredentialSource::AwsManaged,
+                        codepilotx_protocol::account::AmazonBedrockCredentialSource::AwsManaged,
                 }),
                 requires_openai_auth: false,
             })
@@ -593,7 +593,7 @@ mod tests {
             /*auth_manager*/ None,
         );
         let manager =
-            provider.models_manager(test_codex_home(), /*config_model_catalog*/ None);
+            provider.models_manager(test_codepilotx_home(), /*config_model_catalog*/ None);
 
         let catalog = manager.raw_model_catalog(RefreshStrategy::Online).await;
         let model_ids = catalog
@@ -616,7 +616,7 @@ mod tests {
 
     #[tokio::test]
     async fn configured_bedrock_catalog_only_allows_default_service_tier() {
-        let configured_model = codex_models_manager::bundled_models_response()
+        let configured_model = codepilotx_models_manager::bundled_models_response()
             .expect("bundled models should parse")
             .models
             .into_iter()
@@ -630,7 +630,7 @@ mod tests {
             /*auth_manager*/ None,
         );
         let manager = provider.models_manager(
-            test_codex_home(),
+            test_codepilotx_home(),
             Some(ModelsResponse {
                 models: vec![configured_model],
             }),
@@ -677,7 +677,7 @@ mod tests {
         );
 
         let manager =
-            provider.models_manager(test_codex_home(), /*config_model_catalog*/ None);
+            provider.models_manager(test_codepilotx_home(), /*config_model_catalog*/ None);
         let catalog = manager.raw_model_catalog(RefreshStrategy::Online).await;
 
         assert!(

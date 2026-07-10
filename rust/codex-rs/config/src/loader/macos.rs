@@ -7,7 +7,7 @@ use crate::diagnostics::io_error_from_config_error;
 use crate::strict_config::config_error_from_ignored_toml_value_fields_for_source_name;
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
-use codex_utils_absolute_path::AbsolutePathBufGuard;
+use codepilotx_utils_absolute_path::AbsolutePathBufGuard;
 use core_foundation::base::TCFType;
 use core_foundation::string::CFString;
 use core_foundation::string::CFStringRef;

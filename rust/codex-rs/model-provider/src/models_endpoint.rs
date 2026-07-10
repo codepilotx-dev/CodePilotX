@@ -1,28 +1,28 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_api::ModelsClient;
-use codex_api::RequestTelemetry;
-use codex_api::ReqwestTransport;
-use codex_api::TransportError;
-use codex_api::auth_header_telemetry;
-use codex_api::map_api_error;
-use codex_feedback::FeedbackRequestTags;
-use codex_feedback::emit_feedback_request_tags_with_auth_env;
-use codex_login::AuthEnvTelemetry;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::collect_auth_env_telemetry;
-use codex_login::default_client::build_reqwest_client;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_models_manager::manager::ModelsEndpointClient;
-use codex_models_manager::manager::ModelsEndpointFuture;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CoreResult;
-use codex_protocol::openai_models::ModelInfo;
-use codex_response_debug_context::extract_response_debug_context;
-use codex_response_debug_context::telemetry_transport_error_message;
+use codepilotx_api::ModelsClient;
+use codepilotx_api::RequestTelemetry;
+use codepilotx_api::ReqwestTransport;
+use codepilotx_api::TransportError;
+use codepilotx_api::auth_header_telemetry;
+use codepilotx_api::map_api_error;
+use codepilotx_feedback::FeedbackRequestTags;
+use codepilotx_feedback::emit_feedback_request_tags_with_auth_env;
+use codepilotx_login::AuthEnvTelemetry;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CodexAuth;
+use codepilotx_login::collect_auth_env_telemetry;
+use codepilotx_login::default_client::build_reqwest_client;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_models_manager::manager::ModelsEndpointClient;
+use codepilotx_models_manager::manager::ModelsEndpointFuture;
+use codepilotx_otel::TelemetryAuthMode;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result as CoreResult;
+use codepilotx_protocol::openai_models::ModelInfo;
+use codepilotx_response_debug_context::extract_response_debug_context;
+use codepilotx_response_debug_context::telemetry_transport_error_message;
 use http::HeaderMap;
 use tokio::time::timeout;
 
@@ -56,11 +56,11 @@ impl OpenAiModelsEndpoint {
         }
     }
 
-    async fn uses_codex_backend(&self) -> bool {
+    async fn uses_codepilotx_backend(&self) -> bool {
         self.auth()
             .await
             .as_ref()
-            .is_some_and(CodexAuth::uses_codex_backend)
+            .is_some_and(CodexAuth::uses_codepilotx_backend)
     }
 
     async fn list_models(
@@ -68,7 +68,7 @@ impl OpenAiModelsEndpoint {
         client_version: &str,
     ) -> CoreResult<(Vec<ModelInfo>, Option<String>)> {
         let _timer =
-            codex_otel::start_global_timer("codex.remote_models.fetch_update.duration_ms", &[]);
+            codepilotx_otel::start_global_timer("codex.remote_models.fetch_update.duration_ms", &[]);
         let auth = self.auth().await;
         let auth_mode = auth.as_ref().map(CodexAuth::auth_mode);
         let api_provider = self.provider_info.to_api_provider(auth_mode)?;
@@ -94,11 +94,11 @@ impl OpenAiModelsEndpoint {
     }
 
     fn auth_env(&self) -> AuthEnvTelemetry {
-        let codex_api_key_env_enabled = self
+        let codepilotx_api_key_env_enabled = self
             .auth_manager
             .as_ref()
-            .is_some_and(|auth_manager| auth_manager.codex_api_key_env_enabled());
-        collect_auth_env_telemetry(&self.provider_info, codex_api_key_env_enabled)
+            .is_some_and(|auth_manager| auth_manager.codepilotx_api_key_env_enabled());
+        collect_auth_env_telemetry(&self.provider_info, codepilotx_api_key_env_enabled)
     }
 }
 
@@ -107,8 +107,8 @@ impl ModelsEndpointClient for OpenAiModelsEndpoint {
         self.provider_info.has_command_auth()
     }
 
-    fn uses_codex_backend(&self) -> ModelsEndpointFuture<'_, bool> {
-        Box::pin(OpenAiModelsEndpoint::uses_codex_backend(self))
+    fn uses_codepilotx_backend(&self) -> ModelsEndpointFuture<'_, bool> {
+        Box::pin(OpenAiModelsEndpoint::uses_codepilotx_backend(self))
     }
 
     fn list_models<'a>(
@@ -142,7 +142,7 @@ impl RequestTelemetry for ModelsRequestTelemetry {
             .unwrap_or_default();
         let status = status.map(|status| status.as_u16());
         tracing::event!(
-            target: "codex_otel.log_only",
+            target: "codepilotx_otel.log_only",
             tracing::Level::INFO,
             event.name = "codex.api_request",
             duration_ms = %duration.as_millis(),
@@ -154,8 +154,8 @@ impl RequestTelemetry for ModelsRequestTelemetry {
             auth.header_attached = self.auth_header_attached,
             auth.header_name = self.auth_header_name,
             auth.env_openai_api_key_present = self.auth_env.openai_api_key_env_present,
-            auth.env_codex_api_key_present = self.auth_env.codex_api_key_env_present,
-            auth.env_codex_api_key_enabled = self.auth_env.codex_api_key_env_enabled,
+            auth.env_codepilotx_api_key_present = self.auth_env.codepilotx_api_key_env_present,
+            auth.env_codepilotx_api_key_enabled = self.auth_env.codepilotx_api_key_env_enabled,
             auth.env_provider_key_name = self.auth_env.provider_env_key_name.as_deref(),
             auth.env_provider_key_present = self.auth_env.provider_env_key_present,
             auth.env_refresh_token_url_override_present = self.auth_env.refresh_token_url_override_present,
@@ -166,7 +166,7 @@ impl RequestTelemetry for ModelsRequestTelemetry {
             auth.mode = self.auth_mode.as_deref(),
         );
         tracing::event!(
-            target: "codex_otel.trace_safe",
+            target: "codepilotx_otel.trace_safe",
             tracing::Level::INFO,
             event.name = "codex.api_request",
             duration_ms = %duration.as_millis(),
@@ -178,8 +178,8 @@ impl RequestTelemetry for ModelsRequestTelemetry {
             auth.header_attached = self.auth_header_attached,
             auth.header_name = self.auth_header_name,
             auth.env_openai_api_key_present = self.auth_env.openai_api_key_env_present,
-            auth.env_codex_api_key_present = self.auth_env.codex_api_key_env_present,
-            auth.env_codex_api_key_enabled = self.auth_env.codex_api_key_env_enabled,
+            auth.env_codepilotx_api_key_present = self.auth_env.codepilotx_api_key_env_present,
+            auth.env_codepilotx_api_key_enabled = self.auth_env.codepilotx_api_key_env_enabled,
             auth.env_provider_key_name = self.auth_env.provider_env_key_name.as_deref(),
             auth.env_provider_key_present = self.auth_env.provider_env_key_present,
             auth.env_refresh_token_url_override_present = self.auth_env.refresh_token_url_override_present,
@@ -216,7 +216,7 @@ mod tests {
     use std::num::NonZeroU64;
 
     use super::*;
-    use codex_protocol::config_types::ModelProviderAuthInfo;
+    use codepilotx_protocol::config_types::ModelProviderAuthInfo;
 
     fn provider_info_with_command_auth() -> ModelProviderInfo {
         ModelProviderInfo {

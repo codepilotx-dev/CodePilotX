@@ -1,13 +1,13 @@
-use codex_core::config::Config;
-use codex_login::AuthManager;
-use codex_login::default_client::create_client;
+use codepilotx_core::config::Config;
+use codepilotx_login::AuthManager;
+use codepilotx_login::default_client::create_client;
 
 use anyhow::Context;
 use serde::de::DeserializeOwned;
 use std::time::Duration;
 
 const OAI_PRODUCT_SKU_HEADER: &str = "OAI-Product-Sku";
-const CODEX_PRODUCT_SKU: &str = "codex";
+const codepilotx_PRODUCT_SKU: &str = "codex";
 
 /// Make a GET request to the ChatGPT backend API.
 pub(crate) async fn chatgpt_get_request<T: DeserializeOwned>(
@@ -24,13 +24,13 @@ pub(crate) async fn chatgpt_get_request_with_timeout<T: DeserializeOwned>(
 ) -> anyhow::Result<T> {
     let chatgpt_base_url = &config.chatgpt_base_url;
     let auth_manager =
-        AuthManager::shared_from_config(config, /*enable_codex_api_key_env*/ false).await;
+        AuthManager::shared_from_config(config, /*enable_codepilotx_api_key_env*/ false).await;
     let auth = auth_manager
         .auth()
         .await
         .ok_or_else(|| anyhow::anyhow!("ChatGPT auth not available"))?;
     anyhow::ensure!(
-        auth.uses_codex_backend(),
+        auth.uses_codepilotx_backend(),
         "ChatGPT backend requests require Codex backend auth"
     );
     anyhow::ensure!(
@@ -48,8 +48,8 @@ pub(crate) async fn chatgpt_get_request_with_timeout<T: DeserializeOwned>(
 
     let mut request = client
         .get(&url)
-        .headers(codex_model_provider::auth_provider_from_auth(&auth).to_auth_headers())
-        .header(OAI_PRODUCT_SKU_HEADER, CODEX_PRODUCT_SKU)
+        .headers(codepilotx_model_provider::auth_provider_from_auth(&auth).to_auth_headers())
+        .header(OAI_PRODUCT_SKU_HEADER, codepilotx_PRODUCT_SKU)
         .header("Content-Type", "application/json");
 
     if let Some(timeout) = timeout {

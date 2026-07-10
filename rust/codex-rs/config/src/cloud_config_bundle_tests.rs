@@ -2,7 +2,7 @@ use super::*;
 use crate::ConfigLayerSource;
 use crate::ConfigRequirementsToml;
 use crate::compose_requirements;
-use codex_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::AskForApproval;
 use pretty_assertions::assert_eq;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;

@@ -21,9 +21,9 @@ use std::time::Instant;
 use crate::app::App;
 use crate::app::AttemptView;
 use crate::util::format_relative_time_now;
-use codex_cloud_tasks_client::AttemptStatus;
-use codex_cloud_tasks_client::TaskStatus;
-use codex_tui::render_markdown_text;
+use codepilotx_cloud_tasks_client::AttemptStatus;
+use codepilotx_cloud_tasks_client::TaskStatus;
+use codepilotx_tui::render_markdown_text;
 
 pub fn draw(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
@@ -61,7 +61,7 @@ static ROUNDED: OnceLock<bool> = OnceLock::new();
 
 fn rounded_enabled() -> bool {
     *ROUNDED.get_or_init(|| {
-        std::env::var("CODEX_TUI_ROUNDED")
+        std::env::var("codepilotx_TUI_ROUNDED")
             .ok()
             .map(|v| v == "1")
             .unwrap_or(true)
@@ -110,7 +110,7 @@ pub fn draw_new_task_page(frame: &mut Frame, area: Rect, app: &mut App) {
             .and_then(|p| p.env_id.as_ref())
             .cloned()
         {
-            spans.push("  ‚Ä¢ ".into());
+            spans.push("  ‚Ä?".into());
             // Try to map id to label
             let label = app
                 .environments
@@ -120,11 +120,11 @@ pub fn draw_new_task_page(frame: &mut Frame, area: Rect, app: &mut App) {
                 .unwrap_or(id);
             spans.push(label.dim());
         } else {
-            spans.push("  ‚Ä¢ ".into());
+            spans.push("  ‚Ä?".into());
             spans.push("Env: none (press ctrl-o to choose)".red());
         }
         if let Some(page) = app.new_task.as_ref() {
-            spans.push("  ‚Ä¢ ".into());
+            spans.push("  ‚Ä?".into());
             let attempts = page.best_of_n;
             let label = format!(
                 "{} attempt{}",
@@ -191,16 +191,16 @@ fn draw_list(frame: &mut Frame, area: Rect, app: &mut App) {
             .find(|r| &r.id == id)
             .and_then(|r| r.label.clone())
             .unwrap_or_else(|| "Selected".to_string());
-        format!(" ‚Ä¢ {label}").dim()
+        format!(" ‚Ä?{label}").dim()
     } else {
-        " ‚Ä¢ All".dim()
+        " ‚Ä?All".dim()
     };
     // Percent scrolled based on selection position in the list (0% at top, 100% at bottom).
     let percent_span = if app.tasks.len() <= 1 {
-        "  ‚Ä¢ 0%".dim()
+        "  ‚Ä?0%".dim()
     } else {
         let p = ((app.selected as f32) / ((app.tasks.len() - 1) as f32) * 100.0).round() as i32;
-        format!("  ‚Ä¢ {}%", p.clamp(0, 100)).dim()
+        format!("  ‚Ä?{}%", p.clamp(0, 100)).dim()
     };
     let title_line = {
         let base = Line::from(vec!["Cloud Tasks".into(), suffix_span, percent_span]);
@@ -220,7 +220,7 @@ fn draw_list(frame: &mut Frame, area: Rect, app: &mut App) {
         .constraints([Constraint::Length(1), Constraint::Min(1)])
         .split(inner);
     let mut list = List::new(items)
-        .highlight_symbol("‚Ä∫ ")
+        .highlight_symbol("‚Ä?")
         .highlight_style(Style::default().bold());
     if dim_bg {
         list = list.style(Style::default().add_modifier(Modifier::DIM));
@@ -229,13 +229,13 @@ fn draw_list(frame: &mut Frame, area: Rect, app: &mut App) {
 
     // In-box spinner during initial/refresh loads
     if app.refresh_inflight {
-        draw_centered_spinner(frame, inner, &mut app.spinner_start, "Loading tasks‚Ä¶");
+        draw_centered_spinner(frame, inner, &mut app.spinner_start, "Loading tasks‚Ä?);
     }
 }
 
 fn draw_footer(frame: &mut Frame, area: Rect, app: &mut App) {
     let mut help = vec![
-        "‚Üë/‚Üì".dim(),
+        "‚Ü?‚Ü?.dim(),
         ": Move  ".dim(),
         "r".dim(),
         ": Refresh  ".dim(),
@@ -291,7 +291,7 @@ fn draw_footer(frame: &mut Frame, area: Rect, app: &mut App) {
         || app.apply_preflight_inflight
         || app.apply_inflight
     {
-        draw_inline_spinner(frame, top[1], &mut app.spinner_start, "Loading‚Ä¶");
+        draw_inline_spinner(frame, top[1], &mut app.spinner_start, "Loading‚Ä?);
     } else {
         frame.render_widget(Clear, top[1]);
     }
@@ -301,7 +301,7 @@ fn draw_footer(frame: &mut Frame, area: Rect, app: &mut App) {
     if status_line.len() > 2000 {
         // hard cap to avoid TUI noise
         status_line.truncate(2000);
-        status_line.push('‚Ä¶');
+        status_line.push('‚Ä?);
     }
     // Clear the status row to avoid trailing characters when the message shrinks.
     frame.render_widget(Clear, rows[1]);
@@ -351,7 +351,7 @@ fn draw_diff_overlay(frame: &mut Frame, area: Rect, app: &mut App) {
         .as_ref()
         .and_then(|o| o.sd.percent_scrolled())
     {
-        title_spans.push("  ‚Ä¢ ".dim());
+        title_spans.push("  ‚Ä?".dim());
         title_spans.push(format!("{p}%").dim());
     }
     frame.render_widget(Clear, inner);
@@ -389,7 +389,7 @@ fn draw_diff_overlay(frame: &mut Frame, area: Rect, app: &mut App) {
                     "  ".into(),
                     diff_lbl,
                     "  ".into(),
-                    "(‚Üê ‚Üí to switch view)".dim(),
+                    "(‚Ü?‚Ü?to switch view)".dim(),
                 ]);
             } else if has_text {
                 spans.push("Conversation".magenta().bold());
@@ -453,7 +453,7 @@ fn draw_diff_overlay(frame: &mut Frame, area: Rect, app: &mut App) {
             frame,
             content_area,
             &mut app.spinner_start,
-            "Loading details‚Ä¶",
+            "Loading details‚Ä?,
         );
     } else {
         let scroll = app
@@ -499,11 +499,11 @@ pub fn draw_apply_modal(frame: &mut Frame, area: Rect, app: &mut App) {
         frame.render_widget(header, rows[0]);
         // Body: spinner while preflight/apply runs; otherwise show result message and path lists
         if app.apply_preflight_inflight {
-            draw_centered_spinner(frame, rows[1], &mut app.spinner_start, "Checking‚Ä¶");
+            draw_centered_spinner(frame, rows[1], &mut app.spinner_start, "Checking‚Ä?);
         } else if app.apply_inflight {
-            draw_centered_spinner(frame, rows[1], &mut app.spinner_start, "Applying‚Ä¶");
+            draw_centered_spinner(frame, rows[1], &mut app.spinner_start, "Applying‚Ä?);
         } else if m.result_message.is_none() {
-            draw_centered_spinner(frame, rows[1], &mut app.spinner_start, "Loading‚Ä¶");
+            draw_centered_spinner(frame, rows[1], &mut app.spinner_start, "Loading‚Ä?);
         } else if let Some(msg) = &m.result_message {
             let mut body_lines: Vec<Line> = Vec::new();
             let first = match m.result_level {
@@ -526,7 +526,7 @@ pub fn draw_apply_modal(frame: &mut Frame, area: Rect, app: &mut App) {
                     );
                     for p in &m.conflict_paths {
                         body_lines
-                            .push(Line::from(vec!["  ‚Ä¢ ".into(), Span::raw(p.clone()).dim()]));
+                            .push(Line::from(vec!["  ‚Ä?".into(), Span::raw(p.clone()).dim()]));
                     }
                 }
                 if !m.skipped_paths.is_empty() {
@@ -538,7 +538,7 @@ pub fn draw_apply_modal(frame: &mut Frame, area: Rect, app: &mut App) {
                     );
                     for p in &m.skipped_paths {
                         body_lines
-                            .push(Line::from(vec!["  ‚Ä¢ ".into(), Span::raw(p.clone()).dim()]));
+                            .push(Line::from(vec!["  ‚Ä?".into(), Span::raw(p.clone()).dim()]));
                     }
                 }
             }
@@ -657,7 +657,7 @@ fn conversation_header_line(
 ) -> Line<'static> {
     use ratatui::text::Span;
 
-    let mut spans: Vec<Span> = vec!["‚ï≠ ".dim()];
+    let mut spans: Vec<Span> = vec!["‚ï?".dim()];
     match speaker {
         ConversationSpeaker::User => {
             spans.push("User".cyan().bold());
@@ -669,7 +669,7 @@ fn conversation_header_line(
             if let Some(attempt) = attempt
                 && let Some(status_span) = attempt_status_span(attempt.status)
             {
-                spans.push("  ‚Ä¢ ".dim());
+                spans.push("  ‚Ä?".dim());
                 spans.push(status_span);
             }
         }
@@ -679,8 +679,8 @@ fn conversation_header_line(
 
 fn conversation_gutter_span(speaker: ConversationSpeaker) -> ratatui::text::Span<'static> {
     match speaker {
-        ConversationSpeaker::User => "‚îÇ ".cyan().dim(),
-        ConversationSpeaker::Assistant => "‚îÇ ".magenta().dim(),
+        ConversationSpeaker::User => "‚î?".cyan().dim(),
+        ConversationSpeaker::Assistant => "‚î?".magenta().dim(),
     }
 }
 
@@ -708,7 +708,7 @@ fn conversation_text_spans(
             if indent > 0 {
                 spans.push(Span::raw(" ".repeat(indent)));
             }
-            spans.push("‚Ä¢ ".into());
+            spans.push("‚Ä?".into());
             spans.push(Span::raw(rest.to_string()));
             return spans;
         }
@@ -785,7 +785,7 @@ fn style_diff_line(raw: &str) -> Line<'static> {
     Line::from(vec![Span::raw(raw.to_string())])
 }
 
-fn render_task_item(_app: &App, t: &codex_cloud_tasks_client::TaskSummary) -> ListItem<'static> {
+fn render_task_item(_app: &App, t: &codepilotx_cloud_tasks_client::TaskSummary) -> ListItem<'static> {
     let status = match t.status {
         TaskStatus::Ready => "READY".green(),
         TaskStatus::Pending => "PENDING".magenta(),
@@ -809,7 +809,7 @@ fn render_task_item(_app: &App, t: &codex_cloud_tasks_client::TaskSummary) -> Li
     let when = format_relative_time_now(t.updated_at).dim();
     if !meta.is_empty() {
         meta.push("  ".into());
-        meta.push("‚Ä¢".dim());
+        meta.push("‚Ä?.dim());
         meta.push("  ".into());
     }
     meta.push(when);
@@ -828,7 +828,7 @@ fn render_task_item(_app: &App, t: &codex_cloud_tasks_client::TaskSummary) -> Li
             "/".into(),
             format!("‚àí{dels}").red(),
             " ".into(),
-            "‚Ä¢".dim(),
+            "‚Ä?.dim(),
             " ".into(),
             format!("{files}").into(),
             " ".into(),
@@ -853,9 +853,9 @@ fn draw_inline_spinner(
     let start = spinner_start.get_or_insert_with(Instant::now);
     let blink_on = (start.elapsed().as_millis() / 600).is_multiple_of(2);
     let dot = if blink_on {
-        "‚Ä¢ ".into()
+        "‚Ä?".into()
     } else {
-        "‚ó¶ ".dim()
+        "‚ó?".dim()
     };
     let label = label.cyan();
     let line = Line::from(vec![dot, label]);
@@ -909,7 +909,7 @@ pub fn draw_env_modal(frame: &mut Frame, area: Rect, app: &mut App) {
             frame,
             content,
             &mut app.spinner_start,
-            "Loading environments‚Ä¶",
+            "Loading environments‚Ä?,
         );
         return;
     }
@@ -984,7 +984,7 @@ pub fn draw_env_modal(frame: &mut Frame, area: Rect, app: &mut App) {
     let sel = sel_desired.min(envs.len());
     let mut list_state = ListState::default().with_selected(Some(sel));
     let list = List::new(items)
-        .highlight_symbol("‚Ä∫ ")
+        .highlight_symbol("‚Ä?")
         .highlight_style(Style::default().bold())
         .block(Block::default().borders(Borders::NONE));
     frame.render_stateful_widget(list, rows[2], &mut list_state);
@@ -1018,7 +1018,7 @@ pub fn draw_best_of_modal(frame: &mut Frame, area: Rect, app: &mut App) {
         .constraints([Constraint::Length(2), Constraint::Min(1)])
         .split(content);
 
-    let hint = Paragraph::new(Line::from("Use ‚Üë/‚Üì to choose, 1-4 jump".cyan().dim()))
+    let hint = Paragraph::new(Line::from("Use ‚Ü?‚Ü?to choose, 1-4 jump".cyan().dim()))
         .wrap(Wrap { trim: true });
     frame.render_widget(hint, rows[0]);
 
@@ -1039,7 +1039,7 @@ pub fn draw_best_of_modal(frame: &mut Frame, area: Rect, app: &mut App) {
     let sel = selected.min(options.len().saturating_sub(1));
     let mut list_state = ListState::default().with_selected(Some(sel));
     let list = List::new(items)
-        .highlight_symbol("‚Ä∫ ")
+        .highlight_symbol("‚Ä?")
         .highlight_style(Style::default().bold())
         .block(Block::default().borders(Borders::NONE));
     frame.render_stateful_widget(list, rows[1], &mut list_state);

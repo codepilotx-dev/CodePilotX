@@ -1,6 +1,6 @@
-use codex_client::CodexHttpClient;
-use codex_protocol::account::PlanType as AccountPlanType;
-use codex_protocol::auth::PlanType as InternalPlanType;
+use codepilotx_client::CodexHttpClient;
+use codepilotx_protocol::account::PlanType as AccountPlanType;
+use codepilotx_protocol::auth::PlanType as InternalPlanType;
 use serde::Deserialize;
 use std::env;
 use std::fmt;
@@ -8,7 +8,7 @@ use std::fmt;
 use crate::default_client::create_client;
 
 const PROD_AUTHAPI_BASE_URL: &str = "https://auth.openai.com/api/accounts";
-const CODEX_AUTHAPI_BASE_URL_ENV_VAR: &str = "CODEX_AUTHAPI_BASE_URL";
+const codepilotx_AUTHAPI_BASE_URL_ENV_VAR: &str = "codepilotx_AUTHAPI_BASE_URL";
 const WHOAMI_PATH: &str = "/v1/user-auth-credential/whoami";
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
@@ -37,7 +37,7 @@ impl fmt::Debug for PersonalAccessTokenAuth {
 
 impl PersonalAccessTokenAuth {
     pub(super) async fn load(access_token: &str) -> std::io::Result<Self> {
-        let authapi_base_url = env::var(CODEX_AUTHAPI_BASE_URL_ENV_VAR)
+        let authapi_base_url = env::var(codepilotx_AUTHAPI_BASE_URL_ENV_VAR)
             .ok()
             .map(|base_url| base_url.trim().trim_end_matches('/').to_string())
             .filter(|base_url| !base_url.is_empty())

@@ -40,9 +40,9 @@ pub struct ApplyModalState {
 }
 
 use crate::scrollable_diff::ScrollableDiff;
-use codex_cloud_tasks_client::CloudBackend;
-use codex_cloud_tasks_client::TaskId;
-use codex_cloud_tasks_client::TaskSummary;
+use codepilotx_cloud_tasks_client::CloudBackend;
+use codepilotx_cloud_tasks_client::TaskId;
+use codepilotx_cloud_tasks_client::TaskSummary;
 #[derive(Default)]
 pub struct App {
     pub tasks: Vec<TaskSummary>,
@@ -152,7 +152,7 @@ pub struct DiffOverlay {
 #[derive(Clone, Debug, Default)]
 pub struct AttemptView {
     pub turn_id: Option<String>,
-    pub status: codex_cloud_tasks_client::AttemptStatus,
+    pub status: codepilotx_cloud_tasks_client::AttemptStatus,
     pub attempt_placement: Option<i64>,
     pub diff_lines: Vec<String>,
     pub text_lines: Vec<String>,
@@ -320,7 +320,7 @@ pub enum AppEvent {
         turn_id: Option<String>,
         sibling_turn_ids: Vec<String>,
         attempt_placement: Option<i64>,
-        attempt_status: codex_cloud_tasks_client::AttemptStatus,
+        attempt_status: codepilotx_cloud_tasks_client::AttemptStatus,
     },
     DetailsFailed {
         id: TaskId,
@@ -329,10 +329,10 @@ pub enum AppEvent {
     },
     AttemptsLoaded {
         id: TaskId,
-        attempts: Vec<codex_cloud_tasks_client::TurnAttempt>,
+        attempts: Vec<codepilotx_cloud_tasks_client::TurnAttempt>,
     },
     /// Background completion of new task submission
-    NewTaskSubmitted(Result<codex_cloud_tasks_client::CreatedTask, String>),
+    NewTaskSubmitted(Result<codepilotx_cloud_tasks_client::CreatedTask, String>),
     /// Background completion of apply preflight when opening modal or on demand
     ApplyPreflightFinished {
         id: TaskId,
@@ -345,7 +345,7 @@ pub enum AppEvent {
     /// Background completion of apply action (actual patch application)
     ApplyFinished {
         id: TaskId,
-        result: std::result::Result<codex_cloud_tasks_client::ApplyOutcome, String>,
+        result: std::result::Result<codepilotx_cloud_tasks_client::ApplyOutcome, String>,
     },
 }
 
@@ -354,8 +354,8 @@ pub enum AppEvent {
 mod tests {
     use super::*;
     use chrono::Utc;
-    use codex_cloud_tasks_client::CloudBackendFuture;
-    use codex_cloud_tasks_client::CloudTaskError;
+    use codepilotx_cloud_tasks_client::CloudBackendFuture;
+    use codepilotx_cloud_tasks_client::CloudTaskError;
 
     struct FakeBackend {
         // maps env key to titles
@@ -368,7 +368,7 @@ mod tests {
             env: Option<&str>,
             limit: Option<i64>,
             cursor: Option<&str>,
-        ) -> Result<codex_cloud_tasks_client::TaskListPage, CloudTaskError> {
+        ) -> Result<codepilotx_cloud_tasks_client::TaskListPage, CloudTaskError> {
             let key = env.map(str::to_string);
             let titles = self
                 .by_env
@@ -380,11 +380,11 @@ mod tests {
                 out.push(TaskSummary {
                     id: TaskId(format!("T-{i}")),
                     title: t.to_string(),
-                    status: codex_cloud_tasks_client::TaskStatus::Ready,
+                    status: codepilotx_cloud_tasks_client::TaskStatus::Ready,
                     updated_at: Utc::now(),
                     environment_id: env.map(str::to_string),
                     environment_label: None,
-                    summary: codex_cloud_tasks_client::DiffSummary::default(),
+                    summary: codepilotx_cloud_tasks_client::DiffSummary::default(),
                     is_review: false,
                     attempt_total: Some(1),
                 });
@@ -398,7 +398,7 @@ mod tests {
                 }
                 limited.push(task);
             }
-            Ok(codex_cloud_tasks_client::TaskListPage {
+            Ok(codepilotx_cloud_tasks_client::TaskListPage {
                 tasks: limited,
                 cursor: cursor.map(str::to_string),
             })
@@ -416,25 +416,25 @@ mod tests {
         async fn get_task_text(
             &self,
             _id: TaskId,
-        ) -> Result<codex_cloud_tasks_client::TaskText, CloudTaskError> {
-            Ok(codex_cloud_tasks_client::TaskText {
+        ) -> Result<codepilotx_cloud_tasks_client::TaskText, CloudTaskError> {
+            Ok(codepilotx_cloud_tasks_client::TaskText {
                 prompt: Some("Example prompt".to_string()),
                 messages: Vec::new(),
                 turn_id: Some("fake-turn".to_string()),
                 sibling_turn_ids: Vec::new(),
                 attempt_placement: Some(0),
-                attempt_status: codex_cloud_tasks_client::AttemptStatus::Completed,
+                attempt_status: codepilotx_cloud_tasks_client::AttemptStatus::Completed,
             })
         }
     }
 
-    impl codex_cloud_tasks_client::CloudBackend for FakeBackend {
+    impl codepilotx_cloud_tasks_client::CloudBackend for FakeBackend {
         fn list_tasks<'a>(
             &'a self,
             env: Option<&'a str>,
             limit: Option<i64>,
             cursor: Option<&'a str>,
-        ) -> CloudBackendFuture<'a, codex_cloud_tasks_client::TaskListPage> {
+        ) -> CloudBackendFuture<'a, codepilotx_cloud_tasks_client::TaskListPage> {
             Box::pin(FakeBackend::list_tasks(self, env, limit, cursor))
         }
 
@@ -444,7 +444,7 @@ mod tests {
 
         fn get_task_diff(&self, _id: TaskId) -> CloudBackendFuture<'_, Option<String>> {
             Box::pin(async {
-                Err(codex_cloud_tasks_client::CloudTaskError::Unimplemented(
+                Err(codepilotx_cloud_tasks_client::CloudTaskError::Unimplemented(
                     "not used in test",
                 ))
             })
@@ -457,7 +457,7 @@ mod tests {
         fn get_task_text(
             &self,
             id: TaskId,
-        ) -> CloudBackendFuture<'_, codex_cloud_tasks_client::TaskText> {
+        ) -> CloudBackendFuture<'_, codepilotx_cloud_tasks_client::TaskText> {
             Box::pin(FakeBackend::get_task_text(self, id))
         }
 
@@ -465,7 +465,7 @@ mod tests {
             &self,
             _task: TaskId,
             _turn_id: String,
-        ) -> CloudBackendFuture<'_, Vec<codex_cloud_tasks_client::TurnAttempt>> {
+        ) -> CloudBackendFuture<'_, Vec<codepilotx_cloud_tasks_client::TurnAttempt>> {
             Box::pin(async { Ok(Vec::new()) })
         }
 
@@ -473,9 +473,9 @@ mod tests {
             &self,
             _id: TaskId,
             _diff_override: Option<String>,
-        ) -> CloudBackendFuture<'_, codex_cloud_tasks_client::ApplyOutcome> {
+        ) -> CloudBackendFuture<'_, codepilotx_cloud_tasks_client::ApplyOutcome> {
             Box::pin(async {
-                Err(codex_cloud_tasks_client::CloudTaskError::Unimplemented(
+                Err(codepilotx_cloud_tasks_client::CloudTaskError::Unimplemented(
                     "not used in test",
                 ))
             })
@@ -485,9 +485,9 @@ mod tests {
             &self,
             _id: TaskId,
             _diff_override: Option<String>,
-        ) -> CloudBackendFuture<'_, codex_cloud_tasks_client::ApplyOutcome> {
+        ) -> CloudBackendFuture<'_, codepilotx_cloud_tasks_client::ApplyOutcome> {
             Box::pin(async {
-                Err(codex_cloud_tasks_client::CloudTaskError::Unimplemented(
+                Err(codepilotx_cloud_tasks_client::CloudTaskError::Unimplemented(
                     "not used in test",
                 ))
             })
@@ -500,9 +500,9 @@ mod tests {
             _git_ref: &'a str,
             _qa_mode: bool,
             _best_of_n: usize,
-        ) -> CloudBackendFuture<'a, codex_cloud_tasks_client::CreatedTask> {
+        ) -> CloudBackendFuture<'a, codepilotx_cloud_tasks_client::CreatedTask> {
             Box::pin(async {
-                Err(codex_cloud_tasks_client::CloudTaskError::Unimplemented(
+                Err(codepilotx_cloud_tasks_client::CloudTaskError::Unimplemented(
                     "not used in test",
                 ))
             })

@@ -1,19 +1,19 @@
 use chrono::Utc;
-use codex_cloud_tasks_client::ApplyOutcome;
-use codex_cloud_tasks_client::ApplyStatus;
-use codex_cloud_tasks_client::AttemptStatus;
-use codex_cloud_tasks_client::CloudBackend;
-use codex_cloud_tasks_client::CloudBackendFuture;
-use codex_cloud_tasks_client::CloudTaskError;
-use codex_cloud_tasks_client::CreatedTask;
-use codex_cloud_tasks_client::DiffSummary;
-use codex_cloud_tasks_client::Result;
-use codex_cloud_tasks_client::TaskId;
-use codex_cloud_tasks_client::TaskListPage;
-use codex_cloud_tasks_client::TaskStatus;
-use codex_cloud_tasks_client::TaskSummary;
-use codex_cloud_tasks_client::TaskText;
-use codex_cloud_tasks_client::TurnAttempt;
+use codepilotx_cloud_tasks_client::ApplyOutcome;
+use codepilotx_cloud_tasks_client::ApplyStatus;
+use codepilotx_cloud_tasks_client::AttemptStatus;
+use codepilotx_cloud_tasks_client::CloudBackend;
+use codepilotx_cloud_tasks_client::CloudBackendFuture;
+use codepilotx_cloud_tasks_client::CloudTaskError;
+use codepilotx_cloud_tasks_client::CreatedTask;
+use codepilotx_cloud_tasks_client::DiffSummary;
+use codepilotx_cloud_tasks_client::Result;
+use codepilotx_cloud_tasks_client::TaskId;
+use codepilotx_cloud_tasks_client::TaskListPage;
+use codepilotx_cloud_tasks_client::TaskStatus;
+use codepilotx_cloud_tasks_client::TaskSummary;
+use codepilotx_cloud_tasks_client::TaskText;
+use codepilotx_cloud_tasks_client::TurnAttempt;
 
 #[derive(Clone, Default)]
 pub struct MockClient;

@@ -27,27 +27,27 @@ pub enum RemoveMarketplaceConfigOutcome {
 }
 
 pub fn record_user_marketplace(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     marketplace_name: &str,
     update: &MarketplaceConfigUpdate<'_>,
 ) -> std::io::Result<()> {
-    let config_path = codex_home.join(CONFIG_TOML_FILE);
+    let config_path = codepilotx_home.join(CONFIG_TOML_FILE);
     let mut doc = read_or_create_document(&config_path)?;
     upsert_marketplace(&mut doc, marketplace_name, update);
-    fs::create_dir_all(codex_home)?;
+    fs::create_dir_all(codepilotx_home)?;
     fs::write(config_path, doc.to_string())
 }
 
-pub fn remove_user_marketplace(codex_home: &Path, marketplace_name: &str) -> std::io::Result<bool> {
-    let outcome = remove_user_marketplace_config(codex_home, marketplace_name)?;
+pub fn remove_user_marketplace(codepilotx_home: &Path, marketplace_name: &str) -> std::io::Result<bool> {
+    let outcome = remove_user_marketplace_config(codepilotx_home, marketplace_name)?;
     Ok(outcome == RemoveMarketplaceConfigOutcome::Removed)
 }
 
 pub fn remove_user_marketplace_config(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     marketplace_name: &str,
 ) -> std::io::Result<RemoveMarketplaceConfigOutcome> {
-    let config_path = codex_home.join(CONFIG_TOML_FILE);
+    let config_path = codepilotx_home.join(CONFIG_TOML_FILE);
     let mut doc = match fs::read_to_string(&config_path) {
         Ok(raw) => raw
             .parse::<DocumentMut>()
@@ -63,7 +63,7 @@ pub fn remove_user_marketplace_config(
         return Ok(outcome);
     }
 
-    fs::create_dir_all(codex_home)?;
+    fs::create_dir_all(codepilotx_home)?;
     fs::write(config_path, doc.to_string())?;
     Ok(RemoveMarketplaceConfigOutcome::Removed)
 }
@@ -188,7 +188,7 @@ mod tests {
 
     #[test]
     fn remove_user_marketplace_removes_requested_entry() {
-        let codex_home = TempDir::new().unwrap();
+        let codepilotx_home = TempDir::new().unwrap();
         let update = MarketplaceConfigUpdate {
             last_updated: "2026-04-13T00:00:00Z",
             last_revision: None,
@@ -197,14 +197,14 @@ mod tests {
             ref_name: Some("main"),
             sparse_paths: &[],
         };
-        record_user_marketplace(codex_home.path(), "debug", &update).unwrap();
-        record_user_marketplace(codex_home.path(), "other", &update).unwrap();
+        record_user_marketplace(codepilotx_home.path(), "debug", &update).unwrap();
+        record_user_marketplace(codepilotx_home.path(), "other", &update).unwrap();
 
-        let removed = remove_user_marketplace(codex_home.path(), "debug").unwrap();
+        let removed = remove_user_marketplace(codepilotx_home.path(), "debug").unwrap();
 
         assert!(removed);
         let config: toml::Value =
-            toml::from_str(&fs::read_to_string(codex_home.path().join(CONFIG_TOML_FILE)).unwrap())
+            toml::from_str(&fs::read_to_string(codepilotx_home.path().join(CONFIG_TOML_FILE)).unwrap())
                 .unwrap();
         let marketplaces = config
             .get("marketplaces")
@@ -216,16 +216,16 @@ mod tests {
 
     #[test]
     fn remove_user_marketplace_returns_false_when_missing() {
-        let codex_home = TempDir::new().unwrap();
+        let codepilotx_home = TempDir::new().unwrap();
 
-        let removed = remove_user_marketplace(codex_home.path(), "debug").unwrap();
+        let removed = remove_user_marketplace(codepilotx_home.path(), "debug").unwrap();
 
         assert!(!removed);
     }
 
     #[test]
     fn remove_user_marketplace_config_reports_case_mismatch() {
-        let codex_home = TempDir::new().unwrap();
+        let codepilotx_home = TempDir::new().unwrap();
         let update = MarketplaceConfigUpdate {
             last_updated: "2026-04-13T00:00:00Z",
             last_revision: None,
@@ -234,9 +234,9 @@ mod tests {
             ref_name: Some("main"),
             sparse_paths: &[],
         };
-        record_user_marketplace(codex_home.path(), "debug", &update).unwrap();
+        record_user_marketplace(codepilotx_home.path(), "debug", &update).unwrap();
 
-        let outcome = remove_user_marketplace_config(codex_home.path(), "Debug").unwrap();
+        let outcome = remove_user_marketplace_config(codepilotx_home.path(), "Debug").unwrap();
 
         assert_eq!(
             outcome,
@@ -248,9 +248,9 @@ mod tests {
 
     #[test]
     fn remove_user_marketplace_config_removes_inline_table_entry() {
-        let codex_home = TempDir::new().unwrap();
+        let codepilotx_home = TempDir::new().unwrap();
         fs::write(
-            codex_home.path().join(CONFIG_TOML_FILE),
+            codepilotx_home.path().join(CONFIG_TOML_FILE),
             r#"
 marketplaces = {
   debug = { source_type = "git", source = "https://github.com/owner/repo.git" },
@@ -260,11 +260,11 @@ marketplaces = {
         )
         .unwrap();
 
-        let outcome = remove_user_marketplace_config(codex_home.path(), "debug").unwrap();
+        let outcome = remove_user_marketplace_config(codepilotx_home.path(), "debug").unwrap();
 
         assert_eq!(outcome, RemoveMarketplaceConfigOutcome::Removed);
         let config: toml::Value =
-            toml::from_str(&fs::read_to_string(codex_home.path().join(CONFIG_TOML_FILE)).unwrap())
+            toml::from_str(&fs::read_to_string(codepilotx_home.path().join(CONFIG_TOML_FILE)).unwrap())
                 .unwrap();
         let marketplaces = config
             .get("marketplaces")

@@ -11,7 +11,7 @@ use crate::RequirementsLayerEntry;
 use crate::cloud_config_layers::CloudConfigLayerError;
 use crate::cloud_config_layers::cloud_config_layers_from_fragments_strict;
 use crate::cloud_config_layers_from_fragments;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use futures::future::BoxFuture;
 use futures::future::FutureExt;
 use futures::future::Shared;

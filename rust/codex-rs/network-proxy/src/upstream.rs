@@ -1,6 +1,6 @@
 use crate::connect_policy::TargetCheckedTcpConnector;
 use crate::state::NetworkProxyState;
-use codex_utils_rustls_provider::ensure_rustls_crypto_provider;
+use codepilotx_utils_rustls_provider::ensure_rustls_crypto_provider;
 use rama_core::Layer;
 use rama_core::Service;
 use rama_core::error::BoxError;

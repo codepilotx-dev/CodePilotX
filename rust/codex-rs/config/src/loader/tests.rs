@@ -1,13 +1,13 @@
 use super::*;
-use codex_file_system::CopyOptions;
-use codex_file_system::CreateDirectoryOptions;
-use codex_file_system::ExecutorFileSystemFuture;
-use codex_file_system::FileMetadata;
-use codex_file_system::FileSystemReadStream;
-use codex_file_system::FileSystemSandboxContext;
-use codex_file_system::ReadDirectoryEntry;
-use codex_file_system::RemoveOptions;
-use codex_utils_path_uri::PathUri;
+use codepilotx_file_system::CopyOptions;
+use codepilotx_file_system::CreateDirectoryOptions;
+use codepilotx_file_system::ExecutorFileSystemFuture;
+use codepilotx_file_system::FileMetadata;
+use codepilotx_file_system::FileSystemReadStream;
+use codepilotx_file_system::FileSystemSandboxContext;
+use codepilotx_file_system::ReadDirectoryEntry;
+use codepilotx_file_system::RemoveOptions;
+use codepilotx_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use tempfile::tempdir;
 

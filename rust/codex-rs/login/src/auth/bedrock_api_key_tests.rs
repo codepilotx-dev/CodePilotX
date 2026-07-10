@@ -1,5 +1,5 @@
-use codex_app_server_protocol::AuthMode;
-use codex_config::types::AuthCredentialsStoreMode;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_config::types::AuthCredentialsStoreMode;
 use pretty_assertions::assert_eq;
 use serial_test::serial;
 use tempfile::tempdir;
@@ -43,13 +43,13 @@ fn bedrock_auth() -> BedrockApiKeyAuth {
 }
 
 #[tokio::test]
-#[serial(codex_auth_env)]
+#[serial(codepilotx_auth_env)]
 async fn login_with_bedrock_api_key_replaces_openai_auth() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
-    let storage = FileAuthStorage::new(codex_home.path().to_path_buf());
+    let codepilotx_home = tempdir()?;
+    let storage = FileAuthStorage::new(codepilotx_home.path().to_path_buf());
     storage.save(&api_key_auth())?;
     login_with_bedrock_api_key(
-        codex_home.path(),
+        codepilotx_home.path(),
         "bedrock-api-key-test",
         "us-east-1",
         AuthCredentialsStoreMode::File,
@@ -57,8 +57,8 @@ async fn login_with_bedrock_api_key_replaces_openai_auth() -> anyhow::Result<()>
     )?;
 
     let auth_manager = AuthManager::new(
-        codex_home.path().to_path_buf(),
-        /*enable_codex_api_key_env*/ false,
+        codepilotx_home.path().to_path_buf(),
+        /*enable_codepilotx_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
         /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
@@ -93,20 +93,20 @@ async fn login_with_bedrock_api_key_replaces_openai_auth() -> anyhow::Result<()>
 }
 
 #[tokio::test]
-#[serial(codex_auth_env)]
+#[serial(codepilotx_auth_env)]
 async fn logout_removes_bedrock_auth() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
-    let storage = FileAuthStorage::new(codex_home.path().to_path_buf());
+    let codepilotx_home = tempdir()?;
+    let storage = FileAuthStorage::new(codepilotx_home.path().to_path_buf());
     login_with_bedrock_api_key(
-        codex_home.path(),
+        codepilotx_home.path(),
         "bedrock-api-key-test",
         "us-east-1",
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
     )?;
     let auth_manager = AuthManager::new(
-        codex_home.path().to_path_buf(),
-        /*enable_codex_api_key_env*/ false,
+        codepilotx_home.path().to_path_buf(),
+        /*enable_codepilotx_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
         /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
@@ -122,15 +122,15 @@ async fn logout_removes_bedrock_auth() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-#[serial(codex_auth_env)]
+#[serial(codepilotx_auth_env)]
 async fn bedrock_only_auth_storage_creates_primary_auth() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
-    let storage = FileAuthStorage::new(codex_home.path().to_path_buf());
+    let codepilotx_home = tempdir()?;
+    let storage = FileAuthStorage::new(codepilotx_home.path().to_path_buf());
     storage.save(&bedrock_only_auth())?;
 
     let auth_manager = AuthManager::new(
-        codex_home.path().to_path_buf(),
-        /*enable_codex_api_key_env*/ false,
+        codepilotx_home.path().to_path_buf(),
+        /*enable_codepilotx_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
         /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
@@ -155,10 +155,10 @@ async fn bedrock_only_auth_storage_creates_primary_auth() -> anyhow::Result<()> 
 
 #[tokio::test]
 async fn login_with_api_key_clears_bedrock_api_key() -> anyhow::Result<()> {
-    let codex_home = tempdir()?;
-    let storage = FileAuthStorage::new(codex_home.path().to_path_buf());
+    let codepilotx_home = tempdir()?;
+    let storage = FileAuthStorage::new(codepilotx_home.path().to_path_buf());
     login_with_bedrock_api_key(
-        codex_home.path(),
+        codepilotx_home.path(),
         "bedrock-api-key-test",
         "us-east-1",
         AuthCredentialsStoreMode::File,
@@ -166,7 +166,7 @@ async fn login_with_api_key_clears_bedrock_api_key() -> anyhow::Result<()> {
     )?;
 
     crate::auth::login_with_api_key(
-        codex_home.path(),
+        codepilotx_home.path(),
         "sk-test-key",
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),

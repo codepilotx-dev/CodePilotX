@@ -3,19 +3,19 @@ use anyhow::Result;
 use base64::Engine;
 use chrono::Duration;
 use chrono::Utc;
-use codex_app_server_protocol::AuthMode;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_login::AuthDotJson;
-use codex_login::AuthKeyringBackendKind;
-use codex_login::AuthManager;
-use codex_login::CLIENT_ID_OVERRIDE_ENV_VAR;
-use codex_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
-use codex_login::RefreshTokenError;
-use codex_login::load_auth_dot_json;
-use codex_login::save_auth;
-use codex_login::token_data::IdTokenInfo;
-use codex_login::token_data::TokenData;
-use codex_protocol::auth::RefreshTokenFailedReason;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_login::AuthDotJson;
+use codepilotx_login::AuthKeyringBackendKind;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CLIENT_ID_OVERRIDE_ENV_VAR;
+use codepilotx_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
+use codepilotx_login::RefreshTokenError;
+use codepilotx_login::load_auth_dot_json;
+use codepilotx_login::save_auth;
+use codepilotx_login::token_data::IdTokenInfo;
+use codepilotx_login::token_data::TokenData;
+use codepilotx_protocol::auth::RefreshTokenFailedReason;
 use core_test_support::skip_if_no_network;
 use pretty_assertions::assert_eq;
 use serde::Serialize;
@@ -307,7 +307,7 @@ async fn refresh_token_skips_refresh_when_auth_changed() -> Result<()> {
         bedrock_api_key: None,
     };
     save_auth(
-        ctx.codex_home.path(),
+        ctx.codepilotx_home.path(),
         &disk_auth,
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
@@ -378,7 +378,7 @@ async fn refresh_token_errors_on_account_mismatch() -> Result<()> {
         bedrock_api_key: None,
     };
     save_auth(
-        ctx.codex_home.path(),
+        ctx.codepilotx_home.path(),
         &disk_auth,
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
@@ -555,7 +555,7 @@ async fn auth_reloads_disk_auth_when_cached_auth_is_stale() -> Result<()> {
         bedrock_api_key: None,
     };
     save_auth(
-        ctx.codex_home.path(),
+        ctx.codepilotx_home.path(),
         &disk_auth,
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
@@ -623,7 +623,7 @@ async fn auth_reloads_disk_auth_without_calling_expired_refresh_token() -> Resul
         bedrock_api_key: None,
     };
     save_auth(
-        ctx.codex_home.path(),
+        ctx.codepilotx_home.path(),
         &disk_auth,
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
@@ -893,7 +893,7 @@ async fn refresh_token_reloads_changed_auth_after_permanent_failure() -> Result<
         bedrock_api_key: None,
     };
     save_auth(
-        ctx.codex_home.path(),
+        ctx.codepilotx_home.path(),
         &disk_auth,
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
@@ -1022,7 +1022,7 @@ async fn unauthorized_recovery_reloads_then_refreshes_tokens() -> Result<()> {
         bedrock_api_key: None,
     };
     save_auth(
-        ctx.codex_home.path(),
+        ctx.codepilotx_home.path(),
         &disk_auth,
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
@@ -1122,7 +1122,7 @@ async fn unauthorized_recovery_errors_on_account_mismatch() -> Result<()> {
         bedrock_api_key: None,
     };
     save_auth(
-        ctx.codex_home.path(),
+        ctx.codepilotx_home.path(),
         &disk_auth,
         AuthCredentialsStoreMode::File,
         AuthKeyringBackendKind::default(),
@@ -1201,21 +1201,21 @@ async fn unauthorized_recovery_requires_chatgpt_auth() -> Result<()> {
 }
 
 struct RefreshTokenTestContext {
-    codex_home: TempDir,
+    codepilotx_home: TempDir,
     auth_manager: Arc<AuthManager>,
     _env_guard: EnvGuard,
 }
 
 impl RefreshTokenTestContext {
     async fn new(server: &MockServer) -> Result<Self> {
-        let codex_home = TempDir::new()?;
+        let codepilotx_home = TempDir::new()?;
 
         let endpoint = format!("{}/oauth/token", server.uri());
         let env_guard = EnvGuard::set(REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR, endpoint);
 
         let auth_manager = AuthManager::shared(
-            codex_home.path().to_path_buf(),
-            /*enable_codex_api_key_env*/ false,
+            codepilotx_home.path().to_path_buf(),
+            /*enable_codepilotx_api_key_env*/ false,
             AuthCredentialsStoreMode::File,
             /*forced_chatgpt_workspace_id*/ None,
             /*chatgpt_base_url*/ None,
@@ -1224,7 +1224,7 @@ impl RefreshTokenTestContext {
         .await;
 
         Ok(Self {
-            codex_home,
+            codepilotx_home,
             auth_manager,
             _env_guard: env_guard,
         })
@@ -1232,7 +1232,7 @@ impl RefreshTokenTestContext {
 
     fn load_auth(&self) -> Result<AuthDotJson> {
         load_auth_dot_json(
-            self.codex_home.path(),
+            self.codepilotx_home.path(),
             AuthCredentialsStoreMode::File,
             AuthKeyringBackendKind::default(),
         )
@@ -1242,7 +1242,7 @@ impl RefreshTokenTestContext {
 
     async fn write_auth(&self, auth_dot_json: &AuthDotJson) -> Result<()> {
         save_auth(
-            self.codex_home.path(),
+            self.codepilotx_home.path(),
             auth_dot_json,
             AuthCredentialsStoreMode::File,
             AuthKeyringBackendKind::default(),

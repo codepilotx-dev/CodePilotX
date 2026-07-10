@@ -9,7 +9,7 @@ use std::time::UNIX_EPOCH;
 #[tokio::test]
 async fn replace_mcp_servers_serializes_per_tool_approval_overrides() -> anyhow::Result<()> {
     let unique_suffix = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
-    let codex_home = std::env::temp_dir().join(format!(
+    let codepilotx_home = std::env::temp_dir().join(format!(
         "codex-config-mcp-edit-test-{}-{unique_suffix}",
         std::process::id()
     ));
@@ -53,12 +53,12 @@ async fn replace_mcp_servers_serializes_per_tool_approval_overrides() -> anyhow:
         },
     )]);
 
-    ConfigEditsBuilder::new(&codex_home)
+    ConfigEditsBuilder::new(&codepilotx_home)
         .replace_mcp_servers(&servers)
         .apply()
         .await?;
 
-    let config_path = codex_home.join(CONFIG_TOML_FILE);
+    let config_path = codepilotx_home.join(CONFIG_TOML_FILE);
     let serialized = std::fs::read_to_string(&config_path)?;
     assert_eq!(
         serialized,
@@ -77,10 +77,10 @@ approval_mode = "approve"
 "#
     );
 
-    let loaded = load_global_mcp_servers(&codex_home).await?;
+    let loaded = load_global_mcp_servers(&codepilotx_home).await?;
     assert_eq!(loaded, servers);
 
-    std::fs::remove_dir_all(&codex_home)?;
+    std::fs::remove_dir_all(&codepilotx_home)?;
 
     Ok(())
 }
@@ -88,7 +88,7 @@ approval_mode = "approve"
 #[tokio::test]
 async fn replace_mcp_servers_serializes_oauth_client_id() -> anyhow::Result<()> {
     let unique_suffix = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
-    let codex_home = std::env::temp_dir().join(format!(
+    let codepilotx_home = std::env::temp_dir().join(format!(
         "codex-config-mcp-oauth-edit-test-{}-{unique_suffix}",
         std::process::id()
     ));
@@ -120,12 +120,12 @@ async fn replace_mcp_servers_serializes_oauth_client_id() -> anyhow::Result<()> 
         },
     )]);
 
-    ConfigEditsBuilder::new(&codex_home)
+    ConfigEditsBuilder::new(&codepilotx_home)
         .replace_mcp_servers(&servers)
         .apply()
         .await?;
 
-    let config_path = codex_home.join(CONFIG_TOML_FILE);
+    let config_path = codepilotx_home.join(CONFIG_TOML_FILE);
     let serialized = std::fs::read_to_string(&config_path)?;
     assert_eq!(
         serialized,
@@ -137,10 +137,10 @@ client_id = "eci-prd-pub-codex-123"
 "#
     );
 
-    let loaded = load_global_mcp_servers(&codex_home).await?;
+    let loaded = load_global_mcp_servers(&codepilotx_home).await?;
     assert_eq!(loaded, servers);
 
-    std::fs::remove_dir_all(&codex_home)?;
+    std::fs::remove_dir_all(&codepilotx_home)?;
 
     Ok(())
 }

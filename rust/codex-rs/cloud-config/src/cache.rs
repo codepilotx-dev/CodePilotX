@@ -8,8 +8,8 @@ use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use chrono::DateTime;
 use chrono::Duration as ChronoDuration;
 use chrono::Utc;
-use codex_config::AbsolutePathBuf;
-use codex_config::CloudConfigBundle;
+use codepilotx_config::AbsolutePathBuf;
+use codepilotx_config::CloudConfigBundle;
 use hmac::Hmac;
 use hmac::Mac;
 use serde::Deserialize;
@@ -36,9 +36,9 @@ pub(super) struct CloudConfigBundleCache {
 }
 
 impl CloudConfigBundleCache {
-    pub(super) fn new(codex_home: AbsolutePathBuf) -> Self {
+    pub(super) fn new(codepilotx_home: AbsolutePathBuf) -> Self {
         Self {
-            path: codex_home.join(CLOUD_CONFIG_BUNDLE_CACHE_FILENAME),
+            path: codepilotx_home.join(CLOUD_CONFIG_BUNDLE_CACHE_FILENAME),
         }
     }
 

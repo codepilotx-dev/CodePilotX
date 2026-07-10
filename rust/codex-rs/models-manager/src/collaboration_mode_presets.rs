@@ -1,10 +1,10 @@
-use codex_collaboration_mode_templates::DEFAULT as COLLABORATION_MODE_DEFAULT;
-use codex_collaboration_mode_templates::PLAN as COLLABORATION_MODE_PLAN;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::TUI_VISIBLE_COLLABORATION_MODES;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_utils_template::Template;
+use codepilotx_collaboration_mode_templates::DEFAULT as COLLABORATION_MODE_DEFAULT;
+use codepilotx_collaboration_mode_templates::PLAN as COLLABORATION_MODE_PLAN;
+use codepilotx_protocol::config_types::CollaborationModeMask;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::TUI_VISIBLE_COLLABORATION_MODES;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_utils_template::Template;
 use std::sync::LazyLock;
 
 const KNOWN_MODE_NAMES_TEMPLATE_KEY: &str = "KNOWN_MODE_NAMES";

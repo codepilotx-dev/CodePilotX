@@ -2,7 +2,7 @@ use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
 use base64::Engine as _;
-use codex_utils_home_dir::find_codex_home;
+use codepilotx_utils_home_dir::find_codepilotx_home;
 use rama_net::tls::ApplicationProtocol;
 use rama_tls_rustls::dep::pki_types::CertificateDer;
 use rama_tls_rustls::dep::pki_types::PrivateKeyDer;
@@ -105,7 +105,7 @@ const MANAGED_MITM_CA_TRUST_BUNDLE_PREFIX: &str = "ca-bundle";
 // Best-effort compatibility set for common child toolchains that accept a CA bundle path.
 // This is intentionally curated rather than pretending to cover every TLS client.
 pub const CUSTOM_CA_ENV_KEYS: [&str; 10] = [
-    "CODEX_CA_CERTIFICATE",
+    "codepilotx_CA_CERTIFICATE",
     "SSL_CERT_FILE",
     "REQUESTS_CA_BUNDLE",
     "CURL_CA_BUNDLE",
@@ -125,9 +125,9 @@ pub(crate) struct ManagedMitmCaTrustBundle {
 }
 
 fn managed_ca_paths() -> Result<(PathBuf, PathBuf)> {
-    let codex_home =
-        find_codex_home().context("failed to resolve CODEX_HOME for managed MITM CA")?;
-    let proxy_dir = codex_home.join(MANAGED_MITM_CA_DIR);
+    let codepilotx_home =
+        find_codepilotx_home().context("failed to resolve codepilotx_HOME for managed MITM CA")?;
+    let proxy_dir = codepilotx_home.join(MANAGED_MITM_CA_DIR);
     Ok((
         proxy_dir.join(MANAGED_MITM_CA_CERT).to_path_buf(),
         proxy_dir.join(MANAGED_MITM_CA_KEY).to_path_buf(),

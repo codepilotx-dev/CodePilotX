@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use codex_agent_identity::AgentIdentityKey;
-use codex_agent_identity::authorization_header_for_agent_task;
-use codex_api::AuthProvider;
-use codex_api::SharedAuthProvider;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_protocol::error::CodexErr;
+use codepilotx_agent_identity::AgentIdentityKey;
+use codepilotx_agent_identity::authorization_header_for_agent_task;
+use codepilotx_api::AuthProvider;
+use codepilotx_api::SharedAuthProvider;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CodexAuth;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_protocol::error::CodexErr;
 use http::HeaderMap;
 use http::HeaderValue;
 
@@ -18,7 +18,7 @@ const BEDROCK_API_KEY_UNSUPPORTED_MESSAGE: &str =
 
 #[derive(Clone, Debug)]
 struct AgentIdentityAuthProvider {
-    auth: codex_login::auth::AgentIdentityAuth,
+    auth: codepilotx_login::auth::AgentIdentityAuth,
 }
 
 impl AuthProvider for AgentIdentityAuthProvider {
@@ -78,7 +78,7 @@ pub(crate) fn auth_manager_for_provider(
 pub(crate) fn resolve_provider_auth(
     auth: Option<&CodexAuth>,
     provider: &ModelProviderInfo,
-) -> codex_protocol::error::Result<SharedAuthProvider> {
+) -> codepilotx_protocol::error::Result<SharedAuthProvider> {
     if matches!(auth, Some(CodexAuth::BedrockApiKey(_))) {
         return Err(CodexErr::UnsupportedOperation(
             BEDROCK_API_KEY_UNSUPPORTED_MESSAGE.to_string(),
@@ -97,7 +97,7 @@ pub(crate) fn resolve_provider_auth(
 
 fn bearer_auth_for_provider(
     provider: &ModelProviderInfo,
-) -> codex_protocol::error::Result<Option<BearerAuthProvider>> {
+) -> codepilotx_protocol::error::Result<Option<BearerAuthProvider>> {
     if let Some(api_key) = provider.api_key()? {
         return Ok(Some(BearerAuthProvider::new(api_key)));
     }
@@ -129,9 +129,9 @@ pub fn auth_provider_from_auth(auth: &CodexAuth) -> SharedAuthProvider {
 
 #[cfg(test)]
 mod tests {
-    use codex_login::auth::BedrockApiKeyAuth;
-    use codex_model_provider_info::WireApi;
-    use codex_model_provider_info::create_oss_provider_with_base_url;
+    use codepilotx_login::auth::BedrockApiKeyAuth;
+    use codepilotx_model_provider_info::WireApi;
+    use codepilotx_model_provider_info::create_oss_provider_with_base_url;
     use pretty_assertions::assert_eq;
 
     use super::*;

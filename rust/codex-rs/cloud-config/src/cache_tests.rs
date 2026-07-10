@@ -1,9 +1,9 @@
 use super::*;
-use codex_config::AbsolutePathBuf;
-use codex_config::CloudConfigFragment;
-use codex_config::CloudConfigTomlBundle;
-use codex_config::CloudRequirementsFragment;
-use codex_config::CloudRequirementsTomlBundle;
+use codepilotx_config::AbsolutePathBuf;
+use codepilotx_config::CloudConfigFragment;
+use codepilotx_config::CloudConfigTomlBundle;
+use codepilotx_config::CloudRequirementsFragment;
+use codepilotx_config::CloudRequirementsTomlBundle;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use tempfile::tempdir;
@@ -57,14 +57,14 @@ fn write_cache_file(cache: &CloudConfigBundleCache, cache_file: &CloudConfigBund
     .expect("write cache");
 }
 
-fn create_test_cache(codex_home: &Path) -> CloudConfigBundleCache {
-    CloudConfigBundleCache::new(AbsolutePathBuf::resolve_path_against_base(codex_home, "/"))
+fn create_test_cache(codepilotx_home: &Path) -> CloudConfigBundleCache {
+    CloudConfigBundleCache::new(AbsolutePathBuf::resolve_path_against_base(codepilotx_home, "/"))
 }
 
 #[tokio::test]
 async fn save_writes_signed_payload_and_loads_for_matching_identity() {
-    let codex_home = tempdir().expect("tempdir");
-    let cache = create_test_cache(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir");
+    let cache = create_test_cache(codepilotx_home.path());
     let bundle = test_bundle();
 
     cache
@@ -104,8 +104,8 @@ async fn save_writes_signed_payload_and_loads_for_matching_identity() {
 
 #[tokio::test]
 async fn load_rejects_missing_request_identity_before_reading_cache_file() {
-    let codex_home = tempdir().expect("tempdir");
-    let cache = create_test_cache(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir");
+    let cache = create_test_cache(codepilotx_home.path());
 
     assert_eq!(
         cache
@@ -121,8 +121,8 @@ async fn load_rejects_missing_request_identity_before_reading_cache_file() {
 
 #[tokio::test]
 async fn load_reports_missing_and_malformed_cache_files() {
-    let codex_home = tempdir().expect("tempdir");
-    let cache = create_test_cache(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir");
+    let cache = create_test_cache(codepilotx_home.path());
 
     assert_eq!(
         cache.load(Some("user-12345"), Some("account-12345")).await,
@@ -138,8 +138,8 @@ async fn load_reports_missing_and_malformed_cache_files() {
 
 #[tokio::test]
 async fn load_rejects_tampered_payload() {
-    let codex_home = tempdir().expect("tempdir");
-    let cache = create_test_cache(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir");
+    let cache = create_test_cache(codepilotx_home.path());
     let mut cache_file = signed_cache_file(valid_signed_payload());
     cache_file
         .signed_payload
@@ -157,8 +157,8 @@ async fn load_rejects_tampered_payload() {
 
 #[tokio::test]
 async fn load_rejects_cache_for_incomplete_or_different_identity() {
-    let codex_home = tempdir().expect("tempdir");
-    let cache = create_test_cache(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir");
+    let cache = create_test_cache(codepilotx_home.path());
     let cache_file = signed_cache_file(valid_signed_payload());
     write_cache_file(&cache, &cache_file);
 
@@ -179,8 +179,8 @@ async fn load_rejects_cache_for_incomplete_or_different_identity() {
 
 #[tokio::test]
 async fn load_rejects_expired_cache() {
-    let codex_home = tempdir().expect("tempdir");
-    let cache = create_test_cache(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir");
+    let cache = create_test_cache(codepilotx_home.path());
     let mut signed_payload = valid_signed_payload();
     signed_payload.expires_at = Utc::now() - ChronoDuration::seconds(1);
     write_cache_file(&cache, &signed_cache_file(signed_payload));
@@ -193,8 +193,8 @@ async fn load_rejects_expired_cache() {
 
 #[tokio::test]
 async fn load_rejects_unsupported_cache_version() {
-    let codex_home = tempdir().expect("tempdir");
-    let cache = create_test_cache(codex_home.path());
+    let codepilotx_home = tempdir().expect("tempdir");
+    let cache = create_test_cache(codepilotx_home.path());
     let mut signed_payload = valid_signed_payload();
     signed_payload.version = 2;
     write_cache_file(&cache, &signed_cache_file(signed_payload));

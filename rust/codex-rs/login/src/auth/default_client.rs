@@ -1,15 +1,15 @@
 //! Default Codex HTTP client: shared `User-Agent`, `originator`, optional residency header, and
 //! reqwest/`CodexHttpClient` construction.
 //!
-//! Use [`crate::default_client`] or [`codex_login::default_client`] from other crates in this
+//! Use [`crate::default_client`] or [`codepilotx_login::default_client`] from other crates in this
 //! workspace.
 
-use codex_client::BuildCustomCaTransportError;
-use codex_client::CodexHttpClient;
-pub use codex_client::CodexRequestBuilder;
-use codex_client::build_reqwest_client_with_custom_ca;
-use codex_client::with_chatgpt_cloudflare_cookie_store;
-use codex_terminal_detection::user_agent;
+use codepilotx_client::BuildCustomCaTransportError;
+use codepilotx_client::CodexHttpClient;
+pub use codepilotx_client::CodexRequestBuilder;
+use codepilotx_client::build_reqwest_client_with_custom_ca;
+use codepilotx_client::with_chatgpt_cloudflare_cookie_store;
+use codepilotx_terminal_detection::user_agent;
 use reqwest::header::HeaderMap;
 use reqwest::header::HeaderValue;
 use reqwest::header::USER_AGENT;
@@ -33,11 +33,11 @@ use std::sync::RwLock;
 /// The full user agent string is returned from the mcp initialize response.
 /// Parenthesis will be added by Codex. This should only specify what goes inside of the parenthesis.
 pub static USER_AGENT_SUFFIX: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
-pub const DEFAULT_ORIGINATOR: &str = "codex_cli_rs";
-pub const CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR: &str = "CODEX_INTERNAL_ORIGINATOR_OVERRIDE";
+pub const DEFAULT_ORIGINATOR: &str = "codepilotx_cli_rs";
+pub const codepilotx_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR: &str = "codepilotx_INTERNAL_ORIGINATOR_OVERRIDE";
 pub const RESIDENCY_HEADER_NAME: &str = "x-openai-internal-codex-residency";
 
-pub use codex_config::ResidencyRequirement;
+pub use codepilotx_config::ResidencyRequirement;
 
 #[derive(Debug, Clone)]
 pub struct Originator {
@@ -55,7 +55,7 @@ pub enum SetOriginatorError {
 }
 
 fn get_originator_value(provided: Option<String>) -> Originator {
-    let value = std::env::var(CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR)
+    let value = std::env::var(codepilotx_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR)
         .ok()
         .or(provided)
         .unwrap_or(DEFAULT_ORIGINATOR.to_string());
@@ -105,7 +105,7 @@ pub fn originator() -> Originator {
         return originator.clone();
     }
 
-    if std::env::var(CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR).is_ok() {
+    if std::env::var(codepilotx_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR).is_ok() {
         let originator = get_originator_value(/*provided*/ None);
         if let Ok(mut guard) = ORIGINATOR.write() {
             match guard.as_ref() {
@@ -122,15 +122,15 @@ pub fn originator() -> Originator {
 pub fn is_first_party_originator(originator_value: &str) -> bool {
     originator_value == DEFAULT_ORIGINATOR
         || originator_value == "codex-tui"
-        || originator_value == "codex_vscode"
+        || originator_value == "codepilotx_vscode"
         || originator_value.starts_with("Codex ")
 }
 
 pub fn is_first_party_chat_originator(originator_value: &str) -> bool {
-    originator_value == "codex_atlas" || originator_value == "codex_chatgpt_desktop"
+    originator_value == "codepilotx_atlas" || originator_value == "codepilotx_chatgpt_desktop"
 }
 
-pub fn get_codex_user_agent() -> String {
+pub fn get_codepilotx_user_agent() -> String {
     let build_version = env!("CARGO_PKG_VERSION");
     let os_info = os_info::get();
     let originator = originator();
@@ -197,7 +197,7 @@ pub fn create_client() -> CodexHttpClient {
 /// Builds the default reqwest client used for ordinary Codex HTTP traffic.
 ///
 /// This starts from the standard Codex user agent, default headers, and sandbox-specific proxy
-/// policy, then layers in shared custom CA handling from `CODEX_CA_CERTIFICATE` /
+/// policy, then layers in shared custom CA handling from `codepilotx_CA_CERTIFICATE` /
 /// `SSL_CERT_FILE`. The function remains infallible for compatibility with existing call sites, so
 /// a custom-CA or builder failure is logged and falls back to `reqwest::Client::new()`.
 pub fn build_reqwest_client() -> reqwest::Client {
@@ -232,7 +232,7 @@ pub fn try_build_reqwest_client() -> Result<reqwest::Client, BuildCustomCaTransp
 pub fn default_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert("originator", originator().header_value);
-    if let Ok(user_agent) = HeaderValue::from_str(&get_codex_user_agent()) {
+    if let Ok(user_agent) = HeaderValue::from_str(&get_codepilotx_user_agent()) {
         headers.insert(USER_AGENT, user_agent);
     }
     if let Ok(guard) = REQUIREMENTS_RESIDENCY.read()
@@ -248,7 +248,7 @@ pub fn default_headers() -> HeaderMap {
 }
 
 fn is_sandboxed() -> bool {
-    std::env::var("CODEX_SANDBOX").as_deref() == Ok("seatbelt")
+    std::env::var("codepilotx_SANDBOX").as_deref() == Ok("seatbelt")
 }
 
 #[cfg(test)]

@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
-use codex_api::AuthError;
-use codex_api::AuthProvider;
-use codex_api::SharedAuthProvider;
-use codex_aws_auth::AwsAuthContext;
-use codex_aws_auth::AwsAuthError;
-use codex_aws_auth::AwsRequestToSign;
-use codex_client::Request;
-use codex_client::RequestBody;
-use codex_client::RequestCompression;
-use codex_login::auth::BedrockApiKeyAuth;
-use codex_model_provider_info::ModelProviderAwsAuthInfo;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
+use codepilotx_api::AuthError;
+use codepilotx_api::AuthProvider;
+use codepilotx_api::SharedAuthProvider;
+use codepilotx_aws_auth::AwsAuthContext;
+use codepilotx_aws_auth::AwsAuthError;
+use codepilotx_aws_auth::AwsRequestToSign;
+use codepilotx_client::Request;
+use codepilotx_client::RequestBody;
+use codepilotx_client::RequestCompression;
+use codepilotx_login::auth::BedrockApiKeyAuth;
+use codepilotx_model_provider_info::ModelProviderAwsAuthInfo;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result;
 use http::HeaderMap;
 
 use crate::BearerAuthProvider;
@@ -49,7 +49,7 @@ pub(super) async fn resolve_auth_method(
     let config = aws_auth_config(aws);
     let context = AwsAuthContext::load(config)
         .await
-        .map_err(aws_auth_error_to_codex_error)?;
+        .map_err(aws_auth_error_to_codepilotx_error)?;
     Ok(BedrockAuthMethod::AwsSdkAuth { context })
 }
 
@@ -96,7 +96,7 @@ fn bearer_token_region(
         })
 }
 
-fn aws_auth_error_to_codex_error(error: AwsAuthError) -> CodexErr {
+fn aws_auth_error_to_codepilotx_error(error: AwsAuthError) -> CodexErr {
     CodexErr::Fatal(format!("failed to resolve Amazon Bedrock auth: {error}"))
 }
 
@@ -160,14 +160,14 @@ impl BedrockMantleSigV4AuthProvider {
 impl AuthProvider for BedrockMantleSigV4AuthProvider {
     fn add_auth_headers(&self, _headers: &mut HeaderMap) {}
 
-    fn apply_auth(&self, request: Request) -> codex_api::AuthProviderFuture<'_> {
+    fn apply_auth(&self, request: Request) -> codepilotx_api::AuthProviderFuture<'_> {
         Box::pin(BedrockMantleSigV4AuthProvider::apply_auth(self, request))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use codex_api::AuthProvider;
+    use codepilotx_api::AuthProvider;
     use http::HeaderValue;
     use pretty_assertions::assert_eq;
 

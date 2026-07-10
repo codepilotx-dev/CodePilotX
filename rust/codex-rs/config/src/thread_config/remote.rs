@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use std::num::NonZeroU64;
 use std::time::Duration;
 
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::WireApi;
-use codex_protocol::config_types::ModelProviderAuthInfo;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_model_provider_info::WireApi;
+use codepilotx_protocol::config_types::ModelProviderAuthInfo;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 use super::SessionThreadConfig;
 use super::ThreadConfigContext;
@@ -310,10 +310,10 @@ mod tests {
     use std::collections::HashMap;
     use std::num::NonZeroU64;
 
-    use codex_model_provider_info::ModelProviderInfo;
-    use codex_model_provider_info::WireApi;
-    use codex_protocol::config_types::ModelProviderAuthInfo;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_model_provider_info::ModelProviderInfo;
+    use codepilotx_model_provider_info::WireApi;
+    use codepilotx_protocol::config_types::ModelProviderAuthInfo;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use tonic::Request;
     use tonic::Response;

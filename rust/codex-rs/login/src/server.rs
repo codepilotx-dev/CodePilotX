@@ -34,10 +34,10 @@ use crate::token_data::TokenData;
 use crate::token_data::parse_chatgpt_jwt_claims;
 use base64::Engine;
 use chrono::Utc;
-use codex_app_server_protocol::AuthMode;
-use codex_client::build_reqwest_client_with_custom_ca;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_utils_template::Template;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_client::build_reqwest_client_with_custom_ca;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_utils_template::Template;
 use rand::RngCore;
 use serde_json::Value as JsonValue;
 use tiny_http::Header;
@@ -61,14 +61,14 @@ static LOGIN_ERROR_PAGE_TEMPLATE: LazyLock<Template> = LazyLock::new(|| {
 /// Options for launching the local login callback server.
 #[derive(Debug, Clone)]
 pub struct ServerOptions {
-    pub codex_home: PathBuf,
+    pub codepilotx_home: PathBuf,
     pub client_id: String,
     pub issuer: String,
     pub port: u16,
     pub open_browser: bool,
     pub force_state: Option<String>,
     pub forced_chatgpt_workspace_id: Option<Vec<String>>,
-    pub codex_streamlined_login: bool,
+    pub codepilotx_streamlined_login: bool,
     pub cli_auth_credentials_store_mode: AuthCredentialsStoreMode,
     pub auth_keyring_backend_kind: AuthKeyringBackendKind,
 }
@@ -76,21 +76,21 @@ pub struct ServerOptions {
 impl ServerOptions {
     /// Creates a server configuration with the default issuer and port.
     pub fn new(
-        codex_home: PathBuf,
+        codepilotx_home: PathBuf,
         client_id: String,
         forced_chatgpt_workspace_id: Option<Vec<String>>,
         cli_auth_credentials_store_mode: AuthCredentialsStoreMode,
         auth_keyring_backend_kind: AuthKeyringBackendKind,
     ) -> Self {
         Self {
-            codex_home,
+            codepilotx_home,
             client_id,
             issuer: DEFAULT_ISSUER.to_string(),
             port: DEFAULT_PORT,
             open_browser: true,
             force_state: None,
             forced_chatgpt_workspace_id,
-            codex_streamlined_login: false,
+            codepilotx_streamlined_login: false,
             cli_auth_credentials_store_mode,
             auth_keyring_backend_kind,
         }
@@ -357,7 +357,7 @@ async fn process_request(
                         .await
                         .ok();
                     if let Err(err) = persist_tokens_async(
-                        &opts.codex_home,
+                        &opts.codepilotx_home,
                         api_key.clone(),
                         tokens.id_token.clone(),
                         tokens.access_token.clone(),
@@ -381,7 +381,7 @@ async fn process_request(
                         &opts.issuer,
                         &tokens.id_token,
                         &tokens.access_token,
-                        opts.codex_streamlined_login,
+                        opts.codepilotx_streamlined_login,
                     );
                     match tiny_http::Header::from_bytes(&b"Location"[..], success_url.as_bytes()) {
                         Ok(header) => HandledRequest::RedirectWithHeader(header),
@@ -408,7 +408,7 @@ async fn process_request(
         "/success" => {
             let use_streamlined_success = parsed_url
                 .query_pairs()
-                .any(|(key, value)| key == "codex_streamlined_login" && value == "true");
+                .any(|(key, value)| key == "codepilotx_streamlined_login" && value == "true");
             let body = if use_streamlined_success {
                 include_str!("assets/success.html")
             } else {
@@ -505,7 +505,7 @@ fn build_authorize_url(
         ),
         ("code_challenge_method".to_string(), "S256".to_string()),
         ("id_token_add_organizations".to_string(), "true".to_string()),
-        ("codex_cli_simplified_flow".to_string(), "true".to_string()),
+        ("codepilotx_cli_simplified_flow".to_string(), "true".to_string()),
         ("state".to_string(), state.to_string()),
         ("originator".to_string(), originator().value),
     ];
@@ -788,7 +788,7 @@ pub(crate) async fn exchange_code_for_tokens(
 
 /// Persists exchanged credentials using the configured local auth store.
 pub(crate) async fn persist_tokens_async(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     api_key: Option<String>,
     id_token: String,
     access_token: String,
@@ -797,7 +797,7 @@ pub(crate) async fn persist_tokens_async(
     keyring_backend_kind: AuthKeyringBackendKind,
 ) -> io::Result<()> {
     // Reuse existing synchronous logic but run it off the async runtime.
-    let codex_home = codex_home.to_path_buf();
+    let codepilotx_home = codepilotx_home.to_path_buf();
     tokio::task::spawn_blocking(move || {
         let mut tokens = TokenData {
             id_token: parse_chatgpt_jwt_claims(&id_token).map_err(io::Error::other)?,
@@ -821,7 +821,7 @@ pub(crate) async fn persist_tokens_async(
             bedrock_api_key: None,
         };
         save_auth(
-            &codex_home,
+            &codepilotx_home,
             &auth,
             auth_credentials_store_mode,
             keyring_backend_kind,
@@ -836,7 +836,7 @@ fn compose_success_url(
     issuer: &str,
     id_token: &str,
     access_token: &str,
-    codex_streamlined_login: bool,
+    codepilotx_streamlined_login: bool,
 ) -> String {
     let token_claims = jwt_auth_claims(id_token);
     let access_claims = jwt_auth_claims(access_token);
@@ -877,8 +877,8 @@ fn compose_success_url(
         ("plan_type", plan_type.to_string()),
         ("platform_url", platform_url.to_string()),
     ];
-    if codex_streamlined_login {
-        params.push(("codex_streamlined_login", "true".to_string()));
+    if codepilotx_streamlined_login {
+        params.push(("codepilotx_streamlined_login", "true".to_string()));
     }
     let qs = params
         .drain(..)
@@ -977,18 +977,18 @@ fn login_error_response(
 }
 
 /// Returns true when the OAuth callback represents a missing Codex entitlement.
-fn is_missing_codex_entitlement_error(error_code: &str, error_description: Option<&str>) -> bool {
+fn is_missing_codepilotx_entitlement_error(error_code: &str, error_description: Option<&str>) -> bool {
     error_code == "access_denied"
         && error_description.is_some_and(|description| {
             description
                 .to_ascii_lowercase()
-                .contains("missing_codex_entitlement")
+                .contains("missing_codepilotx_entitlement")
         })
 }
 
 /// Converts OAuth callback errors into a user-facing message.
 fn oauth_callback_error_message(error_code: &str, error_description: Option<&str>) -> String {
-    if is_missing_codex_entitlement_error(error_code, error_description) {
+    if is_missing_codepilotx_entitlement_error(error_code, error_description) {
         return "Codex is not enabled for your workspace. Contact your workspace administrator to request access to Codex.".to_string();
     }
 
@@ -1078,7 +1078,7 @@ fn render_login_error_page(
 ) -> Vec<u8> {
     let code = error_code.unwrap_or("unknown_error");
     let (title, display_message, display_description, help_text) =
-        if is_missing_codex_entitlement_error(code, error_description) {
+        if is_missing_codepilotx_entitlement_error(code, error_description) {
             (
                 "You do not have access to Codex".to_string(),
                 "This account is not currently authorized to use Codex in this workspace."
@@ -1168,7 +1168,7 @@ mod tests {
     use super::TokenEndpointErrorDetail;
     use super::compose_success_url;
     use super::html_escape;
-    use super::is_missing_codex_entitlement_error;
+    use super::is_missing_codepilotx_entitlement_error;
     use super::parse_token_endpoint_error;
     use super::redact_sensitive_query_value;
     use super::redact_sensitive_url_parts;
@@ -1280,13 +1280,13 @@ mod tests {
             DEFAULT_ISSUER,
             "e30.eyJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnt9fQ.sig",
             "e30.eyJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnt9fQ.sig",
-            /*codex_streamlined_login*/ false,
+            /*codepilotx_streamlined_login*/ false,
         ))
         .expect("success url should parse");
 
         assert_eq!(
             url.query_pairs()
-                .find(|(key, _)| key == "codex_streamlined_login"),
+                .find(|(key, _)| key == "codepilotx_streamlined_login"),
             None
         );
     }
@@ -1298,13 +1298,13 @@ mod tests {
             DEFAULT_ISSUER,
             "e30.eyJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnt9fQ.sig",
             "e30.eyJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnt9fQ.sig",
-            /*codex_streamlined_login*/ true,
+            /*codepilotx_streamlined_login*/ true,
         ))
         .expect("success url should parse");
 
         assert_eq!(
             url.query_pairs()
-                .find(|(key, _)| key == "codex_streamlined_login")
+                .find(|(key, _)| key == "codepilotx_streamlined_login")
                 .map(|(_, value)| value.into_owned()),
             Some("true".to_string())
         );
@@ -1327,8 +1327,8 @@ mod tests {
 
     #[test]
     fn render_login_error_page_uses_entitlement_copy() {
-        let error_description = Some("missing_codex_entitlement");
-        assert!(is_missing_codex_entitlement_error(
+        let error_description = Some("missing_codepilotx_entitlement");
+        assert!(is_missing_codepilotx_entitlement_error(
             "access_denied",
             error_description
         ));
@@ -1342,6 +1342,6 @@ mod tests {
 
         assert!(body.contains("You do not have access to Codex"));
         assert!(body.contains("Contact your workspace administrator"));
-        assert!(!body.contains("missing_codex_entitlement"));
+        assert!(!body.contains("missing_codepilotx_entitlement"));
     }
 }

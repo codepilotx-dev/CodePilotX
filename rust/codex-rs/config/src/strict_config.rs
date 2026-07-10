@@ -7,7 +7,7 @@ use crate::diagnostics::default_range;
 use crate::diagnostics::span_for_config_path;
 use crate::diagnostics::span_for_toml_key_path;
 use crate::diagnostics::text_range_from_span;
-use codex_features::is_known_feature_key;
+use codepilotx_features::is_known_feature_key;
 use serde::de::DeserializeOwned;
 use std::path::Path;
 use toml::Value as TomlValue;

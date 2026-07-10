@@ -16,7 +16,7 @@ use crate::upstream::UpstreamClient;
 use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_utils_rustls_provider::ensure_rustls_crypto_provider;
+use codepilotx_utils_rustls_provider::ensure_rustls_crypto_provider;
 use rama_core::Layer;
 use rama_core::Service;
 use rama_core::bytes::Bytes;

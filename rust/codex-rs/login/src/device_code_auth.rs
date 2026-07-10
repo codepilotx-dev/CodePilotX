@@ -8,7 +8,7 @@ use std::time::Instant;
 
 use crate::pkce::PkceCodes;
 use crate::server::ServerOptions;
-use codex_client::build_reqwest_client_with_custom_ca;
+use codepilotx_client::build_reqwest_client_with_custom_ca;
 use std::io;
 
 const ANSI_BLUE: &str = "\x1b[94m";
@@ -211,7 +211,7 @@ pub async fn complete_device_code_login(
     }
 
     crate::server::persist_tokens_async(
-        &opts.codex_home,
+        &opts.codepilotx_home,
         /*api_key*/ None,
         tokens.id_token,
         tokens.access_token,

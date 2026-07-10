@@ -15,11 +15,11 @@ use crate::api::TaskText;
 use chrono::DateTime;
 use chrono::Utc;
 
-use codex_api::SharedAuthProvider;
-use codex_backend_client as backend;
-use codex_backend_client::CodeTaskDetailsResponseExt;
-use codex_git_utils::ApplyGitRequest;
-use codex_git_utils::apply_git_patch;
+use codepilotx_api::SharedAuthProvider;
+use codepilotx_backend_client as backend;
+use codepilotx_backend_client::CodeTaskDetailsResponseExt;
+use codepilotx_git_utils::ApplyGitRequest;
+use codepilotx_git_utils::apply_git_patch;
 
 #[derive(Clone)]
 pub struct HttpClient {
@@ -341,7 +341,7 @@ mod api {
                 "content": [{ "content_type": "text", "text": prompt }]
             }));
 
-            if let Ok(diff) = std::env::var("CODEX_STARTING_DIFF")
+            if let Ok(diff) = std::env::var("codepilotx_STARTING_DIFF")
                 && !diff.is_empty()
             {
                 input_items.push(serde_json::json!({
@@ -895,7 +895,7 @@ mod api {
             .unwrap_or_else(|| "<unknown>".to_string());
         let head: String = patch.lines().take(20).collect::<Vec<&str>>().join("\n");
         let head_trunc = if head.len() > 800 {
-            format!("{}â€¦", &head[..800])
+            format!("{}â€?, &head[..800])
         } else {
             head
         };

@@ -1,8 +1,8 @@
-use codex_aws_auth::AwsAuthConfig;
-use codex_login::auth::BedrockApiKeyAuth;
-use codex_model_provider_info::ModelProviderAwsAuthInfo;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
+use codepilotx_aws_auth::AwsAuthConfig;
+use codepilotx_login::auth::BedrockApiKeyAuth;
+use codepilotx_model_provider_info::ModelProviderAwsAuthInfo;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::Result;
 
 use super::auth::BedrockAuthMethod;
 use super::auth::resolve_auth_method;

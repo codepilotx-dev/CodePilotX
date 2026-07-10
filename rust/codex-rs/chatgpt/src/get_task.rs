@@ -1,4 +1,4 @@
-use codex_core::config::Config;
+use codepilotx_core::config::Config;
 use serde::Deserialize;
 
 use crate::chatgpt_client::chatgpt_get_request;

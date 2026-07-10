@@ -1,4 +1,4 @@
-use codex_app_server_protocol::ConfigLayerSource;
+use codepilotx_app_server_protocol::ConfigLayerSource;
 
 pub fn format_config_layer_source(source: &ConfigLayerSource, config_toml_file: &str) -> String {
     match source {
@@ -14,10 +14,10 @@ pub fn format_config_layer_source(source: &ConfigLayerSource, config_toml_file: 
         ConfigLayerSource::User { file, .. } => {
             format!("user ({})", file.as_path().display())
         }
-        ConfigLayerSource::Project { dot_codex_folder } => {
+        ConfigLayerSource::Project { dot_codepilotx_folder } => {
             format!(
                 "project ({}/{config_toml_file})",
-                dot_codex_folder.as_path().display()
+                dot_codepilotx_folder.as_path().display()
             )
         }
         ConfigLayerSource::SessionFlags => "session-flags".to_string(),

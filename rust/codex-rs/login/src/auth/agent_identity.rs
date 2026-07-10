@@ -1,18 +1,18 @@
 use std::future::Future;
 use std::sync::Arc;
 
-use codex_agent_identity::AgentIdentityKey;
-use codex_agent_identity::ChatGptEnvironment;
-use codex_agent_identity::build_abom;
-use codex_agent_identity::decode_agent_identity_jwt;
-use codex_agent_identity::fetch_agent_identity_jwks;
-use codex_agent_identity::generate_agent_key_material;
-use codex_agent_identity::is_retryable_registration_error;
-use codex_agent_identity::public_key_ssh_from_private_key_pkcs8_base64;
-use codex_agent_identity::register_agent_identity;
-use codex_agent_identity::register_agent_task;
-use codex_protocol::account::PlanType as AccountPlanType;
-use codex_protocol::protocol::SessionSource;
+use codepilotx_agent_identity::AgentIdentityKey;
+use codepilotx_agent_identity::ChatGptEnvironment;
+use codepilotx_agent_identity::build_abom;
+use codepilotx_agent_identity::decode_agent_identity_jwt;
+use codepilotx_agent_identity::fetch_agent_identity_jwks;
+use codepilotx_agent_identity::generate_agent_key_material;
+use codepilotx_agent_identity::is_retryable_registration_error;
+use codepilotx_agent_identity::public_key_ssh_from_private_key_pkcs8_base64;
+use codepilotx_agent_identity::register_agent_identity;
+use codepilotx_agent_identity::register_agent_task;
+use codepilotx_protocol::account::PlanType as AccountPlanType;
+use codepilotx_protocol::protocol::SessionSource;
 use thiserror::Error;
 
 use crate::default_client::build_reqwest_client;
@@ -326,7 +326,7 @@ mod tests {
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering;
 
-    use codex_agent_identity::generate_agent_key_material;
+    use codepilotx_agent_identity::generate_agent_key_material;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use wiremock::Mock;

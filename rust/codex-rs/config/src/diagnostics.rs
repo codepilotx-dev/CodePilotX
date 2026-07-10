@@ -5,8 +5,8 @@ use crate::ConfigLayerEntry;
 use crate::ConfigLayerStack;
 use crate::ConfigLayerStackOrdering;
 use crate::format_config_layer_source;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_utils_absolute_path::AbsolutePathBufGuard;
+use codepilotx_app_server_protocol::ConfigLayerSource;
+use codepilotx_utils_absolute_path::AbsolutePathBufGuard;
 use serde::de::DeserializeOwned;
 use serde_path_to_error::Path as SerdePath;
 use serde_path_to_error::Segment as SerdeSegment;
@@ -250,8 +250,8 @@ fn config_path_for_layer(layer: &ConfigLayerEntry, config_toml_file: &str) -> Op
     match &layer.name {
         ConfigLayerSource::System { file } => Some(file.to_path_buf()),
         ConfigLayerSource::User { file, .. } => Some(file.to_path_buf()),
-        ConfigLayerSource::Project { dot_codex_folder } => {
-            Some(dot_codex_folder.as_path().join(config_toml_file))
+        ConfigLayerSource::Project { dot_codepilotx_folder } => {
+            Some(dot_codepilotx_folder.as_path().join(config_toml_file))
         }
         ConfigLayerSource::LegacyManagedConfigTomlFromFile { file } => Some(file.to_path_buf()),
         ConfigLayerSource::Mdm { .. }

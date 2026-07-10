@@ -1,6 +1,6 @@
 use clap::Args;
 use clap::Parser;
-use codex_utils_cli::CliConfigOverrides;
+use codepilotx_utils_cli::CliConfigOverrides;
 
 #[derive(Parser, Debug, Default)]
 #[command(version)]

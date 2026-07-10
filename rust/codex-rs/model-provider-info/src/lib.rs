@@ -5,14 +5,14 @@
 //!   2. User-defined entries inside `~/.codex/config.toml` under the `model_providers`
 //!      key. These override or extend the defaults at runtime.
 
-use codex_api::Provider as ApiProvider;
-use codex_api::RetryConfig as ApiRetryConfig;
-use codex_api::is_azure_responses_provider;
-use codex_app_server_protocol::AuthMode;
-use codex_protocol::config_types::ModelProviderAuthInfo;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::EnvVarError;
-use codex_protocol::error::Result as CodexResult;
+use codepilotx_api::Provider as ApiProvider;
+use codepilotx_api::RetryConfig as ApiRetryConfig;
+use codepilotx_api::is_azure_responses_provider;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_protocol::config_types::ModelProviderAuthInfo;
+use codepilotx_protocol::error::CodexErr;
+use codepilotx_protocol::error::EnvVarError;
+use codepilotx_protocol::error::Result as CodexResult;
 use http::HeaderMap;
 use http::header::HeaderName;
 use http::header::HeaderValue;
@@ -34,7 +34,7 @@ const MAX_REQUEST_MAX_RETRIES: u64 = 100;
 
 const OPENAI_PROVIDER_NAME: &str = "OpenAI";
 pub const OPENAI_PROVIDER_ID: &str = "openai";
-pub const CHATGPT_CODEX_BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
+pub const CHATGPT_codepilotx_BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
 const AMAZON_BEDROCK_PROVIDER_NAME: &str = "Amazon Bedrock";
 pub const AMAZON_BEDROCK_PROVIDER_ID: &str = "amazon-bedrock";
 pub const AMAZON_BEDROCK_GPT_5_5_MODEL_ID: &str = "openai.gpt-5.5";
@@ -257,7 +257,7 @@ impl ModelProviderInfo {
                     | AuthMode::PersonalAccessToken
             )
         ) {
-            CHATGPT_CODEX_BASE_URL
+            CHATGPT_codepilotx_BASE_URL
         } else {
             "https://api.openai.com/v1"
         };
@@ -492,22 +492,22 @@ pub fn merge_configured_model_providers(
 }
 
 pub fn create_oss_provider(default_provider_port: u16, wire_api: WireApi) -> ModelProviderInfo {
-    // These CODEX_OSS_ environment variables are experimental: we may
+    // These codepilotx_OSS_ environment variables are experimental: we may
     // switch to reading values from config.toml instead.
-    let default_codex_oss_base_url = format!(
-        "http://localhost:{codex_oss_port}/v1",
-        codex_oss_port = std::env::var("CODEX_OSS_PORT")
+    let default_codepilotx_oss_base_url = format!(
+        "http://localhost:{codepilotx_oss_port}/v1",
+        codepilotx_oss_port = std::env::var("codepilotx_OSS_PORT")
             .ok()
             .filter(|value| !value.trim().is_empty())
             .and_then(|value| value.parse::<u16>().ok())
             .unwrap_or(default_provider_port)
     );
 
-    let codex_oss_base_url = std::env::var("CODEX_OSS_BASE_URL")
+    let codepilotx_oss_base_url = std::env::var("codepilotx_OSS_BASE_URL")
         .ok()
         .filter(|v| !v.trim().is_empty())
-        .unwrap_or(default_codex_oss_base_url);
-    create_oss_provider_with_base_url(&codex_oss_base_url, wire_api)
+        .unwrap_or(default_codepilotx_oss_base_url);
+    create_oss_provider_with_base_url(&codepilotx_oss_base_url, wire_api)
 }
 
 pub fn create_oss_provider_with_base_url(base_url: &str, wire_api: WireApi) -> ModelProviderInfo {

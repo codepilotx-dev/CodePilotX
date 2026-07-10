@@ -13,16 +13,16 @@ use crate::metrics::emit_fetch_attempt_metric;
 use crate::metrics::emit_fetch_final_metric;
 use crate::metrics::emit_load_metric;
 use crate::validation::validate_bundle;
-use codex_config::AbsolutePathBuf;
-use codex_config::CloudConfigBundle;
-use codex_config::CloudConfigBundleLoadError;
-use codex_config::CloudConfigBundleLoadErrorCode;
-use codex_core::util::backoff;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::RefreshTokenError;
-use codex_login::UnauthorizedRecovery;
-use codex_protocol::account::PlanType;
+use codepilotx_config::AbsolutePathBuf;
+use codepilotx_config::CloudConfigBundle;
+use codepilotx_config::CloudConfigBundleLoadError;
+use codepilotx_config::CloudConfigBundleLoadErrorCode;
+use codepilotx_core::util::backoff;
+use codepilotx_login::AuthManager;
+use codepilotx_login::CodexAuth;
+use codepilotx_login::RefreshTokenError;
+use codepilotx_login::UnauthorizedRecovery;
+use codepilotx_protocol::account::PlanType;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -48,7 +48,7 @@ fn cloud_config_eligible_auth(auth: &CodexAuth) -> bool {
     let Some(plan_type) = auth.account_plan_type() else {
         return false;
     };
-    auth.uses_codex_backend()
+    auth.uses_codepilotx_backend()
         && (plan_type.is_business_like()
             || matches!(plan_type, PlanType::Enterprise | PlanType::Edu))
 }
@@ -75,7 +75,7 @@ pub(crate) struct CloudConfigBundleService<C> {
     auth_manager: Arc<AuthManager>,
     client: Arc<C>,
     cache: CloudConfigBundleCache,
-    codex_home: AbsolutePathBuf,
+    codepilotx_home: AbsolutePathBuf,
     timeout: Duration,
 }
 
@@ -85,7 +85,7 @@ impl<C> Clone for CloudConfigBundleService<C> {
             auth_manager: Arc::clone(&self.auth_manager),
             client: Arc::clone(&self.client),
             cache: self.cache.clone(),
-            codex_home: self.codex_home.clone(),
+            codepilotx_home: self.codepilotx_home.clone(),
             timeout: self.timeout,
         }
     }
@@ -98,15 +98,15 @@ where
     pub(crate) fn new(
         auth_manager: Arc<AuthManager>,
         client: Arc<C>,
-        codex_home: PathBuf,
+        codepilotx_home: PathBuf,
         timeout: Duration,
     ) -> Self {
-        let codex_home = AbsolutePathBuf::resolve_path_against_base(codex_home, "/");
+        let codepilotx_home = AbsolutePathBuf::resolve_path_against_base(codepilotx_home, "/");
         Self {
             auth_manager,
             client,
-            cache: CloudConfigBundleCache::new(codex_home.clone()),
-            codex_home,
+            cache: CloudConfigBundleCache::new(codepilotx_home.clone()),
+            codepilotx_home,
             timeout,
         }
     }
@@ -115,7 +115,7 @@ where
         &self,
     ) -> Result<Option<CloudConfigBundle>, CloudConfigBundleLoadError> {
         let _timer =
-            codex_otel::start_global_timer("codex.cloud_config_bundle.fetch.duration_ms", &[]);
+            codepilotx_otel::start_global_timer("codex.cloud_config_bundle.fetch.duration_ms", &[]);
         let started_at = Instant::now();
         let load_result = timeout(self.timeout, self.load_startup_bundle())
             .await
@@ -200,7 +200,7 @@ where
     ) -> CachedBundleLookup {
         match self.cache.load(chatgpt_user_id, account_id).await {
             Ok(signed_payload) => {
-                if let Err(err) = validate_bundle(&signed_payload.bundle, &self.codex_home) {
+                if let Err(err) = validate_bundle(&signed_payload.bundle, &self.codepilotx_home) {
                     tracing::warn!(
                         path = %self.cache.path().display(),
                         error = %err,
@@ -305,7 +305,7 @@ where
         bundle: CloudConfigBundle,
     ) -> Result<Option<CloudConfigBundle>, CloudConfigBundleLoadError> {
         emit_fetch_attempt_metric(trigger, attempt, "success", /*status_code*/ None);
-        if let Err(err) = validate_bundle(&bundle, &self.codex_home) {
+        if let Err(err) = validate_bundle(&bundle, &self.codepilotx_home) {
             emit_fetch_final_metric(
                 trigger,
                 "error",
