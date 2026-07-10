@@ -4,7 +4,6 @@ import { existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  getProviderApiKey,
   getProviderConfig,
   listProviderConfigs,
   type ProviderConfig,
@@ -27,6 +26,7 @@ import type { UserInput } from './rustAppServerProtocol/generated/v2/UserInput.j
 import {
   SidecarStartError,
   buildSidecarEnv,
+  sanitizeChildEnvironment,
   type SidecarManagerOptions,
 } from './sidecarManager.js'
 import { RustLineJsonRpcClient } from './rustLineJsonRpcClient.js'
@@ -204,7 +204,7 @@ export async function createRustSidecarOptions(
     ],
     cwd: context.workspacePath,
     env: {
-      ...process.env,
+      ...sanitizeChildEnvironment(process.env),
       ...buildSidecarEnv({
         sessionId: context.sessionId,
         workspacePath: context.workspacePath,
@@ -231,7 +231,6 @@ export async function createRustSidecarOptions(
         deepModel: context.deepModel,
         sessionName: context.sessionName,
       }),
-      ...providerConfig.env,
       // Explicitly override Rust state directories to use desktop config dir,
       // so Rust sidecar never inherits a stale path from env.
       ...(context.configDirectoryPath
@@ -274,8 +273,7 @@ async function createRustModelProviderOverrides(
   const providerOverrides = providers
     .filter(provider => {
       if (!isRustConfigPathSegment(provider.providerID)) return false
-      return provider.providerID === providerID ||
-        Boolean(getProviderApiKey(provider.providerID)?.trim())
+      return provider.providerID === providerID
     })
     .map(provider =>
       rustProviderConfigOverridesForProvider({
@@ -314,9 +312,7 @@ function rustProviderConfigOverridesForProvider({
   baseURL: string | undefined
 }): RustProviderConfigOverrides {
   const providerID = provider.providerID
-  const envKey = getRustProviderEnvKey(provider)
   const wireApi: ProviderWireApi = provider.wireApi ?? 'chat_completions'
-  const apiKey = getProviderApiKey(providerID)?.trim()
   return {
     args: [
       ...rustConfigOverride(
@@ -338,20 +334,13 @@ function rustProviderConfigOverridesForProvider({
       ...(baseURL
         ? rustConfigOverride(`model_providers.${providerID}.base_url`, baseURL)
         : []),
-      ...(envKey
-        ? rustConfigOverride(`model_providers.${providerID}.env_key`, envKey)
-        : []),
+      ...rustConfigOverride(
+        `model_providers.${providerID}.env_key`,
+        `keyring:${providerID}`,
+      ),
     ],
-    env: envKey && apiKey ? { [envKey]: apiKey } : {},
+    env: {},
   }
-}
-
-function getRustProviderEnvKey(provider: ProviderConfig): string | undefined {
-  return (
-    provider.envVars?.find(value => Boolean(value?.trim())) ??
-    provider.apiKeyEnvVar?.trim() ??
-    undefined
-  )
 }
 
 function rustConfigOverride(

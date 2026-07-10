@@ -52,7 +52,7 @@ class FakeChildProcess extends EventEmitter {
 const fakeConnection = new FakeConnection()
 const spawnedChildren: FakeChildProcess[] = []
 let nextSpawnError: Error | null = null
-const spawnMock = mock(() => {
+const spawnMock = mock((..._args: unknown[]) => {
   const child = new FakeChildProcess()
   spawnedChildren.push(child)
   const error = nextSpawnError
@@ -151,4 +151,29 @@ test('sidecar env preserves desktop runtime environment paths', () => {
   } as any)
 
   expect(env.Path).toBe('C:\\bun;C:\\Windows\\System32')
+})
+
+test('sidecar process environment excludes inherited credential variables', async () => {
+  const previous = process.env.SENTINEL_PROVIDER_API_KEY
+  process.env.SENTINEL_PROVIDER_API_KEY = 'sentinel-secret-value'
+  try {
+    const manager = new SidecarManager({
+      entrypoint: 'apps/tui/src/entrypoints/appServer.ts',
+      cwd: process.cwd(),
+      env: {},
+    })
+
+    await manager.start()
+
+    const spawnOptions = spawnMock.mock.calls[0]?.[2] as
+      | { env?: Record<string, string | undefined> }
+      | undefined
+    expect(spawnOptions?.env?.SENTINEL_PROVIDER_API_KEY).toBeUndefined()
+  } finally {
+    if (previous === undefined) {
+      delete process.env.SENTINEL_PROVIDER_API_KEY
+    } else {
+      process.env.SENTINEL_PROVIDER_API_KEY = previous
+    }
+  }
 })

@@ -9,6 +9,7 @@ import {
 } from './rustSidecarRuntime.js'
 import { RustLineJsonRpcClient } from './rustLineJsonRpcClient.js'
 import { desktopDebug } from './desktopDebug.js'
+import { sanitizeChildEnvironment } from './sidecarManager.js'
 import { spawn } from 'node:child_process'
 import type {
   McpReloadResult,
@@ -151,6 +152,27 @@ async logout(providerID: string): Promise<void> {
   })
 }
 
+async readConfiguredProviderApiKeyIDs(providerIDs: string[]): Promise<string[]> {
+  const result = await this.rpc<{ configured_provider_ids: string[] }>(
+    'providerCredential/read',
+    { provider_ids: providerIDs },
+  )
+  return result.configured_provider_ids
+}
+
+async saveProviderApiKey(providerID: string, apiKey: string): Promise<void> {
+  await this.rpc('providerCredential/save', {
+    provider_id: providerID,
+    api_key: apiKey,
+  })
+}
+
+async deleteProviderApiKey(providerID: string): Promise<void> {
+  await this.rpc('providerCredential/delete', {
+    provider_id: providerID,
+  })
+}
+
 async listRepositories(providerID: string): Promise<ProviderRepoInfo[]> {
   const result = await this.rpc<{ repos: ProviderRepoInfo[] }>(
     'providerAuth/repoList',
@@ -178,13 +200,13 @@ async cloneRepository(
 
 // ── Helpers ─────────────────────────────────────────────────
 
-function createAuthSidecarOptions(executablePath: string) {
+export function createAuthSidecarOptions(executablePath: string) {
   const command = executablePath
   const args: string[] = ['--listen', 'stdio://']
   const options: import('node:child_process').SpawnOptions = {
     stdio: ['pipe', 'pipe', 'pipe'],
     env: {
-      ...process.env,
+      ...sanitizeChildEnvironment(process.env),
       RUST_LOG: process.env.RUST_LOG ?? 'error',
     },
   }

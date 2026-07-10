@@ -9,6 +9,7 @@ use codepilotx_api::Provider as ApiProvider;
 use codepilotx_api::RetryConfig as ApiRetryConfig;
 use codepilotx_api::is_azure_responses_provider;
 use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_keyring_store::{DefaultKeyringStore, KeyringStore};
 use codepilotx_protocol::config_types::ModelProviderAuthInfo;
 use codepilotx_protocol::error::CodexErr;
 use codepilotx_protocol::error::EnvVarError;
@@ -289,7 +290,39 @@ impl ModelProviderInfo {
     /// (and non-empty) in the environment. If `env_key` is required but
     /// cannot be found, returns an error.
     pub fn api_key(&self) -> CodexResult<Option<String>> {
+        self.api_key_with_keyring(&DefaultKeyringStore)
+    }
+
+    fn api_key_with_keyring(&self, keyring: &dyn KeyringStore) -> CodexResult<Option<String>> {
         match &self.env_key {
+            Some(env_key) if env_key.starts_with("keyring:") => {
+                let provider_id = env_key.trim_start_matches("keyring:");
+                if provider_id.is_empty()
+                    || provider_id.len() > 64
+                    || !provider_id
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+                {
+                    return Err(CodexErr::InvalidRequest(
+                        "invalid secure provider id".to_string(),
+                    ));
+                }
+                let account = format!("providerApiKeys/{provider_id}");
+                let api_key = keyring
+                    .load("CodePilotX Provider Auth", &account)
+                    .map_err(|error| {
+                        CodexErr::InvalidRequest(format!(
+                            "failed to read provider API key from secure storage: {error}"
+                        ))
+                    })?
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| {
+                        CodexErr::InvalidRequest(format!(
+                            "provider API key is not configured for '{provider_id}'"
+                        ))
+                    })?;
+                Ok(Some(api_key))
+            }
             Some(env_key) => {
                 let api_key = std::env::var(env_key)
                     .ok()

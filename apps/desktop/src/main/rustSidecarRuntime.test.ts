@@ -210,11 +210,14 @@ describe('rust sidecar runtime options', () => {
       expect(options.args).toContain(
         'model_providers.minimax-cn.base_url="https://api.minimaxi.com/anthropic/v1"',
       )
-      expect(options.args).toContain(
+      expect(options.args).not.toContain(
         'model_providers.minimax-cn.env_key="MINIMAX_API_KEY"',
       )
+      expect(options.args).toContain(
+        'model_providers.minimax-cn.env_key="keyring:minimax-cn"',
+      )
       expect(options.args).not.toContain('sk-minimax-test-key')
-      expect(options.env.MINIMAX_API_KEY).toBe('sk-minimax-test-key')
+      expect(options.env.MINIMAX_API_KEY).toBeUndefined()
     } finally {
       await rm(configDir, { force: true, recursive: true })
     }
@@ -314,9 +317,11 @@ describe('rust sidecar runtime options', () => {
       expect(
         options.args.find(a => a.startsWith('model_providers.openai.base_url')),
       ).toBeUndefined()
-      // API key is in env, not args
+      expect(options.args).toContain(
+        'model_providers.openai.env_key="keyring:openai"',
+      )
       expect(options.args).not.toContain('sk-openai-test')
-      expect(options.env.OPENAI_API_KEY).toBe('sk-openai-test')
+      expect(options.env.OPENAI_API_KEY).toBeUndefined()
     } finally {
       await rm(configDir, { force: true, recursive: true })
     }
@@ -357,11 +362,10 @@ describe('rust sidecar runtime options', () => {
         'model_providers.deepseek.base_url="https://api.deepseek.com"',
       )
       expect(options.args).toContain(
-        'model_providers.deepseek.env_key="DEEPSEEK_API_KEY"',
+        'model_providers.deepseek.env_key="keyring:deepseek"',
       )
-      // API key is in env, not args
       expect(options.args).not.toContain('sk-deepseek-test-key')
-      expect(options.env.DEEPSEEK_API_KEY).toBe('sk-deepseek-test-key')
+      expect(options.env.DEEPSEEK_API_KEY).toBeUndefined()
     } finally {
       await rm(configDir, { force: true, recursive: true })
     }

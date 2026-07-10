@@ -1334,7 +1334,7 @@ function readSecureStorage(): SecureStorageData | null {
   if (runtime.credentialStore) {
     return { providerApiKeys: runtime.credentialStore.readProviderApiKeys() }
   }
-  return readJsonFile<SecureStorageData>(getCredentialsPath())
+  return null
 }
 
 function writeSecureStorage(data: SecureStorageData): ProviderApiKeySaveResult | void {
@@ -1345,7 +1345,10 @@ function writeSecureStorage(data: SecureStorageData): ProviderApiKeySaveResult |
     if (!result.success) throw new Error(result.warning ?? 'Failed to write provider API keys.')
     return result
   }
-  writeJsonFile(getCredentialsPath(), data, 0o600)
+  return {
+    success: false,
+    warning: 'Provider API keys require secure credential storage.',
+  }
 }
 
 function providerFetch(
@@ -1375,10 +1378,6 @@ function writeJsonFile(path: string, value: unknown, mode: number): void {
 
 function getSettingsPath(): string {
   return join(getConfigHomeDir(), 'settings.json')
-}
-
-function getCredentialsPath(): string {
-  return join(getConfigHomeDir(), '.credentials.json')
 }
 
 function getConfigHomeDir(): string {

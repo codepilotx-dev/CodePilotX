@@ -1,4 +1,6 @@
 use super::*;
+use codepilotx_keyring_store::KeyringStore;
+use codepilotx_keyring_store::tests::MockKeyringStore;
 use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use codepilotx_utils_absolute_path::AbsolutePathBufGuard;
 use pretty_assertions::assert_eq;
@@ -518,4 +520,39 @@ refresh_interval_ms = 0
     let auth = provider.auth.expect("auth config should deserialize");
     assert_eq!(auth.refresh_interval_ms, 0);
     assert_eq!(auth.refresh_interval(), None);
+}
+#[test]
+fn keyring_provider_api_key_is_scoped_by_provider_id_and_ignores_environment() {
+    let provider = ModelProviderInfo {
+        env_key: Some("keyring:zhipu".to_string()),
+        ..ModelProviderInfo::default()
+    };
+    let keyring = MockKeyringStore::default();
+    keyring
+        .save(
+            "CodePilotX Provider Auth",
+            "providerApiKeys/zhipu",
+            "sentinel-provider-key",
+        )
+        .expect("seed provider API key");
+    let resolved = provider
+        .api_key_with_keyring(&keyring)
+        .expect("keyring lookup succeeds");
+
+    assert_eq!(resolved.as_deref(), Some("sentinel-provider-key"));
+}
+
+#[test]
+fn keyring_provider_api_key_rejects_traversal_provider_id() {
+    let provider = ModelProviderInfo {
+        env_key: Some("keyring:../zhipu".to_string()),
+        ..ModelProviderInfo::default()
+    };
+    let keyring = MockKeyringStore::default();
+
+    let error = provider
+        .api_key_with_keyring(&keyring)
+        .expect_err("traversal provider id must fail");
+
+    assert!(error.to_string().contains("invalid secure provider id"));
 }

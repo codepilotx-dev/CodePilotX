@@ -118,12 +118,12 @@ export class SidecarManager {
     const child = spawn(command, args, {
       cwd: this.options.cwd,
       windowsHide: true,
-      env: {
+      env: sanitizeChildEnvironment({
         ...process.env,
         ...this.options.env,
         // 标记自身为 sidecar 模式
         [SIDECAR_RUNNER_ENV]: '1',
-      },
+      }),
       stdio: ['pipe', 'pipe', 'pipe'],
     })
     this.child = child
@@ -354,7 +354,7 @@ export function buildSidecarEnv(
   context: SidecarEnvContext,
 ): Record<string, string | undefined> {
   return {
-    ...context.runtimeEnvironment,
+    ...sanitizeChildEnvironment(context.runtimeEnvironment ?? {}),
     CODEPILOTX_SIDECAR_SESSION_ID: context.sessionId,
     CODEPILOTX_SIDECAR_WORKSPACE: context.workspacePath,
     CODEPILOTX_SIDECAR_MODEL: context.model,
@@ -380,6 +380,58 @@ export function buildSidecarEnv(
     CODEPILOTX_SIDECAR_DEEP_MODEL: context.deepModel,
     CODEPILOTX_SIDECAR_SESSION_NAME: context.sessionName,
   }
+}
+
+const CHILD_ENV_ALLOWLIST = new Set([
+  'APPDATA',
+  'COMSPEC',
+  'HOME',
+  'LANG',
+  'LOCALAPPDATA',
+  'NO_COLOR',
+  'NUMBER_OF_PROCESSORS',
+  'OS',
+  'PATH',
+  'PATHEXT',
+  'PROCESSOR_ARCHITECTURE',
+  'PROGRAMDATA',
+  'PROGRAMFILES',
+  'PROGRAMFILES(X86)',
+  'PROGRAMW6432',
+  'RUST_BACKTRACE',
+  'RUST_LOG',
+  'SYSTEMDRIVE',
+  'SYSTEMROOT',
+  'TEMP',
+  'TERM',
+  'TMP',
+  'USERPROFILE',
+  'WINDIR',
+])
+
+const SENSITIVE_ENV_NAME = /(?:API[_-]?KEY|AUTH|BEARER|CREDENTIAL|PASSWORD|SECRET|TOKEN)/i
+
+/** Preserve only process-launch essentials and explicit sidecar configuration. */
+export function sanitizeChildEnvironment(
+  env: Record<string, string | undefined>,
+): Record<string, string | undefined> {
+  const sanitized: Record<string, string | undefined> = {}
+  for (const [key, value] of Object.entries(env)) {
+    const upperKey = key.toUpperCase()
+    if (SENSITIVE_ENV_NAME.test(upperKey)) continue
+    if (
+      CHILD_ENV_ALLOWLIST.has(upperKey) ||
+      upperKey.startsWith('LC_') ||
+      upperKey.startsWith('CODEPILOTX_SIDECAR_') ||
+      upperKey === 'CODEPILOTX_CONFIG_DIR' ||
+      upperKey === 'CODEPILOTX_SQLITE_HOME' ||
+      upperKey === 'CLAUDE_CONFIG_DIR' ||
+      upperKey === SIDECAR_RUNNER_ENV
+    ) {
+      sanitized[key] = value
+    }
+  }
+  return sanitized
 }
 
 export type SidecarEnvContext = {
