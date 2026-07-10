@@ -256,7 +256,7 @@ pub fn normalize_pasted_path(pasted: &str) -> Option<PathBuf> {
         .or_else(|| pasted.strip_prefix('\'').and_then(|s| s.strip_suffix('\'')))
         .unwrap_or(pasted);
 
-    // file:// URL → filesystem path
+    // file:// URL  filesystem path
     if let Ok(url) = url::Url::parse(unquoted)
         && url.scheme() == "file"
     {
@@ -273,7 +273,7 @@ pub fn normalize_pasted_path(pasted: &str) -> Option<PathBuf> {
         return Some(path);
     }
 
-    // shell-escaped single path → unescaped
+    // shell-escaped single path  unescaped
     let parts: Vec<String> = shlex::Shlex::new(pasted).collect();
     if parts.len() == 1 {
         let part = parts.into_iter().next()?;
@@ -439,7 +439,7 @@ mod pasted_paths_tests {
 
     #[test]
     fn normalize_multiple_tokens_returns_none() {
-        // Two tokens after shell splitting → not a single path
+        // Two tokens after shell splitting  not a single path
         let input = "/home/user/a\\ b.png /home/user/c.png";
         let result = normalize_pasted_path(input);
         assert!(result.is_none());

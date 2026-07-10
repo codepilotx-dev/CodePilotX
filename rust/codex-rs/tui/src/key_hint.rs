@@ -23,9 +23,9 @@ use ratatui::style::Stylize;
 use ratatui::text::Span;
 
 #[cfg(test)]
-const ALT_PREFIX: &str = "⌥ + ";
+const ALT_PREFIX: &str = " + ";
 #[cfg(all(not(test), target_os = "macos"))]
-const ALT_PREFIX: &str = "⌥ + ";
+const ALT_PREFIX: &str = " + ";
 #[cfg(all(not(test), not(target_os = "macos")))]
 const ALT_PREFIX: &str = "alt + ";
 const CTRL_PREFIX: &str = "ctrl + ";
@@ -71,10 +71,10 @@ impl KeyBinding {
         let key = match self.key {
             KeyCode::Enter => "enter".to_string(),
             KeyCode::Char(' ') => "space".to_string(),
-            KeyCode::Up => "↑".to_string(),
-            KeyCode::Down => "↓".to_string(),
-            KeyCode::Left => "←".to_string(),
-            KeyCode::Right => "→".to_string(),
+            KeyCode::Up => "".to_string(),
+            KeyCode::Down => "".to_string(),
+            KeyCode::Left => "".to_string(),
+            KeyCode::Right => "".to_string(),
             KeyCode::PageUp => "pgup".to_string(),
             KeyCode::PageDown => "pgdn".to_string(),
             _ => self.key.to_string().to_ascii_lowercase(),

@@ -154,7 +154,7 @@ impl MemoriesSettingsView {
                 .enumerate()
                 .map(|(idx, name)| GenericDisplayRow {
                     name: if state.selected_idx == Some(idx) {
-                        format!("› {name}")
+                        format!(" {name}")
                     } else {
                         format!("  {name}")
                     },
@@ -174,7 +174,7 @@ impl MemoriesSettingsView {
             .enumerate()
             .map(|(idx, item)| {
                 let prefix = if selected_idx == Some(idx) {
-                    '›'
+                    ''
                 } else {
                     ' '
                 };

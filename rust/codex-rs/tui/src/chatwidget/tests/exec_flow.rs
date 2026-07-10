@@ -312,7 +312,7 @@ async fn exec_history_cell_shows_working_then_completed() {
     let blob = lines_to_single_string(lines);
     // New behavior: no glyph markers; ensure command is shown and no panic.
     assert!(
-        blob.contains("â€?Ran"),
+        blob.contains("?Ran"),
         "expected summary header present: {blob:?}"
     );
     assert!(
@@ -339,7 +339,7 @@ async fn exec_history_cell_shows_working_then_failed() {
     let lines = &cells[0];
     let blob = lines_to_single_string(lines);
     assert!(
-        blob.contains("â€?Ran false"),
+        blob.contains("?Ran false"),
         "expected command and header text present: {blob:?}"
     );
     assert!(blob.to_lowercase().contains("bloop"), "expected error text");
@@ -378,7 +378,7 @@ async fn exec_end_without_begin_uses_event_command() {
     assert_eq!(cells.len(), 1, "expected finalized exec cell to flush");
     let blob = lines_to_single_string(&cells[0]);
     assert!(
-        blob.contains("â€?Ran echo orphaned"),
+        blob.contains("?Ran echo orphaned"),
         "expected command text to come from event: {blob:?}"
     );
     assert!(
@@ -412,12 +412,12 @@ async fn exec_end_without_begin_does_not_flush_unrelated_running_exploring_cell(
     assert_eq!(cells.len(), 1, "only the orphan end should be inserted");
     let orphan_blob = lines_to_single_string(&cells[0]);
     assert!(
-        orphan_blob.contains("â€?Ran echo repro-marker"),
+        orphan_blob.contains("?Ran echo repro-marker"),
         "expected orphan end to render a standalone entry: {orphan_blob:?}"
     );
     let active = active_blob(&chat);
     assert!(
-        active.contains("â€?Exploring"),
+        active.contains("?Exploring"),
         "expected unrelated exploring call to remain active: {active:?}"
     );
     assert!(
@@ -452,7 +452,7 @@ async fn exec_end_without_begin_flushes_completed_unrelated_exploring_cell() {
     let first = lines_to_single_string(&cells[0]);
     let second = lines_to_single_string(&cells[1]);
     assert!(
-        first.contains("â€?Explored"),
+        first.contains("?Explored"),
         "expected flushed exploring cell: {first:?}"
     );
     assert!(
@@ -460,7 +460,7 @@ async fn exec_end_without_begin_flushes_completed_unrelated_exploring_cell() {
         "expected flushed exploring cell: {first:?}"
     );
     assert!(
-        second.contains("â€?Ran echo after"),
+        second.contains("?Ran echo after"),
         "expected orphan end entry after flush: {second:?}"
     );
     assert!(
@@ -494,7 +494,7 @@ async fn overlapping_exploring_exec_end_is_not_misclassified_as_orphan() {
         "expected second running command to stay in the same active cell: {active:?}"
     );
     assert!(
-        active.contains("â€?Exploring"),
+        active.contains("?Exploring"),
         "expected grouped exploring header to remain active: {active:?}"
     );
 
@@ -529,7 +529,7 @@ async fn exec_history_shows_unified_exec_startup_commands() {
     assert_eq!(cells.len(), 1, "expected finalized exec cell to flush");
     let blob = lines_to_single_string(&cells[0]);
     assert!(
-        blob.contains("â€?Ran echo unified exec startup"),
+        blob.contains("?Ran echo unified exec startup"),
         "expected startup command to render: {blob:?}"
     );
 }
@@ -548,7 +548,7 @@ async fn exec_history_shows_unified_exec_tool_calls() {
     end_exec(&mut chat, begin, "", "", /*exit_code*/ 0);
 
     let blob = active_blob(&chat);
-    assert_eq!(blob, "â€?Explored\n  â”?List ls\n");
+    assert_eq!(blob, "?Explored\n  ?List ls\n");
 }
 
 #[tokio::test]

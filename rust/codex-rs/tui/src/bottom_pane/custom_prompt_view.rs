@@ -295,5 +295,5 @@ impl CustomPromptView {
 }
 
 fn gutter() -> Span<'static> {
-    "▌ ".cyan()
+    " ".cyan()
 }

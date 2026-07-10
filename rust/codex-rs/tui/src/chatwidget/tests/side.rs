@@ -389,7 +389,7 @@ async fn side_context_label_preserves_status_line_snapshot() {
     chat.refresh_status_line();
     chat.set_side_conversation_active(/*active*/ true);
     chat.set_side_conversation_context_label(Some(
-        "Side from main thread · Ctrl+C to return".to_string(),
+        "Side from main thread  Ctrl+C to return".to_string(),
     ));
 
     let width = 80;
@@ -410,7 +410,7 @@ async fn side_context_label_shows_parent_status_snapshot() {
     chat.show_welcome_banner = false;
     chat.set_side_conversation_active(/*active*/ true);
     chat.set_side_conversation_context_label(Some(
-        "Side from main thread · main needs input · Ctrl+C to return".to_string(),
+        "Side from main thread  main needs input  Ctrl+C to return".to_string(),
     ));
 
     let width = 80;

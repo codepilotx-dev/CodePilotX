@@ -25,7 +25,7 @@ impl HistoryCell for RequestUserInputResultCell {
             .count();
         let unanswered = total.saturating_sub(answered);
 
-        let mut header = vec!["•".dim(), " ".into(), "Questions".bold()];
+        let mut header = vec!["".dim(), " ".into(), "Questions".bold()];
         header.push(format!(" {answered}/{total} answered").dim());
         if self.interrupted {
             header.push(" (interrupted)".cyan());
@@ -42,7 +42,7 @@ impl HistoryCell for RequestUserInputResultCell {
             let mut question_lines = wrap_with_prefix(
                 &question.question,
                 width,
-                "  • ".into(),
+                "   ".into(),
                 "    ".into(),
                 Style::default(),
             );
@@ -56,7 +56,7 @@ impl HistoryCell for RequestUserInputResultCell {
             };
             if question.is_secret {
                 lines.extend(wrap_with_prefix(
-                    "••••••",
+                    "",
                     width,
                     "    answer: ".dim(),
                     "            ".dim(),
@@ -99,7 +99,7 @@ impl HistoryCell for RequestUserInputResultCell {
             lines.extend(wrap_with_prefix(
                 &summary,
                 width,
-                "  ↳ ".cyan().dim(),
+                "   ".cyan().dim(),
                 "    ".dim(),
                 Style::default().fg(Color::Cyan).add_modifier(Modifier::DIM),
             ));

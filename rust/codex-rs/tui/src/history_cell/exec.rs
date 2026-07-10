@@ -26,14 +26,14 @@ impl HistoryCell for UnifiedExecInteractionCell {
         let waited_only = self.stdin.is_empty();
 
         let mut header_spans = if waited_only {
-            vec!["• Waited for background terminal".bold()]
+            vec![" Waited for background terminal".bold()]
         } else {
-            vec!["↳ ".dim(), "Interacted with background terminal".bold()]
+            vec![" ".dim(), "Interacted with background terminal".bold()]
         };
         if let Some(command) = &self.command_display
             && !command.is_empty()
         {
-            header_spans.push(" · ".dim());
+            header_spans.push("  ".dim());
             header_spans.push(command.clone().dim());
         }
         let header = Line::from(header_spans);
@@ -55,7 +55,7 @@ impl HistoryCell for UnifiedExecInteractionCell {
         let input_wrapped = adaptive_wrap_lines(
             input_lines,
             RtOptions::new(wrap_width)
-                .initial_indent(Line::from("  └ ".dim()))
+                .initial_indent(Line::from("   ".dim()))
                 .subsequent_indent(Line::from("    ".dim())),
         );
         out.extend(input_wrapped);
@@ -132,11 +132,11 @@ impl HistoryCell for UnifiedExecProcessesCell {
         out.push("".into());
 
         if self.processes.is_empty() {
-            out.push("  • No background terminals running.".italic().into());
+            out.push("   No background terminals running.".italic().into());
             return out;
         }
 
-        let prefix = "  • ";
+        let prefix = "   ";
         let prefix_width = UnicodeWidthStr::width(prefix);
         let truncation_suffix = " [...]";
         let truncation_suffix_width = UnicodeWidthStr::width(truncation_suffix);
@@ -181,7 +181,7 @@ impl HistoryCell for UnifiedExecProcessesCell {
                 out.push(vec![prefix.dim(), truncated.cyan()].into());
             }
 
-            let chunk_prefix_first = "    ↳ ";
+            let chunk_prefix_first = "     ";
             let chunk_prefix_next = "      ";
             for (idx, chunk) in process.recent_chunks.iter().enumerate() {
                 let chunk_prefix = if idx == 0 {

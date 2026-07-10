@@ -201,7 +201,7 @@ fn summary_line(fields: &[(&str, String)], indexes: &[usize]) -> Line<'static> {
     let mut spans = Vec::new();
     for (index, field_index) in indexes.iter().enumerate() {
         if index > 0 {
-            spans.push(Span::styled(" · ", label_style()));
+            spans.push(Span::styled("  ", label_style()));
         }
         let (label, value) = &fields[*field_index];
         spans.push(Span::styled(format!("{label} "), label_style()));
@@ -311,10 +311,10 @@ fn bar_caption(view: TokenActivityView, values: &[i64]) -> Line<'static> {
     let weeks = weekly_totals(values);
     let (lead, peak) = match view {
         TokenActivityView::Weekly => (
-            "Each column = 1 week · tallest ",
+            "Each column = 1 week  tallest ",
             weeks.iter().copied().max().unwrap_or(/*default*/ 0),
         ),
-        TokenActivityView::Cumulative => ("Running total · top ", weeks.iter().sum::<i64>()),
+        TokenActivityView::Cumulative => ("Running total  top ", weeks.iter().sum::<i64>()),
         TokenActivityView::Daily => ("", 0),
     };
     if peak <= 0 {
@@ -338,7 +338,7 @@ fn view_footer(active: TokenActivityView) -> Line<'static> {
     ];
     for (index, (view, name)) in views.into_iter().enumerate() {
         if index > 0 {
-            spans.push(Span::styled(" · ", label_style()));
+            spans.push(Span::styled("  ", label_style()));
         }
         let style = if view == active {
             numeric_style().bold()

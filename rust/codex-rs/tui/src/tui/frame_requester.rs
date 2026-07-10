@@ -9,7 +9,7 @@
 //! often than necessary.
 //!
 //! This follows the actor-style design from
-//! [“Actors with Tokio”](https://ryhl.io/blog/actors-with-tokio/), with a
+//! [Actors with Tokio](https://ryhl.io/blog/actors-with-tokio/), with a
 //! dedicated scheduler task and lightweight request handles.
 
 use std::time::Duration;

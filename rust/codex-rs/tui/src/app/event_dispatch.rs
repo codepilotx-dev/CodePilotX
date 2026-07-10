@@ -1359,7 +1359,7 @@ impl App {
                                     self.chat_widget.submit_initial_user_message_if_pending();
                                 }
                                 self.chat_widget.add_plain_history_lines(vec![
-                                    Line::from(vec!["â€?".dim(), "Sandbox ready".into()]),
+                                    Line::from(vec!["?".dim(), "Sandbox ready".into()]),
                                     Line::from(vec![
                                         "  ".into(),
                                         "Codex can now safely edit files and execute commands in your computer"
@@ -1392,7 +1392,7 @@ impl App {
                                         preset.active_permission_profile.clone(),
                                     ));
                                 self.chat_widget.add_plain_history_lines(vec![
-                                    Line::from(vec!["â€?".dim(), "Sandbox ready".into()]),
+                                    Line::from(vec!["?".dim(), "Sandbox ready".into()]),
                                     Line::from(vec![
                                         "  ".into(),
                                         "Codex can now safely edit files and execute commands in your computer"

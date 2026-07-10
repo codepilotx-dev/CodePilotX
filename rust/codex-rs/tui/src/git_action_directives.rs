@@ -127,7 +127,7 @@ fn rewrite_code_comment_line(line: &str, cwd: &Path) -> Option<String> {
     };
 
     Some(format!(
-        "{indent}- {title} — {location}\n{indent}  {body}{suffix}"
+        "{indent}- {title}  {location}\n{indent}  {body}{suffix}"
     ))
 }
 

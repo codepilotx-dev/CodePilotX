@@ -93,7 +93,7 @@ fn key_binding_span(binding: &str) -> ratatui::text::Span<'static> {
 fn keymap_action_menu_hint_line() -> Line<'static> {
     Line::from(vec![
         "enter".cyan(),
-        " select · ".dim(),
+        " select  ".dim(),
         "esc".cyan(),
         " back".dim(),
     ])
@@ -181,13 +181,13 @@ pub(crate) fn build_keymap_action_menu_params(
     header.push(Line::from("Edit Shortcut".bold()));
     header.push(Line::from(vec![
         label.bold(),
-        " · ".dim(),
+        "  ".dim(),
         context_label.dim(),
     ]));
     header.push(Line::from(vec![
         "Current ".dim(),
         key_binding_span(&current_binding),
-        " · ".dim(),
+        "  ".dim(),
         source,
     ]));
     header.push(Line::from(vec![
@@ -313,7 +313,7 @@ pub(crate) fn build_keymap_replace_binding_menu_params(
     header.push(Line::from("Replace Binding".bold()));
     header.push(Line::from(vec![
         label.bold(),
-        " · ".dim(),
+        "  ".dim(),
         format!("{context}.{action}").dim(),
     ]));
     header.push(Line::from("Choose the binding to replace.".dim()));

@@ -549,13 +549,13 @@ mod tests {
     #[tokio::test]
     async fn utf8_boundary_safety_and_wide_chars() {
         // Emoji (wide), CJK, control char, digit + combining macron sequences
-        let input = "🙂🙂🙂\n汉字漢字\nA\u{0003}0\u{0304}\n";
+        let input = "\n\nA\u{0003}0\u{0304}\n";
         let deltas = vec![
-            "🙂",
-            "🙂",
-            "🙂\n汉",
-            "字漢",
-            "字\nA",
+            "",
+            "",
+            "\n",
+            "",
+            "\nA",
             "\u{0003}",
             "0",
             "\u{0304}",
@@ -878,7 +878,7 @@ mod tests {
         let rendered_strs = lines_to_plain_strings(&rendered);
 
         assert!(
-            rendered_strs.iter().any(|line| line.contains('━')),
+            rendered_strs.iter().any(|line| line.contains('')),
             "expected markdown-fenced table to render with a separator: {rendered_strs:?}"
         );
         assert!(

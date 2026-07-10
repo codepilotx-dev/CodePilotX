@@ -1162,7 +1162,7 @@ async fn custom_prompt_enter_empty_does_not_send() {
     assert!(rx.try_recv().is_err(), "no app event should be sent");
 }
 
-// Snapshot test: interrupting a running exec finalizes the active cell with a red âœ?// marker (replacing the spinner) and flushes it into history.
+// Snapshot test: interrupting a running exec finalizes the active cell with a red ?// marker (replacing the spinner) and flushes it into history.
 #[tokio::test]
 async fn interrupt_exec_marks_failed_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;

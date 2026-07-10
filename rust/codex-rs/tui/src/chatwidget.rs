@@ -1404,7 +1404,7 @@ impl ChatWidget {
         self.transcript.bump_active_cell_revision();
     }
 
-    /// Mark the active cell as failed (âœ? and flush it into history.
+    /// Mark the active cell as failed (? and flush it into history.
     fn finalize_active_cell_as_failed(&mut self) {
         if let Some(mut cell) = self.transcript.active_cell.take() {
             // Insert finalized cell into history and keep grouping consistent.
@@ -1557,7 +1557,7 @@ impl ChatWidget {
 
     fn rename_confirmation_cell(name: &str, thread_id: Option<ThreadId>) -> PlainHistoryCell {
         let mut line = vec![
-            "â€?".into(),
+            "?".into(),
             "Session renamed to ".into(),
             name.to_string().cyan(),
         ];

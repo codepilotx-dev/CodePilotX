@@ -38,7 +38,7 @@ impl HistoryCell for AgentStatusHistoryCell {
         ];
 
         if self.entries.is_empty() {
-            lines.push("  â€?No sub-agents running.".italic().into());
+            lines.push("  ?No sub-agents running.".italic().into());
             return lines;
         }
 
@@ -114,7 +114,7 @@ impl AgentStatusThreadPreview {
     }
 
     fn title_line(&self) -> Line<'static> {
-        vec!["  â€?".dim(), format!("`{}`", self.agent_path).cyan()].into()
+        vec!["  ?".dim(), format!("`{}`", self.agent_path).cyan()].into()
     }
 
     fn preview_lines(&self, width: u16) -> Vec<Line<'static>> {

@@ -68,7 +68,7 @@ impl PendingInputPreview {
     }
 
     fn push_section_header(lines: &mut Vec<Line<'static>>, width: u16, header: Line<'static>) {
-        let mut spans = vec!["• ".dim()];
+        let mut spans = vec![" ".dim()];
         spans.extend(header.spans);
         lines.extend(adaptive_wrap_lines(
             std::iter::once(Line::from(spans)),
@@ -102,10 +102,10 @@ impl PendingInputPreview {
                 let wrapped = adaptive_wrap_lines(
                     steer.lines().map(|line| Line::from(line.dim())),
                     RtOptions::new(width as usize)
-                        .initial_indent(Line::from("  ↳ ".dim()))
+                        .initial_indent(Line::from("   ".dim()))
                         .subsequent_indent(Line::from("    ")),
                 );
-                Self::push_truncated_preview_lines(&mut lines, wrapped, Line::from("    …".dim()));
+                Self::push_truncated_preview_lines(&mut lines, wrapped, Line::from("    ".dim()));
             }
         }
 
@@ -123,10 +123,10 @@ impl PendingInputPreview {
                 let wrapped = adaptive_wrap_lines(
                     steer.lines().map(|line| Line::from(line.dim())),
                     RtOptions::new(width as usize)
-                        .initial_indent(Line::from("  ↳ ".dim()))
+                        .initial_indent(Line::from("   ".dim()))
                         .subsequent_indent(Line::from("    ")),
                 );
-                Self::push_truncated_preview_lines(&mut lines, wrapped, Line::from("    …".dim()));
+                Self::push_truncated_preview_lines(&mut lines, wrapped, Line::from("    ".dim()));
             }
         }
 
@@ -140,13 +140,13 @@ impl PendingInputPreview {
                 let wrapped = adaptive_wrap_lines(
                     message.lines().map(|line| Line::from(line.dim().italic())),
                     RtOptions::new(width as usize)
-                        .initial_indent(Line::from("  ↳ ".dim()))
+                        .initial_indent(Line::from("   ".dim()))
                         .subsequent_indent(Line::from("    ")),
                 );
                 Self::push_truncated_preview_lines(
                     &mut lines,
                     wrapped,
-                    Line::from("    …".dim().italic()),
+                    Line::from("    ".dim().italic()),
                 );
             }
         }
@@ -317,7 +317,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert!(
-            !rendered_rows.iter().any(|row| row.contains('…')),
+            !rendered_rows.iter().any(|row| row.contains('')),
             "expected no wrapped-ellipsis row for URL-like token, got rows: {rendered_rows:?}"
         );
     }

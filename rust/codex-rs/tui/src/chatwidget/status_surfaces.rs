@@ -24,7 +24,7 @@ pub(super) const DEFAULT_TERMINAL_TITLE_ITEMS: [&str; 2] = ["activity", "project
 
 /// Braille-pattern dot-spinner frames for the terminal title animation.
 pub(super) const TERMINAL_TITLE_SPINNER_FRAMES: [&str; 10] =
-    ["та?, "та?, "та?, "та?, "та?, "та?, "та?, "та?, "та?, "та?];
+    ["?, "?, "?, "?, "?, "?, "?, "?, "?, "?];
 
 /// Time between spinner frame advances in the terminal title.
 pub(super) const TERMINAL_TITLE_SPINNER_INTERVAL: Duration = Duration::from_millis(100);

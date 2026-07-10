@@ -228,9 +228,9 @@ mod tests {
 
     #[test]
     fn rows_do_not_exceed_width_emoji_cjk() {
-        // 😀 is width 2; 你/好 are width 2.
+        //  is width 2; / are width 2.
         let mut rb = RowBuilder::new(/*target_width*/ 6);
-        rb.push_fragment("😀😀 你好");
+        rb.push_fragment(" ");
         let rows = rb.rows().to_vec();
         // At width 6, we expect the first row to fit exactly two emojis and a space
         // (2 + 2 + 1 = 5) plus one more column for the first CJK char (2 would overflow),
@@ -238,7 +238,7 @@ mod tests {
         assert_eq!(
             rows,
             vec![Row {
-                text: "😀😀 ".to_string(),
+                text: " ".to_string(),
                 explicit_break: false
             }]
         );

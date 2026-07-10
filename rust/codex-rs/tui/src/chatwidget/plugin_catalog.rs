@@ -208,7 +208,7 @@ impl ChatWidget {
             footer_hint: Some(Line::from(vec![
                 Span::from(key_hint::plain(KeyCode::Enter)),
                 " select".dim(),
-                " 路 ".into(),
+                "  ".into(),
                 "esc close".dim(),
             ])),
             items: vec![
@@ -765,7 +765,7 @@ impl ChatWidget {
         let mut header = ColumnRenderable::new();
         header.push(Line::from("Plugins".bold()));
         header.push(Line::from(
-            format!("{display_name} 路 {detail_status_label} 路 {marketplace_label}").bold(),
+            format!("{display_name}  {detail_status_label}  {marketplace_label}").bold(),
         ));
         if !plugin.summary.installed {
             header.push(PluginDisclosureLine {
@@ -1031,16 +1031,16 @@ fn plugins_popup_hint_line(
 ) -> Line<'static> {
     match (can_remove_marketplace, can_upgrade_marketplace) {
         (true, true) => Line::from(
-            "ctrl + u upgrade 路 ctrl + r remove 路 space toggle 路 鈫?鈫?tabs 路 enter details 路 esc close",
+            "ctrl + u upgrade  ctrl + r remove  space toggle  ??tabs  enter details  esc close",
         ),
         (true, false) => {
-            Line::from("ctrl + r remove 路 space toggle 路 鈫?鈫?tabs 路 enter details 路 esc close")
+            Line::from("ctrl + r remove  space toggle  ??tabs  enter details  esc close")
         }
         (false, true) => {
-            Line::from("ctrl + u upgrade 路 space toggle 路 鈫?鈫?tabs 路 enter details 路 esc close")
+            Line::from("ctrl + u upgrade  space toggle  ??tabs  enter details  esc close")
         }
         (false, false) => Line::from(
-            "space enable/disable 路 鈫?鈫?select marketplace 路 enter view details 路 esc close",
+            "space enable/disable  ??select marketplace  enter view details  esc close",
         ),
     }
 }
@@ -1240,8 +1240,8 @@ fn plugin_brief_description(
     let status_label = plugin_status_label(plugin);
     let status_label = format!("{status_label:<status_label_width$}");
     match plugin_description(plugin) {
-        Some(description) => format!("{status_label} 路 {marketplace_label} 路 {description}"),
-        None => format!("{status_label} 路 {marketplace_label}"),
+        Some(description) => format!("{status_label}  {marketplace_label}  {description}"),
+        None => format!("{status_label}  {marketplace_label}"),
     }
 }
 
@@ -1252,7 +1252,7 @@ fn plugin_brief_description_without_marketplace(
     let status_label = plugin_status_label(plugin);
     let status_label = format!("{status_label:<status_label_width$}");
     match plugin_description(plugin) {
-        Some(description) => format!("{status_label} 路 {description}"),
+        Some(description) => format!("{status_label}  {description}"),
         None => status_label,
     }
 }

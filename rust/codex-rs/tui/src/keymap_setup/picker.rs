@@ -456,13 +456,13 @@ fn keymap_picker_hint_line() -> Line<'static> {
     let style = accent_style();
     Line::from(vec![
         "left/right".set_style(style),
-        " group · ".dim(),
+        " group  ".dim(),
         "enter".set_style(style),
-        " edit shortcut · ".dim(),
+        " edit shortcut  ".dim(),
         "*".set_style(style),
-        " custom · ".dim(),
+        " custom  ".dim(),
         "-".set_style(style),
-        " unbound · ".dim(),
+        " unbound  ".dim(),
         "esc".set_style(style),
         " close".dim(),
     ])
@@ -472,7 +472,7 @@ fn keymap_debug_hint_line() -> Line<'static> {
     let style = accent_style();
     Line::from(vec![
         "enter".set_style(style),
-        " start inspector · ".dim(),
+        " start inspector  ".dim(),
         "esc".set_style(style),
         " close".dim(),
     ])

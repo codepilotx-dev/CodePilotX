@@ -185,7 +185,7 @@ impl ChatWidget {
             && !name.trim().is_empty()
         {
             vec![
-                "• ".dim(),
+                " ".dim(),
                 "Thread forked from ".into(),
                 name.cyan(),
                 " (".into(),
@@ -195,7 +195,7 @@ impl ChatWidget {
             .into()
         } else {
             vec![
-                "• ".dim(),
+                " ".dim(),
                 "Thread forked from ".into(),
                 forked_from_id_text.cyan(),
             ]

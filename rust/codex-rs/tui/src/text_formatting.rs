@@ -146,7 +146,7 @@ pub(crate) fn center_truncate_path(path: &str, max_width: usize) -> String {
                 return root;
             }
         }
-        return "…".to_string();
+        return "".to_string();
     }
 
     struct Segment<'a> {
@@ -178,7 +178,7 @@ pub(crate) fn center_truncate_path(path: &str, max_width: usize) -> String {
             return original.to_string();
         }
         if allowed_width == 1 {
-            return "…".to_string();
+            return "".to_string();
         }
 
         let mut kept: Vec<char> = Vec::new();
@@ -192,7 +192,7 @@ pub(crate) fn center_truncate_path(path: &str, max_width: usize) -> String {
             kept.push(ch);
         }
         kept.reverse();
-        let mut truncated = String::from("…");
+        let mut truncated = String::from("");
         for ch in kept {
             truncated.push(ch);
         }
@@ -298,8 +298,8 @@ pub(crate) fn center_truncate_path(path: &str, max_width: usize) -> String {
         let need_ellipsis = left_count + right_count < segment_count;
         if need_ellipsis {
             segments.push(Segment {
-                original: "…",
-                text: "…".to_string(),
+                original: "",
+                text: "".to_string(),
                 truncatable: false,
                 is_suffix: false,
             });
@@ -417,19 +417,19 @@ mod tests {
 
     #[test]
     fn test_truncate_emoji() {
-        let text = "👋🌍🚀✨💫";
+        let text = "";
         let truncated = truncate_text(text, /*max_graphemes*/ 3);
         assert_eq!(truncated, "...");
 
         let truncated_longer = truncate_text(text, /*max_graphemes*/ 4);
-        assert_eq!(truncated_longer, "👋...");
+        assert_eq!(truncated_longer, "...");
     }
 
     #[test]
     fn test_truncate_unicode_combining_characters() {
-        let text = "é́ñ̃"; // Characters with combining marks
+        let text = ""; // Characters with combining marks
         let truncated = truncate_text(text, /*max_graphemes*/ 2);
-        assert_eq!(truncated, "é́ñ̃");
+        assert_eq!(truncated, "");
     }
 
     #[test]
@@ -474,7 +474,7 @@ mod tests {
 
         assert_eq!(
             truncated,
-            format!("~{sep}hello{sep}the{sep}…{sep}very{sep}fast")
+            format!("~{sep}hello{sep}the{sep}{sep}very{sep}fast")
         );
     }
 
@@ -486,7 +486,7 @@ mod tests {
         );
         let truncated = center_truncate_path(&path, /*max_width*/ 36);
 
-        let expected = format!("C:{sep}Users{sep}codex{sep}…{sep}path{sep}file.txt");
+        let expected = format!("C:{sep}Users{sep}codex{sep}{sep}path{sep}file.txt");
 
         assert_eq!(truncated, expected);
     }
@@ -497,7 +497,7 @@ mod tests {
         let path = format!("~{sep}supercalifragilisticexpialidocious");
         let truncated = center_truncate_path(&path, /*max_width*/ 18);
 
-        assert_eq!(truncated, format!("~{sep}…cexpialidocious"));
+        assert_eq!(truncated, format!("~{sep}cexpialidocious"));
     }
 
     #[test]

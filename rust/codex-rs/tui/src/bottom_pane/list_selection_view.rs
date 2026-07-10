@@ -508,7 +508,7 @@ impl ListSelectionView {
             .filter_map(|(visible_idx, actual_idx)| {
                 self.active_items().get(*actual_idx).map(|item| {
                     let is_selected = self.state.selected_idx == Some(visible_idx);
-                    let prefix = if is_selected { 'â€? } else { ' ' };
+                    let prefix = if is_selected { '? } else { ' ' };
                     let name = item.name.as_str();
                     let marker = if item.is_current {
                         " (current)"
@@ -1119,7 +1119,7 @@ impl Renderable for ListSelectionView {
         // Side content: when the terminal is wide enough the panel sits beside
         // the list and shares vertical space; otherwise it stacks below.
         if self.side_layout_width(inner_width).is_some() {
-            // Side-by-side â€?side content shares list rows vertically so it
+            // Side-by-side ?side content shares list rows vertically so it
             // doesn't add to total height.
         } else {
             let side_h = self.stacked_side_content().desired_height(inner_width);
@@ -1185,7 +1185,7 @@ impl Renderable for ListSelectionView {
             SelectionRowDisplay::SingleLine => rows.len().clamp(1, MAX_POPUP_ROWS) as u16,
         };
 
-        // Stacked (fallback) side content height â€?only used when not side-by-side.
+        // Stacked (fallback) side content height ?only used when not side-by-side.
         let stacked_side_h = if side_w.is_none() {
             self.stacked_side_content().desired_height(inner_width)
         } else {
@@ -1220,7 +1220,7 @@ impl Renderable for ListSelectionView {
                 Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(header_area);
             header.render(header_area, buf);
             Paragraph::new(vec![
-                Line::from(format!("[â€?{header_height} lines] ctrl + a view all")).dim(),
+                Line::from(format!("[?{header_height} lines] ctrl + a view all")).dim(),
             ])
             .render(elision_area, buf);
         } else {
@@ -1946,7 +1946,7 @@ mod tests {
 
         let rendered = render_lines_with_width(&single_line_view, /*width*/ 36);
         assert!(
-            rendered.contains("â€?),
+            rendered.contains("?),
             "expected single-line rendering to truncate with an ellipsis, got:\n{rendered}"
         );
         assert!(
@@ -2125,7 +2125,7 @@ mod tests {
 
         let rendered = render_lines_with_width(&view, /*width*/ 60);
         assert!(
-            rendered.contains("â€?1. Alpha"),
+            rendered.contains("?1. Alpha"),
             "expected first enabled row to be selected and numbered 1, got:\n{rendered}"
         );
         assert!(

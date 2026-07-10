@@ -21,8 +21,8 @@ use codepilotx_app_server_protocol::SpendControlLimitSnapshot as CoreSpendContro
 use codepilotx_protocol::num_format::format_with_separators;
 
 const STATUS_LIMIT_BAR_SEGMENTS: usize = 20;
-const STATUS_LIMIT_BAR_FILLED: &str = "â–?;
-const STATUS_LIMIT_BAR_EMPTY: &str = "â–?;
+const STATUS_LIMIT_BAR_FILLED: &str = "?;
+const STATUS_LIMIT_BAR_EMPTY: &str = "?;
 
 #[derive(Debug, Clone)]
 pub(crate) struct StatusRateLimitRow {

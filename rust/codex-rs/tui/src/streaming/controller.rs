@@ -58,7 +58,7 @@ use super::table_holdback::TableHoldbackState;
 use super::table_holdback::table_holdback_state;
 
 // ---------------------------------------------------------------------------
-// StreamCore — shared bookkeeping for both stream controllers
+// StreamCore  shared bookkeeping for both stream controllers
 // ---------------------------------------------------------------------------
 
 /// Shared state and logic for the two-region streaming model.
@@ -185,7 +185,7 @@ impl StreamCore {
         step
     }
 
-    // Trivial StreamCore accessors inlined — called on every animation tick
+    // Trivial StreamCore accessors inlined  called on every animation tick
     // and render frame during active streaming.
 
     #[inline]
@@ -490,7 +490,7 @@ impl StreamController {
             return (None, None);
         }
 
-        // Move ownership — source is consumed before reset() clears it.
+        // Move ownership  source is consumed before reset() clears it.
         let source = std::mem::take(&mut self.core.raw_source);
         let out = self.emit(remaining);
         self.core.reset();
@@ -510,7 +510,7 @@ impl StreamController {
         (self.emit(step), self.core.is_idle())
     }
 
-    // Thin StreamController accessors inlined — one-liner delegates called
+    // Thin StreamController accessors inlined  one-liner delegates called
     // on every render frame and animation tick.
 
     #[inline]
@@ -564,7 +564,7 @@ impl StreamController {
     }
 }
 // ---------------------------------------------------------------------------
-// PlanStreamController — proposed plan streams
+// PlanStreamController  proposed plan streams
 // ---------------------------------------------------------------------------
 
 /// Controller that streams proposed plan markdown into a styled plan block.
@@ -604,7 +604,7 @@ impl PlanStreamController {
             return (None, None);
         }
 
-        // Move ownership — source is consumed before reset() clears it.
+        // Move ownership  source is consumed before reset() clears it.
         let source = std::mem::take(&mut self.core.raw_source);
         let out = self.emit(remaining, /*include_bottom_padding*/ true);
         self.core.reset();
@@ -703,7 +703,7 @@ impl PlanStreamController {
         let mut out_lines: Vec<HyperlinkLine> = Vec::with_capacity(/*capacity*/ 4);
         if !self.header_emitted {
             out_lines.push(HyperlinkLine::new(
-                vec!["• ".dim(), "Proposed Plan".bold()].into(),
+                vec![" ".dim(), "Proposed Plan".bold()].into(),
             ));
             out_lines.push(HyperlinkLine::new(Line::from(" ")));
         }
@@ -1015,7 +1015,7 @@ mod tests {
                 .transcript_lines(u16::MAX),
         );
 
-        assert_eq!(rendered, vec!["• tail without newline".to_string()]);
+        assert_eq!(rendered, vec![" tail without newline".to_string()]);
     }
 
     #[test]
@@ -1382,7 +1382,7 @@ mod tests {
         let deltas = chunked.iter().map(String::as_str).collect::<Vec<_>>();
         let streamed = collect_streamed_lines(&deltas, Some(120));
         assert!(
-            streamed.iter().any(|line| line.contains('━')),
+            streamed.iter().any(|line| line.contains('')),
             "expected table separator in streamed output: {streamed:?}"
         );
     }
@@ -1412,7 +1412,7 @@ mod tests {
             "no-outer-pipes header should not remain raw in final streamed output: {streamed:?}"
         );
         assert!(
-            streamed.iter().any(|line| line.contains('━')),
+            streamed.iter().any(|line| line.contains('')),
             "expected table separator in final streamed output: {streamed:?}"
         );
     }
@@ -1437,7 +1437,7 @@ mod tests {
 
         assert_eq!(streamed, expected);
         assert!(
-            streamed.iter().any(|line| line.contains('━')),
+            streamed.iter().any(|line| line.contains('')),
             "expected table separator for no-outer-pipes streaming: {streamed:?}"
         );
         assert!(
@@ -1466,7 +1466,7 @@ mod tests {
 
         assert_eq!(streamed, expected);
         assert!(
-            streamed.iter().any(|line| line.contains('━')),
+            streamed.iter().any(|line| line.contains('')),
             "expected table separator for two-column no-outer table: {streamed:?}"
         );
         assert!(
@@ -1477,7 +1477,7 @@ mod tests {
 
     #[test]
     fn controller_converts_no_outer_table_between_preboxed_sections() {
-        let source = "  ┌───────┬──────────┬────────┐\n  │ Name  │ Role     │ Active │\n  ├───────┼──────────┼────────┤\n  │ Alice │ Engineer │ Yes    │\n  │ Bob   │ Designer │ No     │\n  │ Cara  │ PM       │ Yes    │\n  └───────┴──────────┴────────┘\n\n  ### 3) No outer pipes\n\n  Col A | Col B | Col C\n  --- | --- | ---\n  x | y | z\n  10 | 20 | 30\n\n  ┌─────────────────┬────────┬────────────────────────┐\n  │ Example         │ Output │ Notes                  │\n  ├─────────────────┼────────┼────────────────────────┤\n  │ a | b           │ `a     │ b`                     │\n  │ npm run test    │ ok     │ Inline code formatting │\n  │ SELECT * FROM t │ 3 rows │ SQL snippet            │\n  └─────────────────┴────────┴────────────────────────┘\n";
+        let source = "  \n   Name   Role      Active \n  \n   Alice  Engineer  Yes    \n   Bob    Designer  No     \n   Cara   PM        Yes    \n  \n\n  ### 3) No outer pipes\n\n  Col A | Col B | Col C\n  --- | --- | ---\n  x | y | z\n  10 | 20 | 30\n\n  \n   Example          Output  Notes                  \n  \n   a | b            `a      b`                     \n   npm run test     ok      Inline code formatting \n   SELECT * FROM t  3 rows  SQL snippet            \n  \n";
 
         let deltas = source
             .split_inclusive('\n')
@@ -1521,7 +1521,7 @@ mod tests {
 
         assert_eq!(streamed, expected);
         assert!(
-            streamed.iter().any(|line| line.contains('━')),
+            streamed.iter().any(|line| line.contains('')),
             "expected table separator in streamed output: {streamed:?}"
         );
         assert!(
@@ -1550,7 +1550,7 @@ mod tests {
 
         assert_eq!(streamed, expected);
         assert!(
-            streamed.iter().any(|line| line.contains('━')),
+            streamed.iter().any(|line| line.contains('')),
             "expected table separator in streamed output: {streamed:?}"
         );
         assert!(
@@ -1563,7 +1563,7 @@ mod tests {
 
     #[test]
     fn controller_live_view_matches_render_during_interleaved_table_streaming() {
-        let source = "Project updates are easier to scan when narrative and structured data alternate.\n\n| Focus Area | Owner | Priority | Status |\n|---|---|---|---|\n| Authentication cleanup | Maya | High | 80% |\n| CLI error messages | Jordan | Medium | 55% |\n| Docs refresh | Lee | Low | 30% |\n\nThe first checkpoint shows progress, but we still have open risks.\n\n| Task | Command / Artifact | Due | State |\n|---|---|---|---|\n| Run unit tests | `cargo test -p codex-core` | Today | ✅ |\n| Snapshot review | `cargo insta pending-snapshots -p codex-tui` | Today | ⏳ |\n| Changelog draft | Release template (https://replacechangelog.com/) | Tomorrow | 📝 |\n\nFinal sign-off criteria are summarized below.\n";
+        let source = "Project updates are easier to scan when narrative and structured data alternate.\n\n| Focus Area | Owner | Priority | Status |\n|---|---|---|---|\n| Authentication cleanup | Maya | High | 80% |\n| CLI error messages | Jordan | Medium | 55% |\n| Docs refresh | Lee | Low | 30% |\n\nThe first checkpoint shows progress, but we still have open risks.\n\n| Task | Command / Artifact | Due | State |\n|---|---|---|---|\n| Run unit tests | `cargo test -p codex-core` | Today |  |\n| Snapshot review | `cargo insta pending-snapshots -p codex-tui` | Today |  |\n| Changelog draft | Release template (https://replacechangelog.com/) | Tomorrow |  |\n\nFinal sign-off criteria are summarized below.\n";
         let width = Some(72usize);
         let mut ctrl = stream_controller(width);
         let mut emitted_lines: Vec<Line<'static>> = Vec::new();
@@ -1655,7 +1655,7 @@ mod tests {
         assert!(
             !streamed
                 .iter()
-                .any(|line| line.contains('━') || line.contains('─')),
+                .any(|line| line.contains('') || line.contains('')),
             "did not expect a table separator for non-markdown fence: {streamed:?}"
         );
     }
@@ -1677,7 +1677,7 @@ mod tests {
 
         assert_eq!(streamed, baseline);
         assert!(
-            streamed.iter().any(|line| line.contains('━')),
+            streamed.iter().any(|line| line.contains('')),
             "expected table separators in plan streamed output: {streamed:?}"
         );
         assert!(
@@ -1735,7 +1735,7 @@ mod tests {
 
         assert_eq!(streamed, baseline);
         assert!(
-            streamed.iter().any(|line| line.contains('━')),
+            streamed.iter().any(|line| line.contains('')),
             "expected table separators in fenced plan output: {streamed:?}"
         );
         assert!(

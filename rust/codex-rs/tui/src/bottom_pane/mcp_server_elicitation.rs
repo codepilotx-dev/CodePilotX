@@ -928,7 +928,7 @@ impl McpServerElicitationOverlay {
             .enumerate()
             .map(|(idx, option)| {
                 let prefix = if selected_idx.is_some_and(|selected| selected == idx) {
-                    'â€?
+                    '?
                 } else {
                     ' '
                 };
@@ -1002,7 +1002,7 @@ impl McpServerElicitationOverlay {
         }
         if self.field_count() > 1 {
             if self.current_field_is_select() {
-                tips.push(FooterTip::new("â†?â†?to navigate fields"));
+                tips.push(FooterTip::new("??to navigate fields"));
             } else {
                 tips.push(FooterTip::new("ctrl + p / ctrl + n change field"));
             }

@@ -39,15 +39,15 @@ impl HistoryCell for FinalMessageSeparator {
         }
 
         if label_parts.is_empty() {
-            return vec![Line::from_iter(["─".repeat(width as usize).dim()])];
+            return vec![Line::from_iter(["".repeat(width as usize).dim()])];
         }
 
-        let label = format!("─ {} ─", label_parts.join(" • "));
+        let label = format!(" {} ", label_parts.join("  "));
         let (label, _suffix, label_width) = take_prefix_by_width(&label, width as usize);
         vec![
             Line::from_iter([
                 label,
-                "─".repeat((width as usize).saturating_sub(label_width)),
+                "".repeat((width as usize).saturating_sub(label_width)),
             ])
             .dim(),
         ]
@@ -68,7 +68,7 @@ impl HistoryCell for FinalMessageSeparator {
         if label_parts.is_empty() {
             Vec::new()
         } else {
-            vec![Line::from(label_parts.join(" • "))]
+            vec![Line::from(label_parts.join("  "))]
         }
     }
 }
@@ -153,7 +153,7 @@ pub(crate) fn runtime_metrics_label(summary: RuntimeMetricsSummary) -> Option<St
     if parts.is_empty() {
         None
     } else {
-        Some(parts.join(" • "))
+        Some(parts.join("  "))
     }
 }
 

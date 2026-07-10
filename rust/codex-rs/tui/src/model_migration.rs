@@ -377,7 +377,7 @@ impl ModelMigrationScreen {
 
 // Render the prompt on the terminal's alternate screen so exiting or cancelling
 // does not leave a large blank region in the normal scrollback. This does not
-// change the prompt's appearance â€?only where it is drawn.
+// change the prompt's appearance ?only where it is drawn.
 struct AltScreenGuard<'a> {
     tui: &'a mut Tui,
 }
@@ -556,7 +556,7 @@ mod tests {
             crossterm::event::KeyModifiers::NONE,
         ));
         assert!(screen.is_done());
-        // Esc should not be treated as Exit â€?it accepts like Enter.
+        // Esc should not be treated as Exit ?it accepts like Enter.
         assert!(matches!(
             screen.outcome(),
             super::ModelMigrationOutcome::Accepted

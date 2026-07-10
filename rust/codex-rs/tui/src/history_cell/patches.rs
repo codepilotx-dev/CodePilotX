@@ -21,7 +21,7 @@ impl HistoryCell for PatchHistoryCell {
         ))
     }
 }
-/// Create a new `PendingPatch` cell that lists the file‑level summary of
+/// Create a new `PendingPatch` cell that lists the filelevel summary of
 /// a proposed patch. The summary lines should already be formatted (e.g.
 /// "A path/to/file.rs").
 pub(crate) fn new_patch_event(
@@ -38,7 +38,7 @@ pub(crate) fn new_patch_apply_failure(stderr: String) -> PlainHistoryCell {
     let mut lines: Vec<Line<'static>> = Vec::new();
 
     // Failure title
-    lines.push(Line::from("✘ Failed to apply patch".magenta().bold()));
+    lines.push(Line::from(" Failed to apply patch".magenta().bold()));
 
     if !stderr.trim().is_empty() {
         let output = output_lines(
@@ -64,8 +64,8 @@ pub(crate) fn new_view_image_tool_call(path: AbsolutePathBuf, cwd: &Path) -> Pla
     let display_path = display_path_for(path.as_path(), cwd);
 
     let lines: Vec<Line<'static>> = vec![
-        vec!["• ".dim(), "Viewed Image".bold()].into(),
-        vec!["  └ ".dim(), display_path.dim()].into(),
+        vec![" ".dim(), "Viewed Image".bold()].into(),
+        vec!["   ".dim(), display_path.dim()].into(),
     ];
 
     PlainHistoryCell { lines }
@@ -79,16 +79,16 @@ pub(crate) fn new_image_generation_call(
 ) -> PlainHistoryCell {
     let detail = revised_prompt.unwrap_or(call_id);
     let heading = if status == "failed" {
-        vec!["✗ ".red().bold(), "Image generation failed".bold()].into()
+        vec![" ".red().bold(), "Image generation failed".bold()].into()
     } else {
-        vec!["• ".dim(), "Generated Image:".bold()].into()
+        vec![" ".dim(), "Generated Image:".bold()].into()
     };
-    let mut lines: Vec<Line<'static>> = vec![heading, vec!["  └ ".dim(), detail.dim()].into()];
+    let mut lines: Vec<Line<'static>> = vec![heading, vec!["   ".dim(), detail.dim()].into()];
     if let Some(saved_path) = saved_path {
         let saved_path = Url::from_file_path(saved_path.as_path())
             .map(|url| url.to_string())
             .unwrap_or_else(|_| saved_path.display().to_string());
-        lines.push(vec!["  └ ".dim(), "Saved to: ".dim(), saved_path.into()].into());
+        lines.push(vec!["   ".dim(), "Saved to: ".dim(), saved_path.into()].into());
     }
 
     PlainHistoryCell { lines }

@@ -79,7 +79,7 @@ fn split_unescaped_pipe(content: &str) -> Vec<&str> {
     segments
 }
 
-// Small table-detection helpers inlined for the streaming hot path — they are
+// Small table-detection helpers inlined for the streaming hot path  they are
 // called on every source line during incremental holdback scanning.
 
 /// Whether `line` looks like a table header row (has pipe-separated
@@ -134,7 +134,7 @@ pub(crate) enum FenceKind {
 ///
 /// Feed lines one at a time via [`advance`](Self::advance); query the current
 /// context with [`kind`](Self::kind).  The tracker handles leading-whitespace
-/// limits (>3 spaces → not a fence), blockquote prefix stripping, and
+/// limits (>3 spaces  not a fence), blockquote prefix stripping, and
 /// backtick/tilde marker matching.
 ///
 /// The tracker reports the fence context that applies to the current line
@@ -290,7 +290,7 @@ mod tests {
 
     #[test]
     fn parse_table_segments_escaped_pipe() {
-        // Escaped pipe should NOT split — stays inside the segment.
+        // Escaped pipe should NOT split  stays inside the segment.
         assert_eq!(
             parse_table_segments(r"| A \| B | C |"),
             Some(vec![r"A \| B", "C"])

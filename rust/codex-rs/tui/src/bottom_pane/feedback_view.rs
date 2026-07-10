@@ -270,7 +270,7 @@ pub(crate) fn should_show_feedback_connectivity_details(
 }
 
 fn gutter() -> Span<'static> {
-    "â–?".cyan()
+    "?".cyan()
 }
 
 fn feedback_title_and_placeholder(category: FeedbackCategory) -> (String, String) {
@@ -315,9 +315,9 @@ pub(crate) fn feedback_success_cell(
     feedback_audience: FeedbackAudience,
 ) -> history_cell::WebHyperlinkHistoryCell {
     let prefix = if include_logs {
-        "â€?Feedback uploaded."
+        "?Feedback uploaded."
     } else {
-        "â€?Feedback recorded (no logs)."
+        "?Feedback recorded (no logs)."
     };
     let issue_url = issue_url_for_category(category, thread_id, feedback_audience);
     let mut lines = vec![Line::from(match issue_url.as_ref() {
@@ -414,7 +414,7 @@ pub(crate) fn feedback_selection_params(
             make_feedback_item(
                 app_event_tx.clone(),
                 "good result",
-                "Helpful, correct, highâ€‘quality, or delightful result worth celebrating.",
+                "Helpful, correct, highquality, or delightful result worth celebrating.",
                 FeedbackCategory::GoodResult,
             ),
             make_feedback_item(
@@ -504,9 +504,9 @@ pub(crate) fn feedback_upload_consent_params(
         Line::from("Upload logs?".bold()).into(),
         Line::from("").into(),
         Line::from("The following files will be sent:".dim()).into(),
-        Line::from(vec!["  â€?".into(), "codex-logs.log".into()]).into(),
+        Line::from(vec!["  ?".into(), "codex-logs.log".into()]).into(),
         Line::from(vec![
-            "  â€?".into(),
+            "  ?".into(),
             DOCTOR_REPORT_ATTACHMENT_FILENAME.into(),
         ])
         .into(),
@@ -514,7 +514,7 @@ pub(crate) fn feedback_upload_consent_params(
     if include_windows_sandbox_log {
         header_lines.push(
             Line::from(vec![
-                "  â€?".into(),
+                "  ?".into(),
                 WINDOWS_SANDBOX_LOG_ATTACHMENT_FILENAME.into(),
             ])
             .into(),
@@ -523,15 +523,15 @@ pub(crate) fn feedback_upload_consent_params(
     if let Some(path) = rollout_path.as_deref()
         && let Some(name) = path.file_name().map(|s| s.to_string_lossy().to_string())
     {
-        header_lines.push(Line::from(vec!["  â€?".into(), name.into()]).into());
+        header_lines.push(Line::from(vec!["  ?".into(), name.into()]).into());
     }
     if let Some(filename) = auto_review_rollout_filename {
-        header_lines.push(Line::from(vec!["  â€?".into(), filename.into()]).into());
+        header_lines.push(Line::from(vec!["  ?".into(), filename.into()]).into());
     }
     if !feedback_diagnostics.is_empty() {
         header_lines.push(
             Line::from(vec![
-                "  â€?".into(),
+                "  ?".into(),
                 FEEDBACK_DIAGNOSTICS_ATTACHMENT_FILENAME.into(),
             ])
             .into(),
@@ -872,7 +872,7 @@ mod tests {
         );
         assert_eq!(
             rendered,
-            "â€?Feedback uploaded. Please open an issue using the following URL:\n\n  https://github.com/openai/codex/issues/new?template=3-cli.yml&steps=Uploaded%20thread:%20thread-1\n\n  Or mention your thread ID thread-1 in an existing issue."
+            "?Feedback uploaded. Please open an issue using the following URL:\n\n  https://github.com/openai/codex/issues/new?template=3-cli.yml&steps=Uploaded%20thread:%20thread-1\n\n  Or mention your thread ID thread-1 in an existing issue."
         );
     }
 
@@ -889,7 +889,7 @@ mod tests {
         );
         assert_eq!(
             rendered,
-            "â€?Feedback uploaded. Please report this in #codex-feedback:\n\n  http://go/codex-feedback-internal\n\n  Share this and add some info about your problem:\n    https://go/codex-feedback/thread-2"
+            "?Feedback uploaded. Please report this in #codex-feedback:\n\n  http://go/codex-feedback-internal\n\n  Share this and add some info about your problem:\n    https://go/codex-feedback/thread-2"
         );
     }
 
@@ -906,7 +906,7 @@ mod tests {
         );
         assert_eq!(
             rendered,
-            "â€?Feedback recorded (no logs). Thanks for the feedback!\n\n  Thread ID: thread-3"
+            "?Feedback recorded (no logs). Thanks for the feedback!\n\n  Thread ID: thread-3"
         );
     }
 

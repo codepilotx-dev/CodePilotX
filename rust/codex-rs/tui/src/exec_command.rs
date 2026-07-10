@@ -41,7 +41,7 @@ where
 {
     let path = path.as_ref();
     if !path.is_absolute() {
-        // If the path is not absolute, we can’t do anything with it.
+        // If the path is not absolute, we cant do anything with it.
         return None;
     }
 

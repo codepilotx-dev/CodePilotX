@@ -2377,7 +2377,7 @@ mod tests {
         pane.render(area, &mut buf);
 
         let bufs = snapshot_buffer(&buf);
-        assert!(bufs.contains("â€?Working"), "expected Working header");
+        assert!(bufs.contains("?Working"), "expected Working header");
     }
 
     #[test]
@@ -2460,7 +2460,7 @@ mod tests {
 
         let area = Rect::new(0, 0, width, after);
         let rendered = render_snapshot(&pane, area);
-        assert!(rendered.contains("background terminal running Â· /ps to view"));
+        assert!(rendered.contains("background terminal running  /ps to view"));
     }
 
     #[test]

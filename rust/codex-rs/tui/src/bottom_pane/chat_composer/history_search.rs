@@ -360,7 +360,7 @@ impl ChatComposer {
                 line.push_span("  ".dim());
                 line.push_span(Self::history_search_action_key_span(KeyCode::Enter));
                 line.push_span(" accept".dim());
-                line.push_span(" · ".dim());
+                line.push_span("  ".dim());
                 line.push_span(Self::history_search_action_key_span(KeyCode::Esc));
                 line.push_span(" cancel".dim());
             }
@@ -531,7 +531,7 @@ mod tests {
             vec![0..3, 11..14]
         );
         assert_eq!(
-            ChatComposer::case_insensitive_match_ranges("aİ i", "i"),
+            ChatComposer::case_insensitive_match_ranges("a i", "i"),
             vec![1..3, 4..5]
         );
         assert!(ChatComposer::case_insensitive_match_ranges("git", "").is_empty());
@@ -688,7 +688,7 @@ mod tests {
                 "  ",
                 "enter",
                 " accept",
-                " · ",
+                "  ",
                 "esc",
                 " cancel"
             ]

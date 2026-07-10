@@ -394,7 +394,7 @@ async fn completed_plan_table_tail_skips_provisional_history_insert() {
 
     assert!(saw_source_backed_plan, "expected source-backed plan insert");
     assert!(
-        rendered_plan.contains('鈹?),
+        rendered_plan.contains('?),
         "expected completed plan table to render with separators, got: {rendered_plan:?}"
     );
     assert!(
@@ -2322,7 +2322,7 @@ async fn status_line_model_with_reasoning_includes_fast_for_fast_capable_models(
 
     assert_eq!(
         status_line_text(&chat),
-        Some(format!("gpt-5.4 xhigh fast 路 Context 0% used 路 {test_cwd}"))
+        Some(format!("gpt-5.4 xhigh fast  Context 0% used  {test_cwd}"))
     );
 
     chat.set_model("gpt-5.3-codex");
@@ -2331,7 +2331,7 @@ async fn status_line_model_with_reasoning_includes_fast_for_fast_capable_models(
     assert_eq!(
         status_line_text(&chat),
         Some(format!(
-            "gpt-5.3-codex xhigh 路 Context 0% used 路 {test_cwd}"
+            "gpt-5.3-codex xhigh  Context 0% used  {test_cwd}"
         ))
     );
 }
@@ -3650,7 +3650,7 @@ async fn chatwidget_exec_and_status_layout_vt100_snapshot() {
     complete_assistant_message(
         &mut chat,
         "msg-search",
-        "I鈥檓 going to search the repo for where 鈥淐hange Approved鈥?is rendered to update that view.",
+        "Im going to search the repo for where Change Approved?is rendered to update that view.",
         /*phase*/ None,
     );
 

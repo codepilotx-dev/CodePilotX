@@ -81,7 +81,7 @@ impl PendingGuardianReviewStatus {
                 .entries
                 .iter()
                 .take(3)
-                .map(|entry| format!("• {}", entry.detail))
+                .map(|entry| format!(" {}", entry.detail))
                 .collect::<Vec<_>>();
             let remaining = self.entries.len().saturating_sub(3);
             if remaining > 0 {
@@ -157,7 +157,7 @@ mod tests {
             state.status_indicator_state(),
             Some(StatusIndicatorState {
                 header: "Reviewing 2 approval requests".to_string(),
-                details: Some("• first\n• second".to_string()),
+                details: Some(" first\n second".to_string()),
                 details_max_lines: 4,
             })
         );

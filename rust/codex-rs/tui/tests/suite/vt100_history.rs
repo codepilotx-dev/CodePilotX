@@ -92,7 +92,7 @@ fn emoji_and_cjk() {
     );
     let mut scenario = TestScenario::new(/*width*/ 20, /*height*/ 6, area);
 
-    let text = String::from("😀😀😀😀😀 你好世界");
+    let text = String::from(" ");
     let lines = vec![text.clone().into()];
     scenario.run_insert(lines);
     let rows = scenario.term.backend().vt100().screen().contents();
@@ -137,7 +137,7 @@ fn word_wrap_no_mid_word_split() {
     );
     let mut scenario = TestScenario::new(/*width*/ 40, /*height*/ 10, area);
 
-    let sample = "Years passed, and Willowmere thrived in peace and friendship. Mira’s herb garden flourished with both ordinary and enchanted plants, and travelers spoke of the kindness of the woman who tended them.";
+    let sample = "Years passed, and Willowmere thrived in peace and friendship. Miras herb garden flourished with both ordinary and enchanted plants, and travelers spoke of the kindness of the woman who tended them.";
     scenario.run_insert(vec![sample.into()]);
     let joined = scenario.term.backend().vt100().screen().contents();
     assert!(
@@ -154,7 +154,7 @@ fn em_dash_and_space_word_wrap() {
     );
     let mut scenario = TestScenario::new(/*width*/ 40, /*height*/ 10, area);
 
-    let sample = "Mara found an old key on the shore. Curious, she opened a tarnished box half-buried in sand—and inside lay a single, glowing seed.";
+    let sample = "Mara found an old key on the shore. Curious, she opened a tarnished box half-buried in sandand inside lay a single, glowing seed.";
     scenario.run_insert(vec![sample.into()]);
     let joined = scenario.term.backend().vt100().screen().contents();
     assert!(

@@ -261,7 +261,7 @@ impl ChatWidget {
     fn connector_brief_description(connector: &AppInfo) -> String {
         let status_label = Self::connector_status_label(connector);
         match Self::connector_description(connector) {
-            Some(description) => format!("{status_label} · {description}"),
+            Some(description) => format!("{status_label}  {description}"),
             None => status_label.to_string(),
         }
     }
@@ -271,7 +271,7 @@ impl ChatWidget {
             if connector.is_enabled {
                 "Installed"
             } else {
-                "Installed · Disabled"
+                "Installed  Disabled"
             }
         } else {
             "Can be installed"

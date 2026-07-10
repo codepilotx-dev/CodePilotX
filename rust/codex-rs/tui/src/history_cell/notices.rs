@@ -35,7 +35,7 @@ impl HistoryCell for UpdateAvailableHistoryCell {
 
         let content = text![
             line![
-                padded_emoji("âœ?).bold().cyan(),
+                padded_emoji("?).bold().cyan(),
                 "Update available!".bold().cyan(),
                 " ",
                 format!("{codepilotx_CLI_VERSION} -> {}", self.latest_version).bold(),
@@ -82,7 +82,7 @@ impl HistoryCell for UpdateAvailableHistoryCell {
 }
 #[allow(clippy::disallowed_methods)]
 pub(crate) fn new_warning_event(message: String) -> PrefixedWrappedHistoryCell {
-    PrefixedWrappedHistoryCell::new(message.yellow(), "âš?".yellow(), "  ")
+    PrefixedWrappedHistoryCell::new(message.yellow(), "?".yellow(), "  ")
 }
 
 const TRUSTED_ACCESS_FOR_CYBER_URL: &str = "https://chatgpt.com/cyber";
@@ -99,7 +99,7 @@ impl HistoryCell for CyberPolicyNoticeCell {
         let mut lines: Vec<Line<'static>> = Vec::new();
         lines.push(
             vec![
-                "â“?".cyan(),
+                "?".cyan(),
                 "This chat was flagged for possible cybersecurity risk".bold(),
             ]
             .into(),
@@ -163,7 +163,7 @@ pub(crate) fn new_deprecation_notice(
 impl HistoryCell for DeprecationNoticeCell {
     fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
         let mut lines: Vec<Line<'static>> = Vec::new();
-        lines.push(vec!["âš?".red().bold(), self.summary.clone().red()].into());
+        lines.push(vec!["?".red().bold(), self.summary.clone().red()].into());
 
         let wrap_width = width.saturating_sub(4).max(1) as usize;
 
@@ -185,7 +185,7 @@ impl HistoryCell for DeprecationNoticeCell {
     }
 }
 pub(crate) fn new_info_event(message: String, hint: Option<String>) -> PlainHistoryCell {
-    let mut line = vec!["â€?".dim(), message.into()];
+    let mut line = vec!["?".dim(), message.into()];
     if let Some(hint) = hint {
         line.push(" ".into());
         line.push(hint.dark_gray());
@@ -198,6 +198,6 @@ pub(crate) fn new_error_event(message: String) -> PlainHistoryCell {
     // Use a hair space (U+200A) to create a subtle, near-invisible separation
     // before the text. VS16 is intentionally omitted to keep spacing tighter
     // in terminals like Ghostty.
-    let lines: Vec<Line<'static>> = vec![vec![format!("â–?{message}").red()].into()];
+    let lines: Vec<Line<'static>> = vec![vec![format!("?{message}").red()].into()];
     PlainHistoryCell { lines }
 }

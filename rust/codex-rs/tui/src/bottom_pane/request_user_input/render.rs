@@ -266,7 +266,7 @@ impl RequestUserInputOverlay {
         let progress_line = if let Some(countdown) = self.auto_resolution_countdown_text_at(now) {
             Line::from(vec![
                 self.progress_prefix_text().dim(),
-                " · ".dim(),
+                "  ".dim(),
                 countdown.red(),
             ])
         } else {
@@ -488,7 +488,7 @@ fn truncate_line_word_boundary_with_ellipsis(
         return line;
     }
 
-    let ellipsis = "…";
+    let ellipsis = "";
     let ellipsis_width = UnicodeWidthStr::width(ellipsis);
     if ellipsis_width >= max_width {
         return Line::from(ellipsis);

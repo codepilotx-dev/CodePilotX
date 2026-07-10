@@ -586,7 +586,7 @@ fn diff_buffers(a: &Buffer, b: &Buffer) -> Vec<DrawCommand> {
         let bg = row.last().map(|cell| cell.bg).unwrap_or(Color::Reset);
 
         // Scan the row to find the rightmost column that still matters: any non-space glyph,
-        // any cell whose bg differs from the row’s trailing bg, or any cell with modifiers.
+        // any cell whose bg differs from the rows trailing bg, or any cell with modifiers.
         // Multi-width glyphs extend that region through their full displayed width.
         // After that point the rest of the row can be cleared with a single ClearToEnd, a perf win
         // versus emitting multiple space Put commands.
@@ -906,8 +906,8 @@ mod tests {
         let mut previous = Buffer::empty(area);
         let mut next = Buffer::empty(area);
 
-        previous.set_string(0, 0, "中文", Style::default());
-        next.set_string(0, 0, "中", Style::default());
+        previous.set_string(0, 0, "", Style::default());
+        next.set_string(0, 0, "", Style::default());
 
         let commands = diff_buffers(&previous, &next);
         assert!(

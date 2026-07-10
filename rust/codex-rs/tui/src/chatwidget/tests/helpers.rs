@@ -55,7 +55,7 @@ pub(super) fn normalize_snapshot_paths(text: impl Into<String>) -> String {
                 .chars()
                 .take(platform_prefix.chars().count())
                 .collect();
-            text = text.replace(&format!("{platform_prefix}â€?), &format!("{unix_prefix}â€?));
+            text = text.replace(&format!("{platform_prefix}?), &format!("{unix_prefix}?));
         }
 
         text

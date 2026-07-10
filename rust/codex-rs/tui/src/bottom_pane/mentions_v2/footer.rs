@@ -42,9 +42,9 @@ pub(super) fn render_footer(area: Rect, buf: &mut Buffer, search_mode: SearchMod
 fn footer_hint_line() -> Line<'static> {
     Line::from(vec![
         key_hint::plain(KeyCode::Enter).into(),
-        " insert · ".dim(),
+        " insert  ".dim(),
         key_hint::plain(KeyCode::Esc).into(),
-        " close · ".dim(),
+        " close  ".dim(),
         key_hint::plain(KeyCode::Left).into(),
         "/".dim(),
         key_hint::plain(KeyCode::Right).into(),

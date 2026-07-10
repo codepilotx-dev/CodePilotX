@@ -825,7 +825,7 @@ async fn goal_control_slash_command_without_thread_shows_full_usage() {
     assert_eq!(cells.len(), 1, "expected goal usage message");
     insta::assert_snapshot!(
         lines_to_single_string(&cells[0]),
-        @"â€?Usage: /goal [<objective>|clear|edit|pause|resume] The session must start before you can change a goal."
+        @"?Usage: /goal [<objective>|clear|edit|pause|resume] The session must start before you can change a goal."
     );
 }
 
@@ -2523,7 +2523,7 @@ async fn slash_pets_on_unsupported_terminal_shows_terminal_warning() {
         .map(|lines| lines_to_single_string(lines))
         .collect::<Vec<_>>()
         .join("\n");
-    assert!(rendered.contains("Pets arenâ€™t available in this terminal."));
+    assert!(rendered.contains("Pets arent available in this terminal."));
     assert!(rendered.contains("Kitty graphics or Sixel support"));
 }
 

@@ -296,7 +296,7 @@ fn proposed_plan_cell_renders_markdown_table() {
     let rendered = render_lines(&plan.display_lines(/*width*/ 80));
 
     assert!(
-        rendered.iter().any(|line| line.contains('â”?)),
+        rendered.iter().any(|line| line.contains('?)),
         "expected separated table in proposed plan output: {rendered:?}"
     );
     assert!(
@@ -365,7 +365,7 @@ fn proposed_plan_cell_unwraps_markdown_fenced_table() {
     let rendered = render_lines(&plan.display_lines(/*width*/ 80));
 
     assert!(
-        rendered.iter().any(|line| line.contains('â”?)),
+        rendered.iter().any(|line| line.contains('?)),
         "expected separated table for markdown-fenced proposed plan output: {rendered:?}"
     );
     assert!(
@@ -469,7 +469,7 @@ fn raw_mode_toggle_transcript_snapshot() {
 fn image_generation_call_renders_saved_path() {
     let saved_path = test_path_buf("/tmp/generated-image.png").abs();
     let expected_saved_path = format!(
-        "  â”?Saved to: {}",
+        "  ?Saved to: {}",
         Url::from_file_path(saved_path.as_path()).expect("test path should convert to file URL")
     );
     let cell = new_image_generation_call(
@@ -482,8 +482,8 @@ fn image_generation_call_renders_saved_path() {
     assert_eq!(
         render_lines(&cell.display_lines(/*width*/ 80)),
         vec![
-            "â€?Generated Image:".to_string(),
-            "  â”?A tiny blue square".to_string(),
+            "?Generated Image:".to_string(),
+            "  ?A tiny blue square".to_string(),
             expected_saved_path,
         ],
     );
@@ -521,8 +521,8 @@ fn unified_exec_interaction_cell_renders_input() {
     assert_eq!(
         lines,
         vec![
-            "â†?Interacted with background terminal Â· echo hello",
-            "  â”?ls",
+            "?Interacted with background terminal  echo hello",
+            "  ?ls",
             "    pwd",
         ],
     );
@@ -532,7 +532,7 @@ fn unified_exec_interaction_cell_renders_input() {
 fn unified_exec_interaction_cell_renders_wait() {
     let cell = new_unified_exec_interaction(/*command_display*/ None, String::new());
     let lines = render_transcript(&cell);
-    assert_eq!(lines, vec!["â€?Waited for background terminal"]);
+    assert_eq!(lines, vec!["?Waited for background terminal"]);
 }
 
 #[test]
@@ -950,12 +950,12 @@ fn prefixed_wrapped_history_cell_indents_wrapped_lines() {
         "echo something really long to ensure wrapping happens".dim(),
         " this time".bold(),
     ]);
-    let cell = PrefixedWrappedHistoryCell::new(summary, "âœ?".green(), "  ");
+    let cell = PrefixedWrappedHistoryCell::new(summary, "?".green(), "  ");
     let rendered = render_lines(&cell.display_lines(/*width*/ 24));
     assert_eq!(
         rendered,
         vec![
-            "âœ?You approved codex to".to_string(),
+            "?You approved codex to".to_string(),
             "  run echo something".to_string(),
             "  really long to ensure".to_string(),
             "  wrapping happens this".to_string(),
@@ -967,7 +967,7 @@ fn prefixed_wrapped_history_cell_indents_wrapped_lines() {
 #[test]
 fn prefixed_wrapped_history_cell_does_not_split_url_like_token() {
     let url_like = "example.test/api/v1/projects/alpha-team/releases/2026-02-17/builds/1234567890";
-    let cell = PrefixedWrappedHistoryCell::new(Line::from(url_like), "âœ?".green(), "  ");
+    let cell = PrefixedWrappedHistoryCell::new(Line::from(url_like), "?".green(), "  ");
     let rendered = render_lines(&cell.display_lines(/*width*/ 24));
 
     assert_eq!(
@@ -1001,7 +1001,7 @@ fn prefixed_wrapped_history_cell_height_matches_wrapped_rendering() {
     let url_like = "example.test/api/v1/projects/alpha-team/releases/2026-02-17/builds/1234567890/artifacts/reports/performance/summary/detail/with/a/very/long/path";
     let cell: Box<dyn HistoryCell> = Box::new(PrefixedWrappedHistoryCell::new(
         Line::from(url_like),
-        "âœ?".green(),
+        "?".green(),
         "  ",
     ));
 
@@ -1028,7 +1028,7 @@ fn prefixed_wrapped_history_cell_height_matches_wrapped_rendering() {
         })
         .collect::<String>();
     assert!(
-        first_row.contains("âœ?),
+        first_row.contains("?),
         "expected first rendered row to keep the prefix visible, got: {first_row:?}"
     );
 }
@@ -1127,7 +1127,7 @@ fn web_search_history_cell_wraps_with_indented_continuation() {
     assert_eq!(
         rendered,
         vec![
-            "â€?Searched the web for example search query with several generic".to_string(),
+            "?Searched the web for example search query with several generic".to_string(),
             "  words to exercise wrapping".to_string(),
         ]
     );
@@ -1148,7 +1148,7 @@ fn web_search_history_cell_short_query_does_not_wrap() {
 
     assert_eq!(
         rendered,
-        vec!["â€?Searched the web for short query".to_string()]
+        vec!["?Searched the web for short query".to_string()]
     );
 }
 
@@ -1204,7 +1204,7 @@ fn mcp_inventory_loading_without_animations_is_stable() {
     let second = render_lines(&cell.display_lines(/*width*/ 80));
 
     assert_eq!(first, second);
-    assert_eq!(first, vec!["â€?Loading MCP inventoryâ€?.to_string()]);
+    assert_eq!(first, vec!["?Loading MCP inventory?.to_string()]);
 }
 
 #[test]
@@ -1567,7 +1567,7 @@ fn session_header_directory_center_truncates() {
 
     let formatted = SessionHeaderHistoryCell::format_directory_inner(&dir, Some(24));
     let sep = std::path::MAIN_SEPARATOR;
-    let expected = format!("~{sep}hello{sep}the{sep}â€¦{sep}very{sep}fast");
+    let expected = format!("~{sep}hello{sep}the{sep}{sep}very{sep}fast");
     assert_eq!(formatted, expected);
 }
 
@@ -1578,7 +1578,7 @@ fn session_header_directory_front_truncates_long_segment() {
 
     let formatted = SessionHeaderHistoryCell::format_directory_inner(&dir, Some(18));
     let sep = std::path::MAIN_SEPARATOR;
-    let expected = format!("~{sep}â€¦cexpialidocious");
+    let expected = format!("~{sep}cexpialidocious");
     assert_eq!(formatted, expected);
 }
 
@@ -1615,7 +1615,7 @@ fn coalesces_sequential_reads_within_one_call() {
         },
         /*animations_enabled*/ true,
     );
-    // Mark call complete so markers are âœ?    cell.complete_call(&call_id, CommandOutput::default(), Duration::from_millis(1));
+    // Mark call complete so markers are ?    cell.complete_call(&call_id, CommandOutput::default(), Duration::from_millis(1));
 
     let lines = cell.display_lines(/*width*/ 80);
     let rendered = render_lines(&lines).join("\n");
@@ -1942,7 +1942,7 @@ fn user_history_cell_wraps_and_prefixes_each_line_snapshot() {
         remote_image_urls: Vec::new(),
     };
 
-    // Small width to force wrapping more clearly. Effective wrap width is width-2 due to the â–?prefix and trailing space.
+    // Small width to force wrapping more clearly. Effective wrap width is width-2 due to the ?prefix and trailing space.
     let width: u16 = 12;
     let lines = cell.display_lines(width);
     let rendered = render_lines(&lines).join("\n");
@@ -2118,7 +2118,7 @@ fn plan_update_with_note_and_wrapping_snapshot() {
     // Long explanation forces wrapping; include long step text to verify step wrapping and alignment.
     let update = UpdatePlanArgs {
             explanation: Some(
-                "Iâ€™ll update Grafana call error handling by adding retries and clearer messages when the backend is unreachable."
+                "Ill update Grafana call error handling by adding retries and clearer messages when the backend is unreachable."
                     .to_string(),
             ),
             plan: vec![
@@ -2127,7 +2127,7 @@ fn plan_update_with_note_and_wrapping_snapshot() {
                     status: StepStatus::Completed,
                 },
                 PlanItemArg {
-                    step: "Harden Grafana client error handling with retry/backoff and userâ€‘friendly messages".into(),
+                    step: "Harden Grafana client error handling with retry/backoff and userfriendly messages".into(),
                     status: StepStatus::InProgress,
                 },
                 PlanItemArg {
@@ -2209,10 +2209,10 @@ fn reasoning_summary_block() {
     );
 
     let rendered_display = render_lines(&cell.display_lines(/*width*/ 80));
-    assert_eq!(rendered_display, vec!["â€?Detailed reasoning goes here."]);
+    assert_eq!(rendered_display, vec!["?Detailed reasoning goes here."]);
 
     let rendered_transcript = render_transcript(cell.as_ref());
-    assert_eq!(rendered_transcript, vec!["â€?Detailed reasoning goes here."]);
+    assert_eq!(rendered_transcript, vec!["?Detailed reasoning goes here."]);
 }
 
 #[test]
@@ -2255,7 +2255,7 @@ fn reasoning_summary_height_matches_wrapped_rendering_for_url_like_content() {
         })
         .collect::<String>();
     assert!(
-        first_row.contains("â€?),
+        first_row.contains("?),
         "expected first rendered row to keep summary bullet visible, got: {first_row:?}"
     );
 }
@@ -2266,7 +2266,7 @@ fn reasoning_summary_block_returns_reasoning_cell_when_feature_disabled() {
         new_reasoning_summary_block("Detailed reasoning goes here.".to_string(), &test_cwd());
 
     let rendered = render_transcript(cell.as_ref());
-    assert_eq!(rendered, vec!["â€?Detailed reasoning goes here."]);
+    assert_eq!(rendered, vec!["?Detailed reasoning goes here."]);
 }
 
 #[tokio::test]
@@ -2280,7 +2280,7 @@ async fn reasoning_summary_block_respects_config_overrides() {
     );
 
     let rendered_display = render_lines(&cell.display_lines(/*width*/ 80));
-    assert_eq!(rendered_display, vec!["â€?Detailed reasoning goes here."]);
+    assert_eq!(rendered_display, vec!["?Detailed reasoning goes here."]);
 }
 
 #[test]
@@ -2291,7 +2291,7 @@ fn reasoning_summary_block_falls_back_when_header_is_missing() {
     );
 
     let rendered = render_transcript(cell.as_ref());
-    assert_eq!(rendered, vec!["â€?**High level reasoning without closing"]);
+    assert_eq!(rendered, vec!["?**High level reasoning without closing"]);
 }
 
 #[test]
@@ -2302,7 +2302,7 @@ fn reasoning_summary_block_falls_back_when_summary_is_missing() {
     );
 
     let rendered = render_transcript(cell.as_ref());
-    assert_eq!(rendered, vec!["â€?High level reasoning without closing"]);
+    assert_eq!(rendered, vec!["?High level reasoning without closing"]);
 
     let cell = new_reasoning_summary_block(
         "**High level reasoning without closing**\n\n  ".to_string(),
@@ -2310,7 +2310,7 @@ fn reasoning_summary_block_falls_back_when_summary_is_missing() {
     );
 
     let rendered = render_transcript(cell.as_ref());
-    assert_eq!(rendered, vec!["â€?High level reasoning without closing"]);
+    assert_eq!(rendered, vec!["?High level reasoning without closing"]);
 }
 
 #[test]
@@ -2321,10 +2321,10 @@ fn reasoning_summary_block_splits_header_and_summary_when_present() {
     );
 
     let rendered_display = render_lines(&cell.display_lines(/*width*/ 80));
-    assert_eq!(rendered_display, vec!["â€?We should fix the bug next."]);
+    assert_eq!(rendered_display, vec!["?We should fix the bug next."]);
 
     let rendered_transcript = render_transcript(cell.as_ref());
-    assert_eq!(rendered_transcript, vec!["â€?We should fix the bug next."]);
+    assert_eq!(rendered_transcript, vec!["?We should fix the bug next."]);
 }
 
 #[test]
@@ -2338,7 +2338,7 @@ fn deprecation_notice_renders_summary_with_details() {
     assert_eq!(
         rendered,
         vec![
-            "âš?Feature flag `foo`".to_string(),
+            "?Feature flag `foo`".to_string(),
             "Use flag `bar` instead.".to_string(),
         ]
     );
@@ -2352,7 +2352,7 @@ fn agent_markdown_cell_renders_source_at_different_widths() {
 
     let lines_80 = render_lines(&cell.display_lines(/*width*/ 80));
     assert!(
-        lines_80.first().is_some_and(|line| line.starts_with("â€?")),
+        lines_80.first().is_some_and(|line| line.starts_with("?")),
         "first line should start with bullet prefix: {:?}",
         lines_80[0]
     );
@@ -2410,7 +2410,7 @@ fn agent_markdown_cell_narrow_width_shows_prefix_only() {
     let cell = AgentMarkdownCell::new(source.to_string(), &test_cwd());
 
     let lines = render_lines(&cell.display_lines(/*width*/ 2));
-    assert_eq!(lines, vec!["â€?".to_string()]);
+    assert_eq!(lines, vec!["?".to_string()]);
 }
 
 #[test]

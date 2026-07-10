@@ -121,14 +121,14 @@ impl HistoryCell for McpToolCallCell {
         let mut lines: Vec<Line<'static>> = Vec::new();
         let status = self.success();
         let bullet = match status {
-            Some(true) => "â€?.green().bold(),
-            Some(false) => "â€?.red().bold(),
+            Some(true) => "?.green().bold(),
+            Some(false) => "?.red().bold(),
             None => activity_indicator(
                 Some(self.start_time),
                 MotionMode::from_animations_enabled(self.animations_enabled),
                 ReducedMotionIndicator::StaticBullet,
             )
-            .unwrap_or_else(|| "â€?.dim()),
+            .unwrap_or_else(|| "?.dim()),
         };
         let header_text = if status.is_some() {
             "Called"
@@ -156,11 +156,11 @@ impl HistoryCell for McpToolCallCell {
                 .subsequent_indent("    ".into());
             let wrapped = adaptive_wrap_line(&invocation_line, opts);
             let body_lines: Vec<Line<'static>> = wrapped.iter().map(line_to_static).collect();
-            lines.extend(prefix_lines(body_lines, "  â”?".dim(), "    ".into()));
+            lines.extend(prefix_lines(body_lines, "  ?".dim(), "    ".into()));
         }
 
         let mut detail_lines: Vec<Line<'static>> = Vec::new();
-        // Reserve four columns for the tree prefix ("  â”?"/"    ") and ensure the wrapper still has at least one cell to work with.
+        // Reserve four columns for the tree prefix ("  ?"/"    ") and ensure the wrapper still has at least one cell to work with.
         let detail_wrap_width = (width as usize).saturating_sub(4).max(1);
 
         if let Some(result) = &self.result {
@@ -202,7 +202,7 @@ impl HistoryCell for McpToolCallCell {
 
         if !detail_lines.is_empty() {
             let initial_prefix: Span<'static> = if inline_invocation {
-                "  â”?".dim()
+                "  ?".dim()
             } else {
                 "    ".into()
             };
@@ -256,8 +256,8 @@ pub(crate) fn new_active_mcp_tool_call(
 /// Returns an additional history cell if an MCP tool result includes a decodable image.
 ///
 /// This intentionally returns at most one cell: the first image in `CallToolResult.content` that
-/// successfully base64-decodes and parses as an image. This is used as a lightweight â€œimage output
-/// existsâ€?affordance separate from the main MCP tool call cell.
+/// successfully base64-decodes and parses as an image. This is used as a lightweight image output
+/// exists?affordance separate from the main MCP tool call cell.
 ///
 /// Manual testing tip:
 /// - Run the rmcp stdio test server (`codex-rs/rmcp-client/src/bin/test_stdio_server.rs`) and
@@ -320,9 +320,9 @@ pub(crate) fn empty_mcp_output() -> PlainHistoryCell {
     let lines: Vec<Line<'static>> = vec![
         "/mcp".magenta().into(),
         "".into(),
-        vec!["ðŸ”Œ  ".into(), "MCP Tools".bold()].into(),
+        vec!["  ".into(), "MCP Tools".bold()].into(),
         "".into(),
-        "  â€?No MCP servers configured.".italic().into(),
+        "  ?No MCP servers configured.".italic().into(),
         Line::from(vec![
             "    See the ".into(),
             crate::terminal_hyperlinks::osc8_hyperlink(
@@ -350,12 +350,12 @@ pub(crate) fn new_mcp_tools_output(
     let mut lines: Vec<Line<'static>> = vec![
         "/mcp".magenta().into(),
         "".into(),
-        vec!["ðŸ”Œ  ".into(), "MCP Tools".bold()].into(),
+        vec!["  ".into(), "MCP Tools".bold()].into(),
         "".into(),
     ];
 
     if tools.is_empty() {
-        lines.push("  â€?No MCP tools available.".italic().into());
+        lines.push("  ?No MCP tools available.".italic().into());
         lines.push("".into());
     }
 
@@ -376,22 +376,22 @@ pub(crate) fn new_mcp_tools_output(
             .get(server.as_str())
             .copied()
             .unwrap_or(McpAuthStatus::Unsupported);
-        let mut header: Vec<Span<'static>> = vec!["  â€?".into(), server.clone().into()];
+        let mut header: Vec<Span<'static>> = vec!["  ?".into(), server.clone().into()];
         if !cfg.enabled {
             header.push(" ".into());
             header.push("(disabled)".red());
             lines.push(header.into());
             if let Some(reason) = cfg.disabled_reason.as_ref().map(ToString::to_string) {
-                lines.push(vec!["    â€?Reason: ".into(), reason.dim()].into());
+                lines.push(vec!["    ?Reason: ".into(), reason.dim()].into());
             }
             lines.push(Line::from(""));
             continue;
         }
         lines.push(header.into());
-        lines.push(vec!["    â€?Status: ".into(), "enabled".green()].into());
+        lines.push(vec!["    ?Status: ".into(), "enabled".green()].into());
         lines.push(
             vec![
-                "    â€?Auth: ".into(),
+                "    ?Auth: ".into(),
                 mcp_auth_status_label(auth_status).into(),
             ]
             .into(),
@@ -411,15 +411,15 @@ pub(crate) fn new_mcp_tools_output(
                     format!(" {}", args.join(" "))
                 };
                 let cmd_display = format!("{command}{args_suffix}");
-                lines.push(vec!["    â€?Command: ".into(), cmd_display.into()].into());
+                lines.push(vec!["    ?Command: ".into(), cmd_display.into()].into());
 
                 if let Some(cwd) = cwd.as_ref() {
-                    lines.push(vec!["    â€?Cwd: ".into(), cwd.display().to_string().into()].into());
+                    lines.push(vec!["    ?Cwd: ".into(), cwd.display().to_string().into()].into());
                 }
 
                 let env_display = format_env_display(env.as_ref(), env_vars);
                 if env_display != "-" {
-                    lines.push(vec!["    â€?Env: ".into(), env_display.into()].into());
+                    lines.push(vec!["    ?Env: ".into(), env_display.into()].into());
                 }
             }
             McpServerTransportConfig::StreamableHttp {
@@ -428,7 +428,7 @@ pub(crate) fn new_mcp_tools_output(
                 env_http_headers,
                 ..
             } => {
-                lines.push(vec!["    â€?URL: ".into(), url.clone().into()].into());
+                lines.push(vec!["    ?URL: ".into(), url.clone().into()].into());
                 if let Some(headers) = http_headers.as_ref()
                     && !headers.is_empty()
                 {
@@ -439,7 +439,7 @@ pub(crate) fn new_mcp_tools_output(
                         .map(|(name, _)| format!("{name}=*****"))
                         .collect::<Vec<_>>()
                         .join(", ");
-                    lines.push(vec!["    â€?HTTP headers: ".into(), display.into()].into());
+                    lines.push(vec!["    ?HTTP headers: ".into(), display.into()].into());
                 }
                 if let Some(headers) = env_http_headers.as_ref()
                     && !headers.is_empty()
@@ -451,23 +451,23 @@ pub(crate) fn new_mcp_tools_output(
                         .map(|(name, var)| format!("{name}={var}"))
                         .collect::<Vec<_>>()
                         .join(", ");
-                    lines.push(vec!["    â€?Env HTTP headers: ".into(), display.into()].into());
+                    lines.push(vec!["    ?Env HTTP headers: ".into(), display.into()].into());
                 }
             }
         }
 
         if names.is_empty() {
-            lines.push("    â€?Tools: (none)".into());
+            lines.push("    ?Tools: (none)".into());
         } else {
-            lines.push(vec!["    â€?Tools: ".into(), names.join(", ").into()].into());
+            lines.push(vec!["    ?Tools: ".into(), names.join(", ").into()].into());
         }
 
         let server_resources: Vec<Resource> =
             resources.get(server.as_str()).cloned().unwrap_or_default();
         if server_resources.is_empty() {
-            lines.push("    â€?Resources: (none)".into());
+            lines.push("    ?Resources: (none)".into());
         } else {
-            let mut spans: Vec<Span<'static>> = vec!["    â€?Resources: ".into()];
+            let mut spans: Vec<Span<'static>> = vec!["    ?Resources: ".into()];
 
             for (idx, resource) in server_resources.iter().enumerate() {
                 if idx > 0 {
@@ -488,9 +488,9 @@ pub(crate) fn new_mcp_tools_output(
             .cloned()
             .unwrap_or_default();
         if server_templates.is_empty() {
-            lines.push("    â€?Resource templates: (none)".into());
+            lines.push("    ?Resource templates: (none)".into());
         } else {
-            let mut spans: Vec<Span<'static>> = vec!["    â€?Resource templates: ".into()];
+            let mut spans: Vec<Span<'static>> = vec!["    ?Resource templates: ".into()];
 
             for (idx, template) in server_templates.iter().enumerate() {
                 if idx > 0 {
@@ -528,7 +528,7 @@ pub(crate) fn new_mcp_tools_output_from_statuses(
     let mut lines: Vec<Line<'static>> = vec![
         "/mcp".magenta().into(),
         "".into(),
-        vec!["ðŸ”Œ  ".into(), "MCP Tools".bold()].into(),
+        vec!["  ".into(), "MCP Tools".bold()].into(),
         "".into(),
     ];
 
@@ -537,12 +537,12 @@ pub(crate) fn new_mcp_tools_output_from_statuses(
 
     let has_any_tools = statuses.iter().any(|status| !status.tools.is_empty());
     if !has_any_tools {
-        lines.push("  â€?No MCP tools available.".italic().into());
+        lines.push("  ?No MCP tools available.".italic().into());
         lines.push("".into());
     }
 
     for status in statuses {
-        let header: Vec<Span<'static>> = vec!["  â€?".into(), status.name.clone().into()];
+        let header: Vec<Span<'static>> = vec!["  ?".into(), status.name.clone().into()];
 
         lines.push(header.into());
         let auth_status = match status.auth_status {
@@ -553,7 +553,7 @@ pub(crate) fn new_mcp_tools_output_from_statuses(
         };
         lines.push(
             vec![
-                "    â€?Auth: ".into(),
+                "    ?Auth: ".into(),
                 mcp_auth_status_label(auth_status).into(),
             ]
             .into(),
@@ -562,17 +562,17 @@ pub(crate) fn new_mcp_tools_output_from_statuses(
         let mut names = status.tools.keys().cloned().collect::<Vec<_>>();
         names.sort();
         if names.is_empty() {
-            lines.push("    â€?Tools: (none)".into());
+            lines.push("    ?Tools: (none)".into());
         } else {
-            lines.push(vec!["    â€?Tools: ".into(), names.join(", ").into()].into());
+            lines.push(vec!["    ?Tools: ".into(), names.join(", ").into()].into());
         }
 
         if matches!(detail, McpServerStatusDetail::Full) {
             let server_resources = status.resources.clone();
             if server_resources.is_empty() {
-                lines.push("    â€?Resources: (none)".into());
+                lines.push("    ?Resources: (none)".into());
             } else {
-                let mut spans: Vec<Span<'static>> = vec!["    â€?Resources: ".into()];
+                let mut spans: Vec<Span<'static>> = vec!["    ?Resources: ".into()];
 
                 for (idx, resource) in server_resources.iter().enumerate() {
                     if idx > 0 {
@@ -590,9 +590,9 @@ pub(crate) fn new_mcp_tools_output_from_statuses(
 
             let server_templates = status.resource_templates.clone();
             if server_templates.is_empty() {
-                lines.push("    â€?Resource templates: (none)".into());
+                lines.push("    ?Resource templates: (none)".into());
             } else {
-                let mut spans: Vec<Span<'static>> = vec!["    â€?Resource templates: ".into()];
+                let mut spans: Vec<Span<'static>> = vec!["    ?Resource templates: ".into()];
 
                 for (idx, template) in server_templates.iter().enumerate() {
                     if idx > 0 {
@@ -645,10 +645,10 @@ impl HistoryCell for McpInventoryLoadingCell {
                     MotionMode::from_animations_enabled(self.animations_enabled),
                     ReducedMotionIndicator::StaticBullet,
                 )
-                .unwrap_or_else(|| "â€?.dim()),
+                .unwrap_or_else(|| "?.dim()),
                 " ".into(),
                 "Loading MCP inventory".bold(),
-                "â€?.dim(),
+                "?.dim(),
             ]
             .into(),
         ]

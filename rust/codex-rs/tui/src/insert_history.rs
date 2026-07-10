@@ -218,16 +218,16 @@ where
             // area, only the lines in this area will be scrolled. We place the cursor
             // at the end of the scroll region, and add lines starting there.
             //
-            // ┌─Screen───────────────────────┐
-            // │┌╌Scroll region╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐│
-            // │┆                            ┆│
-            // │┆                            ┆│
-            // │┆                            ┆│
-            // │█╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘│
-            // │╭─Viewport───────────────────╮│
-            // ││                            ││
-            // │╰────────────────────────────╯│
-            // └──────────────────────────────┘
+            // Screen
+            // Scroll region
+            //                             
+            //                             
+            //                             
+            // 
+            // Viewport
+            //                             
+            // 
+            // 
             queue!(writer, SetScrollRegion(1..area.top()))?;
 
             // NB: we are using MoveTo instead of set_cursor_position here to avoid messing with the
@@ -686,7 +686,7 @@ mod tests {
 
     #[test]
     fn vt100_deep_nested_mixed_list_third_level_marker_is_colored() {
-        // Markdown with five levels (ordered → unordered → ordered → unordered → unordered).
+        // Markdown with five levels (ordered  unordered  ordered  unordered  unordered).
         let md = "1. First\n   - Second level\n     1. Third level (ordered)\n        - Fourth level (bullet)\n          - Fifth level to test indent consistency\n";
         let text = render_markdown_text(md);
         let lines: Vec<Line<'static>> = text.lines.clone();
@@ -745,18 +745,18 @@ mod tests {
         term.set_viewport_area(viewport);
 
         let url = "http://a-long-url.com/this/that/blablablab/new.aspx/many_people_like_how";
-        let line: Line<'static> = Line::from(vec!["  │ ".into(), url.into()]);
+        let line: Line<'static> = Line::from(vec!["   ".into(), url.into()]);
 
         insert_history_lines(&mut term, vec![line]).expect("insert history");
 
         let rows: Vec<String> = term.backend().vt100().screen().rows(0, width).collect();
 
         assert!(
-            rows.iter().any(|r| r.contains("│ http://a-long-url.com")),
+            rows.iter().any(|r| r.contains(" http://a-long-url.com")),
             "expected prefix and URL on same row, rows: {rows:?}"
         );
         assert!(
-            !rows.iter().any(|r| r.trim_end() == "│"),
+            !rows.iter().any(|r| r.trim_end() == ""),
             "unexpected orphan prefix row, rows: {rows:?}"
         );
     }
@@ -772,7 +772,7 @@ mod tests {
 
         let url_like =
             "example.test/api/v1/projects/alpha-team/releases/2026-02-17/builds/1234567890";
-        let line: Line<'static> = Line::from(vec!["  │ ".into(), url_like.into()]);
+        let line: Line<'static> = Line::from(vec!["   ".into(), url_like.into()]);
 
         insert_history_lines(&mut term, vec![line]).expect("insert history");
 
@@ -780,11 +780,11 @@ mod tests {
 
         assert!(
             rows.iter()
-                .any(|r| r.contains("│ example.test/api/v1/projects")),
+                .any(|r| r.contains(" example.test/api/v1/projects")),
             "expected prefix and URL-like token on same row, rows: {rows:?}"
         );
         assert!(
-            !rows.iter().any(|r| r.trim_end() == "│"),
+            !rows.iter().any(|r| r.trim_end() == ""),
             "unexpected orphan prefix row, rows: {rows:?}"
         );
     }
@@ -800,7 +800,7 @@ mod tests {
 
         let url = "https://example.test/path/abcdef12345";
         let line: Line<'static> = Line::from(vec![
-            "  │ ".into(),
+            "   ".into(),
             "see ".into(),
             url.into(),
             " tail words".into(),
@@ -810,7 +810,7 @@ mod tests {
 
         let rows: Vec<String> = term.backend().vt100().screen().rows(0, width).collect();
         assert!(
-            rows.iter().any(|r| r.contains("│ see")),
+            rows.iter().any(|r| r.contains(" see")),
             "expected prefixed prose before URL, rows: {rows:?}"
         );
         assert!(
@@ -999,19 +999,19 @@ mod tests {
         term.set_viewport_area(viewport);
 
         let filler_line: Line<'static> = Line::from(vec![
-            "  │ ".into(),
+            "   ".into(),
             "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX".into(),
         ]);
         insert_history_lines(&mut term, vec![filler_line]).expect("insert filler history");
 
         let url_like = "example.test/api/v1/short";
-        let url_line: Line<'static> = Line::from(vec!["  │ ".into(), url_like.into()]);
+        let url_line: Line<'static> = Line::from(vec!["   ".into(), url_like.into()]);
         insert_history_lines(&mut term, vec![url_line]).expect("insert url-like history");
 
         let rows: Vec<String> = term.backend().vt100().screen().rows(0, width).collect();
         let first_row = rows
             .iter()
-            .position(|row| row.contains("│ example.test/api"))
+            .position(|row| row.contains(" example.test/api"))
             .unwrap_or_else(|| panic!("expected url-like first row in screen rows: {rows:?}"));
         assert!(
             first_row + 1 < rows.len(),
@@ -1045,7 +1045,7 @@ mod tests {
             "https://example.test/api/v1/projects/alpha-team/releases/2026-02-17/builds/1234567890/{}",
             "very-long-segment-".repeat(16),
         );
-        let url_line: Line<'static> = Line::from(vec!["• ".into(), long_url.into()]);
+        let url_line: Line<'static> = Line::from(vec![" ".into(), long_url.into()]);
         insert_history_lines(&mut term, vec![url_line]).expect("insert long url line");
 
         let rows: Vec<String> = term.backend().vt100().screen().rows(0, width).collect();
@@ -1055,7 +1055,7 @@ mod tests {
             .unwrap_or_else(|| panic!("expected prompt row in screen rows: {rows:?}"));
         let url_row = rows
             .iter()
-            .position(|row| row.contains("• https://example.test/api"))
+            .position(|row| row.contains(" https://example.test/api"))
             .unwrap_or_else(|| panic!("expected URL first row in screen rows: {rows:?}"));
 
         assert!(

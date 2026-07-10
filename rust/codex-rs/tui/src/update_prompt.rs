@@ -192,7 +192,7 @@ impl WidgetRef for &UpdatePromptScreen {
 
         column.push("");
         column.push(Line::from(vec![
-            padded_emoji("  ✨").bold().cyan(),
+            padded_emoji("  ").bold().cyan(),
             "Update available!".bold(),
             " ".into(),
             format!(

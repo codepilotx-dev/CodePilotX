@@ -43,7 +43,7 @@ impl HistoryCell for StreamingPlanTailCell {
         self.is_stream_continuation
     }
 }
-/// Render a user‑friendly plan update styled like a checkbox todo list.
+/// Render a userfriendly plan update styled like a checkbox todo list.
 pub(crate) fn new_plan_update(update: UpdatePlanArgs) -> PlanUpdateCell {
     let UpdatePlanArgs { explanation, plan } = update;
     PlanUpdateCell { explanation, plan }
@@ -104,7 +104,7 @@ impl HistoryCell for ProposedPlanCell {
 
     fn display_hyperlink_lines(&self, width: u16) -> Vec<HyperlinkLine> {
         let mut lines = vec![
-            HyperlinkLine::new(vec!["• ".dim(), "Proposed Plan".bold()].into()),
+            HyperlinkLine::new(vec![" ".dim(), "Proposed Plan".bold()].into()),
             HyperlinkLine::new(Line::from(" ")),
         ];
 
@@ -176,9 +176,9 @@ impl HistoryCell for PlanUpdateCell {
 
         let render_step = |status: &StepStatus, text: &str| -> Vec<Line<'static>> {
             let (box_str, step_style) = match status {
-                StepStatus::Completed => ("✔ ", Style::default().crossed_out().dim()),
-                StepStatus::InProgress => ("□ ", Style::default().cyan().bold()),
-                StepStatus::Pending => ("□ ", Style::default().dim()),
+                StepStatus::Completed => (" ", Style::default().crossed_out().dim()),
+                StepStatus::InProgress => (" ", Style::default().cyan().bold()),
+                StepStatus::Pending => (" ", Style::default().dim()),
             };
 
             let opts = RtOptions::new(width.saturating_sub(4).max(1) as usize)
@@ -192,7 +192,7 @@ impl HistoryCell for PlanUpdateCell {
         };
 
         let mut lines: Vec<Line<'static>> = vec![];
-        lines.push(vec!["• ".dim(), "Updated Plan".bold()].into());
+        lines.push(vec![" ".dim(), "Updated Plan".bold()].into());
 
         let mut indented_lines = vec![];
         let note = self
@@ -211,7 +211,7 @@ impl HistoryCell for PlanUpdateCell {
                 indented_lines.extend(render_step(status, step));
             }
         }
-        lines.extend(prefix_lines(indented_lines, "  └ ".dim(), "    ".into()));
+        lines.extend(prefix_lines(indented_lines, "   ".dim(), "    ".into()));
 
         lines
     }

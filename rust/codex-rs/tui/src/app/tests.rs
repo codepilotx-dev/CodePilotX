@@ -2626,7 +2626,7 @@ async fn inactive_thread_file_change_approval_recovers_buffered_changes() {
         other => panic!("expected patch preview history cell, saw {other:?}"),
     };
     let rendered = lines_to_single_string(&cell.display_lines(/*width*/ 80));
-    assert!(rendered.contains("â€?Added README.md (+1 -0)"));
+    assert!(rendered.contains("?Added README.md (+1 -0)"));
     assert!(rendered.contains("1 +hello"));
 }
 
@@ -4738,7 +4738,7 @@ async fn feedback_submission_without_thread_emits_error_history_cell() {
     };
     assert_eq!(
         lines_to_single_string(&cell.display_lines(/*width*/ 120)),
-        "â–?Failed to upload feedback: boom"
+        "?Failed to upload feedback: boom"
     );
 }
 
@@ -4804,7 +4804,7 @@ async fn feedback_submission_for_inactive_thread_replays_into_origin_thread() {
         }
     }
     assert!(rendered_cells.iter().any(|cell| {
-        cell.contains("â€?Feedback uploaded. Please open an issue using the following URL:")
+        cell.contains("?Feedback uploaded. Please open an issue using the following URL:")
             && cell.contains("uploaded-thread")
     }));
 }

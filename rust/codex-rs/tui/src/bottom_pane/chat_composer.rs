@@ -16,7 +16,7 @@
 //! [`ChatComposer::handle_key_event_without_popup`]. After every handled key, we call
 //! [`ChatComposer::sync_popups`] so UI state follows the latest buffer/cursor.
 //!
-//! # History Navigation (�?�?
+//! # History Navigation (??
 //!
 //! The Up/Down history path is managed by [`ChatComposerHistory`]. It merges:
 //!
@@ -107,7 +107,7 @@
 //!   burst detection for actual paste streams.
 //!
 //! The burst detector can also be disabled (`disable_paste_burst`), which bypasses the state
-//! machine and treats the key stream as normal typing. When toggling from enabled �?disabled, the
+//! machine and treats the key stream as normal typing. When toggling from enabled ?disabled, the
 //! composer flushes/clears any in-flight burst state so it cannot leak into subsequent input.
 //!
 //! For the detailed burst state machine, see `codex-rs/tui/src/bottom_pane/paste_burst.rs`.
@@ -834,8 +834,8 @@ impl ChatComposer {
             .on_entry_response(log_id, offset, entry, &self.app_event_tx)
         {
             HistoryEntryResponse::Found(entry) => {
-                // Persistent �?�?history is text-only (backwards-compatible and avoids persisting
-                // attachments), but local in-session �?�?history can rehydrate elements and image paths.
+                // Persistent ??history is text-only (backwards-compatible and avoids persisting
+                // attachments), but local in-session ??history can rehydrate elements and image paths.
                 self.apply_history_entry(entry);
                 true
             }
@@ -894,7 +894,7 @@ impl ChatComposer {
             return false;
         };
 
-        // normalize_pasted_path already handles Windows �?WSL path conversion,
+        // normalize_pasted_path already handles Windows ?WSL path conversion,
         // so we can directly try to read the image dimensions.
         match image::image_dimensions(&path_buf) {
             Ok((width, height)) => {
@@ -917,7 +917,7 @@ impl ChatComposer {
     /// `disable_paste_burst` is an escape hatch for terminals/platforms where the burst heuristic
     /// is unwanted or has already been handled elsewhere.
     ///
-    /// When transitioning from enabled �?disabled, we "defuse" any in-flight burst state so it
+    /// When transitioning from enabled ?disabled, we "defuse" any in-flight burst state so it
     /// cannot affect subsequent normal typing:
     ///
     /// - First, flush any held/buffered text immediately via
@@ -2621,7 +2621,7 @@ impl ChatComposer {
     /// Prepare text for submission/queuing. Returns None if submission should be suppressed.
     /// On success, clears pending paste payloads because placeholders have been expanded.
     ///
-    /// When `record_history` is true, the final submission is stored for �?�?recall.
+    /// When `record_history` is true, the final submission is stored for ??recall.
     fn prepare_submission_text(
         &mut self,
         record_history: bool,
@@ -3797,7 +3797,7 @@ impl ChatComposer {
                     Some(if capability_labels.is_empty() {
                         "Plugin".to_string()
                     } else {
-                        format!("Plugin · {}", capability_labels.join(" · "))
+                        format!("Plugin  {}", capability_labels.join("  "))
                     })
                 });
                 let mut search_terms = vec![plugin_name.to_string(), plugin.config_name.clone()];
@@ -4396,10 +4396,10 @@ impl ChatComposer {
                 if self.draft.is_bash_mode {
                     Span::from("!").light_red().bold()
                 } else {
-                    "�?.bold()
+                    "?.bold()
                 }
             } else {
-                "�?.dim()
+                "?.dim()
             };
             buf.set_span(
                 textarea_rect.x - LIVE_PREFIX_COLS,
@@ -4778,7 +4778,7 @@ mod tests {
             |composer| {
                 composer.set_status_line_enabled(/*enabled*/ true);
                 composer.set_status_line(Some(Line::from(
-                    "gpt-5.4 high fast · ~/code/codex-1 · Context 0% used",
+                    "gpt-5.4 high fast  ~/code/codex-1  Context 0% used",
                 )));
                 composer.set_text_content("!git status".to_string(), Vec::new(), Vec::new());
             },
@@ -4790,7 +4790,7 @@ mod tests {
             |composer| {
                 composer.set_status_line_enabled(/*enabled*/ true);
                 composer.set_status_line(Some(Line::from(
-                    "gpt-5.4 high fast · ~/code/codex-1 · Context 0% used",
+                    "gpt-5.4 high fast  ~/code/codex-1  Context 0% used",
                 )));
                 composer.set_text_content("!".to_string(), Vec::new(), Vec::new());
                 let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
@@ -4833,7 +4833,7 @@ mod tests {
         );
         composer.set_status_line_enabled(/*enabled*/ true);
         composer.set_status_line(Some(Line::from(
-            "gpt-5.4 high fast · ~/code/codex-1 · Context 0% used",
+            "gpt-5.4 high fast  ~/code/codex-1  Context 0% used",
         )));
         composer.set_text_content("!git status".to_string(), Vec::new(), Vec::new());
 
@@ -6525,15 +6525,15 @@ mod tests {
                 "ASCII with numbers",
             ),
             // Unicode examples
-            ("@İstanbul", 3, Some("İstanbul".to_string()), "Turkish text"),
+            ("@stanbul", 3, Some("stanbul".to_string()), "Turkish text"),
             (
-                "@testЙЦУ.rs",
+                "@test.rs",
                 8,
-                Some("testЙЦУ.rs".to_string()),
+                Some("test.rs".to_string()),
                 "Mixed ASCII and Cyrillic",
             ),
-            ("@�?, 2, Some("�?.to_string()), "Chinese character"),
-            ("@👍", 2, Some("👍".to_string()), "Emoji token"),
+            ("@?, 2, Some("?.to_string()), "Chinese character"),
+            ("@", 2, Some("".to_string()), "Emoji token"),
             // Invalid cases (should return None)
             ("hello", 2, None, "No @ symbol"),
             (
@@ -6617,15 +6617,15 @@ mod tests {
             ),
             // Full-width space boundaries
             (
-                "test　@İstanbul",
+                "test@stanbul",
                 8,
-                Some("İstanbul".to_string()),
+                Some("stanbul".to_string()),
                 "@ token after full-width space",
             ),
             (
-                "@ЙЦУ　@�?,
+                "@@?,
                 10,
-                Some("�?.to_string()),
+                Some("?.to_string()),
                 "Full-width space between Unicode tokens",
             ),
             // Tab and newline boundaries
@@ -7098,12 +7098,12 @@ mod tests {
         let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('1'), KeyModifiers::NONE));
         assert!(composer.is_in_paste_burst());
 
-        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('�?), KeyModifiers::NONE));
+        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('?), KeyModifiers::NONE));
 
         let (result, _) =
             composer.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         match result {
-            InputResult::Submitted { text, .. } => assert_eq!(text, "1�?),
+            InputResult::Submitted { text, .. } => assert_eq!(text, "1?),
             _ => panic!("expected Submitted"),
         }
     }
@@ -7126,9 +7126,9 @@ mod tests {
             /*disable_paste_burst*/ false,
         );
 
-        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('�?), KeyModifiers::NONE));
+        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('?), KeyModifiers::NONE));
 
-        assert_eq!(composer.draft.textarea.text(), "�?);
+        assert_eq!(composer.draft.textarea.text(), "?);
         assert!(!composer.is_in_paste_burst());
     }
 
@@ -7155,15 +7155,15 @@ mod tests {
             .paste_burst
             .begin_with_retro_grabbed(String::new(), Instant::now());
 
-        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('�?), KeyModifiers::NONE));
-        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('�?), KeyModifiers::NONE));
+        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('?), KeyModifiers::NONE));
+        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('?), KeyModifiers::NONE));
         let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE));
         let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE));
 
         assert!(composer.draft.textarea.text().is_empty());
         let _ = flush_after_paste_burst(&mut composer);
-        assert_eq!(composer.draft.textarea.text(), "你好\nhi");
+        assert_eq!(composer.draft.textarea.text(), "\nhi");
     }
 
     /// Behavior: a paste-like burst may include a full-width/ideographic space (U+3000). It should
@@ -7189,7 +7189,7 @@ mod tests {
             .paste_burst
             .begin_with_retro_grabbed(String::new(), Instant::now());
 
-        for ch in ['�?, '　', '�?] {
+        for ch in ['?, '', '?] {
             let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE));
         }
         let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -7199,7 +7199,7 @@ mod tests {
 
         assert!(composer.draft.textarea.text().is_empty());
         let _ = flush_after_paste_burst(&mut composer);
-        assert_eq!(composer.draft.textarea.text(), "你　好\nhi");
+        assert_eq!(composer.draft.textarea.text(), "\nhi");
     }
 
     /// Behavior: a large multi-line payload containing both non-ASCII and ASCII (e.g. "UTF-8",
@@ -7211,17 +7211,17 @@ mod tests {
         use crossterm::event::KeyEvent;
         use crossterm::event::KeyModifiers;
 
-        const LARGE_MIXED_PAYLOAD: &str = "天地玄黄 宇宙洪荒\n\
-日月盈昃 辰宿列张\n\
-寒来暑往 秋收冬藏\n\
+        const LARGE_MIXED_PAYLOAD: &str = " \n\
+ \n\
+ \n\
 \n\
-你好世界 编码测试\n\
-汉字处理 UTF-8\n\
-终端显示 正确无误\n\
+ \n\
+ UTF-8\n\
+ \n\
 \n\
-风吹竹林 月照大江\n\
-白云千载 青山依旧\n\
-程序�?�?Unicode 同行";
+ \n\
+ \n\
+??Unicode ";
 
         let (tx, _rx) = unbounded_channel::<AppEvent>();
         let sender = AppEventSender::new(tx);
@@ -7832,7 +7832,7 @@ mod tests {
             /*disable_paste_burst*/ false,
         );
 
-        // Type "/mo" humanlike so paste-burst doesn’t interfere.
+        // Type "/mo" humanlike so paste-burst doesnt interfere.
         type_chars_humanlike(&mut composer, &['/', 'm', 'o']);
 
         let mut terminal = match Terminal::new(TestBackend::new(60, 5)) {
@@ -7891,7 +7891,7 @@ mod tests {
             /*disable_paste_burst*/ false,
         );
 
-        // Type "/res" humanlike so paste-burst doesn’t interfere.
+        // Type "/res" humanlike so paste-burst doesnt interfere.
         type_chars_humanlike(&mut composer, &['/', 'r', 'e', 's']);
 
         let mut terminal = Terminal::new(TestBackend::new(60, 6)).expect("terminal");
@@ -10160,7 +10160,7 @@ mod tests {
         let path = PathBuf::from("/tmp/image_multibyte.png");
         composer.attach_image(path);
         // Add multibyte text after the placeholder
-        composer.draft.textarea.insert_str("日本�?);
+        composer.draft.textarea.insert_str("?);
 
         // Cursor is at end; pressing backspace should delete the last character
         // without panicking and leave the placeholder intact.
@@ -10637,7 +10637,7 @@ mod tests {
             "'/ac' should activate slash popup via fuzzy match"
         );
 
-        // Case 4: invalid prefix "/zzz" �?still allowed to open popup if it
+        // Case 4: invalid prefix "/zzz" ?still allowed to open popup if it
         // matches no built-in command; our current logic will not open popup.
         // Verify that explicitly.
         composer.set_text_content("/zzz".to_string(), Vec::new(), Vec::new());

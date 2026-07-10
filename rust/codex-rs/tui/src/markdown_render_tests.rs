@@ -789,7 +789,7 @@ fn file_link_decodes_percent_encoded_bare_path_destination() {
         Path::new("/Users/example/code/codex"),
     );
     let expected = Text::from(Line::from_iter([
-        "Example Folder/Résumé/report.md".cyan(),
+        "Example Folder/Rsum/report.md".cyan(),
     ]));
     assert_eq!(text, expected);
 }
@@ -1067,7 +1067,7 @@ fn code_block_unknown_lang_plain() {
         .collect();
     assert_eq!(content, vec!["hello world"]);
 
-    // No syntax coloring for unknown language — all spans have default style.
+    // No syntax coloring for unknown language  all spans have default style.
     let has_colored_span = text
         .lines
         .iter()
@@ -1134,7 +1134,7 @@ fn horizontal_rule_renders_em_dashes() {
                 .collect::<String>()
         })
         .collect();
-    assert_eq!(lines, vec!["Before", "", "———", "", "After"]);
+    assert_eq!(lines, vec!["Before", "", "", "", "After"]);
 }
 
 #[test]
@@ -1573,7 +1573,7 @@ fn table_renders_app_style_rows_with_themed_bold_header() {
         lines,
         vec![
             " A      B".to_string(),
-            "━━━━━  ━━━━━".to_string(),
+            "  ".to_string(),
             " 1      2".to_string(),
         ]
     );
@@ -1636,8 +1636,8 @@ fn table_separates_logical_rows_after_wrapped_content() {
         .iter()
         .enumerate()
         .filter_map(|(idx, line)| {
-            ((line.contains('━') || line.contains('─'))
-                && line.chars().all(|ch| matches!(ch, '━' | '─' | ' ')))
+            ((line.contains('') || line.contains(''))
+                && line.chars().all(|ch| matches!(ch, '' | '' | ' ')))
             .then_some(idx)
         })
         .collect();
@@ -1650,7 +1650,7 @@ fn table_separates_logical_rows_after_wrapped_content() {
     assert!(
         !lines
             .last()
-            .is_some_and(|line| line.contains('━') || line.contains('─'))
+            .is_some_and(|line| line.contains('') || line.contains(''))
     );
 }
 
@@ -1735,7 +1735,7 @@ fn table_inside_blockquote_has_quote_prefix() {
         .collect();
 
     assert!(lines.iter().all(|line| line.starts_with("> ")));
-    assert!(lines.iter().any(|line| line.contains("━━━━━  ━━━━━")));
+    assert!(lines.iter().any(|line| line.contains("  ")));
 }
 
 #[test]
@@ -1766,7 +1766,7 @@ fn table_falls_back_to_key_value_records_if_grid_cannot_fit() {
     assert!(
         !lines
             .iter()
-            .any(|line| line.starts_with('|') || line.contains('━') || line.contains('─'))
+            .any(|line| line.starts_with('|') || line.contains('') || line.contains(''))
     );
 }
 

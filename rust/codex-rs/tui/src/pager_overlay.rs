@@ -228,7 +228,7 @@ impl PagerView {
         let sep_y = content_area.bottom();
         let sep_rect = Rect::new(full_area.x, sep_y, full_area.width, 1);
 
-        Span::from("─".repeat(sep_rect.width as usize))
+        Span::from("".repeat(sep_rect.width as usize))
             .dim()
             .render_ref(sep_rect, buf);
         let percent = if total_len == 0 {

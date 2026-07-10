@@ -22,7 +22,7 @@ pub(crate) fn selection_option_row_with_dim(
     dim: bool,
 ) -> Box<dyn Renderable> {
     let prefix = if is_selected {
-        format!("› {}. ", index + 1)
+        format!(" {}. ", index + 1)
     } else {
         format!("  {}. ", index + 1)
     };

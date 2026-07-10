@@ -145,7 +145,7 @@ fn fallback_transcript_cell(item: &ThreadItem) -> Option<PlainHistoryCell> {
                 format!(
                     "status: {status:?}{}",
                     exit_code
-                        .map(|code| format!(" · exit {code}"))
+                        .map(|code| format!("  exit {code}"))
                         .unwrap_or_default()
                 )
                 .dim()
@@ -165,7 +165,7 @@ fn fallback_transcript_cell(item: &ThreadItem) -> Option<PlainHistoryCell> {
         ThreadItem::FileChange {
             changes, status, ..
         } => vec![
-            format!("file changes: {status:?} · {} changes", changes.len())
+            format!("file changes: {status:?}  {} changes", changes.len())
                 .dim()
                 .into(),
         ],
@@ -175,7 +175,7 @@ fn fallback_transcript_cell(item: &ThreadItem) -> Option<PlainHistoryCell> {
             status,
             ..
         } => vec![
-            format!("mcp tool: {server}/{tool} · {status:?}")
+            format!("mcp tool: {server}/{tool}  {status:?}")
                 .dim()
                 .into(),
         ],
@@ -189,10 +189,10 @@ fn fallback_transcript_cell(item: &ThreadItem) -> Option<PlainHistoryCell> {
                 .as_ref()
                 .map(|namespace| format!("{namespace}/{tool}"))
                 .unwrap_or_else(|| tool.clone());
-            vec![format!("tool: {name} · {status:?}").dim().into()]
+            vec![format!("tool: {name}  {status:?}").dim().into()]
         }
         ThreadItem::CollabAgentToolCall { tool, status, .. } => {
-            vec![format!("agent tool: {tool:?} · {status:?}").dim().into()]
+            vec![format!("agent tool: {tool:?}  {status:?}").dim().into()]
         }
         ThreadItem::SubAgentActivity {
             kind, agent_path, ..
@@ -210,7 +210,7 @@ fn fallback_transcript_cell(item: &ThreadItem) -> Option<PlainHistoryCell> {
         } => {
             let saved = saved_path
                 .as_ref()
-                .map(|path| format!(" · {}", path.as_path().display()))
+                .map(|path| format!("  {}", path.as_path().display()))
                 .unwrap_or_default();
             vec![format!("image generation: {status}{saved}").dim().into()]
         }

@@ -520,7 +520,7 @@ mod tests {
     #[test]
     fn encode_history_mentions_links_at_mentions_after_unicode_whitespace() {
         // Fix coverage: full-width space should remain a valid plaintext boundary for `@` links.
-        let text = "foo　@sample";
+        let text = "foo@sample";
         let encoded = encode_history_mentions(
             text,
             &[LinkedMention {
@@ -529,7 +529,7 @@ mod tests {
                 path: "plugin://sample@test".to_string(),
             }],
         );
-        assert_eq!(encoded, "foo　[@sample](plugin://sample@test)");
+        assert_eq!(encoded, "foo[@sample](plugin://sample@test)");
     }
 
     #[test]

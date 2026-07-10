@@ -51,7 +51,7 @@ impl WidgetRef for &TrustDirectoryWidget {
         if self.cwd != self.trust_target {
             #[allow(clippy::disallowed_methods)]
             let git_root_warning = Paragraph::new(format!(
-                "Note: You’re in a subdirectory of a Git project. Trusting will apply to the repository root: {}",
+                "Note: Youre in a subdirectory of a Git project. Trusting will apply to the repository root: {}",
                 self.trust_target.display()
             ))
             .yellow();

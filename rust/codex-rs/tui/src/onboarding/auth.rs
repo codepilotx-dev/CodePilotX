@@ -545,7 +545,7 @@ impl AuthModeWidget {
 
     fn render_chatgpt_success_message(&self, area: Rect, buf: &mut Buffer) {
         let lines = vec![
-            "âœ?Signed in with your ChatGPT account"
+            "?Signed in with your ChatGPT account"
                 .fg(Color::Green)
                 .into(),
             "".into(),
@@ -592,7 +592,7 @@ impl AuthModeWidget {
 
     fn render_chatgpt_success(&self, area: Rect, buf: &mut Buffer) {
         let lines = vec![
-            "âœ?Signed in with your ChatGPT account"
+            "?Signed in with your ChatGPT account"
                 .fg(Color::Green)
                 .into(),
         ];
@@ -604,7 +604,7 @@ impl AuthModeWidget {
 
     fn render_api_key_configured(&self, area: Rect, buf: &mut Buffer) {
         let lines = vec![
-            "âœ?API key configured".fg(Color::Green).into(),
+            "?API key configured".fg(Color::Green).into(),
             "".into(),
             "  Codex will use usage-based billing with your API key.".into(),
         ];
@@ -858,7 +858,7 @@ impl AuthModeWidget {
 
     /// Kicks off the ChatGPT auth flow and keeps the UI state consistent with the attempt.
     fn start_chatgpt_login(&mut self) {
-        // If we're already authenticated with ChatGPT, don't start a new login â€?        // just proceed to the success message flow.
+        // If we're already authenticated with ChatGPT, don't start a new login ?        // just proceed to the success message flow.
         if self.handle_existing_chatgpt_login() {
             return;
         }

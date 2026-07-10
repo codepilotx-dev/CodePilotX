@@ -21,9 +21,9 @@ use crate::terminal_palette::stdout_color_level;
 // width-matched filled/hollow pair). In truecolor terminals the grid uses a
 // single glyph and lets color carry the intensity (GitHub-style), which keeps
 // the grid perfectly aligned and free of texture noise.
-const EMPTY_CELL_GLYPH: &str = "□";
-const ACTIVE_CELL_GLYPH: &str = "■";
-const BAR_CELL_GLYPH: &str = "█";
+const EMPTY_CELL_GLYPH: &str = "";
+const ACTIVE_CELL_GLYPH: &str = "";
+const BAR_CELL_GLYPH: &str = "";
 
 /// Stores the terminal-specific styles and glyph strategy for token activity cells.
 pub(super) struct TokenActivityPalette {

@@ -398,10 +398,10 @@ impl HooksBrowserView {
             self.entry
                 .warnings
                 .iter()
-                .map(|warning| format!("âš?{warning}").into()),
+                .map(|warning| format!("?{warning}").into()),
         );
         lines.extend(self.entry.errors.iter().map(|error| {
-            format!("â–?{}: {}", error.path.display(), error.message)
+            format!("?{}: {}", error.path.display(), error.message)
                 .red()
                 .into()
         }));
@@ -414,7 +414,7 @@ impl HooksBrowserView {
         lines.push(Line::default());
 
         if let Some(message) = review_needed_message(self.review_needed_total_count()) {
-            lines.push(format!("âš?{message}").yellow().into());
+            lines.push(format!("?{message}").yellow().into());
             lines.push(Line::default());
         }
 
@@ -442,9 +442,9 @@ impl HooksBrowserView {
                 };
                 let row = match hook.trust_status {
                     HookTrustStatus::Modified => {
-                        format!("[{marker}] {} Â· modified", hook_title(idx))
+                        format!("[{marker}] {}  modified", hook_title(idx))
                     }
-                    HookTrustStatus::Untrusted => format!("[{marker}] {} Â· new", hook_title(idx)),
+                    HookTrustStatus::Untrusted => format!("[{marker}] {}  new", hook_title(idx)),
                     HookTrustStatus::Managed | HookTrustStatus::Trusted => {
                         format!("[{marker}] {}", hook_title(idx))
                     }
@@ -840,7 +840,7 @@ fn detail_wrapped_lines(
             return lines;
         };
         let truncated = truncate_line_with_ellipsis_if_overflow(
-            Line::from(format!("{}â€?, last_span.content)),
+            Line::from(format!("{}?, last_span.content)),
             max_width,
         );
         let content = truncated

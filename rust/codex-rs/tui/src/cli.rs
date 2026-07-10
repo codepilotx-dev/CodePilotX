@@ -61,7 +61,7 @@ pub struct Cli {
     #[arg(long = "ask-for-approval", short = 'a')]
     pub approval_policy: Option<ApprovalModeCliArg>,
 
-    /// Enable live web search. When enabled, the native Responses `web_search` tool is available to the model (no per‑call approval).
+    /// Enable live web search. When enabled, the native Responses `web_search` tool is available to the model (no percall approval).
     #[arg(long = "search", default_value_t = false)]
     pub web_search: bool,
 

@@ -33,7 +33,7 @@ use crate::wrapping::RtOptions;
 use crate::wrapping::word_wrap_lines;
 
 pub(crate) const STATUS_DETAILS_DEFAULT_MAX_LINES: usize = 3;
-const DETAILS_PREFIX: &str = "  └ ";
+const DETAILS_PREFIX: &str = "   ";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum StatusDetailsCapitalization {
@@ -224,7 +224,7 @@ impl StatusIndicatorWidget {
                 && let Some(span) = last.spans.last_mut()
             {
                 let trimmed: String = span.content.as_ref().chars().take(max_base_len).collect();
-                *span = format!("{trimmed}…").dim();
+                *span = format!("{trimmed}").dim();
             }
         }
 
@@ -269,7 +269,7 @@ impl Renderable for StatusIndicatorWidget {
             && let Some(interrupt_binding) = self.interrupt_binding
         {
             spans.extend(vec![
-                format!("({pretty_elapsed} • ").dim(),
+                format!("({pretty_elapsed}  ").dim(),
                 interrupt_binding.into(),
                 " to interrupt)".dim(),
             ]);
@@ -279,7 +279,7 @@ impl Renderable for StatusIndicatorWidget {
         if let Some(message) = &self.inline_message {
             // Keep optional context after elapsed/interrupt text so that core
             // interrupt affordances stay in a fixed visual location.
-            spans.push(" · ".dim());
+            spans.push("  ".dim());
             spans.push(message.clone().dim());
         }
 
@@ -412,7 +412,7 @@ mod tests {
             .map(ratatui::buffer::Cell::symbol)
             .collect::<String>();
 
-        assert!(line.starts_with("Working (0s • esc to interrupt)"));
+        assert!(line.starts_with("Working (0s  esc to interrupt)"));
     }
 
     #[test]
@@ -479,7 +479,7 @@ mod tests {
         assert_eq!(lines.len(), STATUS_DETAILS_DEFAULT_MAX_LINES);
         let last = lines.last().expect("expected last details line");
         assert!(
-            last.spans[1].content.as_ref().ends_with("…"),
+            last.spans[1].content.as_ref().ends_with(""),
             "expected ellipsis in last line: {last:?}"
         );
     }
@@ -510,7 +510,7 @@ mod tests {
         assert!(
             last.spans
                 .last()
-                .is_some_and(|span| span.content.as_ref().contains('…')),
+                .is_some_and(|span| span.content.as_ref().contains('')),
             "expected one-line details to be ellipsized, got {last:?}"
         );
     }

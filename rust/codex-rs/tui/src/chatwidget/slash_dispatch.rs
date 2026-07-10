@@ -404,7 +404,7 @@ impl ChatWidget {
                                 if is_git_repo {
                                     diff_text
                                 } else {
-                                    "`/diff` â€?_not inside a git repository_".to_string()
+                                    "`/diff` ?_not inside a git repository_".to_string()
                                 }
                             }
                             Err(e) => format!("Failed to compute diff: {e}"),

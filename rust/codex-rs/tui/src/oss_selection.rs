@@ -99,7 +99,7 @@ pub struct OssSelectionWidget<'a> {
     /// Currently selected index in *select* mode.
     selected_option: usize,
 
-    /// Set to `true` once a decision has been sent â€?the parent view can then
+    /// Set to `true` once a decision has been sent ?the parent view can then
     /// remove this widget from its queue.
     done: bool,
 
@@ -143,11 +143,11 @@ impl OssSelectionWidget<'_> {
             ]));
         }
         contents.push(Line::from(""));
-        contents.push(Line::from("  â—?Running  â—?Not Running").add_modifier(Modifier::DIM));
+        contents.push(Line::from("  ?Running  ?Not Running").add_modifier(Modifier::DIM));
 
         contents.push(Line::from(""));
         contents.push(
-            Line::from("  Press Enter to select â€?Ctrl+C to exit").add_modifier(Modifier::DIM),
+            Line::from("  Press Enter to select ?Ctrl+C to exit").add_modifier(Modifier::DIM),
         );
 
         let confirmation_prompt = Paragraph::new(contents).wrap(Wrap { trim: false });
@@ -170,7 +170,7 @@ impl OssSelectionWidget<'_> {
     /// while the modal is visible.
     /// Process a key event originating from crossterm. As the modal fully
     /// captures input while visible, we don't need to report whether the event
-    /// was consumedâ€”callers can assume it always is.
+    /// was consumedcallers can assume it always is.
     pub fn handle_key_event(&mut self, key: KeyEvent) -> Option<String> {
         if key.kind == KeyEventKind::Press {
             self.handle_select_key(key);
@@ -302,8 +302,8 @@ impl WidgetRef for &OssSelectionWidget<'_> {
 
 fn get_status_symbol_and_color(status: &ProviderStatus) -> (&'static str, Color) {
     match status {
-        ProviderStatus::Running => ("â—?, Color::Green),
-        ProviderStatus::NotRunning => ("â—?, Color::Red),
+        ProviderStatus::Running => ("?, Color::Green),
+        ProviderStatus::NotRunning => ("?, Color::Red),
         ProviderStatus::Unknown => ("?", Color::Yellow),
     }
 }

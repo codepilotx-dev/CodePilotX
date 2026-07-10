@@ -70,8 +70,8 @@ const SESSION_META_DATE_WIDTH: usize = 12;
 const SESSION_META_FIELD_GAP_WIDTH: usize = 2;
 const SESSION_META_MIN_CWD_WIDTH: usize = 30;
 const SESSION_META_MAX_CWD_WIDTH: usize = 72;
-const SESSION_META_BRANCH_ICON: &str = "顐?;
-const SESSION_META_CWD_ICON: &str = "鈱?;
+const SESSION_META_BRANCH_ICON: &str = "?;
+const SESSION_META_CWD_ICON: &str = "?;
 const FOOTER_COMPACT_BREAKPOINT: u16 = 120;
 const FOOTER_HINT_LEFT_PADDING: usize = 1;
 const FOOTER_HINT_GAP: usize = 3;
@@ -496,7 +496,7 @@ async fn run_session_picker_with_loader(
         }
     }
 
-    // Fallback 鈥?treat as cancel/new
+    // Fallback ?treat as cancel/new
     Ok(SessionSelection::StartFresh)
 }
 
@@ -2057,7 +2057,7 @@ fn render_picker_footer_separator(
         return;
     }
 
-    let separator = "鈹�".repeat(area.width as usize);
+    let separator = "".repeat(area.width as usize);
     frame.render_widget_ref(Line::from(separator.dim()), area);
 
     let progress_width = UnicodeWidthStr::width(progress_label.as_str()) as u16;
@@ -2079,14 +2079,14 @@ fn picker_footer_progress_label(state: &PickerState, list_height: u16, width: u1
         state.selected.saturating_add(1)
     };
     let total = if state.pagination.loading.is_pending() {
-        format!("{}鈥?, state.filtered_rows.len())
+        format!("{}?, state.filtered_rows.len())
     } else {
         state.filtered_rows.len().to_string()
     };
     let percent = picker_footer_percent(state, list_height);
     let labels = [
-        format!(" {position} / {total} 路 {percent}% "),
-        format!(" {position}/{total} 路 {percent}% "),
+        format!(" {position} / {total}  {percent}% "),
+        format!(" {position}/{total}  {percent}% "),
         format!(" {percent}% "),
     ];
     labels
@@ -2205,7 +2205,7 @@ fn footer_hint_lines(state: &PickerState, width: u16) -> Vec<Line<'static>> {
             priority: 7,
         },
         PickerFooterHint {
-            key: "鈫?鈫?,
+            key: "??,
             wide_label: String::from("change option"),
             compact_label: String::from("option"),
             priority: 8,
@@ -2231,7 +2231,7 @@ fn footer_hint_lines(state: &PickerState, width: u16) -> Vec<Line<'static>> {
             priority: 6,
         },
         PickerFooterHint {
-            key: "鈫?鈫?,
+            key: "??,
             wide_label: String::from("browse"),
             compact_label: String::from("browse"),
             priority: 5,
@@ -2278,7 +2278,7 @@ fn render_transcript_loading_overlay(frame: &mut crate::custom_terminal::Frame, 
         return;
     }
 
-    let message = "Loading transcript鈥?;
+    let message = "Loading transcript?;
     let message_width = UnicodeWidthStr::width(message) as u16;
     let overlay_width = if area.width >= message_width.saturating_add(10) {
         message_width + 10
@@ -2440,7 +2440,7 @@ fn render_list(frame: &mut crate::custom_terminal::Frame, area: Rect, state: &Pi
     );
     if show_more_above {
         frame.render_widget_ref(
-            more_line("鈫?more"),
+            more_line("?more"),
             Rect::new(area.x, area.y, area.width, 1),
         );
     }
@@ -2475,15 +2475,15 @@ fn render_list(frame: &mut crate::custom_terminal::Frame, area: Rect, state: &Pi
     if state.pagination.loading.is_pending()
         && y < content_area.y.saturating_add(content_area.height)
     {
-        let loading_line: Line = vec!["  ".into(), "Loading older sessions鈥?.italic().dim()].into();
+        let loading_line: Line = vec!["  ".into(), "Loading older sessions?.italic().dim()].into();
         let rect = Rect::new(area.x, y, area.width, 1);
         frame.render_widget_ref(loading_line, rect);
     }
     if show_more_below {
         let label = if state.pagination.loading.is_pending() {
-            "鈫?loading more"
+            "?loading more"
         } else {
-            "鈫?more"
+            "?more"
         };
         frame.render_widget_ref(
             more_line(label),
@@ -2713,8 +2713,8 @@ fn dense_column_text(text: &str, width: usize) -> String {
 
 fn selection_marker(is_selected: bool, is_expanded: bool) -> Span<'static> {
     match (is_selected, is_expanded) {
-        (true, true) => "鈱?".set_style(selected_session_style().bold()),
-        (true, false) => "鉂?".set_style(selected_session_style().bold()),
+        (true, true) => "?".set_style(selected_session_style().bold()),
+        (true, false) => "?".set_style(selected_session_style().bold()),
         (false, _) => "  ".into(),
     }
 }
@@ -2920,11 +2920,11 @@ fn render_transcript_preview_lines(
     };
     let preview_lines = match state.transcript_previews.get(&thread_id) {
         Some(TranscriptPreviewState::Loading) => {
-            vec![vec!["  鈹?".dim(), "Loading recent transcript...".italic().dim()].into()]
+            vec![vec!["  ?".dim(), "Loading recent transcript...".italic().dim()].into()]
         }
         Some(TranscriptPreviewState::Failed) => vec![
             vec![
-                "  鈹?".dim(),
+                "  ?".dim(),
                 "Could not load transcript preview".italic().red(),
             ]
             .into(),
@@ -2972,8 +2972,8 @@ fn render_expanded_session_details(
         ),
         expanded_detail_line("Directory:", &directory, width),
         expanded_detail_line("Branch:", &branch, width),
-        vec!["  鈹?.dim()].into(),
-        vec!["  鈹?".dim(), "Conversation:".dim()].into(),
+        vec!["  ?.dim()].into(),
+        vec!["  ?".dim(), "Conversation:".dim()].into(),
     ]
 }
 
@@ -2984,7 +2984,7 @@ fn render_conversation_preview_lines(
     if lines.is_empty() {
         return vec![
             vec![
-                "  鈹?".dim(),
+                "  ?".dim(),
                 "No transcript preview available".italic().dim(),
             ]
             .into(),
@@ -3001,9 +3001,9 @@ fn render_conversation_preview_lines(
         .enumerate()
         .map(|(idx, line)| {
             let prefix = if idx + 1 == rendered_len {
-                "  鈹?"
+                "  ?"
             } else {
-                "  鈹?"
+                "  ?"
             };
             prefix_transcript_line(prefix, line)
         })
@@ -3087,7 +3087,7 @@ fn expanded_detail_line(label: &'static str, value: &str, width: u16) -> Line<'s
         .saturating_sub(prefix_width + LABEL_WIDTH + gap_width)
         .max(1);
     vec![
-        "  鈹?".dim(),
+        "  ?".dim(),
         format!("{label:<LABEL_WIDTH$}").dim(),
         "  ".dim(),
         truncate_text(value, value_width).into(),
@@ -3105,7 +3105,7 @@ fn expanded_time_detail_line(
         return expanded_detail_line(label, "-", width);
     };
     let value = format!(
-        "{} 路 {}",
+        "{}  {}",
         format_relative_time_long(reference, ts),
         format_timestamp(ts)
     );
@@ -3171,7 +3171,7 @@ fn render_empty_state_line(state: &PickerState) -> Line<'static> {
         if state.search_state.is_active()
             || (state.pagination.loading.is_pending() && state.pagination.next_cursor.is_some())
         {
-            return vec!["Searching鈥?.italic().dim()].into();
+            return vec!["Searching?.italic().dim()].into();
         }
         if state.pagination.reached_scan_cap {
             let msg = format!(
@@ -3185,9 +3185,9 @@ fn render_empty_state_line(state: &PickerState) -> Line<'static> {
 
     if state.pagination.loading.is_pending() {
         if state.all_rows.is_empty() && state.pagination.num_scanned_files == 0 {
-            return vec!["Loading sessions鈥?.italic().dim()].into();
+            return vec!["Loading sessions?.italic().dim()].into();
         }
-        return vec!["Loading older sessions鈥?.italic().dim()].into();
+        return vec!["Loading older sessions?.italic().dim()].into();
     }
 
     vec!["No sessions yet".italic().dim()].into()
@@ -3406,10 +3406,10 @@ mod tests {
         assert!(rendered.contains(
             "Session:    feat(tui): add raw scrollback mode (019dabc1-0ef5-7431-b81c-03037f51f62c)"
         ));
-        assert!(rendered.contains("Created:    17 minutes ago 路 2026-05-02 14:31:08"));
-        assert!(rendered.contains("Updated:    now 路 2026-05-02 14:48:19"));
+        assert!(rendered.contains("Created:    17 minutes ago  2026-05-02 14:31:08"));
+        assert!(rendered.contains("Updated:    now  2026-05-02 14:48:19"));
         assert!(rendered.contains(&format!("Directory:  {expected_directory}")));
-        assert!(rendered.contains("Branch:     顐?codex/raw-scrollback-mode"));
+        assert!(rendered.contains("Branch:     ?codex/raw-scrollback-mode"));
         assert!(rendered.contains("Conversation:"));
     }
 
@@ -3440,8 +3440,8 @@ mod tests {
         assert!(created[0].to_string().starts_with("  5h ago"));
         assert!(!updated[0].to_string().contains("created 5h ago"));
         assert!(!created[0].to_string().contains("updated 3h ago"));
-        assert_metadata_order(&updated[0], "鈱?tmp/codex", "顐?main");
-        assert_metadata_order(&created[0], "鈱?tmp/codex", "顐?main");
+        assert_metadata_order(&updated[0], "?tmp/codex", "?main");
+        assert_metadata_order(&created[0], "?tmp/codex", "?main");
     }
 
     #[test]
@@ -3458,9 +3458,9 @@ mod tests {
 
         assert_eq!(footer.len(), 1);
         let rendered = footer[0].to_string();
-        assert!(rendered.contains("鈱?/tmp/codex"));
-        assert!(rendered.contains("顐?no branch"));
-        assert_metadata_order(&footer[0], "鈱?/tmp/codex", "顐?no branch");
+        assert!(rendered.contains("?/tmp/codex"));
+        assert!(rendered.contains("?no branch"));
+        assert_metadata_order(&footer[0], "?/tmp/codex", "?no branch");
     }
 
     #[test]
@@ -3497,9 +3497,9 @@ mod tests {
         assert_eq!(footer.len(), 1);
         let footer = footer[0].to_string();
         assert!(!footer.contains(cwd));
-        assert!(footer.contains("鈱?~/code/codex."));
+        assert!(footer.contains("?~/code/codex."));
         assert!(footer.contains("..."));
-        assert!(footer.contains("顐?owner/branch"));
+        assert!(footer.contains("?owner/branch"));
     }
 
     #[test]
@@ -3517,8 +3517,8 @@ mod tests {
         assert_eq!(footer.len(), 1);
         let footer = footer[0].to_string();
         assert!(footer.contains("4h ago"));
-        assert!(footer.contains("顐?owner/branch"));
-        assert!(!footer.contains("鈱?));
+        assert!(footer.contains("?owner/branch"));
+        assert!(!footer.contains("?));
         assert!(!footer.contains("~/code"));
     }
 
@@ -3822,7 +3822,7 @@ mod tests {
 
         assert!(rendered.contains("esc new"));
         assert!(rendered.contains("tab focus"));
-        assert!(rendered.contains("鈫?鈫?option"));
+        assert!(rendered.contains("??option"));
         assert!(rendered.contains("ctrl+o dense"));
         assert!(rendered.contains("ctrl+t preview"));
         assert!(rendered.contains("ctrl+e exp"));
@@ -3895,7 +3895,7 @@ mod tests {
         assert!(rendered.contains("ctrl+o"));
         assert!(rendered.contains("ctrl+t"));
         assert!(rendered.contains("ctrl+e"));
-        assert!(rendered.contains("鈫?鈫?));
+        assert!(rendered.contains("??));
     }
 
     #[test]
@@ -3970,7 +3970,7 @@ mod tests {
 
         let label = picker_footer_progress_label(&state, /*list_height*/ 6, /*width*/ 80);
 
-        assert_eq!(label, " 3 / 10 路 0% ");
+        assert_eq!(label, " 3 / 10  0% ");
         assert!(!label.contains('-'));
     }
 
@@ -3999,7 +3999,7 @@ mod tests {
 
         let label = picker_footer_progress_label(&state, /*list_height*/ 6, /*width*/ 80);
 
-        assert_eq!(label, " 3 / 10 路 0% ");
+        assert_eq!(label, " 3 / 10  0% ");
     }
 
     #[test]
@@ -4033,7 +4033,7 @@ mod tests {
 
         let label = picker_footer_progress_label(&state, /*list_height*/ 6, /*width*/ 80);
 
-        assert_eq!(label, " 10 / 10鈥?路 37% ");
+        assert_eq!(label, " 10 / 10? 37% ");
     }
 
     #[test]
@@ -4815,7 +4815,7 @@ session_picker_view = "dense"
 
         assert_eq!(line.width(), 80);
         assert_eq!(line.style.fg, selected_session_style().fg);
-        assert_eq!(line.spans[0].content, "鉂?");
+        assert_eq!(line.spans[0].content, "?");
     }
 
     #[test]
@@ -5125,7 +5125,7 @@ session_picker_view = "dense"
             render_list(&mut frame, area, &state);
         }
         terminal.flush().expect("flush");
-        assert!(terminal.backend().to_string().contains("鈫?more"));
+        assert!(terminal.backend().to_string().contains("?more"));
 
         state.density = SessionListDensity::Dense;
         state.update_viewport(height as usize, width);
@@ -5136,7 +5136,7 @@ session_picker_view = "dense"
         }
         terminal.flush().expect("flush");
 
-        assert!(!terminal.backend().to_string().contains("鈫?more"));
+        assert!(!terminal.backend().to_string().contains("?more"));
     }
 
     #[test]
@@ -5633,7 +5633,7 @@ session_picker_view = "dense"
         assert_eq!(recorded_requests.lock().unwrap().len(), 1);
         assert_eq!(
             picker_footer_progress_label(&state, /*list_height*/ 5, /*width*/ 80),
-            " 10 / 10鈥?路 100% "
+            " 10 / 10? 100% "
         );
     }
 

@@ -481,7 +481,7 @@ fn build_full_line(row: &GenericDisplayRow, desc_col: usize) -> Line<'static> {
     if truncated {
         // If there is at least one cell available, add an ellipsis.
         // When name_limit is 0, we still show an ellipsis to indicate truncation.
-        name_spans.push("…".into());
+        name_spans.push("".into());
     }
 
     if row.disabled_reason.is_some() {

@@ -91,7 +91,7 @@ pub(crate) fn truncate_line_with_ellipsis_if_overflow(
         mut spans,
     } = truncated;
     let ellipsis_style = spans.last().map(|span| span.style).unwrap_or_default();
-    spans.push(Span::styled("…", ellipsis_style));
+    spans.push(Span::styled("", ellipsis_style));
     Line {
         style,
         alignment,

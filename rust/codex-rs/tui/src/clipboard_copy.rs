@@ -58,7 +58,7 @@ pub(crate) fn copy_to_clipboard(text: &str) -> Result<Option<ClipboardLease>, St
 /// owning process. Dropping the `arboard::Clipboard` before the user pastes causes
 /// the content to vanish. Store this lease on the widget that triggered the copy so
 /// the handle lives as long as the TUI does. On non-Linux native paths and OSC 52
-/// paths the lease is `None` — those backends do not require process-lifetime
+/// paths the lease is `None`  those backends do not require process-lifetime
 /// ownership.
 pub(crate) struct ClipboardLease {
     #[cfg(target_os = "linux")]

@@ -1,6 +1,6 @@
 // Forbid accidental stdout/stderr writes in the *library* portion of the TUI.
 // The standalone `codex-tui` binary prints a short help message before the
-// alternateâ€‘screen mode starts; that file optsâ€‘out locally via `allow`.
+// alternatescreen mode starts; that file optsout locally via `allow`.
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 #![deny(clippy::disallowed_methods)]
 use crate::legacy_core::check_execpolicy_for_warnings;
@@ -870,7 +870,7 @@ pub async fn run_main(
     }
 
     // When using `--oss`, let the bootstrapper pick the model (defaulting to
-    // gpt-oss:20b) and ensure it is present locally. Also, force the builtâ€‘in
+    // gpt-oss:20b) and ensure it is present locally. Also, force the builtin
     let raw_overrides = cli.config_overrides.raw_overrides.clone();
     // `oss` model provider.
     let overrides_cli = codepilotx_utils_cli::CliConfigOverrides { raw_overrides };
@@ -1666,7 +1666,7 @@ async fn run_ratatui_app(
         _ => config,
     };
 
-    // Configure syntax highlighting theme from the final config â€?onboarding
+    // Configure syntax highlighting theme from the final config ?onboarding
     // and resume/fork can both reload config with a different tui_theme, so
     // this must happen after the last possible reload.
     if let Some(w) = crate::render::highlight::set_theme_override(
@@ -1792,7 +1792,7 @@ async fn run_ratatui_app(
     terminal_restore_guard.restore_silently();
     // Mark the end of the recorded session.
     session_log::log_session_end();
-    // ignore error when collecting usage â€?report underlying error instead
+    // ignore error when collecting usage ?report underlying error instead
     app_result
 }
 
@@ -3041,7 +3041,7 @@ trust_level = "untrusted"
     /// `run_ratatui_app` can reload config during onboarding and again
     /// during session resume/fork.  The syntax theme override (stored in
     /// a `OnceLock`) must use the final config's `tui_theme`, not the
-    /// initial one â€?otherwise users resuming a thread in a project with
+    /// initial one ?otherwise users resuming a thread in a project with
     /// a different theme get the wrong highlighting.
     ///
     /// We verify the invariant indirectly: `validate_theme_name` (the
@@ -3054,7 +3054,7 @@ trust_level = "untrusted"
 
         let temp_dir = TempDir::new()?;
 
-        // initial_config has a valid theme â€?no warning.
+        // initial_config has a valid theme ?no warning.
         let initial_config = build_config(&temp_dir).await?;
         assert!(initial_config.tui_theme.is_none());
 

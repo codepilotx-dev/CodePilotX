@@ -9,7 +9,7 @@
 use std::time::Duration;
 use std::time::Instant;
 
-/// A 120 FPS minimum frame interval (≈8.33ms).
+/// A 120 FPS minimum frame interval (8.33ms).
 pub(super) const MIN_FRAME_INTERVAL: Duration = Duration::from_nanos(8_333_334);
 
 /// Remembers the most recent emitted draw, allowing deadlines to be clamped forward.

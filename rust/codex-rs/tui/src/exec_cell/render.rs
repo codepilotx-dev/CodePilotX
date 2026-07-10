@@ -139,7 +139,7 @@ pub(crate) fn output_lines(
         let prefix = if !include_prefix {
             ""
         } else if i == 0 && include_angle_pipe {
-            "  â”?"
+            "  ?"
         } else {
             "    "
         };
@@ -189,7 +189,7 @@ fn activity_marker(start_time: Option<Instant>, animations_enabled: bool) -> Spa
         MotionMode::from_animations_enabled(animations_enabled),
         ReducedMotionIndicator::StaticBullet,
     )
-    .unwrap_or_else(|| "â€?.dim())
+    .unwrap_or_else(|| "?.dim())
 }
 
 impl HistoryCell for ExecCell {
@@ -231,14 +231,14 @@ impl HistoryCell for ExecCell {
                     .map(format_duration)
                     .unwrap_or_else(|| "unknown".to_string());
                 let mut result: Line = if output.exit_code == 0 {
-                    Line::from("âœ?.green().bold())
+                    Line::from("?.green().bold())
                 } else {
                     Line::from(vec![
-                        "âœ?.red().bold(),
+                        "?.red().bold(),
                         format!(" ({})", output.exit_code).into(),
                     ])
                 };
-                result.push_span(format!(" â€?{duration}").dim());
+                result.push_span(format!(" ?{duration}").dim());
                 lines.push(result);
             }
         }
@@ -252,7 +252,7 @@ impl HistoryCell for ExecCell {
 
 impl ExecCell {
     fn output_ellipsis_text(omitted: usize) -> String {
-        format!("â€?+{omitted} lines ({TRANSCRIPT_HINT})")
+        format!("?+{omitted} lines ({TRANSCRIPT_HINT})")
     }
 
     fn output_ellipsis_line(omitted: usize) -> Line<'static> {
@@ -265,7 +265,7 @@ impl ExecCell {
             if self.is_active() {
                 activity_marker(self.active_start_time(), self.animations_enabled())
             } else {
-                "â€?.dim()
+                "?.dim()
             },
             " ".into(),
             if self.is_active() {
@@ -358,7 +358,7 @@ impl ExecCell {
             }
         }
 
-        out.extend(prefix_lines(out_indented, "  â”?".dim(), "    ".into()));
+        out.extend(prefix_lines(out_indented, "  ?".dim(), "    ".into()));
         out
     }
 
@@ -369,8 +369,8 @@ impl ExecCell {
         let layout = EXEC_DISPLAY_LAYOUT;
         let success = call.output.as_ref().map(|o| o.exit_code == 0);
         let bullet = match success {
-            Some(true) => "â€?.green().bold(),
-            Some(false) => "â€?.red().bold(),
+            Some(true) => "?.green().bold(),
+            Some(false) => "?.red().bold(),
             None => activity_marker(call.start_time, self.animations_enabled()),
         };
         let is_interaction = call.is_unified_exec_interaction();
@@ -630,7 +630,7 @@ impl ExecCell {
     }
 
     fn ellipsis_line(omitted: usize) -> Line<'static> {
-        Line::from(vec![format!("â€?+{omitted} lines").dim()])
+        Line::from(vec![format!("?+{omitted} lines").dim()])
     }
 
     fn output_ellipsis_row_count(
@@ -646,7 +646,7 @@ impl ExecCell {
         .max(1)
     }
 
-    /// Builds an output ellipsis line (`â€?+N lines (ctrl + t to view transcript)`)
+    /// Builds an output ellipsis line (`?+N lines (ctrl + t to view transcript)`)
     /// with an optional leading prefix so the ellipsis aligns with the output gutter.
     fn output_ellipsis_line_with_prefix(
         omitted: usize,
@@ -704,9 +704,9 @@ impl ExecDisplayLayout {
 }
 
 const EXEC_DISPLAY_LAYOUT: ExecDisplayLayout = ExecDisplayLayout::new(
-    PrefixedBlock::new("  â”?", "  â”?"),
+    PrefixedBlock::new("  ?", "  ?"),
     /*command_continuation_max_lines*/ 2,
-    PrefixedBlock::new("  â”?", "    "),
+    PrefixedBlock::new("  ?", "    "),
     /*output_max_lines*/ 5,
 );
 
@@ -803,7 +803,7 @@ mod tests {
 
         let contains_ellipsis = lines
             .iter()
-            .any(|line| line.spans.iter().any(|span| span.content.contains("â€?+")));
+            .any(|line| line.spans.iter().any(|span| span.content.contains("?+")));
 
         // Regression guard: previously this scenario could render hundreds of
         // wrapped rows because truncation happened before final viewport
@@ -831,7 +831,7 @@ mod tests {
     #[test]
     fn truncate_lines_middle_keeps_omitted_count_in_line_units() {
         let lines = vec![
-            Line::from("  â”?short"),
+            Line::from("  ?short"),
             Line::from("    this-is-a-very-long-token-that-wraps-many-rows"),
             Line::from(format!(
                 "    {}",
@@ -852,7 +852,7 @@ mod tests {
         assert!(
             rendered
                 .iter()
-                .any(|line| line.contains("â€?+6 lines (ctrl + t to view transcript)")),
+                .any(|line| line.contains("?+6 lines (ctrl + t to view transcript)")),
             "expected omitted hint to count hidden lines (not wrapped rows), got: {rendered:?}"
         );
     }
@@ -882,7 +882,7 @@ mod tests {
         assert!(
             rendered
                 .iter()
-                .any(|line| line.contains("â€?+3 lines (ctrl + t to view transcript)")),
+                .any(|line| line.contains("?+3 lines (ctrl + t to view transcript)")),
             "expected logical truncation to include transcript hint, got: {rendered:?}"
         );
     }
@@ -904,14 +904,14 @@ mod tests {
             vec![
                 "first".to_string(),
                 "second".to_string(),
-                "â€?+1 lines".to_string(),
+                "?+1 lines".to_string(),
             ]
         );
     }
 
     #[test]
     fn truncate_lines_middle_does_not_truncate_blank_prefixed_output_lines() {
-        let mut lines = vec![Line::from("  â”?start")];
+        let mut lines = vec![Line::from("  ?start")];
         lines.extend(std::iter::repeat_n(Line::from("    "), 26));
         lines.push(Line::from("    end"));
 
@@ -983,7 +983,7 @@ mod tests {
             .collect();
 
         assert_eq!(first, second);
-        assert_eq!(first, vec!["â€?Running echo done".to_string()]);
+        assert_eq!(first, vec!["?Running echo done".to_string()]);
     }
 
     #[test]

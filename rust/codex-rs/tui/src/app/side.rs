@@ -258,7 +258,7 @@ impl App {
         }
         label_parts.push("Ctrl+C to return".to_string());
         self.chat_widget
-            .set_side_conversation_context_label(Some(format!("Side {}", label_parts.join(" · "))));
+            .set_side_conversation_context_label(Some(format!("Side {}", label_parts.join("  "))));
     }
 
     pub(super) fn active_side_parent_thread_id(&self) -> Option<ThreadId> {

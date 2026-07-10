@@ -314,15 +314,15 @@ mod tests {
 
     #[test]
     fn citations_render_as_plain_text() {
-        let src = "Before 【F:/x.rs†L1】\nAfter 【F:/x.rs†L3】\n";
+        let src = "Before F:/x.rsL1\nAfter F:/x.rsL3\n";
         let mut out = Vec::new();
         append_markdown(src, /*width*/ None, /*cwd*/ None, &mut out);
         let rendered = lines_to_strings(&out);
         assert_eq!(
             rendered,
             vec![
-                "Before 【F:/x.rs†L1】".to_string(),
-                "After 【F:/x.rs†L3】".to_string()
+                "Before F:/x.rsL1".to_string(),
+                "After F:/x.rsL3".to_string()
             ]
         );
     }
@@ -400,7 +400,7 @@ mod tests {
         let mut out = Vec::new();
         append_markdown_agent(src, /*width*/ None, &mut out);
         let rendered = lines_to_strings(&out);
-        assert!(rendered.iter().any(|line| line.contains('━')));
+        assert!(rendered.iter().any(|line| line.contains('')));
         assert!(rendered.iter().any(|line| line.contains(" 1      2")));
     }
 
@@ -410,7 +410,7 @@ mod tests {
         let mut out = Vec::new();
         append_markdown_agent(src, /*width*/ None, &mut out);
         let rendered = lines_to_strings(&out);
-        assert!(rendered.iter().any(|line| line.contains('━')));
+        assert!(rendered.iter().any(|line| line.contains('')));
         assert!(
             rendered
                 .iter()
@@ -429,7 +429,7 @@ mod tests {
         let mut out = Vec::new();
         append_markdown_agent(src, /*width*/ None, &mut out);
         let rendered = lines_to_strings(&out);
-        assert!(rendered.iter().any(|line| line.contains('━')));
+        assert!(rendered.iter().any(|line| line.contains('')));
         assert!(rendered.iter().any(|line| line.contains(" left    right")));
         assert!(!rendered.iter().any(|line| line.trim() == "A | B"));
     }
@@ -440,7 +440,7 @@ mod tests {
         let mut out = Vec::new();
         append_markdown_agent(src, /*width*/ None, &mut out);
         let rendered = lines_to_strings(&out);
-        assert!(rendered.iter().any(|line| line.contains('━')));
+        assert!(rendered.iter().any(|line| line.contains('')));
         assert!(!rendered.iter().any(|line| line.trim() == "| Only |"));
     }
 

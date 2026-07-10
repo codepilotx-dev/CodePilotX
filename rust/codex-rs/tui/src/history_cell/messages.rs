@@ -167,7 +167,7 @@ impl HistoryCell for UserHistoryCell {
         if let Some(wrapped_message) = wrapped_message {
             lines.extend(prefix_lines(
                 wrapped_message,
-                "› ".bold().dim(),
+                " ".bold().dim(),
                 "  ".into(),
             ));
         }
@@ -238,7 +238,7 @@ impl ReasoningSummaryCell {
         adaptive_wrap_lines(
             &summary_lines,
             RtOptions::new(width as usize)
-                .initial_indent("• ".dim().into())
+                .initial_indent(" ".dim().into())
                 .subsequent_indent("  ".into()),
         )
     }
@@ -298,7 +298,7 @@ impl HistoryCell for AgentMessageCell {
         let mut wrapped = Vec::new();
         for (index, line) in self.lines.iter().enumerate() {
             let initial_indent = if index == 0 && self.is_first_line {
-                "• ".dim().into()
+                " ".dim().into()
             } else {
                 "  ".into()
             };
@@ -371,19 +371,19 @@ impl HistoryCell for AgentMarkdownCell {
         else {
             return prefix_hyperlink_lines(
                 vec![HyperlinkLine::new(Line::default())],
-                "• ".dim(),
+                " ".dim(),
                 "  ".into(),
             );
         };
 
-        // Re-render markdown from source at the current width. Reserve 2 columns for the "• " /
+        // Re-render markdown from source at the current width. Reserve 2 columns for the " " /
         // " " prefix prepended below.
         let lines = crate::markdown::render_markdown_agent_with_links_and_cwd(
             &self.markdown_source,
             Some(wrap_width),
             Some(self.cwd.as_path()),
         );
-        prefix_hyperlink_lines(lines, "• ".dim(), "  ".into())
+        prefix_hyperlink_lines(lines, " ".dim(), "  ".into())
     }
 
     fn transcript_hyperlink_lines(&self, width: u16) -> Vec<HyperlinkLine> {
@@ -426,7 +426,7 @@ impl HistoryCell for StreamingAgentTailCell {
         let mut lines = prefix_hyperlink_lines(
             self.lines.clone(),
             if self.is_first_line {
-                "• ".dim()
+                " ".dim()
             } else {
                 "  ".into()
             },

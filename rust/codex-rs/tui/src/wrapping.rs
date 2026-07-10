@@ -1,6 +1,6 @@
 //! Word-wrapping with URL-aware heuristics.
 //!
-//! The TUI renders text that frequently contains URLs — command output,
+//! The TUI renders text that frequently contains URLs  command output,
 //! markdown, agent messages, tool-call results. Standard `textwrap`
 //! hyphenation treats `/` and `-` as split points, which breaks URLs
 //! across lines and makes them unclickable in terminal emulators.
@@ -20,7 +20,7 @@
 //! functions. Callers that definitely will not (code blocks, pure
 //! numeric output) can use the standard path for speed.
 //!
-//! URL detection is heuristic — see [`text_contains_url_like`] for the
+//! URL detection is heuristic  see [`text_contains_url_like`] for the
 //! rules. False positives suppress hyphenation for that line; false
 //! negatives let a URL get split. The heuristic is intentionally
 //! conservative: file paths like `src/main.rs` are not matched.
@@ -218,7 +218,7 @@ pub(crate) fn line_contains_url_like(line: &Line<'_>) -> bool {
 /// substantive non-URL token.
 ///
 /// Decorative marker tokens (for example list prefixes like `-`, `1.`, `|`,
-/// `│`) are ignored for the non-URL side of this check.
+/// ``) are ignored for the non-URL side of this check.
 pub(crate) fn line_has_mixed_url_and_non_url_tokens(line: &Line<'_>) -> bool {
     let text: String = line
         .spans
@@ -231,13 +231,13 @@ pub(crate) fn line_has_mixed_url_and_non_url_tokens(line: &Line<'_>) -> bool {
 /// Returns `true` if any whitespace-delimited token in `text` looks like a URL.
 ///
 /// Recognized patterns:
-/// - Absolute URLs with a scheme (`https://…`, `ftp://…`, custom `myapp://…`).
+/// - Absolute URLs with a scheme (`https://`, `ftp://`, custom `myapp://`).
 /// - Bare domain URLs (`example.com/path`, `www.example.com`, `localhost:3000/api`).
 /// - IPv4 hosts with a path (`192.168.1.1:8080/health`).
 ///
 /// Surrounding punctuation (`()[]{}< >,.;:!'"`) is stripped before
 /// checking. Tokens that look like file paths (`src/main.rs`, `foo/bar`)
-/// are intentionally rejected — the host portion must be a valid domain
+/// are intentionally rejected  the host portion must be a valid domain
 /// name (with a recognized TLD), an IPv4 address, or `localhost`.
 pub(crate) fn text_contains_url_like(text: &str) -> bool {
     text.split_ascii_whitespace().any(is_url_like_token)
@@ -288,19 +288,19 @@ fn is_decorative_marker_token(raw_token: &str, token: &str) -> bool {
         raw,
         "-" | "*"
             | "+"
-            | "•"
-            | "◦"
-            | "▪"
+            | ""
+            | ""
+            | ""
             | ">"
             | "|"
-            | "│"
-            | "┆"
-            | "└"
-            | "├"
-            | "┌"
-            | "┐"
-            | "┘"
-            | "┼"
+            | ""
+            | ""
+            | ""
+            | ""
+            | ""
+            | ""
+            | ""
+            | ""
     ) || is_ordered_list_marker(raw, token)
 }
 
@@ -1206,11 +1206,11 @@ mod tests {
 
     #[test]
     fn wide_unicode_wraps_by_display_width() {
-        let line = Line::from("😀😀😀");
+        let line = Line::from("");
         let out = word_wrap_line(&line, /*width_or_options*/ 4);
         assert_eq!(out.len(), 2);
-        assert_eq!(concat_line(&out[0]), "😀😀");
-        assert_eq!(concat_line(&out[1]), "😀");
+        assert_eq!(concat_line(&out[0]), "");
+        assert_eq!(concat_line(&out[1]), "");
     }
 
     #[test]
@@ -1295,7 +1295,7 @@ mod tests {
 
     #[test]
     fn line_height_counts_double_width_emoji() {
-        let line = "😀😀😀".into(); // each emoji ~ width 2
+        let line = "".into(); // each emoji ~ width 2
         assert_eq!(word_wrap_line(&line, /*width_or_options*/ 4).len(), 2);
         assert_eq!(word_wrap_line(&line, /*width_or_options*/ 2).len(), 3);
         assert_eq!(word_wrap_line(&line, /*width_or_options*/ 6).len(), 1);
@@ -1303,7 +1303,7 @@ mod tests {
 
     #[test]
     fn word_wrap_does_not_split_words_simple_english() {
-        let sample = "Years passed, and Willowmere thrived in peace and friendship. Mira’s herb garden flourished with both ordinary and enchanted plants, and travelers spoke of the kindness of the woman who tended them.";
+        let sample = "Years passed, and Willowmere thrived in peace and friendship. Miras herb garden flourished with both ordinary and enchanted plants, and travelers spoke of the kindness of the woman who tended them.";
         let line = Line::from(sample);
         let lines = [line];
         // Force small width to exercise wrapping at spaces.
@@ -1312,7 +1312,7 @@ mod tests {
         assert_eq!(
             joined,
             r#"Years passed, and Willowmere thrived in
-peace and friendship. Mira’s herb garden
+peace and friendship. Miras herb garden
 flourished with both ordinary and
 enchanted plants, and travelers spoke of
 the kindness of the woman who tended
@@ -1396,7 +1396,7 @@ them."#
 
     #[test]
     fn line_has_mixed_url_and_non_url_tokens_ignores_pipe_prefix() {
-        let line = Line::from(vec!["  │ ".into(), "https://example.com/path".into()]);
+        let line = Line::from(vec!["   ".into(), "https://example.com/path".into()]);
         assert!(!line_has_mixed_url_and_non_url_tokens(&line));
     }
 
@@ -1530,7 +1530,7 @@ them."#
         // the indent char for a source match.  Here the indent is "- " and the
         // source text also starts with "-", so a naive char-by-char match would
         // consume the source "-" for the indent "-", set saw_source_char too
-        // early, then break on the space — returning 0..1 instead of the full
+        // early, then break on the space  returning 0..1 instead of the full
         // first word.
         let text = "- item one and some more words";
         // Simulate what textwrap would produce for the first continuation line

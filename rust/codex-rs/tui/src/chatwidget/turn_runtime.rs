@@ -35,7 +35,7 @@ impl ChatWidget {
     pub(super) fn log_websocket_timing_totals(&mut self, delta: RuntimeMetricsSummary) {
         if let Some(label) = history_cell::runtime_metrics_label(delta.responses_api_summary()) {
             self.add_plain_history_lines(vec![
-                vec!["â€?".dim(), format!("WebSocket timing: {label}").dark_gray()].into(),
+                vec!["?".dim(), format!("WebSocket timing: {label}").dark_gray()].into(),
             ]);
         }
     }
@@ -300,7 +300,7 @@ impl ChatWidget {
         // Drop preview-only stream tail content on any termination path before
         // failed-cell finalization, so transient tail cells are never persisted.
         self.clear_active_stream_tail();
-        // Ensure any spinner is replaced by a red âœ?and flushed into history.
+        // Ensure any spinner is replaced by a red ?and flushed into history.
         self.finalize_active_cell_as_failed();
         // Turn-scoped hook rows are transient live state; once the turn is over,
         // do not leave an orphaned running row behind if no matching completion

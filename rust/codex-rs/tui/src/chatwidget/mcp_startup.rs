@@ -158,7 +158,7 @@ impl ChatWidget {
                     .map(ToString::to_string)
                     .collect();
                 if starting.len() > max_to_show {
-                    to_show.push("â€?.to_string());
+                    to_show.push("?.to_string());
                 }
                 let header = if total > 1 {
                     format!(

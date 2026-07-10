@@ -88,7 +88,7 @@ async fn marketplace_upgrade_loading_popup_snapshot() {
         .join(" | ");
     insta::assert_snapshot!(
         upgrade_lines,
-        @"Upgrading debug marketplace... | 鈥?   Upgrading debug marketplace...  This updates when marketplace upgrade completes."
+        @"Upgrading debug marketplace... | ?   Upgrading debug marketplace...  This updates when marketplace upgrade completes."
     );
 }
 
@@ -123,7 +123,7 @@ async fn marketplace_upgrade_failure_includes_backend_messages_snapshot() {
         .join("\n");
     insta::assert_snapshot!(
         rendered.trim(),
-        @"鈻?Failed to upgrade 2 marketplaces: debug: git ls-remote marketplace source failed with status 128: authentication failed; tools: failed to validate upgraded marketplace root: marketplace root does not contain a supported manifest"
+        @"?Failed to upgrade 2 marketplaces: debug: git ls-remote marketplace source failed with status 128: authentication failed; tools: failed to validate upgraded marketplace root: marketplace root does not contain a supported manifest"
     );
 }
 
@@ -250,7 +250,7 @@ async fn plugins_popup_truncates_long_descriptions_in_list_rows() {
         .expect("expected verbose plugin row in popup");
     insta::assert_snapshot!(
         verbose_row,
-        @"  [-] Verbose Plugin  Available 路 ChatGPT Marketplace 路 This descri鈥?
+        @"  [-] Verbose Plugin  Available  ChatGPT Marketplace  This descri?
     );
     assert!(
         !popup
@@ -968,7 +968,7 @@ async fn plugin_detail_admin_disabled_plugin_blocks_install() {
 
     let popup = render_bottom_popup(&chat, /*width*/ 100);
     assert!(
-        popup.contains("Admin Blocked 路 Disabled by admin")
+        popup.contains("Admin Blocked  Disabled by admin")
             && popup.contains("This plugin is disabled by your workspace admin.")
             && !popup.contains("Install this plugin now."),
         "expected admin-disabled detail to block install, got:\n{popup}"
@@ -1080,7 +1080,7 @@ async fn plugins_popup_refresh_preserves_selected_row_position() {
 
     let before = render_bottom_popup(&chat, /*width*/ 100);
     assert!(
-        before.contains("鈥?[-] Slack"),
+        before.contains("?[-] Slack"),
         "expected Slack to be selected before refresh, got:\n{before}"
     );
 
@@ -1118,7 +1118,7 @@ async fn plugins_popup_refresh_preserves_selected_row_position() {
 
     let after = render_bottom_popup(&chat, /*width*/ 100);
     assert!(
-        after.contains("鈥?[-] Notion"),
+        after.contains("?[-] Notion"),
         "expected refresh to preserve the selected row position, got:\n{after}"
     );
     assert!(
@@ -1256,7 +1256,7 @@ async fn plugins_popup_space_toggles_installed_plugin_from_list() {
 
     let popup = render_bottom_popup(&chat, /*width*/ 100);
     assert!(
-        popup.contains("鈥?[ ] Drive"),
+        popup.contains("?[ ] Drive"),
         "expected selected plugin row to stay selected after refresh, got:\n{popup}"
     );
 }
@@ -1479,7 +1479,7 @@ async fn plugins_popup_openai_curated_tab_omits_marketplace_in_rows() {
         "expected OpenAI Curated tab to show only official marketplace plugins, got:\n{popup}"
     );
     assert!(
-        !popup.contains("ChatGPT Marketplace 路"),
+        !popup.contains("ChatGPT Marketplace "),
         "expected marketplace-specific rows to omit marketplace labels, got:\n{popup}"
     );
 }
@@ -1910,7 +1910,7 @@ async fn apps_popup_preserves_selected_app_across_refresh() {
 
     let before = render_bottom_popup(&chat, /*width*/ 80);
     assert!(
-        before.contains("鈥?Slack"),
+        before.contains("?Slack"),
         "expected Slack to be selected before refresh, got:\n{before}"
     );
 
@@ -1969,11 +1969,11 @@ async fn apps_popup_preserves_selected_app_across_refresh() {
 
     let after = render_bottom_popup(&chat, /*width*/ 80);
     assert!(
-        after.contains("鈥?Slack"),
+        after.contains("?Slack"),
         "expected Slack to stay selected after refresh, got:\n{after}"
     );
     assert!(
-        !after.contains("鈥?Notion"),
+        !after.contains("?Notion"),
         "did not expect selection to reset to Notion after refresh, got:\n{after}"
     );
 }
@@ -2219,7 +2219,7 @@ async fn apps_popup_shows_disabled_status_for_installed_but_disabled_apps() {
     chat.add_connectors_output();
     let popup = render_bottom_popup(&chat, /*width*/ 80);
     assert!(
-        popup.contains("Installed 路 Disabled. Press Enter to open the app page"),
+        popup.contains("Installed  Disabled. Press Enter to open the app page"),
         "expected selected app description to include disabled status, got:\n{popup}"
     );
     assert!(
@@ -2294,7 +2294,7 @@ async fn apps_refresh_preserves_toggled_enabled_state() {
     chat.add_connectors_output();
     let popup = render_bottom_popup(&chat, /*width*/ 80);
     assert!(
-        popup.contains("Installed 路 Disabled. Press Enter to open the app page"),
+        popup.contains("Installed  Disabled. Press Enter to open the app page"),
         "expected disabled status to persist after reload, got:\n{popup}"
     );
 }
