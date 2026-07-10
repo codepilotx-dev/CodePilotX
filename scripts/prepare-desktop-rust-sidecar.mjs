@@ -20,20 +20,20 @@ const isRelease = process.argv.includes('--release')
 const profile = isRelease ? 'release' : 'debug'
 const targetDir = join(root, 'rust', 'codex-rs', 'target', profile)
 const binaryName = process.platform === 'win32'
-  ? 'codex-app-server.exe'
-  : 'codex-app-server'
+  ? 'codepilotx-app-server.exe'
+  : 'codepilotx-app-server'
 const binaryPath = join(targetDir, binaryName)
 
 // 1. Build the Rust crate
-console.log(`[rust-sidecar] Building codex-app-server (${profile})...`)
+console.log(`[rust-sidecar] Building codepilotx-app-server (${profile})...`)
 try {
-  execFileSync('cargo', ['build', ...(isRelease ? ['--release'] : []), '-p', 'codex-app-server'], {
+  execFileSync('cargo', ['build', ...(isRelease ? ['--release'] : []), '-p', 'codepilotx-app-server'], {
     cwd: join(root, 'rust', 'codex-rs'),
     stdio: 'inherit',
   })
 } catch (err) {
   console.error(
-    '[rust-sidecar] Failed to build codex-app-server. Is cargo installed?',
+    '[rust-sidecar] Failed to build codepilotx-app-server. Is cargo installed?',
   )
   console.error(
     '[rust-sidecar] Ensure you have the Rust toolchain installed: https://rustup.rs',
