@@ -280,7 +280,7 @@ export class DebugToolProbeService {
       await runtime.dispose()
 
       return {
-        sqliteHome: probeInfo.codexHome,
+        sqliteHome: probeInfo.codepilotxHome ?? probeInfo.codexHome,
         protocolCapabilities: capabilities,
         userAgent: probeInfo.userAgent,
       }

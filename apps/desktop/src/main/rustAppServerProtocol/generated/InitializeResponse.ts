@@ -3,6 +3,9 @@
 import type { AbsolutePathBuf } from './AbsolutePathBuf.js'
 export type InitializeResponse = {
   userAgent: string
+  /** Canonical: absolute path to the server's CodePilotX home directory. */
+  codepilotxHome: AbsolutePathBuf
+  /** Legacy alias for backward compatibility (was codexHome). */
   codexHome: AbsolutePathBuf
   platformFamily: string
   platformOs: string

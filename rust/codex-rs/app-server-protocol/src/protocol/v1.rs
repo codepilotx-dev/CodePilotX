@@ -1,21 +1,21 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ForcedLoginMethod;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::config_types::Verbosity;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::parse_command::ParsedCommand;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::FileChange;
-pub use codex_protocol::protocol::GitSha;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::ForcedLoginMethod;
+use codepilotx_protocol::config_types::ReasoningSummary;
+use codepilotx_protocol::config_types::SandboxMode;
+use codepilotx_protocol::config_types::Verbosity;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::parse_command::ParsedCommand;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_protocol::protocol::FileChange;
+pub use codepilotx_protocol::protocol::GitSha;
+use codepilotx_protocol::protocol::ReviewDecision;
+use codepilotx_protocol::protocol::SandboxPolicy;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::TurnAbortReason;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -63,7 +63,10 @@ pub struct InitializeCapabilities {
 #[serde(rename_all = "camelCase")]
 pub struct InitializeResponse {
     pub user_agent: String,
-    /// Absolute path to the server's $CODEX_HOME directory.
+    /// Canonical: absolute path to the server's CodePilotX home directory.
+    pub codepilotx_home: AbsolutePathBuf,
+    /// Legacy alias: absolute path to the server's CodePilotX home directory.
+    /// Kept for backward compatibility with clients expecting `codexHome`.
     pub codex_home: AbsolutePathBuf,
     /// Platform family for the running app-server target, for example
     /// `"unix"` or `"windows"`.
@@ -132,8 +135,8 @@ pub struct GitDiffToRemoteResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ApplyPatchApprovalParams {
     pub conversation_id: ThreadId,
-    /// Use to correlate this with [codex_protocol::protocol::PatchApplyBeginEvent]
-    /// and [codex_protocol::protocol::PatchApplyEndEvent].
+    /// Use to correlate this with [codepilotx_protocol::protocol::PatchApplyBeginEvent]
+    /// and [codepilotx_protocol::protocol::PatchApplyEndEvent].
     pub call_id: String,
     pub file_changes: HashMap<PathBuf, FileChange>,
     /// Optional explanatory reason (e.g. request for extra write access).
@@ -153,8 +156,8 @@ pub struct ApplyPatchApprovalResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ExecCommandApprovalParams {
     pub conversation_id: ThreadId,
-    /// Use to correlate this with [codex_protocol::protocol::ExecCommandBeginEvent]
-    /// and [codex_protocol::protocol::ExecCommandEndEvent].
+    /// Use to correlate this with [codepilotx_protocol::protocol::ExecCommandBeginEvent]
+    /// and [codepilotx_protocol::protocol::ExecCommandEndEvent].
     pub call_id: String,
     /// Identifier for this specific approval callback.
     pub approval_id: Option<String>,

@@ -414,7 +414,9 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
    */
   async probeServer(): Promise<{
     userAgent: string
+    /** @deprecated Use codepilotxHome instead */
     codexHome: string
+    codepilotxHome: string
     platformFamily: string
     platformOs: string
   }> {
@@ -425,6 +427,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     return {
       userAgent: this.lastInitResult.userAgent,
       codexHome: this.lastInitResult.codexHome,
+      codepilotxHome: this.lastInitResult.codepilotxHome,
       platformFamily: this.lastInitResult.platformFamily,
       platformOs: this.lastInitResult.platformOs,
     }
@@ -703,7 +706,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     if (!existsSync(executablePath)) {
       throw new SidecarStartError(
         `Rust app-server binary not found at: ${executablePath}. ` +
-          `Build it with "cargo build -p codex-app-server --bin codepilotx-app-server" in rust/codex-rs, ` +
+          `Build it with "cargo build -p codepilotx-app-server" in rust/codex-rs, ` +
           `or set ${RUST_APP_SERVER_BINARY_ENV} to a codepilotx-app-server binary.`,
       )
     }

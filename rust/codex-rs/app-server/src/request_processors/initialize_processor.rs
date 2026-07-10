@@ -2,18 +2,18 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
 use axum::http::HeaderValue;
-use codex_analytics::AppServerRpcTransport;
-use codex_login::default_client::SetOriginatorError;
-use codex_login::default_client::USER_AGENT_SUFFIX;
-use codex_login::default_client::get_codex_user_agent;
-use codex_login::default_client::set_default_client_residency_requirement;
-use codex_login::default_client::set_default_originator;
+use codepilotx_analytics::AppServerRpcTransport;
+use codepilotx_login::default_client::SetOriginatorError;
+use codepilotx_login::default_client::USER_AGENT_SUFFIX;
+use codepilotx_login::default_client::get_codepilotx_user_agent;
+use codepilotx_login::default_client::set_default_client_residency_requirement;
+use codepilotx_login::default_client::set_default_originator;
 
 use super::*;
 use crate::message_processor::ConnectionSessionState;
 use crate::message_processor::InitializedConnectionSessionState;
 
-const NON_ORIGINATING_CLIENT_NAMES: &[&str] = &["codex_app_server_daemon", "codex-backend"];
+const NON_ORIGINATING_CLIENT_NAMES: &[&str] = &["codepilotx_app_server_daemon", "codex-backend"];
 
 #[derive(Clone)]
 pub(crate) struct InitializeRequestProcessor {
@@ -89,7 +89,7 @@ impl InitializeRequestProcessor {
         let originator = name.clone();
         let user_agent_suffix = format!("{name}; {version}");
         let mutates_global_identity = !NON_ORIGINATING_CLIENT_NAMES.contains(&name.as_str());
-        let codex_home = self.config.codex_home.clone();
+        let codepilotx_home = self.config.codepilotx_home.clone();
         if session
             .initialize(InitializedConnectionSessionState {
                 experimental_api_enabled,
@@ -116,7 +116,7 @@ impl InitializeRequestProcessor {
                     }
                     SetOriginatorError::AlreadyInitialized => {
                         // No-op. This is expected to happen if the originator is already set via env var.
-                        // TODO(owen): Once we remove support for CODEX_INTERNAL_ORIGINATOR_OVERRIDE,
+                        // TODO(owen): Once we remove support for codepilotx_INTERNAL_ORIGINATOR_OVERRIDE,
                         // this will be an unexpected state and we can return a JSON-RPC error indicating
                         // internal server error.
                     }
@@ -134,10 +134,11 @@ impl InitializeRequestProcessor {
             *suffix = Some(user_agent_suffix);
         }
 
-        let user_agent = get_codex_user_agent();
+        let user_agent = get_codepilotx_user_agent();
         let response = InitializeResponse {
             user_agent,
-            codex_home,
+            codepilotx_home: codepilotx_home.clone(),
+            codex_home: codepilotx_home,
             platform_family: std::env::consts::FAMILY.to_string(),
             platform_os: std::env::consts::OS.to_string(),
         };

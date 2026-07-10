@@ -5,7 +5,11 @@ import type { AbsolutePathBuf } from "./AbsolutePathBuf";
 
 export type InitializeResponse = { userAgent: string,
 /**
- * Absolute path to the server's $CODEX_HOME directory.
+ * Canonical: absolute path to the server's CodePilotX home directory.
+ */
+codepilotxHome: AbsolutePathBuf,
+/**
+ * Legacy alias for backward compatibility with clients expecting codexHome.
  */
 codexHome: AbsolutePathBuf,
 /**

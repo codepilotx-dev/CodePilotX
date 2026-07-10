@@ -213,11 +213,11 @@ describe('rustAppServerWorkflowAdapter', () => {
     handleServerNotification(
       'error',
       {
-        error: {
-          message: 'Context window exceeded',
-          codexErrorInfo: null,
-          additionalDetails: null,
-        },
+          error: {
+            message: 'Context window exceeded',
+            codepilotxErrorInfo: null,
+            additionalDetails: null,
+          },
       },
       e => events.push(e),
       state,
