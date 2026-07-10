@@ -382,7 +382,7 @@ impl ChatWidget {
                         thread_id,
                         params.server_name,
                         request_id,
-                        codex_app_server_protocol::McpServerElicitationAction::Decline,
+                        codepilotx_app_server_protocol::McpServerElicitationAction::Decline,
                         /*content*/ None,
                         /*meta*/ None,
                     );

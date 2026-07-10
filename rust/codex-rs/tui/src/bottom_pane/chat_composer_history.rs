@@ -19,8 +19,8 @@ use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::bottom_pane::MentionBinding;
 use crate::mention_codec::decode_history_mentions_with_at_mentions;
-use codex_protocol::ThreadId;
-use codex_protocol::user_input::TextElement;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::user_input::TextElement;
 
 /// A composer history entry that can rehydrate draft state.
 #[derive(Debug, Clone, PartialEq)]
@@ -349,7 +349,7 @@ impl ChatComposerHistory {
             return true;
         }
 
-        // Textarea is not empty â€“ only navigate when text matches the last
+        // Textarea is not empty â€?only navigate when text matches the last
         // recalled history entry and the cursor is at a line boundary. This
         // keeps shell-like Up/Down recall working while still allowing normal
         // multiline cursor movement from interior positions.
@@ -414,7 +414,7 @@ impl ChatComposerHistory {
                 )
             }
             None => {
-                // Past newest â€“ clear and exit browsing mode.
+                // Past newest â€?clear and exit browsing mode.
                 self.history_cursor = None;
                 self.pending_navigation_direction = None;
                 self.last_history_text = None;

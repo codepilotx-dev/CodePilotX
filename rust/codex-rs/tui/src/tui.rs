@@ -50,8 +50,8 @@ use crate::tui::event_stream::EventBroker;
 use crate::tui::event_stream::TuiEventStream;
 #[cfg(unix)]
 use crate::tui::job_control::SuspendContext;
-use codex_config::types::NotificationCondition;
-use codex_config::types::NotificationMethod;
+use codepilotx_config::types::NotificationCondition;
+use codepilotx_config::types::NotificationMethod;
 
 mod event_stream;
 mod frame_rate_limiter;
@@ -100,7 +100,7 @@ mod tests {
     use super::should_emit_notification;
     use crate::custom_terminal::Terminal as CustomTerminal;
     use crate::test_backend::VT100Backend;
-    use codex_config::types::NotificationCondition;
+    use codepilotx_config::types::NotificationCondition;
     use ratatui::layout::Position;
     use ratatui::layout::Rect;
 
@@ -577,7 +577,7 @@ impl Tui {
         // Cache this to avoid contention with the event reader.
         supports_color::on_cached(supports_color::Stream::Stdout);
         let _ = crate::terminal_palette::default_colors();
-        let is_zellij = codex_terminal_detection::terminal_info().is_zellij();
+        let is_zellij = codepilotx_terminal_detection::terminal_info().is_zellij();
 
         Self {
             frame_requester,

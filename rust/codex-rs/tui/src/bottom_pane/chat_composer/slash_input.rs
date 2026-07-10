@@ -16,8 +16,8 @@ use crate::bottom_pane::slash_commands::SlashCommandItem;
 use crate::bottom_pane::slash_commands::find_slash_command;
 use crate::bottom_pane::slash_commands::has_slash_command_prefix;
 use crate::slash_command::SlashCommand;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::TextElement;
+use codepilotx_protocol::user_input::ByteRange;
+use codepilotx_protocol::user_input::TextElement;
 
 use super::super::footer::esc_hint_mode;
 use super::super::footer::reset_mode_after_activity;

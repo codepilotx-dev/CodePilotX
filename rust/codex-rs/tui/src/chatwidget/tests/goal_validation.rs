@@ -1,5 +1,5 @@
 use super::*;
-use codex_protocol::protocol::MAX_THREAD_GOAL_OBJECTIVE_CHARS;
+use codepilotx_protocol::protocol::MAX_THREAD_GOAL_OBJECTIVE_CHARS;
 use pretty_assertions::assert_eq;
 
 fn complete_turn_with_message(chat: &mut ChatWidget, turn_id: &str, message: Option<&str>) {

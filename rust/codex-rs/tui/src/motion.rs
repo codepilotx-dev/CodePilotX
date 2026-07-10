@@ -41,7 +41,7 @@ pub(crate) fn activity_indicator(
         MotionMode::Animated => Some(animated_activity_indicator(start_time)),
         MotionMode::Reduced => match reduced_motion_indicator {
             ReducedMotionIndicator::Hidden => None,
-            ReducedMotionIndicator::StaticBullet => Some("â€¢".dim()),
+            ReducedMotionIndicator::StaticBullet => Some("â€?.dim()),
         },
     }
 }
@@ -65,13 +65,13 @@ fn animated_activity_indicator(start_time: Option<Instant>) -> Span<'static> {
         .map(|level| level.has_16m)
         .unwrap_or(false)
     {
-        shimmer_spans("â€¢")
+        shimmer_spans("â€?)
             .into_iter()
             .next()
-            .unwrap_or_else(|| "â€¢".into())
+            .unwrap_or_else(|| "â€?.into())
     } else {
         let blink_on = (elapsed.as_millis() / 600).is_multiple_of(2);
-        if blink_on { "â€¢".into() } else { "â—¦".dim() }
+        if blink_on { "â€?.into() } else { "â—?.dim() }
     }
 }
 
@@ -101,7 +101,7 @@ mod tests {
                 MotionMode::Reduced,
                 ReducedMotionIndicator::StaticBullet,
             ),
-            Some("â€¢".dim())
+            Some("â€?.dim())
         );
     }
 
@@ -122,7 +122,7 @@ mod tests {
         let direct_spinner = regex_lite::Regex::new(r"(^|[^A-Za-z0-9_])spinner\s*\(").unwrap();
         let direct_shimmer =
             regex_lite::Regex::new(r"(^|[^A-Za-z0-9_])shimmer_spans\s*\(").unwrap();
-        let lib_rs = codex_utils_cargo_bin::find_resource!("src/lib.rs")
+        let lib_rs = codepilotx_utils_cargo_bin::find_resource!("src/lib.rs")
             .expect("failed to locate TUI source");
         let src_dir = lib_rs.parent().expect("lib.rs should have a parent");
 

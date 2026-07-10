@@ -9,11 +9,11 @@ const BWRAP_UNAVAILABLE_ERR: &str = "bubblewrap is unavailable";
 
 #[test]
 fn sandbox_with_network_proxy_blocks_direct_loopback_access() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let listener = TcpListener::bind("127.0.0.2:0")?;
     let port = listener.local_addr()?.port();
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         r#"
 default_permissions = "network-test"
 
@@ -31,8 +31,8 @@ mode = "full"
     )?;
 
     let url = format!("http://127.0.0.2:{port}/");
-    let output = std::process::Command::new(codex_utils_cargo_bin::cargo_bin("codex")?)
-        .env("CODEX_HOME", codex_home.path())
+    let output = std::process::Command::new(codepilotx_utils_cargo_bin::cargo_bin("codex")?)
+        .env("codepilotx_HOME", codepilotx_home.path())
         .args([
             "sandbox",
             "--permissions-profile",

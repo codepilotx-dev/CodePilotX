@@ -1,6 +1,6 @@
 use super::*;
 use assert_matches::assert_matches;
-use codex_utils_path_uri::PathUri;
+use codepilotx_utils_path_uri::PathUri;
 
 #[tokio::test]
 async fn status_command_renders_immediately_and_refreshes_rate_limits_for_chatgpt_auth() {

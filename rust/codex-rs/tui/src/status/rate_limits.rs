@@ -14,15 +14,15 @@ use chrono::DateTime;
 use chrono::Duration as ChronoDuration;
 use chrono::Local;
 use chrono::Utc;
-use codex_app_server_protocol::CreditsSnapshot as CoreCreditsSnapshot;
-use codex_app_server_protocol::RateLimitSnapshot;
-use codex_app_server_protocol::RateLimitWindow;
-use codex_app_server_protocol::SpendControlLimitSnapshot as CoreSpendControlLimitSnapshot;
-use codex_protocol::num_format::format_with_separators;
+use codepilotx_app_server_protocol::CreditsSnapshot as CoreCreditsSnapshot;
+use codepilotx_app_server_protocol::RateLimitSnapshot;
+use codepilotx_app_server_protocol::RateLimitWindow;
+use codepilotx_app_server_protocol::SpendControlLimitSnapshot as CoreSpendControlLimitSnapshot;
+use codepilotx_protocol::num_format::format_with_separators;
 
 const STATUS_LIMIT_BAR_SEGMENTS: usize = 20;
-const STATUS_LIMIT_BAR_FILLED: &str = "â–ˆ";
-const STATUS_LIMIT_BAR_EMPTY: &str = "â–‘";
+const STATUS_LIMIT_BAR_FILLED: &str = "â–?;
+const STATUS_LIMIT_BAR_EMPTY: &str = "â–?;
 
 #[derive(Debug, Clone)]
 pub(crate) struct StatusRateLimitRow {
@@ -93,7 +93,7 @@ impl RateLimitWindowDisplay {
 
 #[derive(Debug, Clone)]
 pub(crate) struct RateLimitSnapshotDisplay {
-    /// Canonical limit identifier (for example: `codex` or `codex_other`).
+    /// Canonical limit identifier (for example: `codex` or `codepilotx_other`).
     pub limit_name: String,
     /// Local timestamp representing when this display snapshot was captured.
     pub captured_at: DateTime<Local>,
@@ -244,9 +244,9 @@ pub(crate) fn compose_rate_limit_data_many(
             .map(|label| capitalize_first(&label));
         let window_count =
             usize::from(snapshot.primary.is_some()) + usize::from(snapshot.secondary.is_some());
-        let combine_non_codex_single_limit = show_limit_prefix && window_count == 1;
+        let combine_non_codepilotx_single_limit = show_limit_prefix && window_count == 1;
 
-        if show_limit_prefix && !combine_non_codex_single_limit {
+        if show_limit_prefix && !combine_non_codepilotx_single_limit {
             rows.push(StatusRateLimitRow {
                 label: format!("{limit_bucket_label} limit"),
                 value: StatusRateLimitValue::Text(String::new()),
@@ -254,7 +254,7 @@ pub(crate) fn compose_rate_limit_data_many(
         }
 
         if let Some(primary) = snapshot.primary.as_ref() {
-            let label = if combine_non_codex_single_limit {
+            let label = if combine_non_codepilotx_single_limit {
                 format!(
                     "{} {} limit",
                     limit_bucket_label,
@@ -281,7 +281,7 @@ pub(crate) fn compose_rate_limit_data_many(
         }
 
         if let Some(secondary) = snapshot.secondary.as_ref() {
-            let label = if combine_non_codex_single_limit {
+            let label = if combine_non_codepilotx_single_limit {
                 format!(
                     "{} {} limit",
                     limit_bucket_label,
@@ -428,7 +428,7 @@ mod tests {
     }
 
     #[test]
-    fn non_codex_single_limit_renders_combined_row() {
+    fn non_codepilotx_single_limit_renders_combined_row() {
         let now = Local::now();
         let codex = RateLimitSnapshotDisplay {
             limit_name: "codex".to_string(),
@@ -474,7 +474,7 @@ mod tests {
     }
 
     #[test]
-    fn non_codex_multi_limit_keeps_group_row() {
+    fn non_codepilotx_multi_limit_keeps_group_row() {
         let now = Local::now();
         let other = RateLimitSnapshotDisplay {
             limit_name: "codex-other".to_string(),

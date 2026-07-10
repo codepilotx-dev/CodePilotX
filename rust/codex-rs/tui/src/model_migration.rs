@@ -377,7 +377,7 @@ impl ModelMigrationScreen {
 
 // Render the prompt on the terminal's alternate screen so exiting or cancelling
 // does not leave a large blank region in the normal scrollback. This does not
-// change the prompt's appearance â€“ only where it is drawn.
+// change the prompt's appearance â€?only where it is drawn.
 struct AltScreenGuard<'a> {
     tui: &'a mut Tui,
 }
@@ -508,7 +508,7 @@ mod tests {
     }
 
     #[test]
-    fn prompt_snapshot_gpt5_codex_mini() {
+    fn prompt_snapshot_gpt5_codepilotx_mini() {
         let backend = VT100Backend::new(/*width*/ 60, /*height*/ 22);
         let mut terminal = Terminal::with_options(backend).expect("terminal");
         terminal.set_viewport_area(Rect::new(0, 0, 60, 22));
@@ -531,7 +531,7 @@ mod tests {
             frame.render_widget_ref(&screen, frame.area());
         }
         terminal.flush().expect("flush");
-        assert_snapshot!("model_migration_prompt_gpt5_codex_mini", terminal.backend());
+        assert_snapshot!("model_migration_prompt_gpt5_codepilotx_mini", terminal.backend());
     }
 
     #[test]
@@ -556,7 +556,7 @@ mod tests {
             crossterm::event::KeyModifiers::NONE,
         ));
         assert!(screen.is_done());
-        // Esc should not be treated as Exit â€“ it accepts like Enter.
+        // Esc should not be treated as Exit â€?it accepts like Enter.
         assert!(matches!(
             screen.outcome(),
             super::ModelMigrationOutcome::Accepted

@@ -8,10 +8,10 @@
 //! internal virtual transcript. Replaying more rows than the terminal retains wastes work and can
 //! make interactive resize feel worse without giving the user more usable history.
 
-use codex_config::types::DEFAULT_TERMINAL_RESIZE_REFLOW_FALLBACK_MAX_ROWS;
-use codex_terminal_detection::TerminalInfo;
-use codex_terminal_detection::TerminalName;
-use codex_terminal_detection::terminal_info;
+use codepilotx_config::types::DEFAULT_TERMINAL_RESIZE_REFLOW_FALLBACK_MAX_ROWS;
+use codepilotx_terminal_detection::TerminalInfo;
+use codepilotx_terminal_detection::TerminalName;
+use codepilotx_terminal_detection::terminal_info;
 
 use crate::legacy_core::config::TerminalResizeReflowConfig;
 use crate::legacy_core::config::TerminalResizeReflowMaxRows;
@@ -78,7 +78,7 @@ fn auto_resize_reflow_max_rows(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_terminal_detection::Multiplexer;
+    use codepilotx_terminal_detection::Multiplexer;
 
     fn test_terminal(name: TerminalName) -> TerminalInfo {
         TerminalInfo {

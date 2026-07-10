@@ -39,7 +39,7 @@
 //! .build();
 //! ```
 
-use codex_utils_fuzzy_match::fuzzy_match;
+use codepilotx_utils_fuzzy_match::fuzzy_match;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
@@ -297,7 +297,7 @@ impl MultiSelectPicker {
 
     /// Builds the display rows for all currently visible (filtered) items.
     ///
-    /// Each row shows: `â€º [x] Item Name` where `â€º` indicates cursor position
+    /// Each row shows: `â€?[x] Item Name` where `â€º` indicates cursor position
     /// and `[x]` or `[ ]` indicates enabled/disabled state.
     fn build_rows(&self) -> BuiltRows {
         let mut rows = Vec::new();
@@ -308,7 +308,7 @@ impl MultiSelectPicker {
             };
             visible_to_row.push(rows.len());
             let is_selected = self.state.selected_idx == Some(visible_idx);
-            let prefix = if is_selected { 'â€º' } else { ' ' };
+            let prefix = if is_selected { 'â€? } else { ' ' };
             let marker = if item.enabled { 'x' } else { ' ' };
             let item_name = truncate_text(&item.name, ITEM_NAME_TRUNCATE_LEN);
             let name = format!("{prefix} [{marker}] {item_name}");
@@ -1027,7 +1027,7 @@ mod tests {
                 .iter()
                 .map(|row| row.name.as_str())
                 .collect::<Vec<_>>(),
-            vec!["â€º [ ] theme-colors", SECTION_BREAK_ROW, "  [ ] model"]
+            vec!["â€?[ ] theme-colors", SECTION_BREAK_ROW, "  [ ] model"]
         );
         assert_eq!(rows.state.selected_idx, Some(0));
     }

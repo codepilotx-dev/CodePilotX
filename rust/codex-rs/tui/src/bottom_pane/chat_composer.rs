@@ -16,7 +16,7 @@
 //! [`ChatComposer::handle_key_event_without_popup`]. After every handled key, we call
 //! [`ChatComposer::sync_popups`] so UI state follows the latest buffer/cursor.
 //!
-//! # History Navigation (↑/↓)
+//! # History Navigation (�?�?
 //!
 //! The Up/Down history path is managed by [`ChatComposerHistory`]. It merges:
 //!
@@ -107,7 +107,7 @@
 //!   burst detection for actual paste streams.
 //!
 //! The burst detector can also be disabled (`disable_paste_burst`), which bypasses the state
-//! machine and treats the key stream as normal typing. When toggling from enabled → disabled, the
+//! machine and treats the key stream as normal typing. When toggling from enabled �?disabled, the
 //! composer flushes/clears any in-flight burst state so it cannot leak into subsequent input.
 //!
 //! For the detailed burst state machine, see `codex-rs/tui/src/bottom_pane/paste_burst.rs`.
@@ -207,10 +207,10 @@ use crate::render::RectExt;
 use crate::render::renderable::Renderable;
 use crate::slash_command::SlashCommand;
 use crate::style::user_message_style;
-use codex_protocol::ThreadId;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
-use codex_protocol::user_input::TextElement;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::user_input::ByteRange;
+use codepilotx_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
+use codepilotx_protocol::user_input::TextElement;
 
 mod attachment_state;
 mod draft_state;
@@ -241,14 +241,14 @@ use crate::history_cell;
 use crate::skills_helpers::skill_display_name;
 use crate::tui::FrameRequester;
 use crate::ui_consts::LIVE_PREFIX_COLS;
-use codex_app_server_protocol::AppInfo;
+use codepilotx_app_server_protocol::AppInfo;
 #[cfg(test)]
-use codex_core_skills::model::SkillInterface;
-use codex_core_skills::model::SkillMetadata;
-use codex_file_search::FileMatch;
+use codepilotx_core_skills::model::SkillInterface;
+use codepilotx_core_skills::model::SkillMetadata;
+use codepilotx_file_search::FileMatch;
 #[cfg(test)]
-use codex_plugin::AppConnectorId;
-use codex_plugin::PluginCapabilitySummary;
+use codepilotx_plugin::AppConnectorId;
+use codepilotx_plugin::PluginCapabilitySummary;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -834,8 +834,8 @@ impl ChatComposer {
             .on_entry_response(log_id, offset, entry, &self.app_event_tx)
         {
             HistoryEntryResponse::Found(entry) => {
-                // Persistent ↑/↓ history is text-only (backwards-compatible and avoids persisting
-                // attachments), but local in-session ↑/↓ history can rehydrate elements and image paths.
+                // Persistent �?�?history is text-only (backwards-compatible and avoids persisting
+                // attachments), but local in-session �?�?history can rehydrate elements and image paths.
                 self.apply_history_entry(entry);
                 true
             }
@@ -894,7 +894,7 @@ impl ChatComposer {
             return false;
         };
 
-        // normalize_pasted_path already handles Windows → WSL path conversion,
+        // normalize_pasted_path already handles Windows �?WSL path conversion,
         // so we can directly try to read the image dimensions.
         match image::image_dimensions(&path_buf) {
             Ok((width, height)) => {
@@ -917,7 +917,7 @@ impl ChatComposer {
     /// `disable_paste_burst` is an escape hatch for terminals/platforms where the burst heuristic
     /// is unwanted or has already been handled elsewhere.
     ///
-    /// When transitioning from enabled → disabled, we "defuse" any in-flight burst state so it
+    /// When transitioning from enabled �?disabled, we "defuse" any in-flight burst state so it
     /// cannot affect subsequent normal typing:
     ///
     /// - First, flush any held/buffered text immediately via
@@ -2621,7 +2621,7 @@ impl ChatComposer {
     /// Prepare text for submission/queuing. Returns None if submission should be suppressed.
     /// On success, clears pending paste payloads because placeholders have been expanded.
     ///
-    /// When `record_history` is true, the final submission is stored for ↑/↓ recall.
+    /// When `record_history` is true, the final submission is stored for �?�?recall.
     fn prepare_submission_text(
         &mut self,
         record_history: bool,
@@ -3826,9 +3826,9 @@ impl ChatComposer {
                 if !connector.is_accessible || !connector.is_enabled {
                     continue;
                 }
-                let display_name = codex_connectors::metadata::connector_display_label(connector);
+                let display_name = codepilotx_connectors::metadata::connector_display_label(connector);
                 let description = Some(Self::connector_brief_description(connector));
-                let slug = codex_connectors::metadata::connector_mention_slug(connector);
+                let slug = codepilotx_connectors::metadata::connector_mention_slug(connector);
                 let search_terms = vec![display_name.clone(), connector.id.clone(), slug.clone()];
                 let connector_id = connector.id.as_str();
                 mentions.push(MentionItem {
@@ -4396,10 +4396,10 @@ impl ChatComposer {
                 if self.draft.is_bash_mode {
                     Span::from("!").light_red().bold()
                 } else {
-                    "›".bold()
+                    "�?.bold()
                 }
             } else {
-                "›".dim()
+                "�?.dim()
             };
             buf.set_span(
                 textarea_rect.x - LIVE_PREFIX_COLS,
@@ -4481,7 +4481,7 @@ mod tests {
     use crate::bottom_pane::InputResult;
     use crate::bottom_pane::chat_composer::LARGE_PASTE_CHAR_THRESHOLD;
     use crate::bottom_pane::textarea::TextArea;
-    use codex_protocol::models::local_image_label_text;
+    use codepilotx_protocol::models::local_image_label_text;
     use tokio::sync::mpsc::unbounded_channel;
 
     #[test]
@@ -6367,9 +6367,9 @@ mod tests {
             "default_unified_mention_popup",
             /*enhanced_keys_supported*/ false,
             |composer| {
-                let features = codex_features::Features::with_defaults();
+                let features = codepilotx_features::Features::with_defaults();
                 composer
-                    .set_mentions_v2_enabled(features.enabled(codex_features::Feature::MentionsV2));
+                    .set_mentions_v2_enabled(features.enabled(codepilotx_features::Feature::MentionsV2));
                 composer.set_text_content("@sa".to_string(), Vec::new(), Vec::new());
                 composer.set_plugin_mentions(Some(vec![PluginCapabilitySummary {
                     config_name: "sample@test".to_string(),
@@ -6532,7 +6532,7 @@ mod tests {
                 Some("testЙЦУ.rs".to_string()),
                 "Mixed ASCII and Cyrillic",
             ),
-            ("@诶", 2, Some("诶".to_string()), "Chinese character"),
+            ("@�?, 2, Some("�?.to_string()), "Chinese character"),
             ("@👍", 2, Some("👍".to_string()), "Emoji token"),
             // Invalid cases (should return None)
             ("hello", 2, None, "No @ symbol"),
@@ -6623,9 +6623,9 @@ mod tests {
                 "@ token after full-width space",
             ),
             (
-                "@ЙЦУ　@诶",
+                "@ЙЦУ　@�?,
                 10,
-                Some("诶".to_string()),
+                Some("�?.to_string()),
                 "Full-width space between Unicode tokens",
             ),
             // Tab and newline boundaries
@@ -7098,12 +7098,12 @@ mod tests {
         let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('1'), KeyModifiers::NONE));
         assert!(composer.is_in_paste_burst());
 
-        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('あ'), KeyModifiers::NONE));
+        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('�?), KeyModifiers::NONE));
 
         let (result, _) =
             composer.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         match result {
-            InputResult::Submitted { text, .. } => assert_eq!(text, "1あ"),
+            InputResult::Submitted { text, .. } => assert_eq!(text, "1�?),
             _ => panic!("expected Submitted"),
         }
     }
@@ -7126,9 +7126,9 @@ mod tests {
             /*disable_paste_burst*/ false,
         );
 
-        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('あ'), KeyModifiers::NONE));
+        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('�?), KeyModifiers::NONE));
 
-        assert_eq!(composer.draft.textarea.text(), "あ");
+        assert_eq!(composer.draft.textarea.text(), "�?);
         assert!(!composer.is_in_paste_burst());
     }
 
@@ -7155,8 +7155,8 @@ mod tests {
             .paste_burst
             .begin_with_retro_grabbed(String::new(), Instant::now());
 
-        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('你'), KeyModifiers::NONE));
-        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('好'), KeyModifiers::NONE));
+        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('�?), KeyModifiers::NONE));
+        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('�?), KeyModifiers::NONE));
         let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE));
         let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE));
@@ -7189,7 +7189,7 @@ mod tests {
             .paste_burst
             .begin_with_retro_grabbed(String::new(), Instant::now());
 
-        for ch in ['你', '　', '好'] {
+        for ch in ['�?, '　', '�?] {
             let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE));
         }
         let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -7221,7 +7221,7 @@ mod tests {
 \n\
 风吹竹林 月照大江\n\
 白云千载 青山依旧\n\
-程序员 与 Unicode 同行";
+程序�?�?Unicode 同行";
 
         let (tx, _rx) = unbounded_channel::<AppEvent>();
         let sender = AppEventSender::new(tx);
@@ -8995,7 +8995,7 @@ mod tests {
             vec![FileMatch {
                 score: 1,
                 path: PathBuf::from("src/main.rs"),
-                match_type: codex_file_search::MatchType::File,
+                match_type: codepilotx_file_search::MatchType::File,
                 root: PathBuf::from("/tmp"),
                 indices: None,
             }],
@@ -10160,7 +10160,7 @@ mod tests {
         let path = PathBuf::from("/tmp/image_multibyte.png");
         composer.attach_image(path);
         // Add multibyte text after the placeholder
-        composer.draft.textarea.insert_str("日本語");
+        composer.draft.textarea.insert_str("日本�?);
 
         // Cursor is at end; pressing backspace should delete the last character
         // without panicking and leave the placeholder intact.
@@ -10331,7 +10331,7 @@ mod tests {
     #[test]
     fn pasting_filepath_attaches_image() {
         let tmp = tempdir().expect("create TempDir");
-        let tmp_path: PathBuf = tmp.path().join("codex_tui_test_paste_image.png");
+        let tmp_path: PathBuf = tmp.path().join("codepilotx_tui_test_paste_image.png");
         let img: ImageBuffer<Rgba<u8>, Vec<u8>> =
             ImageBuffer::from_fn(3, 2, |_x, _y| Rgba([1, 2, 3, 255]));
         img.save(&tmp_path).expect("failed to write temp png");
@@ -10637,7 +10637,7 @@ mod tests {
             "'/ac' should activate slash popup via fuzzy match"
         );
 
-        // Case 4: invalid prefix "/zzz" – still allowed to open popup if it
+        // Case 4: invalid prefix "/zzz" �?still allowed to open popup if it
         // matches no built-in command; our current logic will not open popup.
         // Verify that explicitly.
         composer.set_text_content("/zzz".to_string(), Vec::new(), Vec::new());

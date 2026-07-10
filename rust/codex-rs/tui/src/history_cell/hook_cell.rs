@@ -17,11 +17,11 @@ use crate::motion::ReducedMotionIndicator;
 use crate::motion::activity_indicator;
 use crate::motion::shimmer_text;
 use crate::render::renderable::Renderable;
-use codex_app_server_protocol::HookEventName;
-use codex_app_server_protocol::HookOutputEntry;
-use codex_app_server_protocol::HookOutputEntryKind;
-use codex_app_server_protocol::HookRunStatus;
-use codex_app_server_protocol::HookRunSummary;
+use codepilotx_app_server_protocol::HookEventName;
+use codepilotx_app_server_protocol::HookOutputEntry;
+use codepilotx_app_server_protocol::HookOutputEntryKind;
+use codepilotx_app_server_protocol::HookRunStatus;
+use codepilotx_app_server_protocol::HookRunSummary;
 use ratatui::prelude::*;
 use ratatui::style::Stylize;
 use ratatui::widgets::Paragraph;
@@ -702,13 +702,13 @@ fn hook_completed_bullet(status: HookRunStatus, entries: &[HookOutputEntry]) -> 
                 .iter()
                 .any(|entry| entry.kind == HookOutputEntryKind::Warning)
             {
-                "â€¢".bold()
+                "â€?.bold()
             } else {
-                "â€¢".green().bold()
+                "â€?.green().bold()
             }
         }
-        HookRunStatus::Blocked | HookRunStatus::Failed | HookRunStatus::Stopped => "â€¢".red().bold(),
-        HookRunStatus::Running => "â€¢".into(),
+        HookRunStatus::Blocked | HookRunStatus::Failed | HookRunStatus::Stopped => "â€?.red().bold(),
+        HookRunStatus::Running => "â€?.into(),
     }
 }
 
@@ -754,7 +754,7 @@ mod tests {
 
         let bullet = hook_completed_bullet(HookRunStatus::Completed, &entries);
 
-        assert_eq!(bullet.content.as_ref(), "â€¢");
+        assert_eq!(bullet.content.as_ref(), "â€?);
         assert_eq!(bullet.style.fg, None);
         assert!(bullet.style.add_modifier.contains(Modifier::BOLD));
     }
@@ -771,7 +771,7 @@ mod tests {
             }],
         );
         let expected = vec![
-            "â€¢ SessionStart hook (completed)".to_string(),
+            "â€?SessionStart hook (completed)".to_string(),
             "  hook context: ## Working Memory Recall".to_string(),
             "".to_string(),
             "    Source: Codex compaction".to_string(),
@@ -796,7 +796,7 @@ mod tests {
         assert_eq!(
             line_texts(&cell.display_lines(/*width*/ 80)),
             vec![
-                "â€¢ PostToolUse hook (completed)".to_string(),
+                "â€?PostToolUse hook (completed)".to_string(),
                 "  warning: Heads up".to_string(),
                 "    Review generated files".to_string(),
             ]
@@ -884,11 +884,11 @@ mod tests {
         HookRunSummary {
             id: id.to_string(),
             event_name: HookEventName::PostToolUse,
-            handler_type: codex_app_server_protocol::HookHandlerType::Command,
-            execution_mode: codex_app_server_protocol::HookExecutionMode::Sync,
-            scope: codex_app_server_protocol::HookScope::Turn,
+            handler_type: codepilotx_app_server_protocol::HookHandlerType::Command,
+            execution_mode: codepilotx_app_server_protocol::HookExecutionMode::Sync,
+            scope: codepilotx_app_server_protocol::HookScope::Turn,
             source_path: test_path_buf("/tmp/hooks.json").abs(),
-            source: codex_app_server_protocol::HookSource::User,
+            source: codepilotx_app_server_protocol::HookSource::User,
             display_order: 0,
             status: HookRunStatus::Running,
             status_message: Some("checking output policy".to_string()),

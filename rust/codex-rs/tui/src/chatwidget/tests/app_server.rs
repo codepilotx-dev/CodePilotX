@@ -4,18 +4,18 @@ use pretty_assertions::assert_eq;
 fn thread_settings_for_test(
     model: &str,
     thread_id: ThreadId,
-) -> codex_app_server_protocol::ThreadSettingsUpdatedNotification {
-    codex_app_server_protocol::ThreadSettingsUpdatedNotification {
+) -> codepilotx_app_server_protocol::ThreadSettingsUpdatedNotification {
+    codepilotx_app_server_protocol::ThreadSettingsUpdatedNotification {
         thread_id: thread_id.to_string(),
-        thread_settings: codex_app_server_protocol::ThreadSettings {
+        thread_settings: codepilotx_app_server_protocol::ThreadSettings {
             cwd: test_path_buf("/tmp/thread-settings").abs(),
             approval_policy: AskForApproval::OnRequest,
-            approvals_reviewer: codex_app_server_protocol::ApprovalsReviewer::AutoReview,
-            sandbox_policy: codex_app_server_protocol::SandboxPolicy::ReadOnly {
+            approvals_reviewer: codepilotx_app_server_protocol::ApprovalsReviewer::AutoReview,
+            sandbox_policy: codepilotx_app_server_protocol::SandboxPolicy::ReadOnly {
                 network_access: false,
             },
             active_permission_profile: Some(
-                codex_app_server_protocol::ActivePermissionProfile::read_only(),
+                codepilotx_app_server_protocol::ActivePermissionProfile::read_only(),
             ),
             model: model.to_string(),
             model_provider: "openai".to_string(),
@@ -24,7 +24,7 @@ fn thread_settings_for_test(
             summary: None,
             collaboration_mode: CollaborationMode {
                 mode: ModeKind::Plan,
-                settings: codex_protocol::config_types::Settings {
+                settings: codepilotx_protocol::config_types::Settings {
                     model: model.to_string(),
                     reasoning_effort: Some(ReasoningEffortConfig::High),
                     developer_instructions: None,
@@ -69,12 +69,12 @@ async fn invalid_url_elicitation_is_declined() {
     chat.thread_id = Some(visible_thread_id);
 
     chat.handle_elicitation_request_now(
-        codex_app_server_protocol::RequestId::Integer(9),
-        codex_app_server_protocol::McpServerElicitationRequestParams {
+        codepilotx_app_server_protocol::RequestId::Integer(9),
+        codepilotx_app_server_protocol::McpServerElicitationRequestParams {
             thread_id: request_thread_id.to_string(),
             turn_id: Some("turn-auth".to_string()),
             server_name: "payments".to_string(),
-            request: codex_app_server_protocol::McpServerElicitationRequest::Url {
+            request: codepilotx_app_server_protocol::McpServerElicitationRequest::Url {
                 meta: None,
                 message: "Review the payment details to continue.".to_string(),
                 url: "http://payments.example/checkout/123".to_string(),
@@ -89,8 +89,8 @@ async fn invalid_url_elicitation_is_declined() {
             thread_id: op_thread_id,
             op: Op::ResolveElicitation {
                 server_name,
-                request_id: codex_app_server_protocol::RequestId::Integer(9),
-                decision: codex_app_server_protocol::McpServerElicitationAction::Decline,
+                request_id: codepilotx_app_server_protocol::RequestId::Integer(9),
+                decision: codepilotx_app_server_protocol::McpServerElicitationAction::Decline,
                 content: None,
                 meta: None,
             },
@@ -134,7 +134,7 @@ async fn thread_settings_updated_updates_visible_state_without_transcript() {
             .active_permission_profile()
             .expect("active profile")
             .id,
-        codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY
+        codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY
     );
     assert_eq!(chat.config_ref().personality, Some(Personality::Pragmatic));
     assert_eq!(chat.active_collaboration_mode_kind(), ModeKind::Plan);
@@ -306,7 +306,7 @@ async fn live_app_server_turn_completed_clears_working_status_after_answer_item(
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
@@ -350,7 +350,7 @@ async fn live_app_server_turn_completed_clears_working_status_after_answer_item(
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::Completed,
                 error: None,
@@ -375,7 +375,7 @@ async fn live_app_server_turn_started_sets_feedback_turn_id() {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
@@ -735,7 +735,7 @@ async fn live_app_server_failed_turn_does_not_duplicate_error_history() {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
@@ -751,7 +751,7 @@ async fn live_app_server_failed_turn_does_not_duplicate_error_history() {
         ServerNotification::Error(ErrorNotification {
             error: AppServerTurnError {
                 message: "permission denied".to_string(),
-                codex_error_info: None,
+                codepilotx_error_info: None,
                 additional_details: None,
             },
             will_retry: false,
@@ -770,12 +770,12 @@ async fn live_app_server_failed_turn_does_not_duplicate_error_history() {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::Failed,
                 error: Some(AppServerTurnError {
                     message: "permission denied".to_string(),
-                    codex_error_info: None,
+                    codepilotx_error_info: None,
                     additional_details: None,
                 }),
                 started_at: None,
@@ -804,7 +804,7 @@ async fn live_app_server_failed_turn_consolidates_streamed_answer() {
     handle_error(
         &mut chat,
         "stream disconnected before completion",
-        /*codex_error_info*/ None,
+        /*codepilotx_error_info*/ None,
     );
 
     let mut saw_consolidate = false;
@@ -833,7 +833,7 @@ async fn live_app_server_stream_recovery_restores_previous_status_header() {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
@@ -850,7 +850,7 @@ async fn live_app_server_stream_recovery_restores_previous_status_header() {
         ServerNotification::Error(ErrorNotification {
             error: AppServerTurnError {
                 message: "Reconnecting... 1/5".to_string(),
-                codex_error_info: Some(CodexErrorInfo::Other),
+                codepilotx_error_info: Some(CodexErrorInfo::Other),
                 additional_details: None,
             },
             will_retry: true,
@@ -863,7 +863,7 @@ async fn live_app_server_stream_recovery_restores_previous_status_header() {
 
     chat.handle_server_notification(
         ServerNotification::AgentMessageDelta(
-            codex_app_server_protocol::AgentMessageDeltaNotification {
+            codepilotx_app_server_protocol::AgentMessageDeltaNotification {
                 thread_id: "thread-1".to_string(),
                 turn_id: "turn-1".to_string(),
                 item_id: "item-1".to_string(),
@@ -891,7 +891,7 @@ async fn live_app_server_server_overloaded_error_renders_warning() {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
@@ -908,7 +908,7 @@ async fn live_app_server_server_overloaded_error_renders_warning() {
         ServerNotification::Error(ErrorNotification {
             error: AppServerTurnError {
                 message: "server overloaded".to_string(),
-                codex_error_info: Some(CodexErrorInfo::ServerOverloaded),
+                codepilotx_error_info: Some(CodexErrorInfo::ServerOverloaded),
                 additional_details: None,
             },
             will_retry: false,
@@ -920,7 +920,7 @@ async fn live_app_server_server_overloaded_error_renders_warning() {
 
     let cells = drain_insert_history(&mut rx);
     assert_eq!(cells.len(), 1);
-    assert_eq!(lines_to_single_string(&cells[0]), "âš  server overloaded\n");
+    assert_eq!(lines_to_single_string(&cells[0]), "âš?server overloaded\n");
     assert!(!chat.bottom_pane.is_task_running());
 }
 
@@ -933,7 +933,7 @@ async fn live_app_server_cyber_policy_error_renders_dedicated_notice() {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
@@ -950,7 +950,7 @@ async fn live_app_server_cyber_policy_error_renders_dedicated_notice() {
         ServerNotification::Error(ErrorNotification {
             error: AppServerTurnError {
                 message: "server fallback message".to_string(),
-                codex_error_info: Some(CodexErrorInfo::CyberPolicy),
+                codepilotx_error_info: Some(CodexErrorInfo::CyberPolicy),
                 additional_details: None,
             },
             will_retry: false,
@@ -1000,7 +1000,7 @@ async fn live_app_server_invalid_thread_name_update_is_ignored() {
 
     chat.handle_server_notification(
         ServerNotification::ThreadNameUpdated(
-            codex_app_server_protocol::ThreadNameUpdatedNotification {
+            codepilotx_app_server_protocol::ThreadNameUpdatedNotification {
                 thread_id: "not-a-thread-id".to_string(),
                 thread_name: Some("bad update".to_string()),
             },
@@ -1021,7 +1021,7 @@ async fn live_app_server_thread_name_update_shows_resume_hint() {
 
     chat.handle_server_notification(
         ServerNotification::ThreadNameUpdated(
-            codex_app_server_protocol::ThreadNameUpdatedNotification {
+            codepilotx_app_server_protocol::ThreadNameUpdatedNotification {
                 thread_id: thread_id.to_string(),
                 thread_name: Some("review-fix".to_string()),
             },

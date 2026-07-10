@@ -4,24 +4,24 @@ use std::path::PathBuf;
 
 #[cfg(test)]
 use crate::app_command::AppCommand as Op;
-use codex_app_server_protocol::McpElicitationEnumSchema;
-use codex_app_server_protocol::McpElicitationPrimitiveSchema;
-use codex_app_server_protocol::McpElicitationSingleSelectEnumSchema;
-use codex_app_server_protocol::McpServerElicitationAction;
-use codex_app_server_protocol::McpServerElicitationRequest;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
-use codex_app_server_protocol::RequestId as AppServerRequestId;
-use codex_protocol::ThreadId;
-use codex_protocol::mcp_approval_meta::APPROVAL_KIND_KEY as APPROVAL_META_KIND_KEY;
-use codex_protocol::mcp_approval_meta::APPROVAL_KIND_MCP_TOOL_CALL as APPROVAL_META_KIND_MCP_TOOL_CALL;
-use codex_protocol::mcp_approval_meta::APPROVAL_KIND_TOOL_SUGGESTION as APPROVAL_META_KIND_TOOL_SUGGESTION;
-use codex_protocol::mcp_approval_meta::PERSIST_ALWAYS as APPROVAL_PERSIST_ALWAYS_VALUE;
-use codex_protocol::mcp_approval_meta::PERSIST_KEY as APPROVAL_PERSIST_KEY;
-use codex_protocol::mcp_approval_meta::PERSIST_SESSION as APPROVAL_PERSIST_SESSION_VALUE;
-use codex_protocol::mcp_approval_meta::TOOL_NAME_KEY;
-use codex_protocol::mcp_approval_meta::TOOL_PARAMS_DISPLAY_KEY as APPROVAL_TOOL_PARAMS_DISPLAY_KEY;
-use codex_protocol::mcp_approval_meta::TOOL_PARAMS_KEY as APPROVAL_TOOL_PARAMS_KEY;
-use codex_protocol::user_input::TextElement;
+use codepilotx_app_server_protocol::McpElicitationEnumSchema;
+use codepilotx_app_server_protocol::McpElicitationPrimitiveSchema;
+use codepilotx_app_server_protocol::McpElicitationSingleSelectEnumSchema;
+use codepilotx_app_server_protocol::McpServerElicitationAction;
+use codepilotx_app_server_protocol::McpServerElicitationRequest;
+use codepilotx_app_server_protocol::McpServerElicitationRequestParams;
+use codepilotx_app_server_protocol::RequestId as AppServerRequestId;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::mcp_approval_meta::APPROVAL_KIND_KEY as APPROVAL_META_KIND_KEY;
+use codepilotx_protocol::mcp_approval_meta::APPROVAL_KIND_MCP_TOOL_CALL as APPROVAL_META_KIND_MCP_TOOL_CALL;
+use codepilotx_protocol::mcp_approval_meta::APPROVAL_KIND_TOOL_SUGGESTION as APPROVAL_META_KIND_TOOL_SUGGESTION;
+use codepilotx_protocol::mcp_approval_meta::PERSIST_ALWAYS as APPROVAL_PERSIST_ALWAYS_VALUE;
+use codepilotx_protocol::mcp_approval_meta::PERSIST_KEY as APPROVAL_PERSIST_KEY;
+use codepilotx_protocol::mcp_approval_meta::PERSIST_SESSION as APPROVAL_PERSIST_SESSION_VALUE;
+use codepilotx_protocol::mcp_approval_meta::TOOL_NAME_KEY;
+use codepilotx_protocol::mcp_approval_meta::TOOL_PARAMS_DISPLAY_KEY as APPROVAL_TOOL_PARAMS_DISPLAY_KEY;
+use codepilotx_protocol::mcp_approval_meta::TOOL_PARAMS_KEY as APPROVAL_TOOL_PARAMS_KEY;
+use codepilotx_protocol::user_input::TextElement;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -928,7 +928,7 @@ impl McpServerElicitationOverlay {
             .enumerate()
             .map(|(idx, option)| {
                 let prefix = if selected_idx.is_some_and(|selected| selected == idx) {
-                    '‚Ä∫'
+                    '‚Ä?
                 } else {
                     ' '
                 };
@@ -1002,7 +1002,7 @@ impl McpServerElicitationOverlay {
         }
         if self.field_count() > 1 {
             if self.current_field_is_select() {
-                tips.push(FooterTip::new("‚Üê/‚Üí to navigate fields"));
+                tips.push(FooterTip::new("‚Ü?‚Ü?to navigate fields"));
             } else {
                 tips.push(FooterTip::new("ctrl + p / ctrl + n change field"));
             }
@@ -2042,7 +2042,7 @@ mod tests {
                 "Suggest Google Calendar",
                 empty_object_schema(),
                 Some(serde_json::json!({
-                    "codex_approval_kind": "tool_suggestion",
+                    "codepilotx_approval_kind": "tool_suggestion",
                     "tool_type": "connector",
                     "suggest_type": "install",
                     "suggest_reason": "Plan and reference events from your calendar",
@@ -2075,7 +2075,7 @@ mod tests {
                 "Suggest Slack",
                 empty_object_schema(),
                 Some(serde_json::json!({
-                    "codex_approval_kind": "tool_suggestion",
+                    "codepilotx_approval_kind": "tool_suggestion",
                     "tool_type": "plugin",
                     "suggest_type": "install",
                     "suggest_reason": "Install the Slack plugin to search messages",

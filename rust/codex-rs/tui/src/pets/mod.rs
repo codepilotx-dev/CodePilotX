@@ -2,8 +2,8 @@
 //!
 //! The TUI treats built-in and custom pets differently on purpose:
 //! built-in pets are versioned application assets fetched on demand into a
-//! managed CODEX_HOME cache, while custom pets remain entirely user-owned data
-//! under `$CODEX_HOME/pets/<pet-id>/pet.json` or legacy avatar directories.
+//! managed codepilotx_HOME cache, while custom pets remain entirely user-owned data
+//! under `$codepilotx_HOME/pets/<pet-id>/pet.json` or legacy avatar directories.
 //!
 //! This module owns the TUI-facing contracts around that split:
 //! resolving a selected pet id, preparing frames for terminal image protocols,
@@ -59,10 +59,10 @@ pub(crate) const DISABLED_PET_ID: &str = "disabled";
 /// asset-fetch boundary.
 pub(crate) fn ensure_builtin_pack_for_pet(
     pet_id: &str,
-    codex_home: &std::path::Path,
+    codepilotx_home: &std::path::Path,
 ) -> Result<()> {
     if let Some(pet) = catalog::builtin_pet(pet_id) {
-        asset_pack::ensure_builtin_pet(codex_home, pet)?;
+        asset_pack::ensure_builtin_pet(codepilotx_home, pet)?;
     }
     Ok(())
 }

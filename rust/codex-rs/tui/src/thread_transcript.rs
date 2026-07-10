@@ -10,10 +10,10 @@ use crate::history_cell::PlainHistoryCell;
 use crate::history_cell::ReasoningSummaryCell;
 use crate::history_cell::UserHistoryCell;
 use crate::multi_agents::sub_agent_activity_summary;
-use codex_app_server_protocol::Thread;
-use codex_app_server_protocol::ThreadItem;
-use codex_protocol::ThreadId;
-use codex_protocol::items::UserMessageItem;
+use codepilotx_app_server_protocol::Thread;
+use codepilotx_app_server_protocol::ThreadItem;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::items::UserMessageItem;
 use ratatui::style::Stylize as _;
 use ratatui::text::Line;
 
@@ -59,7 +59,7 @@ pub(crate) fn thread_to_transcript_cells(
                     content: content
                         .iter()
                         .cloned()
-                        .map(codex_app_server_protocol::UserInput::into_core)
+                        .map(codepilotx_app_server_protocol::UserInput::into_core)
                         .collect(),
                 };
                 cells.push(Arc::new(UserHistoryCell {

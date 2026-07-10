@@ -39,13 +39,13 @@ use crate::render::renderable::Renderable;
 
 #[cfg(test)]
 use crate::app_command::AppCommand as Op;
-use codex_app_server_protocol::ToolRequestUserInputAnswer;
+use codepilotx_app_server_protocol::ToolRequestUserInputAnswer;
 #[cfg(test)]
-use codex_app_server_protocol::ToolRequestUserInputOption;
-use codex_app_server_protocol::ToolRequestUserInputParams;
-use codex_app_server_protocol::ToolRequestUserInputQuestion;
-use codex_app_server_protocol::ToolRequestUserInputResponse;
-use codex_protocol::user_input::TextElement;
+use codepilotx_app_server_protocol::ToolRequestUserInputOption;
+use codepilotx_app_server_protocol::ToolRequestUserInputParams;
+use codepilotx_app_server_protocol::ToolRequestUserInputQuestion;
+use codepilotx_app_server_protocol::ToolRequestUserInputResponse;
+use codepilotx_protocol::user_input::TextElement;
 use unicode_width::UnicodeWidthStr;
 
 const NOTES_PLACEHOLDER: &str = "Add notes";
@@ -430,7 +430,7 @@ impl RequestUserInputOverlay {
                     .enumerate()
                     .map(|(idx, opt)| {
                         let selected = selected_idx.is_some_and(|sel| sel == idx);
-                        let prefix = if selected { '‚Ä∫' } else { ' ' };
+                        let prefix = if selected { '‚Ä? } else { ' ' };
                         let label = opt.label.as_str();
                         let number = idx + 1;
                         let prefix_label = format!("{prefix} {number}. ");
@@ -447,7 +447,7 @@ impl RequestUserInputOverlay {
                 if Self::other_option_enabled_for_question(question) {
                     let idx = options.len();
                     let selected = selected_idx.is_some_and(|sel| sel == idx);
-                    let prefix = if selected { '‚Ä∫' } else { ' ' };
+                    let prefix = if selected { '‚Ä? } else { ' ' };
                     let number = idx + 1;
                     let prefix_label = format!("{prefix} {number}. ");
                     let wrap_indent = UnicodeWidthStr::width(prefix_label.as_str());
@@ -612,7 +612,7 @@ impl RequestUserInputOverlay {
         }
         if question_count > 1 {
             if self.has_options() && !self.focus_is_notes() {
-                tips.push(FooterTip::new("‚Üê/‚Üí to navigate questions"));
+                tips.push(FooterTip::new("‚Ü?‚Ü?to navigate questions"));
             } else if !self.has_options() {
                 tips.push(FooterTip::new("ctrl + p / ctrl + n change question"));
             }
@@ -1015,7 +1015,7 @@ impl RequestUserInputOverlay {
             .iter()
             .enumerate()
             .map(|(idx, (label, description))| {
-                let prefix = if idx == selected { '‚Ä∫' } else { ' ' };
+                let prefix = if idx == selected { '‚Ä? } else { ' ' };
                 let number = idx + 1;
                 GenericDisplayRow {
                     name: format!("{prefix} {number}. {label}"),
@@ -2405,7 +2405,7 @@ mod tests {
             vec![
                 "tab to add notes",
                 "enter to submit answer",
-                "‚Üê/‚Üí to navigate questions",
+                "‚Ü?‚Ü?to navigate questions",
                 "esc to interrupt",
             ]
         );
@@ -3459,7 +3459,7 @@ mod tests {
 
         let rendered = render_snapshot(&overlay, Rect::new(0, 0, 80, 20));
         assert!(
-            rendered.contains("‚Ä∫ 3. Use Detailed Hint C"),
+            rendered.contains("‚Ä?3. Use Detailed Hint C"),
             "expected selected option to be visible in viewport\n{rendered}"
         );
     }

@@ -8,8 +8,8 @@
 use std::env;
 use std::process::Command;
 
-use codex_install_context::InstallContext;
-use codex_install_context::InstallMethod;
+use codepilotx_install_context::InstallContext;
+use codepilotx_install_context::InstallMethod;
 
 use super::CheckStatus;
 use super::DoctorCheck;
@@ -149,7 +149,7 @@ fn search_provider(context: &InstallContext) -> &'static str {
 }
 
 fn build_commit() -> &'static str {
-    option_env!("CODEX_BUILD_COMMIT")
+    option_env!("codepilotx_BUILD_COMMIT")
         .or(option_env!("GIT_COMMIT"))
         .unwrap_or("unknown")
 }

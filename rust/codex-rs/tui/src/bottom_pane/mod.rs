@@ -34,13 +34,13 @@ use crate::render::renderable::RenderableItem;
 use crate::tui::FrameRequester;
 pub(crate) use bottom_pane_view::BottomPaneView;
 pub(crate) use bottom_pane_view::ViewCompletion;
-use codex_app_server_protocol::ToolRequestUserInputParams;
-use codex_core_skills::model::SkillMetadata;
-use codex_features::Features;
-use codex_file_search::FileMatch;
-use codex_plugin::PluginCapabilitySummary;
-use codex_protocol::ThreadId;
-use codex_protocol::user_input::TextElement;
+use codepilotx_app_server_protocol::ToolRequestUserInputParams;
+use codepilotx_core_skills::model::SkillMetadata;
+use codepilotx_features::Features;
+use codepilotx_file_search::FileMatch;
+use codepilotx_plugin::PluginCapabilitySummary;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::user_input::TextElement;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -1851,7 +1851,7 @@ mod tests {
     use crate::status_indicator_widget::StatusDetailsCapitalization;
     use crate::test_support::PathBufExt;
     use crate::test_support::test_path_buf;
-    use codex_app_server_protocol::CommandExecutionApprovalDecision;
+    use codepilotx_app_server_protocol::CommandExecutionApprovalDecision;
     use crossterm::event::KeyCode;
     use crossterm::event::KeyEvent;
     use crossterm::event::KeyEventKind;
@@ -1905,7 +1905,7 @@ mod tests {
 
     fn exec_request() -> ApprovalRequest {
         ApprovalRequest::Exec {
-            thread_id: codex_protocol::ThreadId::new(),
+            thread_id: codepilotx_protocol::ThreadId::new(),
             thread_label: None,
             id: "1".to_string(),
             environment_id: None,
@@ -2377,7 +2377,7 @@ mod tests {
         pane.render(area, &mut buf);
 
         let bufs = snapshot_buffer(&buf);
-        assert!(bufs.contains("â€¢ Working"), "expected Working header");
+        assert!(bufs.contains("â€?Working"), "expected Working header");
     }
 
     #[test]

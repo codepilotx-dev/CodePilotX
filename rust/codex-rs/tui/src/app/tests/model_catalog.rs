@@ -1,7 +1,7 @@
 use super::*;
 use assert_matches::assert_matches;
-use codex_config::types::ModelAvailabilityNuxConfig;
-use codex_protocol::openai_models::ModelAvailabilityNux;
+use codepilotx_config::types::ModelAvailabilityNuxConfig;
+use codepilotx_protocol::openai_models::ModelAvailabilityNux;
 use pretty_assertions::assert_eq;
 use tokio::sync::mpsc::unbounded_channel;
 
@@ -176,9 +176,9 @@ fn select_model_availability_nux_returns_none_when_all_models_are_exhausted() {
 
 #[tokio::test]
 async fn prepare_startup_tooltip_override_persists_model_availability_nux_count() {
-    let codex_home = tempdir().expect("temp codex home");
+    let codepilotx_home = tempdir().expect("temp codex home");
     let mut config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .build()
         .await
         .expect("config");
@@ -204,7 +204,7 @@ async fn prepare_startup_tooltip_override_persists_model_availability_nux_count(
     );
 
     let reloaded = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .build()
         .await
         .expect("reloaded config");
@@ -216,9 +216,9 @@ async fn prepare_startup_tooltip_override_persists_model_availability_nux_count(
 
 #[tokio::test]
 async fn accepted_model_migration_persists_target_default_reasoning_effort() {
-    let codex_home = tempdir().expect("temp codex home");
+    let codepilotx_home = tempdir().expect("temp codex home");
     let mut config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .build()
         .await
         .expect("config");
@@ -332,9 +332,9 @@ async fn model_migration_prompt_skips_when_target_missing_or_hidden() {
 
 #[tokio::test]
 async fn model_migration_prompt_shows_for_hidden_model() {
-    let codex_home = tempdir().expect("temp codex home");
+    let codepilotx_home = tempdir().expect("temp codex home");
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .build()
         .await
         .expect("config");

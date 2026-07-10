@@ -1,20 +1,20 @@
 use super::*;
 use crate::app_event::ConnectorsSnapshot;
 use crate::chatwidget::connectors::ConnectorsCacheState;
-use codex_app_server_protocol::AppInfo;
-use codex_app_server_protocol::HookErrorInfo;
-use codex_app_server_protocol::HooksListEntry;
-use codex_app_server_protocol::HooksListResponse;
-use codex_app_server_protocol::MarketplaceRemoveResponse;
-use codex_app_server_protocol::PluginAvailability;
-use codex_features::Stage;
+use codepilotx_app_server_protocol::AppInfo;
+use codepilotx_app_server_protocol::HookErrorInfo;
+use codepilotx_app_server_protocol::HooksListEntry;
+use codepilotx_app_server_protocol::HooksListResponse;
+use codepilotx_app_server_protocol::MarketplaceRemoveResponse;
+use codepilotx_app_server_protocol::PluginAvailability;
+use codepilotx_features::Stage;
 use pretty_assertions::assert_eq;
 
 #[tokio::test]
 async fn experimental_mode_plan_is_ignored_on_startup() {
-    let codex_home = tempdir().expect("tempdir");
+    let codepilotx_home = tempdir().expect("tempdir");
     let cfg = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .codepilotx_home(codepilotx_home.path().to_path_buf())
         .cli_overrides(vec![
             (
                 "features.collaboration_modes".to_string(),
@@ -38,9 +38,9 @@ async fn experimental_mode_plan_is_ignored_on_startup() {
         initial_user_message: None,
         enhanced_keys_supported: false,
         has_chatgpt_account: false,
-        has_codex_backend_auth: false,
+        has_codepilotx_backend_auth: false,
         model_catalog: test_model_catalog(&cfg),
-        feedback: codex_feedback::CodexFeedback::new(),
+        feedback: codepilotx_feedback::CodexFeedback::new(),
         is_first_run: true,
         status_account_display: None,
         runtime_model_provider_base_url: None,
@@ -88,7 +88,7 @@ async fn marketplace_upgrade_loading_popup_snapshot() {
         .join(" | ");
     insta::assert_snapshot!(
         upgrade_lines,
-        @"Upgrading debug marketplace... | â€º    Upgrading debug marketplace...  This updates when marketplace upgrade completes."
+        @"Upgrading debug marketplace... | â€?   Upgrading debug marketplace...  This updates when marketplace upgrade completes."
     );
 }
 
@@ -123,7 +123,7 @@ async fn marketplace_upgrade_failure_includes_backend_messages_snapshot() {
         .join("\n");
     insta::assert_snapshot!(
         rendered.trim(),
-        @"â–  Failed to upgrade 2 marketplaces: debug: git ls-remote marketplace source failed with status 128: authentication failed; tools: failed to validate upgraded marketplace root: marketplace root does not contain a supported manifest"
+        @"â–?Failed to upgrade 2 marketplaces: debug: git ls-remote marketplace source failed with status 128: authentication failed; tools: failed to validate upgraded marketplace root: marketplace root does not contain a supported manifest"
     );
 }
 
@@ -250,7 +250,7 @@ async fn plugins_popup_truncates_long_descriptions_in_list_rows() {
         .expect("expected verbose plugin row in popup");
     insta::assert_snapshot!(
         verbose_row,
-        @"  [-] Verbose Plugin  Available Â· ChatGPT Marketplace Â· This descriâ€¦"
+        @"  [-] Verbose Plugin  Available Â· ChatGPT Marketplace Â· This descriâ€?
     );
     assert!(
         !popup
@@ -611,8 +611,8 @@ async fn plugin_detail_popup_snapshot_shows_install_actions_and_capability_summa
                 Some("Turn Figma files into implementation context."),
                 &["design-review", "extract-copy"],
                 &[
-                    (codex_app_server_protocol::HookEventName::PreToolUse, 1),
-                    (codex_app_server_protocol::HookEventName::Stop, 2),
+                    (codepilotx_app_server_protocol::HookEventName::PreToolUse, 1),
+                    (codepilotx_app_server_protocol::HookEventName::Stop, 2),
                 ],
                 &["Figma", "Slack"],
                 &["figma-mcp", "docs-mcp"],
@@ -655,8 +655,8 @@ async fn plugin_detail_popup_hides_disclosure_for_installed_plugins() {
                 Some("Turn Figma files into implementation context."),
                 &["design-review", "extract-copy"],
                 &[
-                    (codex_app_server_protocol::HookEventName::PreToolUse, 1),
-                    (codex_app_server_protocol::HookEventName::Stop, 2),
+                    (codepilotx_app_server_protocol::HookEventName::PreToolUse, 1),
+                    (codepilotx_app_server_protocol::HookEventName::Stop, 2),
                 ],
                 &["Figma", "Slack"],
                 &["figma-mcp", "docs-mcp"],
@@ -1080,7 +1080,7 @@ async fn plugins_popup_refresh_preserves_selected_row_position() {
 
     let before = render_bottom_popup(&chat, /*width*/ 100);
     assert!(
-        before.contains("â€º [-] Slack"),
+        before.contains("â€?[-] Slack"),
         "expected Slack to be selected before refresh, got:\n{before}"
     );
 
@@ -1118,7 +1118,7 @@ async fn plugins_popup_refresh_preserves_selected_row_position() {
 
     let after = render_bottom_popup(&chat, /*width*/ 100);
     assert!(
-        after.contains("â€º [-] Notion"),
+        after.contains("â€?[-] Notion"),
         "expected refresh to preserve the selected row position, got:\n{after}"
     );
     assert!(
@@ -1256,7 +1256,7 @@ async fn plugins_popup_space_toggles_installed_plugin_from_list() {
 
     let popup = render_bottom_popup(&chat, /*width*/ 100);
     assert!(
-        popup.contains("â€º [ ] Drive"),
+        popup.contains("â€?[ ] Drive"),
         "expected selected plugin row to stay selected after refresh, got:\n{popup}"
     );
 }
@@ -1910,7 +1910,7 @@ async fn apps_popup_preserves_selected_app_across_refresh() {
 
     let before = render_bottom_popup(&chat, /*width*/ 80);
     assert!(
-        before.contains("â€º Slack"),
+        before.contains("â€?Slack"),
         "expected Slack to be selected before refresh, got:\n{before}"
     );
 
@@ -1969,11 +1969,11 @@ async fn apps_popup_preserves_selected_app_across_refresh() {
 
     let after = render_bottom_popup(&chat, /*width*/ 80);
     assert!(
-        after.contains("â€º Slack"),
+        after.contains("â€?Slack"),
         "expected Slack to stay selected after refresh, got:\n{after}"
     );
     assert!(
-        !after.contains("â€º Notion"),
+        !after.contains("â€?Notion"),
         "did not expect selection to reset to Notion after refresh, got:\n{after}"
     );
 }
@@ -2925,7 +2925,7 @@ async fn feedback_upload_consent_popup_snapshot() {
         chat.current_rollout_path.clone(),
         Some("auto-review-rollout-thread-1.jsonl".to_string()),
         /*include_windows_sandbox_log*/ true,
-        &codex_feedback::FeedbackDiagnostics::new(vec![codex_feedback::FeedbackDiagnostic {
+        &codepilotx_feedback::FeedbackDiagnostics::new(vec![codepilotx_feedback::FeedbackDiagnostic {
             headline: "Proxy environment variables are set and may affect connectivity."
                 .to_string(),
             details: vec!["HTTPS_PROXY = hello".to_string()],
@@ -2946,7 +2946,7 @@ async fn feedback_good_result_consent_popup_includes_connectivity_diagnostics_fi
         chat.current_rollout_path.clone(),
         Some("auto-review-rollout-thread-1.jsonl".to_string()),
         /*include_windows_sandbox_log*/ false,
-        &codex_feedback::FeedbackDiagnostics::new(vec![codex_feedback::FeedbackDiagnostic {
+        &codepilotx_feedback::FeedbackDiagnostics::new(vec![codepilotx_feedback::FeedbackDiagnostic {
             headline: "Proxy environment variables are set and may affect connectivity."
                 .to_string(),
             details: vec!["HTTPS_PROXY = hello".to_string()],

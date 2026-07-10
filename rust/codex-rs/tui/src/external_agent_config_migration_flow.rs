@@ -4,7 +4,7 @@ use crate::external_agent_config_migration::ExternalAgentConfigMigrationOutcome;
 use crate::external_agent_config_migration::run_external_agent_config_migration_prompt;
 use crate::legacy_core::config::Config;
 use crate::tui;
-use codex_app_server_protocol::ExternalAgentConfigDetectParams;
+use codepilotx_app_server_protocol::ExternalAgentConfigDetectParams;
 
 pub(crate) const EXTERNAL_AGENT_CONFIG_MIGRATION_FINISHED_MESSAGE: &str =
     "Claude Code import finished. Run /import again to check for additional items.";

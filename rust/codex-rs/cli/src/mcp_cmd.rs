@@ -6,38 +6,38 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use clap::ArgGroup;
-use codex_config::types::AppToolApproval;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerOAuthConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::McpManager;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_core::config::LoaderOverrides;
-use codex_core::config::edit::ConfigEditsBuilder;
-use codex_core::config::find_codex_home;
-use codex_core::config::load_global_mcp_servers;
-use codex_core_plugins::PluginsManager;
-use codex_mcp::McpOAuthLoginSupport;
-use codex_mcp::ResolvedMcpOAuthScopes;
-use codex_mcp::compute_auth_statuses;
-use codex_mcp::discover_supported_scopes;
-use codex_mcp::oauth_login_support;
-use codex_mcp::resolve_oauth_scopes;
-use codex_mcp::should_retry_without_scopes;
-use codex_protocol::protocol::McpAuthStatus;
-use codex_rmcp_client::delete_oauth_tokens;
-use codex_rmcp_client::perform_oauth_login;
-use codex_utils_cli::CliConfigOverrides;
-use codex_utils_cli::format_env_display;
+use codepilotx_config::types::AppToolApproval;
+use codepilotx_config::types::McpServerConfig;
+use codepilotx_config::types::McpServerOAuthConfig;
+use codepilotx_config::types::McpServerTransportConfig;
+use codepilotx_core::McpManager;
+use codepilotx_core::config::Config;
+use codepilotx_core::config::ConfigBuilder;
+use codepilotx_core::config::LoaderOverrides;
+use codepilotx_core::config::edit::ConfigEditsBuilder;
+use codepilotx_core::config::find_codepilotx_home;
+use codepilotx_core::config::load_global_mcp_servers;
+use codepilotx_core_plugins::PluginsManager;
+use codepilotx_mcp::McpOAuthLoginSupport;
+use codepilotx_mcp::ResolvedMcpOAuthScopes;
+use codepilotx_mcp::compute_auth_statuses;
+use codepilotx_mcp::discover_supported_scopes;
+use codepilotx_mcp::oauth_login_support;
+use codepilotx_mcp::resolve_oauth_scopes;
+use codepilotx_mcp::should_retry_without_scopes;
+use codepilotx_protocol::protocol::McpAuthStatus;
+use codepilotx_rmcp_client::delete_oauth_tokens;
+use codepilotx_rmcp_client::perform_oauth_login;
+use codepilotx_utils_cli::CliConfigOverrides;
+use codepilotx_utils_cli::format_env_display;
 
 /// Subcommands:
-/// - `list`   â€” list configured servers (with `--json`)
-/// - `get`    â€” show a single server (with `--json`)
-/// - `add`    â€” add a server launcher entry to `~/.codex/config.toml`
-/// - `remove` â€” delete a server entry
-/// - `login`  â€” authenticate with MCP server using OAuth
-/// - `logout` â€” remove OAuth credentials for MCP server
+/// - `list`   â€?list configured servers (with `--json`)
+/// - `get`    â€?show a single server (with `--json`)
+/// - `add`    â€?add a server launcher entry to `~/.codex/config.toml`
+/// - `remove` â€?delete a server entry
+/// - `login`  â€?authenticate with MCP server using OAuth
+/// - `logout` â€?remove OAuth credentials for MCP server
 #[derive(Debug, clap::Parser)]
 pub struct McpCli {
     #[clap(flatten)]
@@ -210,8 +210,8 @@ impl McpCli {
 async fn perform_oauth_login_retry_without_scopes(
     name: &str,
     url: &str,
-    store_mode: codex_config::types::OAuthCredentialsStoreMode,
-    keyring_backend_kind: codex_config::types::AuthKeyringBackendKind,
+    store_mode: codepilotx_config::types::OAuthCredentialsStoreMode,
+    keyring_backend_kind: codepilotx_config::types::AuthKeyringBackendKind,
     http_headers: Option<HashMap<String, String>>,
     env_http_headers: Option<HashMap<String, String>>,
     resolved_scopes: &ResolvedMcpOAuthScopes,
@@ -237,7 +237,7 @@ async fn perform_oauth_login_retry_without_scopes(
     {
         Ok(()) => Ok(()),
         Err(err) if should_retry_without_scopes(resolved_scopes, &err) => {
-            println!("OAuth provider rejected discovered scopes. Retrying without scopesâ€¦");
+            println!("OAuth provider rejected discovered scopes. Retrying without scopesâ€?);
             perform_oauth_login(
                 name,
                 url,
@@ -289,10 +289,10 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
 
     validate_server_name(&name)?;
 
-    let codex_home = find_codex_home().context("failed to resolve CODEX_HOME")?;
-    let mut servers = load_global_mcp_servers(&codex_home)
+    let codepilotx_home = find_codepilotx_home().context("failed to resolve codepilotx_HOME")?;
+    let mut servers = load_global_mcp_servers(&codepilotx_home)
         .await
-        .with_context(|| format!("failed to load MCP servers from {}", codex_home.display()))?;
+        .with_context(|| format!("failed to load MCP servers from {}", codepilotx_home.display()))?;
 
     let (transport, oauth_client_id, oauth_resource) = match transport_args {
         AddMcpTransportArgs {
@@ -345,7 +345,7 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
 
     let new_entry = McpServerConfig {
         transport: transport.clone(),
-        environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+        environment_id: codepilotx_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
         enabled: true,
         required: false,
         supports_parallel_tool_calls: false,
@@ -367,17 +367,17 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
 
     servers.insert(name.clone(), new_entry);
 
-    ConfigEditsBuilder::new(&codex_home)
+    ConfigEditsBuilder::new(&codepilotx_home)
         .replace_mcp_servers(&servers)
         .apply()
         .await
-        .with_context(|| format!("failed to write MCP servers to {}", codex_home.display()))?;
+        .with_context(|| format!("failed to write MCP servers to {}", codepilotx_home.display()))?;
 
     println!("Added global MCP server '{name}'.");
 
     match oauth_login_support(&transport).await {
         McpOAuthLoginSupport::Supported(oauth_config) => {
-            println!("Detected OAuth support. Starting OAuth flowâ€¦");
+            println!("Detected OAuth support. Starting OAuth flowâ€?);
             let resolved_scopes = resolve_oauth_scopes(
                 /*explicit_scopes*/ None,
                 /*configured_scopes*/ None,
@@ -417,19 +417,19 @@ async fn run_remove(config_overrides: &CliConfigOverrides, remove_args: RemoveAr
 
     validate_server_name(&name)?;
 
-    let codex_home = find_codex_home().context("failed to resolve CODEX_HOME")?;
-    let mut servers = load_global_mcp_servers(&codex_home)
+    let codepilotx_home = find_codepilotx_home().context("failed to resolve codepilotx_HOME")?;
+    let mut servers = load_global_mcp_servers(&codepilotx_home)
         .await
-        .with_context(|| format!("failed to load MCP servers from {}", codex_home.display()))?;
+        .with_context(|| format!("failed to load MCP servers from {}", codepilotx_home.display()))?;
 
     let removed = servers.remove(&name).is_some();
 
     if removed {
-        ConfigEditsBuilder::new(&codex_home)
+        ConfigEditsBuilder::new(&codepilotx_home)
             .replace_mcp_servers(&servers)
             .apply()
             .await
-            .with_context(|| format!("failed to write MCP servers to {}", codex_home.display()))?;
+            .with_context(|| format!("failed to write MCP servers to {}", codepilotx_home.display()))?;
     }
 
     if removed {
@@ -449,7 +449,7 @@ async fn run_login(config_overrides: &CliConfigOverrides, login_args: LoginArgs)
         .await
         .context("failed to load configuration")?;
     let mcp_manager = McpManager::new(Arc::new(PluginsManager::new(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
     )));
     let mcp_servers = mcp_manager.configured_servers(&config).await;
 
@@ -504,7 +504,7 @@ async fn run_logout(config_overrides: &CliConfigOverrides, logout_args: LogoutAr
         .await
         .context("failed to load configuration")?;
     let mcp_manager = McpManager::new(Arc::new(PluginsManager::new(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
     )));
     let mcp_servers = mcp_manager.configured_servers(&config).await;
 
@@ -541,7 +541,7 @@ async fn run_list(config_overrides: &CliConfigOverrides, list_args: ListArgs) ->
         .await
         .context("failed to load configuration")?;
     let mcp_manager = McpManager::new(Arc::new(PluginsManager::new(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
     )));
     let mcp_servers = mcp_manager.configured_servers(&config).await;
     let effective_mcp_servers = mcp_manager.effective_servers(&config, /*auth*/ None).await;
@@ -798,7 +798,7 @@ async fn run_get(config_overrides: &CliConfigOverrides, get_args: GetArgs) -> Re
         .await
         .context("failed to load configuration")?;
     let mcp_manager = McpManager::new(Arc::new(PluginsManager::new(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
     )));
     let mcp_servers = mcp_manager.configured_servers(&config).await;
 

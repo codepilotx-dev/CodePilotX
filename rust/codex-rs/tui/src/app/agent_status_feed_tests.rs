@@ -1,8 +1,8 @@
 use super::*;
-use codex_app_server_protocol::CommandExecutionSource;
-use codex_app_server_protocol::CommandExecutionStatus;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::CommandExecutionSource;
+use codepilotx_app_server_protocol::CommandExecutionStatus;
+use codepilotx_app_server_protocol::ItemCompletedNotification;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 #[test]
 fn agent_status_uses_bounded_buffered_activity() {
@@ -55,7 +55,7 @@ fn agent_status_uses_bounded_buffered_activity() {
     /agent
     Sub-agents running
 
-      â€¢ `/root/reviewer`
+      â€?`/root/reviewer`
         $ cargo test -p codex-tui
         Finished checking the focused TUI tests.
     "###);
@@ -103,7 +103,7 @@ fn agent_status_uses_reasoning_summaries_only() {
     /agent
     Sub-agents running
 
-      â€¢ `/root/reviewer`
+      â€?`/root/reviewer`
         safe summary
     "###);
     assert!(!rendered.contains("hidden raw reasoning"));

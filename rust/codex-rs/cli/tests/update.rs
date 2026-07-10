@@ -3,18 +3,18 @@ use predicates::str::contains;
 use std::path::Path;
 use tempfile::TempDir;
 
-fn codex_command(codex_home: &Path) -> Result<assert_cmd::Command> {
-    let mut cmd = assert_cmd::Command::new(codex_utils_cargo_bin::cargo_bin("codex")?);
-    cmd.env("CODEX_HOME", codex_home);
+fn codepilotx_command(codepilotx_home: &Path) -> Result<assert_cmd::Command> {
+    let mut cmd = assert_cmd::Command::new(codepilotx_utils_cargo_bin::cargo_bin("codex")?);
+    cmd.env("codepilotx_HOME", codepilotx_home);
     Ok(cmd)
 }
 
 #[cfg(debug_assertions)]
 #[tokio::test]
 async fn update_does_not_start_interactive_prompt() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
 
-    codex_command(codex_home.path())?
+    codepilotx_command(codepilotx_home.path())?
         .arg("update")
         .assert()
         .failure()

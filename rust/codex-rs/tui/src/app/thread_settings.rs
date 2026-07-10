@@ -4,12 +4,12 @@ use super::App;
 use crate::app_command::AppCommand;
 use crate::app_server_session::AppServerSession;
 use crate::session_state::ThreadSessionState;
-use codex_app_server_protocol::ApprovalsReviewer as AppServerApprovalsReviewer;
-use codex_app_server_protocol::ThreadSettings;
-use codex_app_server_protocol::ThreadSettingsUpdateParams;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::models::PermissionProfile;
+use codepilotx_app_server_protocol::ApprovalsReviewer as AppServerApprovalsReviewer;
+use codepilotx_app_server_protocol::ThreadSettings;
+use codepilotx_app_server_protocol::ThreadSettingsUpdateParams;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::models::PermissionProfile;
 
 impl App {
     pub(super) async fn sync_active_thread_model_setting(
@@ -39,7 +39,7 @@ impl App {
     pub(super) async fn sync_active_thread_reasoning_setting(
         &mut self,
         app_server: &mut AppServerSession,
-        effort: Option<codex_protocol::openai_models::ReasoningEffort>,
+        effort: Option<codepilotx_protocol::openai_models::ReasoningEffort>,
     ) {
         let Some(params) = self.active_thread_reasoning_setting_update_params(effort) else {
             return;
@@ -49,7 +49,7 @@ impl App {
 
     pub(super) fn active_thread_reasoning_setting_update_params(
         &self,
-        effort: Option<codex_protocol::openai_models::ReasoningEffort>,
+        effort: Option<codepilotx_protocol::openai_models::ReasoningEffort>,
     ) -> Option<ThreadSettingsUpdateParams> {
         let thread_id = self.active_thread_id?;
         Some(ThreadSettingsUpdateParams {
@@ -78,7 +78,7 @@ impl App {
     pub(super) async fn sync_active_thread_personality_setting(
         &mut self,
         app_server: &mut AppServerSession,
-        personality: codex_protocol::config_types::Personality,
+        personality: codepilotx_protocol::config_types::Personality,
     ) {
         let Some(thread_id) = self.active_thread_id else {
             return;

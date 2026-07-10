@@ -13,10 +13,10 @@ use crate::cwd_prompt::CwdPromptAction;
 use crate::cwd_prompt::CwdPromptOutcome;
 use crate::cwd_prompt::CwdSelection;
 use crate::tui::Tui;
-use codex_protocol::ThreadId;
-use codex_rollout::open_rollout_line_reader;
-use codex_state::StateRuntime;
-use codex_utils_path as path_utils;
+use codepilotx_protocol::ThreadId;
+use codepilotx_rollout::open_rollout_line_reader;
+use codepilotx_state::StateRuntime;
+use codepilotx_utils_path as path_utils;
 use serde::Deserialize;
 use serde_json::Value;
 

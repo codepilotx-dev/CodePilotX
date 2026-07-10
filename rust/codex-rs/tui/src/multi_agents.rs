@@ -7,14 +7,14 @@
 use crate::history_cell::PlainHistoryCell;
 use crate::render::line_utils::prefix_lines;
 use crate::text_formatting::truncate_text;
-use codex_app_server_protocol::CollabAgentState;
-use codex_app_server_protocol::CollabAgentStatus;
-use codex_app_server_protocol::CollabAgentTool;
-use codex_app_server_protocol::CollabAgentToolCallStatus;
-use codex_app_server_protocol::SubAgentActivityKind;
-use codex_app_server_protocol::ThreadItem;
-use codex_protocol::ThreadId;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use codepilotx_app_server_protocol::CollabAgentState;
+use codepilotx_app_server_protocol::CollabAgentStatus;
+use codepilotx_app_server_protocol::CollabAgentTool;
+use codepilotx_app_server_protocol::CollabAgentToolCallStatus;
+use codepilotx_app_server_protocol::SubAgentActivityKind;
+use codepilotx_app_server_protocol::ThreadItem;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 #[cfg(target_os = "macos")]
@@ -74,9 +74,9 @@ pub(crate) struct SpawnRequestSummary {
 
 pub(crate) fn agent_picker_status_dot_spans(is_closed: bool) -> Vec<Span<'static>> {
     let dot = if is_closed {
-        "â€¢".into()
+        "â€?.into()
     } else {
-        "â€¢".green()
+        "â€?.green()
     };
     vec![dot, " ".into()]
 }
@@ -456,7 +456,7 @@ fn resume_end(
 fn collab_event(title: Line<'static>, details: Vec<Line<'static>>) -> PlainHistoryCell {
     let mut lines: Vec<Line<'static>> = vec![title];
     if !details.is_empty() {
-        lines.extend(prefix_lines(details, "  â”” ".dim(), "    ".into()));
+        lines.extend(prefix_lines(details, "  â”?".dim(), "    ".into()));
     }
     PlainHistoryCell::new(lines)
 }
@@ -478,7 +478,7 @@ fn title_with_agent(
 
 fn title_spans_line(mut spans: Vec<Span<'static>>) -> Line<'static> {
     let mut title = Vec::with_capacity(spans.len() + 1);
-    title.push(Span::from("â€¢ ").dim());
+    title.push(Span::from("â€?").dim());
     title.append(&mut spans);
     title.into()
 }

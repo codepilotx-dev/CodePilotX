@@ -1,8 +1,8 @@
 #[cfg(test)]
 use crate::app_command::AppCommand as Op;
-use codex_app_server_protocol::McpServerElicitationAction;
-use codex_app_server_protocol::RequestId as AppServerRequestId;
-use codex_protocol::ThreadId;
+use codepilotx_app_server_protocol::McpServerElicitationAction;
+use codepilotx_app_server_protocol::RequestId as AppServerRequestId;
+use codepilotx_protocol::ThreadId;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
@@ -37,8 +37,8 @@ use crate::style::user_message_style;
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_lines;
 
-const MCP_CODEX_APPS_SERVER_NAME: &str = "codex_apps";
-const MCP_TOOL_CODEX_APPS_META_KEY: &str = "_codex_apps";
+const MCP_codepilotx_APPS_SERVER_NAME: &str = "codepilotx_apps";
+const MCP_TOOL_codepilotx_APPS_META_KEY: &str = "_codepilotx_apps";
 const CONNECTOR_AUTH_FAILURE_META_KEY: &str = "connector_auth_failure";
 const CONNECTOR_AUTH_FAILURE_IS_AUTH_FAILURE_KEY: &str = "is_auth_failure";
 const CONNECTOR_AUTH_FAILURE_CONNECTOR_ID_KEY: &str = "connector_id";
@@ -84,9 +84,9 @@ impl AppLinkViewParams {
         thread_id: ThreadId,
         server_name: &str,
         request_id: AppServerRequestId,
-        request: &codex_app_server_protocol::McpServerElicitationRequest,
+        request: &codepilotx_app_server_protocol::McpServerElicitationRequest,
     ) -> Option<Self> {
-        let codex_app_server_protocol::McpServerElicitationRequest::Url {
+        let codepilotx_app_server_protocol::McpServerElicitationRequest::Url {
             meta,
             message,
             url,
@@ -95,9 +95,9 @@ impl AppLinkViewParams {
         else {
             return None;
         };
-        if server_name == MCP_CODEX_APPS_SERVER_NAME {
+        if server_name == MCP_codepilotx_APPS_SERVER_NAME {
             let url = validate_external_url(url, /*require_chatgpt_host*/ true)?;
-            return Self::from_codex_apps_auth_url_parts(
+            return Self::from_codepilotx_apps_auth_url_parts(
                 thread_id,
                 server_name,
                 request_id,
@@ -119,7 +119,7 @@ impl AppLinkViewParams {
         ))
     }
 
-    fn from_codex_apps_auth_url_parts(
+    fn from_codepilotx_apps_auth_url_parts(
         thread_id: ThreadId,
         server_name: &str,
         request_id: AppServerRequestId,
@@ -130,7 +130,7 @@ impl AppLinkViewParams {
     ) -> Option<Self> {
         let auth_failure = meta?
             .as_object()?
-            .get(MCP_TOOL_CODEX_APPS_META_KEY)?
+            .get(MCP_TOOL_codepilotx_APPS_META_KEY)?
             .as_object()?
             .get(CONNECTOR_AUTH_FAILURE_META_KEY)?
             .as_object()?;
@@ -381,7 +381,7 @@ impl AppLinkView {
         let should_refresh_connectors = self
             .elicitation_target
             .as_ref()
-            .is_none_or(|target| target.server_name == MCP_CODEX_APPS_SERVER_NAME);
+            .is_none_or(|target| target.server_name == MCP_codepilotx_APPS_SERVER_NAME);
         if should_refresh_connectors {
             self.app_event_tx.send(AppEvent::RefreshConnectors {
                 force_refetch: true,
@@ -555,14 +555,14 @@ impl AppLinkView {
 
         let is_auth_suggestion = self.is_auth_suggestion();
         let is_external_action_suggestion = self.is_external_action_suggestion();
-        let is_codex_apps_auth = is_auth_suggestion
+        let is_codepilotx_apps_auth = is_auth_suggestion
             && self
                 .elicitation_target
                 .as_ref()
-                .is_some_and(|target| target.server_name == MCP_CODEX_APPS_SERVER_NAME);
+                .is_some_and(|target| target.server_name == MCP_codepilotx_APPS_SERVER_NAME);
         lines.push(Line::from(
             if is_auth_suggestion {
-                if is_codex_apps_auth {
+                if is_codepilotx_apps_auth {
                     "Finish App Sign In"
                 } else {
                     "Finish Authentication"
@@ -578,7 +578,7 @@ impl AppLinkView {
 
         if is_auth_suggestion {
             for line in wrap(
-                if is_codex_apps_auth {
+                if is_codepilotx_apps_auth {
                     "Sign in to the app on ChatGPT in the browser window that just opened."
                 } else {
                     "Complete authentication in the browser window that just opened."
@@ -644,7 +644,7 @@ impl AppLinkView {
             .enumerate()
             .map(|(index, label)| {
                 let prefix = if self.selected_action == index {
-                    'â€º'
+                    'â€?
                 } else {
                     ' '
                 };
@@ -861,7 +861,7 @@ mod tests {
         AppLinkElicitationTarget {
             thread_id: ThreadId::try_from("00000000-0000-0000-0000-000000000001")
                 .expect("valid thread id"),
-            server_name: "codex_apps".to_string(),
+            server_name: "codepilotx_apps".to_string(),
             request_id: AppServerRequestId::String("request-1".to_string()),
         }
     }
@@ -875,10 +875,10 @@ mod tests {
         }
     }
 
-    fn auth_url_request(url: &str) -> codex_app_server_protocol::McpServerElicitationRequest {
-        codex_app_server_protocol::McpServerElicitationRequest::Url {
+    fn auth_url_request(url: &str) -> codepilotx_app_server_protocol::McpServerElicitationRequest {
+        codepilotx_app_server_protocol::McpServerElicitationRequest::Url {
             meta: Some(serde_json::json!({
-                "_codex_apps": {
+                "_codepilotx_apps": {
                     "connector_auth_failure": {
                         "is_auth_failure": true,
                         "connector_id": "connector_calendar",
@@ -888,12 +888,12 @@ mod tests {
             })),
             message: "Reconnect Google Calendar on ChatGPT.".to_string(),
             url: url.to_string(),
-            elicitation_id: "codex_apps_auth_call_123".to_string(),
+            elicitation_id: "codepilotx_apps_auth_call_123".to_string(),
         }
     }
 
     #[test]
-    fn codex_apps_auth_url_elicitation_builds_auth_app_link_params() {
+    fn codepilotx_apps_auth_url_elicitation_builds_auth_app_link_params() {
         let target = suggestion_target();
         let request =
             auth_url_request("https://chatgpt.com/apps/google-calendar/connector_calendar");
@@ -917,9 +917,9 @@ mod tests {
     }
 
     #[test]
-    fn non_codex_apps_url_elicitation_builds_generic_app_link_params() {
+    fn non_codepilotx_apps_url_elicitation_builds_generic_app_link_params() {
         let target = generic_url_target();
-        let request = codex_app_server_protocol::McpServerElicitationRequest::Url {
+        let request = codepilotx_app_server_protocol::McpServerElicitationRequest::Url {
             meta: None,
             message: "Review the payment details to continue.".to_string(),
             url: "https://payments.example/checkout/123".to_string(),
@@ -953,7 +953,7 @@ mod tests {
     }
 
     #[test]
-    fn codex_apps_auth_url_elicitation_rejects_untrusted_urls() {
+    fn codepilotx_apps_auth_url_elicitation_rejects_untrusted_urls() {
         let target = suggestion_target();
         for url in [
             "http://chatgpt.com/apps/google-calendar/connector_calendar",
@@ -979,7 +979,7 @@ mod tests {
             "http://payments.example/checkout/123",
             "https://user:pass@payments.example/checkout/123",
         ] {
-            let request = codex_app_server_protocol::McpServerElicitationRequest::Url {
+            let request = codepilotx_app_server_protocol::McpServerElicitationRequest::Url {
                 meta: None,
                 message: "Review the payment details to continue.".to_string(),
                 url: url.to_string(),
@@ -1202,7 +1202,7 @@ mod tests {
         let (tx_raw, mut rx) = unbounded_channel::<AppEvent>();
         let tx = AppEventSender::new(tx_raw);
         let target = generic_url_target();
-        let request = codex_app_server_protocol::McpServerElicitationRequest::Url {
+        let request = codepilotx_app_server_protocol::McpServerElicitationRequest::Url {
             meta: None,
             message: "Review the payment details to continue.".to_string(),
             url: "https://payments.example/checkout/123".to_string(),
@@ -1390,7 +1390,7 @@ mod tests {
                 assert_eq!(
                     op,
                     Op::ResolveElicitation {
-                        server_name: "codex_apps".to_string(),
+                        server_name: "codepilotx_apps".to_string(),
                         request_id: AppServerRequestId::String("request-1".to_string()),
                         decision: McpServerElicitationAction::Accept,
                         content: None,
@@ -1432,7 +1432,7 @@ mod tests {
                 assert_eq!(
                     op,
                     Op::ResolveElicitation {
-                        server_name: "codex_apps".to_string(),
+                        server_name: "codepilotx_apps".to_string(),
                         request_id: AppServerRequestId::String("request-1".to_string()),
                         decision: McpServerElicitationAction::Decline,
                         content: None,
@@ -1482,7 +1482,7 @@ mod tests {
                 assert_eq!(
                     op,
                     Op::ResolveElicitation {
-                        server_name: "codex_apps".to_string(),
+                        server_name: "codepilotx_apps".to_string(),
                         request_id: AppServerRequestId::String("request-1".to_string()),
                         decision: McpServerElicitationAction::Accept,
                         content: None,
@@ -1518,7 +1518,7 @@ mod tests {
 
         assert!(
             view.dismiss_app_server_request(&ResolvedAppServerRequest::McpElicitation {
-                server_name: "codex_apps".to_string(),
+                server_name: "codepilotx_apps".to_string(),
                 request_id: AppServerRequestId::String("request-1".to_string()),
             })
         );
@@ -1647,7 +1647,7 @@ mod tests {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
         let tx = AppEventSender::new(tx_raw);
         let target = generic_url_target();
-        let request = codex_app_server_protocol::McpServerElicitationRequest::Url {
+        let request = codepilotx_app_server_protocol::McpServerElicitationRequest::Url {
             meta: None,
             message: "Review the payment details to continue.".to_string(),
             url: "https://payments.example/checkout/123".to_string(),
@@ -1676,7 +1676,7 @@ mod tests {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
         let tx = AppEventSender::new(tx_raw);
         let target = generic_url_target();
-        let request = codex_app_server_protocol::McpServerElicitationRequest::Url {
+        let request = codepilotx_app_server_protocol::McpServerElicitationRequest::Url {
             meta: None,
             message: "Review the payment details to continue.".to_string(),
             url: "https://payments.example/checkout/123".to_string(),

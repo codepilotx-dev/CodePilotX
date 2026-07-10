@@ -12,9 +12,9 @@
 //! advertised effort when the default is absent, before stepping through the
 //! advertised order.
 
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::openai_models::ModelPreset;
+use codepilotx_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
 use crossterm::event::KeyEvent;
 
 use super::ChatWidget;

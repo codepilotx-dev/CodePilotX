@@ -8,7 +8,7 @@
 
 use std::path::Path;
 
-use codex_core::config::Config;
+use codepilotx_core::config::Config;
 
 use super::CheckStatus;
 use super::DoctorCheck;
@@ -26,7 +26,7 @@ const UPDATE_PID_FILE_NAME: &str = "app-server-updater.pid";
 /// client connection problems without proving the daemon itself is broken.
 pub(super) async fn background_server_check(config: &Config) -> DoctorCheck {
     let mut details = Vec::new();
-    let state_dir = config.codex_home.join(STATE_DIR_NAME);
+    let state_dir = config.codepilotx_home.join(STATE_DIR_NAME);
     details.push(format!("daemon state dir: {}", state_dir.display()));
     push_file_detail(
         &mut details,
@@ -40,7 +40,7 @@ pub(super) async fn background_server_check(config: &Config) -> DoctorCheck {
         &state_dir.join(UPDATE_PID_FILE_NAME),
     );
 
-    let socket_path = match codex_app_server::app_server_control_socket_path(&config.codex_home) {
+    let socket_path = match codepilotx_app_server::app_server_control_socket_path(&config.codepilotx_home) {
         Ok(socket_path) => socket_path,
         Err(err) => {
             return DoctorCheck::new(
@@ -146,7 +146,7 @@ async fn socket_status(socket_path: &Path) -> SocketStatus {
         return SocketStatus::NotRunning;
     }
 
-    match codex_app_server_daemon::probe_app_server_version(socket_path).await {
+    match codepilotx_app_server_daemon::probe_app_server_version(socket_path).await {
         Ok(app_server_version) => SocketStatus::Running(app_server_version),
         Err(err) => SocketStatus::StaleOrUnreachable(concise_probe_error(&err, socket_path)),
     }
@@ -179,21 +179,21 @@ fn concise_probe_error(err: &anyhow::Error, socket_path: &Path) -> String {
 mod tests {
     use std::path::PathBuf;
 
-    use codex_core::config::ConfigBuilder;
+    use codepilotx_core::config::ConfigBuilder;
     use pretty_assertions::assert_eq;
 
     use super::*;
 
-    async fn test_config(codex_home: PathBuf) -> Config {
+    async fn test_config(codepilotx_home: PathBuf) -> Config {
         ConfigBuilder::default()
-            .codex_home(codex_home)
+            .codepilotx_home(codepilotx_home)
             .build()
             .await
             .expect("config")
     }
 
     fn create_socket_placeholder(config: &Config) {
-        let socket_path = codex_app_server::app_server_control_socket_path(&config.codex_home)
+        let socket_path = codepilotx_app_server::app_server_control_socket_path(&config.codepilotx_home)
             .expect("socket path");
         std::fs::create_dir_all(socket_path.parent().expect("socket parent"))
             .expect("create socket dir");

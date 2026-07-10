@@ -17,8 +17,8 @@ use crate::keymap::RuntimeKeymap;
 use crate::keymap::VimNormalKeymap;
 use crate::keymap::VimOperatorKeymap;
 use crate::keymap::VimTextObjectKeymap;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::TextElement as UserTextElement;
+use codepilotx_protocol::user_input::ByteRange;
+use codepilotx_protocol::user_input::TextElement as UserTextElement;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -377,13 +377,13 @@ impl TextArea {
 
         // Update the cursor position to account for the edit.
         self.cursor_pos = if self.cursor_pos < start {
-            // Cursor was before the edited range â€“ no shift.
+            // Cursor was before the edited range â€?no shift.
             self.cursor_pos
         } else if self.cursor_pos <= end {
-            // Cursor was inside the replaced range â€“ move to end of the new text.
+            // Cursor was inside the replaced range â€?move to end of the new text.
             start + inserted_len
         } else {
-            // Cursor was after the replaced range â€“ shift by the length diff.
+            // Cursor was after the replaced range â€?shift by the length diff.
             ((self.cursor_pos as isize) + diff) as usize
         }
         .min(self.text.len());
@@ -2018,7 +2018,7 @@ mod tests {
             }
             66..=75 => {
                 // CJK wide characters
-                let choices = ["æ¼¢", "å­—", "æ¸¬", "è©¦", "ä½ ", "å¥½", "ç•Œ", "ç¼–", "ç "];
+                let choices = ["æ¼?, "å­?, "æ¸?, "è©?, "ä½?, "å¥?, "ç•?, "ç¼?, "ç ?];
                 choices[rng.random_range(0..choices.len())].to_string()
             }
             76..=85 => {
@@ -2029,7 +2029,7 @@ mod tests {
             }
             86..=92 => {
                 // Some non-latin single codepoints (Greek, Cyrillic, Hebrew)
-                let choices = ["Î©", "Î²", "Ð–", "ÑŽ", "×©", "Ù…", "à¤¹"];
+                let choices = ["Î©", "Î²", "Ð–", "ÑŽ", "×©", "Ù…", "à¤?];
                 choices[rng.random_range(0..choices.len())].to_string()
             }
             _ => {
@@ -2096,10 +2096,10 @@ mod tests {
     #[test]
     fn insert_str_at_clamps_to_char_boundary() {
         let mut t = TextArea::new();
-        t.insert_str("ä½ ");
+        t.insert_str("ä½?);
         t.set_cursor(/*pos*/ 0);
         t.insert_str_at(/*pos*/ 1, "A");
-        assert_eq!(t.text(), "Aä½ ");
+        assert_eq!(t.text(), "Aä½?);
         assert_eq!(t.cursor(), 1);
     }
 
@@ -2108,10 +2108,10 @@ mod tests {
         let mut t = TextArea::new();
         t.insert_str("abcd");
         t.set_cursor(/*pos*/ 1);
-        t.set_text_clearing_elements("ä½ ");
+        t.set_text_clearing_elements("ä½?);
         assert_eq!(t.cursor(), 0);
         t.insert_str("a");
-        assert_eq!(t.text(), "aä½ ");
+        assert_eq!(t.text(), "aä½?);
     }
 
     #[test]
@@ -3438,7 +3438,7 @@ mod tests {
 
     #[test]
     fn cursor_pos_with_state_basic_and_scroll_behaviors() {
-        // Case 1: No wrapping needed, height fits â€” scroll ignored, y maps directly.
+        // Case 1: No wrapping needed, height fits â€?scroll ignored, y maps directly.
         let mut t = ta_with("hello world");
         t.set_cursor(/*pos*/ 3);
         let area = Rect::new(2, 5, 20, 3);
@@ -3449,7 +3449,7 @@ mod tests {
         let (x2, y2) = t.cursor_pos_with_state(area, bad_state).unwrap();
         assert_eq!((x2, y2), (x1, y1));
 
-        // Case 2: Cursor below the current window â€” y should be clamped to the
+        // Case 2: Cursor below the current window â€?y should be clamped to the
         // bottom row (area.height - 1) after adjusting effective scroll.
         let mut t = ta_with("one two three four five six");
         // Force wrapping to many visual lines.
@@ -3462,7 +3462,7 @@ mod tests {
         let (_x, y) = t.cursor_pos_with_state(small_area, state).unwrap();
         assert_eq!(y, small_area.y + small_area.height - 1);
 
-        // Case 3: Cursor above the current window â€” y should be top row (0)
+        // Case 3: Cursor above the current window â€?y should be top row (0)
         // when the provided scroll is too large.
         let mut t = ta_with("alpha beta gamma delta epsilon zeta");
         let wrap_width = 5;

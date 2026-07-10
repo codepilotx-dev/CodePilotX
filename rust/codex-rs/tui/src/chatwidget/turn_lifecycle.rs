@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 use std::time::Instant;
 
-use codex_utils_sleep_inhibitor::SleepInhibitor;
+use codepilotx_utils_sleep_inhibitor::SleepInhibitor;
 
 #[derive(Debug)]
 pub(super) struct TurnLifecycleState {

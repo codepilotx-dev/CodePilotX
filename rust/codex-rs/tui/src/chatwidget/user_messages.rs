@@ -14,13 +14,13 @@ use std::path::PathBuf;
 use crate::bottom_pane::LocalImageAttachment;
 use crate::bottom_pane::MentionBinding;
 use crate::bottom_pane::QueuedInputAction;
-use codex_app_server_protocol::TextElement as AppServerTextElement;
-use codex_app_server_protocol::UserInput;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::models::local_image_label_text;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::TextElement;
+use codepilotx_app_server_protocol::TextElement as AppServerTextElement;
+use codepilotx_app_server_protocol::UserInput;
+use codepilotx_protocol::config_types::CollaborationMode;
+use codepilotx_protocol::config_types::CollaborationModeMask;
+use codepilotx_protocol::models::local_image_label_text;
+use codepilotx_protocol::user_input::ByteRange;
+use codepilotx_protocol::user_input::TextElement;
 
 use super::ChatWidget;
 

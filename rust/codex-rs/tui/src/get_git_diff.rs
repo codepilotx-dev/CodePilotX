@@ -11,9 +11,9 @@ use std::time::Duration;
 use crate::workspace_command::WorkspaceCommand;
 use crate::workspace_command::WorkspaceCommandExecutor;
 use crate::workspace_command::WorkspaceCommandOutput;
-use codex_git_utils::FsmonitorOverride;
-use codex_git_utils::FsmonitorProbeRunner;
-use codex_git_utils::detect_fsmonitor_override;
+use codepilotx_git_utils::FsmonitorOverride;
+use codepilotx_git_utils::FsmonitorProbeRunner;
+use codepilotx_git_utils::detect_fsmonitor_override;
 
 const DIFF_COMMAND_TIMEOUT: Duration = Duration::from_secs(/*secs*/ 30);
 const DISABLE_HOOKS_CONFIG: &str = if cfg!(windows) {
@@ -44,8 +44,8 @@ impl FsmonitorProbeRunner for WorkspaceFsmonitorProbeRunner<'_> {
 
 /// Return value of [`get_git_diff`].
 ///
-/// * `bool` â€“ Whether the current working directory is inside a Git repo.
-/// * `String` â€“ The concatenated diff (may be empty).
+/// * `bool` â€?Whether the current working directory is inside a Git repo.
+/// * `String` â€?The concatenated diff (may be empty).
 pub(crate) async fn get_git_diff(
     runner: &dyn WorkspaceCommandExecutor,
     cwd: &Path,

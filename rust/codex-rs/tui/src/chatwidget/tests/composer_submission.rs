@@ -1,11 +1,11 @@
 use super::*;
 use crate::app_event::ConnectorsSnapshot;
-use codex_protocol::models::ManagedFileSystemPermissions;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_protocol::models::ManagedFileSystemPermissions;
+use codepilotx_protocol::permissions::FileSystemAccessMode;
+use codepilotx_protocol::permissions::FileSystemPath;
+use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+use codepilotx_protocol::permissions::FileSystemSpecialPath;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::collections::VecDeque;

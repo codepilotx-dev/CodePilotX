@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::Output;
 use std::time::Duration;
 
-use codex_git_utils::get_git_repo_root;
+use codepilotx_git_utils::get_git_repo_root;
 use tokio::process::Command;
 use tokio::time::timeout;
 

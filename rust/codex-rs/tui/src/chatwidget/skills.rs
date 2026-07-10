@@ -10,18 +10,18 @@ use crate::bottom_pane::SkillsToggleView;
 use crate::bottom_pane::popup_consts::standard_popup_hint_line;
 use crate::skills_helpers::skill_description;
 use crate::skills_helpers::skill_display_name;
-use codex_app_server_protocol::AppInfo;
-use codex_app_server_protocol::SkillMetadata as ProtocolSkillMetadata;
-use codex_app_server_protocol::SkillsListEntry;
-use codex_app_server_protocol::SkillsListResponse;
-use codex_core_skills::model::SkillDependencies;
-use codex_core_skills::model::SkillInterface;
-use codex_core_skills::model::SkillMetadata;
-use codex_core_skills::model::SkillToolDependency;
-use codex_features::Feature;
-use codex_protocol::parse_command::ParsedCommand;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_plugins::mention_syntax::TOOL_MENTION_SIGIL;
+use codepilotx_app_server_protocol::AppInfo;
+use codepilotx_app_server_protocol::SkillMetadata as ProtocolSkillMetadata;
+use codepilotx_app_server_protocol::SkillsListEntry;
+use codepilotx_app_server_protocol::SkillsListResponse;
+use codepilotx_core_skills::model::SkillDependencies;
+use codepilotx_core_skills::model::SkillInterface;
+use codepilotx_core_skills::model::SkillMetadata;
+use codepilotx_core_skills::model::SkillToolDependency;
+use codepilotx_features::Feature;
+use codepilotx_protocol::parse_command::ParsedCommand;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_plugins::mention_syntax::TOOL_MENTION_SIGIL;
 
 impl ChatWidget {
     pub(crate) fn open_skills_list(&mut self) {
@@ -323,12 +323,12 @@ pub(crate) fn find_app_mentions(
 
     let mut slug_counts: HashMap<String, usize> = HashMap::new();
     for app in apps.iter().filter(|app| is_app_mentionable(app)) {
-        let slug = codex_connectors::metadata::connector_mention_slug(app);
+        let slug = codepilotx_connectors::metadata::connector_mention_slug(app);
         *slug_counts.entry(slug).or_insert(0) += 1;
     }
 
     for app in apps.iter().filter(|app| is_app_mentionable(app)) {
-        let slug = codex_connectors::metadata::connector_mention_slug(app);
+        let slug = codepilotx_connectors::metadata::connector_mention_slug(app);
         let slug_count = slug_counts.get(&slug).copied().unwrap_or(0);
         if mentions.names.contains(&slug)
             && !explicit_names.contains(&slug)

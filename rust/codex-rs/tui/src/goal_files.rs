@@ -9,9 +9,9 @@ use crate::bottom_pane::LocalImageAttachment;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
-use codex_app_server_client::AppServerPath;
-use codex_protocol::protocol::MAX_THREAD_GOAL_OBJECTIVE_CHARS;
-use codex_protocol::user_input::TextElement;
+use codepilotx_app_server_client::AppServerPath;
+use codepilotx_protocol::protocol::MAX_THREAD_GOAL_OBJECTIVE_CHARS;
+use codepilotx_protocol::user_input::TextElement;
 use uuid::Uuid;
 
 const GOAL_ATTACHMENT_DIR: &str = "attachments";
@@ -32,7 +32,7 @@ pub(crate) type GoalFilePath = AppServerPath;
 
 pub(crate) async fn materialize_goal_draft(
     app_server: &mut AppServerSession,
-    codex_home: Option<&GoalFilePath>,
+    codepilotx_home: Option<&GoalFilePath>,
     draft: GoalDraft,
 ) -> Result<(String, Option<GoalFilePath>)> {
     let mut objective = draft.objective;
@@ -66,7 +66,7 @@ pub(crate) async fn materialize_goal_draft(
             continue;
         };
         active_placeholders.swap_remove(active_idx);
-        let path = ensure_goal_output_dir(app_server, codex_home, &mut output_dir)
+        let path = ensure_goal_output_dir(app_server, codepilotx_home, &mut output_dir)
             .await?
             .join(format!("pasted-text-{}.txt", replacements.len() + 1));
         write_goal_file(app_server, path.clone(), text.as_bytes().to_vec()).await?;
@@ -89,7 +89,7 @@ pub(crate) async fn materialize_goal_draft(
             active_placeholders.swap_remove(active_idx);
         }
         let extension = image_extension(&image.path);
-        let path = ensure_goal_output_dir(app_server, codex_home, &mut output_dir)
+        let path = ensure_goal_output_dir(app_server, codepilotx_home, &mut output_dir)
             .await?
             .join(format!("image-{}.{}", idx + 1, extension));
         let bytes = fs::read(&image.path)
@@ -119,7 +119,7 @@ pub(crate) async fn materialize_goal_draft(
     );
 
     if objective.chars().count() > MAX_THREAD_GOAL_OBJECTIVE_CHARS {
-        let path = ensure_goal_output_dir(app_server, codex_home, &mut output_dir)
+        let path = ensure_goal_output_dir(app_server, codepilotx_home, &mut output_dir)
             .await?
             .join(GOAL_FILE_NAME);
         let reference = match objective_file_reference(&path) {
@@ -139,10 +139,10 @@ pub(crate) async fn materialize_goal_draft(
 
 pub(crate) async fn objective_text_for_edit(
     app_server: &mut AppServerSession,
-    codex_home: Option<&GoalFilePath>,
+    codepilotx_home: Option<&GoalFilePath>,
     objective: &str,
 ) -> Result<String> {
-    let Some(path) = objective_file_path(objective, codex_home) else {
+    let Some(path) = objective_file_path(objective, codepilotx_home) else {
         return Ok(objective.to_string());
     };
     let bytes = app_server
@@ -156,7 +156,7 @@ pub(crate) async fn objective_text_for_edit(
 
 pub(crate) fn objective_file_path(
     objective: &str,
-    codex_home: Option<&GoalFilePath>,
+    codepilotx_home: Option<&GoalFilePath>,
 ) -> Option<GoalFilePath> {
     let path = objective
         .strip_prefix(GOAL_FILE_PREFIX)
@@ -164,7 +164,7 @@ pub(crate) fn objective_file_path(
     let path = AppServerPath::from_absolute_str(path)?;
     let parts = path.components();
     let attachment_id = parts.get(parts.len().checked_sub(2)?)?;
-    let expected = codex_home?
+    let expected = codepilotx_home?
         .join(GOAL_ATTACHMENT_DIR)
         .join(attachment_id)
         .join(GOAL_FILE_NAME);
@@ -184,15 +184,15 @@ pub(crate) fn objective_file_reference(path: &GoalFilePath) -> Result<String> {
 
 async fn ensure_goal_output_dir(
     app_server: &mut AppServerSession,
-    codex_home: Option<&GoalFilePath>,
+    codepilotx_home: Option<&GoalFilePath>,
     output_dir: &mut Option<GoalFilePath>,
 ) -> Result<GoalFilePath> {
     if let Some(output_dir) = output_dir {
         return Ok(output_dir.clone());
     }
-    let codex_home = codex_home
-        .context("App server did not report $CODEX_HOME; cannot materialize goal files")?;
-    let path = codex_home
+    let codepilotx_home = codepilotx_home
+        .context("App server did not report $codepilotx_HOME; cannot materialize goal files")?;
+    let path = codepilotx_home
         .join(GOAL_ATTACHMENT_DIR)
         .join(Uuid::new_v4().to_string());
     app_server

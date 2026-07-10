@@ -1,30 +1,30 @@
 use std::path::Path;
 
 use anyhow::Result;
-use codex_state::StateRuntime;
-use codex_state::memories_db_path;
-use codex_state::state_db_path;
+use codepilotx_state::StateRuntime;
+use codepilotx_state::memories_db_path;
+use codepilotx_state::state_db_path;
 use predicates::str::contains;
 use sqlx::SqlitePool;
 use tempfile::TempDir;
 
-fn codex_command(codex_home: &Path) -> Result<assert_cmd::Command> {
-    let mut cmd = assert_cmd::Command::new(codex_utils_cargo_bin::cargo_bin("codex")?);
-    cmd.env("CODEX_HOME", codex_home);
+fn codepilotx_command(codepilotx_home: &Path) -> Result<assert_cmd::Command> {
+    let mut cmd = assert_cmd::Command::new(codepilotx_utils_cargo_bin::cargo_bin("codex")?);
+    cmd.env("codepilotx_HOME", codepilotx_home);
     Ok(cmd)
 }
 
 #[tokio::test]
 async fn debug_clear_memories_resets_state_and_removes_memory_dir() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let runtime =
-        StateRuntime::init(codex_home.path().to_path_buf(), "test-provider".to_string()).await?;
+        StateRuntime::init(codepilotx_home.path().to_path_buf(), "test-provider".to_string()).await?;
     drop(runtime);
 
     let thread_id = "00000000-0000-0000-0000-000000000123";
-    let db_path = state_db_path(codex_home.path());
+    let db_path = state_db_path(codepilotx_home.path());
     let pool = SqlitePool::connect(&format!("sqlite://{}", db_path.display())).await?;
-    let memories_db_path = memories_db_path(codex_home.path());
+    let memories_db_path = memories_db_path(codepilotx_home.path());
     let memories_pool =
         SqlitePool::connect(&format!("sqlite://{}", memories_db_path.display())).await?;
 
@@ -56,8 +56,8 @@ INSERT INTO threads (
         "#,
     )
     .bind(thread_id)
-    .bind(codex_home.path().join("session.jsonl").display().to_string())
-    .bind(codex_home.path().display().to_string())
+    .bind(codepilotx_home.path().join("session.jsonl").display().to_string())
+    .bind(codepilotx_home.path().display().to_string())
     .execute(&pool)
     .await?;
 
@@ -106,13 +106,13 @@ INSERT INTO jobs (
     .execute(&memories_pool)
     .await?;
 
-    let memory_root = codex_home.path().join("memories");
+    let memory_root = codepilotx_home.path().join("memories");
     std::fs::create_dir_all(&memory_root)?;
     std::fs::write(memory_root.join("memory_summary.md"), "stale memory")?;
     pool.close().await;
     memories_pool.close().await;
 
-    let mut cmd = codex_command(codex_home.path())?;
+    let mut cmd = codepilotx_command(codepilotx_home.path())?;
     cmd.args(["debug", "clear-memories"])
         .assert()
         .success()
@@ -139,13 +139,13 @@ INSERT INTO jobs (
 
 #[tokio::test]
 async fn debug_clear_memories_resets_memories_db_without_state_db() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     let runtime =
-        StateRuntime::init(codex_home.path().to_path_buf(), "test-provider".to_string()).await?;
+        StateRuntime::init(codepilotx_home.path().to_path_buf(), "test-provider".to_string()).await?;
     drop(runtime);
 
-    let db_path = state_db_path(codex_home.path());
-    let memories_db_path = memories_db_path(codex_home.path());
+    let db_path = state_db_path(codepilotx_home.path());
+    let memories_db_path = memories_db_path(codepilotx_home.path());
     let memories_pool =
         SqlitePool::connect(&format!("sqlite://{}", memories_db_path.display())).await?;
 
@@ -171,7 +171,7 @@ INSERT INTO stage1_outputs (
     memories_pool.close().await;
     std::fs::remove_file(&db_path)?;
 
-    let mut cmd = codex_command(codex_home.path())?;
+    let mut cmd = codepilotx_command(codepilotx_home.path())?;
     cmd.args(["debug", "clear-memories"])
         .assert()
         .success()

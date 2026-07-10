@@ -77,95 +77,95 @@ use crate::terminal_title::set_terminal_title;
 use crate::text_formatting::proper_join;
 use crate::token_usage::TokenUsage;
 use crate::token_usage::TokenUsageInfo;
-use crate::version::CODEX_CLI_VERSION;
-use codex_app_server_protocol::AddCreditsNudgeCreditType;
-use codex_app_server_protocol::AddCreditsNudgeEmailStatus;
-use codex_app_server_protocol::AppInfo;
-use codex_app_server_protocol::AppSummary;
-use codex_app_server_protocol::CodexErrorInfo as AppServerCodexErrorInfo;
-use codex_app_server_protocol::CollabAgentTool;
-use codex_app_server_protocol::CollabAgentToolCallStatus;
-use codex_app_server_protocol::CommandExecutionRequestApprovalParams;
-use codex_app_server_protocol::CommandExecutionSource as ExecCommandSource;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_app_server_protocol::CreditsSnapshot;
-use codex_app_server_protocol::ErrorNotification;
-use codex_app_server_protocol::FileChangeRequestApprovalParams;
-use codex_app_server_protocol::GuardianApprovalReviewAction;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::McpServerElicitationRequest;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
-use codex_app_server_protocol::McpServerStatusDetail;
-use codex_app_server_protocol::ModelVerification as AppServerModelVerification;
-use codex_app_server_protocol::RateLimitReachedType;
-use codex_app_server_protocol::RateLimitSnapshot;
-use codex_app_server_protocol::RequestId as AppServerRequestId;
-use codex_app_server_protocol::ReviewTarget;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::SkillMetadata as ProtocolSkillMetadata;
-use codex_app_server_protocol::SkillsListResponse;
-use codex_app_server_protocol::ThreadGoal as AppThreadGoal;
-use codex_app_server_protocol::ThreadGoalStatus as AppThreadGoalStatus;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadSettings;
-use codex_app_server_protocol::ThreadSettingsUpdatedNotification;
-use codex_app_server_protocol::ThreadTokenUsage;
-use codex_app_server_protocol::ToolRequestUserInputParams;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnPlanStepStatus;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::Constrained;
-use codex_config::ConstraintResult;
-use codex_config::types::ApprovalsReviewer;
-use codex_config::types::Notifications;
-use codex_config::types::WindowsSandboxModeToml;
-use codex_core_skills::model::SkillMetadata;
-use codex_features::FEATURES;
-use codex_features::Feature;
+use crate::version::codepilotx_CLI_VERSION;
+use codepilotx_app_server_protocol::AddCreditsNudgeCreditType;
+use codepilotx_app_server_protocol::AddCreditsNudgeEmailStatus;
+use codepilotx_app_server_protocol::AppInfo;
+use codepilotx_app_server_protocol::AppSummary;
+use codepilotx_app_server_protocol::CodexErrorInfo as AppServerCodexErrorInfo;
+use codepilotx_app_server_protocol::CollabAgentTool;
+use codepilotx_app_server_protocol::CollabAgentToolCallStatus;
+use codepilotx_app_server_protocol::CommandExecutionRequestApprovalParams;
+use codepilotx_app_server_protocol::CommandExecutionSource as ExecCommandSource;
+use codepilotx_app_server_protocol::ConfigLayerSource;
+use codepilotx_app_server_protocol::CreditsSnapshot;
+use codepilotx_app_server_protocol::ErrorNotification;
+use codepilotx_app_server_protocol::FileChangeRequestApprovalParams;
+use codepilotx_app_server_protocol::GuardianApprovalReviewAction;
+use codepilotx_app_server_protocol::ItemCompletedNotification;
+use codepilotx_app_server_protocol::ItemStartedNotification;
+use codepilotx_app_server_protocol::McpServerElicitationRequest;
+use codepilotx_app_server_protocol::McpServerElicitationRequestParams;
+use codepilotx_app_server_protocol::McpServerStatusDetail;
+use codepilotx_app_server_protocol::ModelVerification as AppServerModelVerification;
+use codepilotx_app_server_protocol::RateLimitReachedType;
+use codepilotx_app_server_protocol::RateLimitSnapshot;
+use codepilotx_app_server_protocol::RequestId as AppServerRequestId;
+use codepilotx_app_server_protocol::ReviewTarget;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_app_server_protocol::SkillMetadata as ProtocolSkillMetadata;
+use codepilotx_app_server_protocol::SkillsListResponse;
+use codepilotx_app_server_protocol::ThreadGoal as AppThreadGoal;
+use codepilotx_app_server_protocol::ThreadGoalStatus as AppThreadGoalStatus;
+use codepilotx_app_server_protocol::ThreadItem;
+use codepilotx_app_server_protocol::ThreadSettings;
+use codepilotx_app_server_protocol::ThreadSettingsUpdatedNotification;
+use codepilotx_app_server_protocol::ThreadTokenUsage;
+use codepilotx_app_server_protocol::ToolRequestUserInputParams;
+use codepilotx_app_server_protocol::Turn;
+use codepilotx_app_server_protocol::TurnCompletedNotification;
+use codepilotx_app_server_protocol::TurnPlanStepStatus;
+use codepilotx_app_server_protocol::TurnStatus;
+use codepilotx_app_server_protocol::UserInput;
+use codepilotx_config::ConfigLayerStackOrdering;
+use codepilotx_config::Constrained;
+use codepilotx_config::ConstraintResult;
+use codepilotx_config::types::ApprovalsReviewer;
+use codepilotx_config::types::Notifications;
+use codepilotx_config::types::WindowsSandboxModeToml;
+use codepilotx_core_skills::model::SkillMetadata;
+use codepilotx_features::FEATURES;
+use codepilotx_features::Feature;
 #[cfg(test)]
-use codex_git_utils::CommitLogEntry;
-use codex_git_utils::current_branch_name;
-use codex_git_utils::get_git_repo_root;
-use codex_git_utils::local_git_branches;
-use codex_git_utils::recent_commits;
-use codex_otel::RuntimeMetricsSummary;
-use codex_otel::SessionTelemetry;
-use codex_plugin::PluginCapabilitySummary;
-use codex_protocol::ThreadId;
-use codex_protocol::account::PlanType;
-use codex_protocol::approvals::GuardianAssessmentAction;
-use codex_protocol::approvals::GuardianAssessmentDecisionSource;
-use codex_protocol::approvals::GuardianAssessmentEvent;
-use codex_protocol::approvals::GuardianAssessmentStatus;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::Settings;
+use codepilotx_git_utils::CommitLogEntry;
+use codepilotx_git_utils::current_branch_name;
+use codepilotx_git_utils::get_git_repo_root;
+use codepilotx_git_utils::local_git_branches;
+use codepilotx_git_utils::recent_commits;
+use codepilotx_otel::RuntimeMetricsSummary;
+use codepilotx_otel::SessionTelemetry;
+use codepilotx_plugin::PluginCapabilitySummary;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::account::PlanType;
+use codepilotx_protocol::approvals::GuardianAssessmentAction;
+use codepilotx_protocol::approvals::GuardianAssessmentDecisionSource;
+use codepilotx_protocol::approvals::GuardianAssessmentEvent;
+use codepilotx_protocol::approvals::GuardianAssessmentStatus;
+use codepilotx_protocol::config_types::CollaborationMode;
+use codepilotx_protocol::config_types::CollaborationModeMask;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::Personality;
+use codepilotx_protocol::config_types::Settings;
 #[cfg(any(target_os = "windows", test))]
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::items::AgentMessageContent;
-use codex_protocol::items::AgentMessageItem;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::plan_tool::PlanItemArg as UpdatePlanItemArg;
-use codex_protocol::plan_tool::StepStatus as UpdatePlanItemStatus;
-use codex_protocol::request_permissions::RequestPermissionsEvent;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::TextElement;
-use codex_terminal_detection::Multiplexer;
-use codex_terminal_detection::TerminalInfo;
-use codex_terminal_detection::TerminalName;
-use codex_terminal_detection::terminal_info;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_cli::resume_hint;
-use codex_utils_path_uri::PathUri;
-use codex_utils_plugins::mention_syntax::PLUGIN_TEXT_MENTION_SIGIL;
-use codex_utils_plugins::mention_syntax::TOOL_MENTION_SIGIL;
+use codepilotx_protocol::config_types::WindowsSandboxLevel;
+use codepilotx_protocol::items::AgentMessageContent;
+use codepilotx_protocol::items::AgentMessageItem;
+use codepilotx_protocol::models::MessagePhase;
+use codepilotx_protocol::plan_tool::PlanItemArg as UpdatePlanItemArg;
+use codepilotx_protocol::plan_tool::StepStatus as UpdatePlanItemStatus;
+use codepilotx_protocol::request_permissions::RequestPermissionsEvent;
+use codepilotx_protocol::user_input::ByteRange;
+use codepilotx_protocol::user_input::TextElement;
+use codepilotx_terminal_detection::Multiplexer;
+use codepilotx_terminal_detection::TerminalInfo;
+use codepilotx_terminal_detection::TerminalName;
+use codepilotx_terminal_detection::terminal_info;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_cli::resume_hint;
+use codepilotx_utils_path_uri::PathUri;
+use codepilotx_utils_plugins::mention_syntax::PLUGIN_TEXT_MENTION_SIGIL;
+use codepilotx_utils_plugins::mention_syntax::TOOL_MENTION_SIGIL;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -452,17 +452,17 @@ use crate::streaming::controller::StreamController;
 use crate::workspace_command::WorkspaceCommandRunner;
 
 use chrono::Local;
-use codex_app_server_protocol::AskForApproval;
-use codex_file_search::FileMatch;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::plan_tool::StepStatus;
-use codex_protocol::plan_tool::UpdatePlanArgs;
-use codex_utils_approval_presets::ApprovalPreset;
-use codex_utils_approval_presets::builtin_approval_presets;
+use codepilotx_app_server_protocol::AskForApproval;
+use codepilotx_file_search::FileMatch;
+use codepilotx_protocol::models::ActivePermissionProfile;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::openai_models::InputModality;
+use codepilotx_protocol::openai_models::ModelPreset;
+use codepilotx_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use codepilotx_protocol::plan_tool::StepStatus;
+use codepilotx_protocol::plan_tool::UpdatePlanArgs;
+use codepilotx_utils_approval_presets::ApprovalPreset;
+use codepilotx_utils_approval_presets::builtin_approval_presets;
 use strum::IntoEnumIterator;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -488,9 +488,9 @@ pub(crate) struct ChatWidgetInit {
     pub(crate) initial_user_message: Option<UserMessage>,
     pub(crate) enhanced_keys_supported: bool,
     pub(crate) has_chatgpt_account: bool,
-    pub(crate) has_codex_backend_auth: bool,
+    pub(crate) has_codepilotx_backend_auth: bool,
     pub(crate) model_catalog: Arc<ModelCatalog>,
-    pub(crate) feedback: codex_feedback::CodexFeedback,
+    pub(crate) feedback: codepilotx_feedback::CodexFeedback,
     pub(crate) is_first_run: bool,
     pub(crate) status_account_display: Option<StatusAccountDisplay>,
     pub(crate) runtime_model_provider_base_url: Option<String>,
@@ -526,7 +526,7 @@ pub(crate) enum ExternalEditorState {
 /// active work, arming the double-press quit shortcut, and requesting shutdown-first exit.
 pub(crate) struct ChatWidget {
     app_event_tx: AppEventSender,
-    codex_op_target: CodexOpTarget,
+    codepilotx_op_target: CodexOpTarget,
     bottom_pane: BottomPane,
     transcript: TranscriptState,
     config: Config,
@@ -540,7 +540,7 @@ pub(crate) struct ChatWidget {
     /// The currently active collaboration mask, if any.
     active_collaboration_mask: Option<CollaborationModeMask>,
     has_chatgpt_account: bool,
-    has_codex_backend_auth: bool,
+    has_codepilotx_backend_auth: bool,
     model_catalog: Arc<ModelCatalog>,
     session_telemetry: SessionTelemetry,
     session_header: SessionHeader,
@@ -561,7 +561,7 @@ pub(crate) struct ChatWidget {
     available_rate_limit_reset_credits: Option<i64>,
     next_rate_limit_reset_request_id: u64,
     plan_type: Option<PlanType>,
-    codex_rate_limit_reached_type: Option<RateLimitReachedType>,
+    codepilotx_rate_limit_reached_type: Option<RateLimitReachedType>,
     rate_limit_warnings: RateLimitWarningState,
     warning_display_state: WarningDisplayState,
     rate_limit_switch_prompt: RateLimitSwitchPromptState,
@@ -680,7 +680,7 @@ pub(crate) struct ChatWidget {
     turn_runtime_metrics: RuntimeMetricsSummary,
     last_rendered_width: std::cell::Cell<Option<usize>>,
     // Feedback sink for /feedback
-    feedback: codex_feedback::CodexFeedback,
+    feedback: codepilotx_feedback::CodexFeedback,
     // Current session rollout path (if known)
     current_rollout_path: Option<PathBuf>,
     // Current working directory (if known)
@@ -880,7 +880,7 @@ fn patch_approval_request_from_params(
 }
 
 fn request_permissions_from_params(
-    params: codex_app_server_protocol::PermissionsRequestApprovalParams,
+    params: codepilotx_app_server_protocol::PermissionsRequestApprovalParams,
 ) -> std::io::Result<RequestPermissionsEvent> {
     Ok(RequestPermissionsEvent {
         turn_id: params.turn_id,
@@ -1007,7 +1007,7 @@ impl ChatWidget {
         let snapshot = self.feedback.snapshot(self.thread_id);
         #[cfg(target_os = "windows")]
         let include_windows_sandbox_log =
-            codex_windows_sandbox::current_log_file_path_for_codex_home(&self.config.codex_home)
+            codepilotx_windows_sandbox::current_log_file_path_for_codepilotx_home(&self.config.codepilotx_home)
                 .is_file();
         #[cfg(not(target_os = "windows"))]
         let include_windows_sandbox_log = false;
@@ -1287,7 +1287,7 @@ impl ChatWidget {
                                 .unwrap_or(plugin_id)
                                 .to_string()
                         } else if path.starts_with("app://") {
-                            codex_connectors::metadata::connector_mention_slug_from_name(name)
+                            codepilotx_connectors::metadata::connector_mention_slug_from_name(name)
                         } else {
                             name.clone()
                         };
@@ -1404,7 +1404,7 @@ impl ChatWidget {
         self.transcript.bump_active_cell_revision();
     }
 
-    /// Mark the active cell as failed (âœ—) and flush it into history.
+    /// Mark the active cell as failed (âœ? and flush it into history.
     fn finalize_active_cell_as_failed(&mut self) {
         if let Some(mut cell) = self.transcript.active_cell.take() {
             // Insert finalized cell into history and keep grouping consistent.
@@ -1489,7 +1489,7 @@ impl ChatWidget {
                 /*reasoning_effort*/ None,
                 /*show_fast_status*/ false,
                 config.cwd.to_path_buf(),
-                CODEX_CLI_VERSION,
+                codepilotx_CLI_VERSION,
             )
             .with_yolo_mode(history_cell::is_yolo_mode(config)),
         )
@@ -1557,7 +1557,7 @@ impl ChatWidget {
 
     fn rename_confirmation_cell(name: &str, thread_id: Option<ThreadId>) -> PlainHistoryCell {
         let mut line = vec![
-            "â€¢ ".into(),
+            "â€?".into(),
             "Session renamed to ".into(),
             name.to_string().cyan(),
         ];
@@ -1804,10 +1804,10 @@ impl ChatWidget {
         if op.is_review() && !self.bottom_pane.is_task_running() {
             self.bottom_pane.set_task_running(/*running*/ true);
         }
-        match &self.codex_op_target {
-            CodexOpTarget::Direct(codex_op_tx) => {
+        match &self.codepilotx_op_target {
+            CodexOpTarget::Direct(codepilotx_op_tx) => {
                 crate::session_log::log_outbound_op(&op);
-                if let Err(e) = codex_op_tx.send(op) {
+                if let Err(e) = codepilotx_op_tx.send(op) {
                     tracing::error!("failed to submit op: {e}");
                     return false;
                 }

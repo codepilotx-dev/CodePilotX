@@ -23,7 +23,7 @@ impl App {
         tx: AppEventSender,
     ) {
         let Ok(permissions) =
-            codex_windows_sandbox::ResolvedWindowsSandboxPermissions::try_from_permission_profile_for_workspace_roots(
+            codepilotx_windows_sandbox::ResolvedWindowsSandboxPermissions::try_from_permission_profile_for_workspace_roots(
                 &permission_profile,
                 workspace_roots.as_slice(),
             )
@@ -34,7 +34,7 @@ impl App {
         tokio::task::spawn_blocking(move || {
             let logs_base_dir_path = logs_base_dir.as_path();
             let result =
-                codex_windows_sandbox::apply_world_writable_scan_and_denies_for_permissions(
+                codepilotx_windows_sandbox::apply_world_writable_scan_and_denies_for_permissions(
                     logs_base_dir_path,
                     cwd.as_path(),
                     &env_map,

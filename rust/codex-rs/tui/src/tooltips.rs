@@ -1,5 +1,5 @@
-use codex_features::FEATURES;
-use codex_protocol::account::PlanType;
+use codepilotx_features::FEATURES;
+use codepilotx_protocol::account::PlanType;
 use lazy_static::lazy_static;
 use rand::Rng;
 
@@ -15,7 +15,7 @@ const FAST_TOOLTIP: &str =
 const OTHER_TOOLTIP: &str = "*New* Build faster with the **Codex App**. Run 'codex app' or visit https://chatgpt.com/codex?app-landing-page=true";
 const OTHER_TOOLTIP_NON_MAC: &str = "*New* Build faster with Codex.";
 const FREE_GO_TOOLTIP: &str =
-    "*New* For a limited time, Codex is included in your plan for free – let’s build together.";
+    "*New* For a limited time, Codex is included in your plan for free �?let’s build together.";
 
 const RAW_TOOLTIPS: &str = include_str!("../tooltips.txt");
 
@@ -122,10 +122,10 @@ fn pick_tooltip<R: Rng + ?Sized>(rng: &mut R) -> Option<&'static str> {
 
 pub(crate) mod announcement {
     use crate::tooltips::ANNOUNCEMENT_TIP_URL;
-    use crate::version::CODEX_CLI_VERSION;
+    use crate::version::codepilotx_CLI_VERSION;
     use chrono::NaiveDate;
     use chrono::Utc;
-    use codex_protocol::account::PlanType;
+    use codepilotx_protocol::account::PlanType;
     use regex_lite::Regex;
     use serde::Deserialize;
     use std::sync::OnceLock;
@@ -243,7 +243,7 @@ pub(crate) mod announcement {
                 .target_oses
                 .as_ref()
                 .is_none_or(|target_oses| target_oses.contains(&CURRENT_OS));
-            if tip.version_matches(CODEX_CLI_VERSION)
+            if tip.version_matches(codepilotx_CLI_VERSION)
                 && tip.date_matches(today)
                 && tip.target_app == "cli"
                 && plan_matches

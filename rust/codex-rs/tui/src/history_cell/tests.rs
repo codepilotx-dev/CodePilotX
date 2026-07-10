@@ -8,14 +8,14 @@ use crate::legacy_core::config::Config;
 use crate::legacy_core::config::ConfigBuilder;
 use crate::session_state::ThreadSessionState;
 use crate::wrapping::word_wrap_lines;
-use codex_app_server_protocol::AskForApproval;
-use codex_app_server_protocol::McpAuthStatus;
-use codex_config::types::McpServerConfig;
-use codex_otel::RuntimeMetricTotals;
-use codex_otel::RuntimeMetricsSummary;
-use codex_protocol::ThreadId;
-use codex_protocol::account::PlanType;
-use codex_protocol::parse_command::ParsedCommand;
+use codepilotx_app_server_protocol::AskForApproval;
+use codepilotx_app_server_protocol::McpAuthStatus;
+use codepilotx_config::types::McpServerConfig;
+use codepilotx_otel::RuntimeMetricTotals;
+use codepilotx_otel::RuntimeMetricsSummary;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::account::PlanType;
+use codepilotx_protocol::parse_command::ParsedCommand;
 use dirs::home_dir;
 use pretty_assertions::assert_eq;
 use ratatui::buffer::Buffer;
@@ -24,16 +24,16 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use codex_app_server_protocol::CommandExecutionSource as ExecCommandSource;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::mcp::Tool;
+use codepilotx_app_server_protocol::CommandExecutionSource as ExecCommandSource;
+use codepilotx_protocol::mcp::CallToolResult;
+use codepilotx_protocol::mcp::Tool;
 use rmcp::model::Content;
 
 const SMALL_PNG_BASE64: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
 async fn test_config() -> Config {
-    let codex_home = std::env::temp_dir();
+    let codepilotx_home = std::env::temp_dir();
     ConfigBuilder::default()
-        .codex_home(codex_home.clone())
+        .codepilotx_home(codepilotx_home.clone())
         .build()
         .await
         .expect("config")
@@ -296,7 +296,7 @@ fn proposed_plan_cell_renders_markdown_table() {
     let rendered = render_lines(&plan.display_lines(/*width*/ 80));
 
     assert!(
-        rendered.iter().any(|line| line.contains('â”')),
+        rendered.iter().any(|line| line.contains('â”?)),
         "expected separated table in proposed plan output: {rendered:?}"
     );
     assert!(
@@ -365,7 +365,7 @@ fn proposed_plan_cell_unwraps_markdown_fenced_table() {
     let rendered = render_lines(&plan.display_lines(/*width*/ 80));
 
     assert!(
-        rendered.iter().any(|line| line.contains('â”')),
+        rendered.iter().any(|line| line.contains('â”?)),
         "expected separated table for markdown-fenced proposed plan output: {rendered:?}"
     );
     assert!(
@@ -469,7 +469,7 @@ fn raw_mode_toggle_transcript_snapshot() {
 fn image_generation_call_renders_saved_path() {
     let saved_path = test_path_buf("/tmp/generated-image.png").abs();
     let expected_saved_path = format!(
-        "  â”” Saved to: {}",
+        "  â”?Saved to: {}",
         Url::from_file_path(saved_path.as_path()).expect("test path should convert to file URL")
     );
     let cell = new_image_generation_call(
@@ -482,8 +482,8 @@ fn image_generation_call_renders_saved_path() {
     assert_eq!(
         render_lines(&cell.display_lines(/*width*/ 80)),
         vec![
-            "â€¢ Generated Image:".to_string(),
-            "  â”” A tiny blue square".to_string(),
+            "â€?Generated Image:".to_string(),
+            "  â”?A tiny blue square".to_string(),
             expected_saved_path,
         ],
     );
@@ -499,7 +499,7 @@ fn session_configured_event(model: &str) -> ThreadSessionState {
         model_provider_id: "test-provider".to_string(),
         service_tier: None,
         approval_policy: AskForApproval::Never,
-        approvals_reviewer: codex_protocol::config_types::ApprovalsReviewer::User,
+        approvals_reviewer: codepilotx_protocol::config_types::ApprovalsReviewer::User,
         permission_profile: PermissionProfile::read_only(),
         active_permission_profile: None,
         cwd: test_path_buf("/tmp/project").abs(),
@@ -521,8 +521,8 @@ fn unified_exec_interaction_cell_renders_input() {
     assert_eq!(
         lines,
         vec![
-            "â†³ Interacted with background terminal Â· echo hello",
-            "  â”” ls",
+            "â†?Interacted with background terminal Â· echo hello",
+            "  â”?ls",
             "    pwd",
         ],
     );
@@ -532,7 +532,7 @@ fn unified_exec_interaction_cell_renders_input() {
 fn unified_exec_interaction_cell_renders_wait() {
     let cell = new_unified_exec_interaction(/*command_display*/ None, String::new());
     let lines = render_transcript(&cell);
-    assert_eq!(lines, vec!["â€¢ Waited for background terminal"]);
+    assert_eq!(lines, vec!["â€?Waited for background terminal"]);
 }
 
 #[test]
@@ -878,7 +878,7 @@ fn mcp_tools_output_from_statuses_renders_status_only_servers() {
         )]),
         resources: Vec::new(),
         resource_templates: Vec::new(),
-        auth_status: codex_app_server_protocol::McpAuthStatus::Unsupported,
+        auth_status: codepilotx_app_server_protocol::McpAuthStatus::Unsupported,
     }];
 
     let cell =
@@ -925,7 +925,7 @@ fn mcp_tools_output_from_statuses_renders_verbose_inventory() {
             description: None,
             mime_type: None,
         }],
-        auth_status: codex_app_server_protocol::McpAuthStatus::Unsupported,
+        auth_status: codepilotx_app_server_protocol::McpAuthStatus::Unsupported,
     }];
 
     let cell = new_mcp_tools_output_from_statuses(&statuses, McpServerStatusDetail::Full);
@@ -950,12 +950,12 @@ fn prefixed_wrapped_history_cell_indents_wrapped_lines() {
         "echo something really long to ensure wrapping happens".dim(),
         " this time".bold(),
     ]);
-    let cell = PrefixedWrappedHistoryCell::new(summary, "âœ” ".green(), "  ");
+    let cell = PrefixedWrappedHistoryCell::new(summary, "âœ?".green(), "  ");
     let rendered = render_lines(&cell.display_lines(/*width*/ 24));
     assert_eq!(
         rendered,
         vec![
-            "âœ” You approved codex to".to_string(),
+            "âœ?You approved codex to".to_string(),
             "  run echo something".to_string(),
             "  really long to ensure".to_string(),
             "  wrapping happens this".to_string(),
@@ -967,7 +967,7 @@ fn prefixed_wrapped_history_cell_indents_wrapped_lines() {
 #[test]
 fn prefixed_wrapped_history_cell_does_not_split_url_like_token() {
     let url_like = "example.test/api/v1/projects/alpha-team/releases/2026-02-17/builds/1234567890";
-    let cell = PrefixedWrappedHistoryCell::new(Line::from(url_like), "âœ” ".green(), "  ");
+    let cell = PrefixedWrappedHistoryCell::new(Line::from(url_like), "âœ?".green(), "  ");
     let rendered = render_lines(&cell.display_lines(/*width*/ 24));
 
     assert_eq!(
@@ -1001,7 +1001,7 @@ fn prefixed_wrapped_history_cell_height_matches_wrapped_rendering() {
     let url_like = "example.test/api/v1/projects/alpha-team/releases/2026-02-17/builds/1234567890/artifacts/reports/performance/summary/detail/with/a/very/long/path";
     let cell: Box<dyn HistoryCell> = Box::new(PrefixedWrappedHistoryCell::new(
         Line::from(url_like),
-        "âœ” ".green(),
+        "âœ?".green(),
         "  ",
     ));
 
@@ -1028,7 +1028,7 @@ fn prefixed_wrapped_history_cell_height_matches_wrapped_rendering() {
         })
         .collect::<String>();
     assert!(
-        first_row.contains("âœ”"),
+        first_row.contains("âœ?),
         "expected first rendered row to keep the prefix visible, got: {first_row:?}"
     );
 }
@@ -1127,7 +1127,7 @@ fn web_search_history_cell_wraps_with_indented_continuation() {
     assert_eq!(
         rendered,
         vec![
-            "â€¢ Searched the web for example search query with several generic".to_string(),
+            "â€?Searched the web for example search query with several generic".to_string(),
             "  words to exercise wrapping".to_string(),
         ]
     );
@@ -1148,7 +1148,7 @@ fn web_search_history_cell_short_query_does_not_wrap() {
 
     assert_eq!(
         rendered,
-        vec!["â€¢ Searched the web for short query".to_string()]
+        vec!["â€?Searched the web for short query".to_string()]
     );
 }
 
@@ -1204,7 +1204,7 @@ fn mcp_inventory_loading_without_animations_is_stable() {
     let second = render_lines(&cell.display_lines(/*width*/ 80));
 
     assert_eq!(first, second);
-    assert_eq!(first, vec!["â€¢ Loading MCP inventoryâ€¦".to_string()]);
+    assert_eq!(first, vec!["â€?Loading MCP inventoryâ€?.to_string()]);
 }
 
 #[test]
@@ -1615,8 +1615,7 @@ fn coalesces_sequential_reads_within_one_call() {
         },
         /*animations_enabled*/ true,
     );
-    // Mark call complete so markers are âœ“
-    cell.complete_call(&call_id, CommandOutput::default(), Duration::from_millis(1));
+    // Mark call complete so markers are âœ?    cell.complete_call(&call_id, CommandOutput::default(), Duration::from_millis(1));
 
     let lines = cell.display_lines(/*width*/ 80);
     let rendered = render_lines(&lines).join("\n");
@@ -1943,7 +1942,7 @@ fn user_history_cell_wraps_and_prefixes_each_line_snapshot() {
         remote_image_urls: Vec::new(),
     };
 
-    // Small width to force wrapping more clearly. Effective wrap width is width-2 due to the â–Œ prefix and trailing space.
+    // Small width to force wrapping more clearly. Effective wrap width is width-2 due to the â–?prefix and trailing space.
     let width: u16 = 12;
     let lines = cell.display_lines(width);
     let rendered = render_lines(&lines).join("\n");
@@ -2210,10 +2209,10 @@ fn reasoning_summary_block() {
     );
 
     let rendered_display = render_lines(&cell.display_lines(/*width*/ 80));
-    assert_eq!(rendered_display, vec!["â€¢ Detailed reasoning goes here."]);
+    assert_eq!(rendered_display, vec!["â€?Detailed reasoning goes here."]);
 
     let rendered_transcript = render_transcript(cell.as_ref());
-    assert_eq!(rendered_transcript, vec!["â€¢ Detailed reasoning goes here."]);
+    assert_eq!(rendered_transcript, vec!["â€?Detailed reasoning goes here."]);
 }
 
 #[test]
@@ -2256,7 +2255,7 @@ fn reasoning_summary_height_matches_wrapped_rendering_for_url_like_content() {
         })
         .collect::<String>();
     assert!(
-        first_row.contains("â€¢"),
+        first_row.contains("â€?),
         "expected first rendered row to keep summary bullet visible, got: {first_row:?}"
     );
 }
@@ -2267,7 +2266,7 @@ fn reasoning_summary_block_returns_reasoning_cell_when_feature_disabled() {
         new_reasoning_summary_block("Detailed reasoning goes here.".to_string(), &test_cwd());
 
     let rendered = render_transcript(cell.as_ref());
-    assert_eq!(rendered, vec!["â€¢ Detailed reasoning goes here."]);
+    assert_eq!(rendered, vec!["â€?Detailed reasoning goes here."]);
 }
 
 #[tokio::test]
@@ -2281,7 +2280,7 @@ async fn reasoning_summary_block_respects_config_overrides() {
     );
 
     let rendered_display = render_lines(&cell.display_lines(/*width*/ 80));
-    assert_eq!(rendered_display, vec!["â€¢ Detailed reasoning goes here."]);
+    assert_eq!(rendered_display, vec!["â€?Detailed reasoning goes here."]);
 }
 
 #[test]
@@ -2292,7 +2291,7 @@ fn reasoning_summary_block_falls_back_when_header_is_missing() {
     );
 
     let rendered = render_transcript(cell.as_ref());
-    assert_eq!(rendered, vec!["â€¢ **High level reasoning without closing"]);
+    assert_eq!(rendered, vec!["â€?**High level reasoning without closing"]);
 }
 
 #[test]
@@ -2303,7 +2302,7 @@ fn reasoning_summary_block_falls_back_when_summary_is_missing() {
     );
 
     let rendered = render_transcript(cell.as_ref());
-    assert_eq!(rendered, vec!["â€¢ High level reasoning without closing"]);
+    assert_eq!(rendered, vec!["â€?High level reasoning without closing"]);
 
     let cell = new_reasoning_summary_block(
         "**High level reasoning without closing**\n\n  ".to_string(),
@@ -2311,7 +2310,7 @@ fn reasoning_summary_block_falls_back_when_summary_is_missing() {
     );
 
     let rendered = render_transcript(cell.as_ref());
-    assert_eq!(rendered, vec!["â€¢ High level reasoning without closing"]);
+    assert_eq!(rendered, vec!["â€?High level reasoning without closing"]);
 }
 
 #[test]
@@ -2322,10 +2321,10 @@ fn reasoning_summary_block_splits_header_and_summary_when_present() {
     );
 
     let rendered_display = render_lines(&cell.display_lines(/*width*/ 80));
-    assert_eq!(rendered_display, vec!["â€¢ We should fix the bug next."]);
+    assert_eq!(rendered_display, vec!["â€?We should fix the bug next."]);
 
     let rendered_transcript = render_transcript(cell.as_ref());
-    assert_eq!(rendered_transcript, vec!["â€¢ We should fix the bug next."]);
+    assert_eq!(rendered_transcript, vec!["â€?We should fix the bug next."]);
 }
 
 #[test]
@@ -2339,7 +2338,7 @@ fn deprecation_notice_renders_summary_with_details() {
     assert_eq!(
         rendered,
         vec![
-            "âš  Feature flag `foo`".to_string(),
+            "âš?Feature flag `foo`".to_string(),
             "Use flag `bar` instead.".to_string(),
         ]
     );
@@ -2353,7 +2352,7 @@ fn agent_markdown_cell_renders_source_at_different_widths() {
 
     let lines_80 = render_lines(&cell.display_lines(/*width*/ 80));
     assert!(
-        lines_80.first().is_some_and(|line| line.starts_with("â€¢ ")),
+        lines_80.first().is_some_and(|line| line.starts_with("â€?")),
         "first line should start with bullet prefix: {:?}",
         lines_80[0]
     );
@@ -2411,7 +2410,7 @@ fn agent_markdown_cell_narrow_width_shows_prefix_only() {
     let cell = AgentMarkdownCell::new(source.to_string(), &test_cwd());
 
     let lines = render_lines(&cell.display_lines(/*width*/ 2));
-    assert_eq!(lines, vec!["â€¢ ".to_string()]);
+    assert_eq!(lines, vec!["â€?".to_string()]);
 }
 
 #[test]

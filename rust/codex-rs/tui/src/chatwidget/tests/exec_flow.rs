@@ -121,7 +121,7 @@ async fn exec_approval_uses_approval_id_when_present() {
             assert_eq!(id, "approval-subcommand");
             assert_matches!(
                 decision,
-                codex_app_server_protocol::CommandExecutionApprovalDecision::Accept
+                codepilotx_app_server_protocol::CommandExecutionApprovalDecision::Accept
             );
             found = true;
             break;
@@ -312,7 +312,7 @@ async fn exec_history_cell_shows_working_then_completed() {
     let blob = lines_to_single_string(lines);
     // New behavior: no glyph markers; ensure command is shown and no panic.
     assert!(
-        blob.contains("â€¢ Ran"),
+        blob.contains("â€?Ran"),
         "expected summary header present: {blob:?}"
     );
     assert!(
@@ -339,7 +339,7 @@ async fn exec_history_cell_shows_working_then_failed() {
     let lines = &cells[0];
     let blob = lines_to_single_string(lines);
     assert!(
-        blob.contains("â€¢ Ran false"),
+        blob.contains("â€?Ran false"),
         "expected command and header text present: {blob:?}"
     );
     assert!(blob.to_lowercase().contains("bloop"), "expected error text");
@@ -353,7 +353,7 @@ async fn exec_end_without_begin_uses_event_command() {
         "-lc".to_string(),
         "echo orphaned".to_string(),
     ];
-    let command_actions = codex_shell_command::parse_command::parse_command(&command)
+    let command_actions = codepilotx_shell_command::parse_command::parse_command(&command)
         .into_iter()
         .map(|parsed| AppServerCommandAction::from_core_with_cwd(parsed, &chat.config.cwd))
         .collect();
@@ -362,7 +362,7 @@ async fn exec_end_without_begin_uses_event_command() {
         &mut chat,
         AppServerThreadItem::CommandExecution {
             id: "call-orphan".to_string(),
-            command: codex_shell_command::parse_command::shlex_join(&command),
+            command: codepilotx_shell_command::parse_command::shlex_join(&command),
             cwd: cwd.into(),
             process_id: None,
             source: ExecCommandSource::Agent,
@@ -378,7 +378,7 @@ async fn exec_end_without_begin_uses_event_command() {
     assert_eq!(cells.len(), 1, "expected finalized exec cell to flush");
     let blob = lines_to_single_string(&cells[0]);
     assert!(
-        blob.contains("â€¢ Ran echo orphaned"),
+        blob.contains("â€?Ran echo orphaned"),
         "expected command text to come from event: {blob:?}"
     );
     assert!(
@@ -412,12 +412,12 @@ async fn exec_end_without_begin_does_not_flush_unrelated_running_exploring_cell(
     assert_eq!(cells.len(), 1, "only the orphan end should be inserted");
     let orphan_blob = lines_to_single_string(&cells[0]);
     assert!(
-        orphan_blob.contains("â€¢ Ran echo repro-marker"),
+        orphan_blob.contains("â€?Ran echo repro-marker"),
         "expected orphan end to render a standalone entry: {orphan_blob:?}"
     );
     let active = active_blob(&chat);
     assert!(
-        active.contains("â€¢ Exploring"),
+        active.contains("â€?Exploring"),
         "expected unrelated exploring call to remain active: {active:?}"
     );
     assert!(
@@ -452,7 +452,7 @@ async fn exec_end_without_begin_flushes_completed_unrelated_exploring_cell() {
     let first = lines_to_single_string(&cells[0]);
     let second = lines_to_single_string(&cells[1]);
     assert!(
-        first.contains("â€¢ Explored"),
+        first.contains("â€?Explored"),
         "expected flushed exploring cell: {first:?}"
     );
     assert!(
@@ -460,7 +460,7 @@ async fn exec_end_without_begin_flushes_completed_unrelated_exploring_cell() {
         "expected flushed exploring cell: {first:?}"
     );
     assert!(
-        second.contains("â€¢ Ran echo after"),
+        second.contains("â€?Ran echo after"),
         "expected orphan end entry after flush: {second:?}"
     );
     assert!(
@@ -494,7 +494,7 @@ async fn overlapping_exploring_exec_end_is_not_misclassified_as_orphan() {
         "expected second running command to stay in the same active cell: {active:?}"
     );
     assert!(
-        active.contains("â€¢ Exploring"),
+        active.contains("â€?Exploring"),
         "expected grouped exploring header to remain active: {active:?}"
     );
 
@@ -529,7 +529,7 @@ async fn exec_history_shows_unified_exec_startup_commands() {
     assert_eq!(cells.len(), 1, "expected finalized exec cell to flush");
     let blob = lines_to_single_string(&cells[0]);
     assert!(
-        blob.contains("â€¢ Ran echo unified exec startup"),
+        blob.contains("â€?Ran echo unified exec startup"),
         "expected startup command to render: {blob:?}"
     );
 }
@@ -548,7 +548,7 @@ async fn exec_history_shows_unified_exec_tool_calls() {
     end_exec(&mut chat, begin, "", "", /*exit_code*/ 0);
 
     let blob = active_blob(&chat);
-    assert_eq!(blob, "â€¢ Explored\n  â”” List ls\n");
+    assert_eq!(blob, "â€?Explored\n  â”?List ls\n");
 }
 
 #[tokio::test]
@@ -1549,7 +1549,7 @@ async fn apply_patch_approval_sends_op_with_call_id() {
             assert_eq!(id, "call-999");
             assert_matches!(
                 decision,
-                codex_app_server_protocol::FileChangeApprovalDecision::Accept
+                codepilotx_app_server_protocol::FileChangeApprovalDecision::Accept
             );
             found = true;
             break;
@@ -1591,7 +1591,7 @@ async fn apply_patch_full_flow_integration_like() {
     }
     let op = maybe_op.expect("expected thread-scoped op after key press");
 
-    // 3) App forwards to widget.submit_op, which pushes onto codex_op_tx
+    // 3) App forwards to widget.submit_op, which pushes onto codepilotx_op_tx
     chat.submit_op(op);
     let forwarded = op_rx
         .try_recv()
@@ -1601,7 +1601,7 @@ async fn apply_patch_full_flow_integration_like() {
             assert_eq!(id, "call-1");
             assert_matches!(
                 decision,
-                codex_app_server_protocol::FileChangeApprovalDecision::Accept
+                codepilotx_app_server_protocol::FileChangeApprovalDecision::Accept
             );
         }
         other => panic!("unexpected op forwarded: {other:?}"),

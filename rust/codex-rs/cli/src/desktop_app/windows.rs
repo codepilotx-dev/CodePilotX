@@ -3,9 +3,9 @@ use std::path::Path;
 use std::path::PathBuf;
 use tokio::process::Command;
 
-const CODEX_WINDOWS_INSTALLER_URL: &str =
+const codepilotx_WINDOWS_INSTALLER_URL: &str =
     "https://get.microsoft.com/installer/download/9PLM9XGG6VKS?cid=website_cta_psi";
-const CODEX_MICROSOFT_STORE_WEB_URL: &str = "https://apps.microsoft.com/detail/9plm9xgg6vks";
+const codepilotx_MICROSOFT_STORE_WEB_URL: &str = "https://apps.microsoft.com/detail/9plm9xgg6vks";
 
 pub async fn run_windows_app_open_or_install(
     workspace: PathBuf,
@@ -13,24 +13,24 @@ pub async fn run_windows_app_open_or_install(
 ) -> anyhow::Result<()> {
     let workspace_path = workspace.display().to_string();
     let display_workspace = display_workspace_path(&workspace);
-    if codex_app_is_installed().await? {
+    if codepilotx_app_is_installed().await? {
         eprintln!("Opening Codex Desktop workspace {display_workspace}...");
-        open_url(&codex_new_thread_url(&workspace_path)).await?;
+        open_url(&codepilotx_new_thread_url(&workspace_path)).await?;
         return Ok(());
     }
 
-    eprintln!("Codex Desktop not found; opening Windows installer...");
+    eprintln!("CodePilotX Desktop not found; opening Windows installer...");
     let download_url = download_url_override
         .as_deref()
-        .unwrap_or(CODEX_WINDOWS_INSTALLER_URL);
+        .unwrap_or(codepilotx_WINDOWS_INSTALLER_URL);
     if open_url(download_url).await.is_err() && download_url_override.is_none() {
-        open_url(CODEX_MICROSOFT_STORE_WEB_URL).await?;
+        open_url(codepilotx_MICROSOFT_STORE_WEB_URL).await?;
     }
     eprintln!("After installing Codex Desktop, open workspace {display_workspace}.");
     Ok(())
 }
 
-async fn codex_app_is_installed() -> anyhow::Result<bool> {
+async fn codepilotx_app_is_installed() -> anyhow::Result<bool> {
     let output = Command::new("powershell.exe")
         .arg("-NoProfile")
         .arg("-Command")
@@ -63,7 +63,7 @@ async fn open_url(url: &str) -> anyhow::Result<()> {
     }
 }
 
-fn codex_new_thread_url(workspace: &str) -> String {
+fn codepilotx_new_thread_url(workspace: &str) -> String {
     let mut serializer = url::form_urlencoded::Serializer::new(String::new());
     serializer.append_pair("path", workspace);
     let query = serializer.finish();
@@ -83,7 +83,7 @@ fn display_workspace_path(workspace: &Path) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::codex_new_thread_url;
+    use super::codepilotx_new_thread_url;
     use super::display_workspace_path;
     use pretty_assertions::assert_eq;
     use std::path::Path;
@@ -113,17 +113,17 @@ mod tests {
     }
 
     #[test]
-    fn codex_new_thread_url_encodes_windows_workspace_path() {
+    fn codepilotx_new_thread_url_encodes_windows_workspace_path() {
         assert_eq!(
-            codex_new_thread_url(r"C:\Users\akuma\repos\koba"),
+            codepilotx_new_thread_url(r"C:\Users\akuma\repos\koba"),
             r"codex://threads/new?path=C%3A%5CUsers%5Cakuma%5Crepos%5Ckoba"
         );
     }
 
     #[test]
-    fn codex_new_thread_url_preserves_verbatim_workspace_path() {
+    fn codepilotx_new_thread_url_preserves_verbatim_workspace_path() {
         assert_eq!(
-            codex_new_thread_url(r"\\?\C:\Users\akuma\repos\koba"),
+            codepilotx_new_thread_url(r"\\?\C:\Users\akuma\repos\koba"),
             r"codex://threads/new?path=%5C%5C%3F%5CC%3A%5CUsers%5Cakuma%5Crepos%5Ckoba"
         );
     }

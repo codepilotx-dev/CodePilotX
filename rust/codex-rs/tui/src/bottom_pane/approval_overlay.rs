@@ -38,23 +38,23 @@ use crate::keymap::primary_binding;
 use crate::render::highlight::highlight_bash_to_lines;
 use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
-use codex_app_server_protocol::AdditionalPermissionProfile;
-use codex_app_server_protocol::CommandExecutionApprovalDecision;
-use codex_app_server_protocol::FileChangeApprovalDecision;
-use codex_app_server_protocol::FileSystemAccessMode;
-use codex_app_server_protocol::FileSystemPath;
-use codex_app_server_protocol::FileSystemSandboxEntry;
-use codex_app_server_protocol::FileSystemSpecialPath;
-use codex_app_server_protocol::McpServerElicitationAction;
-use codex_app_server_protocol::NetworkApprovalContext;
-use codex_app_server_protocol::NetworkApprovalProtocol;
-use codex_app_server_protocol::NetworkPolicyRuleAction;
-use codex_app_server_protocol::RequestId;
-use codex_features::Features;
-use codex_protocol::ThreadId;
-use codex_protocol::request_permissions::PermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::AdditionalPermissionProfile;
+use codepilotx_app_server_protocol::CommandExecutionApprovalDecision;
+use codepilotx_app_server_protocol::FileChangeApprovalDecision;
+use codepilotx_app_server_protocol::FileSystemAccessMode;
+use codepilotx_app_server_protocol::FileSystemPath;
+use codepilotx_app_server_protocol::FileSystemSandboxEntry;
+use codepilotx_app_server_protocol::FileSystemSpecialPath;
+use codepilotx_app_server_protocol::McpServerElicitationAction;
+use codepilotx_app_server_protocol::NetworkApprovalContext;
+use codepilotx_app_server_protocol::NetworkApprovalProtocol;
+use codepilotx_app_server_protocol::NetworkPolicyRuleAction;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_features::Features;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::request_permissions::PermissionGrantScope;
+use codepilotx_protocol::request_permissions::RequestPermissionProfile;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -428,7 +428,7 @@ impl ApprovalOverlay {
         self.app_event_tx.request_permissions_response(
             thread_id,
             call_id.to_string(),
-            codex_protocol::request_permissions::RequestPermissionsResponse {
+            codepilotx_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: granted_permissions,
                 scope,
                 strict_auto_review,
@@ -1134,14 +1134,14 @@ fn elicitation_options(keymap: &ApprovalKeymap) -> Vec<ApprovalOption> {
 mod tests {
     use super::*;
     use crate::app_event::AppEvent;
-    use codex_app_server_protocol::AdditionalFileSystemPermissions;
-    use codex_app_server_protocol::AdditionalNetworkPermissions;
-    use codex_app_server_protocol::ExecPolicyAmendment;
-    use codex_app_server_protocol::NetworkApprovalProtocol;
-    use codex_app_server_protocol::NetworkPolicyAmendment;
-    use codex_protocol::models::FileSystemPermissions;
-    use codex_protocol::models::NetworkPermissions;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_app_server_protocol::AdditionalFileSystemPermissions;
+    use codepilotx_app_server_protocol::AdditionalNetworkPermissions;
+    use codepilotx_app_server_protocol::ExecPolicyAmendment;
+    use codepilotx_app_server_protocol::NetworkApprovalProtocol;
+    use codepilotx_app_server_protocol::NetworkPolicyAmendment;
+    use codepilotx_protocol::models::FileSystemPermissions;
+    use codepilotx_protocol::models::NetworkPermissions;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
     use crossterm::event::KeyModifiers;
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
@@ -2219,7 +2219,7 @@ mod tests {
             })
             .collect();
         let expected = vec![
-            "âœ” You approved codex to run".to_string(),
+            "âœ?You approved codex to run".to_string(),
             "  git add tui/src/render/".to_string(),
             "  mod.rs tui/src/render/".to_string(),
             "  renderable.rs this time".to_string(),
@@ -2236,7 +2236,7 @@ mod tests {
         );
         assert_eq!(
             render_history_cell_lines(approved.as_ref(), /*width*/ 80),
-            vec!["âœ” You approved this request this time".to_string()]
+            vec!["âœ?You approved this request this time".to_string()]
         );
 
         let approved_for_session = history_cell::new_approval_decision_cell(
@@ -2246,7 +2246,7 @@ mod tests {
         );
         assert_eq!(
             render_history_cell_lines(approved_for_session.as_ref(), /*width*/ 80),
-            vec!["âœ” You approved this request every time this session".to_string()]
+            vec!["âœ?You approved this request every time this session".to_string()]
         );
     }
 
@@ -2289,7 +2289,7 @@ mod tests {
         assert_eq!(
             render_history_cell_lines(decision.as_ref(), /*width*/ 80),
             vec![
-                "âœ” You approved codex network access to https://example.com:8443 this time"
+                "âœ?You approved codex network access to https://example.com:8443 this time"
                     .to_string(),
             ]
         );

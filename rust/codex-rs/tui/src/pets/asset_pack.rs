@@ -3,7 +3,7 @@
 //! Unlike custom pets, built-in pets are not checked into the TUI package as
 //! local spritesheets. The TUI resolves them from the public Codex pets CDN on
 //! first use, verifies that the downloaded file has the expected spritesheet
-//! geometry, and installs it into a versioned cache under CODEX_HOME.
+//! geometry, and installs it into a versioned cache under codepilotx_HOME.
 //!
 //! This module deliberately stops at "a validated spritesheet exists at this
 //! path". Higher layers remain responsible for deciding when downloads are
@@ -30,8 +30,8 @@ const PET_CDN_BASE_URL: &str = "https://persistent.oaistatic.com/codex/pets/v1";
 const PET_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(60);
 const PET_MAX_DOWNLOAD_BYTES: u64 = 4 * 1024 * 1024;
 
-pub(crate) fn builtin_spritesheet_path(codex_home: &Path, file: &str) -> PathBuf {
-    pack_dir(codex_home).join("assets").join(file)
+pub(crate) fn builtin_spritesheet_path(codepilotx_home: &Path, file: &str) -> PathBuf {
+    pack_dir(codepilotx_home).join("assets").join(file)
 }
 
 /// Ensure that a built-in pet's spritesheet is present and structurally valid.
@@ -42,8 +42,8 @@ pub(crate) fn builtin_spritesheet_path(codex_home: &Path, file: &str) -> PathBuf
 /// validates the decoded image dimensions, and installs it atomically. Callers
 /// should treat any error here as "the asset is unavailable", not as a partial
 /// install they can safely ignore.
-pub(crate) fn ensure_builtin_pet(codex_home: &Path, pet: catalog::BuiltinPet) -> Result<()> {
-    let destination = builtin_spritesheet_path(codex_home, pet.spritesheet_file);
+pub(crate) fn ensure_builtin_pet(codepilotx_home: &Path, pet: catalog::BuiltinPet) -> Result<()> {
+    let destination = builtin_spritesheet_path(codepilotx_home, pet.spritesheet_file);
     if validate_cached_spritesheet(&destination).is_ok() {
         return Ok(());
     }
@@ -88,8 +88,8 @@ fn builtin_pet_url(pet: catalog::BuiltinPet) -> Result<String> {
     Ok(url)
 }
 
-fn pack_dir(codex_home: &Path) -> PathBuf {
-    codex_home.join(PET_PACK_DIR).join(PET_PACK_VERSION)
+fn pack_dir(codepilotx_home: &Path) -> PathBuf {
+    codepilotx_home.join(PET_PACK_DIR).join(PET_PACK_VERSION)
 }
 
 fn download_bytes_with_limit(url: &str, max_bytes: u64) -> Result<Vec<u8>> {
@@ -149,8 +149,8 @@ fn validate_cached_spritesheet(path: &Path) -> Result<()> {
 }
 
 #[cfg(test)]
-pub(crate) fn write_test_pack(codex_home: &Path) {
-    let assets_dir = pack_dir(codex_home).join("assets");
+pub(crate) fn write_test_pack(codepilotx_home: &Path) {
+    let assets_dir = pack_dir(codepilotx_home).join("assets");
     fs::create_dir_all(&assets_dir).unwrap();
     for pet in catalog::BUILTIN_PETS {
         let path = assets_dir.join(pet.spritesheet_file);

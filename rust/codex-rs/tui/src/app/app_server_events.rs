@@ -9,10 +9,10 @@ use crate::app_event::AppEvent;
 use crate::app_event::ConnectorsSnapshot;
 use crate::app_server_session::AppServerSession;
 use crate::app_server_session::status_account_display_from_auth_mode;
-use codex_app_server_client::AppServerEvent;
-use codex_app_server_protocol::AuthMode;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
+use codepilotx_app_server_client::AppServerEvent;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ServerRequest;
 
 impl App {
     pub(super) fn refresh_mcp_startup_expected_servers_from_config(&mut self) {
@@ -80,7 +80,7 @@ impl App {
                 return;
             }
             ServerNotification::AccountUpdated(notification) => {
-                let has_codex_backend_auth = matches!(
+                let has_codepilotx_backend_auth = matches!(
                     notification.auth_mode,
                     Some(
                         AuthMode::Chatgpt
@@ -98,7 +98,7 @@ impl App {
                     notification
                         .auth_mode
                         .is_some_and(AuthMode::has_chatgpt_account),
-                    has_codex_backend_auth,
+                    has_codepilotx_backend_auth,
                 );
                 return;
             }

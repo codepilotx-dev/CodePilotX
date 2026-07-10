@@ -4,12 +4,12 @@ use super::CheckStatus;
 use super::Config;
 use super::DoctorCheck;
 use super::DoctorIssue;
-use codex_protocol::protocol::InternalSessionSource;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_rollout::RolloutRecorder;
-use codex_state::ThreadStateAuditRow;
-use codex_utils_path::normalize_for_path_comparison;
+use codepilotx_protocol::protocol::InternalSessionSource;
+use codepilotx_protocol::protocol::SessionSource;
+use codepilotx_protocol::protocol::SubAgentSource;
+use codepilotx_rollout::RolloutRecorder;
+use codepilotx_state::ThreadStateAuditRow;
+use codepilotx_utils_path::normalize_for_path_comparison;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -83,7 +83,7 @@ impl RolloutScan {
 
 pub(super) async fn thread_inventory_check(config: &Config) -> DoctorCheck {
     thread_inventory_check_for_roots(
-        config.codex_home.as_path(),
+        config.codepilotx_home.as_path(),
         config.sqlite_home.as_path(),
         config.model_provider_id.as_str(),
     )
@@ -91,12 +91,12 @@ pub(super) async fn thread_inventory_check(config: &Config) -> DoctorCheck {
 }
 
 async fn thread_inventory_check_for_roots(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     sqlite_home: &Path,
     default_provider: &str,
 ) -> DoctorCheck {
-    let scan = scan_rollout_files(codex_home).await;
-    let state_db_path = codex_state::state_db_path(sqlite_home);
+    let scan = scan_rollout_files(codepilotx_home).await;
+    let state_db_path = codepilotx_state::state_db_path(sqlite_home);
 
     let mut details = vec![
         format!("default model provider: {default_provider}"),
@@ -127,7 +127,7 @@ async fn thread_inventory_check_for_roots(
         return missing_state_db_check(scan, details);
     }
 
-    let rows = match codex_state::read_thread_state_audit_rows(&state_db_path).await {
+    let rows = match codepilotx_state::read_thread_state_audit_rows(&state_db_path).await {
         Ok(rows) => rows,
         Err(err) => {
             details.push(format!("rollout DB read error: {err}"));
@@ -149,7 +149,7 @@ async fn thread_inventory_check_for_roots(
         }
     };
 
-    parity_check_from_scan_and_rows(codex_home, scan, rows, details)
+    parity_check_from_scan_and_rows(codepilotx_home, scan, rows, details)
 }
 
 fn missing_state_db_check(scan: RolloutScan, details: Vec<String>) -> DoctorCheck {
@@ -203,14 +203,14 @@ fn missing_state_db_check(scan: RolloutScan, details: Vec<String>) -> DoctorChec
                 scan.reached_scan_cap
             ))
             .expected("rollout directories are fully scannable")
-            .remedy("Check file permissions and unexpected files under CODEX_HOME sessions."),
+            .remedy("Check file permissions and unexpected files under codepilotx_HOME sessions."),
         );
     }
     check
 }
 
 fn parity_check_from_scan_and_rows(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     scan: RolloutScan,
     rows: Vec<ThreadStateAuditRow>,
     mut details: Vec<String>,
@@ -247,7 +247,7 @@ fn parity_check_from_scan_and_rows(
                     .or_else(|| {
                         row.rollout_path
                             .is_file()
-                            .then(|| archived_from_rollout_path(codex_home, &row.rollout_path))
+                            .then(|| archived_from_rollout_path(codepilotx_home, &row.rollout_path))
                             .flatten()
                     })?;
                 (expected_archived != row.archived).then_some(row)
@@ -414,22 +414,22 @@ fn parity_check_from_scan_and_rows(
                 scan.reached_scan_cap
             ))
             .expected("rollout directories are fully scannable")
-            .remedy("Check file permissions and unexpected files under CODEX_HOME sessions."),
+            .remedy("Check file permissions and unexpected files under codepilotx_HOME sessions."),
         );
     }
     check
 }
 
-async fn scan_rollout_files(codex_home: &Path) -> RolloutScan {
+async fn scan_rollout_files(codepilotx_home: &Path) -> RolloutScan {
     let mut scan = RolloutScan::default();
     scan_rollout_root(
-        &codex_home.join("sessions"),
+        &codepilotx_home.join("sessions"),
         /*archived*/ false,
         &mut scan,
     )
     .await;
     scan_rollout_root(
-        &codex_home.join("archived_sessions"),
+        &codepilotx_home.join("archived_sessions"),
         /*archived*/ true,
         &mut scan,
     )
@@ -510,7 +510,7 @@ async fn thread_id_from_rollout(path: &Path) -> RolloutThreadId {
     if items.is_empty() {
         return RolloutThreadId::Unusable("no parseable rollout items".to_string());
     }
-    codex_rollout::builder_from_items(items.as_slice(), path)
+    codepilotx_rollout::builder_from_items(items.as_slice(), path)
         .map(|builder| RolloutThreadId::Id(builder.id.to_string()))
         .unwrap_or(RolloutThreadId::MalformedName)
 }
@@ -535,12 +535,12 @@ fn path_key(path: &Path) -> PathBuf {
     normalize_for_path_comparison(path).unwrap_or_else(|_| path.to_path_buf())
 }
 
-fn archived_from_rollout_path(codex_home: &Path, path: &Path) -> Option<bool> {
+fn archived_from_rollout_path(codepilotx_home: &Path, path: &Path) -> Option<bool> {
     let key = path_key(path);
-    if key.starts_with(path_key(&codex_home.join("archived_sessions"))) {
+    if key.starts_with(path_key(&codepilotx_home.join("archived_sessions"))) {
         return Some(true);
     }
-    if key.starts_with(path_key(&codex_home.join("sessions"))) {
+    if key.starts_with(path_key(&codepilotx_home.join("sessions"))) {
         return Some(false);
     }
     None
@@ -677,9 +677,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::ThreadId;
-    use codex_protocol::protocol::RolloutItem;
-    use codex_protocol::protocol::RolloutLine;
+    use codepilotx_protocol::ThreadId;
+    use codepilotx_protocol::protocol::RolloutItem;
+    use codepilotx_protocol::protocol::RolloutLine;
     use pretty_assertions::assert_eq;
     use sqlx::sqlite::SqliteConnectOptions;
     use sqlx::sqlite::SqlitePoolOptions;
@@ -714,7 +714,7 @@ mod tests {
             .await;
 
         let check = thread_inventory_check_for_roots(
-            fixture.codex_home.path(),
+            fixture.codepilotx_home.path(),
             fixture.sqlite_home.path(),
             "test-provider",
         )
@@ -742,7 +742,7 @@ mod tests {
             "00000000-0000-0000-0000-000000000002",
         );
         let stale_path = fixture
-            .codex_home
+            .codepilotx_home
             .path()
             .join("sessions/2025/01/02/rollout-2025-01-02T12-00-00-00000000-0000-0000-0000-000000000003.jsonl");
         fixture
@@ -761,7 +761,7 @@ mod tests {
             .await;
 
         let check = thread_inventory_check_for_roots(
-            fixture.codex_home.path(),
+            fixture.codepilotx_home.path(),
             fixture.sqlite_home.path(),
             "test-provider",
         )
@@ -788,41 +788,41 @@ mod tests {
     }
 
     struct Fixture {
-        codex_home: TempDir,
+        codepilotx_home: TempDir,
         sqlite_home: TempDir,
     }
 
     impl Fixture {
         async fn new() -> Self {
-            let codex_home = TempDir::new().expect("codex home");
+            let codepilotx_home = TempDir::new().expect("codex home");
             let sqlite_home = TempDir::new().expect("sqlite home");
-            let _runtime = codex_state::StateRuntime::init(
+            let _runtime = codepilotx_state::StateRuntime::init(
                 sqlite_home.path().to_path_buf(),
                 "test-provider".to_string(),
             )
             .await
             .expect("state runtime");
             Self {
-                codex_home,
+                codepilotx_home,
                 sqlite_home,
             }
         }
 
         fn write_rollout(&self, archived: bool, timestamp: &str, thread_id: &str) -> PathBuf {
             let root = if archived {
-                self.codex_home.path().join("archived_sessions")
+                self.codepilotx_home.path().join("archived_sessions")
             } else {
-                self.codex_home.path().join("sessions/2025/01/02")
+                self.codepilotx_home.path().join("sessions/2025/01/02")
             };
             std::fs::create_dir_all(&root).expect("rollout dir");
             let path = root.join(format!("rollout-{timestamp}-{thread_id}.jsonl"));
             let rollout_line = RolloutLine {
                 timestamp: timestamp.to_string(),
-                item: RolloutItem::SessionMeta(codex_protocol::protocol::SessionMetaLine {
-                    meta: codex_protocol::protocol::SessionMeta {
+                item: RolloutItem::SessionMeta(codepilotx_protocol::protocol::SessionMetaLine {
+                    meta: codepilotx_protocol::protocol::SessionMeta {
                         id: ThreadId::from_string(thread_id).expect("thread id"),
                         timestamp: timestamp.to_string(),
-                        cwd: self.codex_home.path().to_path_buf(),
+                        cwd: self.codepilotx_home.path().to_path_buf(),
                         originator: "test".to_string(),
                         cli_version: "test".to_string(),
                         source: SessionSource::Cli,
@@ -838,7 +838,7 @@ mod tests {
         }
 
         async fn insert_thread_row(&self, id: &str, rollout_path: &Path, archived: bool) {
-            let state_db_path = codex_state::state_db_path(self.sqlite_home.path());
+            let state_db_path = codepilotx_state::state_db_path(self.sqlite_home.path());
             let options = SqliteConnectOptions::new()
                 .filename(state_db_path)
                 .create_if_missing(false);
@@ -871,7 +871,7 @@ INSERT INTO threads (
             .bind(1_i64)
             .bind("cli")
             .bind("test-provider")
-            .bind(self.codex_home.path().display().to_string())
+            .bind(self.codepilotx_home.path().display().to_string())
             .bind("test title")
             .bind("read-only")
             .bind("on-request")

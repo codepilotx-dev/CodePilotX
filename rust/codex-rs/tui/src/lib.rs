@@ -22,46 +22,46 @@ pub use app::AppExitInfo;
 pub use app::ExitReason;
 use app_server_session::AppServerSession;
 use app_server_session::ThreadParamsMode;
-use codex_app_server_client::AppServerClient;
-use codex_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
-use codex_app_server_client::InProcessAppServerClient;
-use codex_app_server_client::InProcessClientStartArgs;
-use codex_app_server_client::RemoteAppServerClient;
-use codex_app_server_client::RemoteAppServerConnectArgs;
-pub use codex_app_server_client::RemoteAppServerEndpoint;
-use codex_app_server_protocol::Account as AppServerAccount;
-use codex_app_server_protocol::AskForApproval;
-use codex_app_server_protocol::AuthMode as AppServerAuthMode;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::Thread as AppServerThread;
-use codex_app_server_protocol::ThreadListCwdFilter;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadSortKey as AppServerThreadSortKey;
-use codex_app_server_protocol::ThreadSourceKind;
-use codex_cloud_config::cloud_config_bundle_loader_for_storage;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::ConfigLoadError;
-use codex_config::LoaderOverrides;
-use codex_config::format_config_error_with_source;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::ExecServerRuntimePaths;
-use codex_login::AuthConfig;
-use codex_login::default_client::originator;
-use codex_login::default_client::set_default_client_residency_requirement;
-use codex_login::enforce_login_restrictions;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::AltScreenMode;
-use codex_protocol::config_types::SandboxMode;
+use codepilotx_app_server_client::AppServerClient;
+use codepilotx_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
+use codepilotx_app_server_client::InProcessAppServerClient;
+use codepilotx_app_server_client::InProcessClientStartArgs;
+use codepilotx_app_server_client::RemoteAppServerClient;
+use codepilotx_app_server_client::RemoteAppServerConnectArgs;
+pub use codepilotx_app_server_client::RemoteAppServerEndpoint;
+use codepilotx_app_server_protocol::Account as AppServerAccount;
+use codepilotx_app_server_protocol::AskForApproval;
+use codepilotx_app_server_protocol::AuthMode as AppServerAuthMode;
+use codepilotx_app_server_protocol::ConfigWarningNotification;
+use codepilotx_app_server_protocol::Thread as AppServerThread;
+use codepilotx_app_server_protocol::ThreadListCwdFilter;
+use codepilotx_app_server_protocol::ThreadListParams;
+use codepilotx_app_server_protocol::ThreadSortKey as AppServerThreadSortKey;
+use codepilotx_app_server_protocol::ThreadSourceKind;
+use codepilotx_cloud_config::cloud_config_bundle_loader_for_storage;
+use codepilotx_config::CloudConfigBundleLoader;
+use codepilotx_config::ConfigLoadError;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_config::format_config_error_with_source;
+use codepilotx_exec_server::EnvironmentManager;
+use codepilotx_exec_server::ExecServerRuntimePaths;
+use codepilotx_login::AuthConfig;
+use codepilotx_login::default_client::originator;
+use codepilotx_login::default_client::set_default_client_residency_requirement;
+use codepilotx_login::enforce_login_restrictions;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::AltScreenMode;
+use codepilotx_protocol::config_types::SandboxMode;
 #[cfg(target_os = "windows")]
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_rollout::StateDbHandle;
-use codex_rollout::state_db;
-use codex_state::log_db;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::canonicalize_existing_preserving_symlinks;
-use codex_utils_home_dir::find_codex_home;
-use codex_utils_oss::ensure_oss_provider_ready;
-use codex_utils_oss::get_default_model_for_oss_provider;
+use codepilotx_protocol::config_types::WindowsSandboxLevel;
+use codepilotx_rollout::StateDbHandle;
+use codepilotx_rollout::state_db;
+use codepilotx_state::log_db;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::canonicalize_existing_preserving_symlinks;
+use codepilotx_utils_home_dir::find_codepilotx_home;
+use codepilotx_utils_oss::ensure_oss_provider_ready;
+use codepilotx_utils_oss::get_default_model_for_oss_provider;
 use color_eyre::eyre::WrapErr;
 use cwd_prompt::CwdPromptAction;
 pub use session_archive_commands::DeleteConfirmation;
@@ -84,7 +84,7 @@ use tracing_subscriber::prelude::*;
 use url::Url;
 use uuid::Uuid;
 
-pub(crate) use codex_app_server_client::legacy_core;
+pub(crate) use codepilotx_app_server_client::legacy_core;
 
 mod additional_dirs;
 mod app;
@@ -216,7 +216,7 @@ use crate::startup_hooks_review::load_startup_hooks_review_entry;
 use crate::startup_hooks_review::maybe_run_startup_hooks_review;
 use crate::tui::Tui;
 pub use cli::Cli;
-use codex_arg0::Arg0DispatchPaths;
+use codepilotx_arg0::Arg0DispatchPaths;
 pub use markdown_render::render_markdown_text;
 pub use public_widgets::composer_input::ComposerAction;
 pub use public_widgets::composer_input::ComposerInput;
@@ -236,7 +236,7 @@ async fn start_embedded_app_server(
     loader_overrides: LoaderOverrides,
     strict_config: bool,
     cloud_config_bundle: CloudConfigBundleLoader,
-    feedback: codex_feedback::CodexFeedback,
+    feedback: codepilotx_feedback::CodexFeedback,
     log_db: Option<log_db::LogDbLayer>,
     state_db: Option<StateDbHandle>,
     environment_manager: Arc<EnvironmentManager>,
@@ -284,8 +284,8 @@ async fn init_state_db_for_app_server_target(
 ) -> std::io::Result<Option<StateDbHandle>> {
     match app_server_target {
         AppServerTarget::Embedded => state_db::try_init(config).await.map(Some).map_err(|err| {
-            let database_path = codex_state::runtime_db_path_for_corruption_error(&err)
-                .unwrap_or_else(|| codex_state::state_db_path(config.sqlite_home.as_path()));
+            let database_path = codepilotx_state::runtime_db_path_for_corruption_error(&err)
+                .unwrap_or_else(|| codepilotx_state::state_db_path(config.sqlite_home.as_path()));
             std::io::Error::other(LocalStateDbStartupError::new(
                 database_path,
                 format!("{err:#}"),
@@ -298,10 +298,10 @@ async fn init_state_db_for_app_server_target(
 }
 
 // TODO(jif) delete after 22/11/2026.
-fn remove_legacy_tui_log_file(codex_home: &Path) {
+fn remove_legacy_tui_log_file(codepilotx_home: &Path) {
     // Shared append-only TUI logs could grow without bound. Existing processes
     // may still hold the file open, so startup cleanup is best effort.
-    let _ = std::fs::remove_file(codex_home.join("log").join(TUI_LOG_FILE_NAME));
+    let _ = std::fs::remove_file(codepilotx_home.join("log").join(TUI_LOG_FILE_NAME));
 }
 
 fn remote_addr_has_explicit_port(addr: &str, parsed: &Url) -> bool {
@@ -346,8 +346,8 @@ fn websocket_url_supports_auth_token(parsed: &Url) -> bool {
 pub fn resolve_remote_addr(addr: &str) -> color_eyre::Result<RemoteAppServerEndpoint> {
     if let Some(socket_path) = addr.strip_prefix("unix://") {
         let socket_path = if socket_path.is_empty() {
-            let codex_home = find_codex_home().wrap_err("failed to resolve CODEX_HOME")?;
-            codex_app_server_client::app_server_control_socket_path(&codex_home)
+            let codepilotx_home = find_codepilotx_home().wrap_err("failed to resolve codepilotx_HOME")?;
+            codepilotx_app_server_client::app_server_control_socket_path(&codepilotx_home)
                 .map_err(color_eyre::Report::new)?
         } else {
             AbsolutePathBuf::relative_to_current_dir(socket_path)
@@ -409,8 +409,8 @@ async fn connect_remote_app_server(
 }
 
 #[cfg(unix)]
-async fn maybe_probe_default_daemon_socket(codex_home: &Path) -> Option<AbsolutePathBuf> {
-    let socket_path = codex_app_server_client::app_server_control_socket_path(codex_home).ok()?;
+async fn maybe_probe_default_daemon_socket(codepilotx_home: &Path) -> Option<AbsolutePathBuf> {
+    let socket_path = codepilotx_app_server_client::app_server_control_socket_path(codepilotx_home).ok()?;
     if !socket_path.as_path().try_exists().unwrap_or(false) {
         return None;
     }
@@ -438,7 +438,7 @@ async fn maybe_probe_default_daemon_socket(codex_home: &Path) -> Option<Absolute
 }
 
 #[cfg(not(unix))]
-async fn maybe_probe_default_daemon_socket(_codex_home: &Path) -> Option<AbsolutePathBuf> {
+async fn maybe_probe_default_daemon_socket(_codepilotx_home: &Path) -> Option<AbsolutePathBuf> {
     None
 }
 
@@ -451,7 +451,7 @@ async fn start_app_server(
     loader_overrides: LoaderOverrides,
     strict_config: bool,
     cloud_config_bundle: CloudConfigBundleLoader,
-    feedback: codex_feedback::CodexFeedback,
+    feedback: codepilotx_feedback::CodexFeedback,
     log_db: Option<log_db::LogDbLayer>,
     state_db: Option<StateDbHandle>,
     environment_manager: Arc<EnvironmentManager>,
@@ -491,7 +491,7 @@ pub(crate) async fn start_app_server_for_picker(
         LoaderOverrides::default(),
         /*strict_config*/ false,
         CloudConfigBundleLoader::default(),
-        codex_feedback::CodexFeedback::new(),
+        codepilotx_feedback::CodexFeedback::new(),
         /*log_db*/ None,
         state_db,
         environment_manager,
@@ -525,7 +525,7 @@ async fn start_embedded_app_server_with<F, Fut>(
     loader_overrides: LoaderOverrides,
     strict_config: bool,
     cloud_config_bundle: CloudConfigBundleLoader,
-    feedback: codex_feedback::CodexFeedback,
+    feedback: codepilotx_feedback::CodexFeedback,
     log_db: Option<log_db::LogDbLayer>,
     state_db: Option<StateDbHandle>,
     environment_manager: Arc<EnvironmentManager>,
@@ -559,7 +559,7 @@ where
         config_warnings,
         session_source: serde_json::from_value(serde_json::json!("cli"))
             .unwrap_or_else(|err| panic!("cli session source should deserialize: {err}")),
-        enable_codex_api_key_env: false,
+        enable_codepilotx_api_key_env: false,
         client_name: "codex-tui".to_string(),
         client_version: env!("CARGO_PKG_VERSION").to_string(),
         experimental_api: true,
@@ -873,7 +873,7 @@ pub async fn run_main(
     // gpt-oss:20b) and ensure it is present locally. Also, force the builtâ€‘in
     let raw_overrides = cli.config_overrides.raw_overrides.clone();
     // `oss` model provider.
-    let overrides_cli = codex_utils_cli::CliConfigOverrides { raw_overrides };
+    let overrides_cli = codepilotx_utils_cli::CliConfigOverrides { raw_overrides };
     let cli_kv_overrides = match overrides_cli.parse_overrides() {
         // Parse `-c` overrides from the CLI.
         Ok(v) => v,
@@ -886,8 +886,8 @@ pub async fn run_main(
 
     // we load config.toml here to determine project state.
     #[allow(clippy::print_stderr)]
-    let codex_home = match find_codex_home() {
-        Ok(codex_home) => codex_home.to_path_buf(),
+    let codepilotx_home = match find_codepilotx_home() {
+        Ok(codepilotx_home) => codepilotx_home.to_path_buf(),
         Err(err) => {
             eprintln!("Error finding codex home: {err}");
             std::process::exit(1);
@@ -896,7 +896,7 @@ pub async fn run_main(
 
     let mut launch_loader_overrides = loader_overrides.clone();
     if let Some(profile_v2) = cli.config_profile_v2.as_ref() {
-        let user_config_path = resolve_profile_v2_config_path(&codex_home, profile_v2);
+        let user_config_path = resolve_profile_v2_config_path(&codepilotx_home, profile_v2);
         launch_loader_overrides.user_config_path = Some(user_config_path);
         launch_loader_overrides.user_config_profile = Some(profile_v2.clone());
     }
@@ -907,7 +907,7 @@ pub async fn run_main(
         cli.bypass_hook_trust,
     );
     let default_daemon = if explicit_remote_endpoint.is_none() && reuse_implicit_local_daemon {
-        maybe_probe_default_daemon_socket(&codex_home).await
+        maybe_probe_default_daemon_socket(&codepilotx_home).await
     } else {
         None
     };
@@ -922,12 +922,12 @@ pub async fn run_main(
         .filter(|_| app_server_target.uses_remote_workspace());
 
     let local_runtime_paths = ExecServerRuntimePaths::from_optional_paths(
-        arg0_paths.codex_self_exe.clone(),
-        arg0_paths.codex_linux_sandbox_exe.clone(),
+        arg0_paths.codepilotx_self_exe.clone(),
+        arg0_paths.codepilotx_linux_sandbox_exe.clone(),
     )?;
     let environment_manager =
         if should_load_configured_environments(&loader_overrides, &app_server_target) {
-            EnvironmentManager::from_codex_home(codex_home.clone(), Some(local_runtime_paths)).await
+            EnvironmentManager::from_codepilotx_home(codepilotx_home.clone(), Some(local_runtime_paths)).await
         } else {
             EnvironmentManager::from_env(Some(local_runtime_paths)).await
         }
@@ -938,13 +938,13 @@ pub async fn run_main(
         config_cwd_for_app_server_target(cwd.as_deref(), &app_server_target, &environment_manager)?;
     let mut loader_overrides = loader_overrides;
     if let Some(profile_v2) = cli.config_profile_v2.as_ref() {
-        let user_config_path = resolve_profile_v2_config_path(&codex_home, profile_v2);
+        let user_config_path = resolve_profile_v2_config_path(&codepilotx_home, profile_v2);
         loader_overrides.user_config_path = Some(user_config_path);
         loader_overrides.user_config_profile = Some(profile_v2.clone());
     }
 
     let bootstrap_config = load_bootstrap_config_or_exit(
-        &codex_home,
+        &codepilotx_home,
         config_cwd.as_ref(),
         cli_kv_overrides.clone(),
         loader_overrides.clone(),
@@ -959,8 +959,8 @@ pub async fn run_main(
         .clone()
         .unwrap_or_else(|| "https://chatgpt.com/backend-api/".to_string());
     let cloud_config_bundle = cloud_config_bundle_loader_for_storage(
-        codex_home.to_path_buf(),
-        /*enable_codex_api_key_env*/ false,
+        codepilotx_home.to_path_buf(),
+        /*enable_codepilotx_api_key_env*/ false,
         bootstrap_config_toml
             .cli_auth_credentials_store
             .unwrap_or_default(),
@@ -983,7 +983,7 @@ pub async fn run_main(
             // auth/base-url settings needed to fetch the bundle. If OSS mode
             // needs a default provider from config, reload with the bundle.
             bootstrap_config_with_cloud_config = load_bootstrap_config_or_exit(
-                &codex_home,
+                &codepilotx_home,
                 config_cwd.as_ref(),
                 cli_kv_overrides.clone(),
                 loader_overrides.clone(),
@@ -1039,8 +1039,8 @@ pub async fn run_main(
         sandbox_mode,
         cwd: cwd_override,
         model_provider: model_provider_override.clone(),
-        codex_self_exe: arg0_paths.codex_self_exe.clone(),
-        codex_linux_sandbox_exe: arg0_paths.codex_linux_sandbox_exe.clone(),
+        codepilotx_self_exe: arg0_paths.codepilotx_self_exe.clone(),
+        codepilotx_linux_sandbox_exe: arg0_paths.codepilotx_linux_sandbox_exe.clone(),
         main_execve_wrapper_exe: arg0_paths.main_execve_wrapper_exe.clone(),
         show_raw_agent_reasoning: cli.oss.then_some(true),
         bypass_hook_trust: cli.bypass_hook_trust.then_some(true),
@@ -1057,11 +1057,11 @@ pub async fn run_main(
     )
     .await;
 
-    remove_legacy_tui_log_file(config.codex_home.as_path());
+    remove_legacy_tui_log_file(config.codepilotx_home.as_path());
 
     let otel_originator = originator().value;
     let otel = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        codex_app_server_client::build_otel_provider(
+        codepilotx_app_server_client::build_otel_provider(
             &config,
             env!("CARGO_PKG_VERSION"),
             /*service_name_override*/ None,
@@ -1084,19 +1084,19 @@ pub async fn run_main(
             None
         }
     };
-    if let Some(metrics) = otel.as_ref().and_then(codex_otel::OtelProvider::metrics) {
-        let _ = codex_otel::record_process_start_once(metrics, otel_originator.as_str());
+    if let Some(metrics) = otel.as_ref().and_then(codepilotx_otel::OtelProvider::metrics) {
+        let _ = codepilotx_otel::record_process_start_once(metrics, otel_originator.as_str());
         let telemetry =
-            codex_rollout::sqlite_telemetry_recorder(metrics.clone(), otel_originator.as_str());
-        let _ = codex_state::install_process_db_telemetry(telemetry);
+            codepilotx_rollout::sqlite_telemetry_recorder(metrics.clone(), otel_originator.as_str());
+        let _ = codepilotx_state::install_process_db_telemetry(telemetry);
     }
     let state_db = init_state_db_for_app_server_target(&config, &app_server_target).await?;
 
     let effective_toml = config.config_layer_stack.effective_config();
     match effective_toml.try_into() {
         Ok(config_toml) => {
-            match codex_app_server_client::migrate_personality_if_needed(
-                &config.codex_home,
+            match codepilotx_app_server_client::migrate_personality_if_needed(
+                &config.codepilotx_home,
                 &config_toml,
                 state_db.clone(),
             )
@@ -1157,7 +1157,7 @@ pub async fn run_main(
     if !app_server_target.uses_remote_workspace() {
         #[allow(clippy::print_stderr)]
         if let Err(err) = enforce_login_restrictions(&AuthConfig {
-            codex_home: config.codex_home.to_path_buf(),
+            codepilotx_home: config.codepilotx_home.to_path_buf(),
             auth_credentials_store_mode: config.cli_auth_credentials_store_mode,
             keyring_backend_kind: config.auth_keyring_backend_kind(),
             forced_login_method: config.forced_login_method,
@@ -1189,7 +1189,7 @@ pub async fn run_main(
         let log_file = log_file_opts.open(log_dir.join(TUI_LOG_FILE_NAME))?;
         let (non_blocking, guard) = non_blocking(log_file);
         let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-            EnvFilter::new("codex_core=info,codex_tui=info,codex_rmcp_client=info")
+            EnvFilter::new("codepilotx_core=info,codepilotx_tui=info,codepilotx_rmcp_client=info")
         });
         let file_layer = tracing_subscriber::fmt::layer()
             .with_writer(non_blocking)
@@ -1205,7 +1205,7 @@ pub async fn run_main(
         (None, None)
     };
 
-    let feedback = codex_feedback::CodexFeedback::new();
+    let feedback = codepilotx_feedback::CodexFeedback::new();
     let feedback_layer = feedback.logger_layer();
     let feedback_metadata_layer = feedback.metadata_layer();
 
@@ -1276,7 +1276,7 @@ async fn run_ratatui_app(
     overrides: ConfigOverrides,
     cli_kv_overrides: Vec<(String, toml::Value)>,
     mut cloud_config_bundle: CloudConfigBundleLoader,
-    feedback: codex_feedback::CodexFeedback,
+    feedback: codepilotx_feedback::CodexFeedback,
     log_db: Option<log_db::LogDbLayer>,
     state_db: Option<StateDbHandle>,
     environment_manager: Arc<EnvironmentManager>,
@@ -1425,8 +1425,8 @@ async fn run_ratatui_app(
         // status detection edge cases.
         if show_login_screen && !uses_remote_workspace {
             cloud_config_bundle = cloud_config_bundle_loader_for_storage(
-                initial_config.codex_home.to_path_buf(),
-                /*enable_codex_api_key_env*/ false,
+                initial_config.codepilotx_home.to_path_buf(),
+                /*enable_codepilotx_api_key_env*/ false,
                 initial_config.cli_auth_credentials_store_mode,
                 initial_config.auth_keyring_backend_kind(),
                 initial_config.chatgpt_base_url.clone(),
@@ -1666,12 +1666,12 @@ async fn run_ratatui_app(
         _ => config,
     };
 
-    // Configure syntax highlighting theme from the final config â€” onboarding
+    // Configure syntax highlighting theme from the final config â€?onboarding
     // and resume/fork can both reload config with a different tui_theme, so
     // this must happen after the last possible reload.
     if let Some(w) = crate::render::highlight::set_theme_override(
         config.tui_theme.clone(),
-        find_codex_home().ok().map(AbsolutePathBuf::into_path_buf),
+        find_codepilotx_home().ok().map(AbsolutePathBuf::into_path_buf),
     ) {
         config.startup_warnings.push(w);
     }
@@ -1689,7 +1689,7 @@ async fn run_ratatui_app(
             .windows_sandbox_mode
             .source
             .is_some()
-        && !crate::windows_sandbox::sandbox_setup_is_complete(config.codex_home.as_path());
+        && !crate::windows_sandbox::sandbox_setup_is_complete(config.codepilotx_home.as_path());
     #[cfg(target_os = "windows")]
     let should_prompt_windows_sandbox_nux_at_startup = (trust_decision_was_made
         && windows_sandbox_level == WindowsSandboxLevel::Disabled)
@@ -1792,7 +1792,7 @@ async fn run_ratatui_app(
     terminal_restore_guard.restore_silently();
     // Mark the end of the recorded session.
     session_log::log_session_end();
-    // ignore error when collecting usage â€“ report underlying error instead
+    // ignore error when collecting usage â€?report underlying error instead
     app_result
 }
 
@@ -1928,18 +1928,18 @@ async fn load_config_or_exit_with_fallback_cwd(
 
 #[allow(clippy::print_stderr)]
 async fn load_bootstrap_config_or_exit(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     cwd: Option<&AbsolutePathBuf>,
-    cli_kv_overrides: Vec<(String, codex_config::TomlValue)>,
+    cli_kv_overrides: Vec<(String, codepilotx_config::TomlValue)>,
     loader_overrides: LoaderOverrides,
     strict_config: bool,
     cloud_config_bundle: CloudConfigBundleLoader,
 ) -> ConfigTomlLoadResult {
     match load_config_toml_with_layer_stack(
-        codex_home,
+        codepilotx_home,
         cwd,
         cli_kv_overrides,
-        codex_config::ConfigLoadOptions {
+        codepilotx_config::ConfigLoadOptions {
             loader_overrides,
             strict_config,
             cloud_config_bundle,
@@ -1998,25 +1998,25 @@ mod tests {
     use super::*;
     use crate::legacy_core::config::ConfigBuilder;
     use crate::legacy_core::config::ConfigOverrides;
-    use codex_app_server_protocol::AskForApproval;
-    use codex_app_server_protocol::ClientRequest;
-    use codex_app_server_protocol::RequestId;
-    use codex_app_server_protocol::ThreadStartParams;
-    use codex_app_server_protocol::ThreadStartResponse;
-    use codex_config::config_toml::ProjectConfig;
+    use codepilotx_app_server_protocol::AskForApproval;
+    use codepilotx_app_server_protocol::ClientRequest;
+    use codepilotx_app_server_protocol::RequestId;
+    use codepilotx_app_server_protocol::ThreadStartParams;
+    use codepilotx_app_server_protocol::ThreadStartResponse;
+    use codepilotx_config::config_toml::ProjectConfig;
     use pretty_assertions::assert_eq;
     use serial_test::serial;
     use tempfile::TempDir;
 
     async fn build_config(temp_dir: &TempDir) -> std::io::Result<Config> {
         ConfigBuilder::default()
-            .codex_home(temp_dir.path().to_path_buf())
+            .codepilotx_home(temp_dir.path().to_path_buf())
             .build()
             .await
     }
 
     fn write_session_rollout(
-        codex_home: &Path,
+        codepilotx_home: &Path,
         filename_ts: &str,
         meta_rfc3339: &str,
         preview: &str,
@@ -2029,7 +2029,7 @@ mod tests {
         let year = &filename_ts[0..4];
         let month = &filename_ts[5..7];
         let day = &filename_ts[8..10];
-        let rollout_path = codex_home
+        let rollout_path = codepilotx_home
             .join("sessions")
             .join(year)
             .join(month)
@@ -2040,17 +2040,17 @@ mod tests {
             .ok_or_else(|| color_eyre::eyre::eyre!("rollout path is missing a parent directory"))?;
         std::fs::create_dir_all(parent)?;
 
-        let session_meta = codex_protocol::protocol::SessionMeta {
+        let session_meta = codepilotx_protocol::protocol::SessionMeta {
             id: thread_id,
             timestamp: meta_rfc3339.to_string(),
             cwd: cwd.to_path_buf(),
             originator: "codex".to_string(),
             cli_version: "0.0.0".to_string(),
-            source: codex_protocol::protocol::SessionSource::Cli,
+            source: codepilotx_protocol::protocol::SessionSource::Cli,
             model_provider: Some(model_provider.to_string()),
             ..Default::default()
         };
-        let session_meta = serde_json::to_value(codex_protocol::protocol::SessionMetaLine {
+        let session_meta = serde_json::to_value(codepilotx_protocol::protocol::SessionMetaLine {
             meta: session_meta,
             git: None,
         })?;
@@ -2120,7 +2120,7 @@ mod tests {
             LoaderOverrides::default(),
             /*strict_config*/ false,
             CloudConfigBundleLoader::default(),
-            codex_feedback::CodexFeedback::new(),
+            codepilotx_feedback::CodexFeedback::new(),
             /*log_db*/ None,
             state_db,
             Arc::new(EnvironmentManager::default_for_tests()),
@@ -2183,11 +2183,11 @@ mod tests {
 
     #[test]
     fn resolve_remote_addr_accepts_default_socket() -> color_eyre::Result<()> {
-        let codex_home = find_codex_home().wrap_err("failed to resolve CODEX_HOME")?;
+        let codepilotx_home = find_codepilotx_home().wrap_err("failed to resolve codepilotx_HOME")?;
         assert_eq!(
             resolve_remote_addr("unix://")?,
             RemoteAppServerEndpoint::UnixSocket {
-                socket_path: codex_app_server_client::app_server_control_socket_path(&codex_home)?,
+                socket_path: codepilotx_app_server_client::app_server_control_socket_path(&codepilotx_home)?,
             }
         );
         Ok(())
@@ -2234,9 +2234,9 @@ mod tests {
 
     #[tokio::test]
     async fn default_daemon_auto_connect_skips_missing_socket() -> color_eyre::Result<()> {
-        let codex_home = TempDir::new()?;
+        let codepilotx_home = TempDir::new()?;
         assert!(
-            maybe_probe_default_daemon_socket(codex_home.path())
+            maybe_probe_default_daemon_socket(codepilotx_home.path())
                 .await
                 .is_none()
         );
@@ -2246,14 +2246,14 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn default_daemon_auto_connect_probes_socket_only() -> color_eyre::Result<()> {
-        let codex_home = TempDir::new()?;
+        let codepilotx_home = TempDir::new()?;
         let socket_path =
-            codex_app_server_client::app_server_control_socket_path(codex_home.path())?;
+            codepilotx_app_server_client::app_server_control_socket_path(codepilotx_home.path())?;
         std::fs::create_dir_all(socket_path.as_path().parent().expect("socket parent"))?;
         let _listener = tokio::net::UnixListener::bind(socket_path.as_path())?;
 
         assert_eq!(
-            maybe_probe_default_daemon_socket(codex_home.path()).await,
+            maybe_probe_default_daemon_socket(codepilotx_home.path()).await,
             Some(socket_path)
         );
         Ok(())
@@ -2538,7 +2538,7 @@ mod tests {
         std::fs::create_dir_all(&other_cwd)?;
 
         let config = ConfigBuilder::default()
-            .codex_home(temp_dir.path().to_path_buf())
+            .codepilotx_home(temp_dir.path().to_path_buf())
             .harness_overrides(ConfigOverrides {
                 cwd: Some(project_cwd.clone()),
                 ..Default::default()
@@ -2564,7 +2564,7 @@ mod tests {
         )?;
 
         let mut app_server = AppServerSession::new(
-            codex_app_server_client::AppServerClient::InProcess(
+            codepilotx_app_server_client::AppServerClient::InProcess(
                 start_test_embedded_app_server(config.clone()).await?,
             ),
             ThreadParamsMode::Embedded,
@@ -2607,7 +2607,7 @@ mod tests {
         let project_cwd = temp_dir.path().join("project");
         std::fs::create_dir_all(&project_cwd)?;
         let config = ConfigBuilder::default()
-            .codex_home(temp_dir.path().to_path_buf())
+            .codepilotx_home(temp_dir.path().to_path_buf())
             .harness_overrides(ConfigOverrides {
                 cwd: Some(project_cwd.clone()),
                 ..Default::default()
@@ -2615,7 +2615,7 @@ mod tests {
             .build()
             .await?;
         let mut app_server = AppServerSession::new(
-            codex_app_server_client::AppServerClient::InProcess(
+            codepilotx_app_server_client::AppServerClient::InProcess(
                 start_test_embedded_app_server(config.clone()).await?,
             ),
             ThreadParamsMode::Embedded,
@@ -2737,7 +2737,7 @@ mod tests {
             Some("ws://127.0.0.1:8765".to_string()),
             Some(ExecServerRuntimePaths::new(
                 std::env::current_exe().expect("current exe"),
-                /*codex_linux_sandbox_exe*/ None,
+                /*codepilotx_linux_sandbox_exe*/ None,
             )?),
         )
         .await;
@@ -2800,8 +2800,8 @@ mod tests {
             std::fs::create_dir_all(rollout_dir)?;
             std::fs::write(&rollout_path, "")?;
 
-            let state_runtime = codex_state::StateRuntime::init(
-                config.codex_home.to_path_buf(),
+            let state_runtime = codepilotx_state::StateRuntime::init(
+                config.codepilotx_home.to_path_buf(),
                 config.model_provider_id.clone(),
             )
             .await
@@ -2816,7 +2816,7 @@ mod tests {
             let created_at = chrono::DateTime::parse_from_rfc3339("2025-02-01T10:00:00Z")
                 .expect("timestamp should parse")
                 .with_timezone(&chrono::Utc);
-            let mut builder = codex_state::ThreadMetadataBuilder::new(
+            let mut builder = codepilotx_state::ThreadMetadataBuilder::new(
                 thread_id,
                 rollout_path.clone(),
                 created_at,
@@ -2833,7 +2833,7 @@ mod tests {
                 .map_err(std::io::Error::other)?;
 
             let mut app_server = AppServerSession::new(
-                codex_app_server_client::AppServerClient::InProcess(
+                codepilotx_app_server_client::AppServerClient::InProcess(
                     start_test_embedded_app_server(config).await?,
                 ),
                 ThreadParamsMode::Embedded,
@@ -2862,7 +2862,7 @@ mod tests {
             LoaderOverrides::default(),
             /*strict_config*/ false,
             CloudConfigBundleLoader::default(),
-            codex_feedback::CodexFeedback::new(),
+            codepilotx_feedback::CodexFeedback::new(),
             /*log_db*/ None,
             /*state_db*/ None,
             Arc::new(EnvironmentManager::default_for_tests()),
@@ -2902,7 +2902,7 @@ mod tests {
 
         assert_eq!(
             startup_error.state_db_path(),
-            codex_state::state_db_path(occupied_sqlite_home.as_path()).as_path()
+            codepilotx_state::state_db_path(occupied_sqlite_home.as_path()).as_path()
         );
         assert!(
             startup_error
@@ -2920,7 +2920,7 @@ mod tests {
         let mut config = build_config(&temp_dir).await?;
         let sqlite_home = temp_dir.path().join("sqlite-home");
         std::fs::create_dir_all(&sqlite_home)?;
-        let logs_db_path = codex_state::logs_db_path(&sqlite_home);
+        let logs_db_path = codepilotx_state::logs_db_path(&sqlite_home);
         std::fs::write(&logs_db_path, "not a sqlite database")?;
         config.sqlite_home = sqlite_home;
 
@@ -2936,7 +2936,7 @@ mod tests {
 
         assert_eq!(startup_error.database_path(), logs_db_path.as_path());
         assert!(
-            codex_state::sqlite_error_detail_is_corruption(startup_error.detail()),
+            codepilotx_state::sqlite_error_detail_is_corruption(startup_error.detail()),
             "startup error should preserve the SQLite corruption cause, got: {}",
             startup_error.detail()
         );
@@ -2967,7 +2967,7 @@ mod tests {
     }
     #[tokio::test]
     async fn untrusted_project_skips_trust_prompt() -> std::io::Result<()> {
-        use codex_protocol::config_types::TrustLevel;
+        use codepilotx_protocol::config_types::TrustLevel;
         let temp_dir = TempDir::new()?;
         let mut config = build_config(&temp_dir).await?;
         config.active_project = ProjectConfig {
@@ -2985,7 +2985,7 @@ mod tests {
     #[tokio::test]
     async fn config_rebuild_changes_trust_defaults_with_cwd() -> std::io::Result<()> {
         let temp_dir = TempDir::new()?;
-        let codex_home = temp_dir.path().to_path_buf();
+        let codepilotx_home = temp_dir.path().to_path_buf();
         let trusted = temp_dir.path().join("trusted");
         let untrusted = temp_dir.path().join("untrusted");
         std::fs::create_dir_all(&trusted)?;
@@ -3010,7 +3010,7 @@ trust_level = "untrusted"
         };
         let trusted_config = ConfigBuilder::default()
             .loader_overrides(LoaderOverrides::without_managed_config_for_tests())
-            .codex_home(codex_home.clone())
+            .codepilotx_home(codepilotx_home.clone())
             .harness_overrides(trusted_overrides.clone())
             .build()
             .await?;
@@ -3025,7 +3025,7 @@ trust_level = "untrusted"
         };
         let untrusted_config = ConfigBuilder::default()
             .loader_overrides(LoaderOverrides::without_managed_config_for_tests())
-            .codex_home(codex_home)
+            .codepilotx_home(codepilotx_home)
             .harness_overrides(untrusted_overrides)
             .build()
             .await?;
@@ -3041,7 +3041,7 @@ trust_level = "untrusted"
     /// `run_ratatui_app` can reload config during onboarding and again
     /// during session resume/fork.  The syntax theme override (stored in
     /// a `OnceLock`) must use the final config's `tui_theme`, not the
-    /// initial one â€” otherwise users resuming a thread in a project with
+    /// initial one â€?otherwise users resuming a thread in a project with
     /// a different theme get the wrong highlighting.
     ///
     /// We verify the invariant indirectly: `validate_theme_name` (the
@@ -3054,7 +3054,7 @@ trust_level = "untrusted"
 
         let temp_dir = TempDir::new()?;
 
-        // initial_config has a valid theme â€” no warning.
+        // initial_config has a valid theme â€?no warning.
         let initial_config = build_config(&temp_dir).await?;
         assert!(initial_config.tui_theme.is_none());
 

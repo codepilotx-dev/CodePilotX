@@ -45,7 +45,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use unicode_width::UnicodeWidthChar;
 
 /// Display width of a tab character in columns.
@@ -94,9 +94,9 @@ use crate::terminal_palette::default_bg;
 use crate::terminal_palette::indexed_color;
 use crate::terminal_palette::rgb_color;
 use crate::terminal_palette::stdout_color_level;
-use codex_git_utils::get_git_repo_root;
-use codex_terminal_detection::TerminalName;
-use codex_terminal_detection::terminal_info;
+use codepilotx_git_utils::get_git_repo_root;
+use codepilotx_terminal_detection::TerminalName;
+use codepilotx_terminal_detection::terminal_info;
 
 /// Classifies a diff line for gutter sign rendering and style selection.
 ///
@@ -125,8 +125,8 @@ enum DiffTheme {
 
 /// Palette depth the diff renderer will target.
 ///
-/// This is the *renderer's own* notion of color depth, derived from — but not
-/// identical to — the raw [`StdoutColorLevel`] reported by `supports-color`.
+/// This is the *renderer's own* notion of color depth, derived from �?but not
+/// identical to �?the raw [`StdoutColorLevel`] reported by `supports-color`.
 /// The indirection exists because some terminals (notably Windows Terminal)
 /// advertise only ANSI-16 support while actually rendering truecolor sequences
 /// correctly; [`diff_color_level_for_terminal`] promotes those cases so the
@@ -147,7 +147,7 @@ enum DiffColorLevel {
 /// never need an unreachable ANSI-16 arm.
 ///
 /// Construct via [`RichDiffColorLevel::from_diff_color_level`], which returns
-/// `None` for ANSI-16 — callers branch on the `Option` and skip backgrounds
+/// `None` for ANSI-16 �?callers branch on the `Option` and skip backgrounds
 /// entirely when `None`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum RichDiffColorLevel {
@@ -172,7 +172,7 @@ impl RichDiffColorLevel {
 /// scope backgrounds (via [`resolve_diff_backgrounds`]) and then threaded
 /// through every style helper so individual lines never re-query the theme.
 ///
-/// Both fields are `None` when the color level is ANSI-16 — callers fall
+/// Both fields are `None` when the color level is ANSI-16 �?callers fall
 /// back to foreground-only styling in that case.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct ResolvedDiffBackgrounds {
@@ -209,7 +209,7 @@ fn resolve_diff_backgrounds(
 /// scope backgrounds once, bundling them into a [`DiffRenderStyleContext`]
 /// that callers thread through every line-rendering call in a single pass.
 ///
-/// Call this at the top of each render frame — not per line — so the diff
+/// Call this at the top of each render frame �?not per line �?so the diff
 /// palette stays consistent within a frame even if the user swaps themes
 /// mid-render (theme picker live preview).
 pub(crate) fn current_diff_render_style_context() -> DiffRenderStyleContext {
@@ -264,7 +264,7 @@ fn fallback_diff_backgrounds(
 }
 
 /// Convert an RGB triple to the appropriate ratatui `Color` for the given
-/// rich color level — passthrough for truecolor, quantized for ANSI-256.
+/// rich color level �?passthrough for truecolor, quantized for ANSI-256.
 fn color_from_rgb_for_level(rgb: (u8, u8, u8), color_level: RichDiffColorLevel) -> Color {
     match color_level {
         RichDiffColorLevel::TrueColor => rgb_color(rgb),
@@ -272,7 +272,7 @@ fn color_from_rgb_for_level(rgb: (u8, u8, u8), color_level: RichDiffColorLevel) 
     }
 }
 
-/// Find the closest ANSI-256 color (indices 16–255) to `target` using
+/// Find the closest ANSI-256 color (indices 16�?55) to `target` using
 /// perceptual distance.
 ///
 /// Skips the first 16 entries (system colors) because their actual RGB
@@ -407,7 +407,7 @@ fn render_changes_block(rows: Vec<Row>, wrap_cols: usize, cwd: &Path) -> Vec<RtL
         let mut spans = Vec::new();
         spans.push(display_path_for(&row.path, cwd).into());
         if let Some(move_path) = &row.move_path {
-            spans.push(format!(" → {}", display_path_for(move_path, cwd)).into());
+            spans.push(format!(" �?{}", display_path_for(move_path, cwd)).into());
         }
         spans
     };
@@ -417,7 +417,7 @@ fn render_changes_block(rows: Vec<Row>, wrap_cols: usize, cwd: &Path) -> Vec<RtL
     let total_removed: usize = rows.iter().map(|r| r.removed).sum();
     let file_count = rows.len();
     let noun = if file_count == 1 { "file" } else { "files" };
-    let mut header_spans: Vec<RtSpan<'static>> = vec!["• ".dim()];
+    let mut header_spans: Vec<RtSpan<'static>> = vec!["�?".dim()];
     if let [row] = &rows[..] {
         let verb = match &row.change {
             FileChange::Add { .. } => "Added",
@@ -445,14 +445,14 @@ fn render_changes_block(rows: Vec<Row>, wrap_cols: usize, cwd: &Path) -> Vec<RtL
         let skip_file_header = file_count == 1;
         if !skip_file_header {
             let mut header: Vec<RtSpan<'static>> = Vec::new();
-            header.push("  └ ".dim());
+            header.push("  �?".dim());
             header.extend(render_path(&r));
             header.push(" ".into());
             header.extend(render_line_count_summary(r.added, r.removed));
             out.push(RtLine::from(header));
         }
 
-        // For renames, use the destination extension for highlighting — the
+        // For renames, use the destination extension for highlighting �?the
         // diff content reflects the new file, not the old one.
         let lang_path = r.move_path.as_deref().unwrap_or(&r.path);
         let lang = detect_lang_for_path(lang_path);
@@ -580,7 +580,7 @@ fn render_change(
                 }
 
                 // Skip per-line syntax highlighting when the patch is too
-                // large — avoids thousands of parser initializations that
+                // large �?avoids thousands of parser initializations that
                 // would stall rendering on big diffs.
                 let diff_lang = if exceeds_highlight_limits(total_diff_bytes, total_diff_lines) {
                     None
@@ -601,7 +601,7 @@ fn render_change(
                                 style_context.color_level,
                             ),
                         );
-                        out.push(RtLine::from(vec![spacer_span, "⋮".dim()]));
+                        out.push(RtLine::from(vec![spacer_span, "�?.dim()]));
                     }
                     is_first_hunk = false;
 
@@ -979,7 +979,7 @@ fn wrap_styled_spans(spans: &[RtSpan<'static>], max_cols: usize) -> Vec<Vec<RtSp
             }
 
             if byte_end == 0 {
-                // Single character wider than remaining space — force onto a
+                // Single character wider than remaining space �?force onto a
                 // new line so we make progress.
                 if !current_line.is_empty() {
                     result.push(std::mem::take(&mut current_line));
@@ -1003,7 +1003,7 @@ fn wrap_styled_spans(spans: &[RtSpan<'static>], max_cols: usize) -> Vec<Vec<RtSp
             remaining = rest;
 
             // If we exactly filled or exceeded the line, start a new one.
-            // Do not gate on !remaining.is_empty() — the next span in the
+            // Do not gate on !remaining.is_empty() �?the next span in the
             // outer loop may still have content that must start on a fresh line.
             if col >= max_cols {
                 result.push(std::mem::take(&mut current_line));
@@ -1073,7 +1073,7 @@ fn has_force_color_override() -> bool {
 ///
 /// Windows Terminal fully supports 24-bit color but the `supports-color`
 /// crate often reports only ANSI-16 there because no `COLORTERM` variable
-/// is set.  We detect Windows Terminal two ways — via `terminal_name`
+/// is set.  We detect Windows Terminal two ways �?via `terminal_name`
 /// (parsed from `WT_SESSION` / `TERM_PROGRAM` by `terminal_info()`) and
 /// via the raw `has_wt_session` flag.
 ///
@@ -1119,12 +1119,8 @@ fn diff_color_level_for_terminal(
 //
 // Each diff line is composed of three visual regions, styled independently:
 //
-//   ┌──────────┬──────┬──────────────────────────────────────────┐
-//   │  gutter  │ sign │              content                     │
-//   │ (line #) │ +/-  │  (plain or syntax-highlighted text)      │
-//   └──────────┴──────┴──────────────────────────────────────────┘
-//
-// A fourth, full-width layer — `line_bg` — is applied via `RtLine::style()`
+//   ┌──────────┬──────┬──────────────────────────────────────────�?//   �? gutter  �?sign �?             content                     �?//   �?(line #) �?+/-  �? (plain or syntax-highlighted text)      �?//   └──────────┴──────┴──────────────────────────────────────────�?//
+// A fourth, full-width layer �?`line_bg` �?is applied via `RtLine::style()`
 // so that the background tint extends from the leftmost column to the right
 // edge of the terminal, including any padding beyond the content.
 //
@@ -1248,7 +1244,7 @@ fn style_sign_del(
 /// Content style for insert lines (plain, non-syntax-highlighted text).
 ///
 /// Foreground-only on ANSI-16.  On rich levels, uses the pre-resolved
-/// background from `diff_backgrounds` — which is the theme scope color when
+/// background from `diff_backgrounds` �?which is the theme scope color when
 /// available, or the hardcoded palette otherwise.  Dark themes add an
 /// explicit green foreground for readability over the tinted background;
 /// light themes rely on the default (dark) foreground against the pastel.
@@ -1408,7 +1404,7 @@ mod tests {
 
         let rust_original =
             "fn greet(name: &str) {\n    println!(\"hello\");\n    println!(\"bye\");\n}\n";
-        let rust_modified = "fn greet(name: &str) {\n    println!(\"hello {name}\");\n    println!(\"emoji: 🚀✨ and CJK: 你好世界\");\n}\n";
+        let rust_modified = "fn greet(name: &str) {\n    println!(\"hello {name}\");\n    println!(\"emoji: 🚀�?and CJK: 你好世界\");\n}\n";
         let rust_patch = diffy::create_patch(rust_original, rust_modified).to_string();
         changes.insert(
             PathBuf::from("src/lib.rs"),
@@ -2350,7 +2346,7 @@ mod tests {
     #[test]
     fn wrap_styled_spans_tabs_have_visible_width() {
         // A tab should count as TAB_WIDTH columns, not zero.
-        // With max_cols=8, a tab (4 cols) + "abcde" (5 cols) = 9 cols → must wrap.
+        // With max_cols=8, a tab (4 cols) + "abcde" (5 cols) = 9 cols �?must wrap.
         let spans = vec![RtSpan::raw("\tabcde")];
         let result = wrap_styled_spans(&spans, /*max_cols*/ 8);
         assert!(
@@ -2362,7 +2358,7 @@ mod tests {
 
     #[test]
     fn wrap_styled_spans_wraps_before_first_overflowing_char() {
-        let spans = vec![RtSpan::raw("abcd\t界")];
+        let spans = vec![RtSpan::raw("abcd\t�?)];
         let result = wrap_styled_spans(&spans, /*max_cols*/ 5);
 
         let line_text: Vec<String> = result
@@ -2373,7 +2369,7 @@ mod tests {
                     .collect::<String>()
             })
             .collect();
-        assert_eq!(line_text, vec!["abcd", "\t", "界"]);
+        assert_eq!(line_text, vec!["abcd", "\t", "�?]);
 
         let line_width = |line: &[RtSpan<'static>]| -> usize {
             line.iter()
@@ -2395,7 +2391,7 @@ mod tests {
         let lines = push_wrapped_diff_line_with_style_context(
             /*line_number*/ 1,
             DiffLineType::Insert,
-            "abcd\t界🙂",
+            "abcd\t界�?,
             width,
             line_number_width(/*max_line_number*/ 1),
             current_diff_render_style_context(),
@@ -2440,7 +2436,7 @@ mod tests {
         // are bypassed this would be extremely slow.
         let lines = create_diff_summary(&changes, &PathBuf::from("/"), /*wrap_cols*/ 80);
 
-        // The diff rendered without timing out — the guardrails prevented
+        // The diff rendered without timing out �?the guardrails prevented
         // thousands of per-line parser initializations.  Verify we actually
         // got output (the patch is non-empty).
         assert!(

@@ -75,7 +75,7 @@ pub(super) fn render_human_report(report: &DoctorReport, options: HumanOutputOpt
     let _ = writeln!(
         out,
         "{} {}",
-        bold("Codex Doctor", options),
+        bold("CodePilotX Doctor", options),
         dim(&header_suffix(report), options)
     );
     out.push('\n');
@@ -201,7 +201,7 @@ fn write_detail_line(out: &mut String, detail: HumanDetail, options: HumanOutput
             );
         }
         HumanDetail::Remedy(value) => {
-            let marker = if options.ascii { "->" } else { "→" };
+            let marker = if options.ascii { "->" } else { "�? };
             let _ = writeln!(
                 out,
                 "    {} {}",
@@ -220,7 +220,7 @@ fn row_description(check: &DoctorCheck, options: HumanOutputOptions) -> String {
     if matches!(check.status, CheckStatus::Warning | CheckStatus::Fail)
         && let Some(remediation) = &check.remediation
     {
-        let dash = if options.ascii { " - " } else { " — " };
+        let dash = if options.ascii { " - " } else { " �?" };
         let summary = &check.summary;
         return format!("{summary}{dash}{remediation}");
     }
@@ -290,11 +290,11 @@ fn status_marker(status: DisplayStatus, options: HumanOutputOptions) -> String {
         }
     } else {
         match status {
-            DisplayStatus::Ok => "✓",
-            DisplayStatus::Update => "↑",
-            DisplayStatus::Note | DisplayStatus::Warning => "⚠",
-            DisplayStatus::Fail => "✗",
-            DisplayStatus::Idle => "○",
+            DisplayStatus::Ok => "�?,
+            DisplayStatus::Update => "�?,
+            DisplayStatus::Note | DisplayStatus::Warning => "�?,
+            DisplayStatus::Fail => "�?,
+            DisplayStatus::Idle => "�?,
         }
     };
 
@@ -329,7 +329,7 @@ fn detail_marker(is_issue: bool, options: HumanOutputOptions) -> String {
     if !is_issue {
         return " ".to_string();
     }
-    orange(if options.ascii { ">" } else { "▸" }, options)
+    orange(if options.ascii { ">" } else { "�? }, options)
 }
 
 fn style_note_summary(note: &DoctorNote, options: HumanOutputOptions) -> String {
@@ -478,7 +478,7 @@ fn write_footer(out: &mut String, options: HumanOutputOptions) {
 }
 
 fn header_suffix(report: &DoctorReport) -> String {
-    let version = format!("v{}", report.codex_version);
+    let version = format!("v{}", report.codepilotx_version);
     report
         .checks
         .iter()
@@ -531,7 +531,7 @@ fn update_note(check: &DoctorCheck, report: &DoctorReport) -> Option<DoctorNote>
         .or_else(|| detail::detail_value(check, "cached latest version"))
         .unwrap_or_else(|| "newer version".to_string());
     let dismissed = detail::detail_value(check, "dismissed version");
-    let mut parenthetical = format!("current {}", report.codex_version);
+    let mut parenthetical = format!("current {}", report.codepilotx_version);
     if let Some(dismissed) = dismissed
         && !detail::is_falsy(&dismissed)
     {
@@ -844,8 +844,8 @@ pub(super) fn redact_detail(detail: &str) -> String {
 
     let secret_keys = [
         "openai_api_key",
-        "codex_api_key",
-        "codex_access_token",
+        "codepilotx_api_key",
+        "codepilotx_access_token",
         "authorization",
         "bearer_token",
         "token",
@@ -1231,7 +1231,7 @@ mod tests {
             schema_version: 1,
             generated_at: "0s since unix epoch".to_string(),
             overall_status: CheckStatus::Fail,
-            codex_version: "0.0.0".to_string(),
+            codepilotx_version: "0.0.0".to_string(),
             checks,
         }
     }
@@ -1244,12 +1244,12 @@ mod tests {
 Codex Doctor v0.0.0
 
 Notes
-   ⚠ terminal     narrow terminal
-   ✗ auth         token expired - Run `codex login`.
+   �?terminal     narrow terminal
+   �?auth         token expired - Run `codex login`.
 ─────────────────────────────────────────────────────────────
 
 Environment
-  ✓ system       en-US
+  �?system       en-US
       os                       macOS 15.0
       OS language              en-US
       VISUAL                   code --wait
@@ -1258,35 +1258,34 @@ Environment
       GIT_PAGER                delta
       GH_PAGER                 less
       LESS                     -FRX
-  ✓ runtime      running local build on darwin-arm64
-  ✓ install      consistent
-      managed by               npm: no · bun: no · package root —
-  ✓ search       search is OK (bundled)
-  ✓ git          git version 2.54.0
+  �?runtime      running local build on darwin-arm64
+  �?install      consistent
+      managed by               npm: no · bun: no · package root �?  �?search       search is OK (bundled)
+  �?git          git version 2.54.0
       selected git             /usr/bin/git
       version                  git version 2.54.0
       repo detected            true
-  ⚠ terminal     narrow terminal
-  ✓ title        default · project codex
+  �?terminal     narrow terminal
+  �?title        default · project codex
       title source             default
       title items              activity, project-name
       project value            codex
-  ✓ state        state paths inspectable
+  �?state        state paths inspectable
 
 Configuration
-  ✗ auth         token expired — Run `codex login`.
+  �?auth         token expired �?Run `codex login`.
       OPENAI_API_KEY           present
 
 Updates
-  ✓ updates      update configuration is locally consistent
+  �?updates      update configuration is locally consistent
 
 Connectivity
-  ✓ network      network environment readable
-  ✓ websocket    Responses WebSocket handshake succeeded
-  ✓ reachability active provider endpoints are reachable over HTTP
+  �?network      network environment readable
+  �?websocket    Responses WebSocket handshake succeeded
+  �?reachability active provider endpoints are reachable over HTTP
 
 Background Server
-  ✓ app-server   background server is not running
+  �?app-server   background server is not running
 
 {}
 12 ok · 2 notes · 1 warn · 1 fail failed
@@ -1315,33 +1314,33 @@ Background Server
 Codex Doctor v0.0.0
 
 Notes
-   ⚠ terminal     narrow terminal
-   ✗ auth         token expired - Run `codex login`.
+   �?terminal     narrow terminal
+   �?auth         token expired - Run `codex login`.
 ─────────────────────────────────────────────────────────────
 
 Environment
-  ✓ system       en-US
-  ✓ runtime      running local build on darwin-arm64
-  ✓ install      consistent
-  ✓ search       search is OK (bundled)
-  ✓ git          git version 2.54.0
-  ⚠ terminal     narrow terminal
-  ✓ title        default · project codex
-  ✓ state        state paths inspectable
+  �?system       en-US
+  �?runtime      running local build on darwin-arm64
+  �?install      consistent
+  �?search       search is OK (bundled)
+  �?git          git version 2.54.0
+  �?terminal     narrow terminal
+  �?title        default · project codex
+  �?state        state paths inspectable
 
 Configuration
-  ✗ auth         token expired — Run `codex login`.
+  �?auth         token expired �?Run `codex login`.
 
 Updates
-  ✓ updates      update configuration is locally consistent
+  �?updates      update configuration is locally consistent
 
 Connectivity
-  ✓ network      network environment readable
-  ✓ websocket    Responses WebSocket handshake succeeded
-  ✓ reachability active provider endpoints are reachable over HTTP
+  �?network      network environment readable
+  �?websocket    Responses WebSocket handshake succeeded
+  �?reachability active provider endpoints are reachable over HTTP
 
 Background Server
-  ✓ app-server   background server is not running
+  �?app-server   background server is not running
 
 {}
 12 ok · 2 notes · 1 warn · 1 fail failed
@@ -1382,7 +1381,7 @@ Run codex doctor without --summary for detailed diagnostics.
             schema_version: 1,
             generated_at: "0s since unix epoch".to_string(),
             overall_status: CheckStatus::Ok,
-            codex_version: "0.0.0".to_string(),
+            codepilotx_version: "0.0.0".to_string(),
             checks: vec![
                 DoctorCheck::new(
                     "state.paths",
@@ -1403,7 +1402,7 @@ Run codex doctor without --summary for detailed diagnostics.
 
         let rendered = render_human_report(&report, detailed_no_color_unicode_options());
 
-        assert!(rendered.contains("✓ state        databases healthy"));
+        assert!(rendered.contains("�?state        databases healthy"));
         assert!(rendered.contains("memories DB              /tmp/memories.sqlite · integrity ok"));
     }
 
@@ -1482,7 +1481,7 @@ Run codex doctor without --summary for detailed diagnostics.
             schema_version: 1,
             generated_at: "0s since unix epoch".to_string(),
             overall_status: CheckStatus::Warning,
-            codex_version: "0.0.0".to_string(),
+            codepilotx_version: "0.0.0".to_string(),
             checks: vec![
                 DoctorCheck::new(
                     "terminal.env",
@@ -1508,11 +1507,11 @@ Run codex doctor without --summary for detailed diagnostics.
         let rendered = render_human_report(&report, detailed_no_color_unicode_options());
 
         assert!(
-            rendered.contains("⚠ terminal     width 79 cols - output may wrap (recommended >=80)")
+            rendered.contains("�?terminal     width 79 cols - output may wrap (recommended >=80)")
         );
-        assert!(rendered.contains("▸ terminal size            79x26 (expected >= 80 columns)"));
-        assert!(rendered.contains("→ resize the window to at least 80 columns"));
-        assert!(!rendered.contains("⚠ terminal     Ghostty 1.3.1"));
+        assert!(rendered.contains("�?terminal size            79x26 (expected >= 80 columns)"));
+        assert!(rendered.contains("�?resize the window to at least 80 columns"));
+        assert!(!rendered.contains("�?terminal     Ghostty 1.3.1"));
     }
 
     #[test]
@@ -1521,7 +1520,7 @@ Run codex doctor without --summary for detailed diagnostics.
             schema_version: 1,
             generated_at: "0s since unix epoch".to_string(),
             overall_status: CheckStatus::Warning,
-            codex_version: "0.0.0".to_string(),
+            codepilotx_version: "0.0.0".to_string(),
             checks: vec![
                 DoctorCheck::new(
                     "updates.status",
@@ -1581,15 +1580,15 @@ Run codex doctor without --summary for detailed diagnostics.
 
         let rendered = render_human_report(&report, summary_no_color_unicode_options());
 
-        assert!(rendered.contains("Notes\n   ↑ updates"));
+        assert!(rendered.contains("Notes\n   �?updates"));
         assert!(rendered.contains("0.130.0 available (current 0.0.0, dismissed 0.128.0)"));
-        assert!(rendered.contains("⚠ rollouts"));
-        assert!(rendered.contains("⚠ sandbox"));
-        assert!(rendered.contains("⚠ mcp"));
+        assert!(rendered.contains("�?rollouts"));
+        assert!(rendered.contains("�?sandbox"));
+        assert!(rendered.contains("�?mcp"));
         assert!(rendered.contains(
-            "⚠ auth         mixed auth signals: ChatGPT login plus API key env var; HTTP reachability uses API-key mode"
+            "�?auth         mixed auth signals: ChatGPT login plus API key env var; HTTP reachability uses API-key mode"
         ));
-        assert!(rendered.contains("○ app-server   not running (ephemeral mode)"));
+        assert!(rendered.contains("�?app-server   not running (ephemeral mode)"));
         assert!(rendered.contains("5 ok · 1 idle · 5 notes · 1 warn · 0 fail degraded"));
     }
 
@@ -1599,7 +1598,7 @@ Run codex doctor without --summary for detailed diagnostics.
             schema_version: 1,
             generated_at: "0s since unix epoch".to_string(),
             overall_status: CheckStatus::Ok,
-            codex_version: "0.0.0".to_string(),
+            codepilotx_version: "0.0.0".to_string(),
             checks: vec![
                 DoctorCheck::new("config.load", "config", CheckStatus::Ok, "config loaded")
                     .detail("model: gpt-5.5")
@@ -1672,8 +1671,8 @@ Run codex doctor without --summary for detailed diagnostics.
     #[test]
     fn redact_detail_preserves_env_var_names() {
         assert_eq!(
-            redact_detail("auth env vars present: OPENAI_API_KEY, CODEX_API_KEY"),
-            "auth env vars present: OPENAI_API_KEY, CODEX_API_KEY"
+            redact_detail("auth env vars present: OPENAI_API_KEY, codepilotx_API_KEY"),
+            "auth env vars present: OPENAI_API_KEY, codepilotx_API_KEY"
         );
     }
 

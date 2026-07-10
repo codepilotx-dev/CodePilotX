@@ -8,7 +8,7 @@ use super::*;
 use crate::config_update::format_config_error;
 use crate::external_agent_config_migration_flow::ExternalAgentConfigMigrationFlowOutcome;
 #[cfg(target_os = "windows")]
-use codex_config::types::WindowsSandboxModeToml;
+use codepilotx_config::types::WindowsSandboxModeToml;
 
 const SHUTDOWN_FIRST_EXIT_TIMEOUT: Duration = Duration::from_secs(/*secs*/ 2);
 
@@ -1002,7 +1002,7 @@ impl App {
             } => {
                 #[cfg(any(target_os = "windows", test))]
                 if !self.chat_widget.windows_sandbox_mode_allowed(
-                    codex_config::types::WindowsSandboxModeToml::Elevated,
+                    codepilotx_config::types::WindowsSandboxModeToml::Elevated,
                 ) {
                     tracing::warn!(
                         "refusing to set up elevated Windows sandbox mode disallowed by requirements"
@@ -1036,12 +1036,12 @@ impl App {
                     let command_cwd = self.config.cwd.clone();
                     let env_map: std::collections::HashMap<String, String> =
                         std::env::vars().collect();
-                    let codex_home = self.config.codex_home.clone();
+                    let codepilotx_home = self.config.codepilotx_home.clone();
                     let tx = self.app_event_tx.clone();
 
                     // If the elevated setup already ran on this machine, don't prompt for
                     // elevation again - just flip the config to use the elevated path.
-                    if crate::windows_sandbox::sandbox_setup_is_complete(codex_home.as_path()) {
+                    if crate::windows_sandbox::sandbox_setup_is_complete(codepilotx_home.as_path()) {
                         tx.send(AppEvent::EnableWindowsSandboxForAgentMode {
                             preset,
                             mode: WindowsSandboxEnableMode::Elevated,
@@ -1059,7 +1059,7 @@ impl App {
                             workspace_roots.as_slice(),
                             command_cwd.as_path(),
                             &env_map,
-                            codex_home.as_path(),
+                            codepilotx_home.as_path(),
                         );
                         let event = match result {
                             Ok(()) => {
@@ -1121,7 +1121,7 @@ impl App {
             } => {
                 #[cfg(any(target_os = "windows", test))]
                 if !self.chat_widget.windows_sandbox_mode_allowed(
-                    codex_config::types::WindowsSandboxModeToml::Unelevated,
+                    codepilotx_config::types::WindowsSandboxModeToml::Unelevated,
                 ) {
                     tracing::warn!(
                         "refusing to set up unelevated Windows sandbox mode disallowed by requirements"
@@ -1155,17 +1155,17 @@ impl App {
                     let command_cwd = self.config.cwd.clone();
                     let env_map: std::collections::HashMap<String, String> =
                         std::env::vars().collect();
-                    let codex_home = self.config.codex_home.clone();
+                    let codepilotx_home = self.config.codepilotx_home.clone();
                     let tx = self.app_event_tx.clone();
                     let session_telemetry = self.session_telemetry.clone();
 
                     self.chat_widget.show_windows_sandbox_setup_status();
                     tokio::task::spawn_blocking(move || {
                         if let Err(err) =
-                            codex_windows_sandbox::run_windows_sandbox_legacy_preflight(
+                            codepilotx_windows_sandbox::run_windows_sandbox_legacy_preflight(
                                 &permission_profile,
                                 workspace_roots.as_slice(),
-                                codex_home.as_path(),
+                                codepilotx_home.as_path(),
                                 command_cwd.as_path(),
                                 &env_map,
                             )
@@ -1206,7 +1206,7 @@ impl App {
                     let command_cwd = self.config.cwd.clone();
                     let env_map: std::collections::HashMap<String, String> =
                         std::env::vars().collect();
-                    let codex_home = self.config.codex_home.clone();
+                    let codepilotx_home = self.config.codepilotx_home.clone();
                     let tx = self.app_event_tx.clone();
 
                     tokio::task::spawn_blocking(move || {
@@ -1216,7 +1216,7 @@ impl App {
                             workspace_roots.as_slice(),
                             command_cwd.as_path(),
                             &env_map,
-                            codex_home.as_path(),
+                            codepilotx_home.as_path(),
                             requested_path.as_path(),
                         ) {
                             Ok(canonical_path) => AppEvent::WindowsSandboxGrantReadRootCompleted {
@@ -1359,7 +1359,7 @@ impl App {
                                     self.chat_widget.submit_initial_user_message_if_pending();
                                 }
                                 self.chat_widget.add_plain_history_lines(vec![
-                                    Line::from(vec!["â€¢ ".dim(), "Sandbox ready".into()]),
+                                    Line::from(vec!["â€?".dim(), "Sandbox ready".into()]),
                                     Line::from(vec![
                                         "  ".into(),
                                         "Codex can now safely edit files and execute commands in your computer"
@@ -1392,7 +1392,7 @@ impl App {
                                         preset.active_permission_profile.clone(),
                                     ));
                                 self.chat_widget.add_plain_history_lines(vec![
-                                    Line::from(vec!["â€¢ ".dim(), "Sandbox ready".into()]),
+                                    Line::from(vec!["â€?".dim(), "Sandbox ready".into()]),
                                     Line::from(vec![
                                         "  ".into(),
                                         "Codex can now safely edit files and execute commands in your computer"
@@ -1610,7 +1610,7 @@ impl App {
                         let env_map: std::collections::HashMap<String, String> =
                             std::env::vars().collect();
                         let tx = self.app_event_tx.clone();
-                        let logs_base_dir = self.config.codex_home.clone();
+                        let logs_base_dir = self.config.codepilotx_home.clone();
                         let permission_profile =
                             self.config.permissions.effective_permission_profile();
                         Self::spawn_world_writable_scan(
@@ -2064,7 +2064,7 @@ impl App {
                         // navigating, the runtime theme must still be applied.
                         if let Some(theme) = crate::render::highlight::resolve_theme_by_name(
                             &name,
-                            Some(&self.config.codex_home),
+                            Some(&self.config.codepilotx_home),
                         ) {
                             crate::render::highlight::set_syntax_theme(theme);
                         }

@@ -5,11 +5,11 @@ use std::collections::VecDeque;
 use crate::app::app_server_requests::ResolvedAppServerRequest;
 use crate::approval_events::ApplyPatchApprovalRequestEvent;
 use crate::approval_events::ExecApprovalRequestEvent;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
-use codex_app_server_protocol::RequestId as AppServerRequestId;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ToolRequestUserInputParams;
-use codex_protocol::request_permissions::RequestPermissionsEvent;
+use codepilotx_app_server_protocol::McpServerElicitationRequestParams;
+use codepilotx_app_server_protocol::RequestId as AppServerRequestId;
+use codepilotx_app_server_protocol::ThreadItem;
+use codepilotx_app_server_protocol::ToolRequestUserInputParams;
+use codepilotx_protocol::request_permissions::RequestPermissionsEvent;
 
 use super::ChatWidget;
 
@@ -138,10 +138,10 @@ impl QueuedInterrupt {
 #[cfg(test)]
 mod tests {
     use crate::approval_events::ExecApprovalRequestEvent;
-    use codex_app_server_protocol::CommandExecutionSource;
-    use codex_app_server_protocol::CommandExecutionStatus;
-    use codex_app_server_protocol::ThreadItem;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_app_server_protocol::CommandExecutionSource;
+    use codepilotx_app_server_protocol::CommandExecutionStatus;
+    use codepilotx_app_server_protocol::ThreadItem;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
 
     use super::*;

@@ -3,9 +3,9 @@ mod exit_status;
 pub(crate) mod login;
 
 use clap::Parser;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_cli::CliConfigOverrides;
-use codex_utils_cli::ProfileV2Name;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_cli::CliConfigOverrides;
+use codepilotx_utils_cli::ProfileV2Name;
 use std::path::PathBuf;
 
 pub use debug_sandbox::run_command_under_landlock;
@@ -29,7 +29,7 @@ pub struct SeatbeltCommand {
     #[arg(long = "permissions-profile", short = 'P', value_name = "NAME")]
     pub permissions_profile: Option<String>,
 
-    /// Layer $CODEX_HOME/<name>.config.toml on top of the base user config.
+    /// Layer $codepilotx_HOME/<name>.config.toml on top of the base user config.
     #[arg(long = "profile", short = 'p')]
     pub config_profile: Option<ProfileV2Name>,
 
@@ -77,7 +77,7 @@ pub struct LandlockCommand {
     #[arg(long = "permissions-profile", short = 'P', value_name = "NAME")]
     pub permissions_profile: Option<String>,
 
-    /// Layer $CODEX_HOME/<name>.config.toml on top of the base user config.
+    /// Layer $codepilotx_HOME/<name>.config.toml on top of the base user config.
     #[arg(long = "profile", short = 'p')]
     pub config_profile: Option<ProfileV2Name>,
 
@@ -112,7 +112,7 @@ pub struct WindowsCommand {
     #[arg(long = "permissions-profile", short = 'P', value_name = "NAME")]
     pub permissions_profile: Option<String>,
 
-    /// Layer $CODEX_HOME/<name>.config.toml on top of the base user config.
+    /// Layer $codepilotx_HOME/<name>.config.toml on top of the base user config.
     #[arg(long = "profile", short = 'p')]
     pub config_profile: Option<ProfileV2Name>,
 

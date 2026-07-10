@@ -1,8 +1,8 @@
 use crate::app_command::AppCommand;
-use codex_app_server_protocol::RequestId as AppServerRequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ThreadItem;
+use codepilotx_app_server_protocol::RequestId as AppServerRequestId;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_app_server_protocol::ThreadItem;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -565,26 +565,26 @@ mod tests {
     use super::super::ThreadBufferedEvent;
     use super::super::ThreadEventStore;
     use crate::app_command::AppCommand as Op;
-    use codex_app_server_protocol::CommandExecutionApprovalDecision;
-    use codex_app_server_protocol::CommandExecutionRequestApprovalParams;
-    use codex_app_server_protocol::FileChangeRequestApprovalParams;
-    use codex_app_server_protocol::McpElicitationObjectType;
-    use codex_app_server_protocol::McpElicitationSchema;
-    use codex_app_server_protocol::McpServerElicitationAction;
-    use codex_app_server_protocol::McpServerElicitationRequest;
-    use codex_app_server_protocol::McpServerElicitationRequestParams;
-    use codex_app_server_protocol::RequestId as AppServerRequestId;
-    use codex_app_server_protocol::ServerNotification;
-    use codex_app_server_protocol::ServerRequest;
-    use codex_app_server_protocol::ServerRequestResolvedNotification;
-    use codex_app_server_protocol::ThreadClosedNotification;
-    use codex_app_server_protocol::ToolRequestUserInputParams;
-    use codex_app_server_protocol::ToolRequestUserInputResponse;
-    use codex_app_server_protocol::Turn;
-    use codex_app_server_protocol::TurnCompletedNotification;
-    use codex_app_server_protocol::TurnStatus;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use codepilotx_app_server_protocol::CommandExecutionApprovalDecision;
+    use codepilotx_app_server_protocol::CommandExecutionRequestApprovalParams;
+    use codepilotx_app_server_protocol::FileChangeRequestApprovalParams;
+    use codepilotx_app_server_protocol::McpElicitationObjectType;
+    use codepilotx_app_server_protocol::McpElicitationSchema;
+    use codepilotx_app_server_protocol::McpServerElicitationAction;
+    use codepilotx_app_server_protocol::McpServerElicitationRequest;
+    use codepilotx_app_server_protocol::McpServerElicitationRequestParams;
+    use codepilotx_app_server_protocol::RequestId as AppServerRequestId;
+    use codepilotx_app_server_protocol::ServerNotification;
+    use codepilotx_app_server_protocol::ServerRequest;
+    use codepilotx_app_server_protocol::ServerRequestResolvedNotification;
+    use codepilotx_app_server_protocol::ThreadClosedNotification;
+    use codepilotx_app_server_protocol::ToolRequestUserInputParams;
+    use codepilotx_app_server_protocol::ToolRequestUserInputResponse;
+    use codepilotx_app_server_protocol::Turn;
+    use codepilotx_app_server_protocol::TurnCompletedNotification;
+    use codepilotx_app_server_protocol::TurnStatus;
+    use codepilotx_utils_absolute_path::test_support::PathBufExt;
+    use codepilotx_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use std::collections::BTreeMap;
     use std::collections::HashMap;
@@ -669,7 +669,7 @@ mod tests {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: turn_id.to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: TurnStatus::Completed,
                 error: None,
@@ -846,7 +846,7 @@ mod tests {
 
         store.note_outbound_op(&Op::PatchApproval {
             id: "call-1".to_string(),
-            decision: codex_app_server_protocol::FileChangeApprovalDecision::Accept,
+            decision: codepilotx_app_server_protocol::FileChangeApprovalDecision::Accept,
         });
 
         let snapshot = store.snapshot();

@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 use chrono::Datelike;
 use chrono::Duration;
 use chrono::NaiveDate;
-use codex_app_server_protocol::GetAccountTokenUsageResponse;
+use codepilotx_app_server_protocol::GetAccountTokenUsageResponse;
 use ratatui::style::Style;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
@@ -87,7 +87,7 @@ pub(super) fn loaded_lines(
 
 fn chart_lines(
     view: TokenActivityView,
-    buckets: &[codex_app_server_protocol::AccountTokenUsageDailyBucket],
+    buckets: &[codepilotx_app_server_protocol::AccountTokenUsageDailyBucket],
     today: NaiveDate,
     width: u16,
 ) -> Vec<Line<'static>> {
@@ -382,7 +382,7 @@ fn month_labels(today: NaiveDate, first_column: usize, shown_columns: usize) -> 
 /// Invalid, out-of-window, and future dates are ignored. Duplicate dates are
 /// accumulated and negative token values do not reduce activity.
 fn daily_values(
-    buckets: &[codex_app_server_protocol::AccountTokenUsageDailyBucket],
+    buckets: &[codepilotx_app_server_protocol::AccountTokenUsageDailyBucket],
     today: NaiveDate,
 ) -> Vec<i64> {
     let start = chart_start(today);

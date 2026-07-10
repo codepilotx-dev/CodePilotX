@@ -939,7 +939,7 @@ fn render_offset_content(
 mod tests {
     use super::*;
     use crate::history_cell::ReviewDecision;
-    use codex_app_server_protocol::CommandExecutionSource as ExecCommandSource;
+    use codepilotx_app_server_protocol::CommandExecutionSource as ExecCommandSource;
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
@@ -952,7 +952,7 @@ mod tests {
     use crate::history_cell;
     use crate::history_cell::HistoryCell;
     use crate::history_cell::new_patch_event;
-    use codex_protocol::parse_command::ParsedCommand;
+    use codepilotx_protocol::parse_command::ParsedCommand;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
     use ratatui::text::Text;

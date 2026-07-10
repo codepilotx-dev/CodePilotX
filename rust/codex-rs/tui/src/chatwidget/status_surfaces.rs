@@ -10,11 +10,11 @@ use crate::chatwidget::limit_label_for_window;
 use crate::chatwidget::rate_limits::get_limits_duration;
 use crate::legacy_core::config::Config;
 use crate::status::format_tokens_compact;
-use codex_app_server_protocol::AskForApproval;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_sandbox_summary::summarize_permission_profile;
+use codepilotx_app_server_protocol::AskForApproval;
+use codepilotx_protocol::config_types::ApprovalsReviewer;
+use codepilotx_protocol::config_types::ServiceTier;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_utils_sandbox_summary::summarize_permission_profile;
 
 use super::status_state::TerminalTitleStatusKind;
 
@@ -24,7 +24,7 @@ pub(super) const DEFAULT_TERMINAL_TITLE_ITEMS: [&str; 2] = ["activity", "project
 
 /// Braille-pattern dot-spinner frames for the terminal title animation.
 pub(super) const TERMINAL_TITLE_SPINNER_FRAMES: [&str; 10] =
-    ["â ‹", "â ™", "â ¹", "â ¸", "â ¼", "â ´", "â ¦", "â §", "â ‡", "â "];
+    ["â ?, "â ?, "â ?, "â ?, "â ?, "â ?, "â ?, "â ?, "â ?, "â ?];
 
 /// Time between spinner frame advances in the terminal title.
 pub(super) const TERMINAL_TITLE_SPINNER_INTERVAL: Duration = Duration::from_millis(100);
@@ -439,8 +439,8 @@ impl ChatWidget {
             )
             .iter()
             .find_map(|layer| match &layer.name {
-                ConfigLayerSource::Project { dot_codex_folder } => {
-                    dot_codex_folder.as_path().parent().map(Path::to_path_buf)
+                ConfigLayerSource::Project { dot_codepilotx_folder } => {
+                    dot_codepilotx_folder.as_path().parent().map(Path::to_path_buf)
                 }
                 _ => None,
             })
@@ -621,7 +621,7 @@ impl ChatWidget {
                 let label = limit_label_for_window(window.window_minutes, is_secondary);
                 self.status_line_limit_display(Some(window), &label)
             }
-            StatusLineItem::CodexVersion => Some(CODEX_CLI_VERSION.to_string()),
+            StatusLineItem::CodexVersion => Some(codepilotx_CLI_VERSION.to_string()),
             StatusLineItem::ContextWindowSize => self
                 .status_line_context_window_size()
                 .map(|cws| format!("{} window", format_tokens_compact(cws))),
@@ -903,7 +903,7 @@ impl ChatWidget {
 fn five_hour_status_window(
     snapshot: &RateLimitSnapshotDisplay,
 ) -> Option<(&RateLimitWindowDisplay, bool)> {
-    find_primary_codex_window(snapshot, "5h")
+    find_primary_codepilotx_window(snapshot, "5h")
         .or_else(|| secondary_window_with_label_when_weekly_is_available(snapshot, "5h"))
         .or_else(|| non_weekly_primary_window(snapshot))
         .or_else(|| non_weekly_secondary_window_when_primary_is_weekly(snapshot))
@@ -912,11 +912,11 @@ fn five_hour_status_window(
 fn weekly_status_window(
     snapshot: &RateLimitSnapshotDisplay,
 ) -> Option<(&RateLimitWindowDisplay, bool)> {
-    find_codex_window(snapshot, "weekly")
+    find_codepilotx_window(snapshot, "weekly")
         .or_else(|| snapshot.secondary.as_ref().map(|window| (window, true)))
 }
 
-fn find_codex_window<'a>(
+fn find_codepilotx_window<'a>(
     snapshot: &'a RateLimitSnapshotDisplay,
     label: &str,
 ) -> Option<(&'a RateLimitWindowDisplay, bool)> {
@@ -935,7 +935,7 @@ fn find_codex_window<'a>(
     None
 }
 
-fn find_primary_codex_window<'a>(
+fn find_primary_codepilotx_window<'a>(
     snapshot: &'a RateLimitSnapshotDisplay,
     label: &str,
 ) -> Option<(&'a RateLimitWindowDisplay, bool)> {
@@ -951,7 +951,7 @@ fn secondary_window_with_label_when_weekly_is_available<'a>(
     snapshot: &'a RateLimitSnapshotDisplay,
     label: &str,
 ) -> Option<(&'a RateLimitWindowDisplay, bool)> {
-    find_codex_window(snapshot, "weekly")?;
+    find_codepilotx_window(snapshot, "weekly")?;
 
     let secondary = snapshot.secondary.as_ref()?;
     if matches_window_label(secondary, label) {

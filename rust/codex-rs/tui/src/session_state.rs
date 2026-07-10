@@ -5,14 +5,14 @@
 
 use std::path::PathBuf;
 
-use codex_app_server_protocol::AskForApproval;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::Personality;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_app_server_protocol::AskForApproval;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::CollaborationMode;
+use codepilotx_protocol::config_types::Personality;
+use codepilotx_protocol::models::ActivePermissionProfile;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct SessionNetworkProxyRuntime {
@@ -36,7 +36,7 @@ pub(crate) struct ThreadSessionState {
     pub(crate) model_provider_id: String,
     pub(crate) service_tier: Option<String>,
     pub(crate) approval_policy: AskForApproval,
-    pub(crate) approvals_reviewer: codex_protocol::config_types::ApprovalsReviewer,
+    pub(crate) approvals_reviewer: codepilotx_protocol::config_types::ApprovalsReviewer,
     /// Permission snapshot used by TUI display surfaces. Legacy app-server
     /// responses are converted to a profile at ingestion time using the
     /// response cwd so cached sessions do not reinterpret cwd-bound grants.
@@ -49,7 +49,7 @@ pub(crate) struct ThreadSessionState {
     pub(crate) cwd: AbsolutePathBuf,
     pub(crate) runtime_workspace_roots: Vec<AbsolutePathBuf>,
     pub(crate) instruction_source_paths: Vec<PathUri>,
-    pub(crate) reasoning_effort: Option<codex_protocol::openai_models::ReasoningEffort>,
+    pub(crate) reasoning_effort: Option<codepilotx_protocol::openai_models::ReasoningEffort>,
     pub(crate) collaboration_mode: Option<Box<CollaborationMode>>,
     pub(crate) personality: Option<Personality>,
     pub(crate) message_history: Option<MessageHistoryMetadata>,

@@ -8,24 +8,24 @@ use super::plugin_mentions::fetch_plugin_mentions;
 use super::*;
 use crate::app_event::ConnectorsSnapshot;
 use crate::config_update::format_config_error;
-use codex_app_server_protocol::AppsListParams;
-use codex_app_server_protocol::AppsListResponse;
-use codex_app_server_protocol::ConsumeAccountRateLimitResetCreditParams;
-use codex_app_server_protocol::ConsumeAccountRateLimitResetCreditResponse;
-use codex_app_server_protocol::MarketplaceAddParams;
-use codex_app_server_protocol::MarketplaceAddResponse;
-use codex_app_server_protocol::MarketplaceRemoveParams;
-use codex_app_server_protocol::MarketplaceRemoveResponse;
-use codex_app_server_protocol::MarketplaceUpgradeParams;
-use codex_app_server_protocol::MarketplaceUpgradeResponse;
+use codepilotx_app_server_protocol::AppsListParams;
+use codepilotx_app_server_protocol::AppsListResponse;
+use codepilotx_app_server_protocol::ConsumeAccountRateLimitResetCreditParams;
+use codepilotx_app_server_protocol::ConsumeAccountRateLimitResetCreditResponse;
+use codepilotx_app_server_protocol::MarketplaceAddParams;
+use codepilotx_app_server_protocol::MarketplaceAddResponse;
+use codepilotx_app_server_protocol::MarketplaceRemoveParams;
+use codepilotx_app_server_protocol::MarketplaceRemoveResponse;
+use codepilotx_app_server_protocol::MarketplaceUpgradeParams;
+use codepilotx_app_server_protocol::MarketplaceUpgradeResponse;
 
-use codex_app_server_protocol::RateLimitResetCreditsSummary;
-use codex_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::RateLimitResetCreditsSummary;
+use codepilotx_app_server_protocol::RequestId;
 
 use crate::hooks_rpc::fetch_hooks_list;
 use crate::hooks_rpc::write_hook_trust;
 use crate::hooks_rpc::write_hook_trusts;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 
 const TOKEN_ACTIVITY_FETCH_TIMEOUT: std::time::Duration =
     std::time::Duration::from_secs(/*secs*/ 15);
@@ -753,7 +753,7 @@ pub(super) async fn fetch_account_rate_limits(
 
 pub(super) async fn fetch_account_token_activity(
     request_handle: AppServerRequestHandle,
-) -> Result<codex_app_server_protocol::GetAccountTokenUsageResponse> {
+) -> Result<codepilotx_app_server_protocol::GetAccountTokenUsageResponse> {
     let request_id = RequestId::String(format!("account-token-usage-{}", Uuid::new_v4()));
     request_handle
         .request_typed(ClientRequest::GetAccountTokenUsage {
@@ -799,9 +799,9 @@ pub(super) async fn consume_rate_limit_reset_credit_request(
 pub(super) async fn send_add_credits_nudge_email(
     request_handle: AppServerRequestHandle,
     credit_type: AddCreditsNudgeCreditType,
-) -> Result<codex_app_server_protocol::AddCreditsNudgeEmailStatus> {
+) -> Result<codepilotx_app_server_protocol::AddCreditsNudgeEmailStatus> {
     let request_id = RequestId::String(format!("add-credits-nudge-{}", Uuid::new_v4()));
-    let response: codex_app_server_protocol::SendAddCreditsNudgeEmailResponse = request_handle
+    let response: codepilotx_app_server_protocol::SendAddCreditsNudgeEmailResponse = request_handle
         .request_typed(ClientRequest::SendAddCreditsNudgeEmail {
             request_id,
             params: SendAddCreditsNudgeEmailParams { credit_type },
@@ -1167,7 +1167,7 @@ pub(super) async fn write_hook_enabled(
         .request_typed(ClientRequest::ConfigBatchWrite {
             request_id,
             params: ConfigBatchWriteParams {
-                edits: vec![codex_app_server_protocol::ConfigEdit {
+                edits: vec![codepilotx_app_server_protocol::ConfigEdit {
                     key_path: "hooks.state".to_string(),
                     value: serde_json::json!({
                         key: {
@@ -1226,9 +1226,9 @@ pub(super) async fn fetch_feedback_upload(
 /// renders directly from `McpServerStatus` rather than these maps.
 #[cfg(test)]
 pub(super) type McpInventoryMaps = (
-    HashMap<String, codex_protocol::mcp::Tool>,
-    HashMap<String, Vec<codex_protocol::mcp::Resource>>,
-    HashMap<String, Vec<codex_protocol::mcp::ResourceTemplate>>,
+    HashMap<String, codepilotx_protocol::mcp::Tool>,
+    HashMap<String, Vec<codepilotx_protocol::mcp::Resource>>,
+    HashMap<String, Vec<codepilotx_protocol::mcp::ResourceTemplate>>,
     HashMap<String, McpAuthStatus>,
 );
 
@@ -1244,10 +1244,10 @@ pub(super) fn mcp_inventory_maps_from_statuses(statuses: Vec<McpServerStatus>) -
         auth_statuses.insert(
             server_name.clone(),
             match status.auth_status {
-                codex_app_server_protocol::McpAuthStatus::Unsupported => McpAuthStatus::Unsupported,
-                codex_app_server_protocol::McpAuthStatus::NotLoggedIn => McpAuthStatus::NotLoggedIn,
-                codex_app_server_protocol::McpAuthStatus::BearerToken => McpAuthStatus::BearerToken,
-                codex_app_server_protocol::McpAuthStatus::OAuth => McpAuthStatus::OAuth,
+                codepilotx_app_server_protocol::McpAuthStatus::Unsupported => McpAuthStatus::Unsupported,
+                codepilotx_app_server_protocol::McpAuthStatus::NotLoggedIn => McpAuthStatus::NotLoggedIn,
+                codepilotx_app_server_protocol::McpAuthStatus::BearerToken => McpAuthStatus::BearerToken,
+                codepilotx_app_server_protocol::McpAuthStatus::OAuth => McpAuthStatus::OAuth,
             },
         );
         resources.insert(server_name.clone(), status.resources);
@@ -1264,9 +1264,9 @@ pub(super) fn mcp_inventory_maps_from_statuses(statuses: Vec<McpServerStatus>) -
 mod tests {
     use super::*;
     use crate::app::test_support::make_test_app;
-    use codex_app_server_protocol::PluginMarketplaceEntry;
-    use codex_protocol::mcp::Tool;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use codepilotx_app_server_protocol::PluginMarketplaceEntry;
+    use codepilotx_protocol::mcp::Tool;
+    use codepilotx_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
 
     fn test_absolute_path(path: &str) -> AbsolutePathBuf {
@@ -1438,7 +1438,7 @@ mod tests {
                 )]),
                 resources: Vec::new(),
                 resource_templates: Vec::new(),
-                auth_status: codex_app_server_protocol::McpAuthStatus::Unsupported,
+                auth_status: codepilotx_app_server_protocol::McpAuthStatus::Unsupported,
             },
             McpServerStatus {
                 name: "disabled".to_string(),
@@ -1446,7 +1446,7 @@ mod tests {
                 tools: HashMap::new(),
                 resources: Vec::new(),
                 resource_templates: Vec::new(),
-                auth_status: codex_app_server_protocol::McpAuthStatus::Unsupported,
+                auth_status: codepilotx_app_server_protocol::McpAuthStatus::Unsupported,
             },
         ];
 

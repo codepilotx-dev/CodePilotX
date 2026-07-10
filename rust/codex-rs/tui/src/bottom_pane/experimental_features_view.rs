@@ -21,7 +21,7 @@ use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
 use crate::style::user_message_style;
 
-use codex_features::Feature;
+use codepilotx_features::Feature;
 
 use super::CancellationEvent;
 use super::bottom_pane_view::BottomPaneView;
@@ -90,7 +90,7 @@ impl ExperimentalFeaturesView {
         let selected_idx = self.state.selected_idx;
         for (idx, item) in self.features.iter().enumerate() {
             let prefix = if selected_idx == Some(idx) {
-                'â€º'
+                'â€?
             } else {
                 ' '
             };

@@ -28,38 +28,38 @@ use std::time::Instant;
 
 use anyhow::Context;
 use clap::Parser;
-use codex_api::ApiError;
-use codex_api::ResponsesWebsocketClient;
-use codex_api::is_azure_responses_provider;
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_core::config::ConfigOverrides;
-use codex_core::config::find_codex_home;
-use codex_features::FEATURES;
-use codex_install_context::CodexPackageLayout;
-use codex_install_context::InstallContext;
-use codex_install_context::InstallMethod;
-use codex_install_context::StandalonePlatform;
-use codex_login::AuthDotJson;
-use codex_login::AuthManager;
-use codex_login::CODEX_ACCESS_TOKEN_ENV_VAR;
-use codex_login::CODEX_API_KEY_ENV_VAR;
-use codex_login::CodexAuth;
-use codex_login::OPENAI_API_KEY_ENV_VAR;
-use codex_login::default_client::build_reqwest_client;
-use codex_login::default_client::default_headers;
-use codex_login::load_auth_dot_json;
-use codex_model_provider::create_model_provider;
-use codex_protocol::protocol::AskForApproval;
-use codex_terminal_detection::Multiplexer;
-use codex_terminal_detection::TerminalInfo;
-use codex_terminal_detection::TerminalName;
-use codex_terminal_detection::terminal_info;
-use codex_tui::Cli as TuiCli;
-use codex_utils_cli::CliConfigOverrides;
+use codepilotx_api::ApiError;
+use codepilotx_api::ResponsesWebsocketClient;
+use codepilotx_api::is_azure_responses_provider;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_config::types::McpServerConfig;
+use codepilotx_config::types::McpServerTransportConfig;
+use codepilotx_core::config::Config;
+use codepilotx_core::config::ConfigBuilder;
+use codepilotx_core::config::ConfigOverrides;
+use codepilotx_core::config::find_codepilotx_home;
+use codepilotx_features::FEATURES;
+use codepilotx_install_context::CodexPackageLayout;
+use codepilotx_install_context::InstallContext;
+use codepilotx_install_context::InstallMethod;
+use codepilotx_install_context::StandalonePlatform;
+use codepilotx_login::AuthDotJson;
+use codepilotx_login::AuthManager;
+use codepilotx_login::codepilotx_ACCESS_TOKEN_ENV_VAR;
+use codepilotx_login::codepilotx_API_KEY_ENV_VAR;
+use codepilotx_login::CodexAuth;
+use codepilotx_login::OPENAI_API_KEY_ENV_VAR;
+use codepilotx_login::default_client::build_reqwest_client;
+use codepilotx_login::default_client::default_headers;
+use codepilotx_login::load_auth_dot_json;
+use codepilotx_model_provider::create_model_provider;
+use codepilotx_protocol::protocol::AskForApproval;
+use codepilotx_terminal_detection::Multiplexer;
+use codepilotx_terminal_detection::TerminalInfo;
+use codepilotx_terminal_detection::TerminalName;
+use codepilotx_terminal_detection::terminal_info;
+use codepilotx_tui::Cli as TuiCli;
+use codepilotx_utils_cli::CliConfigOverrides;
 use http::HeaderMap;
 use http::HeaderValue;
 use serde::Serialize;
@@ -188,7 +188,7 @@ struct DoctorReport {
     schema_version: u32,
     generated_at: String,
     overall_status: CheckStatus,
-    codex_version: String,
+    codepilotx_version: String,
     checks: Vec<DoctorCheck>,
 }
 
@@ -350,7 +350,7 @@ async fn build_report(
     match &config_result {
         Ok(config) => {
             let auth_manager =
-                AuthManager::shared_from_config(config, /*enable_codex_api_key_env*/ true).await;
+                AuthManager::shared_from_config(config, /*enable_codepilotx_api_key_env*/ true).await;
             let reachability_plan = provider_reachability_plan(config);
             let (
                 config_check,
@@ -486,7 +486,7 @@ async fn build_report(
         schema_version: 1,
         generated_at: generated_at(),
         overall_status,
-        codex_version: env!("CARGO_PKG_VERSION").to_string(),
+        codepilotx_version: env!("CARGO_PKG_VERSION").to_string(),
         checks,
     }
 }
@@ -529,7 +529,7 @@ fn config_overrides_from_interactive(
         interactive.approval_policy.map(Into::into)
     };
     let sandbox_mode = if interactive.dangerously_bypass_approvals_and_sandbox {
-        Some(codex_protocol::config_types::SandboxMode::DangerFullAccess)
+        Some(codepilotx_protocol::config_types::SandboxMode::DangerFullAccess)
     } else {
         interactive.sandbox_mode.map(Into::into)
     };
@@ -542,8 +542,8 @@ fn config_overrides_from_interactive(
             .oss
             .then(|| interactive.oss_provider.clone())
             .flatten(),
-        codex_self_exe: arg0_paths.codex_self_exe.clone(),
-        codex_linux_sandbox_exe: arg0_paths.codex_linux_sandbox_exe.clone(),
+        codepilotx_self_exe: arg0_paths.codepilotx_self_exe.clone(),
+        codepilotx_linux_sandbox_exe: arg0_paths.codepilotx_linux_sandbox_exe.clone(),
         main_execve_wrapper_exe: arg0_paths.main_execve_wrapper_exe.clone(),
         show_raw_agent_reasoning: interactive.oss.then_some(true),
         additional_writable_roots: interactive.add_dir.clone(),
@@ -563,7 +563,7 @@ struct JsonDoctorReport {
     schema_version: u32,
     generated_at: String,
     overall_status: CheckStatus,
-    codex_version: String,
+    codepilotx_version: String,
     checks: BTreeMap<String, JsonDoctorCheck>,
 }
 
@@ -628,7 +628,7 @@ fn redacted_json_report(report: &DoctorReport) -> JsonDoctorReport {
         schema_version: report.schema_version,
         generated_at: report.generated_at.clone(),
         overall_status: report.overall_status,
-        codex_version: report.codex_version.clone(),
+        codepilotx_version: report.codepilotx_version.clone(),
         checks,
     }
 }
@@ -794,15 +794,15 @@ fn installation_check(show_details: bool) -> DoctorCheck {
     ));
     details.push(format!(
         "managed by bun: {}",
-        env::var_os("CODEX_MANAGED_BY_BUN").is_some()
+        env::var_os("codepilotx_MANAGED_BY_BUN").is_some()
     ));
     push_env_path_detail(
         &mut details,
         "managed package root",
-        "CODEX_MANAGED_PACKAGE_ROOT",
+        "codepilotx_MANAGED_PACKAGE_ROOT",
     );
 
-    let path_entries = codex_path_entries();
+    let path_entries = codepilotx_path_entries();
     let mut status = CheckStatus::Ok;
     let mut summary = "installation looks consistent".to_string();
     let mut remediation = None;
@@ -846,7 +846,7 @@ fn installation_check(show_details: bool) -> DoctorCheck {
                 status = status.max(CheckStatus::Warning);
                 summary = "npm-managed launch is missing package-root provenance".to_string();
                 remediation = Some(
-                    "Reinstall or update Codex so the JS shim provides CODEX_MANAGED_PACKAGE_ROOT."
+                    "Reinstall or update Codex so the JS shim provides codepilotx_MANAGED_PACKAGE_ROOT."
                         .to_string(),
                 );
             }
@@ -877,13 +877,13 @@ fn doctor_install_context(current_exe: Option<&Path>) -> InstallContext {
 }
 
 fn doctor_managed_by_npm(current_exe: Option<&Path>) -> bool {
-    env::var_os("CODEX_MANAGED_BY_NPM").is_some()
+    env::var_os("codepilotx_MANAGED_BY_NPM").is_some()
         && !inherited_managed_env_for_cargo_binary(current_exe)
 }
 
 fn inherited_managed_env_for_cargo_binary(current_exe: Option<&Path>) -> bool {
-    if env::var_os("CODEX_MANAGED_BY_NPM").is_none()
-        && env::var_os("CODEX_MANAGED_BY_BUN").is_none()
+    if env::var_os("codepilotx_MANAGED_BY_NPM").is_none()
+        && env::var_os("codepilotx_MANAGED_BY_BUN").is_none()
     {
         return false;
     }
@@ -982,7 +982,7 @@ enum NpmRootCheck {
 }
 
 fn npm_global_root_check() -> NpmRootCheck {
-    let Some(running_package_root) = env::var_os("CODEX_MANAGED_PACKAGE_ROOT").map(PathBuf::from)
+    let Some(running_package_root) = env::var_os("codepilotx_MANAGED_PACKAGE_ROOT").map(PathBuf::from)
     else {
         return NpmRootCheck::MissingPackageRoot;
     };
@@ -1036,7 +1036,7 @@ fn display_list<T: AsRef<str>>(items: &[T]) -> String {
     }
 }
 
-fn codex_path_entries() -> Vec<String> {
+fn codepilotx_path_entries() -> Vec<String> {
     #[cfg(windows)]
     let result = run_command("where", ["codex"]);
     #[cfg(not(windows))]
@@ -1072,7 +1072,7 @@ where
 
 fn config_check(config: &Config) -> DoctorCheck {
     let mut details = Vec::new();
-    details.push(format!("CODEX_HOME: {}", config.codex_home.display()));
+    details.push(format!("codepilotx_HOME: {}", config.codepilotx_home.display()));
     details.push(format!("cwd: {}", config.cwd.display()));
     details.push(format!(
         "model: {}",
@@ -1149,7 +1149,7 @@ fn feature_flag_details(config: &Config, details: &mut Vec<String>) {
 }
 
 fn config_toml_details(config: &Config, details: &mut Vec<String>) {
-    let config_path = config.codex_home.join(codex_config::CONFIG_TOML_FILE);
+    let config_path = config.codepilotx_home.join(codepilotx_config::CONFIG_TOML_FILE);
     details.push(format!("config.toml: {}", config_path.display()));
     match std::fs::read_to_string(&config_path) {
         Ok(contents) => match toml::from_str::<toml::Value>(&contents) {
@@ -1165,7 +1165,7 @@ fn config_toml_details(config: &Config, details: &mut Vec<String>) {
 
 fn auth_check(config: &Config) -> DoctorCheck {
     let mut details = Vec::new();
-    let auth_path = config.codex_home.join("auth.json");
+    let auth_path = config.codepilotx_home.join("auth.json");
     details.push(format!(
         "auth storage mode: {:?}",
         config.cli_auth_credentials_store_mode
@@ -1174,8 +1174,8 @@ fn auth_check(config: &Config) -> DoctorCheck {
 
     let env_auth_vars = [
         OPENAI_API_KEY_ENV_VAR,
-        CODEX_API_KEY_ENV_VAR,
-        CODEX_ACCESS_TOKEN_ENV_VAR,
+        codepilotx_API_KEY_ENV_VAR,
+        codepilotx_ACCESS_TOKEN_ENV_VAR,
     ]
     .into_iter()
     .filter(|name| env_var_present(name))
@@ -1197,7 +1197,7 @@ fn auth_check(config: &Config) -> DoctorCheck {
     }
 
     match load_auth_dot_json(
-        &config.codex_home,
+        &config.codepilotx_home,
         config.cli_auth_credentials_store_mode,
         config.auth_keyring_backend_kind(),
     ) {
@@ -1321,29 +1321,29 @@ fn provider_specific_auth_check(
     }
 }
 
-fn stored_auth_mode(auth: &codex_login::AuthDotJson) -> &'static str {
+fn stored_auth_mode(auth: &codepilotx_login::AuthDotJson) -> &'static str {
     match stored_auth_mode_value(auth) {
-        codex_app_server_protocol::AuthMode::ApiKey => "api_key",
-        codex_app_server_protocol::AuthMode::Chatgpt => "chatgpt",
-        codex_app_server_protocol::AuthMode::ChatgptAuthTokens => "chatgpt_auth_tokens",
-        codex_app_server_protocol::AuthMode::AgentIdentity => "agent_identity",
-        codex_app_server_protocol::AuthMode::PersonalAccessToken => "personal_access_token",
-        codex_app_server_protocol::AuthMode::BedrockApiKey => "bedrock_api_key",
+        codepilotx_app_server_protocol::AuthMode::ApiKey => "api_key",
+        codepilotx_app_server_protocol::AuthMode::Chatgpt => "chatgpt",
+        codepilotx_app_server_protocol::AuthMode::ChatgptAuthTokens => "chatgpt_auth_tokens",
+        codepilotx_app_server_protocol::AuthMode::AgentIdentity => "agent_identity",
+        codepilotx_app_server_protocol::AuthMode::PersonalAccessToken => "personal_access_token",
+        codepilotx_app_server_protocol::AuthMode::BedrockApiKey => "bedrock_api_key",
     }
 }
 
-fn stored_auth_mode_value(auth: &AuthDotJson) -> codex_app_server_protocol::AuthMode {
+fn stored_auth_mode_value(auth: &AuthDotJson) -> codepilotx_app_server_protocol::AuthMode {
     if let Some(mode) = auth.auth_mode {
         return mode;
     }
     if auth.personal_access_token.is_some() {
-        codex_app_server_protocol::AuthMode::PersonalAccessToken
+        codepilotx_app_server_protocol::AuthMode::PersonalAccessToken
     } else if auth.bedrock_api_key.is_some() {
-        codex_app_server_protocol::AuthMode::BedrockApiKey
+        codepilotx_app_server_protocol::AuthMode::BedrockApiKey
     } else if auth.openai_api_key.is_some() {
-        codex_app_server_protocol::AuthMode::ApiKey
+        codepilotx_app_server_protocol::AuthMode::ApiKey
     } else {
-        codex_app_server_protocol::AuthMode::Chatgpt
+        codepilotx_app_server_protocol::AuthMode::Chatgpt
     }
 }
 
@@ -1353,18 +1353,18 @@ fn stored_auth_issues(
 ) -> Vec<&'static str> {
     let mut issues = Vec::new();
     match stored_auth_mode_value(auth) {
-        codex_app_server_protocol::AuthMode::ApiKey => {
+        codepilotx_app_server_protocol::AuthMode::ApiKey => {
             let stored_key_present = auth
                 .openai_api_key
                 .as_deref()
                 .is_some_and(|key| !key.trim().is_empty());
             let env_key_present =
-                env_var_present(OPENAI_API_KEY_ENV_VAR) || env_var_present(CODEX_API_KEY_ENV_VAR);
+                env_var_present(OPENAI_API_KEY_ENV_VAR) || env_var_present(codepilotx_API_KEY_ENV_VAR);
             if !stored_key_present && !env_key_present {
                 issues.push("API key auth is missing an API key");
             }
         }
-        codex_app_server_protocol::AuthMode::Chatgpt => {
+        codepilotx_app_server_protocol::AuthMode::Chatgpt => {
             match auth.tokens.as_ref() {
                 Some(tokens) => {
                     if tokens.access_token.trim().is_empty() {
@@ -1380,7 +1380,7 @@ fn stored_auth_issues(
                 issues.push("ChatGPT auth is missing refresh metadata");
             }
         }
-        codex_app_server_protocol::AuthMode::ChatgptAuthTokens => {
+        codepilotx_app_server_protocol::AuthMode::ChatgptAuthTokens => {
             match auth.tokens.as_ref() {
                 Some(tokens) => {
                     if tokens.access_token.trim().is_empty() {
@@ -1396,7 +1396,7 @@ fn stored_auth_issues(
                 issues.push("external ChatGPT auth is missing refresh metadata");
             }
         }
-        codex_app_server_protocol::AuthMode::AgentIdentity => {
+        codepilotx_app_server_protocol::AuthMode::AgentIdentity => {
             if auth
                 .agent_identity
                 .as_ref()
@@ -1405,7 +1405,7 @@ fn stored_auth_issues(
                 issues.push("agent identity auth is missing an agent identity token");
             }
         }
-        codex_app_server_protocol::AuthMode::PersonalAccessToken => {
+        codepilotx_app_server_protocol::AuthMode::PersonalAccessToken => {
             if auth
                 .personal_access_token
                 .as_deref()
@@ -1414,7 +1414,7 @@ fn stored_auth_issues(
                 issues.push("personal access token auth is missing a personal access token");
             }
         }
-        codex_app_server_protocol::AuthMode::BedrockApiKey => {
+        codepilotx_app_server_protocol::AuthMode::BedrockApiKey => {
             if auth.bedrock_api_key.is_none() {
                 issues.push("Bedrock API key auth is missing a Bedrock API key");
             }
@@ -1429,7 +1429,7 @@ fn network_check() -> DoctorCheck {
 
     let mut status = CheckStatus::Ok;
     let mut summary = "network-related environment looks readable".to_string();
-    for name in ["CODEX_CA_CERTIFICATE", "SSL_CERT_FILE"] {
+    for name in ["codepilotx_CA_CERTIFICATE", "SSL_CERT_FILE"] {
         if let Some(raw) = env::var_os(name) {
             let path = PathBuf::from(raw);
             match std::fs::metadata(&path) {
@@ -1643,7 +1643,7 @@ fn sandbox_check(config: &Config, arg0_paths: &Arg0DispatchPaths) -> DoctorCheck
     push_path_detail(
         &mut details,
         "codex-linux-sandbox helper",
-        arg0_paths.codex_linux_sandbox_exe.as_deref(),
+        arg0_paths.codepilotx_linux_sandbox_exe.as_deref(),
     );
     push_path_detail(
         &mut details,
@@ -1653,7 +1653,7 @@ fn sandbox_check(config: &Config, arg0_paths: &Arg0DispatchPaths) -> DoctorCheck
 
     let mut status = CheckStatus::Ok;
     let mut summary = "sandbox configuration is readable".to_string();
-    if let Some(helper) = arg0_paths.codex_linux_sandbox_exe.as_deref()
+    if let Some(helper) = arg0_paths.codepilotx_linux_sandbox_exe.as_deref()
         && !helper.exists()
     {
         status = CheckStatus::Warning;
@@ -2130,15 +2130,15 @@ fn non_empty_trimmed(value: String) -> Option<String> {
 
 async fn state_check(config: &Config) -> DoctorCheck {
     let mut details = Vec::new();
-    path_readiness(&mut details, "CODEX_HOME", &config.codex_home);
+    path_readiness(&mut details, "codepilotx_HOME", &config.codepilotx_home);
     path_readiness(&mut details, "log dir", &config.log_dir);
     path_readiness(&mut details, "sqlite home", &config.sqlite_home);
     let mut integrity_failures = Vec::new();
-    for db in codex_state::runtime_db_paths(&config.sqlite_home) {
+    for db in codepilotx_state::runtime_db_paths(&config.sqlite_home) {
         path_readiness(&mut details, db.label, &db.path);
         sqlite_integrity_detail(&mut details, &mut integrity_failures, db.label, &db.path).await;
     }
-    rollout_stats_details(&mut details, &config.codex_home);
+    rollout_stats_details(&mut details, &config.codepilotx_home);
     standalone_release_cache_details(&mut details);
 
     let status = if integrity_failures.is_empty() {
@@ -2171,7 +2171,7 @@ async fn sqlite_integrity_detail(
         return;
     }
 
-    match codex_state::sqlite_integrity_check(path).await {
+    match codepilotx_state::sqlite_integrity_check(path).await {
         Ok(rows) if rows.iter().all(|row| row == "ok") => {
             details.push(format!("{label} integrity: ok"));
         }
@@ -2188,9 +2188,9 @@ async fn sqlite_integrity_detail(
     }
 }
 
-fn rollout_stats_details(details: &mut Vec<String>, codex_home: &Path) {
-    let active = collect_rollout_stats(&codex_home.join("sessions"));
-    let archived = collect_rollout_stats(&codex_home.join("archived_sessions"));
+fn rollout_stats_details(details: &mut Vec<String>, codepilotx_home: &Path) {
+    let active = collect_rollout_stats(&codepilotx_home.join("sessions"));
+    let archived = collect_rollout_stats(&codepilotx_home.join("archived_sessions"));
     push_rollout_stats_detail(details, "active rollout files", active);
     push_rollout_stats_detail(details, "archived rollout files", archived);
 }
@@ -2444,12 +2444,12 @@ fn websocket_error_detail(err: &ApiError) -> String {
 
 fn auth_mode_name(auth: &CodexAuth) -> &'static str {
     match auth.auth_mode() {
-        codex_app_server_protocol::AuthMode::ApiKey => "api_key",
-        codex_app_server_protocol::AuthMode::Chatgpt => "chatgpt",
-        codex_app_server_protocol::AuthMode::ChatgptAuthTokens => "chatgpt_auth_tokens",
-        codex_app_server_protocol::AuthMode::AgentIdentity => "agent_identity",
-        codex_app_server_protocol::AuthMode::PersonalAccessToken => "personal_access_token",
-        codex_app_server_protocol::AuthMode::BedrockApiKey => "bedrock_api_key",
+        codepilotx_app_server_protocol::AuthMode::ApiKey => "api_key",
+        codepilotx_app_server_protocol::AuthMode::Chatgpt => "chatgpt",
+        codepilotx_app_server_protocol::AuthMode::ChatgptAuthTokens => "chatgpt_auth_tokens",
+        codepilotx_app_server_protocol::AuthMode::AgentIdentity => "agent_identity",
+        codepilotx_app_server_protocol::AuthMode::PersonalAccessToken => "personal_access_token",
+        codepilotx_app_server_protocol::AuthMode::BedrockApiKey => "bedrock_api_key",
     }
 }
 
@@ -2481,20 +2481,20 @@ async fn dns_address_family_details(host: &str, port: u16) -> Vec<String> {
 }
 
 fn fallback_state_check() -> DoctorCheck {
-    let codex_home = find_codex_home();
-    match codex_home {
+    let codepilotx_home = find_codepilotx_home();
+    match codepilotx_home {
         Ok(path) => DoctorCheck::new(
             "state.paths",
             "state",
             CheckStatus::Ok,
-            "CODEX_HOME was resolved without config",
+            "codepilotx_HOME was resolved without config",
         )
-        .detail(format!("CODEX_HOME: {}", path.display())),
+        .detail(format!("codepilotx_HOME: {}", path.display())),
         Err(err) => DoctorCheck::new(
             "state.paths",
             "state",
             CheckStatus::Warning,
-            "CODEX_HOME could not be resolved",
+            "codepilotx_HOME could not be resolved",
         )
         .detail(err.to_string()),
     }
@@ -2533,7 +2533,7 @@ impl ProviderAuthReachabilityMode {
 
 fn provider_reachability_plan(config: &Config) -> ReachabilityPlan {
     let stored_auth = load_auth_dot_json(
-        &config.codex_home,
+        &config.codepilotx_home,
         config.cli_auth_credentials_store_mode,
         config.auth_keyring_backend_kind(),
     )
@@ -2575,22 +2575,22 @@ fn provider_auth_reachability_mode_from_auth(
     if !requires_openai_auth {
         return ProviderAuthReachabilityMode::NotRequired;
     }
-    if env_var_present(OPENAI_API_KEY_ENV_VAR) || env_var_present(CODEX_API_KEY_ENV_VAR) {
+    if env_var_present(OPENAI_API_KEY_ENV_VAR) || env_var_present(codepilotx_API_KEY_ENV_VAR) {
         return ProviderAuthReachabilityMode::ApiKey;
     }
-    if env_var_present(CODEX_ACCESS_TOKEN_ENV_VAR) {
+    if env_var_present(codepilotx_ACCESS_TOKEN_ENV_VAR) {
         return ProviderAuthReachabilityMode::Chatgpt;
     }
     match stored_auth.map(stored_auth_mode_value) {
         Some(
-            codex_app_server_protocol::AuthMode::ApiKey
-            | codex_app_server_protocol::AuthMode::BedrockApiKey,
+            codepilotx_app_server_protocol::AuthMode::ApiKey
+            | codepilotx_app_server_protocol::AuthMode::BedrockApiKey,
         ) => ProviderAuthReachabilityMode::ApiKey,
         Some(
-            codex_app_server_protocol::AuthMode::Chatgpt
-            | codex_app_server_protocol::AuthMode::ChatgptAuthTokens
-            | codex_app_server_protocol::AuthMode::AgentIdentity
-            | codex_app_server_protocol::AuthMode::PersonalAccessToken,
+            codepilotx_app_server_protocol::AuthMode::Chatgpt
+            | codepilotx_app_server_protocol::AuthMode::ChatgptAuthTokens
+            | codepilotx_app_server_protocol::AuthMode::AgentIdentity
+            | codepilotx_app_server_protocol::AuthMode::PersonalAccessToken,
         )
         | None => ProviderAuthReachabilityMode::Chatgpt,
     }
@@ -3061,7 +3061,7 @@ mod tests {
     use std::sync::Mutex;
 
     use clap::Parser;
-    use codex_protocol::config_types::SandboxMode;
+    use codepilotx_protocol::config_types::SandboxMode;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -3185,7 +3185,7 @@ mod tests {
     fn startup_warning_counts_group_known_sources() {
         let warnings = vec![
             "Skipped loading 2 skill(s) due to invalid SKILL.md files.".to_string(),
-            "[features].codex_hooks is deprecated. Use [features].hooks instead.".to_string(),
+            "[features].codepilotx_hooks is deprecated. Use [features].hooks instead.".to_string(),
             "plugin example failed to load".to_string(),
             "MCP server example failed to start".to_string(),
         ];
@@ -3225,8 +3225,8 @@ mod tests {
             "/var/tmp",
         ]);
         let arg0_paths = Arg0DispatchPaths {
-            codex_self_exe: Some(PathBuf::from("/bin/codex")),
-            codex_linux_sandbox_exe: Some(PathBuf::from("/bin/codex-linux-sandbox")),
+            codepilotx_self_exe: Some(PathBuf::from("/bin/codex")),
+            codepilotx_linux_sandbox_exe: Some(PathBuf::from("/bin/codex-linux-sandbox")),
             main_execve_wrapper_exe: Some(PathBuf::from("/bin/codex-execve-wrapper")),
         };
 
@@ -3242,10 +3242,10 @@ mod tests {
             overrides.additional_writable_roots,
             vec![PathBuf::from("/var/tmp")]
         );
-        assert_eq!(overrides.codex_self_exe, arg0_paths.codex_self_exe);
+        assert_eq!(overrides.codepilotx_self_exe, arg0_paths.codepilotx_self_exe);
         assert_eq!(
-            overrides.codex_linux_sandbox_exe,
-            arg0_paths.codex_linux_sandbox_exe
+            overrides.codepilotx_linux_sandbox_exe,
+            arg0_paths.codepilotx_linux_sandbox_exe
         );
         assert_eq!(
             overrides.main_execve_wrapper_exe,
@@ -3259,7 +3259,7 @@ mod tests {
             schema_version: 1,
             generated_at: "0s since unix epoch".to_string(),
             overall_status: CheckStatus::Warning,
-            codex_version: "0.0.0".to_string(),
+            codepilotx_version: "0.0.0".to_string(),
             checks: vec![
                 DoctorCheck::new(
                     "system.environment",
@@ -3366,7 +3366,7 @@ mod tests {
                 url = "http://127.0.0.1:9/mcp"
                 enabled = false
                 required = true
-                bearer_token_env_var = "CODEX_DOCTOR_DISABLED_MCP_TOKEN"
+                bearer_token_env_var = "codepilotx_DOCTOR_DISABLED_MCP_TOKEN"
             "#,
         )
         .expect("should deserialize disabled MCP config");
@@ -3381,7 +3381,7 @@ mod tests {
             check
                 .details
                 .iter()
-                .all(|detail| !detail.contains("CODEX_DOCTOR_DISABLED_MCP_TOKEN"))
+                .all(|detail| !detail.contains("codepilotx_DOCTOR_DISABLED_MCP_TOKEN"))
         );
         assert!(
             check
@@ -3484,7 +3484,7 @@ mod tests {
     #[test]
     fn stored_auth_validation_rejects_missing_api_key() {
         let auth = AuthDotJson {
-            auth_mode: Some(codex_app_server_protocol::AuthMode::ApiKey),
+            auth_mode: Some(codepilotx_app_server_protocol::AuthMode::ApiKey),
             openai_api_key: None,
             tokens: None,
             last_refresh: None,
@@ -3536,7 +3536,7 @@ mod tests {
         assert_eq!(stored_auth_mode(&auth), "personal_access_token");
         assert!(stored_auth_issues(&auth, |_| false).is_empty());
 
-        auth.auth_mode = Some(codex_app_server_protocol::AuthMode::PersonalAccessToken);
+        auth.auth_mode = Some(codepilotx_app_server_protocol::AuthMode::PersonalAccessToken);
         auth.personal_access_token = None;
         assert_eq!(
             stored_auth_issues(&auth, |_| false),
@@ -3547,7 +3547,7 @@ mod tests {
     #[test]
     fn provider_reachability_mode_uses_api_key_auth() {
         let api_key_auth = AuthDotJson {
-            auth_mode: Some(codex_app_server_protocol::AuthMode::ApiKey),
+            auth_mode: Some(codepilotx_app_server_protocol::AuthMode::ApiKey),
             openai_api_key: Some("sk-test".to_string()),
             tokens: None,
             last_refresh: None,

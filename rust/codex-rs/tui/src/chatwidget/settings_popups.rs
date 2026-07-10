@@ -7,14 +7,14 @@ use super::*;
 
 impl ChatWidget {
     pub(super) fn open_theme_picker(&mut self) {
-        let codex_home = codex_utils_home_dir::find_codex_home().ok();
+        let codepilotx_home = codepilotx_utils_home_dir::find_codepilotx_home().ok();
         let terminal_width = self
             .last_rendered_width
             .get()
             .and_then(|width| u16::try_from(width).ok());
         let params = crate::theme_picker::build_theme_picker_params(
             self.config.tui_theme.as_deref(),
-            codex_home.as_deref(),
+            codepilotx_home.as_deref(),
             terminal_width,
         );
         self.bottom_pane.show_selection_view(params);

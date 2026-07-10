@@ -476,7 +476,7 @@ async fn queued_bare_rename_drains_next_input_after_name_update() {
 
     chat.handle_server_notification(
         ServerNotification::ThreadNameUpdated(
-            codex_app_server_protocol::ThreadNameUpdatedNotification {
+            codepilotx_app_server_protocol::ThreadNameUpdatedNotification {
                 thread_id: thread_id.to_string(),
                 thread_name: Some("Queued rename".to_string()),
             },
@@ -550,7 +550,7 @@ async fn queued_inline_rename_does_not_drain_again_before_turn_started() {
 
     chat.handle_server_notification(
         ServerNotification::ThreadNameUpdated(
-            codex_app_server_protocol::ThreadNameUpdatedNotification {
+            codepilotx_app_server_protocol::ThreadNameUpdatedNotification {
                 thread_id: thread_id.to_string(),
                 thread_name: Some("Queued rename".to_string()),
             },
@@ -626,7 +626,7 @@ async fn ctrl_d_with_modal_open_does_not_quit() {
 #[tokio::test]
 async fn slash_init_does_not_depend_on_loaded_instruction_sources() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.instruction_source_paths = vec![codex_utils_path_uri::PathUri::from_abs_path(
+    chat.instruction_source_paths = vec![codepilotx_utils_path_uri::PathUri::from_abs_path(
         &chat.config.cwd.join("project-instructions.md"),
     )];
 
@@ -718,7 +718,7 @@ async fn goal_slash_command_emits_attached_images() {
     let thread_id = ThreadId::new();
     chat.thread_id = Some(thread_id);
     let remote_url = "https://example.com/goal.png".to_string();
-    let local_image = chat.config.codex_home.join("goal-local.png");
+    let local_image = chat.config.codepilotx_home.join("goal-local.png");
     std::fs::write(&local_image, b"png bytes").expect("write local image");
     let placeholder = "[Image #2]";
     let command = format!("/goal literal {placeholder} describe {placeholder}");
@@ -825,7 +825,7 @@ async fn goal_control_slash_command_without_thread_shows_full_usage() {
     assert_eq!(cells.len(), 1, "expected goal usage message");
     insta::assert_snapshot!(
         lines_to_single_string(&cells[0]),
-        @"â€¢ Usage: /goal [<objective>|clear|edit|pause|resume] The session must start before you can change a goal."
+        @"â€?Usage: /goal [<objective>|clear|edit|pause|resume] The session must start before you can change a goal."
     );
 }
 
@@ -876,7 +876,7 @@ async fn queued_goal_slash_command_preserves_large_paste() {
     let thread_id = ThreadId::new();
     chat.thread_id = Some(thread_id);
     handle_turn_started(&mut chat, "turn-1");
-    let paste = "x".repeat(codex_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS + 1);
+    let paste = "x".repeat(codepilotx_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS + 1);
 
     queue_goal_with_large_paste(&mut chat, paste.clone());
 
@@ -897,7 +897,7 @@ async fn queued_goal_slash_command_restores_large_paste_for_edit() {
     let thread_id = ThreadId::new();
     chat.thread_id = Some(thread_id);
     handle_turn_started(&mut chat, "turn-1");
-    let paste = "x".repeat(codex_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS + 1);
+    let paste = "x".repeat(codepilotx_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS + 1);
 
     queue_goal_with_large_paste(&mut chat, paste.clone());
     chat.handle_key_event(KeyEvent::new(KeyCode::Up, KeyModifiers::ALT));
@@ -917,7 +917,7 @@ async fn interrupt_disambiguates_same_sized_goal_pastes() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
     handle_turn_started(&mut chat, "turn-1");
-    let first = "a".repeat(codex_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS + 1);
+    let first = "a".repeat(codepilotx_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS + 1);
     let second = "b".repeat(first.len());
 
     queue_goal_with_large_paste(&mut chat, first);
@@ -1281,7 +1281,7 @@ async fn usage_command_runs_with_backend_auth_without_chatgpt_account_flag() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.update_account_state(
         /*status_account_display*/ None, /*plan_type*/ None,
-        /*has_chatgpt_account*/ false, /*has_codex_backend_auth*/ true,
+        /*has_chatgpt_account*/ false, /*has_codepilotx_backend_auth*/ true,
     );
 
     chat.dispatch_command_with_args(SlashCommand::Usage, "daily".to_string(), Vec::new());
@@ -1294,7 +1294,7 @@ async fn usage_command_runs_with_backend_auth_without_chatgpt_account_flag() {
 async fn usage_command_runs_with_backend_auth_from_widget_init() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual_with_auth(
         /*model_override*/ None, /*has_chatgpt_account*/ false,
-        /*has_codex_backend_auth*/ true,
+        /*has_codepilotx_backend_auth*/ true,
     )
     .await;
 
@@ -1302,7 +1302,7 @@ async fn usage_command_runs_with_backend_auth_from_widget_init() {
 
     assert_matches!(rx.try_recv(), Ok(AppEvent::RefreshTokenActivity { .. }));
     assert!(!chat.has_chatgpt_account());
-    assert!(chat.has_codex_backend_auth());
+    assert!(chat.has_codepilotx_backend_auth());
 }
 
 #[tokio::test]
@@ -1347,7 +1347,7 @@ async fn account_state_change_discards_pending_token_activity_refresh() {
         }),
         /*plan_type*/ None,
         /*has_chatgpt_account*/ true,
-        /*has_codex_backend_auth*/ true,
+        /*has_codepilotx_backend_auth*/ true,
     );
 
     assert!(chat.pending_token_activity_output().is_none());
@@ -1491,8 +1491,8 @@ async fn completed_token_activity_refresh_waits_for_active_hook() {
         &mut chat,
         hook_run(
             "post-tool-use:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PostToolUse,
-            codex_app_server_protocol::HookRunStatus::Running,
+            codepilotx_app_server_protocol::HookEventName::PostToolUse,
+            codepilotx_app_server_protocol::HookRunStatus::Running,
             "checking output policy",
             Vec::new(),
         ),
@@ -1511,11 +1511,11 @@ async fn completed_token_activity_refresh_waits_for_active_hook() {
         &mut chat,
         hook_run(
             "post-tool-use:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PostToolUse,
-            codex_app_server_protocol::HookRunStatus::Completed,
+            codepilotx_app_server_protocol::HookEventName::PostToolUse,
+            codepilotx_app_server_protocol::HookRunStatus::Completed,
             "checking output policy",
-            vec![codex_app_server_protocol::HookOutputEntry {
-                kind: codex_app_server_protocol::HookOutputEntryKind::Context,
+            vec![codepilotx_app_server_protocol::HookOutputEntry {
+                kind: codepilotx_app_server_protocol::HookOutputEntryKind::Context,
                 text: "hook context".to_string(),
             }],
         ),
@@ -1886,8 +1886,8 @@ async fn slash_keymap_invalid_args_show_usage() {
 async fn copy_shortcut_can_be_remapped() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let mut keymap_config = chat.config_ref().tui_keymap.clone();
-    keymap_config.global.copy = Some(codex_config::types::KeybindingsSpec::One(
-        codex_config::types::KeybindingSpec("ctrl-x".to_string()),
+    keymap_config.global.copy = Some(codepilotx_config::types::KeybindingsSpec::One(
+        codepilotx_config::types::KeybindingSpec("ctrl-x".to_string()),
     ));
     let runtime_keymap =
         crate::keymap::RuntimeKeymap::from_config(&keymap_config).expect("valid copy remap");
@@ -2002,13 +2002,13 @@ async fn active_goal_without_follow_up_suppresses_agent_turn_complete_notificati
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
     chat.handle_server_notification(
         ServerNotification::ThreadGoalUpdated(
-            codex_app_server_protocol::ThreadGoalUpdatedNotification {
+            codepilotx_app_server_protocol::ThreadGoalUpdatedNotification {
                 thread_id: "thread-1".to_string(),
                 turn_id: None,
-                goal: codex_app_server_protocol::ThreadGoal {
+                goal: codepilotx_app_server_protocol::ThreadGoal {
                     thread_id: "thread-1".to_string(),
                     objective: "finish the benchmark".to_string(),
-                    status: codex_app_server_protocol::ThreadGoalStatus::Active,
+                    status: codepilotx_app_server_protocol::ThreadGoalStatus::Active,
                     token_budget: None,
                     tokens_used: 0,
                     time_used_seconds: 0,

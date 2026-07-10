@@ -21,30 +21,30 @@ use chrono::Duration as ChronoDuration;
 use chrono::Local;
 use chrono::TimeZone;
 use chrono::Utc;
-use codex_app_server_protocol::AskForApproval;
-use codex_app_server_protocol::CreditsSnapshot;
-use codex_app_server_protocol::RateLimitSnapshot;
-use codex_app_server_protocol::RateLimitWindow;
-use codex_app_server_protocol::SpendControlLimitSnapshot;
-use codex_config::LoaderOverrides;
-use codex_model_provider_info::ModelProviderAwsAuthInfo;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_models_manager::test_support::construct_model_info_offline_for_tests;
-use codex_models_manager::test_support::get_model_offline_for_tests;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
-use codex_protocol::models::ManagedFileSystemPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_protocol::AskForApproval;
+use codepilotx_app_server_protocol::CreditsSnapshot;
+use codepilotx_app_server_protocol::RateLimitSnapshot;
+use codepilotx_app_server_protocol::RateLimitWindow;
+use codepilotx_app_server_protocol::SpendControlLimitSnapshot;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_model_provider_info::ModelProviderAwsAuthInfo;
+use codepilotx_model_provider_info::ModelProviderInfo;
+use codepilotx_models_manager::test_support::construct_model_info_offline_for_tests;
+use codepilotx_models_manager::test_support::get_model_offline_for_tests;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::ApprovalsReviewer;
+use codepilotx_protocol::config_types::ReasoningSummary;
+use codepilotx_protocol::models::ActivePermissionProfile;
+use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
+use codepilotx_protocol::models::ManagedFileSystemPermissions;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::openai_models::ReasoningEffort;
+use codepilotx_protocol::permissions::FileSystemAccessMode;
+use codepilotx_protocol::permissions::FileSystemPath;
+use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+use codepilotx_protocol::permissions::FileSystemSpecialPath;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use insta::assert_snapshot;
 use pretty_assertions::assert_eq;
 use ratatui::prelude::*;
@@ -120,7 +120,7 @@ fn app_server_workspace_write_profile(network_enabled: bool) -> PermissionProfil
 
 async fn test_config(temp_home: &TempDir) -> Config {
     let mut config = ConfigBuilder::default()
-        .codex_home(temp_home.path().to_path_buf())
+        .codepilotx_home(temp_home.path().to_path_buf())
         .loader_overrides(LoaderOverrides::without_managed_config_for_tests())
         .build()
         .await
@@ -173,13 +173,13 @@ fn render_lines(lines: &[Line<'static>]) -> Vec<String> {
 fn sanitize_directory(lines: Vec<String>) -> Vec<String> {
     let frame_width = lines
         .iter()
-        .find(|line| line.starts_with('â•­'))
+        .find(|line| line.starts_with('â•?))
         .map(|line| UnicodeWidthStr::width(line.as_str()));
     lines
         .into_iter()
         .map(|line| {
             if let (Some(frame_width), Some(dir_pos), Some(pipe_idx)) =
-                (frame_width, line.find("Directory: "), line.rfind('â”‚'))
+                (frame_width, line.find("Directory: "), line.rfind('â”?))
             {
                 let prefix = &line[..dir_pos + "Directory: ".len()];
                 let suffix = &line[pipe_idx..];
@@ -237,7 +237,7 @@ fn permissions_text_for(config: &Config) -> Option<String> {
             line.split("Permissions:")
                 .nth(1)
                 .map(str::trim)
-                .map(|text| text.trim_end_matches('â”‚'))
+                .map(|text| text.trim_end_matches('â”?))
                 .map(str::trim)
                 .map(ToString::to_string)
         })

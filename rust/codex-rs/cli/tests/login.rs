@@ -2,8 +2,8 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_login::CLIENT_ID;
-use codex_login::REVOKE_TOKEN_URL_OVERRIDE_ENV_VAR;
+use codepilotx_login::CLIENT_ID;
+use codepilotx_login::REVOKE_TOKEN_URL_OVERRIDE_ENV_VAR;
 use predicates::str::contains;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
@@ -15,31 +15,31 @@ use wiremock::ResponseTemplate;
 use wiremock::matchers::method;
 use wiremock::matchers::path;
 
-fn codex_command(codex_home: &Path) -> Result<assert_cmd::Command> {
-    let mut cmd = assert_cmd::Command::new(codex_utils_cargo_bin::cargo_bin("codex")?);
-    cmd.env("CODEX_HOME", codex_home);
+fn codepilotx_command(codepilotx_home: &Path) -> Result<assert_cmd::Command> {
+    let mut cmd = assert_cmd::Command::new(codepilotx_utils_cargo_bin::cargo_bin("codex")?);
+    cmd.env("codepilotx_HOME", codepilotx_home);
     Ok(cmd)
 }
 
-fn write_file_auth_config(codex_home: &Path) -> Result<()> {
+fn write_file_auth_config(codepilotx_home: &Path) -> Result<()> {
     std::fs::write(
-        codex_home.join("config.toml"),
+        codepilotx_home.join("config.toml"),
         "cli_auth_credentials_store = \"file\"\n",
     )?;
     Ok(())
 }
 
-fn read_auth_json(codex_home: &Path) -> Result<Value> {
-    let auth_json = std::fs::read_to_string(codex_home.join("auth.json"))?;
+fn read_auth_json(codepilotx_home: &Path) -> Result<Value> {
+    let auth_json = std::fs::read_to_string(codepilotx_home.join("auth.json"))?;
     Ok(serde_json::from_str(&auth_json)?)
 }
 
 #[test]
 fn login_with_api_key_reads_stdin_and_writes_auth_json() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    write_file_auth_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    write_file_auth_config(codepilotx_home.path())?;
 
-    let mut cmd = codex_command(codex_home.path())?;
+    let mut cmd = codepilotx_command(codepilotx_home.path())?;
     cmd.args([
         "-c",
         "forced_login_method=\"api\"",
@@ -51,7 +51,7 @@ fn login_with_api_key_reads_stdin_and_writes_auth_json() -> Result<()> {
     .success()
     .stderr(contains("Successfully logged in"));
 
-    let auth = read_auth_json(codex_home.path())?;
+    let auth = read_auth_json(codepilotx_home.path())?;
     assert_eq!(auth["OPENAI_API_KEY"], "sk-test");
     assert!(auth.get("tokens").is_none());
     assert!(auth.get("agent_identity").is_none());
@@ -61,10 +61,10 @@ fn login_with_api_key_reads_stdin_and_writes_auth_json() -> Result<()> {
 
 #[test]
 fn login_with_access_token_rejects_invalid_jwt() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    write_file_auth_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    write_file_auth_config(codepilotx_home.path())?;
 
-    let mut cmd = codex_command(codex_home.path())?;
+    let mut cmd = codepilotx_command(codepilotx_home.path())?;
     cmd.args(["login", "--with-access-token"])
         .write_stdin("not-a-jwt\n")
         .assert()
@@ -114,10 +114,10 @@ async fn device_login_revokes_existing_auth_before_requesting_new_tokens() -> Re
         .mount(&server)
         .await;
 
-    let codex_home = TempDir::new()?;
-    write_file_auth_config(codex_home.path())?;
+    let codepilotx_home = TempDir::new()?;
+    write_file_auth_config(codepilotx_home.path())?;
     std::fs::write(
-        codex_home.path().join("auth.json"),
+        codepilotx_home.path().join("auth.json"),
         serde_json::to_vec(&json!({
             "auth_mode": "chatgpt",
             "OPENAI_API_KEY": null,
@@ -131,14 +131,14 @@ async fn device_login_revokes_existing_auth_before_requesting_new_tokens() -> Re
     )?;
 
     let issuer = server.uri();
-    let mut cmd = codex_command(codex_home.path())?;
+    let mut cmd = codepilotx_command(codepilotx_home.path())?;
     cmd.env(
         REVOKE_TOKEN_URL_OVERRIDE_ENV_VAR,
         format!("{issuer}/oauth/revoke"),
     )
     .env("NO_PROXY", "127.0.0.1,localhost")
     .env("no_proxy", "127.0.0.1,localhost")
-    .env_remove("CODEX_ACCESS_TOKEN")
+    .env_remove("codepilotx_ACCESS_TOKEN")
     .env_remove("OPENAI_API_KEY")
     .args(["login", "--device-auth", "--experimental_issuer", &issuer])
     .assert()
@@ -170,7 +170,7 @@ async fn device_login_revokes_existing_auth_before_requesting_new_tokens() -> Re
         })
     );
 
-    let auth = read_auth_json(codex_home.path())?;
+    let auth = read_auth_json(codepilotx_home.path())?;
     assert_eq!(auth["tokens"]["refresh_token"], "new-refresh");
     Ok(())
 }

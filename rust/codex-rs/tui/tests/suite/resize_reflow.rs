@@ -25,14 +25,14 @@ async fn tmux_split_preserves_fresh_session_composer_row_after_resize_reflow() -
         return Ok(());
     }
 
-    let repo_root = codex_utils_cargo_bin::repo_root()?;
-    let codex = codex_binary(&repo_root)?;
-    let codex_home = tempdir()?;
+    let repo_root = codepilotx_utils_cargo_bin::repo_root()?;
+    let codex = codepilotx_binary(&repo_root)?;
+    let codepilotx_home = tempdir()?;
     let server = MockServer::start().await;
     let _response_mock = responses::mount_sse_once(&server, resize_reflow_sse()).await;
     let openai_base_url_config = format!("openai_base_url=\"{}/v1\"", server.uri());
-    write_config(codex_home.path(), &repo_root)?;
-    write_auth(codex_home.path())?;
+    write_config(codepilotx_home.path(), &repo_root)?;
+    write_auth(codepilotx_home.path())?;
 
     let session_name = format!("codex-resize-reflow-smoke-{}", std::process::id());
     let _session = TmuxSession {
@@ -55,7 +55,7 @@ async fn tmux_split_preserves_fresh_session_composer_row_after_resize_reflow() -
             .arg(&session_name)
             .arg("--")
             .arg("env")
-            .arg(format!("CODEX_HOME={}", codex_home.path().display()))
+            .arg(format!("codepilotx_HOME={}", codepilotx_home.path().display()))
             .arg("OPENAI_API_KEY=dummy")
             .arg(codex)
             .arg("-c")
@@ -67,16 +67,16 @@ async fn tmux_split_preserves_fresh_session_composer_row_after_resize_reflow() -
             .arg(&repo_root)
             .arg(prompt),
     )?;
-    let codex_pane = stdout_text(&start_output).trim().to_string();
-    anyhow::ensure!(!codex_pane.is_empty(), "tmux did not report a pane id");
+    let codepilotx_pane = stdout_text(&start_output).trim().to_string();
+    anyhow::ensure!(!codepilotx_pane.is_empty(), "tmux did not report a pane id");
 
     wait_for_capture_contains(
-        &codex_pane,
+        &codepilotx_pane,
         "resize reflow sentinel",
         Duration::from_secs(/*secs*/ 15),
     )?;
     wait_for_capture_contains(
-        &codex_pane,
+        &codepilotx_pane,
         "gpt-5.4 default",
         Duration::from_secs(/*secs*/ 15),
     )?;
@@ -85,12 +85,12 @@ async fn tmux_split_preserves_fresh_session_composer_row_after_resize_reflow() -
         Command::new("tmux")
             .arg("send-keys")
             .arg("-t")
-            .arg(&codex_pane)
+            .arg(&codepilotx_pane)
             .arg("-l")
             .arg(draft),
     )?;
     let baseline_capture =
-        wait_for_capture_contains(&codex_pane, draft, Duration::from_secs(/*secs*/ 15))?;
+        wait_for_capture_contains(&codepilotx_pane, draft, Duration::from_secs(/*secs*/ 15))?;
     let baseline_row = last_composer_row(&baseline_capture).context("composer row before split")?;
     let baseline_history_row = first_row_containing(&baseline_capture, "resize reflow sentinel")
         .context("history row before split")?;
@@ -106,18 +106,18 @@ async fn tmux_split_preserves_fresh_session_composer_row_after_resize_reflow() -
             .arg("-l")
             .arg("12")
             .arg("-t")
-            .arg(&codex_pane)
+            .arg(&codepilotx_pane)
             .arg("sleep")
             .arg("30"),
     )?;
     let split_pane = stdout_text(&split_output).trim().to_string();
 
     sleep(Duration::from_millis(/*millis*/ 250));
-    let first_capture = capture_pane(&codex_pane)?;
+    let first_capture = capture_pane(&codepilotx_pane)?;
     let first_row = last_composer_row(&first_capture).context("composer row after split")?;
 
     sleep(Duration::from_millis(/*millis*/ 1_000));
-    let second_capture = capture_pane(&codex_pane)?;
+    let second_capture = capture_pane(&codepilotx_pane)?;
     let second_row =
         last_composer_row(&second_capture).context("composer row after reflow wait")?;
 
@@ -142,7 +142,7 @@ async fn tmux_split_preserves_fresh_session_composer_row_after_resize_reflow() -
     )?;
 
     sleep(Duration::from_millis(/*millis*/ 500));
-    let final_capture = capture_pane(&codex_pane)?;
+    let final_capture = capture_pane(&codepilotx_pane)?;
     let final_row =
         last_composer_row(&final_capture).context("composer row after closing split")?;
     anyhow::ensure!(
@@ -192,14 +192,14 @@ async fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()
         return Ok(());
     }
 
-    let repo_root = codex_utils_cargo_bin::repo_root()?;
-    let codex = codex_binary(&repo_root)?;
-    let codex_home = tempdir()?;
+    let repo_root = codepilotx_utils_cargo_bin::repo_root()?;
+    let codex = codepilotx_binary(&repo_root)?;
+    let codepilotx_home = tempdir()?;
     let server = MockServer::start().await;
     let _response_mock = responses::mount_sse_once(&server, resize_reflow_sse()).await;
     let openai_base_url_config = format!("openai_base_url=\"{}/v1\"", server.uri());
-    write_config(codex_home.path(), &repo_root)?;
-    write_auth(codex_home.path())?;
+    write_config(codepilotx_home.path(), &repo_root)?;
+    write_auth(codepilotx_home.path())?;
 
     let session_name = format!("codex-resize-width-{}", std::process::id());
     let _session = TmuxSession {
@@ -222,7 +222,7 @@ async fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()
             .arg(&session_name)
             .arg("--")
             .arg("env")
-            .arg(format!("CODEX_HOME={}", codex_home.path().display()))
+            .arg(format!("codepilotx_HOME={}", codepilotx_home.path().display()))
             .arg("OPENAI_API_KEY=dummy")
             .arg(codex)
             .arg("-c")
@@ -234,16 +234,16 @@ async fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()
             .arg(&repo_root)
             .arg(prompt),
     )?;
-    let codex_pane = stdout_text(&start_output).trim().to_string();
-    anyhow::ensure!(!codex_pane.is_empty(), "tmux did not report a pane id");
+    let codepilotx_pane = stdout_text(&start_output).trim().to_string();
+    anyhow::ensure!(!codepilotx_pane.is_empty(), "tmux did not report a pane id");
 
     wait_for_capture_contains(
-        &codex_pane,
+        &codepilotx_pane,
         "resize reflow sentinel",
         Duration::from_secs(/*secs*/ 15),
     )?;
     wait_for_capture_contains(
-        &codex_pane,
+        &codepilotx_pane,
         "gpt-5.4 default",
         Duration::from_secs(/*secs*/ 15),
     )?;
@@ -252,12 +252,12 @@ async fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()
         Command::new("tmux")
             .arg("send-keys")
             .arg("-t")
-            .arg(&codex_pane)
+            .arg(&codepilotx_pane)
             .arg("-l")
             .arg(draft),
     )?;
     let baseline_capture =
-        wait_for_capture_contains(&codex_pane, draft, Duration::from_secs(/*secs*/ 15))?;
+        wait_for_capture_contains(&codepilotx_pane, draft, Duration::from_secs(/*secs*/ 15))?;
     let baseline_row = last_composer_row(&baseline_capture).context("composer row before split")?;
     let baseline_history_row = first_row_containing(&baseline_capture, "resize reflow sentinel")
         .context("history row before split")?;
@@ -273,7 +273,7 @@ async fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()
             .arg("-l")
             .arg("40")
             .arg("-t")
-            .arg(&codex_pane)
+            .arg(&codepilotx_pane)
             .arg("sleep")
             .arg("30"),
     )?;
@@ -288,7 +288,7 @@ async fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()
     )?;
 
     sleep(Duration::from_millis(/*millis*/ 1_000));
-    let restored_capture = capture_pane(&codex_pane)?;
+    let restored_capture = capture_pane(&codepilotx_pane)?;
     let restored_row =
         last_composer_row(&restored_capture).context("composer row after width restore")?;
     let restored_history_row = first_row_containing(&restored_capture, "resize reflow sentinel")
@@ -312,14 +312,14 @@ async fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()
 }
 
 async fn run_repeated_resize_smoke() -> Result<()> {
-    let repo_root = codex_utils_cargo_bin::repo_root()?;
-    let codex = codex_binary(&repo_root)?;
-    let codex_home = tempdir()?;
+    let repo_root = codepilotx_utils_cargo_bin::repo_root()?;
+    let codex = codepilotx_binary(&repo_root)?;
+    let codepilotx_home = tempdir()?;
     let server = MockServer::start().await;
     let _response_mock = responses::mount_sse_once(&server, resize_reflow_sse()).await;
     let openai_base_url_config = format!("openai_base_url=\"{}/v1\"", server.uri());
-    write_config(codex_home.path(), &repo_root)?;
-    write_auth(codex_home.path())?;
+    write_config(codepilotx_home.path(), &repo_root)?;
+    write_auth(codepilotx_home.path())?;
 
     let session_name = format!("codex-resize-repeat-{}", std::process::id());
     let _session = TmuxSession {
@@ -342,7 +342,7 @@ async fn run_repeated_resize_smoke() -> Result<()> {
             .arg(&session_name)
             .arg("--")
             .arg("env")
-            .arg(format!("CODEX_HOME={}", codex_home.path().display()))
+            .arg(format!("codepilotx_HOME={}", codepilotx_home.path().display()))
             .arg("OPENAI_API_KEY=dummy")
             .arg(codex)
             .arg("-c")
@@ -354,16 +354,16 @@ async fn run_repeated_resize_smoke() -> Result<()> {
             .arg(&repo_root)
             .arg(prompt),
     )?;
-    let codex_pane = stdout_text(&start_output).trim().to_string();
-    anyhow::ensure!(!codex_pane.is_empty(), "tmux did not report a pane id");
+    let codepilotx_pane = stdout_text(&start_output).trim().to_string();
+    anyhow::ensure!(!codepilotx_pane.is_empty(), "tmux did not report a pane id");
 
     wait_for_capture_contains(
-        &codex_pane,
+        &codepilotx_pane,
         "resize reflow sentinel",
         Duration::from_secs(/*secs*/ 15),
     )?;
     wait_for_capture_contains(
-        &codex_pane,
+        &codepilotx_pane,
         "gpt-5.4 default",
         Duration::from_secs(/*secs*/ 15),
     )?;
@@ -372,12 +372,12 @@ async fn run_repeated_resize_smoke() -> Result<()> {
         Command::new("tmux")
             .arg("send-keys")
             .arg("-t")
-            .arg(&codex_pane)
+            .arg(&codepilotx_pane)
             .arg("-l")
             .arg(draft),
     )?;
     let baseline_capture =
-        wait_for_capture_contains(&codex_pane, draft, Duration::from_secs(/*secs*/ 15))?;
+        wait_for_capture_contains(&codepilotx_pane, draft, Duration::from_secs(/*secs*/ 15))?;
     let baseline_row = last_composer_row(&baseline_capture).context("composer row before split")?;
     let baseline_history_row = first_row_containing(&baseline_capture, "resize reflow sentinel")
         .context("history row before split")?;
@@ -394,7 +394,7 @@ async fn run_repeated_resize_smoke() -> Result<()> {
                 .arg("-l")
                 .arg("12")
                 .arg("-t")
-                .arg(&codex_pane)
+                .arg(&codepilotx_pane)
                 .arg("sleep")
                 .arg("30"),
         )?;
@@ -409,7 +409,7 @@ async fn run_repeated_resize_smoke() -> Result<()> {
         )?;
 
         sleep(Duration::from_millis(/*millis*/ 500));
-        let restored_capture = capture_pane(&codex_pane)?;
+        let restored_capture = capture_pane(&codepilotx_pane)?;
         let restored_row = last_composer_row(&restored_capture)
             .with_context(|| format!("composer row after resize cycle {cycle}"))?;
         let restored_history_row =
@@ -448,8 +448,8 @@ impl Drop for TmuxSession {
     }
 }
 
-fn codex_binary(repo_root: &Path) -> Result<PathBuf> {
-    if let Ok(path) = codex_utils_cargo_bin::cargo_bin("codex") {
+fn codepilotx_binary(repo_root: &Path) -> Result<PathBuf> {
+    if let Ok(path) = codepilotx_utils_cargo_bin::cargo_bin("codex") {
         return Ok(path);
     }
 
@@ -461,7 +461,7 @@ fn codex_binary(repo_root: &Path) -> Result<PathBuf> {
     Ok(fallback)
 }
 
-fn write_config(codex_home: &Path, repo_root: &Path) -> Result<()> {
+fn write_config(codepilotx_home: &Path, repo_root: &Path) -> Result<()> {
     let repo_root_display = repo_root.display();
     let config = format!(
         r#"model = "gpt-5.4"
@@ -472,13 +472,13 @@ suppress_unstable_features_warning = true
 trust_level = "trusted"
 "#
     );
-    std::fs::write(codex_home.join("config.toml"), config)?;
+    std::fs::write(codepilotx_home.join("config.toml"), config)?;
     Ok(())
 }
 
-fn write_auth(codex_home: &Path) -> Result<()> {
+fn write_auth(codepilotx_home: &Path) -> Result<()> {
     std::fs::write(
-        codex_home.join("auth.json"),
+        codepilotx_home.join("auth.json"),
         r#"{"OPENAI_API_KEY":"dummy","tokens":null,"last_refresh":null}"#,
     )?;
     Ok(())

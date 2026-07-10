@@ -7,20 +7,20 @@
 //! into a one-shot CLI command while still producing a durable `codex-login.log` artifact that
 //! support can request from users.
 
-use codex_app_server_protocol::AuthMode;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::config::Config;
-use codex_login::AuthKeyringBackendKind;
-use codex_login::CLIENT_ID;
-use codex_login::CodexAuth;
-use codex_login::ServerOptions;
-use codex_login::login_with_access_token;
-use codex_login::login_with_api_key;
-use codex_login::logout_with_revoke;
-use codex_login::run_device_code_login;
-use codex_login::run_login_server;
-use codex_protocol::config_types::ForcedLoginMethod;
-use codex_utils_cli::CliConfigOverrides;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_config::types::AuthCredentialsStoreMode;
+use codepilotx_core::config::Config;
+use codepilotx_login::AuthKeyringBackendKind;
+use codepilotx_login::CLIENT_ID;
+use codepilotx_login::CodexAuth;
+use codepilotx_login::ServerOptions;
+use codepilotx_login::login_with_access_token;
+use codepilotx_login::login_with_api_key;
+use codepilotx_login::logout_with_revoke;
+use codepilotx_login::run_device_code_login;
+use codepilotx_login::run_login_server;
+use codepilotx_protocol::config_types::ForcedLoginMethod;
+use codepilotx_utils_cli::CliConfigOverrides;
 use std::fs::OpenOptions;
 use std::io::IsTerminal;
 use std::io::Read;
@@ -49,7 +49,7 @@ const LOGIN_SUCCESS_MESSAGE: &str = "Successfully logged in";
 /// command produce a durable `codex-login.log` artifact without coupling it to the TUI's broader
 /// telemetry and feedback initialization.
 fn init_login_file_logging(config: &Config) -> Option<WorkerGuard> {
-    let log_dir = match codex_core::config::log_dir(config) {
+    let log_dir = match codepilotx_core::config::log_dir(config) {
         Ok(log_dir) => log_dir,
         Err(err) => {
             eprintln!("Warning: failed to resolve login log directory: {err}");
@@ -88,7 +88,7 @@ fn init_login_file_logging(config: &Config) -> Option<WorkerGuard> {
 
     let (non_blocking, guard) = non_blocking(log_file);
     let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("codex_cli=info,codex_core=info,codex_login=info"));
+        .unwrap_or_else(|_| EnvFilter::new("codepilotx_cli=info,codepilotx_core=info,codepilotx_login=info"));
     let file_layer = tracing_subscriber::fmt::layer()
         .with_writer(non_blocking)
         .with_target(true)
@@ -116,12 +116,12 @@ fn print_login_server_start(actual_port: u16, auth_url: &str) {
 }
 
 async fn clear_existing_auth_before_login(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     auth_credentials_store_mode: AuthCredentialsStoreMode,
     auth_keyring_backend_kind: AuthKeyringBackendKind,
 ) {
     if let Err(err) = logout_with_revoke(
-        codex_home,
+        codepilotx_home,
         auth_credentials_store_mode,
         auth_keyring_backend_kind,
     )
@@ -132,20 +132,20 @@ async fn clear_existing_auth_before_login(
 }
 
 pub async fn login_with_chatgpt(
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     forced_chatgpt_workspace_id: Option<Vec<String>>,
     cli_auth_credentials_store_mode: AuthCredentialsStoreMode,
     auth_keyring_backend_kind: AuthKeyringBackendKind,
 ) -> std::io::Result<()> {
     clear_existing_auth_before_login(
-        &codex_home,
+        &codepilotx_home,
         cli_auth_credentials_store_mode,
         auth_keyring_backend_kind,
     )
     .await;
 
     let opts = ServerOptions::new(
-        codex_home,
+        codepilotx_home,
         CLIENT_ID.to_string(),
         forced_chatgpt_workspace_id,
         cli_auth_credentials_store_mode,
@@ -171,7 +171,7 @@ pub async fn run_login_with_chatgpt(cli_config_overrides: CliConfigOverrides) ->
     let forced_chatgpt_workspace_id = config.forced_chatgpt_workspace_id.clone();
 
     match login_with_chatgpt(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
         forced_chatgpt_workspace_id,
         config.cli_auth_credentials_store_mode,
         config.auth_keyring_backend_kind(),
@@ -203,7 +203,7 @@ pub async fn run_login_with_api_key(
     }
 
     match login_with_api_key(
-        &config.codex_home,
+        &config.codepilotx_home,
         &api_key,
         config.cli_auth_credentials_store_mode,
         config.auth_keyring_backend_kind(),
@@ -233,7 +233,7 @@ pub async fn run_login_with_access_token(
     }
 
     match login_with_access_token(
-        &config.codex_home,
+        &config.codepilotx_home,
         &access_token,
         config.cli_auth_credentials_store_mode,
         config.forced_chatgpt_workspace_id.as_deref(),
@@ -263,7 +263,7 @@ pub fn read_api_key_from_stdin() -> String {
 
 pub fn read_access_token_from_stdin() -> String {
     read_stdin_secret(
-        "--with-access-token expects the access token on stdin. Try piping it, e.g. `printenv CODEX_ACCESS_TOKEN | codex login --with-access-token`.",
+        "--with-access-token expects the access token on stdin. Try piping it, e.g. `printenv codepilotx_ACCESS_TOKEN | codex login --with-access-token`.",
         "Reading access token from stdin...",
         "No access token provided via stdin.",
     )
@@ -308,14 +308,14 @@ pub async fn run_login_with_device_code(
         std::process::exit(1);
     }
     clear_existing_auth_before_login(
-        &config.codex_home,
+        &config.codepilotx_home,
         config.cli_auth_credentials_store_mode,
         config.auth_keyring_backend_kind(),
     )
     .await;
     let forced_chatgpt_workspace_id = config.forced_chatgpt_workspace_id.clone();
     let mut opts = ServerOptions::new(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
         client_id.unwrap_or(CLIENT_ID.to_string()),
         forced_chatgpt_workspace_id,
         config.cli_auth_credentials_store_mode,
@@ -353,7 +353,7 @@ pub async fn run_login_with_device_code_fallback_to_browser(
         std::process::exit(1);
     }
     clear_existing_auth_before_login(
-        &config.codex_home,
+        &config.codepilotx_home,
         config.cli_auth_credentials_store_mode,
         config.auth_keyring_backend_kind(),
     )
@@ -361,7 +361,7 @@ pub async fn run_login_with_device_code_fallback_to_browser(
 
     let forced_chatgpt_workspace_id = config.forced_chatgpt_workspace_id.clone();
     let mut opts = ServerOptions::new(
-        config.codex_home.to_path_buf(),
+        config.codepilotx_home.to_path_buf(),
         client_id.unwrap_or(CLIENT_ID.to_string()),
         forced_chatgpt_workspace_id,
         config.cli_auth_credentials_store_mode,
@@ -411,7 +411,7 @@ pub async fn run_login_status(cli_config_overrides: CliConfigOverrides) -> ! {
     let config = load_config_or_exit(cli_config_overrides).await;
 
     match CodexAuth::from_auth_storage(
-        &config.codex_home,
+        &config.codepilotx_home,
         config.cli_auth_credentials_store_mode,
         Some(&config.chatgpt_base_url),
         config.auth_keyring_backend_kind(),
@@ -461,7 +461,7 @@ pub async fn run_logout(cli_config_overrides: CliConfigOverrides) -> ! {
     let config = load_config_or_exit(cli_config_overrides).await;
 
     match logout_with_revoke(
-        &config.codex_home,
+        &config.codepilotx_home,
         config.cli_auth_credentials_store_mode,
         config.auth_keyring_backend_kind(),
     )
@@ -511,10 +511,10 @@ fn safe_format_key(key: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use codex_config::types::AuthCredentialsStoreMode;
-    use codex_login::AuthKeyringBackendKind;
-    use codex_login::load_auth_dot_json;
-    use codex_login::login_with_api_key;
+    use codepilotx_config::types::AuthCredentialsStoreMode;
+    use codepilotx_login::AuthKeyringBackendKind;
+    use codepilotx_login::load_auth_dot_json;
+    use codepilotx_login::login_with_api_key;
     use pretty_assertions::assert_eq;
     use tempfile::tempdir;
 
@@ -523,9 +523,9 @@ mod tests {
 
     #[tokio::test]
     async fn clears_existing_auth_before_login() {
-        let codex_home = tempdir().expect("create temporary Codex home");
+        let codepilotx_home = tempdir().expect("create temporary Codex home");
         login_with_api_key(
-            codex_home.path(),
+            codepilotx_home.path(),
             "sk-existing",
             AuthCredentialsStoreMode::File,
             AuthKeyringBackendKind::default(),
@@ -533,14 +533,14 @@ mod tests {
         .expect("save existing auth");
 
         clear_existing_auth_before_login(
-            codex_home.path(),
+            codepilotx_home.path(),
             AuthCredentialsStoreMode::File,
             AuthKeyringBackendKind::default(),
         )
         .await;
 
         let auth = load_auth_dot_json(
-            codex_home.path(),
+            codepilotx_home.path(),
             AuthCredentialsStoreMode::File,
             AuthKeyringBackendKind::default(),
         )

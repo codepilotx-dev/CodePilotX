@@ -1,12 +1,12 @@
 use clap::Parser;
-use codex_arg0::Arg0DispatchPaths;
-use codex_arg0::arg0_dispatch_or_else;
-use codex_config::LoaderOverrides;
-use codex_tui::AppExitInfo;
-use codex_tui::Cli;
-use codex_tui::ExitReason;
-use codex_tui::run_main;
-use codex_utils_cli::CliConfigOverrides;
+use codepilotx_arg0::Arg0DispatchPaths;
+use codepilotx_arg0::arg0_dispatch_or_else;
+use codepilotx_config::LoaderOverrides;
+use codepilotx_tui::AppExitInfo;
+use codepilotx_tui::Cli;
+use codepilotx_tui::ExitReason;
+use codepilotx_tui::run_main;
+use codepilotx_utils_cli::CliConfigOverrides;
 use std::io::Write;
 use supports_color::Stream;
 

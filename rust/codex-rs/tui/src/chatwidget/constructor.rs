@@ -9,7 +9,7 @@ impl ChatWidget {
 
     pub(super) fn new_with_op_target(
         common: ChatWidgetInit,
-        codex_op_target: CodexOpTarget,
+        codepilotx_op_target: CodexOpTarget,
     ) -> Self {
         let ChatWidgetInit {
             config,
@@ -19,7 +19,7 @@ impl ChatWidget {
             initial_user_message,
             enhanced_keys_supported,
             has_chatgpt_account,
-            has_codex_backend_auth,
+            has_codepilotx_backend_auth,
             model_catalog,
             feedback,
             is_first_run,
@@ -94,7 +94,7 @@ impl ChatWidget {
         let mut widget = Self {
             app_event_tx: app_event_tx.clone(),
             frame_requester: frame_requester.clone(),
-            codex_op_target,
+            codepilotx_op_target,
             bottom_pane: BottomPane::new(BottomPaneParams {
                 frame_requester,
                 app_event_tx,
@@ -114,7 +114,7 @@ impl ChatWidget {
             current_collaboration_mode,
             active_collaboration_mask,
             has_chatgpt_account,
-            has_codex_backend_auth,
+            has_codepilotx_backend_auth,
             model_catalog,
             session_telemetry,
             session_header: SessionHeader::new(header_model),
@@ -135,7 +135,7 @@ impl ChatWidget {
             available_rate_limit_reset_credits: None,
             next_rate_limit_reset_request_id: 0,
             plan_type: initial_plan_type,
-            codex_rate_limit_reached_type: None,
+            codepilotx_rate_limit_reached_type: None,
             rate_limit_warnings: RateLimitWarningState::default(),
             warning_display_state: WarningDisplayState::default(),
             rate_limit_switch_prompt: RateLimitSwitchPromptState::default(),
@@ -271,7 +271,7 @@ impl ChatWidget {
             .set_connectors_enabled(widget.connectors_enabled());
         widget
             .bottom_pane
-            .set_token_activity_command_enabled(widget.has_codex_backend_auth);
+            .set_token_activity_command_enabled(widget.has_codepilotx_backend_auth);
         widget.refresh_status_surfaces();
 
         widget

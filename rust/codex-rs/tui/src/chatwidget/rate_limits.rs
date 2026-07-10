@@ -1,7 +1,7 @@
 //! Rate-limit warning, prompt, and notice surfaces for `ChatWidget`.
 
 use super::*;
-use codex_app_server_protocol::CodexErrorInfo as AppServerCodexErrorInfo;
+use codepilotx_app_server_protocol::CodexErrorInfo as AppServerCodexErrorInfo;
 
 pub(super) const NUDGE_MODEL_SLUG: &str = "gpt-5.4-mini";
 pub(super) const RATE_LIMIT_SWITCH_PROMPT_THRESHOLD: f64 = 90.0;
@@ -203,13 +203,13 @@ impl ChatWidget {
                 };
             self.plan_type = snapshot.plan_type.or(self.plan_type);
 
-            let is_codex_limit = limit_id.eq_ignore_ascii_case("codex");
-            if is_codex_limit
+            let is_codepilotx_limit = limit_id.eq_ignore_ascii_case("codex");
+            if is_codepilotx_limit
                 && let Some(rate_limit_reached_type) = snapshot.rate_limit_reached_type
             {
-                self.codex_rate_limit_reached_type = Some(rate_limit_reached_type);
+                self.codepilotx_rate_limit_reached_type = Some(rate_limit_reached_type);
             }
-            let warnings = if is_codex_limit {
+            let warnings = if is_codepilotx_limit {
                 self.rate_limit_warnings.take_warnings(
                     snapshot
                         .secondary
@@ -232,7 +232,7 @@ impl ChatWidget {
                 vec![]
             };
 
-            let high_usage = is_codex_limit
+            let high_usage = is_codepilotx_limit
                 && (snapshot
                     .secondary
                     .as_ref()
@@ -278,7 +278,7 @@ impl ChatWidget {
             }
         } else {
             self.rate_limit_snapshots_by_limit_id.clear();
-            self.codex_rate_limit_reached_type = None;
+            self.codepilotx_rate_limit_reached_type = None;
         }
         self.refresh_status_line();
     }

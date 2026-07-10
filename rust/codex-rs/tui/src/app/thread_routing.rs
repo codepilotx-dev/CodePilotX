@@ -200,7 +200,7 @@ impl App {
         thread_id: ThreadId,
         turn_id: &str,
         item_id: &str,
-    ) -> Option<Vec<codex_app_server_protocol::FileUpdateChange>> {
+    ) -> Option<Vec<codepilotx_app_server_protocol::FileUpdateChange>> {
         let channel = self.thread_event_channels.get(&thread_id)?;
         let store = channel.store.lock().await;
         store.file_change_changes(turn_id, item_id)
@@ -280,7 +280,7 @@ impl App {
                     Some(ThreadInteractiveRequest::McpServerElicitation(request))
                 } else {
                     match &params.request {
-                        codex_app_server_protocol::McpServerElicitationRequest::Form {
+                        codepilotx_app_server_protocol::McpServerElicitationRequest::Form {
                             message,
                             ..
                         } => Some(ThreadInteractiveRequest::Approval(
@@ -292,15 +292,15 @@ impl App {
                                 message: message.clone(),
                             },
                         )),
-                        codex_app_server_protocol::McpServerElicitationRequest::OpenAiForm {
+                        codepilotx_app_server_protocol::McpServerElicitationRequest::OpenAiForm {
                             ..
                         }
-                        | codex_app_server_protocol::McpServerElicitationRequest::Url { .. } => {
+                        | codepilotx_app_server_protocol::McpServerElicitationRequest::Url { .. } => {
                             self.app_event_tx.resolve_elicitation(
                                 thread_id,
                                 params.server_name.clone(),
                                 request_id.clone(),
-                                codex_app_server_protocol::McpServerElicitationAction::Decline,
+                                codepilotx_app_server_protocol::McpServerElicitationAction::Decline,
                                 /*content*/ None,
                                 /*meta*/ None,
                             );
@@ -457,13 +457,13 @@ impl App {
 
     /// Persist prompt text in the local cross-session message history.
     pub(super) fn append_message_history_entry(&self, thread_id: ThreadId, text: String) {
-        let history_config = codex_message_history::HistoryConfig::new(
-            self.chat_widget.config_ref().codex_home.clone(),
+        let history_config = codepilotx_message_history::HistoryConfig::new(
+            self.chat_widget.config_ref().codepilotx_home.clone(),
             &self.chat_widget.config_ref().history,
         );
         tokio::spawn(async move {
             if let Err(err) =
-                codex_message_history::append_entry(&text, thread_id, &history_config).await
+                codepilotx_message_history::append_entry(&text, thread_id, &history_config).await
             {
                 tracing::warn!(
                     thread_id = %thread_id,
@@ -481,14 +481,14 @@ impl App {
         offset: usize,
         log_id: u64,
     ) -> Result<()> {
-        let history_config = codex_message_history::HistoryConfig::new(
-            self.chat_widget.config_ref().codex_home.clone(),
+        let history_config = codepilotx_message_history::HistoryConfig::new(
+            self.chat_widget.config_ref().codepilotx_home.clone(),
             &self.chat_widget.config_ref().history,
         );
         let app_event_tx = self.app_event_tx.clone();
         tokio::spawn(async move {
             let entry_opt = tokio::task::spawn_blocking(move || {
-                codex_message_history::lookup(log_id, offset, &history_config)
+                codepilotx_message_history::lookup(log_id, offset, &history_config)
             })
             .await
             .unwrap_or_else(|err| {
@@ -667,7 +667,7 @@ impl App {
             AppCommand::ListSkills { cwds, force_reload } => {
                 self.handle_skills_list_result(
                     app_server
-                        .skills_list(codex_app_server_protocol::SkillsListParams {
+                        .skills_list(codepilotx_app_server_protocol::SkillsListParams {
                             cwds: cwds.clone(),
                             force_reload: *force_reload,
                         })
@@ -1546,13 +1546,13 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::models::ActivePermissionProfile;
-    use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
+    use codepilotx_protocol::models::ActivePermissionProfile;
+    use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
 
     async fn config_with_workspace_profile() -> Config {
         let temp_dir = tempfile::tempdir().expect("tempdir");
         ConfigBuilder::default()
-            .codex_home(temp_dir.path().to_path_buf())
+            .codepilotx_home(temp_dir.path().to_path_buf())
             .harness_overrides(ConfigOverrides {
                 default_permissions: Some(BUILT_IN_PERMISSION_PROFILE_WORKSPACE.to_string()),
                 ..ConfigOverrides::default()

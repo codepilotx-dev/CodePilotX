@@ -1,6 +1,6 @@
-use codex_app_server_protocol::ConsumeAccountRateLimitResetCreditOutcome;
-use codex_app_server_protocol::ConsumeAccountRateLimitResetCreditResponse;
-use codex_app_server_protocol::RateLimitResetCreditsSummary;
+use codepilotx_app_server_protocol::ConsumeAccountRateLimitResetCreditOutcome;
+use codepilotx_app_server_protocol::ConsumeAccountRateLimitResetCreditResponse;
+use codepilotx_app_server_protocol::RateLimitResetCreditsSummary;
 use uuid::Uuid;
 
 use super::*;
@@ -309,7 +309,7 @@ impl ChatWidget {
             return false;
         }
         self.pending_rate_limit_reset_hint_request_id = None;
-        if !self.has_codex_backend_auth {
+        if !self.has_codepilotx_backend_auth {
             return false;
         }
         if self.plan_type.is_some_and(PlanType::is_workspace_account) {

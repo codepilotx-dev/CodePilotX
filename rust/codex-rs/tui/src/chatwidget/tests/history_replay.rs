@@ -1,13 +1,13 @@
 use super::*;
 use crate::app_event::HistoryLookupResponse;
-use codex_app_server_protocol::NetworkAccess;
-use codex_app_server_protocol::SandboxPolicy;
-use codex_protocol::models::ManagedFileSystemPermissions;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_app_server_protocol::NetworkAccess;
+use codepilotx_app_server_protocol::SandboxPolicy;
+use codepilotx_protocol::models::ManagedFileSystemPermissions;
+use codepilotx_protocol::permissions::FileSystemAccessMode;
+use codepilotx_protocol::permissions::FileSystemPath;
+use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+use codepilotx_protocol::permissions::FileSystemSpecialPath;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
 use pretty_assertions::assert_eq;
 
 #[tokio::test]
@@ -681,8 +681,8 @@ async fn forked_thread_history_line_without_name_shows_id_once_snapshot() {
     let (chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let mut chat = chat;
     let temp = tempdir().expect("tempdir");
-    chat.config.codex_home =
-        codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(temp.path())
+    chat.config.codepilotx_home =
+        codepilotx_utils_absolute_path::AbsolutePathBuf::from_absolute_path(temp.path())
             .expect("temp dir is absolute");
 
     let forked_from_id =
@@ -710,8 +710,8 @@ async fn app_server_forked_thread_history_line_uses_app_server_title_snapshot() 
     let (chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let mut chat = chat;
     let temp = tempdir().expect("tempdir");
-    chat.config.codex_home =
-        codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(temp.path())
+    chat.config.codepilotx_home =
+        codepilotx_utils_absolute_path::AbsolutePathBuf::from_absolute_path(temp.path())
             .expect("temp dir is absolute");
 
     let forked_from_id =
@@ -740,7 +740,7 @@ async fn app_server_forked_thread_history_line_uses_app_server_title_snapshot() 
     assert!(combined.contains("app-server-parent-thread"));
     assert!(
         !combined.contains("stale-local-thread"),
-        "app-server fork title lookup should not read local CODEX_HOME"
+        "app-server fork title lookup should not read local codepilotx_HOME"
     );
     assert_chatwidget_snapshot!("app_server_forked_thread_history_line", combined);
 }
@@ -750,8 +750,8 @@ async fn app_server_forked_thread_history_line_without_app_server_name_ignores_l
     let (chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let mut chat = chat;
     let temp = tempdir().expect("tempdir");
-    chat.config.codex_home =
-        codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(temp.path())
+    chat.config.codepilotx_home =
+        codepilotx_utils_absolute_path::AbsolutePathBuf::from_absolute_path(temp.path())
             .expect("temp dir is absolute");
 
     let forked_from_id =
@@ -779,7 +779,7 @@ async fn app_server_forked_thread_history_line_without_app_server_name_ignores_l
 
     assert!(
         !combined.contains("stale-local-thread"),
-        "app-server fork title lookup should not read local CODEX_HOME"
+        "app-server fork title lookup should not read local codepilotx_HOME"
     );
     assert_chatwidget_snapshot!(
         "app_server_forked_thread_history_line_without_app_server_name",
@@ -815,7 +815,7 @@ async fn replayed_retryable_app_server_error_keeps_turn_running() {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
@@ -832,7 +832,7 @@ async fn replayed_retryable_app_server_error_keeps_turn_running() {
         ServerNotification::Error(ErrorNotification {
             error: AppServerTurnError {
                 message: "Reconnecting... 1/5".to_string(),
-                codex_error_info: None,
+                codepilotx_error_info: None,
                 additional_details: Some("Idle timeout waiting for SSE".to_string()),
             },
             will_retry: true,
@@ -971,7 +971,7 @@ async fn replayed_in_progress_mcp_tool_call_stays_active() {
             id: "mcp-1".to_string(),
             server: "copilot-bridge".to_string(),
             tool: "copilot".to_string(),
-            status: codex_app_server_protocol::McpToolCallStatus::InProgress,
+            status: codepilotx_app_server_protocol::McpToolCallStatus::InProgress,
             arguments: json!({"action": "wait"}),
             app_context: None,
             mcp_app_resource_uri: None,
@@ -1000,7 +1000,7 @@ async fn live_reasoning_summary_is_not_rendered_twice_when_item_completes() {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
@@ -1069,7 +1069,7 @@ async fn replayed_in_progress_turn_marks_task_running() {
     chat.replay_thread_turns(
         vec![AppServerTurn {
             id: "turn-1".to_string(),
-            items_view: codex_app_server_protocol::TurnItemsView::Full,
+            items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
             items: Vec::new(),
             status: AppServerTurnStatus::InProgress,
             error: None,

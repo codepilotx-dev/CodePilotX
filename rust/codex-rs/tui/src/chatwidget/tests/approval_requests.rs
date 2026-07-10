@@ -102,9 +102,9 @@ fn app_server_exec_approval_request_preserves_permissions_context() {
             approval_id: Some("approval-1".to_string()),
             environment_id: None,
             reason: None,
-            network_approval_context: Some(codex_app_server_protocol::NetworkApprovalContext {
+            network_approval_context: Some(codepilotx_app_server_protocol::NetworkApprovalContext {
                 host: "example.com".to_string(),
-                protocol: codex_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
+                protocol: codepilotx_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
             }),
             command: Some("ls".to_string()),
             cwd: Some(test_path_buf("/tmp").abs().into()),
@@ -129,9 +129,9 @@ fn app_server_exec_approval_request_preserves_permissions_context() {
 
     assert_eq!(
         request.network_approval_context,
-        Some(codex_app_server_protocol::NetworkApprovalContext {
+        Some(codepilotx_app_server_protocol::NetworkApprovalContext {
             host: "example.com".to_string(),
-            protocol: codex_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
+            protocol: codepilotx_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
         })
     );
     assert_eq!(
@@ -162,9 +162,9 @@ async fn network_exec_approval_history_describes_session_host_allowance() {
             approval_id: Some("approval-1".to_string()),
             environment_id: None,
             reason: None,
-            network_approval_context: Some(codex_app_server_protocol::NetworkApprovalContext {
+            network_approval_context: Some(codepilotx_app_server_protocol::NetworkApprovalContext {
                 host: "example.com".to_string(),
-                protocol: codex_app_server_protocol::NetworkApprovalProtocol::Https,
+                protocol: codepilotx_app_server_protocol::NetworkApprovalProtocol::Https,
             }),
             command: Some("network-access https://example.com:8443".to_string()),
             cwd: None,
@@ -173,8 +173,8 @@ async fn network_exec_approval_history_describes_session_host_allowance() {
             proposed_execpolicy_amendment: None,
             proposed_network_policy_amendments: None,
             available_decisions: Some(vec![
-                codex_app_server_protocol::CommandExecutionApprovalDecision::AcceptForSession,
-                codex_app_server_protocol::CommandExecutionApprovalDecision::Cancel,
+                codepilotx_app_server_protocol::CommandExecutionApprovalDecision::AcceptForSession,
+                codepilotx_app_server_protocol::CommandExecutionApprovalDecision::Cancel,
             ]),
         },
         &test_path_buf("/tmp").abs(),
@@ -204,9 +204,9 @@ async fn network_exec_approval_history_describes_one_time_host_allowance() {
             approval_id: Some("approval-1".to_string()),
             environment_id: None,
             reason: None,
-            network_approval_context: Some(codex_app_server_protocol::NetworkApprovalContext {
+            network_approval_context: Some(codepilotx_app_server_protocol::NetworkApprovalContext {
                 host: "example.com".to_string(),
-                protocol: codex_app_server_protocol::NetworkApprovalProtocol::Http,
+                protocol: codepilotx_app_server_protocol::NetworkApprovalProtocol::Http,
             }),
             command: None,
             cwd: None,
@@ -215,8 +215,8 @@ async fn network_exec_approval_history_describes_one_time_host_allowance() {
             proposed_execpolicy_amendment: None,
             proposed_network_policy_amendments: None,
             available_decisions: Some(vec![
-                codex_app_server_protocol::CommandExecutionApprovalDecision::Accept,
-                codex_app_server_protocol::CommandExecutionApprovalDecision::Cancel,
+                codepilotx_app_server_protocol::CommandExecutionApprovalDecision::Accept,
+                codepilotx_app_server_protocol::CommandExecutionApprovalDecision::Cancel,
             ]),
         },
         &test_path_buf("/tmp").abs(),
@@ -246,9 +246,9 @@ async fn network_exec_approval_history_describes_canceled_host_request() {
             approval_id: Some("approval-1".to_string()),
             environment_id: None,
             reason: None,
-            network_approval_context: Some(codex_app_server_protocol::NetworkApprovalContext {
+            network_approval_context: Some(codepilotx_app_server_protocol::NetworkApprovalContext {
                 host: "example.com".to_string(),
-                protocol: codex_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
+                protocol: codepilotx_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
             }),
             command: Some("network-access socks5-tcp://example.com:1080".to_string()),
             cwd: None,
@@ -257,8 +257,8 @@ async fn network_exec_approval_history_describes_canceled_host_request() {
             proposed_execpolicy_amendment: None,
             proposed_network_policy_amendments: None,
             available_decisions: Some(vec![
-                codex_app_server_protocol::CommandExecutionApprovalDecision::Accept,
-                codex_app_server_protocol::CommandExecutionApprovalDecision::Cancel,
+                codepilotx_app_server_protocol::CommandExecutionApprovalDecision::Accept,
+                codepilotx_app_server_protocol::CommandExecutionApprovalDecision::Cancel,
             ]),
         },
         &test_path_buf("/tmp").abs(),
@@ -295,7 +295,7 @@ fn app_server_request_permissions_preserves_file_system_permissions() {
         started_at_ms: 0,
         cwd: cwd.clone(),
         reason: Some("Select a workspace root".to_string()),
-        permissions: codex_app_server_protocol::RequestPermissionProfile {
+        permissions: codepilotx_app_server_protocol::RequestPermissionProfile {
             network: Some(AppServerAdditionalNetworkPermissions {
                 enabled: Some(true),
             }),
@@ -362,7 +362,7 @@ async fn exec_approval_uses_approval_id_when_present() {
             assert_eq!(id, "approval-subcommand");
             assert_matches!(
                 decision,
-                codex_app_server_protocol::CommandExecutionApprovalDecision::Accept
+                codepilotx_app_server_protocol::CommandExecutionApprovalDecision::Accept
             );
             found = true;
             break;

@@ -10,31 +10,31 @@
 
 use std::path::PathBuf;
 
-use codex_app_server_protocol::AddCreditsNudgeCreditType;
-use codex_app_server_protocol::AddCreditsNudgeEmailStatus;
-use codex_app_server_protocol::AppInfo;
-use codex_app_server_protocol::ConsumeAccountRateLimitResetCreditResponse;
-use codex_app_server_protocol::GetAccountRateLimitsResponse;
-use codex_app_server_protocol::GetAccountTokenUsageResponse;
-use codex_app_server_protocol::MarketplaceAddResponse;
-use codex_app_server_protocol::MarketplaceRemoveResponse;
-use codex_app_server_protocol::MarketplaceUpgradeResponse;
-use codex_app_server_protocol::McpServerStatus;
-use codex_app_server_protocol::McpServerStatusDetail;
-use codex_app_server_protocol::PluginInstallResponse;
-use codex_app_server_protocol::PluginListResponse;
-use codex_app_server_protocol::PluginMarketplaceEntry;
-use codex_app_server_protocol::PluginReadParams;
-use codex_app_server_protocol::PluginReadResponse;
-use codex_app_server_protocol::PluginUninstallResponse;
-use codex_app_server_protocol::RateLimitResetCreditsSummary;
-use codex_app_server_protocol::SkillsListResponse;
-use codex_app_server_protocol::ThreadGoalStatus;
-use codex_file_search::FileMatch;
-use codex_protocol::ThreadId;
-use codex_protocol::openai_models::ModelPreset;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_approval_presets::ApprovalPreset;
+use codepilotx_app_server_protocol::AddCreditsNudgeCreditType;
+use codepilotx_app_server_protocol::AddCreditsNudgeEmailStatus;
+use codepilotx_app_server_protocol::AppInfo;
+use codepilotx_app_server_protocol::ConsumeAccountRateLimitResetCreditResponse;
+use codepilotx_app_server_protocol::GetAccountRateLimitsResponse;
+use codepilotx_app_server_protocol::GetAccountTokenUsageResponse;
+use codepilotx_app_server_protocol::MarketplaceAddResponse;
+use codepilotx_app_server_protocol::MarketplaceRemoveResponse;
+use codepilotx_app_server_protocol::MarketplaceUpgradeResponse;
+use codepilotx_app_server_protocol::McpServerStatus;
+use codepilotx_app_server_protocol::McpServerStatusDetail;
+use codepilotx_app_server_protocol::PluginInstallResponse;
+use codepilotx_app_server_protocol::PluginListResponse;
+use codepilotx_app_server_protocol::PluginMarketplaceEntry;
+use codepilotx_app_server_protocol::PluginReadParams;
+use codepilotx_app_server_protocol::PluginReadResponse;
+use codepilotx_app_server_protocol::PluginUninstallResponse;
+use codepilotx_app_server_protocol::RateLimitResetCreditsSummary;
+use codepilotx_app_server_protocol::SkillsListResponse;
+use codepilotx_app_server_protocol::ThreadGoalStatus;
+use codepilotx_file_search::FileMatch;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::openai_models::ModelPreset;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_approval_presets::ApprovalPreset;
 
 use crate::app_command::AppCommand;
 use crate::app_server_session::AppServerStartedThread;
@@ -43,14 +43,14 @@ use crate::bottom_pane::StatusLineItem;
 use crate::bottom_pane::TerminalTitleItem;
 use crate::chatwidget::UserMessage;
 use crate::goal_files::GoalDraft;
-use codex_app_server_protocol::AskForApproval;
-use codex_config::types::ApprovalsReviewer;
-use codex_features::Feature;
-use codex_plugin::PluginCapabilitySummary;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::config_types::Personality;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::openai_models::ReasoningEffort;
+use codepilotx_app_server_protocol::AskForApproval;
+use codepilotx_config::types::ApprovalsReviewer;
+use codepilotx_features::Feature;
+use codepilotx_plugin::PluginCapabilitySummary;
+use codepilotx_protocol::config_types::CollaborationModeMask;
+use codepilotx_protocol::config_types::Personality;
+use codepilotx_protocol::models::ActivePermissionProfile;
+use codepilotx_protocol::openai_models::ReasoningEffort;
 
 use crate::history_cell::HistoryCell;
 
@@ -455,7 +455,7 @@ pub(crate) enum AppEvent {
     /// Result of fetching lifecycle hook inventory.
     HooksLoaded {
         cwd: PathBuf,
-        result: Result<codex_app_server_protocol::HooksListResponse, String>,
+        result: Result<codepilotx_app_server_protocol::HooksListResponse, String>,
     },
 
     /// Open the prompt for adding a marketplace source.

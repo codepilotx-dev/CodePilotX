@@ -35,7 +35,7 @@ impl ChatWidget {
     pub(super) fn log_websocket_timing_totals(&mut self, delta: RuntimeMetricsSummary) {
         if let Some(label) = history_cell::runtime_metrics_label(delta.responses_api_summary()) {
             self.add_plain_history_lines(vec![
-                vec!["â€¢ ".dim(), format!("WebSocket timing: {label}").dark_gray()].into(),
+                vec!["â€?".dim(), format!("WebSocket timing: {label}").dark_gray()].into(),
             ]);
         }
     }
@@ -284,10 +284,10 @@ impl ChatWidget {
 
     pub(super) fn handle_app_server_steer_rejected_error(
         &mut self,
-        codex_error_info: &AppServerCodexErrorInfo,
+        codepilotx_error_info: &AppServerCodexErrorInfo,
     ) -> bool {
         matches!(
-            codex_error_info,
+            codepilotx_error_info,
             AppServerCodexErrorInfo::ActiveTurnNotSteerable { .. }
         ) && self.enqueue_rejected_steer()
     }
@@ -300,7 +300,7 @@ impl ChatWidget {
         // Drop preview-only stream tail content on any termination path before
         // failed-cell finalization, so transient tail cells are never persisted.
         self.clear_active_stream_tail();
-        // Ensure any spinner is replaced by a red âœ— and flushed into history.
+        // Ensure any spinner is replaced by a red âœ?and flushed into history.
         self.finalize_active_cell_as_failed();
         // Turn-scoped hook rows are transient live state; once the turn is over,
         // do not leave an orphaned running row behind if no matching completion
@@ -330,7 +330,7 @@ impl ChatWidget {
         self.finalize_turn();
 
         let message = if message.trim().is_empty() {
-            "Codex is currently experiencing high load.".to_string()
+            "CodePilotX is currently experiencing high load.".to_string()
         } else {
             message
         };
@@ -367,7 +367,7 @@ impl ChatWidget {
 
     pub(super) fn on_rate_limit_error(&mut self, error_kind: RateLimitErrorKind, message: String) {
         let usage_limit_error = matches!(error_kind, RateLimitErrorKind::UsageLimit);
-        let rate_limit_reached_type = self.codex_rate_limit_reached_type.map(|kind| {
+        let rate_limit_reached_type = self.codepilotx_rate_limit_reached_type.map(|kind| {
             if usage_limit_error {
                 match kind {
                     RateLimitReachedType::WorkspaceOwnerCreditsDepleted => {
@@ -382,7 +382,7 @@ impl ChatWidget {
                 kind
             }
         });
-        self.codex_rate_limit_reached_type = rate_limit_reached_type;
+        self.codepilotx_rate_limit_reached_type = rate_limit_reached_type;
         match rate_limit_reached_type {
             Some(RateLimitReachedType::WorkspaceOwnerCreditsDepleted) => {
                 self.on_error(
@@ -413,18 +413,18 @@ impl ChatWidget {
     pub(super) fn handle_non_retry_error(
         &mut self,
         message: String,
-        codex_error_info: Option<AppServerCodexErrorInfo>,
+        codepilotx_error_info: Option<AppServerCodexErrorInfo>,
     ) {
-        if codex_error_info
+        if codepilotx_error_info
             .as_ref()
             .is_some_and(|info| self.handle_app_server_steer_rejected_error(info))
         {
-        } else if codex_error_info
+        } else if codepilotx_error_info
             .as_ref()
             .is_some_and(is_app_server_cyber_policy_error)
         {
             self.on_cyber_policy_error();
-        } else if let Some(info) = codex_error_info
+        } else if let Some(info) = codepilotx_error_info
             .as_ref()
             .and_then(app_server_rate_limit_error_kind)
         {

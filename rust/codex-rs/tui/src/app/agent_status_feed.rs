@@ -5,10 +5,10 @@ use super::ThreadEventStore;
 use crate::history_cell::HistoryCell;
 use crate::history_cell::plain_lines;
 use crate::text_formatting::truncate_text;
-use codex_app_server_protocol::CollabAgentTool;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::SubAgentActivityKind;
-use codex_app_server_protocol::ThreadItem;
+use codepilotx_app_server_protocol::CollabAgentTool;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::SubAgentActivityKind;
+use codepilotx_app_server_protocol::ThreadItem;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use std::collections::HashSet;
@@ -38,7 +38,7 @@ impl HistoryCell for AgentStatusHistoryCell {
         ];
 
         if self.entries.is_empty() {
-            lines.push("  â€¢ No sub-agents running.".italic().into());
+            lines.push("  â€?No sub-agents running.".italic().into());
             return lines;
         }
 
@@ -114,7 +114,7 @@ impl AgentStatusThreadPreview {
     }
 
     fn title_line(&self) -> Line<'static> {
-        vec!["  â€¢ ".dim(), format!("`{}`", self.agent_path).cyan()].into()
+        vec!["  â€?".dim(), format!("`{}`", self.agent_path).cyan()].into()
     }
 
     fn preview_lines(&self, width: u16) -> Vec<Line<'static>> {

@@ -4,10 +4,10 @@ use std::sync::LazyLock;
 use crate::key_hint;
 use crate::key_hint::KeyBinding;
 use crate::key_hint::KeyBindingListExt;
-use codex_model_provider_info::DEFAULT_LMSTUDIO_PORT;
-use codex_model_provider_info::DEFAULT_OLLAMA_PORT;
-use codex_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
-use codex_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
+use codepilotx_model_provider_info::DEFAULT_LMSTUDIO_PORT;
+use codepilotx_model_provider_info::DEFAULT_OLLAMA_PORT;
+use codepilotx_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
+use codepilotx_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
 use crossterm::event::Event;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
@@ -99,7 +99,7 @@ pub struct OssSelectionWidget<'a> {
     /// Currently selected index in *select* mode.
     selected_option: usize,
 
-    /// Set to `true` once a decision has been sent ‚Äì the parent view can then
+    /// Set to `true` once a decision has been sent ‚Ä?the parent view can then
     /// remove this widget from its queue.
     done: bool,
 
@@ -143,11 +143,11 @@ impl OssSelectionWidget<'_> {
             ]));
         }
         contents.push(Line::from(""));
-        contents.push(Line::from("  ‚óè Running  ‚óã Not Running").add_modifier(Modifier::DIM));
+        contents.push(Line::from("  ‚ó?Running  ‚ó?Not Running").add_modifier(Modifier::DIM));
 
         contents.push(Line::from(""));
         contents.push(
-            Line::from("  Press Enter to select ‚Ä¢ Ctrl+C to exit").add_modifier(Modifier::DIM),
+            Line::from("  Press Enter to select ‚Ä?Ctrl+C to exit").add_modifier(Modifier::DIM),
         );
 
         let confirmation_prompt = Paragraph::new(contents).wrap(Wrap { trim: false });
@@ -302,8 +302,8 @@ impl WidgetRef for &OssSelectionWidget<'_> {
 
 fn get_status_symbol_and_color(status: &ProviderStatus) -> (&'static str, Color) {
     match status {
-        ProviderStatus::Running => ("‚óè", Color::Green),
-        ProviderStatus::NotRunning => ("‚óã", Color::Red),
+        ProviderStatus::Running => ("‚ó?, Color::Green),
+        ProviderStatus::NotRunning => ("‚ó?, Color::Red),
         ProviderStatus::Unknown => ("?", Color::Yellow),
     }
 }

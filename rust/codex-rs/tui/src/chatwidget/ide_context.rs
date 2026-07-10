@@ -1,6 +1,6 @@
 //! Chat-widget wiring for the `/ide` command and IDE context prompt injection.
 
-use codex_app_server_protocol::UserInput;
+use codepilotx_app_server_protocol::UserInput;
 
 use super::ChatWidget;
 

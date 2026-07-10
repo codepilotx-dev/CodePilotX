@@ -4,22 +4,22 @@
 //! when a config mutation must be owned by the app server rather than written
 //! to the local `config.toml` directly.
 
-use codex_app_server_client::AppServerRequestHandle;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ConfigBatchWriteParams;
-use codex_app_server_protocol::ConfigEdit;
-use codex_app_server_protocol::ConfigReadParams;
-use codex_app_server_protocol::ConfigReadResponse;
-use codex_app_server_protocol::ConfigWriteResponse;
-use codex_app_server_protocol::MergeStrategy;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SkillsConfigWriteParams;
-use codex_app_server_protocol::SkillsConfigWriteResponse;
-use codex_config::loader::project_trust_key;
-use codex_features::FEATURES;
-use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
-use codex_protocol::config_types::TrustLevel;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_client::AppServerRequestHandle;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::ConfigBatchWriteParams;
+use codepilotx_app_server_protocol::ConfigEdit;
+use codepilotx_app_server_protocol::ConfigReadParams;
+use codepilotx_app_server_protocol::ConfigReadResponse;
+use codepilotx_app_server_protocol::ConfigWriteResponse;
+use codepilotx_app_server_protocol::MergeStrategy;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::SkillsConfigWriteParams;
+use codepilotx_app_server_protocol::SkillsConfigWriteResponse;
+use codepilotx_config::loader::project_trust_key;
+use codepilotx_features::FEATURES;
+use codepilotx_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+use codepilotx_protocol::config_types::TrustLevel;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use color_eyre::eyre::Result;
 use color_eyre::eyre::WrapErr;
 use serde_json::Value as JsonValue;
@@ -84,9 +84,9 @@ pub(crate) fn build_service_tier_selection_edits(service_tier: Option<&str>) -> 
             let config_value = if service_tier == SERVICE_TIER_DEFAULT_REQUEST_VALUE {
                 SERVICE_TIER_DEFAULT_REQUEST_VALUE
             } else {
-                match codex_protocol::config_types::ServiceTier::from_request_value(service_tier) {
-                    Some(codex_protocol::config_types::ServiceTier::Fast) => "fast",
-                    Some(codex_protocol::config_types::ServiceTier::Flex) => "flex",
+                match codepilotx_protocol::config_types::ServiceTier::from_request_value(service_tier) {
+                    Some(codepilotx_protocol::config_types::ServiceTier::Fast) => "fast",
+                    Some(codepilotx_protocol::config_types::ServiceTier::Flex) => "flex",
                     None => service_tier,
                 }
             };

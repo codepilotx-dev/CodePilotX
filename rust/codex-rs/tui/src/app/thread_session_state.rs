@@ -1,11 +1,11 @@
 use super::App;
 use crate::session_resume::read_session_model;
 use crate::session_state::ThreadSessionState;
-use codex_app_server_protocol::AskForApproval;
-use codex_app_server_protocol::Thread;
-use codex_protocol::ThreadId;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::PermissionProfile;
+use codepilotx_app_server_protocol::AskForApproval;
+use codepilotx_app_server_protocol::Thread;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::models::ActivePermissionProfile;
+use codepilotx_protocol::models::PermissionProfile;
 
 impl App {
     pub(super) async fn sync_active_thread_service_tier_to_cached_session(&mut self) {
@@ -156,17 +156,17 @@ mod tests {
     use crate::legacy_core::config::PermissionProfileSnapshot;
     use crate::test_support::PathBufExt;
     use crate::test_support::test_path_buf;
-    use codex_app_server_protocol::AskForApproval;
-    use codex_config::types::ApprovalsReviewer;
-    use codex_protocol::config_types::ServiceTier;
-    use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
-    use codex_protocol::models::ManagedFileSystemPermissions;
-    use codex_protocol::models::PermissionProfile;
-    use codex_protocol::permissions::FileSystemAccessMode;
-    use codex_protocol::permissions::FileSystemPath;
-    use codex_protocol::permissions::FileSystemSandboxEntry;
-    use codex_protocol::permissions::FileSystemSpecialPath;
-    use codex_protocol::permissions::NetworkSandboxPolicy;
+    use codepilotx_app_server_protocol::AskForApproval;
+    use codepilotx_config::types::ApprovalsReviewer;
+    use codepilotx_protocol::config_types::ServiceTier;
+    use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
+    use codepilotx_protocol::models::ManagedFileSystemPermissions;
+    use codepilotx_protocol::models::PermissionProfile;
+    use codepilotx_protocol::permissions::FileSystemAccessMode;
+    use codepilotx_protocol::permissions::FileSystemPath;
+    use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+    use codepilotx_protocol::permissions::FileSystemSpecialPath;
+    use codepilotx_protocol::permissions::NetworkSandboxPolicy;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
 
@@ -231,7 +231,7 @@ mod tests {
         app.side_threads
             .insert(side_thread_id, SideThreadState::new(main_thread_id));
         app.config.permissions.approval_policy =
-            codex_config::Constrained::allow_any(AskForApproval::OnRequest.to_core());
+            codepilotx_config::Constrained::allow_any(AskForApproval::OnRequest.to_core());
         app.config.approvals_reviewer = ApprovalsReviewer::AutoReview;
         let expected_permission_profile = PermissionProfile::workspace_write();
         let expected_active_permission_profile =
@@ -325,7 +325,7 @@ mod tests {
         );
         app.chat_widget.handle_thread_session(session.clone());
         app.config.permissions.approval_policy =
-            codex_config::Constrained::allow_any(AskForApproval::OnRequest.to_core());
+            codepilotx_config::Constrained::allow_any(AskForApproval::OnRequest.to_core());
 
         app.sync_active_thread_permission_settings_to_cached_session()
             .await;
@@ -418,11 +418,11 @@ mod tests {
             created_at: 1,
             updated_at: 2,
             recency_at: Some(2),
-            status: codex_app_server_protocol::ThreadStatus::Idle,
+            status: codepilotx_app_server_protocol::ThreadStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp/read").abs(),
             cli_version: "0.0.0".to_string(),
-            source: codex_app_server_protocol::SessionSource::Unknown,
+            source: codepilotx_app_server_protocol::SessionSource::Unknown,
             thread_source: None,
             agent_nickname: None,
             agent_role: None,

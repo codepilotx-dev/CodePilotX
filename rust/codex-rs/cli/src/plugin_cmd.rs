@@ -2,27 +2,27 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
-use codex_app_server_protocol::AuthMode;
-use codex_core::config::Config;
-use codex_core::config::find_codex_home;
-use codex_core_plugins::ConfiguredMarketplace;
-use codex_core_plugins::OPENAI_BUNDLED_MARKETPLACE_NAME;
-use codex_core_plugins::PluginInstallOutcome;
-use codex_core_plugins::PluginInstallRequest;
-use codex_core_plugins::PluginsConfigInput;
-use codex_core_plugins::PluginsManager;
-use codex_core_plugins::installed_marketplaces::marketplace_install_root;
-use codex_core_plugins::installed_marketplaces::resolve_configured_marketplace_root;
-use codex_core_plugins::marketplace::MarketplaceListError;
-use codex_core_plugins::marketplace::MarketplacePluginAuthPolicy;
-use codex_core_plugins::marketplace::MarketplacePluginInstallPolicy;
-use codex_core_plugins::marketplace::MarketplacePluginSource;
-use codex_core_plugins::marketplace::find_marketplace_manifest_path;
-use codex_login::CodexAuth;
-use codex_login::auth::read_codex_api_key_from_env;
-use codex_plugin::PluginId;
-use codex_plugin::validate_plugin_segment;
-use codex_utils_cli::CliConfigOverrides;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_core::config::Config;
+use codepilotx_core::config::find_codepilotx_home;
+use codepilotx_core_plugins::ConfiguredMarketplace;
+use codepilotx_core_plugins::OPENAI_BUNDLED_MARKETPLACE_NAME;
+use codepilotx_core_plugins::PluginInstallOutcome;
+use codepilotx_core_plugins::PluginInstallRequest;
+use codepilotx_core_plugins::PluginsConfigInput;
+use codepilotx_core_plugins::PluginsManager;
+use codepilotx_core_plugins::installed_marketplaces::marketplace_install_root;
+use codepilotx_core_plugins::installed_marketplaces::resolve_configured_marketplace_root;
+use codepilotx_core_plugins::marketplace::MarketplaceListError;
+use codepilotx_core_plugins::marketplace::MarketplacePluginAuthPolicy;
+use codepilotx_core_plugins::marketplace::MarketplacePluginInstallPolicy;
+use codepilotx_core_plugins::marketplace::MarketplacePluginSource;
+use codepilotx_core_plugins::marketplace::find_marketplace_manifest_path;
+use codepilotx_login::CodexAuth;
+use codepilotx_login::auth::read_codepilotx_api_key_from_env;
+use codepilotx_plugin::PluginId;
+use codepilotx_plugin::validate_plugin_segment;
+use codepilotx_utils_cli::CliConfigOverrides;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::Path;
@@ -126,7 +126,7 @@ pub async fn run_plugin_add(
     args: AddPluginArgs,
 ) -> Result<()> {
     let PluginCommandContext {
-        codex_home,
+        codepilotx_home,
         plugins_input,
         manager,
     } = load_plugin_command_context(overrides).await?;
@@ -142,7 +142,7 @@ pub async fn run_plugin_add(
     } = parse_plugin_selection(plugin, marketplace_name)?;
     let marketplace = find_marketplace_for_plugin(
         &manager,
-        codex_home.as_path(),
+        codepilotx_home.as_path(),
         &plugins_input,
         &marketplace_name,
         &plugin_name,
@@ -201,7 +201,7 @@ pub async fn run_plugin_list(
     args: ListPluginsArgs,
 ) -> Result<()> {
     let PluginCommandContext {
-        codex_home,
+        codepilotx_home,
         plugins_input,
         manager,
         ..
@@ -210,7 +210,7 @@ pub async fn run_plugin_list(
         .list_marketplaces_for_config(&plugins_input, &[], /*include_openai_curated*/ true)
         .context("failed to list marketplace plugins")?;
     ensure_configured_marketplace_snapshots_loaded(
-        codex_home.as_path(),
+        codepilotx_home.as_path(),
         &plugins_input,
         &outcome.errors,
         /*marketplace_name*/ None,
@@ -261,10 +261,10 @@ pub async fn run_plugin_list(
                 };
                 let installed_version = plugin.installed_version.clone().unwrap_or_default();
                 let path = match &plugin.source {
-                    codex_core_plugins::marketplace::MarketplacePluginSource::Local { path } => {
+                    codepilotx_core_plugins::marketplace::MarketplacePluginSource::Local { path } => {
                         path.as_path().display().to_string()
                     }
-                    codex_core_plugins::marketplace::MarketplacePluginSource::Git {
+                    codepilotx_core_plugins::marketplace::MarketplacePluginSource::Git {
                         url,
                         path,
                         ref_name,
@@ -320,7 +320,7 @@ struct JsonPluginListOutput {
 
 impl JsonPluginListOutput {
     fn from_marketplaces(
-        marketplaces: Vec<codex_core_plugins::ConfiguredMarketplace>,
+        marketplaces: Vec<codepilotx_core_plugins::ConfiguredMarketplace>,
         include_available: bool,
         marketplace_sources: &HashMap<String, JsonMarketplaceSource>,
     ) -> Self {
@@ -370,7 +370,7 @@ impl JsonPluginListEntry {
     fn from_configured_plugin(
         marketplace_name: &str,
         marketplace_source: Option<JsonMarketplaceSource>,
-        plugin: codex_core_plugins::ConfiguredMarketplacePlugin,
+        plugin: codepilotx_core_plugins::ConfiguredMarketplacePlugin,
     ) -> Self {
         let version = plugin.installed_version.or(plugin.local_version);
         Self {
@@ -539,7 +539,7 @@ impl JsonPluginRemoveOutput {
 }
 
 struct PluginCommandContext {
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
     plugins_input: PluginsConfigInput,
     manager: PluginsManager,
 }
@@ -547,27 +547,27 @@ struct PluginCommandContext {
 async fn load_plugin_command_context(
     overrides: Vec<(String, toml::Value)>,
 ) -> Result<PluginCommandContext> {
-    let codex_home = find_codex_home().context("failed to resolve CODEX_HOME")?;
+    let codepilotx_home = find_codepilotx_home().context("failed to resolve codepilotx_HOME")?;
     let config = Config::load_with_cli_overrides(overrides)
         .await
         .context("failed to load configuration")?;
     let plugins_input = config.plugins_config_input();
-    let manager = PluginsManager::new(codex_home.to_path_buf());
+    let manager = PluginsManager::new(codepilotx_home.to_path_buf());
     manager.set_auth_mode(load_cli_auth_mode(&config).await);
     Ok(PluginCommandContext {
-        codex_home: codex_home.to_path_buf(),
+        codepilotx_home: codepilotx_home.to_path_buf(),
         plugins_input,
         manager,
     })
 }
 
 pub(crate) async fn load_cli_auth_mode(config: &Config) -> Option<AuthMode> {
-    if let Some(api_key) = read_codex_api_key_from_env() {
+    if let Some(api_key) = read_codepilotx_api_key_from_env() {
         return Some(CodexAuth::from_api_key(&api_key).api_auth_mode());
     }
 
     CodexAuth::from_auth_storage(
-        &config.codex_home,
+        &config.codepilotx_home,
         config.cli_auth_credentials_store_mode,
         Some(&config.chatgpt_base_url),
         config.auth_keyring_backend_kind(),
@@ -624,7 +624,7 @@ fn parse_plugin_selection(
 
 fn find_marketplace_for_plugin(
     manager: &PluginsManager,
-    codex_home: &std::path::Path,
+    codepilotx_home: &std::path::Path,
     plugins_input: &PluginsConfigInput,
     marketplace_name: &str,
     plugin_name: &str,
@@ -633,7 +633,7 @@ fn find_marketplace_for_plugin(
         .list_marketplaces_for_config(plugins_input, &[], /*include_openai_curated*/ true)
         .context("failed to list marketplace plugins")?;
     ensure_configured_marketplace_snapshots_loaded(
-        codex_home,
+        codepilotx_home,
         plugins_input,
         &outcome.errors,
         Some(marketplace_name),
@@ -666,13 +666,13 @@ pub(crate) struct ConfiguredMarketplaceSnapshotIssue {
 }
 
 fn ensure_configured_marketplace_snapshots_loaded(
-    codex_home: &std::path::Path,
+    codepilotx_home: &std::path::Path,
     plugins_input: &PluginsConfigInput,
     load_errors: &[MarketplaceListError],
     marketplace_name: Option<&str>,
 ) -> Result<()> {
     let issues = configured_marketplace_snapshot_issues(
-        codex_home,
+        codepilotx_home,
         plugins_input,
         load_errors,
         marketplace_name,
@@ -697,7 +697,7 @@ fn ensure_configured_marketplace_snapshots_loaded(
 }
 
 pub(crate) fn configured_marketplace_snapshot_issues(
-    codex_home: &std::path::Path,
+    codepilotx_home: &std::path::Path,
     plugins_input: &PluginsConfigInput,
     load_errors: &[MarketplaceListError],
     marketplace_name: Option<&str>,
@@ -712,7 +712,7 @@ pub(crate) fn configured_marketplace_snapshot_issues(
         return Vec::new();
     };
 
-    let default_install_root = marketplace_install_root(codex_home);
+    let default_install_root = marketplace_install_root(codepilotx_home);
     let mut manifest_paths = Vec::new();
     let mut issues = Vec::new();
     for (configured_name, marketplace) in configured_marketplaces {
@@ -758,7 +758,7 @@ pub(crate) fn configured_marketplace_snapshot_issues(
         match find_marketplace_manifest_path(&root) {
             Some(path) => manifest_paths.push((configured_name.clone(), path)),
             None => {
-                if is_implicit_system_marketplace_root(configured_name, codex_home, &root) {
+                if is_implicit_system_marketplace_root(configured_name, codepilotx_home, &root) {
                     continue;
                 }
                 issues.push(ConfiguredMarketplaceSnapshotIssue {
@@ -787,7 +787,7 @@ pub(crate) fn configured_marketplace_snapshot_issues(
 
 fn is_implicit_system_marketplace_root(
     marketplace_name: &str,
-    _codex_home: &Path,
+    _codepilotx_home: &Path,
     root: &Path,
 ) -> bool {
     if matches!(

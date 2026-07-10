@@ -6,8 +6,8 @@ use crate::external_agent_config_migration_model::external_agent_config_migratio
 use crate::tui::FrameRequester;
 use crate::tui::Tui;
 use crate::tui::TuiEvent;
-use codex_app_server_protocol::ExternalAgentConfigMigrationItem;
-use codex_app_server_protocol::PluginsMigration;
+use codepilotx_app_server_protocol::ExternalAgentConfigMigrationItem;
+use codepilotx_app_server_protocol::PluginsMigration;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -311,7 +311,7 @@ impl ExternalAgentConfigMigrationScreen {
                     plugin_names.push(format!("+{hidden_plugin_count} more"));
                 }
                 Line::from(format!(
-                    "      â€¢ {}: {}",
+                    "      â€?{}: {}",
                     plugin_group.marketplace_name,
                     plugin_names.join(", ")
                 ))
@@ -320,7 +320,7 @@ impl ExternalAgentConfigMigrationScreen {
         let hidden_marketplace_count = plugin_groups.len().saturating_sub(lines.len());
         if hidden_marketplace_count > 0 {
             lines.push(Line::from(format!(
-                "      â€¢ +{hidden_marketplace_count} more marketplaces"
+                "      â€?+{hidden_marketplace_count} more marketplaces"
             )));
         }
         lines
@@ -691,10 +691,10 @@ mod tests {
     use crate::custom_terminal::Terminal;
     use crate::test_backend::VT100Backend;
     use crate::tui::FrameRequester;
-    use codex_app_server_protocol::ExternalAgentConfigMigrationItem;
-    use codex_app_server_protocol::ExternalAgentConfigMigrationItemType;
-    use codex_app_server_protocol::PluginsMigration;
-    use codex_app_server_protocol::SessionMigration;
+    use codepilotx_app_server_protocol::ExternalAgentConfigMigrationItem;
+    use codepilotx_app_server_protocol::ExternalAgentConfigMigrationItemType;
+    use codepilotx_app_server_protocol::PluginsMigration;
+    use codepilotx_app_server_protocol::SessionMigration;
     use crossterm::event::KeyCode;
     use crossterm::event::KeyEvent;
     use crossterm::event::KeyModifiers;
@@ -703,8 +703,8 @@ mod tests {
     use ratatui::layout::Rect;
     use std::path::PathBuf;
 
-    fn sample_plugin_details() -> codex_app_server_protocol::MigrationDetails {
-        codex_app_server_protocol::MigrationDetails {
+    fn sample_plugin_details() -> codepilotx_app_server_protocol::MigrationDetails {
+        codepilotx_app_server_protocol::MigrationDetails {
             plugins: vec![
                 PluginsMigration {
                     marketplace_name: "acme-tools".to_string(),
@@ -760,7 +760,7 @@ mod tests {
                 item_type: ExternalAgentConfigMigrationItemType::Sessions,
                 description: "Migrate recent Claude Code sessions".to_string(),
                 cwd: None,
-                details: Some(codex_app_server_protocol::MigrationDetails {
+                details: Some(codepilotx_app_server_protocol::MigrationDetails {
                     sessions: vec![SessionMigration {
                         path: PathBuf::from("/Users/alex/.claude/projects/project/session.jsonl"),
                         cwd: project_root.clone(),

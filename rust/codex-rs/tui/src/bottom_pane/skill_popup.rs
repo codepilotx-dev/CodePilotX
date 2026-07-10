@@ -15,7 +15,7 @@ use crate::key_hint;
 use crate::render::Insets;
 use crate::render::RectExt;
 use crate::text_formatting::truncate_text;
-use codex_utils_fuzzy_match::fuzzy_match;
+use codepilotx_utils_fuzzy_match::fuzzy_match;
 
 #[derive(Clone, Debug)]
 pub(crate) struct MentionItem {

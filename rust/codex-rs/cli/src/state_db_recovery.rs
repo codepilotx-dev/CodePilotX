@@ -3,8 +3,8 @@
 //! This keeps user-facing backup and lock-contention handling out of the main
 //! CLI dispatch path while preserving the TUI startup error as the boundary type.
 
-use codex_state::RuntimeDbBackup;
-use codex_tui::LocalStateDbStartupError;
+use codepilotx_state::RuntimeDbBackup;
+use codepilotx_tui::LocalStateDbStartupError;
 use std::io::IsTerminal;
 use std::path::Path;
 
@@ -14,11 +14,11 @@ pub(crate) fn startup_error(err: &std::io::Error) -> Option<&LocalStateDbStartup
 }
 
 pub(crate) fn is_locked(detail: &str) -> bool {
-    codex_state::sqlite_error_detail_is_lock(detail)
+    codepilotx_state::sqlite_error_detail_is_lock(detail)
 }
 
 pub(crate) fn is_corruption(detail: &str) -> bool {
-    codex_state::sqlite_error_detail_is_corruption(detail)
+    codepilotx_state::sqlite_error_detail_is_corruption(detail)
 }
 
 pub(crate) fn is_auto_backup_recoverable(startup_error: &LocalStateDbStartupError) -> bool {
@@ -34,24 +34,24 @@ fn sqlite_home_is_blocking_file(startup_error: &LocalStateDbStartupError) -> boo
 }
 
 pub(crate) fn print_auto_backup_start(startup_error: &LocalStateDbStartupError) {
-    eprintln!("Codex couldn't start because its local database appears to be damaged.");
-    eprintln!("Moving the damaged local database aside so Codex can rebuild it from saved data.");
+    eprintln!("CodePilotX couldn't start because its local database appears to be damaged.");
+    eprintln!("Moving the damaged local database aside so CodePilotX can rebuild it from saved data.");
     print_technical_details(startup_error);
 }
 
 pub(crate) async fn backup_files_for_fresh_start(
     startup_error: &LocalStateDbStartupError,
 ) -> std::io::Result<Vec<RuntimeDbBackup>> {
-    codex_state::backup_runtime_db_for_fresh_start(startup_error.database_path()).await
+    codepilotx_state::backup_runtime_db_for_fresh_start(startup_error.database_path()).await
 }
 
 pub(crate) fn confirm_fresh_start_rebuild(
     startup_error: &LocalStateDbStartupError,
     backups: &[RuntimeDbBackup],
 ) -> std::io::Result<()> {
-    eprintln!("Codex rebuilt its local database.");
+    eprintln!("CodePilotX rebuilt its local database.");
     eprintln!(
-        "Codex detected a damaged local database, moved it into a backup folder, and will continue startup with a fresh database."
+        "CodePilotX detected a damaged local database, moved it into a backup folder, and will continue startup with a fresh database."
     );
     eprintln!("Database path: {}", startup_error.database_path().display());
     if let Some(backup_folder) = backup_folder(backups) {
@@ -71,15 +71,15 @@ pub(crate) fn confirm_fresh_start_rebuild(
 }
 
 pub(crate) fn print_diagnostic_guidance(startup_error: &LocalStateDbStartupError) {
-    eprintln!("Codex couldn't start because its local database appears to be damaged.");
-    eprintln!("Run `codex doctor` to check your setup and get next-step guidance.");
+    eprintln!("CodePilotX couldn't start because its local database appears to be damaged.");
+    eprintln!("Run `codepilotx doctor` to check your setup and get next-step guidance.");
     eprintln!("If this keeps happening, share the technical details below when asking for help.");
     print_technical_details(startup_error);
 }
 
 pub(crate) fn print_locked_guidance(startup_error: &LocalStateDbStartupError) {
-    eprintln!("Codex couldn't start because another Codex process is using its local data.");
-    eprintln!("Quit any other copies of Codex that may still be running, then try again.");
+    eprintln!("CodePilotX couldn't start because another CodePilotX process is using its local data.");
+    eprintln!("Quit any other copies of CodePilotX that may still be running, then try again.");
     print_technical_details(startup_error);
 }
 
@@ -103,8 +103,8 @@ mod tests {
     #[tokio::test]
     async fn backup_backs_up_only_failed_database_file() -> std::io::Result<()> {
         let temp_dir = TempDir::new()?;
-        let state_path = codex_state::state_db_path(temp_dir.path());
-        let failed_db_path = codex_state::logs_db_path(temp_dir.path());
+        let state_path = codepilotx_state::state_db_path(temp_dir.path());
+        let failed_db_path = codepilotx_state::logs_db_path(temp_dir.path());
         tokio::fs::write(state_path.as_path(), b"state").await?;
         tokio::fs::write(failed_db_path.as_path(), b"logs").await?;
 
@@ -131,7 +131,7 @@ mod tests {
         let sqlite_home = temp_dir.path().join("sqlite-home");
         tokio::fs::write(sqlite_home.as_path(), b"not-a-directory").await?;
         let startup_error = LocalStateDbStartupError::new(
-            codex_state::state_db_path(sqlite_home.as_path()),
+            codepilotx_state::state_db_path(sqlite_home.as_path()),
             "File exists".to_string(),
         );
 

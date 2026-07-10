@@ -24,18 +24,18 @@ use crate::onboarding::mark_url_hyperlink;
 use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
 use crate::tui::FrameRequester;
-use codex_app_server_protocol::PluginAvailability;
-use codex_app_server_protocol::PluginDetail;
-use codex_app_server_protocol::PluginInstallPolicy;
-use codex_app_server_protocol::PluginListResponse;
-use codex_app_server_protocol::PluginMarketplaceEntry;
-use codex_app_server_protocol::PluginSource;
-use codex_app_server_protocol::PluginSummary;
-use codex_core_plugins::is_openai_curated_marketplace_name;
-use codex_core_plugins::remote::REMOTE_WORKSPACE_MARKETPLACE_NAME;
-use codex_core_plugins::remote::REMOTE_WORKSPACE_SHARED_WITH_ME_MARKETPLACE_NAME;
-use codex_core_plugins::remote::REMOTE_WORKSPACE_SHARED_WITH_ME_PRIVATE_MARKETPLACE_NAME;
-use codex_core_plugins::remote::REMOTE_WORKSPACE_SHARED_WITH_ME_UNLISTED_MARKETPLACE_NAME;
+use codepilotx_app_server_protocol::PluginAvailability;
+use codepilotx_app_server_protocol::PluginDetail;
+use codepilotx_app_server_protocol::PluginInstallPolicy;
+use codepilotx_app_server_protocol::PluginListResponse;
+use codepilotx_app_server_protocol::PluginMarketplaceEntry;
+use codepilotx_app_server_protocol::PluginSource;
+use codepilotx_app_server_protocol::PluginSummary;
+use codepilotx_core_plugins::is_openai_curated_marketplace_name;
+use codepilotx_core_plugins::remote::REMOTE_WORKSPACE_MARKETPLACE_NAME;
+use codepilotx_core_plugins::remote::REMOTE_WORKSPACE_SHARED_WITH_ME_MARKETPLACE_NAME;
+use codepilotx_core_plugins::remote::REMOTE_WORKSPACE_SHARED_WITH_ME_PRIVATE_MARKETPLACE_NAME;
+use codepilotx_core_plugins::remote::REMOTE_WORKSPACE_SHARED_WITH_ME_UNLISTED_MARKETPLACE_NAME;
 use crossterm::event::KeyCode;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -986,7 +986,7 @@ impl ChatWidget {
                             location.clone().into_request_params();
                         tx.send(AppEvent::FetchPluginDetail {
                             cwd: cwd.clone(),
-                            params: codex_app_server_protocol::PluginReadParams {
+                            params: codepilotx_app_server_protocol::PluginReadParams {
                                 marketplace_path,
                                 remote_marketplace_name,
                                 plugin_name: plugin_name.clone(),
@@ -1031,16 +1031,16 @@ fn plugins_popup_hint_line(
 ) -> Line<'static> {
     match (can_remove_marketplace, can_upgrade_marketplace) {
         (true, true) => Line::from(
-            "ctrl + u upgrade · ctrl + r remove · space toggle · ←/→ tabs · enter details · esc close",
+            "ctrl + u upgrade · ctrl + r remove · space toggle · �?�?tabs · enter details · esc close",
         ),
         (true, false) => {
-            Line::from("ctrl + r remove · space toggle · ←/→ tabs · enter details · esc close")
+            Line::from("ctrl + r remove · space toggle · �?�?tabs · enter details · esc close")
         }
         (false, true) => {
-            Line::from("ctrl + u upgrade · space toggle · ←/→ tabs · enter details · esc close")
+            Line::from("ctrl + u upgrade · space toggle · �?�?tabs · enter details · esc close")
         }
         (false, false) => Line::from(
-            "space enable/disable · ←/→ select marketplace · enter view details · esc close",
+            "space enable/disable · �?�?select marketplace · enter view details · esc close",
         ),
     }
 }
@@ -1397,7 +1397,7 @@ fn plugin_hook_summary(plugin: &PluginDetail) -> String {
     if plugin.hooks.is_empty() {
         "No plugin hooks.".to_string()
     } else {
-        let mut event_counts = Vec::<(codex_app_server_protocol::HookEventName, usize)>::new();
+        let mut event_counts = Vec::<(codepilotx_app_server_protocol::HookEventName, usize)>::new();
         for hook in &plugin.hooks {
             if let Some((_, handler_count)) = event_counts
                 .iter_mut()

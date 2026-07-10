@@ -5,39 +5,39 @@ use std::path::PathBuf;
 use tempfile::Builder;
 use tokio::process::Command;
 
-const CODEX_DMG_URL_ARM64: &str = "https://persistent.oaistatic.com/codex-app-prod/Codex.dmg";
-const CODEX_DMG_URL_X64: &str =
+const codepilotx_DMG_URL_ARM64: &str = "https://persistent.oaistatic.com/codex-app-prod/Codex.dmg";
+const codepilotx_DMG_URL_X64: &str =
     "https://persistent.oaistatic.com/codex-app-prod/Codex-latest-x64.dmg";
 
 pub async fn run_mac_app_open_or_install(
     workspace: PathBuf,
     download_url_override: Option<String>,
 ) -> anyhow::Result<()> {
-    if let Some(app_path) = find_existing_codex_app_path() {
+    if let Some(app_path) = find_existing_codepilotx_app_path() {
         eprintln!(
             "Opening Codex Desktop at {app_path}...",
             app_path = app_path.display()
         );
-        open_codex_app(&app_path, &workspace).await?;
+        open_codepilotx_app(&app_path, &workspace).await?;
         return Ok(());
     }
-    eprintln!("Codex Desktop not found; downloading installer...");
+    eprintln!("CodePilotX Desktop not found; downloading installer...");
     let download_url = download_url_override.unwrap_or_else(|| {
         let default_url = if is_apple_silicon_mac() {
-            CODEX_DMG_URL_ARM64
+            codepilotx_DMG_URL_ARM64
         } else {
-            CODEX_DMG_URL_X64
+            codepilotx_DMG_URL_X64
         };
         default_url.to_string()
     });
-    let installed_app = download_and_install_codex_to_user_applications(&download_url)
+    let installed_app = download_and_install_codepilotx_to_user_applications(&download_url)
         .await
         .context("failed to download/install Codex Desktop")?;
     eprintln!(
         "Launching Codex Desktop from {installed_app}...",
         installed_app = installed_app.display()
     );
-    open_codex_app(&installed_app, &workspace).await?;
+    open_codepilotx_app(&installed_app, &workspace).await?;
     Ok(())
 }
 
@@ -63,13 +63,13 @@ fn is_apple_silicon_mac() -> bool {
         || macos_sysctl_flag("hw.optional.arm64").unwrap_or(false)
 }
 
-fn find_existing_codex_app_path() -> Option<PathBuf> {
-    candidate_codex_app_paths()
+fn find_existing_codepilotx_app_path() -> Option<PathBuf> {
+    candidate_codepilotx_app_paths()
         .into_iter()
         .find(|candidate| candidate.is_dir())
 }
 
-fn candidate_codex_app_paths() -> Vec<PathBuf> {
+fn candidate_codepilotx_app_paths() -> Vec<PathBuf> {
     let mut paths = vec![PathBuf::from("/Applications/Codex.app")];
     if let Some(home) = std::env::var_os("HOME") {
         paths.push(PathBuf::from(home).join("Applications").join("Codex.app"));
@@ -77,12 +77,12 @@ fn candidate_codex_app_paths() -> Vec<PathBuf> {
     paths
 }
 
-async fn open_codex_app(app_path: &Path, workspace: &Path) -> anyhow::Result<()> {
+async fn open_codepilotx_app(app_path: &Path, workspace: &Path) -> anyhow::Result<()> {
     eprintln!(
         "Opening workspace {workspace}...",
         workspace = workspace.display()
     );
-    let url = codex_new_thread_url(workspace);
+    let url = codepilotx_new_thread_url(workspace);
     let status = Command::new("open")
         .arg("-a")
         .arg(app_path)
@@ -102,7 +102,7 @@ async fn open_codex_app(app_path: &Path, workspace: &Path) -> anyhow::Result<()>
     );
 }
 
-fn codex_new_thread_url(workspace: &Path) -> String {
+fn codepilotx_new_thread_url(workspace: &Path) -> String {
     let workspace = workspace.as_os_str().to_string_lossy();
     let mut serializer = url::form_urlencoded::Serializer::new(String::new());
     serializer.append_pair("path", workspace.as_ref());
@@ -110,7 +110,7 @@ fn codex_new_thread_url(workspace: &Path) -> String {
     format!("codex://threads/new?{query}")
 }
 
-async fn download_and_install_codex_to_user_applications(dmg_url: &str) -> anyhow::Result<PathBuf> {
+async fn download_and_install_codepilotx_to_user_applications(dmg_url: &str) -> anyhow::Result<PathBuf> {
     let temp_dir = Builder::new()
         .prefix("codex-app-installer-")
         .tempdir()
@@ -128,9 +128,9 @@ async fn download_and_install_codex_to_user_applications(dmg_url: &str) -> anyho
         mount_point = mount_point.display()
     );
     let result = async {
-        let app_in_volume = find_codex_app_in_mount(&mount_point)
+        let app_in_volume = find_codepilotx_app_in_mount(&mount_point)
             .context("failed to locate Codex.app in mounted dmg")?;
-        install_codex_app_bundle(&app_in_volume).await
+        install_codepilotx_app_bundle(&app_in_volume).await
     }
     .await;
 
@@ -145,7 +145,7 @@ async fn download_and_install_codex_to_user_applications(dmg_url: &str) -> anyho
     result
 }
 
-async fn install_codex_app_bundle(app_in_volume: &Path) -> anyhow::Result<PathBuf> {
+async fn install_codepilotx_app_bundle(app_in_volume: &Path) -> anyhow::Result<PathBuf> {
     for applications_dir in candidate_applications_dirs()? {
         eprintln!(
             "Installing Codex Desktop into {applications_dir}...",
@@ -242,7 +242,7 @@ async fn detach_dmg(mount_point: &Path) -> anyhow::Result<()> {
     anyhow::bail!("hdiutil detach failed with {status}");
 }
 
-fn find_codex_app_in_mount(mount_point: &Path) -> anyhow::Result<PathBuf> {
+fn find_codepilotx_app_in_mount(mount_point: &Path) -> anyhow::Result<PathBuf> {
     let direct = mount_point.join("Codex.app");
     if direct.is_dir() {
         return Ok(direct);
@@ -302,7 +302,7 @@ fn parse_hdiutil_attach_mount_point(output: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::codex_new_thread_url;
+    use super::codepilotx_new_thread_url;
     use super::parse_hdiutil_attach_mount_point;
     use pretty_assertions::assert_eq;
     use std::path::Path;
@@ -326,8 +326,8 @@ mod tests {
     }
 
     #[test]
-    fn codex_new_thread_url_encodes_workspace_path() {
-        let url = url::Url::parse(&codex_new_thread_url(Path::new("/tmp/codex workspace/#1")))
+    fn codepilotx_new_thread_url_encodes_workspace_path() {
+        let url = url::Url::parse(&codepilotx_new_thread_url(Path::new("/tmp/codex workspace/#1")))
             .expect("deep link should parse");
 
         assert_eq!(

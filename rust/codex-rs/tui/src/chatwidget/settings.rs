@@ -161,7 +161,7 @@ impl ChatWidget {
 
     /// Set the reasoning effort for the non-Plan collaboration mode.
     ///
-    /// Does not touch the active Plan mask â€” Plan reasoning is controlled
+    /// Does not touch the active Plan mask â€?Plan reasoning is controlled
     /// exclusively by the Plan preset and `set_plan_mode_reasoning_effort`.
     pub(crate) fn set_reasoning_effort(&mut self, effort: Option<ReasoningEffortConfig>) {
         self.current_collaboration_mode = self.current_collaboration_mode.with_updates(
@@ -206,8 +206,8 @@ impl ChatWidget {
         self.has_chatgpt_account
     }
 
-    pub(crate) fn has_codex_backend_auth(&self) -> bool {
-        self.has_codex_backend_auth
+    pub(crate) fn has_codepilotx_backend_auth(&self) -> bool {
+        self.has_codepilotx_backend_auth
     }
 
     pub(crate) fn update_account_state(
@@ -215,11 +215,11 @@ impl ChatWidget {
         status_account_display: Option<StatusAccountDisplay>,
         plan_type: Option<PlanType>,
         has_chatgpt_account: bool,
-        has_codex_backend_auth: bool,
+        has_codepilotx_backend_auth: bool,
     ) {
         let account_state_changed = self.status_account_display != status_account_display
             || self.has_chatgpt_account != has_chatgpt_account
-            || self.has_codex_backend_auth != has_codex_backend_auth;
+            || self.has_codepilotx_backend_auth != has_codepilotx_backend_auth;
         if account_state_changed {
             self.clear_pending_token_activity_refreshes();
             self.clear_pending_rate_limit_reset_requests();
@@ -227,11 +227,11 @@ impl ChatWidget {
         self.status_account_display = status_account_display;
         self.plan_type = plan_type;
         self.has_chatgpt_account = has_chatgpt_account;
-        self.has_codex_backend_auth = has_codex_backend_auth;
+        self.has_codepilotx_backend_auth = has_codepilotx_backend_auth;
         self.bottom_pane
             .set_connectors_enabled(self.connectors_enabled());
         self.bottom_pane
-            .set_token_activity_command_enabled(has_codex_backend_auth);
+            .set_token_activity_command_enabled(has_codepilotx_backend_auth);
     }
 
     /// Set the syntax theme override in the widget's config copy.

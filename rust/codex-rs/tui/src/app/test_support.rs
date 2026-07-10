@@ -6,8 +6,8 @@
 
 use super::*;
 use crate::chatwidget::tests::make_chatwidget_manual_with_sender;
-use codex_models_manager::test_support::construct_model_info_offline_for_tests;
-use codex_models_manager::test_support::get_model_offline_for_tests;
+use codepilotx_models_manager::test_support::construct_model_info_offline_for_tests;
+use codepilotx_models_manager::test_support::get_model_offline_for_tests;
 
 pub(super) async fn make_test_app() -> App {
     let (chat_widget, app_event_tx, _rx, _op_rx) = make_chatwidget_manual_with_sender().await;
@@ -45,7 +45,7 @@ pub(super) async fn make_test_app() -> App {
         skill_load_warnings: SkillLoadWarningState::default(),
         backtrack: BacktrackState::default(),
         backtrack_render_pending: false,
-        feedback: codex_feedback::CodexFeedback::new(),
+        feedback: codepilotx_feedback::CodexFeedback::new(),
         feedback_audience: FeedbackAudience::External,
         environment_manager: Arc::new(EnvironmentManager::default_for_tests()),
         app_server_target: crate::AppServerTarget::Embedded,

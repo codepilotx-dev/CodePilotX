@@ -1,5 +1,5 @@
 use crate::legacy_core::config::Config;
-use codex_features::Feature;
+use codepilotx_features::Feature;
 
 pub(crate) const TERMINAL_VISUALIZATION_INSTRUCTIONS: &str = "\
 - This surface is a terminal. When the formatting rules require a visual, include one in the final answer using compact ASCII diagrams, trees, timelines, or tables.

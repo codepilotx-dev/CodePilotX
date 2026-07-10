@@ -39,7 +39,7 @@ impl ChatWidget {
                         thread_id: self.thread_id.map(|id| id.to_string()).unwrap_or_default(),
                         turn: Turn {
                             id: turn_id,
-                            items_view: codex_app_server_protocol::TurnItemsView::NotLoaded,
+                            items_view: codepilotx_app_server_protocol::TurnItemsView::NotLoaded,
                             items: Vec::new(),
                             status,
                             error,
@@ -87,12 +87,12 @@ impl ChatWidget {
                         content: vec![AgentMessageContent::Text { text }],
                         phase,
                         memory_citation: memory_citation.map(|citation| {
-                            codex_protocol::memory_citation::MemoryCitation {
+                            codepilotx_protocol::memory_citation::MemoryCitation {
                                 entries: citation
                                     .entries
                                     .into_iter()
                                     .map(|entry| {
-                                        codex_protocol::memory_citation::MemoryCitationEntry {
+                                        codepilotx_protocol::memory_citation::MemoryCitationEntry {
                                             path: entry.path,
                                             line_start: entry.line_start,
                                             line_end: entry.line_end,
@@ -124,17 +124,17 @@ impl ChatWidget {
                 self.on_agent_reasoning_final();
             }
             item @ ThreadItem::CommandExecution {
-                status: codex_app_server_protocol::CommandExecutionStatus::InProgress,
+                status: codepilotx_app_server_protocol::CommandExecutionStatus::InProgress,
                 ..
             } => self.on_command_execution_started(item),
             item @ ThreadItem::CommandExecution { .. } => self.on_command_execution_completed(item),
             ThreadItem::FileChange {
-                status: codex_app_server_protocol::PatchApplyStatus::InProgress,
+                status: codepilotx_app_server_protocol::PatchApplyStatus::InProgress,
                 ..
             } => {}
             item @ ThreadItem::FileChange { .. } => self.on_file_change_completed(item),
             item @ ThreadItem::McpToolCall {
-                status: codex_app_server_protocol::McpToolCallStatus::InProgress,
+                status: codepilotx_app_server_protocol::McpToolCallStatus::InProgress,
                 ..
             } => self.on_mcp_tool_call_started(item),
             item @ ThreadItem::McpToolCall { .. } => self.on_mcp_tool_call_completed(item),
@@ -143,7 +143,7 @@ impl ChatWidget {
                 self.on_web_search_end(
                     id,
                     query,
-                    action.unwrap_or(codex_app_server_protocol::WebSearchAction::Other),
+                    action.unwrap_or(codepilotx_app_server_protocol::WebSearchAction::Other),
                 );
             }
             ThreadItem::ImageView { id: _, path } => {

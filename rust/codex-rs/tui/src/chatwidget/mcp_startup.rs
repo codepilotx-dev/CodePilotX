@@ -6,8 +6,8 @@
 
 use std::collections::BTreeSet;
 
-use codex_app_server_protocol::McpServerStartupState;
-use codex_app_server_protocol::McpServerStatusUpdatedNotification;
+use codepilotx_app_server_protocol::McpServerStartupState;
+use codepilotx_app_server_protocol::McpServerStatusUpdatedNotification;
 
 use super::ChatWidget;
 
@@ -158,7 +158,7 @@ impl ChatWidget {
                     .map(ToString::to_string)
                     .collect();
                 if starting.len() > max_to_show {
-                    to_show.push("â€¦".to_string());
+                    to_show.push("â€?.to_string());
                 }
                 let header = if total > 1 {
                     format!(

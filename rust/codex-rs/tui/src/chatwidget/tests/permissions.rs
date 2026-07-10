@@ -1,12 +1,12 @@
 use super::*;
 use crate::legacy_core::config::CustomPermissionProfileSummary;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::ManagedFileSystemPermissions;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
+use codepilotx_protocol::models::ActivePermissionProfile;
+use codepilotx_protocol::models::ManagedFileSystemPermissions;
+use codepilotx_protocol::permissions::FileSystemAccessMode;
+use codepilotx_protocol::permissions::FileSystemPath;
+use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+use codepilotx_protocol::permissions::FileSystemSpecialPath;
+use codepilotx_protocol::permissions::NetworkSandboxPolicy;
 use pretty_assertions::assert_eq;
 
 fn app_server_workspace_write_profile(extra_root: AbsolutePathBuf) -> PermissionProfile {
@@ -51,16 +51,16 @@ fn app_server_workspace_write_profile(extra_root: AbsolutePathBuf) -> Permission
 fn windows_sandbox_requirements_stack(
     allowed_sandbox_implementations: Vec<WindowsSandboxModeToml>,
 ) -> ConfigLayerStack {
-    let requirements_toml = codex_config::ConfigRequirementsToml {
-        windows: Some(codex_config::WindowsRequirementsToml {
+    let requirements_toml = codepilotx_config::ConfigRequirementsToml {
+        windows: Some(codepilotx_config::WindowsRequirementsToml {
             allowed_sandbox_implementations: Some(allowed_sandbox_implementations),
         }),
         ..Default::default()
     };
-    let mut requirements_with_sources = codex_config::ConfigRequirementsWithSources::default();
+    let mut requirements_with_sources = codepilotx_config::ConfigRequirementsWithSources::default();
     requirements_with_sources
         .merge_unset_fields(RequirementSource::Unknown, requirements_toml.clone());
-    let requirements = codex_config::ConfigRequirements::try_from(requirements_with_sources)
+    let requirements = codepilotx_config::ConfigRequirements::try_from(requirements_with_sources)
         .expect("windows sandbox requirements");
 
     ConfigLayerStack::new(Vec::new(), requirements, requirements_toml)
@@ -1058,7 +1058,7 @@ async fn permissions_selection_sends_approvals_reviewer_in_override_turn_context
     assert!(
         popup
             .lines()
-            .any(|line| line.contains("(current)") && line.contains('â€º')),
+            .any(|line| line.contains("(current)") && line.contains('â€?)),
         "expected permissions popup to open with the current preset selected: {popup}"
     );
 
@@ -1067,7 +1067,7 @@ async fn permissions_selection_sends_approvals_reviewer_in_override_turn_context
     assert!(
         popup
             .lines()
-            .any(|line| line.contains("Approve for me") && line.contains('â€º')),
+            .any(|line| line.contains("Approve for me") && line.contains('â€?)),
         "expected one Down from Ask for approval to select Approve for me: {popup}"
     );
     chat.handle_key_event(KeyEvent::from(KeyCode::Enter));

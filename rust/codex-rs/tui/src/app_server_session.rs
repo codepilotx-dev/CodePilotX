@@ -14,113 +14,113 @@ use crate::session_state::ThreadSessionState;
 use crate::status::StatusAccountDisplay;
 use crate::status::plan_type_display_name;
 use crate::terminal_visualization_instructions::with_terminal_visualization_instructions;
-use codex_app_server_client::AppServerClient;
-use codex_app_server_client::AppServerEvent;
-use codex_app_server_client::AppServerPath;
-use codex_app_server_client::AppServerRequestHandle;
-use codex_app_server_client::TypedRequestError;
-use codex_app_server_protocol::Account;
-use codex_app_server_protocol::AskForApproval;
-use codex_app_server_protocol::AuthMode;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ConfigBatchWriteParams;
-use codex_app_server_protocol::ConfigWriteResponse;
-use codex_app_server_protocol::ExternalAgentConfigDetectParams;
-use codex_app_server_protocol::ExternalAgentConfigDetectResponse;
-use codex_app_server_protocol::ExternalAgentConfigImportParams;
-use codex_app_server_protocol::ExternalAgentConfigImportResponse;
-use codex_app_server_protocol::ExternalAgentConfigMigrationItem;
-use codex_app_server_protocol::GetAccountParams;
-use codex_app_server_protocol::GetAccountRateLimitsResponse;
-use codex_app_server_protocol::GetAccountResponse;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::LogoutAccountResponse;
-use codex_app_server_protocol::MemoryResetResponse;
-use codex_app_server_protocol::Model as ApiModel;
-use codex_app_server_protocol::ModelListParams;
-use codex_app_server_protocol::ModelListResponse;
-use codex_app_server_protocol::RateLimitSnapshot;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ReviewDelivery;
-use codex_app_server_protocol::ReviewStartParams;
-use codex_app_server_protocol::ReviewStartResponse;
-use codex_app_server_protocol::ReviewTarget;
-use codex_app_server_protocol::SkillsListParams;
-use codex_app_server_protocol::SkillsListResponse;
-use codex_app_server_protocol::Thread;
-use codex_app_server_protocol::ThreadApproveGuardianDeniedActionParams;
-use codex_app_server_protocol::ThreadApproveGuardianDeniedActionResponse;
-use codex_app_server_protocol::ThreadArchiveParams;
-use codex_app_server_protocol::ThreadArchiveResponse;
-use codex_app_server_protocol::ThreadBackgroundTerminalsCleanParams;
-use codex_app_server_protocol::ThreadBackgroundTerminalsCleanResponse;
-use codex_app_server_protocol::ThreadCompactStartParams;
-use codex_app_server_protocol::ThreadCompactStartResponse;
-use codex_app_server_protocol::ThreadDeleteParams;
-use codex_app_server_protocol::ThreadDeleteResponse;
-use codex_app_server_protocol::ThreadForkParams;
-use codex_app_server_protocol::ThreadForkResponse;
-use codex_app_server_protocol::ThreadGoalClearParams;
-use codex_app_server_protocol::ThreadGoalClearResponse;
-use codex_app_server_protocol::ThreadGoalGetParams;
-use codex_app_server_protocol::ThreadGoalGetResponse;
-use codex_app_server_protocol::ThreadGoalSetParams;
-use codex_app_server_protocol::ThreadGoalSetResponse;
-use codex_app_server_protocol::ThreadGoalStatus;
-use codex_app_server_protocol::ThreadInjectItemsParams;
-use codex_app_server_protocol::ThreadInjectItemsResponse;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadListResponse;
-use codex_app_server_protocol::ThreadLoadedListParams;
-use codex_app_server_protocol::ThreadLoadedListResponse;
-use codex_app_server_protocol::ThreadMemoryMode;
-use codex_app_server_protocol::ThreadMemoryModeSetParams;
-use codex_app_server_protocol::ThreadMemoryModeSetResponse;
-use codex_app_server_protocol::ThreadMetadataGitInfoUpdateParams;
-use codex_app_server_protocol::ThreadMetadataUpdateParams;
-use codex_app_server_protocol::ThreadMetadataUpdateResponse;
-use codex_app_server_protocol::ThreadReadParams;
-use codex_app_server_protocol::ThreadReadResponse;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::ThreadRollbackParams;
-use codex_app_server_protocol::ThreadRollbackResponse;
-use codex_app_server_protocol::ThreadSetNameParams;
-use codex_app_server_protocol::ThreadSetNameResponse;
-use codex_app_server_protocol::ThreadSettingsUpdateParams;
-use codex_app_server_protocol::ThreadSettingsUpdateResponse;
-use codex_app_server_protocol::ThreadShellCommandParams;
-use codex_app_server_protocol::ThreadShellCommandResponse;
-use codex_app_server_protocol::ThreadSource;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStartSource;
-use codex_app_server_protocol::ThreadUnarchiveParams;
-use codex_app_server_protocol::ThreadUnarchiveResponse;
-use codex_app_server_protocol::ThreadUnsubscribeParams;
-use codex_app_server_protocol::ThreadUnsubscribeResponse;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnInterruptParams;
-use codex_app_server_protocol::TurnInterruptResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnSteerParams;
-use codex_app_server_protocol::TurnSteerResponse;
-use codex_app_server_protocol::UserInput;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::ThreadId;
-use codex_protocol::approvals::GuardianAssessmentEvent;
-use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ModelAvailabilityNux;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ModelServiceTier;
-use codex_protocol::openai_models::ModelUpgrade;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use codepilotx_app_server_client::AppServerClient;
+use codepilotx_app_server_client::AppServerEvent;
+use codepilotx_app_server_client::AppServerPath;
+use codepilotx_app_server_client::AppServerRequestHandle;
+use codepilotx_app_server_client::TypedRequestError;
+use codepilotx_app_server_protocol::Account;
+use codepilotx_app_server_protocol::AskForApproval;
+use codepilotx_app_server_protocol::AuthMode;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::ConfigBatchWriteParams;
+use codepilotx_app_server_protocol::ConfigWriteResponse;
+use codepilotx_app_server_protocol::ExternalAgentConfigDetectParams;
+use codepilotx_app_server_protocol::ExternalAgentConfigDetectResponse;
+use codepilotx_app_server_protocol::ExternalAgentConfigImportParams;
+use codepilotx_app_server_protocol::ExternalAgentConfigImportResponse;
+use codepilotx_app_server_protocol::ExternalAgentConfigMigrationItem;
+use codepilotx_app_server_protocol::GetAccountParams;
+use codepilotx_app_server_protocol::GetAccountRateLimitsResponse;
+use codepilotx_app_server_protocol::GetAccountResponse;
+use codepilotx_app_server_protocol::JSONRPCErrorError;
+use codepilotx_app_server_protocol::LogoutAccountResponse;
+use codepilotx_app_server_protocol::MemoryResetResponse;
+use codepilotx_app_server_protocol::Model as ApiModel;
+use codepilotx_app_server_protocol::ModelListParams;
+use codepilotx_app_server_protocol::ModelListResponse;
+use codepilotx_app_server_protocol::RateLimitSnapshot;
+use codepilotx_app_server_protocol::RequestId;
+use codepilotx_app_server_protocol::ReviewDelivery;
+use codepilotx_app_server_protocol::ReviewStartParams;
+use codepilotx_app_server_protocol::ReviewStartResponse;
+use codepilotx_app_server_protocol::ReviewTarget;
+use codepilotx_app_server_protocol::SkillsListParams;
+use codepilotx_app_server_protocol::SkillsListResponse;
+use codepilotx_app_server_protocol::Thread;
+use codepilotx_app_server_protocol::ThreadApproveGuardianDeniedActionParams;
+use codepilotx_app_server_protocol::ThreadApproveGuardianDeniedActionResponse;
+use codepilotx_app_server_protocol::ThreadArchiveParams;
+use codepilotx_app_server_protocol::ThreadArchiveResponse;
+use codepilotx_app_server_protocol::ThreadBackgroundTerminalsCleanParams;
+use codepilotx_app_server_protocol::ThreadBackgroundTerminalsCleanResponse;
+use codepilotx_app_server_protocol::ThreadCompactStartParams;
+use codepilotx_app_server_protocol::ThreadCompactStartResponse;
+use codepilotx_app_server_protocol::ThreadDeleteParams;
+use codepilotx_app_server_protocol::ThreadDeleteResponse;
+use codepilotx_app_server_protocol::ThreadForkParams;
+use codepilotx_app_server_protocol::ThreadForkResponse;
+use codepilotx_app_server_protocol::ThreadGoalClearParams;
+use codepilotx_app_server_protocol::ThreadGoalClearResponse;
+use codepilotx_app_server_protocol::ThreadGoalGetParams;
+use codepilotx_app_server_protocol::ThreadGoalGetResponse;
+use codepilotx_app_server_protocol::ThreadGoalSetParams;
+use codepilotx_app_server_protocol::ThreadGoalSetResponse;
+use codepilotx_app_server_protocol::ThreadGoalStatus;
+use codepilotx_app_server_protocol::ThreadInjectItemsParams;
+use codepilotx_app_server_protocol::ThreadInjectItemsResponse;
+use codepilotx_app_server_protocol::ThreadListParams;
+use codepilotx_app_server_protocol::ThreadListResponse;
+use codepilotx_app_server_protocol::ThreadLoadedListParams;
+use codepilotx_app_server_protocol::ThreadLoadedListResponse;
+use codepilotx_app_server_protocol::ThreadMemoryMode;
+use codepilotx_app_server_protocol::ThreadMemoryModeSetParams;
+use codepilotx_app_server_protocol::ThreadMemoryModeSetResponse;
+use codepilotx_app_server_protocol::ThreadMetadataGitInfoUpdateParams;
+use codepilotx_app_server_protocol::ThreadMetadataUpdateParams;
+use codepilotx_app_server_protocol::ThreadMetadataUpdateResponse;
+use codepilotx_app_server_protocol::ThreadReadParams;
+use codepilotx_app_server_protocol::ThreadReadResponse;
+use codepilotx_app_server_protocol::ThreadResumeParams;
+use codepilotx_app_server_protocol::ThreadResumeResponse;
+use codepilotx_app_server_protocol::ThreadRollbackParams;
+use codepilotx_app_server_protocol::ThreadRollbackResponse;
+use codepilotx_app_server_protocol::ThreadSetNameParams;
+use codepilotx_app_server_protocol::ThreadSetNameResponse;
+use codepilotx_app_server_protocol::ThreadSettingsUpdateParams;
+use codepilotx_app_server_protocol::ThreadSettingsUpdateResponse;
+use codepilotx_app_server_protocol::ThreadShellCommandParams;
+use codepilotx_app_server_protocol::ThreadShellCommandResponse;
+use codepilotx_app_server_protocol::ThreadSource;
+use codepilotx_app_server_protocol::ThreadStartParams;
+use codepilotx_app_server_protocol::ThreadStartResponse;
+use codepilotx_app_server_protocol::ThreadStartSource;
+use codepilotx_app_server_protocol::ThreadUnarchiveParams;
+use codepilotx_app_server_protocol::ThreadUnarchiveResponse;
+use codepilotx_app_server_protocol::ThreadUnsubscribeParams;
+use codepilotx_app_server_protocol::ThreadUnsubscribeResponse;
+use codepilotx_app_server_protocol::Turn;
+use codepilotx_app_server_protocol::TurnInterruptParams;
+use codepilotx_app_server_protocol::TurnInterruptResponse;
+use codepilotx_app_server_protocol::TurnStartParams;
+use codepilotx_app_server_protocol::TurnStartResponse;
+use codepilotx_app_server_protocol::TurnSteerParams;
+use codepilotx_app_server_protocol::TurnSteerResponse;
+use codepilotx_app_server_protocol::UserInput;
+use codepilotx_otel::TelemetryAuthMode;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::approvals::GuardianAssessmentEvent;
+use codepilotx_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+use codepilotx_protocol::models::ActivePermissionProfile;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::models::ResponseItem;
+use codepilotx_protocol::openai_models::ModelAvailabilityNux;
+use codepilotx_protocol::openai_models::ModelPreset;
+use codepilotx_protocol::openai_models::ModelServiceTier;
+use codepilotx_protocol::openai_models::ModelUpgrade;
+use codepilotx_protocol::openai_models::ReasoningEffortPreset;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_utils_path_uri::PathUri;
 use color_eyre::eyre::ContextCompat;
 use color_eyre::eyre::Result;
 use color_eyre::eyre::WrapErr;
@@ -159,7 +159,7 @@ pub(crate) struct AppServerBootstrap {
     pub(crate) account_email: Option<String>,
     pub(crate) auth_mode: Option<TelemetryAuthMode>,
     pub(crate) status_account_display: Option<StatusAccountDisplay>,
-    pub(crate) plan_type: Option<codex_protocol::account::PlanType>,
+    pub(crate) plan_type: Option<codepilotx_protocol::account::PlanType>,
     /// Whether the configured model provider needs OpenAI-style auth. Combined
     /// with `has_chatgpt_account` to decide if a startup rate-limit prefetch
     /// should be fired.
@@ -243,11 +243,11 @@ impl AppServerSession {
         matches!(&self.client, AppServerClient::InProcess(_))
     }
 
-    pub(crate) fn codex_home_path(
+    pub(crate) fn codepilotx_home_path(
         &self,
-        local_codex_home: &AbsolutePathBuf,
+        local_codepilotx_home: &AbsolutePathBuf,
     ) -> Option<AppServerPath> {
-        self.client.codex_home(local_codex_home)
+        self.client.codepilotx_home(local_codepilotx_home)
     }
 
     pub(crate) fn server_version(&self) -> Option<&str> {
@@ -749,15 +749,15 @@ impl AppServerSession {
         items: Vec<UserInput>,
         cwd: PathBuf,
         approval_policy: AskForApproval,
-        approvals_reviewer: codex_protocol::config_types::ApprovalsReviewer,
+        approvals_reviewer: codepilotx_protocol::config_types::ApprovalsReviewer,
         permissions_override: TurnPermissionsOverride,
         workspace_roots: &[AbsolutePathBuf],
         model: String,
-        effort: Option<codex_protocol::openai_models::ReasoningEffort>,
-        summary: Option<codex_protocol::config_types::ReasoningSummary>,
+        effort: Option<codepilotx_protocol::openai_models::ReasoningEffort>,
+        summary: Option<codepilotx_protocol::config_types::ReasoningSummary>,
         service_tier: Option<Option<String>>,
-        collaboration_mode: Option<codex_protocol::config_types::CollaborationMode>,
-        personality: Option<codex_protocol::config_types::Personality>,
+        collaboration_mode: Option<codepilotx_protocol::config_types::CollaborationMode>,
+        personality: Option<codepilotx_protocol::config_types::Personality>,
         output_schema: Option<serde_json::Value>,
     ) -> Result<TurnStartResponse> {
         let request_id = self.next_request_id();
@@ -1170,7 +1170,7 @@ pub(crate) async fn start_thread_with_request_handle(
 
 pub(crate) fn status_account_display_from_auth_mode(
     auth_mode: Option<AuthMode>,
-    plan_type: Option<codex_protocol::account::PlanType>,
+    plan_type: Option<codepilotx_protocol::account::PlanType>,
 ) -> Option<StatusAccountDisplay> {
     match auth_mode {
         Some(AuthMode::ApiKey) => Some(StatusAccountDisplay::ApiKey),
@@ -1242,7 +1242,7 @@ fn model_preset_from_api_model(model: ApiModel) -> ModelPreset {
 
 fn approvals_reviewer_override_from_config(
     config: &Config,
-) -> Option<codex_app_server_protocol::ApprovalsReviewer> {
+) -> Option<codepilotx_app_server_protocol::ApprovalsReviewer> {
     Some(config.approvals_reviewer.into())
 }
 
@@ -1300,10 +1300,10 @@ fn service_tier_override_from_config(config: &Config) -> Option<Option<String>> 
 fn sandbox_mode_from_permission_profile(
     permission_profile: &PermissionProfile,
     cwd: &std::path::Path,
-) -> Option<codex_app_server_protocol::SandboxMode> {
+) -> Option<codepilotx_app_server_protocol::SandboxMode> {
     match permission_profile {
         PermissionProfile::Disabled => {
-            Some(codex_app_server_protocol::SandboxMode::DangerFullAccess)
+            Some(codepilotx_app_server_protocol::SandboxMode::DangerFullAccess)
         }
         PermissionProfile::External { .. } => None,
         PermissionProfile::Managed { .. } => {
@@ -1312,11 +1312,11 @@ fn sandbox_mode_from_permission_profile(
                 permission_profile
                     .network_sandbox_policy()
                     .is_enabled()
-                    .then_some(codex_app_server_protocol::SandboxMode::DangerFullAccess)
+                    .then_some(codepilotx_app_server_protocol::SandboxMode::DangerFullAccess)
             } else if file_system_policy.can_write_path_with_cwd(cwd, cwd) {
-                Some(codex_app_server_protocol::SandboxMode::WorkspaceWrite)
+                Some(codepilotx_app_server_protocol::SandboxMode::WorkspaceWrite)
             } else {
-                Some(codex_app_server_protocol::SandboxMode::ReadOnly)
+                Some(codepilotx_app_server_protocol::SandboxMode::ReadOnly)
             }
         }
     }
@@ -1330,7 +1330,7 @@ fn turn_permissions_overrides(
     permissions_override: TurnPermissionsOverride,
     cwd: &std::path::Path,
 ) -> (
-    Option<codex_app_server_protocol::SandboxPolicy>,
+    Option<codepilotx_app_server_protocol::SandboxPolicy>,
     Option<String>,
 ) {
     match permissions_override {
@@ -1644,7 +1644,7 @@ async fn thread_session_state_from_thread_fork_response(
 }
 
 fn display_permission_profile_from_thread_response(
-    sandbox: &codex_app_server_protocol::SandboxPolicy,
+    sandbox: &codepilotx_app_server_protocol::SandboxPolicy,
     cwd: &std::path::Path,
     config: &Config,
     thread_params_mode: ThreadParamsMode,
@@ -1670,13 +1670,13 @@ async fn thread_session_state_from_thread_response(
     model_provider_id: String,
     service_tier: Option<String>,
     approval_policy: AskForApproval,
-    approvals_reviewer: codex_protocol::config_types::ApprovalsReviewer,
+    approvals_reviewer: codepilotx_protocol::config_types::ApprovalsReviewer,
     permission_profile: PermissionProfile,
     active_permission_profile: Option<ActivePermissionProfile>,
     cwd: AbsolutePathBuf,
     runtime_workspace_roots: Vec<AbsolutePathBuf>,
     instruction_source_paths: Vec<PathUri>,
-    reasoning_effort: Option<codex_protocol::openai_models::ReasoningEffort>,
+    reasoning_effort: Option<codepilotx_protocol::openai_models::ReasoningEffort>,
     config: &Config,
 ) -> Result<ThreadSessionState, String> {
     let thread_id = ThreadId::from_string(thread_id)
@@ -1687,8 +1687,8 @@ async fn thread_session_state_from_thread_response(
         .transpose()
         .map_err(|err| format!("forked_from_id is invalid: {err}"))?;
     let history_config =
-        codex_message_history::HistoryConfig::new(config.codex_home.clone(), &config.history);
-    let (log_id, entry_count) = codex_message_history::history_metadata(&history_config).await;
+        codepilotx_message_history::HistoryConfig::new(config.codepilotx_home.clone(), &config.history);
+    let (log_id, entry_count) = codepilotx_message_history::history_metadata(&history_config).await;
     Ok(ThreadSessionState {
         thread_id,
         forked_from_id,
@@ -1741,33 +1741,33 @@ mod tests {
     use super::*;
     use crate::legacy_core::config::ConfigBuilder;
     use crate::legacy_core::config::ConfigOverrides;
-    use codex_app_server_protocol::ThreadStatus;
-    use codex_app_server_protocol::Turn;
-    use codex_app_server_protocol::TurnStatus;
-    use codex_features::Feature;
-    use codex_protocol::config_types::Personality;
-    use codex_protocol::config_types::ReasoningSummary;
-    use codex_protocol::config_types::ServiceTier;
-    use codex_protocol::config_types::Verbosity;
-    use codex_protocol::config_types::WebSearchMode;
-    use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
-    use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
-    use codex_protocol::models::ManagedFileSystemPermissions;
-    use codex_protocol::openai_models::ReasoningEffort;
-    use codex_protocol::permissions::FileSystemAccessMode;
-    use codex_protocol::permissions::FileSystemPath;
-    use codex_protocol::permissions::FileSystemSandboxEntry;
-    use codex_protocol::permissions::FileSystemSpecialPath;
-    use codex_protocol::permissions::NetworkSandboxPolicy;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
-    use codex_utils_path_uri::LegacyAppPathString;
+    use codepilotx_app_server_protocol::ThreadStatus;
+    use codepilotx_app_server_protocol::Turn;
+    use codepilotx_app_server_protocol::TurnStatus;
+    use codepilotx_features::Feature;
+    use codepilotx_protocol::config_types::Personality;
+    use codepilotx_protocol::config_types::ReasoningSummary;
+    use codepilotx_protocol::config_types::ServiceTier;
+    use codepilotx_protocol::config_types::Verbosity;
+    use codepilotx_protocol::config_types::WebSearchMode;
+    use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
+    use codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
+    use codepilotx_protocol::models::ManagedFileSystemPermissions;
+    use codepilotx_protocol::openai_models::ReasoningEffort;
+    use codepilotx_protocol::permissions::FileSystemAccessMode;
+    use codepilotx_protocol::permissions::FileSystemPath;
+    use codepilotx_protocol::permissions::FileSystemSandboxEntry;
+    use codepilotx_protocol::permissions::FileSystemSpecialPath;
+    use codepilotx_protocol::permissions::NetworkSandboxPolicy;
+    use codepilotx_utils_absolute_path::test_support::PathBufExt;
+    use codepilotx_utils_absolute_path::test_support::test_path_buf;
+    use codepilotx_utils_path_uri::LegacyAppPathString;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 
     async fn build_config(temp_dir: &TempDir) -> Config {
         ConfigBuilder::default()
-            .codex_home(temp_dir.path().to_path_buf())
+            .codepilotx_home(temp_dir.path().to_path_buf())
             .build()
             .await
             .expect("config should build")
@@ -1777,7 +1777,7 @@ mod tests {
         RateLimitSnapshot {
             limit_id: Some(limit_id.to_string()),
             limit_name: None,
-            primary: Some(codex_app_server_protocol::RateLimitWindow {
+            primary: Some(codepilotx_app_server_protocol::RateLimitWindow {
                 used_percent: 0,
                 window_duration_mins: Some(10_080),
                 resets_at: None,
@@ -1847,7 +1847,7 @@ mod tests {
     async fn thread_start_params_include_cwd_for_embedded_sessions() {
         let temp_dir = tempfile::tempdir().expect("tempdir");
         let config = ConfigBuilder::default()
-            .codex_home(temp_dir.path().to_path_buf())
+            .codepilotx_home(temp_dir.path().to_path_buf())
             .harness_overrides(ConfigOverrides {
                 default_permissions: Some(BUILT_IN_PERMISSION_PROFILE_WORKSPACE.to_string()),
                 ..ConfigOverrides::default()
@@ -1952,7 +1952,7 @@ mod tests {
 
         assert_eq!(
             sandbox_policy,
-            Some(codex_app_server_protocol::SandboxPolicy::ReadOnly {
+            Some(codepilotx_app_server_protocol::SandboxPolicy::ReadOnly {
                 network_access: false
             })
         );
@@ -2058,7 +2058,7 @@ mod tests {
 
         assert_eq!(
             sandbox_mode_from_permission_profile(&permission_profile, cwd.as_path()),
-            Some(codex_app_server_protocol::SandboxMode::ReadOnly)
+            Some(codepilotx_app_server_protocol::SandboxMode::ReadOnly)
         );
     }
 
@@ -2088,7 +2088,7 @@ mod tests {
 
         assert_eq!(
             sandbox_mode_from_permission_profile(&permission_profile, cwd.as_path()),
-            Some(codex_app_server_protocol::SandboxMode::WorkspaceWrite)
+            Some(codepilotx_app_server_protocol::SandboxMode::WorkspaceWrite)
         );
     }
 
@@ -2315,7 +2315,7 @@ mod tests {
         let forked_from_id = ThreadId::new();
         let read_only_profile = PermissionProfile::read_only();
         let response = ThreadResumeResponse {
-            thread: codex_app_server_protocol::Thread {
+            thread: codepilotx_app_server_protocol::Thread {
                 id: thread_id.to_string(),
                 session_id: ThreadId::new().to_string(),
                 forked_from_id: Some(forked_from_id.to_string()),
@@ -2330,7 +2330,7 @@ mod tests {
                 path: None,
                 cwd: test_path_buf("/tmp/project").abs(),
                 cli_version: "0.0.0".to_string(),
-                source: codex_app_server_protocol::SessionSource::Cli,
+                source: codepilotx_app_server_protocol::SessionSource::Cli,
                 thread_source: None,
                 agent_nickname: None,
                 agent_role: None,
@@ -2338,17 +2338,17 @@ mod tests {
                 name: None,
                 turns: vec![Turn {
                     id: "turn-1".to_string(),
-                    items_view: codex_app_server_protocol::TurnItemsView::Full,
+                    items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                     items: vec![
-                        codex_app_server_protocol::ThreadItem::UserMessage {
+                        codepilotx_app_server_protocol::ThreadItem::UserMessage {
                             id: "user-1".to_string(),
                             client_id: None,
-                            content: vec![codex_app_server_protocol::UserInput::Text {
+                            content: vec![codepilotx_app_server_protocol::UserInput::Text {
                                 text: "hello from history".to_string(),
                                 text_elements: Vec::new(),
                             }],
                         },
-                        codex_app_server_protocol::ThreadItem::AgentMessage {
+                        codepilotx_app_server_protocol::ThreadItem::AgentMessage {
                             id: "assistant-1".to_string(),
                             text: "assistant reply".to_string(),
                             phase: None,
@@ -2373,8 +2373,8 @@ mod tests {
             instruction_sources: vec![LegacyAppPathString::from_abs_path(
                 &test_path_buf("/tmp/project/AGENTS.md").abs(),
             )],
-            approval_policy: codex_app_server_protocol::AskForApproval::Never,
-            approvals_reviewer: codex_app_server_protocol::ApprovalsReviewer::User,
+            approval_policy: codepilotx_app_server_protocol::AskForApproval::Never,
+            approvals_reviewer: codepilotx_app_server_protocol::ApprovalsReviewer::User,
             sandbox: read_only_profile
                 .to_legacy_sandbox_policy(test_path_buf("/tmp/project").as_path())
                 .expect("read-only profile must be legacy-compatible")
@@ -2406,7 +2406,7 @@ mod tests {
         assert_eq!(started.turns[0], response.thread.turns[0]);
 
         let embedded_config = ConfigBuilder::default()
-            .codex_home(temp_dir.path().join("embedded-codex-home"))
+            .codepilotx_home(temp_dir.path().join("embedded-codex-home"))
             .harness_overrides(ConfigOverrides {
                 default_permissions: Some(BUILT_IN_PERMISSION_PROFILE_WORKSPACE.to_string()),
                 ..ConfigOverrides::default()
@@ -2460,7 +2460,7 @@ mod tests {
     async fn embedded_thread_response_uses_local_config_profile() {
         let temp_dir = tempfile::tempdir().expect("tempdir");
         let config = ConfigBuilder::default()
-            .codex_home(temp_dir.path().to_path_buf())
+            .codepilotx_home(temp_dir.path().to_path_buf())
             .harness_overrides(ConfigOverrides {
                 default_permissions: Some(BUILT_IN_PERMISSION_PROFILE_READ_ONLY.to_string()),
                 ..ConfigOverrides::default()
@@ -2472,7 +2472,7 @@ mod tests {
 
         assert_eq!(
             display_permission_profile_from_thread_response(
-                &codex_app_server_protocol::SandboxPolicy::DangerFullAccess,
+                &codepilotx_app_server_protocol::SandboxPolicy::DangerFullAccess,
                 cwd.as_path(),
                 &config,
                 ThreadParamsMode::Embedded,
@@ -2488,12 +2488,12 @@ mod tests {
         let thread_id = ThreadId::new();
 
         let history_config =
-            codex_message_history::HistoryConfig::new(config.codex_home.clone(), &config.history);
+            codepilotx_message_history::HistoryConfig::new(config.codepilotx_home.clone(), &config.history);
 
-        codex_message_history::append_entry("older", &thread_id, &history_config)
+        codepilotx_message_history::append_entry("older", &thread_id, &history_config)
             .await
             .expect("history append should succeed");
-        codex_message_history::append_entry("newer", &thread_id, &history_config)
+        codepilotx_message_history::append_entry("newer", &thread_id, &history_config)
             .await
             .expect("history append should succeed");
 
@@ -2506,7 +2506,7 @@ mod tests {
             "openai".to_string(),
             /*service_tier*/ None,
             AskForApproval::Never,
-            codex_protocol::config_types::ApprovalsReviewer::User,
+            codepilotx_protocol::config_types::ApprovalsReviewer::User,
             PermissionProfile::read_only(),
             /*active_permission_profile*/ None,
             test_path_buf("/tmp/project").abs(),
@@ -2541,7 +2541,7 @@ mod tests {
             "openai".to_string(),
             /*service_tier*/ None,
             AskForApproval::Never,
-            codex_protocol::config_types::ApprovalsReviewer::User,
+            codepilotx_protocol::config_types::ApprovalsReviewer::User,
             PermissionProfile::read_only(),
             /*active_permission_profile*/ None,
             test_path_buf("/tmp/project").abs(),
@@ -2560,7 +2560,7 @@ mod tests {
     fn status_account_display_from_auth_mode_uses_remapped_plan_labels() {
         let business = status_account_display_from_auth_mode(
             Some(AuthMode::Chatgpt),
-            Some(codex_protocol::account::PlanType::EnterpriseCbpUsageBased),
+            Some(codepilotx_protocol::account::PlanType::EnterpriseCbpUsageBased),
         );
         assert!(matches!(
             business,
@@ -2572,7 +2572,7 @@ mod tests {
 
         let team = status_account_display_from_auth_mode(
             Some(AuthMode::Chatgpt),
-            Some(codex_protocol::account::PlanType::SelfServeBusinessUsageBased),
+            Some(codepilotx_protocol::account::PlanType::SelfServeBusinessUsageBased),
         );
         assert!(matches!(
             team,

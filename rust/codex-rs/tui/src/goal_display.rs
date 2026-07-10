@@ -1,6 +1,6 @@
 use crate::status::format_tokens_compact;
-use codex_app_server_protocol::ThreadGoal;
-use codex_app_server_protocol::ThreadGoalStatus;
+use codepilotx_app_server_protocol::ThreadGoal;
+use codepilotx_app_server_protocol::ThreadGoalStatus;
 
 pub(crate) const GOAL_USAGE: &str = "Usage: /goal [<objective>|clear|edit|pause|resume]";
 
@@ -62,8 +62,8 @@ pub(crate) fn goal_usage_summary(goal: &ThreadGoal) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_app_server_protocol::ThreadGoal;
-    use codex_app_server_protocol::ThreadGoalStatus;
+    use codepilotx_app_server_protocol::ThreadGoal;
+    use codepilotx_app_server_protocol::ThreadGoalStatus;
     use pretty_assertions::assert_eq;
 
     #[test]

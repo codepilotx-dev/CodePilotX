@@ -8,9 +8,9 @@
 
 use std::path::Path;
 
-use codex_core::config::Config;
-use codex_install_context::InstallContext;
-use codex_install_context::InstallMethod;
+use codepilotx_core::config::Config;
+use codepilotx_install_context::InstallContext;
+use codepilotx_install_context::InstallMethod;
 use serde::Deserialize;
 
 use super::CheckStatus;
@@ -40,7 +40,7 @@ pub(super) fn updates_check(config: &Config) -> DoctorCheck {
         ),
         format!("update action: {}", update_action_label(&install_context)),
     ];
-    let version_file = config.codex_home.join(VERSION_FILE_NAME);
+    let version_file = config.codepilotx_home.join(VERSION_FILE_NAME);
     push_cached_version_details(&mut details, &version_file);
 
     let mut status = CheckStatus::Ok;
@@ -73,7 +73,7 @@ pub(super) fn updates_check(config: &Config) -> DoctorCheck {
                 status = status.max(CheckStatus::Warning);
                 summary = "npm update target could not be proven".to_string();
                 remediation = Some(
-                    "Reinstall or update Codex so the JS shim provides CODEX_MANAGED_PACKAGE_ROOT."
+                    "Reinstall or update Codex so the JS shim provides codepilotx_MANAGED_PACKAGE_ROOT."
                         .to_string(),
                 );
             }

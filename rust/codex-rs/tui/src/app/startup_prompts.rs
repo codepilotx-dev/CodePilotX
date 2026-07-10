@@ -72,14 +72,14 @@ pub(super) fn emit_project_config_warnings(app_event_tx: &AppEventSender, config
         ConfigLayerStackOrdering::LowestPrecedenceFirst,
         /*include_disabled*/ true,
     ) {
-        let ConfigLayerSource::Project { dot_codex_folder } = &layer.name else {
+        let ConfigLayerSource::Project { dot_codepilotx_folder } = &layer.name else {
             continue;
         };
         let Some(disabled_reason) = &layer.disabled_reason else {
             continue;
         };
         disabled_folders.push((
-            dot_codex_folder.as_path().display().to_string(),
+            dot_codepilotx_folder.as_path().display().to_string(),
             disabled_reason.clone(),
         ));
     }
@@ -106,7 +106,7 @@ pub(super) fn emit_project_config_warnings(app_event_tx: &AppEventSender, config
 
 pub(super) fn emit_system_bwrap_warning(app_event_tx: &AppEventSender, config: &Config) {
     let Some(message) =
-        codex_sandboxing::system_bwrap_warning(config.permissions.permission_profile())
+        codepilotx_sandboxing::system_bwrap_warning(config.permissions.permission_profile())
     else {
         return;
     };
@@ -158,9 +158,9 @@ pub(super) fn should_show_model_migration_prompt(
 
 pub(super) fn migration_prompt_hidden(config: &Config, migration_config_key: &str) -> bool {
     match migration_config_key {
-        HIDE_GPT_5_1_CODEX_MAX_MIGRATION_PROMPT_CONFIG => config
+        HIDE_GPT_5_1_codepilotx_MAX_MIGRATION_PROMPT_CONFIG => config
             .notices
-            .hide_gpt_5_1_codex_max_migration_prompt
+            .hide_gpt_5_1_codepilotx_max_migration_prompt
             .unwrap_or(false),
         HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG => {
             config.notices.hide_gpt5_1_migration_prompt.unwrap_or(false)
@@ -516,8 +516,8 @@ mod tests {
         .join("\n");
 
         insta::assert_snapshot!(rendered, @r"
-âš  Skipped loading 1 skill(s) due to invalid SKILL.md files.
-âš  /repo/.codex/skills/abc/SKILL.md: invalid description
+âš?Skipped loading 1 skill(s) due to invalid SKILL.md files.
+âš?/repo/.codex/skills/abc/SKILL.md: invalid description
 ");
     }
 }

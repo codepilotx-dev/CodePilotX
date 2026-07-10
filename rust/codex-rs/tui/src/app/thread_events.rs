@@ -168,7 +168,7 @@ impl ThreadEventStore {
         &self,
         turn_id: &str,
         item_id: &str,
-    ) -> Option<Vec<codex_app_server_protocol::FileUpdateChange>> {
+    ) -> Option<Vec<codepilotx_app_server_protocol::FileUpdateChange>> {
         self.buffer
             .iter()
             .rev()
@@ -279,7 +279,7 @@ fn turn_id_matches(request_turn_id: &str, candidate_turn_id: &str) -> bool {
 fn file_change_item_changes(
     item: &ThreadItem,
     item_id: &str,
-) -> Option<Vec<codex_app_server_protocol::FileUpdateChange>> {
+) -> Option<Vec<codepilotx_app_server_protocol::FileUpdateChange>> {
     match item {
         ThreadItem::FileChange { id, changes, .. } if id == item_id => Some(changes.clone()),
         _ => None,
@@ -336,23 +336,23 @@ mod tests {
     use super::*;
     use crate::test_support::PathBufExt;
     use crate::test_support::test_path_buf;
-    use codex_app_server_protocol::AskForApproval;
-    use codex_app_server_protocol::CommandExecutionRequestApprovalParams;
-    use codex_app_server_protocol::HookCompletedNotification;
-    use codex_app_server_protocol::HookEventName as AppServerHookEventName;
-    use codex_app_server_protocol::HookExecutionMode as AppServerHookExecutionMode;
-    use codex_app_server_protocol::HookHandlerType as AppServerHookHandlerType;
-    use codex_app_server_protocol::HookOutputEntry as AppServerHookOutputEntry;
-    use codex_app_server_protocol::HookOutputEntryKind as AppServerHookOutputEntryKind;
-    use codex_app_server_protocol::HookRunStatus as AppServerHookRunStatus;
-    use codex_app_server_protocol::HookRunSummary as AppServerHookRunSummary;
-    use codex_app_server_protocol::HookScope as AppServerHookScope;
-    use codex_app_server_protocol::HookStartedNotification;
-    use codex_app_server_protocol::RequestId as AppServerRequestId;
-    use codex_app_server_protocol::TurnCompletedNotification;
-    use codex_app_server_protocol::TurnStartedNotification;
-    use codex_config::types::ApprovalsReviewer;
-    use codex_protocol::models::PermissionProfile;
+    use codepilotx_app_server_protocol::AskForApproval;
+    use codepilotx_app_server_protocol::CommandExecutionRequestApprovalParams;
+    use codepilotx_app_server_protocol::HookCompletedNotification;
+    use codepilotx_app_server_protocol::HookEventName as AppServerHookEventName;
+    use codepilotx_app_server_protocol::HookExecutionMode as AppServerHookExecutionMode;
+    use codepilotx_app_server_protocol::HookHandlerType as AppServerHookHandlerType;
+    use codepilotx_app_server_protocol::HookOutputEntry as AppServerHookOutputEntry;
+    use codepilotx_app_server_protocol::HookOutputEntryKind as AppServerHookOutputEntryKind;
+    use codepilotx_app_server_protocol::HookRunStatus as AppServerHookRunStatus;
+    use codepilotx_app_server_protocol::HookRunSummary as AppServerHookRunSummary;
+    use codepilotx_app_server_protocol::HookScope as AppServerHookScope;
+    use codepilotx_app_server_protocol::HookStartedNotification;
+    use codepilotx_app_server_protocol::RequestId as AppServerRequestId;
+    use codepilotx_app_server_protocol::TurnCompletedNotification;
+    use codepilotx_app_server_protocol::TurnStartedNotification;
+    use codepilotx_config::types::ApprovalsReviewer;
+    use codepilotx_protocol::models::PermissionProfile;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
 
@@ -384,7 +384,7 @@ mod tests {
     fn test_turn(turn_id: &str, status: TurnStatus, items: Vec<ThreadItem>) -> Turn {
         Turn {
             id: turn_id.to_string(),
-            items_view: codex_app_server_protocol::TurnItemsView::Full,
+            items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
             items,
             status,
             error: None,
@@ -430,7 +430,7 @@ mod tests {
                 execution_mode: AppServerHookExecutionMode::Sync,
                 scope: AppServerHookScope::Turn,
                 source_path: test_path_buf("/tmp/hooks.json").abs(),
-                source: codex_app_server_protocol::HookSource::User,
+                source: codepilotx_app_server_protocol::HookSource::User,
                 display_order: 0,
                 status: AppServerHookRunStatus::Running,
                 status_message: Some("checking go-workflow input policy".to_string()),
@@ -453,7 +453,7 @@ mod tests {
                 execution_mode: AppServerHookExecutionMode::Sync,
                 scope: AppServerHookScope::Turn,
                 source_path: test_path_buf("/tmp/hooks.json").abs(),
-                source: codex_app_server_protocol::HookSource::User,
+                source: codepilotx_app_server_protocol::HookSource::User,
                 display_order: 0,
                 status: AppServerHookRunStatus::Stopped,
                 status_message: Some("checking go-workflow input policy".to_string()),
@@ -566,7 +566,7 @@ mod tests {
             /*approval_id*/ None,
         ));
         store.push_notification(ServerNotification::ServerRequestResolved(
-            codex_app_server_protocol::ServerRequestResolvedNotification {
+            codepilotx_app_server_protocol::ServerRequestResolvedNotification {
                 request_id: AppServerRequestId::Integer(1),
                 thread_id: thread_id.to_string(),
             },
@@ -614,10 +614,10 @@ mod tests {
     fn thread_event_store_rebase_preserves_mcp_startup_notifications() {
         let thread_id = ThreadId::new();
         let notification = ServerNotification::McpServerStatusUpdated(
-            codex_app_server_protocol::McpServerStatusUpdatedNotification {
+            codepilotx_app_server_protocol::McpServerStatusUpdatedNotification {
                 thread_id: Some(thread_id.to_string()),
                 name: "sentry".to_string(),
-                status: codex_app_server_protocol::McpServerStartupState::Failed,
+                status: codepilotx_app_server_protocol::McpServerStartupState::Failed,
                 error: Some("sentry is not logged in".to_string()),
             },
         );

@@ -1,7 +1,7 @@
 use crate::legacy_core::config::Config;
-use codex_features::Feature;
-use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
-use codex_protocol::openai_models::ModelPreset;
+use codepilotx_features::Feature;
+use codepilotx_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+use codepilotx_protocol::openai_models::ModelPreset;
 
 pub(crate) fn configured_service_tier(config: &Config) -> Option<String> {
     config.service_tier.clone().or_else(|| {

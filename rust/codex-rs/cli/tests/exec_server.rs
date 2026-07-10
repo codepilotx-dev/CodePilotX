@@ -5,23 +5,23 @@ use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
 use tempfile::TempDir;
 
-fn codex_command(codex_home: &Path) -> Result<assert_cmd::Command> {
-    let mut cmd = assert_cmd::Command::new(codex_utils_cargo_bin::cargo_bin("codex")?);
-    cmd.env("CODEX_HOME", codex_home);
+fn codepilotx_command(codepilotx_home: &Path) -> Result<assert_cmd::Command> {
+    let mut cmd = assert_cmd::Command::new(codepilotx_utils_cargo_bin::cargo_bin("codex")?);
+    cmd.env("codepilotx_HOME", codepilotx_home);
     Ok(cmd)
 }
 
 #[test]
 fn strict_config_rejects_unknown_config_fields_for_exec_server() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let codepilotx_home = TempDir::new()?;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        codepilotx_home.path().join("config.toml"),
         r#"
 foo = "bar"
 "#,
     )?;
 
-    let mut cmd = codex_command(codex_home.path())?;
+    let mut cmd = codepilotx_command(codepilotx_home.path())?;
     cmd.args([
         "exec-server",
         "--strict-config",
@@ -37,10 +37,10 @@ foo = "bar"
 
 #[test]
 fn local_exec_server_ignores_invalid_config_without_strict_config() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    std::fs::write(codex_home.path().join("config.toml"), "not valid toml = [")?;
+    let codepilotx_home = TempDir::new()?;
+    std::fs::write(codepilotx_home.path().join("config.toml"), "not valid toml = [")?;
 
-    let mut cmd = codex_command(codex_home.path())?;
+    let mut cmd = codepilotx_command(codepilotx_home.path())?;
     cmd.args(["exec-server", "--listen", "stdio"])
         .assert()
         .success()

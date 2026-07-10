@@ -31,8 +31,8 @@ use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
 use crate::tui::Tui;
 use crate::tui::TuiEvent;
-use codex_app_server_client::AppServerRequestHandle;
-use codex_app_server_protocol::HooksListEntry;
+use codepilotx_app_server_client::AppServerRequestHandle;
+use codepilotx_app_server_protocol::HooksListEntry;
 use std::path::PathBuf;
 
 pub(crate) enum StartupHooksReviewOutcome {
@@ -290,12 +290,12 @@ mod tests {
     use crate::render::renderable::Renderable;
     use crate::test_support::PathBufExt;
     use crate::test_support::test_path_buf;
-    use codex_app_server_protocol::HookEventName;
-    use codex_app_server_protocol::HookHandlerType;
-    use codex_app_server_protocol::HookMetadata;
-    use codex_app_server_protocol::HookSource;
-    use codex_app_server_protocol::HookTrustStatus;
-    use codex_app_server_protocol::HooksListEntry;
+    use codepilotx_app_server_protocol::HookEventName;
+    use codepilotx_app_server_protocol::HookHandlerType;
+    use codepilotx_app_server_protocol::HookMetadata;
+    use codepilotx_app_server_protocol::HookSource;
+    use codepilotx_app_server_protocol::HookTrustStatus;
+    use codepilotx_app_server_protocol::HooksListEntry;
     use insta::assert_snapshot;
     use ratatui::buffer::Buffer;
     use ratatui::layout::Rect;

@@ -23,7 +23,7 @@ impl ChatWidget {
                 .windows_sandbox_mode
                 .source
                 .is_some()
-            && !crate::windows_sandbox::sandbox_setup_is_complete(self.config.codex_home.as_path())
+            && !crate::windows_sandbox::sandbox_setup_is_complete(self.config.codepilotx_home.as_path())
     }
 
     #[cfg(target_os = "windows")]
@@ -41,19 +41,19 @@ impl ChatWidget {
         let env_map: std::collections::HashMap<String, String> = std::env::vars().collect();
         let permission_profile = self.config.permissions.effective_permission_profile();
         let Ok(permissions) =
-            codex_windows_sandbox::ResolvedWindowsSandboxPermissions::try_from_permission_profile_for_workspace_roots(
+            codepilotx_windows_sandbox::ResolvedWindowsSandboxPermissions::try_from_permission_profile_for_workspace_roots(
                 &permission_profile,
                 workspace_roots.as_slice(),
             )
         else {
             return None;
         };
-        match codex_windows_sandbox::apply_world_writable_scan_and_denies_for_permissions(
-            self.config.codex_home.as_path(),
+        match codepilotx_windows_sandbox::apply_world_writable_scan_and_denies_for_permissions(
+            self.config.codepilotx_home.as_path(),
             cwd.as_path(),
             &env_map,
             &permissions,
-            Some(self.config.codex_home.as_path()),
+            Some(self.config.codepilotx_home.as_path()),
         ) {
             Ok(_) => None,
             Err(_) => Some((Vec::new(), 0, true)),

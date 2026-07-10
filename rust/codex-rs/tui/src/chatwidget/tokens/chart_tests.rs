@@ -1,6 +1,6 @@
 use super::*;
-use codex_app_server_protocol::AccountTokenUsageDailyBucket;
-use codex_app_server_protocol::AccountTokenUsageSummary;
+use codepilotx_app_server_protocol::AccountTokenUsageDailyBucket;
+use codepilotx_app_server_protocol::AccountTokenUsageSummary;
 use insta::assert_snapshot;
 use pretty_assertions::assert_eq;
 
@@ -77,15 +77,8 @@ fn daily_graph_snapshot_uses_distinct_empty_and_active_cells() {
 
     assert_snapshot!(rendered, @r"
          Apr     May
-    Su â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡
-    Mo â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â– 
-    Tu â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡
-    We â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡
-    Th â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡
-    Fr â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â– 
-    Sa â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡
-
-      Less â–¡ â–  â–  â–  â–  More
+    Su â–?â–?â–?â–?â–?â–?â–?â–?â–?    Mo â–?â–?â–?â–?â–?â–?â–?â–?â–?    Tu â–?â–?â–?â–?â–?â–?â–?â–?â–?    We â–?â–?â–?â–?â–?â–?â–?â–?â–?    Th â–?â–?â–?â–?â–?â–?â–?â–?â–?    Fr â–?â–?â–?â–?â–?â–?â–?â–?â–?    Sa â–?â–?â–?â–?â–?â–?â–?â–?
+      Less â–?â–?â–?â–?â–?More
       daily Â· weekly Â· cumulative
     ");
 }
@@ -106,8 +99,7 @@ fn daily_graph_snapshot_stays_left_aligned_in_wide_terminal() {
 
     assert_snapshot!(rendered, @"
         Jun       Jul     Aug       Sep     Oct     Nov       Dec     Jan     Feb     Mar       Apr     May
-     Su â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡ â–¡
-       daily Â· weekly Â· cumulative
+     Su â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?â–?       daily Â· weekly Â· cumulative
     ");
 }
 
@@ -143,14 +135,7 @@ fn weekly_graph_snapshot_renders_bar_chart_and_caption() {
 
     assert_snapshot!(rendered, @"
           Apr     May
-    max                 â–ˆ
-                        â–ˆ
-                      â–ˆ â–ˆ
-                      â–ˆ â–ˆ
-                    â–ˆ â–ˆ â–ˆ
-                    â–ˆ â–ˆ â–ˆ
-      0             â–ˆ â–ˆ â–ˆ
-
+    max                 â–?                        â–?                      â–?â–?                      â–?â–?                    â–?â–?â–?                    â–?â–?â–?      0             â–?â–?â–?
        Each column = 1 week Â· tallest 9
        daily Â· weekly Â· cumulative
     ");
@@ -188,14 +173,7 @@ fn cumulative_graph_snapshot_renders_running_total_bar_chart_and_caption() {
 
     assert_snapshot!(rendered, @"
           Apr     May
-    max                 â–ˆ
-                        â–ˆ
-                        â–ˆ
-                      â–ˆ â–ˆ
-                      â–ˆ â–ˆ
-                    â–ˆ â–ˆ â–ˆ
-      0             â–ˆ â–ˆ â–ˆ
-
+    max                 â–?                        â–?                        â–?                      â–?â–?                      â–?â–?                    â–?â–?â–?      0             â–?â–?â–?
        Running total Â· top 18
        daily Â· weekly Â· cumulative
     ");

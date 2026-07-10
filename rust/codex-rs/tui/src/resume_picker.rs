@@ -33,14 +33,14 @@ use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_lines;
 use chrono::DateTime;
 use chrono::Utc;
-use codex_app_server_protocol::Thread;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadListCwdFilter;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadSortKey;
-use codex_config::types::SessionPickerViewMode;
-use codex_protocol::ThreadId;
-use codex_utils_path as path_utils;
+use codepilotx_app_server_protocol::Thread;
+use codepilotx_app_server_protocol::ThreadItem;
+use codepilotx_app_server_protocol::ThreadListCwdFilter;
+use codepilotx_app_server_protocol::ThreadListParams;
+use codepilotx_app_server_protocol::ThreadSortKey;
+use codepilotx_config::types::SessionPickerViewMode;
+use codepilotx_protocol::ThreadId;
+use codepilotx_utils_path as path_utils;
 use color_eyre::eyre::Result;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
@@ -70,8 +70,8 @@ const SESSION_META_DATE_WIDTH: usize = 12;
 const SESSION_META_FIELD_GAP_WIDTH: usize = 2;
 const SESSION_META_MIN_CWD_WIDTH: usize = 30;
 const SESSION_META_MAX_CWD_WIDTH: usize = 72;
-const SESSION_META_BRANCH_ICON: &str = "ÓÇ†";
-const SESSION_META_CWD_ICON: &str = "‚åÅ";
+const SESSION_META_BRANCH_ICON: &str = "ÓÇ?;
+const SESSION_META_CWD_ICON: &str = "‚å?;
 const FOOTER_COMPACT_BREAKPOINT: u16 = 120;
 const FOOTER_HINT_LEFT_PADDING: usize = 1;
 const FOOTER_HINT_GAP: usize = 3;
@@ -269,7 +269,7 @@ struct PickerPage {
 
 #[derive(Clone)]
 struct SessionPickerViewPersistence {
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
 }
 
 struct SessionPickerRunOptions {
@@ -365,7 +365,7 @@ async fn run_resume_picker_with_launch_context(
         provider_filter,
         initial_density: SessionListDensity::from(config.tui_session_picker_view),
         view_persistence: Some(SessionPickerViewPersistence {
-            codex_home: config.codex_home.to_path_buf(),
+            codepilotx_home: config.codepilotx_home.to_path_buf(),
         }),
         pager_keymap: runtime_keymap.pager,
         list_keymap: runtime_keymap.list,
@@ -410,7 +410,7 @@ pub async fn run_fork_picker_with_app_server(
         provider_filter,
         initial_density: SessionListDensity::from(config.tui_session_picker_view),
         view_persistence: Some(SessionPickerViewPersistence {
-            codex_home: config.codex_home.to_path_buf(),
+            codepilotx_home: config.codepilotx_home.to_path_buf(),
         }),
         pager_keymap: runtime_keymap.pager,
         list_keymap: runtime_keymap.list,
@@ -496,7 +496,7 @@ async fn run_session_picker_with_loader(
         }
     }
 
-    // Fallback ‚Äì treat as cancel/new
+    // Fallback ‚Ä?treat as cancel/new
     Ok(SessionSelection::StartFresh)
 }
 
@@ -783,7 +783,7 @@ async fn load_transcript_preview(
                 text: content
                     .iter()
                     .filter_map(|input| match input {
-                        codex_app_server_protocol::UserInput::Text { text, .. } => {
+                        codepilotx_app_server_protocol::UserInput::Text { text, .. } => {
                             Some(text.as_str())
                         }
                         _ => None,
@@ -1665,7 +1665,7 @@ impl PickerState {
             return Ok(());
         };
 
-        ConfigEditsBuilder::new(&persistence.codex_home)
+        ConfigEditsBuilder::new(&persistence.codepilotx_home)
             .set_session_picker_view(SessionPickerViewMode::from(self.density))
             .apply()
             .await
@@ -2079,7 +2079,7 @@ fn picker_footer_progress_label(state: &PickerState, list_height: u16, width: u1
         state.selected.saturating_add(1)
     };
     let total = if state.pagination.loading.is_pending() {
-        format!("{}‚Ä¶", state.filtered_rows.len())
+        format!("{}‚Ä?, state.filtered_rows.len())
     } else {
         state.filtered_rows.len().to_string()
     };
@@ -2205,7 +2205,7 @@ fn footer_hint_lines(state: &PickerState, width: u16) -> Vec<Line<'static>> {
             priority: 7,
         },
         PickerFooterHint {
-            key: "‚Üê/‚Üí",
+            key: "‚Ü?‚Ü?,
             wide_label: String::from("change option"),
             compact_label: String::from("option"),
             priority: 8,
@@ -2231,7 +2231,7 @@ fn footer_hint_lines(state: &PickerState, width: u16) -> Vec<Line<'static>> {
             priority: 6,
         },
         PickerFooterHint {
-            key: "‚Üë/‚Üì",
+            key: "‚Ü?‚Ü?,
             wide_label: String::from("browse"),
             compact_label: String::from("browse"),
             priority: 5,
@@ -2278,7 +2278,7 @@ fn render_transcript_loading_overlay(frame: &mut crate::custom_terminal::Frame, 
         return;
     }
 
-    let message = "Loading transcript‚Ä¶";
+    let message = "Loading transcript‚Ä?;
     let message_width = UnicodeWidthStr::width(message) as u16;
     let overlay_width = if area.width >= message_width.saturating_add(10) {
         message_width + 10
@@ -2440,7 +2440,7 @@ fn render_list(frame: &mut crate::custom_terminal::Frame, area: Rect, state: &Pi
     );
     if show_more_above {
         frame.render_widget_ref(
-            more_line("‚Üë more"),
+            more_line("‚Ü?more"),
             Rect::new(area.x, area.y, area.width, 1),
         );
     }
@@ -2475,15 +2475,15 @@ fn render_list(frame: &mut crate::custom_terminal::Frame, area: Rect, state: &Pi
     if state.pagination.loading.is_pending()
         && y < content_area.y.saturating_add(content_area.height)
     {
-        let loading_line: Line = vec!["  ".into(), "Loading older sessions‚Ä¶".italic().dim()].into();
+        let loading_line: Line = vec!["  ".into(), "Loading older sessions‚Ä?.italic().dim()].into();
         let rect = Rect::new(area.x, y, area.width, 1);
         frame.render_widget_ref(loading_line, rect);
     }
     if show_more_below {
         let label = if state.pagination.loading.is_pending() {
-            "‚Üì loading more"
+            "‚Ü?loading more"
         } else {
-            "‚Üì more"
+            "‚Ü?more"
         };
         frame.render_widget_ref(
             more_line(label),
@@ -2713,8 +2713,8 @@ fn dense_column_text(text: &str, width: usize) -> String {
 
 fn selection_marker(is_selected: bool, is_expanded: bool) -> Span<'static> {
     match (is_selected, is_expanded) {
-        (true, true) => "‚åÑ ".set_style(selected_session_style().bold()),
-        (true, false) => "‚ùØ ".set_style(selected_session_style().bold()),
+        (true, true) => "‚å?".set_style(selected_session_style().bold()),
+        (true, false) => "‚ù?".set_style(selected_session_style().bold()),
         (false, _) => "  ".into(),
     }
 }
@@ -2920,11 +2920,11 @@ fn render_transcript_preview_lines(
     };
     let preview_lines = match state.transcript_previews.get(&thread_id) {
         Some(TranscriptPreviewState::Loading) => {
-            vec![vec!["  ‚îÇ ".dim(), "Loading recent transcript...".italic().dim()].into()]
+            vec![vec!["  ‚î?".dim(), "Loading recent transcript...".italic().dim()].into()]
         }
         Some(TranscriptPreviewState::Failed) => vec![
             vec![
-                "  ‚îÇ ".dim(),
+                "  ‚î?".dim(),
                 "Could not load transcript preview".italic().red(),
             ]
             .into(),
@@ -2972,8 +2972,8 @@ fn render_expanded_session_details(
         ),
         expanded_detail_line("Directory:", &directory, width),
         expanded_detail_line("Branch:", &branch, width),
-        vec!["  ‚îÇ".dim()].into(),
-        vec!["  ‚îÇ ".dim(), "Conversation:".dim()].into(),
+        vec!["  ‚î?.dim()].into(),
+        vec!["  ‚î?".dim(), "Conversation:".dim()].into(),
     ]
 }
 
@@ -2984,7 +2984,7 @@ fn render_conversation_preview_lines(
     if lines.is_empty() {
         return vec![
             vec![
-                "  ‚îî ".dim(),
+                "  ‚î?".dim(),
                 "No transcript preview available".italic().dim(),
             ]
             .into(),
@@ -3001,9 +3001,9 @@ fn render_conversation_preview_lines(
         .enumerate()
         .map(|(idx, line)| {
             let prefix = if idx + 1 == rendered_len {
-                "  ‚îî "
+                "  ‚î?"
             } else {
-                "  ‚îÇ "
+                "  ‚î?"
             };
             prefix_transcript_line(prefix, line)
         })
@@ -3087,7 +3087,7 @@ fn expanded_detail_line(label: &'static str, value: &str, width: u16) -> Line<'s
         .saturating_sub(prefix_width + LABEL_WIDTH + gap_width)
         .max(1);
     vec![
-        "  ‚îÇ ".dim(),
+        "  ‚î?".dim(),
         format!("{label:<LABEL_WIDTH$}").dim(),
         "  ".dim(),
         truncate_text(value, value_width).into(),
@@ -3171,7 +3171,7 @@ fn render_empty_state_line(state: &PickerState) -> Line<'static> {
         if state.search_state.is_active()
             || (state.pagination.loading.is_pending() && state.pagination.next_cursor.is_some())
         {
-            return vec!["Searching‚Ä¶".italic().dim()].into();
+            return vec!["Searching‚Ä?.italic().dim()].into();
         }
         if state.pagination.reached_scan_cap {
             let msg = format!(
@@ -3185,9 +3185,9 @@ fn render_empty_state_line(state: &PickerState) -> Line<'static> {
 
     if state.pagination.loading.is_pending() {
         if state.all_rows.is_empty() && state.pagination.num_scanned_files == 0 {
-            return vec!["Loading sessions‚Ä¶".italic().dim()].into();
+            return vec!["Loading sessions‚Ä?.italic().dim()].into();
         }
-        return vec!["Loading older sessions‚Ä¶".italic().dim()].into();
+        return vec!["Loading older sessions‚Ä?.italic().dim()].into();
     }
 
     vec!["No sessions yet".italic().dim()].into()
@@ -3197,11 +3197,11 @@ fn render_empty_state_line(state: &PickerState) -> Line<'static> {
 mod tests {
     use super::*;
     use chrono::Duration;
-    use codex_app_server_protocol::ThreadSourceKind;
-    use codex_config::CONFIG_TOML_FILE;
-    use codex_protocol::ThreadId;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use codepilotx_app_server_protocol::ThreadSourceKind;
+    use codepilotx_config::CONFIG_TOML_FILE;
+    use codepilotx_protocol::ThreadId;
+    use codepilotx_utils_absolute_path::test_support::PathBufExt;
+    use codepilotx_utils_absolute_path::test_support::test_path_buf;
 
     use crossterm::event::KeyCode;
     use crossterm::event::KeyEvent;
@@ -3409,7 +3409,7 @@ mod tests {
         assert!(rendered.contains("Created:    17 minutes ago ¬∑ 2026-05-02 14:31:08"));
         assert!(rendered.contains("Updated:    now ¬∑ 2026-05-02 14:48:19"));
         assert!(rendered.contains(&format!("Directory:  {expected_directory}")));
-        assert!(rendered.contains("Branch:     ÓÇ† codex/raw-scrollback-mode"));
+        assert!(rendered.contains("Branch:     ÓÇ?codex/raw-scrollback-mode"));
         assert!(rendered.contains("Conversation:"));
     }
 
@@ -3440,8 +3440,8 @@ mod tests {
         assert!(created[0].to_string().starts_with("  5h ago"));
         assert!(!updated[0].to_string().contains("created 5h ago"));
         assert!(!created[0].to_string().contains("updated 3h ago"));
-        assert_metadata_order(&updated[0], "‚åÅ tmp/codex", "ÓÇ† main");
-        assert_metadata_order(&created[0], "‚åÅ tmp/codex", "ÓÇ† main");
+        assert_metadata_order(&updated[0], "‚å?tmp/codex", "ÓÇ?main");
+        assert_metadata_order(&created[0], "‚å?tmp/codex", "ÓÇ?main");
     }
 
     #[test]
@@ -3458,9 +3458,9 @@ mod tests {
 
         assert_eq!(footer.len(), 1);
         let rendered = footer[0].to_string();
-        assert!(rendered.contains("‚åÅ /tmp/codex"));
-        assert!(rendered.contains("ÓÇ† no branch"));
-        assert_metadata_order(&footer[0], "‚åÅ /tmp/codex", "ÓÇ† no branch");
+        assert!(rendered.contains("‚å?/tmp/codex"));
+        assert!(rendered.contains("ÓÇ?no branch"));
+        assert_metadata_order(&footer[0], "‚å?/tmp/codex", "ÓÇ?no branch");
     }
 
     #[test]
@@ -3497,9 +3497,9 @@ mod tests {
         assert_eq!(footer.len(), 1);
         let footer = footer[0].to_string();
         assert!(!footer.contains(cwd));
-        assert!(footer.contains("‚åÅ ~/code/codex."));
+        assert!(footer.contains("‚å?~/code/codex."));
         assert!(footer.contains("..."));
-        assert!(footer.contains("ÓÇ† owner/branch"));
+        assert!(footer.contains("ÓÇ?owner/branch"));
     }
 
     #[test]
@@ -3517,8 +3517,8 @@ mod tests {
         assert_eq!(footer.len(), 1);
         let footer = footer[0].to_string();
         assert!(footer.contains("4h ago"));
-        assert!(footer.contains("ÓÇ† owner/branch"));
-        assert!(!footer.contains("‚åÅ"));
+        assert!(footer.contains("ÓÇ?owner/branch"));
+        assert!(!footer.contains("‚å?));
         assert!(!footer.contains("~/code"));
     }
 
@@ -3822,7 +3822,7 @@ mod tests {
 
         assert!(rendered.contains("esc new"));
         assert!(rendered.contains("tab focus"));
-        assert!(rendered.contains("‚Üê/‚Üí option"));
+        assert!(rendered.contains("‚Ü?‚Ü?option"));
         assert!(rendered.contains("ctrl+o dense"));
         assert!(rendered.contains("ctrl+t preview"));
         assert!(rendered.contains("ctrl+e exp"));
@@ -3895,7 +3895,7 @@ mod tests {
         assert!(rendered.contains("ctrl+o"));
         assert!(rendered.contains("ctrl+t"));
         assert!(rendered.contains("ctrl+e"));
-        assert!(rendered.contains("‚Üë/‚Üì"));
+        assert!(rendered.contains("‚Ü?‚Ü?));
     }
 
     #[test]
@@ -4033,7 +4033,7 @@ mod tests {
 
         let label = picker_footer_progress_label(&state, /*list_height*/ 6, /*width*/ 80);
 
-        assert_eq!(label, " 10 / 10‚Ä¶ ¬∑ 37% ");
+        assert_eq!(label, " 10 / 10‚Ä?¬∑ 37% ");
     }
 
     #[test]
@@ -4431,7 +4431,7 @@ mod tests {
             SessionPickerAction::Resume,
         );
         state.view_persistence = Some(SessionPickerViewPersistence {
-            codex_home: tmp.path().to_path_buf(),
+            codepilotx_home: tmp.path().to_path_buf(),
         });
 
         state
@@ -4453,8 +4453,8 @@ session_picker_view = "dense"
     #[tokio::test]
     async fn ctrl_o_keeps_toggled_density_when_persistence_fails() {
         let tmp = tempdir().expect("tmpdir");
-        let codex_home_file = tmp.path().join("codex-home-file");
-        std::fs::write(&codex_home_file, "not a directory").expect("write codex home file");
+        let codepilotx_home_file = tmp.path().join("codex-home-file");
+        std::fs::write(&codepilotx_home_file, "not a directory").expect("write codex home file");
         let loader = page_only_loader(|_| {});
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
@@ -4465,7 +4465,7 @@ session_picker_view = "dense"
             SessionPickerAction::Resume,
         );
         state.view_persistence = Some(SessionPickerViewPersistence {
-            codex_home: codex_home_file,
+            codepilotx_home: codepilotx_home_file,
         });
 
         state
@@ -4815,7 +4815,7 @@ session_picker_view = "dense"
 
         assert_eq!(line.width(), 80);
         assert_eq!(line.style.fg, selected_session_style().fg);
-        assert_eq!(line.spans[0].content, "‚ùØ ");
+        assert_eq!(line.spans[0].content, "‚ù?");
     }
 
     #[test]
@@ -5125,7 +5125,7 @@ session_picker_view = "dense"
             render_list(&mut frame, area, &state);
         }
         terminal.flush().expect("flush");
-        assert!(terminal.backend().to_string().contains("‚Üì more"));
+        assert!(terminal.backend().to_string().contains("‚Ü?more"));
 
         state.density = SessionListDensity::Dense;
         state.update_viewport(height as usize, width);
@@ -5136,7 +5136,7 @@ session_picker_view = "dense"
         }
         terminal.flush().expect("flush");
 
-        assert!(!terminal.backend().to_string().contains("‚Üì more"));
+        assert!(!terminal.backend().to_string().contains("‚Ü?more"));
     }
 
     #[test]
@@ -5633,7 +5633,7 @@ session_picker_view = "dense"
         assert_eq!(recorded_requests.lock().unwrap().len(), 1);
         assert_eq!(
             picker_footer_progress_label(&state, /*list_height*/ 5, /*width*/ 80),
-            " 10 / 10‚Ä¶ ¬∑ 100% "
+            " 10 / 10‚Ä?¬∑ 100% "
         );
     }
 
@@ -5729,11 +5729,11 @@ session_picker_view = "dense"
             created_at: 1,
             updated_at: 2,
             recency_at: Some(2),
-            status: codex_app_server_protocol::ThreadStatus::Idle,
+            status: codepilotx_app_server_protocol::ThreadStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
-            source: codex_app_server_protocol::SessionSource::Cli,
+            source: codepilotx_app_server_protocol::SessionSource::Cli,
             thread_source: None,
             agent_nickname: None,
             agent_role: None,
@@ -5765,24 +5765,24 @@ session_picker_view = "dense"
             created_at: 1,
             updated_at: 2,
             recency_at: Some(2),
-            status: codex_app_server_protocol::ThreadStatus::Idle,
+            status: codepilotx_app_server_protocol::ThreadStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
-            source: codex_app_server_protocol::SessionSource::Cli,
+            source: codepilotx_app_server_protocol::SessionSource::Cli,
             thread_source: None,
             agent_nickname: None,
             agent_role: None,
             git_info: None,
             name: None,
-            turns: vec![codex_app_server_protocol::Turn {
+            turns: vec![codepilotx_app_server_protocol::Turn {
                 id: String::from("turn-1"),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: vec![
                     ThreadItem::UserMessage {
                         id: String::from("user-1"),
                         client_id: None,
-                        content: vec![codex_app_server_protocol::UserInput::Text {
+                        content: vec![codepilotx_app_server_protocol::UserInput::Text {
                             text: String::from("hello from user"),
                             text_elements: Vec::new(),
                         }],
@@ -5798,7 +5798,7 @@ session_picker_view = "dense"
                         text: String::from("1. Do the thing"),
                     },
                 ],
-                status: codex_app_server_protocol::TurnStatus::Completed,
+                status: codepilotx_app_server_protocol::TurnStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -5835,25 +5835,25 @@ session_picker_view = "dense"
             created_at: 1,
             updated_at: 2,
             recency_at: Some(2),
-            status: codex_app_server_protocol::ThreadStatus::Idle,
+            status: codepilotx_app_server_protocol::ThreadStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
-            source: codex_app_server_protocol::SessionSource::Cli,
+            source: codepilotx_app_server_protocol::SessionSource::Cli,
             thread_source: None,
             agent_nickname: None,
             agent_role: None,
             git_info: None,
             name: None,
-            turns: vec![codex_app_server_protocol::Turn {
+            turns: vec![codepilotx_app_server_protocol::Turn {
                 id: String::from("turn-1"),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: vec![ThreadItem::Reasoning {
                     id: String::from("reasoning-1"),
                     summary: Vec::new(),
                     content: vec![String::from("private raw chain of thought")],
                 }],
-                status: codex_app_server_protocol::TurnStatus::Completed,
+                status: codepilotx_app_server_protocol::TurnStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -5894,25 +5894,25 @@ session_picker_view = "dense"
             created_at: 1,
             updated_at: 2,
             recency_at: Some(2),
-            status: codex_app_server_protocol::ThreadStatus::Idle,
+            status: codepilotx_app_server_protocol::ThreadStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
-            source: codex_app_server_protocol::SessionSource::Cli,
+            source: codepilotx_app_server_protocol::SessionSource::Cli,
             thread_source: None,
             agent_nickname: None,
             agent_role: None,
             git_info: None,
             name: None,
-            turns: vec![codex_app_server_protocol::Turn {
+            turns: vec![codepilotx_app_server_protocol::Turn {
                 id: String::from("turn-1"),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                 items: vec![ThreadItem::Reasoning {
                     id: String::from("reasoning-1"),
                     summary: vec![String::from("public summary")],
                     content: vec![String::from("raw reasoning content")],
                 }],
-                status: codex_app_server_protocol::TurnStatus::Completed,
+                status: codepilotx_app_server_protocol::TurnStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,

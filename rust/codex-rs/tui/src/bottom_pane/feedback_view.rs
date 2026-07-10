@@ -1,7 +1,7 @@
-use codex_feedback::DOCTOR_REPORT_ATTACHMENT_FILENAME;
-use codex_feedback::FEEDBACK_DIAGNOSTICS_ATTACHMENT_FILENAME;
-use codex_feedback::FeedbackDiagnostics;
-use codex_feedback::WINDOWS_SANDBOX_LOG_ATTACHMENT_FILENAME;
+use codepilotx_feedback::DOCTOR_REPORT_ATTACHMENT_FILENAME;
+use codepilotx_feedback::FEEDBACK_DIAGNOSTICS_ATTACHMENT_FILENAME;
+use codepilotx_feedback::FeedbackDiagnostics;
+use codepilotx_feedback::WINDOWS_SANDBOX_LOG_ATTACHMENT_FILENAME;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
@@ -31,7 +31,7 @@ use super::textarea::TextAreaState;
 const BASE_CLI_BUG_ISSUE_URL: &str =
     "https://github.com/openai/codex/issues/new?template=3-cli.yml";
 /// Internal routing link for employee feedback follow-ups. This must not be shown to external users.
-const CODEX_FEEDBACK_INTERNAL_URL: &str = "http://go/codex-feedback-internal";
+const codepilotx_FEEDBACK_INTERNAL_URL: &str = "http://go/codex-feedback-internal";
 
 /// The target audience for feedback follow-up instructions.
 ///
@@ -270,7 +270,7 @@ pub(crate) fn should_show_feedback_connectivity_details(
 }
 
 fn gutter() -> Span<'static> {
-    "â–Œ ".cyan()
+    "â–?".cyan()
 }
 
 fn feedback_title_and_placeholder(category: FeedbackCategory) -> (String, String) {
@@ -315,9 +315,9 @@ pub(crate) fn feedback_success_cell(
     feedback_audience: FeedbackAudience,
 ) -> history_cell::WebHyperlinkHistoryCell {
     let prefix = if include_logs {
-        "â€¢ Feedback uploaded."
+        "â€?Feedback uploaded."
     } else {
-        "â€¢ Feedback recorded (no logs)."
+        "â€?Feedback recorded (no logs)."
     };
     let issue_url = issue_url_for_category(category, thread_id, feedback_audience);
     let mut lines = vec![Line::from(match issue_url.as_ref() {
@@ -389,7 +389,7 @@ fn issue_url_for_category(
 /// We accept a `thread_id` so the call site stays symmetric with the external
 /// path, but we currently point to a fixed channel without prefilling text.
 fn slack_feedback_url(_thread_id: &str) -> String {
-    CODEX_FEEDBACK_INTERNAL_URL.to_string()
+    codepilotx_FEEDBACK_INTERNAL_URL.to_string()
 }
 
 // Build the selection popup params for feedback categories.
@@ -504,9 +504,9 @@ pub(crate) fn feedback_upload_consent_params(
         Line::from("Upload logs?".bold()).into(),
         Line::from("").into(),
         Line::from("The following files will be sent:".dim()).into(),
-        Line::from(vec!["  â€¢ ".into(), "codex-logs.log".into()]).into(),
+        Line::from(vec!["  â€?".into(), "codex-logs.log".into()]).into(),
         Line::from(vec![
-            "  â€¢ ".into(),
+            "  â€?".into(),
             DOCTOR_REPORT_ATTACHMENT_FILENAME.into(),
         ])
         .into(),
@@ -514,7 +514,7 @@ pub(crate) fn feedback_upload_consent_params(
     if include_windows_sandbox_log {
         header_lines.push(
             Line::from(vec![
-                "  â€¢ ".into(),
+                "  â€?".into(),
                 WINDOWS_SANDBOX_LOG_ATTACHMENT_FILENAME.into(),
             ])
             .into(),
@@ -523,15 +523,15 @@ pub(crate) fn feedback_upload_consent_params(
     if let Some(path) = rollout_path.as_deref()
         && let Some(name) = path.file_name().map(|s| s.to_string_lossy().to_string())
     {
-        header_lines.push(Line::from(vec!["  â€¢ ".into(), name.into()]).into());
+        header_lines.push(Line::from(vec!["  â€?".into(), name.into()]).into());
     }
     if let Some(filename) = auto_review_rollout_filename {
-        header_lines.push(Line::from(vec!["  â€¢ ".into(), filename.into()]).into());
+        header_lines.push(Line::from(vec!["  â€?".into(), filename.into()]).into());
     }
     if !feedback_diagnostics.is_empty() {
         header_lines.push(
             Line::from(vec![
-                "  â€¢ ".into(),
+                "  â€?".into(),
                 FEEDBACK_DIAGNOSTICS_ATTACHMENT_FILENAME.into(),
             ])
             .into(),
@@ -581,7 +581,7 @@ mod tests {
     use super::*;
     use crate::app_event::AppEvent;
     use crate::app_event_sender::AppEventSender;
-    use codex_feedback::FeedbackDiagnostic;
+    use codepilotx_feedback::FeedbackDiagnostic;
     use pretty_assertions::assert_eq;
 
     fn render(view: &FeedbackNoteView, width: u16) -> String {
@@ -872,7 +872,7 @@ mod tests {
         );
         assert_eq!(
             rendered,
-            "â€¢ Feedback uploaded. Please open an issue using the following URL:\n\n  https://github.com/openai/codex/issues/new?template=3-cli.yml&steps=Uploaded%20thread:%20thread-1\n\n  Or mention your thread ID thread-1 in an existing issue."
+            "â€?Feedback uploaded. Please open an issue using the following URL:\n\n  https://github.com/openai/codex/issues/new?template=3-cli.yml&steps=Uploaded%20thread:%20thread-1\n\n  Or mention your thread ID thread-1 in an existing issue."
         );
     }
 
@@ -889,7 +889,7 @@ mod tests {
         );
         assert_eq!(
             rendered,
-            "â€¢ Feedback uploaded. Please report this in #codex-feedback:\n\n  http://go/codex-feedback-internal\n\n  Share this and add some info about your problem:\n    https://go/codex-feedback/thread-2"
+            "â€?Feedback uploaded. Please report this in #codex-feedback:\n\n  http://go/codex-feedback-internal\n\n  Share this and add some info about your problem:\n    https://go/codex-feedback/thread-2"
         );
     }
 
@@ -906,7 +906,7 @@ mod tests {
         );
         assert_eq!(
             rendered,
-            "â€¢ Feedback recorded (no logs). Thanks for the feedback!\n\n  Thread ID: thread-3"
+            "â€?Feedback recorded (no logs). Thanks for the feedback!\n\n  Thread ID: thread-3"
         );
     }
 

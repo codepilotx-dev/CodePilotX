@@ -2,21 +2,21 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
-use codex_core::config::Config;
-use codex_core::config::find_codex_home;
-use codex_core_plugins::PluginMarketplaceUpgradeOutcome;
-use codex_core_plugins::PluginsConfigInput;
-use codex_core_plugins::PluginsManager;
-use codex_core_plugins::installed_marketplaces::marketplace_install_root;
-use codex_core_plugins::installed_marketplaces::resolve_configured_marketplace_root;
-use codex_core_plugins::marketplace::marketplace_root_dir;
-use codex_core_plugins::marketplace_add::MarketplaceAddOutcome;
-use codex_core_plugins::marketplace_add::MarketplaceAddRequest;
-use codex_core_plugins::marketplace_add::add_marketplace;
-use codex_core_plugins::marketplace_remove::MarketplaceRemoveOutcome;
-use codex_core_plugins::marketplace_remove::MarketplaceRemoveRequest;
-use codex_core_plugins::marketplace_remove::remove_marketplace;
-use codex_utils_cli::CliConfigOverrides;
+use codepilotx_core::config::Config;
+use codepilotx_core::config::find_codepilotx_home;
+use codepilotx_core_plugins::PluginMarketplaceUpgradeOutcome;
+use codepilotx_core_plugins::PluginsConfigInput;
+use codepilotx_core_plugins::PluginsManager;
+use codepilotx_core_plugins::installed_marketplaces::marketplace_install_root;
+use codepilotx_core_plugins::installed_marketplaces::resolve_configured_marketplace_root;
+use codepilotx_core_plugins::marketplace::marketplace_root_dir;
+use codepilotx_core_plugins::marketplace_add::MarketplaceAddOutcome;
+use codepilotx_core_plugins::marketplace_add::MarketplaceAddRequest;
+use codepilotx_core_plugins::marketplace_add::add_marketplace;
+use codepilotx_core_plugins::marketplace_remove::MarketplaceRemoveOutcome;
+use codepilotx_core_plugins::marketplace_remove::MarketplaceRemoveRequest;
+use codepilotx_core_plugins::marketplace_remove::remove_marketplace;
+use codepilotx_utils_cli::CliConfigOverrides;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -150,9 +150,9 @@ async fn run_add(args: AddMarketplaceArgs) -> Result<()> {
         json,
     } = args;
 
-    let codex_home = find_codex_home().context("failed to resolve CODEX_HOME")?;
+    let codepilotx_home = find_codepilotx_home().context("failed to resolve codepilotx_HOME")?;
     let outcome = add_marketplace(
-        codex_home.to_path_buf(),
+        codepilotx_home.to_path_buf(),
         MarketplaceAddRequest {
             source,
             ref_name,
@@ -208,14 +208,14 @@ async fn run_list(overrides: Vec<(String, toml::Value)>, args: ListMarketplaceAr
     let config = Config::load_with_cli_overrides(overrides)
         .await
         .context("failed to load configuration")?;
-    let manager = PluginsManager::new(config.codex_home.to_path_buf());
+    let manager = PluginsManager::new(config.codepilotx_home.to_path_buf());
     manager.set_auth_mode(load_cli_auth_mode(&config).await);
     let plugins_input = config.plugins_config_input();
     let marketplace_listing = manager
         .discover_marketplaces_for_config(&plugins_input, &[])
         .context("failed to list plugin marketplaces")?;
     let mut load_issues = configured_marketplace_snapshot_issues(
-        config.codex_home.as_path(),
+        config.codepilotx_home.as_path(),
         &plugins_input,
         &marketplace_listing.errors,
         /*marketplace_name*/ None,
@@ -251,7 +251,7 @@ async fn run_list(overrides: Vec<(String, toml::Value)>, args: ListMarketplaceAr
     let marketplaces = marketplace_listing.marketplaces;
     if args.json {
         let marketplace_sources =
-            configured_marketplace_sources_by_root(config.codex_home.as_path(), &plugins_input);
+            configured_marketplace_sources_by_root(config.codepilotx_home.as_path(), &plugins_input);
         let output =
             JsonMarketplaceListOutput::from_marketplaces(marketplaces, &marketplace_sources);
         println!("{}", serde_json::to_string_pretty(&output)?);
@@ -302,7 +302,7 @@ struct JsonMarketplaceListOutput {
 
 impl JsonMarketplaceListOutput {
     fn from_marketplaces(
-        marketplaces: Vec<codex_core_plugins::marketplace::Marketplace>,
+        marketplaces: Vec<codepilotx_core_plugins::marketplace::Marketplace>,
         marketplace_sources: &HashMap<PathBuf, JsonMarketplaceSource>,
     ) -> Self {
         let mut seen_roots = HashSet::new();
@@ -335,7 +335,7 @@ struct JsonMarketplaceListEntry {
 }
 
 fn configured_marketplace_sources_by_root(
-    codex_home: &Path,
+    codepilotx_home: &Path,
     plugins_input: &PluginsConfigInput,
 ) -> HashMap<PathBuf, JsonMarketplaceSource> {
     let marketplace_sources = configured_marketplace_sources(plugins_input);
@@ -349,7 +349,7 @@ fn configured_marketplace_sources_by_root(
         return HashMap::new();
     };
 
-    let default_install_root = marketplace_install_root(codex_home);
+    let default_install_root = marketplace_install_root(codepilotx_home);
     marketplaces
         .iter()
         .filter_map(|(marketplace_name, marketplace)| {
@@ -375,8 +375,8 @@ async fn run_upgrade(
     let config = Config::load_with_cli_overrides(overrides)
         .await
         .context("failed to load configuration")?;
-    let codex_home = find_codex_home().context("failed to resolve CODEX_HOME")?;
-    let manager = PluginsManager::new(codex_home.to_path_buf());
+    let codepilotx_home = find_codepilotx_home().context("failed to resolve codepilotx_HOME")?;
+    let manager = PluginsManager::new(codepilotx_home.to_path_buf());
     let plugins_input = config.plugins_config_input();
     let outcome = manager
         .upgrade_configured_marketplaces_for_config(&plugins_input, marketplace_name.as_deref())
@@ -393,9 +393,9 @@ async fn run_remove(args: RemoveMarketplaceArgs) -> Result<()> {
         marketplace_name,
         json,
     } = args;
-    let codex_home = find_codex_home().context("failed to resolve CODEX_HOME")?;
+    let codepilotx_home = find_codepilotx_home().context("failed to resolve codepilotx_HOME")?;
     let outcome = remove_marketplace(
-        codex_home.to_path_buf(),
+        codepilotx_home.to_path_buf(),
         MarketplaceRemoveRequest { marketplace_name },
     )
     .await?;

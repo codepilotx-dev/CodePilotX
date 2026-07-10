@@ -21,7 +21,7 @@ fn rust_sources_under(dir: &Path) -> Vec<PathBuf> {
 
 #[test]
 fn tui_runtime_source_does_not_depend_on_manager_escape_hatches() {
-    let src_file = codex_utils_cargo_bin::find_resource!("src/chatwidget.rs")
+    let src_file = codepilotx_utils_cargo_bin::find_resource!("src/chatwidget.rs")
         .expect("chatwidget source runfile should resolve");
     let src_dir = src_file
         .parent()

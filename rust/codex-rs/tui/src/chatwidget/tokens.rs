@@ -20,7 +20,7 @@ use std::sync::RwLock;
 
 use chrono::NaiveDate;
 use chrono::Utc;
-use codex_app_server_protocol::GetAccountTokenUsageResponse;
+use codepilotx_app_server_protocol::GetAccountTokenUsageResponse;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 

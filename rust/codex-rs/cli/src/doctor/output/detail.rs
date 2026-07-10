@@ -219,7 +219,7 @@ fn install_details(parsed: &[ParsedDetail], options: HumanOutputOptions) -> Vec<
             yes_no(managed_by_npm),
             yes_no(managed_by_bun),
             if is_falsy(package_root) {
-                "â€”".to_string()
+                "â€?.to_string()
             } else {
                 package_root.to_string()
             }
@@ -250,7 +250,7 @@ fn install_details(parsed: &[ParsedDetail], options: HumanOutputOptions) -> Vec<
         );
         if shown < total {
             out.push(HumanDetail::Continuation(
-                "â€¦ (full list with --all)".to_string(),
+                "â€?(full list with --all)".to_string(),
             ));
         }
     }
@@ -305,7 +305,7 @@ fn git_details(parsed: &[ParsedDetail], options: HumanOutputOptions) -> Vec<Huma
         );
         if shown < total {
             out.push(HumanDetail::Continuation(
-                "â€¦ (full list with --all)".to_string(),
+                "â€?(full list with --all)".to_string(),
             ));
         }
     }
@@ -397,7 +397,7 @@ fn config_details(parsed: &[ParsedDetail], options: HumanOutputOptions) -> Vec<H
         &mut out,
         parsed,
         &[
-            "CODEX_HOME",
+            "codepilotx_HOME",
             "cwd",
             "model",
             "model provider",
@@ -419,7 +419,7 @@ fn config_details(parsed: &[ParsedDetail], options: HumanOutputOptions) -> Vec<H
 
 fn state_details(parsed: &[ParsedDetail]) -> Vec<HumanDetail> {
     let mut out = Vec::new();
-    push_row_if_present(&mut out, parsed, "CODEX_HOME", "CODEX_HOME");
+    push_row_if_present(&mut out, parsed, "codepilotx_HOME", "codepilotx_HOME");
     push_row_if_present(&mut out, parsed, "log dir", "log dir");
     push_row_if_present(&mut out, parsed, "sqlite home", "sqlite home");
     push_database_row(&mut out, parsed, "state DB");
@@ -444,7 +444,7 @@ fn state_details(parsed: &[ParsedDetail]) -> Vec<HumanDetail> {
         &mut out,
         parsed,
         &[
-            "CODEX_HOME",
+            "codepilotx_HOME",
             "log dir",
             "sqlite home",
             "state DB",
@@ -530,7 +530,7 @@ fn push_list_row(
         .collect::<Vec<_>>()
         .join(", ");
     if limit < items.len() {
-        value.push_str(", â€¦ (full list with --all)");
+        value.push_str(", â€?(full list with --all)");
     }
     out.push(HumanDetail::Row {
         label: label.to_string(),
@@ -779,6 +779,6 @@ fn yes_no(value: &str) -> &'static str {
 pub(super) fn is_falsy(value: &str) -> bool {
     matches!(
         value.trim().to_ascii_lowercase().as_str(),
-        "" | "false" | "none" | "not set" | "unknown" | "missing" | "absent" | "no" | "â€”" | "-"
+        "" | "false" | "none" | "not set" | "unknown" | "missing" | "absent" | "no" | "â€? | "-"
     )
 }

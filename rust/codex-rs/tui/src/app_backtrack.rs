@@ -39,8 +39,8 @@ use crate::history_cell::UserHistoryCell;
 use crate::pager_overlay::Overlay;
 use crate::tui;
 use crate::tui::TuiEvent;
-use codex_protocol::ThreadId;
-use codex_protocol::user_input::TextElement;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::user_input::TextElement;
 use color_eyre::eyre::Result;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
@@ -807,7 +807,7 @@ mod tests {
             .iter()
             .map(|span| span.content.as_ref())
             .collect();
-        assert_eq!(intro_text, "â€¢ intro");
+        assert_eq!(intro_text, "â€?intro");
     }
 
     #[test]
@@ -851,7 +851,7 @@ mod tests {
             .iter()
             .map(|span| span.content.as_ref())
             .collect();
-        assert_eq!(intro_text, "â€¢ intro");
+        assert_eq!(intro_text, "â€?intro");
 
         let user_first = cells[1]
             .as_any()
@@ -942,7 +942,7 @@ mod tests {
             .iter()
             .map(|span| span.content.as_ref())
             .collect();
-        assert_eq!(intro_text, "â€¢ intro");
+        assert_eq!(intro_text, "â€?intro");
     }
 
     #[test]

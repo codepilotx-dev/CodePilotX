@@ -7,16 +7,16 @@
 
 #![allow(clippy::unwrap_used)]
 
-use codex_app_server_client::AppServerRequestHandle;
-use codex_app_server_protocol::AccountLoginCompletedNotification;
-use codex_app_server_protocol::AccountUpdatedNotification;
+use codepilotx_app_server_client::AppServerRequestHandle;
+use codepilotx_app_server_protocol::AccountLoginCompletedNotification;
+use codepilotx_app_server_protocol::AccountUpdatedNotification;
 #[cfg(test)]
-use codex_app_server_protocol::AuthMode as AppServerAuthMode;
-use codex_app_server_protocol::CancelLoginAccountParams;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::LoginAccountParams;
-use codex_app_server_protocol::LoginAccountResponse;
-use codex_login::read_openai_api_key_from_env;
+use codepilotx_app_server_protocol::AuthMode as AppServerAuthMode;
+use codepilotx_app_server_protocol::CancelLoginAccountParams;
+use codepilotx_app_server_protocol::ClientRequest;
+use codepilotx_app_server_protocol::LoginAccountParams;
+use codepilotx_app_server_protocol::LoginAccountResponse;
+use codepilotx_login::read_openai_api_key_from_env;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -38,7 +38,7 @@ use ratatui::widgets::Paragraph;
 use ratatui::widgets::WidgetRef;
 use ratatui::widgets::Wrap;
 
-use codex_protocol::config_types::ForcedLoginMethod;
+use codepilotx_protocol::config_types::ForcedLoginMethod;
 use std::cell::Cell;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -94,8 +94,8 @@ pub(crate) enum SignInOption {
 }
 
 const API_KEY_DISABLED_MESSAGE: &str = "API key login is disabled.";
-fn onboarding_request_id() -> codex_app_server_protocol::RequestId {
-    codex_app_server_protocol::RequestId::String(Uuid::new_v4().to_string())
+fn onboarding_request_id() -> codepilotx_app_server_protocol::RequestId {
+    codepilotx_app_server_protocol::RequestId::String(Uuid::new_v4().to_string())
 }
 
 pub(super) async fn cancel_login_attempt(
@@ -103,7 +103,7 @@ pub(super) async fn cancel_login_attempt(
     login_id: String,
 ) {
     let _ = request_handle
-        .request_typed::<codex_app_server_protocol::CancelLoginAccountResponse>(
+        .request_typed::<codepilotx_app_server_protocol::CancelLoginAccountResponse>(
             ClientRequest::CancelLoginAccount {
                 request_id: onboarding_request_id(),
                 params: CancelLoginAccountParams { login_id },
@@ -545,7 +545,7 @@ impl AuthModeWidget {
 
     fn render_chatgpt_success_message(&self, area: Rect, buf: &mut Buffer) {
         let lines = vec![
-            "âœ“ Signed in with your ChatGPT account"
+            "âœ?Signed in with your ChatGPT account"
                 .fg(Color::Green)
                 .into(),
             "".into(),
@@ -592,7 +592,7 @@ impl AuthModeWidget {
 
     fn render_chatgpt_success(&self, area: Rect, buf: &mut Buffer) {
         let lines = vec![
-            "âœ“ Signed in with your ChatGPT account"
+            "âœ?Signed in with your ChatGPT account"
                 .fg(Color::Green)
                 .into(),
         ];
@@ -604,7 +604,7 @@ impl AuthModeWidget {
 
     fn render_api_key_configured(&self, area: Rect, buf: &mut Buffer) {
         let lines = vec![
-            "âœ“ API key configured".fg(Color::Green).into(),
+            "âœ?API key configured".fg(Color::Green).into(),
             "".into(),
             "  Codex will use usage-based billing with your API key.".into(),
         ];
@@ -858,8 +858,7 @@ impl AuthModeWidget {
 
     /// Kicks off the ChatGPT auth flow and keeps the UI state consistent with the attempt.
     fn start_chatgpt_login(&mut self) {
-        // If we're already authenticated with ChatGPT, don't start a new login â€“
-        // just proceed to the success message flow.
+        // If we're already authenticated with ChatGPT, don't start a new login â€?        // just proceed to the success message flow.
         if self.handle_existing_chatgpt_login() {
             return;
         }
@@ -874,7 +873,7 @@ impl AuthModeWidget {
                 .request_typed::<LoginAccountResponse>(ClientRequest::LoginAccount {
                     request_id: onboarding_request_id(),
                     params: LoginAccountParams::Chatgpt {
-                        codex_streamlined_login: false,
+                        codepilotx_streamlined_login: false,
                     },
                 })
                 .await
@@ -1007,24 +1006,24 @@ pub(super) fn maybe_open_auth_url_in_browser(request_handle: &AppServerRequestHa
 mod tests {
     use super::*;
     use crate::legacy_core::config::ConfigBuilder;
-    use codex_app_server_client::AppServerRequestHandle;
-    use codex_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
-    use codex_app_server_client::InProcessAppServerClient;
-    use codex_app_server_client::InProcessClientStartArgs;
-    use codex_arg0::Arg0DispatchPaths;
-    use codex_cloud_config::cloud_config_bundle_loader_for_storage;
-    use codex_config::types::AuthCredentialsStoreMode;
-    use codex_login::AuthKeyringBackendKind;
+    use codepilotx_app_server_client::AppServerRequestHandle;
+    use codepilotx_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
+    use codepilotx_app_server_client::InProcessAppServerClient;
+    use codepilotx_app_server_client::InProcessClientStartArgs;
+    use codepilotx_arg0::Arg0DispatchPaths;
+    use codepilotx_cloud_config::cloud_config_bundle_loader_for_storage;
+    use codepilotx_config::types::AuthCredentialsStoreMode;
+    use codepilotx_login::AuthKeyringBackendKind;
 
     use pretty_assertions::assert_eq;
     use std::sync::Arc;
     use tempfile::TempDir;
 
     async fn widget_forced_chatgpt() -> (AuthModeWidget, TempDir) {
-        let codex_home = TempDir::new().unwrap();
-        let codex_home_path = codex_home.path().to_path_buf();
+        let codepilotx_home = TempDir::new().unwrap();
+        let codepilotx_home_path = codepilotx_home.path().to_path_buf();
         let config = ConfigBuilder::default()
-            .codex_home(codex_home_path.clone())
+            .codepilotx_home(codepilotx_home_path.clone())
             .build()
             .await
             .unwrap();
@@ -1035,23 +1034,23 @@ mod tests {
             loader_overrides: Default::default(),
             strict_config: false,
             cloud_config_bundle: cloud_config_bundle_loader_for_storage(
-                codex_home_path.clone(),
-                /*enable_codex_api_key_env*/ false,
+                codepilotx_home_path.clone(),
+                /*enable_codepilotx_api_key_env*/ false,
                 AuthCredentialsStoreMode::File,
                 AuthKeyringBackendKind::default(),
                 "https://chatgpt.com/backend-api/".to_string(),
             )
             .await,
-            feedback: codex_feedback::CodexFeedback::new(),
+            feedback: codepilotx_feedback::CodexFeedback::new(),
             log_db: None,
             state_db: None,
             environment_manager: Arc::new(
-                codex_app_server_client::EnvironmentManager::default_for_tests(),
+                codepilotx_app_server_client::EnvironmentManager::default_for_tests(),
             ),
             config_warnings: Vec::new(),
             session_source: serde_json::from_value(serde_json::json!("cli"))
                 .expect("cli session source should deserialize"),
-            enable_codex_api_key_env: false,
+            enable_codepilotx_api_key_env: false,
             client_name: "test".to_string(),
             client_version: "test".to_string(),
             experimental_api: true,
@@ -1072,7 +1071,7 @@ mod tests {
             animations_enabled: true,
             animations_suppressed: std::cell::Cell::new(false),
         };
-        (widget, codex_home)
+        (widget, codepilotx_home)
     }
 
     #[tokio::test]

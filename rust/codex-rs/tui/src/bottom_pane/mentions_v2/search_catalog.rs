@@ -1,5 +1,5 @@
-use codex_core_skills::model::SkillMetadata;
-use codex_plugin::PluginCapabilitySummary;
+use codepilotx_core_skills::model::SkillMetadata;
+use codepilotx_plugin::PluginCapabilitySummary;
 
 use crate::skills_helpers::skill_description;
 use crate::skills_helpers::skill_display_name;

@@ -14,7 +14,7 @@ impl ChatWidget {
         }
     }
 
-    pub(super) fn on_hook_started(&mut self, run: codex_app_server_protocol::HookRunSummary) {
+    pub(super) fn on_hook_started(&mut self, run: codepilotx_app_server_protocol::HookRunSummary) {
         self.record_visible_turn_activity();
         self.flush_answer_stream_with_separator();
         self.flush_completed_hook_output();
@@ -36,7 +36,7 @@ impl ChatWidget {
 
     pub(super) fn on_hook_completed(
         &mut self,
-        completed: codex_app_server_protocol::HookRunSummary,
+        completed: codepilotx_app_server_protocol::HookRunSummary,
     ) {
         let completed_existing_run = self
             .active_hook_cell

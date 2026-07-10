@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use clap::ArgAction;
 use clap::ArgGroup;
 use clap::Parser;
-use codex_core::config::edit::ConfigEditsBuilder;
-use codex_core::config::find_codex_home;
+use codepilotx_core::config::edit::ConfigEditsBuilder;
+use codepilotx_core::config::find_codepilotx_home;
 
 #[derive(Debug, Parser)]
 #[command(group(
@@ -22,7 +22,7 @@ pub(crate) struct SandboxSetupCommand {
         long = "user",
         value_name = "USER",
         conflicts_with = "current_user",
-        requires = "codex_home"
+        requires = "codepilotx_home"
     )]
     user: Option<String>,
 
@@ -34,9 +34,9 @@ pub(crate) struct SandboxSetupCommand {
     )]
     current_user: bool,
 
-    /// CODEX_HOME for the Codex user. Required with --user.
+    /// codepilotx_HOME for the Codex user. Required with --user.
     #[arg(long = "codex-home", value_name = "DIR")]
-    codex_home: Option<PathBuf>,
+    codepilotx_home: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,11 +78,11 @@ pub(crate) fn parse_setup_command(
 async fn run_elevated(cmd: SandboxSetupCommand) -> anyhow::Result<()> {
     let identity = resolve_sandbox_setup_identity(&cmd)?;
 
-    codex_core::windows_sandbox::run_elevated_provisioning_setup(
-        identity.codex_home.as_path(),
+    codepilotx_core::windows_sandbox::run_elevated_provisioning_setup(
+        identity.codepilotx_home.as_path(),
         identity.real_user.as_str(),
     )?;
-    ConfigEditsBuilder::new(identity.codex_home.as_path())
+    ConfigEditsBuilder::new(identity.codepilotx_home.as_path())
         .set_windows_sandbox_mode("elevated")
         .apply()
         .await
@@ -95,14 +95,14 @@ async fn run_elevated(cmd: SandboxSetupCommand) -> anyhow::Result<()> {
     println!(
         "Windows elevated sandbox setup completed for {} at {}.",
         identity.real_user,
-        identity.codex_home.display()
+        identity.codepilotx_home.display()
     );
     Ok(())
 }
 
 struct SandboxSetupIdentity {
     real_user: String,
-    codex_home: PathBuf,
+    codepilotx_home: PathBuf,
 }
 
 fn resolve_sandbox_setup_identity(
@@ -114,13 +114,13 @@ fn resolve_sandbox_setup_identity(
             .map_err(|err| {
                 anyhow::anyhow!("failed to determine current user from environment: {err}")
             })?;
-        let codex_home = match cmd.codex_home.clone() {
-            Some(codex_home) => codex_home,
-            None => find_codex_home()?.to_path_buf(),
+        let codepilotx_home = match cmd.codepilotx_home.clone() {
+            Some(codepilotx_home) => codepilotx_home,
+            None => find_codepilotx_home()?.to_path_buf(),
         };
         return Ok(SandboxSetupIdentity {
             real_user,
-            codex_home,
+            codepilotx_home,
         });
     }
 
@@ -128,13 +128,13 @@ fn resolve_sandbox_setup_identity(
         .user
         .clone()
         .ok_or_else(|| anyhow::anyhow!("--user or --current-user is required"))?;
-    let codex_home = cmd
-        .codex_home
+    let codepilotx_home = cmd
+        .codepilotx_home
         .clone()
         .ok_or_else(|| anyhow::anyhow!("--codex-home is required with --user"))?;
     Ok(SandboxSetupIdentity {
         real_user,
-        codex_home,
+        codepilotx_home,
     })
 }
 
@@ -158,7 +158,7 @@ mod tests {
         assert_eq!(command.user.as_deref(), Some(r"DOMAIN\alice"));
         assert!(!command.current_user);
         assert_eq!(
-            command.codex_home.as_deref(),
+            command.codepilotx_home.as_deref(),
             Some(std::path::Path::new(r"C:\Users\alice\.codex"))
         );
     }
@@ -172,7 +172,7 @@ mod tests {
     }
 
     #[test]
-    fn requires_codex_home_for_managed_user() {
+    fn requires_codepilotx_home_for_managed_user() {
         let err =
             SandboxSetupCommand::try_parse_from(["setup", "--elevated", "--user", "DOMAIN\\alice"])
                 .expect_err("parse should fail");

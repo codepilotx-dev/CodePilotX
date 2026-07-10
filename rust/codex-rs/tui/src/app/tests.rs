@@ -33,70 +33,70 @@ use crate::legacy_core::config::ConfigBuilder;
 use crate::legacy_core::config::ConfigOverrides;
 use crate::legacy_core::config::PermissionProfileSnapshot;
 use crate::legacy_core::config::TerminalResizeReflowMaxRows;
-use codex_app_server_client::AppServerPath;
-use codex_app_server_protocol::AdditionalFileSystemPermissions;
-use codex_app_server_protocol::AdditionalNetworkPermissions;
-use codex_app_server_protocol::AdditionalPermissionProfile;
-use codex_app_server_protocol::AgentMessageDeltaNotification;
-use codex_app_server_protocol::AskForApproval;
-use codex_app_server_protocol::CommandExecutionRequestApprovalParams;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::FileChangeRequestApprovalParams;
-use codex_app_server_protocol::FileUpdateChange;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::McpServerElicitationRequest;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
-use codex_app_server_protocol::McpServerStartupState;
-use codex_app_server_protocol::McpServerStatusUpdatedNotification;
-use codex_app_server_protocol::NetworkApprovalContext as AppServerNetworkApprovalContext;
-use codex_app_server_protocol::NetworkApprovalProtocol as AppServerNetworkApprovalProtocol;
-use codex_app_server_protocol::NetworkPolicyAmendment as AppServerNetworkPolicyAmendment;
-use codex_app_server_protocol::NetworkPolicyRuleAction as AppServerNetworkPolicyRuleAction;
-use codex_app_server_protocol::NonSteerableTurnKind as AppServerNonSteerableTurnKind;
-use codex_app_server_protocol::PatchChangeKind;
-use codex_app_server_protocol::PermissionsRequestApprovalParams;
-use codex_app_server_protocol::RequestId as AppServerRequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::SessionSource;
-use codex_app_server_protocol::Thread;
-use codex_app_server_protocol::ThreadClosedNotification;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadSettings;
-use codex_app_server_protocol::ThreadSettingsUpdatedNotification;
-use codex_app_server_protocol::ThreadStartedNotification;
-use codex_app_server_protocol::ThreadTokenUsage;
-use codex_app_server_protocol::ThreadTokenUsageUpdatedNotification;
-use codex_app_server_protocol::TokenUsageBreakdown;
-use codex_app_server_protocol::ToolRequestUserInputParams;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnError as AppServerTurnError;
-use codex_app_server_protocol::TurnStartedNotification;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput;
-use codex_app_server_protocol::UserInput as AppServerUserInput;
-use codex_app_server_protocol::WarningNotification;
-use codex_models_manager::test_support::construct_model_info_offline_for_tests;
-use codex_models_manager::test_support::get_model_offline_for_tests;
-use codex_otel::SessionTelemetry;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::Settings;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::FileSystemPermissions;
-use codex_protocol::models::NetworkPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::MAX_THREAD_GOAL_OBJECTIVE_CHARS;
-use codex_protocol::request_permissions::RequestPermissionProfile;
-use codex_protocol::user_input::TextElement;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codepilotx_app_server_client::AppServerPath;
+use codepilotx_app_server_protocol::AdditionalFileSystemPermissions;
+use codepilotx_app_server_protocol::AdditionalNetworkPermissions;
+use codepilotx_app_server_protocol::AdditionalPermissionProfile;
+use codepilotx_app_server_protocol::AgentMessageDeltaNotification;
+use codepilotx_app_server_protocol::AskForApproval;
+use codepilotx_app_server_protocol::CommandExecutionRequestApprovalParams;
+use codepilotx_app_server_protocol::ConfigWarningNotification;
+use codepilotx_app_server_protocol::FileChangeRequestApprovalParams;
+use codepilotx_app_server_protocol::FileUpdateChange;
+use codepilotx_app_server_protocol::ItemStartedNotification;
+use codepilotx_app_server_protocol::JSONRPCErrorError;
+use codepilotx_app_server_protocol::McpServerElicitationRequest;
+use codepilotx_app_server_protocol::McpServerElicitationRequestParams;
+use codepilotx_app_server_protocol::McpServerStartupState;
+use codepilotx_app_server_protocol::McpServerStatusUpdatedNotification;
+use codepilotx_app_server_protocol::NetworkApprovalContext as AppServerNetworkApprovalContext;
+use codepilotx_app_server_protocol::NetworkApprovalProtocol as AppServerNetworkApprovalProtocol;
+use codepilotx_app_server_protocol::NetworkPolicyAmendment as AppServerNetworkPolicyAmendment;
+use codepilotx_app_server_protocol::NetworkPolicyRuleAction as AppServerNetworkPolicyRuleAction;
+use codepilotx_app_server_protocol::NonSteerableTurnKind as AppServerNonSteerableTurnKind;
+use codepilotx_app_server_protocol::PatchChangeKind;
+use codepilotx_app_server_protocol::PermissionsRequestApprovalParams;
+use codepilotx_app_server_protocol::RequestId as AppServerRequestId;
+use codepilotx_app_server_protocol::ServerNotification;
+use codepilotx_app_server_protocol::ServerRequest;
+use codepilotx_app_server_protocol::SessionSource;
+use codepilotx_app_server_protocol::Thread;
+use codepilotx_app_server_protocol::ThreadClosedNotification;
+use codepilotx_app_server_protocol::ThreadItem;
+use codepilotx_app_server_protocol::ThreadSettings;
+use codepilotx_app_server_protocol::ThreadSettingsUpdatedNotification;
+use codepilotx_app_server_protocol::ThreadStartedNotification;
+use codepilotx_app_server_protocol::ThreadTokenUsage;
+use codepilotx_app_server_protocol::ThreadTokenUsageUpdatedNotification;
+use codepilotx_app_server_protocol::TokenUsageBreakdown;
+use codepilotx_app_server_protocol::ToolRequestUserInputParams;
+use codepilotx_app_server_protocol::Turn;
+use codepilotx_app_server_protocol::TurnCompletedNotification;
+use codepilotx_app_server_protocol::TurnError as AppServerTurnError;
+use codepilotx_app_server_protocol::TurnStartedNotification;
+use codepilotx_app_server_protocol::TurnStatus;
+use codepilotx_app_server_protocol::UserInput;
+use codepilotx_app_server_protocol::UserInput as AppServerUserInput;
+use codepilotx_app_server_protocol::WarningNotification;
+use codepilotx_models_manager::test_support::construct_model_info_offline_for_tests;
+use codepilotx_models_manager::test_support::get_model_offline_for_tests;
+use codepilotx_otel::SessionTelemetry;
+use codepilotx_protocol::ThreadId;
+use codepilotx_protocol::config_types::CollaborationMode;
+use codepilotx_protocol::config_types::CollaborationModeMask;
+use codepilotx_protocol::config_types::ModeKind;
+use codepilotx_protocol::config_types::Personality;
+use codepilotx_protocol::config_types::SandboxMode;
+use codepilotx_protocol::config_types::ServiceTier;
+use codepilotx_protocol::config_types::Settings;
+use codepilotx_protocol::models::ActivePermissionProfile;
+use codepilotx_protocol::models::FileSystemPermissions;
+use codepilotx_protocol::models::NetworkPermissions;
+use codepilotx_protocol::models::PermissionProfile;
+use codepilotx_protocol::protocol::MAX_THREAD_GOAL_OBJECTIVE_CHARS;
+use codepilotx_protocol::request_permissions::RequestPermissionProfile;
+use codepilotx_protocol::user_input::TextElement;
+use codepilotx_utils_absolute_path::AbsolutePathBuf;
 use crossterm::event::KeyModifiers;
 use insta::assert_snapshot;
 use pretty_assertions::assert_eq;
@@ -132,7 +132,7 @@ async fn next_thread_settings_updated(
         .await
         .expect("app-server should emit an event")
         .expect("app-server event stream should remain open");
-        if let codex_app_server_client::AppServerEvent::ServerNotification(
+        if let codepilotx_app_server_client::AppServerEvent::ServerNotification(
             ServerNotification::ThreadSettingsUpdated(notification),
         ) = event
             && notification.thread_id == thread_id.to_string()
@@ -158,7 +158,7 @@ async fn handle_mcp_inventory_result_respects_origin_thread() {
             tools: HashMap::new(),
             resources: Vec::new(),
             resource_templates: Vec::new(),
-            auth_status: codex_app_server_protocol::McpAuthStatus::Unsupported,
+            auth_status: codepilotx_app_server_protocol::McpAuthStatus::Unsupported,
         }]),
         McpServerStatusDetail::ToolsAndAuthOnly,
         /*thread_id*/ None,
@@ -326,9 +326,9 @@ async fn enqueue_primary_thread_session_replays_turns_before_initial_prompt_subm
         ),
         enhanced_keys_supported: false,
         has_chatgpt_account: false,
-        has_codex_backend_auth: false,
+        has_codepilotx_backend_auth: false,
         model_catalog: app.model_catalog.clone(),
-        feedback: codex_feedback::CodexFeedback::new(),
+        feedback: codepilotx_feedback::CodexFeedback::new(),
         is_first_run: false,
         status_account_display: None,
         runtime_model_provider_base_url: None,
@@ -1155,8 +1155,8 @@ async fn collab_receiver_notification_caches_thread_without_app_server_read() {
             started_at_ms: 0,
             item: ThreadItem::CollabAgentToolCall {
                 id: "wait-1".to_string(),
-                tool: codex_app_server_protocol::CollabAgentTool::Wait,
-                status: codex_app_server_protocol::CollabAgentToolCallStatus::InProgress,
+                tool: codepilotx_app_server_protocol::CollabAgentTool::Wait,
+                status: codepilotx_app_server_protocol::CollabAgentToolCallStatus::InProgress,
                 sender_thread_id: ThreadId::new().to_string(),
                 receiver_thread_ids: vec![receiver_thread_id.to_string()],
                 prompt: None,
@@ -1186,14 +1186,14 @@ async fn collab_receiver_notification_does_not_cache_not_found_thread() {
         ThreadId::from_string("00000000-0000-0000-0000-000000000124").expect("valid thread id");
 
     app.handle_thread_event_now(ThreadBufferedEvent::Notification(
-        ServerNotification::ItemCompleted(codex_app_server_protocol::ItemCompletedNotification {
+        ServerNotification::ItemCompleted(codepilotx_app_server_protocol::ItemCompletedNotification {
             thread_id: ThreadId::new().to_string(),
             turn_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: ThreadItem::CollabAgentToolCall {
                 id: "send-1".to_string(),
-                tool: codex_app_server_protocol::CollabAgentTool::SendInput,
-                status: codex_app_server_protocol::CollabAgentToolCallStatus::Failed,
+                tool: codepilotx_app_server_protocol::CollabAgentTool::SendInput,
+                status: codepilotx_app_server_protocol::CollabAgentToolCallStatus::Failed,
                 sender_thread_id: ThreadId::new().to_string(),
                 receiver_thread_ids: vec![receiver_thread_id.to_string()],
                 prompt: Some("hello".to_string()),
@@ -1201,8 +1201,8 @@ async fn collab_receiver_notification_does_not_cache_not_found_thread() {
                 reasoning_effort: None,
                 agents_states: HashMap::from([(
                     receiver_thread_id.to_string(),
-                    codex_app_server_protocol::CollabAgentState {
-                        status: codex_app_server_protocol::CollabAgentStatus::NotFound,
+                    codepilotx_app_server_protocol::CollabAgentState {
+                        status: codepilotx_app_server_protocol::CollabAgentStatus::NotFound,
                         message: None,
                     },
                 )]),
@@ -1622,8 +1622,8 @@ async fn open_agent_picker_prompts_to_enable_multi_agent_when_disabled() -> Resu
 #[tokio::test]
 async fn update_memory_settings_persists_and_updates_widget_config() -> Result<()> {
     let (mut app, _app_event_rx, _op_rx) = Box::pin(make_test_app_with_channels()).await;
-    let codex_home = tempdir()?;
-    app.config.codex_home = codex_home.path().to_path_buf().abs();
+    let codepilotx_home = tempdir()?;
+    app.config.codepilotx_home = codepilotx_home.path().to_path_buf().abs();
     let mut app_server = Box::pin(crate::start_embedded_app_server_for_picker(&app.config)).await?;
 
     Box::pin(app.update_memory_settings_with_app_server(
@@ -1638,7 +1638,7 @@ async fn update_memory_settings_persists_and_updates_widget_config() -> Result<(
     assert!(!app.chat_widget.config_ref().memories.use_memories);
     assert!(!app.chat_widget.config_ref().memories.generate_memories);
 
-    let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+    let config = std::fs::read_to_string(codepilotx_home.path().join("config.toml"))?;
     let config_value = toml::from_str::<TomlValue>(&config)?;
     let memories = config_value
         .as_table()
@@ -1675,9 +1675,9 @@ fn update_memory_settings_updates_current_thread_memory_mode() -> Result<()> {
 
     runtime.block_on(async {
         let (mut app, _app_event_rx, _op_rx) = Box::pin(make_test_app_with_channels()).await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
-        app.config.sqlite_home = codex_home.path().to_path_buf();
+        let codepilotx_home = tempdir()?;
+        app.config.codepilotx_home = codepilotx_home.path().to_path_buf().abs();
+        app.config.sqlite_home = codepilotx_home.path().to_path_buf();
         // Seed the previous setting so this test exercises the thread-mode update path.
         app.config.memories.generate_memories = true;
 
@@ -1694,8 +1694,8 @@ fn update_memory_settings_updates_current_thread_memory_mode() -> Result<()> {
         ))
         .await;
 
-        let state_db = codex_state::StateRuntime::init(
-            codex_home.path().to_path_buf(),
+        let state_db = codepilotx_state::StateRuntime::init(
+            codepilotx_home.path().to_path_buf(),
             app.config.model_provider_id.clone(),
         )
         .await
@@ -1715,11 +1715,11 @@ fn update_memory_settings_updates_current_thread_memory_mode() -> Result<()> {
 async fn reset_memories_clears_local_memory_directories() -> Result<()> {
     Box::pin(async {
         let (mut app, _app_event_rx, _op_rx) = Box::pin(make_test_app_with_channels()).await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
-        app.config.sqlite_home = codex_home.path().to_path_buf();
+        let codepilotx_home = tempdir()?;
+        app.config.codepilotx_home = codepilotx_home.path().to_path_buf().abs();
+        app.config.sqlite_home = codepilotx_home.path().to_path_buf();
 
-        let memory_root = codex_home.path().join("memories");
+        let memory_root = codepilotx_home.path().join("memories");
         let extensions_root = memory_root.join("extensions");
         std::fs::create_dir_all(memory_root.join("rollout_summaries"))?;
         std::fs::create_dir_all(&extensions_root)?;
@@ -1746,8 +1746,8 @@ async fn reset_memories_clears_local_memory_directories() -> Result<()> {
 #[tokio::test]
 async fn apply_permission_profile_selection_preserves_loader_overrides() -> Result<()> {
     let (mut app, mut app_event_rx, _op_rx) = make_test_app_with_channels().await;
-    let codex_home = tempdir()?;
-    let selected_config = codex_home.path().join("work.config.toml");
+    let codepilotx_home = tempdir()?;
+    let selected_config = codepilotx_home.path().join("work.config.toml");
     std::fs::write(
         &selected_config,
         r#"
@@ -1757,7 +1757,7 @@ default_permissions = "locked-down"
 ":minimal" = "read"
 "#,
     )?;
-    app.config.codex_home = codex_home.path().to_path_buf().abs();
+    app.config.codepilotx_home = codepilotx_home.path().to_path_buf().abs();
     app.loader_overrides.user_config_path = Some(selected_config.abs());
     app.harness_overrides.sandbox_mode = Some(SandboxMode::WorkspaceWrite);
     app.harness_overrides.permission_profile = Some(PermissionProfile::workspace_write());
@@ -1831,8 +1831,8 @@ default_permissions = "locked-down"
 #[tokio::test]
 async fn update_feature_flags_enabling_guardian_selects_auto_review() -> Result<()> {
     let (mut app, mut app_event_rx, mut op_rx) = make_test_app_with_channels().await;
-    let codex_home = tempdir()?;
-    app.config.codex_home = codex_home.path().to_path_buf().abs();
+    let codepilotx_home = tempdir()?;
+    app.config.codepilotx_home = codepilotx_home.path().to_path_buf().abs();
     let auto_review = auto_review_mode();
     let mut app_server = start_config_write_test_app_server(&app).await?;
 
@@ -1920,7 +1920,7 @@ async fn update_feature_flags_enabling_guardian_selects_auto_review() -> Result<
         .join("\n");
     assert!(rendered.contains("Permissions updated to Approve for me"));
 
-    let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+    let config = std::fs::read_to_string(codepilotx_home.path().join("config.toml"))?;
     assert!(config.contains("guardian_approval = true"));
     assert!(config.contains("approvals_reviewer = \"auto_review\""));
     assert!(config.contains("approval_policy = \"on-request\""));
@@ -1933,9 +1933,9 @@ async fn update_feature_flags_enabling_guardian_selects_auto_review() -> Result<
 async fn update_feature_flags_disabling_guardian_clears_review_policy_and_restores_default()
 -> Result<()> {
     let (mut app, mut app_event_rx, mut op_rx) = make_test_app_with_channels().await;
-    let codex_home = tempdir()?;
-    app.config.codex_home = codex_home.path().to_path_buf().abs();
-    let config_toml_path = codex_home.path().join("config.toml").abs();
+    let codepilotx_home = tempdir()?;
+    app.config.codepilotx_home = codepilotx_home.path().to_path_buf().abs();
+    let config_toml_path = codepilotx_home.path().join("config.toml").abs();
     let config_toml = "approvals_reviewer = \"guardian_subagent\"\napproval_policy = \"on-request\"\nsandbox_mode = \"workspace-write\"\n\n[features]\nguardian_approval = true\n";
     std::fs::write(config_toml_path.as_path(), config_toml)?;
     let user_config = toml::from_str::<TomlValue>(config_toml)?;
@@ -2015,7 +2015,7 @@ async fn update_feature_flags_disabling_guardian_clears_review_policy_and_restor
         .join("\n");
     assert!(rendered.contains("Permissions updated to Ask for approval"));
 
-    let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+    let config = std::fs::read_to_string(codepilotx_home.path().join("config.toml"))?;
     assert!(!config.contains("guardian_approval = true"));
     assert!(!config.contains("approvals_reviewer ="));
     assert!(config.contains("approval_policy = \"on-request\""));
@@ -2028,10 +2028,10 @@ async fn update_feature_flags_disabling_guardian_clears_review_policy_and_restor
 async fn update_feature_flags_enabling_guardian_overrides_explicit_manual_review_policy()
 -> Result<()> {
     let (mut app, _app_event_rx, mut op_rx) = make_test_app_with_channels().await;
-    let codex_home = tempdir()?;
-    app.config.codex_home = codex_home.path().to_path_buf().abs();
+    let codepilotx_home = tempdir()?;
+    app.config.codepilotx_home = codepilotx_home.path().to_path_buf().abs();
     let auto_review = auto_review_mode();
-    let config_toml_path = codex_home.path().join("config.toml").abs();
+    let config_toml_path = codepilotx_home.path().join("config.toml").abs();
     let config_toml = "approvals_reviewer = \"user\"\n";
     std::fs::write(config_toml_path.as_path(), config_toml)?;
     let user_config = toml::from_str::<TomlValue>(config_toml)?;
@@ -2085,7 +2085,7 @@ async fn update_feature_flags_enabling_guardian_overrides_explicit_manual_review
         })
     );
 
-    let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+    let config = std::fs::read_to_string(codepilotx_home.path().join("config.toml"))?;
     assert!(config.contains("approvals_reviewer = \"auto_review\""));
     assert!(config.contains("guardian_approval = true"));
     assert!(config.contains("approval_policy = \"on-request\""));
@@ -2098,9 +2098,9 @@ async fn update_feature_flags_enabling_guardian_overrides_explicit_manual_review
 async fn update_feature_flags_disabling_guardian_clears_manual_review_policy_without_history()
 -> Result<()> {
     let (mut app, mut app_event_rx, mut op_rx) = make_test_app_with_channels().await;
-    let codex_home = tempdir()?;
-    app.config.codex_home = codex_home.path().to_path_buf().abs();
-    let config_toml_path = codex_home.path().join("config.toml").abs();
+    let codepilotx_home = tempdir()?;
+    app.config.codepilotx_home = codepilotx_home.path().to_path_buf().abs();
+    let config_toml_path = codepilotx_home.path().join("config.toml").abs();
     let config_toml = "approvals_reviewer = \"user\"\napproval_policy = \"on-request\"\nsandbox_mode = \"workspace-write\"\n\n[features]\nguardian_approval = true\n";
     std::fs::write(config_toml_path.as_path(), config_toml)?;
     let user_config = toml::from_str::<TomlValue>(config_toml)?;
@@ -2149,7 +2149,7 @@ async fn update_feature_flags_disabling_guardian_clears_manual_review_policy_wit
         "manual review should not emit a permissions history update when the effective state stays default"
     );
 
-    let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+    let config = std::fs::read_to_string(codepilotx_home.path().join("config.toml"))?;
     assert!(!config.contains("guardian_approval = true"));
     assert!(!config.contains("approvals_reviewer ="));
     app_server.shutdown().await?;
@@ -2510,15 +2510,15 @@ async fn inactive_thread_exec_approval_preserves_context() {
     assert_eq!(
         available_decisions,
         vec![
-            codex_app_server_protocol::CommandExecutionApprovalDecision::Accept,
-            codex_app_server_protocol::CommandExecutionApprovalDecision::AcceptForSession,
-            codex_app_server_protocol::CommandExecutionApprovalDecision::ApplyNetworkPolicyAmendment {
+            codepilotx_app_server_protocol::CommandExecutionApprovalDecision::Accept,
+            codepilotx_app_server_protocol::CommandExecutionApprovalDecision::AcceptForSession,
+            codepilotx_app_server_protocol::CommandExecutionApprovalDecision::ApplyNetworkPolicyAmendment {
                 network_policy_amendment: AppServerNetworkPolicyAmendment {
                     host: "example.com".to_string(),
                     action: AppServerNetworkPolicyRuleAction::Allow,
                 },
             },
-            codex_app_server_protocol::CommandExecutionApprovalDecision::Cancel,
+            codepilotx_app_server_protocol::CommandExecutionApprovalDecision::Cancel,
         ]
     );
 }
@@ -2575,7 +2575,7 @@ async fn inactive_thread_file_change_approval_recovers_buffered_changes() {
                     kind: PatchChangeKind::Add,
                     diff: "hello\n".to_string(),
                 }],
-                status: codex_app_server_protocol::PatchApplyStatus::InProgress,
+                status: codepilotx_app_server_protocol::PatchApplyStatus::InProgress,
             },
         }),
     )
@@ -2626,7 +2626,7 @@ async fn inactive_thread_file_change_approval_recovers_buffered_changes() {
         other => panic!("expected patch preview history cell, saw {other:?}"),
     };
     let rendered = lines_to_single_string(&cell.display_lines(/*width*/ 80));
-    assert!(rendered.contains("â€¢ Added README.md (+1 -0)"));
+    assert!(rendered.contains("â€?Added README.md (+1 -0)"));
     assert!(rendered.contains("1 +hello"));
 }
 
@@ -2644,7 +2644,7 @@ async fn inactive_thread_permissions_approval_preserves_file_system_permissions(
             started_at_ms: 0,
             cwd: test_absolute_path("/tmp"),
             reason: Some("Need access to .git".to_string()),
-            permissions: codex_app_server_protocol::RequestPermissionProfile {
+            permissions: codepilotx_app_server_protocol::RequestPermissionProfile {
                 network: Some(AdditionalNetworkPermissions {
                     enabled: Some(true),
                 }),
@@ -2757,7 +2757,7 @@ async fn inactive_thread_invalid_url_elicitation_is_declined() {
             op: Op::ResolveElicitation {
                 server_name,
                 request_id: AppServerRequestId::Integer(10),
-                decision: codex_app_server_protocol::McpServerElicitationAction::Decline,
+                decision: codepilotx_app_server_protocol::McpServerElicitationAction::Decline,
                 content: None,
                 meta: None,
             },
@@ -2882,11 +2882,11 @@ async fn inactive_thread_started_notification_initializes_replay_session() -> Re
                 created_at: 1,
                 updated_at: 2,
                 recency_at: Some(2),
-                status: codex_app_server_protocol::ThreadStatus::Idle,
+                status: codepilotx_app_server_protocol::ThreadStatus::Idle,
                 path: Some(rollout_path.clone()),
                 cwd: test_path_buf("/tmp/agent").abs(),
                 cli_version: "0.0.0".to_string(),
-                source: codex_app_server_protocol::SessionSource::Unknown,
+                source: codepilotx_app_server_protocol::SessionSource::Unknown,
                 thread_source: None,
                 agent_nickname: Some("Robie".to_string()),
                 agent_role: Some("explorer".to_string()),
@@ -2975,11 +2975,11 @@ async fn inactive_thread_started_notification_preserves_primary_model_when_path_
                 created_at: 1,
                 updated_at: 2,
                 recency_at: Some(2),
-                status: codex_app_server_protocol::ThreadStatus::Idle,
+                status: codepilotx_app_server_protocol::ThreadStatus::Idle,
                 path: None,
                 cwd: test_path_buf("/tmp/agent").abs(),
                 cli_version: "0.0.0".to_string(),
-                source: codex_app_server_protocol::SessionSource::Unknown,
+                source: codepilotx_app_server_protocol::SessionSource::Unknown,
                 thread_source: None,
                 agent_nickname: Some("Robie".to_string()),
                 agent_role: Some("explorer".to_string()),
@@ -3035,11 +3035,11 @@ async fn thread_read_session_state_does_not_reuse_primary_permission_profile() {
         created_at: 1,
         updated_at: 2,
         recency_at: Some(2),
-        status: codex_app_server_protocol::ThreadStatus::Idle,
+        status: codepilotx_app_server_protocol::ThreadStatus::Idle,
         path: None,
         cwd: test_path_buf("/tmp/read").abs(),
         cli_version: "0.0.0".to_string(),
-        source: codex_app_server_protocol::SessionSource::Unknown,
+        source: codepilotx_app_server_protocol::SessionSource::Unknown,
         thread_source: None,
         agent_nickname: None,
         agent_role: None,
@@ -3332,7 +3332,7 @@ async fn side_parent_status_prioritizes_input_over_approval() -> Result<()> {
     app.enqueue_thread_notification(
         parent_thread_id,
         ServerNotification::ServerRequestResolved(
-            codex_app_server_protocol::ServerRequestResolvedNotification {
+            codepilotx_app_server_protocol::ServerRequestResolvedNotification {
                 thread_id: parent_thread_id.to_string(),
                 request_id: AppServerRequestId::Integer(2),
             },
@@ -3349,7 +3349,7 @@ async fn side_parent_status_prioritizes_input_over_approval() -> Result<()> {
     app.enqueue_thread_notification(
         parent_thread_id,
         ServerNotification::ServerRequestResolved(
-            codex_app_server_protocol::ServerRequestResolvedNotification {
+            codepilotx_app_server_protocol::ServerRequestResolvedNotification {
                 thread_id: parent_thread_id.to_string(),
                 request_id: AppServerRequestId::Integer(1),
             },
@@ -3486,7 +3486,7 @@ async fn primary_thread_ignores_child_mcp_startup_notifications() {
 
     app.handle_app_server_event(
         &app_server,
-        codex_app_server_client::AppServerEvent::ServerNotification(
+        codepilotx_app_server_client::AppServerEvent::ServerNotification(
             ServerNotification::McpServerStatusUpdated(McpServerStatusUpdatedNotification {
                 thread_id: Some(child_thread_id.to_string()),
                 name: "sentry".to_string(),
@@ -3557,7 +3557,7 @@ async fn app_scoped_mcp_startup_notifications_do_not_render_in_active_thread() {
 
     app.handle_app_server_event(
         &app_server,
-        codex_app_server_client::AppServerEvent::ServerNotification(
+        codepilotx_app_server_client::AppServerEvent::ServerNotification(
             ServerNotification::McpServerStatusUpdated(McpServerStatusUpdatedNotification {
                 thread_id: None,
                 name: "sentry".to_string(),
@@ -3620,7 +3620,7 @@ async fn active_side_thread_renders_live_mcp_startup_notifications() {
     ] {
         app.handle_app_server_event(
             &app_server,
-            codex_app_server_client::AppServerEvent::ServerNotification(
+            codepilotx_app_server_client::AppServerEvent::ServerNotification(
                 ServerNotification::McpServerStatusUpdated(McpServerStatusUpdatedNotification {
                     thread_id: Some(side_thread_id.to_string()),
                     name: "sentry".to_string(),
@@ -3794,7 +3794,7 @@ async fn active_non_primary_shutdown_target_returns_none_for_non_shutdown_event(
 
     assert_eq!(
         app.active_non_primary_shutdown_target(&ServerNotification::SkillsChanged(
-            codex_app_server_protocol::SkillsChangedNotification {},
+            codepilotx_app_server_protocol::SkillsChangedNotification {},
         )),
         None
     );
@@ -4014,7 +4014,7 @@ async fn clear_ui_header_shows_fast_status_for_fast_capable_models() {
     app.chat_widget
         .set_reasoning_effort(Some(ReasoningEffortConfig::XHigh));
     app.chat_widget.set_service_tier(Some(
-        codex_protocol::config_types::ServiceTier::Fast
+        codepilotx_protocol::config_types::ServiceTier::Fast
             .request_value()
             .to_string(),
     ));
@@ -4072,7 +4072,7 @@ async fn make_test_app() -> App {
         skill_load_warnings: SkillLoadWarningState::default(),
         backtrack: BacktrackState::default(),
         backtrack_render_pending: false,
-        feedback: codex_feedback::CodexFeedback::new(),
+        feedback: codepilotx_feedback::CodexFeedback::new(),
         feedback_audience: FeedbackAudience::External,
         environment_manager: Arc::new(EnvironmentManager::default_for_tests()),
         app_server_target: crate::AppServerTarget::Embedded,
@@ -4137,7 +4137,7 @@ async fn make_test_app_with_channels() -> (
             skill_load_warnings: SkillLoadWarningState::default(),
             backtrack: BacktrackState::default(),
             backtrack_render_pending: false,
-            feedback: codex_feedback::CodexFeedback::new(),
+            feedback: codepilotx_feedback::CodexFeedback::new(),
             feedback_audience: FeedbackAudience::External,
             environment_manager: Arc::new(EnvironmentManager::default_for_tests()),
             app_server_target: crate::AppServerTarget::Embedded,
@@ -4192,12 +4192,12 @@ async fn set_thread_goal_draft_materializes_long_objective_and_confirms_before_p
     let response = app_server.thread_goal_get(thread_id).await?;
     let goal = response.goal.expect("goal should be set");
     let saved_objective = goal.objective.clone();
-    let codex_home = app_server
-        .codex_home_path(&app.chat_widget.config_ref().codex_home)
+    let codepilotx_home = app_server
+        .codepilotx_home_path(&app.chat_widget.config_ref().codepilotx_home)
         .expect("codex home");
-    assert!(goal_files::objective_file_path(&goal.objective, Some(&codex_home)).is_some());
+    assert!(goal_files::objective_file_path(&goal.objective, Some(&codepilotx_home)).is_some());
     assert_eq!(
-        goal_files::objective_text_for_edit(&mut app_server, Some(&codex_home), &goal.objective)
+        goal_files::objective_text_for_edit(&mut app_server, Some(&codepilotx_home), &goal.objective)
             .await
             .expect("managed goal file should be readable"),
         objective
@@ -4210,10 +4210,10 @@ async fn set_thread_goal_draft_materializes_long_objective_and_confirms_before_p
     let suffix = "attachments/00000000-0000-4000-8000-000000000000/goal-objective.md";
     for path in [
         format!("/tmp/{suffix}"),
-        format!("{codex_home}/../other/{suffix}"),
-        format!("{codex_home}/other/{suffix}"),
+        format!("{codepilotx_home}/../other/{suffix}"),
+        format!("{codepilotx_home}/other/{suffix}"),
     ] {
-        assert!(!is_managed(&codex_home, &path));
+        assert!(!is_managed(&codepilotx_home, &path));
     }
     assert!(!is_managed(
         &AppServerPath::from_app_server("/tmp/codex\\home"),
@@ -4221,7 +4221,7 @@ async fn set_thread_goal_draft_materializes_long_objective_and_confirms_before_p
     ));
     let unix_path = AppServerPath::from_app_server("/tmp/codex\\").join("a");
     assert_eq!(unix_path.as_str(), "/tmp/codex\\/a");
-    let attachments_dir = app.chat_widget.config_ref().codex_home.join("attachments");
+    let attachments_dir = app.chat_widget.config_ref().codepilotx_home.join("attachments");
     let attachment_count = std::fs::read_dir(&attachments_dir)?.count();
     let placeholder = "[Pasted Content 5 chars]";
     let paste_draft = crate::goal_files::GoalDraft {
@@ -4596,7 +4596,7 @@ async fn height_shrink_schedules_resize_reflow() {
 fn test_turn(turn_id: &str, status: TurnStatus, items: Vec<ThreadItem>) -> Turn {
     Turn {
         id: turn_id.to_string(),
-        items_view: codex_app_server_protocol::TurnItemsView::Full,
+        items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
         items,
         status,
         error: None,
@@ -4738,7 +4738,7 @@ async fn feedback_submission_without_thread_emits_error_history_cell() {
     };
     assert_eq!(
         lines_to_single_string(&cell.display_lines(/*width*/ 120)),
-        "â–  Failed to upload feedback: boom"
+        "â–?Failed to upload feedback: boom"
     );
 }
 
@@ -4804,7 +4804,7 @@ async fn feedback_submission_for_inactive_thread_replays_into_origin_thread() {
         }
     }
     assert!(rendered_cells.iter().any(|cell| {
-        cell.contains("â€¢ Feedback uploaded. Please open an issue using the following URL:")
+        cell.contains("â€?Feedback uploaded. Please open an issue using the following URL:")
             && cell.contains("uploaded-thread")
     }));
 }
@@ -4854,7 +4854,7 @@ fn test_session_telemetry(config: &Config, model: &str) -> SessionTelemetry {
 fn active_turn_not_steerable_turn_error_extracts_structured_server_error() {
     let turn_error = AppServerTurnError {
         message: "cannot steer a review turn".to_string(),
-        codex_error_info: Some(AppServerCodexErrorInfo::ActiveTurnNotSteerable {
+        codepilotx_error_info: Some(AppServerCodexErrorInfo::ActiveTurnNotSteerable {
             turn_kind: AppServerNonSteerableTurnKind::Review,
         }),
         additional_details: None,
@@ -4958,7 +4958,7 @@ fn active_turn_interrupt_race_extracts_actual_turn_id_from_mismatch() {
 async fn fresh_session_config_uses_current_service_tier() {
     let mut app = make_test_app().await;
     app.chat_widget.set_service_tier(Some(
-        codex_protocol::config_types::ServiceTier::Fast
+        codepilotx_protocol::config_types::ServiceTier::Fast
             .request_value()
             .to_string(),
     ));
@@ -4968,7 +4968,7 @@ async fn fresh_session_config_uses_current_service_tier() {
     assert_eq!(
         config.service_tier,
         Some(
-            codex_protocol::config_types::ServiceTier::Fast
+            codepilotx_protocol::config_types::ServiceTier::Fast
                 .request_value()
                 .to_string()
         )
@@ -5290,7 +5290,7 @@ async fn replay_thread_snapshot_replays_turn_history_in_order() {
             turns: vec![
                 Turn {
                     id: "turn-1".to_string(),
-                    items_view: codex_app_server_protocol::TurnItemsView::Full,
+                    items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                     items: vec![ThreadItem::UserMessage {
                         id: "user-1".to_string(),
                         client_id: None,
@@ -5307,7 +5307,7 @@ async fn replay_thread_snapshot_replays_turn_history_in_order() {
                 },
                 Turn {
                     id: "turn-2".to_string(),
-                    items_view: codex_app_server_protocol::TurnItemsView::Full,
+                    items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
                     items: vec![
                         ThreadItem::UserMessage {
                             id: "user-2".to_string(),
@@ -5379,7 +5379,7 @@ async fn replace_chat_widget_reseeds_collab_agent_metadata_for_replay() {
         initial_user_message: None,
         enhanced_keys_supported: app.enhanced_keys_supported,
         has_chatgpt_account: app.chat_widget.has_chatgpt_account(),
-        has_codex_backend_auth: app.chat_widget.has_codex_backend_auth(),
+        has_codepilotx_backend_auth: app.chat_widget.has_codepilotx_backend_auth(),
         model_catalog: app.model_catalog.clone(),
         feedback: app.feedback.clone(),
         is_first_run: false,
@@ -5403,15 +5403,15 @@ async fn replace_chat_widget_reseeds_collab_agent_metadata_for_replay() {
             turns: Vec::new(),
             events: vec![ThreadBufferedEvent::Notification(
                 ServerNotification::ItemStarted(
-                    codex_app_server_protocol::ItemStartedNotification {
+                    codepilotx_app_server_protocol::ItemStartedNotification {
                         thread_id: "thread-1".to_string(),
                         turn_id: "turn-1".to_string(),
                         started_at_ms: 0,
                         item: ThreadItem::CollabAgentToolCall {
                             id: "wait-1".to_string(),
-                            tool: codex_app_server_protocol::CollabAgentTool::Wait,
+                            tool: codepilotx_app_server_protocol::CollabAgentTool::Wait,
                             status:
-                                codex_app_server_protocol::CollabAgentToolCallStatus::InProgress,
+                                codepilotx_app_server_protocol::CollabAgentToolCallStatus::InProgress,
                             sender_thread_id: ThreadId::new().to_string(),
                             receiver_thread_ids: vec![receiver_thread_id.to_string()],
                             prompt: None,
@@ -5539,7 +5539,7 @@ async fn queued_rollback_syncs_overlay_and_clears_deferred_history() {
     app.backtrack.nth_user_message = 1;
     app.chat_widget.update_account_state(
         /*status_account_display*/ None, /*plan_type*/ None,
-        /*has_chatgpt_account*/ false, /*has_codex_backend_auth*/ true,
+        /*has_chatgpt_account*/ false, /*has_codepilotx_backend_auth*/ true,
     );
     app.chat_widget
         .set_composer_text("/usage daily".to_string(), Vec::new(), Vec::new());
@@ -5648,7 +5648,7 @@ async fn thread_rollback_response_discards_queued_active_thread_events() {
                 created_at: 0,
                 updated_at: 0,
                 recency_at: Some(0),
-                status: codex_app_server_protocol::ThreadStatus::Idle,
+                status: codepilotx_app_server_protocol::ThreadStatus::Idle,
                 path: None,
                 cwd: test_path_buf("/tmp/project").abs(),
                 cli_version: "0.0.0".to_string(),
@@ -5829,7 +5829,7 @@ async fn override_turn_context_sends_thread_settings_update() {
             Some(ApprovalsReviewer::AutoReview),
             /*permission_profile*/ None,
             Some(ActivePermissionProfile::new(
-                codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE,
+                codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE,
             )),
             /*windows_sandbox_level*/ None,
             Some("gpt-5.4".to_string()),
@@ -5890,7 +5890,7 @@ async fn override_turn_context_sends_thread_settings_update() {
 
         app.handle_app_server_event(
             &app_server,
-            codex_app_server_client::AppServerEvent::ServerNotification(
+            codepilotx_app_server_client::AppServerEvent::ServerNotification(
                 ServerNotification::ThreadSettingsUpdated(notification),
             ),
         )
@@ -5927,7 +5927,7 @@ async fn override_turn_context_sends_thread_settings_update() {
                 .as_ref()
                 .expect("active profile")
                 .id,
-            codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE
+            codepilotx_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE
         );
     })
     .await;
@@ -6025,12 +6025,12 @@ async fn inactive_thread_settings_notification_updates_cached_collaboration_mode
         thread_settings: ThreadSettings {
             cwd: test_absolute_path("/tmp/thread-settings"),
             approval_policy: AskForApproval::OnRequest,
-            approvals_reviewer: codex_app_server_protocol::ApprovalsReviewer::AutoReview,
-            sandbox_policy: codex_app_server_protocol::SandboxPolicy::ReadOnly {
+            approvals_reviewer: codepilotx_app_server_protocol::ApprovalsReviewer::AutoReview,
+            sandbox_policy: codepilotx_app_server_protocol::SandboxPolicy::ReadOnly {
                 network_access: false,
             },
             active_permission_profile: Some(
-                codex_app_server_protocol::ActivePermissionProfile::read_only(),
+                codepilotx_app_server_protocol::ActivePermissionProfile::read_only(),
             ),
             model: "gpt-plan".to_string(),
             model_provider: "openai".to_string(),
