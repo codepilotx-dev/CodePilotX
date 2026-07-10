@@ -29,6 +29,8 @@ export type RustAppServerWorkflowState = {
   activeTurnId: string | null
   /** Accumulated assistant text from agentMessage/item deltas */
   assistantDeltaBuffer: string
+  reasoningTextBuffer: string
+  reasoningSummaryBuffer: string
   /** Accumulated command output keyed by item id (toolUseId) */
   aggregatedOutputByItem: Map<string, string>
 }
@@ -38,6 +40,8 @@ export function createRustAppServerWorkflowState(): RustAppServerWorkflowState {
     threadId: null,
     activeTurnId: null,
     assistantDeltaBuffer: '',
+    reasoningTextBuffer: '',
+    reasoningSummaryBuffer: '',
     aggregatedOutputByItem: new Map(),
   }
 }
@@ -79,6 +83,8 @@ export function handleServerNotification(
         state.activeTurnId = typeof t.id === 'string' ? t.id : null
       }
       state.assistantDeltaBuffer = ''
+      state.reasoningTextBuffer = ''
+      state.reasoningSummaryBuffer = ''
       state.aggregatedOutputByItem.clear()
       desktopDebug('rust_adapter_turn_started', {
         turnId: state.activeTurnId,
@@ -87,11 +93,33 @@ export function handleServerNotification(
     }
 
     case 'turn/completed': {
-      state.activeTurnId = null
-      state.assistantDeltaBuffer = ''
-      state.aggregatedOutputByItem.clear()
-      emit({ type: 'done', sessionId })
-      desktopDebug('rust_adapter_turn_completed')
+      const p = params as Record<string, unknown> | null
+      const turn = p?.turn as Record<string, unknown> | null
+      const status = typeof turn?.status === 'string' ? turn.status : undefined
+      if (status === 'failed') {
+        state.activeTurnId = null
+        state.assistantDeltaBuffer = ''
+        state.reasoningTextBuffer = ''
+        state.reasoningSummaryBuffer = ''
+        state.aggregatedOutputByItem.clear()
+        const turnError = turn?.error as Record<string, unknown> | null
+        const message =
+          typeof turnError?.message === 'string'
+            ? turnError.message
+            : 'Rust app-server turn failed'
+        emit({ type: 'error', sessionId, message })
+        desktopDebug('rust_adapter_turn_failed', { message })
+      } else if (status === 'completed' || status === 'interrupted') {
+        state.activeTurnId = null
+        state.assistantDeltaBuffer = ''
+        state.reasoningTextBuffer = ''
+        state.reasoningSummaryBuffer = ''
+        state.aggregatedOutputByItem.clear()
+        emit({ type: 'done', sessionId })
+        desktopDebug('rust_adapter_turn_completed', { status })
+      } else {
+        desktopDebug('rust_adapter_turn_status_pending', { status })
+      }
       break
     }
 
@@ -145,15 +173,17 @@ export function handleServerNotification(
       const p = params as Record<string, unknown> | null
       if (!p) break
       const delta = p.itemDelta as Record<string, unknown> | null
-      if (!delta) break
+      const text = typeof p.delta === 'string'
+        ? p.delta
+        : typeof delta?.text === 'string'
+          ? delta.text
+          : undefined
       desktopDebug('rust_adapter_delta', {
-        deltaKeys: Object.keys(delta),
-        textPreview: typeof delta.text === 'string'
-          ? delta.text.slice(0, 100)
-          : undefined,
+        deltaKeys: delta ? Object.keys(delta) : ['delta'],
+        textPreview: text?.slice(0, 100),
       })
-      if (delta.text && typeof delta.text === 'string') {
-        state.assistantDeltaBuffer += delta.text
+      if (text) {
+        state.assistantDeltaBuffer += text
         emit({
           type: 'partial_message',
           sessionId,
@@ -316,31 +346,33 @@ export function handleServerNotification(
     }
 
     // ── Reasoning notifications ────────────────────────────────────
+    case 'item/reasoning/textDelta':
     case 'reasoning/textDelta': {
       const p = params as Record<string, unknown> | null
       if (!p) break
       const delta = p.delta as string | undefined
       if (delta) {
-        state.assistantDeltaBuffer += delta
+        state.reasoningTextBuffer += delta
         emit({
           type: 'partial_message',
           sessionId,
-          text: `*推理...* ${delta.slice(0, 100)}`,
+          text: `*推理...* ${state.reasoningTextBuffer}`,
         })
       }
       break
     }
 
+    case 'item/reasoning/summaryTextDelta':
     case 'reasoning/summaryTextDelta': {
       const p = params as Record<string, unknown> | null
       if (!p) break
       const delta = p.delta as string | undefined
       if (delta) {
-        state.assistantDeltaBuffer += delta
+        state.reasoningSummaryBuffer += delta
         emit({
           type: 'partial_message',
           sessionId,
-          text: `*推理摘要...* ${delta.slice(0, 100)}`,
+          text: `*推理摘要...* ${state.reasoningSummaryBuffer}`,
         })
       }
       break
@@ -377,7 +409,9 @@ export function handleServerNotification(
     case 'item/fileChange/patchUpdated': {
       const p = params as Record<string, unknown> | null
       if (!p) break
-      const files = p.files as Array<Record<string, unknown>> | undefined
+      const files = (Array.isArray(p.changes) ? p.changes : p.files) as
+        | Array<Record<string, unknown>>
+        | undefined
       desktopDebug('rust_adapter_file_change_patch', {
         fileCount: Array.isArray(files) ? files.length : undefined,
         filePaths: files?.map(f => f.path as string).filter(Boolean),

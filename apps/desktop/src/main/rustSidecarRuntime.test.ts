@@ -21,6 +21,7 @@ import {
   resolveRustAppServerExecutableInfo,
 } from './rustSidecarRuntime.js'
 import type { DesktopAgentRuntimeContext } from './agentRuntime.js'
+import type { DesktopPermissionDecision } from '../shared/types.js'
 
 /** Temporarily set process.env[key] and restore on dispose. */
 function withEnv(key: string, value: string): Disposable {
@@ -44,6 +45,7 @@ describe('rust sidecar runtime options', () => {
     expect(buildRustInitializeParams().capabilities).toEqual({
       experimentalApi: true,
       requestAttestation: false,
+      mcpServerOpenaiFormElicitation: true,
     })
   })
 
@@ -642,6 +644,170 @@ describe('RustSidecarDesktopAgentRuntime requestUserInput', () => {
   })
 })
 
+// ── Server approval request handlers ───────────────────────────────
+
+describe('RustSidecarDesktopAgentRuntime server approvals', () => {
+  function createRuntime(requestPermission: DesktopAgentRuntimeContext['requestPermission']) {
+    return new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission,
+    })
+  }
+
+  test('grants only requested permission categories and maps session scope', async () => {
+    const requestPermission = mock(async () => ({
+      behavior: 'allow' as const,
+      rememberOptionId: 'session' as const,
+    }))
+    const runtime = createRuntime(requestPermission)
+    const handler = (
+      runtime as unknown as {
+        handlePermissionRequest: (params: unknown, id: unknown, method: string) => Promise<unknown>
+      }
+    ).handlePermissionRequest.bind(runtime)
+
+    const result = await handler(
+      {
+        itemId: 'item-1',
+        permissions: {
+          fileSystem: { read: ['/workspace'] },
+          network: null,
+        },
+      },
+      1,
+      'item/permissions/requestApproval',
+    )
+
+    expect(result).toEqual({
+      permissions: { fileSystem: { read: ['/workspace'] } },
+      scope: 'session',
+    })
+  })
+
+  test('denies permissions with an empty grant profile', async () => {
+    const runtime = createRuntime(async () => ({ behavior: 'deny' as const }))
+    const handler = (
+      runtime as unknown as {
+        handlePermissionRequest: (params: unknown, id: unknown, method: string) => Promise<unknown>
+      }
+    ).handlePermissionRequest.bind(runtime)
+
+    await expect(
+      handler(
+        {
+          itemId: 'item-1',
+          permissions: { fileSystem: { read: ['/workspace'] }, network: {} },
+        },
+        1,
+        'item/permissions/requestApproval',
+      ),
+    ).resolves.toEqual({ permissions: {}, scope: 'turn' })
+  })
+
+  test('maps session command and file approvals to acceptForSession', async () => {
+    const requestPermission = mock(async () => ({
+      behavior: 'allow' as const,
+      rememberOptionId: 'session' as const,
+    }))
+    const runtime = createRuntime(requestPermission)
+    const handler = (
+      runtime as unknown as {
+        handlePermissionRequest: (params: unknown, id: unknown, method: string) => Promise<unknown>
+      }
+    ).handlePermissionRequest.bind(runtime)
+
+    await expect(
+      handler({ itemId: 'cmd-1', command: 'echo hi' }, 1, 'item/commandExecution/requestApproval'),
+    ).resolves.toEqual({ decision: 'acceptForSession' })
+    await expect(
+      handler({ itemId: 'file-1', filePath: 'note.txt' }, 2, 'item/fileChange/requestApproval'),
+    ).resolves.toEqual({ decision: 'acceptForSession' })
+  })
+
+  test('maps a compatible cancellation decision without changing the desktop decision union', async () => {
+    const runtime = createRuntime(async () => ({
+      behavior: 'cancel',
+    } as unknown as DesktopPermissionDecision))
+    const handler = (
+      runtime as unknown as {
+        handlePermissionRequest: (params: unknown, id: unknown, method: string) => Promise<unknown>
+      }
+    ).handlePermissionRequest.bind(runtime)
+
+    await expect(
+      handler({ itemId: 'cmd-1', command: 'echo hi' }, 1, 'item/commandExecution/requestApproval'),
+    ).resolves.toEqual({ decision: 'cancel' })
+  })
+})
+
+// ── MCP elicitation handler ────────────────────────────────────────
+
+describe('RustSidecarDesktopAgentRuntime MCP elicitation', () => {
+  test('returns accepted submitted form content', async () => {
+    const requestPermission = mock(async () => ({
+      behavior: 'allow' as const,
+      updatedInput: { content: { confirmed: true, name: 'Ada' } },
+    }))
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission,
+    })
+    const handler = (
+      runtime as unknown as {
+        handleMcpElicitationRequest: (params: unknown, id: unknown) => Promise<unknown>
+      }
+    ).handleMcpElicitationRequest.bind(runtime)
+
+    await expect(
+      handler({ serverName: 'demo', mode: 'form', message: 'Confirm?', requestedSchema: {} }, 1),
+    ).resolves.toMatchObject({
+      action: 'accept',
+      content: { confirmed: true, name: 'Ada' },
+    })
+    expect(requestPermission).toHaveBeenCalledTimes(1)
+  })
+
+  test('returns decline for denied elicitation', async () => {
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const handler = (
+      runtime as unknown as {
+        handleMcpElicitationRequest: (params: unknown, id: unknown) => Promise<unknown>
+      }
+    ).handleMcpElicitationRequest.bind(runtime)
+
+    await expect(handler({ serverName: 'demo', mode: 'form' }, 1)).resolves.toMatchObject({
+      action: 'decline',
+    })
+  })
+
+  test('returns cancel when a compatible cancellation decision is supplied', async () => {
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'cancel' } as unknown as DesktopPermissionDecision),
+    })
+    const handler = (
+      runtime as unknown as {
+        handleMcpElicitationRequest: (params: unknown, id: unknown) => Promise<unknown>
+      }
+    ).handleMcpElicitationRequest.bind(runtime)
+
+    await expect(handler({ serverName: 'demo', mode: 'form' }, 1)).resolves.toMatchObject({
+      action: 'cancel',
+    })
+  })
+})
+
 // ── Dynamic tool call handler ──────────────────────────────────────
 
 describe('RustSidecarDesktopAgentRuntime dynamicToolCall', () => {
@@ -823,7 +989,7 @@ describe('RustSidecarDesktopAgentRuntime duplicate tool_start guard', () => {
 
 // ── Thread start params ───────────────────────────────────────────
 
-	describe('RustSidecarDesktopAgentRuntime threadStartParams', () => {
+describe('RustSidecarDesktopAgentRuntime threadStartParams', () => {
 	  test('does not include dynamicTools field', () => {
 	    const runtime = new RustSidecarDesktopAgentRuntime({
 	      sessionId: 'test-session',
@@ -839,9 +1005,65 @@ describe('RustSidecarDesktopAgentRuntime duplicate tool_start guard', () => {
 	    ).buildThreadStartParams()
 
 	    expect(params).not.toHaveProperty('dynamicTools')
-	    expect(params).toHaveProperty('ephemeral', true)
+	    expect(params).toHaveProperty('ephemeral', false)
 	  })
-	})
+
+  test('uses persistent thread start when no app-server thread id is provided', () => {
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const params = (runtime as unknown as { buildThreadStartParams: () => Record<string, unknown> })
+      .buildThreadStartParams()
+    expect(params.ephemeral).toBe(false)
+  })
+
+  test('builds thread resume params from persisted app-server thread id', () => {
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      appServerThreadId: 'thread-persisted',
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const params = (runtime as unknown as { buildThreadResumeParams: () => Record<string, unknown> })
+      .buildThreadResumeParams()
+    expect(params).toEqual({
+      threadId: 'thread-persisted',
+      cwd: process.cwd(),
+    })
+  })
+
+  test('falls back to a fresh persistent thread when resume fails', async () => {
+    const resumeThread = mock(async () => {
+      throw new Error('thread not found')
+    })
+    const startThread = mock(async () => ({ thread: { id: 'thread-new' } }))
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      appServerThreadId: 'thread-stale',
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const internals = runtime as unknown as {
+      appServerClient: { resumeThread: typeof resumeThread; startThread: typeof startThread }
+      startOrResumeThread: (threadId: string | null) => Promise<{ thread: { id: string } }>
+    }
+    internals.appServerClient = { resumeThread, startThread }
+
+    const result = await internals.startOrResumeThread('thread-stale')
+
+    expect(resumeThread).toHaveBeenCalledTimes(1)
+    expect(startThread).toHaveBeenCalledTimes(1)
+    expect(startThread).toHaveBeenCalledWith(
+      expect.objectContaining({ ephemeral: false }),
+    )
+    expect(result.thread.id).toBe('thread-new')
+  })
+})
 
 describe('RustSidecarDesktopAgentRuntime model provider switching', () => {
   test('forks the active thread before the next turn when provider changes', async () => {

@@ -11,6 +11,24 @@ import type {
   TurnStartResponse,
   TurnInterruptParams,
   TurnInterruptResponse,
+  ThreadResumeParams,
+  ThreadResumeResponse,
+  ThreadListParams,
+  ThreadListResponse,
+  ThreadReadParams,
+  ThreadReadResponse,
+  ThreadArchiveParams,
+  ThreadArchiveResponse,
+  ThreadUnarchiveParams,
+  ThreadUnarchiveResponse,
+  ThreadDeleteParams,
+  ThreadDeleteResponse,
+  ThreadSetNameParams,
+  ThreadSetNameResponse,
+  ThreadSettingsUpdateParams,
+  ThreadSettingsUpdateResponse,
+  TurnSteerParams,
+  TurnSteerResponse,
 } from './rustAppServerProtocol/index.js'
 import { desktopDebug } from './desktopDebug.js'
 
@@ -76,6 +94,66 @@ export class RustAppServerClient {
     ) as Promise<ThreadForkResponse>
   }
 
+  async resumeThread(params: ThreadResumeParams): Promise<ThreadResumeResponse> {
+    return this.transport.sendRequest(
+      'thread/resume',
+      params,
+    ) as Promise<ThreadResumeResponse>
+  }
+
+  async listThreads(params: ThreadListParams = {}): Promise<ThreadListResponse> {
+    return this.transport.sendRequest(
+      'thread/list',
+      params,
+    ) as Promise<ThreadListResponse>
+  }
+
+  async readThread(params: ThreadReadParams): Promise<ThreadReadResponse> {
+    return this.transport.sendRequest(
+      'thread/read',
+      params,
+    ) as Promise<ThreadReadResponse>
+  }
+
+  async archiveThread(params: ThreadArchiveParams): Promise<ThreadArchiveResponse> {
+    return this.transport.sendRequest(
+      'thread/archive',
+      params,
+    ) as Promise<ThreadArchiveResponse>
+  }
+
+  async unarchiveThread(
+    params: ThreadUnarchiveParams,
+  ): Promise<ThreadUnarchiveResponse> {
+    return this.transport.sendRequest(
+      'thread/unarchive',
+      params,
+    ) as Promise<ThreadUnarchiveResponse>
+  }
+
+  async deleteThread(params: ThreadDeleteParams): Promise<ThreadDeleteResponse> {
+    return this.transport.sendRequest(
+      'thread/delete',
+      params,
+    ) as Promise<ThreadDeleteResponse>
+  }
+
+  async setThreadName(params: ThreadSetNameParams): Promise<ThreadSetNameResponse> {
+    return this.transport.sendRequest(
+      'thread/name/set',
+      params,
+    ) as Promise<ThreadSetNameResponse>
+  }
+
+  async updateThreadSettings(
+    params: ThreadSettingsUpdateParams,
+  ): Promise<ThreadSettingsUpdateResponse> {
+    return this.transport.sendRequest(
+      'thread/settings/update',
+      params,
+    ) as Promise<ThreadSettingsUpdateResponse>
+  }
+
   async interruptTurn(
     params: TurnInterruptParams,
   ): Promise<TurnInterruptResponse> {
@@ -83,6 +161,13 @@ export class RustAppServerClient {
       'turn/interrupt',
       params,
     ) as Promise<TurnInterruptResponse>
+  }
+
+  async steerTurn(params: TurnSteerParams): Promise<TurnSteerResponse> {
+    return this.transport.sendRequest(
+      'turn/steer',
+      params,
+    ) as Promise<TurnSteerResponse>
   }
 
   // ── All-notification listener (wildcard) ──────────────────────────

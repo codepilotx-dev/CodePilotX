@@ -31,3 +31,23 @@ export type {
   ItemCompletedNotification,
   ErrorNotification,
 } from './generated/v2/index.js'
+export type {
+  ThreadResumeParams,
+  ThreadResumeResponse,
+  ThreadListParams,
+  ThreadListResponse,
+  ThreadReadParams,
+  ThreadReadResponse,
+  ThreadArchiveParams,
+  ThreadArchiveResponse,
+  ThreadUnarchiveParams,
+  ThreadUnarchiveResponse,
+  ThreadDeleteParams,
+  ThreadDeleteResponse,
+  ThreadSetNameParams,
+  ThreadSetNameResponse,
+  ThreadSettingsUpdateParams,
+  ThreadSettingsUpdateResponse,
+  TurnSteerParams,
+  TurnSteerResponse,
+} from './appServerMethods.js'

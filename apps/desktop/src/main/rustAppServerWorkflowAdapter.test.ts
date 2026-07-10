@@ -190,7 +190,7 @@ describe('rustAppServerWorkflowAdapter', () => {
 
     handleServerNotification(
       'turn/completed',
-      { threadId: 'thread-abc', turn: { id: 'turn-xyz' } },
+      { threadId: 'thread-abc', turn: { id: 'turn-xyz', status: 'completed' } },
       e => events.push(e),
       state,
       SESSION_ID,
@@ -204,6 +204,89 @@ describe('rustAppServerWorkflowAdapter', () => {
       sessionId: SESSION_ID,
     })
   })
+
+  test.each(['item/delta', 'item/agentMessage/delta'] as const)(
+    '%s accepts v2 top-level delta text',
+    method => {
+      const state = createRustAppServerWorkflowState()
+      const events: DesktopAgentEvent[] = []
+
+      handleServerNotification(method, { delta: 'v2 text' }, e => events.push(e), state, SESSION_ID)
+
+      expect(state.assistantDeltaBuffer).toBe('v2 text')
+      expect(events).toEqual([
+        { type: 'partial_message', sessionId: SESSION_ID, text: 'v2 text' },
+      ])
+    },
+  )
+
+  test('turn/completed with failed status emits error from turn error', () => {
+    const state = createRustAppServerWorkflowState()
+    state.activeTurnId = 'turn-failed'
+    state.assistantDeltaBuffer = 'partial failure'
+    const events: DesktopAgentEvent[] = []
+
+    handleServerNotification(
+      'turn/completed',
+      {
+        threadId: 'thread-abc',
+        turn: {
+          id: 'turn-failed',
+          status: 'failed',
+          error: { message: 'Command failed' },
+        },
+      },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+
+    expect(state.activeTurnId).toBeNull()
+    expect(state.assistantDeltaBuffer).toBe('')
+    expect(events).toEqual([
+      { type: 'error', sessionId: SESSION_ID, message: 'Command failed' },
+    ])
+  })
+
+  test.each(['completed', 'interrupted'] as const)(
+    'turn/completed with %s status emits done',
+    status => {
+      const state = createRustAppServerWorkflowState()
+      const events: DesktopAgentEvent[] = []
+
+      handleServerNotification(
+        'turn/completed',
+        { turn: { id: 'turn-done', status } },
+        e => events.push(e),
+        state,
+        SESSION_ID,
+      )
+
+      expect(events).toEqual([{ type: 'done', sessionId: SESSION_ID }])
+    },
+  )
+
+  test.each([undefined, 'inProgress', 'unknown'] as const)(
+    'turn/completed with %s status does not end the active turn',
+    status => {
+      const state = createRustAppServerWorkflowState()
+      state.activeTurnId = 'turn-active'
+      state.assistantDeltaBuffer = 'still streaming'
+      const events: DesktopAgentEvent[] = []
+
+      handleServerNotification(
+        'turn/completed',
+        { turn: { id: 'turn-active', ...(status ? { status } : {}) } },
+        e => events.push(e),
+        state,
+        SESSION_ID,
+      )
+
+      expect(state.activeTurnId).toBe('turn-active')
+      expect(state.assistantDeltaBuffer).toBe('still streaming')
+      expect(events).toHaveLength(0)
+    },
+  )
 
   test('error notification emits error event', () => {
     const state = createRustAppServerWorkflowState()
@@ -330,7 +413,7 @@ describe('rustAppServerWorkflowAdapter', () => {
 
     handleServerNotification(
       'turn/completed',
-      { threadId: 'thread-abc', turn: { id: 'turn-abc' } },
+      { threadId: 'thread-abc', turn: { id: 'turn-abc', status: 'completed' } },
       e => events.push(e),
       state,
       SESSION_ID,
@@ -764,6 +847,29 @@ describe('rustAppServerWorkflowAdapter', () => {
 	    })
 	  })
 
+  test('item/fileChange/patchUpdated accepts v2 changes field', () => {
+    const state = createRustAppServerWorkflowState()
+    const events: DesktopAgentEvent[] = []
+
+    handleServerNotification(
+      'item/fileChange/patchUpdated',
+      { itemId: 'item-2', changes: [{ path: 'src/app.ts', patch: '+new line' }] },
+      e => events.push(e),
+      state,
+      SESSION_ID,
+    )
+
+    expect(events).toEqual([
+      {
+        type: 'diff',
+        sessionId: SESSION_ID,
+        filePath: 'src/app.ts',
+        patch: '+new line',
+        metadata: { itemId: 'item-2' },
+      },
+    ])
+  })
+
 	  // ── Turn diff updated ────────────────────────────────────────────
 
 	  test('turn/diff/updated emits aggregated diff event', () => {
@@ -806,6 +912,23 @@ describe('rustAppServerWorkflowAdapter', () => {
 	    expect((events[0] as { text: string }).text).toContain('推理...')
 	  })
 
+	  test('item/reasoning/textDelta emits partial_message with reasoning prefix', () => {
+	    const state = createRustAppServerWorkflowState()
+	    const events: DesktopAgentEvent[] = []
+
+	    handleServerNotification(
+	      'item/reasoning/textDelta',
+	      { threadId: 'thread-abc', turnId: 'turn-xyz', itemId: 'item-1', delta: 'Step 1: think...', contentIndex: 0 },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+
+	    expect(events).toHaveLength(1)
+	    expect(events[0].type).toBe('partial_message')
+	    expect((events[0] as { text: string }).text).toContain('推理...')
+	  })
+
 	  test('reasoning/summaryTextDelta emits partial_message with summary prefix', () => {
 	    const state = createRustAppServerWorkflowState()
 	    const events: DesktopAgentEvent[] = []
@@ -822,4 +945,34 @@ describe('rustAppServerWorkflowAdapter', () => {
 	    expect(events[0].type).toBe('partial_message')
 	    expect((events[0] as { text: string }).text).toContain('推理摘要')
 	  })
+
+	  test('item/reasoning/summaryTextDelta emits partial_message with summary prefix', () => {
+	    const state = createRustAppServerWorkflowState()
+	    const events: DesktopAgentEvent[] = []
+
+	    handleServerNotification(
+	      'item/reasoning/summaryTextDelta',
+	      { threadId: 'thread-abc', turnId: 'turn-xyz', itemId: 'item-1', delta: 'Summary: analyzed', summaryIndex: 0 },
+	      e => events.push(e),
+	      state,
+	      SESSION_ID,
+	    )
+
+	    expect(events).toHaveLength(1)
+	    expect(events[0].type).toBe('partial_message')
+	    expect((events[0] as { text: string }).text).toContain('推理摘要')
+	  })
+
+  test('reasoning text and summary deltas emit complete accumulated buffers', () => {
+    const state = createRustAppServerWorkflowState()
+    const events: DesktopAgentEvent[] = []
+
+    handleServerNotification('reasoning/textDelta', { delta: 'first ' }, e => events.push(e), state, SESSION_ID)
+    handleServerNotification('reasoning/textDelta', { delta: 'second' }, e => events.push(e), state, SESSION_ID)
+    handleServerNotification('reasoning/summaryTextDelta', { delta: 'summary one ' }, e => events.push(e), state, SESSION_ID)
+    handleServerNotification('reasoning/summaryTextDelta', { delta: 'summary two' }, e => events.push(e), state, SESSION_ID)
+
+    expect((events[1] as { text: string }).text).toContain('first second')
+    expect((events[3] as { text: string }).text).toContain('summary one summary two')
+  })
 	})

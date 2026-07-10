@@ -192,6 +192,50 @@ describe('RustAppServerClient', () => {
     await resultPromise
   })
 
+  test('supports thread history and lifecycle requests with typed methods', async () => {
+    const { client, input, output } = createTestClient()
+    const writes = collectWrites(output)
+    const requests = [
+      ['resumeThread', { threadId: 'thread-abc' }, 'thread/resume'],
+      ['listThreads', { limit: 10 }, 'thread/list'],
+      ['readThread', { threadId: 'thread-abc', includeTurns: true }, 'thread/read'],
+      ['archiveThread', { threadId: 'thread-abc' }, 'thread/archive'],
+      ['unarchiveThread', { threadId: 'thread-abc' }, 'thread/unarchive'],
+      ['deleteThread', { threadId: 'thread-abc' }, 'thread/delete'],
+      ['setThreadName', { threadId: 'thread-abc', name: 'Renamed' }, 'thread/name/set'],
+      ['updateThreadSettings', { threadId: 'thread-abc', model: 'test-model' }, 'thread/settings/update'],
+      ['steerTurn', {
+        threadId: 'thread-abc',
+        expectedTurnId: 'turn-xyz',
+        input: [{ type: 'text', text: 'continue', text_elements: [] }],
+      }, 'turn/steer'],
+    ] as const
+
+    for (const [methodName, params, method] of requests) {
+      const resultPromise = (client[methodName] as (params: unknown) => Promise<unknown>)(params)
+      const sent = JSON.parse(writes.pop()!.trim()) as { id: number; method: string; params: unknown }
+      expect(sent.method).toBe(method)
+      expect(sent.params).toEqual(params)
+      input.write(`${JSON.stringify({ jsonrpc: '2.0', id: sent.id, result: {} })}\n`)
+      await resultPromise
+    }
+  })
+
+  test.each(['created_at', 'updated_at', 'recency_at'] as const)(
+    'listThreads sends wire sort key %s',
+    async sortKey => {
+      const { client, input, output } = createTestClient()
+      const writes = collectWrites(output)
+      const resultPromise = client.listThreads({ sortKey })
+      const sent = JSON.parse(writes.join('').trim()) as { id: number; method: string; params: unknown }
+
+      expect(sent.method).toBe('thread/list')
+      expect(sent.params).toEqual({ sortKey })
+      input.write(`${JSON.stringify({ jsonrpc: '2.0', id: sent.id, result: { data: [], nextCursor: null, backwardsCursor: null } })}\n`)
+      await resultPromise
+    },
+  )
+
   test('onServerNotification registers listeners for known methods', () => {
     const { client, input } = createTestClient()
     const notifications: Array<{ method: string; params: unknown }> = []

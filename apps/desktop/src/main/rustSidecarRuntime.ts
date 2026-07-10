@@ -31,7 +31,14 @@ import {
 } from './sidecarManager.js'
 import { RustLineJsonRpcClient } from './rustLineJsonRpcClient.js'
 import { RustAppServerClient } from './rustAppServerClient.js'
-import type { ThreadStartParams, InitializeParams, InitializeResponse } from './rustAppServerProtocol/index.js'
+import type {
+  ThreadStartParams,
+  ThreadStartResponse,
+  ThreadResumeParams,
+  ThreadResumeResponse,
+  InitializeParams,
+  InitializeResponse,
+} from './rustAppServerProtocol/index.js'
 import {
   createRustAppServerWorkflowState,
   handleServerNotification,
@@ -66,6 +73,36 @@ type DynamicToolCallOutputContentItem =
 type DynamicToolCallResponse = {
   success: boolean
   contentItems: DynamicToolCallOutputContentItem[]
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** Preserve compatibility with future clients that can return a cancellation. */
+function compatiblePermissionBehavior(
+  decision: DesktopPermissionDecision,
+): 'allow' | 'deny' | 'cancel' {
+  const behavior = (decision as unknown as { behavior?: string }).behavior
+  return behavior === 'allow' || behavior === 'cancel' ? behavior : 'deny'
+}
+
+function isPermissionDecisionCancelled(decision: DesktopPermissionDecision): boolean {
+  return decision.updatedInput?.cancelled === true || decision.updatedInput?.action === 'cancel'
+}
+
+function extractMcpSubmittedContent(
+  updatedInput: Record<string, unknown> | undefined,
+): unknown {
+  if (!updatedInput) return {}
+  if (Object.prototype.hasOwnProperty.call(updatedInput, 'content')) {
+    return updatedInput.content
+  }
+  if (Object.prototype.hasOwnProperty.call(updatedInput, 'form')) {
+    return updatedInput.form
+  }
+  const { action: _action, cancelled: _cancelled, ...content } = updatedInput
+  return content
 }
 
 const __filename = fileURLToPath(import.meta.url)
@@ -124,6 +161,7 @@ export function buildRustInitializeParams(): InitializeParams {
     capabilities: {
       experimentalApi: true,
       requestAttestation: false,
+      mcpServerOpenaiFormElicitation: true,
     },
   }
 }
@@ -781,9 +819,8 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     // 7. Start thread. Built-in tools (including request_user_input)
     //    are handled natively by the Rust app-server's internal tool
     //    registry — no client-side dynamic tools are registered here.
-    const threadResult = await this.appServerClient.startThread(
-      this.buildThreadStartParams(),
-    )
+    const persistedThreadId = normalizeOptionalRuntimeText(this.context.appServerThreadId)
+    const threadResult = await this.startOrResumeThread(persistedThreadId)
     this.workflowState.threadId = threadResult.thread.id
     this.threadStarted = true
     this.activeProviderID = this.context.providerID
@@ -791,6 +828,30 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     desktopDebug('rust_sidecar_thread_started', {
       threadId: this.workflowState.threadId,
     })
+    this.context.onAppServerThreadId?.(threadResult.thread.id)
+  }
+
+  private async startOrResumeThread(
+    persistedThreadId: string | null,
+  ): Promise<ThreadStartResponse | ThreadResumeResponse> {
+    if (!this.appServerClient) {
+      throw new Error('Rust app-server client is not initialized')
+    }
+    if (!persistedThreadId) {
+      return this.appServerClient.startThread(this.buildThreadStartParams())
+    }
+
+    try {
+      return await this.appServerClient.resumeThread(this.buildThreadResumeParams())
+    } catch (error) {
+      desktopDebug('rust_sidecar_thread_resume_failed', {
+        threadId: persistedThreadId,
+        message: error instanceof Error ? error.message : String(error),
+      })
+      // A persisted id can outlive the server's state DB. Start a fresh
+      // persistent thread so the session remains usable and gets a new id.
+      return this.appServerClient.startThread(this.buildThreadStartParams())
+    }
   }
 
   private async applyPendingProviderChange(): Promise<void> {
@@ -1018,7 +1079,14 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       model: this.context.model ?? undefined,
       modelProvider: this.context.providerID ?? undefined,
       cwd: this.context.workspacePath,
-      ephemeral: true,
+      ephemeral: false,
+    }
+  }
+
+  private buildThreadResumeParams(): ThreadResumeParams {
+    return {
+      threadId: normalizeOptionalRuntimeText(this.context.appServerThreadId) ?? '',
+      cwd: this.context.workspacePath,
     }
   }
 
@@ -1083,7 +1151,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     const decision = await this.context.requestPermission(permissionRequest)
 
     // Map decision back to Rust protocol response type
-    return this.mapPermissionDecision(method, decision)
+    return this.mapPermissionDecision(method, decision, p)
   }
 
   /**
@@ -1103,13 +1171,21 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     })
 
     // Build DesktopPermissionRequest for MCP elicitation
+    const request = p?.request ?? {
+      mode: p?.mode,
+      message: p?.message,
+      requestedSchema: p?.requestedSchema,
+      _meta: p?._meta,
+      url: p?.url,
+      elicitationId: p?.elicitationId,
+    }
     const permissionRequest: DesktopPermissionRequest = {
       requestId: `rust-mcp-${randomUUID()}`,
       toolName: 'McpElicitation',
       toolUseId: p?.turnId as string | undefined,
       input: {
         serverName,
-        request: p?.request,
+        request,
       },
       description: serverName
         ? `MCP 服务器 "${serverName}" 请求输入`
@@ -1119,13 +1195,20 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     // Ask user for permission
     const decision = await this.context.requestPermission(permissionRequest)
 
-    if (decision.behavior === 'deny') {
-      return { cancelled: true }
+    const behavior = compatiblePermissionBehavior(decision)
+    const updatedInput = decision.updatedInput
+    if (behavior === 'cancel' || updatedInput?.cancelled === true || updatedInput?.action === 'cancel') {
+      return { action: 'cancel', content: null, _meta: null }
+    }
+    if (behavior === 'deny') {
+      return { action: 'decline', content: null, _meta: null }
     }
 
-    // For now, return cancelled since full MCP elicitation requires
-    // desktop-side form rendering which is not yet implemented
-    return { cancelled: true, reason: 'MCP elicitation form not yet supported on desktop' }
+    return {
+      action: 'accept',
+      content: extractMcpSubmittedContent(updatedInput),
+      _meta: null,
+    }
   }
 
   /**
@@ -1181,19 +1264,48 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   private mapPermissionDecision(
     method: string,
     decision: DesktopPermissionDecision,
+    requestParams?: Record<string, unknown> | null,
   ): unknown {
-    const allowed = decision.behavior === 'allow'
+    const behavior = compatiblePermissionBehavior(decision)
+    const allowed = behavior === 'allow'
+    const cancelled = behavior === 'cancel' || isPermissionDecisionCancelled(decision)
 
     switch (method) {
       case 'item/commandExecution/requestApproval':
-        return { decision: allowed ? 'accept' : 'decline' }
+        return {
+          decision: cancelled
+            ? 'cancel'
+            : allowed && decision.rememberOptionId === 'session'
+              ? 'acceptForSession'
+              : allowed
+                ? 'accept'
+                : 'decline',
+        }
       case 'item/fileChange/requestApproval':
-        return { decision: allowed ? 'accept' : 'decline' }
+        return {
+          decision: cancelled
+            ? 'cancel'
+            : allowed && decision.rememberOptionId === 'session'
+              ? 'acceptForSession'
+              : allowed
+                ? 'accept'
+                : 'decline',
+        }
       case 'item/permissions/requestApproval':
       default:
+        const requestedPermissions = isRecord(requestParams?.permissions)
+          ? requestParams.permissions
+          : {}
+        const permissions: Record<string, unknown> = {}
+        for (const key of ['fileSystem', 'network']) {
+          const value = requestedPermissions[key]
+          if (value !== null && value !== undefined) permissions[key] = value
+        }
         return {
-          permissions: allowed ? { fileSystem: {}, network: {} } : {},
-          scope: 'turn' as const,
+          permissions: allowed ? permissions : {},
+          scope: allowed && decision.rememberOptionId === 'session'
+            ? 'session' as const
+            : 'turn' as const,
         }
     }
   }
