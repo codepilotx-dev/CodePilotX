@@ -4,8 +4,6 @@ import {
   isModelProviderID,
 } from '@codepilotx/core/models/provider.js'
 import {
-  fetchProviderBalance as fetchTuiProviderBalance,
-  fetchProviderModels as fetchTuiProviderModels,
   getCachedProviderModels,
   getProviderConfig,
   listProviderConfigs,
@@ -31,6 +29,8 @@ type ModelProviderCredentialService = Pick<
   | 'readConfiguredProviderApiKeyIDs'
   | 'saveProviderApiKey'
   | 'deleteProviderApiKey'
+  | 'fetchProviderModels'
+  | 'fetchProviderBalance'
 >
 
 let credentialServiceOverride: ModelProviderCredentialService | null = null
@@ -113,12 +113,16 @@ export async function fetchProviderModels(options: {
   baseURL?: string
 }): Promise<DesktopProviderModelListResult> {
   const providerID = normalizeProviderID(options.providerID)
-  const result = await fetchTuiProviderModels({
+  const provider = await getProviderConfig(providerID)
+  if (provider.kind !== 'openai-compatible') {
+    return { models: provider.defaultModels }
+  }
+  return getCredentialService().fetchProviderModels({
     providerID,
     apiKey: normalizeOptionalText(options.apiKey),
-    baseURL: normalizeOptionalText(options.baseURL),
+    baseURL: normalizeOptionalText(options.baseURL) ?? provider.baseURL,
+    defaultModels: provider.defaultModels,
   })
-  return result
 }
 
 export async function fetchProviderBalance(options: {
@@ -127,12 +131,12 @@ export async function fetchProviderBalance(options: {
   baseURL?: string
 }): Promise<DesktopProviderBalanceResult> {
   const providerID = normalizeProviderID(options.providerID)
-  const result = await fetchTuiProviderBalance({
+  const provider = await getProviderConfig(providerID)
+  return getCredentialService().fetchProviderBalance({
     providerID,
     apiKey: normalizeOptionalText(options.apiKey),
-    baseURL: normalizeOptionalText(options.baseURL),
+    baseURL: normalizeOptionalText(options.baseURL) ?? provider.baseURL,
   })
-  return result
 }
 
 export async function saveModelProvider(

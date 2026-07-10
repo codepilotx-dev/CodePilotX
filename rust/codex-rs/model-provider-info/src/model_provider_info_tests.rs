@@ -556,3 +556,21 @@ fn keyring_provider_api_key_rejects_traversal_provider_id() {
 
     assert!(error.to_string().contains("invalid secure provider id"));
 }
+
+#[test]
+fn provider_api_key_environment_fallback_fails_closed() {
+    let provider = ModelProviderInfo {
+        env_key: Some("PATH".to_string()),
+        ..ModelProviderInfo::default()
+    };
+
+    let error = provider
+        .api_key_with_keyring(&MockKeyringStore::default())
+        .expect_err("provider environment fallback must be disabled");
+
+    assert!(
+        error
+            .to_string()
+            .contains("providerID-scoped secure storage")
+    );
+}

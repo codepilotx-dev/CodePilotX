@@ -128,6 +128,47 @@ pub struct ProviderApiKeyDeleteParams {
 #[ts(export_to = "v2/")]
 pub struct ProviderApiKeyDeleteResponse {}
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderModelListParams {
+    pub provider_id: String,
+    pub base_url: Option<String>,
+    pub api_key: Option<String>,
+    pub default_models: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderModelListResponse {
+    pub models: Vec<String>,
+    pub error: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderBalanceParams {
+    pub provider_id: String,
+    pub base_url: Option<String>,
+    pub api_key: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderBalanceInfo {
+    pub currency: String,
+    pub total_balance: String,
+    pub granted_balance: String,
+    pub topped_up_balance: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderBalanceResponse {
+    pub is_available: bool,
+    pub balances: Vec<ProviderBalanceInfo>,
+    pub error: Option<String>,
+}
+
 //  Repository listing
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]

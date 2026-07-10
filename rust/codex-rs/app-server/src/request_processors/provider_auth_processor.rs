@@ -12,8 +12,9 @@ use codepilotx_app_server_protocol::{
     ProviderAuthLogoutParams, ProviderAuthLogoutResponse, ProviderAuthPollLoginParams,
     ProviderAuthPollLoginResponse, ProviderAuthPollStatus, ProviderAuthReadStatusParams,
     ProviderAuthReadStatusResponse, ProviderAuthStartLoginParams, ProviderAuthStartLoginResponse,
-    ProviderRepoCloneParams, ProviderRepoCloneResponse, ProviderRepoInfo, ProviderRepoListParams,
-    ProviderRepoListResponse, ProviderUserInfo,
+    ProviderBalanceInfo, ProviderBalanceParams, ProviderBalanceResponse, ProviderModelListParams,
+    ProviderModelListResponse, ProviderRepoCloneParams, ProviderRepoCloneResponse,
+    ProviderRepoInfo, ProviderRepoListParams, ProviderRepoListResponse, ProviderUserInfo,
 };
 use codepilotx_keyring_store::{DefaultKeyringStore, KeyringStore};
 use serde::{Deserialize, Serialize};
@@ -55,20 +56,30 @@ const PROVIDER_AUTH_KEYRING_SERVICE: &str = "CodePilotX Provider Auth";
 pub(crate) struct ProviderAuthRequestProcessor {
     inner: Arc<Mutex<ProviderAuthInner>>,
     config_dir: PathBuf,
+    approved_clone_root: PathBuf,
     keyring: Arc<dyn KeyringStore>,
 }
 
 impl ProviderAuthRequestProcessor {
-    pub(crate) fn new(config_dir: PathBuf) -> Self {
-        Self::new_with_keyring(config_dir, Arc::new(DefaultKeyringStore))
+    pub(crate) fn new(config_dir: PathBuf, approved_clone_root: PathBuf) -> Self {
+        Self::new_with_keyring(
+            config_dir,
+            approved_clone_root,
+            Arc::new(DefaultKeyringStore),
+        )
     }
 
-    fn new_with_keyring(config_dir: PathBuf, keyring: Arc<dyn KeyringStore>) -> Self {
+    fn new_with_keyring(
+        config_dir: PathBuf,
+        approved_clone_root: PathBuf,
+        keyring: Arc<dyn KeyringStore>,
+    ) -> Self {
         Self {
             inner: Arc::new(Mutex::new(ProviderAuthInner {
                 attempts: HashMap::new(),
             })),
             config_dir,
+            approved_clone_root,
             keyring,
         }
     }
@@ -334,6 +345,190 @@ impl ProviderAuthRequestProcessor {
         Ok(ProviderApiKeyDeleteResponse {})
     }
 
+    pub(crate) async fn fetch_provider_models(
+        &self,
+        params: ProviderModelListParams,
+    ) -> Result<ProviderModelListResponse, JSONRPCErrorError> {
+        validate_provider_id(&params.provider_id)?;
+        let Some(base_url) = params
+            .base_url
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+        else {
+            return Ok(ProviderModelListResponse {
+                models: params.default_models,
+                error: Some(format!(
+                    "{} needs an OpenAI-compatible Base URL before connection testing.",
+                    params.provider_id
+                )),
+            });
+        };
+        let Some(api_key) = self
+            .resolve_provider_api_key(&params.provider_id, params.api_key.as_deref())
+            .await?
+        else {
+            return Ok(ProviderModelListResponse {
+                models: params.default_models,
+                error: Some(format!("{} API key is not configured.", params.provider_id)),
+            });
+        };
+        let endpoint = provider_endpoint(base_url, "models")?;
+        let response = match reqwest::Client::new()
+            .get(endpoint)
+            .bearer_auth(&api_key)
+            .send()
+            .await
+        {
+            Ok(response) => response,
+            Err(error) => {
+                return Ok(ProviderModelListResponse {
+                    models: params.default_models,
+                    error: Some(format!("Provider request failed: {error}")),
+                });
+            }
+        };
+        if !response.status().is_success() {
+            return Ok(ProviderModelListResponse {
+                models: params.default_models,
+                error: Some(format!("Provider returned HTTP {}", response.status())),
+            });
+        }
+        let parsed: ProviderModelsPayload = match response.json().await {
+            Ok(parsed) => parsed,
+            Err(error) => {
+                return Ok(ProviderModelListResponse {
+                    models: params.default_models,
+                    error: Some(format!("Failed to parse provider models: {error}")),
+                });
+            }
+        };
+        let mut models = Vec::new();
+        for model in parsed.data {
+            if !model.id.is_empty() && !models.contains(&model.id) {
+                models.push(model.id);
+            }
+        }
+        if models.is_empty() {
+            return Ok(ProviderModelListResponse {
+                models: params.default_models,
+                error: Some("Provider returned no models.".to_string()),
+            });
+        }
+        for default_model in params.default_models {
+            if !models.contains(&default_model) {
+                models.push(default_model);
+            }
+        }
+        Ok(ProviderModelListResponse {
+            models,
+            error: None,
+        })
+    }
+
+    pub(crate) async fn fetch_provider_balance(
+        &self,
+        params: ProviderBalanceParams,
+    ) -> Result<ProviderBalanceResponse, JSONRPCErrorError> {
+        validate_provider_id(&params.provider_id)?;
+        if params.provider_id != "deepseek" {
+            return Ok(ProviderBalanceResponse {
+                is_available: false,
+                balances: Vec::new(),
+                error: Some(format!(
+                    "{} does not support balance checking yet.",
+                    params.provider_id
+                )),
+            });
+        }
+        let Some(base_url) = params
+            .base_url
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+        else {
+            return Ok(ProviderBalanceResponse {
+                is_available: false,
+                balances: Vec::new(),
+                error: Some("DeepSeek Base URL is not configured.".to_string()),
+            });
+        };
+        let Some(api_key) = self
+            .resolve_provider_api_key(&params.provider_id, params.api_key.as_deref())
+            .await?
+        else {
+            return Ok(ProviderBalanceResponse {
+                is_available: false,
+                balances: Vec::new(),
+                error: Some("DeepSeek API key is not configured.".to_string()),
+            });
+        };
+        let endpoint = provider_endpoint(base_url, "user/balance")?;
+        let response = match reqwest::Client::new()
+            .get(endpoint)
+            .bearer_auth(&api_key)
+            .send()
+            .await
+        {
+            Ok(response) => response,
+            Err(error) => {
+                return Ok(ProviderBalanceResponse {
+                    is_available: false,
+                    balances: Vec::new(),
+                    error: Some(format!("Provider request failed: {error}")),
+                });
+            }
+        };
+        if !response.status().is_success() {
+            return Ok(ProviderBalanceResponse {
+                is_available: false,
+                balances: Vec::new(),
+                error: Some(format!("Provider returned HTTP {}", response.status())),
+            });
+        }
+        let parsed: ProviderBalancePayload = match response.json().await {
+            Ok(parsed) => parsed,
+            Err(error) => {
+                return Ok(ProviderBalanceResponse {
+                    is_available: false,
+                    balances: Vec::new(),
+                    error: Some(format!("Failed to parse provider balance: {error}")),
+                });
+            }
+        };
+        Ok(ProviderBalanceResponse {
+            is_available: parsed.is_available,
+            balances: parsed
+                .balance_infos
+                .into_iter()
+                .map(|info| ProviderBalanceInfo {
+                    currency: info.currency,
+                    total_balance: info.total_balance,
+                    granted_balance: info.granted_balance,
+                    topped_up_balance: info.topped_up_balance,
+                })
+                .collect(),
+            error: None,
+        })
+    }
+
+    async fn resolve_provider_api_key(
+        &self,
+        provider_id: &str,
+        explicit_api_key: Option<&str>,
+    ) -> Result<Option<String>, JSONRPCErrorError> {
+        if let Some(api_key) = explicit_api_key {
+            validate_provider_api_key(api_key)?;
+            return Ok(Some(api_key.to_string()));
+        }
+        self.migrate_legacy_provider_api_keys().await?;
+        self.keyring
+            .load(
+                PROVIDER_AUTH_KEYRING_SERVICE,
+                &provider_api_key_account(provider_id),
+            )
+            .map_err(|error| keyring_error("read", error))
+            .map(|value| value.filter(|api_key| !api_key.trim().is_empty()))
+    }
+
     //  List repositories
 
     pub(crate) async fn list_repos(
@@ -389,6 +584,7 @@ impl ProviderAuthRequestProcessor {
         let clone_request = validate_github_clone_request(
             &params.repo_url,
             std::path::Path::new(&params.local_path),
+            &self.approved_clone_root,
         )?;
         let token = self.require_token(&params.provider_id).await?.access_token;
 
@@ -470,9 +666,10 @@ impl ProviderAuthRequestProcessor {
             .load(PROVIDER_AUTH_KEYRING_SERVICE, &account)
             .map_err(|error| keyring_error("read", error))?
         {
-            return serde_json::from_str(&data)
-                .map(Some)
-                .map_err(|error| internal_error(format!("Invalid provider credential: {error}")));
+            let token = serde_json::from_str(&data)
+                .map_err(|error| internal_error(format!("Invalid provider credential: {error}")))?;
+            remove_legacy_file_if_present(&self.legacy_token_path(provider_id)).await?;
+            return Ok(Some(token));
         }
 
         self.migrate_legacy_token(provider_id).await
@@ -559,7 +756,10 @@ impl ProviderAuthRequestProcessor {
                 .keyring
                 .load(PROVIDER_AUTH_KEYRING_SERVICE, &account)
                 .map_err(|error| keyring_error("read", error))?;
-            if existing.is_none() {
+            if existing
+                .as_deref()
+                .is_none_or(|value| value.trim().is_empty())
+            {
                 self.keyring
                     .save(PROVIDER_AUTH_KEYRING_SERVICE, &account, api_key)
                     .map_err(|error| keyring_error("write", error))?;
@@ -625,6 +825,23 @@ fn provider_auth_account(provider_id: &str) -> String {
 
 fn provider_api_key_account(provider_id: &str) -> String {
     format!("providerApiKeys/{provider_id}")
+}
+
+fn provider_endpoint(base_url: &str, path: &str) -> Result<url::Url, JSONRPCErrorError> {
+    let endpoint = format!(
+        "{}/{}",
+        base_url.trim_end_matches('/'),
+        path.trim_start_matches('/')
+    );
+    let url = url::Url::parse(&endpoint).map_err(|error| {
+        JSONRPCErrorError::invalid_params(format!("Invalid provider URL: {error}"))
+    })?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err(JSONRPCErrorError::invalid_params(
+            "Provider URL must use http or https",
+        ));
+    }
+    Ok(url)
 }
 
 fn keyring_error(
@@ -693,6 +910,38 @@ struct GithubRepo {
     html_url: String,
     clone_url: String,
     default_branch: String,
+}
+
+#[derive(Deserialize)]
+struct ProviderModelsPayload {
+    #[serde(default)]
+    data: Vec<ProviderModelPayload>,
+}
+
+#[derive(Deserialize)]
+struct ProviderModelPayload {
+    #[serde(default)]
+    id: String,
+}
+
+#[derive(Deserialize)]
+struct ProviderBalancePayload {
+    #[serde(default)]
+    is_available: bool,
+    #[serde(default)]
+    balance_infos: Vec<ProviderBalancePayloadInfo>,
+}
+
+#[derive(Deserialize)]
+struct ProviderBalancePayloadInfo {
+    #[serde(default)]
+    currency: String,
+    #[serde(default)]
+    total_balance: String,
+    #[serde(default)]
+    granted_balance: String,
+    #[serde(default)]
+    topped_up_balance: String,
 }
 
 async fn github_device_code_request(
@@ -793,12 +1042,12 @@ async fn github_fetch_user(access_token: &str) -> Result<ProviderUserInfo, JSONR
 struct ValidatedCloneRequest {
     repo_url: String,
     target: PathBuf,
-    target_existed: bool,
 }
 
 fn validate_github_clone_request(
     repo_url: &str,
     local_path: &Path,
+    trusted_root: &Path,
 ) -> Result<ValidatedCloneRequest, JSONRPCErrorError> {
     let url = url::Url::parse(repo_url)
         .map_err(|_| JSONRPCErrorError::invalid_params("repo_url must be a valid HTTPS URL"))?;
@@ -853,47 +1102,28 @@ fn validate_github_clone_request(
     let parent = local_path
         .parent()
         .ok_or_else(|| JSONRPCErrorError::invalid_params("local_path has no approved parent"))?;
-    let approved_parent = std::fs::canonicalize(parent).map_err(|error| {
+    let trusted_root = std::fs::canonicalize(trusted_root).map_err(|error| {
+        JSONRPCErrorError::invalid_params(format!("approved clone root is not accessible: {error}"))
+    })?;
+    let canonical_parent = std::fs::canonicalize(parent).map_err(|error| {
         JSONRPCErrorError::invalid_params(format!(
             "local_path parent is not an accessible approved directory: {error}"
         ))
     })?;
-    let target = approved_parent.join(target_name);
-    if !target.starts_with(&approved_parent) || target == approved_parent {
+    let target = canonical_parent.join(target_name);
+    if !target.starts_with(&trusted_root) || target == trusted_root {
         return Err(JSONRPCErrorError::invalid_params(
-            "local_path escaped the approved parent directory",
+            "local_path escaped the server-approved clone root",
         ));
     }
 
-    let target_existed = match std::fs::symlink_metadata(&target) {
-        Ok(metadata) => {
-            if metadata.file_type().is_symlink() || !metadata.is_dir() {
-                return Err(JSONRPCErrorError::invalid_params(
-                    "local_path target must be a regular directory",
-                ));
-            }
-            let mut entries = std::fs::read_dir(&target).map_err(|error| {
-                JSONRPCErrorError::invalid_params(format!(
-                    "local_path target cannot be inspected: {error}"
-                ))
-            })?;
-            if entries
-                .next()
-                .transpose()
-                .map_err(|error| {
-                    JSONRPCErrorError::invalid_params(format!(
-                        "local_path target cannot be inspected: {error}"
-                    ))
-                })?
-                .is_some()
-            {
-                return Err(JSONRPCErrorError::invalid_params(
-                    "local_path target directory must be empty",
-                ));
-            }
-            true
+    match std::fs::symlink_metadata(&target) {
+        Ok(_) => {
+            return Err(JSONRPCErrorError::invalid_params(
+                "local_path target must not already exist",
+            ));
         }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => {
             return Err(JSONRPCErrorError::invalid_params(format!(
                 "local_path target cannot be inspected: {error}"
@@ -904,7 +1134,6 @@ fn validate_github_clone_request(
     Ok(ValidatedCloneRequest {
         repo_url: url.to_string(),
         target,
-        target_existed,
     })
 }
 
@@ -960,13 +1189,28 @@ async fn clone_with_github_token<R: GitCloneRunner>(
     token: &str,
     runner: &R,
 ) -> Result<(), JSONRPCErrorError> {
-    let askpass_dir = tempfile::Builder::new()
-        .prefix("codepilotx-github-")
-        .tempdir()
+    let target_parent = request
+        .target
+        .parent()
+        .ok_or_else(|| JSONRPCErrorError::invalid_params("local_path has no approved parent"))?;
+    let staging_dir = tempfile::Builder::new()
+        .prefix(".codepilotx-github-")
+        .tempdir_in(target_parent)
         .map_err(|error| {
-            internal_error(format!("Failed to create Git AskPass directory: {error}"))
+            internal_error(format!(
+                "Failed to create Git clone staging directory: {error}"
+            ))
         })?;
-    let askpass_path = askpass_dir.path().join(if cfg!(windows) {
+    let staging_target = staging_dir.path().join("repository");
+    let isolated_home = staging_dir.path().join("home");
+    tokio::fs::create_dir(&isolated_home)
+        .await
+        .map_err(|error| internal_error(format!("Failed to create isolated Git home: {error}")))?;
+    let isolated_git_config = staging_dir.path().join("gitconfig");
+    tokio::fs::write(&isolated_git_config, b"")
+        .await
+        .map_err(|error| internal_error(format!("Failed to isolate Git config: {error}")))?;
+    let askpass_path = staging_dir.path().join(if cfg!(windows) {
         "askpass.cmd"
     } else {
         "askpass.sh"
@@ -993,7 +1237,7 @@ async fn clone_with_github_token<R: GitCloneRunner>(
         "clone".to_string(),
         "--".to_string(),
         request.repo_url.clone(),
-        request.target.to_string_lossy().into_owned(),
+        staging_target.to_string_lossy().into_owned(),
     ];
     let mut env = minimal_git_environment();
     env.insert(
@@ -1003,21 +1247,44 @@ async fn clone_with_github_token<R: GitCloneRunner>(
     env.insert("GIT_TERMINAL_PROMPT".to_string(), "0".to_string());
     env.insert("GIT_USERNAME".to_string(), "x-access-token".to_string());
     env.insert("GIT_PASSWORD".to_string(), token.to_string());
+    env.insert(
+        "HOME".to_string(),
+        isolated_home.to_string_lossy().into_owned(),
+    );
+    env.insert(
+        "USERPROFILE".to_string(),
+        isolated_home.to_string_lossy().into_owned(),
+    );
+    env.insert("GIT_CONFIG_NOSYSTEM".to_string(), "1".to_string());
+    env.insert(
+        "GIT_CONFIG_GLOBAL".to_string(),
+        isolated_git_config.to_string_lossy().into_owned(),
+    );
+    env.insert("GIT_CONFIG_COUNT".to_string(), "0".to_string());
 
-    let output = match runner.run(&args, &env, &request.target).await {
+    let output = match runner.run(&args, &env, &staging_target).await {
         Ok(output) => output,
         Err(error) => {
-            cleanup_partial_clone_target(request).await?;
             return Err(internal_error(format!("Failed to spawn git: {error}")));
         }
     };
     if !output.success {
-        cleanup_partial_clone_target(request).await?;
         return Err(internal_error(format!(
             "Git clone failed: {}",
-            output.stderr
+            sanitize_git_error(&output.stderr, token)
         )));
     }
+    if tokio::fs::try_exists(&request.target)
+        .await
+        .map_err(|error| internal_error(format!("Failed to inspect final clone target: {error}")))?
+    {
+        return Err(internal_error(
+            "Clone target was created concurrently; refusing to replace it".to_string(),
+        ));
+    }
+    tokio::fs::rename(&staging_target, &request.target)
+        .await
+        .map_err(|error| internal_error(format!("Failed to publish cloned repository: {error}")))?;
     Ok(())
 }
 
@@ -1032,8 +1299,6 @@ fn minimal_git_environment() -> HashMap<String, String> {
         "COMSPEC",
         "TEMP",
         "TMP",
-        "HOME",
-        "USERPROFILE",
     ];
     ALLOWED
         .iter()
@@ -1045,26 +1310,10 @@ fn minimal_git_environment() -> HashMap<String, String> {
         .collect()
 }
 
-async fn cleanup_partial_clone_target(
-    request: &ValidatedCloneRequest,
-) -> Result<(), JSONRPCErrorError> {
-    match tokio::fs::remove_dir_all(&request.target).await {
-        Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => {
-            return Err(internal_error(format!(
-                "Failed to clean partial clone target: {error}"
-            )));
-        }
-    }
-    if request.target_existed {
-        tokio::fs::create_dir(&request.target)
-            .await
-            .map_err(|error| {
-                internal_error(format!("Failed to restore empty clone target: {error}"))
-            })?;
-    }
-    Ok(())
+fn sanitize_git_error(stderr: &str, token: &str) -> String {
+    let mut sanitized = stderr.replace(token, "***");
+    sanitized = sanitized.replace("x-access-token:", "x-access-token:***@");
+    sanitized.replace("***@***@", "***@")
 }
 
 //  Helpers
@@ -1106,6 +1355,8 @@ mod tests {
     use std::path::Path;
     use std::sync::Mutex as StdMutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
+    use wiremock::matchers::{header, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     fn stored_token(provider_id: &str) -> StoredProviderToken {
         StoredProviderToken {
@@ -1127,6 +1378,7 @@ mod tests {
         let home = tempfile::tempdir().expect("temp home");
         let keyring = MockKeyringStore::default();
         let processor = ProviderAuthRequestProcessor::new_with_keyring(
+            home.path().to_path_buf(),
             home.path().to_path_buf(),
             Arc::new(keyring.clone()),
         );
@@ -1161,6 +1413,7 @@ mod tests {
         );
         let processor = ProviderAuthRequestProcessor::new_with_keyring(
             home.path().to_path_buf(),
+            home.path().to_path_buf(),
             Arc::new(keyring),
         );
 
@@ -1192,6 +1445,7 @@ mod tests {
 
         let keyring = MockKeyringStore::default();
         let processor = ProviderAuthRequestProcessor::new_with_keyring(
+            home.path().to_path_buf(),
             home.path().to_path_buf(),
             Arc::new(keyring.clone()),
         );
@@ -1232,6 +1486,7 @@ mod tests {
         );
         let processor = ProviderAuthRequestProcessor::new_with_keyring(
             home.path().to_path_buf(),
+            home.path().to_path_buf(),
             Arc::new(keyring),
         );
 
@@ -1259,6 +1514,7 @@ mod tests {
         let keyring = MockKeyringStore::default();
         let processor = ProviderAuthRequestProcessor::new_with_keyring(
             home.path().to_path_buf(),
+            home.path().to_path_buf(),
             Arc::new(keyring.clone()),
         );
 
@@ -1277,6 +1533,83 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn provider_api_key_migration_replaces_empty_keyring_entry_before_redaction() {
+        let home = tempfile::tempdir().expect("temp home");
+        let credentials_path = home.path().join(".credentials.json");
+        fs::write(
+            &credentials_path,
+            r#"{"providerApiKeys":{"zhipu":"sentinel-provider-key"}}"#,
+        )
+        .expect("legacy credentials");
+        let keyring = MockKeyringStore::default();
+        keyring
+            .save(PROVIDER_AUTH_KEYRING_SERVICE, "providerApiKeys/zhipu", "")
+            .expect("seed empty keyring entry");
+        let processor = ProviderAuthRequestProcessor::new_with_keyring(
+            home.path().to_path_buf(),
+            home.path().to_path_buf(),
+            Arc::new(keyring.clone()),
+        );
+
+        processor
+            .migrate_legacy_provider_api_keys()
+            .await
+            .expect("migration succeeds");
+
+        assert_eq!(
+            keyring.saved_value("providerApiKeys/zhipu").as_deref(),
+            Some("sentinel-provider-key")
+        );
+        assert!(
+            !fs::read_to_string(credentials_path)
+                .expect("redacted credentials")
+                .contains("sentinel-provider-key")
+        );
+    }
+
+    #[tokio::test]
+    async fn successful_keyring_read_retries_legacy_token_cleanup() {
+        let home = tempfile::tempdir().expect("temp home");
+        let legacy_dir = home.path().join("provider-auth");
+        fs::create_dir_all(&legacy_dir).expect("legacy dir");
+        let legacy_path = legacy_dir.join("github-repositories.json");
+        fs::create_dir(&legacy_path).expect("force initial cleanup failure");
+        let keyring = MockKeyringStore::default();
+        keyring
+            .save(
+                PROVIDER_AUTH_KEYRING_SERVICE,
+                "provider-auth/github-repositories",
+                &serde_json::to_string(&stored_token("github-repositories"))
+                    .expect("serialize token"),
+            )
+            .expect("seed keyring token");
+        let processor = ProviderAuthRequestProcessor::new_with_keyring(
+            home.path().to_path_buf(),
+            home.path().to_path_buf(),
+            Arc::new(keyring),
+        );
+
+        processor
+            .read_status(ProviderAuthReadStatusParams {
+                provider_id: "github-repositories".to_string(),
+            })
+            .await
+            .expect_err("directory cannot be removed as legacy file");
+        fs::remove_dir(&legacy_path).expect("remove blocking directory");
+        fs::write(&legacy_path, b"legacy plaintext").expect("restore legacy file");
+
+        let status = processor
+            .read_status(ProviderAuthReadStatusParams {
+                provider_id: "github-repositories".to_string(),
+            })
+            .await
+            .expect("cleanup retries on next secure read");
+
+        assert!(status.authenticated);
+        assert!(!legacy_path.exists());
+    }
+
+    #[tokio::test]
     async fn provider_api_key_write_failure_reaches_rpc_caller() {
         let home = tempfile::tempdir().expect("temp home");
         let keyring = MockKeyringStore::default();
@@ -1285,6 +1618,7 @@ mod tests {
             KeyringError::NoStorageAccess(Box::new(std::io::Error::other("denied"))),
         );
         let processor = ProviderAuthRequestProcessor::new_with_keyring(
+            home.path().to_path_buf(),
             home.path().to_path_buf(),
             Arc::new(keyring),
         );
@@ -1298,6 +1632,72 @@ mod tests {
             .expect_err("keyring failure must reach RPC caller");
 
         assert_eq!(error.code, -32603);
+    }
+
+    #[tokio::test]
+    async fn provider_models_and_balance_use_keyring_without_returning_secret() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/v1/models"))
+            .and(header("authorization", "Bearer sentinel-provider-key"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "data": [{"id": "remote-model"}]
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/v1/user/balance"))
+            .and(header("authorization", "Bearer sentinel-provider-key"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "is_available": true,
+                "balance_infos": [{
+                    "currency": "CNY",
+                    "total_balance": "10",
+                    "granted_balance": "6",
+                    "topped_up_balance": "4"
+                }]
+            })))
+            .mount(&server)
+            .await;
+        let home = tempfile::tempdir().expect("temp home");
+        let keyring = MockKeyringStore::default();
+        keyring
+            .save(
+                PROVIDER_AUTH_KEYRING_SERVICE,
+                "providerApiKeys/deepseek",
+                "sentinel-provider-key",
+            )
+            .expect("seed provider key");
+        let processor = ProviderAuthRequestProcessor::new_with_keyring(
+            home.path().to_path_buf(),
+            home.path().to_path_buf(),
+            Arc::new(keyring),
+        );
+        let base_url = format!("{}/v1", server.uri());
+
+        let models = processor
+            .fetch_provider_models(ProviderModelListParams {
+                provider_id: "deepseek".to_string(),
+                base_url: Some(base_url.clone()),
+                api_key: None,
+                default_models: vec!["default-model".to_string()],
+            })
+            .await
+            .expect("model fetch");
+        let balance = processor
+            .fetch_provider_balance(ProviderBalanceParams {
+                provider_id: "deepseek".to_string(),
+                base_url: Some(base_url),
+                api_key: None,
+            })
+            .await
+            .expect("balance fetch");
+
+        assert_eq!(models.models, vec!["remote-model", "default-model"]);
+        assert!(models.error.is_none());
+        assert!(balance.is_available);
+        assert_eq!(balance.balances[0].total_balance, "10");
+        assert!(!format!("{models:?}{balance:?}").contains("sentinel-provider-key"));
     }
 
     #[tokio::test]
@@ -1319,6 +1719,7 @@ mod tests {
         );
         let processor = ProviderAuthRequestProcessor::new_with_keyring(
             home.path().to_path_buf(),
+            home.path().to_path_buf(),
             Arc::new(keyring),
         );
 
@@ -1338,16 +1739,35 @@ mod tests {
         let valid_target = root.path().join("repo");
 
         assert!(
-            validate_github_clone_request("git@github.com:owner/repo.git", &valid_target).is_err()
+            validate_github_clone_request(
+                "git@github.com:owner/repo.git",
+                &valid_target,
+                root.path(),
+            )
+            .is_err()
+        );
+        let outside = tempfile::tempdir().expect("outside root");
+        assert!(
+            validate_github_clone_request(
+                "https://github.com/owner/repo.git",
+                &outside.path().join("repo"),
+                root.path(),
+            )
+            .is_err()
         );
         assert!(
-            validate_github_clone_request("https://example.com/owner/repo.git", &valid_target)
-                .is_err()
+            validate_github_clone_request(
+                "https://example.com/owner/repo.git",
+                &valid_target,
+                root.path(),
+            )
+            .is_err()
         );
         assert!(
             validate_github_clone_request(
                 "https://github.com/owner/repo.git",
                 &root.path().join("..").join("repo"),
+                root.path(),
             )
             .is_err()
         );
@@ -1357,6 +1777,7 @@ mod tests {
     struct FailingGitRunner {
         calls: AtomicUsize,
         askpass_path: StdMutex<Option<PathBuf>>,
+        staging_path: StdMutex<Option<PathBuf>>,
     }
 
     impl GitCloneRunner for FailingGitRunner {
@@ -1369,11 +1790,21 @@ mod tests {
             self.calls.fetch_add(1, Ordering::SeqCst);
             let askpass = PathBuf::from(env.get("GIT_ASKPASS").expect("askpass env"));
             assert!(askpass.exists(), "askpass must exist only while git runs");
+            let isolated_home = PathBuf::from(env.get("HOME").expect("isolated HOME"));
+            assert!(isolated_home.starts_with(askpass.parent().expect("askpass parent")));
+            assert_eq!(env.get("USERPROFILE"), env.get("HOME"));
+            assert_eq!(
+                env.get("GIT_CONFIG_NOSYSTEM").map(String::as_str),
+                Some("1")
+            );
+            assert_eq!(env.get("GIT_CONFIG_COUNT").map(String::as_str), Some("0"));
+            assert!(Path::new(env.get("GIT_CONFIG_GLOBAL").expect("isolated config")).exists());
             *self.askpass_path.lock().expect("askpass lock") = Some(askpass);
+            *self.staging_path.lock().expect("staging lock") = Some(target.to_path_buf());
             fs::create_dir_all(target.join(".git"))?;
             Ok(GitCloneOutput {
                 success: false,
-                stderr: "injected clone failure".to_string(),
+                stderr: "injected sentinel-github-token https://x-access-token:sentinel-github-token@github.com/owner/repo.git failure".to_string(),
             })
         }
     }
@@ -1382,15 +1813,21 @@ mod tests {
     async fn clone_failure_cleans_askpass_and_partial_target() {
         let root = tempfile::tempdir().expect("clone root");
         let target = root.path().join("repo");
-        let request = validate_github_clone_request("https://github.com/owner/repo.git", &target)
-            .expect("valid clone request");
+        let request = validate_github_clone_request(
+            "https://github.com/owner/repo.git",
+            &target,
+            root.path(),
+        )
+        .expect("valid clone request");
         let runner = FailingGitRunner::default();
 
         let error = clone_with_github_token(&request, "sentinel-github-token", &runner)
             .await
             .expect_err("injected clone must fail");
 
-        assert!(error.message.contains("injected clone failure"));
+        assert!(error.message.contains("injected"));
+        assert!(!error.message.contains("sentinel-github-token"));
+        assert!(error.message.contains("x-access-token:***@github.com"));
         assert_eq!(runner.calls.load(Ordering::SeqCst), 1);
         assert!(!target.exists(), "partial clone target must be removed");
         let askpass = runner
@@ -1400,5 +1837,89 @@ mod tests {
             .clone()
             .expect("captured askpass");
         assert!(!askpass.exists(), "temporary askpass must be removed");
+        let staging = runner
+            .staging_path
+            .lock()
+            .expect("staging lock")
+            .clone()
+            .expect("captured staging target");
+        assert!(!staging.exists(), "server staging target must be removed");
+    }
+
+    #[derive(Debug)]
+    struct SuccessfulGitRunner {
+        final_target: PathBuf,
+        create_concurrent_target: bool,
+    }
+
+    impl GitCloneRunner for SuccessfulGitRunner {
+        async fn run(
+            &self,
+            _args: &[String],
+            _env: &HashMap<String, String>,
+            staging_target: &Path,
+        ) -> std::io::Result<GitCloneOutput> {
+            fs::create_dir_all(staging_target.join(".git"))?;
+            fs::write(staging_target.join("README.md"), b"cloned")?;
+            if self.create_concurrent_target {
+                fs::create_dir_all(&self.final_target)?;
+                fs::write(self.final_target.join("user.txt"), b"keep")?;
+            }
+            Ok(GitCloneOutput {
+                success: true,
+                stderr: String::new(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn successful_clone_atomically_publishes_server_staging_directory() {
+        let root = tempfile::tempdir().expect("clone root");
+        let target = root.path().join("repo");
+        let request = validate_github_clone_request(
+            "https://github.com/owner/repo.git",
+            &target,
+            root.path(),
+        )
+        .expect("valid clone request");
+        let runner = SuccessfulGitRunner {
+            final_target: target.clone(),
+            create_concurrent_target: false,
+        };
+
+        clone_with_github_token(&request, "sentinel-github-token", &runner)
+            .await
+            .expect("clone publishes");
+
+        assert_eq!(
+            fs::read(target.join("README.md")).expect("published file"),
+            b"cloned"
+        );
+    }
+
+    #[tokio::test]
+    async fn concurrent_target_is_never_removed_or_replaced() {
+        let root = tempfile::tempdir().expect("clone root");
+        let target = root.path().join("repo");
+        let request = validate_github_clone_request(
+            "https://github.com/owner/repo.git",
+            &target,
+            root.path(),
+        )
+        .expect("valid clone request");
+        let runner = SuccessfulGitRunner {
+            final_target: target.clone(),
+            create_concurrent_target: true,
+        };
+
+        clone_with_github_token(&request, "sentinel-github-token", &runner)
+            .await
+            .expect_err("concurrent target must block publish");
+
+        assert_eq!(
+            fs::read(target.join("user.txt")).expect("caller file"),
+            b"keep"
+        );
+        assert!(!target.join("README.md").exists());
     }
 }

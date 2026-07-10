@@ -10,6 +10,7 @@ import {
   getModelProviderState,
   listModelProviders,
   configureModelProviderCredentialServiceForTests,
+  fetchProviderModels,
   saveProviderApiKey,
   saveModelProvider,
 } from './modelProviderService.js'
@@ -26,6 +27,12 @@ beforeEach(() => {
     },
     async saveProviderApiKey() {},
     async deleteProviderApiKey() {},
+    async fetchProviderModels({ defaultModels }) {
+      return { models: defaultModels }
+    },
+    async fetchProviderBalance() {
+      return { isAvailable: false, balances: [] }
+    },
   })
 })
 
@@ -89,6 +96,7 @@ test('desktop provider API keys use Rust secure credential service without plain
   const originalCodePilotXConfig = process.env[CODEPILOTX_CONFIG_DIR_ENV]
   process.env[CODEPILOTX_CONFIG_DIR_ENV] = configDir
   const configured = new Set<string>()
+  let modelFetchOptions: { apiKey?: string; baseURL?: string } | undefined
   configureModelProviderCredentialServiceForTests({
     async readConfiguredProviderApiKeyIDs() {
       return [...configured]
@@ -99,11 +107,23 @@ test('desktop provider API keys use Rust secure credential service without plain
     async deleteProviderApiKey(providerID) {
       configured.delete(providerID)
     },
+    async fetchProviderModels(options) {
+      modelFetchOptions = options
+      return { models: ['glm-secure'] }
+    },
+    async fetchProviderBalance() {
+      return { isAvailable: false, balances: [] }
+    },
   })
   try {
     const state = await saveProviderApiKey('zhipu', 'sentinel-provider-key')
 
     expect(state.apiKeyConfigured).toBe(true)
+    expect(
+      await fetchProviderModels({ providerID: 'zhipu' }),
+    ).toEqual({ models: ['glm-secure'] })
+    expect(modelFetchOptions?.apiKey).toBeUndefined()
+    expect(modelFetchOptions?.baseURL).toBe('https://open.bigmodel.cn/api/paas/v4/')
     await expect(access(join(configDir, '.credentials.json'))).rejects.toThrow()
   } finally {
     configureModelProviderCredentialServiceForTests(null)

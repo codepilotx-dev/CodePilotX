@@ -12,6 +12,8 @@ import { desktopDebug } from './desktopDebug.js'
 import { sanitizeChildEnvironment } from './sidecarManager.js'
 import { spawn } from 'node:child_process'
 import type {
+  DesktopProviderBalanceResult,
+  DesktopProviderModelListResult,
   McpReloadResult,
 } from '../shared/types.js'
 
@@ -171,6 +173,51 @@ async deleteProviderApiKey(providerID: string): Promise<void> {
   await this.rpc('providerCredential/delete', {
     provider_id: providerID,
   })
+}
+
+async fetchProviderModels(options: {
+  providerID: string
+  baseURL?: string
+  apiKey?: string
+  defaultModels: string[]
+}): Promise<DesktopProviderModelListResult> {
+  return this.rpc('providerCredential/models', {
+    provider_id: options.providerID,
+    base_url: options.baseURL ?? null,
+    api_key: options.apiKey ?? null,
+    default_models: options.defaultModels,
+  })
+}
+
+async fetchProviderBalance(options: {
+  providerID: string
+  baseURL?: string
+  apiKey?: string
+}): Promise<DesktopProviderBalanceResult> {
+  const result = await this.rpc<{
+    is_available: boolean
+    balances: Array<{
+      currency: string
+      total_balance: string
+      granted_balance: string
+      topped_up_balance: string
+    }>
+    error?: string | null
+  }>('providerCredential/balance', {
+    provider_id: options.providerID,
+    base_url: options.baseURL ?? null,
+    api_key: options.apiKey ?? null,
+  })
+  return {
+    isAvailable: result.is_available,
+    balances: result.balances.map(balance => ({
+      currency: balance.currency,
+      totalBalance: balance.total_balance,
+      grantedBalance: balance.granted_balance,
+      toppedUpBalance: balance.topped_up_balance,
+    })),
+    ...(result.error ? { error: result.error } : {}),
+  }
 }
 
 async listRepositories(providerID: string): Promise<ProviderRepoInfo[]> {

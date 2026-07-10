@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "api_key": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "base_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "default_models": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "provider_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "default_models",
+    "provider_id"
+  ],
+  "title": "ProviderModelListParams",
+  "type": "object"
+}

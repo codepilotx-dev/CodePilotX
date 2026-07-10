@@ -1226,6 +1226,18 @@ client_request_definitions! {
 	        serialization: None,
 	        response: v2::ProviderApiKeyDeleteResponse,
 	    },
+	    /// Fetch an authenticated provider model list without exposing its key to clients.
+	    ProviderModelList => "providerCredential/models" {
+	        params: v2::ProviderModelListParams,
+	        serialization: None,
+	        response: v2::ProviderModelListResponse,
+	    },
+	    /// Fetch authenticated provider balance information without exposing its key to clients.
+	    ProviderBalance => "providerCredential/balance" {
+	        params: v2::ProviderBalanceParams,
+	        serialization: None,
+	        response: v2::ProviderBalanceResponse,
+	    },
 	    /// List repositories for the given provider.
 	    ProviderRepoList => "providerAuth/repoList" {
 	        params: v2::ProviderRepoListParams,

@@ -2037,6 +2037,7 @@ dependencies = [
  "codepilotx-home",
  "codepilotx-hooks",
  "codepilotx-image-generation-extension",
+ "codepilotx-keyring-store",
  "codepilotx-login",
  "codepilotx-mcp",
  "codepilotx-mcp-extension",
@@ -2068,6 +2069,7 @@ dependencies = [
  "flate2",
  "futures",
  "hmac 0.12.1",
+ "keyring",
  "opentelemetry",
  "opentelemetry_sdk",
  "pretty_assertions",
@@ -3522,6 +3524,7 @@ version = "0.0.0"
 dependencies = [
  "codepilotx-api",
  "codepilotx-app-server-protocol",
+ "codepilotx-keyring-store",
  "codepilotx-protocol",
  "codepilotx-utils-absolute-path",
  "http 1.4.2",

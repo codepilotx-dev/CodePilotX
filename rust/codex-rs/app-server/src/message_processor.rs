@@ -473,6 +473,7 @@ impl MessageProcessor {
         );
         let provider_auth_processor = ProviderAuthRequestProcessor::new(
             config.codepilotx_home.to_path_buf(),
+            config.cwd.to_path_buf(),
         );
         let remote_control_processor = RemoteControlRequestProcessor::new(remote_control_handle);
         let search_processor = SearchRequestProcessor::new(outgoing.clone());
@@ -1551,6 +1552,18 @@ impl MessageProcessor {
             ClientRequest::ProviderApiKeyDelete { params, .. } => {
                 self.provider_auth_processor
                     .delete_provider_api_key(params)
+                    .await
+                    .map(|r| Some(r.into()))
+            }
+            ClientRequest::ProviderModelList { params, .. } => {
+                self.provider_auth_processor
+                    .fetch_provider_models(params)
+                    .await
+                    .map(|r| Some(r.into()))
+            }
+            ClientRequest::ProviderBalance { params, .. } => {
+                self.provider_auth_processor
+                    .fetch_provider_balance(params)
                     .await
                     .map(|r| Some(r.into()))
             }

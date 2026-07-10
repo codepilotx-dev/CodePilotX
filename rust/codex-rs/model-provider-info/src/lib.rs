@@ -12,7 +12,6 @@ use codepilotx_app_server_protocol::AuthMode;
 use codepilotx_keyring_store::{DefaultKeyringStore, KeyringStore};
 use codepilotx_protocol::config_types::ModelProviderAuthInfo;
 use codepilotx_protocol::error::CodexErr;
-use codepilotx_protocol::error::EnvVarError;
 use codepilotx_protocol::error::Result as CodexResult;
 use http::HeaderMap;
 use http::header::HeaderName;
@@ -323,18 +322,9 @@ impl ModelProviderInfo {
                     })?;
                 Ok(Some(api_key))
             }
-            Some(env_key) => {
-                let api_key = std::env::var(env_key)
-                    .ok()
-                    .filter(|v| !v.trim().is_empty())
-                    .ok_or_else(|| {
-                        CodexErr::EnvVar(EnvVarError {
-                            var: env_key.clone(),
-                            instructions: self.env_key_instructions.clone(),
-                        })
-                    })?;
-                Ok(Some(api_key))
-            }
+            Some(_) => Err(CodexErr::InvalidRequest(
+                "provider API keys require providerID-scoped secure storage".to_string(),
+            )),
             None => Ok(None),
         }
     }

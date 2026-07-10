@@ -2392,6 +2392,131 @@
           "type": "object"
         },
         {
+          "description": "Read provider API key configuration from OS secure storage.",
+          "properties": {
+            "id": {
+              "$ref": "#/definitions/v2/RequestId"
+            },
+            "method": {
+              "enum": [
+                "providerCredential/read"
+              ],
+              "title": "ProviderCredential/readRequestMethod",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/definitions/v2/ProviderApiKeyReadParams"
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "params"
+          ],
+          "title": "ProviderCredential/readRequest",
+          "type": "object"
+        },
+        {
+          "description": "Save one providerID-scoped API key in OS secure storage.",
+          "properties": {
+            "id": {
+              "$ref": "#/definitions/v2/RequestId"
+            },
+            "method": {
+              "enum": [
+                "providerCredential/save"
+              ],
+              "title": "ProviderCredential/saveRequestMethod",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/definitions/v2/ProviderApiKeySaveParams"
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "params"
+          ],
+          "title": "ProviderCredential/saveRequest",
+          "type": "object"
+        },
+        {
+          "description": "Delete one providerID-scoped API key from OS secure storage.",
+          "properties": {
+            "id": {
+              "$ref": "#/definitions/v2/RequestId"
+            },
+            "method": {
+              "enum": [
+                "providerCredential/delete"
+              ],
+              "title": "ProviderCredential/deleteRequestMethod",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/definitions/v2/ProviderApiKeyDeleteParams"
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "params"
+          ],
+          "title": "ProviderCredential/deleteRequest",
+          "type": "object"
+        },
+        {
+          "description": "Fetch an authenticated provider model list without exposing its key to clients.",
+          "properties": {
+            "id": {
+              "$ref": "#/definitions/v2/RequestId"
+            },
+            "method": {
+              "enum": [
+                "providerCredential/models"
+              ],
+              "title": "ProviderCredential/modelsRequestMethod",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/definitions/v2/ProviderModelListParams"
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "params"
+          ],
+          "title": "ProviderCredential/modelsRequest",
+          "type": "object"
+        },
+        {
+          "description": "Fetch authenticated provider balance information without exposing its key to clients.",
+          "properties": {
+            "id": {
+              "$ref": "#/definitions/v2/RequestId"
+            },
+            "method": {
+              "enum": [
+                "providerCredential/balance"
+              ],
+              "title": "ProviderCredential/balanceRequestMethod",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/definitions/v2/ProviderBalanceParams"
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "params"
+          ],
+          "title": "ProviderCredential/balanceRequest",
+          "type": "object"
+        },
+        {
           "description": "List repositories for the given provider.",
           "properties": {
             "id": {
@@ -14376,6 +14501,78 @@
         ],
         "type": "object"
       },
+      "ProviderApiKeyDeleteParams": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "provider_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_id"
+        ],
+        "title": "ProviderApiKeyDeleteParams",
+        "type": "object"
+      },
+      "ProviderApiKeyDeleteResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "ProviderApiKeyDeleteResponse",
+        "type": "object"
+      },
+      "ProviderApiKeyReadParams": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "provider_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "provider_ids"
+        ],
+        "title": "ProviderApiKeyReadParams",
+        "type": "object"
+      },
+      "ProviderApiKeyReadResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "configured_provider_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "configured_provider_ids"
+        ],
+        "title": "ProviderApiKeyReadResponse",
+        "type": "object"
+      },
+      "ProviderApiKeySaveParams": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "api_key": {
+            "type": "string"
+          },
+          "provider_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "api_key",
+          "provider_id"
+        ],
+        "title": "ProviderApiKeySaveParams",
+        "type": "object"
+      },
+      "ProviderApiKeySaveResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "ProviderApiKeySaveResponse",
+        "type": "object"
+      },
       "ProviderAuthCancelLoginParams": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -14550,6 +14747,134 @@
           "verification_uri"
         ],
         "title": "ProviderAuthStartLoginResponse",
+        "type": "object"
+      },
+      "ProviderBalanceInfo": {
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "granted_balance": {
+            "type": "string"
+          },
+          "topped_up_balance": {
+            "type": "string"
+          },
+          "total_balance": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency",
+          "granted_balance",
+          "topped_up_balance",
+          "total_balance"
+        ],
+        "type": "object"
+      },
+      "ProviderBalanceParams": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "api_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "base_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_id"
+        ],
+        "title": "ProviderBalanceParams",
+        "type": "object"
+      },
+      "ProviderBalanceResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "balances": {
+            "items": {
+              "$ref": "#/definitions/v2/ProviderBalanceInfo"
+            },
+            "type": "array"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_available": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "balances",
+          "is_available"
+        ],
+        "title": "ProviderBalanceResponse",
+        "type": "object"
+      },
+      "ProviderModelListParams": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "api_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "base_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "default_models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "provider_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "default_models",
+          "provider_id"
+        ],
+        "title": "ProviderModelListParams",
+        "type": "object"
+      },
+      "ProviderModelListResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "models"
+        ],
+        "title": "ProviderModelListResponse",
         "type": "object"
       },
       "ProviderRepoCloneParams": {
