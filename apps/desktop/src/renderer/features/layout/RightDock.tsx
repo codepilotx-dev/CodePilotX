@@ -375,6 +375,7 @@ function RightDockTabsHeader({
           open={menuOpen}
           side="bottom"
           sideOffset={12}
+          width={220}
           trigger={
             <button
               className="right-dock-add-button"

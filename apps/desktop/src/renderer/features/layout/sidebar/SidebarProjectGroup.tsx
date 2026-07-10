@@ -147,6 +147,7 @@ export function SidebarProjectGroup({
     <section className="sidebar-project" onMouseLeave={() => setHovered(false)}>
       <SidebarContextMenu
         actions={getProjectContextMenuActions()}
+        width={240}
         trigger={
           <SidebarRow
             aria-current={isCurrent ? "page" : undefined}
@@ -184,10 +185,10 @@ export function SidebarProjectGroup({
                   onClick={(event) => event.stopPropagation()}
                 >
                   <PopoverMenu
-                    autoWidth
                     className="popover-sidebar-project"
                     open={menuOpen}
                     side="bottom"
+                    width="auto"
                     trigger={
                       <button
                         aria-label="更多"

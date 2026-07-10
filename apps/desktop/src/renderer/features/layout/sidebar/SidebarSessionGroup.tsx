@@ -1,5 +1,5 @@
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Archive, Copy, LoaderCircle, Pencil, Pin, PinOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { APP_ICON_SIZE } from "../../../components/ui/iconTokens.js";
@@ -7,6 +7,8 @@ import { sessionDisplayTitle, type SessionListItem } from "../../../uiTypes.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
 import { motionTransition, standardTween } from '../../motion/motionTransitions.js'
+import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
+import { sortSessionsForSidebar } from '../../session/sessionSorting.js'
 import { SidebarRow } from "./SidebarRow.js";
 import {
   SidebarContextMenu,
@@ -48,9 +50,38 @@ export function SidebarSessionGroup({
     string | null
   >(null);
   const [visibleLimit, setVisibleLimit] = useState(GROUP_LIMIT);
+  const [draggedSessionId, setDraggedSessionId] = useState<string | null>(null);
   const reducedMotion = usePrefersReducedMotion()
+  const {
+    sidebarSort,
+    sidebarManualOrder,
+    setSidebarManualOrder,
+  } = useDesktopSettings()
+  const needsInputSessionIds = pendingPermissionSessionIds
+  const unreadSessionIds = useMemo(
+    () => new Set(sessions.filter(session => session.unreadAt).map(session => session.id)),
+    [sessions],
+  )
+  const sortedSessions = useMemo(
+    () =>
+      sortSessionsForSidebar(sessions, {
+        sort: sidebarSort,
+        needsInputSessionIds,
+        unreadSessionIds,
+        scopeKey: groupKey,
+        manualOrderByScope: sidebarManualOrder,
+      }),
+    [
+      groupKey,
+      needsInputSessionIds,
+      sidebarManualOrder,
+      sidebarSort,
+      sessions,
+      unreadSessionIds,
+    ],
+  )
   const { baseSessions, canCollapse, canShowMore, extraSessions, hasOverflow } =
-    getSidebarSessionDisplayGroups(sessions, visibleLimit);
+    getSidebarSessionDisplayGroups(sortedSessions, visibleLimit);
 
   useEffect(() => {
     setVisibleLimit(GROUP_LIMIT);
@@ -116,8 +147,35 @@ export function SidebarSessionGroup({
         active={session.id === activeSessionId}
         as="li"
         className="sidebar-session-row"
+        draggable={sidebarSort === 'manual'}
         indent="session"
         key={session.id}
+        onDragOver={event => {
+          if (sidebarSort === 'manual') event.preventDefault()
+        }}
+        onDragStart={event => {
+          if (sidebarSort !== 'manual') return
+          setDraggedSessionId(session.id)
+          event.dataTransfer.effectAllowed = 'move'
+        }}
+        onDrop={event => {
+          event.preventDefault()
+          if (sidebarSort !== 'manual' || !draggedSessionId || draggedSessionId === session.id) {
+            setDraggedSessionId(null)
+            return
+          }
+          const order = sortedSessions.map(item => item.id)
+          const fromIndex = order.indexOf(draggedSessionId)
+          const toIndex = order.indexOf(session.id)
+          if (fromIndex < 0 || toIndex < 0) {
+            setDraggedSessionId(null)
+            return
+          }
+          order.splice(fromIndex, 1)
+          order.splice(toIndex, 0, draggedSessionId)
+          setSidebarManualOrder({ ...sidebarManualOrder, [groupKey]: order })
+          setDraggedSessionId(null)
+        }}
         onMouseEnter={() => setHoveredSessionId(session.id)}
         onMouseLeave={() => {
           setHoveredSessionId((current) =>
@@ -202,6 +260,9 @@ export function SidebarSessionGroup({
         >
           <span className="sidebar-session-title">
             {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
+            {session.unreadAt ? (
+              <span aria-label="未读" className="sidebar-session-unread-dot" />
+            ) : null}
           </span>
         </button>
       </SidebarRow>
@@ -210,6 +271,7 @@ export function SidebarSessionGroup({
       <SidebarContextMenu
         key={session.id}
         actions={getSessionContextMenuActions(session)}
+        width={240}
         trigger={row}
       />
     );

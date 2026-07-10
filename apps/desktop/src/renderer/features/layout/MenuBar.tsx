@@ -219,7 +219,7 @@ export function MenuBar({
             className="menubar-root"
             loop
           >
-            <AppMenu disableOutsideDismiss={isDebugMode} label="文件" value="file">
+            <AppMenu disableOutsideDismiss={isDebugMode} label="文件" value="file" width={240}>
               <MenuItem shortcut="Ctrl+W" onSelect={() => onFileMenuAction('close')}>
                 关闭
               </MenuItem>
@@ -254,7 +254,7 @@ export function MenuBar({
               </MenuItem>
             </AppMenu>
 
-            <AppMenu disableOutsideDismiss={isDebugMode} label="编辑" value="edit">
+            <AppMenu disableOutsideDismiss={isDebugMode} label="编辑" value="edit" width={240}>
               <MenuItem shortcut="Ctrl+Z" onSelect={() => onEditMenuAction('undo')}>
                 撤销
               </MenuItem>
@@ -280,7 +280,7 @@ export function MenuBar({
               </MenuItem>
             </AppMenu>
 
-            <AppMenu disableOutsideDismiss={isDebugMode} label="查看" value="view">
+            <AppMenu disableOutsideDismiss={isDebugMode} label="查看" value="view" width={260}>
               <MenuItem
                 shortcut="Ctrl+B"
                 onSelect={() => onViewMenuAction('toggleSidebar')}
@@ -373,6 +373,7 @@ export function MenuBar({
               disableOutsideDismiss={isDebugMode}
               label="窗口"
               value="window"
+              width={240}
             >
               <MenuItem
                 shortcut="Ctrl+M"
@@ -397,6 +398,7 @@ export function MenuBar({
               disableOutsideDismiss={isDebugMode}
               label="帮助"
               value="help"
+              width={260}
             >
               <MenuItem onSelect={() => onHelpMenuAction('codepilotxDocumentation')}>
                 CodePilotX 文档

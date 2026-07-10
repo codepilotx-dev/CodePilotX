@@ -8,6 +8,7 @@ import type {
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
+import { buildPopoverSizingStyle } from '../../components/ui/popoverSizing.js'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
 import { ComposerSurface } from '../session/ComposerSurface.js'
 import { MarkdownMessage } from '../session/MarkdownMessage.js'
@@ -209,7 +210,10 @@ export function RightDockFilesPanel({
               </ContextMenu.Trigger>
               {shouldShowSelectionSendAction(selectedText) ? (
                 <ContextMenu.Portal>
-                  <ContextMenu.Content className="sidebar-context-menu-content">
+                  <ContextMenu.Content
+                    className="sidebar-context-menu-content"
+                    style={buildPopoverSizingStyle({ width: 220 })}
+                  >
                     <ContextMenu.Item
                       className="sidebar-context-menu-item"
                       onSelect={sendSelectedTextToComposer}
@@ -309,7 +313,10 @@ export function RightDockFilesPanel({
                 <ContextMenu.Root key={file.path}>
                   <ContextMenu.Trigger asChild>{row}</ContextMenu.Trigger>
                   <ContextMenu.Portal>
-                    <ContextMenu.Content className="sidebar-context-menu-content">
+                    <ContextMenu.Content
+                      className="sidebar-context-menu-content"
+                      style={buildPopoverSizingStyle({ width: 220 })}
+                    >
                       <ContextMenu.Item
                         className="sidebar-context-menu-item"
                         onSelect={() => onAddComposerFiles?.([sendablePath])}
