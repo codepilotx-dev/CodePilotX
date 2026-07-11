@@ -112,7 +112,6 @@
     color: var(--color-text-mute);
     font-size: var(--type-section-title);
     font-weight: var(--font-weight-label);
-    line-height: 1.4;
   }
 
   &-items {
@@ -129,7 +128,7 @@
   cursor: pointer;
   font-size: var(--type-control);
   font-weight: 500;
-  line-height: var(--control-line-height);
+
   text-align: left;
   transition:
     background-color 0.15s ease,
@@ -1550,8 +1549,7 @@
     display: inline-flex;
     align-items: center;
     gap: var(--control-gap-compact);
-    padding: var(--control-padding-block-compact)
-      var(--control-padding-inline);
+    padding: var(--control-padding-block-compact) var(--control-padding-inline);
     border-radius: var(--radius-full);
     font-size: var(--type-caption);
     font-weight: 500;
@@ -2394,8 +2392,9 @@
 
 .keyboard-shortcuts-header {
   display: grid;
-  grid-template-columns:
-    minmax(260px, 1fr) minmax(170px, 0.64fr) var(--control-size-md);
+  grid-template-columns: minmax(260px, 1fr) minmax(170px, 0.64fr) var(
+      --control-size-md
+    );
   gap: var(--space-3);
   padding: 8px 14px;
   border-bottom: 1px solid var(--color-border-faint);
@@ -2410,8 +2409,9 @@
 
 .keyboard-shortcuts-row {
   display: grid;
-  grid-template-columns:
-    minmax(260px, 1fr) minmax(170px, 0.64fr) var(--control-size-md);
+  grid-template-columns: minmax(260px, 1fr) minmax(170px, 0.64fr) var(
+      --control-size-md
+    );
   align-items: center;
   gap: var(--space-3);
   padding: 0.5em 0.714em 0.5em 1em;
@@ -3125,7 +3125,9 @@
 
   .settings-button {
     padding: var(--control-padding-block-compact)
-      calc(var(--control-padding-inline) + var(--control-padding-inline-compact));
+      calc(
+        var(--control-padding-inline) + var(--control-padding-inline-compact)
+      );
     font-size: var(--type-control);
     line-height: var(--control-line-height);
 

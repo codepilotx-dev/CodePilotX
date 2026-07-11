@@ -136,9 +136,9 @@
   --font-size-26: calc(var(--font-size-ui) + 12px);
 
   --control-line-height: 1.4;
-  --control-padding-block-compact: 0.35em;
+  --control-padding-block-compact: 0.4em;
   --control-padding-block: 0.45em;
-  --control-padding-inline-compact: 0.35em;
+  --control-padding-inline-compact: 0.6em;
   --control-padding-inline: 0.7em;
   --control-gap-compact: 0.35em;
   --control-gap: 0.57em;
@@ -235,7 +235,7 @@
   --font-family-mono:
     "JetBrains Mono", Consolas, monospace;
   --type-card-title: var(--font-size-ui);
-  --type-section-title: calc(var(--font-size-ui) + 1px);
+  --type-section-title: calc(var(--font-size-ui));
   --type-title-sm: calc(var(--font-size-ui) + 2px);
   --type-title-md: calc(var(--font-size-ui) + 4px);
   --type-title-lg: calc(var(--font-size-ui) + 6px);
