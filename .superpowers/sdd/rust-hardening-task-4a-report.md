@@ -12,6 +12,7 @@ Commits:
 - `95ff563f5 feat(desktop)：传播侧车传输致命错误`
 - `e816d5967 feat(desktop)：固定发布侧车打包产物`
 - `e2ffc17b1 feat(desktop)：识别打包侧车资源路径`
+- `07cf8ebcf feat(desktop)：验证侧车进程回收基线`
 
 ## RED / GREEN evidence
 
