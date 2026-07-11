@@ -18,6 +18,7 @@ import {
   RustSidecarDesktopAgentRuntime,
   buildRustInitializeParams,
   createRustSidecarOptions,
+  isPackagedElectronProcess,
   resolveRustAppServerExecutable,
   resolveRustAppServerExecutableInfo,
 } from './rustSidecarRuntime.js'
@@ -42,6 +43,21 @@ function withEnv(key: string, value: string): Disposable {
 // ── Options / executable resolution tests ───────────────────────────
 
 describe('rust sidecar runtime options', () => {
+  test('detects packaged Electron without relying on NODE_ENV', () => {
+    expect(
+      isPackagedElectronProcess({
+        versions: { electron: '40.0.0' },
+      }),
+    ).toBe(true)
+    expect(
+      isPackagedElectronProcess({
+        versions: { electron: '40.0.0' },
+        defaultApp: true,
+      }),
+    ).toBe(false)
+    expect(isPackagedElectronProcess({ versions: {} })).toBe(false)
+  })
+
   test('declares experimental API capability for dynamic tools', () => {
     expect(buildRustInitializeParams().capabilities).toEqual({
       experimentalApi: true,

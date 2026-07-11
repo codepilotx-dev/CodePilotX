@@ -166,14 +166,21 @@ export function resolveRustAppServerExecutableInfo(
 }
 
 function defaultRustAppServerResolverContext(
-  env: NodeJS.ProcessEnv,
+  _env: NodeJS.ProcessEnv,
 ): RustAppServerResolverContext {
   return {
-    isPackaged: env.NODE_ENV === 'production',
+    isPackaged: isPackagedElectronProcess(process),
     resourcesPath:
       (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath ??
       join(__dirname, '..', '..'),
   }
+}
+
+export function isPackagedElectronProcess(value: {
+  versions: { electron?: string }
+  defaultApp?: boolean
+}): boolean {
+  return Boolean(value.versions.electron) && value.defaultApp !== true
 }
 
 export function buildRustInitializeParams(): InitializeParams {
