@@ -25,11 +25,13 @@ type DisposeDesktopSessionOptions = RemoveDesktopSessionLocalStateOptions & {
   appServerThreadId: string | null
   appServerThreadPending: boolean
   deleteThread: (threadId: string) => Promise<unknown>
+  flushPersistence: () => Promise<void>
 }
 
 export async function disposeDesktopSession(
   options: DisposeDesktopSessionOptions,
 ): Promise<void> {
+  await options.flushPersistence()
   if (options.appServerThreadId) {
     await options.deleteThread(options.appServerThreadId)
   } else if (!options.appServerThreadPending) {

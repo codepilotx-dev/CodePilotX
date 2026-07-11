@@ -12,7 +12,11 @@ export function createDesktopShutdown(
   let shutdownPromise: Promise<void> | null = null
   return () => {
     if (!shutdownPromise) {
-      shutdownPromise = runDesktopShutdown(dependencies)
+      const attempt = runDesktopShutdown(dependencies)
+      shutdownPromise = attempt.catch(error => {
+        shutdownPromise = null
+        throw error
+      })
     }
     return shutdownPromise
   }
@@ -31,9 +35,14 @@ export function createDesktopShutdownController(
       if (shutdownComplete) return true
       event.preventDefault()
       if (!shutdownPromise) {
-        shutdownPromise = runDesktopShutdown(dependencies, () => {
-          shutdownComplete = true
+        const attempt = runDesktopShutdown(dependencies, () => {
+            shutdownComplete = true
+          })
+        shutdownPromise = attempt.catch(error => {
+          shutdownPromise = null
+          throw error
         })
+        void shutdownPromise.catch(() => {})
       }
       return false
     },
@@ -47,22 +56,19 @@ async function runDesktopShutdown(
   dependencies: DesktopShutdownDependencies,
   beforeQuit: () => void = () => {},
 ): Promise<void> {
-  try {
-    await runStep('rollout_flush', dependencies.flushRollout, dependencies.logError)
-    await runStep(
-      'session_store_flush',
-      dependencies.flushSessionStore,
-      dependencies.logError,
-    )
-    await runStep(
-      'session_dispose',
-      dependencies.disposeSessions,
-      dependencies.logError,
-    )
-  } finally {
-    beforeQuit()
-    dependencies.quit()
-  }
+  await runStep('rollout_flush', dependencies.flushRollout, dependencies.logError)
+  await runStep(
+    'session_store_flush',
+    dependencies.flushSessionStore,
+    dependencies.logError,
+  )
+  await runStep(
+    'session_dispose',
+    dependencies.disposeSessions,
+    dependencies.logError,
+  )
+  beforeQuit()
+  dependencies.quit()
 }
 
 async function runStep(
@@ -74,5 +80,6 @@ async function runStep(
     await operation()
   } catch (error) {
     logError(step, error)
+    throw error
   }
 }

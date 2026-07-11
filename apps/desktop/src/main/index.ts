@@ -94,7 +94,6 @@ import {
   applyDesktopAgentEventToSnapshot,
   applyDesktopPersistenceStatusToSnapshot,
   applyDesktopWorkflowEventsToSnapshot,
-  appendDesktopRolloutItems,
   createDesktopSessionMetaRolloutItem,
   createLightweightDesktopSessionSnapshot,
   createDesktopSessionSnapshot,
@@ -1214,14 +1213,9 @@ async function createSession(
   createdRecord = record
   const rolloutPath = record.snapshot.item.rolloutPath?.trim()
   if (rolloutPath) {
-    void appendDesktopRolloutItems(rolloutPath, [
+    rolloutWriteScheduler.append(rolloutPath, [
       createDesktopSessionMetaRolloutItem(record.snapshot),
-    ]).catch(error => {
-      desktopDebug('rollout_session_meta_append_failed', {
-        sessionId: session.sessionId,
-        message: error instanceof Error ? error.message : String(error),
-      })
-    })
+    ])
   }
 	sessions.set(session.sessionId, record)
 	  activeSessionId = session.sessionId
@@ -1690,10 +1684,16 @@ async function disposeSession(sessionId: string): Promise<void> {
     appServerThreadId:
       record.snapshot.appServerThreadId ?? record.snapshot.item.appServerThreadId,
     appServerThreadPending: record.snapshot.appServerThreadPending === true,
+    flushPersistence: async () => {
+      await rolloutWriteScheduler.flush()
+      await flushSessionStorePersistence()
+    },
     deleteThread: threadId =>
       getDesktopSessionCatalogService().deleteThread(threadId),
     removeIndex: removeSessionIndexWithRetry,
     removeLocalState: () => {
+      const rolloutPath = record.snapshot.item.rolloutPath?.trim()
+      if (rolloutPath) unsavedRolloutPaths.delete(rolloutPath)
       sessions.delete(sessionId)
       if (activeSessionId === sessionId) {
         activeSessionId = [...sessions.keys()][0] ?? null

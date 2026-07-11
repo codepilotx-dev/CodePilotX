@@ -1277,9 +1277,18 @@ function overlayFromSnapshot(
       ? [...normalizedSnapshot.reviewComments]
       : undefined,
     legacySnapshot: legacySnapshot
-      ? normalizeSnapshotStandalone(legacySnapshot)
+      ? withoutTransientPersistenceStatus(
+          normalizeSnapshotStandalone(legacySnapshot),
+        )
       : undefined,
   }
+}
+
+function withoutTransientPersistenceStatus(
+  snapshot: DesktopSessionSnapshot,
+): DesktopSessionSnapshot {
+  const { persistenceStatus: _persistenceStatus, ...item } = snapshot.item
+  return { ...snapshot, item }
 }
 
 function normalizeStandaloneWorkspace(

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { appendFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { expect, test } from 'bun:test'
@@ -40,57 +40,96 @@ test('appendDesktopRolloutItems writes utf8 jsonl in append order', async () => 
   })
 })
 
-test('atomic rollout append leaves original unchanged after partial temp write and retries without duplicates', async () => {
+test('rollout append retry recognizes a fully-written batch after append reports failure', async () => {
   const files = new Map<string, string>([['session.jsonl', 'existing\n']])
-  let failWrite = true
-  const operations = memoryAtomicOperations(files, {
-    writeFile(path, content) {
-      files.set(path, content.slice(0, 8))
-      if (failWrite) throw Object.assign(new Error('disk full'), { code: 'ENOSPC' })
-      files.set(path, content)
+  let reportFailure = true
+  const operations = memoryAppendOperations(files, {
+    appendFile(path, content) {
+      files.set(path, `${files.get(path) ?? ''}${content}`)
+      if (reportFailure) throw Object.assign(new Error('unknown append result'), { code: 'EIO' })
     },
   })
   const item = eventItem('message', { content: 'new' })
 
   await expect(
-    appendDesktopRolloutItems('session.jsonl', [item], { operations, nonce: 'partial' }),
-  ).rejects.toMatchObject({ code: 'ENOSPC' })
-  expect(files.get('session.jsonl')).toBe('existing\n')
+    appendDesktopRolloutItems('session.jsonl', [item], { operations, batchId: 'batch-1' }),
+  ).rejects.toMatchObject({ code: 'EIO' })
 
-  failWrite = false
+  reportFailure = false
   await appendDesktopRolloutItems('session.jsonl', [item], {
     operations,
-    nonce: 'recovery',
+    batchId: 'batch-1',
   })
   const persisted = files.get('session.jsonl') ?? ''
   expect(persisted.match(/"content":"new"/g)).toHaveLength(1)
-  expect(persisted.startsWith('existing\n')).toBe(true)
 })
 
-test('atomic rollout append cleans temp after rename failure and retry does not duplicate', async () => {
-  const files = new Map<string, string>([['session.jsonl', 'existing\n']])
-  let failRename = true
-  const operations = memoryAtomicOperations(files, {
-    rename(from, to) {
-      if (failRename) throw Object.assign(new Error('rename failed'), { code: 'EIO' })
-      files.set(to, files.get(from) ?? '')
-      files.delete(from)
-    },
+test('rollout append separates a valid existing line without trailing newline', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.rollout.jsonl')
+    const meta = sessionMetaItem('session-1', dir)
+    await writeFile(
+      rolloutPath,
+      JSON.stringify({ timestamp: new Date().toISOString(), ...meta }),
+      'utf8',
+    )
+    await appendDesktopRolloutItems(
+      rolloutPath,
+      [eventItem('message', { role: 'assistant', content: 'new' })],
+      { batchId: 'batch-tail' },
+    )
+    const parsed = await parseDesktopRolloutSnapshot(rolloutPath, 'session-1')
+    expect(parsed.view.messages.map(message => message.text)).toEqual(['new'])
   })
-  const item = eventItem('message', { content: 'new' })
+})
 
-  await expect(
-    appendDesktopRolloutItems('session.jsonl', [item], { operations, nonce: 'rename' }),
-  ).rejects.toMatchObject({ code: 'EIO' })
-  expect(files.get('session.jsonl')).toBe('existing\n')
-  expect([...files.keys()].some(path => path.endsWith('.tmp'))).toBe(false)
-
-  failRename = false
-  await appendDesktopRolloutItems('session.jsonl', [item], {
-    operations,
-    nonce: 'recovery',
+test('rollout retry skips a partial tail and loader returns each completed batch item once', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.rollout.jsonl')
+    const items = [
+      eventItem('message', { role: 'user', content: 'first' }),
+      eventItem('message', { role: 'assistant', content: 'second' }),
+    ]
+    const first = JSON.stringify({
+      timestamp: new Date().toISOString(),
+      ...items[0],
+      _desktopBatchId: 'batch-partial',
+      _desktopBatchIndex: 0,
+      _desktopBatchSize: 2,
+    })
+    await writeFile(rolloutPath, `${first}\n{"timestamp"`, 'utf8')
+    await appendDesktopRolloutItems(rolloutPath, items, {
+      batchId: 'batch-partial',
+    })
+    const parsed = await parseDesktopRolloutSnapshot(rolloutPath, 'session-1')
+    expect(parsed.view.messages.map(message => message.text)).toEqual([
+      'first',
+      'second',
+    ])
   })
-  expect((files.get('session.jsonl') ?? '').match(/"content":"new"/g)).toHaveLength(1)
+})
+
+test('independent schedulers and an external append do not overwrite each other', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.rollout.jsonl')
+    const first = createRolloutWriteScheduler()
+    const second = createRolloutWriteScheduler()
+    first.append(rolloutPath, [eventItem('message', { role: 'user', content: 'first' })])
+    second.append(rolloutPath, [eventItem('message', { role: 'assistant', content: 'second' })])
+    const external = JSON.stringify({
+      timestamp: new Date().toISOString(),
+      ...eventItem('message', { role: 'system', content: 'external' }),
+    })
+    await Promise.all([
+      first.flush(),
+      second.flush(),
+      appendFile(rolloutPath, `\n${external}\n`, 'utf8'),
+    ])
+    const parsed = await parseDesktopRolloutSnapshot(rolloutPath, 'session-1')
+    expect(new Set(parsed.view.messages.map(message => message.text))).toEqual(
+      new Set(['first', 'second', 'external']),
+    )
+  })
 })
 
 test('rollout persist policy rejects transient and internal prompt messages', () => {
@@ -253,11 +292,10 @@ function eventItem(eventType: string, payload: Record<string, unknown>) {
   } satisfies DesktopRolloutItem
 }
 
-function memoryAtomicOperations(
+function memoryAppendOperations(
   files: Map<string, string>,
   overrides: {
-    writeFile?(path: string, content: string): void
-    rename?(from: string, to: string): void
+    appendFile?(path: string, content: string): void
   } = {},
 ) {
   return {
@@ -266,19 +304,9 @@ function memoryAtomicOperations(
       if (!files.has(path)) throw Object.assign(new Error('missing'), { code: 'ENOENT' })
       return files.get(path)!
     },
-    writeFile: async (path: string, content: string) => {
-      if (overrides.writeFile) overrides.writeFile(path, content)
-      else files.set(path, content)
-    },
-    rename: async (from: string, to: string) => {
-      if (overrides.rename) overrides.rename(from, to)
-      else {
-        files.set(to, files.get(from) ?? '')
-        files.delete(from)
-      }
-    },
-    unlink: async (path: string) => {
-      files.delete(path)
+    appendFile: async (path: string, content: string) => {
+      if (overrides.appendFile) overrides.appendFile(path, content)
+      else files.set(path, `${files.get(path) ?? ''}${content}`)
     },
   }
 }
@@ -396,7 +424,7 @@ for (const code of ['ENOSPC', 'EACCES', 'ENOTDIR', 'EIO']) {
     failing = false
     await scheduler.flush()
 
-    expect(writes).toEqual([[first, second]])
+    expect(writes).toEqual([[first], [second]])
     expect(statuses.at(-1)).toBe('saved')
   })
 }
@@ -430,5 +458,5 @@ test('rollout write scheduler retries a retained batch once without duplicating 
   ])
   await scheduler.flush()
 
-  expect(writes).toEqual([['one', 'two', 'three']])
+  expect(writes).toEqual([['one'], ['two'], ['three']])
 })

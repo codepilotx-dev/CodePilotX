@@ -4,21 +4,20 @@ import {
   createDesktopShutdownController,
 } from './desktopShutdown.js'
 
-test('shutdown is a singleton and always disposes and quits after flush failures', async () => {
+test('shutdown rejects without disposing or quitting and can retry after flush recovery', async () => {
   const calls: string[] = []
+  let failing = true
   const logError = mock((_step: string, _error: unknown) => {})
   const shutdown = createDesktopShutdown({
     flushRollout: async () => {
       calls.push('rollout')
-      throw new Error('rollout failed')
+      if (failing) throw new Error('rollout failed')
     },
     flushSessionStore: async () => {
       calls.push('session-store')
-      throw new Error('session store failed')
     },
     disposeSessions: async () => {
       calls.push('dispose')
-      throw new Error('dispose failed')
     },
     quit: () => calls.push('quit'),
     logError,
@@ -27,10 +26,36 @@ test('shutdown is a singleton and always disposes and quits after flush failures
   const first = shutdown()
   const second = shutdown()
   expect(second).toBe(first)
-  await expect(first).resolves.toBeUndefined()
+  await expect(first).rejects.toThrow('rollout failed')
 
-  expect(calls).toEqual(['rollout', 'session-store', 'dispose', 'quit'])
-  expect(logError).toHaveBeenCalledTimes(3)
+  expect(calls).toEqual(['rollout'])
+  expect(logError).toHaveBeenCalledTimes(1)
+
+  failing = false
+  await shutdown()
+  expect(calls).toEqual(['rollout', 'rollout', 'session-store', 'dispose', 'quit'])
+})
+
+test('before-quit controller resets its failed promise so persistence can retry', async () => {
+  let failing = true
+  const quit = mock(() => {})
+  const controller = createDesktopShutdownController({
+    flushRollout: async () => {
+      if (failing) throw new Error('disk full')
+    },
+    flushSessionStore: async () => {},
+    disposeSessions: async () => {},
+    quit,
+    logError: () => {},
+  })
+  controller.handleBeforeQuit({ preventDefault() {} })
+  await expect(controller.shutdownPromise).rejects.toThrow('disk full')
+  expect(quit).not.toHaveBeenCalled()
+
+  failing = false
+  controller.handleBeforeQuit({ preventDefault() {} })
+  await controller.shutdownPromise
+  expect(quit).toHaveBeenCalledTimes(1)
 })
 
 test('before-quit remains prevented until internal shutdown finally marks complete', async () => {

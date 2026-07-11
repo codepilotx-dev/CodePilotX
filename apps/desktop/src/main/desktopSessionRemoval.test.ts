@@ -36,6 +36,9 @@ describe('desktop session removal', () => {
       sessionId: 'pending-1',
       appServerThreadId: null,
       appServerThreadPending: true,
+      flushPersistence: async () => {
+        calls.push('flush')
+      },
       deleteThread: async () => {
         calls.push('delete-thread')
       },
@@ -49,6 +52,7 @@ describe('desktop session removal', () => {
     })
 
     expect(calls).toEqual([
+      'flush',
       'remove-index',
       'remove-local-state',
       'dispose-runtime',
@@ -63,6 +67,9 @@ describe('desktop session removal', () => {
         sessionId: 'thread-1',
         appServerThreadId: 'thread-1',
         appServerThreadPending: false,
+        flushPersistence: async () => {
+          calls.push('flush')
+        },
         deleteThread: async () => {
           calls.push('delete-thread')
         },
@@ -77,7 +84,33 @@ describe('desktop session removal', () => {
       }),
     ).rejects.toThrow('SQLite is locked')
 
-    expect(calls).toEqual(['delete-thread', 'remove-index'])
+    expect(calls).toEqual(['flush', 'delete-thread', 'remove-index'])
+  })
+
+  test('persistence failure keeps server, index, runtime and local state intact', async () => {
+    const calls: string[] = []
+    await expect(
+      disposeDesktopSession({
+        sessionId: 'thread-unsaved',
+        appServerThreadId: 'thread-unsaved',
+        appServerThreadPending: false,
+        flushPersistence: async () => {
+          calls.push('flush')
+          throw new Error('ENOSPC')
+        },
+        deleteThread: async () => {
+          calls.push('delete-thread')
+        },
+        removeIndex: async () => {
+          calls.push('remove-index')
+        },
+        removeLocalState: () => calls.push('remove-local-state'),
+        disposeRuntime: async () => {
+          calls.push('dispose-runtime')
+        },
+      }),
+    ).rejects.toThrow('ENOSPC')
+    expect(calls).toEqual(['flush'])
   })
 
   test('reports the third index-removal failure after the configured retry schedule', async () => {

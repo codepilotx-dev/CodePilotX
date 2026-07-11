@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, open, readFile, rename, unlink } from 'node:fs/promises'
-import { basename, dirname, join } from 'node:path'
+import { mkdir, open, readFile } from 'node:fs/promises'
+import { dirname } from 'node:path'
 import type {
   DesktopAgentEvent,
   DesktopPermissionRequest,
@@ -76,12 +76,10 @@ export type RolloutWriteScheduler = {
   flush(): Promise<void>
 }
 
-type RolloutAtomicWriteOperations = {
+type RolloutAppendOperations = {
   mkdir(path: string, options: { recursive: true }): Promise<unknown>
   readFile(path: string, encoding: 'utf8'): Promise<string>
-  writeFile(path: string, content: string, encoding: 'utf8'): Promise<unknown>
-  rename(from: string, to: string): Promise<unknown>
-  unlink(path: string): Promise<unknown>
+  appendFile(path: string, content: string, encoding: 'utf8'): Promise<unknown>
 }
 
 export type DesktopPersistenceStatus = 'saved' | 'unsaved'
@@ -96,7 +94,10 @@ export function createRolloutWriteScheduler(options?: {
   sleep?: (delayMs: number) => Promise<void>
   writeItems?: typeof appendDesktopRolloutItems
 }): RolloutWriteScheduler {
-  const queues = new Map<string, DesktopRolloutItem[]>()
+  const queues = new Map<
+    string,
+    Array<{ id: string; items: DesktopRolloutItem[] }>
+  >()
   const inFlight = new Map<string, Promise<void>>()
   const failures = new Map<string, unknown>()
   const retryDelaysMs = options?.retryDelaysMs ?? [50, 150]
@@ -114,12 +115,13 @@ export function createRolloutWriteScheduler(options?: {
         return
       }
 
-      const batch = [...queue]
+      const batch = queue[0]!
       let failure: unknown
+      let failed = true
       for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
         try {
-          await writeItems(rolloutPath, batch)
-          failure = undefined
+          await writeItems(rolloutPath, batch.items, { batchId: batch.id })
+          failed = false
           break
         } catch (error) {
           failure = error
@@ -129,14 +131,14 @@ export function createRolloutWriteScheduler(options?: {
         }
       }
 
-      if (failure !== undefined) {
+      if (failed) {
         failures.set(rolloutPath, failure)
         options?.onError?.(failure, rolloutPath)
         options?.onStatusChange?.('unsaved', rolloutPath)
         return
       }
 
-      queue.splice(0, batch.length)
+      queue.shift()
       recovered = recovered || failures.delete(rolloutPath)
     }
   }
@@ -160,7 +162,7 @@ export function createRolloutWriteScheduler(options?: {
         existing = []
         queues.set(rolloutPath, existing)
       }
-      existing.push(...items)
+      existing.push({ id: randomUUID(), items: [...items] })
 
       if (!inFlight.has(rolloutPath)) {
         void startDrain(rolloutPath)
@@ -169,13 +171,12 @@ export function createRolloutWriteScheduler(options?: {
 
     async flush() {
       if (inFlight.size === 0) {
-        for (const [rolloutPath, items] of queues) {
-          if (items.length > 0) startDrain(rolloutPath)
+        for (const [rolloutPath, batches] of queues) {
+          if (batches.length > 0) startDrain(rolloutPath)
         }
       }
       await Promise.all([...inFlight.values()])
-      const failure = failures.values().next().value
-      if (failure !== undefined) throw failure
+      if (failures.size > 0) throw failures.values().next().value
     },
   }
 }
@@ -185,8 +186,8 @@ export async function appendDesktopRolloutItems(
   items: DesktopRolloutItem[],
   options: {
     includeInternal?: boolean
-    operations?: RolloutAtomicWriteOperations
-    nonce?: string
+    operations?: RolloutAppendOperations
+    batchId?: string
   } = {},
 ): Promise<void> {
   const lines = items
@@ -201,9 +202,7 @@ export async function appendDesktopRolloutItems(
   const operations = options.operations ?? {
     mkdir,
     readFile,
-    writeFile: writeFileDurably,
-    rename,
-    unlink,
+    appendFile: appendFileDurably,
   }
   await operations.mkdir(dirname(rolloutPath), { recursive: true })
   let existing = ''
@@ -212,29 +211,46 @@ export async function appendDesktopRolloutItems(
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
   }
-  const tempPath = join(
-    dirname(rolloutPath),
-    `.${basename(rolloutPath)}.${options.nonce ?? randomUUID()}.tmp`,
-  )
-  try {
-    await operations.writeFile(
-      tempPath,
-      `${existing}${lines.join('\n')}\n`,
-      'utf8',
-    )
-    await operations.rename(tempPath, rolloutPath)
-  } catch (error) {
-    await operations.unlink(tempPath).catch(() => {})
-    throw error
+  const batchId = options.batchId ?? randomUUID()
+  const persistedIndices = new Set<number>()
+  for (const line of existing.split(/\r?\n/)) {
+    try {
+      const parsed = JSON.parse(line) as Record<string, unknown>
+      if (parsed._desktopBatchId !== batchId) continue
+      if (typeof parsed._desktopBatchIndex === 'number') {
+        persistedIndices.add(parsed._desktopBatchIndex)
+      }
+    } catch {
+      // Blank, legacy and partially-written lines do not complete this batch.
+    }
   }
+  const missing = lines.flatMap((line, index) =>
+    persistedIndices.has(index)
+      ? []
+      : [
+          JSON.stringify({
+            ...JSON.parse(line),
+            _desktopBatchId: batchId,
+            _desktopBatchIndex: index,
+            _desktopBatchSize: lines.length,
+          }),
+        ],
+  )
+  if (missing.length === 0) return
+  const separator = existing.length > 0 && !existing.endsWith('\n') ? '\n' : ''
+  await operations.appendFile(
+    rolloutPath,
+    `${separator}${missing.join('\n')}\n`,
+    'utf8',
+  )
 }
 
-async function writeFileDurably(
+async function appendFileDurably(
   path: string,
   content: string,
   _encoding: 'utf8',
 ): Promise<void> {
-  const file = await open(path, 'w')
+  const file = await open(path, 'a')
   try {
     await file.writeFile(content, 'utf8')
     await file.sync()
