@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import type {
   DesktopComposerAttachment,
   DesktopContextUsage,
+  DesktopFollowUpBehavior,
   DesktopModelMetadata,
   DesktopPermissionMode,
   DesktopQueuedFollowUp,
@@ -90,7 +91,11 @@ type Props = {
   submitToSession: (
     targetSessionId: string,
     value: DesktopUserMessageInput,
+    options?: {
+      followUpOverride?: DesktopFollowUpBehavior
+    },
   ) => Promise<void>
+  followUpBehavior?: DesktopFollowUpBehavior
   queuedFollowUps?: DesktopQueuedFollowUp[]
   onFollowUpEdit?: (followUpId: string) => void
   onFollowUpRemove?: (followUpId: string) => void
@@ -150,6 +155,7 @@ export function DesktopComposer({
   onThinkingChange,
   createSessionForWorkspace,
   submitToSession,
+  followUpBehavior = "steer",
   queuedFollowUps,
   onFollowUpEdit,
   onFollowUpRemove,
@@ -240,7 +246,7 @@ export function DesktopComposer({
     }
   }, [input, workspace?.path])
 
-	  function handleSubmit(): void {
+	  function handleSubmit(override?: DesktopFollowUpBehavior): void {
 	    void (async () => {
 	      if (!modelConfigured) return
 
@@ -296,12 +302,14 @@ export function DesktopComposer({
 	          : await createSessionForWorkspace(null, sessionName)
         if (!nextSessionId) return
         navigate(sessionPath(nextSessionId))
-        await submitToSession(nextSessionId, messageInput)
+        const overrideOpts = override ? { followUpOverride: override } : undefined
+        await submitToSession(nextSessionId, messageInput, overrideOpts)
         return
       }
       if (routedSessionId) {
         onAttachmentsChange([])
-        await submitToSession(routedSessionId, messageInput)
+        const overrideOpts = override ? { followUpOverride: override } : undefined
+        await submitToSession(routedSessionId, messageInput, overrideOpts)
       }
     })()
   }
@@ -405,6 +413,7 @@ export function DesktopComposer({
       onPlanModeChange={onPlanModeChange}
       onLocalRouterModeChange={onLocalRouterModeChange}
       onSubmit={handleSubmit}
+      followUpBehavior={followUpBehavior}
       onThinkingChange={onThinkingChange}
       onSkillSelect={handleSkillSelect}
       onSkillDeselect={handleSkillDeselect}
