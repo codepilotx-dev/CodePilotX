@@ -8,6 +8,8 @@
 - `bcce651ef feat(desktop)：封闭流式终态并保持线性更新`
 - `9948aa399 feat(desktop)：加固会话持久化锁与崩溃恢复`
 - `838ca4587 feat(desktop)：收敛流式缓冲与终态保护`
+- `e1bef6cb5 feat(desktop)：强化持久化锁所有权与恢复证据`
+- `7e9bc8bcf feat(desktop)：清理流式终态并隔离会话代际`
 
 ## Persistence RED / GREEN
 
@@ -141,3 +143,39 @@ again passed 200 tests / 501 assertions. Desktop typecheck, CSS ownership and
 `git diff --check` exited zero. A separate unscoped `bun test` auto-discovery
 probe exceeded the 124-second command limit without reporting an assertion
 failure; it is not used as the repository's configured test gate.
+
+## Third-review ownership and terminal hardening
+
+- Lock publication now starts in a unique claim directory. Its strict
+  `owner.json` contains a random token, PID, and heartbeat; both owner data and
+  the parent directory are synced before/after atomic publication. The active
+  owner refreshes heartbeat and directory mtime until release.
+- Reclaim requires both a stale heartbeat and an explicitly dead PID. It moves
+  the fixed lock to a unique claim path and revalidates token, heartbeat, and
+  PID before deletion. Release uses the same unique-rename/token-revalidation
+  pattern, so an old owner cannot remove a replacement owner's lock.
+- Journal records are strict, path-bound `prepared | committed` receipts with
+  non-empty batch/token, safe byte offsets, canonical base64 payload, exact
+  length, and SHA-256. Writes use temp-file sync, atomic rename, and parent
+  directory sync. Rollout append/truncate sync the data file; directory entry
+  changes are synced where Node supports it. Windows directory-sync capability
+  errors are explicitly allowlisted rather than treated as proof of support.
+- Recovery truncates only a tail proven to be a strict prefix of the journal's
+  exact payload. An exact full prefix is committed while later bytes are
+  preserved. Invalid journals, shorter files, and unrelated/mixed tails fail
+  closed with journal and rollout evidence unchanged. A committed receipt is
+  retained until the next different batch, preventing duplicate retry if lock
+  release fails after data commit.
+- Renderer `done` and `error` remove all assistant/reasoning transient events,
+  streaming messages, and chunk arrays. Active stream IDs are closed for the
+  terminal generation; late deltas are ignored. The first subsequent running
+  generation clears the bounded ID set. Delete/recreate reload starts from an
+  empty generation.
+
+Third-review RED was reproduced as 16 passing / 2 failing rollout tests: the
+old ownerless mtime reclaim and incomplete journal fixture were rejected by the
+new fail-closed rules. GREEN rollout coverage reached 24 tests and the lock
+race suite was repeated five times without failure. Seven integrated Task 4B
+suites passed 152 tests / 448 assertions. Post-commit root `bun run test` passed
+200 tests / 501 assertions; desktop typecheck, CSS ownership, and
+`git diff --check` all exited zero.
