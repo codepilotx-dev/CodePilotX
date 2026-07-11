@@ -148,6 +148,7 @@ export function GeneralSettings({
     rustSearchAndDiffKernels,
     enableParetoCodeRouter,
     enableFusionRouter,
+    followUpBehavior,
   } = draft.values;
 
   const [openTargets, setOpenTargets] =
@@ -157,7 +158,6 @@ export function GeneralSettings({
   const [language, setLanguage] = useState('zh-CN');
   const [longPromptShortcut, setLongPromptShortcut] = useState(false);
   const [speed, setSpeed] = useState('standard');
-  const [followUp, setFollowUp] = useState<'queue' | 'steer'>('steer');
   const [suggestPrompts, setSuggestPrompts] = useState(true);
   const [popupShortcut] = useState<string | null>(null);
   const [popupNoProjectChat, setPopupNoProjectChat] = useState(false);
@@ -436,9 +436,12 @@ export function GeneralSettings({
             }
             control={
               <SegmentedControl
-                value={followUp}
+                value={followUpBehavior}
                 options={FOLLOW_UP_OPTIONS}
-                onChange={setFollowUp}
+                onChange={value => {
+                  draft.setValue('followUpBehavior', value)
+                  draft.autoSave()
+                }}
               />
             }
           />
