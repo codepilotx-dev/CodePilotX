@@ -2053,7 +2053,7 @@ mod tests {
         let root = tempfile::tempdir().expect("clone root");
         let unicode_root = root.path().join("克隆路径-ß");
         fs::create_dir(&unicode_root).expect("unicode root");
-        let target = unicode_root.join("仓库");
+        let target = unicode_root.join("repo");
         let request = validate_github_clone_request(
             "https://github.com/owner/repo.git",
             &target,
