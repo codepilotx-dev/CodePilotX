@@ -163,7 +163,7 @@ async fn review_op_emits_lifecycle_and_review_output() {
                         if text.contains("full review output from reviewer model") {
                             saw_header = true;
                         }
-                        if text.contains("- Prefer Stylize helpers ?/tmp/file.rs:10-20") {
+                        if text.contains("- Prefer Stylize helpers — /tmp/file.rs:10-20") {
                             saw_finding_line = true;
                         }
                     }
@@ -563,9 +563,13 @@ async fn review_input_isolated_from_parent_history() {
             .await
             .unwrap();
     }
-    let codex =
-        resume_conversation_for_server(&server, codepilotx_home.clone(), session_file.clone(), |_| {})
-            .await;
+    let codex = resume_conversation_for_server(
+        &server,
+        codepilotx_home.clone(),
+        session_file.clone(),
+        |_| {},
+    )
+    .await;
 
     // Submit review request; it must start fresh (no parent history in `input`).
     let review_prompt = "Please review only this".to_string();

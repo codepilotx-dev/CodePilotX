@@ -27,7 +27,8 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 async fn thread_delete_deletes_spawned_descendants() -> Result<()> {
     let codepilotx_home = TempDir::new()?;
 
-    let parent_id = create_delete_test_rollout(codepilotx_home.path(), /*minute*/ 0, "parent")?;
+    let parent_id =
+        create_delete_test_rollout(codepilotx_home.path(), /*minute*/ 0, "parent")?;
     let child_id = create_delete_test_rollout(codepilotx_home.path(), /*minute*/ 1, "child")?;
     let grandchild_id =
         create_delete_test_rollout(codepilotx_home.path(), /*minute*/ 2, "grandchild")?;

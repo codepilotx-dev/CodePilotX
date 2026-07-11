@@ -32,7 +32,9 @@ impl ExecServerRuntimePaths {
     ) -> std::io::Result<Self> {
         Ok(Self {
             codepilotx_self_exe: absolute_path(codepilotx_self_exe)?,
-            codepilotx_linux_sandbox_exe: codepilotx_linux_sandbox_exe.map(absolute_path).transpose()?,
+            codepilotx_linux_sandbox_exe: codepilotx_linux_sandbox_exe
+                .map(absolute_path)
+                .transpose()?,
         })
     }
 }

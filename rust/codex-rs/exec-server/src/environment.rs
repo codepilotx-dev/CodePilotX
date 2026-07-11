@@ -35,7 +35,8 @@ pub const codepilotx_EXEC_SERVER_NOISE_REGISTRY_URL_ENV_VAR: &str =
     "codepilotx_EXEC_SERVER_NOISE_REGISTRY_URL";
 pub const codepilotx_EXEC_SERVER_NOISE_ENVIRONMENT_ID_ENV_VAR: &str =
     "codepilotx_EXEC_SERVER_NOISE_ENVIRONMENT_ID";
-pub const codepilotx_EXEC_SERVER_NOISE_AUTH_TOKEN_ENV_VAR: &str = "codepilotx_EXEC_SERVER_NOISE_AUTH_TOKEN";
+pub const codepilotx_EXEC_SERVER_NOISE_AUTH_TOKEN_ENV_VAR: &str =
+    "codepilotx_EXEC_SERVER_NOISE_AUTH_TOKEN";
 pub const codepilotx_EXEC_SERVER_NOISE_CHATGPT_ACCOUNT_ID_ENV_VAR: &str =
     "codepilotx_EXEC_SERVER_NOISE_CHATGPT_ACCOUNT_ID";
 
@@ -377,20 +378,23 @@ fn noise_environment_config_from_values(
     auth_token: Option<String>,
     chatgpt_account_id: Option<String>,
 ) -> Result<Option<NoiseRendezvousEnvironmentConfig>, ExecServerError> {
-    let (registry_url, environment_id, auth_token) =
-        match (registry_url, environment_id, auth_token) {
-            (None, None, None) => return Ok(None),
-            (Some(registry_url), Some(environment_id), Some(auth_token)) => {
-                (registry_url, environment_id, auth_token)
-            }
-            _ => {
-                return Err(ExecServerError::EnvironmentRegistryConfig(format!(
-                    "Noise environment requires {codepilotx_EXEC_SERVER_NOISE_REGISTRY_URL_ENV_VAR}, \
+    let (registry_url, environment_id, auth_token) = match (
+        registry_url,
+        environment_id,
+        auth_token,
+    ) {
+        (None, None, None) => return Ok(None),
+        (Some(registry_url), Some(environment_id), Some(auth_token)) => {
+            (registry_url, environment_id, auth_token)
+        }
+        _ => {
+            return Err(ExecServerError::EnvironmentRegistryConfig(format!(
+                "Noise environment requires {codepilotx_EXEC_SERVER_NOISE_REGISTRY_URL_ENV_VAR}, \
 {codepilotx_EXEC_SERVER_NOISE_ENVIRONMENT_ID_ENV_VAR}, and \
 {codepilotx_EXEC_SERVER_NOISE_AUTH_TOKEN_ENV_VAR}"
-                )));
-            }
-        };
+            )));
+        }
+    };
 
     let config = NoiseRendezvousEnvironmentConfig::new(
         registry_url,

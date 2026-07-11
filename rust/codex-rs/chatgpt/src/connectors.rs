@@ -28,9 +28,10 @@ async fn apps_enabled(config: &Config) -> bool {
     let auth_manager =
         AuthManager::shared_from_config(config, /*enable_codepilotx_api_key_env*/ false).await;
     let auth = auth_manager.auth().await;
-    config
-        .features
-        .apps_enabled_for_auth(auth.as_ref().is_some_and(CodexAuth::uses_codepilotx_backend))
+    config.features.apps_enabled_for_auth(
+        auth.as_ref()
+            .is_some_and(CodexAuth::uses_codepilotx_backend),
+    )
 }
 
 async fn connector_auth(config: &Config) -> anyhow::Result<CodexAuth> {

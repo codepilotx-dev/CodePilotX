@@ -46,8 +46,8 @@ fn remove_marketplace_sync(
         .map_err(MarketplaceRemoveError::InvalidRequest)?;
 
     let destination = marketplace_install_root(codepilotx_home).join(&marketplace_name);
-    let config_outcome =
-        remove_user_marketplace_config(codepilotx_home, &marketplace_name).map_err(|err| {
+    let config_outcome = remove_user_marketplace_config(codepilotx_home, &marketplace_name)
+        .map_err(|err| {
             MarketplaceRemoveError::Internal(format!(
                 "failed to remove marketplace '{marketplace_name}' from user config.toml: {err}"
             ))
@@ -149,8 +149,12 @@ mod tests {
             outcome.removed_installed_root,
             Some(AbsolutePathBuf::try_from(installed_root.clone()).unwrap())
         );
-        let config =
-            fs::read_to_string(codepilotx_home.path().join(codepilotx_config::CONFIG_TOML_FILE)).unwrap();
+        let config = fs::read_to_string(
+            codepilotx_home
+                .path()
+                .join(codepilotx_config::CONFIG_TOML_FILE),
+        )
+        .unwrap();
         assert!(!config.contains("[marketplaces.debug]"));
         assert!(!installed_root.exists());
     }
@@ -205,8 +209,12 @@ mod tests {
             "marketplace `Debug` does not match configured marketplace `debug` exactly"
         );
         assert!(installed_root.exists());
-        let config =
-            fs::read_to_string(codepilotx_home.path().join(codepilotx_config::CONFIG_TOML_FILE)).unwrap();
+        let config = fs::read_to_string(
+            codepilotx_home
+                .path()
+                .join(codepilotx_config::CONFIG_TOML_FILE),
+        )
+        .unwrap();
         assert!(config.contains("[marketplaces.debug]"));
     }
 
@@ -214,7 +222,9 @@ mod tests {
     fn remove_marketplace_sync_keeps_installed_root_when_config_removal_fails() {
         let codepilotx_home = TempDir::new().unwrap();
         fs::write(
-            codepilotx_home.path().join(codepilotx_config::CONFIG_TOML_FILE),
+            codepilotx_home
+                .path()
+                .join(codepilotx_config::CONFIG_TOML_FILE),
             "[marketplaces.debug\n",
         )
         .unwrap();
@@ -274,8 +284,12 @@ mod tests {
             }
         );
         assert!(!installed_root.exists());
-        let config =
-            fs::read_to_string(codepilotx_home.path().join(codepilotx_config::CONFIG_TOML_FILE)).unwrap();
+        let config = fs::read_to_string(
+            codepilotx_home
+                .path()
+                .join(codepilotx_config::CONFIG_TOML_FILE),
+        )
+        .unwrap();
         assert!(!config.contains("[marketplaces.debug]"));
     }
 
@@ -283,7 +297,9 @@ mod tests {
     fn remove_marketplace_sync_removes_inline_config_entry() {
         let codepilotx_home = TempDir::new().unwrap();
         fs::write(
-            codepilotx_home.path().join(codepilotx_config::CONFIG_TOML_FILE),
+            codepilotx_home
+                .path()
+                .join(codepilotx_config::CONFIG_TOML_FILE),
             r#"
 marketplaces = { debug = { source_type = "git", source = "https://github.com/owner/repo.git" } }
 "#,
@@ -306,8 +322,12 @@ marketplaces = { debug = { source_type = "git", source = "https://github.com/own
             Some(AbsolutePathBuf::try_from(installed_root.clone()).unwrap())
         );
         assert!(!installed_root.exists());
-        let config =
-            fs::read_to_string(codepilotx_home.path().join(codepilotx_config::CONFIG_TOML_FILE)).unwrap();
+        let config = fs::read_to_string(
+            codepilotx_home
+                .path()
+                .join(codepilotx_config::CONFIG_TOML_FILE),
+        )
+        .unwrap();
         assert!(!config.contains("debug"));
     }
 }

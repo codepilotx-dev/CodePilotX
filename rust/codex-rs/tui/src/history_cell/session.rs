@@ -48,7 +48,7 @@ fn with_border_internal(
 
     let mut out = Vec::with_capacity(lines.len() + 2);
     let border_inner_width = content_width + 2;
-    out.push(vec![format!("{}?, "".repeat(border_inner_width)).dim()].into());
+    out.push(vec![format!("╭{}╮", "─".repeat(border_inner_width)).dim()].into());
 
     for line in lines.into_iter() {
         let used_width: usize = line
@@ -57,16 +57,16 @@ fn with_border_internal(
             .sum();
         let span_count = line.spans.len();
         let mut spans: Vec<Span<'static>> = Vec::with_capacity(span_count + 4);
-        spans.push(Span::from("?").dim());
+        spans.push(Span::from("│ ").dim());
         spans.extend(line);
         if used_width < content_width {
             spans.push(Span::from(" ".repeat(content_width - used_width)).dim());
         }
-        spans.push(Span::from(" ?).dim());
+        spans.push(Span::from(" │").dim());
         out.push(Line::from(spans));
     }
 
-    out.push(vec![format!("{}?, "".repeat(border_inner_width)).dim()].into());
+    out.push(vec![format!("╰{}╯", "─".repeat(border_inner_width)).dim()].into());
 
     out
 }

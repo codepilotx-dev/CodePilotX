@@ -317,7 +317,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert!(
-            !rendered_rows.iter().any(|row| row.contains('')),
+            !rendered_rows.iter().any(|row| row.contains('…')),
             "expected no wrapped-ellipsis row for URL-like token, got rows: {rendered_rows:?}"
         );
     }

@@ -17,6 +17,7 @@ import {
   summarizeToolInput,
 } from './agentRuntimeSupport.js'
 import { RustSidecarDesktopAgentRuntime } from './rustSidecarRuntime.js'
+import { SidecarDesktopAgentRuntime } from './sidecarAgentRuntime.js'
 
 export type DesktopAgentRuntimePreference =
   | 'auto'
@@ -128,6 +129,7 @@ export type DesktopAgentRuntime = {
    * and the RPC was sent, 'not_loaded' when no sidecar process exists.
    */
   refreshMcpConfig(): Promise<'refreshed' | 'not_loaded'>
+  dispose(): Promise<void>
 }
 
 export function createDesktopAgentRuntime(
@@ -135,19 +137,18 @@ export function createDesktopAgentRuntime(
 ): DesktopAgentRuntime {
   context = normalizeDesktopAgentRuntimeContext(context)
   const preference = context.runtimePreference ?? 'auto'
-  if (preference === 'auto' || preference === 'rust-sidecar') {
+  if (preference === 'rust-sidecar') {
     desktopDebug('runtime_create_rust_sidecar', {
       sessionId: context.sessionId,
       preference,
     })
     return new RustSidecarDesktopAgentRuntime(context)
   }
-  // All preferences now route to the Rust sidecar runtime.
-  desktopDebug('runtime_create_rust_sidecar', {
+  desktopDebug('runtime_create_typescript_sidecar', {
     sessionId: context.sessionId,
     preference,
   })
-  return new RustSidecarDesktopAgentRuntime(context)
+  return new SidecarDesktopAgentRuntime(context)
 }
 
 function normalizeDesktopAgentRuntimeContext(

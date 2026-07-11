@@ -271,14 +271,14 @@ async fn unicode_output(login: bool) -> anyhow::Result<()> {
         // correctly.
         "cmd.exe /c echo nave_caf"
     } else {
-        "echo \"nave_caf\""
+        "echo \"naïve_café\""
     };
     mount_shell_responses_with_timeout(&harness, call_id, command, Some(login), MEDIUM_TIMEOUT)
         .await;
     harness.submit("run the command without login").await?;
 
     let output = harness.function_call_stdout(call_id).await;
-    assert_shell_command_output(&output, "nave_caf")?;
+    assert_shell_command_output(&output, "naïve_café")?;
 
     Ok(())
 }
@@ -303,7 +303,7 @@ async fn unicode_output_with_newlines(login: bool) -> anyhow::Result<()> {
     harness.submit("run the command without login").await?;
 
     let output = harness.function_call_stdout(call_id).await;
-    assert_shell_command_output(&output, "line1\\nnave caf\\nline3")?;
+    assert_shell_command_output(&output, "line1\\nnaïve café\\nline3")?;
 
     Ok(())
 }

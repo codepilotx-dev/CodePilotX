@@ -755,7 +755,9 @@ fn profile_has_managed_filesystem_restrictions(permission_profile: &PermissionPr
 }
 
 fn default_policy_path(codepilotx_home: &Path) -> PathBuf {
-    codepilotx_home.join(RULES_DIR_NAME).join(DEFAULT_POLICY_FILE)
+    codepilotx_home
+        .join(RULES_DIR_NAME)
+        .join(DEFAULT_POLICY_FILE)
 }
 
 fn commands_for_exec_policy(command: &[String]) -> ExecPolicyCommands {
@@ -772,7 +774,9 @@ fn commands_for_exec_policy(command: &[String]) -> ExecPolicyCommands {
     #[cfg(windows)]
     {
         if let Some(commands) =
-            codepilotx_shell_command::powershell::parse_powershell_command_into_plain_commands(command)
+            codepilotx_shell_command::powershell::parse_powershell_command_into_plain_commands(
+                command,
+            )
             && !commands.is_empty()
         {
             return ExecPolicyCommands {

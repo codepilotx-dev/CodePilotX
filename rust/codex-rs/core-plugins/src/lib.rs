@@ -30,7 +30,8 @@ pub fn is_openai_curated_marketplace_name(marketplace_name: &str) -> bool {
 }
 
 pub type LoadedPlugin = codepilotx_plugin::LoadedPlugin<codepilotx_config::McpServerConfig>;
-pub type PluginLoadOutcome = codepilotx_plugin::PluginLoadOutcome<codepilotx_config::McpServerConfig>;
+pub type PluginLoadOutcome =
+    codepilotx_plugin::PluginLoadOutcome<codepilotx_config::McpServerConfig>;
 
 pub use app_mcp_routing::apps_route_available;
 pub use discoverable::ToolSuggestDiscoverablePlugin;

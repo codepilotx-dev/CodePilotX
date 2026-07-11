@@ -543,7 +543,11 @@ async fn config_read_includes_project_layers_for_cwd() -> Result<()> {
 model_reasoning_effort = "high"
 "#,
     )?;
-    set_project_trust_level(codepilotx_home.path(), workspace.path(), TrustLevel::Trusted)?;
+    set_project_trust_level(
+        codepilotx_home.path(),
+        workspace.path(),
+        TrustLevel::Trusted,
+    )?;
     let project_config = AbsolutePathBuf::try_from(project_config_dir)?;
 
     let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
@@ -744,7 +748,8 @@ model = "gpt-old"
     )
     .await??;
     let write: ConfigWriteResponse = to_response(write_resp)?;
-    let expected_file_path = AbsolutePathBuf::resolve_path_against_base("config.toml", codepilotx_home);
+    let expected_file_path =
+        AbsolutePathBuf::resolve_path_against_base("config.toml", codepilotx_home);
 
     assert_eq!(write.status, WriteStatus::Ok);
     assert_eq!(write.file_path, expected_file_path);
@@ -875,7 +880,13 @@ model = "gpt-old"
 
     let write_id = mcp
         .send_config_value_write_request(ConfigValueWriteParams {
-            file_path: Some(codepilotx_home.path().join("config.toml").display().to_string()),
+            file_path: Some(
+                codepilotx_home
+                    .path()
+                    .join("config.toml")
+                    .display()
+                    .to_string(),
+            ),
             key_path: "model".to_string(),
             value: json!("gpt-new"),
             merge_strategy: MergeStrategy::Replace,
@@ -938,7 +949,8 @@ async fn config_batch_write_applies_multiple_edits() -> Result<()> {
     .await??;
     let batch_write: ConfigWriteResponse = to_response(batch_resp)?;
     assert_eq!(batch_write.status, WriteStatus::Ok);
-    let expected_file_path = AbsolutePathBuf::resolve_path_against_base("config.toml", codepilotx_home);
+    let expected_file_path =
+        AbsolutePathBuf::resolve_path_against_base("config.toml", codepilotx_home);
     assert_eq!(batch_write.file_path, expected_file_path);
 
     let read_id = mcp
@@ -1016,8 +1028,9 @@ model = "gpt-5.3-spark"
         "unexpected error: {err:?}"
     );
 
-    let config: toml::Value =
-        toml::from_str(&std::fs::read_to_string(codepilotx_home.join("config.toml"))?)?;
+    let config: toml::Value = toml::from_str(&std::fs::read_to_string(
+        codepilotx_home.join("config.toml"),
+    )?)?;
     assert_eq!(
         config["profiles"]["team.prod"]["model"].as_str(),
         Some("gpt-5.3-spark")

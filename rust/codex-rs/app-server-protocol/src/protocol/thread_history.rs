@@ -1042,7 +1042,10 @@ impl ThreadHistoryBuilder {
         self.upsert_item_in_current_turn(item);
     }
 
-    fn handle_collab_close_end(&mut self, payload: &codepilotx_protocol::protocol::CollabCloseEndEvent) {
+    fn handle_collab_close_end(
+        &mut self,
+        payload: &codepilotx_protocol::protocol::CollabCloseEndEvent,
+    ) {
         let status = match &payload.status {
             AgentStatus::Errored(_) | AgentStatus::NotFound => CollabAgentToolCallStatus::Failed,
             _ => CollabAgentToolCallStatus::Completed,
@@ -1118,7 +1121,10 @@ impl ThreadHistoryBuilder {
         self.push_item_in_current_turn(ThreadItem::ContextCompaction { id });
     }
 
-    fn handle_entered_review_mode(&mut self, payload: &codepilotx_protocol::protocol::ReviewRequest) {
+    fn handle_entered_review_mode(
+        &mut self,
+        payload: &codepilotx_protocol::protocol::ReviewRequest,
+    ) {
         let review = payload
             .user_facing_hint
             .clone()
@@ -1471,9 +1477,9 @@ fn convert_dynamic_tool_content_items(
         .iter()
         .cloned()
         .map(|item| match item {
-            codepilotx_protocol::dynamic_tools::DynamicToolCallOutputContentItem::InputText { text } => {
-                DynamicToolCallOutputContentItem::InputText { text }
-            }
+            codepilotx_protocol::dynamic_tools::DynamicToolCallOutputContentItem::InputText {
+                text,
+            } => DynamicToolCallOutputContentItem::InputText { text },
             codepilotx_protocol::dynamic_tools::DynamicToolCallOutputContentItem::InputImage {
                 image_url,
             } => DynamicToolCallOutputContentItem::InputImage { image_url },
@@ -2755,7 +2761,9 @@ mod tests {
                 completed_at_ms: Some(1_042),
                 status: GuardianAssessmentStatus::Denied,
                 risk_level: Some(codepilotx_protocol::protocol::GuardianRiskLevel::High),
-                user_authorization: Some(codepilotx_protocol::protocol::GuardianUserAuthorization::Low),
+                user_authorization: Some(
+                    codepilotx_protocol::protocol::GuardianUserAuthorization::Low,
+                ),
                 rationale: Some("Would delete user data.".into()),
                 decision_source: Some(
                     codepilotx_protocol::protocol::GuardianAssessmentDecisionSource::Agent,
@@ -3440,18 +3448,20 @@ mod tests {
                 local_images: Vec::new(),
                 ..Default::default()
             }),
-            EventMsg::CollabAgentSpawnEnd(codepilotx_protocol::protocol::CollabAgentSpawnEndEvent {
-                call_id: "spawn-1".into(),
-                completed_at_ms: 0,
-                sender_thread_id,
-                new_thread_id: Some(spawned_thread_id),
-                new_agent_nickname: Some("Scout".into()),
-                new_agent_role: Some("explorer".into()),
-                prompt: "inspect the repo".into(),
-                model: "gpt-5.4-mini".into(),
-                reasoning_effort: codepilotx_protocol::openai_models::ReasoningEffort::Medium,
-                status: AgentStatus::Running,
-            }),
+            EventMsg::CollabAgentSpawnEnd(
+                codepilotx_protocol::protocol::CollabAgentSpawnEndEvent {
+                    call_id: "spawn-1".into(),
+                    completed_at_ms: 0,
+                    sender_thread_id,
+                    new_thread_id: Some(spawned_thread_id),
+                    new_agent_nickname: Some("Scout".into()),
+                    new_agent_role: Some("explorer".into()),
+                    prompt: "inspect the repo".into(),
+                    model: "gpt-5.4-mini".into(),
+                    reasoning_effort: codepilotx_protocol::openai_models::ReasoningEffort::Medium,
+                    status: AgentStatus::Running,
+                },
+            ),
         ];
 
         let items = events

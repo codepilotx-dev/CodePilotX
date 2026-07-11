@@ -346,7 +346,8 @@ fn websocket_url_supports_auth_token(parsed: &Url) -> bool {
 pub fn resolve_remote_addr(addr: &str) -> color_eyre::Result<RemoteAppServerEndpoint> {
     if let Some(socket_path) = addr.strip_prefix("unix://") {
         let socket_path = if socket_path.is_empty() {
-            let codepilotx_home = find_codepilotx_home().wrap_err("failed to resolve codepilotx_HOME")?;
+            let codepilotx_home =
+                find_codepilotx_home().wrap_err("failed to resolve codepilotx_HOME")?;
             codepilotx_app_server_client::app_server_control_socket_path(&codepilotx_home)
                 .map_err(color_eyre::Report::new)?
         } else {
@@ -410,7 +411,8 @@ async fn connect_remote_app_server(
 
 #[cfg(unix)]
 async fn maybe_probe_default_daemon_socket(codepilotx_home: &Path) -> Option<AbsolutePathBuf> {
-    let socket_path = codepilotx_app_server_client::app_server_control_socket_path(codepilotx_home).ok()?;
+    let socket_path =
+        codepilotx_app_server_client::app_server_control_socket_path(codepilotx_home).ok()?;
     if !socket_path.as_path().try_exists().unwrap_or(false) {
         return None;
     }
@@ -927,7 +929,11 @@ pub async fn run_main(
     )?;
     let environment_manager =
         if should_load_configured_environments(&loader_overrides, &app_server_target) {
-            EnvironmentManager::from_codepilotx_home(codepilotx_home.clone(), Some(local_runtime_paths)).await
+            EnvironmentManager::from_codepilotx_home(
+                codepilotx_home.clone(),
+                Some(local_runtime_paths),
+            )
+            .await
         } else {
             EnvironmentManager::from_env(Some(local_runtime_paths)).await
         }
@@ -1084,10 +1090,15 @@ pub async fn run_main(
             None
         }
     };
-    if let Some(metrics) = otel.as_ref().and_then(codepilotx_otel::OtelProvider::metrics) {
+    if let Some(metrics) = otel
+        .as_ref()
+        .and_then(codepilotx_otel::OtelProvider::metrics)
+    {
         let _ = codepilotx_otel::record_process_start_once(metrics, otel_originator.as_str());
-        let telemetry =
-            codepilotx_rollout::sqlite_telemetry_recorder(metrics.clone(), otel_originator.as_str());
+        let telemetry = codepilotx_rollout::sqlite_telemetry_recorder(
+            metrics.clone(),
+            otel_originator.as_str(),
+        );
         let _ = codepilotx_state::install_process_db_telemetry(telemetry);
     }
     let state_db = init_state_db_for_app_server_target(&config, &app_server_target).await?;
@@ -1666,12 +1677,14 @@ async fn run_ratatui_app(
         _ => config,
     };
 
-    // Configure syntax highlighting theme from the final config ?onboarding
+    // Configure syntax highlighting theme from the final config — onboarding
     // and resume/fork can both reload config with a different tui_theme, so
     // this must happen after the last possible reload.
     if let Some(w) = crate::render::highlight::set_theme_override(
         config.tui_theme.clone(),
-        find_codepilotx_home().ok().map(AbsolutePathBuf::into_path_buf),
+        find_codepilotx_home()
+            .ok()
+            .map(AbsolutePathBuf::into_path_buf),
     ) {
         config.startup_warnings.push(w);
     }
@@ -1792,7 +1805,7 @@ async fn run_ratatui_app(
     terminal_restore_guard.restore_silently();
     // Mark the end of the recorded session.
     session_log::log_session_end();
-    // ignore error when collecting usage ?report underlying error instead
+    // ignore error when collecting usage – report underlying error instead
     app_result
 }
 
@@ -2183,11 +2196,14 @@ mod tests {
 
     #[test]
     fn resolve_remote_addr_accepts_default_socket() -> color_eyre::Result<()> {
-        let codepilotx_home = find_codepilotx_home().wrap_err("failed to resolve codepilotx_HOME")?;
+        let codepilotx_home =
+            find_codepilotx_home().wrap_err("failed to resolve codepilotx_HOME")?;
         assert_eq!(
             resolve_remote_addr("unix://")?,
             RemoteAppServerEndpoint::UnixSocket {
-                socket_path: codepilotx_app_server_client::app_server_control_socket_path(&codepilotx_home)?,
+                socket_path: codepilotx_app_server_client::app_server_control_socket_path(
+                    &codepilotx_home
+                )?,
             }
         );
         Ok(())
@@ -3041,7 +3057,7 @@ trust_level = "untrusted"
     /// `run_ratatui_app` can reload config during onboarding and again
     /// during session resume/fork.  The syntax theme override (stored in
     /// a `OnceLock`) must use the final config's `tui_theme`, not the
-    /// initial one ?otherwise users resuming a thread in a project with
+    /// initial one — otherwise users resuming a thread in a project with
     /// a different theme get the wrong highlighting.
     ///
     /// We verify the invariant indirectly: `validate_theme_name` (the
@@ -3054,7 +3070,7 @@ trust_level = "untrusted"
 
         let temp_dir = TempDir::new()?;
 
-        // initial_config has a valid theme ?no warning.
+        // initial_config has a valid theme — no warning.
         let initial_config = build_config(&temp_dir).await?;
         assert!(initial_config.tui_theme.is_none());
 

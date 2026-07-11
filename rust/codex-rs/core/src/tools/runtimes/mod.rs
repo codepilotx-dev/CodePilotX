@@ -11,13 +11,13 @@ use crate::shell::ShellType;
 use crate::tools::sandboxing::ToolError;
 #[cfg(unix)]
 use codepilotx_install_context::InstallContext;
-#[cfg(target_os = "macos")]
-use codepilotx_network_proxy::codepilotx_PROXY_GIT_SSH_COMMAND_MARKER;
 use codepilotx_network_proxy::CUSTOM_CA_ENV_KEYS;
 use codepilotx_network_proxy::PROXY_ACTIVE_ENV_KEY;
 use codepilotx_network_proxy::PROXY_ENV_KEYS;
 #[cfg(target_os = "macos")]
 use codepilotx_network_proxy::PROXY_GIT_SSH_COMMAND_ENV_KEY;
+#[cfg(target_os = "macos")]
+use codepilotx_network_proxy::codepilotx_PROXY_GIT_SSH_COMMAND_MARKER;
 use codepilotx_network_proxy::is_managed_mitm_ca_trust_bundle_path;
 use codepilotx_protocol::config_types::WindowsSandboxLevel;
 use codepilotx_protocol::models::AdditionalPermissionProfile;

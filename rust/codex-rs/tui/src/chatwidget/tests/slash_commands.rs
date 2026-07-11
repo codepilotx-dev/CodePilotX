@@ -825,7 +825,7 @@ async fn goal_control_slash_command_without_thread_shows_full_usage() {
     assert_eq!(cells.len(), 1, "expected goal usage message");
     insta::assert_snapshot!(
         lines_to_single_string(&cells[0]),
-        @"?Usage: /goal [<objective>|clear|edit|pause|resume] The session must start before you can change a goal."
+        @"• Usage: /goal [<objective>|clear|edit|pause|resume] The session must start before you can change a goal."
     );
 }
 

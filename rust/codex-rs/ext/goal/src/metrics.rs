@@ -65,7 +65,8 @@ impl GoalMetrics {
             codepilotx_state::ThreadGoalStatus::UsageLimited => GOAL_USAGE_LIMITED_METRIC,
             codepilotx_state::ThreadGoalStatus::BudgetLimited => GOAL_BUDGET_LIMITED_METRIC,
             codepilotx_state::ThreadGoalStatus::Complete => GOAL_COMPLETED_METRIC,
-            codepilotx_state::ThreadGoalStatus::Active | codepilotx_state::ThreadGoalStatus::Paused => {
+            codepilotx_state::ThreadGoalStatus::Active
+            | codepilotx_state::ThreadGoalStatus::Paused => {
                 return;
             }
         };

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import { join } from 'node:path'
-import { getRuntimeStatus } from './authRuntimeService.js'
+import { getRuntimeStatus, runtimePreferenceForAuth, setGithubAppTokenStatusReaderForTesting } from './authRuntimeService.js'
 import { withCoreAppRuntime } from '@codepilotx/core/runtime/appRuntime.js'
 import type { AppRuntime } from '@codepilotx/core/runtime/appRuntime.js'
 
@@ -39,6 +39,11 @@ test('runtime status reports explicit rust-sidecar preference', async () => {
   expect(status.runtimePreference).toBe('rust-sidecar')
 })
 
+test('GitHub app auth selects Rust without changing ordinary provider preference', () => {
+  expect(runtimePreferenceForAuth('auto', 'github_exchange')).toBe('rust-sidecar')
+  expect(runtimePreferenceForAuth('auto', 'none')).toBe('auto')
+})
+
 describe('getAuthStatus', () => {
   /**
    * A minimal runtime that satisfies the auth/config/settings shims.
@@ -73,6 +78,7 @@ describe('getAuthStatus', () => {
   })
 
   test('getAuthStatus returns DesktopAuthStatus shape', async () => {
+    setGithubAppTokenStatusReaderForTesting(async () => ({ authenticated: false, expiresAt: null, scopes: [], account: null }))
     const prevToken = process.env.CLAUDE_CODE_OAUTH_TOKEN
     process.env.CLAUDE_CODE_OAUTH_TOKEN = 'test-token-placeholder'
     try {
@@ -107,9 +113,17 @@ describe('getAuthStatus', () => {
   })
 
   test('getAuthStatus returns unauthenticated with no credentials', async () => {
+    setGithubAppTokenStatusReaderForTesting(async () => ({ authenticated: false, expiresAt: null, scopes: [], account: null }))
     const { getAuthStatus } = await import('./authRuntimeService.js')
     const status = await withCoreAppRuntime(testRuntime, () => getAuthStatus())
     expect(status.authenticated).toBe(false)
     expect(status.method).toBe('none')
+  })
+
+  test('GitHub app token takes precedence when Anthropic credentials coexist', async () => {
+    setGithubAppTokenStatusReaderForTesting(async () => ({ authenticated: true, expiresAt: 1, scopes: [], account: { uuid: 'u', emailAddress: 'github@example.com', organizationUuid: null } }))
+    const both: AppRuntime = { ...testRuntime, auth: { ...testRuntime.auth, getAuthTokenSource: () => ({ source: 'api_key', hasToken: true }), hasAnthropicApiKeyAuth: () => true } }
+    const { getAuthStatus } = await import('./authRuntimeService.js')
+    expect(await withCoreAppRuntime(both, () => getAuthStatus())).toMatchObject({ authenticated: true, method: 'github_exchange', email: 'github@example.com' })
   })
 })

@@ -133,7 +133,10 @@ async fn cyber_policy_response_emits_typed_error_without_retry() -> Result<()> {
         panic!("expected error event");
     };
     assert_eq!(error.message, CYBER_POLICY_MESSAGE);
-    assert_eq!(error.codepilotx_error_info, Some(CodexErrorInfo::CyberPolicy));
+    assert_eq!(
+        error.codepilotx_error_info,
+        Some(CodexErrorInfo::CyberPolicy)
+    );
 
     mock.single_request();
 

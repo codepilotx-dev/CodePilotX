@@ -535,8 +535,11 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
     let environment_manager = if run_loader_overrides.ignore_user_config {
         EnvironmentManager::from_env(Some(local_runtime_paths)).await?
     } else {
-        EnvironmentManager::from_codepilotx_home(config.codepilotx_home.clone(), Some(local_runtime_paths))
-            .await?
+        EnvironmentManager::from_codepilotx_home(
+            config.codepilotx_home.clone(),
+            Some(local_runtime_paths),
+        )
+        .await?
     };
     let in_process_start_args = InProcessClientStartArgs {
         arg0_paths,
@@ -1501,9 +1504,12 @@ async fn resolve_resume_thread_id(
         if let Some(thread) = resolved {
             return Ok(Some(thread.id.to_string()));
         }
-        if let Some((_, session_meta)) =
-            find_thread_meta_by_name_str(&config.codepilotx_home, session_id, Some(state_db.as_ref()))
-                .await?
+        if let Some((_, session_meta)) = find_thread_meta_by_name_str(
+            &config.codepilotx_home,
+            session_id,
+            Some(state_db.as_ref()),
+        )
+        .await?
             && (args.all || cwds_match(config.cwd.as_path(), &session_meta.meta.cwd))
         {
             return Ok(Some(session_meta.meta.id.to_string()));

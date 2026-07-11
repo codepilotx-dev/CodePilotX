@@ -31,7 +31,8 @@ async fn initialize_uses_client_info_name_as_originator() -> Result<()> {
     let responses = Vec::new();
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
     let codepilotx_home = TempDir::new()?;
-    let expected_codepilotx_home = AbsolutePathBuf::try_from(codepilotx_home.path().canonicalize()?)?;
+    let expected_codepilotx_home =
+        AbsolutePathBuf::try_from(codepilotx_home.path().canonicalize()?)?;
     create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
     let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
 
@@ -51,7 +52,7 @@ async fn initialize_uses_client_info_name_as_originator() -> Result<()> {
     let InitializeResponse {
         user_agent,
         codepilotx_home: response_codepilotx_home,
-        codepilotx_home: _,
+        codex_home: _,
         platform_family,
         platform_os,
     } = to_response::<InitializeResponse>(response)?;
@@ -122,7 +123,8 @@ async fn initialize_respects_originator_override_env_var() -> Result<()> {
     let responses = Vec::new();
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
     let codepilotx_home = TempDir::new()?;
-    let expected_codepilotx_home = AbsolutePathBuf::try_from(codepilotx_home.path().canonicalize()?)?;
+    let expected_codepilotx_home =
+        AbsolutePathBuf::try_from(codepilotx_home.path().canonicalize()?)?;
     create_config_toml(codepilotx_home.path(), &server.uri(), "never")?;
     let mut mcp = TestAppServer::new_with_env(
         codepilotx_home.path(),
@@ -149,7 +151,7 @@ async fn initialize_respects_originator_override_env_var() -> Result<()> {
     let InitializeResponse {
         user_agent,
         codepilotx_home: response_codepilotx_home,
-        codepilotx_home: _,
+        codex_home: _,
         platform_family,
         platform_os,
     } = to_response::<InitializeResponse>(response)?;

@@ -1007,8 +1007,10 @@ impl ChatWidget {
         let snapshot = self.feedback.snapshot(self.thread_id);
         #[cfg(target_os = "windows")]
         let include_windows_sandbox_log =
-            codepilotx_windows_sandbox::current_log_file_path_for_codepilotx_home(&self.config.codepilotx_home)
-                .is_file();
+            codepilotx_windows_sandbox::current_log_file_path_for_codepilotx_home(
+                &self.config.codepilotx_home,
+            )
+            .is_file();
         #[cfg(not(target_os = "windows"))]
         let include_windows_sandbox_log = false;
         let params = crate::bottom_pane::feedback_upload_consent_params(

@@ -151,7 +151,7 @@ fn is_dangerous_to_call_with_exec(command: &[String]) -> bool {
         // for sudo <cmd> simply do the check for <cmd>
         Some("sudo") => is_dangerous_to_call_with_exec(&command[1..]),
 
-        //  anything else 
+        //  anything else
         _ => false,
     }
 }

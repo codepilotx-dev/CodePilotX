@@ -840,7 +840,10 @@ remote_plugin = true
 #[tokio::test]
 async fn plugin_read_rejects_invalid_remote_plugin_name() -> Result<()> {
     let codepilotx_home = TempDir::new()?;
-    write_remote_plugin_catalog_config(codepilotx_home.path(), "https://example.invalid/backend-api/")?;
+    write_remote_plugin_catalog_config(
+        codepilotx_home.path(),
+        "https://example.invalid/backend-api/",
+    )?;
     let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
@@ -2072,7 +2075,10 @@ async fn list_directory_connectors(
     }
 }
 
-fn write_connectors_config(codepilotx_home: &std::path::Path, base_url: &str) -> std::io::Result<()> {
+fn write_connectors_config(
+    codepilotx_home: &std::path::Path,
+    base_url: &str,
+) -> std::io::Result<()> {
     std::fs::write(
         codepilotx_home.join("config.toml"),
         format!(

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
+import { EventEmitter } from 'node:events'
 import {
   CODEPILOTX_CONFIG_DIR_ENV,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
@@ -17,6 +18,7 @@ import {
   RustSidecarDesktopAgentRuntime,
   buildRustInitializeParams,
   createRustSidecarOptions,
+  isPackagedElectronProcess,
   resolveRustAppServerExecutable,
   resolveRustAppServerExecutableInfo,
 } from './rustSidecarRuntime.js'
@@ -42,6 +44,21 @@ function withEnv(key: string, value: string): Disposable {
 // ── Options / executable resolution tests ───────────────────────────
 
 describe('rust sidecar runtime options', () => {
+  test('detects packaged Electron without relying on NODE_ENV', () => {
+    expect(
+      isPackagedElectronProcess({
+        versions: { electron: '40.0.0' },
+      }),
+    ).toBe(true)
+    expect(
+      isPackagedElectronProcess({
+        versions: { electron: '40.0.0' },
+        defaultApp: true,
+      }),
+    ).toBe(false)
+    expect(isPackagedElectronProcess({ versions: {} })).toBe(false)
+  })
+
   test('declares experimental API capability for dynamic tools', () => {
     expect(buildRustInitializeParams().capabilities).toEqual({
       experimentalApi: true,
@@ -91,6 +108,23 @@ describe('rust sidecar runtime options', () => {
     expect(resolveRustAppServerExecutableInfo({} as NodeJS.ProcessEnv)).toEqual({
       path: resolve(process.cwd(), 'rust', 'codex-rs', 'target', 'debug', binaryName),
       source: 'workspace',
+    })
+  })
+
+  test('packaged resolver only uses the resources sidecar path', () => {
+    const binaryName = process.platform === 'win32'
+      ? 'codepilotx-app-server.exe'
+      : 'codepilotx-app-server'
+    const resourcesPath = resolve('tmp', 'packaged-resources')
+
+    expect(
+      resolveRustAppServerExecutableInfo(
+        { [RUST_APP_SERVER_BINARY_ENV]: resolve('rust', 'codex-rs', 'target', 'debug', binaryName) } as NodeJS.ProcessEnv,
+        { isPackaged: true, resourcesPath },
+      ),
+    ).toEqual({
+      path: resolve(resourcesPath, 'desktop-rust-sidecar', binaryName),
+      source: 'bundled',
     })
   })
 
@@ -211,11 +245,14 @@ describe('rust sidecar runtime options', () => {
       expect(options.args).toContain(
         'model_providers.minimax-cn.base_url="https://api.minimaxi.com/anthropic/v1"',
       )
-      expect(options.args).toContain(
+      expect(options.args).not.toContain(
         'model_providers.minimax-cn.env_key="MINIMAX_API_KEY"',
       )
+      expect(options.args).toContain(
+        'model_providers.minimax-cn.env_key="keyring:minimax-cn"',
+      )
       expect(options.args).not.toContain('sk-minimax-test-key')
-      expect(options.env.MINIMAX_API_KEY).toBe('sk-minimax-test-key')
+      expect(options.env.MINIMAX_API_KEY).toBeUndefined()
     } finally {
       await rm(configDir, { force: true, recursive: true })
     }
@@ -315,9 +352,11 @@ describe('rust sidecar runtime options', () => {
       expect(
         options.args.find(a => a.startsWith('model_providers.openai.base_url')),
       ).toBeUndefined()
-      // API key is in env, not args
+      expect(options.args).toContain(
+        'model_providers.openai.env_key="keyring:openai"',
+      )
       expect(options.args).not.toContain('sk-openai-test')
-      expect(options.env.OPENAI_API_KEY).toBe('sk-openai-test')
+      expect(options.env.OPENAI_API_KEY).toBeUndefined()
     } finally {
       await rm(configDir, { force: true, recursive: true })
     }
@@ -358,11 +397,10 @@ describe('rust sidecar runtime options', () => {
         'model_providers.deepseek.base_url="https://api.deepseek.com"',
       )
       expect(options.args).toContain(
-        'model_providers.deepseek.env_key="DEEPSEEK_API_KEY"',
+        'model_providers.deepseek.env_key="keyring:deepseek"',
       )
-      // API key is in env, not args
       expect(options.args).not.toContain('sk-deepseek-test-key')
-      expect(options.env.DEEPSEEK_API_KEY).toBe('sk-deepseek-test-key')
+      expect(options.env.DEEPSEEK_API_KEY).toBeUndefined()
     } finally {
       await rm(configDir, { force: true, recursive: true })
     }
@@ -1384,5 +1422,148 @@ describe('RustSidecarDesktopAgentRuntime input validation', () => {
         new AbortController().signal,
       ),
     ).rejects.toThrow('not supported')
+  })
+})
+
+describe('RustSidecarDesktopAgentRuntime lifecycle', () => {
+  test('failed turn emits only error and never resolves before rejecting', () => {
+    const events: unknown[] = []
+    let resolveCount = 0
+    let rejected: Error | undefined
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-terminal-error',
+      workspacePath: process.cwd(),
+      emit: event => events.push(event),
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const internals = runtime as unknown as {
+      currentTurnResolve: () => void
+      currentTurnReject: (error: Error) => void
+      handleNotification: (method: string, params: unknown) => void
+    }
+    internals.currentTurnResolve = () => {
+      resolveCount += 1
+    }
+    internals.currentTurnReject = error => {
+      rejected = error
+    }
+
+    internals.handleNotification('error', { error: { message: 'turn failed' } })
+    internals.handleNotification('turn/completed', {
+      turn: { id: 'turn-1', status: 'completed' },
+    })
+
+    expect(events).toEqual([
+      { type: 'error', sessionId: 'test-terminal-error', message: 'turn failed' },
+    ])
+    expect(resolveCount).toBe(0)
+    expect(rejected?.message).toBe('turn failed')
+  })
+
+  test('dispose is idempotent and waits for the child exit', async () => {
+    const child = new EventEmitter() as EventEmitter & {
+      killed: boolean
+      kill: ReturnType<typeof mock>
+    }
+    child.killed = false
+    child.kill = mock(() => {
+      child.killed = true
+      return true
+    })
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-dispose',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    ;(runtime as unknown as { child: typeof child }).child = child
+
+    let settled = false
+    const first = runtime.dispose().then(() => {
+      settled = true
+    })
+    const second = runtime.dispose()
+    await Promise.resolve()
+    expect(settled).toBe(false)
+    expect(child.kill).toHaveBeenCalledTimes(1)
+
+    child.emit('exit', 0, null)
+    await Promise.all([first, second])
+    expect(child.kill).toHaveBeenCalledTimes(1)
+  })
+
+  test('an interrupted old turn cannot complete a newer turn', async () => {
+    const events: unknown[] = []
+    const interruptTurn = mock(async () => ({}))
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-turn-race',
+      workspacePath: process.cwd(),
+      emit: event => events.push(event),
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const internals = runtime as unknown as {
+      appServerClient: { interruptTurn: typeof interruptTurn }
+      workflowState: { threadId: string; activeTurnId: string | null }
+      activeRuntimeTurnId: string | null
+      currentTurnResolve: () => void
+      interruptActiveTurn(): Promise<void>
+      handleNotification(method: string, params: unknown): void
+    }
+    internals.appServerClient = { interruptTurn }
+    internals.workflowState = { threadId: 'thread-1', activeTurnId: 'turn-old' }
+    internals.activeRuntimeTurnId = 'turn-old'
+    internals.currentTurnResolve = () => {}
+
+    await internals.interruptActiveTurn()
+    expect(events).toEqual([{ type: 'done', sessionId: 'test-turn-race' }])
+
+    internals.activeRuntimeTurnId = 'turn-new'
+    internals.handleNotification('turn/completed', {
+      turn: { id: 'turn-old', status: 'completed' },
+    })
+    expect(events).toEqual([{ type: 'done', sessionId: 'test-turn-race' }])
+  })
+
+  test('fatal transport synchronously marks runtime failed and shares cleanup', async () => {
+    const child = new EventEmitter() as EventEmitter & {
+      killed: boolean
+      exitCode: number | null
+      signalCode: NodeJS.Signals | null
+      kill: ReturnType<typeof mock>
+    }
+    child.killed = false
+    child.exitCode = null
+    child.signalCode = null
+    child.kill = mock(() => {
+      child.killed = true
+      return true
+    })
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-fatal-cleanup',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const internals = runtime as unknown as {
+      initialized: boolean
+      threadStarted: boolean
+      child: typeof child | null
+      cleanupPromise: Promise<void> | null
+      handleFatalTransport(error: Error): void
+    }
+    internals.initialized = true
+    internals.threadStarted = true
+    internals.child = child
+
+    internals.handleFatalTransport(new Error('EPIPE'))
+    internals.handleFatalTransport(new Error('EPIPE again'))
+    expect(internals.initialized).toBe(false)
+    expect(internals.threadStarted).toBe(false)
+    expect(child.kill).toHaveBeenCalledTimes(1)
+
+    child.exitCode = 1
+    child.emit('exit', 1, null)
+    await internals.cleanupPromise
+    expect(internals.child).toBeNull()
   })
 })

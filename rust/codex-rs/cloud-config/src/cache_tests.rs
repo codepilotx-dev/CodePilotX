@@ -58,7 +58,10 @@ fn write_cache_file(cache: &CloudConfigBundleCache, cache_file: &CloudConfigBund
 }
 
 fn create_test_cache(codepilotx_home: &Path) -> CloudConfigBundleCache {
-    CloudConfigBundleCache::new(AbsolutePathBuf::resolve_path_against_base(codepilotx_home, "/"))
+    CloudConfigBundleCache::new(AbsolutePathBuf::resolve_path_against_base(
+        codepilotx_home,
+        "/",
+    ))
 }
 
 #[tokio::test]

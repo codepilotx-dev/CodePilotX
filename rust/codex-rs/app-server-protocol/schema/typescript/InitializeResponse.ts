@@ -9,7 +9,8 @@ export type InitializeResponse = { userAgent: string,
  */
 codepilotxHome: AbsolutePathBuf,
 /**
- * Legacy alias for backward compatibility with clients expecting codexHome.
+ * Legacy alias: absolute path to the server's CodePilotX home directory.
+ * Kept for backward compatibility with clients expecting `codexHome`.
  */
 codexHome: AbsolutePathBuf,
 /**

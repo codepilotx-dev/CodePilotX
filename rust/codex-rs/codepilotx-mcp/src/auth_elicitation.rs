@@ -342,6 +342,9 @@ mod tests {
         .expect("auth elicitation plan");
 
         assert_eq!(plan.auth_failure.connector_name, "Google Calendar");
-        assert_eq!(plan.elicitation.elicitation_id, "codepilotx_apps_auth_call_123");
+        assert_eq!(
+            plan.elicitation.elicitation_id,
+            "codepilotx_apps_auth_call_123"
+        );
     }
 }

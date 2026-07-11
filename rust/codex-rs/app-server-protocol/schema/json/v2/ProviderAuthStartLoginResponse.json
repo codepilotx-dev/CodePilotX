@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "device_code": {
+      "type": "string"
+    },
+    "expires_in": {
+      "format": "uint32",
+      "minimum": 0.0,
+      "type": "integer"
+    },
+    "interval": {
+      "format": "uint32",
+      "minimum": 0.0,
+      "type": "integer"
+    },
+    "user_code": {
+      "type": "string"
+    },
+    "verification_uri": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "device_code",
+    "expires_in",
+    "interval",
+    "user_code",
+    "verification_uri"
+  ],
+  "title": "ProviderAuthStartLoginResponse",
+  "type": "object"
+}

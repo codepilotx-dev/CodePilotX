@@ -526,9 +526,13 @@ async fn load_plugins_from_config(
 ) -> PluginLoadOutcome {
     write_file(&codepilotx_home.join(CONFIG_TOML_FILE), config_toml);
     let config = load_config(codepilotx_home, codepilotx_home).await;
-    PluginsManager::new_with_options(codepilotx_home.to_path_buf(), Some(Product::Codex), auth_mode)
-        .plugins_for_config(&config)
-        .await
+    PluginsManager::new_with_options(
+        codepilotx_home.to_path_buf(),
+        Some(Product::Codex),
+        auth_mode,
+    )
+    .plugins_for_config(&config)
+    .await
 }
 
 async fn load_config(codepilotx_home: &Path, cwd: &Path) -> PluginsConfigInput {
@@ -864,7 +868,11 @@ enabled = true
     write_cached_plugin(codepilotx_home.path(), "openai-curated", "linear");
     write_cached_plugin(codepilotx_home.path(), "openai-curated", "calendar");
     write_cached_plugin(codepilotx_home.path(), "openai-curated-remote", "linear");
-    write_cached_plugin(codepilotx_home.path(), "openai-curated-remote", "remote-only");
+    write_cached_plugin(
+        codepilotx_home.path(),
+        "openai-curated-remote",
+        "remote-only",
+    );
 
     let config = load_config(codepilotx_home.path(), codepilotx_home.path()).await;
     let manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
@@ -911,7 +919,11 @@ enabled = true
     write_cached_plugin(codepilotx_home.path(), "openai-api-curated", "linear");
     write_cached_plugin(codepilotx_home.path(), "openai-curated", "calendar");
     write_cached_plugin(codepilotx_home.path(), "openai-curated-remote", "linear");
-    write_cached_plugin(codepilotx_home.path(), "openai-curated-remote", "remote-only");
+    write_cached_plugin(
+        codepilotx_home.path(),
+        "openai-curated-remote",
+        "remote-only",
+    );
 
     let config = load_config(codepilotx_home.path(), codepilotx_home.path()).await;
     let manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
@@ -1774,8 +1786,12 @@ async fn effective_apps_dedupes_connector_ids_across_plugins() {
     let config_toml =
         toml::to_string(&Value::Table(root)).expect("plugin test config should serialize");
 
-    let outcome =
-        load_plugins_from_config(&config_toml, codepilotx_home.path(), Some(AuthMode::Chatgpt)).await;
+    let outcome = load_plugins_from_config(
+        &config_toml,
+        codepilotx_home.path(),
+        Some(AuthMode::Chatgpt),
+    )
+    .await;
 
     assert_eq!(
         outcome.effective_apps(),
@@ -2076,7 +2092,8 @@ async fn skills_service_reuses_skills_parsed_during_plugin_load() {
         /*bundled_skills_enabled*/ false,
     )
     .with_plugin_skill_snapshots(plugin_skill_snapshots);
-    let skills_service = SkillsService::new(codepilotx_home_abs, /*bundled_skills_enabled*/ false);
+    let skills_service =
+        SkillsService::new(codepilotx_home_abs, /*bundled_skills_enabled*/ false);
     let cached = skills_service
         .snapshot_for_config(&skills_input, /*fs*/ None)
         .await;
@@ -5206,7 +5223,8 @@ async fn load_plugins_ignores_project_config_files() {
     let stack = ConfigLayerStack::new(
         vec![ConfigLayerEntry::new(
             ConfigLayerSource::Project {
-                dot_codepilotx_folder: AbsolutePathBuf::try_from(project_root.join(".codex")).unwrap(),
+                dot_codepilotx_folder: AbsolutePathBuf::try_from(project_root.join(".codex"))
+                    .unwrap(),
             },
             toml::from_str(&plugin_config_toml(
                 /*enabled*/ true, /*plugins_feature_enabled*/ true,

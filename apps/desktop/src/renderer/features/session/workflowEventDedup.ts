@@ -20,11 +20,46 @@ export function appendUniqueWorkflowEvent(
   events: DesktopWorkflowEvent[],
   event: DesktopWorkflowEvent,
 ): DesktopWorkflowEvent[] {
+  const streamKey = agentMessageStreamKey(event)
+  if (streamKey) {
+    const streaming = isStreamingAgentMessage(event)
+    if (
+      streaming &&
+      events.some(
+        existing =>
+          agentMessageStreamKey(existing) === streamKey &&
+          !isStreamingAgentMessage(existing),
+      )
+    ) {
+      return events
+    }
+    events = events.filter(
+      existing =>
+        agentMessageStreamKey(existing) !== streamKey ||
+        !isStreamingAgentMessage(existing),
+    )
+  }
   const key = workflowEventKey(event)
   if (events.some(existing => workflowEventKey(existing) === key)) {
     return events
   }
   return [...events, event].slice(-MAX_WORKFLOW_EVENTS)
+}
+
+function agentMessageStreamKey(event: DesktopWorkflowEvent): string | null {
+  if (!('item' in event) || event.item.type !== 'agent_message') return null
+  const streamId = event.item.metadata?.streamId
+  return `${event.threadId}:${event.turnId}:${
+    typeof streamId === 'string' ? streamId : event.item.id
+  }`
+}
+
+function isStreamingAgentMessage(event: DesktopWorkflowEvent): boolean {
+  return (
+    'item' in event &&
+    event.item.type === 'agent_message' &&
+    event.item.streaming === true
+  )
 }
 
 export function dedupeWorkflowEvents(

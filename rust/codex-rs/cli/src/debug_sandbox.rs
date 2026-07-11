@@ -295,7 +295,10 @@ async fn run_command_under_sandbox(
                 network_sandbox_policy,
                 env,
                 |env_map| {
-                    env_map.insert(codepilotx_SANDBOX_ENV_VAR.to_string(), "seatbelt".to_string());
+                    env_map.insert(
+                        codepilotx_SANDBOX_ENV_VAR.to_string(),
+                        "seatbelt".to_string(),
+                    );
                     if let Some(network) = network.as_ref() {
                         network.apply_to_env(env_map);
                     }

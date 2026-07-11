@@ -1686,8 +1686,10 @@ async fn thread_session_state_from_thread_response(
         .map(ThreadId::from_string)
         .transpose()
         .map_err(|err| format!("forked_from_id is invalid: {err}"))?;
-    let history_config =
-        codepilotx_message_history::HistoryConfig::new(config.codepilotx_home.clone(), &config.history);
+    let history_config = codepilotx_message_history::HistoryConfig::new(
+        config.codepilotx_home.clone(),
+        &config.history,
+    );
     let (log_id, entry_count) = codepilotx_message_history::history_metadata(&history_config).await;
     Ok(ThreadSessionState {
         thread_id,
@@ -2487,8 +2489,10 @@ mod tests {
         let config = build_config(&temp_dir).await;
         let thread_id = ThreadId::new();
 
-        let history_config =
-            codepilotx_message_history::HistoryConfig::new(config.codepilotx_home.clone(), &config.history);
+        let history_config = codepilotx_message_history::HistoryConfig::new(
+            config.codepilotx_home.clone(),
+            &config.history,
+        );
 
         codepilotx_message_history::append_entry("older", &thread_id, &history_config)
             .await

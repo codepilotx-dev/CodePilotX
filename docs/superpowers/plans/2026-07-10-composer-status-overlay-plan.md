@@ -448,12 +448,12 @@ useEffect(() => {
   setLoading(true)
   setError(null)
   setBalance(null)
-  
+
   if (!isBillingProviderID(selectedProviderID)) {
     setLoading(false)
     return
   }
-  
+
   desktopClient.fetchProviderBalance({ providerID: selectedProviderID })
     .then(result => {
       if (!cancelled) {
@@ -468,7 +468,7 @@ useEffect(() => {
         setLoading(false)
       }
     })
-  
+
   return () => { cancelled = true }
 }, [open, selectedProviderID])
 ```

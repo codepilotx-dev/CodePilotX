@@ -15,6 +15,7 @@ workspace = true
 [dependencies]
 codepilotx-api = { workspace = true }
 codepilotx-app-server-protocol = { workspace = true }
+codepilotx-keyring-store = { workspace = true }
 codepilotx-protocol = { workspace = true }
 http = { workspace = true }
 schemars = { workspace = true }

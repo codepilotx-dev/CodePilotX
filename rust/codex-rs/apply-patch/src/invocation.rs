@@ -251,7 +251,7 @@ async fn try_verify_apply_patch_args(
 /// - The connector between `cd` and `apply_patch` must be `&&` (not `|` or `||`).
 /// - Exactly one positional `word` argument is allowed for `cd` (no flags, no quoted
 ///   strings, no second argument).
-/// - The apply command is validated inquery via `#any-of?` to allow `apply_patch`
+/// - The apply command is validated in‑query via `#any-of?` to allow `apply_patch`
 ///   or `applypatch`.
 /// - Preceding or trailing commands (e.g., `echo ...;` or `... && echo done`) do not match.
 ///

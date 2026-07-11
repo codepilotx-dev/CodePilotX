@@ -1946,6 +1946,7 @@ export function DesktopLayout(): React.ReactNode {
             activeSessionId: activeSessionItem?.id ?? null,
             activeSessionPinnedAt: activeSessionItem?.pinnedAt ?? null,
             sessionTitle: quickChatSessionTitle,
+            persistenceStatus: activeSessionItem?.persistenceStatus,
             workspaceName: currentWorkspace?.name ?? null,
             workspacePath: currentWorkspace?.path ?? null,
             branchName,

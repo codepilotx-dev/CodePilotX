@@ -40,10 +40,12 @@ use toml::Value as TomlValue;
 mod windows_tests;
 
 fn config_stack_for_dot_codepilotx_folder(dot_codepilotx_folder: &Path) -> ConfigLayerStack {
-    let dot_codepilotx_folder =
-        AbsolutePathBuf::from_absolute_path(dot_codepilotx_folder).expect("absolute dot_codepilotx_folder");
+    let dot_codepilotx_folder = AbsolutePathBuf::from_absolute_path(dot_codepilotx_folder)
+        .expect("absolute dot_codepilotx_folder");
     let layer = ConfigLayerEntry::new(
-        ConfigLayerSource::Project { dot_codepilotx_folder },
+        ConfigLayerSource::Project {
+            dot_codepilotx_folder,
+        },
         TomlValue::Table(Default::default()),
     );
     ConfigLayerStack::new(
@@ -360,7 +362,9 @@ async fn merges_requirements_exec_policy_network_rules() -> anyhow::Result<()> {
     };
     let dot_codepilotx_folder = AbsolutePathBuf::from_absolute_path(temp_dir.path())?;
     let layer = ConfigLayerEntry::new(
-        ConfigLayerSource::Project { dot_codepilotx_folder },
+        ConfigLayerSource::Project {
+            dot_codepilotx_folder,
+        },
         TomlValue::Table(Default::default()),
     );
     let config_stack =
@@ -407,7 +411,9 @@ host_executable(name = "git", paths = ["{git_path_literal}"])
     };
     let dot_codepilotx_folder = AbsolutePathBuf::from_absolute_path(temp_dir.path())?;
     let layer = ConfigLayerEntry::new(
-        ConfigLayerSource::Project { dot_codepilotx_folder },
+        ConfigLayerSource::Project {
+            dot_codepilotx_folder,
+        },
         TomlValue::Table(Default::default()),
     );
     let config_stack =

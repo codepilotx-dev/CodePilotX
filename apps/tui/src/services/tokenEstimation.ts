@@ -380,4 +380,3 @@ function roughTokenCountEstimationForBlock(
   // key/bracket overhead is single-digit percent on real blocks.
   return roughTokenCountEstimation(jsonStringify(block))
 }
-

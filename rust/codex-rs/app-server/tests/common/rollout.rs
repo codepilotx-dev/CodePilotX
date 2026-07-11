@@ -257,7 +257,11 @@ pub fn create_fake_rollout_with_text_elements(
     let year = &filename_ts[0..4];
     let month = &filename_ts[5..7];
     let day = &filename_ts[8..10];
-    let dir = codepilotx_home.join("sessions").join(year).join(month).join(day);
+    let dir = codepilotx_home
+        .join("sessions")
+        .join(year)
+        .join(month)
+        .join(day);
     fs::create_dir_all(&dir)?;
 
     let file_path = dir.join(format!("rollout-{filename_ts}-{uuid}.jsonl"));

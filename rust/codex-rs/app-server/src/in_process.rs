@@ -153,7 +153,7 @@ pub struct InProcessStartArgs {
 /// Event emitted from the app-server to the in-process client.
 ///
 /// [`Lagged`](Self::Lagged) is a transport health marker, not an application
-/// event ?it signals that the consumer fell behind and some events were dropped.
+/// event — it signals that the consumer fell behind and some events were dropped.
 #[derive(Debug, Clone)]
 pub enum InProcessServerEvent {
     /// Server request that requires client response/rejection.
@@ -379,9 +379,11 @@ async fn start_uninitialized(args: InProcessStartArgs) -> IoResult<InProcessClie
 
     let runtime_handle = tokio::spawn(async move {
         let (outgoing_tx, mut outgoing_rx) = mpsc::channel::<OutgoingEnvelope>(channel_capacity);
-        let auth_manager =
-            AuthManager::shared_from_config(args.config.as_ref(), args.enable_codepilotx_api_key_env)
-                .await;
+        let auth_manager = AuthManager::shared_from_config(
+            args.config.as_ref(),
+            args.enable_codepilotx_api_key_env,
+        )
+        .await;
         let analytics_events_client =
             analytics_events_client_from_config(Arc::clone(&auth_manager), args.config.as_ref());
         let outgoing_message_sender = Arc::new(OutgoingMessageSender::new(

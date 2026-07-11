@@ -389,7 +389,10 @@ async fn codepilotx_tool_passes_base_instructions() -> anyhow::Result<()> {
     )
     .await??;
     assert_eq!(codepilotx_response.jsonrpc, JsonRpcVersion2_0);
-    assert_eq!(codepilotx_response.id, RequestId::Number(codepilotx_request_id));
+    assert_eq!(
+        codepilotx_response.id,
+        RequestId::Number(codepilotx_request_id)
+    );
     assert_eq!(
         codepilotx_response.result,
         json!({

@@ -37,4 +37,3 @@ test('readStoredSidebarCollapsed defaults to expanded when unset', () => {
   installLocalStorage(null)
   expect(readStoredSidebarCollapsed()).toBe(false)
 })
-

@@ -18,7 +18,10 @@ pub(crate) struct VersionInfo {
 const VERSION_FILENAME: &str = "version.json";
 
 pub(crate) fn version_filepath(config: &Config) -> PathBuf {
-    config.codepilotx_home.join(VERSION_FILENAME).into_path_buf()
+    config
+        .codepilotx_home
+        .join(VERSION_FILENAME)
+        .into_path_buf()
 }
 
 pub(crate) fn read_version_info(version_file: &Path) -> anyhow::Result<VersionInfo> {

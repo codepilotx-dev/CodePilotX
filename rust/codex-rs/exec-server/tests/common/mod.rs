@@ -6,8 +6,8 @@ use std::process::Command;
 use std::process::Stdio;
 use std::time::Duration;
 
-use codepilotx_exec_server::codepilotx_FS_HELPER_ARG1;
 use codepilotx_exec_server::ExecServerRuntimePaths;
+use codepilotx_exec_server::codepilotx_FS_HELPER_ARG1;
 use codepilotx_sandboxing::landlock::codepilotx_LINUX_SANDBOX_ARG0;
 use codepilotx_test_binary_support::TestBinaryDispatchGuard;
 use codepilotx_test_binary_support::TestBinaryDispatchMode;
@@ -184,14 +184,14 @@ fn maybe_run_exec_server_from_test_binary(guard: Option<&TestBinaryDispatchGuard
             std::process::exit(1);
         }
     };
-    let exit_code = match runtime.block_on(codepilotx_exec_server::run_main(&listen_url, runtime_paths))
-    {
-        Ok(()) => 0,
-        Err(error) => {
-            eprintln!("exec-server failed: {error}");
-            1
-        }
-    };
+    let exit_code =
+        match runtime.block_on(codepilotx_exec_server::run_main(&listen_url, runtime_paths)) {
+            Ok(()) => 0,
+            Err(error) => {
+                eprintln!("exec-server failed: {error}");
+                1
+            }
+        };
     std::process::exit(exit_code);
 }
 

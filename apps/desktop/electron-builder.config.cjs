@@ -5,7 +5,6 @@ module.exports = {
     'dist/desktop/**/*',
     'dist/desktop-agent/**/*',
     'dist/desktop-runtime/**/*',
-    'dist/desktop-rust-sidecar/**/*',
     'package.json',
   ],
   extraResources: [
@@ -15,7 +14,6 @@ module.exports = {
   asarUnpack: [
     'dist/desktop-agent/**/*',
     'dist/desktop-runtime/**/*',
-    'dist/desktop-rust-sidecar/**/*',
   ],
   directories: {
     output: 'release/desktop',

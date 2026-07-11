@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "ProviderUserInfo": {
+      "properties": {
+        "avatarUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "htmlUrl": {
+          "type": "string"
+        },
+        "id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "login": {
+          "type": "string"
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "htmlUrl",
+        "id",
+        "login"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "authenticated": {
+      "type": "boolean"
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "user": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ProviderUserInfo"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "authenticated"
+  ],
+  "title": "ProviderAuthReadStatusResponse",
+  "type": "object"
+}

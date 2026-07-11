@@ -16,7 +16,8 @@ use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn request_body_is_zstd_compressed_for_codepilotx_backend_when_enabled() -> anyhow::Result<()> {
+async fn request_body_is_zstd_compressed_for_codepilotx_backend_when_enabled() -> anyhow::Result<()>
+{
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;

@@ -163,7 +163,13 @@ async fn turn_start_shell_zsh_fork_executes_command_v2() -> Result<()> {
     };
     assert_eq!(id, "call-zsh-fork");
     assert_eq!(status, CommandExecutionStatus::InProgress);
-    assert!(command.starts_with(&command_packaged_zsh_path(&codepilotx_home).display().to_string()));
+    assert!(
+        command.starts_with(
+            &command_packaged_zsh_path(&codepilotx_home)
+                .display()
+                .to_string()
+        )
+    );
     assert!(command.contains("/bin/sh -c"));
     assert!(command.contains("sleep 0.01"));
     assert!(command.contains(&release_marker.display().to_string()));
@@ -603,11 +609,13 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
             );
             approved_subcommand_strings.push(approval_command.to_string());
         }
-        let is_parent_approval = approval_command
-            .contains(&command_packaged_zsh_path(&codepilotx_home).display().to_string())
-            && (approval_command.contains(&shell_command)
-                || (has_first_file && has_second_file)
-                || approval_command.contains(&parent_shell_hint));
+        let is_parent_approval = approval_command.contains(
+            &command_packaged_zsh_path(&codepilotx_home)
+                .display()
+                .to_string(),
+        ) && (approval_command.contains(&shell_command)
+            || (has_first_file && has_second_file)
+            || approval_command.contains(&parent_shell_hint));
         let decision = if is_target_subcommand {
             let decision = target_decisions[target_decision_index].clone();
             target_decision_index += 1;

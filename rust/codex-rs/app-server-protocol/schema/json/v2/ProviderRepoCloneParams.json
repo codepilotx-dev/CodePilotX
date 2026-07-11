@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "local_path": {
+      "type": "string"
+    },
+    "provider_id": {
+      "type": "string"
+    },
+    "repo_url": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "local_path",
+    "provider_id",
+    "repo_url"
+  ],
+  "title": "ProviderRepoCloneParams",
+  "type": "object"
+}

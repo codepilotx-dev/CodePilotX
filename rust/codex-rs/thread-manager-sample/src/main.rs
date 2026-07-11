@@ -117,8 +117,11 @@ async fn run_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
     )?;
     let thread_store = thread_store_from_config(&config, state_db.clone());
     let environment_manager = Arc::new(
-        EnvironmentManager::from_codepilotx_home(config.codepilotx_home.clone(), Some(local_runtime_paths))
-            .await?,
+        EnvironmentManager::from_codepilotx_home(
+            config.codepilotx_home.clone(),
+            Some(local_runtime_paths),
+        )
+        .await?,
     );
     let installation_id = resolve_installation_id(&config.codepilotx_home).await?;
     let user_instructions_provider = Arc::new(CodePilotXHomeUserInstructionsProvider::new(

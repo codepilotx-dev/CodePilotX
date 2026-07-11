@@ -906,8 +906,8 @@ mod tests {
         let mut previous = Buffer::empty(area);
         let mut next = Buffer::empty(area);
 
-        previous.set_string(0, 0, "", Style::default());
-        next.set_string(0, 0, "", Style::default());
+        previous.set_string(0, 0, "中文", Style::default());
+        next.set_string(0, 0, "中", Style::default());
 
         let commands = diff_buffers(&previous, &next);
         assert!(

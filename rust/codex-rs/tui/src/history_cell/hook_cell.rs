@@ -702,13 +702,13 @@ fn hook_completed_bullet(status: HookRunStatus, entries: &[HookOutputEntry]) -> 
                 .iter()
                 .any(|entry| entry.kind == HookOutputEntryKind::Warning)
             {
-                "?.bold()
+                "•".bold()
             } else {
-                "?.green().bold()
+                "•".green().bold()
             }
         }
-        HookRunStatus::Blocked | HookRunStatus::Failed | HookRunStatus::Stopped => "?.red().bold(),
-        HookRunStatus::Running => "?.into(),
+        HookRunStatus::Blocked | HookRunStatus::Failed | HookRunStatus::Stopped => "•".red().bold(),
+        HookRunStatus::Running => "•".into(),
     }
 }
 
@@ -754,7 +754,7 @@ mod tests {
 
         let bullet = hook_completed_bullet(HookRunStatus::Completed, &entries);
 
-        assert_eq!(bullet.content.as_ref(), "?);
+        assert_eq!(bullet.content.as_ref(), "•");
         assert_eq!(bullet.style.fg, None);
         assert!(bullet.style.add_modifier.contains(Modifier::BOLD));
     }
@@ -771,7 +771,7 @@ mod tests {
             }],
         );
         let expected = vec![
-            "?SessionStart hook (completed)".to_string(),
+            "• SessionStart hook (completed)".to_string(),
             "  hook context: ## Working Memory Recall".to_string(),
             "".to_string(),
             "    Source: Codex compaction".to_string(),
@@ -796,7 +796,7 @@ mod tests {
         assert_eq!(
             line_texts(&cell.display_lines(/*width*/ 80)),
             vec![
-                "?PostToolUse hook (completed)".to_string(),
+                "• PostToolUse hook (completed)".to_string(),
                 "  warning: Heads up".to_string(),
                 "    Review generated files".to_string(),
             ]

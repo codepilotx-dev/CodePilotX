@@ -362,7 +362,7 @@ impl UnifiedExecProcessManager {
                     .map(|m| std::cmp::max(m, 999) + 1)
                     .unwrap_or(1000)
             } else {
-                // production mode ?random
+                // production mode → random
                 rand::rng().random_range(1_000..100_000)
             };
 

@@ -213,6 +213,151 @@
           ],
           "title": "MentionUserInput",
           "type": "object"
+        },
+        {
+          "description": "PDF/document attachment (base64-encoded payload).",
+          "properties": {
+            "data": {
+              "type": "string"
+            },
+            "media_type": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "document"
+              ],
+              "title": "DocumentUserInputType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "data",
+            "media_type",
+            "name",
+            "type"
+          ],
+          "title": "DocumentUserInput",
+          "type": "object"
+        },
+        {
+          "description": "Audio file attachment (base64-encoded payload).",
+          "properties": {
+            "data": {
+              "type": "string"
+            },
+            "media_type": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "audio"
+              ],
+              "title": "AudioUserInputType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "data",
+            "media_type",
+            "name",
+            "type"
+          ],
+          "title": "AudioUserInput",
+          "type": "object"
+        },
+        {
+          "description": "Video file attachment (base64-encoded payload).",
+          "properties": {
+            "data": {
+              "type": "string"
+            },
+            "media_type": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "video"
+              ],
+              "title": "VideoUserInputType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "data",
+            "media_type",
+            "name",
+            "type"
+          ],
+          "title": "VideoUserInput",
+          "type": "object"
+        },
+        {
+          "description": "Generic binary file attachment (base64-encoded payload).",
+          "properties": {
+            "data": {
+              "type": "string"
+            },
+            "media_type": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "file"
+              ],
+              "title": "FileUserInputType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "data",
+            "media_type",
+            "name",
+            "type"
+          ],
+          "title": "FileUserInput",
+          "type": "object"
+        },
+        {
+          "description": "Text file attachment (inline UTF-8 content).",
+          "properties": {
+            "media_type": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "textFile"
+              ],
+              "title": "TextFileUserInputType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "media_type",
+            "name",
+            "text",
+            "type"
+          ],
+          "title": "TextFileUserInput",
+          "type": "object"
         }
       ]
     }

@@ -22,7 +22,11 @@ use uuid::Uuid;
 
 /// Create <subdir>/YYYY/MM/DD and write a minimal rollout file containing the
 /// provided conversation id in the SessionMeta line. Returns the absolute path.
-fn write_minimal_rollout_with_id_in_subdir(codepilotx_home: &Path, subdir: &str, id: Uuid) -> PathBuf {
+fn write_minimal_rollout_with_id_in_subdir(
+    codepilotx_home: &Path,
+    subdir: &str,
+    id: Uuid,
+) -> PathBuf {
     let sessions = codepilotx_home.join(subdir).join("2024/01/01");
     std::fs::create_dir_all(&sessions).unwrap();
 
@@ -107,10 +111,13 @@ async fn find_handles_gitignore_covering_codepilotx_home_directory() {
     let id = Uuid::new_v4();
     let expected = write_minimal_rollout_with_id(&codepilotx_home, id);
 
-    let found =
-        find_thread_path_by_id_str(&codepilotx_home, &id.to_string(), /*state_db_ctx*/ None)
-            .await
-            .unwrap();
+    let found = find_thread_path_by_id_str(
+        &codepilotx_home,
+        &id.to_string(),
+        /*state_db_ctx*/ None,
+    )
+    .await
+    .unwrap();
 
     assert_eq!(found, Some(expected));
 }

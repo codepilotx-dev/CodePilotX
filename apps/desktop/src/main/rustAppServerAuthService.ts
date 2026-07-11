@@ -9,41 +9,33 @@ import {
 } from './rustSidecarRuntime.js'
 import { RustLineJsonRpcClient } from './rustLineJsonRpcClient.js'
 import { desktopDebug } from './desktopDebug.js'
+import { sanitizeChildEnvironment } from './sidecarManager.js'
+import {
+  listProviderConfigs,
+  type ProviderConfig,
+} from '@codepilotx/core/models/providerConfig.js'
 import { spawn } from 'node:child_process'
 import type {
+  DesktopProviderBalanceResult,
+  DesktopProviderModelListResult,
   McpReloadResult,
 } from '../shared/types.js'
+import type {
+  ProviderAuthAppTokenStatusResponse,
+  ProviderAuthAppTokenExchangeResponse,
+  ProviderAuthAppTokenRefreshResponse,
+  ProviderAuthPollLoginResponse,
+  ProviderAuthProfileReadResponse,
+  ProviderAuthReadStatusResponse,
+  ProviderAuthStartLoginResponse,
+  ProviderAuthStatusClearResponse,
+  ProviderAuthStatusSetResponse,
+  ProviderRepoInfo,
+} from './rustAppServerProtocol/generated/v2/index.js'
 
-// ── Types matching the Rust protocol responses ───────────────
-
-export type ProviderAuthStatus = {
-  authenticated: boolean
-  user: { login: string; name?: string; avatar_url?: string } | null
-  error: string | null
-}
-
-export type DeviceCodeResponse = {
-  device_code: string
-  user_code: string
-  verification_uri: string
-  expires_in: number
-  interval: number
-}
-
-export type ProviderAuthPollResponse = {
-  status: 'pending' | 'completed' | 'expired' | 'denied'
-  auth: ProviderAuthStatus | null
-}
-
-export type ProviderRepoInfo = {
-  name: string
-  full_name: string
-  description: string | null
-  private: boolean
-  html_url: string
-  clone_url: string
-  default_branch: string
-}
+export type { ProviderRepoInfo }
+export type ProviderAuthStatus = ProviderAuthReadStatusResponse
+export type ProviderAppTokenStatus = ProviderAuthAppTokenStatusResponse
 
 // ── Auth service ────────────────────────────────────────────
 
@@ -71,7 +63,10 @@ private async openConnection(): Promise<{
   transport: RustLineJsonRpcClient
   dispose: () => Promise<void>
 }> {
-  const options = createAuthSidecarOptions(this.executablePath)
+  const options = createAuthSidecarOptions(
+    this.executablePath,
+    await listProviderConfigs(),
+  )
   const child = spawn(options.command, options.args, options.options)
 
   const transport = new RustLineJsonRpcClient({
@@ -117,7 +112,7 @@ private async rpc<T>(method: string, params: unknown): Promise<T> {
 
 // ── Public API methods ────────────────────────────────────
 
-async readStatus(providerID: string): Promise<ProviderAuthStatus> {
+async readStatus(providerID: string): Promise<ProviderAuthReadStatusResponse> {
   return this.rpc('providerAuth/readStatus', {
     provider_id: providerID,
   })
@@ -126,14 +121,14 @@ async readStatus(providerID: string): Promise<ProviderAuthStatus> {
 async startLogin(
   providerID: string,
   clientId?: string,
-): Promise<DeviceCodeResponse> {
+): Promise<ProviderAuthStartLoginResponse> {
   return this.rpc('providerAuth/startLogin', {
     provider_id: providerID,
     client_id: clientId ?? null,
   })
 }
 
-async pollLogin(providerID: string): Promise<ProviderAuthPollResponse> {
+async pollLogin(providerID: string): Promise<ProviderAuthPollLoginResponse> {
   return this.rpc('providerAuth/pollLogin', {
     provider_id: providerID,
   })
@@ -149,6 +144,72 @@ async logout(providerID: string): Promise<void> {
   await this.rpc('providerAuth/logout', {
     provider_id: providerID,
   })
+}
+
+async readConfiguredProviderApiKeyIDs(providerIDs: string[]): Promise<string[]> {
+  const result = await this.rpc<{ configured_provider_ids: string[] }>(
+    'providerCredential/read',
+    { provider_ids: providerIDs },
+  )
+  return result.configured_provider_ids
+}
+
+async saveProviderApiKey(providerID: string, apiKey: string): Promise<void> {
+  await this.rpc('providerCredential/save', {
+    provider_id: providerID,
+    api_key: apiKey,
+  })
+}
+
+async deleteProviderApiKey(providerID: string): Promise<void> {
+  await this.rpc('providerCredential/delete', {
+    provider_id: providerID,
+  })
+}
+
+async fetchProviderModels(options: {
+  providerID: string
+  baseURL?: string
+  apiKey?: string
+  defaultModels: string[]
+}): Promise<DesktopProviderModelListResult> {
+  return this.rpc('providerCredential/models', {
+    provider_id: options.providerID,
+    base_url: options.baseURL ?? null,
+    api_key: options.apiKey ?? null,
+    default_models: options.defaultModels,
+  })
+}
+
+async fetchProviderBalance(options: {
+  providerID: string
+  baseURL?: string
+  apiKey?: string
+}): Promise<DesktopProviderBalanceResult> {
+  const result = await this.rpc<{
+    is_available: boolean
+    balances: Array<{
+      currency: string
+      total_balance: string
+      granted_balance: string
+      topped_up_balance: string
+    }>
+    error?: string | null
+  }>('providerCredential/balance', {
+    provider_id: options.providerID,
+    base_url: options.baseURL ?? null,
+    api_key: options.apiKey ?? null,
+  })
+  return {
+    isAvailable: result.is_available,
+    balances: result.balances.map(balance => ({
+      currency: balance.currency,
+      totalBalance: balance.total_balance,
+      grantedBalance: balance.granted_balance,
+      toppedUpBalance: balance.topped_up_balance,
+    })),
+    ...(result.error ? { error: result.error } : {}),
+  }
 }
 
 async listRepositories(providerID: string): Promise<ProviderRepoInfo[]> {
@@ -174,21 +235,100 @@ async cloneRepository(
   )
   return result.local_path
 }
+
+async exchangeAppToken(providerID: string): Promise<ProviderAuthAppTokenExchangeResponse> {
+  return this.rpc('providerAuth/appTokenExchange', { providerId: providerID })
+}
+
+async refreshAppToken(providerID: string): Promise<ProviderAuthAppTokenRefreshResponse> {
+  return this.rpc('providerAuth/appTokenRefresh', { providerId: providerID })
+}
+
+async readAppTokenStatus(providerID: string): Promise<ProviderAppTokenStatus> {
+  return this.rpc('providerAuth/appTokenStatus', { providerId: providerID })
+}
+
+async logoutAppToken(providerID: string): Promise<void> {
+  await this.rpc('providerAuth/appTokenLogout', { providerId: providerID })
+}
+
+async readProfile(providerID: string): Promise<ProviderAuthProfileReadResponse['overview']> {
+  const result = await this.rpc<ProviderAuthProfileReadResponse>('providerAuth/profileRead', {
+    providerId: providerID,
+  })
+  return result.overview
+}
+
+async setStatus(providerID: string, input: {
+  emoji: string
+  message: string
+  limitedAvailability: boolean
+  expiresAt?: string | null
+}): Promise<ProviderAuthStatusSetResponse['status']> {
+  const result = await this.rpc<ProviderAuthStatusSetResponse>('providerAuth/statusSet', {
+    providerId: providerID,
+    ...input,
+    expiresAt: input.expiresAt ?? null,
+  })
+  return result.status
+}
+
+async clearStatus(providerID: string): Promise<ProviderAuthStatusClearResponse['status']> {
+  const result = await this.rpc<ProviderAuthStatusClearResponse>('providerAuth/statusClear', {
+    providerId: providerID,
+  })
+  return result.status
+}
 }
 
 // ── Helpers ─────────────────────────────────────────────────
 
-function createAuthSidecarOptions(executablePath: string) {
+export function createAuthSidecarOptions(
+  executablePath: string,
+  trustedProviders: ProviderConfig[] = [],
+) {
   const command = executablePath
-  const args: string[] = ['--listen', 'stdio://']
+  const args: string[] = [
+    '--listen',
+    'stdio://',
+    ...trustedProviders.flatMap(createTrustedProviderArgs),
+  ]
   const options: import('node:child_process').SpawnOptions = {
     stdio: ['pipe', 'pipe', 'pipe'],
     env: {
-      ...process.env,
+      ...sanitizeChildEnvironment(process.env),
       RUST_LOG: process.env.RUST_LOG ?? 'error',
     },
   }
   return { command, args, options }
+}
+
+function createTrustedProviderArgs(provider: ProviderConfig): string[] {
+  const providerID = provider.providerID.trim()
+  const baseURL = provider.baseURL?.trim()
+  if (!/^[A-Za-z0-9_-]+$/.test(providerID) || !baseURL) return []
+  let endpoint: URL
+  try {
+    endpoint = new URL(baseURL)
+  } catch {
+    return []
+  }
+  if (endpoint.protocol !== 'https:') return []
+  const override = (key: string, value: string | boolean): string[] => [
+    '-c',
+    `${key}=${typeof value === 'string' ? JSON.stringify(value) : String(value)}`,
+  ]
+  return [
+    ...override(`model_providers.${providerID}.name`, provider.displayName || providerID),
+    ...override(
+      `model_providers.${providerID}.wire_api`,
+      provider.wireApi ?? 'chat_completions',
+    ),
+    ...override(`model_providers.${providerID}.requires_openai_auth`, false),
+    ...override(`model_providers.${providerID}.supports_websockets`, false),
+    ...override(`model_providers.${providerID}.base_url`, endpoint.toString()),
+    ...override(`model_providers.${providerID}.env_key`, `keyring:${providerID}`),
+  ]
 }
 
 async function withTimeout<T>(

@@ -218,6 +218,13 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  .chat-session-persistence-warning {
+    flex-shrink: 0;
+    color: var(--color-warning);
+    font-size: var(--type-caption);
+    font-weight: var(--font-weight-label);
+  }
 }
 
 .chat-session-actions {

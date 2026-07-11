@@ -294,14 +294,13 @@ impl ConfigManager {
             )
         })?;
         let user_config_toml =
-            deserialize_config_toml_with_base(user_config.clone(), self.codepilotx_home()).map_err(
-                |err| {
+            deserialize_config_toml_with_base(user_config.clone(), self.codepilotx_home())
+                .map_err(|err| {
                     ConfigManagerError::write(
                         ConfigWriteErrorCode::ConfigValidationError,
                         format!("Invalid configuration: {err}"),
                     )
-                },
-            )?;
+                })?;
         validate_feature_requirements_for_config_toml(
             &user_config_toml,
             layers.requirements().feature_requirements.as_ref(),
@@ -627,7 +626,9 @@ fn override_message(layer: &ConfigLayerSource) -> String {
         ConfigLayerSource::EnterpriseManaged { id: _, name } => {
             format!("Overridden by enterprise-managed config: {name}")
         }
-        ConfigLayerSource::Project { dot_codepilotx_folder } => format!(
+        ConfigLayerSource::Project {
+            dot_codepilotx_folder,
+        } => format!(
             "Overridden by project config: {}/{CONFIG_TOML_FILE}",
             dot_codepilotx_folder.display(),
         ),

@@ -1654,7 +1654,10 @@ fn connector_tool(connector_id: &str, connector_name: &str) -> Result<Tool> {
     Ok(tool)
 }
 
-fn write_connectors_config(codepilotx_home: &std::path::Path, base_url: &str) -> std::io::Result<()> {
+fn write_connectors_config(
+    codepilotx_home: &std::path::Path,
+    base_url: &str,
+) -> std::io::Result<()> {
     let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
@@ -1670,7 +1673,10 @@ connectors = true
     )
 }
 
-fn write_connectors_and_plugins_config(codepilotx_home: &Path, base_url: &str) -> std::io::Result<()> {
+fn write_connectors_and_plugins_config(
+    codepilotx_home: &Path,
+    base_url: &str,
+) -> std::io::Result<()> {
     let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,

@@ -310,7 +310,8 @@ pub(crate) async fn test_config() -> Config {
     Config::load_from_base_config_with_overrides(
         ConfigToml::default(),
         ConfigOverrides::default(),
-        AbsolutePathBuf::from_absolute_path(codepilotx_home.path()).expect("temp dir should resolve"),
+        AbsolutePathBuf::from_absolute_path(codepilotx_home.path())
+            .expect("temp dir should resolve"),
     )
     .await
     .expect("load default test config")
@@ -1316,11 +1317,12 @@ impl ConfigBuilder {
         let config_toml: ConfigToml = match merged_toml.try_into() {
             Ok(config_toml) => config_toml,
             Err(err) => {
-                if let Some(config_error) = codepilotx_config::first_layer_config_error::<ConfigToml>(
-                    &config_layer_stack,
-                    codepilotx_config::CONFIG_TOML_FILE,
-                )
-                .await
+                if let Some(config_error) =
+                    codepilotx_config::first_layer_config_error::<ConfigToml>(
+                        &config_layer_stack,
+                        codepilotx_config::CONFIG_TOML_FILE,
+                    )
+                    .await
                 {
                     return Err(codepilotx_config::io_error_from_config_error(
                         std::io::ErrorKind::InvalidData,
@@ -1362,7 +1364,8 @@ impl ConfigBuilder {
             )
             .await?;
             config.config_lock_toml = Some(Arc::new(expected_lock_config));
-            config.config_lock_allow_codepilotx_version_mismatch = allow_codepilotx_version_mismatch;
+            config.config_lock_allow_codepilotx_version_mismatch =
+                allow_codepilotx_version_mismatch;
             config.config_lock_save_fields_resolved_from_model_catalog =
                 save_fields_resolved_from_model_catalog;
             return Ok(config);
@@ -1741,8 +1744,13 @@ pub async fn load_config_as_toml_with_cli_and_loader_overrides(
     cli_overrides: Vec<(String, TomlValue)>,
     loader_overrides: LoaderOverrides,
 ) -> std::io::Result<ConfigToml> {
-    load_config_as_toml_with_cli_and_load_options(codepilotx_home, cwd, cli_overrides, loader_overrides)
-        .await
+    load_config_as_toml_with_cli_and_load_options(
+        codepilotx_home,
+        cwd,
+        cli_overrides,
+        loader_overrides,
+    )
+    .await
 }
 
 /// DEPRECATED for most callers: prefer [Config::load_with_cli_overrides()] or

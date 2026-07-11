@@ -29,6 +29,7 @@ export type QuickChatContextValue = {
   activeSessionId: string | null
   activeSessionPinnedAt: string | null
   sessionTitle: string | null
+  persistenceStatus?: 'saved' | 'unsaved'
   workspaceName: string | null
   workspacePath: string | null
   branchName: string | null

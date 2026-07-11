@@ -1,4 +1,4 @@
-import { expect, test } from 'bun:test'
+import { expect, mock, test } from 'bun:test'
 import { join, resolve } from 'node:path'
 import {
   createDesktopAgentSession,
@@ -202,6 +202,7 @@ test('steerUserMessage bypasses the ordinary concurrent-turn guard and emits use
       steerUserTurn,
       runUserTurn: async () => {},
       runControlResponse: async () => {},
+      dispose: async () => {},
       getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
       refreshMcpConfig: async () => 'not_loaded',
     }) },
@@ -556,6 +557,7 @@ test('auto-review sub-runtime execution does not deadlock parent turn on serial 
         setPlanModeActive: () => {},
         getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
         refreshMcpConfig: async () => 'not_loaded' as const,
+        dispose: async () => {},
         runControlResponse: async () => {},
         async runUserTurn(_content, signal) {
           const decision = await context.requestPermission({
@@ -658,7 +660,7 @@ test('interrupted session emits a done event after runtime observes abort', asyn
       permissionMode: 'default',
     },
     {
-      createRuntime: () => createAbortAwareRuntime(),
+      createRuntime: context => createAbortAwareRuntime(context),
     },
   )
   session.on('event', event => events.push(event))
@@ -707,6 +709,100 @@ test('disposing a session rejects pending permission with dispose reason', async
   ])
 })
 
+test('disposing a session awaits runtime disposal and is idempotent', async () => {
+  let releaseDispose: (() => void) | undefined
+  const runtimeDisposed = new Promise<void>(resolve => {
+    releaseDispose = resolve
+  })
+  const dispose = mock(async () => {
+    await runtimeDisposed
+  })
+  const runtime: DesktopAgentRuntime = {
+    setModel: () => {},
+    setModelProvider: () => {},
+    setDebugConversationDump: () => {},
+    setPermissionMode: () => {},
+    setPlanModeActive: () => {},
+    getMcpRuntimeStatus: () => ({
+      servers: [],
+      totalTools: 0,
+      totalResources: 0,
+      totalPrompts: 0,
+    }),
+    refreshMcpConfig: async () => 'not_loaded',
+    runUserTurn: async () => {},
+    runControlResponse: async () => {},
+    dispose,
+  }
+  const session = createDesktopAgentSession(
+    {
+      workspacePath: resolve('tmp', 'desktop-workspace'),
+      sessionId: 'session-runtime-dispose',
+      suppressStartupMessage: true,
+      permissionMode: 'default',
+    },
+    { createRuntime: () => runtime },
+  )
+
+  let settled = false
+  const firstDispose = session.dispose().then(() => {
+    settled = true
+  })
+  const secondDispose = session.dispose()
+  await Promise.resolve()
+  expect(settled).toBe(false)
+  releaseDispose?.()
+  await Promise.all([firstDispose, secondDispose])
+
+  expect(dispose).toHaveBeenCalledTimes(1)
+})
+
+test('runtime owns the successful turn terminal event', async () => {
+  const events: DesktopAgentEvent[] = []
+  const session = createDesktopAgentSession(
+    {
+      workspacePath: resolve('tmp', 'desktop-workspace'),
+      sessionId: 'session-terminal-success',
+      suppressStartupMessage: true,
+      permissionMode: 'default',
+    },
+    {
+      createRuntime: context => createTerminalRuntime(context, 'done'),
+    },
+  )
+  session.on('event', event => events.push(event))
+
+  await session.sendUserMessage('hello', 'hello')
+
+  expect(events.filter(event => event.type === 'done')).toHaveLength(1)
+  expect(events.at(-1)).toEqual(
+    expect.objectContaining({ type: 'status', status: 'done' }),
+  )
+})
+
+test('runtime owns the failed turn terminal event', async () => {
+  const events: DesktopAgentEvent[] = []
+  const session = createDesktopAgentSession(
+    {
+      workspacePath: resolve('tmp', 'desktop-workspace'),
+      sessionId: 'session-terminal-error',
+      suppressStartupMessage: true,
+      permissionMode: 'default',
+    },
+    {
+      createRuntime: context => createTerminalRuntime(context, 'error'),
+    },
+  )
+  session.on('event', event => events.push(event))
+
+  await session.sendUserMessage('hello', 'hello')
+
+  expect(events.filter(event => event.type === 'error')).toHaveLength(1)
+  expect(events.at(-1)).toEqual(
+    expect.objectContaining({ type: 'status', status: 'error' }),
+  )
+})
+
 test('permission requested after dispose abort resolves instead of hanging', async () => {
   const decisions: unknown[] = []
   const session = createDesktopAgentSession(
@@ -745,9 +841,35 @@ function createRecoveredQuestionRuntime(
 	    setPlanModeActive: () => {},
       getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
         refreshMcpConfig: async () => 'not_loaded' as const,
+	    dispose: async () => {},
 	    runUserTurn: async () => {},
 	    runControlResponse: async response => {
       controlResponses.push(response)
+    },
+  }
+}
+
+function createTerminalRuntime(
+  context: DesktopAgentRuntimeContext,
+  outcome: 'done' | 'error',
+): DesktopAgentRuntime {
+  return {
+    setModel: () => {},
+    setModelProvider: () => {},
+    setDebugConversationDump: () => {},
+    setPermissionMode: () => {},
+    setPlanModeActive: () => {},
+    getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+    refreshMcpConfig: async () => 'not_loaded',
+    dispose: async () => {},
+    runControlResponse: async () => {},
+    runUserTurn: async () => {
+      if (outcome === 'done') {
+        context.emit({ type: 'done', sessionId: context.sessionId })
+        return
+      }
+      context.emit({ type: 'error', sessionId: context.sessionId, message: 'runtime failed' })
+      throw new Error('runtime failed')
     },
   }
 }
@@ -771,6 +893,7 @@ function createRecoveredPlanRuntime(
 	    setPlanModeActive: () => {},
       getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
         refreshMcpConfig: async () => 'not_loaded' as const,
+	    dispose: async () => {},
 	    runControlResponse: async () => {},
 	    runUserTurn: async content => {
 	      userTurns.push(content)
@@ -778,7 +901,9 @@ function createRecoveredPlanRuntime(
 	  }
 	}
 
-	function createAbortAwareRuntime(): DesktopAgentRuntime {
+	function createAbortAwareRuntime(
+	  context: DesktopAgentRuntimeContext,
+	): DesktopAgentRuntime {
 	  return {
 	    setModel: () => {},
 	    setModelProvider: () => {},
@@ -787,12 +912,14 @@ function createRecoveredPlanRuntime(
 	    setPlanModeActive: () => {},
       getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
         refreshMcpConfig: async () => 'not_loaded' as const,
+	    dispose: async () => {},
 	    runControlResponse: async () => {},
 	    async runUserTurn(_content, signal) {
       if (signal.aborted) return
       await new Promise<void>(resolve => {
         signal.addEventListener('abort', () => resolve(), { once: true })
       })
+      context.emit({ type: 'done', sessionId: context.sessionId })
     },
   }
 }
@@ -809,6 +936,7 @@ function createDoubleQuestionRuntime(
 	    setPlanModeActive: () => {},
       getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
         refreshMcpConfig: async () => 'not_loaded' as const,
+	    dispose: async () => {},
 	    runControlResponse: async () => {},
 	    async runUserTurn() {
 	      const firstDecision = context.requestPermission({
@@ -843,6 +971,7 @@ function createDoubleQuestionRuntime(
 	    setPlanModeActive: () => {},
       getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
         refreshMcpConfig: async () => 'not_loaded' as const,
+	    dispose: async () => {},
 	    runControlResponse: async () => {},
 	    async runUserTurn() {
 	      const decision = await context.requestPermission({
@@ -868,6 +997,7 @@ function createDoubleQuestionRuntime(
 	    setPlanModeActive: () => {},
       getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
         refreshMcpConfig: async () => 'not_loaded' as const,
+	    dispose: async () => {},
 	    runControlResponse: async () => {},
 	    async runUserTurn(_content, signal) {
       await new Promise<void>(resolve => {

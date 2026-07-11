@@ -34,7 +34,8 @@ use std::sync::RwLock;
 /// Parenthesis will be added by Codex. This should only specify what goes inside of the parenthesis.
 pub static USER_AGENT_SUFFIX: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
 pub const DEFAULT_ORIGINATOR: &str = "codepilotx_cli_rs";
-pub const codepilotx_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR: &str = "codepilotx_INTERNAL_ORIGINATOR_OVERRIDE";
+pub const codepilotx_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR: &str =
+    "codepilotx_INTERNAL_ORIGINATOR_OVERRIDE";
 pub const RESIDENCY_HEADER_NAME: &str = "x-openai-internal-codex-residency";
 
 pub use codepilotx_config::ResidencyRequirement;

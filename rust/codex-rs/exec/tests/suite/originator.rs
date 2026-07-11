@@ -40,11 +40,18 @@ async fn supports_originator_override() -> anyhow::Result<()> {
         responses::ev_assistant_message("response_1", "Hello, world!"),
         responses::ev_completed("response_1"),
     ]);
-    responses::mount_sse_once_match(&server, header("Originator", "codepilotx_exec_override"), body)
-        .await;
+    responses::mount_sse_once_match(
+        &server,
+        header("Originator", "codepilotx_exec_override"),
+        body,
+    )
+    .await;
 
     test.cmd_with_server(&server)
-        .env("codepilotx_INTERNAL_ORIGINATOR_OVERRIDE", "codepilotx_exec_override")
+        .env(
+            "codepilotx_INTERNAL_ORIGINATOR_OVERRIDE",
+            "codepilotx_exec_override",
+        )
         .arg("--skip-git-repo-check")
         .arg("tell me something")
         .assert()

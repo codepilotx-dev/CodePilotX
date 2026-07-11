@@ -64,7 +64,8 @@ impl ConfigManager {
     }
 
     pub(crate) fn user_config_path(&self) -> std::io::Result<AbsolutePathBuf> {
-        self.loader_overrides.user_config_path(self.codepilotx_home())
+        self.loader_overrides
+            .user_config_path(self.codepilotx_home())
     }
 
     pub(crate) fn current_cli_overrides(&self) -> Vec<(String, TomlValue)> {
@@ -96,8 +97,11 @@ impl ConfigManager {
         auth_manager: Arc<AuthManager>,
         chatgpt_base_url: String,
     ) {
-        let loader =
-            cloud_config_bundle_loader(auth_manager, chatgpt_base_url, self.codepilotx_home.clone());
+        let loader = cloud_config_bundle_loader(
+            auth_manager,
+            chatgpt_base_url,
+            self.codepilotx_home.clone(),
+        );
         if let Ok(mut guard) = self.cloud_config_bundle.write() {
             *guard = loader;
         } else {
@@ -172,7 +176,9 @@ impl ConfigManager {
         if self.loader_overrides.user_config_path.is_some()
             || self.loader_overrides.user_config_profile.is_some()
         {
-            let user_config_path = self.loader_overrides.user_config_path(self.codepilotx_home())?;
+            let user_config_path = self
+                .loader_overrides
+                .user_config_path(self.codepilotx_home())?;
             config.config_layer_stack = config.config_layer_stack.with_user_config_profile(
                 &user_config_path,
                 self.loader_overrides.user_config_profile.as_ref(),

@@ -106,7 +106,11 @@ description = "Project-scoped profile."
 ":workspace_roots" = "write"
 "#,
     )?;
-    set_project_trust_level(codepilotx_home.path(), workspace.path(), TrustLevel::Trusted)?;
+    set_project_trust_level(
+        codepilotx_home.path(),
+        workspace.path(),
+        TrustLevel::Trusted,
+    )?;
 
     let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
@@ -179,7 +183,11 @@ description = "Project-scoped profile."
 ":workspace_roots" = "write"
 "#,
     )?;
-    set_project_trust_level(codepilotx_home.path(), workspace.path(), TrustLevel::Trusted)?;
+    set_project_trust_level(
+        codepilotx_home.path(),
+        workspace.path(),
+        TrustLevel::Trusted,
+    )?;
 
     let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;

@@ -33,8 +33,8 @@ impl CodeModeExecuteHandler {
         call_id: String,
         code: String,
     ) -> Result<FunctionToolOutput, FunctionCallError> {
-        let args =
-            codepilotx_code_mode::parse_exec_source(&code).map_err(FunctionCallError::RespondToModel)?;
+        let args = codepilotx_code_mode::parse_exec_source(&code)
+            .map_err(FunctionCallError::RespondToModel)?;
         let exec = ExecContext { session, turn };
         let enabled_tools =
             codepilotx_tools::collect_code_mode_tool_definitions(&self.nested_tool_specs);
@@ -78,7 +78,10 @@ impl CodeModeExecuteHandler {
         code_cell_trace.record_initial_response(&response);
         // Yielded cells keep running, so terminal lifecycle is only emitted
         // here when the first response also ended the runtime.
-        if !matches!(response, codepilotx_code_mode::RuntimeResponse::Yielded { .. }) {
+        if !matches!(
+            response,
+            codepilotx_code_mode::RuntimeResponse::Yielded { .. }
+        ) {
             code_cell_trace.record_ended(&response);
             exec.session
                 .services

@@ -80,7 +80,7 @@ pub(crate) fn seek_sequence(
                 // Various dash / hyphen code-points  ASCII '-'
                 '\u{2010}' | '\u{2011}' | '\u{2012}' | '\u{2013}' | '\u{2014}' | '\u{2015}'
                 | '\u{2212}' => '-',
-                // Fancy single quotes  '\''
+                // Fancy single quotes → '\''
                 '\u{2018}' | '\u{2019}' | '\u{201A}' | '\u{201B}' => '\'',
                 // Fancy double quotes  '"'
                 '\u{201C}' | '\u{201D}' | '\u{201E}' | '\u{201F}' => '"',

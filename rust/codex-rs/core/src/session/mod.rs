@@ -1523,7 +1523,9 @@ impl Session {
             .clone()
     }
 
-    pub(crate) async fn user_instructions(&self) -> Option<codepilotx_extension_api::UserInstructions> {
+    pub(crate) async fn user_instructions(
+        &self,
+    ) -> Option<codepilotx_extension_api::UserInstructions> {
         let state = self.state.lock().await;
         state
             .session_configuration

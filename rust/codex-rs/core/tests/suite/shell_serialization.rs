@@ -449,7 +449,7 @@ async fn shell_command_output_is_not_truncated_over_10k_bytes() -> Result<()> {
     let expected_pattern = r"(?s)^Exit code: 0
 Wall time: [0-9]+(?:\.[0-9]+)? seconds
 Output:
-1*? chars truncated?*$";
+1*…1 chars truncated…1*$";
     assert_regex_match(expected_pattern, output);
 
     Ok(())

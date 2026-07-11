@@ -75,7 +75,11 @@ enum PidCommandKind {
 }
 
 impl PidBackend {
-    pub(crate) fn new(codepilotx_bin: PathBuf, pid_file: PathBuf, remote_control_enabled: bool) -> Self {
+    pub(crate) fn new(
+        codepilotx_bin: PathBuf,
+        pid_file: PathBuf,
+        remote_control_enabled: bool,
+    ) -> Self {
         let lock_file = pid_file.with_extension("pid.lock");
         Self {
             codepilotx_bin,

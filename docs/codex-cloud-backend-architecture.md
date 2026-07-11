@@ -267,4 +267,3 @@ v1 暂缓：
 - 客户端断线重连后，可以从 session event 恢复 UI。
 - 任务取消后，AgentRun、ExecutionJob、Sandbox 都能停止或进入明确终态。
 - 模型调用、代码执行、GitHub 操作都有可审计记录。
-

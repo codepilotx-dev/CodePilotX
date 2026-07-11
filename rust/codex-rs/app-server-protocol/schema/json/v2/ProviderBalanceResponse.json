@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "ProviderBalanceInfo": {
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "granted_balance": {
+          "type": "string"
+        },
+        "topped_up_balance": {
+          "type": "string"
+        },
+        "total_balance": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "currency",
+        "granted_balance",
+        "topped_up_balance",
+        "total_balance"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "balances": {
+      "items": {
+        "$ref": "#/definitions/ProviderBalanceInfo"
+      },
+      "type": "array"
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "is_available": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "balances",
+    "is_available"
+  ],
+  "title": "ProviderBalanceResponse",
+  "type": "object"
+}

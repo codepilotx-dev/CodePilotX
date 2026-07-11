@@ -279,7 +279,7 @@ impl ExecCommandHandler {
             let approval_policy = context.turn.approval_policy.value();
             manager.release_process_id(process_id).await;
             return Err(FunctionCallError::RespondToModel(format!(
-                "approval policy is {approval_policy:?}; reject command ?you cannot ask for escalated permissions if the approval policy is {approval_policy:?}"
+                "approval policy is {approval_policy:?}; reject command — you cannot ask for escalated permissions if the approval policy is {approval_policy:?}"
             )));
         }
 

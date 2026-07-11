@@ -910,14 +910,16 @@ impl TestCodex {
                     sandbox_policy: Some(sandbox_policy),
                     permission_profile,
                     service_tier,
-                    collaboration_mode: Some(codepilotx_protocol::config_types::CollaborationMode {
-                        mode: codepilotx_protocol::config_types::ModeKind::Default,
-                        settings: codepilotx_protocol::config_types::Settings {
-                            model: session_model,
-                            reasoning_effort: None,
-                            developer_instructions: None,
+                    collaboration_mode: Some(
+                        codepilotx_protocol::config_types::CollaborationMode {
+                            mode: codepilotx_protocol::config_types::ModeKind::Default,
+                            settings: codepilotx_protocol::config_types::Settings {
+                                model: session_model,
+                                reasoning_effort: None,
+                                developer_instructions: None,
+                            },
                         },
-                    }),
+                    ),
                     ..Default::default()
                 },
             })

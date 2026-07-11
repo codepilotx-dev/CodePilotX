@@ -66,8 +66,10 @@ where
     async fn handle_call(
         &self,
         call: ToolCall,
-    ) -> Result<Box<dyn codepilotx_extension_api::ToolOutput>, codepilotx_extension_api::FunctionCallError>
-    {
+    ) -> Result<
+        Box<dyn codepilotx_extension_api::ToolOutput>,
+        codepilotx_extension_api::FunctionCallError,
+    > {
         let backend = self.backend.clone();
         let args: ListArgs = parse_args(&call)?;
         let scope = scope_from_optional_path(args.path.as_deref(), "root");

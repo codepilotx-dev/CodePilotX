@@ -60,7 +60,8 @@ async fn init_backend(user_agent_suffix: &str) -> anyhow::Result<BackendContext>
     }
 
     let ua = get_codepilotx_user_agent();
-    let mut http = codepilotx_cloud_tasks_client::HttpClient::new(base_url.clone())?.with_user_agent(ua);
+    let mut http =
+        codepilotx_cloud_tasks_client::HttpClient::new(base_url.clone())?.with_user_agent(ua);
     let style = if base_url.contains("/backend-api") {
         "wham"
     } else {
@@ -301,8 +302,8 @@ async fn collect_attempt_diffs(
     backend: &dyn codepilotx_cloud_tasks_client::CloudBackend,
     task_id: &codepilotx_cloud_tasks_client::TaskId,
 ) -> anyhow::Result<Vec<AttemptDiffData>> {
-    let text =
-        codepilotx_cloud_tasks_client::CloudBackend::get_task_text(backend, task_id.clone()).await?;
+    let text = codepilotx_cloud_tasks_client::CloudBackend::get_task_text(backend, task_id.clone())
+        .await?;
     let mut attempts = Vec::new();
     if let Some(diff) =
         codepilotx_cloud_tasks_client::CloudBackend::get_task_diff(backend, task_id.clone()).await?
@@ -393,7 +394,7 @@ fn summary_line(summary: &codepilotx_cloud_tasks_client::DiffSummary, colorize: 
             .as_str()
             .if_supports_color(Stream::Stdout, |t| t.red())
             .to_string();
-        let bullet = "?
+        let bullet = "•"
             .if_supports_color(Stream::Stdout, |t| t.dimmed())
             .to_string();
         let file_label = format!("file{}", if files == 1 { "" } else { "s" })
@@ -402,7 +403,7 @@ fn summary_line(summary: &codepilotx_cloud_tasks_client::DiffSummary, colorize: 
         format!("{adds_str}/{dels_str}  {bullet}  {files} {file_label}")
     } else {
         format!(
-            "+{adds}/-{dels} ?{files} file{}",
+            "+{adds}/-{dels} • {files} file{}",
             if files == 1 { "" } else { "s" }
         )
     }
@@ -464,11 +465,11 @@ fn format_task_status_lines(
         when
     });
     let sep = if colorize {
-        "  ? "
+        "  •  "
             .if_supports_color(Stream::Stdout, |t| t.dimmed())
             .to_string()
     } else {
-        "  ? ".to_string()
+        "  •  ".to_string()
     };
     lines.push(meta_parts.join(&sep));
     lines.push(summary_line(&task.summary, colorize));
@@ -498,7 +499,8 @@ async fn run_status_command(args: crate::cli::StatusCommand) -> anyhow::Result<(
     let ctx = init_backend("codepilotx_cloud_tasks_status").await?;
     let task_id = parse_task_id(&args.task_id)?;
     let summary =
-        codepilotx_cloud_tasks_client::CloudBackend::get_task_summary(&*ctx.backend, task_id).await?;
+        codepilotx_cloud_tasks_client::CloudBackend::get_task_summary(&*ctx.backend, task_id)
+            .await?;
     let now = Utc::now();
     let colorize = supports_color::on(SupportStream::Stdout).is_some();
     for line in format_task_status_lines(&summary, now, colorize) {
@@ -729,10 +731,13 @@ fn spawn_apply(
 
 // logging helper lives in util module
 
-// (no standalone patch summarizer needed ?UI displays raw diffs)
+// (no standalone patch summarizer needed – UI displays raw diffs)
 
 /// Entry point for the `codex cloud` subcommand.
-pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()> {
+pub async fn run_main(
+    cli: Cli,
+    _codepilotx_linux_sandbox_exe: Option<PathBuf>,
+) -> anyhow::Result<()> {
     if let Some(command) = cli.command {
         return match command {
             crate::cli::Command::Exec(args) => run_exec_command(args).await,
@@ -806,7 +811,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
         get_codepilotx_user_agent()
     ));
     // Non-blocking initial load so the in-box spinner can animate
-    app.status = "Loading tasks?.to_string();
+    app.status = "Loading tasks…".to_string();
     app.refresh_inflight = true;
     // New list generation; reset background enrichment coordination
     app.list_generation = app.list_generation.saturating_add(1);
@@ -992,7 +997,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                                     app.status = format!("Submitted as {}", created.id.0);
                                     app.new_task = None;
                                     // Refresh tasks in background for current filter
-                                    app.status = format!("Submitted as {} ?refreshing?, created.id.0);
+                                    app.status = format!("Submitted as {} — refreshing…", created.id.0);
                                     app.refresh_inflight = true;
                                     app.list_generation = app.list_generation.saturating_add(1);
                                     needs_redraw = true;
@@ -1062,7 +1067,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                                         }
                                     }
                                     app.env_filter = Some(sel.id);
-                                    app.status = "Loading tasks?.to_string();
+                                    app.status = "Loading tasks…".to_string();
                                     app.refresh_inflight = true;
                                     app.list_generation = app.list_generation.saturating_add(1);
                                     app.in_flight.clear();
@@ -1504,7 +1509,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                                                     text.chars().count()
                                                 ));
                                                 page.submitting = true;
-                                                app.status = "Submitting new task?.to_string();
+                                                app.status = "Submitting new task…".to_string();
                                                 let tx = tx.clone();
                                                 let backend = Arc::clone(&backend);
                                                 let best_of_n = page.best_of_n;
@@ -1752,7 +1757,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                                             if let Some(h) = &r.repo_hints { hay.push(' '); hay.push_str(&h.to_lowercase()); }
                                             hay.contains(&q)
                                         }).collect();
-                                        // Keep original order (already sorted) ?no need to re-sort
+                                        // Keep original order (already sorted) — no need to re-sort
                                         let idx = state.selected;
                                         if idx == 0 { app.env_filter = None; append_error_log("env.select: All"); }
                                         else {
@@ -1771,7 +1776,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                                             page.env_id = app.env_filter.clone();
                                         }
                                         // Trigger tasks refresh with the selected filter
-                                        app.status = "Loading tasks?.to_string();
+                                        app.status = "Loading tasks…".to_string();
                                         app.refresh_inflight = true;
                                         app.list_generation = app.list_generation.saturating_add(1);
                                         app.in_flight.clear();
@@ -1809,7 +1814,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                                         "refresh.request: env={}",
                                         app.env_filter.clone().unwrap_or_else(|| "<all>".to_string())
                                     ));
-                                    app.status = "Refreshing?.to_string();
+                                    app.status = "Refreshing…".to_string();
                                     app.refresh_inflight = true;
                                     app.list_generation = app.list_generation.saturating_add(1);
                                     app.in_flight.clear();
@@ -1848,7 +1853,7 @@ pub async fn run_main(cli: Cli, _codepilotx_linux_sandbox_exe: Option<PathBuf>) 
                                 }
                                 KeyCode::Enter => {
                                     if let Some(task) = app.tasks.get(app.selected).cloned() {
-                                        app.status = format!("Loading details for {title}?, title = task.title);
+                                        app.status = format!("Loading details for {title}…", title = task.title);
                                         app.details_inflight = true;
                                         // Open empty overlay immediately; content arrives via events
                                         let overlay = app::DiffOverlay::new(
@@ -2112,7 +2117,7 @@ fn pretty_lines_from_error(raw: &str) -> Vec<String> {
     if lines.len() == 1 {
         // Parsing yielded nothing; include a trimmed, short raw message tail for context.
         let tail = if raw.len() > 320 {
-            format!("{}?, &raw[..320])
+            format!("{}…", &raw[..320])
         } else {
             raw.to_string()
         };
@@ -2251,8 +2256,8 @@ mod tests {
             lines,
             vec![
                 "[READY] Example task".to_string(),
-                "Env  ? 0s ago".to_string(),
-                "+5/-2 ?3 files".to_string(),
+                "Env  •  0s ago".to_string(),
+                "+5/-2 • 3 files".to_string(),
             ]
         );
     }
@@ -2276,7 +2281,7 @@ mod tests {
             lines,
             vec![
                 "[PENDING] No diff task".to_string(),
-                "env-2  ? 0s ago".to_string(),
+                "env-2  •  0s ago".to_string(),
                 "no diff".to_string(),
             ]
         );
@@ -2324,12 +2329,12 @@ mod tests {
             vec![
                 "https://chatgpt.com/codex/tasks/task_1".to_string(),
                 "  [READY] Example task".to_string(),
-                "  Env  ? 0s ago".to_string(),
-                "  +5/-2 ?3 files".to_string(),
+                "  Env  •  0s ago".to_string(),
+                "  +5/-2 • 3 files".to_string(),
                 String::new(),
                 "https://chatgpt.com/codex/tasks/task_2".to_string(),
                 "  [PENDING] No diff task".to_string(),
-                "  env-2  ? 0s ago".to_string(),
+                "  env-2  •  0s ago".to_string(),
                 "  no diff".to_string(),
             ]
         );

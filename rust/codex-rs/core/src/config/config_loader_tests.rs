@@ -504,8 +504,9 @@ collaboration_modes = "true""#;
     std::fs::write(&config_path, contents).expect("write config");
 
     let _guard = codepilotx_utils_absolute_path::AbsolutePathBufGuard::new(tmp.path());
-    let error = codepilotx_config::config_error_from_typed_toml::<ConfigToml>(&config_path, contents)
-        .expect("schema error");
+    let error =
+        codepilotx_config::config_error_from_typed_toml::<ConfigToml>(&config_path, contents)
+            .expect("schema error");
 
     let value_line = contents.lines().nth(1).expect("value line");
     let value_column = value_line.find("\"true\"").expect("value") + 1;
@@ -2070,8 +2071,11 @@ deny_read = ["secrets/**"]
     assert_eq!(
         filesystem.deny_read,
         Some(vec![
-            FilesystemDenyReadPattern::from_input(&format!("{}/secrets/**", codepilotx_home.display()))
-                .expect("bundle requirements path should resolve against codepilotx_home")
+            FilesystemDenyReadPattern::from_input(&format!(
+                "{}/secrets/**",
+                codepilotx_home.display()
+            ))
+            .expect("bundle requirements path should resolve against codepilotx_home")
         ])
     );
 
@@ -2237,7 +2241,9 @@ async fn project_layers_prefer_closest_cwd() -> std::io::Result<()> {
         .layers_high_to_low()
         .into_iter()
         .filter_map(|layer| match &layer.name {
-            ConfigLayerSource::Project { dot_codepilotx_folder } => Some(dot_codepilotx_folder),
+            ConfigLayerSource::Project {
+                dot_codepilotx_folder,
+            } => Some(dot_codepilotx_folder),
             _ => None,
         })
         .collect();
@@ -2509,8 +2515,8 @@ fn project_hook_command(layer: &ConfigLayerEntry) -> Option<&str> {
 }
 
 #[tokio::test]
-async fn project_paths_resolve_relative_to_dot_codepilotx_and_override_in_order() -> std::io::Result<()>
-{
+async fn project_paths_resolve_relative_to_dot_codepilotx_and_override_in_order()
+-> std::io::Result<()> {
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
@@ -2625,7 +2631,8 @@ async fn inline_instructions_set_base_instructions() -> std::io::Result<()> {
 }
 
 #[tokio::test]
-async fn project_layer_is_added_when_dot_codepilotx_exists_without_config_toml() -> std::io::Result<()> {
+async fn project_layer_is_added_when_dot_codepilotx_exists_without_config_toml()
+-> std::io::Result<()> {
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
@@ -2660,7 +2667,9 @@ async fn project_layer_is_added_when_dot_codepilotx_exists_without_config_toml()
         .collect();
     let expected_project_layer = ConfigLayerEntry::new(
         ConfigLayerSource::Project {
-            dot_codepilotx_folder: AbsolutePathBuf::from_absolute_path(project_root.join(".codex"))?,
+            dot_codepilotx_folder: AbsolutePathBuf::from_absolute_path(
+                project_root.join(".codex"),
+            )?,
         },
         TomlValue::Table(toml::map::Map::new()),
     );
@@ -3414,7 +3423,9 @@ async fn project_root_markers_supports_alternate_markers() -> std::io::Result<()
         .layers_high_to_low()
         .into_iter()
         .filter_map(|layer| match &layer.name {
-            ConfigLayerSource::Project { dot_codepilotx_folder } => Some(dot_codepilotx_folder),
+            ConfigLayerSource::Project {
+                dot_codepilotx_folder,
+            } => Some(dot_codepilotx_folder),
             _ => None,
         })
         .collect();
@@ -3474,7 +3485,9 @@ mod requirements_exec_policy_tests {
         let dot_codepilotx_folder = AbsolutePathBuf::from_absolute_path(dot_codepilotx_folder)
             .expect("absolute dot_codepilotx_folder");
         let layer = ConfigLayerEntry::new(
-            ConfigLayerSource::Project { dot_codepilotx_folder },
+            ConfigLayerSource::Project {
+                dot_codepilotx_folder,
+            },
             TomlValue::Table(Default::default()),
         );
         ConfigLayerStack::new(vec![layer], requirements, ConfigRequirementsToml::default())

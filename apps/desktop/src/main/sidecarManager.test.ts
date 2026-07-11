@@ -11,6 +11,9 @@ class FakeConnection {
   readonly sentRequests: Array<{ method: string; params: unknown }> = []
 
   listen(): void {}
+  dispose(): void {
+    if (nextDisposeError) throw nextDisposeError
+  }
 
   onNotification(method: string, handler: Handler): void {
     this.notificationHandlers.set(method, handler)
@@ -41,10 +44,18 @@ class FakeChildProcess extends EventEmitter {
   readonly stderr = new PassThrough()
   readonly stdin = new PassThrough()
   killed = false
+  exitCode: number | null = null
+  signalCode: NodeJS.Signals | null = null
+  killCount = 0
 
   kill(): boolean {
+    this.killCount += 1
+    if (nextKillError) throw nextKillError
     this.killed = true
-    this.emit('exit', null, null)
+    if (autoExitOnKill) {
+      this.exitCode = 0
+      this.emit('exit', 0, null)
+    }
     return true
   }
 }
@@ -52,7 +63,10 @@ class FakeChildProcess extends EventEmitter {
 const fakeConnection = new FakeConnection()
 const spawnedChildren: FakeChildProcess[] = []
 let nextSpawnError: Error | null = null
-const spawnMock = mock(() => {
+let nextKillError: Error | null = null
+let nextDisposeError: Error | null = null
+let autoExitOnKill = true
+const spawnMock = mock((..._args: unknown[]) => {
   const child = new FakeChildProcess()
   spawnedChildren.push(child)
   const error = nextSpawnError
@@ -95,6 +109,9 @@ beforeEach(() => {
   fakeConnection.sentRequests.length = 0
   spawnedChildren.length = 0
   nextSpawnError = null
+  nextKillError = null
+  nextDisposeError = null
+  autoExitOnKill = true
   spawnMock.mockClear()
 })
 
@@ -151,4 +168,123 @@ test('sidecar env preserves desktop runtime environment paths', () => {
   } as any)
 
   expect(env.Path).toBe('C:\\bun;C:\\Windows\\System32')
+})
+
+test('sidecar process environment excludes inherited credential variables', async () => {
+  const previous = process.env.SENTINEL_PROVIDER_API_KEY
+  process.env.SENTINEL_PROVIDER_API_KEY = 'sentinel-secret-value'
+  try {
+    const manager = new SidecarManager({
+      entrypoint: 'apps/tui/src/entrypoints/appServer.ts',
+      cwd: process.cwd(),
+      env: {},
+    })
+
+    await manager.start()
+
+    const spawnOptions = spawnMock.mock.calls[0]?.[2] as
+      | { env?: Record<string, string | undefined> }
+      | undefined
+    expect(spawnOptions?.env?.SENTINEL_PROVIDER_API_KEY).toBeUndefined()
+  } finally {
+    if (previous === undefined) {
+      delete process.env.SENTINEL_PROVIDER_API_KEY
+    } else {
+      process.env.SENTINEL_PROVIDER_API_KEY = previous
+    }
+  }
+})
+
+test('sidecar stop is idempotent and waits for process exit', async () => {
+  autoExitOnKill = false
+  const manager = new SidecarManager({
+    entrypoint: 'apps/tui/src/entrypoints/appServer.ts',
+    cwd: process.cwd(),
+    env: {},
+    stopTimeoutMs: 1_000,
+  })
+  await manager.start()
+  const child = spawnedChildren[0]
+  let settled = false
+  const first = manager.stop().then(() => {
+    settled = true
+  })
+  const second = manager.stop()
+  child.emit('error', new Error('not an exit'))
+  await Promise.resolve()
+  expect(settled).toBe(false)
+  expect(child.killCount).toBe(1)
+
+  child.exitCode = 0
+  child.emit('exit', 0, null)
+  await Promise.all([first, second])
+  expect(settled).toBe(true)
+  expect(child.killCount).toBe(1)
+})
+
+test('sidecar stop timeout uses force kill and waits for close', async () => {
+  autoExitOnKill = false
+  const forceKill = mock(async (child: FakeChildProcess) => {
+    child.signalCode = 'SIGKILL'
+    child.emit('close', null, 'SIGKILL')
+  })
+  const manager = new SidecarManager({
+    entrypoint: 'apps/tui/src/entrypoints/appServer.ts',
+    cwd: process.cwd(),
+    env: {},
+    stopTimeoutMs: 1,
+    forceKill: forceKill as never,
+  })
+  await manager.start()
+
+  await manager.stop()
+
+  expect(forceKill).toHaveBeenCalledTimes(1)
+})
+
+test('sidecar stop propagates kill errors', async () => {
+  nextKillError = new Error('kill denied')
+  const forceKill = mock(async (child: FakeChildProcess) => {
+    child.exitCode = 1
+    child.emit('exit', 1, 'SIGKILL')
+  })
+  const manager = new SidecarManager({
+    entrypoint: 'apps/tui/src/entrypoints/appServer.ts',
+    cwd: process.cwd(),
+    env: {},
+    forceKill: forceKill as never,
+  })
+  await manager.start()
+
+  await expect(manager.stop()).rejects.toThrow('kill denied')
+  expect(forceKill).toHaveBeenCalledTimes(1)
+})
+
+test('sidecar stop still terminates the child when connection cleanup fails', async () => {
+  nextDisposeError = new Error('connection dispose failed')
+  const manager = new SidecarManager({
+    entrypoint: 'apps/tui/src/entrypoints/appServer.ts',
+    cwd: process.cwd(),
+    env: {},
+  })
+  await manager.start()
+  const child = spawnedChildren[0]
+
+  await expect(manager.stop()).rejects.toThrow('connection dispose failed')
+  expect(child.killCount).toBe(1)
+})
+
+test('sidecar stop reports cleanup and termination failures together', async () => {
+  nextDisposeError = new Error('connection dispose failed')
+  nextKillError = new Error('kill denied')
+  const manager = new SidecarManager({
+    entrypoint: 'apps/tui/src/entrypoints/appServer.ts',
+    cwd: process.cwd(),
+    env: {},
+  })
+  await manager.start()
+
+  const error = await manager.stop().catch(value => value)
+  expect(error).toBeInstanceOf(AggregateError)
+  expect((error as AggregateError).errors).toHaveLength(2)
 })

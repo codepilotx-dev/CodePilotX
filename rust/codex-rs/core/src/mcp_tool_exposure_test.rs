@@ -2,8 +2,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use codepilotx_features::Feature;
-use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use codepilotx_mcp::ToolInfo;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use codepilotx_tools::ToolName;
 use pretty_assertions::assert_eq;
 use rmcp::model::JsonObject;

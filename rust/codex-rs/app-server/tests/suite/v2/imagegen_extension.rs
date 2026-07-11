@@ -80,7 +80,11 @@ async fn standalone_image_generation_returns_saved_path_hint_to_model() -> Resul
     .await;
 
     let codepilotx_home = TempDir::new()?;
-    create_config_toml(codepilotx_home.path(), &server.uri(), ImagegenTestMode::Direct)?;
+    create_config_toml(
+        codepilotx_home.path(),
+        &server.uri(),
+        ImagegenTestMode::Direct,
+    )?;
     write_chatgpt_auth(
         codepilotx_home.path(),
         ChatGptAuthFixture::new("access-chatgpt"),
@@ -179,7 +183,11 @@ async fn standalone_image_generation_failure_emits_terminal_item() -> Result<()>
     .await;
 
     let codepilotx_home = TempDir::new()?;
-    create_config_toml(codepilotx_home.path(), &server.uri(), ImagegenTestMode::Direct)?;
+    create_config_toml(
+        codepilotx_home.path(),
+        &server.uri(),
+        ImagegenTestMode::Direct,
+    )?;
     write_chatgpt_auth(
         codepilotx_home.path(),
         ChatGptAuthFixture::new("access-chatgpt"),
@@ -442,7 +450,11 @@ async fn run_image_edit_test(
     )
     .await;
 
-    create_config_toml(codepilotx_home.path(), &server.uri(), ImagegenTestMode::Direct)?;
+    create_config_toml(
+        codepilotx_home.path(),
+        &server.uri(),
+        ImagegenTestMode::Direct,
+    )?;
     write_chatgpt_auth(
         codepilotx_home.path(),
         ChatGptAuthFixture::new("access-chatgpt"),

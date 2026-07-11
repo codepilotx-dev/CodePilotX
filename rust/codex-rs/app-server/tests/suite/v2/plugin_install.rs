@@ -488,7 +488,10 @@ async fn plugin_install_rejects_invalid_remote_release_version() -> Result<()> {
 #[tokio::test]
 async fn plugin_install_rejects_invalid_remote_plugin_name() -> Result<()> {
     let codepilotx_home = TempDir::new()?;
-    write_remote_plugin_catalog_config(codepilotx_home.path(), "https://example.invalid/backend-api/")?;
+    write_remote_plugin_catalog_config(
+        codepilotx_home.path(),
+        "https://example.invalid/backend-api/",
+    )?;
     let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
@@ -808,7 +811,8 @@ async fn plugin_install_returns_invalid_request_for_disallowed_product_plugin() 
         AbsolutePathBuf::try_from(repo_root.path().join(".agents/plugins/marketplace.json"))?;
 
     let mut mcp =
-        TestAppServer::new_with_args(codepilotx_home.path(), &["--session-source", "atlas"]).await?;
+        TestAppServer::new_with_args(codepilotx_home.path(), &["--session-source", "atlas"])
+            .await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -1926,7 +1930,10 @@ fn connector_tool(connector_id: &str, connector_name: &str) -> Result<Tool> {
     Ok(tool)
 }
 
-fn write_connectors_config(codepilotx_home: &std::path::Path, base_url: &str) -> std::io::Result<()> {
+fn write_connectors_config(
+    codepilotx_home: &std::path::Path,
+    base_url: &str,
+) -> std::io::Result<()> {
     std::fs::write(
         codepilotx_home.join("config.toml"),
         format!(
@@ -1957,7 +1964,10 @@ plugins = true
     )
 }
 
-fn write_analytics_config(codepilotx_home: &std::path::Path, base_url: &str) -> std::io::Result<()> {
+fn write_analytics_config(
+    codepilotx_home: &std::path::Path,
+    base_url: &str,
+) -> std::io::Result<()> {
     std::fs::write(
         codepilotx_home.join("config.toml"),
         format!("chatgpt_base_url = \"{base_url}\"\n"),
@@ -2023,7 +2033,10 @@ remote_plugin = true
     )
 }
 
-fn configure_remote_plugin_test(codepilotx_home: &std::path::Path, server: &MockServer) -> Result<()> {
+fn configure_remote_plugin_test(
+    codepilotx_home: &std::path::Path,
+    server: &MockServer,
+) -> Result<()> {
     write_remote_plugin_catalog_config(codepilotx_home, &format!("{}/backend-api/", server.uri()))?;
     write_chatgpt_auth(
         codepilotx_home,

@@ -77,7 +77,10 @@ shell_snapshot = false
     )
 }
 
-fn create_config_toml_forced_login(codepilotx_home: &Path, forced_method: &str) -> std::io::Result<()> {
+fn create_config_toml_forced_login(
+    codepilotx_home: &Path,
+    forced_method: &str,
+) -> std::io::Result<()> {
     let config_toml = codepilotx_home.join("config.toml");
     let contents = format!(
         r#"
@@ -187,7 +190,10 @@ async fn get_auth_status_with_personal_access_token_omits_token() -> Result<()> 
         &[
             ("OPENAI_API_KEY", None),
             ("codepilotx_ACCESS_TOKEN", Some("at-test-token")),
-            ("codepilotx_AUTHAPI_BASE_URL", Some(authapi_base_url.as_str())),
+            (
+                "codepilotx_AUTHAPI_BASE_URL",
+                Some(authapi_base_url.as_str()),
+            ),
         ],
     )
     .await?;
@@ -222,7 +228,10 @@ async fn get_auth_status_with_personal_access_token_omits_token() -> Result<()> 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_auth_status_with_api_key_when_auth_not_required() -> Result<()> {
     let codepilotx_home = TempDir::new()?;
-    create_config_toml_custom_provider(codepilotx_home.path(), /*requires_openai_auth*/ false)?;
+    create_config_toml_custom_provider(
+        codepilotx_home.path(),
+        /*requires_openai_auth*/ false,
+    )?;
 
     let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;

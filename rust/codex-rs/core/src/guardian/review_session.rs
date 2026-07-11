@@ -768,10 +768,12 @@ async fn run_review_on_session(
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
             thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
-                environments: Some(codepilotx_protocol::protocol::TurnEnvironmentSelections::new(
-                    parent_turn_legacy_fallback_cwd,
-                    parent_turn_environments,
-                )),
+                environments: Some(
+                    codepilotx_protocol::protocol::TurnEnvironmentSelections::new(
+                        parent_turn_legacy_fallback_cwd,
+                        parent_turn_environments,
+                    ),
+                ),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: None,
                 permission_profile: Some(guardian_permission_profile),

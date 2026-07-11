@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import type { ThreadEvent } from '@codepilotx/core/agent/workflow.js'
 import type {
+  DesktopAgentEvent,
   DesktopPermissionRequest,
   DesktopUserMessageContent,
 } from '../shared/types.js'
@@ -48,6 +49,8 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   private resultError: string | null = null
   private currentSignal: AbortSignal | null = null
   private readonly toolNamesByUseId = new Map<string, string>()
+  private turnSequence = 0
+  private terminalTurnSequence = 0
 
   constructor(
     private readonly context: DesktopAgentRuntimeContext,
@@ -121,6 +124,7 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     content: DesktopUserMessageContent,
     signal: AbortSignal,
   ): Promise<void> {
+    const turnSequence = ++this.turnSequence
     const startedAt = Date.now()
     desktopDebug('sidecar_turn_start', {
       sessionId: this.context.sessionId,
@@ -159,6 +163,13 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
         eventCount: turnResult.eventCount,
         durationMs: Date.now() - startedAt,
       })
+    } catch (error) {
+      this.emitTurnTerminal(turnSequence, {
+        type: 'error',
+        sessionId: this.context.sessionId,
+        message: error instanceof Error ? error.message : String(error),
+      })
+      throw error
     } finally {
       this.currentSignal = null
     }
@@ -167,6 +178,10 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       desktopDebug('sidecar_turn_aborted', {
         sessionId: this.context.sessionId,
         durationMs: Date.now() - startedAt,
+      })
+      this.emitTurnTerminal(turnSequence, {
+        type: 'done',
+        sessionId: this.context.sessionId,
       })
       return
     }
@@ -177,12 +192,22 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
         durationMs: Date.now() - startedAt,
         message: this.resultError,
       })
-      throw new Error(this.resultError)
+      const error = new Error(this.resultError)
+      this.emitTurnTerminal(turnSequence, {
+        type: 'error',
+        sessionId: this.context.sessionId,
+        message: error.message,
+      })
+      throw error
     }
 
     desktopDebug('sidecar_turn_done', {
       sessionId: this.context.sessionId,
       durationMs: Date.now() - startedAt,
+    })
+    this.emitTurnTerminal(turnSequence, {
+      type: 'done',
+      sessionId: this.context.sessionId,
     })
   }
 
@@ -190,6 +215,7 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     response: Record<string, unknown>,
     signal: AbortSignal,
   ): Promise<void> {
+    const turnSequence = ++this.turnSequence
     const startedAt = Date.now()
     desktopDebug('sidecar_control_response_start', {
       sessionId: this.context.sessionId,
@@ -215,6 +241,13 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
         input: JSON.stringify(response),
         isMeta: true,
       })
+    } catch (error) {
+      this.emitTurnTerminal(turnSequence, {
+        type: 'error',
+        sessionId: this.context.sessionId,
+        message: error instanceof Error ? error.message : String(error),
+      })
+      throw error
     } finally {
       this.currentSignal = null
     }
@@ -224,11 +257,19 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
         sessionId: this.context.sessionId,
         durationMs: Date.now() - startedAt,
       })
+      this.emitTurnTerminal(turnSequence, {
+        type: 'done',
+        sessionId: this.context.sessionId,
+      })
       return
     }
     desktopDebug('sidecar_control_response_done', {
       sessionId: this.context.sessionId,
       durationMs: Date.now() - startedAt,
+    })
+    this.emitTurnTerminal(turnSequence, {
+      type: 'done',
+      sessionId: this.context.sessionId,
     })
   }
 
@@ -259,11 +300,7 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   // ── 清理 ──────────────────────────────────────────────────────────
 
   async dispose(): Promise<void> {
-    try {
-      await this.sidecarManager.stop()
-    } catch {
-      // 忽略清理错误
-    }
+    await this.sidecarManager.stop()
   }
 
   // ── Private ───────────────────────────────────────────────────────
@@ -424,6 +461,15 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     return typeof item.tool_use_id === 'string'
       ? (this.toolNamesByUseId.get(item.tool_use_id) ?? 'Tool')
       : 'Tool'
+  }
+
+  private emitTurnTerminal(
+    turnSequence: number,
+    event: Extract<DesktopAgentEvent, { type: 'done' | 'error' }>,
+  ): void {
+    if (turnSequence <= this.terminalTurnSequence) return
+    this.terminalTurnSequence = turnSequence
+    this.context.emit(event)
   }
 }
 

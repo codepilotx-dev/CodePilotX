@@ -288,19 +288,19 @@ fn is_decorative_marker_token(raw_token: &str, token: &str) -> bool {
         raw,
         "-" | "*"
             | "+"
-            | ""
-            | ""
-            | ""
+            | "•"
+            | "◦"
+            | "▪"
             | ">"
             | "|"
-            | ""
-            | ""
-            | ""
-            | ""
-            | ""
-            | ""
-            | ""
-            | ""
+            | "│"
+            | "┆"
+            | "└"
+            | "├"
+            | "┌"
+            | "┐"
+            | "┘"
+            | "┼"
     ) || is_ordered_list_marker(raw, token)
 }
 
@@ -1206,11 +1206,11 @@ mod tests {
 
     #[test]
     fn wide_unicode_wraps_by_display_width() {
-        let line = Line::from("");
+        let line = Line::from("😀😀😀");
         let out = word_wrap_line(&line, /*width_or_options*/ 4);
         assert_eq!(out.len(), 2);
-        assert_eq!(concat_line(&out[0]), "");
-        assert_eq!(concat_line(&out[1]), "");
+        assert_eq!(concat_line(&out[0]), "😀😀");
+        assert_eq!(concat_line(&out[1]), "😀");
     }
 
     #[test]
@@ -1295,7 +1295,7 @@ mod tests {
 
     #[test]
     fn line_height_counts_double_width_emoji() {
-        let line = "".into(); // each emoji ~ width 2
+        let line = "😀😀😀".into(); // each emoji ~ width 2
         assert_eq!(word_wrap_line(&line, /*width_or_options*/ 4).len(), 2);
         assert_eq!(word_wrap_line(&line, /*width_or_options*/ 2).len(), 3);
         assert_eq!(word_wrap_line(&line, /*width_or_options*/ 6).len(), 1);

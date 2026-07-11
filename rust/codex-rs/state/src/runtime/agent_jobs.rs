@@ -151,7 +151,7 @@ SELECT
     completed_at,
     reported_at
 FROM agent_job_items
-WHERE job_id = 
+WHERE job_id =
             "#,
         );
         builder.push_bind(job_id);

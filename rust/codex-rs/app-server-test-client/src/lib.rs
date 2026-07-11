@@ -436,12 +436,14 @@ pub async fn run() -> Result<()> {
         }
         CliCommand::ThreadIncrementElicitation { thread_id } => {
             ensure_dynamic_tools_unused(&dynamic_tools, "thread-increment-elicitation")?;
-            let url = resolve_shared_websocket_url(codepilotx_bin, url, "thread-increment-elicitation")?;
+            let url =
+                resolve_shared_websocket_url(codepilotx_bin, url, "thread-increment-elicitation")?;
             thread_increment_elicitation(&url, thread_id)
         }
         CliCommand::ThreadDecrementElicitation { thread_id } => {
             ensure_dynamic_tools_unused(&dynamic_tools, "thread-decrement-elicitation")?;
-            let url = resolve_shared_websocket_url(codepilotx_bin, url, "thread-decrement-elicitation")?;
+            let url =
+                resolve_shared_websocket_url(codepilotx_bin, url, "thread-decrement-elicitation")?;
             thread_decrement_elicitation(&url, thread_id)
         }
         CliCommand::LiveElicitationTimeoutPause {
@@ -469,8 +471,14 @@ pub async fn run() -> Result<()> {
             if url.is_some() {
                 bail!("plugin-analytics-smoke requires --codex-bin and does not support --url");
             }
-            let codepilotx_bin = codepilotx_bin.context("plugin-analytics-smoke requires --codex-bin")?;
-            plugin_analytics_smoke::run(&codepilotx_bin, &config_overrides, &plugin_id, capture_file)
+            let codepilotx_bin =
+                codepilotx_bin.context("plugin-analytics-smoke requires --codex-bin")?;
+            plugin_analytics_smoke::run(
+                &codepilotx_bin,
+                &config_overrides,
+                &plugin_id,
+                capture_file,
+            )
         }
         CliCommand::PluginAnalyticsMutationSmoke {
             remote_plugin_id,
@@ -503,7 +511,8 @@ pub async fn run() -> Result<()> {
             if url.is_some() {
                 bail!("plugin-remote-uninstall requires --codex-bin and does not support --url");
             }
-            let codepilotx_bin = codepilotx_bin.context("plugin-remote-uninstall requires --codex-bin")?;
+            let codepilotx_bin =
+                codepilotx_bin.context("plugin-remote-uninstall requires --codex-bin")?;
             plugin_analytics_mutation_smoke::run_cleanup(
                 &codepilotx_bin,
                 &config_overrides,
@@ -581,7 +590,9 @@ impl BackgroundAppServer {
             .stdout(Stdio::null())
             .stderr(Stdio::inherit())
             .spawn()
-            .with_context(|| format!("failed to start `{}` app-server", codepilotx_bin.display()))?;
+            .with_context(|| {
+                format!("failed to start `{}` app-server", codepilotx_bin.display())
+            })?;
 
         Ok(Self { process, url })
     }
@@ -599,7 +610,12 @@ impl Drop for BackgroundAppServer {
     }
 }
 
-fn serve(codepilotx_bin: &Path, config_overrides: &[String], listen: &str, kill: bool) -> Result<()> {
+fn serve(
+    codepilotx_bin: &Path,
+    config_overrides: &[String],
+    listen: &str,
+    kill: bool,
+) -> Result<()> {
     let runtime_dir = PathBuf::from("/tmp/codex-app-server-test-client");
     fs::create_dir_all(&runtime_dir)
         .with_context(|| format!("failed to create runtime dir {}", runtime_dir.display()))?;
@@ -1524,7 +1540,9 @@ fn item_started_before_helper_done_is_unexpected(
 impl CodexClient {
     fn connect(endpoint: &Endpoint, config_overrides: &[String]) -> Result<Self> {
         match endpoint {
-            Endpoint::SpawnCodex(codepilotx_bin) => Self::spawn_stdio(codepilotx_bin, config_overrides),
+            Endpoint::SpawnCodex(codepilotx_bin) => {
+                Self::spawn_stdio(codepilotx_bin, config_overrides)
+            }
             Endpoint::ConnectWs(url) => Self::connect_websocket(url),
         }
     }

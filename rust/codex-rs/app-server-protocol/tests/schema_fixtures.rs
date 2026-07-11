@@ -116,13 +116,13 @@ fn schema_root() -> Result<PathBuf> {
         .to_path_buf();
 
     // Sanity check that the JSON fixtures resolve to the same schema root.
-    let json_bundle =
-        codepilotx_utils_cargo_bin::find_resource!("schema/json/codepilotx_app_server_protocol.schemas.json")
-            .context("resolve JSON schema bundle")?;
-    let json_root = json_bundle
-        .parent()
-        .and_then(|p| p.parent())
-        .context("derive schema root from schema/json/codepilotx_app_server_protocol.schemas.json")?;
+    let json_bundle = codepilotx_utils_cargo_bin::find_resource!(
+        "schema/json/codepilotx_app_server_protocol.schemas.json"
+    )
+    .context("resolve JSON schema bundle")?;
+    let json_root = json_bundle.parent().and_then(|p| p.parent()).context(
+        "derive schema root from schema/json/codepilotx_app_server_protocol.schemas.json",
+    )?;
     anyhow::ensure!(
         schema_root == json_root,
         "schema roots disagree: typescript={} json={}",

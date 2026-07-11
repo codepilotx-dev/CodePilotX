@@ -14,7 +14,9 @@ pub fn format_config_layer_source(source: &ConfigLayerSource, config_toml_file: 
         ConfigLayerSource::User { file, .. } => {
             format!("user ({})", file.as_path().display())
         }
-        ConfigLayerSource::Project { dot_codepilotx_folder } => {
+        ConfigLayerSource::Project {
+            dot_codepilotx_folder,
+        } => {
             format!(
                 "project ({}/{config_toml_file})",
                 dot_codepilotx_folder.as_path().display()

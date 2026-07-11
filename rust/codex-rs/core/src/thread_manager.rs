@@ -248,7 +248,9 @@ pub fn thread_store_from_config(
                 .features
                 .enabled(Feature::LocalThreadStoreCompression)
             {
-                codepilotx_rollout::spawn_rollout_compression_worker(config.codepilotx_home.to_path_buf());
+                codepilotx_rollout::spawn_rollout_compression_worker(
+                    config.codepilotx_home.to_path_buf(),
+                );
             }
             Arc::new(LocalThreadStore::new(
                 LocalThreadStoreConfig::from_config(config),
@@ -337,7 +339,9 @@ impl ThreadManager {
             codepilotx_home.clone(),
             Arc::new(EnvironmentManager::default_for_tests()),
         );
-        manager._test_codepilotx_home_guard = Some(TempCodePilotXHomeGuard { path: codepilotx_home });
+        manager._test_codepilotx_home_guard = Some(TempCodePilotXHomeGuard {
+            path: codepilotx_home,
+        });
         manager
     }
 
@@ -368,10 +372,11 @@ impl ThreadManager {
         set_thread_manager_test_mode_for_tests(/*enabled*/ true);
         let auth_manager = AuthManager::from_auth_for_testing(auth);
         let installation_id = uuid::Uuid::new_v4().to_string();
-        let skills_codepilotx_home = match AbsolutePathBuf::from_absolute_path_checked(&codepilotx_home) {
-            Ok(codepilotx_home) => codepilotx_home,
-            Err(err) => panic!("test codepilotx_home should be absolute: {err}"),
-        };
+        let skills_codepilotx_home =
+            match AbsolutePathBuf::from_absolute_path_checked(&codepilotx_home) {
+                Ok(codepilotx_home) => codepilotx_home,
+                Err(err) => panic!("test codepilotx_home should be absolute: {err}"),
+            };
         let (thread_created_tx, _) = broadcast::channel(THREAD_CREATED_CHANNEL_CAPACITY);
         let restriction_product = SessionSource::Exec.restriction_product();
         let plugins_manager = Arc::new(PluginsManager::new_with_options(

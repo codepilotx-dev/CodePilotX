@@ -400,7 +400,7 @@ mod tests {
         let mut out = Vec::new();
         append_markdown_agent(src, /*width*/ None, &mut out);
         let rendered = lines_to_strings(&out);
-        assert!(rendered.iter().any(|line| line.contains('')));
+        assert!(rendered.iter().any(|line| line.contains('━')));
         assert!(rendered.iter().any(|line| line.contains(" 1      2")));
     }
 
@@ -410,7 +410,7 @@ mod tests {
         let mut out = Vec::new();
         append_markdown_agent(src, /*width*/ None, &mut out);
         let rendered = lines_to_strings(&out);
-        assert!(rendered.iter().any(|line| line.contains('')));
+        assert!(rendered.iter().any(|line| line.contains('━')));
         assert!(
             rendered
                 .iter()
@@ -429,7 +429,7 @@ mod tests {
         let mut out = Vec::new();
         append_markdown_agent(src, /*width*/ None, &mut out);
         let rendered = lines_to_strings(&out);
-        assert!(rendered.iter().any(|line| line.contains('')));
+        assert!(rendered.iter().any(|line| line.contains('━')));
         assert!(rendered.iter().any(|line| line.contains(" left    right")));
         assert!(!rendered.iter().any(|line| line.trim() == "A | B"));
     }
@@ -440,7 +440,7 @@ mod tests {
         let mut out = Vec::new();
         append_markdown_agent(src, /*width*/ None, &mut out);
         let rendered = lines_to_strings(&out);
-        assert!(rendered.iter().any(|line| line.contains('')));
+        assert!(rendered.iter().any(|line| line.contains('━')));
         assert!(!rendered.iter().any(|line| line.trim() == "| Only |"));
     }
 

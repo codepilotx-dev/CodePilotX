@@ -81,8 +81,8 @@ mod table_key_value;
 
 const TABLE_COLUMN_GAP: usize = 2;
 const TABLE_CELL_PADDING: usize = 1;
-const TABLE_HEADER_SEPARATOR_CHAR: char = '?;
-const TABLE_BODY_SEPARATOR_CHAR: char = '';
+const TABLE_HEADER_SEPARATOR_CHAR: char = '━';
+const TABLE_BODY_SEPARATOR_CHAR: char = '─';
 
 struct MarkdownStyles {
     h1: Style,
@@ -149,7 +149,7 @@ struct TableCell {
     lines: Vec<HyperlinkLine>,
 }
 
-// TableCell mutators inlined ?called per-span during table event parsing.
+// TableCell mutators inlined — called per-span during table event parsing.
 impl TableCell {
     #[inline]
     fn ensure_line(&mut self) {
@@ -346,7 +346,7 @@ fn should_render_link_destination(dest_url: &str) -> bool {
 
 static COLON_LOCATION_SUFFIX_RE: LazyLock<Regex> =
     LazyLock::new(
-        || match Regex::new(r":\d+(?::\d+)?(?:[-]\d+(?::\d+)?)?$") {
+        || match Regex::new(r":\d+(?::\d+)?(?:[-–]\d+(?::\d+)?)?$") {
             Ok(regex) => regex,
             Err(error) => panic!("invalid location suffix regex: {error}"),
         },
@@ -453,7 +453,7 @@ where
                 if !self.text.is_empty() {
                     self.push_blank_line();
                 }
-                self.push_line(Line::from("?));
+                self.push_line(Line::from("———"));
                 self.needs_newline = true;
             }
             Event::Html(html) => self.html(html, /*inline*/ false),
@@ -635,7 +635,7 @@ where
 
         // When inside a fenced code block with a known language, accumulate
         // text into the buffer for batch highlighting in end_codeblock().
-        // Append verbatim ?pulldown-cmark text events already contain the
+        // Append verbatim — pulldown-cmark text events already contain the
         // original line breaks, so inserting separators would double them.
         if self.in_code_block && self.code_block_lang.is_some() {
             self.code_block_buffer.push_str(&text);
@@ -1696,7 +1696,7 @@ where
             .any(|word| word.eq_ignore_ascii_case("html"))
     }
 
-    // Width-measurement helpers inlined ?called per-cell during table column
+    // Width-measurement helpers inlined — called per-cell during table column
     // width computation, which runs on every re-render.
 
     #[inline]
@@ -2385,7 +2385,7 @@ mod tests {
     #[test]
     fn crlf_code_block_no_extra_blank_lines() {
         // pulldown-cmark can split CRLF code blocks into multiple Text events.
-        // The buffer must concatenate them verbatim ?no inserted separators.
+        // The buffer must concatenate them verbatim — no inserted separators.
         let markdown = "```rust\r\nfn main() {}\r\n    line2\r\n```\r\n";
         let rendered = render_markdown_text(markdown);
         let lines = lines_to_strings(&rendered);
@@ -2447,7 +2447,7 @@ mod tests {
     #[test]
     fn column_classification_narrative_by_word_count() {
         // Col 0: short tokens (1-2 words each) -> Compact
-        // Col 1: prose (? words per cell) ?Narrative
+        // Col 1: prose (≥4 words per cell) → Narrative
         let header = vec![make_cell("ID"), make_cell("Description")];
         let rows = vec![
             vec![make_cell("1"), make_cell("a long description of the item")],
@@ -2539,7 +2539,7 @@ mod tests {
         // max(5, min(12, 16)) = max(5, 12) = 12
         assert_eq!(W::preferred_column_floor(&m, /*min_column_width*/ 3), 12);
 
-        // Body token exceeds 16 cap ?capped at 16, then max with header
+        // Body token exceeds 16 cap → capped at 16, then max with header
         let m2 = TableColumnMetrics {
             max_width: 30,
             header_token_width: 5,
@@ -2636,7 +2636,7 @@ mod tests {
 
     #[test]
     fn spillover_detects_trailing_html_label() {
-        // "HTML block:" with no next_row ?trailing HTML label spillover
+        // "HTML block:" with no next_row → trailing HTML label spillover
         let row = make_body_row(
             vec![make_cell("HTML block:"), make_cell(""), make_cell("")],
             /*has_table_pipe_syntax*/ false,
@@ -2646,7 +2646,7 @@ mod tests {
 
     #[test]
     fn spillover_keeps_normal_multi_cell_row() {
-        // 3 cells all non-empty ?not spillover
+        // 3 cells all non-empty → not spillover
         let row = make_body_row(
             vec![make_cell("one"), make_cell("two"), make_cell("three")],
             /*has_table_pipe_syntax*/ true,
@@ -2656,7 +2656,7 @@ mod tests {
 
     #[test]
     fn spillover_keeps_label_when_next_is_not_html() {
-        // cell 0 = "Status:" and next_row cell 0 = "ok" ?not spillover (not HTML)
+        // cell 0 = "Status:" and next_row cell 0 = "ok" → not spillover (not HTML)
         let row = make_body_row(
             vec![make_cell("Status:"), make_cell(""), make_cell("")],
             /*has_table_pipe_syntax*/ true,

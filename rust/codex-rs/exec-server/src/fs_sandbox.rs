@@ -22,10 +22,10 @@ use tokio::process::Command;
 
 use crate::ExecServerRuntimePaths;
 use crate::FileSystemSandboxContext;
-use crate::fs_helper::codepilotx_FS_HELPER_ARG1;
 use crate::fs_helper::FsHelperPayload;
 use crate::fs_helper::FsHelperRequest;
 use crate::fs_helper::FsHelperResponse;
+use crate::fs_helper::codepilotx_FS_HELPER_ARG1;
 use crate::local_file_system::current_sandbox_cwd;
 use crate::rpc::internal_error;
 use crate::rpc::invalid_request;
@@ -138,7 +138,10 @@ impl FileSystemSandboxRunner {
                     environment_id: None,
                     network: None,
                     sandbox_policy_cwd: &cwd.uri,
-                    codepilotx_linux_sandbox_exe: self.runtime_paths.codepilotx_linux_sandbox_exe.as_deref(),
+                    codepilotx_linux_sandbox_exe: self
+                        .runtime_paths
+                        .codepilotx_linux_sandbox_exe
+                        .as_deref(),
                     use_legacy_landlock: sandbox_context.use_legacy_landlock,
                     windows_sandbox_level: sandbox_context.windows_sandbox_level,
                     windows_sandbox_private_desktop: sandbox_context
@@ -419,9 +422,11 @@ mod tests {
     #[test]
     fn helper_permissions_preserve_existing_writes() {
         let codepilotx_self_exe = std::env::current_exe().expect("current exe");
-        let runtime_paths =
-            ExecServerRuntimePaths::new(codepilotx_self_exe, /*codepilotx_linux_sandbox_exe*/ None)
-                .expect("runtime paths");
+        let runtime_paths = ExecServerRuntimePaths::new(
+            codepilotx_self_exe,
+            /*codepilotx_linux_sandbox_exe*/ None,
+        )
+        .expect("runtime paths");
         let cwd = AbsolutePathBuf::from_absolute_path(std::env::temp_dir().as_path())
             .expect("absolute cwd");
         let writable = cwd.join("writable");
@@ -611,9 +616,13 @@ mod tests {
             },
             access: FileSystemAccessMode::Write,
         }]);
-        let sandbox_context = codepilotx_file_system::FileSystemSandboxContext::from_permission_profile(
-            PermissionProfile::from_runtime_permissions(&policy, NetworkSandboxPolicy::Restricted),
-        );
+        let sandbox_context =
+            codepilotx_file_system::FileSystemSandboxContext::from_permission_profile(
+                PermissionProfile::from_runtime_permissions(
+                    &policy,
+                    NetworkSandboxPolicy::Restricted,
+                ),
+            );
 
         let err = sandbox_cwd(&sandbox_context).expect_err("missing cwd should be rejected");
 
@@ -626,9 +635,11 @@ mod tests {
     #[test]
     fn helper_permissions_include_helper_read_root_without_additional_permissions() {
         let codepilotx_self_exe = std::env::current_exe().expect("current exe");
-        let runtime_paths =
-            ExecServerRuntimePaths::new(codepilotx_self_exe, /*codepilotx_linux_sandbox_exe*/ None)
-                .expect("runtime paths");
+        let runtime_paths = ExecServerRuntimePaths::new(
+            codepilotx_self_exe,
+            /*codepilotx_linux_sandbox_exe*/ None,
+        )
+        .expect("runtime paths");
         let cwd = AbsolutePathBuf::from_absolute_path(std::env::temp_dir().as_path())
             .expect("absolute cwd");
         let mut policy = restricted_policy(Vec::new());

@@ -49,7 +49,7 @@ export type Attachment = {
   - 图片附件 → 转换为 `UserInput.Image` (data URL)
   - 文本附件 → 转换为 `UserInput.Text` (内嵌文本内容)
   - Document/Audio/Video/Binary → **明确抛出错误** "Unsupported attachment type for this runtime"
-  
+
   转换映射:
   ```
   Attachment.kind='image' → { type: 'image', url: dataUrl, detail: 'auto' }
@@ -64,7 +64,7 @@ export type Attachment = {
 ### 2.5 UI/能力门控（Renderer）
 - **修改**: `apps/desktop/src/renderer/` — 在 Composer 提交前检查 `modelMetadata.modalities.input` 是否包含附件类型
   - 图片：检查 `modalities.input` 包含 `'image'`
-  - PDF/文档：检查 `'document'`  
+  - PDF/文档：检查 `'document'`
   - 其他类型：检查笼统支持或直接阻止
 - 阻止时在 renderer 显示中文错误提示
 
@@ -103,7 +103,7 @@ export type Attachment = {
 - 保留图片转换 (image → `image_url` data URL)
 - 音频/视频/二进制 → 抛出明确 unsupported 错误
 
-### 4.2 MiniMax (minimax.ts)  
+### 4.2 MiniMax (minimax.ts)
 - 现有 `findUnsupportedMiniMaxInput` 已经对 image/document 硬报错，无需修改
 - 添加单测验证错误路径
 

@@ -567,7 +567,9 @@ fn stored_thread_from_state(
     })
 }
 
-fn git_info_from_patch(patch: &ThreadMetadataPatch) -> Option<codepilotx_protocol::protocol::GitInfo> {
+fn git_info_from_patch(
+    patch: &ThreadMetadataPatch,
+) -> Option<codepilotx_protocol::protocol::GitInfo> {
     let git_info = patch.git_info.as_ref()?;
     let sha = git_info.sha.clone().flatten();
     let branch = git_info.branch.clone().flatten();

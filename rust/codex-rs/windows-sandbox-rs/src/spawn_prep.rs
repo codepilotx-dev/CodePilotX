@@ -26,9 +26,10 @@ use crate::token::create_readonly_token_with_cap;
 use crate::token::create_workspace_write_token_with_caps_from;
 use crate::token::get_current_token_for_restriction;
 use crate::token::get_logon_sid_bytes;
+use crate::workspace_acl::existing_workspace_config_dirs;
 use crate::workspace_acl::is_command_cwd_root;
 use crate::workspace_acl::protect_workspace_agents_dir;
-use crate::workspace_acl::protect_workspace_codepilotx_dir;
+use crate::workspace_acl::protect_workspace_config_dirs;
 use anyhow::Context;
 use anyhow::Result;
 use codepilotx_protocol::models::PermissionProfile;
@@ -275,6 +276,9 @@ pub(crate) fn apply_legacy_session_acl_rules(
 ) -> Result<()> {
     let AllowDenyPaths { allow, mut deny } =
         compute_allow_paths_for_permissions(permissions, current_dir, env_map);
+    deny.extend(existing_workspace_config_dirs(
+        allow.iter().map(PathBuf::as_path),
+    ));
     unsafe {
         for path in additional_deny_write_paths {
             // Explicit carveouts must exist before the command starts so the
@@ -287,19 +291,22 @@ pub(crate) fn apply_legacy_session_acl_rules(
         }
         if let Some(readonly_sid) = acl_sids.readonly_sid {
             for p in &allow {
-                let _ = add_allow_ace(p, readonly_sid.as_ptr());
+                add_allow_ace(p, readonly_sid.as_ptr())
+                    .with_context(|| format!("apply allow ACL to {}", p.display()))?;
             }
         } else {
             for p in &allow {
                 let Some(root_sid) = matching_root_capability(p, acl_sids.write_root_sids) else {
                     continue;
                 };
-                let _ = add_allow_ace(p, root_sid.sid.as_ptr());
+                add_allow_ace(p, root_sid.sid.as_ptr())
+                    .with_context(|| format!("apply allow ACL to {}", p.display()))?;
             }
         }
         for p in &deny {
             for root_sid in deny_root_capabilities_for_path(p, acl_sids.write_root_sids) {
-                let _ = add_deny_write_ace(p, root_sid.sid.as_ptr());
+                add_deny_write_ace(p, root_sid.sid.as_ptr())
+                    .with_context(|| format!("apply deny-write ACL to {}", p.display()))?;
             }
         }
         if !additional_deny_read_paths.is_empty() {
@@ -336,8 +343,10 @@ pub(crate) fn apply_legacy_session_acl_rules(
         {
             let canonical_cwd = canonicalize_path(current_dir);
             if is_command_cwd_root(&workspace_sid.root, &canonical_cwd) {
-                let _ = protect_workspace_codepilotx_dir(current_dir, workspace_sid.sid.as_ptr());
-                let _ = protect_workspace_agents_dir(current_dir, workspace_sid.sid.as_ptr());
+                protect_workspace_config_dirs(current_dir, workspace_sid.sid.as_ptr())
+                    .context("protect workspace config directories")?;
+                protect_workspace_agents_dir(current_dir, workspace_sid.sid.as_ptr())
+                    .context("protect workspace .agents directory")?;
             }
         }
     }
@@ -615,10 +624,12 @@ mod tests {
 
         let stale_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &stale_root)
             .expect("stale sid");
-        let active_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &active_root)
-            .expect("active sid");
-        let workspace_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &workspace)
-            .expect("workspace sid");
+        let active_sid =
+            workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &active_root)
+                .expect("active sid");
+        let workspace_sid =
+            workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &workspace)
+                .expect("workspace sid");
         let caps = load_or_create_cap_sids(&codepilotx_home).expect("load caps");
 
         let sid_strs = root_capability_sids(
@@ -651,10 +662,12 @@ mod tests {
         std::fs::create_dir_all(&nested_root).expect("create nested root");
         std::fs::create_dir_all(&unrelated_root).expect("create unrelated root");
 
-        let workspace_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &workspace)
-            .expect("workspace sid");
-        let nested_sid = workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &nested_root)
-            .expect("nested sid");
+        let workspace_sid =
+            workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &workspace)
+                .expect("workspace sid");
+        let nested_sid =
+            workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &nested_root)
+                .expect("nested sid");
         let unrelated_sid =
             workspace_write_cap_sid_for_root(&codepilotx_home, &workspace, &unrelated_root)
                 .expect("unrelated sid");
@@ -705,8 +718,12 @@ mod tests {
             )
             .expect("managed permission profile");
 
-        let roots =
-            legacy_session_capability_roots(&permissions, &workspace, &HashMap::new(), &codepilotx_home);
+        let roots = legacy_session_capability_roots(
+            &permissions,
+            &workspace,
+            &HashMap::new(),
+            &codepilotx_home,
+        );
 
         assert!(roots.contains(&dunce::canonicalize(&workspace).expect("workspace")));
         assert!(roots.contains(&dunce::canonicalize(&active_root).expect("active root")));

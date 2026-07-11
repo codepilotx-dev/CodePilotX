@@ -35,6 +35,9 @@ function messageFromEvent(event: DesktopSessionEvent): Message {
     text: event.content ?? '',
     createdAt: event.createdAt,
     streaming: event.type === 'assistant_delta',
+    streamingChunks: Array.isArray(event.metadata?.streamingChunks)
+      ? (event.metadata.streamingChunks as string[])
+      : undefined,
   };
 }
 

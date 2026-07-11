@@ -165,11 +165,7 @@ impl HistoryCell for UserHistoryCell {
         }
 
         if let Some(wrapped_message) = wrapped_message {
-            lines.extend(prefix_lines(
-                wrapped_message,
-                " ".bold().dim(),
-                "  ".into(),
-            ));
+            lines.extend(prefix_lines(wrapped_message, " ".bold().dim(), "  ".into()));
         }
 
         lines.push(Line::from("").style(style));

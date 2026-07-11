@@ -170,7 +170,10 @@ pub fn run_elevated_setup(
 }
 
 #[cfg(target_os = "windows")]
-pub fn run_elevated_provisioning_setup(codepilotx_home: &Path, real_user: &str) -> anyhow::Result<()> {
+pub fn run_elevated_provisioning_setup(
+    codepilotx_home: &Path,
+    real_user: &str,
+) -> anyhow::Result<()> {
     codepilotx_windows_sandbox::run_elevated_provisioning_setup(codepilotx_home, real_user)
 }
 
@@ -186,7 +189,10 @@ pub fn run_elevated_setup(
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn run_elevated_provisioning_setup(_codepilotx_home: &Path, _real_user: &str) -> anyhow::Result<()> {
+pub fn run_elevated_provisioning_setup(
+    _codepilotx_home: &Path,
+    _real_user: &str,
+) -> anyhow::Result<()> {
     anyhow::bail!("elevated Windows sandbox setup is only supported on Windows")
 }
 

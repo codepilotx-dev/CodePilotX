@@ -851,7 +851,10 @@ impl AppServerRequestHandle {
 }
 
 impl AppServerClient {
-    pub fn codepilotx_home(&self, local_codepilotx_home: &AbsolutePathBuf) -> Option<AppServerPath> {
+    pub fn codepilotx_home(
+        &self,
+        local_codepilotx_home: &AbsolutePathBuf,
+    ) -> Option<AppServerPath> {
         match self {
             Self::InProcess(_) => Some(AppServerPath::from_app_server(
                 local_codepilotx_home.display().to_string(),
@@ -1203,33 +1206,37 @@ mod tests {
     }
 
     fn item_completed_notification(text: &str) -> ServerNotification {
-        ServerNotification::ItemCompleted(codepilotx_app_server_protocol::ItemCompletedNotification {
-            thread_id: "thread".to_string(),
-            turn_id: "turn".to_string(),
-            completed_at_ms: 0,
-            item: codepilotx_app_server_protocol::ThreadItem::AgentMessage {
-                id: "item".to_string(),
-                text: text.to_string(),
-                phase: None,
-                memory_citation: None,
+        ServerNotification::ItemCompleted(
+            codepilotx_app_server_protocol::ItemCompletedNotification {
+                thread_id: "thread".to_string(),
+                turn_id: "turn".to_string(),
+                completed_at_ms: 0,
+                item: codepilotx_app_server_protocol::ThreadItem::AgentMessage {
+                    id: "item".to_string(),
+                    text: text.to_string(),
+                    phase: None,
+                    memory_citation: None,
+                },
             },
-        })
+        )
     }
 
     fn turn_completed_notification() -> ServerNotification {
-        ServerNotification::TurnCompleted(codepilotx_app_server_protocol::TurnCompletedNotification {
-            thread_id: "thread".to_string(),
-            turn: codepilotx_app_server_protocol::Turn {
-                id: "turn".to_string(),
-                items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
-                items: Vec::new(),
-                status: codepilotx_app_server_protocol::TurnStatus::Completed,
-                error: None,
-                started_at: None,
-                completed_at: Some(0),
-                duration_ms: Some(1),
+        ServerNotification::TurnCompleted(
+            codepilotx_app_server_protocol::TurnCompletedNotification {
+                thread_id: "thread".to_string(),
+                turn: codepilotx_app_server_protocol::Turn {
+                    id: "turn".to_string(),
+                    items_view: codepilotx_app_server_protocol::TurnItemsView::Full,
+                    items: Vec::new(),
+                    status: codepilotx_app_server_protocol::TurnStatus::Completed,
+                    error: None,
+                    started_at: None,
+                    completed_at: Some(0),
+                    duration_ms: Some(1),
+                },
             },
-        })
+        )
     }
 
     fn test_remote_connect_args(websocket_url: String) -> RemoteAppServerConnectArgs {

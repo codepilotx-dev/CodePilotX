@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "emoji": {
+      "type": "string"
+    },
+    "expiresAt": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "limitedAvailability": {
+      "type": "boolean"
+    },
+    "message": {
+      "type": "string"
+    },
+    "providerId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "emoji",
+    "limitedAvailability",
+    "message",
+    "providerId"
+  ],
+  "title": "ProviderAuthStatusSetParams",
+  "type": "object"
+}

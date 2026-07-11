@@ -44,8 +44,8 @@ impl FsmonitorProbeRunner for WorkspaceFsmonitorProbeRunner<'_> {
 
 /// Return value of [`get_git_diff`].
 ///
-/// * `bool` ?Whether the current working directory is inside a Git repo.
-/// * `String` ?The concatenated diff (may be empty).
+/// * `bool` – Whether the current working directory is inside a Git repo.
+/// * `String` – The concatenated diff (may be empty).
 pub(crate) async fn get_git_diff(
     runner: &dyn WorkspaceCommandExecutor,
     cwd: &Path,

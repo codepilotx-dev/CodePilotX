@@ -172,7 +172,11 @@ async fn openai_form_capability_follows_the_turn_starting_connection() -> Result
     let (responses_server, response_mock, apps_server_url, apps_server_handle) =
         start_elicitation_services(ElicitationScenario::OpenAiForm).await?;
     let codepilotx_home = TempDir::new()?;
-    write_config_toml(codepilotx_home.path(), &responses_server.uri(), &apps_server_url)?;
+    write_config_toml(
+        codepilotx_home.path(),
+        &responses_server.uri(),
+        &apps_server_url,
+    )?;
     write_chatgpt_auth(
         codepilotx_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
@@ -412,7 +416,11 @@ impl ElicitationRoundTripFixture {
         let (responses_server, response_mock, apps_server_url, apps_server_handle) =
             start_elicitation_services(scenario).await?;
         let codepilotx_home = TempDir::new()?;
-        write_config_toml(codepilotx_home.path(), &responses_server.uri(), &apps_server_url)?;
+        write_config_toml(
+            codepilotx_home.path(),
+            &responses_server.uri(),
+            &apps_server_url,
+        )?;
         write_chatgpt_auth(
             codepilotx_home.path(),
             ChatGptAuthFixture::new("chatgpt-token")

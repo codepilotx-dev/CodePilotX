@@ -98,7 +98,8 @@ async fn remote_environment_routes_encrypted_exec_server_rpc() -> Result<()> {
         .mount(&registry)
         .await;
 
-    let (codepilotx_exe, codepilotx_linux_sandbox_exe) = common::current_test_binary_helper_paths()?;
+    let (codepilotx_exe, codepilotx_linux_sandbox_exe) =
+        common::current_test_binary_helper_paths()?;
     let runtime_paths = ExecServerRuntimePaths::new(codepilotx_exe, codepilotx_linux_sandbox_exe)?;
     let config = RemoteEnvironmentConfig::new(
         registry.uri(),

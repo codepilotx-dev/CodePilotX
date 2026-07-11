@@ -885,6 +885,7 @@ export type DesktopSessionListItem = {
   additionalDirectoryCount: number
   status: DesktopSessionStatus
   threadGoal?: DesktopThreadGoal | null
+  persistenceStatus?: 'saved' | 'unsaved'
   unreadAt?: string | null
   lastMessageAt?: string | null
   createdAt: string

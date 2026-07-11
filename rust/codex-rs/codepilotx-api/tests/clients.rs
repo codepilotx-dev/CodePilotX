@@ -149,7 +149,11 @@ fn provider(name: &str) -> Provider {
 #[derive(Debug, Default)]
 struct FlakyTransportState {
     attempts: i64,
-    requests: Vec<(RequestBody, HeaderMap, codepilotx_client::RequestCompression)>,
+    requests: Vec<(
+        RequestBody,
+        HeaderMap,
+        codepilotx_client::RequestCompression,
+    )>,
 }
 
 #[derive(Clone)]
@@ -177,7 +181,13 @@ impl FlakyTransport {
             .attempts
     }
 
-    fn requests(&self) -> Vec<(RequestBody, HeaderMap, codepilotx_client::RequestCompression)> {
+    fn requests(
+        &self,
+    ) -> Vec<(
+        RequestBody,
+        HeaderMap,
+        codepilotx_client::RequestCompression,
+    )> {
         self.state
             .lock()
             .expect("flaky transport state mutex should not be poisoned")

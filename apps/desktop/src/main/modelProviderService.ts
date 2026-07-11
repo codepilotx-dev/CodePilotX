@@ -1,22 +1,16 @@
-import { createHash } from 'crypto'
 import {
   createModelProviderState,
   createModelProviderSummary,
   isModelProviderID,
 } from '@codepilotx/core/models/provider.js'
 import {
-  deleteProviderApiKey as deleteTuiProviderApiKey,
-  fetchProviderBalance as fetchTuiProviderBalance,
-  fetchProviderModels as fetchTuiProviderModels,
   getCachedProviderModels,
-  getProviderApiKey,
-  getProviderApiKeySource,
   getProviderConfig,
   listProviderConfigs,
-  saveProviderApiKey as saveTuiProviderApiKey,
   saveSelectedProvider,
 } from '@codepilotx/core/models/providerConfig.js'
 import { desktopDebug } from './desktopDebug.js'
+import { RustAppServerAuthService } from './rustAppServerAuthService.js'
 import {
   readDesktopStoredSettings,
   saveDesktopStoredSettings,
@@ -30,12 +24,45 @@ import type {
   SaveDesktopModelProviderOptions,
 } from '../shared/types.js'
 
+type ModelProviderCredentialService = Pick<
+  RustAppServerAuthService,
+  | 'readConfiguredProviderApiKeyIDs'
+  | 'saveProviderApiKey'
+  | 'deleteProviderApiKey'
+  | 'fetchProviderModels'
+  | 'fetchProviderBalance'
+>
+
+let credentialServiceOverride: ModelProviderCredentialService | null = null
+let credentialService: ModelProviderCredentialService | null = null
+
+export function configureModelProviderCredentialServiceForTests(
+  service: ModelProviderCredentialService | null,
+): void {
+  credentialServiceOverride = service
+  credentialService = null
+}
+
+function getCredentialService(): ModelProviderCredentialService {
+  if (credentialServiceOverride) return credentialServiceOverride
+  credentialService ??= new RustAppServerAuthService()
+  return credentialService
+}
+
 export async function listModelProviders(): Promise<
   DesktopModelProviderSummary[]
 > {
   const providers = await listProviderConfigs()
+  const configuredProviderIDs = new Set(
+    await getCredentialService().readConfiguredProviderApiKeyIDs(
+      providers.map(provider => provider.providerID),
+    ),
+  )
   const result = providers.map(provider =>
-    createModelProviderSummary(provider, getProviderApiKeySource(provider.providerID)),
+    createModelProviderSummary(
+      provider,
+      configuredProviderIDs.has(provider.providerID) ? 'secureStorage' : null,
+    ),
   )
   return result
 }
@@ -51,8 +78,11 @@ export async function getModelProviderState(
   const provider = await getProviderConfig(selectedProviderID)
   const effectiveSelectedProviderID = provider.providerID as ModelProviderID
   const model = settings.model
-  const apiKeySource = getProviderApiKeySource(selectedProviderID) ?? null
-  const apiKey = getProviderApiKey(selectedProviderID)
+  const configuredProviderIDs = await getCredentialService().readConfiguredProviderApiKeyIDs([
+    selectedProviderID,
+  ])
+  const apiKeyConfigured = configuredProviderIDs.includes(selectedProviderID)
+  const apiKeySource = apiKeyConfigured ? 'secureStorage' : null
   const baseURL =
     provider.requiresBaseURL && settings.providerBaseURL
       ? settings.providerBaseURL
@@ -72,9 +102,7 @@ export async function getModelProviderState(
     npmPackage: result.provider.npmPackage,
     envVars: result.provider.envVars,
     apiKeySource,
-    apiKeyLength: apiKey?.length ?? 0,
-    apiKeyFingerprint: apiKey ? fingerprintApiKey(apiKey) : null,
-    apiKeyConfigured: Boolean(apiKey),
+    apiKeyConfigured,
   })
   return result
 }
@@ -85,12 +113,16 @@ export async function fetchProviderModels(options: {
   baseURL?: string
 }): Promise<DesktopProviderModelListResult> {
   const providerID = normalizeProviderID(options.providerID)
-  const result = await fetchTuiProviderModels({
+  const provider = await getProviderConfig(providerID)
+  if (provider.kind !== 'openai-compatible') {
+    return { models: provider.defaultModels }
+  }
+  return getCredentialService().fetchProviderModels({
     providerID,
     apiKey: normalizeOptionalText(options.apiKey),
-    baseURL: normalizeOptionalText(options.baseURL),
+    baseURL: normalizeOptionalText(options.baseURL) ?? provider.baseURL,
+    defaultModels: provider.defaultModels,
   })
-  return result
 }
 
 export async function fetchProviderBalance(options: {
@@ -99,12 +131,12 @@ export async function fetchProviderBalance(options: {
   baseURL?: string
 }): Promise<DesktopProviderBalanceResult> {
   const providerID = normalizeProviderID(options.providerID)
-  const result = await fetchTuiProviderBalance({
+  const provider = await getProviderConfig(providerID)
+  return getCredentialService().fetchProviderBalance({
     providerID,
     apiKey: normalizeOptionalText(options.apiKey),
-    baseURL: normalizeOptionalText(options.baseURL),
+    baseURL: normalizeOptionalText(options.baseURL) ?? provider.baseURL,
   })
-  return result
 }
 
 export async function saveModelProvider(
@@ -161,20 +193,13 @@ export async function saveProviderApiKey(
   desktopDebug('model_provider_save_api_key_start', {
     providerID: normalizedProviderID,
     apiKeyLength: normalizedApiKey.length,
-    apiKeyFingerprint: fingerprintApiKey(normalizedApiKey),
   })
-  const result = saveTuiProviderApiKey(normalizedProviderID, normalizedApiKey)
-  if (!result.success) {
-    throw new Error(result.warning ?? 'Failed to save provider API key.')
-  }
+  await getCredentialService().saveProviderApiKey(normalizedProviderID, normalizedApiKey)
   const state = await getModelProviderState(normalizedProviderID)
-  const savedApiKey = getProviderApiKey(normalizedProviderID)
   desktopDebug('model_provider_save_api_key_done', {
     providerID: normalizedProviderID,
     apiKeySource: state.apiKeySource,
-    apiKeyLength: savedApiKey?.length ?? 0,
-    apiKeyFingerprint: savedApiKey ? fingerprintApiKey(savedApiKey) : null,
-    apiKeyConfigured: Boolean(savedApiKey),
+    apiKeyConfigured: state.apiKeyConfigured,
   })
   return state
 }
@@ -186,10 +211,7 @@ export async function deleteProviderApiKey(
   desktopDebug('model_provider_delete_api_key_start', {
     providerID: normalizedProviderID,
   })
-  const result = deleteTuiProviderApiKey(normalizedProviderID)
-  if (!result.success) {
-    throw new Error(result.warning ?? 'Failed to delete provider API key.')
-  }
+  await getCredentialService().deleteProviderApiKey(normalizedProviderID)
   const state = await getModelProviderState(normalizedProviderID)
   desktopDebug('model_provider_delete_api_key_done', {
     providerID: normalizedProviderID,
@@ -240,8 +262,4 @@ function requireNonEmptyString(value: unknown, label: string): string {
     throw new Error(`${label} cannot be empty.`)
   }
   return trimmed
-}
-
-function fingerprintApiKey(apiKey: string): string {
-  return createHash('sha256').update(apiKey).digest('hex').slice(0, 12)
 }

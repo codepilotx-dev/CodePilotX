@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "ProviderAuthPollStatus": {
+      "enum": [
+        "pending",
+        "completed",
+        "expired",
+        "denied"
+      ],
+      "type": "string"
+    },
+    "ProviderAuthReadStatusResponse": {
+      "properties": {
+        "authenticated": {
+          "type": "boolean"
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "user": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProviderUserInfo"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "authenticated"
+      ],
+      "type": "object"
+    },
+    "ProviderUserInfo": {
+      "properties": {
+        "avatarUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "htmlUrl": {
+          "type": "string"
+        },
+        "id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "login": {
+          "type": "string"
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "htmlUrl",
+        "id",
+        "login"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "auth": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ProviderAuthReadStatusResponse"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "status": {
+      "$ref": "#/definitions/ProviderAuthPollStatus"
+    }
+  },
+  "required": [
+    "status"
+  ],
+  "title": "ProviderAuthPollLoginResponse",
+  "type": "object"
+}

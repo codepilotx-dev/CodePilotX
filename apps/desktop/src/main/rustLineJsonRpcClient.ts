@@ -42,6 +42,9 @@ export class RustLineJsonRpcClient {
   >()
   private readonly lines: Interface
   private closed = false
+  private fatalError: Error | null = null
+  private readonly fatalErrorListeners = new Set<(error: Error) => void>()
+  private readonly outputErrorHandler: (error: Error) => void
 
   constructor(
     private readonly streams: {
@@ -57,6 +60,11 @@ export class RustLineJsonRpcClient {
     this.lines.on('close', () =>
       this.rejectAll(new Error('Rust JSON-RPC input closed')),
     )
+    this.outputErrorHandler = error => {
+      this.failTransport(error)
+      streams.output.off('error', this.outputErrorHandler)
+    }
+    streams.output.on('error', this.outputErrorHandler)
   }
 
   sendNotification(method: string, params?: unknown): void {
@@ -70,11 +78,7 @@ export class RustLineJsonRpcClient {
     if (params !== undefined) {
       message.params = params
     }
-    this.streams.output.write(`${JSON.stringify(message)}\n`, error => {
-      if (error) {
-        throw error
-      }
-    })
+    this.writeMessage(message)
   }
 
   sendRequest(method: string, params: unknown): Promise<unknown> {
@@ -90,11 +94,7 @@ export class RustLineJsonRpcClient {
     }
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject })
-      this.streams.output.write(`${JSON.stringify(message)}\n`, error => {
-        if (!error) return
-        this.pending.delete(id)
-        reject(error)
-      })
+      this.writeMessage(message)
     })
   }
 
@@ -158,14 +158,11 @@ export class RustLineJsonRpcClient {
       id,
       result,
     }
-    this.streams.output.write(`${JSON.stringify(message)}\n`, error => {
-      if (error) {
-        throw error
-      }
-    })
+    this.writeMessage(message)
   }
 
   close(): void {
+    this.streams.output.off('error', this.outputErrorHandler)
     if (this.closed) return
     this.closed = true
     this.lines.close()
@@ -279,6 +276,50 @@ export class RustLineJsonRpcClient {
     }
     this.pending.clear()
   }
+
+  onFatalError(listener: (error: Error) => void): () => void {
+    this.fatalErrorListeners.add(listener)
+    if (this.fatalError) listener(this.fatalError)
+    return () => {
+      this.fatalErrorListeners.delete(listener)
+    }
+  }
+
+  private writeMessage(message: Record<string, unknown>): void {
+    if (this.closed) return
+    try {
+      this.streams.output.write(`${JSON.stringify(message)}\n`, error => {
+        if (error) this.failTransport(error, true)
+      })
+    } catch (error) {
+      this.failTransport(toError(error))
+    }
+  }
+
+  private failTransport(error: Error, streamErrorWillFollow = false): void {
+    if (this.fatalError) return
+    this.fatalError = error
+    if (streamErrorWillFollow) {
+      // Node emits Writable#error after invoking a write callback with an
+      // error. Fatal listeners may synchronously close the client and remove
+      // the regular handler, so keep a one-shot isolation listener for that
+      // already-scheduled stream event.
+      this.streams.output.once('error', () => {})
+    }
+    this.rejectAll(error)
+    for (const listener of this.fatalErrorListeners) {
+      try {
+        listener(error)
+      } catch (listenerError) {
+        desktopDebug('rust_json_rpc_fatal_listener_failed', {
+          message:
+            listenerError instanceof Error
+              ? listenerError.message
+              : String(listenerError),
+        })
+      }
+    }
+  }
 }
 
 function jsonRpcError(error: JsonRpcErrorObject): Error {
@@ -288,4 +329,8 @@ function jsonRpcError(error: JsonRpcErrorObject): Error {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function toError(value: unknown): Error {
+  return value instanceof Error ? value : new Error(String(value))
 }

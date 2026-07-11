@@ -131,6 +131,7 @@ test('reviewer runtime abort returns fail-closed deny', async () => {
 	      setPlanModeActive: () => {},
         getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
         refreshMcpConfig: async () => 'not_loaded' as const,
+	      dispose: async () => {},
 	      runControlResponse: async () => {},
 	      async runUserTurn(_content, signal) {
 	        await new Promise<void>(resolve => {
@@ -177,6 +178,7 @@ test('reviewer runtime abort returns fail-closed deny', async () => {
 
 test('createRuntimeReviewerPromptRunner passes serializeHeadlessTurns:false to sub-runtime context', async () => {
   let capturedContext: DesktopAgentRuntimeContext | undefined
+  let disposed = false
   const service = createDesktopAutoReviewService({
     createRuntime: (context: DesktopAgentRuntimeContext): DesktopAgentRuntime => {
       capturedContext = context
@@ -188,6 +190,9 @@ test('createRuntimeReviewerPromptRunner passes serializeHeadlessTurns:false to s
 	        setPlanModeActive: () => {},
           getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
         refreshMcpConfig: async () => 'not_loaded' as const,
+	        dispose: async () => {
+	          disposed = true
+	        },
 	        runControlResponse: async () => {},
 	        async runUserTurn() {
 	          // Complete immediately — we only need to verify context
@@ -215,6 +220,7 @@ test('createRuntimeReviewerPromptRunner passes serializeHeadlessTurns:false to s
   })
 
   expect(capturedContext).toBeDefined()
+  expect(disposed).toBe(true)
   expect(capturedContext!.serializeHeadlessTurns).toBe(false)
   // sessionId must be a standard UUID (no colons or other path-illegal chars)
   expect(capturedContext!.sessionId).toMatch(
@@ -238,6 +244,7 @@ test('default reviewer runner writes a hidden internal guardian rollout', async 
 	        setPlanModeActive: () => {},
           getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
         refreshMcpConfig: async () => 'not_loaded' as const,
+	        dispose: async () => {},
 	        runControlResponse: async () => {},
 	        async runUserTurn() {
 	          context.emit({

@@ -318,7 +318,8 @@ impl RealtimeE2eHarness {
     async fn start_webrtc_realtime(&mut self, offer_sdp: &str) -> Result<StartedWebrtcRealtime> {
         self.start_webrtc_realtime_with_codepilotx_response_routing(
             offer_sdp, /*client_managed_handoffs*/ None,
-            /*codepilotx_responses_as_items*/ None, /*codepilotx_response_handoff_prefix*/ None,
+            /*codepilotx_responses_as_items*/ None,
+            /*codepilotx_response_handoff_prefix*/ None,
         )
         .await
     }
@@ -353,7 +354,8 @@ impl RealtimeE2eHarness {
                 codepilotx_response_item_prefix: codepilotx_responses_as_items
                     .unwrap_or(false)
                     .then(|| RESPONSE_ITEM_PREFIX.to_string()),
-                codepilotx_response_handoff_prefix: codepilotx_response_handoff_prefix.map(str::to_string),
+                codepilotx_response_handoff_prefix: codepilotx_response_handoff_prefix
+                    .map(str::to_string),
                 codepilotx_responses_as_items,
                 model: None,
                 output_modality: RealtimeOutputModality::Audio,

@@ -298,7 +298,8 @@ fn auto_review_rollout_filename(thread_id: ThreadId) -> String {
 
 #[cfg(target_os = "windows")]
 fn windows_sandbox_log_attachment(codepilotx_home: &Path) -> Option<FeedbackAttachmentPath> {
-    let sandbox_log_path = codepilotx_windows_sandbox::current_log_file_path_for_codepilotx_home(codepilotx_home);
+    let sandbox_log_path =
+        codepilotx_windows_sandbox::current_log_file_path_for_codepilotx_home(codepilotx_home);
     sandbox_log_path
         .is_file()
         .then_some(FeedbackAttachmentPath {
@@ -323,7 +324,9 @@ mod tests {
         let sandbox_dir = codepilotx_windows_sandbox::sandbox_dir(codepilotx_home.path());
         std::fs::create_dir_all(&sandbox_dir).expect("create sandbox dir");
         let sandbox_log_path =
-            codepilotx_windows_sandbox::current_log_file_path_for_codepilotx_home(codepilotx_home.path());
+            codepilotx_windows_sandbox::current_log_file_path_for_codepilotx_home(
+                codepilotx_home.path(),
+            );
         std::fs::write(&sandbox_log_path, "sandbox log").expect("write sandbox log");
 
         let attachment = windows_sandbox_log_attachment(codepilotx_home.path())

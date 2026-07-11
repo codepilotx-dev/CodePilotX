@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "configured_provider_ids": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "configured_provider_ids"
+  ],
+  "title": "ProviderApiKeyReadResponse",
+  "type": "object"
+}

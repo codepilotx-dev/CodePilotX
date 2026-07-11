@@ -4,7 +4,6 @@ import { existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  getProviderApiKey,
   getProviderConfig,
   listProviderConfigs,
   type ProviderConfig,
@@ -27,6 +26,7 @@ import type { UserInput } from './rustAppServerProtocol/generated/v2/UserInput.j
 import {
   SidecarStartError,
   buildSidecarEnv,
+  sanitizeChildEnvironment,
   type SidecarManagerOptions,
 } from './sidecarManager.js'
 import { RustJsonRpcError, RustLineJsonRpcClient } from './rustLineJsonRpcClient.js'
@@ -49,6 +49,7 @@ import {
 } from './rustAppServerWorkflowAdapter.js'
 import type { JsonRpcId } from './rustLineJsonRpcClient.js'
 import { desktopDebug } from './desktopDebug.js'
+import { terminateChildProcess } from './childProcessTermination.js'
 
 // ── Tool request/response types (v2 protocol types for requestUserInput) ──
 
@@ -194,6 +195,13 @@ export type RustAppServerExecutableInfo = {
   source: RustAppServerExecutableSource
 }
 
+export type RustAppServerResolverContext = {
+  isPackaged: boolean
+  resourcesPath: string
+}
+
+type RustSidecarStartupState = 'stopped' | 'starting' | 'ready' | 'failed'
+
 export function resolveRustAppServerExecutable(
   env: NodeJS.ProcessEnv = process.env,
 ): string {
@@ -202,10 +210,17 @@ export function resolveRustAppServerExecutable(
 
 export function resolveRustAppServerExecutableInfo(
   env: NodeJS.ProcessEnv = process.env,
+  runtime: RustAppServerResolverContext = defaultRustAppServerResolverContext(env),
 ): RustAppServerExecutableInfo {
   const binaryName = process.platform === 'win32'
     ? 'codepilotx-app-server.exe'
     : 'codepilotx-app-server'
+  if (runtime.isPackaged) {
+    return {
+      path: resolve(runtime.resourcesPath, 'desktop-rust-sidecar', binaryName),
+      source: 'bundled',
+    }
+  }
   const explicitPath = env[RUST_APP_SERVER_BINARY_ENV]?.trim()
   if (explicitPath && !isReferenceCodePilotXMainAppServerPath(explicitPath)) {
     return { path: resolve(explicitPath), source: 'env-override' }
@@ -223,6 +238,24 @@ export function resolveRustAppServerExecutableInfo(
     path: join(__dirname, '..', '..', 'desktop-rust-sidecar', binaryName),
     source: 'bundled',
   }
+}
+
+function defaultRustAppServerResolverContext(
+  _env: NodeJS.ProcessEnv,
+): RustAppServerResolverContext {
+  return {
+    isPackaged: isPackagedElectronProcess(process),
+    resourcesPath:
+      (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath ??
+      join(__dirname, '..', '..'),
+  }
+}
+
+export function isPackagedElectronProcess(value: {
+  versions: { electron?: string }
+  defaultApp?: boolean
+}): boolean {
+  return Boolean(value.versions.electron) && value.defaultApp !== true
 }
 
 export function buildRustInitializeParams(): InitializeParams {
@@ -278,7 +311,7 @@ export async function createRustSidecarOptions(
     ],
     cwd: context.workspacePath,
     env: {
-      ...process.env,
+      ...sanitizeChildEnvironment(process.env),
       ...buildSidecarEnv({
         sessionId: context.sessionId,
         workspacePath: context.workspacePath,
@@ -305,7 +338,6 @@ export async function createRustSidecarOptions(
         deepModel: context.deepModel,
         sessionName: context.sessionName,
       }),
-      ...providerConfig.env,
       // Explicitly override Rust state directories to use desktop config dir,
       // so Rust sidecar never inherits a stale path from env.
       ...(context.configDirectoryPath
@@ -348,8 +380,7 @@ async function createRustModelProviderOverrides(
   const providerOverrides = providers
     .filter(provider => {
       if (!isRustConfigPathSegment(provider.providerID)) return false
-      return provider.providerID === providerID ||
-        Boolean(getProviderApiKey(provider.providerID)?.trim())
+      return provider.providerID === providerID
     })
     .map(provider =>
       rustProviderConfigOverridesForProvider({
@@ -388,9 +419,7 @@ function rustProviderConfigOverridesForProvider({
   baseURL: string | undefined
 }): RustProviderConfigOverrides {
   const providerID = provider.providerID
-  const envKey = getRustProviderEnvKey(provider)
   const wireApi: ProviderWireApi = provider.wireApi ?? 'chat_completions'
-  const apiKey = getProviderApiKey(providerID)?.trim()
   return {
     args: [
       ...rustConfigOverride(
@@ -412,20 +441,13 @@ function rustProviderConfigOverridesForProvider({
       ...(baseURL
         ? rustConfigOverride(`model_providers.${providerID}.base_url`, baseURL)
         : []),
-      ...(envKey
-        ? rustConfigOverride(`model_providers.${providerID}.env_key`, envKey)
-        : []),
+      ...rustConfigOverride(
+        `model_providers.${providerID}.env_key`,
+        `keyring:${providerID}`,
+      ),
     ],
-    env: envKey && apiKey ? { [envKey]: apiKey } : {},
+    env: {},
   }
-}
-
-function getRustProviderEnvKey(provider: ProviderConfig): string | undefined {
-  return (
-    provider.envVars?.find(value => Boolean(value?.trim())) ??
-    provider.apiKeyEnvVar?.trim() ??
-    undefined
-  )
 }
 
 function rustConfigOverride(
@@ -460,10 +482,15 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   private initialized = false
   private threadStarted = false
   private currentTurnPromise: Promise<void> | null = null
+  private turnInProgress = false
   private currentTurnResolve: (() => void) | null = null
   private currentTurnReject: ((error: Error) => void) | null = null
+  private currentTurnTerminal = false
+  private activeRuntimeTurnId: string | null = null
+  private readonly sealedRuntimeTurnIds = new Set<string>()
   private pendingTurnSignal: AbortSignal | null = null
   private disposeNotificationListener: (() => void) | null = null
+  private disposeFatalTransportListener: (() => void) | null = null
   private disposeServerRequestHandlers: Array<() => void> | null = null
   private planModeActive = false
   private pendingServerRequest: {
@@ -477,6 +504,10 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   private pendingProviderChange = false
   /** Guard against duplicate tool_start emissions per toolUseId */
   private emittedToolStartToolUseIds = new Set<string>()
+  private disposePromise: Promise<void> | null = null
+  private startupState: RustSidecarStartupState = 'stopped'
+  private startupPromise: Promise<void> | null = null
+  private cleanupPromise: Promise<void> | null = null
 
   constructor(private readonly context: DesktopAgentRuntimeContext) {}
 
@@ -683,23 +714,16 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     content: DesktopUserMessageContent,
     signal: AbortSignal,
   ): Promise<void> {
-    // Lazy startup: spawn & initialize on first turn
-    if (!this.initialized) {
-      await this.startAppServer()
-    }
-
     // If there's already an active turn, reject (serial turns only for now)
-    if (this.currentTurnPromise) {
+    if (this.turnInProgress) {
       throw new Error(
         'Rust sidecar does not support concurrent turns. Wait for the current turn to complete.',
       )
     }
 
-    // Turn promise that resolves/rejects when turn/completed or error arrives
-    this.currentTurnPromise = new Promise<void>((resolve, reject) => {
-      this.currentTurnResolve = resolve
-      this.currentTurnReject = reject
-    })
+    this.turnInProgress = true
+    this.currentTurnTerminal = false
+    this.activeRuntimeTurnId = null
 
     this.pendingTurnSignal = signal
     const abortHandler = () => {
@@ -708,6 +732,12 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     signal.addEventListener('abort', abortHandler, { once: true })
 
     try {
+      // Lazy startup is part of this turn: every startup failure must produce
+      // the same single terminal error as a turn/start transport failure.
+      if (!this.initialized) {
+        await this.startAppServer()
+      }
+
       // Reset workflow state for new turn
       this.workflowState.assistantDeltaBuffer = ''
 
@@ -716,15 +746,34 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
 
       await this.applyPendingProviderChange()
 
+      // Only create the notification completion promise after startup/provider
+      // work succeeds, so a startup child exit cannot reject an unobserved
+      // promise.
+      this.currentTurnPromise = new Promise<void>((resolve, reject) => {
+        this.currentTurnResolve = resolve
+        this.currentTurnReject = reject
+      })
+      // startTurn and the transport fatal path can reject in the same tick.
+      // Observe the completion promise immediately while preserving the later
+      // await on the original promise when turn/start succeeds.
+      void this.currentTurnPromise.catch(() => undefined)
+
       // Send turn/start with the converted input
-      await this.appServerClient!.startTurn({
+      const turnResult = await this.appServerClient!.startTurn({
         threadId: this.workflowState.threadId!,
         input,
         model: this.context.model ?? undefined,
       })
+      this.activeRuntimeTurnId = turnResult.turn.id
 
       await this.currentTurnPromise
+    } catch (error) {
+      this.emitCurrentTurnError(
+        error instanceof Error ? error : new Error(String(error)),
+      )
+      throw error
     } finally {
+      this.turnInProgress = false
       this.currentTurnPromise = null
       this.currentTurnResolve = null
       this.currentTurnReject = null
@@ -922,25 +971,32 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
    * Tear down the child process and transport.
    */
   async dispose(): Promise<void> {
+    if (!this.disposePromise) {
+      this.disposePromise = this.disposeOnce()
+    }
+    await this.disposePromise
+  }
+
+  private emitCurrentTurnError(error: Error): void {
+    if (this.currentTurnTerminal) return
+    this.currentTurnTerminal = true
+    const turnId = this.activeRuntimeTurnId ?? this.workflowState.activeTurnId
+    if (turnId) this.sealedRuntimeTurnIds.add(turnId)
+    this.context.emit({
+      type: 'error',
+      sessionId: this.context.sessionId,
+      message: error.message,
+    })
+  }
+
+  private async disposeOnce(): Promise<void> {
     this.currentTurnReject?.(
       new Error('Rust sidecar runtime disposed during an active turn.'),
     )
     this.currentTurnReject = null
 
-    this.disposeNotificationListener?.()
-    this.disposeNotificationListener = null
-
-    this.disposeServerRequestHandlers?.forEach(dispose => dispose())
-    this.disposeServerRequestHandlers = null
-
-    this.appServerClient?.close()
-    this.appServerClient = null
-    this.rpcClient = null
-
-    if (this.child && !this.child.killed) {
-      this.child.kill()
-    }
-    this.child = null
+    await this.cleanupAppServer()
+    this.startupState = 'stopped'
     this.initialized = false
     this.threadStarted = false
     this.activeProviderID = undefined
@@ -952,6 +1008,33 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   // ── Private ───────────────────────────────────────────────────────
 
   private async startAppServer(): Promise<void> {
+    if (this.startupState === 'ready') return
+    if (this.startupState === 'starting' && this.startupPromise) {
+      await this.startupPromise
+      return
+    }
+    if (this.startupState === 'failed') {
+      await this.cleanupAppServer()
+    }
+
+    this.startupState = 'starting'
+    const attempt = this.startAppServerAttempt()
+    this.startupPromise = attempt
+    try {
+      await attempt
+      this.startupState = 'ready'
+    } catch (error) {
+      this.startupState = 'failed'
+      await this.cleanupAppServer()
+      throw error
+    } finally {
+      if (this.startupPromise === attempt) {
+        this.startupPromise = null
+      }
+    }
+  }
+
+  private async startAppServerAttempt(): Promise<void> {
     const executableInfo = resolveRustAppServerExecutableInfo()
     const executablePath = executableInfo.path
     desktopDebug('rust_sidecar_start', {
@@ -996,7 +1079,11 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
           `Rust app-server exited unexpectedly (code=${code}, signal=${signal})`,
         ),
       )
-      this.initialized = false
+      if (this.child === child) {
+        this.initialized = false
+        this.threadStarted = false
+        this.startupState = 'failed'
+      }
     })
 
     child.on('error', (err) => {
@@ -1004,13 +1091,20 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
         message: err.message,
       })
       this.currentTurnReject?.(err)
-      this.initialized = false
+      if (this.child === child) {
+        this.initialized = false
+        this.threadStarted = false
+        this.startupState = 'failed'
+      }
     })
 
     // 2. Create transport
     this.rpcClient = new RustLineJsonRpcClient({
       input: child.stdout!,
       output: child.stdin!,
+    })
+    this.disposeFatalTransportListener = this.rpcClient.onFatalError(error => {
+      this.handleFatalTransport(error)
     })
     this.appServerClient = new RustAppServerClient(this.rpcClient)
 
@@ -1081,6 +1175,52 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     }
   }
 
+  private cleanupAppServer(): Promise<void> {
+    if (!this.cleanupPromise) {
+      this.cleanupPromise = this.cleanupAppServerOnce().finally(() => {
+        this.cleanupPromise = null
+      })
+    }
+    return this.cleanupPromise
+  }
+
+  private handleFatalTransport(error: Error): void {
+    this.currentTurnReject?.(error)
+    this.initialized = false
+    this.threadStarted = false
+    this.startupState = 'failed'
+    void this.cleanupAppServer().catch(cleanupError => {
+      desktopDebug('rust_sidecar_transport_cleanup_failed', {
+        message:
+          cleanupError instanceof Error
+            ? cleanupError.message
+            : String(cleanupError),
+      })
+    })
+  }
+
+  private async cleanupAppServerOnce(): Promise<void> {
+    this.disposeFatalTransportListener?.()
+    this.disposeFatalTransportListener = null
+    this.disposeNotificationListener?.()
+    this.disposeNotificationListener = null
+    this.disposeServerRequestHandlers?.forEach(dispose => dispose())
+    this.disposeServerRequestHandlers = null
+
+    const child = this.child
+    this.appServerClient?.close()
+    this.appServerClient = null
+    this.rpcClient = null
+    if (child) {
+      await terminateChildProcess(child)
+    }
+    if (this.child === child) {
+      this.child = null
+    }
+    this.initialized = false
+    this.threadStarted = false
+  }
+
   private async startOrResumeThread(
     persistedThreadId: string | null,
   ): Promise<ThreadStartResponse | ThreadResumeResponse> {
@@ -1134,6 +1274,18 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   private handleNotification(method: string, params: unknown): void {
+	    const notificationTurnId = rustNotificationTurnId(params)
+	    if (
+	      notificationTurnId &&
+	      (this.sealedRuntimeTurnIds.has(notificationTurnId) ||
+	        (this.activeRuntimeTurnId !== null &&
+	          notificationTurnId !== this.activeRuntimeTurnId))
+	    ) {
+	      return
+	    }
+	    if (method === 'turn/started' && notificationTurnId) {
+	      this.activeRuntimeTurnId = notificationTurnId
+	    }
 	    if (method === 'thread/settings/updated') {
 	      const notification = params as ThreadSettingsUpdatedNotification
 	      if (notification?.threadId === this.workflowState.threadId) {
@@ -1141,7 +1293,11 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
 	      }
 	    }
 	    if (method === 'thread/goal/updated') {
-	      const notification = params as { threadId: string; turnId: string | null; goal: import('./rustAppServerProtocol/index.js').ThreadGoal }
+	      const notification = params as {
+	        threadId: string
+	        turnId: string | null
+	        goal: import('./rustAppServerProtocol/index.js').ThreadGoal
+	      }
 	      if (notification?.threadId === this.workflowState.threadId) {
 	        this.context.onThreadGoalUpdated?.(notification.goal)
 	      }
@@ -1156,24 +1312,34 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
 	      method,
 	      params,
 	      (event: DesktopAgentEvent) => {
+	        if (
+	          (event.type === 'done' || event.type === 'error') &&
+	          this.currentTurnTerminal
+	        ) {
+	          return
+	        }
+	        if (event.type === 'done' || event.type === 'error') {
+	          this.currentTurnTerminal = true
+	          const terminalTurnId =
+	            notificationTurnId ?? this.activeRuntimeTurnId
+	          if (terminalTurnId) {
+	            this.sealedRuntimeTurnIds.add(terminalTurnId)
+	          }
+	        }
 	        this.context.emit(event)
 
-	        // If we received error or done, resolve the current turn promise
-	        if (event.type === 'done' || event.type === 'error') {
+	        if (event.type === 'done') {
 	          this.emittedToolStartToolUseIds.clear()
-	          if (this.currentTurnResolve) {
-	            this.currentTurnResolve()
-	          }
-	          if (event.type === 'error') {
-	            // For error events, also reject so caller knows it failed
-	            this.currentTurnReject?.(
-	              new Error(
-	                typeof event.message === 'string'
-	                  ? event.message
-	                  : 'Rust app-server turn error',
-	              ),
-	            )
-	          }
+	          this.currentTurnResolve?.()
+	        } else if (event.type === 'error') {
+	          this.emittedToolStartToolUseIds.clear()
+	          this.currentTurnReject?.(
+	            new Error(
+	              typeof event.message === 'string'
+	                ? event.message
+	                : 'Rust app-server turn error',
+	            ),
+	          )
 	        }
 	      },
 	      this.workflowState,
@@ -1622,7 +1788,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     ) {
       // If there's no active turn to interrupt but the turn promise is still
       // pending, resolve it so the UI doesn't hang.
-      this.currentTurnResolve?.()
+      this.completeInterruptedTurn()
       return
     }
     try {
@@ -1632,13 +1798,29 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       })
       // Resolve the turn promise immediately on successful interrupt response,
       // rather than waiting for a delayed turn/completed notification.
-      this.currentTurnResolve?.()
+      this.completeInterruptedTurn()
     } catch (err) {
       desktopDebug('rust_sidecar_interrupt_failed', {
         message: err instanceof Error ? err.message : String(err),
       })
       // Safety net: resolve so the UI clears even if the interrupt RPC fails.
-      this.currentTurnResolve?.()
+      this.completeInterruptedTurn()
     }
   }
+
+  private completeInterruptedTurn(): void {
+    if (this.currentTurnTerminal) return
+    this.currentTurnTerminal = true
+    const turnId = this.activeRuntimeTurnId ?? this.workflowState.activeTurnId
+    if (turnId) this.sealedRuntimeTurnIds.add(turnId)
+    this.context.emit({ type: 'done', sessionId: this.context.sessionId })
+    this.currentTurnResolve?.()
+  }
+}
+
+function rustNotificationTurnId(params: unknown): string | null {
+  if (!isRecord(params)) return null
+  const turn = params.turn
+  if (isRecord(turn) && typeof turn.id === 'string') return turn.id
+  return typeof params.turnId === 'string' ? params.turnId : null
 }

@@ -1041,7 +1041,8 @@ impl App {
 
                     // If the elevated setup already ran on this machine, don't prompt for
                     // elevation again - just flip the config to use the elevated path.
-                    if crate::windows_sandbox::sandbox_setup_is_complete(codepilotx_home.as_path()) {
+                    if crate::windows_sandbox::sandbox_setup_is_complete(codepilotx_home.as_path())
+                    {
                         tx.send(AppEvent::EnableWindowsSandboxForAgentMode {
                             preset,
                             mode: WindowsSandboxEnableMode::Elevated,
@@ -1359,7 +1360,7 @@ impl App {
                                     self.chat_widget.submit_initial_user_message_if_pending();
                                 }
                                 self.chat_widget.add_plain_history_lines(vec![
-                                    Line::from(vec!["?".dim(), "Sandbox ready".into()]),
+                                    Line::from(vec!["• ".dim(), "Sandbox ready".into()]),
                                     Line::from(vec![
                                         "  ".into(),
                                         "Codex can now safely edit files and execute commands in your computer"
@@ -1392,7 +1393,7 @@ impl App {
                                         preset.active_permission_profile.clone(),
                                     ));
                                 self.chat_widget.add_plain_history_lines(vec![
-                                    Line::from(vec!["?".dim(), "Sandbox ready".into()]),
+                                    Line::from(vec!["• ".dim(), "Sandbox ready".into()]),
                                     Line::from(vec![
                                         "  ".into(),
                                         "Codex can now safely edit files and execute commands in your computer"

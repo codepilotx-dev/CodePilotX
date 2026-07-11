@@ -112,8 +112,8 @@ pub async fn fetch_remote_featured_plugin_ids(
         .timeout(REMOTE_FEATURED_PLUGIN_FETCH_TIMEOUT);
 
     if let Some(auth) = auth.filter(|auth| auth.uses_codepilotx_backend()) {
-        request =
-            request.headers(codepilotx_model_provider::auth_provider_from_auth(auth).to_auth_headers());
+        request = request
+            .headers(codepilotx_model_provider::auth_provider_from_auth(auth).to_auth_headers());
     }
 
     let response = request

@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "GithubUserStatus": {
+      "properties": {
+        "emoji": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expiresAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "indicatesLimitedAvailability": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "indicatesLimitedAvailability"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "status": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/GithubUserStatus"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "title": "ProviderAuthStatusClearResponse",
+  "type": "object"
+}

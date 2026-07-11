@@ -247,8 +247,11 @@ async fn detect_repo_still_reports_non_plugin_items_when_home_config_is_invalid(
     )
     .expect("create repo skills");
     fs::create_dir_all(&codepilotx_home).expect("create codex home");
-    fs::write(codepilotx_home.join("config.toml"), "this is not valid = [toml")
-        .expect("write invalid codex config");
+    fs::write(
+        codepilotx_home.join("config.toml"),
+        "this is not valid = [toml",
+    )
+    .expect("write invalid codex config");
     fs::write(
         repo_root.join(EXTERNAL_AGENT_DIR).join("settings.json"),
         r#"{"env":{"FOO":"bar"}}"#,
@@ -843,9 +846,10 @@ async fn import_home_migrates_supported_config_fields_skills_and_agents_md() {
         "Codex guidance"
     );
 
-    let config: TomlValue =
-        toml::from_str(&fs::read_to_string(codepilotx_home.join("config.toml")).expect("read config"))
-            .expect("parse config");
+    let config: TomlValue = toml::from_str(
+        &fs::read_to_string(codepilotx_home.join("config.toml")).expect("read config"),
+    )
+    .expect("parse config");
     let expected: TomlValue = toml::from_str(
         r#"
 sandbox_mode = "workspace-write"
@@ -893,9 +897,10 @@ async fn import_home_config_uses_local_settings_over_project_settings() {
         }])
         .await;
 
-    let config: TomlValue =
-        toml::from_str(&fs::read_to_string(codepilotx_home.join("config.toml")).expect("read config"))
-            .expect("parse config");
+    let config: TomlValue = toml::from_str(
+        &fs::read_to_string(codepilotx_home.join("config.toml")).expect("read config"),
+    )
+    .expect("parse config");
     let expected: TomlValue = toml::from_str(
         r#"
 sandbox_mode = "workspace-write"
@@ -2081,7 +2086,10 @@ async fn detect_repo_filters_plugins_against_installed_marketplace() {
     let external_agent_home = root.path().join(EXTERNAL_AGENT_DIR);
     let codepilotx_home = root.path().join(".codex");
     let repo_root = root.path().join("repo");
-    let marketplace_root = codepilotx_home.join(".tmp").join("marketplaces").join("debug");
+    let marketplace_root = codepilotx_home
+        .join(".tmp")
+        .join("marketplaces")
+        .join("debug");
     fs::create_dir_all(repo_root.join(".git")).expect("create git dir");
     fs::create_dir_all(repo_root.join(EXTERNAL_AGENT_DIR)).expect("create repo external agent dir");
     fs::create_dir_all(marketplace_root.join(".agents").join("plugins"))

@@ -36,6 +36,7 @@ import {
   type DesktopAgentSession,
 } from './agentSession.js'
 import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
+import { getAuthStatus, runtimePreferenceForAuth } from './authRuntimeService.js'
 import { buildDesktopApiHandlers } from './desktopApiHandlers.js'
 import {
   applyDesktopAgentRuntimeEnvDefaults,
@@ -92,8 +93,8 @@ import { isTrustedRendererUrl } from './rendererTrust.js'
 import { getModelProviderState } from './modelProviderService.js'
 import {
   applyDesktopAgentEventToSnapshot,
+  applyDesktopPersistenceStatusToSnapshot,
   applyDesktopWorkflowEventsToSnapshot,
-  appendDesktopRolloutItems,
   createDesktopSessionMetaRolloutItem,
   createLightweightDesktopSessionSnapshot,
   createDesktopSessionSnapshot,
@@ -114,12 +115,14 @@ import {
 } from './desktopSessionCatalog.js'
 import {
   disposeDesktopSession,
+  disposeDesktopSessionRuntimes,
   removeDesktopSessionLocalState,
   removeSessionIndexWithRetry as retrySessionIndexRemoval,
 } from './desktopSessionRemoval.js'
 import { RustAppServerControlService } from './rustAppServerControlService.js'
 import { createSessionPersistScheduler } from './sessionPersistScheduler.js'
 import { createSessionStoreChangeEmitter } from './sessionStoreChangeEmitter.js'
+import { createDesktopShutdownController } from './desktopShutdown.js'
 import { shouldMarkSessionUnread } from '../shared/sessionUnread.js'
 import type {
   CreateDesktopSessionOptions,
@@ -217,7 +220,8 @@ const turnRestoreBaselines = new Map<
 const titleGenerationStartedSessionIds = new Set<string>()
 let activeSessionId: string | null = null
 let sessionStoreLoadPromise: Promise<void> | null = null
-let quittingAfterSessionStoreFlush = false
+let sessionStorePersistenceUnsaved = false
+const unsavedRolloutPaths = new Set<string>()
 const sessionPersistScheduler = createSessionPersistScheduler({
   debounceMs: 5000,
   getState: () => ({
@@ -227,6 +231,10 @@ const sessionPersistScheduler = createSessionPersistScheduler({
   save: saveDesktopSessionStore,
   onError: error => {
     console.error('Failed to save desktop sessions.', error)
+  },
+  onStatusChange: status => {
+    sessionStorePersistenceUnsaved = status === 'unsaved'
+    refreshDesktopPersistenceStatus()
   },
 })
 const sessionStoreChangeEmitter = createSessionStoreChangeEmitter({
@@ -239,6 +247,11 @@ const rolloutWriteScheduler: RolloutWriteScheduler = createRolloutWriteScheduler
       rolloutPath,
       message: error instanceof Error ? error.message : String(error),
     })
+  },
+  onStatusChange: (status, rolloutPath) => {
+    if (status === 'unsaved') unsavedRolloutPaths.add(rolloutPath)
+    else unsavedRolloutPaths.delete(rolloutPath)
+    refreshDesktopPersistenceStatus()
   },
 })
 const DESKTOP_BROWSER_PLUGIN_ID = 'browser@builtin'
@@ -431,6 +444,23 @@ function emitSessionStoreChange(): void {
       createLightweightDesktopSessionSnapshot(record.snapshot),
     ),
   })
+}
+
+function refreshDesktopPersistenceStatus(): void {
+  let changed = false
+  for (const record of sessions.values()) {
+    const rolloutPath = record.snapshot.item.rolloutPath?.trim()
+    const status =
+      sessionStorePersistenceUnsaved ||
+      (rolloutPath ? unsavedRolloutPaths.has(rolloutPath) : false)
+        ? 'unsaved'
+        : 'saved'
+    const next = applyDesktopPersistenceStatusToSnapshot(record.snapshot, status)
+    if (next === record.snapshot) continue
+    record.snapshot = next
+    changed = true
+  }
+  if (changed) sessionStoreChangeEmitter.requestEmit({ immediate: true })
 }
 
 function desktopConsoleLog(
@@ -1192,6 +1222,10 @@ async function createSession(
     },
     {
       ...getDesktopAgentRuntimeOptions(installCodePilotXDependencies),
+      runtimePreference: runtimePreferenceForAuth(
+        getDesktopRuntimeSelection().preference,
+        (await getAuthStatus()).method,
+      ),
       onAppServerThreadId: threadId => {
         if (!createdRecord) return
         createdRecord.snapshot = {
@@ -1219,14 +1253,9 @@ async function createSession(
   createdRecord = record
   const rolloutPath = record.snapshot.item.rolloutPath?.trim()
   if (rolloutPath) {
-    void appendDesktopRolloutItems(rolloutPath, [
+    rolloutWriteScheduler.append(rolloutPath, [
       createDesktopSessionMetaRolloutItem(record.snapshot),
-    ]).catch(error => {
-      desktopDebug('rollout_session_meta_append_failed', {
-        sessionId: session.sessionId,
-        message: error instanceof Error ? error.message : String(error),
-      })
-    })
+    ])
   }
 	sessions.set(session.sessionId, record)
 	  activeSessionId = session.sessionId
@@ -2060,10 +2089,16 @@ async function disposeSession(sessionId: string): Promise<void> {
     appServerThreadId:
       record.snapshot.appServerThreadId ?? record.snapshot.item.appServerThreadId,
     appServerThreadPending: record.snapshot.appServerThreadPending === true,
+    flushPersistence: async () => {
+      await rolloutWriteScheduler.flush()
+      await flushSessionStorePersistence()
+    },
     deleteThread: threadId =>
       getDesktopSessionCatalogService().deleteThread(threadId),
     removeIndex: removeSessionIndexWithRetry,
     removeLocalState: () => {
+      const rolloutPath = record.snapshot.item.rolloutPath?.trim()
+      if (rolloutPath) unsavedRolloutPaths.delete(rolloutPath)
       sessions.delete(sessionId)
       if (activeSessionId === sessionId) {
         activeSessionId = [...sessions.keys()][0] ?? null
@@ -2076,10 +2111,13 @@ async function disposeSession(sessionId: string): Promise<void> {
   })
 }
 
-function disposeAllSessions(): void {
-  for (const record of sessions.values()) {
-    void record.session?.dispose()
-  }
+async function disposeAllSessions(): Promise<void> {
+  await disposeDesktopSessionRuntimes(
+    [...sessions.values()]
+      .map(record => record.session)
+      .filter(session => session !== null)
+      .map(session => () => session!.dispose()),
+  )
 }
 
 async function getSessionRecord(sessionId: string): Promise<DesktopSessionRecord> {
@@ -2380,17 +2418,21 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', event => {
-  if (!quittingAfterSessionStoreFlush) {
-    event.preventDefault()
-    quittingAfterSessionStoreFlush = true
-    disposeAllSessions()
-    void rolloutWriteScheduler.flush().finally(async () => {
-      await flushSessionStorePersistence()
-      app.quit()
-    })
+  if (!desktopShutdownController.handleBeforeQuit(event)) {
     return
   }
   void desktopBrowserDebugBridgeServer?.close()
   debugToolProbeService.cleanup()
-  disposeAllSessions()
+})
+const desktopShutdownController = createDesktopShutdownController({
+  flushRollout: () => rolloutWriteScheduler.flush(),
+  flushSessionStore: flushSessionStorePersistence,
+  disposeSessions: disposeAllSessions,
+  quit: () => app.quit(),
+  logError: (step, error) => {
+    desktopDebug('desktop_shutdown_step_failed', {
+      step,
+      message: error instanceof Error ? error.message : String(error),
+    })
+  },
 })

@@ -173,13 +173,13 @@ fn render_lines(lines: &[Line<'static>]) -> Vec<String> {
 fn sanitize_directory(lines: Vec<String>) -> Vec<String> {
     let frame_width = lines
         .iter()
-        .find(|line| line.starts_with('?))
+        .find(|line| line.starts_with('╭'))
         .map(|line| UnicodeWidthStr::width(line.as_str()));
     lines
         .into_iter()
         .map(|line| {
             if let (Some(frame_width), Some(dir_pos), Some(pipe_idx)) =
-                (frame_width, line.find("Directory: "), line.rfind('?))
+                (frame_width, line.find("Directory: "), line.rfind('│'))
             {
                 let prefix = &line[..dir_pos + "Directory: ".len()];
                 let suffix = &line[pipe_idx..];
@@ -237,7 +237,7 @@ fn permissions_text_for(config: &Config) -> Option<String> {
             line.split("Permissions:")
                 .nth(1)
                 .map(str::trim)
-                .map(|text| text.trim_end_matches('?))
+                .map(|text| text.trim_end_matches('│'))
                 .map(str::trim)
                 .map(ToString::to_string)
         })

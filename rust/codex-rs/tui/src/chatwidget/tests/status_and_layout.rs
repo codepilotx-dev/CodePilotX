@@ -394,7 +394,7 @@ async fn completed_plan_table_tail_skips_provisional_history_insert() {
 
     assert!(saw_source_backed_plan, "expected source-backed plan insert");
     assert!(
-        rendered_plan.contains('?),
+        rendered_plan.contains('━'),
         "expected completed plan table to render with separators, got: {rendered_plan:?}"
     );
     assert!(
@@ -2330,9 +2330,7 @@ async fn status_line_model_with_reasoning_includes_fast_for_fast_capable_models(
 
     assert_eq!(
         status_line_text(&chat),
-        Some(format!(
-            "gpt-5.3-codex xhigh  Context 0% used  {test_cwd}"
-        ))
+        Some(format!("gpt-5.3-codex xhigh  Context 0% used  {test_cwd}"))
     );
 }
 
@@ -3623,8 +3621,10 @@ fn hook_run_summary(
         status,
         status_message: status_message.map(str::to_string),
         started_at: 1,
-        completed_at: (status != codepilotx_app_server_protocol::HookRunStatus::Running).then_some(2),
-        duration_ms: (status != codepilotx_app_server_protocol::HookRunStatus::Running).then_some(1),
+        completed_at: (status != codepilotx_app_server_protocol::HookRunStatus::Running)
+            .then_some(2),
+        duration_ms: (status != codepilotx_app_server_protocol::HookRunStatus::Running)
+            .then_some(1),
         entries,
     }
 }
@@ -3650,7 +3650,7 @@ async fn chatwidget_exec_and_status_layout_vt100_snapshot() {
     complete_assistant_message(
         &mut chat,
         "msg-search",
-        "Im going to search the repo for where Change Approved?is rendered to update that view.",
+        "I’m going to search the repo for where “Change Approved” is rendered to update that view.",
         /*phase*/ None,
     );
 

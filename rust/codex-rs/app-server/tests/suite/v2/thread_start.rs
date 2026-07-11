@@ -586,7 +586,11 @@ async fn thread_start_respects_project_config_from_cwd() -> Result<()> {
 model_reasoning_effort = "high"
 "#,
     )?;
-    set_project_trust_level(codepilotx_home.path(), workspace.path(), TrustLevel::Trusted)?;
+    set_project_trust_level(
+        codepilotx_home.path(),
+        workspace.path(),
+        TrustLevel::Trusted,
+    )?;
 
     let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
@@ -1154,7 +1158,11 @@ async fn thread_start_skips_trust_write_when_project_is_already_trusted() -> Res
 model_reasoning_effort = "high"
 "#,
     )?;
-    set_project_trust_level(codepilotx_home.path(), workspace.path(), TrustLevel::Trusted)?;
+    set_project_trust_level(
+        codepilotx_home.path(),
+        workspace.path(),
+        TrustLevel::Trusted,
+    )?;
     let config_before = std::fs::read_to_string(codepilotx_home.path().join("config.toml"))?;
 
     let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
@@ -1192,7 +1200,9 @@ fn create_config_toml_without_approval_policy(
     server_uri: &str,
 ) -> std::io::Result<()> {
     create_config_toml_with_optional_approval_policy(
-        codepilotx_home, server_uri, /*approval_policy*/ None,
+        codepilotx_home,
+        server_uri,
+        /*approval_policy*/ None,
     )
 }
 

@@ -22,6 +22,7 @@ import {
 } from '@codepilotx/core/appServer/protocol.js'
 import type { ThreadEvent } from '@codepilotx/core/agent/workflow.js'
 import { desktopDebug } from './desktopDebug.js'
+import { terminateChildProcess } from './childProcessTermination.js'
 
 /**
  * SidecarManager 管理 app-server sidecar 子进程的生命周期与 JSON-RPC 通信。
@@ -80,6 +81,8 @@ export type SidecarManagerOptions = {
   args?: string[]
   /** Connection timeout in milliseconds */
   startTimeoutMs?: number
+  stopTimeoutMs?: number
+  forceKill?: (child: ChildProcess) => Promise<void>
 }
 
 // ── SidecarManager ────────────────────────────────────────────────────────
@@ -92,6 +95,7 @@ export class SidecarManager {
   private cleanupSteps: Array<() => void> = []
   private startupResolve: (() => void) | null = null
   private startupReject: ((err: Error) => void) | null = null
+  private stopPromise: Promise<void> | null = null
 
   constructor(private readonly options: SidecarManagerOptions) {}
 
@@ -99,6 +103,7 @@ export class SidecarManager {
 
   async start(): Promise<void> {
     if (this.initialized) return
+    this.stopPromise = null
 
     desktopDebug('sidecar_start', {
       entrypoint: this.options.entrypoint,
@@ -118,16 +123,15 @@ export class SidecarManager {
     const child = spawn(command, args, {
       cwd: this.options.cwd,
       windowsHide: true,
-      env: {
+      env: sanitizeChildEnvironment({
         ...process.env,
         ...this.options.env,
         // 标记自身为 sidecar 模式
         [SIDECAR_RUNNER_ENV]: '1',
-      },
+      }),
       stdio: ['pipe', 'pipe', 'pipe'],
     })
     this.child = child
-    this.cleanupSteps.push(() => this.killChild())
 
     // 2. 捕获 stderr
     const stderrChunks: Buffer[] = []
@@ -215,19 +219,48 @@ export class SidecarManager {
   }
 
   async stop(): Promise<void> {
+    if (!this.stopPromise) {
+      this.stopPromise = this.stopOnce()
+    }
+    await this.stopPromise
+  }
+
+  private async stopOnce(): Promise<void> {
     desktopDebug('sidecar_stop', {})
-    // 反向清理
+    const errors: unknown[] = []
+    try {
+      this.connection?.dispose()
+    } catch (error) {
+      errors.push(error)
+    }
     for (const step of this.cleanupSteps.reverse()) {
       try {
         step()
-      } catch {
-        // 忽略清理中的错误
+      } catch (error) {
+        errors.push(error)
       }
     }
     this.cleanupSteps = []
+    const child = this.child
+    let terminated = child === null
+    if (child) {
+      try {
+        await terminateChildProcess(child, {
+          timeoutMs: this.options.stopTimeoutMs,
+          forceKill: this.options.forceKill,
+        })
+        terminated = true
+      } catch (error) {
+        errors.push(error)
+      }
+    }
     this.connection = null
-    this.child = null
+    if (terminated) this.child = null
     this.initialized = false
+    if (errors.length === 1) throw errors[0]
+    if (errors.length > 1) {
+      throw new AggregateError(errors, 'Sidecar cleanup and termination failed')
+    }
   }
 
   // ── JSON-RPC 方法 ───────────────────────────────────────────────────────
@@ -313,16 +346,6 @@ export class SidecarManager {
     this.emitter.emit('permissionRequest', context)
   }
 
-  private killChild(): void {
-    if (this.child && !this.child.killed) {
-      try {
-        this.child.kill()
-      } catch {
-        // 忽略 kill 失败
-      }
-    }
-  }
-
   private withTimeout<T>(
     promise: Promise<T>,
     ms: number,
@@ -354,7 +377,7 @@ export function buildSidecarEnv(
   context: SidecarEnvContext,
 ): Record<string, string | undefined> {
   return {
-    ...context.runtimeEnvironment,
+    ...sanitizeChildEnvironment(context.runtimeEnvironment ?? {}),
     CODEPILOTX_SIDECAR_SESSION_ID: context.sessionId,
     CODEPILOTX_SIDECAR_WORKSPACE: context.workspacePath,
     CODEPILOTX_SIDECAR_MODEL: context.model,
@@ -380,6 +403,58 @@ export function buildSidecarEnv(
     CODEPILOTX_SIDECAR_DEEP_MODEL: context.deepModel,
     CODEPILOTX_SIDECAR_SESSION_NAME: context.sessionName,
   }
+}
+
+const CHILD_ENV_ALLOWLIST = new Set([
+  'APPDATA',
+  'COMSPEC',
+  'HOME',
+  'LANG',
+  'LOCALAPPDATA',
+  'NO_COLOR',
+  'NUMBER_OF_PROCESSORS',
+  'OS',
+  'PATH',
+  'PATHEXT',
+  'PROCESSOR_ARCHITECTURE',
+  'PROGRAMDATA',
+  'PROGRAMFILES',
+  'PROGRAMFILES(X86)',
+  'PROGRAMW6432',
+  'RUST_BACKTRACE',
+  'RUST_LOG',
+  'SYSTEMDRIVE',
+  'SYSTEMROOT',
+  'TEMP',
+  'TERM',
+  'TMP',
+  'USERPROFILE',
+  'WINDIR',
+])
+
+const SENSITIVE_ENV_NAME = /(?:API[_-]?KEY|AUTH|BEARER|CREDENTIAL|PASSWORD|SECRET|TOKEN)/i
+
+/** Preserve only process-launch essentials and explicit sidecar configuration. */
+export function sanitizeChildEnvironment(
+  env: Record<string, string | undefined>,
+): Record<string, string | undefined> {
+  const sanitized: Record<string, string | undefined> = {}
+  for (const [key, value] of Object.entries(env)) {
+    const upperKey = key.toUpperCase()
+    if (SENSITIVE_ENV_NAME.test(upperKey)) continue
+    if (
+      CHILD_ENV_ALLOWLIST.has(upperKey) ||
+      upperKey.startsWith('LC_') ||
+      upperKey.startsWith('CODEPILOTX_SIDECAR_') ||
+      upperKey === 'CODEPILOTX_CONFIG_DIR' ||
+      upperKey === 'CODEPILOTX_SQLITE_HOME' ||
+      upperKey === 'CLAUDE_CONFIG_DIR' ||
+      upperKey === SIDECAR_RUNNER_ENV
+    ) {
+      sanitized[key] = value
+    }
+  }
+  return sanitized
 }
 
 export type SidecarEnvContext = {

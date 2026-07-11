@@ -1532,8 +1532,10 @@ async fn personal_access_token_does_not_offer_unauthorized_recovery() {
         .mount(&server)
         .await;
     let _authapi_guard = EnvVarGuard::set("codepilotx_AUTHAPI_BASE_URL", &server.uri());
-    let _access_token_guard =
-        EnvVarGuard::set(codepilotx_ACCESS_TOKEN_ENV_VAR, "at-no-unauthorized-recovery");
+    let _access_token_guard = EnvVarGuard::set(
+        codepilotx_ACCESS_TOKEN_ENV_VAR,
+        "at-no-unauthorized-recovery",
+    );
     let manager = Arc::new(
         AuthManager::new(
             codepilotx_home.path().to_path_buf(),
@@ -1880,8 +1882,8 @@ async fn enforce_login_restrictions_blocks_env_api_key_when_chatgpt_required() {
 }
 
 fn agent_identity_record(account_id: &str) -> AgentIdentityAuthRecord {
-    let key_material =
-        codepilotx_agent_identity::generate_agent_key_material().expect("generate agent key material");
+    let key_material = codepilotx_agent_identity::generate_agent_key_material()
+        .expect("generate agent key material");
     AgentIdentityAuthRecord {
         agent_runtime_id: "agent-runtime-id".to_string(),
         agent_private_key: key_material.private_key_pkcs8_base64,

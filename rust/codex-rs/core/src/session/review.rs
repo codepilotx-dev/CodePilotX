@@ -50,8 +50,10 @@ pub(super) async fn spawn_review_thread(
         .permissions
         .shell_environment_policy
         .clone();
-    per_turn_config.codepilotx_linux_sandbox_exe =
-        parent_turn_context.config.codepilotx_linux_sandbox_exe.clone();
+    per_turn_config.codepilotx_linux_sandbox_exe = parent_turn_context
+        .config
+        .codepilotx_linux_sandbox_exe
+        .clone();
     per_turn_config.compact_prompt = parent_turn_context.config.compact_prompt.clone();
     if let Err(err) = per_turn_config.web_search_mode.set(review_web_search_mode) {
         let fallback_value = per_turn_config.web_search_mode.value();

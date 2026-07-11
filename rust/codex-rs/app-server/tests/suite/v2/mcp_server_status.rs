@@ -130,7 +130,11 @@ async fn mcp_server_status_list_uses_thread_project_local_config() -> Result<()>
         "compact",
     )?;
     std::fs::create_dir_all(workspace.path().join(".git"))?;
-    set_project_trust_level(codepilotx_home.path(), workspace.path(), TrustLevel::Trusted)?;
+    set_project_trust_level(
+        codepilotx_home.path(),
+        workspace.path(),
+        TrustLevel::Trusted,
+    )?;
 
     let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;

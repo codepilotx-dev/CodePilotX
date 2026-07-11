@@ -235,9 +235,17 @@ pub fn generate_json_with_experimental(out_dir: &Path, experimental_api: bool) -
         out_dir.join("codepilotx_app_server_protocol.schemas.json"),
         &bundle,
     )?;
+    write_pretty_json(
+        out_dir.join("codex_app_server_protocol.schemas.json"),
+        &bundle,
+    )?;
     let flat_v2_bundle = build_flat_v2_schema(&bundle)?;
     write_pretty_json(
         out_dir.join("codepilotx_app_server_protocol.v2.schemas.json"),
+        &flat_v2_bundle,
+    )?;
+    write_pretty_json(
+        out_dir.join("codex_app_server_protocol.v2.schemas.json"),
         &flat_v2_bundle,
     )?;
 
@@ -1301,7 +1309,7 @@ fn insert_definition(
     location: &str,
 ) -> Result<()> {
     if let Some(existing) = definitions.get(&name) {
-        if existing == &schema {
+        if schema_definitions_match(existing, &schema) {
             return Ok(());
         }
 
@@ -1320,6 +1328,19 @@ fn insert_definition(
 
     definitions.insert(name, schema);
     Ok(())
+}
+
+fn schema_definitions_match(left: &Value, right: &Value) -> bool {
+    fn without_document_metadata(value: &Value) -> Value {
+        let mut value = value.clone();
+        if let Some(object) = value.as_object_mut() {
+            object.remove("$schema");
+            object.remove("title");
+        }
+        value
+    }
+
+    left == right || without_document_metadata(left) == without_document_metadata(right)
 }
 
 fn write_json_schema_with_return<T>(out_dir: &Path, name: &str) -> Result<GeneratedSchema>
@@ -2351,8 +2372,9 @@ mod tests {
     }
 
     fn schema_root() -> Result<PathBuf> {
-        let typescript_index = codepilotx_utils_cargo_bin::find_resource!("schema/typescript/index.ts")
-            .context("resolve TypeScript schema index.ts")?;
+        let typescript_index =
+            codepilotx_utils_cargo_bin::find_resource!("schema/typescript/index.ts")
+                .context("resolve TypeScript schema index.ts")?;
         let schema_root = typescript_index
             .parent()
             .and_then(|parent| parent.parent())
@@ -2681,7 +2703,8 @@ mod tests {
 
     #[test]
     fn experimental_type_fields_ts_filter_handles_interface_shape() -> Result<()> {
-        let output_dir = std::env::temp_dir().join(format!("codepilotx_ts_filter_{}", Uuid::now_v7()));
+        let output_dir =
+            std::env::temp_dir().join(format!("codepilotx_ts_filter_{}", Uuid::now_v7()));
         fs::create_dir_all(&output_dir)?;
 
         struct TempDirGuard(PathBuf);
@@ -2720,7 +2743,8 @@ mod tests {
     #[test]
     fn experimental_type_fields_ts_filter_keeps_imports_used_in_intersection_suffix() -> Result<()>
     {
-        let output_dir = std::env::temp_dir().join(format!("codepilotx_ts_filter_{}", Uuid::now_v7()));
+        let output_dir =
+            std::env::temp_dir().join(format!("codepilotx_ts_filter_{}", Uuid::now_v7()));
         fs::create_dir_all(&output_dir)?;
 
         struct TempDirGuard(PathBuf);
@@ -2763,7 +2787,8 @@ export type Config = { stableField: Keep, unstableField: string | null } & ({ [k
 
     #[test]
     fn experimental_type_fields_ts_filter_handles_generated_command_params_shape() -> Result<()> {
-        let output_dir = std::env::temp_dir().join(format!("codepilotx_ts_filter_{}", Uuid::now_v7()));
+        let output_dir =
+            std::env::temp_dir().join(format!("codepilotx_ts_filter_{}", Uuid::now_v7()));
         fs::create_dir_all(&output_dir)?;
 
         struct TempDirGuard(PathBuf);

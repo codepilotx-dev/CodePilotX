@@ -10,15 +10,12 @@ import {
 } from '../shared/settingsSchema.js'
 
 describe('normalizeBrowserURL', () => {
-  test('allows http, https, and file URLs', () => {
+  test('allows http and https URLs', () => {
     expect(normalizeBrowserURL('http://localhost:3000/settings')).toBe(
       'http://localhost:3000/settings',
     )
     expect(normalizeBrowserURL('https://example.com/page')).toBe(
       'https://example.com/page',
-    )
-    expect(normalizeBrowserURL('file:///C:/preview/index.html')).toBe(
-      'file:///C:/preview/index.html',
     )
   })
 
@@ -30,21 +27,21 @@ describe('normalizeBrowserURL', () => {
 
   test('rejects unsupported protocols', () => {
     expect(() => normalizeBrowserURL('javascript:alert(1)')).toThrow(
-      'Only http, https, and file URLs can be opened.',
+      'Only http and https URLs can be opened.',
+    )
+    expect(() => normalizeBrowserURL('file:///C:/Users/test/secret.txt')).toThrow(
+      'Only http and https URLs can be opened.',
     )
   })
 })
 
 describe('browserSiteKeyForURL', () => {
-  test('normalizes web origins and file URLs for allow lists', () => {
+  test('normalizes web origins for allow lists', () => {
     expect(browserSiteKeyForURL('https://example.com/path')).toBe(
       'https://example.com',
     )
     expect(browserSiteKeyForURL('http://localhost:5173/page')).toBe(
       'http://localhost:5173',
-    )
-    expect(browserSiteKeyForURL('file:///C:/preview/index.html')).toBe(
-      'file://',
     )
   })
 })

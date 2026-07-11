@@ -726,10 +726,9 @@ async fn run_guardian_review_session_before_deadline(
     let guardian_review_model_override = model_override.map(str::to_string);
     let (guardian_model, guardian_reasoning_effort) = if let Some(preset) = review_model {
         let reasoning_effort = preferred_reasoning_effort(
-            preset
-                .supported_reasoning_efforts
-                .iter()
-                .any(|effort| effort.effort == codepilotx_protocol::openai_models::ReasoningEffort::Low),
+            preset.supported_reasoning_efforts.iter().any(|effort| {
+                effort.effort == codepilotx_protocol::openai_models::ReasoningEffort::Low
+            }),
             Some(preset.default_reasoning_effort.clone()),
         );
         (review_model_id.to_string(), reasoning_effort)
@@ -738,7 +737,9 @@ async fn run_guardian_review_session_before_deadline(
             turn.model_info
                 .supported_reasoning_levels
                 .iter()
-                .any(|preset| preset.effort == codepilotx_protocol::openai_models::ReasoningEffort::Low),
+                .any(|preset| {
+                    preset.effort == codepilotx_protocol::openai_models::ReasoningEffort::Low
+                }),
             turn.reasoning_effort
                 .clone()
                 .or_else(|| turn.model_info.default_reasoning_level.clone()),

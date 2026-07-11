@@ -542,8 +542,12 @@ fn map_network_unix_socket_permission_to_api(
     permission: codepilotx_config::NetworkUnixSocketPermissionToml,
 ) -> NetworkUnixSocketPermission {
     match permission {
-        codepilotx_config::NetworkUnixSocketPermissionToml::Allow => NetworkUnixSocketPermission::Allow,
-        codepilotx_config::NetworkUnixSocketPermissionToml::Deny => NetworkUnixSocketPermission::Deny,
+        codepilotx_config::NetworkUnixSocketPermissionToml::Allow => {
+            NetworkUnixSocketPermission::Allow
+        }
+        codepilotx_config::NetworkUnixSocketPermissionToml::Deny => {
+            NetworkUnixSocketPermission::Deny
+        }
     }
 }
 

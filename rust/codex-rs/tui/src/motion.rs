@@ -41,7 +41,7 @@ pub(crate) fn activity_indicator(
         MotionMode::Animated => Some(animated_activity_indicator(start_time)),
         MotionMode::Reduced => match reduced_motion_indicator {
             ReducedMotionIndicator::Hidden => None,
-            ReducedMotionIndicator::StaticBullet => Some("?.dim()),
+            ReducedMotionIndicator::StaticBullet => Some("•".dim()),
         },
     }
 }
@@ -65,13 +65,13 @@ fn animated_activity_indicator(start_time: Option<Instant>) -> Span<'static> {
         .map(|level| level.has_16m)
         .unwrap_or(false)
     {
-        shimmer_spans("?)
+        shimmer_spans("•")
             .into_iter()
             .next()
-            .unwrap_or_else(|| "?.into())
+            .unwrap_or_else(|| "•".into())
     } else {
         let blink_on = (elapsed.as_millis() / 600).is_multiple_of(2);
-        if blink_on { "?.into() } else { "?.dim() }
+        if blink_on { "•".into() } else { "◦".dim() }
     }
 }
 
@@ -101,7 +101,7 @@ mod tests {
                 MotionMode::Reduced,
                 ReducedMotionIndicator::StaticBullet,
             ),
-            Some("?.dim())
+            Some("•".dim())
         );
     }
 

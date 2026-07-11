@@ -45,16 +45,32 @@ export function handleSessionAgentEvent(
   if (isInternalReviewerAgentEvent(event)) {
     return
   }
-
   const sessionEvent = desktopAgentEventToSessionEvent(event)
-  if (sessionEvent) {
-    updateSessionView(event.sessionId, view => ({
-      ...view,
-      events:
-        view.eventModelVersion === 1
-          ? [...view.events, sessionEvent]
-          : view.events,
-    }))
+  const incomingTurnId =
+    typeof sessionEvent?.metadata?.turnId === 'string'
+      ? sessionEvent.metadata.turnId
+      : undefined
+  if (sessionEvent && event.type !== 'partial_message') {
+    updateSessionView(event.sessionId, view => {
+      const current = resetStreamGenerationForTurn(view, incomingTurnId)
+      return {
+        ...current,
+        events:
+          current.eventModelVersion === 1
+            ? [
+                ...current.events.filter(
+                  existing =>
+                    !(
+                      event.type === 'message' &&
+                      event.role === 'assistant' &&
+                      existing.type === 'assistant_delta'
+                    ),
+                ),
+                sessionEvent,
+              ]
+            : current.events,
+      }
+    })
   }
 
   if (event.type === 'status') {
@@ -67,6 +83,13 @@ export function handleSessionAgentEvent(
     )
     if (event.sessionId === activeSessionIdRef.current) {
       setSessionStatus(event.status)
+    }
+    if (event.status === 'running') {
+      updateSessionView(event.sessionId, view =>
+        view.streamingTerminal
+          ? { ...view, closedStreamIds: new Set(), streamingTerminal: false }
+          : view,
+      )
     }
     return
   }
@@ -82,41 +105,86 @@ export function handleSessionAgentEvent(
         ),
       ),
     )
-    updateSessionView(event.sessionId, view => ({
-      ...view,
-      messages: [
-        ...view.messages.filter(message => !message.streaming),
-        {
-          id: crypto.randomUUID(),
-          role: event.role,
-          text: event.text,
-          createdAt,
-        },
-      ],
-    }))
+    updateSessionView(event.sessionId, view => {
+      const current = resetStreamGenerationForTurn(view, incomingTurnId)
+      return {
+        ...current,
+        closedStreamIds:
+          event.role === 'assistant' && event.streamId
+            ? new Set([...(current.closedStreamIds ?? []), event.streamId])
+            : current.closedStreamIds,
+        messages: [
+          ...current.messages.filter(
+            message =>
+              !message.streaming ||
+              (event.streamId != null && message.streamId !== event.streamId),
+          ),
+          {
+            id: crypto.randomUUID(),
+            role: event.role,
+            text: event.text,
+            createdAt,
+          },
+        ],
+      }
+    })
     return
   }
 
   if (event.type === 'partial_message') {
     updateSessionView(event.sessionId, view => {
-      const index = view.messages.findIndex(message => message.streaming)
+      const current = resetStreamGenerationForTurn(view, incomingTurnId)
+      if (current.streamingTerminal) return current
+      if (event.streamId && current.closedStreamIds?.has(event.streamId)) return current
+      const index = current.messages.findIndex(
+        message =>
+          message.streaming &&
+          (!event.streamId || message.streamId === event.streamId),
+      )
+      const previousChunks =
+        index >= 0 ? current.messages[index]!.streamingChunks ?? [] : []
+      const streamChunks =
+        appendTransientStreamChunk(previousChunks, event.text, event.delta === true)
       const createdAt =
         event.createdAt ??
-        (index >= 0 ? view.messages[index]?.createdAt : undefined) ??
+        (index >= 0 ? current.messages[index]?.createdAt : undefined) ??
         new Date().toISOString()
       const nextMessage: Message = {
-        id: index >= 0 ? view.messages[index]!.id : crypto.randomUUID(),
+        id: index >= 0 ? current.messages[index]!.id : crypto.randomUUID(),
         role: 'assistant',
-        text: event.text,
+        text: event.delta === true ? '' : event.text,
         createdAt,
         streaming: true,
+        streamingChunks: streamChunks,
+        streamId: event.streamId,
       }
+      const transientEvent = sessionEvent
+        ? {
+            ...sessionEvent,
+            content: '',
+            metadata: {
+              ...(sessionEvent.metadata ?? {}),
+              streamingChunks: streamChunks,
+              streamId: event.streamId,
+            },
+          }
+        : null
+      const events = transientEvent
+        ? [
+            ...current.events.filter(existing => {
+              if (existing.type !== 'assistant_delta') return true
+              return existing.metadata?.streamId !== event.streamId
+            }),
+            transientEvent,
+          ]
+        : current.events
       if (index === -1) {
-        return { ...view, messages: [...view.messages, nextMessage] }
+        return { ...current, events, messages: [...current.messages, nextMessage] }
       }
       return {
-        ...view,
-        messages: view.messages.map((message, messageIndex) =>
+        ...current,
+        events,
+        messages: current.messages.map((message, messageIndex) =>
           messageIndex === index ? nextMessage : message,
         ),
       }
@@ -204,11 +272,10 @@ export function handleSessionAgentEvent(
     }
     updateSessionView(event.sessionId, view => ({
       ...view,
+      ...terminalStreamCleanup(view),
       pendingPermissions: [],
       messages: [
-        ...view.messages.map(message =>
-          message.streaming ? { ...message, streaming: false } : message,
-        ),
+        ...view.messages.filter(message => !message.streaming),
         {
           id: crypto.randomUUID(),
           role: 'system',
@@ -235,12 +302,67 @@ export function handleSessionAgentEvent(
     }
     updateSessionView(event.sessionId, view => ({
       ...view,
+      ...terminalStreamCleanup(view),
       pendingPermissions: [],
-      messages: view.messages.map(message =>
-        message.streaming ? { ...message, streaming: false } : message,
-      ),
+      messages: view.messages.filter(message => !message.streaming),
     }))
   }
+}
+
+function resetStreamGenerationForTurn(
+  view: import('../../uiTypes.js').SessionViewState,
+  incomingTurnId: string | undefined,
+): import('../../uiTypes.js').SessionViewState {
+  if (!incomingTurnId || incomingTurnId === view.activeStreamTurnId) return view
+  return {
+    ...view,
+    activeStreamTurnId: incomingTurnId,
+    closedStreamIds: new Set(),
+    streamingTerminal: false,
+  }
+}
+
+export function terminalStreamCleanup<T extends { type: string; metadata?: Record<string, unknown> }>(view: {
+  events: T[]
+  messages: Message[]
+  closedStreamIds?: Set<string>
+}): {
+  events: T[]
+  closedStreamIds: Set<string>
+  streamingTerminal: true
+} {
+  const activeIds = new Set(view.closedStreamIds ?? [])
+  for (const message of view.messages) {
+    if (message.streaming && message.streamId) activeIds.add(message.streamId)
+  }
+  for (const event of view.events) {
+    if (event.type === 'assistant_delta' && typeof event.metadata?.streamId === 'string') {
+      activeIds.add(event.metadata.streamId)
+    }
+  }
+  return {
+    events: view.events.filter(event => event.type !== 'assistant_delta'),
+    closedStreamIds: activeIds,
+    streamingTerminal: true,
+  }
+}
+
+export function transientStreamRetainedChars(chunks: string[]): number {
+  return chunks.reduce((total, chunk) => total + chunk.length, 0)
+}
+
+export function appendTransientStreamChunk(
+  chunks: string[],
+  text: string,
+  delta: boolean,
+): string[] {
+  if (!delta) return [text]
+  chunks.push(text)
+  return chunks
+}
+
+export function isDurableSessionAgentEvent(event: DesktopAgentEvent): boolean {
+  return event.type !== 'partial_message'
 }
 
 function isInternalReviewerAgentEvent(event: DesktopAgentEvent): boolean {

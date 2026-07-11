@@ -71,7 +71,11 @@ fn disabled_plan_turn(
     })
 }
 
-fn image_generation_artifact_path(codepilotx_home: &Path, session_id: &str, call_id: &str) -> PathBuf {
+fn image_generation_artifact_path(
+    codepilotx_home: &Path,
+    session_id: &str,
+    call_id: &str,
+) -> PathBuf {
     fn sanitize(value: &str) -> String {
         let mut sanitized: String = value
             .chars()
@@ -202,7 +206,8 @@ async fn assistant_message_item_is_emitted() -> anyhow::Result<()> {
     .await;
 
     assert_eq!(started.id, completed.id);
-    let Some(codepilotx_protocol::items::AgentMessageContent::Text { text }) = completed.content.first()
+    let Some(codepilotx_protocol::items::AgentMessageContent::Text { text }) =
+        completed.content.first()
     else {
         panic!("expected agent message text content");
     };

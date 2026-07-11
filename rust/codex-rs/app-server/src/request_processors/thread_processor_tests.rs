@@ -162,13 +162,13 @@ mod thread_processor_behavior_tests {
             defer_loading,
         };
         match namespace {
-            Some(namespace) => {
-                DynamicToolSpec::Namespace(codepilotx_app_server_protocol::DynamicToolNamespaceSpec {
+            Some(namespace) => DynamicToolSpec::Namespace(
+                codepilotx_app_server_protocol::DynamicToolNamespaceSpec {
                     name: namespace.to_string(),
                     description: "test namespace".to_string(),
                     tools: vec![DynamicToolNamespaceTool::Function(function)],
-                })
-            }
+                },
+            ),
             None => DynamicToolSpec::Function(function),
         }
     }
@@ -511,7 +511,8 @@ mod thread_processor_behavior_tests {
     fn requested_permissions_trust_project_uses_permission_profile_intent() {
         let cwd = test_path_buf("/tmp/project").abs();
         let full_access_profile = codepilotx_protocol::models::PermissionProfile::Disabled;
-        let workspace_write_profile = codepilotx_protocol::models::PermissionProfile::workspace_write();
+        let workspace_write_profile =
+            codepilotx_protocol::models::PermissionProfile::workspace_write();
         let read_only_profile = codepilotx_protocol::models::PermissionProfile::read_only();
         let split_write_profile =
             codepilotx_protocol::models::PermissionProfile::from_runtime_permissions(

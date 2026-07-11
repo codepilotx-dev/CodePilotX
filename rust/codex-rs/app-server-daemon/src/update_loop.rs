@@ -95,7 +95,8 @@ async fn update_once(
     install_latest_standalone().await?;
 
     let daemon = Daemon::from_environment()?;
-    let managed_codepilotx_bin = resolved_managed_codepilotx_bin(&daemon.managed_codepilotx_bin).await?;
+    let managed_codepilotx_bin =
+        resolved_managed_codepilotx_bin(&daemon.managed_codepilotx_bin).await?;
     let managed_identity = executable_identity(&managed_codepilotx_bin).await?;
     let (restart_mode, updater_refresh_mode) =
         update_modes_for_identities(running_updater_identity, &managed_identity);

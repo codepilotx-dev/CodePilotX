@@ -275,7 +275,7 @@ mod tests {
         assert_eq!(out.visible_text, "ab");
         assert_eq!(out.extracted.len(), 1);
         assert_eq!(out.extracted[0].tag, Tag::A);
-        assert_eq!(out.extracted[0].content, "");
+        assert_eq!(out.extracted[0].content, "中");
     }
 
     #[test]

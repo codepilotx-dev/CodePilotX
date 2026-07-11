@@ -14,7 +14,7 @@ describe('desktop browser debug bridge', () => {
           runtimeSelectionSource: 'default',
           agentExecutablePath: '',
           agentExecutableExists: false,
-          
+
           configDirectoryPath: '',
           toolchainEnabled: true,
           toolchainRoot: null,
@@ -204,7 +204,7 @@ describe('desktop browser debug bridge', () => {
             runtimeSelectionSource: 'default',
             agentExecutablePath: '',
             agentExecutableExists: false,
-            
+
             configDirectoryPath: '',
             toolchainEnabled: true,
             toolchainRoot: null,

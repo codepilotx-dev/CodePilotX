@@ -87,7 +87,10 @@ pub(crate) fn write_curated_plugin_sha(codepilotx_home: &Path) {
 }
 
 pub(crate) fn write_curated_plugin_sha_with(codepilotx_home: &Path, sha: &str) {
-    write_file(&codepilotx_home.join(".tmp/plugins.sha"), &format!("{sha}\n"));
+    write_file(
+        &codepilotx_home.join(".tmp/plugins.sha"),
+        &format!("{sha}\n"),
+    );
 }
 
 pub(crate) fn write_plugins_feature_config(codepilotx_home: &Path) {

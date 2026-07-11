@@ -1,5 +1,6 @@
-import { appendFile, mkdir, readFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { createHash, randomUUID } from 'node:crypto'
+import { mkdir, open, readFile, readdir, rename, rm, stat, unlink, utimes } from 'node:fs/promises'
+import { basename, dirname, join } from 'node:path'
 import type {
   DesktopAgentEvent,
   DesktopPermissionRequest,
@@ -75,30 +76,83 @@ export type RolloutWriteScheduler = {
   flush(): Promise<void>
 }
 
+type RolloutAppendOperations = {
+  mkdir(path: string, options: { recursive: true }): Promise<unknown>
+  readFile(path: string, encoding: 'utf8'): Promise<string>
+  appendFile(path: string, content: string, encoding: 'utf8'): Promise<unknown>
+}
+
+export type DesktopPersistenceStatus = 'saved' | 'unsaved'
+
 export function createRolloutWriteScheduler(options?: {
   onError?: (error: unknown, rolloutPath: string) => void
+  onStatusChange?: (
+    status: DesktopPersistenceStatus,
+    rolloutPath: string,
+  ) => void
+  retryDelaysMs?: readonly number[]
+  sleep?: (delayMs: number) => Promise<void>
+  writeItems?: typeof appendDesktopRolloutItems
 }): RolloutWriteScheduler {
-  const queues = new Map<string, DesktopRolloutItem[]>()
+  const queues = new Map<
+    string,
+    Array<{ id: string; items: DesktopRolloutItem[] }>
+  >()
   const inFlight = new Map<string, Promise<void>>()
+  const failures = new Map<string, unknown>()
+  const retryDelaysMs = options?.retryDelaysMs ?? [50, 150]
+  const sleep = options?.sleep ?? (delayMs => new Promise(resolve => setTimeout(resolve, delayMs)))
+  const writeItems = options?.writeItems ?? appendDesktopRolloutItems
 
   const drainQueue = async (rolloutPath: string): Promise<void> => {
-    let items = queues.get(rolloutPath)
-    if (!items || items.length === 0) {
-      inFlight.delete(rolloutPath)
-      return
-    }
-
-    do {
-      queues.delete(rolloutPath)
-      try {
-        await appendDesktopRolloutItems(rolloutPath, items)
-      } catch (error) {
-        options.onError?.(error, rolloutPath)
+    let recovered = failures.has(rolloutPath)
+    while (true) {
+      const queue = queues.get(rolloutPath)
+      if (!queue || queue.length === 0) {
+        queues.delete(rolloutPath)
+        failures.delete(rolloutPath)
+        if (recovered) options?.onStatusChange?.('saved', rolloutPath)
+        return
       }
-      items = queues.get(rolloutPath)
-    } while (items && items.length > 0)
 
-    inFlight.delete(rolloutPath)
+      const batch = queue[0]!
+      let failure: unknown
+      let failed = true
+      for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
+        try {
+          await writeItems(rolloutPath, batch.items, { batchId: batch.id })
+          failed = false
+          break
+        } catch (error) {
+          failure = error
+          if (attempt < retryDelaysMs.length) {
+            await sleep(retryDelaysMs[attempt]!)
+          }
+        }
+      }
+
+      if (failed) {
+        failures.set(rolloutPath, failure)
+        options?.onError?.(failure, rolloutPath)
+        options?.onStatusChange?.('unsaved', rolloutPath)
+        return
+      }
+
+      queue.shift()
+      recovered = recovered || failures.delete(rolloutPath)
+    }
+  }
+
+  const startDrain = (rolloutPath: string): Promise<void> => {
+    const current = inFlight.get(rolloutPath)
+    if (current) return current
+    const promise = drainQueue(rolloutPath).finally(() => {
+      if (inFlight.get(rolloutPath) === promise) {
+        inFlight.delete(rolloutPath)
+      }
+    })
+    inFlight.set(rolloutPath, promise)
+    return promise
   }
 
   return {
@@ -108,19 +162,21 @@ export function createRolloutWriteScheduler(options?: {
         existing = []
         queues.set(rolloutPath, existing)
       }
-      existing.push(...items)
+      existing.push({ id: randomUUID(), items: [...items] })
 
       if (!inFlight.has(rolloutPath)) {
-        const promise = drainQueue(rolloutPath)
-        inFlight.set(rolloutPath, promise)
+        void startDrain(rolloutPath)
       }
     },
 
     async flush() {
-      const promises = [...inFlight.values()]
-      if (promises.length > 0) {
-        await Promise.all(promises)
+      if (inFlight.size === 0) {
+        for (const [rolloutPath, batches] of queues) {
+          if (batches.length > 0) startDrain(rolloutPath)
+        }
       }
+      await Promise.all([...inFlight.values()])
+      if (failures.size > 0) throw failures.values().next().value
     },
   }
 }
@@ -128,19 +184,566 @@ export function createRolloutWriteScheduler(options?: {
 export async function appendDesktopRolloutItems(
   rolloutPath: string,
   items: DesktopRolloutItem[],
-  options: { includeInternal?: boolean } = {},
+  options: {
+    includeInternal?: boolean
+    operations?: RolloutAppendOperations
+    batchId?: string
+    faultAfterAppend?: () => Promise<void>
+    now?: () => string
+    lockOptions?: Partial<RolloutLockOptions>
+    faultJournalPhase?: (
+      phase: 'after-write' | 'after-sync' | 'before-rename',
+      tempPath: string,
+    ) => Promise<void>
+  } = {},
 ): Promise<void> {
   const lines = items
     .filter(item => shouldPersistDesktopRolloutItem(item, options))
     .map(item =>
       JSON.stringify({
-        timestamp: new Date().toISOString(),
+        timestamp: options.now?.() ?? new Date().toISOString(),
         ...item,
       } satisfies DesktopRolloutLine),
     )
   if (lines.length === 0) return
-  await mkdir(dirname(rolloutPath), { recursive: true })
-  await appendFile(rolloutPath, `${lines.join('\n')}\n`, 'utf8')
+  if (!options.operations) {
+    await appendDesktopRolloutBatchWithRecovery(
+      rolloutPath,
+      lines.join('\n'),
+      options.batchId ?? randomUUID(),
+      options.faultAfterAppend,
+      options.lockOptions,
+      options.faultJournalPhase,
+    )
+    return
+  }
+  const operations = options.operations
+  await operations.mkdir(dirname(rolloutPath), { recursive: true })
+  let existing = ''
+  try {
+    existing = await operations.readFile(rolloutPath, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
+  const separator = existing.length > 0 && !existing.endsWith('\n') ? '\n' : ''
+  await operations.appendFile(
+    rolloutPath,
+    `${separator}${lines.join('\n')}\n`,
+    'utf8',
+  )
+}
+
+type RecoveryJournal = {
+  state: 'prepared' | 'committed'
+  batchId: string
+  token: string
+  rolloutPathHash: string
+  originalPrefixSha256: string
+  originalSize: number
+  byteLength: number
+  sha256: string
+  payloadBase64: string
+}
+
+type LockOwner = { token: string; pid: number; heartbeat: number }
+type RolloutLockOptions = {
+  staleMs: number
+  heartbeatMs: number
+  retryDelaysMs: number[]
+  token: string
+  pid: number
+  isProcessAlive(pid: number): boolean
+  scheduleHeartbeat(callback: () => void, delayMs: number): unknown
+  cancelHeartbeat(handle: unknown): void
+  onHeartbeat?(): Promise<void>
+  syncDirectory(path: string): Promise<void>
+}
+
+type RolloutLockHandle = { token: string; release(): Promise<void> }
+
+async function appendDesktopRolloutBatchWithRecovery(
+  rolloutPath: string,
+  lines: string,
+  batchId: string,
+  faultAfterAppend?: () => Promise<void>,
+  lockOverrides: Partial<RolloutLockOptions> = {},
+  faultJournalPhase?: (
+    phase: 'after-write' | 'after-sync' | 'before-rename',
+    tempPath: string,
+  ) => Promise<void>,
+): Promise<void> {
+  const parentPath = dirname(rolloutPath)
+  await mkdir(parentPath, { recursive: true })
+  const lockPath = `${rolloutPath}.desktop-lock`
+  const journalPath = `${rolloutPath}.desktop-recovery.json`
+  const lock = await acquireRolloutLock(lockPath, lockOverrides)
+  let bodyFailure: unknown
+  try {
+    const recoveredBatchId = await recoverRolloutJournal(
+      rolloutPath,
+      journalPath,
+    )
+    if (recoveredBatchId === batchId) return
+    if (recoveredBatchId !== undefined) await unlinkDurably(journalPath)
+    let existing = ''
+    try {
+      existing = await readFile(rolloutPath, 'utf8')
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    }
+    const separator = existing.length > 0 && !existing.endsWith('\n') ? '\n' : ''
+    const bytes = Buffer.from(`${separator}${lines}\n`, 'utf8')
+    const originalSize = await fileSizeOrZero(rolloutPath)
+    const journal: RecoveryJournal = {
+      state: 'prepared',
+      batchId,
+      token: randomUUID(),
+      rolloutPathHash: createHash('sha256').update(rolloutPath).digest('hex'),
+      originalPrefixSha256: await hashFilePrefix(rolloutPath, originalSize),
+      originalSize,
+      byteLength: bytes.length,
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+      payloadBase64: bytes.toString('base64'),
+    }
+    await writeFileAtomicallyDurable(
+      journalPath,
+      JSON.stringify(journal),
+      faultJournalPhase,
+    )
+    await appendBufferDurably(rolloutPath, bytes)
+    await faultAfterAppend?.()
+    const tail = await readTail(rolloutPath, originalSize)
+    if (!tail.subarray(0, bytes.length).equals(bytes)) {
+      throw recoveryError('rollout append verification failed')
+    }
+    await writeFileAtomicallyDurable(
+      journalPath,
+      JSON.stringify({ ...journal, state: 'committed' } satisfies RecoveryJournal),
+    )
+  } catch (error) {
+    bodyFailure = error
+    throw error
+  } finally {
+    try {
+      await lock.release()
+    } catch (releaseError) {
+      if (bodyFailure) {
+        throw new AggregateError(
+          [bodyFailure, releaseError],
+          'rollout append and lock release both failed',
+        )
+      }
+      throw releaseError
+    }
+  }
+}
+
+async function acquireRolloutLock(
+  lockPath: string,
+  overrides: Partial<RolloutLockOptions> = {},
+): Promise<RolloutLockHandle> {
+  const options: RolloutLockOptions = {
+    staleMs: 30_000,
+    heartbeatMs: 5_000,
+    retryDelaysMs: [0, 50, 100, 200, 400, 800, 1_000],
+    token: randomUUID(),
+    pid: process.pid,
+    isProcessAlive: isProcessAlive,
+    scheduleHeartbeat: (callback, delayMs) => {
+      const handle = setTimeout(callback, delayMs)
+      handle.unref()
+      return handle
+    },
+    cancelHeartbeat: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
+    syncDirectory,
+    ...overrides,
+  }
+  await cleanupStaleAcquireClaims(lockPath, options.staleMs)
+  for (const delayMs of options.retryDelaysMs) {
+    if (delayMs) await new Promise(resolve => setTimeout(resolve, delayMs))
+    const claimPath = `${lockPath}.acquire-${options.token}-${randomUUID()}`
+    let published = false
+    try {
+      await mkdir(claimPath)
+      await options.syncDirectory(dirname(lockPath))
+      await writeLockOwner(join(claimPath, 'owner.json'), {
+        token: options.token,
+        pid: options.pid,
+        heartbeat: Date.now(),
+      })
+      await rename(claimPath, lockPath)
+      published = true
+      await options.syncDirectory(dirname(lockPath))
+      let released = false
+      let stopped = false
+      let generation = 0
+      let heartbeatHandle: unknown | null = null
+      let heartbeatInFlight: Promise<void> = Promise.resolve()
+      let compromised: unknown
+      const scheduleNextHeartbeat = () => {
+        if (stopped || compromised) return
+        const scheduledGeneration = generation
+        heartbeatHandle = options.scheduleHeartbeat(() => {
+          heartbeatHandle = null
+          if (stopped || scheduledGeneration !== generation) return
+          heartbeatInFlight = (async () => {
+            await options.onHeartbeat?.()
+            await refreshLockOwner(lockPath, options)
+          })().catch(error => {
+            compromised = error
+            stopped = true
+          }).finally(() => {
+            if (!stopped && scheduledGeneration === generation) scheduleNextHeartbeat()
+          })
+        }, options.heartbeatMs)
+      }
+      scheduleNextHeartbeat()
+      return {
+        token: options.token,
+        async release() {
+          if (released) return
+          released = true
+          stopped = true
+          generation += 1
+          if (heartbeatHandle !== null) options.cancelHeartbeat(heartbeatHandle)
+          await heartbeatInFlight
+          let releaseFailure: unknown
+          try {
+            await releaseOwnedLock(lockPath, options.token, options.syncDirectory)
+          } catch (error) {
+            releaseFailure = error
+          }
+          if (compromised && releaseFailure) {
+            throw new AggregateError(
+              [compromised, releaseFailure],
+              'heartbeat and lock release both failed',
+            )
+          }
+          if (compromised) throw compromised
+          if (releaseFailure) throw releaseFailure
+        },
+      }
+    } catch (error) {
+      await rm(claimPath, { recursive: true, force: true }).catch(() => {})
+      if (published) {
+        try {
+          await releaseOwnedLock(lockPath, options.token, options.syncDirectory)
+        } catch (cleanupError) {
+          throw new AggregateError([error, cleanupError], 'lock publication and cleanup both failed')
+        }
+        throw error
+      }
+      if (!['EEXIST', 'ENOTEMPTY', 'EPERM'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error
+      await reclaimStaleLock(lockPath, options)
+    }
+  }
+  throw Object.assign(new Error('rollout lock is busy'), { code: 'EBUSY' })
+}
+
+async function refreshLockOwner(
+  lockPath: string,
+  options: RolloutLockOptions,
+): Promise<void> {
+  const owner = await readLockOwner(join(lockPath, 'owner.json'))
+  if (owner.token !== options.token) return
+  await writeLockOwner(join(lockPath, 'owner.json'), {
+    token: options.token,
+    pid: options.pid,
+    heartbeat: Date.now(),
+  })
+  const now = new Date()
+  await utimes(lockPath, now, now)
+}
+
+async function reclaimStaleLock(
+  lockPath: string,
+  options: RolloutLockOptions,
+): Promise<void> {
+  let observed: LockOwner
+  try {
+    observed = await readLockOwner(join(lockPath, 'owner.json'))
+  } catch {
+    return
+  }
+  if (!isReclaimableOwner(observed, options)) return
+  const claimPath = `${lockPath}.claim-${options.token}-${randomUUID()}`
+  try {
+    await rename(lockPath, claimPath)
+  } catch (error) {
+    if (['ENOENT', 'EACCES', 'EPERM'].includes((error as NodeJS.ErrnoException).code ?? '')) return
+    throw error
+  }
+  let removeClaim = false
+  try {
+    const claimed = await readLockOwner(join(claimPath, 'owner.json'))
+    removeClaim = claimed.token === observed.token && isReclaimableOwner(claimed, options)
+    if (!removeClaim) return
+    await rm(claimPath, { recursive: true, force: true })
+    await syncDirectory(dirname(lockPath))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    throw error
+  }
+}
+
+function isReclaimableOwner(owner: LockOwner, options: RolloutLockOptions): boolean {
+  return Date.now() - owner.heartbeat > options.staleMs && !options.isProcessAlive(owner.pid)
+}
+
+async function releaseOwnedLock(
+  lockPath: string,
+  token: string,
+  syncParent: (path: string) => Promise<void> = syncDirectory,
+): Promise<void> {
+  const owner = await readLockOwner(join(lockPath, 'owner.json')).catch(error => {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+    throw error
+  })
+  if (owner?.token !== token) return
+  try {
+    await rm(lockPath, { recursive: true })
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    throw error
+  }
+  await syncParent(dirname(lockPath))
+}
+
+async function cleanupStaleAcquireClaims(lockPath: string, staleMs: number): Promise<void> {
+  const parent = dirname(lockPath)
+  const prefix = `${basename(lockPath)}.acquire-`
+  let names: string[]
+  try { names = await readdir(parent) } catch { return }
+  await Promise.all(names.filter(name => name.startsWith(prefix)).map(async name => {
+    const path = join(parent, name)
+    try {
+      if (Date.now() - (await stat(path)).mtimeMs > staleMs) {
+        await rm(path, { recursive: true, force: true })
+      }
+    } catch {}
+  }))
+}
+
+async function readLockOwner(path: string): Promise<LockOwner> {
+  const value = JSON.parse(await readFile(path, 'utf8')) as Partial<LockOwner>
+  if (
+    typeof value.token !== 'string' || value.token.length === 0 ||
+    !Number.isSafeInteger(value.pid) || (value.pid ?? 0) <= 0 ||
+    !Number.isSafeInteger(value.heartbeat) || (value.heartbeat ?? -1) < 0
+  ) throw recoveryError('invalid rollout lock owner')
+  return value as LockOwner
+}
+
+async function writeLockOwner(path: string, owner: LockOwner): Promise<void> {
+  await writeFileAtomicallyDurable(path, JSON.stringify(owner))
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM'
+  }
+}
+
+async function recoverRolloutJournal(
+  rolloutPath: string,
+  journalPath: string,
+): Promise<string | undefined> {
+  let journal: RecoveryJournal
+  try {
+    journal = parseRecoveryJournal(await readFile(journalPath, 'utf8'), rolloutPath)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+    throw error
+  }
+  const fileSize = await fileSizeOrZero(rolloutPath)
+  if (fileSize < journal.originalSize) throw recoveryError('rollout is shorter than recovery offset')
+  if (await hashFilePrefix(rolloutPath, journal.originalSize) !== journal.originalPrefixSha256) {
+    throw recoveryError('rollout prefix changed since journal preparation')
+  }
+  const tail = await readTail(rolloutPath, journal.originalSize)
+  const expected = Buffer.from(journal.payloadBase64, 'base64')
+  if (tail.length >= expected.length && tail.subarray(0, expected.length).equals(expected)) {
+    if (journal.state !== 'committed') {
+      await writeFileAtomicallyDurable(
+        journalPath,
+        JSON.stringify({ ...journal, state: 'committed' } satisfies RecoveryJournal),
+      )
+    }
+    return journal.batchId
+  }
+  if (tail.length < expected.length && expected.subarray(0, tail.length).equals(tail)) {
+    await truncateDurably(rolloutPath, journal.originalSize)
+    await unlinkDurably(journalPath)
+    return undefined
+  }
+  throw recoveryError('rollout recovery tail does not belong to journal batch')
+}
+
+function parseRecoveryJournal(content: string, rolloutPath: string): RecoveryJournal {
+  let value: Partial<RecoveryJournal>
+  try {
+    value = JSON.parse(content) as Partial<RecoveryJournal>
+  } catch {
+    throw recoveryError('invalid rollout recovery journal JSON')
+  }
+  if (
+    (value.state !== 'prepared' && value.state !== 'committed') ||
+    typeof value.batchId !== 'string' || value.batchId.length === 0 ||
+    typeof value.token !== 'string' || value.token.length === 0 ||
+    value.rolloutPathHash !== createHash('sha256').update(rolloutPath).digest('hex') ||
+    typeof value.originalPrefixSha256 !== 'string' ||
+    !/^[a-f0-9]{64}$/.test(value.originalPrefixSha256) ||
+    !Number.isSafeInteger(value.originalSize) || (value.originalSize ?? -1) < 0 ||
+    !Number.isSafeInteger(value.byteLength) || (value.byteLength ?? -1) < 0 ||
+    typeof value.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(value.sha256) ||
+    typeof value.payloadBase64 !== 'string'
+  ) throw recoveryError('invalid rollout recovery journal')
+  const payload = Buffer.from(value.payloadBase64, 'base64')
+  if (
+    payload.toString('base64') !== value.payloadBase64 ||
+    payload.length !== value.byteLength ||
+    createHash('sha256').update(payload).digest('hex') !== value.sha256
+  ) throw recoveryError('invalid rollout recovery payload')
+  return value as RecoveryJournal
+}
+
+async function hashFilePrefix(path: string, size: number): Promise<string> {
+  if (size === 0) return createHash('sha256').update(Buffer.alloc(0)).digest('hex')
+  const content = await readFile(path)
+  if (content.length < size) throw recoveryError('rollout is shorter than recovery prefix')
+  return createHash('sha256').update(content.subarray(0, size)).digest('hex')
+}
+
+function recoveryError(message: string): Error {
+  return Object.assign(new Error(message), { code: 'EROLLOUTRECOVERY' })
+}
+
+async function fileSizeOrZero(path: string): Promise<number> {
+  try {
+    return (await stat(path)).size
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 0
+    throw error
+  }
+}
+
+async function readTail(path: string, offset: number): Promise<Buffer> {
+  try {
+    return (await readFile(path)).subarray(offset)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return Buffer.alloc(0)
+    throw error
+  }
+}
+
+async function writeFileAtomicallyDurable(
+  path: string,
+  content: string,
+  faultPhase?: (
+    phase: 'after-write' | 'after-sync' | 'before-rename',
+    tempPath: string,
+  ) => Promise<void>,
+): Promise<void> {
+  const tempPath = `${path}.tmp-${process.pid}-${randomUUID()}`
+  const file = await open(tempPath, 'wx')
+  let renamed = false
+  try {
+    try {
+      await file.writeFile(content, 'utf8')
+      await faultPhase?.('after-write', tempPath)
+      await file.sync()
+      await faultPhase?.('after-sync', tempPath)
+    } finally {
+      await file.close()
+    }
+    await faultPhase?.('before-rename', tempPath)
+    await rename(tempPath, path)
+    renamed = true
+    await syncDirectory(dirname(path))
+  } finally {
+    if (!renamed) await unlink(tempPath).catch(() => {})
+  }
+}
+
+async function appendBufferDurably(path: string, content: Buffer): Promise<void> {
+  const existed = await fileSizeOrZero(path) > 0 || await pathExists(path)
+  const file = await open(path, 'a')
+  try {
+    await file.writeFile(content)
+    await file.sync()
+  } finally {
+    await file.close()
+  }
+  if (!existed) await syncDirectory(dirname(path))
+}
+
+async function truncateDurably(path: string, size: number): Promise<void> {
+  const file = await open(path, 'r+')
+  try {
+    await file.truncate(size)
+    await file.sync()
+  } finally {
+    await file.close()
+  }
+}
+
+async function unlinkDurably(path: string): Promise<void> {
+  await unlink(path)
+  await syncDirectory(dirname(path))
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try { await stat(path); return true } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+    throw error
+  }
+}
+
+async function syncDirectory(path: string): Promise<void> {
+  let directory
+  try {
+    directory = await open(path, 'r')
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (isUnsupportedDirectorySyncError(process.platform, 'open', code)) return
+    throw error
+  }
+  try {
+    await directory.sync()
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (!isUnsupportedDirectorySyncError(process.platform, 'sync', code)) throw error
+  } finally {
+    await directory.close()
+  }
+}
+
+export function isUnsupportedDirectorySyncError(
+  platform: NodeJS.Platform,
+  phase: 'open' | 'sync',
+  code: string | undefined,
+): boolean {
+  if (platform !== 'win32') return false
+  return phase === 'open'
+    ? ['EISDIR', 'ENOTSUP'].includes(code ?? '')
+    : ['EPERM', 'EINVAL', 'ENOTSUP'].includes(code ?? '')
+}
+
+async function appendFileDurably(
+  path: string,
+  content: string,
+  _encoding: 'utf8',
+): Promise<void> {
+  const file = await open(path, 'a')
+  try {
+    await file.writeFile(content, 'utf8')
+    await file.sync()
+  } finally {
+    await file.close()
+  }
 }
 
 export function shouldPersistDesktopRolloutItem(

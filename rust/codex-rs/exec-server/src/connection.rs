@@ -150,7 +150,8 @@ fn terminate_process_tree(child_process: &mut Child, process_group_id: Option<u3
     };
 
     #[cfg(unix)]
-    if let Err(err) = codepilotx_utils_pty::process_group::terminate_process_group(process_group_id) {
+    if let Err(err) = codepilotx_utils_pty::process_group::terminate_process_group(process_group_id)
+    {
         warn!("failed to terminate exec-server stdio process group {process_group_id}: {err}");
         kill_direct_child(child_process, "terminate");
     }

@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from 'bun:test'
@@ -28,6 +28,7 @@ import {
   shouldUseMiniMaxProvider,
   shouldUseOpenAICompatibleProvider,
   validateApiKeyHeader,
+  withProviderConfigRuntime,
 } from './providerConfig.js'
 
 const ZHIPU_DEFAULT_MODELS = [
@@ -337,55 +338,53 @@ test('core provider config persists selected provider model and base URL', async
 })
 
 test('core provider config resolves provider api keys from secure storage only', async () => {
+  await withProviderConfigDir(async () => {
+    await withMemoryProviderCredentials({ zhipu: 'stored-zhipu-key' }, async () => {
+      expect(getProviderApiKey('zhipu')).toBe('stored-zhipu-key')
+      expect(getProviderApiKeySource('zhipu')).toBe('secureStorage')
+
+      const saveResult = saveProviderApiKey('zhipu', 'new-zhipu-key')
+      expect(saveResult.success).toBe(true)
+      expect(getProviderApiKey('zhipu')).toBe('new-zhipu-key')
+
+      expect(deleteProviderApiKey('zhipu').success).toBe(true)
+      process.env.ZAI_API_KEY = 'env-zhipu-key'
+      expect(getProviderApiKey('zhipu')).toBeNull()
+      expect(getProviderApiKeySource('zhipu')).toBeNull()
+    })
+  })
+})
+
+test('core provider api key save fails closed when credential adapter is missing', async () => {
   await withProviderConfigDir(async configDir => {
-    await mkdir(configDir, { recursive: true })
-    await writeFile(
-      join(configDir, '.credentials.json'),
-      JSON.stringify({
-        providerApiKeys: {
-          zhipu: 'stored-zhipu-key',
-        },
-      }),
-      'utf8',
+    const credentialsPath = join(configDir, '.credentials.json')
+
+    const result = withProviderConfigRuntime({}, () =>
+      saveProviderApiKey('zhipu', 'sentinel-provider-key'),
     )
 
-    expect(getProviderApiKey('zhipu')).toBe('stored-zhipu-key')
-    expect(getProviderApiKeySource('zhipu')).toBe('secureStorage')
-
-    const saveResult = saveProviderApiKey('zhipu', 'new-zhipu-key')
-    expect(saveResult.success).toBe(true)
-    expect(getProviderApiKey('zhipu')).toBe('new-zhipu-key')
-
-    expect(deleteProviderApiKey('zhipu').success).toBe(true)
-    // Environment variable fallback is intentionally removed — provider API
-    // keys are read from secure storage by providerID only.
-    process.env.ZAI_API_KEY = 'env-zhipu-key'
-    expect(getProviderApiKey('zhipu')).toBeNull()
-    expect(getProviderApiKeySource('zhipu')).toBeNull()
+    expect(result.success).toBe(false)
+    expect(result.warning).toContain('secure credential storage')
+    await expect(access(credentialsPath)).rejects.toThrow()
   })
 })
 
 test('core provider api keys are isolated by providerID', async () => {
-  await withProviderConfigDir(async configDir => {
-    await mkdir(configDir, { recursive: true })
-    await writeFile(
-      join(configDir, '.credentials.json'),
-      JSON.stringify({
-        providerApiKeys: {
-          'minimax-cn-coding-plan': 'coding-plan-key',
-          minimax: 'generic-minimax-key',
-        },
-      }),
-      'utf8',
+  await withProviderConfigDir(async () => {
+    await withMemoryProviderCredentials(
+      {
+        'minimax-cn-coding-plan': 'coding-plan-key',
+        minimax: 'generic-minimax-key',
+      },
+      async () => {
+        expect(getProviderApiKey('minimax-cn-coding-plan')).toBe('coding-plan-key')
+        expect(getProviderApiKey('minimax')).toBe('generic-minimax-key')
+
+        expect(deleteProviderApiKey('minimax').success).toBe(true)
+        expect(getProviderApiKey('minimax')).toBeNull()
+        expect(getProviderApiKey('minimax-cn-coding-plan')).toBe('coding-plan-key')
+      },
     )
-
-    expect(getProviderApiKey('minimax-cn-coding-plan')).toBe('coding-plan-key')
-    expect(getProviderApiKey('minimax')).toBe('generic-minimax-key')
-
-    expect(deleteProviderApiKey('minimax').success).toBe(true)
-    expect(getProviderApiKey('minimax')).toBeNull()
-    // Deleting one providerID's key does not affect another
-    expect(getProviderApiKey('minimax-cn-coding-plan')).toBe('coding-plan-key')
   })
 })
 
@@ -467,9 +466,11 @@ test('validateApiKeyHeader rejects Chinese text', () => {
 
 	test('saveProviderApiKey saves normal ASCII token', async () => {
 	  await withProviderConfigDir(async () => {
-	    const result = saveProviderApiKey('minimax', 'sk-minimax-test-key')
-	    expect(result.success).toBe(true)
-	    expect(getProviderApiKey('minimax')).toBe('sk-minimax-test-key')
+	    await withMemoryProviderCredentials({}, async () => {
+	      const result = saveProviderApiKey('minimax', 'sk-minimax-test-key')
+	      expect(result.success).toBe(true)
+	      expect(getProviderApiKey('minimax')).toBe('sk-minimax-test-key')
+	    })
 	  })
 	})
 
@@ -521,4 +522,23 @@ function restoreEnv(key: string, value: string | undefined): void {
   } else {
     process.env[key] = value
   }
+}
+
+async function withMemoryProviderCredentials<T>(
+  initial: Record<string, string>,
+  run: () => Promise<T>,
+): Promise<T> {
+  let keys = { ...initial }
+  return withProviderConfigRuntime(
+    {
+      credentialStore: {
+        readProviderApiKeys: () => ({ ...keys }),
+        writeProviderApiKeys(nextKeys) {
+          keys = { ...nextKeys }
+          return { success: true }
+        },
+      },
+    },
+    run,
+  )
 }

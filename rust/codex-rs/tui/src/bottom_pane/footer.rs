@@ -82,7 +82,7 @@ pub(crate) struct FooterProps {
     /// instructional hint.
     ///
     /// When both this label and the configured status line are available, they are rendered on the
-    /// same row separated by `  `.
+    /// same row separated by ` · `.
     pub(crate) active_agent_label: Option<String>,
 }
 
@@ -343,7 +343,7 @@ fn left_side_line(
 
     if let Some(collaboration_mode_indicator) = collaboration_mode_indicator {
         if !matches!(state.hint, SummaryHintKind::None) {
-            line.push_span("  ".dim());
+            line.push_span(" · ".dim());
         }
         line.push_span(collaboration_mode_indicator.styled_span(state.show_cycle_hint));
     }
@@ -587,7 +587,7 @@ pub(crate) fn status_line_right_indicator_line(
         .flatten()
     {
         if let Some(line) = line.as_mut() {
-            line.push_span("  ".dim());
+            line.push_span(" · ".dim());
             for span in indicator.spans {
                 line.push_span(span);
             }
@@ -790,7 +790,7 @@ pub(crate) fn passive_footer_status_line(props: &FooterProps) -> Option<Line<'st
 
     if let Some(active_agent_label) = props.active_agent_label.as_ref() {
         if let Some(existing) = line.as_mut() {
-            existing.spans.push("  ".dim());
+            existing.spans.push(" · ".dim());
             existing.spans.push(active_agent_label.clone().dim());
         } else {
             line = Some(Line::from(active_agent_label.clone()).dim());
@@ -2035,7 +2035,7 @@ mod tests {
             "compact mode indicator should be used when space is tight"
         );
         assert!(
-            screen.contains(''),
+            screen.contains('…'),
             "status line should be truncated with ellipsis to keep mode indicator"
         );
     }

@@ -57,6 +57,7 @@ codepilotx-file-search = { workspace = true }
 codepilotx-chatgpt = { workspace = true }
 codepilotx-login = { workspace = true }
 codepilotx-image-generation-extension = { workspace = true }
+codepilotx-keyring-store = { workspace = true }
 codepilotx-memories-extension = { workspace = true }
 codepilotx-web-search-extension = { workspace = true }
 codepilotx-memories-write = { workspace = true }
@@ -80,6 +81,7 @@ codepilotx-utils-path-uri = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
+reqwest = { workspace = true, features = ["rustls-tls"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
@@ -98,9 +100,13 @@ tokio-util = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "json"] }
 uuid = { workspace = true, features = ["serde", "v7"] }
+url = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 codepilotx-windows-sandbox = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
 
 [dev-dependencies]
 app_test_support = { workspace = true }
@@ -111,6 +117,7 @@ axum = { workspace = true, default-features = false, features = [
 ] }
 base64 = { workspace = true }
 codepilotx-model-provider-info = { workspace = true }
+keyring = { workspace = true }
 codepilotx-utils-cargo-bin = { workspace = true }
 core_test_support = { workspace = true }
 flate2 = { workspace = true }
@@ -118,7 +125,6 @@ hmac = { workspace = true }
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true }
 pretty_assertions = { workspace = true }
-reqwest = { workspace = true, features = ["rustls-tls"] }
 rmcp = { workspace = true, default-features = false, features = [
     "elicitation",
     "server",
@@ -130,5 +136,4 @@ shlex = { workspace = true }
 tar = { workspace = true }
 tokio-tungstenite = { workspace = true }
 tracing-opentelemetry = { workspace = true }
-url = { workspace = true }
 wiremock = { workspace = true }

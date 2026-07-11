@@ -31,12 +31,12 @@ use codepilotx_core_plugins::PluginsManager;
 use codepilotx_features::Feature;
 use codepilotx_login::AuthManager;
 use codepilotx_login::CodexAuth;
-use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use codepilotx_mcp::MCP_TOOL_codepilotx_APPS_META_KEY;
 use codepilotx_mcp::McpConnectionManager;
 use codepilotx_mcp::McpRuntimeContext;
 use codepilotx_mcp::ToolInfo;
 use codepilotx_mcp::ToolPluginProvenance;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use codepilotx_mcp::codepilotx_apps_tools_cache_key;
 use codepilotx_mcp::compute_auth_statuses;
 use codepilotx_mcp::effective_mcp_servers;
@@ -135,10 +135,10 @@ pub async fn list_cached_accessible_connectors_from_mcp_tools(
     let auth_manager =
         AuthManager::shared_from_config(config, /*enable_codepilotx_api_key_env*/ false).await;
     let auth = auth_manager.auth().await;
-    if !config
-        .features
-        .apps_enabled_for_auth(auth.as_ref().is_some_and(CodexAuth::uses_codepilotx_backend))
-    {
+    if !config.features.apps_enabled_for_auth(
+        auth.as_ref()
+            .is_some_and(CodexAuth::uses_codepilotx_backend),
+    ) {
         return Some(Vec::new());
     }
     let cache_key = accessible_connectors_cache_key(config, auth.as_ref());
@@ -181,9 +181,11 @@ pub async fn list_accessible_connectors_from_mcp_tools_with_options_and_status(
         config.codepilotx_self_exe.clone(),
         config.codepilotx_linux_sandbox_exe.clone(),
     )?;
-    let environment_manager =
-        EnvironmentManager::from_codepilotx_home(config.codepilotx_home.clone(), Some(local_runtime_paths))
-            .await?;
+    let environment_manager = EnvironmentManager::from_codepilotx_home(
+        config.codepilotx_home.clone(),
+        Some(local_runtime_paths),
+    )
+    .await?;
     list_accessible_connectors_from_mcp_tools_with_environment_manager(
         config,
         force_refetch,
@@ -217,10 +219,10 @@ pub async fn list_accessible_connectors_from_mcp_tools_with_mcp_manager(
     let auth_manager =
         AuthManager::shared_from_config(config, /*enable_codepilotx_api_key_env*/ false).await;
     let auth = auth_manager.auth().await;
-    if !config
-        .features
-        .apps_enabled_for_auth(auth.as_ref().is_some_and(CodexAuth::uses_codepilotx_backend))
-    {
+    if !config.features.apps_enabled_for_auth(
+        auth.as_ref()
+            .is_some_and(CodexAuth::uses_codepilotx_backend),
+    ) {
         return Ok(AccessibleConnectorsStatus {
             connectors: Vec::new(),
             codepilotx_apps_ready: true,
@@ -240,7 +242,8 @@ pub async fn list_accessible_connectors_from_mcp_tools_with_mcp_manager(
 
     let mut mcp_servers = effective_mcp_servers(&mcp_config, auth.as_ref());
     mcp_servers.retain(|name, _| name == codepilotx_APPS_MCP_SERVER_NAME);
-    let host_owned_codepilotx_apps_enabled = host_owned_codepilotx_apps_enabled(&mcp_config, auth.as_ref());
+    let host_owned_codepilotx_apps_enabled =
+        host_owned_codepilotx_apps_enabled(&mcp_config, auth.as_ref());
     if mcp_servers.is_empty() {
         return Ok(AccessibleConnectorsStatus {
             connectors: Vec::new(),

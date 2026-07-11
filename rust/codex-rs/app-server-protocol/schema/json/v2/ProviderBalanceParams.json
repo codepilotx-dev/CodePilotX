@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "api_key": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "base_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "provider_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "provider_id"
+  ],
+  "title": "ProviderBalanceParams",
+  "type": "object"
+}

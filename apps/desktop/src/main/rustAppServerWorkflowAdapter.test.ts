@@ -9,6 +9,103 @@ import type { DesktopAgentEvent } from '../shared/types.js'
 const SESSION_ID = 'test-session-1'
 
 describe('rustAppServerWorkflowAdapter', () => {
+  test('10k assistant deltas use one chunk buffer and bounded partial updates', () => {
+    const scheduled: Array<() => void> = []
+    let lastScheduled: (() => void) | null = null
+    const state = createRustAppServerWorkflowState({
+      schedule: callback => {
+        lastScheduled = callback
+        scheduled.push(callback)
+        return callback
+      },
+      cancelSchedule: callback => {
+        const index = scheduled.indexOf(callback as () => void)
+        if (index >= 0) scheduled.splice(index, 1)
+      },
+    })
+    const events: DesktopAgentEvent[] = []
+    const delta = '12345678901234567890'
+
+    for (let index = 0; index < 10_000; index += 1) {
+      handleServerNotification(
+        'item/agentMessage/delta',
+        { delta },
+        event => events.push(event),
+        state,
+        SESSION_ID,
+      )
+    }
+
+    expect(state.assistantDeltaChunks).toHaveLength(10_000)
+    expect(
+      state.assistantDeltaChunks.reduce((total, chunk) => total + chunk.length, 0),
+    ).toBe(200_000)
+    expect(events.filter(event => event.type === 'partial_message').length).toBeLessThanOrEqual(1)
+    expect(scheduled).toHaveLength(1)
+
+    handleServerNotification(
+      'item/completed',
+      { item: { type: 'agentMessage', id: 'item-stress' } },
+      event => events.push(event),
+      state,
+      SESSION_ID,
+    )
+
+    expect(scheduled).toHaveLength(0)
+    const final = [...events].reverse().find(event => event.type === 'message')
+    expect(final?.type === 'message' ? final.text : '').toBe(delta.repeat(10_000))
+    lastScheduled?.()
+    expect(events.at(-1)).toBe(final)
+  })
+
+  test('time-spread streaming processes each delta character once across 250 timer ticks', () => {
+    let scheduled: (() => void) | null = null
+    const state = createRustAppServerWorkflowState({
+      schedule: callback => {
+        scheduled = callback
+        return callback
+      },
+    })
+    const events: DesktopAgentEvent[] = []
+    for (let tick = 0; tick < 250; tick += 1) {
+      for (let index = 0; index < 40; index += 1) {
+        handleServerNotification(
+          'item/agentMessage/delta',
+          { itemId: 'agent-1', delta: '12345678901234567890' },
+          event => events.push(event),
+          state,
+          SESSION_ID,
+        )
+      }
+      scheduled?.()
+      scheduled = null
+    }
+    expect(state.assistantProcessedChars).toBe(200_000)
+    expect(events.filter(event => event.type === 'partial_message')).toHaveLength(251)
+  })
+
+  test('final item and terminal turn ignore late deltas and stale timer callbacks', () => {
+    const callbacks: Array<() => void> = []
+    const state = createRustAppServerWorkflowState({
+      schedule: callback => {
+        callbacks.push(callback)
+        return callback
+      },
+    })
+    const events: DesktopAgentEvent[] = []
+    handleServerNotification('turn/started', { turn: { id: 'turn-1' } }, e => events.push(e), state, SESSION_ID)
+    handleServerNotification('item/agentMessage/delta', { itemId: 'agent-1', delta: 'a' }, e => events.push(e), state, SESSION_ID)
+    handleServerNotification('item/agentMessage/delta', { itemId: 'agent-1', delta: 'b' }, e => events.push(e), state, SESSION_ID)
+    const stale = callbacks[0]!
+    handleServerNotification('item/completed', { item: { type: 'agentMessage', id: 'agent-1' } }, e => events.push(e), state, SESSION_ID)
+    stale()
+    handleServerNotification('item/agentMessage/delta', { itemId: 'agent-1', delta: 'late' }, e => events.push(e), state, SESSION_ID)
+    handleServerNotification('turn/completed', { turn: { status: 'completed' } }, e => events.push(e), state, SESSION_ID)
+    handleServerNotification('item/agentMessage/delta', { itemId: 'agent-2', delta: 'after-turn' }, e => events.push(e), state, SESSION_ID)
+    expect(events.filter(event => event.type === 'partial_message')).toHaveLength(1)
+    expect(events.filter(event => event.type === 'message')).toHaveLength(1)
+  })
+
   test('thread/started saves thread id', () => {
     const state = createRustAppServerWorkflowState()
     const events: DesktopAgentEvent[] = []
@@ -68,11 +165,19 @@ describe('rustAppServerWorkflowAdapter', () => {
       type: 'partial_message',
       sessionId: SESSION_ID,
       text: 'Hello, ',
+      delta: true,
+      streamId: 'item-1',
     })
   })
 
   test('item/delta accumulates text across multiple deltas', () => {
-    const state = createRustAppServerWorkflowState()
+    let scheduled: (() => void) | null = null
+    const state = createRustAppServerWorkflowState({
+      schedule: callback => {
+        scheduled = callback
+        return callback
+      },
+    })
     const events: DesktopAgentEvent[] = []
 
     handleServerNotification(
@@ -89,18 +194,23 @@ describe('rustAppServerWorkflowAdapter', () => {
       state,
       SESSION_ID,
     )
+    scheduled?.()
 
-    expect(state.assistantDeltaBuffer).toBe('Hello, world!')
+    expect(state.assistantDeltaBuffer).toBe('world!')
     expect(events).toHaveLength(2)
     expect(events[0]).toEqual({
       type: 'partial_message',
       sessionId: SESSION_ID,
       text: 'Hello, ',
+      delta: true,
+      streamId: 'agent-message',
     })
     expect(events[1]).toEqual({
       type: 'partial_message',
       sessionId: SESSION_ID,
-      text: 'Hello, world!',
+      text: 'world!',
+      delta: true,
+      streamId: 'agent-message',
     })
   })
 
@@ -133,6 +243,7 @@ describe('rustAppServerWorkflowAdapter', () => {
       sessionId: SESSION_ID,
       role: 'assistant',
       text: 'Hello, world!',
+      streamId: 'item-1',
     })
   })
 
@@ -217,7 +328,13 @@ describe('rustAppServerWorkflowAdapter', () => {
 
       expect(state.assistantDeltaBuffer).toBe('v2 text')
       expect(events).toEqual([
-        { type: 'partial_message', sessionId: SESSION_ID, text: 'v2 text' },
+        {
+          type: 'partial_message',
+          sessionId: SESSION_ID,
+          text: 'v2 text',
+          delta: true,
+          streamId: 'agent-message',
+        },
       ])
     },
   )
@@ -505,6 +622,8 @@ describe('rustAppServerWorkflowAdapter', () => {
       type: 'partial_message',
       sessionId: SESSION_ID,
       text: 'Hello from agent delta',
+      delta: true,
+      streamId: 'agent-message',
     })
   })
 
@@ -967,16 +1086,55 @@ describe('rustAppServerWorkflowAdapter', () => {
 	  })
 
   test('reasoning text and summary deltas emit complete accumulated buffers', () => {
-    const state = createRustAppServerWorkflowState()
+    const callbacks: Array<() => void> = []
+    const state = createRustAppServerWorkflowState({
+      schedule: callback => {
+        callbacks.push(callback)
+        return callback
+      },
+    })
     const events: DesktopAgentEvent[] = []
 
     handleServerNotification('reasoning/textDelta', { delta: 'first ' }, e => events.push(e), state, SESSION_ID)
     handleServerNotification('reasoning/textDelta', { delta: 'second' }, e => events.push(e), state, SESSION_ID)
     handleServerNotification('reasoning/summaryTextDelta', { delta: 'summary one ' }, e => events.push(e), state, SESSION_ID)
     handleServerNotification('reasoning/summaryTextDelta', { delta: 'summary two' }, e => events.push(e), state, SESSION_ID)
+    callbacks.forEach(callback => callback())
 
-    expect((events[1] as { text: string }).text).toContain('first second')
-    expect((events[3] as { text: string }).text).toContain('summary one summary two')
+    expect(
+      events.filter((event): event is Extract<DesktopAgentEvent, { type: 'partial_message' }> =>
+        event.type === 'partial_message' && event.streamId?.startsWith('reasoning:') === true)
+        .map(event => event.text).join(''),
+    ).toContain('first second')
+    expect(
+      events.filter((event): event is Extract<DesktopAgentEvent, { type: 'partial_message' }> =>
+        event.type === 'partial_message' && event.streamId?.startsWith('reasoning-summary:') === true)
+        .map(event => event.text).join(''),
+    ).toContain('summary one summary two')
+  })
+
+  test('reasoning deltas share the 40ms buffer and stale callbacks cannot emit after terminal turn', () => {
+    const callbacks: Array<{ callback: () => void; delayMs: number }> = []
+    const state = createRustAppServerWorkflowState({
+      schedule: (callback, delayMs) => {
+        callbacks.push({ callback, delayMs })
+        return callback
+      },
+    })
+    const events: DesktopAgentEvent[] = []
+    handleServerNotification('turn/started', { turn: { id: 'turn-1' } }, e => events.push(e), state, SESSION_ID)
+    handleServerNotification('reasoning/textDelta', { itemId: 'reason-1', delta: 'first' }, e => events.push(e), state, SESSION_ID)
+    for (let index = 0; index < 100; index += 1) {
+      handleServerNotification('reasoning/textDelta', { itemId: 'reason-1', delta: 'x' }, e => events.push(e), state, SESSION_ID)
+    }
+    expect(callbacks).toHaveLength(1)
+    expect(callbacks[0]?.delayMs).toBe(40)
+    const stale = callbacks[0]!.callback
+    handleServerNotification('turn/completed', { turn: { status: 'completed' } }, e => events.push(e), state, SESSION_ID)
+    stale()
+    handleServerNotification('reasoning/textDelta', { itemId: 'reason-1', delta: 'late' }, e => events.push(e), state, SESSION_ID)
+    expect(events.filter(event => event.type === 'partial_message')).toHaveLength(1)
+    expect(events.at(-1)?.type).toBe('done')
   })
 
   // ── Token usage ──────────────────────────────────────────────────

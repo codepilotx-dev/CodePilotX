@@ -78,7 +78,10 @@ struct CreateConfigTomlParams {
     extra_provider_config: Option<String>,
 }
 
-fn create_config_toml(codepilotx_home: &Path, params: CreateConfigTomlParams) -> std::io::Result<()> {
+fn create_config_toml(
+    codepilotx_home: &Path,
+    params: CreateConfigTomlParams,
+) -> std::io::Result<()> {
     let config_toml = codepilotx_home.join("config.toml");
     let base_url = params
         .base_url

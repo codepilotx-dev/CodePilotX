@@ -62,6 +62,7 @@ mock.module('node:child_process', () => ({
 }))
 
 const agentRuntime = await import('./agentRuntime.js')
+const { SidecarDesktopAgentRuntime } = await import('./sidecarAgentRuntime.js')
 const {
   buildAskUserQuestionControlResponse,
   buildDesktopPermissionRequestFromControlRequest,
@@ -76,6 +77,18 @@ import {
   getToolUseId,
   getUpdatedPermissions,
 } from './agentRuntimeSupport.js'
+
+test('auto runtime keeps using the stable TypeScript sidecar', () => {
+  const runtime = createDesktopAgentRuntime({
+    sessionId: 'session-auto-runtime',
+    workspacePath: process.cwd(),
+    runtimePreference: 'auto',
+    emit: () => {},
+    requestPermission: async () => ({ behavior: 'deny' }),
+  })
+
+  expect(runtime).toBeInstanceOf(SidecarDesktopAgentRuntime)
+})
 
 test('codexPermissionConfigArgs maps desktop permissions to official config overrides', () => {
   expect(

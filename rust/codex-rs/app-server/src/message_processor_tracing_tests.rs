@@ -233,8 +233,11 @@ async fn build_test_processor(
     mpsc::Receiver<crate::outgoing_message::OutgoingEnvelope>,
 ) {
     let (outgoing_tx, outgoing_rx) = mpsc::channel(16);
-    let auth_manager =
-        AuthManager::shared_from_config(config.as_ref(), /*enable_codepilotx_api_key_env*/ false).await;
+    let auth_manager = AuthManager::shared_from_config(
+        config.as_ref(),
+        /*enable_codepilotx_api_key_env*/ false,
+    )
+    .await;
     let config_manager = ConfigManager::new(
         config.codepilotx_home.to_path_buf(),
         Vec::new(),
@@ -693,10 +696,12 @@ async fn turn_start_jsonrpc_span_parents_core_turn_spans() -> Result<()> {
 
     let server_request_span =
         find_rpc_span_with_trace(&spans, SpanKind::Server, "turn/start", remote_trace_id);
-    let core_turn_span =
-        find_span_with_trace(&spans, remote_trace_id, "codepilotx.op=user_input", |span| {
-            span_attr(span, "codepilotx.op") == Some("user_input")
-        });
+    let core_turn_span = find_span_with_trace(
+        &spans,
+        remote_trace_id,
+        "codepilotx.op=user_input",
+        |span| span_attr(span, "codepilotx.op") == Some("user_input"),
+    );
 
     assert_eq!(server_request_span.parent_span_id, remote_parent_span_id);
     assert!(server_request_span.parent_span_is_remote);

@@ -175,7 +175,8 @@ async fn websocket_transport_rejects_missing_and_invalid_capability_tokens() -> 
     ];
 
     let (mut process, bind_addr) =
-        spawn_websocket_server_with_args(codepilotx_home.path(), "ws://0.0.0.0:0", &auth_args).await?;
+        spawn_websocket_server_with_args(codepilotx_home.path(), "ws://0.0.0.0:0", &auth_args)
+            .await?;
 
     assert_websocket_connect_rejected(bind_addr, /*bearer_token*/ None).await?;
     assert_websocket_connect_rejected(bind_addr, Some("wrong-token")).await?;
@@ -214,7 +215,8 @@ async fn websocket_transport_verifies_signed_short_lived_bearer_tokens() -> Resu
     ];
 
     let (mut process, bind_addr) =
-        spawn_websocket_server_with_args(codepilotx_home.path(), "ws://127.0.0.1:0", &auth_args).await?;
+        spawn_websocket_server_with_args(codepilotx_home.path(), "ws://127.0.0.1:0", &auth_args)
+            .await?;
     let expired_token = signed_bearer_token(
         shared_secret.as_bytes(),
         json!({

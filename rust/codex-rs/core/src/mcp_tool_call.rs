@@ -38,12 +38,12 @@ use codepilotx_connectors::AppToolPolicyEvaluator;
 use codepilotx_connectors::AppToolPolicyInput;
 use codepilotx_features::Feature;
 use codepilotx_hooks::PermissionRequestDecision;
-use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use codepilotx_mcp::MCP_TOOL_codepilotx_APPS_META_KEY;
 use codepilotx_mcp::McpPermissionPromptAutoApproveContext;
 use codepilotx_mcp::SandboxState;
 use codepilotx_mcp::auth_elicitation_completed_result;
 use codepilotx_mcp::build_auth_elicitation_plan;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use codepilotx_mcp::declared_openai_file_input_param_names;
 use codepilotx_mcp::mcp_permission_prompt_is_auto_approved;
 use codepilotx_otel::sanitize_metric_tag_value;
@@ -2114,8 +2114,9 @@ fn user_mcp_server_is_configured(config: &Config, server: &str) -> anyhow::Resul
     else {
         return Ok(false);
     };
-    let servers =
-        HashMap::<String, codepilotx_config::types::McpServerConfig>::deserialize(mcp_servers_toml)?;
+    let servers = HashMap::<String, codepilotx_config::types::McpServerConfig>::deserialize(
+        mcp_servers_toml,
+    )?;
     Ok(servers.contains_key(server))
 }
 
@@ -2138,7 +2139,8 @@ fn project_mcp_tool_approval_config_folder(
                 .and_then(|table| table.get("mcp_servers"))
                 .cloned()
                 .and_then(|value| {
-                    HashMap::<String, codepilotx_config::types::McpServerConfig>::deserialize(value).ok()
+                    HashMap::<String, codepilotx_config::types::McpServerConfig>::deserialize(value)
+                        .ok()
                 })?;
             if servers.contains_key(server) {
                 layer.config_folder()

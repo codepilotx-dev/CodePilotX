@@ -235,7 +235,9 @@ impl GoalToolExecutor {
 
         self.account_active_goal_progress(
             match args.status {
-                ThreadGoalStatus::Complete => codepilotx_state::GoalAccountingMode::ActiveOrComplete,
+                ThreadGoalStatus::Complete => {
+                    codepilotx_state::GoalAccountingMode::ActiveOrComplete
+                }
                 ThreadGoalStatus::Blocked => codepilotx_state::GoalAccountingMode::ActiveOrStopped,
                 ThreadGoalStatus::Active
                 | ThreadGoalStatus::Paused

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { PassThrough } from 'node:stream'
+import { Writable } from 'node:stream'
 import {
   RustJsonRpcError,
   RustLineJsonRpcClient,
@@ -135,6 +136,51 @@ describe('RustLineJsonRpcClient', () => {
         data: { type: 'activeTurnNotSteerable', turnId: 'turn-1' },
       })
     }
+  })
+
+  test('EPIPE rejects every pending request without an uncaught stream error', async () => {
+    const input = new PassThrough()
+    const output = new Writable({
+      write(_chunk, _encoding, callback) {
+        queueMicrotask(() => {
+          callback(Object.assign(new Error('broken pipe'), { code: 'EPIPE' }))
+        })
+      },
+    })
+    const client = new RustLineJsonRpcClient({ input, output })
+    const fatalErrors: Error[] = []
+    client.onFatalError(error => fatalErrors.push(error))
+
+    const first = client.sendRequest('initialize', {})
+    const second = client.sendRequest('thread/start', {})
+
+    const results = await Promise.allSettled([first, second])
+
+    expect(results).toEqual([
+      expect.objectContaining({ status: 'rejected', reason: expect.objectContaining({ message: 'broken pipe' }) }),
+      expect.objectContaining({ status: 'rejected', reason: expect.objectContaining({ message: 'broken pipe' }) }),
+    ])
+    expect(fatalErrors).toHaveLength(1)
+    expect(fatalErrors[0].message).toBe('broken pipe')
+  })
+
+  test('fatal listeners are isolated and output error listener is removed on close', async () => {
+    const input = new PassThrough()
+    const output = new PassThrough()
+    const client = new RustLineJsonRpcClient({ input, output })
+    const calls: string[] = []
+    client.onFatalError(() => {
+      calls.push('throwing')
+      throw new Error('listener failed')
+    })
+    client.onFatalError(() => calls.push('second'))
+    expect(output.listenerCount('error')).toBe(1)
+
+    output.emit('error', new Error('transport failed'))
+
+    expect(calls).toEqual(['throwing', 'second'])
+    client.close()
+    expect(output.listenerCount('error')).toBe(0)
   })
 
   test('onAnyNotification receives all notifications regardless of method', async () => {

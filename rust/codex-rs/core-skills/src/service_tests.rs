@@ -409,7 +409,12 @@ async fn skills_for_cwd_loads_repo_and_user_roots_with_local_fs() {
     let repo_dot_codex = cwd.path().join(".codex");
     fs::create_dir_all(&repo_dot_codex).expect("create repo config dir");
 
-    write_user_skill(&codepilotx_home, "user", "user-skill", "from local user root");
+    write_user_skill(
+        &codepilotx_home,
+        "user",
+        "user-skill",
+        "from local user root",
+    );
     let repo_skill_dir = repo_dot_codex.join("skills/repo");
     fs::create_dir_all(&repo_skill_dir).expect("create repo skill dir");
     fs::write(
@@ -473,7 +478,12 @@ async fn skills_for_cwd_without_fs_skips_repo_roots() {
     let repo_dot_codex = cwd.path().join(".codex");
     fs::create_dir_all(&repo_dot_codex).expect("create repo config dir");
 
-    write_user_skill(&codepilotx_home, "user", "user-skill", "from local user root");
+    write_user_skill(
+        &codepilotx_home,
+        "user",
+        "user-skill",
+        "from local user root",
+    );
     let repo_skill_dir = repo_dot_codex.join("skills/repo");
     fs::create_dir_all(&repo_skill_dir).expect("create repo skill dir");
     fs::write(
@@ -789,8 +799,11 @@ async fn skills_for_config_ignores_cwd_cache_when_session_flags_reenable_skill()
     let disabled_skill_config = path_toggle_config(&skill_path, /*enabled*/ false);
     let enabled_skill_config = path_toggle_config(&skill_path, /*enabled*/ true);
     let parent_stack = config_stack(&codepilotx_home, &disabled_skill_config);
-    let child_stack =
-        config_stack_with_session_flags(&codepilotx_home, &disabled_skill_config, &enabled_skill_config);
+    let child_stack = config_stack_with_session_flags(
+        &codepilotx_home,
+        &disabled_skill_config,
+        &enabled_skill_config,
+    );
     let skills_service = SkillsService::new(
         codepilotx_home.path().abs(),
         /*bundled_skills_enabled*/ true,

@@ -505,7 +505,10 @@ fn build_authorize_url(
         ),
         ("code_challenge_method".to_string(), "S256".to_string()),
         ("id_token_add_organizations".to_string(), "true".to_string()),
-        ("codepilotx_cli_simplified_flow".to_string(), "true".to_string()),
+        (
+            "codepilotx_cli_simplified_flow".to_string(),
+            "true".to_string(),
+        ),
         ("state".to_string(), state.to_string()),
         ("originator".to_string(), originator().value),
     ];
@@ -977,7 +980,10 @@ fn login_error_response(
 }
 
 /// Returns true when the OAuth callback represents a missing Codex entitlement.
-fn is_missing_codepilotx_entitlement_error(error_code: &str, error_description: Option<&str>) -> bool {
+fn is_missing_codepilotx_entitlement_error(
+    error_code: &str,
+    error_description: Option<&str>,
+) -> bool {
     error_code == "access_denied"
         && error_description.is_some_and(|description| {
             description

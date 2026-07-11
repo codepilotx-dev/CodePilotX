@@ -305,7 +305,8 @@ pub fn refresh_curated_plugin_cache(
     configured_curated_plugin_ids: &[PluginId],
 ) -> Result<bool, String> {
     let cache_plugin_version = curated_plugin_cache_version(plugin_version);
-    let store = PluginStore::try_new(codepilotx_home.to_path_buf()).map_err(|err| err.to_string())?;
+    let store =
+        PluginStore::try_new(codepilotx_home.to_path_buf()).map_err(|err| err.to_string())?;
     let curated_marketplace_paths = curated_marketplace_paths_for_cache_refresh(codepilotx_home)?;
     let mut loaded_marketplace_names = HashSet::<String>::new();
     let mut marketplace_plugin_keys = HashSet::<String>::new();
@@ -463,7 +464,8 @@ fn refresh_non_curated_plugin_cache_with_mode(
         .map(PluginId::as_key)
         .collect::<HashSet<_>>();
 
-    let store = PluginStore::try_new(codepilotx_home.to_path_buf()).map_err(|err| err.to_string())?;
+    let store =
+        PluginStore::try_new(codepilotx_home.to_path_buf()).map_err(|err| err.to_string())?;
     let marketplace_outcome = list_marketplaces(additional_roots)
         .map_err(|err| format!("failed to discover marketplaces for cache refresh: {err}"))?;
     let mut plugin_sources = HashMap::<String, (MarketplacePluginSource, Option<String>)>::new();
@@ -527,8 +529,8 @@ fn refresh_non_curated_plugin_cache_with_mode(
             );
             continue;
         };
-        let materialized =
-            materialize_marketplace_plugin_source(codepilotx_home, &source).map_err(|err| {
+        let materialized = materialize_marketplace_plugin_source(codepilotx_home, &source)
+            .map_err(|err| {
                 format!("failed to materialize plugin source for {plugin_key}: {err}")
             })?;
         let source_path = materialized.path.clone();

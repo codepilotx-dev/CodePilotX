@@ -9,19 +9,19 @@ use pretty_assertions::assert_eq;
 #[test]
 fn test_utf8_shell_output() {
     // Baseline: UTF-8 output should bypass the detector and remain unchanged.
-    assert_eq!(decode_shell_output("".as_bytes()), "");
+    assert_eq!(decode_shell_output("пример".as_bytes()), "пример");
 }
 
 #[test]
 fn test_cp1251_shell_output() {
     // VS Code shells on Windows frequently surface CP1251 bytes for Cyrillic text.
-    assert_eq!(decode_shell_output(b"\xEF\xF0\xE8\xEC\xE5\xF0"), "");
+    assert_eq!(decode_shell_output(b"\xEF\xF0\xE8\xEC\xE5\xF0"), "пример");
 }
 
 #[test]
 fn test_cp866_shell_output() {
     // Native cmd.exe still defaults to CP866; make sure we recognize that too.
-    assert_eq!(decode_shell_output(b"\xAF\xE0\xA8\xAC\xA5\xE0"), "");
+    assert_eq!(decode_shell_output(b"\xAF\xE0\xA8\xAC\xA5\xE0"), "пример");
 }
 
 #[test]

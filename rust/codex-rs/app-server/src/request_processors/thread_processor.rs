@@ -1134,7 +1134,9 @@ impl ThreadRequestProcessor {
         let mut thread_extension_init = ExtensionDataInit::new();
         if !selected_capability_roots.is_empty() {
             thread_extension_init.insert(selected_capability_roots);
-            codepilotx_mcp_extension::initialize_executor_plugin_thread_data(&mut thread_extension_init);
+            codepilotx_mcp_extension::initialize_executor_plugin_thread_data(
+                &mut thread_extension_init,
+            );
         }
         let create_thread_started_at = std::time::Instant::now();
         let NewThread {
@@ -1149,8 +1151,12 @@ impl ThreadRequestProcessor {
                 initial_history: match session_start_source
                     .unwrap_or(codepilotx_app_server_protocol::ThreadStartSource::Startup)
                 {
-                    codepilotx_app_server_protocol::ThreadStartSource::Startup => InitialHistory::New,
-                    codepilotx_app_server_protocol::ThreadStartSource::Clear => InitialHistory::Cleared,
+                    codepilotx_app_server_protocol::ThreadStartSource::Startup => {
+                        InitialHistory::New
+                    }
+                    codepilotx_app_server_protocol::ThreadStartSource::Clear => {
+                        InitialHistory::Cleared
+                    }
                 },
                 session_source: None,
                 thread_source,
@@ -4308,7 +4314,9 @@ fn preview_from_rollout_items(items: &[RolloutItem]) -> String {
         .iter()
         .find_map(|item| match item {
             RolloutItem::ResponseItem(item) => match codepilotx_core::parse_turn_item(item) {
-                Some(codepilotx_protocol::items::TurnItem::UserMessage(user)) => Some(user.message()),
+                Some(codepilotx_protocol::items::TurnItem::UserMessage(user)) => {
+                    Some(user.message())
+                }
                 _ => None,
             },
             _ => None,

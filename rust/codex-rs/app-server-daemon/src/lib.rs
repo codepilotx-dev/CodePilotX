@@ -258,7 +258,8 @@ struct Daemon {
 
 impl Daemon {
     fn from_environment() -> Result<Self> {
-        let codepilotx_home = find_codepilotx_home().context("failed to resolve codepilotx_HOME")?;
+        let codepilotx_home =
+            find_codepilotx_home().context("failed to resolve codepilotx_HOME")?;
         let socket_path = app_server_control_socket_path(codepilotx_home.as_path())?
             .as_path()
             .to_path_buf();
@@ -678,7 +679,9 @@ impl Daemon {
 
     #[cfg(unix)]
     async fn managed_codepilotx_version_best_effort(&self) -> Option<String> {
-        managed_codepilotx_version(&self.managed_codepilotx_bin).await.ok()
+        managed_codepilotx_version(&self.managed_codepilotx_bin)
+            .await
+            .ok()
     }
 
     #[cfg(not(unix))]

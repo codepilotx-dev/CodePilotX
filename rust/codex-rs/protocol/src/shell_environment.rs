@@ -103,7 +103,10 @@ where
 
     // Step 6 - Populate the thread ID environment variable when provided.
     if let Some(thread_id) = thread_id {
-        env_map.insert(codepilotx_THREAD_ID_ENV_VAR.to_string(), thread_id.to_string());
+        env_map.insert(
+            codepilotx_THREAD_ID_ENV_VAR.to_string(),
+            thread_id.to_string(),
+        );
     }
 
     env_map

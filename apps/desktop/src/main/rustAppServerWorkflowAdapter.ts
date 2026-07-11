@@ -25,14 +25,40 @@ export type StartedItemInfo = {
   command?: string
 }
 
+type BufferedReasoningStream = {
+  chunks: string[]
+  processedChunkCount: number
+  scheduleHandle: unknown | null
+  partialEmitted: boolean
+  prefix: string
+}
+
 export type RustAppServerWorkflowState = {
   threadId: string | null
   activeTurnId: string | null
   activeTurnKind: 'regular' | 'goal' | 'compact' | 'review' | null
   /** Accumulated assistant text from agentMessage/item deltas */
   assistantDeltaBuffer: string
+  assistantDeltaChunks: string[]
+  assistantProcessedChunkCount: number
+  assistantProcessedChars: number
+  assistantStreamItemId: string | null
+  assistantStreamGeneration: number
+  assistantTurnClosed: boolean
+  finalizedAssistantItemIds: Set<string>
+  assistantDeltaScheduleHandle: unknown | null
+  assistantPartialEmitted: boolean
+  scheduleAssistantUpdate(
+    callback: () => void,
+    delayMs: number,
+  ): unknown
+  cancelAssistantUpdate(handle: unknown): void
   reasoningTextBuffer: string
   reasoningSummaryBuffer: string
+  reasoningTextStarted: boolean
+  reasoningSummaryStarted: boolean
+  reasoningStreams: Map<string, BufferedReasoningStream>
+  reasoningStreamGeneration: number
   /** Accumulated command output keyed by item id (toolUseId) */
   aggregatedOutputByItem: Map<string, string>
   /** Review-specific state */
@@ -43,14 +69,34 @@ export type RustAppServerWorkflowState = {
   reviewToolCompleted: boolean
 }
 
-export function createRustAppServerWorkflowState(): RustAppServerWorkflowState {
+export function createRustAppServerWorkflowState(options: {
+  schedule?: (callback: () => void, delayMs: number) => unknown
+  cancelSchedule?: (handle: unknown) => void
+} = {}): RustAppServerWorkflowState {
   return {
     threadId: null,
     activeTurnId: null,
     activeTurnKind: null,
     assistantDeltaBuffer: '',
+    assistantDeltaChunks: [],
+    assistantProcessedChunkCount: 0,
+    assistantProcessedChars: 0,
+    assistantStreamItemId: null,
+    assistantStreamGeneration: 0,
+    assistantTurnClosed: false,
+    finalizedAssistantItemIds: new Set(),
+    assistantDeltaScheduleHandle: null,
+    assistantPartialEmitted: false,
+    scheduleAssistantUpdate:
+      options.schedule ?? ((callback, delayMs) => setTimeout(callback, delayMs)),
+    cancelAssistantUpdate:
+      options.cancelSchedule ?? (handle => clearTimeout(handle as ReturnType<typeof setTimeout>)),
     reasoningTextBuffer: '',
     reasoningSummaryBuffer: '',
+    reasoningTextStarted: false,
+    reasoningSummaryStarted: false,
+    reasoningStreams: new Map(),
+    reasoningStreamGeneration: 0,
     aggregatedOutputByItem: new Map(),
     reviewToolUseId: null,
     pendingReviewAgentText: null,
@@ -100,9 +146,14 @@ export function handleServerNotification(
         const t = p.turn as Record<string, unknown>
         state.activeTurnId = typeof t.id === 'string' ? t.id : null
       }
-      state.assistantDeltaBuffer = ''
+      resetAssistantDelta(state)
+      resetReasoningDeltas(state)
+      state.assistantTurnClosed = false
+      state.finalizedAssistantItemIds.clear()
       state.reasoningTextBuffer = ''
       state.reasoningSummaryBuffer = ''
+      state.reasoningTextStarted = false
+      state.reasoningSummaryStarted = false
       state.aggregatedOutputByItem.clear()
       desktopDebug('rust_adapter_turn_started', {
         turnId: state.activeTurnId,
@@ -118,9 +169,13 @@ export function handleServerNotification(
       if (status === 'failed') {
         state.activeTurnId = null
         state.activeTurnKind = null
-        state.assistantDeltaBuffer = ''
+        resetAssistantDelta(state)
+        resetReasoningDeltas(state)
+        state.assistantTurnClosed = true
         state.reasoningTextBuffer = ''
         state.reasoningSummaryBuffer = ''
+        state.reasoningTextStarted = false
+        state.reasoningSummaryStarted = false
         state.aggregatedOutputByItem.clear()
         const turnError = turn?.error as Record<string, unknown> | null
         const message =
@@ -132,9 +187,13 @@ export function handleServerNotification(
       } else if (status === 'completed' || status === 'interrupted') {
         state.activeTurnId = null
         state.activeTurnKind = null
-        state.assistantDeltaBuffer = ''
+        resetAssistantDelta(state)
+        resetReasoningDeltas(state)
+        state.assistantTurnClosed = true
         state.reasoningTextBuffer = ''
         state.reasoningSummaryBuffer = ''
+        state.reasoningTextStarted = false
+        state.reasoningSummaryStarted = false
         state.aggregatedOutputByItem.clear()
         emit({ type: 'done', sessionId })
         desktopDebug('rust_adapter_turn_completed', { status })
@@ -222,17 +281,9 @@ export function handleServerNotification(
         : typeof delta?.text === 'string'
           ? delta.text
           : undefined
-      desktopDebug('rust_adapter_delta', {
-        deltaKeys: delta ? Object.keys(delta) : ['delta'],
-        textPreview: text?.slice(0, 100),
-      })
       if (text) {
-        state.assistantDeltaBuffer += text
-        emit({
-          type: 'partial_message',
-          sessionId,
-          text: state.assistantDeltaBuffer,
-        })
+        const itemId = typeof p.itemId === 'string' ? p.itemId : 'agent-message'
+        appendAssistantDelta(state, itemId, text, emit, sessionId)
       }
       break
     }
@@ -255,18 +306,30 @@ export function handleServerNotification(
             if (typeof item.text === 'string') {
               state.pendingReviewAgentText = item.text
             }
-            state.assistantDeltaBuffer = ''
+            resetAssistantDelta(state)
             break
           }
-          if (typeof item.text === 'string') {
+          const activeItemId = state.assistantStreamItemId
+          const itemId = typeof item.id === 'string' ? item.id : state.assistantStreamItemId
+          const text =
+            typeof item.text === 'string'
+              ? item.text
+              : materializeAssistantDelta(state)
+          if (text) {
             emit({
               type: 'message',
               sessionId,
               role: 'assistant',
-              text: item.text,
+              text,
+              ...(itemId ? { streamId: itemId } : {}),
+              ...(state.activeTurnId
+                ? { metadata: { turnId: state.activeTurnId } }
+                : {}),
             })
           }
-          state.assistantDeltaBuffer = ''
+          if (itemId) state.finalizedAssistantItemIds.add(itemId)
+          if (activeItemId) state.finalizedAssistantItemIds.add(activeItemId)
+          resetAssistantDelta(state)
           break
         }
 
@@ -424,7 +487,7 @@ export function handleServerNotification(
       const p = params as Record<string, unknown> | null
       if (!p) break
       const delta = p.delta as string | undefined
-      if (delta) {
+      if (delta && !state.assistantTurnClosed) {
         emit({
           type: 'proposed_plan',
           sessionId,
@@ -441,13 +504,9 @@ export function handleServerNotification(
       const p = params as Record<string, unknown> | null
       if (!p) break
       const delta = p.delta as string | undefined
-      if (delta) {
-        state.reasoningTextBuffer += delta
-        emit({
-          type: 'partial_message',
-          sessionId,
-          text: `*推理...* ${state.reasoningTextBuffer}`,
-        })
+      if (delta && !state.assistantTurnClosed) {
+        const itemId = typeof p.itemId === 'string' ? p.itemId : 'reasoning'
+        appendReasoningDelta(state, `reasoning:${itemId}`, '*推理...* ', delta, emit, sessionId)
       }
       break
     }
@@ -457,13 +516,16 @@ export function handleServerNotification(
       const p = params as Record<string, unknown> | null
       if (!p) break
       const delta = p.delta as string | undefined
-      if (delta) {
-        state.reasoningSummaryBuffer += delta
-        emit({
-          type: 'partial_message',
+      if (delta && !state.assistantTurnClosed) {
+        const itemId = typeof p.itemId === 'string' ? p.itemId : 'summary'
+        appendReasoningDelta(
+          state,
+          `reasoning-summary:${itemId}`,
+          '*推理摘要...* ',
+          delta,
+          emit,
           sessionId,
-          text: `*推理摘要...* ${state.reasoningSummaryBuffer}`,
-        })
+        )
       }
       break
     }
@@ -578,7 +640,9 @@ export function handleServerNotification(
           ? errorObj.message
           : 'Rust app-server error'
       state.activeTurnId = null
-      state.assistantDeltaBuffer = ''
+      resetAssistantDelta(state)
+      resetReasoningDeltas(state)
+      state.assistantTurnClosed = true
       state.aggregatedOutputByItem.clear()
       emit({ type: 'error', sessionId, message })
       desktopDebug('rust_adapter_error', { message })
@@ -621,4 +685,170 @@ export function handleServerNotification(
 	      break
 	    }
   }
+}
+
+const ASSISTANT_STREAM_UPDATE_MS = 40
+
+function appendReasoningDelta(
+  state: RustAppServerWorkflowState,
+  streamId: string,
+  prefix: string,
+  delta: string,
+  emit: (event: DesktopAgentEvent) => void,
+  sessionId: string,
+): void {
+  if (state.assistantTurnClosed) return
+  let stream = state.reasoningStreams.get(streamId)
+  if (!stream) {
+    stream = {
+      chunks: [],
+      processedChunkCount: 0,
+      scheduleHandle: null,
+      partialEmitted: false,
+      prefix,
+    }
+    state.reasoningStreams.set(streamId, stream)
+  }
+  stream.chunks.push(delta)
+  if (!stream.partialEmitted) {
+    stream.partialEmitted = true
+    emitReasoningPartial(state, streamId, stream, emit, sessionId)
+    return
+  }
+  if (stream.scheduleHandle !== null) return
+  const generation = state.reasoningStreamGeneration
+  stream.scheduleHandle = state.scheduleAssistantUpdate(() => {
+    if (
+      generation !== state.reasoningStreamGeneration ||
+      state.assistantTurnClosed ||
+      state.reasoningStreams.get(streamId) !== stream
+    ) {
+      return
+    }
+    stream.scheduleHandle = null
+    emitReasoningPartial(state, streamId, stream, emit, sessionId)
+  }, ASSISTANT_STREAM_UPDATE_MS)
+}
+
+function emitReasoningPartial(
+  state: RustAppServerWorkflowState,
+  streamId: string,
+  stream: BufferedReasoningStream,
+  emit: (event: DesktopAgentEvent) => void,
+  sessionId: string,
+): void {
+  const chunks = stream.chunks.slice(stream.processedChunkCount)
+  if (chunks.length === 0) return
+  const text = `${stream.processedChunkCount === 0 ? stream.prefix : ''}${chunks.join('')}`
+  stream.processedChunkCount = stream.chunks.length
+  if (streamId.startsWith('reasoning-summary:')) {
+    state.reasoningSummaryStarted = true
+    state.reasoningSummaryBuffer = text
+  } else {
+    state.reasoningTextStarted = true
+    state.reasoningTextBuffer = text
+  }
+  emit({
+    type: 'partial_message',
+    sessionId,
+    text,
+    delta: true,
+    streamId,
+    ...(state.activeTurnId ? { metadata: { turnId: state.activeTurnId } } : {}),
+  })
+}
+
+function resetReasoningDeltas(state: RustAppServerWorkflowState): void {
+  for (const stream of state.reasoningStreams.values()) {
+    if (stream.scheduleHandle !== null) {
+      state.cancelAssistantUpdate(stream.scheduleHandle)
+    }
+  }
+  state.reasoningStreams.clear()
+  state.reasoningStreamGeneration += 1
+  state.reasoningTextBuffer = ''
+  state.reasoningSummaryBuffer = ''
+  state.reasoningTextStarted = false
+  state.reasoningSummaryStarted = false
+}
+
+function appendAssistantDelta(
+  state: RustAppServerWorkflowState,
+  itemId: string,
+  delta: string,
+  emit: (event: DesktopAgentEvent) => void,
+  sessionId: string,
+): void {
+  if (
+    state.assistantTurnClosed ||
+    state.finalizedAssistantItemIds.has(itemId)
+  ) {
+    return
+  }
+  if (state.assistantStreamItemId !== itemId) {
+    resetAssistantDelta(state)
+    state.assistantStreamItemId = itemId
+  }
+  state.assistantDeltaChunks.push(delta)
+  if (!state.assistantPartialEmitted) {
+    state.assistantPartialEmitted = true
+    emitAssistantPartial(state, itemId, emit, sessionId)
+    return
+  }
+  if (state.assistantDeltaScheduleHandle !== null) return
+  const generation = state.assistantStreamGeneration
+  state.assistantDeltaScheduleHandle = state.scheduleAssistantUpdate(() => {
+    if (
+      generation !== state.assistantStreamGeneration ||
+      itemId !== state.assistantStreamItemId ||
+      state.finalizedAssistantItemIds.has(itemId) ||
+      state.assistantTurnClosed
+    ) {
+      return
+    }
+    state.assistantDeltaScheduleHandle = null
+    emitAssistantPartial(state, itemId, emit, sessionId)
+  }, ASSISTANT_STREAM_UPDATE_MS)
+}
+
+function emitAssistantPartial(
+  state: RustAppServerWorkflowState,
+  itemId: string,
+  emit: (event: DesktopAgentEvent) => void,
+  sessionId: string,
+): void {
+  const chunks = state.assistantDeltaChunks.slice(
+    state.assistantProcessedChunkCount,
+  )
+  if (chunks.length === 0) return
+  const text = chunks.join('')
+  state.assistantProcessedChunkCount = state.assistantDeltaChunks.length
+  state.assistantProcessedChars += text.length
+  state.assistantDeltaBuffer = text
+  emit({
+    type: 'partial_message',
+    sessionId,
+    text,
+    delta: true,
+    streamId: itemId,
+    ...(state.activeTurnId ? { metadata: { turnId: state.activeTurnId } } : {}),
+  })
+}
+
+function materializeAssistantDelta(state: RustAppServerWorkflowState): string {
+  state.assistantDeltaBuffer = state.assistantDeltaChunks.join('')
+  return state.assistantDeltaBuffer
+}
+
+function resetAssistantDelta(state: RustAppServerWorkflowState): void {
+  if (state.assistantDeltaScheduleHandle !== null) {
+    state.cancelAssistantUpdate(state.assistantDeltaScheduleHandle)
+  }
+  state.assistantDeltaScheduleHandle = null
+  state.assistantDeltaChunks.length = 0
+  state.assistantProcessedChunkCount = 0
+  state.assistantDeltaBuffer = ''
+  state.assistantPartialEmitted = false
+  state.assistantStreamItemId = null
+  state.assistantStreamGeneration += 1
 }

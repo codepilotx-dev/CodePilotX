@@ -490,7 +490,9 @@ fn set_env_keys(env: &mut HashMap<String, String>, keys: &[&str], value: &str) {
 
 #[cfg(target_os = "macos")]
 fn codepilotx_proxy_git_ssh_command(socks_addr: SocketAddr) -> String {
-    format!("{codepilotx_PROXY_GIT_SSH_COMMAND_PREFIX}{socks_addr}{codepilotx_PROXY_GIT_SSH_COMMAND_SUFFIX}")
+    format!(
+        "{codepilotx_PROXY_GIT_SSH_COMMAND_PREFIX}{socks_addr}{codepilotx_PROXY_GIT_SSH_COMMAND_SUFFIX}"
+    )
 }
 
 #[cfg(target_os = "macos")]
@@ -1467,7 +1469,10 @@ mod tests {
         let mut env = HashMap::new();
         env.insert(
             GIT_SSH_COMMAND_ENV_KEY.to_string(),
-            codepilotx_proxy_git_ssh_command(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8081)),
+            codepilotx_proxy_git_ssh_command(SocketAddr::new(
+                IpAddr::V4(Ipv4Addr::LOCALHOST),
+                8081,
+            )),
         );
 
         apply_proxy_env_overrides(

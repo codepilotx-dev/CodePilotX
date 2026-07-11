@@ -374,7 +374,8 @@ fn post_tool_use_feedback_output_keeps_code_mode_result_typed() {
 async fn dispatch_notifies_tool_lifecycle_contributors() -> anyhow::Result<()> {
     let (mut session, turn) = crate::session::tests::make_session_and_context().await;
     let records = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder =
+        codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.tool_lifecycle_contributor(Arc::new(ToolLifecycleRecorder {
         records: Arc::clone(&records),
     }));

@@ -62,7 +62,7 @@ def get_workspace_deps(cargo_toml_path):
             content = f.read()
     except FileNotFoundError:
         return deps
-    
+
     # Match lines like: codex-foo = { workspace = true }
     # Also handle codex-foo = { package = "...", path = "...", workspace = true } pattern
     for m in re.finditer(r'^(codex-[\w-]+)\s*=\s*\{', content, re.MULTILINE):
@@ -84,13 +84,13 @@ def get_workspace_deps(cargo_toml_path):
             if crate not in path_map:
                 path_map[crate] = rel_path
                 print(f"  [ADDED] {crate:50s} -> {rel_path}", file=sys.stderr)
-    
+
     # Also find deps from dev-dependencies
     dev_section = re.search(r'\[dev-dependencies\](.*?)(?=\[|$)', content, re.DOTALL)
     if dev_section:
         for m in re.finditer(r'^(codex-[\w-]+)\s*=\s*\{', dev_section.group(1), re.MULTILINE):
             deps.add(m.group(1))
-    
+
     return deps
 
 # ── 3. Build the transitive closure ──
@@ -214,14 +214,14 @@ while True:
         if toml_path and os.path.exists(toml_path):
             ws_deps = get_workspace_deps(toml_path)
             new_deps.update(ws_deps)
-    
+
     # Also look at core_test_support and app_test_support
     for test_crate in ["core_test_support", "app_test_support"]:
         toml_path = crate_to_toml_path(test_crate)
         if toml_path and os.path.exists(toml_path):
             ws_deps = get_workspace_deps(toml_path)
             new_deps.update(ws_deps)
-    
+
     # Add known codex-* deps that might not have been caught
     for dep in list(new_deps):
         if dep not in path_map and dep.startswith("codex-"):
@@ -237,7 +237,7 @@ while True:
                 if os.path.isdir(os.path.join(ROOT, pp)):
                     path_map[dep] = pp
                     break
-    
+
     before = len(all_deps)
     all_deps.update(new_deps)
     after = len(all_deps)

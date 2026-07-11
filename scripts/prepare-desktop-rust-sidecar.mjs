@@ -2,32 +2,35 @@
  * Build the Rust app-server binary and copy it to dist/desktop-rust-sidecar/.
  *
  * Usage:
- *   node scripts/prepare-desktop-rust-sidecar.mjs [--release]
- *
- * Without --release, uses cargo build (debug profile).
- * With --release, uses cargo build --release (release profile).
+ *   node scripts/prepare-desktop-rust-sidecar.mjs --release
  */
 
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { RUST_SIDECAR_RELEASE_ARGS } from './rust-sidecar-build-contract.mjs'
+import { parseCargoSourceConfigArgs } from './rust-sidecar-build-contract.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = resolve(__dirname, '..')
 
-const isRelease = process.argv.includes('--release')
-const profile = isRelease ? 'release' : 'debug'
+if (!process.argv.includes('--release')) {
+  console.error('[rust-sidecar] Release packaging requires --release.')
+  process.exit(1)
+}
+const profile = 'release'
 const targetDir = join(root, 'rust', 'codex-rs', 'target', profile)
 const binaryName = process.platform === 'win32'
   ? 'codepilotx-app-server.exe'
   : 'codepilotx-app-server'
 const binaryPath = join(targetDir, binaryName)
+const cargoSourceConfigArgs = parseCargoSourceConfigArgs(process.argv.slice(2))
 
 // 1. Build the Rust crate
 console.log(`[rust-sidecar] Building codepilotx-app-server (${profile})...`)
 try {
-  execFileSync('cargo', ['build', ...(isRelease ? ['--release'] : []), '-p', 'codepilotx-app-server'], {
+  execFileSync('cargo', [...RUST_SIDECAR_RELEASE_ARGS, ...cargoSourceConfigArgs], {
     cwd: join(root, 'rust', 'codex-rs'),
     stdio: 'inherit',
   })

@@ -244,7 +244,9 @@ mod job {
             codepilotx_state::Phase2JobClaimOutcome::SkippedCooldown => {
                 return Err("skipped_cooldown");
             }
-            codepilotx_state::Phase2JobClaimOutcome::SkippedRunning => return Err("skipped_running"),
+            codepilotx_state::Phase2JobClaimOutcome::SkippedRunning => {
+                return Err("skipped_running");
+            }
         };
 
         Ok(Claim { token, watermark })

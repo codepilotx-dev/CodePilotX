@@ -349,7 +349,11 @@ impl AuthStorageBackend for SecretsKeyringAuthStorage {
     fn save(&self, auth: &AuthDotJson) -> std::io::Result<()> {
         let serialized = serde_json::to_string(auth).map_err(std::io::Error::other)?;
         self.secrets_manager
-            .set(&SecretScope::Global, &codepilotx_AUTH_SECRET_NAME, &serialized)
+            .set(
+                &SecretScope::Global,
+                &codepilotx_AUTH_SECRET_NAME,
+                &serialized,
+            )
             .map_err(|err| {
                 let message =
                     format!("failed to write OAuth tokens to encrypted auth storage: {err}");
@@ -506,12 +510,14 @@ fn create_keyring_auth_storage(
     keyring_backend_kind: AuthKeyringBackendKind,
 ) -> Arc<dyn AuthStorageBackend> {
     match keyring_backend_kind {
-        AuthKeyringBackendKind::Direct => {
-            Arc::new(DirectKeyringAuthStorage::new(codepilotx_home, keyring_store))
-        }
-        AuthKeyringBackendKind::Secrets => {
-            Arc::new(SecretsKeyringAuthStorage::new(codepilotx_home, keyring_store))
-        }
+        AuthKeyringBackendKind::Direct => Arc::new(DirectKeyringAuthStorage::new(
+            codepilotx_home,
+            keyring_store,
+        )),
+        AuthKeyringBackendKind::Secrets => Arc::new(SecretsKeyringAuthStorage::new(
+            codepilotx_home,
+            keyring_store,
+        )),
     }
 }
 

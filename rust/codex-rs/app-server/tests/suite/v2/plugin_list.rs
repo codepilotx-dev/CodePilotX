@@ -791,7 +791,9 @@ async fn plugin_list_accepts_omitted_cwds() -> Result<()> {
     std::fs::create_dir_all(codepilotx_home.path().join(".agents/plugins"))?;
     write_plugins_enabled_config(codepilotx_home.path())?;
     std::fs::write(
-        codepilotx_home.path().join(".agents/plugins/marketplace.json"),
+        codepilotx_home
+            .path()
+            .join(".agents/plugins/marketplace.json"),
         r#"{
   "name": "codex-curated",
   "plugins": [
@@ -1046,7 +1048,9 @@ async fn plugin_list_uses_home_config_for_enabled_state() -> Result<()> {
     std::fs::create_dir_all(codepilotx_home.path().join(".agents/plugins"))?;
     write_installed_plugin(&codepilotx_home, "codex-curated", "shared-plugin")?;
     std::fs::write(
-        codepilotx_home.path().join(".agents/plugins/marketplace.json"),
+        codepilotx_home
+            .path()
+            .join(".agents/plugins/marketplace.json"),
         r#"{
   "name": "codex-curated",
   "plugins": [
@@ -1374,7 +1378,9 @@ async fn plugin_list_returns_installed_git_source_interface_from_cache() -> Resu
 }}"#
         ),
     )?;
-    let cached_plugin_root = codepilotx_home.path().join("plugins/cache/debug/toolkit/local");
+    let cached_plugin_root = codepilotx_home
+        .path()
+        .join("plugins/cache/debug/toolkit/local");
     std::fs::create_dir_all(cached_plugin_root.join(".codex-plugin"))?;
     std::fs::write(
         cached_plugin_root.join(".codex-plugin/plugin.json"),
@@ -1547,8 +1553,18 @@ async fn plugin_list_sync_upgrades_and_removes_remote_installed_plugin_bundles()
             .chatgpt_account_id("account-123"),
         AuthCredentialsStoreMode::File,
     )?;
-    write_installed_plugin_with_version(&codepilotx_home, "openai-curated-remote", "linear", "1.0.0")?;
-    write_installed_plugin_with_version(&codepilotx_home, "openai-curated-remote", "stale", "1.0.0")?;
+    write_installed_plugin_with_version(
+        &codepilotx_home,
+        "openai-curated-remote",
+        "linear",
+        "1.0.0",
+    )?;
+    write_installed_plugin_with_version(
+        &codepilotx_home,
+        "openai-curated-remote",
+        "stale",
+        "1.0.0",
+    )?;
 
     let bundle_url = mount_remote_plugin_bundle(
         &server,
@@ -1833,9 +1849,10 @@ async fn plugin_list_includes_remote_marketplaces_when_remote_plugin_enabled() -
             "project management".to_string()
         ]
     );
-    let cache_files = std::fs::read_dir(codepilotx_home.path().join("cache/remote_plugin_catalog"))?
-        .map(|entry| entry.map(|entry| entry.path()))
-        .collect::<Result<Vec<_>, _>>()?;
+    let cache_files =
+        std::fs::read_dir(codepilotx_home.path().join("cache/remote_plugin_catalog"))?
+            .map(|entry| entry.map(|entry| entry.path()))
+            .collect::<Result<Vec<_>, _>>()?;
     assert_eq!(cache_files.len(), 1);
     let cached_catalog: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&cache_files[0])?)?;
@@ -1961,8 +1978,11 @@ async fn plugin_list_uses_cached_global_remote_catalog_and_refreshes_it() -> Res
         "linear@openai-curated-remote"
     );
     wait_for_remote_plugin_request_count(&server, "/ps/plugins/list", /*expected_count*/ 1).await?;
-    wait_for_cached_remote_catalog_plugin_ids(codepilotx_home.path(), &[refreshed_remote_plugin_id])
-        .await?;
+    wait_for_cached_remote_catalog_plugin_ids(
+        codepilotx_home.path(),
+        &[refreshed_remote_plugin_id],
+    )
+    .await?;
 
     Ok(())
 }
@@ -3452,7 +3472,10 @@ remote_plugin = true
 async fn plugin_list_fetches_featured_plugin_ids_without_chatgpt_auth() -> Result<()> {
     let codepilotx_home = TempDir::new()?;
     let server = MockServer::start().await;
-    write_plugin_sync_config(codepilotx_home.path(), &format!("{}/backend-api/", server.uri()))?;
+    write_plugin_sync_config(
+        codepilotx_home.path(),
+        &format!("{}/backend-api/", server.uri()),
+    )?;
     write_openai_curated_marketplace(codepilotx_home.path(), &["linear", "gmail"])?;
 
     Mock::given(method("GET"))
@@ -3490,7 +3513,10 @@ async fn plugin_list_fetches_featured_plugin_ids_without_chatgpt_auth() -> Resul
 async fn plugin_list_uses_warmed_featured_plugin_ids_cache_on_first_request() -> Result<()> {
     let codepilotx_home = TempDir::new()?;
     let server = MockServer::start().await;
-    write_plugin_sync_config(codepilotx_home.path(), &format!("{}/backend-api/", server.uri()))?;
+    write_plugin_sync_config(
+        codepilotx_home.path(),
+        &format!("{}/backend-api/", server.uri()),
+    )?;
     write_openai_curated_marketplace(codepilotx_home.path(), &["linear", "gmail"])?;
 
     Mock::given(method("GET"))
@@ -3978,7 +4004,10 @@ fn write_installed_plugin_with_version(
     Ok(())
 }
 
-fn write_plugin_sync_config(codepilotx_home: &std::path::Path, base_url: &str) -> std::io::Result<()> {
+fn write_plugin_sync_config(
+    codepilotx_home: &std::path::Path,
+    base_url: &str,
+) -> std::io::Result<()> {
     std::fs::write(
         codepilotx_home.join("config.toml"),
         format!(

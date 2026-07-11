@@ -1382,7 +1382,7 @@ mod tests {
         let deltas = chunked.iter().map(String::as_str).collect::<Vec<_>>();
         let streamed = collect_streamed_lines(&deltas, Some(120));
         assert!(
-            streamed.iter().any(|line| line.contains('')),
+            streamed.iter().any(|line| line.contains('━')),
             "expected table separator in streamed output: {streamed:?}"
         );
     }
@@ -1412,7 +1412,7 @@ mod tests {
             "no-outer-pipes header should not remain raw in final streamed output: {streamed:?}"
         );
         assert!(
-            streamed.iter().any(|line| line.contains('')),
+            streamed.iter().any(|line| line.contains('━')),
             "expected table separator in final streamed output: {streamed:?}"
         );
     }
@@ -1437,7 +1437,7 @@ mod tests {
 
         assert_eq!(streamed, expected);
         assert!(
-            streamed.iter().any(|line| line.contains('')),
+            streamed.iter().any(|line| line.contains('━')),
             "expected table separator for no-outer-pipes streaming: {streamed:?}"
         );
         assert!(
@@ -1466,7 +1466,7 @@ mod tests {
 
         assert_eq!(streamed, expected);
         assert!(
-            streamed.iter().any(|line| line.contains('')),
+            streamed.iter().any(|line| line.contains('━')),
             "expected table separator for two-column no-outer table: {streamed:?}"
         );
         assert!(
@@ -1521,7 +1521,7 @@ mod tests {
 
         assert_eq!(streamed, expected);
         assert!(
-            streamed.iter().any(|line| line.contains('')),
+            streamed.iter().any(|line| line.contains('━')),
             "expected table separator in streamed output: {streamed:?}"
         );
         assert!(
@@ -1550,7 +1550,7 @@ mod tests {
 
         assert_eq!(streamed, expected);
         assert!(
-            streamed.iter().any(|line| line.contains('')),
+            streamed.iter().any(|line| line.contains('━')),
             "expected table separator in streamed output: {streamed:?}"
         );
         assert!(
@@ -1655,7 +1655,7 @@ mod tests {
         assert!(
             !streamed
                 .iter()
-                .any(|line| line.contains('') || line.contains('')),
+                .any(|line| line.contains('━') || line.contains('─')),
             "did not expect a table separator for non-markdown fence: {streamed:?}"
         );
     }
@@ -1677,7 +1677,7 @@ mod tests {
 
         assert_eq!(streamed, baseline);
         assert!(
-            streamed.iter().any(|line| line.contains('')),
+            streamed.iter().any(|line| line.contains('━')),
             "expected table separators in plan streamed output: {streamed:?}"
         );
         assert!(
@@ -1735,7 +1735,7 @@ mod tests {
 
         assert_eq!(streamed, baseline);
         assert!(
-            streamed.iter().any(|line| line.contains('')),
+            streamed.iter().any(|line| line.contains('━')),
             "expected table separators in fenced plan output: {streamed:?}"
         );
         assert!(

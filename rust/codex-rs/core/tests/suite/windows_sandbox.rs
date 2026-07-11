@@ -68,8 +68,12 @@ fn codepilotx_home_for_windows_sandbox_test(name: &str) -> anyhow::Result<TestCo
         // retries run in the same Windows VM, so keep codepilotx_HOME stable within
         // the test temp root and let setup reconcile its persisted ACL state.
         let codepilotx_home = PathBuf::from(test_tmpdir).join(name);
-        std::fs::create_dir_all(&codepilotx_home)
-            .with_context(|| format!("create stable test codepilotx_HOME {}", codepilotx_home.display()))?;
+        std::fs::create_dir_all(&codepilotx_home).with_context(|| {
+            format!(
+                "create stable test codepilotx_HOME {}",
+                codepilotx_home.display()
+            )
+        })?;
         return Ok(TestCodePilotXHome::Persistent(codepilotx_home));
     }
 
@@ -119,7 +123,8 @@ fn stage_windows_sandbox_helpers() -> anyhow::Result<()> {
 async fn windows_restricted_token_rejects_exact_and_glob_deny_read_policy() -> anyhow::Result<()> {
     let codepilotx_home =
         codepilotx_home_for_windows_sandbox_test("windows-restricted-token-deny-read-codex-home")?;
-    let _codepilotx_home_guard = EnvVarGuard::set("codepilotx_HOME", codepilotx_home.path().as_os_str());
+    let _codepilotx_home_guard =
+        EnvVarGuard::set("codepilotx_HOME", codepilotx_home.path().as_os_str());
     let workspace = TempDir::new()?;
     let cwd = dunce::canonicalize(workspace.path())?.abs();
     let secret = cwd.join("secret.env");
@@ -200,15 +205,20 @@ async fn windows_restricted_token_rejects_exact_and_glob_deny_read_policy() -> a
 #[tokio::test]
 #[serial(codepilotx_home)]
 async fn windows_elevated_enforces_deny_read_and_protects_setup_marker() -> anyhow::Result<()> {
-    let codepilotx_home = codepilotx_home_for_windows_sandbox_test("windows-elevated-deny-read-codex-home")?;
-    let _codepilotx_home_guard = EnvVarGuard::set("codepilotx_HOME", codepilotx_home.path().as_os_str());
+    let codepilotx_home =
+        codepilotx_home_for_windows_sandbox_test("windows-elevated-deny-read-codex-home")?;
+    let _codepilotx_home_guard =
+        EnvVarGuard::set("codepilotx_HOME", codepilotx_home.path().as_os_str());
     stage_windows_sandbox_helpers()?;
     let workspace = TempDir::new()?;
     let cwd = dunce::canonicalize(workspace.path())?.abs();
     let glob_secret = cwd.join("secret.env");
     let exact_secret = cwd.join("exact-secret.txt");
     let public = cwd.join("public.txt");
-    let setup_marker = codepilotx_home.path().join(".sandbox").join("setup_marker.json");
+    let setup_marker = codepilotx_home
+        .path()
+        .join(".sandbox")
+        .join("setup_marker.json");
     std::fs::write(&glob_secret, "glob secret\n")?;
     std::fs::write(&exact_secret, "exact secret\n")?;
     std::fs::write(&public, "public ok\n")?;

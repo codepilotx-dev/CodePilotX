@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "ProviderRepoInfo": {
+      "properties": {
+        "archived": {
+          "type": "boolean"
+        },
+        "cloneUrl": {
+          "type": "string"
+        },
+        "defaultBranch": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "fork": {
+          "type": "boolean"
+        },
+        "fullName": {
+          "type": "string"
+        },
+        "htmlUrl": {
+          "type": "string"
+        },
+        "id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "language": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "private": {
+          "type": "boolean"
+        },
+        "pushedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sshUrl": {
+          "type": "string"
+        },
+        "stargazersCount": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "archived",
+        "cloneUrl",
+        "defaultBranch",
+        "disabled",
+        "fork",
+        "fullName",
+        "htmlUrl",
+        "id",
+        "name",
+        "private",
+        "sshUrl",
+        "stargazersCount",
+        "updatedAt"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "repos": {
+      "items": {
+        "$ref": "#/definitions/ProviderRepoInfo"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "repos"
+  ],
+  "title": "ProviderRepoListResponse",
+  "type": "object"
+}

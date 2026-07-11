@@ -516,6 +516,7 @@ pub(crate) use marketplace_processor::MarketplaceRequestProcessor;
 pub(crate) use mcp_processor::McpRequestProcessor;
 pub(crate) use plugins::PluginRequestProcessor;
 pub(crate) use process_exec_processor::ProcessExecRequestProcessor;
+pub(crate) use provider_auth_processor::ProviderAuthRequestProcessor;
 pub(crate) use remote_control_processor::RemoteControlRequestProcessor;
 pub(crate) use search::SearchRequestProcessor;
 pub(crate) use thread_goal_processor::ThreadGoalRequestProcessor;

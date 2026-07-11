@@ -6,6 +6,7 @@ const repoRoot = resolve(import.meta.dirname, '..')
 const targets = [
   resolve(repoRoot, 'dist', 'desktop'),
   resolve(repoRoot, 'dist', 'desktop-agent'),
+  resolve(repoRoot, 'dist', 'desktop-rust-sidecar'),
   resolve(repoRoot, 'release', 'desktop'),
 ]
 

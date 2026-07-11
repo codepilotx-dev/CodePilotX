@@ -28,7 +28,10 @@ fn configured_marketplace_update() -> MarketplaceConfigUpdate<'static> {
     }
 }
 
-fn write_installed_marketplace(codepilotx_home: &std::path::Path, marketplace_name: &str) -> Result<()> {
+fn write_installed_marketplace(
+    codepilotx_home: &std::path::Path,
+    marketplace_name: &str,
+) -> Result<()> {
     let root = marketplace_install_root(codepilotx_home).join(marketplace_name);
     std::fs::create_dir_all(root.join(".agents/plugins"))?;
     std::fs::write(root.join(".agents/plugins/marketplace.json"), "{}")?;
@@ -49,7 +52,11 @@ fn canonicalize_path_with_existing_parent(path: &std::path::Path) -> Result<std:
 #[tokio::test]
 async fn marketplace_remove_deletes_config_and_installed_root() -> Result<()> {
     let codepilotx_home = TempDir::new()?;
-    record_user_marketplace(codepilotx_home.path(), "debug", &configured_marketplace_update())?;
+    record_user_marketplace(
+        codepilotx_home.path(),
+        "debug",
+        &configured_marketplace_update(),
+    )?;
     write_installed_marketplace(codepilotx_home.path(), "debug")?;
     let installed_root = marketplace_install_root(codepilotx_home.path()).join("debug");
 

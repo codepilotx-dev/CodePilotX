@@ -377,13 +377,13 @@ impl TextArea {
 
         // Update the cursor position to account for the edit.
         self.cursor_pos = if self.cursor_pos < start {
-            // Cursor was before the edited range ?no shift.
+            // Cursor was before the edited range – no shift.
             self.cursor_pos
         } else if self.cursor_pos <= end {
-            // Cursor was inside the replaced range ?move to end of the new text.
+            // Cursor was inside the replaced range – move to end of the new text.
             start + inserted_len
         } else {
-            // Cursor was after the replaced range ?shift by the length diff.
+            // Cursor was after the replaced range – shift by the length diff.
             ((self.cursor_pos as isize) + diff) as usize
         }
         .min(self.text.len());
@@ -2013,12 +2013,12 @@ mod tests {
             46..=52 => (rng.random_range(b'0'..=b'9') as char).to_string(),
             53..=65 => {
                 // Some emoji (wide graphemes)
-                let choices = ["", "", "", "", "", ""];
+                let choices = ["👍", "😊", "🐍", "🚀", "🧪", "🌟"];
                 choices[rng.random_range(0..choices.len())].to_string()
             }
             66..=75 => {
                 // CJK wide characters
-                let choices = ["?, "?, "?, "?, "?, "?, "?, "?, "?];
+                let choices = ["漢", "字", "測", "試", "你", "好", "界", "编", "码"];
                 choices[rng.random_range(0..choices.len())].to_string()
             }
             76..=85 => {
@@ -2029,7 +2029,7 @@ mod tests {
             }
             86..=92 => {
                 // Some non-latin single codepoints (Greek, Cyrillic, Hebrew)
-                let choices = ["", "", "", "", "", "", "?];
+                let choices = ["Ω", "β", "Ж", "ю", "ש", "م", "ह"];
                 choices[rng.random_range(0..choices.len())].to_string()
             }
             _ => {
@@ -2096,10 +2096,10 @@ mod tests {
     #[test]
     fn insert_str_at_clamps_to_char_boundary() {
         let mut t = TextArea::new();
-        t.insert_str("?);
+        t.insert_str("你");
         t.set_cursor(/*pos*/ 0);
         t.insert_str_at(/*pos*/ 1, "A");
-        assert_eq!(t.text(), "A?);
+        assert_eq!(t.text(), "A你");
         assert_eq!(t.cursor(), 1);
     }
 
@@ -2108,10 +2108,10 @@ mod tests {
         let mut t = TextArea::new();
         t.insert_str("abcd");
         t.set_cursor(/*pos*/ 1);
-        t.set_text_clearing_elements("?);
+        t.set_text_clearing_elements("你");
         assert_eq!(t.cursor(), 0);
         t.insert_str("a");
-        assert_eq!(t.text(), "a?);
+        assert_eq!(t.text(), "a你");
     }
 
     #[test]
@@ -2227,7 +2227,7 @@ mod tests {
 
     #[test]
     fn vim_escape_moves_by_grapheme_boundary() {
-        let mut t = ta_with("");
+        let mut t = ta_with("👍👍");
         t.set_cursor(t.text().len());
         t.set_vim_enabled(/*enabled*/ true);
 
@@ -2235,7 +2235,7 @@ mod tests {
         t.input(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
 
         assert_eq!(t.vim_mode_label(), Some("Normal"));
-        assert_eq!(t.cursor(), "".len());
+        assert_eq!(t.cursor(), "👍".len());
     }
 
     #[test]
@@ -2986,7 +2986,7 @@ mod tests {
 
         t.move_cursor_left(); // before 'b'
         let after_first_left = t.cursor();
-        t.move_cursor_left(); // before ''
+        t.move_cursor_left(); // before '👍'
         let after_second_left = t.cursor();
         t.move_cursor_left(); // before 'a'
         let after_third_left = t.cursor();
@@ -3299,7 +3299,7 @@ mod tests {
 
     #[test]
     fn word_navigation_cjk_each_char_is_boundary() {
-        let text = "";
+        let text = "你好世界";
         let mut t = ta_with(text);
 
         t.set_cursor(/*pos*/ text.len());
@@ -3317,7 +3317,7 @@ mod tests {
 
     #[test]
     fn word_navigation_cjk_forward() {
-        let text = "";
+        let text = "你好世界";
         let mut t = ta_with(text);
 
         t.set_cursor(/*pos*/ 0);
@@ -3438,7 +3438,7 @@ mod tests {
 
     #[test]
     fn cursor_pos_with_state_basic_and_scroll_behaviors() {
-        // Case 1: No wrapping needed, height fits ?scroll ignored, y maps directly.
+        // Case 1: No wrapping needed, height fits — scroll ignored, y maps directly.
         let mut t = ta_with("hello world");
         t.set_cursor(/*pos*/ 3);
         let area = Rect::new(2, 5, 20, 3);
@@ -3449,7 +3449,7 @@ mod tests {
         let (x2, y2) = t.cursor_pos_with_state(area, bad_state).unwrap();
         assert_eq!((x2, y2), (x1, y1));
 
-        // Case 2: Cursor below the current window ?y should be clamped to the
+        // Case 2: Cursor below the current window — y should be clamped to the
         // bottom row (area.height - 1) after adjusting effective scroll.
         let mut t = ta_with("one two three four five six");
         // Force wrapping to many visual lines.
@@ -3462,7 +3462,7 @@ mod tests {
         let (_x, y) = t.cursor_pos_with_state(small_area, state).unwrap();
         assert_eq!(y, small_area.y + small_area.height - 1);
 
-        // Case 3: Cursor above the current window ?y should be top row (0)
+        // Case 3: Cursor above the current window — y should be top row (0)
         // when the provided scroll is too large.
         let mut t = ta_with("alpha beta gamma delta epsilon zeta");
         let wrap_width = 5;
@@ -3587,21 +3587,21 @@ mod tests {
     #[test]
     fn wrapped_navigation_with_wide_graphemes() {
         // Four thumbs up, each of display width 2, with width 3 to force wrapping inside grapheme boundaries
-        let mut t = ta_with("");
+        let mut t = ta_with("👍👍👍👍");
         let _ = t.desired_height(/*width*/ 3);
 
         // Put cursor after the second emoji (which should be on first wrapped line)
-        t.set_cursor("".len());
+        t.set_cursor("👍👍".len());
 
         // Move down should go to the start of the next wrapped line (same column preserved but clamped)
         t.move_cursor_down();
         // We expect to land somewhere within the third emoji or at the start of it
         let pos_after_down = t.cursor();
-        assert!(pos_after_down >= "".len());
+        assert!(pos_after_down >= "👍👍".len());
 
         // Moving up should take us back to the original position
         t.move_cursor_up();
-        assert_eq!(t.cursor(), "".len());
+        assert_eq!(t.cursor(), "👍👍".len());
     }
 
     #[test]

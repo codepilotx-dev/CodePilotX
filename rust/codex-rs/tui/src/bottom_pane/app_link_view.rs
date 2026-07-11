@@ -644,7 +644,7 @@ impl AppLinkView {
             .enumerate()
             .map(|(index, label)| {
                 let prefix = if self.selected_action == index {
-                    '?
+                    '›'
                 } else {
                     ' '
                 };

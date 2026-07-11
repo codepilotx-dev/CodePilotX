@@ -101,7 +101,7 @@
           "type": "object"
         },
         {
-          "description": "User config layer from $CODEX_HOME/config.toml. This layer is special in that it is expected to be: - writable by the user - generally outside the workspace directory",
+          "description": "User config layer from $codepilotx_HOME/config.toml. This layer is special in that it is expected to be: - writable by the user - generally outside the workspace directory",
           "properties": {
             "file": {
               "allOf": [
@@ -136,7 +136,7 @@
         {
           "description": "Path to a .codex/ folder within a project. There could be multiple of these between `cwd` and the project/repo root.",
           "properties": {
-            "dotCodexFolder": {
+            "dotCodepilotxFolder": {
               "$ref": "#/definitions/AbsolutePathBuf"
             },
             "type": {
@@ -148,7 +148,7 @@
             }
           },
           "required": [
-            "dotCodexFolder",
+            "dotCodepilotxFolder",
             "type"
           ],
           "title": "ProjectConfigLayerSource",

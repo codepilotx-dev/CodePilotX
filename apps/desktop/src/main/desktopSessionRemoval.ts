@@ -1,5 +1,11 @@
 export const SESSION_INDEX_REMOVAL_RETRY_DELAYS_MS = [0, 100, 500] as const
 
+export async function disposeDesktopSessionRuntimes(
+  disposers: Iterable<() => Promise<void>>,
+): Promise<void> {
+  await Promise.all([...disposers].map(dispose => dispose()))
+}
+
 type RemoveDesktopSessionLocalStateOptions = {
   sessionId: string
   removeIndex: (sessionId: string) => Promise<void>
@@ -19,11 +25,13 @@ type DisposeDesktopSessionOptions = RemoveDesktopSessionLocalStateOptions & {
   appServerThreadId: string | null
   appServerThreadPending: boolean
   deleteThread: (threadId: string) => Promise<unknown>
+  flushPersistence: () => Promise<void>
 }
 
 export async function disposeDesktopSession(
   options: DisposeDesktopSessionOptions,
 ): Promise<void> {
+  await options.flushPersistence()
   if (options.appServerThreadId) {
     await options.deleteThread(options.appServerThreadId)
   } else if (!options.appServerThreadPending) {

@@ -174,7 +174,7 @@ impl MemoriesSettingsView {
             .enumerate()
             .map(|(idx, item)| {
                 let prefix = if selected_idx == Some(idx) {
-                    ''
+                    '›'
                 } else {
                     ' '
                 };

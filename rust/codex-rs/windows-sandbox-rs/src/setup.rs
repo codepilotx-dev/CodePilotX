@@ -26,6 +26,7 @@ use crate::setup_error::clear_setup_error_report;
 use crate::setup_error::failure;
 use crate::setup_error::read_setup_error_report;
 use crate::ssh_config_dependencies::ssh_config_dependency_paths;
+use crate::workspace_acl::existing_workspace_config_dirs;
 use anyhow::Result;
 use anyhow::anyhow;
 use base64::Engine;
@@ -959,6 +960,9 @@ fn build_payload_deny_write_paths(
         .into_iter()
         .map(|path| canonicalize_path(&path))
         .collect();
+    deny_write_paths.extend(existing_workspace_config_dirs(
+        allow_deny_paths.allow.iter().map(PathBuf::as_path),
+    ));
     deny_write_paths.extend(allow_deny_paths.deny);
     deny_write_paths
 }
@@ -1586,7 +1590,12 @@ mod tests {
         let workspace_roots = workspace_roots_for(command_cwd.as_path());
         let permissions = permissions_for(&permission_profile, workspace_roots.as_slice());
 
-        let roots = gather_read_roots(&command_cwd, &permissions, &HashMap::new(), &codepilotx_home);
+        let roots = gather_read_roots(
+            &command_cwd,
+            &permissions,
+            &HashMap::new(),
+            &codepilotx_home,
+        );
         let expected =
             dunce::canonicalize(helper_bin_dir(&codepilotx_home)).expect("canonical helper dir");
 
@@ -1612,7 +1621,12 @@ mod tests {
         let workspace_roots = workspace_roots_for(command_cwd.as_path());
         let permissions = permissions_for(&permission_profile, workspace_roots.as_slice());
 
-        let roots = gather_read_roots(&command_cwd, &permissions, &HashMap::new(), &codepilotx_home);
+        let roots = gather_read_roots(
+            &command_cwd,
+            &permissions,
+            &HashMap::new(),
+            &codepilotx_home,
+        );
         let expected_writable =
             dunce::canonicalize(&writable_root).expect("canonical writable root");
 
@@ -1763,7 +1777,8 @@ mod tests {
 
         let expected_workspace = dunce::canonicalize(&command_cwd).expect("canonical workspace");
         let expected_extra = dunce::canonicalize(&extra_root).expect("canonical extra root");
-        let forbidden_codepilotx_home = dunce::canonicalize(&codepilotx_home).expect("canonical codex home");
+        let forbidden_codepilotx_home =
+            dunce::canonicalize(&codepilotx_home).expect("canonical codex home");
         let forbidden_sandbox = dunce::canonicalize(&sandbox_root).expect("canonical sandbox root");
         assert_eq!(effective_write_roots, payload_write_roots);
         assert!(effective_write_roots.contains(&expected_workspace));

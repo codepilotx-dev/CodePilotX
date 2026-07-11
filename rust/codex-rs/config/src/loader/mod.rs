@@ -174,9 +174,13 @@ pub async fn load_config_layers_state(
         managed_preferences_requirements_layer = None;
     }
 
-    let loaded_config_layers =
-        layer_io::load_config_layers_internal(fs, codepilotx_home, overrides.clone(), strict_config)
-            .await?;
+    let loaded_config_layers = layer_io::load_config_layers_internal(
+        fs,
+        codepilotx_home,
+        overrides.clone(),
+        strict_config,
+    )
+    .await?;
     if !ignore_managed_requirements {
         requirements_layers.extend(system_requirements_layer);
         requirements_layers.extend(bundle_requirements_layers);
@@ -242,7 +246,8 @@ pub async fn load_config_layers_state(
     // profile config as a second user layer on top so the profile only needs to
     // contain overrides.
     let active_user_file = overrides.user_config_path(codepilotx_home)?;
-    let base_user_file = AbsolutePathBuf::resolve_path_against_base(CONFIG_TOML_FILE, codepilotx_home);
+    let base_user_file =
+        AbsolutePathBuf::resolve_path_against_base(CONFIG_TOML_FILE, codepilotx_home);
     let base_user_layer = load_user_config_layer(
         fs,
         &base_user_file,
@@ -925,7 +930,10 @@ impl ProjectTrustContext {
 /// Check for a project config directory at `base/.codepilotx` (preferred)
 /// or fall back to `base/.codex` (legacy) using the sandbox-aware filesystem.
 /// Returns `None` if neither exists.
-async fn resolve_project_config_dir(fs: &dyn ExecutorFileSystem, base: &AbsolutePathBuf) -> Option<AbsolutePathBuf> {
+async fn resolve_project_config_dir(
+    fs: &dyn ExecutorFileSystem,
+    base: &AbsolutePathBuf,
+) -> Option<AbsolutePathBuf> {
     async fn dir_is_dir(fs: &dyn ExecutorFileSystem, p: &AbsolutePathBuf) -> bool {
         let uri = PathUri::from_abs_path(p);
         fs.get_metadata(&uri, None)
@@ -1232,8 +1240,8 @@ async fn load_project_layers(
     strict_config: bool,
 ) -> io::Result<LoadedProjectLayers> {
     let codepilotx_home_abs = AbsolutePathBuf::from_absolute_path(codepilotx_home)?;
-    let codepilotx_home_normalized =
-        normalize_path(codepilotx_home_abs.as_path()).unwrap_or_else(|_| codepilotx_home_abs.to_path_buf());
+    let codepilotx_home_normalized = normalize_path(codepilotx_home_abs.as_path())
+        .unwrap_or_else(|_| codepilotx_home_abs.to_path_buf());
     let mut dirs = cwd
         .ancestors()
         .scan(false, |done, a| {
@@ -1260,9 +1268,11 @@ async fn load_project_layers(
         let decision = trust_context.decision_for_dir(&dir);
         let disabled_reason = trust_context.disabled_reason_for_decision(&decision);
         let hooks_config_folder_override = trust_context.root_checkout_hooks_folder_for_dir(&dir);
-        let dot_codepilotx_normalized =
-            normalize_path(dot_codepilotx_abs.as_path()).unwrap_or_else(|_| dot_codepilotx_abs.to_path_buf());
-        if dot_codepilotx_abs == codepilotx_home_abs || dot_codepilotx_normalized == codepilotx_home_normalized {
+        let dot_codepilotx_normalized = normalize_path(dot_codepilotx_abs.as_path())
+            .unwrap_or_else(|_| dot_codepilotx_abs.to_path_buf());
+        if dot_codepilotx_abs == codepilotx_home_abs
+            || dot_codepilotx_normalized == codepilotx_home_normalized
+        {
             continue;
         }
         let config_file = dot_codepilotx_abs.join(CONFIG_TOML_FILE);

@@ -259,6 +259,7 @@ function createRuntimeReviewerPromptRunner(
     } finally {
       clearTimeout(timeout)
       await Promise.allSettled(rolloutWrites)
+      await runtime.dispose()
     }
     const text = assistantMessages.join('\n').trim()
     if (!text) throw new Error('Reviewer returned no response')

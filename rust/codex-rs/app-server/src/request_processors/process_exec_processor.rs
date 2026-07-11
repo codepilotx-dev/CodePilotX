@@ -94,7 +94,7 @@ impl ProcessExecRequestProcessor {
         if size.is_some() && !tty {
             return Err(invalid_params("process/spawn size requires tty: true"));
         }
-        let mut env = std::env::vars().collect::<HashMap<_, _>>();
+        let mut env = minimal_process_environment(std::env::vars());
         if let Some(env_overrides) = env_overrides {
             for (key, value) in env_overrides {
                 match value {
@@ -315,10 +315,17 @@ impl ProcessExecManager {
             )
             .await
         } else if stream_stdin {
-            codepilotx_utils_pty::spawn_pipe_process(program, args, cwd.as_path(), &env, &arg0).await
-        } else {
-            codepilotx_utils_pty::spawn_pipe_process_no_stdin(program, args, cwd.as_path(), &env, &arg0)
+            codepilotx_utils_pty::spawn_pipe_process(program, args, cwd.as_path(), &env, &arg0)
                 .await
+        } else {
+            codepilotx_utils_pty::spawn_pipe_process_no_stdin(
+                program,
+                args,
+                cwd.as_path(),
+                &env,
+                &arg0,
+            )
+            .await
         };
         let spawned = match spawned {
             Ok(spawned) => spawned,
@@ -720,4 +727,64 @@ fn no_active_process_error(process_handle: &str) -> JSONRPCErrorError {
 
 fn process_no_longer_running_error(process_handle: &str) -> JSONRPCErrorError {
     invalid_request(format!("process {process_handle:?} is no longer running"))
+}
+
+fn minimal_process_environment(
+    env: impl IntoIterator<Item = (String, String)>,
+) -> HashMap<String, String> {
+    const ALLOWED: &[&str] = &[
+        "APPDATA",
+        "COMSPEC",
+        "HOME",
+        "LANG",
+        "LOCALAPPDATA",
+        "NUMBER_OF_PROCESSORS",
+        "OS",
+        "PATH",
+        "PATHEXT",
+        "PROCESSOR_ARCHITECTURE",
+        "PROGRAMDATA",
+        "PROGRAMFILES",
+        "PROGRAMFILES(X86)",
+        "PROGRAMW6432",
+        "SYSTEMDRIVE",
+        "SYSTEMROOT",
+        "TEMP",
+        "TERM",
+        "TMP",
+        "USERPROFILE",
+        "WINDIR",
+    ];
+    env.into_iter()
+        .filter(|(key, _)| {
+            let uppercase = key.to_ascii_uppercase();
+            ALLOWED.contains(&uppercase.as_str()) || uppercase.starts_with("LC_")
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn process_spawn_base_environment_excludes_inherited_provider_secrets() {
+        let env = HashMap::from([
+            ("Path".to_string(), "C:\\Windows\\System32".to_string()),
+            (
+                "SENTINEL_PROVIDER_API_KEY".to_string(),
+                "sentinel-secret-value".to_string(),
+            ),
+            ("GITHUB_TOKEN".to_string(), "github-secret".to_string()),
+        ]);
+
+        let sanitized = minimal_process_environment(env);
+
+        assert_eq!(
+            sanitized.get("Path").map(String::as_str),
+            Some("C:\\Windows\\System32")
+        );
+        assert!(!sanitized.contains_key("SENTINEL_PROVIDER_API_KEY"));
+        assert!(!sanitized.contains_key("GITHUB_TOKEN"));
+    }
 }

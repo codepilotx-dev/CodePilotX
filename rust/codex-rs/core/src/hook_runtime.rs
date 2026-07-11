@@ -806,7 +806,9 @@ mod tests {
             messages
                 .iter()
                 .map(|message| match message {
-                    codepilotx_protocol::models::ResponseItem::Message { role, content, .. } => {
+                    codepilotx_protocol::models::ResponseItem::Message {
+                        role, content, ..
+                    } => {
                         let text = content
                             .iter()
                             .map(|item| match item {

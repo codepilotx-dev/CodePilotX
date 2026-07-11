@@ -218,7 +218,7 @@ mod tests {
         };
 
         assert_eq!(out.visible_text, "AZ");
-        assert_eq!(out.extracted, vec!["".to_string()]);
+        assert_eq!(out.extracted, vec!["中".to_string()]);
     }
 
     #[test]

@@ -64,7 +64,7 @@ fn syntax_set() -> &'static SyntaxSet {
 // theme (ansi, base16, base16-256) lacks the expected alpha-channel marker
 // encoding.  If the upstream two_face/syntect theme format changes, the
 // `ansi_themes_use_only_ansi_palette_colors` test will catch it at build
-// time ?long before it reaches users.  A runtime warning would be
+// time — long before it reaches users.  A runtime warning would be
 // unactionable noise since users can't fix upstream themes.
 
 /// Set the user-configured syntax theme override and codex home path.
@@ -92,7 +92,7 @@ pub(crate) fn set_theme_override(
         ));
     }
     if !override_set_ok || !codepilotx_home_set_ok {
-        // This should never happen in practice ?set_theme_override is only
+        // This should never happen in practice — set_theme_override is only
         // called once at startup.  Keep as a debug breadcrumb in case a second
         // call site is added in the future.
         tracing::debug!("set_theme_override called more than once; OnceLock values unchanged");
@@ -102,7 +102,10 @@ pub(crate) fn set_theme_override(
 
 /// Check whether a theme name resolves to a bundled theme or a custom
 /// `.tmTheme` file.  Returns a user-facing warning when it does not.
-pub(crate) fn validate_theme_name(name: Option<&str>, codepilotx_home: Option<&Path>) -> Option<String> {
+pub(crate) fn validate_theme_name(
+    name: Option<&str>,
+    codepilotx_home: Option<&Path>,
+) -> Option<String> {
     let name = name?;
     let custom_theme_path_display = codepilotx_home
         .map(|home| custom_theme_path(name, home).display().to_string())
@@ -173,7 +176,9 @@ fn parse_theme_name(name: &str) -> Option<EmbeddedThemeName> {
 
 /// Build the expected path for a custom theme file.
 fn custom_theme_path(name: &str, codepilotx_home: &Path) -> PathBuf {
-    codepilotx_home.join("themes").join(format!("{name}.tmTheme"))
+    codepilotx_home
+        .join("themes")
+        .join(format!("{name}.tmTheme"))
 }
 
 /// Try to load a custom `.tmTheme` file from `{codepilotx_home}/themes/{name}.tmTheme`.
@@ -439,8 +444,8 @@ const BUILTIN_THEME_NAMES: &[&str] = &[
 
 // -- Style conversion (syntect -> ratatui) ------------------------------------
 
-/// Map a low ANSI palette index (0?) to ratatui's named color variants,
-/// falling back to `Indexed(n)` for indices 8?55.
+/// Map a low ANSI palette index (0–7) to ratatui's named color variants,
+/// falling back to `Indexed(n)` for indices 8–255.
 ///
 /// Named variants are preferred over `Indexed(0)``Indexed(7)` because many
 /// terminals apply bold/bright treatment differently for named vs indexed
@@ -508,8 +513,8 @@ fn convert_style(syn_style: SyntectStyle) -> Style {
     if syn_style.font_style.contains(FontStyle::BOLD) {
         rt_style.add_modifier |= Modifier::BOLD;
     }
-    // Intentionally skip italic ?many terminals render it poorly or not at all.
-    // Intentionally skip underline ?themes like Dracula use underline on type
+    // Intentionally skip italic — many terminals render it poorly or not at all.
+    // Intentionally skip underline — themes like Dracula use underline on type
     // scopes (entity.name.type, support.class) which produces distracting
     // underlines on type/module names in terminal output.
 
@@ -883,7 +888,7 @@ mod tests {
     #[test]
     fn highlight_crlf_strips_carriage_return() {
         // Windows-style \r\n line endings must not leave a trailing \r in
-        // span text ?that would propagate into rendered code blocks.
+        // span text — that would propagate into rendered code blocks.
         let code = "fn main() {\r\n    println!(\"hi\");\r\n}\r\n";
         let lines = highlight_code_to_lines(code, "rust");
         for (i, line) in lines.iter().enumerate() {
@@ -948,7 +953,7 @@ mod tests {
         let rt = convert_style(syn);
         assert!(
             !rt.add_modifier.contains(Modifier::UNDERLINED),
-            "convert_style should suppress UNDERLINE from themes ?\
+            "convert_style should suppress UNDERLINE from themes — \
              themes like Dracula use underline on type scopes which \
              looks wrong in terminal output"
         );
@@ -1211,7 +1216,7 @@ mod tests {
         ] {
             assert!(
                 find_syntax(alias).is_some(),
-                "find_syntax({alias:?}) returned None ?patched alias broken"
+                "find_syntax({alias:?}) returned None — patched alias broken"
             );
         }
     }
@@ -1513,7 +1518,7 @@ mod tests {
         assert_eq!(
             all_variants.len(),
             32,
-            "two-face theme count changed ?update parse_theme_name"
+            "two-face theme count changed — update parse_theme_name"
         );
 
         // Build the set of variants reachable through our kebab-case mapping.

@@ -197,10 +197,12 @@ async fn backfill_sessions_resumes_from_watermark_and_marks_complete() {
         /*git*/ None,
     );
 
-    let runtime = codepilotx_state::StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
-        .await
-        .expect("initialize runtime");
-    let first_watermark = backfill_watermark_for_path(codepilotx_home.as_path(), first_path.as_path());
+    let runtime =
+        codepilotx_state::StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
+            .await
+            .expect("initialize runtime");
+    let first_watermark =
+        backfill_watermark_for_path(codepilotx_home.as_path(), first_path.as_path());
     runtime.mark_backfill_running().await.expect("mark running");
     runtime
         .checkpoint_backfill(first_watermark.as_str())
@@ -262,9 +264,10 @@ async fn backfill_sessions_preserves_existing_git_branch_and_fills_missing_git_f
         }),
     );
 
-    let runtime = codepilotx_state::StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
-        .await
-        .expect("initialize runtime");
+    let runtime =
+        codepilotx_state::StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
+            .await
+            .expect("initialize runtime");
     let thread_id = ThreadId::from_string(&thread_uuid.to_string()).expect("thread id");
     let mut existing = extract_metadata_from_rollout(&rollout_path, "test-provider")
         .await
@@ -308,9 +311,10 @@ async fn backfill_sessions_normalizes_cwd_before_upsert() {
         /*git*/ None,
     );
 
-    let runtime = codepilotx_state::StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
-        .await
-        .expect("initialize runtime");
+    let runtime =
+        codepilotx_state::StateRuntime::init(codepilotx_home.clone(), "test-provider".to_string())
+            .await
+            .expect("initialize runtime");
 
     backfill_sessions(runtime.as_ref(), codepilotx_home.as_path(), "test-provider").await;
 

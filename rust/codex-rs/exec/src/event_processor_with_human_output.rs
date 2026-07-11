@@ -344,15 +344,15 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 for step in notification.plan {
                     match step.status {
                         codepilotx_app_server_protocol::TurnPlanStepStatus::Completed => {
-                            eprintln!("  {} {}", "?.style(self.green), step.step);
+                            eprintln!("  {} {}", "✓".style(self.green), step.step);
                         }
                         codepilotx_app_server_protocol::TurnPlanStepStatus::InProgress => {
-                            eprintln!("  {} {}", "?.style(self.cyan), step.step);
+                            eprintln!("  {} {}", "→".style(self.cyan), step.step);
                         }
                         codepilotx_app_server_protocol::TurnPlanStepStatus::Pending => {
                             eprintln!(
                                 "  {} {}",
-                                "?.style(self.dimmed),
+                                "•".style(self.dimmed),
                                 step.step.style(self.dimmed)
                             );
                         }

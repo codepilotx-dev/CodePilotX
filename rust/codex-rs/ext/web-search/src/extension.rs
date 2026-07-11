@@ -118,7 +118,8 @@ impl ToolContributor for WebSearchExtension {
         &self,
         session_store: &ExtensionData,
         thread_store: &ExtensionData,
-    ) -> Vec<Arc<dyn codepilotx_extension_api::ToolExecutor<codepilotx_extension_api::ToolCall>>> {
+    ) -> Vec<Arc<dyn codepilotx_extension_api::ToolExecutor<codepilotx_extension_api::ToolCall>>>
+    {
         let Some(config) = thread_store.get::<WebSearchExtensionConfig>() else {
             return Vec::new();
         };

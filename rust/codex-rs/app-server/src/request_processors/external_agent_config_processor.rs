@@ -185,9 +185,11 @@ impl ExternalAgentConfigRequestProcessor {
                         subagents: details
                             .subagents
                             .into_iter()
-                            .map(|subagent| codepilotx_app_server_protocol::SubagentMigration {
-                                name: subagent.name,
-                            })
+                            .map(
+                                |subagent| codepilotx_app_server_protocol::SubagentMigration {
+                                    name: subagent.name,
+                                },
+                            )
                             .collect(),
                         commands: details
                             .commands

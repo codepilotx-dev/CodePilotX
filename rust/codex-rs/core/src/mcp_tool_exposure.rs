@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use codepilotx_connectors::AppToolPolicyEvaluator;
 use codepilotx_connectors::AppToolPolicyInput;
 use codepilotx_features::Feature;
-use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use codepilotx_mcp::ToolInfo as McpToolInfo;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use codepilotx_mcp::tool_is_model_visible;
 use tracing::instrument;
 

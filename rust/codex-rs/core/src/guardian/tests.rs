@@ -111,7 +111,8 @@ impl codepilotx_extension_api::ContextContributor for GuardianMemoryContextProbe
         &'a self,
         _session_store: &'a codepilotx_extension_api::ExtensionData,
         thread_store: &'a codepilotx_extension_api::ExtensionData,
-    ) -> codepilotx_extension_api::ExtensionFuture<'a, Vec<codepilotx_extension_api::PromptFragment>> {
+    ) -> codepilotx_extension_api::ExtensionFuture<'a, Vec<codepilotx_extension_api::PromptFragment>>
+    {
         Box::pin(async move {
             if thread_store
                 .get::<GuardianMemoryContextEnabled>()

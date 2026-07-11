@@ -119,7 +119,10 @@ fn marketplace_install_root(codepilotx_home: &Path) -> std::path::PathBuf {
     codepilotx_home.join(INSTALLED_MARKETPLACES_DIR)
 }
 
-fn expected_installed_root(codepilotx_home: &Path, marketplace_name: &str) -> Result<AbsolutePathBuf> {
+fn expected_installed_root(
+    codepilotx_home: &Path,
+    marketplace_name: &str,
+) -> Result<AbsolutePathBuf> {
     AbsolutePathBuf::try_from(
         marketplace_install_root(&codepilotx_home.canonicalize()?).join(marketplace_name),
     )

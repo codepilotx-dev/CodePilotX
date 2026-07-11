@@ -151,7 +151,10 @@ impl SkillProvider for OrchestratorSkillProvider {
     fn read(&self, request: SkillReadRequest) -> SkillProviderFuture<'_, SkillReadResult> {
         Box::pin(async move {
             if request.authority
-                != SkillAuthority::new(SkillSourceKind::Orchestrator, codepilotx_APPS_MCP_SERVER_NAME)
+                != SkillAuthority::new(
+                    SkillSourceKind::Orchestrator,
+                    codepilotx_APPS_MCP_SERVER_NAME,
+                )
             {
                 return Err(SkillProviderError::new(format!(
                     "orchestrator skill provider cannot read authority {}",
@@ -238,7 +241,10 @@ fn catalog_entry_from_resource(resource: &Resource) -> Option<SkillCatalogEntry>
     Some(
         SkillCatalogEntry::new(
             SkillPackageId(uri.to_string()),
-            SkillAuthority::new(SkillSourceKind::Orchestrator, codepilotx_APPS_MCP_SERVER_NAME),
+            SkillAuthority::new(
+                SkillSourceKind::Orchestrator,
+                codepilotx_APPS_MCP_SERVER_NAME,
+            ),
             name,
             description,
             SkillResourceId::new(main_prompt),

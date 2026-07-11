@@ -493,7 +493,8 @@ async fn post_tool_use_records_mcp_tool_payload_and_context(
         "MCP tool output should still reach the model",
     );
 
-    let hook_inputs = read_hook_inputs(test.codepilotx_home_path(), "post_tool_use_hook_log.jsonl")?;
+    let hook_inputs =
+        read_hook_inputs(test.codepilotx_home_path(), "post_tool_use_hook_log.jsonl")?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(
         json!({

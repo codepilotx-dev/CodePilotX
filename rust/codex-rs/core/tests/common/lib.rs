@@ -30,8 +30,8 @@ pub mod hooks;
 pub mod process;
 pub mod responses;
 pub mod streaming_sse;
-pub mod test_codex;
 pub mod test_codepilotx_exec;
+pub mod test_codex;
 mod test_environment;
 pub mod tracing;
 pub mod zsh_fork;
@@ -225,7 +225,8 @@ allow_local_binding = true
 fn default_test_overrides() -> ConfigOverrides {
     ConfigOverrides {
         codepilotx_linux_sandbox_exe: Some(
-            find_codepilotx_linux_sandbox_exe().expect("should find binary for codex-linux-sandbox"),
+            find_codepilotx_linux_sandbox_exe()
+                .expect("should find binary for codex-linux-sandbox"),
         ),
         ..ConfigOverrides::default()
     }
@@ -361,7 +362,8 @@ pub fn sandbox_network_env_var() -> &'static str {
 }
 
 pub fn format_with_current_shell(command: &str) -> Vec<String> {
-    codepilotx_core::shell::default_user_shell().derive_exec_args(command, /*use_login_shell*/ true)
+    codepilotx_core::shell::default_user_shell()
+        .derive_exec_args(command, /*use_login_shell*/ true)
 }
 
 pub fn format_with_current_shell_display(command: &str) -> String {
@@ -381,7 +383,8 @@ pub fn format_with_current_shell_display_non_login(command: &str) -> String {
 }
 
 pub fn stdio_server_bin() -> Result<String, CargoBinError> {
-    codepilotx_utils_cargo_bin::cargo_bin("test_stdio_server").map(|p| p.to_string_lossy().to_string())
+    codepilotx_utils_cargo_bin::cargo_bin("test_stdio_server")
+        .map(|p| p.to_string_lossy().to_string())
 }
 
 pub mod fs_wait {

@@ -220,14 +220,14 @@ where
             //
             // Screen
             // Scroll region
-            //                             
-            //                             
-            //                             
-            // 
+            //
+            //
+            //
+            //
             // Viewport
-            //                             
-            // 
-            // 
+            //
+            //
+            //
             queue!(writer, SetScrollRegion(1..area.top()))?;
 
             // NB: we are using MoveTo instead of set_cursor_position here to avoid messing with the
@@ -756,7 +756,7 @@ mod tests {
             "expected prefix and URL on same row, rows: {rows:?}"
         );
         assert!(
-            !rows.iter().any(|r| r.trim_end() == ""),
+            !rows.iter().any(|r| r.trim_end() == "│"),
             "unexpected orphan prefix row, rows: {rows:?}"
         );
     }
@@ -784,7 +784,7 @@ mod tests {
             "expected prefix and URL-like token on same row, rows: {rows:?}"
         );
         assert!(
-            !rows.iter().any(|r| r.trim_end() == ""),
+            !rows.iter().any(|r| r.trim_end() == "│"),
             "unexpected orphan prefix row, rows: {rows:?}"
         );
     }

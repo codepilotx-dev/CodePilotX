@@ -210,7 +210,9 @@ fn parse_windows_sandbox_wrapper_args(args: Vec<String>) -> Result<WindowsSandbo
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
-            codepilotx_HOME_FLAG => codepilotx_home = Some(PathBuf::from(next_flag_value(&mut args, &arg)?)),
+            codepilotx_HOME_FLAG => {
+                codepilotx_home = Some(PathBuf::from(next_flag_value(&mut args, &arg)?))
+            }
             COMMAND_CWD_FLAG => {
                 command_cwd = Some(absolute_path_arg(next_flag_value(&mut args, &arg)?, &arg)?);
             }
@@ -260,7 +262,8 @@ fn parse_windows_sandbox_wrapper_args(args: Vec<String>) -> Result<WindowsSandbo
         }
     }
 
-    let codepilotx_home = codepilotx_home.ok_or_else(|| anyhow!("missing required {codepilotx_HOME_FLAG}"))?;
+    let codepilotx_home =
+        codepilotx_home.ok_or_else(|| anyhow!("missing required {codepilotx_HOME_FLAG}"))?;
     if !codepilotx_home.is_absolute() {
         bail!(
             "{codepilotx_HOME_FLAG} must be absolute: {}",

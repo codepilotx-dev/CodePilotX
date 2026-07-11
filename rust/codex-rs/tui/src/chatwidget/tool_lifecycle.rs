@@ -159,7 +159,10 @@ impl ChatWidget {
         };
         // If the patch was successful, just let the "Edited" block stand.
         // Otherwise, add a failure block.
-        if matches!(status, codepilotx_app_server_protocol::PatchApplyStatus::Failed) {
+        if matches!(
+            status,
+            codepilotx_app_server_protocol::PatchApplyStatus::Failed
+        ) {
             self.add_to_history(history_cell::new_patch_apply_failure(String::new()));
         }
         // Mark that actual work was done (patch applied)

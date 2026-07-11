@@ -1654,10 +1654,12 @@ async fn apply_patch_turn_diff_tracks_local_and_remote_environment_paths() -> Re
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
             thread_settings: codepilotx_protocol::protocol::ThreadSettingsOverrides {
-                environments: Some(codepilotx_protocol::protocol::TurnEnvironmentSelections::new(
-                    test.config.cwd.clone(),
-                    environments,
-                )),
+                environments: Some(
+                    codepilotx_protocol::protocol::TurnEnvironmentSelections::new(
+                        test.config.cwd.clone(),
+                        environments,
+                    ),
+                ),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,

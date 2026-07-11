@@ -1,0 +1,355 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "GithubContributionDay": {
+      "properties": {
+        "color": {
+          "type": "string"
+        },
+        "count": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "date": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "color",
+        "count",
+        "date"
+      ],
+      "type": "object"
+    },
+    "GithubContributionWeek": {
+      "properties": {
+        "days": {
+          "items": {
+            "$ref": "#/definitions/GithubContributionDay"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "days"
+      ],
+      "type": "object"
+    },
+    "GithubContributions": {
+      "properties": {
+        "restrictedContributionsCount": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "totalCommitContributions": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "totalContributions": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "totalIssueContributions": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "totalPullRequestContributions": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "totalPullRequestReviewContributions": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "weeks": {
+          "items": {
+            "$ref": "#/definitions/GithubContributionWeek"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "restrictedContributionsCount",
+        "totalCommitContributions",
+        "totalContributions",
+        "totalIssueContributions",
+        "totalPullRequestContributions",
+        "totalPullRequestReviewContributions",
+        "weeks"
+      ],
+      "type": "object"
+    },
+    "GithubProfileLanguage": {
+      "properties": {
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "GithubProfileOrganization": {
+      "properties": {
+        "avatarUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "login": {
+          "type": "string"
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "login",
+        "url"
+      ],
+      "type": "object"
+    },
+    "GithubProfileOverview": {
+      "properties": {
+        "contributions": {
+          "$ref": "#/definitions/GithubContributions"
+        },
+        "organizations": {
+          "items": {
+            "$ref": "#/definitions/GithubProfileOrganization"
+          },
+          "type": "array"
+        },
+        "pinnedRepositories": {
+          "items": {
+            "$ref": "#/definitions/GithubProfileRepository"
+          },
+          "type": "array"
+        },
+        "popularRepositories": {
+          "items": {
+            "$ref": "#/definitions/GithubProfileRepository"
+          },
+          "type": "array"
+        },
+        "user": {
+          "$ref": "#/definitions/GithubProfileUser"
+        }
+      },
+      "required": [
+        "contributions",
+        "organizations",
+        "pinnedRepositories",
+        "popularRepositories",
+        "user"
+      ],
+      "type": "object"
+    },
+    "GithubProfileRepository": {
+      "properties": {
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "forkCount": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "fullName": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isFork": {
+          "type": "boolean"
+        },
+        "isPrivate": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "primaryLanguage": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/GithubProfileLanguage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stargazerCount": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "forkCount",
+        "fullName",
+        "id",
+        "isFork",
+        "isPrivate",
+        "name",
+        "stargazerCount",
+        "updatedAt",
+        "url"
+      ],
+      "type": "object"
+    },
+    "GithubProfileUser": {
+      "properties": {
+        "avatarUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bio": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "company": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "followers": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "following": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "htmlUrl": {
+          "type": "string"
+        },
+        "id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "location": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "login": {
+          "type": "string"
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "repositoryCount": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "starredRepositoryCount": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/GithubUserStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "websiteUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "followers",
+        "following",
+        "htmlUrl",
+        "id",
+        "login",
+        "repositoryCount",
+        "starredRepositoryCount"
+      ],
+      "type": "object"
+    },
+    "GithubUserStatus": {
+      "properties": {
+        "emoji": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expiresAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "indicatesLimitedAvailability": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "indicatesLimitedAvailability"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "overview": {
+      "$ref": "#/definitions/GithubProfileOverview"
+    }
+  },
+  "required": [
+    "overview"
+  ],
+  "title": "ProviderAuthProfileReadResponse",
+  "type": "object"
+}
