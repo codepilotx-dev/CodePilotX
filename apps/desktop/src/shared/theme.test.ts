@@ -318,6 +318,26 @@ test('updated dark presets use exact desktop tokens', () => {
       skill: '#c792ea',
       surface: '#212121',
     },
+    'dark-everforest': {
+      codeThemeId: 'everforest',
+      accent: '#a7c080',
+      ink: '#d3c6aa',
+      opaqueWindows: false,
+      diffAdded: '#a7c080',
+      diffRemoved: '#e67e80',
+      skill: '#d699b6',
+      surface: '#2d353b',
+    },
+    'dark-linear': {
+      codeThemeId: 'linear',
+      accent: '#606acc',
+      ink: '#e3e4e6',
+      opaqueWindows: true,
+      diffAdded: '#69c967',
+      diffRemoved: '#ff7e78',
+      skill: '#c2a1ff',
+      surface: '#0f0f11',
+    },
   } as const
 
   for (const [id, tokens] of Object.entries(expected)) {
