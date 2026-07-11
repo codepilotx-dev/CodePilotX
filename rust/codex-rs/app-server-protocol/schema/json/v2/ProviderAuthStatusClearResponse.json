@@ -9,13 +9,13 @@
             "null"
           ]
         },
-        "expires_at": {
+        "expiresAt": {
           "type": [
             "string",
             "null"
           ]
         },
-        "indicates_limited_availability": {
+        "indicatesLimitedAvailability": {
           "type": "boolean"
         },
         "message": {
@@ -26,7 +26,7 @@
         }
       },
       "required": [
-        "indicates_limited_availability"
+        "indicatesLimitedAvailability"
       ],
       "type": "object"
     }

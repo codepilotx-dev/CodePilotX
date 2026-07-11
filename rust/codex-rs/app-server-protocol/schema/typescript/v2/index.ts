@@ -162,6 +162,7 @@ export type { GithubContributionDay } from "./GithubContributionDay";
 export type { GithubContributionWeek } from "./GithubContributionWeek";
 export type { GithubContributions } from "./GithubContributions";
 export type { GithubProfileLanguage } from "./GithubProfileLanguage";
+export type { GithubProfileOrganization } from "./GithubProfileOrganization";
 export type { GithubProfileOverview } from "./GithubProfileOverview";
 export type { GithubProfileRepository } from "./GithubProfileRepository";
 export type { GithubProfileUser } from "./GithubProfileUser";

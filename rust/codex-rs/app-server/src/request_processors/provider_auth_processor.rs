@@ -9,8 +9,8 @@ use std::{
 
 use codepilotx_app_server_protocol::{
     GithubContributionDay, GithubContributionWeek, GithubContributions, GithubProfileLanguage,
-    GithubProfileOverview, GithubProfileRepository, GithubProfileUser, GithubUserStatus,
-    JSONRPCErrorError, ProviderApiKeyDeleteParams, ProviderApiKeyDeleteResponse,
+    GithubProfileOrganization, GithubProfileOverview, GithubProfileRepository, GithubProfileUser,
+    GithubUserStatus, JSONRPCErrorError, ProviderApiKeyDeleteParams, ProviderApiKeyDeleteResponse,
     ProviderApiKeyReadParams, ProviderApiKeyReadResponse, ProviderApiKeySaveParams,
     ProviderApiKeySaveResponse, ProviderAuthCancelLoginParams, ProviderAuthCancelLoginResponse,
     ProviderAuthLogoutParams, ProviderAuthLogoutResponse, ProviderAuthPollLoginParams,
@@ -94,6 +94,7 @@ pub(crate) struct ProviderAuthRequestProcessor {
     keyring: Arc<dyn KeyringStore>,
     credentials_writer: Arc<dyn CredentialsWriter>,
     github_graphql_endpoint: String,
+    github_graphql_timeout: Duration,
 }
 
 impl ProviderAuthRequestProcessor {
@@ -170,11 +171,17 @@ impl ProviderAuthRequestProcessor {
             keyring,
             credentials_writer,
             github_graphql_endpoint: "https://api.github.com/graphql".into(),
+            github_graphql_timeout: Duration::from_secs(30),
         }
     }
     #[cfg(test)]
     fn with_github_graphql_endpoint(mut self, endpoint: String) -> Self {
         self.github_graphql_endpoint = endpoint;
+        self
+    }
+    #[cfg(test)]
+    fn with_github_graphql_timeout(mut self, timeout: Duration) -> Self {
+        self.github_graphql_timeout = timeout;
         self
     }
     pub(crate) async fn profile_read(
@@ -189,7 +196,7 @@ impl ProviderAuthRequestProcessor {
             .get("viewer")
             .ok_or_else(|| internal_error("GitHub GraphQL response did not include viewer"))?;
         Ok(ProviderAuthProfileReadResponse {
-            overview: map_profile(v),
+            overview: map_profile(v)?,
         })
     }
     pub(crate) async fn status_set(
@@ -200,9 +207,11 @@ impl ProviderAuthRequestProcessor {
         let e = norm_emoji(&p.emoji);
         let m: String = p.message.trim().chars().take(80).collect();
         let d=self.graphql(&t,SET_QUERY,serde_json::json!({"emoji":e,"message":m,"limitedAvailability":p.limited_availability,"expiresAt":p.expires_at})).await?;
-        let status = &d["changeUserStatus"]["status"];
+        let status = required_status_payload(&d, "changeUserStatus")?;
         Ok(ProviderAuthStatusSetResponse {
-            status: (!status.is_null()).then(|| map_status(status)),
+            status: (!status.is_null())
+                .then(|| map_status(status))
+                .transpose()?,
         })
     }
     pub(crate) async fn status_clear(
@@ -211,9 +220,9 @@ impl ProviderAuthRequestProcessor {
     ) -> Result<ProviderAuthStatusClearResponse, JSONRPCErrorError> {
         let t = self.require_token(&p.provider_id).await?.access_token;
         let d = self.graphql(&t, CLEAR_QUERY, serde_json::json!({})).await?;
-        let s = &d["clearUserStatus"]["status"];
+        let s = required_status_payload(&d, "clearUserStatus")?;
         Ok(ProviderAuthStatusClearResponse {
-            status: (!s.is_null()).then(|| map_status(s)),
+            status: (!s.is_null()).then(|| map_status(s)).transpose()?,
         })
     }
     async fn graphql(
@@ -223,7 +232,7 @@ impl ProviderAuthRequestProcessor {
         variables: serde_json::Value,
     ) -> Result<serde_json::Value, JSONRPCErrorError> {
         let r = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
+            .timeout(self.github_graphql_timeout)
             .build()
             .map_err(|e| internal_error(format!("GitHub client failed: {e}")))?
             .post(&self.github_graphql_endpoint)
@@ -1013,109 +1022,219 @@ fn validate_provider_id(provider_id: &str) -> Result<(), JSONRPCErrorError> {
     }
     Ok(())
 }
-fn st(v: &serde_json::Value, k: &str) -> String {
-    v[k].as_str().unwrap_or_default().into()
+fn malformed(path: &str) -> JSONRPCErrorError {
+    internal_error(format!("Malformed GitHub GraphQL response at {path}"))
+}
+fn obj<'a>(
+    v: &'a serde_json::Value,
+    path: &str,
+) -> Result<&'a serde_json::Map<String, serde_json::Value>, JSONRPCErrorError> {
+    v.as_object().ok_or_else(|| malformed(path))
+}
+fn val<'a>(
+    v: &'a serde_json::Value,
+    k: &str,
+    path: &str,
+) -> Result<&'a serde_json::Value, JSONRPCErrorError> {
+    obj(v, path)?
+        .get(k)
+        .ok_or_else(|| malformed(&format!("{path}.{k}")))
+}
+fn st(v: &serde_json::Value, k: &str, path: &str) -> Result<String, JSONRPCErrorError> {
+    val(v, k, path)?
+        .as_str()
+        .map(Into::into)
+        .ok_or_else(|| malformed(&format!("{path}.{k}")))
 }
 fn ost(v: &serde_json::Value, k: &str) -> Option<String> {
     v[k].as_str().map(Into::into)
 }
-fn num(v: &serde_json::Value, k: &str) -> i64 {
-    v[k].as_i64().unwrap_or(0)
+fn num(v: &serde_json::Value, k: &str, path: &str) -> Result<i64, JSONRPCErrorError> {
+    val(v, k, path)?
+        .as_i64()
+        .ok_or_else(|| malformed(&format!("{path}.{k}")))
 }
-fn tc(v: &serde_json::Value, k: &str) -> i64 {
-    num(&v[k], "totalCount")
+fn boolean(v: &serde_json::Value, k: &str, path: &str) -> Result<bool, JSONRPCErrorError> {
+    val(v, k, path)?
+        .as_bool()
+        .ok_or_else(|| malformed(&format!("{path}.{k}")))
 }
-fn map_status(v: &serde_json::Value) -> GithubUserStatus {
-    GithubUserStatus {
+fn tc(v: &serde_json::Value, k: &str, path: &str) -> Result<i64, JSONRPCErrorError> {
+    num(val(v, k, path)?, "totalCount", &format!("{path}.{k}"))
+}
+fn map_status(v: &serde_json::Value) -> Result<GithubUserStatus, JSONRPCErrorError> {
+    obj(v, "status")?;
+    Ok(GithubUserStatus {
         emoji: ost(v, "emoji"),
         message: ost(v, "message"),
-        indicates_limited_availability: v["indicatesLimitedAvailability"]
-            .as_bool()
-            .unwrap_or(false),
+        indicates_limited_availability: boolean(v, "indicatesLimitedAvailability", "status")?,
         expires_at: ost(v, "expiresAt"),
-    }
+    })
 }
-fn repo(v: &serde_json::Value) -> GithubProfileRepository {
-    GithubProfileRepository {
-        id: st(v, "id"),
-        name: st(v, "name"),
+fn repo(v: &serde_json::Value, path: &str) -> Result<GithubProfileRepository, JSONRPCErrorError> {
+    if st(v, "__typename", path)? != "Repository" {
+        return Err(malformed(&format!("{path}.__typename")));
+    }
+    let name = st(v, "name", path)?;
+    Ok(GithubProfileRepository {
+        id: st(v, "id", path)?,
+        name: name.clone(),
         full_name: format!(
             "{}/{}",
-            v["owner"]["login"].as_str().unwrap_or_default(),
-            st(v, "name")
+            st(val(v, "owner", path)?, "login", &format!("{path}.owner"))?,
+            name
         ),
-        url: st(v, "url"),
+        url: st(v, "url", path)?,
         description: ost(v, "description"),
-        is_private: v["isPrivate"].as_bool().unwrap_or(false),
-        is_fork: v["isFork"].as_bool().unwrap_or(false),
-        primary_language: (!v["primaryLanguage"].is_null()).then(|| GithubProfileLanguage {
-            name: st(&v["primaryLanguage"], "name"),
-            color: ost(&v["primaryLanguage"], "color"),
-        }),
-        stargazer_count: num(v, "stargazerCount"),
-        fork_count: num(v, "forkCount"),
-        updated_at: st(v, "updatedAt"),
-    }
+        is_private: boolean(v, "isPrivate", path)?,
+        is_fork: boolean(v, "isFork", path)?,
+        primary_language: (!val(v, "primaryLanguage", path)?.is_null())
+            .then(|| {
+                Ok(GithubProfileLanguage {
+                    name: st(
+                        &v["primaryLanguage"],
+                        "name",
+                        &format!("{path}.primaryLanguage"),
+                    )?,
+                    color: ost(&v["primaryLanguage"], "color"),
+                })
+            })
+            .transpose()?,
+        stargazer_count: num(v, "stargazerCount", path)?,
+        fork_count: num(v, "forkCount", path)?,
+        updated_at: st(v, "updatedAt", path)?,
+    })
 }
-fn rps(v: &serde_json::Value, k: &str) -> Vec<GithubProfileRepository> {
-    v[k]["nodes"]
+fn rps(v: &serde_json::Value, k: &str) -> Result<Vec<GithubProfileRepository>, JSONRPCErrorError> {
+    val(val(v, k, "viewer")?, "nodes", &format!("viewer.{k}"))?
         .as_array()
-        .into_iter()
-        .flatten()
-        .filter(|x| x["__typename"].as_str().is_none_or(|y| y == "Repository"))
-        .map(repo)
+        .ok_or_else(|| malformed(&format!("viewer.{k}.nodes")))?
+        .iter()
+        .enumerate()
+        .map(|(i, x)| repo(x, &format!("viewer.{k}.nodes[{i}]")))
         .collect()
 }
-fn map_profile(v: &serde_json::Value) -> GithubProfileOverview {
-    let c = &v["contributionsCollection"];
-    let a = &c["contributionCalendar"];
-    GithubProfileOverview {
+fn required_status_payload<'a>(
+    d: &'a serde_json::Value,
+    mutation: &str,
+) -> Result<&'a serde_json::Value, JSONRPCErrorError> {
+    let p = val(d, mutation, "data")?;
+    val(p, "status", &format!("data.{mutation}"))
+}
+fn map_profile(v: &serde_json::Value) -> Result<GithubProfileOverview, JSONRPCErrorError> {
+    obj(v, "viewer")?;
+    let c = val(v, "contributionsCollection", "viewer")?;
+    let a = val(c, "contributionCalendar", "viewer.contributionsCollection")?;
+    let status = val(v, "status", "viewer")?;
+    let empty_organizations = Vec::new();
+    let org_nodes = v
+        .get("organizations")
+        .map(|organizations| val(organizations, "nodes", "viewer.organizations"))
+        .transpose()?
+        .map(|nodes| {
+            nodes
+                .as_array()
+                .ok_or_else(|| malformed("viewer.organizations.nodes"))
+        })
+        .transpose()?
+        .unwrap_or(&empty_organizations);
+    Ok(GithubProfileOverview {
         user: GithubProfileUser {
-            login: st(v, "login"),
-            id: num(v, "databaseId"),
+            login: st(v, "login", "viewer")?,
+            id: num(v, "databaseId", "viewer")?,
             name: ost(v, "name"),
             avatar_url: ost(v, "avatarUrl"),
-            html_url: st(v, "url"),
+            html_url: st(v, "url", "viewer")?,
             bio: ost(v, "bio"),
             company: ost(v, "company"),
             location: ost(v, "location"),
             website_url: ost(v, "websiteUrl"),
             email: ost(v, "email"),
-            followers: tc(v, "followers"),
-            following: tc(v, "following"),
-            repository_count: tc(v, "repositories"),
-            starred_repository_count: tc(v, "starredRepositories"),
-            status: (!v["status"].is_null()).then(|| map_status(&v["status"])),
+            followers: tc(v, "followers", "viewer")?,
+            following: tc(v, "following", "viewer")?,
+            repository_count: tc(v, "repositories", "viewer")?,
+            starred_repository_count: tc(v, "starredRepositories", "viewer")?,
+            status: (!status.is_null())
+                .then(|| map_status(status))
+                .transpose()?,
         },
-        organizations: vec![],
-        pinned_repositories: rps(v, "pinnedItems"),
-        popular_repositories: rps(v, "topRepositories"),
-        contributions: GithubContributions {
-            total_contributions: num(a, "totalContributions"),
-            total_commit_contributions: num(c, "totalCommitContributions"),
-            total_issue_contributions: num(c, "totalIssueContributions"),
-            total_pull_request_contributions: num(c, "totalPullRequestContributions"),
-            total_pull_request_review_contributions: num(c, "totalPullRequestReviewContributions"),
-            restricted_contributions_count: num(c, "restrictedContributionsCount"),
-            weeks: a["weeks"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .map(|w| GithubContributionWeek {
-                    days: w["contributionDays"]
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .map(|d| GithubContributionDay {
-                            date: st(d, "date"),
-                            count: num(d, "contributionCount"),
-                            color: st(d, "color"),
-                        })
-                        .collect(),
+        organizations: org_nodes
+            .iter()
+            .enumerate()
+            .map(|(i, o)| {
+                let p = format!("viewer.organizations.nodes[{i}]");
+                Ok(GithubProfileOrganization {
+                    login: st(o, "login", &p)?,
+                    name: ost(o, "name"),
+                    avatar_url: ost(o, "avatarUrl"),
+                    url: st(o, "url", &p)?,
                 })
-                .collect(),
+            })
+            .collect::<Result<_, JSONRPCErrorError>>()?,
+        pinned_repositories: rps(v, "pinnedItems")?,
+        popular_repositories: rps(v, "topRepositories")?,
+        contributions: GithubContributions {
+            total_contributions: num(
+                a,
+                "totalContributions",
+                "viewer.contributionsCollection.contributionCalendar",
+            )?,
+            total_commit_contributions: num(
+                c,
+                "totalCommitContributions",
+                "viewer.contributionsCollection",
+            )?,
+            total_issue_contributions: num(
+                c,
+                "totalIssueContributions",
+                "viewer.contributionsCollection",
+            )?,
+            total_pull_request_contributions: num(
+                c,
+                "totalPullRequestContributions",
+                "viewer.contributionsCollection",
+            )?,
+            total_pull_request_review_contributions: num(
+                c,
+                "totalPullRequestReviewContributions",
+                "viewer.contributionsCollection",
+            )?,
+            restricted_contributions_count: num(
+                c,
+                "restrictedContributionsCount",
+                "viewer.contributionsCollection",
+            )?,
+            weeks: val(
+                a,
+                "weeks",
+                "viewer.contributionsCollection.contributionCalendar",
+            )?
+            .as_array()
+            .ok_or_else(|| malformed("viewer.contributionsCollection.contributionCalendar.weeks"))?
+            .iter()
+            .enumerate()
+            .map(|(wi, w)| {
+                let path =
+                    format!("viewer.contributionsCollection.contributionCalendar.weeks[{wi}]");
+                let days = val(w, "contributionDays", &path)?
+                    .as_array()
+                    .ok_or_else(|| malformed(&format!("{path}.contributionDays")))?
+                    .iter()
+                    .enumerate()
+                    .map(|(di, d)| {
+                        let day_path = format!("{path}.contributionDays[{di}]");
+                        Ok(GithubContributionDay {
+                            date: st(d, "date", &day_path)?,
+                            count: num(d, "contributionCount", &day_path)?,
+                            color: st(d, "color", &day_path)?,
+                        })
+                    })
+                    .collect::<Result<_, JSONRPCErrorError>>()?;
+                Ok(GithubContributionWeek { days })
+            })
+            .collect::<Result<_, JSONRPCErrorError>>()?,
         },
-    }
+    })
 }
 fn norm_emoji(v: &str) -> String {
     let t = v.trim();
@@ -1135,7 +1254,7 @@ fn redact_secret(message: &str, secret: &str) -> String {
         message.replace(secret, "[REDACTED]")
     }
 }
-const PROFILE_QUERY: &str = r#"query DesktopGithubProfileOverview { viewer { databaseId login name avatarUrl url bio company location websiteUrl email followers { totalCount } following { totalCount } repositories(privacy: PUBLIC, ownerAffiliations: OWNER) { totalCount } starredRepositories { totalCount } status { emoji message indicatesLimitedAvailability expiresAt } pinnedItems(first: 6, types: REPOSITORY) { nodes { __typename ... on Repository { id name url description isPrivate isFork stargazerCount forkCount updatedAt owner { login } primaryLanguage { name color } } } } topRepositories(first: 6, orderBy: { field: STARGAZERS, direction: DESC }) { nodes { __typename id name url description isPrivate isFork stargazerCount forkCount updatedAt owner { login } primaryLanguage { name color } } } contributionsCollection { totalCommitContributions totalIssueContributions totalPullRequestContributions totalPullRequestReviewContributions restrictedContributionsCount contributionCalendar { totalContributions weeks { contributionDays { date contributionCount color } } } } } }"#;
+const PROFILE_QUERY: &str = r#"query DesktopGithubProfileOverview { viewer { databaseId login name avatarUrl url bio company location websiteUrl email organizations(first:20){nodes{login name avatarUrl url}} followers { totalCount } following { totalCount } repositories(privacy: PUBLIC, ownerAffiliations: OWNER) { totalCount } starredRepositories { totalCount } status { emoji message indicatesLimitedAvailability expiresAt } pinnedItems(first: 6, types: REPOSITORY) { nodes { __typename ... on Repository { id name url description isPrivate isFork stargazerCount forkCount updatedAt owner { login } primaryLanguage { name color } } } } topRepositories(first: 6, orderBy: { field: STARGAZERS, direction: DESC }) { nodes { __typename id name url description isPrivate isFork stargazerCount forkCount updatedAt owner { login } primaryLanguage { name color } } } contributionsCollection { totalCommitContributions totalIssueContributions totalPullRequestContributions totalPullRequestReviewContributions restrictedContributionsCount contributionCalendar { totalContributions weeks { contributionDays { date contributionCount color } } } } } }"#;
 const SET_QUERY: &str = r#"mutation DesktopGithubSetUserStatus($emoji:String!,$message:String!,$limitedAvailability:Boolean!,$expiresAt:DateTime){changeUserStatus(input:{emoji:$emoji message:$message limitedAvailability:$limitedAvailability expiresAt:$expiresAt}){status{emoji message indicatesLimitedAvailability expiresAt}}}"#;
 const CLEAR_QUERY: &str = r#"mutation DesktopGithubClearUserStatus{clearUserStatus(input:{}){status{emoji message indicatesLimitedAvailability expiresAt}}}"#;
 
@@ -1779,6 +1898,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(r.overview.user.repository_count, 3);
+        assert_eq!(r.overview.organizations.len(), 0);
         assert_eq!(r.overview.pinned_repositories[0].full_name, "octocat/repo");
         assert_eq!(r.overview.contributions.weeks[0].days[0].count, 2)
     }
@@ -1793,7 +1913,7 @@ mod tests {
             emoji: " wave ".into(),
             message: format!("  {}  ", "x".repeat(90)),
             limited_availability: true,
-            expires_at: None,
+            expires_at: Some("2030-01-01T00:00:00Z".into()),
         })
         .await
         .unwrap();
@@ -1802,6 +1922,16 @@ mod tests {
         assert_eq!(body["variables"]["emoji"], ":wave:");
         assert_eq!(body["variables"]["message"].as_str().unwrap().len(), 80);
         assert_eq!(body["variables"]["limitedAvailability"], true);
+        assert_eq!(body["variables"]["expiresAt"], "2030-01-01T00:00:00Z");
+        assert_eq!(
+            reqs[0]
+                .headers
+                .get("authorization")
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "Bearer sentinel-github-token"
+        );
         drop(reqs);
         server.reset().await;
         Mock::given(method("POST"))
@@ -1845,6 +1975,125 @@ mod tests {
             .expect("null status is a valid GitHub response");
 
         assert_eq!(response.status, None);
+    }
+
+    #[tokio::test]
+    async fn github_rejects_missing_viewer_and_status_payload_fields() {
+        for body in [
+            serde_json::json!({"data":{"viewer":null}}),
+            serde_json::json!({"data":{"viewer":{}}}),
+        ] {
+            let server = MockServer::start().await;
+            Mock::given(method("POST"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(body))
+                .mount(&server)
+                .await;
+            assert!(
+                github_processor(&server)
+                    .profile_read(ProviderAuthProfileReadParams {
+                        provider_id: "github-repositories".into()
+                    })
+                    .await
+                    .is_err()
+            );
+        }
+        for (mutation, clear) in [("changeUserStatus", false), ("clearUserStatus", true)] {
+            let missing_payload = if clear {
+                serde_json::json!({"data":{"clearUserStatus":{}}})
+            } else {
+                serde_json::json!({"data":{"changeUserStatus":{}}})
+            };
+            for body in [serde_json::json!({"data":{}}), missing_payload] {
+                let server = MockServer::start().await;
+                Mock::given(method("POST"))
+                    .respond_with(ResponseTemplate::new(200).set_body_json(body))
+                    .mount(&server)
+                    .await;
+                let p = github_processor(&server);
+                let result = if clear {
+                    p.status_clear(ProviderAuthStatusClearParams {
+                        provider_id: "github-repositories".into(),
+                    })
+                    .await
+                    .map(|_| ())
+                } else {
+                    p.status_set(ProviderAuthStatusSetParams {
+                        provider_id: "github-repositories".into(),
+                        emoji: "wave".into(),
+                        message: "hi".into(),
+                        limited_availability: false,
+                        expires_at: None,
+                    })
+                    .await
+                    .map(|_| ())
+                };
+                assert!(result.is_err(), "missing {mutation}.status must fail");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn github_transport_errors_and_auth_boundary_are_enforced() {
+        let server = MockServer::start().await;
+        let home = tempfile::tempdir().unwrap();
+        let unauthenticated = ProviderAuthRequestProcessor::new_with_keyring(
+            home.path().into(),
+            home.path().into(),
+            Arc::new(MockKeyringStore::default()),
+        )
+        .with_github_graphql_endpoint(format!("{}/graphql", server.uri()));
+        assert!(
+            unauthenticated
+                .profile_read(ProviderAuthProfileReadParams {
+                    provider_id: "github-repositories".into()
+                })
+                .await
+                .is_err()
+        );
+
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(401).set_body_string("sentinel-github-token"))
+            .mount(&server)
+            .await;
+        let error = github_processor(&server)
+            .profile_read(ProviderAuthProfileReadParams {
+                provider_id: "github-repositories".into(),
+            })
+            .await
+            .unwrap_err();
+        assert!(!error.message.contains("sentinel-github-token"));
+        server.reset().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("not-json"))
+            .mount(&server)
+            .await;
+        assert!(
+            github_processor(&server)
+                .profile_read(ProviderAuthProfileReadParams {
+                    provider_id: "github-repositories".into()
+                })
+                .await
+                .is_err()
+        );
+        server.reset().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_millis(100))
+                    .set_body_json(serde_json::json!({"data":{}})),
+            )
+            .mount(&server)
+            .await;
+        let p = github_processor(&server).with_github_graphql_timeout(Duration::from_millis(5));
+        assert!(
+            p.profile_read(ProviderAuthProfileReadParams {
+                provider_id: "github-repositories".into()
+            })
+            .await
+            .unwrap_err()
+            .message
+            .contains("request failed")
+        );
     }
 
     #[tokio::test]

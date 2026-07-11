@@ -4,27 +4,27 @@
     "emoji": {
       "type": "string"
     },
-    "expires_at": {
+    "expiresAt": {
       "type": [
         "string",
         "null"
       ]
     },
-    "limited_availability": {
+    "limitedAvailability": {
       "type": "boolean"
     },
     "message": {
       "type": "string"
     },
-    "provider_id": {
+    "providerId": {
       "type": "string"
     }
   },
   "required": [
     "emoji",
-    "limited_availability",
+    "limitedAvailability",
     "message",
-    "provider_id"
+    "providerId"
   ],
   "title": "ProviderAuthStatusSetParams",
   "type": "object"

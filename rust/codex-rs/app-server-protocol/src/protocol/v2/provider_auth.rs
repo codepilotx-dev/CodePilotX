@@ -95,6 +95,8 @@ pub struct ProviderAuthLogoutResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
 pub struct ProviderAuthProfileReadParams {
+    #[serde(rename = "providerId")]
+    #[ts(rename = "providerId")]
     pub provider_id: String,
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -105,10 +107,16 @@ pub struct ProviderAuthProfileReadResponse {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
 pub struct ProviderAuthStatusSetParams {
+    #[serde(rename = "providerId")]
+    #[ts(rename = "providerId")]
     pub provider_id: String,
     pub emoji: String,
     pub message: String,
+    #[serde(rename = "limitedAvailability")]
+    #[ts(rename = "limitedAvailability")]
     pub limited_availability: bool,
+    #[serde(rename = "expiresAt")]
+    #[ts(rename = "expiresAt")]
     pub expires_at: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -119,6 +127,8 @@ pub struct ProviderAuthStatusSetResponse {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
 pub struct ProviderAuthStatusClearParams {
+    #[serde(rename = "providerId")]
+    #[ts(rename = "providerId")]
     pub provider_id: String,
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -128,6 +138,8 @@ pub struct ProviderAuthStatusClearResponse {
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
 pub struct GithubUserStatus {
     pub emoji: Option<String>,
     pub message: Option<String>,
@@ -136,8 +148,11 @@ pub struct GithubUserStatus {
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
 pub struct GithubProfileUser {
     pub login: String,
+    #[ts(type = "number")]
     pub id: i64,
     pub name: Option<String>,
     pub avatar_url: Option<String>,
@@ -147,9 +162,13 @@ pub struct GithubProfileUser {
     pub location: Option<String>,
     pub website_url: Option<String>,
     pub email: Option<String>,
+    #[ts(type = "number")]
     pub followers: i64,
+    #[ts(type = "number")]
     pub following: i64,
+    #[ts(type = "number")]
     pub repository_count: i64,
+    #[ts(type = "number")]
     pub starred_repository_count: i64,
     pub status: Option<GithubUserStatus>,
 }
@@ -161,6 +180,18 @@ pub struct GithubProfileLanguage {
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct GithubProfileOrganization {
+    pub login: String,
+    pub name: Option<String>,
+    pub avatar_url: Option<String>,
+    pub url: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
 pub struct GithubProfileRepository {
     pub id: String,
     pub name: String,
@@ -170,38 +201,55 @@ pub struct GithubProfileRepository {
     pub is_private: bool,
     pub is_fork: bool,
     pub primary_language: Option<GithubProfileLanguage>,
+    #[ts(type = "number")]
     pub stargazer_count: i64,
+    #[ts(type = "number")]
     pub fork_count: i64,
     pub updated_at: String,
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
 pub struct GithubContributionDay {
     pub date: String,
+    #[ts(type = "number")]
     pub count: i64,
     pub color: String,
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
 pub struct GithubContributionWeek {
     pub days: Vec<GithubContributionDay>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
 pub struct GithubContributions {
+    #[ts(type = "number")]
     pub total_contributions: i64,
+    #[ts(type = "number")]
     pub total_commit_contributions: i64,
+    #[ts(type = "number")]
     pub total_issue_contributions: i64,
+    #[ts(type = "number")]
     pub total_pull_request_contributions: i64,
+    #[ts(type = "number")]
     pub total_pull_request_review_contributions: i64,
+    #[ts(type = "number")]
     pub restricted_contributions_count: i64,
     pub weeks: Vec<GithubContributionWeek>,
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
 pub struct GithubProfileOverview {
     pub user: GithubProfileUser,
-    pub organizations: Vec<serde_json::Value>,
+    pub organizations: Vec<GithubProfileOrganization>,
     pub pinned_repositories: Vec<GithubProfileRepository>,
     pub popular_repositories: Vec<GithubProfileRepository>,
     pub contributions: GithubContributions,

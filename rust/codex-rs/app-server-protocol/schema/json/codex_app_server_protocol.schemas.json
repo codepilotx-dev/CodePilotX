@@ -10774,27 +10774,27 @@
       },
       "GithubContributions": {
         "properties": {
-          "restricted_contributions_count": {
+          "restrictedContributionsCount": {
             "format": "int64",
             "type": "integer"
           },
-          "total_commit_contributions": {
+          "totalCommitContributions": {
             "format": "int64",
             "type": "integer"
           },
-          "total_contributions": {
+          "totalContributions": {
             "format": "int64",
             "type": "integer"
           },
-          "total_issue_contributions": {
+          "totalIssueContributions": {
             "format": "int64",
             "type": "integer"
           },
-          "total_pull_request_contributions": {
+          "totalPullRequestContributions": {
             "format": "int64",
             "type": "integer"
           },
-          "total_pull_request_review_contributions": {
+          "totalPullRequestReviewContributions": {
             "format": "int64",
             "type": "integer"
           },
@@ -10806,12 +10806,12 @@
           }
         },
         "required": [
-          "restricted_contributions_count",
-          "total_commit_contributions",
-          "total_contributions",
-          "total_issue_contributions",
-          "total_pull_request_contributions",
-          "total_pull_request_review_contributions",
+          "restrictedContributionsCount",
+          "totalCommitContributions",
+          "totalContributions",
+          "totalIssueContributions",
+          "totalPullRequestContributions",
+          "totalPullRequestReviewContributions",
           "weeks"
         ],
         "type": "object"
@@ -10833,22 +10833,51 @@
         ],
         "type": "object"
       },
+      "GithubProfileOrganization": {
+        "properties": {
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "login": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "login",
+          "url"
+        ],
+        "type": "object"
+      },
       "GithubProfileOverview": {
         "properties": {
           "contributions": {
             "$ref": "#/definitions/v2/GithubContributions"
           },
           "organizations": {
-            "items": true,
+            "items": {
+              "$ref": "#/definitions/v2/GithubProfileOrganization"
+            },
             "type": "array"
           },
-          "pinned_repositories": {
+          "pinnedRepositories": {
             "items": {
               "$ref": "#/definitions/v2/GithubProfileRepository"
             },
             "type": "array"
           },
-          "popular_repositories": {
+          "popularRepositories": {
             "items": {
               "$ref": "#/definitions/v2/GithubProfileRepository"
             },
@@ -10861,8 +10890,8 @@
         "required": [
           "contributions",
           "organizations",
-          "pinned_repositories",
-          "popular_repositories",
+          "pinnedRepositories",
+          "popularRepositories",
           "user"
         ],
         "type": "object"
@@ -10875,26 +10904,26 @@
               "null"
             ]
           },
-          "fork_count": {
+          "forkCount": {
             "format": "int64",
             "type": "integer"
           },
-          "full_name": {
+          "fullName": {
             "type": "string"
           },
           "id": {
             "type": "string"
           },
-          "is_fork": {
+          "isFork": {
             "type": "boolean"
           },
-          "is_private": {
+          "isPrivate": {
             "type": "boolean"
           },
           "name": {
             "type": "string"
           },
-          "primary_language": {
+          "primaryLanguage": {
             "anyOf": [
               {
                 "$ref": "#/definitions/v2/GithubProfileLanguage"
@@ -10904,11 +10933,11 @@
               }
             ]
           },
-          "stargazer_count": {
+          "stargazerCount": {
             "format": "int64",
             "type": "integer"
           },
-          "updated_at": {
+          "updatedAt": {
             "type": "string"
           },
           "url": {
@@ -10916,21 +10945,21 @@
           }
         },
         "required": [
-          "fork_count",
-          "full_name",
+          "forkCount",
+          "fullName",
           "id",
-          "is_fork",
-          "is_private",
+          "isFork",
+          "isPrivate",
           "name",
-          "stargazer_count",
-          "updated_at",
+          "stargazerCount",
+          "updatedAt",
           "url"
         ],
         "type": "object"
       },
       "GithubProfileUser": {
         "properties": {
-          "avatar_url": {
+          "avatarUrl": {
             "type": [
               "string",
               "null"
@@ -10962,7 +10991,7 @@
             "format": "int64",
             "type": "integer"
           },
-          "html_url": {
+          "htmlUrl": {
             "type": "string"
           },
           "id": {
@@ -10984,11 +11013,11 @@
               "null"
             ]
           },
-          "repository_count": {
+          "repositoryCount": {
             "format": "int64",
             "type": "integer"
           },
-          "starred_repository_count": {
+          "starredRepositoryCount": {
             "format": "int64",
             "type": "integer"
           },
@@ -11002,7 +11031,7 @@
               }
             ]
           },
-          "website_url": {
+          "websiteUrl": {
             "type": [
               "string",
               "null"
@@ -11012,11 +11041,11 @@
         "required": [
           "followers",
           "following",
-          "html_url",
+          "htmlUrl",
           "id",
           "login",
-          "repository_count",
-          "starred_repository_count"
+          "repositoryCount",
+          "starredRepositoryCount"
         ],
         "type": "object"
       },
@@ -11028,13 +11057,13 @@
               "null"
             ]
           },
-          "expires_at": {
+          "expiresAt": {
             "type": [
               "string",
               "null"
             ]
           },
-          "indicates_limited_availability": {
+          "indicatesLimitedAvailability": {
             "type": "boolean"
           },
           "message": {
@@ -11045,7 +11074,7 @@
           }
         },
         "required": [
-          "indicates_limited_availability"
+          "indicatesLimitedAvailability"
         ],
         "type": "object"
       },
@@ -15040,12 +15069,12 @@
       "ProviderAuthProfileReadParams": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
-          "provider_id": {
+          "providerId": {
             "type": "string"
           }
         },
         "required": [
-          "provider_id"
+          "providerId"
         ],
         "title": "ProviderAuthProfileReadParams",
         "type": "object"
@@ -15161,12 +15190,12 @@
       "ProviderAuthStatusClearParams": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
-          "provider_id": {
+          "providerId": {
             "type": "string"
           }
         },
         "required": [
-          "provider_id"
+          "providerId"
         ],
         "title": "ProviderAuthStatusClearParams",
         "type": "object"
@@ -15194,27 +15223,27 @@
           "emoji": {
             "type": "string"
           },
-          "expires_at": {
+          "expiresAt": {
             "type": [
               "string",
               "null"
             ]
           },
-          "limited_availability": {
+          "limitedAvailability": {
             "type": "boolean"
           },
           "message": {
             "type": "string"
           },
-          "provider_id": {
+          "providerId": {
             "type": "string"
           }
         },
         "required": [
           "emoji",
-          "limited_availability",
+          "limitedAvailability",
           "message",
-          "provider_id"
+          "providerId"
         ],
         "title": "ProviderAuthStatusSetParams",
         "type": "object"
