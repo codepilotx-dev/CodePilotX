@@ -75,11 +75,11 @@ Measured by the deterministic stress tests on this checkout:
 - Adapter partial updates before final: 1; pending timers: 1.
 - Durable partial history entries: 0; final assistant history entries: 1.
 - Renderer transient workflow entries after 10,000 updates: 1.
-- Latest targeted run: adapter stress 4.67 ms; renderer upsert stress 10.70 ms.
+- Latest targeted run: adapter stress 4.69 ms; renderer upsert stress 11.96 ms.
 
 ## Validation
 
-- Targeted Task 4B suite: 80 passed, 0 failed.
+- Targeted Task 4B suite: 140 passed, 0 failed, 417 assertions.
 - Root `bun run test`: 199 passed, 0 failed, 498 assertions.
 - `bun run desktop:typecheck`: exit 0.
 - `bun run desktop:css:check`: exit 0, zero overlaps.
