@@ -48,6 +48,7 @@ export type SessionViewState = {
   contextUsage: DesktopContextUsage | null
   selectedFile: DesktopFilePreview | null
   closedStreamIds?: Set<string>
+  streamingTerminal?: boolean
 }
 
 export function sessionViewFallbackTitle(

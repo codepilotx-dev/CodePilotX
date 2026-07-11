@@ -42,6 +42,7 @@ export function createEmptySessionView(): SessionViewState {
     contextUsage: null,
     selectedFile: null,
     closedStreamIds: new Set(),
+    streamingTerminal: false,
   }
 }
 

@@ -77,6 +77,13 @@ export function handleSessionAgentEvent(
     if (event.sessionId === activeSessionIdRef.current) {
       setSessionStatus(event.status)
     }
+    if (event.status === 'running') {
+      updateSessionView(event.sessionId, view =>
+        view.streamingTerminal
+          ? { ...view, closedStreamIds: new Set(), streamingTerminal: false }
+          : view,
+      )
+    }
     return
   }
 
@@ -116,6 +123,7 @@ export function handleSessionAgentEvent(
 
   if (event.type === 'partial_message') {
     updateSessionView(event.sessionId, view => {
+      if (view.streamingTerminal) return view
       if (event.streamId && view.closedStreamIds?.has(event.streamId)) return view
       const index = view.messages.findIndex(
         message =>
@@ -253,11 +261,10 @@ export function handleSessionAgentEvent(
     }
     updateSessionView(event.sessionId, view => ({
       ...view,
+      ...terminalStreamCleanup(view),
       pendingPermissions: [],
       messages: [
-        ...view.messages.map(message =>
-          message.streaming ? { ...message, streaming: false } : message,
-        ),
+        ...view.messages.filter(message => !message.streaming),
         {
           id: crypto.randomUUID(),
           role: 'system',
@@ -284,11 +291,35 @@ export function handleSessionAgentEvent(
     }
     updateSessionView(event.sessionId, view => ({
       ...view,
+      ...terminalStreamCleanup(view),
       pendingPermissions: [],
-      messages: view.messages.map(message =>
-        message.streaming ? { ...message, streaming: false } : message,
-      ),
+      messages: view.messages.filter(message => !message.streaming),
     }))
+  }
+}
+
+export function terminalStreamCleanup<T extends { type: string; metadata?: Record<string, unknown> }>(view: {
+  events: T[]
+  messages: Message[]
+  closedStreamIds?: Set<string>
+}): {
+  events: T[]
+  closedStreamIds: Set<string>
+  streamingTerminal: true
+} {
+  const activeIds = new Set(view.closedStreamIds ?? [])
+  for (const message of view.messages) {
+    if (message.streaming && message.streamId) activeIds.add(message.streamId)
+  }
+  for (const event of view.events) {
+    if (event.type === 'assistant_delta' && typeof event.metadata?.streamId === 'string') {
+      activeIds.add(event.metadata.streamId)
+    }
+  }
+  return {
+    events: view.events.filter(event => event.type !== 'assistant_delta'),
+    closedStreamIds: activeIds,
+    streamingTerminal: true,
   }
 }
 
