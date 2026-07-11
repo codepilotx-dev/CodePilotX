@@ -22,6 +22,7 @@ import {
 } from './rustSidecarRuntime.js'
 import type { DesktopAgentRuntimeContext } from './agentRuntime.js'
 import type { DesktopPermissionDecision } from '../shared/types.js'
+import { RustJsonRpcError } from './rustLineJsonRpcClient.js'
 
 /** Temporarily set process.env[key] and restore on dispose. */
 function withEnv(key: string, value: string): Disposable {
@@ -990,6 +991,38 @@ describe('RustSidecarDesktopAgentRuntime duplicate tool_start guard', () => {
 // ── Thread start params ───────────────────────────────────────────
 
 describe('RustSidecarDesktopAgentRuntime threadStartParams', () => {
+	test('carries pending permission and collaboration settings into thread start and resume', () => {
+	  const runtime = new RustSidecarDesktopAgentRuntime({
+	    sessionId: 'test-session',
+	    workspacePath: process.cwd(),
+	    appServerThreadId: 'thread-persisted',
+	    permissionProfile: ':workspace',
+	    approvalPolicy: 'on-request',
+	    approvalsReviewer: 'auto_review',
+	    collaborationMode: { mode: 'plan' },
+	    model: 'test-model',
+	    emit: () => {},
+	    requestPermission: async () => ({ behavior: 'deny' }),
+	  })
+
+	  const internals = runtime as unknown as {
+	    buildThreadStartParams: () => Record<string, unknown>
+	    buildThreadResumeParams: () => Record<string, unknown>
+	  }
+
+	  expect(internals.buildThreadStartParams()).toMatchObject({
+	    model: 'test-model',
+	    approvalPolicy: 'on-request',
+	    sandbox: ':workspace',
+	  })
+	  expect(internals.buildThreadResumeParams()).toMatchObject({
+	    threadId: 'thread-persisted',
+	    model: 'test-model',
+	    approvalPolicy: 'on-request',
+	    approvalsReviewer: 'auto_review',
+	    collaborationMode: { mode: 'plan' },
+	  })
+	})
 	  test('does not include dynamicTools field', () => {
 	    const runtime = new RustSidecarDesktopAgentRuntime({
 	      sessionId: 'test-session',
@@ -1062,6 +1095,126 @@ describe('RustSidecarDesktopAgentRuntime threadStartParams', () => {
       expect.objectContaining({ ephemeral: false }),
     )
     expect(result.thread.id).toBe('thread-new')
+  })
+})
+
+describe('RustSidecarDesktopAgentRuntime steering and settings', () => {
+  test('steers the active turn with expectedTurnId', async () => {
+    const steerTurn = mock(async () => ({ turnId: 'turn-1' }))
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const internals = runtime as unknown as {
+      initialized: boolean
+      appServerClient: { steerTurn: typeof steerTurn }
+      workflowState: { threadId: string | null; activeTurnId: string | null; activeTurnKind: string | null }
+    }
+    internals.initialized = true
+    internals.appServerClient = { steerTurn }
+    internals.workflowState.threadId = 'thread-1'
+    internals.workflowState.activeTurnId = 'turn-1'
+    internals.workflowState.activeTurnKind = 'regular'
+
+    await expect(runtime.steerUserTurn('follow up')).resolves.toBe('steered')
+    expect(steerTurn).toHaveBeenCalledWith(expect.objectContaining({
+      threadId: 'thread-1',
+      expectedTurnId: 'turn-1',
+      input: [{ type: 'text', text: 'follow up', text_elements: [] }],
+    }))
+  })
+
+  test('returns queueRequired only for non-steerable turns', async () => {
+    const steerTurn = mock(async () => {
+      throw new RustJsonRpcError(-32602, 'Active turn is not steerable', {
+        type: 'activeTurnNotSteerable',
+      })
+    })
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const internals = runtime as unknown as {
+      initialized: boolean
+      appServerClient: { steerTurn: typeof steerTurn }
+      workflowState: { threadId: string | null; activeTurnId: string | null; activeTurnKind: string | null }
+    }
+    internals.initialized = true
+    internals.appServerClient = { steerTurn }
+    internals.workflowState.threadId = 'thread-1'
+    internals.workflowState.activeTurnId = 'turn-1'
+    internals.workflowState.activeTurnKind = 'regular'
+
+    await expect(runtime.steerUserTurn('follow up')).resolves.toBe('queueRequired')
+
+    steerTurn.mockImplementation(async () => {
+      throw new RustJsonRpcError(-32000, 'transport failed', { type: 'other' })
+    })
+    await expect(runtime.steerUserTurn('follow up')).rejects.toThrow('transport failed')
+  })
+
+  test('does not steer review or compact active turns', async () => {
+    const steerTurn = mock(async () => ({ turnId: 'turn-1' }))
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const internals = runtime as unknown as {
+      initialized: boolean
+      appServerClient: { steerTurn: typeof steerTurn }
+      workflowState: { threadId: string | null; activeTurnId: string | null; activeTurnKind: string | null }
+    }
+    internals.initialized = true
+    internals.appServerClient = { steerTurn }
+    internals.workflowState.threadId = 'thread-1'
+    internals.workflowState.activeTurnId = 'turn-1'
+    internals.workflowState.activeTurnKind = 'review'
+
+    await expect(runtime.steerUserTurn('follow up')).resolves.toBe('queueRequired')
+    internals.workflowState.activeTurnKind = 'compact'
+    await expect(runtime.steerUserTurn('follow up')).resolves.toBe('queueRequired')
+    expect(steerTurn).not.toHaveBeenCalled()
+  })
+
+  test('thread settings update is an acknowledgement and notification is authoritative', async () => {
+    const updateThreadSettings = mock(async () => ({}))
+    const received: unknown[] = []
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-session',
+      workspacePath: process.cwd(),
+      onThreadSettingsUpdated: settings => received.push(settings),
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const internals = runtime as unknown as {
+      initialized: boolean
+      appServerClient: { updateThreadSettings: typeof updateThreadSettings }
+      workflowState: { threadId: string | null }
+      handleNotification: (method: string, params: unknown) => void
+    }
+    internals.initialized = true
+    internals.appServerClient = { updateThreadSettings }
+    internals.workflowState.threadId = 'thread-1'
+
+    await runtime.setModel('new-model')
+    expect(received).toEqual([])
+
+    const threadSettings = {
+      cwd: process.cwd(), approvalPolicy: 'on-request', approvalsReviewer: 'user',
+      sandboxPolicy: {}, activePermissionProfile: null, model: 'new-model',
+      modelProvider: 'test', serviceTier: null, effort: null, summary: null,
+      collaborationMode: { mode: 'default' }, multiAgentMode: null, personality: null,
+    }
+    internals.handleNotification('thread/settings/updated', {
+      threadId: 'thread-1', threadSettings,
+    })
+    expect(received).toEqual([threadSettings])
   })
 })
 

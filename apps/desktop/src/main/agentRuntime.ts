@@ -71,19 +71,36 @@ export type DesktopAgentRuntimeContext = {
   rustSearchAndDiffKernels?: boolean
   serializeHeadlessTurns?: boolean
   onAppServerThreadId?: (threadId: string) => void
+  onThreadSettingsUpdated?: (settings: import('./rustAppServerProtocol/index.js').ThreadSettings) => void
+  onThreadGoalUpdated?: (goal: import('./rustAppServerProtocol/index.js').ThreadGoal) => void
+  onThreadGoalCleared?: () => void
   emit(event: DesktopAgentEvent): void
   requestPermission(request: DesktopPermissionRequest): Promise<DesktopPermissionDecision>
 }
 
 export type DesktopAgentRuntime = {
-  setModel(model: string | undefined): void
+  setModel(model: string | undefined): void | Promise<void>
   setModelProvider(
     providerID: string | undefined,
     model: string | undefined,
     providerBaseURL: string | undefined,
   ): void
-  setPermissionMode(permissionMode: DesktopPermissionMode): void
-  setPlanModeActive(active: boolean): void
+  setPermissionMode(permissionMode: DesktopPermissionMode): void | Promise<void>
+  setPlanModeActive(active: boolean): void | Promise<void>
+  steerUserTurn?(
+    content: DesktopUserMessageContent,
+  ): Promise<'steered' | 'queueRequired'>
+  compactThread?(signal: AbortSignal): Promise<void>
+  getThreadGoal?(): Promise<import('./rustAppServerProtocol/index.js').ThreadGoal | null>
+  setThreadGoal?(input: {
+    objective?: string | null
+    status?: import('../shared/types.js').DesktopThreadGoalStatus | null
+  }): Promise<import('./rustAppServerProtocol/index.js').ThreadGoal>
+  clearThreadGoal?(): Promise<boolean>
+  runReview?(
+    target: import('../shared/types.js').DesktopAiReviewTarget,
+    signal: AbortSignal,
+  ): Promise<void>
   setDebugConversationDump(enabled: boolean): void
   runUserTurn(content: DesktopUserMessageContent, signal: AbortSignal): Promise<void>
   runControlResponse(

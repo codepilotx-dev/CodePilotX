@@ -188,6 +188,32 @@ test('workspace-write policy still prompts for sensitive workspace paths', () =>
   }
 })
 
+test('steerUserMessage bypasses the ordinary concurrent-turn guard and emits user text only when steered', async () => {
+  const events: DesktopAgentEvent[] = []
+  const steerUserTurn = async () => 'steered' as const
+  const session = createDesktopAgentSession(
+    { workspacePath: process.cwd() },
+    { createRuntime: () => ({
+      setModel: async () => {},
+      setModelProvider: () => {},
+      setDebugConversationDump: () => {},
+      setPermissionMode: async () => {},
+      setPlanModeActive: async () => {},
+      steerUserTurn,
+      runUserTurn: async () => {},
+      runControlResponse: async () => {},
+      getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+      refreshMcpConfig: async () => 'not_loaded',
+    }) },
+  )
+  session.on('event', event => events.push(event))
+
+  await expect(session.steerUserMessage('next', 'next')).resolves.toBe('steered')
+  expect(events).toContainEqual(expect.objectContaining({
+    type: 'message', role: 'user', text: 'next',
+  }))
+})
+
 test('workspace-write policy still prompts for network paths', () => {
   const workspacePath = resolve('tmp', 'desktop-workspace')
   const request = {

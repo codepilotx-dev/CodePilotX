@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import type { DesktopGitOperationResult } from '../shared/types.js'
@@ -134,6 +134,136 @@ function validateRestorePaths(
     if (baseline.files[path] === undefined) continue
   }
   return uniquePaths
+}
+
+export type FileState =
+  | { existed: true; content: Buffer }
+  | { existed: false }
+
+export type StoredTurnRestore = {
+  workspacePath: string
+  before: Record<string, FileState>
+  after: Record<string, FileState>
+  paths: string[]
+}
+
+/**
+ * Capture the current state of files at given paths.
+ * Returns a map of path → FileState.
+ */
+export async function capturePathStates(
+  workspacePath: string,
+  paths: string[],
+): Promise<Record<string, FileState>> {
+  const states: Record<string, FileState> = {}
+  await Promise.all(
+    paths.map(async path => {
+      const absolutePath = resolve(workspacePath, path)
+      try {
+        await stat(absolutePath)
+        states[path] = {
+          existed: true,
+          content: await readFile(absolutePath),
+        }
+      } catch {
+        states[path] = { existed: false }
+      }
+    }),
+  )
+  return states
+}
+
+/**
+ * Preflight check for restoring a chain of turn states.
+ * Returns the target state to apply, or a conflict error.
+ */
+export function preflightTurnRestoreChain(
+  entries: StoredTurnRestore[],
+  current: Record<string, FileState>,
+): { ok: true; target: Record<string, FileState> }
+ | { ok: false; error: string; conflicts: string[] } {
+  if (entries.length === 0) {
+    return { ok: false, error: 'No restore entries to apply.', conflicts: [] }
+  }
+
+  const conflicts: string[] = []
+
+  // Check each file against the latest "after" state
+  for (const [path, currentState] of Object.entries(current)) {
+    // Find the last entry that references this path
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const afterState = entries[i].after[path]
+      if (afterState !== undefined) {
+        // Compare current state with after state
+        const currentExisted = currentState.existed
+        const afterExisted = afterState.existed
+        if (currentExisted !== afterExisted) {
+          conflicts.push(path)
+        } else if (currentExisted && afterExisted) {
+          const currentBuffer = currentState.content
+          const afterBuffer = afterState.content
+          if (!currentBuffer.equals(afterBuffer)) {
+            conflicts.push(path)
+          }
+        }
+        break
+      }
+    }
+  }
+
+  if (conflicts.length > 0) {
+    return {
+      ok: false,
+      error: `File conflict(s) detected: ${conflicts.join(', ')}. Current state differs from expected after-rollback state.`,
+      conflicts,
+    }
+  }
+
+  // Target is the "before" state of the first entry in the chain
+  const target: Record<string, FileState> = {}
+  for (const entry of entries) {
+    for (const [path, state] of Object.entries(entry.before)) {
+      if (target[path] === undefined) {
+        target[path] = state
+      }
+    }
+  }
+
+  return { ok: true, target }
+}
+
+/**
+ * Apply a set of file states to the workspace.
+ * Creates missing parent directories as needed.
+ */
+export async function applyPathStates(
+  workspacePath: string,
+  states: Record<string, FileState>,
+): Promise<void> {
+  await Promise.all(
+    Object.entries(states).map(async ([path, state]) => {
+      const absolutePath = resolve(workspacePath, path)
+      if (state.existed) {
+        await mkdir(dirname(absolutePath), { recursive: true })
+        await writeFile(absolutePath, state.content)
+      } else {
+        await rm(absolutePath, { force: true, recursive: true })
+      }
+    }),
+  )
+}
+
+/**
+ * Get the union of all restore paths across multiple entries.
+ */
+export function unionRestorePaths(entries: StoredTurnRestore[]): string[] {
+  const pathSet = new Set<string>()
+  for (const entry of entries) {
+    for (const path of entry.paths) {
+      pathSet.add(path)
+    }
+  }
+  return [...pathSet]
 }
 
 async function filterTrackedPaths(

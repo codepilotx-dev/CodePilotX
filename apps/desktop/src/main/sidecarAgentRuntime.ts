@@ -113,6 +113,10 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     this.context.debugConversationDump = enabled
   }
 
+  async steerUserTurn(): Promise<'queueRequired'> {
+    return 'queueRequired'
+  }
+
   async runUserTurn(
     content: DesktopUserMessageContent,
     signal: AbortSignal,

@@ -29,13 +29,16 @@ import {
   buildSidecarEnv,
   type SidecarManagerOptions,
 } from './sidecarManager.js'
-import { RustLineJsonRpcClient } from './rustLineJsonRpcClient.js'
+import { RustJsonRpcError, RustLineJsonRpcClient } from './rustLineJsonRpcClient.js'
+import type { ReviewTarget } from './rustAppServerProtocol/index.js'
 import { RustAppServerClient } from './rustAppServerClient.js'
 import type {
   ThreadStartParams,
   ThreadStartResponse,
   ThreadResumeParams,
   ThreadResumeResponse,
+  ThreadSettingsUpdateParams,
+  ThreadSettingsUpdatedNotification,
   InitializeParams,
   InitializeResponse,
 } from './rustAppServerProtocol/index.js'
@@ -77,6 +80,77 @@ type DynamicToolCallResponse = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isActiveTurnNotSteerable(error: unknown): boolean {
+  if (!(error instanceof RustJsonRpcError)) return false
+  const data = isRecord(error.data) ? error.data : null
+  return (
+    data?.type === 'activeTurnNotSteerable' ||
+    error.message.toLowerCase().includes('not steerable')
+  )
+}
+
+function isUnsupportedThreadSettingsUpdate(error: unknown): boolean {
+  return (
+    error instanceof RustJsonRpcError &&
+    (error.code === -32601 || error.message.toLowerCase().includes('method not found'))
+  )
+}
+
+function normalizeReviewTarget(
+  target: import('../shared/types.js').DesktopAiReviewTarget,
+): ReviewTarget {
+  switch (target.type) {
+    case 'uncommittedChanges':
+      return { type: 'uncommittedChanges' }
+    case 'baseBranch':
+      return { type: 'baseBranch', branch: target.branch.trim() }
+    case 'commit':
+      return {
+        type: 'commit',
+        sha: target.sha.trim(),
+        title: target.title?.trim() || null,
+      }
+    case 'custom':
+      return { type: 'custom', instructions: target.instructions.trim() }
+  }
+}
+
+function settingsForPermissionMode(
+  mode: DesktopPermissionMode,
+  context: DesktopAgentRuntimeContext,
+): Omit<ThreadSettingsUpdateParams, 'threadId'> {
+  switch (mode) {
+    case 'auto-review':
+      return {
+        permissions: ':workspace',
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'auto_review',
+      }
+    case 'full-access':
+      return {
+        permissions: ':danger-full-access',
+        approvalPolicy: 'never',
+        approvalsReviewer: 'user',
+      }
+    case 'custom':
+      return {
+        permissions: context.permissionProfile ?? ':workspace',
+        approvalPolicy: context.approvalPolicy ?? 'on-request',
+        approvalsReviewer:
+          context.approvalsReviewer === 'auto'
+            ? 'auto_review'
+            : (context.approvalsReviewer ?? 'user'),
+      }
+    case 'default':
+    default:
+      return {
+        permissions: ':workspace',
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'user',
+      }
+  }
 }
 
 /** Preserve compatibility with future clients that can return a cancellation. */
@@ -406,8 +480,9 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
 
   constructor(private readonly context: DesktopAgentRuntimeContext) {}
 
-  setModel(model: string | undefined): void {
+  async setModel(model: string | undefined): Promise<void> {
     this.context.model = model
+    await this.pushThreadSettings({ model: model ?? null })
   }
 
   setModelProvider(
@@ -423,7 +498,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
           normalizeOptionalRuntimeText(this.activeProviderBaseURL))
     this.context.providerID = providerID
     this.context.providerBaseURL = providerBaseURL
-    this.setModel(model)
+    this.context.model = model
     if (providerChanged) {
       this.pendingProviderChange = true
       desktopDebug('rust_provider_change_pending', {
@@ -433,10 +508,143 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     }
   }
 
-  setPermissionMode(_permissionMode: DesktopPermissionMode): void {}
+  async setPermissionMode(permissionMode: DesktopPermissionMode): Promise<void> {
+    this.context.permissionMode = permissionMode
+    const settings = settingsForPermissionMode(permissionMode, this.context)
+    this.context.permissionProfile = settings.permissions ?? undefined
+    this.context.approvalPolicy = (settings.approvalPolicy ?? undefined) as
+      | DesktopAgentRuntimeContext['approvalPolicy']
+    this.context.approvalsReviewer = (settings.approvalsReviewer ?? undefined) as
+      | DesktopAgentRuntimeContext['approvalsReviewer']
+    await this.pushThreadSettings(settings)
+  }
 
-  setPlanModeActive(active: boolean): void {
+  async setPlanModeActive(active: boolean): Promise<void> {
     this.planModeActive = active
+    this.context.planModeActive = active
+    this.context.collaborationMode = { mode: active ? 'plan' : 'default' }
+    await this.pushThreadSettings({
+      collaborationMode: this.context.collaborationMode,
+    })
+  }
+
+  async steerUserTurn(
+    content: DesktopUserMessageContent,
+  ): Promise<'steered' | 'queueRequired'> {
+    await this.ensureThreadLoaded()
+    const expectedTurnId = this.workflowState.activeTurnId
+    if (!expectedTurnId) return 'queueRequired'
+    if (
+      this.workflowState.activeTurnKind === 'review' ||
+      this.workflowState.activeTurnKind === 'compact'
+    ) {
+      return 'queueRequired'
+    }
+    try {
+      await this.appServerClient!.steerTurn({
+        threadId: this.workflowState.threadId!,
+        expectedTurnId,
+        clientUserMessageId: randomUUID(),
+        input: this.buildUserInputFromContent(content),
+      })
+      return 'steered'
+    } catch (error) {
+      if (isActiveTurnNotSteerable(error)) return 'queueRequired'
+      throw error
+    }
+  }
+
+  async runReview(
+    target: import('../shared/types.js').DesktopAiReviewTarget,
+    signal: AbortSignal,
+  ): Promise<void> {
+    await this.ensureThreadLoaded()
+    this.workflowState.activeTurnKind = 'review'
+    this.currentTurnPromise = new Promise<void>((resolve, reject) => {
+      this.currentTurnResolve = resolve
+      this.currentTurnReject = reject
+    })
+    this.pendingTurnSignal = signal
+    const abortHandler = () => {
+      this.interruptActiveTurn().catch(() => {})
+    }
+    signal.addEventListener('abort', abortHandler, { once: true })
+    try {
+      const response = await this.appServerClient!.startReview({
+        threadId: this.workflowState.threadId!,
+        delivery: 'inline',
+        target: normalizeReviewTarget(target),
+      })
+      if (response.reviewThreadId !== this.workflowState.threadId) {
+        throw new Error('AI 审查意外运行在独立 Thread。')
+      }
+      this.workflowState.activeTurnId = response.turn.id
+      await this.currentTurnPromise
+    } finally {
+      this.currentTurnPromise = null
+      this.currentTurnResolve = null
+      this.currentTurnReject = null
+      signal.removeEventListener('abort', abortHandler)
+      this.pendingTurnSignal = null
+    }
+  }
+
+  async compactThread(signal: AbortSignal): Promise<void> {
+    await this.ensureThreadLoaded()
+    if (this.workflowState.activeTurnId) {
+      throw new Error('当前会话正在运行，无法压缩上下文。')
+    }
+    this.workflowState.activeTurnKind = 'compact'
+    this.currentTurnPromise = new Promise<void>((resolve, reject) => {
+      this.currentTurnResolve = resolve
+      this.currentTurnReject = reject
+    })
+    this.pendingTurnSignal = signal
+    const abortHandler = () => {
+      this.interruptActiveTurn().catch(() => {})
+    }
+    signal.addEventListener('abort', abortHandler, { once: true })
+    try {
+      await this.appServerClient!.compactThread({
+        threadId: this.workflowState.threadId!,
+      })
+      await this.currentTurnPromise
+    } finally {
+      this.currentTurnPromise = null
+      this.currentTurnResolve = null
+      this.currentTurnReject = null
+      signal.removeEventListener('abort', abortHandler)
+      this.pendingTurnSignal = null
+    }
+  }
+
+  async getThreadGoal(): Promise<import('./rustAppServerProtocol/index.js').ThreadGoal | null> {
+    await this.ensureThreadLoaded()
+    const response = await this.appServerClient!.getThreadGoal({
+      threadId: this.workflowState.threadId!,
+    })
+    return response.goal ?? null
+  }
+
+  async setThreadGoal(input: {
+    objective?: string | null
+    status?: import('../shared/types.js').DesktopThreadGoalStatus | null
+  }): Promise<import('./rustAppServerProtocol/index.js').ThreadGoal> {
+    await this.ensureThreadLoaded()
+    const response = await this.appServerClient!.setThreadGoal({
+      threadId: this.workflowState.threadId!,
+      objective: input.objective ?? null,
+      status: input.status as import('./rustAppServerProtocol/index.js').ThreadGoalStatus | null ?? null,
+    })
+    return response.goal
+  }
+
+  async clearThreadGoal(): Promise<boolean> {
+    await this.ensureThreadLoaded()
+    const response = await this.appServerClient!.clearThreadGoal({
+      threadId: this.workflowState.threadId!,
+    })
+    return response.cleared
   }
 
   setDebugConversationDump(enabled: boolean): void {
@@ -844,6 +1052,35 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     this.context.onAppServerThreadId?.(threadResult.thread.id)
   }
 
+  private async ensureThreadLoaded(): Promise<void> {
+    if (!this.initialized) await this.startAppServer()
+    if (!this.appServerClient || !this.workflowState.threadId) {
+      throw new Error('Rust app-server thread is not available.')
+    }
+  }
+
+  private async pushThreadSettings(
+    patch: Omit<ThreadSettingsUpdateParams, 'threadId'>,
+  ): Promise<void> {
+    if (!this.initialized || !this.appServerClient || !this.workflowState.threadId) {
+      return
+    }
+    try {
+      await this.appServerClient.updateThreadSettings({
+        threadId: this.workflowState.threadId,
+        ...patch,
+      })
+    } catch (error) {
+      if (isUnsupportedThreadSettingsUpdate(error)) {
+        desktopDebug('rust_thread_settings_update_deferred', {
+          keys: Object.keys(patch),
+        })
+        return
+      }
+      throw error
+    }
+  }
+
   private async startOrResumeThread(
     persistedThreadId: string | null,
   ): Promise<ThreadStartResponse | ThreadResumeResponse> {
@@ -897,6 +1134,24 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   private handleNotification(method: string, params: unknown): void {
+	    if (method === 'thread/settings/updated') {
+	      const notification = params as ThreadSettingsUpdatedNotification
+	      if (notification?.threadId === this.workflowState.threadId) {
+	        this.context.onThreadSettingsUpdated?.(notification.threadSettings)
+	      }
+	    }
+	    if (method === 'thread/goal/updated') {
+	      const notification = params as { threadId: string; turnId: string | null; goal: import('./rustAppServerProtocol/index.js').ThreadGoal }
+	      if (notification?.threadId === this.workflowState.threadId) {
+	        this.context.onThreadGoalUpdated?.(notification.goal)
+	      }
+	    }
+	    if (method === 'thread/goal/cleared') {
+	      const notification = params as { threadId: string }
+	      if (notification?.threadId === this.workflowState.threadId) {
+	        this.context.onThreadGoalCleared?.()
+	      }
+	    }
 	    handleServerNotification(
 	      method,
 	      params,
@@ -1093,6 +1348,8 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       model: this.context.model ?? undefined,
       modelProvider: this.context.providerID ?? undefined,
       cwd: this.context.workspacePath,
+      approvalPolicy: this.context.approvalPolicy ?? undefined,
+      sandbox: this.context.permissionProfile ?? undefined,
       ephemeral: false,
     }
   }
@@ -1101,6 +1358,12 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     return {
       threadId: normalizeOptionalRuntimeText(this.context.appServerThreadId) ?? '',
       cwd: this.context.workspacePath,
+      model: this.context.model ?? undefined,
+      modelProvider: this.context.providerID ?? undefined,
+      approvalPolicy: this.context.approvalPolicy ?? undefined,
+      approvalsReviewer: this.context.approvalsReviewer ?? undefined,
+      sandbox: this.context.permissionProfile ?? undefined,
+      collaborationMode: this.context.collaborationMode ?? undefined,
     }
   }
 

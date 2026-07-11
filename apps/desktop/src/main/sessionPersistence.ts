@@ -576,6 +576,8 @@ export function createDesktopSessionSnapshot(params: {
       collaborationMode: params.settings.collaborationMode,
       planModeActive: params.settings.planModeActive === true,
       model: params.settings.model ?? null,
+      effort: params.settings.effort,
+      personality: params.settings.personality,
       reviewModel: params.settings.reviewModel ?? null,
       thinkingMode: params.settings.thinkingMode,
       hasSystemPrompt: Boolean(params.settings.systemPrompt),

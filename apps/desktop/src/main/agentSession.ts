@@ -61,12 +61,15 @@ export type DesktopAgentSessionRuntimeOptions = {
   createRuntime?: (context: DesktopAgentRuntimeContext) => DesktopAgentRuntime
   autoReviewService?: DesktopAutoReviewService
   onAppServerThreadId?: (threadId: string) => void
+  onThreadSettingsUpdated?: DesktopAgentRuntimeContext['onThreadSettingsUpdated']
+  onThreadGoalUpdated?: DesktopAgentRuntimeContext['onThreadGoalUpdated']
+  onThreadGoalCleared?: DesktopAgentRuntimeContext['onThreadGoalCleared']
 }
 
 export type DesktopAgentSession = {
   sessionId: string
   workspacePath: string
-  setModel(model: string | undefined): void
+  setModel(model: string | undefined): Promise<void>
   setModelProvider(
     providerID: string | undefined,
     model: string | undefined,
@@ -74,8 +77,12 @@ export type DesktopAgentSession = {
   ): void
   setDebugConversationDump(enabled: boolean): void
   setPermissionProfile(profile: string, approvalPolicy?: DesktopApprovalPolicy): void
-  setPermissionMode(permissionMode: NonNullable<CreateDesktopSessionOptions['permissionMode']>): void
-  setPlanModeActive(planModeActive: boolean): void
+  setPermissionMode(permissionMode: NonNullable<CreateDesktopSessionOptions['permissionMode']>): Promise<void>
+  setPlanModeActive(planModeActive: boolean): Promise<void>
+  steerUserMessage(
+    content: DesktopUserMessageContent,
+    previewText: string,
+  ): Promise<'steered' | 'queueRequired'>
   sendUserMessage(content: DesktopUserMessageContent, previewText: string): Promise<void>
   respondToPermission(
     requestId: string,
@@ -85,6 +92,12 @@ export type DesktopAgentSession = {
     request: DesktopPermissionRequest,
     decision: DesktopPermissionDecision,
   ): Promise<void>
+  getThreadGoal(): Promise<import('./rustAppServerProtocol/index.js').ThreadGoal | null>
+  setThreadGoal(input: {
+    objective?: string | null
+    status?: import('../shared/types.js').DesktopThreadGoalStatus | null
+  }): Promise<import('./rustAppServerProtocol/index.js').ThreadGoal>
+  clearThreadGoal(): Promise<boolean>
   respondToRecoveredExitPlanMode(
     request: DesktopPermissionRequest,
     decision: DesktopPermissionDecision,
@@ -195,6 +208,9 @@ class LocalDesktopAgentSession
       enableMemory: options.enableMemory,
       rustSearchAndDiffKernels: options.rustSearchAndDiffKernels,
       onAppServerThreadId: runtimeOptions.onAppServerThreadId,
+      onThreadSettingsUpdated: runtimeOptions.onThreadSettingsUpdated,
+      onThreadGoalUpdated: runtimeOptions.onThreadGoalUpdated,
+      onThreadGoalCleared: runtimeOptions.onThreadGoalCleared,
       emit: event => this.emitEvent(event),
       requestPermission: request => this.requestPermission(request),
     })
@@ -210,10 +226,10 @@ class LocalDesktopAgentSession
     })
   }
 
-  setModel(model: string | undefined): void {
+  async setModel(model: string | undefined): Promise<void> {
     const previousModel = this.model
     this.model = model
-    this.runtime.setModel(model)
+    await this.runtime.setModel(model)
     this.emitModelSwitchNotice(previousModel, model)
   }
 
@@ -244,23 +260,23 @@ class LocalDesktopAgentSession
     })
   }
 
-  setPermissionMode(
+  async setPermissionMode(
     permissionMode: NonNullable<CreateDesktopSessionOptions['permissionMode']>,
-  ): void {
+  ): Promise<void> {
     this.permissionMode = permissionMode
-    this.runtime.setPermissionMode(permissionMode)
+    await this.runtime.setPermissionMode(permissionMode)
     desktopDebug('session_permission_mode_changed', {
       sessionId: this.sessionId,
       permissionMode,
     })
   }
 
-  setPlanModeActive(planModeActive: boolean): void {
+  async setPlanModeActive(planModeActive: boolean): Promise<void> {
     this.collaborationMode = resolveCodePilotXCollaborationMode({ planModeActive })
     this.planModeActive = planModeActiveFromCollaborationMode(
       this.collaborationMode,
     )
-    this.runtime.setPlanModeActive(planModeActive)
+    await this.runtime.setPlanModeActive(planModeActive)
     desktopDebug('session_plan_mode_changed', {
       sessionId: this.sessionId,
       planModeActive,
@@ -316,6 +332,7 @@ class LocalDesktopAgentSession
       })
       this.emitEvent({ type: 'error', sessionId: this.sessionId, message })
       this.emitStatus('error')
+      throw error
     } finally {
       if (this.currentAbortController === abortController) {
         this.currentAbortController = null
@@ -323,7 +340,64 @@ class LocalDesktopAgentSession
     }
   }
 
-  async respondToPermission(
+  async steerUserMessage(
+    content: DesktopUserMessageContent,
+    previewText: string,
+  ): Promise<'steered' | 'queueRequired'> {
+    this.assertActive()
+    const outcome = this.runtime.steerUserTurn
+      ? await this.runtime.steerUserTurn(content)
+      : 'queueRequired'
+    if (outcome === 'steered') {
+      this.emitMessage('user', previewText)
+    }
+    return outcome
+  }
+
+	getThreadGoal(): Promise<import('./rustAppServerProtocol/index.js').ThreadGoal | null> {
+	  return this.runtime.getThreadGoal
+	    ? this.runtime.getThreadGoal()
+	    : Promise.resolve(null)
+	}
+
+	setThreadGoal(
+	  input: {
+	    objective?: string | null
+	    status?: import('../shared/types.js').DesktopThreadGoalStatus | null
+	  },
+	): Promise<import('./rustAppServerProtocol/index.js').ThreadGoal> {
+	  if (!this.runtime.setThreadGoal) {
+	    throw new Error('This runtime does not support thread goals.')
+	  }
+	  return this.runtime.setThreadGoal(input)
+	}
+
+	clearThreadGoal(): Promise<boolean> {
+	  return this.runtime.clearThreadGoal
+	    ? this.runtime.clearThreadGoal()
+	    : Promise.resolve(false)
+	}
+
+	async compactThread(signal: AbortSignal): Promise<void> {
+	  this.assertActive()
+	  if (!this.runtime.compactThread) {
+	    throw new Error('This runtime does not support thread compaction.')
+	  }
+	  await this.runtime.compactThread(signal)
+	}
+
+	async startReview(
+	  target: import('../shared/types.js').DesktopAiReviewTarget,
+	  signal: AbortSignal,
+	): Promise<void> {
+	  this.assertActive()
+	  if (!this.runtime.runReview) {
+	    throw new Error('This runtime does not support AI review.')
+	  }
+	  await this.runtime.runReview(target, signal)
+	}
+
+	async respondToPermission(
     requestId: string,
     decision: DesktopPermissionDecision,
   ): Promise<void> {
@@ -400,7 +474,7 @@ class LocalDesktopAgentSession
       throw new Error('ExitPlanMode recovery requires a plan.')
     }
 
-    this.setPlanModeActive(false)
+    await this.setPlanModeActive(false)
     if (decision.planExecutionProviderID) {
       this.setModelProvider(
         decision.planExecutionProviderID,
@@ -408,7 +482,7 @@ class LocalDesktopAgentSession
         decision.planExecutionProviderBaseURL,
       )
     } else if (decision.planExecutionModel) {
-      this.setModel(decision.planExecutionModel)
+      await this.setModel(decision.planExecutionModel)
     }
     await this.sendUserMessage(
       buildRecoveredExitPlanModePrompt(plan),
