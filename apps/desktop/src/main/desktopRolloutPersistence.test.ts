@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises'
+import { appendFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { expect, test } from 'bun:test'
@@ -62,7 +62,7 @@ test('rollout append retry recognizes a fully-written batch after append reports
     })
     const persisted = await readFile(rolloutPath, 'utf8')
     expect(persisted.match(/"content":"new"/g)).toHaveLength(1)
-    expect(await fileExists(`${rolloutPath}.desktop-recovery.json`)).toBe(false)
+    expect(await fileExists(`${rolloutPath}.desktop-recovery.json`)).toBe(true)
   })
 })
 
@@ -97,12 +97,7 @@ test('rollout retry skips a partial tail and loader returns each completed batch
     await writeFile(rolloutPath, intended.slice(0, 41), 'utf8')
     await writeFile(
       `${rolloutPath}.desktop-recovery.json`,
-      JSON.stringify({
-        batchId: 'batch-partial',
-        originalSize: 0,
-        byteLength: Buffer.byteLength(intended),
-        sha256: createHash('sha256').update(intended).digest('hex'),
-      }),
+      JSON.stringify(recoveryJournalFor(rolloutPath, 'batch-partial', intended)),
       'utf8',
     )
     await appendDesktopRolloutItems(rolloutPath, items, {
@@ -150,10 +145,123 @@ test('rollout append reclaims a stale lock and removes it after writing', async 
     const rolloutPath = join(dir, 'session.rollout.jsonl')
     const lockPath = `${rolloutPath}.desktop-lock`
     await mkdir(lockPath)
-    const old = new Date(Date.now() - 60_000)
-    await utimes(lockPath, old, old)
-    await appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'ok' })])
+    await writeFile(join(lockPath, 'owner.json'), JSON.stringify({
+      token: 'dead-owner', pid: 999_999, heartbeat: Date.now() - 60_000,
+    }))
+    await appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'ok' })], {
+      lockOptions: { staleMs: 10, retryDelaysMs: [0, 0], isProcessAlive: () => false },
+    })
     expect(await fileExists(lockPath)).toBe(false)
+  })
+})
+
+test('active heartbeat older than stale threshold is never reclaimed', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.rollout.jsonl')
+    let entered!: () => void
+    const acquired = new Promise<void>(resolve => { entered = resolve })
+    let unblock!: () => void
+    const blocked = new Promise<void>(resolve => { unblock = resolve })
+    const first = appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'first' })], {
+      lockOptions: { staleMs: 30, heartbeatMs: 5, token: 'active-owner' },
+      faultAfterAppend: async () => { entered(); await blocked },
+    })
+    await acquired
+    await new Promise(resolve => setTimeout(resolve, 70))
+    const second = appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'second' })], {
+      lockOptions: { staleMs: 30, retryDelaysMs: [0, 20, 40, 80], isProcessAlive: () => false },
+    })
+    await new Promise(resolve => setTimeout(resolve, 50))
+    unblock()
+    await Promise.all([first, second])
+    expect((await readFile(rolloutPath, 'utf8')).trim().split('\n')).toHaveLength(2)
+  })
+})
+
+test('two reclaimers cannot both own one stale lock', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.rollout.jsonl')
+    const lockPath = `${rolloutPath}.desktop-lock`
+    await mkdir(lockPath)
+    await writeFile(join(lockPath, 'owner.json'), JSON.stringify({
+      token: 'dead-owner', pid: 999_999, heartbeat: Date.now() - 60_000,
+    }))
+    const lockOptions = { staleMs: 10, retryDelaysMs: [0, 0, 10, 20, 40], isProcessAlive: () => false }
+    await Promise.all([
+      appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'first' })], { lockOptions }),
+      appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'second' })], { lockOptions }),
+    ])
+    expect((await readFile(rolloutPath, 'utf8')).trim().split('\n')).toHaveLength(2)
+  })
+})
+
+test('old owner release never removes a replacement owner lock', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.rollout.jsonl')
+    const lockPath = `${rolloutPath}.desktop-lock`
+    await appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'first' })], {
+      lockOptions: { token: 'old-owner', heartbeatMs: 10_000 },
+      faultAfterAppend: async () => {
+        await rm(lockPath, { recursive: true, force: true })
+        await mkdir(lockPath)
+        await writeFile(join(lockPath, 'owner.json'), JSON.stringify({
+          token: 'new-owner', pid: process.pid, heartbeat: Date.now(),
+        }))
+      },
+    })
+    const owner = JSON.parse(await readFile(join(lockPath, 'owner.json'), 'utf8'))
+    expect(owner.token).toBe('new-owner')
+    await rm(lockPath, { recursive: true, force: true })
+  })
+})
+
+test('unknown mixed recovery tail fails closed and preserves evidence', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.rollout.jsonl')
+    const journalPath = `${rolloutPath}.desktop-recovery.json`
+    const intended = '{"expected":true}\n'
+    await writeFile(rolloutPath, '{"unknown":true}\n')
+    await writeFile(journalPath, JSON.stringify(recoveryJournalFor(rolloutPath, 'batch-x', intended)))
+    const beforeRollout = await readFile(rolloutPath)
+    const beforeJournal = await readFile(journalPath)
+    await expect(appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'new' })]))
+      .rejects.toMatchObject({ code: 'EROLLOUTRECOVERY' })
+    expect(await readFile(rolloutPath)).toEqual(beforeRollout)
+    expect(await readFile(journalPath)).toEqual(beforeJournal)
+  })
+})
+
+test('invalid recovery journal fails closed without deleting evidence', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.rollout.jsonl')
+    const journalPath = `${rolloutPath}.desktop-recovery.json`
+    await writeFile(rolloutPath, '{"existing":true}\n')
+    await writeFile(journalPath, JSON.stringify({
+      ...recoveryJournalFor(rolloutPath, 'batch-invalid', 'payload'),
+      originalSize: Number.MAX_SAFE_INTEGER + 1,
+    }))
+    const before = await readFile(journalPath)
+    await expect(appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'new' })]))
+      .rejects.toMatchObject({ code: 'EROLLOUTRECOVERY' })
+    expect(await readFile(journalPath)).toEqual(before)
+    expect(await readFile(rolloutPath, 'utf8')).toBe('{"existing":true}\n')
+  })
+})
+
+test('completed recovery batch preserves valid subsequent bytes', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.rollout.jsonl')
+    const item = eventItem('message', { content: 'first' })
+    const timestamp = '2026-01-01T00:00:00.000Z'
+    await expect(appendDesktopRolloutItems(rolloutPath, [item], {
+      batchId: 'batch-first', now: () => timestamp,
+      faultAfterAppend: async () => { throw new Error('crash') },
+    })).rejects.toThrow('crash')
+    const later = `${JSON.stringify({ timestamp, ...eventItem('message', { content: 'later' }) })}\n`
+    await appendFile(rolloutPath, later)
+    await appendDesktopRolloutItems(rolloutPath, [item], { batchId: 'batch-first', now: () => timestamp })
+    expect((await readFile(rolloutPath, 'utf8')).match(/"content":"first"/g)).toHaveLength(1)
+    expect((await readFile(rolloutPath, 'utf8')).match(/"content":"later"/g)).toHaveLength(1)
   })
 })
 
@@ -324,6 +432,25 @@ async function fileExists(path: string): Promise<boolean> {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
     throw error
+  }
+}
+
+function recoveryJournalFor(
+  rolloutPath: string,
+  batchId: string,
+  payload: string,
+  originalSize = 0,
+) {
+  const bytes = Buffer.from(payload)
+  return {
+    state: 'prepared',
+    batchId,
+    token: 'journal-token',
+    rolloutPathHash: createHash('sha256').update(rolloutPath).digest('hex'),
+    originalSize,
+    byteLength: bytes.length,
+    sha256: createHash('sha256').update(bytes).digest('hex'),
+    payloadBase64: bytes.toString('base64'),
   }
 }
 

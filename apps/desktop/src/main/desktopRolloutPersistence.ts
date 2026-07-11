@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, open, readFile, rm, stat, truncate, unlink } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { mkdir, open, readFile, rename, rm, stat, unlink, utimes } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import type {
   DesktopAgentEvent,
   DesktopPermissionRequest,
@@ -190,6 +190,7 @@ export async function appendDesktopRolloutItems(
     batchId?: string
     faultAfterAppend?: () => Promise<void>
     now?: () => string
+    lockOptions?: Partial<RolloutLockOptions>
   } = {},
 ): Promise<void> {
   const lines = items
@@ -207,6 +208,7 @@ export async function appendDesktopRolloutItems(
       lines.join('\n'),
       options.batchId ?? randomUUID(),
       options.faultAfterAppend,
+      options.lockOptions,
     )
     return
   }
@@ -227,28 +229,48 @@ export async function appendDesktopRolloutItems(
 }
 
 type RecoveryJournal = {
+  state: 'prepared' | 'committed'
   batchId: string
+  token: string
+  rolloutPathHash: string
   originalSize: number
   byteLength: number
   sha256: string
+  payloadBase64: string
 }
+
+type LockOwner = { token: string; pid: number; heartbeat: number }
+type RolloutLockOptions = {
+  staleMs: number
+  heartbeatMs: number
+  retryDelaysMs: number[]
+  token: string
+  pid: number
+  isProcessAlive(pid: number): boolean
+}
+
+type RolloutLockHandle = { token: string; release(): Promise<void> }
 
 async function appendDesktopRolloutBatchWithRecovery(
   rolloutPath: string,
   lines: string,
   batchId: string,
   faultAfterAppend?: () => Promise<void>,
+  lockOverrides: Partial<RolloutLockOptions> = {},
 ): Promise<void> {
-  await mkdir(dirname(rolloutPath), { recursive: true })
+  const parentPath = dirname(rolloutPath)
+  await mkdir(parentPath, { recursive: true })
   const lockPath = `${rolloutPath}.desktop-lock`
   const journalPath = `${rolloutPath}.desktop-recovery.json`
-  await acquireRolloutLock(lockPath)
+  const lock = await acquireRolloutLock(lockPath, lockOverrides)
+  let bodyFailure: unknown
   try {
     const recoveredBatchId = await recoverRolloutJournal(
       rolloutPath,
       journalPath,
     )
     if (recoveredBatchId === batchId) return
+    if (recoveredBatchId !== undefined) await unlinkDurably(journalPath)
     let existing = ''
     try {
       existing = await readFile(rolloutPath, 'utf8')
@@ -259,40 +281,187 @@ async function appendDesktopRolloutBatchWithRecovery(
     const bytes = Buffer.from(`${separator}${lines}\n`, 'utf8')
     const originalSize = await fileSizeOrZero(rolloutPath)
     const journal: RecoveryJournal = {
+      state: 'prepared',
       batchId,
+      token: randomUUID(),
+      rolloutPathHash: createHash('sha256').update(rolloutPath).digest('hex'),
       originalSize,
       byteLength: bytes.length,
       sha256: createHash('sha256').update(bytes).digest('hex'),
+      payloadBase64: bytes.toString('base64'),
     }
-    await writeFileDurably(journalPath, JSON.stringify(journal))
+    await writeFileAtomicallyDurable(journalPath, JSON.stringify(journal))
     await appendBufferDurably(rolloutPath, bytes)
     await faultAfterAppend?.()
     const tail = await readTail(rolloutPath, originalSize)
-    if (!tail.equals(bytes)) throw new Error('rollout append verification failed')
-    await unlink(journalPath)
+    if (!tail.subarray(0, bytes.length).equals(bytes)) {
+      throw recoveryError('rollout append verification failed')
+    }
+    await writeFileAtomicallyDurable(
+      journalPath,
+      JSON.stringify({ ...journal, state: 'committed' } satisfies RecoveryJournal),
+    )
+  } catch (error) {
+    bodyFailure = error
+    throw error
   } finally {
-    await rm(lockPath, { recursive: true, force: true })
+    try {
+      await lock.release()
+    } catch (releaseError) {
+      if (bodyFailure) {
+        throw new AggregateError(
+          [bodyFailure, releaseError],
+          'rollout append and lock release both failed',
+        )
+      }
+      throw releaseError
+    }
   }
 }
 
-async function acquireRolloutLock(lockPath: string): Promise<void> {
-  const delays = [0, 10, 25, 50, 100, 200]
-  for (const delayMs of delays) {
+async function acquireRolloutLock(
+  lockPath: string,
+  overrides: Partial<RolloutLockOptions> = {},
+): Promise<RolloutLockHandle> {
+  const options: RolloutLockOptions = {
+    staleMs: 30_000,
+    heartbeatMs: 5_000,
+    retryDelaysMs: [0, 50, 100, 200, 400, 800, 1_000],
+    token: randomUUID(),
+    pid: process.pid,
+    isProcessAlive: isProcessAlive,
+    ...overrides,
+  }
+  for (const delayMs of options.retryDelaysMs) {
     if (delayMs) await new Promise(resolve => setTimeout(resolve, delayMs))
+    const claimPath = `${lockPath}.acquire-${options.token}-${randomUUID()}`
     try {
-      await mkdir(lockPath)
-      return
+      await mkdir(claimPath)
+      await syncDirectory(dirname(lockPath))
+      await writeLockOwner(join(claimPath, 'owner.json'), {
+        token: options.token,
+        pid: options.pid,
+        heartbeat: Date.now(),
+      })
+      await rename(claimPath, lockPath)
+      await syncDirectory(dirname(lockPath))
+      let released = false
+      let heartbeatInFlight: Promise<void> | null = null
+      const heartbeat = setInterval(() => {
+        heartbeatInFlight = refreshLockOwner(lockPath, options).catch(() => {})
+      }, options.heartbeatMs)
+      heartbeat.unref?.()
+      return {
+        token: options.token,
+        async release() {
+          if (released) return
+          released = true
+          clearInterval(heartbeat)
+          await heartbeatInFlight
+          await releaseOwnedLock(lockPath, options.token)
+        },
+      }
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-      try {
-        const info = await stat(lockPath)
-        if (Date.now() - info.mtimeMs > 30_000) {
-          await rm(lockPath, { recursive: true, force: true })
-        }
-      } catch {}
+      await rm(claimPath, { recursive: true, force: true }).catch(() => {})
+      if (!['EEXIST', 'ENOTEMPTY', 'EPERM', 'EACCES'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error
+      await reclaimStaleLock(lockPath, options)
     }
   }
   throw Object.assign(new Error('rollout lock is busy'), { code: 'EBUSY' })
+}
+
+async function refreshLockOwner(
+  lockPath: string,
+  options: RolloutLockOptions,
+): Promise<void> {
+  const owner = await readLockOwner(join(lockPath, 'owner.json'))
+  if (owner.token !== options.token) return
+  await writeLockOwner(join(lockPath, 'owner.json'), {
+    token: options.token,
+    pid: options.pid,
+    heartbeat: Date.now(),
+  })
+  const now = new Date()
+  await utimes(lockPath, now, now)
+}
+
+async function reclaimStaleLock(
+  lockPath: string,
+  options: RolloutLockOptions,
+): Promise<void> {
+  let observed: LockOwner
+  try {
+    observed = await readLockOwner(join(lockPath, 'owner.json'))
+  } catch {
+    return
+  }
+  if (!isReclaimableOwner(observed, options)) return
+  const claimPath = `${lockPath}.claim-${options.token}-${randomUUID()}`
+  try {
+    await rename(lockPath, claimPath)
+  } catch (error) {
+    if (['ENOENT', 'EACCES', 'EPERM'].includes((error as NodeJS.ErrnoException).code ?? '')) return
+    throw error
+  }
+  let removeClaim = false
+  try {
+    const claimed = await readLockOwner(join(claimPath, 'owner.json'))
+    removeClaim = claimed.token === observed.token && isReclaimableOwner(claimed, options)
+    if (!removeClaim) {
+      await rename(claimPath, lockPath)
+      return
+    }
+    await rm(claimPath, { recursive: true, force: true })
+    await syncDirectory(dirname(lockPath))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    if (!removeClaim) await rename(claimPath, lockPath).catch(() => {})
+    throw error
+  }
+}
+
+function isReclaimableOwner(owner: LockOwner, options: RolloutLockOptions): boolean {
+  return Date.now() - owner.heartbeat > options.staleMs && !options.isProcessAlive(owner.pid)
+}
+
+async function releaseOwnedLock(lockPath: string, token: string): Promise<void> {
+  const claimPath = `${lockPath}.release-${token}-${randomUUID()}`
+  try {
+    await rename(lockPath, claimPath)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    throw error
+  }
+  const owner = await readLockOwner(join(claimPath, 'owner.json')).catch(() => null)
+  if (owner?.token !== token) {
+    await rename(claimPath, lockPath).catch(() => {})
+    return
+  }
+  await rm(claimPath, { recursive: true, force: true })
+  await syncDirectory(dirname(lockPath))
+}
+
+async function readLockOwner(path: string): Promise<LockOwner> {
+  const value = JSON.parse(await readFile(path, 'utf8')) as Partial<LockOwner>
+  if (
+    typeof value.token !== 'string' || value.token.length === 0 ||
+    !Number.isSafeInteger(value.pid) || (value.pid ?? 0) <= 0 ||
+    !Number.isSafeInteger(value.heartbeat) || (value.heartbeat ?? -1) < 0
+  ) throw recoveryError('invalid rollout lock owner')
+  return value as LockOwner
+}
+
+async function writeLockOwner(path: string, owner: LockOwner): Promise<void> {
+  await writeFileAtomicallyDurable(path, JSON.stringify(owner))
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM'
+  }
 }
 
 async function recoverRolloutJournal(
@@ -301,21 +470,60 @@ async function recoverRolloutJournal(
 ): Promise<string | undefined> {
   let journal: RecoveryJournal
   try {
-    journal = JSON.parse(await readFile(journalPath, 'utf8')) as RecoveryJournal
+    journal = parseRecoveryJournal(await readFile(journalPath, 'utf8'), rolloutPath)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
-    await unlink(journalPath).catch(() => {})
+    throw error
+  }
+  const fileSize = await fileSizeOrZero(rolloutPath)
+  if (fileSize < journal.originalSize) throw recoveryError('rollout is shorter than recovery offset')
+  const tail = await readTail(rolloutPath, journal.originalSize)
+  const expected = Buffer.from(journal.payloadBase64, 'base64')
+  if (tail.length >= expected.length && tail.subarray(0, expected.length).equals(expected)) {
+    if (journal.state !== 'committed') {
+      await writeFileAtomicallyDurable(
+        journalPath,
+        JSON.stringify({ ...journal, state: 'committed' } satisfies RecoveryJournal),
+      )
+    }
+    return journal.batchId
+  }
+  if (tail.length < expected.length && expected.subarray(0, tail.length).equals(tail)) {
+    await truncateDurably(rolloutPath, journal.originalSize)
+    await unlinkDurably(journalPath)
     return undefined
   }
-  const tail = await readTail(rolloutPath, journal.originalSize)
-  const committed =
-    tail.length === journal.byteLength &&
-    createHash('sha256').update(tail).digest('hex') === journal.sha256
-  if (!committed && (await fileSizeOrZero(rolloutPath)) > journal.originalSize) {
-    await truncate(rolloutPath, journal.originalSize)
+  throw recoveryError('rollout recovery tail does not belong to journal batch')
+}
+
+function parseRecoveryJournal(content: string, rolloutPath: string): RecoveryJournal {
+  let value: Partial<RecoveryJournal>
+  try {
+    value = JSON.parse(content) as Partial<RecoveryJournal>
+  } catch {
+    throw recoveryError('invalid rollout recovery journal JSON')
   }
-  await unlink(journalPath).catch(() => {})
-  return committed ? journal.batchId : undefined
+  if (
+    (value.state !== 'prepared' && value.state !== 'committed') ||
+    typeof value.batchId !== 'string' || value.batchId.length === 0 ||
+    typeof value.token !== 'string' || value.token.length === 0 ||
+    value.rolloutPathHash !== createHash('sha256').update(rolloutPath).digest('hex') ||
+    !Number.isSafeInteger(value.originalSize) || (value.originalSize ?? -1) < 0 ||
+    !Number.isSafeInteger(value.byteLength) || (value.byteLength ?? -1) < 0 ||
+    typeof value.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(value.sha256) ||
+    typeof value.payloadBase64 !== 'string'
+  ) throw recoveryError('invalid rollout recovery journal')
+  const payload = Buffer.from(value.payloadBase64, 'base64')
+  if (
+    payload.toString('base64') !== value.payloadBase64 ||
+    payload.length !== value.byteLength ||
+    createHash('sha256').update(payload).digest('hex') !== value.sha256
+  ) throw recoveryError('invalid rollout recovery payload')
+  return value as RecoveryJournal
+}
+
+function recoveryError(message: string): Error {
+  return Object.assign(new Error(message), { code: 'EROLLOUTRECOVERY' })
 }
 
 async function fileSizeOrZero(path: string): Promise<number> {
@@ -336,23 +544,69 @@ async function readTail(path: string, offset: number): Promise<Buffer> {
   }
 }
 
-async function writeFileDurably(path: string, content: string): Promise<void> {
-  const file = await open(path, 'w')
+async function writeFileAtomicallyDurable(path: string, content: string): Promise<void> {
+  const tempPath = `${path}.tmp-${process.pid}-${randomUUID()}`
+  const file = await open(tempPath, 'wx')
   try {
     await file.writeFile(content, 'utf8')
     await file.sync()
   } finally {
     await file.close()
   }
+  try {
+    await rename(tempPath, path)
+    await syncDirectory(dirname(path))
+  } catch (error) {
+    await unlink(tempPath).catch(() => {})
+    throw error
+  }
 }
 
 async function appendBufferDurably(path: string, content: Buffer): Promise<void> {
+  const existed = await fileSizeOrZero(path) > 0 || await pathExists(path)
   const file = await open(path, 'a')
   try {
     await file.writeFile(content)
     await file.sync()
   } finally {
     await file.close()
+  }
+  if (!existed) await syncDirectory(dirname(path))
+}
+
+async function truncateDurably(path: string, size: number): Promise<void> {
+  const file = await open(path, 'r+')
+  try {
+    await file.truncate(size)
+    await file.sync()
+  } finally {
+    await file.close()
+  }
+}
+
+async function unlinkDurably(path: string): Promise<void> {
+  await unlink(path)
+  await syncDirectory(dirname(path))
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try { await stat(path); return true } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+    throw error
+  }
+}
+
+async function syncDirectory(path: string): Promise<void> {
+  let directory
+  try {
+    directory = await open(path, 'r')
+    await directory.sync()
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (process.platform === 'win32' && ['EISDIR', 'EPERM', 'EACCES', 'EINVAL'].includes(code ?? '')) return
+    throw error
+  } finally {
+    await directory?.close().catch(() => {})
   }
 }
 
