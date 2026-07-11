@@ -157,6 +157,46 @@ export function getApiKeyHelperSources(): string[] {
   return sources
 }
 
+function hasAwsCommands(settings: SettingsJson | null): boolean {
+  return !!(settings?.awsAuthRefresh || settings?.awsCredentialExport)
+}
+
+export function getAwsCommandsSources(): string[] {
+  const sources: string[] = []
+
+  const projectSettings = getSettingsForSource('projectSettings')
+  if (hasAwsCommands(projectSettings)) {
+    sources.push('.claude/settings.json')
+  }
+
+  const localSettings = getSettingsForSource('localSettings')
+  if (hasAwsCommands(localSettings)) {
+    sources.push('.claude/settings.local.json')
+  }
+
+  return sources
+}
+
+function hasGcpCommands(settings: SettingsJson | null): boolean {
+  return !!settings?.gcpAuthRefresh
+}
+
+export function getGcpCommandsSources(): string[] {
+  const sources: string[] = []
+
+  const projectSettings = getSettingsForSource('projectSettings')
+  if (hasGcpCommands(projectSettings)) {
+    sources.push('.claude/settings.json')
+  }
+
+  const localSettings = getSettingsForSource('localSettings')
+  if (hasGcpCommands(localSettings)) {
+    sources.push('.claude/settings.local.json')
+  }
+
+  return sources
+}
+
 /**
  * Check if settings have dangerous environment variables configured.
  * Any env var NOT in SAFE_ENV_VARS is considered dangerous.
