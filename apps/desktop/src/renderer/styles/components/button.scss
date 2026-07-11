@@ -43,8 +43,8 @@
 
 /* --- Send Button --- */
 .send-button {
-  width: 28px;
-  height: 28px;
+  width: var(--control-size-sm);
+  height: var(--control-size-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -67,15 +67,15 @@
 .automation-button.is-primary,
 .workflow-composer-card-question .inline-approval-submit,
 .workflow-composer-card-plan .exit-plan-mode-submit {
-  min-height: 34px;
-
-  padding: 0 20px;
+  padding: var(--control-padding-block)
+    calc(var(--control-padding-inline) + var(--control-padding-inline));
   border: 1px solid var(--color-send-bg);
   border-radius: var(--radius-button);
   background: var(--color-send-bg);
   color: var(--color-text-on-accent);
-  font-size: 14px;
+  font-size: var(--font-size-14);
   font-weight: var(--font-weight-label);
+  line-height: var(--control-line-height);
 }
 
 .settings-button.is-primary:hover:not(:disabled),
@@ -95,6 +95,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: var(--button-gap, var(--control-gap-compact));
   cursor: pointer;
   white-space: nowrap;
   transition:
@@ -107,7 +108,7 @@
 .plugins-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--button-gap, var(--control-gap-compact));
   cursor: pointer;
   transition:
     background var(--motion-standard) var(--ease-standard),
@@ -119,19 +120,7 @@
 .automation-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition:
-    background var(--motion-standard) var(--ease-standard),
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard),
-    color var(--motion-standard) var(--ease-standard);
-}
-
-.automation-quick-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  gap: var(--button-gap, var(--control-gap-compact));
   cursor: pointer;
   transition:
     background var(--motion-standard) var(--ease-standard),
@@ -142,18 +131,19 @@
 
 .settings-button:not(.is-primary):not(.primary):not(.danger):not(.link),
 .plugins-button:not(.is-primary),
-.automation-button:not(.is-primary),
-.automation-quick-button {
-  min-height: 40px;
-  height: 40px;
-  padding: 0 20px;
+.automation-button:not(.is-primary) {
+  padding: var(
+    --button-padding,
+    calc(var(--control-padding-block) + 0.2em)
+      calc(var(--control-padding-inline) + var(--control-padding-inline))
+  );
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-button);
   background: var(--color-bg);
   color: var(--color-text-strong);
-  font-size: 14px;
+  font-size: var(--button-font-size, var(--font-size-14));
   font-weight: var(--font-weight-label);
-  line-height: 1;
+  line-height: var(--button-line-height, var(--control-line-height));
 }
 
 .settings-button:hover {
@@ -164,14 +154,12 @@
   width: var(--app-icon-size);
   height: var(--app-icon-size);
   display: block;
-  margin-right: 6px;
   stroke-width: var(--app-icon-stroke-width);
 }
 
 .settings-button:not(.is-primary):not(.primary):not(.danger):not(.link),
 .plugins-button:not(.is-primary),
 .automation-button:not(.is-primary),
-.automation-quick-button,
 .settings-dropdown,
 .settings-input,
 .settings-textarea,
@@ -181,7 +169,6 @@
 .plugins-filter,
 .right-dock-search,
 .right-dock-terminal-composer input {
-  min-height: 40px;
   border-color: var(--color-border-soft);
   background: var(--color-bg);
   color: var(--color-text-strong);
@@ -191,7 +178,6 @@
 .settings-button,
 .plugins-button,
 .automation-button,
-.automation-quick-button,
 .plugins-card-action,
 .message-action,
 .chip-button,
@@ -231,10 +217,12 @@
 
 /* --- Message Action Button --- */
 .message-action {
+  width: var(--control-size-md);
+  height: var(--control-size-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
+  padding: 0;
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -264,8 +252,8 @@
 
 /* --- Window Toolbar Icon --- */
 .window-toolbar-icon {
-  width: 28px;
-  height: 28px;
+  width: var(--control-size-sm);
+  height: var(--control-size-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;

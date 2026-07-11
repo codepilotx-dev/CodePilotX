@@ -10,7 +10,7 @@
 }
 
 .settings-sidebar-layout {
-  --sidebar-trailing-width: 60px;
+  --sidebar-trailing-width: 4.286em;
 }
 
 .settings-nav-scroll-area {
@@ -39,6 +39,7 @@
   color: var(--color-text-soft);
   font-size: var(--font-size-14);
   font-weight: 500;
+  line-height: var(--control-line-height);
   text-align: left;
   transition:
     background-color 0.15s ease,
@@ -54,11 +55,10 @@
   width: 100%;
   display: flex;
   align-items: center;
-  min-height: 38px;
 
   &-icon {
     position: absolute;
-    left: 11px;
+    left: 0.786em;
     width: var(--app-icon-size);
     height: var(--app-icon-size);
     color: var(--color-text-placeholder);
@@ -67,13 +67,13 @@
 
   input {
     width: 100%;
-    height: 38px;
-    padding: 0 12px 0 34px;
+    padding: 0.571em 0.857em 0.571em 2.429em;
     border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-6);
     background-color: var(--color-bg);
     color: var(--color-text);
     font-size: var(--font-size-14);
+    line-height: var(--control-line-height);
     outline: none;
 
     &::placeholder {
@@ -104,7 +104,7 @@
     grid-template-columns: auto minmax(0, 1fr) var(--sidebar-trailing-width);
     align-items: center;
     column-gap: var(--sidebar-item-gap);
-    padding: var(--layout-sidebar-row-pad-y) var(--sidebar-padding-x);
+    padding: var(--sidebar-row-pad-y) var(--sidebar-padding-x);
   }
 
   &-title {
@@ -129,6 +129,7 @@
   cursor: pointer;
   font-size: var(--font-size-14);
   font-weight: 500;
+  line-height: var(--control-line-height);
   text-align: left;
   transition:
     background-color 0.15s ease,
@@ -336,8 +337,7 @@
 .settings-auto-save-badge {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
-  padding: 2px 8px;
+  padding: 0.318em 0.727em;
   border: 1px solid var(--color-border-faint);
   border-radius: var(--radius-full);
   background: var(--color-bg-hover);
@@ -386,11 +386,12 @@
 .profile-action-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--control-gap-compact);
   border: 0;
   background: transparent;
   color: var(--color-text);
   font-size: var(--font-size-14);
+  line-height: var(--control-line-height);
   cursor: pointer;
 
   &:disabled {
@@ -412,7 +413,7 @@
 
   h1 {
     margin: 0;
-    font-size: 28px;
+    font-size: calc(var(--font-size-26) + 2px);
     line-height: 1.2;
     font-weight: 500;
     color: var(--color-text-strong);
@@ -435,7 +436,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 36px;
+  font-size: calc(var(--font-size-26) + 10px);
   overflow: hidden;
 
   img {
@@ -459,13 +460,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 2.125em;
+  height: 2.125em;
   border: 3px solid var(--color-bg);
   border-radius: 50%;
   background-color: var(--color-panel-bg);
   color: var(--color-text);
-  font-size: 16px;
+  font-size: var(--font-size-16);
   cursor: pointer;
   box-shadow: var(--color-panel-shadow-soft);
 }
@@ -617,11 +618,12 @@
 
 .profile-contribution-months {
   position: relative;
-  height: 18px;
+  height: 1.4em;
   min-width: 720px;
   margin-top: 12px;
   color: var(--color-text-soft);
   font-size: var(--font-size-13);
+  line-height: 1.4;
 
   span {
     position: absolute;
@@ -644,7 +646,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  min-height: 32px;
+  padding-block: 0.4em;
   margin-top: 8px;
   color: var(--color-text-soft);
   font-size: var(--font-size-14);
@@ -686,13 +688,13 @@
 .profile-repository-count {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--control-gap-compact);
   color: var(--color-text-soft);
   flex-shrink: 0;
 
   svg {
-    width: 13px;
-    height: 13px;
+    width: var(--app-icon-size-sm);
+    height: var(--app-icon-size-sm);
     stroke-width: var(--app-icon-stroke-width);
   }
 }
@@ -766,19 +768,19 @@
 
 .profile-status-field select,
 .profile-status-field input {
-  min-height: 32px;
+  padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-4);
   background-color: var(--color-bg);
   color: var(--color-text);
   font-size: var(--font-size-13);
-  padding: 0 10px;
+  line-height: var(--control-line-height);
 }
 
 .profile-status-checkbox {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--control-gap);
   padding: 0 16px 16px;
   color: var(--color-text);
   font-size: var(--font-size-13);
@@ -825,7 +827,7 @@
 
 .github-device-code-value {
   font-family: var(--font-family-mono);
-  font-size: 26px;
+  font-size: var(--font-size-26);
   font-weight: var(--font-weight-emphasis);
   letter-spacing: 0.08em;
   color: var(--color-text-strong);
@@ -936,24 +938,6 @@
   transform: scale(1);
 }
 
-/* --- Dropdown --- */
-.settings-dropdown-value {
-  display: flex;
-  align-items: center;
-  padding-right: 30px;
-  gap: var(--space-2);
-  min-width: 0;
-  font-size: var(--font-size-13);
-  white-space: nowrap;
-}
-
-.settings-dropdown-icon {
-  width: var(--app-icon-size);
-  height: var(--app-icon-size);
-  color: var(--color-icon);
-  flex-shrink: 0;
-}
-
 .settings-open-target-icon {
   width: var(--app-icon-size);
   height: var(--app-icon-size);
@@ -1024,12 +1008,12 @@
 
 /* --- Theme dropdown --- */
 .theme-dropdown-trigger {
-  padding: 3px 10px;
+  padding: var(--control-padding-block-compact) var(--control-padding-inline);
 
   .settings-dropdown-value {
-    gap: var(--space-2);
+    gap: var(--control-gap);
     font-size: var(--font-size-13);
-    line-height: normal;
+    line-height: var(--control-line-height);
   }
 
   .settings-dropdown-icon {
@@ -1072,8 +1056,8 @@
   justify-content: center;
   border: 1px solid var(--color-border-soft);
   border-radius: 8px;
-  height: 25px;
-  width: 25px;
+  height: var(--control-size-sm);
+  width: var(--control-size-sm);
   flex-shrink: 0;
   font-weight: 500;
   letter-spacing: 0;
@@ -1094,15 +1078,16 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-4);
   background-color: var(--color-bg);
-  padding: 2px;
-  gap: 2px;
+  padding: 0.143em;
+  gap: 0.143em;
 }
 
 .segmented-control-item {
-  padding: 4px 10px;
+  padding: var(--control-padding-block-compact) var(--control-padding-inline);
   border: none;
   background: transparent;
   font-size: var(--font-size-13);
+  line-height: var(--control-line-height);
   color: var(--color-text-soft);
   cursor: pointer;
   border-radius: var(--radius-2);
@@ -1183,16 +1168,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 13px;
+  gap: var(--control-gap);
+  min-height: var(--control-size-md);
+  padding: var(--control-padding-block-compact)
+    calc(var(--control-padding-inline) + var(--control-padding-inline-compact));
   border: 0;
   border-radius: var(--radius-6);
   background: transparent;
   color: var(--color-text-soft);
   font-size: var(--font-size-14);
   font-weight: 500;
-  line-height: 1;
+  line-height: var(--control-line-height);
   letter-spacing: 0;
   cursor: pointer;
   white-space: nowrap;
@@ -1232,8 +1218,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  min-height: 48px;
-  padding: 8px 16px;
+  padding: 1em 16px;
   border-bottom: 1px solid var(--color-border-soft);
 
   .settings-section-title {
@@ -1250,8 +1235,8 @@
   flex-wrap: nowrap;
 
   .settings-button {
-    height: 30px;
-    padding: 4px 2px;
+    padding: var(--control-padding-block-compact)
+      var(--control-padding-inline-compact);
     border: 0;
     background: transparent;
     color: var(--color-text-soft);
@@ -1346,15 +1331,15 @@
 .appearance-color-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 30px;
-  padding: 0 12px 0 10px;
+  gap: var(--control-gap);
+  padding: var(--control-padding-block-compact) var(--control-padding-inline);
   border-radius: var(--radius-5);
   background-clip: padding-box;
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--color-bg) 88%, transparent),
     var(--shadow-resting);
   transition: box-shadow 0.15s ease;
+  line-height: var(--control-line-height);
   white-space: nowrap;
   cursor: text;
 }
@@ -1555,8 +1540,8 @@
   }
 
   &-icon {
-    width: 16px;
-    height: 16px;
+    width: var(--app-icon-size);
+    height: var(--app-icon-size);
     color: var(--color-text-soft);
     stroke-width: var(--app-icon-stroke-width);
   }
@@ -1564,8 +1549,9 @@
   &-badge {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 10px;
+    gap: var(--control-gap-compact);
+    padding: var(--control-padding-block-compact)
+      var(--control-padding-inline);
     border-radius: var(--radius-full);
     font-size: var(--font-size-12);
     font-weight: 500;
@@ -1711,7 +1697,7 @@
 
   &-icon {
     position: absolute;
-    left: 11px;
+    left: 0.786em;
     top: 50%;
     transform: translateY(-50%);
     width: var(--app-icon-size);
@@ -1723,7 +1709,7 @@
 
   &-input {
     width: 100%;
-    padding-left: 34px;
+    padding-left: 2.429em;
   }
 }
 
@@ -1780,7 +1766,7 @@
   .settings-input {
     flex: 1;
     font-family: var(--font-family-mono);
-    font-size: 18px;
+    font-size: var(--font-size-18);
     letter-spacing: 0.08em;
     text-align: center;
   }
@@ -1805,13 +1791,13 @@
 .settings-chip {
   display: inline-flex;
   align-items: center;
-  height: 30px;
-  padding: 0 10px;
+  padding: var(--control-padding-block) 0.833em;
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-6);
   background: var(--color-bg-card);
   font-size: var(--font-size-12);
   font-weight: var(--font-weight-label);
+  line-height: var(--control-line-height);
   white-space: nowrap;
 
   &.ok {
@@ -1855,7 +1841,8 @@
     border-color: transparent;
     background-color: transparent;
     color: var(--color-accent);
-    padding: 4px 8px;
+    padding: var(--control-padding-block-compact)
+      var(--control-padding-inline-compact);
 
     &:hover {
       text-decoration: underline;
@@ -1865,8 +1852,8 @@
 }
 
 .settings-provider-logo {
-  width: 16px;
-  height: 16px;
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
   border-radius: var(--radius-2);
   flex-shrink: 0;
   object-fit: contain;
@@ -1874,23 +1861,6 @@
 
 .settings-dropdown:not(.theme-dropdown-trigger) {
   max-width: min(360px, 48vw);
-}
-
-/* --- Input variants --- */
-.settings-input-narrow {
-  min-width: 0;
-  width: 200px;
-  max-width: 100%;
-  padding: 6px 10px;
-}
-
-.settings-input-compact {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-  width: auto;
-  padding: 4px 8px;
 }
 
 .settings-input-number:focus {
@@ -2023,14 +1993,14 @@
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  min-height: 24px;
-  padding: 0 9px;
+  padding: 0.417em 0.75em;
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-6);
   background: var(--color-bg-card);
   color: var(--color-text-soft);
   font-size: var(--font-size-12);
   font-weight: var(--font-weight-label);
+  line-height: 1;
   flex-shrink: 0;
 
   &.ok {
@@ -2046,13 +2016,14 @@
 
 .billing-expand-toggle {
   margin-left: auto;
-  padding: 4px 10px;
+  padding: var(--control-padding-block-compact) var(--control-padding-inline);
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-6);
   background: var(--color-bg-card);
   color: var(--color-text-soft);
   font-size: var(--font-size-12);
   font-weight: 500;
+  line-height: var(--control-line-height);
   cursor: pointer;
   transition:
     background var(--motion-standard) var(--ease-standard),
@@ -2386,7 +2357,7 @@
 
 .keyboard-shortcuts-search-icon {
   position: absolute;
-  left: 11px;
+  left: 0.786em;
   width: var(--app-icon-size);
   height: var(--app-icon-size);
   color: var(--color-text-placeholder);
@@ -2395,13 +2366,13 @@
 
 .keyboard-shortcuts-search input {
   width: 100%;
-  height: 34px;
-  padding: 0 12px 0 34px;
+  padding: 0.531em 0.923em 0.531em 2.615em;
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-5);
   background: var(--color-bg-card);
   color: var(--color-text);
   font-size: var(--font-size-13);
+  line-height: var(--control-line-height);
 
   &::placeholder {
     color: var(--color-text-placeholder);
@@ -2432,7 +2403,8 @@
 
 .keyboard-shortcuts-header {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(170px, 0.64fr) 34px;
+  grid-template-columns:
+    minmax(260px, 1fr) minmax(170px, 0.64fr) var(--control-size-md);
   gap: var(--space-3);
   padding: 8px 14px;
   border-bottom: 1px solid var(--color-border-faint);
@@ -2447,11 +2419,11 @@
 
 .keyboard-shortcuts-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(170px, 0.64fr) 34px;
+  grid-template-columns:
+    minmax(260px, 1fr) minmax(170px, 0.64fr) var(--control-size-md);
   align-items: center;
   gap: var(--space-3);
-  min-height: 45px;
-  padding: 7px 10px 7px 14px;
+  padding: 0.5em 0.714em 0.5em 1em;
   border-bottom: 1px solid var(--color-border-faint);
 
   &:last-child {
@@ -2491,7 +2463,7 @@
 .keyboard-shortcuts-keys {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--control-gap-compact);
   min-width: 0;
   flex-wrap: wrap;
 }
@@ -2500,9 +2472,8 @@
 .keyboard-shortcut-unbound {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
   max-width: 100%;
-  padding: 2px 8px;
+  padding: 0.318em 0.727em;
   border: 1px solid var(--color-border-faint);
   border-radius: var(--radius-full);
   background: var(--color-bg-hover);
@@ -2525,8 +2496,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: var(--control-size-sm);
+  height: var(--control-size-sm);
   border-radius: var(--radius-4);
   color: var(--color-icon-soft);
 
@@ -2628,8 +2599,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 36px;
-  padding: 0 12px;
+  padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px solid var(--color-panel-border);
   border-radius: 14px;
   background: var(--color-chrome-bg);
@@ -2969,8 +2939,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  min-height: 50px;
-  padding: 0 20px;
+  padding: 1.086em 20px;
   border-bottom: 1px solid var(--border-muted);
 
   h3 {
@@ -2989,8 +2958,7 @@
     flex-wrap: nowrap;
 
     .settings-button {
-      height: 30px;
-      padding: 0;
+      padding: 0.35em 0;
       border: 0;
       background: transparent;
       box-shadow: none;
@@ -3003,8 +2971,7 @@
   }
 
   .settings-row {
-    min-height: 50px;
-    padding: 0 20px;
+    padding: 1.086em 20px;
   }
 
   .settings-row-title {
@@ -3023,14 +2990,12 @@
 
   .settings-input-narrow {
     width: 170px;
-    height: 34px;
     border-color: var(--border-muted);
     border-radius: 10px;
     background: var(--color-panel-bg);
   }
 
   .settings-input-compact {
-    height: 34px;
     border-color: var(--border-muted);
     border-radius: 10px;
     background: var(--color-panel-bg);
@@ -3103,7 +3068,7 @@
 .memory-settings-filter {
   width: auto;
   min-width: 0;
-  padding: 6px 10px;
+  padding: var(--control-padding-block) var(--control-padding-inline);
 }
 
 .memory-settings-count {
@@ -3168,9 +3133,10 @@
   flex-shrink: 0;
 
   .settings-button {
-    min-height: 30px;
-    padding: 0 12px;
+    padding: var(--control-padding-block-compact)
+      calc(var(--control-padding-inline) + var(--control-padding-inline-compact));
     font-size: var(--font-size-12);
+    line-height: var(--control-line-height);
 
     svg {
       margin-right: 4px;
@@ -3459,7 +3425,6 @@
     align-items: center;
     gap: 0;
     margin-top: 2px;
-    min-height: 16px;
 
     > span {
       font-size: var(--font-size-11);
@@ -3494,8 +3459,8 @@
   }
 
   .model-card-tag-icon {
-    width: 12px;
-    height: 12px;
+    width: var(--app-icon-size-sm);
+    height: var(--app-icon-size-sm);
     flex-shrink: 0;
     stroke-width: var(--app-icon-stroke-width);
   }
@@ -3507,7 +3472,7 @@
 
   .model-card-orphan-label {
     margin-top: 3px;
-    font-size: 10px;
+    font-size: var(--font-size-11);
     font-weight: var(--font-weight-label);
     color: var(--color-warning);
     text-transform: uppercase;

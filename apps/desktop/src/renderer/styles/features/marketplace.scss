@@ -96,9 +96,8 @@
 .plugins-search {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  height: 38px;
-  padding: 0 14px;
+  gap: var(--control-gap);
+  padding: 0.66em 1em;
   border-radius: var(--radius-card);
   border: 1px solid var(--border-subtle);
   background: var(--color-panel-bg);
@@ -119,6 +118,7 @@
     background: transparent;
     color: var(--color-text-strong);
     font-size: var(--font-size-14);
+    line-height: var(--control-line-height);
 
     &::placeholder {
       color: var(--color-text-placeholder);
@@ -129,15 +129,15 @@
 .plugins-filter {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 38px;
-  padding: 0 12px;
+  gap: var(--control-gap-compact);
+  padding: 0.76em 0.92em;
   border-radius: var(--radius-card);
   border: 1px solid var(--border-subtle);
   background: var(--color-panel-bg);
   box-shadow: none;
   color: var(--color-text-strong);
   font-size: var(--font-size-13);
+  line-height: var(--control-line-height);
   cursor: pointer;
   white-space: nowrap;
   transition:
@@ -270,7 +270,6 @@
   align-items: center;
   gap: var(--space-4);
   padding: 14px 16px;
-  min-height: 88px;
   border-radius: var(--radius-panel);
   border: 1px solid var(--border-subtle);
   background: var(--color-panel-bg);
@@ -389,8 +388,8 @@
 }
 
 .plugins-card-action {
-  width: 30px;
-  height: 30px;
+  width: var(--control-size-sm);
+  height: var(--control-size-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -418,15 +417,20 @@
 .plugins-audit-badge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  height: 20px;
-  padding: 0 7px;
+  gap: 0.27em;
+  padding: 0.32em 0.64em;
   border-radius: var(--radius-6);
   border: 1px solid transparent;
   font-size: var(--font-size-11);
   font-weight: var(--font-weight-label);
+  line-height: 1;
   text-transform: uppercase;
   flex-shrink: 0;
+
+  svg {
+    width: var(--app-icon-size-sm);
+    height: var(--app-icon-size-sm);
+  }
 
   &.is-pass {
     color: var(--color-success);

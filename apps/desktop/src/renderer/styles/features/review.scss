@@ -25,13 +25,12 @@
 }
 
 .review-sidebar-toolbar {
-  max-height: 40px;
-  height: 100%;
+  min-height: var(--chrome-h);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
-  padding: 0 14px;
+  gap: var(--control-gap);
+  padding: var(--control-padding-block-compact) 1em;
   border-bottom: 1px solid var(--color-border-soft);
 }
 
@@ -119,8 +118,8 @@
   white-space: nowrap;
 
   .message-action {
-    width: 28px;
-    height: 28px;
+    width: var(--control-size-sm);
+    height: var(--control-size-sm);
     padding: 0;
   }
 }
@@ -141,8 +140,8 @@
 @container (min-width: 640px) {
   .review-sidebar-actions .message-action.review-sidebar-primary-action {
     width: auto;
-    min-width: 28px;
-    padding: 0 8px;
+    min-width: var(--control-size-sm);
+    padding: 0 var(--control-padding-inline-compact);
   }
 
   .review-sidebar-action-label {
@@ -310,18 +309,18 @@
 }
 
 .review-file-badge {
-  min-width: 22px;
-  max-width: 34px;
-  height: 18px;
+  min-width: calc(var(--font-size-ui) + 8px);
+  max-width: calc(var(--font-size-ui) + 20px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
+  padding: 0.23em 0.35em;
   overflow: hidden;
   border-radius: var(--radius-2);
   background: var(--state-active-bg);
   color: var(--color-text-strong);
-  font-size: calc(var(--font-size-11) - 2px);
+  font-size: var(--font-size-11);
   font-weight: 700;
   line-height: 1;
   text-transform: uppercase;
@@ -592,6 +591,11 @@
   color: var(--color-text-soft);
   font-family: var(--font-family-sans);
   font-size: var(--font-size-12);
+
+  svg {
+    width: var(--app-icon-size-sm);
+    height: var(--app-icon-size-sm);
+  }
 }
 
 .review-hunk-actions button:hover,
@@ -601,13 +605,18 @@
 }
 
 .review-line-comment-button {
-  width: 24px;
-  min-width: 24px;
+  width: calc(var(--font-size-ui) + 10px);
+  min-width: calc(var(--font-size-ui) + 10px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--color-text-mute);
   opacity: 0;
+
+  svg {
+    width: var(--app-icon-size-sm);
+    height: var(--app-icon-size-sm);
+  }
 }
 
 .review-diff-row:hover .review-line-comment-button,
@@ -741,9 +750,9 @@
 
 .review-comment.draft textarea {
   width: 100%;
-  min-height: 70px;
+  min-height: 5.385em;
   resize: vertical;
-  padding: 7px 8px;
+  padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-3);
   background: var(--color-bg-soft);
@@ -1079,13 +1088,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: calc(var(--font-size-ui) + 10px);
+  height: calc(var(--font-size-ui) + 10px);
   border: 0;
   border-radius: var(--radius-2);
   background: transparent;
   color: var(--color-text-mute);
   cursor: pointer;
+
+  svg {
+    width: var(--app-icon-size);
+    height: var(--app-icon-size);
+  }
 
   &:hover {
     background: var(--color-bg-hover);
@@ -1108,7 +1122,7 @@
 .review-popover-field textarea,
 .review-popover-field input[type="text"] {
   width: 100%;
-  padding: 7px 8px;
+  padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-3);
   background: var(--color-bg-soft);
@@ -1119,7 +1133,7 @@
 }
 
 .review-popover-field textarea {
-  min-height: 70px;
+  min-height: 5.385em;
 }
 
 .review-popover-field input[type="text"] {
@@ -1146,16 +1160,17 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--control-gap);
   width: 100%;
-  min-height: 32px;
-  padding: 6px 10px;
+  padding: var(--control-padding-block)
+    var(--control-padding-inline);
   border: 0;
   border-radius: 8px;
   background: transparent;
   color: var(--color-text);
   font-family: inherit;
   font-size: var(--font-size-14);
+  line-height: var(--control-line-height);
   text-align: left;
   cursor: pointer;
 

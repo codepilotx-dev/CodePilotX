@@ -69,27 +69,28 @@
 .search-input {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--control-gap);
+  padding: var(--control-padding-block)
+    var(--control-padding-inline);
   border: 1px solid var(--color-border-soft);
   background: var(--color-bg);
   color: var(--color-icon);
 
   input {
     flex: 1;
-    min-height: 30px;
     padding: 0;
     border: 0;
+    line-height: var(--control-line-height);
   }
 }
 
 .search-input-row {
   width: 100%;
-  min-height: 52px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--control-gap);
   margin: 0 auto;
-  padding: 0 14px;
+  padding: 1.15em 1em;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-panel);
   background: var(--color-panel-bg);
@@ -108,9 +109,9 @@
 
   input {
     flex: 1;
-    min-height: 30px;
     padding: 0;
     border: 0;
+    line-height: var(--control-line-height);
   }
 }
 
@@ -118,7 +119,7 @@
   display: grid;
   gap: 2px;
   justify-items: start;
-  padding: 8px 10px;
+  padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px solid transparent;
   border-radius: var(--radius-4);
   text-align: left;

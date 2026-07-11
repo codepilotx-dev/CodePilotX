@@ -45,7 +45,7 @@
 }
 
 .desktop-workspace {
-  --workspace-fixed-controls-control-button-size: 28px;
+  --workspace-fixed-controls-control-button-size: var(--control-size-sm);
   --workspace-fixed-controls-gap: 2px;
   --workspace-fixed-controls-pad-x: 12px;
   --workspace-fixed-controls-width: calc(
@@ -234,9 +234,9 @@
   white-space: nowrap;
 
   &.compact {
-    min-height: 36px;
-    max-width: 36px;
-    width: 36px;
+    min-height: var(--control-size-md);
+    max-width: var(--control-size-md);
+    width: var(--control-size-md);
     padding: 0;
     justify-content: center;
     border-radius: var(--radius-5);
@@ -254,8 +254,8 @@
 
 .right-dock-tab.compact .right-dock-tab-icon,
 .right-dock-tab.compact .right-dock-tab-icon svg {
-  width: 18px;
-  height: 18px;
+  width: var(--app-icon-size-md);
+  height: var(--app-icon-size-md);
 }
 
 .right-dock-tab-icon,
@@ -323,8 +323,8 @@
 
 .right-dock-add-button,
 .right-dock-control {
-  width: 28px;
-  height: 28px;
+  width: var(--control-size-sm);
+  height: var(--control-size-sm);
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -407,7 +407,7 @@
 }
 
 .right-dock-plan-document {
-  --plan-md-base-size: 15px;
+  --plan-md-base-size: var(--font-size-15);
   width: 100%;
   margin: 0;
   color: var(--color-text-strong);
@@ -434,20 +434,20 @@
     h1 {
       margin-bottom: 12px;
       padding-bottom: 0;
-      font-size: 28px;
+      font-size: calc(var(--plan-md-base-size) + 13px);
       line-height: 1.22;
     }
 
     h2 {
       margin: 20px 0 9px;
       padding-bottom: 0;
-      font-size: 22px;
+      font-size: calc(var(--plan-md-base-size) + 7px);
       line-height: 1.28;
     }
 
     h3 {
       margin: 16px 0 8px;
-      font-size: 18px;
+      font-size: calc(var(--plan-md-base-size) + 3px);
       line-height: 1.35;
     }
 
@@ -729,13 +729,13 @@
   min-height: 0;
 
   header {
-    min-height: 48px;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 0 16px;
+    gap: var(--control-gap);
+    padding: 1em 1.15em;
     border-bottom: 1px solid var(--color-border-soft);
     color: var(--color-text-soft);
+    line-height: var(--control-line-height);
 
     span {
       min-width: 0;
@@ -832,15 +832,15 @@
 }
 
 .right-dock-search {
-  min-height: 48px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 14px;
+  gap: var(--control-gap);
+  padding: 0.91em 0.9em;
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-6);
   color: var(--color-text-meta);
   flex: 0 0 auto;
+  line-height: var(--control-line-height);
 
   input {
     min-width: 0;
@@ -871,15 +871,16 @@
 
 .right-dock-tree-row {
   width: 100%;
-  min-height: 40px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--control-gap);
+  padding: 0.41em var(--control-padding-inline);
   border: 0;
   border-radius: var(--radius-4);
   background: transparent;
   color: var(--color-text-strong);
   font-size: var(--font-size-18);
+  line-height: var(--control-line-height);
   text-align: left;
 
   &:hover {
@@ -974,11 +975,12 @@
 
   input {
     width: 100%;
-    min-height: 40px;
+    padding: 0.65em 0.85em;
     border-color: var(--color-panel-border);
     border-radius: 14px;
     background: var(--color-bg);
     font-family: var(--font-family-mono);
+    line-height: var(--control-line-height);
   }
 }
 

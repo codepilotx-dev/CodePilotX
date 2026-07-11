@@ -5,13 +5,15 @@
   appearance: none;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
+  gap: var(--control-gap-compact);
+  padding: var(--control-padding-block-compact)
+    var(--control-padding-inline);
   border: 0;
   border-radius: var(--radius-6);
   background: transparent;
   color: var(--color-accent);
   font-size: var(--font-size-12);
+  line-height: var(--control-line-height);
   transition:
     background var(--motion-standard) var(--ease-standard),
     box-shadow var(--motion-standard) var(--ease-standard),
@@ -33,13 +35,14 @@
 .meta-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--control-gap-compact);
   max-width: 220px;
-  padding: 6px 10px;
+  padding: var(--control-padding-block)
+    var(--control-padding-inline);
   border-radius: var(--radius-4);
   color: var(--color-text-meta);
   font-size: var(--font-size-12);
-  line-height: 16px;
+  line-height: var(--control-line-height);
   transition:
     background var(--motion-standard) var(--ease-standard),
     box-shadow var(--motion-standard) var(--ease-standard),

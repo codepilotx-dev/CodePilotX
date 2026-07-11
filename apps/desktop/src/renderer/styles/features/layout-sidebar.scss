@@ -27,9 +27,10 @@
 
 .desktop-sidebar,
 .desktop-sidebar-hover-overlay {
-  --sidebar-padding-x: var(--layout-sidebar-row-pad-x);
-  --sidebar-item-gap: 8px;
-  --sidebar-trailing-width: 60px;
+  --sidebar-padding-x: var(--control-padding-inline-compact);
+  --sidebar-item-gap: var(--control-gap);
+  --sidebar-row-pad-y: var(--control-padding-block-compact);
+  --sidebar-trailing-width: 4.286em;
 }
 
 .sidebar-nav-link.active,
@@ -152,9 +153,10 @@
   grid-template-columns: auto minmax(0, 1fr) var(--sidebar-trailing-width);
   align-items: center;
   column-gap: var(--sidebar-item-gap);
-  padding: var(--layout-sidebar-row-pad-y) var(--sidebar-padding-x);
+  padding: var(--sidebar-row-pad-y) var(--sidebar-padding-x);
   color: var(--color-text);
   font-size: var(--font-size-14);
+  line-height: var(--control-line-height);
   border-radius: calc(var(--radius-base) + 2px);
   text-align: left;
   text-decoration: none;
@@ -399,7 +401,6 @@
 .sidebar-session-button {
   flex: 1 1 auto;
   min-width: 0;
-  height: 100%;
   display: flex;
   align-items: center;
   gap: var(--sidebar-item-gap);
@@ -424,7 +425,7 @@
   flex: 1;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--control-gap-compact);
   color: var(--color-text-strong);
   font-size: var(--font-size-14);
   font-weight: var(--font-weight-label);
@@ -462,15 +463,16 @@
 
 .sidebar-session-meta--approval {
   width: auto;
-  gap: 8px;
+  gap: var(--control-gap);
 }
 
 .sidebar-session-confirm-archive-button {
   width: 100%;
-  padding: 0 4px;
+  padding: 0 var(--control-padding-inline-compact);
   border-radius: var(--radius-6);
   color: var(--color-danger);
   background: color-mix(in srgb, var(--color-danger) 18%, var(--color-bg));
+  line-height: var(--control-line-height);
   white-space: nowrap;
 
   &:hover {
@@ -489,8 +491,7 @@
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  min-height: 22px;
-  padding: 0 8px;
+  padding: 0.417em 0.667em;
   border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--color-diff-added) 14%, transparent);
   color: var(--color-diff-added);
@@ -512,7 +513,7 @@
 
 .sidebar-show-more-actions {
   .sidebar-row-main {
-    gap: 14px;
+    gap: 1em;
   }
 
   .sidebar-show-more-button {
@@ -552,10 +553,10 @@
 }
 
 .sidebar-mobile-button {
-  flex: 0 0 32px;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
+  flex: 0 0 var(--control-size-md);
+  width: var(--control-size-md);
+  height: var(--control-size-md);
+  min-width: var(--control-size-md);
 }
 
 .sidebar-footer-trigger {
@@ -567,7 +568,9 @@
 
 .popover-sidebar-footer {
   .popover-item-label {
-    padding-right: 30px;
+    padding-right: calc(
+      var(--app-icon-size) + var(--control-gap) + var(--control-gap-compact)
+    );
   }
 
   .popover-section {
@@ -589,8 +592,8 @@
   display: grid;
   grid-template-columns: auto 1fr auto auto;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: var(--control-gap);
+  padding: var(--control-padding-block) var(--control-padding-inline);
   border-radius: var(--radius-4);
   color: var(--color-text-soft);
   font-size: var(--font-size-13);
@@ -674,14 +677,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--control-gap);
   width: 100%;
-  padding: 7px 8px;
+  padding: var(--control-padding-block) var(--control-padding-inline);
   border: 0;
   border-radius: var(--radius-4);
   background: transparent;
   color: var(--color-text);
   font-size: var(--font-size-13);
+  line-height: var(--control-line-height);
   text-align: left;
   cursor: pointer;
   transition: background var(--motion-fast) var(--ease-out);

@@ -1,8 +1,7 @@
 /* ===== Unified Menu / Dropdown Item Primitive =====
    This is the single source of truth for all menu/dropdown items.
    Feature files must not redefine these base properties.
-   All values follow the dev-tool density standard:
-   - item height ≈ 32px, padding 6px 10px, gap 10px, radius 8px.
+   Item dimensions follow the configured UI font size.
 */
 
 /* --- Menu Item Container --- */
@@ -19,12 +18,13 @@
 .rm-model-menu .rm-sub-trigger {
   position: relative;
   width: 100%;
-  min-height: 32px;
   align-items: center;
-  padding: 5px;
+  padding: var(--control-padding-block)
+    var(--control-padding-inline-compact);
   border-radius: 8px;
   color: var(--color-text);
   font-size: var(--font-size-14);
+  line-height: var(--control-line-height);
   text-align: left;
   cursor: pointer;
   outline: none;
@@ -41,13 +41,13 @@
 .sidebar-context-menu-sub-trigger {
   display: grid;
   grid-template-columns: var(--app-icon-size) minmax(min-content, 1fr) max-content;
-  column-gap: 8px;
+  column-gap: var(--control-gap);
 }
 
 .menubar-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
-  column-gap: 18px;
+  column-gap: calc(var(--control-gap) + var(--control-gap));
 }
 
 .popover-menu-heading,
@@ -56,7 +56,7 @@
 .rm-model-menu .rm-menu-item,
 .rm-model-menu .rm-sub-trigger {
   display: flex;
-  gap: 8px;
+  gap: var(--control-gap);
 }
 
 /* --- Disabled State --- */

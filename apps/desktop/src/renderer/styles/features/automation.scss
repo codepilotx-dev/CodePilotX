@@ -120,15 +120,15 @@
 .automation-quick-button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 16px;
+  gap: var(--control-gap-compact);
+  padding: 0.68em 1.23em;
   border-radius: 14px;
   border: 1px solid var(--border-subtle);
   background: var(--color-panel-bg);
   box-shadow: none;
   color: var(--color-text-strong);
   font-size: var(--font-size-13);
+  line-height: var(--control-line-height);
   cursor: pointer;
   transition:
     background var(--motion-standard) var(--ease-standard),

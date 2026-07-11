@@ -59,7 +59,7 @@
   border-radius: var(--composer-surface-top-radius, var(--radius-panel));
   background: var(--composer-surface-top-bg, var(--color-panel-bg));
   box-shadow: var(--composer-surface-top-shadow, none);
-  min-height: var(--composer-surface-top-min-height, 98px);
+  min-height: var(--composer-surface-top-min-height, 0);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -148,7 +148,7 @@
   color: var(--color-text-strong);
   font-size: var(--font-size-11);
   font-weight: 500;
-  line-height: 13px;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -157,7 +157,7 @@
   overflow: hidden;
   color: var(--color-text-soft);
   font-size: var(--font-size-11);
-  line-height: 12px;
+  line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -166,8 +166,8 @@
   position: absolute;
   top: -5px;
   right: -5px;
-  width: 20px;
-  height: 20px;
+  width: calc(var(--app-icon-size-sm) + 0.43em);
+  height: calc(var(--app-icon-size-sm) + 0.43em);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -178,6 +178,11 @@
 
   &:hover {
     background: var(--color-send-bg-hover);
+  }
+
+  svg {
+    width: var(--app-icon-size-sm);
+    height: var(--app-icon-size-sm);
   }
 }
 
@@ -192,7 +197,7 @@
     flex: 1;
     min-width: 0;
     max-height: 40vh;
-    min-height: 40px;
+    min-height: 2.67em;
     padding: 0;
     border: 0;
     background: transparent;
@@ -217,9 +222,8 @@
 .composer-skill-token {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 22px;
-  padding: 0 6px 0 4px;
+  gap: var(--control-gap-compact);
+  padding: 0.2em 0.5em 0.2em 0.35em;
   margin-top: 9px;
   flex-shrink: 0;
   border: 1px solid var(--color-border-soft);
@@ -228,7 +232,7 @@
   color: var(--color-text-strong);
   font-size: var(--font-size-12);
   font-weight: 500;
-  line-height: 1;
+  line-height: var(--control-line-height);
   white-space: nowrap;
   user-select: none;
 }
@@ -264,22 +268,10 @@
 }
 
 .composer .icon-button {
-  width: 28px;
-  height: 28px;
+  width: var(--control-size-sm);
+  height: var(--control-size-sm);
   border-radius: var(--radius-full);
-}
 
-.composer-mic-button {
-  width: 22px;
-  height: 22px;
-  color: var(--color-icon-soft);
-
-  &:hover {
-    color: var(--color-icon);
-  }
-}
-
-.composer .icon-button {
   &:hover {
     background: var(--color-sidebar-hover-bg);
     color: var(--color-text-strong);
@@ -292,6 +284,16 @@
 
   &:active {
     transform: translateY(1px);
+  }
+}
+
+.composer-mic-button {
+  width: calc(var(--font-size-ui) + 8px);
+  height: calc(var(--font-size-ui) + 8px);
+  color: var(--color-icon-soft);
+
+  &:hover {
+    color: var(--color-icon);
   }
 }
 
@@ -450,8 +452,8 @@
 }
 
 .composer-plan-mode-chip-icon-exit {
-  width: 16px;
-  height: 16px;
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
   padding: 3px;
   border-radius: 999px;
   background: color-mix(in srgb, currentColor 18%, transparent);
@@ -523,7 +525,7 @@
   flex-shrink: 0;
   margin-top: 0;
   color: var(--color-icon);
-  padding-right: 5px;
+  padding-right: var(--control-gap-compact);
 
   svg {
     width: var(--app-icon-size);
@@ -537,8 +539,10 @@
   flex: 1;
   min-width: 0;
   display: grid;
-  gap: 5px;
-  padding-right: 30px;
+  gap: var(--control-gap-compact);
+  padding-right: calc(
+    var(--app-icon-size) + var(--control-gap) + var(--control-gap-compact)
+  );
 }
 
 .permission-select-item-detail {
@@ -588,8 +592,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 13px;
-  height: 13px;
+  width: var(--font-size-13);
+  height: var(--font-size-13);
   flex-shrink: 0;
   color: var(--color-text-soft);
   cursor: default;
@@ -858,10 +862,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: var(--app-icon-size-md);
+  height: var(--app-icon-size-md);
   flex-shrink: 0;
-  font-size: 16px;
+  font-size: var(--app-icon-size);
 }
 
 :root[data-theme="dark"] {
@@ -978,6 +982,11 @@
 .composer-status-label {
   font-size: var(--font-size-12);
   color: var(--color-text-meta);
+
+  svg {
+    width: var(--app-icon-size-sm);
+    height: var(--app-icon-size-sm);
+  }
   margin-bottom: 4px;
 }
 

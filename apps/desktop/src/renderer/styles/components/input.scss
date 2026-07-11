@@ -5,8 +5,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-2);
-  padding: 6px 10px;
+  gap: var(--control-gap);
+  padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-4);
   background-color: var(--color-bg-row-hover);
@@ -15,6 +15,7 @@
     border-color 0.15s ease,
     background-color 0.15s ease;
   font-size: var(--font-size-13);
+  line-height: var(--control-line-height);
   color: var(--color-text);
   outline: none !important;
   user-select: none;
@@ -36,8 +37,8 @@
 .settings-dropdown-value {
   display: flex;
   align-items: center;
-  padding-right: 30px;
-  gap: var(--space-2);
+  padding-right: 2.308em;
+  gap: var(--control-gap);
   min-width: 0;
   font-size: var(--font-size-13);
   white-space: nowrap;
@@ -56,24 +57,26 @@
   border-radius: var(--radius-5);
   background: var(--color-bg-card);
   color: var(--color-text);
-  padding: 8px 10px;
+  padding: var(--control-padding-block) var(--control-padding-inline);
   font-size: var(--font-size-13);
+  line-height: var(--control-line-height);
 }
 
 .settings-input-narrow {
   min-width: 0;
   width: 200px;
   max-width: 100%;
-  padding: 6px 10px;
+  padding: var(--control-padding-block) var(--control-padding-inline);
 }
 
 .settings-input-compact {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--control-gap);
   min-width: 0;
   width: auto;
-  padding: 4px 8px;
+  padding: var(--control-padding-block-compact)
+    var(--control-padding-inline-compact);
 }
 
 .settings-input-number {
@@ -103,7 +106,7 @@
   border-radius: var(--radius-5);
   background: var(--color-bg-card);
   color: var(--color-text);
-  padding: 8px 10px;
+  padding: var(--control-padding-block) var(--control-padding-inline);
   font-size: var(--font-size-13);
   line-height: 1.45;
 }

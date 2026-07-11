@@ -60,15 +60,16 @@
 
 .permission-modal-actions {
   button {
-    min-height: 30px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: var(--space-2);
-    padding: 0 10px;
+    gap: var(--control-gap);
+    padding: var(--control-padding-block)
+      var(--control-padding-inline);
     border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-4);
     background: var(--color-bg);
+    line-height: var(--control-line-height);
 
     &:hover {
       background: var(--color-bg-hover);
@@ -84,11 +85,10 @@
   z-index: var(--z-toast);
   max-width: min(880px, calc(100vw - 32px));
   max-height: min(70vh, 520px);
-  min-height: 34px;
   display: flex;
   align-items: flex-start;
-  gap: var(--space-2);
-  padding: 7px 10px 7px 13px;
+  gap: var(--control-gap);
+  padding: 0.5em 0.7em 0.5em 0.9em;
   border: 1px solid var(--color-panel-border);
   border-radius: var(--radius-4);
   background: var(--color-bg);
@@ -127,8 +127,8 @@
 
 .global-error-toast {
   button {
-    width: 22px;
-    height: 22px;
+    width: calc(var(--font-size-ui) + 8px);
+    height: calc(var(--font-size-ui) + 8px);
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
@@ -153,11 +153,10 @@
   top: 14px;
   left: 50%;
   z-index: var(--z-toast);
-  min-height: 34px;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 7px 8px 7px 13px;
+  gap: var(--control-gap-compact);
+  padding: 0.54em 0.62em 0.54em 1em;
   color: var(--color-text-strong);
   font-size: var(--font-size-13);
   transform: translateX(-50%);
@@ -184,8 +183,8 @@
 }
 
 .archive-session-toast-close {
-  width: 20px;
-  height: 20px;
+  width: 1.54em;
+  height: 1.54em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -246,13 +245,13 @@
   input,
   textarea {
     width: 100%;
-    min-height: 34px;
-    padding: 8px 10px;
+    padding: 0.57em var(--control-padding-inline);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-4);
     background: var(--color-bg);
     color: var(--color-text);
     font: inherit;
+    line-height: var(--control-line-height);
   }
 
   textarea {
@@ -288,11 +287,12 @@
   }
 
   button {
-    min-height: 26px;
-    padding: 0 8px;
+    padding: var(--control-padding-block-compact)
+      var(--control-padding-inline-compact);
     border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-4);
     background: var(--color-bg);
+    line-height: var(--control-line-height);
   }
 
   label {
@@ -365,9 +365,9 @@
 .github-repository-search {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  min-height: 36px;
-  padding: 0 10px;
+  gap: var(--control-gap);
+  padding: var(--control-padding-block)
+    var(--control-padding-inline);
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-4);
   background: var(--color-bg);
@@ -380,6 +380,7 @@
     background: transparent;
     color: var(--color-text);
     font: inherit;
+    line-height: var(--control-line-height);
   }
 }
 
@@ -451,10 +452,9 @@
   }
 
   span {
-    height: 20px;
     display: inline-flex;
     align-items: center;
-    padding: 0 7px;
+    padding: 0.2em 0.58em;
     border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-6);
     color: var(--color-text-soft);
@@ -496,8 +496,8 @@
 }
 
 .confirmation-dialog-close {
-  width: 28px;
-  height: 28px;
+  width: var(--control-size-sm);
+  height: var(--control-size-sm);
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -520,13 +520,13 @@
 
 .confirmation-dialog-input {
   width: 100%;
-  min-height: 38px;
-  padding: 8px 12px;
+  padding: 0.57em 0.86em;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-4);
   background: var(--color-bg);
   color: var(--color-text);
   font: inherit;
+  line-height: var(--control-line-height);
 
   &:focus {
     outline: none;
@@ -539,15 +539,15 @@
   margin-top: var(--space-2);
 
   button {
-    min-height: 32px;
     min-width: 76px;
-    padding: 0 14px;
+    padding: var(--control-padding-block) 1.08em;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: var(--radius-4);
     font-size: var(--font-size-13);
     font-weight: 500;
+    line-height: var(--control-line-height);
   }
 
   button.confirmation-cancel {

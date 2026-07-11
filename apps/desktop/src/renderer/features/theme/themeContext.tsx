@@ -131,7 +131,10 @@ const THEME_VARIABLES = [
   '--font-size-14',
   '--font-size-15',
   '--font-size-16',
+  '--font-size-17',
   '--font-size-18',
+  '--font-size-20',
+  '--font-size-24',
   '--font-size-26',
 ]
 
@@ -423,7 +426,10 @@ function applyDesktopTheme(
   root.style.setProperty('--font-size-14', `${uiFontSize}px`)
   root.style.setProperty('--font-size-15', `${uiFontSize + 1}px`)
   root.style.setProperty('--font-size-16', `${uiFontSize + 2}px`)
+  root.style.setProperty('--font-size-17', `${uiFontSize + 3}px`)
   root.style.setProperty('--font-size-18', `${uiFontSize + 4}px`)
+  root.style.setProperty('--font-size-20', `${uiFontSize + 6}px`)
+  root.style.setProperty('--font-size-24', `${uiFontSize + 10}px`)
   root.style.setProperty('--font-size-26', `${uiFontSize + 12}px`)
 }
 

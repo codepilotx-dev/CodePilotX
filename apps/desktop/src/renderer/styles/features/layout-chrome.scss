@@ -140,12 +140,17 @@
 
 .window-control-button {
   width: 46px;
-  height: 35px;
+  height: var(--chrome-h);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--color-icon-soft);
   -webkit-app-region: no-drag;
+
+  svg {
+    width: var(--app-icon-size-sm);
+    height: var(--app-icon-size-sm);
+  }
 
   &:hover {
     background: var(--color-bg-hover);
