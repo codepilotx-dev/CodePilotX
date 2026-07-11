@@ -4,6 +4,8 @@
 
 Implementation commit: `fa07fde37` (`feat(desktop)：加固本地 HTTP 鉴权`)
 
+Review-fix commit: `191677f9b` (`feat(desktop)：修复 HTTP 安全复审问题`)
+
 Changed files:
 
 - `packages/core/src/appServer/httpServer.ts`
@@ -55,16 +57,25 @@ Results immediately before the implementation commit:
   Requests without an Origin remain available to local non-browser clients;
   requests carrying an unknown Origin (including `null`) return 403 before
   authentication, routing, buffering, or handler dispatch.
-- A trusted CORS preflight returns 204 and advertises only `GET, POST` plus
-  `Content-Type, X-Auth-Token`. It does not authenticate the subsequent actual
-  request.
+- Only a trusted Origin with a complete, allowed
+  `Access-Control-Request-Method` and allowed requested headers is treated as a
+  CORS preflight. It returns 204 and advertises only `GET, POST` plus
+  `Content-Type, X-Auth-Token`. Incomplete/no-Origin OPTIONS requests pass
+  through normal token authentication and routing.
 - `maxBodyBytes` is configurable and defaults to 1 MiB. A declared oversized
   `Content-Length` returns 413 before body buffering. Chunked/streamed bodies
   are counted as bytes and return 413 as soon as the limit is exceeded. A body
   exactly at the limit is accepted.
+- Both declared and streamed oversize responses include `Connection: close`.
+  After ending the response, the server allows a bounded 50 ms loopback flush
+  window before force-destroying any socket that remains open. Body collection
+  uses single-settle cleanup for `data`, `end`, `error`, and `aborted`
+  listeners, preventing duplicate responses and retained listeners.
 - Startup/request logs contain no token/header values. Internal handler errors
   use a generic JSON-RPC message so a secret embedded in an exception cannot be
   reflected to the caller.
+- Request logging parses and records only the pathname; query strings and their
+  values are never written to diagnostics.
 - The existing stdout `app_server_ready` payload still carries the generated
   token to the parent process; only the stderr diagnostic token prefix was
   removed.
@@ -85,3 +96,22 @@ Results immediately before the implementation commit:
 - The strict full TypeScript projects contain unrelated pre-existing errors;
   the repository's supported `bun run typecheck` gate (core/TUI `--noCheck`
   plus strict desktop typecheck) passed.
+
+## Review follow-up evidence
+
+The three review regressions were reproduced together before the follow-up
+implementation: `9 pass, 3 fail`. The failures showed a query sentinel in the
+request log, incomplete/no-Origin OPTIONS returning 204, and a continuously
+uploading socket remaining open without `Connection: close`.
+
+After the follow-up:
+
+- focused HTTP suite passed 20 consecutive reruns;
+- combined HTTP and entrypoint suite passed `13 tests, 0 fail, 44 expect()`;
+- `bun run typecheck` and `git diff --check` exited 0;
+- streamed oversize coverage observes one 413 response, server-side socket
+  close, zero handler calls, and zero retained `data`, `end`, `error`, or
+  `aborted` listeners;
+- the declared-oversize close regression was temporarily verified against the
+  pre-fix response path, where it failed because `Connection: close` was
+  absent, then passed again after restoring the fix.
