@@ -399,6 +399,29 @@ test('running composer shows both send and stop controls', () => {
   expect(html).toContain('发送跟进')
 })
 
+test('ComposerCard labels queued follow-up actions with their preview text', () => {
+  const html = renderWithProviders(
+    <ComposerCard
+      {...baseProps}
+      queuedFollowUps={[
+        {
+          id: 'follow-up-1',
+          input: { text: '检查构建日志', attachments: [] },
+          previewText: '检查构建日志',
+          createdAt: '2026-07-11T00:00:00.000Z',
+        },
+      ]}
+      onFollowUpEdit={() => {}}
+      onFollowUpRemove={() => {}}
+      onFollowUpSendNow={() => {}}
+    />,
+  )
+
+  expect(html).toContain('aria-label="编辑：检查构建日志"')
+  expect(html).toContain('aria-label="立即发送：检查构建日志"')
+  expect(html).toContain('aria-label="删除：检查构建日志"')
+})
+
 test('resolveComposerSubmitBehavior inverts steer with Ctrl+Enter', () => {
   expect(
     resolveComposerSubmitBehavior(

@@ -38,6 +38,7 @@ export function SessionFollowUpDock({
             </span>
             <div className="session-follow-up-actions">
               <IconButton
+                aria-label={`编辑：${item.previewText}`}
                 className="icon-button session-follow-up-action"
                 title="编辑"
                 onClick={() => onEdit(item.id)}
@@ -48,6 +49,7 @@ export function SessionFollowUpDock({
                 />
               </IconButton>
               <IconButton
+                aria-label={`立即发送：${item.previewText}`}
                 className="icon-button session-follow-up-action"
                 title="立即发送"
                 onClick={() => onSendNow(item.id)}
@@ -58,8 +60,9 @@ export function SessionFollowUpDock({
                 />
               </IconButton>
               <IconButton
+                aria-label={`删除：${item.previewText}`}
                 className="icon-button session-follow-up-action"
-                title="移除"
+                title="删除"
                 onClick={() => onRemove(item.id)}
               >
                 <X

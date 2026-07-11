@@ -297,6 +297,31 @@
   }
 }
 
+.composer-stop-button {
+  color: var(--color-danger);
+  background:
+    color-mix(
+      in srgb,
+      var(--color-danger) 10%,
+      transparent
+    );
+
+  &:hover {
+    background:
+      color-mix(
+        in srgb,
+        var(--color-danger) 16%,
+        transparent
+      );
+  }
+
+  &:focus-visible {
+    outline:
+      2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
 .composer-bottom {
   display: var(--composer-surface-footer-display, flex);
   align-items: center;
@@ -1101,8 +1126,9 @@
 .session-follow-up-action {
   opacity: 0.5;
   transition: opacity 0.15s ease;
+}
 
-  .session-follow-up-item:hover & {
-    opacity: 1;
-  }
+.session-follow-up-item:hover .session-follow-up-action,
+.session-follow-up-item:focus-within .session-follow-up-action {
+  opacity: 1;
 }

@@ -1621,7 +1621,7 @@ export function ComposerCard({
             {isRunning ? (
               <IconButton
                 aria-label="停止"
-                className="composer-stop-button"
+                className="icon-button composer-stop-button"
                 onClick={onInterrupt}
                 title="停止 Esc"
               >

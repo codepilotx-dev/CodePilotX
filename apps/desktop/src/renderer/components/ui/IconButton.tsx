@@ -14,6 +14,7 @@ export const IconButton = forwardRef<HTMLButtonElement, Props>(
       title,
       className = 'icon-button',
       type = 'button',
+      'aria-label': ariaLabel,
       ...buttonProps
     },
     ref,
@@ -22,7 +23,7 @@ export const IconButton = forwardRef<HTMLButtonElement, Props>(
       <button
         {...buttonProps}
         ref={ref}
-        aria-label={title}
+        aria-label={ariaLabel ?? title}
         className={className}
         title={title}
         type={type}

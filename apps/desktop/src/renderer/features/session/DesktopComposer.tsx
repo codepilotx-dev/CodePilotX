@@ -309,34 +309,33 @@ export function DesktopComposer({
         }
         return
       }
-	
-	      const skillPrefix = selectedSkillToken
-	        ? `[${selectedSkillToken.name}](${selectedSkillToken.skillPath})`
-	        : ''
-	      const submittedInput = skillPrefix
-	        ? `${skillPrefix} ${input}`
-	        : input
-	
-	      const submittedAttachments = attachments
-	      const messageInput = {
-	        text: submittedInput,
-	        attachments: submittedAttachments,
-	      }
-	      const onRestoreInput = (restoredInput: DesktopUserMessageInput): void => {
-	        onInputChange(desktopUserMessageInputToPreviewText(restoredInput))
-	        onAttachmentsChange(restoredInput.attachments ?? [])
-	      }
-	      setSelectedSkillToken(null)
-	      setGoalModeEnabled(false)
-	      if (isQuickChatPage) {
-	        onInputChange('')
-	        onAttachmentsChange([])
-	        const sessionName = selectedSkillToken
-	          ? `$${selectedSkillToken.name} ${input}`
-	          : undefined
-	        const nextSessionId = workspace
-	          ? await createSessionForWorkspace(workspace, sessionName)
-	          : await createSessionForWorkspace(null, sessionName)
+      const skillPrefix = selectedSkillToken
+        ? `[${selectedSkillToken.name}](${selectedSkillToken.skillPath})`
+        : ''
+      const submittedInput = skillPrefix
+        ? `${skillPrefix} ${input}`
+        : input
+
+      const submittedAttachments = attachments
+      const messageInput = {
+        text: submittedInput,
+        attachments: submittedAttachments,
+      }
+      const onRestoreInput = (restoredInput: DesktopUserMessageInput): void => {
+        onInputChange(desktopUserMessageInputToPreviewText(restoredInput))
+        onAttachmentsChange(restoredInput.attachments ?? [])
+      }
+      setSelectedSkillToken(null)
+      setGoalModeEnabled(false)
+      if (isQuickChatPage) {
+        onInputChange('')
+        onAttachmentsChange([])
+        const sessionName = selectedSkillToken
+          ? `$${selectedSkillToken.name} ${input}`
+          : undefined
+        const nextSessionId = workspace
+          ? await createSessionForWorkspace(workspace, sessionName)
+          : await createSessionForWorkspace(null, sessionName)
         if (!nextSessionId) return
         navigate(sessionPath(nextSessionId))
         await submitToSession(nextSessionId, messageInput, { onRestoreInput })
