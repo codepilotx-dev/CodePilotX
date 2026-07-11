@@ -1,6 +1,9 @@
 import { expect, mock, test } from 'bun:test'
 import { EventEmitter } from 'node:events'
-import { terminateChildProcess } from './childProcessTermination.js'
+import {
+  runWindowsTaskkill,
+  terminateChildProcess,
+} from './childProcessTermination.js'
 
 class FakeChild extends EventEmitter {
   killed = false
@@ -50,7 +53,31 @@ test('termination propagates kill errors', async () => {
     throw new Error('kill denied')
   })
 
+  const forceKill = mock(async () => {
+    child.exitCode = 1
+    child.emit('exit', 1, 'SIGKILL')
+  })
+
   await expect(
-    terminateChildProcess(child as never, { timeoutMs: 1 }),
+    terminateChildProcess(child as never, { timeoutMs: 1, forceKill }),
   ).rejects.toThrow('kill denied')
+  expect(forceKill).toHaveBeenCalledTimes(1)
+})
+
+test('taskkill timeout removes listeners and kills the helper process', async () => {
+  const taskkill = new EventEmitter() as EventEmitter & {
+    kill: ReturnType<typeof mock>
+  }
+  taskkill.kill = mock(() => true)
+
+  await expect(
+    runWindowsTaskkill(123, {
+      timeoutMs: 1,
+      spawnTaskkill: () => taskkill as never,
+    }),
+  ).rejects.toThrow('taskkill timed out')
+
+  expect(taskkill.kill).toHaveBeenCalledTimes(1)
+  expect(taskkill.listenerCount('error')).toBe(0)
+  expect(taskkill.listenerCount('exit')).toBe(0)
 })

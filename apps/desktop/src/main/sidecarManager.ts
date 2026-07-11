@@ -227,21 +227,40 @@ export class SidecarManager {
 
   private async stopOnce(): Promise<void> {
     desktopDebug('sidecar_stop', {})
-    this.connection?.dispose()
+    const errors: unknown[] = []
+    try {
+      this.connection?.dispose()
+    } catch (error) {
+      errors.push(error)
+    }
     for (const step of this.cleanupSteps.reverse()) {
-      step()
+      try {
+        step()
+      } catch (error) {
+        errors.push(error)
+      }
     }
     this.cleanupSteps = []
     const child = this.child
+    let terminated = child === null
     if (child) {
-      await terminateChildProcess(child, {
-        timeoutMs: this.options.stopTimeoutMs,
-        forceKill: this.options.forceKill,
-      })
+      try {
+        await terminateChildProcess(child, {
+          timeoutMs: this.options.stopTimeoutMs,
+          forceKill: this.options.forceKill,
+        })
+        terminated = true
+      } catch (error) {
+        errors.push(error)
+      }
     }
     this.connection = null
-    this.child = null
+    if (terminated) this.child = null
     this.initialized = false
+    if (errors.length === 1) throw errors[0]
+    if (errors.length > 1) {
+      throw new AggregateError(errors, 'Sidecar cleanup and termination failed')
+    }
   }
 
   // ── JSON-RPC 方法 ───────────────────────────────────────────────────────

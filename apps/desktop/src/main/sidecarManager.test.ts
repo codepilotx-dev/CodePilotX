@@ -11,7 +11,9 @@ class FakeConnection {
   readonly sentRequests: Array<{ method: string; params: unknown }> = []
 
   listen(): void {}
-  dispose(): void {}
+  dispose(): void {
+    if (nextDisposeError) throw nextDisposeError
+  }
 
   onNotification(method: string, handler: Handler): void {
     this.notificationHandlers.set(method, handler)
@@ -62,6 +64,7 @@ const fakeConnection = new FakeConnection()
 const spawnedChildren: FakeChildProcess[] = []
 let nextSpawnError: Error | null = null
 let nextKillError: Error | null = null
+let nextDisposeError: Error | null = null
 let autoExitOnKill = true
 const spawnMock = mock((..._args: unknown[]) => {
   const child = new FakeChildProcess()
@@ -107,6 +110,7 @@ beforeEach(() => {
   spawnedChildren.length = 0
   nextSpawnError = null
   nextKillError = null
+  nextDisposeError = null
   autoExitOnKill = true
   spawnMock.mockClear()
 })
@@ -240,6 +244,39 @@ test('sidecar stop timeout uses force kill and waits for close', async () => {
 
 test('sidecar stop propagates kill errors', async () => {
   nextKillError = new Error('kill denied')
+  const forceKill = mock(async (child: FakeChildProcess) => {
+    child.exitCode = 1
+    child.emit('exit', 1, 'SIGKILL')
+  })
+  const manager = new SidecarManager({
+    entrypoint: 'apps/tui/src/entrypoints/appServer.ts',
+    cwd: process.cwd(),
+    env: {},
+    forceKill: forceKill as never,
+  })
+  await manager.start()
+
+  await expect(manager.stop()).rejects.toThrow('kill denied')
+  expect(forceKill).toHaveBeenCalledTimes(1)
+})
+
+test('sidecar stop still terminates the child when connection cleanup fails', async () => {
+  nextDisposeError = new Error('connection dispose failed')
+  const manager = new SidecarManager({
+    entrypoint: 'apps/tui/src/entrypoints/appServer.ts',
+    cwd: process.cwd(),
+    env: {},
+  })
+  await manager.start()
+  const child = spawnedChildren[0]
+
+  await expect(manager.stop()).rejects.toThrow('connection dispose failed')
+  expect(child.killCount).toBe(1)
+})
+
+test('sidecar stop reports cleanup and termination failures together', async () => {
+  nextDisposeError = new Error('connection dispose failed')
+  nextKillError = new Error('kill denied')
   const manager = new SidecarManager({
     entrypoint: 'apps/tui/src/entrypoints/appServer.ts',
     cwd: process.cwd(),
@@ -247,5 +284,7 @@ test('sidecar stop propagates kill errors', async () => {
   })
   await manager.start()
 
-  await expect(manager.stop()).rejects.toThrow('kill denied')
+  const error = await manager.stop().catch(value => value)
+  expect(error).toBeInstanceOf(AggregateError)
+  expect((error as AggregateError).errors).toHaveLength(2)
 })

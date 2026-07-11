@@ -14,16 +14,46 @@ export async function terminateChildProcess(
   const exitMonitor = createExitMonitor(child)
   try {
     if (exitMonitor.exited) return
+    let gracefulKillError: unknown
     if (!child.killed) {
-      child.kill()
+      try {
+        child.kill()
+      } catch (error) {
+        gracefulKillError = error
+      }
     }
-    if (await exitMonitor.wait(timeoutMs)) return
+    if (!gracefulKillError && await exitMonitor.wait(timeoutMs)) return
 
     const forceKill = options.forceKill ?? (candidate =>
-      forceKillChild(candidate, options.platform ?? process.platform))
-    await forceKill(child)
-    if (await exitMonitor.wait(timeoutMs)) return
-    throw new Error(`Child process ${child.pid ?? 'unknown'} did not exit after force kill`)
+      forceKillChild(
+        candidate,
+        options.platform ?? process.platform,
+        timeoutMs,
+      ))
+    try {
+      await forceKill(child)
+    } catch (forceKillError) {
+      if (gracefulKillError) {
+        throw new AggregateError(
+          [gracefulKillError, forceKillError],
+          'Graceful and forceful child termination failed',
+        )
+      }
+      throw forceKillError
+    }
+    if (!await exitMonitor.wait(timeoutMs)) {
+      const timeoutError = new Error(
+        `Child process ${child.pid ?? 'unknown'} did not exit after force kill`,
+      )
+      if (gracefulKillError) {
+        throw new AggregateError(
+          [gracefulKillError, timeoutError],
+          'Graceful termination failed and force kill did not exit',
+        )
+      }
+      throw timeoutError
+    }
+    if (gracefulKillError) throw gracefulKillError
   } finally {
     exitMonitor.dispose()
   }
@@ -82,24 +112,56 @@ function createExitMonitor(child: ChildProcess): {
 async function forceKillChild(
   child: ChildProcess,
   platform: NodeJS.Platform,
+  timeoutMs: number,
 ): Promise<void> {
   if (platform !== 'win32' || child.pid == null) {
     child.kill('SIGKILL')
     return
   }
+  await runWindowsTaskkill(child.pid, { timeoutMs })
+}
+
+export async function runWindowsTaskkill(
+  pid: number,
+  options: {
+    timeoutMs?: number
+    spawnTaskkill?: () => ChildProcess
+  } = {},
+): Promise<void> {
+  const timeoutMs = options.timeoutMs ?? 5_000
+  const taskkill = options.spawnTaskkill?.() ?? spawn(
+    'taskkill',
+    ['/pid', String(pid), '/t', '/f'],
+    { windowsHide: true, stdio: 'ignore' },
+  )
   await new Promise<void>((resolve, reject) => {
-    const taskkill = spawn(
-      'taskkill',
-      ['/pid', String(child.pid), '/t', '/f'],
-      { windowsHide: true, stdio: 'ignore' },
-    )
-    taskkill.once('error', reject)
-    taskkill.once('exit', code => {
-      if (code === 0 || hasExited(child)) {
+    const cleanup = () => {
+      clearTimeout(timeout)
+      taskkill.off('error', onError)
+      taskkill.off('exit', onExit)
+    }
+    const onError = (error: Error) => {
+      cleanup()
+      reject(error)
+    }
+    const onExit = (code: number | null) => {
+      cleanup()
+      if (code === 0) {
         resolve()
       } else {
         reject(new Error(`taskkill exited with code ${code}`))
       }
-    })
+    }
+    const timeout = setTimeout(() => {
+      cleanup()
+      try {
+        taskkill.kill()
+      } catch {
+        // The timeout remains the primary failure; the helper is best-effort.
+      }
+      reject(new Error(`taskkill timed out for pid ${pid}`))
+    }, timeoutMs)
+    taskkill.once('error', onError)
+    taskkill.once('exit', onExit)
   })
 }
