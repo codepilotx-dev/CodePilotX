@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, session as electronSession } from 'electron'
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
@@ -12,6 +12,7 @@ import {
   getCommands,
 } from '@codepilotx/tui/commands.js'
 import { initBuiltinPlugins } from '@codepilotx/tui/plugins/bundled/index.js'
+import { registerProviderLogoCachePolicy } from './providerLogoCachePolicy.js'
 import {
   getMainLoopModel,
   parseUserSpecifiedModel,
@@ -2364,6 +2365,7 @@ createDesktopAutoUpdater({
 })
 
 app.whenReady().then(() => {
+  registerProviderLogoCachePolicy(electronSession.defaultSession)
   windowService.createApplicationMenu()
   windowService.createWindow()
   app.on('activate', () => {
