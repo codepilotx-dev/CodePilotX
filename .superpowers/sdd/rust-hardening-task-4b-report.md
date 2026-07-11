@@ -13,12 +13,12 @@ RED was observed before production changes:
   rollout `flush()` resolve successfully; six new failure/recovery tests failed.
 - The old session-store scheduler also resolved `flush()` after ENOSPC.
 - The old UI had no persistence status helper or snapshot state.
-- Atomic fault injection showed the old append path ignored temp-write/rename
-  operations and could not prove retry idempotence.
+- Append-after-error fault injection showed the old path could not prove retry
+  idempotence.
 
 GREEN behavior:
 
-- A rollout batch stays at the queue head until its atomic replacement succeeds.
+- A rollout batch stays at the queue head until its durable append succeeds.
   New items append behind it and are never reordered.
 - Default bounded policy is three total attempts: initial write, then 50 ms and
   150 ms backoff retries. Tests inject zero-delay policies.
@@ -26,10 +26,9 @@ GREEN behavior:
   exhausted. A later append or `flush()` retries the retained ordered batch.
 - Concurrent flush callers share the same per-path in-flight drain. Items
   appended during a drain are included before that drain resolves.
-- Rollout append now reads the existing JSONL, writes the complete replacement
-  to a same-directory temporary file, calls `sync()`, closes it, then renames it.
-  Partial temp writes and rename failures clean the temp and leave the original
-  file unchanged. Recovery tests verify the new item appears exactly once.
+- Rollout writes use `O_APPEND`, call `sync()`, and preserve existing file
+  mode/ACLs. Stable batch ids and per-line indices make an unknown append result
+  retry idempotent; recovery tests verify each completed item appears once.
 - Session-store saves retain the latest pending state, reject `flush()` on
   failure, and clear the error only after a successful retry.
 
@@ -75,11 +74,13 @@ Measured by the deterministic stress tests on this checkout:
 - Adapter partial updates before final: 1; pending timers: 1.
 - Durable partial history entries: 0; final assistant history entries: 1.
 - Renderer transient workflow entries after 10,000 updates: 1.
-- Latest targeted run: adapter stress 4.69 ms; renderer upsert stress 11.96 ms.
+- Follow-up time-spread tests cover 250 timer ticks and 200,000 characters in
+  both adapter and renderer chunk storage.
 
 ## Validation
 
-- Targeted Task 4B suite: 140 passed, 0 failed, 417 assertions.
+- Targeted Task 4B suites pass; root verification below covers the integrated
+  paths.
 - Root `bun run test`: 199 passed, 0 failed, 498 assertions.
 - `bun run desktop:typecheck`: exit 0.
 - `bun run desktop:css:check`: exit 0, zero overlaps.
@@ -87,7 +88,37 @@ Measured by the deterministic stress tests on this checkout:
 
 ## Reference reuse
 
-The atomic writer follows the existing same-directory temp/write/rename/cleanup
-structure in `apps/desktop/src/main/sessionPersistence.ts::writeFileAtomically`.
-It is implemented locally in rollout persistence because session persistence
-already imports rollout helpers and importing it back would introduce a cycle.
+The retry policy reuses the existing bounded scheduler pattern. Rollout storage
+uses append ownership instead of the session-index atomic replacement helper,
+because JSONL has independent appenders while the index has a single owner.
+
+## Review follow-up
+
+- Replaced full-file rollout replacement with durable `O_APPEND`. Desktop and
+  Rust app-server rollouts have distinct owners/paths; the one desktop bypass
+  (session metadata) now also uses the scheduler.
+- Each scheduler batch has a stable id plus line index/size metadata. A retry
+  scans complete indices and appends only missing records. Blank/corrupt lines
+  are ignored by the real loader; a partial tail recovery test returns each
+  completed message once. Existing files without a trailing newline receive a
+  separator. Two independent schedulers plus an external append retain all
+  records without replacing mode/ACL state.
+- Shutdown now rejects and keeps Electron running when either flush fails. Its
+  singleton promise resets so the next quit request retries. Session deletion
+  flushes first and leaves server/index/runtime/local state intact on failure.
+- Persistence status is removed from every durable legacy snapshot boundary;
+  it remains an IPC-only session-list state and reload defaults to no warning.
+- Assistant streaming is closed by item id and terminal turn state. Timers bind
+  generation + item id; stale callbacks and late deltas emit nothing.
+- Time-spread adapter processing joins only new chunks. 10,000 x 20 characters
+  over 250 timer ticks processes exactly 200,000 characters. Reasoning and
+  summary streams also emit delta chunks and stop at turn terminal state.
+- Renderer transient state retains fixed delta chunks, renders them as fragments
+  while streaming, and joins only the final completed text. Its 10,000-chunk
+  stress retains exactly 200,000 characters with no cumulative text copies.
+- Workflow transient identity uses stream/item identity, preserving
+  assistant-1 -> tool -> assistant-2 ordering within one turn.
+
+Fresh follow-up validation: root `bun run test` passed 200 tests / 501
+assertions; desktop typecheck, CSS ownership check and branch diff check all
+exited zero.
