@@ -155,7 +155,7 @@
   --type-message: var(--font-size-ui);
   --type-secondary: max(10px, calc(var(--font-size-ui) - 1px));
   --type-meta: max(10px, calc(var(--font-size-ui) - 2px));
-  --type-caption: max(10px, calc(var(--font-size-ui) - 3px));
+  --type-caption: max(10px, calc(var(--font-size-ui) - 1px));
 
   --radius-1: calc(var(--radius-base) - 6px);
   --radius-2: calc(var(--radius-base) - 4px);

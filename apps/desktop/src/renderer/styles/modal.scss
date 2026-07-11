@@ -47,10 +47,17 @@
 .permission-modal-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+
   gap: var(--space-3);
 }
 
+.permission-modal header {
+  justify-content: space-between;
+}
+
+.permission-modal-actions {
+  justify-content: flex-end;
+}
 .permission-modal header span {
   padding: 5px 10px;
   border-radius: var(--radius-full);
@@ -64,12 +71,10 @@
     align-items: center;
     justify-content: center;
     gap: var(--control-gap);
-    padding: var(--control-padding-block)
-      var(--control-padding-inline);
+    padding: var(--control-padding-block) var(--control-padding-inline);
     border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-4);
     background: var(--color-bg);
-    line-height: var(--control-line-height);
 
     &:hover {
       background: var(--color-bg-hover);
@@ -367,8 +372,7 @@
   display: flex;
   align-items: center;
   gap: var(--control-gap);
-  padding: var(--control-padding-block)
-    var(--control-padding-inline);
+  padding: var(--control-padding-block) var(--control-padding-inline);
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-4);
   background: var(--color-bg);
@@ -532,7 +536,8 @@
   &:focus {
     outline: none;
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--color-accent) 20%, transparent);
   }
 }
 

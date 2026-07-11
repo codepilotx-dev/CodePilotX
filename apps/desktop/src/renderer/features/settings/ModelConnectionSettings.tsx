@@ -1,6 +1,6 @@
 import { desktopClient } from '../../services/desktopClient.js'
 import { withModelCatalogLoading } from '../../hooks/useModelCatalogLoading.js'
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react'
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopCopilotAuthStatus,
   DesktopCopilotLoginStatus,
@@ -11,13 +11,32 @@ import type {
   ModelProviderID,
 } from '../../../shared/types.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
-import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsSection } from './SettingsSection.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { fullErrorMessage } from '../../utils/errors.js'
-import { Brain, Braces, Eye, Hammer, Link2, RefreshCw, Search } from 'lucide-react'
+import { Brain, Braces, Eye, EyeOff, Hammer, Link2 } from 'lucide-react'
+import { ModelConnectionDialog } from './ModelConnectionDialog.js'
+import {
+  createModelConnectionDraft,
+  isModelConnectionDraftDirty,
+  restoreModelConnectionDraft,
+  type ModelConnectionDraft,
+} from './modelConnectionDraft.js'
+import { getConfiguredProviderIDs } from './modelProviderConfiguration.js'
+import {
+  collectAvailableModelIDs,
+  getCredentialVerificationLabel,
+  getModelVerificationLabel,
+  isVerificationRequestCurrent,
+  type ModelConnectionVerificationStatus,
+} from './modelConnectionVerification.js'
+import {
+  getApiKeyConnectionSavePlan,
+  isConnectionSaveContextCurrent,
+  type ConnectionSaveContext,
+} from './modelConnectionSave.js'
 
 const BUILT_IN_PROVIDER_IDS = new Set([
   'openai',
@@ -70,14 +89,35 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
   const [providerID, setProviderID] = useState<ModelProviderID>(
     settings.providerID,
   )
-  const [modelQuery, setModelQuery] = useState('')
   const [baseURL, setBaseURL] = useState(settings.providerBaseURL)
   const [apiKey, setApiKey] = useState('')
+  const [apiKeyVisible, setApiKeyVisible] = useState(false)
   const [model, setModel] = useState(settings.model)
+  const [savedConnection, setSavedConnection] = useState<ModelConnectionDraft>(() => ({
+    providerID: settings.providerID,
+    baseURL: settings.providerBaseURL,
+    model: settings.model,
+  }))
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const configureConnectionButtonRef = useRef<HTMLButtonElement | null>(null)
   const [modelError, setModelError] = useState<string | null>(null)
   const [balanceStatus, setBalanceStatus] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [verificationStatus, setVerificationStatus] =
+    useState<ModelConnectionVerificationStatus>('idle')
+  const [verificationError, setVerificationError] = useState<string | null>(null)
+  const [availableModelIDs, setAvailableModelIDs] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const verificationRequestIDRef = useRef(0)
+  const connectionContextRef = useRef({ providerID, baseURL })
+  connectionContextRef.current = { providerID, baseURL }
+  const saveRequestIDRef = useRef(0)
+  const saveContextRef = useRef({ providerID, baseURL, model })
+  saveContextRef.current = { providerID, baseURL, model }
+  const copilotAutoSaveAttemptRef = useRef<string | null>(null)
+  const [copilotAutoSaveRetry, setCopilotAutoSaveRetry] = useState(0)
   const [copilotAuth, setCopilotAuth] =
     useState<DesktopCopilotAuthStatus | null>(null)
   const [copilotLogin, setCopilotLogin] =
@@ -115,6 +155,11 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
   const isGitHubCopilot =
     selectedProvider?.kind === 'github-copilot' ||
     providerID === 'github-copilot'
+  const hasGitHubCopilotProvider = providers.some(
+    provider =>
+      provider.kind === 'github-copilot' ||
+      provider.providerID === 'github-copilot',
+  )
   const selectedProviderState =
     providerState?.selectedProviderID === providerID ? providerState : null
   const providerModels = (
@@ -127,27 +172,70 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     if (!providerModels.includes(model)) return model
     return null
   }, [model, providerModels])
+  const displayModelIds = useMemo(
+    () => (orphanModelId ? [orphanModelId, ...providerModels] : providerModels),
+    [orphanModelId, providerModels],
+  )
   const requiresBaseURL = Boolean(selectedProvider?.requiresBaseURL)
   const baseURLEditable = requiresBaseURL
-  const apiKeySource = selectedProviderState?.apiKeySource ?? null
-  const apiKeyConfigured = Boolean(selectedProviderState?.apiKeyConfigured)
+  const apiKeyConfigured = Boolean(
+    selectedProviderState?.apiKeyConfigured ?? selectedProvider?.apiKeyConfigured,
+  )
+  const connectionDraft = useMemo<ModelConnectionDraft>(
+    () => ({ providerID, baseURL, model }),
+    [baseURL, model, providerID],
+  )
+  const connectionDirty = isModelConnectionDraftDirty(
+    connectionDraft,
+    savedConnection,
+  )
+  const savedProvider = useMemo(
+    () => providers.find(provider => provider.providerID === savedConnection.providerID),
+    [providers, savedConnection.providerID],
+  )
+  const savedIsGitHubCopilot =
+    savedProvider?.kind === 'github-copilot' ||
+    savedConnection.providerID === 'github-copilot'
+  const configuredProviderIDs = useMemo(
+    () => getConfiguredProviderIDs(providers, Boolean(copilotAuth?.authenticated)),
+    [copilotAuth?.authenticated, providers],
+  )
+  const credentialVerificationLabel = getCredentialVerificationLabel(
+    verificationStatus,
+    isGitHubCopilot ? Boolean(copilotAuth?.authenticated) : apiKeyConfigured,
+  )
+  const modelVerificationLabel = getModelVerificationLabel(
+    verificationStatus,
+    availableModelIDs.size,
+    displayModelIds.length,
+  )
+
+  function resetVerification(): void {
+    verificationRequestIDRef.current += 1
+    if (verificationStatus === 'testing') setBusy(false)
+    setVerificationStatus('idle')
+    setVerificationError(null)
+    setAvailableModelIDs(new Set())
+  }
+
+  function invalidateConnectionSaves(): void {
+    saveRequestIDRef.current += 1
+  }
 
   useEffect(() => {
     if (providerID === providerState?.selectedProviderID) return
     const nextSelection = getProviderSelectionState(selectedProvider)
     setBaseURL(nextSelection.baseURL)
     setModel(nextSelection.model)
-    setModelQuery('')
+    setApiKey('')
+    setApiKeyVisible(false)
     setBalanceStatus(null)
     setStatus(null)
     setModelError(null)
   }, [providerID, providerState, selectedProvider])
 
   useEffect(() => {
-    if (!isGitHubCopilot) {
-      setCopilotAuth(null)
-      return
-    }
+    if (!hasGitHubCopilotProvider) return
     let mounted = true
     void desktopClient.getCopilotAuthStatus()
       .then(status => {
@@ -164,9 +252,40 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     return () => {
       mounted = false
     }
-  }, [isGitHubCopilot])
+  }, [hasGitHubCopilotProvider])
+
+  useEffect(() => {
+    resetVerification()
+    invalidateConnectionSaves()
+  }, [copilotAuth?.authenticated])
+
+  useEffect(() => {
+    if (!isGitHubCopilot || !copilotAuth?.authenticated || !connectionDirty) return
+    const attemptKey = [providerID, baseURL, model, copilotAutoSaveRetry].join('\u0000')
+    if (copilotAutoSaveAttemptRef.current === attemptKey) return
+    copilotAutoSaveAttemptRef.current = attemptKey
+    setBusy(true)
+    void saveCurrentProviderConnection(
+      'GitHub Copilot 模型连接已自动保存。',
+    ).then(result => {
+      if (result === 'error') {
+        setStatus('GitHub Copilot 连接自动保存失败。请点击「刷新状态」重试。')
+      }
+      if (copilotAutoSaveAttemptRef.current === attemptKey) setBusy(false)
+    })
+  }, [
+    baseURL,
+    connectionDirty,
+    copilotAuth?.authenticated,
+    copilotAutoSaveRetry,
+    isGitHubCopilot,
+    model,
+    onError,
+    providerID,
+  ])
 
   async function startCopilotLogin(): Promise<void> {
+    resetVerification()
     setBusy(true)
     setModelError(null)
     setStatus(null)
@@ -249,6 +368,7 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
   }
 
   async function cancelCopilotLoginFlow(): Promise<void> {
+    resetVerification()
     setBusy(true)
     try {
       await desktopClient.cancelCopilotLogin()
@@ -263,6 +383,7 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
   }
 
   async function refreshCopilotAuth(): Promise<void> {
+    resetVerification()
     setBusy(true)
     setStatus(null)
     try {
@@ -284,6 +405,7 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
       } else {
         setStatus('未检测到 Copilot 登录。可点击「使用 GitHub 登录」启动登录窗口。')
       }
+      setCopilotAutoSaveRetry(value => value + 1)
     } catch (error) {
       showOperationError(error)
     } finally {
@@ -299,60 +421,13 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     setProviderID(nextProviderID)
     setBaseURL(nextSelection.baseURL)
     setModel(nextSelection.model)
-    setModelQuery('')
     setBalanceStatus(null)
     setStatus(null)
     setModelError(null)
+    resetVerification()
+    invalidateConnectionSaves()
+    copilotAutoSaveAttemptRef.current = null
   }
-
-  const providerOptions = useMemo(() => {
-    const mapped = providers.slice(0, 80).map(provider => ({
-      value: provider.providerID,
-      label: provider.displayName,
-      detail: providerDetail(provider),
-      icon: provider.logoURL ? (
-        <img className="settings-provider-logo" src={provider.logoURL} alt="" />
-      ) : undefined,
-    }))
-    if (!providers.length) {
-      return [
-        {
-          value: NO_MODEL_OPTION,
-          label: '未加载供应商',
-          detail: '请检查 catalog 网络连接',
-        },
-      ]
-    }
-    if (!mapped.some(option => option.value === providerID)) {
-      const selectedProviderOption = providers.find(
-        provider => provider.providerID === providerID,
-      )
-      if (selectedProviderOption) {
-        mapped.unshift({
-          value: selectedProviderOption.providerID,
-          label: selectedProviderOption.displayName,
-          detail: providerDetail(selectedProviderOption),
-          icon: selectedProviderOption.logoURL ? (
-            <img
-              className="settings-provider-logo"
-              src={selectedProviderOption.logoURL}
-              alt=""
-            />
-          ) : undefined,
-        })
-      }
-    }
-    return mapped
-  }, [providerID, providers])
-
-  const filteredModelIds = useMemo(() => {
-    const query = modelQuery.trim().toLowerCase()
-    return providerModels.filter(item => {
-      if (!query) return true
-      const metadata = modelMetadata[item]
-      return modelSearchText(item, metadata).includes(query)
-    })
-  }, [modelMetadata, modelQuery, providerModels])
 
 	function applyProviderState(
   nextState: DesktopModelProviderState,
@@ -367,6 +442,11 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     setProviderID(nextState.selectedProviderID)
     setBaseURL(nextState.baseURL ?? '')
     setModel(nextModel)
+    setSavedConnection({
+      providerID: nextState.selectedProviderID,
+      baseURL: nextState.baseURL ?? '',
+      model: nextModel,
+    })
     if (options.persistEffectiveSettings) {
       settings.syncExternalSettingsPatch({
         providerID: nextState.selectedProviderID,
@@ -404,168 +484,239 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     if (!model && cleanModels[0]) setModel(cleanModels[0])
   }
 
-  async function fetchModels(): Promise<void> {
-    setBusy(true)
-    setModelError(null)
-    setStatus('正在刷新模型目录...')
-    try {
-      const result = await withModelCatalogLoading(() =>
-        desktopClient.fetchProviderModels({
-          providerID,
-          apiKey: apiKey.trim() || undefined,
-          baseURL: baseURL.trim() || undefined,
-        }),
-      )
-      applyFetchedModels(result.models, result.error)
-      setModelError(result.error ?? null)
-      setStatus(result.error ? null : `已加载 ${result.models.length} 个模型。`)
-    } catch (error) {
-      showOperationError(error)
-    } finally {
-      setBusy(false)
-    }
-  }
-
   async function fetchBalance(): Promise<DesktopProviderBalanceResult> {
-    const result = await desktopClient.fetchProviderBalance({
+    return desktopClient.fetchProviderBalance({
       providerID,
       apiKey: apiKey.trim() || undefined,
       baseURL: baseURL.trim() || undefined,
     })
-    setBalanceStatus(formatBalanceStatus(result))
-    return result
   }
 
   async function testConnection(): Promise<void> {
+    if (apiKey.trim()) {
+      const message = '测试连接前请先保存输入的 API 密钥。'
+      setModelError(message)
+      setVerificationError(message)
+      setVerificationStatus('error')
+      setAvailableModelIDs(new Set())
+      onError(message)
+      return
+    }
     if (requiresBaseURL && !baseURL.trim()) {
-      setModelError('测试前请为该供应商配置兼容 OpenAI 的 Base URL。')
+      const message = '测试前请为该供应商配置兼容 OpenAI 的 Base URL。'
+      setModelError(message)
+      setVerificationError(message)
+      setVerificationStatus('error')
+      setAvailableModelIDs(new Set())
+      onError(message)
       return
     }
     setBusy(true)
+    const request = {
+      id: verificationRequestIDRef.current + 1,
+      providerID,
+      baseURL,
+    }
+    verificationRequestIDRef.current = request.id
+    setVerificationStatus('testing')
+    setVerificationError(null)
+    setAvailableModelIDs(new Set())
     setModelError(null)
     setStatus('正在测试连接...')
     try {
       const modelsRequest = withModelCatalogLoading(() =>
         desktopClient.fetchProviderModels({
           providerID,
-          apiKey: apiKey.trim() || undefined,
           baseURL: baseURL.trim() || undefined,
         }),
       )
 const [modelsResult, balanceResult] = isDeepSeek
         ? await Promise.all([modelsRequest, fetchBalance()])
         : [await modelsRequest, null]
+      const currentContext = connectionContextRef.current
+      if (
+        !isVerificationRequestCurrent(
+          request,
+          verificationRequestIDRef.current,
+          currentContext.providerID,
+          currentContext.baseURL,
+        )
+      ) {
+        return
+      }
+      if (balanceResult) setBalanceStatus(formatBalanceStatus(balanceResult))
       applyFetchedModels(modelsResult.models, modelsResult.error)
       const errors = [modelsResult.error, balanceResult?.error].filter(
         (item): item is string => Boolean(item),
       )
-      setModelError(errors.length > 0 ? errors.join('；') : null)
+      const errorMessage = errors.length > 0 ? errors.join('；') : null
+      setModelError(errorMessage)
+      setVerificationError(errorMessage)
+      setVerificationStatus(errorMessage ? 'error' : 'success')
+      setAvailableModelIDs(
+        errorMessage
+          ? new Set()
+          : collectAvailableModelIDs(
+              [...displayModelIds, ...modelsResult.models],
+              modelsResult.models,
+            ),
+      )
+      if (errorMessage) onError(errorMessage)
       setStatus(
         errors.length > 0
           ? null
           : `连接正常。共找到 ${modelsResult.models.length} 个模型。`,
       )
     } catch (error) {
+      const currentContext = connectionContextRef.current
+      if (
+        !isVerificationRequestCurrent(
+          request,
+          verificationRequestIDRef.current,
+          currentContext.providerID,
+          currentContext.baseURL,
+        )
+      ) {
+        return
+      }
+      setVerificationStatus('error')
+      setVerificationError(fullErrorMessage(error))
+      setAvailableModelIDs(new Set())
       showOperationError(error)
     } finally {
-      setBusy(false)
+      const currentContext = connectionContextRef.current
+      if (
+        isVerificationRequestCurrent(
+          request,
+          verificationRequestIDRef.current,
+          currentContext.providerID,
+          currentContext.baseURL,
+        )
+      ) {
+        setBusy(false)
+      }
     }
   }
 
-  async function saveProvider(): Promise<void> {
-    if (requiresBaseURL && !baseURL.trim()) {
-      setModelError('保存为可调用连接前，该 Models.dev 供应商需要 Base URL。')
-      return
+  async function saveCurrentProviderConnection(
+    successMessage: string,
+    existingRequest?: ConnectionSaveContext,
+  ): Promise<'saved' | 'error' | 'stale'> {
+    const request = existingRequest ?? {
+      id: saveRequestIDRef.current + 1,
+      providerID,
+      baseURL,
+      model,
     }
-    if (!model.trim()) {
-      setModelError('保存前请选择一个具体模型。')
-      return
+    saveRequestIDRef.current = request.id
+    if (requiresBaseURL && !request.baseURL.trim()) {
+      const message = '保存为可调用连接前，该 Models.dev 供应商需要 Base URL。'
+      setModelError(message)
+      onError(message)
+      return 'error'
     }
-    setBusy(true)
+    if (!request.model.trim()) {
+      const message = '保存前请选择一个具体模型。'
+      setModelError(message)
+      onError(message)
+      return 'error'
+    }
     setModelError(null)
     try {
-const nextState = await desktopClient.saveModelProvider({
-        providerID,
-        modelID: model.trim(),
-        baseURL: baseURL.trim() || undefined,
+      const nextState = await desktopClient.saveModelProvider({
+        providerID: request.providerID as ModelProviderID,
+        modelID: request.model.trim(),
+        baseURL: request.baseURL.trim() || undefined,
       })
+      if (
+        !isConnectionSaveContextCurrent(
+          request,
+          saveRequestIDRef.current,
+          saveContextRef.current,
+        )
+      ) {
+        return 'stale'
+      }
       applyProviderState(nextState, { persistEffectiveSettings: true })
-      setStatus('模型连接已保存。')
+      setStatus(successMessage)
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
+      return 'saved'
     } catch (error) {
+      if (
+        !isConnectionSaveContextCurrent(
+          request,
+          saveRequestIDRef.current,
+          saveContextRef.current,
+        )
+      ) {
+        return 'stale'
+      }
       showOperationError(error)
-    } finally {
-      setBusy(false)
+      return 'error'
     }
   }
 
-async function saveApiKey(): Promise<void> {
-    if (!apiKey.trim()) {
-      setModelError('请输入 API 密钥。')
+  async function saveApiKeyAndConnection(): Promise<void> {
+    const plan = getApiKeyConnectionSavePlan(apiKey, apiKeyConfigured)
+    if (plan.kind === 'missing-credential') {
+      const message = '请输入 API 密钥后再保存连接。'
+      setModelError(message)
+      onError(message)
       return
     }
     setBusy(true)
     setModelError(null)
+    const request: ConnectionSaveContext = {
+      id: saveRequestIDRef.current + 1,
+      providerID,
+      baseURL,
+      model,
+    }
+    saveRequestIDRef.current = request.id
     try {
-const nextState = await desktopClient.saveProviderApiKey(
-        providerID,
-        apiKey.trim(),
-      )
-      setApiKey('')
-      const nextConnection = getProviderConnectionState({
-        provider: selectedProvider,
-        model,
-        providerModels,
-        baseURL,
-        baseURLEditable,
-      })
-      setProviderState(current => {
-        if (current && current.selectedProviderID === providerID) {
+      if (plan.kind === 'save-key-and-connection') {
+        await desktopClient.saveProviderApiKey(
+          request.providerID as ModelProviderID,
+          plan.apiKey,
+        )
+        if (
+          !isConnectionSaveContextCurrent(
+            request,
+            saveRequestIDRef.current,
+            saveContextRef.current,
+          )
+        ) {
+          const message = 'API 密钥已保存，但连接配置已变化，未继续保存模型连接。'
+          setModelError(message)
+          onError(message)
+          return
+        }
+        setApiKey('')
+        setApiKeyVisible(false)
+        resetVerification()
+        setProviders(current =>
+          current.map(provider =>
+            provider.providerID === providerID
+              ? { ...provider, apiKeyConfigured: true }
+              : provider,
+          ),
+        )
+        setProviderState(current => {
+          if (!current || current.selectedProviderID !== providerID) return current
           return {
             ...current,
-            model: nextConnection.model,
-            baseURL: nextConnection.baseURL,
             apiKeyConfigured: true,
-            apiKeySource: nextState.apiKeySource ?? 'secureStorage',
-            modelConfigured: Boolean(nextConnection.model),
-            configurationMessage: nextConnection.model
-              ? undefined
-              : '未配置模型，请先在设置中选择模型。',
-            provider: {
-              ...current.provider,
-              apiKeyConfigured: true,
-            },
+            apiKeySource: 'secureStorage',
+            provider: { ...current.provider, apiKeyConfigured: true },
           }
-        }
-        if (!selectedProvider) return current
-        return {
-          selectedProviderID: providerID,
-          provider: {
-            ...selectedProvider,
-            apiKeyConfigured: true,
-          },
-          model: nextConnection.model,
-          baseURL: nextConnection.baseURL,
-          apiKeyConfigured: true,
-          apiKeySource: nextState.apiKeySource ?? 'secureStorage',
-          modelConfigured: Boolean(nextConnection.model),
-          configurationMessage: nextConnection.model
-            ? undefined
-            : '未配置模型，请先在设置中选择模型。',
-          models: providerModels,
-          modelMetadata,
-        }
-      })
-      setStatus('API 密钥已保存。')
-      window.dispatchEvent(new Event('desktop:model-provider-changed'))
-      if (providerID === 'deepseek') {
-        const result = await desktopClient.fetchProviderBalance({
-          providerID,
-          baseURL: baseURL.trim() || nextState.baseURL,
         })
-        setBalanceStatus(formatBalanceStatus(result))
-        if (result.error) setModelError(result.error)
       }
+      await saveCurrentProviderConnection(
+        plan.kind === 'save-key-and-connection'
+          ? 'API 密钥与模型连接已保存。'
+          : '模型连接已保存。',
+        request,
+      )
     } catch (error) {
       showOperationError(error)
     } finally {
@@ -580,6 +731,15 @@ const nextState = await desktopClient.saveProviderApiKey(
     try {
 const nextState = await desktopClient.deleteProviderApiKey(providerID)
       setApiKey('')
+      setApiKeyVisible(false)
+      resetVerification()
+      setProviders(current =>
+        current.map(provider =>
+          provider.providerID === providerID
+            ? { ...provider, apiKeyConfigured: false }
+            : provider,
+        ),
+      )
       setProviderState(current => {
         if (current && current.selectedProviderID === providerID) {
           return {
@@ -643,25 +803,44 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
               <Link2 className="settings-connection-summary-icon" />
               当前连接
             </h2>
-            {isGitHubCopilot ? (
+            {savedIsGitHubCopilot ? (
               <span className={`settings-connection-badge ${copilotAuth?.authenticated ? 'ok' : 'warn'}`}>
                 <span className="settings-connection-badge-dot" />
                 {copilotAuth?.authenticated ? 'GitHub 已登录' : 'GitHub 未登录'}
               </span>
             ) : (
-              <span className={`settings-connection-badge ${apiKeyConfigured ? 'ok' : 'warn'}`}>
+              <span className={`settings-connection-badge ${savedProvider?.apiKeyConfigured ? 'ok' : 'warn'}`}>
                 <span className="settings-connection-badge-dot" />
-                {apiKeyConfigured ? 'API 密钥已配置' : 'API 密钥未配置'}
+                {savedProvider?.apiKeyConfigured ? 'API 密钥已配置' : 'API 密钥未配置'}
               </span>
             )}
+            <button
+              ref={configureConnectionButtonRef}
+              className="settings-button primary settings-connection-summary-action"
+              type="button"
+              onClick={() => {
+                const restored = createModelConnectionDraft(savedConnection)
+                setProviderID(restored.providerID)
+                setBaseURL(restored.baseURL)
+                setModel(restored.model)
+                setApiKey('')
+                setApiKeyVisible(false)
+                setModelError(null)
+                setStatus(null)
+                resetVerification()
+                setDialogOpen(true)
+              }}
+            >
+              配置连接
+            </button>
           </div>
           <div className="settings-connection-summary-body">
             <div className="settings-connection-summary-main">
               <div className="settings-connection-summary-name">
-                {selectedProvider?.displayName ?? providerID}
+                {savedProvider?.displayName ?? savedConnection.providerID}
               </div>
               <div className="settings-connection-summary-detail">
-                {model || '未选择模型'} / {baseURL || '无需 Base URL'}
+                {savedConnection.model || '未选择模型'} / {savedConnection.baseURL || '无需 Base URL'}
               </div>
             </div>
             <div className="settings-connection-summary-divider" />
@@ -669,45 +848,48 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
               <div className="settings-connection-summary-meta-item">
                 <span className="settings-connection-summary-meta-label">类型</span>
                 <span className="settings-connection-summary-meta-value">
-                  {selectedProvider?.kind ?? 'openai-compatible'}
+                  {savedProvider?.kind ?? 'openai-compatible'}
                 </span>
               </div>
               <div className="settings-connection-summary-meta-item">
                 <span className="settings-connection-summary-meta-label">来源</span>
                 <span className="settings-connection-summary-meta-value">
-                  {selectedProvider?.modelsDevSource ? 'Models.dev' : '内置'}
+                  {savedProvider?.modelsDevSource ? 'Models.dev' : '内置'}
                 </span>
               </div>
             </div>
           </div>
         </section>
 
-        <SettingsSection
-          title="供应商"
-          description="选择新会话使用的模型供应商；DeepSeek 直连模式保留其优化路径。"
+        <ModelConnectionDialog
+          open={dialogOpen}
+          dirty={connectionDirty}
+          busy={busy}
+          providerID={providerID}
+          providers={providers}
+          configuredProviderIDs={configuredProviderIDs}
+          returnFocusRef={configureConnectionButtonRef}
+          onOpen={() => setDialogOpen(true)}
+          onClose={() => setDialogOpen(false)}
+          onDiscard={() => {
+            const restored = restoreModelConnectionDraft(savedConnection)
+            setProviderID(restored.providerID)
+            setBaseURL(restored.baseURL)
+            setModel(restored.model)
+            setApiKey('')
+            setApiKeyVisible(false)
+            resetVerification()
+            invalidateConnectionSaves()
+            setDialogOpen(false)
+          }}
+          onProviderSelect={provider =>
+            applyProviderSelection(provider.providerID, provider)
+          }
         >
-          <SettingsRow
-            title="供应商"
-            description={providerDescription(selectedProvider)}
-            control={
-              <SettingsDropdown
-                width={360}
-                ariaLabel="模型供应商"
-                value={providerID}
-                options={providerOptions}
-                searchable
-                searchPlaceholder="按供应商名称、ID 或 npm 包名筛选"
-                onChange={value => {
-                  if (value === NO_MODEL_OPTION) return
-                  const nextProviderID = value as ModelProviderID
-                  const nextProvider = providers.find(
-                    provider => provider.providerID === nextProviderID,
-                  )
-                  applyProviderSelection(nextProviderID, nextProvider)
-                }}
-              />
-            }
-          />
+        <SettingsSection
+          title="连接详情"
+          description={providerDescription(selectedProvider)}
+        >
           {!isGitHubCopilot ? (
             <SettingsRow
               title="Base URL"
@@ -715,10 +897,15 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
               control={
                 <input
                   className="settings-input settings-input-wide settings-input-mono"
+                  disabled={busy}
                   readOnly={!baseURLEditable}
                   value={baseURL}
                   placeholder={selectedProvider?.baseURL ?? 'https://.../v1'}
-                  onChange={event => setBaseURL(event.target.value)}
+                  onChange={event => {
+                    setBaseURL(event.target.value)
+                    resetVerification()
+                    invalidateConnectionSaves()
+                  }}
                 />
               }
             />
@@ -732,31 +919,29 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
               ? 'GitHub Copilot 通过本地 Copilot CLI 完成 OAuth 登录，无需 API 密钥。'
               : 'API 密钥按供应商 ID 保存在安全存储中。'
           }
+          actions={
+            <div className="settings-section-inline-actions">
+              <span
+                aria-label={`凭据状态：${credentialVerificationLabel}${verificationError ? `。${verificationError}` : ''}`}
+                className={`settings-chip ${verificationStatus === 'success' ? 'ok' : verificationStatus === 'testing' ? 'pending' : 'warn'}`}
+                title={verificationError ?? credentialVerificationLabel}
+              >
+                {credentialVerificationLabel}
+              </span>
+              <button
+                className="settings-button"
+                disabled={busy}
+                type="button"
+                onClick={() => void testConnection()}
+              >
+                测试连接
+              </button>
+            </div>
+          }
         >
           {isGitHubCopilot ? (
             <div className="settings-credential-panel">
               <div className="settings-credential-controls">
-                <span
-                  className={`settings-chip ${
-                    copilotAuth?.authenticated
-                      ? 'ok'
-                      : copilotLogin?.state === 'awaiting_auth'
-                        ? 'pending'
-                        : 'warn'
-                  }`}
-                >
-                  {copilotAuth?.authenticated
-                    ? copilotAuth.user
-                      ? `已登录 · ${copilotAuth.user}`
-                      : '已登录'
-                    : copilotLogin?.state === 'awaiting_auth'
-                      ? '等待登录'
-                      : copilotLogin?.state === 'starting'
-                        ? '启动中'
-                        : copilotLogin?.state === 'failed'
-                          ? '登录失败'
-                          : '未登录'}
-                </span>
                 {copilotLogin?.state === 'awaiting_auth' && copilotLogin.deviceCode ? (
                   <button
                     className="settings-button"
@@ -850,22 +1035,35 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
                 <label className="settings-credential-label">API 密钥</label>
               </div>
               <div className="settings-credential-controls">
-                <input
-                  className="settings-input settings-credential-input"
-                  value={apiKey}
-                  placeholder={apiKeyConfigured ? '输入后保存 (已配置)' : '输入后保存'}
-                  type="password"
-                  onChange={event => setApiKey(event.target.value)}
-                />
-                <span className={`settings-chip ${apiKeyConfigured ? 'ok' : 'warn'}`}>
-                  {formatApiKeyState(apiKeySource, apiKeyConfigured)}
-                </span>
+                <div className="settings-credential-input-wrap">
+                  <input
+                    className="settings-input settings-credential-input"
+                    disabled={busy}
+                    value={apiKey}
+                    placeholder={apiKeyConfigured ? '输入后保存 (已配置)' : '输入后保存'}
+                    type={apiKeyVisible ? 'text' : 'password'}
+                    onChange={event => {
+                      setApiKey(event.target.value)
+                      resetVerification()
+                    }}
+                  />
+                  <button
+                    aria-label={apiKeyVisible ? '隐藏 API 密钥' : '显示 API 密钥'}
+                    className="settings-credential-visibility"
+                    disabled={!apiKey}
+                    title={apiKeyVisible ? '隐藏 API 密钥' : '显示 API 密钥'}
+                    type="button"
+                    onClick={() => setApiKeyVisible(visible => !visible)}
+                  >
+                    {apiKeyVisible ? <EyeOff /> : <Eye />}
+                  </button>
+                </div>
                 <div className="settings-credential-actions">
                   <button
                     className="settings-button"
                     disabled={busy}
                     type="button"
-                    onClick={() => void saveApiKey()}
+                    onClick={() => void saveApiKeyAndConnection()}
                   >
                     保存
                   </button>
@@ -885,66 +1083,33 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
 
         <SettingsSection
           title="模型"
-          description="模型元数据来自 Models.dev、供应商实时目录以及模型图标目录（如可用）。"
+          description="只读展示当前供应商提供的模型与元数据。切换供应商时使用其默认模型。"
+          actions={
+            <span
+              aria-label={`模型状态：${modelVerificationLabel}${verificationError ? `。${verificationError}` : ''}`}
+              className={`settings-chip ${verificationStatus === 'success' ? 'ok' : verificationStatus === 'testing' ? 'pending' : 'warn'}`}
+              title={verificationError ?? modelVerificationLabel}
+            >
+              {modelVerificationLabel}
+            </span>
+          }
         >
-          <div className="settings-model-toolbar">
-            <div className="settings-model-toolbar-main">
-              <div className="settings-model-search">
-                <Search className="settings-model-search-icon" />
-                <input
-                  className="settings-input settings-model-search-input"
-                  value={modelQuery}
-                  placeholder="搜索模型 / 供应商 / 能力..."
-                  onChange={event => setModelQuery(event.target.value)}
-                />
-              </div>
-              <button
-                className="settings-button"
-                disabled={busy}
-                type="button"
-                onClick={() => void fetchModels()}
-              >
-                <RefreshCw className="settings-model-toolbar-icon" />
-                刷新目录
-              </button>
-            </div>
-            {modelError || status ? (
-              <p className="settings-model-toolbar-desc">
-                {modelError ?? status}
-              </p>
-            ) : null}
-          </div>
           <div className="settings-model-cards">
-            {providerModels.length === 0 ? (
+            {displayModelIds.length === 0 ? (
               <div className="model-card-grid-empty">
-                暂无模型目录，请先点击「刷新目录」加载模型。
-              </div>
-            ) : filteredModelIds.length === 0 && !orphanModelId ? (
-              <div className="model-card-grid-empty">
-                {modelQuery.trim() ? (
-                  <>未搜索到匹配「{modelQuery}」的模型。</>
-                ) : (
-                  <>当前供应商暂无可用模型。</>
-                )}
+                当前供应商暂无可展示的模型信息。
               </div>
             ) : (
               <div className="model-card-grid">
-                {orphanModelId && (
-                  <ModelCard
-                    modelId={orphanModelId}
-                    metadata={modelMetadata[orphanModelId]}
-                    isSelected={orphanModelId === model}
-                    onSelect={setModel}
-                    isOrphan
-                  />
-                )}
-                {filteredModelIds.map(id => (
+                {displayModelIds.map(id => (
                   <ModelCard
                     key={id}
                     modelId={id}
                     metadata={modelMetadata[id]}
-                    isSelected={id === model}
-                    onSelect={setModel}
+                    available={
+                      verificationStatus === 'success' &&
+                      availableModelIDs.has(id)
+                    }
                   />
                 ))}
               </div>
@@ -983,46 +1148,7 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
           </SettingsSection>
         ) : null}
 
-        <SettingsSection
-          title="连接测试"
-          description="测试当前凭据与 Base URL。保存后的连接会应用到新会话。"
-        >
-          <SettingsRow
-            title="连接状态"
-            description={modelError ?? status ?? connectionHint(selectedProvider, baseURL)}
-            control={
-              <div className="settings-inline-actions">
-                {selectedProvider?.docURL ? (
-                  <a
-                    className="settings-row-link"
-                    href={selectedProvider.docURL}
-                    onClick={openExternalLink}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    文档
-                  </a>
-                ) : null}
-                <button
-                  className="settings-button"
-                  disabled={busy}
-                  type="button"
-                  onClick={() => void testConnection()}
-                >
-                  测试连接
-                </button>
-                <button
-                  className="settings-button primary"
-                  disabled={busy}
-                  type="button"
-                  onClick={() => void saveProvider()}
-                >
-                  保存连接
-                </button>
-              </div>
-            }
-          />
-        </SettingsSection>
+        </ModelConnectionDialog>
 
         <SettingsSection
           title="实验 Router"
@@ -1064,15 +1190,6 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
   )
 }
 
-function providerDetail(provider: DesktopModelProviderSummary): string {
-  if (provider.gatewaySource && provider.modelsDevSource) return 'Gateway + Models.dev'
-  if (provider.gatewaySource) return 'Gateway'
-  if (provider.modelsDevSource) {
-    return provider.requiresBaseURL ? 'Models.dev / 需要 Base URL' : 'Models.dev'
-  }
-  return '内置'
-}
-
 function providerDescription(provider: DesktopModelProviderSummary | undefined): string {
   if (!provider) return '选择新会话使用的供应商。'
   const parts = [provider.providerID]
@@ -1094,41 +1211,14 @@ function baseURLDescription(
   return 'Base URL 来自 Models.dev catalog。'
 }
 
-function connectionHint(provider: DesktopModelProviderSummary | undefined, baseURL: string): string {
-  if (provider?.requiresBaseURL && !baseURL.trim()) {
-    return '测试或保存此可调用连接前请先填写 Base URL。'
-  }
-  return '可以刷新模型目录、测试连接或保存当前连接。'
-}
-
-function modelSearchText(model: string, metadata: DesktopModelMetadata | undefined): string {
-  return [
-    model,
-    metadata?.name,
-    metadata?.description,
-    metadata?.modelsDevProviderId,
-    metadata?.gatewayModelId,
-    metadata?.modelType,
-    ...(metadata?.tags ?? []),
-    ...(metadata?.catalogSources ?? []),
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase()
-}
-
 function ModelCard({
   modelId,
   metadata,
-  isSelected,
-  onSelect,
-  isOrphan,
+  available,
 }: {
   modelId: string
   metadata: DesktopModelMetadata | undefined
-  isSelected: boolean
-  onSelect: (model: string) => void
-  isOrphan?: boolean
+  available: boolean
 }): React.ReactNode {
   const displayName = metadata?.name || modelId
 
@@ -1147,10 +1237,11 @@ function ModelCard({
   ].filter(Boolean) as { key: string; icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>; label: string }[])
 
   return (
-    <button
-      className={`model-card${isSelected ? ' selected' : ''}${isOrphan ? ' orphan' : ''}`}
-      onClick={() => onSelect(modelId)}
-      type="button"
+    <div
+      aria-label={`${displayName || modelId}${available ? '，可用' : ''}`}
+      className="model-card"
+      data-available={available ? '' : undefined}
+      role="group"
     >
       <div className="model-card-header">
         <div className="model-card-name" title={displayName || modelId}>
@@ -1180,10 +1271,7 @@ function ModelCard({
           })}
         </div>
       )}
-      {isOrphan && (
-        <div className="model-card-orphan-label">当前保存</div>
-      )}
-    </button>
+    </div>
   )
 }
 
@@ -1200,11 +1288,6 @@ function formatCompactNumber(value: number): string {
   if (value >= 1000000) return `${Math.round(value / 100000) / 10}M`
   if (value >= 1000) return `${Math.round(value / 1000)}K`
   return String(value)
-}
-
-function formatApiKeyState(source: string | null, configured: boolean): string {
-  if (!configured) return '未配置'
-  return '已配置'
 }
 
 function formatBalanceStatus(result: DesktopProviderBalanceResult): string {

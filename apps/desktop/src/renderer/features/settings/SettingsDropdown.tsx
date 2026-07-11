@@ -13,6 +13,7 @@ type Option = {
   label: string
   detail?: string
   icon?: React.ReactNode
+  group?: string
 }
 
 type Props = {
@@ -57,6 +58,39 @@ export function SettingsDropdown({
         )
       })
     : options
+  const optionGroups = visibleOptions.reduce<Array<[string, Option[]]>>(
+    (groups, option) => {
+      const groupLabel = option.group ?? ''
+      const existingGroup = groups.find(([label]) => label === groupLabel)
+      if (existingGroup) {
+        existingGroup[1].push(option)
+      } else {
+        groups.push([groupLabel, [option]])
+      }
+      return groups
+    },
+    [],
+  )
+  const hasGroups = optionGroups.some(([label]) => Boolean(label))
+
+  function renderOption(option: Option): React.ReactNode {
+    return (
+      <Select.Item
+        className="settings-dropdown-item"
+        key={option.value}
+        tabIndex={-1}
+        value={option.value === '' ? EMPTY_VALUE : option.value}
+      >
+        <div className="settings-dropdown-item-inner">
+          {option.icon}
+          <div className="settings-dropdown-item-copy">
+            <Select.ItemText>{option.label}</Select.ItemText>
+            {option.detail ? <span>{option.detail}</span> : null}
+          </div>
+        </div>
+      </Select.Item>
+    )
+  }
 
   React.useEffect(() => {
     if (!open || !searchable) return
@@ -130,22 +164,20 @@ export function SettingsDropdown({
           <Select.Viewport className="settings-dropdown-scroll-area">
             <div className="settings-dropdown-scroll-content">
               {visibleOptions.length ? (
-                visibleOptions.map(opt => (
-                  <Select.Item
-                    className="settings-dropdown-item"
-                    key={opt.value}
-                    tabIndex={-1}
-                    value={opt.value === '' ? EMPTY_VALUE : opt.value}
-                  >
-                    <div className="settings-dropdown-item-inner">
-                      {opt.icon}
-                      <div className="settings-dropdown-item-copy">
-                        <Select.ItemText>{opt.label}</Select.ItemText>
-                        {opt.detail ? <span>{opt.detail}</span> : null}
-                      </div>
-                    </div>
-                  </Select.Item>
-                ))
+                hasGroups ? (
+                  optionGroups.map(([label, groupOptions]) => (
+                    <Select.Group key={label}>
+                      {label ? (
+                        <Select.Label className="settings-dropdown-group-label">
+                          {label}
+                        </Select.Label>
+                      ) : null}
+                      {groupOptions.map(renderOption)}
+                    </Select.Group>
+                  ))
+                ) : (
+                  visibleOptions.map(renderOption)
+                )
               ) : (
                 <div className="settings-dropdown-empty">未找到匹配项</div>
               )}
