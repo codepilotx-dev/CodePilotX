@@ -208,9 +208,10 @@ export function validateCiWorkflow(workflow, packageScripts, repositoryRoot) {
   if (
     !RUST_SIDECAR_RELEASE_ARGS.includes('--release') ||
     !RUST_SIDECAR_RELEASE_ARGS.includes('--locked') ||
-    !RUST_SIDECAR_RELEASE_ARGS.some(value => value === 'profile.release.strip="symbols"')
+    !RUST_SIDECAR_RELEASE_ARGS.some(value => value === 'profile.release.strip="symbols"') ||
+    !RUST_SIDECAR_RELEASE_ARGS.some(value => value === 'profile.release.lto=false')
   ) {
-    throw new Error('Desktop sidecar release build must be locked and strip symbols')
+    throw new Error('Desktop sidecar release build must be locked, stripped and disable LTO')
   }
 }
 

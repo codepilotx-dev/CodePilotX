@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { RUST_SIDECAR_RELEASE_ARGS } from './rust-sidecar-build-contract.mjs'
 
 const root = resolve(import.meta.dir, '..')
 
@@ -18,9 +19,11 @@ test('desktop packaging builds one locked stripped release Rust sidecar', async 
   )
 
   expect(packageJson.scripts['desktop:rust-sidecar:prepare']).toContain('--release')
-  expect(prepareScript).toContain("'--release'")
-  expect(prepareScript).toContain("'--locked'")
-  expect(prepareScript).toContain('profile.release.strip')
+  expect(prepareScript).toContain('RUST_SIDECAR_RELEASE_ARGS')
+  expect(RUST_SIDECAR_RELEASE_ARGS).toContain('--release')
+  expect(RUST_SIDECAR_RELEASE_ARGS).toContain('--locked')
+  expect(RUST_SIDECAR_RELEASE_ARGS).toContain('profile.release.strip="symbols"')
+  expect(RUST_SIDECAR_RELEASE_ARGS).toContain('profile.release.lto=false')
   expect(builderConfig.match(/from: 'dist\/desktop-rust-sidecar'/g)).toHaveLength(1)
   expect(builderConfig.match(/'dist\/desktop-rust-sidecar\/\*\*\/\*'/g) ?? []).toHaveLength(0)
   expect(builderConfig).toContain("to: 'desktop-rust-sidecar'")
