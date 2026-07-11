@@ -33,6 +33,7 @@ export class RustLineJsonRpcClient {
   private closed = false
   private fatalError: Error | null = null
   private readonly fatalErrorListeners = new Set<(error: Error) => void>()
+  private readonly outputErrorHandler: (error: Error) => void
 
   constructor(
     private readonly streams: {
@@ -48,7 +49,11 @@ export class RustLineJsonRpcClient {
     this.lines.on('close', () =>
       this.rejectAll(new Error('Rust JSON-RPC input closed')),
     )
-    streams.output.on('error', error => this.failTransport(error))
+    this.outputErrorHandler = error => {
+      this.failTransport(error)
+      streams.output.off('error', this.outputErrorHandler)
+    }
+    streams.output.on('error', this.outputErrorHandler)
   }
 
   sendNotification(method: string, params?: unknown): void {
@@ -146,6 +151,7 @@ export class RustLineJsonRpcClient {
   }
 
   close(): void {
+    this.streams.output.off('error', this.outputErrorHandler)
     if (this.closed) return
     this.closed = true
     this.lines.close()
@@ -284,7 +290,16 @@ export class RustLineJsonRpcClient {
     this.fatalError = error
     this.rejectAll(error)
     for (const listener of this.fatalErrorListeners) {
-      listener(error)
+      try {
+        listener(error)
+      } catch (listenerError) {
+        desktopDebug('rust_json_rpc_fatal_listener_failed', {
+          message:
+            listenerError instanceof Error
+              ? listenerError.message
+              : String(listenerError),
+        })
+      }
     }
   }
 }

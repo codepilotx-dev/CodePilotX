@@ -1338,4 +1338,36 @@ describe('RustSidecarDesktopAgentRuntime lifecycle', () => {
     await Promise.all([first, second])
     expect(child.kill).toHaveBeenCalledTimes(1)
   })
+
+  test('an interrupted old turn cannot complete a newer turn', async () => {
+    const events: unknown[] = []
+    const interruptTurn = mock(async () => ({}))
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-turn-race',
+      workspacePath: process.cwd(),
+      emit: event => events.push(event),
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const internals = runtime as unknown as {
+      appServerClient: { interruptTurn: typeof interruptTurn }
+      workflowState: { threadId: string; activeTurnId: string | null }
+      activeRuntimeTurnId: string | null
+      currentTurnResolve: () => void
+      interruptActiveTurn(): Promise<void>
+      handleNotification(method: string, params: unknown): void
+    }
+    internals.appServerClient = { interruptTurn }
+    internals.workflowState = { threadId: 'thread-1', activeTurnId: 'turn-old' }
+    internals.activeRuntimeTurnId = 'turn-old'
+    internals.currentTurnResolve = () => {}
+
+    await internals.interruptActiveTurn()
+    expect(events).toEqual([{ type: 'done', sessionId: 'test-turn-race' }])
+
+    internals.activeRuntimeTurnId = 'turn-new'
+    internals.handleNotification('turn/completed', {
+      turn: { id: 'turn-old', status: 'completed' },
+    })
+    expect(events).toEqual([{ type: 'done', sessionId: 'test-turn-race' }])
+  })
 })

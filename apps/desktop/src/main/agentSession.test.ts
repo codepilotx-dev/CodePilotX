@@ -633,7 +633,7 @@ test('interrupted session emits a done event after runtime observes abort', asyn
       permissionMode: 'default',
     },
     {
-      createRuntime: () => createAbortAwareRuntime(),
+      createRuntime: context => createAbortAwareRuntime(context),
     },
   )
   session.on('event', event => events.push(event))
@@ -730,6 +730,46 @@ test('disposing a session awaits runtime disposal and is idempotent', async () =
   expect(dispose).toHaveBeenCalledTimes(1)
 })
 
+test('runtime owns the successful turn terminal event', async () => {
+  const events: DesktopAgentEvent[] = []
+  const session = createDesktopAgentSession(
+    {
+      workspacePath: resolve('tmp', 'desktop-workspace'),
+      sessionId: 'session-terminal-success',
+      suppressStartupMessage: true,
+      permissionMode: 'default',
+    },
+    {
+      createRuntime: context => createTerminalRuntime(context, 'done'),
+    },
+  )
+  session.on('event', event => events.push(event))
+
+  await session.sendUserMessage('hello', 'hello')
+
+  expect(events.filter(event => event.type === 'done')).toHaveLength(1)
+})
+
+test('runtime owns the failed turn terminal event', async () => {
+  const events: DesktopAgentEvent[] = []
+  const session = createDesktopAgentSession(
+    {
+      workspacePath: resolve('tmp', 'desktop-workspace'),
+      sessionId: 'session-terminal-error',
+      suppressStartupMessage: true,
+      permissionMode: 'default',
+    },
+    {
+      createRuntime: context => createTerminalRuntime(context, 'error'),
+    },
+  )
+  session.on('event', event => events.push(event))
+
+  await session.sendUserMessage('hello', 'hello')
+
+  expect(events.filter(event => event.type === 'error')).toHaveLength(1)
+})
+
 test('permission requested after dispose abort resolves instead of hanging', async () => {
   const decisions: unknown[] = []
   const session = createDesktopAgentSession(
@@ -776,6 +816,31 @@ function createRecoveredQuestionRuntime(
   }
 }
 
+function createTerminalRuntime(
+  context: DesktopAgentRuntimeContext,
+  outcome: 'done' | 'error',
+): DesktopAgentRuntime {
+  return {
+    setModel: () => {},
+    setModelProvider: () => {},
+    setDebugConversationDump: () => {},
+    setPermissionMode: () => {},
+    setPlanModeActive: () => {},
+    getMcpRuntimeStatus: () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
+    refreshMcpConfig: async () => 'not_loaded',
+    dispose: async () => {},
+    runControlResponse: async () => {},
+    runUserTurn: async () => {
+      if (outcome === 'done') {
+        context.emit({ type: 'done', sessionId: context.sessionId })
+        return
+      }
+      context.emit({ type: 'error', sessionId: context.sessionId, message: 'runtime failed' })
+      throw new Error('runtime failed')
+    },
+  }
+}
+
 function createRecoveredPlanRuntime(
   userTurns: unknown[],
   models: unknown[] = [],
@@ -803,7 +868,9 @@ function createRecoveredPlanRuntime(
 	  }
 	}
 
-	function createAbortAwareRuntime(): DesktopAgentRuntime {
+	function createAbortAwareRuntime(
+	  context: DesktopAgentRuntimeContext,
+	): DesktopAgentRuntime {
 	  return {
 	    setModel: () => {},
 	    setModelProvider: () => {},
@@ -819,6 +886,7 @@ function createRecoveredPlanRuntime(
       await new Promise<void>(resolve => {
         signal.addEventListener('abort', () => resolve(), { once: true })
       })
+      context.emit({ type: 'done', sessionId: context.sessionId })
     },
   }
 }

@@ -410,6 +410,8 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   private currentTurnResolve: (() => void) | null = null
   private currentTurnReject: ((error: Error) => void) | null = null
   private currentTurnTerminal = false
+  private activeRuntimeTurnId: string | null = null
+  private readonly sealedRuntimeTurnIds = new Set<string>()
   private pendingTurnSignal: AbortSignal | null = null
   private disposeNotificationListener: (() => void) | null = null
   private disposeFatalTransportListener: (() => void) | null = null
@@ -519,6 +521,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       this.currentTurnReject = reject
     })
     this.currentTurnTerminal = false
+    this.activeRuntimeTurnId = null
 
     this.pendingTurnSignal = signal
     const abortHandler = () => {
@@ -536,11 +539,12 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       await this.applyPendingProviderChange()
 
       // Send turn/start with the converted input
-      await this.appServerClient!.startTurn({
+      const turnResult = await this.appServerClient!.startTurn({
         threadId: this.workflowState.threadId!,
         input,
         model: this.context.model ?? undefined,
       })
+      this.activeRuntimeTurnId = turnResult.turn.id
 
       await this.currentTurnPromise
     } finally {
@@ -990,6 +994,18 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   private handleNotification(method: string, params: unknown): void {
+	    const notificationTurnId = rustNotificationTurnId(params)
+	    if (
+	      notificationTurnId &&
+	      (this.sealedRuntimeTurnIds.has(notificationTurnId) ||
+	        (this.activeRuntimeTurnId !== null &&
+	          notificationTurnId !== this.activeRuntimeTurnId))
+	    ) {
+	      return
+	    }
+	    if (method === 'turn/started' && notificationTurnId) {
+	      this.activeRuntimeTurnId = notificationTurnId
+	    }
 	    handleServerNotification(
 	      method,
 	      params,
@@ -1457,7 +1473,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     ) {
       // If there's no active turn to interrupt but the turn promise is still
       // pending, resolve it so the UI doesn't hang.
-      this.currentTurnResolve?.()
+      this.completeInterruptedTurn()
       return
     }
     try {
@@ -1467,14 +1483,23 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       })
       // Resolve the turn promise immediately on successful interrupt response,
       // rather than waiting for a delayed turn/completed notification.
-      this.currentTurnResolve?.()
+      this.completeInterruptedTurn()
     } catch (err) {
       desktopDebug('rust_sidecar_interrupt_failed', {
         message: err instanceof Error ? err.message : String(err),
       })
       // Safety net: resolve so the UI clears even if the interrupt RPC fails.
-      this.currentTurnResolve?.()
+      this.completeInterruptedTurn()
     }
+  }
+
+  private completeInterruptedTurn(): void {
+    if (this.currentTurnTerminal) return
+    this.currentTurnTerminal = true
+    const turnId = this.activeRuntimeTurnId ?? this.workflowState.activeTurnId
+    if (turnId) this.sealedRuntimeTurnIds.add(turnId)
+    this.context.emit({ type: 'done', sessionId: this.context.sessionId })
+    this.currentTurnResolve?.()
   }
 }
 
@@ -1491,4 +1516,11 @@ function waitForChildExit(child: ChildProcess): Promise<void> {
     child.once('exit', finish)
     child.once('error', finish)
   })
+}
+
+function rustNotificationTurnId(params: unknown): string | null {
+  if (!isRecord(params)) return null
+  const turn = params.turn
+  if (isRecord(turn) && typeof turn.id === 'string') return turn.id
+  return typeof params.turnId === 'string' ? params.turnId : null
 }

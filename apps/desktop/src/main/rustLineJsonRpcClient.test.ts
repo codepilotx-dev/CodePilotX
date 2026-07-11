@@ -127,6 +127,25 @@ describe('RustLineJsonRpcClient', () => {
     expect(fatalErrors[0].message).toBe('broken pipe')
   })
 
+  test('fatal listeners are isolated and output error listener is removed on close', async () => {
+    const input = new PassThrough()
+    const output = new PassThrough()
+    const client = new RustLineJsonRpcClient({ input, output })
+    const calls: string[] = []
+    client.onFatalError(() => {
+      calls.push('throwing')
+      throw new Error('listener failed')
+    })
+    client.onFatalError(() => calls.push('second'))
+    expect(output.listenerCount('error')).toBe(1)
+
+    output.emit('error', new Error('transport failed'))
+
+    expect(calls).toEqual(['throwing', 'second'])
+    client.close()
+    expect(output.listenerCount('error')).toBe(0)
+  })
+
   test('onAnyNotification receives all notifications regardless of method', async () => {
     const input = new PassThrough()
     const output = new PassThrough()

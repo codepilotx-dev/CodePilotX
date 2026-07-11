@@ -196,7 +196,7 @@ class LocalDesktopAgentSession
       enableMemory: options.enableMemory,
       rustSearchAndDiffKernels: options.rustSearchAndDiffKernels,
       onAppServerThreadId: runtimeOptions.onAppServerThreadId,
-      emit: event => this.emitEvent(event),
+      emit: event => this.handleRuntimeEvent(event),
       requestPermission: request => this.requestPermission(request),
     })
     queueMicrotask(() => {
@@ -298,12 +298,8 @@ class LocalDesktopAgentSession
           sessionId: this.sessionId,
           durationMs: Date.now() - startedAt,
         })
-        this.emitStatus('done')
-        this.emitEvent({ type: 'done', sessionId: this.sessionId })
         return
       }
-      this.emitStatus('done')
-      this.emitEvent({ type: 'done', sessionId: this.sessionId })
       desktopDebug('session_send_done', {
         sessionId: this.sessionId,
         durationMs: Date.now() - startedAt,
@@ -315,8 +311,6 @@ class LocalDesktopAgentSession
         durationMs: Date.now() - startedAt,
         message,
       })
-      this.emitEvent({ type: 'error', sessionId: this.sessionId, message })
-      this.emitStatus('error')
     } finally {
       if (this.currentAbortController === abortController) {
         this.currentAbortController = null
@@ -367,14 +361,9 @@ class LocalDesktopAgentSession
         }),
         abortController.signal,
       )
-      if (!abortController.signal.aborted) {
-        this.emitStatus('done')
-        this.emitEvent({ type: 'done', sessionId: this.sessionId })
-      }
+      if (abortController.signal.aborted) return
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      this.emitEvent({ type: 'error', sessionId: this.sessionId, message })
-      this.emitStatus('error')
     } finally {
       if (this.currentAbortController === abortController) {
         this.currentAbortController = null
@@ -426,8 +415,6 @@ class LocalDesktopAgentSession
     }
     desktopDebug('session_interrupt', { sessionId: this.sessionId })
     this.currentAbortController.abort()
-    this.emitStatus('done')
-    this.emitEvent({ type: 'done', sessionId: this.sessionId })
   }
 
   async dispose(): Promise<void> {
@@ -447,7 +434,6 @@ class LocalDesktopAgentSession
       })
     }
     this.currentAbortController?.abort()
-    this.emitEvent({ type: 'done', sessionId: this.sessionId })
     this.removeAllListeners()
     await this.runtime.dispose()
   }
@@ -458,6 +444,15 @@ class LocalDesktopAgentSession
 
   async refreshMcpConfig(): Promise<'refreshed' | 'not_loaded'> {
     return this.runtime.refreshMcpConfig()
+  }
+
+  private handleRuntimeEvent(event: DesktopAgentEvent): void {
+    this.emitEvent(event)
+    if (event.type === 'done') {
+      this.emitStatus('done')
+    } else if (event.type === 'error') {
+      this.emitStatus('error')
+    }
   }
 
   private async requestPermission(
