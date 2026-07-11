@@ -22,6 +22,7 @@ import {
 } from '@codepilotx/core/appServer/protocol.js'
 import type { ThreadEvent } from '@codepilotx/core/agent/workflow.js'
 import { desktopDebug } from './desktopDebug.js'
+import { terminateChildProcess } from './childProcessTermination.js'
 
 /**
  * SidecarManager 管理 app-server sidecar 子进程的生命周期与 JSON-RPC 通信。
@@ -80,6 +81,8 @@ export type SidecarManagerOptions = {
   args?: string[]
   /** Connection timeout in milliseconds */
   startTimeoutMs?: number
+  stopTimeoutMs?: number
+  forceKill?: (child: ChildProcess) => Promise<void>
 }
 
 // ── SidecarManager ────────────────────────────────────────────────────────
@@ -92,6 +95,7 @@ export class SidecarManager {
   private cleanupSteps: Array<() => void> = []
   private startupResolve: (() => void) | null = null
   private startupReject: ((err: Error) => void) | null = null
+  private stopPromise: Promise<void> | null = null
 
   constructor(private readonly options: SidecarManagerOptions) {}
 
@@ -99,6 +103,7 @@ export class SidecarManager {
 
   async start(): Promise<void> {
     if (this.initialized) return
+    this.stopPromise = null
 
     desktopDebug('sidecar_start', {
       entrypoint: this.options.entrypoint,
@@ -127,7 +132,6 @@ export class SidecarManager {
       stdio: ['pipe', 'pipe', 'pipe'],
     })
     this.child = child
-    this.cleanupSteps.push(() => this.killChild())
 
     // 2. 捕获 stderr
     const stderrChunks: Buffer[] = []
@@ -215,16 +219,26 @@ export class SidecarManager {
   }
 
   async stop(): Promise<void> {
+    if (!this.stopPromise) {
+      this.stopPromise = this.stopOnce()
+    }
+    await this.stopPromise
+  }
+
+  private async stopOnce(): Promise<void> {
     desktopDebug('sidecar_stop', {})
-    // 反向清理
+    this.connection?.dispose()
     for (const step of this.cleanupSteps.reverse()) {
-      try {
-        step()
-      } catch {
-        // 忽略清理中的错误
-      }
+      step()
     }
     this.cleanupSteps = []
+    const child = this.child
+    if (child) {
+      await terminateChildProcess(child, {
+        timeoutMs: this.options.stopTimeoutMs,
+        forceKill: this.options.forceKill,
+      })
+    }
     this.connection = null
     this.child = null
     this.initialized = false
@@ -311,16 +325,6 @@ export class SidecarManager {
   ): void {
     // 通知 Desktop 层显示权限对话框，Desktop 层通过 respondPermission() 响应
     this.emitter.emit('permissionRequest', context)
-  }
-
-  private killChild(): void {
-    if (this.child && !this.child.killed) {
-      try {
-        this.child.kill()
-      } catch {
-        // 忽略 kill 失败
-      }
-    }
   }
 
   private withTimeout<T>(

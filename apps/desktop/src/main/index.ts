@@ -121,6 +121,7 @@ import {
 import { RustAppServerControlService } from './rustAppServerControlService.js'
 import { createSessionPersistScheduler } from './sessionPersistScheduler.js'
 import { createSessionStoreChangeEmitter } from './sessionStoreChangeEmitter.js'
+import { createDesktopShutdown } from './desktopShutdown.js'
 import { shouldMarkSessionUnread } from '../shared/sessionUnread.js'
 import type {
   CreateDesktopSessionOptions,
@@ -202,7 +203,7 @@ const turnRestoreBaselines = new Map<
 const titleGenerationStartedSessionIds = new Set<string>()
 let activeSessionId: string | null = null
 let sessionStoreLoadPromise: Promise<void> | null = null
-let quittingAfterSessionStoreFlush = false
+let desktopShutdownPromise: Promise<void> | null = null
 const sessionPersistScheduler = createSessionPersistScheduler({
   debounceMs: 5000,
   getState: () => ({
@@ -1971,16 +1972,23 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', event => {
-  if (!quittingAfterSessionStoreFlush) {
+  if (!desktopShutdownPromise) {
     event.preventDefault()
-    quittingAfterSessionStoreFlush = true
-    void rolloutWriteScheduler.flush().finally(async () => {
-      await flushSessionStorePersistence()
-      await disposeAllSessions()
-      app.quit()
-    })
+    desktopShutdownPromise = shutdownDesktop()
     return
   }
   void desktopBrowserDebugBridgeServer?.close()
   debugToolProbeService.cleanup()
+})
+const shutdownDesktop = createDesktopShutdown({
+  flushRollout: () => rolloutWriteScheduler.flush(),
+  flushSessionStore: flushSessionStorePersistence,
+  disposeSessions: disposeAllSessions,
+  quit: () => app.quit(),
+  logError: (step, error) => {
+    desktopDebug('desktop_shutdown_step_failed', {
+      step,
+      message: error instanceof Error ? error.message : String(error),
+    })
+  },
 })

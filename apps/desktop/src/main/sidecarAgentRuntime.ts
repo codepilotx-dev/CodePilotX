@@ -296,11 +296,7 @@ export class SidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   // ── 清理 ──────────────────────────────────────────────────────────
 
   async dispose(): Promise<void> {
-    try {
-      await this.sidecarManager.stop()
-    } catch {
-      // 忽略清理错误
-    }
+    await this.sidecarManager.stop()
   }
 
   // ── Private ───────────────────────────────────────────────────────

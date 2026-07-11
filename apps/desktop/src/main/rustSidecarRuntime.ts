@@ -46,6 +46,7 @@ import {
 } from './rustAppServerWorkflowAdapter.js'
 import type { JsonRpcId } from './rustLineJsonRpcClient.js'
 import { desktopDebug } from './desktopDebug.js'
+import { terminateChildProcess } from './childProcessTermination.js'
 
 // ── Tool request/response types (v2 protocol types for requestUserInput) ──
 
@@ -431,6 +432,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   private disposePromise: Promise<void> | null = null
   private startupState: RustSidecarStartupState = 'stopped'
   private startupPromise: Promise<void> | null = null
+  private cleanupPromise: Promise<void> | null = null
 
   constructor(private readonly context: DesktopAgentRuntimeContext) {}
 
@@ -866,16 +868,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       output: child.stdin!,
     })
     this.disposeFatalTransportListener = this.rpcClient.onFatalError(error => {
-      this.currentTurnReject?.(error)
-      this.startupState = 'failed'
-      void this.cleanupAppServer().catch(cleanupError => {
-        desktopDebug('rust_sidecar_transport_cleanup_failed', {
-          message:
-            cleanupError instanceof Error
-              ? cleanupError.message
-              : String(cleanupError),
-        })
-      })
+      this.handleFatalTransport(error)
     })
     this.appServerClient = new RustAppServerClient(this.rpcClient)
 
@@ -917,7 +910,31 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     this.context.onAppServerThreadId?.(threadResult.thread.id)
   }
 
-  private async cleanupAppServer(): Promise<void> {
+  private cleanupAppServer(): Promise<void> {
+    if (!this.cleanupPromise) {
+      this.cleanupPromise = this.cleanupAppServerOnce().finally(() => {
+        this.cleanupPromise = null
+      })
+    }
+    return this.cleanupPromise
+  }
+
+  private handleFatalTransport(error: Error): void {
+    this.currentTurnReject?.(error)
+    this.initialized = false
+    this.threadStarted = false
+    this.startupState = 'failed'
+    void this.cleanupAppServer().catch(cleanupError => {
+      desktopDebug('rust_sidecar_transport_cleanup_failed', {
+        message:
+          cleanupError instanceof Error
+            ? cleanupError.message
+            : String(cleanupError),
+      })
+    })
+  }
+
+  private async cleanupAppServerOnce(): Promise<void> {
     this.disposeFatalTransportListener?.()
     this.disposeFatalTransportListener = null
     this.disposeNotificationListener?.()
@@ -926,14 +943,12 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     this.disposeServerRequestHandlers = null
 
     const child = this.child
-    const childExit = child ? waitForChildExit(child) : Promise.resolve()
     this.appServerClient?.close()
     this.appServerClient = null
     this.rpcClient = null
-    if (child && !child.killed) {
-      child.kill()
+    if (child) {
+      await terminateChildProcess(child)
     }
-    await childExit
     if (this.child === child) {
       this.child = null
     }
@@ -1018,6 +1033,11 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
 	        }
 	        if (event.type === 'done' || event.type === 'error') {
 	          this.currentTurnTerminal = true
+	          const terminalTurnId =
+	            notificationTurnId ?? this.activeRuntimeTurnId
+	          if (terminalTurnId) {
+	            this.sealedRuntimeTurnIds.add(terminalTurnId)
+	          }
 	        }
 	        this.context.emit(event)
 
@@ -1501,21 +1521,6 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     this.context.emit({ type: 'done', sessionId: this.context.sessionId })
     this.currentTurnResolve?.()
   }
-}
-
-function waitForChildExit(child: ChildProcess): Promise<void> {
-  if (child.exitCode != null || child.signalCode != null) {
-    return Promise.resolve()
-  }
-  return new Promise(resolveExit => {
-    const finish = () => {
-      child.off('exit', finish)
-      child.off('error', finish)
-      resolveExit()
-    }
-    child.once('exit', finish)
-    child.once('error', finish)
-  })
 }
 
 function rustNotificationTurnId(params: unknown): string | null {

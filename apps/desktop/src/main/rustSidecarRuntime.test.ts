@@ -1370,4 +1370,47 @@ describe('RustSidecarDesktopAgentRuntime lifecycle', () => {
     })
     expect(events).toEqual([{ type: 'done', sessionId: 'test-turn-race' }])
   })
+
+  test('fatal transport synchronously marks runtime failed and shares cleanup', async () => {
+    const child = new EventEmitter() as EventEmitter & {
+      killed: boolean
+      exitCode: number | null
+      signalCode: NodeJS.Signals | null
+      kill: ReturnType<typeof mock>
+    }
+    child.killed = false
+    child.exitCode = null
+    child.signalCode = null
+    child.kill = mock(() => {
+      child.killed = true
+      return true
+    })
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-fatal-cleanup',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const internals = runtime as unknown as {
+      initialized: boolean
+      threadStarted: boolean
+      child: typeof child | null
+      cleanupPromise: Promise<void> | null
+      handleFatalTransport(error: Error): void
+    }
+    internals.initialized = true
+    internals.threadStarted = true
+    internals.child = child
+
+    internals.handleFatalTransport(new Error('EPIPE'))
+    internals.handleFatalTransport(new Error('EPIPE again'))
+    expect(internals.initialized).toBe(false)
+    expect(internals.threadStarted).toBe(false)
+    expect(child.kill).toHaveBeenCalledTimes(1)
+
+    child.exitCode = 1
+    child.emit('exit', 1, null)
+    await internals.cleanupPromise
+    expect(internals.child).toBeNull()
+  })
 })
