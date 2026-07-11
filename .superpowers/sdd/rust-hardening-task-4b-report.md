@@ -13,6 +13,7 @@
 - `e19ec3c68 feat(desktop)：串行化持久化锁心跳与释放`
 - `324e4cb84 test(desktop)：覆盖双源持久化状态恢复链路`
 - `72700b691 feat(desktop)：按回合隔离流式消息代际`
+- `29566b81a feat(desktop)：在心跳失败后安全释放持久化锁`
 
 ## Persistence RED / GREEN
 
@@ -216,3 +217,17 @@ suites passed 152 tests / 448 assertions. Post-commit root `bun run test` passed
 Fourth-review fresh validation: eight Task 4B suites passed 160 tests / 478
 assertions. Root `bun run test` passed 200 tests / 501 assertions. Desktop
 typecheck, CSS ownership, and `git diff --check` all exited zero.
+
+## Final critical heartbeat recovery
+
+Heartbeat compromise still makes the active write and `flush()` fail honestly,
+but release now always attempts token-qualified lock removal after stopping the
+generation and awaiting the in-flight refresh. A heartbeat error is propagated
+after successful release; simultaneous heartbeat and release failures are
+reported together with `AggregateError`. The retained committed journal lets
+the scheduler retry the same batch without duplication.
+
+Final focused validation passed 32 rollout tests / 108 assertions. The fault
+injection proves: heartbeat `EIO` makes the first `flush()` reject, the owned
+lock is gone, the second `flush()` succeeds, and the batch appears exactly once.
+Desktop typecheck, CSS ownership, and `git diff --check` all exited zero.
