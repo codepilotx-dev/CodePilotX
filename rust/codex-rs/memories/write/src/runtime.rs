@@ -271,7 +271,9 @@ impl MemoryStartupContext {
                 ResponseEvent::OutputTextDelta(delta) => result.push_str(&delta),
                 ResponseEvent::OutputItemDone(item) => {
                     if result.is_empty()
-                        && let codepilotx_protocol::models::ResponseItem::Message { content, .. } = item
+                        && let codepilotx_protocol::models::ResponseItem::Message {
+                            content, ..
+                        } = item
                         && let Some(text) = content_items_to_text(&content)
                     {
                         result.push_str(&text);

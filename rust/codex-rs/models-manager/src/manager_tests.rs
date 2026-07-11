@@ -637,7 +637,8 @@ async fn refresh_available_models_drops_removed_remote_models() {
         /*priority*/ 1,
     )];
     let endpoint = TestModelsEndpoint::new(vec![initial_models, refreshed_models]);
-    let mut manager = openai_manager_for_tests(codepilotx_home.path().to_path_buf(), endpoint.clone());
+    let mut manager =
+        openai_manager_for_tests(codepilotx_home.path().to_path_buf(), endpoint.clone());
     manager.cache_manager.set_ttl(Duration::ZERO);
 
     manager

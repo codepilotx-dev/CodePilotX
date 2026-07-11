@@ -420,7 +420,8 @@ async fn run_memory_phase_one_model_request_test(
     home: Arc<TempDir>,
     memories: MemoriesConfig,
 ) -> anyhow::Result<ResponsesRequest> {
-    let test = build_test_codepilotx_with_memories_config(server, Arc::clone(&home), memories).await?;
+    let test =
+        build_test_codepilotx_with_memories_config(server, Arc::clone(&home), memories).await?;
     let provider = Arc::new(MockMemoryModelProvider::new(
         test.config.model_provider.clone(),
         Some(test.thread_manager.auth_manager()),
@@ -536,7 +537,8 @@ async fn build_test_codepilotx_with_memories_config(
 
 async fn init_state_db(home: &Arc<TempDir>) -> anyhow::Result<Arc<codepilotx_state::StateRuntime>> {
     let db =
-        codepilotx_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".into()).await?;
+        codepilotx_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".into())
+            .await?;
     db.mark_backfill_complete(/*last_watermark*/ None).await?;
     Ok(db)
 }
@@ -561,7 +563,10 @@ async fn trigger_memories_startup(test: &TestCodex) {
 async fn memory_startup_context_with_provider(
     test: &TestCodex,
     provider: SharedModelProvider,
-) -> (Arc<MemoryStartupContext>, Arc<codepilotx_core::config::Config>) {
+) -> (
+    Arc<MemoryStartupContext>,
+    Arc<codepilotx_core::config::Config>,
+) {
     let config_snapshot = test.codex.config_snapshot().await;
     let mut config = test.config.clone();
     config

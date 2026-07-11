@@ -379,7 +379,9 @@ pub(super) fn api_thread_goal_from_state(goal: codepilotx_state::ThreadGoal) -> 
     }
 }
 
-fn api_thread_goal_status_from_state(status: codepilotx_state::ThreadGoalStatus) -> ThreadGoalStatus {
+fn api_thread_goal_status_from_state(
+    status: codepilotx_state::ThreadGoalStatus,
+) -> ThreadGoalStatus {
     match status {
         codepilotx_state::ThreadGoalStatus::Active => ThreadGoalStatus::Active,
         codepilotx_state::ThreadGoalStatus::Paused => ThreadGoalStatus::Paused,

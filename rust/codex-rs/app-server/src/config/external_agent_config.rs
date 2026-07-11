@@ -724,7 +724,8 @@ impl ExternalAgentConfigService {
         }
 
         if repo_root.is_none() {
-            let sessions = detect_recent_sessions(&self.external_agent_home, &self.codepilotx_home)?;
+            let sessions =
+                detect_recent_sessions(&self.external_agent_home, &self.codepilotx_home)?;
             if !sessions.is_empty() {
                 items.push(ExternalAgentConfigMigrationItem {
                     item_type: ExternalAgentConfigMigrationItemType::Sessions,
@@ -916,7 +917,8 @@ impl ExternalAgentConfigService {
                 ref_name: import_source.ref_name,
                 sparse_paths: Vec::new(),
             };
-            let add_marketplace_outcome = add_marketplace(self.codepilotx_home.clone(), request).await;
+            let add_marketplace_outcome =
+                add_marketplace(self.codepilotx_home.clone(), request).await;
             let marketplace_path = match add_marketplace_outcome {
                 Ok(add_marketplace_outcome) => {
                     let Some(marketplace_path) = find_marketplace_manifest_path(

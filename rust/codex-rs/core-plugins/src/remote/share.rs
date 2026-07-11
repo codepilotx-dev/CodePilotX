@@ -282,7 +282,8 @@ pub async fn delete_remote_plugin_share(
     let client = build_reqwest_client();
     let request = authenticated_request(client.delete(&url), auth)?;
     send_and_expect_status(request, &url, &[StatusCode::NO_CONTENT]).await?;
-    if let Err(err) = local_paths::remove_plugin_share_local_path(codepilotx_home, remote_plugin_id) {
+    if let Err(err) = local_paths::remove_plugin_share_local_path(codepilotx_home, remote_plugin_id)
+    {
         warn!(
             remote_plugin_id = %remote_plugin_id,
             "failed to remove plugin share local path mapping: {err}"

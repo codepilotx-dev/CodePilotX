@@ -588,7 +588,10 @@ impl CodexThread {
     }
 
     /// Resolves the MCP runtime configuration using this thread's extension data.
-    pub async fn runtime_mcp_config(&self, config: &crate::config::Config) -> codepilotx_mcp::McpConfig {
+    pub async fn runtime_mcp_config(
+        &self,
+        config: &crate::config::Config,
+    ) -> codepilotx_mcp::McpConfig {
         self.codex.session.runtime_mcp_config(config).await
     }
 

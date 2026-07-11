@@ -99,7 +99,10 @@ fn assert_single_instruction_fragment(request: &responses::ResponsesRequest, exp
     assert_eq!(instruction_fragments(request), vec![expected.to_string()]);
 }
 
-async fn submit_thread_turn(thread: &Arc<codepilotx_core::CodexThread>, prompt: &str) -> Result<()> {
+async fn submit_thread_turn(
+    thread: &Arc<codepilotx_core::CodexThread>,
+    prompt: &str,
+) -> Result<()> {
     thread
         .submit(Op::UserInput {
             items: vec![UserInput::Text {

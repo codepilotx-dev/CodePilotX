@@ -555,8 +555,10 @@ async fn execve_permission_request_hook_short_circuits_prompt() -> anyhow::Resul
     let target = std::env::temp_dir().join("execve-hook-short-circuit.txt");
     let target_str = target.display().to_string();
     let command = vec!["touch".to_string(), target_str.clone()];
-    let expected_hook_command =
-        codepilotx_shell_command::parse_command::shlex_join(&["/usr/bin/touch".to_string(), target_str]);
+    let expected_hook_command = codepilotx_shell_command::parse_command::shlex_join(&[
+        "/usr/bin/touch".to_string(),
+        target_str,
+    ]);
     let provider = CoreShellActionProvider {
         policy: std::sync::Arc::new(RwLock::new(codepilotx_execpolicy::Policy::empty())),
         session: std::sync::Arc::new(session),

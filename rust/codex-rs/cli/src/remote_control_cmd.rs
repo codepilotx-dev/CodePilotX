@@ -115,7 +115,8 @@ async fn run_foreground_remote_control(
         socket_path: socket_path.clone(),
     };
     let runtime_options = AppServerRuntimeOptions {
-        remote_control_startup_mode: codepilotx_app_server::RemoteControlStartupMode::EnabledEphemeral,
+        remote_control_startup_mode:
+            codepilotx_app_server::RemoteControlStartupMode::EnabledEphemeral,
         install_shutdown_signal_handler: false,
         ..Default::default()
     };
@@ -419,7 +420,10 @@ fn daemon_app_server_human_lines(output: &AppServerRemoteControlStartOutput) -> 
     vec![
         "Daemon used app-server:".to_string(),
         format!("  path: {}", managed_codepilotx_path.display()),
-        format!("  version: {}", managed_codepilotx_version.unwrap_or("unknown")),
+        format!(
+            "  version: {}",
+            managed_codepilotx_version.unwrap_or("unknown")
+        ),
     ]
 }
 

@@ -131,7 +131,10 @@ fn tool_plugin_provenance_collects_app_and_mcp_sources() {
         "alpha".to_string(),
         McpPluginAttribution::new("alpha@test".to_string(), "alpha-plugin".to_string()),
         /*plugin_order*/ 0,
-        codepilotx_apps_mcp_server_config("https://alpha.example", /*apps_mcp_product_sku*/ None),
+        codepilotx_apps_mcp_server_config(
+            "https://alpha.example",
+            /*apps_mcp_product_sku*/ None,
+        ),
     ));
     config.mcp_server_catalog = catalog.build();
     config.plugin_capability_summaries = vec![
@@ -197,7 +200,10 @@ fn selected_mcp_attribution_does_not_join_an_unrelated_local_summary() {
             "Executor GitHub".to_string(),
         ),
         /*selection_order*/ 0,
-        codepilotx_apps_mcp_server_config("https://github.example", /*apps_mcp_product_sku*/ None),
+        codepilotx_apps_mcp_server_config(
+            "https://github.example",
+            /*apps_mcp_product_sku*/ None,
+        ),
     ));
     config.mcp_server_catalog = catalog.build();
     config.plugin_capability_summaries = vec![PluginCapabilitySummary {
@@ -249,8 +255,10 @@ fn codepilotx_apps_mcp_url_for_base_url_keeps_existing_paths() {
 
 #[test]
 fn codepilotx_apps_server_config_uses_legacy_codepilotx_apps_path() {
-    let config =
-        codepilotx_apps_mcp_server_config("https://chatgpt.com", /*apps_mcp_product_sku*/ None);
+    let config = codepilotx_apps_mcp_server_config(
+        "https://chatgpt.com",
+        /*apps_mcp_product_sku*/ None,
+    );
     let url = match &config.transport {
         McpServerTransportConfig::StreamableHttp { url, .. } => url,
         _ => panic!("expected streamable http transport for codex apps"),

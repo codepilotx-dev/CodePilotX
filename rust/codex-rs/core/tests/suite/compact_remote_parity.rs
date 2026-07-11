@@ -517,9 +517,9 @@ async fn build_harness_inner(
         builder = builder.with_pre_build_hook(write_manual_compact_hooks);
     }
     TestCodexHarness::with_builder(builder.with_config(move |config| {
-        config.cwd = codepilotx_utils_absolute_path::AbsolutePathBuf::from_absolute_path(PathBuf::from(
-            FIXED_CWD,
-        ))
+        config.cwd = codepilotx_utils_absolute_path::AbsolutePathBuf::from_absolute_path(
+            PathBuf::from(FIXED_CWD),
+        )
         .expect("fixed cwd should be absolute");
         config.developer_instructions = Some("PARITY_DEVELOPER_INSTRUCTIONS".to_string());
         if settings.service_tier_fast {
@@ -602,7 +602,10 @@ async fn capture_from_requests(
     })
 }
 
-async fn submit_user_input(codex: &codepilotx_core::CodexThread, items: Vec<UserInput>) -> Result<()> {
+async fn submit_user_input(
+    codex: &codepilotx_core::CodexThread,
+    items: Vec<UserInput>,
+) -> Result<()> {
     codex
         .submit(Op::UserInput {
             items,

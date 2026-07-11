@@ -19,8 +19,8 @@ use crate::codepilotx_apps::CodexAppsToolsCacheKey;
 use crate::codepilotx_apps::write_cached_codepilotx_apps_tools_if_needed;
 use crate::elicitation::ElicitationRequestManager;
 use crate::elicitation::ElicitationReviewerHandle;
-use crate::mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use crate::mcp::ToolPluginProvenance;
+use crate::mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use crate::rmcp_client::AsyncManagedClient;
 use crate::rmcp_client::DEFAULT_STARTUP_TIMEOUT;
 use crate::rmcp_client::MCP_TOOLS_FETCH_UNCACHED_DURATION_METRIC;
@@ -173,14 +173,15 @@ impl McpConnectionManager {
                 },
             )
             .await;
-            let codepilotx_apps_tools_cache_context = if server_name == codepilotx_APPS_MCP_SERVER_NAME {
-                Some(CodexAppsToolsCacheContext {
-                    codepilotx_home: codepilotx_home.clone(),
-                    user_key: codepilotx_apps_tools_cache_key.clone(),
-                })
-            } else {
-                None
-            };
+            let codepilotx_apps_tools_cache_context =
+                if server_name == codepilotx_APPS_MCP_SERVER_NAME {
+                    Some(CodexAppsToolsCacheContext {
+                        codepilotx_home: codepilotx_home.clone(),
+                        user_key: codepilotx_apps_tools_cache_key.clone(),
+                    })
+                } else {
+                    None
+                };
             let uses_env_bearer_token =
                 server
                     .configured_config()

@@ -131,7 +131,11 @@ impl TraceReducer {
         codepilotx_turn_id: CodexTurnId,
         thread_id: String,
     ) -> Result<()> {
-        if self.rollout.codepilotx_turns.contains_key(&codepilotx_turn_id) {
+        if self
+            .rollout
+            .codepilotx_turns
+            .contains_key(&codepilotx_turn_id)
+        {
             bail!("duplicate codex turn start for {codepilotx_turn_id}");
         }
 

@@ -2427,7 +2427,9 @@ struct FileChangeCounts {
     move_: u64,
 }
 
-fn file_change_counts(changes: &[codepilotx_app_server_protocol::FileUpdateChange]) -> FileChangeCounts {
+fn file_change_counts(
+    changes: &[codepilotx_app_server_protocol::FileUpdateChange],
+) -> FileChangeCounts {
     let mut counts = FileChangeCounts::default();
     for change in changes {
         match &change.kind {
@@ -2606,7 +2608,8 @@ fn codepilotx_turn_event_params(
         status: completed.status,
         turn_error: completed.turn_error,
         codepilotx_error_kind: codepilotx_error.map(|error| error.kind),
-        codepilotx_error_http_status_code: codepilotx_error.and_then(|error| error.http_status_code),
+        codepilotx_error_http_status_code: codepilotx_error
+            .and_then(|error| error.http_status_code),
         steer_count: Some(turn_state.steer_count),
         total_tool_call_count: Some(turn_state.tool_counts.total),
         shell_command_count: Some(turn_state.tool_counts.shell_command),

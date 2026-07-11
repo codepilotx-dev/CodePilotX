@@ -2372,8 +2372,9 @@ mod tests {
     }
 
     fn schema_root() -> Result<PathBuf> {
-        let typescript_index = codepilotx_utils_cargo_bin::find_resource!("schema/typescript/index.ts")
-            .context("resolve TypeScript schema index.ts")?;
+        let typescript_index =
+            codepilotx_utils_cargo_bin::find_resource!("schema/typescript/index.ts")
+                .context("resolve TypeScript schema index.ts")?;
         let schema_root = typescript_index
             .parent()
             .and_then(|parent| parent.parent())
@@ -2702,7 +2703,8 @@ mod tests {
 
     #[test]
     fn experimental_type_fields_ts_filter_handles_interface_shape() -> Result<()> {
-        let output_dir = std::env::temp_dir().join(format!("codepilotx_ts_filter_{}", Uuid::now_v7()));
+        let output_dir =
+            std::env::temp_dir().join(format!("codepilotx_ts_filter_{}", Uuid::now_v7()));
         fs::create_dir_all(&output_dir)?;
 
         struct TempDirGuard(PathBuf);
@@ -2741,7 +2743,8 @@ mod tests {
     #[test]
     fn experimental_type_fields_ts_filter_keeps_imports_used_in_intersection_suffix() -> Result<()>
     {
-        let output_dir = std::env::temp_dir().join(format!("codepilotx_ts_filter_{}", Uuid::now_v7()));
+        let output_dir =
+            std::env::temp_dir().join(format!("codepilotx_ts_filter_{}", Uuid::now_v7()));
         fs::create_dir_all(&output_dir)?;
 
         struct TempDirGuard(PathBuf);
@@ -2784,7 +2787,8 @@ export type Config = { stableField: Keep, unstableField: string | null } & ({ [k
 
     #[test]
     fn experimental_type_fields_ts_filter_handles_generated_command_params_shape() -> Result<()> {
-        let output_dir = std::env::temp_dir().join(format!("codepilotx_ts_filter_{}", Uuid::now_v7()));
+        let output_dir =
+            std::env::temp_dir().join(format!("codepilotx_ts_filter_{}", Uuid::now_v7()));
         fs::create_dir_all(&output_dir)?;
 
         struct TempDirGuard(PathBuf);

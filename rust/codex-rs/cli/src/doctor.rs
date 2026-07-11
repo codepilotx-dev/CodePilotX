@@ -45,10 +45,10 @@ use codepilotx_install_context::InstallMethod;
 use codepilotx_install_context::StandalonePlatform;
 use codepilotx_login::AuthDotJson;
 use codepilotx_login::AuthManager;
-use codepilotx_login::codepilotx_ACCESS_TOKEN_ENV_VAR;
-use codepilotx_login::codepilotx_API_KEY_ENV_VAR;
 use codepilotx_login::CodexAuth;
 use codepilotx_login::OPENAI_API_KEY_ENV_VAR;
+use codepilotx_login::codepilotx_ACCESS_TOKEN_ENV_VAR;
+use codepilotx_login::codepilotx_API_KEY_ENV_VAR;
 use codepilotx_login::default_client::build_reqwest_client;
 use codepilotx_login::default_client::default_headers;
 use codepilotx_login::load_auth_dot_json;
@@ -349,8 +349,10 @@ async fn build_report(
     let config_result = load_config(root_config_overrides, interactive, arg0_paths).await;
     match &config_result {
         Ok(config) => {
-            let auth_manager =
-                AuthManager::shared_from_config(config, /*enable_codepilotx_api_key_env*/ true).await;
+            let auth_manager = AuthManager::shared_from_config(
+                config, /*enable_codepilotx_api_key_env*/ true,
+            )
+            .await;
             let reachability_plan = provider_reachability_plan(config);
             let (
                 config_check,
@@ -982,7 +984,8 @@ enum NpmRootCheck {
 }
 
 fn npm_global_root_check() -> NpmRootCheck {
-    let Some(running_package_root) = env::var_os("codepilotx_MANAGED_PACKAGE_ROOT").map(PathBuf::from)
+    let Some(running_package_root) =
+        env::var_os("codepilotx_MANAGED_PACKAGE_ROOT").map(PathBuf::from)
     else {
         return NpmRootCheck::MissingPackageRoot;
     };
@@ -1072,7 +1075,10 @@ where
 
 fn config_check(config: &Config) -> DoctorCheck {
     let mut details = Vec::new();
-    details.push(format!("codepilotx_HOME: {}", config.codepilotx_home.display()));
+    details.push(format!(
+        "codepilotx_HOME: {}",
+        config.codepilotx_home.display()
+    ));
     details.push(format!("cwd: {}", config.cwd.display()));
     details.push(format!(
         "model: {}",
@@ -1149,7 +1155,9 @@ fn feature_flag_details(config: &Config, details: &mut Vec<String>) {
 }
 
 fn config_toml_details(config: &Config, details: &mut Vec<String>) {
-    let config_path = config.codepilotx_home.join(codepilotx_config::CONFIG_TOML_FILE);
+    let config_path = config
+        .codepilotx_home
+        .join(codepilotx_config::CONFIG_TOML_FILE);
     details.push(format!("config.toml: {}", config_path.display()));
     match std::fs::read_to_string(&config_path) {
         Ok(contents) => match toml::from_str::<toml::Value>(&contents) {
@@ -1358,8 +1366,8 @@ fn stored_auth_issues(
                 .openai_api_key
                 .as_deref()
                 .is_some_and(|key| !key.trim().is_empty());
-            let env_key_present =
-                env_var_present(OPENAI_API_KEY_ENV_VAR) || env_var_present(codepilotx_API_KEY_ENV_VAR);
+            let env_key_present = env_var_present(OPENAI_API_KEY_ENV_VAR)
+                || env_var_present(codepilotx_API_KEY_ENV_VAR);
             if !stored_key_present && !env_key_present {
                 issues.push("API key auth is missing an API key");
             }
@@ -3242,7 +3250,10 @@ mod tests {
             overrides.additional_writable_roots,
             vec![PathBuf::from("/var/tmp")]
         );
-        assert_eq!(overrides.codepilotx_self_exe, arg0_paths.codepilotx_self_exe);
+        assert_eq!(
+            overrides.codepilotx_self_exe,
+            arg0_paths.codepilotx_self_exe
+        );
         assert_eq!(
             overrides.codepilotx_linux_sandbox_exe,
             arg0_paths.codepilotx_linux_sandbox_exe

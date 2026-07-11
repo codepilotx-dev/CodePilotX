@@ -59,8 +59,7 @@ impl LoaderOverrides {
     pub fn without_managed_config_for_tests() -> Self {
         let base = std::env::temp_dir().join("codex-config-tests");
         fn as_abs(p: PathBuf) -> AbsolutePathBuf {
-            AbsolutePathBuf::from_absolute_path(p)
-                .expect("temp_dir-based paths should be absolute")
+            AbsolutePathBuf::from_absolute_path(p).expect("temp_dir-based paths should be absolute")
         }
         Self {
             user_config_path: None,
@@ -219,7 +218,9 @@ impl ConfigLayerEntry {
             ConfigLayerSource::System { file } => file.parent(),
             ConfigLayerSource::EnterpriseManaged { .. } => None,
             ConfigLayerSource::User { file, .. } => file.parent(),
-            ConfigLayerSource::Project { dot_codepilotx_folder } => Some(dot_codepilotx_folder.clone()),
+            ConfigLayerSource::Project {
+                dot_codepilotx_folder,
+            } => Some(dot_codepilotx_folder.clone()),
             ConfigLayerSource::SessionFlags => None,
             ConfigLayerSource::LegacyManagedConfigTomlFromFile { .. } => None,
             ConfigLayerSource::LegacyManagedConfigTomlFromMdm => None,

@@ -21,9 +21,9 @@ pub use catalog::McpServerSource;
 pub use catalog::ResolvedMcpCatalog;
 pub use catalog::ResolvedMcpServer;
 
-pub use mcp::codepilotx_APPS_MCP_SERVER_NAME;
 pub use mcp::McpConfig;
 pub use mcp::ToolPluginProvenance;
+pub use mcp::codepilotx_APPS_MCP_SERVER_NAME;
 pub use server::EffectiveMcpServer;
 
 pub use auth_elicitation::CodexAppsAuthElicitation;

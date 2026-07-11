@@ -399,8 +399,8 @@ fn turn_items_for_thread_returns_matching_turn_items() {
 
 #[test]
 fn should_backfill_turn_completed_items_skips_ephemeral_threads() {
-    let notification =
-        ServerNotification::TurnCompleted(codepilotx_app_server_protocol::TurnCompletedNotification {
+    let notification = ServerNotification::TurnCompleted(
+        codepilotx_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn: codepilotx_app_server_protocol::Turn {
                 id: "turn-1".to_string(),
@@ -412,7 +412,8 @@ fn should_backfill_turn_completed_items_skips_ephemeral_threads() {
                 completed_at: None,
                 duration_ms: None,
             },
-        });
+        },
+    );
 
     assert!(!should_backfill_turn_completed_items(
         /*thread_ephemeral*/ true,

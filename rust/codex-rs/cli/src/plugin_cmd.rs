@@ -261,9 +261,9 @@ pub async fn run_plugin_list(
                 };
                 let installed_version = plugin.installed_version.clone().unwrap_or_default();
                 let path = match &plugin.source {
-                    codepilotx_core_plugins::marketplace::MarketplacePluginSource::Local { path } => {
-                        path.as_path().display().to_string()
-                    }
+                    codepilotx_core_plugins::marketplace::MarketplacePluginSource::Local {
+                        path,
+                    } => path.as_path().display().to_string(),
                     codepilotx_core_plugins::marketplace::MarketplacePluginSource::Git {
                         url,
                         path,

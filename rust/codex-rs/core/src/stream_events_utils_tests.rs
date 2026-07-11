@@ -437,7 +437,8 @@ fn completed_item_defers_mailbox_delivery_for_image_generation_calls() {
 async fn save_image_generation_result_saves_base64_to_png_in_codepilotx_home() {
     let codepilotx_home = tempfile::tempdir().expect("create codex home");
     let codepilotx_home = codepilotx_home.path().abs();
-    let expected_path = image_generation_artifact_path(&codepilotx_home, "session-1", "ig_save_base64");
+    let expected_path =
+        image_generation_artifact_path(&codepilotx_home, "session-1", "ig_save_base64");
     let _ = std::fs::remove_file(&expected_path);
 
     let saved_path =
@@ -466,7 +467,8 @@ async fn save_image_generation_result_rejects_data_url_payload() {
 async fn save_image_generation_result_overwrites_existing_file() {
     let codepilotx_home = tempfile::tempdir().expect("create codex home");
     let codepilotx_home = codepilotx_home.path().abs();
-    let existing_path = image_generation_artifact_path(&codepilotx_home, "session-1", "ig_overwrite");
+    let existing_path =
+        image_generation_artifact_path(&codepilotx_home, "session-1", "ig_overwrite");
     std::fs::create_dir_all(
         existing_path
             .parent()
@@ -475,9 +477,10 @@ async fn save_image_generation_result_overwrites_existing_file() {
     .expect("create image output dir");
     std::fs::write(&existing_path, b"existing").expect("seed existing image");
 
-    let saved_path = save_image_generation_result(&codepilotx_home, "session-1", "ig_overwrite", "Zm9v")
-        .await
-        .expect("image should be saved");
+    let saved_path =
+        save_image_generation_result(&codepilotx_home, "session-1", "ig_overwrite", "Zm9v")
+            .await
+            .expect("image should be saved");
 
     assert_eq!(saved_path, existing_path);
     assert_eq!(std::fs::read(&saved_path).expect("saved file"), b"foo");
@@ -491,9 +494,10 @@ async fn save_image_generation_result_sanitizes_call_id_for_codepilotx_home_outp
     let expected_path = image_generation_artifact_path(&codepilotx_home, "session-1", "../ig/..");
     let _ = std::fs::remove_file(&expected_path);
 
-    let saved_path = save_image_generation_result(&codepilotx_home, "session-1", "../ig/..", "Zm9v")
-        .await
-        .expect("image should be saved");
+    let saved_path =
+        save_image_generation_result(&codepilotx_home, "session-1", "../ig/..", "Zm9v")
+            .await
+            .expect("image should be saved");
 
     assert_eq!(saved_path, expected_path);
     assert_eq!(std::fs::read(&saved_path).expect("saved file"), b"foo");

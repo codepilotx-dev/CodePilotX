@@ -11,7 +11,8 @@ const MAX_DEFAULT_PROMPT_LEN: usize = 128;
 
 pub type PluginManifest = codepilotx_plugin::manifest::PluginManifest<AbsolutePathBuf>;
 pub type PluginManifestHooks = codepilotx_plugin::manifest::PluginManifestHooks<AbsolutePathBuf>;
-pub type PluginManifestInterface = codepilotx_plugin::manifest::PluginManifestInterface<AbsolutePathBuf>;
+pub type PluginManifestInterface =
+    codepilotx_plugin::manifest::PluginManifestInterface<AbsolutePathBuf>;
 pub type PluginManifestMcpServers =
     codepilotx_plugin::manifest::PluginManifestMcpServers<AbsolutePathBuf>;
 pub type PluginManifestPaths = codepilotx_plugin::manifest::PluginManifestPaths<AbsolutePathBuf>;

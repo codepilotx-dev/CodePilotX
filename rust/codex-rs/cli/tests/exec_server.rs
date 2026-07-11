@@ -38,7 +38,10 @@ foo = "bar"
 #[test]
 fn local_exec_server_ignores_invalid_config_without_strict_config() -> Result<()> {
     let codepilotx_home = TempDir::new()?;
-    std::fs::write(codepilotx_home.path().join("config.toml"), "not valid toml = [")?;
+    std::fs::write(
+        codepilotx_home.path().join("config.toml"),
+        "not valid toml = [",
+    )?;
 
     let mut cmd = codepilotx_command(codepilotx_home.path())?;
     cmd.args(["exec-server", "--listen", "stdio"])

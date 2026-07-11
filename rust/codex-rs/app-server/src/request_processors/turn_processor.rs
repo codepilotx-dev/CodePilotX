@@ -624,7 +624,10 @@ impl TurnRequestProcessor {
                             .unwrap_or_else(|| snapshot.workspace_roots.clone()),
                     ),
                     default_permissions: Some(permissions),
-                    codepilotx_linux_sandbox_exe: self.arg0_paths.codepilotx_linux_sandbox_exe.clone(),
+                    codepilotx_linux_sandbox_exe: self
+                        .arg0_paths
+                        .codepilotx_linux_sandbox_exe
+                        .clone(),
                     main_execve_wrapper_exe: self.arg0_paths.main_execve_wrapper_exe.clone(),
                     ..Default::default()
                 };
@@ -950,7 +953,9 @@ impl TurnRequestProcessor {
             thread.as_ref(),
             Op::RealtimeConversationStart(ConversationStartParams {
                 client_managed_handoffs: params.client_managed_handoffs.unwrap_or(false),
-                codepilotx_responses_as_items: params.codepilotx_responses_as_items.unwrap_or(false),
+                codepilotx_responses_as_items: params
+                    .codepilotx_responses_as_items
+                    .unwrap_or(false),
                 codepilotx_response_item_prefix: params.codepilotx_response_item_prefix,
                 codepilotx_response_handoff_prefix: params.codepilotx_response_handoff_prefix,
                 model: params.model,

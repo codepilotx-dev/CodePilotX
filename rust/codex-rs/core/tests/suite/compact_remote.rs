@@ -2727,9 +2727,10 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_sta
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_codepilotx_builder(&realtime_server).with_config(|config| {
-        config.model_auto_compact_token_limit = Some(200);
-    });
+    let mut builder =
+        remote_realtime_test_codepilotx_builder(&realtime_server).with_config(|config| {
+            config.model_auto_compact_token_limit = Some(200);
+        });
     let test = builder.build(&server).await?;
 
     let responses_mock = responses::mount_sse_sequence(
@@ -2869,9 +2870,10 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_end
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_codepilotx_builder(&realtime_server).with_config(|config| {
-        config.model_auto_compact_token_limit = Some(200);
-    });
+    let mut builder =
+        remote_realtime_test_codepilotx_builder(&realtime_server).with_config(|config| {
+            config.model_auto_compact_token_limit = Some(200);
+        });
     let test = builder.build(&server).await?;
 
     let responses_mock = responses::mount_sse_sequence(
@@ -3056,9 +3058,10 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_does_not_restate_real
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_codepilotx_builder(&realtime_server).with_config(|config| {
-        config.model_auto_compact_token_limit = Some(200);
-    });
+    let mut builder =
+        remote_realtime_test_codepilotx_builder(&realtime_server).with_config(|config| {
+            config.model_auto_compact_token_limit = Some(200);
+        });
     let test = builder.build(&server).await?;
 
     let responses_mock = responses::mount_sse_sequence(

@@ -164,7 +164,10 @@ strip_request_headers = ["x-api-key"]
         .expect("higher layer should apply");
     let config = accumulator.finish().expect("merged config should build");
 
-    assert_eq!(config.network.mode, codepilotx_network_proxy::NetworkMode::Full);
+    assert_eq!(
+        config.network.mode,
+        codepilotx_network_proxy::NetworkMode::Full
+    );
     assert!(config.network.mitm);
     assert_eq!(
         config.network.allowed_domains(),

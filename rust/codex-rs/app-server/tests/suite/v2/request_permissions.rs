@@ -112,12 +112,14 @@ async fn request_permissions_round_trip() -> Result<()> {
         serde_json::to_value(PermissionsRequestApprovalResponse {
             permissions: codepilotx_app_server_protocol::GrantedPermissionProfile {
                 network: None,
-                file_system: Some(codepilotx_app_server_protocol::AdditionalFileSystemPermissions {
-                    read: None,
-                    write: Some(vec![requested_writes[0].clone()]),
-                    glob_scan_max_depth: None,
-                    entries: None,
-                }),
+                file_system: Some(
+                    codepilotx_app_server_protocol::AdditionalFileSystemPermissions {
+                        read: None,
+                        write: Some(vec![requested_writes[0].clone()]),
+                        glob_scan_max_depth: None,
+                        entries: None,
+                    },
+                ),
             },
             scope: PermissionGrantScope::Turn,
             strict_auto_review: None,

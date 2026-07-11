@@ -23,7 +23,10 @@ pub(super) fn ensure_codepilotx_app_runtime_paths_readable(
     let read_execute_mask = FILE_GENERIC_READ | FILE_GENERIC_EXECUTE;
     let codepilotx_root = local_app_data.join("OpenAI").join("Codex");
 
-    for runtime_path in [codepilotx_root.join("bin"), codepilotx_root.join("runtimes")] {
+    for runtime_path in [
+        codepilotx_root.join("bin"),
+        codepilotx_root.join("runtimes"),
+    ] {
         if !runtime_path.is_dir() {
             continue;
         }

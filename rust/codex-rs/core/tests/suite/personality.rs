@@ -98,7 +98,8 @@ async fn personality_does_not_mutate_base_instructions_without_template() {
         .expect("test config should allow feature update");
     config.personality = Some(Personality::Friendly);
 
-    let model_info = codepilotx_core::test_support::construct_model_info_offline("gpt-5.4", &config);
+    let model_info =
+        codepilotx_core::test_support::construct_model_info_offline("gpt-5.4", &config);
     assert_eq!(
         model_info.get_model_instructions(config.personality),
         model_info.base_instructions

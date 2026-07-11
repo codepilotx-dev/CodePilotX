@@ -97,7 +97,10 @@ impl CodeModeWaitHandler {
                 }
                 .map_err(FunctionCallError::RespondToModel)?;
                 if let codepilotx_code_mode::WaitOutcome::LiveCell(response) = &wait_response
-                    && !matches!(response, codepilotx_code_mode::RuntimeResponse::Yielded { .. })
+                    && !matches!(
+                        response,
+                        codepilotx_code_mode::RuntimeResponse::Yielded { .. }
+                    )
                 {
                     // Only a live-cell wait can close a CodeCell. A missing
                     // cell is still an ordinary `wait` tool result, but there

@@ -255,9 +255,12 @@ async fn explicit_plugin_mentions_use_apps_for_chatgpt_dual_surface_plugins() ->
     write_plugin_mcp_plugin(codepilotx_home.as_ref(), &rmcp_test_server_bin);
     write_plugin_app_plugin(codepilotx_home.as_ref());
 
-    let test_codex =
-        build_apps_enabled_plugin_test_codex(&server, codepilotx_home, apps_server.chatgpt_base_url)
-            .await?;
+    let test_codex = build_apps_enabled_plugin_test_codex(
+        &server,
+        codepilotx_home,
+        apps_server.chatgpt_base_url,
+    )
+    .await?;
     let codex = Arc::clone(&test_codex.codex);
     wait_for_mcp_server(&codex, codepilotx_APPS_MCP_SERVER_NAME).await?;
 
@@ -345,9 +348,12 @@ async fn explicit_plugin_mentions_keep_non_conflicting_mcp_for_chatgpt_auth() ->
     write_plugin_mcp_plugin(codepilotx_home.as_ref(), &rmcp_test_server_bin);
     write_plugin_app_plugin_with_name(codepilotx_home.as_ref(), "sample_app");
 
-    let test_codex =
-        build_apps_enabled_plugin_test_codex(&server, codepilotx_home, apps_server.chatgpt_base_url)
-            .await?;
+    let test_codex = build_apps_enabled_plugin_test_codex(
+        &server,
+        codepilotx_home,
+        apps_server.chatgpt_base_url,
+    )
+    .await?;
     let codex = Arc::clone(&test_codex.codex);
     wait_for_mcp_server(&codex, "sample").await?;
 

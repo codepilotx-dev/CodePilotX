@@ -163,7 +163,10 @@ async fn attestation_generate_round_trip_adds_header_to_responses_websocket_hand
     Ok(())
 }
 
-fn create_chatgpt_websocket_config(codepilotx_home: &Path, server_uri: &str) -> std::io::Result<()> {
+fn create_chatgpt_websocket_config(
+    codepilotx_home: &Path,
+    server_uri: &str,
+) -> std::io::Result<()> {
     std::fs::write(
         codepilotx_home.join("config.toml"),
         format!(

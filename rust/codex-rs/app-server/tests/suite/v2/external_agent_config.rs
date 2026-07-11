@@ -112,9 +112,11 @@ async fn external_agent_config_import_sends_completion_notification_for_sync_onl
     let completed: ExternalAgentConfigImportCompletedNotification =
         serde_json::from_value(notification.params.expect("completed params"))?;
     assert_eq!(completed.import_id, import_id);
-    let state_db =
-        codepilotx_state::StateRuntime::init(sqlite_home.path().to_path_buf(), "mock_provider".into())
-            .await?;
+    let state_db = codepilotx_state::StateRuntime::init(
+        sqlite_home.path().to_path_buf(),
+        "mock_provider".into(),
+    )
+    .await?;
     let details_record = state_db
         .external_agent_config_import_details_record(&import_id)
         .await?
@@ -1425,7 +1427,10 @@ stream_max_retries = 0
     )
 }
 
-fn write_analytics_config(codepilotx_home: &std::path::Path, base_url: &str) -> std::io::Result<()> {
+fn write_analytics_config(
+    codepilotx_home: &std::path::Path,
+    base_url: &str,
+) -> std::io::Result<()> {
     std::fs::write(
         codepilotx_home.join("config.toml"),
         format!("chatgpt_base_url = \"{base_url}\"\n"),

@@ -106,7 +106,9 @@ pub(crate) enum ToolRuntimePayload<'a> {
     McpToolCallEnd(&'a McpToolCallEndEvent),
     CollabAgentSpawnBegin(&'a codepilotx_protocol::protocol::CollabAgentSpawnBeginEvent),
     CollabAgentSpawnEnd(&'a codepilotx_protocol::protocol::CollabAgentSpawnEndEvent),
-    CollabAgentInteractionBegin(&'a codepilotx_protocol::protocol::CollabAgentInteractionBeginEvent),
+    CollabAgentInteractionBegin(
+        &'a codepilotx_protocol::protocol::CollabAgentInteractionBeginEvent,
+    ),
     CollabAgentInteractionEnd(&'a codepilotx_protocol::protocol::CollabAgentInteractionEndEvent),
     CollabWaitingBegin(&'a codepilotx_protocol::protocol::CollabWaitingBeginEvent),
     CollabWaitingEnd(&'a codepilotx_protocol::protocol::CollabWaitingEndEvent),

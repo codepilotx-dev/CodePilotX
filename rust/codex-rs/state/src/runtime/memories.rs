@@ -1978,8 +1978,11 @@ mod tests {
         let old_thread_id =
             ThreadId::from_string(&Uuid::new_v4().to_string()).expect("old thread id");
 
-        let mut current =
-            test_thread_metadata(&codepilotx_home, current_thread_id, codepilotx_home.join("current"));
+        let mut current = test_thread_metadata(
+            &codepilotx_home,
+            current_thread_id,
+            codepilotx_home.join("current"),
+        );
         current.created_at = now;
         current.updated_at = now;
         runtime
@@ -1987,8 +1990,11 @@ mod tests {
             .await
             .expect("upsert current");
 
-        let mut fresh =
-            test_thread_metadata(&codepilotx_home, fresh_thread_id, codepilotx_home.join("fresh"));
+        let mut fresh = test_thread_metadata(
+            &codepilotx_home,
+            fresh_thread_id,
+            codepilotx_home.join("fresh"),
+        );
         fresh.created_at = fresh_at;
         fresh.updated_at = fresh_at;
         runtime.upsert_thread(&fresh).await.expect("upsert fresh");
@@ -2017,7 +2023,8 @@ mod tests {
             .await
             .expect("upsert eligible-idle");
 
-        let mut old = test_thread_metadata(&codepilotx_home, old_thread_id, codepilotx_home.join("old"));
+        let mut old =
+            test_thread_metadata(&codepilotx_home, old_thread_id, codepilotx_home.join("old"));
         old.created_at = old_at;
         old.updated_at = old_at;
         runtime.upsert_thread(&old).await.expect("upsert old");
@@ -2063,8 +2070,11 @@ mod tests {
             ThreadId::from_string(&Uuid::new_v4().to_string()).expect("stale thread id");
         let worker_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("worker id");
 
-        let mut current =
-            test_thread_metadata(&codepilotx_home, current_thread_id, codepilotx_home.join("current"));
+        let mut current = test_thread_metadata(
+            &codepilotx_home,
+            current_thread_id,
+            codepilotx_home.join("current"),
+        );
         current.created_at = now;
         current.updated_at = now;
         runtime
@@ -2113,8 +2123,11 @@ mod tests {
             "seed stage1 success should complete for up-to-date thread"
         );
 
-        let mut stale =
-            test_thread_metadata(&codepilotx_home, stale_thread_id, codepilotx_home.join("stale"));
+        let mut stale = test_thread_metadata(
+            &codepilotx_home,
+            stale_thread_id,
+            codepilotx_home.join("stale"),
+        );
         stale.created_at = eligible_older_at;
         stale.updated_at = eligible_older_at;
         runtime
@@ -2176,8 +2189,11 @@ mod tests {
         let enabled_thread_id =
             ThreadId::from_string(&Uuid::new_v4().to_string()).expect("enabled thread id");
 
-        let mut current =
-            test_thread_metadata(&codepilotx_home, current_thread_id, codepilotx_home.join("current"));
+        let mut current = test_thread_metadata(
+            &codepilotx_home,
+            current_thread_id,
+            codepilotx_home.join("current"),
+        );
         current.created_at = now;
         current.updated_at = now;
         runtime
@@ -2185,8 +2201,11 @@ mod tests {
             .await
             .expect("upsert current thread");
 
-        let mut disabled =
-            test_thread_metadata(&codepilotx_home, disabled_thread_id, codepilotx_home.join("disabled"));
+        let mut disabled = test_thread_metadata(
+            &codepilotx_home,
+            disabled_thread_id,
+            codepilotx_home.join("disabled"),
+        );
         disabled.created_at = eligible_at;
         disabled.updated_at = eligible_at;
         runtime
@@ -2199,8 +2218,11 @@ mod tests {
             .await
             .expect("disable thread memory mode");
 
-        let mut enabled =
-            test_thread_metadata(&codepilotx_home, enabled_thread_id, codepilotx_home.join("enabled"));
+        let mut enabled = test_thread_metadata(
+            &codepilotx_home,
+            enabled_thread_id,
+            codepilotx_home.join("enabled"),
+        );
         enabled.created_at = eligible_at;
         enabled.updated_at = eligible_at;
         runtime
@@ -2244,8 +2266,11 @@ mod tests {
         let disabled_thread_id =
             ThreadId::from_string(&Uuid::new_v4().to_string()).expect("disabled thread id");
 
-        let mut enabled =
-            test_thread_metadata(&codepilotx_home, enabled_thread_id, codepilotx_home.join("enabled"));
+        let mut enabled = test_thread_metadata(
+            &codepilotx_home,
+            enabled_thread_id,
+            codepilotx_home.join("enabled"),
+        );
         enabled.created_at = now;
         enabled.updated_at = now;
         runtime
@@ -2286,8 +2311,11 @@ mod tests {
             .await
             .expect("enqueue global consolidation");
 
-        let mut disabled =
-            test_thread_metadata(&codepilotx_home, disabled_thread_id, codepilotx_home.join("disabled"));
+        let mut disabled = test_thread_metadata(
+            &codepilotx_home,
+            disabled_thread_id,
+            codepilotx_home.join("disabled"),
+        );
         disabled.created_at = now;
         disabled.updated_at = now;
         runtime
@@ -2475,8 +2503,11 @@ WHERE kind = 'memory_stage1'
 
         let current_thread_id =
             ThreadId::from_string(&Uuid::new_v4().to_string()).expect("current thread id");
-        let mut current =
-            test_thread_metadata(&codepilotx_home, current_thread_id, codepilotx_home.join("current"));
+        let mut current = test_thread_metadata(
+            &codepilotx_home,
+            current_thread_id,
+            codepilotx_home.join("current"),
+        );
         current.created_at = Utc::now();
         current.updated_at = Utc::now();
         runtime
@@ -3124,8 +3155,11 @@ WHERE kind = ? AND job_key = ?
             ))
             .await
             .expect("upsert thread a");
-        let mut metadata_b =
-            test_thread_metadata(&codepilotx_home, thread_id_b, codepilotx_home.join("workspace-b"));
+        let mut metadata_b = test_thread_metadata(
+            &codepilotx_home,
+            thread_id_b,
+            codepilotx_home.join("workspace-b"),
+        );
         metadata_b.git_branch = Some("feature/stage1-b".to_string());
         runtime
             .upsert_thread(&metadata_b)

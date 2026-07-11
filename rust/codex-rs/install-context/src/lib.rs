@@ -212,7 +212,8 @@ fn install_method_from_exe(
     package_layout: Option<&CodexPackageLayout>,
     is_macos: bool,
 ) -> InstallMethod {
-    if let Some(standalone_method) = standalone_install_method(exe_path, codepilotx_home, package_layout)
+    if let Some(standalone_method) =
+        standalone_install_method(exe_path, codepilotx_home, package_layout)
     {
         return standalone_method;
     }

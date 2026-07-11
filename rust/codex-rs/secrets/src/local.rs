@@ -491,7 +491,13 @@ mod tests {
                 .join("mcp_oauth.age")
                 .exists()
         );
-        assert!(!codepilotx_home.path().join("secrets").join("local.age").exists());
+        assert!(
+            !codepilotx_home
+                .path()
+                .join("secrets")
+                .join("local.age")
+                .exists()
+        );
         Ok(())
     }
 }

@@ -106,7 +106,8 @@ impl ExternalAgentSessionImporter {
                 }
             }
         }
-        if let Err(err) = record_completed_session_imports(&self.codepilotx_home, completed_imports) {
+        if let Err(err) = record_completed_session_imports(&self.codepilotx_home, completed_imports)
+        {
             record_import_error(
                 &mut item_result,
                 "session_ledger_update",
@@ -153,10 +154,12 @@ impl ExternalAgentSessionImporter {
         session: ExternalAgentSessionMigration,
     ) -> Result<Option<PendingSessionImport>, String> {
         let codepilotx_home = self.codepilotx_home.clone();
-        tokio::task::spawn_blocking(move || prepare_validated_session_import(&codepilotx_home, session))
-            .await
-            .map_err(|err| format!("external agent session preparation task failed: {err}"))?
-            .map_err(|err| format!("failed to prepare external agent session: {err}"))
+        tokio::task::spawn_blocking(move || {
+            prepare_validated_session_import(&codepilotx_home, session)
+        })
+        .await
+        .map_err(|err| format!("external agent session preparation task failed: {err}"))?
+        .map_err(|err| format!("failed to prepare external agent session: {err}"))
     }
 
     async fn persist_session(
@@ -175,7 +178,10 @@ impl ExternalAgentSessionImporter {
                 /*request_overrides*/ None,
                 ConfigOverrides {
                     cwd: Some(cwd),
-                    codepilotx_linux_sandbox_exe: self.arg0_paths.codepilotx_linux_sandbox_exe.clone(),
+                    codepilotx_linux_sandbox_exe: self
+                        .arg0_paths
+                        .codepilotx_linux_sandbox_exe
+                        .clone(),
                     main_execve_wrapper_exe: self.arg0_paths.main_execve_wrapper_exe.clone(),
                     ..Default::default()
                 },

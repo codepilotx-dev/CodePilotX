@@ -67,7 +67,11 @@ fn read_only_user_turn(test: &TestCodex, items: Vec<UserInput>, model: String) -
     }
 }
 
-fn image_generation_artifact_path(codepilotx_home: &Path, session_id: &str, call_id: &str) -> PathBuf {
+fn image_generation_artifact_path(
+    codepilotx_home: &Path,
+    session_id: &str,
+    call_id: &str,
+) -> PathBuf {
     fn sanitize(value: &str) -> String {
         let mut sanitized: String = value
             .chars()

@@ -161,7 +161,10 @@ fn lock_curated_plugins_startup_sync(codepilotx_home: &Path) -> Result<File, Str
     Ok(lock_file)
 }
 
-fn sync_openai_plugins_repo_via_git(codepilotx_home: &Path, git_binary: &str) -> Result<String, String> {
+fn sync_openai_plugins_repo_via_git(
+    codepilotx_home: &Path,
+    git_binary: &str,
+) -> Result<String, String> {
     let repo_path = curated_plugins_repo_path(codepilotx_home);
     let sha_path = codepilotx_home.join(CURATED_PLUGINS_SHA_FILE);
     let remote_sha = git_ls_remote_head_sha(git_binary)?;

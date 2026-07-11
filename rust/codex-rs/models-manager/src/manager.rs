@@ -341,7 +341,8 @@ impl OpenAiModelsManager {
     }
 
     async fn should_refresh_models(&self) -> bool {
-        self.endpoint_client.uses_codepilotx_backend().await || self.endpoint_client.has_command_auth()
+        self.endpoint_client.uses_codepilotx_backend().await
+            || self.endpoint_client.has_command_auth()
     }
 
     async fn get_etag(&self) -> Option<String> {

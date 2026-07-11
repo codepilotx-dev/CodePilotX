@@ -380,8 +380,10 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
         fn contribute<'a>(
             &'a self,
             context: codepilotx_extension_api::McpServerContributionContext<'a, Config>,
-        ) -> codepilotx_extension_api::ExtensionFuture<'a, Vec<codepilotx_extension_api::McpServerContribution>>
-        {
+        ) -> codepilotx_extension_api::ExtensionFuture<
+            'a,
+            Vec<codepilotx_extension_api::McpServerContribution>,
+        > {
             Box::pin(async move {
                 let thread_init = context
                     .thread_init()
@@ -403,13 +405,15 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
                 server.environment_id = environment_id.clone();
                 server.enabled = false;
                 let plugin_id = selected_root.id;
-                vec![codepilotx_extension_api::McpServerContribution::SelectedPlugin {
-                    name: plugin_id.clone(),
-                    plugin_display_name: plugin_id.clone(),
-                    plugin_id,
-                    selection_order: 0,
-                    config: Box::new(server),
-                }]
+                vec![
+                    codepilotx_extension_api::McpServerContribution::SelectedPlugin {
+                        name: plugin_id.clone(),
+                        plugin_display_name: plugin_id.clone(),
+                        plugin_id,
+                        selection_order: 0,
+                        config: Box::new(server),
+                    },
+                ]
             })
         }
     }
@@ -685,7 +689,12 @@ async fn explicit_installation_id_skips_codepilotx_home_file() {
         .await
         .expect("start thread with explicit installation id");
 
-    assert!(!config.codepilotx_home.join(INSTALLATION_ID_FILENAME).exists());
+    assert!(
+        !config
+            .codepilotx_home
+            .join(INSTALLATION_ID_FILENAME)
+            .exists()
+    );
     assert_eq!(thread.thread.codex.session.installation_id, installation_id);
 
     thread

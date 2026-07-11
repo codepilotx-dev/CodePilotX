@@ -58,12 +58,12 @@ pub use raw_event::RawTraceEventPayload;
 pub use reducer::replay_bundle;
 /// Raw payload captured when a child agent reports completion to its parent.
 pub use thread::AgentResultTracePayload;
-/// Environment variable that enables local trace-bundle recording.
-pub use thread::codepilotx_ROLLOUT_TRACE_ROOT_ENV;
 /// Raw metadata captured when a thread starts.
 pub use thread::ThreadStartedTraceMetadata;
 /// No-op-capable handle for recording one thread in a rollout bundle.
 pub use thread::ThreadTraceContext;
+/// Environment variable that enables local trace-bundle recording.
+pub use thread::codepilotx_ROLLOUT_TRACE_ROOT_ENV;
 /// Request data for the canonical Codex tool boundary.
 pub use tool_dispatch::ToolDispatchInvocation;
 /// Tool input observed at the registry boundary.

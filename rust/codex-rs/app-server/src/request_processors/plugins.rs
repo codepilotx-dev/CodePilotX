@@ -620,10 +620,12 @@ impl PluginRequestProcessor {
                     outcome
                         .errors
                         .into_iter()
-                        .map(|err| codepilotx_app_server_protocol::MarketplaceLoadErrorInfo {
-                            marketplace_path: err.path,
-                            message: err.message,
-                        })
+                        .map(
+                            |err| codepilotx_app_server_protocol::MarketplaceLoadErrorInfo {
+                                marketplace_path: err.path,
+                                message: err.message,
+                            },
+                        )
                         .collect(),
                 ))
             })
@@ -909,10 +911,12 @@ impl PluginRequestProcessor {
                 outcome
                     .errors
                     .into_iter()
-                    .map(|err| codepilotx_app_server_protocol::MarketplaceLoadErrorInfo {
-                        marketplace_path: err.path,
-                        message: err.message,
-                    })
+                    .map(
+                        |err| codepilotx_app_server_protocol::MarketplaceLoadErrorInfo {
+                            marketplace_path: err.path,
+                            message: err.message,
+                        },
+                    )
                     .collect(),
             ))
         })
@@ -1183,17 +1187,18 @@ impl PluginRequestProcessor {
         let remote_plugin_service_config = RemotePluginServiceConfig {
             chatgpt_base_url: config.chatgpt_base_url.clone(),
         };
-        let remote_skill_detail = codepilotx_core_plugins::remote::fetch_remote_plugin_skill_detail(
-            &remote_plugin_service_config,
-            auth.as_ref(),
-            &remote_marketplace_name,
-            &remote_plugin_id,
-            &skill_name,
-        )
-        .await
-        .map_err(|err| {
-            remote_plugin_catalog_error_to_jsonrpc(err, "read remote plugin skill details")
-        })?;
+        let remote_skill_detail =
+            codepilotx_core_plugins::remote::fetch_remote_plugin_skill_detail(
+                &remote_plugin_service_config,
+                auth.as_ref(),
+                &remote_marketplace_name,
+                &remote_plugin_id,
+                &skill_name,
+            )
+            .await
+            .map_err(|err| {
+                remote_plugin_catalog_error_to_jsonrpc(err, "read remote plugin skill details")
+            })?;
 
         Ok(PluginSkillReadResponse {
             contents: remote_skill_detail.contents,
@@ -1556,40 +1561,42 @@ impl PluginRequestProcessor {
                 &actual_remote_marketplace_name,
                 &remote_plugin_name,
             );
-        let validated_bundle = codepilotx_core_plugins::remote_bundle::validate_remote_plugin_bundle(
-            &remote_plugin_id,
-            &actual_remote_marketplace_name,
-            &remote_plugin_name,
-            remote_detail.release_version.as_deref(),
-            remote_detail.bundle_download_url.as_deref(),
-            remote_detail.app_manifest.clone(),
-        )
-        .map_err(|err| {
-            let error_type = remote_plugin_bundle_install_error_type(&err);
-            self.track_plugin_install_failed_for_remote_plugin(
+        let validated_bundle =
+            codepilotx_core_plugins::remote_bundle::validate_remote_plugin_bundle(
                 &remote_plugin_id,
                 &actual_remote_marketplace_name,
-                error_type,
-                err.to_string(),
-            );
-            remote_plugin_bundle_install_error_to_jsonrpc(err)
-        })?;
+                &remote_plugin_name,
+                remote_detail.release_version.as_deref(),
+                remote_detail.bundle_download_url.as_deref(),
+                remote_detail.app_manifest.clone(),
+            )
+            .map_err(|err| {
+                let error_type = remote_plugin_bundle_install_error_type(&err);
+                self.track_plugin_install_failed_for_remote_plugin(
+                    &remote_plugin_id,
+                    &actual_remote_marketplace_name,
+                    error_type,
+                    err.to_string(),
+                );
+                remote_plugin_bundle_install_error_to_jsonrpc(err)
+            })?;
 
-        let result = codepilotx_core_plugins::remote_bundle::download_and_install_remote_plugin_bundle(
-            config.codepilotx_home.to_path_buf(),
-            validated_bundle,
-        )
-        .await
-        .map_err(|err| {
-            let error_type = remote_plugin_bundle_install_error_type(&err);
-            self.track_plugin_install_failed_for_remote_plugin(
-                &remote_plugin_id,
-                &actual_remote_marketplace_name,
-                error_type,
-                err.to_string(),
-            );
-            remote_plugin_bundle_install_error_to_jsonrpc(err)
-        })?;
+        let result =
+            codepilotx_core_plugins::remote_bundle::download_and_install_remote_plugin_bundle(
+                config.codepilotx_home.to_path_buf(),
+                validated_bundle,
+            )
+            .await
+            .map_err(|err| {
+                let error_type = remote_plugin_bundle_install_error_type(&err);
+                self.track_plugin_install_failed_for_remote_plugin(
+                    &remote_plugin_id,
+                    &actual_remote_marketplace_name,
+                    error_type,
+                    err.to_string(),
+                );
+                remote_plugin_bundle_install_error_to_jsonrpc(err)
+            })?;
 
         // Cache first so a backend install cannot succeed when local materialization fails.
         // If this backend call fails, the cache entry is harmless because remote installed state

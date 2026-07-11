@@ -159,8 +159,9 @@ async fn skills_list_loads_remote_installed_plugin_skills_from_cache() -> Result
     let codepilotx_home = TempDir::new()?;
     let cwd = TempDir::new()?;
     let server = MockServer::start().await;
-    let expected_skill_path =
-        std::fs::canonicalize(write_cached_remote_plugin_with_skill(codepilotx_home.path())?)?;
+    let expected_skill_path = std::fs::canonicalize(write_cached_remote_plugin_with_skill(
+        codepilotx_home.path(),
+    )?)?;
     write_remote_plugins_enabled_config_with_base_url(
         codepilotx_home.path(),
         &format!("{}/backend-api/", server.uri()),
@@ -337,7 +338,8 @@ async fn skills_list_loads_remote_installed_plugin_skills_from_cache() -> Result
 }
 
 #[tokio::test]
-async fn skills_list_excludes_plugin_skills_when_workspace_codepilotx_plugins_disabled() -> Result<()> {
+async fn skills_list_excludes_plugin_skills_when_workspace_codepilotx_plugins_disabled()
+-> Result<()> {
     let codepilotx_home = TempDir::new()?;
     let repo_root = TempDir::new()?;
     let server = MockServer::start().await;
@@ -749,9 +751,11 @@ async fn skills_changed_notification_is_emitted_after_skill_change() -> Result<(
     )?;
     write_skill(&codepilotx_home, "demo")?;
 
-    let mut mcp =
-        TestAppServer::new_with_env(codepilotx_home.path(), &[(codepilotx_EXEC_SERVER_URL_ENV_VAR, None)])
-            .await?;
+    let mut mcp = TestAppServer::new_with_env(
+        codepilotx_home.path(),
+        &[(codepilotx_EXEC_SERVER_URL_ENV_VAR, None)],
+    )
+    .await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
     let initial_skills_request_id = mcp
         .send_skills_list_request(SkillsListParams {

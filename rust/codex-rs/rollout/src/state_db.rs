@@ -107,15 +107,17 @@ async fn try_init_with_roots_inner(
     default_model_provider_id: String,
     backfill_lease_seconds: Option<i64>,
 ) -> anyhow::Result<StateDbHandle> {
-    let runtime =
-        codepilotx_state::StateRuntime::init(sqlite_home.clone(), default_model_provider_id.clone())
-            .await
-            .with_context(|| {
-                format!(
-                    "failed to initialize state runtime at {}",
-                    sqlite_home.display()
-                )
-            })?;
+    let runtime = codepilotx_state::StateRuntime::init(
+        sqlite_home.clone(),
+        default_model_provider_id.clone(),
+    )
+    .await
+    .with_context(|| {
+        format!(
+            "failed to initialize state runtime at {}",
+            sqlite_home.display()
+        )
+    })?;
     let backfill_gate_started = Instant::now();
     let backfill_gate_result = wait_for_backfill_gate(
         runtime.as_ref(),

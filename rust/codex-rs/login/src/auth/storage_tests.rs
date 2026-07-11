@@ -662,7 +662,11 @@ fn auto_auth_storage_save_prefers_keyring() -> anyhow::Result<()> {
     let expected = auth_with_prefix("to-save");
     storage.save(&expected)?;
 
-    assert_keyring_saved_auth_and_removed_fallback(&mock_keyring, codepilotx_home.path(), &expected)?;
+    assert_keyring_saved_auth_and_removed_fallback(
+        &mock_keyring,
+        codepilotx_home.path(),
+        &expected,
+    )?;
     Ok(())
 }
 

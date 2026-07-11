@@ -1244,9 +1244,15 @@ pub(super) fn mcp_inventory_maps_from_statuses(statuses: Vec<McpServerStatus>) -
         auth_statuses.insert(
             server_name.clone(),
             match status.auth_status {
-                codepilotx_app_server_protocol::McpAuthStatus::Unsupported => McpAuthStatus::Unsupported,
-                codepilotx_app_server_protocol::McpAuthStatus::NotLoggedIn => McpAuthStatus::NotLoggedIn,
-                codepilotx_app_server_protocol::McpAuthStatus::BearerToken => McpAuthStatus::BearerToken,
+                codepilotx_app_server_protocol::McpAuthStatus::Unsupported => {
+                    McpAuthStatus::Unsupported
+                }
+                codepilotx_app_server_protocol::McpAuthStatus::NotLoggedIn => {
+                    McpAuthStatus::NotLoggedIn
+                }
+                codepilotx_app_server_protocol::McpAuthStatus::BearerToken => {
+                    McpAuthStatus::BearerToken
+                }
                 codepilotx_app_server_protocol::McpAuthStatus::OAuth => McpAuthStatus::OAuth,
             },
         );

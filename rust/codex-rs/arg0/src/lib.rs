@@ -81,9 +81,8 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
             Ok(runtime) => runtime,
             Err(_) => std::process::exit(1),
         };
-        let exit_code = runtime.block_on(
-            codepilotx_shell_escalation::run_shell_escalation_execve_wrapper(file, argv),
-        );
+        let exit_code = runtime
+            .block_on(codepilotx_shell_escalation::run_shell_escalation_execve_wrapper(file, argv));
         match exit_code {
             Ok(exit_code) => std::process::exit(exit_code),
             Err(_) => std::process::exit(1),
@@ -136,7 +135,9 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
                 }
             }
             None => {
-                eprintln!("Error: {codepilotx_CORE_APPLY_PATCH_ARG1} requires a UTF-8 PATCH argument.");
+                eprintln!(
+                    "Error: {codepilotx_CORE_APPLY_PATCH_ARG1} requires a UTF-8 PATCH argument."
+                );
                 1
             }
         };

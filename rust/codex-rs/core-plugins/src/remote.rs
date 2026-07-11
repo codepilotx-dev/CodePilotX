@@ -658,7 +658,9 @@ pub async fn fetch_remote_marketplaces(
                 if let Some(codepilotx_home) = global_catalog_cache_path
                     && let Some(directory_plugins) =
                         catalog_cache::load_cached_global_directory_plugins(
-                            codepilotx_home, config, auth,
+                            codepilotx_home,
+                            config,
+                            auth,
                         )
                 {
                     let installed_plugins =
@@ -1338,7 +1340,12 @@ pub async fn uninstall_remote_plugin(
 
     let legacy_plugin_id = plugin_id.to_string();
     tokio::task::spawn_blocking(move || {
-        remove_remote_plugin_cache(codepilotx_home, marketplace_name, plugin_name, legacy_plugin_id)
+        remove_remote_plugin_cache(
+            codepilotx_home,
+            marketplace_name,
+            plugin_name,
+            legacy_plugin_id,
+        )
     })
     .await
     .map_err(|err| {

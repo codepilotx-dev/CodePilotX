@@ -1,13 +1,13 @@
-use super::anthropic_tool_input_arguments;
 use super::AuthRequestTelemetryContext;
 use super::ModelClient;
 use super::PendingUnauthorizedRetry;
 use super::UnauthorizedRecoveryExecution;
+use super::X_OPENAI_SUBAGENT_HEADER;
 use super::X_codepilotx_INSTALLATION_ID_HEADER;
 use super::X_codepilotx_PARENT_THREAD_ID_HEADER;
 use super::X_codepilotx_TURN_METADATA_HEADER;
 use super::X_codepilotx_WINDOW_ID_HEADER;
-use super::X_OPENAI_SUBAGENT_HEADER;
+use super::anthropic_tool_input_arguments;
 use crate::AttestationContext;
 use crate::AttestationProvider;
 use crate::GenerateAttestationFuture;
@@ -41,8 +41,8 @@ use codepilotx_rollout_trace::TraceWriter;
 use codepilotx_rollout_trace::replay_bundle;
 use futures::StreamExt;
 use pretty_assertions::assert_eq;
-use serde_json::json;
 use serde_json::Value as JsonValue;
+use serde_json::json;
 use std::collections::BTreeMap;
 use std::collections::VecDeque;
 use std::convert::Infallible;
@@ -553,7 +553,9 @@ fn model_client_with_counting_attestation(
             Some(AuthManager::from_auth_for_testing(
                 CodexAuth::create_dummy_chatgpt_auth_for_testing(),
             )),
-            ModelProviderInfo::create_openai_provider(Some(CHATGPT_codepilotx_BASE_URL.to_string())),
+            ModelProviderInfo::create_openai_provider(Some(
+                CHATGPT_codepilotx_BASE_URL.to_string(),
+            )),
         )
     } else {
         (
@@ -703,9 +705,9 @@ async fn anthropic_stream_tool_use_with_delta_produces_clean_arguments() {
 
     // Find the FunctionCall Done event ?its arguments should be clean JSON
     let function_call_args = results.iter().find_map(|r| match r {
-        Ok(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall {
-            arguments, ..
-        })) => Some(arguments.as_str()),
+        Ok(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall { arguments, .. })) => {
+            Some(arguments.as_str())
+        }
         _ => None,
     });
 
@@ -752,9 +754,9 @@ async fn anthropic_stream_tool_use_without_delta_produces_empty_object() {
     }
 
     let function_call_args = results.iter().find_map(|r| match r {
-        Ok(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall {
-            arguments, ..
-        })) => Some(arguments.as_str()),
+        Ok(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall { arguments, .. })) => {
+            Some(arguments.as_str())
+        }
         _ => None,
     });
 
@@ -776,7 +778,10 @@ fn malformed_tool_arguments_in_request_builder_fallback_to_empty_object() {
         Ok(v @ JsonValue::Object(_)) => v,
         _ => JsonValue::Object(Default::default()),
     };
-    assert!(input.is_object(), "malformed args must produce object, not string");
+    assert!(
+        input.is_object(),
+        "malformed args must produce object, not string"
+    );
     assert_eq!(input.as_object().unwrap().len(), 0);
 
     // String JSON ?still not an object, fallback
@@ -785,7 +790,10 @@ fn malformed_tool_arguments_in_request_builder_fallback_to_empty_object() {
         Ok(v @ JsonValue::Object(_)) => v,
         _ => JsonValue::Object(Default::default()),
     };
-    assert!(input.is_object(), "JSON string value must produce empty object");
+    assert!(
+        input.is_object(),
+        "JSON string value must produce empty object"
+    );
     assert_eq!(input.as_object().unwrap().len(), 0);
 
     // Valid object passes through
@@ -796,7 +804,11 @@ fn malformed_tool_arguments_in_request_builder_fallback_to_empty_object() {
     };
     assert!(input.is_object(), "valid JSON object must pass through");
     assert_eq!(
-        input.as_object().unwrap().get("cmd").and_then(|v| v.as_str()),
+        input
+            .as_object()
+            .unwrap()
+            .get("cmd")
+            .and_then(|v| v.as_str()),
         Some("pwd"),
     );
 }
@@ -864,7 +876,9 @@ async fn chat_completions_stream_tool_calls_without_text_emits_message() {
 
     // Find the Message Done event ?must exist even with empty text
     let message_done = results.iter().find(|r| match r {
-        Ok(ResponseEvent::OutputItemDone(ResponseItem::Message { content, .. })) => content.is_empty(),
+        Ok(ResponseEvent::OutputItemDone(ResponseItem::Message { content, .. })) => {
+            content.is_empty()
+        }
         _ => false,
     });
     assert!(
@@ -874,9 +888,9 @@ async fn chat_completions_stream_tool_calls_without_text_emits_message() {
 
     // Find the FunctionCall Done event ?arguments must be clean JSON
     let function_call_args = results.iter().find_map(|r| match r {
-        Ok(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall {
-            arguments, ..
-        })) => Some(arguments.as_str()),
+        Ok(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall { arguments, .. })) => {
+            Some(arguments.as_str())
+        }
         _ => None,
     });
     assert_eq!(
@@ -1109,7 +1123,10 @@ async fn chat_completions_stream_usage_reasoning_tokens() {
         usage.reasoning_output_tokens, 20,
         "completion_tokens_details.reasoning_tokens -> reasoning_output_tokens",
     );
-    assert_eq!(usage.cached_input_tokens, 0, "no cache tokens in this payload");
+    assert_eq!(
+        usage.cached_input_tokens, 0,
+        "no cache tokens in this payload"
+    );
 }
 
 //  Chat Completions stream: no usage (legacy format)
@@ -1425,7 +1442,9 @@ async fn anthropic_request_builder_creates_assistant_anchor_for_tool_use() {
         "user content must contain tool_result block",
     );
     assert_eq!(
-        tool_result_block.get("tool_use_id").and_then(|v| v.as_str()),
+        tool_result_block
+            .get("tool_use_id")
+            .and_then(|v| v.as_str()),
         Some("call_1"),
         "tool_result must reference call_1",
     );
@@ -1543,7 +1562,9 @@ async fn anthropic_request_builder_appends_tool_use_to_existing_assistant() {
         "first block in user must be tool_result",
     );
     assert_eq!(
-        tool_result_block.get("tool_use_id").and_then(|v| v.as_str()),
+        tool_result_block
+            .get("tool_use_id")
+            .and_then(|v| v.as_str()),
         Some("call_2"),
         "tool_result must reference call_2",
     );

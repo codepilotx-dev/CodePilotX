@@ -387,7 +387,8 @@ impl MessageProcessor {
         // Clone outgoing and server to move into async task.
         let outgoing = self.outgoing.clone();
         let thread_manager = self.thread_manager.clone();
-        let running_requests_id_to_codepilotx_uuid = self.running_requests_id_to_codepilotx_uuid.clone();
+        let running_requests_id_to_codepilotx_uuid =
+            self.running_requests_id_to_codepilotx_uuid.clone();
 
         // Spawn an async task to handle the Codex session so that we do not
         // block the synchronous message-processing loop.
@@ -452,7 +453,8 @@ impl MessageProcessor {
 
         // Clone outgoing to move into async task.
         let outgoing = self.outgoing.clone();
-        let running_requests_id_to_codepilotx_uuid = self.running_requests_id_to_codepilotx_uuid.clone();
+        let running_requests_id_to_codepilotx_uuid =
+            self.running_requests_id_to_codepilotx_uuid.clone();
 
         let codex = match self.thread_manager.get_thread(thread_id).await {
             Ok(c) => c,
@@ -472,7 +474,8 @@ impl MessageProcessor {
         let prompt = codepilotx_tool_call_reply_param.prompt.clone();
         tokio::spawn({
             let outgoing = outgoing.clone();
-            let running_requests_id_to_codepilotx_uuid = running_requests_id_to_codepilotx_uuid.clone();
+            let running_requests_id_to_codepilotx_uuid =
+                running_requests_id_to_codepilotx_uuid.clone();
 
             async move {
                 crate::codepilotx_tool_runner::run_codepilotx_tool_session_reply(

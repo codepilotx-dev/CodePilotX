@@ -1,9 +1,9 @@
 use codepilotx_model_provider_info::ModelProviderInfo;
 use codepilotx_otel::AuthEnvTelemetryMetadata;
 
-use crate::codepilotx_API_KEY_ENV_VAR;
 use crate::OPENAI_API_KEY_ENV_VAR;
 use crate::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
+use crate::codepilotx_API_KEY_ENV_VAR;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AuthEnvTelemetry {

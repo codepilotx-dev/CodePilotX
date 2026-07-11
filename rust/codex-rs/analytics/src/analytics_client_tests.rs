@@ -908,9 +908,11 @@ fn sample_permissions_approval_request(request_id: i64) -> ServerRequest {
             cwd: test_path_buf("/tmp").abs(),
             reason: Some("need network".to_string()),
             permissions: RequestPermissionProfile {
-                network: Some(codepilotx_app_server_protocol::AdditionalNetworkPermissions {
-                    enabled: Some(true),
-                }),
+                network: Some(
+                    codepilotx_app_server_protocol::AdditionalNetworkPermissions {
+                        enabled: Some(true),
+                    },
+                ),
                 file_system: None,
             },
         },
@@ -2170,7 +2172,10 @@ async fn item_lifecycle_notifications_publish_command_execution_event() {
 
     let payload = serde_json::to_value(&events).expect("serialize events");
     assert_eq!(payload.as_array().expect("events array").len(), 1);
-    assert_eq!(payload[0]["event_type"], "codepilotx_command_execution_event");
+    assert_eq!(
+        payload[0]["event_type"],
+        "codepilotx_command_execution_event"
+    );
     assert_eq!(payload[0]["event_params"]["thread_id"], "thread-1");
     assert_eq!(payload[0]["event_params"]["turn_id"], "turn-1");
     assert_eq!(payload[0]["event_params"]["item_id"], "item-1");
@@ -2996,7 +3001,10 @@ async fn subagent_tool_items_inherit_parent_connection_metadata() {
 
     let payload = serde_json::to_value(&events).expect("serialize events");
     assert_eq!(payload.as_array().expect("events array").len(), 1);
-    assert_eq!(payload[0]["event_type"], "codepilotx_command_execution_event");
+    assert_eq!(
+        payload[0]["event_type"],
+        "codepilotx_command_execution_event"
+    );
     assert_eq!(payload[0]["event_params"]["thread_source"], "subagent");
     assert_eq!(payload[0]["event_params"]["subagent_source"], "review");
     assert_eq!(payload[0]["event_params"]["parent_thread_id"], "thread-1");
@@ -4524,7 +4532,10 @@ async fn turn_lifecycle_emits_interrupted_turn_event_without_error() {
     let payload = serde_json::to_value(&out[0]).expect("serialize turn event");
     assert_eq!(payload["event_params"]["status"], json!("interrupted"));
     assert_eq!(payload["event_params"]["turn_error"], json!(null));
-    assert_eq!(payload["event_params"]["codepilotx_error_kind"], json!(null));
+    assert_eq!(
+        payload["event_params"]["codepilotx_error_kind"],
+        json!(null)
+    );
 }
 
 #[tokio::test]

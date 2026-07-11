@@ -23,7 +23,9 @@ impl ChatWidget {
                 .windows_sandbox_mode
                 .source
                 .is_some()
-            && !crate::windows_sandbox::sandbox_setup_is_complete(self.config.codepilotx_home.as_path())
+            && !crate::windows_sandbox::sandbox_setup_is_complete(
+                self.config.codepilotx_home.as_path(),
+            )
     }
 
     #[cfg(target_os = "windows")]

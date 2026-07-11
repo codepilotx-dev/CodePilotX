@@ -573,9 +573,12 @@ mod tests {
     use tokio::time::timeout;
 
     async fn remote_control_state_runtime(codepilotx_home: &TempDir) -> Arc<StateRuntime> {
-        StateRuntime::init(codepilotx_home.path().to_path_buf(), "test-provider".to_string())
-            .await
-            .expect("state runtime should initialize")
+        StateRuntime::init(
+            codepilotx_home.path().to_path_buf(),
+            "test-provider".to_string(),
+        )
+        .await
+        .expect("state runtime should initialize")
     }
 
     #[test]

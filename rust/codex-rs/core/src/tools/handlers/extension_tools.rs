@@ -26,7 +26,9 @@ use crate::tools::registry::ToolExecutor;
 pub(crate) struct ExtensionToolAdapter(Arc<dyn codepilotx_tools::ToolExecutor<ExtensionToolCall>>);
 
 impl ExtensionToolAdapter {
-    pub(crate) fn new(executor: Arc<dyn codepilotx_tools::ToolExecutor<ExtensionToolCall>>) -> Self {
+    pub(crate) fn new(
+        executor: Arc<dyn codepilotx_tools::ToolExecutor<ExtensionToolCall>>,
+    ) -> Self {
         Self(executor)
     }
 }
@@ -210,7 +212,10 @@ mod tests {
             })
         }
 
-        fn handle(&self, _call: codepilotx_tools::ToolCall) -> codepilotx_tools::ToolExecutorFuture<'_> {
+        fn handle(
+            &self,
+            _call: codepilotx_tools::ToolCall,
+        ) -> codepilotx_tools::ToolExecutorFuture<'_> {
             Box::pin(async {
                 Ok(
                     Box::new(codepilotx_tools::JsonToolOutput::new(json!({ "ok": true })))
@@ -224,7 +229,9 @@ mod tests {
         captured_call: Arc<Mutex<Option<codepilotx_tools::ToolCall>>>,
     }
 
-    impl codepilotx_extension_api::ToolExecutor<codepilotx_tools::ToolCall> for CapturingExtensionExecutor {
+    impl codepilotx_extension_api::ToolExecutor<codepilotx_tools::ToolCall>
+        for CapturingExtensionExecutor
+    {
         fn tool_name(&self) -> codepilotx_tools::ToolName {
             codepilotx_tools::ToolName::plain("extension_echo")
         }
@@ -240,7 +247,10 @@ mod tests {
             })
         }
 
-        fn handle(&self, call: codepilotx_tools::ToolCall) -> codepilotx_tools::ToolExecutorFuture<'_> {
+        fn handle(
+            &self,
+            call: codepilotx_tools::ToolCall,
+        ) -> codepilotx_tools::ToolExecutorFuture<'_> {
             Box::pin(self.handle_call(call))
         }
     }
@@ -249,7 +259,8 @@ mod tests {
         async fn handle_call(
             &self,
             call: codepilotx_tools::ToolCall,
-        ) -> Result<Box<dyn codepilotx_tools::ToolOutput>, codepilotx_tools::FunctionCallError> {
+        ) -> Result<Box<dyn codepilotx_tools::ToolOutput>, codepilotx_tools::FunctionCallError>
+        {
             let item = ExtensionTurnItem::WebSearch(WebSearchItem {
                 id: call.call_id.clone(),
                 query: "rust trait object".to_string(),
@@ -476,7 +487,9 @@ mod tests {
         );
     }
 
-    impl codepilotx_extension_api::ToolExecutor<codepilotx_tools::ToolCall> for ImageGenerationExtensionExecutor {
+    impl codepilotx_extension_api::ToolExecutor<codepilotx_tools::ToolCall>
+        for ImageGenerationExtensionExecutor
+    {
         fn tool_name(&self) -> codepilotx_tools::ToolName {
             codepilotx_tools::ToolName::namespaced("image_gen", "imagegen")
         }
@@ -492,7 +505,10 @@ mod tests {
             })
         }
 
-        fn handle(&self, call: codepilotx_tools::ToolCall) -> codepilotx_tools::ToolExecutorFuture<'_> {
+        fn handle(
+            &self,
+            call: codepilotx_tools::ToolCall,
+        ) -> codepilotx_tools::ToolExecutorFuture<'_> {
             Box::pin(self.handle_call(call))
         }
     }
@@ -501,7 +517,8 @@ mod tests {
         async fn handle_call(
             &self,
             call: codepilotx_tools::ToolCall,
-        ) -> Result<Box<dyn codepilotx_tools::ToolOutput>, codepilotx_tools::FunctionCallError> {
+        ) -> Result<Box<dyn codepilotx_tools::ToolOutput>, codepilotx_tools::FunctionCallError>
+        {
             call.turn_item_emitter
                 .emit_started(ExtensionTurnItem::ImageGeneration(
                     codepilotx_protocol::items::ImageGenerationItem {

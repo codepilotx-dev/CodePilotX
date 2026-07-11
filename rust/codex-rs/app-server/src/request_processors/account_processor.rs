@@ -378,7 +378,9 @@ impl AccountRequestProcessor {
         request_id: ConnectionRequestId,
         codepilotx_streamlined_login: bool,
     ) {
-        let result = self.login_chatgpt_response(codepilotx_streamlined_login).await;
+        let result = self
+            .login_chatgpt_response(codepilotx_streamlined_login)
+            .await;
         self.outgoing.send_result(request_id, result).await;
     }
 
@@ -386,7 +388,9 @@ impl AccountRequestProcessor {
         &self,
         codepilotx_streamlined_login: bool,
     ) -> Result<LoginAccountResponse, JSONRPCErrorError> {
-        let opts = self.login_chatgpt_common(codepilotx_streamlined_login).await?;
+        let opts = self
+            .login_chatgpt_common(codepilotx_streamlined_login)
+            .await?;
         let server = run_login_server(opts)
             .map_err(|err| internal_error(format!("failed to start login server: {err}")))?;
         let login_id = Uuid::new_v4();

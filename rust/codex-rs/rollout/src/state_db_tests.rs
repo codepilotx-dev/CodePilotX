@@ -49,9 +49,11 @@ fn cursor_to_anchor_preserves_recency_tie_breaker() {
 #[tokio::test]
 async fn try_init_waits_for_concurrent_startup_backfill() -> anyhow::Result<()> {
     let home = TempDir::new().expect("temp dir");
-    let runtime =
-        codepilotx_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".to_string())
-            .await?;
+    let runtime = codepilotx_state::StateRuntime::init(
+        home.path().to_path_buf(),
+        "test-provider".to_string(),
+    )
+    .await?;
     let claimed = runtime.try_claim_backfill(/*lease_seconds*/ 60).await?;
     assert!(claimed);
     let runtime_for_completion = runtime.clone();
@@ -81,9 +83,11 @@ async fn try_init_waits_for_concurrent_startup_backfill() -> anyhow::Result<()> 
 #[tokio::test]
 async fn try_init_times_out_waiting_for_stuck_startup_backfill() -> anyhow::Result<()> {
     let home = TempDir::new().expect("temp dir");
-    let runtime =
-        codepilotx_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".to_string())
-            .await?;
+    let runtime = codepilotx_state::StateRuntime::init(
+        home.path().to_path_buf(),
+        "test-provider".to_string(),
+    )
+    .await?;
     let claimed = runtime.try_claim_backfill(/*lease_seconds*/ 60).await?;
     assert!(claimed);
 
@@ -112,9 +116,11 @@ async fn reconcile_rollout_preserves_existing_explicit_title() -> anyhow::Result
     let home = TempDir::new().expect("temp dir");
     let thread_id = ThreadId::new();
     let rollout_path = write_rollout_with_user_message(home.path(), thread_id, "Hey")?;
-    let runtime =
-        codepilotx_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".to_string())
-            .await?;
+    let runtime = codepilotx_state::StateRuntime::init(
+        home.path().to_path_buf(),
+        "test-provider".to_string(),
+    )
+    .await?;
 
     let mut metadata =
         metadata::extract_metadata_from_rollout(rollout_path.as_path(), "test-provider")

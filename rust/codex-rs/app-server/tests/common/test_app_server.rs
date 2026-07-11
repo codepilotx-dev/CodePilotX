@@ -140,7 +140,11 @@ impl TestAppServer {
     }
 
     pub async fn new_without_managed_config(codepilotx_home: &Path) -> anyhow::Result<Self> {
-        Self::new_with_env(codepilotx_home, &[(DISABLE_MANAGED_CONFIG_ENV_VAR, Some("1"))]).await
+        Self::new_with_env(
+            codepilotx_home,
+            &[(DISABLE_MANAGED_CONFIG_ENV_VAR, Some("1"))],
+        )
+        .await
     }
 
     pub async fn new_without_managed_config_with_env(

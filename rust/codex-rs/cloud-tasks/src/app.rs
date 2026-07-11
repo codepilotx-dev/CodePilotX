@@ -444,9 +444,11 @@ mod tests {
 
         fn get_task_diff(&self, _id: TaskId) -> CloudBackendFuture<'_, Option<String>> {
             Box::pin(async {
-                Err(codepilotx_cloud_tasks_client::CloudTaskError::Unimplemented(
-                    "not used in test",
-                ))
+                Err(
+                    codepilotx_cloud_tasks_client::CloudTaskError::Unimplemented(
+                        "not used in test",
+                    ),
+                )
             })
         }
 
@@ -475,9 +477,11 @@ mod tests {
             _diff_override: Option<String>,
         ) -> CloudBackendFuture<'_, codepilotx_cloud_tasks_client::ApplyOutcome> {
             Box::pin(async {
-                Err(codepilotx_cloud_tasks_client::CloudTaskError::Unimplemented(
-                    "not used in test",
-                ))
+                Err(
+                    codepilotx_cloud_tasks_client::CloudTaskError::Unimplemented(
+                        "not used in test",
+                    ),
+                )
             })
         }
 
@@ -487,9 +491,11 @@ mod tests {
             _diff_override: Option<String>,
         ) -> CloudBackendFuture<'_, codepilotx_cloud_tasks_client::ApplyOutcome> {
             Box::pin(async {
-                Err(codepilotx_cloud_tasks_client::CloudTaskError::Unimplemented(
-                    "not used in test",
-                ))
+                Err(
+                    codepilotx_cloud_tasks_client::CloudTaskError::Unimplemented(
+                        "not used in test",
+                    ),
+                )
             })
         }
 
@@ -502,9 +508,11 @@ mod tests {
             _best_of_n: usize,
         ) -> CloudBackendFuture<'a, codepilotx_cloud_tasks_client::CreatedTask> {
             Box::pin(async {
-                Err(codepilotx_cloud_tasks_client::CloudTaskError::Unimplemented(
-                    "not used in test",
-                ))
+                Err(
+                    codepilotx_cloud_tasks_client::CloudTaskError::Unimplemented(
+                        "not used in test",
+                    ),
+                )
             })
         }
     }

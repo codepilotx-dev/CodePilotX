@@ -400,7 +400,11 @@ impl PluginLoadCacheKey {
 
 impl PluginsManager {
     pub fn new(codepilotx_home: PathBuf) -> Self {
-        Self::new_with_options(codepilotx_home, Some(Product::Codex), /*auth_mode*/ None)
+        Self::new_with_options(
+            codepilotx_home,
+            Some(Product::Codex),
+            /*auth_mode*/ None,
+        )
     }
 
     pub fn new_with_options(
@@ -1294,8 +1298,8 @@ impl PluginsManager {
         let auth_policy = resolved.policy.authentication;
         let plugin_version =
             if is_openai_curated_marketplace_name(&resolved.plugin_id.marketplace_name) {
-                let curated_plugin_version = read_curated_plugins_sha(self.codepilotx_home.as_path())
-                    .ok_or_else(|| {
+                let curated_plugin_version =
+                    read_curated_plugins_sha(self.codepilotx_home.as_path()).ok_or_else(|| {
                         PluginStoreError::Invalid(
                             "local curated marketplace sha is not available".to_string(),
                         )
@@ -1392,7 +1396,10 @@ impl PluginsManager {
 
     async fn uninstall_plugin_id(&self, plugin_id: PluginId) -> Result<(), PluginUninstallError> {
         let plugin_telemetry = if self.store.active_plugin_root(&plugin_id).is_some() {
-            Some(installed_plugin_telemetry_metadata(self.codepilotx_home.as_path(), &plugin_id).await)
+            Some(
+                installed_plugin_telemetry_metadata(self.codepilotx_home.as_path(), &plugin_id)
+                    .await,
+            )
         } else {
             None
         };
@@ -1679,7 +1686,8 @@ impl PluginsManager {
             ));
         }
         let manifest =
-            if codepilotx_utils_plugins::find_plugin_manifest_path(source_path.as_path()).is_some() {
+            if codepilotx_utils_plugins::find_plugin_manifest_path(source_path.as_path()).is_some()
+            {
                 load_plugin_manifest(source_path.as_path())
             } else {
                 plugin
@@ -2090,7 +2098,9 @@ impl PluginsManager {
                 move || match sync_openai_plugins_repo(codepilotx_home.as_path()) {
                     Ok(curated_plugin_version) => {
                         let configured_curated_plugin_ids =
-                            configured_curated_plugin_ids_from_codepilotx_home(codepilotx_home.as_path());
+                            configured_curated_plugin_ids_from_codepilotx_home(
+                                codepilotx_home.as_path(),
+                            );
                         match refresh_curated_plugin_cache(
                             codepilotx_home.as_path(),
                             &curated_plugin_version,

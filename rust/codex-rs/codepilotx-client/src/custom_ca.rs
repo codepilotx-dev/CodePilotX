@@ -696,9 +696,9 @@ mod tests {
     use tempfile::TempDir;
 
     use super::BuildCustomCaTransportError;
-    use super::codepilotx_CA_CERT_ENV;
     use super::EnvSource;
     use super::SSL_CERT_FILE_ENV;
+    use super::codepilotx_CA_CERT_ENV;
     use super::maybe_build_rustls_client_config_with_env;
 
     const TEST_CERT: &str = include_str!("../tests/fixtures/test-ca.pem");

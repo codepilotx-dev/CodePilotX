@@ -1,6 +1,6 @@
 use super::*;
-use crate::codepilotx_apps::codepilotx_APPS_TOOLS_CACHE_SCHEMA_VERSION;
 use crate::codepilotx_apps::CodexAppsToolsCacheContext;
+use crate::codepilotx_apps::codepilotx_APPS_TOOLS_CACHE_SCHEMA_VERSION;
 use crate::codepilotx_apps::load_startup_cached_codepilotx_apps_server_info;
 use crate::codepilotx_apps::load_startup_cached_codepilotx_apps_tools_snapshot;
 use crate::codepilotx_apps::read_cached_codepilotx_apps_tools;
@@ -568,13 +568,13 @@ fn codepilotx_apps_tools_cache_is_overwritten_by_last_write() {
     let tools_gateway_2 = vec![create_test_tool(codepilotx_APPS_MCP_SERVER_NAME, "two")];
 
     write_cached_codepilotx_apps_tools(&cache_context, &tools_gateway_1);
-    let cached_gateway_1 =
-        read_cached_codepilotx_apps_tools(&cache_context).expect("cache entry exists for first write");
+    let cached_gateway_1 = read_cached_codepilotx_apps_tools(&cache_context)
+        .expect("cache entry exists for first write");
     assert_eq!(cached_gateway_1[0].callable_name, "one");
 
     write_cached_codepilotx_apps_tools(&cache_context, &tools_gateway_2);
-    let cached_gateway_2 =
-        read_cached_codepilotx_apps_tools(&cache_context).expect("cache entry exists for second write");
+    let cached_gateway_2 = read_cached_codepilotx_apps_tools(&cache_context)
+        .expect("cache entry exists for second write");
     assert_eq!(cached_gateway_2[0].callable_name, "two");
 }
 
@@ -635,7 +635,8 @@ fn codepilotx_apps_tools_cache_preserves_formerly_disallowed_connectors() {
     ];
 
     write_cached_codepilotx_apps_tools(&cache_context, &tools);
-    let cached = read_cached_codepilotx_apps_tools(&cache_context).expect("cache entry exists for user");
+    let cached =
+        read_cached_codepilotx_apps_tools(&cache_context).expect("cache entry exists for user");
 
     assert_eq!(
         cached
@@ -722,7 +723,10 @@ fn startup_cached_codepilotx_apps_tools_loads_from_disk_cache() {
     );
 
     assert_eq!(startup_tools.len(), 1);
-    assert_eq!(startup_tools[0].server_name, codepilotx_APPS_MCP_SERVER_NAME);
+    assert_eq!(
+        startup_tools[0].server_name,
+        codepilotx_APPS_MCP_SERVER_NAME
+    );
     assert_eq!(startup_tools[0].callable_name, "calendar_search");
     assert_eq!(cached_server_info, Some(server_info));
 }

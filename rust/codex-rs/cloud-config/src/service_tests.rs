@@ -29,12 +29,18 @@ use std::sync::atomic::Ordering;
 use tempfile::tempdir;
 
 fn write_auth_json(codepilotx_home: &Path, value: serde_json::Value) -> std::io::Result<()> {
-    std::fs::write(codepilotx_home.join("auth.json"), serde_json::to_string(&value)?)?;
+    std::fs::write(
+        codepilotx_home.join("auth.json"),
+        serde_json::to_string(&value)?,
+    )?;
     Ok(())
 }
 
 fn create_test_cache(codepilotx_home: &Path) -> CloudConfigBundleCache {
-    CloudConfigBundleCache::new(AbsolutePathBuf::resolve_path_against_base(codepilotx_home, "/"))
+    CloudConfigBundleCache::new(AbsolutePathBuf::resolve_path_against_base(
+        codepilotx_home,
+        "/",
+    ))
 }
 
 async fn auth_manager_with_api_key() -> Arc<AuthManager> {
@@ -93,8 +99,8 @@ async fn auth_manager_with_plan(plan_type: &str) -> Arc<AuthManager> {
 }
 
 async fn auth_manager_with_agent_identity_business_plan() -> Arc<AuthManager> {
-    let key_material =
-        codepilotx_agent_identity::generate_agent_key_material().expect("generate agent key material");
+    let key_material = codepilotx_agent_identity::generate_agent_key_material()
+        .expect("generate agent key material");
     AuthManager::from_auth_for_testing(CodexAuth::AgentIdentity(
         AgentIdentityAuth::from_record(
             AgentIdentityAuthRecord {
@@ -1017,20 +1023,22 @@ async fn refresh_from_remote_updates_cached_bundle() {
 #[test]
 fn bundle_response_conversion_preserves_fragment_order() {
     let response = ConfigBundleResponse {
-        config_toml: Some(Some(Box::new(codepilotx_backend_client::DeliveredConfigToml {
-            enterprise_managed: Some(Some(vec![
-                DeliveredTomlFragment::new(
-                    "cfg_high".to_string(),
-                    "High config".to_string(),
-                    "model = \"high\"".to_string(),
-                ),
-                DeliveredTomlFragment::new(
-                    "cfg_low".to_string(),
-                    "Low config".to_string(),
-                    "model = \"low\"".to_string(),
-                ),
-            ])),
-        }))),
+        config_toml: Some(Some(Box::new(
+            codepilotx_backend_client::DeliveredConfigToml {
+                enterprise_managed: Some(Some(vec![
+                    DeliveredTomlFragment::new(
+                        "cfg_high".to_string(),
+                        "High config".to_string(),
+                        "model = \"high\"".to_string(),
+                    ),
+                    DeliveredTomlFragment::new(
+                        "cfg_low".to_string(),
+                        "Low config".to_string(),
+                        "model = \"low\"".to_string(),
+                    ),
+                ])),
+            },
+        ))),
         requirements_toml: Some(Some(Box::new(
             codepilotx_backend_client::DeliveredRequirementsToml {
                 enterprise_managed: Some(Some(vec![DeliveredTomlFragment::new(

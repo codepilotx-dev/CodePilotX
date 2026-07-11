@@ -464,793 +464,793 @@ macro_rules! client_response_payload_from_impl {
 }
 
 client_request_definitions! {
-    Initialize {
-        params: v1::InitializeParams,
-        serialization: None,
-        response: v1::InitializeResponse,
-    },
+Initialize {
+    params: v1::InitializeParams,
+    serialization: None,
+    response: v1::InitializeResponse,
+},
 
-    /// NEW APIs
-    // Thread lifecycle
-    // Uses `inspect_params` because only some fields are experimental.
-    ThreadStart => "thread/start" {
-        params: v2::ThreadStartParams,
-        inspect_params: true,
-        serialization: None,
-        response: v2::ThreadStartResponse,
-    },
-    ThreadResume => "thread/resume" {
-        params: v2::ThreadResumeParams,
-        inspect_params: true,
-        serialization: thread_or_path(params.thread_id, params.path),
-        response: v2::ThreadResumeResponse,
-    },
-    ThreadFork => "thread/fork" {
-        params: v2::ThreadForkParams,
-        inspect_params: true,
-        serialization: thread_or_path(params.thread_id, params.path),
-        response: v2::ThreadForkResponse,
-    },
-    ThreadArchive => "thread/archive" {
-        params: v2::ThreadArchiveParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadArchiveResponse,
-    },
-    ThreadDelete => "thread/delete" {
-        params: v2::ThreadDeleteParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadDeleteResponse,
-    },
-    ThreadUnsubscribe => "thread/unsubscribe" {
-        params: v2::ThreadUnsubscribeParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadUnsubscribeResponse,
-    },
-    #[experimental("thread/increment_elicitation")]
-    /// Increment the thread-local out-of-band elicitation counter.
-    ///
-    /// This is used by external helpers to pause timeout accounting while a user
-    /// approval or other elicitation is pending outside the app-server request flow.
-    ThreadIncrementElicitation => "thread/increment_elicitation" {
-        params: v2::ThreadIncrementElicitationParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadIncrementElicitationResponse,
-    },
-    #[experimental("thread/decrement_elicitation")]
-    /// Decrement the thread-local out-of-band elicitation counter.
-    ///
-    /// When the count reaches zero, timeout accounting resumes for the thread.
-    ThreadDecrementElicitation => "thread/decrement_elicitation" {
-        params: v2::ThreadDecrementElicitationParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadDecrementElicitationResponse,
-    },
-    ThreadSetName => "thread/name/set" {
-        params: v2::ThreadSetNameParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadSetNameResponse,
-    },
-    ThreadGoalSet => "thread/goal/set" {
-        params: v2::ThreadGoalSetParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadGoalSetResponse,
-    },
-    ThreadGoalGet => "thread/goal/get" {
-        params: v2::ThreadGoalGetParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadGoalGetResponse,
-    },
-    ThreadGoalClear => "thread/goal/clear" {
-        params: v2::ThreadGoalClearParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadGoalClearResponse,
-    },
-    ThreadMetadataUpdate => "thread/metadata/update" {
-        params: v2::ThreadMetadataUpdateParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadMetadataUpdateResponse,
-    },
-    #[experimental("thread/settings/update")]
-    ThreadSettingsUpdate => "thread/settings/update" {
-        params: v2::ThreadSettingsUpdateParams,
-        inspect_params: true,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadSettingsUpdateResponse,
-    },
-    #[experimental("thread/memoryMode/set")]
-    ThreadMemoryModeSet => "thread/memoryMode/set" {
-        params: v2::ThreadMemoryModeSetParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadMemoryModeSetResponse,
-    },
-    #[experimental("memory/reset")]
-    MemoryReset => "memory/reset" {
-        params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
-        serialization: global("memory"),
-        response: v2::MemoryResetResponse,
-    },
-    ThreadUnarchive => "thread/unarchive" {
-        params: v2::ThreadUnarchiveParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadUnarchiveResponse,
-    },
-    ThreadCompactStart => "thread/compact/start" {
-        params: v2::ThreadCompactStartParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadCompactStartResponse,
-    },
-    ThreadShellCommand => "thread/shellCommand" {
-        params: v2::ThreadShellCommandParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadShellCommandResponse,
-    },
-    ThreadApproveGuardianDeniedAction => "thread/approveGuardianDeniedAction" {
-        params: v2::ThreadApproveGuardianDeniedActionParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadApproveGuardianDeniedActionResponse,
-    },
-    #[experimental("thread/backgroundTerminals/clean")]
-    ThreadBackgroundTerminalsClean => "thread/backgroundTerminals/clean" {
-        params: v2::ThreadBackgroundTerminalsCleanParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadBackgroundTerminalsCleanResponse,
-    },
-    #[experimental("thread/backgroundTerminals/list")]
-    ThreadBackgroundTerminalsList => "thread/backgroundTerminals/list" {
-        params: v2::ThreadBackgroundTerminalsListParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadBackgroundTerminalsListResponse,
-    },
-    #[experimental("thread/backgroundTerminals/terminate")]
-    ThreadBackgroundTerminalsTerminate => "thread/backgroundTerminals/terminate" {
-        params: v2::ThreadBackgroundTerminalsTerminateParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadBackgroundTerminalsTerminateResponse,
-    },
-    ThreadRollback => "thread/rollback" {
-        params: v2::ThreadRollbackParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadRollbackResponse,
-    },
-    ThreadList => "thread/list" {
-        params: v2::ThreadListParams,
-        inspect_params: true,
-        serialization: None,
-        response: v2::ThreadListResponse,
-    },
-    #[experimental("thread/search")]
-    ThreadSearch => "thread/search" {
-        params: v2::ThreadSearchParams,
-        serialization: None,
-        response: v2::ThreadSearchResponse,
-    },
-    ThreadLoadedList => "thread/loaded/list" {
-        params: v2::ThreadLoadedListParams,
-        serialization: None,
-        response: v2::ThreadLoadedListResponse,
-    },
-    ThreadRead => "thread/read" {
-        params: v2::ThreadReadParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadReadResponse,
-    },
-    #[experimental("thread/turns/list")]
-    ThreadTurnsList => "thread/turns/list" {
-        params: v2::ThreadTurnsListParams,
-        // Explicitly concurrent: this primarily reads append-only rollout storage.
-        serialization: None,
-        response: v2::ThreadTurnsListResponse,
-    },
-    #[experimental("thread/turns/items/list")]
-    ThreadTurnsItemsList => "thread/turns/items/list" {
-        params: v2::ThreadTurnsItemsListParams,
-        // Explicitly concurrent: this primarily reads append-only rollout storage.
-        serialization: None,
-        response: v2::ThreadTurnsItemsListResponse,
-    },
-    /// Append raw Responses API items to the thread history without starting a user turn.
-    ThreadInjectItems => "thread/inject_items" {
-        params: v2::ThreadInjectItemsParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadInjectItemsResponse,
-    },
-    SkillsList => "skills/list" {
-        params: v2::SkillsListParams,
-        serialization: global_shared_read("config"),
-        response: v2::SkillsListResponse,
-    },
-    SkillsExtraRootsSet => "skills/extraRoots/set" {
-        params: v2::SkillsExtraRootsSetParams,
-        serialization: global("config"),
-        response: v2::SkillsExtraRootsSetResponse,
-    },
-    HooksList => "hooks/list" {
-        params: v2::HooksListParams,
-        serialization: global("config"),
-        response: v2::HooksListResponse,
-    },
-    MarketplaceAdd => "marketplace/add" {
-        params: v2::MarketplaceAddParams,
-        serialization: global("config"),
-        response: v2::MarketplaceAddResponse,
-    },
-    MarketplaceRemove => "marketplace/remove" {
-        params: v2::MarketplaceRemoveParams,
-        serialization: global("config"),
-        response: v2::MarketplaceRemoveResponse,
-    },
-    MarketplaceUpgrade => "marketplace/upgrade" {
-        params: v2::MarketplaceUpgradeParams,
-        serialization: global("config"),
-        response: v2::MarketplaceUpgradeResponse,
-    },
-    PluginList => "plugin/list" {
-        params: v2::PluginListParams,
-        serialization: None,
-        response: v2::PluginListResponse,
-    },
-    PluginInstalled => "plugin/installed" {
-        params: v2::PluginInstalledParams,
-        serialization: None,
-        response: v2::PluginInstalledResponse,
-    },
-    PluginRead => "plugin/read" {
-        params: v2::PluginReadParams,
-        serialization: None,
-        response: v2::PluginReadResponse,
-    },
-    PluginSkillRead => "plugin/skill/read" {
-        params: v2::PluginSkillReadParams,
-        serialization: global("config"),
-        response: v2::PluginSkillReadResponse,
-    },
-    PluginShareSave => "plugin/share/save" {
-        params: v2::PluginShareSaveParams,
-        serialization: global("config"),
-        response: v2::PluginShareSaveResponse,
-    },
-    PluginShareUpdateTargets => "plugin/share/updateTargets" {
-        params: v2::PluginShareUpdateTargetsParams,
-        serialization: global("config"),
-        response: v2::PluginShareUpdateTargetsResponse,
-    },
-    PluginShareList => "plugin/share/list" {
-        params: v2::PluginShareListParams,
-        serialization: global("config"),
-        response: v2::PluginShareListResponse,
-    },
-    PluginShareCheckout => "plugin/share/checkout" {
-        params: v2::PluginShareCheckoutParams,
-        serialization: global("config"),
-        response: v2::PluginShareCheckoutResponse,
-    },
-    PluginShareDelete => "plugin/share/delete" {
-        params: v2::PluginShareDeleteParams,
-        serialization: global("config"),
-        response: v2::PluginShareDeleteResponse,
-    },
-    AppsList => "app/list" {
-        params: v2::AppsListParams,
-        serialization: None,
-        response: v2::AppsListResponse,
-    },
-    // File system requests are intentionally concurrent. Desktop already treats local
-    // file system operations as concurrent, and app-server remote fs mirrors that model.
-    FsReadFile => "fs/readFile" {
-        params: v2::FsReadFileParams,
-        serialization: None,
-        response: v2::FsReadFileResponse,
-    },
-    FsWriteFile => "fs/writeFile" {
-        params: v2::FsWriteFileParams,
-        serialization: None,
-        response: v2::FsWriteFileResponse,
-    },
-    FsCreateDirectory => "fs/createDirectory" {
-        params: v2::FsCreateDirectoryParams,
-        serialization: None,
-        response: v2::FsCreateDirectoryResponse,
-    },
-    FsGetMetadata => "fs/getMetadata" {
-        params: v2::FsGetMetadataParams,
-        serialization: None,
-        response: v2::FsGetMetadataResponse,
-    },
-    FsReadDirectory => "fs/readDirectory" {
-        params: v2::FsReadDirectoryParams,
-        serialization: None,
-        response: v2::FsReadDirectoryResponse,
-    },
-    FsRemove => "fs/remove" {
-        params: v2::FsRemoveParams,
-        serialization: None,
-        response: v2::FsRemoveResponse,
-    },
-    FsCopy => "fs/copy" {
-        params: v2::FsCopyParams,
-        serialization: None,
-        response: v2::FsCopyResponse,
-    },
-    FsWatch => "fs/watch" {
-        params: v2::FsWatchParams,
-        serialization: fs_watch_id(params.watch_id),
-        response: v2::FsWatchResponse,
-    },
-    FsUnwatch => "fs/unwatch" {
-        params: v2::FsUnwatchParams,
-        serialization: fs_watch_id(params.watch_id),
-        response: v2::FsUnwatchResponse,
-    },
-    SkillsConfigWrite => "skills/config/write" {
-        params: v2::SkillsConfigWriteParams,
-        serialization: global("config"),
-        response: v2::SkillsConfigWriteResponse,
-    },
-    PluginInstall => "plugin/install" {
-        params: v2::PluginInstallParams,
-        serialization: global("config"),
-        response: v2::PluginInstallResponse,
-    },
-    PluginUninstall => "plugin/uninstall" {
-        params: v2::PluginUninstallParams,
-        serialization: global("config"),
-        response: v2::PluginUninstallResponse,
-    },
-    TurnStart => "turn/start" {
-        params: v2::TurnStartParams,
-        inspect_params: true,
-        serialization: thread_id(params.thread_id),
-        response: v2::TurnStartResponse,
-    },
-    TurnSteer => "turn/steer" {
-        params: v2::TurnSteerParams,
-        inspect_params: true,
-        serialization: thread_id(params.thread_id),
-        response: v2::TurnSteerResponse,
-    },
-    TurnInterrupt => "turn/interrupt" {
-        params: v2::TurnInterruptParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::TurnInterruptResponse,
-    },
-    #[experimental("thread/realtime/start")]
-    ThreadRealtimeStart => "thread/realtime/start" {
-        params: v2::ThreadRealtimeStartParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadRealtimeStartResponse,
-    },
-    #[experimental("thread/realtime/appendAudio")]
-    ThreadRealtimeAppendAudio => "thread/realtime/appendAudio" {
-        params: v2::ThreadRealtimeAppendAudioParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadRealtimeAppendAudioResponse,
-    },
-    #[experimental("thread/realtime/appendText")]
-    ThreadRealtimeAppendText => "thread/realtime/appendText" {
-        params: v2::ThreadRealtimeAppendTextParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadRealtimeAppendTextResponse,
-    },
-    #[experimental("thread/realtime/appendSpeech")]
-    ThreadRealtimeAppendSpeech => "thread/realtime/appendSpeech" {
-        params: v2::ThreadRealtimeAppendSpeechParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadRealtimeAppendSpeechResponse,
-    },
-    #[experimental("thread/realtime/stop")]
-    ThreadRealtimeStop => "thread/realtime/stop" {
-        params: v2::ThreadRealtimeStopParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadRealtimeStopResponse,
-    },
-    #[experimental("thread/realtime/listVoices")]
-    ThreadRealtimeListVoices => "thread/realtime/listVoices" {
-        params: v2::ThreadRealtimeListVoicesParams,
-        serialization: None,
-        response: v2::ThreadRealtimeListVoicesResponse,
-    },
-    ReviewStart => "review/start" {
-        params: v2::ReviewStartParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ReviewStartResponse,
-    },
+/// NEW APIs
+// Thread lifecycle
+// Uses `inspect_params` because only some fields are experimental.
+ThreadStart => "thread/start" {
+    params: v2::ThreadStartParams,
+    inspect_params: true,
+    serialization: None,
+    response: v2::ThreadStartResponse,
+},
+ThreadResume => "thread/resume" {
+    params: v2::ThreadResumeParams,
+    inspect_params: true,
+    serialization: thread_or_path(params.thread_id, params.path),
+    response: v2::ThreadResumeResponse,
+},
+ThreadFork => "thread/fork" {
+    params: v2::ThreadForkParams,
+    inspect_params: true,
+    serialization: thread_or_path(params.thread_id, params.path),
+    response: v2::ThreadForkResponse,
+},
+ThreadArchive => "thread/archive" {
+    params: v2::ThreadArchiveParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadArchiveResponse,
+},
+ThreadDelete => "thread/delete" {
+    params: v2::ThreadDeleteParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadDeleteResponse,
+},
+ThreadUnsubscribe => "thread/unsubscribe" {
+    params: v2::ThreadUnsubscribeParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadUnsubscribeResponse,
+},
+#[experimental("thread/increment_elicitation")]
+/// Increment the thread-local out-of-band elicitation counter.
+///
+/// This is used by external helpers to pause timeout accounting while a user
+/// approval or other elicitation is pending outside the app-server request flow.
+ThreadIncrementElicitation => "thread/increment_elicitation" {
+    params: v2::ThreadIncrementElicitationParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadIncrementElicitationResponse,
+},
+#[experimental("thread/decrement_elicitation")]
+/// Decrement the thread-local out-of-band elicitation counter.
+///
+/// When the count reaches zero, timeout accounting resumes for the thread.
+ThreadDecrementElicitation => "thread/decrement_elicitation" {
+    params: v2::ThreadDecrementElicitationParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadDecrementElicitationResponse,
+},
+ThreadSetName => "thread/name/set" {
+    params: v2::ThreadSetNameParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadSetNameResponse,
+},
+ThreadGoalSet => "thread/goal/set" {
+    params: v2::ThreadGoalSetParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadGoalSetResponse,
+},
+ThreadGoalGet => "thread/goal/get" {
+    params: v2::ThreadGoalGetParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadGoalGetResponse,
+},
+ThreadGoalClear => "thread/goal/clear" {
+    params: v2::ThreadGoalClearParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadGoalClearResponse,
+},
+ThreadMetadataUpdate => "thread/metadata/update" {
+    params: v2::ThreadMetadataUpdateParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadMetadataUpdateResponse,
+},
+#[experimental("thread/settings/update")]
+ThreadSettingsUpdate => "thread/settings/update" {
+    params: v2::ThreadSettingsUpdateParams,
+    inspect_params: true,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadSettingsUpdateResponse,
+},
+#[experimental("thread/memoryMode/set")]
+ThreadMemoryModeSet => "thread/memoryMode/set" {
+    params: v2::ThreadMemoryModeSetParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadMemoryModeSetResponse,
+},
+#[experimental("memory/reset")]
+MemoryReset => "memory/reset" {
+    params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
+    serialization: global("memory"),
+    response: v2::MemoryResetResponse,
+},
+ThreadUnarchive => "thread/unarchive" {
+    params: v2::ThreadUnarchiveParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadUnarchiveResponse,
+},
+ThreadCompactStart => "thread/compact/start" {
+    params: v2::ThreadCompactStartParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadCompactStartResponse,
+},
+ThreadShellCommand => "thread/shellCommand" {
+    params: v2::ThreadShellCommandParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadShellCommandResponse,
+},
+ThreadApproveGuardianDeniedAction => "thread/approveGuardianDeniedAction" {
+    params: v2::ThreadApproveGuardianDeniedActionParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadApproveGuardianDeniedActionResponse,
+},
+#[experimental("thread/backgroundTerminals/clean")]
+ThreadBackgroundTerminalsClean => "thread/backgroundTerminals/clean" {
+    params: v2::ThreadBackgroundTerminalsCleanParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadBackgroundTerminalsCleanResponse,
+},
+#[experimental("thread/backgroundTerminals/list")]
+ThreadBackgroundTerminalsList => "thread/backgroundTerminals/list" {
+    params: v2::ThreadBackgroundTerminalsListParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadBackgroundTerminalsListResponse,
+},
+#[experimental("thread/backgroundTerminals/terminate")]
+ThreadBackgroundTerminalsTerminate => "thread/backgroundTerminals/terminate" {
+    params: v2::ThreadBackgroundTerminalsTerminateParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadBackgroundTerminalsTerminateResponse,
+},
+ThreadRollback => "thread/rollback" {
+    params: v2::ThreadRollbackParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadRollbackResponse,
+},
+ThreadList => "thread/list" {
+    params: v2::ThreadListParams,
+    inspect_params: true,
+    serialization: None,
+    response: v2::ThreadListResponse,
+},
+#[experimental("thread/search")]
+ThreadSearch => "thread/search" {
+    params: v2::ThreadSearchParams,
+    serialization: None,
+    response: v2::ThreadSearchResponse,
+},
+ThreadLoadedList => "thread/loaded/list" {
+    params: v2::ThreadLoadedListParams,
+    serialization: None,
+    response: v2::ThreadLoadedListResponse,
+},
+ThreadRead => "thread/read" {
+    params: v2::ThreadReadParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadReadResponse,
+},
+#[experimental("thread/turns/list")]
+ThreadTurnsList => "thread/turns/list" {
+    params: v2::ThreadTurnsListParams,
+    // Explicitly concurrent: this primarily reads append-only rollout storage.
+    serialization: None,
+    response: v2::ThreadTurnsListResponse,
+},
+#[experimental("thread/turns/items/list")]
+ThreadTurnsItemsList => "thread/turns/items/list" {
+    params: v2::ThreadTurnsItemsListParams,
+    // Explicitly concurrent: this primarily reads append-only rollout storage.
+    serialization: None,
+    response: v2::ThreadTurnsItemsListResponse,
+},
+/// Append raw Responses API items to the thread history without starting a user turn.
+ThreadInjectItems => "thread/inject_items" {
+    params: v2::ThreadInjectItemsParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadInjectItemsResponse,
+},
+SkillsList => "skills/list" {
+    params: v2::SkillsListParams,
+    serialization: global_shared_read("config"),
+    response: v2::SkillsListResponse,
+},
+SkillsExtraRootsSet => "skills/extraRoots/set" {
+    params: v2::SkillsExtraRootsSetParams,
+    serialization: global("config"),
+    response: v2::SkillsExtraRootsSetResponse,
+},
+HooksList => "hooks/list" {
+    params: v2::HooksListParams,
+    serialization: global("config"),
+    response: v2::HooksListResponse,
+},
+MarketplaceAdd => "marketplace/add" {
+    params: v2::MarketplaceAddParams,
+    serialization: global("config"),
+    response: v2::MarketplaceAddResponse,
+},
+MarketplaceRemove => "marketplace/remove" {
+    params: v2::MarketplaceRemoveParams,
+    serialization: global("config"),
+    response: v2::MarketplaceRemoveResponse,
+},
+MarketplaceUpgrade => "marketplace/upgrade" {
+    params: v2::MarketplaceUpgradeParams,
+    serialization: global("config"),
+    response: v2::MarketplaceUpgradeResponse,
+},
+PluginList => "plugin/list" {
+    params: v2::PluginListParams,
+    serialization: None,
+    response: v2::PluginListResponse,
+},
+PluginInstalled => "plugin/installed" {
+    params: v2::PluginInstalledParams,
+    serialization: None,
+    response: v2::PluginInstalledResponse,
+},
+PluginRead => "plugin/read" {
+    params: v2::PluginReadParams,
+    serialization: None,
+    response: v2::PluginReadResponse,
+},
+PluginSkillRead => "plugin/skill/read" {
+    params: v2::PluginSkillReadParams,
+    serialization: global("config"),
+    response: v2::PluginSkillReadResponse,
+},
+PluginShareSave => "plugin/share/save" {
+    params: v2::PluginShareSaveParams,
+    serialization: global("config"),
+    response: v2::PluginShareSaveResponse,
+},
+PluginShareUpdateTargets => "plugin/share/updateTargets" {
+    params: v2::PluginShareUpdateTargetsParams,
+    serialization: global("config"),
+    response: v2::PluginShareUpdateTargetsResponse,
+},
+PluginShareList => "plugin/share/list" {
+    params: v2::PluginShareListParams,
+    serialization: global("config"),
+    response: v2::PluginShareListResponse,
+},
+PluginShareCheckout => "plugin/share/checkout" {
+    params: v2::PluginShareCheckoutParams,
+    serialization: global("config"),
+    response: v2::PluginShareCheckoutResponse,
+},
+PluginShareDelete => "plugin/share/delete" {
+    params: v2::PluginShareDeleteParams,
+    serialization: global("config"),
+    response: v2::PluginShareDeleteResponse,
+},
+AppsList => "app/list" {
+    params: v2::AppsListParams,
+    serialization: None,
+    response: v2::AppsListResponse,
+},
+// File system requests are intentionally concurrent. Desktop already treats local
+// file system operations as concurrent, and app-server remote fs mirrors that model.
+FsReadFile => "fs/readFile" {
+    params: v2::FsReadFileParams,
+    serialization: None,
+    response: v2::FsReadFileResponse,
+},
+FsWriteFile => "fs/writeFile" {
+    params: v2::FsWriteFileParams,
+    serialization: None,
+    response: v2::FsWriteFileResponse,
+},
+FsCreateDirectory => "fs/createDirectory" {
+    params: v2::FsCreateDirectoryParams,
+    serialization: None,
+    response: v2::FsCreateDirectoryResponse,
+},
+FsGetMetadata => "fs/getMetadata" {
+    params: v2::FsGetMetadataParams,
+    serialization: None,
+    response: v2::FsGetMetadataResponse,
+},
+FsReadDirectory => "fs/readDirectory" {
+    params: v2::FsReadDirectoryParams,
+    serialization: None,
+    response: v2::FsReadDirectoryResponse,
+},
+FsRemove => "fs/remove" {
+    params: v2::FsRemoveParams,
+    serialization: None,
+    response: v2::FsRemoveResponse,
+},
+FsCopy => "fs/copy" {
+    params: v2::FsCopyParams,
+    serialization: None,
+    response: v2::FsCopyResponse,
+},
+FsWatch => "fs/watch" {
+    params: v2::FsWatchParams,
+    serialization: fs_watch_id(params.watch_id),
+    response: v2::FsWatchResponse,
+},
+FsUnwatch => "fs/unwatch" {
+    params: v2::FsUnwatchParams,
+    serialization: fs_watch_id(params.watch_id),
+    response: v2::FsUnwatchResponse,
+},
+SkillsConfigWrite => "skills/config/write" {
+    params: v2::SkillsConfigWriteParams,
+    serialization: global("config"),
+    response: v2::SkillsConfigWriteResponse,
+},
+PluginInstall => "plugin/install" {
+    params: v2::PluginInstallParams,
+    serialization: global("config"),
+    response: v2::PluginInstallResponse,
+},
+PluginUninstall => "plugin/uninstall" {
+    params: v2::PluginUninstallParams,
+    serialization: global("config"),
+    response: v2::PluginUninstallResponse,
+},
+TurnStart => "turn/start" {
+    params: v2::TurnStartParams,
+    inspect_params: true,
+    serialization: thread_id(params.thread_id),
+    response: v2::TurnStartResponse,
+},
+TurnSteer => "turn/steer" {
+    params: v2::TurnSteerParams,
+    inspect_params: true,
+    serialization: thread_id(params.thread_id),
+    response: v2::TurnSteerResponse,
+},
+TurnInterrupt => "turn/interrupt" {
+    params: v2::TurnInterruptParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::TurnInterruptResponse,
+},
+#[experimental("thread/realtime/start")]
+ThreadRealtimeStart => "thread/realtime/start" {
+    params: v2::ThreadRealtimeStartParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadRealtimeStartResponse,
+},
+#[experimental("thread/realtime/appendAudio")]
+ThreadRealtimeAppendAudio => "thread/realtime/appendAudio" {
+    params: v2::ThreadRealtimeAppendAudioParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadRealtimeAppendAudioResponse,
+},
+#[experimental("thread/realtime/appendText")]
+ThreadRealtimeAppendText => "thread/realtime/appendText" {
+    params: v2::ThreadRealtimeAppendTextParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadRealtimeAppendTextResponse,
+},
+#[experimental("thread/realtime/appendSpeech")]
+ThreadRealtimeAppendSpeech => "thread/realtime/appendSpeech" {
+    params: v2::ThreadRealtimeAppendSpeechParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadRealtimeAppendSpeechResponse,
+},
+#[experimental("thread/realtime/stop")]
+ThreadRealtimeStop => "thread/realtime/stop" {
+    params: v2::ThreadRealtimeStopParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ThreadRealtimeStopResponse,
+},
+#[experimental("thread/realtime/listVoices")]
+ThreadRealtimeListVoices => "thread/realtime/listVoices" {
+    params: v2::ThreadRealtimeListVoicesParams,
+    serialization: None,
+    response: v2::ThreadRealtimeListVoicesResponse,
+},
+ReviewStart => "review/start" {
+    params: v2::ReviewStartParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::ReviewStartResponse,
+},
 
-    ModelList => "model/list" {
-        params: v2::ModelListParams,
-        serialization: None,
-        response: v2::ModelListResponse,
-    },
-    ModelProviderCapabilitiesRead => "modelProvider/capabilities/read" {
-        params: v2::ModelProviderCapabilitiesReadParams,
-        serialization: None,
-        response: v2::ModelProviderCapabilitiesReadResponse,
-    },
-    ExperimentalFeatureList => "experimentalFeature/list" {
-        params: v2::ExperimentalFeatureListParams,
-        serialization: global("config"),
-        response: v2::ExperimentalFeatureListResponse,
-    },
-    PermissionProfileList => "permissionProfile/list" {
-        params: v2::PermissionProfileListParams,
-        serialization: global_shared_read("config"),
-        response: v2::PermissionProfileListResponse,
-    },
-    ExperimentalFeatureEnablementSet => "experimentalFeature/enablement/set" {
-        params: v2::ExperimentalFeatureEnablementSetParams,
-        serialization: global("config"),
-        response: v2::ExperimentalFeatureEnablementSetResponse,
-    },
-    #[experimental("remoteControl/enable")]
-    RemoteControlEnable => "remoteControl/enable" {
-        params: #[serde(skip_serializing_if = "Option::is_none")] v2::NullableRemoteControlEnableParams,
-        serialization: global("remote-control"),
-        response: v2::RemoteControlEnableResponse,
-    },
-    #[experimental("remoteControl/disable")]
-    RemoteControlDisable => "remoteControl/disable" {
-        params: #[serde(skip_serializing_if = "Option::is_none")] v2::NullableRemoteControlDisableParams,
-        serialization: global("remote-control"),
-        response: v2::RemoteControlDisableResponse,
-    },
-    #[experimental("remoteControl/status/read")]
-    RemoteControlStatusRead => "remoteControl/status/read" {
-        params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
-        serialization: global_shared_read("remote-control"),
-        response: v2::RemoteControlStatusReadResponse,
-    },
-    #[experimental("remoteControl/pairing/start")]
-    RemoteControlPairingStart => "remoteControl/pairing/start" {
-        params: v2::RemoteControlPairingStartParams,
-        serialization: global("remote-control-pairing"),
-        response: v2::RemoteControlPairingStartResponse,
-    },
-    #[experimental("remoteControl/pairing/status")]
-    RemoteControlPairingStatus => "remoteControl/pairing/status" {
-        params: v2::RemoteControlPairingStatusParams,
-        serialization: global_shared_read("remote-control-pairing"),
-        response: v2::RemoteControlPairingStatusResponse,
-    },
-    #[experimental("remoteControl/client/list")]
-    RemoteControlClientsList => "remoteControl/client/list" {
-        params: v2::RemoteControlClientsListParams,
-        serialization: global_shared_read("remote-control-clients"),
-        response: v2::RemoteControlClientsListResponse,
-    },
-    #[experimental("remoteControl/client/revoke")]
-    RemoteControlClientsRevoke => "remoteControl/client/revoke" {
-        params: v2::RemoteControlClientsRevokeParams,
-        serialization: global("remote-control-clients"),
-        response: v2::RemoteControlClientsRevokeResponse,
-    },
-    #[experimental("collaborationMode/list")]
-    /// Lists collaboration mode presets.
-    CollaborationModeList => "collaborationMode/list" {
-        params: v2::CollaborationModeListParams,
-        serialization: None,
-        response: v2::CollaborationModeListResponse,
-    },
-    #[experimental("mock/experimentalMethod")]
-    /// Test-only method used to validate experimental gating.
-    MockExperimentalMethod => "mock/experimentalMethod" {
-        params: v2::MockExperimentalMethodParams,
-        serialization: None,
-        response: v2::MockExperimentalMethodResponse,
-    },
-    #[experimental("environment/add")]
-    /// Adds or replaces a remote environment by id for later selection.
-    EnvironmentAdd => "environment/add" {
-        params: v2::EnvironmentAddParams,
-        serialization: global("environment"),
-        response: v2::EnvironmentAddResponse,
-    },
+ModelList => "model/list" {
+    params: v2::ModelListParams,
+    serialization: None,
+    response: v2::ModelListResponse,
+},
+ModelProviderCapabilitiesRead => "modelProvider/capabilities/read" {
+    params: v2::ModelProviderCapabilitiesReadParams,
+    serialization: None,
+    response: v2::ModelProviderCapabilitiesReadResponse,
+},
+ExperimentalFeatureList => "experimentalFeature/list" {
+    params: v2::ExperimentalFeatureListParams,
+    serialization: global("config"),
+    response: v2::ExperimentalFeatureListResponse,
+},
+PermissionProfileList => "permissionProfile/list" {
+    params: v2::PermissionProfileListParams,
+    serialization: global_shared_read("config"),
+    response: v2::PermissionProfileListResponse,
+},
+ExperimentalFeatureEnablementSet => "experimentalFeature/enablement/set" {
+    params: v2::ExperimentalFeatureEnablementSetParams,
+    serialization: global("config"),
+    response: v2::ExperimentalFeatureEnablementSetResponse,
+},
+#[experimental("remoteControl/enable")]
+RemoteControlEnable => "remoteControl/enable" {
+    params: #[serde(skip_serializing_if = "Option::is_none")] v2::NullableRemoteControlEnableParams,
+    serialization: global("remote-control"),
+    response: v2::RemoteControlEnableResponse,
+},
+#[experimental("remoteControl/disable")]
+RemoteControlDisable => "remoteControl/disable" {
+    params: #[serde(skip_serializing_if = "Option::is_none")] v2::NullableRemoteControlDisableParams,
+    serialization: global("remote-control"),
+    response: v2::RemoteControlDisableResponse,
+},
+#[experimental("remoteControl/status/read")]
+RemoteControlStatusRead => "remoteControl/status/read" {
+    params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
+    serialization: global_shared_read("remote-control"),
+    response: v2::RemoteControlStatusReadResponse,
+},
+#[experimental("remoteControl/pairing/start")]
+RemoteControlPairingStart => "remoteControl/pairing/start" {
+    params: v2::RemoteControlPairingStartParams,
+    serialization: global("remote-control-pairing"),
+    response: v2::RemoteControlPairingStartResponse,
+},
+#[experimental("remoteControl/pairing/status")]
+RemoteControlPairingStatus => "remoteControl/pairing/status" {
+    params: v2::RemoteControlPairingStatusParams,
+    serialization: global_shared_read("remote-control-pairing"),
+    response: v2::RemoteControlPairingStatusResponse,
+},
+#[experimental("remoteControl/client/list")]
+RemoteControlClientsList => "remoteControl/client/list" {
+    params: v2::RemoteControlClientsListParams,
+    serialization: global_shared_read("remote-control-clients"),
+    response: v2::RemoteControlClientsListResponse,
+},
+#[experimental("remoteControl/client/revoke")]
+RemoteControlClientsRevoke => "remoteControl/client/revoke" {
+    params: v2::RemoteControlClientsRevokeParams,
+    serialization: global("remote-control-clients"),
+    response: v2::RemoteControlClientsRevokeResponse,
+},
+#[experimental("collaborationMode/list")]
+/// Lists collaboration mode presets.
+CollaborationModeList => "collaborationMode/list" {
+    params: v2::CollaborationModeListParams,
+    serialization: None,
+    response: v2::CollaborationModeListResponse,
+},
+#[experimental("mock/experimentalMethod")]
+/// Test-only method used to validate experimental gating.
+MockExperimentalMethod => "mock/experimentalMethod" {
+    params: v2::MockExperimentalMethodParams,
+    serialization: None,
+    response: v2::MockExperimentalMethodResponse,
+},
+#[experimental("environment/add")]
+/// Adds or replaces a remote environment by id for later selection.
+EnvironmentAdd => "environment/add" {
+    params: v2::EnvironmentAddParams,
+    serialization: global("environment"),
+    response: v2::EnvironmentAddResponse,
+},
 
-    McpServerOauthLogin => "mcpServer/oauth/login" {
-        params: v2::McpServerOauthLoginParams,
-        serialization: mcp_oauth_server(params.name),
-        response: v2::McpServerOauthLoginResponse,
-    },
+McpServerOauthLogin => "mcpServer/oauth/login" {
+    params: v2::McpServerOauthLoginParams,
+    serialization: mcp_oauth_server(params.name),
+    response: v2::McpServerOauthLoginResponse,
+},
 
-    McpServerRefresh => "config/mcpServer/reload" {
-        params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
-        serialization: global("mcp-registry"),
-        response: v2::McpServerRefreshResponse,
-    },
+McpServerRefresh => "config/mcpServer/reload" {
+    params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
+    serialization: global("mcp-registry"),
+    response: v2::McpServerRefreshResponse,
+},
 
-    McpServerStatusList => "mcpServerStatus/list" {
-        params: v2::ListMcpServerStatusParams,
-        serialization: global("mcp-registry"),
-        response: v2::ListMcpServerStatusResponse,
-    },
+McpServerStatusList => "mcpServerStatus/list" {
+    params: v2::ListMcpServerStatusParams,
+    serialization: global("mcp-registry"),
+    response: v2::ListMcpServerStatusResponse,
+},
 
-    McpResourceRead => "mcpServer/resource/read" {
-        params: v2::McpResourceReadParams,
-        serialization: optional_thread_id(params.thread_id),
-        response: v2::McpResourceReadResponse,
-    },
+McpResourceRead => "mcpServer/resource/read" {
+    params: v2::McpResourceReadParams,
+    serialization: optional_thread_id(params.thread_id),
+    response: v2::McpResourceReadResponse,
+},
 
-    McpServerToolCall => "mcpServer/tool/call" {
-        params: v2::McpServerToolCallParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::McpServerToolCallResponse,
-    },
+McpServerToolCall => "mcpServer/tool/call" {
+    params: v2::McpServerToolCallParams,
+    serialization: thread_id(params.thread_id),
+    response: v2::McpServerToolCallResponse,
+},
 
-    WindowsSandboxSetupStart => "windowsSandbox/setupStart" {
-        params: v2::WindowsSandboxSetupStartParams,
-        serialization: global("windows-sandbox-setup"),
-        response: v2::WindowsSandboxSetupStartResponse,
-    },
-    WindowsSandboxReadiness => "windowsSandbox/readiness" {
-        params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
-        serialization: global("config"),
-        response: v2::WindowsSandboxReadinessResponse,
-    },
+WindowsSandboxSetupStart => "windowsSandbox/setupStart" {
+    params: v2::WindowsSandboxSetupStartParams,
+    serialization: global("windows-sandbox-setup"),
+    response: v2::WindowsSandboxSetupStartResponse,
+},
+WindowsSandboxReadiness => "windowsSandbox/readiness" {
+    params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
+    serialization: global("config"),
+    response: v2::WindowsSandboxReadinessResponse,
+},
 
-    LoginAccount => "account/login/start" {
-        params: v2::LoginAccountParams,
-        inspect_params: true,
-        serialization: global("account-auth"),
-        response: v2::LoginAccountResponse,
-    },
+LoginAccount => "account/login/start" {
+    params: v2::LoginAccountParams,
+    inspect_params: true,
+    serialization: global("account-auth"),
+    response: v2::LoginAccountResponse,
+},
 
-    CancelLoginAccount => "account/login/cancel" {
-        params: v2::CancelLoginAccountParams,
-        serialization: global("account-auth"),
-        response: v2::CancelLoginAccountResponse,
-    },
+CancelLoginAccount => "account/login/cancel" {
+    params: v2::CancelLoginAccountParams,
+    serialization: global("account-auth"),
+    response: v2::CancelLoginAccountResponse,
+},
 
-    LogoutAccount => "account/logout" {
-        params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
-        serialization: global("account-auth"),
-        response: v2::LogoutAccountResponse,
-    },
+LogoutAccount => "account/logout" {
+    params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
+    serialization: global("account-auth"),
+    response: v2::LogoutAccountResponse,
+},
 
-    GetAccountRateLimits => "account/rateLimits/read" {
-        params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
-        serialization: None,
-        response: v2::GetAccountRateLimitsResponse,
-    },
+GetAccountRateLimits => "account/rateLimits/read" {
+    params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
+    serialization: None,
+    response: v2::GetAccountRateLimitsResponse,
+},
 
-    ConsumeAccountRateLimitResetCredit => "account/rateLimitResetCredit/consume" {
-        params: v2::ConsumeAccountRateLimitResetCreditParams,
-        serialization: global("account-auth"),
-        response: v2::ConsumeAccountRateLimitResetCreditResponse,
-    },
+ConsumeAccountRateLimitResetCredit => "account/rateLimitResetCredit/consume" {
+    params: v2::ConsumeAccountRateLimitResetCreditParams,
+    serialization: global("account-auth"),
+    response: v2::ConsumeAccountRateLimitResetCreditResponse,
+},
 
-    GetAccountTokenUsage => "account/usage/read" {
-        params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
-        serialization: None,
-        response: v2::GetAccountTokenUsageResponse,
-    },
+GetAccountTokenUsage => "account/usage/read" {
+    params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
+    serialization: None,
+    response: v2::GetAccountTokenUsageResponse,
+},
 
-    SendAddCreditsNudgeEmail => "account/sendAddCreditsNudgeEmail" {
-        params: v2::SendAddCreditsNudgeEmailParams,
-        serialization: global("account-auth"),
-        response: v2::SendAddCreditsNudgeEmailResponse,
-    },
+SendAddCreditsNudgeEmail => "account/sendAddCreditsNudgeEmail" {
+    params: v2::SendAddCreditsNudgeEmailParams,
+    serialization: global("account-auth"),
+    response: v2::SendAddCreditsNudgeEmailResponse,
+},
 
-    FeedbackUpload => "feedback/upload" {
-        params: v2::FeedbackUploadParams,
-        serialization: None,
-        response: v2::FeedbackUploadResponse,
-    },
+FeedbackUpload => "feedback/upload" {
+    params: v2::FeedbackUploadParams,
+    serialization: None,
+    response: v2::FeedbackUploadResponse,
+},
 
-    /// Execute a standalone command (argv vector) under the server's sandbox.
-    OneOffCommandExec => "command/exec" {
-        params: v2::CommandExecParams,
-        inspect_params: true,
-        serialization: optional_command_process_id(params.process_id),
-        response: v2::CommandExecResponse,
-    },
-    /// Write stdin bytes to a running `command/exec` session or close stdin.
-    CommandExecWrite => "command/exec/write" {
-        params: v2::CommandExecWriteParams,
-        serialization: command_process_id(params.process_id),
-        response: v2::CommandExecWriteResponse,
-    },
-    /// Terminate a running `command/exec` session by client-supplied `processId`.
-    CommandExecTerminate => "command/exec/terminate" {
-        params: v2::CommandExecTerminateParams,
-        serialization: command_process_id(params.process_id),
-        response: v2::CommandExecTerminateResponse,
-    },
-    /// Resize a running PTY-backed `command/exec` session by client-supplied `processId`.
-    CommandExecResize => "command/exec/resize" {
-        params: v2::CommandExecResizeParams,
-        serialization: command_process_id(params.process_id),
-        response: v2::CommandExecResizeResponse,
-    },
-    #[experimental("process/spawn")]
-    /// Spawn a standalone process (argv vector) without a Codex sandbox.
-    ProcessSpawn => "process/spawn" {
-        params: v2::ProcessSpawnParams,
-        serialization: process_handle(params.process_handle),
-        response: v2::ProcessSpawnResponse,
-    },
-    #[experimental("process/writeStdin")]
-    /// Write stdin bytes to a running `process/spawn` session or close stdin.
-    ProcessWriteStdin => "process/writeStdin" {
-        params: v2::ProcessWriteStdinParams,
-        serialization: process_handle(params.process_handle),
-        response: v2::ProcessWriteStdinResponse,
-    },
-    #[experimental("process/kill")]
-    /// Terminate a running `process/spawn` session by client-supplied `processHandle`.
-    ProcessKill => "process/kill" {
-        params: v2::ProcessKillParams,
-        serialization: process_handle(params.process_handle),
-        response: v2::ProcessKillResponse,
-    },
-    #[experimental("process/resizePty")]
-    /// Resize a running PTY-backed `process/spawn` session by client-supplied `processHandle`.
-    ProcessResizePty => "process/resizePty" {
-        params: v2::ProcessResizePtyParams,
-        serialization: process_handle(params.process_handle),
-        response: v2::ProcessResizePtyResponse,
-    },
+/// Execute a standalone command (argv vector) under the server's sandbox.
+OneOffCommandExec => "command/exec" {
+    params: v2::CommandExecParams,
+    inspect_params: true,
+    serialization: optional_command_process_id(params.process_id),
+    response: v2::CommandExecResponse,
+},
+/// Write stdin bytes to a running `command/exec` session or close stdin.
+CommandExecWrite => "command/exec/write" {
+    params: v2::CommandExecWriteParams,
+    serialization: command_process_id(params.process_id),
+    response: v2::CommandExecWriteResponse,
+},
+/// Terminate a running `command/exec` session by client-supplied `processId`.
+CommandExecTerminate => "command/exec/terminate" {
+    params: v2::CommandExecTerminateParams,
+    serialization: command_process_id(params.process_id),
+    response: v2::CommandExecTerminateResponse,
+},
+/// Resize a running PTY-backed `command/exec` session by client-supplied `processId`.
+CommandExecResize => "command/exec/resize" {
+    params: v2::CommandExecResizeParams,
+    serialization: command_process_id(params.process_id),
+    response: v2::CommandExecResizeResponse,
+},
+#[experimental("process/spawn")]
+/// Spawn a standalone process (argv vector) without a Codex sandbox.
+ProcessSpawn => "process/spawn" {
+    params: v2::ProcessSpawnParams,
+    serialization: process_handle(params.process_handle),
+    response: v2::ProcessSpawnResponse,
+},
+#[experimental("process/writeStdin")]
+/// Write stdin bytes to a running `process/spawn` session or close stdin.
+ProcessWriteStdin => "process/writeStdin" {
+    params: v2::ProcessWriteStdinParams,
+    serialization: process_handle(params.process_handle),
+    response: v2::ProcessWriteStdinResponse,
+},
+#[experimental("process/kill")]
+/// Terminate a running `process/spawn` session by client-supplied `processHandle`.
+ProcessKill => "process/kill" {
+    params: v2::ProcessKillParams,
+    serialization: process_handle(params.process_handle),
+    response: v2::ProcessKillResponse,
+},
+#[experimental("process/resizePty")]
+/// Resize a running PTY-backed `process/spawn` session by client-supplied `processHandle`.
+ProcessResizePty => "process/resizePty" {
+    params: v2::ProcessResizePtyParams,
+    serialization: process_handle(params.process_handle),
+    response: v2::ProcessResizePtyResponse,
+},
 
-    ConfigRead => "config/read" {
-        params: v2::ConfigReadParams,
-        serialization: global_shared_read("config"),
-        response: v2::ConfigReadResponse,
-    },
-    ExternalAgentConfigDetect => "externalAgentConfig/detect" {
-        params: v2::ExternalAgentConfigDetectParams,
-        serialization: global("config"),
-        response: v2::ExternalAgentConfigDetectResponse,
-    },
-    ExternalAgentConfigImport => "externalAgentConfig/import" {
-        params: v2::ExternalAgentConfigImportParams,
-        serialization: global("config"),
-        response: v2::ExternalAgentConfigImportResponse,
-    },
-    ExternalAgentConfigImportHistoriesRead => "externalAgentConfig/import/readHistories" {
-        params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
-        serialization: global_shared_read("config"),
-        response: v2::ExternalAgentConfigImportHistoriesReadResponse,
-    },
-    ConfigValueWrite => "config/value/write" {
-        params: v2::ConfigValueWriteParams,
-        serialization: global("config"),
-        manual_payload_conversion: manual,
-        response: v2::ConfigWriteResponse,
-    },
-    ConfigBatchWrite => "config/batchWrite" {
-        params: v2::ConfigBatchWriteParams,
-        serialization: global("config"),
-        manual_payload_conversion: manual,
-        response: v2::ConfigWriteResponse,
-    },
+ConfigRead => "config/read" {
+    params: v2::ConfigReadParams,
+    serialization: global_shared_read("config"),
+    response: v2::ConfigReadResponse,
+},
+ExternalAgentConfigDetect => "externalAgentConfig/detect" {
+    params: v2::ExternalAgentConfigDetectParams,
+    serialization: global("config"),
+    response: v2::ExternalAgentConfigDetectResponse,
+},
+ExternalAgentConfigImport => "externalAgentConfig/import" {
+    params: v2::ExternalAgentConfigImportParams,
+    serialization: global("config"),
+    response: v2::ExternalAgentConfigImportResponse,
+},
+ExternalAgentConfigImportHistoriesRead => "externalAgentConfig/import/readHistories" {
+    params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
+    serialization: global_shared_read("config"),
+    response: v2::ExternalAgentConfigImportHistoriesReadResponse,
+},
+ConfigValueWrite => "config/value/write" {
+    params: v2::ConfigValueWriteParams,
+    serialization: global("config"),
+    manual_payload_conversion: manual,
+    response: v2::ConfigWriteResponse,
+},
+ConfigBatchWrite => "config/batchWrite" {
+    params: v2::ConfigBatchWriteParams,
+    serialization: global("config"),
+    manual_payload_conversion: manual,
+    response: v2::ConfigWriteResponse,
+},
 
-    ConfigRequirementsRead => "configRequirements/read" {
-        params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
-        serialization: global("config"),
-        response: v2::ConfigRequirementsReadResponse,
-    },
+ConfigRequirementsRead => "configRequirements/read" {
+    params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
+    serialization: global("config"),
+    response: v2::ConfigRequirementsReadResponse,
+},
 
-    GetAccount => "account/read" {
-        params: v2::GetAccountParams,
-        serialization: global("account-auth"),
-        response: v2::GetAccountResponse,
-    },
+GetAccount => "account/read" {
+    params: v2::GetAccountParams,
+    serialization: global("account-auth"),
+    response: v2::GetAccountResponse,
+},
 
-    /// DEPRECATED APIs below
-    GetConversationSummary {
-        params: v1::GetConversationSummaryParams,
-        serialization: None,
-        response: v1::GetConversationSummaryResponse,
-    },
-    GitDiffToRemote {
-        params: v1::GitDiffToRemoteParams,
-        serialization: None,
-        response: v1::GitDiffToRemoteResponse,
-    },
-    /// DEPRECATED in favor of GetAccount
-    GetAuthStatus {
-        params: v1::GetAuthStatusParams,
-        serialization: global("account-auth"),
-        response: v1::GetAuthStatusResponse,
-    },
-    // Legacy fuzzy search cancellation is intentionally concurrent: clients reuse a
-    // cancellation token so a newer request can cancel an older in-flight search.
-    FuzzyFileSearch {
-        params: FuzzyFileSearchParams,
-        serialization: None,
-        response: FuzzyFileSearchResponse,
-    },
-    #[experimental("fuzzyFileSearch/sessionStart")]
-    FuzzyFileSearchSessionStart => "fuzzyFileSearch/sessionStart" {
-        params: FuzzyFileSearchSessionStartParams,
+/// DEPRECATED APIs below
+GetConversationSummary {
+    params: v1::GetConversationSummaryParams,
+    serialization: None,
+    response: v1::GetConversationSummaryResponse,
+},
+GitDiffToRemote {
+    params: v1::GitDiffToRemoteParams,
+    serialization: None,
+    response: v1::GitDiffToRemoteResponse,
+},
+/// DEPRECATED in favor of GetAccount
+GetAuthStatus {
+    params: v1::GetAuthStatusParams,
+    serialization: global("account-auth"),
+    response: v1::GetAuthStatusResponse,
+},
+// Legacy fuzzy search cancellation is intentionally concurrent: clients reuse a
+// cancellation token so a newer request can cancel an older in-flight search.
+FuzzyFileSearch {
+    params: FuzzyFileSearchParams,
+    serialization: None,
+    response: FuzzyFileSearchResponse,
+},
+#[experimental("fuzzyFileSearch/sessionStart")]
+FuzzyFileSearchSessionStart => "fuzzyFileSearch/sessionStart" {
+    params: FuzzyFileSearchSessionStartParams,
+    serialization: fuzzy_session_id(params.session_id),
+    response: FuzzyFileSearchSessionStartResponse,
+},
+#[experimental("fuzzyFileSearch/sessionUpdate")]
+FuzzyFileSearchSessionUpdate => "fuzzyFileSearch/sessionUpdate" {
+    params: FuzzyFileSearchSessionUpdateParams,
+    serialization: fuzzy_session_id(params.session_id),
+    response: FuzzyFileSearchSessionUpdateResponse,
+},
+    #[experimental("fuzzyFileSearch/sessionStop")]
+    FuzzyFileSearchSessionStop => "fuzzyFileSearch/sessionStop" {
+        params: FuzzyFileSearchSessionStopParams,
         serialization: fuzzy_session_id(params.session_id),
-        response: FuzzyFileSearchSessionStartResponse,
+        response: FuzzyFileSearchSessionStopResponse,
     },
-    #[experimental("fuzzyFileSearch/sessionUpdate")]
-    FuzzyFileSearchSessionUpdate => "fuzzyFileSearch/sessionUpdate" {
-        params: FuzzyFileSearchSessionUpdateParams,
-        serialization: fuzzy_session_id(params.session_id),
-        response: FuzzyFileSearchSessionUpdateResponse,
+
+    //  Provider auth (GitHub, Copilot, etc.)
+
+    /// Read the authentication status of a provider (e.g. `github-repositories`).
+    ProviderAuthReadStatus => "providerAuth/readStatus" {
+        params: v2::ProviderAuthReadStatusParams,
+        serialization: None,
+        response: v2::ProviderAuthReadStatusResponse,
     },
-	    #[experimental("fuzzyFileSearch/sessionStop")]
-	    FuzzyFileSearchSessionStop => "fuzzyFileSearch/sessionStop" {
-	        params: FuzzyFileSearchSessionStopParams,
-	        serialization: fuzzy_session_id(params.session_id),
-	        response: FuzzyFileSearchSessionStopResponse,
-	    },
-
-	    //  Provider auth (GitHub, Copilot, etc.)
-
-	    /// Read the authentication status of a provider (e.g. `github-repositories`).
-	    ProviderAuthReadStatus => "providerAuth/readStatus" {
-	        params: v2::ProviderAuthReadStatusParams,
-	        serialization: None,
-	        response: v2::ProviderAuthReadStatusResponse,
-	    },
-	    /// Start a device-code login flow for the given provider.
-	    ProviderAuthStartLogin => "providerAuth/startLogin" {
-	        params: v2::ProviderAuthStartLoginParams,
-	        serialization: None,
-	        response: v2::ProviderAuthStartLoginResponse,
-	    },
-	    /// Poll an in-progress device-code login.
-	    ProviderAuthPollLogin => "providerAuth/pollLogin" {
-	        params: v2::ProviderAuthPollLoginParams,
-	        serialization: None,
-	        response: v2::ProviderAuthPollLoginResponse,
-	    },
-	    /// Cancel an in-progress device-code login.
-	    ProviderAuthCancelLogin => "providerAuth/cancelLogin" {
-	        params: v2::ProviderAuthCancelLoginParams,
-	        serialization: None,
-	        response: v2::ProviderAuthCancelLoginResponse,
-	    },
-	    /// Log out a provider and delete stored credentials.
-	    ProviderAuthLogout => "providerAuth/logout" {
-	        params: v2::ProviderAuthLogoutParams,
-	        serialization: None,
-	        response: v2::ProviderAuthLogoutResponse,
-	    },
-	    /// Read provider API key configuration from OS secure storage.
-	    ProviderApiKeyRead => "providerCredential/read" {
-	        params: v2::ProviderApiKeyReadParams,
-	        serialization: None,
-	        response: v2::ProviderApiKeyReadResponse,
-	    },
-	    /// Save one providerID-scoped API key in OS secure storage.
-	    ProviderApiKeySave => "providerCredential/save" {
-	        params: v2::ProviderApiKeySaveParams,
-	        serialization: None,
-	        response: v2::ProviderApiKeySaveResponse,
-	    },
-	    /// Delete one providerID-scoped API key from OS secure storage.
-	    ProviderApiKeyDelete => "providerCredential/delete" {
-	        params: v2::ProviderApiKeyDeleteParams,
-	        serialization: None,
-	        response: v2::ProviderApiKeyDeleteResponse,
-	    },
-	    /// Fetch an authenticated provider model list without exposing its key to clients.
-	    ProviderModelList => "providerCredential/models" {
-	        params: v2::ProviderModelListParams,
-	        serialization: None,
-	        response: v2::ProviderModelListResponse,
-	    },
-	    /// Fetch authenticated provider balance information without exposing its key to clients.
-	    ProviderBalance => "providerCredential/balance" {
-	        params: v2::ProviderBalanceParams,
-	        serialization: None,
-	        response: v2::ProviderBalanceResponse,
-	    },
-	    /// List repositories for the given provider.
-	    ProviderRepoList => "providerAuth/repoList" {
-	        params: v2::ProviderRepoListParams,
-	        serialization: None,
-	        response: v2::ProviderRepoListResponse,
-	    },
-	    /// Clone a repository via the app-server (credentials never leave the backend).
-	    ProviderRepoClone => "providerAuth/repoClone" {
-	        params: v2::ProviderRepoCloneParams,
-	        serialization: None,
-	        response: v2::ProviderRepoCloneResponse,
-	    },
-	}
+    /// Start a device-code login flow for the given provider.
+    ProviderAuthStartLogin => "providerAuth/startLogin" {
+        params: v2::ProviderAuthStartLoginParams,
+        serialization: None,
+        response: v2::ProviderAuthStartLoginResponse,
+    },
+    /// Poll an in-progress device-code login.
+    ProviderAuthPollLogin => "providerAuth/pollLogin" {
+        params: v2::ProviderAuthPollLoginParams,
+        serialization: None,
+        response: v2::ProviderAuthPollLoginResponse,
+    },
+    /// Cancel an in-progress device-code login.
+    ProviderAuthCancelLogin => "providerAuth/cancelLogin" {
+        params: v2::ProviderAuthCancelLoginParams,
+        serialization: None,
+        response: v2::ProviderAuthCancelLoginResponse,
+    },
+    /// Log out a provider and delete stored credentials.
+    ProviderAuthLogout => "providerAuth/logout" {
+        params: v2::ProviderAuthLogoutParams,
+        serialization: None,
+        response: v2::ProviderAuthLogoutResponse,
+    },
+    /// Read provider API key configuration from OS secure storage.
+    ProviderApiKeyRead => "providerCredential/read" {
+        params: v2::ProviderApiKeyReadParams,
+        serialization: None,
+        response: v2::ProviderApiKeyReadResponse,
+    },
+    /// Save one providerID-scoped API key in OS secure storage.
+    ProviderApiKeySave => "providerCredential/save" {
+        params: v2::ProviderApiKeySaveParams,
+        serialization: None,
+        response: v2::ProviderApiKeySaveResponse,
+    },
+    /// Delete one providerID-scoped API key from OS secure storage.
+    ProviderApiKeyDelete => "providerCredential/delete" {
+        params: v2::ProviderApiKeyDeleteParams,
+        serialization: None,
+        response: v2::ProviderApiKeyDeleteResponse,
+    },
+    /// Fetch an authenticated provider model list without exposing its key to clients.
+    ProviderModelList => "providerCredential/models" {
+        params: v2::ProviderModelListParams,
+        serialization: None,
+        response: v2::ProviderModelListResponse,
+    },
+    /// Fetch authenticated provider balance information without exposing its key to clients.
+    ProviderBalance => "providerCredential/balance" {
+        params: v2::ProviderBalanceParams,
+        serialization: None,
+        response: v2::ProviderBalanceResponse,
+    },
+    /// List repositories for the given provider.
+    ProviderRepoList => "providerAuth/repoList" {
+        params: v2::ProviderRepoListParams,
+        serialization: None,
+        response: v2::ProviderRepoListResponse,
+    },
+    /// Clone a repository via the app-server (credentials never leave the backend).
+    ProviderRepoClone => "providerAuth/repoClone" {
+        params: v2::ProviderRepoCloneParams,
+        serialization: None,
+        response: v2::ProviderRepoCloneResponse,
+    },
+}
 
 /// Generates an `enum ServerRequest` where each variant is a request that the
 /// server can send to the client along with the corresponding params and

@@ -365,13 +365,19 @@ async fn view_image_tool_attaches_local_image() -> anyhow::Result<()> {
         codex,
         |event| match event {
             EventMsg::ItemStarted(event) => {
-                if matches!(&event.item, codepilotx_protocol::items::TurnItem::ImageView(_)) {
+                if matches!(
+                    &event.item,
+                    codepilotx_protocol::items::TurnItem::ImageView(_)
+                ) {
                     item_started = Some(event.item.clone());
                 }
                 false
             }
             EventMsg::ItemCompleted(event) => {
-                if matches!(&event.item, codepilotx_protocol::items::TurnItem::ImageView(_)) {
+                if matches!(
+                    &event.item,
+                    codepilotx_protocol::items::TurnItem::ImageView(_)
+                ) {
                     item_completed = Some(event.item.clone());
                 }
                 false

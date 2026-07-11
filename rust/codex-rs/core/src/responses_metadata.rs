@@ -16,11 +16,11 @@ use http::HeaderValue;
 use serde::Serialize;
 use serde_json::Value;
 
+use crate::client::X_OPENAI_SUBAGENT_HEADER;
 use crate::client::X_codepilotx_INSTALLATION_ID_HEADER;
 use crate::client::X_codepilotx_PARENT_THREAD_ID_HEADER;
 use crate::client::X_codepilotx_TURN_METADATA_HEADER;
 use crate::client::X_codepilotx_WINDOW_ID_HEADER;
-use crate::client::X_OPENAI_SUBAGENT_HEADER;
 
 pub(crate) const INSTALLATION_ID_KEY: &str = "installation_id";
 pub(crate) const SESSION_ID_KEY: &str = "session_id";
@@ -194,7 +194,10 @@ impl CodexResponsesMetadata {
             ),
             (SESSION_ID_KEY.to_string(), self.session_id.clone()),
             (THREAD_ID_KEY.to_string(), self.thread_id.clone()),
-            (X_codepilotx_WINDOW_ID_HEADER.to_string(), self.window_id.clone()),
+            (
+                X_codepilotx_WINDOW_ID_HEADER.to_string(),
+                self.window_id.clone(),
+            ),
         ]);
         if let Some(turn_id) = &self.turn_id {
             client_metadata.insert(TURN_ID_KEY.to_string(), turn_id.clone());
@@ -214,7 +217,10 @@ impl CodexResponsesMetadata {
         if self.has_turn_metadata()
             && let Some(turn_metadata_json) = self.turn_metadata_json()
         {
-            client_metadata.insert(X_codepilotx_TURN_METADATA_HEADER.to_string(), turn_metadata_json);
+            client_metadata.insert(
+                X_codepilotx_TURN_METADATA_HEADER.to_string(),
+                turn_metadata_json,
+            );
         }
         client_metadata
     }

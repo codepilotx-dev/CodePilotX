@@ -99,7 +99,9 @@ pub(crate) fn raw_assistant_output_text_from_item(item: &ResponseItem) -> Option
         let combined = content
             .iter()
             .filter_map(|ci| match ci {
-                codepilotx_protocol::models::ContentItem::OutputText { text } => Some(text.as_str()),
+                codepilotx_protocol::models::ContentItem::OutputText { text } => {
+                    Some(text.as_str())
+                }
                 _ => None,
             })
             .collect::<String>();
@@ -174,8 +176,11 @@ async fn record_image_generation_instructions(
         return;
     }
     let session_id = sess.thread_id.to_string();
-    let image_output_path =
-        image_generation_artifact_path(&turn_context.config.codepilotx_home, &session_id, "<image_id>");
+    let image_output_path = image_generation_artifact_path(
+        &turn_context.config.codepilotx_home,
+        &session_id,
+        "<image_id>",
+    );
     let image_output_dir = image_output_path
         .parent()
         .unwrap_or_else(|| turn_context.config.codepilotx_home.clone());
@@ -371,7 +376,9 @@ pub(crate) async fn finalize_non_tool_response_item(
                     .content
                     .iter()
                     .map(|entry| match entry {
-                        codepilotx_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
+                        codepilotx_protocol::items::AgentMessageContent::Text { text } => {
+                            text.as_str()
+                        }
                     })
                     .collect::<String>();
                 let last_agent_message = if combined.trim().is_empty() {

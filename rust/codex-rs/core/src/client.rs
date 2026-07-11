@@ -236,9 +236,18 @@ struct AnthropicMessage {
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum AnthropicRequestContentBlock {
-    Text { text: String },
-    ToolUse { id: String, name: String, input: serde_json::Value },
-    ToolResult { tool_use_id: String, content: String },
+    Text {
+        text: String,
+    },
+    ToolUse {
+        id: String,
+        name: String,
+        input: serde_json::Value,
+    },
+    ToolResult {
+        tool_use_id: String,
+        content: String,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -325,8 +334,14 @@ struct ChatCompletionStreamOptions {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 enum ChatCompletionRequestMessage {
-    System { role: String, content: String },
-    User { role: String, content: Vec<ChatCompletionUserContentPart> },
+    System {
+        role: String,
+        content: String,
+    },
+    User {
+        role: String,
+        content: Vec<ChatCompletionUserContentPart>,
+    },
     Assistant {
         role: String,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -334,15 +349,23 @@ enum ChatCompletionRequestMessage {
         #[serde(skip_serializing_if = "Option::is_none")]
         tool_calls: Option<Vec<ChatCompletionRequestToolCall>>,
     },
-    Tool { role: String, tool_call_id: String, content: String },
+    Tool {
+        role: String,
+        tool_call_id: String,
+        content: String,
+    },
 }
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum ChatCompletionUserContentPart {
-    Text { text: String },
+    Text {
+        text: String,
+    },
     #[allow(dead_code)]
-    ImageUrl { image_url: ChatCompletionImageUrl },
+    ImageUrl {
+        image_url: ChatCompletionImageUrl,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -471,7 +494,12 @@ fn chat_completion_usage_to_token_usage(usage: &ChatCompletionUsage) -> TokenUsa
     // Prefer explicit prompt_cache_hit_tokens over input_tokens_details.cached_tokens
     let cached = usage
         .prompt_cache_hit_tokens
-        .or_else(|| usage.prompt_tokens_details.as_ref().map(|d| d.cached_tokens))
+        .or_else(|| {
+            usage
+                .prompt_tokens_details
+                .as_ref()
+                .map(|d| d.cached_tokens)
+        })
         .unwrap_or(0);
     let reasoning = usage
         .completion_tokens_details
@@ -1193,21 +1221,33 @@ impl ModelClient {
                         });
                     }
                 }
-                ResponseItem::FunctionCall { name, arguments, call_id, .. } => {
+                ResponseItem::FunctionCall {
+                    name,
+                    arguments,
+                    call_id,
+                    ..
+                } => {
                     let input = match serde_json::from_str(&arguments) {
                         Ok(v @ serde_json::Value::Object(_)) => v,
                         _ => serde_json::Value::Object(serde_json::Map::new()),
                     };
                     pending_tool_uses.push((call_id, name, input));
                 }
-                ResponseItem::CustomToolCall { name, input, call_id, .. } => {
+                ResponseItem::CustomToolCall {
+                    name,
+                    input,
+                    call_id,
+                    ..
+                } => {
                     let input_value = match serde_json::from_str(&input) {
                         Ok(v @ serde_json::Value::Object(_)) => v,
                         _ => serde_json::Value::Object(serde_json::Map::new()),
                     };
                     pending_tool_uses.push((call_id, name, input_value));
                 }
-                ResponseItem::FunctionCallOutput { call_id, output, .. } => {
+                ResponseItem::FunctionCallOutput {
+                    call_id, output, ..
+                } => {
                     // Flush pending tool uses before buffering tool result so
                     // tool_use always appears before tool_result.
                     flush_pending_tool_uses(&mut messages, &mut pending_tool_uses);
@@ -1216,7 +1256,9 @@ impl ModelClient {
                         tool_results_buffer.push((call_id, text));
                     }
                 }
-                ResponseItem::CustomToolCallOutput { call_id, output, .. } => {
+                ResponseItem::CustomToolCallOutput {
+                    call_id, output, ..
+                } => {
                     // Flush pending tool uses before buffering tool result so
                     // tool_use always appears before tool_result.
                     flush_pending_tool_uses(&mut messages, &mut pending_tool_uses);
@@ -1303,8 +1345,9 @@ impl ModelClient {
                     // If the last message is already an Assistant, attach them there;
                     // otherwise create an Assistant message to anchor them.
                     if !pending_tool_calls.is_empty() {
-                        if let Some(ChatCompletionRequestMessage::Assistant { tool_calls, .. }) =
-                            messages.last_mut()
+                        if let Some(ChatCompletionRequestMessage::Assistant {
+                            tool_calls, ..
+                        }) = messages.last_mut()
                         {
                             *tool_calls = Some(std::mem::take(&mut pending_tool_calls));
                         } else {
@@ -1327,7 +1370,11 @@ impl ModelClient {
                         });
                     } else if role == "assistant" {
                         let text = chat_completions_text_from_content_items(&content);
-                        let content = if text.trim().is_empty() { None } else { Some(text) };
+                        let content = if text.trim().is_empty() {
+                            None
+                        } else {
+                            Some(text)
+                        };
                         messages.push(ChatCompletionRequestMessage::Assistant {
                             role: "assistant".to_string(),
                             content,
@@ -1335,17 +1382,24 @@ impl ModelClient {
                         });
                     }
                 }
-                ResponseItem::FunctionCall { name, arguments, call_id, .. } => {
+                ResponseItem::FunctionCall {
+                    name,
+                    arguments,
+                    call_id,
+                    ..
+                } => {
                     pending_tool_calls.push(ChatCompletionRequestToolCall {
                         id: call_id,
                         kind: "function".to_string(),
-                        function: ChatCompletionRequestFunctionCall {
-                            name,
-                            arguments,
-                        },
+                        function: ChatCompletionRequestFunctionCall { name, arguments },
                     });
                 }
-                ResponseItem::CustomToolCall { name, input, call_id, .. } => {
+                ResponseItem::CustomToolCall {
+                    name,
+                    input,
+                    call_id,
+                    ..
+                } => {
                     pending_tool_calls.push(ChatCompletionRequestToolCall {
                         id: call_id,
                         kind: "function".to_string(),
@@ -1355,7 +1409,9 @@ impl ModelClient {
                         },
                     });
                 }
-                ResponseItem::FunctionCallOutput { call_id, output, .. } => {
+                ResponseItem::FunctionCallOutput {
+                    call_id, output, ..
+                } => {
                     let text = chat_completions_output_text(&output);
                     if text.trim().is_empty() {
                         continue;
@@ -1364,8 +1420,9 @@ impl ModelClient {
                     // before pushing this Tool result, so the provider sees a valid
                     // assistanttool sequence.
                     if !pending_tool_calls.is_empty() {
-                        if let Some(ChatCompletionRequestMessage::Assistant { tool_calls, .. }) =
-                            messages.last_mut()
+                        if let Some(ChatCompletionRequestMessage::Assistant {
+                            tool_calls, ..
+                        }) = messages.last_mut()
                         {
                             *tool_calls = Some(std::mem::take(&mut pending_tool_calls));
                         } else {
@@ -1382,15 +1439,18 @@ impl ModelClient {
                         content: text,
                     });
                 }
-                ResponseItem::CustomToolCallOutput { call_id, output, .. } => {
+                ResponseItem::CustomToolCallOutput {
+                    call_id, output, ..
+                } => {
                     let text = chat_completions_output_text(&output);
                     if text.trim().is_empty() {
                         continue;
                     }
                     // Same flush logic as FunctionCallOutput above
                     if !pending_tool_calls.is_empty() {
-                        if let Some(ChatCompletionRequestMessage::Assistant { tool_calls, .. }) =
-                            messages.last_mut()
+                        if let Some(ChatCompletionRequestMessage::Assistant {
+                            tool_calls, ..
+                        }) = messages.last_mut()
                         {
                             *tool_calls = Some(std::mem::take(&mut pending_tool_calls));
                         } else {
@@ -2261,7 +2321,10 @@ impl ModelClientSession {
                 .client
                 .build_ws_client_metadata(responses_metadata, model_info.use_responses_lite);
             if let Some(turn_state) = self.turn_state.get() {
-                client_metadata.insert(X_codepilotx_TURN_STATE_HEADER.to_string(), turn_state.clone());
+                client_metadata.insert(
+                    X_codepilotx_TURN_STATE_HEADER.to_string(),
+                    turn_state.clone(),
+                );
             }
             let mut ws_payload = ResponseCreateWsRequest {
                 client_metadata: response_create_client_metadata(
@@ -2620,42 +2683,42 @@ fn anthropic_text_from_content_items(content: &[ContentItem]) -> String {
         .join("\n")
 }
 
-fn chat_completions_output_text(output: &codepilotx_protocol::models::FunctionCallOutputPayload) -> String {
+fn chat_completions_output_text(
+    output: &codepilotx_protocol::models::FunctionCallOutputPayload,
+) -> String {
     output.body.to_text().unwrap_or_default()
 }
 
 fn build_chat_completions_tools(tools: &[ToolSpec]) -> Vec<ChatCompletionTool> {
-    tools.iter().filter_map(|tool| {
-        match tool {
-            ToolSpec::Function(api_tool) => {
-                Some(ChatCompletionTool {
-                    kind: "function".to_string(),
-                    function: ChatCompletionToolFunction {
-                        name: api_tool.name.clone(),
-                        description: api_tool.description.clone(),
-                        parameters: serde_json::to_value(&api_tool.parameters).unwrap_or_default(),
-                        strict: Some(api_tool.strict),
-                    },
-                })
-            }
+    tools
+        .iter()
+        .filter_map(|tool| match tool {
+            ToolSpec::Function(api_tool) => Some(ChatCompletionTool {
+                kind: "function".to_string(),
+                function: ChatCompletionToolFunction {
+                    name: api_tool.name.clone(),
+                    description: api_tool.description.clone(),
+                    parameters: serde_json::to_value(&api_tool.parameters).unwrap_or_default(),
+                    strict: Some(api_tool.strict),
+                },
+            }),
             _ => None,
-        }
-    }).collect()
+        })
+        .collect()
 }
 
 fn build_anthropic_tools(tools: &[ToolSpec]) -> Vec<AnthropicTool> {
-    tools.iter().filter_map(|tool| {
-        match tool {
-            ToolSpec::Function(api_tool) => {
-                Some(AnthropicTool {
-                    name: api_tool.name.clone(),
-                    description: api_tool.description.clone(),
-                    input_schema: serde_json::to_value(&api_tool.parameters).unwrap_or_default(),
-                })
-            }
+    tools
+        .iter()
+        .filter_map(|tool| match tool {
+            ToolSpec::Function(api_tool) => Some(AnthropicTool {
+                name: api_tool.name.clone(),
+                description: api_tool.description.clone(),
+                input_schema: serde_json::to_value(&api_tool.parameters).unwrap_or_default(),
+            }),
             _ => None,
-        }
-    }).collect()
+        })
+        .collect()
 }
 
 fn chat_completions_text_from_content_items(content: &[ContentItem]) -> String {
@@ -2681,9 +2744,7 @@ fn chat_completions_text_from_content_items(content: &[ContentItem]) -> String {
 /// If input is `None`, returns an empty string (no initial seed).
 fn anthropic_tool_input_arguments(input: Option<&serde_json::Value>) -> String {
     match input {
-        Some(v) if v.is_object() && v.as_object().map_or(false, |o| o.is_empty()) => {
-            String::new()
-        }
+        Some(v) if v.is_object() && v.as_object().map_or(false, |o| o.is_empty()) => String::new(),
         Some(v) => v.to_string(),
         None => String::new(),
     }
@@ -2724,7 +2785,9 @@ where
         // Macro helper for sending events
         macro_rules! send_ev {
             ($event:expr) => {
-                if tx_event.send(Ok($event)).await.is_err() { return; }
+                if tx_event.send(Ok($event)).await.is_err() {
+                    return;
+                }
             };
         }
 
@@ -2987,7 +3050,9 @@ where
         // Macro helper to send events
         macro_rules! send_ev {
             ($event:expr) => {
-                if tx_event.send(Ok($event)).await.is_err() { return; }
+                if tx_event.send(Ok($event)).await.is_err() {
+                    return;
+                }
             };
         }
 
@@ -3074,9 +3139,10 @@ where
                             }
                         } else {
                             // New tool call index
-                            let call_id = tc.id.clone().unwrap_or_else(|| {
-                                format!("call-{}-{}", response_id, tc.index)
-                            });
+                            let call_id = tc
+                                .id
+                                .clone()
+                                .unwrap_or_else(|| format!("call-{}-{}", response_id, tc.index));
                             let (name, args) = tc.function.as_ref().map_or(
                                 (String::new(), String::new()),
                                 |func| {
@@ -3133,22 +3199,26 @@ where
                             // Emit accumulated tool calls
                             for tc in &pending_tool_calls {
                                 let fc_id = Some(tc.id.clone());
-                                send_ev!(ResponseEvent::OutputItemAdded(ResponseItem::FunctionCall {
-                                    id: fc_id.clone(),
-                                    name: tc.name.clone(),
-                                    arguments: tc.arguments.clone(),
-                                    call_id: tc.id.clone(),
-                                    namespace: None,
-                                    metadata: None,
-                                }));
-                                send_ev!(ResponseEvent::OutputItemDone(ResponseItem::FunctionCall {
-                                    id: fc_id,
-                                    name: tc.name.clone(),
-                                    arguments: tc.arguments.clone(),
-                                    call_id: tc.id.clone(),
-                                    namespace: None,
-                                    metadata: None,
-                                }));
+                                send_ev!(ResponseEvent::OutputItemAdded(
+                                    ResponseItem::FunctionCall {
+                                        id: fc_id.clone(),
+                                        name: tc.name.clone(),
+                                        arguments: tc.arguments.clone(),
+                                        call_id: tc.id.clone(),
+                                        namespace: None,
+                                        metadata: None,
+                                    }
+                                ));
+                                send_ev!(ResponseEvent::OutputItemDone(
+                                    ResponseItem::FunctionCall {
+                                        id: fc_id,
+                                        name: tc.name.clone(),
+                                        arguments: tc.arguments.clone(),
+                                        call_id: tc.id.clone(),
+                                        namespace: None,
+                                        metadata: None,
+                                    }
+                                ));
                             }
                             pending_tool_calls.clear();
                             finished = true;

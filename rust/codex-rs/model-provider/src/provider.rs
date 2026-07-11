@@ -146,7 +146,9 @@ pub trait ModelProvider: fmt::Debug + Send + Sync {
     fn account_state(&self) -> ProviderAccountResult;
 
     /// Returns provider configuration adapted for the API client.
-    fn api_provider(&self) -> ModelProviderFuture<'_, codepilotx_protocol::error::Result<Provider>> {
+    fn api_provider(
+        &self,
+    ) -> ModelProviderFuture<'_, codepilotx_protocol::error::Result<Provider>> {
         Box::pin(async move {
             let auth = self.auth().await;
             self.info()

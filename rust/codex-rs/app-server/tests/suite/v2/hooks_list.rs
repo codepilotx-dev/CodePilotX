@@ -402,7 +402,11 @@ command = "echo project hook"
 timeout = 5
 "#,
     )?;
-    set_project_trust_level(codepilotx_home.path(), workspace.path(), TrustLevel::Trusted)?;
+    set_project_trust_level(
+        codepilotx_home.path(),
+        workspace.path(),
+        TrustLevel::Trusted,
+    )?;
 
     let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
@@ -662,7 +666,9 @@ async fn config_batch_write_updates_hook_trust_for_loaded_session() -> Result<()
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
     let codepilotx_home = TempDir::new()?;
     let hook_script_path = codepilotx_home.path().join("user_prompt_submit_hook.py");
-    let hook_log_path = codepilotx_home.path().join("user_prompt_submit_hook_log.jsonl");
+    let hook_log_path = codepilotx_home
+        .path()
+        .join("user_prompt_submit_hook_log.jsonl");
     std::fs::write(
         &hook_script_path,
         format!(
@@ -912,7 +918,9 @@ async fn config_batch_write_disables_hook_for_loaded_session() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
     let codepilotx_home = TempDir::new()?;
     let hook_script_path = codepilotx_home.path().join("user_prompt_submit_hook.py");
-    let hook_log_path = codepilotx_home.path().join("user_prompt_submit_hook_log.jsonl");
+    let hook_log_path = codepilotx_home
+        .path()
+        .join("user_prompt_submit_hook_log.jsonl");
     std::fs::write(
         &hook_script_path,
         format!(

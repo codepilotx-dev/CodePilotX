@@ -732,7 +732,11 @@ async fn spawn_agent_role_service_tier_falls_back_to_supported_parent_tier() {
     tokio::fs::create_dir_all(&turn.config.codepilotx_home)
         .await
         .expect("codex home should be created");
-    let role_config_path = turn.config.codepilotx_home.as_path().join("tiered-role.toml");
+    let role_config_path = turn
+        .config
+        .codepilotx_home
+        .as_path()
+        .join("tiered-role.toml");
     tokio::fs::write(
         &role_config_path,
         r#"model = "gpt-5.4"
@@ -796,7 +800,11 @@ async fn spawn_agent_role_service_tier_does_not_hide_invalid_spawn_request() {
     tokio::fs::create_dir_all(&turn.config.codepilotx_home)
         .await
         .expect("codex home should be created");
-    let role_config_path = turn.config.codepilotx_home.as_path().join("tiered-role.toml");
+    let role_config_path = turn
+        .config
+        .codepilotx_home
+        .as_path()
+        .join("tiered-role.toml");
     tokio::fs::write(
         &role_config_path,
         r#"model = "gpt-5.4"

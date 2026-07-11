@@ -91,7 +91,10 @@ pub(crate) fn resolve_helper_for_launch(
     }
 }
 
-pub fn resolve_current_exe_for_launch(codepilotx_home: &Path, fallback_executable: &str) -> PathBuf {
+pub fn resolve_current_exe_for_launch(
+    codepilotx_home: &Path,
+    fallback_executable: &str,
+) -> PathBuf {
     let source = match std::env::current_exe() {
         Ok(path) => path,
         Err(_) => return PathBuf::from(fallback_executable),

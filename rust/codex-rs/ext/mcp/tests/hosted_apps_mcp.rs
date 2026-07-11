@@ -55,7 +55,10 @@ async fn runtime_overlay_preserves_disabled_server() -> TestResult {
                 "mcp_servers.codepilotx_apps.url".to_string(),
                 "https://example.com/mcp".into(),
             ),
-            ("mcp_servers.codepilotx_apps.enabled".to_string(), false.into()),
+            (
+                "mcp_servers.codepilotx_apps.enabled".to_string(),
+                false.into(),
+            ),
         ])
         .build()
         .await?;

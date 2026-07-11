@@ -341,10 +341,20 @@ async fn loads_skills_from_home_agents_dir_for_user_scope() -> anyhow::Result<()
 }
 
 fn write_skill(codepilotx_home: &TempDir, dir: &str, name: &str, description: &str) -> PathBuf {
-    write_skill_at(&codepilotx_home.path().join("skills"), dir, name, description)
+    write_skill_at(
+        &codepilotx_home.path().join("skills"),
+        dir,
+        name,
+        description,
+    )
 }
 
-fn write_system_skill(codepilotx_home: &TempDir, dir: &str, name: &str, description: &str) -> PathBuf {
+fn write_system_skill(
+    codepilotx_home: &TempDir,
+    dir: &str,
+    name: &str,
+    description: &str,
+) -> PathBuf {
     write_skill_at(
         &codepilotx_home.path().join("skills/.system"),
         dir,
@@ -1218,7 +1228,12 @@ async fn respects_max_scan_depth_for_user_scope() {
 #[tokio::test]
 async fn loads_valid_skill() {
     let codepilotx_home = tempfile::tempdir().expect("tempdir");
-    let skill_path = write_skill(&codepilotx_home, "demo", "demo-skill", "does things\ncarefully");
+    let skill_path = write_skill(
+        &codepilotx_home,
+        "demo",
+        "demo-skill",
+        "does things\ncarefully",
+    );
     let cfg = make_config(&codepilotx_home).await;
 
     let outcome = load_skills_for_test(&cfg).await;

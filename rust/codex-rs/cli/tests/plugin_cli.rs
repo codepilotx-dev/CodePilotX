@@ -28,7 +28,10 @@ fn codepilotx_command(codepilotx_home: &Path) -> Result<assert_cmd::Command> {
     Ok(cmd)
 }
 
-fn codepilotx_command_in(codepilotx_home: &Path, current_dir: &Path) -> Result<assert_cmd::Command> {
+fn codepilotx_command_in(
+    codepilotx_home: &Path,
+    current_dir: &Path,
+) -> Result<assert_cmd::Command> {
     let mut cmd = codepilotx_command(codepilotx_home)?;
     cmd.current_dir(current_dir);
     Ok(cmd)
@@ -841,7 +844,8 @@ async fn plugin_list_fails_when_configured_marketplace_snapshot_is_missing() -> 
 
 #[tokio::test]
 async fn plugin_list_ignores_implicit_system_marketplace_roots_without_manifests() -> Result<()> {
-    let (codepilotx_home, source, cache_home) = setup_local_marketplace_with_implicit_system_roots()?;
+    let (codepilotx_home, source, cache_home) =
+        setup_local_marketplace_with_implicit_system_roots()?;
 
     codepilotx_command(codepilotx_home.path())?
         .env("XDG_CACHE_HOME", cache_home.path())
@@ -944,7 +948,9 @@ async fn plugin_add_json_prints_install_outcome() -> Result<()> {
         .success();
     let stdout = assert.get_output().stdout.as_slice();
     let actual: serde_json::Value = serde_json::from_slice(stdout)?;
-    let installed_path = codepilotx_home.path().join("plugins/cache/debug/sample/1.2.3");
+    let installed_path = codepilotx_home
+        .path()
+        .join("plugins/cache/debug/sample/1.2.3");
     let normalized_installed_path = canonicalize_existing_preserving_symlinks(&installed_path)?;
 
     assert_eq!(

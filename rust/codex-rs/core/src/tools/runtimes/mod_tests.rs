@@ -5,8 +5,6 @@ use crate::sandboxing::ExecOptions;
 use crate::shell::ShellType;
 use crate::tools::sandboxing::SandboxAttempt;
 use crate::tools::sandboxing::managed_network_for_sandbox_permissions;
-#[cfg(target_os = "macos")]
-use codepilotx_network_proxy::codepilotx_PROXY_GIT_SSH_COMMAND_MARKER;
 use codepilotx_network_proxy::CUSTOM_CA_ENV_KEYS;
 use codepilotx_network_proxy::ConfigReloader;
 use codepilotx_network_proxy::ConfigReloaderFuture;
@@ -19,6 +17,8 @@ use codepilotx_network_proxy::PROXY_ACTIVE_ENV_KEY;
 use codepilotx_network_proxy::PROXY_ENV_KEYS;
 #[cfg(target_os = "macos")]
 use codepilotx_network_proxy::PROXY_GIT_SSH_COMMAND_ENV_KEY;
+#[cfg(target_os = "macos")]
+use codepilotx_network_proxy::codepilotx_PROXY_GIT_SSH_COMMAND_MARKER;
 use codepilotx_protocol::config_types::WindowsSandboxLevel;
 use codepilotx_protocol::models::PermissionProfile;
 use codepilotx_sandboxing::SandboxManager;
@@ -521,7 +521,10 @@ fn maybe_wrap_shell_lc_with_snapshot_restores_codepilotx_thread_id_from_env() {
         &session_shell,
         Some(&shell_snapshot),
         &HashMap::new(),
-        &HashMap::from([("codepilotx_THREAD_ID".to_string(), "nested-thread".to_string())]),
+        &HashMap::from([(
+            "codepilotx_THREAD_ID".to_string(),
+            "nested-thread".to_string(),
+        )]),
         &RuntimePathPrepends::default(),
     );
     let output = Command::new(&rewritten[0])
@@ -671,7 +674,8 @@ fn maybe_wrap_shell_lc_with_snapshot_restores_custom_git_ssh_command() {
 
 #[cfg(target_os = "macos")]
 #[test]
-fn maybe_wrap_shell_lc_with_snapshot_clears_stale_codepilotx_git_ssh_command_without_live_command() {
+fn maybe_wrap_shell_lc_with_snapshot_clears_stale_codepilotx_git_ssh_command_without_live_command()
+{
     let dir = tempdir().expect("create temp dir");
     let snapshot_path = dir.path().join("snapshot.sh");
     let stale_command = format!(

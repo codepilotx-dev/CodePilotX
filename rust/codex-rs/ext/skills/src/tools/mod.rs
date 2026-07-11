@@ -9,8 +9,8 @@ use codepilotx_extension_api::ToolName;
 use codepilotx_extension_api::ToolOutput;
 use codepilotx_extension_api::ToolSpec;
 use codepilotx_extension_api::parse_tool_input_schema;
-use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use codepilotx_mcp::McpResourceClient;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use codepilotx_tools::ResponsesApiNamespace;
 use codepilotx_tools::ResponsesApiNamespaceTool;
 use codepilotx_tools::default_namespace_description;
@@ -90,7 +90,10 @@ enum SkillToolAuthority {
 impl SkillToolAuthority {
     fn from_authority(authority: &SkillAuthority) -> Option<Self> {
         if authority
-            != &SkillAuthority::new(SkillSourceKind::Orchestrator, codepilotx_APPS_MCP_SERVER_NAME)
+            != &SkillAuthority::new(
+                SkillSourceKind::Orchestrator,
+                codepilotx_APPS_MCP_SERVER_NAME,
+            )
         {
             return None;
         }
@@ -99,9 +102,10 @@ impl SkillToolAuthority {
 
     fn into_authority(self) -> SkillAuthority {
         match self {
-            Self::Orchestrator => {
-                SkillAuthority::new(SkillSourceKind::Orchestrator, codepilotx_APPS_MCP_SERVER_NAME)
-            }
+            Self::Orchestrator => SkillAuthority::new(
+                SkillSourceKind::Orchestrator,
+                codepilotx_APPS_MCP_SERVER_NAME,
+            ),
         }
     }
 }

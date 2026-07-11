@@ -1745,7 +1745,10 @@ impl Debug for AuthManager {
         f.debug_struct("AuthManager")
             .field("codepilotx_home", &self.codepilotx_home)
             .field("inner", &self.inner)
-            .field("enable_codepilotx_api_key_env", &self.enable_codepilotx_api_key_env)
+            .field(
+                "enable_codepilotx_api_key_env",
+                &self.enable_codepilotx_api_key_env,
+            )
             .field(
                 "auth_credentials_store_mode",
                 &self.auth_credentials_store_mode,

@@ -764,8 +764,10 @@ impl App {
 
     pub(super) fn restore_runtime_theme_from_config(&self) {
         if let Some(name) = self.config.tui_theme.as_deref()
-            && let Some(theme) =
-                crate::render::highlight::resolve_theme_by_name(name, Some(&self.config.codepilotx_home))
+            && let Some(theme) = crate::render::highlight::resolve_theme_by_name(
+                name,
+                Some(&self.config.codepilotx_home),
+            )
         {
             crate::render::highlight::set_syntax_theme(theme);
             return;

@@ -79,7 +79,10 @@ async fn app_server_default_analytics_enabled_with_flag() -> Result<()> {
     Ok(())
 }
 
-pub(crate) async fn mount_analytics_capture(server: &MockServer, codepilotx_home: &Path) -> Result<()> {
+pub(crate) async fn mount_analytics_capture(
+    server: &MockServer,
+    codepilotx_home: &Path,
+) -> Result<()> {
     Mock::given(method("POST"))
         .and(path("/codex/analytics-events/events"))
         .respond_with(ResponseTemplate::new(200))

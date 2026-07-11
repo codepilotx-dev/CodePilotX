@@ -28,7 +28,10 @@ pub(super) async fn archive_thread(
     })?;
 
     let canonical_rollout_path = scoped_rollout_path(
-        store.config.codepilotx_home.join(codepilotx_rollout::SESSIONS_SUBDIR),
+        store
+            .config
+            .codepilotx_home
+            .join(codepilotx_rollout::SESSIONS_SUBDIR),
         rollout_path.as_path(),
         "sessions",
     )?;

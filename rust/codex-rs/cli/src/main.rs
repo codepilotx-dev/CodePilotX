@@ -852,7 +852,10 @@ async fn run_session_archive_cli_command(
     .map_err(|err| anyhow::anyhow!("{err}"))
 }
 
-fn delete_action(target: &str, force: bool) -> anyhow::Result<codepilotx_tui::SessionArchiveAction> {
+fn delete_action(
+    target: &str,
+    force: bool,
+) -> anyhow::Result<codepilotx_tui::SessionArchiveAction> {
     if force && codepilotx_protocol::ThreadId::from_string(target).is_err() {
         anyhow::bail!("--force requires a session UUID; names must be confirmed interactively");
     }
@@ -867,8 +870,13 @@ async fn run_debug_app_server_command(cmd: DebugAppServerCommand) -> anyhow::Res
     match cmd.subcommand {
         DebugAppServerSubcommand::SendMessageV2(cmd) => {
             let codepilotx_bin = std::env::current_exe()?;
-            codepilotx_app_server_test_client::send_message_v2(&codepilotx_bin, &[], cmd.user_message, &None)
-                .await
+            codepilotx_app_server_test_client::send_message_v2(
+                &codepilotx_bin,
+                &[],
+                cmd.user_message,
+                &None,
+            )
+            .await
         }
     }
 }
@@ -1213,7 +1221,9 @@ async fn cli_main(
                     )?;
                 }
                 Some(AppServerSubcommand::GenerateInternalJsonSchema(gen_cli)) => {
-                    codepilotx_app_server_protocol::generate_internal_json_schema(&gen_cli.out_dir)?;
+                    codepilotx_app_server_protocol::generate_internal_json_schema(
+                        &gen_cli.out_dir,
+                    )?;
                 }
             }
         }
@@ -1432,8 +1442,11 @@ async fn cli_main(
                 &mut cloud_cli.config_overrides,
                 root_config_overrides.clone(),
             );
-            codepilotx_cloud_tasks::run_main(cloud_cli, arg0_paths.codepilotx_linux_sandbox_exe.clone())
-                .await?;
+            codepilotx_cloud_tasks::run_main(
+                cloud_cli,
+                arg0_paths.codepilotx_linux_sandbox_exe.clone(),
+            )
+            .await?;
         }
         Some(Subcommand::Sandbox(mut sandbox_cli)) => {
             #[cfg(target_os = "windows")]
@@ -1736,7 +1749,9 @@ async fn load_exec_server_remote_auth_provider(
 ) -> anyhow::Result<codepilotx_api::SharedAuthProvider> {
     if use_agent_identity_auth {
         let agent_identity_jwt = read_codepilotx_access_token_from_env().ok_or_else(|| {
-            anyhow::anyhow!("codepilotx_ACCESS_TOKEN is required when --use-agent-identity-auth is set")
+            anyhow::anyhow!(
+                "codepilotx_ACCESS_TOKEN is required when --use-agent-identity-auth is set"
+            )
         })?;
         let auth =
             CodexAuth::from_agent_identity_jwt(&agent_identity_jwt, Some(&config.chatgpt_base_url))
@@ -1866,7 +1881,10 @@ fn loader_overrides_for_profile(
         Some(profile_v2) => {
             let codepilotx_home = find_codepilotx_home()?;
             Ok(LoaderOverrides {
-                user_config_path: Some(resolve_profile_v2_config_path(&codepilotx_home, profile_v2)),
+                user_config_path: Some(resolve_profile_v2_config_path(
+                    &codepilotx_home,
+                    profile_v2,
+                )),
                 user_config_profile: Some(profile_v2.clone()),
                 ..Default::default()
             })
@@ -3733,7 +3751,10 @@ mod tests {
     #[test]
     fn app_server_listen_off_parses() {
         let app_server = app_server_from_args(["codex", "app-server", "--listen", "off"].as_ref());
-        assert_eq!(app_server.listen, codepilotx_app_server::AppServerTransport::Off);
+        assert_eq!(
+            app_server.listen,
+            codepilotx_app_server::AppServerTransport::Off
+        );
     }
 
     #[test]

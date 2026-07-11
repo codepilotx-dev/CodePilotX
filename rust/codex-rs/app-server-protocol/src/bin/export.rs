@@ -30,5 +30,8 @@ fn main() -> Result<()> {
             ..codepilotx_app_server_protocol::GenerateTsOptions::default()
         },
     )?;
-    codepilotx_app_server_protocol::generate_json_with_experimental(&args.out_dir, args.experimental)
+    codepilotx_app_server_protocol::generate_json_with_experimental(
+        &args.out_dir,
+        args.experimental,
+    )
 }

@@ -102,10 +102,12 @@ fn app_server_exec_approval_request_preserves_permissions_context() {
             approval_id: Some("approval-1".to_string()),
             environment_id: None,
             reason: None,
-            network_approval_context: Some(codepilotx_app_server_protocol::NetworkApprovalContext {
-                host: "example.com".to_string(),
-                protocol: codepilotx_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
-            }),
+            network_approval_context: Some(
+                codepilotx_app_server_protocol::NetworkApprovalContext {
+                    host: "example.com".to_string(),
+                    protocol: codepilotx_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
+                },
+            ),
             command: Some("ls".to_string()),
             cwd: Some(test_path_buf("/tmp").abs().into()),
             command_actions: None,
@@ -162,10 +164,12 @@ async fn network_exec_approval_history_describes_session_host_allowance() {
             approval_id: Some("approval-1".to_string()),
             environment_id: None,
             reason: None,
-            network_approval_context: Some(codepilotx_app_server_protocol::NetworkApprovalContext {
-                host: "example.com".to_string(),
-                protocol: codepilotx_app_server_protocol::NetworkApprovalProtocol::Https,
-            }),
+            network_approval_context: Some(
+                codepilotx_app_server_protocol::NetworkApprovalContext {
+                    host: "example.com".to_string(),
+                    protocol: codepilotx_app_server_protocol::NetworkApprovalProtocol::Https,
+                },
+            ),
             command: Some("network-access https://example.com:8443".to_string()),
             cwd: None,
             command_actions: None,
@@ -204,10 +208,12 @@ async fn network_exec_approval_history_describes_one_time_host_allowance() {
             approval_id: Some("approval-1".to_string()),
             environment_id: None,
             reason: None,
-            network_approval_context: Some(codepilotx_app_server_protocol::NetworkApprovalContext {
-                host: "example.com".to_string(),
-                protocol: codepilotx_app_server_protocol::NetworkApprovalProtocol::Http,
-            }),
+            network_approval_context: Some(
+                codepilotx_app_server_protocol::NetworkApprovalContext {
+                    host: "example.com".to_string(),
+                    protocol: codepilotx_app_server_protocol::NetworkApprovalProtocol::Http,
+                },
+            ),
             command: None,
             cwd: None,
             command_actions: None,
@@ -246,10 +252,12 @@ async fn network_exec_approval_history_describes_canceled_host_request() {
             approval_id: Some("approval-1".to_string()),
             environment_id: None,
             reason: None,
-            network_approval_context: Some(codepilotx_app_server_protocol::NetworkApprovalContext {
-                host: "example.com".to_string(),
-                protocol: codepilotx_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
-            }),
+            network_approval_context: Some(
+                codepilotx_app_server_protocol::NetworkApprovalContext {
+                    host: "example.com".to_string(),
+                    protocol: codepilotx_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
+                },
+            ),
             command: Some("network-access socks5-tcp://example.com:1080".to_string()),
             cwd: None,
             command_actions: None,

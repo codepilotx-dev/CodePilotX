@@ -27,8 +27,8 @@ use crate::codepilotx_apps::normalize_codepilotx_apps_callable_namespace;
 use crate::codepilotx_apps::normalize_codepilotx_apps_tool_title;
 use crate::codepilotx_apps::write_cached_codepilotx_apps_tools_if_needed;
 use crate::elicitation::ElicitationRequestManager;
-use crate::mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use crate::mcp::ToolPluginProvenance;
+use crate::mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use crate::runtime::McpRuntimeContext;
 use crate::runtime::emit_duration;
 use crate::server::EffectiveMcpServer;
@@ -374,11 +374,16 @@ pub(crate) async fn list_tools_for_client_uncached(
                 connector_id.as_deref(),
                 connector_name.as_deref(),
             );
-            let callable_namespace =
-                normalize_codepilotx_apps_callable_namespace(server_name, connector_name.as_deref());
+            let callable_namespace = normalize_codepilotx_apps_callable_namespace(
+                server_name,
+                connector_name.as_deref(),
+            );
             if let Some(title) = tool_def.title.as_deref() {
-                let normalized_title =
-                    normalize_codepilotx_apps_tool_title(server_name, connector_name.as_deref(), title);
+                let normalized_title = normalize_codepilotx_apps_tool_title(
+                    server_name,
+                    connector_name.as_deref(),
+                    title,
+                );
                 if tool_def.title.as_deref() != Some(normalized_title.as_str()) {
                     tool_def.title = Some(normalized_title);
                 }

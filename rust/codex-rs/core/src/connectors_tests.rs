@@ -13,8 +13,8 @@ use codepilotx_connectors::metadata::connector_install_url;
 use codepilotx_connectors::metadata::sanitize_name;
 use codepilotx_features::Feature;
 use codepilotx_login::CodexAuth;
-use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use codepilotx_mcp::ToolInfo;
+use codepilotx_mcp::codepilotx_APPS_MCP_SERVER_NAME;
 use pretty_assertions::assert_eq;
 use rmcp::model::JsonObject;
 use rmcp::model::Meta;
@@ -143,7 +143,8 @@ fn accessible_connectors_from_mcp_tools_carries_plugin_display_names() {
 
 #[test]
 fn synthetic_links_are_exposed_to_the_agent_but_not_accessible_in_app_list() {
-    let mut synthetic_tool = codepilotx_app_tool("gmail_batch_read_email", "gmail", Some("Gmail"), &[]);
+    let mut synthetic_tool =
+        codepilotx_app_tool("gmail_batch_read_email", "gmail", Some("Gmail"), &[]);
     synthetic_tool.tool.meta = Some(Meta(
         serde_json::json!({
             "resource_name": "gmail.batch_read_email",

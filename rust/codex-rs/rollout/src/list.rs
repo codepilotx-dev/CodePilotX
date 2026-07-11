@@ -1500,7 +1500,8 @@ pub async fn find_thread_path_by_id_str(
     id_str: &str,
     state_db_ctx: Option<&codepilotx_state::StateRuntime>,
 ) -> io::Result<Option<PathBuf>> {
-    find_thread_path_by_id_str_in_subdir(codepilotx_home, SESSIONS_SUBDIR, id_str, state_db_ctx).await
+    find_thread_path_by_id_str_in_subdir(codepilotx_home, SESSIONS_SUBDIR, id_str, state_db_ctx)
+        .await
 }
 
 /// Locate an archived thread rollout file by its UUID string.
@@ -1509,8 +1510,13 @@ pub async fn find_archived_thread_path_by_id_str(
     id_str: &str,
     state_db_ctx: Option<&codepilotx_state::StateRuntime>,
 ) -> io::Result<Option<PathBuf>> {
-    find_thread_path_by_id_str_in_subdir(codepilotx_home, ARCHIVED_SESSIONS_SUBDIR, id_str, state_db_ctx)
-        .await
+    find_thread_path_by_id_str_in_subdir(
+        codepilotx_home,
+        ARCHIVED_SESSIONS_SUBDIR,
+        id_str,
+        state_db_ctx,
+    )
+    .await
 }
 
 /// Extract the `YYYY/MM/DD` directory components from a rollout filename.

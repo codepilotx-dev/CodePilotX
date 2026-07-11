@@ -2,8 +2,8 @@
 use crate::bwrap::WSL1_BWRAP_WARNING;
 #[cfg(target_os = "linux")]
 use crate::bwrap::is_wsl1;
-use crate::landlock::codepilotx_LINUX_SANDBOX_ARG0;
 use crate::landlock::allow_network_for_proxy;
+use crate::landlock::codepilotx_LINUX_SANDBOX_ARG0;
 use crate::landlock::create_linux_sandbox_command_args_for_permission_profile;
 use crate::policy_transforms::effective_permission_profile;
 use crate::policy_transforms::should_require_platform_sandbox;
@@ -518,7 +518,8 @@ fn wrap_windows_sandbox_exec_request_for_direct_spawn(
         ));
     };
     let source = std::path::PathBuf::from(&program);
-    let helper = codepilotx_windows_sandbox::resolve_exe_for_launch(source.as_path(), codepilotx_home);
+    let helper =
+        codepilotx_windows_sandbox::resolve_exe_for_launch(source.as_path(), codepilotx_home);
     *program = helper.to_string_lossy().into_owned();
 
     let inner_command = std::mem::take(&mut request.command);

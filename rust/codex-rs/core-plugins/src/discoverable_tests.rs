@@ -767,7 +767,12 @@ source = "/tmp/{sales_marketplace_name}"
 "#
         ),
     );
-    install_marketplace_plugin(codepilotx_home.path(), sales_marketplace_root.as_path(), "sales").await;
+    install_marketplace_plugin(
+        codepilotx_home.path(),
+        sales_marketplace_root.as_path(),
+        "sales",
+    )
+    .await;
 
     let plugins = load_plugins_config(codepilotx_home.path(), codepilotx_home.path()).await;
     let plugins_manager = PluginsManager::new(codepilotx_home.path().to_path_buf());
@@ -930,7 +935,11 @@ fn string_set(values: &[&str]) -> HashSet<String> {
     values.iter().map(ToString::to_string).collect()
 }
 
-async fn install_marketplace_plugin(codepilotx_home: &Path, marketplace_root: &Path, plugin_name: &str) {
+async fn install_marketplace_plugin(
+    codepilotx_home: &Path,
+    marketplace_root: &Path,
+    plugin_name: &str,
+) {
     write_curated_plugin_sha_with(codepilotx_home, TEST_CURATED_PLUGIN_SHA);
     PluginsManager::new(codepilotx_home.to_path_buf())
         .install_plugin(PluginInstallRequest {

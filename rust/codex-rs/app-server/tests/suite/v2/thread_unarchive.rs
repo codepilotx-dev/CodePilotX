@@ -100,10 +100,13 @@ async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result
     )
     .await??;
 
-    let found_rollout_path =
-        find_thread_path_by_id_str(codepilotx_home.path(), &thread.id, /*state_db_ctx*/ None)
-            .await?
-            .expect("expected rollout path for thread id to exist");
+    let found_rollout_path = find_thread_path_by_id_str(
+        codepilotx_home.path(),
+        &thread.id,
+        /*state_db_ctx*/ None,
+    )
+    .await?
+    .expect("expected rollout path for thread id to exist");
     assert_paths_match_on_disk(&found_rollout_path, &rollout_path)?;
 
     let archive_id = mcp

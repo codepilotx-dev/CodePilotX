@@ -135,7 +135,12 @@ async fn collect_stdout_and_exit(
     });
     let exit_code = timeout(timeout_duration, exit_rx)
         .await
-        .unwrap_or_else(|_| panic!("timed out waiting for exit\n{}", sandbox_log(codepilotx_home)))
+        .unwrap_or_else(|_| {
+            panic!(
+                "timed out waiting for exit\n{}",
+                sandbox_log(codepilotx_home)
+            )
+        })
         .unwrap_or(-1);
     let stdout = timeout(timeout_duration, stdout_task)
         .await
@@ -423,7 +428,10 @@ fn legacy_capture_powershell_emits_output() {
     let _guard = legacy_process_test_guard();
     let cwd = sandbox_cwd();
     let codepilotx_home = sandbox_home("legacy-capture-pwsh");
-    println!("capture pwsh codepilotx_home={}", codepilotx_home.path().display());
+    println!(
+        "capture pwsh codepilotx_home={}",
+        codepilotx_home.path().display()
+    );
     let permission_profile = PermissionProfile::workspace_write();
     let result = run_windows_sandbox_capture(
         &permission_profile,
@@ -515,7 +523,10 @@ fn legacy_tty_powershell_emits_output_and_accepts_input() {
     runtime.block_on(async move {
         let cwd = sandbox_cwd();
         let codepilotx_home = sandbox_home("legacy-tty-pwsh");
-        println!("tty pwsh codepilotx_home={}", codepilotx_home.path().display());
+        println!(
+            "tty pwsh codepilotx_home={}",
+            codepilotx_home.path().display()
+        );
         let permission_profile = PermissionProfile::workspace_write();
         let spawned = spawn_windows_sandbox_session_legacy(
             &permission_profile,
@@ -569,7 +580,10 @@ fn legacy_tty_cmd_emits_output_and_accepts_input() {
     runtime.block_on(async move {
         let cwd = sandbox_cwd();
         let codepilotx_home = sandbox_home("legacy-tty-cmd");
-        println!("tty cmd codepilotx_home={}", codepilotx_home.path().display());
+        println!(
+            "tty cmd codepilotx_home={}",
+            codepilotx_home.path().display()
+        );
         let permission_profile = PermissionProfile::workspace_write();
         let spawned = spawn_windows_sandbox_session_legacy(
             &permission_profile,

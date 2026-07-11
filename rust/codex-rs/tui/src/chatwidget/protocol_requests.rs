@@ -69,7 +69,10 @@ impl ChatWidget {
         turn_id: String,
         started_at_ms: i64,
         review: codepilotx_app_server_protocol::GuardianApprovalReview,
-        completion: Option<(i64, codepilotx_app_server_protocol::AutoReviewDecisionSource)>,
+        completion: Option<(
+            i64,
+            codepilotx_app_server_protocol::AutoReviewDecisionSource,
+        )>,
         action: GuardianApprovalReviewAction,
     ) {
         // TODO(anp): Remove this native-path localization error path once core permission paths

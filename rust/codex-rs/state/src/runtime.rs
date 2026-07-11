@@ -170,7 +170,10 @@ impl StateRuntime {
     /// This opens (and migrates) the SQLite databases under `codepilotx_home`,
     /// keeping logs in a dedicated file to reduce lock contention with the
     /// rest of the state store.
-    pub async fn init(codepilotx_home: PathBuf, default_provider: String) -> anyhow::Result<Arc<Self>> {
+    pub async fn init(
+        codepilotx_home: PathBuf,
+        default_provider: String,
+    ) -> anyhow::Result<Arc<Self>> {
         Self::init_inner(
             codepilotx_home,
             default_provider,

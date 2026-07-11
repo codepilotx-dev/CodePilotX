@@ -35,7 +35,11 @@ impl TraceReducer {
             );
         }
         self.thread_mut(&started.thread_id)?;
-        let Some(turn) = self.rollout.codepilotx_turns.get(&started.codepilotx_turn_id) else {
+        let Some(turn) = self
+            .rollout
+            .codepilotx_turns
+            .get(&started.codepilotx_turn_id)
+        else {
             bail!(
                 "compaction request {} referenced unknown codex turn {}",
                 started.compaction_request_id,

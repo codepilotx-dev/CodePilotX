@@ -101,11 +101,13 @@ fn mcp_tool_call_result_preserves_meta_in_jsonl_event() {
                 app_context: None,
                 mcp_app_resource_uri: None,
                 plugin_id: None,
-                result: Some(Box::new(codepilotx_app_server_protocol::McpToolCallResult {
-                    content: vec![json!({"type": "text", "text": "search result"})],
-                    structured_content: None,
-                    meta: Some(json!({"raw_messages": [{"ref_id": "turn0search0"}]})),
-                })),
+                result: Some(Box::new(
+                    codepilotx_app_server_protocol::McpToolCallResult {
+                        content: vec![json!({"type": "text", "text": "search result"})],
+                        structured_content: None,
+                        meta: Some(json!({"raw_messages": [{"ref_id": "turn0search0"}]})),
+                    },
+                )),
                 error: None,
                 duration_ms: Some(42),
             },

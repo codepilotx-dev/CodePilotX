@@ -338,7 +338,10 @@ fn project_config_warning(config: &Config) -> Option<ConfigWarningNotification> 
         ConfigLayerStackOrdering::LowestPrecedenceFirst,
         /*include_disabled*/ true,
     ) {
-        let ConfigLayerSource::Project { dot_codepilotx_folder } = &layer.name else {
+        let ConfigLayerSource::Project {
+            dot_codepilotx_folder,
+        } = &layer.name
+        else {
             continue;
         };
         let Some(disabled_reason) = &layer.disabled_reason else {
@@ -469,7 +472,8 @@ pub async fn run_main_with_transport_options(
     let environment_manager = if loader_overrides.ignore_user_config {
         EnvironmentManager::from_env(Some(local_runtime_paths)).await
     } else {
-        EnvironmentManager::from_codepilotx_home(codepilotx_home.clone(), Some(local_runtime_paths)).await
+        EnvironmentManager::from_codepilotx_home(codepilotx_home.clone(), Some(local_runtime_paths))
+            .await
     }
     .map(Arc::new)
     .map_err(std::io::Error::other)?;
@@ -490,8 +494,10 @@ pub async fn run_main_with_transport_options(
             let discovered_thread_config_loader = configured_thread_config_loader(&config);
             config_manager
                 .replace_thread_config_loader(Arc::clone(&discovered_thread_config_loader));
-            let auth_manager =
-                AuthManager::shared_from_config(&config, /*enable_codepilotx_api_key_env*/ false).await;
+            let auth_manager = AuthManager::shared_from_config(
+                &config, /*enable_codepilotx_api_key_env*/ false,
+            )
+            .await;
             config_manager
                 .replace_cloud_config_bundle_loader(auth_manager, config.chatgpt_base_url);
         }

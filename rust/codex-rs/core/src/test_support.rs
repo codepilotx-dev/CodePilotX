@@ -67,7 +67,10 @@ pub fn auth_manager_from_auth(auth: CodexAuth) -> Arc<AuthManager> {
     AuthManager::from_auth_for_testing(auth)
 }
 
-pub fn auth_manager_from_auth_with_home(auth: CodexAuth, codepilotx_home: PathBuf) -> Arc<AuthManager> {
+pub fn auth_manager_from_auth_with_home(
+    auth: CodexAuth,
+    codepilotx_home: PathBuf,
+) -> Arc<AuthManager> {
     AuthManager::from_auth_for_testing_with_home(auth, codepilotx_home)
 }
 

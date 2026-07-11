@@ -112,7 +112,7 @@ use super::analytics::wait_for_goal_event;
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(25);
 #[cfg(not(windows))]
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
-	const CODEX_5_2_INSTRUCTIONS_TEMPLATE_DEFAULT: &str = "You are CodePilotX, a coding agent based on GPT-5. You and the user share the same workspace and collaborate to achieve the user's goals.";
+const CODEX_5_2_INSTRUCTIONS_TEMPLATE_DEFAULT: &str = "You are CodePilotX, a coding agent based on GPT-5. You and the user share the same workspace and collaborate to achieve the user's goals.";
 
 fn normalized_existing_path(path: impl AsRef<Path>) -> Result<PathBuf> {
     Ok(AbsolutePathBuf::from_absolute_path(path.as_ref().canonicalize()?)?.into_path_buf())
@@ -710,7 +710,10 @@ async fn thread_resume_returns_rollout_history() -> Result<()> {
 
 #[tokio::test]
 async fn thread_resume_redacts_payloads_for_chatgpt_remote_clients() -> Result<()> {
-    for client_name in ["codepilotx_chatgpt_android_remote", "codepilotx_chatgpt_ios_remote"] {
+    for client_name in [
+        "codepilotx_chatgpt_android_remote",
+        "codepilotx_chatgpt_ios_remote",
+    ] {
         let remote_resume = resume_redaction_fixture(Some(client_name)).await?;
         let remote_turn = remote_resume
             .thread
@@ -2346,7 +2349,10 @@ async fn thread_resume_defers_updated_at_until_turn_start() -> Result<()> {
     )
     .await??;
     let ThreadResumeResponse { cwd, .. } = to_response::<ThreadResumeResponse>(resume_resp)?;
-    assert_eq!(cwd, AbsolutePathBuf::from_absolute_path(codepilotx_home.path())?);
+    assert_eq!(
+        cwd,
+        AbsolutePathBuf::from_absolute_path(codepilotx_home.path())?
+    );
 
     let turn_id = mcp
         .send_turn_start_request(TurnStartParams {
@@ -2727,7 +2733,11 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
     }
 
     let stale_thread_id = Uuid::new_v4().to_string();
-    let stale_path = rollout_path(codepilotx_home.path(), "2025-01-01T00-00-00", &stale_thread_id);
+    let stale_path = rollout_path(
+        codepilotx_home.path(),
+        "2025-01-01T00-00-00",
+        &stale_thread_id,
+    );
     std::fs::create_dir_all(stale_path.parent().expect("stale path parent"))?;
     let thread_uuid = Uuid::parse_str(&stale_thread_id)?;
     let mut stale_file = std::fs::File::create(&stale_path)?;

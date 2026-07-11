@@ -91,7 +91,10 @@ async fn sqlite_rollout_path_can_load_history_for_thread(
     path: &std::path::Path,
     thread_id: codepilotx_protocol::ThreadId,
 ) -> bool {
-    if codepilotx_rollout::existing_rollout_path(path).await.is_none() {
+    if codepilotx_rollout::existing_rollout_path(path)
+        .await
+        .is_none()
+    {
         return false;
     }
     // SQLite metadata can outlive a moved/recreated rollout path. When history is
@@ -204,7 +207,8 @@ async fn resolve_rollout_path(
         && codepilotx_rollout::existing_rollout_path(path.as_path())
             .await
             .is_some()
-        && (include_archived || !rollout_path_is_archived(store.config.codepilotx_home.as_path(), &path))
+        && (include_archived
+            || !rollout_path_is_archived(store.config.codepilotx_home.as_path(), &path))
     {
         return Ok(Some(path));
     }

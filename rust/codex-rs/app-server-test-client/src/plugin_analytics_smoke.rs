@@ -63,7 +63,8 @@ pub(super) fn run(
             temporary_config.path().as_os_str().to_os_string(),
         ),
     ];
-    let mut client = CodexClient::spawn_stdio_with_env(codepilotx_bin, &overrides, &child_environment)?;
+    let mut client =
+        CodexClient::spawn_stdio_with_env(codepilotx_bin, &overrides, &child_environment)?;
     wait_until_capture_is_ready(&capture_path)?;
     client.initialize()?;
 

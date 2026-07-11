@@ -213,7 +213,8 @@ async fn explicit_remote_control_startup_fails_when_disabled_by_requirements() -
     let socket_path = codepilotx_home.path().join("app-server.sock");
     let transport =
         AppServerTransport::from_listen_url(&format!("unix://{}", socket_path.display()))?;
-    let _codepilotx_home_guard = EnvVarGuard::set("codepilotx_HOME", codepilotx_home.path().as_os_str());
+    let _codepilotx_home_guard =
+        EnvVarGuard::set("codepilotx_HOME", codepilotx_home.path().as_os_str());
 
     let result = timeout(
         STARTUP_TIMEOUT,
@@ -256,8 +257,11 @@ async fn listen_off_honors_persisted_remote_control_enable() -> Result<()> {
         "ws://{}/backend-api/wham/remote/control/server",
         listener.local_addr()?
     );
-    let state_db =
-        StateRuntime::init(codepilotx_home.path().to_path_buf(), "test-provider".to_string()).await?;
+    let state_db = StateRuntime::init(
+        codepilotx_home.path().to_path_buf(),
+        "test-provider".to_string(),
+    )
+    .await?;
     state_db
         .upsert_remote_control_enrollment(&RemoteControlEnrollmentRecord {
             websocket_url,
@@ -270,7 +274,8 @@ async fn listen_off_honors_persisted_remote_control_enable() -> Result<()> {
         })
         .await?;
 
-    let _app_server = TestAppServer::new_with_args(codepilotx_home.path(), &["--listen", "off"]).await?;
+    let _app_server =
+        TestAppServer::new_with_args(codepilotx_home.path(), &["--listen", "off"]).await?;
     let request = timeout(STARTUP_TIMEOUT, read_http_request(&listener)).await??;
     assert!(
         request
@@ -295,8 +300,11 @@ async fn listen_off_ignores_persisted_enable_when_disabled_by_requirements() -> 
         "ws://{}/backend-api/wham/remote/control/server",
         listener.local_addr()?
     );
-    let state_db =
-        StateRuntime::init(codepilotx_home.path().to_path_buf(), "test-provider".to_string()).await?;
+    let state_db = StateRuntime::init(
+        codepilotx_home.path().to_path_buf(),
+        "test-provider".to_string(),
+    )
+    .await?;
     state_db
         .upsert_remote_control_enrollment(&RemoteControlEnrollmentRecord {
             websocket_url: websocket_url.clone(),
@@ -341,9 +349,11 @@ async fn listen_off_exits_without_persisted_remote_control_enable() -> Result<()
                 "ws://{}/backend-api/wham/remote/control/server",
                 listener.local_addr()?
             );
-            let state_db =
-                StateRuntime::init(codepilotx_home.path().to_path_buf(), "test-provider".to_string())
-                    .await?;
+            let state_db = StateRuntime::init(
+                codepilotx_home.path().to_path_buf(),
+                "test-provider".to_string(),
+            )
+            .await?;
             state_db
                 .upsert_remote_control_enrollment(&RemoteControlEnrollmentRecord {
                     websocket_url,
@@ -446,8 +456,11 @@ async fn disable_waits_for_in_flight_durable_enable() -> Result<()> {
     let codepilotx_home = TempDir::new()?;
     let mut backend = BlockingRemoteControlBackend::start(codepilotx_home.path()).await?;
     let websocket_url = backend.websocket_url().to_string();
-    let state_db =
-        StateRuntime::init(codepilotx_home.path().to_path_buf(), "test-provider".to_string()).await?;
+    let state_db = StateRuntime::init(
+        codepilotx_home.path().to_path_buf(),
+        "test-provider".to_string(),
+    )
+    .await?;
     let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
@@ -477,8 +490,11 @@ async fn rpc_updates_durable_preference_but_ephemeral_does_not() -> Result<()> {
     let codepilotx_home = TempDir::new()?;
     let mut backend = BlockingRemoteControlBackend::start(codepilotx_home.path()).await?;
     let websocket_url = backend.websocket_url().to_string();
-    let state_db =
-        StateRuntime::init(codepilotx_home.path().to_path_buf(), "test-provider".to_string()).await?;
+    let state_db = StateRuntime::init(
+        codepilotx_home.path().to_path_buf(),
+        "test-provider".to_string(),
+    )
+    .await?;
 
     let mut mcp = TestAppServer::new(codepilotx_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
@@ -1020,7 +1036,9 @@ struct HttpRequest {
     reader: BufReader<TcpStream>,
 }
 
-async fn configured_remote_control_listener(codepilotx_home: &std::path::Path) -> Result<TcpListener> {
+async fn configured_remote_control_listener(
+    codepilotx_home: &std::path::Path,
+) -> Result<TcpListener> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let remote_control_url = format!("http://{}/backend-api/", listener.local_addr()?);
     write_mock_responses_config_toml_with_chatgpt_base_url(

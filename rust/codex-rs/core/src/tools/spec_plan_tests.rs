@@ -380,15 +380,17 @@ fn dynamic_tool(namespace: Option<&str>, name: &str, defer_loading: bool) -> Dyn
         defer_loading,
     };
     match namespace {
-        Some(namespace) => {
-            DynamicToolSpec::Namespace(codepilotx_protocol::dynamic_tools::DynamicToolNamespaceSpec {
+        Some(namespace) => DynamicToolSpec::Namespace(
+            codepilotx_protocol::dynamic_tools::DynamicToolNamespaceSpec {
                 name: namespace.to_string(),
                 description: format!("{namespace} dynamic tools"),
                 tools: vec![
-                    codepilotx_protocol::dynamic_tools::DynamicToolNamespaceTool::Function(function),
+                    codepilotx_protocol::dynamic_tools::DynamicToolNamespaceTool::Function(
+                        function,
+                    ),
                 ],
-            })
-        }
+            },
+        ),
         None => DynamicToolSpec::Function(function),
     }
 }

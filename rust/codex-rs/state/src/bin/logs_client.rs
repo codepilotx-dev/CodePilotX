@@ -135,7 +135,10 @@ fn resolve_db_path(args: &Args) -> anyhow::Result<PathBuf> {
         return Ok(db.clone());
     }
 
-    let codepilotx_home = args.codepilotx_home.clone().unwrap_or_else(default_codepilotx_home);
+    let codepilotx_home = args
+        .codepilotx_home
+        .clone()
+        .unwrap_or_else(default_codepilotx_home);
     Ok(codepilotx_state::logs_db_path(codepilotx_home.as_path()))
 }
 

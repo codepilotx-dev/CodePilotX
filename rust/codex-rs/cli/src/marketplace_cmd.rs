@@ -250,8 +250,10 @@ async fn run_list(overrides: Vec<(String, toml::Value)>, args: ListMarketplaceAr
     }
     let marketplaces = marketplace_listing.marketplaces;
     if args.json {
-        let marketplace_sources =
-            configured_marketplace_sources_by_root(config.codepilotx_home.as_path(), &plugins_input);
+        let marketplace_sources = configured_marketplace_sources_by_root(
+            config.codepilotx_home.as_path(),
+            &plugins_input,
+        );
         let output =
             JsonMarketplaceListOutput::from_marketplaces(marketplaces, &marketplace_sources);
         println!("{}", serde_json::to_string_pretty(&output)?);

@@ -55,7 +55,10 @@ async fn tmux_split_preserves_fresh_session_composer_row_after_resize_reflow() -
             .arg(&session_name)
             .arg("--")
             .arg("env")
-            .arg(format!("codepilotx_HOME={}", codepilotx_home.path().display()))
+            .arg(format!(
+                "codepilotx_HOME={}",
+                codepilotx_home.path().display()
+            ))
             .arg("OPENAI_API_KEY=dummy")
             .arg(codex)
             .arg("-c")
@@ -222,7 +225,10 @@ async fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()
             .arg(&session_name)
             .arg("--")
             .arg("env")
-            .arg(format!("codepilotx_HOME={}", codepilotx_home.path().display()))
+            .arg(format!(
+                "codepilotx_HOME={}",
+                codepilotx_home.path().display()
+            ))
             .arg("OPENAI_API_KEY=dummy")
             .arg(codex)
             .arg("-c")
@@ -342,7 +348,10 @@ async fn run_repeated_resize_smoke() -> Result<()> {
             .arg(&session_name)
             .arg("--")
             .arg("env")
-            .arg(format!("codepilotx_HOME={}", codepilotx_home.path().display()))
+            .arg(format!(
+                "codepilotx_HOME={}",
+                codepilotx_home.path().display()
+            ))
             .arg("OPENAI_API_KEY=dummy")
             .arg(codex)
             .arg("-c")
