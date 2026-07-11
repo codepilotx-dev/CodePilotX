@@ -24,6 +24,12 @@ class FakeAppServerProcess extends EventEmitter {
           id?: number
           method?: string
         }
+        if (message.method === 'turn/start') {
+          queueMicrotask(() => {
+            callback(Object.assign(new Error('broken pipe'), { code: 'EPIPE' }))
+          })
+          return
+        }
         queueMicrotask(() => {
           if (message.method === 'initialize') {
             this.respond(message.id!, {
@@ -43,12 +49,6 @@ class FakeAppServerProcess extends EventEmitter {
             } else {
               this.respond(message.id!, { thread: { id: 'thread-fresh' } })
             }
-          } else if (message.method === 'turn/start') {
-            this.stdout.write(`${JSON.stringify({
-              jsonrpc: '2.0',
-              id: message.id,
-              error: { code: -32001, message: 'turn request failed' },
-            })}\n`)
           }
         })
         callback()
@@ -90,6 +90,11 @@ const { RustSidecarDesktopAgentRuntime } = await import('./rustSidecarRuntime.js
 
 test('thread start failure kills the failed child and the next attempt spawns fresh', async () => {
   const events: Array<{ type: string; message?: string }> = []
+  const unhandledRejections: unknown[] = []
+  const onUnhandledRejection = (reason: unknown) => {
+    unhandledRejections.push(reason)
+  }
+  process.on('unhandledRejection', onUnhandledRejection)
   const runtime = new RustSidecarDesktopAgentRuntime({
     sessionId: 'startup-retry',
     workspacePath: process.cwd(),
@@ -122,13 +127,16 @@ test('thread start failure kills the failed child and the next attempt spawns fr
 
   await expect(
     runtime.runUserTurn('second', new AbortController().signal),
-  ).rejects.toThrow('turn request failed')
+  ).rejects.toThrow('broken pipe')
+  await new Promise<void>(resolve => setImmediate(resolve))
   expect(events).toEqual([
     expect.objectContaining({ type: 'error', message: 'thread start failed' }),
-    expect.objectContaining({ type: 'error', message: 'turn request failed' }),
+    expect.objectContaining({ type: 'error', message: 'broken pipe' }),
   ])
+  expect(unhandledRejections).toEqual([])
 
   await runtime.dispose()
   expect(children[1].killed).toBe(true)
   expect(activeChildren).toBe(0)
+  process.off('unhandledRejection', onUnhandledRejection)
 })

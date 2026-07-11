@@ -68,7 +68,15 @@ test('taskkill timeout removes listeners and kills the helper process', async ()
   const taskkill = new EventEmitter() as EventEmitter & {
     kill: ReturnType<typeof mock>
   }
-  taskkill.kill = mock(() => true)
+  taskkill.kill = mock(() => {
+    queueMicrotask(() => taskkill.emit('error', new Error('post-timeout kill error')))
+    return true
+  })
+  const uncaughtExceptions: unknown[] = []
+  const onUncaughtException = (error: unknown) => {
+    uncaughtExceptions.push(error)
+  }
+  process.on('uncaughtException', onUncaughtException)
 
   await expect(
     runWindowsTaskkill(123, {
@@ -76,8 +84,12 @@ test('taskkill timeout removes listeners and kills the helper process', async ()
       spawnTaskkill: () => taskkill as never,
     }),
   ).rejects.toThrow('taskkill timed out')
+  await new Promise<void>(resolve => setImmediate(resolve))
 
   expect(taskkill.kill).toHaveBeenCalledTimes(1)
+  expect(uncaughtExceptions).toEqual([])
   expect(taskkill.listenerCount('error')).toBe(0)
   expect(taskkill.listenerCount('exit')).toBe(0)
+  expect(taskkill.listenerCount('close')).toBe(0)
+  process.off('uncaughtException', onUncaughtException)
 })

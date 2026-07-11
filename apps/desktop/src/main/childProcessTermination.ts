@@ -139,6 +139,7 @@ export async function runWindowsTaskkill(
       clearTimeout(timeout)
       taskkill.off('error', onError)
       taskkill.off('exit', onExit)
+      taskkill.off('close', onExit)
     }
     const onError = (error: Error) => {
       cleanup()
@@ -153,15 +154,33 @@ export async function runWindowsTaskkill(
       }
     }
     const timeout = setTimeout(() => {
-      cleanup()
+      clearTimeout(timeout)
+      taskkill.off('error', onError)
+      taskkill.off('exit', onExit)
+      taskkill.off('close', onExit)
+      let safetyTimeout: ReturnType<typeof setTimeout> | null = null
+      const finishHelperLifecycle = () => {
+        if (safetyTimeout) clearTimeout(safetyTimeout)
+        taskkill.off('error', finishHelperLifecycle)
+        taskkill.off('exit', finishHelperLifecycle)
+        taskkill.off('close', finishHelperLifecycle)
+      }
+      // Killing a timed-out helper can itself emit an asynchronous error.
+      // Keep an isolation listener until the helper reports error/exit/close,
+      // with a bounded final cleanup if the helper remains completely silent.
+      taskkill.once('error', finishHelperLifecycle)
+      taskkill.once('exit', finishHelperLifecycle)
+      taskkill.once('close', finishHelperLifecycle)
       try {
         taskkill.kill()
       } catch {
-        // The timeout remains the primary failure; the helper is best-effort.
+        finishHelperLifecycle()
       }
+      safetyTimeout = setTimeout(finishHelperLifecycle, timeoutMs)
       reject(new Error(`taskkill timed out for pid ${pid}`))
     }, timeoutMs)
     taskkill.once('error', onError)
     taskkill.once('exit', onExit)
+    taskkill.once('close', onExit)
   })
 }

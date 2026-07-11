@@ -545,6 +545,10 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
         this.currentTurnResolve = resolve
         this.currentTurnReject = reject
       })
+      // startTurn and the transport fatal path can reject in the same tick.
+      // Observe the completion promise immediately while preserving the later
+      // await on the original promise when turn/start succeeds.
+      void this.currentTurnPromise.catch(() => undefined)
 
       // Send turn/start with the converted input
       const turnResult = await this.appServerClient!.startTurn({

@@ -278,16 +278,23 @@ export class RustLineJsonRpcClient {
     if (this.closed) return
     try {
       this.streams.output.write(`${JSON.stringify(message)}\n`, error => {
-        if (error) this.failTransport(error)
+        if (error) this.failTransport(error, true)
       })
     } catch (error) {
       this.failTransport(toError(error))
     }
   }
 
-  private failTransport(error: Error): void {
+  private failTransport(error: Error, streamErrorWillFollow = false): void {
     if (this.fatalError) return
     this.fatalError = error
+    if (streamErrorWillFollow) {
+      // Node emits Writable#error after invoking a write callback with an
+      // error. Fatal listeners may synchronously close the client and remove
+      // the regular handler, so keep a one-shot isolation listener for that
+      // already-scheduled stream event.
+      this.streams.output.once('error', () => {})
+    }
     this.rejectAll(error)
     for (const listener of this.fatalErrorListeners) {
       try {
