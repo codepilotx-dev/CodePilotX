@@ -64,6 +64,7 @@ import {
   type UpdateSessionView,
 } from './sessionViewState.js'
 import { sortSessionsByRecency } from './sessionSorting.js'
+import { createSessionQueueLifecycleController } from './sessionQueueLifecycle.js'
 
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
@@ -246,18 +247,12 @@ export function useSessionState(
   const onOpenDrawerPermissionsRef = useRef(onOpenDrawerPermissions)
   onOpenDrawerPermissionsRef.current = onOpenDrawerPermissions
 
-  const removeQueuedFollowUpsForSession = useCallback(
-    (removedSessionId: string, activeSessionId: string | null): void => {
-      const { [removedSessionId]: _removed, ...remainingQueues } =
-        queuedFollowUpsBySessionRef.current
-      queuedFollowUpsBySessionRef.current = remainingQueues
-      setQueuedFollowUps(
-        resolveQueuedFollowUpsForActiveSession(
-          remainingQueues,
-          activeSessionId,
-        ),
-      )
-    },
+  const queueLifecycleController = useMemo(
+    () =>
+      createSessionQueueLifecycleController(
+        queuedFollowUpsBySessionRef,
+        setQueuedFollowUps,
+      ),
     [],
   )
 
@@ -286,9 +281,9 @@ export function useSessionState(
       setSessions,
       setSessionId,
       setSessionStatus,
-      onSessionRemoved: removeQueuedFollowUpsForSession,
+      onSessionRemoved: queueLifecycleController.removeSession,
     }),
-    [removeQueuedFollowUpsForSession, viewSetters],
+    [queueLifecycleController, viewSetters],
   )
 
   useEffect(() => {

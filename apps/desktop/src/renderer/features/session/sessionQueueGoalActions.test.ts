@@ -100,6 +100,42 @@ test('goal actions use activeSessionItem and apply the authoritative snapshot', 
   expect(applied[0]?.item.threadGoal).toEqual(goal('paused'))
 })
 
+test('sending a queued follow-up refreshes the authoritative session snapshot', async () => {
+  const sendNowCalls: Array<[string, string]> = []
+  const getSessionCalls: string[] = []
+  const applied: DesktopSessionSnapshot[] = []
+  const actions = createSessionQueueGoalActions({
+    activeSessionItem: sessionItem('session-1'),
+    queuedFollowUps: [queuedFollowUp('follow-up-1')],
+    desktopApi: {
+      removeQueuedFollowUp: async () => snapshot('session-1'),
+      sendQueuedFollowUpNow: async (sessionId, followUpId) => {
+        sendNowCalls.push([sessionId, followUpId])
+      },
+      setSessionGoal: async () => goal('active'),
+      clearSessionGoal: async () => true,
+      getSession: async sessionId => {
+        getSessionCalls.push(sessionId)
+        return snapshot('session-1')
+      },
+    },
+    applyReturnedSessionSnapshot: (_sessionId, value) => applied.push(value),
+    setErrorMessage: () => {},
+    setMainInput: () => {},
+    setMainAttachments: () => {},
+    focusMainComposer: () => {},
+    setSideInput: () => {},
+    setSideAttachments: () => {},
+    focusSideComposer: () => {},
+  })
+
+  await actions.sendNow('follow-up-1')
+
+  expect(sendNowCalls).toEqual([['session-1', 'follow-up-1']])
+  expect(getSessionCalls).toEqual(['session-1'])
+  expect(applied).toHaveLength(1)
+})
+
 function queuedFollowUp(id: string): DesktopQueuedFollowUp {
   return {
     id,

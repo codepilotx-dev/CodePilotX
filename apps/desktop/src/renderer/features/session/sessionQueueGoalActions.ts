@@ -64,6 +64,7 @@ export function createSessionQueueGoalActions(
     if (!activeSessionId) return
     try {
       await deps.desktopApi.sendQueuedFollowUpNow(activeSessionId, followUpId)
+      await applyAuthoritativeSnapshot(activeSessionId)
     } catch (error) {
       deps.setErrorMessage(errorMessageOf(error))
     }
