@@ -10,6 +10,7 @@ import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { RUST_SIDECAR_RELEASE_ARGS } from './rust-sidecar-build-contract.mjs'
+import { parseCargoSourceConfigArgs } from './rust-sidecar-build-contract.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = resolve(__dirname, '..')
@@ -24,11 +25,12 @@ const binaryName = process.platform === 'win32'
   ? 'codepilotx-app-server.exe'
   : 'codepilotx-app-server'
 const binaryPath = join(targetDir, binaryName)
+const cargoSourceConfigArgs = parseCargoSourceConfigArgs(process.argv.slice(2))
 
 // 1. Build the Rust crate
 console.log(`[rust-sidecar] Building codepilotx-app-server (${profile})...`)
 try {
-  execFileSync('cargo', RUST_SIDECAR_RELEASE_ARGS, {
+  execFileSync('cargo', [...RUST_SIDECAR_RELEASE_ARGS, ...cargoSourceConfigArgs], {
     cwd: join(root, 'rust', 'codex-rs'),
     stdio: 'inherit',
   })

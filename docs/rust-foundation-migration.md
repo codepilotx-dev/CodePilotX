@@ -77,8 +77,11 @@ of claiming success. The UI exposes the resulting unsaved-session state.
 ## Packaging contract
 
 `bun run desktop:rust-sidecar:prepare` is release-only. It runs Cargo with
-`--release --locked` and `profile.release.strip="symbols"`, then copies one
-binary to `dist/desktop-rust-sidecar`. Electron-builder has exactly one
+`--release --locked`, `profile.release.strip="symbols"`, and
+`profile.release.lto=false`, then copies one binary to
+`dist/desktop-rust-sidecar`. Disabling LTO keeps the Windows packaging runner
+within a practical memory envelope without changing release optimization or
+symbol stripping. Electron-builder has exactly one
 `extraResources` entry mapping that directory to `desktop-rust-sidecar`.
 
 `bun run desktop:dist:unpacked:win` produces the unpacked acceptance artifact.
@@ -106,12 +109,12 @@ cargo run -p codepilotx-app-server-protocol --bin write_schema_fixtures --locked
 git diff --exit-code -- app-server-protocol/schema
 ```
 
-The current branch has previously reached five pre-existing `codepilotx-core`
-E0275 Send/type-recursion overflow errors while compiling the full app-server
-test target. The latest local retry could not re-confirm them because the
-configured Tsinghua crates.io mirror returned HTTP 404 while fetching
-`aws-config`. CI keeps the full no-run target visible; do not mask the issue by
-raising recursion limits.
+The five former `codepilotx-core` E0275 failures were reproduced with Rust
+1.95 and 1.97 and traced to a finite reqwest 0.13 Hyper/Tower `Send` type chain.
+The crate now uses rustc's suggested recursion limit of 256; both
+`cargo check -p codepilotx-core --locked` and the full app-server integration
+test compile pass. Local validation overrides the obsolete user-level Tsinghua
+registry with the rsproxy sparse index; CI uses the default crates.io registry.
 
 ## Debugging and integration workflow
 
