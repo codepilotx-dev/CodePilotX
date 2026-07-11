@@ -1,10 +1,34 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  disposeDesktopSessionRuntimes,
   disposeDesktopSession,
   removeSessionIndexWithRetry,
 } from './desktopSessionRemoval.js'
 
 describe('desktop session removal', () => {
+  test('app shutdown awaits every session runtime disposal', async () => {
+    const completed: string[] = []
+    let release: (() => void) | undefined
+    const blocked = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const disposing = disposeDesktopSessionRuntimes([
+      async () => {
+        await blocked
+        completed.push('first')
+      },
+      async () => {
+        completed.push('second')
+      },
+    ])
+
+    await Promise.resolve()
+    expect(completed).toEqual(['second'])
+    release?.()
+    await disposing
+    expect(completed).toEqual(['second', 'first'])
+  })
+
   test('closes a pending session without a server Thread as a local-only removal', async () => {
     const calls: string[] = []
 

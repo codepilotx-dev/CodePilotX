@@ -127,6 +127,7 @@ class LocalDesktopAgentSession
   private currentAbortController: AbortController | null = null
   private readonly pendingPermissions = new Map<string, PendingPermission>()
   private readonly runtime: DesktopAgentRuntime
+  private disposePromise: Promise<void> | null = null
   private readonly autoReviewService: DesktopAutoReviewService
   private permissionProfile: string
   private approvalPolicy: DesktopApprovalPolicy
@@ -430,6 +431,13 @@ class LocalDesktopAgentSession
   }
 
   async dispose(): Promise<void> {
+    if (!this.disposePromise) {
+      this.disposePromise = this.disposeOnce()
+    }
+    await this.disposePromise
+  }
+
+  private async disposeOnce(): Promise<void> {
     this.disposed = true
     for (const [requestId, pending] of this.pendingPermissions) {
       this.pendingPermissions.delete(requestId)
@@ -441,6 +449,7 @@ class LocalDesktopAgentSession
     this.currentAbortController?.abort()
     this.emitEvent({ type: 'done', sessionId: this.sessionId })
     this.removeAllListeners()
+    await this.runtime.dispose()
   }
 
   getMcpRuntimeStatus() {

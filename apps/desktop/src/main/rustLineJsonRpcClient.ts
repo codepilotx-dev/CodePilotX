@@ -31,6 +31,7 @@ export class RustLineJsonRpcClient {
   >()
   private readonly lines: Interface
   private closed = false
+  private fatalError: Error | null = null
 
   constructor(
     private readonly streams: {
@@ -46,6 +47,7 @@ export class RustLineJsonRpcClient {
     this.lines.on('close', () =>
       this.rejectAll(new Error('Rust JSON-RPC input closed')),
     )
+    streams.output.on('error', error => this.failTransport(error))
   }
 
   sendNotification(method: string, params?: unknown): void {
@@ -59,11 +61,7 @@ export class RustLineJsonRpcClient {
     if (params !== undefined) {
       message.params = params
     }
-    this.streams.output.write(`${JSON.stringify(message)}\n`, error => {
-      if (error) {
-        throw error
-      }
-    })
+    this.writeMessage(message)
   }
 
   sendRequest(method: string, params: unknown): Promise<unknown> {
@@ -79,11 +77,7 @@ export class RustLineJsonRpcClient {
     }
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject })
-      this.streams.output.write(`${JSON.stringify(message)}\n`, error => {
-        if (!error) return
-        this.pending.delete(id)
-        reject(error)
-      })
+      this.writeMessage(message)
     })
   }
 
@@ -147,11 +141,7 @@ export class RustLineJsonRpcClient {
       id,
       result,
     }
-    this.streams.output.write(`${JSON.stringify(message)}\n`, error => {
-      if (error) {
-        throw error
-      }
-    })
+    this.writeMessage(message)
   }
 
   close(): void {
@@ -268,6 +258,23 @@ export class RustLineJsonRpcClient {
     }
     this.pending.clear()
   }
+
+  private writeMessage(message: Record<string, unknown>): void {
+    if (this.closed) return
+    try {
+      this.streams.output.write(`${JSON.stringify(message)}\n`, error => {
+        if (error) this.failTransport(error)
+      })
+    } catch (error) {
+      this.failTransport(toError(error))
+    }
+  }
+
+  private failTransport(error: Error): void {
+    if (this.fatalError) return
+    this.fatalError = error
+    this.rejectAll(error)
+  }
 }
 
 function jsonRpcError(error: JsonRpcErrorObject): Error {
@@ -279,4 +286,8 @@ function jsonRpcError(error: JsonRpcErrorObject): Error {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function toError(value: unknown): Error {
+  return value instanceof Error ? value : new Error(String(value))
 }

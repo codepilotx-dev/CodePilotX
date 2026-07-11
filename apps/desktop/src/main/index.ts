@@ -114,6 +114,7 @@ import {
 } from './desktopSessionCatalog.js'
 import {
   disposeDesktopSession,
+  disposeDesktopSessionRuntimes,
   removeDesktopSessionLocalState,
   removeSessionIndexWithRetry as retrySessionIndexRemoval,
 } from './desktopSessionRemoval.js'
@@ -1676,10 +1677,13 @@ async function disposeSession(sessionId: string): Promise<void> {
   })
 }
 
-function disposeAllSessions(): void {
-  for (const record of sessions.values()) {
-    void record.session?.dispose()
-  }
+async function disposeAllSessions(): Promise<void> {
+  await disposeDesktopSessionRuntimes(
+    [...sessions.values()]
+      .map(record => record.session)
+      .filter(session => session !== null)
+      .map(session => () => session!.dispose()),
+  )
 }
 
 async function getSessionRecord(sessionId: string): Promise<DesktopSessionRecord> {
@@ -1970,14 +1974,13 @@ app.on('before-quit', event => {
   if (!quittingAfterSessionStoreFlush) {
     event.preventDefault()
     quittingAfterSessionStoreFlush = true
-    disposeAllSessions()
     void rolloutWriteScheduler.flush().finally(async () => {
       await flushSessionStorePersistence()
+      await disposeAllSessions()
       app.quit()
     })
     return
   }
   void desktopBrowserDebugBridgeServer?.close()
   debugToolProbeService.cleanup()
-  disposeAllSessions()
 })

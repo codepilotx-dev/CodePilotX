@@ -1,5 +1,11 @@
 export const SESSION_INDEX_REMOVAL_RETRY_DELAYS_MS = [0, 100, 500] as const
 
+export async function disposeDesktopSessionRuntimes(
+  disposers: Iterable<() => Promise<void>>,
+): Promise<void> {
+  await Promise.all([...disposers].map(dispose => dispose()))
+}
+
 type RemoveDesktopSessionLocalStateOptions = {
   sessionId: string
   removeIndex: (sessionId: string) => Promise<void>

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
+import { EventEmitter } from 'node:events'
 import {
   CODEPILOTX_CONFIG_DIR_ENV,
   LEGACY_CLAUDE_CONFIG_DIR_ENV,
@@ -90,6 +91,23 @@ describe('rust sidecar runtime options', () => {
     expect(resolveRustAppServerExecutableInfo({} as NodeJS.ProcessEnv)).toEqual({
       path: resolve(process.cwd(), 'rust', 'codex-rs', 'target', 'debug', binaryName),
       source: 'workspace',
+    })
+  })
+
+  test('packaged resolver only uses the resources sidecar path', () => {
+    const binaryName = process.platform === 'win32'
+      ? 'codepilotx-app-server.exe'
+      : 'codepilotx-app-server'
+    const resourcesPath = resolve('tmp', 'packaged-resources')
+
+    expect(
+      resolveRustAppServerExecutableInfo(
+        { [RUST_APP_SERVER_BINARY_ENV]: resolve('rust', 'codex-rs', 'target', 'debug', binaryName) } as NodeJS.ProcessEnv,
+        { isPackaged: true, resourcesPath },
+      ),
+    ).toEqual({
+      path: resolve(resourcesPath, 'desktop-rust-sidecar', binaryName),
+      source: 'bundled',
     })
   })
 
@@ -1235,5 +1253,73 @@ describe('RustSidecarDesktopAgentRuntime input validation', () => {
         new AbortController().signal,
       ),
     ).rejects.toThrow('not supported')
+  })
+})
+
+describe('RustSidecarDesktopAgentRuntime lifecycle', () => {
+  test('failed turn emits only error and never resolves before rejecting', () => {
+    const events: unknown[] = []
+    let resolveCount = 0
+    let rejected: Error | undefined
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-terminal-error',
+      workspacePath: process.cwd(),
+      emit: event => events.push(event),
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const internals = runtime as unknown as {
+      currentTurnResolve: () => void
+      currentTurnReject: (error: Error) => void
+      handleNotification: (method: string, params: unknown) => void
+    }
+    internals.currentTurnResolve = () => {
+      resolveCount += 1
+    }
+    internals.currentTurnReject = error => {
+      rejected = error
+    }
+
+    internals.handleNotification('error', { error: { message: 'turn failed' } })
+    internals.handleNotification('turn/completed', {
+      turn: { id: 'turn-1', status: 'completed' },
+    })
+
+    expect(events).toEqual([
+      { type: 'error', sessionId: 'test-terminal-error', message: 'turn failed' },
+    ])
+    expect(resolveCount).toBe(0)
+    expect(rejected?.message).toBe('turn failed')
+  })
+
+  test('dispose is idempotent and waits for the child exit', async () => {
+    const child = new EventEmitter() as EventEmitter & {
+      killed: boolean
+      kill: ReturnType<typeof mock>
+    }
+    child.killed = false
+    child.kill = mock(() => {
+      child.killed = true
+      return true
+    })
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-dispose',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    ;(runtime as unknown as { child: typeof child }).child = child
+
+    let settled = false
+    const first = runtime.dispose().then(() => {
+      settled = true
+    })
+    const second = runtime.dispose()
+    await Promise.resolve()
+    expect(settled).toBe(false)
+    expect(child.kill).toHaveBeenCalledTimes(1)
+
+    child.emit('exit', 0, null)
+    await Promise.all([first, second])
+    expect(child.kill).toHaveBeenCalledTimes(1)
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { PassThrough } from 'node:stream'
+import { PassThrough, Writable } from 'node:stream'
 import { RustLineJsonRpcClient } from './rustLineJsonRpcClient.js'
 
 describe('RustLineJsonRpcClient', () => {
@@ -99,6 +99,28 @@ describe('RustLineJsonRpcClient', () => {
     input.end()
 
     await expect(resultPromise).rejects.toThrow('closed')
+  })
+
+  test('EPIPE rejects every pending request without an uncaught stream error', async () => {
+    const input = new PassThrough()
+    const output = new Writable({
+      write(_chunk, _encoding, callback) {
+        queueMicrotask(() => {
+          callback(Object.assign(new Error('broken pipe'), { code: 'EPIPE' }))
+        })
+      },
+    })
+    const client = new RustLineJsonRpcClient({ input, output })
+
+    const first = client.sendRequest('initialize', {})
+    const second = client.sendRequest('thread/start', {})
+
+    const results = await Promise.allSettled([first, second])
+
+    expect(results).toEqual([
+      expect.objectContaining({ status: 'rejected', reason: expect.objectContaining({ message: 'broken pipe' }) }),
+      expect.objectContaining({ status: 'rejected', reason: expect.objectContaining({ message: 'broken pipe' }) }),
+    ])
   })
 
   test('onAnyNotification receives all notifications regardless of method', async () => {
