@@ -43,8 +43,10 @@ import {
 } from "../../components/ui/iconTokens.js";
 import type {
   DesktopPermissionMode,
+  DesktopQueuedFollowUp,
   DesktopSessionStatus,
   DesktopThinkingMode,
+  DesktopThreadGoal,
   DesktopWorkspace,
   DesktopContextUsage,
   DesktopComposerAttachment,
@@ -56,6 +58,7 @@ import type { ModelPreset } from "../../modelPresets.js";
 import { ChipButton } from "../../components/ui/ChipButton.js";
 import { IconButton } from "../../components/ui/IconButton.js";
 import { MetaChip } from "../../components/ui/MetaChip.js";
+import { SessionFollowUpDock } from "./SessionFollowUpDock.js";
 import { PopoverItem } from "../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../components/ui/PopoverMenu.js";
 import { preventOutsideDismissWhenDebug } from "../../components/ui/debugDropdown.js";
@@ -84,7 +87,8 @@ type ComposerDropdown =
   | "project"
   | "mode"
   | "branch"
-  | "status";
+  | "status"
+  | "goal";
 
 type ContextPluginTone =
   | "docs"
@@ -266,6 +270,15 @@ type Props = {
   routedSessionId?: string | null;
   contextDropdownSide?: "top" | "bottom";
   debugMode?: boolean;
+  queuedFollowUps?: DesktopQueuedFollowUp[];
+  onFollowUpEdit?: (followUpId: string) => void;
+  onFollowUpRemove?: (followUpId: string) => void;
+  onFollowUpSendNow?: (followUpId: string) => void;
+  threadGoal?: DesktopThreadGoal | null;
+  onGoalPause?: () => void;
+  onGoalResume?: () => void;
+  onGoalComplete?: () => void;
+  onGoalClear?: () => void;
 };
 
 export function ComposerCard({
@@ -325,6 +338,15 @@ export function ComposerCard({
   routedSessionId,
   contextDropdownSide = "top",
   debugMode = false,
+  queuedFollowUps,
+  onFollowUpEdit,
+  onFollowUpRemove,
+  onFollowUpSendNow,
+  threadGoal,
+  onGoalPause,
+  onGoalResume,
+  onGoalComplete,
+  onGoalClear,
 }: Props): React.ReactNode {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(
@@ -1663,6 +1685,88 @@ export function ComposerCard({
               </div>
             </PopoverMenu>
 
+            {threadGoal ? (
+              <PopoverMenu
+                className="popover-goal"
+                disableOutsideDismiss={debugMode}
+                open={openDropdown === "goal"}
+                side="top"
+                width={200}
+                onOpenChange={(open) => setOpenDropdown(open ? "goal" : null)}
+                trigger={
+                  <MetaChip
+                    active={openDropdown === "goal"}
+                    icon={<Target size={APP_ICON_SIZE} />}
+                    label={
+                      threadGoal.status === "active"
+                        ? "目标运行中"
+                        : threadGoal.status === "paused"
+                          ? "目标已暂停"
+                          : threadGoal.status === "complete"
+                            ? "目标已完成"
+                            : "目标"
+                    }
+                    title={threadGoal.objective}
+                  />
+                }
+              >
+                <div className="popover-header">目标</div>
+                <div className="popover-section">
+                  <div className="popover-item-text">{threadGoal.objective}</div>
+                  <div className="popover-item-meta">
+                    已用 Tokens: {threadGoal.tokensUsed}
+                    {threadGoal.timeUsedSeconds > 0
+                      ? ` | 用时: ${Math.round(threadGoal.timeUsedSeconds / 60)}分`
+                      : ""}
+                  </div>
+                </div>
+                <div className="popover-section">
+                  {threadGoal.status === "active" ? (
+                    <PopoverItem
+                      icon={<Target size={APP_ICON_SIZE} />}
+                      onClick={() => {
+                        closeDropdown()
+                        onGoalPause?.()
+                      }}
+                    >
+                      暂停
+                    </PopoverItem>
+                  ) : null}
+                  {threadGoal.status === "paused" ? (
+                    <PopoverItem
+                      icon={<Target size={APP_ICON_SIZE} />}
+                      onClick={() => {
+                        closeDropdown()
+                        onGoalResume?.()
+                      }}
+                    >
+                      继续
+                    </PopoverItem>
+                  ) : null}
+                  {threadGoal.status !== "complete" ? (
+                    <PopoverItem
+                      icon={<Check size={APP_ICON_SIZE} />}
+                      onClick={() => {
+                        closeDropdown()
+                        onGoalComplete?.()
+                      }}
+                    >
+                      标记完成
+                    </PopoverItem>
+                  ) : null}
+                  <PopoverItem
+                    icon={<X size={APP_ICON_SIZE} />}
+                    onClick={() => {
+                      closeDropdown()
+                      onGoalClear?.()
+                    }}
+                  >
+                    清除目标
+                  </PopoverItem>
+                </div>
+              </PopoverMenu>
+            ) : null}
+
             <BranchSelectPopover
               branchSearch={branchSearch}
               branches={branches}
@@ -1688,6 +1792,13 @@ export function ComposerCard({
           </>
         ) : null}
       </div>
+
+      <SessionFollowUpDock
+        items={queuedFollowUps ?? []}
+        onEdit={onFollowUpEdit ?? (() => {})}
+        onRemove={onFollowUpRemove ?? (() => {})}
+        onSendNow={onFollowUpSendNow ?? (() => {})}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { desktopClient } from '../../services/desktopClient.js'
 ﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type {
+  DesktopFollowUpBehavior,
   DesktopPermissionDecision,
   LocalRouterMode,
   ModelProviderID,
@@ -172,26 +173,32 @@ export async function submitSessionMessageAction(
   canSubmit: boolean,
   settings: SessionSettingsSnapshot,
   setInput: (value: string) => void,
+  options?: {
+    sessionStatus?: DesktopSessionStatus
+    followUpBehavior?: DesktopFollowUpBehavior
+    followUpOverride?: DesktopFollowUpBehavior
+  },
 ): Promise<void> {
-  const trimmed = input.text.trim()
-  const attachments = input.attachments ?? []
   if (!canSubmit || !sessionId) return
+  const isActive = options?.sessionStatus === 'running' || options?.sessionStatus === 'waiting'
   setInput('')
   try {
-    await desktopClient.sendUserMessage(
-      sessionId,
-      {
-        text: trimmed,
-        attachments,
-      },
-      {
-        providerID: settings.providerID,
-        providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
-        model: normalizeOptionalText(settings.model),
-        debugConversationDump: settings.debugConversationDump,
-        localRouterMode: settings.localRouterMode === 'off' ? undefined : settings.localRouterMode,
-      },
-    )
+    if (isActive) {
+      const behavior = options?.followUpOverride ?? options?.followUpBehavior ?? 'steer'
+      await desktopClient.submitSessionFollowUp(sessionId, input, behavior)
+    } else {
+      await desktopClient.sendUserMessage(
+        sessionId,
+        input,
+        {
+          providerID: settings.providerID,
+          providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
+          model: normalizeOptionalText(settings.model),
+          debugConversationDump: settings.debugConversationDump,
+          localRouterMode: settings.localRouterMode === 'off' ? undefined : settings.localRouterMode,
+        },
+      )
+    }
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))
     setInput(desktopUserMessageInputToPreviewText(input))

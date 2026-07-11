@@ -691,6 +691,39 @@ function createBrowserMockDesktopClient(): DesktopApi {
       items: [],
     }),
     cancelDebugToolProbe: async () => {},
+    submitSessionFollowUp: async () => 'queued' as const,
+    updateQueuedFollowUp: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
+    removeQueuedFollowUp: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
+    sendQueuedFollowUpNow: async () => {},
+    compactSession: async () => {},
+    rollbackSession: async () => ({
+      snapshot: mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
+      restoredFiles: [],
+    }),
+    getSessionGoal: async () => null,
+    setSessionGoal: async () => ({
+      threadId: 'mock',
+      objective: '',
+      status: 'active',
+      tokenBudget: null,
+      tokensUsed: 0,
+      timeUsedSeconds: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }),
+    clearSessionGoal: async () => true,
+    startSessionReview: async () => {},
+    listRuntimePermissionProfiles: async () => ({
+      state: 'unavailable',
+      data: null,
+      error: 'Browser mock does not support catalog queries.',
+    }),
+    setSessionPermissionProfile: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
+    listRuntimeSkills: async () => ({
+      state: 'unavailable',
+      data: null,
+      error: 'Browser mock does not support catalog queries.',
+    }),
   }
 
   function emitSessionStoreChange(): void {

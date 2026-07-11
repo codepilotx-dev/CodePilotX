@@ -6,9 +6,11 @@ import type {
   DesktopContextUsage,
   DesktopModelMetadata,
   DesktopPermissionMode,
+  DesktopQueuedFollowUp,
   DesktopSlashCommandSuggestion,
   DesktopSessionStatus,
   DesktopThinkingMode,
+  DesktopThreadGoal,
   DesktopUserMessageInput,
   DesktopWorkspace,
   LocalRouterMode,
@@ -89,6 +91,15 @@ type Props = {
     targetSessionId: string,
     value: DesktopUserMessageInput,
   ) => Promise<void>
+  queuedFollowUps?: DesktopQueuedFollowUp[]
+  onFollowUpEdit?: (followUpId: string) => void
+  onFollowUpRemove?: (followUpId: string) => void
+  onFollowUpSendNow?: (followUpId: string) => void
+  threadGoal?: DesktopThreadGoal | null
+  onGoalPause?: () => void
+  onGoalResume?: () => void
+  onGoalComplete?: () => void
+  onGoalClear?: () => void
 }
 
 export function DesktopComposer({
@@ -139,6 +150,15 @@ export function DesktopComposer({
   onThinkingChange,
   createSessionForWorkspace,
   submitToSession,
+  queuedFollowUps,
+  onFollowUpEdit,
+  onFollowUpRemove,
+  onFollowUpSendNow,
+  threadGoal,
+  onGoalPause,
+  onGoalResume,
+  onGoalComplete,
+  onGoalClear,
 }: Props): React.ReactNode {
   const navigate = useNavigate()
   const [goalModeEnabled, setGoalModeEnabled] = useState(false)
@@ -220,46 +240,60 @@ export function DesktopComposer({
     }
   }, [input, workspace?.path])
 
-  function handleSubmit(): void {
-    void (async () => {
-      if (!modelConfigured) return
-      const skillPrefix = selectedSkillToken
-        ? `[${selectedSkillToken.name}](${selectedSkillToken.skillPath})`
-        : ''
-      let submittedInput = skillPrefix
-        ? `${skillPrefix} ${input}`
-        : input
+	  function handleSubmit(): void {
+	    void (async () => {
+	      if (!modelConfigured) return
 
-      // Goal mode: wrap with strict execution instructions
-      if (goalModeEnabled) {
-        submittedInput = buildGoalModePrompt(submittedInput)
-        // Switch to plan execution model if configured
-        if (planExecutionModel) {
-          const slashIdx = planExecutionModel.indexOf('/')
-          if (slashIdx > 0 && slashIdx < planExecutionModel.length - 1) {
-            const providerID = planExecutionModel.slice(0, slashIdx) as ModelProviderID
-            const modelPresetID = planExecutionModel.slice(slashIdx + 1)
-            onProviderModelChange(providerID, modelPresetID)
-          }
-        }
-      }
-
-      const submittedAttachments = attachments
-      const messageInput = {
-        text: submittedInput,
-        attachments: submittedAttachments,
-      }
-      setSelectedSkillToken(null)
-      setGoalModeEnabled(false)
-      if (isQuickChatPage) {
-        onInputChange('')
-        onAttachmentsChange([])
-        const sessionName = selectedSkillToken
-          ? `$${selectedSkillToken.name} ${input}`
-          : undefined
-        const nextSessionId = workspace
-          ? await createSessionForWorkspace(workspace, sessionName)
-          : await createSessionForWorkspace(null, sessionName)
+	      // Goal mode: use setSessionGoal instead of sending a user message
+	      if (goalModeEnabled && routedSessionId) {
+	        const goalText = input.trim()
+	        setSelectedSkillToken(null)
+	        setGoalModeEnabled(false)
+	        onInputChange('')
+	        onAttachmentsChange([])
+	        // Switch to plan execution model if configured before setting goal
+	        if (planExecutionModel) {
+	          const slashIdx = planExecutionModel.indexOf('/')
+	          if (slashIdx > 0 && slashIdx < planExecutionModel.length - 1) {
+	            const providerID = planExecutionModel.slice(0, slashIdx) as ModelProviderID
+	            const modelPresetID = planExecutionModel.slice(slashIdx + 1)
+	            onProviderModelChange(providerID, modelPresetID)
+	          }
+	        }
+	        try {
+	          await desktopClient.setSessionGoal(routedSessionId, {
+	            objective: goalText,
+	            status: 'active',
+	          })
+	        } catch (error) {
+	          console.error('Failed to set session goal:', error)
+	        }
+	        return
+	      }
+	
+	      const skillPrefix = selectedSkillToken
+	        ? `[${selectedSkillToken.name}](${selectedSkillToken.skillPath})`
+	        : ''
+	      const submittedInput = skillPrefix
+	        ? `${skillPrefix} ${input}`
+	        : input
+	
+	      const submittedAttachments = attachments
+	      const messageInput = {
+	        text: submittedInput,
+	        attachments: submittedAttachments,
+	      }
+	      setSelectedSkillToken(null)
+	      setGoalModeEnabled(false)
+	      if (isQuickChatPage) {
+	        onInputChange('')
+	        onAttachmentsChange([])
+	        const sessionName = selectedSkillToken
+	          ? `$${selectedSkillToken.name} ${input}`
+	          : undefined
+	        const nextSessionId = workspace
+	          ? await createSessionForWorkspace(workspace, sessionName)
+	          : await createSessionForWorkspace(null, sessionName)
         if (!nextSessionId) return
         navigate(sessionPath(nextSessionId))
         await submitToSession(nextSessionId, messageInput)
@@ -376,6 +410,15 @@ export function DesktopComposer({
       onSkillDeselect={handleSkillDeselect}
       routedSessionId={routedSessionId}
       contextDropdownSide={isQuickChatPage ? 'bottom' : 'top'}
+      queuedFollowUps={queuedFollowUps}
+      onFollowUpEdit={onFollowUpEdit}
+      onFollowUpRemove={onFollowUpRemove}
+      onFollowUpSendNow={onFollowUpSendNow}
+      threadGoal={threadGoal}
+      onGoalPause={onGoalPause}
+      onGoalResume={onGoalResume}
+      onGoalComplete={onGoalComplete}
+      onGoalClear={onGoalClear}
     />
   )
 }
@@ -424,16 +467,6 @@ function sessionPath(sessionId: string): string {
   return `/sessions/${encodeURIComponent(sessionId)}`
 }
 
-export const GOAL_MODE_SYSTEM_PROMPT = `You are in goal execution mode. Follow these instructions strictly:
-
-1. First read AGENTS.md and relevant code to understand the project context.
-2. Review the pasted plan/goal below before making any edits.
-3. If the plan is unclear, stale, unsafe, or conflicts with repository reality, ask targeted questions before implementing.
-4. Create or update task tracking from the plan.
-5. Execute in small stages.
-6. Use subagents for large independent investigation or review work.
-7. Verify your work before reporting completion.`
-
-export function buildGoalModePrompt(userText: string): string {
-  return `${GOAL_MODE_SYSTEM_PROMPT}\n\nThe user's goal/plan:\n---\n${userText}\n---`
-}
+// GOAL_MODE_SYSTEM_PROMPT and buildGoalModePrompt removed.
+// Goal mode now uses desktopClient.setSessionGoal() instead of
+// wrapping user text with system prompt instructions.
