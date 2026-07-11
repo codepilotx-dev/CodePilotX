@@ -2167,6 +2167,17 @@
       ],
       "type": "object"
     },
+    "ProviderAuthAppTokenParams": {
+      "properties": {
+        "providerId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "providerId"
+      ],
+      "type": "object"
+    },
     "ProviderAuthCancelLoginParams": {
       "properties": {
         "provider_id": {
@@ -7399,6 +7410,78 @@
         "params"
       ],
       "title": "ProviderAuth/statusClearRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "providerAuth/appTokenExchange"
+          ],
+          "title": "ProviderAuth/appTokenExchangeRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProviderAuthAppTokenParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "ProviderAuth/appTokenExchangeRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "providerAuth/appTokenRefresh"
+          ],
+          "title": "ProviderAuth/appTokenRefreshRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProviderAuthAppTokenParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "ProviderAuth/appTokenRefreshRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "providerAuth/appTokenStatus"
+          ],
+          "title": "ProviderAuth/appTokenStatusRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProviderAuthAppTokenParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "ProviderAuth/appTokenStatusRequest",
       "type": "object"
     },
     {

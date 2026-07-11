@@ -12,15 +12,18 @@ use codepilotx_app_server_protocol::{
     GithubProfileOrganization, GithubProfileOverview, GithubProfileRepository, GithubProfileUser,
     GithubUserStatus, JSONRPCErrorError, ProviderApiKeyDeleteParams, ProviderApiKeyDeleteResponse,
     ProviderApiKeyReadParams, ProviderApiKeyReadResponse, ProviderApiKeySaveParams,
-    ProviderApiKeySaveResponse, ProviderAuthCancelLoginParams, ProviderAuthCancelLoginResponse,
-    ProviderAuthLogoutParams, ProviderAuthLogoutResponse, ProviderAuthPollLoginParams,
-    ProviderAuthPollLoginResponse, ProviderAuthPollStatus, ProviderAuthProfileReadParams,
-    ProviderAuthProfileReadResponse, ProviderAuthReadStatusParams, ProviderAuthReadStatusResponse,
-    ProviderAuthStartLoginParams, ProviderAuthStartLoginResponse, ProviderAuthStatusClearParams,
-    ProviderAuthStatusClearResponse, ProviderAuthStatusSetParams, ProviderAuthStatusSetResponse,
-    ProviderBalanceInfo, ProviderBalanceParams, ProviderBalanceResponse, ProviderModelListParams,
-    ProviderModelListResponse, ProviderRepoCloneParams, ProviderRepoCloneResponse,
-    ProviderRepoInfo, ProviderRepoListParams, ProviderRepoListResponse, ProviderUserInfo,
+    ProviderApiKeySaveResponse, ProviderAuthAppTokenAccount, ProviderAuthAppTokenExchangeResponse,
+    ProviderAuthAppTokenParams, ProviderAuthAppTokenRefreshResponse,
+    ProviderAuthAppTokenStatusResponse, ProviderAuthCancelLoginParams,
+    ProviderAuthCancelLoginResponse, ProviderAuthLogoutParams, ProviderAuthLogoutResponse,
+    ProviderAuthPollLoginParams, ProviderAuthPollLoginResponse, ProviderAuthPollStatus,
+    ProviderAuthProfileReadParams, ProviderAuthProfileReadResponse, ProviderAuthReadStatusParams,
+    ProviderAuthReadStatusResponse, ProviderAuthStartLoginParams, ProviderAuthStartLoginResponse,
+    ProviderAuthStatusClearParams, ProviderAuthStatusClearResponse, ProviderAuthStatusSetParams,
+    ProviderAuthStatusSetResponse, ProviderBalanceInfo, ProviderBalanceParams,
+    ProviderBalanceResponse, ProviderModelListParams, ProviderModelListResponse,
+    ProviderRepoCloneParams, ProviderRepoCloneResponse, ProviderRepoInfo, ProviderRepoListParams,
+    ProviderRepoListResponse, ProviderUserInfo,
 };
 use codepilotx_keyring_store::{DefaultKeyringStore, KeyringStore};
 use serde::{Deserialize, Serialize};
@@ -58,6 +61,33 @@ struct StoredProviderToken {
 }
 
 const PROVIDER_AUTH_KEYRING_SERVICE: &str = "CodePilotX Provider Auth";
+const APP_TOKEN_KEYRING_SERVICE: &str = "CodePilotX App Auth";
+#[derive(Serialize, Deserialize, Clone)]
+struct StoredAppToken {
+    access_token: String,
+    refresh_token: Option<String>,
+    expires_at: Option<u64>,
+    scopes: Vec<String>,
+    account: Option<ProviderAuthAppTokenAccount>,
+}
+#[derive(Deserialize)]
+struct AppTokenWire {
+    access_token: String,
+    refresh_token: Option<String>,
+    expires_in: Option<u64>,
+    scope: Option<String>,
+    account: Option<AppAccountWire>,
+    organization: Option<AppOrgWire>,
+}
+#[derive(Deserialize)]
+struct AppAccountWire {
+    uuid: String,
+    email_address: String,
+}
+#[derive(Deserialize)]
+struct AppOrgWire {
+    uuid: String,
+}
 
 trait CredentialsWriter: Send + Sync {
     fn write(&self, path: &Path, contents: &[u8]) -> std::io::Result<()>;
@@ -95,6 +125,8 @@ pub(crate) struct ProviderAuthRequestProcessor {
     credentials_writer: Arc<dyn CredentialsWriter>,
     github_graphql_endpoint: String,
     github_graphql_timeout: Duration,
+    app_auth_base_url: String,
+    app_auth_timeout: Duration,
 }
 
 impl ProviderAuthRequestProcessor {
@@ -172,6 +204,8 @@ impl ProviderAuthRequestProcessor {
             credentials_writer,
             github_graphql_endpoint: "https://api.github.com/graphql".into(),
             github_graphql_timeout: Duration::from_secs(30),
+            app_auth_base_url: "https://auth.codepilotx.com".into(),
+            app_auth_timeout: Duration::from_secs(30),
         }
     }
     #[cfg(test)]
@@ -997,6 +1031,158 @@ impl ProviderAuthRequestProcessor {
                 ))
             })?;
         Ok(())
+    }
+
+    #[cfg(test)]
+    fn with_app_auth_endpoint(mut self, endpoint: String) -> Self {
+        self.app_auth_base_url = endpoint;
+        self
+    }
+    #[cfg(test)]
+    fn with_app_auth_timeout(mut self, timeout: Duration) -> Self {
+        self.app_auth_timeout = timeout;
+        self
+    }
+    pub(crate) async fn app_token_exchange(
+        &self,
+        p: ProviderAuthAppTokenParams,
+    ) -> Result<ProviderAuthAppTokenExchangeResponse, JSONRPCErrorError> {
+        let github = self.require_token(&p.provider_id).await?;
+        let token=self.request_app_token("api/auth/github/exchange",serde_json::json!({"github_access_token":github.access_token,"github_user":{"login":github.user.login,"name":github.user.name,"avatar_url":github.user.avatar_url},"client":"desktop"})).await?;
+        self.save_app_token(&p.provider_id, &token)?;
+        Ok(ProviderAuthAppTokenExchangeResponse {
+            authenticated: true,
+            expires_at: token.expires_at,
+            scopes: token.scopes.clone(),
+            account: token.account.clone(),
+        })
+    }
+    pub(crate) async fn app_token_refresh(
+        &self,
+        p: ProviderAuthAppTokenParams,
+    ) -> Result<ProviderAuthAppTokenRefreshResponse, JSONRPCErrorError> {
+        let old = self
+            .load_app_token(&p.provider_id)?
+            .ok_or_else(|| invalid_request("CodePilotX app token is not available"))?;
+        let refresh = old
+            .refresh_token
+            .clone()
+            .ok_or_else(|| invalid_request("CodePilotX refresh token is not available"))?;
+        let mut token = self
+            .request_app_token(
+                "api/auth/token",
+                serde_json::json!({"grant_type":"refresh_token","refresh_token":refresh}),
+            )
+            .await?;
+        if token.refresh_token.is_none() {
+            token.refresh_token = old.refresh_token;
+        }
+        self.save_app_token(&p.provider_id, &token)?;
+        Ok(ProviderAuthAppTokenRefreshResponse {
+            authenticated: true,
+            expires_at: token.expires_at,
+            scopes: token.scopes.clone(),
+            account: token.account.clone(),
+        })
+    }
+    pub(crate) async fn app_token_status(
+        &self,
+        p: ProviderAuthAppTokenParams,
+    ) -> Result<ProviderAuthAppTokenStatusResponse, JSONRPCErrorError> {
+        Ok(match self.load_app_token(&p.provider_id)? {
+            Some(t) => ProviderAuthAppTokenStatusResponse {
+                authenticated: true,
+                expires_at: t.expires_at,
+                scopes: t.scopes,
+                account: t.account,
+            },
+            None => ProviderAuthAppTokenStatusResponse {
+                authenticated: false,
+                expires_at: None,
+                scopes: vec![],
+                account: None,
+            },
+        })
+    }
+    async fn request_app_token(
+        &self,
+        path: &str,
+        body: serde_json::Value,
+    ) -> Result<StoredAppToken, JSONRPCErrorError> {
+        if !self.app_auth_base_url.starts_with("https://")
+            && !(cfg!(test) && self.app_auth_base_url.starts_with("http://127.0.0.1:"))
+        {
+            return Err(invalid_request("CodePilotX authentication requires HTTPS"));
+        }
+        let response = reqwest::Client::builder()
+            .timeout(self.app_auth_timeout)
+            .build()
+            .map_err(|_| internal_error("CodePilotX authentication client failed"))?
+            .post(format!(
+                "{}/{}",
+                self.app_auth_base_url.trim_end_matches('/'),
+                path
+            ))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|_| internal_error("CodePilotX authentication request failed"))?;
+        if !response.status().is_success() {
+            return Err(internal_error(format!(
+                "CodePilotX authentication failed ({})",
+                response.status().as_u16()
+            )));
+        }
+        let w: AppTokenWire = response.json().await.map_err(|_| {
+            internal_error("CodePilotX authentication returned an invalid response")
+        })?;
+        if w.access_token.trim().is_empty() {
+            return Err(internal_error(
+                "CodePilotX authentication response did not include an access token",
+            ));
+        }
+        let account = match (w.account, w.organization) {
+            (Some(a), o) => Some(ProviderAuthAppTokenAccount {
+                uuid: a.uuid,
+                email_address: a.email_address,
+                organization_uuid: o.map(|v| v.uuid),
+            }),
+            (None, None) => None,
+            (None, Some(_)) => {
+                return Err(internal_error(
+                    "CodePilotX authentication response account is invalid",
+                ));
+            }
+        };
+        Ok(StoredAppToken {
+            access_token: w.access_token,
+            refresh_token: w.refresh_token.filter(|v| !v.is_empty()),
+            expires_at: w
+                .expires_in
+                .map(|v| timestamp_millis().saturating_add(v.saturating_mul(1000))),
+            scopes: w
+                .scope
+                .map(|s| s.split_whitespace().map(str::to_owned).collect())
+                .unwrap_or_else(|| vec!["user:inference".into()]),
+            account,
+        })
+    }
+    fn load_app_token(&self, id: &str) -> Result<Option<StoredAppToken>, JSONRPCErrorError> {
+        self.keyring
+            .load(APP_TOKEN_KEYRING_SERVICE, id)
+            .map_err(|e| keyring_error("read app token", e))?
+            .map(|v| {
+                serde_json::from_str(&v)
+                    .map_err(|_| internal_error("Stored CodePilotX app token is invalid"))
+            })
+            .transpose()
+    }
+    fn save_app_token(&self, id: &str, t: &StoredAppToken) -> Result<(), JSONRPCErrorError> {
+        let value = serde_json::to_string(t)
+            .map_err(|_| internal_error("Failed to serialize CodePilotX app token"))?;
+        self.keyring
+            .save(APP_TOKEN_KEYRING_SERVICE, id, &value)
+            .map_err(|e| keyring_error("save app token", e))
     }
 
     async fn require_token(
@@ -1856,6 +2042,45 @@ mod tests {
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
+    #[derive(Debug)]
+    struct FailAppSaveKeyring {
+        provider: String,
+        app: StdMutex<Option<String>>,
+    }
+    impl KeyringStore for FailAppSaveKeyring {
+        fn load(
+            &self,
+            service: &str,
+            _account: &str,
+        ) -> Result<Option<String>, codepilotx_keyring_store::CredentialStoreError> {
+            Ok(if service == PROVIDER_AUTH_KEYRING_SERVICE {
+                Some(self.provider.clone())
+            } else {
+                self.app.lock().unwrap().clone()
+            })
+        }
+        fn save(
+            &self,
+            service: &str,
+            _account: &str,
+            value: &str,
+        ) -> Result<(), codepilotx_keyring_store::CredentialStoreError> {
+            if service == APP_TOKEN_KEYRING_SERVICE {
+                return Err(codepilotx_keyring_store::CredentialStoreError::new(
+                    KeyringError::NoStorageAccess(Box::new(std::io::Error::other("denied"))),
+                ));
+            }
+            *self.app.lock().unwrap() = Some(value.into());
+            Ok(())
+        }
+        fn delete(
+            &self,
+            _: &str,
+            _: &str,
+        ) -> Result<bool, codepilotx_keyring_store::CredentialStoreError> {
+            Ok(false)
+        }
+    }
 
     fn stored_token(provider_id: &str) -> StoredProviderToken {
         StoredProviderToken {
@@ -1888,6 +2113,200 @@ mod tests {
             Arc::new(keyring),
         )
         .with_github_graphql_endpoint(format!("{}/graphql", server.uri()))
+    }
+    fn stored_app_token(access: &str, refresh: Option<&str>) -> StoredAppToken {
+        StoredAppToken {
+            access_token: access.into(),
+            refresh_token: refresh.map(str::to_owned),
+            expires_at: Some(1),
+            scopes: vec!["user:inference".into()],
+            account: None,
+        }
+    }
+    #[tokio::test]
+    async fn app_token_exchange_is_secure() {
+        let s = MockServer::start().await;
+        Mock::given(method("POST")).and(path("/api/auth/github/exchange")).respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"access_token":"sentinel-app-access","refresh_token":"sentinel-app-refresh","expires_in":3600,"account":{"uuid":"a","email_address":"e"}}))).mount(&s).await;
+        let p = github_processor(&s).with_app_auth_endpoint(s.uri());
+        let r = p
+            .app_token_exchange(ProviderAuthAppTokenParams {
+                provider_id: "github-repositories".into(),
+            })
+            .await
+            .unwrap();
+        let out = serde_json::to_string(&r).unwrap();
+        assert!(!out.contains("sentinel-app"));
+        assert!(
+            String::from_utf8_lossy(&s.received_requests().await.unwrap()[0].body)
+                .contains("sentinel-github-token")
+        );
+    }
+    #[tokio::test]
+    async fn app_token_errors_do_not_leak_body() {
+        let s = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(401).set_body_string("sentinel-server-secret"))
+            .mount(&s)
+            .await;
+        let e = github_processor(&s)
+            .with_app_auth_endpoint(s.uri())
+            .app_token_exchange(ProviderAuthAppTokenParams {
+                provider_id: "github-repositories".into(),
+            })
+            .await
+            .unwrap_err();
+        assert!(e.message.contains("401"));
+        assert!(!e.message.contains("sentinel"));
+    }
+    #[tokio::test]
+    async fn app_token_timeout_is_redacted() {
+        let s = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_delay(Duration::from_millis(50)))
+            .mount(&s)
+            .await;
+        assert!(
+            github_processor(&s)
+                .with_app_auth_endpoint(s.uri())
+                .with_app_auth_timeout(Duration::from_millis(5))
+                .app_token_exchange(ProviderAuthAppTokenParams {
+                    provider_id: "github-repositories".into()
+                })
+                .await
+                .is_err()
+        );
+    }
+    #[tokio::test]
+    async fn app_token_refresh_failure_preserves_old_token() {
+        let s = MockServer::start().await;
+        let p = github_processor(&s).with_app_auth_endpoint(s.uri());
+        p.save_app_token(
+            "github-repositories",
+            &stored_app_token("old-access", Some("old-refresh")),
+        )
+        .unwrap();
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&s)
+            .await;
+        assert!(
+            p.app_token_refresh(ProviderAuthAppTokenParams {
+                provider_id: "github-repositories".into()
+            })
+            .await
+            .is_err()
+        );
+        assert_eq!(
+            p.load_app_token("github-repositories")
+                .unwrap()
+                .unwrap()
+                .access_token,
+            "old-access"
+        );
+    }
+    #[tokio::test]
+    async fn app_token_refresh_retains_or_rotates_refresh_token() {
+        for (returned, expected) in [(None, "old-refresh"), (Some("new-refresh"), "new-refresh")] {
+            let s = MockServer::start().await;
+            Mock::given(method("POST"))
+                .and(path("/api/auth/token"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "access_token":"new-access", "refresh_token":returned, "expires_in":60
+                })))
+                .mount(&s)
+                .await;
+            let p = github_processor(&s).with_app_auth_endpoint(s.uri());
+            p.save_app_token(
+                "github-repositories",
+                &stored_app_token("old-access", Some("old-refresh")),
+            )
+            .unwrap();
+            p.app_token_refresh(ProviderAuthAppTokenParams {
+                provider_id: "github-repositories".into(),
+            })
+            .await
+            .unwrap();
+            assert_eq!(
+                p.load_app_token("github-repositories")
+                    .unwrap()
+                    .unwrap()
+                    .refresh_token
+                    .as_deref(),
+                Some(expected)
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn app_token_exchange_rejects_malformed_json() {
+        let s = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("sentinel-not-json"))
+            .mount(&s)
+            .await;
+        let e = github_processor(&s)
+            .with_app_auth_endpoint(s.uri())
+            .app_token_exchange(ProviderAuthAppTokenParams {
+                provider_id: "github-repositories".into(),
+            })
+            .await
+            .unwrap_err();
+        assert!(!e.message.contains("sentinel"));
+    }
+    #[tokio::test]
+    async fn app_token_keyring_write_failure_is_reported_without_secret() {
+        let s = MockServer::start().await;
+        Mock::given(method("POST")).respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"access_token":"sentinel-new-access","refresh_token":"sentinel-new-refresh"}))).mount(&s).await;
+        let home = tempfile::tempdir().unwrap();
+        let keyring = FailAppSaveKeyring {
+            provider: serde_json::to_string(&stored_token("github-repositories")).unwrap(),
+            app: StdMutex::new(Some(
+                serde_json::to_string(&stored_app_token("old-access", Some("old-refresh")))
+                    .unwrap(),
+            )),
+        };
+        let p = ProviderAuthRequestProcessor::new_with_keyring(
+            home.path().into(),
+            home.path().into(),
+            Arc::new(keyring),
+        )
+        .with_app_auth_endpoint(s.uri());
+        let e = p
+            .app_token_exchange(ProviderAuthAppTokenParams {
+                provider_id: "github-repositories".into(),
+            })
+            .await
+            .unwrap_err();
+        assert!(!e.message.contains("sentinel"));
+        assert!(e.message.contains("secure storage"));
+        assert_eq!(
+            p.load_app_token("github-repositories")
+                .unwrap()
+                .unwrap()
+                .access_token,
+            "old-access"
+        );
+    }
+    #[tokio::test]
+    async fn app_token_keyring_read_failure_is_reported() {
+        let home = tempfile::tempdir().unwrap();
+        let keyring = MockKeyringStore::default();
+        keyring.set_error(
+            "github-repositories",
+            KeyringError::NoStorageAccess(Box::new(std::io::Error::other("denied"))),
+        );
+        let p = ProviderAuthRequestProcessor::new_with_keyring(
+            home.path().into(),
+            home.path().into(),
+            Arc::new(keyring),
+        );
+        let e = p
+            .app_token_status(ProviderAuthAppTokenParams {
+                provider_id: "github-repositories".into(),
+            })
+            .await
+            .unwrap_err();
+        assert!(e.message.contains("secure storage"));
     }
 
     #[tokio::test]

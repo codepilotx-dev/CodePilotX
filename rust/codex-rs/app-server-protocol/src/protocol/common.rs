@@ -1211,6 +1211,9 @@ FuzzyFileSearchSessionUpdate => "fuzzyFileSearch/sessionUpdate" {
     ProviderAuthProfileRead => "providerAuth/profileRead" { params: v2::ProviderAuthProfileReadParams, serialization: None, response: v2::ProviderAuthProfileReadResponse, },
     ProviderAuthStatusSet => "providerAuth/statusSet" { params: v2::ProviderAuthStatusSetParams, serialization: None, response: v2::ProviderAuthStatusSetResponse, },
     ProviderAuthStatusClear => "providerAuth/statusClear" { params: v2::ProviderAuthStatusClearParams, serialization: None, response: v2::ProviderAuthStatusClearResponse, },
+    ProviderAuthAppTokenExchange => "providerAuth/appTokenExchange" { params: v2::ProviderAuthAppTokenParams, serialization: None, response: v2::ProviderAuthAppTokenExchangeResponse, },
+    ProviderAuthAppTokenRefresh => "providerAuth/appTokenRefresh" { params: v2::ProviderAuthAppTokenParams, serialization: None, response: v2::ProviderAuthAppTokenRefreshResponse, },
+    ProviderAuthAppTokenStatus => "providerAuth/appTokenStatus" { params: v2::ProviderAuthAppTokenParams, serialization: None, response: v2::ProviderAuthAppTokenStatusResponse, },
     /// Read provider API key configuration from OS secure storage.
     ProviderApiKeyRead => "providerCredential/read" {
         params: v2::ProviderApiKeyReadParams,

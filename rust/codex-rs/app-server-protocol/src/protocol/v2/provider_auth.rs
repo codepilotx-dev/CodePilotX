@@ -94,6 +94,55 @@ pub struct ProviderAuthLogoutParams {
 pub struct ProviderAuthLogoutResponse {}
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct ProviderAuthAppTokenParams {
+    pub provider_id: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct ProviderAuthAppTokenAccount {
+    pub uuid: String,
+    pub email_address: String,
+    pub organization_uuid: Option<String>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct ProviderAuthAppTokenExchangeResponse {
+    pub authenticated: bool,
+    #[ts(type = "number | null")]
+    pub expires_at: Option<u64>,
+    pub scopes: Vec<String>,
+    pub account: Option<ProviderAuthAppTokenAccount>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct ProviderAuthAppTokenRefreshResponse {
+    pub authenticated: bool,
+    #[ts(type = "number | null")]
+    pub expires_at: Option<u64>,
+    pub scopes: Vec<String>,
+    pub account: Option<ProviderAuthAppTokenAccount>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
+pub struct ProviderAuthAppTokenStatusResponse {
+    pub authenticated: bool,
+    #[ts(type = "number | null")]
+    pub expires_at: Option<u64>,
+    pub scopes: Vec<String>,
+    pub account: Option<ProviderAuthAppTokenAccount>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
 pub struct ProviderAuthProfileReadParams {
     #[serde(rename = "providerId")]
     #[ts(rename = "providerId")]

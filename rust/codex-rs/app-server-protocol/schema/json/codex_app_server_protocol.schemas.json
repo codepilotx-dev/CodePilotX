@@ -2464,6 +2464,78 @@
           "type": "object"
         },
         {
+          "properties": {
+            "id": {
+              "$ref": "#/definitions/v2/RequestId"
+            },
+            "method": {
+              "enum": [
+                "providerAuth/appTokenExchange"
+              ],
+              "title": "ProviderAuth/appTokenExchangeRequestMethod",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/definitions/v2/ProviderAuthAppTokenParams"
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "params"
+          ],
+          "title": "ProviderAuth/appTokenExchangeRequest",
+          "type": "object"
+        },
+        {
+          "properties": {
+            "id": {
+              "$ref": "#/definitions/v2/RequestId"
+            },
+            "method": {
+              "enum": [
+                "providerAuth/appTokenRefresh"
+              ],
+              "title": "ProviderAuth/appTokenRefreshRequestMethod",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/definitions/v2/ProviderAuthAppTokenParams"
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "params"
+          ],
+          "title": "ProviderAuth/appTokenRefreshRequest",
+          "type": "object"
+        },
+        {
+          "properties": {
+            "id": {
+              "$ref": "#/definitions/v2/RequestId"
+            },
+            "method": {
+              "enum": [
+                "providerAuth/appTokenStatus"
+              ],
+              "title": "ProviderAuth/appTokenStatusRequestMethod",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/definitions/v2/ProviderAuthAppTokenParams"
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "params"
+          ],
+          "title": "ProviderAuth/appTokenStatusRequest",
+          "type": "object"
+        },
+        {
           "description": "Read provider API key configuration from OS secure storage.",
           "properties": {
             "id": {
@@ -14983,6 +15055,154 @@
       "ProviderApiKeySaveResponse": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "title": "ProviderApiKeySaveResponse",
+        "type": "object"
+      },
+      "ProviderAuthAppTokenAccount": {
+        "properties": {
+          "emailAddress": {
+            "type": "string"
+          },
+          "organizationUuid": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uuid": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "emailAddress",
+          "uuid"
+        ],
+        "type": "object"
+      },
+      "ProviderAuthAppTokenExchangeResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/v2/ProviderAuthAppTokenAccount"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "authenticated": {
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "format": "uint64",
+            "minimum": 0.0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "authenticated",
+          "scopes"
+        ],
+        "title": "ProviderAuthAppTokenExchangeResponse",
+        "type": "object"
+      },
+      "ProviderAuthAppTokenParams": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "providerId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "providerId"
+        ],
+        "title": "ProviderAuthAppTokenParams",
+        "type": "object"
+      },
+      "ProviderAuthAppTokenRefreshResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/v2/ProviderAuthAppTokenAccount"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "authenticated": {
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "format": "uint64",
+            "minimum": 0.0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "authenticated",
+          "scopes"
+        ],
+        "title": "ProviderAuthAppTokenRefreshResponse",
+        "type": "object"
+      },
+      "ProviderAuthAppTokenStatusResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/v2/ProviderAuthAppTokenAccount"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "authenticated": {
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "format": "uint64",
+            "minimum": 0.0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "authenticated",
+          "scopes"
+        ],
+        "title": "ProviderAuthAppTokenStatusResponse",
         "type": "object"
       },
       "ProviderAuthCancelLoginParams": {

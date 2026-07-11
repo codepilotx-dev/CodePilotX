@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "ProviderAuthAppTokenAccount": {
+      "properties": {
+        "emailAddress": {
+          "type": "string"
+        },
+        "organizationUuid": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uuid": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "emailAddress",
+        "uuid"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "account": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ProviderAuthAppTokenAccount"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "authenticated": {
+      "type": "boolean"
+    },
+    "expiresAt": {
+      "format": "uint64",
+      "minimum": 0.0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "scopes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "authenticated",
+    "scopes"
+  ],
+  "title": "ProviderAuthAppTokenExchangeResponse",
+  "type": "object"
+}
