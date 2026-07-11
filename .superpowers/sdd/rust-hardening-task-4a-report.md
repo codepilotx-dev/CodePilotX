@@ -13,6 +13,9 @@ Commits:
 - `e816d5967 feat(desktop)：固定发布侧车打包产物`
 - `e2ffc17b1 feat(desktop)：识别打包侧车资源路径`
 - `07cf8ebcf feat(desktop)：验证侧车进程回收基线`
+- `2a89fa065 fix(desktop)：统一运行时终态与传输隔离`
+- `c82c56b04 fix(desktop)：确保关机与侧车进程可靠回收`
+- `b624e310a fix(desktop)：仅按退出事件确认侧车回收`
 
 ## RED / GREEN evidence
 
@@ -75,3 +78,23 @@ was invented.
 - OS-level process enumeration was represented by deterministic fake child process
   counts and awaited exit tests; clean-VM installer/process validation remains a
   release acceptance step.
+
+## Review fixes
+
+- Runtime is the sole owner of turn terminal events. Session integration tests
+  prove successful and failed turns each expose exactly one terminal event.
+- Rust terminal state is bound to the active turn id. Interrupt seals that turn,
+  and delayed completion from an old turn cannot complete a newer turn.
+- Desktop shutdown is one shared Promise. Rollout flush, session-store flush and
+  session disposal failures are logged independently; `app.quit()` remains in a
+  finalizer and reentrant `before-quit` does not launch another shutdown chain.
+- TypeScript and Rust sidecars share confirmed process termination semantics:
+  graceful kill, bounded wait for `exit`/`close`, then targeted Windows
+  `taskkill /pid <child.pid> /t /f` (or `SIGKILL` elsewhere), followed by another
+  bounded exit wait. Process `error` is not treated as exit, and kill failures are
+  propagated without clearing the child reference.
+- Rust fatal transport handling synchronously invalidates initialization/thread
+  state and shares one cleanup Promise. Fatal listeners are isolated, and the
+  Writable error handler is removed on close/fatal completion.
+- Final focused validation after review fixes: 114 tests passed, 0 failed, with
+  258 assertions; desktop typecheck and CSS ownership checks also passed.
