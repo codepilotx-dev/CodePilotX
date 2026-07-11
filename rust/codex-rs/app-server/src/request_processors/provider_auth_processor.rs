@@ -1046,8 +1046,12 @@ fn st(v: &serde_json::Value, k: &str, path: &str) -> Result<String, JSONRPCError
         .map(Into::into)
         .ok_or_else(|| malformed(&format!("{path}.{k}")))
 }
-fn ost(v: &serde_json::Value, k: &str) -> Option<String> {
-    v[k].as_str().map(Into::into)
+fn ost(v: &serde_json::Value, k: &str, path: &str) -> Result<Option<String>, JSONRPCErrorError> {
+    match val(v, k, path)? {
+        serde_json::Value::Null => Ok(None),
+        serde_json::Value::String(value) => Ok(Some(value.clone())),
+        _ => Err(malformed(&format!("{path}.{k}"))),
+    }
 }
 fn num(v: &serde_json::Value, k: &str, path: &str) -> Result<i64, JSONRPCErrorError> {
     val(v, k, path)?
@@ -1065,10 +1069,10 @@ fn tc(v: &serde_json::Value, k: &str, path: &str) -> Result<i64, JSONRPCErrorErr
 fn map_status(v: &serde_json::Value) -> Result<GithubUserStatus, JSONRPCErrorError> {
     obj(v, "status")?;
     Ok(GithubUserStatus {
-        emoji: ost(v, "emoji"),
-        message: ost(v, "message"),
+        emoji: ost(v, "emoji", "status")?,
+        message: ost(v, "message", "status")?,
         indicates_limited_availability: boolean(v, "indicatesLimitedAvailability", "status")?,
-        expires_at: ost(v, "expiresAt"),
+        expires_at: ost(v, "expiresAt", "status")?,
     })
 }
 fn repo(v: &serde_json::Value, path: &str) -> Result<GithubProfileRepository, JSONRPCErrorError> {
@@ -1085,7 +1089,7 @@ fn repo(v: &serde_json::Value, path: &str) -> Result<GithubProfileRepository, JS
             name
         ),
         url: st(v, "url", path)?,
-        description: ost(v, "description"),
+        description: ost(v, "description", path)?,
         is_private: boolean(v, "isPrivate", path)?,
         is_fork: boolean(v, "isFork", path)?,
         primary_language: (!val(v, "primaryLanguage", path)?.is_null())
@@ -1096,7 +1100,11 @@ fn repo(v: &serde_json::Value, path: &str) -> Result<GithubProfileRepository, JS
                         "name",
                         &format!("{path}.primaryLanguage"),
                     )?,
-                    color: ost(&v["primaryLanguage"], "color"),
+                    color: ost(
+                        &v["primaryLanguage"],
+                        "color",
+                        &format!("{path}.primaryLanguage"),
+                    )?,
                 })
             })
             .transpose()?,
@@ -1126,30 +1134,25 @@ fn map_profile(v: &serde_json::Value) -> Result<GithubProfileOverview, JSONRPCEr
     let c = val(v, "contributionsCollection", "viewer")?;
     let a = val(c, "contributionCalendar", "viewer.contributionsCollection")?;
     let status = val(v, "status", "viewer")?;
-    let empty_organizations = Vec::new();
-    let org_nodes = v
-        .get("organizations")
-        .map(|organizations| val(organizations, "nodes", "viewer.organizations"))
-        .transpose()?
-        .map(|nodes| {
-            nodes
-                .as_array()
-                .ok_or_else(|| malformed("viewer.organizations.nodes"))
-        })
-        .transpose()?
-        .unwrap_or(&empty_organizations);
+    let org_nodes = val(
+        val(v, "organizations", "viewer")?,
+        "nodes",
+        "viewer.organizations",
+    )?
+    .as_array()
+    .ok_or_else(|| malformed("viewer.organizations.nodes"))?;
     Ok(GithubProfileOverview {
         user: GithubProfileUser {
             login: st(v, "login", "viewer")?,
             id: num(v, "databaseId", "viewer")?,
-            name: ost(v, "name"),
-            avatar_url: ost(v, "avatarUrl"),
+            name: ost(v, "name", "viewer")?,
+            avatar_url: ost(v, "avatarUrl", "viewer")?,
             html_url: st(v, "url", "viewer")?,
-            bio: ost(v, "bio"),
-            company: ost(v, "company"),
-            location: ost(v, "location"),
-            website_url: ost(v, "websiteUrl"),
-            email: ost(v, "email"),
+            bio: ost(v, "bio", "viewer")?,
+            company: ost(v, "company", "viewer")?,
+            location: ost(v, "location", "viewer")?,
+            website_url: ost(v, "websiteUrl", "viewer")?,
+            email: ost(v, "email", "viewer")?,
             followers: tc(v, "followers", "viewer")?,
             following: tc(v, "following", "viewer")?,
             repository_count: tc(v, "repositories", "viewer")?,
@@ -1165,8 +1168,8 @@ fn map_profile(v: &serde_json::Value) -> Result<GithubProfileOverview, JSONRPCEr
                 let p = format!("viewer.organizations.nodes[{i}]");
                 Ok(GithubProfileOrganization {
                     login: st(o, "login", &p)?,
-                    name: ost(o, "name"),
-                    avatar_url: ost(o, "avatarUrl"),
+                    name: ost(o, "name", &p)?,
+                    avatar_url: ost(o, "avatarUrl", &p)?,
                     url: st(o, "url", &p)?,
                 })
             })
@@ -1890,7 +1893,7 @@ mod tests {
     #[tokio::test]
     async fn github_profile_maps_complete_overview() {
         let server = MockServer::start().await;
-        Mock::given(method("POST")).and(path("/graphql")).respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data":{"viewer":{"databaseId":7,"login":"octocat","name":"Octo","avatarUrl":"a","url":"u","bio":"b","company":"c","location":"l","websiteUrl":"w","email":"e","followers":{"totalCount":1},"following":{"totalCount":2},"repositories":{"totalCount":3},"starredRepositories":{"totalCount":4},"status":{"emoji":":wave:","message":"hi","indicatesLimitedAvailability":true,"expiresAt":"2030"},"pinnedItems":{"nodes":[{"__typename":"Repository","id":"R","name":"repo","owner":{"login":"octocat"},"url":"r","isPrivate":false,"isFork":false,"stargazerCount":5,"forkCount":6,"updatedAt":"now","primaryLanguage":{"name":"Rust","color":"#dea584"}}]},"topRepositories":{"nodes":[]},"contributionsCollection":{"totalCommitContributions":8,"totalIssueContributions":9,"totalPullRequestContributions":10,"totalPullRequestReviewContributions":11,"restrictedContributionsCount":12,"contributionCalendar":{"totalContributions":13,"weeks":[{"contributionDays":[{"date":"2026-01-01","contributionCount":2,"color":"green"}]}]}}}}}))).mount(&server).await;
+        Mock::given(method("POST")).and(path("/graphql")).respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data":{"viewer":{"databaseId":7,"login":"octocat","name":"Octo","avatarUrl":"a","url":"u","bio":"b","company":"c","location":"l","websiteUrl":"w","email":"e","organizations":{"nodes":[{"login":"github","name":"GitHub","avatarUrl":"oa","url":"ou"}]},"followers":{"totalCount":1},"following":{"totalCount":2},"repositories":{"totalCount":3},"starredRepositories":{"totalCount":4},"status":{"emoji":":wave:","message":"hi","indicatesLimitedAvailability":true,"expiresAt":"2030"},"pinnedItems":{"nodes":[{"__typename":"Repository","id":"R","name":"repo","owner":{"login":"octocat"},"url":"r","description":null,"isPrivate":false,"isFork":false,"stargazerCount":5,"forkCount":6,"updatedAt":"now","primaryLanguage":{"name":"Rust","color":"#dea584"}}]},"topRepositories":{"nodes":[]},"contributionsCollection":{"totalCommitContributions":8,"totalIssueContributions":9,"totalPullRequestContributions":10,"totalPullRequestReviewContributions":11,"restrictedContributionsCount":12,"contributionCalendar":{"totalContributions":13,"weeks":[{"contributionDays":[{"date":"2026-01-01","contributionCount":2,"color":"green"}]}]}}}}}))).mount(&server).await;
         let r = github_processor(&server)
             .profile_read(ProviderAuthProfileReadParams {
                 provider_id: "github-repositories".into(),
@@ -1898,7 +1901,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(r.overview.user.repository_count, 3);
-        assert_eq!(r.overview.organizations.len(), 0);
+        assert_eq!(r.overview.organizations[0].login, "github");
         assert_eq!(r.overview.pinned_repositories[0].full_name, "octocat/repo");
         assert_eq!(r.overview.contributions.weeks[0].days[0].count, 2)
     }
@@ -2093,6 +2096,78 @@ mod tests {
             .unwrap_err()
             .message
             .contains("request failed")
+        );
+    }
+
+    #[test]
+    fn github_profile_requires_and_maps_organizations_strictly() {
+        let profile = serde_json::json!({
+            "databaseId":7,"login":"octocat","name":null,"avatarUrl":null,"url":"u","bio":null,"company":null,"location":null,"websiteUrl":null,"email":null,
+            "followers":{"totalCount":1},"following":{"totalCount":2},"repositories":{"totalCount":3},"starredRepositories":{"totalCount":4},"status":null,
+            "pinnedItems":{"nodes":[]},"topRepositories":{"nodes":[]},
+            "contributionsCollection":{"totalCommitContributions":1,"totalIssueContributions":2,"totalPullRequestContributions":3,"totalPullRequestReviewContributions":4,"restrictedContributionsCount":5,"contributionCalendar":{"totalContributions":6,"weeks":[]}}
+        });
+        assert!(
+            map_profile(&profile).is_err(),
+            "organizations is queried and required"
+        );
+        let mut complete = profile.clone();
+        complete["organizations"] = serde_json::json!({"nodes":[{"login":"github","name":"GitHub","avatarUrl":"a","url":"https://github.com/github"}]});
+        let mapped = map_profile(&complete).unwrap();
+        assert_eq!(mapped.organizations[0].login, "github");
+        let mut wrong_nodes = complete.clone();
+        wrong_nodes["organizations"]["nodes"] = serde_json::json!({});
+        assert!(map_profile(&wrong_nodes).is_err());
+        let mut missing_login = complete;
+        missing_login["organizations"]["nodes"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("login");
+        assert!(map_profile(&missing_login).is_err());
+    }
+
+    #[test]
+    fn github_nullable_fields_reject_missing_or_wrong_types() {
+        let value = serde_json::json!({"emoji":null,"message":"ok","indicatesLimitedAvailability":false,"expiresAt":null});
+        assert!(map_status(&value).is_ok());
+        let mut missing = value.clone();
+        missing.as_object_mut().unwrap().remove("emoji");
+        assert!(map_status(&missing).is_err());
+        let mut wrong = value;
+        wrong["message"] = serde_json::json!(42);
+        assert!(map_status(&wrong).is_err());
+    }
+
+    #[tokio::test]
+    async fn github_status_clear_maps_success_and_http_500_fails() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST")).respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"data":{"clearUserStatus":{"status":{"emoji":":wave:","message":"bye","indicatesLimitedAvailability":true,"expiresAt":"2030"}}}}))).mount(&server).await;
+        let status = github_processor(&server)
+            .status_clear(ProviderAuthStatusClearParams {
+                provider_id: "github-repositories".into(),
+            })
+            .await
+            .unwrap()
+            .status
+            .unwrap();
+        assert_eq!(status.emoji.as_deref(), Some(":wave:"));
+        assert_eq!(status.message.as_deref(), Some("bye"));
+        assert!(status.indicates_limited_availability);
+        assert_eq!(status.expires_at.as_deref(), Some("2030"));
+        server.reset().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&server)
+            .await;
+        assert!(
+            github_processor(&server)
+                .status_clear(ProviderAuthStatusClearParams {
+                    provider_id: "github-repositories".into()
+                })
+                .await
+                .unwrap_err()
+                .message
+                .contains("500")
         );
     }
 
