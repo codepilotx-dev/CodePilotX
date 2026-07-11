@@ -77,6 +77,26 @@ test('streaming workflow messages keep one transient event and final replaces it
   events = appendUniqueWorkflowEvent(events, agentMessage('final', false))
   expect(events).toHaveLength(1)
   expect('item' in events[0]! ? events[0].item.text : '').toBe('final')
+
+  events = appendUniqueWorkflowEvent(events, agentMessage('late', true))
+  expect(events).toHaveLength(1)
+  expect('item' in events[0]! ? events[0].item.text : '').toBe('final')
+})
+
+test('same turn keeps separate assistant items around a tool event', () => {
+  const first = agentMessage('first-final', false, 'assistant-1')
+  const tool = toolCall('tool-between')
+  const secondPartial = agentMessage('second-partial', true, 'assistant-2')
+  const secondFinal = agentMessage('second-final', false, 'assistant-2')
+  const events = [first, tool, secondPartial, secondFinal].reduce(
+    (current, event) => appendUniqueWorkflowEvent(current, event),
+    [] as DesktopWorkflowEvent[],
+  )
+  expect(events.map(event => ('item' in event ? event.item.text ?? event.item.type : event.type))).toEqual([
+    'first-final',
+    'tool_call',
+    'second-final',
+  ])
 })
 
 function turnStarted(eventId: string): DesktopWorkflowEvent {
@@ -105,7 +125,11 @@ function toolCall(eventId: string | undefined): ItemWorkflowEvent {
   } as ItemWorkflowEvent
 }
 
-function agentMessage(text: string, streaming: boolean): DesktopWorkflowEvent {
+function agentMessage(
+  text: string,
+  streaming: boolean,
+  streamId = 'assistant-1',
+): DesktopWorkflowEvent {
   return {
     eventId: `event-${text}`,
     type: streaming ? 'item.updated' : 'item.completed',
@@ -118,6 +142,7 @@ function agentMessage(text: string, streaming: boolean): DesktopWorkflowEvent {
       ...base,
       text,
       streaming,
+      metadata: { streamId },
     },
   } as DesktopWorkflowEvent
 }

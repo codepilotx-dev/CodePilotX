@@ -1,5 +1,9 @@
 import { expect, test } from 'bun:test'
-import { isDurableSessionAgentEvent } from './sessionEvents.js'
+import {
+  isDurableSessionAgentEvent,
+  transientStreamRetainedChars,
+  updateTransientStreamChunks,
+} from './sessionEvents.js'
 import type { DesktopAgentEvent } from '../../../shared/types.js'
 
 test('partial assistant updates stay outside renderer event history', () => {
@@ -17,4 +21,22 @@ test('partial assistant updates stay outside renderer event history', () => {
 
   expect(isDurableSessionAgentEvent(partial)).toBe(false)
   expect(isDurableSessionAgentEvent(final)).toBe(true)
+})
+
+test('renderer retains time-spread deltas as linear chunks without cumulative text copies', () => {
+  let chunks: string[] = []
+  for (let tick = 0; tick < 250; tick += 1) {
+    for (let index = 0; index < 40; index += 1) {
+      chunks = updateTransientStreamChunks({
+        type: 'partial_message',
+        sessionId: 'renderer-linear',
+        streamId: 'assistant-1',
+        delta: true,
+        text: '12345678901234567890',
+      })
+    }
+  }
+  expect(chunks).toHaveLength(10_000)
+  expect(transientStreamRetainedChars(chunks)).toBe(200_000)
+  expect(chunks.every(chunk => chunk.length === 20)).toBe(true)
 })

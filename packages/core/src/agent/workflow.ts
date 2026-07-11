@@ -882,6 +882,8 @@ function sourceMetadata(
   if ('sourceLabel' in event && event.sourceLabel) {
     source.sourceLabel = event.sourceLabel
   }
+  if ('streamId' in event && event.streamId) source.streamId = event.streamId
+  if ('delta' in event && event.delta === true) source.delta = true
 
   return mergeMetadata(metadata, source)
 }

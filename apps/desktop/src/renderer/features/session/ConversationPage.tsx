@@ -2034,6 +2034,9 @@ function TimelineItem({
           text: event.content ?? "",
           createdAt: event.createdAt,
           streaming: event.type === "assistant_delta",
+          streamingChunks: Array.isArray(event.metadata?.streamingChunks)
+            ? (event.metadata.streamingChunks as string[])
+            : undefined,
         }}
         showActions={showActions}
       />
@@ -2738,6 +2741,7 @@ function ChatMessage({
         <MarkdownMessage
           text={renderedText}
           streaming={Boolean(message.streaming)}
+          streamingChunks={message.streamingChunks}
         />
       </div>
       {showActions && message.role === "assistant" && message.text.trim() ? (

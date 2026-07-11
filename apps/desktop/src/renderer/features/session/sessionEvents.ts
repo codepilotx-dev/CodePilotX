@@ -45,19 +45,45 @@ export function handleSessionAgentEvent(
   if (isInternalReviewerAgentEvent(event)) {
     return
   }
+  if (
+    event.type === 'partial_message' &&
+    event.streamId &&
+    finalizedStreamIds.get(event.sessionId)?.has(event.streamId)
+  ) {
+    return
+  }
+  if (event.type === 'message' && event.streamId) {
+    transientStreamChunks.delete(`${event.sessionId}:${event.streamId}`)
+    const ids = finalizedStreamIds.get(event.sessionId) ?? new Set<string>()
+    ids.add(event.streamId)
+    finalizedStreamIds.set(event.sessionId, ids)
+  }
 
   const sessionEvent = desktopAgentEventToSessionEvent(event)
+  const streamChunks =
+    event.type === 'partial_message'
+      ? updateTransientStreamChunks(event)
+      : undefined
   if (sessionEvent) {
     updateSessionView(event.sessionId, view => ({
       ...view,
       events:
         view.eventModelVersion === 1
-          ? event.type === 'partial_message'
+          ? !isDurableSessionAgentEvent(event)
             ? [
                 ...view.events.filter(
                   existing => existing.type !== 'assistant_delta',
                 ),
-                sessionEvent,
+                streamChunks
+                  ? {
+                      ...sessionEvent,
+                      content: '',
+                      metadata: {
+                        ...(sessionEvent.metadata ?? {}),
+                        streamingChunks: streamChunks,
+                      },
+                    }
+                  : sessionEvent,
               ]
             : [
                 ...view.events.filter(
@@ -124,9 +150,10 @@ export function handleSessionAgentEvent(
       const nextMessage: Message = {
         id: index >= 0 ? view.messages[index]!.id : crypto.randomUUID(),
         role: 'assistant',
-        text: event.text,
+        text: event.delta === true ? '' : event.text,
         createdAt,
         streaming: true,
+        ...(streamChunks ? { streamingChunks: streamChunks } : {}),
       }
       if (index === -1) {
         return { ...view, messages: [...view.messages, nextMessage] }
@@ -258,6 +285,28 @@ export function handleSessionAgentEvent(
       ),
     }))
   }
+}
+
+const finalizedStreamIds = new Map<string, Set<string>>()
+const transientStreamChunks = new Map<string, string[]>()
+
+export function updateTransientStreamChunks(
+  event: Extract<DesktopAgentEvent, { type: 'partial_message' }>,
+): string[] {
+  const key = `${event.sessionId}:${event.streamId ?? 'default'}`
+  if (event.delta !== true) {
+    const chunks = [event.text]
+    transientStreamChunks.set(key, chunks)
+    return chunks
+  }
+  const chunks = transientStreamChunks.get(key) ?? []
+  chunks.push(event.text)
+  transientStreamChunks.set(key, chunks)
+  return chunks
+}
+
+export function transientStreamRetainedChars(chunks: string[]): number {
+  return chunks.reduce((total, chunk) => total + chunk.length, 0)
 }
 
 export function isDurableSessionAgentEvent(event: DesktopAgentEvent): boolean {

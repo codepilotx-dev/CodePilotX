@@ -40,6 +40,7 @@ export type AgentSessionMessage = {
   text: string
   createdAt: string
   streaming?: boolean
+  streamingChunks?: string[]
 }
 
 export type AgentToolLogEntry = {
@@ -122,6 +123,7 @@ export type AgentRuntimeEvent =
       sessionId: string
       role: 'user' | 'assistant' | 'system'
       text: string
+      streamId?: string
       createdAt?: string
       sourceThreadId?: string
       sourceLabel?: string
@@ -130,6 +132,8 @@ export type AgentRuntimeEvent =
       type: 'partial_message'
       sessionId: string
       text: string
+      delta?: boolean
+      streamId?: string
       createdAt?: string
       sourceThreadId?: string
       sourceLabel?: string

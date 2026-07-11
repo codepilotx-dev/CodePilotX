@@ -130,9 +130,23 @@ const XSS_OPTIONS = {
 type Props = {
   text: string
   streaming?: boolean
+  streamingChunks?: string[]
 }
 
-export function MarkdownMessage({ text, streaming = false }: Props): React.ReactNode {
+export function MarkdownMessage({
+  text,
+  streaming = false,
+  streamingChunks,
+}: Props): React.ReactNode {
+  if (streaming && streamingChunks) {
+    return (
+      <span className="markdown-stream-chunks">
+        {streamingChunks.map((chunk, index) => (
+          <React.Fragment key={index}>{chunk}</React.Fragment>
+        ))}
+      </span>
+    )
+  }
   const html = useMemo(() => renderMarkdown(text, streaming), [text, streaming])
   const bodyRef = useRef<HTMLDivElement | null>(null)
 

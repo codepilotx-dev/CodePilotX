@@ -48,7 +48,10 @@ export function appendUniqueWorkflowEvent(
 
 function agentMessageStreamKey(event: DesktopWorkflowEvent): string | null {
   if (!('item' in event) || event.item.type !== 'agent_message') return null
-  return `${event.threadId}:${event.turnId}`
+  const streamId = event.item.metadata?.streamId
+  return `${event.threadId}:${event.turnId}:${
+    typeof streamId === 'string' ? streamId : event.item.id
+  }`
 }
 
 function isStreamingAgentMessage(event: DesktopWorkflowEvent): boolean {

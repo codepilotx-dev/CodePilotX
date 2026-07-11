@@ -111,6 +111,7 @@ declare module '@codepilotx/core/agent/runtime.js' {
     text: string
     createdAt: string
     streaming?: boolean
+    streamingChunks?: string[]
   }
 
   export type AgentToolLogEntry = {
@@ -197,6 +198,7 @@ declare module '@codepilotx/core/agent/runtime.js' {
         sessionId: string
         role: 'user' | 'assistant' | 'system'
         text: string
+        streamId?: string
         createdAt?: string
         sourceThreadId?: string
         sourceLabel?: string
@@ -205,6 +207,8 @@ declare module '@codepilotx/core/agent/runtime.js' {
         type: 'partial_message'
         sessionId: string
         text: string
+        delta?: boolean
+        streamId?: string
         createdAt?: string
         sourceThreadId?: string
         sourceLabel?: string
