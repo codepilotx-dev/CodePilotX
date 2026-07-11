@@ -28,22 +28,35 @@ export type StartedItemInfo = {
 export type RustAppServerWorkflowState = {
   threadId: string | null
   activeTurnId: string | null
+  activeTurnKind: 'regular' | 'goal' | 'compact' | 'review' | null
   /** Accumulated assistant text from agentMessage/item deltas */
   assistantDeltaBuffer: string
   reasoningTextBuffer: string
   reasoningSummaryBuffer: string
   /** Accumulated command output keyed by item id (toolUseId) */
   aggregatedOutputByItem: Map<string, string>
+  /** Review-specific state */
+  reviewToolUseId: string | null
+  pendingReviewAgentText: string | null
+  completedReviewText: string | null
+  reviewToolStarted: boolean
+  reviewToolCompleted: boolean
 }
 
 export function createRustAppServerWorkflowState(): RustAppServerWorkflowState {
   return {
     threadId: null,
     activeTurnId: null,
+    activeTurnKind: null,
     assistantDeltaBuffer: '',
     reasoningTextBuffer: '',
     reasoningSummaryBuffer: '',
     aggregatedOutputByItem: new Map(),
+    reviewToolUseId: null,
+    pendingReviewAgentText: null,
+    completedReviewText: null,
+    reviewToolStarted: false,
+    reviewToolCompleted: false,
   }
 }
 
@@ -94,6 +107,7 @@ export function handleServerNotification(
       desktopDebug('rust_adapter_turn_started', {
         turnId: state.activeTurnId,
       })
+      emit({ type: 'status', sessionId, status: 'running' })
       break
     }
 
@@ -103,6 +117,7 @@ export function handleServerNotification(
       const status = typeof turn?.status === 'string' ? turn.status : undefined
       if (status === 'failed') {
         state.activeTurnId = null
+        state.activeTurnKind = null
         state.assistantDeltaBuffer = ''
         state.reasoningTextBuffer = ''
         state.reasoningSummaryBuffer = ''
@@ -116,6 +131,7 @@ export function handleServerNotification(
         desktopDebug('rust_adapter_turn_failed', { message })
       } else if (status === 'completed' || status === 'interrupted') {
         state.activeTurnId = null
+        state.activeTurnKind = null
         state.assistantDeltaBuffer = ''
         state.reasoningTextBuffer = ''
         state.reasoningSummaryBuffer = ''
@@ -125,6 +141,12 @@ export function handleServerNotification(
       } else {
         desktopDebug('rust_adapter_turn_status_pending', { status })
       }
+      // Reset review state
+      state.reviewToolUseId = null
+      state.pendingReviewAgentText = null
+      state.completedReviewText = null
+      state.reviewToolStarted = false
+      state.reviewToolCompleted = false
       break
     }
 
@@ -137,6 +159,23 @@ export function handleServerNotification(
         itemType: item.type,
         itemId: item.id,
       })
+      // Handle enteredReviewMode (review lifecycle item started)
+      if (item.type === 'enteredReviewMode') {
+        state.activeTurnKind = 'review'
+        state.reviewToolUseId = typeof item.id === 'string' ? item.id : null
+        if (!state.reviewToolStarted) {
+          emit({
+            type: 'tool_start',
+            sessionId,
+            toolName: 'CodeReview',
+            toolUseId: state.reviewToolUseId ?? '',
+            summary: `AI 审查：${typeof (item as Record<string, unknown>).review === 'string' ? (item as Record<string, unknown>).review : ''}`,
+          })
+          state.reviewToolStarted = true
+        }
+        break
+      }
+
       // For known item types, emit a tool_start
       if (item.type === 'dynamicToolCall') {
         const toolCall = item as Record<string, unknown>
@@ -210,7 +249,15 @@ export function handleServerNotification(
       })
 
       switch (item.type) {
-        case 'agentMessage':
+        case 'agentMessage': {
+          // In review mode, cache agent text instead of emitting message
+          if (state.activeTurnKind === 'review') {
+            if (typeof item.text === 'string') {
+              state.pendingReviewAgentText = item.text
+            }
+            state.assistantDeltaBuffer = ''
+            break
+          }
           if (typeof item.text === 'string') {
             emit({
               type: 'message',
@@ -221,6 +268,7 @@ export function handleServerNotification(
           }
           state.assistantDeltaBuffer = ''
           break
+        }
 
         case 'dynamicToolCall': {
           const toolCall = item as Record<string, unknown>
@@ -292,6 +340,43 @@ export function handleServerNotification(
             isError: fcStatus === 'failed' || fcStatus === 'error',
             metadata: { status: fcStatus, changes },
           })
+          break
+        }
+
+        case 'contextCompaction': {
+          emit({
+            type: 'message',
+            sessionId,
+            role: 'system',
+            text: '对话上下文已压缩',
+          })
+          break
+        }
+
+        case 'exitedReviewMode': {
+          const reviewText = typeof (item as Record<string, unknown>).review === 'string'
+            ? ((item as Record<string, unknown>).review as string).trim()
+            : ''
+          state.completedReviewText = reviewText
+          if (!state.reviewToolCompleted) {
+            emit({
+              type: 'tool_result',
+              sessionId,
+              toolName: 'CodeReview',
+              toolUseId: state.reviewToolUseId ?? '',
+              summary: 'AI 审查完成',
+            })
+            state.reviewToolCompleted = true
+          }
+          if (reviewText) {
+            emit({
+              type: 'message',
+              sessionId,
+              role: 'assistant',
+              text: reviewText,
+            })
+          }
+          state.pendingReviewAgentText = null
           break
         }
 

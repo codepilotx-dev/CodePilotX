@@ -25,7 +25,7 @@ describe('rustAppServerWorkflowAdapter', () => {
     expect(events).toHaveLength(0)
   })
 
-  test('turn/started saves turn id and clears delta buffer', () => {
+  test('turn/started saves turn id, clears delta buffer, and reports server-started work as running', () => {
     const state = createRustAppServerWorkflowState()
     state.assistantDeltaBuffer = 'stale text'
     const events: DesktopAgentEvent[] = []
@@ -40,7 +40,9 @@ describe('rustAppServerWorkflowAdapter', () => {
 
     expect(state.activeTurnId).toBe('turn-xyz')
     expect(state.assistantDeltaBuffer).toBe('')
-    expect(events).toHaveLength(0)
+    expect(events).toEqual([
+      { type: 'status', sessionId: SESSION_ID, status: 'running' },
+    ])
   })
 
   test('item/delta with text emits partial_message', () => {
@@ -394,8 +396,7 @@ describe('rustAppServerWorkflowAdapter', () => {
 
     expect(state.activeTurnId).toBe('turn-2')
     expect(state.assistantDeltaBuffer).toBe('')
-    // Only the error event was emitted (turn/started doesn't emit events)
-    expect(events).toHaveLength(1)
+    expect(events.map(event => event.type)).toEqual(['status', 'error', 'status'])
   })
 
   test('delta buffer is cleared by turn/completed', () => {
@@ -421,8 +422,10 @@ describe('rustAppServerWorkflowAdapter', () => {
 
     expect(state.activeTurnId).toBeNull()
     expect(state.assistantDeltaBuffer).toBe('')
-    expect(events).toHaveLength(1)
-    expect(events[0]).toEqual({ type: 'done', sessionId: SESSION_ID })
+    expect(events).toEqual([
+      { type: 'status', sessionId: SESSION_ID, status: 'running' },
+      { type: 'done', sessionId: SESSION_ID },
+    ])
   })
 
   // ── New: item/started ──────────────────────────────────────────────

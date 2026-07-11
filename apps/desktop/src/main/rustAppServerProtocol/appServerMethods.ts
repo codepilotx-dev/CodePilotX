@@ -18,6 +18,7 @@ export type ThreadResumeParams = {
   baseInstructions?: string | null
   developerInstructions?: string | null
   personality?: string | null
+  collaborationMode?: Record<string, unknown> | null
 }
 
 export type ThreadResumeResponse = ThreadStartResponse
