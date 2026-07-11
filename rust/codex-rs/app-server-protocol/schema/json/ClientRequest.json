@@ -2200,6 +2200,17 @@
       ],
       "type": "object"
     },
+    "ProviderAuthProfileReadParams": {
+      "properties": {
+        "provider_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_id"
+      ],
+      "type": "object"
+    },
     "ProviderAuthReadStatusParams": {
       "properties": {
         "provider_id": {
@@ -2225,6 +2236,46 @@
         }
       },
       "required": [
+        "provider_id"
+      ],
+      "type": "object"
+    },
+    "ProviderAuthStatusClearParams": {
+      "properties": {
+        "provider_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_id"
+      ],
+      "type": "object"
+    },
+    "ProviderAuthStatusSetParams": {
+      "properties": {
+        "emoji": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limited_availability": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "provider_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "emoji",
+        "limited_availability",
+        "message",
         "provider_id"
       ],
       "type": "object"
@@ -7276,6 +7327,78 @@
         "params"
       ],
       "title": "ProviderAuth/logoutRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "providerAuth/profileRead"
+          ],
+          "title": "ProviderAuth/profileReadRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProviderAuthProfileReadParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "ProviderAuth/profileReadRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "providerAuth/statusSet"
+          ],
+          "title": "ProviderAuth/statusSetRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProviderAuthStatusSetParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "ProviderAuth/statusSetRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "providerAuth/statusClear"
+          ],
+          "title": "ProviderAuth/statusClearRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProviderAuthStatusClearParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "ProviderAuth/statusClearRequest",
       "type": "object"
     },
     {

@@ -92,6 +92,120 @@ pub struct ProviderAuthLogoutParams {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
 pub struct ProviderAuthLogoutResponse {}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderAuthProfileReadParams {
+    pub provider_id: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderAuthProfileReadResponse {
+    pub overview: GithubProfileOverview,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderAuthStatusSetParams {
+    pub provider_id: String,
+    pub emoji: String,
+    pub message: String,
+    pub limited_availability: bool,
+    pub expires_at: Option<String>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderAuthStatusSetResponse {
+    pub status: Option<GithubUserStatus>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderAuthStatusClearParams {
+    pub provider_id: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct ProviderAuthStatusClearResponse {
+    pub status: Option<GithubUserStatus>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct GithubUserStatus {
+    pub emoji: Option<String>,
+    pub message: Option<String>,
+    pub indicates_limited_availability: bool,
+    pub expires_at: Option<String>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct GithubProfileUser {
+    pub login: String,
+    pub id: i64,
+    pub name: Option<String>,
+    pub avatar_url: Option<String>,
+    pub html_url: String,
+    pub bio: Option<String>,
+    pub company: Option<String>,
+    pub location: Option<String>,
+    pub website_url: Option<String>,
+    pub email: Option<String>,
+    pub followers: i64,
+    pub following: i64,
+    pub repository_count: i64,
+    pub starred_repository_count: i64,
+    pub status: Option<GithubUserStatus>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct GithubProfileLanguage {
+    pub name: String,
+    pub color: Option<String>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct GithubProfileRepository {
+    pub id: String,
+    pub name: String,
+    pub full_name: String,
+    pub url: String,
+    pub description: Option<String>,
+    pub is_private: bool,
+    pub is_fork: bool,
+    pub primary_language: Option<GithubProfileLanguage>,
+    pub stargazer_count: i64,
+    pub fork_count: i64,
+    pub updated_at: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct GithubContributionDay {
+    pub date: String,
+    pub count: i64,
+    pub color: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct GithubContributionWeek {
+    pub days: Vec<GithubContributionDay>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct GithubContributions {
+    pub total_contributions: i64,
+    pub total_commit_contributions: i64,
+    pub total_issue_contributions: i64,
+    pub total_pull_request_contributions: i64,
+    pub total_pull_request_review_contributions: i64,
+    pub restricted_contributions_count: i64,
+    pub weeks: Vec<GithubContributionWeek>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
+pub struct GithubProfileOverview {
+    pub user: GithubProfileUser,
+    pub organizations: Vec<serde_json::Value>,
+    pub pinned_repositories: Vec<GithubProfileRepository>,
+    pub popular_repositories: Vec<GithubProfileRepository>,
+    pub contributions: GithubContributions,
+}
 
 // Provider API keys (secure storage only)
 

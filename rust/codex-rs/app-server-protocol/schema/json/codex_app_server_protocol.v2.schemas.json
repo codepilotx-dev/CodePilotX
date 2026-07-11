@@ -3401,6 +3401,78 @@
           "type": "object"
         },
         {
+          "properties": {
+            "id": {
+              "$ref": "#/definitions/RequestId"
+            },
+            "method": {
+              "enum": [
+                "providerAuth/profileRead"
+              ],
+              "title": "ProviderAuth/profileReadRequestMethod",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/definitions/ProviderAuthProfileReadParams"
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "params"
+          ],
+          "title": "ProviderAuth/profileReadRequest",
+          "type": "object"
+        },
+        {
+          "properties": {
+            "id": {
+              "$ref": "#/definitions/RequestId"
+            },
+            "method": {
+              "enum": [
+                "providerAuth/statusSet"
+              ],
+              "title": "ProviderAuth/statusSetRequestMethod",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/definitions/ProviderAuthStatusSetParams"
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "params"
+          ],
+          "title": "ProviderAuth/statusSetRequest",
+          "type": "object"
+        },
+        {
+          "properties": {
+            "id": {
+              "$ref": "#/definitions/RequestId"
+            },
+            "method": {
+              "enum": [
+                "providerAuth/statusClear"
+              ],
+              "title": "ProviderAuth/statusClearRequestMethod",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/definitions/ProviderAuthStatusClearParams"
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "params"
+          ],
+          "title": "ProviderAuth/statusClearRequest",
+          "type": "object"
+        },
+        {
           "description": "Read provider API key configuration from OS secure storage.",
           "properties": {
             "id": {
@@ -7026,6 +7098,317 @@
           ]
         }
       },
+      "type": "object"
+    },
+    "GithubContributionDay": {
+      "properties": {
+        "color": {
+          "type": "string"
+        },
+        "count": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "date": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "color",
+        "count",
+        "date"
+      ],
+      "type": "object"
+    },
+    "GithubContributionWeek": {
+      "properties": {
+        "days": {
+          "items": {
+            "$ref": "#/definitions/GithubContributionDay"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "days"
+      ],
+      "type": "object"
+    },
+    "GithubContributions": {
+      "properties": {
+        "restricted_contributions_count": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "total_commit_contributions": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "total_contributions": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "total_issue_contributions": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "total_pull_request_contributions": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "total_pull_request_review_contributions": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "weeks": {
+          "items": {
+            "$ref": "#/definitions/GithubContributionWeek"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "restricted_contributions_count",
+        "total_commit_contributions",
+        "total_contributions",
+        "total_issue_contributions",
+        "total_pull_request_contributions",
+        "total_pull_request_review_contributions",
+        "weeks"
+      ],
+      "type": "object"
+    },
+    "GithubProfileLanguage": {
+      "properties": {
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "GithubProfileOverview": {
+      "properties": {
+        "contributions": {
+          "$ref": "#/definitions/GithubContributions"
+        },
+        "organizations": {
+          "items": true,
+          "type": "array"
+        },
+        "pinned_repositories": {
+          "items": {
+            "$ref": "#/definitions/GithubProfileRepository"
+          },
+          "type": "array"
+        },
+        "popular_repositories": {
+          "items": {
+            "$ref": "#/definitions/GithubProfileRepository"
+          },
+          "type": "array"
+        },
+        "user": {
+          "$ref": "#/definitions/GithubProfileUser"
+        }
+      },
+      "required": [
+        "contributions",
+        "organizations",
+        "pinned_repositories",
+        "popular_repositories",
+        "user"
+      ],
+      "type": "object"
+    },
+    "GithubProfileRepository": {
+      "properties": {
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fork_count": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "full_name": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "is_fork": {
+          "type": "boolean"
+        },
+        "is_private": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "primary_language": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/GithubProfileLanguage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stargazer_count": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "updated_at": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "fork_count",
+        "full_name",
+        "id",
+        "is_fork",
+        "is_private",
+        "name",
+        "stargazer_count",
+        "updated_at",
+        "url"
+      ],
+      "type": "object"
+    },
+    "GithubProfileUser": {
+      "properties": {
+        "avatar_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bio": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "company": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "followers": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "following": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "html_url": {
+          "type": "string"
+        },
+        "id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "location": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "login": {
+          "type": "string"
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "repository_count": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "starred_repository_count": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/GithubUserStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "website_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "followers",
+        "following",
+        "html_url",
+        "id",
+        "login",
+        "repository_count",
+        "starred_repository_count"
+      ],
+      "type": "object"
+    },
+    "GithubUserStatus": {
+      "properties": {
+        "emoji": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expires_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "indicates_limited_availability": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "indicates_limited_availability"
+      ],
       "type": "object"
     },
     "GuardianApprovalReview": {
@@ -11069,6 +11452,32 @@
       ],
       "type": "string"
     },
+    "ProviderAuthProfileReadParams": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "provider_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_id"
+      ],
+      "title": "ProviderAuthProfileReadParams",
+      "type": "object"
+    },
+    "ProviderAuthProfileReadResponse": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "overview": {
+          "$ref": "#/definitions/GithubProfileOverview"
+        }
+      },
+      "required": [
+        "overview"
+      ],
+      "title": "ProviderAuthProfileReadResponse",
+      "type": "object"
+    },
     "ProviderAuthReadStatusParams": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "properties": {
@@ -11162,6 +11571,84 @@
         "verification_uri"
       ],
       "title": "ProviderAuthStartLoginResponse",
+      "type": "object"
+    },
+    "ProviderAuthStatusClearParams": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "provider_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_id"
+      ],
+      "title": "ProviderAuthStatusClearParams",
+      "type": "object"
+    },
+    "ProviderAuthStatusClearResponse": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/GithubUserStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "title": "ProviderAuthStatusClearResponse",
+      "type": "object"
+    },
+    "ProviderAuthStatusSetParams": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "emoji": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limited_availability": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "provider_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "emoji",
+        "limited_availability",
+        "message",
+        "provider_id"
+      ],
+      "title": "ProviderAuthStatusSetParams",
+      "type": "object"
+    },
+    "ProviderAuthStatusSetResponse": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "properties": {
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/GithubUserStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "title": "ProviderAuthStatusSetResponse",
       "type": "object"
     },
     "ProviderBalanceInfo": {

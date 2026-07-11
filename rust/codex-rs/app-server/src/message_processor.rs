@@ -1544,6 +1544,21 @@ impl MessageProcessor {
                     .logout(params)
                     .await
                     .map(|r| Some(r.into())),
+                ClientRequest::ProviderAuthProfileRead { params, .. } => self
+                    .provider_auth_processor
+                    .profile_read(params)
+                    .await
+                    .map(|r| Some(r.into())),
+                ClientRequest::ProviderAuthStatusSet { params, .. } => self
+                    .provider_auth_processor
+                    .status_set(params)
+                    .await
+                    .map(|r| Some(r.into())),
+                ClientRequest::ProviderAuthStatusClear { params, .. } => self
+                    .provider_auth_processor
+                    .status_clear(params)
+                    .await
+                    .map(|r| Some(r.into())),
                 ClientRequest::ProviderApiKeyRead { params, .. } => self
                     .provider_auth_processor
                     .read_provider_api_keys(params)

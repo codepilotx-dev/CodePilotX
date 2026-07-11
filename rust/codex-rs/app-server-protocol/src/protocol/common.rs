@@ -1208,6 +1208,9 @@ FuzzyFileSearchSessionUpdate => "fuzzyFileSearch/sessionUpdate" {
         serialization: None,
         response: v2::ProviderAuthLogoutResponse,
     },
+    ProviderAuthProfileRead => "providerAuth/profileRead" { params: v2::ProviderAuthProfileReadParams, serialization: None, response: v2::ProviderAuthProfileReadResponse, },
+    ProviderAuthStatusSet => "providerAuth/statusSet" { params: v2::ProviderAuthStatusSetParams, serialization: None, response: v2::ProviderAuthStatusSetResponse, },
+    ProviderAuthStatusClear => "providerAuth/statusClear" { params: v2::ProviderAuthStatusClearParams, serialization: None, response: v2::ProviderAuthStatusClearResponse, },
     /// Read provider API key configuration from OS secure storage.
     ProviderApiKeyRead => "providerCredential/read" {
         params: v2::ProviderApiKeyReadParams,
@@ -3716,3 +3719,23 @@ mod tests {
 #[cfg(test)]
 #[path = "common_tests.rs"]
 mod common_tests;
+#[test]
+fn provider_auth_github_profile_and_status_requests_are_registered() {
+    for method in [
+        "providerAuth/profileRead",
+        "providerAuth/statusSet",
+        "providerAuth/statusClear",
+    ] {
+        let params = match method {
+            "providerAuth/statusSet" => {
+                serde_json::json!({"provider_id":"github-repositories","emoji":"wave","message":"hi","limited_availability":false,"expires_at":null})
+            }
+            _ => serde_json::json!({"provider_id":"github-repositories"}),
+        };
+        let value = serde_json::json!({"method":method,"id":1,"params":params});
+        assert!(
+            serde_json::from_value::<ClientRequest>(value).is_ok(),
+            "{method} must be registered"
+        );
+    }
+}
