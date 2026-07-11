@@ -18,6 +18,7 @@ Commits:
 - `b624e310a fix(desktop)：仅按退出事件确认侧车回收`
 - `00c0ae2a6 fix(desktop)：封闭侧车错误终态与关机重入`
 - `fde6ba420 fix(desktop)：保证侧车清理失败仍执行强制回收`
+- `14395daee fix(desktop)：消除侧车双拒绝与强杀异常竞态`
 
 ## RED / GREEN evidence
 
@@ -120,3 +121,20 @@ was invented.
   listeners, kills the helper process, and rejects instead of hanging shutdown.
 - Final focused validation after the second review: 118 tests passed, 0 failed,
   with 275 assertions; desktop typecheck and CSS ownership checks passed.
+
+## Third review fixes
+
+- Rust turn completion promises install an observation handler immediately.
+  When an EPIPE rejects both `turn/start` and the completion gate in the same
+  tick, the original completion promise remains awaitable without producing an
+  unhandled rejection. A process-level probe verifies one terminal error and no
+  `unhandledRejection` events.
+- Writable callback failures retain a one-shot error isolation listener because
+  fatal cleanup can synchronously remove the normal output handler before Node
+  emits the scheduled stream error.
+- A timed-out `taskkill` helper transitions to a post-kill isolation lifecycle.
+  Its asynchronous error/exit/close is consumed once, listeners are removed, and
+  a bounded safety cleanup prevents leaks when the helper stays silent. A
+  process-level `uncaughtException` probe verifies no escaped post-timeout error.
+- Third-review focused validation: 69 tests passed, 0 failed, with 168
+  assertions; desktop typecheck, CSS ownership and diff checks passed.
