@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { appendFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { appendFile, mkdir, mkdtemp, readFile, readdir, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { expect, test } from 'bun:test'
@@ -7,6 +7,7 @@ import {
   appendDesktopRolloutItems,
   createRolloutWriteScheduler,
   desktopAgentEventToRolloutItems,
+  isUnsupportedDirectorySyncError,
   parseDesktopRolloutSnapshot,
   shouldPersistDesktopRolloutItem,
   type DesktopRolloutLine,
@@ -63,6 +64,9 @@ test('rollout append retry recognizes a fully-written batch after append reports
     const persisted = await readFile(rolloutPath, 'utf8')
     expect(persisted.match(/"content":"new"/g)).toHaveLength(1)
     expect(await fileExists(`${rolloutPath}.desktop-recovery.json`)).toBe(true)
+    expect(JSON.parse(await readFile(`${rolloutPath}.desktop-recovery.json`, 'utf8'))).toMatchObject({
+      state: 'committed', batchId: 'batch-1',
+    })
   })
 })
 
@@ -211,7 +215,139 @@ test('old owner release never removes a replacement owner lock', async () => {
     })
     const owner = JSON.parse(await readFile(join(lockPath, 'owner.json'), 'utf8'))
     expect(owner.token).toBe('new-owner')
+    await expect(appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'third' })], {
+      lockOptions: { retryDelaysMs: [0] },
+    })).rejects.toMatchObject({ code: 'EBUSY' })
+    expect(JSON.parse(await readFile(join(lockPath, 'owner.json'), 'utf8')).token).toBe('new-owner')
     await rm(lockPath, { recursive: true, force: true })
+  })
+})
+
+test('heartbeats are serialized and release waits for the active refresh', async () => {
+  await withTempDir(async dir => {
+    const callbacks: Array<() => void> = []
+    let active = 0
+    let maxActive = 0
+    let finishHeartbeat!: () => void
+    const heartbeatGate = new Promise<void>(resolve => { finishHeartbeat = resolve })
+    let entered!: () => void
+    const bodyEntered = new Promise<void>(resolve => { entered = resolve })
+    let finishBody!: () => void
+    const bodyGate = new Promise<void>(resolve => { finishBody = resolve })
+    const append = appendDesktopRolloutItems(join(dir, 'session.jsonl'), [eventItem('message', { content: 'one' })], {
+      lockOptions: {
+        scheduleHeartbeat: callback => { callbacks.push(callback); return callback },
+        cancelHeartbeat: () => {},
+        onHeartbeat: async () => {
+          active += 1
+          maxActive = Math.max(maxActive, active)
+          await heartbeatGate
+          active -= 1
+        },
+      },
+      faultAfterAppend: async () => { entered(); await bodyGate },
+    })
+    await bodyEntered
+    expect(callbacks).toHaveLength(1)
+    callbacks.shift()?.()
+    await Promise.resolve()
+    expect(callbacks).toHaveLength(0)
+    finishBody()
+    await Promise.resolve()
+    expect(active).toBe(1)
+    finishHeartbeat()
+    await append
+    expect(maxActive).toBe(1)
+  })
+})
+
+test('heartbeat failure compromises the lock and propagates without releasing it', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.jsonl')
+    const callbacks: Array<() => void> = []
+    let entered!: () => void
+    const bodyEntered = new Promise<void>(resolve => { entered = resolve })
+    let finishBody!: () => void
+    const bodyGate = new Promise<void>(resolve => { finishBody = resolve })
+    const append = appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'one' })], {
+      lockOptions: {
+        scheduleHeartbeat: callback => { callbacks.push(callback); return callback },
+        cancelHeartbeat: () => {},
+        onHeartbeat: async () => { throw Object.assign(new Error('heartbeat failed'), { code: 'EIO' }) },
+      },
+      faultAfterAppend: async () => { entered(); await bodyGate },
+    })
+    await bodyEntered
+    callbacks.shift()?.()
+    await Promise.resolve()
+    finishBody()
+    await expect(append).rejects.toMatchObject({ code: 'EIO' })
+    expect(await fileExists(`${rolloutPath}.desktop-lock`)).toBe(true)
+    await rm(`${rolloutPath}.desktop-lock`, { recursive: true, force: true })
+  })
+})
+
+test('published lock is removed when parent sync fails after rename', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.jsonl')
+    let calls = 0
+    await expect(appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'one' })], {
+      lockOptions: {
+        syncDirectory: async () => {
+          calls += 1
+          if (calls >= 2) throw Object.assign(new Error('sync denied'), { code: 'EACCES' })
+        },
+      },
+    })).rejects.toThrow()
+    expect(await fileExists(`${rolloutPath}.desktop-lock`)).toBe(false)
+  })
+})
+
+test('directory EACCES is propagated and never treated as unsupported', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.jsonl')
+    await expect(appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'one' })], {
+      lockOptions: {
+        syncDirectory: async () => { throw Object.assign(new Error('denied'), { code: 'EACCES' }) },
+      },
+    })).rejects.toMatchObject({ code: 'EACCES' })
+    expect(await fileExists(`${rolloutPath}.desktop-lock`)).toBe(false)
+    expect(isUnsupportedDirectorySyncError('win32', 'sync', 'EACCES')).toBe(false)
+    expect(isUnsupportedDirectorySyncError('win32', 'sync', 'EPERM')).toBe(true)
+    expect(isUnsupportedDirectorySyncError('win32', 'open', 'EPERM')).toBe(false)
+    expect(isUnsupportedDirectorySyncError('linux', 'sync', 'EPERM')).toBe(false)
+  })
+})
+
+test('journal temp file is removed when write sync or rename preparation fails', async () => {
+  await withTempDir(async dir => {
+    for (const phase of ['after-write', 'after-sync', 'before-rename'] as const) {
+      const rolloutPath = join(dir, `${phase}.jsonl`)
+      await expect(appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'one' })], {
+        faultJournalPhase: async current => {
+          if (current === phase) throw new Error(`fault ${phase}`)
+        },
+      })).rejects.toThrow(`fault ${phase}`)
+    }
+    expect((await readdir(dir)).some(name => name.includes('.desktop-recovery.json.tmp-'))).toBe(false)
+  })
+})
+
+test('acquire cleanup removes only stale protocol claim directories', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.jsonl')
+    const protocolClaim = `${rolloutPath}.desktop-lock.acquire-abandoned-token`
+    const unrelated = join(dir, 'unrelated.acquire-abandoned-token')
+    await mkdir(protocolClaim)
+    await mkdir(unrelated)
+    const old = new Date(Date.now() - 60_000)
+    await utimes(protocolClaim, old, old)
+    await utimes(unrelated, old, old)
+    await appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'one' })], {
+      lockOptions: { staleMs: 10 },
+    })
+    expect(await fileExists(protocolClaim)).toBe(false)
+    expect(await fileExists(unrelated)).toBe(true)
   })
 })
 
@@ -245,6 +381,24 @@ test('invalid recovery journal fails closed without deleting evidence', async ()
       .rejects.toMatchObject({ code: 'EROLLOUTRECOVERY' })
     expect(await readFile(journalPath)).toEqual(before)
     expect(await readFile(rolloutPath, 'utf8')).toBe('{"existing":true}\n')
+  })
+})
+
+test('recovery fails closed when the original prefix was replaced at the same size', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.rollout.jsonl')
+    const journalPath = `${rolloutPath}.desktop-recovery.json`
+    const expectedTail = '{"expected":true}\n'
+    await writeFile(rolloutPath, `BBBB${expectedTail}`)
+    await writeFile(
+      journalPath,
+      JSON.stringify(recoveryJournalFor(rolloutPath, 'batch-prefix', expectedTail, 4, 'AAAA')),
+    )
+    const before = await readFile(rolloutPath)
+    await expect(appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'new' })]))
+      .rejects.toMatchObject({ code: 'EROLLOUTRECOVERY' })
+    expect(await readFile(rolloutPath)).toEqual(before)
+    expect(await fileExists(journalPath)).toBe(true)
   })
 })
 
@@ -440,6 +594,7 @@ function recoveryJournalFor(
   batchId: string,
   payload: string,
   originalSize = 0,
+  originalPrefix = '',
 ) {
   const bytes = Buffer.from(payload)
   return {
@@ -447,6 +602,7 @@ function recoveryJournalFor(
     batchId,
     token: 'journal-token',
     rolloutPathHash: createHash('sha256').update(rolloutPath).digest('hex'),
+    originalPrefixSha256: createHash('sha256').update(originalPrefix).digest('hex'),
     originalSize,
     byteLength: bytes.length,
     sha256: createHash('sha256').update(bytes).digest('hex'),
