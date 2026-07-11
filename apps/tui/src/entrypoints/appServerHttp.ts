@@ -190,7 +190,7 @@ const httpServer = new HttpAppServer(
 
 await httpServer.start()
 
-serverLog(`started on port ${httpServer.port}`, { authToken: httpServer.authToken.slice(0, 16) + '...' })
+serverLog(`started on port ${httpServer.port}`)
 
 // 输出端口信息到 stdout（方便父进程读取）
 console.log(JSON.stringify({

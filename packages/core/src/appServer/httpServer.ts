@@ -15,7 +15,7 @@
  */
 
 import http, { type IncomingMessage, type ServerResponse } from 'node:http'
-import { randomBytes } from 'node:crypto'
+import { randomBytes, timingSafeEqual } from 'node:crypto'
 import type { ThreadEvent } from '../agent/workflow.js'
 
 // ── 类型 ─────────────────────────────────────────────────────────────────
@@ -27,6 +27,10 @@ export type HttpAppServerConfig = {
   host?: string
   /** 自定义 auth token（默认自动生成 32 字节 hex） */
   authToken?: string
+  /** 允许发起浏览器请求的精确 Origin；无 Origin 的本地客户端不受影响。 */
+  trustedOrigins?: readonly string[]
+  /** JSON-RPC 请求体字节上限（默认 1 MiB）。 */
+  maxBodyBytes?: number
 }
 
 export type HttpAppServerDeps = {
@@ -68,9 +72,7 @@ function generateToken(): string {
   return randomBytes(32).toString('hex')
 }
 
-function isLoopback(address: string): boolean {
-  return address === '127.0.0.1' || address === '::1' || address === 'localhost'
-}
+const DEFAULT_MAX_BODY_BYTES = 1024 * 1024
 
 // ── Request 日志 ─────────────────────────────────────────────────────────
 
@@ -87,6 +89,8 @@ export class HttpAppServer {
   private sseManager = new SseClientManager()
   private _port = 0
   private _authToken: string
+  private trustedOrigins: ReadonlySet<string>
+  private maxBodyBytes: number
   private _started = false
 
   constructor(
@@ -94,6 +98,8 @@ export class HttpAppServer {
     private deps: HttpAppServerDeps,
   ) {
     this._authToken = config.authToken ?? generateToken()
+    this.trustedOrigins = new Set(config.trustedOrigins ?? [])
+    this.maxBodyBytes = normalizeBodyLimit(config.maxBodyBytes)
     this.server = http.createServer((req, res) =>
       this.handleRequest(req, res).catch(() => {
         if (!res.headersSent) {
@@ -118,9 +124,7 @@ export class HttpAppServer {
         const addr = this.server.address()
         if (addr && typeof addr === 'object') {
           this._port = addr.port
-          console.error(
-            `[http-app-server] listening on http://${host}:${this._port} (authToken: ${this._authToken.slice(0, 8)}...)`,
-          )
+          console.error(`[http-app-server] listening on http://${host}:${this._port}`)
         }
         resolve()
       })
@@ -158,18 +162,33 @@ export class HttpAppServer {
   // ── 请求路由 ───────────────────────────────────────────────────────────
 
   private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    // CORS headers（loopback-only，宽策略）
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Auth-Token')
+    const origin = req.headers.origin
+    if (origin !== undefined) {
+      res.setHeader('Vary', 'Origin')
+      if (!this.trustedOrigins.has(origin)) {
+        logRequest(req.method, req.url, 403)
+        res.writeHead(403, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Forbidden' }))
+        return
+      }
+      res.setHeader('Access-Control-Allow-Origin', origin)
+    }
 
     if (req.method === 'OPTIONS') {
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Auth-Token')
       res.writeHead(204)
       res.end()
       return
     }
 
-    // Auth verification（非 loopback 需要 token）
+    const urlPath = req.url ?? '/'
+
+    // 健康检查只报告存活状态，不进入凭据边界。
+    if (urlPath === '/healthz') {
+      return this.handleHealthz(res)
+    }
+
     if (!this.verifyAuth(req)) {
       logRequest(req.method, req.url, 401)
       res.writeHead(401, { 'Content-Type': 'application/json' })
@@ -177,12 +196,7 @@ export class HttpAppServer {
       return
     }
 
-    const urlPath = req.url ?? '/'
-
     switch (urlPath) {
-      case '/healthz':
-        return this.handleHealthz(res)
-
       case '/events':
         return this.handleSse(req, res)
 
@@ -197,14 +211,11 @@ export class HttpAppServer {
   }
 
   private verifyAuth(req: IncomingMessage): boolean {
-    const socket = req.socket
-    const address = socket.remoteAddress
-    // loopback 跳过 auth
-    if (address && isLoopback(address)) {
-      return true
-    }
     const token = req.headers['x-auth-token']
-    return token === this._authToken
+    if (typeof token !== 'string') return false
+    const actual = Buffer.from(token, 'utf8')
+    const expected = Buffer.from(this._authToken, 'utf8')
+    return actual.length === expected.length && timingSafeEqual(actual, expected)
   }
 
   // ── Healthz ────────────────────────────────────────────────────────────
@@ -212,11 +223,7 @@ export class HttpAppServer {
   private handleHealthz(res: ServerResponse): void {
     logRequest('GET', '/healthz', 200)
     res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify({
-      status: 'ok',
-      port: this._port,
-      sseClients: this.sseManager.clientCount,
-    }))
+    res.end(JSON.stringify({ status: 'ok' }))
   }
 
   // ── SSE ────────────────────────────────────────────────────────────────
@@ -259,20 +266,32 @@ export class HttpAppServer {
       return
     }
 
+    if (isDeclaredOversized(req, this.maxBodyBytes)) {
+      logRequest('POST', '/jsonrpc', 413)
+      res.writeHead(413, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'Payload Too Large' }))
+      return
+    }
+
     try {
-      const body = await collectBody(req)
+      const body = await collectBody(req, this.maxBodyBytes)
       const result = await this.deps.handleJsonRpc(body)
 
       logRequest('POST', '/jsonrpc', 200)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify(result))
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      if (error instanceof BodyTooLargeError) {
+        logRequest('POST', '/jsonrpc', 413)
+        res.writeHead(413, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Payload Too Large' }))
+        return
+      }
       logRequest('POST', '/jsonrpc', 500)
       res.writeHead(500, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({
         jsonrpc: '2.0',
-        error: { code: -32000, message },
+        error: { code: -32000, message: 'Internal server error' },
       }))
     }
   }
@@ -280,17 +299,48 @@ export class HttpAppServer {
 
 // ── 工具 ─────────────────────────────────────────────────────────────────
 
-function collectBody(req: IncomingMessage): Promise<unknown> {
+class BodyTooLargeError extends Error {}
+
+function normalizeBodyLimit(value: number | undefined): number {
+  if (value === undefined) return DEFAULT_MAX_BODY_BYTES
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new Error('maxBodyBytes must be a positive safe integer')
+  }
+  return value
+}
+
+function isDeclaredOversized(req: IncomingMessage, maxBodyBytes: number): boolean {
+  const value = req.headers['content-length']
+  if (value === undefined) return false
+  const declaredBytes = Number(value)
+  return Number.isFinite(declaredBytes) && declaredBytes > maxBodyBytes
+}
+
+function collectBody(req: IncomingMessage, maxBodyBytes: number): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
-    req.on('data', (chunk: Buffer) => chunks.push(chunk))
+    let bytesRead = 0
+    let settled = false
+    req.on('data', (chunk: Buffer) => {
+      if (settled) return
+      bytesRead += chunk.length
+      if (bytesRead > maxBodyBytes) {
+        settled = true
+        reject(new BodyTooLargeError())
+        return
+      }
+      chunks.push(chunk)
+    })
     req.on('end', () => {
+      if (settled) return
       try {
         resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')))
       } catch {
         reject(new Error('Invalid JSON body'))
       }
     })
-    req.on('error', reject)
+    req.on('error', error => {
+      if (!settled) reject(error)
+    })
   })
 }
