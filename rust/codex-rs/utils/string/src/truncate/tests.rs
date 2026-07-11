@@ -60,7 +60,7 @@ fn split_string_respects_utf8_boundaries() {
 
     assert_eq!(
         split_string(
-            "",
+            "😀😀😀😀😀",
             /*beginning_bytes*/ 1,
             /*end_bytes*/ 1
         ),
@@ -68,19 +68,19 @@ fn split_string_respects_utf8_boundaries() {
     );
     assert_eq!(
         split_string(
-            "",
+            "😀😀😀😀😀",
             /*beginning_bytes*/ 7,
             /*end_bytes*/ 7
         ),
-        (3, "", "")
+        (3, "😀", "😀")
     );
     assert_eq!(
         split_string(
-            "",
+            "😀😀😀😀😀",
             /*beginning_bytes*/ 8,
             /*end_bytes*/ 8
         ),
-        (1, "", "")
+        (1, "😀😀", "😀😀")
     );
 }
 

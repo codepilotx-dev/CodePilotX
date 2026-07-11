@@ -135,7 +135,7 @@ async fn run_exec_like(args: RunExecLikeArgs) -> Result<FunctionToolOutput, Func
     {
         let approval_policy = turn.approval_policy.value();
         return Err(FunctionCallError::RespondToModel(format!(
-            "approval policy is {approval_policy:?}; reject command ?you should not ask for escalated permissions if the approval policy is {approval_policy:?}"
+            "approval policy is {approval_policy:?}; reject command — you should not ask for escalated permissions if the approval policy is {approval_policy:?}"
         )));
     }
 

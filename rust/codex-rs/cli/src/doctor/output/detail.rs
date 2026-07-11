@@ -219,7 +219,7 @@ fn install_details(parsed: &[ParsedDetail], options: HumanOutputOptions) -> Vec<
             yes_no(managed_by_npm),
             yes_no(managed_by_bun),
             if is_falsy(package_root) {
-                "?.to_string()
+                "—".to_string()
             } else {
                 package_root.to_string()
             }
@@ -250,7 +250,7 @@ fn install_details(parsed: &[ParsedDetail], options: HumanOutputOptions) -> Vec<
         );
         if shown < total {
             out.push(HumanDetail::Continuation(
-                "?(full list with --all)".to_string(),
+                "… (full list with --all)".to_string(),
             ));
         }
     }
@@ -305,7 +305,7 @@ fn git_details(parsed: &[ParsedDetail], options: HumanOutputOptions) -> Vec<Huma
         );
         if shown < total {
             out.push(HumanDetail::Continuation(
-                "?(full list with --all)".to_string(),
+                "… (full list with --all)".to_string(),
             ));
         }
     }
@@ -530,7 +530,7 @@ fn push_list_row(
         .collect::<Vec<_>>()
         .join(", ");
     if limit < items.len() {
-        value.push_str(", ?(full list with --all)");
+        value.push_str(", … (full list with --all)");
     }
     out.push(HumanDetail::Row {
         label: label.to_string(),
@@ -779,6 +779,6 @@ fn yes_no(value: &str) -> &'static str {
 pub(super) fn is_falsy(value: &str) -> bool {
     matches!(
         value.trim().to_ascii_lowercase().as_str(),
-        "" | "false" | "none" | "not set" | "unknown" | "missing" | "absent" | "no" | "? | "-"
+        "" | "false" | "none" | "not set" | "unknown" | "missing" | "absent" | "no" | "—" | "-"
     )
 }

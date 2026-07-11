@@ -714,7 +714,7 @@ mod tests {
         assert_eq!(
             truncated,
             vec![
-                message("user", "midd? tokens truncated?234", /*phase*/ None),
+                message("user", "midd…1 tokens truncated…1234", /*phase*/ None),
                 new,
             ]
         );
@@ -758,7 +758,7 @@ mod tests {
                         detail: None,
                     },
                     ContentItem::OutputText {
-                        text: "uv? tokens truncatedyz".to_string(),
+                        text: "uv…1 tokens truncated…yz".to_string(),
                     },
                 ],
                 phase: None,

@@ -1186,28 +1186,30 @@ async fn collab_receiver_notification_does_not_cache_not_found_thread() {
         ThreadId::from_string("00000000-0000-0000-0000-000000000124").expect("valid thread id");
 
     app.handle_thread_event_now(ThreadBufferedEvent::Notification(
-        ServerNotification::ItemCompleted(codepilotx_app_server_protocol::ItemCompletedNotification {
-            thread_id: ThreadId::new().to_string(),
-            turn_id: "turn-1".to_string(),
-            completed_at_ms: 0,
-            item: ThreadItem::CollabAgentToolCall {
-                id: "send-1".to_string(),
-                tool: codepilotx_app_server_protocol::CollabAgentTool::SendInput,
-                status: codepilotx_app_server_protocol::CollabAgentToolCallStatus::Failed,
-                sender_thread_id: ThreadId::new().to_string(),
-                receiver_thread_ids: vec![receiver_thread_id.to_string()],
-                prompt: Some("hello".to_string()),
-                model: None,
-                reasoning_effort: None,
-                agents_states: HashMap::from([(
-                    receiver_thread_id.to_string(),
-                    codepilotx_app_server_protocol::CollabAgentState {
-                        status: codepilotx_app_server_protocol::CollabAgentStatus::NotFound,
-                        message: None,
-                    },
-                )]),
+        ServerNotification::ItemCompleted(
+            codepilotx_app_server_protocol::ItemCompletedNotification {
+                thread_id: ThreadId::new().to_string(),
+                turn_id: "turn-1".to_string(),
+                completed_at_ms: 0,
+                item: ThreadItem::CollabAgentToolCall {
+                    id: "send-1".to_string(),
+                    tool: codepilotx_app_server_protocol::CollabAgentTool::SendInput,
+                    status: codepilotx_app_server_protocol::CollabAgentToolCallStatus::Failed,
+                    sender_thread_id: ThreadId::new().to_string(),
+                    receiver_thread_ids: vec![receiver_thread_id.to_string()],
+                    prompt: Some("hello".to_string()),
+                    model: None,
+                    reasoning_effort: None,
+                    agents_states: HashMap::from([(
+                        receiver_thread_id.to_string(),
+                        codepilotx_app_server_protocol::CollabAgentState {
+                            status: codepilotx_app_server_protocol::CollabAgentStatus::NotFound,
+                            message: None,
+                        },
+                    )]),
+                },
             },
-        }),
+        ),
     ));
 
     assert_eq!(app.agent_navigation.get(&receiver_thread_id), None);
@@ -2626,7 +2628,7 @@ async fn inactive_thread_file_change_approval_recovers_buffered_changes() {
         other => panic!("expected patch preview history cell, saw {other:?}"),
     };
     let rendered = lines_to_single_string(&cell.display_lines(/*width*/ 80));
-    assert!(rendered.contains("?Added README.md (+1 -0)"));
+    assert!(rendered.contains("• Added README.md (+1 -0)"));
     assert!(rendered.contains("1 +hello"));
 }
 
@@ -4197,9 +4199,13 @@ async fn set_thread_goal_draft_materializes_long_objective_and_confirms_before_p
         .expect("codex home");
     assert!(goal_files::objective_file_path(&goal.objective, Some(&codepilotx_home)).is_some());
     assert_eq!(
-        goal_files::objective_text_for_edit(&mut app_server, Some(&codepilotx_home), &goal.objective)
-            .await
-            .expect("managed goal file should be readable"),
+        goal_files::objective_text_for_edit(
+            &mut app_server,
+            Some(&codepilotx_home),
+            &goal.objective
+        )
+        .await
+        .expect("managed goal file should be readable"),
         objective
     );
     let is_managed = |home: &AppServerPath, path: &str| {
@@ -4221,7 +4227,11 @@ async fn set_thread_goal_draft_materializes_long_objective_and_confirms_before_p
     ));
     let unix_path = AppServerPath::from_app_server("/tmp/codex\\").join("a");
     assert_eq!(unix_path.as_str(), "/tmp/codex\\/a");
-    let attachments_dir = app.chat_widget.config_ref().codepilotx_home.join("attachments");
+    let attachments_dir = app
+        .chat_widget
+        .config_ref()
+        .codepilotx_home
+        .join("attachments");
     let attachment_count = std::fs::read_dir(&attachments_dir)?.count();
     let placeholder = "[Pasted Content 5 chars]";
     let paste_draft = crate::goal_files::GoalDraft {
@@ -4738,7 +4748,7 @@ async fn feedback_submission_without_thread_emits_error_history_cell() {
     };
     assert_eq!(
         lines_to_single_string(&cell.display_lines(/*width*/ 120)),
-        "?Failed to upload feedback: boom"
+        "■ Failed to upload feedback: boom"
     );
 }
 
@@ -4804,7 +4814,7 @@ async fn feedback_submission_for_inactive_thread_replays_into_origin_thread() {
         }
     }
     assert!(rendered_cells.iter().any(|cell| {
-        cell.contains("?Feedback uploaded. Please open an issue using the following URL:")
+        cell.contains("• Feedback uploaded. Please open an issue using the following URL:")
             && cell.contains("uploaded-thread")
     }));
 }

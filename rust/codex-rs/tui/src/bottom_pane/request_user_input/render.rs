@@ -488,7 +488,7 @@ fn truncate_line_word_boundary_with_ellipsis(
         return line;
     }
 
-    let ellipsis = "";
+    let ellipsis = "…";
     let ellipsis_width = UnicodeWidthStr::width(ellipsis);
     if ellipsis_width >= max_width {
         return Line::from(ellipsis);

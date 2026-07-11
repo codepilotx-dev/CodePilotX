@@ -35,7 +35,7 @@ pub(crate) const TRAILING_OUTPUT_GRACE: Duration = Duration::from_millis(100);
 const UNIFIED_EXEC_OUTPUT_DELTA_MAX_BYTES: usize = 8192;
 
 /// Spawn a background task that continuously reads from the PTY, appends to the
-/// shared transcript, and emits ExecCommandOutputDelta events on UTF?
+/// shared transcript, and emits ExecCommandOutputDelta events on UTF‑8
 /// boundaries.
 pub(crate) fn start_streaming_output(
     process: &UnifiedExecProcess,

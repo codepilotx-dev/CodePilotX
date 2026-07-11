@@ -551,15 +551,7 @@ mod tests {
         // Emoji (wide), CJK, control char, digit + combining macron sequences
         let input = "\n\nA\u{0003}0\u{0304}\n";
         let deltas = vec![
-            "",
-            "",
-            "\n",
-            "",
-            "\nA",
-            "\u{0003}",
-            "0",
-            "\u{0304}",
-            "\n",
+            "🙂", "🙂", "\n", "字漢", "\nA", "\u{0003}", "0", "\u{0304}", "\n",
         ];
 
         let streamed = simulate_stream_markdown_for_tests(&deltas, /*finalize*/ true);
@@ -878,7 +870,7 @@ mod tests {
         let rendered_strs = lines_to_plain_strings(&rendered);
 
         assert!(
-            rendered_strs.iter().any(|line| line.contains('')),
+            rendered_strs.iter().any(|line| line.contains('━')),
             "expected markdown-fenced table to render with a separator: {rendered_strs:?}"
         );
         assert!(

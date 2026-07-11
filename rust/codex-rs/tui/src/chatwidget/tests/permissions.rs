@@ -1058,7 +1058,7 @@ async fn permissions_selection_sends_approvals_reviewer_in_override_turn_context
     assert!(
         popup
             .lines()
-            .any(|line| line.contains("(current)") && line.contains('?)),
+            .any(|line| line.contains("(current)") && line.contains('›')),
         "expected permissions popup to open with the current preset selected: {popup}"
     );
 
@@ -1067,7 +1067,7 @@ async fn permissions_selection_sends_approvals_reviewer_in_override_turn_context
     assert!(
         popup
             .lines()
-            .any(|line| line.contains("Approve for me") && line.contains('?)),
+            .any(|line| line.contains("Approve for me") && line.contains('›')),
         "expected one Down from Ask for approval to select Approve for me: {popup}"
     );
     chat.handle_key_event(KeyEvent::from(KeyCode::Enter));

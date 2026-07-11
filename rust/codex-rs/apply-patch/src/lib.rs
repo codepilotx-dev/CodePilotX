@@ -1229,9 +1229,9 @@ mod tests {
         fs::write(&path, "a\nb\nc\nd\ne\nf\n").unwrap();
 
         // Patch performs:
-        //  ?Replace `b` ?`B`
-        //  ?Replace `e` ?`E` (using surrounding context)
-        //  ?Append new line `g` at the endoffile
+        //  • Replace `b` → `B`
+        //  • Replace `e` → `E` (using surrounding context)
+        //  • Append new line `g` at the end‑of‑file
         let patch = wrap_patch(&format!(
             r#"*** Update File: {}
 @@

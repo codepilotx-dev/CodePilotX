@@ -72,7 +72,10 @@ pub(super) fn emit_project_config_warnings(app_event_tx: &AppEventSender, config
         ConfigLayerStackOrdering::LowestPrecedenceFirst,
         /*include_disabled*/ true,
     ) {
-        let ConfigLayerSource::Project { dot_codepilotx_folder } = &layer.name else {
+        let ConfigLayerSource::Project {
+            dot_codepilotx_folder,
+        } = &layer.name
+        else {
             continue;
         };
         let Some(disabled_reason) = &layer.disabled_reason else {
@@ -516,8 +519,8 @@ mod tests {
         .join("\n");
 
         insta::assert_snapshot!(rendered, @r"
-?Skipped loading 1 skill(s) due to invalid SKILL.md files.
-?/repo/.codex/skills/abc/SKILL.md: invalid description
+⚠ Skipped loading 1 skill(s) due to invalid SKILL.md files.
+⚠ /repo/.codex/skills/abc/SKILL.md: invalid description
 ");
     }
 }

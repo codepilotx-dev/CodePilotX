@@ -222,7 +222,7 @@ pub(crate) trait HistoryCell: std::fmt::Debug + Send + Sync + Any {
     /// `Wrap { trim: false }`, which measures the actual row count after
     /// ratatui's viewport-level character wrapping. This is critical
     /// for lines containing URL-like tokens that are wider than the
-    /// terminal ?the logical line count would undercount.
+    /// terminal — the logical line count would undercount.
     fn desired_height(&self, width: u16) -> u16 {
         self.desired_height_for_mode(width, HistoryRenderMode::Rich)
     }

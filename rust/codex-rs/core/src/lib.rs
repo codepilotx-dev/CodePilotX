@@ -1,5 +1,8 @@
 //! Root of the `codex-core` library.
 
+// Reqwest 0.13's nested Hyper/Tower client type exceeds rustc's default
+// trait-solver depth when guardian futures are erased as `Send` trait objects.
+#![recursion_limit = "256"]
 // Prevent accidental direct writes to stdout/stderr in library code. All
 // user-visible output must go through the appropriate abstraction (e.g.,
 // the TUI or the tracing stack).

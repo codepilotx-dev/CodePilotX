@@ -19,7 +19,7 @@ const REVIEW_FALLBACK_MESSAGE: &str = "Reviewer failed to output a response.";
 ///   "[x]" for selected items and "[ ]" for unselected. Missing indices
 ///   default to selected.
 /// - When `selection` is `None`, the marker is omitted and a simple bullet is
-///   rendered ("- Title ?path:start-end").
+///   rendered ("- Title — path:start-end").
 pub fn format_review_findings_block(
     findings: &[ReviewFinding],
     selection: Option<&[bool]>,
@@ -44,9 +44,9 @@ pub fn format_review_findings_block(
             // Default to selected if index is out of bounds.
             let checked = flags.get(idx).copied().unwrap_or(true);
             let marker = if checked { "[x]" } else { "[ ]" };
-            lines.push(format!("- {marker} {title} ?{location}"));
+            lines.push(format!("- {marker} {title} — {location}"));
         } else {
-            lines.push(format!("- {title} ?{location}"));
+            lines.push(format!("- {title} — {location}"));
         }
 
         for body_line in item.body.lines() {

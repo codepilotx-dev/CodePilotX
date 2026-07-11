@@ -39,7 +39,7 @@ impl HistoryCell for FinalMessageSeparator {
         }
 
         if label_parts.is_empty() {
-            return vec![Line::from_iter(["".repeat(width as usize).dim()])];
+            return vec![Line::from_iter(["─".repeat(width as usize).dim()])];
         }
 
         let label = format!(" {} ", label_parts.join("  "));
@@ -47,7 +47,7 @@ impl HistoryCell for FinalMessageSeparator {
         vec![
             Line::from_iter([
                 label,
-                "".repeat((width as usize).saturating_sub(label_width)),
+                "─".repeat((width as usize).saturating_sub(label_width)),
             ])
             .dim(),
         ]

@@ -24,7 +24,7 @@ pub(super) const DEFAULT_TERMINAL_TITLE_ITEMS: [&str; 2] = ["activity", "project
 
 /// Braille-pattern dot-spinner frames for the terminal title animation.
 pub(super) const TERMINAL_TITLE_SPINNER_FRAMES: [&str; 10] =
-    ["?, "?, "?, "?, "?, "?, "?, "?, "?, "?];
+    ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 /// Time between spinner frame advances in the terminal title.
 pub(super) const TERMINAL_TITLE_SPINNER_INTERVAL: Duration = Duration::from_millis(100);
@@ -439,9 +439,12 @@ impl ChatWidget {
             )
             .iter()
             .find_map(|layer| match &layer.name {
-                ConfigLayerSource::Project { dot_codepilotx_folder } => {
-                    dot_codepilotx_folder.as_path().parent().map(Path::to_path_buf)
-                }
+                ConfigLayerSource::Project {
+                    dot_codepilotx_folder,
+                } => dot_codepilotx_folder
+                    .as_path()
+                    .parent()
+                    .map(Path::to_path_buf),
                 _ => None,
             })
     }

@@ -19,13 +19,13 @@ fn split_valid_utf8_prefix_respects_max_bytes_for_ascii() {
 
 #[test]
 fn split_valid_utf8_prefix_avoids_splitting_utf8_codepoints() {
-    // "" is 2 bytes in UTF-8. With a max of 3 bytes, we should only emit 1 char (2 bytes).
-    let mut buf = "".as_bytes().to_vec();
+    // "é" is 2 bytes in UTF-8. With a max of 3 bytes, we should only emit 1 char (2 bytes).
+    let mut buf = "ééé".as_bytes().to_vec();
 
     let first =
         split_valid_utf8_prefix_with_max(&mut buf, /*max_bytes*/ 3).expect("expected prefix");
-    assert_eq!(std::str::from_utf8(&first).unwrap(), "");
-    assert_eq!(buf, "".as_bytes().to_vec());
+    assert_eq!(std::str::from_utf8(&first).unwrap(), "é");
+    assert_eq!(buf, "éé".as_bytes().to_vec());
 }
 
 #[test]

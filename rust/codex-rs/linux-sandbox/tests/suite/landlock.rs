@@ -196,7 +196,9 @@ async fn run_cmd_result_with_permission_profile_for_cwd(
     .await
 }
 
-fn is_bwrap_unavailable_output(output: &codepilotx_protocol::exec_output::ExecToolCallOutput) -> bool {
+fn is_bwrap_unavailable_output(
+    output: &codepilotx_protocol::exec_output::ExecToolCallOutput,
+) -> bool {
     output.stderr.text.contains(BWRAP_UNAVAILABLE_ERR)
         || (output
             .stderr
@@ -467,8 +469,8 @@ async fn assert_network_blocked(cmd: &[&str]) {
     dbg!(&output.exit_code);
 
     // A completely missing binary exits with 127.  Anything else should also
-    // be nonzero (EPERM from seccomp will usually bubble up as 1, 2, 13?
-    // If?and only if*the command exits 0 we consider the sandbox breached.
+    // be non‑zero (EPERM from seccomp will usually bubble up as 1, 2, 13…)
+    // If—*and only if*—the command exits 0 we consider the sandbox breached.
 
     if output.exit_code == 0 {
         panic!(
@@ -490,7 +492,7 @@ async fn sandbox_blocks_wget() {
 
 #[tokio::test]
 async fn sandbox_blocks_ping() {
-    // ICMP requires raw socket ?should be denied quickly with EPERM.
+    // ICMP requires raw socket – should be denied quickly with EPERM.
     assert_network_blocked(&["ping", "-c", "1", "8.8.8.8"]).await;
 }
 

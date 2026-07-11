@@ -911,7 +911,8 @@ async fn turn_start_tracks_turn_event_analytics() -> Result<()> {
     )
     .await??;
 
-    let event = wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "codepilotx_turn_event").await?;
+    let event =
+        wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "codepilotx_turn_event").await?;
     assert_eq!(event["event_params"]["thread_id"], thread.id);
     assert_eq!(event["event_params"]["session_id"], thread.session_id);
     assert_eq!(event["event_params"]["turn_id"], turn.id);
@@ -1056,7 +1057,8 @@ async fn turn_profile_tracks_blocking_tool_and_follow_up_sampling() -> Result<()
     )
     .await??;
 
-    let event = wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "codepilotx_turn_event").await?;
+    let event =
+        wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "codepilotx_turn_event").await?;
     let params = &event["event_params"];
     assert_eq!(
         json!({
@@ -2251,7 +2253,7 @@ async fn turn_start_exec_approval_toggle_v2() -> Result<()> {
     .await??;
     let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
 
-    // turn/start ?expect CommandExecutionRequestApproval request from server
+    // turn/start — expect CommandExecutionRequestApproval request from server
     let first_turn_id = mcp
         .send_turn_start_request(TurnStartParams {
             thread_id: thread.id.clone(),
@@ -2566,12 +2568,14 @@ async fn turn_start_updates_sandbox_and_cwd_between_turns_v2() -> Result<()> {
             runtime_workspace_roots: None,
             approval_policy: Some(codepilotx_app_server_protocol::AskForApproval::Never),
             approvals_reviewer: None,
-            sandbox_policy: Some(codepilotx_app_server_protocol::SandboxPolicy::WorkspaceWrite {
-                writable_roots: vec![first_cwd.try_into()?],
-                network_access: false,
-                exclude_tmpdir_env_var: true,
-                exclude_slash_tmp: true,
-            }),
+            sandbox_policy: Some(
+                codepilotx_app_server_protocol::SandboxPolicy::WorkspaceWrite {
+                    writable_roots: vec![first_cwd.try_into()?],
+                    network_access: false,
+                    exclude_tmpdir_env_var: true,
+                    exclude_slash_tmp: true,
+                },
+            ),
             permissions: None,
             model: Some("mock-model".to_string()),
             effort: Some(ReasoningEffort::Medium),
@@ -2828,7 +2832,12 @@ async fn turn_start_resolves_sticky_thread_local_environment_and_turn_overrides(
     std::fs::create_dir(&workspace)?;
 
     let server = create_mock_responses_server_repeating_assistant("done").await;
-    create_config_toml(&codepilotx_home, &server.uri(), "never", &BTreeMap::default())?;
+    create_config_toml(
+        &codepilotx_home,
+        &server.uri(),
+        "never",
+        &BTreeMap::default(),
+    )?;
     std::fs::write(
         codepilotx_home.join("environments.toml"),
         r#"
@@ -3182,7 +3191,12 @@ async fn turn_start_does_not_stream_apply_patch_change_updates_without_feature_v
         create_final_assistant_message_sse_response("patch applied")?,
     ];
     let server = create_mock_responses_server_sequence(responses).await;
-    create_config_toml(&codepilotx_home, &server.uri(), "never", &BTreeMap::default())?;
+    create_config_toml(
+        &codepilotx_home,
+        &server.uri(),
+        "never",
+        &BTreeMap::default(),
+    )?;
 
     let mut mcp = TestAppServer::new(&codepilotx_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;

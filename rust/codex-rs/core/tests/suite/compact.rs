@@ -403,7 +403,9 @@ fn assert_pre_sampling_switch_compaction_requests(
     );
 }
 
-async fn assert_compaction_uses_turn_lifecycle_id(codex: &std::sync::Arc<codepilotx_core::CodexThread>) {
+async fn assert_compaction_uses_turn_lifecycle_id(
+    codex: &std::sync::Arc<codepilotx_core::CodexThread>,
+) {
     let mut turn_started_id = None;
     let mut turn_completed_id = None;
     let mut compact_started_id = None;
@@ -498,7 +500,7 @@ async fn summarize_context_three_requests_and_instructions() {
     let codex = test.codex.clone();
     let rollout_path = test.session_configured.rollout_path.expect("rollout path");
 
-    // 1) Normal user input ?should hit server once.
+    // 1) Normal user input – should hit server once.
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
@@ -514,7 +516,7 @@ async fn summarize_context_three_requests_and_instructions() {
         .unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    // 2) Summarize ?second hit should include the summarization prompt.
+    // 2) Summarize – second hit should include the summarization prompt.
     codex.submit(Op::Compact).await.unwrap();
     let warning_event = wait_for_event(&codex, |ev| matches!(ev, EventMsg::Warning(_))).await;
     let EventMsg::Warning(WarningEvent { message }) = warning_event else {
@@ -523,7 +525,7 @@ async fn summarize_context_three_requests_and_instructions() {
     assert_eq!(message, COMPACT_WARNING_MESSAGE);
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    // 3) Next user input ?third hit; history should include only the summary.
+    // 3) Next user input – third hit; history should include only the summary.
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
@@ -731,7 +733,11 @@ async fn manual_pre_compact_block_decision_does_not_block_compaction() {
         "unsupported PreCompact block output should not prevent the compact request"
     );
 
-    let hook_inputs = read_hook_inputs(&test.codepilotx_home_path().join("pre_compact_block_log.jsonl"));
+    let hook_inputs = read_hook_inputs(
+        &test
+            .codepilotx_home_path()
+            .join("pre_compact_block_log.jsonl"),
+    );
     assert_eq!(hook_inputs.len(), 1);
     let input = &hook_inputs[0];
     assert_eq!(input["hook_event_name"], "PreCompact");
@@ -795,8 +801,11 @@ async fn compact_hooks_respect_matchers_and_post_runs_after_compaction() {
         "auto matcher should not run for manual compaction"
     );
 
-    let hook_inputs =
-        read_hook_inputs(&test.codepilotx_home_path().join("post_compact_manual_log.jsonl"));
+    let hook_inputs = read_hook_inputs(
+        &test
+            .codepilotx_home_path()
+            .join("post_compact_manual_log.jsonl"),
+    );
     assert_eq!(hook_inputs.len(), 1);
     let input = &hook_inputs[0];
     assert_eq!(input["hook_event_name"], "PostCompact");

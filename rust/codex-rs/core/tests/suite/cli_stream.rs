@@ -754,7 +754,7 @@ async fn integration_git_info_unit_test() {
         "Git info should contain repository_url"
     );
     let repo_url = git_info.repository_url.as_ref().unwrap();
-    // Some hosts rewrite remotes (e.g., github.com ?git@github.com), so assert against
+    // Some hosts rewrite remotes (e.g., github.com → git@github.com), so assert against
     // the actual remote reported by git instead of a static URL.
     let expected_remote_url = std::process::Command::new("git")
         .args(["remote", "get-url", "origin"])
@@ -770,7 +770,7 @@ async fn integration_git_info_unit_test() {
         "Repository URL should match git remote get-url output"
     );
 
-    println!("?Git info collection test passed!");
+    println!("✅ Git info collection test passed!");
     println!("   Commit: {commit_hash}");
     println!("   Branch: {branch}");
     println!("   Repo: {repo_url}");
@@ -783,5 +783,5 @@ async fn integration_git_info_unit_test() {
     assert_eq!(git_info.branch, deserialized.branch);
     assert_eq!(git_info.repository_url, deserialized.repository_url);
 
-    println!("?Git info serialization test passed!");
+    println!("✅ Git info serialization test passed!");
 }

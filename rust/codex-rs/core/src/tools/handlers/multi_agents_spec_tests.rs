@@ -199,7 +199,7 @@ fn spawn_agent_tool_caps_visible_model_summaries() {
 fn spawn_agent_tool_caps_reasoning_effort_value_length() {
     let mut model = model_preset("visible", /*show_in_picker*/ true);
     let custom_effort = ReasoningEffort::Custom(
-        "".repeat(MAX_REASONING_EFFORT_CHARS_IN_SPAWN_AGENT_DESCRIPTION + 1),
+        "é".repeat(MAX_REASONING_EFFORT_CHARS_IN_SPAWN_AGENT_DESCRIPTION + 1),
     );
     model.default_reasoning_effort = custom_effort.clone();
     model.supported_reasoning_efforts = vec![ReasoningEffortPreset {
@@ -211,7 +211,7 @@ fn spawn_agent_tool_caps_reasoning_effort_value_length() {
         spawn_agent_models_description(&[model]),
         format!(
             "Available model overrides (optional; inherited parent model is preferred):\n- `visible-model`: visible description Reasoning efforts: {} (default). Service tiers: priority.",
-            "".repeat(MAX_REASONING_EFFORT_CHARS_IN_SPAWN_AGENT_DESCRIPTION)
+            "é".repeat(MAX_REASONING_EFFORT_CHARS_IN_SPAWN_AGENT_DESCRIPTION)
         )
     );
 }

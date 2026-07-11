@@ -311,7 +311,7 @@ impl ExternalAgentConfigMigrationScreen {
                     plugin_names.push(format!("+{hidden_plugin_count} more"));
                 }
                 Line::from(format!(
-                    "      ?{}: {}",
+                    "      • {}: {}",
                     plugin_group.marketplace_name,
                     plugin_names.join(", ")
                 ))
@@ -320,7 +320,7 @@ impl ExternalAgentConfigMigrationScreen {
         let hidden_marketplace_count = plugin_groups.len().saturating_sub(lines.len());
         if hidden_marketplace_count > 0 {
             lines.push(Line::from(format!(
-                "      ?+{hidden_marketplace_count} more marketplaces"
+                "      • +{hidden_marketplace_count} more marketplaces"
             )));
         }
         lines

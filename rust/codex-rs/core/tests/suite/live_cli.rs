@@ -11,7 +11,7 @@ use tempfile::TempDir;
 
 fn require_api_key() -> String {
     std::env::var("OPENAI_API_KEY")
-        .expect("OPENAI_API_KEY env var not set ?skip running live tests")
+        .expect("OPENAI_API_KEY env var not set — skip running live tests")
 }
 
 /// Helper that spawns the binary inside a TempDir with minimal flags. Returns (Assert, TempDir).
@@ -44,10 +44,10 @@ fn run_live(prompt: &str) -> (assert_cmd::assert::Assert, TempDir) {
     //   3. crossplatform behavior (best effort)
     //
     // To get that we:
-    //   ?set both stdout and stderr to `piped()` so we can read them programmatically
-    //   ?spawn a thread for each stream that copies bytes into two sinks:
-    //       ?the parent process?stdout/stderr for live visibility
-    //       ?an inmemory buffer so we can pass it to `assert_cmd` later
+    //   • set both stdout and stderr to `piped()` so we can read them programmatically
+    //   • spawn a thread for each stream that copies bytes into two sinks:
+    //       – the parent process’ stdout/stderr for live visibility
+    //       – an in‑memory buffer so we can pass it to `assert_cmd` later
 
     // Pass the prompt through the `--` separator so the CLI knows when user input ends.
     cmd.arg("--allow-no-git-exec")
@@ -118,7 +118,7 @@ fn run_live(prompt: &str) -> (assert_cmd::assert::Assert, TempDir) {
 #[test]
 fn live_create_file_hello_txt() {
     if std::env::var("OPENAI_API_KEY").is_err() {
-        eprintln!("skipping live_create_file_hello_txt ?OPENAI_API_KEY not set");
+        eprintln!("skipping live_create_file_hello_txt – OPENAI_API_KEY not set");
         return;
     }
 
@@ -140,7 +140,7 @@ fn live_create_file_hello_txt() {
 #[test]
 fn live_print_working_directory() {
     if std::env::var("OPENAI_API_KEY").is_err() {
-        eprintln!("skipping live_print_working_directory ?OPENAI_API_KEY not set");
+        eprintln!("skipping live_print_working_directory – OPENAI_API_KEY not set");
         return;
     }
 

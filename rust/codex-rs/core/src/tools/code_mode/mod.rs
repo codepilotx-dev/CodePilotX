@@ -67,9 +67,9 @@ impl CodeModeService {
     pub(crate) fn new() -> Self {
         let dispatch_broker = Arc::new(CodeModeDispatchBroker::new());
         Self {
-            session: Some(Arc::new(codepilotx_code_mode::CodeModeService::with_delegate(
-                dispatch_broker.clone(),
-            ))),
+            session: Some(Arc::new(
+                codepilotx_code_mode::CodeModeService::with_delegate(dispatch_broker.clone()),
+            )),
             dispatch_broker,
         }
     }
@@ -376,7 +376,7 @@ mod tests {
                 text: concat!(
                     "Warning: truncated output (original token count: 10)\n",
                     "Total output lines: 1\n\n",
-                    "0123456789? tokens truncated?123456789"
+                    "0123456789…5 tokens truncated…0123456789"
                 )
                 .to_string(),
             }]

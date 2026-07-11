@@ -297,7 +297,7 @@ impl MultiSelectPicker {
 
     /// Builds the display rows for all currently visible (filtered) items.
     ///
-    /// Each row shows: `?[x] Item Name` where `` indicates cursor position
+    /// Each row shows: `› [x] Item Name` where `›` indicates cursor position
     /// and `[x]` or `[ ]` indicates enabled/disabled state.
     fn build_rows(&self) -> BuiltRows {
         let mut rows = Vec::new();
@@ -308,7 +308,7 @@ impl MultiSelectPicker {
             };
             visible_to_row.push(rows.len());
             let is_selected = self.state.selected_idx == Some(visible_idx);
-            let prefix = if is_selected { '? } else { ' ' };
+            let prefix = if is_selected { '›' } else { ' ' };
             let marker = if item.enabled { 'x' } else { ' ' };
             let item_name = truncate_text(&item.name, ITEM_NAME_TRUNCATE_LEN);
             let name = format!("{prefix} [{marker}] {item_name}");
@@ -1027,7 +1027,7 @@ mod tests {
                 .iter()
                 .map(|row| row.name.as_str())
                 .collect::<Vec<_>>(),
-            vec!["?[ ] theme-colors", SECTION_BREAK_ROW, "  [ ] model"]
+            vec!["› [ ] theme-colors", SECTION_BREAK_ROW, "  [ ] model"]
         );
         assert_eq!(rows.state.selected_idx, Some(0));
     }

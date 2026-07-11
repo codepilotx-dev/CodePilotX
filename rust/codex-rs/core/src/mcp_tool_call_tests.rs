@@ -586,7 +586,7 @@ async fn mcp_result_telemetry_truncates_long_target_id() {
 
 #[test]
 fn truncates_strings_on_char_boundaries() {
-    let prefix = "".repeat(MCP_RESULT_TELEMETRY_TARGET_ID_MAX_CHARS);
+    let prefix = "á".repeat(MCP_RESULT_TELEMETRY_TARGET_ID_MAX_CHARS);
     let value = format!("{prefix}tail");
     let truncated = truncate_str_to_char_boundary(&value, MCP_RESULT_TELEMETRY_TARGET_ID_MAX_CHARS);
 
@@ -1162,7 +1162,10 @@ fn mcp_tool_call_item_metadata_only_trusts_codepilotx_apps_identity() {
     metadata.link_id = Some("link_fedcba9876543210fedcba9876543210".to_string());
 
     assert_eq!(
-        McpToolCallItemMetadata::from_tool_metadata(codepilotx_APPS_MCP_SERVER_NAME, Some(&metadata),),
+        McpToolCallItemMetadata::from_tool_metadata(
+            codepilotx_APPS_MCP_SERVER_NAME,
+            Some(&metadata),
+        ),
         McpToolCallItemMetadata {
             connector_id: Some("asdk_app_0123456789abcdef0123456789abcdef".to_string()),
             link_id: Some("link_fedcba9876543210fedcba9876543210".to_string()),
@@ -1275,7 +1278,8 @@ async fn codepilotx_apps_tool_call_request_meta_includes_turn_metadata_and_codep
 }
 
 #[tokio::test]
-async fn codepilotx_apps_tool_call_request_meta_includes_call_id_without_existing_codepilotx_apps_meta() {
+async fn codepilotx_apps_tool_call_request_meta_includes_call_id_without_existing_codepilotx_apps_meta()
+ {
     let (_, turn_context) = make_session_and_context().await;
     let expected_turn_metadata = turn_context
         .turn_metadata_state
@@ -2279,7 +2283,8 @@ enabled = true
 
     maybe_persist_mcp_tool_approval(&session, &turn_context, key.clone()).await;
 
-    let contents = std::fs::read_to_string(codepilotx_home.join(CONFIG_TOML_FILE)).expect("read config");
+    let contents =
+        std::fs::read_to_string(codepilotx_home.join(CONFIG_TOML_FILE)).expect("read config");
     let parsed: ConfigToml = toml::from_str(&contents).expect("parse config");
     let tool = parsed
         .plugins

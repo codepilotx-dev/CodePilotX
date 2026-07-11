@@ -63,7 +63,10 @@ async fn codepilotx_returns_json_result(model: String) -> anyhow::Result<()> {
             return false;
         };
 
-        format.get("name") == Some(&serde_json::Value::String("codepilotx_output_schema".into()))
+        format.get("name")
+            == Some(&serde_json::Value::String(
+                "codepilotx_output_schema".into(),
+            ))
             && format.get("type") == Some(&serde_json::Value::String("json_schema".into()))
             && format.get("strict") == Some(&serde_json::Value::Bool(true))
             && format.get("schema") == Some(&expected_schema)
@@ -75,7 +78,7 @@ async fn codepilotx_returns_json_result(model: String) -> anyhow::Result<()> {
     let (sandbox_policy, permission_profile) =
         turn_permission_fields(PermissionProfile::Disabled, cwd.as_path());
 
-    // 1) Normal user input ?should hit server once.
+    // 1) Normal user input – should hit server once.
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {

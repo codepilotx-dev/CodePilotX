@@ -817,13 +817,14 @@ async fn managed_network_proxy_decider_survives_full_access_start() -> anyhow::R
     )?;
     let exec_policy = Policy::empty();
     let decider_calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let network_policy_decider: Arc<dyn codepilotx_network_proxy::NetworkPolicyDecider> = Arc::new({
-        let decider_calls = Arc::clone(&decider_calls);
-        move |_request| {
-            decider_calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            async { codepilotx_network_proxy::NetworkDecision::ask("not_allowed") }
-        }
-    });
+    let network_policy_decider: Arc<dyn codepilotx_network_proxy::NetworkPolicyDecider> =
+        Arc::new({
+            let decider_calls = Arc::clone(&decider_calls);
+            move |_request| {
+                decider_calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                async { codepilotx_network_proxy::NetworkDecision::ask("not_allowed") }
+            }
+        });
 
     let (started_proxy, _) = Session::start_managed_network_proxy(
         &spec,
@@ -1380,21 +1381,22 @@ async fn reload_user_config_layer_refreshes_hooks() -> anyhow::Result<()> {
         codepilotx_protocol::protocol::HookTrustStatus::Untrusted
     );
 
-    let trusted_user_config: codepilotx_config::TomlValue = serde_json::from_value(serde_json::json!({
-        "hooks": {
-            "SessionStart": [{
-                "hooks": [{
-                    "type": "command",
-                    "command": "python3 /tmp/user.py",
+    let trusted_user_config: codepilotx_config::TomlValue =
+        serde_json::from_value(serde_json::json!({
+            "hooks": {
+                "SessionStart": [{
+                    "hooks": [{
+                        "type": "command",
+                        "command": "python3 /tmp/user.py",
+                    }],
                 }],
-            }],
-            "state": {
-                hook_list.hooks[0].key.clone(): {
-                    "trusted_hash": hook_list.hooks[0].current_hash.clone(),
+                "state": {
+                    hook_list.hooks[0].key.clone(): {
+                        "trusted_hash": hook_list.hooks[0].current_hash.clone(),
+                    },
                 },
             },
-        },
-    }))?;
+        }))?;
     std::fs::write(&config_toml_path, toml::to_string(&trusted_user_config)?)?;
 
     session.reload_user_config_layer().await;
@@ -1442,21 +1444,22 @@ async fn refresh_runtime_config_refreshes_hooks() -> anyhow::Result<()> {
         codepilotx_config::version_for_toml(&identity)
     };
     let hook_key = format!("{}:session_start:0:0", config_toml_path.display());
-    let trusted_user_config: codepilotx_config::TomlValue = serde_json::from_value(serde_json::json!({
-        "hooks": {
-            "SessionStart": [{
-                "hooks": [{
-                    "type": "command",
-                    "command": "python3 /tmp/user.py",
+    let trusted_user_config: codepilotx_config::TomlValue =
+        serde_json::from_value(serde_json::json!({
+            "hooks": {
+                "SessionStart": [{
+                    "hooks": [{
+                        "type": "command",
+                        "command": "python3 /tmp/user.py",
+                    }],
                 }],
-            }],
-            "state": {
-                hook_key: {
-                    "trusted_hash": trusted_hash,
+                "state": {
+                    hook_key: {
+                        "trusted_hash": trusted_hash,
+                    },
                 },
             },
-        },
-    }))?;
+        }))?;
     std::fs::write(&config_toml_path, toml::to_string(&trusted_user_config)?)?;
 
     let request = codepilotx_hooks::SessionStartRequest {
@@ -2126,7 +2129,8 @@ async fn record_token_usage_info_notifies_extension_contributors() {
 
     let (mut session, turn_context) = make_session_and_context().await;
     let records = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder =
+        codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.token_usage_contributor(Arc::new(TokenUsageRecorder {
         records: Arc::clone(&records),
     }));
@@ -2252,7 +2256,8 @@ async fn turn_start_lifecycle_exposes_turn_metadata_and_token_baseline() {
 
     let (mut session, turn_context) = make_session_and_context().await;
     let records = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder =
+        codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.turn_lifecycle_contributor(Arc::new(TurnStartRecorder {
         records: Arc::clone(&records),
     }));
@@ -2356,7 +2361,8 @@ async fn turn_error_lifecycle_exposes_error_and_stores() {
 
     let (mut session, turn_context) = make_session_and_context().await;
     let records = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder =
+        codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.turn_lifecycle_contributor(Arc::new(TurnErrorRecorder {
         records: Arc::clone(&records),
     }));
@@ -2435,7 +2441,8 @@ async fn config_change_contributor_observes_effective_config_changes() {
 
     let (mut session, _turn_context) = make_session_and_context().await;
     let records = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder =
+        codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.config_contributor(Arc::new(ConfigRecorder {
         records: Arc::clone(&records),
     }));
@@ -4227,10 +4234,11 @@ async fn session_configuration_apply_permission_profile_preserves_existing_deny_
         &workspace_policy,
         session_configuration.cwd().as_path(),
     );
-    let permission_profile = codepilotx_protocol::models::PermissionProfile::from_runtime_permissions(
-        &requested_file_system_policy,
-        NetworkSandboxPolicy::Restricted,
-    );
+    let permission_profile =
+        codepilotx_protocol::models::PermissionProfile::from_runtime_permissions(
+            &requested_file_system_policy,
+            NetworkSandboxPolicy::Restricted,
+        );
     let updated = session_configuration
         .apply(&SessionSettingsUpdate {
             permission_profile: Some(permission_profile),
@@ -4435,7 +4443,9 @@ async fn active_profile_update_rebuilds_network_proxy_config() -> std::io::Resul
         ..Default::default()
     };
     std::fs::write(
-        codepilotx_home.path().join(codepilotx_config::CONFIG_TOML_FILE),
+        codepilotx_home
+            .path()
+            .join(codepilotx_config::CONFIG_TOML_FILE),
         toml::to_string(&base_config).expect("serialize config"),
     )?;
     let locked_config = Arc::new(
@@ -6568,7 +6578,8 @@ async fn spawn_task_turn_span_inherits_dispatch_trace_context() {
         .expect("turn task should capture the current span trace context");
     let submission_context =
         codepilotx_otel::context_from_w3c_trace_context(&submission_trace).expect("submission");
-    let task_context = codepilotx_otel::context_from_w3c_trace_context(&task_trace).expect("task trace");
+    let task_context =
+        codepilotx_otel::context_from_w3c_trace_context(&task_trace).expect("task trace");
 
     assert_eq!(
         task_context.span().span_context().trace_id(),
@@ -6638,7 +6649,9 @@ async fn submission_loop_channel_close_emits_thread_stop_lifecycle() {
         expected_thread_id: ThreadId,
     }
 
-    impl codepilotx_extension_api::ThreadLifecycleContributor<crate::config::Config> for ThreadStopRecorder {
+    impl codepilotx_extension_api::ThreadLifecycleContributor<crate::config::Config>
+        for ThreadStopRecorder
+    {
         fn on_thread_stop<'a>(
             &'a self,
             input: codepilotx_extension_api::ThreadStopInput<'a>,
@@ -6657,7 +6670,8 @@ async fn submission_loop_channel_close_emits_thread_stop_lifecycle() {
 
     let (mut session, turn_context) = make_session_and_context().await;
     let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder =
+        codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.thread_lifecycle_contributor(Arc::new(ThreadStopRecorder {
         calls: Arc::clone(&calls),
         expected_thread_id: session.thread_id,
@@ -6688,7 +6702,9 @@ async fn submission_loop_channel_close_aborts_active_turn_before_thread_stop_lif
         expected_turn_id: String,
     }
 
-    impl codepilotx_extension_api::ThreadLifecycleContributor<crate::config::Config> for LifecycleRecorder {
+    impl codepilotx_extension_api::ThreadLifecycleContributor<crate::config::Config>
+        for LifecycleRecorder
+    {
         fn on_thread_stop<'a>(
             &'a self,
             input: codepilotx_extension_api::ThreadStopInput<'a>,
@@ -6733,7 +6749,8 @@ async fn submission_loop_channel_close_aborts_active_turn_before_thread_stop_lif
         expected_thread_id: session.thread_id,
         expected_turn_id: turn_context.sub_id.clone(),
     });
-    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder =
+        codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.thread_lifecycle_contributor(recorder.clone());
     builder.turn_lifecycle_contributor(recorder);
     session.services.extensions = Arc::new(builder.build());
@@ -7656,7 +7673,11 @@ impl codepilotx_extension_api::ContextContributor for PromptExtensionTestContrib
         _session_store: &'a codepilotx_extension_api::ExtensionData,
         thread_store: &'a codepilotx_extension_api::ExtensionData,
     ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Vec<codepilotx_extension_api::PromptFragment>> + Send + 'a>,
+        Box<
+            dyn std::future::Future<Output = Vec<codepilotx_extension_api::PromptFragment>>
+                + Send
+                + 'a,
+        >,
     > {
         Box::pin(async move {
             thread_store
@@ -7685,7 +7706,11 @@ impl codepilotx_extension_api::ContextContributor for TurnContextExtensionTestCo
         &'a self,
         input: codepilotx_extension_api::TurnContextContributionInput<'a>,
     ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Vec<codepilotx_extension_api::PromptFragment>> + Send + 'a>,
+        Box<
+            dyn std::future::Future<Output = Vec<codepilotx_extension_api::PromptFragment>>
+                + Send
+                + 'a,
+        >,
     > {
         Box::pin(async move {
             let Some(state) = input.turn_store.get::<TurnContextExtensionTestState>() else {
@@ -9075,7 +9100,9 @@ async fn task_finish_emits_thread_idle_lifecycle_after_active_turn_clears() {
         expected_thread_id: ThreadId,
     }
 
-    impl codepilotx_extension_api::ThreadLifecycleContributor<crate::config::Config> for ThreadIdleRecorder {
+    impl codepilotx_extension_api::ThreadLifecycleContributor<crate::config::Config>
+        for ThreadIdleRecorder
+    {
         fn on_thread_idle<'a>(
             &'a self,
             input: codepilotx_extension_api::ThreadIdleInput<'a>,
@@ -9094,7 +9121,8 @@ async fn task_finish_emits_thread_idle_lifecycle_after_active_turn_clears() {
     let (mut session, turn_context) = make_session_and_context().await;
     let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let (idle_tx, idle_rx) = async_channel::bounded(1);
-    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder =
+        codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.thread_lifecycle_contributor(Arc::new(ThreadIdleRecorder {
         calls: Arc::clone(&calls),
         idle_tx,
@@ -9121,7 +9149,9 @@ async fn thread_idle_lifecycle_waits_for_trigger_turn_mailbox_work() {
         calls: Arc<std::sync::atomic::AtomicUsize>,
     }
 
-    impl codepilotx_extension_api::ThreadLifecycleContributor<crate::config::Config> for ThreadIdleRecorder {
+    impl codepilotx_extension_api::ThreadLifecycleContributor<crate::config::Config>
+        for ThreadIdleRecorder
+    {
         fn on_thread_idle<'a>(
             &'a self,
             _input: codepilotx_extension_api::ThreadIdleInput<'a>,
@@ -9134,7 +9164,8 @@ async fn thread_idle_lifecycle_waits_for_trigger_turn_mailbox_work() {
 
     let (mut session, _turn_context) = make_session_and_context().await;
     let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let mut builder = codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
+    let mut builder =
+        codepilotx_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.thread_lifecycle_contributor(Arc::new(ThreadIdleRecorder {
         calls: Arc::clone(&calls),
     }));
@@ -9693,7 +9724,9 @@ async fn tool_calls_reopen_mailbox_delivery_for_current_turn() {
     let mut ctx = HandleOutputCtx {
         sess: Arc::clone(&sess),
         turn_context: Arc::clone(&tc),
-        turn_store: Arc::new(codepilotx_extension_api::ExtensionData::new(tc.sub_id.clone())),
+        turn_store: Arc::new(codepilotx_extension_api::ExtensionData::new(
+            tc.sub_id.clone(),
+        )),
         tool_runtime: test_tool_runtime(Arc::clone(&sess), Arc::clone(&tc)),
         cancellation_token: CancellationToken::new(),
     };
@@ -10081,7 +10114,7 @@ async fn rejects_escalated_permissions_when_policy_not_on_request() {
     };
 
     let expected = format!(
-        "approval policy is {policy:?}; reject command ?you should not ask for escalated permissions if the approval policy is {policy:?}",
+        "approval policy is {policy:?}; reject command — you should not ask for escalated permissions if the approval policy is {policy:?}",
         policy = turn_context.approval_policy.value()
     );
 
@@ -10232,7 +10265,7 @@ async fn unified_exec_rejects_escalated_permissions_when_policy_not_on_request()
     };
 
     let expected = format!(
-        "approval policy is {policy:?}; reject command ?you cannot ask for escalated permissions if the approval policy is {policy:?}",
+        "approval policy is {policy:?}; reject command — you cannot ask for escalated permissions if the approval policy is {policy:?}",
         policy = turn_context.approval_policy.value()
     );
 

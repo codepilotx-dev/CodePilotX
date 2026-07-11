@@ -126,7 +126,10 @@ pub async fn run_codepilotx_tool_session(
         );
         outgoing.send_response(id.clone(), result).await;
         // unregister the id so we don't keep it in the map
-        running_requests_id_to_codepilotx_uuid.lock().await.remove(&id);
+        running_requests_id_to_codepilotx_uuid
+            .lock()
+            .await
+            .remove(&id);
         return;
     }
 

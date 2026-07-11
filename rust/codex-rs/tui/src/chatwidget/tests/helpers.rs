@@ -9,10 +9,12 @@ pub(super) async fn test_config() -> Config {
         .tempdir()
         .expect("tempdir")
         .keep();
-    let mut config =
-        Config::load_default_with_cli_overrides_for_codepilotx_home(codepilotx_home.clone(), Vec::new())
-            .await
-            .expect("config");
+    let mut config = Config::load_default_with_cli_overrides_for_codepilotx_home(
+        codepilotx_home.clone(),
+        Vec::new(),
+    )
+    .await
+    .expect("config");
     config.codepilotx_home = codepilotx_home.abs();
     config.sqlite_home = codepilotx_home.clone();
     config.log_dir = codepilotx_home.join("log");
@@ -55,7 +57,7 @@ pub(super) fn normalize_snapshot_paths(text: impl Into<String>) -> String {
                 .chars()
                 .take(platform_prefix.chars().count())
                 .collect();
-            text = text.replace(&format!("{platform_prefix}?), &format!("{unix_prefix}?));
+            text = text.replace(&format!("{platform_prefix}…"), &format!("{unix_prefix}…"));
         }
 
         text

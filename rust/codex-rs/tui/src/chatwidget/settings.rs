@@ -161,7 +161,7 @@ impl ChatWidget {
 
     /// Set the reasoning effort for the non-Plan collaboration mode.
     ///
-    /// Does not touch the active Plan mask ?Plan reasoning is controlled
+    /// Does not touch the active Plan mask — Plan reasoning is controlled
     /// exclusively by the Plan preset and `set_plan_mode_reasoning_effort`.
     pub(crate) fn set_reasoning_effort(&mut self, effort: Option<ReasoningEffortConfig>) {
         self.current_collaboration_mode = self.current_collaboration_mode.with_updates(

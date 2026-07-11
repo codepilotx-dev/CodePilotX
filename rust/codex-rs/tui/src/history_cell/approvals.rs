@@ -69,10 +69,10 @@ pub fn new_approval_decision_cell(
                         " this time".bold(),
                     ]
                 };
-                ("?".green(), summary)
+                ("✔ ".green(), summary)
             }
             ApprovalDecisionSubject::NetworkAccess { target } => (
-                "?".green(),
+                "✔ ".green(),
                 vec![
                     actor.subject().into(),
                     "approved".bold(),
@@ -87,7 +87,7 @@ pub fn new_approval_decision_cell(
         } => {
             let snippet = Span::from(exec_snippet(&proposed_execpolicy_amendment.command)).dim();
             (
-                "?".green(),
+                "✔ ".green(),
                 vec![
                     actor.subject().into(),
                     "approved".bold(),
@@ -114,10 +114,10 @@ pub fn new_approval_decision_cell(
                         " every time this session".bold(),
                     ]
                 };
-                ("?".green(), summary)
+                ("✔ ".green(), summary)
             }
             ApprovalDecisionSubject::NetworkAccess { target } => (
-                "?".green(),
+                "✔ ".green(),
                 vec![
                     actor.subject().into(),
                     "approved".bold(),
@@ -136,7 +136,7 @@ pub fn new_approval_decision_cell(
             };
             match network_policy_amendment.action {
                 NetworkPolicyRuleAction::Allow => (
-                    "?".green(),
+                    "✔ ".green(),
                     vec![
                         actor.subject().into(),
                         "persisted".bold(),
@@ -145,7 +145,7 @@ pub fn new_approval_decision_cell(
                     ],
                 ),
                 NetworkPolicyRuleAction::Deny => (
-                    "?".red(),
+                    "✗ ".red(),
                     vec![
                         actor.subject().into(),
                         "denied".bold(),
@@ -186,10 +186,10 @@ pub fn new_approval_decision_cell(
                         }
                     }
                 };
-                ("?".red(), summary)
+                ("✗ ".red(), summary)
             }
             ApprovalDecisionSubject::NetworkAccess { target } => (
-                "?".red(),
+                "✗ ".red(),
                 vec![
                     actor.subject().into(),
                     "did not approve".bold(),
@@ -214,10 +214,10 @@ pub fn new_approval_decision_cell(
                         " before this request could be approved".into(),
                     ]
                 };
-                ("?".red(), summary)
+                ("✗ ".red(), summary)
             }
             ApprovalDecisionSubject::NetworkAccess { target } => (
-                "?".red(),
+                "✗ ".red(),
                 vec![
                     "Review ".into(),
                     "timed out".bold(),
@@ -242,10 +242,10 @@ pub fn new_approval_decision_cell(
                         " this request".into(),
                     ]
                 };
-                ("?".red(), summary)
+                ("✗ ".red(), summary)
             }
             ApprovalDecisionSubject::NetworkAccess { target } => (
-                "?".red(),
+                "✗ ".red(),
                 vec![
                     actor.subject().into(),
                     "canceled".bold(),
@@ -295,7 +295,7 @@ pub fn new_guardian_denied_patch_request(files: Vec<String>) -> Box<dyn HistoryC
 
     Box::new(PrefixedWrappedHistoryCell::new(
         Line::from(summary),
-        "?".red(),
+        "✗ ".red(),
         "  ",
     ))
 }
@@ -307,7 +307,7 @@ pub fn new_guardian_denied_action_request(summary: String) -> Box<dyn HistoryCel
         " for ".into(),
         Span::from(summary).dim(),
     ]);
-    Box::new(PrefixedWrappedHistoryCell::new(line, "?".red(), "  "))
+    Box::new(PrefixedWrappedHistoryCell::new(line, "✗ ".red(), "  "))
 }
 
 pub fn new_guardian_approved_action_request(summary: String) -> Box<dyn HistoryCell> {
@@ -317,7 +317,7 @@ pub fn new_guardian_approved_action_request(summary: String) -> Box<dyn HistoryC
         " for ".into(),
         Span::from(summary).dim(),
     ]);
-    Box::new(PrefixedWrappedHistoryCell::new(line, "?".green(), "  "))
+    Box::new(PrefixedWrappedHistoryCell::new(line, "✔ ".green(), "  "))
 }
 
 pub fn new_guardian_timed_out_patch_request(files: Vec<String>) -> Box<dyn HistoryCell> {
@@ -337,7 +337,7 @@ pub fn new_guardian_timed_out_patch_request(files: Vec<String>) -> Box<dyn Histo
 
     Box::new(PrefixedWrappedHistoryCell::new(
         Line::from(summary),
-        "?".red(),
+        "✗ ".red(),
         "  ",
     ))
 }
@@ -349,7 +349,7 @@ pub fn new_guardian_timed_out_action_request(summary: String) -> Box<dyn History
         " before ".into(),
         Span::from(summary).dim(),
     ]);
-    Box::new(PrefixedWrappedHistoryCell::new(line, "?".red(), "  "))
+    Box::new(PrefixedWrappedHistoryCell::new(line, "✗ ".red(), "  "))
 }
 
 /// Cyan history cell line showing the current review status.

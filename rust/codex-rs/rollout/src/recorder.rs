@@ -594,7 +594,11 @@ impl RolloutRecorder {
         // If SQLite listing still fails, return the filesystem page rather than failing the list.
         tracing::error!("Falling back on rollout system");
         tracing::warn!("state db discrepancy during list_threads_with_db_fallback: falling_back");
-        codepilotx_state::record_fallback("list_threads", "db_error", /*telemetry_override*/ None);
+        codepilotx_state::record_fallback(
+            "list_threads",
+            "db_error",
+            /*telemetry_override*/ None,
+        );
         Ok(page_from_filesystem_scan(
             fs_page,
             sort_direction,
@@ -764,7 +768,7 @@ impl RolloutRecorder {
         let cwd = config.cwd().to_path_buf();
 
         // A reasonably-sized bounded channel. If the buffer fills up the send
-        // future will yield, which is fine ?we only need to ensure we do not
+        // future will yield, which is fine – we only need to ensure we do not
         // perform *blocking* I/O on the caller's thread.
         let (tx, rx) = mpsc::channel::<RolloutCmd>(256);
         // Spawn a Tokio task that owns the file handle and performs async

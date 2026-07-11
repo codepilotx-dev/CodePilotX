@@ -74,9 +74,9 @@ pub(crate) struct SpawnRequestSummary {
 
 pub(crate) fn agent_picker_status_dot_spans(is_closed: bool) -> Vec<Span<'static>> {
     let dot = if is_closed {
-        "?.into()
+        "•".into()
     } else {
-        "?.green()
+        "•".green()
     };
     vec![dot, " ".into()]
 }
@@ -456,7 +456,7 @@ fn resume_end(
 fn collab_event(title: Line<'static>, details: Vec<Line<'static>>) -> PlainHistoryCell {
     let mut lines: Vec<Line<'static>> = vec![title];
     if !details.is_empty() {
-        lines.extend(prefix_lines(details, "  ?".dim(), "    ".into()));
+        lines.extend(prefix_lines(details, "  └ ".dim(), "    ".into()));
     }
     PlainHistoryCell::new(lines)
 }
@@ -478,7 +478,7 @@ fn title_with_agent(
 
 fn title_spans_line(mut spans: Vec<Span<'static>>) -> Line<'static> {
     let mut title = Vec::with_capacity(spans.len() + 1);
-    title.push(Span::from("?").dim());
+    title.push(Span::from("• ").dim());
     title.append(&mut spans);
     title.into()
 }

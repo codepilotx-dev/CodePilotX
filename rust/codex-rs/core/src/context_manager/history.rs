@@ -157,7 +157,7 @@ impl ContextManager {
     pub(crate) fn remove_first_item(&mut self) {
         if !self.items.is_empty() {
             // Remove the oldest item (front of the list). Items are ordered from
-            // oldest ?newest, so index 0 is the first entry recorded.
+            // oldest → newest, so index 0 is the first entry recorded.
             let removed = self.items.remove(0);
             // If the removed item participates in a call/output pair, also remove
             // its corresponding counterpart to keep the invariants intact without

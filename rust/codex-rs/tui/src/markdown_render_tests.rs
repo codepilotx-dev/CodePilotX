@@ -1134,7 +1134,7 @@ fn horizontal_rule_renders_em_dashes() {
                 .collect::<String>()
         })
         .collect();
-    assert_eq!(lines, vec!["Before", "", "", "", "After"]);
+    assert_eq!(lines, vec!["Before", "", "———", "", "After"]);
 }
 
 #[test]
@@ -1636,8 +1636,8 @@ fn table_separates_logical_rows_after_wrapped_content() {
         .iter()
         .enumerate()
         .filter_map(|(idx, line)| {
-            ((line.contains('') || line.contains(''))
-                && line.chars().all(|ch| matches!(ch, '' | '' | ' ')))
+            ((line.contains('━') || line.contains('─'))
+                && line.chars().all(|ch| matches!(ch, '━' | '─' | ' ')))
             .then_some(idx)
         })
         .collect();
@@ -1650,7 +1650,7 @@ fn table_separates_logical_rows_after_wrapped_content() {
     assert!(
         !lines
             .last()
-            .is_some_and(|line| line.contains('') || line.contains(''))
+            .is_some_and(|line| line.contains('━') || line.contains('─'))
     );
 }
 
@@ -1766,7 +1766,7 @@ fn table_falls_back_to_key_value_records_if_grid_cannot_fit() {
     assert!(
         !lines
             .iter()
-            .any(|line| line.starts_with('|') || line.contains('') || line.contains(''))
+            .any(|line| line.starts_with('|') || line.contains('━') || line.contains('─'))
     );
 }
 

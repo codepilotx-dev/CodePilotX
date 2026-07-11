@@ -55,7 +55,7 @@ fn agent_status_uses_bounded_buffered_activity() {
     /agent
     Sub-agents running
 
-      ?`/root/reviewer`
+      • `/root/reviewer`
         $ cargo test -p codex-tui
         Finished checking the focused TUI tests.
     "###);
@@ -103,7 +103,7 @@ fn agent_status_uses_reasoning_summaries_only() {
     /agent
     Sub-agents running
 
-      ?`/root/reviewer`
+      • `/root/reviewer`
         safe summary
     "###);
     assert!(!rendered.contains("hidden raw reasoning"));

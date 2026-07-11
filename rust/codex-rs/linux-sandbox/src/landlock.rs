@@ -249,8 +249,8 @@ fn install_network_seccomp_filter_on_current_thread(
 
     let filter = SeccompFilter::new(
         rules,
-        SeccompAction::Allow,                     // default ?allow
-        SeccompAction::Errno(libc::EPERM as u32), // when rule matches ?return EPERM
+        SeccompAction::Allow,                     // default – allow
+        SeccompAction::Errno(libc::EPERM as u32), // when rule matches – return EPERM
         if cfg!(target_arch = "x86_64") {
             TargetArch::x86_64
         } else if cfg!(target_arch = "aarch64") {
