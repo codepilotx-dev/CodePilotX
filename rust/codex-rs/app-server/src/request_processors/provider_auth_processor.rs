@@ -62,6 +62,8 @@ struct StoredProviderToken {
 
 const PROVIDER_AUTH_KEYRING_SERVICE: &str = "CodePilotX Provider Auth";
 const APP_TOKEN_KEYRING_SERVICE: &str = "CodePilotX App Auth";
+const GITHUB_REPOSITORIES_PROVIDER_ID: &str = "github-repositories";
+const APP_TOKEN_KEYRING_ACCOUNT: &str = "app-auth/github-repositories";
 #[derive(Serialize, Deserialize, Clone)]
 struct StoredAppToken {
     access_token: String,
@@ -69,6 +71,10 @@ struct StoredAppToken {
     expires_at: Option<u64>,
     scopes: Vec<String>,
     account: Option<ProviderAuthAppTokenAccount>,
+    #[serde(skip)]
+    scope_present: bool,
+    #[serde(skip)]
+    account_present: bool,
 }
 #[derive(Deserialize)]
 struct AppTokenWire {
@@ -1047,6 +1053,7 @@ impl ProviderAuthRequestProcessor {
         &self,
         p: ProviderAuthAppTokenParams,
     ) -> Result<ProviderAuthAppTokenExchangeResponse, JSONRPCErrorError> {
+        validate_app_token_provider(&p.provider_id)?;
         let github = self.require_token(&p.provider_id).await?;
         let token=self.request_app_token("api/auth/github/exchange",serde_json::json!({"github_access_token":github.access_token,"github_user":{"login":github.user.login,"name":github.user.name,"avatar_url":github.user.avatar_url},"client":"desktop"})).await?;
         self.save_app_token(&p.provider_id, &token)?;
@@ -1061,6 +1068,7 @@ impl ProviderAuthRequestProcessor {
         &self,
         p: ProviderAuthAppTokenParams,
     ) -> Result<ProviderAuthAppTokenRefreshResponse, JSONRPCErrorError> {
+        validate_app_token_provider(&p.provider_id)?;
         let old = self
             .load_app_token(&p.provider_id)?
             .ok_or_else(|| invalid_request("CodePilotX app token is not available"))?;
@@ -1077,6 +1085,12 @@ impl ProviderAuthRequestProcessor {
         if token.refresh_token.is_none() {
             token.refresh_token = old.refresh_token;
         }
+        if !token.scope_present {
+            token.scopes = old.scopes;
+        }
+        if !token.account_present {
+            token.account = old.account;
+        }
         self.save_app_token(&p.provider_id, &token)?;
         Ok(ProviderAuthAppTokenRefreshResponse {
             authenticated: true,
@@ -1089,9 +1103,12 @@ impl ProviderAuthRequestProcessor {
         &self,
         p: ProviderAuthAppTokenParams,
     ) -> Result<ProviderAuthAppTokenStatusResponse, JSONRPCErrorError> {
+        validate_app_token_provider(&p.provider_id)?;
         Ok(match self.load_app_token(&p.provider_id)? {
             Some(t) => ProviderAuthAppTokenStatusResponse {
-                authenticated: true,
+                authenticated: t
+                    .expires_at
+                    .is_none_or(|expires_at| expires_at > timestamp_millis()),
                 expires_at: t.expires_at,
                 scopes: t.scopes,
                 account: t.account,
@@ -1141,14 +1158,27 @@ impl ProviderAuthRequestProcessor {
                 "CodePilotX authentication response did not include an access token",
             ));
         }
+        if w.expires_in.is_some_and(|value| value == 0) {
+            return Err(internal_error(
+                "CodePilotX authentication response expiry is invalid",
+            ));
+        }
+        let scope_present = w.scope.is_some();
+        let account_present = w.account.is_some() || w.organization.is_some();
         let account = match (w.account, w.organization) {
-            (Some(a), o) => Some(ProviderAuthAppTokenAccount {
-                uuid: a.uuid,
-                email_address: a.email_address,
-                organization_uuid: o.map(|v| v.uuid),
-            }),
+            (Some(a), o)
+                if !a.uuid.trim().is_empty()
+                    && !a.email_address.trim().is_empty()
+                    && o.as_ref().is_none_or(|v| !v.uuid.trim().is_empty()) =>
+            {
+                Some(ProviderAuthAppTokenAccount {
+                    uuid: a.uuid,
+                    email_address: a.email_address,
+                    organization_uuid: o.map(|v| v.uuid),
+                })
+            }
             (None, None) => None,
-            (None, Some(_)) => {
+            _ => {
                 return Err(internal_error(
                     "CodePilotX authentication response account is invalid",
                 ));
@@ -1165,11 +1195,13 @@ impl ProviderAuthRequestProcessor {
                 .map(|s| s.split_whitespace().map(str::to_owned).collect())
                 .unwrap_or_else(|| vec!["user:inference".into()]),
             account,
+            scope_present,
+            account_present,
         })
     }
-    fn load_app_token(&self, id: &str) -> Result<Option<StoredAppToken>, JSONRPCErrorError> {
+    fn load_app_token(&self, _id: &str) -> Result<Option<StoredAppToken>, JSONRPCErrorError> {
         self.keyring
-            .load(APP_TOKEN_KEYRING_SERVICE, id)
+            .load(APP_TOKEN_KEYRING_SERVICE, APP_TOKEN_KEYRING_ACCOUNT)
             .map_err(|e| keyring_error("read app token", e))?
             .map(|v| {
                 serde_json::from_str(&v)
@@ -1177,11 +1209,11 @@ impl ProviderAuthRequestProcessor {
             })
             .transpose()
     }
-    fn save_app_token(&self, id: &str, t: &StoredAppToken) -> Result<(), JSONRPCErrorError> {
+    fn save_app_token(&self, _id: &str, t: &StoredAppToken) -> Result<(), JSONRPCErrorError> {
         let value = serde_json::to_string(t)
             .map_err(|_| internal_error("Failed to serialize CodePilotX app token"))?;
         self.keyring
-            .save(APP_TOKEN_KEYRING_SERVICE, id, &value)
+            .save(APP_TOKEN_KEYRING_SERVICE, APP_TOKEN_KEYRING_ACCOUNT, &value)
             .map_err(|e| keyring_error("save app token", e))
     }
 
@@ -1207,6 +1239,15 @@ fn validate_provider_id(provider_id: &str) -> Result<(), JSONRPCErrorError> {
         ));
     }
     Ok(())
+}
+fn validate_app_token_provider(provider_id: &str) -> Result<(), JSONRPCErrorError> {
+    if provider_id == GITHUB_REPOSITORIES_PROVIDER_ID {
+        Ok(())
+    } else {
+        Err(invalid_params(
+            "provider_id must be 'github-repositories' for CodePilotX app authentication",
+        ))
+    }
 }
 fn malformed(path: &str) -> JSONRPCErrorError {
     internal_error(format!("Malformed GitHub GraphQL response at {path}"))
@@ -2121,6 +2162,8 @@ mod tests {
             expires_at: Some(1),
             scopes: vec!["user:inference".into()],
             account: None,
+            scope_present: true,
+            account_present: true,
         }
     }
     #[tokio::test]
@@ -2292,7 +2335,7 @@ mod tests {
         let home = tempfile::tempdir().unwrap();
         let keyring = MockKeyringStore::default();
         keyring.set_error(
-            "github-repositories",
+            APP_TOKEN_KEYRING_ACCOUNT,
             KeyringError::NoStorageAccess(Box::new(std::io::Error::other("denied"))),
         );
         let p = ProviderAuthRequestProcessor::new_with_keyring(
@@ -2307,6 +2350,121 @@ mod tests {
             .await
             .unwrap_err();
         assert!(e.message.contains("secure storage"));
+    }
+
+    #[tokio::test]
+    async fn app_token_rejects_non_repository_provider_before_http() {
+        let s = MockServer::start().await;
+        for id in ["github-copilot", "other"] {
+            let e = github_processor(&s)
+                .with_app_auth_endpoint(s.uri())
+                .app_token_exchange(ProviderAuthAppTokenParams {
+                    provider_id: id.into(),
+                })
+                .await
+                .unwrap_err();
+            assert!(e.message.contains("github-repositories"));
+        }
+        assert!(s.received_requests().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn app_token_status_uses_stable_account_and_rejects_expired_token() {
+        let home = tempfile::tempdir().unwrap();
+        let keyring = MockKeyringStore::default();
+        let mut expired = stored_app_token("access", Some("refresh"));
+        expired.expires_at = Some(timestamp_millis() - 1);
+        keyring
+            .save(
+                APP_TOKEN_KEYRING_SERVICE,
+                "app-auth/github-repositories",
+                &serde_json::to_string(&expired).unwrap(),
+            )
+            .unwrap();
+        let p = ProviderAuthRequestProcessor::new_with_keyring(
+            home.path().into(),
+            home.path().into(),
+            Arc::new(keyring.clone()),
+        );
+        assert!(
+            !p.app_token_status(ProviderAuthAppTokenParams {
+                provider_id: "github-repositories".into()
+            })
+            .await
+            .unwrap()
+            .authenticated
+        );
+        let mut future = expired;
+        future.expires_at = Some(timestamp_millis() + 60_000);
+        keyring
+            .save(
+                APP_TOKEN_KEYRING_SERVICE,
+                "app-auth/github-repositories",
+                &serde_json::to_string(&future).unwrap(),
+            )
+            .unwrap();
+        assert!(
+            p.app_token_status(ProviderAuthAppTokenParams {
+                provider_id: "github-repositories".into()
+            })
+            .await
+            .unwrap()
+            .authenticated
+        );
+    }
+
+    #[tokio::test]
+    async fn app_token_exchange_strictly_validates_metadata() {
+        for body in [
+            serde_json::json!({"access_token":"x","expires_in":0}),
+            serde_json::json!({"access_token":"x","account":{"uuid":"","email_address":"e"}}),
+            serde_json::json!({"access_token":"x","account":{"uuid":"u","email_address":""}}),
+            serde_json::json!({"access_token":"x","organization":{"uuid":""}}),
+        ] {
+            let s = MockServer::start().await;
+            Mock::given(method("POST"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(body))
+                .mount(&s)
+                .await;
+            assert!(
+                github_processor(&s)
+                    .with_app_auth_endpoint(s.uri())
+                    .app_token_exchange(ProviderAuthAppTokenParams {
+                        provider_id: "github-repositories".into()
+                    })
+                    .await
+                    .is_err()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn app_token_refresh_preserves_missing_account_and_scopes() {
+        let s = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"access_token":"new","expires_in":60})),
+            )
+            .mount(&s)
+            .await;
+        let p = github_processor(&s).with_app_auth_endpoint(s.uri());
+        let mut old = stored_app_token("old", Some("refresh"));
+        old.scopes = vec!["old:scope".into()];
+        old.account = Some(ProviderAuthAppTokenAccount {
+            uuid: "u".into(),
+            email_address: "e".into(),
+            organization_uuid: Some("o".into()),
+        });
+        p.save_app_token("github-repositories", &old).unwrap();
+        p.app_token_refresh(ProviderAuthAppTokenParams {
+            provider_id: "github-repositories".into(),
+        })
+        .await
+        .unwrap();
+        let saved = p.load_app_token("github-repositories").unwrap().unwrap();
+        assert_eq!(saved.scopes, old.scopes);
+        assert_eq!(saved.account, old.account);
     }
 
     #[tokio::test]
