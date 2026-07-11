@@ -13,17 +13,17 @@ use codepilotx_app_server_protocol::{
     GithubUserStatus, JSONRPCErrorError, ProviderApiKeyDeleteParams, ProviderApiKeyDeleteResponse,
     ProviderApiKeyReadParams, ProviderApiKeyReadResponse, ProviderApiKeySaveParams,
     ProviderApiKeySaveResponse, ProviderAuthAppTokenAccount, ProviderAuthAppTokenExchangeResponse,
-    ProviderAuthAppTokenParams, ProviderAuthAppTokenRefreshResponse,
-    ProviderAuthAppTokenStatusResponse, ProviderAuthCancelLoginParams,
-    ProviderAuthCancelLoginResponse, ProviderAuthLogoutParams, ProviderAuthLogoutResponse,
-    ProviderAuthPollLoginParams, ProviderAuthPollLoginResponse, ProviderAuthPollStatus,
-    ProviderAuthProfileReadParams, ProviderAuthProfileReadResponse, ProviderAuthReadStatusParams,
-    ProviderAuthReadStatusResponse, ProviderAuthStartLoginParams, ProviderAuthStartLoginResponse,
-    ProviderAuthStatusClearParams, ProviderAuthStatusClearResponse, ProviderAuthStatusSetParams,
-    ProviderAuthStatusSetResponse, ProviderBalanceInfo, ProviderBalanceParams,
-    ProviderBalanceResponse, ProviderModelListParams, ProviderModelListResponse,
-    ProviderRepoCloneParams, ProviderRepoCloneResponse, ProviderRepoInfo, ProviderRepoListParams,
-    ProviderRepoListResponse, ProviderUserInfo,
+    ProviderAuthAppTokenLogoutResponse, ProviderAuthAppTokenParams,
+    ProviderAuthAppTokenRefreshResponse, ProviderAuthAppTokenStatusResponse,
+    ProviderAuthCancelLoginParams, ProviderAuthCancelLoginResponse, ProviderAuthLogoutParams,
+    ProviderAuthLogoutResponse, ProviderAuthPollLoginParams, ProviderAuthPollLoginResponse,
+    ProviderAuthPollStatus, ProviderAuthProfileReadParams, ProviderAuthProfileReadResponse,
+    ProviderAuthReadStatusParams, ProviderAuthReadStatusResponse, ProviderAuthStartLoginParams,
+    ProviderAuthStartLoginResponse, ProviderAuthStatusClearParams, ProviderAuthStatusClearResponse,
+    ProviderAuthStatusSetParams, ProviderAuthStatusSetResponse, ProviderBalanceInfo,
+    ProviderBalanceParams, ProviderBalanceResponse, ProviderModelListParams,
+    ProviderModelListResponse, ProviderRepoCloneParams, ProviderRepoCloneResponse,
+    ProviderRepoInfo, ProviderRepoListParams, ProviderRepoListResponse, ProviderUserInfo,
 };
 use codepilotx_keyring_store::{DefaultKeyringStore, KeyringStore};
 use serde::{Deserialize, Serialize};
@@ -819,13 +819,22 @@ impl ProviderAuthRequestProcessor {
         let repos = gh_repos
             .into_iter()
             .map(|r| ProviderRepoInfo {
+                id: r.id,
                 name: r.name,
                 full_name: r.full_name,
                 description: r.description,
                 private: r.private,
+                fork: r.fork,
+                archived: r.archived,
+                disabled: r.disabled,
                 html_url: r.html_url,
                 clone_url: r.clone_url,
+                ssh_url: r.ssh_url,
                 default_branch: r.default_branch,
+                language: r.language,
+                stargazers_count: r.stargazers_count,
+                updated_at: r.updated_at,
+                pushed_at: r.pushed_at,
             })
             .collect();
 
@@ -1120,6 +1129,16 @@ impl ProviderAuthRequestProcessor {
                 account: None,
             },
         })
+    }
+    pub(crate) async fn app_token_logout(
+        &self,
+        p: ProviderAuthAppTokenParams,
+    ) -> Result<ProviderAuthAppTokenLogoutResponse, JSONRPCErrorError> {
+        validate_app_token_provider(&p.provider_id)?;
+        self.keyring
+            .delete(APP_TOKEN_KEYRING_SERVICE, APP_TOKEN_KEYRING_ACCOUNT)
+            .map_err(|e| internal_error(format!("Failed to delete app token: {e}")))?;
+        Ok(ProviderAuthAppTokenLogoutResponse {})
     }
     async fn request_app_token(
         &self,
@@ -1582,13 +1601,22 @@ struct GithubUser {
 
 #[derive(Deserialize)]
 struct GithubRepo {
+    id: i64,
     name: String,
     full_name: String,
     description: Option<String>,
     private: bool,
+    fork: bool,
+    archived: bool,
+    disabled: bool,
     html_url: String,
     clone_url: String,
+    ssh_url: String,
     default_branch: String,
+    language: Option<String>,
+    stargazers_count: i64,
+    updated_at: String,
+    pushed_at: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -2183,6 +2211,50 @@ mod tests {
             String::from_utf8_lossy(&s.received_requests().await.unwrap()[0].body)
                 .contains("sentinel-github-token")
         );
+    }
+    #[tokio::test]
+    async fn app_token_logout_removes_only_app_token() {
+        let s = MockServer::start().await;
+        let p = github_processor(&s);
+        p.save_app_token(
+            "github-repositories",
+            &stored_app_token("app-access", Some("app-refresh")),
+        )
+        .unwrap();
+        p.app_token_logout(ProviderAuthAppTokenParams {
+            provider_id: "github-repositories".into(),
+        })
+        .await
+        .unwrap();
+        assert!(p.load_app_token("github-repositories").unwrap().is_none());
+        assert!(p.load_token("github-repositories").await.unwrap().is_some());
+        assert!(
+            !p.app_token_status(ProviderAuthAppTokenParams {
+                provider_id: "github-repositories".into(),
+            })
+            .await
+            .unwrap()
+            .authenticated
+        );
+    }
+    #[test]
+    fn github_repo_payload_requires_complete_desktop_metadata() {
+        let value = serde_json::json!({
+            "id": 42, "name": "repo", "full_name": "octo/repo",
+            "description": null, "private": false, "fork": true,
+            "archived": false, "disabled": false,
+            "html_url": "https://github.com/octo/repo",
+            "clone_url": "https://github.com/octo/repo.git",
+            "ssh_url": "git@github.com:octo/repo.git", "default_branch": "main",
+            "language": "Rust", "stargazers_count": 7,
+            "updated_at": "2026-01-01T00:00:00Z", "pushed_at": null
+        });
+        let repo: GithubRepo = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(repo.id, 42);
+        assert_eq!(repo.stargazers_count, 7);
+        let mut missing = value.as_object().unwrap().clone();
+        missing.remove("ssh_url");
+        assert!(serde_json::from_value::<GithubRepo>(missing.into()).is_err());
     }
     #[tokio::test]
     async fn app_token_errors_do_not_leak_body() {

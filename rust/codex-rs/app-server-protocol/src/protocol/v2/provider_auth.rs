@@ -143,6 +143,9 @@ pub struct ProviderAuthAppTokenStatusResponse {
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
+pub struct ProviderAuthAppTokenLogoutResponse {}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[ts(export_to = "v2/")]
 pub struct ProviderAuthProfileReadParams {
     #[serde(rename = "providerId")]
     #[ts(rename = "providerId")]
@@ -396,14 +399,27 @@ pub struct ProviderRepoListResponse {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
 pub struct ProviderRepoInfo {
+    #[ts(type = "number")]
+    pub id: i64,
     pub name: String,
     pub full_name: String,
     pub description: Option<String>,
     pub private: bool,
+    pub fork: bool,
+    pub archived: bool,
+    pub disabled: bool,
     pub html_url: String,
     pub clone_url: String,
+    pub ssh_url: String,
     pub default_branch: String,
+    pub language: Option<String>,
+    #[ts(type = "number")]
+    pub stargazers_count: i64,
+    pub updated_at: String,
+    pub pushed_at: Option<String>,
 }
 
 //  Repository clone

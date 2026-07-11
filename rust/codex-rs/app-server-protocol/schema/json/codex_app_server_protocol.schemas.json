@@ -2536,6 +2536,30 @@
           "type": "object"
         },
         {
+          "properties": {
+            "id": {
+              "$ref": "#/definitions/v2/RequestId"
+            },
+            "method": {
+              "enum": [
+                "providerAuth/appTokenLogout"
+              ],
+              "title": "ProviderAuth/appTokenLogoutRequestMethod",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/definitions/v2/ProviderAuthAppTokenParams"
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "params"
+          ],
+          "title": "ProviderAuth/appTokenLogoutRequest",
+          "type": "object"
+        },
+        {
           "description": "Read provider API key configuration from OS secure storage.",
           "properties": {
             "id": {
@@ -15116,6 +15140,11 @@
         "title": "ProviderAuthAppTokenExchangeResponse",
         "type": "object"
       },
+      "ProviderAuthAppTokenLogoutResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "ProviderAuthAppTokenLogoutResponse",
+        "type": "object"
+      },
       "ProviderAuthAppTokenParams": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -15649,10 +15678,13 @@
       },
       "ProviderRepoInfo": {
         "properties": {
-          "clone_url": {
+          "archived": {
+            "type": "boolean"
+          },
+          "cloneUrl": {
             "type": "string"
           },
-          "default_branch": {
+          "defaultBranch": {
             "type": "string"
           },
           "description": {
@@ -15661,26 +15693,65 @@
               "null"
             ]
           },
-          "full_name": {
+          "disabled": {
+            "type": "boolean"
+          },
+          "fork": {
+            "type": "boolean"
+          },
+          "fullName": {
             "type": "string"
           },
-          "html_url": {
+          "htmlUrl": {
             "type": "string"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "name": {
             "type": "string"
           },
           "private": {
             "type": "boolean"
+          },
+          "pushedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sshUrl": {
+            "type": "string"
+          },
+          "stargazersCount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "updatedAt": {
+            "type": "string"
           }
         },
         "required": [
-          "clone_url",
-          "default_branch",
-          "full_name",
-          "html_url",
+          "archived",
+          "cloneUrl",
+          "defaultBranch",
+          "disabled",
+          "fork",
+          "fullName",
+          "htmlUrl",
+          "id",
           "name",
-          "private"
+          "private",
+          "sshUrl",
+          "stargazersCount",
+          "updatedAt"
         ],
         "type": "object"
       },

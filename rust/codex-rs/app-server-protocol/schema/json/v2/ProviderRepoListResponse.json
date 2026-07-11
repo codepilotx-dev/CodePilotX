@@ -3,10 +3,13 @@
   "definitions": {
     "ProviderRepoInfo": {
       "properties": {
-        "clone_url": {
+        "archived": {
+          "type": "boolean"
+        },
+        "cloneUrl": {
           "type": "string"
         },
-        "default_branch": {
+        "defaultBranch": {
           "type": "string"
         },
         "description": {
@@ -15,26 +18,65 @@
             "null"
           ]
         },
-        "full_name": {
+        "disabled": {
+          "type": "boolean"
+        },
+        "fork": {
+          "type": "boolean"
+        },
+        "fullName": {
           "type": "string"
         },
-        "html_url": {
+        "htmlUrl": {
           "type": "string"
+        },
+        "id": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "language": {
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "name": {
           "type": "string"
         },
         "private": {
           "type": "boolean"
+        },
+        "pushedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sshUrl": {
+          "type": "string"
+        },
+        "stargazersCount": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "updatedAt": {
+          "type": "string"
         }
       },
       "required": [
-        "clone_url",
-        "default_branch",
-        "full_name",
-        "html_url",
+        "archived",
+        "cloneUrl",
+        "defaultBranch",
+        "disabled",
+        "fork",
+        "fullName",
+        "htmlUrl",
+        "id",
         "name",
-        "private"
+        "private",
+        "sshUrl",
+        "stargazersCount",
+        "updatedAt"
       ],
       "type": "object"
     }

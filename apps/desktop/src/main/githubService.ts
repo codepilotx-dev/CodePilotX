@@ -12,6 +12,7 @@ import type {
   DesktopGithubUserStatus,
   DesktopGithubUserStatusInput,
   DesktopGithubUserStatusResult,
+  DesktopWorkspace,
   StartGithubLoginInput,
 } from '../shared/types.js'
 import { readDesktopStoredSettings } from './desktopSettings.js'
@@ -26,20 +27,26 @@ const PROVIDER_ID = 'github-repositories'
 type GithubAuthService = Pick<RustAppServerAuthService,
   'readStatus' | 'startLogin' | 'pollLogin' | 'cancelLogin' | 'logout' |
   'listRepositories' | 'cloneRepository' | 'exchangeAppToken' |
-  'refreshAppToken' | 'readAppTokenStatus' | 'readProfile' | 'setStatus' |
+  'refreshAppToken' | 'readAppTokenStatus' | 'logoutAppToken' | 'readProfile' | 'setStatus' |
   'clearStatus'>
 
 let authService: GithubAuthService = new RustAppServerAuthService()
 let getDialogWindow: () => BrowserWindow | null = () => null
+let finalizeClone: (path: string) => Promise<DesktopWorkspace> = async path => {
+  registerAllowedWorkspace(path)
+  return workspaceFromPath(path)
+}
 let startedAt = 0
 let expiresAt: number | null = null
 
 export function configureGithubService(options: {
   getWindow: () => BrowserWindow | null
   authService?: GithubAuthService
+  finalizeClone?: (path: string) => Promise<DesktopWorkspace>
 }): void {
   getDialogWindow = options.getWindow
   if (options.authService) authService = options.authService
+  if (options.finalizeClone) finalizeClone = options.finalizeClone
 }
 
 export async function getGithubAuthStatus(): Promise<DesktopGithubAuthStatus> {
@@ -93,7 +100,7 @@ export async function logoutGithub(): Promise<DesktopGithubAuthStatus> {
 }
 
 export async function logoutAppAuth(): Promise<void> {
-  await authService.logout(PROVIDER_ID)
+  await authService.logoutAppToken(PROVIDER_ID)
 }
 
 export async function listGithubRepositories(): Promise<DesktopGithubRepositoryListResult> {
@@ -122,8 +129,7 @@ export async function cloneGithubRepository(input: CloneGithubRepositoryInput): 
     if (!parent) return { ok: false, error: '已取消选择克隆目录。' }
     const target = await resolveCloneTargetPath(parent, input.repository.name)
     const localPath = await authService.cloneRepository(PROVIDER_ID, input.repository.cloneUrl, target)
-    registerAllowedWorkspace(localPath)
-    return { ok: true, workspace: await workspaceFromPath(localPath) }
+    return { ok: true, workspace: await finalizeClone(localPath) }
   } catch (error) { return { ok: false, error: errorMessageOf(error) } }
 }
 
@@ -135,11 +141,11 @@ function mapAuth(status: ProviderAuthStatus): DesktopGithubAuthStatus {
 }
 
 function mapRepo(repo: ProviderRepoInfo): DesktopGithubRepository {
-  return { id: 0, name: repo.name, fullName: repo.full_name,
-    owner: repo.full_name.split('/')[0] ?? '', private: repo.private, fork: false,
-    archived: false, disabled: false, cloneUrl: repo.clone_url, sshUrl: '',
-    htmlUrl: repo.html_url, description: repo.description,
-    defaultBranch: repo.default_branch, pushedAt: null, updatedAt: null }
+  return { id: repo.id, name: repo.name, fullName: repo.fullName,
+    owner: repo.fullName.split('/')[0] ?? '', private: repo.private, fork: repo.fork,
+    archived: repo.archived, disabled: repo.disabled, cloneUrl: repo.cloneUrl,
+    sshUrl: repo.sshUrl, htmlUrl: repo.htmlUrl, description: repo.description,
+    defaultBranch: repo.defaultBranch, pushedAt: repo.pushedAt, updatedAt: repo.updatedAt }
 }
 
 async function getGithubClientId(preferred?: string): Promise<string> {

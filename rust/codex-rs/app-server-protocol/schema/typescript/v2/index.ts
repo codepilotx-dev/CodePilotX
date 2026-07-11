@@ -346,6 +346,7 @@ export type { ProviderApiKeySaveParams } from "./ProviderApiKeySaveParams";
 export type { ProviderApiKeySaveResponse } from "./ProviderApiKeySaveResponse";
 export type { ProviderAuthAppTokenAccount } from "./ProviderAuthAppTokenAccount";
 export type { ProviderAuthAppTokenExchangeResponse } from "./ProviderAuthAppTokenExchangeResponse";
+export type { ProviderAuthAppTokenLogoutResponse } from "./ProviderAuthAppTokenLogoutResponse";
 export type { ProviderAuthAppTokenParams } from "./ProviderAuthAppTokenParams";
 export type { ProviderAuthAppTokenRefreshResponse } from "./ProviderAuthAppTokenRefreshResponse";
 export type { ProviderAuthAppTokenStatusResponse } from "./ProviderAuthAppTokenStatusResponse";

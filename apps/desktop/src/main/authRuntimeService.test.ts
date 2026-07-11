@@ -78,6 +78,7 @@ describe('getAuthStatus', () => {
   })
 
   test('getAuthStatus returns DesktopAuthStatus shape', async () => {
+    setGithubAppTokenStatusReaderForTesting(async () => ({ authenticated: false, expiresAt: null, scopes: [], account: null }))
     const prevToken = process.env.CLAUDE_CODE_OAUTH_TOKEN
     process.env.CLAUDE_CODE_OAUTH_TOKEN = 'test-token-placeholder'
     try {
@@ -117,5 +118,12 @@ describe('getAuthStatus', () => {
     const status = await withCoreAppRuntime(testRuntime, () => getAuthStatus())
     expect(status.authenticated).toBe(false)
     expect(status.method).toBe('none')
+  })
+
+  test('GitHub app token takes precedence when Anthropic credentials coexist', async () => {
+    setGithubAppTokenStatusReaderForTesting(async () => ({ authenticated: true, expiresAt: 1, scopes: [], account: { uuid: 'u', emailAddress: 'github@example.com', organizationUuid: null } }))
+    const both: AppRuntime = { ...testRuntime, auth: { ...testRuntime.auth, getAuthTokenSource: () => ({ source: 'api_key', hasToken: true }), hasAnthropicApiKeyAuth: () => true } }
+    const { getAuthStatus } = await import('./authRuntimeService.js')
+    expect(await withCoreAppRuntime(both, () => getAuthStatus())).toMatchObject({ authenticated: true, method: 'github_exchange', email: 'github@example.com' })
   })
 })

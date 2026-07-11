@@ -20,6 +20,10 @@ import type {
   DesktopProviderModelListResult,
   McpReloadResult,
 } from '../shared/types.js'
+import type {
+  ProviderAuthAppTokenStatusResponse,
+  ProviderRepoInfo,
+} from './rustAppServerProtocol/generated/v2/index.js'
 
 // ── Types matching the Rust protocol responses ───────────────
 
@@ -42,26 +46,9 @@ export type ProviderAuthPollResponse = {
   auth: ProviderAuthStatus | null
 }
 
-export type ProviderRepoInfo = {
-  name: string
-  full_name: string
-  description: string | null
-  private: boolean
-  html_url: string
-  clone_url: string
-  default_branch: string
-}
+export type { ProviderRepoInfo }
 
-export type ProviderAppTokenStatus = {
-  authenticated: boolean
-  expiresAt: number | null
-  scopes: string[]
-  account: {
-    uuid: string
-    emailAddress: string
-    organizationUuid: string | null
-  } | null
-}
+export type ProviderAppTokenStatus = ProviderAuthAppTokenStatusResponse
 
 // ── Auth service ────────────────────────────────────────────
 
@@ -272,6 +259,10 @@ async refreshAppToken(providerID: string): Promise<ProviderAppTokenStatus> {
 
 async readAppTokenStatus(providerID: string): Promise<ProviderAppTokenStatus> {
   return this.rpc('providerAuth/appTokenStatus', { providerId: providerID })
+}
+
+async logoutAppToken(providerID: string): Promise<void> {
+  await this.rpc('providerAuth/appTokenLogout', { providerId: providerID })
 }
 
 async readProfile<T>(providerID: string): Promise<T> {

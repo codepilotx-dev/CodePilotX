@@ -29,7 +29,17 @@ export function runtimePreferenceForAuth(
 }
 
 export async function getAuthStatus(): Promise<DesktopAuthStatus> {
-  // First try: existing Anthropic auth (Claude OAuth or API key)
+  // GitHub app auth owns the Rust session boundary when present.
+  const githubAuth = await readGithubAppTokenStatus().catch(() => null)
+  if (githubAuth?.authenticated) {
+    return {
+      authenticated: true,
+      method: 'github_exchange',
+      email: githubAuth.account?.emailAddress ?? null,
+      organizationName: null,
+    }
+  }
+
   const tokenSource = getAuthTokenSource()
   const account = getOauthAccountInfo()
   const hasAnthropicAuth = tokenSource.hasToken || hasAnthropicApiKeyAuth()
@@ -40,17 +50,6 @@ export async function getAuthStatus(): Promise<DesktopAuthStatus> {
       method: tokenSource.source,
       email: account?.emailAddress ?? null,
       organizationName: account?.organizationName ?? null,
-    }
-  }
-
-  // Second try: GitHub-exchanged app token
-  const githubAuth = await readGithubAppTokenStatus().catch(() => null)
-  if (githubAuth?.authenticated) {
-    return {
-      authenticated: true,
-      method: 'github_exchange',
-      email: githubAuth.account?.emailAddress ?? null,
-      organizationName: null,
     }
   }
 

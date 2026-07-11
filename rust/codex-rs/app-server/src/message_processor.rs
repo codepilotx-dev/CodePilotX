@@ -1574,6 +1574,11 @@ impl MessageProcessor {
                     .app_token_status(params)
                     .await
                     .map(|r| Some(r.into())),
+                ClientRequest::ProviderAuthAppTokenLogout { params, .. } => self
+                    .provider_auth_processor
+                    .app_token_logout(params)
+                    .await
+                    .map(|r| Some(r.into())),
                 ClientRequest::ProviderApiKeyRead { params, .. } => self
                     .provider_auth_processor
                     .read_provider_api_keys(params)
