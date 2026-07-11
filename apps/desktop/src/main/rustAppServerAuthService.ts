@@ -22,32 +22,19 @@ import type {
 } from '../shared/types.js'
 import type {
   ProviderAuthAppTokenStatusResponse,
+  ProviderAuthAppTokenExchangeResponse,
+  ProviderAuthAppTokenRefreshResponse,
+  ProviderAuthPollLoginResponse,
+  ProviderAuthProfileReadResponse,
+  ProviderAuthReadStatusResponse,
+  ProviderAuthStartLoginResponse,
+  ProviderAuthStatusClearResponse,
+  ProviderAuthStatusSetResponse,
   ProviderRepoInfo,
 } from './rustAppServerProtocol/generated/v2/index.js'
 
-// ── Types matching the Rust protocol responses ───────────────
-
-export type ProviderAuthStatus = {
-  authenticated: boolean
-  user: { login: string; name?: string; avatar_url?: string } | null
-  error: string | null
-}
-
-export type DeviceCodeResponse = {
-  device_code: string
-  user_code: string
-  verification_uri: string
-  expires_in: number
-  interval: number
-}
-
-export type ProviderAuthPollResponse = {
-  status: 'pending' | 'completed' | 'expired' | 'denied'
-  auth: ProviderAuthStatus | null
-}
-
 export type { ProviderRepoInfo }
-
+export type ProviderAuthStatus = ProviderAuthReadStatusResponse
 export type ProviderAppTokenStatus = ProviderAuthAppTokenStatusResponse
 
 // ── Auth service ────────────────────────────────────────────
@@ -125,7 +112,7 @@ private async rpc<T>(method: string, params: unknown): Promise<T> {
 
 // ── Public API methods ────────────────────────────────────
 
-async readStatus(providerID: string): Promise<ProviderAuthStatus> {
+async readStatus(providerID: string): Promise<ProviderAuthReadStatusResponse> {
   return this.rpc('providerAuth/readStatus', {
     provider_id: providerID,
   })
@@ -134,14 +121,14 @@ async readStatus(providerID: string): Promise<ProviderAuthStatus> {
 async startLogin(
   providerID: string,
   clientId?: string,
-): Promise<DeviceCodeResponse> {
+): Promise<ProviderAuthStartLoginResponse> {
   return this.rpc('providerAuth/startLogin', {
     provider_id: providerID,
     client_id: clientId ?? null,
   })
 }
 
-async pollLogin(providerID: string): Promise<ProviderAuthPollResponse> {
+async pollLogin(providerID: string): Promise<ProviderAuthPollLoginResponse> {
   return this.rpc('providerAuth/pollLogin', {
     provider_id: providerID,
   })
@@ -249,11 +236,11 @@ async cloneRepository(
   return result.local_path
 }
 
-async exchangeAppToken(providerID: string): Promise<ProviderAppTokenStatus> {
+async exchangeAppToken(providerID: string): Promise<ProviderAuthAppTokenExchangeResponse> {
   return this.rpc('providerAuth/appTokenExchange', { providerId: providerID })
 }
 
-async refreshAppToken(providerID: string): Promise<ProviderAppTokenStatus> {
+async refreshAppToken(providerID: string): Promise<ProviderAuthAppTokenRefreshResponse> {
   return this.rpc('providerAuth/appTokenRefresh', { providerId: providerID })
 }
 
@@ -265,20 +252,20 @@ async logoutAppToken(providerID: string): Promise<void> {
   await this.rpc('providerAuth/appTokenLogout', { providerId: providerID })
 }
 
-async readProfile<T>(providerID: string): Promise<T> {
-  const result = await this.rpc<{ overview: T }>('providerAuth/profileRead', {
+async readProfile(providerID: string): Promise<ProviderAuthProfileReadResponse['overview']> {
+  const result = await this.rpc<ProviderAuthProfileReadResponse>('providerAuth/profileRead', {
     providerId: providerID,
   })
   return result.overview
 }
 
-async setStatus<T>(providerID: string, input: {
+async setStatus(providerID: string, input: {
   emoji: string
   message: string
   limitedAvailability: boolean
   expiresAt?: string | null
-}): Promise<T | null> {
-  const result = await this.rpc<{ status: T | null }>('providerAuth/statusSet', {
+}): Promise<ProviderAuthStatusSetResponse['status']> {
+  const result = await this.rpc<ProviderAuthStatusSetResponse>('providerAuth/statusSet', {
     providerId: providerID,
     ...input,
     expiresAt: input.expiresAt ?? null,
@@ -286,8 +273,8 @@ async setStatus<T>(providerID: string, input: {
   return result.status
 }
 
-async clearStatus<T>(providerID: string): Promise<T | null> {
-  const result = await this.rpc<{ status: T | null }>('providerAuth/statusClear', {
+async clearStatus(providerID: string): Promise<ProviderAuthStatusClearResponse['status']> {
+  const result = await this.rpc<ProviderAuthStatusClearResponse>('providerAuth/statusClear', {
     providerId: providerID,
   })
   return result.status

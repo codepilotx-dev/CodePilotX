@@ -21,10 +21,15 @@ pub struct ProviderAuthReadStatusResponse {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[ts(export_to = "v2/")]
+#[serde(rename_all = "camelCase")]
+#[ts(rename_all = "camelCase")]
 pub struct ProviderUserInfo {
+    #[ts(type = "number")]
+    pub id: i64,
     pub login: String,
     pub name: Option<String>,
     pub avatar_url: Option<String>,
+    pub html_url: String,
 }
 
 //  Device-code login

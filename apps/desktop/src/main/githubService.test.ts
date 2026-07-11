@@ -4,9 +4,9 @@ import { readFile } from 'node:fs/promises'
 const calls: Array<[string, unknown[]]> = []
 let cloneDialog = { canceled: true, filePaths: [] as string[] }
 const fakeService = {
-  readStatus: async (...args: unknown[]) => { calls.push(['readStatus', args]); return { authenticated: true, user: { login: 'octo', name: 'Octo', avatar_url: null }, error: null } },
+  readStatus: async (...args: unknown[]) => { calls.push(['readStatus', args]); return { authenticated: true, user: { id: 42, login: 'octo', name: 'Octo', avatarUrl: null, htmlUrl: 'https://github.example/octo' }, error: null } },
   startLogin: async (...args: unknown[]) => { calls.push(['startLogin', args]); return { device_code: 'secret-device', user_code: 'ABCD', verification_uri: 'https://github.com/login/device', expires_in: 60, interval: 5 } },
-  pollLogin: async (...args: unknown[]) => { calls.push(['pollLogin', args]); return { status: 'completed' as const, auth: { authenticated: true, user: { login: 'octo' }, error: null } } },
+  pollLogin: async (...args: unknown[]) => { calls.push(['pollLogin', args]); return { status: 'completed' as const, auth: { authenticated: true, user: { id: 42, login: 'octo', name: null, avatarUrl: null, htmlUrl: 'https://github.example/octo' }, error: null } } },
   exchangeAppToken: async (...args: unknown[]) => { calls.push(['exchangeAppToken', args]); return { authenticated: true, expiresAt: 1, scopes: [], account: null } },
   refreshAppToken: async () => ({ authenticated: true, expiresAt: 1, scopes: [], account: null }),
   readAppTokenStatus: async () => ({ authenticated: true, expiresAt: 1, scopes: [], account: null }),
@@ -44,7 +44,7 @@ test('GitHub desktop API delegates login and app-token exchange to Rust', async 
 
 test('GitHub desktop API delegates auth, repositories, profile and status to Rust', async () => {
   calls.length = 0
-  expect((await service.getGithubAuthStatus()).user?.login).toBe('octo')
+  expect((await service.getGithubAuthStatus()).user).toMatchObject({ id: 42, login: 'octo', htmlUrl: 'https://github.example/octo' })
   const repos = await service.listGithubRepositories()
   expect(repos).toEqual({ ok: true, repositories: [{ id: 42, name: 'repo', fullName: 'octo/repo', owner: 'octo', private: false, fork: true, archived: true, disabled: false, cloneUrl: 'https://github.com/octo/repo.git', sshUrl: 'git@github.com:octo/repo.git', htmlUrl: 'https://github.com/octo/repo', description: null, defaultBranch: 'main', pushedAt: '2026-01-02', updatedAt: '2026-01-01' }] })
   expect((await service.getGithubProfileOverview()).ok).toBe(true)

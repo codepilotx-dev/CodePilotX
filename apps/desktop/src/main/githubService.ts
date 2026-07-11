@@ -5,11 +5,9 @@ import type {
   DesktopGithubAuthStatus,
   DesktopGithubCloneResult,
   DesktopGithubLoginStatus,
-  DesktopGithubProfileOverview,
   DesktopGithubProfileOverviewResult,
   DesktopGithubRepository,
   DesktopGithubRepositoryListResult,
-  DesktopGithubUserStatus,
   DesktopGithubUserStatusInput,
   DesktopGithubUserStatusResult,
   DesktopWorkspace,
@@ -109,17 +107,17 @@ export async function listGithubRepositories(): Promise<DesktopGithubRepositoryL
 }
 
 export async function getGithubProfileOverview(): Promise<DesktopGithubProfileOverviewResult> {
-  try { return { ok: true, overview: await authService.readProfile<DesktopGithubProfileOverview>(PROVIDER_ID) } }
+  try { return { ok: true, overview: await authService.readProfile(PROVIDER_ID) } }
   catch (error) { return { ok: false, error: errorMessageOf(error) } }
 }
 
 export async function setGithubUserStatus(input: DesktopGithubUserStatusInput): Promise<DesktopGithubUserStatusResult> {
-  try { return { ok: true, status: await authService.setStatus<DesktopGithubUserStatus>(PROVIDER_ID, input) } }
+  try { return { ok: true, status: await authService.setStatus(PROVIDER_ID, input) } }
   catch (error) { return { ok: false, error: errorMessageOf(error) } }
 }
 
 export async function clearGithubUserStatus(): Promise<DesktopGithubUserStatusResult> {
-  try { return { ok: true, status: await authService.clearStatus<DesktopGithubUserStatus>(PROVIDER_ID) } }
+  try { return { ok: true, status: await authService.clearStatus(PROVIDER_ID) } }
   catch (error) { return { ok: false, error: errorMessageOf(error) } }
 }
 
@@ -135,8 +133,8 @@ export async function cloneGithubRepository(input: CloneGithubRepositoryInput): 
 
 function mapAuth(status: ProviderAuthStatus): DesktopGithubAuthStatus {
   return { configured: true, authenticated: status.authenticated,
-    user: status.user ? { login: status.user.login, id: 0, name: status.user.name ?? null,
-      avatarUrl: status.user.avatar_url ?? null, htmlUrl: `https://github.com/${status.user.login}` } : null,
+    user: status.user ? { login: status.user.login, id: status.user.id, name: status.user.name,
+      avatarUrl: status.user.avatarUrl, htmlUrl: status.user.htmlUrl } : null,
     ...(status.error ? { error: status.error } : {}) }
 }
 

@@ -899,9 +899,11 @@ impl ProviderAuthRequestProcessor {
                 token_type: "bearer".to_string(),
                 scope: None,
                 user: ProviderUserInfo {
+                    id: 0,
                     login: "copilot".to_string(),
                     name: None,
                     avatar_url: None,
+                    html_url: "https://github.com/features/copilot".to_string(),
                 },
                 stored_at: timestamp_millis(),
             };
@@ -1594,9 +1596,11 @@ enum GithubTokenPollResult {
 
 #[derive(Deserialize)]
 struct GithubUser {
+    id: i64,
     login: String,
     name: Option<String>,
     avatar_url: Option<String>,
+    html_url: String,
 }
 
 #[derive(Deserialize)]
@@ -1739,9 +1743,11 @@ async fn github_fetch_user(access_token: &str) -> Result<ProviderUserInfo, JSONR
         .map_err(|e| internal_error(format!("Failed to parse GitHub user: {e}")))?;
 
     Ok(ProviderUserInfo {
+        id: gh_user.id,
         login: gh_user.login,
         name: gh_user.name,
         avatar_url: gh_user.avatar_url,
+        html_url: gh_user.html_url,
     })
 }
 
@@ -2158,9 +2164,11 @@ mod tests {
             token_type: "bearer".to_string(),
             scope: Some("repo".to_string()),
             user: ProviderUserInfo {
+                id: 42,
                 login: "octocat".to_string(),
                 name: None,
                 avatar_url: None,
+                html_url: "https://github.com/octocat".to_string(),
             },
             stored_at: 1,
         }
@@ -2255,6 +2263,19 @@ mod tests {
         let mut missing = value.as_object().unwrap().clone();
         missing.remove("ssh_url");
         assert!(serde_json::from_value::<GithubRepo>(missing.into()).is_err());
+    }
+    #[test]
+    fn github_user_payload_requires_real_identity_fields() {
+        let value = serde_json::json!({
+            "id": 42, "login": "octo", "name": null,
+            "avatar_url": null, "html_url": "https://github.com/octo"
+        });
+        let user: GithubUser = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(user.id, 42);
+        assert_eq!(user.html_url, "https://github.com/octo");
+        let mut missing = value.as_object().unwrap().clone();
+        missing.remove("id");
+        assert!(serde_json::from_value::<GithubUser>(missing.into()).is_err());
     }
     #[tokio::test]
     async fn app_token_errors_do_not_leak_body() {

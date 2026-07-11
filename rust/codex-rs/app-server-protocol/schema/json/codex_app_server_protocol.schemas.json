@@ -15786,11 +15786,18 @@
       },
       "ProviderUserInfo": {
         "properties": {
-          "avatar_url": {
+          "avatarUrl": {
             "type": [
               "string",
               "null"
             ]
+          },
+          "htmlUrl": {
+            "type": "string"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
           },
           "login": {
             "type": "string"
@@ -15803,6 +15810,8 @@
           }
         },
         "required": [
+          "htmlUrl",
+          "id",
           "login"
         ],
         "type": "object"
