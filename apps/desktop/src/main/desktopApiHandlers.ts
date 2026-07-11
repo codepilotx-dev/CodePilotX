@@ -105,18 +105,27 @@ import {
 import type {
   CreateDesktopSessionOptions,
   CreateDesktopSessionResult,
+  DesktopAiReviewTarget,
+  DesktopApprovalPolicy,
   DesktopBuiltinPlugin,
   DesktopDataLocationMigrationResult,
   DesktopDataLocationState,
+  DesktopFollowUpBehavior,
   DesktopMcpRuntimeStatus,
   McpReloadResult,
   DesktopPermissionDecision,
   DesktopPermissionMode,
+  DesktopRollbackRequest,
+  DesktopCatalogResult,
+  DesktopInstalledSkill,
+  DesktopRollbackResult,
+  DesktopRuntimePermissionProfile,
   DesktopSlashCommandSuggestion,
   DesktopGitOperationResult,
   DesktopSessionMetadataPatch,
   DesktopSessionCatalogStatus,
   DesktopSessionSnapshot,
+  DesktopThreadGoal,
   DesktopStoredSettings,
   DesktopToolchainDiagnosticReport,
   DesktopToolchainInstallResult,
@@ -199,6 +208,54 @@ export type DesktopApiHandlerDependencies = {
   ): Promise<void>
   interruptSession(sessionId: string): Promise<void>
   disposeSession(sessionId: string): Promise<void>
+  submitSessionFollowUp(
+    sessionId: string,
+    input: DesktopUserMessageInput,
+    behavior: DesktopFollowUpBehavior,
+  ): Promise<'steered' | 'queued'>
+  updateQueuedFollowUp(
+    sessionId: string,
+    followUpId: string,
+    input: DesktopUserMessageInput,
+  ): Promise<DesktopSessionSnapshot>
+  removeQueuedFollowUp(
+    sessionId: string,
+    followUpId: string,
+  ): Promise<DesktopSessionSnapshot>
+  sendQueuedFollowUpNow(
+    sessionId: string,
+    followUpId: string,
+  ): Promise<void>
+  compactSession(sessionId: string): Promise<void>
+  rollbackSession(
+    input: DesktopRollbackRequest,
+  ): Promise<DesktopRollbackResult>
+  getSessionGoal(sessionId: string): Promise<DesktopThreadGoal | null>
+  setSessionGoal(
+    sessionId: string,
+    input: {
+      objective?: string
+      status?: 'active' | 'paused' | 'complete'
+    },
+  ): Promise<DesktopThreadGoal>
+  clearSessionGoal(sessionId: string): Promise<boolean>
+  startSessionReview(
+    sessionId: string,
+    target: DesktopAiReviewTarget,
+  ): Promise<void>
+  listRuntimePermissionProfiles(
+    workspacePath: string,
+    options?: { forceRefresh?: boolean },
+  ): Promise<DesktopCatalogResult<DesktopRuntimePermissionProfile[]>>
+  setSessionPermissionProfile(
+    sessionId: string,
+    profile: string,
+    approvalPolicy?: string,
+  ): Promise<DesktopSessionSnapshot>
+  listRuntimeSkills(
+    workspacePath: string,
+    options?: { forceReload?: boolean },
+  ): Promise<DesktopCatalogResult<DesktopInstalledSkill[]>>
   restoreSessionTurnChanges(
     input: RestoreSessionTurnChangesInput,
   ): Promise<DesktopGitOperationResult>
@@ -376,6 +433,19 @@ export function buildDesktopApiHandlers(
     respondToPermission: dependencies.respondToPermission,
     interruptSession: dependencies.interruptSession,
     disposeSession: dependencies.disposeSession,
+    submitSessionFollowUp: dependencies.submitSessionFollowUp,
+    updateQueuedFollowUp: dependencies.updateQueuedFollowUp,
+    removeQueuedFollowUp: dependencies.removeQueuedFollowUp,
+    sendQueuedFollowUpNow: dependencies.sendQueuedFollowUpNow,
+    compactSession: dependencies.compactSession,
+    rollbackSession: dependencies.rollbackSession,
+    getSessionGoal: dependencies.getSessionGoal,
+    setSessionGoal: dependencies.setSessionGoal,
+    clearSessionGoal: dependencies.clearSessionGoal,
+    startSessionReview: dependencies.startSessionReview,
+    listRuntimePermissionProfiles: dependencies.listRuntimePermissionProfiles,
+    setSessionPermissionProfile: dependencies.setSessionPermissionProfile,
+    listRuntimeSkills: dependencies.listRuntimeSkills,
     minimizeWindow: async () => windowService.minimizeWindow(),
     toggleWindowMaximized: async () => windowService.toggleWindowMaximized(),
     closeWindow: async () => windowService.closeWindow(),

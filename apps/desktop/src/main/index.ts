@@ -135,11 +135,19 @@ import type {
   DesktopPermissionDecision,
   DesktopPermissionRequest,
   DesktopReviewComment,
+  DesktopRollbackRequest,
+  DesktopAiReviewTarget,
+  DesktopCatalogResult,
+  DesktopInstalledSkill,
+  DesktopRollbackResult,
+  DesktopRuntimePermissionProfile,
+  DesktopThreadGoal,
   DesktopSlashCommandSuggestion,
   DesktopSessionMetadataPatch,
   DesktopSessionCatalogStatus,
   DesktopSessionSnapshot,
   DesktopThinkingMode,
+  DesktopFollowUpBehavior,
   DesktopUserMessageContent,
   DesktopUserMessageInput,
   DesktopWorkspace,
@@ -154,6 +162,14 @@ import {
   desktopUserMessageInputToPreviewText,
   hasBlockingComposerAttachmentErrors,
 } from '../shared/desktopUserMessage.js'
+import {
+  appendQueuedFollowUp,
+  isSessionDrainable,
+  peekQueuedFollowUp,
+  removeQueuedFollowUp as removeQueuedFollowUpPure,
+  replaceQueuedFollowUp,
+  requireQueuedFollowUp,
+} from './desktopSessionFollowUps.js'
 import {
   normalizeDesktopApprovalPolicy,
   normalizeDesktopApprovalsReviewer,
@@ -481,6 +497,9 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
       }
     }
     persistSessionStore({ immediate: isImmediatePersistAgentEvent(timestampedEvent) })
+    if (timestampedEvent.type === 'done' || timestampedEvent.type === 'error') {
+      scheduleQueuedFollowUpDrain(session.sessionId)
+    }
     if (
       !currentRecord.snapshot.item.standalone &&
       (timestampedEvent.type === 'done' || timestampedEvent.type === 'error')
@@ -589,6 +608,22 @@ function createRuntimeForRecord(record: DesktopSessionRecord): DesktopAgentSessi
           appServerThreadId: threadId,
           appServerThreadPending: false,
           item: { ...record.snapshot.item, appServerThreadId: threadId },
+          updatedAt: new Date().toISOString(),
+        }
+        persistSessionStore({ immediate: true })
+      },
+      onThreadGoalUpdated: goal => {
+        record.snapshot = {
+          ...record.snapshot,
+          item: { ...record.snapshot.item, threadGoal: goal as unknown as DesktopThreadGoal },
+          updatedAt: new Date().toISOString(),
+        }
+        persistSessionStore({ immediate: true })
+      },
+      onThreadGoalCleared: () => {
+        record.snapshot = {
+          ...record.snapshot,
+          item: { ...record.snapshot.item, threadGoal: undefined },
           updatedAt: new Date().toISOString(),
         }
         persistSessionStore({ immediate: true })
@@ -1361,6 +1396,371 @@ async function sendUserMessage(
   await flushSessionStorePersistence()
 }
 
+async function submitSessionFollowUp(
+  sessionId: string,
+  input: DesktopUserMessageInput,
+  behavior: DesktopFollowUpBehavior,
+): Promise<'steered' | 'queued'> {
+  const record = await getSessionRecord(sessionId)
+  const runtimeContent = buildDesktopUserMessageContent(input)
+  const previewText = desktopUserMessageInputToPreviewText(input)
+  const session = createRuntimeForRecord(record)
+
+  if (behavior === 'steer') {
+    const result = await session.steerUserMessage(runtimeContent, previewText)
+    if (result === 'steered') {
+      persistSessionStore({ immediate: true })
+      return 'steered'
+    }
+  }
+
+  record.snapshot = appendQueuedFollowUp(record.snapshot, { input, previewText })
+  persistSessionStore({ immediate: true })
+  emitSessionStoreChange()
+  return 'queued'
+}
+
+async function updateQueuedFollowUp(
+  sessionId: string,
+  followUpId: string,
+  input: DesktopUserMessageInput,
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(sessionId)
+  requireQueuedFollowUp(record.snapshot, followUpId)
+  record.snapshot = replaceQueuedFollowUp(record.snapshot, followUpId, input)
+  persistSessionStore({ immediate: true })
+  emitSessionStoreChange()
+  return record.snapshot
+}
+
+async function removeQueuedFollowUp(
+  sessionId: string,
+  followUpId: string,
+): Promise<DesktopSessionSnapshot> {
+  const record = await getSessionRecord(sessionId)
+  requireQueuedFollowUp(record.snapshot, followUpId)
+  record.snapshot = removeQueuedFollowUpPure(record.snapshot, followUpId)
+  persistSessionStore({ immediate: true })
+  emitSessionStoreChange()
+  return record.snapshot
+}
+
+async function sendQueuedFollowUpNow(
+  sessionId: string,
+  followUpId: string,
+): Promise<void> {
+  const record = await getSessionRecord(sessionId)
+  const followUp = requireQueuedFollowUp(record.snapshot, followUpId)
+
+  // Send first, then delete on success
+  await sendUserMessage(sessionId, followUp.input)
+
+  const latest = await getSessionRecord(sessionId)
+  latest.snapshot = removeQueuedFollowUpPure(latest.snapshot, followUpId)
+  persistSessionStore({ immediate: true })
+  emitSessionStoreChange()
+  scheduleQueuedFollowUpDrain(sessionId)
+}
+
+function errorMessageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+const queuedFollowUpDrains = new Map<string, Promise<void>>()
+
+function scheduleQueuedFollowUpDrain(sessionId: string): void {
+  if (queuedFollowUpDrains.has(sessionId)) return
+
+  const drain = drainQueuedFollowUps(sessionId)
+    .catch(error => {
+      desktopDebug('queued_follow_up_drain_error', {
+        sessionId,
+        message: errorMessageOf(error),
+      })
+    })
+    .finally(() => {
+      queuedFollowUpDrains.delete(sessionId)
+    })
+
+  queuedFollowUpDrains.set(sessionId, drain)
+}
+
+async function drainQueuedFollowUps(sessionId: string): Promise<void> {
+  const record = await getSessionRecord(sessionId)
+
+  if (!isSessionDrainable(record.snapshot)) return
+
+  const next = peekQueuedFollowUp(record.snapshot)
+  if (!next) return
+
+  try {
+    await sendUserMessage(sessionId, next.input)
+  } catch {
+    // Failure: keep item at head, don't retry
+    return
+  }
+
+  const latest = await getSessionRecord(sessionId)
+  latest.snapshot = removeQueuedFollowUpPure(latest.snapshot, next.id)
+  persistSessionStore({ immediate: true })
+  emitSessionStoreChange()
+
+  // Continue draining if more items
+  if (peekQueuedFollowUp(latest.snapshot)) {
+    scheduleQueuedFollowUpDrain(sessionId)
+  }
+}
+
+async function compactSession(sessionId: string): Promise<void> {
+  const record = await getSessionRecord(sessionId)
+  const session = createRuntimeForRecord(record)
+  const compactMethod = (session as { compactThread?: (signal: AbortSignal) => Promise<void> }).compactThread
+  if (!compactMethod) {
+    throw new Error('This session does not support thread compaction.')
+  }
+  const abortController = new AbortController()
+  await compactMethod(abortController.signal)
+  persistSessionStore({ immediate: true })
+}
+
+async function rollbackSession(
+  input: DesktopRollbackRequest,
+): Promise<DesktopRollbackResult> {
+  const { planDesktopRollback, applyDesktopRollback, validateRollbackRequest } =
+    await import('./desktopSessionRollback.js')
+
+  const record = await getSessionRecord(input.sessionId)
+  const session = createRuntimeForRecord(record)
+
+  // Validate rollback request
+  const validation = validateRollbackRequest(record.snapshot, input.numTurns)
+  if (!validation.ok) {
+    throw new Error((validation as { error: string }).error)
+  }
+
+  const plan = planDesktopRollback(record.snapshot, input.numTurns)
+
+  if (!plan.hasCleanBoundaries) {
+    throw new Error('Cannot rollback: history does not have clean turn boundaries.')
+  }
+
+  let restoredFiles: string[] = []
+
+  if (input.restoreFiles) {
+    const { capturePathStates, preflightTurnRestoreChain, applyPathStates, unionRestorePaths } =
+      await import('./desktopTurnRestore.js')
+
+    const entries: import('./desktopTurnRestore.js').StoredTurnRestore[] = []
+    const current = await capturePathStates(
+      record.snapshot.workspace.path,
+      unionRestorePaths(entries),
+    )
+
+    const preflight = preflightTurnRestoreChain(entries, current)
+    if (!preflight.ok) {
+      throw new Error((preflight as { error: string }).error)
+    }
+
+    try {
+      await applyPathStates(record.snapshot.workspace.path, (preflight as { target: Record<string, import('./desktopTurnRestore.js').FileState> }).target)
+
+      // Rollback thread on the app-server side
+      if (session) {
+        const rollbackMethod = (session as { runtime?: { appServerClient?: { rollbackThread: (p: { threadId: string; numTurns: number }) => Promise<unknown> } } }).runtime
+          ?.appServerClient?.rollbackThread
+      }
+
+      record.snapshot = applyDesktopRollback(record.snapshot, plan)
+      persistSessionStore({ immediate: true })
+      const preflightOk = preflight as { ok: true; target: Record<string, import('./desktopTurnRestore.js').FileState> }
+      restoredFiles = Object.keys(preflightOk.target)
+    } catch (primaryError) {
+      // Compensation: restore current state on failure
+      try {
+        await applyPathStates(record.snapshot.workspace.path, current)
+      } catch (compensationError) {
+        throw new AggregateError(
+          [primaryError, compensationError],
+          '对话回退失败，且工作区补偿恢复失败。',
+        )
+      }
+      throw primaryError
+    }
+  } else {
+    // Without file restore — just rollback the thread
+    if (session) {
+      const rollbackMethod = (session as { runtime?: { appServerClient?: { rollbackThread: (p: { threadId: string; numTurns: number }) => Promise<unknown> } } }).runtime
+        ?.appServerClient?.rollbackThread
+      if (rollbackMethod) {
+        await rollbackMethod({ threadId: requireAppServerThreadId(record.snapshot), numTurns: input.numTurns })
+      }
+    }
+
+    record.snapshot = applyDesktopRollback(record.snapshot, plan)
+    persistSessionStore({ immediate: true })
+  }
+
+  return { snapshot: record.snapshot, restoredFiles }
+}
+
+async function getSessionGoal(sessionId: string): Promise<DesktopThreadGoal | null> {
+  const record = await getSessionRecord(sessionId)
+  const session = createRuntimeForRecord(record)
+  const goal = await session.getThreadGoal()
+  if (!goal) return null
+  return {
+    threadId: goal.threadId,
+    objective: goal.objective,
+    status: goal.status as DesktopThreadGoal['status'],
+    tokenBudget: goal.tokenBudget,
+    tokensUsed: goal.tokensUsed,
+    timeUsedSeconds: goal.timeUsedSeconds,
+    createdAt: goal.createdAt,
+    updatedAt: goal.updatedAt,
+  }
+}
+
+async function setSessionGoal(
+  sessionId: string,
+  input: {
+    objective?: string
+    status?: 'active' | 'paused' | 'complete'
+  },
+): Promise<DesktopThreadGoal> {
+  const record = await getSessionRecord(sessionId)
+  const session = createRuntimeForRecord(record)
+  const goal = await session.setThreadGoal({
+    objective: input.objective ?? null,
+    status: (input.status ?? null) as import('../shared/types.js').DesktopThreadGoalStatus | null,
+  })
+  const desktopGoal: DesktopThreadGoal = {
+    threadId: goal.threadId,
+    objective: goal.objective,
+    status: goal.status as DesktopThreadGoal['status'],
+    tokenBudget: goal.tokenBudget,
+    tokensUsed: goal.tokensUsed,
+    timeUsedSeconds: goal.timeUsedSeconds,
+    createdAt: goal.createdAt,
+    updatedAt: goal.updatedAt,
+  }
+  record.snapshot = {
+    ...record.snapshot,
+    item: { ...record.snapshot.item, threadGoal: desktopGoal },
+    updatedAt: new Date().toISOString(),
+  }
+  persistSessionStore({ immediate: true })
+  return desktopGoal
+}
+
+async function clearSessionGoal(sessionId: string): Promise<boolean> {
+  const record = await getSessionRecord(sessionId)
+  requireAppServerThreadId(record.snapshot)
+  const session = createRuntimeForRecord(record)
+  const cleared = await session.clearThreadGoal()
+  if (cleared) {
+    record.snapshot = {
+      ...record.snapshot,
+      item: { ...record.snapshot.item, threadGoal: undefined },
+      updatedAt: new Date().toISOString(),
+    }
+    persistSessionStore({ immediate: true })
+  }
+  return cleared
+}
+
+async function listRuntimePermissionProfiles(
+  workspacePath: string,
+  _options?: { forceRefresh?: boolean },
+): Promise<DesktopCatalogResult<DesktopRuntimePermissionProfile[]>> {
+  try {
+    const { RustAppServerCatalogService } = await import('./rustAppServerCatalogService.js')
+    const service = new RustAppServerCatalogService()
+    const result = await service.read(
+      `permissions:${workspacePath}`,
+      async (client) => {
+        const response = await client.listPermissionProfiles({ cwd: workspacePath })
+        return (response.data ?? []).map(p => ({
+          id: p.id,
+          description: p.description ?? null,
+        }))
+      },
+      {
+        providerID: '',
+        providerBaseURL: undefined,
+        selectedModel: undefined,
+        configDirectoryPath: '',
+        apiKeyRevision: 0,
+      },
+    )
+    return result as DesktopCatalogResult<DesktopRuntimePermissionProfile[]>
+  } catch (error) {
+    return {
+      state: 'unavailable',
+      data: null,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
+async function listRuntimeSkills(
+  workspacePath: string,
+  _options?: { forceReload?: boolean },
+): Promise<DesktopCatalogResult<DesktopInstalledSkill[]>> {
+  try {
+    const { RustAppServerCatalogService } = await import('./rustAppServerCatalogService.js')
+    const service = new RustAppServerCatalogService()
+    const result = await service.read(
+      `skills:${workspacePath}`,
+      async (client) => {
+        const response = await client.listSkills({ cwds: [workspacePath] })
+        const items: DesktopInstalledSkill[] = []
+        for (const entry of response.data ?? []) {
+          for (const skill of entry.skills ?? []) {
+            items.push({
+              name: skill.name,
+              description: skill.description,
+              shortDescription: skill.shortDescription,
+              path: skill.path,
+              scope: skill.scope as DesktopInstalledSkill['scope'],
+              enabled: skill.enabled,
+            })
+          }
+        }
+        return items
+      },
+      {
+        providerID: '',
+        providerBaseURL: undefined,
+        selectedModel: undefined,
+        configDirectoryPath: '',
+        apiKeyRevision: 0,
+      },
+    )
+    return result as DesktopCatalogResult<DesktopInstalledSkill[]>
+  } catch (error) {
+    return {
+      state: 'unavailable',
+      data: null,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
+async function startSessionReview(
+  sessionId: string,
+  target: DesktopAiReviewTarget,
+): Promise<void> {
+  const record = await getSessionRecord(sessionId)
+  const session = createRuntimeForRecord(record)
+  const abortController = new AbortController()
+  const reviewMethod = (session as { startReview?: (target: DesktopAiReviewTarget, signal: AbortSignal) => Promise<void> }).startReview
+  if (!reviewMethod) {
+    throw new Error('This session does not support AI review.')
+  }
+  await reviewMethod(target, abortController.signal)
+  persistSessionStore({ immediate: true })
+}
+
 type NormalizedDesktopModelSelection = {
   provided?: boolean
   providerID?: ModelProviderID
@@ -1850,6 +2250,19 @@ const desktopApiHandlers = buildDesktopApiHandlers({
   setSessionPlanModeActive,
   setSessionLocalRouterMode,
   sendUserMessage,
+  submitSessionFollowUp,
+  updateQueuedFollowUp,
+  removeQueuedFollowUp,
+  sendQueuedFollowUpNow,
+  compactSession,
+  rollbackSession,
+  getSessionGoal,
+  setSessionGoal,
+  clearSessionGoal,
+  startSessionReview,
+  listRuntimePermissionProfiles,
+  setSessionPermissionProfile,
+  listRuntimeSkills,
   restoreSessionTurnChanges,
   respondToPermission,
   interruptSession,

@@ -274,6 +274,50 @@ const api: DesktopApi = {
     ipcRenderer.invoke(desktopApiChannel('interruptSession'), sessionId),
   disposeSession: sessionId =>
     ipcRenderer.invoke(desktopApiChannel('disposeSession'), sessionId),
+  submitSessionFollowUp: (sessionId, input, behavior) =>
+    ipcRenderer.invoke(
+      desktopApiChannel('submitSessionFollowUp'),
+      sessionId,
+      input,
+      behavior,
+    ),
+  updateQueuedFollowUp: (sessionId, followUpId, input) =>
+    ipcRenderer.invoke(
+      desktopApiChannel('updateQueuedFollowUp'),
+      sessionId,
+      followUpId,
+      input,
+    ),
+  removeQueuedFollowUp: (sessionId, followUpId) =>
+    ipcRenderer.invoke(
+      desktopApiChannel('removeQueuedFollowUp'),
+      sessionId,
+      followUpId,
+    ),
+  sendQueuedFollowUpNow: (sessionId, followUpId) =>
+    ipcRenderer.invoke(
+      desktopApiChannel('sendQueuedFollowUpNow'),
+      sessionId,
+      followUpId,
+    ),
+  compactSession: sessionId =>
+    ipcRenderer.invoke(desktopApiChannel('compactSession'), sessionId),
+  rollbackSession: input =>
+    ipcRenderer.invoke(desktopApiChannel('rollbackSession'), input),
+  getSessionGoal: sessionId =>
+    ipcRenderer.invoke(desktopApiChannel('getSessionGoal'), sessionId),
+  setSessionGoal: (sessionId, input) =>
+    ipcRenderer.invoke(desktopApiChannel('setSessionGoal'), sessionId, input),
+  clearSessionGoal: sessionId =>
+    ipcRenderer.invoke(desktopApiChannel('clearSessionGoal'), sessionId),
+  startSessionReview: (sessionId, target) =>
+    ipcRenderer.invoke(desktopApiChannel('startSessionReview'), sessionId, target),
+  listRuntimePermissionProfiles: (workspacePath, options) =>
+    ipcRenderer.invoke(desktopApiChannel('listRuntimePermissionProfiles'), workspacePath, options),
+  setSessionPermissionProfile: (sessionId, profile, approvalPolicy) =>
+    ipcRenderer.invoke(desktopApiChannel('setSessionPermissionProfile'), sessionId, profile, approvalPolicy),
+  listRuntimeSkills: (workspacePath, options) =>
+    ipcRenderer.invoke(desktopApiChannel('listRuntimeSkills'), workspacePath, options),
   minimizeWindow: () => ipcRenderer.invoke(desktopApiChannel('minimizeWindow')),
   toggleWindowMaximized: () =>
     ipcRenderer.invoke(desktopApiChannel('toggleWindowMaximized')),

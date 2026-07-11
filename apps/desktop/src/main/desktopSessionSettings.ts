@@ -2,11 +2,19 @@ import type {
   DesktopApprovalPolicy,
   DesktopCollaborationMode,
   DesktopPermissionMode,
+  DesktopPersonality,
   DesktopSessionSettingsSnapshot,
   DesktopSessionSnapshot,
   DesktopThinkingMode,
   LocalRouterMode,
 } from '../shared/types.js'
+import type { ThreadSettingsUpdatedNotification } from './rustAppServerProtocol/index.js'
+import {
+  isDesktopPersonality,
+  normalizeDesktopApprovalPolicy,
+  normalizeDesktopApprovalsReviewer,
+  normalizeDesktopPermissionProfile,
+} from '../shared/settingsSchema.js'
 import {
   planModeActiveFromCollaborationMode,
   resolveCodePilotXCollaborationMode,
@@ -137,6 +145,67 @@ export function applySessionPermissionModeToSnapshot(
     settings: {
       ...snapshot.settings,
       permissionMode,
+    },
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+export function applyAuthoritativeThreadSettingsToSnapshot(
+  snapshot: DesktopSessionSnapshot,
+  notification: ThreadSettingsUpdatedNotification,
+): DesktopSessionSnapshot {
+  const currentThreadId =
+    snapshot.appServerThreadId ?? snapshot.item.appServerThreadId ?? null
+  if (!currentThreadId || notification.threadId !== currentThreadId) {
+    return snapshot
+  }
+
+  const threadSettings = notification.threadSettings
+  const collaborationMode = resolveCodePilotXCollaborationMode({
+    collaborationMode: threadSettings.collaborationMode,
+  })
+  const planModeActive = planModeActiveFromCollaborationMode(collaborationMode)
+  const permissionProfile = normalizeDesktopPermissionProfile(
+    threadSettings.activePermissionProfile?.id,
+    snapshot.settings.permissionProfile,
+  )
+  const approvalPolicy = normalizeDesktopApprovalPolicy(
+    threadSettings.approvalPolicy,
+    snapshot.settings.approvalPolicy,
+  )
+  const approvalsReviewer = normalizeDesktopApprovalsReviewer(
+    threadSettings.approvalsReviewer,
+    snapshot.settings.approvalsReviewer,
+  )
+  const personality: DesktopPersonality | undefined = isDesktopPersonality(
+    threadSettings.personality,
+  )
+    ? threadSettings.personality
+    : undefined
+
+  return {
+    ...snapshot,
+    item: {
+      ...snapshot.item,
+      model: threadSettings.model,
+      effort: threadSettings.effort,
+      personality,
+      permissionProfile,
+      approvalPolicy,
+      approvalsReviewer,
+      collaborationMode,
+      planModeActive,
+    },
+    settings: {
+      ...snapshot.settings,
+      model: threadSettings.model,
+      effort: threadSettings.effort,
+      personality,
+      permissionProfile,
+      approvalPolicy,
+      approvalsReviewer,
+      collaborationMode,
+      planModeActive,
     },
     updatedAt: new Date().toISOString(),
   }
