@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { compile } from 'sass'
 
@@ -7,6 +7,7 @@ const indexPath = join(
   repoRoot,
   'apps/desktop/src/renderer/styles/index.scss',
 )
+const stylesRoot = dirname(indexPath)
 
 const sameFileAllowlist = new Map(
   Object.entries({
@@ -382,15 +383,124 @@ function readImportedScssFiles() {
     .map(specifier => join(dirname(indexPath), specifier + '.scss'))
 }
 
+function readAllStyleFiles(directory = stylesRoot) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const entryPath = join(directory, entry.name)
+    if (entry.isDirectory()) {
+      return readAllStyleFiles(entryPath)
+    }
+    return /\.(?:css|scss)$/.test(entry.name) ? [entryPath] : []
+  })
+}
+
 function compileScssFile(filePath) {
   const result = compile(filePath, { style: 'expanded' })
   return result.css
 }
 
 function stripCommentsKeepLines(css) {
-  return css.replace(/\/\*[\s\S]*?\*\//g, match =>
-    match.replace(/[^\n]/g, ' '),
-  )
+  let result = ''
+  let state = 'normal'
+  let urlDepth = 0
+
+  for (let index = 0; index < css.length; index += 1) {
+    const char = css[index]
+    const next = css[index + 1]
+
+    if (state === 'block-comment') {
+      if (char === '*' && next === '/') {
+        result += '  '
+        index += 1
+        state = 'normal'
+      } else {
+        result += char === '\n' || char === '\r' ? char : ' '
+      }
+      continue
+    }
+
+    if (state === 'line-comment') {
+      if (char === '\n' || char === '\r') {
+        result += char
+        state = 'normal'
+      } else {
+        result += ' '
+      }
+      continue
+    }
+
+    if (state === 'single-quote' || state === 'double-quote') {
+      if (
+        char === '\\' &&
+        next !== undefined &&
+        next !== '\n' &&
+        next !== '\r'
+      ) {
+        result += '  '
+        index += 1
+      } else if (
+        (state === 'single-quote' && char === "'") ||
+        (state === 'double-quote' && char === '"')
+      ) {
+        result += char
+        state = 'normal'
+      } else {
+        result += char === '\n' || char === '\r' ? char : ' '
+      }
+      continue
+    }
+
+    if (char === "'") {
+      result += char
+      state = 'single-quote'
+      continue
+    }
+    if (char === '"') {
+      result += char
+      state = 'double-quote'
+      continue
+    }
+
+    const urlMatch = css.slice(index).match(/^url\s*\(/i)
+    if (urlDepth === 0 && urlMatch) {
+      result += urlMatch[0]
+      index += urlMatch[0].length - 1
+      urlDepth = 1
+      continue
+    }
+    if (urlDepth > 0) {
+      if (char === '(') {
+        result += char
+        urlDepth += 1
+      } else if (char === ')') {
+        result += char
+        urlDepth -= 1
+      } else {
+        result += char === '\n' || char === '\r' ? char : ' '
+      }
+      continue
+    }
+
+    if (char === '/' && next === '*') {
+      result += '  '
+      index += 1
+      state = 'block-comment'
+      continue
+    }
+    if (char === '/' && next === '/') {
+      result += '  '
+      index += 1
+      state = 'line-comment'
+      continue
+    }
+
+    result += char
+  }
+
+  return result
+}
+
+function lineNumberAt(content, index) {
+  return content.slice(0, index).split(/\r?\n/).length
 }
 
 function splitSelectors(selectorText) {
@@ -633,6 +743,35 @@ function isAllowedCrossFileOverlap(rule) {
 
 function main() {
   const files = readImportedScssFiles()
+  const typographyFiles = readAllStyleFiles()
+  const typographyErrors = []
+  const numericFontTokenPattern =
+    /var\(\s*--font-size-\d+(?:\.\d+)?\b(?:\s*,[^)]*)?\)/g
+  const fixedPixelFontSizePattern = /font-size\s*:\s*[0-9.]+px\b/g
+
+  for (const filePath of typographyFiles) {
+    const relativePath = normalizePath(filePath)
+    if (relativePath.endsWith('/design-system/tokens.scss')) {
+      continue
+    }
+
+    const content = stripCommentsKeepLines(readFileSync(filePath, 'utf8'))
+    for (const match of content.matchAll(numericFontTokenPattern)) {
+      typographyErrors.push({
+        detail: `uses numeric font token ${match[0]}`,
+        filePath,
+        line: lineNumberAt(content, match.index),
+      })
+    }
+    for (const match of content.matchAll(fixedPixelFontSizePattern)) {
+      typographyErrors.push({
+        detail: 'uses a fixed pixel font-size',
+        filePath,
+        line: lineNumberAt(content, match.index),
+      })
+    }
+  }
+
   let allRules = []
   for (const filePath of files) {
     const css = compileScssFile(filePath)
@@ -730,7 +869,7 @@ function main() {
     byScopedTarget.set(target, [...(byScopedTarget.get(target) ?? []), rule])
   }
 
-  if (errors.length > 0) {
+  if (errors.length > 0 || typographyErrors.length > 0) {
     for (const error of errors) {
       console.error(
         `${error.kind}: ${error.selector} redefines ${error.overlap.join(
@@ -746,14 +885,19 @@ function main() {
       }
       console.error(`  current  ${normalizePath(error.rule.filePath)}:${error.rule.line}`)
     }
+    for (const error of typographyErrors) {
+      console.error(
+        `typography: ${normalizePath(error.filePath)}:${error.line} ${error.detail}`,
+      )
+    }
     console.error(
-      `\nDesktop CSS override check failed with ${errors.length} unapproved overlap(s).`,
+      `\nDesktop CSS override check failed with ${errors.length} unapproved overlap(s) and ${typographyErrors.length} typography violation(s).`,
     )
     process.exit(1)
   }
 
   console.log(
-    `Desktop CSS override check passed (${allowedSameFile.length} same-file, ${allowedCrossFile.length} cross-file, and ${allowedScopedTarget.length} scoped-target approved overlap(s)).`,
+    `Desktop CSS override check passed (${allowedSameFile.length} same-file, ${allowedCrossFile.length} cross-file, ${allowedScopedTarget.length} scoped-target approved overlap(s), and 0 typography violations).`,
   )
 }
 

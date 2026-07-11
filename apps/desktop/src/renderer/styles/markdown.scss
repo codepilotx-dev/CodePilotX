@@ -2,7 +2,7 @@
 
 .md-body {
   color: var(--color-text-strong);
-  font-size: var(--font-size-14);
+  font-size: var(--type-body);
   line-height: 1.65;
   word-wrap: break-word;
   overflow-wrap: anywhere;
@@ -37,31 +37,31 @@
   }
 
   h1 {
-    font-size: calc(var(--font-size-14) + 6px);
+    font-size: var(--type-title-lg);
     font-weight: var(--font-weight-heading);
     border-bottom: 1px solid var(--color-border-soft);
     padding-bottom: 6px;
   }
 
   h2 {
-    font-size: calc(var(--font-size-14) + 3px);
+    font-size: var(--type-title-md);
     font-weight: 520;
     border-bottom: 1px solid var(--color-border-faint);
     padding-bottom: 4px;
   }
 
   h3 {
-    font-size: var(--font-size-15);
+    font-size: var(--type-title-sm);
     font-weight: var(--font-weight-label);
   }
 
   h4 {
-    font-size: var(--font-size-14);
+    font-size: var(--type-section-title);
   }
 
   h5,
   h6 {
-    font-size: var(--font-size-13);
+    font-size: var(--type-card-title);
     color: var(--color-text-soft);
   }
 
@@ -129,7 +129,7 @@
     border: 1px solid var(--color-border-faint);
     color: var(--color-text-strong);
     font-family: var(--font-family-mono);
-    font-size: var(--font-size-code);
+    font-size: var(--type-code);
     line-height: 1.5;
     word-break: break-all;
   }
@@ -155,7 +155,7 @@
   .md-code-lang {
     color: var(--color-text-meta);
     font-family: var(--font-family-mono);
-    font-size: calc(var(--font-size-code) - 2px);
+    font-size: var(--type-caption);
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
@@ -167,7 +167,7 @@
     padding: 3px 7px;
     border-radius: var(--radius-2);
     color: var(--color-text-meta);
-    font-size: var(--font-size-11);
+    font-size: var(--type-caption);
     line-height: 1;
     transition:
       background 0.15s ease-out,
@@ -209,7 +209,7 @@
     overflow-x: auto;
     background: transparent;
     font-family: var(--font-family-mono);
-    font-size: var(--font-size-code);
+    font-size: var(--type-code);
     line-height: 1.55;
 
     code {
@@ -261,7 +261,7 @@
     margin: 0 0 var(--space-3);
     border-collapse: collapse;
     width: 100%;
-    font-size: var(--font-size-13);
+    font-size: var(--type-body);
     border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-4);
     overflow: hidden;

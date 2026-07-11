@@ -70,7 +70,7 @@
     color: var(--color-text-strong);
     padding: 0.24em 1em;
     text-align: center;
-    font-size: var(--font-size-18);
+    font-size: var(--type-control);
     line-height: var(--control-line-height);
 
     &:focus {
@@ -86,7 +86,7 @@
   top: 50%;
   transform: translate(100%, -50%);
   color: var(--color-text-meta);
-  font-size: var(--font-size-12);
+  font-size: var(--type-meta);
   white-space: nowrap;
 }
 
@@ -113,7 +113,7 @@
   color: var(--color-text-soft);
   padding: var(--control-padding-block)
     var(--control-padding-inline);
-  font-size: var(--font-size-13);
+  font-size: var(--type-control);
   line-height: var(--control-line-height);
 }
 
@@ -130,7 +130,7 @@
   padding: 0.55em 1em;
   border-bottom: 1px solid var(--color-border-soft);
   color: var(--color-text-soft);
-  font-size: var(--font-size-12);
+  font-size: var(--type-meta);
   line-height: var(--control-line-height);
 
   span {
@@ -172,13 +172,13 @@
 
   strong {
     color: var(--color-text-strong);
-    font-size: clamp(var(--font-size-18), 3vh, var(--font-size-24));
+    font-size: var(--type-title-md);
     font-weight: 700;
   }
 
   span {
     color: var(--color-text-meta);
-    font-size: clamp(var(--font-size-14), 2vh, var(--font-size-18));
+    font-size: var(--type-secondary);
   }
 
   svg {

@@ -33,7 +33,7 @@
 
   p {
     margin: 0;
-    font-size: var(--font-size-13);
+    font-size: var(--type-secondary);
     color: var(--color-text-soft);
   }
 
@@ -127,7 +127,7 @@
   background: var(--color-panel-bg);
   box-shadow: none;
   color: var(--color-text-strong);
-  font-size: var(--font-size-13);
+  font-size: var(--type-control);
   line-height: var(--control-line-height);
   cursor: pointer;
   transition:

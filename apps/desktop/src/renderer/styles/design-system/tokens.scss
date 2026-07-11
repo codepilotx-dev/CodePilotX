@@ -150,9 +150,12 @@
     var(--font-size-ui) + var(--font-size-ui) + 12px
   );
 
-  --type-body: var(--font-size-14);
-  --type-message: var(--font-size-15);
-  --type-meta: var(--font-size-13);
+  --type-body: var(--font-size-ui);
+  --type-control: var(--font-size-ui);
+  --type-message: var(--font-size-ui);
+  --type-secondary: max(10px, calc(var(--font-size-ui) - 1px));
+  --type-meta: max(10px, calc(var(--font-size-ui) - 2px));
+  --type-caption: max(10px, calc(var(--font-size-ui) - 3px));
 
   --radius-1: calc(var(--radius-base) - 6px);
   --radius-2: calc(var(--radius-base) - 4px);
@@ -231,10 +234,14 @@
     "MiSans VF Regular", "MiSans", Inter, sans-serif;
   --font-family-mono:
     "JetBrains Mono", Consolas, monospace;
+  --type-card-title: var(--font-size-ui);
+  --type-section-title: calc(var(--font-size-ui) + 1px);
+  --type-title-sm: calc(var(--font-size-ui) + 2px);
+  --type-title-md: calc(var(--font-size-ui) + 4px);
+  --type-title-lg: calc(var(--font-size-ui) + 6px);
+  --type-page-title: calc(var(--font-size-ui) + 12px);
   --type-hero-title: calc(var(--font-size-ui) + 16px);
-  --type-page-title: var(--font-size-26);
-  --type-section-title: var(--font-size-15);
-  --type-card-title: var(--font-size-14);
+  --type-code: var(--font-size-code);
   --font-weight-body: 400;
   --font-weight-label: 500;
   --font-weight-heading: 560;

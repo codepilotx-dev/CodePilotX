@@ -73,7 +73,7 @@
   border-radius: var(--radius-button);
   background: var(--color-send-bg);
   color: var(--color-text-on-accent);
-  font-size: var(--font-size-14);
+  font-size: var(--type-control);
   font-weight: var(--font-weight-label);
   line-height: var(--control-line-height);
 }
@@ -141,7 +141,7 @@
   border-radius: var(--radius-button);
   background: var(--color-bg);
   color: var(--color-text-strong);
-  font-size: var(--button-font-size, var(--font-size-14));
+  font-size: var(--button-font-size, var(--type-control));
   font-weight: var(--font-weight-label);
   line-height: var(--button-line-height, var(--control-line-height));
 }

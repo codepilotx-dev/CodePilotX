@@ -88,7 +88,7 @@
     padding: 3px 7px;
     border-radius: var(--radius-2);
     color: var(--color-text-soft);
-    font-size: var(--font-size-12);
+    font-size: var(--type-control);
     font-weight: 500;
 
     &.active,
@@ -104,7 +104,7 @@
   align-items: center;
   gap: 4px;
   color: var(--color-text-strong);
-  font-size: var(--font-size-14);
+  font-size: var(--type-card-title);
   font-weight: 600;
 
   svg {
@@ -133,7 +133,7 @@
 
 .review-sidebar-action-label {
   display: none;
-  font-size: var(--font-size-12);
+  font-size: var(--type-control);
   font-weight: 500;
 }
 
@@ -309,8 +309,8 @@
 }
 
 .review-file-badge {
-  min-width: calc(var(--font-size-ui) + 8px);
-  max-width: calc(var(--font-size-ui) + 20px);
+  min-width: var(--app-icon-size-md);
+  max-width: var(--control-size-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -320,7 +320,7 @@
   border-radius: var(--radius-2);
   background: var(--state-active-bg);
   color: var(--color-text-strong);
-  font-size: var(--font-size-11);
+  font-size: var(--type-caption);
   font-weight: 700;
   line-height: 1;
   text-transform: uppercase;
@@ -332,7 +332,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--font-size-14);
+  font-size: var(--type-body);
 }
 
 .review-file-counts {
@@ -354,7 +354,7 @@
   border-bottom: 1px solid var(--color-border-faint);
   background: color-mix(in srgb, var(--color-danger) 10%, transparent);
   color: var(--color-danger);
-  font-size: var(--font-size-12);
+  font-size: var(--type-secondary);
 }
 
 /* --- Diff lines --- */
@@ -410,7 +410,7 @@
   padding: 8px 14px;
   border-bottom: 1px solid var(--color-border-faint);
   color: var(--color-text-soft);
-  font-size: var(--font-size-12);
+  font-size: var(--type-meta);
   background: var(--color-bg-soft);
   overflow: hidden;
 
@@ -427,7 +427,7 @@
   min-width: max-content;
   padding: 0;
   font-family: var(--font-family-mono);
-  font-size: var(--font-size-code);
+  font-size: var(--type-code);
   line-height: 1.55;
 }
 
@@ -481,7 +481,7 @@
   min-width: max-content;
   white-space: pre;
   font-family: var(--font-family-mono);
-  font-size: var(--font-size-code);
+  font-size: var(--type-code);
   line-height: 1.55;
 }
 
@@ -590,7 +590,7 @@
   background: var(--color-bg);
   color: var(--color-text-soft);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-12);
+  font-size: var(--type-control);
 
   svg {
     width: var(--app-icon-size-sm);
@@ -605,8 +605,8 @@
 }
 
 .review-line-comment-button {
-  width: calc(var(--font-size-ui) + 10px);
-  min-width: calc(var(--font-size-ui) + 10px);
+  width: var(--control-size-sm);
+  min-width: var(--control-size-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -640,7 +640,7 @@
   padding: 6px 14px;
   background: var(--color-bg-soft);
   color: var(--color-text-mute);
-  font-size: var(--font-size-12);
+  font-size: var(--type-caption);
   font-family: var(--font-family-sans);
   border-top: 1px solid var(--color-border-faint);
   border-bottom: 1px solid var(--color-border-faint);
@@ -722,7 +722,7 @@
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-12);
+  font-size: var(--type-body);
 
   &.resolved {
     opacity: 0.68;
@@ -739,7 +739,7 @@
   align-items: center;
   gap: 8px;
   color: var(--color-text-mute);
-  font-size: var(--font-size-11);
+  font-size: var(--type-meta);
 }
 
 .review-comment-body {
@@ -758,7 +758,7 @@
   background: var(--color-bg-soft);
   color: var(--color-text);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-13);
+  font-size: var(--type-control);
 }
 
 /* --- Stale comments --- */
@@ -776,7 +776,7 @@
 .review-stale-title {
   margin-bottom: 8px;
   color: var(--color-text-soft);
-  font-size: var(--font-size-12);
+  font-size: var(--type-card-title);
   font-weight: 600;
 }
 
@@ -797,7 +797,7 @@
 .review-empty-state {
   padding: 22px 14px;
   color: var(--color-text-placeholder);
-  font-size: var(--font-size-14);
+  font-size: var(--type-body);
 }
 
 /* --- File event buttons --- */
@@ -810,7 +810,7 @@
   padding: 8px 10px;
   border-radius: var(--radius-4);
   color: var(--color-text-strong);
-  font-size: var(--font-size-14);
+  font-size: var(--type-control);
   font-weight: 600;
 
   &:hover {
@@ -835,7 +835,7 @@
     border-radius: var(--radius-3);
     background: var(--color-bg-soft);
     color: var(--color-text-strong);
-    font-size: var(--font-size-13);
+    font-size: var(--type-control);
     font-weight: 500;
 
     &:hover {
@@ -871,7 +871,7 @@
       background: transparent;
       color: var(--color-text-strong);
       font-family: var(--font-family-sans);
-      font-size: var(--font-size-13);
+      font-size: var(--type-control);
 
       &::placeholder {
         color: var(--color-text-placeholder);
@@ -905,7 +905,7 @@
     border: 0;
     background: transparent;
     color: var(--color-text-soft);
-    font-size: var(--font-size-13);
+    font-size: var(--type-control);
     font-weight: 500;
     text-align: left;
     cursor: pointer;
@@ -931,7 +931,7 @@
     border: 0;
     background: transparent;
     color: var(--color-text-soft);
-    font-size: var(--font-size-13);
+    font-size: var(--type-control);
     text-align: left;
     cursor: pointer;
 
@@ -968,7 +968,7 @@
       padding: 4px 5px;
 
       color: var(--color-text-soft);
-      font-size: var(--font-size-12);
+      font-size: var(--type-control);
       font-family: var(--font-family-sans);
 
       &:hover {
@@ -1005,7 +1005,7 @@
   border-radius: var(--radius-4);
   background: var(--state-active-bg);
   color: var(--color-text-strong);
-  font-size: var(--font-size-11);
+  font-size: var(--type-caption);
   font-weight: 600;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
@@ -1044,7 +1044,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: var(--font-size-13);
+  font-size: var(--type-card-title);
   color: var(--color-text-strong);
   font-weight: 600;
 
@@ -1052,7 +1052,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: var(--font-size-13);
+    font-size: var(--type-body);
     color: var(--color-text-strong);
   }
 
@@ -1088,8 +1088,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: calc(var(--font-size-ui) + 10px);
-  height: calc(var(--font-size-ui) + 10px);
+  width: var(--control-size-sm);
+  height: var(--control-size-sm);
   border: 0;
   border-radius: var(--radius-2);
   background: transparent;
@@ -1111,7 +1111,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: var(--font-size-14);
+  font-size: var(--type-secondary);
   color: var(--color-text-soft);
 
   span {
@@ -1128,7 +1128,7 @@
   background: var(--color-bg-soft);
   color: var(--color-text);
   font-family: var(--font-family-sans);
-  font-size: var(--font-size-13);
+  font-size: var(--type-control);
   resize: vertical;
 }
 
@@ -1144,7 +1144,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--font-size-13);
+  font-size: var(--type-control);
   color: var(--color-text-soft);
 }
 
@@ -1169,7 +1169,7 @@
   background: transparent;
   color: var(--color-text);
   font-family: inherit;
-  font-size: var(--font-size-14);
+  font-size: var(--type-control);
   line-height: var(--control-line-height);
   text-align: left;
   cursor: pointer;
@@ -1188,6 +1188,6 @@
 
 .review-popover-action .shortcut {
   color: var(--color-text-mute);
-  font-size: var(--font-size-12);
+  font-size: var(--type-caption);
   font-variant-numeric: tabular-nums;
 }

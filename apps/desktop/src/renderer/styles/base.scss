@@ -90,6 +90,12 @@ p {
   margin: 0;
 }
 
+.muted-copy {
+  color: var(--color-text-soft);
+  font-size: var(--type-secondary);
+  line-height: 1.6;
+}
+
 .r-none {
   --radius-factor: 0;
 }

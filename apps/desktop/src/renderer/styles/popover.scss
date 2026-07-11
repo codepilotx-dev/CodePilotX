@@ -29,7 +29,7 @@
   backdrop-filter: none;
   box-shadow: var(--popover-surface-shadow);
   color: var(--color-text);
-  font-size: var(--font-size-14);
+  font-size: var(--type-control);
   outline: none !important;
   user-select: none;
   -webkit-user-select: none;
@@ -133,7 +133,7 @@
   backdrop-filter: none;
   box-shadow: none;
   color: var(--color-text);
-  font-size: var(--font-size-14);
+  font-size: var(--type-control);
   outline: none !important;
   user-select: none;
   -webkit-user-select: none;
@@ -226,7 +226,7 @@
 
 .sidebar-context-menu-shortcut {
   color: var(--color-text-meta);
-  font-size: var(--font-size-11);
+  font-size: var(--type-caption);
   white-space: nowrap;
 }
 
@@ -429,7 +429,7 @@
 
 .context-plugin-item {
   gap: 12px;
-  font-size: var(--font-size-14);
+  font-size: var(--type-control);
 }
 
 .context-plugin-icon {
@@ -490,14 +490,14 @@
 .popover-header {
   padding: var(--space-2) 10px var(--space-1);
   color: var(--color-text-meta);
-  font-size: var(--font-size-12);
+  font-size: var(--type-meta);
   font-weight: 500;
 }
 
 .popover-section-title {
   padding: var(--space-1) 10px 6px;
   color: var(--color-text-meta);
-  font-size: var(--font-size-11);
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.2px;
 }
@@ -515,7 +515,7 @@
 .popover-empty {
   padding: var(--space-3) 10px;
   color: var(--color-text-placeholder);
-  font-size: var(--font-size-12);
+  font-size: var(--type-secondary);
   text-align: center;
 }
 
@@ -608,7 +608,7 @@
 
 .popover-item-shortcut {
   color: var(--color-text-meta);
-  font-size: var(--font-size-11);
+  font-size: var(--type-caption);
   font-weight: 500;
   letter-spacing: 0.2px;
   white-space: nowrap;
@@ -634,7 +634,7 @@
   background: var(--color-popover-bg);
   box-shadow: var(--popover-surface-shadow);
   color: var(--color-text-meta);
-  font-size: var(--font-size-11);
+  font-size: var(--type-caption);
   line-height: 1.4;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -648,7 +648,7 @@
   border-radius: var(--radius-3);
   background: var(--color-popover-bg);
   color: var(--color-text-strong);
-  font-size: var(--font-size-12);
+  font-size: var(--type-caption);
   line-height: 1.4;
   font-weight: 500;
   box-shadow: var(--popover-surface-shadow);

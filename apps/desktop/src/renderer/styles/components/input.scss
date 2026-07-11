@@ -14,7 +14,7 @@
   transition:
     border-color 0.15s ease,
     background-color 0.15s ease;
-  font-size: var(--font-size-13);
+  font-size: var(--type-control);
   line-height: var(--control-line-height);
   color: var(--color-text);
   outline: none !important;
@@ -40,7 +40,7 @@
   padding-right: 2.308em;
   gap: var(--control-gap);
   min-width: 0;
-  font-size: var(--font-size-13);
+  font-size: var(--type-control);
   white-space: nowrap;
 }
 
@@ -58,7 +58,7 @@
   background: var(--color-bg-card);
   color: var(--color-text);
   padding: var(--control-padding-block) var(--control-padding-inline);
-  font-size: var(--font-size-13);
+  font-size: var(--type-control);
   line-height: var(--control-line-height);
 }
 
@@ -85,7 +85,7 @@
   background: transparent;
   text-align: right;
   padding: 0;
-  font-size: var(--font-size-13);
+  font-size: var(--type-control);
   color: inherit;
 
   &:focus {
@@ -107,16 +107,17 @@
   background: var(--color-bg-card);
   color: var(--color-text);
   padding: var(--control-padding-block) var(--control-padding-inline);
-  font-size: var(--font-size-13);
+  font-size: var(--type-control);
   line-height: 1.45;
 }
 
 .settings-code-textarea {
   font-family: var(--font-family-mono);
+  font-size: var(--type-code);
 }
 
 .settings-input-unit {
-  font-size: var(--font-size-13);
+  font-size: var(--type-secondary);
   color: var(--color-text-soft);
 }
 

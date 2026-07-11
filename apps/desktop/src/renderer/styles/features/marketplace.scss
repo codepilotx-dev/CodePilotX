@@ -28,7 +28,7 @@
 .plugins-tab {
   position: relative;
   padding: 6px 4px 8px;
-  font-size: var(--font-size-14);
+  font-size: var(--type-control);
   color: var(--color-text-soft);
   background: transparent;
   border: 0;
@@ -117,7 +117,7 @@
     outline: none;
     background: transparent;
     color: var(--color-text-strong);
-    font-size: var(--font-size-14);
+    font-size: var(--type-control);
     line-height: var(--control-line-height);
 
     &::placeholder {
@@ -136,7 +136,7 @@
   background: var(--color-panel-bg);
   box-shadow: none;
   color: var(--color-text-strong);
-  font-size: var(--font-size-13);
+  font-size: var(--type-control);
   line-height: var(--control-line-height);
   cursor: pointer;
   white-space: nowrap;
@@ -187,7 +187,7 @@
   background: var(--color-bg);
   border: 1px solid var(--color-border-soft);
   color: var(--color-text-strong);
-  font-size: var(--font-size-14);
+  font-size: var(--type-body);
   font-weight: 500;
 }
 
@@ -196,7 +196,7 @@
   align-items: center;
   gap: 4px;
   font-family: var(--font-family-mono);
-  font-size: var(--font-size-13);
+  font-size: var(--type-body);
   font-weight: var(--font-weight-label);
   color: var(--color-accent);
 }
@@ -251,7 +251,7 @@
 }
 
 .plugins-section-count {
-  font-size: var(--font-size-12);
+  font-size: var(--type-meta);
   color: var(--color-text-meta);
 }
 
@@ -369,15 +369,23 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
 
-  p {
-    margin: 0;
-    font-size: var(--font-size-12);
-    color: var(--color-text-meta);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+.plugins-card-source,
+.plugins-card-description {
+  margin: 0;
+  color: var(--color-text-meta);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plugins-card-source {
+  font-size: var(--type-meta);
+}
+
+.plugins-card-description {
+  font-size: var(--type-secondary);
 }
 
 .plugins-card-title-row {
@@ -421,7 +429,7 @@
   padding: 0.32em 0.64em;
   border-radius: var(--radius-6);
   border: 1px solid transparent;
-  font-size: var(--font-size-11);
+  font-size: var(--type-caption);
   font-weight: var(--font-weight-label);
   line-height: 1;
   text-transform: uppercase;
@@ -464,7 +472,7 @@
 
   p {
     margin: 0;
-    font-size: var(--font-size-13);
+    font-size: var(--type-secondary);
   }
 }
 
@@ -474,7 +482,7 @@
   margin: 0;
   padding-left: var(--space-4);
   text-align: left;
-  font-size: var(--font-size-12);
+  font-size: var(--type-secondary);
   line-height: 1.5;
 }
 

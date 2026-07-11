@@ -525,7 +525,9 @@ export function PluginsView(): React.ReactNode {
                         </span>
                       ) : null}
                     </div>
-                    <p>{skill.source} · {skill.installs.toLocaleString()} installs</p>
+                    <p className="plugins-card-source">
+                      {skill.source} · {skill.installs.toLocaleString()} installs
+                    </p>
                   </div>
                   <button
                     aria-pressed={skill.installed}
@@ -554,7 +556,7 @@ export function PluginsView(): React.ReactNode {
                 </span>
                 <div className="plugins-card-meta">
                   <h3>{plugin.name}</h3>
-                  <p>{plugin.description}</p>
+                  <p className="plugins-card-description">{plugin.description}</p>
                 </div>
                 <button
                   aria-pressed={plugin.installed}

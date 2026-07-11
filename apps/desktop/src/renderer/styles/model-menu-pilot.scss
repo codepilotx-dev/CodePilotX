@@ -30,7 +30,7 @@
   .rm-section-header {
     padding: var(--space-2) 10px var(--space-1);
     color: var(--color-text-meta);
-    font-size: var(--font-size-12);
+    font-size: var(--type-meta);
     font-weight: 500;
   }
 
@@ -43,7 +43,7 @@
   .rm-empty {
     padding: var(--space-3) 10px;
     color: var(--color-text-placeholder);
-    font-size: var(--font-size-12);
+    font-size: var(--type-secondary);
     text-align: center;
   }
 

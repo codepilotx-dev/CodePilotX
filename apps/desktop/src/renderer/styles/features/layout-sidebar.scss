@@ -43,7 +43,7 @@
 .sidebar-section-title,
 .settings-nav-group-title {
   color: color-mix(in srgb, var(--color-text-meta) 82%, transparent);
-  font-size: var(--font-size-12);
+  font-size: var(--type-section-title);
   letter-spacing: 0.02em;
 }
 
@@ -155,7 +155,7 @@
   column-gap: var(--sidebar-item-gap);
   padding: var(--sidebar-row-pad-y) var(--sidebar-padding-x);
   color: var(--color-text);
-  font-size: var(--font-size-14);
+  font-size: var(--type-control);
   line-height: var(--control-line-height);
   border-radius: calc(var(--radius-base) + 2px);
   text-align: left;
@@ -252,7 +252,7 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  font-size: var(--font-size-14);
+  font-size: var(--type-section-title);
   font-weight: var(--font-weight-label);
   letter-spacing: 0;
   text-transform: none;
@@ -427,7 +427,7 @@
   align-items: center;
   gap: var(--control-gap-compact);
   color: var(--color-text-strong);
-  font-size: var(--font-size-14);
+  font-size: var(--type-body);
   font-weight: var(--font-weight-label);
 }
 
@@ -495,7 +495,7 @@
   border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--color-diff-added) 14%, transparent);
   color: var(--color-diff-added);
-  font-size: var(--font-size-12);
+  font-size: var(--type-caption);
   font-weight: var(--font-weight-label);
   line-height: 1;
   white-space: nowrap;
@@ -508,7 +508,7 @@
 
 .sidebar-show-more-button {
   color: var(--color-text-meta);
-  font-size: var(--font-size-13);
+  font-size: var(--type-control);
 }
 
 .sidebar-show-more-actions {
@@ -596,7 +596,7 @@
   padding: var(--control-padding-block) var(--control-padding-inline);
   border-radius: var(--radius-4);
   color: var(--color-text-soft);
-  font-size: var(--font-size-13);
+  font-size: var(--type-body);
   line-height: 1.4;
 }
 
@@ -627,13 +627,13 @@
 
 .popover-usage-percent {
   color: var(--color-text-meta);
-  font-size: var(--font-size-12);
+  font-size: var(--type-meta);
   font-variant-numeric: tabular-nums;
 }
 
 .popover-usage-detail {
   color: var(--color-text-meta);
-  font-size: var(--font-size-12);
+  font-size: var(--type-meta);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -654,7 +654,7 @@
 
 .popover-usage-header-name {
   color: var(--color-text);
-  font-size: var(--font-size-13);
+  font-size: var(--type-card-title);
   font-weight: var(--font-weight-label);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -664,7 +664,7 @@
 .popover-usage-empty {
   padding: 12px 10px;
   color: var(--color-text-meta);
-  font-size: var(--font-size-12);
+  font-size: var(--type-secondary);
   line-height: 1.5;
   text-align: center;
 }
@@ -684,7 +684,7 @@
   border-radius: var(--radius-4);
   background: transparent;
   color: var(--color-text);
-  font-size: var(--font-size-13);
+  font-size: var(--type-control);
   line-height: var(--control-line-height);
   text-align: left;
   cursor: pointer;

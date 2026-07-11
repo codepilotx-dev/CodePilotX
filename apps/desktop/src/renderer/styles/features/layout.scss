@@ -229,7 +229,7 @@
   border-radius: var(--radius-3);
   background: transparent;
   color: inherit;
-  font-size: var(--font-size-14);
+  font-size: var(--type-control);
   font-weight: 500;
   white-space: nowrap;
 
@@ -407,14 +407,12 @@
 }
 
 .right-dock-plan-document {
-  --plan-md-base-size: var(--font-size-15);
   width: 100%;
   margin: 0;
   color: var(--color-text-strong);
 
   .md-body {
     color: var(--color-text-strong);
-    font-size: var(--plan-md-base-size);
     font-weight: var(--font-weight-body);
     line-height: 1.68;
 
@@ -434,20 +432,17 @@
     h1 {
       margin-bottom: 12px;
       padding-bottom: 0;
-      font-size: calc(var(--plan-md-base-size) + 13px);
       line-height: 1.22;
     }
 
     h2 {
       margin: 20px 0 9px;
       padding-bottom: 0;
-      font-size: calc(var(--plan-md-base-size) + 7px);
       line-height: 1.28;
     }
 
     h3 {
       margin: 16px 0 8px;
-      font-size: calc(var(--plan-md-base-size) + 3px);
       line-height: 1.35;
     }
 
@@ -483,7 +478,7 @@
         var(--color-border-soft)
       );
       color: var(--color-text-strong);
-      font-size: var(--font-size-code);
+      font-size: var(--type-code);
     }
 
     strong {
@@ -549,7 +544,7 @@
 
   strong {
     color: var(--color-text-strong);
-    font-size: clamp(var(--font-size-18), 3vh, var(--font-size-24));
+    font-size: var(--type-title-lg);
     font-weight: 700;
   }
 
@@ -557,7 +552,7 @@
     color: var(--color-text-soft);
     max-width: 100%;
     overflow-wrap: anywhere;
-    font-size: clamp(var(--font-size-14), 2vh, var(--font-size-18));
+    font-size: var(--type-secondary);
   }
 
   svg {
@@ -588,14 +583,14 @@
 .dialog-debug-header h3 {
   margin: 0;
   color: var(--color-text-strong);
-  font-size: var(--font-size-15);
+  font-size: var(--type-section-title);
   font-weight: 600;
 }
 
 .dialog-debug-summary {
   margin: 6px 0 0;
   color: var(--color-text-soft);
-  font-size: var(--font-size-13);
+  font-size: var(--type-secondary);
   line-height: 1.5;
 }
 
@@ -625,13 +620,13 @@
 
 .dialog-debug-item-label {
   color: var(--color-text-strong);
-  font-size: var(--font-size-13);
+  font-size: var(--type-card-title);
   font-weight: 500;
 }
 
 .dialog-debug-item-desc {
   color: var(--color-text-soft);
-  font-size: var(--font-size-12);
+  font-size: var(--type-secondary);
   line-height: 1.45;
 }
 
@@ -642,7 +637,7 @@
   border-radius: var(--radius-4);
   background: var(--color-bg-soft);
   color: var(--color-text);
-  font-size: var(--font-size-12);
+  font-size: var(--type-meta);
 }
 
 .dialog-debug-log-label {
@@ -651,6 +646,7 @@
 
 .dialog-debug-log-value {
   font-family: var(--font-family-mono);
+  font-size: var(--type-code);
   color: var(--color-text-strong);
   word-break: break-all;
 }
@@ -677,7 +673,7 @@
 .performance-diagnostics-header h3 {
   margin: 0;
   color: var(--color-text-strong);
-  font-size: var(--font-size-15);
+  font-size: var(--type-section-title);
   font-weight: var(--font-weight-label);
 }
 
@@ -685,7 +681,7 @@
 .performance-diagnostics-footnote {
   margin: 6px 0 0;
   color: var(--color-text-soft);
-  font-size: var(--font-size-12);
+  font-size: var(--type-secondary);
   line-height: 1.5;
 }
 
@@ -712,12 +708,12 @@
 
 .performance-diagnostics-stat-label {
   color: var(--color-text-meta);
-  font-size: var(--font-size-12);
+  font-size: var(--type-meta);
 }
 
 .performance-diagnostics-stat-value {
   color: var(--color-text-strong);
-  font-size: var(--font-size-18);
+  font-size: var(--type-title-md);
   font-weight: var(--font-weight-heading);
 }
 
@@ -751,7 +747,7 @@
     padding: 18px;
     color: var(--color-text);
     font-family: var(--font-family-mono);
-    font-size: var(--font-size-code);
+    font-size: var(--type-code);
     line-height: 1.55;
     white-space: pre;
   }
@@ -761,7 +757,7 @@
     padding: 8px 16px;
     border-top: 1px solid var(--color-border-soft);
     color: var(--color-text-meta);
-    font-size: var(--font-size-12);
+    font-size: var(--type-meta);
   }
 }
 
@@ -850,7 +846,7 @@
     background: transparent;
     color: var(--color-text-strong);
     font-family: inherit;
-    font-size: var(--font-size-16);
+    font-size: var(--type-control);
     font-style: inherit;
     font-weight: inherit;
     line-height: inherit;
@@ -879,7 +875,7 @@
   border-radius: var(--radius-4);
   background: transparent;
   color: var(--color-text-strong);
-  font-size: var(--font-size-18);
+  font-size: var(--type-control);
   line-height: var(--control-line-height);
   text-align: left;
 
@@ -907,7 +903,7 @@
 .right-dock-tree-empty {
   padding: 18px 8px;
   color: var(--color-text-meta);
-  font-size: var(--font-size-14);
+  font-size: var(--type-secondary);
 }
 
 .right-dock-side-chat {
@@ -965,7 +961,7 @@
 
   strong {
     color: var(--color-text-strong);
-    font-size: var(--font-size-18);
+    font-size: var(--type-title-sm);
   }
 }
 
@@ -980,6 +976,7 @@
     border-radius: 14px;
     background: var(--color-bg);
     font-family: var(--font-family-mono);
+    font-size: var(--type-code);
     line-height: var(--control-line-height);
   }
 }
