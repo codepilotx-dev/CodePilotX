@@ -29,6 +29,9 @@ describe('normalizeBrowserURL', () => {
     expect(() => normalizeBrowserURL('javascript:alert(1)')).toThrow(
       'Only http and https URLs can be opened.',
     )
+    expect(() => normalizeBrowserURL('file:///C:/Users/test/secret.txt')).toThrow(
+      'Only http and https URLs can be opened.',
+    )
   })
 })
 

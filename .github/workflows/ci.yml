@@ -9,22 +9,22 @@ permissions:
   contents: read
 
 jobs:
-  typescript:
-    name: TypeScript and repository gates
+  static:
+    name: Static repository gates
     runs-on: windows-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
       - run: bun install --frozen-lockfile
       - run: bun run ci:validate
-      - run: bun run test
       - run: bun run desktop:typecheck
       - run: bun run desktop:css:check
       - name: Check source and documentation whitespace
@@ -35,16 +35,44 @@ jobs:
           } else {
             '${{ github.event.before }}'
           }
+          if ([string]::IsNullOrWhiteSpace($base) -or $base -match '^0+$' -or -not (git cat-file -e "$base^{commit}" 2>$null)) {
+            $base = 'HEAD^'
+          }
           node scripts/ci-contract.mjs whitespace $base
+
+  test:
+    name: Bun tests (shard ${{ matrix.shard }})
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - run: bun run test
+        env:
+          CODEPILOTX_TEST_SHARD_INDEX: ${{ matrix.shard }}
+          CODEPILOTX_TEST_SHARD_TOTAL: 4
+          CODEPILOTX_TEST_CONCURRENCY: 4
+          CODEPILOTX_TEST_FILE_TIMEOUT_MS: 120000
 
   rust:
     name: Rust build, tests and generated schema
     runs-on: windows-latest
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: rust/codex-rs
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -62,12 +90,13 @@ jobs:
   windows-package:
     name: Windows unpacked desktop artifact
     runs-on: windows-latest
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
       - uses: dtolnay/rust-toolchain@stable
@@ -75,7 +104,7 @@ jobs:
       - run: bun run desktop:dist:unpacked:win
       - name: Verify packaged sidecar resource uniqueness
         run: node scripts/ci-contract.mjs verify-sidecar release/desktop/win-unpacked/resources/desktop-rust-sidecar
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: codepilotx-windows-unpacked
           path: release/desktop/win-unpacked
