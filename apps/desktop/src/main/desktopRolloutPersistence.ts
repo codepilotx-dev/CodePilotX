@@ -407,8 +407,20 @@ async function acquireRolloutLock(
           generation += 1
           if (heartbeatHandle !== null) options.cancelHeartbeat(heartbeatHandle)
           await heartbeatInFlight
+          let releaseFailure: unknown
+          try {
+            await releaseOwnedLock(lockPath, options.token, options.syncDirectory)
+          } catch (error) {
+            releaseFailure = error
+          }
+          if (compromised && releaseFailure) {
+            throw new AggregateError(
+              [compromised, releaseFailure],
+              'heartbeat and lock release both failed',
+            )
+          }
           if (compromised) throw compromised
-          await releaseOwnedLock(lockPath, options.token, options.syncDirectory)
+          if (releaseFailure) throw releaseFailure
         },
       }
     } catch (error) {

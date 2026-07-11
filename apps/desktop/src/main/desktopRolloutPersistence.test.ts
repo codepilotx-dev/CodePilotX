@@ -261,7 +261,7 @@ test('heartbeats are serialized and release waits for the active refresh', async
   })
 })
 
-test('heartbeat failure compromises the lock and propagates without releasing it', async () => {
+test('heartbeat failure propagates after releasing its owned lock', async () => {
   await withTempDir(async dir => {
     const rolloutPath = join(dir, 'session.jsonl')
     const callbacks: Array<() => void> = []
@@ -282,8 +282,46 @@ test('heartbeat failure compromises the lock and propagates without releasing it
     await Promise.resolve()
     finishBody()
     await expect(append).rejects.toMatchObject({ code: 'EIO' })
-    expect(await fileExists(`${rolloutPath}.desktop-lock`)).toBe(true)
-    await rm(`${rolloutPath}.desktop-lock`, { recursive: true, force: true })
+    expect(await fileExists(`${rolloutPath}.desktop-lock`)).toBe(false)
+  })
+})
+
+test('heartbeat failure rejects first flush then retries the same batch exactly once', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.jsonl')
+    let firstAttempt = true
+    const scheduler = createRolloutWriteScheduler({
+      retryDelaysMs: [],
+      writeItems: async (path, items, options) => {
+        if (!firstAttempt) {
+          await appendDesktopRolloutItems(path, items, options)
+          return
+        }
+        firstAttempt = false
+        let heartbeat!: () => void
+        await appendDesktopRolloutItems(path, items, {
+          ...options,
+          lockOptions: {
+            scheduleHeartbeat: callback => { heartbeat = callback; return callback },
+            cancelHeartbeat: () => {},
+            onHeartbeat: async () => {
+              throw Object.assign(new Error('heartbeat EIO'), { code: 'EIO' })
+            },
+          },
+          faultAfterAppend: async () => {
+            heartbeat()
+            await Promise.resolve()
+          },
+        })
+      },
+    })
+    scheduler.append(rolloutPath, [eventItem('message', { content: 'exactly-once' })])
+    await expect(scheduler.flush()).rejects.toMatchObject({ code: 'EIO' })
+    expect(await fileExists(`${rolloutPath}.desktop-lock`)).toBe(false)
+
+    await scheduler.flush()
+    expect((await readFile(rolloutPath, 'utf8')).match(/"content":"exactly-once"/g)).toHaveLength(1)
+    expect(await fileExists(`${rolloutPath}.desktop-lock`)).toBe(false)
   })
 })
 
