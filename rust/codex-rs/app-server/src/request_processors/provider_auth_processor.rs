@@ -21,8 +21,11 @@ use codepilotx_keyring_store::{DefaultKeyringStore, KeyringStore};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
+use crate::error_code::{internal_error, invalid_params, invalid_request};
+
 //  In-memory state for device-code flows
 
+#[derive(Clone)]
 struct DeviceCodeAttempt {
     provider_id: String,
     device_code: String,
@@ -135,7 +138,7 @@ impl ProviderAuthRequestProcessor {
         params: ProviderAuthStartLoginParams,
     ) -> Result<ProviderAuthStartLoginResponse, JSONRPCErrorError> {
         if params.provider_id != "github-repositories" && params.provider_id != "github-copilot" {
-            return Err(JSONRPCErrorError::invalid_params(format!(
+            return Err(invalid_params(format!(
                 "unsupported provider: {}",
                 params.provider_id
             )));
@@ -571,11 +574,10 @@ impl ProviderAuthRequestProcessor {
         let Some(base_url) = base_url.filter(|value| !value.trim().is_empty()) else {
             return Ok(None);
         };
-        let parsed = url::Url::parse(base_url).map_err(|_| {
-            JSONRPCErrorError::invalid_params("provider endpoint must be a valid HTTPS URL")
-        })?;
+        let parsed = url::Url::parse(base_url)
+            .map_err(|_| invalid_params("provider endpoint must be a valid HTTPS URL"))?;
         if parsed.scheme() != "https" {
-            return Err(JSONRPCErrorError::invalid_params(
+            return Err(invalid_params(
                 "provider credentials may only be sent to HTTPS endpoints",
             ));
         }
@@ -838,9 +840,7 @@ impl ProviderAuthRequestProcessor {
         provider_id: &str,
     ) -> Result<StoredProviderToken, JSONRPCErrorError> {
         self.load_token(provider_id).await?.ok_or_else(|| {
-            JSONRPCErrorError::invalid_request(format!(
-                "Provider '{provider_id}' is not authenticated"
-            ))
+            invalid_request(format!("Provider '{provider_id}' is not authenticated"))
         })
     }
 }
@@ -852,7 +852,7 @@ fn validate_provider_id(provider_id: &str) -> Result<(), JSONRPCErrorError> {
             .bytes()
             .all(|value| value.is_ascii_alphanumeric() || matches!(value, b'-' | b'_'))
     {
-        return Err(JSONRPCErrorError::invalid_params(
+        return Err(invalid_params(
             "provider_id must contain only ASCII letters, digits, '-' or '_'",
         ));
     }
@@ -865,7 +865,7 @@ fn validate_provider_api_key(api_key: &str) -> Result<(), JSONRPCErrorError> {
         || api_key.contains('\n')
         || !api_key.chars().all(|value| (value as u32) <= 0xff)
     {
-        return Err(JSONRPCErrorError::invalid_params(
+        return Err(invalid_params(
             "api_key must be a non-empty single-line HTTP header value",
         ));
     }
@@ -886,13 +886,10 @@ fn provider_endpoint(base_url: &str, path: &str) -> Result<url::Url, JSONRPCErro
         base_url.trim_end_matches('/'),
         path.trim_start_matches('/')
     );
-    let url = url::Url::parse(&endpoint).map_err(|error| {
-        JSONRPCErrorError::invalid_params(format!("Invalid provider URL: {error}"))
-    })?;
+    let url = url::Url::parse(&endpoint)
+        .map_err(|error| invalid_params(format!("Invalid provider URL: {error}")))?;
     if !matches!(url.scheme(), "http" | "https") {
-        return Err(JSONRPCErrorError::invalid_params(
-            "Provider URL must use http or https",
-        ));
+        return Err(invalid_params("Provider URL must use http or https"));
     }
     Ok(url)
 }
@@ -1103,7 +1100,7 @@ fn validate_github_clone_request(
     trusted_root: &Path,
 ) -> Result<ValidatedCloneRequest, JSONRPCErrorError> {
     let url = url::Url::parse(repo_url)
-        .map_err(|_| JSONRPCErrorError::invalid_params("repo_url must be a valid HTTPS URL"))?;
+        .map_err(|_| invalid_params("repo_url must be a valid HTTPS URL"))?;
     if url.scheme() != "https"
         || url.host_str() != Some("github.com")
         || !url.username().is_empty()
@@ -1112,24 +1109,24 @@ fn validate_github_clone_request(
         || url.query().is_some()
         || url.fragment().is_some()
     {
-        return Err(JSONRPCErrorError::invalid_params(
+        return Err(invalid_params(
             "repo_url must be an HTTPS github.com repository URL without credentials",
         ));
     }
 
     let segments = url
         .path_segments()
-        .ok_or_else(|| JSONRPCErrorError::invalid_params("repo_url has no repository path"))?
+        .ok_or_else(|| invalid_params("repo_url has no repository path"))?
         .filter(|segment| !segment.is_empty())
         .collect::<Vec<_>>();
     if segments.len() != 2 {
-        return Err(JSONRPCErrorError::invalid_params(
+        return Err(invalid_params(
             "repo_url must identify one GitHub owner and repository",
         ));
     }
     let repo_name = segments[1].strip_suffix(".git").unwrap_or(segments[1]);
     if !is_safe_github_path_segment(segments[0]) || !is_safe_github_path_segment(repo_name) {
-        return Err(JSONRPCErrorError::invalid_params(
+        return Err(invalid_params(
             "repo_url contains an invalid owner or repository name",
         ));
     }
@@ -1139,46 +1136,44 @@ fn validate_github_clone_request(
             .components()
             .any(|component| matches!(component, Component::ParentDir | Component::CurDir))
     {
-        return Err(JSONRPCErrorError::invalid_params(
+        return Err(invalid_params(
             "local_path must be an absolute normalized path",
         ));
     }
     let target_name = local_path
         .file_name()
         .and_then(|name| name.to_str())
-        .ok_or_else(|| JSONRPCErrorError::invalid_params("local_path has no target directory"))?;
+        .ok_or_else(|| invalid_params("local_path has no target directory"))?;
     if target_name != repo_name {
-        return Err(JSONRPCErrorError::invalid_params(
+        return Err(invalid_params(
             "local_path target must match the GitHub repository name",
         ));
     }
     let parent = local_path
         .parent()
-        .ok_or_else(|| JSONRPCErrorError::invalid_params("local_path has no approved parent"))?;
+        .ok_or_else(|| invalid_params("local_path has no approved parent"))?;
     let trusted_root = std::fs::canonicalize(trusted_root).map_err(|error| {
-        JSONRPCErrorError::invalid_params(format!("approved clone root is not accessible: {error}"))
+        invalid_params(format!("approved clone root is not accessible: {error}"))
     })?;
     let canonical_parent = std::fs::canonicalize(parent).map_err(|error| {
-        JSONRPCErrorError::invalid_params(format!(
+        invalid_params(format!(
             "local_path parent is not an accessible approved directory: {error}"
         ))
     })?;
     let target = canonical_parent.join(target_name);
     if !target.starts_with(&trusted_root) || target == trusted_root {
-        return Err(JSONRPCErrorError::invalid_params(
+        return Err(invalid_params(
             "local_path escaped the server-approved clone root",
         ));
     }
 
     match std::fs::symlink_metadata(&target) {
         Ok(_) => {
-            return Err(JSONRPCErrorError::invalid_params(
-                "local_path target must not already exist",
-            ));
+            return Err(invalid_params("local_path target must not already exist"));
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => {
-            return Err(JSONRPCErrorError::invalid_params(format!(
+            return Err(invalid_params(format!(
                 "local_path target cannot be inspected: {error}"
             )));
         }
@@ -1245,7 +1240,7 @@ async fn clone_with_github_token<R: GitCloneRunner>(
     let target_parent = request
         .target
         .parent()
-        .ok_or_else(|| JSONRPCErrorError::invalid_params("local_path has no approved parent"))?;
+        .ok_or_else(|| invalid_params("local_path has no approved parent"))?;
     let staging_dir = tempfile::Builder::new()
         .prefix(".codepilotx-github-")
         .tempdir_in(target_parent)
@@ -1433,13 +1428,9 @@ fn resolve_client_id(params: &ProviderAuthStartLoginParams) -> Result<String, JS
     if params.provider_id == "github-copilot" {
         return Ok("Iv1.b507a97c6c0a9f1b".to_string());
     }
-    Err(JSONRPCErrorError::invalid_params(
+    Err(invalid_params(
         "GitHub OAuth App client_id is required for github-repositories",
     ))
-}
-
-fn internal_error(msg: String) -> JSONRPCErrorError {
-    JSONRPCErrorError::new(-32603, &msg)
 }
 
 fn timestamp_millis() -> u64 {

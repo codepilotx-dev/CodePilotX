@@ -356,7 +356,8 @@ async fn thread_turns_list_supports_requested_items_view() -> Result<()> {
 #[tokio::test]
 async fn thread_turns_list_reads_store_history_without_rollout_path() -> Result<()> {
     let codepilotx_home = TempDir::new()?;
-    let thread_id = codepilotx_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000123")?;
+    let thread_id =
+        codepilotx_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000123")?;
     let store_id = Uuid::new_v4().to_string();
     create_config_toml_with_thread_store(codepilotx_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
@@ -508,7 +509,8 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
 #[tokio::test]
 async fn thread_list_includes_store_thread_without_rollout_path() -> Result<()> {
     let codepilotx_home = TempDir::new()?;
-    let thread_id = codepilotx_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000124")?;
+    let thread_id =
+        codepilotx_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000124")?;
     let store_id = Uuid::new_v4().to_string();
     create_config_toml_with_thread_store(codepilotx_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
@@ -697,7 +699,9 @@ async fn thread_resume_initial_turns_page_matches_requested_turns_list_page() ->
     assert!(thread.turns.is_empty());
     assert_eq!(
         initial_turns_page,
-        Some(codepilotx_app_server_protocol::TurnsPage::from(expected_page))
+        Some(codepilotx_app_server_protocol::TurnsPage::from(
+            expected_page
+        ))
     );
 
     Ok(())
@@ -1323,7 +1327,12 @@ fn turn_user_texts(turns: &[codepilotx_app_server_protocol::Turn]) -> Vec<&str> 
                 UserInput::Image { .. }
                 | UserInput::LocalImage { .. }
                 | UserInput::Skill { .. }
-                | UserInput::Mention { .. } => None,
+                | UserInput::Mention { .. }
+                | UserInput::Document { .. }
+                | UserInput::Audio { .. }
+                | UserInput::Video { .. }
+                | UserInput::File { .. }
+                | UserInput::TextFile { .. } => None,
             },
             _ => None,
         })
@@ -1405,7 +1414,10 @@ fn store_history_items() -> Vec<RolloutItem> {
     ))]
 }
 
-fn create_config_toml_with_thread_store(codepilotx_home: &Path, store_id: &str) -> std::io::Result<()> {
+fn create_config_toml_with_thread_store(
+    codepilotx_home: &Path,
+    store_id: &str,
+) -> std::io::Result<()> {
     let config_toml = codepilotx_home.join("config.toml");
     std::fs::write(
         config_toml,
