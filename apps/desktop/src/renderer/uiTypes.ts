@@ -47,6 +47,7 @@ export type SessionViewState = {
   pendingPermissions: DesktopPermissionRequest[]
   contextUsage: DesktopContextUsage | null
   selectedFile: DesktopFilePreview | null
+  closedStreamIds?: Set<string>
 }
 
 export function sessionViewFallbackTitle(

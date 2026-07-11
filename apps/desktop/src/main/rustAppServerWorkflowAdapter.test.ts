@@ -1083,20 +1083,55 @@ describe('rustAppServerWorkflowAdapter', () => {
 	  })
 
   test('reasoning text and summary deltas emit complete accumulated buffers', () => {
-    const state = createRustAppServerWorkflowState()
+    const callbacks: Array<() => void> = []
+    const state = createRustAppServerWorkflowState({
+      schedule: callback => {
+        callbacks.push(callback)
+        return callback
+      },
+    })
     const events: DesktopAgentEvent[] = []
 
     handleServerNotification('reasoning/textDelta', { delta: 'first ' }, e => events.push(e), state, SESSION_ID)
     handleServerNotification('reasoning/textDelta', { delta: 'second' }, e => events.push(e), state, SESSION_ID)
     handleServerNotification('reasoning/summaryTextDelta', { delta: 'summary one ' }, e => events.push(e), state, SESSION_ID)
     handleServerNotification('reasoning/summaryTextDelta', { delta: 'summary two' }, e => events.push(e), state, SESSION_ID)
+    callbacks.forEach(callback => callback())
 
     expect(
-      events.slice(0, 2).map(event => (event as { text: string }).text).join(''),
+      events.filter((event): event is Extract<DesktopAgentEvent, { type: 'partial_message' }> =>
+        event.type === 'partial_message' && event.streamId?.startsWith('reasoning:') === true)
+        .map(event => event.text).join(''),
     ).toContain('first second')
     expect(
-      events.slice(2).map(event => (event as { text: string }).text).join(''),
+      events.filter((event): event is Extract<DesktopAgentEvent, { type: 'partial_message' }> =>
+        event.type === 'partial_message' && event.streamId?.startsWith('reasoning-summary:') === true)
+        .map(event => event.text).join(''),
     ).toContain('summary one summary two')
+  })
+
+  test('reasoning deltas share the 40ms buffer and stale callbacks cannot emit after terminal turn', () => {
+    const callbacks: Array<{ callback: () => void; delayMs: number }> = []
+    const state = createRustAppServerWorkflowState({
+      schedule: (callback, delayMs) => {
+        callbacks.push({ callback, delayMs })
+        return callback
+      },
+    })
+    const events: DesktopAgentEvent[] = []
+    handleServerNotification('turn/started', { turn: { id: 'turn-1' } }, e => events.push(e), state, SESSION_ID)
+    handleServerNotification('reasoning/textDelta', { itemId: 'reason-1', delta: 'first' }, e => events.push(e), state, SESSION_ID)
+    for (let index = 0; index < 100; index += 1) {
+      handleServerNotification('reasoning/textDelta', { itemId: 'reason-1', delta: 'x' }, e => events.push(e), state, SESSION_ID)
+    }
+    expect(callbacks).toHaveLength(1)
+    expect(callbacks[0]?.delayMs).toBe(40)
+    const stale = callbacks[0]!.callback
+    handleServerNotification('turn/completed', { turn: { status: 'completed' } }, e => events.push(e), state, SESSION_ID)
+    stale()
+    handleServerNotification('reasoning/textDelta', { itemId: 'reason-1', delta: 'late' }, e => events.push(e), state, SESSION_ID)
+    expect(events.filter(event => event.type === 'partial_message')).toHaveLength(1)
+    expect(events.at(-1)?.type).toBe('done')
   })
 
   // ── Token usage ──────────────────────────────────────────────────

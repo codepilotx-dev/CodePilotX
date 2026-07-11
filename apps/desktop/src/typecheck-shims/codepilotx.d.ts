@@ -112,6 +112,7 @@ declare module '@codepilotx/core/agent/runtime.js' {
     createdAt: string
     streaming?: boolean
     streamingChunks?: string[]
+    streamId?: string
   }
 
   export type AgentToolLogEntry = {

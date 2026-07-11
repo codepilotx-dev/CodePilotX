@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { marked } from 'marked'
 import xssLib from 'xss'
@@ -139,14 +139,47 @@ export function MarkdownMessage({
   streamingChunks,
 }: Props): React.ReactNode {
   if (streaming && streamingChunks) {
-    return (
-      <span className="markdown-stream-chunks">
-        {streamingChunks.map((chunk, index) => (
-          <React.Fragment key={index}>{chunk}</React.Fragment>
-        ))}
-      </span>
-    )
+    return <StreamingText chunks={streamingChunks} />
   }
+  return <RenderedMarkdown text={text} streaming={streaming} />
+}
+
+function StreamingText({ chunks }: { chunks: string[] }): React.ReactNode {
+  const hostRef = useRef<HTMLSpanElement | null>(null)
+  const stateRef = useRef({ chunks, processed: 0, node: null as Text | null })
+  useLayoutEffect(() => {
+    const host = hostRef.current
+    if (!host) return
+    if (stateRef.current.chunks !== chunks) {
+      stateRef.current = { chunks, processed: 0, node: null }
+      host.textContent = ''
+    }
+    if (!stateRef.current.node) {
+      stateRef.current.node = document.createTextNode('')
+      host.appendChild(stateRef.current.node)
+    }
+    appendStreamingText(stateRef.current.node, chunks, stateRef.current)
+  })
+  return <span className="markdown-stream-chunks" ref={hostRef} />
+}
+
+export function appendStreamingText(
+  node: Pick<CharacterData, 'appendData'>,
+  chunks: string[],
+  state: { processed: number },
+): void {
+  if (state.processed >= chunks.length) return
+  node.appendData(chunks.slice(state.processed).join(''))
+  state.processed = chunks.length
+}
+
+function RenderedMarkdown({
+  text,
+  streaming,
+}: {
+  text: string
+  streaming: boolean
+}): React.ReactNode {
   const html = useMemo(() => renderMarkdown(text, streaming), [text, streaming])
   const bodyRef = useRef<HTMLDivElement | null>(null)
 

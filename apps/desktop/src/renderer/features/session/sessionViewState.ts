@@ -41,6 +41,7 @@ export function createEmptySessionView(): SessionViewState {
     pendingPermissions: [],
     contextUsage: null,
     selectedFile: null,
+    closedStreamIds: new Set(),
   }
 }
 

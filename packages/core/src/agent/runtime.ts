@@ -41,6 +41,7 @@ export type AgentSessionMessage = {
   createdAt: string
   streaming?: boolean
   streamingChunks?: string[]
+  streamId?: string
 }
 
 export type AgentToolLogEntry = {

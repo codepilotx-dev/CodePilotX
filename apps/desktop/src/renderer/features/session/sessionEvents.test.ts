@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test'
 import {
   isDurableSessionAgentEvent,
   transientStreamRetainedChars,
-  updateTransientStreamChunks,
+  appendTransientStreamChunk,
 } from './sessionEvents.js'
 import type { DesktopAgentEvent } from '../../../shared/types.js'
 
@@ -27,13 +27,11 @@ test('renderer retains time-spread deltas as linear chunks without cumulative te
   let chunks: string[] = []
   for (let tick = 0; tick < 250; tick += 1) {
     for (let index = 0; index < 40; index += 1) {
-      chunks = updateTransientStreamChunks({
-        type: 'partial_message',
-        sessionId: 'renderer-linear',
-        streamId: 'assistant-1',
-        delta: true,
-        text: '12345678901234567890',
-      })
+      chunks = appendTransientStreamChunk(
+        chunks,
+        '12345678901234567890',
+        true,
+      )
     }
   }
   expect(chunks).toHaveLength(10_000)
