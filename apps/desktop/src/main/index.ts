@@ -121,7 +121,7 @@ import {
 import { RustAppServerControlService } from './rustAppServerControlService.js'
 import { createSessionPersistScheduler } from './sessionPersistScheduler.js'
 import { createSessionStoreChangeEmitter } from './sessionStoreChangeEmitter.js'
-import { createDesktopShutdown } from './desktopShutdown.js'
+import { createDesktopShutdownController } from './desktopShutdown.js'
 import { shouldMarkSessionUnread } from '../shared/sessionUnread.js'
 import type {
   CreateDesktopSessionOptions,
@@ -203,7 +203,6 @@ const turnRestoreBaselines = new Map<
 const titleGenerationStartedSessionIds = new Set<string>()
 let activeSessionId: string | null = null
 let sessionStoreLoadPromise: Promise<void> | null = null
-let desktopShutdownPromise: Promise<void> | null = null
 const sessionPersistScheduler = createSessionPersistScheduler({
   debounceMs: 5000,
   getState: () => ({
@@ -1972,15 +1971,13 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', event => {
-  if (!desktopShutdownPromise) {
-    event.preventDefault()
-    desktopShutdownPromise = shutdownDesktop()
+  if (!desktopShutdownController.handleBeforeQuit(event)) {
     return
   }
   void desktopBrowserDebugBridgeServer?.close()
   debugToolProbeService.cleanup()
 })
-const shutdownDesktop = createDesktopShutdown({
+const desktopShutdownController = createDesktopShutdownController({
   flushRollout: () => rolloutWriteScheduler.flush(),
   flushSessionStore: flushSessionStorePersistence,
   disposeSessions: disposeAllSessions,

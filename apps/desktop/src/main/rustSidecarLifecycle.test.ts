@@ -43,6 +43,12 @@ class FakeAppServerProcess extends EventEmitter {
             } else {
               this.respond(message.id!, { thread: { id: 'thread-fresh' } })
             }
+          } else if (message.method === 'turn/start') {
+            this.stdout.write(`${JSON.stringify({
+              jsonrpc: '2.0',
+              id: message.id,
+              error: { code: -32001, message: 'turn request failed' },
+            })}\n`)
           }
         })
         callback()
@@ -83,10 +89,11 @@ mock.module('node:child_process', () => ({
 const { RustSidecarDesktopAgentRuntime } = await import('./rustSidecarRuntime.js')
 
 test('thread start failure kills the failed child and the next attempt spawns fresh', async () => {
+  const events: Array<{ type: string; message?: string }> = []
   const runtime = new RustSidecarDesktopAgentRuntime({
     sessionId: 'startup-retry',
     workspacePath: process.cwd(),
-    emit: () => {},
+    emit: event => events.push(event),
     requestPermission: async () => ({ behavior: 'deny' }),
   })
   const internals = runtime as unknown as {
@@ -95,7 +102,12 @@ test('thread start failure kills the failed child and the next attempt spawns fr
     startAppServer(): Promise<void>
   }
 
-  await expect(internals.startAppServer()).rejects.toThrow('thread start failed')
+  await expect(
+    runtime.runUserTurn('first', new AbortController().signal),
+  ).rejects.toThrow('thread start failed')
+  expect(events).toEqual([
+    expect.objectContaining({ type: 'error', message: 'thread start failed' }),
+  ])
   expect(internals.startupState).toBe('failed')
   expect(children).toHaveLength(1)
   expect(children[0].killed).toBe(true)
@@ -107,6 +119,14 @@ test('thread start failure kills the failed child and the next attempt spawns fr
   expect(children).toHaveLength(2)
   expect(children[1].killed).toBe(false)
   expect(activeChildren).toBe(1)
+
+  await expect(
+    runtime.runUserTurn('second', new AbortController().signal),
+  ).rejects.toThrow('turn request failed')
+  expect(events).toEqual([
+    expect.objectContaining({ type: 'error', message: 'thread start failed' }),
+    expect.objectContaining({ type: 'error', message: 'turn request failed' }),
+  ])
 
   await runtime.dispose()
   expect(children[1].killed).toBe(true)

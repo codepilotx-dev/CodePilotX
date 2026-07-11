@@ -1,5 +1,8 @@
 import { expect, mock, test } from 'bun:test'
-import { createDesktopShutdown } from './desktopShutdown.js'
+import {
+  createDesktopShutdown,
+  createDesktopShutdownController,
+} from './desktopShutdown.js'
 
 test('shutdown is a singleton and always disposes and quits after flush failures', async () => {
   const calls: string[] = []
@@ -28,4 +31,29 @@ test('shutdown is a singleton and always disposes and quits after flush failures
 
   expect(calls).toEqual(['rollout', 'session-store', 'dispose', 'quit'])
   expect(logError).toHaveBeenCalledTimes(3)
+})
+
+test('before-quit remains prevented until internal shutdown finally marks complete', async () => {
+  let releaseDispose: (() => void) | undefined
+  const disposing = new Promise<void>(resolve => {
+    releaseDispose = resolve
+  })
+  const preventDefault = mock(() => {})
+  let controller: ReturnType<typeof createDesktopShutdownController>
+  const reentrantPreventDefault = mock(() => {})
+  controller = createDesktopShutdownController({
+    flushRollout: async () => {},
+    flushSessionStore: async () => {},
+    disposeSessions: async () => disposing,
+    quit: () => controller.handleBeforeQuit({ preventDefault: reentrantPreventDefault }),
+    logError: () => {},
+  })
+
+  controller.handleBeforeQuit({ preventDefault })
+  controller.handleBeforeQuit({ preventDefault })
+  expect(preventDefault).toHaveBeenCalledTimes(2)
+
+  releaseDispose?.()
+  await controller.shutdownPromise
+  expect(reentrantPreventDefault).toHaveBeenCalledTimes(0)
 })

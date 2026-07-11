@@ -18,8 +18,34 @@ export function createDesktopShutdown(
   }
 }
 
+export function createDesktopShutdownController(
+  dependencies: DesktopShutdownDependencies,
+): {
+  handleBeforeQuit(event: { preventDefault(): void }): boolean
+  readonly shutdownPromise: Promise<void> | null
+} {
+  let shutdownPromise: Promise<void> | null = null
+  let shutdownComplete = false
+  return {
+    handleBeforeQuit(event) {
+      if (shutdownComplete) return true
+      event.preventDefault()
+      if (!shutdownPromise) {
+        shutdownPromise = runDesktopShutdown(dependencies, () => {
+          shutdownComplete = true
+        })
+      }
+      return false
+    },
+    get shutdownPromise() {
+      return shutdownPromise
+    },
+  }
+}
+
 async function runDesktopShutdown(
   dependencies: DesktopShutdownDependencies,
+  beforeQuit: () => void = () => {},
 ): Promise<void> {
   try {
     await runStep('rollout_flush', dependencies.flushRollout, dependencies.logError)
@@ -34,6 +60,7 @@ async function runDesktopShutdown(
       dependencies.logError,
     )
   } finally {
+    beforeQuit()
     dependencies.quit()
   }
 }

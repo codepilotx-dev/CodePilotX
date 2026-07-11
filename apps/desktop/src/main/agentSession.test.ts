@@ -748,6 +748,9 @@ test('runtime owns the successful turn terminal event', async () => {
   await session.sendUserMessage('hello', 'hello')
 
   expect(events.filter(event => event.type === 'done')).toHaveLength(1)
+  expect(events.at(-1)).toEqual(
+    expect.objectContaining({ type: 'status', status: 'done' }),
+  )
 })
 
 test('runtime owns the failed turn terminal event', async () => {
@@ -768,6 +771,9 @@ test('runtime owns the failed turn terminal event', async () => {
   await session.sendUserMessage('hello', 'hello')
 
   expect(events.filter(event => event.type === 'error')).toHaveLength(1)
+  expect(events.at(-1)).toEqual(
+    expect.objectContaining({ type: 'status', status: 'error' }),
+  )
 })
 
 test('permission requested after dispose abort resolves instead of hanging', async () => {

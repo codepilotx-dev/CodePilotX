@@ -408,6 +408,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   private initialized = false
   private threadStarted = false
   private currentTurnPromise: Promise<void> | null = null
+  private turnInProgress = false
   private currentTurnResolve: (() => void) | null = null
   private currentTurnReject: ((error: Error) => void) | null = null
   private currentTurnTerminal = false
@@ -505,23 +506,14 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     content: DesktopUserMessageContent,
     signal: AbortSignal,
   ): Promise<void> {
-    // Lazy startup: spawn & initialize on first turn
-    if (!this.initialized) {
-      await this.startAppServer()
-    }
-
     // If there's already an active turn, reject (serial turns only for now)
-    if (this.currentTurnPromise) {
+    if (this.turnInProgress) {
       throw new Error(
         'Rust sidecar does not support concurrent turns. Wait for the current turn to complete.',
       )
     }
 
-    // Turn promise that resolves/rejects when turn/completed or error arrives
-    this.currentTurnPromise = new Promise<void>((resolve, reject) => {
-      this.currentTurnResolve = resolve
-      this.currentTurnReject = reject
-    })
+    this.turnInProgress = true
     this.currentTurnTerminal = false
     this.activeRuntimeTurnId = null
 
@@ -532,6 +524,12 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     signal.addEventListener('abort', abortHandler, { once: true })
 
     try {
+      // Lazy startup is part of this turn: every startup failure must produce
+      // the same single terminal error as a turn/start transport failure.
+      if (!this.initialized) {
+        await this.startAppServer()
+      }
+
       // Reset workflow state for new turn
       this.workflowState.assistantDeltaBuffer = ''
 
@@ -539,6 +537,14 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       const input = this.buildUserInputFromContent(content)
 
       await this.applyPendingProviderChange()
+
+      // Only create the notification completion promise after startup/provider
+      // work succeeds, so a startup child exit cannot reject an unobserved
+      // promise.
+      this.currentTurnPromise = new Promise<void>((resolve, reject) => {
+        this.currentTurnResolve = resolve
+        this.currentTurnReject = reject
+      })
 
       // Send turn/start with the converted input
       const turnResult = await this.appServerClient!.startTurn({
@@ -549,7 +555,13 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       this.activeRuntimeTurnId = turnResult.turn.id
 
       await this.currentTurnPromise
+    } catch (error) {
+      this.emitCurrentTurnError(
+        error instanceof Error ? error : new Error(String(error)),
+      )
+      throw error
     } finally {
+      this.turnInProgress = false
       this.currentTurnPromise = null
       this.currentTurnResolve = null
       this.currentTurnReject = null
@@ -751,6 +763,18 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       this.disposePromise = this.disposeOnce()
     }
     await this.disposePromise
+  }
+
+  private emitCurrentTurnError(error: Error): void {
+    if (this.currentTurnTerminal) return
+    this.currentTurnTerminal = true
+    const turnId = this.activeRuntimeTurnId ?? this.workflowState.activeTurnId
+    if (turnId) this.sealedRuntimeTurnIds.add(turnId)
+    this.context.emit({
+      type: 'error',
+      sessionId: this.context.sessionId,
+      message: error.message,
+    })
   }
 
   private async disposeOnce(): Promise<void> {
