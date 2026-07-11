@@ -1,6 +1,7 @@
 import type {
   Thread,
   ThreadStartResponse,
+  Turn,
   UserInput,
 } from './generated/v2/index.js'
 
@@ -85,3 +86,77 @@ export type TurnSteerParams = {
 }
 
 export type TurnSteerResponse = { turnId: string }
+
+export type ThreadCompactStartParams = { threadId: string }
+export type ThreadCompactStartResponse = Record<string, never>
+export type ThreadRollbackParams = { threadId: string; numTurns: number }
+export type ThreadRollbackResponse = { thread: Thread }
+
+export type ThreadGoalStatus =
+  | 'active'
+  | 'paused'
+  | 'blocked'
+  | 'usageLimited'
+  | 'budgetLimited'
+  | 'complete'
+
+export type ThreadGoal = {
+  threadId: string
+  objective: string
+  status: ThreadGoalStatus
+  tokenBudget: number | null
+  tokensUsed: number
+  timeUsedSeconds: number
+  createdAt: number
+  updatedAt: number
+}
+
+export type ThreadGoalSetParams = {
+  threadId: string
+  objective?: string | null
+  status?: ThreadGoalStatus | null
+  tokenBudget?: number | null
+}
+export type ThreadGoalSetResponse = { goal: ThreadGoal }
+export type ThreadGoalGetParams = { threadId: string }
+export type ThreadGoalGetResponse = { goal: ThreadGoal | null }
+export type ThreadGoalClearParams = { threadId: string }
+export type ThreadGoalClearResponse = { cleared: boolean }
+export type ThreadGoalUpdatedNotification = {
+  threadId: string
+  turnId: string | null
+  goal: ThreadGoal
+}
+export type ThreadGoalClearedNotification = { threadId: string }
+
+export type ThreadSettings = {
+  cwd: string
+  approvalPolicy: string
+  approvalsReviewer: string
+  sandboxPolicy: Record<string, unknown>
+  activePermissionProfile: { id: string; extends: string | null } | null
+  model: string
+  modelProvider: string
+  serviceTier: string | null
+  effort: string | null
+  summary: string | null
+  collaborationMode: Record<string, unknown>
+  multiAgentMode: 'explicitRequestOnly' | 'proactive' | null
+  personality: string | null
+}
+export type ThreadSettingsUpdatedNotification = {
+  threadId: string
+  threadSettings: ThreadSettings
+}
+
+export type ReviewTarget =
+  | { type: 'uncommittedChanges' }
+  | { type: 'baseBranch'; branch: string }
+  | { type: 'commit'; sha: string; title: string | null }
+  | { type: 'custom'; instructions: string }
+export type ReviewStartParams = {
+  threadId: string
+  target: ReviewTarget
+  delivery?: 'inline' | 'detached' | null
+}
+export type ReviewStartResponse = { turn: Turn; reviewThreadId: string }

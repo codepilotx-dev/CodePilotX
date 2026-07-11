@@ -29,6 +29,32 @@ import type {
   ThreadSettingsUpdateResponse,
   TurnSteerParams,
   TurnSteerResponse,
+  ThreadCompactStartParams,
+  ThreadCompactStartResponse,
+  ThreadRollbackParams,
+  ThreadRollbackResponse,
+  ThreadGoalSetParams,
+  ThreadGoalSetResponse,
+  ThreadGoalGetParams,
+  ThreadGoalGetResponse,
+  ThreadGoalClearParams,
+  ThreadGoalClearResponse,
+  ReviewStartParams,
+  ReviewStartResponse,
+  ModelListParams,
+  ModelListResponse,
+  ModelProviderCapabilitiesReadParams,
+  ModelProviderCapabilitiesReadResponse,
+  PermissionProfileListParams,
+  PermissionProfileListResponse,
+  SkillsListParams,
+  SkillsListResponse,
+  SkillsConfigWriteParams,
+  SkillsConfigWriteResponse,
+  HooksListParams,
+  HooksListResponse,
+  ConfigBatchWriteParams,
+  ConfigWriteResponse,
 } from './rustAppServerProtocol/index.js'
 import { desktopDebug } from './desktopDebug.js'
 
@@ -168,6 +194,115 @@ export class RustAppServerClient {
       'turn/steer',
       params,
     ) as Promise<TurnSteerResponse>
+  }
+
+  async compactThread(
+    params: ThreadCompactStartParams,
+  ): Promise<ThreadCompactStartResponse> {
+    return this.transport.sendRequest(
+      'thread/compact/start',
+      params,
+    ) as Promise<ThreadCompactStartResponse>
+  }
+
+  async rollbackThread(
+    params: ThreadRollbackParams,
+  ): Promise<ThreadRollbackResponse> {
+    return this.transport.sendRequest(
+      'thread/rollback',
+      params,
+    ) as Promise<ThreadRollbackResponse>
+  }
+
+  async setThreadGoal(
+    params: ThreadGoalSetParams,
+  ): Promise<ThreadGoalSetResponse> {
+    return this.transport.sendRequest(
+      'thread/goal/set',
+      params,
+    ) as Promise<ThreadGoalSetResponse>
+  }
+
+  async getThreadGoal(
+    params: ThreadGoalGetParams,
+  ): Promise<ThreadGoalGetResponse> {
+    return this.transport.sendRequest(
+      'thread/goal/get',
+      params,
+    ) as Promise<ThreadGoalGetResponse>
+  }
+
+  async clearThreadGoal(
+    params: ThreadGoalClearParams,
+  ): Promise<ThreadGoalClearResponse> {
+    return this.transport.sendRequest(
+      'thread/goal/clear',
+      params,
+    ) as Promise<ThreadGoalClearResponse>
+  }
+
+  async startReview(params: ReviewStartParams): Promise<ReviewStartResponse> {
+    return this.transport.sendRequest(
+      'review/start',
+      params,
+    ) as Promise<ReviewStartResponse>
+  }
+
+  async listModels(params: ModelListParams = {}): Promise<ModelListResponse> {
+    return this.transport.sendRequest(
+      'model/list',
+      params,
+    ) as Promise<ModelListResponse>
+  }
+
+  async readModelProviderCapabilities(
+    params: ModelProviderCapabilitiesReadParams = {},
+  ): Promise<ModelProviderCapabilitiesReadResponse> {
+    return this.transport.sendRequest(
+      'modelProvider/capabilities/read',
+      params,
+    ) as Promise<ModelProviderCapabilitiesReadResponse>
+  }
+
+  async listPermissionProfiles(
+    params: PermissionProfileListParams = {},
+  ): Promise<PermissionProfileListResponse> {
+    return this.transport.sendRequest(
+      'permissionProfile/list',
+      params,
+    ) as Promise<PermissionProfileListResponse>
+  }
+
+  async listSkills(params: SkillsListParams = {}): Promise<SkillsListResponse> {
+    return this.transport.sendRequest(
+      'skills/list',
+      params,
+    ) as Promise<SkillsListResponse>
+  }
+
+  async writeSkillConfig(
+    params: SkillsConfigWriteParams,
+  ): Promise<SkillsConfigWriteResponse> {
+    return this.transport.sendRequest(
+      'skills/config/write',
+      params,
+    ) as Promise<SkillsConfigWriteResponse>
+  }
+
+  async listHooks(params: HooksListParams = {}): Promise<HooksListResponse> {
+    return this.transport.sendRequest(
+      'hooks/list',
+      params,
+    ) as Promise<HooksListResponse>
+  }
+
+  async batchWriteConfig(
+    params: ConfigBatchWriteParams,
+  ): Promise<ConfigWriteResponse> {
+    return this.transport.sendRequest(
+      'config/batchWrite',
+      params,
+    ) as Promise<ConfigWriteResponse>
   }
 
   /**

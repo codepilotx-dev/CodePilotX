@@ -2,6 +2,23 @@ import { describe, expect, test } from 'bun:test'
 import { PassThrough } from 'node:stream'
 import { RustLineJsonRpcClient } from './rustLineJsonRpcClient.js'
 import { RustAppServerClient } from './rustAppServerClient.js'
+import type {
+  ConfigWriteResponse,
+  HooksListResponse,
+  ModelListResponse,
+  ModelProviderCapabilitiesReadResponse,
+  ModelUpgradeInfo,
+  PermissionProfileListResponse,
+  ReviewStartResponse,
+  SkillDependencies,
+  SkillInterface,
+  SkillsConfigWriteResponse,
+  SkillsListResponse,
+  ThreadGoalClearResponse,
+  ThreadGoalGetResponse,
+  ThreadGoalSetResponse,
+  ThreadRollbackResponse,
+} from './rustAppServerProtocol/index.js'
 
 /** Helper: create a RustAppServerClient backed by PassThrough streams. */
 function createTestClient(): {
@@ -218,6 +235,179 @@ describe('RustAppServerClient', () => {
       expect(sent.params).toEqual(params)
       input.write(`${JSON.stringify({ jsonrpc: '2.0', id: sent.id, result: {} })}\n`)
       await resultPromise
+    }
+  })
+
+  test('supports extended thread, goal, review, and catalog requests with typed methods', async () => {
+    const { client, input, output } = createTestClient()
+    const writes = collectWrites(output)
+    const thread = {
+      id: 'thread-abc',
+      sessionId: 'session-1',
+      preview: 'Ship it',
+      ephemeral: false,
+      modelProvider: 'openai',
+      createdAt: 1000,
+      updatedAt: 2000,
+      status: { type: 'idle' as const },
+      cwd: '/workspace',
+      turns: [],
+      name: null,
+    }
+    const turn = {
+      id: 'turn-review',
+      items: [],
+      status: 'inProgress' as const,
+      error: null,
+      startedAt: 2000,
+      completedAt: null,
+      durationMs: null,
+    }
+    const goal = {
+      threadId: 'thread-abc',
+      objective: 'Ship it',
+      status: 'active' as const,
+      tokenBudget: null,
+      tokensUsed: 40,
+      timeUsedSeconds: 5,
+      createdAt: 1000,
+      updatedAt: 2000,
+    }
+    const upgradeInfo = {
+      model: 'gpt-6',
+      upgradeCopy: 'Use the latest model',
+      modelLink: 'https://example.test/models/gpt-6',
+      migrationMarkdown: 'Migrate to gpt-6.',
+    } satisfies ModelUpgradeInfo
+    const skillInterface = {
+      displayName: 'Review',
+      shortDescription: 'Review changes',
+      iconSmall: '/skills/review/icon-small.png',
+      iconLarge: '/skills/review/icon-large.png',
+      brandColor: '#000000',
+      defaultPrompt: 'Review this change.',
+    } satisfies SkillInterface
+    const skillDependencies = {
+      tools: [{
+        type: 'mcp',
+        value: 'github',
+        description: 'GitHub connector',
+        transport: 'stdio',
+        command: 'github-mcp',
+        url: 'https://example.test/mcp',
+      }],
+    } satisfies SkillDependencies
+    const requests = [
+      ['compactThread', { threadId: 'thread-abc' }, 'thread/compact/start', {}],
+      ['rollbackThread', { threadId: 'thread-abc', numTurns: 2 }, 'thread/rollback', { thread } satisfies ThreadRollbackResponse],
+      ['setThreadGoal', { threadId: 'thread-abc', objective: 'Ship it', status: 'active' }, 'thread/goal/set', { goal } satisfies ThreadGoalSetResponse],
+      ['getThreadGoal', { threadId: 'thread-abc' }, 'thread/goal/get', { goal } satisfies ThreadGoalGetResponse],
+      ['clearThreadGoal', { threadId: 'thread-abc' }, 'thread/goal/clear', { cleared: true } satisfies ThreadGoalClearResponse],
+      ['startReview', {
+        threadId: 'thread-abc',
+        target: { type: 'commit', sha: 'abc123', title: null },
+        delivery: 'inline',
+      }, 'review/start', { turn, reviewThreadId: 'thread-abc' } satisfies ReviewStartResponse],
+      ['listModels', { cursor: null, limit: 20, includeHidden: true }, 'model/list', {
+        data: [{
+          id: 'gpt-5',
+          model: 'gpt-5',
+          upgrade: 'gpt-6',
+          upgradeInfo,
+          availabilityNux: { message: 'Now available' },
+          displayName: 'GPT-5',
+          description: 'Coding model',
+          hidden: false,
+          supportedReasoningEfforts: [{ reasoningEffort: 'high', description: 'Deep reasoning' }],
+          defaultReasoningEffort: 'high',
+          inputModalities: ['text', 'image'],
+          supportsPersonality: true,
+          additionalSpeedTiers: [],
+          serviceTiers: [{ id: 'fast', name: 'Fast', description: 'Low latency' }],
+          defaultServiceTier: 'fast',
+          isDefault: true,
+        }],
+        nextCursor: null,
+      } satisfies ModelListResponse],
+      ['readModelProviderCapabilities', {}, 'modelProvider/capabilities/read', {
+        namespaceTools: true,
+        imageGeneration: false,
+        webSearch: true,
+      } satisfies ModelProviderCapabilitiesReadResponse],
+      ['listPermissionProfiles', { cwd: '/workspace', cursor: null, limit: null }, 'permissionProfile/list', {
+        data: [{ id: ':workspace', description: 'Workspace access' }],
+        nextCursor: null,
+      } satisfies PermissionProfileListResponse],
+      ['listSkills', { cwds: ['/workspace'], forceReload: true }, 'skills/list', {
+        data: [{
+          cwd: '/workspace',
+          skills: [{
+            name: 'review',
+            description: 'Review code',
+            shortDescription: 'Review',
+            interface: skillInterface,
+            dependencies: skillDependencies,
+            path: '/skills/review/SKILL.md',
+            scope: 'user',
+            enabled: true,
+          }],
+          errors: [],
+        }],
+      } satisfies SkillsListResponse],
+      ['writeSkillConfig', { path: '/skills/review/SKILL.md', enabled: false }, 'skills/config/write', {
+        effectiveEnabled: false,
+      } satisfies SkillsConfigWriteResponse],
+      ['listHooks', { cwds: ['/workspace'] }, 'hooks/list', {
+        data: [{
+          cwd: '/workspace',
+          hooks: [{
+            key: 'pre-tool',
+            eventName: 'preToolUse',
+            handlerType: 'command',
+            matcher: 'shell_command',
+            command: 'check.ps1',
+            timeoutSec: 30,
+            statusMessage: 'Checking',
+            sourcePath: '/workspace/.codex/hooks.json',
+            source: 'project',
+            pluginId: null,
+            displayOrder: 1,
+            enabled: true,
+            isManaged: false,
+            currentHash: 'hash-1',
+            trustStatus: 'trusted',
+          }],
+          warnings: [],
+          errors: [],
+        }],
+      } satisfies HooksListResponse],
+      ['batchWriteConfig', {
+        edits: [{ keyPath: 'hooks.state', value: { hook: { enabled: false } }, mergeStrategy: 'upsert' }],
+        filePath: null,
+        expectedVersion: null,
+        reloadUserConfig: true,
+      }, 'config/batchWrite', {
+        status: 'okOverridden',
+        version: '2',
+        filePath: '/home/user/.codex/config.toml',
+        overriddenMetadata: {
+          message: 'Overridden by project config',
+          overridingLayer: {
+            name: { type: 'project', dotCodepilotxFolder: '/workspace/.codex' },
+            version: '1',
+          },
+          effectiveValue: false,
+        },
+      } satisfies ConfigWriteResponse],
+    ] as const
+
+    for (const [methodName, params, method, result] of requests) {
+      const resultPromise = (client[methodName] as (params: unknown) => Promise<unknown>)(params)
+      const sent = JSON.parse(writes.pop()!.trim()) as { id: number; method: string; params: unknown }
+      expect(sent.method).toBe(method)
+      expect(sent.params).toEqual(params)
+      input.write(`${JSON.stringify({ jsonrpc: '2.0', id: sent.id, result })}\n`)
+      await expect(resultPromise).resolves.toEqual(result)
     }
   })
 

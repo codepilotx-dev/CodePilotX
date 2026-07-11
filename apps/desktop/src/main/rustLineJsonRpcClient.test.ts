@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { PassThrough } from 'node:stream'
-import { RustLineJsonRpcClient } from './rustLineJsonRpcClient.js'
+import {
+  RustJsonRpcError,
+  RustLineJsonRpcClient,
+} from './rustLineJsonRpcClient.js'
 
 describe('RustLineJsonRpcClient', () => {
   test('sends newline-delimited JSON-RPC requests and resolves responses', async () => {
@@ -99,6 +102,39 @@ describe('RustLineJsonRpcClient', () => {
     input.end()
 
     await expect(resultPromise).rejects.toThrow('closed')
+  })
+
+  test('preserves JSON-RPC error code, message, and data', async () => {
+    const input = new PassThrough()
+    const output = new PassThrough()
+    const client = new RustLineJsonRpcClient({ input, output })
+    const writes: string[] = []
+    output.on('data', chunk => writes.push(chunk.toString('utf8')))
+
+    const resultPromise = client.sendRequest('turn/steer', {})
+    const request = JSON.parse(writes.join('').trim()) as { id: number }
+    input.write(`${JSON.stringify({
+      jsonrpc: '2.0',
+      id: request.id,
+      error: {
+        code: -32602,
+        message: 'Active turn is not steerable',
+        data: { type: 'activeTurnNotSteerable', turnId: 'turn-1' },
+      },
+    })}\n`)
+
+    try {
+      await resultPromise
+      throw new Error('Expected the request to reject')
+    } catch (error) {
+      expect(error).toBeInstanceOf(RustJsonRpcError)
+      expect(error).toMatchObject({
+        name: 'RustJsonRpcError',
+        code: -32602,
+        message: 'Active turn is not steerable',
+        data: { type: 'activeTurnNotSteerable', turnId: 'turn-1' },
+      })
+    }
   })
 
   test('onAnyNotification receives all notifications regardless of method', async () => {

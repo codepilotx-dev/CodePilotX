@@ -15,6 +15,17 @@ type JsonRpcErrorObject = {
   data?: unknown
 }
 
+export class RustJsonRpcError extends Error {
+  constructor(
+    readonly code: number | undefined,
+    message: string,
+    readonly data: unknown,
+  ) {
+    super(message)
+    this.name = 'RustJsonRpcError'
+  }
+}
+
 export class RustLineJsonRpcClient {
   private nextId = 1
   private readonly pending = new Map<JsonRpcId, PendingRequest>()
@@ -272,9 +283,7 @@ export class RustLineJsonRpcClient {
 
 function jsonRpcError(error: JsonRpcErrorObject): Error {
   const message = error.message || `JSON-RPC error ${error.code ?? 'unknown'}`
-  const result = new Error(message)
-  result.name = 'RustJsonRpcError'
-  return result
+  return new RustJsonRpcError(error.code, message, error.data)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
