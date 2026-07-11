@@ -16,6 +16,8 @@ Commits:
 - `2a89fa065 fix(desktop)：统一运行时终态与传输隔离`
 - `c82c56b04 fix(desktop)：确保关机与侧车进程可靠回收`
 - `b624e310a fix(desktop)：仅按退出事件确认侧车回收`
+- `00c0ae2a6 fix(desktop)：封闭侧车错误终态与关机重入`
+- `fde6ba420 fix(desktop)：保证侧车清理失败仍执行强制回收`
 
 ## RED / GREEN evidence
 
@@ -98,3 +100,23 @@ was invented.
   Writable error handler is removed on close/fatal completion.
 - Final focused validation after review fixes: 114 tests passed, 0 failed, with
   258 assertions; desktop typecheck and CSS ownership checks also passed.
+
+## Second review fixes
+
+- The Rust per-turn terminal gate now encloses executable resolution, spawn,
+  initialize, thread start/resume, provider fork, turn start and transport
+  rejection. Startup failure and direct turn-request rejection each emit exactly
+  one error before rethrowing, and the session status leaves `running`.
+- `before-quit` uses an independent `shutdownComplete` flag. Every reentrant event
+  is prevented while cleanup is active; the internal finalizer sets completion
+  immediately before calling `app.quit()`, so only that reentrant quit is allowed.
+- Sidecar manager cleanup collects connection/listener errors but always attempts
+  target process termination. One error is preserved; multiple cleanup and
+  termination errors are returned as an `AggregateError`.
+- A graceful `child.kill()` exception still proceeds to targeted force kill. The
+  original error is propagated after confirmed target exit, or combined with the
+  force-kill/timeout error when both paths fail.
+- The Windows `taskkill` helper has its own timeout. On timeout it removes its
+  listeners, kills the helper process, and rejects instead of hanging shutdown.
+- Final focused validation after the second review: 118 tests passed, 0 failed,
+  with 275 assertions; desktop typecheck and CSS ownership checks passed.
