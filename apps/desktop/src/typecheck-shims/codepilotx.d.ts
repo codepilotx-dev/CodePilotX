@@ -203,6 +203,7 @@ declare module '@codepilotx/core/agent/runtime.js' {
         createdAt?: string
         sourceThreadId?: string
         sourceLabel?: string
+        metadata?: Record<string, unknown>
       }
     | {
         type: 'partial_message'
@@ -213,6 +214,7 @@ declare module '@codepilotx/core/agent/runtime.js' {
         createdAt?: string
         sourceThreadId?: string
         sourceLabel?: string
+        metadata?: Record<string, unknown>
       }
     | {
         type: 'proposed_plan'

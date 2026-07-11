@@ -276,6 +276,9 @@ export function handleServerNotification(
                 role: 'assistant',
                 text,
                 ...(itemId ? { streamId: itemId } : {}),
+                ...(state.activeTurnId
+                  ? { metadata: { turnId: state.activeTurnId } }
+                  : {}),
               })
             }
             if (itemId) state.finalizedAssistantItemIds.add(itemId)
@@ -662,7 +665,14 @@ function emitReasoningPartial(
     state.reasoningTextStarted = true
     state.reasoningTextBuffer = text
   }
-  emit({ type: 'partial_message', sessionId, text, delta: true, streamId })
+  emit({
+    type: 'partial_message',
+    sessionId,
+    text,
+    delta: true,
+    streamId,
+    ...(state.activeTurnId ? { metadata: { turnId: state.activeTurnId } } : {}),
+  })
 }
 
 function resetReasoningDeltas(state: RustAppServerWorkflowState): void {
@@ -738,6 +748,7 @@ function emitAssistantPartial(
     text,
     delta: true,
     streamId: itemId,
+    ...(state.activeTurnId ? { metadata: { turnId: state.activeTurnId } } : {}),
   })
 }
 

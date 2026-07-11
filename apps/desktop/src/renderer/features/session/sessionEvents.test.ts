@@ -76,8 +76,14 @@ test('assistant and reasoning streams are removed at terminal and a new generati
   apply({ type: 'partial_message', sessionId, streamId: 'assistant-1', text: 'late', delta: true })
   expect(views[sessionId]!.messages).toEqual([])
 
-  apply({ type: 'status', sessionId, status: 'running' })
-  apply({ type: 'partial_message', sessionId, streamId: 'assistant-2', text: 'new', delta: true })
+  apply({
+    type: 'partial_message',
+    sessionId,
+    streamId: 'assistant-2',
+    text: 'new',
+    delta: true,
+    metadata: { turnId: 'turn-2' },
+  })
   expect(views[sessionId]!.messages[0]?.streamingChunks).toEqual(['new'])
   apply({ type: 'error', sessionId, message: 'failed' })
   expect(views[sessionId]!.messages.some(message => message.streaming)).toBe(false)

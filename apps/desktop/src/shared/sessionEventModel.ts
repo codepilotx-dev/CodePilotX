@@ -18,6 +18,7 @@ export function desktopAgentEventToSessionEvent(
         role: event.role,
         content: event.text,
         createdAt,
+        metadata: event.metadata,
         ...eventSource(event),
       }
     case 'partial_message':
@@ -29,6 +30,7 @@ export function desktopAgentEventToSessionEvent(
         role: 'assistant',
         content: event.text,
         createdAt,
+        metadata: event.metadata,
         ...eventSource(event),
       }
     case 'proposed_plan':

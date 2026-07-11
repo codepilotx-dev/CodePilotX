@@ -128,6 +128,7 @@ export type AgentRuntimeEvent =
       createdAt?: string
       sourceThreadId?: string
       sourceLabel?: string
+      metadata?: Record<string, unknown>
     }
   | {
       type: 'partial_message'
@@ -138,6 +139,7 @@ export type AgentRuntimeEvent =
       createdAt?: string
       sourceThreadId?: string
       sourceLabel?: string
+      metadata?: Record<string, unknown>
     }
   | {
       type: 'proposed_plan'
