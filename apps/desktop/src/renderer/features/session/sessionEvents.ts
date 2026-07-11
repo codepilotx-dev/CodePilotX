@@ -52,7 +52,24 @@ export function handleSessionAgentEvent(
       ...view,
       events:
         view.eventModelVersion === 1
-          ? [...view.events, sessionEvent]
+          ? event.type === 'partial_message'
+            ? [
+                ...view.events.filter(
+                  existing => existing.type !== 'assistant_delta',
+                ),
+                sessionEvent,
+              ]
+            : [
+                ...view.events.filter(
+                  existing =>
+                    !(
+                      event.type === 'message' &&
+                      event.role === 'assistant' &&
+                      existing.type === 'assistant_delta'
+                    ),
+                ),
+                sessionEvent,
+              ]
           : view.events,
     }))
   }
@@ -241,6 +258,10 @@ export function handleSessionAgentEvent(
       ),
     }))
   }
+}
+
+export function isDurableSessionAgentEvent(event: DesktopAgentEvent): boolean {
+  return event.type !== 'partial_message'
 }
 
 function isInternalReviewerAgentEvent(event: DesktopAgentEvent): boolean {

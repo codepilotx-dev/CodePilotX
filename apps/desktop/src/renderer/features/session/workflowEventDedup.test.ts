@@ -66,6 +66,19 @@ test('dedupeWorkflowEvents uses a fallback key for events without event ids', ()
   ])
 })
 
+test('streaming workflow messages keep one transient event and final replaces it', () => {
+  let events: DesktopWorkflowEvent[] = []
+  for (let index = 0; index < 10_000; index += 1) {
+    events = appendUniqueWorkflowEvent(events, agentMessage(`partial-${index}`, true))
+  }
+  expect(events).toHaveLength(1)
+  expect('item' in events[0]! ? events[0].item.text : '').toBe('partial-9999')
+
+  events = appendUniqueWorkflowEvent(events, agentMessage('final', false))
+  expect(events).toHaveLength(1)
+  expect('item' in events[0]! ? events[0].item.text : '').toBe('final')
+})
+
 function turnStarted(eventId: string): DesktopWorkflowEvent {
   return {
     eventId,
@@ -90,4 +103,21 @@ function toolCall(eventId: string | undefined): ItemWorkflowEvent {
       summary: 'read file',
     },
   } as ItemWorkflowEvent
+}
+
+function agentMessage(text: string, streaming: boolean): DesktopWorkflowEvent {
+  return {
+    eventId: `event-${text}`,
+    type: streaming ? 'item.updated' : 'item.completed',
+    ...base,
+    item: {
+      id: streaming ? 'agent_message-partial' : 'agent_message-final',
+      type: 'agent_message',
+      status: streaming ? 'in_progress' : 'completed',
+      createdAt: base.createdAt,
+      ...base,
+      text,
+      streaming,
+    },
+  } as DesktopWorkflowEvent
 }

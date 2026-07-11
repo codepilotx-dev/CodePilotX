@@ -635,6 +635,7 @@ export function applyDesktopAgentEventToSnapshot(
   if (isInternalReviewerAgentEvent(event)) {
     return snapshot
   }
+  if (event.type === 'partial_message') return snapshot
   const next: DesktopSessionSnapshot = {
     ...snapshot,
     item: { ...snapshot.item },
@@ -678,29 +679,6 @@ export function applyDesktopAgentEventToSnapshot(
         createdAt,
       },
     ]
-    return next
-  }
-
-  if (event.type === 'partial_message') {
-    const index = next.view.messages.findIndex(message => message.streaming)
-    const createdAt =
-      normalizeTimestampString(event.createdAt) ??
-      (index >= 0 ? next.view.messages[index]?.createdAt : undefined) ??
-      new Date().toISOString()
-    const partialMessage: DesktopSessionMessage = {
-      id: index >= 0 ? next.view.messages[index]!.id : randomId(),
-      role: 'assistant',
-      text: event.text,
-      createdAt,
-      streaming: true,
-    }
-    if (index === -1) {
-      next.view.messages = [...next.view.messages, partialMessage]
-    } else {
-      next.view.messages = next.view.messages.map((message, messageIndex) =>
-        messageIndex === index ? partialMessage : message,
-      )
-    }
     return next
   }
 
@@ -795,7 +773,9 @@ export function applyDesktopWorkflowEventsToSnapshot(
   snapshot: DesktopSessionSnapshot,
   workflowEvents: DesktopWorkflowEvent[],
 ): DesktopSessionSnapshot {
-  const normalizedEvents = workflowEvents.flatMap(normalizeWorkflowEvent)
+  const normalizedEvents = workflowEvents
+    .flatMap(normalizeWorkflowEvent)
+    .filter(event => !isStreamingWorkflowAgentMessage(event))
   if (normalizedEvents.length === 0) return snapshot
 
   const existingEvents =
@@ -817,6 +797,16 @@ export function applyDesktopWorkflowEventsToSnapshot(
     workflowEventModelVersion: 1,
     updatedAt: new Date().toISOString(),
   }
+}
+
+function isStreamingWorkflowAgentMessage(
+  event: DesktopWorkflowEvent,
+): boolean {
+  return (
+    'item' in event &&
+    event.item.type === 'agent_message' &&
+    event.item.streaming === true
+  )
 }
 
 function recentWorkflowEvents(

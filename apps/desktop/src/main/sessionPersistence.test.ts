@@ -415,6 +415,72 @@ test('desktop session snapshot keeps unsaved status until persistence recovers',
   expect(recovered.item.persistenceStatus).toBe('saved')
 })
 
+test('partial assistant deltas stay outside durable history until final message', () => {
+  const snapshot = createDesktopSessionSnapshot({
+    sessionId: 'session-stream',
+    workspace: {
+      path: 'D:\\workspace',
+      name: 'workspace',
+      branchName: null,
+      isGitRepo: false,
+    },
+    standalone: false,
+    settings: {
+      permissionMode: 'default',
+      thinkingMode: 'default',
+      additionalDirectories: [],
+    },
+  })
+  const delta = '12345678901234567890'
+  let current = applyDesktopAgentEventToSnapshot(snapshot, {
+    type: 'partial_message',
+    sessionId: snapshot.item.id,
+    text: delta,
+  })
+
+  expect(current).toBe(snapshot)
+  expect(current.view.messages).toHaveLength(0)
+
+  current = applyDesktopAgentEventToSnapshot(current, {
+    type: 'message',
+    sessionId: snapshot.item.id,
+    role: 'assistant',
+    text: delta.repeat(10_000),
+  })
+  expect(current.view.messages).toHaveLength(1)
+  expect(current.view.messages[0]?.text).toBe(delta.repeat(10_000))
+})
+
+test('streaming workflow messages are not persisted before final completion', () => {
+  const snapshot = createDesktopSessionSnapshot({
+    sessionId: 'session-workflow-stream',
+    workspace: {
+      path: 'D:\\workspace',
+      name: 'workspace',
+      branchName: null,
+      isGitRepo: false,
+    },
+    standalone: false,
+    settings: {
+      permissionMode: 'default',
+      thinkingMode: 'default',
+      additionalDirectories: [],
+    },
+  })
+  const partial = workflowAgentMessage(snapshot.item.id, 'partial', true)
+  const afterPartial = applyDesktopWorkflowEventsToSnapshot(snapshot, [partial])
+  expect(afterPartial).toBe(snapshot)
+
+  const final = workflowAgentMessage(snapshot.item.id, 'final', false)
+  const afterFinal = applyDesktopWorkflowEventsToSnapshot(afterPartial, [final])
+  expect(afterFinal.workflowEvents).toHaveLength(1)
+  expect(
+    afterFinal.workflowEvents?.[0] && 'item' in afterFinal.workflowEvents[0]
+      ? afterFinal.workflowEvents[0].item.text
+      : '',
+  ).toBe('final')
+})
+
 test('legacy snapshot workflow events are normalized on restore', async () => {
   await withDesktopConfig(async configDir => {
     const sessionId = randomUUID()
@@ -1297,4 +1363,29 @@ function threadStarted(
     threadId: sessionId,
     createdAt,
   }
+}
+
+function workflowAgentMessage(
+  sessionId: string,
+  text: string,
+  streaming: boolean,
+): DesktopWorkflowEvent {
+  const createdAt = '2026-01-01T00:00:00.000Z'
+  return {
+    eventId: `event-${text}`,
+    type: streaming ? 'item.updated' : 'item.completed',
+    threadId: sessionId,
+    turnId: 'turn-1',
+    createdAt,
+    item: {
+      id: streaming ? 'agent_message-partial' : 'agent_message-final',
+      type: 'agent_message',
+      status: streaming ? 'in_progress' : 'completed',
+      threadId: sessionId,
+      turnId: 'turn-1',
+      createdAt,
+      text,
+      streaming,
+    },
+  } as DesktopWorkflowEvent
 }
