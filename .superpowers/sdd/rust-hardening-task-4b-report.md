@@ -10,6 +10,9 @@
 - `838ca4587 feat(desktop)：收敛流式缓冲与终态保护`
 - `e1bef6cb5 feat(desktop)：强化持久化锁所有权与恢复证据`
 - `7e9bc8bcf feat(desktop)：清理流式终态并隔离会话代际`
+- `e19ec3c68 feat(desktop)：串行化持久化锁心跳与释放`
+- `324e4cb84 test(desktop)：覆盖双源持久化状态恢复链路`
+- `72700b691 feat(desktop)：按回合隔离流式消息代际`
 
 ## Persistence RED / GREEN
 
@@ -179,3 +182,37 @@ race suite was repeated five times without failure. Seven integrated Task 4B
 suites passed 152 tests / 448 assertions. Post-commit root `bun run test` passed
 200 tests / 501 assertions; desktop typecheck, CSS ownership, and
 `git diff --check` all exited zero.
+
+## Fourth-review serialization and integration hardening
+
+- Heartbeats now use a recursive serialized scheduler: the next refresh is
+  scheduled only after the prior refresh settles. Release stops the generation,
+  cancels the pending callback, and awaits every started refresh. A heartbeat
+  error marks the lock compromised, propagates to the writer, and deliberately
+  leaves ownership fail-closed rather than silently removing the lock.
+- Live-owner release no longer renames the fixed lock and creates an acquisition
+  gap. It reads and verifies the token at the fixed path, treats mismatch as a
+  no-op, and directly removes only its own live lock. Dead-owner reclaim remains
+  isolated behind an atomic unique claim; it never restores over or touches a
+  newly acquired fixed lock.
+- If lock publication succeeds but parent-directory sync fails, acquisition
+  performs token-qualified cleanup of the published lock. Durable temp files
+  are removed after injected write, sync, and pre-rename failures. Startup
+  cleanup only removes stale directories matching this protocol's acquire
+  prefix. Directory-sync capability handling distinguishes open from sync and
+  never suppresses `EACCES` or non-Windows `EPERM`.
+- Recovery journals now bind the original rollout prefix SHA-256 in addition to
+  the expected append payload. Replacing the prefix with same-sized bytes fails
+  closed before tail recovery; a zero-size prefix uses the standard empty
+  SHA-256.
+- Rust adapter assistant/reasoning partials and final messages carry `turnId`
+  metadata. Renderer stream generations reset when a different turn arrives,
+  even if no intermediate `status: running` notification is observed.
+- A combined integration test drives the real rollout and session-store
+  scheduler callbacks into lightweight snapshot emission and the renderer's
+  warning label. Failure of both sources shows `会话未保存`; recovering only one
+  source retains it; recovering both clears it; delete/reload begins clear.
+
+Fourth-review fresh validation: eight Task 4B suites passed 160 tests / 478
+assertions. Root `bun run test` passed 200 tests / 501 assertions. Desktop
+typecheck, CSS ownership, and `git diff --check` all exited zero.
