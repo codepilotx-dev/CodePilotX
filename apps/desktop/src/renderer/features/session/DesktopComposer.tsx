@@ -107,6 +107,7 @@ type Props = {
   onGoalResume?: () => void
   onGoalComplete?: () => void
   onGoalClear?: () => void
+  onError: (message: string) => void
 }
 
 type DesktopComposerCanSubmitInput = {
@@ -189,6 +190,7 @@ export function DesktopComposer({
   onGoalResume,
   onGoalComplete,
   onGoalClear,
+  onError,
 }: Props): React.ReactNode {
   const navigate = useNavigate()
   const [goalModeEnabled, setGoalModeEnabled] = useState(false)
@@ -207,6 +209,8 @@ export function DesktopComposer({
     Boolean(input.trim()) ||
     attachments.length > 0 ||
     selectedSkillToken !== null
+  const canSubmitGoal =
+    !goalModeEnabled || Boolean(input.trim())
   const canSubmit = getDesktopComposerCanSubmit({
     hasContent,
     hasAttachmentErrors,
@@ -215,7 +219,7 @@ export function DesktopComposer({
     isQuickChatPage,
     routedSessionId,
     sessionStatus,
-  })
+  }) && canSubmitGoal
   const attachmentIds = useMemo(
     () => new Set(attachments.map(attachment => attachment.id)),
     [attachments],
@@ -275,36 +279,33 @@ export function DesktopComposer({
     }
   }, [input, workspace?.path])
 
-	  function handleSubmit(override?: DesktopFollowUpBehavior): void {
-	    void (async () => {
-	      if (!modelConfigured) return
+  function handleSubmit(override?: DesktopFollowUpBehavior): void {
+    void (async () => {
+      if (!modelConfigured) return
 
-	      // Goal mode: use setSessionGoal instead of sending a user message
-	      if (goalModeEnabled && routedSessionId) {
-	        const goalText = input.trim()
-	        setSelectedSkillToken(null)
-	        setGoalModeEnabled(false)
-	        onInputChange('')
-	        onAttachmentsChange([])
-	        // Switch to plan execution model if configured before setting goal
-	        if (planExecutionModel) {
-	          const slashIdx = planExecutionModel.indexOf('/')
-	          if (slashIdx > 0 && slashIdx < planExecutionModel.length - 1) {
-	            const providerID = planExecutionModel.slice(0, slashIdx) as ModelProviderID
-	            const modelPresetID = planExecutionModel.slice(slashIdx + 1)
-	            onProviderModelChange(providerID, modelPresetID)
-	          }
-	        }
-	        try {
-	          await desktopClient.setSessionGoal(routedSessionId, {
-	            objective: goalText,
-	            status: 'active',
-	          })
-	        } catch (error) {
-	          console.error('Failed to set session goal:', error)
-	        }
-	        return
-	      }
+      if (goalModeEnabled && routedSessionId) {
+        const created = await submitDesktopComposerGoal({
+          routedSessionId,
+          input,
+          attachments,
+          selectedSkillToken,
+          setSessionGoal: desktopClient.setSessionGoal,
+          onInputChange,
+          onAttachmentsChange,
+          onSelectedSkillTokenChange: setSelectedSkillToken,
+          onGoalModeChange: setGoalModeEnabled,
+          onError,
+        })
+        if (created && planExecutionModel) {
+          const slashIdx = planExecutionModel.indexOf('/')
+          if (slashIdx > 0 && slashIdx < planExecutionModel.length - 1) {
+            const providerID = planExecutionModel.slice(0, slashIdx) as ModelProviderID
+            const modelPresetID = planExecutionModel.slice(slashIdx + 1)
+            onProviderModelChange(providerID, modelPresetID)
+          }
+        }
+        return
+      }
 	
 	      const skillPrefix = selectedSkillToken
 	        ? `[${selectedSkillToken.name}](${selectedSkillToken.skillPath})`
@@ -467,6 +468,55 @@ export function DesktopComposer({
   )
 }
 
+type DesktopComposerSkillToken = DesktopSlashCommandSuggestion & {
+  skillPath: string
+}
+
+type DesktopComposerGoalSubmission = {
+  routedSessionId: string
+  input: string
+  attachments: DesktopComposerAttachment[]
+  selectedSkillToken: DesktopComposerSkillToken | null
+  setSessionGoal: (
+    sessionId: string,
+    input: { objective: string; status: 'active' },
+  ) => Promise<unknown>
+  onInputChange: (value: string) => void
+  onAttachmentsChange: (attachments: DesktopComposerAttachment[]) => void
+  onSelectedSkillTokenChange: (
+    token: DesktopComposerSkillToken | null,
+  ) => void
+  onGoalModeChange: (enabled: boolean) => void
+  onError: (message: string) => void
+}
+
+export async function submitDesktopComposerGoal(
+  submission: DesktopComposerGoalSubmission,
+): Promise<boolean> {
+  const pendingGoal = {
+    text: submission.input,
+    attachments: submission.attachments,
+    selectedSkillToken: submission.selectedSkillToken,
+  }
+  try {
+    await submission.setSessionGoal(submission.routedSessionId, {
+      objective: submission.input.trim(),
+      status: 'active',
+    })
+    submission.onSelectedSkillTokenChange(null)
+    submission.onGoalModeChange(false)
+    submission.onInputChange('')
+    submission.onAttachmentsChange([])
+    return true
+  } catch (error) {
+    submission.onInputChange(pendingGoal.text)
+    submission.onAttachmentsChange(pendingGoal.attachments)
+    submission.onSelectedSkillTokenChange(pendingGoal.selectedSkillToken)
+    submission.onError(errorMessageOf(error))
+    return false
+  }
+}
+
 function getUnsupportedAttachmentReason(
   attachments: DesktopComposerAttachment[],
   metadata: DesktopModelMetadata | undefined,
@@ -509,6 +559,10 @@ export function getDesktopComposerBranchName(
 
 function sessionPath(sessionId: string): string {
   return `/sessions/${encodeURIComponent(sessionId)}`
+}
+
+function errorMessageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 // GOAL_MODE_SYSTEM_PROMPT and buildGoalModePrompt removed.

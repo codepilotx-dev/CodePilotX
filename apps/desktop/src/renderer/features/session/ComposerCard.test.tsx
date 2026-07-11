@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import {
   ComposerCard,
   CONTEXT_AGENT_OPTIONS,
+  canResumeThreadGoal,
   getActiveComposerMention,
   resolveComposerSubmitBehavior,
 } from './ComposerCard.js'
@@ -774,7 +775,14 @@ test('ComposerCard goal mode and plan mode chips are independent', () => {
 	  // Both chips should appear independently
 	  expect(html).toContain('>目标<')
 	  expect(html).toContain('>计划<')
-	})
+})
+
+test.each(['blocked', 'usageLimited', 'budgetLimited'] as const)(
+  'canResumeThreadGoal allows a %s goal to continue',
+  status => {
+    expect(canResumeThreadGoal(status)).toBe(true)
+  },
+)
 
 test('getActiveComposerMention detects @brain for skill filtering', () => {
 	  expect(getActiveComposerMention('@brain', 6)).toEqual({

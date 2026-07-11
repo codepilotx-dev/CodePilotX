@@ -382,6 +382,9 @@ export function ComposerCard({
   const selectedPermission = permissionOptions.find(
     (option) => option.value === permissionMode,
   );
+  const goalCanResume = threadGoal
+    ? canResumeThreadGoal(threadGoal.status)
+    : false;
   const composerPlaceholder = modelCatalogLoading
     ? "加载模型列表中……"
     : goalModeEnabled
@@ -1767,7 +1770,7 @@ export function ComposerCard({
                       暂停
                     </PopoverItem>
                   ) : null}
-                  {threadGoal.status === "paused" ? (
+                  {goalCanResume ? (
                     <PopoverItem
                       icon={<Target size={APP_ICON_SIZE} />}
                       onClick={() => {
@@ -1835,6 +1838,14 @@ export function ComposerCard({
         onSendNow={onFollowUpSendNow ?? (() => {})}
       />
     </div>
+  );
+}
+
+export function canResumeThreadGoal(
+  status: DesktopThreadGoal['status'],
+): boolean {
+  return ["paused", "blocked", "usageLimited", "budgetLimited"].includes(
+    status,
   );
 }
 

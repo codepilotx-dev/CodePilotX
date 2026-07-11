@@ -8,6 +8,8 @@ import type {
   DesktopPermissionDecision,
   DesktopPermissionMode,
   DesktopPermissionRequest,
+  DesktopQueuedFollowUp,
+  DesktopSessionSnapshot,
   DesktopSessionEvent,
   DesktopSessionMetadataPatch,
   DesktopSessionStatus,
@@ -107,10 +109,15 @@ export type UseSessionStateResult = {
   pendingPermissionSessionIds: ReadonlySet<string>
   contextUsage: DesktopContextUsage | null
   activeSessionItem: SessionListItem | null
+  queuedFollowUps: DesktopQueuedFollowUp[]
   planModeActive: boolean
   canSubmit: boolean
   input: string
   setInput: (value: string) => void
+  refreshQueuedFollowUps: (
+    sessionId: string,
+    snapshot: DesktopSessionSnapshot,
+  ) => void
   activateSessionById: (targetSessionId: string | null) => DesktopWorkspace | null
   createSessionForWorkspace: (target?: DesktopWorkspace | null, initialSessionName?: string) => Promise<string | null>
   submit: (target?: DesktopWorkspace | null) => Promise<void>
@@ -209,6 +216,9 @@ export function useSessionState(
     useState<Set<string>>(() => new Set())
   const [contextUsage, setContextUsage] =
     useState<DesktopContextUsage | null>(null)
+  const [queuedFollowUps, setQueuedFollowUps] = useState<
+    DesktopQueuedFollowUp[]
+  >([])
   const [input, setInput] = useState('')
   const activeSessionItem = useMemo(
     () => sessions.find(session => session.id === sessionId) ?? null,
@@ -223,6 +233,9 @@ export function useSessionState(
   const sessionViewsRef = useRef<Record<string, SessionViewState>>({})
   const sessionWorkspacesRef = useRef<Record<string, DesktopWorkspace>>({})
   const inputBySessionRef = useRef<Record<string, string>>({})
+  const queuedFollowUpsBySessionRef = useRef<
+    Record<string, DesktopQueuedFollowUp[]>
+  >({})
 
   const onErrorRef = useRef(onError)
   onErrorRef.current = onError
@@ -278,6 +291,32 @@ export function useSessionState(
     }
     setInput(value)
   }, [])
+
+  const refreshQueuedFollowUps = useCallback(
+    (targetSessionId: string, snapshot: DesktopSessionSnapshot): void => {
+      const nextQueuedFollowUps = snapshot.queuedFollowUps ?? []
+      queuedFollowUpsBySessionRef.current = {
+        ...queuedFollowUpsBySessionRef.current,
+        [targetSessionId]: nextQueuedFollowUps,
+      }
+      if (activeSessionIdRef.current === targetSessionId) {
+        setQueuedFollowUps(nextQueuedFollowUps)
+      }
+      sessionsRef.current = sortSessionsByRecency(
+        sessionsRef.current.map(session =>
+          session.id === targetSessionId ? snapshot.item : session,
+        ),
+      )
+      setSessions(current =>
+        sortSessionsByRecency(
+          current.map(session =>
+            session.id === targetSessionId ? snapshot.item : session,
+          ),
+        ),
+      )
+    },
+    [],
+  )
 
   const syncPendingPermissionSessionIds = useCallback((): void => {
     const next = buildPendingPermissionSessionIds(sessionViewsRef.current)
@@ -361,6 +400,7 @@ export function useSessionState(
         ...sessionWorkspacesRef.current,
         [snapshot.item.id]: snapshot.workspace,
       }
+      refreshQueuedFollowUps(snapshot.item.id, snapshot)
       sessionsRef.current = sortSessionsByRecency(
         sessionsRef.current.map(session =>
           session.id === snapshot.item.id ? nextItem : session,
@@ -378,7 +418,7 @@ export function useSessionState(
         applySessionView(nextView, viewSetters)
       }
     },
-    [syncPendingPermissionSessionIds, viewSetters],
+    [refreshQueuedFollowUps, syncPendingPermissionSessionIds, viewSetters],
   )
 
   const hydrateSessionDetails = useCallback(
@@ -479,6 +519,7 @@ export function useSessionState(
       const nextSessions = sortSessionsByRecency(
         change.sessions.map(snapshot => snapshot.item),
       )
+      const nextQueuedFollowUps = buildQueuedFollowUpsBySession(change.sessions)
       const nextViews = { ...sessionViewsRef.current }
       const nextWorkspaces = { ...sessionWorkspacesRef.current }
       for (const snapshot of change.sessions) {
@@ -509,13 +550,17 @@ export function useSessionState(
       }
       sessionViewsRef.current = nextViews
       sessionWorkspacesRef.current = nextWorkspaces
+      queuedFollowUpsBySessionRef.current = nextQueuedFollowUps
       sessionsRef.current = nextSessions
       setPendingPermissionSessionIds(buildPendingPermissionSessionIds(nextViews))
       setSessions(nextSessions)
       setSessionFallbackTitles(buildSessionFallbackTitles(nextViews))
 
       const currentId = activeSessionIdRef.current
-      if (!currentId) return
+      if (!currentId) {
+        setQueuedFollowUps([])
+        return
+      }
       const currentSession = nextSessions.find(session => session.id === currentId)
       if (!currentSession || currentSession.archivedAt) {
         activeSessionIdRef.current = null
@@ -523,10 +568,12 @@ export function useSessionState(
         setSessionStatus('idle')
         applySessionView(createEmptySessionView(), viewSetters)
         setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
+        setQueuedFollowUps([])
         return
       }
       setSessionStatus(currentSession.status)
       applySessionView(nextViews[currentId] ?? createEmptySessionView(), viewSetters)
+      setQueuedFollowUps(nextQueuedFollowUps[currentId] ?? [])
     })
     return () => {
       unsubscribe()
@@ -546,6 +593,7 @@ export function useSessionState(
         const nextSessions = sortSessionsByRecency(
           sessionSnapshots.map(snapshot => snapshot.item),
         )
+        const nextQueuedFollowUps = buildQueuedFollowUpsBySession(sessionSnapshots)
         const nextViews: Record<string, SessionViewState> = {}
         const nextWorkspaces: Record<string, DesktopWorkspace> = {}
         for (const snapshot of sessionSnapshots) {
@@ -570,6 +618,7 @@ export function useSessionState(
 
         sessionViewsRef.current = nextViews
         sessionWorkspacesRef.current = nextWorkspaces
+        queuedFollowUpsBySessionRef.current = nextQueuedFollowUps
         sessionsRef.current = nextSessions
         setPendingPermissionSessionIds(
           buildPendingPermissionSessionIds(nextViews),
@@ -582,6 +631,7 @@ export function useSessionState(
         setSessionStatus('idle')
         applySessionView(createEmptySessionView(), viewSetters)
         setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
+        setQueuedFollowUps([])
         setSessionsHydrated(true)
       } catch (error) {
         setCatalogStatus({
@@ -669,6 +719,7 @@ export function useSessionState(
         setSessionStatus('idle')
         applySessionView(createEmptySessionView(), viewSetters)
         setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
+        setQueuedFollowUps([])
         return null
       }
 
@@ -687,6 +738,9 @@ export function useSessionState(
       )
       void hydrateSessionDetails(targetSessionId)
       setInput(inputBySessionRef.current[targetSessionId] ?? '')
+      setQueuedFollowUps(
+        queuedFollowUpsBySessionRef.current[targetSessionId] ?? [],
+      )
       if (targetSession.standalone) {
         return null
       }
@@ -884,10 +938,12 @@ export function useSessionState(
     pendingPermissionSessionIds,
     contextUsage,
     activeSessionItem,
+    queuedFollowUps,
     planModeActive: effectivePlanModeActive,
     canSubmit,
     input,
     setInput: setScopedInput,
+    refreshQueuedFollowUps,
     activateSessionById,
     createSessionForWorkspace,
     submit,
@@ -905,6 +961,16 @@ export function useSessionState(
 }
 
 const HOME_INPUT_KEY = '__home__'
+
+export function buildQueuedFollowUpsBySession(
+  sessionSnapshots: DesktopSessionSnapshot[],
+): Record<string, DesktopQueuedFollowUp[]> {
+  const queuedFollowUpsBySession: Record<string, DesktopQueuedFollowUp[]> = {}
+  for (const snapshot of sessionSnapshots) {
+    queuedFollowUpsBySession[snapshot.item.id] = snapshot.queuedFollowUps ?? []
+  }
+  return queuedFollowUpsBySession
+}
 
 function errorMessageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
