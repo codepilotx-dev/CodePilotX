@@ -77,6 +77,7 @@ import type {
   DesktopModelProviderState,
   DesktopBrowserState,
   DesktopComposerAttachment,
+  DesktopUserMessageInput,
   DesktopPermissionMode,
   DesktopRemovedWorkspace,
   DesktopWorkspace,
@@ -84,6 +85,7 @@ import type {
   ModelProviderID,
   SidebarSectionId,
 } from '../../../shared/types.js'
+import type { SubmitSessionOptions } from '../session/sessionActions.js'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { upsertRecentWorkspace } from '../../../shared/settings.js'
 
@@ -107,6 +109,7 @@ export function DesktopLayout(): React.ReactNode {
     deepModel,
     sessionName,
     thinkingMode,
+    followUpBehavior,
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
@@ -282,6 +285,7 @@ export function DesktopLayout(): React.ReactNode {
     deepModel,
     sessionName,
     thinkingMode,
+    followUpBehavior,
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
@@ -743,9 +747,18 @@ export function DesktopLayout(): React.ReactNode {
   const sideChatSubmitToSession = useCallback(
     async (
       sessionId: string,
-      value: { text: string; attachments: DesktopComposerAttachment[] },
+      value: DesktopUserMessageInput,
+      options?: SubmitSessionOptions,
     ): Promise<void> => {
-      await submitToSession(sessionId, value)
+      let restored = false
+      await submitToSession(sessionId, value, {
+        ...options,
+        onRestoreInput: input => {
+          restored = true
+          options?.onRestoreInput?.(input)
+        },
+      })
+      if (restored) return
       setSideChatInput('')
       setSideChatAttachments([])
     },
@@ -1655,6 +1668,7 @@ export function DesktopLayout(): React.ReactNode {
       onThinkingChange={setThinkingMode}
       createSessionForWorkspace={createSessionForWorkspace}
       submitToSession={submitToSession}
+      followUpBehavior={followUpBehavior}
     />
   ) : null
   const sideChatComposer =
@@ -1707,6 +1721,7 @@ export function DesktopLayout(): React.ReactNode {
         onThinkingChange={setThinkingMode}
         createSessionForWorkspace={createSessionForWorkspace}
         submitToSession={sideChatSubmitToSession}
+        followUpBehavior={followUpBehavior}
       />
     ) : null
   const toggleBottomPanelVisible = useCallback((): void => {

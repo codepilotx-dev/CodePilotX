@@ -17,7 +17,10 @@ import type {
   LocalRouterMode,
   ModelProviderID,
 } from '../../../shared/types.js'
-import { hasBlockingComposerAttachmentErrors } from '../../../shared/desktopUserMessage.js'
+import {
+  desktopUserMessageInputToPreviewText,
+  hasBlockingComposerAttachmentErrors,
+} from '../../../shared/desktopUserMessage.js'
 import { desktopClient } from '../../services/desktopClient.js'
 import {
   getVisiblePermissionModeOptions,
@@ -26,6 +29,7 @@ import {
 import type { ModelPreset } from '../../modelPresets.js'
 import type { Message } from '../../uiTypes.js'
 import { ComposerCard } from './ComposerCard.js'
+import type { SubmitSessionOptions } from './sessionActions.js'
 
 type ProviderModelOption = {
   providerID: ModelProviderID
@@ -91,9 +95,7 @@ type Props = {
   submitToSession: (
     targetSessionId: string,
     value: DesktopUserMessageInput,
-    options?: {
-      followUpOverride?: DesktopFollowUpBehavior
-    },
+    options?: SubmitSessionOptions,
   ) => Promise<void>
   followUpBehavior?: DesktopFollowUpBehavior
   queuedFollowUps?: DesktopQueuedFollowUp[]
@@ -105,6 +107,28 @@ type Props = {
   onGoalResume?: () => void
   onGoalComplete?: () => void
   onGoalClear?: () => void
+}
+
+type DesktopComposerCanSubmitInput = {
+  hasContent: boolean
+  hasAttachmentErrors: boolean
+  unsupportedAttachmentReason: string | null
+  modelConfigured: boolean
+  isQuickChatPage: boolean
+  routedSessionId: string | null
+  sessionStatus?: DesktopSessionStatus
+}
+
+export function getDesktopComposerCanSubmit(
+  input: DesktopComposerCanSubmitInput,
+): boolean {
+  return (
+    input.hasContent &&
+    !input.hasAttachmentErrors &&
+    !input.unsupportedAttachmentReason &&
+    input.modelConfigured &&
+    (input.isQuickChatPage || Boolean(input.routedSessionId))
+  )
 }
 
 export function DesktopComposer({
@@ -179,14 +203,19 @@ export function DesktopComposer({
     attachments,
     selectedModelMetadata,
   )
-  const canSubmit =
-    (Boolean(input.trim()) || attachments.length > 0 || selectedSkillToken !== null) &&
-    !hasAttachmentErrors &&
-    !unsupportedAttachmentReason &&
-    modelConfigured &&
-    sessionStatus !== 'running' &&
-    sessionStatus !== 'waiting' &&
-    (isQuickChatPage || Boolean(routedSessionId))
+  const hasContent =
+    Boolean(input.trim()) ||
+    attachments.length > 0 ||
+    selectedSkillToken !== null
+  const canSubmit = getDesktopComposerCanSubmit({
+    hasContent,
+    hasAttachmentErrors,
+    unsupportedAttachmentReason,
+    modelConfigured,
+    isQuickChatPage,
+    routedSessionId,
+    sessionStatus,
+  })
   const attachmentIds = useMemo(
     () => new Set(attachments.map(attachment => attachment.id)),
     [attachments],
@@ -289,6 +318,10 @@ export function DesktopComposer({
 	        text: submittedInput,
 	        attachments: submittedAttachments,
 	      }
+	      const onRestoreInput = (restoredInput: DesktopUserMessageInput): void => {
+	        onInputChange(desktopUserMessageInputToPreviewText(restoredInput))
+	        onAttachmentsChange(restoredInput.attachments ?? [])
+	      }
 	      setSelectedSkillToken(null)
 	      setGoalModeEnabled(false)
 	      if (isQuickChatPage) {
@@ -302,13 +335,15 @@ export function DesktopComposer({
 	          : await createSessionForWorkspace(null, sessionName)
         if (!nextSessionId) return
         navigate(sessionPath(nextSessionId))
-        const overrideOpts = override ? { followUpOverride: override } : undefined
-        await submitToSession(nextSessionId, messageInput, overrideOpts)
+        await submitToSession(nextSessionId, messageInput, { onRestoreInput })
         return
       }
       if (routedSessionId) {
         onAttachmentsChange([])
-        const overrideOpts = override ? { followUpOverride: override } : undefined
+        const overrideOpts: SubmitSessionOptions = {
+          followUpOverride: override,
+          onRestoreInput,
+        }
         await submitToSession(routedSessionId, messageInput, overrideOpts)
       }
     })()

@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test'
 import {
+  getDesktopComposerCanSubmit,
   getDesktopComposerBranchName,
 } from './DesktopComposer.js'
 import type { DesktopWorkspace } from '../../../shared/types.js'
@@ -26,4 +27,18 @@ test('getDesktopComposerBranchName handles non-git workspace', () => {
     isGitRepo: false,
   }
   expect(getDesktopComposerBranchName(workspace)).toBe('未检测到 Git 分支')
+})
+
+test('getDesktopComposerCanSubmit allows a running session with content', () => {
+  expect(
+    getDesktopComposerCanSubmit({
+      hasContent: true,
+      hasAttachmentErrors: false,
+      unsupportedAttachmentReason: null,
+      modelConfigured: true,
+      isQuickChatPage: false,
+      routedSessionId: 'session-1',
+      sessionStatus: 'running',
+    }),
+  ).toBe(true)
 })

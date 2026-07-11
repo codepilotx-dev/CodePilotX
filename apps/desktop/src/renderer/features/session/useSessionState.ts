@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopAgentEvent,
   DesktopContextUsage,
+  DesktopFollowUpBehavior,
   DesktopSessionCatalogStatus,
   DesktopPermissionDecision,
   DesktopPermissionMode,
@@ -24,6 +25,7 @@ import type {
   ToolLogEntry,
 } from '../../uiTypes.js'
 import { sessionViewFallbackTitle } from '../../uiTypes.js'
+import { desktopUserMessageInputToPreviewText } from '../../../shared/desktopUserMessage.js'
 import {
   activateSession,
   closeSessionAction,
@@ -39,6 +41,7 @@ import {
   type CloseSessionResult,
   type SessionActionContext,
   type SessionSettingsSnapshot,
+  type SubmitSessionOptions,
 } from './sessionActions.js'
 import { handleSessionAgentEvent } from './sessionEvents.js'
 import {
@@ -76,6 +79,7 @@ export type UseSessionStateOptions = {
   deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
+  followUpBehavior: DesktopFollowUpBehavior
   systemPrompt: string
   appendSystemPrompt: string
   additionalDirectories: string
@@ -113,6 +117,7 @@ export type UseSessionStateResult = {
   submitToSession: (
     targetSessionId: string,
     value: DesktopUserMessageInput,
+    options?: SubmitSessionOptions,
   ) => Promise<void>
   interrupt: () => Promise<void>
   decidePermission: (
@@ -168,6 +173,7 @@ export function useSessionState(
     deepModel,
     sessionName,
     thinkingMode,
+    followUpBehavior,
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
@@ -610,6 +616,7 @@ export function useSessionState(
       deepModel,
       sessionName,
       thinkingMode,
+      followUpBehavior,
       systemPrompt,
       appendSystemPrompt,
       additionalDirectories,
@@ -626,6 +633,7 @@ export function useSessionState(
       rustSearchAndDiffKernels,
       debugConversationDump,
       fastModel,
+      followUpBehavior,
       planExecutionModel,
       model,
       reviewModel,
@@ -694,16 +702,15 @@ export function useSessionState(
     () =>
       Boolean(
         sessionId &&
-          input.trim() &&
-          sessionStatus !== 'running' &&
-          sessionStatus !== 'waiting',
+          input.trim(),
       ),
-    [input, sessionId, sessionStatus],
+    [input, sessionId],
   )
 
   const submitToSession = useCallback(async (
     targetSessionId: string,
     value: DesktopUserMessageInput,
+    options?: SubmitSessionOptions,
   ): Promise<void> => {
     const targetStatus =
       sessionsRef.current.find(session => session.id === targetSessionId)
@@ -716,20 +723,33 @@ export function useSessionState(
       targetSessionId,
       value,
       Boolean(
-          targetSessionId &&
-          (value.text.trim() || (value.attachments?.length ?? 0) > 0) &&
-          targetStatus !== 'running' &&
-          targetStatus !== 'waiting',
+        targetSessionId &&
+          (value.text.trim() ||
+            (value.attachments?.length ?? 0) > 0 ||
+            value.skillInvocation),
       ),
       settingsSnapshot,
-      nextValue => {
+      nextInput => {
+        const previewText = desktopUserMessageInputToPreviewText(nextInput)
         inputBySessionRef.current = {
           ...inputBySessionRef.current,
-          [targetSessionId]: nextValue,
+          [targetSessionId]: previewText,
         }
         if (activeSessionIdRef.current === targetSessionId) {
-          setInput(nextValue)
+          setInput(previewText)
         }
+        if (
+          nextInput.text ||
+          (nextInput.attachments?.length ?? 0) > 0 ||
+          nextInput.skillInvocation
+        ) {
+          options?.onRestoreInput?.(nextInput)
+        }
+      },
+      {
+        sessionStatus: targetStatus,
+        followUpBehavior: settingsSnapshot.followUpBehavior,
+        followUpOverride: options?.followUpOverride,
       },
     )
   }, [settingsSnapshot])

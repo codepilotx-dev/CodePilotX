@@ -13,7 +13,6 @@ import type {
   DesktopUserMessageInput,
   DesktopWorkspace,
 } from '../../../shared/types.js'
-import { desktopUserMessageInputToPreviewText } from '../../../shared/desktopUserMessage.js'
 import type { SessionListItem, SessionViewState } from '../../uiTypes.js'
 import {
   normalizeOptionalText,
@@ -44,12 +43,18 @@ export type SessionSettingsSnapshot = {
   deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
+  followUpBehavior: DesktopFollowUpBehavior
   systemPrompt: string
   appendSystemPrompt: string
   additionalDirectories: string
   installCodePilotXDependencies: boolean
   enableMemory: boolean
   rustSearchAndDiffKernels: boolean
+}
+
+export type SubmitSessionOptions = {
+  followUpOverride?: DesktopFollowUpBehavior
+  onRestoreInput?: (input: DesktopUserMessageInput) => void
 }
 
 export type SessionActionContext = {
@@ -172,7 +177,7 @@ export async function submitSessionMessageAction(
   input: DesktopUserMessageInput,
   canSubmit: boolean,
   settings: SessionSettingsSnapshot,
-  setInput: (value: string) => void,
+  restoreInput: (input: DesktopUserMessageInput) => void,
   options?: {
     sessionStatus?: DesktopSessionStatus
     followUpBehavior?: DesktopFollowUpBehavior
@@ -180,11 +185,13 @@ export async function submitSessionMessageAction(
   },
 ): Promise<void> {
   if (!canSubmit || !sessionId) return
-  const isActive = options?.sessionStatus === 'running' || options?.sessionStatus === 'waiting'
-  setInput('')
+  const isActive =
+    options?.sessionStatus === 'running' || options?.sessionStatus === 'waiting'
+  restoreInput({ text: '' })
   try {
     if (isActive) {
-      const behavior = options?.followUpOverride ?? options?.followUpBehavior ?? 'steer'
+      const behavior =
+        options?.followUpOverride ?? options?.followUpBehavior ?? 'steer'
       await desktopClient.submitSessionFollowUp(sessionId, input, behavior)
     } else {
       await desktopClient.sendUserMessage(
@@ -201,7 +208,7 @@ export async function submitSessionMessageAction(
     }
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))
-    setInput(desktopUserMessageInputToPreviewText(input))
+    restoreInput(input)
   }
 }
 
