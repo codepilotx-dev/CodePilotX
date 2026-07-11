@@ -66,6 +66,10 @@ export type SessionActionContext = {
   setSessions: Dispatch<SetStateAction<SessionListItem[]>>
   setSessionId: Dispatch<SetStateAction<string | null>>
   setSessionStatus: Dispatch<SetStateAction<DesktopSessionStatus>>
+  onSessionRemoved?: (
+    removedSessionId: string,
+    activeSessionId: string | null,
+  ) => void
 }
 
 export type CloseSessionResult = {
@@ -283,11 +287,16 @@ export async function closeSessionAction(
   context.setSessions(remaining)
 
   if (targetSessionId !== context.activeSessionIdRef.current) {
+    context.onSessionRemoved?.(
+      targetSessionId,
+      context.activeSessionIdRef.current,
+    )
     return { nextActiveSession: null, nextWorkspace: null }
   }
 
   const next = remaining[0]
   activateSession(context, next?.id ?? null)
+  context.onSessionRemoved?.(targetSessionId, next?.id ?? null)
   context.setSessionStatus(next?.status ?? 'idle')
   if (next) {
     applySessionView(
@@ -336,12 +345,19 @@ export async function updateSessionMetadataAction(
   const archivedActiveSession =
     targetSessionId === context.activeSessionIdRef.current &&
     updatedSession.archivedAt
+  if (updatedSession.archivedAt && !archivedActiveSession) {
+    context.onSessionRemoved?.(
+      targetSessionId,
+      context.activeSessionIdRef.current,
+    )
+  }
   if (!archivedActiveSession) {
     return { nextActiveSession: null, nextWorkspace: null }
   }
 
   const next = updatedSessions.find(session => !session.archivedAt) ?? null
   activateSession(context, next?.id ?? null)
+  context.onSessionRemoved?.(targetSessionId, next?.id ?? null)
   context.setSessionStatus(next?.status ?? 'idle')
   if (next) {
     applySessionView(

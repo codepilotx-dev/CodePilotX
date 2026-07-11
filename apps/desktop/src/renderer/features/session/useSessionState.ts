@@ -246,6 +246,21 @@ export function useSessionState(
   const onOpenDrawerPermissionsRef = useRef(onOpenDrawerPermissions)
   onOpenDrawerPermissionsRef.current = onOpenDrawerPermissions
 
+  const removeQueuedFollowUpsForSession = useCallback(
+    (removedSessionId: string, activeSessionId: string | null): void => {
+      const { [removedSessionId]: _removed, ...remainingQueues } =
+        queuedFollowUpsBySessionRef.current
+      queuedFollowUpsBySessionRef.current = remainingQueues
+      setQueuedFollowUps(
+        resolveQueuedFollowUpsForActiveSession(
+          remainingQueues,
+          activeSessionId,
+        ),
+      )
+    },
+    [],
+  )
+
   const viewSetters = useMemo<SessionViewStateSetters>(
     () => ({
       setEvents,
@@ -271,8 +286,9 @@ export function useSessionState(
       setSessions,
       setSessionId,
       setSessionStatus,
+      onSessionRemoved: removeQueuedFollowUpsForSession,
     }),
-    [viewSetters],
+    [removeQueuedFollowUpsForSession, viewSetters],
   )
 
   useEffect(() => {

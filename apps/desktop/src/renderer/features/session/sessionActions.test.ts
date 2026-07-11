@@ -1,11 +1,15 @@
 import { afterEach, expect, mock, test } from 'bun:test'
 import { desktopClient } from '../../services/desktopClient.js'
 import type {
+  DesktopSessionSnapshot,
   DesktopUserMessageInput,
 } from '../../../shared/types.js'
+import type { SessionListItem } from '../../uiTypes.js'
 import {
   activateSession,
+  closeSessionAction,
   submitSessionMessageAction,
+  updateSessionMetadataAction,
   type SessionActionContext,
   type SessionSettingsSnapshot,
 } from './sessionActions.js'
@@ -37,10 +41,14 @@ const settings: SessionSettingsSnapshot = {
 
 const originalSubmitSessionFollowUp = desktopClient.submitSessionFollowUp
 const originalSendUserMessage = desktopClient.sendUserMessage
+const originalDisposeSession = desktopClient.disposeSession
+const originalUpdateSessionMetadata = desktopClient.updateSessionMetadata
 
 afterEach(() => {
   desktopClient.submitSessionFollowUp = originalSubmitSessionFollowUp
   desktopClient.sendUserMessage = originalSendUserMessage
+  desktopClient.disposeSession = originalDisposeSession
+  desktopClient.updateSessionMetadata = originalUpdateSessionMetadata
 })
 
 test('activateSession does nothing when the active session id is unchanged', () => {
@@ -231,3 +239,95 @@ test('attachment-only input submits normally', async () => {
     expect.any(Object),
   )
 })
+
+test('closing the active session notifies queue state with the newly active session', async () => {
+  desktopClient.disposeSession = mock(async () => {})
+  const onSessionRemoved = mock()
+  const context = queueTransitionContext(onSessionRemoved)
+
+  await closeSessionAction(
+    context,
+    [sessionItem('session-1'), sessionItem('session-2')],
+    'session-1',
+  )
+
+  expect(onSessionRemoved).toHaveBeenCalledWith('session-1', 'session-2')
+})
+
+test('archiving the active session notifies queue state with the newly active session', async () => {
+  desktopClient.updateSessionMetadata = mock(async () => ({
+    item: { ...sessionItem('session-1'), archivedAt: '2026-01-02T00:00:00.000Z' },
+  } as unknown as DesktopSessionSnapshot)) as typeof desktopClient.updateSessionMetadata
+  const onSessionRemoved = mock()
+  const context = queueTransitionContext(onSessionRemoved)
+
+  await updateSessionMetadataAction(
+    context,
+    [sessionItem('session-1'), sessionItem('session-2')],
+    'session-1',
+    { archivedAt: '2026-01-02T00:00:00.000Z' },
+  )
+
+  expect(onSessionRemoved).toHaveBeenCalledWith('session-1', 'session-2')
+})
+
+test('archiving an inactive session still removes its queue state', async () => {
+  desktopClient.updateSessionMetadata = mock(async () => ({
+    item: { ...sessionItem('session-2'), archivedAt: '2026-01-02T00:00:00.000Z' },
+  } as unknown as DesktopSessionSnapshot)) as typeof desktopClient.updateSessionMetadata
+  const onSessionRemoved = mock()
+  const context = queueTransitionContext(onSessionRemoved)
+
+  await updateSessionMetadataAction(
+    context,
+    [sessionItem('session-1'), sessionItem('session-2')],
+    'session-2',
+    { archivedAt: '2026-01-02T00:00:00.000Z' },
+  )
+
+  expect(onSessionRemoved).toHaveBeenCalledWith('session-2', 'session-1')
+})
+
+function queueTransitionContext(onSessionRemoved: ReturnType<typeof mock>): SessionActionContext {
+  return {
+    activeSessionIdRef: { current: 'session-1' },
+    sessionViewsRef: { current: {} },
+    sessionWorkspacesRef: { current: {} },
+    onErrorRef: { current: mock() },
+    viewSetters: {
+      setEvents: mock(),
+      setWorkflowEvents: mock(),
+      setMessages: mock(),
+      setToolLog: mock(),
+      setPendingPermissions: mock(),
+      setContextUsage: mock(),
+    },
+    setSessions: mock(),
+    setSessionId: mock(),
+    setSessionStatus: mock(),
+    onSessionRemoved,
+  } as unknown as SessionActionContext
+}
+
+function sessionItem(id: string): SessionListItem {
+  return {
+    id,
+    sessionName: null,
+    aiTitle: null,
+    workspaceName: 'workspace',
+    workspacePath: 'C:/workspace',
+    standalone: false,
+    permissionMode: 'default',
+    planModeActive: false,
+    localRouterMode: 'off',
+    model: null,
+    reviewModel: null,
+    thinkingMode: 'default',
+    hasSystemPrompt: false,
+    hasAppendSystemPrompt: false,
+    additionalDirectoryCount: 0,
+    status: 'idle' as const,
+    lastMessageAt: null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+  } as SessionListItem
+}
