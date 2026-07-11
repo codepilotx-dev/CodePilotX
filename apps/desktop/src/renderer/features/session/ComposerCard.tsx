@@ -91,6 +91,23 @@ type ComposerDropdown =
   | "status"
   | "goal";
 
+export function resolveComposerSubmitBehavior(
+  event: Pick<
+    React.KeyboardEvent,
+    "key" | "shiftKey" | "ctrlKey" | "metaKey"
+  >,
+  defaultBehavior: DesktopFollowUpBehavior,
+): DesktopFollowUpBehavior | null | "newline" {
+  if (event.key !== "Enter") return null;
+  if (event.shiftKey) return "newline";
+
+  if (event.ctrlKey || event.metaKey) {
+    return defaultBehavior === "steer" ? "queue" : "steer";
+  }
+
+  return null;
+}
+
 type ContextPluginTone =
   | "docs"
   | "pdf"
@@ -810,6 +827,11 @@ export function ComposerCard({
   }
 
   const isRunning = sessionStatus === "running" || sessionStatus === "waiting";
+  const sendTitle = isRunning
+    ? followUpBehavior === "steer"
+      ? "跟进当前任务；Ctrl+Enter 排队"
+      : "排队发送；Ctrl+Enter 跟进当前任务"
+    : "发送";
   const showFullAccessWarning = permissionMode === "full-access";
   const contextUsedText = contextUsage
     ? `${formatCompactNumber(contextUsage.usedTokens)} / ${formatCompactNumber(
@@ -1044,9 +1066,19 @@ export function ComposerCard({
                 }
               }
 
-              if (event.key !== "Enter" || event.shiftKey) return;
+              if (event.key !== "Enter") return;
+              const submitBehavior = resolveComposerSubmitBehavior(
+                event,
+                followUpBehavior,
+              );
+              if (submitBehavior === "newline") return;
               event.preventDefault();
-              if (canSubmit) onSubmit();
+              if (!canSubmit) return;
+              if (submitBehavior) {
+                onSubmit(submitBehavior);
+                return;
+              }
+              onSubmit();
             }}
             onPaste={handlePaste}
             placeholder={selectedSkillToken ? "" : composerPlaceholder}
@@ -1571,15 +1603,11 @@ export function ComposerCard({
               <Mic size={APP_ICON_SIZE} />
             </IconButton>
             <button
-              aria-label="发送跟进"
+              aria-label={isRunning ? "发送跟进" : "发送"}
               className="send-button"
               disabled={!canSubmit}
               onClick={() => onSubmit()}
-              title={
-                modelConfigured
-                  ? (submitDisabledReason ?? "发送")
-                  : (modelConfigurationMessage ?? "未配置模型")
-              }
+              title={sendTitle}
               type="button"
             >
               <ArrowUp

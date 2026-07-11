@@ -1,7 +1,12 @@
 import { expect, test } from 'bun:test'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { ComposerCard, CONTEXT_AGENT_OPTIONS, getActiveComposerMention } from './ComposerCard.js'
+import {
+  ComposerCard,
+  CONTEXT_AGENT_OPTIONS,
+  getActiveComposerMention,
+  resolveComposerSubmitBehavior,
+} from './ComposerCard.js'
 import {
   ChatInputDropdown,
   computeDropdownMaxHeight,
@@ -378,17 +383,55 @@ test('getActiveComposerMention returns null for empty input', () => {
   expect(getActiveComposerMention('', 0)).toBeNull()
 })
 
-test('ComposerCard shows running state stop button with Esc tooltip', () => {
+test('running composer shows both send and stop controls', () => {
   const html = renderWithProviders(
     <ComposerCard
       {...baseProps}
+      canSubmit
       sessionStatus="running"
     />,
   )
 
+  expect(html).toContain('lucide-arrow-up')
   expect(html).toContain('停止 Esc')
   expect(html).toContain('lucide-square')
-  expect(html).not.toContain('lucide-arrow-up')
+  expect(html).toContain('发送跟进')
+})
+
+test('resolveComposerSubmitBehavior inverts steer with Ctrl+Enter', () => {
+  expect(
+    resolveComposerSubmitBehavior(
+      { key: 'Enter', shiftKey: false, ctrlKey: true, metaKey: false },
+      'steer',
+    ),
+  ).toBe('queue')
+})
+
+test('resolveComposerSubmitBehavior inverts queue with Meta+Enter', () => {
+  expect(
+    resolveComposerSubmitBehavior(
+      { key: 'Enter', shiftKey: false, ctrlKey: false, metaKey: true },
+      'queue',
+    ),
+  ).toBe('steer')
+})
+
+test('resolveComposerSubmitBehavior keeps Shift+Enter as a newline', () => {
+  expect(
+    resolveComposerSubmitBehavior(
+      { key: 'Enter', shiftKey: true, ctrlKey: false, metaKey: false },
+      'steer',
+    ),
+  ).toBe('newline')
+})
+
+test('resolveComposerSubmitBehavior uses default behavior for plain Enter', () => {
+  expect(
+    resolveComposerSubmitBehavior(
+      { key: 'Enter', shiftKey: false, ctrlKey: false, metaKey: false },
+      'queue',
+    ),
+  ).toBeNull()
 })
 
 test('computeDropdownMaxHeight clamps dropdown height to remaining page space', () => {
