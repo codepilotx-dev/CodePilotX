@@ -6,6 +6,8 @@
 - `7986a9bd4 feat(desktop)：优化流式消息聚合与渲染`
 - `8cc07e80b feat(desktop)：修复并发持久化与退出失败处理`
 - `bcce651ef feat(desktop)：封闭流式终态并保持线性更新`
+- `9948aa399 feat(desktop)：加固会话持久化锁与崩溃恢复`
+- `838ca4587 feat(desktop)：收敛流式缓冲与终态保护`
 
 ## Persistence RED / GREEN
 
@@ -29,8 +31,11 @@ GREEN behavior:
 - Concurrent flush callers share the same per-path in-flight drain. Items
   appended during a drain are included before that drain resolves.
 - Rollout writes use `O_APPEND`, call `sync()`, and preserve existing file
-  mode/ACLs. Stable batch ids and per-line indices make an unknown append result
-  retry idempotent; recovery tests verify each completed item appears once.
+  mode/ACLs. An atomic companion lock directory serializes independent desktop
+  schedulers; a durable companion recovery journal records the original offset,
+  byte length and hash before append. It recognizes a completed unknown append
+  result or truncates a partial tail before replay. JSONL records contain only
+  the protocol's `timestamp`, `type`, and `payload` fields.
 - Session-store saves retain the latest pending state, reject `flush()` on
   failure, and clear the error only after a successful retry.
 
@@ -99,12 +104,13 @@ because JSONL has independent appenders while the index has a single owner.
 - Replaced full-file rollout replacement with durable `O_APPEND`. Desktop and
   Rust app-server rollouts have distinct owners/paths; the one desktop bypass
   (session metadata) now also uses the scheduler.
-- Each scheduler batch has a stable id plus line index/size metadata. A retry
-  scans complete indices and appends only missing records. Blank/corrupt lines
-  are ignored by the real loader; a partial tail recovery test returns each
-  completed message once. Existing files without a trailing newline receive a
-  separator. Two independent schedulers plus an external append retain all
-  records without replacing mode/ACL state.
+- Each scheduler batch has a stable id stored only in the companion journal.
+  Recovery validates the exact appended tail by length and SHA-256; incomplete
+  tails are truncated to the journal's original byte offset. Existing files
+  without a trailing newline receive a separator. Two independent schedulers
+  writing 12 x 64 KiB records each retain 24 valid, contiguous JSONL records.
+  Stale locks are reclaimed after the bounded threshold and lock cleanup runs
+  on both success and injected failure.
 - Shutdown now rejects and keeps Electron running when either flush fails. Its
   singleton promise resets so the next quit request retries. Session deletion
   flushes first and leaves server/index/runtime/local state intact on failure.
@@ -114,13 +120,24 @@ because JSONL has independent appenders while the index has a single owner.
   generation + item id; stale callbacks and late deltas emit nothing.
 - Time-spread adapter processing joins only new chunks. 10,000 x 20 characters
   over 250 timer ticks processes exactly 200,000 characters. Reasoning and
-  summary streams also emit delta chunks and stop at turn terminal state.
-- Renderer transient state retains fixed delta chunks, renders them as fragments
-  while streaming, and joins only the final completed text. Its 10,000-chunk
-  stress retains exactly 200,000 characters with no cumulative text copies.
+  summary streams now share the same 40 ms state-owned buffering policy;
+  generation checks and terminal cleanup suppress stale callbacks and late
+  deltas.
+- Renderer transient state is owned by each session view rather than module
+  globals. `StreamingText` maintains one DOM `Text` node and calls `appendData`
+  only for unprocessed chunks. Its 10,000-chunk stress retains exactly 200,000
+  characters with no cumulative text copies.
 - Workflow transient identity uses stream/item identity, preserving
   assistant-1 -> tool -> assistant-2 ordering within one turn.
 
 Fresh follow-up validation: root `bun run test` passed 200 tests / 501
 assertions; desktop typecheck, CSS ownership check and branch diff check all
 exited zero.
+
+Second-review fresh validation: Task 4B's six integrated suites passed 127 tests
+/ 358 assertions, including persistence status, durable-history exclusion,
+adapter throttling, renderer streaming, and UI status. Root `bun run test`
+again passed 200 tests / 501 assertions. Desktop typecheck, CSS ownership and
+`git diff --check` exited zero. A separate unscoped `bun test` auto-discovery
+probe exceeded the 124-second command limit without reporting an assertion
+failure; it is not used as the repository's configured test gate.
