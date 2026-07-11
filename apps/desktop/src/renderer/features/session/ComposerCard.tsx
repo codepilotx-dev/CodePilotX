@@ -42,6 +42,7 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from "../../components/ui/iconTokens.js";
 import type {
+  DesktopFollowUpBehavior,
   DesktopPermissionMode,
   DesktopQueuedFollowUp,
   DesktopSessionStatus,
@@ -261,7 +262,8 @@ type Props = {
   onPermissionChange: (value: DesktopPermissionMode) => void;
   onPlanModeChange?: (active: boolean) => void;
   onLocalRouterModeChange?: (mode: LocalRouterMode) => void;
-  onSubmit: () => void;
+  onSubmit: (override?: DesktopFollowUpBehavior) => void;
+  followUpBehavior?: DesktopFollowUpBehavior;
   onThinkingChange: (value: DesktopThinkingMode) => void;
   onSkillSelect?: (
     skill: DesktopSlashCommandSuggestion & { skillPath: string },
@@ -347,6 +349,7 @@ export function ComposerCard({
   onGoalResume,
   onGoalComplete,
   onGoalClear,
+  followUpBehavior = "steer",
 }: Props): React.ReactNode {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(
@@ -1568,28 +1571,32 @@ export function ComposerCard({
               <Mic size={APP_ICON_SIZE} />
             </IconButton>
             <button
-              aria-label={isRunning ? "停止" : "发送"}
+              aria-label="发送跟进"
               className="send-button"
-              disabled={!isRunning && !canSubmit}
-              onClick={isRunning ? onInterrupt : onSubmit}
+              disabled={!canSubmit}
+              onClick={() => onSubmit()}
               title={
-                isRunning
-                  ? "停止 Esc"
-                  : modelConfigured
-                    ? (submitDisabledReason ?? "发送")
-                    : (modelConfigurationMessage ?? "未配置模型")
+                modelConfigured
+                  ? (submitDisabledReason ?? "发送")
+                  : (modelConfigurationMessage ?? "未配置模型")
               }
               type="button"
             >
-              {isRunning ? (
-                <Square size={APP_ICON_SIZE} fill="currentColor" />
-              ) : (
-                <ArrowUp
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
-              )}
+              <ArrowUp
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </button>
+            {isRunning ? (
+              <IconButton
+                aria-label="停止"
+                className="composer-stop-button"
+                onClick={onInterrupt}
+                title="停止 Esc"
+              >
+                <Square size={APP_ICON_SIZE} fill="currentColor" />
+              </IconButton>
+            ) : null}
           </div>
         </div>
         <ChatInputDropdown
