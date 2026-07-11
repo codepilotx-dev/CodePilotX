@@ -24,6 +24,14 @@ const THEME_SUITE_IDS = [
   'iris-focus',
 ] as const
 
+const DARK_ONLY_THEME_IDS = [
+  'dark-everforest',
+  'dark-lobster',
+  'dark-linear',
+  'dark-night-owl',
+  'dark-tokyo-night',
+] as const
+
 test('DEFAULT_LIGHT_THEME uses CodePilotX desktop tokens', () => {
   expect(DEFAULT_LIGHT_THEME.theme.surface).toBe('#ffffff')
   expect(DEFAULT_LIGHT_THEME.theme.ink).toBe('#0d0d0d')
@@ -48,13 +56,9 @@ test('DEFAULT_DARK_THEME uses CodePilotX desktop tokens', () => {
 })
 
 test('built-in desktop themes include eleven paired suites', () => {
-  const pairedPresets = DESKTOP_THEME_PRESETS.filter(preset =>
-    THEME_SUITE_IDS.some(
-      suiteId => preset.id === `light-${suiteId}` || preset.id === `dark-${suiteId}`,
-    ),
+  expect(DESKTOP_THEME_PRESETS).toHaveLength(
+    THEME_SUITE_IDS.length * 2 + DARK_ONLY_THEME_IDS.length,
   )
-
-  expect(pairedPresets).toHaveLength(THEME_SUITE_IDS.length * 2)
 
   for (const suiteId of THEME_SUITE_IDS) {
     const lightTheme = DESKTOP_THEME_PRESETS.find(
@@ -287,7 +291,10 @@ test('dark-only presets use exact desktop tokens without light counterparts', ()
     },
   } as const
 
-  for (const [id, tokens] of Object.entries(expected)) {
+  expect(DARK_ONLY_THEME_IDS).toHaveLength(5)
+
+  for (const id of DARK_ONLY_THEME_IDS) {
+    const tokens = expected[id]
     const preset = DESKTOP_THEME_PRESETS.find(item => item.id === id)
     expect(preset).toMatchObject({
       id,
