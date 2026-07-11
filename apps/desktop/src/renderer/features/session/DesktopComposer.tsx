@@ -108,6 +108,7 @@ type Props = {
   onGoalComplete?: () => void
   onGoalClear?: () => void
   onError: (message: string) => void
+  onGoalCreated: (sessionId: string) => Promise<void>
 }
 
 type DesktopComposerCanSubmitInput = {
@@ -191,6 +192,7 @@ export function DesktopComposer({
   onGoalComplete,
   onGoalClear,
   onError,
+  onGoalCreated,
 }: Props): React.ReactNode {
   const navigate = useNavigate()
   const [goalModeEnabled, setGoalModeEnabled] = useState(false)
@@ -295,6 +297,7 @@ export function DesktopComposer({
           onSelectedSkillTokenChange: setSelectedSkillToken,
           onGoalModeChange: setGoalModeEnabled,
           onError,
+          onGoalCreated,
         })
         if (created && planExecutionModel) {
           const slashIdx = planExecutionModel.indexOf('/')
@@ -488,6 +491,7 @@ type DesktopComposerGoalSubmission = {
   ) => void
   onGoalModeChange: (enabled: boolean) => void
   onError: (message: string) => void
+  onGoalCreated: (sessionId: string) => Promise<void>
 }
 
 export async function submitDesktopComposerGoal(
@@ -507,6 +511,7 @@ export async function submitDesktopComposerGoal(
     submission.onGoalModeChange(false)
     submission.onInputChange('')
     submission.onAttachmentsChange([])
+    await submission.onGoalCreated(submission.routedSessionId)
     return true
   } catch (error) {
     submission.onInputChange(pendingGoal.text)

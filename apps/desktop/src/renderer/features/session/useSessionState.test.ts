@@ -1,6 +1,9 @@
 import { expect, test } from 'bun:test'
 import type { DesktopSessionSnapshot } from '../../../shared/types.js'
-import { buildQueuedFollowUpsBySession } from './useSessionState.js'
+import {
+  buildQueuedFollowUpsBySession,
+  resolveQueuedFollowUpsForActiveSession,
+} from './useSessionState.js'
 
 test('buildQueuedFollowUpsBySession retains root queue items for each session', () => {
   const snapshots = [
@@ -22,6 +25,27 @@ test('buildQueuedFollowUpsBySession clears a session queue when the store snapsh
   expect(buildQueuedFollowUpsBySession([snapshot('session-1')])).toEqual({
     'session-1': [],
   })
+})
+
+test('Session Store Change updates the active Queue Dock and session switching selects its queue', () => {
+  const queueBySession = buildQueuedFollowUpsBySession([
+    snapshot('session-1', ['follow-up-1']),
+    snapshot('session-2', ['follow-up-2']),
+  ])
+
+  expect(
+    resolveQueuedFollowUpsForActiveSession(queueBySession, 'session-1'),
+  ).toEqual([expect.objectContaining({ id: 'follow-up-1' })])
+  expect(
+    resolveQueuedFollowUpsForActiveSession(queueBySession, 'session-2'),
+  ).toEqual([expect.objectContaining({ id: 'follow-up-2' })])
+})
+
+test('buildQueuedFollowUpsBySession drops archived session queues', () => {
+  const archived = snapshot('session-1', ['follow-up-1'])
+  archived.item.archivedAt = '2026-01-02T00:00:00.000Z'
+
+  expect(buildQueuedFollowUpsBySession([archived])).toEqual({})
 })
 
 function snapshot(

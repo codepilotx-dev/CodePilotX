@@ -61,6 +61,7 @@ import {
 } from '../workspace/useWorkspaceState.js'
 import { shouldRestoreLastWorkspace } from '../workspace/lastWorkspaceRestore.js'
 import { useSessionState } from '../session/useSessionState.js'
+import { createSessionQueueGoalActions } from '../session/sessionQueueGoalActions.js'
 import { useDesktopCommands } from '../session/useDesktopCommands.js'
 import { useDesktopSearch } from '../search/useDesktopSearch.js'
 import {
@@ -773,52 +774,21 @@ export function DesktopLayout(): React.ReactNode {
       ?.focus()
   }, [])
 
-  const handleFollowUpRemove = useCallback(
-    async (followUpId: string): Promise<void> => {
-      if (!activeSessionItem) return
-      try {
-        const snapshot = await desktopClient.removeQueuedFollowUp(
-          activeSessionItem.id,
-          followUpId,
-        )
-        refreshQueuedFollowUps(activeSessionItem.id, snapshot)
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : String(error))
-      }
-    },
-    [activeSessionItem, refreshQueuedFollowUps],
-  )
-
-  const handleFollowUpSendNow = useCallback(
-    async (followUpId: string): Promise<void> => {
-      if (!activeSessionItem) return
-      try {
-        await desktopClient.sendQueuedFollowUpNow(activeSessionItem.id, followUpId)
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : String(error))
-      }
-    },
-    [activeSessionItem],
-  )
-
-  const handleFollowUpEdit = useCallback(
-    async (followUpId: string): Promise<void> => {
-      if (!activeSessionItem) return
-      const followUp = queuedFollowUps.find(item => item.id === followUpId)
-      if (!followUp) return
-      try {
-        const snapshot = await desktopClient.removeQueuedFollowUp(
-          activeSessionItem.id,
-          followUpId,
-        )
-        refreshQueuedFollowUps(activeSessionItem.id, snapshot)
-        setInput(followUp.input.text)
-        setComposerAttachments(followUp.input.attachments ?? [])
-        focusMainComposer()
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : String(error))
-      }
-    },
+  const sessionQueueGoalActions = useMemo(
+    () =>
+      createSessionQueueGoalActions({
+        activeSessionItem,
+        queuedFollowUps,
+        desktopApi: desktopClient,
+        applyReturnedSessionSnapshot: refreshQueuedFollowUps,
+        setErrorMessage,
+        setMainInput: setInput,
+        setMainAttachments: setComposerAttachments,
+        focusMainComposer,
+        setSideInput: setSideChatInput,
+        setSideAttachments: setSideChatAttachments,
+        focusSideComposer: () => setSideChatFocusVersion(version => version + 1),
+      }),
     [
       activeSessionItem,
       focusMainComposer,
@@ -828,25 +798,24 @@ export function DesktopLayout(): React.ReactNode {
     ],
   )
 
+  const handleFollowUpRemove = useCallback(
+    (followUpId: string): Promise<void> => sessionQueueGoalActions.remove(followUpId),
+    [sessionQueueGoalActions],
+  )
+
+  const handleFollowUpSendNow = useCallback(
+    (followUpId: string): Promise<void> => sessionQueueGoalActions.sendNow(followUpId),
+    [sessionQueueGoalActions],
+  )
+
+  const handleFollowUpEdit = useCallback(
+    (followUpId: string): Promise<void> => sessionQueueGoalActions.editMain(followUpId),
+    [sessionQueueGoalActions],
+  )
+
   const handleSideChatFollowUpEdit = useCallback(
-    async (followUpId: string): Promise<void> => {
-      if (!activeSessionItem) return
-      const followUp = queuedFollowUps.find(item => item.id === followUpId)
-      if (!followUp) return
-      try {
-        const snapshot = await desktopClient.removeQueuedFollowUp(
-          activeSessionItem.id,
-          followUpId,
-        )
-        refreshQueuedFollowUps(activeSessionItem.id, snapshot)
-        setSideChatInput(followUp.input.text)
-        setSideChatAttachments(followUp.input.attachments ?? [])
-        setSideChatFocusVersion(version => version + 1)
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : String(error))
-      }
-    },
-    [activeSessionItem, queuedFollowUps, refreshQueuedFollowUps],
+    (followUpId: string): Promise<void> => sessionQueueGoalActions.editSide(followUpId),
+    [sessionQueueGoalActions],
   )
 
   const updateActiveGoal = useCallback(
@@ -855,33 +824,20 @@ export function DesktopLayout(): React.ReactNode {
         objective?: string
         status?: 'active' | 'paused' | 'complete'
       },
-    ): Promise<void> => {
-      if (!activeSessionItem) return
-      try {
-        await desktopClient.setSessionGoal(activeSessionItem.id, input)
-        refreshQueuedFollowUps(
-          activeSessionItem.id,
-          await desktopClient.getSession(activeSessionItem.id),
-        )
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : String(error))
-      }
-    },
-    [activeSessionItem, refreshQueuedFollowUps],
+    ): Promise<void> => sessionQueueGoalActions.updateGoal(input),
+    [sessionQueueGoalActions],
   )
 
-  const clearActiveGoal = useCallback(async (): Promise<void> => {
-    if (!activeSessionItem) return
-    try {
-      await desktopClient.clearSessionGoal(activeSessionItem.id)
-      refreshQueuedFollowUps(
-        activeSessionItem.id,
-        await desktopClient.getSession(activeSessionItem.id),
-      )
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error))
-    }
-  }, [activeSessionItem, refreshQueuedFollowUps])
+  const clearActiveGoal = useCallback(
+    (): Promise<void> => sessionQueueGoalActions.clearGoal(),
+    [sessionQueueGoalActions],
+  )
+
+  const handleGoalCreated = useCallback(
+    (sessionId: string): Promise<void> =>
+      sessionQueueGoalActions.applyAuthoritativeSnapshot(sessionId),
+    [sessionQueueGoalActions],
+  )
 
   const handleSubmitEditedUserMessage = useCallback(
     async (text: string): Promise<void> => {
@@ -1797,6 +1753,7 @@ export function DesktopLayout(): React.ReactNode {
       onGoalComplete={() => void updateActiveGoal({ status: 'complete' })}
       onGoalClear={() => void clearActiveGoal()}
       onError={setErrorMessage}
+      onGoalCreated={handleGoalCreated}
     />
   ) : null
   const sideChatComposer =
@@ -1860,6 +1817,7 @@ export function DesktopLayout(): React.ReactNode {
         onGoalComplete={() => void updateActiveGoal({ status: 'complete' })}
         onGoalClear={() => void clearActiveGoal()}
         onError={setErrorMessage}
+        onGoalCreated={handleGoalCreated}
       />
     ) : null
   const toggleBottomPanelVisible = useCallback((): void => {

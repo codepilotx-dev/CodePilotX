@@ -81,6 +81,7 @@ test('submitDesktopComposerGoal restores input, attachments, and skill when sett
       restored.push(`skill:${value?.name ?? 'none'}`),
     onGoalModeChange: value => restored.push(`goal-mode:${value}`),
     onError: message => errors.push(message),
+    onGoalCreated: async () => {},
   })
 
   expect(restored).toEqual([
@@ -89,4 +90,26 @@ test('submitDesktopComposerGoal restores input, attachments, and skill when sett
     'skill:review',
   ])
   expect(errors).toEqual(['goal unavailable'])
+})
+
+test('submitDesktopComposerGoal requests an authoritative session refresh after creation', async () => {
+  const refreshedSessionIds: string[] = []
+
+  await submitDesktopComposerGoal({
+    routedSessionId: 'session-1',
+    input: 'finish the task',
+    attachments: [],
+    selectedSkillToken: null,
+    setSessionGoal: async () => {},
+    onInputChange: () => {},
+    onAttachmentsChange: () => {},
+    onSelectedSkillTokenChange: () => {},
+    onGoalModeChange: () => {},
+    onError: () => {},
+    onGoalCreated: async sessionId => {
+      refreshedSessionIds.push(sessionId)
+    },
+  })
+
+  expect(refreshedSessionIds).toEqual(['session-1'])
 })

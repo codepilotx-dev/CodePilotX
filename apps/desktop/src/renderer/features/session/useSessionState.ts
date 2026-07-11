@@ -295,12 +295,18 @@ export function useSessionState(
   const refreshQueuedFollowUps = useCallback(
     (targetSessionId: string, snapshot: DesktopSessionSnapshot): void => {
       const nextQueuedFollowUps = snapshot.queuedFollowUps ?? []
-      queuedFollowUpsBySessionRef.current = {
-        ...queuedFollowUpsBySessionRef.current,
-        [targetSessionId]: nextQueuedFollowUps,
+      if (snapshot.item.archivedAt) {
+        const { [targetSessionId]: _removed, ...remainingQueues } =
+          queuedFollowUpsBySessionRef.current
+        queuedFollowUpsBySessionRef.current = remainingQueues
+      } else {
+        queuedFollowUpsBySessionRef.current = {
+          ...queuedFollowUpsBySessionRef.current,
+          [targetSessionId]: nextQueuedFollowUps,
+        }
       }
       if (activeSessionIdRef.current === targetSessionId) {
-        setQueuedFollowUps(nextQueuedFollowUps)
+        setQueuedFollowUps(snapshot.item.archivedAt ? [] : nextQueuedFollowUps)
       }
       sessionsRef.current = sortSessionsByRecency(
         sessionsRef.current.map(session =>
@@ -573,7 +579,9 @@ export function useSessionState(
       }
       setSessionStatus(currentSession.status)
       applySessionView(nextViews[currentId] ?? createEmptySessionView(), viewSetters)
-      setQueuedFollowUps(nextQueuedFollowUps[currentId] ?? [])
+      setQueuedFollowUps(
+        resolveQueuedFollowUpsForActiveSession(nextQueuedFollowUps, currentId),
+      )
     })
     return () => {
       unsubscribe()
@@ -739,7 +747,10 @@ export function useSessionState(
       void hydrateSessionDetails(targetSessionId)
       setInput(inputBySessionRef.current[targetSessionId] ?? '')
       setQueuedFollowUps(
-        queuedFollowUpsBySessionRef.current[targetSessionId] ?? [],
+        resolveQueuedFollowUpsForActiveSession(
+          queuedFollowUpsBySessionRef.current,
+          targetSessionId,
+        ),
       )
       if (targetSession.standalone) {
         return null
@@ -967,9 +978,18 @@ export function buildQueuedFollowUpsBySession(
 ): Record<string, DesktopQueuedFollowUp[]> {
   const queuedFollowUpsBySession: Record<string, DesktopQueuedFollowUp[]> = {}
   for (const snapshot of sessionSnapshots) {
+    if (snapshot.item.archivedAt) continue
     queuedFollowUpsBySession[snapshot.item.id] = snapshot.queuedFollowUps ?? []
   }
   return queuedFollowUpsBySession
+}
+
+export function resolveQueuedFollowUpsForActiveSession(
+  queuedFollowUpsBySession: Record<string, DesktopQueuedFollowUp[]>,
+  activeSessionId: string | null,
+): DesktopQueuedFollowUp[] {
+  if (!activeSessionId) return []
+  return queuedFollowUpsBySession[activeSessionId] ?? []
 }
 
 function errorMessageOf(error: unknown): string {
