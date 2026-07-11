@@ -615,6 +615,19 @@ export function createLightweightDesktopSessionSnapshot(
   }
 }
 
+export function applyDesktopPersistenceStatusToSnapshot(
+  snapshot: DesktopSessionSnapshot,
+  persistenceStatus: NonNullable<
+    DesktopSessionListItem['persistenceStatus']
+  >,
+): DesktopSessionSnapshot {
+  if (snapshot.item.persistenceStatus === persistenceStatus) return snapshot
+  return {
+    ...snapshot,
+    item: { ...snapshot.item, persistenceStatus },
+  }
+}
+
 export function applyDesktopAgentEventToSnapshot(
   snapshot: DesktopSessionSnapshot,
   event: DesktopAgentEvent,

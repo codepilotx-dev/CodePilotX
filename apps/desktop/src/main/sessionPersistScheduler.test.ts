@@ -55,3 +55,32 @@ test('session persist scheduler serializes saves and writes latest state after a
 
   expect(saved).toEqual([1, 2])
 })
+
+test('session persist scheduler rejects flush and retries the latest state after recovery', async () => {
+  const saved: number[] = []
+  const statuses: string[] = []
+  let state = 1
+  let failing = true
+  const scheduler = createSessionPersistScheduler({
+    debounceMs: 10,
+    retryDelaysMs: [],
+    getState: () => state,
+    save: async value => {
+      if (failing) throw Object.assign(new Error('disk full'), { code: 'ENOSPC' })
+      saved.push(value)
+    },
+    onStatusChange: status => statuses.push(status),
+  })
+
+  scheduler.requestSave({ immediate: true })
+  await expect(scheduler.flush()).rejects.toMatchObject({ code: 'ENOSPC' })
+  expect(statuses.at(-1)).toBe('unsaved')
+
+  state = 2
+  failing = false
+  scheduler.requestSave({ immediate: true })
+  await scheduler.flush()
+
+  expect(saved).toEqual([2])
+  expect(statuses.at(-1)).toBe('saved')
+})

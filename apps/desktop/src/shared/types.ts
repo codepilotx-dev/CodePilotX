@@ -880,6 +880,7 @@ export type DesktopSessionListItem = {
   hasAppendSystemPrompt: boolean
   additionalDirectoryCount: number
   status: DesktopSessionStatus
+  persistenceStatus?: 'saved' | 'unsaved'
   unreadAt?: string | null
   lastMessageAt?: string | null
   createdAt: string

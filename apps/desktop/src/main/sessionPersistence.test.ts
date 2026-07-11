@@ -11,6 +11,7 @@ import {
 import { getProjectDir } from '@codepilotx/core/session/storage.js'
 import {
   applyDesktopAgentEventToSnapshot,
+  applyDesktopPersistenceStatusToSnapshot,
   applyDesktopWorkflowEventsToSnapshot,
   appendDesktopRolloutItems,
   buildDesktopSessionIndexTempPath,
@@ -387,6 +388,31 @@ test('guardian review events store hidden rollout path in session metadata', asy
       guardianRolloutPath: join(projectPath, '.guardian.rollout.jsonl'),
     })
   })
+})
+
+test('desktop session snapshot keeps unsaved status until persistence recovers', () => {
+  const snapshot = createDesktopSessionSnapshot({
+    sessionId: 'session-unsaved',
+    workspace: {
+      path: 'D:\\workspace',
+      name: 'workspace',
+      branchName: null,
+      isGitRepo: false,
+    },
+    standalone: false,
+    settings: {
+      permissionMode: 'default',
+      thinkingMode: 'default',
+      additionalDirectories: [],
+    },
+  })
+
+  const failed = applyDesktopPersistenceStatusToSnapshot(snapshot, 'unsaved')
+  expect(failed.item.persistenceStatus).toBe('unsaved')
+  expect(snapshot.item.persistenceStatus).toBeUndefined()
+
+  const recovered = applyDesktopPersistenceStatusToSnapshot(failed, 'saved')
+  expect(recovered.item.persistenceStatus).toBe('saved')
 })
 
 test('legacy snapshot workflow events are normalized on restore', async () => {

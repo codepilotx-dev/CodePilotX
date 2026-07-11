@@ -159,6 +159,7 @@ export function ConversationPage(): React.ReactNode {
     activeSessionId,
     activeSessionPinnedAt,
     sessionTitle,
+    persistenceStatus,
     events,
     workflowEvents,
     messages,
@@ -437,6 +438,7 @@ export function ConversationPage(): React.ReactNode {
     [timelineEvents],
   );
   const renderedSessionTitle = sessionTitle ?? fallbackTitle;
+  const persistenceLabel = conversationPersistenceLabel(persistenceStatus);
   const hasActiveSession = Boolean(activeSessionId);
   const isSessionPinned = Boolean(activeSessionPinnedAt);
   const selectedOpenTarget =
@@ -648,6 +650,11 @@ export function ConversationPage(): React.ReactNode {
         <span>
           {isConversationLoading ? "加载对话中" : renderedSessionTitle}
         </span>
+        {persistenceLabel ? (
+          <span className="chat-session-persistence-warning" role="status">
+            {persistenceLabel}
+          </span>
+        ) : null}
         <PopoverMenu
           align="start"
           className="popover-session-actions"
@@ -758,6 +765,7 @@ export function ConversationPage(): React.ReactNode {
       hasActiveSession,
       isConversationLoading,
       isSessionPinned,
+      persistenceLabel,
       renderedSessionTitle,
       sessionMenuOpen,
       workspacePath,
@@ -1630,6 +1638,12 @@ function findLastIndex<T>(
 }
 
 export { planCardPresentation, planTitleFromSummary } from "./WorkflowPlanCard.js";
+
+export function conversationPersistenceLabel(
+  status: 'saved' | 'unsaved' | undefined,
+): string | null {
+  return status === 'unsaved' ? '会话未保存' : null;
+}
 
 export type TimelineToolRun = {
   id: string;

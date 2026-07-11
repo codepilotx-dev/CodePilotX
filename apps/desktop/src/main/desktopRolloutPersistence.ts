@@ -1,5 +1,6 @@
-import { appendFile, mkdir, readFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { randomUUID } from 'node:crypto'
+import { mkdir, open, readFile, rename, unlink } from 'node:fs/promises'
+import { basename, dirname, join } from 'node:path'
 import type {
   DesktopAgentEvent,
   DesktopPermissionRequest,
@@ -75,30 +76,81 @@ export type RolloutWriteScheduler = {
   flush(): Promise<void>
 }
 
+type RolloutAtomicWriteOperations = {
+  mkdir(path: string, options: { recursive: true }): Promise<unknown>
+  readFile(path: string, encoding: 'utf8'): Promise<string>
+  writeFile(path: string, content: string, encoding: 'utf8'): Promise<unknown>
+  rename(from: string, to: string): Promise<unknown>
+  unlink(path: string): Promise<unknown>
+}
+
+export type DesktopPersistenceStatus = 'saved' | 'unsaved'
+
 export function createRolloutWriteScheduler(options?: {
   onError?: (error: unknown, rolloutPath: string) => void
+  onStatusChange?: (
+    status: DesktopPersistenceStatus,
+    rolloutPath: string,
+  ) => void
+  retryDelaysMs?: readonly number[]
+  sleep?: (delayMs: number) => Promise<void>
+  writeItems?: typeof appendDesktopRolloutItems
 }): RolloutWriteScheduler {
   const queues = new Map<string, DesktopRolloutItem[]>()
   const inFlight = new Map<string, Promise<void>>()
+  const failures = new Map<string, unknown>()
+  const retryDelaysMs = options?.retryDelaysMs ?? [50, 150]
+  const sleep = options?.sleep ?? (delayMs => new Promise(resolve => setTimeout(resolve, delayMs)))
+  const writeItems = options?.writeItems ?? appendDesktopRolloutItems
 
   const drainQueue = async (rolloutPath: string): Promise<void> => {
-    let items = queues.get(rolloutPath)
-    if (!items || items.length === 0) {
-      inFlight.delete(rolloutPath)
-      return
-    }
-
-    do {
-      queues.delete(rolloutPath)
-      try {
-        await appendDesktopRolloutItems(rolloutPath, items)
-      } catch (error) {
-        options.onError?.(error, rolloutPath)
+    let recovered = failures.has(rolloutPath)
+    while (true) {
+      const queue = queues.get(rolloutPath)
+      if (!queue || queue.length === 0) {
+        queues.delete(rolloutPath)
+        failures.delete(rolloutPath)
+        if (recovered) options?.onStatusChange?.('saved', rolloutPath)
+        return
       }
-      items = queues.get(rolloutPath)
-    } while (items && items.length > 0)
 
-    inFlight.delete(rolloutPath)
+      const batch = [...queue]
+      let failure: unknown
+      for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
+        try {
+          await writeItems(rolloutPath, batch)
+          failure = undefined
+          break
+        } catch (error) {
+          failure = error
+          if (attempt < retryDelaysMs.length) {
+            await sleep(retryDelaysMs[attempt]!)
+          }
+        }
+      }
+
+      if (failure !== undefined) {
+        failures.set(rolloutPath, failure)
+        options?.onError?.(failure, rolloutPath)
+        options?.onStatusChange?.('unsaved', rolloutPath)
+        return
+      }
+
+      queue.splice(0, batch.length)
+      recovered = recovered || failures.delete(rolloutPath)
+    }
+  }
+
+  const startDrain = (rolloutPath: string): Promise<void> => {
+    const current = inFlight.get(rolloutPath)
+    if (current) return current
+    const promise = drainQueue(rolloutPath).finally(() => {
+      if (inFlight.get(rolloutPath) === promise) {
+        inFlight.delete(rolloutPath)
+      }
+    })
+    inFlight.set(rolloutPath, promise)
+    return promise
   }
 
   return {
@@ -111,16 +163,19 @@ export function createRolloutWriteScheduler(options?: {
       existing.push(...items)
 
       if (!inFlight.has(rolloutPath)) {
-        const promise = drainQueue(rolloutPath)
-        inFlight.set(rolloutPath, promise)
+        void startDrain(rolloutPath)
       }
     },
 
     async flush() {
-      const promises = [...inFlight.values()]
-      if (promises.length > 0) {
-        await Promise.all(promises)
+      if (inFlight.size === 0) {
+        for (const [rolloutPath, items] of queues) {
+          if (items.length > 0) startDrain(rolloutPath)
+        }
       }
+      await Promise.all([...inFlight.values()])
+      const failure = failures.values().next().value
+      if (failure !== undefined) throw failure
     },
   }
 }
@@ -128,7 +183,11 @@ export function createRolloutWriteScheduler(options?: {
 export async function appendDesktopRolloutItems(
   rolloutPath: string,
   items: DesktopRolloutItem[],
-  options: { includeInternal?: boolean } = {},
+  options: {
+    includeInternal?: boolean
+    operations?: RolloutAtomicWriteOperations
+    nonce?: string
+  } = {},
 ): Promise<void> {
   const lines = items
     .filter(item => shouldPersistDesktopRolloutItem(item, options))
@@ -139,8 +198,49 @@ export async function appendDesktopRolloutItems(
       } satisfies DesktopRolloutLine),
     )
   if (lines.length === 0) return
-  await mkdir(dirname(rolloutPath), { recursive: true })
-  await appendFile(rolloutPath, `${lines.join('\n')}\n`, 'utf8')
+  const operations = options.operations ?? {
+    mkdir,
+    readFile,
+    writeFile: writeFileDurably,
+    rename,
+    unlink,
+  }
+  await operations.mkdir(dirname(rolloutPath), { recursive: true })
+  let existing = ''
+  try {
+    existing = await operations.readFile(rolloutPath, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
+  const tempPath = join(
+    dirname(rolloutPath),
+    `.${basename(rolloutPath)}.${options.nonce ?? randomUUID()}.tmp`,
+  )
+  try {
+    await operations.writeFile(
+      tempPath,
+      `${existing}${lines.join('\n')}\n`,
+      'utf8',
+    )
+    await operations.rename(tempPath, rolloutPath)
+  } catch (error) {
+    await operations.unlink(tempPath).catch(() => {})
+    throw error
+  }
+}
+
+async function writeFileDurably(
+  path: string,
+  content: string,
+  _encoding: 'utf8',
+): Promise<void> {
+  const file = await open(path, 'w')
+  try {
+    await file.writeFile(content, 'utf8')
+    await file.sync()
+  } finally {
+    await file.close()
+  }
 }
 
 export function shouldPersistDesktopRolloutItem(

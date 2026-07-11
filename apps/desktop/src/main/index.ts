@@ -92,6 +92,7 @@ import { isTrustedRendererUrl } from './rendererTrust.js'
 import { getModelProviderState } from './modelProviderService.js'
 import {
   applyDesktopAgentEventToSnapshot,
+  applyDesktopPersistenceStatusToSnapshot,
   applyDesktopWorkflowEventsToSnapshot,
   appendDesktopRolloutItems,
   createDesktopSessionMetaRolloutItem,
@@ -203,6 +204,8 @@ const turnRestoreBaselines = new Map<
 const titleGenerationStartedSessionIds = new Set<string>()
 let activeSessionId: string | null = null
 let sessionStoreLoadPromise: Promise<void> | null = null
+let sessionStorePersistenceUnsaved = false
+const unsavedRolloutPaths = new Set<string>()
 const sessionPersistScheduler = createSessionPersistScheduler({
   debounceMs: 5000,
   getState: () => ({
@@ -212,6 +215,10 @@ const sessionPersistScheduler = createSessionPersistScheduler({
   save: saveDesktopSessionStore,
   onError: error => {
     console.error('Failed to save desktop sessions.', error)
+  },
+  onStatusChange: status => {
+    sessionStorePersistenceUnsaved = status === 'unsaved'
+    refreshDesktopPersistenceStatus()
   },
 })
 const sessionStoreChangeEmitter = createSessionStoreChangeEmitter({
@@ -224,6 +231,11 @@ const rolloutWriteScheduler: RolloutWriteScheduler = createRolloutWriteScheduler
       rolloutPath,
       message: error instanceof Error ? error.message : String(error),
     })
+  },
+  onStatusChange: (status, rolloutPath) => {
+    if (status === 'unsaved') unsavedRolloutPaths.add(rolloutPath)
+    else unsavedRolloutPaths.delete(rolloutPath)
+    refreshDesktopPersistenceStatus()
   },
 })
 const DESKTOP_BROWSER_PLUGIN_ID = 'browser@builtin'
@@ -416,6 +428,23 @@ function emitSessionStoreChange(): void {
       createLightweightDesktopSessionSnapshot(record.snapshot),
     ),
   })
+}
+
+function refreshDesktopPersistenceStatus(): void {
+  let changed = false
+  for (const record of sessions.values()) {
+    const rolloutPath = record.snapshot.item.rolloutPath?.trim()
+    const status =
+      sessionStorePersistenceUnsaved ||
+      (rolloutPath ? unsavedRolloutPaths.has(rolloutPath) : false)
+        ? 'unsaved'
+        : 'saved'
+    const next = applyDesktopPersistenceStatusToSnapshot(record.snapshot, status)
+    if (next === record.snapshot) continue
+    record.snapshot = next
+    changed = true
+  }
+  if (changed) sessionStoreChangeEmitter.requestEmit({ immediate: true })
 }
 
 function desktopConsoleLog(

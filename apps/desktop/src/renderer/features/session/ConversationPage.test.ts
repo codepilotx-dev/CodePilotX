@@ -16,6 +16,7 @@ let buildDebugAskUserQuestionRequest: typeof import('./ConversationPage.js').bui
 let buildDebugPlanCardSummary: typeof import('./ConversationPage.js').buildDebugPlanCardSummary
 let deriveConversationTurnNavItems: typeof import('./ConversationPage.js').deriveConversationTurnNavItems
 let shouldShowComposerStatusSummary: typeof import('./ConversationPage.js').shouldShowComposerStatusSummary
+let conversationPersistenceLabel: typeof import('./ConversationPage.js').conversationPersistenceLabel
 
 beforeAll(async () => {
   Object.defineProperty(globalThis, 'window', {
@@ -23,6 +24,7 @@ beforeAll(async () => {
     value: { desktopApi: {} },
   })
   const conversationPage = await import('./ConversationPage.js')
+  conversationPersistenceLabel = conversationPage.conversationPersistenceLabel
   deriveAssistantActionMessageIds =
     conversationPage.deriveAssistantActionMessageIds
   deriveTimelineSourceEvents = conversationPage.deriveTimelineSourceEvents
@@ -42,6 +44,12 @@ beforeAll(async () => {
     conversationPage.deriveConversationTurnNavItems
   shouldShowComposerStatusSummary =
     conversationPage.shouldShowComposerStatusSummary
+})
+
+test('conversation persistence label exposes unsaved state only while writes are failing', () => {
+  expect(conversationPersistenceLabel('unsaved')).toBe('会话未保存')
+  expect(conversationPersistenceLabel('saved')).toBeNull()
+  expect(conversationPersistenceLabel(undefined)).toBeNull()
 })
 
 test('shows the composer status summary only when a plan or changes exist', () => {
