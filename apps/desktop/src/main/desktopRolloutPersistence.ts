@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto'
-import { mkdir, open, readFile } from 'node:fs/promises'
+import { createHash, randomUUID } from 'node:crypto'
+import { mkdir, open, readFile, rm, stat, truncate, unlink } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type {
   DesktopAgentEvent,
@@ -188,22 +188,29 @@ export async function appendDesktopRolloutItems(
     includeInternal?: boolean
     operations?: RolloutAppendOperations
     batchId?: string
+    faultAfterAppend?: () => Promise<void>
+    now?: () => string
   } = {},
 ): Promise<void> {
   const lines = items
     .filter(item => shouldPersistDesktopRolloutItem(item, options))
     .map(item =>
       JSON.stringify({
-        timestamp: new Date().toISOString(),
+        timestamp: options.now?.() ?? new Date().toISOString(),
         ...item,
       } satisfies DesktopRolloutLine),
     )
   if (lines.length === 0) return
-  const operations = options.operations ?? {
-    mkdir,
-    readFile,
-    appendFile: appendFileDurably,
+  if (!options.operations) {
+    await appendDesktopRolloutBatchWithRecovery(
+      rolloutPath,
+      lines.join('\n'),
+      options.batchId ?? randomUUID(),
+      options.faultAfterAppend,
+    )
+    return
   }
+  const operations = options.operations
   await operations.mkdir(dirname(rolloutPath), { recursive: true })
   let existing = ''
   try {
@@ -211,38 +218,142 @@ export async function appendDesktopRolloutItems(
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
   }
-  const batchId = options.batchId ?? randomUUID()
-  const persistedIndices = new Set<number>()
-  for (const line of existing.split(/\r?\n/)) {
-    try {
-      const parsed = JSON.parse(line) as Record<string, unknown>
-      if (parsed._desktopBatchId !== batchId) continue
-      if (typeof parsed._desktopBatchIndex === 'number') {
-        persistedIndices.add(parsed._desktopBatchIndex)
-      }
-    } catch {
-      // Blank, legacy and partially-written lines do not complete this batch.
-    }
-  }
-  const missing = lines.flatMap((line, index) =>
-    persistedIndices.has(index)
-      ? []
-      : [
-          JSON.stringify({
-            ...JSON.parse(line),
-            _desktopBatchId: batchId,
-            _desktopBatchIndex: index,
-            _desktopBatchSize: lines.length,
-          }),
-        ],
-  )
-  if (missing.length === 0) return
   const separator = existing.length > 0 && !existing.endsWith('\n') ? '\n' : ''
   await operations.appendFile(
     rolloutPath,
-    `${separator}${missing.join('\n')}\n`,
+    `${separator}${lines.join('\n')}\n`,
     'utf8',
   )
+}
+
+type RecoveryJournal = {
+  batchId: string
+  originalSize: number
+  byteLength: number
+  sha256: string
+}
+
+async function appendDesktopRolloutBatchWithRecovery(
+  rolloutPath: string,
+  lines: string,
+  batchId: string,
+  faultAfterAppend?: () => Promise<void>,
+): Promise<void> {
+  await mkdir(dirname(rolloutPath), { recursive: true })
+  const lockPath = `${rolloutPath}.desktop-lock`
+  const journalPath = `${rolloutPath}.desktop-recovery.json`
+  await acquireRolloutLock(lockPath)
+  try {
+    const recoveredBatchId = await recoverRolloutJournal(
+      rolloutPath,
+      journalPath,
+    )
+    if (recoveredBatchId === batchId) return
+    let existing = ''
+    try {
+      existing = await readFile(rolloutPath, 'utf8')
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    }
+    const separator = existing.length > 0 && !existing.endsWith('\n') ? '\n' : ''
+    const bytes = Buffer.from(`${separator}${lines}\n`, 'utf8')
+    const originalSize = await fileSizeOrZero(rolloutPath)
+    const journal: RecoveryJournal = {
+      batchId,
+      originalSize,
+      byteLength: bytes.length,
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+    }
+    await writeFileDurably(journalPath, JSON.stringify(journal))
+    await appendBufferDurably(rolloutPath, bytes)
+    await faultAfterAppend?.()
+    const tail = await readTail(rolloutPath, originalSize)
+    if (!tail.equals(bytes)) throw new Error('rollout append verification failed')
+    await unlink(journalPath)
+  } finally {
+    await rm(lockPath, { recursive: true, force: true })
+  }
+}
+
+async function acquireRolloutLock(lockPath: string): Promise<void> {
+  const delays = [0, 10, 25, 50, 100, 200]
+  for (const delayMs of delays) {
+    if (delayMs) await new Promise(resolve => setTimeout(resolve, delayMs))
+    try {
+      await mkdir(lockPath)
+      return
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+      try {
+        const info = await stat(lockPath)
+        if (Date.now() - info.mtimeMs > 30_000) {
+          await rm(lockPath, { recursive: true, force: true })
+        }
+      } catch {}
+    }
+  }
+  throw Object.assign(new Error('rollout lock is busy'), { code: 'EBUSY' })
+}
+
+async function recoverRolloutJournal(
+  rolloutPath: string,
+  journalPath: string,
+): Promise<string | undefined> {
+  let journal: RecoveryJournal
+  try {
+    journal = JSON.parse(await readFile(journalPath, 'utf8')) as RecoveryJournal
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+    await unlink(journalPath).catch(() => {})
+    return undefined
+  }
+  const tail = await readTail(rolloutPath, journal.originalSize)
+  const committed =
+    tail.length === journal.byteLength &&
+    createHash('sha256').update(tail).digest('hex') === journal.sha256
+  if (!committed && (await fileSizeOrZero(rolloutPath)) > journal.originalSize) {
+    await truncate(rolloutPath, journal.originalSize)
+  }
+  await unlink(journalPath).catch(() => {})
+  return committed ? journal.batchId : undefined
+}
+
+async function fileSizeOrZero(path: string): Promise<number> {
+  try {
+    return (await stat(path)).size
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 0
+    throw error
+  }
+}
+
+async function readTail(path: string, offset: number): Promise<Buffer> {
+  try {
+    return (await readFile(path)).subarray(offset)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return Buffer.alloc(0)
+    throw error
+  }
+}
+
+async function writeFileDurably(path: string, content: string): Promise<void> {
+  const file = await open(path, 'w')
+  try {
+    await file.writeFile(content, 'utf8')
+    await file.sync()
+  } finally {
+    await file.close()
+  }
+}
+
+async function appendBufferDurably(path: string, content: Buffer): Promise<void> {
+  const file = await open(path, 'a')
+  try {
+    await file.writeFile(content)
+    await file.sync()
+  } finally {
+    await file.close()
+  }
 }
 
 async function appendFileDurably(

@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto'
-import { appendFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { createHash, randomUUID } from 'node:crypto'
+import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { expect, test } from 'bun:test'
@@ -41,27 +41,29 @@ test('appendDesktopRolloutItems writes utf8 jsonl in append order', async () => 
 })
 
 test('rollout append retry recognizes a fully-written batch after append reports failure', async () => {
-  const files = new Map<string, string>([['session.jsonl', 'existing\n']])
-  let reportFailure = true
-  const operations = memoryAppendOperations(files, {
-    appendFile(path, content) {
-      files.set(path, `${files.get(path) ?? ''}${content}`)
-      if (reportFailure) throw Object.assign(new Error('unknown append result'), { code: 'EIO' })
-    },
-  })
-  const item = eventItem('message', { content: 'new' })
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.jsonl')
+    const item = eventItem('message', { content: 'new' })
+    await expect(
+      appendDesktopRolloutItems(rolloutPath, [item], {
+        batchId: 'batch-1',
+        now: () => '2026-01-01T00:00:00.000Z',
+        faultAfterAppend: async () => {
+          throw Object.assign(new Error('unknown append result'), { code: 'EIO' })
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'EIO' })
+    expect(await fileExists(`${rolloutPath}.desktop-lock`)).toBe(false)
+    expect(await fileExists(`${rolloutPath}.desktop-recovery.json`)).toBe(true)
 
-  await expect(
-    appendDesktopRolloutItems('session.jsonl', [item], { operations, batchId: 'batch-1' }),
-  ).rejects.toMatchObject({ code: 'EIO' })
-
-  reportFailure = false
-  await appendDesktopRolloutItems('session.jsonl', [item], {
-    operations,
-    batchId: 'batch-1',
+    await appendDesktopRolloutItems(rolloutPath, [item], {
+      batchId: 'batch-1',
+      now: () => '2026-01-01T00:00:00.000Z',
+    })
+    const persisted = await readFile(rolloutPath, 'utf8')
+    expect(persisted.match(/"content":"new"/g)).toHaveLength(1)
+    expect(await fileExists(`${rolloutPath}.desktop-recovery.json`)).toBe(false)
   })
-  const persisted = files.get('session.jsonl') ?? ''
-  expect(persisted.match(/"content":"new"/g)).toHaveLength(1)
 })
 
 test('rollout append separates a valid existing line without trailing newline', async () => {
@@ -90,16 +92,22 @@ test('rollout retry skips a partial tail and loader returns each completed batch
       eventItem('message', { role: 'user', content: 'first' }),
       eventItem('message', { role: 'assistant', content: 'second' }),
     ]
-    const first = JSON.stringify({
-      timestamp: new Date().toISOString(),
-      ...items[0],
-      _desktopBatchId: 'batch-partial',
-      _desktopBatchIndex: 0,
-      _desktopBatchSize: 2,
-    })
-    await writeFile(rolloutPath, `${first}\n{"timestamp"`, 'utf8')
+    const timestamp = '2026-01-01T00:00:00.000Z'
+    const intended = `${items.map(item => JSON.stringify({ timestamp, ...item })).join('\n')}\n`
+    await writeFile(rolloutPath, intended.slice(0, 41), 'utf8')
+    await writeFile(
+      `${rolloutPath}.desktop-recovery.json`,
+      JSON.stringify({
+        batchId: 'batch-partial',
+        originalSize: 0,
+        byteLength: Buffer.byteLength(intended),
+        sha256: createHash('sha256').update(intended).digest('hex'),
+      }),
+      'utf8',
+    )
     await appendDesktopRolloutItems(rolloutPath, items, {
       batchId: 'batch-partial',
+      now: () => timestamp,
     })
     const parsed = await parseDesktopRolloutSnapshot(rolloutPath, 'session-1')
     expect(parsed.view.messages.map(message => message.text)).toEqual([
@@ -109,26 +117,43 @@ test('rollout retry skips a partial tail and loader returns each completed batch
   })
 })
 
-test('independent schedulers and an external append do not overwrite each other', async () => {
+test('independent schedulers serialize large batches without interleaving lines', async () => {
   await withTempDir(async dir => {
     const rolloutPath = join(dir, 'session.rollout.jsonl')
     const first = createRolloutWriteScheduler()
     const second = createRolloutWriteScheduler()
-    first.append(rolloutPath, [eventItem('message', { role: 'user', content: 'first' })])
-    second.append(rolloutPath, [eventItem('message', { role: 'assistant', content: 'second' })])
-    const external = JSON.stringify({
-      timestamp: new Date().toISOString(),
-      ...eventItem('message', { role: 'system', content: 'external' }),
-    })
-    await Promise.all([
-      first.flush(),
-      second.flush(),
-      appendFile(rolloutPath, `\n${external}\n`, 'utf8'),
-    ])
-    const parsed = await parseDesktopRolloutSnapshot(rolloutPath, 'session-1')
-    expect(new Set(parsed.view.messages.map(message => message.text))).toEqual(
-      new Set(['first', 'second', 'external']),
-    )
+    const large = 'x'.repeat(64 * 1024)
+    first.append(rolloutPath, Array.from({ length: 12 }, (_, index) =>
+      eventItem('message', { role: 'user', content: `first-${index}-${large}` })))
+    second.append(rolloutPath, Array.from({ length: 12 }, (_, index) =>
+      eventItem('message', { role: 'assistant', content: `second-${index}-${large}` })))
+    await Promise.all([first.flush(), second.flush()])
+    const lines = (await readFile(rolloutPath, 'utf8')).trim().split('\n')
+    expect(lines).toHaveLength(24)
+    expect(lines.every(line => JSON.parse(line))).toBe(true)
+    const sources = lines.map(line => JSON.parse(line).payload.content.split('-')[0])
+    expect(sources.join(',')).toMatch(/^(first,){11}first,(second,){11}second$|^(second,){11}second,(first,){11}first$/)
+  })
+})
+
+test('rollout records contain only protocol fields and no batch metadata', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.rollout.jsonl')
+    await appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'visible' })])
+    const record = JSON.parse((await readFile(rolloutPath, 'utf8')).trim())
+    expect(Object.keys(record).sort()).toEqual(['payload', 'timestamp', 'type'])
+  })
+})
+
+test('rollout append reclaims a stale lock and removes it after writing', async () => {
+  await withTempDir(async dir => {
+    const rolloutPath = join(dir, 'session.rollout.jsonl')
+    const lockPath = `${rolloutPath}.desktop-lock`
+    await mkdir(lockPath)
+    const old = new Date(Date.now() - 60_000)
+    await utimes(lockPath, old, old)
+    await appendDesktopRolloutItems(rolloutPath, [eventItem('message', { content: 'ok' })])
+    expect(await fileExists(lockPath)).toBe(false)
   })
 })
 
@@ -290,6 +315,16 @@ function eventItem(eventType: string, payload: Record<string, unknown>) {
       ...payload,
     },
   } satisfies DesktopRolloutItem
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await stat(path)
+    return true
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
+    throw error
+  }
 }
 
 function memoryAppendOperations(
