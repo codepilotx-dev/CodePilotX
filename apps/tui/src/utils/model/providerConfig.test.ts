@@ -94,8 +94,6 @@ test('zhipu is available as a built-in OpenAI-compatible provider', async () => 
       kind: 'openai-compatible',
       displayName: '智谱 BigModel',
       baseURL: 'https://open.bigmodel.cn/api/paas/v4/',
-      apiKeyEnvVar: 'ZAI_API_KEY',
-      envVars: ['ZAI_API_KEY'],
       defaultModels: ZHIPU_DEFAULT_MODELS,
     })
     expect(providers.some(provider => provider.providerID === 'anthropic')).toBe(false)

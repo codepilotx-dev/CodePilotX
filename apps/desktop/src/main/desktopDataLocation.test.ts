@@ -173,10 +173,12 @@ test('getDataLocationControlSource returns env when CLAUDE_CONFIG_DIR is set', (
   expect(getDataLocationControlSource()).toBe('env')
 })
 
-test('getDataLocationControlSource returns default when no env and no bootstrap', () => {
+test('getDataLocationControlSource returns default when no env and no bootstrap', async () => {
   delete process.env[CODEPILOTX_CONFIG_DIR_ENV]
   delete process.env[LEGACY_CLAUDE_CONFIG_DIR_ENV]
-  expect(getDataLocationControlSource()).toBe('default')
+  const userDataPath = await makeTempDir()
+  expect(getDataLocationControlSource(userDataPath)).toBe('default')
+  await rm(userDataPath, { recursive: true, force: true })
 })
 
 test('getDataLocationControlSource returns bootstrap when bootstrap file exists', async () => {
