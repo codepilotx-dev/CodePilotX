@@ -661,7 +661,7 @@ test('ComposerCard shows fallback when showContextUsage is true but contextUsage
 	      contextUsage={null}
 	    />,
 	  )
-	
+
 	  expect(html).toContain('context-usage-chip')
 	  expect(html).toContain('chip-dot')
 	  expect(html).toContain('--context-usage-progress:0')
@@ -677,7 +677,7 @@ test('ComposerCard renders goal mode chip when goalModeEnabled is true', () => {
 	      onGoalModeChange={() => {}}
 	    />,
 	  )
-	
+
 	  expect(html).toContain('composer-plan-mode-chip active')
 	  expect(html).toContain('>目标<')
 	  expect(html).toContain('目标模式')
@@ -691,7 +691,7 @@ test('ComposerCard shows goal mode placeholder when goalModeEnabled is true', ()
 	      onGoalModeChange={() => {}}
 	    />,
 	  )
-	
+
 	  expect(html).toContain('placeholder="粘贴你的计划或目标…"')
 	})
 
@@ -699,7 +699,7 @@ test('ComposerCard does not render goal mode chip when goalModeEnabled is false'
 	  const html = renderWithProviders(
 	    <ComposerCard {...baseProps} />,
 	  )
-	
+
 	  expect(html).not.toContain('>目标<')
 	  expect(html).not.toContain('目标模式')
 	})
@@ -712,7 +712,7 @@ test('ComposerCard renders target icon in goal mode toolbar chip', () => {
 	      onGoalModeChange={() => {}}
 	    />,
 	  )
-	
+
 	  // The goal mode toolbar chip uses the Target icon
 	  expect(html).toContain('lucide-target')
 	  expect(html).toContain('composer-plan-mode-chip-icon-plan')
@@ -727,7 +727,7 @@ test('ComposerCard goal mode and plan mode chips are independent', () => {
 	      planModeActive={true}
 	    />,
 	  )
-	
+
 	  // Both chips should appear independently
 	  expect(html).toContain('>目标<')
 	  expect(html).toContain('>计划<')

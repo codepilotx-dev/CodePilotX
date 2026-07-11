@@ -1176,7 +1176,7 @@ client_request_definitions! {
 	        response: FuzzyFileSearchSessionStopResponse,
 	    },
 
-	    //  Provider auth (GitHub, Copilot, etc.) 
+	    //  Provider auth (GitHub, Copilot, etc.)
 
 	    /// Read the authentication status of a provider (e.g. `github-repositories`).
 	    ProviderAuthReadStatus => "providerAuth/readStatus" {

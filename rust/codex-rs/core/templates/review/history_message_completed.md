@@ -5,4 +5,3 @@
   {findings}
   </results>
 </user_action>
-

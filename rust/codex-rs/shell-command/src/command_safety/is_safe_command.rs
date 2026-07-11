@@ -167,7 +167,7 @@ fn is_safe_to_call_with_exec(command: &[String]) -> bool {
             true
         }
 
-        //  anything else 
+        //  anything else
         _ => false,
     }
 }

@@ -300,7 +300,7 @@ impl RequestRouteTelemetry {
     }
 }
 
-//  Chat Completions types 
+//  Chat Completions types
 
 #[derive(Debug, Serialize)]
 struct ChatCompletionsRequest {
@@ -380,7 +380,7 @@ struct ChatCompletionToolFunction {
     strict: Option<bool>,
 }
 
-//  Chat Completions streaming types 
+//  Chat Completions streaming types
 
 #[derive(Debug, Deserialize)]
 struct ChatCompletionChunk {
@@ -2113,7 +2113,7 @@ impl ModelClientSession {
         ))
     }
 
-    //  Chat Completions API 
+    //  Chat Completions API
 
     async fn stream_chat_completions_api(
         &self,

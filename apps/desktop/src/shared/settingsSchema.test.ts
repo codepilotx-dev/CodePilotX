@@ -314,4 +314,3 @@ test('desktop settings normalize sidebar manual order as string arrays by scope'
 	    }).collapsedSidebarSections,
 	  ).toEqual([])
 	})
-

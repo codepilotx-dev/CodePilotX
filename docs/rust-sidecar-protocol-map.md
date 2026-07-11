@@ -72,7 +72,7 @@ Response: `{"jsonrpc":"2.0","id":"4","result":{}}` (empty object).
 |---|---|---|---|
 | `thread/started` | (none emitted) | Stores `threadId` |
 | `turn/started` | (none emitted) | Stores `activeTurnId`, clears delta buffer |
-| `item/delta` | `partial_message` | Appends text to `assistantDeltaBuffer`; emitted text includes full buffer |
+| `item/delta` | `partial_message` | Adds one chunk; throttled output contains only new text |
 | `item/agentMessage/delta` | `partial_message` | Same as `item/delta` |
 | `item/completed` (agentMessage) | `message(role=assistant)` | Emits final item text (not buffer); clears delta buffer |
 | `item/completed` (dynamicToolCall) | `tool_result` | Emits result with success/error status |
@@ -86,7 +86,7 @@ Response: `{"jsonrpc":"2.0","id":"4","result":{}}` (empty object).
 | `item/commandExecution/outputDelta` | `partial_message` | Emits formatted command output for live display |
 | `item/fileChange/patchUpdated` | `diff` (per file) | Emits diff events for each changed file with patch |
 | `turn/diff/updated` | `diff` (aggregated) | Emits turn-level aggregated diff |
-| `error` | `error` | Clears `activeTurnId`; clears delta buffer; resolves + rejects turn promise |
+| `error` | `error` | Seals the failed turn and rejects it exactly once |
 | Others | (debug-logged via `rust_adapter_unhandled_notification`) | Ignored |
 
 ### thread/started
@@ -155,13 +155,13 @@ talk to the LLM provider.
 
 | Provider kind / ID | `wire_api` | Endpoint pattern | Auth mechanism |
 |---|---|---|---|---|
-| `anthropic` | `anthropic_messages` | Default Anthropic Messages API | `env_key` / api key |
-| `anthropic-compatible` | `anthropic_messages` | Provider-specific base URL | `env_key` / api key |
-| `minimax` | `anthropic_messages` | `https://api.minimaxi.com/anthropic/v1` | `x-api-key` header via `env_key` |
-| `openai` (`@ai-sdk/openai`) | `responses` | Default OpenAI Responses API | `env_key` / api key |
-| `openai-compatible` (default) | `responses` | Provider-specific base URL | `env_key` / api key |
-| `deepseek` | `chat_completions` | `https://api.deepseek.com/chat/completions` | `DEEPSEEK_API_KEY` via `env_key` |
-| `openai-compatible` (chat-only) | `chat_completions` | Provider-specific `/chat/completions` | `env_key` / api key |
+| `anthropic` | `anthropic_messages` | Trusted Anthropic endpoint | providerID keyring entry |
+| `anthropic-compatible` | `anthropic_messages` | Trusted provider endpoint | providerID keyring entry |
+| `minimax` | `anthropic_messages` | `https://api.minimaxi.com/anthropic/v1` | providerID keyring entry |
+| `openai` (`@ai-sdk/openai`) | `responses` | Trusted OpenAI endpoint | providerID keyring entry |
+| `openai-compatible` (default) | `responses` | Trusted provider endpoint | providerID keyring entry |
+| `deepseek` | `chat_completions` | Trusted DeepSeek endpoint | providerID keyring entry |
+| `openai-compatible` (chat-only) | `chat_completions` | Trusted provider `/chat/completions` | providerID keyring entry |
 
 ### Configuration override pattern
 
@@ -173,11 +173,12 @@ Each provider generates CLI args like:
 -c model_providers.minimax-cn.name="MiniMax (minimaxi.com)"
 -c model_providers.minimax-cn.wire_api="anthropic_messages"
 -c model_providers.minimax-cn.base_url="https://api.minimaxi.com/anthropic/v1"
--c model_providers.minimax-cn.env_key="MINIMAX_API_KEY"
+-c model_providers.minimax-cn.env_key="keyring:minimax-cn"
 ```
 
-The API key is set via environment variable (`MINIMAX_API_KEY=sk-...`), never in
-CLI args.
+The marker identifies the providerID-scoped keyring entry. The API key is never
+read from a provider environment variable and is never put in the child
+environment or CLI arguments.
 
 ### Implementation location
 
@@ -287,13 +288,15 @@ sequenceDiagram
 
 ## 5. Fallback Behavior
 
-When the Rust sidecar binary is missing or fails to start (`SidecarStartError`):
+Runtime selection deliberately keeps Rust opt-in while stabilization continues:
 
 | Runtime preference | Fallback target | Debug event |
 |---|---|---|
-| `rust-sidecar` | `InProcessDesktopAgentRuntime` (embedded headless) | `runtime_rust_sidecar_failed_fallback_embedded` |
+| `auto` | Stable TypeScript sidecar | `runtime_create_typescript_sidecar` |
+| `rust-sidecar` | Rust app-server; startup/turn failure is surfaced | `runtime_create_rust_sidecar` |
 
-Non-startup errors and user-aborted startup do **not** trigger silent fallback.
+There is no silent Rust-to-embedded fallback. A failed Rust startup is cleaned
+up and the next turn may spawn a fresh process.
 
 ---
 

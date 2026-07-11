@@ -636,7 +636,7 @@ async fn non_chatgpt_codepilotx_endpoints_omit_attestation_generation() {
     assert_eq!(attestation_calls.load(Ordering::Relaxed), 0);
 }
 
-//  Anthropic tool input argument aggregation 
+//  Anthropic tool input argument aggregation
 
 #[test]
 fn anthropic_tool_input_arguments_skips_empty_object() {
@@ -801,7 +801,7 @@ fn malformed_tool_arguments_in_request_builder_fallback_to_empty_object() {
     );
 }
 
-//  Chat Completions stream: tool_calls with empty text 
+//  Chat Completions stream: tool_calls with empty text
 
 #[tokio::test]
 async fn chat_completions_stream_tool_calls_without_text_emits_message() {
@@ -886,7 +886,7 @@ async fn chat_completions_stream_tool_calls_without_text_emits_message() {
     );
 }
 
-//  Chat Completions stream: usage (finish_reason + usage in same chunk) 
+//  Chat Completions stream: usage (finish_reason + usage in same chunk)
 
 #[tokio::test]
 async fn chat_completions_stream_usage_in_finish_reason_chunk() {
@@ -946,7 +946,7 @@ async fn chat_completions_stream_usage_in_finish_reason_chunk() {
     assert_eq!(usage.total_tokens, 15, "total_tokens");
 }
 
-//  Chat Completions stream: usage in trailing empty-choices chunk 
+//  Chat Completions stream: usage in trailing empty-choices chunk
 
 #[tokio::test]
 async fn chat_completions_stream_usage_in_separate_chunk() {
@@ -1006,7 +1006,7 @@ async fn chat_completions_stream_usage_in_separate_chunk() {
     assert_eq!(usage.total_tokens, 28);
 }
 
-//  Chat Completions stream: prompt_cache_hit_tokens has priority 
+//  Chat Completions stream: prompt_cache_hit_tokens has priority
 
 #[tokio::test]
 async fn chat_completions_stream_usage_prompt_cache_hit_tokens_priority() {
@@ -1062,7 +1062,7 @@ async fn chat_completions_stream_usage_prompt_cache_hit_tokens_priority() {
     assert_eq!(usage.total_tokens, 150);
 }
 
-//  Chat Completions stream: reasoning_tokens in completion_tokens_details 
+//  Chat Completions stream: reasoning_tokens in completion_tokens_details
 
 #[tokio::test]
 async fn chat_completions_stream_usage_reasoning_tokens() {
@@ -1112,7 +1112,7 @@ async fn chat_completions_stream_usage_reasoning_tokens() {
     assert_eq!(usage.cached_input_tokens, 0, "no cache tokens in this payload");
 }
 
-//  Chat Completions stream: no usage (legacy format) 
+//  Chat Completions stream: no usage (legacy format)
 
 #[tokio::test]
 async fn chat_completions_stream_no_usage_is_none() {
@@ -1160,7 +1160,7 @@ async fn chat_completions_stream_no_usage_is_none() {
     );
 }
 
-//  Chat Completions stream: prompt_cache_hit_tokens fallback to details.cached_tokens 
+//  Chat Completions stream: prompt_cache_hit_tokens fallback to details.cached_tokens
 
 #[tokio::test]
 async fn chat_completions_stream_usage_cache_fallback_to_details() {
@@ -1211,7 +1211,7 @@ async fn chat_completions_stream_usage_cache_fallback_to_details() {
     assert_eq!(usage.input_tokens, 200);
 }
 
-//  Chat Completions request builder: include_usage=true 
+//  Chat Completions request builder: include_usage=true
 
 #[test]
 fn chat_completions_request_builder_sets_include_usage_true() {
@@ -1237,7 +1237,7 @@ fn chat_completions_request_builder_sets_include_usage_true() {
     );
 }
 
-//  Chat Completions request builder: tool call ?tool result pairing 
+//  Chat Completions request builder: tool call ?tool result pairing
 
 #[tokio::test]
 async fn chat_completions_request_builder_flushes_tool_calls_before_result() {
@@ -1315,7 +1315,7 @@ async fn chat_completions_request_builder_flushes_tool_calls_before_result() {
     );
 }
 
-//  Anthropic request builder: tool_use ?tool_result pairing 
+//  Anthropic request builder: tool_use ?tool_result pairing
 
 #[tokio::test]
 async fn anthropic_request_builder_creates_assistant_anchor_for_tool_use() {

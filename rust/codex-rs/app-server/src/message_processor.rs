@@ -1516,7 +1516,7 @@ impl MessageProcessor {
                 self.feedback_processor.feedback_upload(params).await
             }
 
-            //  Provider auth 
+            //  Provider auth
             ClientRequest::ProviderAuthReadStatus { params, .. } => {
                 self.provider_auth_processor
                     .read_status(params)
