@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test'
 import { join } from 'node:path'
-import { getRuntimeStatus } from './authRuntimeService.js'
+import { getRuntimeStatus, runtimePreferenceForAuth, setGithubAppTokenStatusReaderForTesting } from './authRuntimeService.js'
 import { withCoreAppRuntime } from '@codepilotx/core/runtime/appRuntime.js'
 import type { AppRuntime } from '@codepilotx/core/runtime/appRuntime.js'
 
@@ -37,6 +37,11 @@ test('runtime status reports explicit rust-sidecar preference', async () => {
 
   expect(status.runtimeKind).toBe('rust-sidecar')
   expect(status.runtimePreference).toBe('rust-sidecar')
+})
+
+test('GitHub app auth selects Rust without changing ordinary provider preference', () => {
+  expect(runtimePreferenceForAuth('auto', 'github_exchange')).toBe('rust-sidecar')
+  expect(runtimePreferenceForAuth('auto', 'none')).toBe('auto')
 })
 
 describe('getAuthStatus', () => {
@@ -107,6 +112,7 @@ describe('getAuthStatus', () => {
   })
 
   test('getAuthStatus returns unauthenticated with no credentials', async () => {
+    setGithubAppTokenStatusReaderForTesting(async () => ({ authenticated: false, expiresAt: null, scopes: [], account: null }))
     const { getAuthStatus } = await import('./authRuntimeService.js')
     const status = await withCoreAppRuntime(testRuntime, () => getAuthStatus())
     expect(status.authenticated).toBe(false)

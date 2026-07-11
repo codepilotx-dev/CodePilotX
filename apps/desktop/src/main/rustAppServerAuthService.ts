@@ -52,6 +52,17 @@ export type ProviderRepoInfo = {
   default_branch: string
 }
 
+export type ProviderAppTokenStatus = {
+  authenticated: boolean
+  expiresAt: number | null
+  scopes: string[]
+  account: {
+    uuid: string
+    emailAddress: string
+    organizationUuid: string | null
+  } | null
+}
+
 // ── Auth service ────────────────────────────────────────────
 
 const AUTH_TIMEOUT_MS = 30_000
@@ -249,6 +260,46 @@ async cloneRepository(
     },
   )
   return result.local_path
+}
+
+async exchangeAppToken(providerID: string): Promise<ProviderAppTokenStatus> {
+  return this.rpc('providerAuth/appTokenExchange', { providerId: providerID })
+}
+
+async refreshAppToken(providerID: string): Promise<ProviderAppTokenStatus> {
+  return this.rpc('providerAuth/appTokenRefresh', { providerId: providerID })
+}
+
+async readAppTokenStatus(providerID: string): Promise<ProviderAppTokenStatus> {
+  return this.rpc('providerAuth/appTokenStatus', { providerId: providerID })
+}
+
+async readProfile<T>(providerID: string): Promise<T> {
+  const result = await this.rpc<{ overview: T }>('providerAuth/profileRead', {
+    providerId: providerID,
+  })
+  return result.overview
+}
+
+async setStatus<T>(providerID: string, input: {
+  emoji: string
+  message: string
+  limitedAvailability: boolean
+  expiresAt?: string | null
+}): Promise<T | null> {
+  const result = await this.rpc<{ status: T | null }>('providerAuth/statusSet', {
+    providerId: providerID,
+    ...input,
+    expiresAt: input.expiresAt ?? null,
+  })
+  return result.status
+}
+
+async clearStatus<T>(providerID: string): Promise<T | null> {
+  const result = await this.rpc<{ status: T | null }>('providerAuth/statusClear', {
+    providerId: providerID,
+  })
+  return result.status
 }
 }
 

@@ -1,6 +1,4 @@
-import { readFile, stat } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { stat } from 'node:fs/promises'
 import {
   getAuthTokenSource,
   getOauthAccountInfo,
@@ -12,78 +10,22 @@ import type {
   DesktopToolchainDiagnosticReport,
 } from '../shared/types.js'
 import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
+import { RustAppServerAuthService } from './rustAppServerAuthService.js'
 
-/**
- * Read the shared credentials file path (same path the TUI SecureStorage uses).
- */
-function sharedCredentialsPath(): string {
-  const configDir =
-    process.env.CODEPILOTX_CONFIG_DIR ??
-    process.env.CLAUDE_CONFIG_DIR ??
-    join(homedir(), '.codepilotx')
-  return join(configDir.normalize('NFC'), '.credentials.json')
+let readGithubAppTokenStatus = () =>
+  new RustAppServerAuthService().readAppTokenStatus('github-repositories')
+
+export function setGithubAppTokenStatusReaderForTesting(
+  reader: typeof readGithubAppTokenStatus,
+): void {
+  readGithubAppTokenStatus = reader
 }
 
-/**
- * Check if a GitHub-exchanged app token exists in the shared credentials.
- */
-async function hasGithubExchangedToken(): Promise<boolean> {
-  try {
-    const credPath = sharedCredentialsPath()
-    const raw = await readFile(credPath, 'utf8')
-    const data = JSON.parse(raw) as Record<string, unknown>
-    const oauth = data.claudeAiOauth as
-      | { accessToken?: string; source?: string }
-      | undefined
-    return !!oauth?.accessToken && oauth?.source === 'github_exchange'
-  } catch {
-    return false
-  }
-}
-
-/**
- * Get the GitHub-exchanged token info from shared credentials.
- */
-async function getGithubExchangedAuthInfo(): Promise<{
-  email?: string | null
-  organizationName?: string | null
-} | null> {
-  try {
-    const credPath = sharedCredentialsPath()
-    const raw = await readFile(credPath, 'utf8')
-    const data = JSON.parse(raw) as Record<string, unknown>
-    const oauth = data.claudeAiOauth as
-      | { accessToken?: string; source?: string }
-      | undefined
-    if (!oauth?.accessToken || oauth?.source !== 'github_exchange') {
-      return null
-    }
-    // Try to read account info from global config (same path TUI uses)
-    const configDir =
-      process.env.CODEPILOTX_CONFIG_DIR ??
-      process.env.CLAUDE_CONFIG_DIR ??
-      join(homedir(), '.codepilotx')
-    const configPath = join(configDir.normalize('NFC'), 'config.json')
-    try {
-      const configRaw = await readFile(configPath, 'utf8')
-      const config = JSON.parse(configRaw) as {
-        oauthAccount?: {
-          emailAddress?: string
-          organizationName?: string
-        }
-      }
-      return config.oauthAccount
-        ? {
-            email: config.oauthAccount.emailAddress,
-            organizationName: config.oauthAccount.organizationName,
-          }
-        : { email: null, organizationName: null }
-    } catch {
-      return { email: null, organizationName: null }
-    }
-  } catch {
-    return null
-  }
+export function runtimePreferenceForAuth(
+  preference: DesktopAgentRuntimePreference,
+  authMethod: string,
+): DesktopAgentRuntimePreference {
+  return authMethod === 'github_exchange' ? 'rust-sidecar' : preference
 }
 
 export async function getAuthStatus(): Promise<DesktopAuthStatus> {
@@ -102,14 +44,13 @@ export async function getAuthStatus(): Promise<DesktopAuthStatus> {
   }
 
   // Second try: GitHub-exchanged app token
-  const hasGithubAuth = await hasGithubExchangedToken()
-  if (hasGithubAuth) {
-    const info = await getGithubExchangedAuthInfo()
+  const githubAuth = await readGithubAppTokenStatus().catch(() => null)
+  if (githubAuth?.authenticated) {
     return {
       authenticated: true,
       method: 'github_exchange',
-      email: info?.email ?? null,
-      organizationName: info?.organizationName ?? null,
+      email: githubAuth.account?.emailAddress ?? null,
+      organizationName: null,
     }
   }
 

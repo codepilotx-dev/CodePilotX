@@ -36,6 +36,7 @@ import {
   type DesktopAgentSession,
 } from './agentSession.js'
 import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
+import { getAuthStatus, runtimePreferenceForAuth } from './authRuntimeService.js'
 import { buildDesktopApiHandlers } from './desktopApiHandlers.js'
 import {
   applyDesktopAgentRuntimeEnvDefaults,
@@ -1186,6 +1187,10 @@ async function createSession(
     },
     {
       ...getDesktopAgentRuntimeOptions(installCodePilotXDependencies),
+      runtimePreference: runtimePreferenceForAuth(
+        getDesktopRuntimeSelection().preference,
+        (await getAuthStatus()).method,
+      ),
       onAppServerThreadId: threadId => {
         if (!createdRecord) return
         createdRecord.snapshot = {

@@ -31,10 +31,6 @@ function configDir(): string {
   ).normalize('NFC')
 }
 
-function credentialsPath(): string {
-  return join(configDir(), '.credentials.json')
-}
-
 function globalConfigPath(): string {
   return join(configDir(), 'config.json')
 }
@@ -81,15 +77,6 @@ function getAuthTokenSourceImpl(): { source: string; hasToken: boolean } {
   // Check env vars first
   if (process.env.CLAUDE_CODE_OAUTH_TOKEN) {
     return { source: 'CLAUDE_CODE_OAUTH_TOKEN', hasToken: true }
-  }
-
-  // Check shared credentials for exchanged token (GitHub exchange only)
-  const creds = readJsonSync(credentialsPath())
-  const oauth = creds.claudeAiOauth as
-    | { accessToken?: string; source?: string }
-    | undefined
-  if (oauth?.accessToken && oauth.source === 'github_exchange') {
-    return { source: 'github_exchange', hasToken: true }
   }
 
   return { source: 'none', hasToken: false }
