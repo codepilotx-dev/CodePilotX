@@ -73,12 +73,15 @@ function generateToken(): string {
 }
 
 const DEFAULT_MAX_BODY_BYTES = 1024 * 1024
+const SOCKET_DESTROY_GRACE_MS = 50
+const CORS_METHODS = new Set(['GET', 'POST'])
+const CORS_HEADERS = new Set(['content-type', 'x-auth-token'])
 
 // ── Request 日志 ─────────────────────────────────────────────────────────
 
 function logRequest(method: string | undefined, url: string | undefined, status: number): void {
   console.error(
-    `[http-app-server] ${new Date().toISOString()} ${method ?? '?'} ${url ?? '?'} ${status}`,
+    `[http-app-server] ${new Date().toISOString()} ${method ?? '?'} ${requestPath(url)} ${status}`,
   )
 }
 
@@ -174,7 +177,7 @@ export class HttpAppServer {
       res.setHeader('Access-Control-Allow-Origin', origin)
     }
 
-    if (req.method === 'OPTIONS') {
+    if (isCorsPreflight(req, origin !== undefined && this.trustedOrigins.has(origin))) {
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST')
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Auth-Token')
       res.writeHead(204)
@@ -267,9 +270,7 @@ export class HttpAppServer {
     }
 
     if (isDeclaredOversized(req, this.maxBodyBytes)) {
-      logRequest('POST', '/jsonrpc', 413)
-      res.writeHead(413, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ error: 'Payload Too Large' }))
+      this.sendPayloadTooLarge(req, res)
       return
     }
 
@@ -282,9 +283,7 @@ export class HttpAppServer {
       res.end(JSON.stringify(result))
     } catch (error) {
       if (error instanceof BodyTooLargeError) {
-        logRequest('POST', '/jsonrpc', 413)
-        res.writeHead(413, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify({ error: 'Payload Too Large' }))
+        this.sendPayloadTooLarge(req, res)
         return
       }
       logRequest('POST', '/jsonrpc', 500)
@@ -295,11 +294,47 @@ export class HttpAppServer {
       }))
     }
   }
+
+  private sendPayloadTooLarge(req: IncomingMessage, res: ServerResponse): void {
+    logRequest('POST', '/jsonrpc', 413)
+    res.writeHead(413, {
+      'Content-Type': 'application/json',
+      Connection: 'close',
+    })
+    res.end(JSON.stringify({ error: 'Payload Too Large' }), () => {
+      const forceClose = setTimeout(() => req.socket.destroy(), SOCKET_DESTROY_GRACE_MS)
+      forceClose.unref()
+      req.socket.once('close', () => clearTimeout(forceClose))
+    })
+  }
 }
 
 // ── 工具 ─────────────────────────────────────────────────────────────────
 
 class BodyTooLargeError extends Error {}
+
+function requestPath(url: string | undefined): string {
+  try {
+    return new URL(url ?? '/', 'http://loopback.invalid').pathname
+  } catch {
+    return '/'
+  }
+}
+
+function isCorsPreflight(req: IncomingMessage, trustedOrigin: boolean): boolean {
+  if (req.method !== 'OPTIONS' || !trustedOrigin) return false
+  const requestedMethod = req.headers['access-control-request-method']
+  if (typeof requestedMethod !== 'string' || !CORS_METHODS.has(requestedMethod.toUpperCase())) {
+    return false
+  }
+  const requestedHeaders = req.headers['access-control-request-headers']
+  if (requestedHeaders === undefined) return true
+  if (typeof requestedHeaders !== 'string') return false
+  return requestedHeaders
+    .split(',')
+    .map(header => header.trim().toLowerCase())
+    .every(header => header.length > 0 && CORS_HEADERS.has(header))
+}
 
 function normalizeBodyLimit(value: number | undefined): number {
   if (value === undefined) return DEFAULT_MAX_BODY_BYTES
@@ -321,26 +356,46 @@ function collectBody(req: IncomingMessage, maxBodyBytes: number): Promise<unknow
     const chunks: Buffer[] = []
     let bytesRead = 0
     let settled = false
-    req.on('data', (chunk: Buffer) => {
+
+    const cleanup = (): void => {
+      req.off('data', onData)
+      req.off('end', onEnd)
+      req.off('error', onError)
+      req.off('aborted', onAborted)
+    }
+    const resolveOnce = (value: unknown): void => {
       if (settled) return
+      settled = true
+      cleanup()
+      resolve(value)
+    }
+    const rejectOnce = (error: Error): void => {
+      if (settled) return
+      settled = true
+      cleanup()
+      reject(error)
+    }
+    const onData = (chunk: Buffer): void => {
       bytesRead += chunk.length
       if (bytesRead > maxBodyBytes) {
-        settled = true
-        reject(new BodyTooLargeError())
+        rejectOnce(new BodyTooLargeError())
         return
       }
       chunks.push(chunk)
-    })
-    req.on('end', () => {
-      if (settled) return
+    }
+    const onEnd = (): void => {
       try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')))
+        resolveOnce(JSON.parse(Buffer.concat(chunks).toString('utf8')))
       } catch {
-        reject(new Error('Invalid JSON body'))
+        rejectOnce(new Error('Invalid JSON body'))
       }
-    })
-    req.on('error', error => {
-      if (!settled) reject(error)
-    })
+    }
+    const onError = (error: Error): void => rejectOnce(error)
+    const onAborted = (): void => rejectOnce(new Error('Request aborted'))
+
+    req.on('data', onData)
+    req.on('end', onEnd)
+    req.on('error', onError)
+    req.on('aborted', onAborted)
   })
 }
