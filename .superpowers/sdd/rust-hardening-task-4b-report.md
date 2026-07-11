@@ -4,6 +4,8 @@
 
 - `5c4411015 feat(desktop)：保证会话持久化失败可恢复`
 - `7986a9bd4 feat(desktop)：优化流式消息聚合与渲染`
+- `8cc07e80b feat(desktop)：修复并发持久化与退出失败处理`
+- `bcce651ef feat(desktop)：封闭流式终态并保持线性更新`
 
 ## Persistence RED / GREEN
 
