@@ -8,6 +8,16 @@ import {
   upsertRecentWorkspace,
 } from './settingsSchema.js'
 
+test('follow-up behavior defaults to steer and only accepts persisted values', () => {
+  expect(defaultDesktopStoredSettings().followUpBehavior).toBe('steer')
+  expect(
+    normalizeDesktopStoredSettings({ followUpBehavior: 'queue' }).followUpBehavior,
+  ).toBe('queue')
+  expect(
+    normalizeDesktopStoredSettings({ followUpBehavior: 'invalid' }).followUpBehavior,
+  ).toBe('steer')
+})
+
 test('desktop settings no longer store AskUserQuestion max questions', () => {
   expect('askUserQuestionMaxQuestions' in defaultDesktopStoredSettings()).toBe(
     false,

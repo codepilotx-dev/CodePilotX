@@ -8,6 +8,7 @@ import type { AgentPermissionPolicy } from '@codepilotx/core/agent/permissions.j
 import type {
   DesktopDrawerTab,
   DesktopDiffMarkerStyle,
+  DesktopFollowUpBehavior,
   DesktopPermissionMode,
   DesktopPersonality,
   DesktopReviewView,
@@ -57,6 +58,11 @@ export const DESKTOP_DIFF_MARKER_STYLES = new Set<DesktopDiffMarkerStyle>([
   'symbol',
 ])
 
+export const DESKTOP_FOLLOW_UP_BEHAVIORS = new Set<DesktopFollowUpBehavior>([
+  'steer',
+  'queue',
+])
+
 export const DESKTOP_SIDEBAR_ORGANIZATIONS = new Set<DesktopSidebarOrganization>([
   'projects',
   'flat',
@@ -104,6 +110,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     deepModel: '',
     sessionName: '',
     thinkingMode: 'default',
+    followUpBehavior: 'steer',
     systemPrompt: '',
     appendSystemPrompt: '',
     additionalDirectories: '',
@@ -224,6 +231,11 @@ export function normalizeDesktopStoredSettings(
     thinkingMode: isDesktopThinkingMode(parsed.thinkingMode)
       ? parsed.thinkingMode
       : defaults.thinkingMode,
+    followUpBehavior: DESKTOP_FOLLOW_UP_BEHAVIORS.has(
+      parsed.followUpBehavior as DesktopFollowUpBehavior,
+    )
+      ? (parsed.followUpBehavior as DesktopFollowUpBehavior)
+      : defaults.followUpBehavior,
     systemPrompt: stringOrDefault(parsed.systemPrompt, defaults.systemPrompt),
     appendSystemPrompt: stringOrDefault(
       parsed.appendSystemPrompt,

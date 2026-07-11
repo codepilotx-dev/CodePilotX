@@ -365,6 +365,67 @@ export const DESKTOP_API_ARG_SCHEMAS = {
   respondToPermission: z.tuple([z.string(), z.string(), permissionDecision]),
   interruptSession: z.tuple([z.string()]),
   disposeSession: z.tuple([z.string()]),
+  submitSessionFollowUp: z.tuple([
+    z.string().min(1),
+    userMessageInput,
+    z.enum(['steer', 'queue']),
+  ]),
+  updateQueuedFollowUp: z.tuple([
+    z.string().min(1),
+    z.string().min(1),
+    userMessageInput,
+  ]),
+  removeQueuedFollowUp: z.tuple([
+    z.string().min(1),
+    z.string().min(1),
+  ]),
+  sendQueuedFollowUpNow: z.tuple([
+    z.string().min(1),
+    z.string().min(1),
+  ]),
+  compactSession: z.tuple([z.string().min(1)]),
+  rollbackSession: z.tuple([
+    z.object({
+      sessionId: z.string().min(1),
+      numTurns: z.number().int().min(1),
+      restoreFiles: z.boolean(),
+    }),
+  ]),
+  getSessionGoal: z.tuple([z.string().min(1)]),
+  setSessionGoal: z.tuple([
+    z.string().min(1),
+    z.object({
+      objective: z.string().optional(),
+      status: z.enum(['active', 'paused', 'complete']).optional(),
+    }),
+  ]),
+  clearSessionGoal: z.tuple([z.string().min(1)]),
+  startSessionReview: z.tuple([
+    z.string().min(1),
+    z.discriminatedUnion('type', [
+      z.object({ type: z.literal('uncommittedChanges') }),
+      z.object({ type: z.literal('baseBranch'), branch: z.string().trim().min(1) }),
+      z.object({
+        type: z.literal('commit'),
+        sha: z.string().trim().min(1),
+        title: z.string().trim().nullable().optional(),
+      }),
+      z.object({ type: z.literal('custom'), instructions: z.string().trim().min(1) }),
+    ]),
+  ]),
+  listRuntimePermissionProfiles: z.tuple([
+    z.string(),
+    z.object({ forceRefresh: z.boolean().optional() }).optional(),
+  ]),
+  setSessionPermissionProfile: z.tuple([
+    z.string().min(1),
+    z.string().min(1),
+    z.string().optional(),
+  ]),
+  listRuntimeSkills: z.tuple([
+    z.string(),
+    z.object({ forceReload: z.boolean().optional() }).optional(),
+  ]),
   minimizeWindow: emptyArgs,
   toggleWindowMaximized: emptyArgs,
   closeWindow: emptyArgs,

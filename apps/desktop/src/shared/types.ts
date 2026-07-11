@@ -632,6 +632,7 @@ export type DesktopPersonality =
 
 export type DesktopReviewView = 'inline' | 'split'
 export type DesktopDiffMarkerStyle = 'color' | 'symbol'
+export type DesktopFollowUpBehavior = 'steer' | 'queue'
 export type DesktopSidebarOrganization = 'projects' | 'flat'
 export type DesktopSidebarSort = 'priority' | 'recent' | 'manual'
 
@@ -661,6 +662,7 @@ export type DesktopStoredSettings = {
   deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
+  followUpBehavior: DesktopFollowUpBehavior
   systemPrompt: string
   appendSystemPrompt: string
   additionalDirectories: string
@@ -874,12 +876,15 @@ export type DesktopSessionListItem = {
   collaborationMode?: DesktopCollaborationMode
   planModeActive?: boolean
   model: string | null
+  effort?: string | null
+  personality?: DesktopPersonality
   reviewModel?: string | null
   thinkingMode: DesktopThinkingMode
   hasSystemPrompt: boolean
   hasAppendSystemPrompt: boolean
   additionalDirectoryCount: number
   status: DesktopSessionStatus
+  threadGoal?: DesktopThreadGoal | null
   unreadAt?: string | null
   lastMessageAt?: string | null
   createdAt: string
@@ -897,6 +902,8 @@ export type DesktopSessionSettingsSnapshot = {
   providerBaseURL?: string
   debugConversationDump?: boolean
   model?: string
+  effort?: string | null
+  personality?: DesktopPersonality
   planExecutionModel?: string
   reviewModel?: string
   smallFastModel?: string
@@ -911,6 +918,13 @@ export type DesktopSessionSettingsSnapshot = {
   installCodePilotXDependencies?: boolean
   enableMemory?: boolean
   rustSearchAndDiffKernels?: boolean
+}
+
+export type DesktopQueuedFollowUp = {
+  id: string
+  input: DesktopUserMessageInput
+  previewText: string
+  createdAt: string
 }
 
 export type DesktopSessionViewSnapshot = {
@@ -937,6 +951,7 @@ export type DesktopSessionSnapshot = {
   workflowEvents?: DesktopWorkflowEvent[]
   workflowEventModelVersion?: 1
   reviewComments?: DesktopReviewComment[]
+  queuedFollowUps?: DesktopQueuedFollowUp[]
   updatedAt: string
 }
 
@@ -997,6 +1012,79 @@ export type CreateDesktopSessionResult = {
   sessionId: string
   workspace: DesktopWorkspace
   standalone: boolean
+}
+
+export type DesktopThreadGoalStatus =
+  | 'active'
+  | 'paused'
+  | 'blocked'
+  | 'usageLimited'
+  | 'budgetLimited'
+  | 'complete'
+
+export type DesktopThreadGoal = {
+  threadId: string
+  objective: string
+  status: DesktopThreadGoalStatus
+  tokenBudget: number | null
+  tokensUsed: number
+  timeUsedSeconds: number
+  createdAt: number
+  updatedAt: number
+}
+
+export type DesktopRuntimePermissionProfile = {
+  id: string
+  description: string | null
+}
+
+export type DesktopInstalledSkill = {
+  name: string
+  description: string
+  shortDescription?: string
+  path: string
+  scope: 'user' | 'repo' | 'system' | 'admin'
+  enabled: boolean
+}
+
+export type DesktopRuntimeHook = {
+  key: string
+  eventName: string
+  handlerType: string
+  matcher: string | null
+  command: string | null
+  timeoutSec: number
+  statusMessage: string | null
+  sourcePath: string
+  source: string
+  pluginId: string | null
+  displayOrder: number
+  enabled: boolean
+  isManaged: boolean
+  currentHash: string
+  trustStatus: 'managed' | 'untrusted' | 'trusted' | 'modified'
+}
+
+export type DesktopCatalogResult<T> =
+  | { state: 'ready'; data: T; updatedAt: string }
+  | { state: 'stale'; data: T; updatedAt: string; error: string }
+  | { state: 'unavailable'; data: null; error: string }
+
+export type DesktopAiReviewTarget =
+  | { type: 'uncommittedChanges' }
+  | { type: 'baseBranch'; branch: string }
+  | { type: 'commit'; sha: string; title?: string | null }
+  | { type: 'custom'; instructions: string }
+
+export type DesktopRollbackRequest = {
+  sessionId: string
+  numTurns: number
+  restoreFiles: boolean
+}
+
+export type DesktopRollbackResult = {
+  snapshot: DesktopSessionSnapshot
+  restoredFiles: string[]
 }
 
 export type DesktopModelSelection = {
@@ -1438,6 +1526,54 @@ export type DesktopApi = {
   ): Promise<void>
   interruptSession(sessionId: string): Promise<void>
   disposeSession(sessionId: string): Promise<void>
+  submitSessionFollowUp(
+    sessionId: string,
+    input: DesktopUserMessageInput,
+    behavior: DesktopFollowUpBehavior,
+  ): Promise<'steered' | 'queued'>
+  updateQueuedFollowUp(
+    sessionId: string,
+    followUpId: string,
+    input: DesktopUserMessageInput,
+  ): Promise<DesktopSessionSnapshot>
+  removeQueuedFollowUp(
+    sessionId: string,
+    followUpId: string,
+  ): Promise<DesktopSessionSnapshot>
+  sendQueuedFollowUpNow(
+    sessionId: string,
+    followUpId: string,
+  ): Promise<void>
+  compactSession(sessionId: string): Promise<void>
+  rollbackSession(
+    input: DesktopRollbackRequest,
+  ): Promise<DesktopRollbackResult>
+  getSessionGoal(sessionId: string): Promise<DesktopThreadGoal | null>
+  setSessionGoal(
+    sessionId: string,
+    input: {
+      objective?: string
+      status?: 'active' | 'paused' | 'complete'
+    },
+  ): Promise<DesktopThreadGoal>
+  clearSessionGoal(sessionId: string): Promise<boolean>
+  startSessionReview(
+    sessionId: string,
+    target: DesktopAiReviewTarget,
+  ): Promise<void>
+  listRuntimePermissionProfiles(
+    workspacePath: string,
+    options?: { forceRefresh?: boolean },
+  ): Promise<DesktopCatalogResult<DesktopRuntimePermissionProfile[]>>
+  setSessionPermissionProfile(
+    sessionId: string,
+    profile: string,
+    approvalPolicy?: DesktopApprovalPolicy,
+  ): Promise<DesktopSessionSnapshot>
+  listRuntimeSkills(
+    workspacePath: string,
+    options?: { forceReload?: boolean },
+  ): Promise<DesktopCatalogResult<DesktopInstalledSkill[]>>
   minimizeWindow(): Promise<void>
   toggleWindowMaximized(): Promise<boolean>
   closeWindow(): Promise<void>
