@@ -2070,6 +2070,7 @@ dependencies = [
  "futures",
  "hmac 0.12.1",
  "keyring",
+ "libc",
  "opentelemetry",
  "opentelemetry_sdk",
  "pretty_assertions",

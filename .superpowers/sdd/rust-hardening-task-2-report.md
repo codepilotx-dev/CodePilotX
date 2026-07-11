@@ -28,6 +28,8 @@ No prior Task 1 commit was amended and nothing was pushed.
 - Provider credential/model/balance protocol JSON and TypeScript artifacts are generated from Rust sources.
 - Stored provider keys now resolve endpoints only from the server-side `Config.model_providers` map; caller-provided URLs are ignored unless the same request supplies a transient key, and every credential-bearing endpoint must use HTTPS.
 - Clone publication uses atomic no-replace primitives: Windows rename without replace, Linux `renameat2(RENAME_NOREPLACE)`, and macOS `renamex_np(RENAME_EXCL)`. Unsupported Unix targets fail closed.
+- Short-lived desktop auth sidecars inject validated HTTPS provider definitions from the Electron provider catalog using quoted Rust `-c` overrides; API keys never appear in arguments or environment variables.
+- Git clone arguments and path-valued environment variables use `OsString`/`OsStr` end to end, preserving Unicode and non-UTF-8-capable platform paths without `to_string_lossy`.
 
 ## TDD evidence
 
@@ -85,6 +87,6 @@ Using an explicit rsproxy sparse-index override resolved the workspace dependenc
 
 Before landing, rerun the app-server credential/clone tests after the `codepilotx-core` E0275 baseline is repaired.
 
-The final stored-key-exfiltration and atomic no-clobber focused build was also unable to start while another Cargo process held the shared package-cache lock. The blocked process was terminated without touching the other task's Cargo process; the new tests remain included for the next serial app-server run.
+The final stored-key-exfiltration, atomic no-clobber, and path-preservation app-server build reached Rust compilation after the package-cache lock cleared, then stopped at the same five pre-existing `codepilotx-core` `E0275` errors before compiling app-server tests. The new tests remain included for the next run after that baseline is repaired.
 
 No CSS files were changed.

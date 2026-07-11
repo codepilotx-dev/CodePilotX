@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    ffi::OsString,
     path::{Component, Path, PathBuf},
     sync::Arc,
     time::{Duration, Instant},
@@ -1207,8 +1208,8 @@ struct GitCloneOutput {
 trait GitCloneRunner: std::fmt::Debug + Send + Sync {
     async fn run(
         &self,
-        args: &[String],
-        env: &HashMap<String, String>,
+        args: &[OsString],
+        env: &HashMap<OsString, OsString>,
         target: &Path,
     ) -> std::io::Result<GitCloneOutput>;
 }
@@ -1219,8 +1220,8 @@ struct SystemGitCloneRunner;
 impl GitCloneRunner for SystemGitCloneRunner {
     async fn run(
         &self,
-        args: &[String],
-        env: &HashMap<String, String>,
+        args: &[OsString],
+        env: &HashMap<OsString, OsString>,
         _target: &Path,
     ) -> std::io::Result<GitCloneOutput> {
         let output = tokio::process::Command::new("git")
@@ -1286,33 +1287,36 @@ async fn clone_with_github_token<R: GitCloneRunner>(
     }
 
     let args = vec![
-        "clone".to_string(),
-        "--".to_string(),
-        request.repo_url.clone(),
-        staging_target.to_string_lossy().into_owned(),
+        OsString::from("clone"),
+        OsString::from("--"),
+        OsString::from(&request.repo_url),
+        staging_target.as_os_str().to_os_string(),
     ];
     let mut env = minimal_git_environment();
     env.insert(
-        "GIT_ASKPASS".to_string(),
-        askpass_path.to_string_lossy().into_owned(),
+        OsString::from("GIT_ASKPASS"),
+        askpass_path.as_os_str().to_os_string(),
     );
-    env.insert("GIT_TERMINAL_PROMPT".to_string(), "0".to_string());
-    env.insert("GIT_USERNAME".to_string(), "x-access-token".to_string());
-    env.insert("GIT_PASSWORD".to_string(), token.to_string());
+    env.insert(OsString::from("GIT_TERMINAL_PROMPT"), OsString::from("0"));
     env.insert(
-        "HOME".to_string(),
-        isolated_home.to_string_lossy().into_owned(),
+        OsString::from("GIT_USERNAME"),
+        OsString::from("x-access-token"),
+    );
+    env.insert(OsString::from("GIT_PASSWORD"), OsString::from(token));
+    env.insert(
+        OsString::from("HOME"),
+        isolated_home.as_os_str().to_os_string(),
     );
     env.insert(
-        "USERPROFILE".to_string(),
-        isolated_home.to_string_lossy().into_owned(),
+        OsString::from("USERPROFILE"),
+        isolated_home.as_os_str().to_os_string(),
     );
-    env.insert("GIT_CONFIG_NOSYSTEM".to_string(), "1".to_string());
+    env.insert(OsString::from("GIT_CONFIG_NOSYSTEM"), OsString::from("1"));
     env.insert(
-        "GIT_CONFIG_GLOBAL".to_string(),
-        isolated_git_config.to_string_lossy().into_owned(),
+        OsString::from("GIT_CONFIG_GLOBAL"),
+        isolated_git_config.as_os_str().to_os_string(),
     );
-    env.insert("GIT_CONFIG_COUNT".to_string(), "0".to_string());
+    env.insert(OsString::from("GIT_CONFIG_COUNT"), OsString::from("0"));
 
     let output = match runner.run(&args, &env, &staging_target).await {
         Ok(output) => output,
@@ -1333,8 +1337,8 @@ async fn clone_with_github_token<R: GitCloneRunner>(
 
 #[cfg(windows)]
 fn publish_clone_noclobber(source: &Path, destination: &Path) -> std::io::Result<()> {
-    // MoveFileExW without MOVEFILE_REPLACE_EXISTING is the behavior used by
-    // std::fs::rename on Windows, so an existing destination is never replaced.
+    // The Windows rename operation fails when the destination already exists,
+    // providing atomic no-replace publication without a separate existence check.
     std::fs::rename(source, destination)
 }
 
@@ -1393,7 +1397,7 @@ fn publish_clone_noclobber(_source: &Path, _destination: &Path) -> std::io::Resu
     ))
 }
 
-fn minimal_git_environment() -> HashMap<String, String> {
+fn minimal_git_environment() -> HashMap<OsString, OsString> {
     const ALLOWED: &[&str] = &[
         "PATH",
         "Path",
@@ -1407,11 +1411,7 @@ fn minimal_git_environment() -> HashMap<String, String> {
     ];
     ALLOWED
         .iter()
-        .filter_map(|key| {
-            std::env::var(key)
-                .ok()
-                .map(|value| ((*key).to_string(), value))
-        })
+        .filter_map(|key| std::env::var_os(key).map(|value| (OsString::from(key), value)))
         .collect()
 }
 
@@ -1456,6 +1456,7 @@ mod tests {
     use codepilotx_keyring_store::tests::MockKeyringStore;
     use keyring::Error as KeyringError;
     use std::collections::HashMap;
+    use std::ffi::OsStr;
     use std::fs;
     use std::path::Path;
     use std::sync::Mutex as StdMutex;
@@ -1906,22 +1907,36 @@ mod tests {
     impl GitCloneRunner for FailingGitRunner {
         async fn run(
             &self,
-            _args: &[String],
-            env: &HashMap<String, String>,
+            _args: &[OsString],
+            env: &HashMap<OsString, OsString>,
             target: &Path,
         ) -> std::io::Result<GitCloneOutput> {
             self.calls.fetch_add(1, Ordering::SeqCst);
-            let askpass = PathBuf::from(env.get("GIT_ASKPASS").expect("askpass env"));
+            let askpass = PathBuf::from(env.get(OsStr::new("GIT_ASKPASS")).expect("askpass env"));
             assert!(askpass.exists(), "askpass must exist only while git runs");
-            let isolated_home = PathBuf::from(env.get("HOME").expect("isolated HOME"));
+            let isolated_home = PathBuf::from(env.get(OsStr::new("HOME")).expect("isolated HOME"));
             assert!(isolated_home.starts_with(askpass.parent().expect("askpass parent")));
-            assert_eq!(env.get("USERPROFILE"), env.get("HOME"));
             assert_eq!(
-                env.get("GIT_CONFIG_NOSYSTEM").map(String::as_str),
-                Some("1")
+                env.get(OsStr::new("USERPROFILE")),
+                env.get(OsStr::new("HOME")),
             );
-            assert_eq!(env.get("GIT_CONFIG_COUNT").map(String::as_str), Some("0"));
-            assert!(Path::new(env.get("GIT_CONFIG_GLOBAL").expect("isolated config")).exists());
+            assert_eq!(
+                env.get(OsStr::new("GIT_CONFIG_NOSYSTEM"))
+                    .map(OsString::as_os_str),
+                Some(OsStr::new("1"))
+            );
+            assert_eq!(
+                env.get(OsStr::new("GIT_CONFIG_COUNT"))
+                    .map(OsString::as_os_str),
+                Some(OsStr::new("0"))
+            );
+            assert!(
+                Path::new(
+                    env.get(OsStr::new("GIT_CONFIG_GLOBAL"))
+                        .expect("isolated config"),
+                )
+                .exists()
+            );
             *self.askpass_path.lock().expect("askpass lock") = Some(askpass);
             *self.staging_path.lock().expect("staging lock") = Some(target.to_path_buf());
             fs::create_dir_all(target.join(".git"))?;
@@ -1978,10 +1993,23 @@ mod tests {
     impl GitCloneRunner for SuccessfulGitRunner {
         async fn run(
             &self,
-            _args: &[String],
-            _env: &HashMap<String, String>,
+            args: &[OsString],
+            env: &HashMap<OsString, OsString>,
             staging_target: &Path,
         ) -> std::io::Result<GitCloneOutput> {
+            assert_eq!(
+                args.last().map(OsString::as_os_str),
+                Some(staging_target.as_os_str()),
+                "staging path must reach git without lossy string conversion",
+            );
+            let staging_root = staging_target.parent().expect("staging root");
+            for key in ["GIT_ASKPASS", "HOME", "USERPROFILE", "GIT_CONFIG_GLOBAL"] {
+                let path = PathBuf::from(env.get(OsStr::new(key)).expect("path environment"));
+                assert!(
+                    path.starts_with(staging_root),
+                    "{key} must preserve the exact staging path",
+                );
+            }
             fs::create_dir_all(staging_target.join(".git"))?;
             fs::write(staging_target.join("README.md"), b"cloned")?;
             if self.create_concurrent_target {
@@ -2018,6 +2046,30 @@ mod tests {
             fs::read(target.join("README.md")).expect("published file"),
             b"cloned"
         );
+    }
+
+    #[tokio::test]
+    async fn clone_preserves_unicode_staging_and_environment_paths() {
+        let root = tempfile::tempdir().expect("clone root");
+        let unicode_root = root.path().join("克隆路径-ß");
+        fs::create_dir(&unicode_root).expect("unicode root");
+        let target = unicode_root.join("仓库");
+        let request = validate_github_clone_request(
+            "https://github.com/owner/repo.git",
+            &target,
+            &unicode_root,
+        )
+        .expect("valid unicode clone request");
+        let runner = SuccessfulGitRunner {
+            final_target: target.clone(),
+            create_concurrent_target: false,
+        };
+
+        clone_with_github_token(&request, "sentinel-github-token", &runner)
+            .await
+            .expect("unicode clone publishes");
+
+        assert_eq!(fs::read(target.join("README.md")).expect("file"), b"cloned");
     }
 
     #[test]

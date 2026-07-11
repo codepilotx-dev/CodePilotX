@@ -10,6 +10,10 @@ import {
 import { RustLineJsonRpcClient } from './rustLineJsonRpcClient.js'
 import { desktopDebug } from './desktopDebug.js'
 import { sanitizeChildEnvironment } from './sidecarManager.js'
+import {
+  listProviderConfigs,
+  type ProviderConfig,
+} from '@codepilotx/core/models/providerConfig.js'
 import { spawn } from 'node:child_process'
 import type {
   DesktopProviderBalanceResult,
@@ -74,7 +78,10 @@ private async openConnection(): Promise<{
   transport: RustLineJsonRpcClient
   dispose: () => Promise<void>
 }> {
-  const options = createAuthSidecarOptions(this.executablePath)
+  const options = createAuthSidecarOptions(
+    this.executablePath,
+    await listProviderConfigs(),
+  )
   const child = spawn(options.command, options.args, options.options)
 
   const transport = new RustLineJsonRpcClient({
@@ -247,9 +254,16 @@ async cloneRepository(
 
 // ── Helpers ─────────────────────────────────────────────────
 
-export function createAuthSidecarOptions(executablePath: string) {
+export function createAuthSidecarOptions(
+  executablePath: string,
+  trustedProviders: ProviderConfig[] = [],
+) {
   const command = executablePath
-  const args: string[] = ['--listen', 'stdio://']
+  const args: string[] = [
+    '--listen',
+    'stdio://',
+    ...trustedProviders.flatMap(createTrustedProviderArgs),
+  ]
   const options: import('node:child_process').SpawnOptions = {
     stdio: ['pipe', 'pipe', 'pipe'],
     env: {
@@ -258,6 +272,34 @@ export function createAuthSidecarOptions(executablePath: string) {
     },
   }
   return { command, args, options }
+}
+
+function createTrustedProviderArgs(provider: ProviderConfig): string[] {
+  const providerID = provider.providerID.trim()
+  const baseURL = provider.baseURL?.trim()
+  if (!/^[A-Za-z0-9_-]+$/.test(providerID) || !baseURL) return []
+  let endpoint: URL
+  try {
+    endpoint = new URL(baseURL)
+  } catch {
+    return []
+  }
+  if (endpoint.protocol !== 'https:') return []
+  const override = (key: string, value: string | boolean): string[] => [
+    '-c',
+    `${key}=${typeof value === 'string' ? JSON.stringify(value) : String(value)}`,
+  ]
+  return [
+    ...override(`model_providers.${providerID}.name`, provider.displayName || providerID),
+    ...override(
+      `model_providers.${providerID}.wire_api`,
+      provider.wireApi ?? 'chat_completions',
+    ),
+    ...override(`model_providers.${providerID}.requires_openai_auth`, false),
+    ...override(`model_providers.${providerID}.supports_websockets`, false),
+    ...override(`model_providers.${providerID}.base_url`, endpoint.toString()),
+    ...override(`model_providers.${providerID}.env_key`, `keyring:${providerID}`),
+  ]
 }
 
 async function withTimeout<T>(
