@@ -196,13 +196,23 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
   {
     id: "light-catppuccin",
     label: "Catppuccin",
-    config: createRadixThemePreset({
-      accentScale: "purple",
+    config: {
       codeThemeId: "catppuccin",
-      grayScale: "mauve",
-      skillScale: "purple",
+      theme: {
+        accent: "#8839ef",
+        contrast: 70,
+        fonts: DEFAULT_FONTS,
+        ink: "#4c4f69",
+        opaqueWindows: false,
+        semanticColors: {
+          diffAdded: "#40a02b",
+          diffRemoved: "#d20f39",
+          skill: "#8839ef",
+        },
+        surface: "#eff1f5",
+      },
       variant: "light",
-    }),
+    },
   },
   {
     id: "dark-catppuccin",
@@ -218,14 +228,23 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
   {
     id: "light-raycast",
     label: "Raycast",
-    config: createRadixThemePreset({
-      accentScale: "red",
+    config: {
       codeThemeId: "raycast",
-      fonts: DEFAULT_FONTS,
-      grayScale: "slate",
-      skillScale: "pink",
+      theme: {
+        accent: "#ff6363",
+        contrast: 70,
+        fonts: DEFAULT_FONTS,
+        ink: "#030303",
+        opaqueWindows: false,
+        semanticColors: {
+          diffAdded: "#006b4f",
+          diffRemoved: "#b12424",
+          skill: "#9a1b6e",
+        },
+        surface: "#ffffff",
+      },
       variant: "light",
-    }),
+    },
   },
   {
     id: "dark-raycast",
@@ -251,14 +270,23 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
   {
     id: "light-github",
     label: "GitHub",
-    config: createRadixThemePreset({
-      accentScale: "blue",
+    config: {
       codeThemeId: "github",
-      fonts: DEFAULT_FONTS,
-      grayScale: "gray",
-      skillScale: "purple",
+      theme: {
+        accent: "#0969da",
+        contrast: 70,
+        fonts: DEFAULT_FONTS,
+        ink: "#1f2328",
+        opaqueWindows: true,
+        semanticColors: {
+          diffAdded: "#1a7f37",
+          diffRemoved: "#cf222e",
+          skill: "#8250df",
+        },
+        surface: "#ffffff",
+      },
       variant: "light",
-    }),
+    },
   },
   {
     id: "dark-github",
@@ -384,6 +412,27 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     },
   },
   {
+    id: "light-everforest",
+    label: "Everforest",
+    config: {
+      codeThemeId: "everforest",
+      theme: {
+        accent: "#93b259",
+        contrast: 70,
+        fonts: DEFAULT_FONTS,
+        ink: "#5c6a72",
+        opaqueWindows: false,
+        semanticColors: {
+          diffAdded: "#8da101",
+          diffRemoved: "#f85552",
+          skill: "#df69ba",
+        },
+        surface: "#fdf6e3",
+      },
+      variant: "light",
+    },
+  },
+  {
     id: "dark-everforest",
     label: "Everforest",
     config: {
@@ -426,6 +475,27 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     },
   },
   {
+    id: "light-linear",
+    label: "Linear",
+    config: {
+      codeThemeId: "linear",
+      theme: {
+        accent: "#5e6ad2",
+        contrast: 70,
+        fonts: DEFAULT_FONTS,
+        ink: "#1b1b1b",
+        opaqueWindows: true,
+        semanticColors: {
+          diffAdded: "#52a450",
+          diffRemoved: "#c94446",
+          skill: "#8160d8",
+        },
+        surface: "#fcfcfd",
+      },
+      variant: "light",
+    },
+  },
+  {
     id: "dark-linear",
     label: "Linear",
     config: {
@@ -444,6 +514,27 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
         surface: "#0f0f11",
       },
       variant: "dark",
+    },
+  },
+  {
+    id: "light-proof",
+    label: "Proof",
+    config: {
+      codeThemeId: "proof",
+      theme: {
+        accent: "#3d755d",
+        contrast: 70,
+        fonts: DEFAULT_FONTS,
+        ink: "#2f312d",
+        opaqueWindows: false,
+        semanticColors: {
+          diffAdded: "#3d755d",
+          diffRemoved: "#ba2623",
+          skill: "#5f6ac2",
+        },
+        surface: "#f5f3ed",
+      },
+      variant: "light",
     },
   },
   {

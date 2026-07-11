@@ -17,6 +17,8 @@ const THEME_SUITE_IDS = [
   'dracula',
   'rose-pine',
   'catppuccin',
+  'everforest',
+  'linear',
   'material',
   'vscode-plus',
   'absolutely',
@@ -25,12 +27,12 @@ const THEME_SUITE_IDS = [
 ] as const
 
 const DARK_ONLY_THEME_IDS = [
-  'dark-everforest',
   'dark-lobster',
-  'dark-linear',
   'dark-night-owl',
   'dark-tokyo-night',
 ] as const
+
+const LIGHT_ONLY_THEME_IDS = ['light-proof'] as const
 
 test('DEFAULT_LIGHT_THEME uses CodePilotX desktop tokens', () => {
   expect(DEFAULT_LIGHT_THEME.theme.surface).toBe('#ffffff')
@@ -55,9 +57,9 @@ test('DEFAULT_DARK_THEME uses CodePilotX desktop tokens', () => {
   expect(DEFAULT_DARK_THEME.variant).toBe('dark')
 })
 
-test('built-in desktop themes include eleven paired suites', () => {
+test('built-in desktop themes include thirteen paired suites plus three dark-only and one light-only preset', () => {
   expect(DESKTOP_THEME_PRESETS).toHaveLength(
-    THEME_SUITE_IDS.length * 2 + DARK_ONLY_THEME_IDS.length,
+    THEME_SUITE_IDS.length * 2 + DARK_ONLY_THEME_IDS.length + LIGHT_ONLY_THEME_IDS.length,
   )
 
   for (const suiteId of THEME_SUITE_IDS) {
@@ -70,7 +72,13 @@ test('built-in desktop themes include eleven paired suites', () => {
 
     expect(lightTheme?.config.variant).toBe('light')
     expect(darkTheme?.config.variant).toBe('dark')
-    expect(lightTheme?.config.theme.contrast).toBe(suiteId === 'rose-pine' ? 70 : 40)
+    expect(
+      lightTheme?.config.theme.contrast,
+    ).toBe(
+      ['rose-pine', 'catppuccin', 'raycast', 'github', 'everforest', 'linear'].includes(suiteId)
+        ? 70
+        : 40,
+    )
     expect(darkTheme?.config.theme.contrast).toBe(40)
     expect(lightTheme?.config.theme.surface).toMatch(/^#[0-9a-f]{6}$/i)
     expect(darkTheme?.config.theme.surface).toMatch(/^#[0-9a-f]{6}$/i)
@@ -118,6 +126,108 @@ test('dark Dracula theme uses configured desktop tokens', () => {
     },
     variant: 'dark',
   })
+})
+
+test('updated light presets use exact desktop tokens', () => {
+  const expected = {
+    'light-raycast': {
+      label: 'Raycast',
+      codeThemeId: 'raycast',
+      accent: '#ff6363',
+      ink: '#030303',
+      opaqueWindows: false,
+      diffAdded: '#006b4f',
+      diffRemoved: '#b12424',
+      skill: '#9a1b6e',
+      surface: '#ffffff',
+    },
+    'light-catppuccin': {
+      label: 'Catppuccin',
+      codeThemeId: 'catppuccin',
+      accent: '#8839ef',
+      ink: '#4c4f69',
+      opaqueWindows: false,
+      diffAdded: '#40a02b',
+      diffRemoved: '#d20f39',
+      skill: '#8839ef',
+      surface: '#eff1f5',
+    },
+    'light-github': {
+      label: 'GitHub',
+      codeThemeId: 'github',
+      accent: '#0969da',
+      ink: '#1f2328',
+      opaqueWindows: true,
+      diffAdded: '#1a7f37',
+      diffRemoved: '#cf222e',
+      skill: '#8250df',
+      surface: '#ffffff',
+    },
+    'light-everforest': {
+      label: 'Everforest',
+      codeThemeId: 'everforest',
+      accent: '#93b259',
+      ink: '#5c6a72',
+      opaqueWindows: false,
+      diffAdded: '#8da101',
+      diffRemoved: '#f85552',
+      skill: '#df69ba',
+      surface: '#fdf6e3',
+    },
+    'light-linear': {
+      label: 'Linear',
+      codeThemeId: 'linear',
+      accent: '#5e6ad2',
+      ink: '#1b1b1b',
+      opaqueWindows: true,
+      diffAdded: '#52a450',
+      diffRemoved: '#c94446',
+      skill: '#8160d8',
+      surface: '#fcfcfd',
+    },
+    'light-proof': {
+      label: 'Proof',
+      codeThemeId: 'proof',
+      accent: '#3d755d',
+      ink: '#2f312d',
+      opaqueWindows: false,
+      diffAdded: '#3d755d',
+      diffRemoved: '#ba2623',
+      skill: '#5f6ac2',
+      surface: '#f5f3ed',
+    },
+  } as const
+
+  for (const [id, tokens] of Object.entries(expected)) {
+    const preset = DESKTOP_THEME_PRESETS.find(item => item.id === id)
+    expect(preset).toMatchObject({
+      id,
+      label: tokens.label,
+      config: {
+        codeThemeId: tokens.codeThemeId,
+        theme: {
+          accent: tokens.accent,
+          contrast: 70,
+          fonts: DEFAULT_FONTS,
+          ink: tokens.ink,
+          opaqueWindows: tokens.opaqueWindows,
+          semanticColors: {
+            diffAdded: tokens.diffAdded,
+            diffRemoved: tokens.diffRemoved,
+            skill: tokens.skill,
+          },
+          surface: tokens.surface,
+        },
+        variant: 'light',
+      },
+    })
+  }
+})
+
+test('light-only Proof preset has no dark counterpart', () => {
+  expect(LIGHT_ONLY_THEME_IDS).toEqual(['light-proof'])
+  expect(DESKTOP_THEME_PRESETS.some(item => item.id === 'light-proof')).toBe(true)
+  expect(DESKTOP_THEME_PRESETS.some(item => item.id === 'dark-proof')).toBe(false)
 })
 
 test('Rose Pine themes use configured desktop tokens', () => {
@@ -234,17 +344,6 @@ test('updated dark presets use exact desktop tokens', () => {
 
 test('dark-only presets use exact desktop tokens without light counterparts', () => {
   const expected = {
-    'dark-everforest': {
-      label: 'Everforest',
-      codeThemeId: 'everforest',
-      accent: '#a7c080',
-      ink: '#d3c6aa',
-      opaqueWindows: false,
-      diffAdded: '#a7c080',
-      diffRemoved: '#e67e80',
-      skill: '#d699b6',
-      surface: '#2d353b',
-    },
     'dark-lobster': {
       label: 'Lobster',
       codeThemeId: 'lobster',
@@ -255,17 +354,6 @@ test('dark-only presets use exact desktop tokens without light counterparts', ()
       diffRemoved: '#ff5c5c',
       skill: '#3b82f6',
       surface: '#111827',
-    },
-    'dark-linear': {
-      label: 'Linear',
-      codeThemeId: 'linear',
-      accent: '#606acc',
-      ink: '#e3e4e6',
-      opaqueWindows: true,
-      diffAdded: '#69c967',
-      diffRemoved: '#ff7e78',
-      skill: '#c2a1ff',
-      surface: '#0f0f11',
     },
     'dark-night-owl': {
       label: 'Night Owl',
@@ -291,7 +379,7 @@ test('dark-only presets use exact desktop tokens without light counterparts', ()
     },
   } as const
 
-  expect(DARK_ONLY_THEME_IDS).toHaveLength(5)
+  expect(DARK_ONLY_THEME_IDS).toHaveLength(3)
 
   for (const id of DARK_ONLY_THEME_IDS) {
     const tokens = expected[id]
