@@ -175,13 +175,23 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
   {
     id: "dark-absolutely",
     label: "Absolutely",
-    config: createRadixThemePreset({
-      accentScale: "orange",
+    config: {
       codeThemeId: "absolutely",
-      grayScale: "sand",
-      skillScale: "orange",
+      theme: {
+        accent: "#cc7d5e",
+        contrast: 40,
+        fonts: DEFAULT_FONTS,
+        ink: "#f9f9f7",
+        opaqueWindows: false,
+        semanticColors: {
+          diffAdded: "#00c853",
+          diffRemoved: "#ff5f38",
+          skill: "#cc7d5e",
+        },
+        surface: "#2d2d2b",
+      },
       variant: "dark",
-    }),
+    },
   },
   {
     id: "light-catppuccin",
@@ -220,14 +230,23 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
   {
     id: "dark-raycast",
     label: "Raycast",
-    config: createRadixThemePreset({
-      accentScale: "red",
+    config: {
       codeThemeId: "raycast",
-      fonts: DEFAULT_FONTS,
-      grayScale: "slate",
-      skillScale: "pink",
+      theme: {
+        accent: "#ff6363",
+        contrast: 40,
+        fonts: DEFAULT_FONTS,
+        ink: "#fefefe",
+        opaqueWindows: false,
+        semanticColors: {
+          diffAdded: "#59d499",
+          diffRemoved: "#ff6363",
+          skill: "#cf2f98",
+        },
+        surface: "#101010",
+      },
       variant: "dark",
-    }),
+    },
   },
   {
     id: "light-github",
@@ -272,18 +291,9 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
       theme: {
         accent: "#ff79c6",
         contrast: 40,
-        fonts: {
-          code: {
-            preset: "Jetbrains Mono",
-            fallback: DEFAULT_CODE_FONT.fallback,
-          },
-          ui: {
-            preset: "MiSans VF Regular",
-            fallback: DEFAULT_UI_FONT.fallback,
-          },
-        },
+        fonts: DEFAULT_FONTS,
         ink: "#f8f8f2",
-        opaqueWindows: true,
+        opaqueWindows: false,
         semanticColors: {
           diffAdded: "#50fa7b",
           diffRemoved: "#ff5555",
@@ -355,14 +365,128 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
   {
     id: "dark-material",
     label: "Material",
-    config: createRadixThemePreset({
-      accentScale: "cyan",
+    config: {
       codeThemeId: "material",
-      grayScale: "sage",
-      skillScale: "purple",
-      surfaceStep: 2,
+      theme: {
+        accent: "#80cbc4",
+        contrast: 40,
+        fonts: DEFAULT_FONTS,
+        ink: "#eeffff",
+        opaqueWindows: true,
+        semanticColors: {
+          diffAdded: "#c3e88d",
+          diffRemoved: "#f07178",
+          skill: "#c792ea",
+        },
+        surface: "#212121",
+      },
       variant: "dark",
-    }),
+    },
+  },
+  {
+    id: "dark-everforest",
+    label: "Everforest",
+    config: {
+      codeThemeId: "everforest",
+      theme: {
+        accent: "#a7c080",
+        contrast: 40,
+        fonts: DEFAULT_FONTS,
+        ink: "#d3c6aa",
+        opaqueWindows: false,
+        semanticColors: {
+          diffAdded: "#a7c080",
+          diffRemoved: "#e67e80",
+          skill: "#d699b6",
+        },
+        surface: "#2d353b",
+      },
+      variant: "dark",
+    },
+  },
+  {
+    id: "dark-lobster",
+    label: "Lobster",
+    config: {
+      codeThemeId: "lobster",
+      theme: {
+        accent: "#ff5c5c",
+        contrast: 40,
+        fonts: DEFAULT_FONTS,
+        ink: "#e4e4e7",
+        opaqueWindows: false,
+        semanticColors: {
+          diffAdded: "#22c55e",
+          diffRemoved: "#ff5c5c",
+          skill: "#3b82f6",
+        },
+        surface: "#111827",
+      },
+      variant: "dark",
+    },
+  },
+  {
+    id: "dark-linear",
+    label: "Linear",
+    config: {
+      codeThemeId: "linear",
+      theme: {
+        accent: "#606acc",
+        contrast: 40,
+        fonts: DEFAULT_FONTS,
+        ink: "#e3e4e6",
+        opaqueWindows: true,
+        semanticColors: {
+          diffAdded: "#69c967",
+          diffRemoved: "#ff7e78",
+          skill: "#c2a1ff",
+        },
+        surface: "#0f0f11",
+      },
+      variant: "dark",
+    },
+  },
+  {
+    id: "dark-night-owl",
+    label: "Night Owl",
+    config: {
+      codeThemeId: "night-owl",
+      theme: {
+        accent: "#44596b",
+        contrast: 40,
+        fonts: DEFAULT_FONTS,
+        ink: "#d6deeb",
+        opaqueWindows: true,
+        semanticColors: {
+          diffAdded: "#c5e478",
+          diffRemoved: "#ef5350",
+          skill: "#c792ea",
+        },
+        surface: "#011627",
+      },
+      variant: "dark",
+    },
+  },
+  {
+    id: "dark-tokyo-night",
+    label: "Tokyo Night",
+    config: {
+      codeThemeId: "tokyo-night",
+      theme: {
+        accent: "#3d59a1",
+        contrast: 40,
+        fonts: DEFAULT_FONTS,
+        ink: "#a9b1d6",
+        opaqueWindows: true,
+        semanticColors: {
+          diffAdded: "#449dab",
+          diffRemoved: "#914c54",
+          skill: "#9d7cd8",
+        },
+        surface: "#1a1b26",
+      },
+      variant: "dark",
+    },
   },
   {
     id: "light-vscode-plus",

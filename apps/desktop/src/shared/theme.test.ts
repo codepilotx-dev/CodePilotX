@@ -48,7 +48,13 @@ test('DEFAULT_DARK_THEME uses CodePilotX desktop tokens', () => {
 })
 
 test('built-in desktop themes include eleven paired suites', () => {
-  expect(DESKTOP_THEME_PRESETS).toHaveLength(THEME_SUITE_IDS.length * 2)
+  const pairedPresets = DESKTOP_THEME_PRESETS.filter(preset =>
+    THEME_SUITE_IDS.some(
+      suiteId => preset.id === `light-${suiteId}` || preset.id === `dark-${suiteId}`,
+    ),
+  )
+
+  expect(pairedPresets).toHaveLength(THEME_SUITE_IDS.length * 2)
 
   for (const suiteId of THEME_SUITE_IDS) {
     const lightTheme = DESKTOP_THEME_PRESETS.find(
@@ -96,12 +102,9 @@ test('dark Dracula theme uses configured desktop tokens', () => {
     theme: {
       accent: '#ff79c6',
       contrast: 40,
-      fonts: {
-        code: { preset: 'Jetbrains Mono' },
-        ui: { preset: 'MiSans VF Regular' },
-      },
+      fonts: DEFAULT_FONTS,
       ink: '#f8f8f2',
-      opaqueWindows: true,
+      opaqueWindows: false,
       semanticColors: {
         diffAdded: '#50fa7b',
         diffRemoved: '#ff5555',
@@ -157,6 +160,158 @@ test('Rose Pine themes use configured desktop tokens', () => {
       variant: 'dark',
     },
   })
+})
+
+test('updated dark presets use exact desktop tokens', () => {
+  const expected = {
+    'dark-raycast': {
+      codeThemeId: 'raycast',
+      accent: '#ff6363',
+      ink: '#fefefe',
+      opaqueWindows: false,
+      diffAdded: '#59d499',
+      diffRemoved: '#ff6363',
+      skill: '#cf2f98',
+      surface: '#101010',
+    },
+    'dark-dracula': {
+      codeThemeId: 'dracula',
+      accent: '#ff79c6',
+      ink: '#f8f8f2',
+      opaqueWindows: false,
+      diffAdded: '#50fa7b',
+      diffRemoved: '#ff5555',
+      skill: '#ff79c6',
+      surface: '#282a36',
+    },
+    'dark-absolutely': {
+      codeThemeId: 'absolutely',
+      accent: '#cc7d5e',
+      ink: '#f9f9f7',
+      opaqueWindows: false,
+      diffAdded: '#00c853',
+      diffRemoved: '#ff5f38',
+      skill: '#cc7d5e',
+      surface: '#2d2d2b',
+    },
+    'dark-material': {
+      codeThemeId: 'material',
+      accent: '#80cbc4',
+      ink: '#eeffff',
+      opaqueWindows: true,
+      diffAdded: '#c3e88d',
+      diffRemoved: '#f07178',
+      skill: '#c792ea',
+      surface: '#212121',
+    },
+  } as const
+
+  for (const [id, tokens] of Object.entries(expected)) {
+    const preset = DESKTOP_THEME_PRESETS.find(item => item.id === id)
+    expect(preset?.config).toMatchObject({
+      codeThemeId: tokens.codeThemeId,
+      theme: {
+        accent: tokens.accent,
+        contrast: 40,
+        fonts: DEFAULT_FONTS,
+        ink: tokens.ink,
+        opaqueWindows: tokens.opaqueWindows,
+        semanticColors: {
+          diffAdded: tokens.diffAdded,
+          diffRemoved: tokens.diffRemoved,
+          skill: tokens.skill,
+        },
+        surface: tokens.surface,
+      },
+      variant: 'dark',
+    })
+  }
+})
+
+test('dark-only presets use exact desktop tokens without light counterparts', () => {
+  const expected = {
+    'dark-everforest': {
+      label: 'Everforest',
+      codeThemeId: 'everforest',
+      accent: '#a7c080',
+      ink: '#d3c6aa',
+      opaqueWindows: false,
+      diffAdded: '#a7c080',
+      diffRemoved: '#e67e80',
+      skill: '#d699b6',
+      surface: '#2d353b',
+    },
+    'dark-lobster': {
+      label: 'Lobster',
+      codeThemeId: 'lobster',
+      accent: '#ff5c5c',
+      ink: '#e4e4e7',
+      opaqueWindows: false,
+      diffAdded: '#22c55e',
+      diffRemoved: '#ff5c5c',
+      skill: '#3b82f6',
+      surface: '#111827',
+    },
+    'dark-linear': {
+      label: 'Linear',
+      codeThemeId: 'linear',
+      accent: '#606acc',
+      ink: '#e3e4e6',
+      opaqueWindows: true,
+      diffAdded: '#69c967',
+      diffRemoved: '#ff7e78',
+      skill: '#c2a1ff',
+      surface: '#0f0f11',
+    },
+    'dark-night-owl': {
+      label: 'Night Owl',
+      codeThemeId: 'night-owl',
+      accent: '#44596b',
+      ink: '#d6deeb',
+      opaqueWindows: true,
+      diffAdded: '#c5e478',
+      diffRemoved: '#ef5350',
+      skill: '#c792ea',
+      surface: '#011627',
+    },
+    'dark-tokyo-night': {
+      label: 'Tokyo Night',
+      codeThemeId: 'tokyo-night',
+      accent: '#3d59a1',
+      ink: '#a9b1d6',
+      opaqueWindows: true,
+      diffAdded: '#449dab',
+      diffRemoved: '#914c54',
+      skill: '#9d7cd8',
+      surface: '#1a1b26',
+    },
+  } as const
+
+  for (const [id, tokens] of Object.entries(expected)) {
+    const preset = DESKTOP_THEME_PRESETS.find(item => item.id === id)
+    expect(preset).toMatchObject({
+      id,
+      label: tokens.label,
+      config: {
+        codeThemeId: tokens.codeThemeId,
+        theme: {
+          accent: tokens.accent,
+          contrast: 40,
+          fonts: DEFAULT_FONTS,
+          ink: tokens.ink,
+          opaqueWindows: tokens.opaqueWindows,
+          semanticColors: {
+            diffAdded: tokens.diffAdded,
+            diffRemoved: tokens.diffRemoved,
+            skill: tokens.skill,
+          },
+          surface: tokens.surface,
+        },
+        variant: 'dark',
+      },
+    })
+    expect(DESKTOP_THEME_PRESETS.some(item => item.id === id.replace('dark-', 'light-'))).toBe(false)
+  }
 })
 
 test('exportDesktopThemeConfig returns clean theme config', () => {
