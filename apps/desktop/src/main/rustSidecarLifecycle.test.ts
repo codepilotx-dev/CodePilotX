@@ -5,6 +5,7 @@ import * as fs from 'node:fs'
 import { PassThrough, Writable } from 'node:stream'
 
 const children: FakeAppServerProcess[] = []
+let activeChildren = 0
 
 class FakeAppServerProcess extends EventEmitter {
   readonly stdout = new PassThrough()
@@ -16,6 +17,7 @@ class FakeAppServerProcess extends EventEmitter {
 
   constructor(private readonly failThreadStart: boolean) {
     super()
+    activeChildren += 1
     this.stdin = new Writable({
       write: (chunk, _encoding, callback) => {
         const message = JSON.parse(String(chunk).trim()) as {
@@ -53,6 +55,7 @@ class FakeAppServerProcess extends EventEmitter {
     this.killed = true
     queueMicrotask(() => {
       this.exitCode = 0
+      activeChildren -= 1
       this.emit('exit', 0, null)
     })
     return true
@@ -96,13 +99,16 @@ test('thread start failure kills the failed child and the next attempt spawns fr
   expect(internals.startupState).toBe('failed')
   expect(children).toHaveLength(1)
   expect(children[0].killed).toBe(true)
+  expect(activeChildren).toBe(0)
   expect(internals.child).toBeNull()
 
   await internals.startAppServer()
   expect(internals.startupState).toBe('ready')
   expect(children).toHaveLength(2)
   expect(children[1].killed).toBe(false)
+  expect(activeChildren).toBe(1)
 
   await runtime.dispose()
   expect(children[1].killed).toBe(true)
+  expect(activeChildren).toBe(0)
 })
