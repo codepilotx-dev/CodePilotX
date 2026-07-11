@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     ffi::OsString,
+    io::Write,
     path::{Component, Path, PathBuf},
     sync::Arc,
     time::{Duration, Instant},
@@ -54,6 +55,30 @@ struct StoredProviderToken {
 
 const PROVIDER_AUTH_KEYRING_SERVICE: &str = "CodePilotX Provider Auth";
 
+trait CredentialsWriter: Send + Sync {
+    fn write(&self, path: &Path, contents: &[u8]) -> std::io::Result<()>;
+}
+
+#[derive(Debug, Default)]
+struct AtomicCredentialsWriter;
+
+impl CredentialsWriter for AtomicCredentialsWriter {
+    fn write(&self, path: &Path, contents: &[u8]) -> std::io::Result<()> {
+        let parent = path.parent().ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("path {} has no parent directory", path.display()),
+            )
+        })?;
+        let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
+        temporary.write_all(contents)?;
+        temporary.flush()?;
+        temporary.as_file().sync_all()?;
+        temporary.persist(path).map_err(|error| error.error)?;
+        Ok(())
+    }
+}
+
 //  Public processor
 
 #[derive(Clone)]
@@ -63,6 +88,7 @@ pub(crate) struct ProviderAuthRequestProcessor {
     approved_clone_root: PathBuf,
     trusted_provider_endpoints: Arc<HashMap<String, String>>,
     keyring: Arc<dyn KeyringStore>,
+    credentials_writer: Arc<dyn CredentialsWriter>,
 }
 
 impl ProviderAuthRequestProcessor {
@@ -98,6 +124,37 @@ impl ProviderAuthRequestProcessor {
         trusted_provider_endpoints: HashMap<String, String>,
         keyring: Arc<dyn KeyringStore>,
     ) -> Self {
+        Self::new_with_keyring_endpoints_and_writer(
+            config_dir,
+            approved_clone_root,
+            trusted_provider_endpoints,
+            keyring,
+            Arc::new(AtomicCredentialsWriter),
+        )
+    }
+
+    fn new_with_keyring_and_writer(
+        config_dir: PathBuf,
+        approved_clone_root: PathBuf,
+        keyring: Arc<dyn KeyringStore>,
+        credentials_writer: Arc<dyn CredentialsWriter>,
+    ) -> Self {
+        Self::new_with_keyring_endpoints_and_writer(
+            config_dir,
+            approved_clone_root,
+            HashMap::new(),
+            keyring,
+            credentials_writer,
+        )
+    }
+
+    fn new_with_keyring_endpoints_and_writer(
+        config_dir: PathBuf,
+        approved_clone_root: PathBuf,
+        trusted_provider_endpoints: HashMap<String, String>,
+        keyring: Arc<dyn KeyringStore>,
+        credentials_writer: Arc<dyn CredentialsWriter>,
+    ) -> Self {
         Self {
             inner: Arc::new(Mutex::new(ProviderAuthInner {
                 attempts: HashMap::new(),
@@ -106,6 +163,7 @@ impl ProviderAuthRequestProcessor {
             approved_clone_root,
             trusted_provider_endpoints: Arc::new(trusted_provider_endpoints),
             keyring,
+            credentials_writer,
         }
     }
 
@@ -827,11 +885,13 @@ impl ProviderAuthRequestProcessor {
                 "Failed to redact legacy provider API keys: {error}"
             ))
         })?;
-        tokio::fs::write(&path, redacted).await.map_err(|error| {
-            internal_error(format!(
-                "Failed to redact legacy provider API keys: {error}"
-            ))
-        })?;
+        self.credentials_writer
+            .write(&path, &redacted)
+            .map_err(|error| {
+                internal_error(format!(
+                    "Failed to redact legacy provider API keys: {error}"
+                ))
+            })?;
         Ok(())
     }
 
@@ -1451,7 +1511,7 @@ mod tests {
     use std::fs;
     use std::path::Path;
     use std::sync::Mutex as StdMutex;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use wiremock::MockServer;
 
     fn stored_token(provider_id: &str) -> StoredProviderToken {
@@ -1572,7 +1632,7 @@ mod tests {
         let credentials_path = home.path().join(".credentials.json");
         fs::write(
             &credentials_path,
-            r#"{"providerApiKeys":{"zhipu":"sentinel-provider-key"},"other":true}"#,
+            r#"{"providerApiKeys":{"zhipu":"sentinel-provider-key"},"oauth":{"accessToken":"keep-me"},"other":true}"#,
         )
         .expect("legacy credentials");
         let keyring = MockKeyringStore::default();
@@ -1598,13 +1658,122 @@ mod tests {
         );
     }
 
+    #[derive(Debug)]
+    struct FailingCredentialsWriter {
+        kind: std::io::ErrorKind,
+        called: AtomicBool,
+    }
+
+    impl FailingCredentialsWriter {
+        fn new(kind: std::io::ErrorKind) -> Self {
+            Self {
+                kind,
+                called: AtomicBool::new(false),
+            }
+        }
+    }
+
+    impl CredentialsWriter for FailingCredentialsWriter {
+        fn write(&self, _path: &Path, _contents: &[u8]) -> std::io::Result<()> {
+            self.called.store(true, Ordering::SeqCst);
+            Err(std::io::Error::from(self.kind))
+        }
+    }
+
+    #[tokio::test]
+    async fn provider_api_key_migration_keeps_original_bytes_when_writer_is_out_of_space() {
+        let home = tempfile::tempdir().expect("temp home");
+        let credentials_path = home.path().join(".credentials.json");
+        let original = br#"{"oauth":{"accessToken":"keep-me"},"providerApiKeys":{"zhipu":"sentinel-provider-key"}}"#;
+        fs::write(&credentials_path, original).expect("legacy credentials");
+        let writer = Arc::new(FailingCredentialsWriter::new(
+            std::io::ErrorKind::StorageFull,
+        ));
+        let processor = ProviderAuthRequestProcessor::new_with_keyring_and_writer(
+            home.path().to_path_buf(),
+            home.path().to_path_buf(),
+            Arc::new(MockKeyringStore::default()),
+            writer,
+        );
+
+        processor
+            .migrate_legacy_provider_api_keys()
+            .await
+            .expect_err("ENOSPC must reach caller");
+
+        assert_eq!(
+            fs::read(credentials_path).expect("original credentials"),
+            original
+        );
+    }
+
+    #[tokio::test]
+    async fn provider_api_key_migration_keeps_oauth_and_original_when_writer_is_denied() {
+        let home = tempfile::tempdir().expect("temp home");
+        let credentials_path = home.path().join(".credentials.json");
+        let original = br#"{"oauth":{"refreshToken":"keep-me"},"providerApiKeys":{"zhipu":"sentinel-provider-key"},"other":true}"#;
+        fs::write(&credentials_path, original).expect("legacy credentials");
+        let writer = Arc::new(FailingCredentialsWriter::new(
+            std::io::ErrorKind::PermissionDenied,
+        ));
+        let processor = ProviderAuthRequestProcessor::new_with_keyring_and_writer(
+            home.path().to_path_buf(),
+            home.path().to_path_buf(),
+            Arc::new(MockKeyringStore::default()),
+            writer,
+        );
+
+        processor
+            .migrate_legacy_provider_api_keys()
+            .await
+            .expect_err("permission failure must reach caller");
+
+        assert_eq!(
+            fs::read(credentials_path).expect("original credentials"),
+            original
+        );
+    }
+
+    #[tokio::test]
+    async fn provider_api_key_migration_does_not_call_writer_when_keyring_save_fails() {
+        let home = tempfile::tempdir().expect("temp home");
+        let credentials_path = home.path().join(".credentials.json");
+        let original = br#"{"providerApiKeys":{"zhipu":"sentinel-provider-key"},"other":true}"#;
+        fs::write(&credentials_path, original).expect("legacy credentials");
+        let keyring = MockKeyringStore::default();
+        keyring.set_error(
+            "providerApiKeys/zhipu",
+            KeyringError::NoStorageAccess(Box::new(std::io::Error::other("denied"))),
+        );
+        let writer = Arc::new(FailingCredentialsWriter::new(
+            std::io::ErrorKind::PermissionDenied,
+        ));
+        let processor = ProviderAuthRequestProcessor::new_with_keyring_and_writer(
+            home.path().to_path_buf(),
+            home.path().to_path_buf(),
+            Arc::new(keyring),
+            writer.clone(),
+        );
+
+        processor
+            .migrate_legacy_provider_api_keys()
+            .await
+            .expect_err("keyring failure must reach caller");
+
+        assert!(!writer.called.load(Ordering::SeqCst));
+        assert_eq!(
+            fs::read(credentials_path).expect("original credentials"),
+            original
+        );
+    }
+
     #[tokio::test]
     async fn provider_api_key_migration_redacts_plaintext_after_secure_save() {
         let home = tempfile::tempdir().expect("temp home");
         let credentials_path = home.path().join(".credentials.json");
         fs::write(
             &credentials_path,
-            r#"{"providerApiKeys":{"zhipu":"sentinel-provider-key"},"other":true}"#,
+            r#"{"providerApiKeys":{"zhipu":"sentinel-provider-key"},"oauth":{"accessToken":"keep-me"},"other":true}"#,
         )
         .expect("legacy credentials");
         let keyring = MockKeyringStore::default();
@@ -1622,6 +1791,10 @@ mod tests {
         let redacted = fs::read_to_string(credentials_path).expect("redacted credentials");
         assert!(!redacted.contains("sentinel-provider-key"));
         assert!(!redacted.contains("providerApiKeys"));
+        let redacted: serde_json::Value =
+            serde_json::from_str(&redacted).expect("valid redacted credentials");
+        assert_eq!(redacted["oauth"]["accessToken"], "keep-me");
+        assert_eq!(redacted["other"], true);
         assert_eq!(
             keyring.saved_value("providerApiKeys/zhipu").as_deref(),
             Some("sentinel-provider-key")
