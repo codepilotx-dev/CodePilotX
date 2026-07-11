@@ -3,6 +3,7 @@ import {
   DESKTOP_THEME_PRESETS,
   DEFAULT_DARK_THEME,
   DEFAULT_DESKTOP_THEME_SETTINGS,
+  DEFAULT_FONTS,
   DEFAULT_LIGHT_THEME,
   exportDesktopThemeConfig,
   normalizeDesktopThemeConfig,
@@ -14,6 +15,7 @@ const THEME_SUITE_IDS = [
   'github',
   'raycast',
   'dracula',
+  'rose-pine',
   'catppuccin',
   'material',
   'vscode-plus',
@@ -45,7 +47,7 @@ test('DEFAULT_DARK_THEME uses CodePilotX desktop tokens', () => {
   expect(DEFAULT_DARK_THEME.variant).toBe('dark')
 })
 
-test('built-in desktop themes include ten paired suites', () => {
+test('built-in desktop themes include eleven paired suites', () => {
   expect(DESKTOP_THEME_PRESETS).toHaveLength(THEME_SUITE_IDS.length * 2)
 
   for (const suiteId of THEME_SUITE_IDS) {
@@ -58,7 +60,7 @@ test('built-in desktop themes include ten paired suites', () => {
 
     expect(lightTheme?.config.variant).toBe('light')
     expect(darkTheme?.config.variant).toBe('dark')
-    expect(lightTheme?.config.theme.contrast).toBe(40)
+    expect(lightTheme?.config.theme.contrast).toBe(suiteId === 'rose-pine' ? 70 : 40)
     expect(darkTheme?.config.theme.contrast).toBe(40)
     expect(lightTheme?.config.theme.surface).toMatch(/^#[0-9a-f]{6}$/i)
     expect(darkTheme?.config.theme.surface).toMatch(/^#[0-9a-f]{6}$/i)
@@ -108,6 +110,52 @@ test('dark Dracula theme uses configured desktop tokens', () => {
       surface: '#282a36',
     },
     variant: 'dark',
+  })
+})
+
+test('Rose Pine themes use configured desktop tokens', () => {
+  const lightPreset = DESKTOP_THEME_PRESETS.find(item => item.id === 'light-rose-pine')
+  const darkPreset = DESKTOP_THEME_PRESETS.find(item => item.id === 'dark-rose-pine')
+
+  expect(lightPreset).toMatchObject({
+    label: 'Rose Pine',
+    config: {
+      codeThemeId: 'rose-pine',
+      theme: {
+        accent: '#d7827e',
+        contrast: 70,
+        fonts: DEFAULT_FONTS,
+        ink: '#575279',
+        opaqueWindows: true,
+        semanticColors: {
+          diffAdded: '#56949f',
+          diffRemoved: '#797593',
+          skill: '#907aa9',
+        },
+        surface: '#faf4ed',
+      },
+      variant: 'light',
+    },
+  })
+  expect(darkPreset).toMatchObject({
+    label: 'Rose Pine',
+    config: {
+      codeThemeId: 'rose-pine',
+      theme: {
+        accent: '#ea9a97',
+        contrast: 40,
+        fonts: DEFAULT_FONTS,
+        ink: '#e0def4',
+        opaqueWindows: true,
+        semanticColors: {
+          diffAdded: '#9ccfd8',
+          diffRemoved: '#908caa',
+          skill: '#c4a7e7',
+        },
+        surface: '#232136',
+      },
+      variant: 'dark',
+    },
   })
 })
 

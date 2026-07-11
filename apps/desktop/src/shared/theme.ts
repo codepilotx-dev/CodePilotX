@@ -295,6 +295,48 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     },
   },
   {
+    id: "light-rose-pine",
+    label: "Rose Pine",
+    config: {
+      codeThemeId: "rose-pine",
+      theme: {
+        accent: "#d7827e",
+        contrast: 70,
+        fonts: DEFAULT_FONTS,
+        ink: "#575279",
+        opaqueWindows: true,
+        semanticColors: {
+          diffAdded: "#56949f",
+          diffRemoved: "#797593",
+          skill: "#907aa9",
+        },
+        surface: "#faf4ed",
+      },
+      variant: "light",
+    },
+  },
+  {
+    id: "dark-rose-pine",
+    label: "Rose Pine",
+    config: {
+      codeThemeId: "rose-pine",
+      theme: {
+        accent: "#ea9a97",
+        contrast: 40,
+        fonts: DEFAULT_FONTS,
+        ink: "#e0def4",
+        opaqueWindows: true,
+        semanticColors: {
+          diffAdded: "#9ccfd8",
+          diffRemoved: "#908caa",
+          skill: "#c4a7e7",
+        },
+        surface: "#232136",
+      },
+      variant: "dark",
+    },
+  },
+  {
     id: DEFAULT_DARK_THEME_ID,
     label: "CodePilotX",
     config: DEFAULT_DARK_THEME,
