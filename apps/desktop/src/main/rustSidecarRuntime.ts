@@ -590,7 +590,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     signal: AbortSignal,
   ): Promise<void> {
     await this.ensureThreadLoaded()
-    this.workflowState.activeTurnKind = 'review'
+    this.beginTurn('review')
     this.currentTurnPromise = new Promise<void>((resolve, reject) => {
       this.currentTurnResolve = resolve
       this.currentTurnReject = reject
@@ -612,6 +612,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       this.workflowState.activeTurnId = response.turn.id
       await this.currentTurnPromise
     } finally {
+      this.finishTurn()
       this.currentTurnPromise = null
       this.currentTurnResolve = null
       this.currentTurnReject = null
@@ -625,7 +626,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     if (this.workflowState.activeTurnId) {
       throw new Error('当前会话正在运行，无法压缩上下文。')
     }
-    this.workflowState.activeTurnKind = 'compact'
+    this.beginTurn('compact')
     this.currentTurnPromise = new Promise<void>((resolve, reject) => {
       this.currentTurnResolve = resolve
       this.currentTurnReject = reject
@@ -641,6 +642,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       })
       await this.currentTurnPromise
     } finally {
+      this.finishTurn()
       this.currentTurnPromise = null
       this.currentTurnResolve = null
       this.currentTurnReject = null
@@ -715,15 +717,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
     signal: AbortSignal,
   ): Promise<void> {
     // If there's already an active turn, reject (serial turns only for now)
-    if (this.turnInProgress) {
-      throw new Error(
-        'Rust sidecar does not support concurrent turns. Wait for the current turn to complete.',
-      )
-    }
-
-    this.turnInProgress = true
-    this.currentTurnTerminal = false
-    this.activeRuntimeTurnId = null
+    this.beginTurn('regular')
 
     this.pendingTurnSignal = signal
     const abortHandler = () => {
@@ -773,7 +767,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       )
       throw error
     } finally {
-      this.turnInProgress = false
+      this.finishTurn()
       this.currentTurnPromise = null
       this.currentTurnResolve = null
       this.currentTurnReject = null
@@ -1173,6 +1167,26 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       }
       throw error
     }
+  }
+
+  private beginTurn(kind: 'regular' | 'review' | 'compact'): void {
+    if (this.turnInProgress) {
+      throw new Error(
+        'Rust sidecar does not support concurrent turns. Wait for the current turn to complete.',
+      )
+    }
+    this.turnInProgress = true
+    this.currentTurnTerminal = false
+    this.activeRuntimeTurnId = null
+    this.workflowState.activeTurnId = null
+    this.workflowState.activeTurnKind = kind
+  }
+
+  private finishTurn(): void {
+    this.turnInProgress = false
+    this.activeRuntimeTurnId = null
+    this.workflowState.activeTurnId = null
+    this.workflowState.activeTurnKind = null
   }
 
   private cleanupAppServer(): Promise<void> {

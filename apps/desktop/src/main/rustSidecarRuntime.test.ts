@@ -1426,6 +1426,90 @@ describe('RustSidecarDesktopAgentRuntime input validation', () => {
 })
 
 describe('RustSidecarDesktopAgentRuntime lifecycle', () => {
+  test('review and compact turns reset terminal state after a completed regular turn', async () => {
+    const events: unknown[] = []
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-follow-up-turns',
+      workspacePath: process.cwd(),
+      emit: event => events.push(event),
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const internals = runtime as unknown as {
+      initialized: boolean
+      appServerClient: {
+        startReview: () => Promise<{ reviewThreadId: string; turn: { id: string } }>
+        compactThread: () => Promise<void>
+      }
+      workflowState: { threadId: string; activeTurnId: string | null; activeTurnKind: string | null }
+      currentTurnTerminal: boolean
+      handleNotification(method: string, params: unknown): void
+    }
+    internals.initialized = true
+    internals.workflowState.threadId = 'thread-1'
+    internals.currentTurnTerminal = true
+    internals.appServerClient = {
+      startReview: async () => {
+        queueMicrotask(() => {
+          internals.handleNotification('turn/started', { turn: { id: 'review-1' } })
+          internals.handleNotification('turn/completed', { turn: { id: 'review-1', status: 'completed' } })
+        })
+        return { reviewThreadId: 'thread-1', turn: { id: 'review-1' } }
+      },
+      compactThread: async () => {
+        queueMicrotask(() => {
+          internals.handleNotification('turn/started', { turn: { id: 'compact-1' } })
+          internals.handleNotification('turn/completed', { turn: { id: 'compact-1', status: 'completed' } })
+        })
+      },
+    }
+
+    await expect(runtime.runReview({ type: 'uncommittedChanges' }, new AbortController().signal)).resolves.toBeUndefined()
+    await expect(runtime.compactThread(new AbortController().signal)).resolves.toBeUndefined()
+    expect(events.filter(event => (event as { type?: string }).type === 'done')).toHaveLength(2)
+    expect(internals.workflowState.activeTurnKind).toBeNull()
+  })
+
+  test('failed review and compact RPCs clean turn kind and do not block the next turn', async () => {
+    const runtime = new RustSidecarDesktopAgentRuntime({
+      sessionId: 'test-failed-special-turns',
+      workspacePath: process.cwd(),
+      emit: () => {},
+      requestPermission: async () => ({ behavior: 'deny' }),
+    })
+    const startTurn = mock(async () => {
+      queueMicrotask(() => {
+        ;(internals as unknown as { handleNotification(method: string, params: unknown): void })
+          .handleNotification('turn/completed', {
+            turn: { id: 'regular-1', status: 'completed' },
+          })
+      })
+      return { turn: { id: 'regular-1' } }
+    })
+    const internals = runtime as unknown as {
+      initialized: boolean
+      appServerClient: Record<string, unknown>
+      workflowState: { threadId: string; activeTurnId: string | null; activeTurnKind: string | null }
+      turnInProgress: boolean
+    }
+    internals.initialized = true
+    internals.workflowState.threadId = 'thread-1'
+    internals.appServerClient = {
+      startReview: async () => { throw new Error('review failed') },
+      compactThread: async () => { throw new Error('compact failed') },
+      startTurn,
+    }
+
+    await expect(runtime.runReview({ type: 'uncommittedChanges' }, new AbortController().signal)).rejects.toThrow('review failed')
+    expect(internals.workflowState.activeTurnKind).toBeNull()
+    expect(internals.turnInProgress).toBe(false)
+    await expect(runtime.compactThread(new AbortController().signal)).rejects.toThrow('compact failed')
+    expect(internals.workflowState.activeTurnKind).toBeNull()
+    expect(internals.turnInProgress).toBe(false)
+    expect(await runtime.steerUserTurn('next')).toBe('queueRequired')
+    await expect(runtime.runUserTurn('next', new AbortController().signal)).resolves.toBeUndefined()
+    expect(startTurn).toHaveBeenCalledTimes(1)
+  })
+
   test('failed turn emits only error and never resolves before rejecting', () => {
     const events: unknown[] = []
     let resolveCount = 0
