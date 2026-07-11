@@ -16,6 +16,8 @@ const PR_MERGE_OPTIONS: Array<{ value: 'merge' | 'squash'; label: string }> = [
   { value: 'squash', label: '压缩' },
 ]
 
+const GITHUB_DEVELOPER_SETTINGS_URL = 'https://github.com/settings/developers'
+
 export function GitSettings(): React.ReactNode {
   const { draft } = useDesktopSettings()
   const {
@@ -104,6 +106,10 @@ export function GitSettings(): React.ReactNode {
   const openGithubDevicePage = async (): Promise<void> => {
     if (!githubLogin?.verificationUri) return
     await desktopClient.openExternalURL(githubLogin.verificationUri)
+  }
+
+  const openGithubDeveloperSettings = async (): Promise<void> => {
+    await desktopClient.openExternalURL(GITHUB_DEVELOPER_SETTINGS_URL)
   }
 
   return (
@@ -264,6 +270,15 @@ export function GitSettings(): React.ReactNode {
         <SettingsSection
           title="GitHub 账号"
           description="登录后可在项目选择器中列出并克隆你有权限访问的 GitHub 仓库。"
+          actions={
+            <button
+              className="settings-button"
+              onClick={() => void openGithubDeveloperSettings()}
+              type="button"
+            >
+              获取 Client ID
+            </button>
+          }
         >
           {activeDeviceLogin ? (
             <div className="github-device-code-card">
