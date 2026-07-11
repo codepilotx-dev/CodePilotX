@@ -405,6 +405,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   private currentTurnTerminal = false
   private pendingTurnSignal: AbortSignal | null = null
   private disposeNotificationListener: (() => void) | null = null
+  private disposeFatalTransportListener: (() => void) | null = null
   private disposeServerRequestHandlers: Array<() => void> | null = null
   private planModeActive = false
   private pendingServerRequest: {
@@ -853,6 +854,18 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       input: child.stdout!,
       output: child.stdin!,
     })
+    this.disposeFatalTransportListener = this.rpcClient.onFatalError(error => {
+      this.currentTurnReject?.(error)
+      this.startupState = 'failed'
+      void this.cleanupAppServer().catch(cleanupError => {
+        desktopDebug('rust_sidecar_transport_cleanup_failed', {
+          message:
+            cleanupError instanceof Error
+              ? cleanupError.message
+              : String(cleanupError),
+        })
+      })
+    })
     this.appServerClient = new RustAppServerClient(this.rpcClient)
 
     // 3. Wire up notification handler
@@ -894,6 +907,8 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
   }
 
   private async cleanupAppServer(): Promise<void> {
+    this.disposeFatalTransportListener?.()
+    this.disposeFatalTransportListener = null
     this.disposeNotificationListener?.()
     this.disposeNotificationListener = null
     this.disposeServerRequestHandlers?.forEach(dispose => dispose())

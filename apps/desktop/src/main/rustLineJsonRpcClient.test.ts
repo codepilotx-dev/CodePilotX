@@ -111,6 +111,8 @@ describe('RustLineJsonRpcClient', () => {
       },
     })
     const client = new RustLineJsonRpcClient({ input, output })
+    const fatalErrors: Error[] = []
+    client.onFatalError(error => fatalErrors.push(error))
 
     const first = client.sendRequest('initialize', {})
     const second = client.sendRequest('thread/start', {})
@@ -121,6 +123,8 @@ describe('RustLineJsonRpcClient', () => {
       expect.objectContaining({ status: 'rejected', reason: expect.objectContaining({ message: 'broken pipe' }) }),
       expect.objectContaining({ status: 'rejected', reason: expect.objectContaining({ message: 'broken pipe' }) }),
     ])
+    expect(fatalErrors).toHaveLength(1)
+    expect(fatalErrors[0].message).toBe('broken pipe')
   })
 
   test('onAnyNotification receives all notifications regardless of method', async () => {
