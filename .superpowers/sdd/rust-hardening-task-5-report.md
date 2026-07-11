@@ -102,4 +102,3 @@ git diff --exit-code -- app-server-protocol/schema
 
 - `7dccc0ecd feat(desktop)：建立全量测试发现与持续集成门禁`
 - `fde282e82 docs(desktop)：统一迁移契约与源码空白门禁`
-
