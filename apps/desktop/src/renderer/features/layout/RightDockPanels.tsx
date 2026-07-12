@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import * as ContextMenu from '@radix-ui/react-context-menu'
 import { FileText, Folder, FolderOpen, ListChecks, Search, SquareTerminal } from 'lucide-react'
@@ -11,8 +11,13 @@ import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTo
 import { buildPopoverSizingStyle } from '../../components/ui/popoverSizing.js'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
 import { ComposerSurface } from '../session/ComposerSurface.js'
-import { MarkdownMessage } from '../session/MarkdownMessage.js'
 import type { RightDockPlan } from './rightDockTools.js'
+
+const MarkdownMessage = lazy(() =>
+  import('../session/MarkdownMessage.js').then(module => ({
+    default: module.MarkdownMessage,
+  })),
+)
 
 const FILE_TREE_PANEL_DEFAULT_WIDTH = 360
 const FILE_TREE_PANEL_MIN_WIDTH = 220
@@ -58,7 +63,9 @@ export function RightDockPlanPanel({
       contentClassName="right-dock-plan-scroll-content"
     >
       <article className="right-dock-plan-document">
-        <MarkdownMessage text={plan.content} />
+        <Suspense fallback={null}>
+          <MarkdownMessage text={plan.content} />
+        </Suspense>
       </article>
     </ScrollArea>
   )

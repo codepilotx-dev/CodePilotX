@@ -1,5 +1,6 @@
 import React from "react";
 import * as ContextMenu from "@radix-ui/react-context-menu";
+import '../../styles/features/timeline.scss';
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   AppWindow,

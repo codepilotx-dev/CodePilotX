@@ -44,6 +44,8 @@ import type {
 } from './MenuBar.js'
 import { QuickChatContext } from '../session/QuickChatContext.js'
 import { SearchContext } from '../search/SearchContext.js'
+import type { SearchContextValue } from '../search/SearchContext.js'
+import type { QuickChatContextValue } from '../session/QuickChatContext.js'
 import {
   sessionDisplayTitle,
   sessionViewFallbackTitle,
@@ -89,6 +91,8 @@ import type {
 import type { SubmitSessionOptions } from '../session/sessionActions.js'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { upsertRecentWorkspace } from '../../../shared/settings.js'
+import { canCommitProviderCatalog, createBrowserRequestController, createLatestRequestGuard, getProviderCatalogKey, mergeBrowserStateError, scheduleIdleTask } from './desktopStartupScheduling.js'
+import type { BrowserRequestController } from './desktopStartupScheduling.js'
 
 const QUICK_CHAT_PATH = '/quick-chat'
 const RIGHT_DOCK_WIDTH_STORAGE_KEY = 'codepilotx.desktop.rightDockWidth'
@@ -164,6 +168,27 @@ export function DesktopLayout(): React.ReactNode {
   const [browserState, setBrowserState] = useState<DesktopBrowserState | null>(
     null,
   )
+  const browserStateRef = useRef<DesktopBrowserState | null>(null)
+  const createBrowserController = (): BrowserRequestController<DesktopBrowserState> =>
+    createBrowserRequestController(
+      next => {
+        browserStateRef.current = next
+        setBrowserState(next)
+      },
+      error => {
+        const next = mergeBrowserStateError(browserStateRef.current, error)
+        if (next) {
+          browserStateRef.current = next
+          setBrowserState(next)
+        } else {
+          setErrorMessage(error instanceof Error ? error.message : String(error))
+        }
+      },
+    )
+  const browserControllerRef = useRef<BrowserRequestController<DesktopBrowserState> | null>(null)
+  if (!browserControllerRef.current) {
+    browserControllerRef.current = createBrowserController()
+  }
   const [composerAttachments, setComposerAttachments] = useState<
     DesktopComposerAttachment[]
   >([])
@@ -615,12 +640,16 @@ export function DesktopLayout(): React.ReactNode {
   }, [menubarDebugMode])
 
   const refreshBrowserState = useCallback((): void => {
-    void desktopClient
-      .getBrowserState()
-      .then(setBrowserState)
-      .catch(error =>
-        setErrorMessage(error instanceof Error ? error.message : String(error)),
-      )
+    browserControllerRef.current?.read(() => desktopClient.getBrowserState())
+  }, [])
+
+  const runBrowserMutation = useCallback((action: () => Promise<DesktopBrowserState>): void => {
+    browserControllerRef.current?.runMutation(action)
+  }, [])
+
+  useEffect(() => {
+    browserControllerRef.current = createBrowserController()
+    return () => browserControllerRef.current?.dispose()
   }, [])
 
   const openRightDockTool = useCallback(
@@ -668,12 +697,7 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleOpenBrowser = useCallback((): void => {
     openRightDockTool('browser')
-    void desktopClient
-      .openBrowser()
-      .then(setBrowserState)
-      .catch(error =>
-        setErrorMessage(error instanceof Error ? error.message : String(error)),
-      )
+    browserControllerRef.current?.open(() => desktopClient.openBrowser())
   }, [openRightDockTool])
 
   const handleOpenFilesDock = useCallback((): void => {
@@ -700,13 +724,8 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const handleReloadBrowser = useCallback((): void => {
-    void desktopClient
-      .reloadBrowser()
-      .then(setBrowserState)
-      .catch(error =>
-        setErrorMessage(error instanceof Error ? error.message : String(error)),
-      )
-  }, [])
+    runBrowserMutation(() => desktopClient.reloadBrowser())
+  }, [runBrowserMutation])
 
   const handleBrowserAnnotation = useCallback(
     (annotation: string): void => {
@@ -903,8 +922,9 @@ export function DesktopLayout(): React.ReactNode {
   })
 
   useEffect(() => {
+    if (rightDockState.activeTool !== 'browser') return
     refreshBrowserState()
-  }, [refreshBrowserState])
+  }, [rightDockState.activeTool, refreshBrowserState])
 
   useEffect(() => {
     if (!browserState?.open) return
@@ -1129,6 +1149,7 @@ export function DesktopLayout(): React.ReactNode {
   const activeSessionModelRef = useRef<string | null>(null)
   const fetchedModelCatalogKeysRef = useRef<Set<string>>(new Set())
   const pendingModelCatalogKeysRef = useRef<Set<string>>(new Set())
+  const activeProviderCatalogKeyRef = useRef<string | null>(null)
   useEffect(() => {
     modelRef.current = model
   }, [model])
@@ -1227,84 +1248,110 @@ export function DesktopLayout(): React.ReactNode {
     setSelectedModelPreset,
   ])
 
-  const refreshProviderState = useCallback(async (): Promise<void> => {
-    try {
-      const [next, providers] = await Promise.all([
-        desktopClient.getModelProviderState(),
-        desktopClient.listModelProviders(),
-      ])
-      setProviderState(next)
-      setModelProviders(providers)
-      const activeModel = activeSessionModelRef.current
-      const shouldSyncModel = !activeModel && next.model !== modelRef.current
-      if (shouldSyncModel) {
-        setModel(next.model)
-      }
-      syncExternalSettingsPatch({
-        providerID: next.selectedProviderID,
-        providerBaseURL: next.baseURL ?? '',
-        ...(shouldSyncModel ? { model: next.model } : {}),
-      })
+  const refreshProviderCatalog = useCallback(
+    (next: DesktopModelProviderState, isAlive: () => boolean): void => {
       if (
-        next.selectedProviderID &&
-        next.apiKeyConfigured &&
-        (!next.provider.requiresBaseURL || next.baseURL?.trim())
+        !next.selectedProviderID ||
+        !next.apiKeyConfigured ||
+        (next.provider.requiresBaseURL && !next.baseURL?.trim())
       ) {
-        const catalogKey = [
-          next.selectedProviderID,
-          next.baseURL ?? '',
-          next.apiKeyConfigured ? 'key' : 'no-key',
-        ].join('\0')
-        if (
-          fetchedModelCatalogKeysRef.current.has(catalogKey) ||
-          pendingModelCatalogKeysRef.current.has(catalogKey)
-        ) {
-          return
-        }
-        pendingModelCatalogKeysRef.current.add(catalogKey)
-        void withModelCatalogLoading(() =>
-          desktopClient.fetchProviderModels({
-            providerID: next.selectedProviderID,
-            baseURL: next.baseURL,
-          }),
-        )
-          .then(result => {
-            setProviderState(current => {
-              if (current?.selectedProviderID !== next.selectedProviderID) {
-                return current
-              }
-              return {
-                ...current,
-                models: result.models,
-                error: result.error,
-              }
-            })
-            fetchedModelCatalogKeysRef.current.add(catalogKey)
-          })
-          .catch(error =>
-            setErrorMessage(
-              error instanceof Error ? error.message : String(error),
-            ),
-          )
-          .finally(() => {
-            pendingModelCatalogKeysRef.current.delete(catalogKey)
-          })
+        return
       }
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : String(error))
-    }
-  }, [setModel, syncExternalSettingsPatch])
+      const catalogKey = getProviderCatalogKey(next)
+      if (
+        fetchedModelCatalogKeysRef.current.has(catalogKey) ||
+        pendingModelCatalogKeysRef.current.has(catalogKey)
+      ) {
+        return
+      }
+      pendingModelCatalogKeysRef.current.add(catalogKey)
+      void withModelCatalogLoading(() =>
+        desktopClient.fetchProviderModels({
+          providerID: next.selectedProviderID,
+          baseURL: next.baseURL,
+        }),
+        )
+        .then(result => {
+          if (!canCommitProviderCatalog(isAlive(), activeProviderCatalogKeyRef.current, catalogKey)) {
+            return
+          }
+          setProviderState(current => {
+            if (!current || getProviderCatalogKey(current) !== catalogKey) {
+              return current
+            }
+            return { ...current, models: result.models, error: result.error }
+          })
+          fetchedModelCatalogKeysRef.current.add(catalogKey)
+        })
+        .catch(error => {
+          if (canCommitProviderCatalog(isAlive(), activeProviderCatalogKeyRef.current, catalogKey)) {
+            setErrorMessage(error instanceof Error ? error.message : String(error))
+          }
+        })
+        .finally(() => {
+          pendingModelCatalogKeysRef.current.delete(catalogKey)
+        })
+    },
+    [],
+  )
+
+  const fetchProviderState = useCallback(async () => {
+    const [next, providers] = await Promise.all([
+      desktopClient.getModelProviderState(),
+      desktopClient.listModelProviders(),
+    ])
+    return { next, providers }
+  }, [])
 
   useEffect(() => {
-    void refreshProviderState()
+    const guard = createLatestRequestGuard()
+    let cancelIdleCatalog: (() => void) | undefined
+    const refresh = async (deferCatalog: boolean): Promise<void> => {
+      const generation = guard.begin()
+      cancelIdleCatalog?.()
+      cancelIdleCatalog = undefined
+      try {
+        const { next, providers } = await fetchProviderState()
+        if (!guard.isCurrent(generation)) return
+        setProviderState(next)
+        setModelProviders(providers)
+        activeProviderCatalogKeyRef.current = getProviderCatalogKey(next)
+        const activeModel = activeSessionModelRef.current
+        const shouldSyncModel = !activeModel && next.model !== modelRef.current
+        if (shouldSyncModel) {
+          setModel(next.model)
+        }
+        syncExternalSettingsPatch({
+          providerID: next.selectedProviderID,
+          providerBaseURL: next.baseURL ?? '',
+          ...(shouldSyncModel ? { model: next.model } : {}),
+        })
+        const fetchCatalog = (): void => {
+          if (!guard.isCurrent(generation)) return
+          refreshProviderCatalog(next, () => guard.isActive())
+        }
+        if (deferCatalog) {
+          cancelIdleCatalog = scheduleIdleTask(fetchCatalog)
+        } else {
+          fetchCatalog()
+        }
+      } catch (error) {
+        if (guard.isCurrent(generation)) {
+          setErrorMessage(error instanceof Error ? error.message : String(error))
+        }
+      }
+    }
+    void refresh(true)
     const listener = () => {
-      void refreshProviderState()
+      void refresh(false)
     }
     window.addEventListener('desktop:model-provider-changed', listener)
     return () => {
+      guard.dispose()
+      cancelIdleCatalog?.()
       window.removeEventListener('desktop:model-provider-changed', listener)
     }
-  }, [refreshProviderState])
+  }, [fetchProviderState, refreshProviderCatalog, setModel, syncExternalSettingsPatch])
 
   useEffect(() => {
     if (deepSeekThinkingControls && thinkingMode === 'adaptive') {
@@ -1608,45 +1655,53 @@ export function DesktopLayout(): React.ReactNode {
     }
   }, [])
 
-  const menuBar = (
+  const handleWindowClose = useCallback((): void => {
+    void desktopClient.closeWindow()
+  }, [])
+  const handleWindowMinimize = useCallback((): void => {
+    void desktopClient.minimizeWindow()
+  }, [])
+  const handleWindowToggleMaximize = useCallback((): void => {
+    void desktopClient.toggleWindowMaximized().then(setIsWindowMaximized)
+  }, [])
+  const handleSettingsTabChange = useCallback((tab: string): void => {
+    navigate(tab === 'general' ? '/settings' : `/settings?tab=${encodeURIComponent(tab)}`)
+  }, [navigate])
+  const handleSettingsBack = useCallback((): void => {
+    navigate(settingsReturnPathRef.current || QUICK_CHAT_PATH)
+  }, [navigate])
+  const handleSidebarChooseWorkspace = useCallback((): void => {
+    void handleChooseWorkspace()
+  }, [handleChooseWorkspace])
+  const handleSidebarCreateSession = useCallback((workspaceItem: DesktopWorkspace): void => {
+    void handleCreateSession(workspaceItem)
+  }, [handleCreateSession])
+  const handleSidebarOpenWorkspace = useCallback((workspaceItem: DesktopWorkspace): void => {
+    void handleOpenRecentWorkspace(workspaceItem)
+  }, [handleOpenRecentWorkspace])
+  const handleSidebarUpdateSessionMetadata = useCallback((targetSessionId: string, patch: Parameters<typeof handleUpdateSessionMetadata>[1]): void => {
+    void handleUpdateSessionMetadata(targetSessionId, patch)
+  }, [handleUpdateSessionMetadata])
+
+  const menuBar = useMemo(() => (
     <MenuBar
       sidebarCollapsed={sidebarCollapsed}
       isMaximized={isWindowMaximized}
       onToggleSidebar={toggleSidebarCollapsed}
       isDebugMode={menubarDebugMode}
       onDebugModeChange={setMenubarDebugMode}
-      onClose={() => {
-        void desktopClient.closeWindow()
-      }}
-      onMinimize={() => {
-        void desktopClient.minimizeWindow()
-      }}
-      onToggleMaximize={() => {
-        void desktopClient
-          .toggleWindowMaximized()
-          .then(next => setIsWindowMaximized(next))
-      }}
+      onClose={handleWindowClose}
+      onMinimize={handleWindowMinimize}
+      onToggleMaximize={handleWindowToggleMaximize}
       onFileMenuAction={handleFileMenuAction}
       onEditMenuAction={handleEditMenuAction}
       onViewMenuAction={handleViewMenuAction}
       onWindowMenuAction={handleWindowMenuAction}
       onHelpMenuAction={handleHelpMenuAction}
     />
-  )
+  ), [sidebarCollapsed, isWindowMaximized, toggleSidebarCollapsed, menubarDebugMode, handleWindowClose, handleWindowMinimize, handleWindowToggleMaximize, handleFileMenuAction, handleEditMenuAction, handleViewMenuAction, handleWindowMenuAction, handleHelpMenuAction])
 
-  function handleSettingsTabChange(tab: string): void {
-    navigate(
-      tab === 'general'
-        ? '/settings'
-        : `/settings?tab=${encodeURIComponent(tab)}`,
-    )
-  }
-
-  function handleSettingsBack(): void {
-    navigate(settingsReturnPathRef.current || QUICK_CHAT_PATH)
-  }
-
-  const appSidebarContent = (
+  const appSidebarContent = useMemo(() => (
     <DesktopSidebar
       activeSessionId={sessionId}
       catalogStatus={catalogStatus}
@@ -1657,30 +1712,28 @@ export function DesktopLayout(): React.ReactNode {
       sessions={sessions}
       unavailableWorkspacePaths={unavailableWorkspacePaths}
       workspace={currentWorkspace}
-      onChooseWorkspace={() => void handleChooseWorkspace()}
-      onCreateSession={workspaceItem => void handleCreateSession(workspaceItem)}
-      onOpenWorkspace={workspaceItem => void handleOpenRecentWorkspace(workspaceItem)}
+      onChooseWorkspace={handleSidebarChooseWorkspace}
+      onCreateSession={handleSidebarCreateSession}
+      onOpenWorkspace={handleSidebarOpenWorkspace}
       onRemoveWorkspace={handleRemoveWorkspace}
       onPinWorkspace={handlePinWorkspace}
       onUnpinWorkspace={handleUnpinWorkspace}
       collapsedSidebarSections={collapsedSidebarSections}
       onToggleSidebarSection={handleToggleSidebarSection}
       onSelectSession={handleSelectSession}
-      onUpdateSessionMetadata={(targetSessionId, patch) =>
-        void handleUpdateSessionMetadata(targetSessionId, patch)
-      }
+      onUpdateSessionMetadata={handleSidebarUpdateSessionMetadata}
     />
-  )
+  ), [sessionId, catalogStatus, pendingPermissionSessionIds, recentWorkspaces, removedWorkspaces, sidebarSessionFallbackTitles, sessions, unavailableWorkspacePaths, currentWorkspace, handleSidebarChooseWorkspace, handleSidebarCreateSession, handleSidebarOpenWorkspace, handleRemoveWorkspace, handlePinWorkspace, handleUnpinWorkspace, collapsedSidebarSections, handleToggleSidebarSection, handleSelectSession, handleSidebarUpdateSessionMetadata])
 
-  const settingsSidebarContent = (
+  const settingsSidebarContent = useMemo(() => (
     <SettingsSidebarContent
       activeTab={settingsActiveTab}
       onBack={handleSettingsBack}
       onTabChange={handleSettingsTabChange}
     />
-  )
+  ), [settingsActiveTab, handleSettingsBack, handleSettingsTabChange])
 
-  const sidebar = (
+  const sidebar = useMemo(() => (
     <SidebarFrame
       collapsed={sidebarCollapsed}
       maxWidth={SIDEBAR_MAX_WIDTH}
@@ -1691,9 +1744,20 @@ export function DesktopLayout(): React.ReactNode {
     >
       {isSettingsRoute ? settingsSidebarContent : appSidebarContent}
     </SidebarFrame>
-  )
+  ), [sidebarCollapsed, sidebarWidth, collapseSidebar, setSidebarWidth, isSettingsRoute, settingsSidebarContent, appSidebarContent])
 
-  const composer = isQuickChatPage || isConversationRoute ? (
+  const handleOpenGithubClone = useCallback((): void => setGithubRepositoryModalOpen(true), [])
+  const handleCreateBranch = useCallback((): void => setGitWorkflowMode('branch'), [])
+  const handleComposerFollowUpEdit = useCallback((followUpId: string): void => { void handleFollowUpEdit(followUpId) }, [handleFollowUpEdit])
+  const handleComposerFollowUpRemove = useCallback((followUpId: string): void => { void handleFollowUpRemove(followUpId) }, [handleFollowUpRemove])
+  const handleComposerFollowUpSendNow = useCallback((followUpId: string): void => { void handleFollowUpSendNow(followUpId) }, [handleFollowUpSendNow])
+  const handleSideChatFollowUpEditStable = useCallback((followUpId: string): void => { void handleSideChatFollowUpEdit(followUpId) }, [handleSideChatFollowUpEdit])
+  const handleGoalPause = useCallback((): void => { void updateActiveGoal({ status: 'paused' }) }, [updateActiveGoal])
+  const handleGoalResume = useCallback((): void => { void updateActiveGoal({ status: 'active' }) }, [updateActiveGoal])
+  const handleGoalComplete = useCallback((): void => { void updateActiveGoal({ status: 'complete' }) }, [updateActiveGoal])
+  const handleGoalClear = useCallback((): void => { void clearActiveGoal() }, [clearActiveGoal])
+
+  const composer = useMemo(() => isQuickChatPage || isConversationRoute ? (
     <DesktopComposer
       input={input}
       messages={messages}
@@ -1731,11 +1795,11 @@ export function DesktopLayout(): React.ReactNode {
       onInterrupt={interrupt}
       onProviderModelChange={handleProviderModelChange}
       onOpenWorkspace={handleOpenRecentWorkspace}
-      onCloneGithub={() => setGithubRepositoryModalOpen(true)}
+      onCloneGithub={handleOpenGithubClone}
       onClearWorkspace={handleClearWorkspace}
       onOpenBrowser={handleOpenBrowser}
       onBranchSelect={handleBranchSelect}
-      onCreateBranch={() => setGitWorkflowMode('branch')}
+      onCreateBranch={handleCreateBranch}
       onPermissionChange={handlePermissionChange}
       onPlanModeChange={handlePlanModeChange}
       onLocalRouterModeChange={handleLocalRouterModeChange}
@@ -1744,19 +1808,19 @@ export function DesktopLayout(): React.ReactNode {
       submitToSession={submitToSession}
       followUpBehavior={followUpBehavior}
       queuedFollowUps={queuedFollowUps}
-      onFollowUpEdit={followUpId => void handleFollowUpEdit(followUpId)}
-      onFollowUpRemove={followUpId => void handleFollowUpRemove(followUpId)}
-      onFollowUpSendNow={followUpId => void handleFollowUpSendNow(followUpId)}
+      onFollowUpEdit={handleComposerFollowUpEdit}
+      onFollowUpRemove={handleComposerFollowUpRemove}
+      onFollowUpSendNow={handleComposerFollowUpSendNow}
       threadGoal={activeSessionItem?.threadGoal ?? null}
-      onGoalPause={() => void updateActiveGoal({ status: 'paused' })}
-      onGoalResume={() => void updateActiveGoal({ status: 'active' })}
-      onGoalComplete={() => void updateActiveGoal({ status: 'complete' })}
-      onGoalClear={() => void clearActiveGoal()}
+      onGoalPause={handleGoalPause}
+      onGoalResume={handleGoalResume}
+      onGoalComplete={handleGoalComplete}
+      onGoalClear={handleGoalClear}
       onError={setErrorMessage}
       onGoalCreated={handleGoalCreated}
     />
-  ) : null
-  const sideChatComposer =
+  ) : null, [input, messages, isQuickChatPage, isConversationRoute, routedSessionId, sessionStatus, permissionMode, planModeActive, effectiveLocalRouterMode, enableParetoCodeRouter, enableFusionRouter, enableAutoReviewPermissionMode, enableFullAccessPermissionMode, planExecutionModel, thinkingMode, selectedProviderID, resolvedSelectedModelPreset, modelConfigured, modelCatalogLoading, modelConfigurationMessage, selectedModelMetadata, showThinkingOptions, deepSeekThinkingControls, menubarDebugMode, showContextUsage, contextUsage, selectedProviderModelPresets, providerModelOptions, recentWorkspaces, currentWorkspace, composerAttachments, handleChooseWorkspace, setInput, interrupt, handleProviderModelChange, handleOpenRecentWorkspace, handleOpenGithubClone, handleClearWorkspace, handleOpenBrowser, handleBranchSelect, handleCreateBranch, handlePermissionChange, handlePlanModeChange, handleLocalRouterModeChange, setThinkingMode, createSessionForWorkspace, submitToSession, followUpBehavior, queuedFollowUps, handleComposerFollowUpEdit, handleComposerFollowUpRemove, handleComposerFollowUpSendNow, activeSessionItem?.threadGoal, handleGoalPause, handleGoalResume, handleGoalComplete, handleGoalClear, handleGoalCreated])
+  const sideChatComposer = useMemo(() =>
     isQuickChatPage || isConversationRoute ? (
       <DesktopComposer
         input={sideChatInput}
@@ -1795,11 +1859,11 @@ export function DesktopLayout(): React.ReactNode {
         onInterrupt={interrupt}
         onProviderModelChange={handleProviderModelChange}
         onOpenWorkspace={handleOpenRecentWorkspace}
-        onCloneGithub={() => setGithubRepositoryModalOpen(true)}
+        onCloneGithub={handleOpenGithubClone}
         onClearWorkspace={handleClearWorkspace}
         onOpenBrowser={handleOpenBrowser}
         onBranchSelect={handleBranchSelect}
-        onCreateBranch={() => setGitWorkflowMode('branch')}
+        onCreateBranch={handleCreateBranch}
         onPermissionChange={handlePermissionChange}
         onPlanModeChange={handlePlanModeChange}
         onLocalRouterModeChange={handleLocalRouterModeChange}
@@ -1808,18 +1872,18 @@ export function DesktopLayout(): React.ReactNode {
         submitToSession={sideChatSubmitToSession}
         followUpBehavior={followUpBehavior}
         queuedFollowUps={queuedFollowUps}
-        onFollowUpEdit={followUpId => void handleSideChatFollowUpEdit(followUpId)}
-        onFollowUpRemove={followUpId => void handleFollowUpRemove(followUpId)}
-        onFollowUpSendNow={followUpId => void handleFollowUpSendNow(followUpId)}
+        onFollowUpEdit={handleSideChatFollowUpEditStable}
+        onFollowUpRemove={handleComposerFollowUpRemove}
+        onFollowUpSendNow={handleComposerFollowUpSendNow}
         threadGoal={activeSessionItem?.threadGoal ?? null}
-        onGoalPause={() => void updateActiveGoal({ status: 'paused' })}
-        onGoalResume={() => void updateActiveGoal({ status: 'active' })}
-        onGoalComplete={() => void updateActiveGoal({ status: 'complete' })}
-        onGoalClear={() => void clearActiveGoal()}
+        onGoalPause={handleGoalPause}
+        onGoalResume={handleGoalResume}
+        onGoalComplete={handleGoalComplete}
+        onGoalClear={handleGoalClear}
         onError={setErrorMessage}
         onGoalCreated={handleGoalCreated}
       />
-    ) : null
+      ) : null, [sideChatInput, messages, isQuickChatPage, isConversationRoute, activeSessionItem?.id, activeSessionItem?.threadGoal, sessionStatus, permissionMode, planModeActive, effectiveLocalRouterMode, enableParetoCodeRouter, enableFusionRouter, enableAutoReviewPermissionMode, enableFullAccessPermissionMode, planExecutionModel, thinkingMode, selectedProviderID, resolvedSelectedModelPreset, modelConfigured, modelCatalogLoading, modelConfigurationMessage, selectedModelMetadata, showThinkingOptions, deepSeekThinkingControls, menubarDebugMode, showContextUsage, contextUsage, selectedProviderModelPresets, providerModelOptions, recentWorkspaces, currentWorkspace, sideChatAttachments, handleChooseWorkspace, interrupt, handleProviderModelChange, handleOpenRecentWorkspace, handleOpenGithubClone, handleClearWorkspace, handleOpenBrowser, handleBranchSelect, handleCreateBranch, handlePermissionChange, handlePlanModeChange, handleLocalRouterModeChange, setThinkingMode, createSessionForWorkspace, sideChatSubmitToSession, followUpBehavior, queuedFollowUps, handleSideChatFollowUpEditStable, handleComposerFollowUpRemove, handleComposerFollowUpSendNow, handleGoalPause, handleGoalResume, handleGoalComplete, handleGoalClear, handleGoalCreated])
   const toggleBottomPanelVisible = useCallback((): void => {
     setBottomPanelVisible(current => !current)
   }, [])
@@ -1841,7 +1905,14 @@ export function DesktopLayout(): React.ReactNode {
     return () => observer.disconnect()
   }, [])
 
-  const rightDockNode: React.ReactNode | null = rightDockState.open ? (
+  const handlePreviewDockFile = useCallback((file: Parameters<typeof previewFile>[0]): void => {
+    void previewFile(file)
+  }, [previewFile])
+  const handleToggleReviewView = useCallback((): void => {
+    setReviewView(reviewView === 'inline' ? 'split' : 'inline')
+  }, [reviewView, setReviewView])
+
+  const rightDockNode: React.ReactNode | null = useMemo(() => rightDockState.open ? (
     <RightDock
       state={rightDockState}
       browserState={browserState}
@@ -1864,24 +1935,22 @@ export function DesktopLayout(): React.ReactNode {
       onAppendBrowserAnnotation={handleBrowserAnnotation}
       onAppendComposerText={handleAppendComposerText}
       onAddComposerFiles={handleAddComposerFiles}
-      onBrowserStateChange={setBrowserState}
+      onRunBrowserMutation={runBrowserMutation}
       onClose={closeRightDock}
       onCloseTool={closeRightDockTool}
-      onCreateBranch={() => setGitWorkflowMode('branch')}
+      onCreateBranch={handleCreateBranch}
       onOpenTool={handleRightDockToolSelect}
       onOpenWorkspacePath={handleOpenWorkspacePath}
-      onPreviewFile={file => void previewFile(file)}
+      onPreviewFile={handlePreviewDockFile}
       onRefreshReview={handleRefreshDiff}
       onResetWidth={handleResetRightDockWidth}
       onSelectTool={selectRightDockTool}
       onSetWidth={handleSetRightDockWidth}
-      onToggleReviewView={() =>
-        setReviewView(reviewView === 'inline' ? 'split' : 'inline')
-      }
+      onToggleReviewView={handleToggleReviewView}
       sideChatComposer={sideChatComposer}
       sideChatFocusVersion={sideChatFocusVersion}
     />
-  ) : null
+  ) : null, [rightDockState, browserState, menubarDebugMode, derivedDefaultBranch, workspaceFiles, gitStatus, diffMarkerStyle, reviewView, rightDockPlan, selectedFile, sessionId, sessionStatus, rightDockWidth, currentWorkspace, isQuickChatPage, handleBrowserAnnotation, handleAppendComposerText, handleAddComposerFiles, runBrowserMutation, closeRightDock, closeRightDockTool, handleCreateBranch, handleRightDockToolSelect, handleOpenWorkspacePath, handlePreviewDockFile, handleRefreshDiff, handleResetRightDockWidth, selectRightDockTool, handleSetRightDockWidth, handleToggleReviewView, sideChatComposer, sideChatFocusVersion])
 
   return (
     <div className="desktop-frame">
@@ -1939,7 +2008,7 @@ export function DesktopLayout(): React.ReactNode {
         menubarDebugMode={menubarDebugMode}
       >
         <QuickChatContext.Provider
-            value={{
+            value={useMemo<QuickChatContextValue>(() => ({
             isConversationRoute,
             isConversationLoading,
             sidebarCollapsed,
@@ -2035,17 +2104,17 @@ export function DesktopLayout(): React.ReactNode {
             rightDockNode,
             rightDockWidth,
             debugMode: menubarDebugMode,
-            }}
+            }), [isConversationRoute, isConversationLoading, sidebarCollapsed, activeSessionItem, quickChatSessionTitle, currentWorkspace, branchName, workspace.diff, gitStatus, recentWorkspaces, handleOpenWorkspacePath, openRightDockTool, handleOpenPlanDock, handleSubmitEditedUserMessage, handleAppendComposerText, handleAppendSideChatText, handleAddComposerFiles, handleRefreshDiff, toggleSidebarCollapsed, handleUpdateSessionMetadata, navigate, handleChooseWorkspace, handleOpenRecentWorkspace, handleBranchSelect, handleClearWorkspace, decidePermission, handlePlanModeChange, permissionMode, planModeActive, providerModelOptions, isQuickChatPage, events, workflowEvents, messages, pendingPermissions, sessionStatus, composer, bottomPanelVisible, toggleBottomPanelVisible, rightDockState.open, rightDockState.activeTool, rightDockPlan?.content, rightDockNode, rightDockWidth, menubarDebugMode])}
           >
             <SearchContext.Provider
-              value={{
+              value={useMemo<SearchContextValue>(() => ({
               query: searchQuery,
               workspaces: search.filteredWorkspaces,
               sessions: search.filteredSessions,
               onQueryChange: setSearchQuery,
               onOpenWorkspace: handleOpenRecentWorkspace,
               onSelectSession: handleSelectSession,
-              }}
+              }), [searchQuery, search.filteredWorkspaces, search.filteredSessions, handleOpenRecentWorkspace, handleSelectSession])}
             >
               <div
                 className="desktop-workspace"

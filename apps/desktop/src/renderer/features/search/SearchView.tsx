@@ -1,5 +1,6 @@
 import type React from 'react'
 import { Search } from 'lucide-react'
+import '../../styles/features/search.scss'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { useSearchContext } from './SearchContext.js'
 import { sessionDisplayTitle } from '../../uiTypes.js'

@@ -1,5 +1,6 @@
 import React from "react";
 import { VList } from "virtua";
+import '../../styles/features/review.scss';
 import {
   Briefcase,
   CheckCircle2,

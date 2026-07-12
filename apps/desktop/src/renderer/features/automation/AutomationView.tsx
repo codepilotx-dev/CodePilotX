@@ -9,6 +9,7 @@ import {
   TerminalSquare,
 } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
+import '../../styles/features/automation.scss'
 
 type QuickStart = {
   id: string

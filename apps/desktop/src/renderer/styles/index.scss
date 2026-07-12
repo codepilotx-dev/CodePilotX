@@ -25,16 +25,8 @@
 @use 'features/layout';
 @use 'features/composer';
 @use 'features/session';
-@use 'features/search';
-@use 'features/browser';
-@use 'features/review';
-@use 'features/timeline';
-@use 'features/settings';
-@use 'features/marketplace';
-@use 'features/automation';
 
 /* --- Legacy: structured feature CSS kept as-is --- */
-@use 'markdown';
 @use 'popover';
 @use 'modal';
 @use 'model-menu-pilot';

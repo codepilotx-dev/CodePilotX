@@ -1,61 +1,65 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
 import { marked } from 'marked'
 import xssLib from 'xss'
 import hljs from 'highlight.js/lib/common'
-import { Check, Copy } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
+import '../../styles/markdown.scss'
 
-const MD_CODE_COPY_ICON = renderToStaticMarkup(
-  <Copy size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
-)
-const MD_CODE_COPY_DONE_ICON = renderToStaticMarkup(
-  <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
-)
+const MD_CODE_COPY_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>'
+const MD_CODE_COPY_DONE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>'
 
-// 初始化 marked：GFM 表格、删除线、自动识别围栏代码块语言、走 highlight.js。
-// 注意 marked.parse 在 v18 默认是异步友好的，这里强制同步返回字符串。
-const renderer = new marked.Renderer()
-renderer.code = function (token: { lang?: string | null; text: string }): string {
-  const rawLang = (token.lang ?? '').trim().split(/\s+/)[0] ?? ''
-  let highlighted = token.text
-  let detectedLang = rawLang
-  try {
-    if (rawLang && hljs.getLanguage(rawLang)) {
-      highlighted = hljs.highlight(token.text, { language: rawLang }).value
-    } else {
-      const auto = hljs.highlightAuto(token.text)
-      highlighted = auto.value
-      detectedLang = auto.language ?? rawLang
+function createMarkdownRenderer(
+  markerPrefix: string,
+  trustedCopyControls: Array<{ marker: string; html: string }>,
+) {
+  const renderer = new marked.Renderer()
+  renderer.code = function (token: { lang?: string | null; text: string }): string {
+    const rawLang = (token.lang ?? '').trim().split(/\s+/)[0] ?? ''
+    let highlighted = token.text
+    let detectedLang = rawLang
+    try {
+      if (rawLang && hljs.getLanguage(rawLang)) {
+        highlighted = hljs.highlight(token.text, { language: rawLang }).value
+      } else {
+        const auto = hljs.highlightAuto(token.text)
+        highlighted = auto.value
+        detectedLang = auto.language ?? rawLang
+      }
+    } catch {
+      highlighted = escapeHtml(token.text)
     }
-  } catch {
-    highlighted = escapeHtml(token.text)
+    const langLabel = detectedLang ? detectedLang.toUpperCase() : 'TEXT'
+    const safeCode = token.text.replace(/<\//g, '<\\/')
+    const marker = `${markerPrefix}-${trustedCopyControls.length}__`
+    trustedCopyControls.push({
+      marker,
+      html: [
+        `<button type="button" class="md-code-copy" data-md-copy data-md-code-text="${escapeAttr(
+          safeCode,
+        )}" aria-label="复制代码">`,
+        `<span class="md-code-copy-default">${MD_CODE_COPY_ICON}</span>`,
+        `<span class="md-code-copy-done">${MD_CODE_COPY_DONE_ICON}</span>`,
+        '</button>',
+      ].join(''),
+    })
+    return [
+      '<div class="md-code-block" data-md-code>',
+      '<div class="md-code-header">',
+      `<span class="md-code-lang">${langLabel}</span>`,
+      marker,
+      '</div>',
+      `<pre class="md-code-pre"><code class="hljs language-${escapeAttr(
+        detectedLang,
+      )}">${highlighted}</code></pre>`,
+      '</div>',
+    ].join('')
   }
-  const langLabel = detectedLang ? detectedLang.toUpperCase() : 'TEXT'
-  const safeCode = token.text.replace(/<\//g, '<\\/')
-  return [
-    '<div class="md-code-block" data-md-code>',
-    '<div class="md-code-header">',
-    `<span class="md-code-lang">${langLabel}</span>`,
-    `<button type="button" class="md-code-copy" data-md-copy data-md-code-text="${escapeAttr(
-      safeCode,
-    )}" aria-label="复制代码">`,
-    `<span class="md-code-copy-default">${MD_CODE_COPY_ICON}</span>`,
-    `<span class="md-code-copy-done">${MD_CODE_COPY_DONE_ICON}</span>`,
-    '</button>',
-    '</div>',
-    `<pre class="md-code-pre"><code class="hljs language-${escapeAttr(
-      detectedLang,
-    )}">${highlighted}</code></pre>`,
-    '</div>',
-  ].join('')
+  return renderer
 }
 
 marked.setOptions({
   gfm: true,
   breaks: false,
   async: false,
-  renderer,
 })
 
 const XSS_OPTIONS = {
@@ -220,23 +224,42 @@ function RenderedMarkdown({
   )
 }
 
-function renderMarkdown(rawText: string, streaming: boolean): string {
+export function renderMarkdown(rawText: string, streaming: boolean): string {
   const safeText = rawText ?? ''
   // 流式时如果末尾还有未闭合的围栏代码块，截掉那一段，避免渲染半截 fence 触发解析错乱
   const textToRender = streaming ? clipUnclosedFence(safeText) : safeText
   if (!textToRender.trim()) return ''
 
   try {
-    const parsed = marked.parse(textToRender, { async: false }) as string
+    const trustedCopyControls: Array<{ marker: string; html: string }> = []
+    const markerPrefix = createTrustedMarkerPrefix(textToRender)
+    const renderer = createMarkdownRenderer(markerPrefix, trustedCopyControls)
+    const parsed = marked.parse(textToRender, { async: false, renderer }) as string
     // 强制 a 标签 target=_blank rel=noopener
     const withSafeLinks = parsed.replace(
       /<a\s/gi,
       '<a target="_blank" rel="noopener noreferrer" ',
     )
-    return xssLib(withSafeLinks, XSS_OPTIONS)
+    let sanitized = xssLib(withSafeLinks, XSS_OPTIONS)
+    for (const control of trustedCopyControls) {
+      sanitized = sanitized.replace(control.marker, () => control.html)
+    }
+    return sanitized
   } catch {
     return xssLib(escapeHtml(textToRender), XSS_OPTIONS)
   }
+}
+
+function createTrustedMarkerPrefix(rawText: string): string {
+  let marker = ''
+  do {
+    const entropy = new Uint32Array(4)
+    globalThis.crypto.getRandomValues(entropy)
+    marker = `__CPX_TRUSTED_COPY_${Array.from(entropy, value =>
+      value.toString(36),
+    ).join('_')}`
+  } while (rawText.includes(marker))
+  return marker
 }
 
 // 统计 ``` 出现次数；奇数次表示当前在代码块内

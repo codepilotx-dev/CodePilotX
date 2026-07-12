@@ -91,6 +91,8 @@ export type DesktopWindowService = {
 	      minWidth: MIN_WINDOW_WIDTH,
 	      minHeight: MIN_WINDOW_HEIGHT,
 	      frame: false,
+	      show: false,
+	      backgroundColor: '#ffffff',
 	      title: options.appName ?? 'CodePilotX Dev',
 	      ...(icon ? { icon } : {}),
       webPreferences: {
@@ -125,7 +127,23 @@ export type DesktopWindowService = {
       lastFocusedWindow = window
     })
 
-    void window.loadURL(options.rendererUrl())
+    let rendererReady = false
+    let rendererLoaded = false
+    const showWhenReady = (): void => {
+      if (rendererReady && rendererLoaded && !window.isDestroyed()) {
+        window.show()
+      }
+    }
+    window.once('ready-to-show', () => {
+      rendererReady = true
+      showWhenReady()
+    })
+    void window.loadURL(options.rendererUrl()).then(() => {
+      rendererLoaded = true
+      showWhenReady()
+    }).catch(error => {
+      console.error('Failed to load desktop renderer.', error)
+    })
     registerWindowStatePersistence(window)
     window.on('closed', () => {
       windows.delete(window)

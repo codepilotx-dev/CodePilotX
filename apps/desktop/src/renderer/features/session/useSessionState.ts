@@ -66,6 +66,13 @@ import {
 import { sortSessionsByRecency } from './sessionSorting.js'
 import { createSessionQueueLifecycleController } from './sessionQueueLifecycle.js'
 
+export function loadInitialSessionData(client: Pick<
+  typeof desktopClient,
+  'listSessions' | 'getSessionCatalogStatus'
+>): Promise<[DesktopSessionSnapshot[], DesktopSessionCatalogStatus]> {
+  return Promise.all([client.listSessions(), client.getSessionCatalogStatus()])
+}
+
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
   planModeActive: boolean
@@ -603,8 +610,8 @@ export function useSessionState(
     let disposed = false
     async function hydrateSessions(): Promise<void> {
       try {
-        const sessionSnapshots = await desktopClient.listSessions()
-        const nextCatalogStatus = await desktopClient.getSessionCatalogStatus()
+        const [sessionSnapshots, nextCatalogStatus] =
+          await loadInitialSessionData(desktopClient)
         if (disposed) return
 
         setCatalogStatus(nextCatalogStatus)

@@ -1,11 +1,6 @@
 import { createHashRouter, Navigate } from 'react-router-dom'
-import { AutomationView } from './features/automation/AutomationView.js'
-import { ConversationPage } from './features/session/ConversationPage.js'
 import { DesktopLayout } from './features/layout/DesktopLayout.js'
-import { PluginsView } from './features/plugins/PluginsView.js'
 import { QuickChatView } from './features/session/QuickChatView.js'
-import { SearchView } from './features/search/SearchView.js'
-import { SettingsLayout } from './features/settings/SettingsLayout.js'
 
 const router = createHashRouter([
   {
@@ -14,11 +9,41 @@ const router = createHashRouter([
     children: [
       { index: true, element: <Navigate to="/quick-chat" replace /> },
       { path: 'quick-chat', element: <QuickChatView /> },
-      { path: 'sessions/:sessionId', element: <ConversationPage /> },
-      { path: 'search', element: <SearchView /> },
-      { path: 'plugins', element: <PluginsView /> },
-      { path: 'automation', element: <AutomationView /> },
-      { path: 'settings', element: <SettingsLayout /> },
+      {
+        path: 'sessions/:sessionId',
+        lazy: () =>
+          import('./features/session/ConversationPage.js').then(module => ({
+            Component: module.ConversationPage,
+          })),
+      },
+      {
+        path: 'search',
+        lazy: () =>
+          import('./features/search/SearchView.js').then(module => ({
+            Component: module.SearchView,
+          })),
+      },
+      {
+        path: 'plugins',
+        lazy: () =>
+          import('./features/plugins/PluginsView.js').then(module => ({
+            Component: module.PluginsView,
+          })),
+      },
+      {
+        path: 'automation',
+        lazy: () =>
+          import('./features/automation/AutomationView.js').then(module => ({
+            Component: module.AutomationView,
+          })),
+      },
+      {
+        path: 'settings',
+        lazy: () =>
+          import('./features/settings/SettingsLayout.js').then(module => ({
+            Component: module.SettingsLayout,
+          })),
+      },
     ],
   },
 ])

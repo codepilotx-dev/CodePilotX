@@ -2,8 +2,30 @@ import { expect, test } from 'bun:test'
 import type { DesktopSessionSnapshot } from '../../../shared/types.js'
 import {
   buildQueuedFollowUpsBySession,
+  loadInitialSessionData,
   resolveQueuedFollowUpsForActiveSession,
 } from './useSessionState.js'
+
+test('loadInitialSessionData starts snapshots and catalog status concurrently', async () => {
+  let resolveSnapshots!: (value: DesktopSessionSnapshot[]) => void
+  let resolveStatus!: (value: { state: 'ready'; error: null }) => void
+  const calls: string[] = []
+  const pending = loadInitialSessionData({
+    listSessions: () => {
+      calls.push('sessions')
+      return new Promise(resolve => { resolveSnapshots = resolve })
+    },
+    getSessionCatalogStatus: () => {
+      calls.push('status')
+      return new Promise(resolve => { resolveStatus = resolve })
+    },
+  })
+
+  expect(calls).toEqual(['sessions', 'status'])
+  resolveSnapshots([])
+  resolveStatus({ state: 'ready', error: null })
+  await expect(pending).resolves.toEqual([[], { state: 'ready', error: null }])
+})
 
 test('buildQueuedFollowUpsBySession retains root queue items for each session', () => {
   const snapshots = [

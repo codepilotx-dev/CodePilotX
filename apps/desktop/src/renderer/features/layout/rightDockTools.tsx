@@ -58,7 +58,7 @@ export type RightDockPanelContext = {
     state: DesktopBrowserState | null
     onAppendAnnotation: (text: string) => void
     onAppendComposerText?: (text: string) => void
-    onStateChange: (state: DesktopBrowserState) => void
+    onRunMutation: (action: () => Promise<DesktopBrowserState>) => void
   }
   files: {
     files: DesktopFileEntry[]

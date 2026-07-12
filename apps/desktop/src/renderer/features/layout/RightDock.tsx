@@ -57,7 +57,7 @@ type Props = {
   workspace: DesktopWorkspace | null;
   quickChatOnly?: boolean;
   onAppendBrowserAnnotation: (text: string) => void;
-  onBrowserStateChange: (state: DesktopBrowserState) => void;
+  onRunBrowserMutation: (action: () => Promise<DesktopBrowserState>) => void;
   onClose: () => void;
   onCloseTool: (tool: RightDockToolId) => void;
   onCreateBranch: () => void;
@@ -106,7 +106,7 @@ export function RightDock({
   workspace,
   quickChatOnly = false,
   onAppendBrowserAnnotation,
-  onBrowserStateChange,
+  onRunBrowserMutation,
   onClose,
   onCloseTool,
   onCreateBranch,
@@ -166,7 +166,7 @@ export function RightDock({
         state: browserState,
         onAppendAnnotation: onAppendBrowserAnnotation,
         onAppendComposerText,
-        onStateChange: onBrowserStateChange,
+        onRunMutation: onRunBrowserMutation,
       },
       files: {
         files,
@@ -192,7 +192,7 @@ export function RightDock({
       isRefreshingReview,
       diffMarkerStyle,
       onAppendBrowserAnnotation,
-      onBrowserStateChange,
+      onRunBrowserMutation,
       onClose,
       onCreateBranch,
       onAppendComposerText,
@@ -213,12 +213,11 @@ export function RightDock({
 
   useEffect(() => {
     if (!state.open || state.activeTool !== "browser") {
-      void desktopClient
-        .setBrowserBounds({ x: 0, y: 0, width: 0, height: 0 })
-        .then(onBrowserStateChange)
-        .catch(() => undefined);
+      onRunBrowserMutation(() =>
+        desktopClient.setBrowserBounds({ x: 0, y: 0, width: 0, height: 0 }),
+      );
     }
-  }, [onBrowserStateChange, state.activeTool, state.open]);
+  }, [onRunBrowserMutation, state.activeTool, state.open]);
 
   const activePanelRenderer = state.activeTool
     ? rightDockPanelRenderers[state.activeTool]

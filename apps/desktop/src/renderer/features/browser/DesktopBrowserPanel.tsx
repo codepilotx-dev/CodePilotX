@@ -1,5 +1,6 @@
 import type React from 'react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import '../../styles/features/browser.scss'
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,7 +20,7 @@ type Props = {
   state: DesktopBrowserState
   onAppendAnnotation: (text: string) => void
   onAppendComposerText?: (text: string) => void
-  onStateChange: (state: DesktopBrowserState) => void
+  onRunMutation: (action: () => Promise<DesktopBrowserState>) => void
 }
 
 type BrowserBounds = {
@@ -33,7 +34,7 @@ export function DesktopBrowserPanel({
   state,
   onAppendAnnotation,
   onAppendComposerText,
-  onStateChange,
+  onRunMutation,
 }: Props): React.ReactNode {
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const [address, setAddress] = useState(state.url)
@@ -61,10 +62,7 @@ export function DesktopBrowserPanel({
       }
 
       lastBoundsRef.current = bounds
-      void desktopClient
-        .setBrowserBounds(bounds)
-        .then(onStateChange)
-        .catch(() => undefined)
+      onRunMutation(() => desktopClient.setBrowserBounds(bounds))
     }
 
     const syncBounds = (): void => {
@@ -101,24 +99,10 @@ export function DesktopBrowserPanel({
       resizeObserver.disconnect()
       window.removeEventListener('resize', scheduleSyncBounds)
     }
-  }, [onStateChange, state.open, state.url])
-
-  async function runBrowserAction(
-    action: () => Promise<DesktopBrowserState>,
-  ): Promise<void> {
-    try {
-      const next = await action()
-      onStateChange(next)
-    } catch (error) {
-      onStateChange({
-        ...state,
-        error: error instanceof Error ? error.message : String(error),
-      })
-    }
-  }
+  }, [onRunMutation, state.open, state.url])
 
   function handleNavigate(): void {
-    void runBrowserAction(() => desktopClient.navigateBrowser(address))
+    onRunMutation(() => desktopClient.navigateBrowser(address))
   }
 
   function handleSubmitAnnotation(): void {
@@ -168,7 +152,7 @@ export function DesktopBrowserPanel({
             className="browser-icon-button"
             disabled={!state.canGoBack}
             title="后退"
-            onClick={() => void runBrowserAction(desktopClient.goBackBrowser)}
+            onClick={() => onRunMutation(desktopClient.goBackBrowser)}
           >
             <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
@@ -176,14 +160,14 @@ export function DesktopBrowserPanel({
             className="browser-icon-button"
             disabled={!state.canGoForward}
             title="前进"
-            onClick={() => void runBrowserAction(desktopClient.goForwardBrowser)}
+            onClick={() => onRunMutation(desktopClient.goForwardBrowser)}
           >
             <ArrowRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton
             className="browser-icon-button"
             title="重新加载"
-            onClick={() => void runBrowserAction(desktopClient.reloadBrowser)}
+            onClick={() => onRunMutation(desktopClient.reloadBrowser)}
           >
             <RefreshCw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
