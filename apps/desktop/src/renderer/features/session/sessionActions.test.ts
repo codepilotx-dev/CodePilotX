@@ -8,6 +8,7 @@ import type { SessionListItem } from '../../uiTypes.js'
 import {
   activateSession,
   closeSessionAction,
+  createSessionForWorkspaceAction,
   submitSessionMessageAction,
   updateSessionMetadataAction,
   type SessionActionContext,
@@ -41,14 +42,64 @@ const settings: SessionSettingsSnapshot = {
 
 const originalSubmitSessionFollowUp = desktopClient.submitSessionFollowUp
 const originalSendUserMessage = desktopClient.sendUserMessage
+const originalCreateSession = desktopClient.createSession
 const originalDisposeSession = desktopClient.disposeSession
 const originalUpdateSessionMetadata = desktopClient.updateSessionMetadata
 
 afterEach(() => {
   desktopClient.submitSessionFollowUp = originalSubmitSessionFollowUp
   desktopClient.sendUserMessage = originalSendUserMessage
+  desktopClient.createSession = originalCreateSession
   desktopClient.disposeSession = originalDisposeSession
   desktopClient.updateSessionMetadata = originalUpdateSessionMetadata
+})
+
+test('create session does not duplicate an id already delivered by store change', async () => {
+  desktopClient.createSession = mock(async () => ({
+    sessionId: 'session-1',
+    standalone: false,
+    workspace: {
+      name: 'Workspace',
+      path: 'C:\\workspace',
+    },
+  }))
+  const existingSession = {
+    ...sessionItem('session-1'),
+    appServerThreadId: 'thread-from-store-change',
+    gitBranch: 'branch-from-store-change',
+  }
+  let sessions: SessionListItem[] = [existingSession]
+  const context = {
+    activeSessionIdRef: { current: null },
+    sessionViewsRef: { current: {} },
+    sessionWorkspacesRef: { current: {} },
+    onErrorRef: { current: mock() },
+    viewSetters: {
+      setEvents: mock(),
+      setWorkflowEvents: mock(),
+      setMessages: mock(),
+      setToolLog: mock(),
+      setPendingPermissions: mock(),
+      setContextUsage: mock(),
+    },
+    setSessions: update => {
+      sessions = typeof update === 'function' ? update(sessions) : update
+    },
+    setSessionId: mock(),
+    setSessionStatus: mock(),
+  } as SessionActionContext
+
+  const sessionId = await createSessionForWorkspaceAction(
+    context,
+    settings,
+    { name: 'Workspace', path: 'C:\\workspace' },
+  )
+
+  expect(sessionId).toBe('session-1')
+  expect(sessions.map(session => session.id)).toEqual(['session-1'])
+  expect(sessions[0]).toBe(existingSession)
+  expect(sessions[0]?.appServerThreadId).toBe('thread-from-store-change')
+  expect(sessions[0]?.gitBranch).toBe('branch-from-store-change')
 })
 
 test('activateSession does nothing when the active session id is unchanged', () => {

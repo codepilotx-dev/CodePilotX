@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  archiveDesktopSession,
   disposeDesktopSessionRuntimes,
   disposeDesktopSession,
   removeSessionIndexWithRetry,
@@ -57,6 +58,51 @@ describe('desktop session removal', () => {
       'remove-local-state',
       'dispose-runtime',
     ])
+  })
+
+  test('removes an orphaned local session without requiring a server Thread', async () => {
+    const calls: string[] = []
+
+    await disposeDesktopSession({
+      sessionId: 'local-orphan',
+      appServerThreadId: null,
+      appServerThreadPending: false,
+      flushPersistence: async () => {
+        calls.push('flush')
+      },
+      deleteThread: async () => {
+        calls.push('delete-thread')
+      },
+      removeIndex: async () => {
+        calls.push('remove-index')
+      },
+      removeLocalState: () => calls.push('remove-local-state'),
+      disposeRuntime: async () => {
+        calls.push('dispose-runtime')
+      },
+    })
+
+    expect(calls).toEqual([
+      'flush',
+      'remove-index',
+      'remove-local-state',
+      'dispose-runtime',
+    ])
+  })
+
+  test('archives a local-only session by removing it without a server RPC', async () => {
+    const calls: string[] = []
+
+    const result = await archiveDesktopSession({
+      appServerThreadId: null,
+      archiveThread: async () => calls.push('archive-thread'),
+      removeLocalSession: async () => {
+        calls.push('remove-local-session')
+      },
+    })
+
+    expect(result).toBe('removed')
+    expect(calls).toEqual(['remove-local-session'])
   })
 
   test('keeps local state when index removal fails after a server delete', async () => {

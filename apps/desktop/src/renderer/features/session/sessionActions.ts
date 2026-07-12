@@ -139,35 +139,39 @@ export async function createSessionForWorkspaceAction(
     context.setSessionStatus('idle')
     applySessionView(nextView, context.viewSetters)
     const now = new Date()
-    context.setSessions(current =>
-      sortSessionsByRecency([
+    context.setSessions(current => {
+      if (current.some(item => item.id === session.sessionId)) {
+        return sortSessionsByRecency(current)
+      }
+      return sortSessionsByRecency([
         {
-        id: session.sessionId,
-        sessionName: initialSessionName ?? normalizeOptionalText(settings.sessionName) ?? null,
-        aiTitle: null,
-        workspaceName: workspace.name,
-        workspacePath: workspace.path,
-        standalone: session.standalone,
-        permissionMode: settings.permissionMode,
-        planModeActive: settings.planModeActive,
-        localRouterMode: settings.localRouterMode,
-        model: normalizeOptionalText(settings.model) ?? null,
-        reviewModel: normalizeOptionalText(settings.reviewModel) ?? null,
-        thinkingMode: settings.thinkingMode,
-        hasSystemPrompt: Boolean(normalizeOptionalText(settings.systemPrompt)),
-        hasAppendSystemPrompt: Boolean(
-          normalizeOptionalText(settings.appendSystemPrompt),
-        ),
-        additionalDirectoryCount: parseAdditionalDirectories(
-          settings.additionalDirectories,
-        ).length,
-        status: 'idle',
-        lastMessageAt: now.toISOString(),
-        createdAt: now.toISOString(),
-      },
-      ...current,
-      ]),
-    )
+          id: session.sessionId,
+          sessionName:
+            initialSessionName ?? normalizeOptionalText(settings.sessionName) ?? null,
+          aiTitle: null,
+          workspaceName: workspace.name,
+          workspacePath: workspace.path,
+          standalone: session.standalone,
+          permissionMode: settings.permissionMode,
+          planModeActive: settings.planModeActive,
+          localRouterMode: settings.localRouterMode,
+          model: normalizeOptionalText(settings.model) ?? null,
+          reviewModel: normalizeOptionalText(settings.reviewModel) ?? null,
+          thinkingMode: settings.thinkingMode,
+          hasSystemPrompt: Boolean(normalizeOptionalText(settings.systemPrompt)),
+          hasAppendSystemPrompt: Boolean(
+            normalizeOptionalText(settings.appendSystemPrompt),
+          ),
+          additionalDirectoryCount: parseAdditionalDirectories(
+            settings.additionalDirectories,
+          ).length,
+          status: 'idle',
+          lastMessageAt: now.toISOString(),
+          createdAt: now.toISOString(),
+        },
+        ...current,
+      ])
+    })
     return session.sessionId
   } catch (error) {
     context.onErrorRef.current(errorMessageOf(error))

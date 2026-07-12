@@ -34,11 +34,27 @@ export async function disposeDesktopSession(
   await options.flushPersistence()
   if (options.appServerThreadId) {
     await options.deleteThread(options.appServerThreadId)
-  } else if (!options.appServerThreadPending) {
-    throw new Error('This desktop session is not backed by an app-server Thread.')
   }
 
   await removeDesktopSessionLocalState(options)
+}
+
+type ArchiveDesktopSessionOptions = {
+  appServerThreadId: string | null
+  archiveThread: (threadId: string) => Promise<unknown>
+  removeLocalSession: () => Promise<void>
+}
+
+export async function archiveDesktopSession(
+  options: ArchiveDesktopSessionOptions,
+): Promise<'archived' | 'removed'> {
+  if (options.appServerThreadId?.trim()) {
+    await options.archiveThread(options.appServerThreadId)
+    return 'archived'
+  }
+
+  await options.removeLocalSession()
+  return 'removed'
 }
 
 export async function removeSessionIndexWithRetry(

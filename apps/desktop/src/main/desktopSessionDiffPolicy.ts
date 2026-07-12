@@ -1,3 +1,10 @@
+export function shouldTrackWorkspaceTurnChanges(params: {
+  standalone: boolean
+  isGitRepo?: boolean
+}): boolean {
+  return !params.standalone && params.isGitRepo === true
+}
+
 export function shouldEmitWorkspaceDiffEvent(params: {
   beforePatch?: string | null
   afterPatch: string

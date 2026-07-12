@@ -2,7 +2,23 @@ import { expect, test } from 'bun:test'
 import {
   buildTurnDiffPatch,
   shouldEmitWorkspaceDiffEvent,
+  shouldTrackWorkspaceTurnChanges,
 } from './desktopSessionDiffPolicy.js'
+
+test('tracks workspace turn changes only for non-standalone Git workspaces', () => {
+  expect(
+    shouldTrackWorkspaceTurnChanges({ standalone: false, isGitRepo: true }),
+  ).toBe(true)
+  expect(
+    shouldTrackWorkspaceTurnChanges({ standalone: false, isGitRepo: false }),
+  ).toBe(false)
+  expect(
+    shouldTrackWorkspaceTurnChanges({ standalone: false, isGitRepo: undefined }),
+  ).toBe(false)
+  expect(
+    shouldTrackWorkspaceTurnChanges({ standalone: true, isGitRepo: true }),
+  ).toBe(false)
+})
 
 test('does not emit workspace diff for standalone sessions', () => {
   expect(

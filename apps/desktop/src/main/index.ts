@@ -69,7 +69,10 @@ import {
   applySessionPermissionModeToSnapshot,
   createSessionSettingsSnapshot,
 } from './desktopSessionSettings.js'
-import { buildTurnDiff } from './desktopSessionDiffPolicy.js'
+import {
+  buildTurnDiff,
+  shouldTrackWorkspaceTurnChanges,
+} from './desktopSessionDiffPolicy.js'
 import {
   captureTurnRestoreBaseline,
   restoreTurnBaselineChanges,
@@ -116,6 +119,7 @@ import {
   type DesktopSessionCatalogService,
 } from './desktopSessionCatalog.js'
 import {
+  archiveDesktopSession,
   disposeDesktopSession,
   disposeDesktopSessionRuntimes,
   removeDesktopSessionLocalState,
@@ -532,8 +536,12 @@ function attachSessionListeners(record: DesktopSessionRecord): void {
     if (timestampedEvent.type === 'done' || timestampedEvent.type === 'error') {
       scheduleQueuedFollowUpDrain(session.sessionId)
     }
+    const gitTurnTracking = shouldTrackWorkspaceTurnChanges({
+      standalone: currentRecord.snapshot.item.standalone === true,
+      isGitRepo: currentRecord.snapshot.workspace.isGitRepo,
+    })
     if (
-      !currentRecord.snapshot.item.standalone &&
+      gitTurnTracking &&
       (timestampedEvent.type === 'done' || timestampedEvent.type === 'error')
     ) {
       void getWorkspaceDiff(session.workspacePath).then(diff => {
@@ -842,13 +850,29 @@ async function updateSessionMetadata(
     nextItem.pinnedAt = normalizeNullableTimestamp(patch.pinnedAt)
   }
   if ('archivedAt' in patch) {
-    const appServerThreadId = requireAppServerThreadId(record.snapshot)
-    if (patch.archivedAt) {
-      await getDesktopSessionCatalogService().archiveThread(appServerThreadId)
-    } else {
-      await getDesktopSessionCatalogService().unarchiveThread(appServerThreadId)
-    }
     nextItem.archivedAt = normalizeNullableTimestamp(patch.archivedAt)
+    if (nextItem.archivedAt) {
+      const updatedAt = new Date().toISOString()
+      const archiveResult = await archiveDesktopSession({
+        appServerThreadId:
+          record.snapshot.appServerThreadId ??
+          record.snapshot.item.appServerThreadId,
+        archiveThread: threadId =>
+          getDesktopSessionCatalogService().archiveThread(threadId),
+        removeLocalSession: () => disposeSession(sessionId),
+      })
+      if (archiveResult === 'removed') {
+        return {
+          ...record.snapshot,
+          item: nextItem,
+          updatedAt,
+        }
+      }
+    } else {
+      await getDesktopSessionCatalogService().unarchiveThread(
+        requireAppServerThreadId(record.snapshot),
+      )
+    }
   }
 
   record.snapshot = {
@@ -1379,7 +1403,11 @@ async function sendUserMessage(
     record.snapshot.settings.providerBaseURL,
   )
   session.setDebugConversationDump(modelSelection.debugConversationDump === true)
-  if (record.snapshot.item.standalone) {
+  const gitTurnTracking = shouldTrackWorkspaceTurnChanges({
+    standalone: record.snapshot.item.standalone === true,
+    isGitRepo: record.snapshot.workspace.isGitRepo,
+  })
+  if (!gitTurnTracking) {
     record.turnBaselineDiffPatch = null
     record.turnRestoreBaseline = null
     record.turnRestoreId = null
@@ -1393,6 +1421,7 @@ async function sendUserMessage(
     sessionId,
     permissionMode: record.snapshot.settings.permissionMode,
     standalone: record.snapshot.item.standalone === true,
+    gitTurnTracking,
     baselineCaptured: record.turnBaselineDiffPatch !== null,
   })
   activeSessionId = record.snapshot.item.id
