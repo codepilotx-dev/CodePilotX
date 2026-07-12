@@ -10,10 +10,10 @@ import type {
   DesktopToolchainDiagnosticReport,
 } from '../shared/types.js'
 import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
-import { RustAppServerAuthService } from './rustAppServerAuthService.js'
+import { getRustAppServerAuthService } from './rustAppServerAuthService.js'
 
 let readGithubAppTokenStatus = () =>
-  new RustAppServerAuthService().readAppTokenStatus('github-repositories')
+  getRustAppServerAuthService().readAppTokenStatus('github-repositories')
 
 export function setGithubAppTokenStatusReaderForTesting(
   reader: typeof readGithubAppTokenStatus,

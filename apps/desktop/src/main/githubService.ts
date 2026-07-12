@@ -16,7 +16,8 @@ import type {
 import { readDesktopStoredSettings } from './desktopSettings.js'
 import { registerAllowedWorkspace, workspaceFromPath } from './workspaceService.js'
 import {
-  RustAppServerAuthService,
+  getRustAppServerAuthService,
+  type RustAppServerAuthService,
   type ProviderAuthStatus,
   type ProviderRepoInfo,
 } from './rustAppServerAuthService.js'
@@ -28,7 +29,9 @@ type GithubAuthService = Pick<RustAppServerAuthService,
   'refreshAppToken' | 'readAppTokenStatus' | 'logoutAppToken' | 'readProfile' | 'setStatus' |
   'clearStatus'>
 
-let authService: GithubAuthService = new RustAppServerAuthService()
+let authServiceOverride: GithubAuthService | undefined
+const getAuthService = (): GithubAuthService =>
+  authServiceOverride ?? getRustAppServerAuthService()
 let getDialogWindow: () => BrowserWindow | null = () => null
 let finalizeClone: (path: string) => Promise<DesktopWorkspace> = async path => {
   registerAllowedWorkspace(path)
@@ -43,13 +46,13 @@ export function configureGithubService(options: {
   finalizeClone?: (path: string) => Promise<DesktopWorkspace>
 }): void {
   getDialogWindow = options.getWindow
-  if (options.authService) authService = options.authService
+  if (options.authService) authServiceOverride = options.authService
   if (options.finalizeClone) finalizeClone = options.finalizeClone
 }
 
 export async function getGithubAuthStatus(): Promise<DesktopGithubAuthStatus> {
   try {
-    return mapAuth(await authService.readStatus(PROVIDER_ID))
+    return mapAuth(await getAuthService().readStatus(PROVIDER_ID))
   } catch (error) {
     return { configured: true, authenticated: false, user: null, error: errorMessageOf(error) }
   }
@@ -59,7 +62,7 @@ export async function startGithubLogin(input?: StartGithubLoginInput): Promise<D
   const clientId = await getGithubClientId(input?.clientId)
   if (!clientId) return failedLoginStatus('未配置 GitHub OAuth Client ID。')
   try {
-    const response = await authService.startLogin(PROVIDER_ID, clientId)
+    const response = await getAuthService().startLogin(PROVIDER_ID, clientId)
     startedAt = Date.now()
     expiresAt = startedAt + response.expires_in * 1000
     await shell.openExternal(response.verification_uri)
@@ -73,11 +76,11 @@ export async function startGithubLogin(input?: StartGithubLoginInput): Promise<D
 
 export async function pollGithubLogin(): Promise<DesktopGithubLoginStatus> {
   try {
-    const response = await authService.pollLogin(PROVIDER_ID)
+    const response = await getAuthService().pollLogin(PROVIDER_ID)
     const state = response.status === 'completed' ? 'completed'
       : response.status === 'pending' ? 'awaiting_auth' : 'failed'
     const auth = response.auth ? mapAuth(response.auth) : null
-    if (response.status === 'completed') await authService.exchangeAppToken(PROVIDER_ID)
+    if (response.status === 'completed') await getAuthService().exchangeAppToken(PROVIDER_ID)
     return { state, userCode: null, verificationUri: null,
       expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
       error: response.status === 'expired' ? 'GitHub 授权码已过期，请重新登录。'
@@ -87,37 +90,37 @@ export async function pollGithubLogin(): Promise<DesktopGithubLoginStatus> {
 }
 
 export async function cancelGithubLogin(): Promise<DesktopGithubLoginStatus> {
-  await authService.cancelLogin(PROVIDER_ID)
+  await getAuthService().cancelLogin(PROVIDER_ID)
   return { state: 'idle', userCode: null, verificationUri: null, expiresAt: null,
     error: null, auth: await getGithubAuthStatus(), elapsedMs: 0 }
 }
 
 export async function logoutGithub(): Promise<DesktopGithubAuthStatus> {
-  await authService.logout(PROVIDER_ID)
+  await getAuthService().logout(PROVIDER_ID)
   return getGithubAuthStatus()
 }
 
 export async function logoutAppAuth(): Promise<void> {
-  await authService.logoutAppToken(PROVIDER_ID)
+  await getAuthService().logoutAppToken(PROVIDER_ID)
 }
 
 export async function listGithubRepositories(): Promise<DesktopGithubRepositoryListResult> {
-  try { return { ok: true, repositories: (await authService.listRepositories(PROVIDER_ID)).map(mapRepo) } }
+  try { return { ok: true, repositories: (await getAuthService().listRepositories(PROVIDER_ID)).map(mapRepo) } }
   catch (error) { return { ok: false, error: errorMessageOf(error) } }
 }
 
 export async function getGithubProfileOverview(): Promise<DesktopGithubProfileOverviewResult> {
-  try { return { ok: true, overview: await authService.readProfile(PROVIDER_ID) } }
+  try { return { ok: true, overview: await getAuthService().readProfile(PROVIDER_ID) } }
   catch (error) { return { ok: false, error: errorMessageOf(error) } }
 }
 
 export async function setGithubUserStatus(input: DesktopGithubUserStatusInput): Promise<DesktopGithubUserStatusResult> {
-  try { return { ok: true, status: await authService.setStatus(PROVIDER_ID, input) } }
+  try { return { ok: true, status: await getAuthService().setStatus(PROVIDER_ID, input) } }
   catch (error) { return { ok: false, error: errorMessageOf(error) } }
 }
 
 export async function clearGithubUserStatus(): Promise<DesktopGithubUserStatusResult> {
-  try { return { ok: true, status: await authService.clearStatus(PROVIDER_ID) } }
+  try { return { ok: true, status: await getAuthService().clearStatus(PROVIDER_ID) } }
   catch (error) { return { ok: false, error: errorMessageOf(error) } }
 }
 
@@ -126,7 +129,7 @@ export async function cloneGithubRepository(input: CloneGithubRepositoryInput): 
     const parent = await chooseCloneParentDirectory()
     if (!parent) return { ok: false, error: '已取消选择克隆目录。' }
     const target = await resolveCloneTargetPath(parent, input.repository.name)
-    const localPath = await authService.cloneRepository(PROVIDER_ID, input.repository.cloneUrl, target)
+    const localPath = await getAuthService().cloneRepository(PROVIDER_ID, input.repository.cloneUrl, target)
     return { ok: true, workspace: await finalizeClone(localPath) }
   } catch (error) { return { ok: false, error: errorMessageOf(error) } }
 }

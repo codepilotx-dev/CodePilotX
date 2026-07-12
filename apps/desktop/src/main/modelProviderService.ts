@@ -10,7 +10,10 @@ import {
   saveSelectedProvider,
 } from '@codepilotx/core/models/providerConfig.js'
 import { desktopDebug } from './desktopDebug.js'
-import { RustAppServerAuthService } from './rustAppServerAuthService.js'
+import {
+  getRustAppServerAuthService,
+  type RustAppServerAuthService,
+} from './rustAppServerAuthService.js'
 import {
   readDesktopStoredSettings,
   saveDesktopStoredSettings,
@@ -34,19 +37,16 @@ type ModelProviderCredentialService = Pick<
 >
 
 let credentialServiceOverride: ModelProviderCredentialService | null = null
-let credentialService: ModelProviderCredentialService | null = null
 
 export function configureModelProviderCredentialServiceForTests(
   service: ModelProviderCredentialService | null,
 ): void {
   credentialServiceOverride = service
-  credentialService = null
 }
 
 function getCredentialService(): ModelProviderCredentialService {
   if (credentialServiceOverride) return credentialServiceOverride
-  credentialService ??= new RustAppServerAuthService()
-  return credentialService
+  return getRustAppServerAuthService()
 }
 
 export async function listModelProviders(): Promise<

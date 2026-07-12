@@ -38,6 +38,7 @@ import {
 } from './agentSession.js'
 import type { DesktopAgentRuntimePreference } from './agentRuntime.js'
 import { getAuthStatus, runtimePreferenceForAuth } from './authRuntimeService.js'
+import { disposeRustAppServerAuthService } from './rustAppServerAuthService.js'
 import { buildDesktopApiHandlers } from './desktopApiHandlers.js'
 import {
   applyDesktopAgentRuntimeEnvDefaults,
@@ -2429,7 +2430,12 @@ app.on('before-quit', event => {
 const desktopShutdownController = createDesktopShutdownController({
   flushRollout: () => rolloutWriteScheduler.flush(),
   flushSessionStore: flushSessionStorePersistence,
-  disposeSessions: disposeAllSessions,
+  disposeSessions: async () => {
+    await Promise.all([
+      disposeAllSessions(),
+      disposeRustAppServerAuthService(),
+    ])
+  },
   quit: () => app.quit(),
   logError: (step, error) => {
     desktopDebug('desktop_shutdown_step_failed', {
