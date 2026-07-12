@@ -13,11 +13,11 @@ const desktopRendererPort = Number.parseInt(
   10,
 )
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   root: 'apps/desktop/src/renderer',
   base: './',
   resolve: { alias: desktopAlias },
-  define: desktopMacroDefines,
+  define: desktopMacroDefines(mode),
   server: {
     host: '127.0.0.1',
     port: desktopRendererPort,
@@ -28,8 +28,8 @@ export default defineConfig({
   },
   build: {
     outDir: resolve(desktopOutDir, 'renderer'),
-    emptyOutDir: false,
+    emptyOutDir: true,
     target: 'chrome120',
     sourcemap: false,
   },
-})
+}))

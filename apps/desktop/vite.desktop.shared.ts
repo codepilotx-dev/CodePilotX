@@ -21,24 +21,28 @@ export const desktopAlias = {
   'bun:bundle': resolve(root, 'apps/desktop/src/shims/bunBundle.ts'),
 }
 
-export const desktopMacroDefines = {
-  'MACRO.VERSION': JSON.stringify('0.0.0-local'),
-  'MACRO.BUILD_TIME': JSON.stringify('local'),
-  'MACRO.PACKAGE_URL': JSON.stringify('codepilotx-local'),
-  'MACRO.NATIVE_PACKAGE_URL': JSON.stringify('codepilotx-local-native'),
-  'MACRO.FEEDBACK_CHANNEL': JSON.stringify('local'),
-  'MACRO.ISSUES_EXPLAINER': JSON.stringify('open an issue in the local checkout'),
-  'MACRO.VERSION_CHANGELOG': JSON.stringify('Local development build'),
-  'process.env.USER_TYPE': JSON.stringify('external'),
-  'process.env.NODE_ENV': JSON.stringify('development'),
-  'process.env.CODEPILOTX_DISABLE_MDM_READ': JSON.stringify('1'),
-  'process.env.CODEPILOTX_DISABLE_MIN_VERSION_CHECK': JSON.stringify('1'),
-  'import.meta.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_PORT': JSON.stringify(
-    process.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_PORT ?? '',
-  ),
-  'import.meta.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_BRIDGE_TOKEN': JSON.stringify(
-    process.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_BRIDGE_TOKEN ?? '',
-  ),
+export function desktopMacroDefines(mode: string) {
+  return {
+    'MACRO.VERSION': JSON.stringify('0.0.0-local'),
+    'MACRO.BUILD_TIME': JSON.stringify('local'),
+    'MACRO.PACKAGE_URL': JSON.stringify('codepilotx-local'),
+    'MACRO.NATIVE_PACKAGE_URL': JSON.stringify('codepilotx-local-native'),
+    'MACRO.FEEDBACK_CHANNEL': JSON.stringify('local'),
+    'MACRO.ISSUES_EXPLAINER': JSON.stringify('open an issue in the local checkout'),
+    'MACRO.VERSION_CHANGELOG': JSON.stringify('Local development build'),
+    'process.env.USER_TYPE': JSON.stringify('external'),
+    'process.env.NODE_ENV': JSON.stringify(
+      mode === 'production' ? 'production' : 'development',
+    ),
+    'process.env.CODEPILOTX_DISABLE_MDM_READ': JSON.stringify('1'),
+    'process.env.CODEPILOTX_DISABLE_MIN_VERSION_CHECK': JSON.stringify('1'),
+    'import.meta.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_PORT': JSON.stringify(
+      process.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_PORT ?? '',
+    ),
+    'import.meta.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_BRIDGE_TOKEN': JSON.stringify(
+      process.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_BRIDGE_TOKEN ?? '',
+    ),
+  }
 }
 
 function disableBundledFeaturesPlugin() {
@@ -96,15 +100,15 @@ export function nodeDesktopBuild(
   outDir: string,
   name: string,
   formats: ('es' | 'cjs')[] = ['es'],
-  options: { sourcemap?: boolean } = {},
+  options: { sourcemap?: boolean; mode?: string } = {},
 ): UserConfig {
   const sourcemap = options.sourcemap ?? false
   return {
     plugins: [disableBundledFeaturesPlugin()],
     resolve: { alias: desktopAlias },
-    define: desktopMacroDefines,
+    define: desktopMacroDefines(options.mode ?? 'production'),
     build: {
-      emptyOutDir: false,
+      emptyOutDir: true,
       outDir,
       target: 'node22',
       sourcemap,

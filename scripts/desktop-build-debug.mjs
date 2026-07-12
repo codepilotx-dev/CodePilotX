@@ -12,6 +12,7 @@ const configs = [
 for (const configFile of configs) {
   await build({
     configFile: resolve(repoRoot, configFile),
+    mode: 'development',
     build: {
       sourcemap: true,
     },

@@ -73,6 +73,7 @@ function run(command, args) {
 async function startRendererServer() {
   const server = await createServer({
     configFile: resolve(root, 'apps/desktop/vite.desktop.config.ts'),
+    mode: 'development',
     server: {
       host: '127.0.0.1',
       port: rendererPort,
@@ -88,6 +89,7 @@ async function startRendererServer() {
 async function startBuildWatcher(label, configFile) {
   const watcher = await build({
     configFile,
+    mode: 'development',
     build: {
       watch: {},
     },
@@ -211,6 +213,9 @@ async function main() {
   const debugBridgeToken =
     process.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_BRIDGE_TOKEN ?? randomUUID()
   process.env.CODEPILOTX_DESKTOP_BROWSER_DEBUG_BRIDGE_TOKEN = debugBridgeToken
+
+  log('preparing debug Rust app-server sidecar')
+  await run('bun', ['run', 'desktop:rust-sidecar:prepare:debug'])
 
   if (runtimeMode === 'subprocess') {
     log('building desktop agent')

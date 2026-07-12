@@ -30,6 +30,7 @@
     "desktop:build:debug": "bun scripts/desktop-build-debug.mjs",
     "desktop:runtime:prepare": "node scripts/prepare-desktop-runtime.mjs",
     "desktop:rust-sidecar:prepare": "node scripts/prepare-desktop-rust-sidecar.mjs --release",
+    "desktop:rust-sidecar:prepare:debug": "node scripts/prepare-desktop-rust-sidecar.mjs",
     "desktop:dist:win": "bun scripts/clean-desktop-dist.mjs && bun run desktop:runtime:prepare && bun run desktop:rust-sidecar:prepare && bun run desktop:agent:build && bun run desktop:build && electron-builder --win --config apps/desktop/electron-builder.config.cjs",
     "desktop:dist:unpacked:win": "bun scripts/clean-desktop-dist.mjs && bun run desktop:runtime:prepare && bun run desktop:rust-sidecar:prepare && bun run desktop:agent:build && bun run desktop:build && electron-builder --win --dir --config apps/desktop/electron-builder.config.cjs",
     "codepilotx:app-server": "bun apps/tui/src/entrypoints/appServer.ts",

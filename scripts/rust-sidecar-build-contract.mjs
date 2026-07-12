@@ -10,6 +10,19 @@ export const RUST_SIDECAR_RELEASE_ARGS = [
   'codepilotx-app-server',
 ]
 
+export const RUST_SIDECAR_DEBUG_ARGS = [
+  'build',
+  '--locked',
+  '-p',
+  'codepilotx-app-server',
+]
+
+export function resolveRustSidecarBuild(argv) {
+  return argv.includes('--release')
+    ? { profile: 'release', args: RUST_SIDECAR_RELEASE_ARGS }
+    : { profile: 'debug', args: RUST_SIDECAR_DEBUG_ARGS }
+}
+
 export function parseCargoSourceConfigArgs(argv) {
   const args = []
   for (let index = 0; index < argv.length; index += 1) {
