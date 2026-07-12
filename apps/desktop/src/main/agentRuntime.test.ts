@@ -62,7 +62,7 @@ mock.module('node:child_process', () => ({
 }))
 
 const agentRuntime = await import('./agentRuntime.js')
-const { SidecarDesktopAgentRuntime } = await import('./sidecarAgentRuntime.js')
+const { RustSidecarDesktopAgentRuntime } = await import('./rustSidecarRuntime.js')
 const {
   buildAskUserQuestionControlResponse,
   buildDesktopPermissionRequestFromControlRequest,
@@ -78,7 +78,7 @@ import {
   getUpdatedPermissions,
 } from './agentRuntimeSupport.js'
 
-test('auto runtime keeps using the stable TypeScript sidecar', () => {
+test('auto runtime uses the Rust sidecar', () => {
   const runtime = createDesktopAgentRuntime({
     sessionId: 'session-auto-runtime',
     workspacePath: process.cwd(),
@@ -87,7 +87,7 @@ test('auto runtime keeps using the stable TypeScript sidecar', () => {
     requestPermission: async () => ({ behavior: 'deny' }),
   })
 
-  expect(runtime).toBeInstanceOf(SidecarDesktopAgentRuntime)
+  expect(runtime).toBeInstanceOf(RustSidecarDesktopAgentRuntime)
 })
 
 test('codexPermissionConfigArgs maps desktop permissions to official config overrides', () => {

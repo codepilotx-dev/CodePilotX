@@ -17,7 +17,6 @@ import {
   summarizeToolInput,
 } from './agentRuntimeSupport.js'
 import { RustSidecarDesktopAgentRuntime } from './rustSidecarRuntime.js'
-import { SidecarDesktopAgentRuntime } from './sidecarAgentRuntime.js'
 
 export type DesktopAgentRuntimePreference =
   | 'auto'
@@ -137,18 +136,11 @@ export function createDesktopAgentRuntime(
 ): DesktopAgentRuntime {
   context = normalizeDesktopAgentRuntimeContext(context)
   const preference = context.runtimePreference ?? 'auto'
-  if (preference === 'rust-sidecar') {
-    desktopDebug('runtime_create_rust_sidecar', {
-      sessionId: context.sessionId,
-      preference,
-    })
-    return new RustSidecarDesktopAgentRuntime(context)
-  }
-  desktopDebug('runtime_create_typescript_sidecar', {
+  desktopDebug('runtime_create_rust_sidecar', {
     sessionId: context.sessionId,
     preference,
   })
-  return new SidecarDesktopAgentRuntime(context)
+  return new RustSidecarDesktopAgentRuntime(context)
 }
 
 function normalizeDesktopAgentRuntimeContext(
