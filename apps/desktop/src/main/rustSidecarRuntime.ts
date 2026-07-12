@@ -1529,7 +1529,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       modelProvider: this.context.providerID ?? undefined,
       cwd: this.context.workspacePath,
       approvalPolicy: this.context.approvalPolicy ?? undefined,
-      sandbox: this.context.permissionProfile ?? undefined,
+      permissions: this.context.permissionProfile ?? undefined,
       ephemeral: false,
     }
   }
@@ -1542,7 +1542,7 @@ export class RustSidecarDesktopAgentRuntime implements DesktopAgentRuntime {
       modelProvider: this.context.providerID ?? undefined,
       approvalPolicy: this.context.approvalPolicy ?? undefined,
       approvalsReviewer: this.context.approvalsReviewer ?? undefined,
-      sandbox: this.context.permissionProfile ?? undefined,
+      permissions: this.context.permissionProfile ?? undefined,
       collaborationMode: this.context.collaborationMode ?? undefined,
     }
   }

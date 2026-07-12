@@ -1,9 +1,14 @@
 import type {
   Thread,
+  ThreadStartParams as GeneratedThreadStartParams,
   ThreadStartResponse,
   Turn,
   UserInput,
 } from './generated/v2/index.js'
+
+export type ThreadStartParams = GeneratedThreadStartParams & {
+  permissions?: string | null
+}
 
 export type ThreadResumeParams = {
   threadId: string
@@ -14,6 +19,7 @@ export type ThreadResumeParams = {
   approvalPolicy?: string | null
   approvalsReviewer?: string | null
   sandbox?: string | null
+  permissions?: string | null
   config?: Record<string, unknown> | null
   baseInstructions?: string | null
   developerInstructions?: string | null

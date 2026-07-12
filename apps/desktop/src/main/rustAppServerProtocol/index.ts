@@ -11,7 +11,6 @@ export type { ClientInfo } from './generated/ClientInfo.js'
 export type { AbsolutePathBuf } from './generated/AbsolutePathBuf.js'
 export type * as v2 from './generated/v2/index.js'
 export type {
-  ThreadStartParams,
   ThreadStartResponse,
   TurnStartParams,
   TurnStartResponse,
@@ -32,6 +31,7 @@ export type {
   ErrorNotification,
 } from './generated/v2/index.js'
 export type {
+  ThreadStartParams,
   ThreadResumeParams,
   ThreadResumeResponse,
   ThreadListParams,

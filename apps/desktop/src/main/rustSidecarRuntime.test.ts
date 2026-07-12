@@ -1051,15 +1051,18 @@ describe('RustSidecarDesktopAgentRuntime threadStartParams', () => {
 	  expect(internals.buildThreadStartParams()).toMatchObject({
 	    model: 'test-model',
 	    approvalPolicy: 'on-request',
-	    sandbox: ':workspace',
+	    permissions: ':workspace',
 	  })
+	  expect(internals.buildThreadStartParams()).not.toHaveProperty('sandbox')
 	  expect(internals.buildThreadResumeParams()).toMatchObject({
 	    threadId: 'thread-persisted',
 	    model: 'test-model',
 	    approvalPolicy: 'on-request',
 	    approvalsReviewer: 'auto_review',
+	    permissions: ':workspace',
 	    collaborationMode: { mode: 'plan' },
 	  })
+	  expect(internals.buildThreadResumeParams()).not.toHaveProperty('sandbox')
 	})
 	  test('does not include dynamicTools field', () => {
 	    const runtime = new RustSidecarDesktopAgentRuntime({
