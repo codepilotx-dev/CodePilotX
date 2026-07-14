@@ -1,0 +1,61 @@
+{
+  "name": "@codepilotx/desktop-electron",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "dev": "bun run build && electron .",
+    "package:win": "bun run build && electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "electron": "^37.0.0",
+    "electron-builder": "^26.0.12",
+    "typescript": "~5.8.3"
+  },
+  "build": {
+    "appId": "com.codepilotx.desktop",
+    "productName": "CodePilotX",
+    "asar": true,
+    "directories": {
+      "output": "../../../release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../../agent/dist/codepilotx-agent.exe",
+        "to": "agent/codepilotx-agent.exe"
+      },
+      {
+        "from": "../../../resources/models.snapshot.json",
+        "to": "agent/models.snapshot.json"
+      },
+      {
+        "from": "../../../dist/renderer",
+        "to": "renderer"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "CodePilotX-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}
