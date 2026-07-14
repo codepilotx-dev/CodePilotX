@@ -17,7 +17,7 @@
     "dev:renderer": "bun run --cwd apps/desktop/renderer dev",
     "dev:desktop": "bun run scripts/dev.ts",
     "dev:electron": "bun run --cwd apps/desktop/electron dev",
-    "typecheck": "bun run --cwd packages/shared typecheck && bun run --cwd apps/agent typecheck && bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/electron typecheck",
+    "typecheck": "bun run --cwd packages/shared typecheck && bun run --cwd packages/session-view typecheck && bun run --cwd apps/agent typecheck && bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/electron typecheck",
     "build:renderer": "bun run --cwd apps/desktop/renderer build",
     "build:agent": "bun run --cwd apps/agent build",
     "build:desktop": "bun run --cwd apps/desktop/electron build",

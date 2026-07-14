@@ -18,12 +18,12 @@
     "jsx": "react-jsx"
   },
   "include": [
-    "src/vite-env.d.ts",
-    "src/main.tsx",
-    "src/App.tsx",
-    "src/components/**/*.tsx",
-    "src/api/**/*.ts",
-    "src/domain/**/*.ts",
-    "src/data/**/*.ts"
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
   ]
 }
