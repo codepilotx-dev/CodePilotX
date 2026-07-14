@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "generatedAt": "2026-07-13T00:00:00.000Z",
+  "providers": [
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "kind": "openai",
+      "baseURL": "https://api.openai.com/v1",
+      "models": [
+        {
+          "id": "gpt-5.2",
+          "name": "GPT-5.2",
+          "api": "openai-responses",
+          "limits": { "context": 400000, "output": 128000 },
+          "capabilities": { "reasoning": true, "toolCall": true, "imageInput": true },
+          "defaultParameters": { "reasoningEffort": "high" }
+        },
+        {
+          "id": "gpt-4.1",
+          "name": "GPT-4.1",
+          "api": "openai-responses",
+          "limits": { "context": 1047576, "output": 32768 },
+          "capabilities": { "reasoning": false, "toolCall": true, "imageInput": true }
+        }
+      ]
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic",
+      "kind": "anthropic",
+      "baseURL": "https://api.anthropic.com/v1",
+      "models": [
+        {
+          "id": "claude-sonnet-4-5",
+          "name": "Claude Sonnet 4.5",
+          "api": "anthropic-messages",
+          "limits": { "context": 200000, "output": 64000 },
+          "capabilities": { "reasoning": true, "toolCall": true, "imageInput": true }
+        }
+      ]
+    },
+    {
+      "id": "google",
+      "name": "Google",
+      "kind": "google",
+      "baseURL": "https://generativelanguage.googleapis.com/v1beta",
+      "models": [
+        {
+          "id": "gemini-2.5-pro",
+          "name": "Gemini 2.5 Pro",
+          "api": "google-generative-ai",
+          "limits": { "context": 1048576, "output": 65536 },
+          "capabilities": { "reasoning": true, "toolCall": true, "imageInput": true }
+        }
+      ]
+    },
+    {
+      "id": "openai-compatible",
+      "name": "OpenAI-Compatible",
+      "kind": "openai-compatible",
+      "baseURL": "http://127.0.0.1:11434/v1",
+      "models": [
+        {
+          "id": "custom-model",
+          "name": "自定义模型",
+          "api": "openai-chat-completions",
+          "limits": { "context": 32768, "output": 8192 },
+          "capabilities": { "reasoning": false, "toolCall": false, "imageInput": false }
+        }
+      ]
+    }
+  ]
+}

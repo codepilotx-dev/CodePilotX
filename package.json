@@ -1,0 +1,30 @@
+{
+  "name": "codepilotx",
+  "private": true,
+  "version": "0.2.0",
+  "packageManager": "bun@1.3.14",
+  "workspaces": [
+    "apps/agent",
+    "apps/desktop/*",
+    "packages/*"
+  ],
+  "trustedDependencies": [
+    "electron"
+  ],
+  "scripts": {
+    "dev": "bun run scripts/dev.ts",
+    "dev:agent": "bun run --cwd apps/agent dev",
+    "dev:renderer": "bun run --cwd apps/desktop/renderer dev",
+    "dev:desktop": "bun run scripts/dev.ts",
+    "dev:electron": "bun run --cwd apps/desktop/electron dev",
+    "typecheck": "bun run --cwd packages/shared typecheck && bun run --cwd apps/agent typecheck && bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/electron typecheck",
+    "build:renderer": "bun run --cwd apps/desktop/renderer build",
+    "build:agent": "bun run --cwd apps/agent build",
+    "build:desktop": "bun run --cwd apps/desktop/electron build",
+    "build": "bun run scripts/build.ts",
+    "package:win": "bun run build && bun run --cwd apps/desktop/electron package:win"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

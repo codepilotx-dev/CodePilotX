@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./apps/agent" },
+    { "path": "./apps/desktop/renderer" },
+    { "path": "./apps/desktop/electron" }
+  ]
+}
