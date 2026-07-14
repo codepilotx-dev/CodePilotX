@@ -1,27 +1,29 @@
 # AGENTS.md
 
 ## Scope
-Applies to the Electron renderer under `apps/desktop/src/renderer/`.
+
+These instructions apply to UI source code under
+`apps/desktop/renderer/src/` and extend the renderer workspace instructions.
 
 ## Conventions
-- The renderer is a React app. Pages, components, and features live here.
-  Keep IPC access routed through the preload bridge and the typed
-  `DesktopApi` from `shared/types.ts`.
-- Reuse existing design-system components in `components/` and `components/ui/`
-  rather than building local variants. Layout primitives live in
-  `features/layout/`.
-- Side effects, IPC, and persistence belong in `services/` and `hooks/`,
-  not directly in components. Components should stay declarative.
-- Settings changes flow through `desktopClient.ts` and the matching main
-  process handler. Avoid reading settings directly from disk in the
-  renderer.
-- The app only needs to support desktop pages; do not spend effort adapting
-  pages for non-desktop viewports unless explicitly requested.
-- Match the existing routing and page composition in `routes.tsx` and
-  `App.tsx`.
+
+- Follow the existing route and page composition in `routes.tsx` and `App.tsx`.
+- Reuse components from `components/ui/`, design-system tokens, and existing
+  feature components instead of creating local visual variants.
+- Keep React components declarative. Put network, IPC, persistence, and
+  subscription side effects in services, hooks, or the existing feature state
+  layer.
+- Process session events through the existing adapters and reducers. Do not
+  interpret a new server wire format directly inside UI components.
+- Route settings changes through the existing settings hooks, storage helpers,
+  and desktop client, and preserve the persisted-state round trip.
+- Reuse `styles/design-system/tokens.scss` and the existing feature/component
+  SCSS layers instead of adding isolated styling systems.
 
 ## Validation
-- After changing a page or feature, confirm it still respects the desktop
-  viewport assumptions, keyboard focus rules, and theme switching.
-- For settings UI changes, verify both the local update and the persisted
-  state round-trip through the matching main process service.
+
+- For UI changes, check desktop window sizing, keyboard focus, theme switching,
+  reduced-motion behavior, popover positioning, and session restoration when
+  relevant.
+- For settings changes, verify both the local update and the persisted-state
+  round trip through the existing service boundary.
