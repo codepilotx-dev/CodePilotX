@@ -37,8 +37,20 @@
         "to": "agent/models.snapshot.json"
       },
       {
+        "from": "../../../resources/models.snapshot.meta.json",
+        "to": "agent/models.snapshot.meta.json"
+      },
+      {
         "from": "../../../dist/renderer",
         "to": "renderer"
+      },
+      {
+        "from": "../../../THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
+      },
+      {
+        "from": "../../../third_party",
+        "to": "third_party"
       }
     ],
     "win": {

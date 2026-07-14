@@ -11,10 +11,10 @@ import {
 } from '../../modelPresets.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 
-function splitProviderModel(value: string): { providerID: string; modelID: string } | null {
+function splitProviderModel(value: string): { providerID: string; id: string } | null {
   const slash = value.indexOf('/')
   if (slash <= 0 || slash === value.length - 1) return null
-  return { providerID: value.slice(0, slash), modelID: value.slice(slash + 1) }
+  return { providerID: value.slice(0, slash), id: value.slice(slash + 1) }
 }
 
 type ModelOption = { value: string; label: string; detail?: string }
@@ -197,14 +197,14 @@ export function TaskModelSelect({
     if (
       value &&
       !opts.some(o => o.value === value) &&
-      !opts.some(o => o.value === parsedValue?.modelID)
+      !opts.some(o => o.value === parsedValue?.id)
     ) {
       const savedMeta = parsedValue?.providerID
-        ? providerMetadata[parsedValue.providerID]?.[parsedValue.modelID]
+        ? providerMetadata[parsedValue.providerID]?.[parsedValue.id]
         : undefined
       opts.push({
         value,
-        label: getModelDisplayLabel(parsedValue?.modelID ?? value),
+        label: getModelDisplayLabel(parsedValue?.id ?? value),
         detail: `当前保存${parsedValue?.providerID ? ` · ${parsedValue.providerID}` : ''}`,
       })
     }

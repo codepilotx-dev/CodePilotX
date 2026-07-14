@@ -1264,7 +1264,7 @@ export function DesktopLayout(): React.ReactNode {
       void desktopClient
         .saveModelProvider({
           providerID,
-          modelID: preset.value,
+          id: preset.value,
           baseURL,
         })
         .then(next => {

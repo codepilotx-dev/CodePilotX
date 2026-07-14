@@ -9,22 +9,48 @@ import {
   type DesktopApiMethod,
 } from '../../shared/ipcChannels.js'
 import { encodeDesktopBridgeArgs } from '../../shared/desktopBridgeArgs.js'
-import { defaultDesktopStoredSettings } from '../../shared/settingsSchema.js'
+import {
+  defaultDesktopStoredSettings,
+  normalizeDesktopStoredSettings,
+} from '../../shared/settingsSchema.js'
 import {
   collaborationModeFromPlanModeActive,
   planModeActiveFromCollaborationMode,
   resolveCodePilotXCollaborationMode,
-} from '@codepilotx/core/agent/codepilotxSessionContract.js'
+} from '../shims/core/agent/codepilotxSessionContract.js'
+import type {
+  CatalogProvider,
+  IntegrationAuthorizeRequest,
+  IntegrationAuthorizeResponse,
+  IntegrationAuthorizeStatusResponse,
+  IntegrationConnectRequest,
+  IntegrationDisconnectRequest,
+  IntegrationListResponse,
+  ModelRef,
+  OkResponse,
+  Project,
+  ProviderTestResponse,
+  ProvidersResponse,
+} from '@codepilotx/shared'
+import type { ThreadListItem, ThreadSnapshot } from '@codepilotx/shared/thread'
 import { normalizeDesktopThemeSettings } from '../../shared/theme.js'
+import { desktopUserMessageInputToPreviewText } from '../../shared/desktopUserMessage.js'
 import type {
   CreateDesktopSessionOptions,
+  CreateDesktopSessionResult,
   DesktopApi,
   DesktopBrowserState,
   DesktopDataLocationMigrationResult,
   DesktopDataLocationState,
+  DesktopFollowUpBehavior,
+  DesktopModelSelection,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
+  DesktopModelMetadata,
+  DesktopPermissionDecision,
   DesktopReviewDiffResult,
+  DesktopSessionCatalogStatus,
+  DesktopSessionMetadataPatch,
   DesktopRuntimeStatus,
   DesktopSettingsChange,
   DesktopSessionStoreChange,
@@ -32,9 +58,20 @@ import type {
   DesktopStoredSettings,
   DesktopThemeSettings,
   DesktopUpdateStatus,
+  DesktopUserMessageInput,
   DesktopWorkspace,
   ModelProviderID,
 } from '../../shared/types.js'
+import {
+  agentEventsFromNotification,
+  agentPlanRunIdFromRequestId,
+  agentQuestionIdFromRequestId,
+  agentThreadListItemToDesktopSnapshot,
+  agentThreadSnapshotToDesktop,
+  desktopPermissionModeToAgentMode,
+  projectToDesktopWorkspace,
+} from './agentThreadAdapter.js'
+import { createAgentRpcClient } from './agentRpcClient.js'
 
 export const DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY =
   'codepilotx.desktop.browserDebugMode'
@@ -45,6 +82,9 @@ const DEFAULT_BROWSER_DEBUG_PORT = 53271
 
 type DesktopClientWindow = {
   desktopApi?: DesktopApi
+  codePilotXDesktop?: {
+    pickWorkspaceDirectory(): Promise<string | null>
+  }
   addEventListener?: Window['addEventListener']
   removeEventListener?: Window['removeEventListener']
 }
@@ -53,15 +93,22 @@ export type DesktopClientEnvironment = {
   window?: DesktopClientWindow
   localStorage?: Storage
   fetch?: (input: string, init?: RequestInit) => Promise<Response>
-  eventSourceFactory?: never
+  eventSourceFactory?: (url: string) => EventSource
+  openExternal?: (url: string) => void | Promise<void>
   debugBridgePort?: number
   debugBridgeToken?: string
 }
 
 export function createDesktopClient(
-  _environment: DesktopClientEnvironment = defaultDesktopClientEnvironment(),
+  environment: DesktopClientEnvironment = defaultDesktopClientEnvironment(),
 ): DesktopApi {
-  return createBrowserMockDesktopClient()
+  const productionClient = environment.window?.desktopApi
+  const fallbackClient = productionClient ?? createSwitchingBrowserDesktopClient(environment)
+  return createAgentSessionDesktopClient(
+    environment,
+    fallbackClient,
+    productionClient === undefined && environment.window?.codePilotXDesktop === undefined,
+  )
 }
 
 export function readDesktopBrowserDebugMode(
@@ -80,6 +127,876 @@ export function writeDesktopBrowserDebugMode(
 }
 
 export const desktopClient: DesktopApi = createDesktopClient()
+
+function createAgentSessionDesktopClient(
+  environment: DesktopClientEnvironment,
+  mockClient: DesktopApi,
+  allowBrowserMockFallback: boolean,
+): DesktopApi {
+  const fetcher = environment.fetch
+  const rpc = createAgentRpcClient(environment)
+  let activeSessionId: string | null = null
+  let agentReady = false
+  let readyProbe: Promise<boolean> | null = null
+  let readinessError: unknown = null
+  let projectsByIdCache: Map<string, Project> | null = null
+  let modelCatalogCache: ProvidersResponse | null = null
+  let integrationsCache: IntegrationListResponse['integrations'] | null = null
+  const sessionSnapshots = new Map<string, DesktopSessionSnapshot>()
+  const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
+  const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+  async function isAgentAvailable(): Promise<boolean> {
+    if (agentReady) return true
+    readyProbe ??= probeAgentReady().finally(() => {
+      readyProbe = null
+    })
+    agentReady = await readyProbe
+    return agentReady
+  }
+
+  async function probeAgentReady(): Promise<boolean> {
+    if (!fetcher) {
+      readinessError = new Error('当前环境无法访问 agent RPC。')
+      return false
+    }
+    try {
+      await rpc.call('initialize')
+      readinessError = null
+      return true
+    } catch (error) {
+      readinessError = error
+      return false
+    }
+  }
+
+  async function withAgentOrMock<T>(
+    agentOperation: () => Promise<T>,
+    mockOperation: () => Promise<T>,
+  ): Promise<T> {
+    if (!(await isAgentAvailable())) {
+      if (allowBrowserMockFallback) return mockOperation()
+      throw readinessError instanceof Error
+        ? readinessError
+        : new Error('Agent RPC 当前不可用。')
+    }
+    return agentOperation()
+  }
+
+  async function loadModelCatalog(refresh = false): Promise<ProvidersResponse> {
+    if (modelCatalogCache && !refresh) return modelCatalogCache
+    modelCatalogCache = await rpc.call<ProvidersResponse>(
+      refresh ? 'model/refresh' : 'model/list',
+    )
+    return modelCatalogCache
+  }
+
+  async function loadIntegrations(
+    refresh = false,
+  ): Promise<IntegrationListResponse['integrations']> {
+    if (integrationsCache && !refresh) return integrationsCache
+    const response = await rpc.call<IntegrationListResponse>('integration/list')
+    integrationsCache = response.integrations
+    return integrationsCache
+  }
+
+  async function providerState(
+    preferredProviderID?: ModelProviderID,
+  ): Promise<DesktopModelProviderState> {
+    const [catalog, integrations, desktopSettings] = await Promise.all([
+      loadModelCatalog(),
+      loadIntegrations(),
+      mockClient.getDesktopSettings(),
+    ])
+    const selectedProviderID =
+      preferredProviderID ??
+      catalog.defaultModel?.providerID ??
+      desktopSettings.providerID ??
+      catalog.providers[0]?.provider.id
+    const catalogProvider =
+      catalog.providers.find(item => item.provider.id === selectedProviderID) ??
+      catalog.providers[0]
+    if (!catalogProvider) throw new Error('Agent 未返回可用模型提供商。')
+    const integration = integrations.find(
+      item => item.id === catalogProvider.provider.integrationID,
+    )
+    const summary = catalogProviderToDesktop(catalogProvider, integration)
+    const selectedModel =
+      catalog.defaultModel?.providerID === catalogProvider.provider.id
+        ? catalog.defaultModel
+        : null
+    const model =
+      selectedModel?.id ??
+      catalogProvider.models.find(item => item.enabled)?.id ??
+      catalogProvider.models[0]?.id ??
+      ''
+    const credentialConnection = integration?.connections.find(
+      connection => connection.type === 'credential',
+    )
+    const envConnection = integration?.connections.find(
+      connection => connection.type === 'env',
+    )
+    return {
+      selectedProviderID: catalogProvider.provider.id,
+      provider: summary,
+      model,
+      variant: selectedModel?.variant,
+      baseURL: summary.baseURL,
+      apiKeyConfigured: summary.apiKeyConfigured,
+      apiKeySource: credentialConnection
+        ? 'secureStorage'
+        : envConnection?.name ?? null,
+      modelConfigured: Boolean(model && summary.apiKeyConfigured),
+      configurationMessage: summary.apiKeyConfigured
+        ? undefined
+        : '未连接凭据，请先配置 API 密钥或完成授权。',
+      models: summary.defaultModels,
+      modelMetadata: summary.modelMetadata,
+    }
+  }
+
+  async function integrationForProvider(
+    providerID: ModelProviderID,
+    refreshIntegrations = false,
+  ) {
+    const [catalog, integrations] = await Promise.all([
+      loadModelCatalog(),
+      loadIntegrations(refreshIntegrations),
+    ])
+    const provider = catalog.providers.find(item => item.provider.id === providerID)
+    if (!provider) throw new Error(`未找到模型提供商：${providerID}`)
+    const integrationID = provider.provider.integrationID
+    if (!integrationID) throw new Error(`模型提供商 ${providerID} 未声明凭据 Integration。`)
+    const integration = integrations.find(item => item.id === integrationID)
+    if (!integration) throw new Error(`未找到模型提供商 ${providerID} 的 Integration。`)
+    return { provider, integration }
+  }
+
+  async function openAuthorizationURL(url: string): Promise<void> {
+    if (!url) return
+    if (environment.openExternal) {
+      await environment.openExternal(url)
+      return
+    }
+    if (typeof window !== 'undefined') {
+      if (window.codePilotXDesktop) {
+        await window.codePilotXDesktop.openExternal(url)
+        return
+      }
+      window.open(url, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  async function loadProjectsById(refresh = false): Promise<Map<string, Project>> {
+    if (projectsByIdCache && !refresh) return projectsByIdCache
+    const response = await rpc.call<{ projects: Project[] }>('project/list')
+    projectsByIdCache = new Map(response.projects.map(project => [project.id, project]))
+    return projectsByIdCache
+  }
+
+  async function loadProjectForPath(rootPath: string): Promise<Project> {
+    const response = await rpc.call<{ project: Project }>('project/open', { rootPath })
+    projectsByIdCache = null
+    return response.project
+  }
+
+  async function listAgentSessions(
+    options?: { archived?: boolean },
+  ): Promise<DesktopSessionSnapshot[]> {
+    const archived = options?.archived === true
+    const [projectsById, response] = await Promise.all([
+      loadProjectsById(),
+      rpc.call<{ threads: ThreadListItem[]; nextCursor: string | null }>('thread/list', {
+        archived,
+        limit: 100,
+      }),
+    ])
+    const snapshots = response.threads.map(item => {
+      const listSnapshot = agentThreadListItemToDesktopSnapshot(
+        item,
+        item.projectID ? projectsById.get(item.projectID) : null,
+      )
+      const cached = sessionSnapshots.get(item.id)
+      const snapshot = cached
+        ? {
+            ...cached,
+            item: {
+              ...cached.item,
+              ...listSnapshot.item,
+              pinnedAt: cached.item.pinnedAt ?? listSnapshot.item.pinnedAt,
+            },
+            workspace: listSnapshot.workspace,
+            updatedAt: listSnapshot.updatedAt,
+          }
+        : listSnapshot
+      sessionSnapshots.set(item.id, snapshot)
+      return snapshot
+    })
+    return snapshots
+  }
+
+  async function loadAgentSessionSnapshot(
+    sessionId: string,
+  ): Promise<DesktopSessionSnapshot> {
+    const sharedSnapshot = await rpc.call<ThreadSnapshot>('thread/read', { threadId: sessionId })
+    const projectsById = await loadProjectsById()
+    const snapshot = agentThreadSnapshotToDesktop(
+      sharedSnapshot,
+      sharedSnapshot.thread.projectID
+        ? projectsById.get(sharedSnapshot.thread.projectID)
+        : null,
+    )
+    const cached = sessionSnapshots.get(sessionId)
+    sessionSnapshots.set(sessionId, {
+      ...snapshot,
+      item: {
+        ...snapshot.item,
+        pinnedAt: cached?.item.pinnedAt ?? snapshot.item.pinnedAt,
+      },
+    })
+    return sessionSnapshots.get(sessionId)!
+  }
+
+  async function refreshAgentSessionStoreChange(): Promise<void> {
+    const sessions = await listAgentSessions({ archived: false })
+    const visibleIds = new Set(sessions.map(snapshot => snapshot.item.id))
+    for (const sessionId of [...sessionSnapshots.keys()]) {
+      if (!visibleIds.has(sessionId)) {
+        const snapshot = sessionSnapshots.get(sessionId)
+        if (!snapshot?.item.archivedAt) sessionSnapshots.delete(sessionId)
+      }
+    }
+    if (activeSessionId && !visibleIds.has(activeSessionId)) {
+      activeSessionId = sessions[0]?.item.id ?? null
+    }
+    emitSessionStoreChange(sessions)
+  }
+
+  function emitSessionStoreChange(
+    sessions = [...sessionSnapshots.values()].filter(
+      snapshot => !snapshot.item.archivedAt,
+    ),
+  ): void {
+    const change: DesktopSessionStoreChange = {
+      activeSessionId,
+      sessions,
+    }
+    for (const listener of sessionStoreListeners) {
+      listener(change)
+    }
+  }
+
+  function scheduleSessionRefresh(sessionId: string): void {
+    if (refreshTimers.has(sessionId)) return
+    const timer = setTimeout(() => {
+      refreshTimers.delete(sessionId)
+      void loadAgentSessionSnapshot(sessionId)
+        .then(() => refreshAgentSessionStoreChange())
+        .catch(() => {})
+    }, 250)
+    refreshTimers.set(sessionId, timer)
+  }
+
+  function taskModeForSession(sessionId: string): 'chat' | 'plan' {
+    return sessionSnapshots.get(sessionId)?.item.planModeActive ? 'plan' : 'chat'
+  }
+
+  function permissionModeForSession(sessionId: string) {
+    return desktopPermissionModeToAgentMode(
+      sessionSnapshots.get(sessionId)?.item.permissionMode,
+    )
+  }
+
+  async function submitAgentMessage(
+    sessionId: string,
+    input: DesktopUserMessageInput,
+    strategy: 'queue' | 'guide',
+    model?: string | DesktopModelSelection,
+  ): Promise<unknown> {
+    const response = await rpc.call('turn/start', {
+      threadId: sessionId,
+      content: desktopUserMessageInputToPreviewText(input),
+      model: await resolveAgentModelRef(model, sessionId),
+      permissionMode: permissionModeForSession(sessionId),
+      strategy,
+      taskMode: taskModeForSession(sessionId),
+    })
+    await loadAgentSessionSnapshot(sessionId).catch(() => null)
+    emitSessionStoreChange()
+    return response
+  }
+
+  async function resolveAgentModelRef(
+    selection: string | DesktopModelSelection | undefined,
+    sessionId: string,
+  ): Promise<ModelRef> {
+    const providers = await loadModelCatalog()
+    if (typeof selection === 'object' && selection?.providerID && selection.model) {
+      const provider = providers.providers.find(
+        item => item.provider.id === selection.providerID,
+      )
+      const model = provider?.models.find(item => item.id === selection.model)
+      if (!provider || !model) {
+        throw new Error(`未找到模型：${selection.providerID}/${selection.model}`)
+      }
+      const variant = selection.variant
+        ? model.variants.find(item => item.id === selection.variant)?.id
+        : undefined
+      return {
+        providerID: provider.provider.id,
+        id: model.id,
+        ...(variant ? { variant } : {}),
+      }
+    }
+    if (typeof selection === 'string' && selection.trim()) {
+      const providerID = sessionSnapshots.get(sessionId)?.settings.providerID
+      const provider = providers.providers.find(
+        item => item.provider.id === providerID,
+      )
+      const model = provider?.models.find(item => item.id === selection.trim())
+      if (provider && model) {
+        return { providerID: provider.provider.id, id: model.id }
+      }
+    }
+    const cached = sessionSnapshots.get(sessionId)
+    if (cached?.settings.providerID && cached.settings.model) {
+      if (
+        providers.defaultModel?.providerID === cached.settings.providerID &&
+        providers.defaultModel.id === cached.settings.model
+      ) {
+        return providers.defaultModel
+      }
+      const provider = providers.providers.find(
+        item => item.provider.id === cached.settings.providerID,
+      )
+      const model = provider?.models.find(item => item.id === cached.settings.model)
+      if (provider && model) return { providerID: provider.provider.id, id: model.id }
+    }
+    if (providers.defaultModel) return providers.defaultModel
+    const integrations = await loadIntegrations()
+    const provider =
+      providers.providers.find(item => {
+        if (!item.provider.integrationID) return true
+        return integrations.some(
+          integration =>
+            integration.id === item.provider.integrationID &&
+            integration.connections.length > 0,
+        )
+      }) ?? providers.providers[0]
+    const model = provider?.models[0]
+    if (provider && model) {
+      return { providerID: provider.provider.id, id: model.id }
+    }
+    throw new Error('没有可用模型，请先配置模型提供商。')
+  }
+
+  function eventSourceFactory(): ((url: string) => EventSource) | null {
+    if (environment.eventSourceFactory) return environment.eventSourceFactory
+    if (typeof EventSource === 'undefined') return null
+    return url => new EventSource(url, { withCredentials: true })
+  }
+
+  const client: DesktopApi = {
+    ...mockClient,
+    chooseWorkspace: async () => {
+      const picker = environment.window?.codePilotXDesktop?.pickWorkspaceDirectory
+      if (!picker) return mockClient.chooseWorkspace()
+      const workspacePath = await picker()
+      if (!workspacePath) return null
+      return withAgentOrMock(
+        async () => projectToDesktopWorkspace(await loadProjectForPath(workspacePath), null),
+        () => mockClient.openWorkspace(workspacePath),
+      )
+    },
+    openWorkspace: workspacePath =>
+      withAgentOrMock(
+        async () => projectToDesktopWorkspace(await loadProjectForPath(workspacePath), null),
+        () => mockClient.openWorkspace(workspacePath),
+      ),
+    getWorkspaceContext: workspacePath =>
+      withAgentOrMock(
+        async () => projectToDesktopWorkspace(await loadProjectForPath(workspacePath), null),
+        () => mockClient.getWorkspaceContext(workspacePath),
+      ),
+    getDesktopSettings: () =>
+      withAgentOrMock(
+        async () => {
+          const response = await rpc.call<{ settings: unknown }>('desktop/settings/get')
+          return normalizeDesktopStoredSettings(response.settings)
+        },
+        () => mockClient.getDesktopSettings(),
+      ),
+    saveDesktopSettings: settings =>
+      withAgentOrMock(
+        async () => {
+          const normalized = normalizeDesktopStoredSettings(settings)
+          const response = await rpc.call<{ settings: unknown }>(
+            'desktop/settings/save',
+            { settings: normalized },
+          )
+          const saved = normalizeDesktopStoredSettings(response.settings)
+          await mockClient.saveDesktopSettings(saved)
+          return saved
+        },
+        () => mockClient.saveDesktopSettings(settings),
+      ),
+    listModelProviders: async () => {
+      const [catalog, integrations] = await Promise.all([
+        loadModelCatalog(),
+        loadIntegrations(),
+      ])
+      return catalog.providers.map(provider =>
+        catalogProviderToDesktop(
+          provider,
+          integrations.find(
+            integration => integration.id === provider.provider.integrationID,
+          ),
+        ),
+      )
+    },
+    getModelProviderState: () => providerState(),
+    fetchProviderModels: async options => {
+      const catalog = await loadModelCatalog(true)
+      const provider = catalog.providers.find(
+        item => item.provider.id === options.providerID,
+      )
+      if (!provider) throw new Error(`未找到模型提供商：${options.providerID}`)
+      return {
+        models: provider.models.filter(item => item.enabled).map(item => item.id),
+      }
+    },
+    saveModelProvider: async options => {
+      const catalog = await loadModelCatalog()
+      const catalogProvider = catalog.providers.find(
+        item => item.provider.id === options.providerID,
+      )
+      if (!catalogProvider) throw new Error(`未找到模型提供商：${options.providerID}`)
+      if (
+        options.baseURL !== undefined &&
+        options.baseURL !== catalogProvider.provider.api.url
+      ) {
+        const updatedProvider: CatalogProvider = {
+          ...catalogProvider,
+          provider: {
+            ...catalogProvider.provider,
+            api: {
+              ...catalogProvider.provider.api,
+              url: options.baseURL || undefined,
+            },
+          },
+        }
+        await rpc.call<OkResponse>('provider/updateSettings', updatedProvider)
+      }
+      if (options.id) {
+        const selectedModel = catalogProvider.models.find(
+          model => model.id === options.id,
+        )
+        if (!selectedModel) {
+          throw new Error(`未找到模型：${options.providerID}/${options.id}`)
+        }
+        const selectedVariant = options.variant
+          ? selectedModel.variants.find(variant => variant.id === options.variant)?.id
+          : undefined
+        const model: ModelRef = {
+          providerID: catalogProvider.provider.id,
+          id: selectedModel.id,
+          ...(selectedVariant ? { variant: selectedVariant } : {}),
+        }
+        await rpc.call<OkResponse>('model/setDefault', model)
+      }
+      modelCatalogCache = null
+      return providerState(options.providerID)
+    },
+    saveProviderApiKey: async (providerID, apiKey) => {
+      const { integration } = await integrationForProvider(providerID)
+      await rpc.call<OkResponse>('integration/connect', {
+        integrationID: integration.id,
+        key: apiKey,
+      } satisfies IntegrationConnectRequest)
+      integrationsCache = null
+      modelCatalogCache = null
+      return providerState(providerID)
+    },
+    deleteProviderApiKey: async providerID => {
+      const { integration } = await integrationForProvider(providerID, true)
+      const credentials = integration.connections.filter(
+        connection => connection.type === 'credential',
+      )
+      if (credentials.length === 0) {
+        const environment = integration.connections.find(
+          connection => connection.type === 'env',
+        )
+        throw new Error(
+          environment
+            ? `当前凭据来自环境变量 ${environment.name}，不能在应用内删除。`
+            : '当前 Provider 没有可删除的应用内 API 密钥。',
+        )
+      }
+      for (const connection of credentials) {
+        await rpc.call<OkResponse>('integration/disconnect', {
+          integrationID: integration.id,
+          credentialID: connection.id,
+        } satisfies IntegrationDisconnectRequest)
+      }
+      integrationsCache = null
+      modelCatalogCache = null
+      const nextState = await providerState(providerID)
+      const refreshedIntegration = (await loadIntegrations()).find(
+        item => item.id === integration.id,
+      )
+      if (
+        refreshedIntegration?.connections.some(
+          connection => connection.type === 'credential',
+        )
+      ) {
+        throw new Error('API 密钥删除后仍存在于安全存储中，请重试。')
+      }
+      return nextState
+    },
+    testModelProvider: async providerID => {
+      const catalog = await loadModelCatalog()
+      const provider = catalog.providers.find(item => item.provider.id === providerID)
+      if (!provider) throw new Error(`未找到模型提供商：${providerID}`)
+      return rpc.call<ProviderTestResponse>('provider/test', {
+        providerID: provider.provider.id,
+      })
+    },
+    listIntegrations: async () => [...await loadIntegrations(true)],
+    connectIntegration: async input => {
+      const result = await rpc.call<OkResponse>('integration/connect', input)
+      integrationsCache = null
+      modelCatalogCache = null
+      return result
+    },
+    authorizeIntegration: async input => {
+      const result = await rpc.call<IntegrationAuthorizeResponse>(
+        'integration/authorize',
+        input satisfies IntegrationAuthorizeRequest,
+      )
+      await openAuthorizationURL(result.attempt.url)
+      return result
+    },
+    completeIntegrationAuthorization: async input => {
+      const result = await rpc.call<OkResponse>(
+        'integration/authorizeComplete',
+        input,
+      )
+      integrationsCache = null
+      modelCatalogCache = null
+      return result
+    },
+    getIntegrationAuthorizationStatus: input =>
+      rpc.call<IntegrationAuthorizeStatusResponse>(
+        'integration/authorizeStatus',
+        input,
+      ),
+    disconnectIntegration: async input => {
+      const result = await rpc.call<OkResponse>('integration/disconnect', input)
+      integrationsCache = null
+      modelCatalogCache = null
+      return result
+    },
+    createSession: async (options: CreateDesktopSessionOptions) =>
+      withAgentOrMock<CreateDesktopSessionResult>(
+        async () => {
+          if (!options.workspacePath?.trim()) {
+            throw new Error('历史会话需要先选择项目工作区。')
+          }
+          const project = await loadProjectForPath(options.workspacePath)
+          const sharedSnapshot = await rpc.call<ThreadSnapshot>('thread/create', {
+            projectID: project.id,
+            title: options.sessionName,
+          })
+          const snapshot = agentThreadSnapshotToDesktop(sharedSnapshot, project)
+          sessionSnapshots.set(snapshot.item.id, snapshot)
+          activeSessionId = snapshot.item.id
+          await refreshAgentSessionStoreChange().catch(() => emitSessionStoreChange())
+          return {
+            sessionId: snapshot.item.id,
+            workspace: snapshot.workspace,
+            standalone: false,
+          }
+        },
+        () => mockClient.createSession(options),
+      ),
+    listSessions: async options =>
+      withAgentOrMock(
+        () => listAgentSessions(options),
+        () => mockClient.listSessions(options),
+      ),
+    getSessionCatalogStatus: async (): Promise<DesktopSessionCatalogStatus> => {
+      if (await isAgentAvailable()) return { state: 'ready', error: null }
+      return mockClient.getSessionCatalogStatus()
+    },
+    getSession: async sessionId =>
+      withAgentOrMock(
+        () => loadAgentSessionSnapshot(sessionId),
+        () => mockClient.getSession(sessionId),
+      ),
+    getActiveSessionId: async () =>
+      (await isAgentAvailable()) ? activeSessionId : mockClient.getActiveSessionId(),
+    setActiveSession: async sessionId => {
+      if (!(await isAgentAvailable())) {
+        await mockClient.setActiveSession(sessionId)
+        return
+      }
+      activeSessionId = sessionId
+      emitSessionStoreChange()
+    },
+    updateSessionMetadata: async (
+      sessionId: string,
+      patch: DesktopSessionMetadataPatch,
+    ) =>
+      withAgentOrMock(
+        async () => {
+          let snapshot =
+            sessionSnapshots.get(sessionId) ??
+            (await loadAgentSessionSnapshot(sessionId))
+          if (patch.archivedAt !== undefined) {
+            const response = await rpc.call<{ thread: ThreadListItem }>('thread/update', {
+              threadId: sessionId,
+              archived: patch.archivedAt !== null,
+            })
+            const projectsById = await loadProjectsById()
+            const listSnapshot = agentThreadListItemToDesktopSnapshot(
+              response.thread,
+              response.thread.projectID
+                ? projectsById.get(response.thread.projectID)
+                : null,
+            )
+            snapshot = {
+              ...snapshot,
+              item: {
+                ...snapshot.item,
+                ...listSnapshot.item,
+                pinnedAt: patch.pinnedAt ?? snapshot.item.pinnedAt,
+              },
+              updatedAt: listSnapshot.updatedAt,
+            }
+          }
+          if (patch.pinnedAt !== undefined) {
+            snapshot = {
+              ...snapshot,
+              item: { ...snapshot.item, pinnedAt: patch.pinnedAt },
+              updatedAt: new Date().toISOString(),
+            }
+          }
+          sessionSnapshots.set(sessionId, snapshot)
+          await refreshAgentSessionStoreChange().catch(() => emitSessionStoreChange())
+          return snapshot
+        },
+        () => mockClient.updateSessionMetadata(sessionId, patch),
+      ),
+    renameSession: async (sessionId: string, name: string) =>
+      withAgentOrMock(
+        async () => {
+          const response = await rpc.call<{ thread: ThreadListItem }>('thread/update', {
+            threadId: sessionId,
+            title: name,
+          })
+          const projectsById = await loadProjectsById()
+          const listSnapshot = agentThreadListItemToDesktopSnapshot(
+            response.thread,
+            response.thread.projectID
+              ? projectsById.get(response.thread.projectID)
+              : null,
+          )
+          const current =
+            sessionSnapshots.get(sessionId) ??
+            (await loadAgentSessionSnapshot(sessionId).catch(() => listSnapshot))
+          const snapshot = {
+            ...current,
+            item: { ...current.item, ...listSnapshot.item },
+            updatedAt: listSnapshot.updatedAt,
+          }
+          sessionSnapshots.set(sessionId, snapshot)
+          emitSessionStoreChange()
+          return snapshot
+        },
+        () => mockClient.renameSession(sessionId, name),
+      ),
+    disposeSession: async sessionId =>
+      withAgentOrMock(
+        async () => {
+          await rpc.call('thread/delete', { threadId: sessionId })
+          sessionSnapshots.delete(sessionId)
+          if (activeSessionId === sessionId) {
+            activeSessionId =
+              [...sessionSnapshots.values()].find(snapshot => !snapshot.item.archivedAt)
+                ?.item.id ?? null
+          }
+          emitSessionStoreChange()
+        },
+        () => mockClient.disposeSession(sessionId),
+      ),
+    sendUserMessage: async (sessionId, input, model) =>
+      withAgentOrMock(
+        async () => {
+          await submitAgentMessage(sessionId, input, 'queue', model)
+        },
+        () => mockClient.sendUserMessage(sessionId, input, model),
+      ),
+    submitSessionFollowUp: async (
+      sessionId: string,
+      input: DesktopUserMessageInput,
+      behavior: DesktopFollowUpBehavior,
+    ) =>
+      withAgentOrMock(
+        async () => {
+          const strategy = behavior === 'steer' ? 'guide' : 'queue'
+          await submitAgentMessage(sessionId, input, strategy)
+          return behavior === 'steer' ? 'steered' as const : 'queued' as const
+        },
+        () => mockClient.submitSessionFollowUp(sessionId, input, behavior),
+      ),
+    respondToPermission: async (
+      sessionId: string,
+      requestId: string,
+      decision: DesktopPermissionDecision,
+    ) =>
+      withAgentOrMock(
+        async () => {
+          const questionId = agentQuestionIdFromRequestId(requestId)
+          const planRunId = agentPlanRunIdFromRequestId(requestId)
+          if (planRunId) {
+            await rpc.call('turn/submitPlanDecision', {
+              turnId: planRunId,
+              decision: decision.behavior === 'allow' ? 'continue' : 'reject',
+            })
+          } else if (questionId) {
+            await rpc.call('question/respond', {
+              questionId,
+              answer: questionAnswerFromDecision(decision),
+              ignored: decision.behavior === 'deny',
+            })
+          } else {
+            await rpc.call('approval/respond', {
+              approvalId: requestId,
+              decision: decision.behavior === 'allow' ? 'allow-once' : 'deny',
+            })
+          }
+          await loadAgentSessionSnapshot(sessionId).catch(() => null)
+          emitSessionStoreChange()
+        },
+        () => mockClient.respondToPermission(sessionId, requestId, decision),
+      ),
+    interruptSession: async sessionId =>
+      withAgentOrMock(
+        async () => {
+          await rpc.call('turn/interrupt', { threadId: sessionId })
+          scheduleSessionRefresh(sessionId)
+        },
+        () => mockClient.interruptSession(sessionId),
+      ),
+    onAgentEvent: callback => {
+      const makeEventSource = eventSourceFactory()
+      if (!makeEventSource) return mockClient.onAgentEvent(callback)
+      const source = makeEventSource('/rpc/events')
+      source.onmessage = message => {
+        try {
+          const notification = JSON.parse(message.data)
+          for (const event of agentEventsFromNotification(notification)) {
+            callback(event)
+          }
+          const params =
+            notification?.params && typeof notification.params === 'object'
+              ? notification.params
+              : null
+          if (
+            typeof params?.threadId === 'string' &&
+            typeof notification?.method === 'string' &&
+            [
+              'thread/snapshot',
+              'thread/updated',
+              'turn/queued',
+              'turn/started',
+              'turn/statusChanged',
+              'turn/completed',
+              'turn/failed',
+              'turn/interrupted',
+              'item/completed',
+              'approval/requested',
+              'question/requested',
+            ].includes(notification.method)
+          ) {
+            scheduleSessionRefresh(params.threadId)
+          }
+        } catch {
+          // Ignore malformed SSE payloads; connection state is handled elsewhere.
+        }
+      }
+      source.onerror = () => {}
+      return () => {
+        source.close()
+      }
+    },
+    onSessionStoreChange: callback => {
+      sessionStoreListeners.add(callback)
+      const unsubscribeMock = mockClient.onSessionStoreChange(callback)
+      return () => {
+        sessionStoreListeners.delete(callback)
+        unsubscribeMock()
+      }
+    },
+  }
+
+  return client
+}
+
+function catalogProviderToDesktop(
+  catalogProvider: CatalogProvider,
+  integration?: IntegrationListResponse['integrations'][number],
+): DesktopModelProviderSummary {
+  const { provider } = catalogProvider
+  const models = catalogProvider.models.filter(model => model.enabled)
+  const modelMetadata = Object.fromEntries(
+    models.map(model => {
+      const cost = model.cost[0]
+      const metadata: DesktopModelMetadata = {
+        id: model.id,
+        name: model.name,
+        contextWindow: model.limit.context,
+        outputTokens: model.limit.output,
+        inputCost: cost?.input,
+        outputCost: cost?.output,
+        cacheReadCost: cost?.cache.read,
+        toolCall: model.capabilities.tools,
+        structuredOutput: model.capabilities.output.some(
+          output => output === 'json' || output === 'structured',
+        ),
+        vision: model.capabilities.input.includes('image'),
+        modalities: {
+          input: [...model.capabilities.input],
+          output: [...model.capabilities.output],
+        },
+        modelType: model.family,
+        tags: [model.status],
+        variants: model.variants.map(variant => variant.id),
+      }
+      return [model.id, metadata]
+    }),
+  )
+  const configured = provider.integrationID
+    ? Boolean(integration?.connections.length)
+    : provider.disabled !== true
+  return {
+    providerID: provider.id,
+    integrationID: provider.integrationID,
+    kind: provider.id === 'github-copilot' ? 'github-copilot' : provider.api.type,
+    displayName: provider.name,
+    baseURL: provider.api.url,
+    defaultModels: models.map(model => model.id),
+    modelMetadata,
+    apiKeyConfigured: configured,
+    envVars: integration?.methods
+      .filter(method => method.type === 'env')
+      .flatMap(method => method.names),
+    npmPackage: provider.api.type === 'aisdk' ? provider.api.package : undefined,
+    logoURL: `https://models.dev/logos/${encodeURIComponent(provider.id)}.svg`,
+    modelsDevSource: true,
+    requiresBaseURL: provider.api.type === 'aisdk' && !provider.api.url,
+  }
+}
 
 function createSwitchingBrowserDesktopClient(
   environment: DesktopClientEnvironment,
@@ -353,13 +1270,33 @@ function createBrowserMockDesktopClient(): DesktopApi {
       settings = {
         ...settings,
         providerID: options.providerID,
-        model: options.modelID ?? settings.model,
+        model: options.id ?? settings.model,
         providerBaseURL: options.baseURL ?? settings.providerBaseURL,
       }
       return providerState()
     },
     saveProviderApiKey: async () => providerState(),
     deleteProviderApiKey: async () => providerState(),
+    testModelProvider: async () => ({ ok: true }),
+    listIntegrations: async () => [],
+    connectIntegration: async () => ({ ok: true }),
+    authorizeIntegration: async input => ({
+      attempt: {
+        attemptID: `browser-mock-${input.integrationID}`,
+        url: '',
+        instructions: '浏览器 mock 模式不会启动真实授权。',
+        mode: 'auto',
+        time: { created: Date.now(), expires: Date.now() + 300_000 },
+      },
+    }) as IntegrationAuthorizeResponse,
+    completeIntegrationAuthorization: async () => ({ ok: true }),
+    getIntegrationAuthorizationStatus: async () => ({
+      status: {
+        status: 'complete',
+        time: { created: Date.now(), expires: Date.now() + 300_000 },
+      },
+    }),
+    disconnectIntegration: async () => ({ ok: true }),
     getCopilotAuthStatus: async () => ({ authenticated: false }),
     startCopilotLogin: async () => mockCopilotLogin(),
     pollCopilotLogin: async () => mockCopilotLogin(),
@@ -698,11 +1635,62 @@ function defaultDesktopClientEnvironment(): DesktopClientEnvironment {
       typeof fetch === 'undefined'
         ? undefined
         : (input, init) => fetch(input, init),
+    eventSourceFactory:
+      typeof EventSource === 'undefined'
+        ? undefined
+        : url => new EventSource(url, { withCredentials: true }),
   }
 }
 
 function getDefaultLocalStorage(): Storage | undefined {
   return typeof window === 'undefined' ? undefined : window.localStorage
+}
+
+async function agentJson<T>(
+  path: string,
+  init?: RequestInit,
+  fetcher: DesktopClientEnvironment['fetch'] =
+    typeof fetch === 'undefined' ? undefined : (input, requestInit) => fetch(input, requestInit),
+): Promise<T> {
+  if (!fetcher) throw new Error('当前环境无法访问 agent API。')
+  const headers = new Headers(init?.headers)
+  if (init?.body !== undefined && !headers.has('content-type')) {
+    headers.set('content-type', 'application/json')
+  }
+  const response = await fetcher(path, {
+    ...init,
+    credentials: 'include',
+    headers,
+  })
+  if (!response.ok) throw new Error(await agentErrorMessage(response))
+  if (response.status === 204) return undefined as T
+  return response.json() as Promise<T>
+}
+
+async function agentErrorMessage(response: Response): Promise<string> {
+  const text = await response.text().catch(() => '')
+  if (!text) return `Agent API 请求失败：${response.status}`
+  try {
+    const payload = JSON.parse(text) as { error?: { message?: unknown } }
+    if (typeof payload.error?.message === 'string') return payload.error.message
+  } catch {
+    // Fall through to the raw response body.
+  }
+  return text
+}
+
+function questionAnswerFromDecision(decision: DesktopPermissionDecision): string {
+  const input = decision.updatedInput
+  if (typeof input?.answer === 'string') return input.answer
+  const answers = input?.answers
+  if (answers && typeof answers === 'object' && !Array.isArray(answers)) {
+    const values = Object.values(answers).filter(
+      (value): value is string => typeof value === 'string',
+    )
+    if (values.length === 1) return values[0]!
+    if (values.length > 1) return JSON.stringify(answers)
+  }
+  return decision.message ?? ''
 }
 
 function getBrowserDebugPort(): number {

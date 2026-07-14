@@ -8,6 +8,8 @@ declare global {
       toggleMaximize(): Promise<boolean>
       close(): Promise<void>
       isMaximized(): Promise<boolean>
+      pickWorkspaceDirectory(): Promise<string | null>
+      openExternal(url: string): Promise<void>
     }
   }
 }

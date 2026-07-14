@@ -3,8 +3,8 @@ import {
   isDesktopAgentPermissionMode,
   normalizeDesktopAgentPermissionMode,
   permissionPolicyForDesktopMode,
-} from '@codepilotx/core/agent/permissions.js'
-import type { AgentPermissionPolicy } from '@codepilotx/core/agent/permissions.js'
+} from '../src/shims/core/agent/permissions.js'
+import type { AgentPermissionPolicy } from '../src/shims/core/agent/permissions.js'
 import type {
   DesktopDrawerTab,
   DesktopDiffMarkerStyle,

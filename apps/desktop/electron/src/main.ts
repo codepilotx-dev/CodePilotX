@@ -88,9 +88,10 @@ class SidecarSupervisor {
     if (this.#connection && !this.#connection.managed) {
       try {
         this.#logger.info("sidecar.shutdown-request", { origin: this.#connection.origin })
-        await fetch(`${this.#connection.origin}/api/shutdown`, {
+        await fetch(`${this.#connection.origin}/rpc`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${this.#token}` },
+          headers: { Authorization: `Bearer ${this.#token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: "desktop-shutdown", method: "shutdown", params: {} }),
           signal: AbortSignal.timeout(SHUTDOWN_TIMEOUT_MS),
         })
       } catch { /* process signal below is the fallback */ }
@@ -113,16 +114,8 @@ class SidecarSupervisor {
     this.#watchdog = setInterval(() => {
       if (this.#watchdogBusy || this.#stopping) return
       this.#watchdogBusy = true
-      void fetch(`${connection.origin}/api/ready`, {
-        headers: { Authorization: `Bearer ${this.#token}` },
-        signal: AbortSignal.timeout(1_000),
-      }).then((response) => {
-        if (response.ok) {
-          failures = 0
-          return
-        }
-        failures += 1
-        this.#logger.warn("sidecar.watchdog-failure", { origin: connection.origin, status: response.status, failures })
+      void probeInitialize(connection.origin, fetch, this.#token, 1_000).then(() => {
+        failures = 0
       }).catch((error) => {
         failures += 1
         this.#logger.warn("sidecar.watchdog-error", { origin: connection.origin, failures, message: formatError(error) })
@@ -400,6 +393,12 @@ function registerWindowIpc(): void {
   ipcMain.handle("window:close", () => mainWindow?.close())
   ipcMain.handle("window:is-maximized", () => mainWindow?.isMaximized() ?? false)
   ipcMain.handle("agent:connection-state", () => connectionStatus.state)
+  ipcMain.handle("shell:open-external", async (_event, url: unknown) => {
+    if (typeof url !== "string" || !isSafeExternalUrl(url)) {
+      throw new Error("拒绝打开不安全的外部链接")
+    }
+    await shell.openExternal(url)
+  })
   ipcMain.handle("startup:open-logs", async () => {
     const directory = logger?.directory ?? join(app.getPath("logs"), "codepilotx")
     const openError = await shell.openPath(directory)
@@ -437,10 +436,7 @@ async function configureAuthCookie(origin: string, token: string): Promise<void>
 }
 
 async function verifyCookie(origin: string): Promise<void> {
-  const response = await session.defaultSession.fetch(`${origin}/api/ready`, {
-    signal: AbortSignal.timeout(2_000),
-  })
-  if (!response.ok) throw new Error(`Agent Cookie 验证失败：HTTP ${response.status}`)
+  await probeInitialize(origin, (input, init) => session.defaultSession.fetch(input, init), undefined, 2_000)
   logger?.info("desktop.auth-cookie-verified", { origin })
 }
 
@@ -539,16 +535,9 @@ async function waitForReady(origin: string, token: string, log: DesktopLogger, a
   while (Date.now() < deadline) {
     probeCount += 1
     try {
-      const response = await fetch(`${origin}/api/ready`, {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(1_500),
-      })
-      if (response.ok) {
-        log.info("sidecar.ready-probe-ok", { origin, attempt })
-        return
-      }
-      lastError = new Error(`HTTP ${response.status}`)
-      if (probeCount === 1 || probeCount % 10 === 0) log.warn("sidecar.ready-probe-status", { origin, attempt, status: response.status, probeCount })
+      await probeInitialize(origin, fetch, token, 1_500)
+      log.info("sidecar.ready-probe-ok", { origin, attempt })
+      return
     } catch (error) {
       lastError = error
       if (probeCount === 1 || probeCount % 10 === 0) log.warn("sidecar.ready-probe-error", { origin, attempt, probeCount, message: formatError(error) })
@@ -556,6 +545,24 @@ async function waitForReady(origin: string, token: string, log: DesktopLogger, a
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 200))
   }
   throw new Error(`Agent 就绪检查超时：${formatError(lastError)}`)
+}
+
+type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
+
+async function probeInitialize(origin: string, fetcher: FetchLike, token: string | undefined, timeoutMs: number): Promise<void> {
+  const response = await fetcher(`${origin}/rpc`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", id: "desktop-initialize", method: "initialize", params: {} }),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  const body = await response.json() as { result?: { ok?: boolean }; error?: { message?: string } }
+  if (body.error) throw new Error(body.error.message ?? "Agent initialize 失败")
+  if (body.result?.ok !== true) throw new Error("Agent initialize 返回无效")
 }
 
 function normalizeOrigin(value: string): string {

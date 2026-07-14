@@ -25,6 +25,20 @@ import type {
   ProviderBalanceInfo,
   ProviderTokenPlanUsageInfo,
 } from '@codepilotx/core/models/provider.js'
+import type {
+  CatalogProvider,
+  IntegrationAuthorizeRequest,
+  IntegrationAuthorizeResponse,
+  IntegrationAuthorizeCompleteRequest,
+  IntegrationAuthorizeStatusRequest,
+  IntegrationAuthorizeStatusResponse,
+  IntegrationConnectRequest,
+  IntegrationDisconnectRequest,
+  IntegrationListResponse,
+  ModelRef,
+  OkResponse,
+  ProviderTestResponse,
+} from '@codepilotx/shared'
 
 export type DesktopAuthStatus = {
   authenticated: boolean
@@ -392,14 +406,20 @@ export type ModelProviderID = CoreModelProviderID
 
 export type DesktopModelProviderKind = ModelProviderKind
 
-export type DesktopModelMetadata = ModelMetadata
+export type DesktopModelMetadata = ModelMetadata & {
+  variants?: string[]
+}
 
-export type DesktopModelProviderSummary = ModelProviderSummary
+export type DesktopModelProviderSummary = Omit<ModelProviderSummary, 'modelMetadata'> & {
+  integrationID?: string
+  modelMetadata?: Record<string, DesktopModelMetadata>
+}
 
 export type DesktopModelProviderState = {
   selectedProviderID: ModelProviderID
   provider: DesktopModelProviderSummary
   model: string
+  variant?: string
   baseURL?: string
   apiKeyConfigured: boolean
   apiKeySource: string | null
@@ -596,9 +616,21 @@ export type DesktopGithubProfileOverviewResult =
 
 export type SaveDesktopModelProviderOptions = {
   providerID: ModelProviderID
-  modelID?: string
+  id?: string
+  variant?: string
   baseURL?: string
 }
+
+export type DesktopIntegration = IntegrationListResponse['integrations'][number]
+export type DesktopIntegrationConnectRequest = IntegrationConnectRequest
+export type DesktopIntegrationAuthorizeRequest = IntegrationAuthorizeRequest
+export type DesktopIntegrationAuthorizeResponse = IntegrationAuthorizeResponse
+export type DesktopIntegrationAuthorizeCompleteRequest = IntegrationAuthorizeCompleteRequest
+export type DesktopIntegrationAuthorizeStatusRequest = IntegrationAuthorizeStatusRequest
+export type DesktopIntegrationAuthorizeStatusResponse = IntegrationAuthorizeStatusResponse
+export type DesktopIntegrationDisconnectRequest = IntegrationDisconnectRequest
+export type DesktopModelRef = ModelRef
+export type DesktopCatalogProvider = CatalogProvider
 
 export type LocalRouterMode = 'off' | 'pareto-code' | 'fusion'
 
@@ -1091,6 +1123,7 @@ export type DesktopModelSelection = {
   providerID?: ModelProviderID
   providerBaseURL?: string
   model?: string
+  variant?: string
   debugConversationDump?: boolean
   localRouterMode?: LocalRouterMode
 }
@@ -1413,6 +1446,21 @@ export type DesktopApi = {
   deleteProviderApiKey(
     providerID: ModelProviderID,
   ): Promise<DesktopModelProviderState>
+  testModelProvider(providerID: ModelProviderID): Promise<ProviderTestResponse>
+  listIntegrations(): Promise<DesktopIntegration[]>
+  connectIntegration(input: DesktopIntegrationConnectRequest): Promise<OkResponse>
+  authorizeIntegration(
+    input: DesktopIntegrationAuthorizeRequest,
+  ): Promise<DesktopIntegrationAuthorizeResponse>
+  completeIntegrationAuthorization(
+    input: DesktopIntegrationAuthorizeCompleteRequest,
+  ): Promise<OkResponse>
+  getIntegrationAuthorizationStatus(
+    input: DesktopIntegrationAuthorizeStatusRequest,
+  ): Promise<DesktopIntegrationAuthorizeStatusResponse>
+  disconnectIntegration(
+    input: DesktopIntegrationDisconnectRequest,
+  ): Promise<OkResponse>
   getCopilotAuthStatus(): Promise<DesktopCopilotAuthStatus>
   startCopilotLogin(): Promise<DesktopCopilotLoginStatus>
   pollCopilotLogin(): Promise<DesktopCopilotLoginStatus>

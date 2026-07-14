@@ -1,0 +1,296 @@
+import { describe, expect, test } from 'bun:test'
+import type { Project } from '@codepilotx/shared'
+import type { ThreadListItem, ThreadSnapshot } from '@codepilotx/shared/thread'
+import { createDesktopClient } from '../src/services/desktopClient.js'
+
+const now = 1_700_000_000_000
+
+const project: Project = {
+  id: 'project-1',
+  name: 'CodePilotX-Ts',
+  rootPath: 'F:\\CodeProject\\CodePilotX-Ts',
+  lastOpenedAt: now,
+  createdAt: now,
+  updatedAt: now,
+  settings: {
+    defaultModel: null,
+    plannerModel: null,
+    developerModel: null,
+    reviewerModel: null,
+  },
+}
+
+function sessionItem(overrides: Partial<ThreadListItem> = {}): ThreadListItem {
+  return {
+    id: 'session-1',
+    projectID: project.id,
+    title: '历史会话',
+    preview: '预览',
+    firstUserMessage: '第一条消息',
+    messageCount: 1,
+    latestTurnStatus: 'completed',
+    archivedAt: null,
+    createdAt: now,
+    updatedAt: now + 1000,
+    ...overrides,
+  }
+}
+
+function sessionSnapshot(overrides: Partial<ThreadSnapshot['thread']> = {}): ThreadSnapshot {
+  return {
+    thread: {
+      id: 'session-1',
+      title: '历史会话',
+      projectID: project.id,
+      createdAt: now,
+      updatedAt: now + 1000,
+      ...overrides,
+    },
+    turns: [],
+    inputs: [
+      {
+        id: 'input-1',
+        threadId: 'session-1',
+        turnId: null,
+        content: '第一条消息',
+        strategy: 'queue',
+        mode: 'chat',
+        model: { providerID: 'openai', id: 'gpt-5' },
+        permissionMode: 'ask',
+        state: 'completed',
+        createdAt: now,
+      },
+    ],
+    messages: [],
+    items: [],
+    approvals: [],
+    proposals: [],
+  }
+}
+
+describe('desktop history client', () => {
+  test('uses agent fetch for list, create, get, message, rename, archive, and delete', async () => {
+    const requests: Array<{ path: string; method: string; body: unknown }> = []
+    let currentItem = sessionItem()
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      const method = init?.method ?? 'GET'
+      const body = init?.body ? JSON.parse(String(init.body)) : null
+      requests.push({ path, method, body })
+
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${method} ${path}`)
+      const rpcMethod = body?.method
+      const params = body?.params ?? {}
+      if (rpcMethod === 'initialize') return rpc(body.id, { ok: true })
+      if (rpcMethod === 'project/list') {
+        return rpc(body.id, { projects: [project] })
+      }
+      if (rpcMethod === 'project/open') {
+        expect(params).toEqual({ rootPath: project.rootPath })
+        return rpc(body.id, { project })
+      }
+      if (rpcMethod === 'thread/list') {
+        return rpc(body.id, { threads: [currentItem], nextCursor: null })
+      }
+      if (rpcMethod === 'thread/create') {
+        expect(params).toEqual({ projectID: project.id, title: '新会话' })
+        return rpc(body.id, sessionSnapshot({ title: '新会话' }))
+      }
+      if (rpcMethod === 'thread/read') {
+        return rpc(body.id, sessionSnapshot())
+      }
+      if (rpcMethod === 'model/list') {
+        return rpc(body.id, {
+          providers: [
+            {
+              provider: {
+                id: 'openai',
+                name: 'OpenAI',
+                api: { type: 'native', settings: {} },
+                request: { headers: {}, body: {} },
+              },
+              models: [
+                {
+                  id: 'gpt-5',
+                  providerID: 'openai',
+                  name: 'GPT-5',
+                  api: { id: 'gpt-5', type: 'native', settings: {} },
+                  capabilities: { tools: true, input: ['text'], output: ['text'] },
+                  request: { headers: {}, body: {} },
+                  variants: [],
+                  time: { released: now },
+                  cost: [],
+                  status: 'active',
+                  enabled: true,
+                  limit: { context: 128_000, output: 8_192 },
+                },
+              ],
+            },
+          ],
+          defaultModel: { providerID: 'openai', id: 'gpt-5' },
+          reviewerModel: null,
+        })
+      }
+      if (rpcMethod === 'turn/start') {
+        expect(params).toMatchObject({
+          threadId: 'session-1',
+          content: '继续推进',
+          model: { providerID: 'openai', id: 'gpt-5' },
+          permissionMode: 'ask',
+          strategy: 'queue',
+          taskMode: 'chat',
+        })
+        return rpc(body.id, {
+          input: {
+            id: 'input-2',
+            threadId: 'session-1',
+            turnId: null,
+            content: '继续推进',
+            strategy: 'queue',
+            mode: 'chat',
+            model: { providerID: 'openai', id: 'gpt-5' },
+            permissionMode: 'ask',
+            state: 'queued',
+            createdAt: now + 2000,
+          },
+          turn: null,
+        })
+      }
+      if (rpcMethod === 'thread/update') {
+        if (params.title) currentItem = sessionItem({ title: params.title })
+        if (params.archived === true) {
+          currentItem = sessionItem({ archivedAt: now + 3000 })
+        }
+        return rpc(body.id, { thread: currentItem })
+      }
+      if (rpcMethod === 'thread/delete') {
+        currentItem = sessionItem({ id: 'deleted' })
+        return rpc(body.id, { ok: true })
+      }
+      throw new Error(`Unhandled RPC method: ${rpcMethod}`)
+    }
+
+    const client = createDesktopClient({ fetch: fetcher })
+
+    const listed = await client.listSessions()
+    expect(listed[0]?.item.workspacePath).toBe(project.rootPath)
+
+    const created = await client.createSession({
+      workspacePath: project.rootPath,
+      sessionName: '新会话',
+    })
+    expect(created).toMatchObject({ sessionId: 'session-1', standalone: false })
+
+    const snapshot = await client.getSession('session-1')
+    expect(snapshot.view.messages[0]?.text).toBe('第一条消息')
+
+    await client.sendUserMessage('session-1', { text: '继续推进' }, {
+      providerID: 'openai',
+      model: 'gpt-5',
+    })
+
+    const renamed = await client.renameSession('session-1', '改名后')
+    expect(renamed.item.sessionName).toBe('改名后')
+
+    const archived = await client.updateSessionMetadata('session-1', {
+      archivedAt: new Date(now + 3000).toISOString(),
+    })
+    expect(archived.item.archivedAt).toBe('2023-11-14T22:13:23.000Z')
+
+    await client.disposeSession('session-1')
+    expect(requests.map(request => request.body).some(body => body?.method === 'thread/delete')).toBe(true)
+  })
+
+  test('falls back to browser mock when agent is unavailable', async () => {
+    const client = createDesktopClient({
+      fetch: async () => new Response('nope', { status: 503 }),
+    })
+
+    const created = await client.createSession({ sessionName: 'mock only' })
+
+    expect(created.sessionId).toStartWith('browser-mock-')
+    expect(created.standalone).toBe(true)
+  })
+
+  test('selects a workspace through preload and persists desktop settings', async () => {
+    const openedPaths: string[] = []
+    let storedSettings: unknown = null
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = init?.body ? JSON.parse(String(init.body)) : null
+      const params = body?.params ?? {}
+      if (body?.method === 'initialize') return rpc(body.id, { ok: true })
+      if (body?.method === 'project/open') {
+        openedPaths.push(params.rootPath)
+        return rpc(body.id, { project })
+      }
+      if (body?.method === 'desktop/settings/get') {
+        return rpc(body.id, { settings: storedSettings })
+      }
+      if (body?.method === 'desktop/settings/save') {
+        storedSettings = params.settings
+        return rpc(body.id, { settings: storedSettings })
+      }
+      throw new Error(`Unhandled RPC method: ${body?.method}`)
+    }
+    const client = createDesktopClient({
+      fetch: fetcher,
+      window: {
+        codePilotXDesktop: {
+          pickWorkspaceDirectory: async () => project.rootPath,
+        },
+      },
+    })
+
+    const selected = await client.chooseWorkspace()
+    expect(selected).toEqual({
+      path: project.rootPath,
+      name: project.name,
+      branchName: null,
+    })
+    await client.openWorkspace(project.rootPath)
+    await client.getWorkspaceContext(project.rootPath)
+    expect(openedPaths).toEqual([
+      project.rootPath,
+      project.rootPath,
+      project.rootPath,
+    ])
+
+    const defaults = await client.getDesktopSettings()
+    expect(defaults.recentWorkspaces).toEqual([])
+    const saved = await client.saveDesktopSettings({
+      ...defaults,
+      recentWorkspaces: [selected!],
+      lastActiveWorkspacePath: project.rootPath,
+    })
+    expect(saved.lastActiveWorkspacePath).toBe(project.rootPath)
+    const restored = await client.getDesktopSettings()
+    expect(restored.recentWorkspaces).toHaveLength(1)
+    expect(restored.recentWorkspaces[0]).toMatchObject(selected!)
+  })
+
+  test('does not open a project when workspace selection is cancelled', async () => {
+    const client = createDesktopClient({
+      fetch: async () => {
+        throw new Error('RPC should not be called')
+      },
+      window: {
+        codePilotXDesktop: {
+          pickWorkspaceDirectory: async () => null,
+        },
+      },
+    })
+
+    expect(await client.chooseWorkspace()).toBeNull()
+  })
+})
+
+function json(value: unknown, status = 200): Response {
+  return new Response(JSON.stringify(value), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  })
+}
+
+function rpc(id: string | number, result: unknown): Response {
+  return json({ jsonrpc: '2.0', id, result })
+}

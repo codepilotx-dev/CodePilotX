@@ -23,6 +23,7 @@ const desktop = {
     return () => ipcRenderer.removeListener("agent:connection-changed", handler)
   },
   getAgentConnectionState: (): Promise<AgentConnectionState> => ipcRenderer.invoke("agent:connection-state"),
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke("shell:open-external", url),
   openLogDirectory: (): Promise<string> => ipcRenderer.invoke("startup:open-logs"),
   quitDuringStartup: (): Promise<void> => ipcRenderer.invoke("startup:quit"),
 }

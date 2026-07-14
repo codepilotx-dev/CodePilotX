@@ -1,9 +1,8 @@
 import { desktopClient } from '../../services/desktopClient.js'
 import { withModelCatalogLoading } from '../../hooks/useModelCatalogLoading.js'
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import type {
-  DesktopCopilotAuthStatus,
-  DesktopCopilotLoginStatus,
+  DesktopIntegration,
   DesktopModelMetadata,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
@@ -74,25 +73,28 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
   const [baseURL, setBaseURL] = useState(settings.providerBaseURL)
   const [apiKey, setApiKey] = useState('')
   const [model, setModel] = useState(settings.model)
+  const [variant, setVariant] = useState('')
+  const [integrations, setIntegrations] = useState<DesktopIntegration[]>([])
+  const [oauthInputs, setOauthInputs] = useState<Record<string, string>>({})
+  const [oauthAttempt, setOauthAttempt] = useState<
+    Awaited<ReturnType<typeof desktopClient.authorizeIntegration>>['attempt'] | null
+  >(null)
+  const [oauthCode, setOauthCode] = useState('')
   const [modelError, setModelError] = useState<string | null>(null)
   const [balanceStatus, setBalanceStatus] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [copilotAuth, setCopilotAuth] =
-    useState<DesktopCopilotAuthStatus | null>(null)
-  const [copilotLogin, setCopilotLogin] =
-    useState<DesktopCopilotLoginStatus | null>(null)
-  const [browserOpenedForCode, setBrowserOpenedForCode] = useState<string | null>(null)
-
   useEffect(() => {
     let mounted = true
     void Promise.all([
       desktopClient.listModelProviders(),
       desktopClient.getModelProviderState(),
+      desktopClient.listIntegrations(),
     ])
-.then(([nextProviders, nextState]) => {
+.then(([nextProviders, nextState, nextIntegrations]) => {
         if (!mounted) return
         setProviders(nextProviders)
+        setIntegrations(nextIntegrations)
         applyProviderState(nextState)
       })
       .catch(error => {
@@ -112,9 +114,12 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
   )
   const isDeepSeek = providerID === 'deepseek'
   const isMiniMax = providerID === 'minimax'
-  const isGitHubCopilot =
-    selectedProvider?.kind === 'github-copilot' ||
-    providerID === 'github-copilot'
+  const selectedIntegration = integrations.find(
+    integration => integration.id === selectedProvider?.integrationID,
+  )
+  const oauthMethod = selectedIntegration?.methods.find(
+    method => method.type === 'oauth',
+  )
   const selectedProviderState =
     providerState?.selectedProviderID === providerID ? providerState : null
   const providerModels = (
@@ -122,6 +127,7 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
   ).filter(item => item && item !== NO_MODEL_OPTION)
   const modelMetadata =
     selectedProviderState?.modelMetadata ?? selectedProvider?.modelMetadata ?? {}
+  const modelVariants = modelMetadata[model]?.variants ?? []
   const orphanModelId = useMemo<string | null>(() => {
     if (!model) return null
     if (!providerModels.includes(model)) return model
@@ -137,153 +143,116 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     const nextSelection = getProviderSelectionState(selectedProvider)
     setBaseURL(nextSelection.baseURL)
     setModel(nextSelection.model)
+    setVariant('')
+    setOauthAttempt(null)
+    setOauthCode('')
+    setOauthInputs({})
     setModelQuery('')
     setBalanceStatus(null)
     setStatus(null)
     setModelError(null)
   }, [providerID, providerState, selectedProvider])
 
-  useEffect(() => {
-    if (!isGitHubCopilot) {
-      setCopilotAuth(null)
-      return
-    }
-    let mounted = true
-    void desktopClient.getCopilotAuthStatus()
-      .then(status => {
-        if (mounted) setCopilotAuth(status)
-      })
-      .catch(() => {
-        if (mounted) {
-          setCopilotAuth({
-            authenticated: false,
-            error: '无法读取 GitHub Copilot 登录状态。',
-          })
-        }
-      })
-    return () => {
-      mounted = false
-    }
-  }, [isGitHubCopilot])
+  async function refreshIntegrationState(): Promise<void> {
+    const [nextIntegrations, nextState] = await Promise.all([
+      desktopClient.listIntegrations(),
+      desktopClient.getModelProviderState(),
+    ])
+    setIntegrations(nextIntegrations)
+    applyProviderState(nextState)
+  }
 
-  async function startCopilotLogin(): Promise<void> {
+  async function startOAuthAuthorization(): Promise<void> {
+    if (!selectedIntegration || !oauthMethod) return
     setBusy(true)
     setModelError(null)
-    setStatus(null)
-    setBrowserOpenedForCode(null)
+    setStatus('正在启动授权...')
     try {
-      const initial = await desktopClient.startCopilotLogin()
-      setCopilotLogin(initial)
-      if (initial.state === 'failed') {
-        setStatus(initial.error ?? '启动 Copilot 登录失败。')
-        setBusy(false)
-        return
-      }
-      if (initial.deviceCode) {
-        setStatus(
-          `请在浏览器中输入设备码 ${initial.deviceCode} 完成登录。`,
-        )
-      } else {
-        setStatus('正在启动 Copilot 登录流程...')
-      }
-      if (initial.verificationUrl && initial.deviceCode) {
-        try {
-          await desktopClient.openExternalURL(initial.verificationUrl)
-          setBrowserOpenedForCode(initial.deviceCode)
-        } catch {
-          // user can click the link manually
-        }
-      }
-      void pollCopilotLoginUntilDone()
+      const result = await desktopClient.authorizeIntegration({
+        integrationID: selectedIntegration.id,
+        methodID: oauthMethod.id,
+        inputs: oauthInputs,
+      })
+      setOauthAttempt(result.attempt)
+      setStatus(result.attempt.instructions || '请在浏览器中完成授权。')
+      void pollOAuthAuthorization(result.attempt.attemptID)
     } catch (error) {
       showOperationError(error)
       setBusy(false)
     }
   }
 
-  async function pollCopilotLoginUntilDone(): Promise<void> {
-    let attempts = 0
-    const maxAttempts = 150
-    while (attempts < maxAttempts) {
+  async function completeOAuthAuthorization(): Promise<void> {
+    if (!oauthAttempt || !oauthCode.trim()) return
+    setBusy(true)
+    setModelError(null)
+    try {
+      await desktopClient.completeIntegrationAuthorization({
+        attemptID: oauthAttempt.attemptID,
+        code: oauthCode.trim(),
+      })
+      setStatus('授权码已提交，正在确认连接状态...')
+    } catch (error) {
+      showOperationError(error)
+      setBusy(false)
+    }
+  }
+
+  async function pollOAuthAuthorization(
+    attemptID: Awaited<ReturnType<typeof desktopClient.authorizeIntegration>>['attempt']['attemptID'],
+  ): Promise<void> {
+    for (let attempts = 0; attempts < 150; attempts += 1) {
       await new Promise(resolve => setTimeout(resolve, 2000))
-      attempts += 1
       try {
-        const status = await desktopClient.pollCopilotLogin()
-        setCopilotLogin(status)
-        if (status.auth) {
-          setCopilotAuth(status.auth)
-          if (status.auth.authenticated) {
-            setStatus(
-              status.auth.user
-                ? `已登录为 ${status.auth.user}。`
-                : 'GitHub Copilot 已登录。',
-            )
-            setBrowserOpenedForCode(null)
-            setBusy(false)
-            return
-          }
-        }
-        if (status.state === 'completed') {
-          if (status.auth?.authenticated) return
-          setStatus('Copilot CLI 报告登录完成，但 SDK 仍未检测到登录。请点击「刷新状态」重试。')
-          setBrowserOpenedForCode(null)
+        const result = await desktopClient.getIntegrationAuthorizationStatus({
+          attemptID,
+        })
+        if (result.status.status === 'pending') continue
+        if (result.status.status === 'complete') {
+          await refreshIntegrationState()
+          setOauthAttempt(null)
+          setOauthCode('')
+          setStatus('授权连接已建立。')
           setBusy(false)
           return
         }
-        if (status.state === 'failed') {
-          setStatus(status.error ?? 'Copilot 登录失败。')
-          setBrowserOpenedForCode(null)
-          setBusy(false)
-          return
-        }
+        const message =
+          result.status.status === 'failed'
+            ? result.status.message
+            : '授权已过期，请重新开始。'
+        setModelError(message)
+        setStatus(null)
+        setBusy(false)
+        return
       } catch (error) {
-        setStatus(`轮询登录状态时出错：${fullErrorMessage(error)}`)
-        setBrowserOpenedForCode(null)
+        showOperationError(error)
         setBusy(false)
         return
       }
     }
-    setStatus('等待登录超时。请重试或点击「刷新状态」查看最新状态。')
-    setBrowserOpenedForCode(null)
+    setModelError('等待授权超时，请重新开始。')
+    setStatus(null)
     setBusy(false)
   }
 
-  async function cancelCopilotLoginFlow(): Promise<void> {
+  async function disconnectOAuth(): Promise<void> {
+    if (!selectedIntegration) return
+    const credentials = selectedIntegration.connections.filter(
+      connection => connection.type === 'credential',
+    )
     setBusy(true)
+    setModelError(null)
     try {
-      await desktopClient.cancelCopilotLogin()
-      setCopilotLogin(null)
-      setBrowserOpenedForCode(null)
-      setStatus('已取消 Copilot 登录流程。')
-    } catch (error) {
-      showOperationError(error)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function refreshCopilotAuth(): Promise<void> {
-    setBusy(true)
-    setStatus(null)
-    try {
-      const [auth, login] = await Promise.all([
-        desktopClient.getCopilotAuthStatus(),
-        desktopClient.pollCopilotLogin(),
-      ])
-      setCopilotAuth(auth)
-      setCopilotLogin(login)
-      if (auth.authenticated) {
-        setStatus(
-          auth.user
-            ? `已登录为 ${auth.user}。`
-            : 'GitHub Copilot 已登录。',
-        )
-        setBrowserOpenedForCode(null)
-      } else if (login.state === 'awaiting_auth' && login.deviceCode) {
-        setStatus(`等待用户在浏览器中输入设备码 ${login.deviceCode}。`)
-      } else {
-        setStatus('未检测到 Copilot 登录。可点击「使用 GitHub 登录」启动登录窗口。')
-      }
+      await Promise.all(
+        credentials.map(connection =>
+          desktopClient.disconnectIntegration({
+            integrationID: selectedIntegration.id,
+            credentialID: connection.id,
+          }),
+        ),
+      )
+      await refreshIntegrationState()
+      setStatus('授权连接已断开。')
     } catch (error) {
       showOperationError(error)
     } finally {
@@ -299,6 +268,10 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     setProviderID(nextProviderID)
     setBaseURL(nextSelection.baseURL)
     setModel(nextSelection.model)
+    setVariant('')
+    setOauthAttempt(null)
+    setOauthCode('')
+    setOauthInputs({})
     setModelQuery('')
     setBalanceStatus(null)
     setStatus(null)
@@ -306,14 +279,22 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
   }
 
   const providerOptions = useMemo(() => {
-    const mapped = providers.slice(0, 80).map(provider => ({
-      value: provider.providerID,
-      label: provider.displayName,
-      detail: providerDetail(provider),
-      icon: provider.logoURL ? (
-        <img className="settings-provider-logo" src={provider.logoURL} alt="" />
-      ) : undefined,
-    }))
+    const mapped = [...providers]
+      .sort(
+        (left, right) =>
+          left.displayName.localeCompare(right.displayName, 'zh-CN', {
+            numeric: true,
+            sensitivity: 'base',
+          }) || left.providerID.localeCompare(right.providerID),
+      )
+      .map(provider => ({
+        value: provider.providerID,
+        label: provider.displayName,
+        detail: providerDetail(provider),
+        icon: provider.logoURL ? (
+          <img className="settings-provider-logo" src={provider.logoURL} alt="" />
+        ) : undefined,
+      }))
     if (!providers.length) {
       return [
         {
@@ -367,6 +348,7 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     setProviderID(nextState.selectedProviderID)
     setBaseURL(nextState.baseURL ?? '')
     setModel(nextModel)
+    setVariant(nextState.variant ?? '')
     if (options.persistEffectiveSettings) {
       settings.syncExternalSettingsPatch({
         providerID: nextState.selectedProviderID,
@@ -445,25 +427,21 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     setModelError(null)
     setStatus('正在测试连接...')
     try {
-      const modelsRequest = withModelCatalogLoading(() =>
-        desktopClient.fetchProviderModels({
-          providerID,
-          apiKey: apiKey.trim() || undefined,
-          baseURL: baseURL.trim() || undefined,
-        }),
-      )
-const [modelsResult, balanceResult] = isDeepSeek
-        ? await Promise.all([modelsRequest, fetchBalance()])
-        : [await modelsRequest, null]
-      applyFetchedModels(modelsResult.models, modelsResult.error)
-      const errors = [modelsResult.error, balanceResult?.error].filter(
+      const testRequest = desktopClient.testModelProvider(providerID)
+      const [testResult, balanceResult] = isDeepSeek
+        ? await Promise.all([testRequest, fetchBalance()])
+        : [await testRequest, null]
+      const errors = [
+        testResult.ok ? null : testResult.message ?? '连接测试失败。',
+        balanceResult?.error,
+      ].filter(
         (item): item is string => Boolean(item),
       )
       setModelError(errors.length > 0 ? errors.join('；') : null)
       setStatus(
         errors.length > 0
           ? null
-          : `连接正常。共找到 ${modelsResult.models.length} 个模型。`,
+          : testResult.message ?? '连接正常。',
       )
     } catch (error) {
       showOperationError(error)
@@ -486,7 +464,8 @@ const [modelsResult, balanceResult] = isDeepSeek
     try {
 const nextState = await desktopClient.saveModelProvider({
         providerID,
-        modelID: model.trim(),
+        id: model.trim(),
+        variant: variant || undefined,
         baseURL: baseURL.trim() || undefined,
       })
       applyProviderState(nextState, { persistEffectiveSettings: true })
@@ -499,7 +478,7 @@ const nextState = await desktopClient.saveModelProvider({
     }
   }
 
-async function saveApiKey(): Promise<void> {
+  async function saveApiKey(): Promise<void> {
     if (!apiKey.trim()) {
       setModelError('请输入 API 密钥。')
       return
@@ -507,7 +486,7 @@ async function saveApiKey(): Promise<void> {
     setBusy(true)
     setModelError(null)
     try {
-const nextState = await desktopClient.saveProviderApiKey(
+      const nextState = await desktopClient.saveProviderApiKey(
         providerID,
         apiKey.trim(),
       )
@@ -519,42 +498,19 @@ const nextState = await desktopClient.saveProviderApiKey(
         baseURL,
         baseURLEditable,
       })
-      setProviderState(current => {
-        if (current && current.selectedProviderID === providerID) {
-          return {
-            ...current,
-            model: nextConnection.model,
-            baseURL: nextConnection.baseURL,
-            apiKeyConfigured: true,
-            apiKeySource: nextState.apiKeySource ?? 'secureStorage',
-            modelConfigured: Boolean(nextConnection.model),
-            configurationMessage: nextConnection.model
-              ? undefined
-              : '未配置模型，请先在设置中选择模型。',
-            provider: {
-              ...current.provider,
-              apiKeyConfigured: true,
-            },
-          }
-        }
-        if (!selectedProvider) return current
-        return {
-          selectedProviderID: providerID,
-          provider: {
-            ...selectedProvider,
-            apiKeyConfigured: true,
-          },
-          model: nextConnection.model,
-          baseURL: nextConnection.baseURL,
-          apiKeyConfigured: true,
-          apiKeySource: nextState.apiKeySource ?? 'secureStorage',
-          modelConfigured: Boolean(nextConnection.model),
-          configurationMessage: nextConnection.model
-            ? undefined
-            : '未配置模型，请先在设置中选择模型。',
-          models: providerModels,
-          modelMetadata,
-        }
+      const [nextProviders, nextIntegrations] = await Promise.all([
+        desktopClient.listModelProviders(),
+        desktopClient.listIntegrations(),
+      ])
+      setProviders(nextProviders)
+      setIntegrations(nextIntegrations)
+      applyProviderState({
+        ...nextState,
+        model: nextConnection.model,
+        baseURL: nextConnection.baseURL,
+        modelConfigured: Boolean(
+          nextConnection.model && nextState.apiKeyConfigured,
+        ),
       })
       setStatus('API 密钥已保存。')
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
@@ -578,40 +534,20 @@ const nextState = await desktopClient.saveProviderApiKey(
     setBusy(true)
     setModelError(null)
     try {
-const nextState = await desktopClient.deleteProviderApiKey(providerID)
+      const nextState = await desktopClient.deleteProviderApiKey(providerID)
       setApiKey('')
-      setProviderState(current => {
-        if (current && current.selectedProviderID === providerID) {
-          return {
-            ...current,
-            apiKeyConfigured: false,
-            apiKeySource: nextState.apiKeySource,
-            modelConfigured: false,
-            configurationMessage: '未配置模型，请先在设置中配置模型。',
-            provider: {
-              ...current.provider,
-              apiKeyConfigured: false,
-            },
-          }
-        }
-        if (!selectedProvider) return current
-        return {
-          selectedProviderID: providerID,
-          provider: {
-            ...selectedProvider,
-            apiKeyConfigured: false,
-          },
-          model,
-          baseURL,
-          apiKeyConfigured: false,
-          apiKeySource: nextState.apiKeySource,
-          modelConfigured: false,
-          configurationMessage: '未配置模型，请先在设置中配置模型。',
-          models: providerModels,
-          modelMetadata,
-        }
-      })
-      setStatus('API 密钥已删除。')
+      const [nextProviders, nextIntegrations] = await Promise.all([
+        desktopClient.listModelProviders(),
+        desktopClient.listIntegrations(),
+      ])
+      setProviders(nextProviders)
+      setIntegrations(nextIntegrations)
+      applyProviderState(nextState)
+      setStatus(
+        nextState.apiKeyConfigured
+          ? `应用内 API 密钥已删除，当前仍使用 ${nextState.apiKeySource ?? '其他凭据'}。`
+          : 'API 密钥已删除。',
+      )
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
     } catch (error) {
       showOperationError(error)
@@ -643,17 +579,10 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
               <Link2 className="settings-connection-summary-icon" />
               当前连接
             </h2>
-            {isGitHubCopilot ? (
-              <span className={`settings-connection-badge ${copilotAuth?.authenticated ? 'ok' : 'warn'}`}>
-                <span className="settings-connection-badge-dot" />
-                {copilotAuth?.authenticated ? 'GitHub 已登录' : 'GitHub 未登录'}
-              </span>
-            ) : (
-              <span className={`settings-connection-badge ${apiKeyConfigured ? 'ok' : 'warn'}`}>
-                <span className="settings-connection-badge-dot" />
-                {apiKeyConfigured ? 'API 密钥已配置' : 'API 密钥未配置'}
-              </span>
-            )}
+            <span className={`settings-connection-badge ${apiKeyConfigured ? 'ok' : 'warn'}`}>
+              <span className="settings-connection-badge-dot" />
+              {apiKeyConfigured ? '凭据已连接' : '凭据未连接'}
+            </span>
           </div>
           <div className="settings-connection-summary-body">
             <div className="settings-connection-summary-main">
@@ -708,7 +637,7 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
               />
             }
           />
-          {!isGitHubCopilot ? (
+          {!oauthMethod ? (
             <SettingsRow
               title="Base URL"
               description={baseURLDescription(selectedProvider, isMiniMax)}
@@ -728,119 +657,106 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
         <SettingsSection
           title="凭据"
           description={
-            isGitHubCopilot
-              ? 'GitHub Copilot 通过本地 Copilot CLI 完成 OAuth 登录，无需 API 密钥。'
+            oauthMethod
+              ? `通过 ${oauthMethod.label} 完成授权连接。`
               : 'API 密钥按供应商 ID 保存在安全存储中。'
           }
         >
-          {isGitHubCopilot ? (
+          {oauthMethod && selectedIntegration ? (
             <div className="settings-credential-panel">
+              {oauthMethod.prompts
+                ?.filter(prompt => {
+                  if (!prompt.when) return true
+                  const matches = oauthInputs[prompt.when.key] === prompt.when.value
+                  return prompt.when.op === 'eq' ? matches : !matches
+                })
+                .map(prompt => (
+                  <div className="settings-credential-controls" key={prompt.key}>
+                    <label className="settings-credential-label">{prompt.message}</label>
+                    {prompt.type === 'select' ? (
+                      <SettingsDropdown
+                        width={340}
+                        ariaLabel={prompt.message}
+                        value={oauthInputs[prompt.key] ?? ''}
+                        options={prompt.options.map(option => ({
+                          value: option.value,
+                          label: option.label,
+                          detail: option.hint,
+                        }))}
+                        onChange={value =>
+                          setOauthInputs(current => ({ ...current, [prompt.key]: value }))
+                        }
+                      />
+                    ) : (
+                      <input
+                        className="settings-input settings-credential-input"
+                        value={oauthInputs[prompt.key] ?? ''}
+                        placeholder={prompt.placeholder}
+                        onChange={event =>
+                          setOauthInputs(current => ({
+                            ...current,
+                            [prompt.key]: event.target.value,
+                          }))
+                        }
+                      />
+                    )}
+                  </div>
+                ))}
               <div className="settings-credential-controls">
-                <span
-                  className={`settings-chip ${
-                    copilotAuth?.authenticated
-                      ? 'ok'
-                      : copilotLogin?.state === 'awaiting_auth'
-                        ? 'pending'
-                        : 'warn'
-                  }`}
-                >
-                  {copilotAuth?.authenticated
-                    ? copilotAuth.user
-                      ? `已登录 · ${copilotAuth.user}`
-                      : '已登录'
-                    : copilotLogin?.state === 'awaiting_auth'
-                      ? '等待登录'
-                      : copilotLogin?.state === 'starting'
-                        ? '启动中'
-                        : copilotLogin?.state === 'failed'
-                          ? '登录失败'
-                          : '未登录'}
+                <span className={`settings-chip ${apiKeyConfigured ? 'ok' : oauthAttempt ? 'pending' : 'warn'}`}>
+                  {apiKeyConfigured ? '已授权' : oauthAttempt ? '等待授权' : '未授权'}
                 </span>
-                {copilotLogin?.state === 'awaiting_auth' && copilotLogin.deviceCode ? (
-                  <button
-                    className="settings-button"
-                    disabled={busy}
-                    type="button"
-                    onClick={() => void cancelCopilotLoginFlow()}
-                  >
-                    取消登录
-                  </button>
-                ) : (
-                  <button
-                    className="settings-button"
-                    disabled={busy || copilotLogin?.state === 'starting'}
-                    type="button"
-                    onClick={() => void startCopilotLogin()}
-                  >
-                    {copilotAuth?.authenticated ? '重新登录' : '使用 GitHub 登录'}
-                  </button>
-                )}
                 <button
                   className="settings-button"
                   disabled={busy}
                   type="button"
-                  onClick={() => void refreshCopilotAuth()}
+                  onClick={() => void startOAuthAuthorization()}
                 >
-                  刷新状态
+                  {apiKeyConfigured ? '重新授权' : '开始授权'}
+                </button>
+                <button
+                  className="settings-button settings-button-danger"
+                  disabled={busy || !apiKeyConfigured}
+                  type="button"
+                  onClick={() => void disconnectOAuth()}
+                >
+                  断开
                 </button>
               </div>
-              {copilotLogin?.state === 'awaiting_auth' && copilotLogin.deviceCode ? (
+              {oauthAttempt ? (
                 <div className="settings-copilot-device-code">
-                  <label className="settings-copilot-device-code-label">
-                    设备码
-                  </label>
-                  <div className="settings-copilot-device-code-row">
-                    <input
-                      className="settings-input settings-input-mono"
-                      readOnly
-                      value={copilotLogin.deviceCode}
-                      onFocus={event => event.currentTarget.select()}
-                    />
-                    <button
-                      className="settings-button"
-                      type="button"
-                      onClick={() => {
-                        void navigator.clipboard?.writeText(
-                          copilotLogin.deviceCode ?? '',
-                        )
-                      }}
-                    >
-                      复制
-                    </button>
-                  </div>
-                  {copilotLogin.verificationUrl ? (
+                  <p className="settings-copilot-hint">{oauthAttempt.instructions}</p>
+                  {oauthAttempt.url ? (
                     <div className="settings-copilot-verification">
                       <a
                         className="settings-row-link"
-                        href={copilotLogin.verificationUrl}
-                        onClick={event => {
-                          event.preventDefault()
-                          void desktopClient.openExternalURL(
-                            copilotLogin.verificationUrl!,
-                          )
-                        }}
+                        href={oauthAttempt.url}
                         rel="noreferrer"
                         target="_blank"
+                        onClick={openExternalLink}
                       >
-                        {copilotLogin.verificationUrl}
+                        打开授权页面
                       </a>
+                    </div>
+                  ) : null}
+                  {oauthAttempt.mode === 'code' ? (
+                    <div className="settings-copilot-device-code-row">
+                      <input
+                        className="settings-input settings-input-mono"
+                        value={oauthCode}
+                        placeholder="输入授权返回码"
+                        onChange={event => setOauthCode(event.target.value)}
+                      />
                       <button
                         className="settings-button"
+                        disabled={!oauthCode.trim()}
                         type="button"
-                        onClick={() =>
-                          void desktopClient.openExternalURL(
-                            copilotLogin.verificationUrl!,
-                          )
-                        }
+                        onClick={() => void completeOAuthAuthorization()}
                       >
-                        打开浏览器
+                        提交
                       </button>
                     </div>
                   ) : null}
-                  <p className="settings-copilot-hint">
-                    若浏览器未自动打开，请点击上方「打开浏览器」按钮。Copilot CLI 正在等待 GitHub 返回授权结果...
-                  </p>
                 </div>
               ) : null}
             </div>
@@ -871,7 +787,16 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
                   </button>
                   <button
                     className="settings-button settings-button-danger"
-                    disabled={busy || !apiKeyConfigured}
+                    disabled={
+                      busy ||
+                      !apiKeyConfigured ||
+                      apiKeySource !== 'secureStorage'
+                    }
+                    title={
+                      apiKeyConfigured && apiKeySource !== 'secureStorage'
+                        ? '当前凭据来自环境变量，不能在应用内删除'
+                        : undefined
+                    }
                     type="button"
                     onClick={() => void clearApiKey()}
                   >
@@ -934,7 +859,10 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
                     modelId={orphanModelId}
                     metadata={modelMetadata[orphanModelId]}
                     isSelected={orphanModelId === model}
-                    onSelect={setModel}
+                    onSelect={id => {
+                      setModel(id)
+                      setVariant('')
+                    }}
                     isOrphan
                   />
                 )}
@@ -944,12 +872,33 @@ const nextState = await desktopClient.deleteProviderApiKey(providerID)
                     modelId={id}
                     metadata={modelMetadata[id]}
                     isSelected={id === model}
-                    onSelect={setModel}
+                    onSelect={id => {
+                      setModel(id)
+                      setVariant('')
+                    }}
                   />
                 ))}
               </div>
             )}
           </div>
+          {modelVariants.length > 0 ? (
+            <SettingsRow
+              title="模型变体"
+              description="选择该模型声明的原生请求变体。"
+              control={
+                <SettingsDropdown
+                  width={280}
+                  ariaLabel="模型变体"
+                  value={variant}
+                  options={[
+                    { value: '', label: '默认变体' },
+                    ...modelVariants.map(id => ({ value: id, label: id })),
+                  ]}
+                  onChange={setVariant}
+                />
+              }
+            />
+          ) : null}
         </SettingsSection>
 
         {isDeepSeek ? (
