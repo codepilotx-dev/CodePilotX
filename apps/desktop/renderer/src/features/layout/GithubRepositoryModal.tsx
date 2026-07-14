@@ -1,0 +1,303 @@
+import * as Dialog from '@radix-ui/react-dialog'
+import type React from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { GitFork, Lock, Search, Unlock } from 'lucide-react'
+import { desktopClient } from '../../services/desktopClient.js'
+import type {
+  DesktopGithubAuthStatus,
+  DesktopGithubLoginStatus,
+  DesktopGithubRepository,
+  DesktopWorkspace,
+} from '../../../shared/types.js'
+import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+
+type Props = {
+  open: boolean
+  onClose: () => void
+  onError: (message: string) => void
+  onWorkspaceCloned: (workspace: DesktopWorkspace) => void
+}
+
+export function GithubRepositoryModal({
+  open,
+  onClose,
+  onError,
+  onWorkspaceCloned,
+}: Props): React.ReactNode {
+  const [auth, setAuth] = useState<DesktopGithubAuthStatus | null>(null)
+  const [login, setLogin] = useState<DesktopGithubLoginStatus | null>(null)
+  const [repositories, setRepositories] = useState<DesktopGithubRepository[]>([])
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [cloningRepo, setCloningRepo] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setSearch('')
+    setLogin(null)
+    void refreshAuth()
+  }, [open])
+
+  useEffect(() => {
+    if (!auth?.authenticated || !open) return
+    void loadRepositories()
+  }, [auth?.authenticated, open])
+
+  useEffect(() => {
+    if (!login || login.state !== 'awaiting_auth') return
+    const timer = window.setInterval(() => {
+      void desktopClient.pollGithubLogin().then(status => {
+        setLogin(status)
+        if (status.auth) {
+          setAuth(status.auth)
+        }
+        if (status.state === 'failed' && status.error) {
+          onError(status.error)
+        }
+      })
+    }, 2000)
+    return () => window.clearInterval(timer)
+  }, [login, onError])
+
+  const filteredRepositories = useMemo(() => {
+    const keyword = search.trim().toLowerCase()
+    if (!keyword) return repositories
+    return repositories.filter(repo =>
+      [repo.fullName, repo.description ?? '', repo.defaultBranch]
+        .join(' ')
+        .toLowerCase()
+        .includes(keyword),
+    )
+  }, [repositories, search])
+
+  async function refreshAuth(): Promise<void> {
+    setLoading(true)
+    try {
+      setAuth(await desktopClient.getGithubAuthStatus())
+    } catch (error) {
+      onError(errorMessageOf(error))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function loadRepositories(): Promise<void> {
+    setLoading(true)
+    try {
+      const result = await desktopClient.listGithubRepositories()
+      if (result.ok === false) {
+        onError(result.error)
+        return
+      }
+      setRepositories(result.repositories)
+    } catch (error) {
+      onError(errorMessageOf(error))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function startLogin(): Promise<void> {
+    setLoading(true)
+    try {
+      const status = await desktopClient.startGithubLogin()
+      setLogin(status)
+      if (status.auth) {
+        setAuth(status.auth)
+      }
+      if (status.state === 'failed' && status.error) {
+        onError(status.error)
+      }
+    } catch (error) {
+      onError(errorMessageOf(error))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function copyGithubCode(): Promise<void> {
+    if (!login?.userCode) return
+    await navigator.clipboard.writeText(login.userCode)
+  }
+
+  async function openGithubDevicePage(): Promise<void> {
+    if (!login?.verificationUri) return
+    await desktopClient.openExternalURL(login.verificationUri)
+  }
+
+  async function cloneRepository(repository: DesktopGithubRepository): Promise<void> {
+    setCloningRepo(repository.fullName)
+    try {
+      const result = await desktopClient.cloneGithubRepository({ repository })
+      if (result.ok === false) {
+        onError(result.error)
+        return
+      }
+      onWorkspaceCloned(result.workspace)
+      onClose()
+    } catch (error) {
+      onError(errorMessageOf(error))
+    } finally {
+      setCloningRepo(null)
+    }
+  }
+
+  return (
+    <Dialog.Root
+      open={open}
+      onOpenChange={nextOpen => {
+        if (!nextOpen) onClose()
+      }}
+    >
+      <Dialog.Portal>
+        <Dialog.Overlay className="permission-modal-backdrop">
+          <Dialog.Content
+            aria-describedby="github-repository-description"
+            className="permission-modal github-repository-modal"
+          >
+            <header>
+              <Dialog.Title asChild>
+                <h2>从 GitHub 克隆项目</h2>
+              </Dialog.Title>
+              {auth?.authenticated ? (
+                <span>{auth.user?.login}</span>
+              ) : (
+                <span>GitHub</span>
+              )}
+            </header>
+            <Dialog.Description id="github-repository-description">
+              登录 GitHub 后选择你有权限访问的仓库，软件会让你选择本地克隆目录。
+            </Dialog.Description>
+
+            {!auth?.authenticated ? (
+              <div className="github-login-panel">
+                <GitFork size={28} />
+                <div>
+                  <h3>登录 GitHub</h3>
+                  <p>
+                    {auth?.configured === false
+                      ? '未配置 GitHub OAuth Client ID。'
+                      : login?.state === 'awaiting_auth' && login.userCode
+                        ? `请在打开的 GitHub 页面输入验证码 ${login.userCode}`
+                        : '使用 GitHub device flow 登录后，可列出并克隆私有仓库。'}
+                  </p>
+                  {login?.state === 'awaiting_auth' && login.userCode ? (
+                    <div className="github-device-code-card compact">
+                      <div>
+                        <div className="github-device-code-label">
+                          GitHub 设备验证码
+                        </div>
+                        <div className="github-device-code-value">
+                          {login.userCode}
+                        </div>
+                        <p>
+                          在 GitHub 设备登录页面输入这个验证码，不是 OAuth Client ID。
+                        </p>
+                      </div>
+                      <div className="github-device-code-actions">
+                        <button
+                          className="settings-button"
+                          onClick={() => void copyGithubCode()}
+                          type="button"
+                        >
+                          复制验证码
+                        </button>
+                        <button
+                          className="settings-button"
+                          onClick={() => void openGithubDevicePage()}
+                          type="button"
+                        >
+                          打开验证页面
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                <button
+                  className="settings-button primary"
+                  disabled={loading || auth?.configured === false}
+                  onClick={() => void startLogin()}
+                  type="button"
+                >
+                  登录 GitHub
+                </button>
+              </div>
+            ) : (
+              <>
+                <label className="github-repository-search">
+                  <Search size={APP_ICON_SIZE} />
+                  <input
+                    value={search}
+                    onChange={event => setSearch(event.target.value)}
+                    placeholder="搜索仓库"
+                  />
+                </label>
+                <div className="github-repository-list-scroll-area">
+                  <div className="github-repository-list-scroll-content">
+                    {loading ? (
+                      <div className="github-repository-empty">正在加载仓库...</div>
+                    ) : filteredRepositories.length === 0 ? (
+                      <div className="github-repository-empty">没有匹配仓库</div>
+                    ) : (
+                      filteredRepositories.map(repository => (
+                        <div className="github-repository-row" key={repository.id}>
+                          <div className="github-repository-main">
+                            <div className="github-repository-title">
+                              {repository.private ? (
+                                <Lock size={APP_ICON_SIZE} />
+                              ) : (
+                                <Unlock size={APP_ICON_SIZE} />
+                              )}
+                              <strong>{repository.fullName}</strong>
+                              {repository.fork ? <span>Fork</span> : null}
+                            </div>
+                            <p>{repository.description ?? '无描述'}</p>
+                            <small>
+                              {repository.defaultBranch}
+                              {repository.pushedAt
+                                ? ` · ${formatDate(repository.pushedAt)}`
+                                : ''}
+                            </small>
+                          </div>
+                          <button
+                            className="settings-button"
+                            disabled={Boolean(cloningRepo)}
+                            onClick={() => void cloneRepository(repository)}
+                            type="button"
+                          >
+                            {cloningRepo === repository.fullName ? '克隆中...' : '克隆'}
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className="permission-modal-actions">
+              <button onClick={onClose} type="button">
+                关闭
+              </button>
+              {auth?.authenticated ? (
+                <button onClick={() => void loadRepositories()} type="button">
+                  刷新
+                </button>
+              ) : null}
+            </div>
+          </Dialog.Content>
+        </Dialog.Overlay>
+      </Dialog.Portal>
+    </Dialog.Root>
+  )
+}
+
+function formatDate(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString()
+}
+
+function errorMessageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}

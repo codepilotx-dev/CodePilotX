@@ -1,24 +1,26 @@
 import { createHashRouter, Navigate } from 'react-router-dom'
-import { StaticAutomationView } from './static/pages/StaticAutomationView'
-import { StaticConversationPage } from './static/pages/StaticConversationPage'
-import { StaticDesktopLayout } from './static/StaticDesktopLayout'
-import { StaticPluginsView } from './static/pages/StaticPluginsView'
-import { StaticQuickChatView } from './static/pages/StaticQuickChatView'
-import { StaticSearchView } from './static/pages/StaticSearchView'
-import { StaticSettingsLayout } from './static/pages/StaticSettingsLayout'
+import { AutomationView } from './features/automation/AutomationView.js'
+import { ConversationPage } from './features/session/ConversationPage.js'
+import { DesktopLayout } from './features/layout/DesktopLayout.js'
+import { PluginsView } from './features/plugins/PluginsView.js'
+import { QuickChatView } from './features/session/QuickChatView.js'
+import { SearchView } from './features/search/SearchView.js'
+import { SettingsLayout } from './features/settings/SettingsLayout.js'
 
-export const router = createHashRouter([
+const router = createHashRouter([
   {
     path: '/',
-    element: <StaticDesktopLayout />,
+    element: <DesktopLayout />,
     children: [
       { index: true, element: <Navigate to="/quick-chat" replace /> },
-      { path: 'quick-chat', element: <StaticQuickChatView /> },
-      { path: 'sessions/:sessionId', element: <StaticConversationPage /> },
-      { path: 'search', element: <StaticSearchView /> },
-      { path: 'plugins', element: <StaticPluginsView /> },
-      { path: 'automation', element: <StaticAutomationView /> },
-      { path: 'settings', element: <StaticSettingsLayout /> },
+      { path: 'quick-chat', element: <QuickChatView /> },
+      { path: 'sessions/:sessionId', element: <ConversationPage /> },
+      { path: 'search', element: <SearchView /> },
+      { path: 'plugins', element: <PluginsView /> },
+      { path: 'automation', element: <AutomationView /> },
+      { path: 'settings', element: <SettingsLayout /> },
     ],
   },
 ])
+
+export { router }
