@@ -1,0 +1,441 @@
+/**
+ * Timeline — Session timeline (virtual-scroll view) styles.
+ *
+ * Visual conventions follow opencode's turn/part DOM structure
+ * (data-component / data-slot), but all colors, radii, shadows,
+ * and typography use existing desktop tokens.
+ */
+
+/* ── Main wrapper ── */
+
+.session-timeline-wrapper {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  container-type: inline-size;
+  margin: 0 auto;
+}
+
+/* ── Environment panel lane ──────────────────────────── */
+
+.session-timeline-env-lane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  container-type: inline-size;
+}
+
+.session-timeline-env-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Wide layout: side-by-side grid */
+@container (min-width: 1140px) {
+  .session-timeline-env-lane {
+    display: grid;
+    grid-template-columns:
+      minmax(0, 1fr)
+      var(--session-environment-panel-column-w, auto);
+  }
+
+  .session-timeline-env-main {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .session-timeline-env-lane {
+    --session-timeline-left-column-w: calc(
+      100% - var(--session-environment-panel-column-w, 0px)
+    );
+    --session-timeline-content-w: min(
+      var(--layout-content-w, 760px),
+      calc(
+        var(--session-timeline-left-column-w) -
+          (var(--session-content-inline-gutter, 32px) * 2)
+      )
+    );
+  }
+
+  .session-timeline-env-lane .session-timeline-vlist > :first-child,
+  .session-timeline-env-lane .workflow-debug-timeline {
+    width: var(--session-timeline-content-w);
+    max-width: var(--session-timeline-content-w);
+    margin-left: max(
+      0px,
+      calc(
+        (
+            var(--session-timeline-left-column-w) -
+              var(--session-timeline-content-w)
+          ) / 2
+      )
+    );
+    margin-right: auto;
+  }
+}
+
+/* ── Top-level container ──────────────────────────────── */
+
+.session-timeline-container {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Keep the VList from causing layout shifts */
+.session-timeline-vlist {
+  outline: none !important;
+
+  > :first-child {
+    min-width: 0;
+    width: var(--session-content-w, min(var(--layout-content-w, 760px), 100%));
+    max-width: var(--session-content-w, var(--layout-content-w, 760px));
+    margin: auto;
+  }
+}
+
+/* ── Individual row wrapper ───────────────────────────── */
+
+.session-turn-row {
+  padding: 7px 0;
+  container-type: inline-size;
+}
+
+.session-turn-row + .session-turn-row,
+.session-turn-row + .timeline-command-group,
+.session-turn-row + .execution-phase,
+.timeline-command-group + .session-turn-row,
+.execution-phase + .session-turn-row {
+  margin-top: 8px;
+}
+
+/* ── Data-attribute turn slot styles ──────────────────── */
+
+[data-component="session-turn"] {
+  &[data-slot="user-message"] {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  &[data-slot="assistant-message"] {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+
+  &[data-slot="error"],
+  &[data-slot="permission_request"],
+  &[data-slot="system-message"],
+  &[data-slot="file_patch"],
+  &[data-slot="tool_group"],
+  &[data-slot="execution_phase"],
+  &[data-slot="proposed_plan"] {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+}
+
+[data-component="session-turn"][data-slot="user-message"] {
+  .chat-message-row.user {
+    max-width: 100%;
+  }
+
+  .user-message-meta {
+    margin-top: 10px;
+  }
+}
+
+[data-component="session-turn"][data-slot="assistant-message"] {
+  .chat-message-row.assistant {
+    max-width: 100%;
+  }
+
+  .assistant-message-body {
+    max-width: min(780px, 100%);
+  }
+}
+
+[data-component="session-turn"][data-slot="plan"] {
+  .chat-message-row.assistant {
+    max-width: 100%;
+  }
+
+  .workflow-plan-card {
+    width: 100%;
+    max-width: min(760px, 100%);
+  }
+}
+
+[data-component="session-turn"][data-slot="thinking"] {
+  display: flex;
+  justify-content: flex-start;
+}
+
+[data-component="session-turn"][data-slot="error"] .timeline-system-event,
+[data-component="session-turn"][data-slot="system-message"] .timeline-system-event,
+[data-component="session-turn"][data-slot="permission_request"]
+  .timeline-system-event {
+  max-width: min(680px, 100%);
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* ── Bottom spacer ────────────────────────────────────── */
+
+.session-bottom-spacer {
+  height: 330px;
+  pointer-events: none;
+}
+
+/* ── Turn divider ─────────────────────────────────────── */
+
+.session-turn-divider {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 8px;
+  padding-bottom: 4px;
+}
+
+.turn-divider-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-meta, #999);
+  font-size: var(--type-meta);
+  font-weight: var(--font-weight-label, 500);
+  user-select: none;
+
+  &::before,
+  &::after {
+    content: "";
+    display: block;
+    height: 1px;
+    width: 24px;
+    background: var(--color-border-soft, #eee);
+  }
+
+  &::after {
+    width: 100%;
+    flex: 1;
+  }
+}
+
+/* ── Adapt existing classes to timeline layout ────────── */
+
+.session-timeline-container {
+  .conversation-stream {
+    margin: 0;
+    gap: 0;
+  }
+
+  .timeline-command-group,
+  .execution-phase,
+  .timeline-file-event {
+    margin: 0;
+    max-width: 100%;
+  }
+
+  .timeline-system-event,
+  .workflow-plan-card {
+    margin: 0;
+  }
+
+  .timeline-command-group-summary:hover,
+  .execution-phase-summary:hover {
+    background: transparent;
+  }
+
+  .assistant-message-actions {
+    opacity: 0;
+  }
+
+  .chat-message-row.assistant:hover .assistant-message-actions,
+  .chat-message-row.assistant:focus-within .assistant-message-actions {
+    opacity: 1;
+  }
+
+  .chat-thinking-pill {
+    margin: 0;
+  }
+}
+
+/* ── Workflow debug timeline stays visible above virtual list ── */
+
+.session-timeline-wrapper .workflow-debug-timeline {
+  flex-shrink: 0;
+  margin: 0 auto;
+  width: var(--session-content-w, min(var(--layout-content-w, 760px), 100%));
+}
+
+/* ── Responsive: narrower viewports ───────────────────── */
+
+@container (max-width: 600px) {
+  .session-turn-row {
+    padding: 0 12px;
+  }
+}
+
+/* ── Conversation turn navigation rail ───────────────────── */
+
+.conversation-turn-nav-rail {
+  position: absolute;
+  left: max(
+    8px,
+    calc((100% - var(--workflow-content-width, 760px)) / 2 - 34px)
+  );
+  top: 0;
+  bottom: 0;
+  z-index: 5;
+  width: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--layout-section-gap, 6px);
+  pointer-events: none;
+}
+
+.conversation-turn-nav-item {
+  pointer-events: auto;
+  display: block;
+  padding: 0;
+  border: none;
+  border-radius: 1px;
+  cursor: pointer;
+  background: var(--color-border-faint, var(--color-border-soft));
+  width: 8px;
+  height: 2px;
+  min-width: 0;
+  min-height: 0;
+  flex-shrink: 0;
+  transition:
+    width var(--motion-fast, 150ms) var(--ease-out, ease-out),
+    background var(--motion-fast, 150ms) var(--ease-out, ease-out);
+
+  &:hover,
+  &:focus-visible {
+    outline: none;
+    width: 22px;
+    height: 2px;
+    background: var(--color-text-strong);
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* ── Turn preview card (inside tooltip) ──────────────────── */
+
+.conversation-turn-preview-card {
+  min-width: 200px;
+  max-width: 280px;
+  padding: 10px;
+  color: var(--color-text);
+}
+
+.preview-card-user-text {
+  font-weight: 500;
+  font-size: var(--type-body);
+  line-height: 1.4;
+  color: var(--color-text-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preview-card-assistant-text {
+  margin-top: 6px;
+}
+
+.preview-card-assistant-text .md-body {
+  font-size: var(--type-secondary);
+  line-height: 1.45;
+  color: var(--color-text-meta);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+
+  p,
+  li {
+    margin: 0;
+  }
+
+  p + p {
+    margin-top: 4px;
+  }
+
+  ul,
+  ol {
+    margin: 2px 0;
+    padding-left: 16px;
+  }
+
+  code {
+    font-size: var(--type-code);
+    padding: 0 4px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--color-text-meta) 10%, transparent);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 1px;
+  }
+}
+
+.preview-card-files {
+  margin-top: 6px;
+  font-size: var(--type-caption);
+  line-height: 1.3;
+  color: var(--color-text-mute, var(--color-text-meta));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preview-card-files-icon {
+  opacity: 0.7;
+}
+
+/* ── Glass surfaces override for the preview card ────────── */
+
+:root[data-glass-surfaces="on"] {
+  .conversation-turn-preview-card {
+    color: var(--glass-surface-text, var(--color-text));
+  }
+
+  .preview-card-user-text {
+    color: var(--glass-surface-text, var(--color-text-strong));
+  }
+
+  .preview-card-assistant-text {
+    color: var(--glass-surface-text-meta, var(--color-text-meta));
+  }
+
+  .preview-card-files {
+    color: var(--glass-surface-text-meta, var(--color-text-meta));
+  }
+}

@@ -1,0 +1,15 @@
+.scroll-area {
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  &[data-scroll-direction="x"] {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  &__content {
+    width: 100%;
+    min-width: 0;
+  }
+}

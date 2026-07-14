@@ -1,0 +1,41 @@
+// Third-party vendor imports (Radix Colors, MiSans fonts)
+@use 'vendor';
+
+/* --- Base: reset, body, focus, motion — no token variables --- */
+@use 'base';
+
+/* --- Design tokens (Claude-branded variables, overrides base defaults) --- */
+@use 'design-system/tokens';
+
+/* --- Shared Component Patterns --- */
+@use 'components/button';
+@use 'components/card';
+@use 'components/input';
+@use 'components/chip';
+@use 'components/switch';
+@use 'components/menu-item';
+@use 'components/scroll-area';
+
+/* --- Layout --- */
+@use 'shell';
+
+/* --- Feature Pages --- */
+@use 'features/layout-chrome';
+@use 'features/layout-sidebar';
+@use 'features/layout';
+@use 'features/composer';
+@use 'features/session';
+@use 'features/search';
+@use 'features/browser';
+@use 'features/review';
+@use 'features/timeline';
+@use 'features/settings';
+@use 'features/marketplace';
+@use 'features/automation';
+
+/* --- Legacy: structured feature CSS kept as-is --- */
+@use 'markdown';
+@use 'popover';
+@use 'modal';
+@use 'model-menu-pilot';
+@use 'static';

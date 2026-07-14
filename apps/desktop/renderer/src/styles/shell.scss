@@ -1,0 +1,28 @@
+.desktop-frame,
+.app-shell {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.desktop-frame {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: var(--color-bg);
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-mask);
+}
+
+.app-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  background: var(--color-workbench-bg);
+}
+

@@ -1,0 +1,167 @@
+.desktop-menubar {
+  background: var(--color-chrome-bg);
+}
+
+.app-menubar {
+  background: var(--color-chrome-bg);
+  user-select: none;
+}
+
+.menubar-titlebar {
+  width: 100%;
+  height: var(--chrome-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 0 0 10px;
+  -webkit-app-region: drag;
+}
+
+.menubar-left {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: visible;
+}
+
+.menubar-root {
+  min-width: 0;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-app-region: no-drag;
+
+  *,
+  .menubar-content,
+  .menubar-content * {
+    outline: none !important;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-app-region: no-drag;
+  }
+}
+
+.menubar-trigger {
+  padding: 2px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-meta);
+  font-family: inherit;
+  font-size: var(--type-control) !important;
+  font-style: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+  border-radius: calc(var(--radius-base) - 2px);
+}
+
+.menubar-content {
+  width: var(--popover-width, max-content);
+  max-width: var(--popover-max-width, var(--popover-default-max-width));
+  max-height: calc(100vh - 96px);
+  padding: var(--popover-surface-padding);
+  transform-origin: top left;
+}
+
+.menubar-item {
+  box-sizing: border-box;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .menubar-content[data-state="open"] {
+    animation: popover-in var(--motion-enter) var(--ease-standard);
+  }
+
+  .menubar-content[data-state="closed"] {
+    animation: popover-out var(--motion-exit) var(--ease-in);
+  }
+}
+
+.menubar-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menubar-item-trailing {
+  justify-self: end;
+  min-width: 0;
+}
+
+.menubar-shortcut {
+  color: var(--color-text-meta);
+  font-size: var(--type-caption);
+  white-space: nowrap;
+}
+
+.menubar-item[data-disabled] .menubar-shortcut {
+  color: var(--color-text-disabled);
+}
+
+.menubar-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--color-popover-divider);
+}
+
+.app-menubar {
+  .menubar-debug-mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+    padding: 0 2px;
+    color: var(--color-text-soft);
+    font-size: var(--type-caption);
+    white-space: nowrap;
+    -webkit-app-region: no-drag;
+  }
+
+  .menubar-debug-mode-label {
+    color: var(--color-text-soft);
+    font-size: var(--type-meta);
+  }
+}
+
+.window-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  -webkit-app-region: no-drag;
+}
+
+.window-control-button {
+  width: 46px;
+  height: var(--chrome-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-icon-soft);
+  -webkit-app-region: no-drag;
+
+  svg {
+    width: var(--app-icon-size-sm);
+    height: var(--app-icon-size-sm);
+  }
+
+  &:hover {
+    background: var(--color-bg-hover);
+  }
+
+  &.close:hover {
+    background: var(--color-danger);
+    color: var(--color-text-on-accent);
+  }
+}
+
+.window-restore-icon {
+  transform: scaleX(-1);
+}

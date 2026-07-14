@@ -1,0 +1,134 @@
+/* ===== Shared Input / Control Patterns ===== */
+
+/* --- Dropdown (Select) Controls --- */
+.settings-dropdown {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--control-gap);
+  padding: var(--control-padding-block) var(--control-padding-inline);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-4);
+  background-color: var(--color-bg-row-hover);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+  font-size: var(--type-control);
+  line-height: var(--control-line-height);
+  color: var(--color-text);
+  outline: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+
+  &:hover {
+    background-color: var(--color-bg-hover);
+  }
+}
+
+.settings-dropdown *,
+.settings-dropdown-content,
+.settings-dropdown-content * {
+  outline: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.settings-dropdown-value {
+  display: flex;
+  align-items: center;
+  padding-right: 2.308em;
+  gap: var(--control-gap);
+  min-width: 0;
+  font-size: var(--type-control);
+  white-space: nowrap;
+}
+
+.settings-dropdown-icon {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  color: var(--color-icon);
+  flex-shrink: 0;
+}
+
+/* --- Text Inputs --- */
+.settings-input {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-5);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  padding: var(--control-padding-block) var(--control-padding-inline);
+  font-size: var(--type-control);
+  line-height: var(--control-line-height);
+}
+
+.settings-input-narrow {
+  min-width: 0;
+  width: 200px;
+  max-width: 100%;
+  padding: var(--control-padding-block) var(--control-padding-inline);
+}
+
+.settings-input-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--control-gap);
+  min-width: 0;
+  width: auto;
+  padding: var(--control-padding-block-compact)
+    var(--control-padding-inline-compact);
+}
+
+.settings-input-number {
+  width: 40px;
+  border: none;
+  background: transparent;
+  text-align: right;
+  padding: 0;
+  font-size: var(--type-control);
+  color: inherit;
+
+  &:focus {
+    outline: none;
+  }
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+.settings-textarea {
+  width: min(360px, 48vw);
+  resize: vertical;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-5);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  padding: var(--control-padding-block) var(--control-padding-inline);
+  font-size: var(--type-control);
+  line-height: 1.45;
+}
+
+.settings-code-textarea {
+  font-family: var(--font-family-mono);
+  font-size: var(--type-code);
+}
+
+.settings-input-unit {
+  font-size: var(--type-secondary);
+  color: var(--color-text-soft);
+}
+
+/* --- Input Focus --- */
+.settings-input:focus,
+.settings-textarea:focus,
+.settings-input-number:focus {
+  border-color: color-mix(in srgb, var(--color-accent) 42%, var(--border-subtle));
+}
+
+/* --- Dark theme overrides --- */
+:root[data-theme="dark"] .chip-button.permission-chip {
+  color: var(--composer-permission-chip-color, var(--color-text-strong));
+}

@@ -1,0 +1,114 @@
+/* ===== Unified Menu / Dropdown Item Primitive =====
+   This is the single source of truth for all menu/dropdown items.
+   Feature files must not redefine these base properties.
+   Item dimensions follow the configured UI font size.
+*/
+
+/* --- Menu Item Container --- */
+.popover-item,
+.popover-menu-heading,
+.popover-sub-trigger,
+.menubar-item,
+.settings-dropdown-item,
+.permission-select-item,
+.chat-input__dropdown-item,
+.sidebar-context-menu-item,
+.sidebar-context-menu-sub-trigger,
+.rm-model-menu .rm-menu-item,
+.rm-model-menu .rm-sub-trigger {
+  position: relative;
+  width: 100%;
+  align-items: center;
+  padding: var(--control-padding-block)
+    var(--control-padding-inline-compact);
+  border-radius: 8px;
+  color: var(--color-text);
+  font-size: var(--type-control);
+
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background var(--motion-fast) var(--ease-out);
+  -webkit-app-region: no-drag;
+  overflow: hidden;
+}
+
+.popover-item,
+.popover-sub-trigger,
+.sidebar-context-menu-item,
+.sidebar-context-menu-sub-trigger {
+  display: grid;
+  grid-template-columns: var(--app-icon-size) minmax(min-content, 1fr) max-content;
+  column-gap: var(--control-gap);
+}
+
+.menubar-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  column-gap: calc(var(--control-gap) + var(--control-gap));
+}
+
+.popover-menu-heading,
+.settings-dropdown-item,
+.permission-select-item,
+.rm-model-menu .rm-menu-item,
+.rm-model-menu .rm-sub-trigger {
+  display: flex;
+  gap: var(--control-gap);
+}
+
+/* --- Disabled State --- */
+.popover-item:disabled,
+.popover-item[data-disabled],
+.popover-sub-trigger[data-disabled],
+.menubar-item[data-disabled],
+.settings-dropdown-item[data-disabled],
+.permission-select-item[data-disabled],
+.chat-input__dropdown-item:disabled,
+.sidebar-context-menu-item[data-disabled],
+.rm-model-menu .rm-menu-item[data-disabled] {
+  color: var(--color-text-disabled);
+  pointer-events: none;
+}
+
+/* --- Hover / Highlight / Active States --- */
+.popover-item:hover:not(:disabled),
+.popover-item.active,
+.popover-item[data-highlighted],
+.popover-sub-trigger:hover,
+.popover-sub-trigger[data-highlighted],
+.popover-sub-trigger[data-state="open"],
+.menubar-item[data-highlighted],
+.settings-dropdown-item[data-highlighted],
+.permission-select-item[data-highlighted],
+.rm-model-menu .rm-menu-item:hover,
+.rm-model-menu .rm-menu-item[data-highlighted],
+.rm-model-menu .rm-sub-trigger:hover,
+.rm-model-menu .rm-sub-trigger[data-highlighted],
+.rm-model-menu .rm-sub-trigger[data-state="open"],
+.chat-input__dropdown-item:hover,
+.chat-input__dropdown-item.is-active,
+.sidebar-context-menu-item[data-highlighted],
+.sidebar-context-menu-sub-trigger[data-highlighted],
+.sidebar-context-menu-sub-trigger[data-state="open"] {
+  background: var(--color-sidebar-hover-bg);
+}
+
+.popover-item.active,
+.popover-item[data-highlighted],
+.popover-sub-trigger[data-highlighted],
+.popover-sub-trigger[data-state="open"],
+.menubar-item[data-highlighted],
+.settings-dropdown-item[data-highlighted],
+.permission-select-item[data-highlighted],
+.rm-model-menu .rm-menu-item[data-highlighted],
+.rm-model-menu .rm-sub-trigger[data-highlighted],
+.rm-model-menu .rm-sub-trigger[data-state="open"],
+.chat-input__dropdown-item.is-active,
+.sidebar-context-menu-item[data-highlighted],
+.sidebar-context-menu-sub-trigger[data-highlighted],
+.sidebar-context-menu-sub-trigger[data-state="open"] {
+  background: var(--color-sidebar-hover-bg);
+}

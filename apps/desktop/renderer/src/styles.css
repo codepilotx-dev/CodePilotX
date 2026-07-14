@@ -262,6 +262,9 @@ button {
   padding: 38px 0 205px;
   overflow-y: auto;
 }
+.timeline-row {
+  margin-bottom: 18px;
+}
 .user-message {
   display: flex;
   flex-direction: column;
@@ -296,13 +299,180 @@ button {
   line-height: 1.9;
   white-space: pre-wrap;
 }
+.assistant-process {
+  color: #696963;
+}
+.assistant-result {
+  margin-top: 5px;
+  color: #373734;
+}
+.assistant-streaming {
+  color: #4f6960;
+}
 .queue-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   margin: 22px 0;
   padding: 9px 0;
   color: #a5a5a0;
   font-size: 13px;
   border-top: 1px solid #ededeb;
   border-bottom: 1px solid #ededeb;
+}
+.row-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 0;
+  color: #92928d;
+  font-size: 13px;
+  text-align: left;
+}
+.row-toggle:hover {
+  color: #5e5e59;
+}
+.reasoning-row {
+  color: #9b9b96;
+  font-size: 13px;
+}
+.reasoning-toggle {
+  color: #999994;
+}
+.reasoning-content {
+  margin: 3px 0 0 23px;
+  padding: 9px 12px;
+  border-left: 2px solid #e3e3df;
+  color: #999994;
+  font-size: 13px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+.tool-group-row {
+  color: #92928d;
+  font-size: 13px;
+}
+.tool-group-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  width: 100%;
+  color: #92928d;
+}
+.tool-group-icon,
+.tool-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: #a5a5a0;
+}
+.tool-group-running .tool-group-header {
+  color: #a4775a;
+}
+.tool-group-error .tool-group-header {
+  color: #ad6a5c;
+}
+.tool-group-list {
+  display: grid;
+  gap: 4px;
+  margin: 2px 0 0 22px;
+}
+.tool-row {
+  padding: 0;
+  border-left: 2px solid #e5e5e1;
+  color: #85857f;
+}
+.tool-row-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 3px 0 3px 10px;
+  border: 0;
+  background: transparent;
+  color: #71716c;
+  text-align: left;
+  cursor: pointer;
+}
+.tool-row-header:hover {
+  color: #4f4f4a;
+}
+.tool-row-header strong {
+  overflow: hidden;
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tool-state {
+  flex: 0 0 auto;
+  color: #a2a29d;
+  font-size: 11px;
+}
+.tool-running .tool-state,
+.tool-pending .tool-state,
+.tool-waiting-permission .tool-state {
+  color: #a4775a;
+}
+.tool-error .tool-state {
+  color: #ad6a5c;
+}
+.tool-row-body {
+  margin: 4px 0 8px 10px;
+  padding: 11px 12px;
+  background: #eeeeeb;
+  color: #85857f;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.tool-row-body p {
+  margin: 0;
+}
+.tool-row-body .command-line,
+.tool-row-body .command-output,
+.tool-row-body .command-error {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.tool-row-body .command-output,
+.tool-row-body .command-error {
+  margin-top: 10px;
+}
+.command-error {
+  color: #ad6a5c;
+}
+.run-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 3px 0 22px;
+  color: #999994;
+  font-size: 13px;
+}
+.run-status-row time {
+  color: #b0b0aa;
+  font-variant-numeric: tabular-nums;
+}
+.run-status-running,
+.run-status-queued,
+.run-status-waiting-permission,
+.run-status-waiting-question,
+.run-status-waiting-plan-confirmation {
+  color: #a4775a;
+}
+.run-status-completed {
+  color: #708876;
+}
+.run-status-failed,
+.run-status-stopped,
+.run-status-interrupted {
+  color: #ad6a5c;
 }
 
 .task-message {
@@ -397,6 +567,11 @@ button {
 }
 .spin {
   animation: spin 1.15s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
 }
 @keyframes spin {
   to {
@@ -599,10 +774,11 @@ button {
   color: #4e4e49;
 }
 .plan-card {
-  margin-top: 25px;
-  padding: 19px 21px;
-  border-radius: 9px;
-  background: #f0f0ed;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-left: 2px solid #d8d8d2;
+  border-radius: 0;
+  background: #f7f7f4;
   color: #474743;
 }
 .plan-card-header {
@@ -616,8 +792,8 @@ button {
   color: #858581;
 }
 .plan-content {
-  margin-top: 16px;
-  padding-top: 15px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid #deded9;
   color: #5a5a56;
   font-size: 14px;

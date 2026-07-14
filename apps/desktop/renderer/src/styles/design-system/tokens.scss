@@ -1,0 +1,342 @@
+:root {
+  --contrast: 0;
+  --color-bg: #ffffff;
+  --color-bg-pure: #ffffff;
+  --color-bg-soft: color-mix(in srgb, var(--color-bg) 99%, var(--color-ink));
+  --color-bg-subtle: var(--color-bg);
+  --color-bg-mask: color-mix(in srgb, var(--color-bg) 99%, var(--color-ink));
+  --color-bg-hover: var(--color-sidebar-hover-bg);
+  --color-bg-row-hover: var(--color-sidebar-hover-bg);
+  --color-bg-chip-hover: var(--color-sidebar-hover-bg);
+  --color-bg-card: color-mix(in srgb, var(--color-bg) 99%, var(--color-ink));
+  --color-popover-bg: var(--color-bg);
+  --color-popover-border: color-mix(
+    in srgb,
+    var(--color-bg) 96%,
+    var(--color-ink)
+  );
+  --color-popover-divider: color-mix(in srgb, var(--color-bg) 97%, var(--color-ink));
+  --glass-surface-bg: color-mix(in srgb, var(--color-bg) 20%, transparent);
+  --glass-surface-border: color-mix(
+    in srgb,
+    var(--color-ink) 10%,
+    transparent
+  );
+  --glass-surface-highlight: color-mix(in srgb, var(--color-ink) 8%, transparent);
+  --glass-surface-text: var(--color-ink);
+  --glass-surface-text-meta: color-mix(
+    in srgb,
+    var(--color-ink) 78%,
+    var(--color-bg)
+  );
+  --glass-surface-text-disabled: color-mix(
+    in srgb,
+    var(--color-ink) 52%,
+    var(--color-bg)
+  );
+  --color-surface: var(--color-bg);
+  --color-ink: #0d0d0d;
+  --color-border: color-mix(in srgb, var(--color-bg) 94%, var(--color-ink));
+  --color-border-soft: color-mix(in srgb, var(--color-bg) 96%, var(--color-ink));
+  --color-border-faint: color-mix(
+    in srgb,
+    var(--color-bg) 98%,
+    var(--color-ink)
+  );
+  --color-border-row: color-mix(in srgb, var(--color-bg) 98%, var(--color-ink));
+  --color-danger: #e02e2a;
+  --color-warning: color-mix(in srgb, var(--color-bg) 35%, var(--color-ink));
+  --color-success: #00a240;
+  --color-text: var(--color-ink);
+  --color-text-strong: var(--color-ink);
+  --color-text-meta: color-mix(in srgb, var(--color-bg) 45%, var(--color-ink));
+  --color-text-soft: color-mix(in srgb, var(--color-bg) 55%, var(--color-ink));
+  --color-text-mute: color-mix(in srgb, var(--color-bg) 65%, var(--color-ink));
+  --color-text-placeholder: color-mix(in srgb, var(--color-bg) 75%, var(--color-ink));
+  --color-text-disabled: color-mix(
+    in srgb,
+    var(--color-bg) 85%,
+    var(--color-ink)
+  );
+  --color-text-on-accent: #ffffff;
+  --color-icon: var(--color-ink);
+  --color-icon-soft: color-mix(in srgb, var(--color-bg) 60%, var(--color-ink));
+  --color-icon-arrow: color-mix(in srgb, var(--color-bg) 70%, var(--color-ink));
+  --color-accent: #0169cc;
+  --color-accent-11: color-mix(in srgb, var(--color-accent) 85%, var(--color-bg));
+  --color-accent-a3: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  --color-send-bg: var(--color-accent);
+  --color-send-bg-hover: color-mix(in srgb, var(--color-accent) 82%, var(--color-ink));
+  --color-send-bg-disabled: color-mix(in srgb, var(--color-accent) 50%, var(--color-ink));
+  --color-user-bubble-bg: color-mix(in srgb, var(--color-bg) 93%, var(--color-ink));
+
+  --surface-base: color-mix(in srgb, var(--color-bg) 98%, var(--color-ink));
+  --surface-canvas: var(--color-bg);
+  --surface-panel: var(--color-bg);
+  --surface-raised: var(--color-bg);
+  --surface-subtle: color-mix(in srgb, var(--color-bg) 97%, var(--color-ink));
+  --surface-product: var(--surface-panel);
+  --surface-product-raised: var(--surface-raised);
+  --border-subtle: color-mix(in srgb, var(--color-bg) 93%, var(--color-ink));
+  --border-muted: color-mix(in srgb, var(--color-bg) 97%, var(--color-ink));
+  --shadow-resting:
+    0 1px 2px color-mix(in srgb, var(--color-ink) 5%, transparent),
+    0 1px 0 color-mix(in srgb, var(--color-bg) 70%, transparent) inset;
+  --shadow-raised:
+    0 10px 28px color-mix(in srgb, var(--color-ink) 8%, transparent),
+    0 1px 2px color-mix(in srgb, var(--color-ink) 5%, transparent);
+  --shadow-float:
+    0 22px 60px color-mix(in srgb, var(--color-ink) 12%, transparent),
+    0 8px 24px color-mix(in srgb, var(--color-ink) 8%, transparent);
+  --shadow-2: var(--shadow-raised);
+
+  --radius-button: 8px;
+  --radius-input: 8px;
+  --radius-panel: 12px;
+  --radius-card: 12px;
+  --radius-marquee: 16px;
+  --radius-base: 8px;
+  --layout-page-pad-x: 32px;
+  --layout-page-pad-y: 36px;
+  --layout-page-pad-bottom: 72px;
+  --layout-section-gap: 10px;
+  --layout-card-gap: 14px;
+  --layout-card-pad: 24px;
+  --layout-toolbar-gap: 12px;
+  --layout-composer-bottom: 26px;
+  --layout-composer-safe-pad: 78px;
+  --layout-sidebar-row-pad-y: 5px;
+  --layout-sidebar-row-pad-x: 5px;
+  --layout-sidebar-session-indent: 30px;
+  --layout-sidebar-section-gap: 18px;
+  --layout-content-w: 760px;
+  --layout-bento-w: 840px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 30px;
+  --space-8: 36px;
+
+  --font-size-ui: 14px;
+  --font-size-code: 12px;
+  --font-size-11: calc(var(--font-size-ui) - 3px);
+  --font-size-12: calc(var(--font-size-ui) - 2px);
+  --font-size-13: calc(var(--font-size-ui) - 1px);
+  --font-size-14: var(--font-size-ui);
+  --font-size-15: calc(var(--font-size-ui) + 1px);
+  --font-size-16: calc(var(--font-size-ui) + 2px);
+  --font-size-17: calc(var(--font-size-ui) + 3px);
+  --font-size-18: calc(var(--font-size-ui) + 4px);
+  --font-size-20: calc(var(--font-size-ui) + 6px);
+  --font-size-24: calc(var(--font-size-ui) + 10px);
+  --font-size-26: calc(var(--font-size-ui) + 12px);
+
+  --control-line-height: 1.4;
+  --control-padding-block-compact: 0.4em;
+  --control-padding-block: 0.45em;
+  --control-padding-inline-compact: 0.6em;
+  --control-padding-inline: 0.7em;
+  --control-gap-compact: 0.35em;
+  --control-gap: 0.57em;
+  --control-size-sm: calc(var(--font-size-ui) + var(--font-size-ui));
+  --control-size-md: calc(
+    var(--font-size-ui) + var(--font-size-ui) + 6px
+  );
+  --control-size-lg: calc(
+    var(--font-size-ui) + var(--font-size-ui) + 12px
+  );
+
+  --type-body: var(--font-size-ui);
+  --type-control: var(--font-size-ui);
+  --type-message: var(--font-size-ui);
+  --type-secondary: max(10px, calc(var(--font-size-ui) - 1px));
+  --type-meta: max(10px, calc(var(--font-size-ui) - 2px));
+  --type-caption: max(10px, calc(var(--font-size-ui) - 3px));
+
+  --radius-1: calc(var(--radius-base) - 6px);
+  --radius-2: calc(var(--radius-base) - 4px);
+  --radius-3: calc(var(--radius-base) - 2px);
+  --radius-4: var(--radius-base);
+  --radius-5: calc(var(--radius-base) + 4px);
+  --radius-6: var(--radius-card);
+  --radius-full: 9999px;
+  --radius-user-message: var(--radius-6);
+
+  --z-right-dock: 90;
+  --z-composer: 95;
+  --z-modal: 1200;
+  --z-popover: 1300;
+  --z-tooltip: 1400;
+  --z-toast: 10000;
+
+  --app-icon-size-sm: var(--font-size-ui);
+  --app-icon-size: calc(var(--font-size-ui) + 2px);
+  --app-icon-size-md: calc(var(--font-size-ui) + 4px);
+  --app-icon-stroke-width: 1.75;
+
+  --motion-fast: 120ms;
+  --motion-standard: 160ms;
+  --motion-emphasis: 220ms;
+  --motion-hover: var(--motion-fast);
+  --motion-enter: var(--motion-standard);
+  --motion-exit: var(--motion-fast);
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out: ease-out;
+  --ease-in: ease-in;
+
+  --composer-width: 760px;
+  --floating-composer-h: 142px;
+  --chrome-h: calc(
+    var(--font-size-ui) + var(--font-size-ui) + 7px
+  );
+  --menubar-h: var(--chrome-h);
+  --shadow-soft: var(--shadow-resting);
+  --shadow-card: var(--shadow-resting);
+  --shadow-card-lg: var(--shadow-raised);
+  --grid-gap: var(--layout-card-gap);
+  --glass-surface-blur: 14px;
+  --plan-md-base-size: 0.9em;
+
+  --color-chrome-bg: var(--color-bg);
+  --color-sidebar-bg: var(--color-bg);
+  --color-sidebar-active-bg: color-mix(
+    in srgb,
+    var(--color-bg) 97%,
+    var(--color-ink)
+  );
+  --color-sidebar-hover-bg: color-mix(
+    in srgb,
+    var(--color-bg) 97%,
+    var(--color-ink)
+  );
+  --color-workbench-bg: var(--surface-base);
+  --color-panel-bg: var(--color-bg);
+  --color-panel-elevated-bg: var(--surface-raised);
+  --color-panel-border: var(--border-subtle);
+  --color-panel-shadow: var(--shadow-float);
+  --color-panel-shadow-raised: var(--shadow-raised);
+  --color-panel-shadow-soft: var(--shadow-resting);
+  --color-scrollbar: color-mix(
+    in srgb,
+    var(--color-bg) 92%,
+    var(--color-ink)
+  );
+  --color-scrollbar-hover: color-mix(in srgb, var(--color-bg) 85%, var(--color-ink));
+  --color-diff-added: #00a240;
+  --color-diff-removed: #e02e2a;
+  --color-skill: #751ed9;
+
+  --font-family-sans:
+    "MiSans VF Regular", "MiSans", Inter, sans-serif;
+  --font-family-mono:
+    "JetBrains Mono", Consolas, monospace;
+  --type-card-title: var(--font-size-ui);
+  --type-section-title: calc(var(--font-size-ui));
+  --type-title-sm: calc(var(--font-size-ui) + 2px);
+  --type-title-md: calc(var(--font-size-ui) + 4px);
+  --type-title-lg: calc(var(--font-size-ui) + 6px);
+  --type-page-title: calc(var(--font-size-ui) + 12px);
+  --type-hero-title: calc(var(--font-size-ui) + 16px);
+  --type-code: var(--font-size-code);
+  --font-weight-body: 400;
+  --font-weight-label: 500;
+  --font-weight-heading: 560;
+  --font-weight-emphasis: 600;
+
+  --focus-ring: 0 0 0 3px
+    color-mix(in srgb, var(--color-accent) 24%, transparent);
+  --focus-ring-soft: 0 0 0 2px
+    color-mix(in srgb, var(--color-accent) 18%, transparent);
+  --state-hover-bg: var(--color-sidebar-hover-bg);
+  --state-active-bg: color-mix(in srgb, var(--color-bg) 95%, var(--color-ink));
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #111111;
+  --color-bg-pure: var(--color-bg);
+  --color-bg-soft: color-mix(in srgb, var(--color-bg) 94%, var(--color-ink));
+  --color-bg-subtle: color-mix(in srgb, var(--color-bg) 97%, var(--color-ink));
+  --color-bg-mask: color-mix(in srgb, var(--color-bg) 78%, transparent);
+  --color-bg-hover: var(--color-sidebar-hover-bg);
+  --color-bg-row-hover: var(--color-sidebar-hover-bg);
+  --color-bg-chip-hover: var(--color-sidebar-hover-bg);
+  --color-bg-card: color-mix(in srgb, var(--color-bg) 89%, var(--color-ink));
+  --color-popover-bg: var(--color-bg);
+  --color-popover-border: color-mix(in srgb, var(--color-bg) 92%, var(--color-ink));
+  --color-popover-divider: color-mix(in srgb, var(--color-bg) 94%, var(--color-ink));
+  --glass-surface-bg: color-mix(in srgb, var(--color-bg) 20%, transparent);
+  --glass-surface-border: color-mix(in srgb, var(--color-ink) 12%, transparent);
+  --glass-surface-highlight: color-mix(in srgb, var(--color-ink) 8%, transparent);
+  --glass-surface-text: var(--color-ink);
+  --glass-surface-text-meta: color-mix(in srgb, var(--color-bg) 36%, var(--color-ink));
+  --glass-surface-text-disabled: color-mix(in srgb, var(--color-bg) 78%, var(--color-ink));
+  --color-surface: var(--color-bg);
+  --color-ink: #fcfcfc;
+  --color-border: color-mix(in srgb, var(--color-bg) 88%, var(--color-ink));
+  --color-border-soft: color-mix(in srgb, var(--color-bg) 92%, var(--color-ink));
+  --color-border-faint: color-mix(in srgb, var(--color-bg) 95%, var(--color-ink));
+  --color-border-row: color-mix(in srgb, var(--color-bg) 95%, var(--color-ink));
+  --color-danger: #e02e2a;
+  --color-warning: color-mix(in srgb, var(--color-bg) 35%, var(--color-ink));
+  --color-success: #00a240;
+  --color-text: var(--color-ink);
+  --color-text-strong: var(--color-ink);
+  --color-text-meta: color-mix(in srgb, var(--color-bg) 36%, var(--color-ink));
+  --color-text-soft: color-mix(in srgb, var(--color-bg) 46%, var(--color-ink));
+  --color-text-mute: color-mix(in srgb, var(--color-bg) 56%, var(--color-ink));
+  --color-text-placeholder: color-mix(in srgb, var(--color-bg) 66%, var(--color-ink));
+  --color-text-disabled: color-mix(in srgb, var(--color-bg) 78%, var(--color-ink));
+  --color-text-on-accent: #ffffff;
+  --color-icon: var(--color-ink);
+  --color-icon-soft: color-mix(in srgb, var(--color-bg) 52%, var(--color-ink));
+  --color-icon-arrow: color-mix(in srgb, var(--color-bg) 62%, var(--color-ink));
+  --color-accent: #0169cc;
+  --color-accent-11: color-mix(in srgb, var(--color-accent) 85%, var(--color-bg));
+  --color-accent-a3: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  --color-send-bg: var(--color-accent);
+  --color-send-bg-hover: color-mix(in srgb, var(--color-accent) 88%, var(--color-ink));
+  --color-send-bg-disabled: color-mix(in srgb, var(--color-accent) 50%, var(--color-ink));
+  --color-user-bubble-bg: color-mix(in srgb, var(--color-bg) 88%, var(--color-ink));
+
+  --surface-base: color-mix(in srgb, var(--color-bg) 82%, var(--color-ink));
+  --surface-canvas: color-mix(in srgb, var(--color-bg) 80%, var(--color-ink));
+  --surface-panel: color-mix(in srgb, var(--color-bg) 77%, var(--color-ink));
+  --surface-raised: color-mix(in srgb, var(--color-bg) 66%, var(--color-ink));
+  --surface-subtle: color-mix(in srgb, var(--color-bg) 88%, var(--color-ink));
+  --surface-product: var(--surface-panel);
+  --surface-product-raised: var(--surface-raised);
+  --border-subtle: color-mix(in srgb, var(--color-bg) 58%, var(--color-ink));
+  --border-muted: color-mix(in srgb, var(--color-bg) 70%, var(--color-ink));
+  --shadow-resting:
+    0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 0 color-mix(in srgb, var(--color-ink) 3%, transparent) inset;
+  --shadow-raised:
+    0 12px 34px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.22);
+  --shadow-float:
+    0 24px 64px rgba(0, 0, 0, 0.38), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-2: var(--shadow-raised);
+
+  --color-chrome-bg: color-mix(in srgb, var(--color-bg) 94%, var(--color-ink));
+  --color-sidebar-bg: color-mix(in srgb, var(--color-bg) 94%, var(--color-ink));
+  --color-sidebar-active-bg: color-mix(in srgb, var(--color-bg) 89%, var(--color-ink));
+  --color-sidebar-hover-bg: color-mix(in srgb, var(--color-bg) 89%, var(--color-ink));
+  --state-hover-bg: var(--color-sidebar-hover-bg);
+  --state-active-bg: color-mix(in srgb, var(--color-bg) 86%, var(--color-ink));
+  --color-workbench-bg: var(--surface-base);
+  --color-panel-bg: var(--surface-panel);
+  --color-panel-elevated-bg: var(--surface-raised);
+  --color-panel-border: var(--border-subtle);
+  --color-panel-shadow: var(--shadow-float);
+  --color-panel-shadow-raised: var(--shadow-raised);
+  --color-panel-shadow-soft: var(--shadow-resting);
+  --color-scrollbar: color-mix(in srgb, var(--color-bg) 86%, var(--color-ink));
+  --color-scrollbar-hover: color-mix(in srgb, var(--color-bg) 75%, var(--color-ink));
+  --color-diff-added: #00a240;
+  --color-diff-removed: #e02e2a;
+  --color-skill: #b06dff;
+
+}

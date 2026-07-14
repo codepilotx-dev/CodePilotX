@@ -1,29 +1,32 @@
 import { Check, ChevronDown, ChevronRight, FileCode2, ShieldCheck, Undo2 } from 'lucide-react'
-import type { EditResult } from '../domain/task-flow'
+import type { PatchRow } from '@codepilotx/session-view'
+import type { EditActionState } from '../domain/task-flow'
 
 interface EditResultCardProps {
-  result: EditResult
+  patch: PatchRow
+  filesExpanded: boolean
+  actionState: EditActionState
   onToggleFiles: () => void
   onUndo: () => void
   onSubmitReview: () => void
 }
 
-export function EditResultCard({ result, onToggleFiles, onUndo, onSubmitReview }: EditResultCardProps) {
-  const visibleFiles = result.filesExpanded ? result.files : result.files.slice(0, 3)
-  const remainingFiles = result.files.length - visibleFiles.length
-  const isUndone = result.actionState === 'undone'
-  const isReviewed = result.actionState === 'reviewed'
+export function EditResultCard({ patch, filesExpanded, actionState, onToggleFiles, onUndo, onSubmitReview }: EditResultCardProps) {
+  const visibleFiles = filesExpanded ? patch.files : patch.files.slice(0, 3)
+  const remainingFiles = patch.files.length - visibleFiles.length
+  const isUndone = actionState === 'undone'
+  const isReviewed = actionState === 'reviewed'
 
   return (
-    <section className={`edit-result-card edit-result-${result.actionState}`} aria-label="文件修改结果">
+    <section className={`edit-result-card edit-result-${actionState}`} aria-label="文件修改结果">
       <header className="edit-result-header">
         <div className="edit-result-title-wrap">
           <span className="edit-result-icon"><FileCode2 size={20} strokeWidth={1.7} /></span>
           <div>
-            <strong>已编辑 {result.totalFiles} 个文件</strong>
+            <strong>已编辑 {patch.files.length} 个文件</strong>
             <div className="edit-result-stats">
-              <span className="edit-additions">+{result.totalAdditions}</span>
-              <span className="edit-deletions">-{result.totalDeletions}</span>
+              <span className="edit-additions">+{patch.totalAdditions}</span>
+              <span className="edit-deletions">-{patch.totalDeletions}</span>
             </div>
           </div>
         </div>
@@ -51,10 +54,10 @@ export function EditResultCard({ result, onToggleFiles, onUndo, onSubmitReview }
         ))}
       </div>
 
-      {result.files.length > 3 ? (
-        <button className="edit-files-toggle" type="button" onClick={onToggleFiles} aria-expanded={result.filesExpanded}>
-          {result.filesExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-          {result.filesExpanded ? '收起文件' : `再显示 ${remainingFiles} 个文件`}
+      {patch.files.length > 3 ? (
+        <button className="edit-files-toggle" type="button" onClick={onToggleFiles} aria-expanded={filesExpanded}>
+          {filesExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+          {filesExpanded ? '收起文件' : `再显示 ${remainingFiles} 个文件`}
         </button>
       ) : null}
     </section>
