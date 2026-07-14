@@ -1,0 +1,160 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - button "侧边栏" [ref=e7] [cursor=pointer]:
+          - img [ref=e8]
+        - button "后退" [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+        - button "前进" [ref=e14] [cursor=pointer]:
+          - img [ref=e15]
+        - generic "应用菜单" [ref=e17]:
+          - button "文件" [disabled] [ref=e18]
+          - button "编辑" [disabled] [ref=e19]
+          - button "视图" [disabled] [ref=e20]
+          - button "窗口" [disabled] [ref=e21]
+          - button "帮助" [disabled] [ref=e22]
+      - generic [ref=e23]:
+        - button "最小化" [ref=e24] [cursor=pointer]:
+          - img [ref=e25]
+        - button "最大化" [ref=e26] [cursor=pointer]:
+          - img [ref=e27]
+        - button "关闭" [ref=e32] [cursor=pointer]:
+          - img [ref=e33]
+  - generic [ref=e36]:
+    - complementary [ref=e37]:
+      - generic [ref=e38]:
+        - navigation "桌面导航" [ref=e39]:
+          - link "快速聊天" [ref=e40] [cursor=pointer]:
+            - /url: "#/quick-chat"
+            - img [ref=e42]
+            - generic [ref=e45]: 快速聊天
+          - link "搜索" [ref=e46] [cursor=pointer]:
+            - /url: "#/search"
+            - img [ref=e48]
+            - generic [ref=e52]: 搜索
+          - link "插件" [ref=e53] [cursor=pointer]:
+            - /url: "#/plugins"
+            - img [ref=e55]
+            - generic [ref=e58]: 插件
+          - link "自动化" [ref=e59] [cursor=pointer]:
+            - /url: "#/automation"
+            - img [ref=e61]
+            - generic [ref=e66]: 自动化
+          - link "设置" [ref=e67] [cursor=pointer]:
+            - /url: "#/settings"
+            - img [ref=e69]
+            - generic [ref=e73]: 设置
+        - generic [ref=e76]:
+          - generic [ref=e77]:
+            - generic [ref=e78] [cursor=pointer]:
+              - img [ref=e80]
+              - generic [ref=e83]: 工作区
+            - button "CodePilotX-Ts main" [ref=e85] [cursor=pointer]:
+              - img [ref=e87]
+              - generic [ref=e90]: CodePilotX-Ts
+              - generic [ref=e92]: main
+          - generic [ref=e93]:
+            - generic [ref=e94] [cursor=pointer]:
+              - img [ref=e96]
+              - generic [ref=e100]: 最近任务
+            - link "迁移 renderer 静态 UI 刚刚" [ref=e102] [cursor=pointer]:
+              - /url: "#/sessions/static-session-1"
+              - img [ref=e104]
+              - generic [ref=e107]: 迁移 renderer 静态 UI
+              - generic [ref=e109]: 刚刚
+            - link "整理桌面设置页面 12 分钟前" [ref=e110] [cursor=pointer]:
+              - /url: "#/sessions/static-session-2"
+              - img [ref=e112]
+              - generic [ref=e115]: 整理桌面设置页面
+              - generic [ref=e117]: 12 分钟前
+            - link "检查插件市场空态 昨天" [ref=e118] [cursor=pointer]:
+              - /url: "#/sessions/static-session-3"
+              - img [ref=e120]
+              - generic [ref=e123]: 检查插件市场空态
+              - generic [ref=e125]: 昨天
+        - generic [ref=e127]:
+          - img [ref=e129]
+          - generic [ref=e133]: 静态预览
+          - img [ref=e135]
+    - main [ref=e137]:
+      - generic [ref=e427]:
+        - complementary [ref=e428]:
+          - generic [ref=e431]:
+            - generic [ref=e432]:
+              - button "返回" [ref=e433] [cursor=pointer]:
+                - img [ref=e434]
+                - text: 返回
+              - generic [ref=e436]:
+                - img
+                - textbox [ref=e437]:
+                  - /placeholder: 搜索设置
+            - navigation "设置导航" [ref=e438]:
+              - generic [ref=e439]:
+                - generic [ref=e440]:
+                  - img [ref=e441]
+                  - heading "桌面" [level=2] [ref=e444]
+                - generic [ref=e445]:
+                  - button "常规" [ref=e446] [cursor=pointer]:
+                    - generic [ref=e447]: 常规
+                  - button "外观" [ref=e448] [cursor=pointer]:
+                    - generic [ref=e449]: 外观
+                  - button "模型连接" [ref=e450] [cursor=pointer]:
+                    - generic [ref=e451]: 模型连接
+                  - button "Git" [ref=e452] [cursor=pointer]:
+                    - generic [ref=e453]: Git
+                  - button "MCP" [ref=e454] [cursor=pointer]:
+                    - generic [ref=e455]: MCP
+                  - button "记忆" [ref=e456] [cursor=pointer]:
+                    - generic [ref=e457]: 记忆
+                  - button "个人资料" [ref=e458] [cursor=pointer]:
+                    - generic [ref=e459]: 个人资料
+                  - button "快捷键" [ref=e460] [cursor=pointer]:
+                    - generic [ref=e461]: 快捷键
+        - main [ref=e462]:
+          - generic [ref=e464]:
+            - generic [ref=e465]:
+              - heading "常规" [level=1] [ref=e466]
+              - paragraph [ref=e467]: 静态设置页面用于验证源 UI 的布局、卡片、表单和导航状态。
+            - generic [ref=e468]:
+              - generic [ref=e469]:
+                - generic [ref=e470]:
+                  - heading "外观" [level=2] [ref=e471]
+                  - paragraph [ref=e472]: 主题切换只影响本地 CSS data attribute。
+                - button "深色" [ref=e474] [cursor=pointer]
+              - generic [ref=e475]:
+                - generic [ref=e476]:
+                  - generic [ref=e477]:
+                    - heading "界面模式" [level=3] [ref=e478]
+                    - paragraph [ref=e479]: 浅色
+                  - button "编辑" [disabled] [ref=e481]
+                - generic [ref=e482]:
+                  - generic [ref=e483]:
+                    - heading "字体" [level=3] [ref=e484]
+                    - paragraph [ref=e485]: MiSans / system-ui
+                  - button "编辑" [disabled] [ref=e487]
+                - generic [ref=e488]:
+                  - generic [ref=e489]:
+                    - heading "动效" [level=3] [ref=e490]
+                    - paragraph [ref=e491]: 标准
+                  - button "编辑" [disabled] [ref=e493]
+            - generic [ref=e494]:
+              - generic [ref=e496]:
+                - heading "连接" [level=2] [ref=e497]
+                - paragraph [ref=e498]: 第一版静态 UI 不读取或保存任何凭据。
+              - generic [ref=e499]:
+                - generic [ref=e500]:
+                  - generic [ref=e501]:
+                    - heading "默认模型" [level=3] [ref=e502]
+                    - paragraph [ref=e503]: GPT-5.6 Sol
+                  - button "编辑" [disabled] [ref=e505]
+                - generic [ref=e506]:
+                  - generic [ref=e507]:
+                    - heading "Provider" [level=3] [ref=e508]
+                    - paragraph [ref=e509]: OpenAI Compatible
+                  - button "编辑" [disabled] [ref=e511]
+                - generic [ref=e512]:
+                  - generic [ref=e513]:
+                    - heading "MCP" [level=3] [ref=e514]
+                    - paragraph [ref=e515]: 静态列表
+                  - button "编辑" [disabled] [ref=e517]

@@ -1,0 +1,122 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - button "侧边栏" [ref=e7] [cursor=pointer]:
+          - img [ref=e8]
+        - button "后退" [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+        - button "前进" [ref=e14] [cursor=pointer]:
+          - img [ref=e15]
+        - generic "应用菜单" [ref=e17]:
+          - button "文件" [disabled] [ref=e18]
+          - button "编辑" [disabled] [ref=e19]
+          - button "视图" [disabled] [ref=e20]
+          - button "窗口" [disabled] [ref=e21]
+          - button "帮助" [disabled] [ref=e22]
+      - generic [ref=e23]:
+        - button "最小化" [ref=e24] [cursor=pointer]:
+          - img [ref=e25]
+        - button "最大化" [ref=e26] [cursor=pointer]:
+          - img [ref=e27]
+        - button "关闭" [ref=e32] [cursor=pointer]:
+          - img [ref=e33]
+  - generic [ref=e36]:
+    - complementary [ref=e37]:
+      - generic [ref=e38]:
+        - navigation "桌面导航" [ref=e39]:
+          - link "快速聊天" [ref=e40] [cursor=pointer]:
+            - /url: "#/quick-chat"
+            - img [ref=e42]
+            - generic [ref=e45]: 快速聊天
+          - link "搜索" [ref=e46] [cursor=pointer]:
+            - /url: "#/search"
+            - img [ref=e48]
+            - generic [ref=e52]: 搜索
+          - link "插件" [ref=e53] [cursor=pointer]:
+            - /url: "#/plugins"
+            - img [ref=e55]
+            - generic [ref=e58]: 插件
+          - link "自动化" [ref=e59] [cursor=pointer]:
+            - /url: "#/automation"
+            - img [ref=e61]
+            - generic [ref=e66]: 自动化
+          - link "设置" [ref=e67] [cursor=pointer]:
+            - /url: "#/settings"
+            - img [ref=e69]
+            - generic [ref=e73]: 设置
+        - generic [ref=e76]:
+          - generic [ref=e77]:
+            - generic [ref=e78] [cursor=pointer]:
+              - img [ref=e80]
+              - generic [ref=e83]: 工作区
+            - button "CodePilotX-Ts main" [ref=e85] [cursor=pointer]:
+              - img [ref=e87]
+              - generic [ref=e90]: CodePilotX-Ts
+              - generic [ref=e92]: main
+          - generic [ref=e93]:
+            - generic [ref=e94] [cursor=pointer]:
+              - img [ref=e96]
+              - generic [ref=e100]: 最近任务
+            - link "迁移 renderer 静态 UI 刚刚" [ref=e102] [cursor=pointer]:
+              - /url: "#/sessions/static-session-1"
+              - img [ref=e104]
+              - generic [ref=e107]: 迁移 renderer 静态 UI
+              - generic [ref=e109]: 刚刚
+            - link "整理桌面设置页面 12 分钟前" [ref=e110] [cursor=pointer]:
+              - /url: "#/sessions/static-session-2"
+              - img [ref=e112]
+              - generic [ref=e115]: 整理桌面设置页面
+              - generic [ref=e117]: 12 分钟前
+            - link "检查插件市场空态 昨天" [ref=e118] [cursor=pointer]:
+              - /url: "#/sessions/static-session-3"
+              - img [ref=e120]
+              - generic [ref=e123]: 检查插件市场空态
+              - generic [ref=e125]: 昨天
+        - generic [ref=e127]:
+          - img [ref=e129]
+          - generic [ref=e133]: 静态预览
+          - img [ref=e135]
+    - main [ref=e137]:
+      - generic [ref=e342]:
+        - generic [ref=e343]:
+          - generic [ref=e344]:
+            - button "市场" [ref=e345] [cursor=pointer]
+            - button "已安装" [ref=e346] [cursor=pointer]
+          - button [disabled] [ref=e348]:
+            - img [ref=e349]
+        - heading "插件" [level=1] [ref=e354]
+        - generic [ref=e355]:
+          - generic [ref=e356]:
+            - img [ref=e357]
+            - textbox "搜索插件" [ref=e360]: static ui
+          - button "分类" [disabled] [ref=e361]:
+            - img [ref=e362]
+            - text: 分类
+          - button "安装" [disabled] [ref=e364]
+        - generic [ref=e366]:
+          - paragraph [ref=e367]:
+            - img [ref=e368]
+            - text: 静态插件市场
+          - generic [ref=e370]: $ plugin install browser
+        - generic [ref=e371]:
+          - heading "精选" [level=2] [ref=e373]
+          - generic [ref=e374]:
+            - article [ref=e375]:
+              - generic [ref=e376]:
+                - strong [ref=e377]: Browser
+                - text: 内置
+              - paragraph [ref=e378]: 网页浏览、页面检查和本地应用 QA 的桌面入口。
+              - button "已启用" [disabled] [ref=e379]
+            - article [ref=e380]:
+              - generic [ref=e381]:
+                - strong [ref=e382]: Figma
+                - text: 设计
+              - paragraph [ref=e383]: 把代码和页面转换成可编辑设计稿。
+              - button "启用" [disabled] [ref=e384]
+            - article [ref=e385]:
+              - generic [ref=e386]:
+                - strong [ref=e387]: Google Drive
+                - text: 连接器
+              - paragraph [ref=e388]: 查找和处理 Drive、Docs、Sheets、Slides 文件。
+              - button "启用" [disabled] [ref=e389]
