@@ -82,7 +82,7 @@ export class Projection {
         startedAt, finishedAt, elapsedSeconds: startedAt == null ? 0 : Math.max(0, Math.floor(((finishedAt ?? Date.now()) - startedAt) / 1000)), error: null,
       }
     })
-    const messages = (this.db.sqlite.query("SELECT id, session_id, run_id, role, created_at FROM messages WHERE session_id = ? ORDER BY created_at").all(sessionID) as Array<Record<string, string | number | null>>).map((row): Message => ({
+    const messages = (this.db.sqlite.query("SELECT id, session_id, run_id, role, created_at FROM messages WHERE session_id = ? ORDER BY ordinal, created_at, id").all(sessionID) as Array<Record<string, string | number | null>>).map((row): Message => ({
       id: String(row.id), sessionID: String(row.session_id), runID: row.run_id ? String(row.run_id) : null, role: String(row.role) as Message["role"], createdAt: Number(row.created_at),
     }))
     const rawParts = this.db.sqlite.query("SELECT id, run_id, type, status, data, created_at, updated_at FROM parts WHERE session_id = ? ORDER BY created_at").all(sessionID) as Array<Record<string, string | number | null>>

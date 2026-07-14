@@ -129,36 +129,37 @@ export class AgentOrchestrator {
     await this.publish(sessionID, "part.updated", this.options.db.getPart(part.id) ?? part)
   }
 
-  private async recordReadActivity(request: OrchestrationRequest, role: AgentRole, title: string, detail: string, command?: ActivityCommand) {
+  private async recordReadActivity(request: OrchestrationRequest, role: AgentRole, title: string, detail: string, command?: ActivityCommand, onRecorded?: () => void) {
     const createdAt = now()
     const part: SessionPart = {
       id: crypto.randomUUID(), runID: request.runID, type: "activity", status: "completed",
       data: { role, activity: "notice", title, detail, ...(command ? { commands: [command] } : {}) }, createdAt, updatedAt: createdAt,
     }
     await this.savePart(request.sessionID, part)
+    onRecorded?.()
   }
 
-  private async recordReadResult(request: OrchestrationRequest, role: AgentRole, title: string, detail: string, command: string, output: unknown) {
+  private async recordReadResult(request: OrchestrationRequest, role: AgentRole, title: string, detail: string, command: string, output: unknown, onRecorded?: () => void) {
     const capped = capActivityOutput(formatToolOutput(output))
-    await this.recordReadActivity(request, role, title, detail, { command, output: capped.output, status: "success", ...(capped.truncated ? { truncated: true } : {}) })
+    await this.recordReadActivity(request, role, title, detail, { command, output: capped.output, status: "success", ...(capped.truncated ? { truncated: true } : {}) }, onRecorded)
   }
 
-  private async recordReadError(request: OrchestrationRequest, role: AgentRole, title: string, detail: string, command: string, cause: unknown) {
+  private async recordReadError(request: OrchestrationRequest, role: AgentRole, title: string, detail: string, command: string, cause: unknown, onRecorded?: () => void) {
     const output = cause instanceof Error ? cause.message : String(cause)
-    await this.recordReadActivity(request, role, title, detail, { command, output, status: "error" })
+    await this.recordReadActivity(request, role, title, detail, { command, output, status: "error" }, onRecorded)
   }
 
-  private toolsFor(role: AgentRole, request: OrchestrationRequest, onPlanFinalized?: (plan: string) => void) {
+  private toolsFor(role: AgentRole, request: OrchestrationRequest, onPlanFinalized?: (plan: string) => void, onReadActivityRecorded?: () => void) {
     if (role === "assistant") return []
     const readTools = [
       tool({ name: "workspace_list", description: "列出工作区目录内容。路径相对于项目根目录。", parameters: z.object({ path: z.string().min(1) }), execute: async ({ path }) => {
         const command = `workspace_list ${path}`
         try {
           const result = await request.workspace.list(path)
-          await this.recordReadResult(request, role, "列出目录", path, command, result)
+          await this.recordReadResult(request, role, "列出目录", path, command, result, onReadActivityRecorded)
           return result
         } catch (cause) {
-          await this.recordReadError(request, role, "列出目录", path, command, cause)
+          await this.recordReadError(request, role, "列出目录", path, command, cause, onReadActivityRecorded)
           throw cause
         }
       } }),
@@ -166,10 +167,10 @@ export class AgentOrchestrator {
         const command = `workspace_read ${path}`
         try {
           const result = await request.workspace.read(path)
-          await this.recordReadResult(request, role, "读取文件", path, command, result)
+          await this.recordReadResult(request, role, "读取文件", path, command, result, onReadActivityRecorded)
           return result
         } catch (cause) {
-          await this.recordReadError(request, role, "读取文件", path, command, cause)
+          await this.recordReadError(request, role, "读取文件", path, command, cause, onReadActivityRecorded)
           throw cause
         }
       } }),
@@ -178,10 +179,10 @@ export class AgentOrchestrator {
         const command = `workspace_search ${path} ${query}`
         try {
           const result = await request.workspace.search(path, query, request.signal)
-          await this.recordReadResult(request, role, "搜索工作区", detail, command, result)
+          await this.recordReadResult(request, role, "搜索工作区", detail, command, result, onReadActivityRecorded)
           return result
         } catch (cause) {
-          await this.recordReadError(request, role, "搜索工作区", detail, command, cause)
+          await this.recordReadError(request, role, "搜索工作区", detail, command, cause, onReadActivityRecorded)
           throw cause
         }
       } }),
@@ -240,18 +241,44 @@ export class AgentOrchestrator {
   private async runStage(role: AgentRole, request: OrchestrationRequest, context: string): Promise<StageResult> {
     const { ref, model } = await request.resolveModel(role, request.fallbackModel)
     const startedAt = now()
-    const partID = crypto.randomUUID()
     const partType: SessionPart["type"] = role === "planner" ? "activity" : "text"
+    let textPartID = crypto.randomUUID()
+    let segmentStartedAt = startedAt
+    let segmentText = ""
+    let segmentSaved = false
     let rawOutput = ""
     let finalizedPlan = ""
+    const segmentData = (text: string, error?: string) => partType === "activity"
+      ? { role, activity: "notice", title: stageTitle[role], detail: text || "正在分析…", ...(error ? { error } : {}) }
+      : { role, title: stageTitle[role], text, ...(error ? { error } : {}) }
+    const saveTextSegment = async (status: SessionPart["status"], fallback = "正在分析…", error?: string) => {
+      const text = cleanText(segmentText) || fallback
+      if (!segmentSaved && !text) return
+      segmentSaved = true
+      await this.savePart(request.sessionID, {
+        id: textPartID,
+        runID: request.runID,
+        type: partType,
+        status,
+        data: segmentData(text, error),
+        createdAt: segmentStartedAt,
+        updatedAt: now(),
+      })
+    }
+    const startNextTextSegment = () => {
+      textPartID = crypto.randomUUID()
+      segmentStartedAt = now()
+      segmentText = ""
+      segmentSaved = false
+    }
     if (role !== "assistant") {
       this.options.db.setRunWorkflowState?.(request.runID, { status: "running", currentStage: role, canContinueFromPlan: false })
       this.options.db.upsertRunStage?.({ runID: request.runID, role, attempt: 1, status: "running", model: ref, startedAt, finishedAt: null, error: null })
     }
     await this.publish(request.sessionID, "run.stage-started", { runID: request.runID, role, title: stageTitle[role], model: ref, startedAt })
-    await this.savePart(request.sessionID, { id: partID, runID: request.runID, type: partType, status: "running", data: { role, activity: "notice", title: stageTitle[role], detail: "正在分析…" }, createdAt: startedAt, updatedAt: startedAt })
+    await saveTextSegment("running")
     const agent = new Agent({
-      name: `${stageTitle[role]} Agent`, instructions: stageInstructions[role], model: asAgentModel(model), tools: this.toolsFor(role, request, (plan) => { finalizedPlan = plan }),
+      name: `${stageTitle[role]} Agent`, instructions: stageInstructions[role], model: asAgentModel(model), tools: this.toolsFor(role, request, (plan) => { finalizedPlan = plan }, startNextTextSegment),
       ...(role === "planner" ? { toolUseBehavior: { stopAtToolNames: ["finalize_plan"] } } : {}),
     })
     try {
@@ -270,30 +297,30 @@ export class AgentOrchestrator {
         : await run(agent, resume, { stream: true, signal: request.signal, maxTurns: 12 })
       for await (const delta of streamed.toTextStream() as AsyncIterable<string>) {
         rawOutput += delta
-        const text = cleanText(rawOutput)
-        await this.savePart(request.sessionID, { id: partID, runID: request.runID, type: partType, status: "running", data: { role, activity: "notice", title: stageTitle[role], detail: text || "正在分析…" }, createdAt: startedAt, updatedAt: now() })
+        segmentText += delta
+        await saveTextSegment("running")
       }
       await streamed.completed
       if (request.signal.aborted || streamed.cancelled) {
         if (role !== "assistant") this.options.db.upsertRunStage?.({ runID: request.runID, role, attempt: 1, status: "interrupted", model: ref, startedAt, finishedAt: now(), error: null })
-        await this.savePart(request.sessionID, { id: partID, runID: request.runID, type: partType, status: "interrupted", data: { role, activity: "notice", title: stageTitle[role], detail: cleanText(rawOutput) }, createdAt: startedAt, updatedAt: now() })
+        await saveTextSegment("interrupted", cleanText(rawOutput))
         return { status: "completed", output: cleanText(rawOutput) }
       }
       const pause = role === "planner" ? this.approval(streamed, request) : null
       if (pause) {
         await request.pause(pause)
         if (role !== "assistant") this.options.db.upsertRunStage?.({ runID: request.runID, role, attempt: 1, status: pause.kind === "clarification" ? "waiting_question" : "running", model: ref, startedAt, finishedAt: null, error: null })
-        await this.savePart(request.sessionID, { id: partID, runID: request.runID, type: partType, status: "pending", data: { role, activity: "notice", title: stageTitle[role], detail: cleanText(rawOutput), awaiting: pause.kind }, createdAt: startedAt, updatedAt: now() })
+        await saveTextSegment("pending", cleanText(rawOutput))
         await this.publish(request.sessionID, "run.stage-paused", { runID: request.runID, role, kind: pause.kind })
         return { status: "paused", output: cleanText(rawOutput) }
       }
       const finalOutput = cleanText(finalizedPlan || (typeof streamed.finalOutput === "string" ? streamed.finalOutput : rawOutput))
       if (role === "planner") {
-        await this.savePart(request.sessionID, { id: partID, runID: request.runID, type: partType, status: "completed", data: { role, activity: "notice", title: stageTitle[role], detail: "已完成工作区分析" }, createdAt: startedAt, updatedAt: now() })
+        await saveTextSegment("completed", "已完成工作区分析")
         const planTimestamp = now()
         await this.savePart(request.sessionID, { id: crypto.randomUUID(), runID: request.runID, type: "plan", status: "completed", data: { role, title: "实施计划", markdown: finalOutput, version: 1, state: "awaiting-confirmation" }, createdAt: planTimestamp, updatedAt: planTimestamp })
       } else {
-        await this.savePart(request.sessionID, { id: partID, runID: request.runID, type: partType, status: "completed", data: { role, title: stageTitle[role], text: finalOutput }, createdAt: startedAt, updatedAt: now() })
+        await saveTextSegment("completed", finalOutput)
       }
       await this.publish(request.sessionID, "run.stage-completed", { runID: request.runID, role, title: stageTitle[role], model: ref, completedAt: now() })
       if (role !== "assistant") this.options.db.upsertRunStage?.({ runID: request.runID, role, attempt: 1, status: "completed", model: ref, startedAt, finishedAt: now(), error: null })
@@ -301,7 +328,7 @@ export class AgentOrchestrator {
     } catch (cause) {
       const error = cause instanceof Error ? cause.message : String(cause)
       if (role !== "assistant") this.options.db.upsertRunStage?.({ runID: request.runID, role, attempt: 1, status: request.signal.aborted ? "interrupted" : "failed", model: ref, startedAt, finishedAt: now(), error })
-      await this.savePart(request.sessionID, { id: partID, runID: request.runID, type: partType, status: request.signal.aborted ? "interrupted" : "error", data: { role, title: stageTitle[role], text: cleanText(rawOutput), error }, createdAt: startedAt, updatedAt: now() })
+      await saveTextSegment(request.signal.aborted ? "interrupted" : "error", cleanText(rawOutput), error)
       throw cause
     }
   }

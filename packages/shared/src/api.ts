@@ -13,6 +13,7 @@ import {
   QuestionRequestSchema,
   RunSchema,
   SendStrategySchema,
+  SessionListItemSchema,
   SessionSnapshotSchema,
   TaskModeSchema,
 } from "./session"
@@ -34,6 +35,30 @@ export type CreateSessionRequest = typeof CreateSessionRequestSchema.Type
 
 export const CreateSessionResponseSchema = SessionSnapshotSchema
 export type CreateSessionResponse = typeof CreateSessionResponseSchema.Type
+
+export const ListSessionsResponseSchema = Schema.Struct({
+  sessions: Schema.Array(SessionListItemSchema),
+  nextCursor: Schema.NullOr(Schema.String),
+})
+export type ListSessionsResponse = typeof ListSessionsResponseSchema.Type
+
+export const UpdateSessionRequestSchema = Schema.Struct({
+  title: Schema.optional(Schema.NullOr(Schema.String)),
+  archived: Schema.optional(Schema.Boolean),
+})
+export type UpdateSessionRequest = typeof UpdateSessionRequestSchema.Type
+
+export const UpdateSessionResponseSchema = Schema.Struct({
+  session: SessionListItemSchema,
+})
+export type UpdateSessionResponse = typeof UpdateSessionResponseSchema.Type
+
+export const SessionMessagesResponseSchema = Schema.Struct({
+  messages: Schema.Array(MessageSchema),
+  parts: Schema.Array(PartSchema),
+  nextCursor: Schema.NullOr(Schema.String),
+})
+export type SessionMessagesResponse = typeof SessionMessagesResponseSchema.Type
 
 export const ProjectsResponseSchema = Schema.Struct({
   projects: Schema.Array(ProjectSchema),

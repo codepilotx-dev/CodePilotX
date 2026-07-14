@@ -72,6 +72,7 @@ type SqlValue = string | number | boolean | Uint8Array | null
 const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const now = () => Date.now()
+const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
 
 export class AgentDatabase {
   readonly sqlite: Database
@@ -270,10 +271,60 @@ export class AgentDatabase {
       this.sqlite.exec("ALTER TABLE sessions ADD COLUMN project_id TEXT REFERENCES projects(id) ON DELETE SET NULL")
       this.sqlite.exec("CREATE INDEX IF NOT EXISTS sessions_project_updated ON sessions(project_id, updated_at DESC)")
     }
+    this.addColumn("sessions", "archived_at", "INTEGER")
+    this.addColumn("sessions", "preview", "TEXT")
+    this.addColumn("sessions", "first_user_message", "TEXT")
+    this.addColumn("sessions", "message_count", "INTEGER NOT NULL DEFAULT 0")
+    this.addColumn("messages", "ordinal", "INTEGER")
+    this.backfillMessageOrdinals()
+    this.backfillSessionHistoryMetadata()
+    this.sqlite.exec("CREATE INDEX IF NOT EXISTS sessions_project_archive_updated ON sessions(project_id, archived_at, updated_at DESC, id DESC)")
+    this.sqlite.exec("CREATE INDEX IF NOT EXISTS messages_session_ordinal ON messages(session_id, ordinal, id)")
     this.addColumn("runs", "current_stage", "TEXT")
     this.addColumn("runs", "can_continue_from_plan", "INTEGER NOT NULL DEFAULT 0")
     this.addColumn("questions", "tool_call_id", "TEXT")
     this.addColumn("questions", "payload_version", "INTEGER NOT NULL DEFAULT 1")
+  }
+
+  private backfillMessageOrdinals() {
+    const rows = this.sqlite.query("SELECT id, session_id FROM messages WHERE ordinal IS NULL ORDER BY session_id, created_at, id").all() as Array<{ id: string; session_id: string }>
+    if (!rows.length) return
+    this.transaction(() => {
+      let currentSession: string | null = null
+      let ordinal = -1
+      for (const row of rows) {
+        if (row.session_id !== currentSession) {
+          currentSession = row.session_id
+          const max = this.sqlite.query("SELECT COALESCE(MAX(ordinal), -1) AS ordinal FROM messages WHERE session_id = ? AND ordinal IS NOT NULL").get(row.session_id) as { ordinal: number }
+          ordinal = max.ordinal
+        }
+        ordinal += 1
+        this.sqlite.query("UPDATE messages SET ordinal = ? WHERE id = ?").run(ordinal, row.id)
+      }
+    })
+  }
+
+  private backfillSessionHistoryMetadata() {
+    const rows = this.sqlite.query(`
+      SELECT s.id,
+        (SELECT COUNT(*) FROM messages AS m WHERE m.session_id = s.id) AS message_count,
+        (SELECT m.content FROM messages AS m WHERE m.session_id = s.id AND m.role = 'user' ORDER BY m.ordinal, m.created_at, m.id LIMIT 1) AS first_user_message,
+        (SELECT m.content FROM messages AS m WHERE m.session_id = s.id ORDER BY m.ordinal DESC, m.created_at DESC, m.id DESC LIMIT 1) AS preview
+      FROM sessions AS s
+      WHERE s.message_count = 0 OR s.first_user_message IS NULL OR s.preview IS NULL
+    `).all() as Array<{ id: string; message_count: number; first_user_message: string | null; preview: string | null }>
+    if (!rows.length) return
+    this.transaction(() => {
+      for (const row of rows) {
+        this.sqlite.query(`
+          UPDATE sessions
+          SET message_count = ?,
+            first_user_message = COALESCE(first_user_message, ?),
+            preview = COALESCE(preview, ?)
+          WHERE id = ?
+        `).run(row.message_count, row.first_user_message, row.preview ? previewText(row.preview) : null, row.id)
+      }
+    })
   }
 
   private columns(table: string) {
@@ -297,6 +348,27 @@ export class AgentDatabase {
 
   transaction<T>(work: () => T): T {
     return this.sqlite.transaction(work)()
+  }
+
+  private appendUserMessage(input: { id: string; sessionID: string; runID: string; content: string; createdAt: number }) {
+    const row = this.sqlite.query("SELECT COALESCE(MAX(ordinal), -1) + 1 AS ordinal FROM messages WHERE session_id = ?").get(input.sessionID) as { ordinal: number }
+    const preview = previewText(input.content)
+    this.sqlite.query(`INSERT INTO messages (id, session_id, run_id, role, content, created_at, ordinal) VALUES (?, ?, ?, 'user', ?, ?, ?)`).run(
+      input.id,
+      input.sessionID,
+      input.runID,
+      input.content,
+      input.createdAt,
+      row.ordinal,
+    )
+    this.sqlite.query(`
+      UPDATE sessions
+      SET updated_at = ?,
+        message_count = message_count + 1,
+        first_user_message = COALESCE(first_user_message, ?),
+        preview = COALESCE(?, preview)
+      WHERE id = ?
+    `).run(input.createdAt, input.content, preview, input.sessionID)
   }
 
   createSession(title = "新对话", projectID?: string) {
@@ -389,8 +461,7 @@ export class AgentDatabase {
         status === "queued" ? "queued" : "active",
         timestamp,
       )
-      this.sqlite.query(`INSERT INTO messages (id, session_id, run_id, role, content, created_at) VALUES (?, ?, ?, 'user', ?, ?)`).run(inputID, sessionID, runID, input.content, timestamp)
-      this.sqlite.query("UPDATE sessions SET updated_at = ? WHERE id = ?").run(timestamp, sessionID)
+      this.appendUserMessage({ id: inputID, sessionID, runID, content: input.content, createdAt: timestamp })
       const event = this.insertEvent(sessionID, status === "queued" ? "run.queued" : "run.started", { runID, inputID, input, createdAt: timestamp })
       return { runID, inputID, event }
     })
@@ -410,7 +481,7 @@ export class AgentDatabase {
         input.taskMode,
         timestamp,
       )
-      this.sqlite.query(`INSERT INTO messages (id, session_id, run_id, role, content, created_at) VALUES (?, ?, ?, 'user', ?, ?)`).run(id, sessionID, runID, input.content, timestamp)
+      this.appendUserMessage({ id, sessionID, runID, content: input.content, createdAt: timestamp })
       const event = this.insertEvent(sessionID, "run.guide-appended", { runID, inputID: id, input, createdAt: timestamp })
       return { inputID: id, event }
     })

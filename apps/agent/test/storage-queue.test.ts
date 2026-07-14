@@ -5,7 +5,19 @@ import { join } from "node:path"
 import { AgentDatabase } from "../src/storage/Database"
 
 const paths: string[] = []
-afterEach(async () => Promise.all(paths.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const removePath = async (path: string) => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      await rm(path, { recursive: true, force: true })
+      return
+    } catch (cause) {
+      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
+      await sleep(100)
+    }
+  }
+}
+afterEach(async () => Promise.all(paths.splice(0).map((path) => removePath(path))))
 
 describe("持久化队列", () => {
   test("严格按创建顺序取下一条 Run", async () => {

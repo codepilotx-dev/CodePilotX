@@ -12,6 +12,7 @@ import { QuestionService } from "./session/QuestionService"
 import { LLMService } from "./llm/LLMService"
 import { SessionProcessor } from "./session/SessionProcessor"
 import { SessionService } from "./session/SessionService"
+import { SessionHistoryService } from "./session/SessionHistoryService"
 import { AgentOrchestrator } from "./orchestration/AgentOrchestrator"
 import { SqliteAgentSession } from "./storage/SqliteAgentSession"
 import { createApp } from "./transport/server"
@@ -38,6 +39,7 @@ export const bootstrap = Effect.gen(function* () {
     sessionFor: (sessionID, role) => new SqliteAgentSession(db, `${sessionID}:${role}`),
   })
   const sessions = new SessionService(db, hub, catalog, adapters, llm, processor, tools, permissions, questions, orchestrator)
-  const app = createApp({ config, db, sessions, permissions, questions, catalog, credentials, logger })
+  const history = new SessionHistoryService(db, hub)
+  const app = createApp({ config, db, sessions, history, permissions, questions, catalog, credentials, logger })
   return { config, db, app, logger }
 })

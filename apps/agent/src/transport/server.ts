@@ -6,6 +6,7 @@ import type { AgentConfig } from "../config/Config"
 import { AgentError, type PermissionMode, type SendStrategy, type SubmitMessage, type TaskMode } from "../domain"
 import type { AgentDatabase } from "../storage/Database"
 import type { SessionService } from "../session/SessionService"
+import type { ListSessionMessagesParams, ListSessionsParams, SessionHistoryService } from "../session/SessionHistoryService"
 import type { PermissionService } from "../permission/PermissionService"
 import type { QuestionService } from "../session/QuestionService"
 import type { ModelCatalog } from "../provider/ModelCatalog"
@@ -19,6 +20,7 @@ export interface TransportDependencies {
   config: AgentConfig
   db: AgentDatabase
   sessions: SessionService
+  history: SessionHistoryService
   permissions: PermissionService
   questions: QuestionService
   catalog: ModelCatalog
@@ -35,6 +37,20 @@ const jsonRecord = async (request: Request) => {
 const enumValue = <T extends string>(value: unknown, allowed: readonly T[], name: string): T => {
   if (typeof value !== "string" || !allowed.includes(value as T)) throw new AgentError("INVALID_REQUEST", `${name} 参数无效`, 400)
   return value as T
+}
+
+const optionalBool = (value: string | undefined, name: string) => {
+  if (value === undefined) return undefined
+  if (value === "true" || value === "1") return true
+  if (value === "false" || value === "0") return false
+  throw new AgentError("INVALID_REQUEST", `${name} 参数无效`, 400)
+}
+
+const optionalLimit = (value: string | undefined, name: string) => {
+  if (value === undefined) return undefined
+  const limit = Number(value)
+  if (!Number.isFinite(limit)) throw new AgentError("INVALID_REQUEST", `${name} 参数无效`, 400)
+  return limit
 }
 
 const submitMessage = (body: Record<string, unknown>): SubmitMessage => {
@@ -54,7 +70,7 @@ const submitMessage = (body: Record<string, unknown>): SubmitMessage => {
 const cookieValue = (header: string | null, name: string) => header?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1)
 
 export const createApp = (dependencies: TransportDependencies) => {
-  const { config, db, sessions, permissions, questions, catalog, credentials, logger } = dependencies
+  const { config, db, sessions, history, permissions, questions, catalog, credentials, logger } = dependencies
   const app = new Hono()
   const projection = new Projection(db)
 
@@ -97,6 +113,20 @@ export const createApp = (dependencies: TransportDependencies) => {
     return context.json({ ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid, readyAt: Date.now() })
   })
 
+  app.get("/api/sessions", (context) => {
+    const params: ListSessionsParams = { sort: context.req.query("sort") === "createdAt" ? "createdAt" : "updatedAt" }
+    const projectID = context.req.query("projectID")
+    const archived = optionalBool(context.req.query("archived"), "archived")
+    const search = context.req.query("search")
+    const cursor = context.req.query("cursor")
+    const limit = optionalLimit(context.req.query("limit"), "limit")
+    if (projectID !== undefined) params.projectID = projectID
+    if (archived !== undefined) params.archived = archived
+    if (search !== undefined) params.search = search
+    if (cursor !== undefined) params.cursor = cursor
+    if (limit !== undefined) params.limit = limit
+    return context.json(history.list(params))
+  })
   app.post("/api/sessions", async (context) => {
     const body: Record<string, unknown> = await jsonRecord(context.req.raw).catch(() => ({}))
     if (typeof body.projectID !== "string" || !body.projectID) throw new AgentError("PROJECT_REQUIRED", "请先选择项目工作区", 409)
@@ -160,6 +190,26 @@ export const createApp = (dependencies: TransportDependencies) => {
   app.get("/api/sessions/:id", (context) => {
     sessions.get(context.req.param("id"))
     return context.json(projection.snapshot(context.req.param("id")))
+  })
+  app.patch("/api/sessions/:id", async (context) => {
+    const body = await jsonRecord(context.req.raw)
+    const title = body.title
+    const archived = body.archived
+    if (title !== undefined && title !== null && typeof title !== "string") throw new AgentError("INVALID_REQUEST", "title 参数无效", 400)
+    if (archived !== undefined && typeof archived !== "boolean") throw new AgentError("INVALID_REQUEST", "archived 参数无效", 400)
+    return context.json({ session: await history.patch(context.req.param("id"), { ...(title !== undefined ? { title } : {}), ...(archived !== undefined ? { archived } : {}) }) })
+  })
+  app.delete("/api/sessions/:id", async (context) => {
+    await history.remove(context.req.param("id"))
+    return context.json({ ok: true })
+  })
+  app.get("/api/sessions/:id/messages", (context) => {
+    const params: ListSessionMessagesParams = {}
+    const cursor = context.req.query("cursor")
+    const limit = optionalLimit(context.req.query("limit"), "limit")
+    if (cursor !== undefined) params.cursor = cursor
+    if (limit !== undefined) params.limit = limit
+    return context.json(history.listMessages(context.req.param("id"), params))
   })
   app.post("/api/sessions/:id/messages", async (context) => {
     const sessionID = context.req.param("id")

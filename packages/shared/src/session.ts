@@ -94,6 +94,20 @@ export const SessionSchema = Schema.Struct({
 })
 export type Session = typeof SessionSchema.Type
 
+export const SessionListItemSchema = Schema.Struct({
+  id: Schema.String,
+  projectID: Schema.NullOr(Schema.String),
+  title: Schema.String,
+  preview: Schema.NullOr(Schema.String),
+  firstUserMessage: Schema.NullOr(Schema.String),
+  messageCount: Schema.Number,
+  latestRunStatus: Schema.NullOr(RunStatusSchema),
+  archivedAt: Schema.NullOr(Schema.Number),
+  createdAt: Schema.Number,
+  updatedAt: Schema.Number,
+})
+export type SessionListItem = typeof SessionListItemSchema.Type
+
 export const RunSchema = Schema.Struct({
   id: Schema.String,
   sessionID: Schema.String,
