@@ -5,7 +5,7 @@ import type {
   Run,
   SessionEvent,
   SessionSnapshot,
-} from "@codepilotx/shared"
+} from "@codepilotx/shared/legacy"
 
 export type TimelinePartStatus = "streaming" | "completed" | "interrupted"
 export type TimelineRunStatus = Run["status"]

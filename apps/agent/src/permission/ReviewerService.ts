@@ -1,9 +1,8 @@
 import { generateText } from "ai"
-import { Effect } from "effect"
+import type { Model } from "@codepilotx/model-schema"
+import type { ProviderRuntime } from "@codepilotx/provider-runtime"
 import { AgentError, type PermissionDecision, type ToolInvocation } from "../domain"
 import type { AgentDatabase } from "../storage/Database"
-import type { ModelCatalog } from "../provider/ModelCatalog"
-import type { AdapterRegistry } from "../provider/AdapterRegistry"
 
 const extractJSON = (text: string) => {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]
@@ -11,12 +10,13 @@ const extractJSON = (text: string) => {
 }
 
 export class ReviewerService {
-  constructor(private readonly db: AgentDatabase, private readonly catalog: ModelCatalog, private readonly adapters: AdapterRegistry) {}
+  constructor(private readonly db: AgentDatabase, private readonly providers: ProviderRuntime) {}
 
   async review(invocation: ToolInvocation, signal: AbortSignal): Promise<PermissionDecision> {
-    const ref = this.db.getSetting<{ providerID: string; modelID: string }>("reviewerModel")
+    const ref = this.db.getSetting<Model.Ref>("reviewerModel")
     if (!ref) throw new AgentError("REVIEWER_NOT_CONFIGURED", "未配置独立审查模型", 409)
-    const model = await Effect.runPromise(this.adapters.resolve(this.catalog.getModel(ref.providerID, ref.modelID)))
+    await this.providers.resolve(ref)
+    const model = await this.providers.getLanguage(ref)
     const response = await generateText({
       model,
       abortSignal: signal,

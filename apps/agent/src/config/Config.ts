@@ -40,6 +40,6 @@ export const loadConfig = Effect.sync((): AgentConfig => {
     modelCachePath: resolve(dataDir, "models.cache.json"),
     rendererDir: process.env.CODEPILOTX_RENDERER_DIST ? resolve(process.env.CODEPILOTX_RENDERER_DIST) : process.env.CODEPILOTX_STATIC_DIR ? resolve(process.env.CODEPILOTX_STATIC_DIR) : process.env.CODEPILOTX_RENDERER_DIR ? resolve(process.env.CODEPILOTX_RENDERER_DIR) : null,
     rendererDevURL: process.env.CODEPILOTX_RENDERER_DEV_URL ?? process.env.CODEPILOTX_RENDERER_URL ?? null,
-    modelsDevURL: process.env.CODEPILOTX_MODELS_URL ?? "https://models.dev/api.json",
+    modelsDevURL: process.env.CODEPILOTX_MODELS_URL ?? "https://models.dev",
   }
 })

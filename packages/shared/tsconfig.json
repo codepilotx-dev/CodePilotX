@@ -4,6 +4,11 @@
     "lib": ["ES2022", "DOM"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@codepilotx/model-schema": ["../model-schema/src/index.ts"],
+      "effect": ["./node_modules/effect/dist/index.d.ts"]
+    },
     "resolveJsonModule": true,
     "strict": true,
     "skipLibCheck": true,

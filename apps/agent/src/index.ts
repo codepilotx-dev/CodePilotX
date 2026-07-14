@@ -25,6 +25,7 @@ const shutdown = async (exitCode = 0) => {
   closing = true
   runtime.logger.info("agent.stopping", { exitCode })
   await server.stop(true)
+  await runtime.providers.dispose()
   runtime.db.close()
   process.exit(exitCode)
 }

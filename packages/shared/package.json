@@ -8,12 +8,14 @@
     "./api": "./src/api.ts",
     "./events": "./src/llm-event.ts",
     "./model": "./src/model.ts",
-    "./session": "./src/session.ts"
+    "./legacy": "./src/legacy.ts",
+    "./thread": "./src/thread.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@codepilotx/model-schema": "workspace:*",
     "effect": "4.0.0-beta.83"
   },
   "devDependencies": {

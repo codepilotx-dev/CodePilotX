@@ -3,9 +3,11 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { AgentDatabase } from "../src/storage/Database"
+import { Model, Provider } from "@codepilotx/model-schema"
 
 const paths: string[] = []
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+const modelRef = (providerID: string, id: string) => Model.Ref.make({ providerID: Provider.ID.make(providerID), id: Model.ID.make(id) })
 const removePath = async (path: string) => {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     try {
@@ -20,15 +22,15 @@ const removePath = async (path: string) => {
 afterEach(async () => Promise.all(paths.splice(0).map((path) => removePath(path))))
 
 describe("持久化队列", () => {
-  test("严格按创建顺序取下一条 Run", async () => {
+  test("严格按创建顺序取下一条 Turn", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-db-"))
     paths.push(root)
     const db = new AgentDatabase(join(root, "agent.sqlite"))
-    const session = db.createSession()
-    const input = { content: "first", model: { providerID: "openai", modelID: "gpt" }, permissionMode: "review", strategy: "queue", taskMode: "chat" } as const
-    const first = db.createRun(session.id, input)
-    db.createRun(session.id, { ...input, content: "second" })
-    expect(db.nextQueuedRun(session.id)?.id).toBe(first.runID)
+    const thread = db.createThread()
+    const input = { content: "first", model: modelRef("openai", "gpt"), permissionMode: "review", strategy: "queue", taskMode: "chat" } as const
+    const first = db.createTurn(thread.id, input)
+    db.createTurn(thread.id, { ...input, content: "second" })
+    expect(db.nextQueuedTurn(thread.id)?.id).toBe(first.turnID)
     db.close()
   })
 
@@ -37,9 +39,9 @@ describe("持久化队列", () => {
     paths.push(root)
     const db = new AgentDatabase(join(root, "agent.sqlite"))
     const project = db.createProject({ rootPath: join(root, "project"), name: "测试项目" })
-    const globalModel = { providerID: "openai", modelID: "global" }
-    const defaultModel = { providerID: "openai", modelID: "project" }
-    const reviewerModel = { providerID: "anthropic", modelID: "reviewer" }
+    const globalModel = modelRef("openai", "global")
+    const defaultModel = modelRef("openai", "project")
+    const reviewerModel = modelRef("anthropic", "reviewer")
 
     db.saveProjectSettings(project.id, { defaultModel, plannerModel: null, developerModel: null, reviewerModel })
     expect(db.resolveProjectModel(project.id, "planner", globalModel)).toEqual(defaultModel)
@@ -54,17 +56,17 @@ describe("持久化队列", () => {
     paths.push(root)
     const databasePath = join(root, "agent.sqlite")
     const db = new AgentDatabase(databasePath)
-    const session = db.createSession()
-    const input = { content: "plan", model: { providerID: "openai", modelID: "gpt" }, permissionMode: "review", strategy: "queue", taskMode: "plan" } as const
-    const run = db.createRun(session.id, input)
-    db.setRunWorkflowState(run.runID, { status: "waiting_question", currentStage: "planner", canContinueFromPlan: false })
-    db.saveAgentRunCheckpoint({ runID: run.runID, sessionID: session.id, stage: "planner", state: "waiting_question", payload: { inputID: run.inputID }, version: 1 })
-    db.run("INSERT INTO questions (id, session_id, run_id, payload, status, created_at) VALUES (?, ?, ?, ?, 'pending', ?)", "question", session.id, run.runID, JSON.stringify({ question: "确认范围？" }), Date.now())
+    const thread = db.createThread()
+    const input = { content: "plan", model: modelRef("openai", "gpt"), permissionMode: "review", strategy: "queue", taskMode: "plan" } as const
+    const turn = db.createTurn(thread.id, input)
+    db.setTurnWorkflowState(turn.turnID, { status: "waiting_question", currentStage: "planner", canContinueFromPlan: false })
+    db.saveAgentTurnCheckpoint({ turnID: turn.turnID, threadID: thread.id, stage: "planner", state: "waiting_question", payload: { inputID: turn.inputID }, version: 1 })
+    db.run("INSERT INTO question_requests (id, thread_id, turn_id, payload, status, created_at) VALUES (?, ?, ?, ?, 'pending', ?)", "question", thread.id, turn.turnID, JSON.stringify({ question: "确认范围？" }), Date.now())
     db.close()
 
     const recovered = new AgentDatabase(databasePath)
-    expect(recovered.activeRun(session.id)).toMatchObject({ id: run.runID, status: "waiting_question" })
-    expect(recovered.sqlite.query("SELECT status FROM questions WHERE id = 'question'").get()).toEqual({ status: "pending" })
+    expect(recovered.activeTurn(thread.id)).toMatchObject({ id: turn.turnID, status: "waiting_question" })
+    expect(recovered.sqlite.query("SELECT status FROM question_requests WHERE id = 'question'").get()).toEqual({ status: "pending" })
     recovered.close()
   })
 })

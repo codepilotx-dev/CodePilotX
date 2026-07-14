@@ -3,8 +3,8 @@ import type { Session } from "@openai/agents"
 import type { LanguageModel } from "ai"
 import { Effect } from "effect"
 import { z } from "zod"
-import type { ModelRef, SessionPart, TaskMode } from "../domain"
-import { asAgentModel } from "../llm/LLMService"
+import type { EventEnvelope, Item, ModelRef, TaskMode } from "../domain"
+import { asAgentModel } from "../llm/AgentModelBridge"
 import type { ProposalDraft, WorkspaceService } from "../workspace/WorkspaceService"
 import { stagesForTask, type AgentRole } from "./stages"
 
@@ -24,11 +24,11 @@ export interface PendingApproval {
 }
 
 export interface OrchestrationPersistence {
-  upsertPart(sessionID: string, part: SessionPart): void
-  getPart(partID: string): SessionPart | null
-  insertEvent(sessionID: string | null, type: string, payload: unknown): { id: number; sessionID: string | null; type: string; payload: unknown; createdAt: number }
-  upsertRunStage?(stage: {
-    runID: string
+  upsertItem(threadID: string, item: Item): void
+  getItem(itemID: string): Item | null
+  insertEvent(threadId: string | null, turnId: string | null, method: string, params: unknown): EventEnvelope
+  upsertTurnStage?(stage: {
+    turnID: string
     role: Exclude<AgentRole, "assistant">
     attempt: number
     status: "pending" | "running" | "waiting_question" | "completed" | "failed" | "interrupted"
@@ -37,16 +37,16 @@ export interface OrchestrationPersistence {
     finishedAt: number | null
     error: string | null
   }): void
-  setRunWorkflowState?(runID: string, input: { status: "running" | "waiting_question"; currentStage: Exclude<AgentRole, "assistant"> | null; canContinueFromPlan: boolean }): void
+  setTurnWorkflowState?(turnID: string, input: { status: "running" | "waiting_question"; currentStage: Exclude<AgentRole, "assistant"> | null; canContinueFromPlan: boolean }): void
 }
 
 export interface OrchestrationPublisher {
-  publish(event: { id: number; sessionID: string | null; type: string; payload: unknown; createdAt: number }): Effect.Effect<unknown>
+  publish(event: EventEnvelope): Effect.Effect<unknown>
 }
 
 export interface OrchestrationRequest {
-  sessionID: string
-  runID: string
+  threadID: string
+  turnID: string
   content: string
   taskMode: TaskMode
   fallbackModel: ModelRef
@@ -63,7 +63,7 @@ export interface OrchestrationRequest {
 export interface AgentOrchestratorOptions {
   db: OrchestrationPersistence
   hub: OrchestrationPublisher
-  sessionFor?: (sessionID: string, role: AgentRole) => Session
+  sessionFor?: (threadID: string, role: AgentRole) => Session
 }
 
 type StageResult = { status: "completed"; output: string } | { status: "paused"; output: string }
@@ -119,23 +119,24 @@ export class AgentOrchestrator {
     setTracingDisabled(true)
   }
 
-  private async publish(sessionID: string, type: string, payload: unknown) {
-    const event = this.options.db.insertEvent(sessionID, type, payload)
+  private async publish(threadID: string, turnID: string, method: string, params: unknown) {
+    const event = this.options.db.insertEvent(threadID, turnID, method, params)
     await Effect.runPromise(this.options.hub.publish(event))
   }
 
-  private async savePart(sessionID: string, part: SessionPart) {
-    this.options.db.upsertPart(sessionID, part)
-    await this.publish(sessionID, "part.updated", this.options.db.getPart(part.id) ?? part)
+  private async saveItem(threadID: string, item: Item) {
+    this.options.db.upsertItem(threadID, item)
+    const method = item.status === "pending" || item.status === "running" ? "item/started" : "item/completed"
+    await this.publish(threadID, item.turnID, method, { item: this.options.db.getItem(item.id) ?? item })
   }
 
   private async recordReadActivity(request: OrchestrationRequest, role: AgentRole, title: string, detail: string, command?: ActivityCommand, onRecorded?: () => void) {
     const createdAt = now()
-    const part: SessionPart = {
-      id: crypto.randomUUID(), runID: request.runID, type: "activity", status: "completed",
+    const item: Item = {
+      id: crypto.randomUUID(), turnID: request.turnID, type: "activity", status: "completed",
       data: { role, activity: "notice", title, detail, ...(command ? { commands: [command] } : {}) }, createdAt, updatedAt: createdAt,
     }
-    await this.savePart(request.sessionID, part)
+    await this.saveItem(request.threadID, item)
     onRecorded?.()
   }
 
@@ -207,13 +208,13 @@ export class AgentOrchestrator {
       tool({ name: "propose_patch", description: "保存不执行的精确文本替换提议。", parameters: z.object({ path: z.string().min(1), before: z.string(), after: z.string() }), execute: async ({ path, before, after }) => {
         const draft = await request.workspace.proposePatch(path, before, after)
         await request.saveProposal(draft, role)
-        await this.publish(request.sessionID, "proposal.created", { runID: request.runID, role, proposal: draft })
+        await this.publish(request.threadID, request.turnID, "proposal/created", { turnId: request.turnID, role, proposal: draft })
         return { recorded: true, type: "patch", path: draft.payload.path, diff: draft.payload.diff }
       } }),
       tool({ name: "propose_command", description: "保存不执行的验证或后续操作命令提议。", parameters: z.object({ command: z.string().min(1), cwd: z.string().min(1).optional(), description: z.string().min(1) }), execute: async ({ command, cwd, description }) => {
         const draft = await request.workspace.proposeCommand(command, cwd, description)
         await request.saveProposal(draft, role)
-        await this.publish(request.sessionID, "proposal.created", { runID: request.runID, role, proposal: draft })
+        await this.publish(request.threadID, request.turnID, "proposal/created", { turnId: request.turnID, role, proposal: draft })
         return { recorded: true, type: "command", command: draft.payload.command }
       } }),
     ]
@@ -241,24 +242,24 @@ export class AgentOrchestrator {
   private async runStage(role: AgentRole, request: OrchestrationRequest, context: string): Promise<StageResult> {
     const { ref, model } = await request.resolveModel(role, request.fallbackModel)
     const startedAt = now()
-    const partType: SessionPart["type"] = role === "planner" ? "activity" : "text"
-    let textPartID = crypto.randomUUID()
+    const itemType: Item["type"] = role === "planner" ? "activity" : "text"
+    let textItemID = crypto.randomUUID()
     let segmentStartedAt = startedAt
     let segmentText = ""
     let segmentSaved = false
     let rawOutput = ""
     let finalizedPlan = ""
-    const segmentData = (text: string, error?: string) => partType === "activity"
+    const segmentData = (text: string, error?: string) => itemType === "activity"
       ? { role, activity: "notice", title: stageTitle[role], detail: text || "正在分析…", ...(error ? { error } : {}) }
       : { role, title: stageTitle[role], text, ...(error ? { error } : {}) }
-    const saveTextSegment = async (status: SessionPart["status"], fallback = "正在分析…", error?: string) => {
+    const saveTextSegment = async (status: Item["status"], fallback = "正在分析…", error?: string) => {
       const text = cleanText(segmentText) || fallback
       if (!segmentSaved && !text) return
       segmentSaved = true
-      await this.savePart(request.sessionID, {
-        id: textPartID,
-        runID: request.runID,
-        type: partType,
+      await this.saveItem(request.threadID, {
+        id: textItemID,
+        turnID: request.turnID,
+        type: itemType,
         status,
         data: segmentData(text, error),
         createdAt: segmentStartedAt,
@@ -266,16 +267,16 @@ export class AgentOrchestrator {
       })
     }
     const startNextTextSegment = () => {
-      textPartID = crypto.randomUUID()
+      textItemID = crypto.randomUUID()
       segmentStartedAt = now()
       segmentText = ""
       segmentSaved = false
     }
     if (role !== "assistant") {
-      this.options.db.setRunWorkflowState?.(request.runID, { status: "running", currentStage: role, canContinueFromPlan: false })
-      this.options.db.upsertRunStage?.({ runID: request.runID, role, attempt: 1, status: "running", model: ref, startedAt, finishedAt: null, error: null })
+      this.options.db.setTurnWorkflowState?.(request.turnID, { status: "running", currentStage: role, canContinueFromPlan: false })
+      this.options.db.upsertTurnStage?.({ turnID: request.turnID, role, attempt: 1, status: "running", model: ref, startedAt, finishedAt: null, error: null })
     }
-    await this.publish(request.sessionID, "run.stage-started", { runID: request.runID, role, title: stageTitle[role], model: ref, startedAt })
+    await this.publish(request.threadID, request.turnID, "workflow/stageStarted", { turnId: request.turnID, role, title: stageTitle[role], model: ref, startedAt })
     await saveTextSegment("running")
     const agent = new Agent({
       name: `${stageTitle[role]} Agent`, instructions: stageInstructions[role], model: asAgentModel(model), tools: this.toolsFor(role, request, (plan) => { finalizedPlan = plan }, startNextTextSegment),
@@ -291,7 +292,7 @@ export class AgentOrchestrator {
             return state
           })
         : context
-      const session = this.options.sessionFor?.(request.sessionID, role)
+      const session = this.options.sessionFor?.(request.threadID, role)
       const streamed = session
         ? await run(agent, resume, { stream: true, signal: request.signal, maxTurns: 12, session })
         : await run(agent, resume, { stream: true, signal: request.signal, maxTurns: 12 })
@@ -302,32 +303,32 @@ export class AgentOrchestrator {
       }
       await streamed.completed
       if (request.signal.aborted || streamed.cancelled) {
-        if (role !== "assistant") this.options.db.upsertRunStage?.({ runID: request.runID, role, attempt: 1, status: "interrupted", model: ref, startedAt, finishedAt: now(), error: null })
+        if (role !== "assistant") this.options.db.upsertTurnStage?.({ turnID: request.turnID, role, attempt: 1, status: "interrupted", model: ref, startedAt, finishedAt: now(), error: null })
         await saveTextSegment("interrupted", cleanText(rawOutput))
         return { status: "completed", output: cleanText(rawOutput) }
       }
       const pause = role === "planner" ? this.approval(streamed, request) : null
       if (pause) {
         await request.pause(pause)
-        if (role !== "assistant") this.options.db.upsertRunStage?.({ runID: request.runID, role, attempt: 1, status: pause.kind === "clarification" ? "waiting_question" : "running", model: ref, startedAt, finishedAt: null, error: null })
+        if (role !== "assistant") this.options.db.upsertTurnStage?.({ turnID: request.turnID, role, attempt: 1, status: pause.kind === "clarification" ? "waiting_question" : "running", model: ref, startedAt, finishedAt: null, error: null })
         await saveTextSegment("pending", cleanText(rawOutput))
-        await this.publish(request.sessionID, "run.stage-paused", { runID: request.runID, role, kind: pause.kind })
+        await this.publish(request.threadID, request.turnID, "workflow/stagePaused", { turnId: request.turnID, role, kind: pause.kind })
         return { status: "paused", output: cleanText(rawOutput) }
       }
       const finalOutput = cleanText(finalizedPlan || (typeof streamed.finalOutput === "string" ? streamed.finalOutput : rawOutput))
       if (role === "planner") {
         await saveTextSegment("completed", "已完成工作区分析")
         const planTimestamp = now()
-        await this.savePart(request.sessionID, { id: crypto.randomUUID(), runID: request.runID, type: "plan", status: "completed", data: { role, title: "实施计划", markdown: finalOutput, version: 1, state: "awaiting-confirmation" }, createdAt: planTimestamp, updatedAt: planTimestamp })
+        await this.saveItem(request.threadID, { id: crypto.randomUUID(), turnID: request.turnID, type: "plan", status: "completed", data: { role, title: "实施计划", markdown: finalOutput, version: 1, state: "awaiting-confirmation" }, createdAt: planTimestamp, updatedAt: planTimestamp })
       } else {
         await saveTextSegment("completed", finalOutput)
       }
-      await this.publish(request.sessionID, "run.stage-completed", { runID: request.runID, role, title: stageTitle[role], model: ref, completedAt: now() })
-      if (role !== "assistant") this.options.db.upsertRunStage?.({ runID: request.runID, role, attempt: 1, status: "completed", model: ref, startedAt, finishedAt: now(), error: null })
+      await this.publish(request.threadID, request.turnID, "workflow/stageCompleted", { turnId: request.turnID, role, title: stageTitle[role], model: ref, completedAt: now() })
+      if (role !== "assistant") this.options.db.upsertTurnStage?.({ turnID: request.turnID, role, attempt: 1, status: "completed", model: ref, startedAt, finishedAt: now(), error: null })
       return { status: "completed", output: finalOutput }
     } catch (cause) {
       const error = cause instanceof Error ? cause.message : String(cause)
-      if (role !== "assistant") this.options.db.upsertRunStage?.({ runID: request.runID, role, attempt: 1, status: request.signal.aborted ? "interrupted" : "failed", model: ref, startedAt, finishedAt: now(), error })
+      if (role !== "assistant") this.options.db.upsertTurnStage?.({ turnID: request.turnID, role, attempt: 1, status: request.signal.aborted ? "interrupted" : "failed", model: ref, startedAt, finishedAt: now(), error })
       await saveTextSegment(request.signal.aborted ? "interrupted" : "error", cleanText(rawOutput), error)
       throw cause
     }

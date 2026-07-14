@@ -1,133 +1,101 @@
+import { Connection, Credential, Integration, Model, Provider } from "@codepilotx/model-schema"
 import { Schema } from "effect"
-import { ModelRefSchema, ProviderInfoSchema, ProviderSettingSchema } from "./model"
-import {
-  ProjectSchema,
-  ProjectSettingsSchema,
-  ProposalSchema,
-  WorkflowStageSchema,
-  InputSchema,
-  MessageSchema,
-  PartSchema,
-  PermissionModeSchema,
-  PermissionRequestSchema,
-  QuestionRequestSchema,
-  RunSchema,
-  SendStrategySchema,
-  SessionListItemSchema,
-  SessionSnapshotSchema,
-  TaskModeSchema,
-} from "./session"
+import { CatalogProviderSchema } from "./model"
 
-export const SubmitMessageSchema = Schema.Struct({
-  content: Schema.String,
-  model: ModelRefSchema,
-  permissionMode: PermissionModeSchema,
-  strategy: SendStrategySchema,
-  taskMode: TaskModeSchema,
+export const ProviderTestRequestSchema = Schema.Struct({
+  providerID: Provider.ID,
 })
-export type SubmitMessage = typeof SubmitMessageSchema.Type
+export type ProviderTestRequest = typeof ProviderTestRequestSchema.Type
 
-export const CreateSessionRequestSchema = Schema.Struct({
-  title: Schema.optional(Schema.String),
-  projectID: Schema.optional(Schema.String),
+export const ProviderTestResponseSchema = Schema.Struct({
+  ok: Schema.Boolean,
+  message: Schema.optional(Schema.String),
 })
-export type CreateSessionRequest = typeof CreateSessionRequestSchema.Type
+export type ProviderTestResponse = typeof ProviderTestResponseSchema.Type
 
-export const CreateSessionResponseSchema = SessionSnapshotSchema
-export type CreateSessionResponse = typeof CreateSessionResponseSchema.Type
-
-export const ListSessionsResponseSchema = Schema.Struct({
-  sessions: Schema.Array(SessionListItemSchema),
-  nextCursor: Schema.NullOr(Schema.String),
-})
-export type ListSessionsResponse = typeof ListSessionsResponseSchema.Type
-
-export const UpdateSessionRequestSchema = Schema.Struct({
-  title: Schema.optional(Schema.NullOr(Schema.String)),
-  archived: Schema.optional(Schema.Boolean),
-})
-export type UpdateSessionRequest = typeof UpdateSessionRequestSchema.Type
-
-export const UpdateSessionResponseSchema = Schema.Struct({
-  session: SessionListItemSchema,
-})
-export type UpdateSessionResponse = typeof UpdateSessionResponseSchema.Type
-
-export const SessionMessagesResponseSchema = Schema.Struct({
-  messages: Schema.Array(MessageSchema),
-  parts: Schema.Array(PartSchema),
-  nextCursor: Schema.NullOr(Schema.String),
-})
-export type SessionMessagesResponse = typeof SessionMessagesResponseSchema.Type
-
-export const ProjectsResponseSchema = Schema.Struct({
-  projects: Schema.Array(ProjectSchema),
-})
-export type ProjectsResponse = typeof ProjectsResponseSchema.Type
-
-export const ProjectResponseSchema = Schema.Struct({
-  project: ProjectSchema,
-})
-export type ProjectResponse = typeof ProjectResponseSchema.Type
-
-export const CreateProjectRequestSchema = Schema.Struct({
-  rootPath: Schema.String,
-})
-export type CreateProjectRequest = typeof CreateProjectRequestSchema.Type
-
-export const UpdateProjectSettingsRequestSchema = Schema.Struct({
-  settings: ProjectSettingsSchema,
-})
-export type UpdateProjectSettingsRequest = typeof UpdateProjectSettingsRequestSchema.Type
-
-export const UpdateProposalReviewRequestSchema = Schema.Struct({
-  status: Schema.Literals(["reviewed", "rejected"]),
-})
-export type UpdateProposalReviewRequest = typeof UpdateProposalReviewRequestSchema.Type
-
-export const ProposalsResponseSchema = Schema.Struct({
-  proposals: Schema.Array(ProposalSchema),
-})
-export type ProposalsResponse = typeof ProposalsResponseSchema.Type
-
-export const SubmitMessageResponseSchema = Schema.Struct({
-  input: InputSchema,
-  run: Schema.NullOr(RunSchema),
-})
-export type SubmitMessageResponse = typeof SubmitMessageResponseSchema.Type
-
-export const PermissionReplySchema = Schema.Struct({
-  decision: Schema.Literals(["allow-once", "deny", "stop"]),
-})
-export type PermissionReply = typeof PermissionReplySchema.Type
-
-export const QuestionReplySchema = Schema.Struct({
-  answer: Schema.String,
-  ignored: Schema.optional(Schema.Boolean),
-})
-export type QuestionReply = typeof QuestionReplySchema.Type
-
-export const PlanDecisionSchema = Schema.Struct({
-  decision: Schema.Literals(["continue", "reject"]),
-})
-export type PlanDecision = typeof PlanDecisionSchema.Type
-
-export const ProviderCredentialRequestSchema = Schema.Struct({
-  apiKey: Schema.String,
-})
-export type ProviderCredentialRequest = typeof ProviderCredentialRequestSchema.Type
-
-export const UpsertProviderRequestSchema = Schema.Struct({
-  setting: ProviderSettingSchema,
-})
-export type UpsertProviderRequest = typeof UpsertProviderRequestSchema.Type
+export const UpdateProviderSettingsRequestSchema = CatalogProviderSchema
+export type UpdateProviderSettingsRequest = typeof UpdateProviderSettingsRequestSchema.Type
 
 export const ProvidersResponseSchema = Schema.Struct({
-  providers: Schema.Array(ProviderInfoSchema),
-  defaultModel: Schema.NullOr(ModelRefSchema),
-  reviewerModel: Schema.NullOr(ModelRefSchema),
+  providers: Schema.Array(CatalogProviderSchema),
+  defaultModel: Schema.NullOr(Model.Ref),
+  reviewerModel: Schema.NullOr(Model.Ref),
 })
 export type ProvidersResponse = typeof ProvidersResponseSchema.Type
+
+export const IntegrationListResponseSchema = Schema.Struct({
+  integrations: Schema.Array(Integration.Info),
+})
+export type IntegrationListResponse = typeof IntegrationListResponseSchema.Type
+
+export const IntegrationConnectRequestSchema = Schema.Struct({
+  integrationID: Integration.ID,
+  key: Schema.String,
+  label: Schema.optional(Schema.String),
+})
+export type IntegrationConnectRequest = typeof IntegrationConnectRequestSchema.Type
+
+export const IntegrationAuthorizeRequestSchema = Schema.Struct({
+  integrationID: Integration.ID,
+  methodID: Integration.MethodID,
+  inputs: Integration.Inputs,
+  label: Schema.optional(Schema.String),
+})
+export type IntegrationAuthorizeRequest = typeof IntegrationAuthorizeRequestSchema.Type
+
+export const IntegrationAuthorizeResponseSchema = Schema.Struct({
+  attempt: Integration.Attempt,
+})
+export type IntegrationAuthorizeResponse = typeof IntegrationAuthorizeResponseSchema.Type
+
+export const IntegrationAuthorizeCompleteRequestSchema = Schema.Struct({
+  attemptID: Integration.AttemptID,
+  code: Schema.optional(Schema.String),
+})
+export type IntegrationAuthorizeCompleteRequest = typeof IntegrationAuthorizeCompleteRequestSchema.Type
+
+export const IntegrationAuthorizeStatusRequestSchema = Schema.Struct({
+  attemptID: Integration.AttemptID,
+})
+export type IntegrationAuthorizeStatusRequest = typeof IntegrationAuthorizeStatusRequestSchema.Type
+
+export const IntegrationAuthorizeStatusResponseSchema = Schema.Struct({
+  status: Integration.AttemptStatus,
+})
+export type IntegrationAuthorizeStatusResponse = typeof IntegrationAuthorizeStatusResponseSchema.Type
+
+export const IntegrationDisconnectRequestSchema = Schema.Struct({
+  integrationID: Integration.ID,
+  credentialID: Credential.ID,
+})
+export type IntegrationDisconnectRequest = typeof IntegrationDisconnectRequestSchema.Type
+
+export const OkResponseSchema = Schema.Struct({ ok: Schema.Literal(true) })
+export type OkResponse = typeof OkResponseSchema.Type
+
+export const CatalogUpdatedNotificationSchema = ProvidersResponseSchema
+export type CatalogUpdatedNotification = typeof CatalogUpdatedNotificationSchema.Type
+
+export const IntegrationUpdatedNotificationSchema = Schema.Struct({
+  integration: Integration.Info,
+})
+export type IntegrationUpdatedNotification = typeof IntegrationUpdatedNotificationSchema.Type
+
+export const IntegrationAuthorizationCompletedNotificationSchema = Schema.Struct({
+  attemptID: Integration.AttemptID,
+  integrationID: Integration.ID,
+  connection: Connection.Info,
+})
+export type IntegrationAuthorizationCompletedNotification =
+  typeof IntegrationAuthorizationCompletedNotificationSchema.Type
+
+export const IntegrationAuthorizationFailedNotificationSchema = Schema.Struct({
+  attemptID: Integration.AttemptID,
+  integrationID: Integration.ID,
+  message: Schema.String,
+})
+export type IntegrationAuthorizationFailedNotification =
+  typeof IntegrationAuthorizationFailedNotificationSchema.Type
 
 export const ApiErrorSchema = Schema.Struct({
   error: Schema.Struct({
@@ -138,43 +106,3 @@ export const ApiErrorSchema = Schema.Struct({
   }),
 })
 export type ApiError = typeof ApiErrorSchema.Type
-
-export const HealthResponseSchema = Schema.Struct({
-  ok: Schema.Literal(true),
-  service: Schema.Literal("codepilotx-agent"),
-  version: Schema.String,
-  pid: Schema.Number,
-})
-export type HealthResponse = typeof HealthResponseSchema.Type
-
-export const SessionEventSchema = Schema.Union([
-  Schema.Struct({ type: Schema.Literal("session.snapshot"), snapshot: SessionSnapshotSchema }),
-  Schema.Struct({ type: Schema.Literal("run.updated"), run: RunSchema }),
-  Schema.Struct({ type: Schema.Literal("input.updated"), input: InputSchema }),
-  Schema.Struct({ type: Schema.Literal("message.upserted"), message: MessageSchema }),
-  Schema.Struct({ type: Schema.Literal("part.upserted"), part: PartSchema }),
-  Schema.Struct({
-    type: Schema.Literal("permission.updated"),
-    permission: PermissionRequestSchema,
-  }),
-  Schema.Struct({ type: Schema.Literal("workflow.stages-updated"), runID: Schema.String, stages: Schema.Array(WorkflowStageSchema) }),
-  Schema.Struct({
-    type: Schema.Literal("question.updated"),
-    question: QuestionRequestSchema,
-  }),
-  Schema.Struct({ type: Schema.Literal("queue.updated"), runIDs: Schema.Array(Schema.String) }),
-  Schema.Struct({ type: Schema.Literal("heartbeat"), at: Schema.Number }),
-])
-export type SessionEvent = typeof SessionEventSchema.Type
-
-export const EventEnvelopeSchema = Schema.Struct({
-  id: Schema.Number,
-  sessionID: Schema.String,
-  runID: Schema.NullOr(Schema.String),
-  event: SessionEventSchema,
-  createdAt: Schema.Number,
-})
-export type EventEnvelope = typeof EventEnvelopeSchema.Type
-
-export const ServerEventSchema = EventEnvelopeSchema
-export type ServerEvent = typeof ServerEventSchema.Type

@@ -1,4 +1,6 @@
 export * from "./api"
 export * from "./llm-event"
 export * from "./model"
-export * from "./session"
+export * from "./thread"
+export * as AgentThread from "./thread"
+export * as Legacy from "./legacy"

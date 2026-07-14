@@ -1,17 +1,17 @@
 import { Database } from "bun:sqlite"
-import { mkdirSync } from "node:fs"
-import { basename, dirname, resolve } from "node:path"
+import { existsSync, mkdirSync, renameSync } from "node:fs"
+import { basename, dirname, extname, resolve } from "node:path"
 import { Effect } from "effect"
 import type {
   EventEnvelope,
+  Item,
   ModelRef,
   PermissionMode,
-  RunStatus,
   SendStrategy,
-  SessionPart,
-  SessionSnapshot,
   SubmitMessage,
   TaskMode,
+  ThreadSnapshot,
+  TurnStatus,
   WorkflowStage,
 } from "../domain"
 
@@ -20,6 +20,18 @@ export type ProjectModelSettings = {
   plannerModel: ModelRef | null
   developerModel: ModelRef | null
   reviewerModel: ModelRef | null
+}
+
+export type StoredEncryptedCredential = {
+  id: string
+  integrationID: string
+  methodID: string | null
+  label: string
+  ciphertext: string
+  nonce: string
+  keyVersion: number
+  createdAt: number
+  updatedAt: number
 }
 
 export type StoredProject = {
@@ -34,7 +46,7 @@ export type StoredProject = {
 
 export type StoredProposal = {
   id: string
-  runID: string
+  turnID: string
   projectID: string
   role: "planner" | "developer" | "reviewer"
   kind: "patch" | "command"
@@ -46,9 +58,9 @@ export type StoredProposal = {
   updatedAt: number
 }
 
-export type AgentRunCheckpoint = {
-  runID: string
-  sessionID: string
+export type AgentTurnCheckpoint = {
+  turnID: string
+  threadID: string
   stage: "planner" | "developer" | "reviewer" | null
   state: "waiting_question" | "waiting_plan_confirmation" | "ready"
   payload: Record<string, unknown>
@@ -59,8 +71,8 @@ export type AgentRunCheckpoint = {
 
 export type ResumableQuestion = {
   id: string
-  sessionID: string
-  runID: string
+  threadID: string
+  turnID: string
   toolCallID: string | null
   payload: Record<string, unknown>
   payloadVersion: number
@@ -73,18 +85,45 @@ const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const now = () => Date.now()
 const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
+export const SCHEMA_VERSION = 2
+
+const legacyBackupPath = (path: string) => {
+  const extension = extname(path) || ".sqlite"
+  const stem = extension ? path.slice(0, -extension.length) : path
+  return `${stem}.legacy-v1-${new Date().toISOString().replace(/[:.]/g, "-")}${extension}`
+}
+
+const prepareDatabase = (path: string) => {
+  if (!existsSync(path)) return
+  const probe = new Database(path, { create: false, strict: true })
+  let legacy = false
+  try {
+    const tables = new Set((probe.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>).map((row) => row.name))
+    legacy = ["sessions", "runs", "parts"].some((name) => tables.has(name))
+    if (legacy) probe.exec("PRAGMA wal_checkpoint(TRUNCATE)")
+  } finally {
+    probe.close()
+  }
+  if (!legacy) return
+  const backup = legacyBackupPath(path)
+  renameSync(path, backup)
+  for (const suffix of ["-wal", "-shm"]) {
+    if (existsSync(`${path}${suffix}`)) renameSync(`${path}${suffix}`, `${backup}${suffix}`)
+  }
+}
 
 export class AgentDatabase {
   readonly sqlite: Database
 
   constructor(path: string) {
     mkdirSync(dirname(path), { recursive: true })
+    prepareDatabase(path)
     this.sqlite = new Database(path, { create: true, strict: true })
     this.sqlite.exec("PRAGMA journal_mode = WAL")
     this.sqlite.exec("PRAGMA foreign_keys = ON")
     this.sqlite.exec("PRAGMA busy_timeout = 5000")
     this.migrate()
-    this.recoverInterruptedRuns()
+    this.recoverInterruptedTurns()
   }
 
   close() {
@@ -92,16 +131,33 @@ export class AgentDatabase {
   }
 
   private migrate() {
+    const legacyViews = [
+      "sessions",
+      "runs",
+      "inputs_legacy",
+      "messages_legacy",
+      "parts",
+      "permission_requests",
+      "questions",
+      "run_stages",
+      "agent_run_checkpoints",
+      "agent_session_items",
+    ]
+    const existingViews = new Set((this.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'view'").all() as Array<{ name: string }>).map((row) => row.name))
+    for (const name of legacyViews) {
+      if (existingViews.has(name)) this.sqlite.exec(`DROP VIEW "${name}"`)
+    }
+    this.sqlite.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
     this.sqlite.exec(`
-      CREATE TABLE IF NOT EXISTS sessions (
+      CREATE TABLE IF NOT EXISTS threads (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       );
-      CREATE TABLE IF NOT EXISTS runs (
+      CREATE TABLE IF NOT EXISTS turns (
         id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
         status TEXT NOT NULL,
         mode TEXT NOT NULL,
         permission_mode TEXT NOT NULL,
@@ -112,11 +168,11 @@ export class AgentDatabase {
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS runs_session_status ON runs(session_id, status, created_at);
+      CREATE INDEX IF NOT EXISTS turns_thread_status ON turns(thread_id, status, created_at);
       CREATE TABLE IF NOT EXISTS inputs (
         id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-        run_id TEXT REFERENCES runs(id) ON DELETE SET NULL,
+        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+        turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,
         content TEXT NOT NULL,
         model_ref TEXT NOT NULL,
         permission_mode TEXT NOT NULL,
@@ -127,27 +183,27 @@ export class AgentDatabase {
       );
       CREATE TABLE IF NOT EXISTS messages (
         id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-        run_id TEXT REFERENCES runs(id) ON DELETE SET NULL,
+        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+        turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,
         role TEXT NOT NULL,
         content TEXT NOT NULL,
         created_at INTEGER NOT NULL
       );
-      CREATE TABLE IF NOT EXISTS parts (
+      CREATE TABLE IF NOT EXISTS items (
         id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-        run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
         type TEXT NOT NULL,
         status TEXT NOT NULL,
         data TEXT NOT NULL,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS parts_run_created ON parts(run_id, created_at);
+      CREATE INDEX IF NOT EXISTS items_turn_created ON items(turn_id, created_at);
       CREATE TABLE IF NOT EXISTS tool_calls (
         id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL,
-        run_id TEXT NOT NULL,
+        thread_id TEXT NOT NULL,
+        turn_id TEXT NOT NULL,
         tool_name TEXT NOT NULL,
         input TEXT NOT NULL,
         output TEXT,
@@ -156,10 +212,10 @@ export class AgentDatabase {
         finished_at INTEGER,
         error TEXT
       );
-      CREATE TABLE IF NOT EXISTS permission_requests (
+      CREATE TABLE IF NOT EXISTS approval_requests (
         id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL,
-        run_id TEXT NOT NULL,
+        thread_id TEXT NOT NULL,
+        turn_id TEXT NOT NULL,
         tool_call_id TEXT NOT NULL,
         risk TEXT NOT NULL,
         reason TEXT NOT NULL,
@@ -168,10 +224,10 @@ export class AgentDatabase {
         created_at INTEGER NOT NULL,
         resolved_at INTEGER
       );
-      CREATE TABLE IF NOT EXISTS questions (
+      CREATE TABLE IF NOT EXISTS question_requests (
         id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL,
-        run_id TEXT NOT NULL,
+        thread_id TEXT NOT NULL,
+        turn_id TEXT NOT NULL,
         payload TEXT NOT NULL,
         status TEXT NOT NULL,
         answer TEXT,
@@ -180,8 +236,8 @@ export class AgentDatabase {
       );
       CREATE TABLE IF NOT EXISTS patches (
         id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL,
-        run_id TEXT NOT NULL,
+        thread_id TEXT NOT NULL,
+        turn_id TEXT NOT NULL,
         files TEXT NOT NULL,
         additions INTEGER NOT NULL DEFAULT 0,
         deletions INTEGER NOT NULL DEFAULT 0,
@@ -189,17 +245,30 @@ export class AgentDatabase {
       );
       CREATE TABLE IF NOT EXISTS events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id TEXT,
-        type TEXT NOT NULL,
-        payload TEXT NOT NULL,
+        thread_id TEXT,
+        turn_id TEXT,
+        method TEXT NOT NULL,
+        params TEXT NOT NULL,
         created_at INTEGER NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS events_session_id ON events(session_id, id);
+      CREATE INDEX IF NOT EXISTS events_thread_id ON events(thread_id, id);
       CREATE TABLE IF NOT EXISTS provider_settings (
         provider_id TEXT PRIMARY KEY,
         payload TEXT NOT NULL,
         updated_at INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS credentials (
+        id TEXT PRIMARY KEY,
+        integration_id TEXT NOT NULL UNIQUE,
+        method_id TEXT,
+        label TEXT NOT NULL,
+        ciphertext TEXT NOT NULL,
+        nonce TEXT NOT NULL,
+        key_version INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS credentials_integration ON credentials(integration_id);
       CREATE TABLE IF NOT EXISTS app_settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
@@ -225,7 +294,7 @@ export class AgentDatabase {
       CREATE TABLE IF NOT EXISTS proposals (
         id TEXT PRIMARY KEY,
         project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-        run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
         role TEXT NOT NULL,
         kind TEXT NOT NULL,
         title TEXT NOT NULL,
@@ -235,9 +304,9 @@ export class AgentDatabase {
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS proposals_run_created ON proposals(run_id, created_at);
-      CREATE TABLE IF NOT EXISTS run_stages (
-        run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+      CREATE INDEX IF NOT EXISTS proposals_turn_created ON proposals(turn_id, created_at);
+      CREATE TABLE IF NOT EXISTS turn_stages (
+        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
         role TEXT NOT NULL,
         attempt INTEGER NOT NULL,
         status TEXT NOT NULL,
@@ -245,12 +314,12 @@ export class AgentDatabase {
         started_at INTEGER,
         finished_at INTEGER,
         error TEXT,
-        PRIMARY KEY (run_id, role, attempt)
+        PRIMARY KEY (turn_id, role, attempt)
       );
-      CREATE INDEX IF NOT EXISTS run_stages_run_role ON run_stages(run_id, role, attempt DESC);
-      CREATE TABLE IF NOT EXISTS agent_run_checkpoints (
-        run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
-        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      CREATE INDEX IF NOT EXISTS turn_stages_turn_role ON turn_stages(turn_id, role, attempt DESC);
+      CREATE TABLE IF NOT EXISTS agent_turn_checkpoints (
+        turn_id TEXT PRIMARY KEY REFERENCES turns(id) ON DELETE CASCADE,
+        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
         stage TEXT,
         state TEXT NOT NULL,
         payload TEXT NOT NULL,
@@ -258,44 +327,45 @@ export class AgentDatabase {
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS agent_run_checkpoints_session ON agent_run_checkpoints(session_id, updated_at DESC);
-      CREATE TABLE IF NOT EXISTS agent_session_items (
-        session_id TEXT NOT NULL,
+      CREATE INDEX IF NOT EXISTS agent_turn_checkpoints_thread ON agent_turn_checkpoints(thread_id, updated_at DESC);
+      CREATE TABLE IF NOT EXISTS agent_thread_items (
+        thread_id TEXT NOT NULL,
         ordinal INTEGER NOT NULL,
         payload TEXT NOT NULL,
         created_at INTEGER NOT NULL,
-        PRIMARY KEY (session_id, ordinal)
+        PRIMARY KEY (thread_id, ordinal)
       );
     `)
-    if (!this.columns("sessions").includes("project_id")) {
-      this.sqlite.exec("ALTER TABLE sessions ADD COLUMN project_id TEXT REFERENCES projects(id) ON DELETE SET NULL")
-      this.sqlite.exec("CREATE INDEX IF NOT EXISTS sessions_project_updated ON sessions(project_id, updated_at DESC)")
+    if (!this.columns("threads").includes("project_id")) {
+      this.sqlite.exec("ALTER TABLE threads ADD COLUMN project_id TEXT REFERENCES projects(id) ON DELETE SET NULL")
+      this.sqlite.exec("CREATE INDEX IF NOT EXISTS threads_project_updated ON threads(project_id, updated_at DESC)")
     }
-    this.addColumn("sessions", "archived_at", "INTEGER")
-    this.addColumn("sessions", "preview", "TEXT")
-    this.addColumn("sessions", "first_user_message", "TEXT")
-    this.addColumn("sessions", "message_count", "INTEGER NOT NULL DEFAULT 0")
+    this.addColumn("threads", "archived_at", "INTEGER")
+    this.addColumn("threads", "preview", "TEXT")
+    this.addColumn("threads", "first_user_message", "TEXT")
+    this.addColumn("threads", "message_count", "INTEGER NOT NULL DEFAULT 0")
     this.addColumn("messages", "ordinal", "INTEGER")
     this.backfillMessageOrdinals()
-    this.backfillSessionHistoryMetadata()
-    this.sqlite.exec("CREATE INDEX IF NOT EXISTS sessions_project_archive_updated ON sessions(project_id, archived_at, updated_at DESC, id DESC)")
-    this.sqlite.exec("CREATE INDEX IF NOT EXISTS messages_session_ordinal ON messages(session_id, ordinal, id)")
-    this.addColumn("runs", "current_stage", "TEXT")
-    this.addColumn("runs", "can_continue_from_plan", "INTEGER NOT NULL DEFAULT 0")
-    this.addColumn("questions", "tool_call_id", "TEXT")
-    this.addColumn("questions", "payload_version", "INTEGER NOT NULL DEFAULT 1")
+    this.backfillThreadHistoryMetadata()
+    this.sqlite.exec("CREATE INDEX IF NOT EXISTS threads_project_archive_updated ON threads(project_id, archived_at, updated_at DESC, id DESC)")
+    this.sqlite.exec("CREATE INDEX IF NOT EXISTS messages_session_ordinal ON messages(thread_id, ordinal, id)")
+    this.addColumn("turns", "current_stage", "TEXT")
+    this.addColumn("turns", "can_continue_from_plan", "INTEGER NOT NULL DEFAULT 0")
+    this.addColumn("question_requests", "tool_call_id", "TEXT")
+    this.addColumn("question_requests", "payload_version", "INTEGER NOT NULL DEFAULT 1")
+    this.addColumn("events", "turn_id", "TEXT")
   }
 
   private backfillMessageOrdinals() {
-    const rows = this.sqlite.query("SELECT id, session_id FROM messages WHERE ordinal IS NULL ORDER BY session_id, created_at, id").all() as Array<{ id: string; session_id: string }>
+    const rows = this.sqlite.query("SELECT id, thread_id FROM messages WHERE ordinal IS NULL ORDER BY thread_id, created_at, id").all() as Array<{ id: string; thread_id: string }>
     if (!rows.length) return
     this.transaction(() => {
-      let currentSession: string | null = null
+      let currentThread: string | null = null
       let ordinal = -1
       for (const row of rows) {
-        if (row.session_id !== currentSession) {
-          currentSession = row.session_id
-          const max = this.sqlite.query("SELECT COALESCE(MAX(ordinal), -1) AS ordinal FROM messages WHERE session_id = ? AND ordinal IS NOT NULL").get(row.session_id) as { ordinal: number }
+        if (row.thread_id !== currentThread) {
+          currentThread = row.thread_id
+          const max = this.sqlite.query("SELECT COALESCE(MAX(ordinal), -1) AS ordinal FROM messages WHERE thread_id = ? AND ordinal IS NOT NULL").get(row.thread_id) as { ordinal: number }
           ordinal = max.ordinal
         }
         ordinal += 1
@@ -304,20 +374,20 @@ export class AgentDatabase {
     })
   }
 
-  private backfillSessionHistoryMetadata() {
+  private backfillThreadHistoryMetadata() {
     const rows = this.sqlite.query(`
       SELECT s.id,
-        (SELECT COUNT(*) FROM messages AS m WHERE m.session_id = s.id) AS message_count,
-        (SELECT m.content FROM messages AS m WHERE m.session_id = s.id AND m.role = 'user' ORDER BY m.ordinal, m.created_at, m.id LIMIT 1) AS first_user_message,
-        (SELECT m.content FROM messages AS m WHERE m.session_id = s.id ORDER BY m.ordinal DESC, m.created_at DESC, m.id DESC LIMIT 1) AS preview
-      FROM sessions AS s
+        (SELECT COUNT(*) FROM messages AS m WHERE m.thread_id = s.id) AS message_count,
+        (SELECT m.content FROM messages AS m WHERE m.thread_id = s.id AND m.role = 'user' ORDER BY m.ordinal, m.created_at, m.id LIMIT 1) AS first_user_message,
+        (SELECT m.content FROM messages AS m WHERE m.thread_id = s.id ORDER BY m.ordinal DESC, m.created_at DESC, m.id DESC LIMIT 1) AS preview
+      FROM threads AS s
       WHERE s.message_count = 0 OR s.first_user_message IS NULL OR s.preview IS NULL
     `).all() as Array<{ id: string; message_count: number; first_user_message: string | null; preview: string | null }>
     if (!rows.length) return
     this.transaction(() => {
       for (const row of rows) {
         this.sqlite.query(`
-          UPDATE sessions
+          UPDATE threads
           SET message_count = ?,
             first_user_message = COALESCE(first_user_message, ?),
             preview = COALESCE(preview, ?)
@@ -335,14 +405,14 @@ export class AgentDatabase {
     if (!this.columns(table).includes(column)) this.sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`)
   }
 
-  private recoverInterruptedRuns() {
+  private recoverInterruptedTurns() {
     const timestamp = now()
     this.sqlite.transaction(() => {
-      this.sqlite.query(`UPDATE runs SET status = 'interrupted', finished_at = ?, updated_at = ? WHERE status IN ('running', 'waiting_permission') OR (status = 'waiting_question' AND NOT EXISTS (SELECT 1 FROM questions AS q LEFT JOIN agent_run_checkpoints AS c ON c.run_id = q.run_id AND c.state = 'waiting_question' WHERE q.run_id = runs.id AND q.status = 'pending' AND (c.run_id IS NOT NULL OR json_extract(q.payload, '$.checkpoint.state') IS NOT NULL)))`).run(timestamp, timestamp)
-      this.sqlite.query(`UPDATE run_stages SET status = 'interrupted', finished_at = ? WHERE status = 'running' AND run_id IN (SELECT id FROM runs WHERE status = 'interrupted')`).run(timestamp)
-      this.sqlite.query(`UPDATE parts SET status = 'interrupted', updated_at = ? WHERE status IN ('pending', 'running') AND NOT (type = 'question' AND id IN (SELECT id FROM questions WHERE status = 'pending' AND (json_extract(payload, '$.checkpoint.state') IS NOT NULL OR run_id IN (SELECT run_id FROM agent_run_checkpoints WHERE state = 'waiting_question'))))`).run(timestamp)
-      this.sqlite.query(`UPDATE permission_requests SET status = 'cancelled', resolved_at = ? WHERE status = 'pending'`).run(timestamp)
-      this.sqlite.query(`UPDATE questions SET status = 'cancelled', resolved_at = ? WHERE status = 'pending' AND run_id IN (SELECT id FROM runs WHERE status <> 'waiting_question')`).run(timestamp)
+      this.sqlite.query(`UPDATE turns SET status = 'interrupted', finished_at = ?, updated_at = ? WHERE status IN ('running', 'waiting_permission') OR (status = 'waiting_question' AND NOT EXISTS (SELECT 1 FROM question_requests AS q LEFT JOIN agent_turn_checkpoints AS c ON c.turn_id = q.turn_id AND c.state = 'waiting_question' WHERE q.turn_id = turns.id AND q.status = 'pending' AND (c.turn_id IS NOT NULL OR json_extract(q.payload, '$.checkpoint.state') IS NOT NULL)))`).run(timestamp, timestamp)
+      this.sqlite.query(`UPDATE turn_stages SET status = 'interrupted', finished_at = ? WHERE status = 'running' AND turn_id IN (SELECT id FROM turns WHERE status = 'interrupted')`).run(timestamp)
+      this.sqlite.query(`UPDATE items SET status = 'interrupted', updated_at = ? WHERE status IN ('pending', 'running') AND NOT (type = 'question' AND id IN (SELECT id FROM question_requests WHERE status = 'pending' AND (json_extract(payload, '$.checkpoint.state') IS NOT NULL OR turn_id IN (SELECT turn_id FROM agent_turn_checkpoints WHERE state = 'waiting_question'))))`).run(timestamp)
+      this.sqlite.query(`UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE status = 'pending'`).run(timestamp)
+      this.sqlite.query(`UPDATE question_requests SET status = 'cancelled', resolved_at = ? WHERE status = 'pending' AND turn_id IN (SELECT id FROM turns WHERE status <> 'waiting_question')`).run(timestamp)
     })()
   }
 
@@ -350,97 +420,97 @@ export class AgentDatabase {
     return this.sqlite.transaction(work)()
   }
 
-  private appendUserMessage(input: { id: string; sessionID: string; runID: string; content: string; createdAt: number }) {
-    const row = this.sqlite.query("SELECT COALESCE(MAX(ordinal), -1) + 1 AS ordinal FROM messages WHERE session_id = ?").get(input.sessionID) as { ordinal: number }
+  private appendUserMessage(input: { id: string; threadID: string; turnID: string; content: string; createdAt: number }) {
+    const row = this.sqlite.query("SELECT COALESCE(MAX(ordinal), -1) + 1 AS ordinal FROM messages WHERE thread_id = ?").get(input.threadID) as { ordinal: number }
     const preview = previewText(input.content)
-    this.sqlite.query(`INSERT INTO messages (id, session_id, run_id, role, content, created_at, ordinal) VALUES (?, ?, ?, 'user', ?, ?, ?)`).run(
+    this.sqlite.query(`INSERT INTO messages (id, thread_id, turn_id, role, content, created_at, ordinal) VALUES (?, ?, ?, 'user', ?, ?, ?)`).run(
       input.id,
-      input.sessionID,
-      input.runID,
+      input.threadID,
+      input.turnID,
       input.content,
       input.createdAt,
       row.ordinal,
     )
     this.sqlite.query(`
-      UPDATE sessions
+      UPDATE threads
       SET updated_at = ?,
         message_count = message_count + 1,
         first_user_message = COALESCE(first_user_message, ?),
         preview = COALESCE(?, preview)
       WHERE id = ?
-    `).run(input.createdAt, input.content, preview, input.sessionID)
+    `).run(input.createdAt, input.content, preview, input.threadID)
   }
 
-  createSession(title = "新对话", projectID?: string) {
+  createThread(title = "新对话", projectID?: string) {
     const id = crypto.randomUUID()
     const timestamp = now()
     return this.transaction(() => {
       if (projectID) this.requireProject(projectID)
-      this.sqlite.query("INSERT INTO sessions (id, title, project_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run(id, title, projectID ?? null, timestamp, timestamp)
-      const event = this.insertEvent(id, "session.created", { id, title, projectID: projectID ?? null, createdAt: timestamp, updatedAt: timestamp })
+      this.sqlite.query("INSERT INTO threads (id, title, project_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run(id, title, projectID ?? null, timestamp, timestamp)
+      const event = this.insertEvent(id, null, "thread/created", { id, title, projectID: projectID ?? null, createdAt: timestamp, updatedAt: timestamp })
       return { id, title, projectID: projectID ?? null, createdAt: timestamp, updatedAt: timestamp, event }
     })
   }
 
-  getSession(sessionID: string): SessionSnapshot | null {
-    const session = this.sqlite.query("SELECT id, title, created_at, updated_at FROM sessions WHERE id = ?").get(sessionID) as
+  getThread(threadID: string): ThreadSnapshot | null {
+    const thread = this.sqlite.query("SELECT id, title, created_at, updated_at FROM threads WHERE id = ?").get(threadID) as
       | { id: string; title: string; created_at: number; updated_at: number }
       | null
-    if (!session) return null
-    const runs = this.sqlite.query("SELECT id, status, mode, started_at, finished_at FROM runs WHERE session_id = ? ORDER BY created_at").all(sessionID) as Array<{
+    if (!thread) return null
+    const turns = this.sqlite.query("SELECT id, status, mode, started_at, finished_at FROM turns WHERE thread_id = ? ORDER BY created_at").all(threadID) as Array<{
       id: string
-      status: RunStatus
+      status: TurnStatus
       mode: TaskMode
       started_at: number | null
       finished_at: number | null
     }>
-    const parts = this.sqlite.query("SELECT id, run_id, type, status, data, created_at, updated_at FROM parts WHERE session_id = ? ORDER BY created_at").all(sessionID) as Array<{
+    const items = this.sqlite.query("SELECT id, turn_id, type, status, data, created_at, updated_at FROM items WHERE thread_id = ? ORDER BY created_at").all(threadID) as Array<{
       id: string
-      run_id: string
-      type: SessionPart["type"]
-      status: SessionPart["status"]
+      turn_id: string
+      type: Item["type"]
+      status: Item["status"]
       data: string
       created_at: number
       updated_at: number
     }>
     return {
-      id: session.id,
-      title: session.title,
-      createdAt: session.created_at,
-      updatedAt: session.updated_at,
-      runs: runs.map((run) => ({
-        id: run.id,
-        status: run.status,
-        mode: run.mode,
-        startedAt: run.started_at,
-        finishedAt: run.finished_at,
-        parts: parts.filter((part) => part.run_id === run.id).map((part) => ({
-          id: part.id,
-          runID: part.run_id,
-          type: part.type,
-          status: part.status,
-          data: parse<Record<string, unknown>>(part.data),
-          createdAt: part.created_at,
-          updatedAt: part.updated_at,
+      id: thread.id,
+      title: thread.title,
+      createdAt: thread.created_at,
+      updatedAt: thread.updated_at,
+      turns: turns.map((turn) => ({
+        id: turn.id,
+        status: turn.status,
+        mode: turn.mode,
+        startedAt: turn.started_at,
+        finishedAt: turn.finished_at,
+        items: items.filter((item) => item.turn_id === turn.id).map((item) => ({
+          id: item.id,
+          turnID: item.turn_id,
+          type: item.type,
+          status: item.status,
+          data: parse<Record<string, unknown>>(item.data),
+          createdAt: item.created_at,
+          updatedAt: item.updated_at,
         })),
       })),
     }
   }
 
-  activeRun(sessionID: string) {
-    return this.sqlite.query(`SELECT id, status, mode, permission_mode, model_ref FROM runs WHERE session_id = ? AND status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_plan_confirmation') ORDER BY created_at DESC LIMIT 1`).get(sessionID) as
-      | { id: string; status: RunStatus; mode: TaskMode; permission_mode: PermissionMode; model_ref: string }
+  activeTurn(threadID: string) {
+    return this.sqlite.query(`SELECT id, status, mode, permission_mode, model_ref FROM turns WHERE thread_id = ? AND status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_plan_confirmation') ORDER BY created_at DESC LIMIT 1`).get(threadID) as
+      | { id: string; status: TurnStatus; mode: TaskMode; permission_mode: PermissionMode; model_ref: string }
       | null
   }
 
-  createRun(sessionID: string, input: SubmitMessage, status: RunStatus = "queued") {
-    const runID = crypto.randomUUID()
+  createTurn(threadID: string, input: SubmitMessage, status: TurnStatus = "queued") {
+    const turnID = crypto.randomUUID()
     const inputID = crypto.randomUUID()
     const timestamp = now()
     return this.transaction(() => {
-      this.sqlite.query(`INSERT INTO runs (id, session_id, status, mode, permission_mode, model_ref, strategy, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`).run(
-        runID,
-        sessionID,
+      this.sqlite.query(`INSERT INTO turns (id, thread_id, status, mode, permission_mode, model_ref, strategy, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`).run(
+        turnID,
+        threadID,
         status,
         input.taskMode,
         input.permissionMode,
@@ -449,10 +519,10 @@ export class AgentDatabase {
         timestamp,
         timestamp,
       )
-      this.sqlite.query(`INSERT INTO inputs (id, session_id, run_id, content, model_ref, permission_mode, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, permission_mode, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
         inputID,
-        sessionID,
-        runID,
+        threadID,
+        turnID,
         input.content,
         stringify(input.model),
         input.permissionMode,
@@ -461,35 +531,36 @@ export class AgentDatabase {
         status === "queued" ? "queued" : "active",
         timestamp,
       )
-      this.appendUserMessage({ id: inputID, sessionID, runID, content: input.content, createdAt: timestamp })
-      const event = this.insertEvent(sessionID, status === "queued" ? "run.queued" : "run.started", { runID, inputID, input, createdAt: timestamp })
-      return { runID, inputID, event }
+      this.appendUserMessage({ id: inputID, threadID, turnID, content: input.content, createdAt: timestamp })
+      const method = status === "queued" ? "turn/queued" : "turn/started"
+      const event = this.insertEvent(threadID, turnID, method, { turnId: turnID, inputID, input, createdAt: timestamp })
+      return { turnID, inputID, event }
     })
   }
 
-  appendGuide(sessionID: string, runID: string, input: SubmitMessage) {
+  appendGuide(threadID: string, turnID: string, input: SubmitMessage) {
     const id = crypto.randomUUID()
     const timestamp = now()
     return this.transaction(() => {
-      this.sqlite.query(`INSERT INTO inputs (id, session_id, run_id, content, model_ref, permission_mode, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'guide', ?, 'mailbox', ?)`).run(
+      this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, permission_mode, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'guide', ?, 'mailbox', ?)`).run(
         id,
-        sessionID,
-        runID,
+        threadID,
+        turnID,
         input.content,
         stringify(input.model),
         input.permissionMode,
         input.taskMode,
         timestamp,
       )
-      this.appendUserMessage({ id, sessionID, runID, content: input.content, createdAt: timestamp })
-      const event = this.insertEvent(sessionID, "run.guide-appended", { runID, inputID: id, input, createdAt: timestamp })
+      this.appendUserMessage({ id, threadID, turnID, content: input.content, createdAt: timestamp })
+      const event = this.insertEvent(threadID, turnID, "queue/updated", { turnId: turnID, inputID: id, input, action: "guide-appended", createdAt: timestamp })
       return { inputID: id, event }
     })
   }
 
-  takeGuideMailbox(runID: string) {
+  takeGuideMailbox(turnID: string) {
     return this.transaction(() => {
-      const rows = this.sqlite.query("SELECT id, content, model_ref, permission_mode, task_mode FROM inputs WHERE run_id = ? AND status = 'mailbox' ORDER BY created_at").all(runID) as Array<{
+      const rows = this.sqlite.query("SELECT id, content, model_ref, permission_mode, task_mode FROM inputs WHERE turn_id = ? AND status = 'mailbox' ORDER BY created_at").all(turnID) as Array<{
         id: string
         content: string
         model_ref: string
@@ -504,34 +575,34 @@ export class AgentDatabase {
     })
   }
 
-  startRun(runID: string) {
+  startTurn(turnID: string) {
     const timestamp = now()
-    this.sqlite.query(`UPDATE runs SET status = 'running', started_at = ?, updated_at = ? WHERE id = ? AND status = 'queued'`).run(timestamp, timestamp, runID)
-    this.sqlite.query(`UPDATE inputs SET status = 'active' WHERE run_id = ? AND status = 'queued'`).run(runID)
+    this.sqlite.query(`UPDATE turns SET status = 'running', started_at = ?, updated_at = ? WHERE id = ? AND status = 'queued'`).run(timestamp, timestamp, turnID)
+    this.sqlite.query(`UPDATE inputs SET status = 'active' WHERE turn_id = ? AND status = 'queued'`).run(turnID)
   }
 
-  updateRunStatus(runID: string, status: RunStatus) {
+  updateTurnStatus(turnID: string, status: TurnStatus) {
     const timestamp = now()
     const terminal = ["completed", "failed", "interrupted"].includes(status)
-    this.sqlite.query(`UPDATE runs SET status = ?, finished_at = CASE WHEN ? THEN ? ELSE finished_at END, updated_at = ? WHERE id = ?`).run(status, terminal ? 1 : 0, timestamp, timestamp, runID)
-    if (terminal) this.sqlite.query("UPDATE inputs SET status = 'completed' WHERE run_id = ? AND status = 'active'").run(runID)
+    this.sqlite.query(`UPDATE turns SET status = ?, finished_at = CASE WHEN ? THEN ? ELSE finished_at END, updated_at = ? WHERE id = ?`).run(status, terminal ? 1 : 0, timestamp, timestamp, turnID)
+    if (terminal) this.sqlite.query("UPDATE inputs SET status = 'completed' WHERE turn_id = ? AND status = 'active'").run(turnID)
   }
 
-  nextQueuedRun(sessionID: string) {
-    return this.sqlite.query("SELECT id FROM runs WHERE session_id = ? AND status = 'queued' ORDER BY created_at LIMIT 1").get(sessionID) as { id: string } | null
+  nextQueuedTurn(threadID: string) {
+    return this.sqlite.query("SELECT id FROM turns WHERE thread_id = ? AND status = 'queued' ORDER BY created_at LIMIT 1").get(threadID) as { id: string } | null
   }
 
-  getRunInput(runID: string) {
-    const row = this.sqlite.query("SELECT content, model_ref, permission_mode, strategy, task_mode FROM inputs WHERE run_id = ? ORDER BY created_at LIMIT 1").get(runID) as
+  getTurnInput(turnID: string) {
+    const row = this.sqlite.query("SELECT content, model_ref, permission_mode, strategy, task_mode FROM inputs WHERE turn_id = ? ORDER BY created_at LIMIT 1").get(turnID) as
       | { content: string; model_ref: string; permission_mode: PermissionMode; strategy: SendStrategy; task_mode: TaskMode }
       | null
     if (!row) return null
     return { content: row.content, model: parse(row.model_ref), permissionMode: row.permission_mode, strategy: row.strategy, taskMode: row.task_mode } as SubmitMessage
   }
 
-  listRunStages(runID: string): WorkflowStage[] {
-    const rows = this.sqlite.query("SELECT run_id, role, attempt, status, model_ref, started_at, finished_at, error FROM run_stages WHERE run_id = ? ORDER BY role, attempt").all(runID) as Array<{
-      run_id: string
+  listTurnStages(turnID: string): WorkflowStage[] {
+    const rows = this.sqlite.query("SELECT turn_id, role, attempt, status, model_ref, started_at, finished_at, error FROM turn_stages WHERE turn_id = ? ORDER BY role, attempt").all(turnID) as Array<{
+      turn_id: string
       role: WorkflowStage["role"]
       attempt: number
       status: WorkflowStage["status"]
@@ -541,7 +612,7 @@ export class AgentDatabase {
       error: string | null
     }>
     return rows.map((row) => ({
-      runID: row.run_id,
+      turnID: row.turn_id,
       role: row.role,
       attempt: row.attempt,
       status: row.status,
@@ -552,9 +623,9 @@ export class AgentDatabase {
     }))
   }
 
-  upsertRunStage(stage: WorkflowStage) {
-    this.sqlite.query(`INSERT INTO run_stages (run_id, role, attempt, status, model_ref, started_at, finished_at, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(run_id, role, attempt) DO UPDATE SET status = excluded.status, model_ref = excluded.model_ref, started_at = excluded.started_at, finished_at = excluded.finished_at, error = excluded.error`).run(
-      stage.runID,
+  upsertTurnStage(stage: WorkflowStage) {
+    this.sqlite.query(`INSERT INTO turn_stages (turn_id, role, attempt, status, model_ref, started_at, finished_at, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(turn_id, role, attempt) DO UPDATE SET status = excluded.status, model_ref = excluded.model_ref, started_at = excluded.started_at, finished_at = excluded.finished_at, error = excluded.error`).run(
+      stage.turnID,
       stage.role,
       stage.attempt,
       stage.status,
@@ -565,26 +636,26 @@ export class AgentDatabase {
     )
   }
 
-  setRunWorkflowState(runID: string, input: { status: RunStatus; currentStage: WorkflowStage["role"] | null; canContinueFromPlan: boolean }) {
+  setTurnWorkflowState(turnID: string, input: { status: TurnStatus; currentStage: WorkflowStage["role"] | null; canContinueFromPlan: boolean }) {
     const timestamp = now()
     const terminal = ["completed", "failed", "interrupted"].includes(input.status)
-    const result = this.sqlite.query(`UPDATE runs SET status = ?, current_stage = ?, can_continue_from_plan = ?, finished_at = CASE WHEN ? THEN ? ELSE finished_at END, updated_at = ? WHERE id = ?`).run(
+    const result = this.sqlite.query(`UPDATE turns SET status = ?, current_stage = ?, can_continue_from_plan = ?, finished_at = CASE WHEN ? THEN ? ELSE finished_at END, updated_at = ? WHERE id = ?`).run(
       input.status,
       input.currentStage,
       input.canContinueFromPlan ? 1 : 0,
       terminal ? 1 : 0,
       timestamp,
       timestamp,
-      runID,
+      turnID,
     )
-    if (result.changes === 0) throw new Error(`Run ${runID} 不存在`)
+    if (result.changes === 0) throw new Error(`Turn ${turnID} 不存在`)
   }
 
-  saveAgentRunCheckpoint(input: Omit<AgentRunCheckpoint, "createdAt" | "updatedAt">) {
+  saveAgentTurnCheckpoint(input: Omit<AgentTurnCheckpoint, "createdAt" | "updatedAt">) {
     const timestamp = now()
-    this.sqlite.query(`INSERT INTO agent_run_checkpoints (run_id, session_id, stage, state, payload, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(run_id) DO UPDATE SET session_id = excluded.session_id, stage = excluded.stage, state = excluded.state, payload = excluded.payload, version = excluded.version, updated_at = excluded.updated_at`).run(
-      input.runID,
-      input.sessionID,
+    this.sqlite.query(`INSERT INTO agent_turn_checkpoints (turn_id, thread_id, stage, state, payload, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(turn_id) DO UPDATE SET thread_id = excluded.thread_id, stage = excluded.stage, state = excluded.state, payload = excluded.payload, version = excluded.version, updated_at = excluded.updated_at`).run(
+      input.turnID,
+      input.threadID,
       input.stage,
       input.state,
       stringify(input.payload),
@@ -592,23 +663,23 @@ export class AgentDatabase {
       timestamp,
       timestamp,
     )
-    return this.getAgentRunCheckpoint(input.runID)!
+    return this.getAgentTurnCheckpoint(input.turnID)!
   }
 
-  getAgentRunCheckpoint(runID: string): AgentRunCheckpoint | null {
-    const row = this.sqlite.query("SELECT run_id, session_id, stage, state, payload, version, created_at, updated_at FROM agent_run_checkpoints WHERE run_id = ?").get(runID) as {
-      run_id: string
-      session_id: string
-      stage: AgentRunCheckpoint["stage"]
-      state: AgentRunCheckpoint["state"]
+  getAgentTurnCheckpoint(turnID: string): AgentTurnCheckpoint | null {
+    const row = this.sqlite.query("SELECT turn_id, thread_id, stage, state, payload, version, created_at, updated_at FROM agent_turn_checkpoints WHERE turn_id = ?").get(turnID) as {
+      turn_id: string
+      thread_id: string
+      stage: AgentTurnCheckpoint["stage"]
+      state: AgentTurnCheckpoint["state"]
       payload: string
       version: number
       created_at: number
       updated_at: number
     } | null
     return row ? {
-      runID: row.run_id,
-      sessionID: row.session_id,
+      turnID: row.turn_id,
+      threadID: row.thread_id,
       stage: row.stage,
       state: row.state,
       payload: parse<Record<string, unknown>>(row.payload),
@@ -618,97 +689,97 @@ export class AgentDatabase {
     } : null
   }
 
-  deleteAgentRunCheckpoint(runID: string) {
-    this.sqlite.query("DELETE FROM agent_run_checkpoints WHERE run_id = ?").run(runID)
+  deleteAgentTurnCheckpoint(turnID: string) {
+    this.sqlite.query("DELETE FROM agent_turn_checkpoints WHERE turn_id = ?").run(turnID)
   }
 
-  currentPlan(runID: string) {
-    const row = this.sqlite.query("SELECT data FROM parts WHERE run_id = ? AND type = 'plan' ORDER BY created_at DESC LIMIT 1").get(runID) as { data: string } | null
+  currentPlan(turnID: string) {
+    const row = this.sqlite.query("SELECT data FROM items WHERE turn_id = ? AND type = 'plan' ORDER BY created_at DESC LIMIT 1").get(turnID) as { data: string } | null
     if (!row) return null
     const data = parse<Record<string, unknown>>(row.data)
     return typeof data.markdown === "string" ? data.markdown : null
   }
 
-  createResumableQuestion(input: Omit<ResumableQuestion, "id" | "createdAt"> & { id?: string; createdAt?: number; checkpoint: Omit<AgentRunCheckpoint, "runID" | "sessionID" | "state" | "createdAt" | "updatedAt"> }) {
+  createResumableQuestion(input: Omit<ResumableQuestion, "id" | "createdAt"> & { id?: string; createdAt?: number; checkpoint: Omit<AgentTurnCheckpoint, "turnID" | "threadID" | "state" | "createdAt" | "updatedAt"> }) {
     const id = input.id ?? crypto.randomUUID()
     const createdAt = input.createdAt ?? now()
     this.transaction(() => {
-      this.sqlite.query("INSERT INTO questions (id, session_id, run_id, tool_call_id, payload, payload_version, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)").run(
+      this.sqlite.query("INSERT INTO question_requests (id, thread_id, turn_id, tool_call_id, payload, payload_version, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)").run(
         id,
-        input.sessionID,
-        input.runID,
+        input.threadID,
+        input.turnID,
         input.toolCallID,
         stringify(input.payload),
         input.payloadVersion,
         createdAt,
       )
-      this.sqlite.query(`INSERT INTO agent_run_checkpoints (run_id, session_id, stage, state, payload, version, created_at, updated_at) VALUES (?, ?, ?, 'waiting_question', ?, ?, ?, ?) ON CONFLICT(run_id) DO UPDATE SET session_id = excluded.session_id, stage = excluded.stage, state = excluded.state, payload = excluded.payload, version = excluded.version, updated_at = excluded.updated_at`).run(
-        input.runID,
-        input.sessionID,
+      this.sqlite.query(`INSERT INTO agent_turn_checkpoints (turn_id, thread_id, stage, state, payload, version, created_at, updated_at) VALUES (?, ?, ?, 'waiting_question', ?, ?, ?, ?) ON CONFLICT(turn_id) DO UPDATE SET thread_id = excluded.thread_id, stage = excluded.stage, state = excluded.state, payload = excluded.payload, version = excluded.version, updated_at = excluded.updated_at`).run(
+        input.turnID,
+        input.threadID,
         input.checkpoint.stage,
         stringify(input.checkpoint.payload),
         input.checkpoint.version,
         createdAt,
         createdAt,
       )
-      this.setRunWorkflowState(input.runID, { status: "waiting_question", currentStage: input.checkpoint.stage, canContinueFromPlan: false })
-      this.upsertPart(input.sessionID, { id, runID: input.runID, type: "question", status: "pending", data: input.payload, createdAt, updatedAt: createdAt })
+      this.setTurnWorkflowState(input.turnID, { status: "waiting_question", currentStage: input.checkpoint.stage, canContinueFromPlan: false })
+      this.upsertItem(input.threadID, { id, turnID: input.turnID, type: "question", status: "pending", data: input.payload, createdAt, updatedAt: createdAt })
     })
-    return { id, sessionID: input.sessionID, runID: input.runID, toolCallID: input.toolCallID, payload: input.payload, payloadVersion: input.payloadVersion, createdAt } satisfies ResumableQuestion
+    return { id, threadID: input.threadID, turnID: input.turnID, toolCallID: input.toolCallID, payload: input.payload, payloadVersion: input.payloadVersion, createdAt } satisfies ResumableQuestion
   }
 
   resolveResumableQuestion(id: string, answer: unknown, ignored = false) {
-    const row = this.sqlite.query("SELECT session_id, run_id, status FROM questions WHERE id = ?").get(id) as { session_id: string; run_id: string; status: string } | null
+    const row = this.sqlite.query("SELECT thread_id, turn_id, status FROM question_requests WHERE id = ?").get(id) as { thread_id: string; turn_id: string; status: string } | null
     if (!row || row.status !== "pending") return null
     const timestamp = now()
     this.transaction(() => {
-      const checkpoint = this.getAgentRunCheckpoint(row.run_id)
+      const checkpoint = this.getAgentTurnCheckpoint(row.turn_id)
       if (!checkpoint || checkpoint.state !== "waiting_question") throw new Error(`问题 ${id} 没有可恢复 checkpoint`)
-      this.sqlite.query("UPDATE questions SET status = 'resolved', answer = ?, resolved_at = ? WHERE id = ? AND status = 'pending'").run(stringify({ value: answer, ignored }), timestamp, id)
-      this.saveAgentRunCheckpoint({
+      this.sqlite.query("UPDATE question_requests SET status = 'resolved', answer = ?, resolved_at = ? WHERE id = ? AND status = 'pending'").run(stringify({ value: answer, ignored }), timestamp, id)
+      this.saveAgentTurnCheckpoint({
         ...checkpoint,
         state: "ready",
         payload: { ...checkpoint.payload, questionID: id, answer },
       })
-      this.setRunWorkflowState(row.run_id, { status: "queued", currentStage: checkpoint.stage, canContinueFromPlan: false })
-      const part = this.getPart(id)
-      if (part) this.upsertPart(row.session_id, { ...part, status: "completed", data: { ...part.data, answer, ignored }, updatedAt: timestamp })
+      this.setTurnWorkflowState(row.turn_id, { status: "queued", currentStage: checkpoint.stage, canContinueFromPlan: false })
+      const item = this.getItem(id)
+      if (item) this.upsertItem(row.thread_id, { ...item, status: "completed", data: { ...item.data, answer, ignored }, updatedAt: timestamp })
     })
-    return { sessionID: row.session_id, runID: row.run_id }
+    return { threadID: row.thread_id, turnID: row.turn_id }
   }
 
-  waitForPlanConfirmation(input: Omit<AgentRunCheckpoint, "state" | "createdAt" | "updatedAt">) {
+  waitForPlanConfirmation(input: Omit<AgentTurnCheckpoint, "state" | "createdAt" | "updatedAt">) {
     return this.transaction(() => {
-      const checkpoint = this.saveAgentRunCheckpoint({ ...input, state: "waiting_plan_confirmation" })
-      this.setRunWorkflowState(input.runID, { status: "waiting_plan_confirmation", currentStage: input.stage, canContinueFromPlan: true })
+      const checkpoint = this.saveAgentTurnCheckpoint({ ...input, state: "waiting_plan_confirmation" })
+      this.setTurnWorkflowState(input.turnID, { status: "waiting_plan_confirmation", currentStage: input.stage, canContinueFromPlan: true })
       return checkpoint
     })
   }
 
-  decidePlan(runID: string, decision: "continue" | "reject") {
-    const row = this.sqlite.query("SELECT session_id, status, current_stage FROM runs WHERE id = ?").get(runID) as { session_id: string; status: string; current_stage: WorkflowStage["role"] | null } | null
+  decidePlan(turnID: string, decision: "continue" | "reject") {
+    const row = this.sqlite.query("SELECT thread_id, status, current_stage FROM turns WHERE id = ?").get(turnID) as { thread_id: string; status: string; current_stage: WorkflowStage["role"] | null } | null
     if (!row) return null
     if (row.status !== "waiting_plan_confirmation") return null
-    const nextStatus: RunStatus = decision === "continue" ? "queued" : "completed"
+    const nextStatus: TurnStatus = decision === "continue" ? "queued" : "completed"
     this.transaction(() => {
-      this.setRunWorkflowState(runID, {
+      this.setTurnWorkflowState(turnID, {
         status: nextStatus,
         currentStage: decision === "continue" ? "developer" : null,
         canContinueFromPlan: false,
       })
-      const checkpoint = this.getAgentRunCheckpoint(runID)
-      if (checkpoint && decision === "continue") this.saveAgentRunCheckpoint({
+      const checkpoint = this.getAgentTurnCheckpoint(turnID)
+      if (checkpoint && decision === "continue") this.saveAgentTurnCheckpoint({
         ...checkpoint,
         state: "ready",
         payload: { ...checkpoint.payload, planDecision: decision },
       })
-      if (decision === "reject") this.deleteAgentRunCheckpoint(runID)
-      const plan = this.sqlite.query("SELECT id, data, created_at, updated_at FROM parts WHERE run_id = ? AND type = 'plan' ORDER BY created_at DESC LIMIT 1").get(runID) as { id: string; data: string; created_at: number; updated_at: number } | null
+      if (decision === "reject") this.deleteAgentTurnCheckpoint(turnID)
+      const plan = this.sqlite.query("SELECT id, data, created_at, updated_at FROM items WHERE turn_id = ? AND type = 'plan' ORDER BY created_at DESC LIMIT 1").get(turnID) as { id: string; data: string; created_at: number; updated_at: number } | null
       if (plan) {
         const data = parse<Record<string, unknown>>(plan.data)
-        this.upsertPart(row.session_id, {
+        this.upsertItem(row.thread_id, {
           id: plan.id,
-          runID,
+          turnID,
           type: "plan",
           status: "completed",
           data: { ...data, state: decision === "continue" ? "confirmed" : "rejected" },
@@ -717,44 +788,45 @@ export class AgentDatabase {
         })
       }
     })
-    return { sessionID: row.session_id, runID, status: nextStatus, decision }
+    return { threadID: row.thread_id, turnID, status: nextStatus, decision }
   }
 
-  upsertPart(sessionID: string, part: SessionPart) {
-    this.sqlite.query(`INSERT INTO parts (id, session_id, run_id, type, status, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET status = excluded.status, data = excluded.data, updated_at = excluded.updated_at`).run(
-      part.id,
-      sessionID,
-      part.runID,
-      part.type,
-      part.status,
-      stringify(part.data),
-      part.createdAt,
-      part.updatedAt,
+  upsertItem(threadID: string, item: Item) {
+    this.sqlite.query(`INSERT INTO items (id, thread_id, turn_id, type, status, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET status = excluded.status, data = excluded.data, updated_at = excluded.updated_at`).run(
+      item.id,
+      threadID,
+      item.turnID,
+      item.type,
+      item.status,
+      stringify(item.data),
+      item.createdAt,
+      item.updatedAt,
     )
   }
 
-  getPart(partID: string) {
-    const row = this.sqlite.query("SELECT id, run_id, type, status, data, created_at, updated_at FROM parts WHERE id = ?").get(partID) as
-      | { id: string; run_id: string; type: SessionPart["type"]; status: SessionPart["status"]; data: string; created_at: number; updated_at: number }
+  getItem(itemID: string) {
+    const row = this.sqlite.query("SELECT id, turn_id, type, status, data, created_at, updated_at FROM items WHERE id = ?").get(itemID) as
+      | { id: string; turn_id: string; type: Item["type"]; status: Item["status"]; data: string; created_at: number; updated_at: number }
       | null
-    return row ? { id: row.id, runID: row.run_id, type: row.type, status: row.status, data: parse<Record<string, unknown>>(row.data), createdAt: row.created_at, updatedAt: row.updated_at } satisfies SessionPart : null
+    return row ? { id: row.id, turnID: row.turn_id, type: row.type, status: row.status, data: parse<Record<string, unknown>>(row.data), createdAt: row.created_at, updatedAt: row.updated_at } satisfies Item : null
   }
 
-  insertEvent(sessionID: string | null, type: string, payload: unknown): EventEnvelope {
+  insertEvent(threadId: string | null, turnId: string | null, method: string, params: unknown): EventEnvelope {
     const createdAt = now()
-    const result = this.sqlite.query("INSERT INTO events (session_id, type, payload, created_at) VALUES (?, ?, ?, ?)").run(sessionID, type, stringify(payload), createdAt)
-    return { id: Number(result.lastInsertRowid), sessionID, type, payload, createdAt }
+    const result = this.sqlite.query("INSERT INTO events (thread_id, turn_id, method, params, created_at) VALUES (?, ?, ?, ?, ?)").run(threadId, turnId, method, stringify(params), createdAt)
+    return { id: Number(result.lastInsertRowid), threadId, turnId, method, params, createdAt }
   }
 
-  eventsAfter(after: number, sessionID?: string, limit = 1000): EventEnvelope[] {
-    const rows = sessionID
-      ? this.sqlite.query("SELECT id, session_id, type, payload, created_at FROM events WHERE id > ? AND (session_id = ? OR session_id IS NULL) ORDER BY id LIMIT ?").all(after, sessionID, limit)
-      : this.sqlite.query("SELECT id, session_id, type, payload, created_at FROM events WHERE id > ? ORDER BY id LIMIT ?").all(after, limit)
-    return (rows as Array<{ id: number; session_id: string | null; type: string; payload: string; created_at: number }>).map((row) => ({
+  eventsAfter(after: number, threadID?: string, limit = 1000): EventEnvelope[] {
+    const rows = threadID
+      ? this.sqlite.query("SELECT id, thread_id, turn_id, method, params, created_at FROM events WHERE id > ? AND (thread_id = ? OR thread_id IS NULL) ORDER BY id LIMIT ?").all(after, threadID, limit)
+      : this.sqlite.query("SELECT id, thread_id, turn_id, method, params, created_at FROM events WHERE id > ? ORDER BY id LIMIT ?").all(after, limit)
+    return (rows as Array<{ id: number; thread_id: string | null; turn_id: string | null; method: string; params: string; created_at: number }>).map((row) => ({
       id: row.id,
-      sessionID: row.session_id,
-      type: row.type,
-      payload: parse(row.payload),
+      threadId: row.thread_id,
+      turnId: row.turn_id,
+      method: row.method,
+      params: parse(row.params),
       createdAt: row.created_at,
     }))
   }
@@ -770,6 +842,73 @@ export class AgentDatabase {
   providerSettings<T = unknown>() {
     const rows = this.sqlite.query("SELECT provider_id, payload FROM provider_settings").all() as Array<{ provider_id: string; payload: string }>
     return new Map(rows.map((row) => [row.provider_id, parse<T>(row.payload)]))
+  }
+
+  credentialCount() {
+    const row = this.sqlite.query("SELECT COUNT(*) AS count FROM credentials").get() as { count: number }
+    return row.count
+  }
+
+  listEncryptedCredentials(): StoredEncryptedCredential[] {
+    const rows = this.sqlite.query(
+      "SELECT id, integration_id, method_id, label, ciphertext, nonce, key_version, created_at, updated_at FROM credentials ORDER BY created_at, id",
+    ).all() as Array<{
+      id: string
+      integration_id: string
+      method_id: string | null
+      label: string
+      ciphertext: string
+      nonce: string
+      key_version: number
+      created_at: number
+      updated_at: number
+    }>
+    return rows.map((row) => ({
+      id: row.id,
+      integrationID: row.integration_id,
+      methodID: row.method_id,
+      label: row.label,
+      ciphertext: row.ciphertext,
+      nonce: row.nonce,
+      keyVersion: row.key_version,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }))
+  }
+
+  encryptedCredential(integrationID: string) {
+    return this.listEncryptedCredentials().find((item) => item.integrationID === integrationID) ?? null
+  }
+
+  upsertEncryptedCredential(input: Omit<StoredEncryptedCredential, "createdAt" | "updatedAt">) {
+    const timestamp = now()
+    this.sqlite.query(`
+      INSERT INTO credentials (id, integration_id, method_id, label, ciphertext, nonce, key_version, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(integration_id) DO UPDATE SET
+        id = excluded.id,
+        method_id = excluded.method_id,
+        label = excluded.label,
+        ciphertext = excluded.ciphertext,
+        nonce = excluded.nonce,
+        key_version = excluded.key_version,
+        updated_at = excluded.updated_at
+    `).run(
+      input.id,
+      input.integrationID,
+      input.methodID,
+      input.label,
+      input.ciphertext,
+      input.nonce,
+      input.keyVersion,
+      timestamp,
+      timestamp,
+    )
+    return this.encryptedCredential(input.integrationID)!
+  }
+
+  removeEncryptedCredential(integrationID: string) {
+    return this.sqlite.query("DELETE FROM credentials WHERE integration_id = ?").run(integrationID).changes > 0
   }
 
   setSetting(key: string, value: unknown) {
@@ -867,16 +1006,16 @@ export class AgentDatabase {
     return roleModel ?? settings.defaultModel ?? globalDefault
   }
 
-  sessionProjectID(sessionID: string) {
-    const row = this.sqlite.query("SELECT project_id FROM sessions WHERE id = ?").get(sessionID) as { project_id: string | null } | null
+  threadProjectID(threadID: string) {
+    const row = this.sqlite.query("SELECT project_id FROM threads WHERE id = ?").get(threadID) as { project_id: string | null } | null
     if (!row) return null
     return row.project_id
   }
 
-  setSessionProject(sessionID: string, projectID: string | null) {
+  setThreadProject(threadID: string, projectID: string | null) {
     if (projectID) this.requireProject(projectID)
-    const result = this.sqlite.query("UPDATE sessions SET project_id = ?, updated_at = ? WHERE id = ?").run(projectID, now(), sessionID)
-    if (result.changes === 0) throw new Error(`会话 ${sessionID} 不存在`)
+    const result = this.sqlite.query("UPDATE threads SET project_id = ?, updated_at = ? WHERE id = ?").run(projectID, now(), threadID)
+    if (result.changes === 0) throw new Error(`Thread ${threadID} 不存在`)
   }
 
   createProposal(input: Omit<StoredProposal, "id" | "status" | "createdAt" | "updatedAt"> & { status?: StoredProposal["status"] }) {
@@ -884,19 +1023,19 @@ export class AgentDatabase {
     const id = crypto.randomUUID()
     const timestamp = now()
     const status = input.status ?? "pending"
-    this.sqlite.query("INSERT INTO proposals (id, project_id, run_id, role, kind, title, payload, review, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
-      id, input.projectID, input.runID, input.role, input.kind, input.title, stringify(input.payload), input.review, status, timestamp, timestamp,
+    this.sqlite.query("INSERT INTO proposals (id, project_id, turn_id, role, kind, title, payload, review, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      id, input.projectID, input.turnID, input.role, input.kind, input.title, stringify(input.payload), input.review, status, timestamp, timestamp,
     )
     return this.proposal(id)!
   }
 
   private proposal(id: string) {
-    const row = this.sqlite.query("SELECT id, project_id, run_id, role, kind, title, payload, review, status, created_at, updated_at FROM proposals WHERE id = ?").get(id) as { id: string; project_id: string; run_id: string; role: StoredProposal["role"]; kind: StoredProposal["kind"]; title: string; payload: string; review: string | null; status: StoredProposal["status"]; created_at: number; updated_at: number } | null
-    return row ? { id: row.id, projectID: row.project_id, runID: row.run_id, role: row.role, kind: row.kind, title: row.title, payload: parse(row.payload), review: row.review, status: row.status, createdAt: row.created_at, updatedAt: row.updated_at } satisfies StoredProposal : null
+    const row = this.sqlite.query("SELECT id, project_id, turn_id, role, kind, title, payload, review, status, created_at, updated_at FROM proposals WHERE id = ?").get(id) as { id: string; project_id: string; turn_id: string; role: StoredProposal["role"]; kind: StoredProposal["kind"]; title: string; payload: string; review: string | null; status: StoredProposal["status"]; created_at: number; updated_at: number } | null
+    return row ? { id: row.id, projectID: row.project_id, turnID: row.turn_id, role: row.role, kind: row.kind, title: row.title, payload: parse(row.payload), review: row.review, status: row.status, createdAt: row.created_at, updatedAt: row.updated_at } satisfies StoredProposal : null
   }
 
-  listProposals(runID: string) {
-    const rows = this.sqlite.query("SELECT id FROM proposals WHERE run_id = ? ORDER BY created_at").all(runID) as Array<{ id: string }>
+  listProposals(turnID: string) {
+    const rows = this.sqlite.query("SELECT id FROM proposals WHERE turn_id = ? ORDER BY created_at").all(turnID) as Array<{ id: string }>
     return rows.flatMap((row) => {
       const proposal = this.proposal(row.id)
       return proposal ? [proposal] : []

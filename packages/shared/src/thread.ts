@@ -24,7 +24,7 @@ export const WorkflowStageStatusSchema = Schema.Literals([
 export type WorkflowStageStatus = typeof WorkflowStageStatusSchema.Type
 
 export const WorkflowStageSchema = Schema.Struct({
-  runID: Schema.String,
+  turnId: Schema.String,
   role: AgentRoleSchema,
   attempt: Schema.Number,
   status: WorkflowStageStatusSchema,
@@ -59,7 +59,7 @@ export type Project = typeof ProjectSchema.Type
 
 export const ProposalSchema = Schema.Struct({
   id: Schema.String,
-  runID: Schema.String,
+  turnId: Schema.String,
   projectID: Schema.String,
   role: AgentRoleSchema,
   kind: Schema.Literals(["patch", "command"]),
@@ -72,7 +72,7 @@ export const ProposalSchema = Schema.Struct({
 })
 export type Proposal = typeof ProposalSchema.Type
 
-export const RunStatusSchema = Schema.Literals([
+export const TurnStatusSchema = Schema.Literals([
   "queued",
   "running",
   "waiting-permission",
@@ -83,36 +83,36 @@ export const RunStatusSchema = Schema.Literals([
   "stopped",
   "interrupted",
 ])
-export type RunStatus = typeof RunStatusSchema.Type
+export type TurnStatus = typeof TurnStatusSchema.Type
 
-export const SessionSchema = Schema.Struct({
+export const ThreadSchema = Schema.Struct({
   id: Schema.String,
   title: Schema.String,
   projectID: Schema.NullOr(Schema.String),
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
 })
-export type Session = typeof SessionSchema.Type
+export type Thread = typeof ThreadSchema.Type
 
-export const SessionListItemSchema = Schema.Struct({
+export const ThreadListItemSchema = Schema.Struct({
   id: Schema.String,
   projectID: Schema.NullOr(Schema.String),
   title: Schema.String,
   preview: Schema.NullOr(Schema.String),
   firstUserMessage: Schema.NullOr(Schema.String),
   messageCount: Schema.Number,
-  latestRunStatus: Schema.NullOr(RunStatusSchema),
+  latestTurnStatus: Schema.NullOr(TurnStatusSchema),
   archivedAt: Schema.NullOr(Schema.Number),
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
 })
-export type SessionListItem = typeof SessionListItemSchema.Type
+export type ThreadListItem = typeof ThreadListItemSchema.Type
 
-export const RunSchema = Schema.Struct({
+export const TurnSchema = Schema.Struct({
   id: Schema.String,
-  sessionID: Schema.String,
+  threadId: Schema.String,
   sourceInputID: Schema.String,
-  status: RunStatusSchema,
+  status: TurnStatusSchema,
   mode: TaskModeSchema,
   model: Model.Ref,
   permissionMode: PermissionModeSchema,
@@ -125,12 +125,12 @@ export const RunSchema = Schema.Struct({
   elapsedSeconds: Schema.Number,
   error: Schema.NullOr(Schema.String),
 })
-export type Run = typeof RunSchema.Type
+export type Turn = typeof TurnSchema.Type
 
 export const InputSchema = Schema.Struct({
   id: Schema.String,
-  sessionID: Schema.String,
-  runID: Schema.NullOr(Schema.String),
+  threadId: Schema.String,
+  turnId: Schema.NullOr(Schema.String),
   content: Schema.String,
   strategy: SendStrategySchema,
   mode: TaskModeSchema,
@@ -143,8 +143,8 @@ export type Input = typeof InputSchema.Type
 
 export const MessageSchema = Schema.Struct({
   id: Schema.String,
-  sessionID: Schema.String,
-  runID: Schema.NullOr(Schema.String),
+  threadId: Schema.String,
+  turnId: Schema.NullOr(Schema.String),
   role: Schema.Literals(["user", "assistant", "system"]),
   createdAt: Schema.Number,
 })
@@ -176,28 +176,28 @@ export const QuestionChoiceSchema = Schema.Struct({
 })
 export type QuestionChoice = typeof QuestionChoiceSchema.Type
 
-export const TextPartSchema = Schema.Struct({
+export const TextItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
-  runID: Schema.String,
+  turnId: Schema.String,
   type: Schema.Literal("text"),
   placement: Schema.Literals(["process", "result"]),
   text: Schema.String,
   status: Schema.Literals(["streaming", "completed", "interrupted"]),
   createdAt: Schema.Number,
 })
-export type TextPart = typeof TextPartSchema.Type
+export type TextItem = typeof TextItemSchema.Type
 
-export const ReasoningPartSchema = Schema.Struct({
+export const ReasoningItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
-  runID: Schema.String,
+  turnId: Schema.String,
   type: Schema.Literal("reasoning"),
   text: Schema.String,
   status: Schema.Literals(["streaming", "completed", "interrupted"]),
   createdAt: Schema.Number,
 })
-export type ReasoningPart = typeof ReasoningPartSchema.Type
+export type ReasoningItem = typeof ReasoningItemSchema.Type
 
 export const ActivityCommandSchema = Schema.Struct({
   command: Schema.String,
@@ -207,10 +207,10 @@ export const ActivityCommandSchema = Schema.Struct({
 })
 export type ActivityCommand = typeof ActivityCommandSchema.Type
 
-export const ActivityPartSchema = Schema.Struct({
+export const ActivityItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
-  runID: Schema.String,
+  turnId: Schema.String,
   type: Schema.Literal("activity"),
   activity: Schema.Literals(["context-compression", "file-edit", "build", "notice"]),
   title: Schema.String,
@@ -219,12 +219,12 @@ export const ActivityPartSchema = Schema.Struct({
   status: Schema.Literals(["running", "completed", "error", "interrupted"]),
   createdAt: Schema.Number,
 })
-export type ActivityPart = typeof ActivityPartSchema.Type
+export type ActivityItem = typeof ActivityItemSchema.Type
 
-export const ToolPartSchema = Schema.Struct({
+export const ToolItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
-  runID: Schema.String,
+  turnId: Schema.String,
   type: Schema.Literal("tool"),
   callID: Schema.String,
   tool: Schema.String,
@@ -239,12 +239,12 @@ export const ToolPartSchema = Schema.Struct({
   durationMs: Schema.NullOr(Schema.Number),
   createdAt: Schema.Number,
 })
-export type ToolPart = typeof ToolPartSchema.Type
+export type ToolItem = typeof ToolItemSchema.Type
 
-export const PlanPartSchema = Schema.Struct({
+export const PlanItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
-  runID: Schema.String,
+  turnId: Schema.String,
   type: Schema.Literal("plan"),
   title: Schema.String,
   markdown: Schema.String,
@@ -252,12 +252,12 @@ export const PlanPartSchema = Schema.Struct({
   state: Schema.Literals(["draft", "awaiting-confirmation", "confirmed", "rejected"]),
   createdAt: Schema.Number,
 })
-export type PlanPart = typeof PlanPartSchema.Type
+export type PlanItem = typeof PlanItemSchema.Type
 
-export const QuestionPartSchema = Schema.Struct({
+export const QuestionItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
-  runID: Schema.String,
+  turnId: Schema.String,
   type: Schema.Literal("question"),
   prompt: Schema.String,
   choices: Schema.Array(QuestionChoiceSchema),
@@ -265,40 +265,38 @@ export const QuestionPartSchema = Schema.Struct({
   answer: Schema.NullOr(Schema.String),
   createdAt: Schema.Number,
 })
-export type QuestionPart = typeof QuestionPartSchema.Type
+export type QuestionItem = typeof QuestionItemSchema.Type
 
-// The same durable record is exposed as a request while it is pending. Keeping
-// one schema prevents the transport and renderer from drifting on choice IDs.
-export const QuestionRequestSchema = QuestionPartSchema
+export const QuestionRequestSchema = QuestionItemSchema
 export type QuestionRequest = typeof QuestionRequestSchema.Type
 
-export const PatchPartSchema = Schema.Struct({
+export const PatchItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
-  runID: Schema.String,
+  turnId: Schema.String,
   type: Schema.Literal("patch"),
   files: Schema.Array(EditedFileSchema),
   totalAdditions: Schema.Number,
   totalDeletions: Schema.Number,
   createdAt: Schema.Number,
 })
-export type PatchPart = typeof PatchPartSchema.Type
+export type PatchItem = typeof PatchItemSchema.Type
 
-export const PartSchema = Schema.Union([
-  TextPartSchema,
-  ReasoningPartSchema,
-  ActivityPartSchema,
-  ToolPartSchema,
-  PlanPartSchema,
-  QuestionPartSchema,
-  PatchPartSchema,
+export const ItemSchema = Schema.Union([
+  TextItemSchema,
+  ReasoningItemSchema,
+  ActivityItemSchema,
+  ToolItemSchema,
+  PlanItemSchema,
+  QuestionItemSchema,
+  PatchItemSchema,
 ])
-export type Part = typeof PartSchema.Type
+export type Item = typeof ItemSchema.Type
 
-export const PermissionRequestSchema = Schema.Struct({
+export const ApprovalRequestSchema = Schema.Struct({
   id: Schema.String,
-  sessionID: Schema.String,
-  runID: Schema.String,
+  threadId: Schema.String,
+  turnId: Schema.String,
   toolCallID: Schema.String,
   tool: Schema.String,
   command: Schema.NullOr(Schema.String),
@@ -308,15 +306,126 @@ export const PermissionRequestSchema = Schema.Struct({
   status: Schema.Literals(["pending", "allowed", "denied", "cancelled"]),
   createdAt: Schema.Number,
 })
-export type PermissionRequest = typeof PermissionRequestSchema.Type
+export type ApprovalRequest = typeof ApprovalRequestSchema.Type
 
-export const SessionSnapshotSchema = Schema.Struct({
-  session: SessionSchema,
-  runs: Schema.Array(RunSchema),
+export const ThreadSnapshotSchema = Schema.Struct({
+  thread: ThreadSchema,
+  turns: Schema.Array(TurnSchema),
   inputs: Schema.Array(InputSchema),
   messages: Schema.Array(MessageSchema),
-  parts: Schema.Array(PartSchema),
-  permissions: Schema.Array(PermissionRequestSchema),
+  items: Schema.Array(ItemSchema),
+  approvals: Schema.Array(ApprovalRequestSchema),
   proposals: Schema.Array(ProposalSchema),
 })
-export type SessionSnapshot = typeof SessionSnapshotSchema.Type
+export type ThreadSnapshot = typeof ThreadSnapshotSchema.Type
+
+export const AgentRpcMethodSchema = Schema.Literals([
+  "initialize",
+  "shutdown",
+  "desktop/settings/get",
+  "desktop/settings/save",
+  "project/list",
+  "project/open",
+  "project/updateSettings",
+  "thread/list",
+  "thread/create",
+  "thread/read",
+  "thread/update",
+  "thread/delete",
+  "turn/start",
+  "turn/interrupt",
+  "turn/resume",
+  "turn/submitPlanDecision",
+  "approval/respond",
+  "question/respond",
+  "proposal/list",
+  "proposal/review",
+  "model/list",
+  "model/refresh",
+  "model/setDefault",
+  "model/setReviewer",
+  "provider/test",
+  "provider/updateSettings",
+  "integration/list",
+  "integration/connect",
+  "integration/authorize",
+  "integration/authorizeComplete",
+  "integration/authorizeStatus",
+  "integration/disconnect",
+])
+export type AgentRpcMethod = typeof AgentRpcMethodSchema.Type
+
+export const AgentEventMethodSchema = Schema.Literals([
+  "thread/created",
+  "thread/snapshot",
+  "thread/updated",
+  "thread/deleted",
+  "turn/queued",
+  "turn/started",
+  "turn/statusChanged",
+  "turn/completed",
+  "turn/failed",
+  "turn/interrupted",
+  "item/started",
+  "item/completed",
+  "item/agentMessage/delta",
+  "reasoning/textDelta",
+  "reasoning/summaryPartAdded",
+  "reasoning/summaryTextDelta",
+  "plan/delta",
+  "plan/ready",
+  "plan/decision",
+  "tool/callStarted",
+  "tool/outputDelta",
+  "tool/callCompleted",
+  "tool/error",
+  "approval/requested",
+  "question/requested",
+  "serverRequest/resolved",
+  "workflow/stageStarted",
+  "workflow/stageCompleted",
+  "workflow/stagePaused",
+  "proposal/created",
+  "proposal/reviewed",
+  "queue/updated",
+  "catalog/updated",
+  "integration/updated",
+  "integration/authorizationCompleted",
+  "integration/authorizationFailed",
+  "heartbeat",
+])
+export type AgentEventMethod = typeof AgentEventMethodSchema.Type
+
+export const AgentNotificationSchema = Schema.Struct({
+  jsonrpc: Schema.Literal("2.0"),
+  id: Schema.optional(Schema.Union([Schema.String, Schema.Number])),
+  method: AgentEventMethodSchema,
+  params: Schema.Unknown,
+})
+export type AgentNotification = typeof AgentNotificationSchema.Type
+
+export const AgentRpcRequestSchema = Schema.Struct({
+  jsonrpc: Schema.Literal("2.0"),
+  id: Schema.optional(Schema.Union([Schema.String, Schema.Number])),
+  method: AgentRpcMethodSchema,
+  params: Schema.optional(Schema.Unknown),
+})
+export type AgentRpcRequest = typeof AgentRpcRequestSchema.Type
+
+export const AgentRpcErrorSchema = Schema.Struct({
+  code: Schema.Number,
+  message: Schema.String,
+  data: Schema.optional(Schema.Unknown),
+})
+export type AgentRpcError = typeof AgentRpcErrorSchema.Type
+
+export const AgentRpcResponseSchema = Schema.Struct({
+  jsonrpc: Schema.Literal("2.0"),
+  id: Schema.Union([Schema.String, Schema.Number, Schema.Null]),
+  result: Schema.optional(Schema.Unknown),
+  error: Schema.optional(AgentRpcErrorSchema),
+})
+export type AgentRpcResponse = typeof AgentRpcResponseSchema.Type
+
+export const AgentServerRequestSchema = AgentNotificationSchema
+export type AgentServerRequest = typeof AgentServerRequestSchema.Type

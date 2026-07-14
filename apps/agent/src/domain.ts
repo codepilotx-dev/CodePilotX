@@ -1,7 +1,7 @@
 export type PermissionMode = "ask" | "review" | "full"
 export type SendStrategy = "queue" | "guide"
 export type TaskMode = "chat" | "plan"
-export type RunStatus =
+export type TurnStatus =
   | "queued"
   | "running"
   | "waiting_permission"
@@ -11,10 +11,7 @@ export type RunStatus =
   | "failed"
   | "interrupted"
 
-export interface ModelRef {
-  providerID: string
-  modelID: string
-}
+export type ModelRef = Model.Ref
 
 export interface SubmitMessage {
   content: string
@@ -24,33 +21,7 @@ export interface SubmitMessage {
   taskMode: TaskMode
 }
 
-export interface ModelCapabilities {
-  reasoning: boolean
-  tools: boolean
-  image: boolean
-  inputLimit: number
-  outputLimit: number
-}
-
-export interface ResolvedModel extends ModelRef {
-  name: string
-  protocol: "openai" | "anthropic" | "openai-compatible"
-  baseURL?: string | undefined
-  headers?: Record<string, string> | undefined
-  capabilities: ModelCapabilities
-  defaults?: Record<string, unknown> | undefined
-}
-
-export interface ProviderInfo {
-  id: string
-  name: string
-  protocol: ResolvedModel["protocol"]
-  baseURL?: string | undefined
-  configured: boolean
-  models: ResolvedModel[]
-}
-
-export type PartType = "reasoning" | "activity" | "text" | "tool" | "plan" | "question" | "patch"
+export type ItemType = "reasoning" | "activity" | "text" | "tool" | "plan" | "question" | "patch"
 
 export type AgentRole = "planner" | "developer" | "reviewer"
 
@@ -63,7 +34,7 @@ export type WorkflowStageStatus =
   | "interrupted"
 
 export interface WorkflowStage {
-  runID: string
+  turnID: string
   role: AgentRole
   attempt: number
   status: WorkflowStageStatus
@@ -73,37 +44,38 @@ export interface WorkflowStage {
   error: string | null
 }
 
-export interface SessionPart {
+export interface Item {
   id: string
-  runID: string
-  type: PartType
+  turnID: string
+  type: ItemType
   status: "pending" | "running" | "completed" | "error" | "interrupted"
   data: Record<string, unknown>
   createdAt: number
   updatedAt: number
 }
 
-export interface SessionSnapshot {
+export interface ThreadSnapshot {
   id: string
   title: string
   createdAt: number
   updatedAt: number
-  runs: Array<{
+  turns: Array<{
     id: string
-    status: RunStatus
+    status: TurnStatus
     mode: TaskMode
     startedAt: number | null
     finishedAt: number | null
-    parts: SessionPart[]
+    items: Item[]
   }>
   stages?: WorkflowStage[]
 }
 
 export interface EventEnvelope<T = unknown> {
   id: number
-  sessionID: string | null
-  type: string
-  payload: T
+  threadId: string | null
+  turnId: string | null
+  method: string
+  params: T
   createdAt: number
 }
 
@@ -127,8 +99,8 @@ export type NormalizedLLMEvent =
 
 export interface ToolInvocation {
   id: string
-  sessionID: string
-  runID: string
+  threadID: string
+  turnID: string
   name: string
   input: Record<string, unknown>
   permissionMode: PermissionMode
@@ -151,3 +123,4 @@ export class AgentError extends Error {
     super(message)
   }
 }
+import type { Model } from "@codepilotx/model-schema"

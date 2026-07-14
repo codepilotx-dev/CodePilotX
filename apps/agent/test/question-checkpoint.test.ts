@@ -5,6 +5,7 @@ import { join } from "node:path"
 import { QuestionService } from "../src/session/QuestionService"
 import { EventHub } from "../src/storage/EventHub"
 import { AgentDatabase } from "../src/storage/Database"
+import { Model, Provider } from "@codepilotx/model-schema"
 
 const databases: AgentDatabase[] = []
 
@@ -17,14 +18,14 @@ describe("问题 checkpoint", () => {
     const db = new AgentDatabase(join(tmpdir(), `codepilotx-question-${crypto.randomUUID()}.sqlite`))
     databases.push(db)
     const hub = await Effect.runPromise(EventHub.make)
-    const session = db.createSession()
-    const input = { content: "规划一个改动", model: { providerID: "openai", modelID: "test" }, permissionMode: "ask", strategy: "queue", taskMode: "plan" } as const
-    const run = db.createRun(session.id, input)
-    db.startRun(run.runID)
+    const thread = db.createThread()
+    const input = { content: "规划一个改动", model: Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("test") }), permissionMode: "ask", strategy: "queue", taskMode: "plan" } as const
+    const turn = db.createTurn(thread.id, input)
+    db.startTurn(turn.turnID)
     const questions = new QuestionService(db, hub)
     const resumed: string[] = []
-    questions.setResumeHandler((_sessionID, runID) => resumed.push(runID))
-    const id = await questions.checkpoint(session.id, run.runID, {
+    questions.setResumeHandler((_threadID, turnID) => resumed.push(turnID))
+    const id = await questions.checkpoint(thread.id, turn.turnID, {
       kind: "clarification",
       question: "选择实现方式",
       options: ["A", "B"],
@@ -32,9 +33,9 @@ describe("问题 checkpoint", () => {
     })
 
     await questions.reply(id, "A")
-    const checkpoint = questions.claimResolvedCheckpoint(run.runID)
+    const checkpoint = questions.claimResolvedCheckpoint(turn.turnID)
 
-    expect(resumed).toEqual([run.runID])
+    expect(resumed).toEqual([turn.turnID])
     expect(checkpoint?.approval).toEqual({ state: '{"version":1}', interruption: { name: "request_user_input" }, answer: "A" })
   })
 })
