@@ -344,6 +344,7 @@ function createWindow(): BrowserWindow {
     minWidth: 960,
     minHeight: 640,
     show: false,
+    frame: false,
     backgroundColor: "#f8f8f6",
     autoHideMenuBar: true,
     title: "CodePilotX",
