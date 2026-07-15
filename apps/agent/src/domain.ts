@@ -1,4 +1,4 @@
-import type { PermissionConfig, ShellReview } from "@codepilotx/shared/thread"
+import type { PermissionConfig, ShellReview, ThreadSettings } from "@codepilotx/shared/thread"
 import type { Model } from "@codepilotx/model-schema"
 
 export type { PermissionConfig } from "@codepilotx/shared/thread"
@@ -60,6 +60,7 @@ export interface Item {
 export interface ThreadSnapshot {
   id: string
   title: string
+  settings: ThreadSettings
   createdAt: number
   updatedAt: number
   turns: Array<{

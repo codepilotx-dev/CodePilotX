@@ -35,10 +35,11 @@ afterEach(async () => {
 const makeHistory = async () => {
   const root = await mkdtemp(join(tmpdir(), "codepilotx-history-"))
   paths.push(root)
-  const db = new AgentDatabase(join(root, "agent.sqlite"))
+  const databasePath = join(root, "agent.sqlite")
+  const db = new AgentDatabase(databasePath)
   databases.push(db)
   const hub = await Effect.runPromise(EventHub.make)
-  return { db, history: new ThreadHistoryService(db, hub), projection: new ThreadProjection(db), root }
+  return { db, history: new ThreadHistoryService(db, hub), projection: new ThreadProjection(db), root, databasePath }
 }
 
 const input = (content: string) => ({
@@ -99,5 +100,75 @@ describe("Thread 历史", () => {
     const snapshot = projection.snapshot(thread.id)
     expect(snapshot?.messages).toMatchObject([{ id: turn.inputID, turnId: turn.turnID, role: "user" }])
     expect(snapshot?.items).toMatchObject([{ id: "item-1", type: "text", text: "回答" }])
+  })
+
+  test("设置立即持久化且幂等更新不修改活跃时间或重复写事件", async () => {
+    const { db, history, databasePath } = await makeHistory()
+    const thread = db.createThread("设置持久化")
+    const updatedAt = thread.updatedAt
+    const beforeEvents = db.eventsAfter(0).length
+    const settings = {
+      taskMode: "plan",
+      permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "never", approvalsReviewer: "auto_review" },
+    } as const
+
+    await history.patchSettings(thread.id, settings)
+    expect(db.getThreadSettings(thread.id)).toEqual(settings)
+    expect(db.sqlite.query("SELECT updated_at FROM threads WHERE id = ?").get(thread.id)).toEqual({ updated_at: updatedAt })
+    expect(db.eventsAfter(0).length).toBe(beforeEvents + 1)
+
+    await history.patchSettings(thread.id, {})
+    await history.patchSettings(thread.id, settings)
+    expect(db.eventsAfter(0).length).toBe(beforeEvents + 1)
+
+    db.close()
+    databases.splice(databases.indexOf(db), 1)
+    const reopened = new AgentDatabase(databasePath)
+    databases.push(reopened)
+    expect(reopened.getThreadSettings(thread.id)).toEqual(settings)
+  })
+
+  test("创建 Thread 时保存并投影初始设置", async () => {
+    const { db, projection } = await makeHistory()
+    const settings = {
+      taskMode: "plan",
+      permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "auto_review" },
+    } as const
+    const thread = db.createThread("Plan 会话", undefined, settings)
+
+    expect(projection.snapshot(thread.id)?.thread.settings).toEqual(settings)
+    expect(projection.list().find((item) => item.id === thread.id)?.settings).toEqual(settings)
+  })
+
+  test("创建 Turn 原子同步 Thread 设置并保持已有 Turn 快照不变", async () => {
+    const { db, projection } = await makeHistory()
+    const thread = db.createThread("不可变快照")
+    const firstInput = input("第一轮")
+    const first = db.createTurn(thread.id, firstInput)
+    expect(first.settingsEvent?.id).toBeLessThan(first.event.id)
+    db.startTurn(first.turnID)
+
+    const nextSettings = {
+      taskMode: "plan",
+      permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "never", approvalsReviewer: "auto_review" },
+    } as const
+    db.updateThreadSettings(thread.id, nextSettings)
+    const second = db.createTurn(thread.id, { ...firstInput, content: "第二轮", ...nextSettings })
+    expect(second.settingsEvent).toBeNull()
+
+    const snapshot = projection.snapshot(thread.id)
+    expect(snapshot?.thread.settings).toEqual(nextSettings)
+    expect(snapshot?.turns.find((turn) => turn.id === first.turnID)).toMatchObject({
+      mode: "chat",
+      permissionConfig: firstInput.permissionConfig,
+    })
+    expect(snapshot?.turns.find((turn) => turn.id === second.turnID)).toMatchObject({
+      mode: "plan",
+      permissionConfig: nextSettings.permissionConfig,
+    })
+    expect(snapshot?.inputs.find((item) => item.id === second.inputID)).toMatchObject({
+      mode: "plan",
+      permissionConfig: nextSettings.permissionConfig,
+    })
   })
 })

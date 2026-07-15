@@ -4,6 +4,14 @@ import type { ThreadListItem, ThreadSnapshot } from '@codepilotx/shared/thread'
 import { createDesktopClient } from '../src/services/desktopClient.js'
 
 const now = 1_700_000_000_000
+const defaultThreadSettings = {
+  taskMode: 'chat' as const,
+  permissionConfig: {
+    sandboxMode: 'workspace-write' as const,
+    approvalPolicy: 'on-request' as const,
+    approvalsReviewer: 'user' as const,
+  },
+}
 
 const project: Project = {
   id: 'project-1',
@@ -30,6 +38,7 @@ function sessionItem(overrides: Partial<ThreadListItem> = {}): ThreadListItem {
     messageCount: 1,
     latestTurnStatus: 'completed',
     archivedAt: null,
+    settings: defaultThreadSettings,
     createdAt: now,
     updatedAt: now + 1000,
     ...overrides,
@@ -42,6 +51,7 @@ function sessionSnapshot(overrides: Partial<ThreadSnapshot['thread']> = {}): Thr
       id: 'session-1',
       title: '历史会话',
       projectID: project.id,
+      settings: defaultThreadSettings,
       createdAt: now,
       updatedAt: now + 1000,
       ...overrides,
@@ -92,7 +102,11 @@ describe('desktop history client', () => {
         return rpc(body.id, { threads: [currentItem], nextCursor: null })
       }
       if (rpcMethod === 'thread/create') {
-        expect(params).toEqual({ projectID: project.id, title: '新会话' })
+        expect(params).toEqual({
+          projectID: project.id,
+          settings: defaultThreadSettings,
+          title: '新会话',
+        })
         return rpc(body.id, sessionSnapshot({ title: '新会话' }))
       }
       if (rpcMethod === 'thread/read') {

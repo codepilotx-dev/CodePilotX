@@ -325,11 +325,12 @@ export function DesktopLayout(): React.ReactNode {
     setSessionPlanModeActive,
     setSessionLocalRouterMode,
     activeSessionItem,
+    permissionMode: effectivePermissionMode,
     planModeActive,
+    localRouterMode: effectiveLocalRouterMode,
   } = session
-
-  const effectiveLocalRouterMode: LocalRouterMode =
-    activeSessionItem?.localRouterMode ?? homeLocalRouterMode
+  const isBrowserMockSession = sessionId?.startsWith('browser-mock-') === true
+  const localRouterAvailable = !sessionId || isBrowserMockSession
 
   const location = useLocation()
   const navigate = useNavigate()
@@ -1295,8 +1296,10 @@ export function DesktopLayout(): React.ReactNode {
 
   const handlePermissionChange = useCallback(
     (value: DesktopPermissionMode): void => {
-      setPermissionMode(value)
-      if (!sessionId) return
+      if (!sessionId) {
+        setPermissionMode(value)
+        return
+      }
       void setSessionPermissionMode(sessionId, value)
     },
     [sessionId, setPermissionMode, setSessionPermissionMode],
@@ -1315,7 +1318,8 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleLocalRouterModeChange = useCallback(
     (mode: LocalRouterMode): void => {
-      if (!sessionId) return
+      // Pareto/Fusion 仍是 Browser Mock 的本地能力；真实 Agent Thread 暂不提交该设置。
+      if (!sessionId?.startsWith('browser-mock-')) return
       void setSessionLocalRouterMode(sessionId, mode)
     },
     [sessionId, setSessionLocalRouterMode],
@@ -1613,11 +1617,11 @@ export function DesktopLayout(): React.ReactNode {
       isQuickChatPage={isQuickChatPage}
       routedSessionId={routedSessionId}
       sessionStatus={sessionStatus}
-      permissionMode={permissionMode}
+      permissionMode={effectivePermissionMode}
       planModeActive={planModeActive}
       localRouterMode={effectiveLocalRouterMode}
-      enableParetoCodeRouter={enableParetoCodeRouter ?? false}
-      enableFusionRouter={enableFusionRouter ?? false}
+      enableParetoCodeRouter={localRouterAvailable && (enableParetoCodeRouter ?? false)}
+      enableFusionRouter={localRouterAvailable && (enableFusionRouter ?? false)}
       enableAutoReviewPermissionMode={enableAutoReviewPermissionMode ?? false}
       enableFullAccessPermissionMode={enableFullAccessPermissionMode ?? false}
       planExecutionModel={planExecutionModel}
@@ -1665,11 +1669,11 @@ export function DesktopLayout(): React.ReactNode {
         isQuickChatPage={isQuickChatPage}
         routedSessionId={activeSessionItem?.id ?? null}
         sessionStatus={sessionStatus}
-        permissionMode={permissionMode}
+        permissionMode={effectivePermissionMode}
         planModeActive={planModeActive}
         localRouterMode={effectiveLocalRouterMode}
-        enableParetoCodeRouter={enableParetoCodeRouter ?? false}
-        enableFusionRouter={enableFusionRouter ?? false}
+        enableParetoCodeRouter={localRouterAvailable && (enableParetoCodeRouter ?? false)}
+        enableFusionRouter={localRouterAvailable && (enableFusionRouter ?? false)}
         enableAutoReviewPermissionMode={enableAutoReviewPermissionMode ?? false}
         enableFullAccessPermissionMode={enableFullAccessPermissionMode ?? false}
         planExecutionModel={planExecutionModel}
@@ -1904,7 +1908,7 @@ export function DesktopLayout(): React.ReactNode {
                 },
               )
             },
-            permissionMode,
+            permissionMode: effectivePermissionMode,
             planModeActive,
             providerModelOptions,
             events: isQuickChatPage || isConversationLoading ? [] : events,

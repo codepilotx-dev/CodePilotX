@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite"
 import { existsSync, mkdirSync, renameSync } from "node:fs"
 import { basename, dirname, extname, resolve } from "node:path"
 import { Effect } from "effect"
+import { DEFAULT_PERMISSION_CONFIG, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
 import type {
   EventEnvelope,
   Item,
@@ -85,7 +86,7 @@ const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const now = () => Date.now()
 const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 type PermissionColumns = {
   sandbox_mode: PermissionConfig["sandboxMode"]
@@ -93,10 +94,24 @@ type PermissionColumns = {
   approvals_reviewer: PermissionConfig["approvalsReviewer"]
 }
 
+type ThreadSettingsColumns = PermissionColumns & {
+  task_mode: TaskMode
+}
+
 const permissionConfigFromRow = (row: PermissionColumns): PermissionConfig => ({
   sandboxMode: row.sandbox_mode,
   approvalPolicy: row.approval_policy,
   approvalsReviewer: row.approvals_reviewer,
+})
+
+const threadSettingsFromRow = (row: ThreadSettingsColumns): ThreadSettings => ({
+  taskMode: row.task_mode,
+  permissionConfig: permissionConfigFromRow(row),
+})
+
+const defaultThreadSettings = (): ThreadSettings => ({
+  taskMode: "chat",
+  permissionConfig: { ...DEFAULT_PERMISSION_CONFIG },
 })
 
 const legacyPermissionMode = (config: PermissionConfig) => {
@@ -171,6 +186,10 @@ export class AgentDatabase {
       CREATE TABLE IF NOT EXISTS threads (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
+        task_mode TEXT NOT NULL DEFAULT 'chat',
+        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',
+        approval_policy TEXT NOT NULL DEFAULT 'on-request',
+        approvals_reviewer TEXT NOT NULL DEFAULT 'user',
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       );
@@ -380,6 +399,7 @@ export class AgentDatabase {
     this.addColumn("question_requests", "payload_version", "INTEGER NOT NULL DEFAULT 1")
     this.addColumn("events", "turn_id", "TEXT")
     if (currentVersion < 3) this.migratePermissionsV3()
+    if (currentVersion < 4) this.migrateThreadSettingsV4()
   }
 
   private migratePermissionsV3() {
@@ -400,6 +420,39 @@ export class AgentDatabase {
       }
       this.addColumn("approval_requests", "request_payload", "TEXT NOT NULL DEFAULT '{\"version\":1}'")
       this.addColumn("approval_requests", "review_payload", "TEXT")
+      this.sqlite.exec("PRAGMA user_version = 3")
+    })
+  }
+
+  private migrateThreadSettingsV4() {
+    this.transaction(() => {
+      this.addColumn("threads", "task_mode", "TEXT NOT NULL DEFAULT 'chat'")
+      this.addColumn("threads", "sandbox_mode", "TEXT NOT NULL DEFAULT 'workspace-write'")
+      this.addColumn("threads", "approval_policy", "TEXT NOT NULL DEFAULT 'on-request'")
+      this.addColumn("threads", "approvals_reviewer", "TEXT NOT NULL DEFAULT 'user'")
+      this.sqlite.exec(`
+        UPDATE threads
+        SET task_mode = COALESCE((
+              SELECT i.task_mode FROM inputs AS i
+              WHERE i.thread_id = threads.id
+              ORDER BY i.created_at DESC, i.id DESC LIMIT 1
+            ), 'chat'),
+            sandbox_mode = COALESCE((
+              SELECT i.sandbox_mode FROM inputs AS i
+              WHERE i.thread_id = threads.id
+              ORDER BY i.created_at DESC, i.id DESC LIMIT 1
+            ), 'workspace-write'),
+            approval_policy = COALESCE((
+              SELECT i.approval_policy FROM inputs AS i
+              WHERE i.thread_id = threads.id
+              ORDER BY i.created_at DESC, i.id DESC LIMIT 1
+            ), 'on-request'),
+            approvals_reviewer = COALESCE((
+              SELECT i.approvals_reviewer FROM inputs AS i
+              WHERE i.thread_id = threads.id
+              ORDER BY i.created_at DESC, i.id DESC LIMIT 1
+            ), 'user')
+      `)
       this.sqlite.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
     })
   }
@@ -489,20 +542,67 @@ export class AgentDatabase {
     `).run(input.createdAt, input.content, preview, input.threadID)
   }
 
-  createThread(title = "新对话", projectID?: string) {
+  getThreadSettings(threadID: string): ThreadSettings | null {
+    const row = this.sqlite.query("SELECT task_mode, sandbox_mode, approval_policy, approvals_reviewer FROM threads WHERE id = ?").get(threadID) as ThreadSettingsColumns | null
+    return row ? threadSettingsFromRow(row) : null
+  }
+
+  private syncThreadSettings(threadID: string, patch: ThreadSettingsPatch) {
+    const existing = this.getThreadSettings(threadID)
+    if (!existing) throw new Error("Thread not found")
+    const settings: ThreadSettings = {
+      taskMode: patch.taskMode ?? existing.taskMode,
+      permissionConfig: patch.permissionConfig ?? existing.permissionConfig,
+    }
+    const unchanged = settings.taskMode === existing.taskMode
+      && settings.permissionConfig.sandboxMode === existing.permissionConfig.sandboxMode
+      && settings.permissionConfig.approvalPolicy === existing.permissionConfig.approvalPolicy
+      && settings.permissionConfig.approvalsReviewer === existing.permissionConfig.approvalsReviewer
+    if (unchanged) return { settings, event: null }
+    this.sqlite.query(`
+      UPDATE threads
+      SET task_mode = ?, sandbox_mode = ?, approval_policy = ?, approvals_reviewer = ?
+      WHERE id = ?
+    `).run(
+      settings.taskMode,
+      settings.permissionConfig.sandboxMode,
+      settings.permissionConfig.approvalPolicy,
+      settings.permissionConfig.approvalsReviewer,
+      threadID,
+    )
+    const event = this.insertEvent(threadID, null, "thread/settings/updated", { threadId: threadID, settings })
+    return { settings, event }
+  }
+
+  updateThreadSettings(threadID: string, patch: ThreadSettingsPatch) {
+    return this.transaction(() => this.syncThreadSettings(threadID, patch))
+  }
+
+  createThread(title = "新对话", projectID?: string, initialSettings?: ThreadSettings) {
     const id = crypto.randomUUID()
     const timestamp = now()
+    const settings = initialSettings ?? defaultThreadSettings()
     return this.transaction(() => {
       if (projectID) this.requireProject(projectID)
-      this.sqlite.query("INSERT INTO threads (id, title, project_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run(id, title, projectID ?? null, timestamp, timestamp)
-      const event = this.insertEvent(id, null, "thread/created", { id, title, projectID: projectID ?? null, createdAt: timestamp, updatedAt: timestamp })
-      return { id, title, projectID: projectID ?? null, createdAt: timestamp, updatedAt: timestamp, event }
+      this.sqlite.query("INSERT INTO threads (id, title, project_id, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+        id,
+        title,
+        projectID ?? null,
+        settings.taskMode,
+        settings.permissionConfig.sandboxMode,
+        settings.permissionConfig.approvalPolicy,
+        settings.permissionConfig.approvalsReviewer,
+        timestamp,
+        timestamp,
+      )
+      const event = this.insertEvent(id, null, "thread/created", { id, title, projectID: projectID ?? null, settings, createdAt: timestamp, updatedAt: timestamp })
+      return { id, title, projectID: projectID ?? null, settings, createdAt: timestamp, updatedAt: timestamp, event }
     })
   }
 
   getThread(threadID: string): ThreadSnapshot | null {
-    const thread = this.sqlite.query("SELECT id, title, created_at, updated_at FROM threads WHERE id = ?").get(threadID) as
-      | { id: string; title: string; created_at: number; updated_at: number }
+    const thread = this.sqlite.query("SELECT id, title, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?").get(threadID) as
+      | ({ id: string; title: string; created_at: number; updated_at: number } & ThreadSettingsColumns)
       | null
     if (!thread) return null
     const turns = this.sqlite.query("SELECT id, status, mode, started_at, finished_at FROM turns WHERE thread_id = ? ORDER BY created_at").all(threadID) as Array<{
@@ -524,6 +624,7 @@ export class AgentDatabase {
     return {
       id: thread.id,
       title: thread.title,
+      settings: threadSettingsFromRow(thread),
       createdAt: thread.created_at,
       updatedAt: thread.updated_at,
       turns: turns.map((turn) => ({
@@ -556,6 +657,10 @@ export class AgentDatabase {
     const inputID = crypto.randomUUID()
     const timestamp = now()
     return this.transaction(() => {
+      const settingsUpdate = this.syncThreadSettings(threadID, {
+        taskMode: input.taskMode,
+        permissionConfig: input.permissionConfig,
+      })
       this.sqlite.query(`INSERT INTO turns (id, thread_id, status, mode, permission_mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, strategy, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`).run(
         turnID,
         threadID,
@@ -588,7 +693,7 @@ export class AgentDatabase {
       this.appendUserMessage({ id: inputID, threadID, turnID, content: input.content, createdAt: timestamp })
       const method = status === "queued" ? "turn/queued" : "turn/started"
       const event = this.insertEvent(threadID, turnID, method, { turnId: turnID, inputID, input, createdAt: timestamp })
-      return { turnID, inputID, event }
+      return { turnID, inputID, settingsEvent: settingsUpdate.event, event }
     })
   }
 
@@ -596,6 +701,10 @@ export class AgentDatabase {
     const id = crypto.randomUUID()
     const timestamp = now()
     return this.transaction(() => {
+      const settingsUpdate = this.syncThreadSettings(threadID, {
+        taskMode: input.taskMode,
+        permissionConfig: input.permissionConfig,
+      })
       this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, permission_mode, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'guide', ?, 'mailbox', ?)`).run(
         id,
         threadID,
@@ -611,7 +720,7 @@ export class AgentDatabase {
       )
       this.appendUserMessage({ id, threadID, turnID, content: input.content, createdAt: timestamp })
       const event = this.insertEvent(threadID, turnID, "queue/updated", { turnId: turnID, inputID: id, input, action: "guide-appended", createdAt: timestamp })
-      return { inputID: id, event }
+      return { inputID: id, settingsEvent: settingsUpdate.event, event }
     })
   }
 

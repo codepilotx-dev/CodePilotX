@@ -85,6 +85,18 @@ export type SendStrategy = typeof SendStrategySchema.Type
 export const TaskModeSchema = Schema.Literals(["chat", "plan"])
 export type TaskMode = typeof TaskModeSchema.Type
 
+export const ThreadSettingsSchema = Schema.Struct({
+  taskMode: TaskModeSchema,
+  permissionConfig: PermissionConfigSchema,
+})
+export type ThreadSettings = typeof ThreadSettingsSchema.Type
+
+export const ThreadSettingsPatchSchema = Schema.Struct({
+  taskMode: Schema.optional(TaskModeSchema),
+  permissionConfig: Schema.optional(PermissionConfigSchema),
+})
+export type ThreadSettingsPatch = typeof ThreadSettingsPatchSchema.Type
+
 export const AgentRoleSchema = Schema.Literals(["planner", "developer", "reviewer"])
 export type AgentRole = typeof AgentRoleSchema.Type
 
@@ -164,6 +176,7 @@ export const ThreadSchema = Schema.Struct({
   id: Schema.String,
   title: Schema.String,
   projectID: Schema.NullOr(Schema.String),
+  settings: ThreadSettingsSchema,
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
 })
@@ -178,6 +191,7 @@ export const ThreadListItemSchema = Schema.Struct({
   messageCount: Schema.Number,
   latestTurnStatus: Schema.NullOr(TurnStatusSchema),
   archivedAt: Schema.NullOr(Schema.Number),
+  settings: ThreadSettingsSchema,
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
 })
@@ -392,7 +406,7 @@ export const TurnStartParamsSchema = Schema.Struct({
   model: Model.Ref,
   permissionConfig: PermissionConfigSchema,
   strategy: Schema.optional(SendStrategySchema),
-  taskMode: Schema.optional(TaskModeSchema),
+  taskMode: TaskModeSchema,
 })
 export type TurnStartParams = typeof TurnStartParamsSchema.Type
 
@@ -425,6 +439,7 @@ export const AgentRpcMethodSchema = Schema.Literals([
   "thread/create",
   "thread/read",
   "thread/update",
+  "thread/settings/update",
   "thread/delete",
   "turn/start",
   "turn/interrupt",
@@ -457,6 +472,7 @@ export const AgentEventMethodSchema = Schema.Literals([
   "thread/created",
   "thread/snapshot",
   "thread/updated",
+  "thread/settings/updated",
   "thread/deleted",
   "turn/queued",
   "turn/started",

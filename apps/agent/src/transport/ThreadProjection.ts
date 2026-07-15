@@ -53,8 +53,8 @@ export class ThreadProjection {
   constructor(private readonly db: AgentDatabase) {}
 
   snapshot(threadId: string): ThreadSnapshot | null {
-    const thread = this.db.sqlite.query("SELECT id, title, project_id, created_at, updated_at FROM threads WHERE id = ?").get(threadId) as
-      | { id: string; title: string; project_id: string | null; created_at: number; updated_at: number }
+    const thread = this.db.sqlite.query("SELECT id, title, project_id, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?").get(threadId) as
+      | { id: string; title: string; project_id: string | null; task_mode: ThreadSnapshot["thread"]["settings"]["taskMode"]; sandbox_mode: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["sandboxMode"]; approval_policy: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["approvalPolicy"]; approvals_reviewer: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["approvalsReviewer"]; created_at: number; updated_at: number }
       | null
     if (!thread) return null
     const inputs = (this.db.sqlite.query("SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at FROM inputs WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Input => ({
@@ -141,7 +141,21 @@ export class ThreadProjection {
       updatedAt: proposal.updatedAt,
     })))
     return {
-      thread: { id: thread.id, title: thread.title, projectID: thread.project_id, createdAt: thread.created_at, updatedAt: thread.updated_at },
+      thread: {
+        id: thread.id,
+        title: thread.title,
+        projectID: thread.project_id,
+        settings: {
+          taskMode: thread.task_mode,
+          permissionConfig: {
+            sandboxMode: thread.sandbox_mode,
+            approvalPolicy: thread.approval_policy,
+            approvalsReviewer: thread.approvals_reviewer,
+          },
+        },
+        createdAt: thread.created_at,
+        updatedAt: thread.updated_at,
+      },
       turns,
       inputs,
       messages,
@@ -163,7 +177,7 @@ export class ThreadProjection {
     }
     const sql = `
       SELECT t.id, t.project_id, t.title, t.preview, t.first_user_message, t.message_count,
-        t.archived_at, t.created_at, t.updated_at,
+        t.archived_at, t.task_mode, t.sandbox_mode, t.approval_policy, t.approvals_reviewer, t.created_at, t.updated_at,
         (SELECT status FROM turns AS u WHERE u.thread_id = t.id ORDER BY u.created_at DESC LIMIT 1) AS latest_turn_status
       FROM threads AS t
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
@@ -181,6 +195,14 @@ export class ThreadProjection {
       messageCount: Number(row.message_count ?? 0),
       latestTurnStatus: row.latest_turn_status == null ? null : turnStatus(String(row.latest_turn_status)),
       archivedAt: row.archived_at == null ? null : Number(row.archived_at),
+      settings: {
+        taskMode: String(row.task_mode) as ThreadListItem["settings"]["taskMode"],
+        permissionConfig: {
+          sandboxMode: String(row.sandbox_mode) as ThreadListItem["settings"]["permissionConfig"]["sandboxMode"],
+          approvalPolicy: String(row.approval_policy) as ThreadListItem["settings"]["permissionConfig"]["approvalPolicy"],
+          approvalsReviewer: String(row.approvals_reviewer) as ThreadListItem["settings"]["permissionConfig"]["approvalsReviewer"],
+        },
+      },
       createdAt: Number(row.created_at),
       updatedAt: Number(row.updated_at),
     }))

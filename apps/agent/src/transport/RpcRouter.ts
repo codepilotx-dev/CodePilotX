@@ -3,6 +3,8 @@ import {
   AUTO_REVIEW_PERMISSION_CONFIG,
   DEFAULT_PERMISSION_CONFIG,
   FULL_ACCESS_PERMISSION_CONFIG,
+  ThreadSettingsPatchSchema,
+  ThreadSettingsSchema,
   TurnStartParamsSchema,
   SandboxUninstallParamsSchema,
   AgentRpcRequestSchema,
@@ -58,6 +60,8 @@ const decodeParams = <A>(decode: (value: unknown) => A, value: unknown, name: st
 }
 
 const decodeTurnStart = Schema.decodeUnknownSync(TurnStartParamsSchema)
+const decodeThreadSettings = Schema.decodeUnknownSync(ThreadSettingsSchema)
+const decodeThreadSettingsPatch = Schema.decodeUnknownSync(ThreadSettingsPatchSchema)
 const decodeApprovalRespond = Schema.decodeUnknownSync(ApprovalRespondParamsSchema)
 const decodeRpcRequest = Schema.decodeUnknownSync(AgentRpcRequestSchema)
 const decodeSandboxUninstall = Schema.decodeUnknownSync(SandboxUninstallParamsSchema)
@@ -77,7 +81,7 @@ const submitMessage = (raw: unknown): SubmitMessage => {
     model: body.model,
     permissionConfig: supportedPermissionConfig(body.permissionConfig),
     strategy: enumValue<SendStrategy>(body.strategy ?? "queue", ["queue", "guide"], "strategy"),
-    taskMode: enumValue<TaskMode>(body.taskMode ?? "chat", ["chat", "plan"], "taskMode"),
+    taskMode: enumValue<TaskMode>(body.taskMode, ["chat", "plan"], "taskMode"),
   }
 }
 
@@ -161,7 +165,11 @@ export class RpcRouter {
       }
       case "thread/create": {
         const projectID = stringParam(params, "projectID", "projectId")
-        const created = threads.create(typeof params.title === "string" ? params.title : undefined, projectID)
+        const settings = params.settings === undefined
+          ? undefined
+          : decodeParams(decodeThreadSettings, params.settings, "thread/create.settings")
+        if (settings) supportedPermissionConfig(settings.permissionConfig)
+        const created = threads.create(typeof params.title === "string" ? params.title : undefined, projectID, settings)
         return this.requiredSnapshot(created.id)
       }
       case "thread/read":
@@ -174,6 +182,12 @@ export class RpcRouter {
         if (archived !== undefined && typeof archived !== "boolean") throw new AgentError("INVALID_REQUEST", "archived 参数无效", 400)
         const thread = await history.patch(threadId, { ...(title !== undefined ? { title } : {}), ...(archived !== undefined ? { archived } : {}) })
         return { thread }
+      }
+      case "thread/settings/update": {
+        const threadId = stringParam(params, "threadId")
+        const settings = decodeParams(decodeThreadSettingsPatch, params.settings, "thread/settings/update.settings")
+        if (settings.permissionConfig) supportedPermissionConfig(settings.permissionConfig)
+        return history.patchSettings(threadId, settings)
       }
       case "thread/delete":
         await history.remove(stringParam(params, "threadId"))

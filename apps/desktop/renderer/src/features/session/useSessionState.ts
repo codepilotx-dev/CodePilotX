@@ -103,7 +103,9 @@ export type UseSessionStateResult = {
   pendingPermissionSessionIds: ReadonlySet<string>
   contextUsage: DesktopContextUsage | null
   activeSessionItem: SessionListItem | null
+  permissionMode: DesktopPermissionMode
   planModeActive: boolean
+  localRouterMode: LocalRouterMode
   canSubmit: boolean
   input: string
   setInput: (value: string) => void
@@ -208,8 +210,13 @@ export function useSessionState(
     () => sessions.find(session => session.id === sessionId) ?? null,
     [sessions, sessionId],
   )
+  const effectivePermissionMode =
+    activeSessionItem?.permissionMode ?? permissionMode
   const effectivePlanModeActive =
     activeSessionItem?.planModeActive ?? planModeActive
+  const effectiveLocalRouterMode = activeSessionItem?.id.startsWith('browser-mock-')
+    ? activeSessionItem.localRouterMode ?? localRouterMode
+    : 'off'
 
   const activeSessionIdRef = useRef<string | null>(null)
   const sessionsRef = useRef<SessionListItem[]>([])
@@ -594,10 +601,9 @@ export function useSessionState(
 
   const settingsSnapshot = useMemo<SessionSettingsSnapshot>(
     () => ({
-      permissionMode,
+      permissionMode: effectivePermissionMode,
       planModeActive: effectivePlanModeActive,
-      localRouterMode:
-        activeSessionItem?.localRouterMode ?? localRouterMode,
+      localRouterMode: effectiveLocalRouterMode,
       providerID,
       providerBaseURL,
       debugConversationDump,
@@ -620,7 +626,6 @@ export function useSessionState(
     [
       additionalDirectories,
       appendSystemPrompt,
-      activeSessionItem?.localRouterMode,
       installCodePilotXDependencies,
       enableMemory,
       rustSearchAndDiffKernels,
@@ -630,9 +635,9 @@ export function useSessionState(
       model,
       reviewModel,
       deepModel,
+      effectiveLocalRouterMode,
+      effectivePermissionMode,
       effectivePlanModeActive,
-      localRouterMode,
-      permissionMode,
       providerBaseURL,
       providerID,
       sessionName,
@@ -864,7 +869,9 @@ export function useSessionState(
     pendingPermissionSessionIds,
     contextUsage,
     activeSessionItem,
+    permissionMode: effectivePermissionMode,
     planModeActive: effectivePlanModeActive,
+    localRouterMode: effectiveLocalRouterMode,
     canSubmit,
     input,
     setInput: setScopedInput,

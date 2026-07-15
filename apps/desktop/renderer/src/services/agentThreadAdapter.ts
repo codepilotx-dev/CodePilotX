@@ -72,6 +72,7 @@ export function agentThreadListItemToDesktop(
   project?: Project | null,
 ): DesktopSessionListItem {
   const workspace = projectToDesktopWorkspace(project, thread.projectID)
+  const planModeActive = thread.settings.taskMode === 'plan'
   return {
     id: thread.id,
     sessionName: thread.title || null,
@@ -81,9 +82,9 @@ export function agentThreadListItemToDesktop(
     workspacePath: workspace.path,
     standalone: !project,
     archivedAt: isoOrNull(thread.archivedAt),
-    permissionMode: 'default',
-    collaborationMode: collaborationModeFromPlanModeActive(false),
-    planModeActive: false,
+    permissionMode: permissionModeToDesktop(thread.settings.permissionConfig),
+    collaborationMode: collaborationModeFromPlanModeActive(planModeActive),
+    planModeActive,
     model: null,
     reviewModel: null,
     thinkingMode: 'default',
@@ -107,7 +108,7 @@ export function agentThreadListItemToDesktopSnapshot(
     settings: {
       permissionMode: item.permissionMode,
       collaborationMode: item.collaborationMode,
-      planModeActive: false,
+      planModeActive: item.planModeActive,
       thinkingMode: 'default',
       sessionName: item.sessionName ?? undefined,
       additionalDirectories: [],
@@ -128,7 +129,7 @@ export function agentThreadSnapshotToDesktop(
   const latestTurn = snapshot.turns.at(-1) ?? null
   const latestInput = snapshot.inputs.at(-1) ?? null
   const workspace = projectToDesktopWorkspace(project, snapshot.thread.projectID)
-  const planModeActive = latestTurn?.mode === 'plan' || latestInput?.mode === 'plan'
+  const planModeActive = snapshot.thread.settings.taskMode === 'plan'
   const events = snapshotEvents(snapshot)
   const item: DesktopSessionListItem = {
     id: snapshot.thread.id,
@@ -138,9 +139,7 @@ export function agentThreadSnapshotToDesktop(
     workspaceName: workspace.name,
     workspacePath: workspace.path,
     standalone: !project,
-    permissionMode: permissionModeToDesktop(
-      latestTurn?.permissionConfig ?? latestInput?.permissionConfig,
-    ),
+    permissionMode: permissionModeToDesktop(snapshot.thread.settings.permissionConfig),
     collaborationMode: collaborationModeFromPlanModeActive(planModeActive),
     planModeActive,
     model: latestTurn?.model.id ?? latestInput?.model.id ?? null,

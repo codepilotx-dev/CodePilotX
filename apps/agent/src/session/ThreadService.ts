@@ -1,6 +1,7 @@
 import { Effect } from "effect"
 import type { LanguageModel } from "ai"
 import { Model } from "@codepilotx/model-schema"
+import type { ThreadSettings } from "@codepilotx/shared/thread"
 import type { ProviderRuntime } from "@codepilotx/provider-runtime"
 import { AgentError, type SubmitMessage } from "../domain"
 import type { AgentDatabase } from "../storage/Database"
@@ -51,8 +52,8 @@ export class ThreadService {
     return event
   }
 
-  create(title?: string, projectID?: string) {
-    return this.db.createThread(title, projectID)
+  create(title?: string, projectID?: string, settings?: ThreadSettings) {
+    return this.db.createThread(title, projectID, settings)
   }
 
   get(threadID: string) {
@@ -72,6 +73,7 @@ export class ThreadService {
     const active = this.db.activeTurn(threadID)
     if (active && input.strategy === "guide" && active.status !== "waiting_question") {
       const guide = this.db.appendGuide(threadID, active.id, input)
+      if (guide.settingsEvent) await Effect.runPromise(this.hub.publish(guide.settingsEvent))
       await Effect.runPromise(this.hub.publish(guide.event))
       if (active.status === "waiting_plan_confirmation") {
         this.db.setTurnWorkflowState(active.id, { status: "queued", currentStage: "planner", canContinueFromPlan: false })
@@ -80,6 +82,7 @@ export class ThreadService {
       return { disposition: "guide" as const, turnID: active.id, inputID: guide.inputID }
     }
     const created = this.db.createTurn(threadID, input, "queued")
+    if (created.settingsEvent) await Effect.runPromise(this.hub.publish(created.settingsEvent))
     await Effect.runPromise(this.hub.publish(created.event))
     if (!active) void this.executeTurn(threadID, created.turnID)
     return { disposition: active ? "queued" as const : "started" as const, turnID: created.turnID, inputID: created.inputID }

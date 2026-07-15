@@ -32,7 +32,13 @@ import type {
   ProviderTestResponse,
   ProvidersResponse,
 } from '@codepilotx/shared'
-import type { ThreadListItem, ThreadSnapshot } from '@codepilotx/shared/thread'
+import type {
+  PermissionConfig,
+  ThreadListItem,
+  ThreadSettings,
+  ThreadSettingsPatch,
+  ThreadSnapshot,
+} from '@codepilotx/shared/thread'
 import { normalizeDesktopThemeSettings } from '../../shared/theme.js'
 import { desktopUserMessageInputToPreviewText } from '../../shared/desktopUserMessage.js'
 import type {
@@ -145,6 +151,7 @@ function createAgentSessionDesktopClient(
   const sessionSnapshots = new Map<string, DesktopSessionSnapshot>()
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
   const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  const pendingSettingsUpdates = new Map<string, Promise<void>>()
 
   async function isAgentAvailable(): Promise<boolean> {
     if (agentReady) return true
@@ -181,6 +188,51 @@ function createAgentSessionDesktopClient(
         : new Error('Agent RPC 当前不可用。')
     }
     return agentOperation()
+  }
+
+  function unsupportedAgentOperation(operation: string): never {
+    const error = new Error(
+      `AGENT_OPERATION_UNSUPPORTED: 真实 Agent 会话暂不支持 ${operation}。`,
+    ) as Error & { code: string }
+    error.code = 'AGENT_OPERATION_UNSUPPORTED'
+    throw error
+  }
+
+  function withUnsupportedAgentFallback<T>(
+    operation: string,
+    mockOperation: () => Promise<T>,
+  ): Promise<T> {
+    return withAgentOrMock(
+      async () => unsupportedAgentOperation(operation),
+      mockOperation,
+    )
+  }
+
+  function queueSettingsUpdate<T>(
+    sessionId: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const previous = pendingSettingsUpdates.get(sessionId) ?? Promise.resolve()
+    const result = previous.catch(() => undefined).then(operation)
+    const pending = result.then(() => undefined)
+    pendingSettingsUpdates.set(sessionId, pending)
+    void pending.then(
+      () => {
+        if (pendingSettingsUpdates.get(sessionId) === pending) {
+          pendingSettingsUpdates.delete(sessionId)
+        }
+      },
+      () => {
+        if (pendingSettingsUpdates.get(sessionId) === pending) {
+          pendingSettingsUpdates.delete(sessionId)
+        }
+      },
+    )
+    return result
+  }
+
+  async function awaitPendingSettingsUpdate(sessionId: string): Promise<void> {
+    await pendingSettingsUpdates.get(sessionId)
   }
 
   async function loadModelCatalog(refresh = false): Promise<ProvidersResponse> {
@@ -407,12 +459,72 @@ function createAgentSessionDesktopClient(
     )
   }
 
+  function permissionModeFromConfig(
+    config: PermissionConfig,
+  ): DesktopSessionSnapshot['settings']['permissionMode'] {
+    if (config.sandboxMode === 'danger-full-access') return 'full-access'
+    if (config.approvalsReviewer === 'auto_review') return 'auto-review'
+    return 'default'
+  }
+
+  async function applyThreadSettings(
+    sessionId: string,
+    settings: ThreadSettings,
+  ): Promise<DesktopSessionSnapshot> {
+    const current =
+      sessionSnapshots.get(sessionId) ??
+      (await loadAgentSessionSnapshot(sessionId))
+    const planModeActive = settings.taskMode === 'plan'
+    const collaborationMode = collaborationModeFromPlanModeActive(planModeActive)
+    const permissionMode = permissionModeFromConfig(settings.permissionConfig)
+    const snapshot: DesktopSessionSnapshot = {
+      ...current,
+      item: {
+        ...current.item,
+        collaborationMode,
+        permissionMode,
+        planModeActive,
+      },
+      settings: {
+        ...current.settings,
+        collaborationMode,
+        permissionMode,
+        planModeActive,
+      },
+    }
+    sessionSnapshots.set(sessionId, snapshot)
+    emitSessionStoreChange()
+    return snapshot
+  }
+
+  function updateThreadSettings(
+    sessionId: string,
+    settings: ThreadSettingsPatch,
+  ): Promise<DesktopSessionSnapshot> {
+    return queueSettingsUpdate(sessionId, async () => {
+      const response = await rpc.call<{
+        threadId: string
+        settings: ThreadSettings
+      }>('thread/settings/update', {
+        threadId: sessionId,
+        settings,
+      })
+      if (response.threadId !== sessionId) {
+        throw new Error(
+          `thread/settings/update 返回了不匹配的 threadId：${response.threadId}`,
+        )
+      }
+      return applyThreadSettings(sessionId, response.settings)
+    })
+  }
+
   async function submitAgentMessage(
     sessionId: string,
     input: DesktopUserMessageInput,
     strategy: 'queue' | 'guide',
     model?: string | DesktopModelSelection,
   ): Promise<unknown> {
+    await awaitPendingSettingsUpdate(sessionId)
     const response = await rpc.call('turn/start', {
       threadId: sessionId,
       content: desktopUserMessageInputToPreviewText(input),
@@ -498,6 +610,16 @@ function createAgentSessionDesktopClient(
 
   const client: DesktopApi = {
     ...mockClient,
+    getMcpRuntimeStatus: sessionId =>
+      withUnsupportedAgentFallback(
+        'getMcpRuntimeStatus',
+        () => mockClient.getMcpRuntimeStatus(sessionId),
+      ),
+    restoreSessionTurnChanges: input =>
+      withUnsupportedAgentFallback(
+        'restoreSessionTurnChanges',
+        () => mockClient.restoreSessionTurnChanges(input),
+      ),
     chooseWorkspace: async () => {
       const picker = environment.window?.codePilotXDesktop?.pickWorkspaceDirectory
       if (!picker) return mockClient.chooseWorkspace()
@@ -703,8 +825,21 @@ function createAgentSessionDesktopClient(
             throw new Error('历史会话需要先选择项目工作区。')
           }
           const project = await loadProjectForPath(options.workspacePath)
+          const collaborationMode = resolveCodePilotXCollaborationMode({
+            collaborationMode: options.collaborationMode,
+            planModeActive: options.planModeActive,
+          })
+          const settings: ThreadSettings = {
+            taskMode: planModeActiveFromCollaborationMode(collaborationMode)
+              ? 'plan'
+              : 'chat',
+            permissionConfig: desktopPermissionModeToPermissionConfig(
+              options.permissionMode,
+            ),
+          }
           const sharedSnapshot = await rpc.call<ThreadSnapshot>('thread/create', {
             projectID: project.id,
+            settings,
             title: options.sessionName,
           })
           const snapshot = agentThreadSnapshotToDesktop(sharedSnapshot, project)
@@ -726,23 +861,33 @@ function createAgentSessionDesktopClient(
       ),
     getSessionCatalogStatus: async (): Promise<DesktopSessionCatalogStatus> => {
       if (await isAgentAvailable()) return { state: 'ready', error: null }
-      return mockClient.getSessionCatalogStatus()
+      if (allowBrowserMockFallback) return mockClient.getSessionCatalogStatus()
+      return {
+        state: 'unavailable',
+        error:
+          readinessError instanceof Error
+            ? readinessError.message
+            : 'Agent RPC 当前不可用。',
+      }
     },
     getSession: async sessionId =>
       withAgentOrMock(
         () => loadAgentSessionSnapshot(sessionId),
         () => mockClient.getSession(sessionId),
       ),
-    getActiveSessionId: async () =>
-      (await isAgentAvailable()) ? activeSessionId : mockClient.getActiveSessionId(),
-    setActiveSession: async sessionId => {
-      if (!(await isAgentAvailable())) {
-        await mockClient.setActiveSession(sessionId)
-        return
-      }
-      activeSessionId = sessionId
-      emitSessionStoreChange()
-    },
+    getActiveSessionId: () =>
+      withAgentOrMock(
+        async () => activeSessionId,
+        () => mockClient.getActiveSessionId(),
+      ),
+    setActiveSession: sessionId =>
+      withAgentOrMock(
+        async () => {
+          activeSessionId = sessionId
+          emitSessionStoreChange()
+        },
+        () => mockClient.setActiveSession(sessionId),
+      ),
     updateSessionMetadata: async (
       sessionId: string,
       patch: DesktopSessionMetadataPatch,
@@ -815,6 +960,40 @@ function createAgentSessionDesktopClient(
         },
         () => mockClient.renameSession(sessionId, name),
       ),
+    saveSessionReviewComment: input =>
+      withUnsupportedAgentFallback(
+        'saveSessionReviewComment',
+        () => mockClient.saveSessionReviewComment(input),
+      ),
+    resolveSessionReviewComment: input =>
+      withUnsupportedAgentFallback(
+        'resolveSessionReviewComment',
+        () => mockClient.resolveSessionReviewComment(input),
+      ),
+    deleteSessionReviewComment: input =>
+      withUnsupportedAgentFallback(
+        'deleteSessionReviewComment',
+        () => mockClient.deleteSessionReviewComment(input),
+      ),
+    setSessionPermissionMode: (sessionId, mode) =>
+      withAgentOrMock(
+        () => updateThreadSettings(sessionId, {
+          permissionConfig: desktopPermissionModeToPermissionConfig(mode),
+        }),
+        () => mockClient.setSessionPermissionMode(sessionId, mode),
+      ),
+    setSessionPlanModeActive: (sessionId, active) =>
+      withAgentOrMock(
+        () => updateThreadSettings(sessionId, {
+          taskMode: active ? 'plan' : 'chat',
+        }),
+        () => mockClient.setSessionPlanModeActive(sessionId, active),
+      ),
+    setSessionLocalRouterMode: (sessionId, mode) =>
+      withUnsupportedAgentFallback(
+        'setSessionLocalRouterMode',
+        () => mockClient.setSessionLocalRouterMode(sessionId, mode),
+      ),
     disposeSession: async sessionId =>
       withAgentOrMock(
         async () => {
@@ -848,6 +1027,60 @@ function createAgentSessionDesktopClient(
           return behavior === 'steer' ? 'steered' as const : 'queued' as const
         },
         () => mockClient.submitSessionFollowUp(sessionId, input, behavior),
+      ),
+    updateQueuedFollowUp: (sessionId, followUpId, input) =>
+      withUnsupportedAgentFallback(
+        'updateQueuedFollowUp',
+        () => mockClient.updateQueuedFollowUp(sessionId, followUpId, input),
+      ),
+    removeQueuedFollowUp: (sessionId, followUpId) =>
+      withUnsupportedAgentFallback(
+        'removeQueuedFollowUp',
+        () => mockClient.removeQueuedFollowUp(sessionId, followUpId),
+      ),
+    sendQueuedFollowUpNow: (sessionId, followUpId) =>
+      withUnsupportedAgentFallback(
+        'sendQueuedFollowUpNow',
+        () => mockClient.sendQueuedFollowUpNow(sessionId, followUpId),
+      ),
+    compactSession: sessionId =>
+      withUnsupportedAgentFallback(
+        'compactSession',
+        () => mockClient.compactSession(sessionId),
+      ),
+    rollbackSession: input =>
+      withUnsupportedAgentFallback(
+        'rollbackSession',
+        () => mockClient.rollbackSession(input),
+      ),
+    getSessionGoal: sessionId =>
+      withUnsupportedAgentFallback(
+        'getSessionGoal',
+        () => mockClient.getSessionGoal(sessionId),
+      ),
+    setSessionGoal: (sessionId, input) =>
+      withUnsupportedAgentFallback(
+        'setSessionGoal',
+        () => mockClient.setSessionGoal(sessionId, input),
+      ),
+    clearSessionGoal: sessionId =>
+      withUnsupportedAgentFallback(
+        'clearSessionGoal',
+        () => mockClient.clearSessionGoal(sessionId),
+      ),
+    startSessionReview: (sessionId, target) =>
+      withUnsupportedAgentFallback(
+        'startSessionReview',
+        () => mockClient.startSessionReview(sessionId, target),
+      ),
+    setSessionPermissionProfile: (sessionId, profile, approvalPolicy) =>
+      withUnsupportedAgentFallback(
+        'setSessionPermissionProfile',
+        () => mockClient.setSessionPermissionProfile(
+          sessionId,
+          profile,
+          approvalPolicy,
+        ),
       ),
     respondToPermission: async (
       sessionId: string,
@@ -890,7 +1123,11 @@ function createAgentSessionDesktopClient(
       ),
     onAgentEvent: callback => {
       const makeEventSource = eventSourceFactory()
-      if (!makeEventSource) return mockClient.onAgentEvent(callback)
+      if (!makeEventSource) {
+        return allowBrowserMockFallback
+          ? mockClient.onAgentEvent(callback)
+          : noop
+      }
       const source = makeEventSource('/rpc/events')
       source.onmessage = message => {
         try {
@@ -908,6 +1145,7 @@ function createAgentSessionDesktopClient(
             [
               'thread/snapshot',
               'thread/updated',
+              'thread/settings/updated',
               'turn/queued',
               'turn/started',
               'turn/statusChanged',
@@ -932,7 +1170,9 @@ function createAgentSessionDesktopClient(
     },
     onSessionStoreChange: callback => {
       sessionStoreListeners.add(callback)
-      const unsubscribeMock = mockClient.onSessionStoreChange(callback)
+      const unsubscribeMock = allowBrowserMockFallback
+        ? mockClient.onSessionStoreChange(callback)
+        : noop
       return () => {
         sessionStoreListeners.delete(callback)
         unsubscribeMock()
@@ -1444,6 +1684,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
       const snapshot = requireMockSession(sessions, sessionId)
       const next = {
         ...snapshot,
+        item: { ...snapshot.item, permissionMode: mode },
         settings: { ...snapshot.settings, permissionMode: mode },
       }
       sessions.set(sessionId, next)

@@ -22,17 +22,20 @@ describe('agent thread adapter', () => {
     const thread: ThreadListItem = {
       id: 'thread-1', projectID: project.id, title: '历史对话', preview: '预览',
       firstUserMessage: '第一条消息', messageCount: 3, latestTurnStatus: 'waiting-permission',
+      settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'auto_review' } },
       archivedAt: null, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_001_000,
     }
     const item = agentThreadListItemToDesktop(thread, project)
     expect(item.status).toBe('waiting')
     expect(item.workspacePath).toBe(project.rootPath)
     expect(item.firstPrompt).toBe('第一条消息')
+    expect(item.permissionMode).toBe('full-access')
+    expect(item.planModeActive).toBe(true)
   })
 
   test('maps native snapshot text, plan, tool, patch, approval, and question', () => {
     const snapshot: ThreadSnapshot = {
-      thread: { id: 'thread-1', title: '历史对话', projectID: project.id, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000 },
+      thread: { id: 'thread-1', title: '历史对话', projectID: project.id, settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' } }, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000 },
       turns: [{
         id: 'turn-1', threadId: 'thread-1', sourceInputID: 'input-1', status: 'running', mode: 'plan',
         model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }, currentStage: 'developer',
@@ -70,6 +73,27 @@ describe('agent thread adapter', () => {
     )
     const question = desktop.view.pendingPermissions.find(request => request.toolName === 'AskUserQuestion')
     expect(agentQuestionIdFromRequestId(question!.requestId)).toBe('question-1')
+  })
+
+  test('uses current thread settings instead of the latest historical turn snapshot', () => {
+    const snapshot: ThreadSnapshot = {
+      thread: {
+        id: 'thread-settings', title: '设置投影', projectID: project.id,
+        settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'auto_review' } },
+        createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000,
+      },
+      turns: [{
+        id: 'turn-old', threadId: 'thread-settings', sourceInputID: 'input-old', status: 'completed', mode: 'plan',
+        model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' }, currentStage: null,
+        canContinueFromPlan: false, stages: [], mergedInputIDs: [], startedAt: 1_700_000_001_000,
+        finishedAt: 1_700_000_002_000, elapsedSeconds: 1, error: null,
+      }],
+      inputs: [], messages: [], items: [], approvals: [], proposals: [],
+    }
+
+    const desktop = agentThreadSnapshotToDesktop(snapshot, project)
+    expect(desktop.item.planModeActive).toBe(false)
+    expect(desktop.item.permissionMode).toBe('full-access')
   })
 
   test('maps native item notification into a live desktop event', () => {

@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import type { ThreadListItem } from "@codepilotx/shared/thread"
+import type { ThreadListItem, ThreadSettingsPatch } from "@codepilotx/shared/thread"
 import { AgentError } from "../domain"
 import type { AgentDatabase } from "../storage/Database"
 import type { EventHub } from "../storage/EventHub"
@@ -18,6 +18,10 @@ type ThreadRow = {
   message_count: number
   latest_turn_status: string | null
   archived_at: number | null
+  task_mode: ThreadListItem["settings"]["taskMode"]
+  sandbox_mode: ThreadListItem["settings"]["permissionConfig"]["sandboxMode"]
+  approval_policy: ThreadListItem["settings"]["permissionConfig"]["approvalPolicy"]
+  approvals_reviewer: ThreadListItem["settings"]["permissionConfig"]["approvalsReviewer"]
   created_at: number
   updated_at: number
 }
@@ -39,7 +43,8 @@ export class ThreadHistoryService {
 
   getListItem(threadID: string): ThreadListItem | null {
     const row = this.db.sqlite.query(`
-      SELECT t.id, t.project_id, t.title, t.preview, t.first_user_message, t.message_count, t.archived_at, t.created_at, t.updated_at,
+      SELECT t.id, t.project_id, t.title, t.preview, t.first_user_message, t.message_count, t.archived_at,
+        t.task_mode, t.sandbox_mode, t.approval_policy, t.approvals_reviewer, t.created_at, t.updated_at,
         (SELECT u.status FROM turns AS u WHERE u.thread_id = t.id ORDER BY u.created_at DESC, u.id DESC LIMIT 1) AS latest_turn_status
       FROM threads AS t
       WHERE t.id = ?
@@ -53,6 +58,14 @@ export class ThreadHistoryService {
       messageCount: row.message_count,
       latestTurnStatus: turnStatus(row.latest_turn_status),
       archivedAt: row.archived_at,
+      settings: {
+        taskMode: row.task_mode,
+        permissionConfig: {
+          sandboxMode: row.sandbox_mode,
+          approvalPolicy: row.approval_policy,
+          approvalsReviewer: row.approvals_reviewer,
+        },
+      },
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     } : null
@@ -85,6 +98,13 @@ export class ThreadHistoryService {
     const event = this.db.insertEvent(threadID, null, "thread/updated", { threadId: threadID, patch, updatedAt })
     await Effect.runPromise(this.hub.publish(event))
     return next
+  }
+
+  async patchSettings(threadID: string, patch: ThreadSettingsPatch) {
+    if (!this.getListItem(threadID)) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
+    const result = this.db.updateThreadSettings(threadID, patch)
+    if (result.event) await Effect.runPromise(this.hub.publish(result.event))
+    return { threadId: threadID, settings: result.settings }
   }
 
   async remove(threadID: string) {
