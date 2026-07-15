@@ -14,7 +14,7 @@ const project: Project = {
   lastOpenedAt: 1_700_000_000_000,
   createdAt: 1_700_000_000_000,
   updatedAt: 1_700_000_000_000,
-  settings: { defaultModel: null, plannerModel: null, developerModel: null, reviewerModel: null },
+  settings: { defaultModel: null },
 }
 
 describe('agent thread adapter', () => {
@@ -38,9 +38,15 @@ describe('agent thread adapter', () => {
       thread: { id: 'thread-1', title: '历史对话', projectID: project.id, settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' } }, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000 },
       turns: [{
         id: 'turn-1', threadId: 'thread-1', sourceInputID: 'input-1', status: 'running', mode: 'plan',
-        model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }, currentStage: 'developer',
-        canContinueFromPlan: false, stages: [], mergedInputIDs: [], startedAt: 1_700_000_001_000,
+        model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }, rootAgentId: 'agent-1',
+        canContinueFromPlan: false, mergedInputIDs: [], startedAt: 1_700_000_001_000,
         finishedAt: null, elapsedSeconds: 7, error: null,
+      }],
+      agents: [{
+        id: 'agent-1', threadId: 'thread-1', turnId: 'turn-1', parentAgentId: null,
+        profile: 'main', task: '实现历史对话', model: { providerID: 'openai', id: 'gpt-5' },
+        sessionId: 'thread-1:main', depth: 0, status: 'running', error: null,
+        createdAt: 1_700_000_001_000, updatedAt: 1_700_000_008_000,
       }],
       inputs: [{
         id: 'input-1', threadId: 'thread-1', turnId: 'turn-1', content: '实现历史对话', strategy: 'queue',
@@ -49,14 +55,13 @@ describe('agent thread adapter', () => {
       }],
       messages: [],
       items: [
-        { id: 'text-1', messageID: 'turn-1', turnId: 'turn-1', type: 'text', placement: 'result', text: '可以开始。', status: 'completed', createdAt: 1_700_000_002_000 },
-        { id: 'tool-1', messageID: 'turn-1', turnId: 'turn-1', type: 'tool', callID: 'tool-1', tool: 'powershell.exec', title: '运行 PowerShell', state: 'completed', input: { command: 'bun test' }, command: 'bun test', output: 'pass', error: null, startedAt: 1_700_000_003_000, finishedAt: 1_700_000_004_000, durationMs: 1000, createdAt: 1_700_000_003_000 },
-        { id: 'plan-1', messageID: 'turn-1', turnId: 'turn-1', type: 'plan', title: '计划', markdown: '- 改 adapter', version: 1, state: 'awaiting-confirmation', createdAt: 1_700_000_005_000 },
-        { id: 'patch-1', messageID: 'turn-1', turnId: 'turn-1', type: 'patch', files: [{ path: 'a.ts', additions: 1, deletions: 0, patch: 'diff' }], totalAdditions: 1, totalDeletions: 0, createdAt: 1_700_000_006_000 },
-        { id: 'question-1', messageID: 'turn-1', turnId: 'turn-1', type: 'question', prompt: '继续吗？', choices: [{ id: 'yes', label: '继续', description: '继续执行', recommended: true }, { id: 'no', label: '停止', description: '停止执行', recommended: false }], status: 'pending', answer: null, createdAt: 1_700_000_007_000 },
+        { id: 'text-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'text', placement: 'result', text: '可以开始。', status: 'completed', createdAt: 1_700_000_002_000 },
+        { id: 'tool-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'tool', callID: 'tool-1', tool: 'powershell.exec', title: '运行 PowerShell', state: 'completed', input: { command: 'bun test' }, command: 'bun test', output: 'pass', error: null, startedAt: 1_700_000_003_000, finishedAt: 1_700_000_004_000, durationMs: 1000, createdAt: 1_700_000_003_000 },
+        { id: 'plan-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'plan', title: '计划', markdown: '- 改 adapter', version: 1, state: 'awaiting-confirmation', createdAt: 1_700_000_005_000 },
+        { id: 'patch-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'patch', files: [{ path: 'a.ts', additions: 1, deletions: 0, patch: 'diff' }], totalAdditions: 1, totalDeletions: 0, createdAt: 1_700_000_006_000 },
+        { id: 'question-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'question', prompt: '继续吗？', choices: [{ id: 'yes', label: '继续', description: '继续执行', recommended: true }, { id: 'no', label: '停止', description: '停止执行', recommended: false }], status: 'pending', answer: null, createdAt: 1_700_000_007_000 },
       ],
-      approvals: [{ id: 'approval-1', threadId: 'thread-1', turnId: 'turn-1', toolCallID: 'tool-1', tool: 'powershell.exec', command: 'bun test', cwd: null, paths: [], requestedPermissions: { readPaths: [], writePaths: [], networkDomains: [] }, risk: 'medium', reason: '需要运行测试', status: 'pending', createdAt: 1_700_000_003_500 }],
-      proposals: [],
+      approvals: [{ id: 'approval-1', threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1', toolCallID: 'tool-1', tool: 'powershell.exec', command: 'bun test', cwd: null, paths: [], requestedPermissions: { readPaths: [], writePaths: [], networkDomains: [] }, review: null, risk: 'medium', reason: '需要运行测试', status: 'pending', createdAt: 1_700_000_003_500 }],
     }
 
     const desktop = agentThreadSnapshotToDesktop(snapshot, project)
@@ -68,6 +73,8 @@ describe('agent thread adapter', () => {
     expect(desktop.view.toolLog).toHaveLength(2)
     expect(desktop.events?.some(event => event.type === 'proposed_plan')).toBe(true)
     expect(desktop.events?.some(event => event.type === 'file_patch')).toBe(true)
+    expect(desktop.events?.find(event => event.id === 'patch-1')?.metadata?.agentId).toBe('agent-1')
+    expect(desktop.events?.find(event => event.id === 'approval-1')?.metadata?.agentId).toBe('agent-1')
     expect(desktop.view.pendingPermissions.map(request => request.toolName)).toEqual(
       expect.arrayContaining(['powershell.exec', 'ExitPlanMode', 'AskUserQuestion']),
     )
@@ -84,11 +91,17 @@ describe('agent thread adapter', () => {
       },
       turns: [{
         id: 'turn-old', threadId: 'thread-settings', sourceInputID: 'input-old', status: 'completed', mode: 'plan',
-        model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' }, currentStage: null,
-        canContinueFromPlan: false, stages: [], mergedInputIDs: [], startedAt: 1_700_000_001_000,
+        model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' }, rootAgentId: 'agent-old',
+        canContinueFromPlan: false, mergedInputIDs: [], startedAt: 1_700_000_001_000,
         finishedAt: 1_700_000_002_000, elapsedSeconds: 1, error: null,
       }],
-      inputs: [], messages: [], items: [], approvals: [], proposals: [],
+      agents: [{
+        id: 'agent-old', threadId: 'thread-settings', turnId: 'turn-old', parentAgentId: null,
+        profile: 'main', task: '历史任务', model: { providerID: 'openai', id: 'gpt-5' },
+        sessionId: 'thread-settings:main', depth: 0, status: 'completed', error: null,
+        createdAt: 1_700_000_001_000, updatedAt: 1_700_000_002_000,
+      }],
+      inputs: [], messages: [], items: [], approvals: [],
     }
 
     const desktop = agentThreadSnapshotToDesktop(snapshot, project)
@@ -102,11 +115,28 @@ describe('agent thread adapter', () => {
       method: 'item/completed',
       params: {
         threadId: 'thread-1', turnId: 'turn-1',
-        item: { id: 'text-1', messageID: 'turn-1', turnId: 'turn-1', type: 'text', placement: 'result', text: '完成', status: 'completed', createdAt: 1_700_000_010_000 },
+        item: { id: 'text-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'text', placement: 'result', text: '完成', status: 'completed', createdAt: 1_700_000_010_000 },
       },
     }
     expect(agentEventsFromNotification(notification)).toEqual([{
       type: 'message', sessionId: 'thread-1', role: 'assistant', text: '完成', createdAt: '2023-11-14T22:13:30.000Z',
     }])
+  })
+
+  test('ignores agent upsert notifications until the renderer has an agent tree UI', () => {
+    const notification: AgentNotification = {
+      jsonrpc: '2.0',
+      method: 'agent/upserted',
+      params: {
+        threadId: 'thread-1',
+        agent: {
+          id: 'agent-1', threadId: 'thread-1', turnId: 'turn-1', parentAgentId: null,
+          profile: 'main', task: '实现历史对话', model: { providerID: 'openai', id: 'gpt-5' },
+          sessionId: 'thread-1:main', depth: 0, status: 'running', error: null,
+          createdAt: 1_700_000_001_000, updatedAt: 1_700_000_008_000,
+        },
+      },
+    }
+    expect(agentEventsFromNotification(notification)).toEqual([])
   })
 })

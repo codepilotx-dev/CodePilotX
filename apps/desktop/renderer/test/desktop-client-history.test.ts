@@ -271,15 +271,19 @@ describe('desktop history client', () => {
 
     const defaults = await client.getDesktopSettings()
     expect(defaults.recentWorkspaces).toEqual([])
+    expect(defaults.defaultModeRequestUserInput).toBe(false)
     const saved = await client.saveDesktopSettings({
       ...defaults,
       recentWorkspaces: [selected!],
       lastActiveWorkspacePath: project.rootPath,
+      defaultModeRequestUserInput: true,
     })
     expect(saved.lastActiveWorkspacePath).toBe(project.rootPath)
+    expect(saved.defaultModeRequestUserInput).toBe(true)
     const restored = await client.getDesktopSettings()
     expect(restored.recentWorkspaces).toHaveLength(1)
     expect(restored.recentWorkspaces[0]).toMatchObject(selected!)
+    expect(restored.defaultModeRequestUserInput).toBe(true)
   })
 
   test('does not open a project when workspace selection is cancelled', async () => {
