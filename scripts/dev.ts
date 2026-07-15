@@ -128,7 +128,7 @@ const rendererExited = renderer.exited.then((code) => {
   throw new Error(`Renderer 开发服务已退出（code=${code}）`)
 })
 
-const agent = spawn([bunExecutable, "run", "--cwd", "apps/agent", "dev"], {
+const agent = spawn([bunExecutable, "--watch", "apps/agent/src/index.ts"], {
   PORT: String(agentPort),
   CODEPILOTX_PORT: String(agentPort),
   CODEPILOTX_AUTH_TOKEN: authToken,
