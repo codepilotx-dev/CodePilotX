@@ -6,9 +6,17 @@ import { join } from "node:path"
 import { AgentDatabase, SCHEMA_VERSION } from "../src/storage/Database"
 
 const paths: string[] = []
-afterEach(async () => Promise.all(paths.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
+const removePath = async (path: string) => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try { await rm(path, { recursive: true, force: true }); return } catch (cause) {
+      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
+      await Bun.sleep(100)
+    }
+  }
+}
+afterEach(async () => Promise.all(paths.splice(0).map(removePath)))
 
-describe("数据库迁移根基", () => {
+describe("数据库迁移", () => {
   test("发现 legacy Session schema 时备份旧库并重建 Thread schema", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-v2-"))
     paths.push(root)
@@ -20,7 +28,7 @@ describe("数据库迁移根基", () => {
     const db = new AgentDatabase(path)
     expect(db.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     const tables = (db.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>).map((row) => row.name)
-    expect(tables).toContain("threads")
+    expect(tables).toContain("agent_executions")
     expect(tables).not.toContain("sessions")
     db.close()
 
@@ -31,88 +39,73 @@ describe("数据库迁移根基", () => {
     backup.close()
   })
 
-  test("将 v2 权限模式原子回填为 Codex 三字段配置", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-v3-"))
+  test("v5 清空会话域，保留项目、Provider、凭据和应用设置并创建备份", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-v5-"))
     paths.push(root)
     const path = join(root, "agent.sqlite")
     const legacy = new Database(path, { create: true })
     legacy.exec(`
-      PRAGMA user_version = 2;
-      CREATE TABLE turns (id TEXT PRIMARY KEY, thread_id TEXT NOT NULL, status TEXT NOT NULL, mode TEXT NOT NULL, permission_mode TEXT NOT NULL, model_ref TEXT NOT NULL, strategy TEXT NOT NULL, started_at INTEGER, finished_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
-      CREATE TABLE inputs (id TEXT PRIMARY KEY, thread_id TEXT NOT NULL, turn_id TEXT, content TEXT NOT NULL, model_ref TEXT NOT NULL, permission_mode TEXT NOT NULL, strategy TEXT NOT NULL, task_mode TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL);
-      INSERT INTO turns VALUES ('ask', 't', 'completed', 'chat', 'ask', '{}', 'queue', NULL, NULL, 1, 1);
-      INSERT INTO turns VALUES ('review', 't', 'completed', 'chat', 'review', '{}', 'queue', NULL, NULL, 1, 1);
-      INSERT INTO turns VALUES ('full', 't', 'completed', 'chat', 'full', '{}', 'queue', NULL, NULL, 1, 1);
-      INSERT INTO inputs VALUES ('ask', 't', 'ask', 'a', '{}', 'ask', 'queue', 'chat', 'completed', 1);
-      INSERT INTO inputs VALUES ('review', 't', 'review', 'r', '{}', 'review', 'queue', 'chat', 'completed', 1);
-      INSERT INTO inputs VALUES ('full', 't', 'full', 'f', '{}', 'full', 'queue', 'chat', 'completed', 1);
+      PRAGMA user_version = 4;
+      CREATE TABLE projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, root_path TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, last_opened_at INTEGER NOT NULL);
+      CREATE TABLE project_settings (project_id TEXT PRIMARY KEY, default_model TEXT, planner_model TEXT, developer_model TEXT, reviewer_model TEXT, updated_at INTEGER NOT NULL);
+      CREATE TABLE provider_settings (provider_id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at INTEGER NOT NULL);
+      CREATE TABLE app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL);
+      CREATE TABLE credentials (id TEXT PRIMARY KEY, integration_id TEXT NOT NULL UNIQUE, method_id TEXT, label TEXT NOT NULL, ciphertext TEXT NOT NULL, nonce TEXT NOT NULL, key_version INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+      CREATE TABLE threads (id TEXT PRIMARY KEY, title TEXT NOT NULL, task_mode TEXT NOT NULL, sandbox_mode TEXT NOT NULL, approval_policy TEXT NOT NULL, approvals_reviewer TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+      INSERT INTO projects VALUES ('project', '项目', '${root.replaceAll("'", "''")}\\project', 1, 1, 1);
+      INSERT INTO project_settings VALUES ('project', '{"providerID":"openai","id":"gpt-5"}', NULL, NULL, NULL, 1);
+      INSERT INTO provider_settings VALUES ('openai', '{"baseURL":"https://example.test"}', 1);
+      INSERT INTO app_settings VALUES ('reviewerModel', '{"providerID":"openai","id":"reviewer"}', 1);
+      INSERT INTO credentials VALUES ('credential', 'openai', 'api-key', 'OpenAI', 'ciphertext', 'nonce', 1, 1, 1);
+      INSERT INTO threads VALUES ('old-thread', '旧会话', 'chat', 'workspace-write', 'on-request', 'user', 1, 1);
     `)
     legacy.close()
 
     const db = new AgentDatabase(path)
-    expect(db.sqlite.query("SELECT id, sandbox_mode, approval_policy, approvals_reviewer FROM turns ORDER BY id").all()).toEqual([
-      { id: "ask", sandbox_mode: "workspace-write", approval_policy: "on-request", approvals_reviewer: "user" },
-      { id: "full", sandbox_mode: "danger-full-access", approval_policy: "never", approvals_reviewer: "auto_review" },
-      { id: "review", sandbox_mode: "workspace-write", approval_policy: "on-request", approvals_reviewer: "auto_review" },
-    ])
-    expect(db.sqlite.query("SELECT id, sandbox_mode, approval_policy, approvals_reviewer FROM inputs ORDER BY id").all()).toEqual([
-      { id: "ask", sandbox_mode: "workspace-write", approval_policy: "on-request", approvals_reviewer: "user" },
-      { id: "full", sandbox_mode: "danger-full-access", approval_policy: "never", approvals_reviewer: "auto_review" },
-      { id: "review", sandbox_mode: "workspace-write", approval_policy: "on-request", approvals_reviewer: "auto_review" },
-    ])
-    expect(db.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
+    expect(db.sqlite.query("SELECT COUNT(*) AS count FROM threads").get()).toEqual({ count: 0 })
+    expect(db.sqlite.query("SELECT id, name FROM projects").get()).toEqual({ id: "project", name: "项目" })
+    const preservedDefault = db.getProjectSettings("project").defaultModel
+    expect(String(preservedDefault?.providerID)).toBe("openai")
+    expect(String(preservedDefault?.id)).toBe("gpt-5")
+    expect(db.sqlite.query("SELECT provider_id FROM provider_settings").get()).toEqual({ provider_id: "openai" })
+    expect(db.sqlite.query("SELECT integration_id FROM credentials").get()).toEqual({ integration_id: "openai" })
+    expect(db.getSetting<{ providerID: string; id: string }>("reviewerModel")).toEqual({ providerID: "openai", id: "reviewer" })
+    const tables = new Set((db.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>).map((row) => row.name))
+    expect(tables.has("agent_executions")).toBe(true)
+    expect(tables.has("agent_checkpoints")).toBe(true)
+    expect(tables.has("turn_stages")).toBe(false)
+    expect(tables.has("proposals")).toBe(false)
     db.close()
 
-    const reopened = new AgentDatabase(path)
-    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
-    reopened.close()
+    expect((await readdir(root)).some((name) => name.startsWith("agent.pre-v6-") && name.endsWith(".sqlite"))).toBe(true)
   })
 
-  test("将 v3 Thread 从最新 Input 回填设置，空 Thread 使用安全默认值", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-v4-"))
+  test("v5 到 v6 保留现有 Thread 和 AgentExecution 并增加子 Agent 表", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-v6-"))
     paths.push(root)
     const path = join(root, "agent.sqlite")
-    const legacy = new Database(path, { create: true })
-    legacy.exec(`
-      PRAGMA user_version = 3;
-      CREATE TABLE threads (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
-      CREATE TABLE inputs (
-        id TEXT PRIMARY KEY,
-        thread_id TEXT NOT NULL,
-        turn_id TEXT,
-        content TEXT NOT NULL,
-        model_ref TEXT NOT NULL,
-        permission_mode TEXT NOT NULL,
-        sandbox_mode TEXT NOT NULL,
-        approval_policy TEXT NOT NULL,
-        approvals_reviewer TEXT NOT NULL,
-        strategy TEXT NOT NULL,
-        task_mode TEXT NOT NULL,
-        status TEXT NOT NULL,
-        created_at INTEGER NOT NULL
-      );
-      INSERT INTO threads VALUES ('history', '有历史', 1, 1);
-      INSERT INTO threads VALUES ('empty', '空会话', 1, 1);
-      INSERT INTO inputs VALUES ('old', 'history', NULL, 'old', '{}', 'ask', 'workspace-write', 'on-request', 'user', 'queue', 'chat', 'completed', 1);
-      INSERT INTO inputs VALUES ('latest', 'history', NULL, 'latest', '{}', 'full', 'danger-full-access', 'never', 'auto_review', 'queue', 'plan', 'completed', 2);
+    const initial = new AgentDatabase(path)
+    const thread = initial.createThread("保留的会话")
+    initial.close()
+    const v5 = new Database(path)
+    v5.exec(`
+      PRAGMA foreign_keys = OFF;
+      DROP TABLE subagent_controls;
+      DROP TABLE workspace_writer_leases;
+      DROP TABLE subagent_runs;
+      DROP TABLE subagent_tasks;
+      DROP TABLE input_attachments;
+      PRAGMA user_version = 5;
     `)
-    legacy.close()
+    v5.close()
 
-    const db = new AgentDatabase(path)
-    expect(db.getThreadSettings("history")).toEqual({
-      taskMode: "plan",
-      permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "never", approvalsReviewer: "auto_review" },
-    })
-    expect(db.getThreadSettings("empty")).toEqual({
-      taskMode: "chat",
-      permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" },
-    })
-    expect(db.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
-    db.close()
-
-    const reopened = new AgentDatabase(path)
-    expect(reopened.getThreadSettings("history")?.taskMode).toBe("plan")
-    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
-    reopened.close()
+    const migrated = new AgentDatabase(path)
+    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 6 })
+    expect(migrated.sqlite.query("SELECT id, title, kind FROM threads WHERE id = ?").get(thread.id)).toEqual({ id: thread.id, title: "保留的会话", kind: "main" })
+    const tables = new Set((migrated.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>).map(({ name }) => name))
+    expect(tables.has("subagent_tasks")).toBe(true)
+    expect(tables.has("subagent_runs")).toBe(true)
+    expect(tables.has("input_attachments")).toBe(true)
+    migrated.close()
   })
 })

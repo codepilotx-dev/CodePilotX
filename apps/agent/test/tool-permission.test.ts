@@ -9,8 +9,8 @@ import { WorkspaceService } from "../src/workspace/WorkspaceService"
 const paths: string[] = []
 afterEach(async () => Promise.all(paths.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
 
-describe("只读工作区工具", () => {
-  test("补丁和命令只产生提议，不写文件或执行进程", async () => {
+describe("工作区工具", () => {
+  test("普通模式直接应用补丁，Plan 模式拒绝写入", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-workspace-"))
     paths.push(root)
     const file = join(root, "source.txt")
@@ -20,12 +20,11 @@ describe("只读工作区工具", () => {
     const executor = new ToolExecutor(tools)
     const context = { threadID: "thread", turnID: "turn", taskMode: "chat" as const, signal: new AbortController().signal, workspace }
 
-    const patch = await executor.execute("propose_patch", { path: "source.txt", before: "before", after: "after" }, context)
-    const command = await executor.execute("propose_command", { command: "Write-Output should-not-run" }, context)
-
-    expect(patch).toMatchObject({ type: "patch", payload: { path: "source.txt", after: "after" } })
-    expect(command).toMatchObject({ type: "command", payload: { command: "Write-Output should-not-run" } })
-    expect(await Bun.file(file).text()).toBe("before")
+    const patch = await executor.execute("apply_patch", { operation: "update", path: "source.txt", before: "before", after: "after" }, context)
+    expect(patch).toMatchObject({ operation: "update", path: "source.txt" })
+    expect(await Bun.file(file).text()).toBe("after")
+    await expect(executor.execute("apply_patch", { operation: "update", path: "source.txt", before: "after", after: "blocked" }, { ...context, taskMode: "plan" })).rejects.toMatchObject({ code: "WRITE_NOT_ALLOWED_IN_PLAN" })
+    expect(await Bun.file(file).text()).toBe("after")
   })
 
   test("拒绝工作区外路径并以 UTF-8 读取文件", async () => {

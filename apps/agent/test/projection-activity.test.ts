@@ -9,6 +9,7 @@ describe("活动投影", () => {
     const item: Item = {
       id: "activity-1",
       turnID: "turn-1",
+      agentID: "agent-1",
       type: "activity",
       status: "completed",
       data: {
@@ -51,6 +52,7 @@ describe("活动投影", () => {
         item: {
           id: "text-1",
           turnID: "turn-1",
+          agentID: "agent-1",
           type: "text",
           status: "completed",
           data: { text: "完成" },

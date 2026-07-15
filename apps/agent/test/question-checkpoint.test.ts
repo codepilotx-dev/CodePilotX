@@ -21,11 +21,11 @@ describe("问题 checkpoint", () => {
     const thread = db.createThread()
     const input = { content: "规划一个改动", model: Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("test") }), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" }, strategy: "queue", taskMode: "plan" } as const
     const turn = db.createTurn(thread.id, input)
-    db.startTurn(turn.turnID)
+    db.claimTurnExecution(turn.turnID)
     const questions = new QuestionService(db, hub)
     const resumed: string[] = []
     questions.setResumeHandler((_threadID, turnID) => resumed.push(turnID))
-    const id = await questions.checkpoint(thread.id, turn.turnID, {
+    const id = await questions.checkpoint(thread.id, turn.turnID, turn.agentID, {
       kind: "clarification",
       question: "选择实现方式",
       options: ["A", "B"],

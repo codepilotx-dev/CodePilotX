@@ -34,20 +34,18 @@ describe("持久化队列", () => {
     db.close()
   })
 
-  test("项目模型按角色、项目默认和全局默认回退", async () => {
+  test("主 Agent 模型按项目默认和全局默认回退", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-db-"))
     paths.push(root)
     const db = new AgentDatabase(join(root, "agent.sqlite"))
     const project = db.createProject({ rootPath: join(root, "project"), name: "测试项目" })
     const globalModel = modelRef("openai", "global")
     const defaultModel = modelRef("openai", "project")
-    const reviewerModel = modelRef("anthropic", "reviewer")
 
-    db.saveProjectSettings(project.id, { defaultModel, plannerModel: null, developerModel: null, reviewerModel })
-    expect(db.resolveProjectModel(project.id, "planner", globalModel)).toEqual(defaultModel)
-    expect(db.resolveProjectModel(project.id, "reviewer", globalModel)).toEqual(reviewerModel)
-    db.saveProjectSettings(project.id, { defaultModel: null, plannerModel: null, developerModel: null, reviewerModel: null })
-    expect(db.resolveProjectModel(project.id, "developer", globalModel)).toEqual(globalModel)
+    db.saveProjectSettings(project.id, { defaultModel })
+    expect(db.resolveProjectModel(project.id, globalModel)).toEqual(defaultModel)
+    db.saveProjectSettings(project.id, { defaultModel: null })
+    expect(db.resolveProjectModel(project.id, globalModel)).toEqual(globalModel)
     db.close()
   })
 
@@ -59,9 +57,10 @@ describe("持久化队列", () => {
     const thread = db.createThread()
     const input = { content: "plan", model: modelRef("openai", "gpt"), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "auto_review" }, strategy: "queue", taskMode: "plan" } as const
     const turn = db.createTurn(thread.id, input)
-    db.setTurnWorkflowState(turn.turnID, { status: "waiting_question", currentStage: "planner", canContinueFromPlan: false })
-    db.saveAgentTurnCheckpoint({ turnID: turn.turnID, threadID: thread.id, stage: "planner", state: "waiting_question", payload: { inputID: turn.inputID }, version: 1 })
-    db.run("INSERT INTO question_requests (id, thread_id, turn_id, payload, status, created_at) VALUES (?, ?, ?, ?, 'pending', ?)", "question", thread.id, turn.turnID, JSON.stringify({ question: "确认范围？" }), Date.now())
+    db.updateTurnStatus(turn.turnID, "waiting_question")
+    db.updateAgentStatus(turn.agentID, "waiting_question")
+    db.saveAgentTurnCheckpoint({ agentID: turn.agentID, turnID: turn.turnID, threadID: thread.id, state: "waiting_question", payload: { inputID: turn.inputID }, version: 1 })
+    db.run("INSERT INTO question_requests (id, thread_id, turn_id, agent_id, payload, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?)", "question", thread.id, turn.turnID, turn.agentID, JSON.stringify({ question: "确认范围？" }), Date.now())
     db.close()
 
     const recovered = new AgentDatabase(databasePath)

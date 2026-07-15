@@ -90,6 +90,7 @@ describe("Thread 历史", () => {
     db.upsertItem(thread.id, {
       id: "item-1",
       turnID: turn.turnID,
+      agentID: turn.agentID,
       type: "text",
       status: "completed",
       data: { text: "回答" },
@@ -146,7 +147,7 @@ describe("Thread 历史", () => {
     const firstInput = input("第一轮")
     const first = db.createTurn(thread.id, firstInput)
     expect(first.settingsEvent?.id).toBeLessThan(first.event.id)
-    db.startTurn(first.turnID)
+    db.claimTurnExecution(first.turnID)
 
     const nextSettings = {
       taskMode: "plan",

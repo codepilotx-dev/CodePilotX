@@ -11,10 +11,18 @@ import { AgentDatabase } from "../src/storage/Database"
 
 const paths: string[] = []
 const databases: AgentDatabase[] = []
+const removePath = async (path: string) => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try { await rm(path, { recursive: true, force: true }); return } catch (cause) {
+      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
+      await Bun.sleep(100)
+    }
+  }
+}
 
 afterEach(async () => {
   for (const database of databases.splice(0)) database.close()
-  await Promise.all(paths.splice(0).map((path) => rm(path, { recursive: true, force: true })))
+  await Promise.all(paths.splice(0).map(removePath))
 })
 
 const memoryKeyStore = (): MasterKeyStore & { value: string | null } => ({

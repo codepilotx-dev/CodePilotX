@@ -7,7 +7,15 @@ import { EncryptedCredentialRepository, type MasterKeyStore } from "../src/auth/
 import { AgentDatabase } from "../src/storage/Database"
 
 const paths: string[] = []
-afterEach(async () => Promise.all(paths.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
+const removePath = async (path: string) => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try { await rm(path, { recursive: true, force: true }); return } catch (cause) {
+      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
+      await Bun.sleep(100)
+    }
+  }
+}
+afterEach(async () => Promise.all(paths.splice(0).map(removePath)))
 
 const memoryKeyStore = (): MasterKeyStore & { value: string | null } => ({
   value: null,
