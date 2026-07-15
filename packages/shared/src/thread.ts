@@ -97,39 +97,149 @@ export const ThreadSettingsPatchSchema = Schema.Struct({
 })
 export type ThreadSettingsPatch = typeof ThreadSettingsPatchSchema.Type
 
-export const AgentRoleSchema = Schema.Literals(["planner", "developer", "reviewer"])
-export type AgentRole = typeof AgentRoleSchema.Type
+export const SubagentProfileSchema = Schema.Literals(["main", "default", "explorer", "worker"])
+export type SubagentProfile = typeof SubagentProfileSchema.Type
 
-export const WorkflowStageStatusSchema = Schema.Literals([
-  "pending",
+export const SubagentWorkspaceSchema = Schema.Struct({
+  mode: Schema.Literals(["shared", "worktree"]),
+  state: Schema.Literals(["ready", "preparing", "conflict", "applied", "discarded"]),
+  rootPath: Schema.NullOr(Schema.String),
+  baselineRef: Schema.NullOr(Schema.String),
+})
+export type SubagentWorkspace = typeof SubagentWorkspaceSchema.Type
+
+export const SubagentStatusSchema = Schema.Literals([
+  "queued",
+  "preparing",
+  "running",
+  "steering",
+  "waiting-question",
+  "waiting-permission",
+  "completed",
+  "failed",
+  "stopped",
+  "interrupted",
+])
+export type SubagentStatus = typeof SubagentStatusSchema.Type
+
+export const SubagentQueueReasonSchema = Schema.NullOr(
+  Schema.Literals(["parent-limit", "global-limit", "workspace-writer"]),
+)
+export type SubagentQueueReason = typeof SubagentQueueReasonSchema.Type
+
+export const SubagentFindingSchema = Schema.Struct({
+  title: Schema.String,
+  detail: Schema.String,
+  severity: Schema.Literals(["info", "warning", "error"]),
+})
+export type SubagentFinding = typeof SubagentFindingSchema.Type
+
+export const SubagentChangedFileSchema = Schema.Struct({
+  path: Schema.String,
+  summary: Schema.String,
+})
+export type SubagentChangedFile = typeof SubagentChangedFileSchema.Type
+
+export const SubagentValidationSchema = Schema.Struct({
+  command: Schema.String,
+  status: Schema.Literals(["passed", "failed", "skipped"]),
+  output: Schema.optional(Schema.String),
+})
+export type SubagentValidation = typeof SubagentValidationSchema.Type
+
+export const SubagentReferenceSchema = Schema.Struct({
+  kind: Schema.Literals(["file", "url", "thread", "subagent"]),
+  value: Schema.String,
+  label: Schema.optional(Schema.String),
+})
+export type SubagentReference = typeof SubagentReferenceSchema.Type
+
+export const SubagentResultSchema = Schema.Struct({
+  outcome: Schema.Literals(["succeeded", "partial", "blocked"]),
+  summary: Schema.String,
+  findings: Schema.Array(SubagentFindingSchema),
+  changedFiles: Schema.Array(SubagentChangedFileSchema),
+  validation: Schema.Array(SubagentValidationSchema),
+  risks: Schema.Array(Schema.String),
+  references: Schema.Array(SubagentReferenceSchema),
+})
+export type SubagentResult = typeof SubagentResultSchema.Type
+
+export const SubagentRunSchema = Schema.Struct({
+  id: Schema.String,
+  taskId: Schema.String,
+  generation: Schema.Number,
+  status: SubagentStatusSchema,
+  queueReason: SubagentQueueReasonSchema,
+  model: Model.Ref,
+  permissionConfig: PermissionConfigSchema,
+  result: Schema.NullOr(SubagentResultSchema),
+  error: Schema.NullOr(Schema.String),
+  createdAt: Schema.Number,
+  startedAt: Schema.NullOr(Schema.Number),
+  finishedAt: Schema.NullOr(Schema.Number),
+  updatedAt: Schema.Number,
+})
+export type SubagentRun = typeof SubagentRunSchema.Type
+
+export const SubagentTaskSchema = Schema.Struct({
+  id: Schema.String,
+  parentThreadId: Schema.String,
+  parentTurnId: Schema.String,
+  parentAgentId: Schema.String,
+  childThreadId: Schema.String,
+  displayName: Schema.String,
+  profile: Schema.Literals(["default", "explorer", "worker"]),
+  task: Schema.String,
+  permissionCeiling: PermissionConfigSchema,
+  workspace: SubagentWorkspaceSchema,
+  currentRun: Schema.NullOr(SubagentRunSchema),
+  createdAt: Schema.Number,
+  updatedAt: Schema.Number,
+})
+export type SubagentTask = typeof SubagentTaskSchema.Type
+
+export const SubagentProjectionSchema = Schema.Struct({
+  task: SubagentTaskSchema,
+  currentRun: Schema.NullOr(SubagentRunSchema),
+})
+export type SubagentProjection = typeof SubagentProjectionSchema.Type
+
+export const AgentExecutionStatusSchema = Schema.Literals([
+  "queued",
   "running",
   "waiting-question",
+  "waiting-permission",
+  "waiting-confirmation",
+  "waiting-subagents",
   "completed",
   "failed",
   "interrupted",
+  "cancelled",
 ])
-export type WorkflowStageStatus = typeof WorkflowStageStatusSchema.Type
+export type AgentExecutionStatus = typeof AgentExecutionStatusSchema.Type
 
-export const WorkflowStageSchema = Schema.Struct({
+export const AgentExecutionSchema = Schema.Struct({
+  id: Schema.String,
+  threadId: Schema.String,
   turnId: Schema.String,
-  role: AgentRoleSchema,
-  attempt: Schema.Number,
-  status: WorkflowStageStatusSchema,
+  parentAgentId: Schema.NullOr(Schema.String),
+  profile: Schema.String,
+  task: Schema.String,
   model: Model.Ref,
-  startedAt: Schema.NullOr(Schema.Number),
-  finishedAt: Schema.NullOr(Schema.Number),
+  sessionId: Schema.String,
+  depth: Schema.Number,
+  status: AgentExecutionStatusSchema,
   error: Schema.NullOr(Schema.String),
+  subagentRunId: Schema.NullOr(Schema.String),
+  runSequence: Schema.Number,
+  createdAt: Schema.Number,
+  updatedAt: Schema.Number,
 })
-export type WorkflowStage = typeof WorkflowStageSchema.Type
-
-export const ProposalStatusSchema = Schema.Literals(["pending", "reviewed", "rejected"])
-export type ProposalStatus = typeof ProposalStatusSchema.Type
+export type AgentExecution = typeof AgentExecutionSchema.Type
 
 export const ProjectSettingsSchema = Schema.Struct({
   defaultModel: Schema.NullOr(Model.Ref),
-  plannerModel: Schema.NullOr(Model.Ref),
-  developerModel: Schema.NullOr(Model.Ref),
-  reviewerModel: Schema.NullOr(Model.Ref),
 })
 export type ProjectSettings = typeof ProjectSettingsSchema.Type
 
@@ -144,31 +254,18 @@ export const ProjectSchema = Schema.Struct({
 })
 export type Project = typeof ProjectSchema.Type
 
-export const ProposalSchema = Schema.Struct({
-  id: Schema.String,
-  turnId: Schema.String,
-  projectID: Schema.String,
-  role: AgentRoleSchema,
-  kind: Schema.Literals(["patch", "command"]),
-  title: Schema.String,
-  payload: Schema.Unknown,
-  review: Schema.NullOr(Schema.String),
-  status: ProposalStatusSchema,
-  createdAt: Schema.Number,
-  updatedAt: Schema.Number,
-})
-export type Proposal = typeof ProposalSchema.Type
-
 export const TurnStatusSchema = Schema.Literals([
   "queued",
   "running",
   "waiting-permission",
   "waiting-question",
   "waiting-plan-confirmation",
+  "waiting-subagents",
   "completed",
   "failed",
   "stopped",
   "interrupted",
+  "cancelled",
 ])
 export type TurnStatus = typeof TurnStatusSchema.Type
 
@@ -205,9 +302,8 @@ export const TurnSchema = Schema.Struct({
   mode: TaskModeSchema,
   model: Model.Ref,
   permissionConfig: PermissionConfigSchema,
-  currentStage: Schema.NullOr(AgentRoleSchema),
+  rootAgentId: Schema.String,
   canContinueFromPlan: Schema.Boolean,
-  stages: Schema.Array(WorkflowStageSchema),
   mergedInputIDs: Schema.Array(Schema.String),
   startedAt: Schema.NullOr(Schema.Number),
   finishedAt: Schema.NullOr(Schema.Number),
@@ -269,6 +365,7 @@ export const TextItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
   turnId: Schema.String,
+  agentId: Schema.String,
   type: Schema.Literal("text"),
   placement: Schema.Literals(["process", "result"]),
   text: Schema.String,
@@ -281,6 +378,7 @@ export const ReasoningItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
   turnId: Schema.String,
+  agentId: Schema.String,
   type: Schema.Literal("reasoning"),
   text: Schema.String,
   status: Schema.Literals(["streaming", "completed", "interrupted"]),
@@ -300,6 +398,7 @@ export const ActivityItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
   turnId: Schema.String,
+  agentId: Schema.String,
   type: Schema.Literal("activity"),
   activity: Schema.Literals(["context-compression", "file-edit", "build", "notice"]),
   title: Schema.String,
@@ -314,6 +413,7 @@ export const ToolItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
   turnId: Schema.String,
+  agentId: Schema.String,
   type: Schema.Literal("tool"),
   callID: Schema.String,
   tool: Schema.String,
@@ -334,6 +434,7 @@ export const PlanItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
   turnId: Schema.String,
+  agentId: Schema.String,
   type: Schema.Literal("plan"),
   title: Schema.String,
   markdown: Schema.String,
@@ -347,6 +448,7 @@ export const QuestionItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
   turnId: Schema.String,
+  agentId: Schema.String,
   type: Schema.Literal("question"),
   prompt: Schema.String,
   choices: Schema.Array(QuestionChoiceSchema),
@@ -363,6 +465,7 @@ export const PatchItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
   turnId: Schema.String,
+  agentId: Schema.String,
   type: Schema.Literal("patch"),
   files: Schema.Array(EditedFileSchema),
   totalAdditions: Schema.Number,
@@ -370,6 +473,25 @@ export const PatchItemSchema = Schema.Struct({
   createdAt: Schema.Number,
 })
 export type PatchItem = typeof PatchItemSchema.Type
+
+export const SubagentItemSchema = Schema.Struct({
+  id: Schema.String,
+  messageID: Schema.String,
+  turnId: Schema.String,
+  agentId: Schema.String,
+  type: Schema.Literal("subagent"),
+  subagentTaskId: Schema.String,
+  runId: Schema.String,
+  childThreadId: Schema.String,
+  displayName: Schema.String,
+  profile: SubagentProfileSchema,
+  task: Schema.String,
+  status: SubagentStatusSchema,
+  queueReason: SubagentQueueReasonSchema,
+  result: Schema.NullOr(SubagentResultSchema),
+  createdAt: Schema.Number,
+})
+export type SubagentItem = typeof SubagentItemSchema.Type
 
 export const ItemSchema = Schema.Union([
   TextItemSchema,
@@ -379,6 +501,7 @@ export const ItemSchema = Schema.Union([
   PlanItemSchema,
   QuestionItemSchema,
   PatchItemSchema,
+  SubagentItemSchema,
 ])
 export type Item = typeof ItemSchema.Type
 
@@ -386,6 +509,7 @@ export const ApprovalRequestSchema = Schema.Struct({
   id: Schema.String,
   threadId: Schema.String,
   turnId: Schema.String,
+  agentId: Schema.String,
   toolCallID: Schema.String,
   tool: Schema.String,
   command: Schema.NullOr(Schema.String),
@@ -400,6 +524,17 @@ export const ApprovalRequestSchema = Schema.Struct({
 })
 export type ApprovalRequest = typeof ApprovalRequestSchema.Type
 
+export const AttachmentSchema = Schema.Struct({
+  id: Schema.String,
+  kind: Schema.Literals(["text", "image"]),
+  name: Schema.String,
+  mediaType: Schema.String,
+  sizeBytes: Schema.Number,
+  sha256: Schema.String,
+  createdAt: Schema.Number,
+})
+export type Attachment = typeof AttachmentSchema.Type
+
 export const TurnStartParamsSchema = Schema.Struct({
   threadId: Schema.String,
   content: Schema.String,
@@ -407,6 +542,7 @@ export const TurnStartParamsSchema = Schema.Struct({
   permissionConfig: PermissionConfigSchema,
   strategy: Schema.optional(SendStrategySchema),
   taskMode: TaskModeSchema,
+  attachmentIds: Schema.optional(Schema.Array(Schema.String)),
 })
 export type TurnStartParams = typeof TurnStartParamsSchema.Type
 
@@ -419,11 +555,12 @@ export type ApprovalRespondParams = typeof ApprovalRespondParamsSchema.Type
 export const ThreadSnapshotSchema = Schema.Struct({
   thread: ThreadSchema,
   turns: Schema.Array(TurnSchema),
+  agents: Schema.Array(AgentExecutionSchema),
+  subagents: Schema.Array(SubagentProjectionSchema),
   inputs: Schema.Array(InputSchema),
   messages: Schema.Array(MessageSchema),
   items: Schema.Array(ItemSchema),
   approvals: Schema.Array(ApprovalRequestSchema),
-  proposals: Schema.Array(ProposalSchema),
 })
 export type ThreadSnapshot = typeof ThreadSnapshotSchema.Type
 
@@ -451,8 +588,17 @@ export const AgentRpcMethodSchema = Schema.Literals([
   "sandbox/repair",
   "sandbox/uninstall",
   "question/respond",
-  "proposal/list",
-  "proposal/review",
+  "attachment/import",
+  "attachment/read",
+  "subagent/list",
+  "subagent/read",
+  "subagent/send",
+  "subagent/stop",
+  "subagent/retry",
+  "subagent/worktree/diff",
+  "subagent/worktree/apply",
+  "subagent/worktree/discard",
+  "subagent/workspace/restore",
   "model/list",
   "model/refresh",
   "model/setDefault",
@@ -480,6 +626,10 @@ export const AgentEventMethodSchema = Schema.Literals([
   "turn/completed",
   "turn/failed",
   "turn/interrupted",
+  "agent/upserted",
+  "subagent/created",
+  "subagent/updated",
+  "subagent/workspaceUpdated",
   "item/started",
   "item/completed",
   "item/agentMessage/delta",
@@ -496,11 +646,6 @@ export const AgentEventMethodSchema = Schema.Literals([
   "approval/requested",
   "question/requested",
   "serverRequest/resolved",
-  "workflow/stageStarted",
-  "workflow/stageCompleted",
-  "workflow/stagePaused",
-  "proposal/created",
-  "proposal/reviewed",
   "queue/updated",
   "catalog/updated",
   "integration/updated",
