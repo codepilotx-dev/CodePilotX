@@ -3,7 +3,7 @@ import type {
   ApprovalRequest,
   Input,
   Item,
-  PermissionMode,
+  PermissionConfig,
   Project,
   QuestionItem,
   ThreadListItem,
@@ -46,12 +46,12 @@ export function agentPlanRunIdFromRequestId(requestId: string): string | null {
     : null
 }
 
-export function desktopPermissionModeToAgentMode(
+export function desktopPermissionModeToPermissionConfig(
   mode: DesktopPermissionMode | undefined,
-): PermissionMode {
-  if (mode === 'auto-review') return 'review'
-  if (mode === 'full-access') return 'full'
-  return 'ask'
+): PermissionConfig {
+  if (mode === 'auto-review') return { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }
+  if (mode === 'full-access') return { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'auto_review' }
+  return { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' }
 }
 
 export function agentTurnStatusToDesktopStatus(
@@ -139,7 +139,7 @@ export function agentThreadSnapshotToDesktop(
     workspacePath: workspace.path,
     standalone: !project,
     permissionMode: permissionModeToDesktop(
-      latestTurn?.permissionMode ?? latestInput?.permissionMode,
+      latestTurn?.permissionConfig ?? latestInput?.permissionConfig,
     ),
     collaborationMode: collaborationModeFromPlanModeActive(planModeActive),
     planModeActive,
@@ -467,9 +467,9 @@ function eventTime(params: Record<string, unknown>): number {
   return Date.now()
 }
 
-function permissionModeToDesktop(mode: PermissionMode | undefined): DesktopPermissionMode {
-  if (mode === 'review') return 'auto-review'
-  if (mode === 'full') return 'full-access'
+function permissionModeToDesktop(config: PermissionConfig | undefined): DesktopPermissionMode {
+  if (config?.sandboxMode === 'danger-full-access') return 'full-access'
+  if (config?.approvalsReviewer === 'auto_review') return 'auto-review'
   return 'default'
 }
 

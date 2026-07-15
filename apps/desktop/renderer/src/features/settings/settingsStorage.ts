@@ -31,7 +31,7 @@ export const PERMISSION_MODE_OPTIONS: Array<{
   {
     value: "full-access",
     label: "完全访问权限",
-    detail: "CodePilotX 会自动放行所有权限工具（风险升高）",
+    detail: "命令不受 SRT 文件和网络边界保护，仅由审核 agent 拒绝灾难级操作（风险很高）",
   },
 ];
 

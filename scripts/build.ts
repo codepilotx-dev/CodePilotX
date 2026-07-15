@@ -2,6 +2,10 @@ import { fileURLToPath } from "node:url"
 
 const root = fileURLToPath(new URL("..", import.meta.url))
 
+console.log("\n[CodePilotX] SRT Windows resources")
+const srt = Bun.spawn(["bun", "scripts/copy-srt-win.ts"], { cwd: root, stdin: "inherit", stdout: "inherit", stderr: "inherit" })
+if (await srt.exited !== 0) process.exit(1)
+
 for (const [label, command] of [
   ["共享协议类型检查", ["bun", "run", "--cwd", "packages/shared", "typecheck"]],
   ["Renderer 构建", ["bun", "run", "--cwd", "apps/desktop/renderer", "build"]],

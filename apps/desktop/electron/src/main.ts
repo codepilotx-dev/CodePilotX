@@ -160,6 +160,11 @@ class SidecarSupervisor {
         CODEPILOTX_STATIC_DIR: app.isPackaged
           ? join(process.resourcesPath, "renderer")
           : process.env.CODEPILOTX_STATIC_DIR,
+        ...(app.isPackaged
+          ? { CODEPILOTX_SRT_WIN_PATH: join(process.resourcesPath, "srt-win", process.arch, "srt-win.exe") }
+          : process.env.CODEPILOTX_SRT_WIN_PATH
+            ? { CODEPILOTX_SRT_WIN_PATH: process.env.CODEPILOTX_SRT_WIN_PATH }
+            : {}),
       },
     })
     this.#child = child

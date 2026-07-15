@@ -8,7 +8,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.json",
     "dev": "bun run build && electron .",
-    "package:win": "bun run build && electron-builder --win --x64"
+    "package:win": "bun ../../../scripts/copy-srt-win.ts && bun run build && electron-builder --win"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
@@ -51,6 +51,10 @@
       {
         "from": "../../../third_party",
         "to": "third_party"
+      },
+      {
+        "from": "../../../resources/srt-win",
+        "to": "srt-win"
       }
     ],
     "win": {
@@ -58,7 +62,8 @@
         {
           "target": "nsis",
           "arch": [
-            "x64"
+            "x64",
+            "arm64"
           ]
         }
       ],

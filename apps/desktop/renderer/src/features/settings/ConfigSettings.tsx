@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Search, RotateCcw } from 'lucide-react'
+import { Download, Search, RotateCcw, Trash2, Wrench } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktopClient.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
@@ -7,7 +7,6 @@ import { PERMISSION_MODE_OPTIONS } from './settingsStorage.js'
 import type {
   DesktopDataLocationState,
   DesktopRuntimeStatus,
-  DesktopSandboxMode,
   DesktopToolchainDiagnosticReport,
 } from '../../../shared/types.js'
 import { SettingsRow } from './SettingsRow.js'
@@ -17,16 +16,15 @@ import { TaskModelSelect } from './TaskModelSelect.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
-
-const SANDBOX_MODE_OPTIONS: Array<{
-  value: DesktopSandboxMode
-  label: string
-}> = [
-  { value: 'read-only', label: '只读' },
-  { value: 'workspace-write', label: '工作区写入' },
-  { value: 'full-access', label: '完全访问' },
-  { value: 'danger-full-access', label: '危险完全访问' },
-]
+import {
+  SANDBOX_RUNTIME_STATUS_UNAVAILABLE,
+  installSandboxRuntime,
+  loadSandboxRuntimeStatus,
+  repairSandboxRuntime,
+  sandboxRuntimeStateLabel,
+  uninstallSandboxRuntime,
+  type SandboxRuntimeStatus,
+} from '../../shared/sandboxRuntime.js'
 
 function LearnMoreLink() {
   return (
@@ -65,6 +63,8 @@ export function ConfigSettings(): React.ReactNode {
     null,
   )
   const [changingLocation, setChangingLocation] = useState(false)
+  const [sandboxRuntimeStatus, setSandboxRuntimeStatus] = useState<SandboxRuntimeStatus>(SANDBOX_RUNTIME_STATUS_UNAVAILABLE)
+  const [sandboxRuntimeBusy, setSandboxRuntimeBusy] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -80,6 +80,39 @@ export function ConfigSettings(): React.ReactNode {
       mounted = false
     }
   }, [])
+
+  useEffect(() => {
+    let mounted = true
+    void loadSandboxRuntimeStatus()
+      .then(status => {
+        if (mounted) setSandboxRuntimeStatus(status)
+      })
+      .catch(() => {
+        if (mounted) setSandboxRuntimeStatus(SANDBOX_RUNTIME_STATUS_UNAVAILABLE)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const runSandboxRuntimeAction = async (action: () => Promise<SandboxRuntimeStatus>) => {
+    if (sandboxRuntimeBusy) return
+    setSandboxRuntimeBusy(true)
+    setSandboxRuntimeStatus({ ...sandboxRuntimeStatus, state: 'installing', message: '正在处理 SRT 沙箱。' })
+    try {
+      setSandboxRuntimeStatus(await action())
+    } catch (error) {
+      setSandboxRuntimeStatus({
+        ...sandboxRuntimeStatus,
+        state: 'needs-repair',
+        message: error instanceof Error ? error.message : 'SRT 沙箱操作失败。',
+        canInstall: false,
+        canRepair: true,
+      })
+    } finally {
+      setSandboxRuntimeBusy(false)
+    }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -267,35 +300,71 @@ export function ConfigSettings(): React.ReactNode {
               />
             }
           />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Sandbox runtime"
+          description="SRT 沙箱负责隔离命令进程、文件访问和网络访问。"
+        >
           <SettingsRow
-            title="沙盒设置"
-            description="选择 CodePilotX 的命令执行权限"
+            title="状态"
+            description={sandboxRuntimeStatus.message}
             control={
-              <SettingsDropdown
-                width={240}
-                ariaLabel="沙盒设置"
-                value={draft.values.sandboxMode}
-                options={SANDBOX_MODE_OPTIONS}
-                onChange={value => {
-                  draft.setValue('sandboxMode', value as DesktopSandboxMode)
-                  draft.autoSave()
-                }}
-              />
+              <span className="settings-row-status">
+                {sandboxRuntimeStateLabel(
+                  sandboxRuntimeStatus.state,
+                )}
+              </span>
             }
           />
           <SettingsRow
-            title="允许网络访问"
-            description="当沙盒设置为工作区写入时允许网络访问"
-            autoSave
+            title="安装 Sandbox runtime"
+            description="首次安装会请求一次 Windows 管理员权限。"
             control={
-              <ToggleSwitch
-                ariaLabel="允许网络访问"
-                checked={draft.values.allowNetworkAccess}
-                onChange={value => {
-                  draft.setValue('allowNetworkAccess', value)
-                  draft.autoSave()
+              <button
+                aria-label="安装 Sandbox runtime"
+                className="settings-button"
+                disabled={sandboxRuntimeBusy || !sandboxRuntimeStatus.canInstall}
+                onClick={() => void runSandboxRuntimeAction(installSandboxRuntime)}
+                type="button"
+              >
+                <Download size={APP_ICON_SIZE} />
+                安装
+              </button>
+            }
+          />
+          <SettingsRow
+            title="修复 Sandbox runtime"
+            description="重新检查专用账户、WFP 规则和 helper。"
+            control={
+              <button
+                aria-label="修复 Sandbox runtime"
+                className="settings-button"
+                disabled={sandboxRuntimeBusy || !sandboxRuntimeStatus.canRepair}
+                onClick={() => void runSandboxRuntimeAction(repairSandboxRuntime)}
+                type="button"
+              >
+                <Wrench size={APP_ICON_SIZE} />
+                修复
+              </button>
+            }
+          />
+          <SettingsRow
+            title="卸载 Sandbox runtime"
+            description="卸载会删除专用账户和 WFP 规则，必须单独确认。"
+            control={
+              <button
+                aria-label="卸载 Sandbox runtime"
+                className="settings-button"
+                disabled={sandboxRuntimeBusy || sandboxRuntimeStatus.state !== 'healthy'}
+                onClick={() => {
+                  if (window.confirm('确认卸载 CodePilotX SRT 沙箱吗？')) void runSandboxRuntimeAction(uninstallSandboxRuntime)
                 }}
-              />
+                type="button"
+              >
+                <Trash2 size={APP_ICON_SIZE} />
+                卸载
+              </button>
             }
           />
         </SettingsSection>

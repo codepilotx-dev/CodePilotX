@@ -68,7 +68,7 @@ import {
   agentQuestionIdFromRequestId,
   agentThreadListItemToDesktopSnapshot,
   agentThreadSnapshotToDesktop,
-  desktopPermissionModeToAgentMode,
+  desktopPermissionModeToPermissionConfig,
   projectToDesktopWorkspace,
 } from './agentThreadAdapter.js'
 import { createAgentRpcClient } from './agentRpcClient.js'
@@ -401,8 +401,8 @@ function createAgentSessionDesktopClient(
     return sessionSnapshots.get(sessionId)?.item.planModeActive ? 'plan' : 'chat'
   }
 
-  function permissionModeForSession(sessionId: string) {
-    return desktopPermissionModeToAgentMode(
+  function permissionConfigForSession(sessionId: string) {
+    return desktopPermissionModeToPermissionConfig(
       sessionSnapshots.get(sessionId)?.item.permissionMode,
     )
   }
@@ -417,7 +417,7 @@ function createAgentSessionDesktopClient(
       threadId: sessionId,
       content: desktopUserMessageInputToPreviewText(input),
       model: await resolveAgentModelRef(model, sessionId),
-      permissionMode: permissionModeForSession(sessionId),
+      permissionConfig: permissionConfigForSession(sessionId),
       strategy,
       taskMode: taskModeForSession(sessionId),
     })
