@@ -11,6 +11,7 @@ import { isAbsolute, relative, resolve } from "node:path"
 export interface ToolExecutionContext {
   threadID: string
   turnID: string
+  agentID?: string
   taskMode: TaskMode
   signal: AbortSignal
   workspace: WorkspaceService
@@ -23,6 +24,7 @@ export interface ToolExecutorOptions {
   dataDir: string
   sandbox: SandboxRuntimeAdapter
   authorizeShell: (invocation: ToolInvocation, signal: AbortSignal) => Promise<PermissionDecision>
+  recordToolCall?: (invocation: ToolInvocation, status: "running" | "completed" | "error" | "interrupted", output?: unknown, error?: string | null, startedAt?: number) => void
   helperPath?: string | null
 }
 
@@ -34,9 +36,17 @@ export class ToolExecutor {
     if (context.signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
     const definition = this.registry.get(name)
     if (name === "shell") return await this.executeShell(input, context) as T
+    if (name === "apply_patch") {
+      if (context.taskMode === "plan") throw new AgentError("WRITE_NOT_ALLOWED_IN_PLAN", "计划模式禁止修改工作区", 403)
+      return await this.executeRegistered<T>(name, input, context)
+    }
     if (definition.sideEffect) {
       throw new AgentError("SIDE_EFFECT_TOOLS_DISABLED", "当前阶段尚未启用副作用工具", 403)
     }
+    return this.executeRegistered<T>(name, input, context)
+  }
+
+  private executeRegistered<T>(name: string, input: Record<string, unknown>, context: ToolExecutionContext) {
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
     return this.registry.execute(name, input, {
@@ -66,6 +76,7 @@ export class ToolExecutor {
       id: crypto.randomUUID(),
       threadID: context.threadID,
       turnID: context.turnID,
+      agentID: context.agentID ?? context.turnID,
       name: "shell",
       input: {
         ...shell as unknown as Record<string, unknown>,
@@ -75,22 +86,35 @@ export class ToolExecutor {
       model,
       taskMode: context.taskMode,
     }
-    const decision = await this.options.authorizeShell(invocation, context.signal)
-    if (decision.decision !== "allow") throw new AgentError("SHELL_PERMISSION_DENIED", decision.reason, 403, decision)
-    if (permissionConfig.sandboxMode === "danger-full-access") return runHostCommand(shell.command, cwd, shell.timeoutMs, context.signal)
-    const sessionTemp = createSessionTemp()
+    const startedAt = Date.now()
+    this.options.recordToolCall?.(invocation, "running", null, null, startedAt)
     try {
-      const policy = generateSandboxPolicy({
-        workspace: context.workspace.rootPath,
-        sessionTemp,
-        dataDir: this.options.dataDir,
-        permissionConfig,
-        ...(shell.additionalPermissions ? { additionalPermissions: shell.additionalPermissions } : {}),
-        ...(this.options.helperPath ? { helperPath: this.options.helperPath } : {}),
-      })
-      return await this.options.sandbox.run({ command: shell.command, cwd, ...(shell.timeoutMs === undefined ? {} : { timeoutMs: shell.timeoutMs }), config: policy.config, signal: context.signal })
-    } finally {
-      await rm(sessionTemp, { recursive: true, force: true }).catch(() => undefined)
+      const decision = await this.options.authorizeShell(invocation, context.signal)
+      if (decision.decision !== "allow") throw new AgentError("SHELL_PERMISSION_DENIED", decision.reason, 403, decision)
+      if (permissionConfig.sandboxMode === "danger-full-access") {
+        const result = await runHostCommand(shell.command, cwd, shell.timeoutMs, context.signal)
+        this.options.recordToolCall?.(invocation, "completed", result, null, startedAt)
+        return result
+      }
+      const sessionTemp = createSessionTemp()
+      try {
+        const policy = generateSandboxPolicy({
+          workspace: context.workspace.rootPath,
+          sessionTemp,
+          dataDir: this.options.dataDir,
+          permissionConfig,
+          ...(shell.additionalPermissions ? { additionalPermissions: shell.additionalPermissions } : {}),
+          ...(this.options.helperPath ? { helperPath: this.options.helperPath } : {}),
+        })
+        const result = await this.options.sandbox.run({ command: shell.command, cwd, ...(shell.timeoutMs === undefined ? {} : { timeoutMs: shell.timeoutMs }), config: policy.config, signal: context.signal })
+        this.options.recordToolCall?.(invocation, "completed", result, null, startedAt)
+        return result
+      } finally {
+        await rm(sessionTemp, { recursive: true, force: true }).catch(() => undefined)
+      }
+    } catch (cause) {
+      this.options.recordToolCall?.(invocation, context.signal.aborted ? "interrupted" : "error", null, cause instanceof Error ? cause.message : String(cause), startedAt)
+      throw cause
     }
   }
 

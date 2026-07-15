@@ -1,10 +1,11 @@
 import { Database } from "bun:sqlite"
-import { existsSync, mkdirSync, renameSync } from "node:fs"
+import { copyFileSync, existsSync, mkdirSync, renameSync } from "node:fs"
 import { basename, dirname, extname, resolve } from "node:path"
 import { Effect } from "effect"
 import { DEFAULT_PERMISSION_CONFIG, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
 import type {
   EventEnvelope,
+  AgentExecution,
   Item,
   ModelRef,
   PermissionConfig,
@@ -12,15 +13,12 @@ import type {
   SubmitMessage,
   TaskMode,
   ThreadSnapshot,
+  ToolInvocation,
   TurnStatus,
-  WorkflowStage,
 } from "../domain"
 
 export type ProjectModelSettings = {
   defaultModel: ModelRef | null
-  plannerModel: ModelRef | null
-  developerModel: ModelRef | null
-  reviewerModel: ModelRef | null
 }
 
 export type StoredEncryptedCredential = {
@@ -45,25 +43,11 @@ export type StoredProject = {
   settings: ProjectModelSettings
 }
 
-export type StoredProposal = {
-  id: string
-  turnID: string
-  projectID: string
-  role: "planner" | "developer" | "reviewer"
-  kind: "patch" | "command"
-  title: string
-  payload: unknown
-  review: string | null
-  status: "pending" | "reviewed" | "rejected"
-  createdAt: number
-  updatedAt: number
-}
-
 export type AgentTurnCheckpoint = {
+  agentID: string
   turnID: string
   threadID: string
-  stage: "planner" | "developer" | "reviewer" | null
-  state: "waiting_question" | "waiting_plan_confirmation" | "ready"
+  state: "waiting_question" | "waiting_plan_confirmation" | "waiting_subagents" | "ready"
   payload: Record<string, unknown>
   version: number
   createdAt: number
@@ -86,7 +70,7 @@ const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const now = () => Date.now()
 const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 6
 
 type PermissionColumns = {
   sandbox_mode: PermissionConfig["sandboxMode"]
@@ -127,23 +111,34 @@ const legacyBackupPath = (path: string) => {
   return `${stem}.legacy-v1-${new Date().toISOString().replace(/[:.]/g, "-")}${extension}`
 }
 
+const versionBackupPath = (path: string, version: number) => {
+  const extension = extname(path) || ".sqlite"
+  const stem = extension ? path.slice(0, -extension.length) : path
+  return `${stem}.pre-v${version}-${new Date().toISOString().replace(/[:.]/g, "-")}${extension}`
+}
+
 const prepareDatabase = (path: string) => {
   if (!existsSync(path)) return
   const probe = new Database(path, { create: false, strict: true })
   let legacy = false
+  let version = 0
   try {
     const tables = new Set((probe.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>).map((row) => row.name))
     legacy = ["sessions", "runs", "parts"].some((name) => tables.has(name))
-    if (legacy) probe.exec("PRAGMA wal_checkpoint(TRUNCATE)")
+    version = (probe.query("PRAGMA user_version").get() as { user_version: number }).user_version
+    if (legacy || (version > 0 && version < SCHEMA_VERSION)) probe.exec("PRAGMA wal_checkpoint(TRUNCATE)")
   } finally {
     probe.close()
   }
-  if (!legacy) return
-  const backup = legacyBackupPath(path)
-  renameSync(path, backup)
-  for (const suffix of ["-wal", "-shm"]) {
-    if (existsSync(`${path}${suffix}`)) renameSync(`${path}${suffix}`, `${backup}${suffix}`)
+  if (legacy) {
+    const backup = legacyBackupPath(path)
+    renameSync(path, backup)
+    for (const suffix of ["-wal", "-shm"]) {
+      if (existsSync(`${path}${suffix}`)) renameSync(`${path}${suffix}`, `${backup}${suffix}`)
+    }
+    return
   }
+  if (version > 0 && version < SCHEMA_VERSION) copyFileSync(path, versionBackupPath(path, SCHEMA_VERSION))
 }
 
 export class AgentDatabase {
@@ -186,6 +181,8 @@ export class AgentDatabase {
       CREATE TABLE IF NOT EXISTS threads (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'main',
+        parent_thread_id TEXT REFERENCES threads(id) ON DELETE CASCADE,
         task_mode TEXT NOT NULL DEFAULT 'chat',
         sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',
         approval_policy TEXT NOT NULL DEFAULT 'on-request',
@@ -196,6 +193,7 @@ export class AgentDatabase {
       CREATE TABLE IF NOT EXISTS turns (
         id TEXT PRIMARY KEY,
         thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+        root_agent_id TEXT,
         status TEXT NOT NULL,
         mode TEXT NOT NULL,
         permission_mode TEXT NOT NULL,
@@ -210,6 +208,24 @@ export class AgentDatabase {
         updated_at INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS turns_thread_status ON turns(thread_id, status, created_at);
+      CREATE TABLE IF NOT EXISTS agent_executions (
+        id TEXT PRIMARY KEY,
+        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+        turn_id TEXT NOT NULL UNIQUE REFERENCES turns(id) ON DELETE CASCADE,
+        parent_agent_id TEXT REFERENCES agent_executions(id) ON DELETE CASCADE,
+        profile TEXT NOT NULL,
+        task TEXT NOT NULL,
+        model_ref TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        depth INTEGER NOT NULL DEFAULT 0,
+        subagent_run_id TEXT,
+        run_sequence INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL,
+        error TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS agent_executions_thread_updated ON agent_executions(thread_id, updated_at DESC);
       CREATE TABLE IF NOT EXISTS inputs (
         id TEXT PRIMARY KEY,
         thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
@@ -237,6 +253,7 @@ export class AgentDatabase {
         id TEXT PRIMARY KEY,
         thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
         turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+        agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
         type TEXT NOT NULL,
         status TEXT NOT NULL,
         data TEXT NOT NULL,
@@ -248,6 +265,7 @@ export class AgentDatabase {
         id TEXT PRIMARY KEY,
         thread_id TEXT NOT NULL,
         turn_id TEXT NOT NULL,
+        agent_id TEXT NOT NULL,
         tool_name TEXT NOT NULL,
         input TEXT NOT NULL,
         output TEXT,
@@ -260,11 +278,14 @@ export class AgentDatabase {
         id TEXT PRIMARY KEY,
         thread_id TEXT NOT NULL,
         turn_id TEXT NOT NULL,
+        agent_id TEXT NOT NULL,
         tool_call_id TEXT NOT NULL,
         risk TEXT NOT NULL,
         reason TEXT NOT NULL,
         status TEXT NOT NULL,
         reply TEXT,
+        request_payload TEXT NOT NULL DEFAULT '{"version":1}',
+        review_payload TEXT,
         created_at INTEGER NOT NULL,
         resolved_at INTEGER
       );
@@ -272,7 +293,10 @@ export class AgentDatabase {
         id TEXT PRIMARY KEY,
         thread_id TEXT NOT NULL,
         turn_id TEXT NOT NULL,
+        agent_id TEXT NOT NULL,
+        tool_call_id TEXT,
         payload TEXT NOT NULL,
+        payload_version INTEGER NOT NULL DEFAULT 1,
         status TEXT NOT NULL,
         answer TEXT,
         created_at INTEGER NOT NULL,
@@ -282,6 +306,7 @@ export class AgentDatabase {
         id TEXT PRIMARY KEY,
         thread_id TEXT NOT NULL,
         turn_id TEXT NOT NULL,
+        agent_id TEXT NOT NULL,
         files TEXT NOT NULL,
         additions INTEGER NOT NULL DEFAULT 0,
         deletions INTEGER NOT NULL DEFAULT 0,
@@ -330,48 +355,19 @@ export class AgentDatabase {
       CREATE TABLE IF NOT EXISTS project_settings (
         project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
         default_model TEXT,
-        planner_model TEXT,
-        developer_model TEXT,
-        reviewer_model TEXT,
         updated_at INTEGER NOT NULL
       );
-      CREATE TABLE IF NOT EXISTS proposals (
-        id TEXT PRIMARY KEY,
-        project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      CREATE TABLE IF NOT EXISTS agent_checkpoints (
+        agent_id TEXT PRIMARY KEY REFERENCES agent_executions(id) ON DELETE CASCADE,
         turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
-        role TEXT NOT NULL,
-        kind TEXT NOT NULL,
-        title TEXT NOT NULL,
-        payload TEXT NOT NULL,
-        review TEXT,
-        status TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS proposals_turn_created ON proposals(turn_id, created_at);
-      CREATE TABLE IF NOT EXISTS turn_stages (
-        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
-        role TEXT NOT NULL,
-        attempt INTEGER NOT NULL,
-        status TEXT NOT NULL,
-        model_ref TEXT NOT NULL,
-        started_at INTEGER,
-        finished_at INTEGER,
-        error TEXT,
-        PRIMARY KEY (turn_id, role, attempt)
-      );
-      CREATE INDEX IF NOT EXISTS turn_stages_turn_role ON turn_stages(turn_id, role, attempt DESC);
-      CREATE TABLE IF NOT EXISTS agent_turn_checkpoints (
-        turn_id TEXT PRIMARY KEY REFERENCES turns(id) ON DELETE CASCADE,
         thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
-        stage TEXT,
         state TEXT NOT NULL,
         payload TEXT NOT NULL,
         version INTEGER NOT NULL,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS agent_turn_checkpoints_thread ON agent_turn_checkpoints(thread_id, updated_at DESC);
+      CREATE INDEX IF NOT EXISTS agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC);
       CREATE TABLE IF NOT EXISTS agent_thread_items (
         thread_id TEXT NOT NULL,
         ordinal INTEGER NOT NULL,
@@ -393,13 +389,105 @@ export class AgentDatabase {
     this.backfillThreadHistoryMetadata()
     this.sqlite.exec("CREATE INDEX IF NOT EXISTS threads_project_archive_updated ON threads(project_id, archived_at, updated_at DESC, id DESC)")
     this.sqlite.exec("CREATE INDEX IF NOT EXISTS messages_session_ordinal ON messages(thread_id, ordinal, id)")
-    this.addColumn("turns", "current_stage", "TEXT")
-    this.addColumn("turns", "can_continue_from_plan", "INTEGER NOT NULL DEFAULT 0")
+    if (currentVersion > 0 && currentVersion < 5) {
+      this.addColumn("turns", "current_stage", "TEXT")
+      this.addColumn("turns", "can_continue_from_plan", "INTEGER NOT NULL DEFAULT 0")
+    }
     this.addColumn("question_requests", "tool_call_id", "TEXT")
     this.addColumn("question_requests", "payload_version", "INTEGER NOT NULL DEFAULT 1")
     this.addColumn("events", "turn_id", "TEXT")
-    if (currentVersion < 3) this.migratePermissionsV3()
-    if (currentVersion < 4) this.migrateThreadSettingsV4()
+    if (currentVersion === 0) {
+      this.migrateSubagentsV6()
+    } else {
+      if (currentVersion < 3) this.migratePermissionsV3()
+      if (currentVersion < 4) this.migrateThreadSettingsV4()
+      if (currentVersion < 5) this.migrateAgentExecutionsV5()
+      if (currentVersion < 6) this.migrateSubagentsV6()
+    }
+    this.sqlite.exec("CREATE UNIQUE INDEX IF NOT EXISTS agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL")
+  }
+
+  private migrateSubagentsV6() {
+    this.transaction(() => {
+      this.addColumn("threads", "kind", "TEXT NOT NULL DEFAULT 'main'")
+      this.addColumn("threads", "parent_thread_id", "TEXT REFERENCES threads(id) ON DELETE CASCADE")
+      this.addColumn("agent_executions", "subagent_run_id", "TEXT")
+      this.addColumn("agent_executions", "run_sequence", "INTEGER NOT NULL DEFAULT 0")
+      this.sqlite.exec(`
+        CREATE INDEX IF NOT EXISTS threads_parent_kind ON threads(parent_thread_id, kind, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS agent_executions_subagent_run ON agent_executions(subagent_run_id, run_sequence);
+        CREATE UNIQUE INDEX IF NOT EXISTS agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL;
+        CREATE TABLE IF NOT EXISTS subagent_tasks (
+          id TEXT PRIMARY KEY,
+          parent_thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          parent_turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+          parent_agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
+          child_thread_id TEXT NOT NULL UNIQUE REFERENCES threads(id) ON DELETE CASCADE,
+          display_name TEXT NOT NULL,
+          profile TEXT NOT NULL,
+          task TEXT NOT NULL,
+          permission_ceiling TEXT NOT NULL,
+          workspace_mode TEXT NOT NULL,
+          workspace_state TEXT NOT NULL DEFAULT '{}',
+          current_run_id TEXT,
+          status TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS subagent_tasks_parent_updated ON subagent_tasks(parent_thread_id, updated_at DESC);
+        CREATE TABLE IF NOT EXISTS subagent_runs (
+          id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL REFERENCES subagent_tasks(id) ON DELETE CASCADE,
+          generation INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          queue_reason TEXT,
+          model_ref TEXT NOT NULL,
+          permission_config TEXT NOT NULL,
+          result TEXT,
+          error TEXT,
+          created_at INTEGER NOT NULL,
+          started_at INTEGER,
+          finished_at INTEGER,
+          updated_at INTEGER NOT NULL,
+          UNIQUE(task_id, generation)
+        );
+        CREATE INDEX IF NOT EXISTS subagent_runs_status_created ON subagent_runs(status, created_at);
+        CREATE TABLE IF NOT EXISTS subagent_controls (
+          id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL REFERENCES subagent_tasks(id) ON DELETE CASCADE,
+          run_id TEXT REFERENCES subagent_runs(id) ON DELETE CASCADE,
+          action TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          status TEXT NOT NULL,
+          result TEXT,
+          error TEXT,
+          created_at INTEGER NOT NULL,
+          applied_at INTEGER
+        );
+        CREATE INDEX IF NOT EXISTS subagent_controls_pending ON subagent_controls(run_id, status, created_at);
+        CREATE TABLE IF NOT EXISTS workspace_writer_leases (
+          workspace_key TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL REFERENCES subagent_tasks(id) ON DELETE CASCADE,
+          run_id TEXT NOT NULL REFERENCES subagent_runs(id) ON DELETE CASCADE,
+          acquired_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS input_attachments (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT REFERENCES threads(id) ON DELETE CASCADE,
+          input_id TEXT REFERENCES inputs(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL,
+          name TEXT NOT NULL,
+          media_type TEXT NOT NULL,
+          size_bytes INTEGER NOT NULL,
+          sha256 TEXT NOT NULL,
+          storage_path TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          bound_at INTEGER
+        );
+        CREATE INDEX IF NOT EXISTS input_attachments_thread ON input_attachments(thread_id, created_at);
+        PRAGMA user_version = 6;
+      `)
+    })
   }
 
   private migratePermissionsV3() {
@@ -453,7 +541,211 @@ export class AgentDatabase {
               ORDER BY i.created_at DESC, i.id DESC LIMIT 1
             ), 'user')
       `)
-      this.sqlite.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
+      this.sqlite.exec("PRAGMA user_version = 4")
+    })
+  }
+
+  private migrateAgentExecutionsV5() {
+    this.transaction(() => {
+      this.sqlite.exec(`
+        DROP TABLE IF EXISTS agent_checkpoints;
+        DROP TABLE IF EXISTS agent_turn_checkpoints;
+        DROP TABLE IF EXISTS turn_stages;
+        DROP TABLE IF EXISTS proposals;
+        DROP TABLE IF EXISTS agent_thread_items;
+        DROP TABLE IF EXISTS approval_requests;
+        DROP TABLE IF EXISTS question_requests;
+        DROP TABLE IF EXISTS patches;
+        DROP TABLE IF EXISTS tool_calls;
+        DROP TABLE IF EXISTS items;
+        DROP TABLE IF EXISTS messages;
+        DROP TABLE IF EXISTS inputs;
+        DROP TABLE IF EXISTS events;
+        DROP TABLE IF EXISTS agent_executions;
+        DROP TABLE IF EXISTS turns;
+        DROP TABLE IF EXISTS threads;
+
+        CREATE TABLE threads (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+          task_mode TEXT NOT NULL DEFAULT 'chat',
+          sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',
+          approval_policy TEXT NOT NULL DEFAULT 'on-request',
+          approvals_reviewer TEXT NOT NULL DEFAULT 'user',
+          archived_at INTEGER,
+          preview TEXT,
+          first_user_message TEXT,
+          message_count INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX threads_project_archive_updated ON threads(project_id, archived_at, updated_at DESC, id DESC);
+
+        CREATE TABLE turns (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          root_agent_id TEXT,
+          status TEXT NOT NULL,
+          mode TEXT NOT NULL,
+          permission_mode TEXT NOT NULL,
+          sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',
+          approval_policy TEXT NOT NULL DEFAULT 'on-request',
+          approvals_reviewer TEXT NOT NULL DEFAULT 'user',
+          model_ref TEXT NOT NULL,
+          strategy TEXT NOT NULL,
+          started_at INTEGER,
+          finished_at INTEGER,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX turns_thread_status ON turns(thread_id, status, created_at);
+
+        CREATE TABLE agent_executions (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          turn_id TEXT NOT NULL UNIQUE REFERENCES turns(id) ON DELETE CASCADE,
+          parent_agent_id TEXT REFERENCES agent_executions(id) ON DELETE CASCADE,
+          profile TEXT NOT NULL,
+          task TEXT NOT NULL,
+          model_ref TEXT NOT NULL,
+          session_id TEXT NOT NULL,
+          depth INTEGER NOT NULL DEFAULT 0,
+          status TEXT NOT NULL,
+          error TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX agent_executions_thread_updated ON agent_executions(thread_id, updated_at DESC);
+
+        CREATE TABLE inputs (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,
+          content TEXT NOT NULL,
+          model_ref TEXT NOT NULL,
+          permission_mode TEXT NOT NULL,
+          sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',
+          approval_policy TEXT NOT NULL DEFAULT 'on-request',
+          approvals_reviewer TEXT NOT NULL DEFAULT 'user',
+          strategy TEXT NOT NULL,
+          task_mode TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE TABLE messages (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,
+          role TEXT NOT NULL,
+          content TEXT NOT NULL,
+          ordinal INTEGER,
+          created_at INTEGER NOT NULL
+        );
+        CREATE INDEX messages_session_ordinal ON messages(thread_id, ordinal, id);
+
+        CREATE TABLE items (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+          agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
+          type TEXT NOT NULL,
+          status TEXT NOT NULL,
+          data TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX items_turn_created ON items(turn_id, created_at);
+        CREATE TABLE tool_calls (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+          agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
+          tool_name TEXT NOT NULL,
+          input TEXT NOT NULL,
+          output TEXT,
+          status TEXT NOT NULL,
+          started_at INTEGER,
+          finished_at INTEGER,
+          error TEXT
+        );
+        CREATE TABLE approval_requests (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+          agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
+          tool_call_id TEXT NOT NULL,
+          risk TEXT NOT NULL,
+          reason TEXT NOT NULL,
+          status TEXT NOT NULL,
+          reply TEXT,
+          request_payload TEXT NOT NULL DEFAULT '{"version":1}',
+          review_payload TEXT,
+          created_at INTEGER NOT NULL,
+          resolved_at INTEGER
+        );
+        CREATE TABLE question_requests (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+          agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
+          tool_call_id TEXT,
+          payload TEXT NOT NULL,
+          payload_version INTEGER NOT NULL DEFAULT 1,
+          status TEXT NOT NULL,
+          answer TEXT,
+          created_at INTEGER NOT NULL,
+          resolved_at INTEGER
+        );
+        CREATE TABLE patches (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+          agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
+          files TEXT NOT NULL,
+          additions INTEGER NOT NULL DEFAULT 0,
+          deletions INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL
+        );
+        CREATE TABLE agent_checkpoints (
+          agent_id TEXT PRIMARY KEY REFERENCES agent_executions(id) ON DELETE CASCADE,
+          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          state TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          version INTEGER NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC);
+        CREATE TABLE agent_thread_items (
+          thread_id TEXT NOT NULL,
+          ordinal INTEGER NOT NULL,
+          payload TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          PRIMARY KEY (thread_id, ordinal)
+        );
+        CREATE TABLE events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          thread_id TEXT,
+          turn_id TEXT,
+          method TEXT NOT NULL,
+          params TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE INDEX events_thread_id ON events(thread_id, id);
+
+        CREATE TABLE project_settings_v5 (
+          project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+          default_model TEXT,
+          updated_at INTEGER NOT NULL
+        );
+        INSERT INTO project_settings_v5 (project_id, default_model, updated_at)
+          SELECT project_id, default_model, updated_at FROM project_settings;
+        DROP TABLE project_settings;
+        ALTER TABLE project_settings_v5 RENAME TO project_settings;
+        PRAGMA user_version = 5;
+      `)
     })
   }
 
@@ -509,11 +801,15 @@ export class AgentDatabase {
   private recoverInterruptedTurns() {
     const timestamp = now()
     this.sqlite.transaction(() => {
-      this.sqlite.query(`UPDATE turns SET status = 'interrupted', finished_at = ?, updated_at = ? WHERE status IN ('running', 'waiting_permission') OR (status = 'waiting_question' AND NOT EXISTS (SELECT 1 FROM question_requests AS q LEFT JOIN agent_turn_checkpoints AS c ON c.turn_id = q.turn_id AND c.state = 'waiting_question' WHERE q.turn_id = turns.id AND q.status = 'pending' AND (c.turn_id IS NOT NULL OR json_extract(q.payload, '$.checkpoint.state') IS NOT NULL)))`).run(timestamp, timestamp)
-      this.sqlite.query(`UPDATE turn_stages SET status = 'interrupted', finished_at = ? WHERE status = 'running' AND turn_id IN (SELECT id FROM turns WHERE status = 'interrupted')`).run(timestamp)
-      this.sqlite.query(`UPDATE items SET status = 'interrupted', updated_at = ? WHERE status IN ('pending', 'running') AND NOT (type = 'question' AND id IN (SELECT id FROM question_requests WHERE status = 'pending' AND (json_extract(payload, '$.checkpoint.state') IS NOT NULL OR turn_id IN (SELECT turn_id FROM agent_turn_checkpoints WHERE state = 'waiting_question'))))`).run(timestamp)
+      this.sqlite.query(`UPDATE turns SET status = 'interrupted', finished_at = ?, updated_at = ? WHERE status IN ('running', 'waiting_permission') OR (status = 'waiting_question' AND NOT EXISTS (SELECT 1 FROM question_requests AS q LEFT JOIN agent_checkpoints AS c ON c.turn_id = q.turn_id AND c.state = 'waiting_question' WHERE q.turn_id = turns.id AND q.status = 'pending' AND (c.turn_id IS NOT NULL OR json_extract(q.payload, '$.checkpoint.state') IS NOT NULL)))`).run(timestamp, timestamp)
+      this.sqlite.query(`UPDATE agent_executions SET status = 'interrupted', updated_at = ? WHERE status IN ('running', 'waiting_permission') OR (status = 'waiting_question' AND turn_id IN (SELECT id FROM turns WHERE status = 'interrupted'))`).run(timestamp)
+      this.sqlite.query(`UPDATE items SET status = 'interrupted', updated_at = ? WHERE status IN ('pending', 'running') AND type <> 'subagent' AND NOT (type = 'question' AND id IN (SELECT id FROM question_requests WHERE status = 'pending' AND (json_extract(payload, '$.checkpoint.state') IS NOT NULL OR turn_id IN (SELECT turn_id FROM agent_checkpoints WHERE state = 'waiting_question'))))`).run(timestamp)
       this.sqlite.query(`UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE status = 'pending'`).run(timestamp)
       this.sqlite.query(`UPDATE question_requests SET status = 'cancelled', resolved_at = ? WHERE status = 'pending' AND turn_id IN (SELECT id FROM turns WHERE status <> 'waiting_question')`).run(timestamp)
+      this.sqlite.query(`UPDATE subagent_runs SET status = 'interrupted', error = COALESCE(error, 'Agent 重启时运行被中断'), finished_at = ?, updated_at = ? WHERE status IN ('preparing', 'running', 'steering', 'waiting_permission')`).run(timestamp, timestamp)
+      this.sqlite.query(`UPDATE subagent_tasks SET status = 'interrupted', updated_at = ? WHERE current_run_id IN (SELECT id FROM subagent_runs WHERE status = 'interrupted')`).run(timestamp)
+      this.sqlite.query(`UPDATE items SET status = 'interrupted', data = json_set(data, '$.status', 'interrupted', '$.queueReason', NULL), updated_at = ? WHERE type = 'subagent' AND json_extract(data, '$.runId') IN (SELECT id FROM subagent_runs WHERE status = 'interrupted')`).run(timestamp)
+      this.sqlite.query(`DELETE FROM workspace_writer_leases WHERE run_id NOT IN (SELECT id FROM subagent_runs WHERE status IN ('preparing', 'running', 'steering', 'waiting_question', 'waiting_permission'))`)
     })()
   }
 
@@ -605,16 +901,18 @@ export class AgentDatabase {
       | ({ id: string; title: string; created_at: number; updated_at: number } & ThreadSettingsColumns)
       | null
     if (!thread) return null
-    const turns = this.sqlite.query("SELECT id, status, mode, started_at, finished_at FROM turns WHERE thread_id = ? ORDER BY created_at").all(threadID) as Array<{
+    const turns = this.sqlite.query("SELECT id, root_agent_id, status, mode, started_at, finished_at FROM turns WHERE thread_id = ? ORDER BY created_at").all(threadID) as Array<{
       id: string
+      root_agent_id: string
       status: TurnStatus
       mode: TaskMode
       started_at: number | null
       finished_at: number | null
     }>
-    const items = this.sqlite.query("SELECT id, turn_id, type, status, data, created_at, updated_at FROM items WHERE thread_id = ? ORDER BY created_at").all(threadID) as Array<{
+    const items = this.sqlite.query("SELECT id, turn_id, agent_id, type, status, data, created_at, updated_at FROM items WHERE thread_id = ? ORDER BY created_at").all(threadID) as Array<{
       id: string
       turn_id: string
+      agent_id: string
       type: Item["type"]
       status: Item["status"]
       data: string
@@ -629,6 +927,7 @@ export class AgentDatabase {
       updatedAt: thread.updated_at,
       turns: turns.map((turn) => ({
         id: turn.id,
+        rootAgentID: turn.root_agent_id,
         status: turn.status,
         mode: turn.mode,
         startedAt: turn.started_at,
@@ -636,6 +935,7 @@ export class AgentDatabase {
         items: items.filter((item) => item.turn_id === turn.id).map((item) => ({
           id: item.id,
           turnID: item.turn_id,
+          agentID: item.agent_id,
           type: item.type,
           status: item.status,
           data: parse<Record<string, unknown>>(item.data),
@@ -643,17 +943,22 @@ export class AgentDatabase {
           updatedAt: item.updated_at,
         })),
       })),
+      agents: turns.flatMap((turn) => {
+        const agent = this.getAgentExecution(turn.root_agent_id)
+        return agent ? [agent] : []
+      }),
     }
   }
 
   activeTurn(threadID: string) {
-    return this.sqlite.query(`SELECT id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref FROM turns WHERE thread_id = ? AND status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_plan_confirmation') ORDER BY created_at DESC LIMIT 1`).get(threadID) as
+    return this.sqlite.query(`SELECT id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref FROM turns WHERE thread_id = ? AND status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_plan_confirmation', 'waiting_subagents') ORDER BY created_at DESC LIMIT 1`).get(threadID) as
       | ({ id: string; status: TurnStatus; mode: TaskMode; model_ref: string } & PermissionColumns)
       | null
   }
 
   createTurn(threadID: string, input: SubmitMessage, status: TurnStatus = "queued") {
     const turnID = crypto.randomUUID()
+    const agentID = crypto.randomUUID()
     const inputID = crypto.randomUUID()
     const timestamp = now()
     return this.transaction(() => {
@@ -661,9 +966,10 @@ export class AgentDatabase {
         taskMode: input.taskMode,
         permissionConfig: input.permissionConfig,
       })
-      this.sqlite.query(`INSERT INTO turns (id, thread_id, status, mode, permission_mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, strategy, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`).run(
+      this.sqlite.query(`INSERT INTO turns (id, thread_id, root_agent_id, status, mode, permission_mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, strategy, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`).run(
         turnID,
         threadID,
+        agentID,
         status,
         input.taskMode,
         legacyPermissionMode(input.permissionConfig),
@@ -672,6 +978,17 @@ export class AgentDatabase {
         input.permissionConfig.approvalsReviewer,
         stringify(input.model),
         input.strategy,
+        timestamp,
+        timestamp,
+      )
+      this.sqlite.query(`INSERT INTO agent_executions (id, thread_id, turn_id, parent_agent_id, profile, task, model_ref, session_id, depth, status, error, created_at, updated_at) VALUES (?, ?, ?, NULL, 'main', ?, ?, ?, 0, ?, NULL, ?, ?)`).run(
+        agentID,
+        threadID,
+        turnID,
+        input.content,
+        stringify(input.model),
+        `${threadID}:main`,
+        status,
         timestamp,
         timestamp,
       )
@@ -693,7 +1010,8 @@ export class AgentDatabase {
       this.appendUserMessage({ id: inputID, threadID, turnID, content: input.content, createdAt: timestamp })
       const method = status === "queued" ? "turn/queued" : "turn/started"
       const event = this.insertEvent(threadID, turnID, method, { turnId: turnID, inputID, input, createdAt: timestamp })
-      return { turnID, inputID, settingsEvent: settingsUpdate.event, event }
+      const agentEvent = this.insertEvent(threadID, turnID, "agent/upserted", { agent: this.getAgentExecution(agentID) })
+      return { turnID, agentID, inputID, settingsEvent: settingsUpdate.event, event, agentEvent }
     })
   }
 
@@ -740,17 +1058,74 @@ export class AgentDatabase {
     })
   }
 
-  startTurn(turnID: string) {
+  claimTurnExecution(turnID: string) {
     const timestamp = now()
-    this.sqlite.query(`UPDATE turns SET status = 'running', started_at = ?, updated_at = ? WHERE id = ? AND status = 'queued'`).run(timestamp, timestamp, turnID)
-    this.sqlite.query(`UPDATE inputs SET status = 'active' WHERE turn_id = ? AND status = 'queued'`).run(turnID)
+    return this.transaction(() => {
+      const turn = this.sqlite.query("SELECT root_agent_id FROM turns WHERE id = ? AND status = 'queued'").get(turnID) as { root_agent_id: string } | null
+      if (!turn) return null
+      const claimed = this.sqlite.query(`UPDATE agent_executions SET status = 'running', error = NULL, updated_at = ? WHERE id = ? AND status = 'queued'`).run(timestamp, turn.root_agent_id)
+      if (claimed.changes === 0) return null
+      const started = this.sqlite.query(`UPDATE turns SET status = 'running', started_at = COALESCE(started_at, ?), finished_at = NULL, updated_at = ? WHERE id = ? AND status = 'queued'`).run(timestamp, timestamp, turnID)
+      if (started.changes === 0) throw new Error(`Turn ${turnID} claim 失败`)
+      this.sqlite.query(`UPDATE inputs SET status = 'active' WHERE turn_id = ? AND status = 'queued'`).run(turnID)
+      return this.getAgentExecution(turn.root_agent_id)
+    })
   }
 
   updateTurnStatus(turnID: string, status: TurnStatus) {
     const timestamp = now()
-    const terminal = ["completed", "failed", "interrupted"].includes(status)
-    this.sqlite.query(`UPDATE turns SET status = ?, finished_at = CASE WHEN ? THEN ? ELSE finished_at END, updated_at = ? WHERE id = ?`).run(status, terminal ? 1 : 0, timestamp, timestamp, turnID)
+    const terminal = ["completed", "failed", "interrupted", "cancelled"].includes(status)
+    this.sqlite.query(`UPDATE turns SET status = ?, finished_at = CASE WHEN ? THEN ? WHEN ? THEN NULL ELSE finished_at END, updated_at = ? WHERE id = ?`).run(status, terminal ? 1 : 0, timestamp, status === "queued" ? 1 : 0, timestamp, turnID)
     if (terminal) this.sqlite.query("UPDATE inputs SET status = 'completed' WHERE turn_id = ? AND status = 'active'").run(turnID)
+  }
+
+  getAgentExecution(agentID: string): AgentExecution | null {
+    const row = this.sqlite.query("SELECT id, thread_id, turn_id, parent_agent_id, profile, task, model_ref, session_id, depth, status, error, subagent_run_id, run_sequence, created_at, updated_at FROM agent_executions WHERE id = ?").get(agentID) as Record<string, string | number | null> | null
+    return row ? {
+      id: String(row.id),
+      threadID: String(row.thread_id),
+      turnID: String(row.turn_id),
+      parentAgentID: row.parent_agent_id == null ? null : String(row.parent_agent_id),
+      profile: String(row.profile),
+      task: String(row.task),
+      model: parse<ModelRef>(String(row.model_ref)),
+      sessionID: String(row.session_id),
+      depth: Number(row.depth),
+      status: String(row.status) as AgentExecution["status"],
+      error: row.error == null ? null : String(row.error),
+      subagentRunID: row.subagent_run_id == null ? null : String(row.subagent_run_id),
+      runSequence: Number(row.run_sequence ?? 0),
+      createdAt: Number(row.created_at),
+      updatedAt: Number(row.updated_at),
+    } : null
+  }
+
+  agentForTurn(turnID: string) {
+    const row = this.sqlite.query("SELECT root_agent_id FROM turns WHERE id = ?").get(turnID) as { root_agent_id: string | null } | null
+    return row?.root_agent_id ? this.getAgentExecution(row.root_agent_id) : null
+  }
+
+  updateAgentStatus(agentID: string, status: AgentExecution["status"], error: string | null = null) {
+    const result = this.sqlite.query("UPDATE agent_executions SET status = ?, error = ?, updated_at = ? WHERE id = ?").run(status, error, now(), agentID)
+    if (result.changes === 0) throw new Error(`Agent ${agentID} 不存在`)
+    return this.getAgentExecution(agentID)!
+  }
+
+  upsertToolCall(invocation: ToolInvocation, status: "running" | "completed" | "error" | "interrupted", output: unknown = null, error: string | null = null, startedAt = now()) {
+    const finishedAt = status === "running" ? null : now()
+    this.sqlite.query(`INSERT INTO tool_calls (id, thread_id, turn_id, agent_id, tool_name, input, output, status, started_at, finished_at, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET output = excluded.output, status = excluded.status, finished_at = excluded.finished_at, error = excluded.error`).run(
+      invocation.id,
+      invocation.threadID,
+      invocation.turnID,
+      invocation.agentID,
+      invocation.name,
+      stringify(invocation.input),
+      output == null ? null : stringify(output),
+      status,
+      startedAt,
+      finishedAt,
+      error,
+    )
   }
 
   nextQueuedTurn(threadID: string) {
@@ -758,70 +1133,19 @@ export class AgentDatabase {
   }
 
   getTurnInput(turnID: string) {
-    const row = this.sqlite.query("SELECT content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode FROM inputs WHERE turn_id = ? ORDER BY created_at LIMIT 1").get(turnID) as
-      | ({ content: string; model_ref: string; strategy: SendStrategy; task_mode: TaskMode } & PermissionColumns)
+    const row = this.sqlite.query("SELECT id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode FROM inputs WHERE turn_id = ? ORDER BY created_at LIMIT 1").get(turnID) as
+      | ({ id: string; content: string; model_ref: string; strategy: SendStrategy; task_mode: TaskMode } & PermissionColumns)
       | null
     if (!row) return null
-    return { content: row.content, model: parse(row.model_ref), permissionConfig: permissionConfigFromRow(row), strategy: row.strategy, taskMode: row.task_mode } as SubmitMessage
-  }
-
-  listTurnStages(turnID: string): WorkflowStage[] {
-    const rows = this.sqlite.query("SELECT turn_id, role, attempt, status, model_ref, started_at, finished_at, error FROM turn_stages WHERE turn_id = ? ORDER BY role, attempt").all(turnID) as Array<{
-      turn_id: string
-      role: WorkflowStage["role"]
-      attempt: number
-      status: WorkflowStage["status"]
-      model_ref: string
-      started_at: number | null
-      finished_at: number | null
-      error: string | null
-    }>
-    return rows.map((row) => ({
-      turnID: row.turn_id,
-      role: row.role,
-      attempt: row.attempt,
-      status: row.status,
-      model: parse<ModelRef>(row.model_ref),
-      startedAt: row.started_at,
-      finishedAt: row.finished_at,
-      error: row.error,
-    }))
-  }
-
-  upsertTurnStage(stage: WorkflowStage) {
-    this.sqlite.query(`INSERT INTO turn_stages (turn_id, role, attempt, status, model_ref, started_at, finished_at, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(turn_id, role, attempt) DO UPDATE SET status = excluded.status, model_ref = excluded.model_ref, started_at = excluded.started_at, finished_at = excluded.finished_at, error = excluded.error`).run(
-      stage.turnID,
-      stage.role,
-      stage.attempt,
-      stage.status,
-      stringify(stage.model),
-      stage.startedAt,
-      stage.finishedAt,
-      stage.error,
-    )
-  }
-
-  setTurnWorkflowState(turnID: string, input: { status: TurnStatus; currentStage: WorkflowStage["role"] | null; canContinueFromPlan: boolean }) {
-    const timestamp = now()
-    const terminal = ["completed", "failed", "interrupted"].includes(input.status)
-    const result = this.sqlite.query(`UPDATE turns SET status = ?, current_stage = ?, can_continue_from_plan = ?, finished_at = CASE WHEN ? THEN ? ELSE finished_at END, updated_at = ? WHERE id = ?`).run(
-      input.status,
-      input.currentStage,
-      input.canContinueFromPlan ? 1 : 0,
-      terminal ? 1 : 0,
-      timestamp,
-      timestamp,
-      turnID,
-    )
-    if (result.changes === 0) throw new Error(`Turn ${turnID} 不存在`)
+    return { id: row.id, content: row.content, model: parse(row.model_ref), permissionConfig: permissionConfigFromRow(row), strategy: row.strategy, taskMode: row.task_mode } as SubmitMessage & { id: string }
   }
 
   saveAgentTurnCheckpoint(input: Omit<AgentTurnCheckpoint, "createdAt" | "updatedAt">) {
     const timestamp = now()
-    this.sqlite.query(`INSERT INTO agent_turn_checkpoints (turn_id, thread_id, stage, state, payload, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(turn_id) DO UPDATE SET thread_id = excluded.thread_id, stage = excluded.stage, state = excluded.state, payload = excluded.payload, version = excluded.version, updated_at = excluded.updated_at`).run(
+    this.sqlite.query(`INSERT INTO agent_checkpoints (agent_id, turn_id, thread_id, state, payload, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(agent_id) DO UPDATE SET turn_id = excluded.turn_id, thread_id = excluded.thread_id, state = excluded.state, payload = excluded.payload, version = excluded.version, updated_at = excluded.updated_at`).run(
+      input.agentID,
       input.turnID,
       input.threadID,
-      input.stage,
       input.state,
       stringify(input.payload),
       input.version,
@@ -832,10 +1156,10 @@ export class AgentDatabase {
   }
 
   getAgentTurnCheckpoint(turnID: string): AgentTurnCheckpoint | null {
-    const row = this.sqlite.query("SELECT turn_id, thread_id, stage, state, payload, version, created_at, updated_at FROM agent_turn_checkpoints WHERE turn_id = ?").get(turnID) as {
+    const row = this.sqlite.query("SELECT agent_id, turn_id, thread_id, state, payload, version, created_at, updated_at FROM agent_checkpoints WHERE turn_id = ?").get(turnID) as {
+      agent_id: string
       turn_id: string
       thread_id: string
-      stage: AgentTurnCheckpoint["stage"]
       state: AgentTurnCheckpoint["state"]
       payload: string
       version: number
@@ -843,9 +1167,9 @@ export class AgentDatabase {
       updated_at: number
     } | null
     return row ? {
+      agentID: row.agent_id,
       turnID: row.turn_id,
       threadID: row.thread_id,
-      stage: row.stage,
       state: row.state,
       payload: parse<Record<string, unknown>>(row.payload),
       version: row.version,
@@ -855,7 +1179,7 @@ export class AgentDatabase {
   }
 
   deleteAgentTurnCheckpoint(turnID: string) {
-    this.sqlite.query("DELETE FROM agent_turn_checkpoints WHERE turn_id = ?").run(turnID)
+    this.sqlite.query("DELETE FROM agent_checkpoints WHERE turn_id = ?").run(turnID)
   }
 
   currentPlan(turnID: string) {
@@ -865,30 +1189,49 @@ export class AgentDatabase {
     return typeof data.markdown === "string" ? data.markdown : null
   }
 
-  createResumableQuestion(input: Omit<ResumableQuestion, "id" | "createdAt"> & { id?: string; createdAt?: number; checkpoint: Omit<AgentTurnCheckpoint, "turnID" | "threadID" | "state" | "createdAt" | "updatedAt"> }) {
+  setCurrentPlanState(turnID: string, state: "confirmed" | "rejected") {
+    const row = this.sqlite.query("SELECT id, thread_id, agent_id, data, created_at FROM items WHERE turn_id = ? AND type = 'plan' ORDER BY created_at DESC LIMIT 1").get(turnID) as { id: string; thread_id: string; agent_id: string; data: string; created_at: number } | null
+    if (!row) return null
+    const item: Item = {
+      id: row.id,
+      turnID,
+      agentID: row.agent_id,
+      type: "plan",
+      status: "completed",
+      data: { ...parse<Record<string, unknown>>(row.data), state },
+      createdAt: row.created_at,
+      updatedAt: now(),
+    }
+    this.upsertItem(row.thread_id, item)
+    return item
+  }
+
+  createResumableQuestion(input: Omit<ResumableQuestion, "id" | "createdAt"> & { agentID: string; id?: string; createdAt?: number; checkpoint: Omit<AgentTurnCheckpoint, "agentID" | "turnID" | "threadID" | "state" | "createdAt" | "updatedAt"> }) {
     const id = input.id ?? crypto.randomUUID()
     const createdAt = input.createdAt ?? now()
     this.transaction(() => {
-      this.sqlite.query("INSERT INTO question_requests (id, thread_id, turn_id, tool_call_id, payload, payload_version, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)").run(
+      this.sqlite.query("INSERT INTO question_requests (id, thread_id, turn_id, agent_id, tool_call_id, payload, payload_version, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)").run(
         id,
         input.threadID,
         input.turnID,
+        input.agentID,
         input.toolCallID,
         stringify(input.payload),
         input.payloadVersion,
         createdAt,
       )
-      this.sqlite.query(`INSERT INTO agent_turn_checkpoints (turn_id, thread_id, stage, state, payload, version, created_at, updated_at) VALUES (?, ?, ?, 'waiting_question', ?, ?, ?, ?) ON CONFLICT(turn_id) DO UPDATE SET thread_id = excluded.thread_id, stage = excluded.stage, state = excluded.state, payload = excluded.payload, version = excluded.version, updated_at = excluded.updated_at`).run(
+      this.sqlite.query(`INSERT INTO agent_checkpoints (agent_id, turn_id, thread_id, state, payload, version, created_at, updated_at) VALUES (?, ?, ?, 'waiting_question', ?, ?, ?, ?) ON CONFLICT(agent_id) DO UPDATE SET turn_id = excluded.turn_id, thread_id = excluded.thread_id, state = excluded.state, payload = excluded.payload, version = excluded.version, updated_at = excluded.updated_at`).run(
+        input.agentID,
         input.turnID,
         input.threadID,
-        input.checkpoint.stage,
         stringify(input.checkpoint.payload),
         input.checkpoint.version,
         createdAt,
         createdAt,
       )
-      this.setTurnWorkflowState(input.turnID, { status: "waiting_question", currentStage: input.checkpoint.stage, canContinueFromPlan: false })
-      this.upsertItem(input.threadID, { id, turnID: input.turnID, type: "question", status: "pending", data: input.payload, createdAt, updatedAt: createdAt })
+      this.updateTurnStatus(input.turnID, "waiting_question")
+      this.updateAgentStatus(input.agentID, "waiting_question")
+      this.upsertItem(input.threadID, { id, turnID: input.turnID, agentID: input.agentID, type: "question", status: "pending", data: input.payload, createdAt, updatedAt: createdAt })
     })
     return { id, threadID: input.threadID, turnID: input.turnID, toolCallID: input.toolCallID, payload: input.payload, payloadVersion: input.payloadVersion, createdAt } satisfies ResumableQuestion
   }
@@ -906,7 +1249,8 @@ export class AgentDatabase {
         state: "ready",
         payload: { ...checkpoint.payload, questionID: id, answer },
       })
-      this.setTurnWorkflowState(row.turn_id, { status: "queued", currentStage: checkpoint.stage, canContinueFromPlan: false })
+      this.updateTurnStatus(row.turn_id, "queued")
+      this.updateAgentStatus(checkpoint.agentID, "queued")
       const item = this.getItem(id)
       if (item) this.upsertItem(row.thread_id, { ...item, status: "completed", data: { ...item.data, answer, ignored }, updatedAt: timestamp })
     })
@@ -916,22 +1260,20 @@ export class AgentDatabase {
   waitForPlanConfirmation(input: Omit<AgentTurnCheckpoint, "state" | "createdAt" | "updatedAt">) {
     return this.transaction(() => {
       const checkpoint = this.saveAgentTurnCheckpoint({ ...input, state: "waiting_plan_confirmation" })
-      this.setTurnWorkflowState(input.turnID, { status: "waiting_plan_confirmation", currentStage: input.stage, canContinueFromPlan: true })
+      this.updateTurnStatus(input.turnID, "waiting_plan_confirmation")
+      this.updateAgentStatus(input.agentID, "waiting_confirmation")
       return checkpoint
     })
   }
 
   decidePlan(turnID: string, decision: "continue" | "reject") {
-    const row = this.sqlite.query("SELECT thread_id, status, current_stage FROM turns WHERE id = ?").get(turnID) as { thread_id: string; status: string; current_stage: WorkflowStage["role"] | null } | null
+    const row = this.sqlite.query("SELECT thread_id, root_agent_id, status FROM turns WHERE id = ?").get(turnID) as { thread_id: string; root_agent_id: string; status: string } | null
     if (!row) return null
     if (row.status !== "waiting_plan_confirmation") return null
-    const nextStatus: TurnStatus = decision === "continue" ? "queued" : "completed"
+    const nextStatus: TurnStatus = decision === "continue" ? "queued" : "cancelled"
     this.transaction(() => {
-      this.setTurnWorkflowState(turnID, {
-        status: nextStatus,
-        currentStage: decision === "continue" ? "developer" : null,
-        canContinueFromPlan: false,
-      })
+      this.updateTurnStatus(turnID, nextStatus)
+      this.updateAgentStatus(row.root_agent_id, decision === "continue" ? "queued" : "cancelled")
       const checkpoint = this.getAgentTurnCheckpoint(turnID)
       if (checkpoint && decision === "continue") this.saveAgentTurnCheckpoint({
         ...checkpoint,
@@ -939,28 +1281,17 @@ export class AgentDatabase {
         payload: { ...checkpoint.payload, planDecision: decision },
       })
       if (decision === "reject") this.deleteAgentTurnCheckpoint(turnID)
-      const plan = this.sqlite.query("SELECT id, data, created_at, updated_at FROM items WHERE turn_id = ? AND type = 'plan' ORDER BY created_at DESC LIMIT 1").get(turnID) as { id: string; data: string; created_at: number; updated_at: number } | null
-      if (plan) {
-        const data = parse<Record<string, unknown>>(plan.data)
-        this.upsertItem(row.thread_id, {
-          id: plan.id,
-          turnID,
-          type: "plan",
-          status: "completed",
-          data: { ...data, state: decision === "continue" ? "confirmed" : "rejected" },
-          createdAt: plan.created_at,
-          updatedAt: now(),
-        })
-      }
+      this.setCurrentPlanState(turnID, decision === "continue" ? "confirmed" : "rejected")
     })
     return { threadID: row.thread_id, turnID, status: nextStatus, decision }
   }
 
   upsertItem(threadID: string, item: Item) {
-    this.sqlite.query(`INSERT INTO items (id, thread_id, turn_id, type, status, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET status = excluded.status, data = excluded.data, updated_at = excluded.updated_at`).run(
+    this.sqlite.query(`INSERT INTO items (id, thread_id, turn_id, agent_id, type, status, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET status = excluded.status, data = excluded.data, updated_at = excluded.updated_at`).run(
       item.id,
       threadID,
       item.turnID,
+      item.agentID,
       item.type,
       item.status,
       stringify(item.data),
@@ -970,10 +1301,10 @@ export class AgentDatabase {
   }
 
   getItem(itemID: string) {
-    const row = this.sqlite.query("SELECT id, turn_id, type, status, data, created_at, updated_at FROM items WHERE id = ?").get(itemID) as
-      | { id: string; turn_id: string; type: Item["type"]; status: Item["status"]; data: string; created_at: number; updated_at: number }
+    const row = this.sqlite.query("SELECT id, turn_id, agent_id, type, status, data, created_at, updated_at FROM items WHERE id = ?").get(itemID) as
+      | { id: string; turn_id: string; agent_id: string; type: Item["type"]; status: Item["status"]; data: string; created_at: number; updated_at: number }
       | null
-    return row ? { id: row.id, turnID: row.turn_id, type: row.type, status: row.status, data: parse<Record<string, unknown>>(row.data), createdAt: row.created_at, updatedAt: row.updated_at } satisfies Item : null
+    return row ? { id: row.id, turnID: row.turn_id, agentID: row.agent_id, type: row.type, status: row.status, data: parse<Record<string, unknown>>(row.data), createdAt: row.created_at, updatedAt: row.updated_at } satisfies Item : null
   }
 
   insertEvent(threadId: string | null, turnId: string | null, method: string, params: unknown): EventEnvelope {
@@ -1119,7 +1450,7 @@ export class AgentDatabase {
     const name = input.name?.trim() || basename(rootPath) || rootPath
     this.transaction(() => {
       this.sqlite.query("INSERT INTO projects (id, name, root_path, created_at, updated_at, last_opened_at) VALUES (?, ?, ?, ?, ?, ?)").run(id, name, rootPath, timestamp, timestamp, timestamp)
-      this.sqlite.query("INSERT INTO project_settings (project_id, default_model, planner_model, developer_model, reviewer_model, updated_at) VALUES (?, NULL, NULL, NULL, NULL, ?)").run(id, timestamp)
+      this.sqlite.query("INSERT INTO project_settings (project_id, default_model, updated_at) VALUES (?, NULL, ?)").run(id, timestamp)
     })
     return this.getProject(id)!
   }
@@ -1142,33 +1473,26 @@ export class AgentDatabase {
   }
 
   getProjectSettings(projectID: string): ProjectModelSettings {
-    const row = this.sqlite.query("SELECT default_model, planner_model, developer_model, reviewer_model FROM project_settings WHERE project_id = ?").get(projectID) as { default_model: string | null; planner_model: string | null; developer_model: string | null; reviewer_model: string | null } | null
+    const row = this.sqlite.query("SELECT default_model FROM project_settings WHERE project_id = ?").get(projectID) as { default_model: string | null } | null
     return {
       defaultModel: row?.default_model ? parse<ModelRef>(row.default_model) : null,
-      plannerModel: row?.planner_model ? parse<ModelRef>(row.planner_model) : null,
-      developerModel: row?.developer_model ? parse<ModelRef>(row.developer_model) : null,
-      reviewerModel: row?.reviewer_model ? parse<ModelRef>(row.reviewer_model) : null,
     }
   }
 
   saveProjectSettings(projectID: string, settings: ProjectModelSettings) {
     this.requireProject(projectID)
     const timestamp = now()
-    this.sqlite.query(`INSERT INTO project_settings (project_id, default_model, planner_model, developer_model, reviewer_model, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(project_id) DO UPDATE SET default_model = excluded.default_model, planner_model = excluded.planner_model, developer_model = excluded.developer_model, reviewer_model = excluded.reviewer_model, updated_at = excluded.updated_at`).run(
+    this.sqlite.query(`INSERT INTO project_settings (project_id, default_model, updated_at) VALUES (?, ?, ?) ON CONFLICT(project_id) DO UPDATE SET default_model = excluded.default_model, updated_at = excluded.updated_at`).run(
       projectID,
       settings.defaultModel ? stringify(settings.defaultModel) : null,
-      settings.plannerModel ? stringify(settings.plannerModel) : null,
-      settings.developerModel ? stringify(settings.developerModel) : null,
-      settings.reviewerModel ? stringify(settings.reviewerModel) : null,
       timestamp,
     )
     return this.getProjectSettings(projectID)
   }
 
-  resolveProjectModel(projectID: string, role: "planner" | "developer" | "reviewer", globalDefault: ModelRef | null) {
+  resolveProjectModel(projectID: string, globalDefault: ModelRef | null) {
     const settings = this.getProjectSettings(projectID)
-    const roleModel = role === "planner" ? settings.plannerModel : role === "developer" ? settings.developerModel : settings.reviewerModel
-    return roleModel ?? settings.defaultModel ?? globalDefault
+    return settings.defaultModel ?? globalDefault
   }
 
   threadProjectID(threadID: string) {
@@ -1183,33 +1507,4 @@ export class AgentDatabase {
     if (result.changes === 0) throw new Error(`Thread ${threadID} 不存在`)
   }
 
-  createProposal(input: Omit<StoredProposal, "id" | "status" | "createdAt" | "updatedAt"> & { status?: StoredProposal["status"] }) {
-    this.requireProject(input.projectID)
-    const id = crypto.randomUUID()
-    const timestamp = now()
-    const status = input.status ?? "pending"
-    this.sqlite.query("INSERT INTO proposals (id, project_id, turn_id, role, kind, title, payload, review, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
-      id, input.projectID, input.turnID, input.role, input.kind, input.title, stringify(input.payload), input.review, status, timestamp, timestamp,
-    )
-    return this.proposal(id)!
-  }
-
-  private proposal(id: string) {
-    const row = this.sqlite.query("SELECT id, project_id, turn_id, role, kind, title, payload, review, status, created_at, updated_at FROM proposals WHERE id = ?").get(id) as { id: string; project_id: string; turn_id: string; role: StoredProposal["role"]; kind: StoredProposal["kind"]; title: string; payload: string; review: string | null; status: StoredProposal["status"]; created_at: number; updated_at: number } | null
-    return row ? { id: row.id, projectID: row.project_id, turnID: row.turn_id, role: row.role, kind: row.kind, title: row.title, payload: parse(row.payload), review: row.review, status: row.status, createdAt: row.created_at, updatedAt: row.updated_at } satisfies StoredProposal : null
-  }
-
-  listProposals(turnID: string) {
-    const rows = this.sqlite.query("SELECT id FROM proposals WHERE turn_id = ? ORDER BY created_at").all(turnID) as Array<{ id: string }>
-    return rows.flatMap((row) => {
-      const proposal = this.proposal(row.id)
-      return proposal ? [proposal] : []
-    })
-  }
-
-  updateProposalStatus(id: string, status: "reviewed" | "rejected", review: string | null = null) {
-    const result = this.sqlite.query("UPDATE proposals SET status = ?, review = ?, updated_at = ? WHERE id = ?").run(status, review, now(), id)
-    if (result.changes === 0) return null
-    return this.proposal(id)
-  }
 }

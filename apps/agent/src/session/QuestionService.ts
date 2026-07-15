@@ -35,6 +35,7 @@ export class QuestionService {
     this.db.transaction(() => {
       this.db.run("UPDATE question_requests SET status = 'pending', resolved_at = NULL WHERE status = 'cancelled' AND answer IS NULL AND json_extract(payload, '$.checkpoint.state') IS NOT NULL")
       this.db.run("UPDATE turns SET status = 'waiting_question', finished_at = NULL WHERE status = 'interrupted' AND id IN (SELECT turn_id FROM question_requests WHERE status = 'pending' AND json_extract(payload, '$.checkpoint.state') IS NOT NULL)")
+      this.db.run("UPDATE agent_executions SET status = 'waiting_question', updated_at = ? WHERE turn_id IN (SELECT turn_id FROM question_requests WHERE status = 'pending' AND json_extract(payload, '$.checkpoint.state') IS NOT NULL)", Date.now())
       this.db.run("UPDATE items SET status = 'pending', updated_at = ? WHERE type = 'question' AND id IN (SELECT id FROM question_requests WHERE status = 'pending' AND json_extract(payload, '$.checkpoint.state') IS NOT NULL)", Date.now())
     })
   }
@@ -48,7 +49,7 @@ export class QuestionService {
     await Effect.runPromise(this.hub.publish(event))
   }
 
-  async checkpoint(threadID: string, turnID: string, approval: PendingApproval) {
+  async checkpoint(threadID: string, turnID: string, agentID: string, approval: PendingApproval) {
     const payload = {
       question: approval.question,
       options: approval.options,
@@ -58,21 +59,24 @@ export class QuestionService {
     const created = this.db.createResumableQuestion({
       threadID,
       turnID,
+      agentID,
       toolCallID: toolCallID(approval.checkpoint.interruption),
       payload,
       payloadVersion: 1,
       checkpoint: {
-        stage: "planner",
         payload: { state: approval.checkpoint.state, interruption: approval.checkpoint.interruption },
         version: 1,
       },
     })
-    await this.emit(threadID, turnID, "question/requested", { id: created.id, turnId: turnID, ...payload, createdAt: created.createdAt })
+    await this.emit(threadID, turnID, "agent/upserted", { agent: this.db.getAgentExecution(agentID) })
+    await this.emit(threadID, turnID, "question/requested", { id: created.id, turnId: turnID, agentId: agentID, ...payload, createdAt: created.createdAt })
     return created.id
   }
 
   async ask(threadID: string, turnID: string, payload: Record<string, unknown>, _signal: AbortSignal) {
-    return this.checkpoint(threadID, turnID, {
+    const agent = this.db.agentForTurn(turnID)
+    if (!agent) throw new AgentError("AGENT_NOT_FOUND", "Turn 没有根 Agent", 409)
+    return this.checkpoint(threadID, turnID, agent.id, {
       kind: "clarification",
       question: typeof payload.question === "string" ? payload.question : "需要你的确认",
       options: Array.isArray(payload.options) ? payload.options.filter((item): item is string => typeof item === "string") : ["继续", "停止"],
@@ -97,6 +101,8 @@ export class QuestionService {
   async reply(id: string, answer: unknown, ignored = false) {
     const row = this.db.resolveResumableQuestion(id, answer, ignored)
     if (!row) throw new AgentError("QUESTION_NOT_FOUND", "问题不存在或已经回答", 409)
+    const agent = this.db.agentForTurn(row.turnID)
+    if (agent) await this.emit(row.threadID, row.turnID, "agent/upserted", { agent })
     await this.emit(row.threadID, row.turnID, "serverRequest/resolved", { id, turnId: row.turnID, kind: "question", answer, ignored })
     this.resumeHandler?.(row.threadID, row.turnID)
   }

@@ -28,6 +28,7 @@ interface PendingApproval {
 
 export class ApprovalService {
   private readonly pending = new Map<string, PendingApproval>()
+  private agentStatusHandler?: (agentID: string, status: "waiting_permission" | "running") => void
 
   constructor(
     private readonly db: AgentDatabase,
@@ -35,6 +36,10 @@ export class ApprovalService {
     private readonly tools: ToolRegistry,
     private readonly reviewer: Reviewer | null = null,
   ) {}
+
+  setAgentStatusHandler(handler: (agentID: string, status: "waiting_permission" | "running") => void) {
+    this.agentStatusHandler = handler
+  }
 
   private async emit(threadID: string, turnID: string, method: string, params: unknown) {
     const event = this.db.insertEvent(threadID, turnID, method, params)
@@ -82,9 +87,12 @@ export class ApprovalService {
     const payload = JSON.stringify({ version: 1, command: invocation.input.command ?? null, cwd: invocation.input.cwd ?? null, requestedPermissions: permissions })
     const reviewPayload = review.review ? JSON.stringify(review.review) : null
     this.db.transaction(() => {
-      this.db.run(`INSERT INTO approval_requests (id, thread_id, turn_id, tool_call_id, risk, reason, status, request_payload, review_payload, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`, id, invocation.threadID, invocation.turnID, invocation.id, review.risk, review.reason, payload, reviewPayload, createdAt)
+      this.db.run(`INSERT INTO approval_requests (id, thread_id, turn_id, agent_id, tool_call_id, risk, reason, status, request_payload, review_payload, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`, id, invocation.threadID, invocation.turnID, invocation.agentID, invocation.id, review.risk, review.reason, payload, reviewPayload, createdAt)
       this.db.updateTurnStatus(invocation.turnID, "waiting_permission")
+      this.db.updateAgentStatus(invocation.agentID, "waiting_permission")
     })
+    await this.emit(invocation.threadID, invocation.turnID, "agent/upserted", { agent: this.db.getAgentExecution(invocation.agentID) })
+    this.agentStatusHandler?.(invocation.agentID, "waiting_permission")
     await this.emit(invocation.threadID, invocation.turnID, "approval/requested", { id, turnId: invocation.turnID, itemId: invocation.id, toolCallID: invocation.id, tool: invocation.name, input: invocation.input, requestedPermissions: permissions, review: review.review ?? null, risk: review.risk, reason: review.reason, createdAt })
     return new Promise<PermissionDecision>((resolve, reject) => {
       const abort = () => {
@@ -104,13 +112,16 @@ export class ApprovalService {
   }
 
   async respond(id: string, decision: "allow" | "deny") {
-    const row = this.db.sqlite.query("SELECT thread_id, turn_id, status FROM approval_requests WHERE id = ?").get(id) as { thread_id: string; turn_id: string; status: string } | null
+    const row = this.db.sqlite.query("SELECT thread_id, turn_id, agent_id, status FROM approval_requests WHERE id = ?").get(id) as { thread_id: string; turn_id: string; agent_id: string; status: string } | null
     if (!row) throw new AgentError("APPROVAL_NOT_FOUND", "审批请求不存在", 404)
     if (row.status !== "pending") throw new AgentError("APPROVAL_ALREADY_RESOLVED", "审批请求已经处理", 409)
     this.db.transaction(() => {
       this.db.run("UPDATE approval_requests SET status = 'resolved', reply = ?, resolved_at = ? WHERE id = ?", decision, Date.now(), id)
       this.db.updateTurnStatus(row.turn_id, "running")
+      this.db.updateAgentStatus(row.agent_id, "running")
     })
+    await this.emit(row.thread_id, row.turn_id, "agent/upserted", { agent: this.db.getAgentExecution(row.agent_id) })
+    this.agentStatusHandler?.(row.agent_id, "running")
     await this.emit(row.thread_id, row.turn_id, "serverRequest/resolved", { id, turnId: row.turn_id, kind: "approval", decision })
     const pending = this.pending.get(id)
     if (pending) {

@@ -1,16 +1,14 @@
 import { Agent, RunState, run, setTracingDisabled, tool } from "@openai/agents"
-import type { Session } from "@openai/agents"
+import type { AgentInputItem, Session } from "@openai/agents"
 import type { LanguageModel } from "ai"
 import { Effect } from "effect"
 import { z } from "zod"
 import type { EventEnvelope, Item, ModelRef, PermissionConfig, TaskMode } from "../domain"
+import type { SubagentProfile, SubagentResult } from "@codepilotx/shared/thread"
 import { asAgentModel } from "../llm/AgentModelBridge"
-import type { CommandProposalDraft, PatchProposalDraft, ProposalDraft, WorkspaceService } from "../workspace/WorkspaceService"
+import type { ApplyPatchResult, WorkspaceService } from "../workspace/WorkspaceService"
 import type { ToolExecutor } from "../tool/ToolExecutor"
 import type { ProcessResult } from "../sandbox/SandboxRuntimeAdapter"
-import { stagesForTask, type AgentRole } from "./stages"
-
-export type { AgentRole } from "./stages"
 
 export interface PlanCheckpoint {
   state: string
@@ -18,28 +16,31 @@ export interface PlanCheckpoint {
   answer: string | null
 }
 
+export class SafeBoundaryInterrupt extends Error {
+  constructor() { super("SUBAGENT_STEERING_BOUNDARY") }
+}
+
 export interface PendingApproval {
   checkpoint: Omit<PlanCheckpoint, "answer">
-  kind: "clarification" | "plan_confirmation"
-  question: string
-  options: string[]
+  kind: "clarification" | "subagents"
+  question?: string
+  options?: string[]
+  runIDs?: string[]
+  waitMode?: "all" | "any"
+}
+
+export interface DelegationController {
+  spawn(input: { agents: Array<{ name?: string; profile: "default" | "explorer" | "worker"; task: string; workspaceMode?: "shared" | "worktree"; model?: ModelRef }> }): Promise<unknown>
+  wait(input: { runIDs: string[]; mode: "all" | "any" }): Promise<unknown>
+  isWaitSatisfied(input: { runIDs: string[]; mode: "all" | "any" }): Promise<boolean>
+  send(input: { taskID: string; message: string }): Promise<unknown>
+  stop(input: { taskID: string }): Promise<unknown>
 }
 
 export interface OrchestrationPersistence {
   upsertItem(threadID: string, item: Item): void
   getItem(itemID: string): Item | null
   insertEvent(threadId: string | null, turnId: string | null, method: string, params: unknown): EventEnvelope
-  upsertTurnStage?(stage: {
-    turnID: string
-    role: Exclude<AgentRole, "assistant">
-    attempt: number
-    status: "pending" | "running" | "waiting_question" | "completed" | "failed" | "interrupted"
-    model: ModelRef
-    startedAt: number | null
-    finishedAt: number | null
-    error: string | null
-  }): void
-  setTurnWorkflowState?(turnID: string, input: { status: "running" | "waiting_question"; currentStage: Exclude<AgentRole, "assistant"> | null; canContinueFromPlan: boolean }): void
 }
 
 export interface OrchestrationPublisher {
@@ -49,6 +50,11 @@ export interface OrchestrationPublisher {
 export interface OrchestrationRequest {
   threadID: string
   turnID: string
+  agentID: string
+  sessionID: string
+  profile?: SubagentProfile
+  depth?: number
+  delegation?: DelegationController
   content: string
   taskMode: TaskMode
   fallbackModel: ModelRef
@@ -58,19 +64,25 @@ export interface OrchestrationRequest {
   resume?: PlanCheckpoint
   continueFromPlan?: boolean
   plan?: string
-  resolveModel(role: AgentRole, fallback: ModelRef): Promise<{ ref: ModelRef; model: LanguageModel }>
-  saveProposal(draft: ProposalDraft, role: AgentRole): Promise<unknown>
+  defaultModeRequestUserInput?: boolean
+  resolveModel(fallback: ModelRef): Promise<{ ref: ModelRef; model: LanguageModel }>
   pause(approval: PendingApproval): Promise<void>
+  checkSafeBoundary?: () => Promise<boolean>
+  attachments?: Array<{ kind: "text"; name: string; text: string } | { kind: "image"; name: string; mediaType: string; base64: string }>
 }
 
 export interface AgentOrchestratorOptions {
   db: OrchestrationPersistence
   hub: OrchestrationPublisher
   toolExecutor: ToolExecutor
-  sessionFor?: (threadID: string, role: AgentRole) => Session
+  sessionFor?: (sessionID: string) => Session
 }
 
-type StageResult = { status: "completed"; output: string } | { status: "paused"; output: string }
+type RunResult =
+  | { status: "completed"; output: string; result?: SubagentResult }
+  | { status: "paused"; output: string }
+  | { status: "plan-ready"; output: string; plan: string }
+
 type ActivityCommand = {
   command: string
   output: string
@@ -78,38 +90,43 @@ type ActivityCommand = {
   truncated?: boolean
 }
 
-const stageTitle: Record<AgentRole, string> = {
-  assistant: "对话",
-  planner: "规划",
-  developer: "拟议修改",
-  reviewer: "审查",
+const MAIN_INSTRUCTIONS = [
+  "你是 CodePilotX 的主 Agent，负责从调查到实现和验证的完整任务。",
+  "先读取和搜索实际工作区，再做判断；不要虚构没有检查过的代码。",
+  "普通模式可使用 apply_patch 直接修改工作区，并只运行与改动相关的检查。检查失败时读取错误并继续修复。",
+  "需要执行 PowerShell 时使用 shell，声明额外路径、网络域名和理由；命令会经过统一权限边界。",
+].join("\n")
+
+const PLAN_INSTRUCTIONS = [
+  "当前处于 Plan 模式。只能调查、提问和形成计划，禁止修改文件或执行 Shell。",
+  "完成调查后必须调用 finalize_plan，传入完整 Markdown 计划。",
+].join("\n")
+
+const QUESTION_ENABLED_INSTRUCTIONS = "只有缺少会改变实现方向的关键信息时才调用 request_user_input。"
+const QUESTION_DISABLED_INSTRUCTIONS = "普通模式下 request_user_input 不可用。优先调查并采用合理假设继续执行；确实无法继续时，只能发送简短的普通文本问题，不要把多选问题伪装成普通回复。"
+
+const PROFILE_INSTRUCTIONS: Record<Exclude<SubagentProfile, "main">, string> = {
+  default: "你是主 Agent 派生的通用子 Agent。独立完成委派任务，不得再创建子 Agent；最后给出结构化、可核验的结果。",
+  explorer: "你是只读 Explorer。只搜索、读取和分析，不得修改文件或执行有副作用的命令；最后给出结构化发现与引用。",
+  worker: "你是 Worker。完成委派的代码修改与必要验证，不得再创建子 Agent；最后给出变更、验证和风险的结构化结果。",
 }
 
-const stageInstructions: Record<AgentRole, string> = {
-  assistant: "你是项目助手。自然、简洁地回答用户；不要把闲聊或简单问候误写成实施计划。",
-  planner: [
-    "你是项目规划 Agent。先使用只读工具核实工作区，再形成实施计划。",
-    "不能写文件、不能执行命令，也不能虚构未读过的代码。",
-    "仅当缺少会改变实现方向的关键信息时调用 request_user_input；不要为普通推断提问。",
-    "在调研完成后，必须调用 finalize_plan，传入完整 Markdown 计划；这会交由用户确认。",
-  ].join("\n"),
-  developer: [
-    "你是受权限控制的开发 Agent。先检查相关文件；文件改动只能通过 propose_patch 提议。",
-    "需要执行 Shell 时必须使用 shell 工具，并声明工作区外路径、网络域名和简短理由；命令会逐条经过静态规则、审核 agent 和权限边界。",
-  ].join("\n"),
-  reviewer: "你是代码审查 Agent。检查计划和提议的风险、遗漏及验证建议；只能读取项目。",
-}
+const subagentResultSchema = z.object({
+  outcome: z.enum(["succeeded", "partial", "blocked"]),
+  summary: z.string(),
+  findings: z.array(z.object({ title: z.string(), detail: z.string(), severity: z.enum(["info", "warning", "error"]) })),
+  changedFiles: z.array(z.object({ path: z.string(), summary: z.string() })),
+  validation: z.array(z.object({ command: z.string(), status: z.enum(["passed", "failed", "skipped"]), output: z.string().optional() })),
+  risks: z.array(z.string()),
+  references: z.array(z.object({ kind: z.enum(["file", "url", "thread", "subagent"]), value: z.string(), label: z.string().optional() })),
+})
 
 const now = () => Date.now()
 const ACTIVITY_OUTPUT_CHAR_CAP = 1_048_576
 const cleanText = (value: string) => value.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, "").trim()
-const capActivityOutput = (value: string) => {
-  if (value.length <= ACTIVITY_OUTPUT_CHAR_CAP) return { output: value, truncated: false }
-  return {
-    output: `${value.slice(0, ACTIVITY_OUTPUT_CHAR_CAP)}\n... 输出已截断，超过 ${ACTIVITY_OUTPUT_CHAR_CAP} 字符`,
-    truncated: true,
-  }
-}
+const capActivityOutput = (value: string) => value.length <= ACTIVITY_OUTPUT_CHAR_CAP
+  ? { output: value, truncated: false }
+  : { output: `${value.slice(0, ACTIVITY_OUTPUT_CHAR_CAP)}\n... 输出已截断，超过 ${ACTIVITY_OUTPUT_CHAR_CAP} 字符`, truncated: true }
 const formatToolOutput = (value: unknown) => typeof value === "string" ? value : JSON.stringify(value, null, 2)
 const record = (value: unknown): Record<string, unknown> => value && typeof value === "object" ? value as Record<string, unknown> : {}
 const parseArguments = (value: unknown) => {
@@ -117,7 +134,12 @@ const parseArguments = (value: unknown) => {
   try { return record(JSON.parse(value)) } catch { return {} }
 }
 
-/** Fixed orchestration with durable human checkpoints; no free-form handoffs. */
+export function isMainAgentRequestUserInputEnabled(request: Pick<OrchestrationRequest, "taskMode" | "continueFromPlan" | "defaultModeRequestUserInput">) {
+  const planning = request.taskMode === "plan" && !request.continueFromPlan
+  return planning || request.defaultModeRequestUserInput === true
+}
+
+/** A single durable root agent owns investigation, implementation and verification. */
 export class AgentOrchestrator {
   constructor(private readonly options: AgentOrchestratorOptions) {
     setTracingDisabled(true)
@@ -134,270 +156,345 @@ export class AgentOrchestrator {
     await this.publish(threadID, item.turnID, method, { item: this.options.db.getItem(item.id) ?? item })
   }
 
-  private executeTool<T>(request: OrchestrationRequest, name: string, input: Record<string, unknown>) {
-    return this.options.toolExecutor.execute<T>(name, input, {
+  private async executeTool<T>(request: OrchestrationRequest, name: string, input: Record<string, unknown>) {
+    const result = await this.options.toolExecutor.execute<T>(name, input, {
       threadID: request.threadID,
       turnID: request.turnID,
-      taskMode: request.taskMode,
+      agentID: request.agentID,
+      taskMode: request.continueFromPlan ? "chat" : request.taskMode,
       signal: request.signal,
       workspace: request.workspace,
       permissionConfig: request.permissionConfig,
       model: request.fallbackModel,
       taskSummary: request.content,
     })
+    return result
   }
 
-  private async recordReadActivity(request: OrchestrationRequest, role: AgentRole, title: string, detail: string, command?: ActivityCommand, onRecorded?: () => void) {
+  private async interruptAtSafeBoundary(request: OrchestrationRequest) {
+    if (await request.checkSafeBoundary?.()) throw new SafeBoundaryInterrupt()
+  }
+
+  private async recordActivity(request: OrchestrationRequest, title: string, detail: string, command?: ActivityCommand, onRecorded?: () => void) {
     const createdAt = now()
-    const item: Item = {
-      id: crypto.randomUUID(), turnID: request.turnID, type: "activity", status: "completed",
-      data: { role, activity: "notice", title, detail, ...(command ? { commands: [command] } : {}) }, createdAt, updatedAt: createdAt,
-    }
-    await this.saveItem(request.threadID, item)
+    await this.saveItem(request.threadID, {
+      id: crypto.randomUUID(),
+      turnID: request.turnID,
+      agentID: request.agentID,
+      type: "activity",
+      status: command?.status === "error" ? "error" : "completed",
+      data: { activity: "notice", title, detail, ...(command ? { commands: [command] } : {}) },
+      createdAt,
+      updatedAt: createdAt,
+    })
     onRecorded?.()
   }
 
-  private async recordReadResult(request: OrchestrationRequest, role: AgentRole, title: string, detail: string, command: string, output: unknown, onRecorded?: () => void) {
+  private async recordResult(request: OrchestrationRequest, title: string, detail: string, command: string, output: unknown, onRecorded?: () => void) {
     const capped = capActivityOutput(formatToolOutput(output))
-    await this.recordReadActivity(request, role, title, detail, { command, output: capped.output, status: "success", ...(capped.truncated ? { truncated: true } : {}) }, onRecorded)
+    await this.recordActivity(request, title, detail, { command, output: capped.output, status: "success", ...(capped.truncated ? { truncated: true } : {}) }, onRecorded)
   }
 
-  private async recordReadError(request: OrchestrationRequest, role: AgentRole, title: string, detail: string, command: string, cause: unknown, onRecorded?: () => void) {
-    const output = cause instanceof Error ? cause.message : String(cause)
-    await this.recordReadActivity(request, role, title, detail, { command, output, status: "error" }, onRecorded)
+  private async recordError(request: OrchestrationRequest, title: string, detail: string, command: string, cause: unknown, onRecorded?: () => void) {
+    await this.recordActivity(request, title, detail, { command, output: cause instanceof Error ? cause.message : String(cause), status: "error" }, onRecorded)
   }
 
-  private toolsFor(role: AgentRole, request: OrchestrationRequest, onPlanFinalized?: (plan: string) => void, onReadActivityRecorded?: () => void) {
-    if (role === "assistant") return []
+  private delegationTools(request: OrchestrationRequest) {
+    if (!request.delegation || (request.depth ?? 0) !== 0) return []
+    const controller = request.delegation
+    const modelSchema = z.object({ providerID: z.string().min(1), id: z.string().min(1), variant: z.string().optional() })
+    return [
+      tool({
+        name: "spawn_agents",
+        description: "按需创建一个或多个独立子 Agent。Plan 未确认时只能创建 explorer。",
+        parameters: z.object({ agents: z.array(z.object({ name: z.string().min(1).max(32).optional(), profile: z.enum(["default", "explorer", "worker"]), task: z.string().min(1), workspaceMode: z.enum(["shared", "worktree"]).optional(), model: modelSchema.optional() })).min(1).max(4) }),
+        execute: async (input) => {
+          if (request.taskMode === "plan" && !request.continueFromPlan && input.agents.some((agent) => agent.profile !== "explorer")) {
+            throw new Error("Plan 确认前只能创建 Explorer")
+          }
+          return controller.spawn({
+            agents: input.agents.map((agent) => ({
+              profile: agent.profile,
+              task: agent.task,
+              ...(agent.name === undefined ? {} : { name: agent.name }),
+              ...(agent.workspaceMode === undefined ? {} : { workspaceMode: agent.workspaceMode }),
+              ...(agent.model === undefined ? {} : { model: agent.model as ModelRef }),
+            })),
+          })
+        },
+      }),
+      tool({
+        name: "wait_agents",
+        description: "等待指定子 Agent 全部或任意一个进入终态，并读取结构化结果。",
+        parameters: z.object({ runIDs: z.array(z.string().min(1)).min(1).max(6), mode: z.enum(["all", "any"]).default("all") }),
+        needsApproval: async (_context, input) => !(await controller.isWaitSatisfied(input)),
+        execute: (input) => controller.wait(input),
+      }),
+      tool({
+        name: "send_agent",
+        description: "向已有子 Agent 发送补充要求；运行中会在安全边界引导，已完成则创建后续 run。",
+        parameters: z.object({ taskID: z.string().min(1), message: z.string().min(1) }),
+        execute: (input) => controller.send(input),
+      }),
+      tool({
+        name: "stop_agent",
+        description: "停止指定子 Agent 的当前 run。",
+        parameters: z.object({ taskID: z.string().min(1) }),
+        execute: (input) => controller.stop(input),
+      }),
+    ]
+  }
+
+  private toolsFor(request: OrchestrationRequest, onPlanFinalized: (plan: string) => void, onReadActivityRecorded: () => void) {
+    const profile = request.profile ?? "main"
+    const mainQuestionEnabled = isMainAgentRequestUserInputEnabled(request)
     const readTools = [
       tool({ name: "workspace_list", description: "列出工作区目录内容。路径相对于项目根目录。", parameters: z.object({ path: z.string().min(1) }), execute: async ({ path }) => {
         const command = `workspace_list ${path}`
+        let result: unknown
         try {
-          const result = await this.executeTool(request, "workspace.list", { path })
-          await this.recordReadResult(request, role, "列出目录", path, command, result, onReadActivityRecorded)
-          return result
+          result = await this.executeTool(request, "workspace.list", { path })
+          await this.recordResult(request, "列出目录", path, command, result, onReadActivityRecorded)
         } catch (cause) {
-          await this.recordReadError(request, role, "列出目录", path, command, cause, onReadActivityRecorded)
+          await this.recordError(request, "列出目录", path, command, cause, onReadActivityRecorded)
           throw cause
         }
+        await this.interruptAtSafeBoundary(request)
+        return result
       } }),
-      tool({ name: "workspace_read", description: "以 UTF-8 读取工作区文本文件。路径相对于项目根目录。", parameters: z.object({ path: z.string().min(1) }), execute: async ({ path }) => {
+      tool({ name: "workspace_read", description: "以 UTF-8 读取工作区文本文件。", parameters: z.object({ path: z.string().min(1) }), execute: async ({ path }) => {
         const command = `workspace_read ${path}`
+        let result: unknown
         try {
-          const result = await this.executeTool(request, "workspace.read", { path })
-          await this.recordReadResult(request, role, "读取文件", path, command, result, onReadActivityRecorded)
-          return result
+          result = await this.executeTool(request, "workspace.read", { path })
+          await this.recordResult(request, "读取文件", path, command, result, onReadActivityRecorded)
         } catch (cause) {
-          await this.recordReadError(request, role, "读取文件", path, command, cause, onReadActivityRecorded)
+          await this.recordError(request, "读取文件", path, command, cause, onReadActivityRecorded)
           throw cause
         }
+        await this.interruptAtSafeBoundary(request)
+        return result
       } }),
       tool({ name: "workspace_search", description: "按文件名和 UTF-8 文本搜索工作区。", parameters: z.object({ path: z.string().min(1), query: z.string().min(1) }), execute: async ({ path, query }) => {
         const detail = `${path}: ${query}`
         const command = `workspace_search ${path} ${query}`
+        let result: unknown
         try {
-          const result = await this.executeTool(request, "workspace.search", { path, query })
-          await this.recordReadResult(request, role, "搜索工作区", detail, command, result, onReadActivityRecorded)
-          return result
+          result = await this.executeTool(request, "workspace.search", { path, query })
+          await this.recordResult(request, "搜索工作区", detail, command, result, onReadActivityRecorded)
         } catch (cause) {
-          await this.recordReadError(request, role, "搜索工作区", detail, command, cause, onReadActivityRecorded)
+          await this.recordError(request, "搜索工作区", detail, command, cause, onReadActivityRecorded)
           throw cause
         }
+        await this.interruptAtSafeBoundary(request)
+        return result
       } }),
     ]
-    if (role === "planner") return [...readTools,
-      tool({
-        name: "request_user_input", description: "仅在缺少关键实现决策时向用户提问。", needsApproval: true,
-        parameters: z.object({ question: z.string().min(1), options: z.array(z.string().min(1)).min(2).max(3) }),
-        execute: ({ question, options }) => ({ question, options, answer: request.resume?.answer ?? "" }),
-      }),
-      tool({
-        name: "finalize_plan", description: "提交完整计划以请求用户确认。仅在调研和计划完成后调用一次。",
-        parameters: z.object({ plan: z.string().min(1) }), execute: ({ plan }) => {
+    const questionTool = tool({
+      name: "request_user_input",
+      description: "仅在缺少关键实现决策时向用户提问。",
+      needsApproval: true,
+      parameters: z.object({ question: z.string().min(1), options: z.array(z.string().min(1)).min(2).max(3) }),
+      execute: ({ question, options }) => ({ question, options, answer: request.resume?.answer ?? "" }),
+    })
+    const questionTools = profile !== "main" || mainQuestionEnabled ? [questionTool] : []
+    const delegationTools = profile === "main" ? this.delegationTools(request) : []
+    if (profile === "explorer") return [...readTools, questionTool]
+    if (profile === "main" && request.taskMode === "plan" && !request.continueFromPlan) {
+      return [...readTools, ...questionTools, tool({
+        name: "finalize_plan",
+        description: "提交完整计划以请求用户确认。",
+        parameters: z.object({ plan: z.string().min(1) }),
+        execute: ({ plan }) => {
           const normalized = cleanText(plan)
-          onPlanFinalized?.(normalized)
+          onPlanFinalized(normalized)
           return normalized
         },
+      }), ...delegationTools]
+    }
+    if (request.permissionConfig.sandboxMode === "read-only") return [...readTools, questionTool, ...delegationTools]
+    return [...readTools, ...questionTools,
+      tool({
+        name: "apply_patch",
+        description: "直接且原子地更新、创建或删除一个工作区文件。",
+        parameters: z.object({
+          operation: z.enum(["update", "create", "delete"]),
+          path: z.string().min(1),
+          before: z.string().optional(),
+          after: z.string().optional(),
+          content: z.string().optional(),
+          expectedSha256: z.string().optional(),
+        }),
+        execute: async (input) => {
+          const patchInput = input.operation === "update"
+            ? { operation: input.operation, path: input.path, before: input.before ?? "", after: input.after ?? "" }
+            : input.operation === "create"
+              ? { operation: input.operation, path: input.path, content: input.content ?? "" }
+              : { operation: input.operation, path: input.path, expectedSha256: input.expectedSha256 ?? "" }
+          const result = await this.executeTool<ApplyPatchResult>(request, "apply_patch", patchInput)
+          const createdAt = now()
+          await this.saveItem(request.threadID, {
+            id: crypto.randomUUID(), turnID: request.turnID, agentID: request.agentID, type: "patch", status: "completed",
+            data: { files: [{ path: result.path, additions: result.additions, deletions: result.deletions, patch: result.diff }], totalAdditions: result.additions, totalDeletions: result.deletions },
+            createdAt, updatedAt: createdAt,
+          })
+          await this.interruptAtSafeBoundary(request)
+          return result
+        },
       }),
-    ]
-    if (role !== "developer") return readTools
-    return [...readTools,
-      tool({ name: "propose_patch", description: "保存不执行的精确文本替换提议。", parameters: z.object({ path: z.string().min(1), before: z.string(), after: z.string() }), execute: async ({ path, before, after }) => {
-        const draft = await this.executeTool<PatchProposalDraft>(request, "propose_patch", { path, before, after })
-        await request.saveProposal(draft, role)
-        await this.publish(request.threadID, request.turnID, "proposal/created", { turnId: request.turnID, role, proposal: draft })
-        return { recorded: true, type: "patch", path: draft.payload.path, diff: draft.payload.diff }
-      } }),
-      tool({ name: "propose_command", description: "保存不执行的验证或后续操作命令提议。", parameters: z.object({ command: z.string().min(1), cwd: z.string().min(1).optional(), description: z.string().min(1) }), execute: async ({ command, cwd, description }) => {
-        const draft = await this.executeTool<CommandProposalDraft>(request, "propose_command", { command, ...(cwd ? { cwd } : {}), description })
-        await request.saveProposal(draft, role)
-        await this.publish(request.threadID, request.turnID, "proposal/created", { turnId: request.turnID, role, proposal: draft })
-        return { recorded: true, type: "command", command: draft.payload.command }
-      } }),
       tool({
         name: "shell",
         description: "执行一条经过审核的 PowerShell 命令。必须声明工作区外访问和简短理由。",
         parameters: z.object({
-          command: z.string().min(1),
-          cwd: z.string().min(1).optional(),
-          timeoutMs: z.number().positive().max(600_000).optional(),
-          additionalPermissions: z.object({
-            readPaths: z.array(z.string().min(1)).optional(),
-            writePaths: z.array(z.string().min(1)).optional(),
-            networkDomains: z.array(z.string().min(1)).optional(),
-          }).optional(),
+          command: z.string().min(1), cwd: z.string().min(1).optional(), timeoutMs: z.number().positive().max(600_000).optional(),
+          additionalPermissions: z.object({ readPaths: z.array(z.string().min(1)).optional(), writePaths: z.array(z.string().min(1)).optional(), networkDomains: z.array(z.string().min(1)).optional() }).optional(),
           justification: z.string().min(1).optional(),
         }),
         execute: async (input) => {
           const command = `shell ${input.command}`
+          let result: ProcessResult
           try {
-            const result = await this.executeTool<ProcessResult>(request, "shell", input)
+            result = await this.executeTool<ProcessResult>(request, "shell", input)
             const output = `${result.stdout}${result.stderr ? `\n${result.stderr}` : ""}`.trim()
-            await this.recordReadActivity(request, role, "执行 Shell", input.cwd ?? request.workspace.rootPath, {
-              command,
-              output: capActivityOutput(output).output,
-              status: result.exitCode === 0 ? "success" : "error",
-              ...(result.truncated ? { truncated: true } : {}),
-            })
-            return result
+            const capped = capActivityOutput(output)
+            await this.recordActivity(request, "执行 Shell", input.cwd ?? request.workspace.rootPath, { command, output: capped.output, status: result.exitCode === 0 ? "success" : "error", ...(result.truncated || capped.truncated ? { truncated: true } : {}) })
           } catch (cause) {
-            await this.recordReadError(request, role, "执行 Shell", input.cwd ?? request.workspace.rootPath, command, cause)
+            await this.recordError(request, "执行 Shell", input.cwd ?? request.workspace.rootPath, command, cause)
             throw cause
           }
+          await this.interruptAtSafeBoundary(request)
+          return result
         },
       }),
+      ...delegationTools,
     ]
   }
 
-  private approval(streamed: { interruptions?: readonly unknown[]; state: unknown }, request: OrchestrationRequest): PendingApproval | null {
+  private pendingApproval(streamed: { interruptions?: readonly unknown[]; state: unknown }): PendingApproval | null {
     const interruption = streamed.interruptions?.[0]
     if (!interruption) return null
     const item = interruption as { name?: unknown; arguments?: unknown }
-    const name = typeof item.name === "string" ? item.name : ""
     const args = parseArguments(item.arguments)
-    const checkpoint = { state: JSON.stringify(streamed.state), interruption }
-    if (name === "request_user_input") {
-      const question = typeof args.question === "string" ? args.question : "需要你的确认"
-      const options = Array.isArray(args.options) ? args.options.filter((item): item is string => typeof item === "string") : []
-      return { checkpoint, kind: "clarification", question, options: options.length >= 2 ? options : ["继续按当前假设", "补充更多信息"] }
+    if (item.name === "wait_agents") {
+      const runIDs = Array.isArray(args.runIDs) ? args.runIDs.filter((value): value is string => typeof value === "string") : []
+      const waitMode = args.mode === "any" ? "any" : "all"
+      return { checkpoint: { state: JSON.stringify(streamed.state), interruption }, kind: "subagents", runIDs, waitMode }
     }
-    if (name === "finalize_plan") {
-      const plan = typeof args.plan === "string" ? cleanText(args.plan) : ""
-      return { checkpoint, kind: "plan_confirmation", question: plan || "计划已经完成，是否确认并进入拟议修改与审查？", options: ["确认计划并继续", "返回继续完善计划"] }
+    if (item.name !== "request_user_input") return null
+    const question = typeof args.question === "string" ? args.question : "需要你的确认"
+    const options = Array.isArray(args.options) ? args.options.filter((option): option is string => typeof option === "string") : []
+    return {
+      checkpoint: { state: JSON.stringify(streamed.state), interruption },
+      kind: "clarification",
+      question,
+      options: options.length >= 2 ? options : ["继续按当前假设", "补充更多信息"],
     }
-    return null
   }
 
-  private async runStage(role: AgentRole, request: OrchestrationRequest, context: string): Promise<StageResult> {
-    const { ref, model } = await request.resolveModel(role, request.fallbackModel)
+  async run(request: OrchestrationRequest): Promise<RunResult> {
+    const { model } = await request.resolveModel(request.fallbackModel)
+    const profile = request.profile ?? "main"
     const startedAt = now()
-    const itemType: Item["type"] = role === "planner" ? "activity" : "text"
     let textItemID = crypto.randomUUID()
     let segmentStartedAt = startedAt
     let segmentText = ""
     let segmentSaved = false
     let rawOutput = ""
     let finalizedPlan = ""
-    const segmentData = (text: string, error?: string) => itemType === "activity"
-      ? { role, activity: "notice", title: stageTitle[role], detail: text || "正在分析…", ...(error ? { error } : {}) }
-      : { role, title: stageTitle[role], text, ...(error ? { error } : {}) }
-    const saveTextSegment = async (status: Item["status"], fallback = "正在分析…", error?: string) => {
+    const saveText = async (status: Item["status"], fallback = "正在分析…", error?: string) => {
       const text = cleanText(segmentText) || fallback
       if (!segmentSaved && !text) return
       segmentSaved = true
       await this.saveItem(request.threadID, {
-        id: textItemID,
-        turnID: request.turnID,
-        type: itemType,
-        status,
-        data: segmentData(text, error),
-        createdAt: segmentStartedAt,
-        updatedAt: now(),
+        id: textItemID, turnID: request.turnID, agentID: request.agentID, type: "text", status,
+        data: { placement: "result", text, ...(error ? { error } : {}) },
+        createdAt: segmentStartedAt, updatedAt: now(),
       })
     }
-    const startNextTextSegment = () => {
+    const startNextSegment = () => {
       textItemID = crypto.randomUUID()
       segmentStartedAt = now()
       segmentText = ""
       segmentSaved = false
     }
-    if (role !== "assistant") {
-      this.options.db.setTurnWorkflowState?.(request.turnID, { status: "running", currentStage: role, canContinueFromPlan: false })
-      this.options.db.upsertTurnStage?.({ turnID: request.turnID, role, attempt: 1, status: "running", model: ref, startedAt, finishedAt: null, error: null })
-    }
-    await this.publish(request.threadID, request.turnID, "workflow/stageStarted", { turnId: request.turnID, role, title: stageTitle[role], model: ref, startedAt })
-    await saveTextSegment("running")
+    const planning = profile === "main" && request.taskMode === "plan" && !request.continueFromPlan
+    const instructions = profile === "main"
+      ? [
+          MAIN_INSTRUCTIONS,
+          planning ? PLAN_INSTRUCTIONS : "",
+          isMainAgentRequestUserInputEnabled(request) ? QUESTION_ENABLED_INSTRUCTIONS : QUESTION_DISABLED_INSTRUCTIONS,
+        ].filter(Boolean).join("\n")
+      : PROFILE_INSTRUCTIONS[profile]
     const agent = new Agent({
-      name: `${stageTitle[role]} Agent`, instructions: stageInstructions[role], model: asAgentModel(model), tools: this.toolsFor(role, request, (plan) => { finalizedPlan = plan }, startNextTextSegment),
-      ...(role === "planner" ? { toolUseBehavior: { stopAtToolNames: ["finalize_plan"] } } : {}),
+      name: profile === "main" ? "CodePilotX Main Agent" : `CodePilotX ${profile} Agent`,
+      instructions,
+      model: asAgentModel(model),
+      tools: this.toolsFor(request, (plan) => { finalizedPlan = plan }, startNextSegment),
+      ...(profile === "main" ? {} : { outputType: subagentResultSchema }),
+      ...(planning ? { toolUseBehavior: { stopAtToolNames: ["finalize_plan"] } } : {}),
     })
     try {
-      const checkpoint = request.resume
-      const resume = checkpoint && role === "planner"
-        ? await RunState.fromString(agent, checkpoint.state).then((state) => {
+      const context = request.continueFromPlan
+        ? `用户任务：\n${request.content}\n\n已确认的实施计划：\n${request.plan ?? ""}\n\n现在直接实施并完成必要验证。`
+        : request.content
+      const modelInput: string | AgentInputItem[] = request.attachments?.length
+        ? [{
+            role: "user",
+            content: [
+              { type: "input_text", text: context },
+              ...request.attachments.map((attachment) => attachment.kind === "text"
+                ? { type: "input_text" as const, text: `附件 ${attachment.name}:\n${attachment.text}` }
+                : { type: "input_image" as const, image: `data:${attachment.mediaType};base64,${attachment.base64}` }),
+            ],
+          }]
+        : context
+      const resume = request.resume
+        ? await RunState.fromString(agent, request.resume.state).then((state) => {
             const interruption = state.getInterruptions()[0]
-            if (!interruption) throw new Error("规划 checkpoint 中没有待恢复的问题")
+            if (!interruption) throw new Error("Agent checkpoint 中没有待恢复的问题")
             state.approve(interruption)
             return state
           })
-        : context
-      const session = this.options.sessionFor?.(request.threadID, role)
+        : modelInput
+      const session = this.options.sessionFor?.(request.sessionID)
       const streamed = session
-        ? await run(agent, resume, { stream: true, signal: request.signal, maxTurns: 12, session })
-        : await run(agent, resume, { stream: true, signal: request.signal, maxTurns: 12 })
+        ? await run(agent, resume, { stream: true, signal: request.signal, maxTurns: profile === "worker" ? 24 : 12, session })
+        : await run(agent, resume, { stream: true, signal: request.signal, maxTurns: profile === "worker" ? 24 : 12 })
       for await (const delta of streamed.toTextStream() as AsyncIterable<string>) {
         rawOutput += delta
         segmentText += delta
-        await saveTextSegment("running")
+        await saveText("running")
       }
       await streamed.completed
       if (request.signal.aborted || streamed.cancelled) {
-        if (role !== "assistant") this.options.db.upsertTurnStage?.({ turnID: request.turnID, role, attempt: 1, status: "interrupted", model: ref, startedAt, finishedAt: now(), error: null })
-        await saveTextSegment("interrupted", cleanText(rawOutput))
+        await saveText("interrupted", cleanText(rawOutput))
         return { status: "completed", output: cleanText(rawOutput) }
       }
-      const pause = role === "planner" ? this.approval(streamed, request) : null
+      const pause = this.pendingApproval(streamed)
       if (pause) {
         await request.pause(pause)
-        if (role !== "assistant") this.options.db.upsertTurnStage?.({ turnID: request.turnID, role, attempt: 1, status: pause.kind === "clarification" ? "waiting_question" : "running", model: ref, startedAt, finishedAt: null, error: null })
-        await saveTextSegment("pending", cleanText(rawOutput))
-        await this.publish(request.threadID, request.turnID, "workflow/stagePaused", { turnId: request.turnID, role, kind: pause.kind })
+        await saveText("pending", cleanText(rawOutput))
         return { status: "paused", output: cleanText(rawOutput) }
       }
-      const finalOutput = cleanText(finalizedPlan || (typeof streamed.finalOutput === "string" ? streamed.finalOutput : rawOutput))
-      if (role === "planner") {
-        await saveTextSegment("completed", "已完成工作区分析")
-        const planTimestamp = now()
-        await this.saveItem(request.threadID, { id: crypto.randomUUID(), turnID: request.turnID, type: "plan", status: "completed", data: { role, title: "实施计划", markdown: finalOutput, version: 1, state: "awaiting-confirmation" }, createdAt: planTimestamp, updatedAt: planTimestamp })
-      } else {
-        await saveTextSegment("completed", finalOutput)
+      const structuredResult = profile === "main" ? undefined : subagentResultSchema.safeParse(streamed.finalOutput)
+      const result = structuredResult?.success ? structuredResult.data as SubagentResult : undefined
+      const finalOutput = cleanText(finalizedPlan || result?.summary || (typeof streamed.finalOutput === "string" ? streamed.finalOutput : rawOutput))
+      if (planning) {
+        await saveText("completed", "已完成工作区分析")
+        const createdAt = now()
+        await this.saveItem(request.threadID, {
+          id: crypto.randomUUID(), turnID: request.turnID, agentID: request.agentID, type: "plan", status: "completed",
+          data: { title: "实施计划", markdown: finalOutput, version: 1, state: "awaiting-confirmation" },
+          createdAt, updatedAt: createdAt,
+        })
+        return { status: "plan-ready", output: finalOutput, plan: finalOutput }
       }
-      await this.publish(request.threadID, request.turnID, "workflow/stageCompleted", { turnId: request.turnID, role, title: stageTitle[role], model: ref, completedAt: now() })
-      if (role !== "assistant") this.options.db.upsertTurnStage?.({ turnID: request.turnID, role, attempt: 1, status: "completed", model: ref, startedAt, finishedAt: now(), error: null })
-      return { status: "completed", output: finalOutput }
+      await saveText("completed", finalOutput)
+      return { status: "completed", output: finalOutput, ...(result ? { result } : {}) }
     } catch (cause) {
       const error = cause instanceof Error ? cause.message : String(cause)
-      if (role !== "assistant") this.options.db.upsertTurnStage?.({ turnID: request.turnID, role, attempt: 1, status: request.signal.aborted ? "interrupted" : "failed", model: ref, startedAt, finishedAt: now(), error })
-      await saveTextSegment(request.signal.aborted ? "interrupted" : "error", cleanText(rawOutput), error)
+      await saveText(request.signal.aborted ? "interrupted" : "error", cleanText(rawOutput), error)
       throw cause
     }
-  }
-
-  async run(request: OrchestrationRequest) {
-    if (request.continueFromPlan) {
-      const plan = request.plan ?? ""
-      const developer = await this.runStage("developer", request, `用户任务：\n${request.content}\n\n已确认的计划：\n${plan}`)
-      if (developer.status === "paused" || request.signal.aborted) return { status: developer.status, plan, development: developer.output }
-      const reviewer = await this.runStage("reviewer", request, `用户任务：\n${request.content}\n\n已确认的计划：\n${plan}\n\n开发提议：\n${developer.output}`)
-      return { status: reviewer.status, plan, development: developer.output, review: reviewer.output }
-    }
-    const first = stagesForTask(request.taskMode, request.content)[0] ?? "assistant"
-    if (first === "assistant") {
-      const result = await this.runStage("assistant", request, request.content)
-      return { status: result.status, text: result.output }
-    }
-    const planner = await this.runStage("planner", request, `用户任务：\n${request.content}`)
-    if (planner.status === "paused" || request.signal.aborted) return { status: planner.status, plan: planner.output }
-    return { status: "plan-ready" as const, plan: planner.output }
   }
 }

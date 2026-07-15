@@ -10,9 +10,11 @@ export type TurnStatus =
   | "waiting_permission"
   | "waiting_question"
   | "waiting_plan_confirmation"
+  | "waiting_subagents"
   | "completed"
   | "failed"
   | "interrupted"
+  | "cancelled"
 
 export type ModelRef = Model.Ref
 
@@ -24,32 +26,129 @@ export interface SubmitMessage {
   taskMode: TaskMode
 }
 
-export type ItemType = "reasoning" | "activity" | "text" | "tool" | "plan" | "question" | "patch"
+export type ItemType = "reasoning" | "activity" | "text" | "tool" | "plan" | "question" | "patch" | "subagent"
 
-export type AgentRole = "planner" | "developer" | "reviewer"
+export type SubagentProfile = "main" | "default" | "explorer" | "worker"
+export type SubagentWorkspaceMode = "shared" | "worktree"
+export type SubagentWorkspaceState = "ready" | "preparing" | "conflict" | "applied" | "discarded"
 
-export type WorkflowStageStatus =
-  | "pending"
+export interface SubagentWorkspace {
+  mode: SubagentWorkspaceMode
+  state: SubagentWorkspaceState
+  rootPath: string | null
+  baselineRef: string | null
+}
+
+export type SubagentStatus =
+  | "queued"
+  | "preparing"
+  | "running"
+  | "steering"
+  | "waiting_question"
+  | "waiting_permission"
+  | "completed"
+  | "failed"
+  | "stopped"
+  | "interrupted"
+
+export type SubagentQueueReason = "parent_limit" | "global_limit" | "workspace_writer" | null
+
+export interface SubagentResult {
+  outcome: "succeeded" | "partial" | "blocked"
+  summary: string
+  findings: Array<{
+    title: string
+    detail: string
+    severity: "info" | "warning" | "error"
+  }>
+  changedFiles: Array<{
+    path: string
+    summary: string
+  }>
+  validation: Array<{
+    command: string
+    status: "passed" | "failed" | "skipped"
+    output?: string
+  }>
+  risks: string[]
+  references: Array<{
+    kind: "file" | "url" | "thread" | "subagent"
+    value: string
+    label?: string
+  }>
+}
+
+export interface SubagentRun {
+  id: string
+  taskID: string
+  generation: number
+  status: SubagentStatus
+  queueReason: SubagentQueueReason
+  model: ModelRef
+  permissionConfig: PermissionConfig
+  result: SubagentResult | null
+  error: string | null
+  createdAt: number
+  startedAt: number | null
+  finishedAt: number | null
+  updatedAt: number
+}
+
+export interface SubagentTask {
+  id: string
+  parentThreadID: string
+  parentTurnID: string
+  parentAgentID: string
+  childThreadID: string
+  displayName: string
+  profile: Exclude<SubagentProfile, "main">
+  task: string
+  permissionCeiling: PermissionConfig
+  workspace: SubagentWorkspace
+  currentRun: SubagentRun | null
+  createdAt: number
+  updatedAt: number
+}
+
+export interface SubagentProjection {
+  task: SubagentTask
+  currentRun: SubagentRun | null
+}
+
+export type AgentExecutionStatus =
+  | "queued"
   | "running"
   | "waiting_question"
+  | "waiting_permission"
+  | "waiting_confirmation"
+  | "waiting_subagents"
   | "completed"
   | "failed"
   | "interrupted"
+  | "cancelled"
 
-export interface WorkflowStage {
+export interface AgentExecution {
+  id: string
+  threadID: string
   turnID: string
-  role: AgentRole
-  attempt: number
-  status: WorkflowStageStatus
+  parentAgentID: string | null
+  profile: string
+  task: string
   model: ModelRef
-  startedAt: number | null
-  finishedAt: number | null
+  sessionID: string
+  depth: number
+  status: AgentExecutionStatus
   error: string | null
+  subagentRunID: string | null
+  runSequence: number
+  createdAt: number
+  updatedAt: number
 }
 
 export interface Item {
   id: string
   turnID: string
+  agentID: string
   type: ItemType
   status: "pending" | "running" | "completed" | "error" | "interrupted"
   data: Record<string, unknown>
@@ -65,13 +164,15 @@ export interface ThreadSnapshot {
   updatedAt: number
   turns: Array<{
     id: string
+    rootAgentID: string
     status: TurnStatus
     mode: TaskMode
     startedAt: number | null
     finishedAt: number | null
     items: Item[]
   }>
-  stages?: WorkflowStage[]
+  agents?: AgentExecution[]
+  subagents?: SubagentProjection[]
 }
 
 export interface EventEnvelope<T = unknown> {
@@ -87,6 +188,7 @@ export interface ToolInvocation {
   id: string
   threadID: string
   turnID: string
+  agentID: string
   name: string
   input: Record<string, unknown>
   permissionConfig: PermissionConfig

@@ -3,13 +3,15 @@ import type { LanguageModel } from "ai"
 import { Model } from "@codepilotx/model-schema"
 import type { ThreadSettings } from "@codepilotx/shared/thread"
 import type { ProviderRuntime } from "@codepilotx/provider-runtime"
-import { AgentError, type SubmitMessage } from "../domain"
+import { AgentError, type AgentExecution, type SubmitMessage } from "../domain"
 import type { AgentDatabase } from "../storage/Database"
 import type { EventHub } from "../storage/EventHub"
 import type { ApprovalService } from "../permission/ApprovalService"
 import type { QuestionService } from "./QuestionService"
-import type { AgentOrchestrator, AgentRole } from "../orchestration/AgentOrchestrator"
-import { WorkspaceService, type ProposalDraft } from "../workspace/WorkspaceService"
+import type { AgentOrchestrator } from "../orchestration/AgentOrchestrator"
+import { WorkspaceService } from "../workspace/WorkspaceService"
+import type { AttachmentService } from "../subagent/AttachmentService"
+import type { SubagentService } from "../subagent/SubagentService"
 
 export class ThreadService {
   private readonly controllers = new Map<string, AbortController>()
@@ -21,8 +23,15 @@ export class ThreadService {
     private readonly approvals: ApprovalService,
     private readonly questions: QuestionService,
     private readonly orchestrator: AgentOrchestrator,
+    private readonly subagents: SubagentService,
+    private readonly attachments: AttachmentService,
   ) {
-    this.questions.setResumeHandler((threadID, turnID) => { void this.executeTurn(threadID, turnID) })
+    this.questions.setResumeHandler((threadID, turnID) => {
+      const agent = this.db.agentForTurn(turnID)
+      if (agent?.subagentRunID) void this.subagents.resumeTurn(threadID, turnID)
+      else void this.executeTurn(threadID, turnID)
+    })
+    this.subagents.setParentResumeHandler((threadID, turnID) => { void this.executeTurn(threadID, turnID) })
     queueMicrotask(() => this.resumeQueuedTurns())
   }
 
@@ -30,11 +39,12 @@ export class ThreadService {
     const rows = this.db.sqlite.query(`
       SELECT r.id, r.thread_id
       FROM turns AS r
+      JOIN threads AS t ON t.id = r.thread_id AND t.kind = 'main'
       WHERE r.status = 'queued'
         AND NOT EXISTS (
           SELECT 1 FROM turns AS active
           WHERE active.thread_id = r.thread_id
-            AND active.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_plan_confirmation')
+            AND active.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_plan_confirmation', 'waiting_subagents')
         )
       ORDER BY r.created_at
     `).all() as Array<{ id: string; thread_id: string }>
@@ -52,6 +62,10 @@ export class ThreadService {
     return event
   }
 
+  private async emitAgent(agent: AgentExecution) {
+    await this.emit(agent.threadID, agent.turnID, "agent/upserted", { agent })
+  }
+
   create(title?: string, projectID?: string, settings?: ThreadSettings) {
     return this.db.createThread(title, projectID, settings)
   }
@@ -67,8 +81,8 @@ export class ThreadService {
     if (!input.content.trim()) throw new AgentError("EMPTY_MESSAGE", "消息不能为空", 400)
     if (!this.db.threadProjectID(threadID)) throw new AgentError("PROJECT_REQUIRED", "请先选择项目后再开始任务", 409)
     const model = await this.resolveAvailableModel([input.model])
-    if (input.taskMode !== "plan" && !model.capabilities.tools) {
-      await this.emit(threadID, null, "turn/statusChanged", { state: "model-tools-unavailable", model: input.model, message: "该模型不支持工具调用，开发阶段只能给出文字建议，无法生成结构化提议" })
+    if (!model.capabilities.tools) {
+      await this.emit(threadID, null, "turn/statusChanged", { state: "model-tools-unavailable", model: input.model, message: "该模型不支持工具调用，主 Agent只能给出文字回复" })
     }
     const active = this.db.activeTurn(threadID)
     if (active && input.strategy === "guide" && active.status !== "waiting_question") {
@@ -76,7 +90,11 @@ export class ThreadService {
       if (guide.settingsEvent) await Effect.runPromise(this.hub.publish(guide.settingsEvent))
       await Effect.runPromise(this.hub.publish(guide.event))
       if (active.status === "waiting_plan_confirmation") {
-        this.db.setTurnWorkflowState(active.id, { status: "queued", currentStage: "planner", canContinueFromPlan: false })
+        this.db.setCurrentPlanState(active.id, "rejected")
+        this.db.deleteAgentTurnCheckpoint(active.id)
+        this.db.updateTurnStatus(active.id, "queued")
+        const agent = this.db.agentForTurn(active.id)
+        if (agent) await this.emitAgent(this.db.updateAgentStatus(agent.id, "queued"))
         void this.executeTurn(threadID, active.id)
       }
       return { disposition: "guide" as const, turnID: active.id, inputID: guide.inputID }
@@ -84,6 +102,7 @@ export class ThreadService {
     const created = this.db.createTurn(threadID, input, "queued")
     if (created.settingsEvent) await Effect.runPromise(this.hub.publish(created.settingsEvent))
     await Effect.runPromise(this.hub.publish(created.event))
+    await Effect.runPromise(this.hub.publish(created.agentEvent))
     if (!active) void this.executeTurn(threadID, created.turnID)
     return { disposition: active ? "queued" as const : "started" as const, turnID: created.turnID, inputID: created.inputID }
   }
@@ -91,23 +110,24 @@ export class ThreadService {
   private async executeTurn(threadID: string, turnID: string) {
     const input = this.db.getTurnInput(turnID)
     if (!input) return
-    const checkpoint = this.questions.claimResolvedCheckpoint(turnID)
+    const agent = this.db.claimTurnExecution(turnID)
+    if (!agent) return
+    const questionCheckpoint = this.questions.claimResolvedCheckpoint(turnID)
+    const waitCheckpoint = questionCheckpoint ? null : this.subagents.resolvedWaitCheckpoint(turnID)
+    const resumeCheckpoint = questionCheckpoint?.approval ?? waitCheckpoint ?? undefined
     const storedCheckpoint = this.db.getAgentTurnCheckpoint(turnID)
     const continueFromPlan = storedCheckpoint?.state === "ready" && storedCheckpoint.payload.planDecision === "continue"
     const controller = new AbortController()
     this.controllers.set(turnID, controller)
-    if (checkpoint) this.db.updateTurnStatus(turnID, "running")
-    else this.db.startTurn(turnID)
-    await this.emit(threadID, turnID, "turn/started", { turnId: turnID, startedAt: Date.now(), input, ...(checkpoint ? { checkpointID: checkpoint.id, resumed: true } : {}) })
+    await this.emitAgent(agent)
+    await this.emit(threadID, turnID, "turn/started", { turnId: turnID, rootAgentId: agent.id, startedAt: Date.now(), input, ...(resumeCheckpoint ? { ...(questionCheckpoint ? { checkpointID: questionCheckpoint.id } : {}), resumed: true } : {}) })
     try {
       let activeModel = input.model
       let content = input.content
       const mailbox = this.db.takeGuideMailbox(turnID)
       if (mailbox.length) {
         const latest = mailbox.at(-1)
-        if (latest) {
-          activeModel = latest.model
-        }
+        if (latest) activeModel = latest.model
         content += `\n\n用户补充要求：\n${mailbox.map((item) => item.content).join("\n")}`
         await this.emit(threadID, turnID, "queue/updated", { turnId: turnID, inputs: mailbox, action: "guide-consumed", safeBoundary: "before-model" })
       }
@@ -116,67 +136,63 @@ export class ThreadService {
       const project = this.db.getProject(projectID)
       if (!project) throw new AgentError("PROJECT_NOT_FOUND", "当前项目不存在", 404)
       const workspace = await WorkspaceService.open(project.rootPath)
-      const saveProposal = async (draft: ProposalDraft, role: AgentRole) => {
-        const proposalRole = role === "assistant" ? "developer" : role
-        const title = draft.type === "patch" ? `补丁提议：${draft.payload.path}` : `命令提议：${draft.payload.command}`
-        return this.db.createProposal({
-          turnID,
-          projectID,
-          role: proposalRole,
-          kind: draft.type,
-          title,
-          payload: draft.payload,
-          review: null,
-        })
-      }
+      const desktopSettings = this.db.getSetting<Record<string, unknown>>("desktop.settings.v1")
+      const defaultModeRequestUserInput = desktopSettings?.defaultModeRequestUserInput === true
       const result = await this.orchestrator.run({
         threadID,
         turnID,
+        agentID: agent.id,
+        sessionID: agent.sessionID,
         content,
         taskMode: input.taskMode,
         permissionConfig: input.permissionConfig,
         fallbackModel: activeModel,
         signal: controller.signal,
         workspace,
-        ...(checkpoint ? { resume: checkpoint.approval } : {}),
+        defaultModeRequestUserInput,
+        profile: "main",
+        depth: 0,
+        delegation: this.subagents.delegationFor({
+          threadID, turnID, agentID: agent.id, taskMode: input.taskMode, continueFromPlan,
+          model: activeModel, permissionConfig: input.permissionConfig, workspaceRoot: workspace.rootPath,
+        }),
+        attachments: await this.agentAttachments(input.id),
+        ...(resumeCheckpoint ? { resume: resumeCheckpoint } : {}),
         ...(continueFromPlan ? { continueFromPlan: true, plan: this.db.currentPlan(turnID) ?? "" } : {}),
-        resolveModel: async (role, fallback) => {
+        resolveModel: async (fallback) => {
           const projectModels = this.db.getProjectSettings(projectID)
-          const roleModel = role === "planner"
-            ? projectModels.plannerModel
-            : role === "developer"
-              ? projectModels.developerModel
-              : role === "reviewer"
-                ? projectModels.reviewerModel
-                : fallback
           const globalDefault = this.db.getSetting<Model.Ref>("defaultModel")
-          const ref = await this.resolveAvailableModel([
-            roleModel,
-            projectModels.defaultModel,
-            globalDefault,
-            fallback,
-          ])
+          const ref = await this.resolveAvailableModel([projectModels.defaultModel, globalDefault, fallback])
           const selected = Model.Ref.make({ providerID: ref.providerID, id: ref.id, ...(ref.request.variant ? { variant: Model.VariantID.make(ref.request.variant) } : {}) })
           return { ref: selected, model: await this.providers.getLanguage(selected) as LanguageModel }
         },
-        saveProposal,
-        pause: async (approval) => { await this.questions.checkpoint(threadID, turnID, approval) },
+        pause: async (approval) => {
+          if (approval.kind === "subagents") await this.subagents.checkpointWait(threadID, turnID, agent.id, approval)
+          else await this.questions.checkpoint(threadID, turnID, agent.id, approval)
+        },
       })
       if (controller.signal.aborted) return
-      if (result.status === "paused") return
+      if (result.status === "paused") {
+        const pausedAgent = this.db.agentForTurn(turnID)
+        if (pausedAgent) await this.emitAgent(pausedAgent)
+        return
+      }
       if (result.status === "plan-ready") {
-        this.db.waitForPlanConfirmation({ turnID, threadID, stage: "planner", payload: { plan: result.plan }, version: 1 })
-        await this.emit(threadID, turnID, "plan/ready", { turnId: turnID, plan: result.plan })
+        this.db.waitForPlanConfirmation({ agentID: agent.id, turnID, threadID, payload: { plan: result.plan }, version: 1 })
+        await this.emitAgent(this.db.getAgentExecution(agent.id)!)
+        await this.emit(threadID, turnID, "plan/ready", { turnId: turnID, agentId: agent.id, plan: result.plan })
         return
       }
       this.db.deleteAgentTurnCheckpoint(turnID)
       this.db.updateTurnStatus(turnID, "completed")
-      await this.emit(threadID, turnID, "turn/completed", { turnId: turnID, finishedAt: Date.now() })
+      await this.emitAgent(this.db.updateAgentStatus(agent.id, "completed"))
+      await this.emit(threadID, turnID, "turn/completed", { turnId: turnID, rootAgentId: agent.id, finishedAt: Date.now() })
     } catch (cause) {
       if (controller.signal.aborted) return
       const message = cause instanceof Error ? cause.message : String(cause)
       this.db.updateTurnStatus(turnID, "failed")
-      await this.emit(threadID, turnID, "turn/failed", { turnId: turnID, message, finishedAt: Date.now() })
+      await this.emitAgent(this.db.updateAgentStatus(agent.id, "failed", message))
+      await this.emit(threadID, turnID, "turn/failed", { turnId: turnID, rootAgentId: agent.id, message, finishedAt: Date.now() })
     } finally {
       this.controllers.delete(turnID)
       if (!this.db.activeTurn(threadID)) {
@@ -184,6 +200,16 @@ export class ThreadService {
         if (next) void this.executeTurn(threadID, next.id)
       }
     }
+  }
+
+  private async agentAttachments(inputID: string) {
+    const records = await this.attachments.listByBinding({ type: "input", id: inputID })
+    return Promise.all(records.map(async (record) => {
+      const value = await this.attachments.read(record.id)
+      return record.kind === "text"
+        ? { kind: "text" as const, name: record.name, text: new TextDecoder("utf-8", { fatal: true }).decode(value.data) }
+        : { kind: "image" as const, name: record.name, mediaType: record.mimeType, base64: Buffer.from(value.data).toString("base64") }
+    }))
   }
 
   private async resolveAvailableModel(candidates: ReadonlyArray<Model.Ref | null | undefined>) {
@@ -194,18 +220,10 @@ export class ThreadService {
       const key = `${candidate.providerID}/${candidate.id}/${candidate.variant ?? ""}`
       if (seen.has(key)) continue
       seen.add(key)
-      try {
-        return await this.providers.resolve(candidate)
-      } catch (cause) {
-        lastError = cause
-      }
+      try { return await this.providers.resolve(candidate) } catch (cause) { lastError = cause }
     }
     for (const model of await this.providers.models()) {
-      try {
-        return await this.providers.resolve({ providerID: model.providerID, id: model.id })
-      } catch (cause) {
-        lastError = cause
-      }
+      try { return await this.providers.resolve({ providerID: model.providerID, id: model.id }) } catch (cause) { lastError = cause }
     }
     throw new AgentError("MODEL_UNAVAILABLE", "没有可用的模型，请先连接 Provider 或调整项目模型设置", 409, lastError)
   }
@@ -216,13 +234,17 @@ export class ThreadService {
     this.controllers.get(active.id)?.abort()
     this.approvals.cancelTurn(active.id)
     this.questions.cancelTurn(active.id)
+    const agent = this.db.agentForTurn(active.id)
+    if (agent) await this.subagents.stopChildrenForParent(agent.id)
     this.db.transaction(() => {
       this.db.updateTurnStatus(active.id, "interrupted")
+      if (agent) this.db.updateAgentStatus(agent.id, "interrupted")
       this.db.run("UPDATE items SET status = 'interrupted', updated_at = ? WHERE turn_id = ? AND status IN ('pending', 'running')", Date.now(), active.id)
       this.db.run("UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE turn_id = ? AND status = 'pending'", Date.now(), active.id)
       this.db.run("UPDATE question_requests SET status = 'cancelled', resolved_at = ? WHERE turn_id = ? AND status = 'pending'", Date.now(), active.id)
     })
-    await this.emit(threadID, active.id, "turn/interrupted", { turnId: active.id, finishedAt: Date.now() })
+    if (agent) await this.emitAgent(this.db.getAgentExecution(agent.id)!)
+    await this.emit(threadID, active.id, "turn/interrupted", { turnId: active.id, rootAgentId: agent?.id ?? null, finishedAt: Date.now() })
   }
 
   resumeTurn(threadID: string, turnID: string) {
@@ -234,8 +256,14 @@ export class ThreadService {
   async submitPlanDecision(turnID: string, decision: "continue" | "reject") {
     const result = this.db.decidePlan(turnID, decision)
     if (!result) return null
-    await this.emit(result.threadID, result.turnID, "plan/decision", { ...result, threadId: result.threadID, turnId: result.turnID })
+    const agent = this.db.agentForTurn(turnID)
+    if (agent) await this.emitAgent(agent)
+    await this.emit(result.threadID, result.turnID, "plan/decision", { ...result, threadId: result.threadID, turnId: result.turnID, agentId: agent?.id ?? null })
     if (decision === "continue") this.resumeTurn(result.threadID, result.turnID)
+    else {
+      const next = this.db.nextQueuedTurn(result.threadID)
+      if (next) void this.executeTurn(result.threadID, next.id)
+    }
     return result
   }
 }

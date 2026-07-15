@@ -3,6 +3,7 @@ import {
   AUTO_REVIEW_PERMISSION_CONFIG,
   DEFAULT_PERMISSION_CONFIG,
   FULL_ACCESS_PERMISSION_CONFIG,
+  PermissionConfigSchema,
   ThreadSettingsPatchSchema,
   ThreadSettingsSchema,
   TurnStartParamsSchema,
@@ -24,6 +25,8 @@ import type { ThreadService } from "../session/ThreadService"
 import type { AgentDatabase } from "../storage/Database"
 import type { EventHub } from "../storage/EventHub"
 import type { SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
+import type { SubagentService } from "../subagent/SubagentService"
+import type { AttachmentService } from "../subagent/AttachmentService"
 import { WorkspaceService } from "../workspace/WorkspaceService"
 import { ThreadProjection } from "./ThreadProjection"
 
@@ -34,6 +37,8 @@ export type RpcRouterDependencies = {
   history: ThreadHistoryService
   approvals: ApprovalService
   questions: QuestionService
+  subagents: SubagentService
+  attachments: AttachmentService
   providers: ProviderRuntime
   integrations: IntegrationService
   sandbox: SandboxRuntimeAdapter
@@ -63,6 +68,7 @@ const decodeTurnStart = Schema.decodeUnknownSync(TurnStartParamsSchema)
 const decodeThreadSettings = Schema.decodeUnknownSync(ThreadSettingsSchema)
 const decodeThreadSettingsPatch = Schema.decodeUnknownSync(ThreadSettingsPatchSchema)
 const decodeApprovalRespond = Schema.decodeUnknownSync(ApprovalRespondParamsSchema)
+const decodePermissionConfig = Schema.decodeUnknownSync(PermissionConfigSchema)
 const decodeRpcRequest = Schema.decodeUnknownSync(AgentRpcRequestSchema)
 const decodeSandboxUninstall = Schema.decodeUnknownSync(SandboxUninstallParamsSchema)
 
@@ -114,12 +120,12 @@ export class RpcRouter {
   }
 
   private async dispatch(method: string, rawParams: unknown): Promise<unknown> {
-    const { db, threads, history, approvals, questions, providers, integrations, sandbox } = this.dependencies
+    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, sandbox } = this.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "initialize":
         db.sqlite.query("SELECT 1").get()
-        return { ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid, readyAt: Date.now(), protocol: "thread-rpc-v1" }
+        return { ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid, readyAt: Date.now(), protocol: "thread-rpc-v2", capabilities: { agentExecutions: 1, subagents: 1, attachments: 1 } }
       case "sandbox/status":
         return { sandbox: await sandbox.getStatus() }
       case "sandbox/install":
@@ -153,9 +159,6 @@ export class RpcRouter {
         const settings = record(params.settings, "settings")
         return { settings: db.saveProjectSettings(projectId, {
           defaultModel: modelRefOrNull(settings.defaultModel),
-          plannerModel: modelRefOrNull(settings.plannerModel),
-          developerModel: modelRefOrNull(settings.developerModel),
-          reviewerModel: modelRefOrNull(settings.reviewerModel),
         }) }
       }
       case "thread/list": {
@@ -174,6 +177,47 @@ export class RpcRouter {
       }
       case "thread/read":
         return this.requiredSnapshot(stringParam(params, "threadId"))
+      case "subagent/list":
+        return { subagents: subagents.list(stringParam(params, "threadId", "parentThreadId")) }
+      case "subagent/read": {
+        const value = subagents.read(stringParam(params, "taskId", "subagentTaskId"))
+        return {
+          ...value,
+          snapshot: this.requiredSnapshot(value.task.childThreadId),
+          capabilities: {
+            canSend: true,
+            canStop: Boolean(value.currentRun && !["completed", "failed", "stopped", "interrupted"].includes(value.currentRun.status)),
+            canRetry: Boolean(value.currentRun && ["failed", "stopped", "interrupted"].includes(value.currentRun.status)),
+            canRespondToApprovals: true,
+            canRespondToQuestions: true,
+            canSubmitPlanDecision: false,
+            canApplyWorktree: value.task.workspace.mode === "worktree" && value.task.workspace.state !== "applied" && value.task.workspace.state !== "discarded" && Boolean(value.currentRun && ["completed", "failed", "stopped", "interrupted"].includes(value.currentRun.status)),
+            canDiscardWorktree: value.task.workspace.mode === "worktree" && value.task.workspace.state !== "applied" && value.task.workspace.state !== "discarded",
+            canRestoreWorkspace: value.task.workspace.mode === "shared" && value.task.workspace.baselineRef !== null && Boolean(value.currentRun && ["completed", "failed", "stopped", "interrupted"].includes(value.currentRun.status)),
+          },
+        }
+      }
+      case "subagent/send":
+        return subagents.send(stringParam(params, "taskId", "subagentTaskId"), stringParam(params, "message"), stringParam(params, "requestId"), {
+          ...(params.model === undefined ? {} : { model: modelRef(record(params.model, "model")) }),
+          ...(params.permissionConfig === undefined ? {} : { permissionConfig: supportedPermissionConfig(decodeParams(decodePermissionConfig, params.permissionConfig, "permissionConfig")) }),
+          ...(Array.isArray(params.attachmentIds) ? { attachmentIDs: params.attachmentIds.map((value) => {
+            if (typeof value !== "string" || !value) throw new AgentError("INVALID_REQUEST", "attachmentIds 参数无效", 400)
+            return value
+          }) } : {}),
+        })
+      case "subagent/stop":
+        return subagents.stop(stringParam(params, "taskId", "subagentTaskId"), stringParam(params, "requestId"))
+      case "subagent/retry":
+        return subagents.retry(stringParam(params, "taskId", "subagentTaskId"), stringParam(params, "requestId"))
+      case "subagent/worktree/diff":
+        return { diff: await subagents.worktreeDiff(stringParam(params, "taskId", "subagentTaskId")) }
+      case "subagent/worktree/apply":
+        return { result: await subagents.worktreeApply(stringParam(params, "taskId", "subagentTaskId"), stringParam(params, "requestId")) }
+      case "subagent/worktree/discard":
+        return { result: await subagents.worktreeDiscard(stringParam(params, "taskId", "subagentTaskId"), stringParam(params, "requestId")) }
+      case "subagent/workspace/restore":
+        return { result: await subagents.workspaceRestore(stringParam(params, "taskId", "subagentTaskId"), stringParam(params, "requestId")) }
       case "thread/update": {
         const threadId = stringParam(params, "threadId")
         const title = params.title
@@ -195,7 +239,18 @@ export class RpcRouter {
       case "turn/start": {
         const start = decodeParams(decodeTurnStart, rawParams, "turn/start")
         const threadId = start.threadId
+        const attachmentIds = start.attachmentIds ? [...start.attachmentIds] : []
+        if (attachmentIds.length) {
+          if (new Set(attachmentIds).size !== attachmentIds.length || attachmentIds.length > 8) throw new AgentError("ATTACHMENT_COUNT_LIMIT", "每个 Turn 最多包含 8 个不重复附件", 413)
+          const records = await Promise.all(attachmentIds.map((id) => attachments.read(id).then((value) => value.record)))
+          if (records.some((record) => record.binding !== null)) throw new AgentError("ATTACHMENT_ALREADY_BOUND", "附件已绑定到其他 Turn", 409)
+          if (records.some((record) => record.kind === "image")) {
+            const model = await providers.resolve(start.model)
+            if (!model.capabilities.input.includes("image")) throw new AgentError("MODEL_IMAGE_UNSUPPORTED", "当前模型不支持图片输入", 409)
+          }
+        }
         const submitted = await threads.submit(threadId, submitMessage(start))
+        if (attachmentIds.length) await attachments.bind(attachmentIds, { type: "input", id: submitted.inputID })
         const snapshot = this.requiredSnapshot(threadId)
         return { input: snapshot.inputs.find((input) => input.id === submitted.inputID), turn: snapshot.turns.find((turn) => turn.id === submitted.turnID) ?? null }
       }
@@ -214,9 +269,16 @@ export class RpcRouter {
         const approval = decodeParams(decodeApprovalRespond, rawParams, "approval/respond")
         const decision = approval.decision
         if (decision === "stop") {
-          const row = db.sqlite.query("SELECT thread_id FROM approval_requests WHERE id = ?").get(approval.approvalId) as { thread_id: string } | null
+          const row = db.sqlite.query("SELECT thread_id, agent_id FROM approval_requests WHERE id = ?").get(approval.approvalId) as { thread_id: string; agent_id: string } | null
           if (!row) throw new AgentError("APPROVAL_NOT_FOUND", "权限请求不存在", 404)
-          await threads.stop(row.thread_id)
+          const execution = db.getAgentExecution(row.agent_id)
+          if (execution?.subagentRunID) {
+            const task = db.sqlite.query("SELECT task_id FROM subagent_runs WHERE id = ?").get(execution.subagentRunID) as { task_id: string } | null
+            if (!task) throw new AgentError("SUBAGENT_NOT_FOUND", "子 Agent 不存在", 404)
+            await subagents.stop(task.task_id, crypto.randomUUID())
+          } else {
+            await threads.stop(row.thread_id)
+          }
         } else {
           await approvals.respond(approval.approvalId, decision === "allow-once" ? "allow" : "deny")
         }
@@ -225,12 +287,24 @@ export class RpcRouter {
       case "question/respond":
         await questions.reply(stringParam(params, "questionId"), params.ignored === true ? null : params.answer, params.ignored === true)
         return { ok: true }
-      case "proposal/list":
-        return { proposals: db.listProposals(stringParam(params, "turnId")).map((proposal) => ({ ...proposal, turnId: proposal.turnID })) }
-      case "proposal/review": {
-        const proposal = db.updateProposalStatus(stringParam(params, "proposalId"), enumValue(params.status, ["reviewed", "rejected"] as const, "status"))
-        if (!proposal) throw new AgentError("PROPOSAL_NOT_FOUND", "提议不存在", 404)
-        return { proposal: { ...proposal, turnId: proposal.turnID } }
+      case "attachment/import": {
+        if (!Array.isArray(params.attachments)) throw new AgentError("INVALID_REQUEST", "attachments 参数无效", 400)
+        const uploads = params.attachments.map((entry) => {
+          const value = record(entry, "attachment")
+          const kind = enumValue(value.kind, ["text", "image"] as const, "kind")
+          const data = stringParam(value, "data")
+          return {
+            kind,
+            name: stringParam(value, "name"),
+            mimeType: stringParam(value, "mediaType", "mimeType"),
+            data: kind === "image" || value.encoding === "base64" ? new Uint8Array(Buffer.from(data, "base64")) : data,
+          }
+        })
+        return { attachments: (await attachments.store(uploads)).map(attachmentView) }
+      }
+      case "attachment/read": {
+        const value = await attachments.read(stringParam(params, "attachmentId", "id"))
+        return { attachment: attachmentView(value.record), data: value.record.kind === "text" ? new TextDecoder().decode(value.data) : Buffer.from(value.data).toString("base64"), encoding: value.record.kind === "text" ? "utf8" : "base64" }
       }
       case "model/list":
         return this.modelCatalog()
@@ -384,6 +458,16 @@ const stringParam = (params: Record<string, unknown>, ...names: string[]) => {
   }
   throw new AgentError("INVALID_REQUEST", `${names[0]} 参数无效`, 400)
 }
+
+const attachmentView = (record: { id: string; kind: "text" | "image"; name: string; mimeType: string; size: number; sha256: string; createdAt: number }) => ({
+  id: record.id,
+  kind: record.kind,
+  name: record.name,
+  mediaType: record.mimeType,
+  sizeBytes: record.size,
+  sha256: record.sha256,
+  createdAt: record.createdAt,
+})
 
 const modelRef = (value: Record<string, unknown>) => {
   if (typeof value.providerID !== "string" || typeof value.id !== "string") throw new AgentError("INVALID_REQUEST", "模型参数无效", 400)

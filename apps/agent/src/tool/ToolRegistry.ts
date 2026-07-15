@@ -1,5 +1,5 @@
 import { AgentError, type TaskMode } from "../domain"
-import { type ProposalDraft, WorkspaceService } from "../workspace/WorkspaceService"
+import { type ApplyPatchInput, WorkspaceService } from "../workspace/WorkspaceService"
 import type { PermissionConfig } from "@codepilotx/shared/thread"
 import type { Model } from "@codepilotx/model-schema"
 
@@ -9,8 +9,6 @@ export interface ToolContext {
   workspace: WorkspaceService
   permissionConfig: PermissionConfig
   model: Model.Ref
-  /** The orchestration layer persists a proposal with its run and agent role. */
-  saveProposal?: (proposal: ProposalDraft) => Promise<unknown>
 }
 
 export interface ToolDefinition {
@@ -28,16 +26,15 @@ const stringInput = (input: Record<string, unknown>, key: string, allowEmpty = f
 }
 
 /**
- * Tool definitions deliberately contain no host write or process execution
- * capability. A workspace must be chosen by the project/session layer before
- * any filesystem tool becomes available.
+ * Tool definitions operate only through a selected WorkspaceService. Shell
+ * execution remains delegated to ToolExecutor's permission and sandbox gates.
  */
 export class ToolRegistry {
   private readonly tools = new Map<string, ToolDefinition>()
 
   constructor() {
     this.registerReadOnlyTools()
-    this.registerProposalTools()
+    this.registerWriteTools()
     this.register({
       name: "question.ask",
       description: "向用户提出必须回答的问题",
@@ -97,27 +94,22 @@ export class ToolRegistry {
     })
   }
 
-  private registerProposalTools() {
+  private registerWriteTools() {
     this.register({
-      name: "propose_patch",
-      description: "提出精确文本替换补丁，仅供用户审阅，不会写入文件",
-      sideEffect: false,
-      inputSchema: { type: "object", properties: { path: { type: "string" }, before: { type: "string" }, after: { type: "string" } }, required: ["path", "before", "after"] },
+      name: "apply_patch",
+      description: "直接且原子地更新、创建或删除一个工作区文件",
+      sideEffect: true,
+      inputSchema: { type: "object", properties: { operation: { enum: ["update", "create", "delete"] }, path: { type: "string" }, before: { type: "string" }, after: { type: "string" }, content: { type: "string" }, expectedSha256: { type: "string" } }, required: ["operation", "path"] },
       execute: async (input, context) => {
-        const draft = await context.workspace.proposePatch(stringInput(input, "path"), stringInput(input, "before"), stringInput(input, "after", true))
-        await context.saveProposal?.(draft)
-        return draft
-      },
-    })
-    this.register({
-      name: "propose_command",
-      description: "提出待运行命令，仅供用户审阅，不会启动进程",
-      sideEffect: false,
-      inputSchema: { type: "object", properties: { command: { type: "string" }, cwd: { type: "string" }, description: { type: "string" } }, required: ["command"] },
-      execute: async (input, context) => {
-        const draft = await context.workspace.proposeCommand(stringInput(input, "command"), typeof input.cwd === "string" ? input.cwd : undefined, typeof input.description === "string" ? input.description : undefined)
-        await context.saveProposal?.(draft)
-        return draft
+        const type = input.operation
+        if (type !== "update" && type !== "create" && type !== "delete") throw new AgentError("INVALID_TOOL_INPUT", "operation 必须是 update、create 或 delete", 400)
+        const path = stringInput(input, "path")
+        const patch: ApplyPatchInput = type === "update"
+          ? { operation: type, path, before: stringInput(input, "before"), after: stringInput(input, "after", true) }
+          : type === "create"
+            ? { operation: type, path, content: stringInput(input, "content", true) }
+            : { operation: type, path, expectedSha256: stringInput(input, "expectedSha256") }
+        return context.workspace.applyPatch(patch)
       },
     })
   }

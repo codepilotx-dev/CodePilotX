@@ -1,5 +1,6 @@
-import { readdir, readFile, realpath, stat } from "node:fs/promises"
-import { basename, isAbsolute, relative, resolve } from "node:path"
+import { createHash, randomUUID } from "node:crypto"
+import { chmod, lstat, readdir, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises"
+import { basename, dirname, isAbsolute, relative, resolve } from "node:path"
 import { AgentError } from "../domain"
 
 const IGNORED_DIRECTORIES = new Set([".git", "node_modules", "dist", "build", ".next", "out", "coverage"])
@@ -12,30 +13,55 @@ export interface WorkspaceSearchResult {
   preview?: string
 }
 
-export interface PatchProposalDraft {
-  type: "patch"
-  payload: {
-    path: string
-    before: string
-    after: string
-    diff: string
-    additions: number
-    deletions: number
-  }
+export type ApplyPatchInput =
+  | { operation: "update"; path: string; before: string; after: string }
+  | { operation: "create"; path: string; content: string }
+  | { operation: "delete"; path: string; expectedSha256: string }
+
+export interface ApplyPatchResult {
+  operation: ApplyPatchInput["operation"]
+  path: string
+  diff: string
+  additions: number
+  deletions: number
+  beforeSha256: string | null
+  afterSha256: string | null
 }
 
-export interface CommandProposalDraft {
-  type: "command"
-  payload: {
-    command: string
-    cwd: string
-    description: string
+const lines = (value: string) => value === "" ? [] : value.replace(/\r?\n$/, "").split(/\r?\n/)
+const lineCount = (value: string) => lines(value).length
+const sha256 = (value: string) => createHash("sha256").update(value, "utf8").digest("hex")
+
+const diffLines = (prefix: "+" | "-", value: string) =>
+  lines(value).map((line) => `${prefix}${line}`)
+
+const uniqueContextIndex = (current: string, before: string) => {
+  if (!before) throw new AgentError("INVALID_TOOL_INPUT", "before 必须是非空字符串", 400)
+  const index = current.indexOf(before)
+  if (index < 0) throw new AgentError("PATCH_CONTEXT_NOT_FOUND", "补丁上下文未找到", 409)
+  if (current.indexOf(before, index + 1) >= 0) {
+    throw new AgentError("PATCH_CONTEXT_AMBIGUOUS", "补丁上下文不唯一", 409)
   }
+  return index
 }
 
-export type ProposalDraft = PatchProposalDraft | CommandProposalDraft
+const lineNumberAt = (value: string, index: number) => value.slice(0, index).split(/\r?\n/).length
 
-const lineCount = (value: string) => value === "" ? 0 : value.split(/\r?\n/).length
+const unifiedDiff = (path: string, before: string | null, after: string | null, startLine = 1) => {
+  const oldLines = before === null ? 0 : lineCount(before)
+  const newLines = after === null ? 0 : lineCount(after)
+  const oldPath = before === null ? "/dev/null" : `a/${path}`
+  const newPath = after === null ? "/dev/null" : `b/${path}`
+  const oldStart = before === null ? 0 : startLine
+  const newStart = after === null ? 0 : startLine
+  return [
+    `--- ${oldPath}`,
+    `+++ ${newPath}`,
+    `@@ -${oldStart},${oldLines} +${newStart},${newLines} @@`,
+    ...diffLines("-", before ?? ""),
+    ...diffLines("+", after ?? ""),
+  ].join("\n")
+}
 
 /**
  * The only file-system boundary available to agents. Every existing path is
@@ -67,13 +93,56 @@ export class WorkspaceService {
     throw new AgentError("WORKSPACE_PATH_DENIED", "路径不在当前工作区内", 403)
   }
 
-  private async existingPath(path: string) {
+  private requestedPath(path: string) {
+    if (typeof path !== "string" || path.trim() === "" || isAbsolute(path) || path.split(/[\\/]+/).includes("..")) {
+      throw new AgentError("WORKSPACE_PATH_DENIED", "路径必须是工作区内的相对路径", 403)
+    }
     const requested = resolve(this.rootPath, path)
+    this.ensureWithinRoot(requested)
+    return requested
+  }
+
+  private async existingPath(path: string) {
+    const requested = this.requestedPath(path)
     const canonical = await realpath(requested).catch(() => {
       throw new AgentError("WORKSPACE_PATH_NOT_FOUND", "工作区路径不存在或不可访问", 404)
     })
     this.ensureWithinRoot(canonical)
     return canonical
+  }
+
+  private async createPath(path: string) {
+    const requested = this.requestedPath(path)
+    const parent = await realpath(dirname(requested)).catch(() => {
+      throw new AgentError("WORKSPACE_PATH_NOT_FOUND", "目标文件的父目录不存在或不可访问", 404)
+    })
+    this.ensureWithinRoot(parent)
+    const metadata = await stat(parent)
+    if (!metadata.isDirectory()) throw new AgentError("WORKSPACE_NOT_DIRECTORY", "目标文件的父路径不是目录", 400)
+    const canonical = resolve(parent, basename(requested))
+    this.ensureWithinRoot(canonical)
+    try {
+      await lstat(canonical)
+      throw new AgentError("WORKSPACE_PATH_EXISTS", "目标文件已存在", 409)
+    } catch (error) {
+      if (error instanceof AgentError) throw error
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw new AgentError("WORKSPACE_PATH_UNREADABLE", "目标文件状态无法确认", 400)
+      }
+    }
+    return canonical
+  }
+
+  private async replaceAtomically(path: string, content: string, mode?: number) {
+    const temporary = resolve(dirname(path), `.codepilotx-${randomUUID()}.tmp`)
+    try {
+      await writeFile(temporary, content, { encoding: "utf8", flag: "wx" })
+      if (mode !== undefined) await chmod(temporary, mode)
+      await rename(temporary, path)
+    } catch {
+      await unlink(temporary).catch(() => undefined)
+      throw new AgentError("WORKSPACE_WRITE_FAILED", "无法原子写入工作区文件", 500)
+    }
   }
 
   private async directory(path?: string) {
@@ -148,47 +217,63 @@ export class WorkspaceService {
     return found
   }
 
-  async proposePatch(path: string, before: string, after: string): Promise<PatchProposalDraft> {
-    if (!before) throw new AgentError("INVALID_TOOL_INPUT", "before 必须是非空字符串", 400)
-    const current = await this.read(path)
-    const index = current.indexOf(before)
-    if (index < 0) throw new AgentError("PATCH_CONTEXT_NOT_FOUND", "补丁上下文未找到", 409)
-    if (current.indexOf(before, index + before.length) >= 0) throw new AgentError("PATCH_CONTEXT_AMBIGUOUS", "补丁上下文不唯一", 409)
-    const canonical = await this.existingPath(path)
+  async applyPatch(input: ApplyPatchInput): Promise<ApplyPatchResult> {
+    if (input.operation === "create") {
+      const canonical = await this.createPath(input.path)
+      await this.replaceAtomically(canonical, input.content)
+      const path = this.displayPath(canonical)
+      return {
+        operation: input.operation,
+        path,
+        diff: unifiedDiff(path, null, input.content),
+        additions: lineCount(input.content),
+        deletions: 0,
+        beforeSha256: null,
+        afterSha256: sha256(input.content),
+      }
+    }
+
+    const canonical = await this.existingPath(input.path)
+    const metadata = await stat(canonical)
+    if (!metadata.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
+    if (metadata.size > MAX_FILE_BYTES) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `文件超过 ${MAX_FILE_BYTES} 字节读取上限`, 413)
+    const current = await readFile(canonical, "utf8").catch(() => {
+      throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件无法按 UTF-8 读取", 400)
+    })
+    const path = this.displayPath(canonical)
+    const beforeSha256 = sha256(current)
+
+    if (input.operation === "delete") {
+      if (!/^[a-f\d]{64}$/i.test(input.expectedSha256)) {
+        throw new AgentError("INVALID_TOOL_INPUT", "expectedSha256 必须是 64 位十六进制 SHA-256", 400)
+      }
+      if (input.expectedSha256.toLowerCase() !== beforeSha256) {
+        throw new AgentError("PATCH_SHA256_MISMATCH", "文件内容已变化，拒绝删除", 409)
+      }
+      await unlink(canonical)
+      return {
+        operation: input.operation,
+        path,
+        diff: unifiedDiff(path, current, null),
+        additions: 0,
+        deletions: lineCount(current),
+        beforeSha256,
+        afterSha256: null,
+      }
+    }
+
+    const index = uniqueContextIndex(current, input.before)
+    const updated = `${current.slice(0, index)}${input.after}${current.slice(index + input.before.length)}`
+    await this.replaceAtomically(canonical, updated, metadata.mode)
     return {
-      type: "patch",
-      payload: {
-        path: this.displayPath(canonical),
-        before,
-        after,
-        diff: `--- a/${this.displayPath(canonical)}\n+++ b/${this.displayPath(canonical)}\n@@\n-${before}\n+${after}`,
-        additions: lineCount(after),
-        deletions: lineCount(before),
-      },
+      operation: input.operation,
+      path,
+      diff: unifiedDiff(path, input.before, input.after, lineNumberAt(current, index)),
+      additions: lineCount(input.after),
+      deletions: lineCount(input.before),
+      beforeSha256,
+      afterSha256: sha256(updated),
     }
   }
 
-  // Kept as the orchestration-facing spelling; ToolRegistry exposes the
-  // imperative-looking `propose_patch` name to the model, but this operation
-  // still only creates data and never applies a patch.
-  proposalPatch(path: string, before: string, after: string) {
-    return this.proposePatch(path, before, after)
-  }
-
-  async proposeCommand(command: string, cwd?: string, description?: string): Promise<CommandProposalDraft> {
-    if (!command.trim()) throw new AgentError("INVALID_TOOL_INPUT", "command 必须是非空字符串", 400)
-    const directory = await this.directory(cwd ?? ".")
-    return {
-      type: "command",
-      payload: {
-        command,
-        cwd: this.displayPath(directory),
-        description: description?.trim() || `建议在 ${basename(directory) || "工作区"} 中运行命令`,
-      },
-    }
-  }
-
-  proposalCommand(command: string, cwd?: string, description?: string) {
-    return this.proposeCommand(command, cwd, description)
-  }
 }

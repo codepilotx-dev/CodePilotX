@@ -15,6 +15,8 @@ import { proxyRendererRequest } from "./RendererProxy"
 import type { AgentLogger } from "../observability/AgentLogger"
 import type { IntegrationService } from "../provider/IntegrationService"
 import type { SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
+import type { SubagentService } from "../subagent/SubagentService"
+import type { AttachmentService } from "../subagent/AttachmentService"
 
 export interface TransportDependencies {
   config: AgentConfig
@@ -24,6 +26,8 @@ export interface TransportDependencies {
   history: ThreadHistoryService
   approvals: ApprovalService
   questions: QuestionService
+  subagents: SubagentService
+  attachments: AttachmentService
   providers: ProviderRuntime
   integrations: IntegrationService
   sandbox: SandboxRuntimeAdapter
@@ -33,9 +37,9 @@ export interface TransportDependencies {
 const cookieValue = (header: string | null, name: string) => header?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1)
 
 export const createApp = (dependencies: TransportDependencies) => {
-  const { config, db, hub, threads, history, approvals, questions, providers, integrations, sandbox, logger } = dependencies
+  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, sandbox, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ db, hub, threads, history, approvals, questions, providers, integrations, sandbox })
+  const rpc = new RpcRouter({ db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, sandbox })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)

@@ -1,15 +1,16 @@
 import type {
   ApprovalRequest,
+  AgentExecution,
   Input,
   Item,
   Message,
-  Proposal,
   ThreadListItem,
   ThreadSnapshot,
   Turn,
 } from "@codepilotx/shared/thread"
 import type { EventEnvelope, Item as StoredItem } from "../domain"
 import type { AgentDatabase } from "../storage/Database"
+import { SubagentRepository } from "../subagent/SubagentRepository"
 
 const parse = <T>(value: string): T => JSON.parse(value) as T
 
@@ -17,8 +18,9 @@ const turnStatus = (status: string): Turn["status"] => {
   if (status === "waiting_permission") return "waiting-permission"
   if (status === "waiting_question") return "waiting-question"
   if (status === "waiting_plan_confirmation") return "waiting-plan-confirmation"
+  if (status === "waiting_subagents") return "waiting-subagents"
   if (status === "interrupted") return "interrupted"
-  if (status === "queued" || status === "running" || status === "completed" || status === "failed") return status
+  if (status === "queued" || status === "running" || status === "completed" || status === "failed" || status === "cancelled") return status
   return "stopped"
 }
 
@@ -50,7 +52,11 @@ const activityCommands = (value: unknown): Extract<Item, { type: "activity" }>["
 }
 
 export class ThreadProjection {
-  constructor(private readonly db: AgentDatabase) {}
+  private readonly subagents: SubagentRepository
+
+  constructor(private readonly db: AgentDatabase) {
+    this.subagents = new SubagentRepository(db)
+  }
 
   snapshot(threadId: string): ThreadSnapshot | null {
     const thread = this.db.sqlite.query("SELECT id, title, project_id, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?").get(threadId) as
@@ -73,7 +79,7 @@ export class ThreadProjection {
       state: inputState(String(row.status)),
       createdAt: Number(row.created_at),
     }))
-    const turns = (this.db.sqlite.query("SELECT id, thread_id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, current_stage, can_continue_from_plan, started_at, finished_at, created_at FROM turns WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Turn => {
+    const turns = (this.db.sqlite.query("SELECT id, thread_id, root_agent_id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, started_at, finished_at, created_at FROM turns WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Turn => {
       const turnInputs = inputs.filter((input) => input.turnId === row.id)
       const startedAt = row.started_at == null ? null : Number(row.started_at)
       const finishedAt = row.finished_at == null ? null : Number(row.finished_at)
@@ -89,25 +95,32 @@ export class ThreadProjection {
           approvalPolicy: String(row.approval_policy) as Turn["permissionConfig"]["approvalPolicy"],
           approvalsReviewer: String(row.approvals_reviewer) as Turn["permissionConfig"]["approvalsReviewer"],
         },
+        rootAgentId: String(row.root_agent_id),
         mergedInputIDs: turnInputs.slice(1).map((input) => input.id),
-        currentStage: row.current_stage == null ? null : String(row.current_stage) as Turn["currentStage"],
-        canContinueFromPlan: Number(row.can_continue_from_plan ?? 0) === 1,
-        stages: this.db.listTurnStages(String(row.id)).map((stage) => ({
-          turnId: stage.turnID,
-          role: stage.role,
-          attempt: stage.attempt,
-          status: stage.status.replace("_", "-") as Turn["stages"][number]["status"],
-          model: stage.model,
-          startedAt: stage.startedAt,
-          finishedAt: stage.finishedAt,
-          error: stage.error,
-        })),
+        canContinueFromPlan: String(row.status) === "waiting_plan_confirmation",
         startedAt,
         finishedAt,
         elapsedSeconds: startedAt == null ? 0 : Math.max(0, Math.floor(((finishedAt ?? Date.now()) - startedAt) / 1000)),
         error: null,
       }
     })
+    const agents = (this.db.sqlite.query("SELECT id, thread_id, turn_id, parent_agent_id, profile, task, model_ref, session_id, depth, subagent_run_id, run_sequence, status, error, created_at, updated_at FROM agent_executions WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): AgentExecution => ({
+      id: String(row.id),
+      threadId: String(row.thread_id),
+      turnId: String(row.turn_id),
+      parentAgentId: row.parent_agent_id == null ? null : String(row.parent_agent_id),
+      profile: String(row.profile),
+      task: String(row.task),
+      model: parse(String(row.model_ref)),
+      sessionId: String(row.session_id),
+      depth: Number(row.depth),
+      subagentRunId: row.subagent_run_id == null ? null : String(row.subagent_run_id),
+      runSequence: Number(row.run_sequence ?? 0),
+      status: String(row.status).replaceAll("_", "-") as AgentExecution["status"],
+      error: row.error == null ? null : String(row.error),
+      createdAt: Number(row.created_at),
+      updatedAt: Number(row.updated_at),
+    }))
     const messages = (this.db.sqlite.query("SELECT id, thread_id, turn_id, role, created_at FROM messages WHERE thread_id = ? ORDER BY ordinal, created_at, id").all(threadId) as Array<Record<string, string | number | null>>).map((row): Message => ({
       id: String(row.id),
       threadId: String(row.thread_id),
@@ -115,10 +128,11 @@ export class ThreadProjection {
       role: String(row.role) as Message["role"],
       createdAt: Number(row.created_at),
     }))
-    const items = (this.db.sqlite.query("SELECT id, turn_id, type, status, data, created_at, updated_at FROM items WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>)
+    const items = (this.db.sqlite.query("SELECT id, turn_id, agent_id, type, status, data, created_at, updated_at FROM items WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>)
       .map((row) => this.item({
         id: String(row.id),
         turnID: String(row.turn_id),
+        agentID: String(row.agent_id),
         type: String(row.type) as StoredItem["type"],
         status: String(row.status) as StoredItem["status"],
         data: parse(String(row.data)),
@@ -126,20 +140,7 @@ export class ThreadProjection {
         updatedAt: Number(row.updated_at),
       }))
       .filter((item): item is Item => item !== null)
-    const approvals = (this.db.sqlite.query("SELECT id, thread_id, turn_id, tool_call_id, risk, reason, status, reply, request_payload, review_payload, created_at FROM approval_requests WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row) => this.approval(row))
-    const proposals: Proposal[] = turns.flatMap((turn) => this.db.listProposals(turn.id).map((proposal) => ({
-      id: proposal.id,
-      turnId: proposal.turnID,
-      projectID: proposal.projectID,
-      role: proposal.role,
-      kind: proposal.kind,
-      title: proposal.title,
-      payload: proposal.payload,
-      review: proposal.review,
-      status: proposal.status,
-      createdAt: proposal.createdAt,
-      updatedAt: proposal.updatedAt,
-    })))
+    const approvals = (this.db.sqlite.query("SELECT id, thread_id, turn_id, agent_id, tool_call_id, risk, reason, status, reply, request_payload, review_payload, created_at FROM approval_requests WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row) => this.approval(row))
     return {
       thread: {
         id: thread.id,
@@ -157,16 +158,17 @@ export class ThreadProjection {
         updatedAt: thread.updated_at,
       },
       turns,
+      agents,
+      subagents: this.subagents.projectionForThread(threadId),
       inputs,
       messages,
       items,
       approvals,
-      proposals,
     }
   }
 
   list(params: { projectID?: string; archived?: boolean; limit?: number } = {}) {
-    const where: string[] = []
+    const where: string[] = ["t.kind = 'main'"]
     const values: Array<string | number | null> = []
     if (params.projectID !== undefined) {
       where.push("t.project_id = ?")
@@ -210,22 +212,42 @@ export class ThreadProjection {
 
   item(item: StoredItem): Item | null {
     const messageID = item.turnID
+    const agentId = item.agentID
     const status = item.status === "running" || item.status === "pending" ? "streaming" : item.status === "interrupted" ? "interrupted" : "completed"
-    if (item.type === "reasoning") return { id: item.id, messageID, turnId: item.turnID, type: "reasoning", text: asText(item.data.text) ?? "", status, createdAt: item.createdAt }
-    if (item.type === "text" || (item.type === "activity" && typeof item.data.text === "string")) return { id: item.id, messageID, turnId: item.turnID, type: "text", placement: item.type === "text" ? "result" : "process", text: asText(item.data.text) ?? "", status, createdAt: item.createdAt }
+    if (item.type === "reasoning") return { id: item.id, messageID, turnId: item.turnID, agentId, type: "reasoning", text: asText(item.data.text) ?? "", status, createdAt: item.createdAt }
+    if (item.type === "text" || (item.type === "activity" && typeof item.data.text === "string")) return { id: item.id, messageID, turnId: item.turnID, agentId, type: "text", placement: item.data.placement === "process" ? "process" : "result", text: asText(item.data.text) ?? "", status, createdAt: item.createdAt }
     if (item.type === "activity") {
       const activity = ["context-compression", "file-edit", "build", "notice"].includes(String(item.data.activity)) ? item.data.activity as "context-compression" | "file-edit" | "build" | "notice" : "notice"
       const commands = activityCommands(item.data.commands)
-      return { id: item.id, messageID, turnId: item.turnID, type: "activity", activity, title: asText(item.data.title) ?? "执行活动", ...(typeof item.data.detail === "string" ? { detail: item.data.detail } : {}), ...(commands ? { commands } : {}), status: item.status === "error" ? "error" : item.status === "interrupted" ? "interrupted" : item.status === "completed" ? "completed" : "running", createdAt: item.createdAt }
+      return { id: item.id, messageID, turnId: item.turnID, agentId, type: "activity", activity, title: asText(item.data.title) ?? "执行活动", ...(typeof item.data.detail === "string" ? { detail: item.data.detail } : {}), ...(commands ? { commands } : {}), status: item.status === "error" ? "error" : item.status === "interrupted" ? "interrupted" : item.status === "completed" ? "completed" : "running", createdAt: item.createdAt }
     }
     if (item.type === "tool") {
       const toolName = asText(item.data.toolName) ?? "tool"
       const input = item.data.input ?? item.data.inputText ?? null
-      return { id: item.id, messageID, turnId: item.turnID, type: "tool", callID: item.id, tool: toolName, title: `运行了 ${toolName}`, state: item.status === "pending" ? "pending" : item.status === "running" ? "running" : item.status === "error" ? "error" : item.status === "interrupted" ? "interrupted" : "completed", input, command: null, output: asText(item.data.output), error: asText(item.data.error), startedAt: item.createdAt, finishedAt: item.status === "completed" || item.status === "error" ? item.updatedAt : null, durationMs: item.status === "completed" || item.status === "error" ? item.updatedAt - item.createdAt : null, createdAt: item.createdAt }
+      return { id: item.id, messageID, turnId: item.turnID, agentId, type: "tool", callID: item.id, tool: toolName, title: `运行了 ${toolName}`, state: item.status === "pending" ? "pending" : item.status === "running" ? "running" : item.status === "error" ? "error" : item.status === "interrupted" ? "interrupted" : "completed", input, command: null, output: asText(item.data.output), error: asText(item.data.error), startedAt: item.createdAt, finishedAt: item.status === "completed" || item.status === "error" ? item.updatedAt : null, durationMs: item.status === "completed" || item.status === "error" ? item.updatedAt - item.createdAt : null, createdAt: item.createdAt }
     }
-    if (item.type === "plan") return { id: item.id, messageID, turnId: item.turnID, type: "plan", title: asText(item.data.title) ?? "实施计划", markdown: asText(item.data.markdown ?? item.data.text) ?? "", version: typeof item.data.version === "number" ? item.data.version : 1, state: ["draft", "awaiting-confirmation", "confirmed", "rejected"].includes(String(item.data.state)) ? String(item.data.state) as "draft" | "awaiting-confirmation" | "confirmed" | "rejected" : "awaiting-confirmation", createdAt: item.createdAt }
-    if (item.type === "question") return { id: item.id, messageID, turnId: item.turnID, type: "question", prompt: asText(item.data.question) ?? "需要你的选择", choices: [], status: item.status === "pending" ? "pending" : "answered", answer: asText(item.data.answer), createdAt: item.createdAt }
-    if (item.type === "patch") return { id: item.id, messageID, turnId: item.turnID, type: "patch", files: [], totalAdditions: Number(item.data.additions ?? 0), totalDeletions: Number(item.data.deletions ?? 0), createdAt: item.createdAt }
+    if (item.type === "plan") return { id: item.id, messageID, turnId: item.turnID, agentId, type: "plan", title: asText(item.data.title) ?? "实施计划", markdown: asText(item.data.markdown ?? item.data.text) ?? "", version: typeof item.data.version === "number" ? item.data.version : 1, state: ["draft", "awaiting-confirmation", "confirmed", "rejected"].includes(String(item.data.state)) ? String(item.data.state) as "draft" | "awaiting-confirmation" | "confirmed" | "rejected" : "awaiting-confirmation", createdAt: item.createdAt }
+    if (item.type === "question") {
+      const options = Array.isArray(item.data.options) ? item.data.options.filter((value): value is string => typeof value === "string") : []
+      return { id: item.id, messageID, turnId: item.turnID, agentId, type: "question", prompt: asText(item.data.question) ?? "需要你的选择", choices: options.map((label, index) => ({ id: String(index), label, recommended: index === 0 })), status: item.status === "pending" ? "pending" : item.status === "interrupted" ? "cancelled" : "answered", answer: asText(item.data.answer), createdAt: item.createdAt }
+    }
+    if (item.type === "patch") return { id: item.id, messageID, turnId: item.turnID, agentId, type: "patch", files: Array.isArray(item.data.files) ? item.data.files as Extract<Item, { type: "patch" }>["files"] : [], totalAdditions: Number(item.data.totalAdditions ?? item.data.additions ?? 0), totalDeletions: Number(item.data.totalDeletions ?? item.data.deletions ?? 0), createdAt: item.createdAt }
+    if (item.type === "subagent") {
+      const rawStatus = String(item.data.status).replaceAll("_", "-")
+      const subagentStatus = ["queued", "preparing", "running", "steering", "waiting-question", "waiting-permission", "completed", "failed", "stopped", "interrupted"].includes(rawStatus)
+        ? rawStatus as Extract<Item, { type: "subagent" }>["status"]
+        : "interrupted"
+      const rawQueueReason = item.data.queueReason == null ? null : String(item.data.queueReason).replaceAll("_", "-")
+      const queueReason = rawQueueReason === "parent-limit" || rawQueueReason === "global-limit" || rawQueueReason === "workspace-writer" ? rawQueueReason : null
+      return {
+        id: item.id, messageID, turnId: item.turnID, agentId, type: "subagent",
+        subagentTaskId: String(item.data.subagentTaskId), runId: String(item.data.runId), childThreadId: String(item.data.childThreadId),
+        displayName: String(item.data.displayName), profile: String(item.data.profile) as Extract<Item, { type: "subagent" }>["profile"],
+        task: String(item.data.task), status: subagentStatus, queueReason,
+        result: item.data.result && typeof item.data.result === "object" ? item.data.result as Extract<Item, { type: "subagent" }>["result"] : null,
+        createdAt: item.createdAt,
+      }
+    }
     return null
   }
 
@@ -243,6 +265,7 @@ export class ThreadProjection {
       id: String(row.id),
       threadId: String(row.thread_id),
       turnId: String(row.turn_id),
+      agentId: String(row.agent_id),
       toolCallID: String(row.tool_call_id),
       tool: tool?.tool_name ?? "tool",
       command,
@@ -271,6 +294,7 @@ export class ThreadProjection {
     const item = storedItem
       && typeof storedItem.id === "string"
       && typeof storedItem.turnID === "string"
+      && typeof storedItem.agentID === "string"
       && typeof storedItem.type === "string"
       && typeof storedItem.status === "string"
       && storedItem.data

@@ -19,6 +19,10 @@ import { createApp } from "./transport/server"
 import { AgentLogger } from "./observability/AgentLogger"
 import { IntegrationService } from "./provider/IntegrationService"
 import { AnthropicSandboxRuntimeAdapter } from "./sandbox/SandboxRuntimeAdapter"
+import { SubagentService } from "./subagent/SubagentService"
+import { SubagentWorkspaceCoordinator } from "./subagent/SubagentWorkspaceCoordinator"
+import { AttachmentService } from "./subagent/AttachmentService"
+import { SqliteAttachmentCatalog } from "./subagent/SqliteAttachmentCatalog"
 
 export const bootstrap = Effect.gen(function* () {
   const config = yield* loadConfig
@@ -58,16 +62,20 @@ export const bootstrap = Effect.gen(function* () {
     sandbox,
     helperPath: config.srtWinPath,
     authorizeShell: (invocation, signal) => approvals.authorize(invocation, signal),
+    recordToolCall: (invocation, status, output, error, startedAt) => db.upsertToolCall(invocation, status, output, error, startedAt),
   })
   const questions = new QuestionService(db, hub)
   const orchestrator = new AgentOrchestrator({
     db,
     hub,
     toolExecutor,
-    sessionFor: (threadID, role) => new SqliteAgentSession(db, `${threadID}:${role}`),
+    sessionFor: (sessionID) => new SqliteAgentSession(db, sessionID),
   })
-  const threads = new ThreadService(db, hub, providers, approvals, questions, orchestrator)
+  const attachments = yield* Effect.promise(() => AttachmentService.open(config.dataDir, { catalog: new SqliteAttachmentCatalog(db) }))
+  const subagentWorkspaces = new SubagentWorkspaceCoordinator(db, config.dataDir)
+  const subagents = new SubagentService(db, hub, providers, approvals, questions, orchestrator, attachments, subagentWorkspaces)
+  const threads = new ThreadService(db, hub, providers, approvals, questions, orchestrator, subagents, attachments)
   const history = new ThreadHistoryService(db, hub)
-  const app = createApp({ config, db, hub, threads, history, approvals, questions, providers, integrations, logger, sandbox })
+  const app = createApp({ config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, logger, sandbox })
   return { config, db, app, logger, providers, sandbox }
 })
