@@ -139,6 +139,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     lastActiveWorkspacePath: '',
     removedWorkspaces: [],
     skipToolAidedChats: false,
+    defaultModeRequestUserInput: false,
     githubMemorySyncEnabled: false,
     githubMemoryRepository: '',
     reviewView: 'inline',
@@ -341,6 +342,10 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.skipToolAidedChats === 'boolean'
         ? parsed.skipToolAidedChats
         : defaults.skipToolAidedChats,
+    defaultModeRequestUserInput:
+      typeof parsed.defaultModeRequestUserInput === 'boolean'
+        ? parsed.defaultModeRequestUserInput
+        : defaults.defaultModeRequestUserInput,
     githubMemorySyncEnabled:
       typeof parsed.githubMemorySyncEnabled === 'boolean'
         ? parsed.githubMemorySyncEnabled

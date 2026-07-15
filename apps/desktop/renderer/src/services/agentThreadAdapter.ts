@@ -262,7 +262,7 @@ function snapshotEvents(snapshot: ThreadSnapshot): DesktopSessionEvent[] {
       type: 'permission_request',
       content: approval.reason,
       createdAt: iso(approval.createdAt),
-      metadata: { request: approvalToRequest(approval) },
+      metadata: { request: approvalToRequest(approval), agentId: approval.agentId },
     }))
   return [...inputEvents, ...itemEvents, ...approvalEvents]
     .sort((left, right) => timestampOf(left.createdAt) - timestampOf(right.createdAt))
@@ -290,7 +290,7 @@ function itemToSessionEvents(threadId: string, item: Item): DesktopSessionEvent[
       role: 'assistant',
       content: item.text,
       createdAt: iso(item.createdAt),
-      metadata: { itemId: item.id, turnId: item.turnId, ...(item.type === 'reasoning' ? { kind: 'reasoning' } : {}) },
+      metadata: { itemId: item.id, turnId: item.turnId, agentId: item.agentId, ...(item.type === 'reasoning' ? { kind: 'reasoning' } : {}) },
     }]
   }
   if (item.type === 'tool') return toolToSessionEvents(threadId, item)
@@ -303,7 +303,7 @@ function itemToSessionEvents(threadId: string, item: Item): DesktopSessionEvent[
       role: 'assistant',
       content: item.markdown,
       createdAt: iso(item.createdAt),
-      metadata: { itemId: item.id, turnId: item.turnId, title: item.title, state: item.state, version: item.version, streaming: item.state === 'draft' },
+      metadata: { itemId: item.id, turnId: item.turnId, agentId: item.agentId, title: item.title, state: item.state, version: item.version, streaming: item.state === 'draft' },
     }]
     if (item.state === 'awaiting-confirmation') {
       events.push({
@@ -312,7 +312,7 @@ function itemToSessionEvents(threadId: string, item: Item): DesktopSessionEvent[
         type: 'permission_request',
         content: '确认计划',
         createdAt: iso(item.createdAt),
-        metadata: { request: planToRequest(item) },
+        metadata: { request: planToRequest(item), agentId: item.agentId },
       })
     }
     return events
@@ -324,7 +324,7 @@ function itemToSessionEvents(threadId: string, item: Item): DesktopSessionEvent[
       type: 'permission_request',
       content: item.prompt,
       createdAt: iso(item.createdAt),
-      metadata: { request: questionToRequest(item) },
+      metadata: { request: questionToRequest(item), agentId: item.agentId },
     }]
   }
   if (item.type === 'patch') {
@@ -334,7 +334,7 @@ function itemToSessionEvents(threadId: string, item: Item): DesktopSessionEvent[
       type: 'file_patch',
       content: `已编辑 ${item.files.length} 个文件`,
       createdAt: iso(item.createdAt),
-      metadata: { files: item.files, patch: item.files.map(file => file.patch).filter(Boolean).join('\n'), additions: item.totalAdditions, deletions: item.totalDeletions, turnScoped: true },
+      metadata: { files: item.files, patch: item.files.map(file => file.patch).filter(Boolean).join('\n'), additions: item.totalAdditions, deletions: item.totalDeletions, turnScoped: true, agentId: item.agentId },
     }]
   }
   return []
@@ -344,16 +344,16 @@ function toolToSessionEvents(threadId: string, item: Extract<Item, { type: 'tool
   const events: DesktopSessionEvent[] = [{
     id: `${item.id}:call`, sessionId: threadId, type: 'tool_call', content: item.command ?? item.title,
     createdAt: iso(item.startedAt ?? item.createdAt),
-    metadata: { toolName: item.tool, toolUseId: item.callID, input: item.input, command: item.command },
+    metadata: { toolName: item.tool, toolUseId: item.callID, input: item.input, command: item.command, agentId: item.agentId },
   }]
   if (item.state === 'waiting-permission') {
-    events.push({ id: `${item.id}:permission`, sessionId: threadId, type: 'permission_request', content: item.title, createdAt: iso(item.createdAt), metadata: { request: toolToRequest(item) } })
+    events.push({ id: `${item.id}:permission`, sessionId: threadId, type: 'permission_request', content: item.title, createdAt: iso(item.createdAt), metadata: { request: toolToRequest(item), agentId: item.agentId } })
   }
   if (!['pending', 'running', 'waiting-permission'].includes(item.state)) {
     events.push({
       id: `${item.id}:result`, sessionId: threadId, type: 'tool_result', content: item.error ?? item.output ?? item.title,
       createdAt: iso(item.finishedAt ?? item.createdAt),
-      metadata: { toolName: item.tool, toolUseId: item.callID, isError: item.state === 'error', output: item.output, error: item.error },
+      metadata: { toolName: item.tool, toolUseId: item.callID, isError: item.state === 'error', output: item.output, error: item.error, agentId: item.agentId },
     })
   }
   return events
@@ -362,8 +362,8 @@ function toolToSessionEvents(threadId: string, item: Extract<Item, { type: 'tool
 function activityToSessionEvents(threadId: string, item: Extract<Item, { type: 'activity' }>): DesktopSessionEvent[] {
   return (item.commands ?? []).flatMap((command, index) => {
     const toolUseId = `${item.id}:${index}`
-    const events: DesktopSessionEvent[] = [{ id: `${toolUseId}:call`, sessionId: threadId, type: 'tool_call', content: command.command, createdAt: iso(item.createdAt), metadata: { toolName: item.activity === 'build' ? 'Shell' : item.title, toolUseId, activity: item.activity, title: item.title } }]
-    if (command.status !== 'running') events.push({ id: `${toolUseId}:result`, sessionId: threadId, type: 'tool_result', content: command.output, createdAt: iso(item.createdAt), metadata: { toolUseId, isError: command.status === 'error', truncated: command.truncated } })
+    const events: DesktopSessionEvent[] = [{ id: `${toolUseId}:call`, sessionId: threadId, type: 'tool_call', content: command.command, createdAt: iso(item.createdAt), metadata: { toolName: item.activity === 'build' ? 'Shell' : item.title, toolUseId, activity: item.activity, title: item.title, agentId: item.agentId } }]
+    if (command.status !== 'running') events.push({ id: `${toolUseId}:result`, sessionId: threadId, type: 'tool_result', content: command.output, createdAt: iso(item.createdAt), metadata: { toolUseId, isError: command.status === 'error', truncated: command.truncated, agentId: item.agentId } })
     return events
   })
 }
@@ -455,7 +455,7 @@ function statusFromNotification(params: Record<string, unknown>): DesktopSession
 
 function isItem(value: unknown): value is Item {
   const item = record(value)
-  return typeof item.id === 'string' && typeof item.turnId === 'string' && typeof item.type === 'string'
+  return typeof item.id === 'string' && typeof item.turnId === 'string' && typeof item.agentId === 'string' && typeof item.type === 'string'
 }
 
 function eventTime(params: Record<string, unknown>): number {

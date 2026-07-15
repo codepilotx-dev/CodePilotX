@@ -100,6 +100,7 @@ type Props = {
   onGoalResume?: () => void
   onGoalComplete?: () => void
   onGoalClear?: () => void
+  subagentMode?: boolean
 }
 
 export function DesktopComposer({
@@ -159,6 +160,7 @@ export function DesktopComposer({
   onGoalResume,
   onGoalComplete,
   onGoalClear,
+  subagentMode = false,
 }: Props): React.ReactNode {
   const navigate = useNavigate()
   const [goalModeEnabled, setGoalModeEnabled] = useState(false)
@@ -210,6 +212,11 @@ export function DesktopComposer({
   }, [onPermissionChange, permissionModeVisible])
 
   useEffect(() => {
+    if (subagentMode) {
+      setSlashCommands([])
+      setSelectedSkillToken(null)
+      return
+    }
     let cancelled = false
     desktopClient
       .listSlashCommands(workspace?.path)
@@ -222,7 +229,7 @@ export function DesktopComposer({
     return () => {
       cancelled = true
     }
-  }, [workspace?.path])
+  }, [subagentMode, workspace?.path])
 
   useEffect(() => {
     if (!input.trimStart().startsWith('/')) return
@@ -351,6 +358,7 @@ export function DesktopComposer({
       sessionStatus={sessionStatus}
       permissionMode={effectivePermissionMode}
       planModeActive={planModeActive}
+      subagentMode={subagentMode}
       goalModeEnabled={goalModeEnabled}
       onGoalModeChange={setGoalModeEnabled}
       localRouterMode={localRouterMode}

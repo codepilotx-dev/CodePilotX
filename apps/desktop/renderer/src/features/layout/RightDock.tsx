@@ -74,6 +74,7 @@ type Props = {
   // side chat
   sideChatComposer: React.ReactNode;
   sideChatFocusVersion: number;
+  sideChatContent?: React.ReactNode;
 };
 
 type RightDockTabsHeaderProps = {
@@ -122,6 +123,7 @@ export function RightDock({
   onToggleReviewView,
   sideChatComposer,
   sideChatFocusVersion,
+  sideChatContent,
 }: Props): React.ReactNode {
   const flags = useMemo<RightDockPanelContext["flags"]>(
     () => ({ debugMode, quickChatOnly }),
@@ -181,6 +183,7 @@ export function RightDock({
       sideChat: {
         composer: sideChatComposer,
         focusVersion: sideChatFocusVersion,
+        content: sideChatContent,
       },
     }),
     [
@@ -206,6 +209,7 @@ export function RightDock({
       sessionId,
       sessionStatus,
       sideChatComposer,
+      sideChatContent,
       sideChatFocusVersion,
       workspace,
     ],

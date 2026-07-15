@@ -149,6 +149,7 @@ export function GeneralSettings({
     enableParetoCodeRouter,
     enableFusionRouter,
     followUpBehavior,
+    defaultModeRequestUserInput,
   } = draft.values;
 
   const [openTargets, setOpenTargets] =
@@ -211,6 +212,13 @@ export function GeneralSettings({
   const setEnableFusionRouter = useCallback(
     (value: boolean) => {
       draft.setValue('enableFusionRouter', value)
+      draft.autoSave()
+    },
+    [draft],
+  )
+  const setDefaultModeRequestUserInput = useCallback(
+    (value: boolean) => {
+      draft.setValue('defaultModeRequestUserInput', value)
       draft.autoSave()
     },
     [draft],
@@ -442,6 +450,18 @@ export function GeneralSettings({
                   draft.setValue('followUpBehavior', value)
                   draft.autoSave()
                 }}
+              />
+            }
+          />
+          <SettingsRow
+            title='允许普通模式提问'
+            description='开启后，主 Agent 可在普通模式中通过结构化问题卡向你提问。计划模式始终允许。'
+            autoSave
+            control={
+              <ToggleSwitch
+                checked={defaultModeRequestUserInput}
+                onChange={setDefaultModeRequestUserInput}
+                ariaLabel='允许普通模式提问'
               />
             }
           />

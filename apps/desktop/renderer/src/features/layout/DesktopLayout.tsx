@@ -86,6 +86,8 @@ import type {
 } from '../../../shared/types.js'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { upsertRecentWorkspace } from '../../../shared/settings.js'
+import type { DesktopSubagentRead } from '../../../shared/types.js'
+import { SubagentThreadPanel } from '../session/SubagentThreadPanel.js'
 
 const QUICK_CHAT_PATH = '/quick-chat'
 const RIGHT_DOCK_WIDTH_STORAGE_KEY = 'codepilotx.desktop.rightDockWidth'
@@ -175,6 +177,10 @@ export function DesktopLayout(): React.ReactNode {
   const [sideChatAttachments, setSideChatAttachments] = useState<
     DesktopComposerAttachment[]
   >([])
+  const [selectedSubagentTaskId, setSelectedSubagentTaskId] = useState<string | null>(null)
+  const [selectedSubagent, setSelectedSubagent] = useState<DesktopSubagentRead | null>(null)
+  const [subagentPermissionMode, setSubagentPermissionMode] = useState<DesktopPermissionMode>('default')
+  const subagentDraftsRef = useRef(new Map<string, { input: string; attachments: DesktopComposerAttachment[] }>())
   const [menubarDebugMode, setMenubarDebugMode] = useState(() =>
     readDesktopBrowserDebugMode(),
   )
@@ -724,6 +730,8 @@ export function DesktopLayout(): React.ReactNode {
     (text: string): void => {
       const trimmed = text.trim()
       if (!trimmed) return
+      setSelectedSubagentTaskId(null)
+      setSelectedSubagent(null)
       setSideChatInput(prev => {
         const existing = prev.trim()
         if (!existing) return trimmed
@@ -746,12 +754,47 @@ export function DesktopLayout(): React.ReactNode {
       sessionId: string,
       value: { text: string; attachments: DesktopComposerAttachment[] },
     ): Promise<void> => {
-      await submitToSession(sessionId, value)
+      if (selectedSubagentTaskId && desktopClient.sendSubagent) {
+        await desktopClient.sendSubagent(selectedSubagentTaskId, value, model, selectedSubagent?.task.profile === 'explorer' ? undefined : subagentPermissionMode)
+      } else {
+        await submitToSession(sessionId, value)
+      }
       setSideChatInput('')
       setSideChatAttachments([])
     },
-    [submitToSession],
+    [model, selectedSubagent?.task.profile, selectedSubagentTaskId, subagentPermissionMode, submitToSession],
   )
+
+  const refreshSelectedSubagent = useCallback(async (): Promise<void> => {
+    if (!selectedSubagentTaskId || !desktopClient.readSubagent) {
+      setSelectedSubagent(null)
+      return
+    }
+    setSelectedSubagent(await desktopClient.readSubagent(selectedSubagentTaskId))
+  }, [selectedSubagentTaskId])
+
+  useEffect(() => {
+    const config = selectedSubagent?.currentRun?.permissionConfig
+    if (!config) return
+    setSubagentPermissionMode(config.sandboxMode === 'danger-full-access' ? 'full-access' : config.approvalsReviewer === 'auto_review' ? 'auto-review' : 'default')
+  }, [selectedSubagent?.task.id])
+
+  useEffect(() => {
+    if (!selectedSubagentTaskId) return
+    void refreshSelectedSubagent().catch(error => setErrorMessage(error instanceof Error ? error.message : String(error)))
+    const timer = window.setInterval(() => { void refreshSelectedSubagent().catch(() => undefined) }, 1000)
+    return () => window.clearInterval(timer)
+  }, [refreshSelectedSubagent, selectedSubagentTaskId])
+
+  const handleOpenSubagent = useCallback((taskId: string): void => {
+    if (selectedSubagentTaskId) subagentDraftsRef.current.set(selectedSubagentTaskId, { input: sideChatInput, attachments: sideChatAttachments })
+    const draft = subagentDraftsRef.current.get(taskId)
+    setSelectedSubagentTaskId(taskId)
+    setSelectedSubagent(null)
+    setSideChatInput(draft?.input ?? '')
+    setSideChatAttachments(draft?.attachments ?? [])
+    setRightDockState(current => applyRightDockAction(current, { type: 'openTool', tool: 'sideChat' }, { debugMode: menubarDebugMode }))
+  }, [menubarDebugMode, selectedSubagentTaskId, sideChatAttachments, sideChatInput])
 
   const handleSubmitEditedUserMessage = useCallback(
     async (text: string): Promise<void> => {
@@ -1669,13 +1712,13 @@ export function DesktopLayout(): React.ReactNode {
         isQuickChatPage={isQuickChatPage}
         routedSessionId={activeSessionItem?.id ?? null}
         sessionStatus={sessionStatus}
-        permissionMode={effectivePermissionMode}
-        planModeActive={planModeActive}
+        permissionMode={selectedSubagentTaskId ? subagentPermissionMode : effectivePermissionMode}
+        planModeActive={selectedSubagentTaskId ? false : planModeActive}
         localRouterMode={effectiveLocalRouterMode}
         enableParetoCodeRouter={localRouterAvailable && (enableParetoCodeRouter ?? false)}
         enableFusionRouter={localRouterAvailable && (enableFusionRouter ?? false)}
-        enableAutoReviewPermissionMode={enableAutoReviewPermissionMode ?? false}
-        enableFullAccessPermissionMode={enableFullAccessPermissionMode ?? false}
+        enableAutoReviewPermissionMode={selectedSubagentTaskId ? selectedSubagent?.task.permissionCeiling.approvalsReviewer === 'auto_review' : enableAutoReviewPermissionMode ?? false}
+        enableFullAccessPermissionMode={selectedSubagentTaskId ? selectedSubagent?.task.permissionCeiling.sandboxMode === 'danger-full-access' : enableFullAccessPermissionMode ?? false}
         planExecutionModel={planExecutionModel}
         thinkingMode={thinkingMode}
         selectedProviderID={selectedProviderID}
@@ -1697,7 +1740,7 @@ export function DesktopLayout(): React.ReactNode {
         onAttachmentsChange={setSideChatAttachments}
         onChooseWorkspace={handleChooseWorkspace}
         onInputChange={setSideChatInput}
-        onInterrupt={interrupt}
+        onInterrupt={selectedSubagentTaskId && desktopClient.stopSubagent ? async () => { await desktopClient.stopSubagent!(selectedSubagentTaskId); await refreshSelectedSubagent() } : interrupt}
         onProviderModelChange={handleProviderModelChange}
         onOpenWorkspace={handleOpenRecentWorkspace}
         onCloneGithub={() => setGithubRepositoryModalOpen(true)}
@@ -1705,14 +1748,34 @@ export function DesktopLayout(): React.ReactNode {
         onOpenBrowser={handleOpenBrowser}
         onBranchSelect={handleBranchSelect}
         onCreateBranch={() => setGitWorkflowMode('branch')}
-        onPermissionChange={handlePermissionChange}
-        onPlanModeChange={handlePlanModeChange}
+        onPermissionChange={selectedSubagentTaskId ? setSubagentPermissionMode : handlePermissionChange}
+        onPlanModeChange={selectedSubagentTaskId ? () => {} : handlePlanModeChange}
         onLocalRouterModeChange={handleLocalRouterModeChange}
         onThinkingChange={setThinkingMode}
         createSessionForWorkspace={createSessionForWorkspace}
         submitToSession={sideChatSubmitToSession}
+        subagentMode={Boolean(selectedSubagentTaskId)}
       />
     ) : null
+  const subagentSideChatContent = selectedSubagent?.currentRun ? (
+    <SubagentThreadPanel
+      task={selectedSubagent.task}
+      run={selectedSubagent.currentRun}
+      snapshot={selectedSubagent.snapshot}
+      capabilities={selectedSubagent.capabilities}
+      composer={sideChatComposer}
+      callbacks={{
+        onStop: task => { void desktopClient.stopSubagent?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
+        onRetry: task => { void desktopClient.retrySubagent?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
+        onApplyWorktree: task => { void desktopClient.applySubagentWorktree?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
+        onDiscardWorktree: task => { void desktopClient.discardSubagentWorktree?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
+        onRestoreWorkspace: task => { void desktopClient.restoreSubagentWorkspace?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
+        onOpenSubagent: item => handleOpenSubagent(item.subagentTaskId),
+        onApprovalRespond: (approval, decision) => { void desktopClient.respondSubagentApproval?.(approval, decision).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
+        onQuestionRespond: (question, response) => { void desktopClient.respondSubagentQuestion?.(question.id, response.answer, response.ignored).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
+      }}
+    />
+  ) : selectedSubagentTaskId ? <div className="right-dock-empty-state">正在加载子 Agent...</div> : undefined
   const toggleBottomPanelVisible = useCallback((): void => {
     setBottomPanelVisible(current => !current)
   }, [])
@@ -1772,6 +1835,7 @@ export function DesktopLayout(): React.ReactNode {
         setReviewView(reviewView === 'inline' ? 'split' : 'inline')
       }
       sideChatComposer={sideChatComposer}
+      sideChatContent={subagentSideChatContent}
       sideChatFocusVersion={sideChatFocusVersion}
     />
   ) : null
@@ -1860,6 +1924,7 @@ export function DesktopLayout(): React.ReactNode {
             onSubmitEditedUserMessage: handleSubmitEditedUserMessage,
             onAppendComposerText: handleAppendComposerText,
             onAppendSideChatText: handleAppendSideChatText,
+            onOpenSubagent: handleOpenSubagent,
             onAddComposerFiles: handleAddComposerFiles,
             onRefreshDiff: handleRefreshDiff,
             onToggleSidebar: toggleSidebarCollapsed,

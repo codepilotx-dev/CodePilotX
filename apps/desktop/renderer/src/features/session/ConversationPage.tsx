@@ -5,6 +5,7 @@ import {
   AppWindow,
   Archive,
   Box,
+  Bot,
   Check,
   ChevronDown,
   ChevronRight,
@@ -97,6 +98,7 @@ import {
 import { SessionTimelineView } from "./SessionTimelineView.js";
 import { ConversationTurnNavRail } from "./ConversationTurnNavRail.js";
 import { BranchSelectPopover } from "./BranchSelectPopover.js";
+import type { SubagentProjection } from "@codepilotx/shared/thread";
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
@@ -183,6 +185,7 @@ export function ConversationPage(): React.ReactNode {
     onOpenPlanInRightDock,
     onAppendComposerText,
     onAppendSideChatText,
+    onOpenSubagent,
     permissionMode,
     pendingPermissions,
     composer,
@@ -200,6 +203,24 @@ export function ConversationPage(): React.ReactNode {
     reviewView,
     model,
   } = useDesktopSettings();
+  const [subagents, setSubagents] = React.useState<SubagentProjection[]>([]);
+
+  React.useEffect(() => {
+    if (!activeSessionId || !desktopClient.listSubagents) {
+      setSubagents([]);
+      return;
+    }
+    let cancelled = false;
+    const refresh = () => desktopClient.listSubagents!(activeSessionId).then(value => {
+      if (!cancelled) setSubagents(value);
+    }).catch(() => undefined);
+    void refresh();
+    const timer = window.setInterval(refresh, 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [activeSessionId]);
 
   const conversationMessages = messages.filter(
     (message) => message.role !== "system",
@@ -984,6 +1005,17 @@ export function ConversationPage(): React.ReactNode {
                               workspacePath={workspacePath}
                             />
                           ) : null}
+                          {subagents.length ? (
+                            <div className="subagent-timeline-summary" aria-label="子智能体任务">
+                              {subagents.map(({ task, currentRun }) => (
+                                <button key={task.id} type="button" onClick={() => onOpenSubagent(task.id)}>
+                                  <Bot size={14} />
+                                  <span>{task.displayName}</span>
+                                  <small>{subagentPanelStatus(currentRun?.status ?? "interrupted")}</small>
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
                           <SessionTimelineView
                             count={phaseItems.length + (showThinking ? 1 : 0) + 1}
                             scrollToBottom={
@@ -1047,6 +1079,7 @@ export function ConversationPage(): React.ReactNode {
                         diff={diff}
                         gitStatus={gitStatus}
                         sourceLinks={sourceLinks}
+                        subagents={subagents}
                         workspacePath={workspacePath}
                         onBranchSelect={onBranchSelect}
                         onCommitOrPush={onCommitOrPush}
@@ -1054,6 +1087,7 @@ export function ConversationPage(): React.ReactNode {
                         onCreatePullRequest={onCreatePullRequest}
                         onOpenWorkspacePath={onOpenWorkspacePath}
                         onRefreshDiff={onRefreshDiff}
+                        onOpenSubagent={onOpenSubagent}
                       />
                     ) : null}
                   </div>
@@ -3962,6 +3996,7 @@ function EnvironmentPanel({
   diff: _diff,
   gitStatus,
   sourceLinks,
+  subagents,
   workspacePath,
   onBranchSelect,
   onCommitOrPush,
@@ -3969,12 +4004,14 @@ function EnvironmentPanel({
   onCreatePullRequest,
   onOpenWorkspacePath,
   onRefreshDiff,
+  onOpenSubagent,
 }: {
   branchName: string | null;
   branches: string[];
   diff: string;
   gitStatus: DesktopGitStatus | null;
   sourceLinks: SourceLink[];
+  subagents: SubagentProjection[];
   workspacePath: string | null;
   onBranchSelect: (branch: string) => Promise<void>;
   onCommitOrPush: () => void;
@@ -3982,6 +4019,7 @@ function EnvironmentPanel({
   onCreatePullRequest: () => void;
   onOpenWorkspacePath: () => void;
   onRefreshDiff: () => void;
+  onOpenSubagent: (taskId: string) => void;
 }): React.ReactNode {
   const diffSummary = summarizeDiff(_diff);
   const gitLabel = branchName?.trim() || "未检测到 Git 分支";
@@ -4090,6 +4128,18 @@ function EnvironmentPanel({
           <span className="environment-action-trailing" />
         </button>
       </div>
+      {subagents.length ? (
+        <div className="environment-subagents">
+          <span>子智能体</span>
+          {subagents.map(({ task, currentRun }) => (
+            <button className="environment-action-row" key={task.id} type="button" onClick={() => onOpenSubagent(task.id)}>
+              <span className="environment-action-leading"><Bot size={APP_ICON_SIZE} /></span>
+              <span className="environment-action-label">{task.displayName}</span>
+              <span className="environment-action-trailing"><small>{subagentPanelStatus(currentRun?.status ?? "interrupted")}</small></span>
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div className="environment-source">
         <span>来源</span>
         {sourceLinks.length === 0 ? (
@@ -4113,6 +4163,18 @@ function EnvironmentPanel({
       </div>
     </aside>
   );
+}
+
+function subagentPanelStatus(status: string): string {
+  if (status === "completed") return "已完成";
+  if (status === "failed") return "失败";
+  if (status === "stopped") return "已停止";
+  if (status === "interrupted") return "已中断";
+  if (status === "queued") return "排队中";
+  if (status === "waiting-question") return "等待回答";
+  if (status === "waiting-permission") return "等待审批";
+  if (status === "steering") return "调整中";
+  return "运行中";
 }
 
 function foldTimelineEvents(

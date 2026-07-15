@@ -342,9 +342,11 @@ export function RightDockFilesPanel({
 export function RightDockSideChatPanel({
   composer,
   focusVersion,
+  content,
 }: {
   composer: React.ReactNode
   focusVersion: number
+  content?: React.ReactNode
 }): React.ReactNode {
   const surfaceRef = useRef<HTMLDivElement | null>(null)
 
@@ -357,9 +359,7 @@ export function RightDockSideChatPanel({
 
   return (
     <section className="right-dock-side-chat" aria-label="侧边聊天">
-      <ComposerSurface ref={surfaceRef}>
-        {composer}
-      </ComposerSurface>
+      {content ?? <ComposerSurface ref={surfaceRef}>{composer}</ComposerSurface>}
     </section>
   )
 }

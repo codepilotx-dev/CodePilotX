@@ -449,8 +449,8 @@ export function ConfigSettings(): React.ReactNode {
             }
           />
           <SettingsRow
-            title="自动审查模型（实验）"
-            description="仅用于 auto-review reviewer session；自定义模型可能因能力、格式或配置不兼容导致 auto-review 失效并回退人工审批。"
+            title="权限审核模型（实验）"
+            description="仅用于 Shell 和工具权限的自动审核；自定义模型不兼容时会回退人工审批。"
             control={
               <TaskModelSelect
                 value={draft.values.reviewModel}

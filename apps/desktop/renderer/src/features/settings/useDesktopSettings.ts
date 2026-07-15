@@ -386,6 +386,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [skipToolAidedChats, setSkipToolAidedChats] = useState(
     initial.skipToolAidedChats,
   )
+  const [defaultModeRequestUserInput, setDefaultModeRequestUserInput] = useState(
+    initial.defaultModeRequestUserInput,
+  )
   const [githubMemorySyncEnabled, setGithubMemorySyncEnabled] = useState(
     initial.githubMemorySyncEnabled,
   )
@@ -482,6 +485,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setCustomInstructions(settings.customInstructions)
         setEnableMemory(settings.enableMemory)
         setSkipToolAidedChats(settings.skipToolAidedChats)
+        setDefaultModeRequestUserInput(settings.defaultModeRequestUserInput)
         setGithubMemorySyncEnabled(settings.githubMemorySyncEnabled)
         setGithubMemoryRepository(settings.githubMemoryRepository)
         setReviewView(settings.reviewView)
@@ -553,6 +557,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       customInstructions,
       enableMemory,
       skipToolAidedChats,
+      defaultModeRequestUserInput,
       githubMemorySyncEnabled,
       githubMemoryRepository,
       reviewView,
@@ -611,6 +616,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       customInstructions,
       enableMemory,
       skipToolAidedChats,
+      defaultModeRequestUserInput,
       githubMemorySyncEnabled,
       githubMemoryRepository,
       reviewView,
@@ -713,6 +719,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setCustomInstructions(snapshot.customInstructions)
       setEnableMemory(snapshot.enableMemory)
       setSkipToolAidedChats(snapshot.skipToolAidedChats)
+      setDefaultModeRequestUserInput(snapshot.defaultModeRequestUserInput)
       setGithubMemorySyncEnabled(snapshot.githubMemorySyncEnabled)
       setGithubMemoryRepository(snapshot.githubMemoryRepository)
       setReviewView(snapshot.reviewView)

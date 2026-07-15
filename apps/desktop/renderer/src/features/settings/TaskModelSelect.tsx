@@ -52,9 +52,9 @@ const TASK_MODEL_LABELS: Record<TaskModelKey, { label: string; description: stri
     description: '批准计划后用于实施阶段；未配置时使用默认任务模型。',
   },
   reviewModel: {
-    label: '自动审查模型（实验）',
+    label: '权限审核模型（实验）',
     description:
-      '仅用于 auto-review reviewer session；自定义模型可能因能力、格式或配置不兼容导致 auto-review 失效并回退人工审批。',
+      '仅用于 Shell 和工具权限的自动审核；自定义模型不兼容时会回退人工审批。',
   },
 }
 

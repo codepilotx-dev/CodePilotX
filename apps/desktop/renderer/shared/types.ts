@@ -18,6 +18,13 @@ import type {
 import type { ThreadEvent } from '@codepilotx/core/agent/workflow.js'
 import type { Attachment, UserMessage } from '@codepilotx/core/attachments/types.js'
 import type {
+  ApprovalRequest,
+  SubagentProjection,
+  SubagentRun,
+  SubagentTask,
+  ThreadSnapshot,
+} from '@codepilotx/shared/thread'
+import type {
   ModelMetadata,
   ModelProviderID as CoreModelProviderID,
   ModelProviderKind,
@@ -725,6 +732,7 @@ gitBranchPrefix: string
   customInstructions: string
   enableMemory: boolean
   skipToolAidedChats: boolean
+  defaultModeRequestUserInput: boolean
   githubMemorySyncEnabled: boolean
   githubMemoryRepository: string
   reviewView: DesktopReviewView
@@ -985,6 +993,23 @@ export type DesktopSessionSnapshot = {
   reviewComments?: DesktopReviewComment[]
   queuedFollowUps?: DesktopQueuedFollowUp[]
   updatedAt: string
+}
+
+export type DesktopSubagentRead = {
+  task: SubagentTask
+  currentRun: SubagentRun | null
+  snapshot: ThreadSnapshot
+  capabilities: {
+    canSend: boolean
+    canStop: boolean
+    canRetry: boolean
+    canRespondToApprovals: boolean
+    canRespondToQuestions: boolean
+    canSubmitPlanDecision: boolean
+    canApplyWorktree: boolean
+    canDiscardWorktree: boolean
+    canRestoreWorkspace: boolean
+  }
 }
 
 export type DesktopSessionStoreChange = {
@@ -1372,6 +1397,16 @@ export type DesktopMemoryRecallListing = {
 }
 
 export type DesktopApi = {
+  listSubagents?(threadId: string): Promise<SubagentProjection[]>
+  readSubagent?(taskId: string): Promise<DesktopSubagentRead>
+  sendSubagent?(taskId: string, input: DesktopUserMessageInput, model?: string | DesktopModelSelection, permissionMode?: DesktopPermissionMode): Promise<unknown>
+  stopSubagent?(taskId: string): Promise<unknown>
+  retrySubagent?(taskId: string): Promise<unknown>
+  applySubagentWorktree?(taskId: string): Promise<unknown>
+  discardSubagentWorktree?(taskId: string): Promise<unknown>
+  restoreSubagentWorkspace?(taskId: string): Promise<unknown>
+  respondSubagentApproval?(approval: ApprovalRequest, decision: 'allow-once' | 'deny' | 'stop'): Promise<void>
+  respondSubagentQuestion?(questionId: string, answer: string | null, ignored: boolean): Promise<void>
   getAuthStatus(): Promise<DesktopAuthStatus>
   getRuntimeStatus(): Promise<DesktopRuntimeStatus>
   diagnoseDesktopToolchain(): Promise<DesktopToolchainDiagnosticReport>

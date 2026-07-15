@@ -71,6 +71,7 @@ export type RightDockPanelContext = {
   sideChat: {
     composer: ReactNode
     focusVersion: number
+    content?: ReactNode
   }
   plan: RightDockPlan | null
   flags: RightDockFlags

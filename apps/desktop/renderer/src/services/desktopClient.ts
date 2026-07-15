@@ -34,6 +34,7 @@ import type {
 } from '@codepilotx/shared'
 import type {
   PermissionConfig,
+  SubagentProjection,
   ThreadListItem,
   ThreadSettings,
   ThreadSettingsPatch,
@@ -63,6 +64,7 @@ import type {
   DesktopSessionSnapshot,
   DesktopStoredSettings,
   DesktopThemeSettings,
+  DesktopSubagentRead,
   DesktopUpdateStatus,
   DesktopUserMessageInput,
   DesktopWorkspace,
@@ -525,6 +527,7 @@ function createAgentSessionDesktopClient(
     model?: string | DesktopModelSelection,
   ): Promise<unknown> {
     await awaitPendingSettingsUpdate(sessionId)
+    const attachmentIds = await importAgentAttachments(input)
     const response = await rpc.call('turn/start', {
       threadId: sessionId,
       content: desktopUserMessageInputToPreviewText(input),
@@ -532,10 +535,28 @@ function createAgentSessionDesktopClient(
       permissionConfig: permissionConfigForSession(sessionId),
       strategy,
       taskMode: taskModeForSession(sessionId),
+      ...(attachmentIds.length ? { attachmentIds } : {}),
     })
     await loadAgentSessionSnapshot(sessionId).catch(() => null)
     emitSessionStoreChange()
     return response
+  }
+
+  async function importAgentAttachments(input: DesktopUserMessageInput) {
+    const source = input.attachments ?? []
+    if (!source.length) return []
+    const payload = source.map(attachment => {
+      if (attachment.status !== 'ready') throw new Error(`附件 ${attachment.name} 尚未准备完成。`)
+      if (attachment.kind === 'image') {
+        const data = attachment.contentBase64 ?? attachment.previewDataUrl?.replace(/^data:[^;]+;base64,/, '')
+        if (!data) throw new Error(`图片附件 ${attachment.name} 缺少内容。`)
+        return { kind: 'image' as const, name: attachment.name, mediaType: attachment.mediaType, data, encoding: 'base64' }
+      }
+      if (typeof attachment.textContent !== 'string' || attachment.truncated) throw new Error(`附件 ${attachment.name} 不是完整的 UTF-8 文本或受支持图片。`)
+      return { kind: 'text' as const, name: attachment.name, mediaType: attachment.mediaType || 'text/plain', data: attachment.textContent, encoding: 'utf8' }
+    })
+    const response = await rpc.call<{ attachments: Array<{ id: string }> }>('attachment/import', { attachments: payload })
+    return response.attachments.map(attachment => attachment.id)
   }
 
   async function resolveAgentModelRef(
@@ -875,6 +896,30 @@ function createAgentSessionDesktopClient(
         () => loadAgentSessionSnapshot(sessionId),
         () => mockClient.getSession(sessionId),
       ),
+    listSubagents: async threadId => {
+      const response = await rpc.call<{ subagents: SubagentProjection[] }>('subagent/list', { threadId })
+      return response.subagents
+    },
+    readSubagent: taskId => rpc.call<DesktopSubagentRead>('subagent/read', { taskId }),
+    sendSubagent: async (taskId, input, selectedModel, selectedPermissionMode) => rpc.call('subagent/send', {
+      taskId,
+      message: desktopUserMessageInputToPreviewText(input),
+      requestId: crypto.randomUUID(),
+      model: await resolveAgentModelRef(selectedModel, activeSessionId ?? ''),
+      attachmentIds: await importAgentAttachments(input),
+      ...(selectedPermissionMode ? { permissionConfig: desktopPermissionModeToPermissionConfig(selectedPermissionMode) } : {}),
+    }),
+    stopSubagent: taskId => rpc.call('subagent/stop', { taskId, requestId: crypto.randomUUID() }),
+    retrySubagent: taskId => rpc.call('subagent/retry', { taskId, requestId: crypto.randomUUID() }),
+    applySubagentWorktree: taskId => rpc.call('subagent/worktree/apply', { taskId, requestId: crypto.randomUUID() }),
+    discardSubagentWorktree: taskId => rpc.call('subagent/worktree/discard', { taskId, requestId: crypto.randomUUID() }),
+    restoreSubagentWorkspace: taskId => rpc.call('subagent/workspace/restore', { taskId, requestId: crypto.randomUUID() }),
+    respondSubagentApproval: async (approval, decision) => {
+      await rpc.call('approval/respond', { approvalId: approval.id, decision })
+    },
+    respondSubagentQuestion: async (questionId, answer, ignored) => {
+      await rpc.call('question/respond', { questionId, answer, ignored })
+    },
     getActiveSessionId: () =>
       withAgentOrMock(
         async () => activeSessionId,

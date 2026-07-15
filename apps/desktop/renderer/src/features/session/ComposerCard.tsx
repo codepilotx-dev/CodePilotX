@@ -278,6 +278,7 @@ type Props = {
   onGoalResume?: () => void;
   onGoalComplete?: () => void;
   onGoalClear?: () => void;
+  subagentMode?: boolean;
 };
 
 export function ComposerCard({
@@ -346,6 +347,7 @@ export function ComposerCard({
   onGoalResume,
   onGoalComplete,
   onGoalClear,
+  subagentMode = false,
 }: Props): React.ReactNode {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(
@@ -578,6 +580,7 @@ export function ComposerCard({
       icon: <Target size={14} />,
       matchText: "目标 goal",
       isActive: goalModeEnabled,
+      disabled: subagentMode,
       onSelect: () => {
         onGoalModeChange?.(!goalModeEnabled);
       },
@@ -593,6 +596,7 @@ export function ComposerCard({
       icon: <ListChecks size={14} />,
       matchText: "计划模式 plan",
       isActive: planModeActive,
+      disabled: subagentMode,
       onSelect: () => {
         onPlanModeChange?.(true);
       },
@@ -616,6 +620,7 @@ export function ComposerCard({
           </span>
         ),
         matchText: `${agent.name} ${agent.role} 智能体`,
+        disabled: subagentMode,
         onSelect: () => {},
       });
     }
@@ -669,6 +674,7 @@ export function ComposerCard({
           hint: cmd.description,
           icon: <Sparkles size={14} strokeWidth={1.5} />,
           matchText: `${cmd.title} ${cmd.name}`,
+          disabled: subagentMode,
           onSelect: () => {
             if ("skillPath" in cmd && cmd.skillPath) {
               onSkillSelect?.(
@@ -704,6 +710,7 @@ export function ComposerCard({
     onSkillSelect,
     selectedModelLabel,
     selectedThinkingLabel,
+    subagentMode,
   ]);
 
   useEffect(() => {
@@ -1610,7 +1617,13 @@ export function ComposerCard({
       </div>
 
       <div className="composer-bottom">
-        <ProjectSwitcherPopover
+        {subagentMode ? (
+          <MetaChip
+            icon={<Folder size={APP_ICON_SIZE} />}
+            label={workspace?.name ?? "项目"}
+            title="子 Agent 工作区固定"
+          />
+        ) : <ProjectSwitcherPopover
           side="top"
           open={openDropdown === "project"}
           width={200}
@@ -1639,7 +1652,7 @@ export function ComposerCard({
               title="选择项目"
             />
           }
-        />
+        />}
 
         {workspace ? (
           <>
