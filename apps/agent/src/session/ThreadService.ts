@@ -2,12 +2,10 @@ import { Effect } from "effect"
 import type { LanguageModel } from "ai"
 import { Model } from "@codepilotx/model-schema"
 import type { ProviderRuntime } from "@codepilotx/provider-runtime"
-import { AgentError, type SubmitMessage, type ToolInvocation } from "../domain"
+import { AgentError, type SubmitMessage } from "../domain"
 import type { AgentDatabase } from "../storage/Database"
 import type { EventHub } from "../storage/EventHub"
-import type { ToolRegistry } from "../tool/ToolRegistry"
 import type { ApprovalService } from "../permission/ApprovalService"
-import type { ThreadProcessor } from "./ThreadProcessor"
 import type { QuestionService } from "./QuestionService"
 import type { AgentOrchestrator, AgentRole } from "../orchestration/AgentOrchestrator"
 import { WorkspaceService, type ProposalDraft } from "../workspace/WorkspaceService"
@@ -19,8 +17,6 @@ export class ThreadService {
     private readonly db: AgentDatabase,
     private readonly hub: EventHub,
     private readonly providers: ProviderRuntime,
-    private readonly processor: ThreadProcessor,
-    private readonly tools: ToolRegistry,
     private readonly approvals: ApprovalService,
     private readonly questions: QuestionService,
     private readonly orchestrator: AgentOrchestrator,
@@ -89,48 +85,6 @@ export class ThreadService {
     return { disposition: active ? "queued" as const : "started" as const, turnID: created.turnID, inputID: created.inputID }
   }
 
-  private async executeTool(invocation: ToolInvocation, signal: AbortSignal) {
-    const startedAt = Date.now()
-    this.db.run(`INSERT INTO tool_calls (id, thread_id, turn_id, tool_name, input, status, started_at) VALUES (?, ?, ?, ?, ?, 'pending', ?) ON CONFLICT(id) DO NOTHING`, invocation.id, invocation.threadID, invocation.turnID, invocation.name, JSON.stringify(invocation.input), startedAt)
-    const approval = await this.approvals.authorize(invocation, signal)
-    if (approval.decision !== "allow") {
-      this.db.run("UPDATE tool_calls SET status = 'error', error = ?, finished_at = ? WHERE id = ?", approval.reason, Date.now(), invocation.id)
-      throw new AgentError("TOOL_PERMISSION_DENIED", approval.reason, 403)
-    }
-    this.db.run("UPDATE tool_calls SET status = 'running', started_at = ? WHERE id = ?", Date.now(), invocation.id)
-    await this.emit(invocation.threadID, invocation.turnID, "tool/callStarted", { itemId: invocation.id, turnId: invocation.turnID, name: invocation.name, input: invocation.input })
-    try {
-      const output = invocation.name === "question.ask"
-        ? await this.questions.ask(invocation.threadID, invocation.turnID, invocation.input, signal)
-        : await this.tools.execute(invocation.name, invocation.input, { signal, taskMode: invocation.taskMode })
-      this.db.run("UPDATE tool_calls SET status = 'completed', output = ?, finished_at = ? WHERE id = ?", JSON.stringify(output ?? null), Date.now(), invocation.id)
-      await this.recordPatch(invocation, output)
-      await this.emit(invocation.threadID, invocation.turnID, "tool/callCompleted", { itemId: invocation.id, turnId: invocation.turnID, name: invocation.name, output })
-      return output
-    } catch (cause) {
-      const message = cause instanceof Error ? cause.message : String(cause)
-      this.db.run("UPDATE tool_calls SET status = 'error', error = ?, finished_at = ? WHERE id = ?", message, Date.now(), invocation.id)
-      await this.emit(invocation.threadID, invocation.turnID, "tool/error", { itemId: invocation.id, turnId: invocation.turnID, name: invocation.name, error: message })
-      throw cause
-    }
-  }
-
-  private async recordPatch(invocation: ToolInvocation, output: unknown) {
-    if (!invocation.name.startsWith("filesystem.") || !["filesystem.write", "filesystem.patch"].includes(invocation.name)) return
-    const result = output && typeof output === "object" ? output as Record<string, unknown> : {}
-    if (typeof result.path !== "string") return
-    const id = crypto.randomUUID()
-    const additions = typeof result.additions === "number" ? result.additions : 0
-    const deletions = typeof result.deletions === "number" ? result.deletions : 0
-    const createdAt = Date.now()
-    const files = [{ path: result.path, additions, deletions }]
-    this.db.transaction(() => {
-      this.db.run("INSERT INTO patches (id, thread_id, turn_id, files, additions, deletions, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)", id, invocation.threadID, invocation.turnID, JSON.stringify(files), additions, deletions, createdAt)
-      this.db.upsertItem(invocation.threadID, { id, turnID: invocation.turnID, type: "patch", status: "completed", data: { files, additions, deletions }, createdAt, updatedAt: createdAt })
-    })
-    await this.emit(invocation.threadID, invocation.turnID, "item/completed", { item: this.db.getItem(id) })
-  }
-
   private async executeTurn(threadID: string, turnID: string) {
     const input = this.db.getTurnInput(turnID)
     if (!input) return
@@ -177,6 +131,7 @@ export class ThreadService {
         turnID,
         content,
         taskMode: input.taskMode,
+        permissionConfig: input.permissionConfig,
         fallbackModel: activeModel,
         signal: controller.signal,
         workspace,

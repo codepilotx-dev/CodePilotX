@@ -3,9 +3,11 @@ import type { Session } from "@openai/agents"
 import type { LanguageModel } from "ai"
 import { Effect } from "effect"
 import { z } from "zod"
-import type { EventEnvelope, Item, ModelRef, TaskMode } from "../domain"
+import type { EventEnvelope, Item, ModelRef, PermissionConfig, TaskMode } from "../domain"
 import { asAgentModel } from "../llm/AgentModelBridge"
-import type { ProposalDraft, WorkspaceService } from "../workspace/WorkspaceService"
+import type { CommandProposalDraft, PatchProposalDraft, ProposalDraft, WorkspaceService } from "../workspace/WorkspaceService"
+import type { ToolExecutor } from "../tool/ToolExecutor"
+import type { ProcessResult } from "../sandbox/SandboxRuntimeAdapter"
 import { stagesForTask, type AgentRole } from "./stages"
 
 export type { AgentRole } from "./stages"
@@ -50,6 +52,7 @@ export interface OrchestrationRequest {
   content: string
   taskMode: TaskMode
   fallbackModel: ModelRef
+  permissionConfig: PermissionConfig
   signal: AbortSignal
   workspace: WorkspaceService
   resume?: PlanCheckpoint
@@ -63,6 +66,7 @@ export interface OrchestrationRequest {
 export interface AgentOrchestratorOptions {
   db: OrchestrationPersistence
   hub: OrchestrationPublisher
+  toolExecutor: ToolExecutor
   sessionFor?: (threadID: string, role: AgentRole) => Session
 }
 
@@ -90,8 +94,8 @@ const stageInstructions: Record<AgentRole, string> = {
     "在调研完成后，必须调用 finalize_plan，传入完整 Markdown 计划；这会交由用户确认。",
   ].join("\n"),
   developer: [
-    "你是只读开发 Agent。先检查相关文件，绝不能写文件或执行命令。",
-    "建议改动时必须调用 propose_patch 保存精确 before/after；建议验证时必须调用 propose_command。",
+    "你是受权限控制的开发 Agent。先检查相关文件；文件改动只能通过 propose_patch 提议。",
+    "需要执行 Shell 时必须使用 shell 工具，并声明工作区外路径、网络域名和简短理由；命令会逐条经过静态规则、审核 agent 和权限边界。",
   ].join("\n"),
   reviewer: "你是代码审查 Agent。检查计划和提议的风险、遗漏及验证建议；只能读取项目。",
 }
@@ -130,6 +134,19 @@ export class AgentOrchestrator {
     await this.publish(threadID, item.turnID, method, { item: this.options.db.getItem(item.id) ?? item })
   }
 
+  private executeTool<T>(request: OrchestrationRequest, name: string, input: Record<string, unknown>) {
+    return this.options.toolExecutor.execute<T>(name, input, {
+      threadID: request.threadID,
+      turnID: request.turnID,
+      taskMode: request.taskMode,
+      signal: request.signal,
+      workspace: request.workspace,
+      permissionConfig: request.permissionConfig,
+      model: request.fallbackModel,
+      taskSummary: request.content,
+    })
+  }
+
   private async recordReadActivity(request: OrchestrationRequest, role: AgentRole, title: string, detail: string, command?: ActivityCommand, onRecorded?: () => void) {
     const createdAt = now()
     const item: Item = {
@@ -156,7 +173,7 @@ export class AgentOrchestrator {
       tool({ name: "workspace_list", description: "列出工作区目录内容。路径相对于项目根目录。", parameters: z.object({ path: z.string().min(1) }), execute: async ({ path }) => {
         const command = `workspace_list ${path}`
         try {
-          const result = await request.workspace.list(path)
+          const result = await this.executeTool(request, "workspace.list", { path })
           await this.recordReadResult(request, role, "列出目录", path, command, result, onReadActivityRecorded)
           return result
         } catch (cause) {
@@ -167,7 +184,7 @@ export class AgentOrchestrator {
       tool({ name: "workspace_read", description: "以 UTF-8 读取工作区文本文件。路径相对于项目根目录。", parameters: z.object({ path: z.string().min(1) }), execute: async ({ path }) => {
         const command = `workspace_read ${path}`
         try {
-          const result = await request.workspace.read(path)
+          const result = await this.executeTool(request, "workspace.read", { path })
           await this.recordReadResult(request, role, "读取文件", path, command, result, onReadActivityRecorded)
           return result
         } catch (cause) {
@@ -179,7 +196,7 @@ export class AgentOrchestrator {
         const detail = `${path}: ${query}`
         const command = `workspace_search ${path} ${query}`
         try {
-          const result = await request.workspace.search(path, query, request.signal)
+          const result = await this.executeTool(request, "workspace.search", { path, query })
           await this.recordReadResult(request, role, "搜索工作区", detail, command, result, onReadActivityRecorded)
           return result
         } catch (cause) {
@@ -206,17 +223,49 @@ export class AgentOrchestrator {
     if (role !== "developer") return readTools
     return [...readTools,
       tool({ name: "propose_patch", description: "保存不执行的精确文本替换提议。", parameters: z.object({ path: z.string().min(1), before: z.string(), after: z.string() }), execute: async ({ path, before, after }) => {
-        const draft = await request.workspace.proposePatch(path, before, after)
+        const draft = await this.executeTool<PatchProposalDraft>(request, "propose_patch", { path, before, after })
         await request.saveProposal(draft, role)
         await this.publish(request.threadID, request.turnID, "proposal/created", { turnId: request.turnID, role, proposal: draft })
         return { recorded: true, type: "patch", path: draft.payload.path, diff: draft.payload.diff }
       } }),
       tool({ name: "propose_command", description: "保存不执行的验证或后续操作命令提议。", parameters: z.object({ command: z.string().min(1), cwd: z.string().min(1).optional(), description: z.string().min(1) }), execute: async ({ command, cwd, description }) => {
-        const draft = await request.workspace.proposeCommand(command, cwd, description)
+        const draft = await this.executeTool<CommandProposalDraft>(request, "propose_command", { command, ...(cwd ? { cwd } : {}), description })
         await request.saveProposal(draft, role)
         await this.publish(request.threadID, request.turnID, "proposal/created", { turnId: request.turnID, role, proposal: draft })
         return { recorded: true, type: "command", command: draft.payload.command }
       } }),
+      tool({
+        name: "shell",
+        description: "执行一条经过审核的 PowerShell 命令。必须声明工作区外访问和简短理由。",
+        parameters: z.object({
+          command: z.string().min(1),
+          cwd: z.string().min(1).optional(),
+          timeoutMs: z.number().positive().max(600_000).optional(),
+          additionalPermissions: z.object({
+            readPaths: z.array(z.string().min(1)).optional(),
+            writePaths: z.array(z.string().min(1)).optional(),
+            networkDomains: z.array(z.string().min(1)).optional(),
+          }).optional(),
+          justification: z.string().min(1).optional(),
+        }),
+        execute: async (input) => {
+          const command = `shell ${input.command}`
+          try {
+            const result = await this.executeTool<ProcessResult>(request, "shell", input)
+            const output = `${result.stdout}${result.stderr ? `\n${result.stderr}` : ""}`.trim()
+            await this.recordReadActivity(request, role, "执行 Shell", input.cwd ?? request.workspace.rootPath, {
+              command,
+              output: capActivityOutput(output).output,
+              status: result.exitCode === 0 ? "success" : "error",
+              ...(result.truncated ? { truncated: true } : {}),
+            })
+            return result
+          } catch (cause) {
+            await this.recordReadError(request, role, "执行 Shell", input.cwd ?? request.workspace.rootPath, command, cause)
+            throw cause
+          }
+        },
+      }),
     ]
   }
 

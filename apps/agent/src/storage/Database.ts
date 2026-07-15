@@ -6,7 +6,7 @@ import type {
   EventEnvelope,
   Item,
   ModelRef,
-  PermissionMode,
+  PermissionConfig,
   SendStrategy,
   SubmitMessage,
   TaskMode,
@@ -85,7 +85,26 @@ const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const now = () => Date.now()
 const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
+
+type PermissionColumns = {
+  sandbox_mode: PermissionConfig["sandboxMode"]
+  approval_policy: PermissionConfig["approvalPolicy"]
+  approvals_reviewer: PermissionConfig["approvalsReviewer"]
+}
+
+const permissionConfigFromRow = (row: PermissionColumns): PermissionConfig => ({
+  sandboxMode: row.sandbox_mode,
+  approvalPolicy: row.approval_policy,
+  approvalsReviewer: row.approvals_reviewer,
+})
+
+const legacyPermissionMode = (config: PermissionConfig) => {
+  if (config.sandboxMode === "danger-full-access" && config.approvalPolicy === "never" && config.approvalsReviewer === "auto_review") return "full"
+  if (config.sandboxMode === "workspace-write" && config.approvalPolicy === "on-request" && config.approvalsReviewer === "auto_review") return "review"
+  if (config.sandboxMode === "workspace-write" && config.approvalPolicy === "on-request" && config.approvalsReviewer === "user") return "ask"
+  throw new Error("Unsupported permission configuration")
+}
 
 const legacyBackupPath = (path: string) => {
   const extension = extname(path) || ".sqlite"
@@ -131,6 +150,7 @@ export class AgentDatabase {
   }
 
   private migrate() {
+    const currentVersion = (this.sqlite.query("PRAGMA user_version").get() as { user_version: number }).user_version
     const legacyViews = [
       "sessions",
       "runs",
@@ -147,7 +167,6 @@ export class AgentDatabase {
     for (const name of legacyViews) {
       if (existingViews.has(name)) this.sqlite.exec(`DROP VIEW "${name}"`)
     }
-    this.sqlite.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
     this.sqlite.exec(`
       CREATE TABLE IF NOT EXISTS threads (
         id TEXT PRIMARY KEY,
@@ -161,6 +180,9 @@ export class AgentDatabase {
         status TEXT NOT NULL,
         mode TEXT NOT NULL,
         permission_mode TEXT NOT NULL,
+        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',
+        approval_policy TEXT NOT NULL DEFAULT 'on-request',
+        approvals_reviewer TEXT NOT NULL DEFAULT 'user',
         model_ref TEXT NOT NULL,
         strategy TEXT NOT NULL,
         started_at INTEGER,
@@ -176,6 +198,9 @@ export class AgentDatabase {
         content TEXT NOT NULL,
         model_ref TEXT NOT NULL,
         permission_mode TEXT NOT NULL,
+        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',
+        approval_policy TEXT NOT NULL DEFAULT 'on-request',
+        approvals_reviewer TEXT NOT NULL DEFAULT 'user',
         strategy TEXT NOT NULL,
         task_mode TEXT NOT NULL,
         status TEXT NOT NULL,
@@ -354,6 +379,29 @@ export class AgentDatabase {
     this.addColumn("question_requests", "tool_call_id", "TEXT")
     this.addColumn("question_requests", "payload_version", "INTEGER NOT NULL DEFAULT 1")
     this.addColumn("events", "turn_id", "TEXT")
+    if (currentVersion < 3) this.migratePermissionsV3()
+  }
+
+  private migratePermissionsV3() {
+    this.transaction(() => {
+      const invalidTurns = this.sqlite.query("SELECT COUNT(*) AS count FROM turns WHERE permission_mode NOT IN ('ask', 'review', 'full')").get() as { count: number }
+      const invalidInputs = this.sqlite.query("SELECT COUNT(*) AS count FROM inputs WHERE permission_mode NOT IN ('ask', 'review', 'full')").get() as { count: number }
+      if (invalidTurns.count || invalidInputs.count) throw new Error("Cannot migrate unknown legacy permission mode")
+      for (const table of ["turns", "inputs"]) {
+        this.addColumn(table, "sandbox_mode", "TEXT NOT NULL DEFAULT 'workspace-write'")
+        this.addColumn(table, "approval_policy", "TEXT NOT NULL DEFAULT 'on-request'")
+        this.addColumn(table, "approvals_reviewer", "TEXT NOT NULL DEFAULT 'user'")
+        this.sqlite.exec(`
+          UPDATE ${table}
+          SET sandbox_mode = CASE permission_mode WHEN 'full' THEN 'danger-full-access' ELSE 'workspace-write' END,
+              approval_policy = CASE permission_mode WHEN 'full' THEN 'never' ELSE 'on-request' END,
+              approvals_reviewer = CASE permission_mode WHEN 'review' THEN 'auto_review' WHEN 'full' THEN 'auto_review' ELSE 'user' END
+        `)
+      }
+      this.addColumn("approval_requests", "request_payload", "TEXT NOT NULL DEFAULT '{\"version\":1}'")
+      this.addColumn("approval_requests", "review_payload", "TEXT")
+      this.sqlite.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
+    })
   }
 
   private backfillMessageOrdinals() {
@@ -498,8 +546,8 @@ export class AgentDatabase {
   }
 
   activeTurn(threadID: string) {
-    return this.sqlite.query(`SELECT id, status, mode, permission_mode, model_ref FROM turns WHERE thread_id = ? AND status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_plan_confirmation') ORDER BY created_at DESC LIMIT 1`).get(threadID) as
-      | { id: string; status: TurnStatus; mode: TaskMode; permission_mode: PermissionMode; model_ref: string }
+    return this.sqlite.query(`SELECT id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref FROM turns WHERE thread_id = ? AND status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_plan_confirmation') ORDER BY created_at DESC LIMIT 1`).get(threadID) as
+      | ({ id: string; status: TurnStatus; mode: TaskMode; model_ref: string } & PermissionColumns)
       | null
   }
 
@@ -508,24 +556,30 @@ export class AgentDatabase {
     const inputID = crypto.randomUUID()
     const timestamp = now()
     return this.transaction(() => {
-      this.sqlite.query(`INSERT INTO turns (id, thread_id, status, mode, permission_mode, model_ref, strategy, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`).run(
+      this.sqlite.query(`INSERT INTO turns (id, thread_id, status, mode, permission_mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, strategy, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`).run(
         turnID,
         threadID,
         status,
         input.taskMode,
-        input.permissionMode,
+        legacyPermissionMode(input.permissionConfig),
+        input.permissionConfig.sandboxMode,
+        input.permissionConfig.approvalPolicy,
+        input.permissionConfig.approvalsReviewer,
         stringify(input.model),
         input.strategy,
         timestamp,
         timestamp,
       )
-      this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, permission_mode, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, permission_mode, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
         inputID,
         threadID,
         turnID,
         input.content,
         stringify(input.model),
-        input.permissionMode,
+        legacyPermissionMode(input.permissionConfig),
+        input.permissionConfig.sandboxMode,
+        input.permissionConfig.approvalPolicy,
+        input.permissionConfig.approvalsReviewer,
         input.strategy,
         input.taskMode,
         status === "queued" ? "queued" : "active",
@@ -542,13 +596,16 @@ export class AgentDatabase {
     const id = crypto.randomUUID()
     const timestamp = now()
     return this.transaction(() => {
-      this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, permission_mode, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'guide', ?, 'mailbox', ?)`).run(
+      this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, permission_mode, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'guide', ?, 'mailbox', ?)`).run(
         id,
         threadID,
         turnID,
         input.content,
         stringify(input.model),
-        input.permissionMode,
+        legacyPermissionMode(input.permissionConfig),
+        input.permissionConfig.sandboxMode,
+        input.permissionConfig.approvalPolicy,
+        input.permissionConfig.approvalsReviewer,
         input.taskMode,
         timestamp,
       )
@@ -560,18 +617,17 @@ export class AgentDatabase {
 
   takeGuideMailbox(turnID: string) {
     return this.transaction(() => {
-      const rows = this.sqlite.query("SELECT id, content, model_ref, permission_mode, task_mode FROM inputs WHERE turn_id = ? AND status = 'mailbox' ORDER BY created_at").all(turnID) as Array<{
+      const rows = this.sqlite.query("SELECT id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, task_mode FROM inputs WHERE turn_id = ? AND status = 'mailbox' ORDER BY created_at").all(turnID) as Array<{
         id: string
         content: string
         model_ref: string
-        permission_mode: PermissionMode
         task_mode: TaskMode
-      }>
+      } & PermissionColumns>
       if (rows.length) {
         const placeholders = rows.map(() => "?").join(",")
         this.sqlite.query(`UPDATE inputs SET status = 'consumed' WHERE id IN (${placeholders})`).run(...rows.map((row) => row.id))
       }
-      return rows.map((row) => ({ id: row.id, content: row.content, model: parse<ModelRef>(row.model_ref), permissionMode: row.permission_mode, taskMode: row.task_mode }))
+      return rows.map((row) => ({ id: row.id, content: row.content, model: parse<ModelRef>(row.model_ref), permissionConfig: permissionConfigFromRow(row), taskMode: row.task_mode }))
     })
   }
 
@@ -593,11 +649,11 @@ export class AgentDatabase {
   }
 
   getTurnInput(turnID: string) {
-    const row = this.sqlite.query("SELECT content, model_ref, permission_mode, strategy, task_mode FROM inputs WHERE turn_id = ? ORDER BY created_at LIMIT 1").get(turnID) as
-      | { content: string; model_ref: string; permission_mode: PermissionMode; strategy: SendStrategy; task_mode: TaskMode }
+    const row = this.sqlite.query("SELECT content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode FROM inputs WHERE turn_id = ? ORDER BY created_at LIMIT 1").get(turnID) as
+      | ({ content: string; model_ref: string; strategy: SendStrategy; task_mode: TaskMode } & PermissionColumns)
       | null
     if (!row) return null
-    return { content: row.content, model: parse(row.model_ref), permissionMode: row.permission_mode, strategy: row.strategy, taskMode: row.task_mode } as SubmitMessage
+    return { content: row.content, model: parse(row.model_ref), permissionConfig: permissionConfigFromRow(row), strategy: row.strategy, taskMode: row.task_mode } as SubmitMessage
   }
 
   listTurnStages(turnID: string): WorkflowStage[] {

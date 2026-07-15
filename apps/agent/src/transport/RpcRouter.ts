@@ -1,8 +1,19 @@
-import type { AgentRpcRequest, AgentRpcResponse } from "@codepilotx/shared/thread"
-import { Effect } from "effect"
+import {
+  ApprovalRespondParamsSchema,
+  AUTO_REVIEW_PERMISSION_CONFIG,
+  DEFAULT_PERMISSION_CONFIG,
+  FULL_ACCESS_PERMISSION_CONFIG,
+  TurnStartParamsSchema,
+  SandboxUninstallParamsSchema,
+  AgentRpcRequestSchema,
+  type AgentRpcRequest,
+  type AgentRpcResponse,
+  type PermissionConfig,
+} from "@codepilotx/shared/thread"
+import { Effect, Schema } from "effect"
 import { Model, Provider } from "@codepilotx/model-schema"
 import type { ProviderConfig, ProviderRuntime } from "@codepilotx/provider-runtime"
-import { AgentError, type PermissionMode, type SendStrategy, type SubmitMessage, type TaskMode } from "../domain"
+import { AgentError, type SendStrategy, type SubmitMessage, type TaskMode } from "../domain"
 import type { ApprovalService } from "../permission/ApprovalService"
 import type { QuestionService } from "../session/QuestionService"
 import type { IntegrationService } from "../provider/IntegrationService"
@@ -10,6 +21,7 @@ import type { ThreadHistoryService } from "../session/ThreadHistoryService"
 import type { ThreadService } from "../session/ThreadService"
 import type { AgentDatabase } from "../storage/Database"
 import type { EventHub } from "../storage/EventHub"
+import type { SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
 import { WorkspaceService } from "../workspace/WorkspaceService"
 import { ThreadProjection } from "./ThreadProjection"
 
@@ -22,6 +34,7 @@ export type RpcRouterDependencies = {
   questions: QuestionService
   providers: ProviderRuntime
   integrations: IntegrationService
+  sandbox: SandboxRuntimeAdapter
 }
 
 const enumValue = <T extends string>(value: unknown, allowed: readonly T[], name: string): T => {
@@ -36,13 +49,33 @@ const record = (value: unknown, name = "params") => {
 
 const optionalRecord = (value: unknown) => value == null ? {} : record(value)
 
-const submitMessage = (body: Record<string, unknown>): SubmitMessage => {
-  const model = record(body.model, "model")
-  if (typeof body.content !== "string" || typeof model.providerID !== "string" || typeof model.id !== "string") throw new AgentError("INVALID_REQUEST", "消息内容或模型参数无效", 400)
+const decodeParams = <A>(decode: (value: unknown) => A, value: unknown, name: string): A => {
+  try {
+    return decode(value)
+  } catch {
+    throw new AgentError("INVALID_REQUEST", `${name} 参数无效`, 400)
+  }
+}
+
+const decodeTurnStart = Schema.decodeUnknownSync(TurnStartParamsSchema)
+const decodeApprovalRespond = Schema.decodeUnknownSync(ApprovalRespondParamsSchema)
+const decodeRpcRequest = Schema.decodeUnknownSync(AgentRpcRequestSchema)
+const decodeSandboxUninstall = Schema.decodeUnknownSync(SandboxUninstallParamsSchema)
+
+const supportedPermissionConfig = (value: PermissionConfig) => {
+  const supported = [DEFAULT_PERMISSION_CONFIG, AUTO_REVIEW_PERMISSION_CONFIG, FULL_ACCESS_PERMISSION_CONFIG]
+  if (!supported.some((item) => item.sandboxMode === value.sandboxMode && item.approvalPolicy === value.approvalPolicy && item.approvalsReviewer === value.approvalsReviewer)) {
+    throw new AgentError("INVALID_PERMISSION_CONFIG", "当前版本不支持该权限组合", 400)
+  }
+  return value
+}
+
+const submitMessage = (raw: unknown): SubmitMessage => {
+  const body = decodeParams(decodeTurnStart, raw, "turn/start")
   return {
     content: body.content,
-    model: Model.Ref.make({ providerID: Provider.ID.make(model.providerID), id: Model.ID.make(model.id), ...(typeof model.variant === "string" ? { variant: Model.VariantID.make(model.variant) } : {}) }),
-    permissionMode: enumValue<PermissionMode>(body.permissionMode, ["ask", "review", "full"], "permissionMode"),
+    model: body.model,
+    permissionConfig: supportedPermissionConfig(body.permissionConfig),
     strategy: enumValue<SendStrategy>(body.strategy ?? "queue", ["queue", "guide"], "strategy"),
     taskMode: enumValue<TaskMode>(body.taskMode ?? "chat", ["chat", "plan"], "taskMode"),
   }
@@ -61,7 +94,7 @@ export class RpcRouter {
   }
 
   private async handleSingle(input: unknown): Promise<AgentRpcResponse | null> {
-    const request = record(input, "request") as AgentRpcRequest
+    const request = decodeParams(decodeRpcRequest, input, "request") as AgentRpcRequest
     if (request.jsonrpc !== "2.0" || typeof request.method !== "string") throw new AgentError("INVALID_RPC", "JSON-RPC 请求无效", 400)
     if (request.id === undefined) {
       await this.dispatch(request.method, request.params)
@@ -77,12 +110,22 @@ export class RpcRouter {
   }
 
   private async dispatch(method: string, rawParams: unknown): Promise<unknown> {
-    const { db, threads, history, approvals, questions, providers, integrations } = this.dependencies
+    const { db, threads, history, approvals, questions, providers, integrations, sandbox } = this.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "initialize":
         db.sqlite.query("SELECT 1").get()
         return { ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid, readyAt: Date.now(), protocol: "thread-rpc-v1" }
+      case "sandbox/status":
+        return { sandbox: await sandbox.getStatus() }
+      case "sandbox/install":
+      case "sandbox/repair":
+        await sandbox.install()
+        return { sandbox: await sandbox.getStatus() }
+      case "sandbox/uninstall":
+        decodeParams(decodeSandboxUninstall, rawParams, "sandbox/uninstall")
+        await sandbox.uninstall()
+        return { sandbox: await sandbox.getStatus() }
       case "shutdown":
         if (process.env.CODEPILOTX_DESKTOP_MANAGED !== "1") throw new AgentError("SHUTDOWN_DENIED", "仅桌面托管的 Agent 可以通过 RPC 关闭", 403)
         setTimeout(() => process.emit("SIGTERM"), 25)
@@ -136,8 +179,9 @@ export class RpcRouter {
         await history.remove(stringParam(params, "threadId"))
         return { ok: true }
       case "turn/start": {
-        const threadId = stringParam(params, "threadId")
-        const submitted = await threads.submit(threadId, submitMessage(params))
+        const start = decodeParams(decodeTurnStart, rawParams, "turn/start")
+        const threadId = start.threadId
+        const submitted = await threads.submit(threadId, submitMessage(start))
         const snapshot = this.requiredSnapshot(threadId)
         return { input: snapshot.inputs.find((input) => input.id === submitted.inputID), turn: snapshot.turns.find((turn) => turn.id === submitted.turnID) ?? null }
       }
@@ -153,13 +197,14 @@ export class RpcRouter {
         return { ...result, threadId: result.threadID, turnId: result.turnID }
       }
       case "approval/respond": {
-        const decision = enumValue(params.decision, ["allow-once", "deny", "stop"] as const, "decision")
+        const approval = decodeParams(decodeApprovalRespond, rawParams, "approval/respond")
+        const decision = approval.decision
         if (decision === "stop") {
-          const row = db.sqlite.query("SELECT thread_id FROM approval_requests WHERE id = ?").get(stringParam(params, "approvalId")) as { thread_id: string } | null
+          const row = db.sqlite.query("SELECT thread_id FROM approval_requests WHERE id = ?").get(approval.approvalId) as { thread_id: string } | null
           if (!row) throw new AgentError("APPROVAL_NOT_FOUND", "权限请求不存在", 404)
           await threads.stop(row.thread_id)
         } else {
-          await approvals.respond(stringParam(params, "approvalId"), decision === "allow-once" ? "allow" : "deny")
+          await approvals.respond(approval.approvalId, decision === "allow-once" ? "allow" : "deny")
         }
         return { ok: true }
       }

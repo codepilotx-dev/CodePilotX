@@ -1,8 +1,83 @@
 import { Model } from "@codepilotx/model-schema"
 import { Schema } from "effect"
 
-export const PermissionModeSchema = Schema.Literals(["ask", "review", "full"])
-export type PermissionMode = typeof PermissionModeSchema.Type
+export const SandboxModeSchema = Schema.Literals(["read-only", "workspace-write", "danger-full-access"])
+export type SandboxMode = typeof SandboxModeSchema.Type
+
+export const ApprovalPolicySchema = Schema.Literals(["untrusted", "on-request", "never"])
+export type ApprovalPolicy = typeof ApprovalPolicySchema.Type
+
+export const ApprovalsReviewerSchema = Schema.Literals(["user", "auto_review"])
+export type ApprovalsReviewer = typeof ApprovalsReviewerSchema.Type
+
+export const PermissionConfigSchema = Schema.Struct({
+  sandboxMode: SandboxModeSchema,
+  approvalPolicy: ApprovalPolicySchema,
+  approvalsReviewer: ApprovalsReviewerSchema,
+})
+export type PermissionConfig = typeof PermissionConfigSchema.Type
+
+export const DEFAULT_PERMISSION_CONFIG: PermissionConfig = {
+  sandboxMode: "workspace-write",
+  approvalPolicy: "on-request",
+  approvalsReviewer: "user",
+}
+
+export const AUTO_REVIEW_PERMISSION_CONFIG: PermissionConfig = {
+  sandboxMode: "workspace-write",
+  approvalPolicy: "on-request",
+  approvalsReviewer: "auto_review",
+}
+
+export const FULL_ACCESS_PERMISSION_CONFIG: PermissionConfig = {
+  sandboxMode: "danger-full-access",
+  approvalPolicy: "never",
+  approvalsReviewer: "auto_review",
+}
+
+export const AdditionalPermissionsSchema = Schema.Struct({
+  readPaths: Schema.optional(Schema.Array(Schema.String)),
+  writePaths: Schema.optional(Schema.Array(Schema.String)),
+  networkDomains: Schema.optional(Schema.Array(Schema.String)),
+})
+export type AdditionalPermissions = typeof AdditionalPermissionsSchema.Type
+
+export const ShellInputSchema = Schema.Struct({
+  command: Schema.String,
+  cwd: Schema.optional(Schema.String),
+  timeoutMs: Schema.optional(Schema.Number),
+  additionalPermissions: Schema.optional(AdditionalPermissionsSchema),
+  justification: Schema.optional(Schema.String),
+})
+export type ShellInput = typeof ShellInputSchema.Type
+
+export const RiskCategorySchema = Schema.Literals([
+  "destructive",
+  "irreversible_change",
+  "system_modification",
+  "security_control",
+  "credential_access",
+  "credential_exfiltration",
+  "privilege_escalation",
+  "persistence",
+  "resource_exhaustion",
+  "network_access",
+  "scope_escape",
+  "prompt_injection",
+  "obfuscation",
+  "unknown_infrastructure",
+])
+export type RiskCategory = typeof RiskCategorySchema.Type
+
+export const ShellReviewSchema = Schema.Struct({
+  decision: Schema.Literals(["allow", "ask", "deny"]),
+  risk: Schema.Literals(["low", "medium", "high", "critical"]),
+  confidence: Schema.Literals(["low", "medium", "high"]),
+  categories: Schema.Array(RiskCategorySchema),
+  requestedScopeValid: Schema.Boolean,
+  reason: Schema.String,
+})
+export type ShellReview = typeof ShellReviewSchema.Type
 
 export const SendStrategySchema = Schema.Literals(["queue", "guide"])
 export type SendStrategy = typeof SendStrategySchema.Type
@@ -115,7 +190,7 @@ export const TurnSchema = Schema.Struct({
   status: TurnStatusSchema,
   mode: TaskModeSchema,
   model: Model.Ref,
-  permissionMode: PermissionModeSchema,
+  permissionConfig: PermissionConfigSchema,
   currentStage: Schema.NullOr(AgentRoleSchema),
   canContinueFromPlan: Schema.Boolean,
   stages: Schema.Array(WorkflowStageSchema),
@@ -135,7 +210,7 @@ export const InputSchema = Schema.Struct({
   strategy: SendStrategySchema,
   mode: TaskModeSchema,
   model: Model.Ref,
-  permissionMode: PermissionModeSchema,
+  permissionConfig: PermissionConfigSchema,
   state: Schema.Literals(["queued", "merged", "active", "completed", "cancelled"]),
   createdAt: Schema.Number,
 })
@@ -300,13 +375,32 @@ export const ApprovalRequestSchema = Schema.Struct({
   toolCallID: Schema.String,
   tool: Schema.String,
   command: Schema.NullOr(Schema.String),
+  cwd: Schema.NullOr(Schema.String),
   paths: Schema.Array(Schema.String),
-  risk: Schema.Literals(["low", "medium", "high"]),
+  requestedPermissions: AdditionalPermissionsSchema,
+  review: Schema.NullOr(ShellReviewSchema),
+  risk: Schema.Literals(["low", "medium", "high", "critical"]),
   reason: Schema.String,
   status: Schema.Literals(["pending", "allowed", "denied", "cancelled"]),
   createdAt: Schema.Number,
 })
 export type ApprovalRequest = typeof ApprovalRequestSchema.Type
+
+export const TurnStartParamsSchema = Schema.Struct({
+  threadId: Schema.String,
+  content: Schema.String,
+  model: Model.Ref,
+  permissionConfig: PermissionConfigSchema,
+  strategy: Schema.optional(SendStrategySchema),
+  taskMode: Schema.optional(TaskModeSchema),
+})
+export type TurnStartParams = typeof TurnStartParamsSchema.Type
+
+export const ApprovalRespondParamsSchema = Schema.Struct({
+  approvalId: Schema.String,
+  decision: Schema.Literals(["allow-once", "deny", "stop"]),
+})
+export type ApprovalRespondParams = typeof ApprovalRespondParamsSchema.Type
 
 export const ThreadSnapshotSchema = Schema.Struct({
   thread: ThreadSchema,
@@ -337,6 +431,10 @@ export const AgentRpcMethodSchema = Schema.Literals([
   "turn/resume",
   "turn/submitPlanDecision",
   "approval/respond",
+  "sandbox/status",
+  "sandbox/install",
+  "sandbox/repair",
+  "sandbox/uninstall",
   "question/respond",
   "proposal/list",
   "proposal/review",
@@ -396,11 +494,16 @@ export const AgentEventMethodSchema = Schema.Literals([
 ])
 export type AgentEventMethod = typeof AgentEventMethodSchema.Type
 
+export const RpcParamsSchema = Schema.Record(Schema.String, Schema.Unknown)
+export type RpcParams = typeof RpcParamsSchema.Type
+export const SandboxUninstallParamsSchema = Schema.Struct({ confirm: Schema.Literal(true) })
+export type SandboxUninstallParams = typeof SandboxUninstallParamsSchema.Type
+
 export const AgentNotificationSchema = Schema.Struct({
   jsonrpc: Schema.Literal("2.0"),
   id: Schema.optional(Schema.Union([Schema.String, Schema.Number])),
   method: AgentEventMethodSchema,
-  params: Schema.Unknown,
+  params: RpcParamsSchema,
 })
 export type AgentNotification = typeof AgentNotificationSchema.Type
 
@@ -408,7 +511,7 @@ export const AgentRpcRequestSchema = Schema.Struct({
   jsonrpc: Schema.Literal("2.0"),
   id: Schema.optional(Schema.Union([Schema.String, Schema.Number])),
   method: AgentRpcMethodSchema,
-  params: Schema.optional(Schema.Unknown),
+  params: Schema.optional(RpcParamsSchema),
 })
 export type AgentRpcRequest = typeof AgentRpcRequestSchema.Type
 

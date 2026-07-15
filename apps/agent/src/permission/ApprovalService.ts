@@ -1,8 +1,22 @@
 import { Effect } from "effect"
 import { AgentError, type PermissionDecision, type ToolInvocation } from "../domain"
+import { isShellInvocation } from "./shellInvocation"
 import type { AgentDatabase } from "../storage/Database"
 import type { EventHub } from "../storage/EventHub"
 import type { ToolRegistry } from "../tool/ToolRegistry"
+
+const requestedPermissions = (input: Record<string, unknown>) => {
+  const value = input.additionalPermissions
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { readPaths: [], writePaths: [], networkDomains: [] }
+  const permissions = value as Record<string, unknown>
+  const list = (name: string) => Array.isArray(permissions[name]) ? permissions[name].filter((item): item is string => typeof item === "string") : []
+  return { readPaths: list("readPaths"), writePaths: list("writePaths"), networkDomains: list("networkDomains") }
+}
+
+const hasRequestedPermissions = (input: Record<string, unknown>) => {
+  const permissions = requestedPermissions(input)
+  return permissions.readPaths.length > 0 || permissions.writePaths.length > 0 || permissions.networkDomains.length > 0
+}
 
 export type Reviewer = (invocation: ToolInvocation, signal: AbortSignal) => Promise<PermissionDecision>
 
@@ -31,35 +45,47 @@ export class ApprovalService {
   async authorize(invocation: ToolInvocation, signal: AbortSignal): Promise<PermissionDecision> {
     const tool = this.tools.get(invocation.name)
     if (invocation.taskMode === "plan" && tool.sideEffect) return { decision: "deny", risk: "high", reason: "计划模式禁止副作用工具" }
-    if (invocation.permissionMode === "full") {
-      await this.emit(invocation.threadID, invocation.turnID, "serverRequest/resolved", { itemId: invocation.id, turnId: invocation.turnID, kind: "approval", decision: "allow", mode: "full" })
-      return { decision: "allow", risk: tool.sideEffect ? "high" : "low", reason: "完全访问：按当前 Windows 用户权限执行并记录审计" }
-    }
-    if (invocation.permissionMode === "review" && this.reviewer) {
+    const shell = isShellInvocation(invocation)
+    const fullAccess = invocation.permissionConfig.sandboxMode === "danger-full-access"
+    const autoReview = invocation.permissionConfig.approvalsReviewer === "auto_review"
+    if ((shell || fullAccess || autoReview) && this.reviewer) {
       try {
         const reviewed = await this.reviewer(invocation, signal)
         await this.emit(invocation.threadID, invocation.turnID, "serverRequest/resolved", { itemId: invocation.id, turnId: invocation.turnID, kind: "approval-review", ...reviewed })
-        if (reviewed.decision !== "ask") return reviewed
+        if (fullAccess && reviewed.decision === "ask") return { ...reviewed, decision: "deny", reason: "完全访问不等待人工确认：审核结果不确定，已拒绝" }
+        if (reviewed.decision !== "ask") {
+          const defaultExtraAccess = shell
+            && invocation.permissionConfig.approvalPolicy === "on-request"
+            && invocation.permissionConfig.approvalsReviewer === "user"
+            && hasRequestedPermissions(invocation.input)
+          if (!defaultExtraAccess) return reviewed
+          return this.waitForHuman(invocation, { ...reviewed, decision: "ask", reason: "Default permissions 下的额外访问需要用户确认" }, signal)
+        }
         return this.waitForHuman(invocation, reviewed, signal)
       } catch (cause) {
+        if (fullAccess || shell) return { decision: "deny", risk: "critical", reason: `自动 AI 审查不可用，命令已拒绝：${cause instanceof Error ? cause.message : String(cause)}` }
         return this.waitForHuman(invocation, { decision: "ask", risk: "high", reason: `自动 AI 审查不可用：${cause instanceof Error ? cause.message : String(cause)}` }, signal)
       }
     }
+    if (fullAccess || shell) return { decision: "deny", risk: "critical", reason: "Shell 审核器不可用，命令已拒绝" }
     return this.waitForHuman(invocation, {
       decision: "ask",
       risk: tool.sideEffect ? "high" : "low",
-      reason: invocation.permissionMode === "review" ? "未配置独立审查模型，已转人工确认" : "每次确认模式",
+      reason: autoReview ? "未配置独立审查模型，已转人工确认" : "需要用户确认",
     }, signal)
   }
 
   private async waitForHuman(invocation: ToolInvocation, review: PermissionDecision, signal: AbortSignal): Promise<PermissionDecision> {
     const id = crypto.randomUUID()
     const createdAt = Date.now()
+    const permissions = requestedPermissions(invocation.input)
+    const payload = JSON.stringify({ version: 1, command: invocation.input.command ?? null, cwd: invocation.input.cwd ?? null, requestedPermissions: permissions })
+    const reviewPayload = review.review ? JSON.stringify(review.review) : null
     this.db.transaction(() => {
-      this.db.run(`INSERT INTO approval_requests (id, thread_id, turn_id, tool_call_id, risk, reason, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`, id, invocation.threadID, invocation.turnID, invocation.id, review.risk, review.reason, createdAt)
+      this.db.run(`INSERT INTO approval_requests (id, thread_id, turn_id, tool_call_id, risk, reason, status, request_payload, review_payload, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`, id, invocation.threadID, invocation.turnID, invocation.id, review.risk, review.reason, payload, reviewPayload, createdAt)
       this.db.updateTurnStatus(invocation.turnID, "waiting_permission")
     })
-    await this.emit(invocation.threadID, invocation.turnID, "approval/requested", { id, turnId: invocation.turnID, itemId: invocation.id, toolCallID: invocation.id, tool: invocation.name, input: invocation.input, risk: review.risk, reason: review.reason, createdAt })
+    await this.emit(invocation.threadID, invocation.turnID, "approval/requested", { id, turnId: invocation.turnID, itemId: invocation.id, toolCallID: invocation.id, tool: invocation.name, input: invocation.input, requestedPermissions: permissions, review: review.review ?? null, risk: review.risk, reason: review.reason, createdAt })
     return new Promise<PermissionDecision>((resolve, reject) => {
       const abort = () => {
         this.pending.delete(id)

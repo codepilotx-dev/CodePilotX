@@ -57,7 +57,7 @@ export class ThreadProjection {
       | { id: string; title: string; project_id: string | null; created_at: number; updated_at: number }
       | null
     if (!thread) return null
-    const inputs = (this.db.sqlite.query("SELECT id, thread_id, turn_id, content, model_ref, permission_mode, strategy, task_mode, status, created_at FROM inputs WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Input => ({
+    const inputs = (this.db.sqlite.query("SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at FROM inputs WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Input => ({
       id: String(row.id),
       threadId: String(row.thread_id),
       turnId: row.turn_id ? String(row.turn_id) : null,
@@ -65,11 +65,15 @@ export class ThreadProjection {
       strategy: String(row.strategy) as Input["strategy"],
       mode: String(row.task_mode) as Input["mode"],
       model: parse(String(row.model_ref)),
-      permissionMode: String(row.permission_mode) as Input["permissionMode"],
+      permissionConfig: {
+        sandboxMode: String(row.sandbox_mode) as Input["permissionConfig"]["sandboxMode"],
+        approvalPolicy: String(row.approval_policy) as Input["permissionConfig"]["approvalPolicy"],
+        approvalsReviewer: String(row.approvals_reviewer) as Input["permissionConfig"]["approvalsReviewer"],
+      },
       state: inputState(String(row.status)),
       createdAt: Number(row.created_at),
     }))
-    const turns = (this.db.sqlite.query("SELECT id, thread_id, status, mode, permission_mode, model_ref, current_stage, can_continue_from_plan, started_at, finished_at, created_at FROM turns WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Turn => {
+    const turns = (this.db.sqlite.query("SELECT id, thread_id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, current_stage, can_continue_from_plan, started_at, finished_at, created_at FROM turns WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Turn => {
       const turnInputs = inputs.filter((input) => input.turnId === row.id)
       const startedAt = row.started_at == null ? null : Number(row.started_at)
       const finishedAt = row.finished_at == null ? null : Number(row.finished_at)
@@ -80,7 +84,11 @@ export class ThreadProjection {
         status: turnStatus(String(row.status)),
         mode: String(row.mode) as Turn["mode"],
         model: parse(String(row.model_ref)),
-        permissionMode: String(row.permission_mode) as Turn["permissionMode"],
+        permissionConfig: {
+          sandboxMode: String(row.sandbox_mode) as Turn["permissionConfig"]["sandboxMode"],
+          approvalPolicy: String(row.approval_policy) as Turn["permissionConfig"]["approvalPolicy"],
+          approvalsReviewer: String(row.approvals_reviewer) as Turn["permissionConfig"]["approvalsReviewer"],
+        },
         mergedInputIDs: turnInputs.slice(1).map((input) => input.id),
         currentStage: row.current_stage == null ? null : String(row.current_stage) as Turn["currentStage"],
         canContinueFromPlan: Number(row.can_continue_from_plan ?? 0) === 1,
@@ -118,7 +126,7 @@ export class ThreadProjection {
         updatedAt: Number(row.updated_at),
       }))
       .filter((item): item is Item => item !== null)
-    const approvals = (this.db.sqlite.query("SELECT id, thread_id, turn_id, tool_call_id, risk, reason, status, reply, created_at FROM approval_requests WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row) => this.approval(row))
+    const approvals = (this.db.sqlite.query("SELECT id, thread_id, turn_id, tool_call_id, risk, reason, status, reply, request_payload, review_payload, created_at FROM approval_requests WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row) => this.approval(row))
     const proposals: Proposal[] = turns.flatMap((turn) => this.db.listProposals(turn.id).map((proposal) => ({
       id: proposal.id,
       turnId: proposal.turnID,
@@ -204,6 +212,11 @@ export class ThreadProjection {
     const input = tool ? parse<Record<string, unknown>>(tool.input) : {}
     const paths = [input.path, input.cwd].filter((value): value is string => typeof value === "string")
     const command = typeof input.command === "string" ? input.command : null
+    const request = typeof row.request_payload === "string" ? parse<Record<string, unknown>>(row.request_payload) : {}
+    const rawPermissions = request.requestedPermissions
+    const permissions = rawPermissions && typeof rawPermissions === "object" && !Array.isArray(rawPermissions) ? rawPermissions as Record<string, unknown> : {}
+    const list = (name: string) => Array.isArray(permissions[name]) ? permissions[name].filter((value): value is string => typeof value === "string") : []
+    const review = typeof row.review_payload === "string" ? parse<ApprovalRequest["review"]>(row.review_payload) : null
     return {
       id: String(row.id),
       threadId: String(row.thread_id),
@@ -211,7 +224,14 @@ export class ThreadProjection {
       toolCallID: String(row.tool_call_id),
       tool: tool?.tool_name ?? "tool",
       command,
+      cwd: typeof input.cwd === "string" ? input.cwd : null,
       paths,
+      requestedPermissions: {
+        readPaths: list("readPaths"),
+        writePaths: list("writePaths"),
+        networkDomains: list("networkDomains"),
+      },
+      review,
       risk: String(row.risk) as ApprovalRequest["risk"],
       reason: String(row.reason),
       status: row.status === "pending" ? "pending" : row.status === "cancelled" ? "cancelled" : row.reply === "allow" ? "allowed" : "denied",

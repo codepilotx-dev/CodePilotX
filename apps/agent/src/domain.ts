@@ -1,4 +1,7 @@
-export type PermissionMode = "ask" | "review" | "full"
+import type { PermissionConfig, ShellReview } from "@codepilotx/shared/thread"
+import type { Model } from "@codepilotx/model-schema"
+
+export type { PermissionConfig } from "@codepilotx/shared/thread"
 export type SendStrategy = "queue" | "guide"
 export type TaskMode = "chat" | "plan"
 export type TurnStatus =
@@ -16,7 +19,7 @@ export type ModelRef = Model.Ref
 export interface SubmitMessage {
   content: string
   model: ModelRef
-  permissionMode: PermissionMode
+  permissionConfig: PermissionConfig
   strategy: SendStrategy
   taskMode: TaskMode
 }
@@ -79,38 +82,22 @@ export interface EventEnvelope<T = unknown> {
   createdAt: number
 }
 
-export type NormalizedLLMEvent =
-  | { type: "text-start"; id: string }
-  | { type: "text-delta"; id: string; delta: string }
-  | { type: "text-end"; id: string }
-  | { type: "reasoning-start"; id: string }
-  | { type: "reasoning-delta"; id: string; delta: string }
-  | { type: "reasoning-end"; id: string }
-  | { type: "tool-input-start"; id: string; toolName: string }
-  | { type: "tool-input-delta"; id: string; delta: string }
-  | { type: "tool-input-end"; id: string }
-  | { type: "tool-call"; id: string; toolName: string; input: unknown }
-  | { type: "tool-result"; id: string; output: unknown }
-  | { type: "tool-error"; id: string; error: string }
-  | { type: "step-start"; id: string }
-  | { type: "step-finish"; id: string; finishReason?: string }
-  | { type: "finish"; finishReason?: string }
-  | { type: "provider-error"; message: string; retryable: boolean }
-
 export interface ToolInvocation {
   id: string
   threadID: string
   turnID: string
   name: string
   input: Record<string, unknown>
-  permissionMode: PermissionMode
+  permissionConfig: PermissionConfig
+  model: Model.Ref
   taskMode: TaskMode
 }
 
 export interface PermissionDecision {
   decision: "allow" | "ask" | "deny"
-  risk: "low" | "medium" | "high"
+  risk: "low" | "medium" | "high" | "critical"
   reason: string
+  review?: ShellReview
 }
 
 export class AgentError extends Error {
@@ -123,4 +110,3 @@ export class AgentError extends Error {
     super(message)
   }
 }
-import type { Model } from "@codepilotx/model-schema"

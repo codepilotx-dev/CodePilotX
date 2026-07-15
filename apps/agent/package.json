@@ -16,6 +16,7 @@
     "@ai-sdk/anthropic": "3.0.82",
     "@ai-sdk/openai": "3.0.53",
     "@ai-sdk/openai-compatible": "2.0.41",
+    "@anthropic-ai/sandbox-runtime": "0.0.65",
     "@codepilotx/model-schema": "workspace:*",
     "@codepilotx/provider-plugin": "workspace:*",
     "@codepilotx/provider-runtime": "workspace:*",
