@@ -19,7 +19,7 @@ describe("问题 checkpoint", () => {
     databases.push(db)
     const hub = await Effect.runPromise(EventHub.make)
     const thread = db.createThread()
-    const input = { content: "规划一个改动", model: Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("test") }), permissionMode: "ask", strategy: "queue", taskMode: "plan" } as const
+    const input = { content: "规划一个改动", model: Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("test") }), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" }, strategy: "queue", taskMode: "plan" } as const
     const turn = db.createTurn(thread.id, input)
     db.startTurn(turn.turnID)
     const questions = new QuestionService(db, hub)

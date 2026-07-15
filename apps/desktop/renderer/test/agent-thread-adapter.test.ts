@@ -35,13 +35,13 @@ describe('agent thread adapter', () => {
       thread: { id: 'thread-1', title: '历史对话', projectID: project.id, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000 },
       turns: [{
         id: 'turn-1', threadId: 'thread-1', sourceInputID: 'input-1', status: 'running', mode: 'plan',
-        model: { providerID: 'openai', id: 'gpt-5' }, permissionMode: 'review', currentStage: 'developer',
+        model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }, currentStage: 'developer',
         canContinueFromPlan: false, stages: [], mergedInputIDs: [], startedAt: 1_700_000_001_000,
         finishedAt: null, elapsedSeconds: 7, error: null,
       }],
       inputs: [{
         id: 'input-1', threadId: 'thread-1', turnId: 'turn-1', content: '实现历史对话', strategy: 'queue',
-        mode: 'plan', model: { providerID: 'openai', id: 'gpt-5' }, permissionMode: 'review',
+        mode: 'plan', model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' },
         state: 'active', createdAt: 1_700_000_001_000,
       }],
       messages: [],
@@ -52,7 +52,7 @@ describe('agent thread adapter', () => {
         { id: 'patch-1', messageID: 'turn-1', turnId: 'turn-1', type: 'patch', files: [{ path: 'a.ts', additions: 1, deletions: 0, patch: 'diff' }], totalAdditions: 1, totalDeletions: 0, createdAt: 1_700_000_006_000 },
         { id: 'question-1', messageID: 'turn-1', turnId: 'turn-1', type: 'question', prompt: '继续吗？', choices: [{ id: 'yes', label: '继续', description: '继续执行', recommended: true }, { id: 'no', label: '停止', description: '停止执行', recommended: false }], status: 'pending', answer: null, createdAt: 1_700_000_007_000 },
       ],
-      approvals: [{ id: 'approval-1', threadId: 'thread-1', turnId: 'turn-1', toolCallID: 'tool-1', tool: 'powershell.exec', command: 'bun test', paths: [], risk: 'medium', reason: '需要运行测试', status: 'pending', createdAt: 1_700_000_003_500 }],
+      approvals: [{ id: 'approval-1', threadId: 'thread-1', turnId: 'turn-1', toolCallID: 'tool-1', tool: 'powershell.exec', command: 'bun test', cwd: null, paths: [], requestedPermissions: { readPaths: [], writePaths: [], networkDomains: [] }, risk: 'medium', reason: '需要运行测试', status: 'pending', createdAt: 1_700_000_003_500 }],
       proposals: [],
     }
 

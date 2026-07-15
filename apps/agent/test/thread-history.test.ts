@@ -44,7 +44,7 @@ const makeHistory = async () => {
 const input = (content: string) => ({
   content,
   model: Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt") }),
-  permissionMode: "review",
+  permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "auto_review" },
   strategy: "queue",
   taskMode: "chat",
 } as const)

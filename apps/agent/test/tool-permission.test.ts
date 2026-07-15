@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
+import { ToolExecutor } from "../src/tool/ToolExecutor"
 import { WorkspaceService } from "../src/workspace/WorkspaceService"
 
 const paths: string[] = []
@@ -14,11 +15,13 @@ describe("只读工作区工具", () => {
     paths.push(root)
     const file = join(root, "source.txt")
     await writeFile(file, "before", "utf8")
-    const tools = new ToolRegistry(await WorkspaceService.open(root))
-    const context = { taskMode: "chat" as const, signal: new AbortController().signal }
+    const workspace = await WorkspaceService.open(root)
+    const tools = new ToolRegistry()
+    const executor = new ToolExecutor(tools)
+    const context = { threadID: "thread", turnID: "turn", taskMode: "chat" as const, signal: new AbortController().signal, workspace }
 
-    const patch = await tools.execute("propose_patch", { path: "source.txt", before: "before", after: "after" }, context)
-    const command = await tools.execute("propose_command", { command: "Write-Output should-not-run" }, context)
+    const patch = await executor.execute("propose_patch", { path: "source.txt", before: "before", after: "after" }, context)
+    const command = await executor.execute("propose_command", { command: "Write-Output should-not-run" }, context)
 
     expect(patch).toMatchObject({ type: "patch", payload: { path: "source.txt", after: "after" } })
     expect(command).toMatchObject({ type: "command", payload: { command: "Write-Output should-not-run" } })
@@ -49,5 +52,28 @@ describe("只读工作区工具", () => {
     const workspace = await WorkspaceService.open(root)
 
     await expect(workspace.read("outside-link.txt")).rejects.toMatchObject({ code: "WORKSPACE_PATH_DENIED" })
+  })
+
+  test("统一执行器在第 1 阶段拒绝副作用工具", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-workspace-"))
+    paths.push(root)
+    const workspace = await WorkspaceService.open(root)
+    const tools = new ToolRegistry()
+    tools.register({
+      name: "test.side-effect",
+      description: "test",
+      sideEffect: true,
+      inputSchema: { type: "object" },
+      execute: async () => "must-not-run",
+    })
+    const executor = new ToolExecutor(tools)
+
+    await expect(executor.execute("test.side-effect", {}, {
+      threadID: "thread",
+      turnID: "turn",
+      taskMode: "chat",
+      signal: new AbortController().signal,
+      workspace,
+    })).rejects.toMatchObject({ code: "SIDE_EFFECT_TOOLS_DISABLED" })
   })
 })

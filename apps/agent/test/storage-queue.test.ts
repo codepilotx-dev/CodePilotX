@@ -27,7 +27,7 @@ describe("持久化队列", () => {
     paths.push(root)
     const db = new AgentDatabase(join(root, "agent.sqlite"))
     const thread = db.createThread()
-    const input = { content: "first", model: modelRef("openai", "gpt"), permissionMode: "review", strategy: "queue", taskMode: "chat" } as const
+    const input = { content: "first", model: modelRef("openai", "gpt"), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "auto_review" }, strategy: "queue", taskMode: "chat" } as const
     const first = db.createTurn(thread.id, input)
     db.createTurn(thread.id, { ...input, content: "second" })
     expect(db.nextQueuedTurn(thread.id)?.id).toBe(first.turnID)
@@ -57,7 +57,7 @@ describe("持久化队列", () => {
     const databasePath = join(root, "agent.sqlite")
     const db = new AgentDatabase(databasePath)
     const thread = db.createThread()
-    const input = { content: "plan", model: modelRef("openai", "gpt"), permissionMode: "review", strategy: "queue", taskMode: "plan" } as const
+    const input = { content: "plan", model: modelRef("openai", "gpt"), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "auto_review" }, strategy: "queue", taskMode: "plan" } as const
     const turn = db.createTurn(thread.id, input)
     db.setTurnWorkflowState(turn.turnID, { status: "waiting_question", currentStage: "planner", canContinueFromPlan: false })
     db.saveAgentTurnCheckpoint({ turnID: turn.turnID, threadID: thread.id, stage: "planner", state: "waiting_question", payload: { inputID: turn.inputID }, version: 1 })
