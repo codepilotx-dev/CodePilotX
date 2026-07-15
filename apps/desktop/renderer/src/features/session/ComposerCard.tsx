@@ -29,7 +29,6 @@ import {
   Search,
   ShieldAlert,
   ShieldCheck,
-  ShieldOff,
   Sparkles,
   Square,
   Target,
@@ -807,7 +806,6 @@ export function ComposerCard({
   }
 
   const isRunning = sessionStatus === "running" || sessionStatus === "waiting";
-  const showFullAccessWarning = permissionMode === "full-access";
   const contextUsedText = contextUsage
     ? `${formatCompactNumber(contextUsage.usedTokens)} / ${formatCompactNumber(
         contextUsage.contextWindow,
@@ -915,12 +913,6 @@ export function ComposerCard({
       }}
       onDrop={handleFileDrop}
     >
-      {showFullAccessWarning ? (
-        <div className="permission-warning-banner">
-          <ShieldOff size={APP_ICON_SIZE} />
-          <span>完全访问权限 · 此对话允许直接读写文件和运行命令</span>
-        </div>
-      ) : null}
       <div className="composer-top">
         {attachments.length > 0 ? (
           <div className="composer-attachments" aria-label="已添加附件">

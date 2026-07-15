@@ -17,33 +17,6 @@
   overflow: visible;
 }
 
-.permission-warning-banner {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px 6px 10px;
-  border-bottom: 1px solid
-    color-mix(in srgb, var(--color-warning) 50%, var(--color-border));
-  background: color-mix(
-    in srgb,
-    var(--color-warning) 18%,
-    var(--color-panel-bg)
-  );
-  color: var(--color-warning);
-  font-size: var(--type-secondary);
-  line-height: 1.4;
-  font-weight: 500;
-
-  > svg {
-    width: var(--app-icon-size);
-    height: var(--app-icon-size);
-    display: block;
-    flex-shrink: 0;
-    color: var(--color-warning);
-    stroke-width: var(--app-icon-stroke-width);
-  }
-}
-
 .composer-top {
   position: relative;
   padding: var(
