@@ -56,5 +56,11 @@ export default {
         'declaration-no-important': null,
       },
     },
+    {
+      files: ['**/design-system/utilities.scss'],
+      rules: {
+        'selector-class-pattern': '^u-[a-z0-9]+(?:-[a-z0-9]+)*$',
+      },
+    },
   ],
 }

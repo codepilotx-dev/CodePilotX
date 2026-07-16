@@ -8,8 +8,16 @@
     "primitives",
     "shell",
     "features",
+    "utilities",
     "overrides"
   ],
+  "utilityContract": {
+    "source": "src/styles/design-system/utilities.scss",
+    "prefix": "u-",
+    "maxSelectors": 220,
+    "maxBytes": 18432,
+    "maxGzipBytes": 4096
+  },
   "directStyleImportAllowlist": [],
   "customPropertyReferenceAllowlist": [
     "--button-font-size",

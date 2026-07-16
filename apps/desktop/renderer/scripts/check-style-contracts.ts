@@ -1,10 +1,21 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { dirname, extname, join, relative, resolve } from 'node:path'
+import { gzipSync } from 'node:zlib'
+import { compile } from 'sass'
+
+type UtilityContract = {
+  source: string
+  prefix: string
+  maxSelectors: number
+  maxBytes: number
+  maxGzipBytes: number
+}
 
 type StyleContractManifest = {
   styleEntrypoint: string
   styleEntrypointImporter: string
   cascadeLayerOrder: string[]
+  utilityContract: UtilityContract
   directStyleImportAllowlist: string[]
   customPropertyReferenceAllowlist: string[]
   importantDeclarationAllowlist: Record<string, number>
@@ -19,6 +30,10 @@ const scriptExtensions = new Set(['.ts', '.tsx'])
 
 function workspacePath(path: string): string {
   return relative(workspaceRoot, path).replaceAll('\\', '/')
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 async function listFiles(directory: string): Promise<string[]> {
@@ -177,6 +192,96 @@ for (const styleFile of styleFiles) {
   if (!entryGraph.has(styleFile) && !directStyleTargets.has(styleFile)) {
     errors.push(`style file is outside the single-entry graph: ${workspacePath(styleFile)}`)
   }
+}
+
+const utilityPath = resolve(workspaceRoot, manifest.utilityContract.source)
+if (!(await isFile(utilityPath))) {
+  errors.push(`utilityContract.source must point to an existing SCSS file: ${manifest.utilityContract.source}`)
+} else if (!entryGraph.has(utilityPath)) {
+  errors.push(`utility source is outside the single-entry graph: ${manifest.utilityContract.source}`)
+} else {
+  const { prefix, maxSelectors, maxBytes, maxGzipBytes } = manifest.utilityContract
+  if (!/^[a-z][a-z0-9]*-$/.test(prefix)) {
+    errors.push(`utility prefix must be a lowercase kebab prefix ending in "-": ${prefix}`)
+  }
+
+  const utilityCss = compile(utilityPath, { style: 'expanded' }).css
+  const escapedPrefix = escapeRegExp(prefix)
+  const expectedSelectorPattern = new RegExp(
+    `:where\\(\\.(${escapedPrefix}[a-z0-9]+(?:-[a-z0-9]+)*)\\)\\s*\\{`,
+    'g',
+  )
+  const utilitySelectors = [...utilityCss.matchAll(expectedSelectorPattern)].map(
+    (match) => match[1],
+  )
+  const allUtilityBlocks = [...utilityCss.matchAll(/([^{}]+)\{/g)].filter((match) =>
+    match[1].includes(`.${prefix}`),
+  )
+  const uniqueUtilitySelectors = new Set(utilitySelectors)
+  const utilityBytes = Buffer.byteLength(utilityCss)
+  const utilityGzipBytes = gzipSync(utilityCss).byteLength
+
+  if (allUtilityBlocks.length !== utilitySelectors.length) {
+    errors.push('every utility selector must use one zero-specificity :where(.u-*) selector')
+  }
+  if (uniqueUtilitySelectors.size !== utilitySelectors.length) {
+    errors.push('utility selectors must be unique')
+  }
+  if (utilitySelectors.length > maxSelectors) {
+    errors.push(`utility selector budget exceeded: ${utilitySelectors.length} > ${maxSelectors}`)
+  }
+  if (utilityBytes > maxBytes) {
+    errors.push(`utility byte budget exceeded: ${utilityBytes} > ${maxBytes}`)
+  }
+  if (utilityGzipBytes > maxGzipBytes) {
+    errors.push(`utility gzip budget exceeded: ${utilityGzipBytes} > ${maxGzipBytes}`)
+  }
+  if (/!important\b/.test(utilityCss)) {
+    errors.push('utilities must not use !important')
+  }
+  if (/\[data-theme(?=[\s=\]])/.test(utilityCss)) {
+    errors.push('utilities must not contain data-theme selectors')
+  }
+
+  const utilityReferencePattern = new RegExp(
+    `\\b${escapedPrefix}[a-z0-9]+(?:-[a-z0-9]+)*\\b`,
+    'g',
+  )
+  const utilityDefinitionPattern = new RegExp(
+    `\\.(${escapedPrefix}[a-z0-9]+(?:-[a-z0-9]+)*)\\b`,
+    'g',
+  )
+  for (const styleFile of styleFiles) {
+    if (styleFile === utilityPath) continue
+    const source = await readFile(styleFile, 'utf8')
+    const definitions = [...source.matchAll(utilityDefinitionPattern)].map(
+      (match) => match[1],
+    )
+    if (definitions.length > 0) {
+      errors.push(
+        `utility classes may only be defined by ${manifest.utilityContract.source}: ${workspacePath(styleFile)} defines ${[...new Set(definitions)].join(', ')}`,
+      )
+    }
+  }
+  for (const scriptFile of scriptFiles) {
+    const source = await readFile(scriptFile, 'utf8')
+    if (
+      new RegExp(`${escapedPrefix}\\$\\{`).test(source) ||
+      new RegExp(`['\"\\\`]${escapedPrefix}[^'\"\\\`]*['\"\\\`]\\s*\\+`).test(source) ||
+      new RegExp(`\\+\\s*['\"\\\`]${escapedPrefix}`).test(source)
+    ) {
+      errors.push(`utility classes must be complete static strings: ${workspacePath(scriptFile)}`)
+    }
+    for (const utility of source.match(utilityReferencePattern) ?? []) {
+      if (!uniqueUtilitySelectors.has(utility)) {
+        errors.push(`unknown utility class in ${workspacePath(scriptFile)}: ${utility}`)
+      }
+    }
+  }
+
+  console.log(
+    `[style-contracts] utilities: ${utilitySelectors.length} selectors, ${utilityBytes} bytes, ${utilityGzipBytes} gzip bytes`,
+  )
 }
 
 const customPropertyReferences = new Set<string>()

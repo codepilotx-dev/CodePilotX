@@ -1,5 +1,5 @@
 @use 'sass:meta';
-@layer vendor, reset, tokens, primitives, shell, features, overrides;
+@layer vendor, reset, tokens, primitives, shell, features, utilities, overrides;
 
 @layer vendor {
   @include meta.load-css('vendor');
@@ -61,6 +61,10 @@
   @include meta.load-css('features/marketplace');
   @include meta.load-css('features/automation');
   @include meta.load-css('model-menu-pilot');
+}
+
+@layer utilities {
+  @include meta.load-css('design-system/utilities');
 }
 
 @layer overrides {
