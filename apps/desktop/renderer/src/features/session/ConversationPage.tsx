@@ -2765,7 +2765,7 @@ function ChatMessage({
         />
       </div>
       {showActions && message.role === "assistant" && message.text.trim() ? (
-        <div className="assistant-message-actions">
+        <div className="user-message-meta">
           <MessageActionButton label="复制" tip="复制" text={message.text}>
             <Copy size={APP_ICON_SIZE} />
           </MessageActionButton>

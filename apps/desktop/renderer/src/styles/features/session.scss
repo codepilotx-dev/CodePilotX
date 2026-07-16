@@ -419,8 +419,7 @@
     display: inline-flex;
     align-items: center;
     gap: var(--control-gap-compact);
-    padding: var(--control-padding-block-compact)
-      var(--control-padding-inline);
+    padding: var(--control-padding-block-compact) var(--control-padding-inline);
     border: 0;
     border-radius: var(--radius-4);
     background: transparent;
@@ -617,10 +616,7 @@
     var(--control-padding-block) var(--control-padding-inline)
   );
   background: var(--inline-approval-note-bg, var(--color-bg));
-  border: var(
-    --inline-approval-note-border,
-    1px solid transparent
-  );
+  border: var(--inline-approval-note-border, 1px solid transparent);
   border-radius: var(--inline-approval-note-radius, var(--radius-5));
   transition:
     border-color 0.15s,
@@ -940,8 +936,7 @@
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
   color: var(--color-text);
-  animation: environment-panel-enter var(--motion-enter, 160ms)
-    var(--ease-out, ease-out) both;
+  
 }
 
 /* Narrow: overlay inside timeline lane */
@@ -1626,14 +1621,13 @@
 
 /* --- User message --- */
 .user-message-bubble {
-  padding: 12px 16px;
-  border: 1px solid
-    color-mix(in srgb, var(--color-text-strong) 12%, transparent);
+  padding: 10px 12px;
+
   border-radius: var(--radius-user-message);
-  background: var(--color-panel-bg);
+  background: var(--color-sidebar-bg);
   color: var(--color-text-strong);
   box-shadow: none;
-  line-height: 1.68;
+
   word-break: break-word;
   white-space: pre-wrap;
 }
@@ -1642,18 +1636,22 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding-right: 6px;
   color: var(--color-text-meta);
   font-size: var(--type-meta);
-  line-height: 1;
+  margin-top: 4px;
+  opacity: 0;
+
+  &:hover {
+    opacity: 1;
+  }
 
   time {
     font-variant-numeric: tabular-nums;
   }
 
   .message-action {
-    width: calc(var(--app-icon-size-sm) + 0.29em);
-    height: calc(var(--app-icon-size-sm) + 0.29em);
+    width: var(--app-icon-size-sm);
+    height: var(--app-icon-size-sm);
     border-radius: var(--radius-3);
     color: var(--color-text-meta);
 
@@ -3186,8 +3184,7 @@
 
 .mcp-form-btn-decline,
 .mcp-form-btn-cancel {
-  padding: var(--control-padding-block-compact)
-    var(--control-padding-inline);
+  padding: var(--control-padding-block-compact) var(--control-padding-inline);
   border: 1px solid transparent;
   border-radius: var(--radius-5);
   background: transparent;
@@ -3434,8 +3431,7 @@
 }
 
 .workflow-composer-card-permission .inline-approval-option {
-  padding: var(--control-padding-block-compact)
-    var(--control-padding-inline);
+  padding: var(--control-padding-block-compact) var(--control-padding-inline);
   border-radius: var(--radius-4);
   color: var(--color-text-strong);
 }
@@ -3468,8 +3464,7 @@
 }
 
 .workflow-composer-card-permission .inline-approval-skip {
-  padding: var(--control-padding-block-compact)
-    var(--control-padding-inline);
+  padding: var(--control-padding-block-compact) var(--control-padding-inline);
   border-radius: var(--radius-4);
   color: var(--color-text-meta);
 }
