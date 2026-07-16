@@ -97,10 +97,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     enableFusionRouter: false,
     enableAutoReviewPermissionMode: false,
     enableFullAccessPermissionMode: false,
-    permissionProfile: ':workspace',
-    approvalPolicy: 'on-request',
-    approvalsReviewer: 'user',
-    permissionMode: 'default',
+    permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
     model: '',
     planExecutionModel: '',
     reviewModel: '',
@@ -135,7 +132,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
 	    installCodePilotXDependencies: true,
     personality: 'pragmatic',
     customInstructions: '',
-    enableMemory: true,
+    enableMemory: false,
     lastActiveWorkspacePath: '',
     removedWorkspaces: [],
     skipToolAidedChats: false,
@@ -163,6 +160,26 @@ export function normalizeDesktopStoredSettings(
       : {}
   const defaults = defaultDesktopStoredSettings()
   const permissionMode = normalizeDesktopPermissionMode(parsed.permissionMode)
+  const legacyPermissionProfile = normalizeDesktopPermissionProfile(parsed.permissionProfile, ':workspace')
+  const sandboxMode = isDesktopSandboxMode(parsed.sandboxMode)
+    ? parsed.sandboxMode === 'full-access' ? 'danger-full-access' : parsed.sandboxMode
+    : legacyPermissionProfile.includes('danger')
+      ? 'danger-full-access'
+      : legacyPermissionProfile.includes('read-only')
+        ? 'read-only'
+        : 'workspace-write'
+  const rawPermissionConfig = parsed.permissionConfig && typeof parsed.permissionConfig === 'object' ? parsed.permissionConfig : null
+  const permissionConfig = rawPermissionConfig ? {
+    sandboxMode: isDesktopSandboxMode(rawPermissionConfig.sandboxMode)
+      ? rawPermissionConfig.sandboxMode
+      : sandboxMode,
+    approvalPolicy: normalizeDesktopApprovalPolicy(rawPermissionConfig.approvalPolicy, normalizeDesktopApprovalPolicy(parsed.approvalPolicy, 'on-request')),
+    approvalsReviewer: normalizeDesktopApprovalsReviewer(rawPermissionConfig.approvalsReviewer, normalizeDesktopApprovalsReviewer(parsed.approvalsReviewer, 'user')),
+  } : {
+    sandboxMode,
+    approvalPolicy: normalizeDesktopApprovalPolicy(parsed.approvalPolicy, 'on-request'),
+    approvalsReviewer: normalizeDesktopApprovalsReviewer(parsed.approvalsReviewer, 'user'),
+  }
   return {
     enableParetoCodeRouter:
       typeof parsed.enableParetoCodeRouter === 'boolean'
@@ -184,19 +201,7 @@ export function normalizeDesktopStoredSettings(
         : permissionMode === 'full-access'
           ? true
           : defaults.enableFullAccessPermissionMode,
-    permissionProfile: normalizeDesktopPermissionProfile(
-      parsed.permissionProfile,
-      defaults.permissionProfile,
-    ),
-    approvalPolicy: normalizeDesktopApprovalPolicy(
-      parsed.approvalPolicy,
-      defaults.approvalPolicy,
-    ),
-    approvalsReviewer: normalizeDesktopApprovalsReviewer(
-      parsed.approvalsReviewer,
-      defaults.approvalsReviewer,
-    ),
-    permissionMode: permissionMode === 'custom' ? 'default' : permissionMode,
+    permissionConfig,
     model: migrateModelAlias(stringOrDefault(parsed.model, defaults.model)),
     planExecutionModel: stringOrDefault(
       parsed.planExecutionModel,
@@ -463,9 +468,23 @@ export function normalizeDesktopApprovalPolicy(
   value: unknown,
   fallback: DesktopStoredSettings['approvalPolicy'] = 'on-request',
 ): DesktopStoredSettings['approvalPolicy'] {
+  if (value === 'on-failure') return 'on-request'
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const policy = value as Record<string, unknown>
+    const keys = ['sandboxApproval', 'rules', 'skillApproval', 'requestPermissions', 'mcpElicitations'] as const
+    if (policy.type === 'granular' && keys.every(key => typeof policy[key] === 'boolean')) {
+      return {
+        type: 'granular',
+        sandboxApproval: policy.sandboxApproval as boolean,
+        rules: policy.rules as boolean,
+        skillApproval: policy.skillApproval as boolean,
+        requestPermissions: policy.requestPermissions as boolean,
+        mcpElicitations: policy.mcpElicitations as boolean,
+      }
+    }
+  }
   return value === 'untrusted' ||
     value === 'on-request' ||
-    value === 'on-failure' ||
     value === 'never'
     ? value
     : fallback

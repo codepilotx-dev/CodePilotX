@@ -5,6 +5,7 @@ import type {
   DesktopContextUsage,
   DesktopSessionCatalogStatus,
   DesktopPermissionDecision,
+  DesktopPermissionConfig,
   DesktopPermissionMode,
   DesktopPermissionRequest,
   DesktopSessionEvent,
@@ -62,6 +63,7 @@ import { sortSessionsByRecency } from './sessionSorting.js'
 
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
+  permissionConfig: DesktopPermissionConfig
   planModeActive: boolean
   localRouterMode: LocalRouterMode
   providerID: ModelProviderID
@@ -156,6 +158,7 @@ export function useSessionState(
 ): UseSessionStateResult {
   const {
     permissionMode,
+    permissionConfig,
     planModeActive,
     localRouterMode,
     providerID,
@@ -602,6 +605,7 @@ export function useSessionState(
   const settingsSnapshot = useMemo<SessionSettingsSnapshot>(
     () => ({
       permissionMode: effectivePermissionMode,
+      permissionConfig,
       planModeActive: effectivePlanModeActive,
       localRouterMode: effectiveLocalRouterMode,
       providerID,
@@ -637,6 +641,7 @@ export function useSessionState(
       deepModel,
       effectiveLocalRouterMode,
       effectivePermissionMode,
+      permissionConfig,
       effectivePlanModeActive,
       providerBaseURL,
       providerID,

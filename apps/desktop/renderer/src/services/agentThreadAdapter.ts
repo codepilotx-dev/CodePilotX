@@ -106,7 +106,7 @@ export function agentThreadListItemToDesktopSnapshot(
     item,
     workspace: projectToDesktopWorkspace(project, thread.projectID),
     settings: {
-      permissionMode: item.permissionMode,
+      permissionConfig: thread.settings.permissionConfig,
       collaborationMode: item.collaborationMode,
       planModeActive: item.planModeActive,
       thinkingMode: 'default',
@@ -156,7 +156,7 @@ export function agentThreadSnapshotToDesktop(
     item,
     workspace,
     settings: {
-      permissionMode: item.permissionMode,
+      permissionConfig: snapshot.thread.settings.permissionConfig,
       collaborationMode: item.collaborationMode,
       planModeActive,
       providerID: latestTurn?.model.providerID ?? latestInput?.model.providerID,

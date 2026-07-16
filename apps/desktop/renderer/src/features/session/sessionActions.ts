@@ -6,6 +6,7 @@ import type {
   LocalRouterMode,
   ModelProviderID,
   DesktopPermissionMode,
+  DesktopPermissionConfig,
   DesktopPermissionRequest,
   DesktopSessionMetadataPatch,
   DesktopSessionStatus,
@@ -30,6 +31,7 @@ import { sortSessionsByRecency } from './sessionSorting.js'
 
 export type SessionSettingsSnapshot = {
   permissionMode: DesktopPermissionMode
+  permissionConfig: DesktopPermissionConfig
   planModeActive: boolean
   localRouterMode: LocalRouterMode
   providerID: ModelProviderID
@@ -92,7 +94,7 @@ export async function createSessionForWorkspaceAction(
     const session = await desktopClient.createSession({
       workspacePath: target?.path,
       localRouterMode: settings.localRouterMode,
-      permissionMode: settings.permissionMode,
+      permissionConfig: settings.permissionConfig,
       planModeActive: settings.planModeActive,
       providerID: settings.providerID,
       providerBaseURL: normalizeOptionalText(settings.providerBaseURL),

@@ -395,8 +395,22 @@ export type DesktopApprovalPolicy =
   | 'on-request'
   | 'on-failure'
   | 'never'
+  | {
+      type: 'granular'
+      sandboxApproval: boolean
+      rules: boolean
+      skillApproval: boolean
+      requestPermissions: boolean
+      mcpElicitations: boolean
+    }
 
 export type DesktopApprovalsReviewer = 'user' | 'auto_review'
+
+export type DesktopPermissionConfig = {
+  sandboxMode: Exclude<DesktopSandboxMode, 'full-access'>
+  approvalPolicy: DesktopApprovalPolicy
+  approvalsReviewer: DesktopApprovalsReviewer
+}
 
 export type DesktopCollaborationMode = CodePilotXCollaborationMode
 
@@ -688,10 +702,15 @@ export type DesktopStoredSettings = {
   enableFusionRouter?: boolean
   enableAutoReviewPermissionMode?: boolean
   enableFullAccessPermissionMode?: boolean
+  permissionConfig: DesktopPermissionConfig
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
   permissionProfile?: DesktopPermissionProfile
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
   approvalPolicy?: DesktopApprovalPolicy
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
   approvalsReviewer?: DesktopApprovalsReviewer
-  permissionMode: DesktopPermissionMode
+  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
+  permissionMode?: DesktopPermissionMode
   model: string
   planExecutionModel: string
   reviewModel: string
@@ -725,6 +744,7 @@ gitBranchPrefix: string
   pullRequestPrompt: string
 	  githubOAuthClientId: string
 	  authBaseUrl: string
+	  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
 	  sandboxMode?: DesktopSandboxMode
   allowNetworkAccess?: boolean
   installCodePilotXDependencies: boolean
@@ -932,10 +952,7 @@ export type DesktopSessionListItem = {
 
 export type DesktopSessionSettingsSnapshot = {
   localRouterMode?: LocalRouterMode
-  permissionProfile?: DesktopPermissionProfile
-  approvalPolicy?: DesktopApprovalPolicy
-  approvalsReviewer?: DesktopApprovalsReviewer
-  permissionMode: DesktopPermissionMode
+  permissionConfig: DesktopPermissionConfig
   collaborationMode?: DesktopCollaborationMode
   planModeActive?: boolean
   providerID?: ModelProviderID
@@ -1039,10 +1056,7 @@ export type CreateDesktopSessionOptions = {
   appServerThreadId?: string | null
   localRouterMode?: LocalRouterMode
   workspacePath?: string
-  permissionProfile?: DesktopPermissionProfile
-  approvalPolicy?: DesktopApprovalPolicy
-  approvalsReviewer?: DesktopApprovalsReviewer
-  permissionMode?: DesktopPermissionMode
+  permissionConfig?: DesktopPermissionConfig
   collaborationMode?: DesktopCollaborationMode
   planModeActive?: boolean
   providerID?: ModelProviderID
@@ -1628,6 +1642,7 @@ export type DesktopApi = {
     followUpId: string,
   ): Promise<void>
   compactSession(sessionId: string): Promise<void>
+  getSessionPromptPreview(sessionId: string): Promise<unknown>
   rollbackSession(
     input: DesktopRollbackRequest,
   ): Promise<DesktopRollbackResult>

@@ -1,5 +1,6 @@
 import { desktopClient } from '../../services/desktopClient.js'
 import type {
+  DesktopPermissionConfig,
   DesktopPermissionMode,
   DesktopStoredSettings,
   DesktopThinkingMode,
@@ -33,6 +34,11 @@ export const PERMISSION_MODE_OPTIONS: Array<{
     label: "完全访问权限",
     detail: "命令不受 SRT 文件和网络边界保护，仅由审核 agent 拒绝灾难级操作（风险很高）",
   },
+  {
+    value: "custom",
+    label: "CodePilotX 自定义策略",
+    detail: "使用配置页中的 sandbox、approval policy、reviewer 与 granular controls。",
+  },
 ];
 
 export function getVisiblePermissionModeOptions({
@@ -45,7 +51,7 @@ export function getVisiblePermissionModeOptions({
   return PERMISSION_MODE_OPTIONS.filter((option) => {
     if (option.value === "auto-review") return enableAutoReviewPermissionMode;
     if (option.value === "full-access") return enableFullAccessPermissionMode;
-    return option.value === "default";
+    return option.value === "default" || option.value === "custom";
   });
 }
 
@@ -65,6 +71,18 @@ export type StoredDesktopSettings = DesktopStoredSettings;
 
 export function defaultDesktopSettings(): StoredDesktopSettings {
   return defaultDesktopStoredSettings();
+}
+
+export function permissionModeForConfig(config: DesktopPermissionConfig): DesktopPermissionMode {
+  if (config.sandboxMode === 'danger-full-access' && config.approvalPolicy === 'never') return 'full-access'
+  if (config.sandboxMode === 'workspace-write' && config.approvalPolicy === 'on-request' && config.approvalsReviewer === 'auto_review') return 'auto-review'
+  if (config.sandboxMode === 'workspace-write' && config.approvalPolicy === 'on-request' && config.approvalsReviewer === 'user') return 'default'
+  return 'custom'
+}
+
+export function permissionConfigForMode(mode: DesktopPermissionMode): DesktopPermissionConfig {
+  if (mode === 'full-access') return { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'user' }
+  return { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: mode === 'auto-review' ? 'auto_review' : 'user' }
 }
 
 export function readStoredDesktopSettings(): StoredDesktopSettings {

@@ -17,6 +17,7 @@ import { SettingsDropdown } from './SettingsDropdown.js';
 import { SegmentedControl } from './SegmentedControl.js';
 import { useDesktopSettings } from './useDesktopSettings.js';
 import { SettingsContentArea } from './SettingsContentArea.js';
+import { permissionConfigForMode, permissionModeForConfig } from './settingsStorage.js'
 import type {
   DesktopOpenTarget,
   DesktopReviewView,
@@ -139,7 +140,7 @@ export function GeneralSettings({
   } = useDesktopSettings();
   const {
     thinkingMode,
-    permissionMode,
+    permissionConfig,
     enableAutoReviewPermissionMode,
     enableFullAccessPermissionMode,
     showContextUsage,
@@ -151,6 +152,7 @@ export function GeneralSettings({
     followUpBehavior,
     defaultModeRequestUserInput,
   } = draft.values;
+  const permissionMode = permissionModeForConfig(permissionConfig)
 
   const [openTargets, setOpenTargets] =
     useState<DesktopOpenTarget[]>(FALLBACK_OPEN_TARGETS);
@@ -232,14 +234,14 @@ export function GeneralSettings({
   const handleAutoApprove = (checked: boolean) => {
     draft.setValue('enableAutoReviewPermissionMode', checked);
     if (!checked && permissionMode === 'auto-review') {
-      draft.setValue('permissionMode', 'default');
+      draft.setValue('permissionConfig', permissionConfigForMode('default'))
     }
     draft.autoSave();
   };
   const handleFullAccess = (checked: boolean) => {
     draft.setValue('enableFullAccessPermissionMode', checked);
     if (!checked && permissionMode === 'full-access') {
-      draft.setValue('permissionMode', 'default');
+      draft.setValue('permissionConfig', permissionConfigForMode('default'))
     }
     draft.autoSave();
   };

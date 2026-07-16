@@ -47,7 +47,7 @@ describe('desktop thread settings client', () => {
       const body = init?.body ? JSON.parse(String(init.body)) : null
       const params = body?.params ?? {}
       if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
-      if (body?.method === 'initialize') return rpc(body.id, { ok: true })
+      if (body?.method === 'initialize') return rpc(body.id, { ok: true, capabilities: { prompt: 2, memory: 2, compact: 1, hookTrust: 1 } })
       if (body?.method === 'project/open') return rpc(body.id, { project })
       if (body?.method === 'project/list') return rpc(body.id, { projects: [project] })
       if (body?.method === 'thread/create') {
@@ -85,7 +85,7 @@ describe('desktop thread settings client', () => {
     const created = await client.createSession({
       workspacePath: project.rootPath,
       sessionName: 'Plan 会话',
-      permissionMode: 'auto-review',
+      permissionConfig: settings.permissionConfig,
       planModeActive: true,
     })
 
@@ -126,13 +126,44 @@ describe('desktop thread settings client', () => {
   })
 
   test('returns explicit unsupported errors instead of entering the mock map', async () => {
+    const compactRequests: unknown[] = []
+    const settingsRequests: unknown[] = []
     const client = createDesktopClient({
       fetch: async (_path, init) => {
         const body = init?.body ? JSON.parse(String(init.body)) : null
-        if (body?.method === 'initialize') return rpc(body.id, { ok: true })
+        if (body?.method === 'initialize') return rpc(body.id, { ok: true, capabilities: { prompt: 2, memory: 2, compact: 1, hookTrust: 1 } })
+        if (body?.method === 'project/list') return rpc(body.id, { projects: [project] })
+        if (body?.method === 'thread/compact') {
+          compactRequests.push(body.params)
+          return rpc(body.id, { compaction: { id: 'compaction-1' } })
+        }
+        if (body?.method === 'thread/read') {
+          return rpc(body.id, snapshot(body.params.threadId, defaultSettings))
+        }
+        if (body?.method === 'thread/settings/update') {
+          settingsRequests.push(body.params)
+          return rpc(body.id, {
+            threadId: body.params.threadId,
+            settings: { ...defaultSettings, ...body.params.settings },
+          })
+        }
         throw new Error(`Unexpected RPC method: ${body?.method}`)
       },
     })
+    await client.compactSession('real-uuid')
+    expect(compactRequests).toEqual([{ threadId: 'real-uuid' }])
+    await client.setSessionPermissionProfile('real-uuid', 'read-only', 'never')
+    expect(settingsRequests).toEqual([{
+      threadId: 'real-uuid',
+      settings: {
+        permissionConfig: {
+          sandboxMode: 'read-only',
+          approvalPolicy: 'never',
+          approvalsReviewer: 'user',
+        },
+      },
+    }])
+
     const unsupported: Array<[string, () => Promise<unknown>]> = [
       ['getMcpRuntimeStatus', () => client.getMcpRuntimeStatus('real-uuid')],
       ['restoreSessionTurnChanges', () => client.restoreSessionTurnChanges({ sessionId: 'real-uuid' } as never)],
@@ -143,13 +174,11 @@ describe('desktop thread settings client', () => {
       ['updateQueuedFollowUp', () => client.updateQueuedFollowUp('real-uuid', 'follow-up', { text: 'x' })],
       ['removeQueuedFollowUp', () => client.removeQueuedFollowUp('real-uuid', 'follow-up')],
       ['sendQueuedFollowUpNow', () => client.sendQueuedFollowUpNow('real-uuid', 'follow-up')],
-      ['compactSession', () => client.compactSession('real-uuid')],
       ['rollbackSession', () => client.rollbackSession({ sessionId: 'real-uuid' } as never)],
       ['getSessionGoal', () => client.getSessionGoal('real-uuid')],
       ['setSessionGoal', () => client.setSessionGoal('real-uuid', {})],
       ['clearSessionGoal', () => client.clearSessionGoal('real-uuid')],
       ['startSessionReview', () => client.startSessionReview('real-uuid', { type: 'uncommittedChanges' })],
-      ['setSessionPermissionProfile', () => client.setSessionPermissionProfile('real-uuid', 'default')],
     ]
 
     for (const [operation, invoke] of unsupported) {
@@ -201,7 +230,7 @@ describe('desktop thread settings client', () => {
       const body = init?.body ? JSON.parse(String(init.body)) : null
       const params = body?.params ?? {}
       if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
-      if (body?.method === 'initialize') return rpc(body.id, { ok: true })
+      if (body?.method === 'initialize') return rpc(body.id, { ok: true, capabilities: { prompt: 2, memory: 2, compact: 1, hookTrust: 1 } })
       if (body?.method === 'project/list') return rpc(body.id, { projects: [project] })
       if (body?.method === 'thread/list') {
         return rpc(body.id, {

@@ -55,6 +55,7 @@ import type {
   DesktopModelProviderSummary,
   DesktopModelMetadata,
   DesktopPermissionDecision,
+  DesktopPermissionMode,
   DesktopReviewDiffResult,
   DesktopSessionCatalogStatus,
   DesktopSessionMetadataPatch,
@@ -145,12 +146,14 @@ function createAgentSessionDesktopClient(
   const rpc = createAgentRpcClient(environment)
   let activeSessionId: string | null = null
   let agentReady = false
+  let agentCapabilities: Record<string, number> = {}
   let readyProbe: Promise<boolean> | null = null
   let readinessError: unknown = null
   let projectsByIdCache: Map<string, Project> | null = null
   let modelCatalogCache: ProvidersResponse | null = null
   let integrationsCache: IntegrationListResponse['integrations'] | null = null
   const sessionSnapshots = new Map<string, DesktopSessionSnapshot>()
+  const sessionPermissionConfigs = new Map<string, PermissionConfig>()
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
   const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>()
   const pendingSettingsUpdates = new Map<string, Promise<void>>()
@@ -170,7 +173,8 @@ function createAgentSessionDesktopClient(
       return false
     }
     try {
-      await rpc.call('initialize')
+      const initialized = await rpc.call<{ capabilities?: Record<string, number> }>('initialize')
+      agentCapabilities = initialized.capabilities ?? {}
       readinessError = null
       return true
     } catch (error) {
@@ -198,6 +202,11 @@ function createAgentSessionDesktopClient(
     ) as Error & { code: string }
     error.code = 'AGENT_OPERATION_UNSUPPORTED'
     throw error
+  }
+
+  function requireAgentCapability(name: 'prompt' | 'memory' | 'compact' | 'hookTrust', version = 1): void {
+    if ((agentCapabilities[name] ?? 0) >= version) return
+    unsupportedAgentOperation(`${name} v${version}`)
   }
 
   function withUnsupportedAgentFallback<T>(
@@ -393,6 +402,7 @@ function createAgentSessionDesktopClient(
     sessionId: string,
   ): Promise<DesktopSessionSnapshot> {
     const sharedSnapshot = await rpc.call<ThreadSnapshot>('thread/read', { threadId: sessionId })
+    sessionPermissionConfigs.set(sessionId, sharedSnapshot.thread.settings.permissionConfig)
     const projectsById = await loadProjectsById()
     const snapshot = agentThreadSnapshotToDesktop(
       sharedSnapshot,
@@ -456,17 +466,15 @@ function createAgentSessionDesktopClient(
   }
 
   function permissionConfigForSession(sessionId: string) {
-    return desktopPermissionModeToPermissionConfig(
+    return sessionPermissionConfigs.get(sessionId) ?? desktopPermissionModeToPermissionConfig(
       sessionSnapshots.get(sessionId)?.item.permissionMode,
     )
   }
 
   function permissionModeFromConfig(
     config: PermissionConfig,
-  ): DesktopSessionSnapshot['settings']['permissionMode'] {
-    if (config.sandboxMode === 'danger-full-access') return 'full-access'
-    if (config.approvalsReviewer === 'auto_review') return 'auto-review'
-    return 'default'
+  ): DesktopPermissionMode {
+    return permissionModeFromDesktopConfig(config)
   }
 
   async function applyThreadSettings(
@@ -490,11 +498,12 @@ function createAgentSessionDesktopClient(
       settings: {
         ...current.settings,
         collaborationMode,
-        permissionMode,
+        permissionConfig: settings.permissionConfig,
         planModeActive,
       },
     }
     sessionSnapshots.set(sessionId, snapshot)
+    sessionPermissionConfigs.set(sessionId, settings.permissionConfig)
     emitSessionStoreChange()
     return snapshot
   }
@@ -683,6 +692,77 @@ function createAgentSessionDesktopClient(
         },
         () => mockClient.saveDesktopSettings(settings),
       ),
+    listProjectMemories: workspacePath =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('memory', 2)
+          const project = await loadProjectForPath(workspacePath)
+          const response = await rpc.call<{ entries: Array<{ id: string; scope: 'user' | 'project'; content: string; updatedAt: number }> }>('memory/list', { scope: 'project', projectId: project.id })
+          return {
+            memoryDir: 'Agent data directory / project memory',
+            entrypointPath: 'SQLite:memory_entries',
+            memories: response.entries.map(entry => ({ relativePath: entry.id, absolutePath: entry.id, type: 'project' as const, description: entry.content.slice(0, 120), size: entry.content.length, mtimeMs: entry.updatedAt })),
+          }
+        },
+        () => mockClient.listProjectMemories(workspacePath),
+      ),
+    readProjectMemory: (workspacePath, relativePath) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('memory', 2)
+          const project = await loadProjectForPath(workspacePath)
+          const response = await rpc.call<{ entry: { id: string; content: string; updatedAt: number } }>('memory/read', { id: relativePath, scope: 'project', projectId: project.id })
+          return { relativePath: response.entry.id, absolutePath: response.entry.id, type: 'project' as const, description: response.entry.content.slice(0, 120), size: response.entry.content.length, mtimeMs: response.entry.updatedAt, content: response.entry.content }
+        },
+        () => mockClient.readProjectMemory(workspacePath, relativePath),
+      ),
+    saveProjectMemory: input =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('memory', 2)
+          const project = await loadProjectForPath(input.workspacePath)
+          const response = await rpc.call<{ entry: { id: string; content: string; updatedAt: number } }>('memory/save', { scope: 'project', projectId: project.id, ...(input.relativePath ? { id: input.relativePath } : {}), content: input.content })
+          return { relativePath: response.entry.id, absolutePath: response.entry.id, type: 'project' as const, description: response.entry.content.slice(0, 120), size: response.entry.content.length, mtimeMs: response.entry.updatedAt }
+        },
+        () => mockClient.saveProjectMemory(input),
+      ),
+    deleteProjectMemory: input =>
+      withAgentOrMock(async () => { requireAgentCapability('memory', 2); const project = await loadProjectForPath(input.workspacePath); await rpc.call('memory/delete', { id: input.relativePath, scope: 'project', projectId: project.id }) }, () => mockClient.deleteProjectMemory(input)),
+    resetProjectMemory: input =>
+      withAgentOrMock(async () => { requireAgentCapability('memory', 2); const project = await loadProjectForPath(input.workspacePath); await rpc.call('memory/reset', { scope: 'project', projectId: project.id, includeEventLog: input.includeRecallLog === true }) }, () => mockClient.resetProjectMemory(input)),
+    listProjectMemoryRecalls: workspacePath =>
+      withAgentOrMock(async () => ({ recallLogPath: 'SQLite prompt context fragments', recalls: [] }), () => mockClient.listProjectMemoryRecalls(workspacePath)),
+    listUserMemories: () =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('memory', 2)
+          const response = await rpc.call<{ entries: Array<{ id: string; content: string; updatedAt: number }> }>('memory/list', { scope: 'user' })
+          return { memoryDir: 'Agent data directory / user memory', profilePath: 'SQLite:memory_entries', preferencesPath: 'SQLite:memory_entries', eventsPath: 'SQLite:memory_jobs', conversationIndexPath: 'SQLite:agent.sqlite', memories: response.entries.map(entry => ({ relativePath: entry.id, absolutePath: entry.id, type: 'user' as const, description: entry.content.slice(0, 120), size: entry.content.length, mtimeMs: entry.updatedAt })) }
+        },
+        () => mockClient.listUserMemories(),
+      ),
+    readUserMemory: relativePath =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('memory', 2)
+          const response = await rpc.call<{ entry: { id: string; content: string; updatedAt: number } }>('memory/read', { id: relativePath, scope: 'user' })
+          return { relativePath: response.entry.id, absolutePath: response.entry.id, type: 'user' as const, description: response.entry.content.slice(0, 120), size: response.entry.content.length, mtimeMs: response.entry.updatedAt, content: response.entry.content }
+        },
+        () => mockClient.readUserMemory(relativePath),
+      ),
+    saveUserMemory: input =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('memory', 2)
+          const response = await rpc.call<{ entry: { id: string; content: string; updatedAt: number } }>('memory/save', { scope: 'user', ...(input.relativePath ? { id: input.relativePath } : {}), content: input.content })
+          return { relativePath: response.entry.id, absolutePath: response.entry.id, type: 'user' as const, description: response.entry.content.slice(0, 120), size: response.entry.content.length, mtimeMs: response.entry.updatedAt }
+        },
+        () => mockClient.saveUserMemory(input),
+      ),
+    deleteUserMemory: input =>
+      withAgentOrMock(async () => { requireAgentCapability('memory', 2); await rpc.call('memory/delete', { id: input.relativePath, scope: 'user' }) }, () => mockClient.deleteUserMemory(input)),
+    resetUserMemory: input =>
+      withAgentOrMock(async () => { requireAgentCapability('memory', 2); await rpc.call('memory/reset', { scope: 'user', includeEventLog: input.includeEventLog }) }, () => mockClient.resetUserMemory(input)),
     listModelProviders: async () => {
       const [catalog, integrations] = await Promise.all([
         loadModelCatalog(),
@@ -850,13 +930,13 @@ function createAgentSessionDesktopClient(
             collaborationMode: options.collaborationMode,
             planModeActive: options.planModeActive,
           })
+          const stored = await desktopClient.getDesktopSettings()
+          const advancedPermission: PermissionConfig = options.permissionConfig ?? stored.permissionConfig
           const settings: ThreadSettings = {
             taskMode: planModeActiveFromCollaborationMode(collaborationMode)
               ? 'plan'
               : 'chat',
-            permissionConfig: desktopPermissionModeToPermissionConfig(
-              options.permissionMode,
-            ),
+            permissionConfig: advancedPermission,
           }
           const sharedSnapshot = await rpc.call<ThreadSnapshot>('thread/create', {
             projectID: project.id,
@@ -1089,9 +1169,17 @@ function createAgentSessionDesktopClient(
         () => mockClient.sendQueuedFollowUpNow(sessionId, followUpId),
       ),
     compactSession: sessionId =>
-      withUnsupportedAgentFallback(
-        'compactSession',
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('compact')
+          await rpc.call('thread/compact', { threadId: sessionId })
+        },
         () => mockClient.compactSession(sessionId),
+      ),
+    getSessionPromptPreview: sessionId =>
+      withAgentOrMock(
+        async () => { requireAgentCapability('prompt', 2); return (await rpc.call<{ preview: unknown }>('prompt/preview', { threadId: sessionId })).preview },
+        () => mockClient.getSessionPromptPreview(sessionId),
       ),
     rollbackSession: input =>
       withUnsupportedAgentFallback(
@@ -1119,13 +1207,23 @@ function createAgentSessionDesktopClient(
         () => mockClient.startSessionReview(sessionId, target),
       ),
     setSessionPermissionProfile: (sessionId, profile, approvalPolicy) =>
-      withUnsupportedAgentFallback(
-        'setSessionPermissionProfile',
-        () => mockClient.setSessionPermissionProfile(
-          sessionId,
-          profile,
-          approvalPolicy,
-        ),
+      withAgentOrMock(
+        async () => {
+          const current = sessionSnapshots.get(sessionId) ?? await loadAgentSessionSnapshot(sessionId)
+          const sandboxMode: PermissionConfig['sandboxMode'] = profile.includes('danger')
+            ? 'danger-full-access'
+            : profile.includes('read-only')
+              ? 'read-only'
+              : 'workspace-write'
+          const permissionConfig: PermissionConfig = {
+            sandboxMode,
+            approvalPolicy: approvalPolicy ?? 'on-request',
+            approvalsReviewer: current.settings.permissionConfig.approvalsReviewer,
+          }
+          const response = await rpc.call<{ threadId: string; settings: ThreadSettings }>('thread/settings/update', { threadId: sessionId, settings: { permissionConfig } })
+          return applyThreadSettings(response.threadId, response.settings)
+        },
+        () => mockClient.setSessionPermissionProfile(sessionId, profile, approvalPolicy),
       ),
     respondToPermission: async (
       sessionId: string,
@@ -1727,10 +1825,11 @@ function createBrowserMockDesktopClient(): DesktopApi {
     deleteSessionReviewComment: async input => requireMockSession(sessions, input.sessionId),
     setSessionPermissionMode: async (sessionId, mode) => {
       const snapshot = requireMockSession(sessions, sessionId)
+      const permissionConfig = desktopPermissionModeToPermissionConfig(mode)
       const next = {
         ...snapshot,
         item: { ...snapshot.item, permissionMode: mode },
-        settings: { ...snapshot.settings, permissionMode: mode },
+        settings: { ...snapshot.settings, permissionConfig },
       }
       sessions.set(sessionId, next)
       emitSessionStoreChange()
@@ -1844,6 +1943,7 @@ function createBrowserMockDesktopClient(): DesktopApi {
     removeQueuedFollowUp: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
     sendQueuedFollowUpNow: async () => {},
     compactSession: async () => {},
+    getSessionPromptPreview: async () => null,
     rollbackSession: async () => ({
       snapshot: mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
       restoredFiles: [],
@@ -2075,6 +2175,8 @@ function mockSessionSnapshot(
     planModeActive: options.planModeActive,
   })
   const planModeActive = planModeActiveFromCollaborationMode(collaborationMode)
+  const permissionConfig = options.permissionConfig ?? desktopPermissionModeToPermissionConfig('default')
+  const permissionMode = permissionModeFromDesktopConfig(permissionConfig)
   return {
     item: {
       id: sessionId,
@@ -2083,7 +2185,7 @@ function mockSessionSnapshot(
       workspaceName: workspace.name,
       workspacePath: workspace.path,
       standalone: !options.workspacePath,
-      permissionMode: options.permissionMode ?? 'default',
+      permissionMode,
       collaborationMode,
       planModeActive,
       model: options.model ?? null,
@@ -2098,7 +2200,7 @@ function mockSessionSnapshot(
     },
     workspace,
     settings: {
-      permissionMode: options.permissionMode ?? 'default',
+      permissionConfig,
       collaborationMode,
       planModeActive,
       model: options.model,
@@ -2156,6 +2258,13 @@ function mockGithubLogin() {
     auth: null,
     elapsedMs: 0,
   }
+}
+
+function permissionModeFromDesktopConfig(config: PermissionConfig): DesktopPermissionMode {
+  if (config.sandboxMode === 'danger-full-access' && config.approvalPolicy === 'never') return 'full-access'
+  if (config.sandboxMode === 'workspace-write' && config.approvalPolicy === 'on-request' && config.approvalsReviewer === 'auto_review') return 'auto-review'
+  if (config.sandboxMode === 'workspace-write' && config.approvalPolicy === 'on-request' && config.approvalsReviewer === 'user') return 'default'
+  return 'custom'
 }
 
 function noop(): void {}

@@ -274,6 +274,7 @@ export function DesktopLayout(): React.ReactNode {
 
   const session = useSessionState({
     permissionMode,
+    permissionConfig: settings.draft.values.permissionConfig,
     planModeActive: homePlanModeActive,
     localRouterMode: homeLocalRouterMode,
     providerID,

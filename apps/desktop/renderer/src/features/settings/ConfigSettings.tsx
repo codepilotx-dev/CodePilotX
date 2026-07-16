@@ -3,7 +3,7 @@ import { Download, Search, RotateCcw, Trash2, Wrench } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktopClient.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
-import { PERMISSION_MODE_OPTIONS } from './settingsStorage.js'
+import { PERMISSION_MODE_OPTIONS, permissionConfigForMode, permissionModeForConfig } from './settingsStorage.js'
 import type {
   DesktopDataLocationState,
   DesktopRuntimeStatus,
@@ -65,6 +65,7 @@ export function ConfigSettings(): React.ReactNode {
   const [changingLocation, setChangingLocation] = useState(false)
   const [sandboxRuntimeStatus, setSandboxRuntimeStatus] = useState<SandboxRuntimeStatus>(SANDBOX_RUNTIME_STATUS_UNAVAILABLE)
   const [sandboxRuntimeBusy, setSandboxRuntimeBusy] = useState(false)
+  const [promptPreview, setPromptPreview] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -284,17 +285,15 @@ export function ConfigSettings(): React.ReactNode {
               <SettingsDropdown
                 width={260}
                 ariaLabel="批准策略"
-                value={draft.values.permissionMode}
+                value={permissionModeForConfig(draft.values.permissionConfig)}
                 options={PERMISSION_MODE_OPTIONS.map(option => ({
                   value: option.value,
                   label: option.label,
                   detail: option.detail,
                 }))}
                 onChange={value => {
-                  draft.setValue(
-                    'permissionMode',
-                    value as typeof draft.values.permissionMode,
-                  )
+                  const mode = value as Parameters<typeof permissionConfigForMode>[0]
+                  if (mode !== 'custom') draft.setValue('permissionConfig', permissionConfigForMode(mode))
                   draft.autoSave()
                 }}
               />
@@ -303,8 +302,33 @@ export function ConfigSettings(): React.ReactNode {
         </SettingsSection>
 
         <SettingsSection
-          title="Sandbox runtime"
-          description="SRT 沙箱负责隔离命令进程、文件访问和网络访问。"
+          title="完整提示词诊断"
+          description="仅在你主动请求时读取当前任务的 system/developer/contextual-user sections、来源、hash、token 估算和缓存分类；内容不会写入日志或遥测。"
+          actions={
+            <button
+              className="settings-button"
+              type="button"
+              onClick={() => void (async () => {
+                try {
+                  const sessionId = await desktopClient.getActiveSessionId()
+                  if (!sessionId) throw new Error('当前没有活动任务')
+                  const preview = await desktopClient.getSessionPromptPreview(sessionId)
+                  setPromptPreview(JSON.stringify(preview, null, 2))
+                } catch (error) {
+                  window.alert(error instanceof Error ? error.message : String(error))
+                }
+              })()}
+            >
+              预览当前任务提示词
+            </button>
+          }
+        >
+          {promptPreview ? <pre className="settings-code-block">{promptPreview}</pre> : null}
+        </SettingsSection>
+
+        <SettingsSection
+          title="沙盒运行环境"
+          description="负责隔离命令进程、文件访问和网络访问。"
         >
           <SettingsRow
             title="状态"
@@ -318,11 +342,11 @@ export function ConfigSettings(): React.ReactNode {
             }
           />
           <SettingsRow
-            title="安装 Sandbox runtime"
+            title="安装沙盒运行环境"
             description="首次安装会请求一次 Windows 管理员权限。"
             control={
               <button
-                aria-label="安装 Sandbox runtime"
+                aria-label="安装沙盒运行环境"
                 className="settings-button"
                 disabled={sandboxRuntimeBusy || !sandboxRuntimeStatus.canInstall}
                 onClick={() => void runSandboxRuntimeAction(installSandboxRuntime)}
@@ -334,11 +358,11 @@ export function ConfigSettings(): React.ReactNode {
             }
           />
           <SettingsRow
-            title="修复 Sandbox runtime"
+            title="修复沙盒运行环境"
             description="重新检查专用账户、WFP 规则和 helper。"
             control={
               <button
-                aria-label="修复 Sandbox runtime"
+                aria-label="修复沙盒运行环境"
                 className="settings-button"
                 disabled={sandboxRuntimeBusy || !sandboxRuntimeStatus.canRepair}
                 onClick={() => void runSandboxRuntimeAction(repairSandboxRuntime)}
@@ -350,11 +374,11 @@ export function ConfigSettings(): React.ReactNode {
             }
           />
           <SettingsRow
-            title="卸载 Sandbox runtime"
+            title="卸载沙盒运行环境"
             description="卸载会删除专用账户和 WFP 规则，必须单独确认。"
             control={
               <button
-                aria-label="卸载 Sandbox runtime"
+                aria-label="卸载沙盒运行环境"
                 className="settings-button"
                 disabled={sandboxRuntimeBusy || sandboxRuntimeStatus.state !== 'healthy'}
                 onClick={() => {
@@ -367,6 +391,95 @@ export function ConfigSettings(): React.ReactNode {
               </button>
             }
           />
+          <SettingsRow
+            title="沙盒设置"
+            description="选择 CodePilotX 运行命令时可执行的操作范围。"
+            control={
+              <SettingsDropdown
+                width={260}
+                ariaLabel="沙盒设置"
+                value={draft.values.permissionConfig.sandboxMode === 'read-only' ? ':read-only' : draft.values.permissionConfig.sandboxMode === 'danger-full-access' ? ':danger-full-access' : ':workspace'}
+                options={[
+                  { value: ':read-only', label: '只读', detail: '只能读取文件，不能修改文件' },
+                  { value: ':workspace', label: '工作区写入', detail: '可以编辑文件，但仅限当前工作区' },
+                  { value: ':danger-full-access', label: '完全访问', detail: '可以编辑当前工作区之外的文件' },
+                ]}
+                onChange={value => {
+                  const sandboxMode = value === ':read-only' ? 'read-only' : value === ':danger-full-access' ? 'danger-full-access' : 'workspace-write'
+                  draft.setValue('permissionConfig', { ...draft.values.permissionConfig, sandboxMode })
+                  draft.autoSave()
+                }}
+              />
+            }
+          />
+          <SettingsRow
+            title="批准策略"
+            description="选择 CodePilotX 何时请求批准。"
+            control={
+              <SettingsDropdown
+                width={260}
+                ariaLabel="批准策略"
+                value={typeof draft.values.permissionConfig.approvalPolicy === 'object'
+                  ? 'granular'
+                  : draft.values.permissionConfig.approvalPolicy === 'on-failure'
+                    ? 'on-request'
+                    : draft.values.permissionConfig.approvalPolicy}
+                options={[
+                  { value: 'untrusted', label: '不可信', detail: '执行不受信任的操作前请求批准' },
+                  { value: 'on-request', label: '按请求', detail: '需要提升权限时请求批准' },
+                  { value: 'granular', label: '精细控制', detail: '分别控制不同类别的审批请求' },
+                  { value: 'never', label: '从不', detail: '运行操作时不请求批准' },
+                ]}
+                onChange={value => {
+                  const approvalPolicy = value === 'granular'
+                    ? { type: 'granular' as const, sandboxApproval: true, rules: true, skillApproval: true, requestPermissions: true, mcpElicitations: true }
+                    : value as 'untrusted' | 'on-request' | 'never'
+                  draft.setValue('permissionConfig', { ...draft.values.permissionConfig, approvalPolicy })
+                  draft.autoSave()
+                }}
+              />
+            }
+          />
+          <SettingsRow
+            title="审批执行者"
+            description="选择由你还是独立 Guardian 处理需要审批的操作。"
+            control={
+              <SettingsDropdown
+                width={260}
+                ariaLabel="审批执行者"
+                value={draft.values.permissionConfig.approvalsReviewer}
+                options={[
+                  { value: 'user', label: '用户', detail: '由你确认或拒绝审批请求' },
+                  { value: 'auto_review', label: 'Guardian 自动审查', detail: '由独立 Guardian 模型处理审批请求' },
+                ]}
+                onChange={value => { const approvalsReviewer = value as 'user' | 'auto_review'; draft.setValue('permissionConfig', { ...draft.values.permissionConfig, approvalsReviewer }); draft.autoSave() }}
+              />
+            }
+          />
+          {typeof draft.values.permissionConfig.approvalPolicy === 'object' ? (
+            <>
+              {([
+                ['sandboxApproval', 'Sandbox 提升'],
+                ['rules', '规则审批'],
+                ['skillApproval', 'Skill 脚本'],
+                ['requestPermissions', '动态权限请求'],
+                ['mcpElicitations', 'MCP 交互请求'],
+              ] as const).map(([key, label]) => (
+                <SettingsRow
+                  key={key}
+                  title={label}
+                  description="允许该类审批请求出现；关闭时需要该能力的调用会直接拒绝。"
+                  control={<ToggleSwitch checked={draft.values.permissionConfig.approvalPolicy[key]} onChange={checked => {
+                    const policy = draft.values.permissionConfig.approvalPolicy
+                    if (typeof policy !== 'object') return
+                    const approvalPolicy = { ...policy, [key]: checked }
+                    draft.setValue('permissionConfig', { ...draft.values.permissionConfig, approvalPolicy })
+                    draft.autoSave()
+                  }} />}
+                />
+              ))}
+            </>
+          ) : null}
         </SettingsSection>
 
         <SettingsSection

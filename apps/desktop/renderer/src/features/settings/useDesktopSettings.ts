@@ -28,6 +28,8 @@ import type {
 } from '../../../shared/types.js'
 import {
   type StoredDesktopSettings,
+  permissionConfigForMode,
+  permissionModeForConfig,
   readStoredDesktopSettings,
   storeDesktopSettings,
 } from './settingsStorage.js'
@@ -285,9 +287,6 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     enableFullAccessPermissionMode,
     setEnableFullAccessPermissionMode,
   ] = useState<boolean>(initial.enableFullAccessPermissionMode ?? false)
-  const [permissionMode, setPermissionMode] = useState<DesktopPermissionMode>(
-    initial.permissionMode,
-  )
   const [model, setModel] = useState(initial.model)
   const [planExecutionModel, setPlanExecutionModel] = useState(
     initial.planExecutionModel,
@@ -427,6 +426,10 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   )
   const draftValuesRef = useRef(draftValues)
   draftValuesRef.current = draftValues
+  const permissionMode = permissionModeForConfig(draftValues.permissionConfig)
+  const setPermissionMode = useCallback((value: DesktopPermissionMode) => {
+    setDraftValues(current => ({ ...current, permissionConfig: permissionConfigForMode(value) }))
+  }, [])
   const draftDirtyKeysRef = useRef<Set<keyof StoredDesktopSettings>>(new Set())
   const [draftSaving, setDraftSaving] = useState(false)
 
@@ -444,7 +447,6 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setEnableFullAccessPermissionMode(
           settings.enableFullAccessPermissionMode ?? false,
         )
-        setPermissionMode(settings.permissionMode)
         setModel(settings.model)
         setPlanExecutionModel(settings.planExecutionModel)
         setReviewModel(settings.reviewModel)
@@ -516,7 +518,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       enableFusionRouter,
       enableAutoReviewPermissionMode,
       enableFullAccessPermissionMode,
-      permissionMode,
+      permissionConfig: draftValues.permissionConfig,
       model,
       planExecutionModel,
       reviewModel,
@@ -575,7 +577,6 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       enableFusionRouter,
       enableAutoReviewPermissionMode,
       enableFullAccessPermissionMode,
-      permissionMode,
       model,
       planExecutionModel,
       reviewModel,
@@ -679,7 +680,6 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setEnableFullAccessPermissionMode(
         snapshot.enableFullAccessPermissionMode ?? false,
       )
-      setPermissionMode(snapshot.permissionMode)
       setModel(snapshot.model)
       setPlanExecutionModel(snapshot.planExecutionModel)
       setReviewModel(snapshot.reviewModel)
