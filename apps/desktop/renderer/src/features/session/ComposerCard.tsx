@@ -279,6 +279,7 @@ type Props = {
   onGoalComplete?: () => void;
   onGoalClear?: () => void;
   subagentMode?: boolean;
+  showBottomBar?: boolean;
 };
 
 export function ComposerCard({
@@ -348,6 +349,7 @@ export function ComposerCard({
   onGoalComplete,
   onGoalClear,
   subagentMode = false,
+  showBottomBar = true,
 }: Props): React.ReactNode {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(
@@ -1616,187 +1618,191 @@ export function ComposerCard({
         />
       </div>
 
-      <div className="composer-bottom">
-        {subagentMode ? (
-          <MetaChip
-            icon={<Folder size={APP_ICON_SIZE} />}
-            label={workspace?.name ?? "项目"}
-            title="子 Agent 工作区固定"
-          />
-        ) : <ProjectSwitcherPopover
-          side="top"
-          open={openDropdown === "project"}
-          width={200}
-          onOpenChange={(open) => setOpenDropdown(open ? "project" : null)}
-          disableOutsideDismiss={debugMode}
-          recentWorkspaces={recentWorkspaces}
-          workspace={workspace}
-          onOpenWorkspace={onOpenWorkspace}
-          onChooseWorkspace={() => {
-            onChooseWorkspace();
-            closeDropdown();
-          }}
-          onCloneGithub={() => {
-            onCloneGithub?.();
-            closeDropdown();
-          }}
-          onClearWorkspace={() => {
-            onClearWorkspace();
-            closeDropdown();
-          }}
-          trigger={
+      {showBottomBar ? (
+        <div className="composer-bottom">
+          {subagentMode ? (
             <MetaChip
-              active={openDropdown === "project"}
               icon={<Folder size={APP_ICON_SIZE} />}
-              label={workspace?.name ?? "进入项目工作"}
-              title="选择项目"
+              label={workspace?.name ?? "项目"}
+              title="子 Agent 工作区固定"
             />
-          }
-        />}
-
-        {workspace ? (
-          <>
-            <PopoverMenu
-              className="popover-mode"
-              disableOutsideDismiss={debugMode}
-              open={openDropdown === "mode"}
+          ) : (
+            <ProjectSwitcherPopover
               side="top"
+              open={openDropdown === "project"}
               width={200}
-              onOpenChange={(open) => setOpenDropdown(open ? "mode" : null)}
+              onOpenChange={(open) => setOpenDropdown(open ? "project" : null)}
+              disableOutsideDismiss={debugMode}
+              recentWorkspaces={recentWorkspaces}
+              workspace={workspace}
+              onOpenWorkspace={onOpenWorkspace}
+              onChooseWorkspace={() => {
+                onChooseWorkspace();
+                closeDropdown();
+              }}
+              onCloneGithub={() => {
+                onCloneGithub?.();
+                closeDropdown();
+              }}
+              onClearWorkspace={() => {
+                onClearWorkspace();
+                closeDropdown();
+              }}
               trigger={
                 <MetaChip
-                  active={openDropdown === "mode"}
-                  icon={<Monitor size={APP_ICON_SIZE} />}
-                  label="本地模式"
-                  title="启动模式"
+                  active={openDropdown === "project"}
+                  icon={<Folder size={APP_ICON_SIZE} />}
+                  label={workspace?.name ?? "进入项目工作"}
+                  title="选择项目"
                 />
               }
-            >
-              <div className="popover-header">启动模式</div>
-              <div className="popover-section">
-                <PopoverItem
-                  icon={<Monitor size={APP_ICON_SIZE} />}
-                  selected
-                  withCheck
-                >
-                  本地模式
-                </PopoverItem>
-                <PopoverItem icon={<GitBranch size={APP_ICON_SIZE} />} disabled>
-                  新工作树
-                </PopoverItem>
-                <PopoverItem icon={<Search size={APP_ICON_SIZE} />} disabled>
-                  关联 CodePilotX Web
-                </PopoverItem>
-              </div>
-            </PopoverMenu>
+            />
+          )}
 
-            {threadGoal ? (
+          {workspace ? (
+            <>
               <PopoverMenu
-                className="popover-goal"
+                className="popover-mode"
                 disableOutsideDismiss={debugMode}
-                open={openDropdown === "goal"}
+                open={openDropdown === "mode"}
                 side="top"
                 width={200}
-                onOpenChange={(open) => setOpenDropdown(open ? "goal" : null)}
+                onOpenChange={(open) => setOpenDropdown(open ? "mode" : null)}
                 trigger={
                   <MetaChip
-                    active={openDropdown === "goal"}
-                    icon={<Target size={APP_ICON_SIZE} />}
-                    label={
-                      threadGoal.status === "active"
-                        ? "目标运行中"
-                        : threadGoal.status === "paused"
-                          ? "目标已暂停"
-                          : threadGoal.status === "complete"
-                            ? "目标已完成"
-                            : "目标"
-                    }
-                    title={threadGoal.objective}
+                    active={openDropdown === "mode"}
+                    icon={<Monitor size={APP_ICON_SIZE} />}
+                    label="本地模式"
+                    title="启动模式"
                   />
                 }
               >
-                <div className="popover-header">目标</div>
+                <div className="popover-header">启动模式</div>
                 <div className="popover-section">
-                  <div className="popover-item-text">{threadGoal.objective}</div>
-                  <div className="popover-item-meta">
-                    已用 Tokens: {threadGoal.tokensUsed}
-                    {threadGoal.timeUsedSeconds > 0
-                      ? ` | 用时: ${Math.round(threadGoal.timeUsedSeconds / 60)}分`
-                      : ""}
-                  </div>
-                </div>
-                <div className="popover-section">
-                  {threadGoal.status === "active" ? (
-                    <PopoverItem
-                      icon={<Target size={APP_ICON_SIZE} />}
-                      onClick={() => {
-                        closeDropdown()
-                        onGoalPause?.()
-                      }}
-                    >
-                      暂停
-                    </PopoverItem>
-                  ) : null}
-                  {threadGoal.status === "paused" ? (
-                    <PopoverItem
-                      icon={<Target size={APP_ICON_SIZE} />}
-                      onClick={() => {
-                        closeDropdown()
-                        onGoalResume?.()
-                      }}
-                    >
-                      继续
-                    </PopoverItem>
-                  ) : null}
-                  {threadGoal.status !== "complete" ? (
-                    <PopoverItem
-                      icon={<Check size={APP_ICON_SIZE} />}
-                      onClick={() => {
-                        closeDropdown()
-                        onGoalComplete?.()
-                      }}
-                    >
-                      标记完成
-                    </PopoverItem>
-                  ) : null}
                   <PopoverItem
-                    icon={<X size={APP_ICON_SIZE} />}
-                    onClick={() => {
-                      closeDropdown()
-                      onGoalClear?.()
-                    }}
+                    icon={<Monitor size={APP_ICON_SIZE} />}
+                    selected
+                    withCheck
                   >
-                    清除目标
+                    本地模式
+                  </PopoverItem>
+                  <PopoverItem icon={<GitBranch size={APP_ICON_SIZE} />} disabled>
+                    新工作树
+                  </PopoverItem>
+                  <PopoverItem icon={<Search size={APP_ICON_SIZE} />} disabled>
+                    关联 CodePilotX Web
                   </PopoverItem>
                 </div>
               </PopoverMenu>
-            ) : null}
 
-            <BranchSelectPopover
-              branchSearch={branchSearch}
-              branches={branches}
-              className="popover-branch"
-              currentBranchName={branchName}
-              disableOutsideDismiss={debugMode}
-              open={openDropdown === "branch"}
-              side="top"
-              width={200}
-              onBranchSearchChange={setBranchSearch}
-              onBranchSelect={onBranchSelect}
-              onCreateBranch={onCreateBranch}
-              onOpenChange={(open) => setOpenDropdown(open ? "branch" : null)}
-              trigger={
-                <MetaChip
-                  active={openDropdown === "branch"}
-                  icon={<GitBranch size={APP_ICON_SIZE} />}
-                  label={branchName}
-                  title="选择分支"
-                />
-              }
-            />
-          </>
-        ) : null}
-      </div>
+              {threadGoal ? (
+                <PopoverMenu
+                  className="popover-goal"
+                  disableOutsideDismiss={debugMode}
+                  open={openDropdown === "goal"}
+                  side="top"
+                  width={200}
+                  onOpenChange={(open) => setOpenDropdown(open ? "goal" : null)}
+                  trigger={
+                    <MetaChip
+                      active={openDropdown === "goal"}
+                      icon={<Target size={APP_ICON_SIZE} />}
+                      label={
+                        threadGoal.status === "active"
+                          ? "目标运行中"
+                          : threadGoal.status === "paused"
+                            ? "目标已暂停"
+                            : threadGoal.status === "complete"
+                              ? "目标已完成"
+                              : "目标"
+                      }
+                      title={threadGoal.objective}
+                    />
+                  }
+                >
+                  <div className="popover-header">目标</div>
+                  <div className="popover-section">
+                    <div className="popover-item-text">{threadGoal.objective}</div>
+                    <div className="popover-item-meta">
+                      已用 Tokens: {threadGoal.tokensUsed}
+                      {threadGoal.timeUsedSeconds > 0
+                        ? ` | 用时: ${Math.round(threadGoal.timeUsedSeconds / 60)}分`
+                        : ""}
+                    </div>
+                  </div>
+                  <div className="popover-section">
+                    {threadGoal.status === "active" ? (
+                      <PopoverItem
+                        icon={<Target size={APP_ICON_SIZE} />}
+                        onClick={() => {
+                          closeDropdown()
+                          onGoalPause?.()
+                        }}
+                      >
+                        暂停
+                      </PopoverItem>
+                    ) : null}
+                    {threadGoal.status === "paused" ? (
+                      <PopoverItem
+                        icon={<Target size={APP_ICON_SIZE} />}
+                        onClick={() => {
+                          closeDropdown()
+                          onGoalResume?.()
+                        }}
+                      >
+                        继续
+                      </PopoverItem>
+                    ) : null}
+                    {threadGoal.status !== "complete" ? (
+                      <PopoverItem
+                        icon={<Check size={APP_ICON_SIZE} />}
+                        onClick={() => {
+                          closeDropdown()
+                          onGoalComplete?.()
+                        }}
+                      >
+                        标记完成
+                      </PopoverItem>
+                    ) : null}
+                    <PopoverItem
+                      icon={<X size={APP_ICON_SIZE} />}
+                      onClick={() => {
+                        closeDropdown()
+                        onGoalClear?.()
+                      }}
+                    >
+                      清除目标
+                    </PopoverItem>
+                  </div>
+                </PopoverMenu>
+              ) : null}
+
+              <BranchSelectPopover
+                branchSearch={branchSearch}
+                branches={branches}
+                className="popover-branch"
+                currentBranchName={branchName}
+                disableOutsideDismiss={debugMode}
+                open={openDropdown === "branch"}
+                side="top"
+                width={200}
+                onBranchSearchChange={setBranchSearch}
+                onBranchSelect={onBranchSelect}
+                onCreateBranch={onCreateBranch}
+                onOpenChange={(open) => setOpenDropdown(open ? "branch" : null)}
+                trigger={
+                  <MetaChip
+                    active={openDropdown === "branch"}
+                    icon={<GitBranch size={APP_ICON_SIZE} />}
+                    label={branchName}
+                    title="选择分支"
+                  />
+                }
+              />
+            </>
+          ) : null}
+        </div>
+      ) : null}
 
       <SessionFollowUpDock
         items={queuedFollowUps ?? []}

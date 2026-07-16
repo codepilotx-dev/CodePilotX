@@ -427,6 +427,7 @@ export function DesktopComposer({
       onGoalResume={onGoalResume}
       onGoalComplete={onGoalComplete}
       onGoalClear={onGoalClear}
+      showBottomBar={isQuickChatPage}
     />
   )
 }
