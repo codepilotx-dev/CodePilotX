@@ -32,7 +32,6 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 import { MarkdownMessage } from './MarkdownMessage.js'
-import './SubagentThreadPanel.scss'
 
 export interface SubagentThreadCapabilities {
   canSend: boolean

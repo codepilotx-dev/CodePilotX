@@ -1,0 +1,117 @@
+.desktop-main {
+  background: var(--color-bg);
+  border-width: 1px 0 0 1px;
+  border-style: solid;
+  border-color: var(--color-panel-border);
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  align-items: stretch;
+  justify-content: flex-start;
+  width: 100%;
+  position: relative;
+  box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 0.1);
+}
+
+.desktop-main-stage {
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.desktop-main-browser-layout {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  flex: 1 1 auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.desktop-main-browser-layout.browser-closed {
+  justify-content: center;
+}
+
+.desktop-workspace {
+  --workspace-fixed-controls-control-button-size: var(--control-size-sm);
+  --workspace-fixed-controls-gap: 2px;
+  --workspace-fixed-controls-pad-x: 12px;
+  --workspace-fixed-controls-width: calc(
+    2 * var(--workspace-fixed-controls-control-button-size) +
+      var(--workspace-fixed-controls-gap) + 2 *
+      var(--workspace-fixed-controls-pad-x)
+  );
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.desktop-main-route {
+  display: flex;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 320px;
+  min-height: 0;
+}
+
+.desktop-workspace-fixed-controls {
+  position: absolute;
+  z-index: calc(var(--z-right-dock) + 1);
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 12px;
+  max-height: 40px;
+  height: 100%;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.desktop-workspace-fixed-control-button {
+  width: var(--workspace-fixed-controls-control-button-size);
+  height: var(--workspace-fixed-controls-control-button-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-soft);
+  transition:
+    background var(--motion-standard) var(--ease-out),
+    color var(--motion-standard) var(--ease-out),
+    border-color var(--motion-standard) var(--ease-out),
+    box-shadow var(--motion-standard) var(--ease-out);
+
+  &:hover {
+    background: var(--color-sidebar-hover-bg);
+    color: var(--color-text-strong);
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+}
+

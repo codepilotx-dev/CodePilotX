@@ -1,0 +1,393 @@
+/* --- Right Dock --- */
+.right-dock {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--color-border-soft);
+  background: var(--color-bg);
+  color: var(--color-text-strong);
+}
+
+.right-dock-resize-handle {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 12px;
+  cursor: col-resize;
+  touch-action: none;
+
+  &::after {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 2px;
+    background: transparent;
+    content: "";
+  }
+
+  &:hover::after,
+  &:focus-visible::after,
+  .right-dock.resizing &::after {
+    background: var(--color-border);
+  }
+
+  &:focus-visible {
+    outline: 0;
+  }
+}
+
+.right-dock-is-resizing,
+.right-dock-is-resizing * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+
+.right-dock-tab-list,
+.right-dock-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.right-dock-tab-list {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.right-dock-controls {
+  flex: 0 0 auto;
+}
+
+.right-dock-tab-wrap {
+  position: relative;
+  min-width: 0;
+  max-width: 240px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 1 auto;
+  overflow: hidden;
+  border-radius: 12px;
+  padding: 5px 8px;
+  color: var(--color-text-meta);
+  transition:
+    background var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard),
+    color var(--motion-standard) var(--ease-standard);
+
+  &.active {
+    background: var(--color-sidebar-active-bg);
+    color: var(--color-text-strong);
+  }
+
+  &:not(.active):hover,
+  &:focus-within {
+    background: var(--color-sidebar-hover-bg);
+    color: var(--color-text-soft);
+  }
+
+  &.active:focus-within,
+  &.active:hover {
+    color: var(--color-text-strong);
+  }
+}
+
+.right-dock-tab {
+  position: relative;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  flex: 1 1 auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-3);
+  background: transparent;
+  color: inherit;
+  font-size: var(--type-control);
+  font-weight: 500;
+  white-space: nowrap;
+
+  &.compact {
+    min-height: var(--control-size-md);
+    max-width: var(--control-size-md);
+    width: var(--control-size-md);
+    padding: 0;
+    justify-content: center;
+    border-radius: var(--radius-5);
+    color: var(--color-text-meta);
+    outline: 1px dashed color-mix(in srgb, var(--color-text-meta) 35%, transparent);
+    outline-offset: -1px;
+  }
+
+  span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.right-dock-tab.compact .right-dock-tab-icon,
+.right-dock-tab.compact .right-dock-tab-icon svg {
+  width: var(--app-icon-size-md);
+  height: var(--app-icon-size-md);
+}
+
+.right-dock-tab-icon,
+.right-dock-tab-icon svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  stroke-width: var(--app-icon-stroke-width);
+}
+
+.right-dock-tab-close {
+  position: absolute;
+  right: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 2px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--color-sidebar-active-bg);
+  color: var(--color-text-meta);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    background var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard);
+  z-index: 1;
+
+  svg {
+    width: var(--app-icon-size);
+    height: var(--app-icon-size);
+    display: block;
+    stroke-width: var(--app-icon-stroke-width);
+  }
+
+  &:hover,
+  &:focus-visible {
+    color: var(--color-text-strong);
+  }
+}
+
+.right-dock-tab-wrap:hover .right-dock-tab-close {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.right-dock-tab:focus-visible,
+.right-dock-tab-close:focus-visible,
+.right-dock-add-button:focus-visible,
+.right-dock-control:focus-visible {
+  outline: none;
+}
+
+.right-dock-tab-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+  background: var(--color-border-soft);
+}
+
+.right-dock-add-button,
+.right-dock-control {
+  width: var(--control-size-sm);
+  height: var(--control-size-sm);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-soft);
+  transition:
+    background var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard),
+    color var(--motion-standard) var(--ease-standard);
+
+  &:hover {
+    background: var(--color-sidebar-hover-bg);
+    color: var(--color-text-strong);
+  }
+}
+
+.right-dock-control.active {
+  background: var(--color-sidebar-active-bg);
+  color: var(--color-text-strong);
+}
+
+.popover.popover-right-dock-add {
+  position: relative;
+  display: block;
+  bottom: auto;
+  left: auto;
+  transform-origin: top right;
+}
+
+.right-dock-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 0 92px 0 10px;
+  max-height: 40px;
+  height: 100%;
+  overflow: hidden;
+}
+
+.right-dock-content {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.right-dock-browser {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+.right-dock .review-sidebar {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  border-left: 0;
+}
+
+.right-dock-plan-scroll-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  background: var(--color-bg);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.right-dock-plan-scroll-content {
+  min-width: 0;
+  padding: 18px;
+}
+
+.right-dock-plan-document {
+  width: 100%;
+  margin: 0;
+  color: var(--color-text-strong);
+
+  .md-body {
+    color: var(--color-text-strong);
+    font-weight: var(--font-weight-body);
+    line-height: 1.68;
+
+    h1:first-child {
+      margin-top: 0;
+    }
+
+    h1,
+    h2,
+    h3 {
+      border-bottom: 0;
+      color: var(--color-text-strong);
+      font-weight: var(--font-weight-heading);
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin-bottom: 12px;
+      padding-bottom: 0;
+      line-height: 1.22;
+    }
+
+    h2 {
+      margin: 20px 0 9px;
+      padding-bottom: 0;
+      line-height: 1.28;
+    }
+
+    h3 {
+      margin: 16px 0 8px;
+      line-height: 1.35;
+    }
+
+    p {
+      margin: 0 0 10px;
+    }
+
+    ul,
+    ol {
+      margin: 0 0 10px 0;
+      padding-left: 24px;
+    }
+
+    li {
+      margin: 4px 0;
+      padding-left: 2px;
+
+      > ul,
+      > ol {
+        margin-top: 6px;
+        margin-bottom: 0;
+        padding-left: 22px;
+      }
+    }
+
+    :not(pre) > code {
+      padding: 1px 7px 2px;
+      border: 0;
+      border-radius: var(--radius-3);
+      background: color-mix(
+        in srgb,
+        var(--color-bg-soft) 82%,
+        var(--color-border-soft)
+      );
+      color: var(--color-text-strong);
+      font-size: var(--type-code);
+    }
+
+    strong {
+      font-weight: var(--font-weight-heading);
+    }
+  }
+}
+
+:root[data-theme="dark"] {
+  .right-dock-plan-scroll-area {
+    background: var(--color-bg);
+  }
+
+  .right-dock-plan-document .md-body :not(pre) > code {
+    background: color-mix(in srgb, var(--color-bg) 86%, var(--surface-raised));
+    border: 1px solid var(--color-border-soft);
+  }
+
+  .right-dock-plan-document .md-body .md-code-block {
+    border-color: var(--color-border-soft);
+    background: color-mix(in srgb, var(--color-bg) 90%, var(--surface-raised));
+  }
+
+  .right-dock-plan-document .md-body .md-code-header {
+    border-bottom-color: var(--color-border-faint);
+    background: color-mix(in srgb, var(--color-bg) 82%, var(--surface-raised));
+  }
+}
+

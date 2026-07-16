@@ -1,3 +1,6 @@
+// Kept first to preserve the historical module-graph CSS order.
+@use 'features/subagent-thread-panel';
+
 // Third-party vendor imports (Radix Colors, MiSans fonts)
 @use 'vendor';
 
@@ -22,14 +25,29 @@
 /* --- Feature Pages --- */
 @use 'features/layout-chrome';
 @use 'features/layout-sidebar';
-@use 'features/layout';
-@use 'features/composer';
-@use 'features/session';
+@use 'features/layout-workbench';
+@use 'features/layout-right-dock';
+@use 'features/layout-right-dock-panels';
+@use 'features/composer-shell';
+@use 'features/composer-controls';
+@use 'features/composer-status';
+@use 'features/composer-follow-up';
+@use 'features/session-page';
+@use 'features/session-approvals';
+@use 'features/session-messages';
+@use 'features/session-timeline';
+@use 'features/session-workflow';
+@use 'features/session-elicitation';
 @use 'features/search';
 @use 'features/browser';
 @use 'features/review';
 @use 'features/timeline';
-@use 'features/settings';
+@use 'features/settings-core';
+@use 'features/settings-profile';
+@use 'features/settings-appearance';
+@use 'features/settings-connections';
+@use 'features/settings-billing';
+@use 'features/settings-memory';
 @use 'features/marketplace';
 @use 'features/automation';
 
