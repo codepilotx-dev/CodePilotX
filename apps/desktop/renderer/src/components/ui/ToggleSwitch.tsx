@@ -12,7 +12,7 @@ export function ToggleSwitch({ checked, onChange, ariaLabel, disabled = false }:
   return (
     <Switch.Root
       aria-label={ariaLabel}
-      className={`toggle-switch ${checked ? 'on' : ''}`}
+      className="toggle-switch"
       checked={checked}
       disabled={disabled}
       onCheckedChange={onChange}

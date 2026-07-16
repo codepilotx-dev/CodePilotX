@@ -38,7 +38,7 @@ export function SessionFollowUpDock({
             </span>
             <div className="session-follow-up-actions">
               <IconButton
-                className="icon-button session-follow-up-action"
+                className="session-follow-up-action"
                 title="编辑"
                 onClick={() => onEdit(item.id)}
               >
@@ -48,7 +48,7 @@ export function SessionFollowUpDock({
                 />
               </IconButton>
               <IconButton
-                className="icon-button session-follow-up-action"
+                className="session-follow-up-action"
                 title="立即发送"
                 onClick={() => onSendNow(item.id)}
               >
@@ -58,7 +58,7 @@ export function SessionFollowUpDock({
                 />
               </IconButton>
               <IconButton
-                className="icon-button session-follow-up-action"
+                className="session-follow-up-action"
                 title="移除"
                 onClick={() => onRemove(item.id)}
               >

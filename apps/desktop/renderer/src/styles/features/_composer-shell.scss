@@ -253,7 +253,7 @@
     color: var(--color-text-strong);
   }
 
-  &.active {
+  &[data-active="true"] {
     background: var(--color-sidebar-hover-bg);
     color: var(--color-text);
   }

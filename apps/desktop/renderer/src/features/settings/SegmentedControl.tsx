@@ -24,7 +24,7 @@ export function SegmentedControl<T extends string>({ value, options, onChange }:
         <Tabs.Trigger
           key={option.value}
           type="button"
-          className={`segmented-control-item ${value === option.value ? 'active' : ''}`}
+          className="segmented-control-item"
           value={option.value}
         >
           {option.label}

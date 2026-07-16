@@ -1,7 +1,21 @@
 /* ===== Shared Button Patterns ===== */
 
 /* --- Icon Buttons --- */
-.icon-button,
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0;
+  -webkit-app-region: no-drag;
+
+  &:focus-visible {
+    outline: none;
+  }
+}
+
+.icon-button:not([data-variant]),
+.icon-button[data-variant="default"],
 .ghost-icon-button {
   display: inline-flex;
   align-items: center;
@@ -25,9 +39,19 @@
   }
 }
 
+.icon-button[data-size="sm"] {
+  width: var(--control-size-sm);
+  height: var(--control-size-sm);
+}
+
+.icon-button[data-size="md"] {
+  width: var(--control-size-md);
+  height: var(--control-size-md);
+}
+
 .icon-button svg,
 .ghost-icon-button svg,
-.window-toolbar-icon svg,
+.icon-button[data-variant="toolbar"] svg,
 .message-action svg,
 .meta-chip svg,
 .chip-button svg,
@@ -247,9 +271,7 @@
 }
 
 /* --- Window Toolbar Icon --- */
-.window-toolbar-icon {
-  width: var(--control-size-sm);
-  height: var(--control-size-sm);
+.icon-button[data-variant="toolbar"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;

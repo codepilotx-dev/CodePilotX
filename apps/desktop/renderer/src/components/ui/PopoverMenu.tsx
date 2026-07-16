@@ -19,11 +19,11 @@ type Props = {
 
 export function PopoverMenu({
   children,
-  align,
+  align = 'start',
   className = '',
   open,
   side,
-  sideOffset,
+  sideOffset = 6,
   collisionPadding,
   avoidCollisions,
   trigger,
@@ -33,24 +33,14 @@ export function PopoverMenu({
   maxWidth,
   onOpenChange,
 }: Props): React.ReactNode {
-  const dropdownSide = side ?? 'bottom'
-  const dropdownAlign = align ?? (
-    className.includes('popover-model') || className.includes('popover-branch')
-      ? 'end'
-      : 'start'
-  )
-  const dropdownSideOffset =
-    sideOffset ??
-    (className.includes('popover-menu-') ? 4 : 6)
-
   return (
     <Dropdown
-      align={dropdownAlign}
+      align={align}
       className={className}
       disableOutsideDismiss={disableOutsideDismiss}
       open={open}
-      side={dropdownSide}
-      sideOffset={dropdownSideOffset}
+      side={side ?? 'bottom'}
+      sideOffset={sideOffset}
       collisionPadding={collisionPadding}
       avoidCollisions={avoidCollisions}
       textMode={textMode}

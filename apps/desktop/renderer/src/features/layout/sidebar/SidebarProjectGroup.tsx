@@ -282,7 +282,7 @@ export function SidebarProjectGroup({
                   />
 
                   <IconButton
-                    className="icon-button sidebar-project-action-button"
+                    className="sidebar-project-action-button"
                     disabled={isUnavailable}
                     onClick={() => onCreateSession(project)}
                     title="新建对话"

@@ -567,7 +567,7 @@
   background-color: var(--color-bg);
 }
 
-.radio-card.active .radio-indicator {
+.radio-card[data-state="checked"] .radio-indicator {
   border-color: var(--color-text-strong);
 }
 
@@ -583,7 +583,7 @@
     transform 0.15s ease;
 }
 
-.radio-card.active .radio-indicator-inner {
+.radio-card[data-state="checked"] .radio-indicator-inner {
   opacity: 1;
   transform: scale(1);
 }

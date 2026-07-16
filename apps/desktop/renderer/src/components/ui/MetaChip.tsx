@@ -25,7 +25,7 @@ export const MetaChip = forwardRef<HTMLButtonElement, Props>(
         {...typedProps}
         ref={ref}
         aria-expanded={active}
-        className={active ? 'meta-chip active' : 'meta-chip'}
+        className="meta-chip"
         title={title}
       >
         {icon}

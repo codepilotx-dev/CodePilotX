@@ -288,7 +288,7 @@ export function SidebarFooter(): React.ReactNode {
         </div>
       </PopoverMenu>
       <IconButton
-        className="icon-button sidebar-mobile-button"
+        className="sidebar-mobile-button"
         onClick={() => {}}
         title="移动端"
       >

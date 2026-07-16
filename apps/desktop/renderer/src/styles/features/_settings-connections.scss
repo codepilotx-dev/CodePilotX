@@ -346,7 +346,7 @@
   object-fit: contain;
 }
 
-.settings-dropdown:not(.theme-dropdown-trigger) {
+.settings-dropdown:not([data-variant="theme"]) {
   max-width: min(360px, 48vw);
 }
 

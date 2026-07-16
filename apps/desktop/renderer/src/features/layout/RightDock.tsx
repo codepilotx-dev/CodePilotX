@@ -354,6 +354,7 @@ function RightDockTabsHeader({
                   <IconButton
                     className="right-dock-tab-close"
                     title={`关闭 ${label}`}
+                    variant="plain"
                     onClick={(event) => {
                       event.stopPropagation();
                       onCloseTool(tool.id);
@@ -449,6 +450,7 @@ export const DesktopWorkspaceFixedControls = forwardRef<
         <IconButton
           className="desktop-workspace-fixed-control-button"
           title={bottomPanelVisible ? "隐藏底部面板" : "显示底部面板"}
+          variant="plain"
           onClick={onToggleBottomPanel}
         >
           <PanelBottom
@@ -460,6 +462,7 @@ export const DesktopWorkspaceFixedControls = forwardRef<
       <IconButton
         className="desktop-workspace-fixed-control-button"
         title={rightDockState.open ? "关闭右侧面板" : "显示右侧面板"}
+        variant="plain"
         onClick={() => {
           if (rightDockState.open) {
             onCloseRightDock();

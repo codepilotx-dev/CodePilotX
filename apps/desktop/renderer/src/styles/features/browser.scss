@@ -26,12 +26,10 @@
   gap: 6px;
 }
 
-.browser-icon-button {
+.icon-button[data-variant="browser"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--control-size-md);
-  height: var(--control-size-md);
   border: 1px solid transparent;
   border-radius: var(--radius-5);
   background: transparent;

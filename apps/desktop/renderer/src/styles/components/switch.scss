@@ -9,7 +9,7 @@
     var(--color-panel-elevated-bg)
   );
 
-  &.on,
+  &[data-state="checked"],
   &[aria-checked="true"] {
     background: var(--color-accent);
   }
@@ -33,7 +33,8 @@
   padding: 0;
   flex-shrink: 0;
 
-  &.on .toggle-knob {
+  &[data-state="checked"] .toggle-knob,
+  &[aria-checked="true"] .toggle-knob {
     transform: translateX(14px);
   }
 }

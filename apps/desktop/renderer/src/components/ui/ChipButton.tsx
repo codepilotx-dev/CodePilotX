@@ -39,7 +39,6 @@ export const ChipButton = forwardRef<HTMLButtonElement, Props>(
         aria-expanded={active}
         className={[
           'chip-button',
-          active ? 'active' : '',
           className,
         ].join(' ')}
         title={title}

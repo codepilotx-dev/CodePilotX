@@ -20,7 +20,7 @@ export function RadioCard({
 }: Props) {
   return (
     <RadioGroup.Item
-      className={`radio-card ${checked ? 'active' : ''}`}
+      className="radio-card"
       onClick={onClick}
       value={value}
     >

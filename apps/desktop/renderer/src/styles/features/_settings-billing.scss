@@ -337,7 +337,7 @@
     max-width: none;
   }
 
-  .theme-dropdown-trigger {
+  .settings-dropdown[data-variant="theme"] {
     min-width: 0;
   }
 }

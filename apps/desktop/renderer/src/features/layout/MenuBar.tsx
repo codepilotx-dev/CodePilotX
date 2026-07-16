@@ -199,9 +199,10 @@ export function MenuBar({
       <div className="menubar-titlebar">
         <div className="menubar-left">
           <IconButton
-            className="window-toolbar-icon"
             onClick={onToggleSidebar}
+            size="sm"
             title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+            variant="toolbar"
           >
             {sidebarCollapsed ? (
               <PanelLeftOpen size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -209,10 +210,10 @@ export function MenuBar({
               <PanelLeftClose size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             )}
           </IconButton>
-          <IconButton className="window-toolbar-icon" title="后退">
+          <IconButton size="sm" title="后退" variant="toolbar">
             <ChevronLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
-          <IconButton className="window-toolbar-icon" title="前进">
+          <IconButton size="sm" title="前进" variant="toolbar">
             <ChevronRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
 
@@ -456,6 +457,7 @@ export function MenuBar({
             className="window-control-button"
             onClick={onMinimize}
             title="最小化"
+            variant="plain"
           >
             <Minus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
@@ -463,6 +465,7 @@ export function MenuBar({
             className="window-control-button"
             onClick={onToggleMaximize}
             title={isMaximized ? '还原' : '最大化'}
+            variant="plain"
           >
             {isMaximized ? (
               <Copy
@@ -478,6 +481,7 @@ export function MenuBar({
             className="window-control-button close"
             onClick={onClose}
             title="关闭"
+            variant="plain"
           >
             <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>

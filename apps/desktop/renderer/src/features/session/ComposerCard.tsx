@@ -1089,10 +1089,8 @@ export function ComposerCard({
         <div className="composer-toolbar">
           <div className="toolbar-left">
             <IconButton
-              className={[
-                "icon-button",
-                openDropdown === "context" ? "active" : "",
-              ].join(" ")}
+              active={openDropdown === "context"}
+              aria-expanded={openDropdown === "context"}
               title="添加上下文"
               onClick={() =>
                 setOpenDropdown(openDropdown === "context" ? null : "context")
@@ -1563,7 +1561,7 @@ export function ComposerCard({
             </DropdownMenu.Root>
 
             <IconButton
-              className="icon-button composer-mic-button"
+              className="composer-mic-button"
               title="语音输入"
             >
               <Mic size={APP_ICON_SIZE} />
@@ -1778,6 +1776,7 @@ export function ComposerCard({
               ) : null}
 
               <BranchSelectPopover
+                align="end"
                 branchSearch={branchSearch}
                 branches={branches}
                 className="popover-branch"

@@ -63,7 +63,7 @@
 .composer .icon-button:hover,
 .message-action:hover,
 .message-action[data-state="open"],
-.window-toolbar-icon:hover,
+.icon-button[data-variant="toolbar"]:hover,
 .menubar-trigger:hover,
 .menubar-trigger[data-state="open"],
 .menubar-trigger[data-highlighted] {
@@ -71,10 +71,8 @@
   color: var(--color-text-strong);
 }
 
-.chip-button.active,
 .chip-button[aria-expanded="true"],
 .chip-button[data-state="open"],
-.meta-chip.active,
 .meta-chip[aria-expanded="true"],
 .meta-chip[data-state="open"],
 .message-action[data-state="open"],
@@ -113,10 +111,8 @@
   color: var(--color-text-strong);
 }
 
-.chip-button.active,
 .chip-button[aria-expanded="true"],
 .chip-button[data-state="open"],
-.meta-chip.active,
 .meta-chip[aria-expanded="true"],
 .meta-chip[data-state="open"] {
   background: var(--color-sidebar-hover-bg);

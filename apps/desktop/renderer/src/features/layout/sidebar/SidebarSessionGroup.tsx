@@ -217,7 +217,7 @@ export function SidebarSessionGroup({
               <div className="sidebar-session-actions">
                 {session.pinnedAt ? (
                   <IconButton
-                    className="icon-button sidebar-session-action-button"
+                    className="sidebar-session-action-button"
                     onClick={() => onUnpinSession(session)}
                     title="取消置顶"
                   >
@@ -225,7 +225,7 @@ export function SidebarSessionGroup({
                   </IconButton>
                 ) : (
                   <IconButton
-                    className="icon-button sidebar-session-action-button"
+                    className="sidebar-session-action-button"
                     onClick={() => onPinSession(session)}
                     title="置顶"
                   >
@@ -233,7 +233,7 @@ export function SidebarSessionGroup({
                   </IconButton>
                 )}
                 <IconButton
-                  className="icon-button sidebar-session-action-button"
+                  className="sidebar-session-action-button"
                   onClick={() => setConfirmArchiveSessionId(session.id)}
                   title="归档"
                 >

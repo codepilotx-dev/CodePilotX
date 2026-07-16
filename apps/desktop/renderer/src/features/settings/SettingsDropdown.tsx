@@ -77,9 +77,8 @@ export function SettingsDropdown({
     >
       <Select.Trigger
         aria-label={ariaLabel}
-        className={`settings-dropdown${
-          isThemeVariant ? ' theme-dropdown-trigger' : ''
-        }`}
+        className="settings-dropdown"
+        data-variant={variant}
         tabIndex={-1}
       >
         <div className="settings-dropdown-value">
@@ -93,10 +92,9 @@ export function SettingsDropdown({
       <Select.Portal>
         <Select.Content
           align="start"
-          className={`popover-surface settings-dropdown-content${
-            isThemeVariant ? ' theme-dropdown-content' : ''
-          }`}
+          className="popover-surface settings-dropdown-content"
           collisionPadding={12}
+          data-variant={variant}
           position="popper"
           side="bottom"
           sideOffset={6}

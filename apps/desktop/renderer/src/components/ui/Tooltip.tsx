@@ -30,7 +30,7 @@ export function Tooltip({
   align = 'center',
   delay,
   delayDuration,
-  className = 'tooltip-content',
+  className = '',
   sideOffset = 6,
   open,
   defaultOpen,
@@ -47,7 +47,7 @@ export function Tooltip({
       <RadixTooltip.Portal>
         <RadixTooltip.Content
           align={align}
-          className={className}
+          className={['tooltip-content', className].filter(Boolean).join(' ')}
           side={side}
           sideOffset={sideOffset}
         >

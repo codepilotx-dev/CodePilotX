@@ -12,7 +12,6 @@
 .popover-surface,
 .sidebar-context-menu-content,
 .settings-dropdown-content,
-.theme-dropdown-content,
 .permission-select-content,
 .appearance-color-popover,
 .rm-model-menu {
@@ -64,7 +63,6 @@
   .popover-surface,
   .sidebar-context-menu-content,
   .settings-dropdown-content,
-  .theme-dropdown-content,
   .permission-select-content,
   .appearance-color-popover,
   .rm-model-menu {
@@ -117,7 +115,6 @@
 [data-radix-popper-content-wrapper]:has(.popover),
 [data-radix-popper-content-wrapper]:has(.sidebar-context-menu-content),
 [data-radix-popper-content-wrapper]:has(.settings-dropdown-content),
-[data-radix-popper-content-wrapper]:has(.theme-dropdown-content),
 [data-radix-popper-content-wrapper]:has(.permission-select-content),
 [data-radix-popper-content-wrapper]:has(.appearance-color-popover),
 [data-radix-popper-content-wrapper]:has(.rm-model-menu) {
@@ -141,7 +138,7 @@
   padding: 6px;
 }
 
-.popover-item-tooltip {
+.tooltip-content.popover-item-tooltip {
   border-radius: var(--radius-card);
   box-shadow: var(--popover-surface-shadow);
 }
@@ -166,7 +163,6 @@
   [data-radix-popper-content-wrapper]:has(.popover),
   [data-radix-popper-content-wrapper]:has(.sidebar-context-menu-content),
   [data-radix-popper-content-wrapper]:has(.settings-dropdown-content),
-  [data-radix-popper-content-wrapper]:has(.theme-dropdown-content),
   [data-radix-popper-content-wrapper]:has(.permission-select-content),
   [data-radix-popper-content-wrapper]:has(.appearance-color-popover),
   [data-radix-popper-content-wrapper]:has(.rm-model-menu) {
@@ -599,7 +595,7 @@
 }
 
 /* --- Tooltip --- */
-.popover-item-tooltip {
+.tooltip-content.popover-item-tooltip {
   z-index: var(--z-tooltip);
   width: max-content;
   max-width: min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px));

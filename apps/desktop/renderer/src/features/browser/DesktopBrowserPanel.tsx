@@ -165,24 +165,27 @@ export function DesktopBrowserPanel({
       <div className="browser-commandbar">
         <div className="browser-navigation">
           <IconButton
-            className="browser-icon-button"
             disabled={!state.canGoBack}
+            size="md"
             title="后退"
+            variant="browser"
             onClick={() => void runBrowserAction(desktopClient.goBackBrowser)}
           >
             <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton
-            className="browser-icon-button"
             disabled={!state.canGoForward}
+            size="md"
             title="前进"
+            variant="browser"
             onClick={() => void runBrowserAction(desktopClient.goForwardBrowser)}
           >
             <ArrowRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton
-            className="browser-icon-button"
+            size="md"
             title="重新加载"
+            variant="browser"
             onClick={() => void runBrowserAction(desktopClient.reloadBrowser)}
           >
             <RefreshCw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -209,9 +212,10 @@ export function DesktopBrowserPanel({
         </form>
         <div className="browser-toolbar-actions">
           <IconButton
-            className="browser-icon-button"
             disabled={!state.url && !address.trim()}
+            size="md"
             title="发送当前页面到对话框"
+            variant="browser"
             onClick={handleSendPageToComposer}
           >
             <MessageSquarePlus
@@ -220,8 +224,9 @@ export function DesktopBrowserPanel({
             />
           </IconButton>
           <IconButton
-            className="browser-icon-button"
+            size="md"
             title={annotationOpen ? '收起批注' : '添加批注'}
+            variant="browser"
             onClick={() => setAnnotationOpen(current => !current)}
           >
             <MessageSquarePlus
@@ -229,7 +234,7 @@ export function DesktopBrowserPanel({
               strokeWidth={APP_ICON_STROKE_WIDTH}
             />
           </IconButton>
-          <IconButton className="browser-icon-button" title="更多">
+          <IconButton size="md" title="更多" variant="browser">
             <MoreVertical size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
         </div>
