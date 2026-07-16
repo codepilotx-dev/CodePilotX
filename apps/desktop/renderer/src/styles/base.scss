@@ -4,7 +4,7 @@
 
 html,
 body,
-#root {
+:where(#root) {
   height: 100%;
 }
 
@@ -38,6 +38,7 @@ button:disabled {
   opacity: 0.55;
 }
 
+// The global cursor preference must override component-level cursor affordances.
 :root[data-pointer-cursor="off"] * {
   cursor: default !important;
 }
@@ -116,6 +117,7 @@ p {
   --radius-full: 9999px;
 }
 
+// Accessibility motion overrides must win over component transitions.
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

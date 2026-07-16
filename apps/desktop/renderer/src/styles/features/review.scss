@@ -839,9 +839,10 @@
       font-family: var(--font-family-sans);
       font-size: var(--type-control);
 
-      &::placeholder {
-        color: var(--color-text-placeholder);
-      }
+    }
+
+    input::placeholder {
+      color: var(--color-text-placeholder);
     }
   }
 
@@ -937,10 +938,11 @@
       font-size: var(--type-control);
       font-family: var(--font-family-sans);
 
-      &:hover {
-        color: var(--color-text-strong);
-        border-color: var(--color-border);
-      }
+    }
+
+    button:hover {
+      color: var(--color-text-strong);
+      border-color: var(--color-border);
     }
   }
 

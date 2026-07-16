@@ -217,7 +217,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-text-meta, #999);
+  color: var(--color-text-meta);
   font-size: var(--type-meta);
   font-weight: var(--font-weight-label, 500);
   user-select: none;
@@ -228,7 +228,7 @@
     display: block;
     height: 1px;
     width: 24px;
-    background: var(--color-border-soft, #eee);
+    background: var(--color-border-soft);
   }
 
   &::after {
@@ -266,8 +266,8 @@
     opacity: 0;
   }
 
-  .chat-message-row.assistant:hover .assistant-message-actions,
-  .chat-message-row.assistant:focus-within .assistant-message-actions {
+  :where(.chat-message-row.assistant:hover) .assistant-message-actions,
+  :where(.chat-message-row.assistant:focus-within) .assistant-message-actions {
     opacity: 1;
   }
 

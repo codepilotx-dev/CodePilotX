@@ -97,10 +97,10 @@
 
     input {
       color: var(--glass-surface-text);
+    }
 
-      &::placeholder {
-        color: var(--glass-surface-text-meta);
-      }
+    input::placeholder {
+      color: var(--glass-surface-text-meta);
     }
   }
 }

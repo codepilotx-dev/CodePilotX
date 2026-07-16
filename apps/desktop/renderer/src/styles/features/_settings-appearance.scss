@@ -937,7 +937,7 @@
       color: var(--color-text-meta);
     }
 
-    .settings-button:hover:not(:disabled) {
+    :where(.settings-button:hover:not(:disabled)) {
       color: var(--color-text-strong);
     }
   }

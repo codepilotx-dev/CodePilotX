@@ -342,13 +342,13 @@
     li {
       margin: 4px 0;
       padding-left: 2px;
+    }
 
-      > ul,
-      > ol {
-        margin-top: 6px;
-        margin-bottom: 0;
-        padding-left: 22px;
-      }
+    li > ul,
+    li > ol {
+      margin-top: 6px;
+      margin-bottom: 0;
+      padding-left: 22px;
     }
 
     :not(pre) > code {

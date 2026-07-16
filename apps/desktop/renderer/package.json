@@ -4,6 +4,7 @@
   "version": "0.2.0",
   "type": "module",
   "scripts": {
+    "css:check": "stylelint \"src/**/*.{css,scss}\" --max-warnings 0 && bun run scripts/check-style-contracts.ts",
     "dev": "vite --host 127.0.0.1 --port 5173",
     "typecheck": "tsc -b",
     "test": "bun test test",
@@ -42,7 +43,10 @@
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.1.2",
+    "postcss-scss": "^4.0.9",
     "sass": "^1.101.0",
+    "stylelint": "^17.14.0",
+    "stylelint-config-standard-scss": "^17.0.0",
     "typescript": "5.9.3",
     "vite": "7.3.1"
   }

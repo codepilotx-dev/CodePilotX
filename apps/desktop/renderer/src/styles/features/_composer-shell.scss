@@ -6,6 +6,9 @@
 }
 
 .composer {
+  --composer-surface-top-border-color: var(--border-subtle);
+  --composer-surface-footer-border-color: var(--border-subtle);
+
   position: relative;
   z-index: var(--z-composer);
   width: 100%;

@@ -12,6 +12,7 @@
     "electron"
   ],
   "scripts": {
+    "desktop:css:check": "bun run --cwd apps/desktop/renderer css:check",
     "dev": "bun run scripts/dev.ts",
     "dev:agent": "bun run --cwd apps/agent dev",
     "dev:renderer": "bun run --cwd apps/desktop/renderer dev",

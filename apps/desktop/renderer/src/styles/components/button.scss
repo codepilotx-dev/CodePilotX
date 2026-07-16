@@ -125,7 +125,7 @@
     color var(--motion-standard) var(--ease-standard);
 }
 
-.settings-button:not(.is-primary):not(.primary):not(.danger):not(.link),
+.settings-button:where(:not(.is-primary):not(.primary):not(.danger):not(.link)),
 .plugins-button:not(.is-primary),
 .automation-button:not(.is-primary) {
   padding: var(
@@ -153,7 +153,7 @@
   stroke-width: var(--app-icon-stroke-width);
 }
 
-.settings-button:not(.is-primary):not(.primary):not(.danger):not(.link),
+.settings-button:where(:not(.is-primary):not(.primary):not(.danger):not(.link)),
 .plugins-button:not(.is-primary),
 .automation-button:not(.is-primary),
 .settings-dropdown,

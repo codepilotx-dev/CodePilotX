@@ -1,0 +1,30 @@
+{
+  "styleEntrypoint": "src/styles/index.scss",
+  "styleEntrypointImporter": "src/main.tsx",
+  "cascadeLayerOrder": [
+    "vendor",
+    "reset",
+    "tokens",
+    "primitives",
+    "shell",
+    "features",
+    "overrides"
+  ],
+  "directStyleImportAllowlist": [],
+  "customPropertyReferenceAllowlist": [
+    "--button-font-size",
+    "--button-gap",
+    "--button-line-height",
+    "--button-padding",
+    "--composer-surface-footer-gap",
+    "--font-mono",
+    "--inline-approval-card-margin-bottom",
+    "--inline-approval-card-radius",
+    "--popover-overflow-x"
+  ],
+  "importantDeclarationAllowlist": {
+    "src/styles/base.scss": 12,
+    "src/styles/popover.scss": 1
+  },
+  "dataThemeSelectorAllowlist": {}
+}

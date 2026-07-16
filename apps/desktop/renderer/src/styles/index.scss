@@ -1,5 +1,4 @@
 @use 'sass:meta';
-
 @layer vendor, reset, tokens, primitives, shell, features, overrides;
 
 @layer vendor {
@@ -62,4 +61,8 @@
   @include meta.load-css('features/marketplace');
   @include meta.load-css('features/automation');
   @include meta.load-css('model-menu-pilot');
+}
+
+@layer overrides {
+  // Reserved for documented external-DOM constraints only.
 }
