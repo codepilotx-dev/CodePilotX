@@ -25,12 +25,7 @@
 .md-body .md-code-block,
 .md-body pre,
 .md-body pre code {
-  border-color: color-mix(in srgb, var(--color-text-on-accent) 10%, transparent);
+  border-color: var(--border-control);
   background: var(--surface-product);
   color: var(--color-text-on-accent);
-}
-
-/* --- Dark theme product surface --- */
-:root[data-theme="dark"] .md-body .md-code-block {
-  border-color: var(--color-border-soft);
 }

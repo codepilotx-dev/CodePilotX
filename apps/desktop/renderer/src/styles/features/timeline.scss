@@ -100,7 +100,7 @@
 
 /* Keep the VList from causing layout shifts */
 .session-timeline-vlist {
-  outline: none !important;
+  outline: none;
 
   > :first-child {
     min-width: 0;

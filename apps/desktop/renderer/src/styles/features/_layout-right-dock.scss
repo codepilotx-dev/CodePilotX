@@ -46,7 +46,7 @@
 
 .right-dock-is-resizing,
 .right-dock-is-resizing * {
-  cursor: col-resize !important;
+  cursor: col-resize;
   user-select: none;
 }
 
@@ -380,23 +380,21 @@
   color: var(--color-text-on-accent);
 }
 
-:root[data-theme="dark"] {
-  .right-dock-plan-scroll-area {
-    background: var(--color-bg);
-  }
+.right-dock-plan-scroll-area {
+  background: var(--surface-canvas);
+}
 
-  .right-dock-plan-document .md-body :not(pre) > code {
-    background: color-mix(in srgb, var(--color-bg) 86%, var(--surface-raised));
-    border: 1px solid var(--color-border-soft);
-  }
+.right-dock-plan-document .md-body :not(pre) > code {
+  border: 1px solid var(--border-control);
+  background: var(--surface-code-inline);
+}
 
-  .right-dock-plan-document .md-body .md-code-block {
-    border-color: var(--color-border-soft);
-    background: color-mix(in srgb, var(--color-bg) 90%, var(--surface-raised));
-  }
+.right-dock-plan-document .md-body .md-code-block {
+  border-color: var(--border-control);
+  background: var(--surface-code-block);
+}
 
-  .right-dock-plan-document .md-body .md-code-header {
-    border-bottom-color: var(--color-border-faint);
-    background: color-mix(in srgb, var(--color-bg) 82%, var(--surface-raised));
-  }
+.right-dock-plan-document .md-body .md-code-header {
+  border-bottom-color: var(--border-subtle);
+  background: var(--surface-raised);
 }

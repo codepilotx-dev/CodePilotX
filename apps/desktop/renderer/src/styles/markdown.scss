@@ -295,7 +295,6 @@
   }
 }
 
-/* Dark theme: copy-done green is same in dark */
-:root[data-theme="dark"] .md-body .md-code-copy.is-copied {
+.md-body .md-code-copy.is-copied {
   color: var(--color-success);
 }

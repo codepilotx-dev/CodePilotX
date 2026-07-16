@@ -523,34 +523,28 @@
   font-size: var(--app-icon-size);
 }
 
-:root[data-theme="dark"] {
-  .composer-input textarea::placeholder {
-    color: var(--color-text-meta);
-  }
+.composer-input textarea::placeholder {
+  color: var(--color-text-meta);
+}
 
-  --composer-surface-top-border-color: var(--color-border-soft);
-  --composer-surface-top-bg: var(--color-panel-bg);
-  --composer-surface-footer-border-color: var(--color-border-faint);
+.composer-model-chip-label {
+  color: var(--color-text-strong);
+}
 
-  .composer-model-chip-label {
-    color: var(--color-text-strong);
-  }
-
-  .chip-button.permission-chip:hover,
-  .permission-select-trigger:hover {
-    border-color: var(
-      --composer-permission-chip-hover-border,
-      var(--color-border)
-    );
-    background: var(
-      --composer-permission-chip-hover-bg,
-      var(--color-sidebar-hover-bg)
-    );
-    color: var(
-      --composer-permission-chip-hover-color,
-      var(--color-text-strong)
-    );
-  }
+.chip-button.permission-chip:hover,
+.permission-select-trigger:hover {
+  border-color: var(
+    --composer-permission-chip-hover-border,
+    var(--border-control)
+  );
+  background: var(
+    --composer-permission-chip-hover-bg,
+    var(--state-hover)
+  );
+  color: var(
+    --composer-permission-chip-hover-color,
+    var(--color-text-strong)
+  );
 }
 
 /* Shared composer visual shell */
@@ -591,4 +585,3 @@
 .composer-surface--display-bottom {
   --composer-surface-footer-display: flex;
 }
-

@@ -440,28 +440,23 @@
   }
 }
 
-/* --- Dark theme overrides --- */
-:root[data-theme="dark"] {
-  .workflow-page__composer .composer {
-    border-color: var(--color-border-soft);
-    background: var(--color-panel-bg);
-    box-shadow:
-      var(--color-panel-shadow),
-      0 1px 0 color-mix(in srgb, var(--color-ink) 4%, transparent) inset;
-  }
+.workflow-page__composer .composer {
+  border-color: var(--border-subtle);
+  background: var(--surface-composer);
+  box-shadow: var(--color-panel-shadow);
+}
 
-  .workflow-page__composer .composer-surface {
-    --composer-surface-top-bg: var(--color-panel-bg);
-  }
+.workflow-page__composer .composer-surface {
+  --composer-surface-top-bg: var(--surface-composer);
+}
 
-  .workflow-plan-card {
-    border-color: var(--color-panel-border);
-    background: var(--color-panel-bg);
-  }
+.workflow-plan-card {
+  border-color: var(--border-subtle);
+  background: var(--surface-panel);
+}
 
-  .workflow-plan-card__body .md-body code:not(pre code) {
-    background: color-mix(in srgb, var(--color-bg) 86%, var(--surface-raised));
-    border: 1px solid var(--color-border-soft);
-    color: var(--color-text-strong);
-  }
+.workflow-plan-card__body .md-body code:not(pre code) {
+  border: 1px solid var(--border-control);
+  background: var(--surface-code-inline);
+  color: var(--color-text-strong);
 }

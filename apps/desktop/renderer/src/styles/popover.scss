@@ -30,7 +30,7 @@
   box-shadow: var(--popover-surface-shadow);
   color: var(--color-text);
   font-size: var(--type-control);
-  outline: none !important;
+  outline: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-app-region: no-drag;
@@ -121,6 +121,7 @@
 [data-radix-popper-content-wrapper]:has(.permission-select-content),
 [data-radix-popper-content-wrapper]:has(.appearance-color-popover),
 [data-radix-popper-content-wrapper]:has(.rm-model-menu) {
+  // Radix portals sit outside the app stacking context.
   z-index: var(--z-popover) !important;
   border-radius: var(--popover-surface-radius);
   background: transparent;
@@ -128,7 +129,7 @@
   box-shadow: none;
   color: var(--color-text);
   font-size: var(--type-control);
-  outline: none !important;
+  outline: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-app-region: no-drag;
@@ -382,23 +383,6 @@
   }
 }
 
-:root[data-theme="dark"] {
-  .context-menu-switch {
-    background: color-mix(
-      in srgb,
-      var(--color-text-on-accent) 14%,
-      var(--color-panel-elevated-bg)
-    );
-
-    &[aria-checked="true"] {
-      background: var(--color-accent);
-    }
-  }
-
-  .context-plugin-icon-github {
-    color: var(--color-text-strong);
-  }
-}
 
 .context-menu-sub-trigger {
   cursor: default;

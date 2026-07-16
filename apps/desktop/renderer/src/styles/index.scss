@@ -1,58 +1,65 @@
-// Kept first to preserve the historical module-graph CSS order.
-@use 'features/subagent-thread-panel';
+@use 'sass:meta';
 
-// Third-party vendor imports (Radix Colors, MiSans fonts)
-@use 'vendor';
+@layer vendor, reset, tokens, primitives, shell, features, overrides;
 
-/* --- Base: reset, body, focus, motion — no token variables --- */
-@use 'base';
+@layer vendor {
+  @include meta.load-css('vendor');
+}
 
-/* --- Design tokens (Claude-branded variables, overrides base defaults) --- */
-@use 'design-system/tokens';
+@layer reset {
+  @include meta.load-css('base');
+}
 
-/* --- Shared Component Patterns --- */
-@use 'components/button';
-@use 'components/card';
-@use 'components/input';
-@use 'components/chip';
-@use 'components/switch';
-@use 'components/menu-item';
-@use 'components/scroll-area';
+@layer tokens {
+  @include meta.load-css('design-system/tokens');
+}
 
-/* --- Layout --- */
-@use 'shell';
+@layer primitives {
+  @include meta.load-css('components/button');
+  @include meta.load-css('components/card');
+  @include meta.load-css('components/input');
+  @include meta.load-css('components/chip');
+  @include meta.load-css('components/switch');
+  @include meta.load-css('components/menu-item');
+  @include meta.load-css('components/scroll-area');
+  @include meta.load-css('markdown');
+  @include meta.load-css('popover');
+  @include meta.load-css('modal');
+}
 
-/* --- Feature Pages --- */
-@use 'features/layout-chrome';
-@use 'features/layout-sidebar';
-@use 'features/layout-workbench';
-@use 'features/layout-right-dock';
-@use 'features/layout-right-dock-panels';
-@use 'features/composer-shell';
-@use 'features/composer-controls';
-@use 'features/composer-status';
-@use 'features/composer-follow-up';
-@use 'features/session-page';
-@use 'features/session-approvals';
-@use 'features/session-messages';
-@use 'features/session-timeline';
-@use 'features/session-workflow';
-@use 'features/session-elicitation';
-@use 'features/search';
-@use 'features/browser';
-@use 'features/review';
-@use 'features/timeline';
-@use 'features/settings-core';
-@use 'features/settings-profile';
-@use 'features/settings-appearance';
-@use 'features/settings-connections';
-@use 'features/settings-billing';
-@use 'features/settings-memory';
-@use 'features/marketplace';
-@use 'features/automation';
+@layer shell {
+  @include meta.load-css('shell');
+  @include meta.load-css('features/layout-chrome');
+  @include meta.load-css('features/layout-sidebar');
+  @include meta.load-css('features/layout-workbench');
+  @include meta.load-css('features/layout-right-dock');
+  @include meta.load-css('features/layout-right-dock-panels');
+}
 
-/* --- Legacy: structured feature CSS kept as-is --- */
-@use 'markdown';
-@use 'popover';
-@use 'modal';
-@use 'model-menu-pilot';
+@layer features {
+  // Kept first to preserve the historical module-graph order.
+  @include meta.load-css('features/subagent-thread-panel');
+  @include meta.load-css('features/composer-shell');
+  @include meta.load-css('features/composer-controls');
+  @include meta.load-css('features/composer-status');
+  @include meta.load-css('features/composer-follow-up');
+  @include meta.load-css('features/session-page');
+  @include meta.load-css('features/session-approvals');
+  @include meta.load-css('features/session-messages');
+  @include meta.load-css('features/session-timeline');
+  @include meta.load-css('features/session-workflow');
+  @include meta.load-css('features/session-elicitation');
+  @include meta.load-css('features/search');
+  @include meta.load-css('features/browser');
+  @include meta.load-css('features/review');
+  @include meta.load-css('features/timeline');
+  @include meta.load-css('features/settings-core');
+  @include meta.load-css('features/settings-profile');
+  @include meta.load-css('features/settings-appearance');
+  @include meta.load-css('features/settings-connections');
+  @include meta.load-css('features/settings-billing');
+  @include meta.load-css('features/settings-memory');
+  @include meta.load-css('features/marketplace');
+  @include meta.load-css('features/automation');
+  @include meta.load-css('model-menu-pilot');
+}

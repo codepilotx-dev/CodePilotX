@@ -241,8 +241,8 @@
 
 .review-file-tree-is-resizing,
 .review-file-tree-is-resizing * {
-  cursor: col-resize !important;
-  user-select: none !important;
+  cursor: col-resize;
+  user-select: none;
 }
 
 .review-file-list-scroll-area {
@@ -464,7 +464,7 @@
 }
 
 .review-diff-vlist {
-  overflow-x: auto !important;
+  overflow-x: auto;
 }
 
 .review-diff-vlist-row {

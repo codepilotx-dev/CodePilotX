@@ -347,18 +347,14 @@
   }
 }
 
-:root[data-theme="dark"] {
-  .quick-chat-view .chat-composer > .composer {
-    border-color: var(--color-panel-border);
-    background: var(--color-panel-bg);
-    box-shadow:
-      var(--color-panel-shadow),
-      0 1px 0 color-mix(in srgb, var(--color-ink) 4%, transparent) inset;
-  }
+.quick-chat-view .chat-composer > .composer {
+  border-color: var(--border-subtle);
+  background: var(--surface-composer);
+  box-shadow: var(--color-panel-shadow);
+}
 
-  .quick-chat-view {
-    --composer-surface-top-bg: var(--color-panel-bg);
-  }
+.quick-chat-view {
+  --composer-surface-top-bg: var(--surface-composer);
 }
 
 @keyframes composer-status-summary-spin {

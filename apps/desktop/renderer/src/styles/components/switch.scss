@@ -74,17 +74,3 @@
   .chat-input__dropdown-switch-thumb {
   transform: translateX(14px);
 }
-
-:root[data-theme="dark"] {
-  .chat-input__dropdown-switch {
-    background: color-mix(
-      in srgb,
-      var(--color-text-strong) 16%,
-      var(--color-panel-bg)
-    );
-  }
-
-  .chat-input__dropdown-switch-thumb {
-    background: var(--color-bg);
-  }
-}

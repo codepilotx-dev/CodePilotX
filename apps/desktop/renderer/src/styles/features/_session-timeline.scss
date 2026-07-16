@@ -787,26 +787,24 @@
   }
 }
 
-:root[data-theme="dark"] {
-  .timeline-file-event-header {
-    background: color-mix(in srgb, var(--surface-raised) 34%, transparent);
-  }
+.timeline-file-event-header {
+  background: var(--surface-raised);
+}
 
-  .timeline-file-event-list {
-    background: color-mix(in srgb, var(--color-bg) 68%, transparent);
-  }
+.timeline-file-event-list {
+  background: var(--surface-canvas);
+}
 
-  .timeline-system-event.error {
-    border-color: color-mix(
-      in srgb,
-      var(--color-danger) 48%,
-      var(--color-border-soft)
-    );
-    background: color-mix(
-      in srgb,
-      var(--color-danger) 13%,
-      var(--color-panel-bg)
-    );
-  }
+.timeline-system-event.error {
+  border-color: color-mix(
+    in srgb,
+    var(--color-danger) 48%,
+    var(--border-control)
+  );
+  background: color-mix(
+    in srgb,
+    var(--color-danger) 13%,
+    var(--surface-panel)
+  );
 }
 

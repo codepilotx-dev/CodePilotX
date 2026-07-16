@@ -17,7 +17,7 @@
   font-size: var(--type-control);
   line-height: var(--control-line-height);
   color: var(--color-text);
-  outline: none !important;
+  outline: none;
   user-select: none;
   -webkit-user-select: none;
 
@@ -29,7 +29,7 @@
 .settings-dropdown *,
 .settings-dropdown-content,
 .settings-dropdown-content * {
-  outline: none !important;
+  outline: none;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -126,9 +126,4 @@
 .settings-textarea:focus,
 .settings-input-number:focus {
   border-color: color-mix(in srgb, var(--color-accent) 42%, var(--border-subtle));
-}
-
-/* --- Dark theme overrides --- */
-:root[data-theme="dark"] .chip-button.permission-chip {
-  color: var(--composer-permission-chip-color, var(--color-text-strong));
 }

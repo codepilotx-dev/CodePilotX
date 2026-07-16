@@ -336,10 +336,6 @@
   white-space: pre;
 }
 
-:root[data-theme="dark"] .environment-diff-preview {
-  border-color: var(--color-border-soft);
-}
-
 .environment-source {
   display: grid;
   gap: 10px;

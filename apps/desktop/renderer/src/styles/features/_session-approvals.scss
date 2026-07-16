@@ -1135,17 +1135,9 @@
   }
 }
 
-:root[data-theme="dark"] {
-  .inline-approval-card,
-  .workflow-composer-card {
-    border-color: var(--color-border-soft);
-    background: var(--color-panel-bg);
-  }
-
-  .workflow-composer-card .md-body :not(pre) > code {
-    border: 1px solid var(--color-border-soft);
-    background: color-mix(in srgb, var(--color-bg) 86%, var(--surface-raised));
-    color: var(--color-text-strong);
-  }
+.workflow-composer-card .md-body :not(pre) > code {
+  border: 1px solid var(--border-control);
+  background: var(--surface-code-inline);
+  color: var(--color-text-strong);
 }
 

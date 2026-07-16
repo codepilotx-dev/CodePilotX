@@ -262,11 +262,3 @@
     background: var(--color-bg-hover);
   }
 }
-
-/* --- Dark theme overrides --- */
-:root[data-theme="dark"] .plugins-card:hover,
-:root[data-theme="dark"] .utility-card:hover,
-:root[data-theme="dark"] .automation-quick-button:hover,
-:root[data-theme="dark"] .search-result-row:hover {
-  background: var(--state-hover-bg);
-}

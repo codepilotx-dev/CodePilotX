@@ -257,10 +257,6 @@
   }
 }
 
-:root[data-theme="dark"] .right-dock-file-document pre {
-  border-color: var(--color-border-soft);
-}
-
 .right-dock-file-preview-scroll-area {
   flex: 1 1 auto;
   min-height: 0;
