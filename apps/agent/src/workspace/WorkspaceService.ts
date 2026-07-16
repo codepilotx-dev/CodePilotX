@@ -6,6 +6,14 @@ import { AgentError } from "../domain"
 const IGNORED_DIRECTORIES = new Set([".git", "node_modules", "dist", "build", ".next", "out", "coverage"])
 const MAX_FILE_BYTES = 1_000_000
 const SEARCH_LIMIT = 200
+const LIST_LIMIT = 2_000
+const SEARCH_MAX_FILES = 10_000
+const SEARCH_MAX_BYTES = 50 * 1024 * 1024
+const SEARCH_TIMEOUT_MS = 10_000
+const decoder = new TextDecoder("utf-8", { fatal: true })
+const decodeUtf8 = (bytes: Uint8Array) => {
+  try { return decoder.decode(bytes) } catch { throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件包含非法 UTF-8 字节", 400) }
+}
 
 export interface WorkspaceSearchResult {
   path: string
@@ -134,6 +142,7 @@ export class WorkspaceService {
   }
 
   private async replaceAtomically(path: string, content: string, mode?: number) {
+    if (Buffer.byteLength(content, "utf8") > MAX_FILE_BYTES) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `最终文件超过 ${MAX_FILE_BYTES} 字节上限`, 413)
     const temporary = resolve(dirname(path), `.codepilotx-${randomUUID()}.tmp`)
     try {
       await writeFile(temporary, content, { encoding: "utf8", flag: "wx" })
@@ -157,6 +166,7 @@ export class WorkspaceService {
     const entries = await readdir(directory, { withFileTypes: true })
     return entries
       .filter((entry) => !IGNORED_DIRECTORIES.has(entry.name))
+      .slice(0, LIST_LIMIT)
       .map((entry) => ({
         name: entry.name,
         path: this.displayPath(resolve(directory, entry.name)),
@@ -164,13 +174,15 @@ export class WorkspaceService {
       }))
   }
 
-  async read(path: string) {
+  async read(path: string, offset = 0, limit = 400) {
     const canonical = await this.existingPath(path)
     const metadata = await stat(canonical)
     if (!metadata.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
     if (metadata.size > MAX_FILE_BYTES) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `文件超过 ${MAX_FILE_BYTES} 字节读取上限`, 413)
     try {
-      return await readFile(canonical, "utf8")
+      const text = decodeUtf8(await readFile(canonical))
+      const fileLines = text.split(/\r?\n/)
+      return fileLines.slice(Math.max(0, offset), Math.max(0, offset) + Math.max(1, Math.min(10_000, limit))).join("\n")
     } catch {
       throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件无法按 UTF-8 读取", 400)
     }
@@ -181,11 +193,14 @@ export class WorkspaceService {
     const root = await this.directory(path)
     const found: WorkspaceSearchResult[] = []
     const needle = query.toLowerCase()
+    const deadline = Date.now() + SEARCH_TIMEOUT_MS
+    let visitedFiles = 0
+    let readBytes = 0
     const visit = async (directory: string): Promise<void> => {
-      if (signal.aborted || found.length >= limit) return
+      if (signal.aborted || found.length >= limit || visitedFiles >= SEARCH_MAX_FILES || readBytes >= SEARCH_MAX_BYTES || Date.now() >= deadline) return
       const entries = await readdir(directory, { withFileTypes: true })
       for (const entry of entries) {
-        if (signal.aborted || found.length >= limit) return
+        if (signal.aborted || found.length >= limit || visitedFiles >= SEARCH_MAX_FILES || readBytes >= SEARCH_MAX_BYTES || Date.now() >= deadline) return
         if (IGNORED_DIRECTORIES.has(entry.name) || entry.isSymbolicLink()) continue
         const candidate = resolve(directory, entry.name)
         if (entry.isDirectory()) {
@@ -193,14 +208,17 @@ export class WorkspaceService {
           continue
         }
         if (!entry.isFile()) continue
+        visitedFiles += 1
         const display = this.displayPath(candidate)
         if (entry.name.toLowerCase().includes(needle)) {
           found.push({ path: display })
           continue
         }
         try {
-          if ((await stat(candidate)).size > MAX_FILE_BYTES) continue
-          const text = await readFile(candidate, "utf8")
+          const size = (await stat(candidate)).size
+          if (size > MAX_FILE_BYTES || readBytes + size > SEARCH_MAX_BYTES) continue
+          readBytes += size
+          const text = decodeUtf8(await readFile(candidate))
           const lines = text.split(/\r?\n/)
           const index = lines.findIndex((line) => line.toLowerCase().includes(needle))
           if (index >= 0) {
@@ -214,11 +232,13 @@ export class WorkspaceService {
     }
     await visit(root)
     if (signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
+    if (Date.now() >= deadline) throw new AgentError("WORKSPACE_SEARCH_TIMEOUT", "工作区搜索超过 10 秒预算", 408)
     return found
   }
 
   async applyPatch(input: ApplyPatchInput): Promise<ApplyPatchResult> {
     if (input.operation === "create") {
+      if (Buffer.byteLength(input.content, "utf8") > MAX_FILE_BYTES) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `最终文件超过 ${MAX_FILE_BYTES} 字节上限`, 413)
       const canonical = await this.createPath(input.path)
       await this.replaceAtomically(canonical, input.content)
       const path = this.displayPath(canonical)
@@ -237,7 +257,7 @@ export class WorkspaceService {
     const metadata = await stat(canonical)
     if (!metadata.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
     if (metadata.size > MAX_FILE_BYTES) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `文件超过 ${MAX_FILE_BYTES} 字节读取上限`, 413)
-    const current = await readFile(canonical, "utf8").catch(() => {
+    const current = await readFile(canonical).then(decodeUtf8).catch(() => {
       throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件无法按 UTF-8 读取", 400)
     })
     const path = this.displayPath(canonical)
@@ -264,6 +284,7 @@ export class WorkspaceService {
 
     const index = uniqueContextIndex(current, input.before)
     const updated = `${current.slice(0, index)}${input.after}${current.slice(index + input.before.length)}`
+    if (Buffer.byteLength(updated, "utf8") > MAX_FILE_BYTES) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `最终文件超过 ${MAX_FILE_BYTES} 字节上限`, 413)
     await this.replaceAtomically(canonical, updated, metadata.mode)
     return {
       operation: input.operation,

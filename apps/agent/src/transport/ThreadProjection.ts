@@ -8,6 +8,7 @@ import type {
   ThreadSnapshot,
   Turn,
 } from "@codepilotx/shared/thread"
+import { decodeApprovalPolicy } from "@codepilotx/shared/thread"
 import type { EventEnvelope, Item as StoredItem } from "../domain"
 import type { AgentDatabase } from "../storage/Database"
 import { SubagentRepository } from "../subagent/SubagentRepository"
@@ -60,7 +61,7 @@ export class ThreadProjection {
 
   snapshot(threadId: string): ThreadSnapshot | null {
     const thread = this.db.sqlite.query("SELECT id, title, project_id, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?").get(threadId) as
-      | { id: string; title: string; project_id: string | null; task_mode: ThreadSnapshot["thread"]["settings"]["taskMode"]; sandbox_mode: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["sandboxMode"]; approval_policy: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["approvalPolicy"]; approvals_reviewer: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["approvalsReviewer"]; created_at: number; updated_at: number }
+      | { id: string; title: string; project_id: string | null; task_mode: ThreadSnapshot["thread"]["settings"]["taskMode"]; sandbox_mode: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["sandboxMode"]; approval_policy: string; approvals_reviewer: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["approvalsReviewer"]; created_at: number; updated_at: number }
       | null
     if (!thread) return null
     const inputs = (this.db.sqlite.query("SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at FROM inputs WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Input => ({
@@ -73,7 +74,7 @@ export class ThreadProjection {
       model: parse(String(row.model_ref)),
       permissionConfig: {
         sandboxMode: String(row.sandbox_mode) as Input["permissionConfig"]["sandboxMode"],
-        approvalPolicy: String(row.approval_policy) as Input["permissionConfig"]["approvalPolicy"],
+        approvalPolicy: decodeApprovalPolicy(row.approval_policy),
         approvalsReviewer: String(row.approvals_reviewer) as Input["permissionConfig"]["approvalsReviewer"],
       },
       state: inputState(String(row.status)),
@@ -92,7 +93,7 @@ export class ThreadProjection {
         model: parse(String(row.model_ref)),
         permissionConfig: {
           sandboxMode: String(row.sandbox_mode) as Turn["permissionConfig"]["sandboxMode"],
-          approvalPolicy: String(row.approval_policy) as Turn["permissionConfig"]["approvalPolicy"],
+          approvalPolicy: decodeApprovalPolicy(row.approval_policy),
           approvalsReviewer: String(row.approvals_reviewer) as Turn["permissionConfig"]["approvalsReviewer"],
         },
         rootAgentId: String(row.root_agent_id),
@@ -140,7 +141,7 @@ export class ThreadProjection {
         updatedAt: Number(row.updated_at),
       }))
       .filter((item): item is Item => item !== null)
-    const approvals = (this.db.sqlite.query("SELECT id, thread_id, turn_id, agent_id, tool_call_id, risk, reason, status, reply, request_payload, review_payload, created_at FROM approval_requests WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row) => this.approval(row))
+    const approvals = (this.db.sqlite.query("SELECT id, thread_id, turn_id, agent_id, tool_call_id, risk, reason, status, reply, request_payload, review_payload, created_at FROM approval_requests WHERE thread_id = ? AND status <> 'preparing' ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row) => this.approval(row))
     return {
       thread: {
         id: thread.id,
@@ -150,7 +151,7 @@ export class ThreadProjection {
           taskMode: thread.task_mode,
           permissionConfig: {
             sandboxMode: thread.sandbox_mode,
-            approvalPolicy: thread.approval_policy,
+            approvalPolicy: decodeApprovalPolicy(thread.approval_policy),
             approvalsReviewer: thread.approvals_reviewer,
           },
         },
@@ -201,7 +202,7 @@ export class ThreadProjection {
         taskMode: String(row.task_mode) as ThreadListItem["settings"]["taskMode"],
         permissionConfig: {
           sandboxMode: String(row.sandbox_mode) as ThreadListItem["settings"]["permissionConfig"]["sandboxMode"],
-          approvalPolicy: String(row.approval_policy) as ThreadListItem["settings"]["permissionConfig"]["approvalPolicy"],
+          approvalPolicy: decodeApprovalPolicy(row.approval_policy),
           approvalsReviewer: String(row.approvals_reviewer) as ThreadListItem["settings"]["permissionConfig"]["approvalsReviewer"],
         },
       },

@@ -90,4 +90,70 @@ describe("统一 Shell 执行门", () => {
     await expect(executor.execute("shell", { command: "Write-Output no-fallback" }, await context(root))).rejects.toThrow("SRT not ready")
     expect(runs).toBe(1)
   })
+
+  test("PreToolUse 可阻止执行，PostToolUse 失败不覆盖成功或原始错误", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
+    tempPaths.push(root)
+    let runs = 0
+    const preDenied = new ToolExecutor(new ToolRegistry(), {
+      dataDir: join(root, ".agent-data"),
+      sandbox: adapter(async () => { runs += 1; return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false } }),
+      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
+      hooks: { run: async (event) => event === "pre_tool_use" ? [{ result: { decision: "deny", reason: "blocked" } }] : [] },
+    })
+    await expect(preDenied.execute("shell", { command: "Write-Output blocked" }, await context(root))).rejects.toMatchObject({ code: "HOOK_DENIED" })
+    expect(runs).toBe(0)
+
+    const success = new ToolExecutor(new ToolRegistry(), {
+      dataDir: join(root, ".agent-data"),
+      sandbox: adapter(async () => ({ exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false })),
+      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
+      hooks: { run: async (event) => { if (event === "post_tool_use") throw new Error("post failed"); return [] } },
+    })
+    await expect(success.execute("shell", { command: "Write-Output ok" }, await context(root))).resolves.toMatchObject({ stdout: "ok" })
+
+    const originalFailure = new ToolExecutor(new ToolRegistry(), {
+      dataDir: join(root, ".agent-data"),
+      sandbox: adapter(async () => { throw new Error("original sandbox failure") }),
+      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
+      hooks: { run: async (event) => { if (event === "post_tool_error") throw new Error("post failed"); return [] } },
+    })
+    await expect(originalFailure.execute("shell", { command: "Write-Output fail" }, await context(root))).rejects.toThrow("original sandbox failure")
+  })
+
+  test("on-failure 生成两阶段 escalation，sandbox 一次且 host 最多一次", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
+    tempPaths.push(root)
+    let sandboxRuns = 0
+    let hostRuns = 0
+    let stored: { token: string; invocation: import("../src/domain").ToolInvocation; invocationHash: string; failure: string; claimed: boolean } | null = null
+    const executor = new ToolExecutor(new ToolRegistry(), {
+      dataDir: join(root, ".agent-data"),
+      sandbox: adapter(async () => { sandboxRuns += 1; throw new Error("sandbox denied") }),
+      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "sandbox first" }),
+      prepareSandboxEscalation: (invocation) => {
+        stored = { token: "11111111-1111-4111-8111-111111111111", invocation, invocationHash: "test-hash", failure: "sandbox denied", claimed: false }
+        return { token: stored.token }
+      },
+      claimSandboxEscalation: (token, scope) => {
+        if (!stored || stored.claimed || token !== stored.token || scope.turnID !== stored.invocation.turnID) return null
+        stored.claimed = true
+        return stored
+      },
+      completeSandboxEscalation: () => undefined,
+      runHost: async () => { hostRuns += 1; return { exitCode: 0, signal: null, stdout: "host-ok", stderr: "", timedOut: false, truncated: false } },
+    })
+    const onFailure = { ...config, approvalPolicy: "on-failure" as const }
+    const executionContext = await context(root, onFailure)
+    const first = await executor.execute<ProcessResult>("shell", { command: "Write-Output once" }, executionContext)
+    expect(first).toMatchObject({ exitCode: 126 })
+    expect(first.stderr).toContain("request_permissions")
+    expect(sandboxRuns).toBe(1)
+    expect(hostRuns).toBe(0)
+    const token = stored!.token
+    await expect(executor.executeSandboxEscalation(token, executionContext)).resolves.toMatchObject({ stdout: "host-ok" })
+    await expect(executor.executeSandboxEscalation(token, executionContext)).rejects.toMatchObject({ code: "SANDBOX_ESCALATION_INVALID" })
+    expect(sandboxRuns).toBe(1)
+    expect(hostRuns).toBe(1)
+  })
 })

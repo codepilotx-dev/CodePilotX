@@ -2,7 +2,7 @@ import { Database } from "bun:sqlite"
 import { copyFileSync, existsSync, mkdirSync, renameSync } from "node:fs"
 import { basename, dirname, extname, resolve } from "node:path"
 import { Effect } from "effect"
-import { DEFAULT_PERMISSION_CONFIG, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
+import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
 import type {
   EventEnvelope,
   AgentExecution,
@@ -47,11 +47,18 @@ export type AgentTurnCheckpoint = {
   agentID: string
   turnID: string
   threadID: string
-  state: "waiting_question" | "waiting_plan_confirmation" | "waiting_subagents" | "ready"
+  state: "waiting_question" | "waiting_hook_trust" | "waiting_plan_confirmation" | "waiting_subagents" | "ready"
   payload: Record<string, unknown>
   version: number
   createdAt: number
   updatedAt: number
+}
+
+export type SideEffectRecoveryPayload = {
+  kind: "side-effect-prompt-recovery"
+  attemptOrdinal: number
+  completed: Array<{ toolCallID: string; tool: string; summary: string }>
+  error: string
 }
 
 export type ResumableQuestion = {
@@ -64,17 +71,73 @@ export type ResumableQuestion = {
   createdAt: number
 }
 
+export type ApprovalCheckpointPayload = {
+  kind: "tool-approval"
+  invocation: ToolInvocation
+  invocationHash: string
+  permissionSnapshot: PermissionConfig
+  sandbox: Record<string, unknown>
+  reviewer: PermissionConfig["approvalsReviewer"]
+  review: Record<string, unknown>
+  runState?: string
+  interruption?: unknown
+  resolution?: { decision: "allow" | "deny"; resolvedAt: number }
+  claimedAt?: number
+}
+
+export type StoredApprovalCheckpoint = {
+  approvalID: string
+  threadID: string
+  turnID: string
+  agentID: string
+  toolCallID: string
+  status: "preparing" | "pending" | "resolved" | "claimed" | "cancelled"
+  decision: "allow" | "deny" | null
+  risk: string
+  reason: string
+  payload: ApprovalCheckpointPayload
+  version: number
+  createdAt: number
+  updatedAt: number
+}
+
+export type SandboxEscalation = {
+  token: string
+  threadID: string
+  turnID: string
+  agentID: string
+  toolCallID: string
+  invocation: ToolInvocation
+  invocationHash: string
+  failure: string
+  status: "awaiting_request" | "claimed" | "completed" | "cancelled"
+  createdAt: number
+}
+
+export type HookTrustRequest = {
+  id: string
+  threadID: string | null
+  turnID: string | null
+  workspacePath: string
+  configPath: string
+  configHash: string
+  status: "pending" | "allowed" | "blocked"
+  auditSummary: Record<string, unknown>
+  createdAt: number
+  resolvedAt: number | null
+}
+
 type SqlValue = string | number | boolean | Uint8Array | null
 
 const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const now = () => Date.now()
 const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
-export const SCHEMA_VERSION = 6
+export const SCHEMA_VERSION = 9
 
 type PermissionColumns = {
   sandbox_mode: PermissionConfig["sandboxMode"]
-  approval_policy: PermissionConfig["approvalPolicy"]
+  approval_policy: string
   approvals_reviewer: PermissionConfig["approvalsReviewer"]
 }
 
@@ -84,7 +147,7 @@ type ThreadSettingsColumns = PermissionColumns & {
 
 const permissionConfigFromRow = (row: PermissionColumns): PermissionConfig => ({
   sandboxMode: row.sandbox_mode,
-  approvalPolicy: row.approval_policy,
+  approvalPolicy: decodeApprovalPolicy(row.approval_policy),
   approvalsReviewer: row.approvals_reviewer,
 })
 
@@ -97,13 +160,6 @@ const defaultThreadSettings = (): ThreadSettings => ({
   taskMode: "chat",
   permissionConfig: { ...DEFAULT_PERMISSION_CONFIG },
 })
-
-const legacyPermissionMode = (config: PermissionConfig) => {
-  if (config.sandboxMode === "danger-full-access" && config.approvalPolicy === "never" && config.approvalsReviewer === "auto_review") return "full"
-  if (config.sandboxMode === "workspace-write" && config.approvalPolicy === "on-request" && config.approvalsReviewer === "auto_review") return "review"
-  if (config.sandboxMode === "workspace-write" && config.approvalPolicy === "on-request" && config.approvalsReviewer === "user") return "ask"
-  throw new Error("Unsupported permission configuration")
-}
 
 const legacyBackupPath = (path: string) => {
   const extension = extname(path) || ".sqlite"
@@ -196,7 +252,6 @@ export class AgentDatabase {
         root_agent_id TEXT,
         status TEXT NOT NULL,
         mode TEXT NOT NULL,
-        permission_mode TEXT NOT NULL,
         sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',
         approval_policy TEXT NOT NULL DEFAULT 'on-request',
         approvals_reviewer TEXT NOT NULL DEFAULT 'user',
@@ -232,7 +287,6 @@ export class AgentDatabase {
         turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,
         content TEXT NOT NULL,
         model_ref TEXT NOT NULL,
-        permission_mode TEXT NOT NULL,
         sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',
         approval_policy TEXT NOT NULL DEFAULT 'on-request',
         approvals_reviewer TEXT NOT NULL DEFAULT 'user',
@@ -404,7 +458,199 @@ export class AgentDatabase {
       if (currentVersion < 5) this.migrateAgentExecutionsV5()
       if (currentVersion < 6) this.migrateSubagentsV6()
     }
+    if (currentVersion < 7) this.migrateContextV7()
+    if (currentVersion < 8) this.migrateContextV8()
+    if (currentVersion < 9) this.migrateHookTrustV9()
+    this.sqlite.exec(`CREATE TABLE IF NOT EXISTS hook_trust_waiters (
+      request_id TEXT NOT NULL REFERENCES hook_trust_requests(id) ON DELETE CASCADE,
+      agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
+      turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+      thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (request_id, agent_id)
+    )`)
+    this.sqlite.exec(`CREATE TABLE IF NOT EXISTS sandbox_escalations (
+      token TEXT PRIMARY KEY,
+      thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+      agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
+      tool_call_id TEXT NOT NULL,
+      invocation TEXT NOT NULL,
+      invocation_hash TEXT NOT NULL DEFAULT '',
+      failure TEXT NOT NULL,
+      status TEXT NOT NULL,
+      output TEXT,
+      created_at INTEGER NOT NULL,
+      claimed_at INTEGER,
+      completed_at INTEGER
+    ); CREATE INDEX IF NOT EXISTS sandbox_escalations_turn_status ON sandbox_escalations(turn_id, status, created_at);`)
+    this.addColumn("sandbox_escalations", "invocation_hash", "TEXT NOT NULL DEFAULT ''")
     this.sqlite.exec("CREATE UNIQUE INDEX IF NOT EXISTS agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL")
+  }
+
+  private migrateContextV7() {
+    this.transaction(() => {
+      this.addColumn("threads", "prompt_settings", "TEXT NOT NULL DEFAULT '{}'")
+      this.sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS prompt_session_state (
+          thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+          baseline_version INTEGER NOT NULL DEFAULT 1,
+          prompt_version TEXT NOT NULL,
+          base_hash TEXT NOT NULL,
+          context_hash TEXT NOT NULL,
+          cache_key TEXT NOT NULL,
+          fragments TEXT NOT NULL DEFAULT '[]',
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS agent_compactions (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,
+          baseline_version INTEGER NOT NULL,
+          before_count INTEGER NOT NULL,
+          after_count INTEGER NOT NULL,
+          summary TEXT NOT NULL,
+          replacement_history TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS agent_compactions_thread ON agent_compactions(thread_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS guardian_review_sessions (
+          thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+          cache_key TEXT NOT NULL,
+          history_version INTEGER NOT NULL DEFAULT 1,
+          evidence_cursor INTEGER NOT NULL DEFAULT 0,
+          history TEXT NOT NULL DEFAULT '[]',
+          updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS hook_runs (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT REFERENCES threads(id) ON DELETE CASCADE,
+          turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,
+          tool_call_id TEXT,
+          event TEXT NOT NULL,
+          hook_id TEXT NOT NULL,
+          status TEXT NOT NULL,
+          input TEXT NOT NULL,
+          output TEXT,
+          error TEXT,
+          started_at INTEGER NOT NULL,
+          finished_at INTEGER
+        );
+        CREATE INDEX IF NOT EXISTS hook_runs_thread ON hook_runs(thread_id, started_at DESC);
+        CREATE TABLE IF NOT EXISTS memory_jobs (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,
+          project_key TEXT,
+          status TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          result TEXT,
+          error TEXT,
+          created_at INTEGER NOT NULL,
+          started_at INTEGER,
+          finished_at INTEGER,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS memory_jobs_status ON memory_jobs(status, created_at);
+        CREATE TABLE IF NOT EXISTS memory_entries (
+          id TEXT PRIMARY KEY,
+          scope TEXT NOT NULL,
+          project_key TEXT NOT NULL DEFAULT '',
+          content TEXT NOT NULL,
+          source_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,
+          content_hash TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          UNIQUE(scope, project_key, content_hash)
+        );
+        CREATE INDEX IF NOT EXISTS memory_entries_scope ON memory_entries(scope, project_key, updated_at DESC);
+        CREATE TABLE IF NOT EXISTS approval_checkpoints (
+          approval_id TEXT PRIMARY KEY REFERENCES approval_requests(id) ON DELETE CASCADE,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+          payload TEXT NOT NULL,
+          version INTEGER NOT NULL DEFAULT 1,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        PRAGMA user_version = 7;
+      `)
+    })
+  }
+
+  private migrateContextV8() {
+    this.transaction(() => {
+      this.addColumn("prompt_session_state", "context_window_tokens", "INTEGER NOT NULL DEFAULT 0")
+      this.addColumn("prompt_session_state", "usage_tokens", "INTEGER NOT NULL DEFAULT 0")
+      this.addColumn("prompt_session_state", "usage_source", "TEXT NOT NULL DEFAULT 'estimated'")
+      this.addColumn("prompt_session_state", "usage_sample_id", "TEXT")
+      this.addColumn("prompt_session_state", "needs_compaction", "INTEGER NOT NULL DEFAULT 0")
+      this.addColumn("agent_compactions", "before_tokens", "INTEGER NOT NULL DEFAULT 0")
+      this.addColumn("agent_compactions", "after_tokens", "INTEGER NOT NULL DEFAULT 0")
+      this.addColumn("agent_compactions", "target_tokens", "INTEGER NOT NULL DEFAULT 0")
+      this.addColumn("agent_compactions", "usage_sample_id", "TEXT")
+      this.sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS context_usage_samples (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,
+          session_id TEXT,
+          context_fingerprint TEXT NOT NULL,
+          context_window_tokens INTEGER NOT NULL,
+          input_tokens INTEGER NOT NULL,
+          output_tokens INTEGER NOT NULL DEFAULT 0,
+          source TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS context_usage_samples_lookup
+          ON context_usage_samples(thread_id, context_fingerprint, source, created_at DESC);
+        PRAGMA user_version = 8;
+      `)
+    })
+  }
+
+  private migrateHookTrustV9() {
+    this.transaction(() => {
+      this.addColumn("hook_runs", "command", "TEXT")
+      this.addColumn("hook_runs", "cwd", "TEXT")
+      this.addColumn("hook_runs", "evidence_summary", "TEXT")
+      if (this.columns("turns").includes("permission_mode")) this.sqlite.exec("ALTER TABLE turns DROP COLUMN permission_mode")
+      if (this.columns("inputs").includes("permission_mode")) this.sqlite.exec("ALTER TABLE inputs DROP COLUMN permission_mode")
+      this.sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS hook_trust_decisions (
+          workspace_path TEXT NOT NULL,
+          config_hash TEXT NOT NULL,
+          config_path TEXT NOT NULL,
+          decision TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY (workspace_path, config_hash)
+        );
+        CREATE TABLE IF NOT EXISTS hook_trust_requests (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,
+          turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,
+          workspace_path TEXT NOT NULL,
+          config_path TEXT NOT NULL,
+          config_hash TEXT NOT NULL,
+          status TEXT NOT NULL,
+          audit_summary TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          resolved_at INTEGER
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS hook_trust_requests_pending
+          ON hook_trust_requests(workspace_path, config_hash) WHERE status = 'pending';
+        CREATE TABLE IF NOT EXISTS hook_trust_waiters (
+          request_id TEXT NOT NULL REFERENCES hook_trust_requests(id) ON DELETE CASCADE,
+          agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
+          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          created_at INTEGER NOT NULL,
+          PRIMARY KEY (request_id, agent_id)
+        );
+        PRAGMA user_version = 9;
+      `)
+    })
   }
 
   private migrateSubagentsV6() {
@@ -588,7 +834,6 @@ export class AgentDatabase {
           root_agent_id TEXT,
           status TEXT NOT NULL,
           mode TEXT NOT NULL,
-          permission_mode TEXT NOT NULL,
           sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',
           approval_policy TEXT NOT NULL DEFAULT 'on-request',
           approvals_reviewer TEXT NOT NULL DEFAULT 'user',
@@ -624,7 +869,6 @@ export class AgentDatabase {
           turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,
           content TEXT NOT NULL,
           model_ref TEXT NOT NULL,
-          permission_mode TEXT NOT NULL,
           sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',
           approval_policy TEXT NOT NULL DEFAULT 'on-request',
           approvals_reviewer TEXT NOT NULL DEFAULT 'user',
@@ -800,16 +1044,37 @@ export class AgentDatabase {
 
   private recoverInterruptedTurns() {
     const timestamp = now()
+    const invalidApprovals = this.sqlite.query(`
+      SELECT r.id, r.thread_id, r.turn_id, r.agent_id, r.tool_call_id
+      FROM approval_requests AS r
+      LEFT JOIN approval_checkpoints AS c ON c.approval_id = r.id
+      WHERE r.status = 'preparing' OR (r.status = 'pending'
+        AND (
+          c.approval_id IS NULL OR c.version <> 1
+          OR json_type(c.payload, '$.runState') <> 'text'
+          OR json_type(c.payload, '$.interruption') IS NULL
+        ))
+    `).all() as Array<{ id: string; thread_id: string; turn_id: string; agent_id: string; tool_call_id: string }>
     this.sqlite.transaction(() => {
-      this.sqlite.query(`UPDATE turns SET status = 'interrupted', finished_at = ?, updated_at = ? WHERE status IN ('running', 'waiting_permission') OR (status = 'waiting_question' AND NOT EXISTS (SELECT 1 FROM question_requests AS q LEFT JOIN agent_checkpoints AS c ON c.turn_id = q.turn_id AND c.state = 'waiting_question' WHERE q.turn_id = turns.id AND q.status = 'pending' AND (c.turn_id IS NOT NULL OR json_extract(q.payload, '$.checkpoint.state') IS NOT NULL)))`).run(timestamp, timestamp)
-      this.sqlite.query(`UPDATE agent_executions SET status = 'interrupted', updated_at = ? WHERE status IN ('running', 'waiting_permission') OR (status = 'waiting_question' AND turn_id IN (SELECT id FROM turns WHERE status = 'interrupted'))`).run(timestamp)
+      for (const approval of invalidApprovals) {
+        this.insertEvent(approval.thread_id, approval.turn_id, "approval/cancelled", { id: approval.id, turnId: approval.turn_id, itemId: approval.tool_call_id, reason: "审批缺少完整且可恢复的 SDK checkpoint，已安全取消" })
+      }
+      this.sqlite.query(`UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE status = 'preparing' OR id IN (SELECT r.id FROM approval_requests AS r LEFT JOIN approval_checkpoints AS c ON c.approval_id = r.id WHERE r.status = 'pending' AND (c.approval_id IS NULL OR c.version <> 1 OR json_type(c.payload, '$.runState') <> 'text' OR json_type(c.payload, '$.interruption') IS NULL))`).run(timestamp)
+      this.sqlite.query(`UPDATE turns SET status = 'interrupted', finished_at = ?, updated_at = ? WHERE status = 'running' OR (status = 'waiting_permission' AND NOT EXISTS (SELECT 1 FROM approval_requests AS r JOIN approval_checkpoints AS c ON c.approval_id = r.id WHERE r.turn_id = turns.id AND r.status = 'pending' AND c.version = 1 AND json_type(c.payload, '$.runState') = 'text' AND json_type(c.payload, '$.interruption') IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM hook_trust_waiters AS w JOIN hook_trust_requests AS h ON h.id = w.request_id JOIN agent_checkpoints AS c ON c.turn_id = w.turn_id AND c.state = 'waiting_hook_trust' WHERE w.turn_id = turns.id AND h.status = 'pending')) OR (status = 'waiting_question' AND NOT EXISTS (SELECT 1 FROM question_requests AS q LEFT JOIN agent_checkpoints AS c ON c.turn_id = q.turn_id AND c.state = 'waiting_question' WHERE q.turn_id = turns.id AND q.status = 'pending' AND (c.turn_id IS NOT NULL OR json_extract(q.payload, '$.checkpoint.state') IS NOT NULL)))`).run(timestamp, timestamp)
+      this.sqlite.query(`UPDATE agent_executions SET status = 'interrupted', updated_at = ? WHERE status = 'running' OR (status = 'waiting_permission' AND turn_id IN (SELECT id FROM turns WHERE status = 'interrupted')) OR (status = 'waiting_question' AND turn_id IN (SELECT id FROM turns WHERE status = 'interrupted'))`).run(timestamp)
       this.sqlite.query(`UPDATE items SET status = 'interrupted', updated_at = ? WHERE status IN ('pending', 'running') AND type <> 'subagent' AND NOT (type = 'question' AND id IN (SELECT id FROM question_requests WHERE status = 'pending' AND (json_extract(payload, '$.checkpoint.state') IS NOT NULL OR turn_id IN (SELECT turn_id FROM agent_checkpoints WHERE state = 'waiting_question'))))`).run(timestamp)
-      this.sqlite.query(`UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE status = 'pending'`).run(timestamp)
       this.sqlite.query(`UPDATE question_requests SET status = 'cancelled', resolved_at = ? WHERE status = 'pending' AND turn_id IN (SELECT id FROM turns WHERE status <> 'waiting_question')`).run(timestamp)
-      this.sqlite.query(`UPDATE subagent_runs SET status = 'interrupted', error = COALESCE(error, 'Agent 重启时运行被中断'), finished_at = ?, updated_at = ? WHERE status IN ('preparing', 'running', 'steering', 'waiting_permission')`).run(timestamp, timestamp)
+      this.sqlite.query(`UPDATE subagent_runs SET status = 'queued', queue_reason = NULL, updated_at = ? WHERE status = 'waiting_permission' AND id IN (SELECT a.subagent_run_id FROM agent_executions AS a JOIN turns AS t ON t.id = a.turn_id WHERE t.status = 'queued' AND a.status = 'queued' AND a.subagent_run_id IS NOT NULL)`).run(timestamp)
+      this.sqlite.query(`UPDATE subagent_tasks SET status = 'queued', updated_at = ? WHERE current_run_id IN (SELECT id FROM subagent_runs WHERE status = 'queued')`).run(timestamp)
+      this.sqlite.query(`UPDATE items SET status = 'pending', data = json_set(data, '$.status', 'queued', '$.queueReason', NULL), updated_at = ? WHERE type = 'subagent' AND json_extract(data, '$.runId') IN (SELECT id FROM subagent_runs WHERE status = 'queued')`).run(timestamp)
+      this.sqlite.query(`UPDATE subagent_runs SET status = 'interrupted', error = COALESCE(error, 'Agent 重启时运行被中断'), finished_at = ?, updated_at = ? WHERE status IN ('preparing', 'running', 'steering') OR (status = 'waiting_permission' AND id IN (SELECT a.subagent_run_id FROM agent_executions AS a JOIN turns AS t ON t.id = a.turn_id WHERE t.status = 'interrupted' AND a.subagent_run_id IS NOT NULL))`).run(timestamp, timestamp)
       this.sqlite.query(`UPDATE subagent_tasks SET status = 'interrupted', updated_at = ? WHERE current_run_id IN (SELECT id FROM subagent_runs WHERE status = 'interrupted')`).run(timestamp)
       this.sqlite.query(`UPDATE items SET status = 'interrupted', data = json_set(data, '$.status', 'interrupted', '$.queueReason', NULL), updated_at = ? WHERE type = 'subagent' AND json_extract(data, '$.runId') IN (SELECT id FROM subagent_runs WHERE status = 'interrupted')`).run(timestamp)
       this.sqlite.query(`DELETE FROM workspace_writer_leases WHERE run_id NOT IN (SELECT id FROM subagent_runs WHERE status IN ('preparing', 'running', 'steering', 'waiting_question', 'waiting_permission'))`)
+      this.sqlite.query(`UPDATE memory_jobs SET status = 'queued', started_at = NULL, updated_at = ? WHERE status = 'running'`).run(timestamp)
+      // A process crash after claim is observationally ambiguous: the host
+      // command may already have started. Cancel instead of risking a replay.
+      this.sqlite.query(`UPDATE sandbox_escalations SET status = 'cancelled', completed_at = ? WHERE status = 'claimed'`).run(timestamp)
     })()
   }
 
@@ -852,7 +1117,7 @@ export class AgentDatabase {
     }
     const unchanged = settings.taskMode === existing.taskMode
       && settings.permissionConfig.sandboxMode === existing.permissionConfig.sandboxMode
-      && settings.permissionConfig.approvalPolicy === existing.permissionConfig.approvalPolicy
+      && encodeApprovalPolicy(settings.permissionConfig.approvalPolicy) === encodeApprovalPolicy(existing.permissionConfig.approvalPolicy)
       && settings.permissionConfig.approvalsReviewer === existing.permissionConfig.approvalsReviewer
     if (unchanged) return { settings, event: null }
     this.sqlite.query(`
@@ -862,7 +1127,7 @@ export class AgentDatabase {
     `).run(
       settings.taskMode,
       settings.permissionConfig.sandboxMode,
-      settings.permissionConfig.approvalPolicy,
+      encodeApprovalPolicy(settings.permissionConfig.approvalPolicy),
       settings.permissionConfig.approvalsReviewer,
       threadID,
     )
@@ -872,6 +1137,21 @@ export class AgentDatabase {
 
   updateThreadSettings(threadID: string, patch: ThreadSettingsPatch) {
     return this.transaction(() => this.syncThreadSettings(threadID, patch))
+  }
+
+  getThreadPromptSettings<T extends Record<string, unknown> = Record<string, unknown>>(threadID: string): T | null {
+    const row = this.sqlite.query("SELECT prompt_settings FROM threads WHERE id = ?").get(threadID) as { prompt_settings: string } | null
+    return row ? parse<T>(row.prompt_settings) : null
+  }
+
+  saveThreadPromptSettings<T extends Record<string, unknown>>(threadID: string, settings: T) {
+    return this.transaction(() => {
+      const timestamp = now()
+      const updated = this.sqlite.query("UPDATE threads SET prompt_settings = ?, updated_at = ? WHERE id = ?").run(stringify(settings), timestamp, threadID)
+      if (!updated.changes) throw new Error(`Thread ${threadID} 不存在`)
+      const event = this.insertEvent(threadID, null, "thread/prompt-settings/updated", { threadId: threadID, updatedAt: timestamp })
+      return { settings, event }
+    })
   }
 
   createThread(title = "新对话", projectID?: string, initialSettings?: ThreadSettings) {
@@ -886,7 +1166,7 @@ export class AgentDatabase {
         projectID ?? null,
         settings.taskMode,
         settings.permissionConfig.sandboxMode,
-        settings.permissionConfig.approvalPolicy,
+        encodeApprovalPolicy(settings.permissionConfig.approvalPolicy),
         settings.permissionConfig.approvalsReviewer,
         timestamp,
         timestamp,
@@ -966,15 +1246,14 @@ export class AgentDatabase {
         taskMode: input.taskMode,
         permissionConfig: input.permissionConfig,
       })
-      this.sqlite.query(`INSERT INTO turns (id, thread_id, root_agent_id, status, mode, permission_mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, strategy, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`).run(
+      this.sqlite.query(`INSERT INTO turns (id, thread_id, root_agent_id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, strategy, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`).run(
         turnID,
         threadID,
         agentID,
         status,
         input.taskMode,
-        legacyPermissionMode(input.permissionConfig),
         input.permissionConfig.sandboxMode,
-        input.permissionConfig.approvalPolicy,
+        encodeApprovalPolicy(input.permissionConfig.approvalPolicy),
         input.permissionConfig.approvalsReviewer,
         stringify(input.model),
         input.strategy,
@@ -992,15 +1271,14 @@ export class AgentDatabase {
         timestamp,
         timestamp,
       )
-      this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, permission_mode, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
         inputID,
         threadID,
         turnID,
         input.content,
         stringify(input.model),
-        legacyPermissionMode(input.permissionConfig),
         input.permissionConfig.sandboxMode,
-        input.permissionConfig.approvalPolicy,
+        encodeApprovalPolicy(input.permissionConfig.approvalPolicy),
         input.permissionConfig.approvalsReviewer,
         input.strategy,
         input.taskMode,
@@ -1023,15 +1301,14 @@ export class AgentDatabase {
         taskMode: input.taskMode,
         permissionConfig: input.permissionConfig,
       })
-      this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, permission_mode, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'guide', ?, 'mailbox', ?)`).run(
+      this.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'guide', ?, 'mailbox', ?)`).run(
         id,
         threadID,
         turnID,
         input.content,
         stringify(input.model),
-        legacyPermissionMode(input.permissionConfig),
         input.permissionConfig.sandboxMode,
-        input.permissionConfig.approvalPolicy,
+        encodeApprovalPolicy(input.permissionConfig.approvalPolicy),
         input.permissionConfig.approvalsReviewer,
         input.taskMode,
         timestamp,
@@ -1128,6 +1405,237 @@ export class AgentDatabase {
     )
   }
 
+  persistApprovalCheckpoint(input: {
+    approvalID: string
+    invocation: ToolInvocation
+    risk: string
+    reason: string
+    requestPayload: Record<string, unknown>
+    reviewPayload: Record<string, unknown> | null
+    checkpoint: ApprovalCheckpointPayload
+    version: number
+    createdAt?: number
+  }) {
+    const timestamp = input.createdAt ?? now()
+    this.transaction(() => {
+      this.sqlite.query(`INSERT INTO approval_requests (id, thread_id, turn_id, agent_id, tool_call_id, risk, reason, status, request_payload, review_payload, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'preparing', ?, ?, ?)`).run(
+        input.approvalID, input.invocation.threadID, input.invocation.turnID, input.invocation.agentID, input.invocation.id,
+        input.risk, input.reason, stringify(input.requestPayload), input.reviewPayload ? stringify(input.reviewPayload) : null, timestamp,
+      )
+      this.sqlite.query(`INSERT INTO approval_checkpoints (approval_id, thread_id, turn_id, payload, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
+        input.approvalID, input.invocation.threadID, input.invocation.turnID, stringify(input.checkpoint), input.version, timestamp, timestamp,
+      )
+    })
+    return this.getApprovalCheckpoint(input.approvalID)!
+  }
+
+  getApprovalCheckpoint(approvalID: string): StoredApprovalCheckpoint | null {
+    const row = this.sqlite.query(`SELECT r.id, r.thread_id, r.turn_id, r.agent_id, r.tool_call_id, r.status, r.reply, r.risk, r.reason, r.created_at, c.payload, c.version, c.updated_at FROM approval_requests AS r JOIN approval_checkpoints AS c ON c.approval_id = r.id WHERE r.id = ?`).get(approvalID) as {
+      id: string; thread_id: string; turn_id: string; agent_id: string; tool_call_id: string; status: StoredApprovalCheckpoint["status"]
+      reply: "allow" | "deny" | null; risk: string; reason: string; created_at: number; payload: string; version: number; updated_at: number
+    } | null
+    if (!row) return null
+    return { approvalID: row.id, threadID: row.thread_id, turnID: row.turn_id, agentID: row.agent_id, toolCallID: row.tool_call_id, status: row.status, decision: row.reply, risk: row.risk, reason: row.reason, payload: parse<ApprovalCheckpointPayload>(row.payload), version: row.version, createdAt: row.created_at, updatedAt: row.updated_at }
+  }
+
+  approvalCheckpointForToolCall(toolCallID: string): StoredApprovalCheckpoint | null {
+    const row = this.sqlite.query("SELECT id FROM approval_requests WHERE tool_call_id = ? ORDER BY created_at DESC LIMIT 1").get(toolCallID) as { id: string } | null
+    return row ? this.getApprovalCheckpoint(row.id) : null
+  }
+
+  updateApprovalCheckpointPayload(approvalID: string, payload: ApprovalCheckpointPayload) {
+    const result = this.sqlite.query("UPDATE approval_checkpoints SET payload = ?, updated_at = ? WHERE approval_id = ?").run(stringify(payload), now(), approvalID)
+    if (result.changes !== 1) throw new Error(`审批 ${approvalID} checkpoint 不存在`)
+    return this.getApprovalCheckpoint(approvalID)!
+  }
+
+  activateApprovalCheckpoint(approvalID: string, payload: ApprovalCheckpointPayload, requestedParams: Record<string, unknown>) {
+    const row = this.sqlite.query("SELECT turn_id, agent_id, status FROM approval_requests WHERE id = ?").get(approvalID) as { turn_id: string; agent_id: string; status: string } | null
+    if (!row) throw new Error(`审批 ${approvalID} 不存在`)
+    if (row.status === "pending") return { checkpoint: this.getApprovalCheckpoint(approvalID)!, events: [] as EventEnvelope[] }
+    if (row.status !== "preparing") throw new Error(`审批 ${approvalID} 不能从 ${row.status} 激活`)
+    const timestamp = now()
+    const events: EventEnvelope[] = []
+    this.transaction(() => {
+      const updated = this.sqlite.query("UPDATE approval_requests SET status = 'pending' WHERE id = ? AND status = 'preparing'").run(approvalID)
+      if (updated.changes !== 1) throw new Error(`审批 ${approvalID} 已被并发处理`)
+      this.sqlite.query("UPDATE approval_checkpoints SET payload = ?, updated_at = ? WHERE approval_id = ?").run(stringify(payload), timestamp, approvalID)
+      this.updateTurnStatus(row.turn_id, "waiting_permission")
+      this.updateAgentStatus(row.agent_id, "waiting_permission")
+      events.push(this.insertEvent(payload.invocation.threadID, row.turn_id, "agent/upserted", { agent: this.getAgentExecution(row.agent_id) }))
+      events.push(this.insertEvent(payload.invocation.threadID, row.turn_id, "approval/requested", requestedParams))
+    })
+    return { checkpoint: this.getApprovalCheckpoint(approvalID)!, events }
+  }
+
+  resolveApprovalCheckpoint(approvalID: string, decision: "allow" | "deny"):
+    | { state: "resolved"; checkpoint: StoredApprovalCheckpoint; events: EventEnvelope[] }
+    | { state: "missing" | "not-ready" | "already-resolved"; threadID?: string; turnID?: string; agentID?: string }
+    | { state: "invalid-checkpoint"; threadID: string; turnID: string; agentID: string; events: EventEnvelope[] } {
+    const request = this.sqlite.query("SELECT thread_id, turn_id, agent_id, status FROM approval_requests WHERE id = ?").get(approvalID) as { thread_id: string; turn_id: string; agent_id: string; status: string } | null
+    if (!request) return { state: "missing" }
+    if (request.status === "preparing") return { state: "not-ready", threadID: request.thread_id, turnID: request.turn_id, agentID: request.agent_id }
+    if (request.status !== "pending") return { state: "already-resolved", threadID: request.thread_id, turnID: request.turn_id, agentID: request.agent_id }
+    const checkpoint = this.getApprovalCheckpoint(approvalID)
+    if (!checkpoint || checkpoint.version !== 1 || checkpoint.payload.kind !== "tool-approval" || !checkpoint.payload.invocationHash) {
+      const invalidated = this.invalidateApprovalCheckpoint(approvalID, "审批缺少可恢复 checkpoint")
+      return { state: "invalid-checkpoint", threadID: request.thread_id, turnID: request.turn_id, agentID: request.agent_id, events: invalidated?.events ?? [] }
+    }
+    const timestamp = now()
+    const events: EventEnvelope[] = []
+    this.transaction(() => {
+      const updated = this.sqlite.query("UPDATE approval_requests SET status = 'resolved', reply = ?, resolved_at = ? WHERE id = ? AND status = 'pending'").run(decision, timestamp, approvalID)
+      if (updated.changes !== 1) throw new Error(`审批 ${approvalID} 已被并发处理`)
+      this.sqlite.query("UPDATE approval_checkpoints SET payload = ?, updated_at = ? WHERE approval_id = ?").run(stringify({ ...checkpoint.payload, resolution: { decision, resolvedAt: timestamp } }), timestamp, approvalID)
+      this.updateTurnStatus(request.turn_id, "queued")
+      this.updateAgentStatus(request.agent_id, "queued")
+      events.push(this.insertEvent(request.thread_id, request.turn_id, "agent/upserted", { agent: this.getAgentExecution(request.agent_id) }))
+      events.push(this.insertEvent(request.thread_id, request.turn_id, "serverRequest/resolved", { id: approvalID, turnId: request.turn_id, kind: "approval", decision }))
+    })
+    return { state: "resolved", checkpoint: this.getApprovalCheckpoint(approvalID)!, events }
+  }
+
+  claimResolvedApproval(turnID: string): StoredApprovalCheckpoint | null {
+    const row = this.sqlite.query(`SELECT r.id FROM approval_requests AS r JOIN approval_checkpoints AS c ON c.approval_id = r.id WHERE r.turn_id = ? AND r.status = 'resolved' ORDER BY r.resolved_at, r.created_at LIMIT 1`).get(turnID) as { id: string } | null
+    if (!row) return null
+    const checkpoint = this.getApprovalCheckpoint(row.id)
+    if (!checkpoint || !checkpoint.payload.resolution) return null
+    const timestamp = now()
+    return this.transaction(() => {
+      const updated = this.sqlite.query("UPDATE approval_requests SET status = 'claimed' WHERE id = ? AND status = 'resolved'").run(row.id)
+      if (updated.changes !== 1) return null
+      this.sqlite.query("UPDATE approval_checkpoints SET payload = ?, updated_at = ? WHERE approval_id = ?").run(stringify({ ...checkpoint.payload, claimedAt: timestamp }), timestamp, row.id)
+      return this.getApprovalCheckpoint(row.id)
+    })
+  }
+
+  cancelApprovalsForTurn(turnID: string) {
+    const timestamp = now()
+    this.sqlite.query("UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE turn_id = ? AND status IN ('preparing', 'pending', 'resolved')").run(timestamp, turnID)
+  }
+
+  invalidateApprovalCheckpoint(approvalID: string, reason: string) {
+    const row = this.sqlite.query("SELECT thread_id, turn_id, agent_id FROM approval_requests WHERE id = ?").get(approvalID) as { thread_id: string; turn_id: string; agent_id: string } | null
+    if (!row) return null
+    const events: EventEnvelope[] = []
+    this.transaction(() => {
+      const timestamp = now()
+      const updated = this.sqlite.query("UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE id = ? AND status IN ('preparing', 'pending', 'resolved')").run(timestamp, approvalID)
+      if (updated.changes !== 1) return
+      this.updateTurnStatus(row.turn_id, "interrupted")
+      this.updateAgentStatus(row.agent_id, "interrupted", reason)
+      events.push(this.insertEvent(row.thread_id, row.turn_id, "approval/cancelled", { id: approvalID, turnId: row.turn_id, reason, cancelledAt: timestamp }))
+      events.push(this.insertEvent(row.thread_id, row.turn_id, "agent/upserted", { agent: this.getAgentExecution(row.agent_id) }))
+      events.push(this.insertEvent(row.thread_id, row.turn_id, "turn/interrupted", { turnId: row.turn_id, rootAgentId: row.agent_id, reason: "invalid-approval-checkpoint", finishedAt: timestamp }))
+    })
+    return { events }
+  }
+
+  hookTrustDecision(workspacePath: string, configHash: string): "allow" | "block" | null {
+    const row = this.sqlite.query("SELECT decision FROM hook_trust_decisions WHERE workspace_path = ? AND config_hash = ?").get(workspacePath, configHash) as { decision: "allow" | "block" } | null
+    return row?.decision ?? null
+  }
+
+  ensureHookTrustRequest(input: Omit<HookTrustRequest, "id" | "status" | "createdAt" | "resolvedAt">) {
+    return this.transaction(() => {
+      const existing = this.sqlite.query("SELECT id FROM hook_trust_requests WHERE workspace_path = ? AND config_hash = ? AND status = 'pending'").get(input.workspacePath, input.configHash) as { id: string } | null
+      const id = existing?.id ?? crypto.randomUUID()
+      const createdAt = now()
+      let waiterAdded = false
+      if (!existing) this.sqlite.query("INSERT INTO hook_trust_requests (id, thread_id, turn_id, workspace_path, config_path, config_hash, status, audit_summary, created_at) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)").run(
+        id, input.threadID, input.turnID, input.workspacePath, input.configPath, input.configHash, stringify(input.auditSummary), createdAt,
+      )
+      if (input.threadID && input.turnID) {
+        const execution = this.sqlite.query("SELECT id, subagent_run_id FROM agent_executions WHERE turn_id = ?").get(input.turnID) as { id: string; subagent_run_id: string | null } | null
+        if (execution) {
+          waiterAdded = this.sqlite.query("INSERT OR IGNORE INTO hook_trust_waiters (request_id, agent_id, turn_id, thread_id, created_at) VALUES (?, ?, ?, ?, ?)").run(id, execution.id, input.turnID, input.threadID, createdAt).changes === 1
+          this.sqlite.query(`INSERT INTO agent_checkpoints (agent_id, turn_id, thread_id, state, payload, version, created_at, updated_at) VALUES (?, ?, ?, 'waiting_hook_trust', ?, 1, ?, ?) ON CONFLICT(agent_id) DO UPDATE SET turn_id = excluded.turn_id, thread_id = excluded.thread_id, state = excluded.state, payload = excluded.payload, version = excluded.version, updated_at = excluded.updated_at`).run(
+            execution.id, input.turnID, input.threadID, stringify({ kind: "hook-trust", requestID: id }), createdAt, createdAt,
+          )
+          this.updateTurnStatus(input.turnID, "waiting_permission")
+          this.updateAgentStatus(execution.id, "waiting_permission")
+          if (execution.subagent_run_id) {
+            this.sqlite.query("UPDATE subagent_runs SET status = 'waiting_permission', updated_at = ? WHERE id = ?").run(createdAt, execution.subagent_run_id)
+            this.sqlite.query("UPDATE subagent_tasks SET status = 'waiting_permission', updated_at = ? WHERE current_run_id = ?").run(createdAt, execution.subagent_run_id)
+            this.sqlite.query(`UPDATE items SET status = 'pending', data = json_set(data, '$.status', 'waiting_permission', '$.queueReason', NULL), updated_at = ? WHERE type = 'subagent' AND json_extract(data, '$.runId') = ?`).run(createdAt, execution.subagent_run_id)
+          }
+        }
+      }
+      const request = this.getHookTrustRequest(id)!
+      // Every newly-added waiter gets one durable notification, even when the
+      // workspace/hash request was deduplicated against another turn.
+      const event = !existing || waiterAdded
+        ? this.insertEvent(input.threadID, input.turnID, "hook/trust/requested", { request, reused: Boolean(existing) })
+        : null
+      return { request, event }
+    })
+  }
+
+  getHookTrustRequest(id: string): HookTrustRequest | null {
+    const row = this.sqlite.query("SELECT id, thread_id, turn_id, workspace_path, config_path, config_hash, status, audit_summary, created_at, resolved_at FROM hook_trust_requests WHERE id = ?").get(id) as Record<string, string | number | null> | null
+    return row ? {
+      id: String(row.id), threadID: row.thread_id == null ? null : String(row.thread_id), turnID: row.turn_id == null ? null : String(row.turn_id),
+      workspacePath: String(row.workspace_path), configPath: String(row.config_path), configHash: String(row.config_hash), status: String(row.status) as HookTrustRequest["status"],
+      auditSummary: parse<Record<string, unknown>>(String(row.audit_summary)), createdAt: Number(row.created_at), resolvedAt: row.resolved_at == null ? null : Number(row.resolved_at),
+    } : null
+  }
+
+  resolveHookTrustRequest(id: string, decision: "allow" | "block") {
+    return this.transaction(() => {
+      const request = this.getHookTrustRequest(id)
+      if (!request) return { state: "missing" as const, request: null, events: [], resumed: [] }
+      if (request.status !== "pending") return { state: "resolved" as const, request, events: [], resumed: [] }
+      const timestamp = now()
+      this.sqlite.query("UPDATE hook_trust_requests SET status = ?, resolved_at = ? WHERE id = ? AND status = 'pending'").run(decision === "allow" ? "allowed" : "blocked", timestamp, id)
+      this.sqlite.query(`INSERT INTO hook_trust_decisions (workspace_path, config_hash, config_path, decision, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(workspace_path, config_hash) DO UPDATE SET config_path = excluded.config_path, decision = excluded.decision, updated_at = excluded.updated_at`).run(
+        request.workspacePath, request.configHash, request.configPath, decision, timestamp, timestamp,
+      )
+      const resolved = this.getHookTrustRequest(id)!
+      const waiters = this.sqlite.query("SELECT agent_id, turn_id, thread_id FROM hook_trust_waiters WHERE request_id = ?").all(id) as Array<{ agent_id: string; turn_id: string; thread_id: string }>
+      const resumed = waiters.map((waiter) => ({ agentID: waiter.agent_id, turnID: waiter.turn_id, threadID: waiter.thread_id }))
+      const events = resumed.length ? resumed.map((waiter) => {
+        this.updateTurnStatus(waiter.turnID, "queued")
+        this.updateAgentStatus(waiter.agentID, "queued")
+        this.sqlite.query("DELETE FROM agent_checkpoints WHERE agent_id = ? AND state = 'waiting_hook_trust'").run(waiter.agentID)
+        const execution = this.getAgentExecution(waiter.agentID)
+        if (execution?.subagentRunID) {
+          this.sqlite.query("UPDATE subagent_runs SET status = 'queued', queue_reason = NULL, updated_at = ? WHERE id = ?").run(timestamp, execution.subagentRunID)
+          this.sqlite.query("UPDATE subagent_tasks SET status = 'queued', updated_at = ? WHERE current_run_id = ?").run(timestamp, execution.subagentRunID)
+          this.sqlite.query(`UPDATE items SET status = 'pending', data = json_set(data, '$.status', 'queued', '$.queueReason', NULL), updated_at = ? WHERE type = 'subagent' AND json_extract(data, '$.runId') = ?`).run(timestamp, execution.subagentRunID)
+        }
+        return this.insertEvent(waiter.threadID, waiter.turnID, "hook/trust/resolved", { request: resolved, decision, resumed: true })
+      }) : [this.insertEvent(resolved.threadID, resolved.turnID, "hook/trust/resolved", { request: resolved, decision, resumed: false })]
+      return { state: "resolved" as const, request: resolved, events, resumed }
+    })
+  }
+
+  createSandboxEscalation(input: Omit<SandboxEscalation, "status" | "createdAt">) {
+    const createdAt = now()
+    this.sqlite.query("INSERT INTO sandbox_escalations (token, thread_id, turn_id, agent_id, tool_call_id, invocation, invocation_hash, failure, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'awaiting_request', ?)").run(input.token, input.threadID, input.turnID, input.agentID, input.toolCallID, stringify(input.invocation), input.invocationHash, input.failure, createdAt)
+    return { ...input, status: "awaiting_request" as const, createdAt }
+  }
+
+  getSandboxEscalation(token: string): SandboxEscalation | null {
+    const row = this.sqlite.query("SELECT token, thread_id, turn_id, agent_id, tool_call_id, invocation, invocation_hash, failure, status, created_at FROM sandbox_escalations WHERE token = ?").get(token) as { token: string; thread_id: string; turn_id: string; agent_id: string; tool_call_id: string; invocation: string; invocation_hash: string; failure: string; status: SandboxEscalation["status"]; created_at: number } | null
+    return row ? { token: row.token, threadID: row.thread_id, turnID: row.turn_id, agentID: row.agent_id, toolCallID: row.tool_call_id, invocation: parse<ToolInvocation>(row.invocation), invocationHash: row.invocation_hash, failure: row.failure, status: row.status, createdAt: row.created_at } : null
+  }
+
+  claimSandboxEscalation(token: string, scope: { threadID: string; turnID: string; agentID: string }) {
+    const escalation = this.getSandboxEscalation(token)
+    if (!escalation || escalation.threadID !== scope.threadID || escalation.turnID !== scope.turnID || escalation.agentID !== scope.agentID || escalation.status !== "awaiting_request") return null
+    const updated = this.sqlite.query("UPDATE sandbox_escalations SET status = 'claimed', claimed_at = ? WHERE token = ? AND status = 'awaiting_request'").run(now(), token)
+    return updated.changes === 1 ? { ...escalation, status: "claimed" as const } : null
+  }
+
+  completeSandboxEscalation(token: string, output: unknown) {
+    this.sqlite.query("UPDATE sandbox_escalations SET status = 'completed', output = ?, completed_at = ? WHERE token = ? AND status = 'claimed'").run(stringify(output), now(), token)
+  }
+
+  cancelSandboxEscalation(token: string, reason: string) {
+    this.sqlite.query("UPDATE sandbox_escalations SET status = 'cancelled', output = ?, completed_at = ? WHERE token = ? AND status IN ('awaiting_request', 'claimed')").run(stringify({ error: reason }), now(), token)
+  }
+
   nextQueuedTurn(threadID: string) {
     return this.sqlite.query("SELECT id FROM turns WHERE thread_id = ? AND status = 'queued' ORDER BY created_at LIMIT 1").get(threadID) as { id: string } | null
   }
@@ -1176,6 +1684,46 @@ export class AgentDatabase {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     } : null
+  }
+
+  interruptForSideEffectRecovery(input: { threadID: string; turnID: string; agentID: string; payload: SideEffectRecoveryPayload }) {
+    const timestamp = now()
+    const events: EventEnvelope[] = []
+    const checkpoint = this.transaction(() => {
+      this.sqlite.query(`INSERT INTO agent_checkpoints (agent_id, turn_id, thread_id, state, payload, version, created_at, updated_at) VALUES (?, ?, ?, 'ready', ?, 1, ?, ?) ON CONFLICT(agent_id) DO UPDATE SET turn_id = excluded.turn_id, thread_id = excluded.thread_id, state = excluded.state, payload = excluded.payload, version = excluded.version, updated_at = excluded.updated_at`).run(
+        input.agentID, input.turnID, input.threadID, stringify(input.payload), timestamp, timestamp,
+      )
+      this.updateTurnStatus(input.turnID, "interrupted")
+      this.updateAgentStatus(input.agentID, "interrupted", "模型上下文超限；已保存副作用恢复证据")
+      events.push(this.insertEvent(input.threadID, input.turnID, "agent/upserted", { agent: this.getAgentExecution(input.agentID) }))
+      events.push(this.insertEvent(input.threadID, input.turnID, "turn/interrupted", {
+        turnId: input.turnID,
+        rootAgentId: input.agentID,
+        reason: "side-effect-prompt-recovery",
+        completedSideEffects: input.payload.completed,
+        finishedAt: timestamp,
+      }))
+      events.push(this.insertEvent(input.threadID, input.turnID, "context/recoveryRequired", {
+        turnId: input.turnID,
+        agentId: input.agentID,
+        attemptOrdinal: input.payload.attemptOrdinal,
+        completedSideEffects: input.payload.completed,
+        createdAt: timestamp,
+      }))
+      return this.getAgentTurnCheckpoint(input.turnID)!
+    })
+    return { checkpoint, events }
+  }
+
+  queueSideEffectRecovery(turnID: string) {
+    const checkpoint = this.getAgentTurnCheckpoint(turnID)
+    if (checkpoint?.state !== "ready" || checkpoint.payload.kind !== "side-effect-prompt-recovery") return false
+    return this.transaction(() => {
+      const turn = this.sqlite.query("UPDATE turns SET status = 'queued', finished_at = NULL, updated_at = ? WHERE id = ? AND status = 'interrupted'").run(now(), turnID)
+      if (turn.changes !== 1) return false
+      this.sqlite.query("UPDATE agent_executions SET status = 'queued', error = NULL, updated_at = ? WHERE id = ? AND status = 'interrupted'").run(now(), checkpoint.agentID)
+      return true
+    })
   }
 
   deleteAgentTurnCheckpoint(turnID: string) {

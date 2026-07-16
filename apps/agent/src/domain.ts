@@ -194,6 +194,8 @@ export interface ToolInvocation {
   permissionConfig: PermissionConfig
   model: Model.Ref
   taskMode: TaskMode
+  /** True only for an Agents SDK preflight that can be resumed from a RunState interruption. */
+  durableApproval?: boolean
 }
 
 export interface PermissionDecision {

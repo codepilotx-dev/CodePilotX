@@ -17,6 +17,17 @@ const removePath = async (path: string) => {
 afterEach(async () => Promise.all(paths.splice(0).map(removePath)))
 
 describe("数据库迁移", () => {
+  test("读取旧 on-failure 审批策略时迁移为 on-request", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-on-failure-"))
+    paths.push(root)
+    const db = new AgentDatabase(join(root, "agent.sqlite"))
+    const thread = db.createThread("旧审批策略")
+    db.sqlite.query("UPDATE threads SET approval_policy = 'on-failure' WHERE id = ?").run(thread.id)
+
+    expect(db.getThread(thread.id)?.settings.permissionConfig.approvalPolicy).toBe("on-request")
+    db.close()
+  })
+
   test("发现 legacy Session schema 时备份旧库并重建 Thread schema", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-v2-"))
     paths.push(root)
@@ -77,7 +88,7 @@ describe("数据库迁移", () => {
     expect(tables.has("proposals")).toBe(false)
     db.close()
 
-    expect((await readdir(root)).some((name) => name.startsWith("agent.pre-v6-") && name.endsWith(".sqlite"))).toBe(true)
+    expect((await readdir(root)).some((name) => name.startsWith(`agent.pre-v${SCHEMA_VERSION}-`) && name.endsWith(".sqlite"))).toBe(true)
   })
 
   test("v5 到 v6 保留现有 Thread 和 AgentExecution 并增加子 Agent 表", async () => {
@@ -100,7 +111,7 @@ describe("数据库迁移", () => {
     v5.close()
 
     const migrated = new AgentDatabase(path)
-    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 6 })
+    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     expect(migrated.sqlite.query("SELECT id, title, kind FROM threads WHERE id = ?").get(thread.id)).toEqual({ id: thread.id, title: "保留的会话", kind: "main" })
     const tables = new Set((migrated.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>).map(({ name }) => name))
     expect(tables.has("subagent_tasks")).toBe(true)

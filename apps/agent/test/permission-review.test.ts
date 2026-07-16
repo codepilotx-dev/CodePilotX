@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test"
 import type { ProviderRuntime } from "@codepilotx/provider-runtime"
 import type { AgentDatabase } from "../src/storage/Database"
 import type { ToolInvocation } from "../src/domain"
-import { ApprovalService } from "../src/permission/ApprovalService"
 import { ReviewerService } from "../src/permission/ReviewerService"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
+import { PermissionDecisionEngine } from "../src/permission/PermissionDecisionEngine"
 
 const reviewer = (getSetting: AgentDatabase["getSetting"], providers: ProviderRuntime = {} as ProviderRuntime) => new ReviewerService({ getSetting } as AgentDatabase, providers)
 
@@ -37,43 +37,37 @@ describe("Shell ReviewerService", () => {
     await expect(service.review(invocation, new AbortController().signal)).resolves.toMatchObject({ decision: "deny", risk: "high" })
   })
 
-  test("ApprovalService 在 Shell 审核器缺失时 fail-closed", async () => {
+  test("on-request 对基础 sandbox Shell 直接执行，仅权限提升进入审核", () => {
     const tools = new ToolRegistry()
-    tools.register({
-      name: "shell",
-      description: "test shell",
-      sideEffect: true,
-      inputSchema: { type: "object" },
-      execute: async () => "must-not-run",
-    })
-    const approvals = new ApprovalService({} as AgentDatabase, {} as never, tools)
-    const result = await approvals.authorize({
+    const engine = new PermissionDecisionEngine()
+    const base = {
       id: "tool-2",
       threadID: "thread-1",
       turnID: "turn-1",
+      agentID: "agent-1",
       name: "shell",
       input: { command: "npm test" },
       permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" },
       taskMode: "chat",
-    } as unknown as ToolInvocation, new AbortController().signal)
-    expect(result).toMatchObject({ decision: "deny", risk: "critical" })
+    } as unknown as ToolInvocation
+    expect(engine.evaluate(base, tools.get("shell"))).toMatchObject({ action: "allow" })
+    expect(engine.evaluate({ ...base, input: { command: "npm test", additionalPermissions: { networkDomains: ["npmjs.org"] } } }, tools.get("shell"))).toMatchObject({ action: "review", reviewer: "user" })
   })
 
-  test("Full access 审核异常直接拒绝且不进入人工审批", async () => {
+  test("never 不重复审批已选择的 full access，但拒绝动态提升", () => {
     const tools = new ToolRegistry()
-    tools.register({ name: "shell", description: "test shell", sideEffect: true, inputSchema: { type: "object" }, execute: async () => "must-not-run" })
-    const approvals = new ApprovalService({} as AgentDatabase, {} as never, tools, async () => {
-      throw new Error("reviewer timeout")
-    })
-    const result = await approvals.authorize({
+    const engine = new PermissionDecisionEngine()
+    const invocation = {
       id: "tool-full",
       threadID: "thread-1",
       turnID: "turn-1",
+      agentID: "agent-1",
       name: "shell",
       input: { command: "Write-Output blocked" },
       permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "never", approvalsReviewer: "auto_review" },
       taskMode: "chat",
-    } as unknown as ToolInvocation, new AbortController().signal)
-    expect(result).toMatchObject({ decision: "deny", risk: "critical" })
+    } as unknown as ToolInvocation
+    expect(engine.evaluate(invocation, tools.get("shell"))).toMatchObject({ action: "allow", risk: "critical" })
+    expect(engine.evaluate({ ...invocation, input: { command: "x", additionalPermissions: { writePaths: ["C:\\outside"] } } }, tools.get("shell"))).toMatchObject({ action: "deny" })
   })
 })

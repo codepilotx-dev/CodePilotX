@@ -8,6 +8,7 @@ import type {
   SubagentStatus,
   SubagentTask,
 } from "@codepilotx/shared/thread"
+import { encodeApprovalPolicy } from "@codepilotx/shared/thread"
 import { AgentError, type AgentExecution, type EventEnvelope } from "../domain"
 import type { AgentDatabase } from "../storage/Database"
 
@@ -16,12 +17,6 @@ const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const now = () => Date.now()
 const terminalStatuses = new Set<SubagentStatus>(["completed", "failed", "stopped", "interrupted"])
 const activeStatuses = ["preparing", "running", "steering", "waiting_question", "waiting_permission"] as const
-
-const legacyPermissionMode = (config: PermissionConfig) => {
-  if (config.sandboxMode === "danger-full-access" && config.approvalPolicy === "never" && config.approvalsReviewer === "auto_review") return "full"
-  if (config.sandboxMode === "workspace-write" && config.approvalPolicy === "on-request" && config.approvalsReviewer === "auto_review") return "review"
-  return "ask"
-}
 
 export type SpawnSubagentInput = {
   parentThreadID: string
@@ -34,6 +29,7 @@ export type SpawnSubagentInput = {
   permissionCeiling: PermissionConfig
   workspaceMode: "shared" | "worktree"
   workspaceRoot: string
+  taskMode?: "chat" | "plan"
 }
 
 export type SubagentClaim = {
@@ -60,9 +56,9 @@ export class SubagentRepository {
     return this.db.transaction(() => {
       const parent = this.db.sqlite.query("SELECT project_id FROM threads WHERE id = ?").get(input.parentThreadID) as { project_id: string | null } | null
       if (!parent) throw new Error(`Parent thread ${input.parentThreadID} 不存在`)
-      this.db.sqlite.query(`INSERT INTO threads (id, title, kind, parent_thread_id, project_id, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at) VALUES (?, ?, 'subagent', ?, ?, 'chat', ?, ?, ?, ?, ?)`).run(
+      this.db.sqlite.query(`INSERT INTO threads (id, title, kind, parent_thread_id, project_id, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at) VALUES (?, ?, 'subagent', ?, ?, ?, ?, ?, ?, ?, ?)`).run(
         childThreadID, input.displayName, input.parentThreadID, parent.project_id,
-        permission.sandboxMode, permission.approvalPolicy, permission.approvalsReviewer, timestamp, timestamp,
+        input.taskMode ?? "chat", permission.sandboxMode, encodeApprovalPolicy(permission.approvalPolicy), permission.approvalsReviewer, timestamp, timestamp,
       )
       this.db.sqlite.query(`INSERT INTO subagent_tasks (id, parent_thread_id, parent_turn_id, parent_agent_id, child_thread_id, display_name, profile, task, permission_ceiling, workspace_mode, workspace_state, current_run_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?)`).run(
         taskID, input.parentThreadID, input.parentTurnID, input.parentAgentID, childThreadID,
@@ -82,7 +78,7 @@ export class SubagentRepository {
           `权限上限：${stringify(input.permissionCeiling)}`,
           "只返回与你的任务直接相关的结构化结论；不要假设主对话中未显式提供的上下文。",
         ].join("\n\n"),
-        model: input.model, permission, sequence: 0, timestamp,
+        model: input.model, permission, taskMode: input.taskMode ?? "chat", sequence: 0, timestamp,
       })
       this.db.sqlite.query(`INSERT INTO items (id, thread_id, turn_id, agent_id, type, status, data, created_at, updated_at) VALUES (?, ?, ?, ?, 'subagent', 'pending', ?, ?, ?)`).run(
         itemID, input.parentThreadID, input.parentTurnID, input.parentAgentID,
@@ -111,20 +107,20 @@ export class SubagentRepository {
     content?: string
     model: Model.Ref
     permission: PermissionConfig
+    taskMode: "chat" | "plan"
     sequence: number
     timestamp: number
   }) {
-    const mode = legacyPermissionMode(input.permission)
-    this.db.sqlite.query(`INSERT INTO turns (id, thread_id, root_agent_id, status, mode, permission_mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, strategy, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, 'queued', 'chat', ?, ?, ?, ?, ?, 'queue', NULL, NULL, ?, ?)`).run(
-      input.turnID, input.childThreadID, input.agentID, mode, input.permission.sandboxMode, input.permission.approvalPolicy,
+    this.db.sqlite.query(`INSERT INTO turns (id, thread_id, root_agent_id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, strategy, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, 'queued', ?, ?, ?, ?, ?, 'queue', NULL, NULL, ?, ?)`).run(
+      input.turnID, input.childThreadID, input.agentID, input.taskMode, input.permission.sandboxMode, encodeApprovalPolicy(input.permission.approvalPolicy),
       input.permission.approvalsReviewer, stringify(input.model), input.timestamp, input.timestamp,
     )
     this.db.sqlite.query(`INSERT INTO agent_executions (id, thread_id, turn_id, parent_agent_id, profile, task, model_ref, session_id, depth, subagent_run_id, run_sequence, status, error, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 'queued', NULL, ?, ?)`).run(
       input.agentID, input.childThreadID, input.turnID, input.parentAgentID, input.profile, input.task, stringify(input.model), `subagent:${this.taskIDForRun(input.runID)}`, input.runID, input.sequence, input.timestamp, input.timestamp,
     )
-    this.db.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, permission_mode, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'queue', 'chat', 'queued', ?)`).run(
-      input.inputID, input.childThreadID, input.turnID, input.content ?? input.task, stringify(input.model), mode,
-      input.permission.sandboxMode, input.permission.approvalPolicy, input.permission.approvalsReviewer, input.timestamp,
+    this.db.sqlite.query(`INSERT INTO inputs (id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queue', ?, 'queued', ?)`).run(
+      input.inputID, input.childThreadID, input.turnID, input.content ?? input.task, stringify(input.model),
+      input.permission.sandboxMode, encodeApprovalPolicy(input.permission.approvalPolicy), input.permission.approvalsReviewer, input.taskMode, input.timestamp,
     )
     const ordinal = (this.db.sqlite.query("SELECT COALESCE(MAX(ordinal), -1) + 1 AS value FROM messages WHERE thread_id = ?").get(input.childThreadID) as { value: number }).value
     this.db.sqlite.query("INSERT INTO messages (id, thread_id, turn_id, role, content, ordinal, created_at) VALUES (?, ?, ?, 'user', ?, ?, ?)").run(input.inputID, input.childThreadID, input.turnID, input.content ?? input.task, ordinal, input.timestamp)
@@ -182,6 +178,8 @@ export class SubagentRepository {
       const writable = task.profile !== "explorer" && run.permissionConfig.sandboxMode !== "read-only" && task.workspace.mode === "shared"
       const workspaceKey = task.workspace.rootPath ?? task.parentThreadId
       if (writable) {
+        const parentTurn = this.db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(task.parentTurnId) as { status: string } | null
+        if (parentTurn?.status === "running") return this.keepQueued(task.id, runID, "workspace_writer")
         const lease = this.db.sqlite.query("SELECT run_id FROM workspace_writer_leases WHERE workspace_key = ?").get(workspaceKey) as { run_id: string } | null
         if (lease && lease.run_id !== runID) return this.keepQueued(task.id, runID, "workspace_writer")
         this.db.sqlite.query("INSERT OR REPLACE INTO workspace_writer_leases (workspace_key, task_id, run_id, acquired_at) VALUES (?, ?, ?, ?)").run(workspaceKey, task.id, runID, now())
@@ -240,6 +238,7 @@ export class SubagentRepository {
     const timestamp = now()
     const model = input.model ?? previousRun.model
     const permission = input.permission ?? previousRun.permissionConfig
+    const taskMode = (this.db.sqlite.query("SELECT task_mode FROM threads WHERE id = ?").get(task.childThreadId) as { task_mode: "chat" | "plan" } | null)?.task_mode ?? "chat"
     const turnID = crypto.randomUUID()
     const agentID = crypto.randomUUID()
     const inputID = crypto.randomUUID()
@@ -252,7 +251,7 @@ export class SubagentRepository {
         this.db.sqlite.query(`INSERT INTO subagent_runs (id, task_id, generation, status, queue_reason, model_ref, permission_config, result, error, created_at, started_at, finished_at, updated_at) VALUES (?, ?, ?, 'queued', NULL, ?, ?, NULL, NULL, ?, NULL, NULL, ?)`).run(runID, task.id, generation, stringify(model), stringify(permission), timestamp, timestamp)
         this.db.sqlite.query("UPDATE subagent_tasks SET current_run_id = ?, status = 'queued', updated_at = ? WHERE id = ?").run(runID, timestamp, task.id)
       }
-      this.insertExecution({ childThreadID: task.childThreadId, turnID, agentID, inputID, runID, parentAgentID: task.parentAgentId, profile: task.profile, task: input.message, model, permission, sequence: input.sameRun ? previousAgent.run_sequence + 1 : 0, timestamp })
+      this.insertExecution({ childThreadID: task.childThreadId, turnID, agentID, inputID, runID, parentAgentID: task.parentAgentId, profile: task.profile, task: input.message, model, permission, taskMode, sequence: input.sameRun ? previousAgent.run_sequence + 1 : 0, timestamp })
       this.db.sqlite.query("UPDATE items SET status = 'pending', data = json_set(data, '$.runId', ?, '$.status', 'queued', '$.queueReason', NULL, '$.result', NULL), updated_at = ? WHERE thread_id = ? AND type = 'subagent' AND json_extract(data, '$.subagentTaskId') = ?").run(runID, timestamp, task.parentThreadId, task.id)
       return { task: this.task(task.id)!, run: this.run(runID)!, agent: this.db.getAgentExecution(agentID)! }
     })

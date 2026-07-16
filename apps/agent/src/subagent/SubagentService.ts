@@ -1,6 +1,6 @@
 import type { LanguageModel } from "ai"
 import type { Model } from "@codepilotx/model-schema"
-import type { PermissionConfig, SubagentProfile, SubagentResult } from "@codepilotx/shared/thread"
+import type { PermissionConfig, SubagentProfile } from "@codepilotx/shared/thread"
 import { Effect } from "effect"
 import type { ProviderRuntime } from "@codepilotx/provider-runtime"
 import { AgentError } from "../domain"
@@ -12,8 +12,15 @@ import type { EventHub } from "../storage/EventHub"
 import { WorkspaceService } from "../workspace/WorkspaceService"
 import { SubagentRepository, type SpawnSubagentInput } from "./SubagentRepository"
 import type { AttachmentService } from "./AttachmentService"
+import { InstructionDiscoveryService, SkillService, createPromptSections } from "../prompt"
+import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
+import type { HookService } from "../hooks/HookService"
+import { ContextManager, DEFAULT_CONTEXT_WINDOW_TOKENS, type ContextFragment } from "../context/ContextManager"
+import { createModelContextCompactor } from "../context/ModelContextCompactor"
+import { SqliteAgentSession } from "../storage/SqliteAgentSession"
 
 const terminal = new Set(["completed", "failed", "stopped", "interrupted"])
+export const pausedSubagentStatus = (kind: PendingApproval["kind"] | null) => kind === "permission" ? "waiting_permission" as const : "waiting_question" as const
 
 export interface SubagentWorkspaceProvider {
   prepare(taskID: string, rootPath: string, mode: "shared" | "worktree"): Promise<{ rootPath: string; baselineRef: string | null }>
@@ -49,6 +56,9 @@ export class SubagentService {
     private readonly orchestrator: AgentOrchestrator,
     private readonly attachments: AttachmentService,
     private readonly workspaces?: SubagentWorkspaceProvider,
+    private readonly promptDataRoot?: string,
+    private readonly memory?: MemoryService,
+    private readonly hooks?: HookService,
   ) {
     this.repository = new SubagentRepository(db)
     approvals.setAgentStatusHandler((agentID, status) => { void this.onApprovalStatus(agentID, status) })
@@ -154,31 +164,45 @@ export class SubagentService {
   }
 
   async spawn(root: RootContext, agents: Array<{ name?: string; profile: "default" | "explorer" | "worker"; task: string; workspaceMode?: "shared" | "worktree"; model?: Model.Ref }>) {
+    if (!agents.length || agents.length > 4) throw new AgentError("SUBAGENT_BATCH_LIMIT", "每批只能创建 1 到 4 个子 Agent", 409)
     if (root.taskMode === "plan" && !root.continueFromPlan && agents.some((agent) => agent.profile !== "explorer")) {
       throw new AgentError("PLAN_SUBAGENT_RESTRICTED", "Plan 确认前只能创建 Explorer", 409)
     }
     const parent = this.db.getAgentExecution(root.agentID)
     if (!parent || parent.depth !== 0) throw new AgentError("SUBAGENT_DEPTH_EXCEEDED", "子 Agent 不能继续创建子 Agent", 409)
-    const created = []
+    if (agents.some((agent) => !agent.task.trim())) throw new AgentError("SUBAGENT_TASK_REQUIRED", "子 Agent 任务不能为空", 400)
+    const totals = this.db.sqlite.query("SELECT COUNT(*) AS total, SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) AS queued FROM subagent_tasks WHERE parent_agent_id = ?").get(root.agentID) as { total: number; queued: number | null }
+    if (totals.total + agents.length > 64 || (totals.queued ?? 0) + agents.length > 24) {
+      throw new AgentError("SUBAGENT_QUEUE_LIMIT", "该主 Agent 的子任务总量或排队量已达上限", 409)
+    }
+    await Promise.all(agents.map((requested) => this.resolveModel(requested.model ?? root.model)))
     const generated = new Map<string, number>()
     const existingCounts = new Map<string, number>()
-    for (const requested of agents) {
+    const inputs = agents.map((requested): SpawnSubagentInput => {
       const profile = requested.profile as Exclude<SubagentProfile, "main">
       const model = requested.model ?? root.model
-      await this.resolveModel(model)
       const existing = existingCounts.get(profile) ?? (this.db.sqlite.query("SELECT COUNT(*) AS count FROM subagent_tasks WHERE parent_agent_id = ? AND profile = ?").get(root.agentID, profile) as { count: number }).count
       existingCounts.set(profile, existing)
       const generatedIndex = (generated.get(profile) ?? 0) + 1
       generated.set(profile, generatedIndex)
       const displayName = requested.name?.trim() || `${profile === "explorer" ? "Explorer" : profile === "worker" ? "Worker" : "Agent"} ${existing + generatedIndex}`
-      const input: SpawnSubagentInput = {
+      return {
         parentThreadID: root.threadID, parentTurnID: root.turnID, parentAgentID: root.agentID,
         displayName, profile, task: requested.task.trim(), model,
-        permissionCeiling: root.permissionConfig, workspaceMode: requested.workspaceMode ?? "shared", workspaceRoot: root.workspaceRoot,
+        permissionCeiling: root.permissionConfig,
+        workspaceMode: requested.workspaceMode ?? (profile === "worker" ? "worktree" : "shared"),
+        workspaceRoot: root.workspaceRoot,
+        taskMode: root.taskMode,
       }
-      const row = this.repository.create(input)
+    })
+    // Repository creation is synchronous; wrapping the complete batch ensures
+    // a late constraint failure cannot leave a half-created delegation batch.
+    const rows = this.db.transaction(() => inputs.map((input) => this.repository.create(input)))
+    const created = []
+    for (const [index, row] of rows.entries()) {
       await this.publish(row.events)
-      created.push({ taskId: row.task.id, runId: row.run.id, childThreadId: row.task.childThreadId, displayName, profile })
+      const input = inputs[index]!
+      created.push({ taskId: row.task.id, runId: row.run.id, childThreadId: row.task.childThreadId, displayName: input.displayName, profile: input.profile })
     }
     void this.schedule()
     return { agents: created }
@@ -206,6 +230,7 @@ export class SubagentService {
     const agent = this.db.updateAgentStatus(agentID, "waiting_subagents")
     await this.emit(threadID, turnID, "agent/upserted", { agent })
     await this.emit(threadID, turnID, "turn/statusChanged", { turnId: turnID, rootAgentId: agentID, status: "waiting-subagents", runIds: runIDs, mode })
+    void this.schedule()
   }
 
   resolvedWaitCheckpoint(turnID: string): PlanCheckpoint | null {
@@ -226,7 +251,7 @@ export class SubagentService {
     const run = task.currentRun
     if (options.model) await this.resolveModel(options.model)
     const permission = options.permissionConfig ?? run.permissionConfig
-    this.assertPermissionCeiling(run.permissionConfig, permission)
+    this.assertPermissionCeiling(task.permissionCeiling, permission)
     await this.validateAttachments(options.attachmentIDs ?? [], options.model ?? run.model)
     this.repository.createControl({ requestID, taskID, runID: run.id, action: "send", payload: { message, ...options, permissionConfig: permission } })
     if (terminal.has(run.status)) {
@@ -343,21 +368,101 @@ export class SubagentService {
         : { ...run.permissionConfig, sandboxMode: "read-only" as const }
       const input = this.db.getTurnInput(agent.turnID)
       if (!input) throw new Error(`Subagent turn ${agent.turnID} 没有输入`)
-      const checkpoint = this.questions.claimResolvedCheckpoint(agent.turnID)
+      const permissionCheckpoint = this.approvals.claimResume(agent.turnID)
+      const permissionResume = permissionCheckpoint?.payload.runState && permissionCheckpoint.payload.interruption !== undefined && permissionCheckpoint.decision
+        ? {
+            state: permissionCheckpoint.payload.runState,
+            interruption: permissionCheckpoint.payload.interruption,
+            answer: null,
+            decision: permissionCheckpoint.decision,
+            toolCallID: permissionCheckpoint.toolCallID,
+            approvalID: permissionCheckpoint.approvalID,
+          } as const
+        : undefined
+      const checkpoint = permissionResume ? null : this.questions.claimResolvedCheckpoint(agent.turnID)
+      const parentMode = (this.db.sqlite.query("SELECT mode FROM turns WHERE id = ?").get(task.parentTurnId) as { mode: "chat" | "plan" } | null)?.mode ?? "chat"
+      const instructionSources = await new InstructionDiscoveryService().discover(workspace.rootPath)
+      const skillService = new SkillService()
+      const skillCatalog = this.promptDataRoot ? await skillService.scan(workspace.rootPath, this.promptDataRoot) : { skills: [], shadowed: [] }
+      const invokedSkill = skillService.resolveInvocation(input.content)
+      const invokedSkillData = invokedSkill ? [`用户显式调用 Skill $${invokedSkill.name}：\n${(await skillService.read(invokedSkill.name)).content}`] : []
+      const memories = this.memory?.recall({ query: input.content, projectKey: projectMemoryKey(rootPath), subagent: true }) ?? []
+      const promptSections = createPromptSections({
+        permissionInstructions: `子 Agent resolved sandbox=${permissionConfig.sandboxMode}; approval=${JSON.stringify(permissionConfig.approvalPolicy)}; reviewer=${permissionConfig.approvalsReviewer}。只能收紧，不能提升父任务 ceiling。`,
+        mode: parentMode,
+        profile: task.profile,
+        environment: `隔离工作区：${workspace.rootPath}`,
+        projectInstructions: instructionSources.sources,
+        skills: skillCatalog.skills,
+        memories: memories.map((entry) => `可能过期的项目参考记忆：${entry.content}`),
+        externalData: invokedSkillData,
+        userMessage: input.content,
+      })
+      const resolvedModelInfo = await this.resolveModel(run.model)
+      const resolvedLanguageModel = await this.providers.getLanguage(run.model) as LanguageModel
+      const contextWindowTokens = resolvedModelInfo.limit.context > 0 ? resolvedModelInfo.limit.context : DEFAULT_CONTEXT_WINDOW_TOKENS
+      const contextManager = new ContextManager(this.db)
+      const session = new SqliteAgentSession(this.db, agent.sessionID)
+      const attachments = await this.agentAttachments(input.id)
+      let budgetText = ""
+      let pausedKind: PendingApproval["kind"] | null = null
       const result = await this.orchestrator.run({
         threadID: task.childThreadId, turnID: agent.turnID, agentID: agent.id, sessionID: agent.sessionID,
-        profile: task.profile, depth: 1, content: input.content, taskMode: "chat", fallbackModel: run.model,
+        profile: task.profile, depth: 1, content: input.content, taskMode: parentMode, fallbackModel: run.model,
         permissionConfig, signal: controller.signal, workspace,
-        attachments: await this.agentAttachments(input.id),
-        ...(checkpoint ? { resume: checkpoint.approval } : {}),
-        resolveModel: async (fallback) => this.languageModel(fallback),
-        pause: async (approval) => { await this.questions.checkpoint(task.childThreadId, agent.turnID, agent.id, approval) },
+        promptSections,
+        skillService,
+        ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
+        attachments,
+        ...(permissionResume ? { resume: permissionResume } : checkpoint ? { resume: checkpoint.approval } : {}),
+        resolveModel: async () => ({ ref: run.model, model: resolvedLanguageModel }),
+        onPromptComposed: async (bundle, context) => {
+          budgetText = context.budgetText
+          const timestamp = Date.now()
+          const previous = contextManager.state(task.childThreadId)
+          const fragments: ContextFragment[] = bundle.diagnostics.filter((item) => item.included && item.cache !== "global-stable").map((item, index) => ({
+            id: item.id,
+            kind: item.id.startsWith("mode.") ? "mode" : item.id.startsWith("permission.") ? "permission" : item.id.startsWith("project-") ? "project" : item.id.startsWith("skills.") ? "skill" : item.id.startsWith("memory.") ? "memory" : "settings",
+            version: (previous?.baselineVersion ?? 0) + index + 1,
+            hash: item.hash,
+            payload: { source: item.source, cache: item.cache, bytes: item.bytes },
+            createdAt: timestamp,
+          }))
+          if (!previous) contextManager.establishBaseline({ threadID: task.childThreadId, promptVersion: "prompt-engine-v2", baseHash: bundle.baseHash, contextHash: bundle.contextHash, cacheKey: bundle.cacheKey, fragments })
+          else contextManager.appendFragments(task.childThreadId, fragments, bundle.contextHash)
+          if (!permissionResume && !checkpoint) {
+            const snapshot = contextManager.snapshot({ threadID: task.childThreadId, turnID: agent.turnID, sessionID: agent.sessionID, items: await session.getItems(), promptText: budgetText, contextWindowTokens })
+            if (snapshot.needsCompaction) {
+              const hookRuns = await this.hooks?.run("pre_compact", { snapshot, automatic: true, subagent: true }, { threadID: task.childThreadId, turnID: agent.turnID }) ?? []
+              const denied = hookRuns.find(({ result }) => result.decision === "deny")
+              if (denied) throw new AgentError("HOOK_DENIED", denied.result.reason ?? "PreCompact Hook 拒绝压缩", 403)
+              if (hookRuns.some(({ result }) => result.decision === "ask")) throw new AgentError("HOOK_CONFIRMATION_REQUIRED", "PreCompact Hook 要求人工确认", 409)
+              await contextManager.compact({ threadID: task.childThreadId, turnID: agent.turnID, session, compactor: createModelContextCompactor(resolvedLanguageModel), promptText: budgetText, contextWindowTokens, signal: controller.signal })
+              let after = contextManager.snapshot({ threadID: task.childThreadId, turnID: agent.turnID, sessionID: agent.sessionID, items: await session.getItems(), promptText: budgetText, contextWindowTokens })
+              for (let attempt = 0; after.needsCompaction && attempt < 3; attempt += 1) {
+                if (!(await session.dropOldestRound())) break
+                after = contextManager.snapshot({ threadID: task.childThreadId, turnID: agent.turnID, sessionID: agent.sessionID, items: await session.getItems(), promptText: budgetText, contextWindowTokens })
+              }
+              if (after.needsCompaction) throw new AgentError("CONTEXT_BUDGET_EXCEEDED", "子 Agent 上下文压缩后三次裁剪仍超过 80%", 413)
+            }
+          }
+        },
+        onUsage: async (usage) => {
+          contextManager.recordMeasuredUsage({ threadID: task.childThreadId, turnID: agent.turnID, sessionID: agent.sessionID, items: await session.getItems(), promptText: budgetText, contextWindowTokens, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens })
+        },
+        pause: async (approval) => {
+          pausedKind = approval.kind
+          if (approval.kind === "permission") {
+            if (!approval.toolCallID) throw new AgentError("APPROVAL_TOOL_CALL_ID_MISSING", "权限审批缺少 tool call id", 500)
+            await this.approvals.attachRunState(approval.toolCallID, approval.checkpoint.state, approval.checkpoint.interruption)
+          } else await this.questions.checkpoint(task.childThreadId, agent.turnID, agent.id, approval)
+        },
         checkSafeBoundary: async () => {
           return this.repository.pendingControls(runID).some((control) => control.action === "send")
         },
       })
       if (result.status === "paused") {
-        this.repository.setWaiting(runID, "waiting_question")
+        this.repository.setWaiting(runID, pausedSubagentStatus(pausedKind))
         await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", { task: this.repository.task(taskID), run: this.repository.run(runID) })
         return
       }
@@ -371,12 +476,14 @@ export class SubagentService {
         void this.schedule()
         return
       }
-      const structured: SubagentResult = (result.status === "completed" ? result.result : undefined) ?? { outcome: "succeeded", summary: result.output, findings: [], changedFiles: [], validation: [], risks: [], references: [] }
+      const structured = result.status === "completed" ? result.result : undefined
+      if (!structured) throw new AgentError("SUBAGENT_RESULT_INVALID", "子 Agent 未返回合法的结构化结果", 422)
       if (isolationPrepared) await this.workspaces?.finalize(taskID)
       const finished = this.repository.finish(runID, "completed", structured, null)
       if (finished) await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", finished)
       await this.emit(task.childThreadId, agent.turnID, "turn/completed", { turnId: agent.turnID, rootAgentId: agent.id, finishedAt: Date.now() })
     } catch (cause) {
+      if (cause instanceof AgentError && cause.code === "HOOK_TRUST_REQUIRED") return
       const steer = this.repository.pendingControls(runID).find((control) => control.action === "send")
       if (cause instanceof SafeBoundaryInterrupt && steer) {
         const payload = JSON.parse(steer.payload) as { message?: unknown; model?: Model.Ref; permissionConfig?: PermissionConfig; attachmentIDs?: string[] }
@@ -442,10 +549,33 @@ export class SubagentService {
 
   private assertPermissionCeiling(ceiling: PermissionConfig, requested: PermissionConfig) {
     const sandboxRank = { "read-only": 0, "workspace-write": 1, "danger-full-access": 2 } as const
-    const approvalRank = { untrusted: 0, "on-request": 1, "never": 2 } as const
-    const reviewerRank = { user: 0, auto_review: 1 } as const
-    if (sandboxRank[requested.sandboxMode] > sandboxRank[ceiling.sandboxMode] || approvalRank[requested.approvalPolicy] > approvalRank[ceiling.approvalPolicy] || reviewerRank[requested.approvalsReviewer] > reviewerRank[ceiling.approvalsReviewer]) {
-      throw new AgentError("PERMISSION_CEILING_EXCEEDED", "子 Agent 权限只能保持或收紧", 403)
+    if (sandboxRank[requested.sandboxMode] > sandboxRank[ceiling.sandboxMode]) {
+      throw new AgentError("PERMISSION_CEILING_EXCEEDED", "子 Agent 文件系统权限超过任务上限", 403)
+    }
+    if (requested.approvalsReviewer !== ceiling.approvalsReviewer) {
+      throw new AgentError("PERMISSION_CEILING_EXCEEDED", "子 Agent 不能更改任务审批人", 403)
+    }
+    const ceilingPolicy = ceiling.approvalPolicy
+    const requestedPolicy = requested.approvalPolicy
+    if (typeof ceilingPolicy === "object") {
+      if (typeof requestedPolicy === "object") {
+        const keys = ["sandboxApproval", "rules", "skillApproval", "requestPermissions", "mcpElicitations"] as const
+        if (keys.some((key) => requestedPolicy[key] && !ceilingPolicy[key])) {
+          throw new AgentError("PERMISSION_CEILING_EXCEEDED", "子 Agent granular 审批能力超过任务上限", 403)
+        }
+      } else if (requestedPolicy !== "never") {
+        throw new AgentError("PERMISSION_CEILING_EXCEEDED", "子 Agent 不能扩大 granular 审批策略", 403)
+      }
+      return
+    }
+    const allowed: Record<string, ReadonlySet<string>> = {
+      untrusted: new Set(["untrusted", "never"]),
+      "on-failure": new Set(["on-failure", "untrusted", "never"]),
+      "on-request": new Set(["on-request", "untrusted", "never"]),
+      never: new Set(["never"]),
+    }
+    if (typeof requestedPolicy === "object" || !allowed[ceilingPolicy]?.has(requestedPolicy)) {
+      throw new AgentError("PERMISSION_CEILING_EXCEEDED", "子 Agent 审批能力超过任务上限", 403)
     }
   }
 

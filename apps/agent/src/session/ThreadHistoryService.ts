@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import type { ThreadListItem, ThreadSettingsPatch } from "@codepilotx/shared/thread"
+import { decodeApprovalPolicy, type ThreadListItem, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
 import { AgentError } from "../domain"
 import type { AgentDatabase } from "../storage/Database"
 import type { EventHub } from "../storage/EventHub"
@@ -20,7 +20,7 @@ type ThreadRow = {
   archived_at: number | null
   task_mode: ThreadListItem["settings"]["taskMode"]
   sandbox_mode: ThreadListItem["settings"]["permissionConfig"]["sandboxMode"]
-  approval_policy: ThreadListItem["settings"]["permissionConfig"]["approvalPolicy"]
+  approval_policy: string
   approvals_reviewer: ThreadListItem["settings"]["permissionConfig"]["approvalsReviewer"]
   created_at: number
   updated_at: number
@@ -62,7 +62,7 @@ export class ThreadHistoryService {
         taskMode: row.task_mode,
         permissionConfig: {
           sandboxMode: row.sandbox_mode,
-          approvalPolicy: row.approval_policy,
+          approvalPolicy: decodeApprovalPolicy(row.approval_policy),
           approvalsReviewer: row.approvals_reviewer,
         },
       },

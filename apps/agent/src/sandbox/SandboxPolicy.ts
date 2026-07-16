@@ -1,5 +1,5 @@
-import { existsSync } from "node:fs"
-import { basename, dirname, isAbsolute, join, resolve } from "node:path"
+import { existsSync, readdirSync, realpathSync, statSync } from "node:fs"
+import { basename, isAbsolute, join, parse, resolve } from "node:path"
 import type { SandboxRuntimeConfig } from "@anthropic-ai/sandbox-runtime"
 import type { AdditionalPermissions, PermissionConfig } from "@codepilotx/shared/thread"
 
@@ -52,9 +52,33 @@ function expandRequestedPath(workspace: string, value: string) {
   return path
 }
 
-function pathDirectories() {
-  const entries = (process.env.PATH ?? "").split(";").filter(Boolean)
-  return entries.filter((entry) => existsSync(entry)).map((entry) => resolve(entry))
+const pathKey = (value: string) => process.platform === "win32" ? value.toLowerCase() : value
+
+export function safePathDirectories(input: { path?: string; cwd?: string; userHome?: string; windowsRoot?: string } = {}) {
+  const cwd = resolve(input.cwd ?? process.cwd())
+  const forbidden = [input.userHome ?? process.env.USERPROFILE ?? process.env.HOME, input.windowsRoot ?? process.env.SystemRoot]
+    .filter((value): value is string => Boolean(value))
+    .flatMap((value) => {
+      const absolute = resolve(value)
+      try { return [absolute, realpathSync.native(absolute)] } catch { return [absolute] }
+    })
+  const forbiddenKeys = new Set(forbidden.map(pathKey))
+  const result: string[] = []
+  const seen = new Set<string>()
+  for (const raw of (input.path ?? process.env.PATH ?? "").split(";").map((value) => value.trim()).filter(Boolean)) {
+    const absolute = isAbsolute(raw) ? resolve(raw) : resolve(cwd, raw)
+    if (!existsSync(absolute)) continue
+    let canonical: string
+    try {
+      canonical = realpathSync.native(absolute)
+      if (!statSync(canonical).isDirectory()) continue
+    } catch { continue }
+    const key = pathKey(canonical)
+    if (pathKey(parse(canonical).root) === key || forbiddenKeys.has(key) || seen.has(key)) continue
+    seen.add(key)
+    result.push(canonical)
+  }
+  return result
 }
 
 function userSecretPaths() {
@@ -76,11 +100,20 @@ function protectedWorkspacePaths(workspace: string) {
   return [
     join(workspace, ".git", "config"),
     join(workspace, ".git", "hooks"),
-    join(workspace, ".git", "objects"),
-    join(workspace, ".env"),
-    join(workspace, ".env.*"),
   ]
 }
+
+function sensitiveWorkspaceReads(workspace: string) {
+  try {
+    return readdirSync(workspace, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && /^\.env(?:\..+)?$/i.test(entry.name) && !/^\.env\.(?:example|template)$/i.test(entry.name))
+      .map((entry) => join(workspace, entry.name))
+  } catch { return [] }
+}
+
+// Only an explicit grant for the protected path (or one of its ancestors) may
+// remove a deny rule. A grant for one child file must never uncover siblings.
+const requestedCovers = (requested: readonly string[], protectedPath: string) => requested.some((value) => value === protectedPath || protectedPath.startsWith(value + "\\"))
 
 export function generateSandboxPolicy(options: SandboxPolicyOptions): GeneratedSandboxPolicy {
   const workspace = resolve(options.workspace)
@@ -89,21 +122,23 @@ export function generateSandboxPolicy(options: SandboxPolicyOptions): GeneratedS
   const requestedRead = unique((additional.readPaths ?? []).map((path) => expandRequestedPath(workspace, path)))
   const requestedWrite = unique((additional.writePaths ?? []).map((path) => expandRequestedPath(workspace, path)))
   const requestedDomains = [...new Set((additional.networkDomains ?? []).map((domain) => domain.trim().toLowerCase()).filter(Boolean))]
-  const protectedRead = unique([options.dataDir, ...userSecretPaths()])
+  const immutableSecretPaths = userSecretPaths().map((path) => resolve(path))
+  const protectedRead = unique([options.dataDir, ...immutableSecretPaths, ...sensitiveWorkspaceReads(workspace)]).filter((path) => path === resolve(options.dataDir) || immutableSecretPaths.includes(path) || !requestedCovers(requestedRead, path))
   const protectedWrite = unique([
-    options.dataDir,
     ...protectedWorkspacePaths(workspace),
+  ]).filter((path) => !requestedCovers(requestedWrite, path)).concat(unique([
+    options.dataDir,
     ...(process.env.APPDATA ? [process.env.APPDATA] : []),
     ...(process.env.ProgramData ? [process.env.ProgramData] : []),
     ...(process.env.ProgramFiles ? [process.env.ProgramFiles] : []),
-  ])
-  const systemRead = [
-    ...(process.env.SystemRoot ? [process.env.SystemRoot] : []),
-    ...(process.env.ProgramFiles ? [process.env.ProgramFiles] : []),
-    ...pathDirectories().map((path) => dirname(path)),
-  ]
+  ]))
+  const systemRead = safePathDirectories()
   const allowRead = unique([workspace, sessionTemp, ...systemRead, ...requestedRead])
-  const allowWrite = unique([workspace, sessionTemp, ...requestedWrite])
+  const allowWrite = unique([
+    sessionTemp,
+    ...(options.permissionConfig.sandboxMode === "workspace-write" ? [workspace] : []),
+    ...(options.permissionConfig.sandboxMode === "read-only" ? [] : requestedWrite),
+  ])
   const base: SandboxRuntimeConfig = {
     filesystem: {
       denyRead: protectedRead,

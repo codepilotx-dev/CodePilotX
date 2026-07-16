@@ -1,8 +1,5 @@
 import {
   ApprovalRespondParamsSchema,
-  AUTO_REVIEW_PERMISSION_CONFIG,
-  DEFAULT_PERMISSION_CONFIG,
-  FULL_ACCESS_PERMISSION_CONFIG,
   PermissionConfigSchema,
   ThreadSettingsPatchSchema,
   ThreadSettingsSchema,
@@ -29,6 +26,8 @@ import type { SubagentService } from "../subagent/SubagentService"
 import type { AttachmentService } from "../subagent/AttachmentService"
 import { WorkspaceService } from "../workspace/WorkspaceService"
 import { ThreadProjection } from "./ThreadProjection"
+import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
+import type { HookService } from "../hooks/HookService"
 
 export type RpcRouterDependencies = {
   db: AgentDatabase
@@ -41,6 +40,8 @@ export type RpcRouterDependencies = {
   attachments: AttachmentService
   providers: ProviderRuntime
   integrations: IntegrationService
+  memory: MemoryService
+  hooks: HookService
   sandbox: SandboxRuntimeAdapter
 }
 
@@ -72,12 +73,23 @@ const decodePermissionConfig = Schema.decodeUnknownSync(PermissionConfigSchema)
 const decodeRpcRequest = Schema.decodeUnknownSync(AgentRpcRequestSchema)
 const decodeSandboxUninstall = Schema.decodeUnknownSync(SandboxUninstallParamsSchema)
 
-const supportedPermissionConfig = (value: PermissionConfig) => {
-  const supported = [DEFAULT_PERMISSION_CONFIG, AUTO_REVIEW_PERMISSION_CONFIG, FULL_ACCESS_PERMISSION_CONFIG]
-  if (!supported.some((item) => item.sandboxMode === value.sandboxMode && item.approvalPolicy === value.approvalPolicy && item.approvalsReviewer === value.approvalsReviewer)) {
-    throw new AgentError("INVALID_PERMISSION_CONFIG", "当前版本不支持该权限组合", 400)
-  }
-  return value
+// The shared schema is the compatibility boundary. Do not collapse the Codex
+// permission matrix back into a handful of renderer presets here.
+const supportedPermissionConfig = (value: PermissionConfig) => value
+
+const resolveMemoryProjectKey = async (db: AgentDatabase, params: Record<string, unknown>) => {
+  if (params.workspacePath !== undefined) throw new AgentError("INVALID_REQUEST", "项目记忆 RPC 不接受 workspacePath，请使用 projectId 或 threadId", 400)
+  const explicitProjectID = typeof params.projectId === "string" && params.projectId.trim() ? params.projectId : undefined
+  const threadID = typeof params.threadId === "string" && params.threadId.trim() ? params.threadId : undefined
+  if (!explicitProjectID && !threadID) throw new AgentError("INVALID_REQUEST", "项目记忆 RPC 缺少 projectId 或 threadId", 400)
+  const threadProjectID = threadID ? db.threadProjectID(threadID) : undefined
+  if (threadID && !threadProjectID) throw new AgentError("PROJECT_NOT_FOUND", "Thread 未绑定已注册项目", 404)
+  if (explicitProjectID && threadProjectID && explicitProjectID !== threadProjectID) throw new AgentError("PROJECT_SCOPE_MISMATCH", "projectId 与 threadId 不属于同一项目", 409)
+  const projectID = explicitProjectID ?? threadProjectID!
+  const project = db.getProject(projectID)
+  if (!project) throw new AgentError("PROJECT_NOT_FOUND", "项目不存在", 404)
+  const workspace = await WorkspaceService.open(project.rootPath)
+  return projectMemoryKey(workspace.rootPath)
 }
 
 const submitMessage = (raw: unknown): SubmitMessage => {
@@ -120,12 +132,12 @@ export class RpcRouter {
   }
 
   private async dispatch(method: string, rawParams: unknown): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, sandbox } = this.dependencies
+    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, memory, sandbox } = this.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "initialize":
         db.sqlite.query("SELECT 1").get()
-        return { ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid, readyAt: Date.now(), protocol: "thread-rpc-v2", capabilities: { agentExecutions: 1, subagents: 1, attachments: 1 } }
+        return { ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid, readyAt: Date.now(), protocol: "thread-rpc-v2", capabilities: { agentExecutions: 1, subagents: 1, attachments: 1, prompt: 2, memory: 2, compact: 1, hookTrust: 1 } }
       case "sandbox/status":
         return { sandbox: await sandbox.getStatus() }
       case "sandbox/install":
@@ -177,6 +189,47 @@ export class RpcRouter {
       }
       case "thread/read":
         return this.requiredSnapshot(stringParam(params, "threadId"))
+      case "prompt/preview": {
+        const threadId = stringParam(params, "threadId")
+        const preview = await threads.promptPreview(threadId)
+        if (!preview) throw new AgentError("PROMPT_PREVIEW_UNAVAILABLE", "该任务尚未建立新提示词 baseline", 409)
+        return { threadId, preview }
+      }
+      case "prompt/refresh":
+        return { threadId: stringParam(params, "threadId"), settings: threads.refreshPromptSettings(stringParam(params, "threadId")) }
+      case "thread/compact":
+        return { compaction: await threads.compact(stringParam(params, "threadId")) }
+      case "memory/list": {
+        const scope = enumValue(params.scope, ["user", "project"] as const, "scope")
+        const projectKey = scope === "project" ? await resolveMemoryProjectKey(db, params) : undefined
+        return { entries: memory.list({ scope, ...(projectKey ? { projectKey } : {}), limit: typeof params.limit === "number" ? params.limit : 100 }) }
+      }
+      case "memory/read": {
+        const id = stringParam(params, "id")
+        const scope = enumValue(params.scope, ["user", "project"] as const, "scope")
+        const projectKey = scope === "project" ? await resolveMemoryProjectKey(db, params) : undefined
+        const entry = memory.read({ id, scope, ...(projectKey ? { projectKey } : {}) })
+        if (!entry) throw new AgentError("MEMORY_NOT_FOUND", "记忆不存在或记忆功能未启用", 404)
+        return { entry }
+      }
+      case "memory/save": {
+        const scope = enumValue(params.scope, ["user", "project"] as const, "scope")
+        const projectKey = scope === "project" ? await resolveMemoryProjectKey(db, params) : undefined
+        const entry = memory.remember({ scope, content: stringParam(params, "content"), ...(typeof params.id === "string" && params.id ? { id: params.id } : {}), ...(projectKey ? { projectKey } : {}) })
+        if (!entry) throw new AgentError("MEMORY_REJECTED", "记忆功能未启用、内容为空或包含敏感信息", 409)
+        return { entry }
+      }
+      case "memory/delete": {
+        const id = stringParam(params, "id")
+        const scope = enumValue(params.scope, ["user", "project"] as const, "scope")
+        const projectKey = scope === "project" ? await resolveMemoryProjectKey(db, params) : undefined
+        return { deleted: memory.delete({ id, scope, ...(projectKey ? { projectKey } : {}) }) }
+      }
+      case "memory/reset": {
+        const scope = enumValue(params.scope, ["user", "project"] as const, "scope")
+        const projectKey = scope === "project" ? await resolveMemoryProjectKey(db, params) : undefined
+        return { deleted: memory.reset({ scope, ...(projectKey ? { projectKey } : {}), includeEventLog: params.includeEventLog === true }) }
+      }
       case "subagent/list":
         return { subagents: subagents.list(stringParam(params, "threadId", "parentThreadId")) }
       case "subagent/read": {
@@ -280,9 +333,25 @@ export class RpcRouter {
             await threads.stop(row.thread_id)
           }
         } else {
-          await approvals.respond(approval.approvalId, decision === "allow-once" ? "allow" : "deny")
+          const checkpoint = await approvals.respond(approval.approvalId, decision === "allow-once" ? "allow" : "deny")
+          const execution = db.getAgentExecution(checkpoint.agentID)
+          if (execution?.subagentRunID) await subagents.resumeTurn(checkpoint.threadID, checkpoint.turnID)
+          else threads.resumeTurn(checkpoint.threadID, checkpoint.turnID)
         }
         return { ok: true }
+      }
+      case "hook/trust/respond": {
+        const requestId = stringParam(params, "requestId", "id")
+        const decision = enumValue(params.decision, ["allow", "block"] as const, "decision")
+        const result = db.resolveHookTrustRequest(requestId, decision)
+        if (result.state === "missing" || !result.request) throw new AgentError("HOOK_TRUST_NOT_FOUND", "Hook 信任请求不存在", 404)
+        for (const event of result.events) await Effect.runPromise(this.dependencies.hub.publish(event))
+        for (const resumed of result.resumed) {
+          const execution = db.getAgentExecution(resumed.agentID)
+          if (execution?.subagentRunID) await subagents.resumeTurn(resumed.threadID, resumed.turnID)
+          else threads.resumeHookTrust(resumed.threadID, resumed.turnID)
+        }
+        return { request: result.request }
       }
       case "question/respond":
         await questions.reply(stringParam(params, "questionId"), params.ignored === true ? null : params.answer, params.ignored === true)
