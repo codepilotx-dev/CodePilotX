@@ -64,6 +64,7 @@ export function InlineApprovalCard({
     return (
       <section
         className="inline-approval-card workflow-composer-card workflow-composer-card-question"
+        data-variant="question"
         aria-label="回答问题"
       >
         <AskUserQuestionApproval
@@ -81,6 +82,7 @@ export function InlineApprovalCard({
     return (
       <section
         className="inline-approval-card workflow-composer-card workflow-composer-card-plan"
+        data-variant="plan"
         aria-label="接受计划"
       >
         <ExitPlanModeApproval
@@ -164,6 +166,7 @@ export function InlineApprovalCard({
   return (
     <section
       className="inline-approval-card workflow-composer-card workflow-composer-card-permission"
+      data-variant="permission"
       aria-label="等待审批"
     >
       <header className="inline-approval-header">

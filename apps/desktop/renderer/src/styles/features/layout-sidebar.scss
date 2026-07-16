@@ -35,13 +35,11 @@
 
 .sidebar-nav-link.active,
 .sidebar-session-row.active,
-.sidebar-settings-link.active,
-.settings-nav-item.active {
+.sidebar-settings-link.active {
   background: var(--color-sidebar-active-bg);
 }
 
-.sidebar-section-title,
-.settings-nav-group-title {
+.sidebar-section-title {
   color: color-mix(in srgb, var(--color-text-meta) 82%, transparent);
   font-size: var(--type-section-title);
   letter-spacing: 0.02em;
@@ -167,16 +165,13 @@
 }
 
 .sidebar-row:hover:not(.sidebar-empty-row),
-.sidebar-show-more-button:hover,
-.settings-nav-item:hover,
-.settings-back-btn:hover {
+.sidebar-show-more-button:hover {
   background: var(--color-sidebar-hover-bg);
 }
 
 .sidebar-nav-link.active,
 .sidebar-session-row.active,
-.sidebar-settings-link.active,
-.settings-nav-item.active {
+.sidebar-settings-link.active {
   border-color: transparent;
 }
 
@@ -327,9 +322,7 @@
 .sidebar-section-header:focus-within,
 .sidebar-show-more-button:focus-visible,
 .sidebar-session-row:focus-within,
-.sidebar-settings-link:focus-visible,
-.settings-back-btn:focus-visible,
-.settings-nav-item:focus-visible {
+.sidebar-settings-link:focus-visible {
   outline: none;
 }
 

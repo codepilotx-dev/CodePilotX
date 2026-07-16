@@ -64,16 +64,6 @@
   border-left: 0;
 }
 
-.right-dock-file-preview {
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  border-right: 1px solid var(--color-border-soft);
-  overflow: hidden;
-}
-
 .review-scope-switch {
   display: inline-flex;
   align-items: center;
@@ -798,30 +788,6 @@
   padding: 22px 14px;
   color: var(--color-text-placeholder);
   font-size: var(--type-body);
-}
-
-/* --- File event buttons --- */
-.timeline-file-event-ghost-button,
-.timeline-file-event-review-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: var(--radius-4);
-  color: var(--color-text-strong);
-  font-size: var(--type-control);
-  font-weight: 600;
-
-  &:hover {
-    background: var(--color-bg-hover);
-  }
-}
-
-.timeline-file-event-review-button {
-  padding: 0 14px;
-  border: 1px solid var(--color-border-soft);
-  background: var(--color-bg-soft);
 }
 
 /* --- Review sidebar context triggers --- */

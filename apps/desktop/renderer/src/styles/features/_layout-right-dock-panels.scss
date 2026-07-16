@@ -235,6 +235,12 @@
     min-width: max-content;
     margin: 0;
     padding: 18px;
+    border-color: color-mix(
+      in srgb,
+      var(--color-text-on-accent) 10%,
+      transparent
+    );
+    background: var(--surface-product);
     color: var(--color-text);
     font-family: var(--font-family-mono);
     font-size: var(--type-code);
@@ -249,6 +255,10 @@
     color: var(--color-text-meta);
     font-size: var(--type-meta);
   }
+}
+
+:root[data-theme="dark"] .right-dock-file-document pre {
+  border-color: var(--color-border-soft);
 }
 
 .right-dock-file-preview-scroll-area {

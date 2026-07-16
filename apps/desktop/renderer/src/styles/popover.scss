@@ -76,20 +76,14 @@
     box-shadow:
       0 1px 0 var(--glass-surface-highlight) inset,
       var(--popover-surface-shadow);
-    --color-text: var(--glass-surface-text, var(--color-text));
-    --color-text-strong: var(--glass-surface-text, var(--color-text-strong));
-    --color-text-meta: var(--glass-surface-text-meta, var(--color-text-meta));
-    --color-text-soft: var(--glass-surface-text-meta, var(--color-text-soft));
-    --color-text-disabled: var(
-      --glass-surface-text-disabled,
-      var(--color-text-disabled)
-    );
-    --color-text-placeholder: var(
-      --glass-surface-text-disabled,
-      var(--color-text-placeholder)
-    );
-    --color-icon: var(--glass-surface-text-meta, var(--color-icon));
-    --color-icon-arrow: var(--glass-surface-text-meta, var(--color-icon-arrow));
+    --color-text: var(--glass-surface-text);
+    --color-text-strong: var(--glass-surface-text);
+    --color-text-meta: var(--glass-surface-text-meta);
+    --color-text-soft: var(--glass-surface-text-meta);
+    --color-text-disabled: var(--glass-surface-text-disabled);
+    --color-text-placeholder: var(--glass-surface-text-disabled);
+    --color-icon: var(--glass-surface-text-meta);
+    --color-icon-arrow: var(--glass-surface-text-meta);
   }
 
   .popover-surface .search-input {
@@ -154,13 +148,10 @@
 :root[data-glass-surfaces="on"] {
   .popover-item-tooltip,
   .tooltip-content {
-    --color-text: var(--glass-surface-text, var(--color-text));
-    --color-text-strong: var(--glass-surface-text, var(--color-text-strong));
-    --color-text-meta: var(--glass-surface-text-meta, var(--color-text-meta));
-    --color-text-disabled: var(
-      --glass-surface-text-disabled,
-      var(--color-text-disabled)
-    );
+    --color-text: var(--glass-surface-text);
+    --color-text-strong: var(--glass-surface-text);
+    --color-text-meta: var(--glass-surface-text-meta);
+    --color-text-disabled: var(--glass-surface-text-disabled);
     border-color: var(--glass-surface-border);
     background-color: var(--glass-surface-bg);
     color: var(--glass-surface-text-meta, var(--color-text-meta));
@@ -333,7 +324,7 @@
 .popover-menu-separator {
   height: 1px;
   margin: 8px 12px;
-  background: var(--color-border-subtle);
+  background: var(--border-subtle);
 }
 
 .popover-model-submenu {

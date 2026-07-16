@@ -324,10 +324,20 @@
   min-width: max-content;
   margin: 0;
   padding: 10px;
+  border-color: color-mix(
+    in srgb,
+    var(--color-text-on-accent) 10%,
+    transparent
+  );
+  background: var(--surface-product);
   color: var(--color-text);
   font-family: var(--font-family-mono);
   font-size: var(--type-code);
   white-space: pre;
+}
+
+:root[data-theme="dark"] .environment-diff-preview {
+  border-color: var(--color-border-soft);
 }
 
 .environment-source {

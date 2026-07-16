@@ -279,38 +279,6 @@
   white-space: nowrap;
 }
 
-/* Appearance syntax colors */
-.appearance-syntax-keyword {
-  color: var(--syntax-keyword);
-}
-
-.appearance-syntax-string {
-  color: var(--syntax-string);
-}
-
-.appearance-syntax-number {
-  color: var(--syntax-number);
-}
-
-.appearance-syntax-comment {
-  color: var(--syntax-comment);
-}
-
-.appearance-syntax-variable {
-  color: var(--syntax-variable);
-}
-
-:root[data-reduce-motion="on"] {
-  .settings-card,
-  .settings-row,
-  .settings-radio-card,
-  .settings-switch-thumb,
-  .appearance-mode-card,
-  .appearance-mode-visual {
-    transition: none;
-  }
-}
-
 /* --- Model Card Grid --- */
 .settings-model-cards {
   padding: var(--space-3) var(--space-4) var(--space-2);

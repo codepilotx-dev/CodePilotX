@@ -64,9 +64,7 @@
 .settings-button.primary,
 .plugins-button.is-primary,
 .plugins-hero-cta,
-.automation-button.is-primary,
-.workflow-composer-card-question .inline-approval-submit,
-.workflow-composer-card-plan .exit-plan-mode-submit {
+.automation-button.is-primary {
   padding: var(--control-padding-block)
     calc(var(--control-padding-inline) + var(--control-padding-inline));
   border: 1px solid var(--color-send-bg);
@@ -82,9 +80,7 @@
 .settings-button.primary:hover:not(:disabled),
 .plugins-button.is-primary:hover,
 .plugins-hero-cta:hover,
-.automation-button.is-primary:hover,
-.workflow-composer-card-question .inline-approval-submit:hover,
-.workflow-composer-card-plan .exit-plan-mode-submit:hover {
+.automation-button.is-primary:hover {
   border-color: var(--color-send-bg-hover);
   background: var(--color-send-bg-hover);
   color: var(--color-text-on-accent);

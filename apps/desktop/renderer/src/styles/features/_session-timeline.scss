@@ -75,7 +75,7 @@
   padding: 4px 0;
   border: 0;
   background: transparent;
-  color: inherit;
+  color: var(--color-text-soft);
   font-size: var(--type-control);
   font-family: inherit;
   text-align: left;
@@ -239,6 +239,7 @@
   overflow: hidden;
   border-radius: var(--radius-3);
   background: var(--color-bg-soft);
+  box-shadow: none;
 }
 
 .timeline-command-shell-header {
@@ -308,7 +309,7 @@
   padding: 10px 12px;
 
   border-radius: var(--radius-user-message);
-  background: var(--color-sidebar-bg);
+  background: var(--surface-user-message);
   color: var(--color-text-strong);
   box-shadow: none;
 
@@ -428,7 +429,6 @@
 }
 
 .assistant-thinking,
-.timeline-status-event,
 .chat-thinking-pill {
   width: fit-content;
   display: inline-flex;
@@ -560,5 +560,253 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* --- Timeline file event --- */
+.timeline-file-event {
+  max-width: min(820px, 100%);
+  overflow: hidden;
+  border: 1px solid var(--color-panel-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-panel-bg);
+  box-shadow: var(--color-panel-shadow-soft);
+  color: var(--color-text);
+  font-size: var(--type-body);
+  margin-top: 10px;
+}
+
+.timeline-file-event-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--color-border-soft);
+  background: color-mix(
+    in srgb,
+    var(--color-panel-elevated-bg) 42%,
+    transparent
+  );
+}
+
+.timeline-file-event-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.timeline-file-event-icon {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: var(--radius-4);
+  background: var(--state-hover-bg);
+  color: var(--color-text-strong);
+
+  svg {
+    width: var(--app-icon-size-md);
+    height: var(--app-icon-size-md);
+    stroke-width: var(--app-icon-stroke-width);
+  }
+}
+
+.timeline-file-event-copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+
+  strong {
+    color: var(--color-text-strong);
+    font-size: var(--type-card-title);
+    font-weight: var(--font-weight-label);
+    line-height: 1.2;
+  }
+}
+
+.timeline-file-event-title,
+.timeline-command-title {
+  font-weight: var(--font-weight-label);
+}
+
+.timeline-file-event-copy small,
+.timeline-file-event-list small {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--type-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-file-event-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  flex: 0 0 auto;
+}
+
+.timeline-file-event-ghost-button,
+.timeline-file-event-review-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-4);
+  color: var(--color-text-strong);
+  font-size: var(--type-control);
+  font-weight: 600;
+  line-height: var(--control-line-height);
+}
+
+.timeline-file-event-ghost-button {
+  color: var(--color-text-soft);
+}
+
+.timeline-file-event-ghost-button:hover,
+.timeline-file-event-review-button:hover {
+  background: var(--color-bg-hover);
+}
+
+.timeline-file-event-review-button {
+  padding: 0 14px;
+  border: 1px solid var(--color-border-soft);
+  background: var(--color-bg-soft);
+}
+
+.timeline-file-event-ghost-button svg {
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
+  stroke-width: var(--app-icon-stroke-width);
+}
+
+.timeline-file-event-list {
+  display: grid;
+  margin: 0;
+  padding: 2px 12px 10px 46px;
+  background: color-mix(in srgb, var(--color-bg) 58%, transparent);
+  list-style: none;
+}
+
+.timeline-file-event-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 10px 18px;
+  border-top: 1px solid
+    color-mix(in srgb, var(--color-border-soft) 62%, transparent);
+}
+
+.timeline-file-event-list li + li {
+  border-top: 1px solid var(--color-border-faint);
+}
+
+.timeline-file-event-list li span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-strong);
+  font-size: var(--type-body);
+}
+
+.timeline-file-event-list li small {
+  flex: 0 0 auto;
+}
+
+/* --- Timeline status event --- */
+.timeline-status-event {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--control-gap-compact);
+  align-self: flex-start;
+  padding: 0 2px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-soft);
+  color: var(--color-text-meta);
+  font-size: var(--type-meta);
+  line-height: var(--control-line-height);
+}
+
+.timeline-system-event small {
+  color: var(--color-text-meta);
+  font-size: var(--type-meta);
+}
+
+.diff-added {
+  color: var(--color-diff-added);
+}
+
+.diff-removed {
+  color: var(--color-diff-removed);
+}
+
+@keyframes workflow-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.42;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-message-actions,
+  .timeline-command-details,
+  .timeline-command-group-chevron,
+  .execution-phase-details,
+  .execution-phase-chevron,
+  .timeline-command-row,
+  .timeline-command-row-chevron,
+  .timeline-command-shell-wrap {
+    transition: none;
+  }
+}
+
+:root[data-reduce-motion="on"] {
+  .assistant-thinking {
+    animation: none;
+  }
+
+  .assistant-message-actions,
+  .timeline-command-details,
+  .timeline-command-group-chevron,
+  .execution-phase-details,
+  .execution-phase-chevron,
+  .timeline-command-row,
+  .timeline-command-row-chevron,
+  .timeline-command-shell-wrap {
+    transition: none;
+  }
+}
+
+:root[data-theme="dark"] {
+  .timeline-file-event-header {
+    background: color-mix(in srgb, var(--surface-raised) 34%, transparent);
+  }
+
+  .timeline-file-event-list {
+    background: color-mix(in srgb, var(--color-bg) 68%, transparent);
+  }
+
+  .timeline-system-event.error {
+    border-color: color-mix(
+      in srgb,
+      var(--color-danger) 48%,
+      var(--color-border-soft)
+    );
+    background: color-mix(
+      in srgb,
+      var(--color-danger) 13%,
+      var(--color-panel-bg)
+    );
+  }
 }
 

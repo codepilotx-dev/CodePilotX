@@ -10,6 +10,9 @@
 }
 
 .settings-sidebar-layout {
+  --sidebar-padding-x: var(--control-padding-inline-compact);
+  --sidebar-item-gap: var(--control-gap);
+  --sidebar-row-pad-y: var(--control-padding-block-compact);
   --sidebar-trailing-width: 4.286em;
 }
 
@@ -46,7 +49,12 @@
     color 0.15s ease;
 
   &:hover {
+    background: var(--color-sidebar-hover-bg);
     color: var(--color-text-strong);
+  }
+
+  &:focus-visible {
+    outline: none;
   }
 }
 
@@ -112,6 +120,7 @@
     color: var(--color-text-mute);
     font-size: var(--type-section-title);
     font-weight: var(--font-weight-label);
+    letter-spacing: 0.02em;
   }
 
   &-items {
@@ -136,8 +145,18 @@
   white-space: nowrap;
 
   &.active {
+    border-color: transparent;
+    background: var(--color-sidebar-active-bg);
     color: var(--color-text-strong);
     font-weight: var(--font-weight-label);
+  }
+
+  &:hover {
+    background: var(--color-sidebar-hover-bg);
+  }
+
+  &:focus-visible {
+    outline: none;
   }
 }
 
@@ -345,5 +364,16 @@
   font-weight: var(--font-weight-label);
   line-height: 1;
   white-space: nowrap;
+}
+
+:root[data-reduce-motion="on"] {
+  .settings-card,
+  .settings-row,
+  .settings-radio-card,
+  .settings-switch-thumb,
+  .appearance-mode-card,
+  .appearance-mode-visual {
+    transition: none;
+  }
 }
 

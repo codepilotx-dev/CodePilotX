@@ -6,8 +6,8 @@
   gap: 4px;
   padding: var(--layout-card-pad, 8px);
   border-top: 1px solid var(--color-border-faint);
-  background: var(--color-surface-elevated);
-  border-radius: var(--radius-md);
+  background: var(--color-panel-elevated-bg);
+  border-radius: var(--radius-4);
   margin-top: 8px;
 }
 
@@ -28,12 +28,12 @@
   align-items: center;
   gap: 8px;
   padding: 4px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-2);
   background: var(--color-surface);
   transition: background 0.15s ease;
 
   &:hover {
-    background: var(--color-surface-hover);
+    background: var(--state-hover-bg);
   }
 }
 

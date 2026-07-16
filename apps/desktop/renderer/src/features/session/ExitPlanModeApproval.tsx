@@ -261,7 +261,7 @@ export function ExitPlanModeApproval({
             <kbd>ESC</kbd>
           </button>
           <button
-            className="exit-plan-mode-submit"
+            className="inline-approval-submit exit-plan-mode-submit"
             type="button"
             onClick={handleAccept}
           >

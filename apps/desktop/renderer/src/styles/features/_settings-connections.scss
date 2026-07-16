@@ -350,15 +350,6 @@
   max-width: min(360px, 48vw);
 }
 
-.settings-input-number:focus {
-  outline: none;
-  border-color: color-mix(
-    in srgb,
-    var(--color-accent) 42%,
-    var(--border-subtle)
-  );
-}
-
 .settings-input-mono {
   font-family: var(--font-family-mono);
 }

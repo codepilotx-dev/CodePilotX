@@ -370,6 +370,16 @@
   }
 }
 
+.right-dock-plan-document .md-body .md-code-block {
+  border-color: color-mix(
+    in srgb,
+    var(--color-text-on-accent) 10%,
+    transparent
+  );
+  background: var(--surface-product);
+  color: var(--color-text-on-accent);
+}
+
 :root[data-theme="dark"] {
   .right-dock-plan-scroll-area {
     background: var(--color-bg);
@@ -390,4 +400,3 @@
     background: color-mix(in srgb, var(--color-bg) 82%, var(--surface-raised));
   }
 }
-

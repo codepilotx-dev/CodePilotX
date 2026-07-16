@@ -24,11 +24,11 @@
   border: 0;
   cursor: pointer;
   padding: 2px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-2);
   color: var(--color-icon);
 
   &:hover {
-    background: var(--color-hover-bg);
+    background: var(--color-bg-hover);
   }
 }
 
@@ -103,4 +103,3 @@
 .composer-status-empty-error {
   color: var(--color-danger);
 }
-

@@ -114,6 +114,7 @@ export function McpElicitationForm({
   return (
     <section
       className="inline-approval-card workflow-composer-card workflow-composer-card-mcp-form"
+      data-variant="mcp-form"
       aria-label="MCP 表单"
     >
       <header className="inline-approval-header">
@@ -196,6 +197,7 @@ export function McpElicitationUnsupported({
   return (
     <section
       className="inline-approval-card workflow-composer-card workflow-composer-card-mcp-unsupported"
+      data-variant="mcp-unsupported"
       aria-label="不支持的 MCP 请求"
     >
       <header className="inline-approval-header">
