@@ -13,6 +13,7 @@ import type {
   ThreadSnapshot,
   Turn,
 } from "@codepilotx/shared/thread"
+import { decodeApprovalPolicy } from "@codepilotx/shared/thread"
 
 export interface ThreadViewOptions {
   agentId?: string
@@ -773,9 +774,9 @@ function isThreadSettings(value: unknown): value is ThreadSettings {
 
 function isPermissionConfig(value: unknown): value is Input["permissionConfig"] {
   const source = record(value)
-  return (source.sandboxMode === "read-only" || source.sandboxMode === "workspace-write" || source.sandboxMode === "danger-full-access")
-    && (source.approvalPolicy === "untrusted" || source.approvalPolicy === "on-request" || source.approvalPolicy === "never")
-    && (source.approvalsReviewer === "user" || source.approvalsReviewer === "auto_review")
+  if (!(source.sandboxMode === "read-only" || source.sandboxMode === "workspace-write" || source.sandboxMode === "danger-full-access")) return false
+  if (!(source.approvalsReviewer === "user" || source.approvalsReviewer === "auto_review")) return false
+  try { decodeApprovalPolicy(source.approvalPolicy); return true } catch { return false }
 }
 
 function isModelRef(value: unknown): value is Input["model"] {

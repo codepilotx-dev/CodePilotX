@@ -4,8 +4,47 @@ import { Schema } from "effect"
 export const SandboxModeSchema = Schema.Literals(["read-only", "workspace-write", "danger-full-access"])
 export type SandboxMode = typeof SandboxModeSchema.Type
 
-export const ApprovalPolicySchema = Schema.Literals(["untrusted", "on-request", "never"])
+export const GranularApprovalConfigSchema = Schema.Struct({
+  sandboxApproval: Schema.Boolean,
+  rules: Schema.Boolean,
+  skillApproval: Schema.Boolean,
+  requestPermissions: Schema.Boolean,
+  mcpElicitations: Schema.Boolean,
+})
+export type GranularApprovalConfig = typeof GranularApprovalConfigSchema.Type
+
+export const GranularApprovalPolicySchema = Schema.Struct({
+  type: Schema.Literal("granular"),
+  sandboxApproval: Schema.Boolean,
+  rules: Schema.Boolean,
+  skillApproval: Schema.Boolean,
+  requestPermissions: Schema.Boolean,
+  mcpElicitations: Schema.Boolean,
+})
+export type GranularApprovalPolicy = typeof GranularApprovalPolicySchema.Type
+
+export const ApprovalPolicySchema = Schema.Union([
+  Schema.Literals(["untrusted", "on-failure", "on-request", "never"]),
+  GranularApprovalPolicySchema,
+])
 export type ApprovalPolicy = typeof ApprovalPolicySchema.Type
+
+export const isGranularApprovalPolicy = (policy: ApprovalPolicy): policy is GranularApprovalPolicy => typeof policy === "object" && policy.type === "granular"
+
+/** Stable TEXT representation used by SQLite and other string-only transports. */
+export const encodeApprovalPolicy = (policy: ApprovalPolicy) => typeof policy === "string" ? policy : JSON.stringify(policy)
+
+export const decodeApprovalPolicy = (value: unknown): ApprovalPolicy => {
+  if (value === "on-failure") return "on-request"
+  if (value === "untrusted" || value === "on-request" || value === "never") return value
+  const candidate = typeof value === "string" ? JSON.parse(value) as unknown : value
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error("approvalPolicy 无效")
+  const config = candidate as Record<string, unknown>
+  if (config.type !== "granular") throw new Error("granular approvalPolicy 无效")
+  const keys = ["sandboxApproval", "rules", "skillApproval", "requestPermissions", "mcpElicitations"] as const
+  if (keys.some((key) => typeof config[key] !== "boolean")) throw new Error("granular approvalPolicy 缺少布尔配置")
+  return { type: "granular", sandboxApproval: config.sandboxApproval as boolean, rules: config.rules as boolean, skillApproval: config.skillApproval as boolean, requestPermissions: config.requestPermissions as boolean, mcpElicitations: config.mcpElicitations as boolean }
+}
 
 export const ApprovalsReviewerSchema = Schema.Literals(["user", "auto_review"])
 export type ApprovalsReviewer = typeof ApprovalsReviewerSchema.Type
@@ -575,6 +614,9 @@ export const AgentRpcMethodSchema = Schema.Literals([
   "thread/list",
   "thread/create",
   "thread/read",
+  "prompt/preview",
+  "prompt/refresh",
+  "thread/compact",
   "thread/update",
   "thread/settings/update",
   "thread/delete",
@@ -583,6 +625,7 @@ export const AgentRpcMethodSchema = Schema.Literals([
   "turn/resume",
   "turn/submitPlanDecision",
   "approval/respond",
+  "hook/trust/respond",
   "sandbox/status",
   "sandbox/install",
   "sandbox/repair",
@@ -590,6 +633,11 @@ export const AgentRpcMethodSchema = Schema.Literals([
   "question/respond",
   "attachment/import",
   "attachment/read",
+  "memory/list",
+  "memory/read",
+  "memory/save",
+  "memory/delete",
+  "memory/reset",
   "subagent/list",
   "subagent/read",
   "subagent/send",
@@ -619,6 +667,7 @@ export const AgentEventMethodSchema = Schema.Literals([
   "thread/snapshot",
   "thread/updated",
   "thread/settings/updated",
+  "thread/prompt-settings/updated",
   "thread/deleted",
   "turn/queued",
   "turn/started",
@@ -644,8 +693,13 @@ export const AgentEventMethodSchema = Schema.Literals([
   "tool/callCompleted",
   "tool/error",
   "approval/requested",
+  "approval/cancelled",
   "question/requested",
   "serverRequest/resolved",
+  "context/compacted",
+  "context/recoveryRequired",
+  "hook/trust/requested",
+  "hook/trust/resolved",
   "queue/updated",
   "catalog/updated",
   "integration/updated",
