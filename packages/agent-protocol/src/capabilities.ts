@@ -1,0 +1,25 @@
+import { Schema } from "effect"
+
+export const Capabilities = [
+  "rpc.typed.v1",
+  "events.replay.v1",
+  "events.live.v1",
+  "interactions.serverRequests.v1",
+  "interaction.recovery.v1",
+  "turn.admission.v1",
+  "turn.steer.v1",
+  "turn.resume.v1",
+  "attachments.v1",
+  "memory.v2",
+  "context.compact.v1",
+  "hooks.trust.v1",
+  "subagents.v1",
+  "sandbox.management.v1",
+  "agent.shutdown.v1",
+  "prompt.preview.sensitive.v1",
+  "prompt.refresh.v1",
+] as const
+
+export const ProtocolCapabilitySchema = Schema.Literals(Capabilities)
+export type ProtocolCapability = typeof ProtocolCapabilitySchema.Type
+export type CapabilityRequirement = ProtocolCapability | null
