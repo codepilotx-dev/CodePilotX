@@ -30,7 +30,7 @@
       var(--composer-surface-top-border-color, var(--color-panel-border))
   );
   border-radius: var(--composer-surface-top-radius, var(--radius-panel));
-  background: var(--composer-surface-top-bg, var(--color-panel-bg));
+  background: var(--composer-surface-top-bg, var(--surface-composer));
   box-shadow: var(--composer-surface-top-shadow, none);
   min-height: var(--composer-surface-top-min-height, 0);
   display: flex;
@@ -315,4 +315,3 @@
   flex-shrink: 0;
   animation: composer-chip-spin 0.9s linear infinite;
 }
-

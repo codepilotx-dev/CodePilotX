@@ -83,7 +83,7 @@
     margin: 0 0 var(--space-3);
     padding: 6px 12px;
     border-left: 3px solid var(--color-border);
-    background: var(--color-bg-soft);
+    background: var(--surface-code-inline);
     border-radius: 0 var(--radius-4) var(--radius-4) 0;
     color: var(--color-text-soft);
 
@@ -104,7 +104,7 @@
   }
 
   a {
-    color: var(--color-accent);
+    color: var(--syntax-keyword);
     text-decoration: none;
     border-bottom: 1px solid transparent;
     transition: border-color 0.15s ease-out;
@@ -129,7 +129,7 @@
     max-width: 100%;
     padding: 1px 7px;
     border-radius: var(--radius-3);
-    background: var(--color-bg-soft);
+    background: var(--surface-code-block);
     border: 1px solid var(--color-border-faint);
     color: var(--color-text-strong);
     font-family: var(--font-family-mono);
@@ -241,23 +241,23 @@
 
   .hljs-string,
   .hljs-attr {
-    color: var(--color-skill);
+    color: var(--syntax-string);
   }
 
   .hljs-number,
   .hljs-built_in,
   .hljs-type {
-    color: var(--color-warning);
+    color: var(--syntax-number);
   }
 
   .hljs-comment {
-    color: var(--color-text-mute);
+    color: var(--syntax-comment);
     font-style: italic;
   }
 
   .hljs-variable,
   .hljs-attribute {
-    color: var(--color-text-soft);
+    color: var(--syntax-variable);
   }
 
   /* 表格 */

@@ -2,20 +2,16 @@
   --contrast: 0;
   --color-bg: #ffffff;
   --color-bg-pure: #ffffff;
-  --color-bg-soft: color-mix(in srgb, var(--color-bg) 99%, var(--color-ink));
-  --color-bg-subtle: var(--color-bg);
-  --color-bg-mask: color-mix(in srgb, var(--color-bg) 99%, var(--color-ink));
+  --color-bg-soft: var(--surface-code-inline);
+  --color-bg-subtle: var(--surface-panel);
+  --color-bg-mask: var(--surface-code-block);
   --color-bg-hover: var(--color-sidebar-hover-bg);
   --color-bg-row-hover: var(--color-sidebar-hover-bg);
   --color-bg-chip-hover: var(--color-sidebar-hover-bg);
-  --color-bg-card: color-mix(in srgb, var(--color-bg) 99%, var(--color-ink));
-  --color-popover-bg: var(--color-bg);
-  --color-popover-border: color-mix(
-    in srgb,
-    var(--color-bg) 96%,
-    var(--color-ink)
-  );
-  --color-popover-divider: color-mix(in srgb, var(--color-bg) 97%, var(--color-ink));
+  --color-bg-card: var(--surface-panel);
+  --color-popover-bg: var(--surface-raised);
+  --color-popover-border: var(--border-strong);
+  --color-popover-divider: var(--border-control);
   --glass-surface-bg: color-mix(in srgb, var(--color-bg) 20%, transparent);
   --glass-surface-border: color-mix(
     in srgb,
@@ -36,14 +32,10 @@
   );
   --color-surface: var(--color-bg);
   --color-ink: #0d0d0d;
-  --color-border: color-mix(in srgb, var(--color-bg) 94%, var(--color-ink));
-  --color-border-soft: color-mix(in srgb, var(--color-bg) 96%, var(--color-ink));
-  --color-border-faint: color-mix(
-    in srgb,
-    var(--color-bg) 98%,
-    var(--color-ink)
-  );
-  --color-border-row: color-mix(in srgb, var(--color-bg) 98%, var(--color-ink));
+  --color-border: var(--border-control);
+  --color-border-soft: var(--border-subtle);
+  --color-border-faint: var(--border-subtle);
+  --color-border-row: var(--border-subtle);
   --color-danger: #e02e2a;
   --color-warning: color-mix(in srgb, var(--color-bg) 35%, var(--color-ink));
   --color-success: #00a240;
@@ -68,16 +60,23 @@
   --color-send-bg: var(--color-accent);
   --color-send-bg-hover: color-mix(in srgb, var(--color-accent) 82%, var(--color-ink));
   --color-send-bg-disabled: color-mix(in srgb, var(--color-accent) 50%, var(--color-ink));
-  --color-user-bubble-bg: color-mix(in srgb, var(--color-bg) 93%, var(--color-ink));
+  --color-user-bubble-bg: var(--surface-user-message);
 
   --surface-base: color-mix(in srgb, var(--color-bg) 98%, var(--color-ink));
   --surface-canvas: var(--color-bg);
-  --surface-panel: var(--color-bg);
+  --surface-chrome: color-mix(in srgb, var(--color-bg) 96.5%, var(--color-ink));
+  --surface-panel: color-mix(in srgb, var(--color-bg) 96.5%, var(--color-ink));
   --surface-raised: var(--color-bg);
+  --surface-code-block: color-mix(in srgb, var(--color-bg) 95.8%, var(--color-ink));
+  --surface-code-inline: color-mix(in srgb, var(--color-bg) 90%, var(--color-ink));
+  --surface-user-message: color-mix(in srgb, var(--color-bg) 95%, var(--color-ink));
+  --surface-composer: var(--color-bg);
   --surface-subtle: color-mix(in srgb, var(--color-bg) 97%, var(--color-ink));
   --surface-product: var(--surface-panel);
   --surface-product-raised: var(--surface-raised);
   --border-subtle: color-mix(in srgb, var(--color-bg) 93%, var(--color-ink));
+  --border-control: color-mix(in srgb, var(--color-bg) 93.2%, var(--color-ink));
+  --border-strong: color-mix(in srgb, var(--color-bg) 90%, var(--color-ink));
   --border-muted: color-mix(in srgb, var(--color-bg) 97%, var(--color-ink));
   --shadow-resting:
     0 1px 2px color-mix(in srgb, var(--color-ink) 5%, transparent),
@@ -201,34 +200,36 @@
   --glass-surface-blur: 14px;
   --plan-md-base-size: 0.9em;
 
-  --color-chrome-bg: var(--color-bg);
-  --color-sidebar-bg: var(--color-bg);
-  --color-sidebar-active-bg: color-mix(
-    in srgb,
-    var(--color-bg) 97%,
-    var(--color-ink)
-  );
-  --color-sidebar-hover-bg: color-mix(
-    in srgb,
-    var(--color-bg) 97%,
-    var(--color-ink)
-  );
-  --color-workbench-bg: var(--surface-base);
-  --color-panel-bg: var(--color-bg);
+  --color-chrome-bg: var(--surface-chrome);
+  --color-sidebar-bg: var(--surface-chrome);
+  --color-sidebar-active-bg: var(--state-selected);
+  --color-sidebar-hover-bg: var(--state-hover);
+  --color-workbench-bg: var(--surface-canvas);
+  --color-panel-bg: var(--surface-panel);
   --color-panel-elevated-bg: var(--surface-raised);
   --color-panel-border: var(--border-subtle);
   --color-panel-shadow: var(--shadow-float);
   --color-panel-shadow-raised: var(--shadow-raised);
   --color-panel-shadow-soft: var(--shadow-resting);
-  --color-scrollbar: color-mix(
-    in srgb,
-    var(--color-bg) 92%,
-    var(--color-ink)
-  );
-  --color-scrollbar-hover: color-mix(in srgb, var(--color-bg) 85%, var(--color-ink));
+  --color-scrollbar: var(--scrollbar-rest);
+  --color-scrollbar-hover: var(--scrollbar-hover);
   --color-diff-added: #00a240;
   --color-diff-removed: #e02e2a;
   --color-skill: #751ed9;
+  --state-hover: color-mix(in srgb, var(--color-bg) 95.8%, var(--color-ink));
+  --state-selected: color-mix(in srgb, var(--color-bg) 93%, var(--color-ink));
+  --scrollbar-rest: var(--state-selected);
+  --scrollbar-hover: var(--border-strong);
+
+  --syntax-keyword: var(--color-accent);
+  --syntax-type: var(--syntax-keyword);
+  --syntax-property: var(--color-accent);
+  --syntax-string: var(--color-success);
+  --syntax-number: var(--color-skill);
+  --syntax-operator: var(--syntax-number);
+  --syntax-comment: var(--color-text-mute);
+  --syntax-variable: var(--color-text-soft);
+  --syntax-punctuation: var(--color-text-meta);
 
   --font-family-sans:
     "MiSans VF Regular", "MiSans", Inter, sans-serif;
@@ -251,92 +252,6 @@
     color-mix(in srgb, var(--color-accent) 24%, transparent);
   --focus-ring-soft: 0 0 0 2px
     color-mix(in srgb, var(--color-accent) 18%, transparent);
-  --state-hover-bg: var(--color-sidebar-hover-bg);
-  --state-active-bg: color-mix(in srgb, var(--color-bg) 95%, var(--color-ink));
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --color-bg: #111111;
-  --color-bg-pure: var(--color-bg);
-  --color-bg-soft: color-mix(in srgb, var(--color-bg) 94%, var(--color-ink));
-  --color-bg-subtle: color-mix(in srgb, var(--color-bg) 97%, var(--color-ink));
-  --color-bg-mask: color-mix(in srgb, var(--color-bg) 78%, transparent);
-  --color-bg-hover: var(--color-sidebar-hover-bg);
-  --color-bg-row-hover: var(--color-sidebar-hover-bg);
-  --color-bg-chip-hover: var(--color-sidebar-hover-bg);
-  --color-bg-card: color-mix(in srgb, var(--color-bg) 89%, var(--color-ink));
-  --color-popover-bg: var(--color-bg);
-  --color-popover-border: color-mix(in srgb, var(--color-bg) 92%, var(--color-ink));
-  --color-popover-divider: color-mix(in srgb, var(--color-bg) 94%, var(--color-ink));
-  --glass-surface-bg: color-mix(in srgb, var(--color-bg) 20%, transparent);
-  --glass-surface-border: color-mix(in srgb, var(--color-ink) 12%, transparent);
-  --glass-surface-highlight: color-mix(in srgb, var(--color-ink) 8%, transparent);
-  --glass-surface-text: var(--color-ink);
-  --glass-surface-text-meta: color-mix(in srgb, var(--color-bg) 36%, var(--color-ink));
-  --glass-surface-text-disabled: color-mix(in srgb, var(--color-bg) 78%, var(--color-ink));
-  --color-surface: var(--color-bg);
-  --color-ink: #fcfcfc;
-  --color-border: color-mix(in srgb, var(--color-bg) 88%, var(--color-ink));
-  --color-border-soft: color-mix(in srgb, var(--color-bg) 92%, var(--color-ink));
-  --color-border-faint: color-mix(in srgb, var(--color-bg) 95%, var(--color-ink));
-  --color-border-row: color-mix(in srgb, var(--color-bg) 95%, var(--color-ink));
-  --color-danger: #e02e2a;
-  --color-warning: color-mix(in srgb, var(--color-bg) 35%, var(--color-ink));
-  --color-success: #00a240;
-  --color-text: var(--color-ink);
-  --color-text-strong: var(--color-ink);
-  --color-text-meta: color-mix(in srgb, var(--color-bg) 36%, var(--color-ink));
-  --color-text-soft: color-mix(in srgb, var(--color-bg) 46%, var(--color-ink));
-  --color-text-mute: color-mix(in srgb, var(--color-bg) 56%, var(--color-ink));
-  --color-text-placeholder: color-mix(in srgb, var(--color-bg) 66%, var(--color-ink));
-  --color-text-disabled: color-mix(in srgb, var(--color-bg) 78%, var(--color-ink));
-  --color-text-on-accent: #ffffff;
-  --color-icon: var(--color-ink);
-  --color-icon-soft: color-mix(in srgb, var(--color-bg) 52%, var(--color-ink));
-  --color-icon-arrow: color-mix(in srgb, var(--color-bg) 62%, var(--color-ink));
-  --color-accent: #0169cc;
-  --color-accent-11: color-mix(in srgb, var(--color-accent) 85%, var(--color-bg));
-  --color-accent-a3: color-mix(in srgb, var(--color-accent) 30%, transparent);
-  --color-send-bg: var(--color-accent);
-  --color-send-bg-hover: color-mix(in srgb, var(--color-accent) 88%, var(--color-ink));
-  --color-send-bg-disabled: color-mix(in srgb, var(--color-accent) 50%, var(--color-ink));
-  --color-user-bubble-bg: color-mix(in srgb, var(--color-bg) 88%, var(--color-ink));
-
-  --surface-base: color-mix(in srgb, var(--color-bg) 82%, var(--color-ink));
-  --surface-canvas: color-mix(in srgb, var(--color-bg) 80%, var(--color-ink));
-  --surface-panel: color-mix(in srgb, var(--color-bg) 77%, var(--color-ink));
-  --surface-raised: color-mix(in srgb, var(--color-bg) 66%, var(--color-ink));
-  --surface-subtle: color-mix(in srgb, var(--color-bg) 88%, var(--color-ink));
-  --surface-product: var(--surface-panel);
-  --surface-product-raised: var(--surface-raised);
-  --border-subtle: color-mix(in srgb, var(--color-bg) 58%, var(--color-ink));
-  --border-muted: color-mix(in srgb, var(--color-bg) 70%, var(--color-ink));
-  --shadow-resting:
-    0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 0 color-mix(in srgb, var(--color-ink) 3%, transparent) inset;
-  --shadow-raised:
-    0 12px 34px rgba(0, 0, 0, 0.28), 0 1px 2px rgba(0, 0, 0, 0.22);
-  --shadow-float:
-    0 24px 64px rgba(0, 0, 0, 0.38), 0 8px 24px rgba(0, 0, 0, 0.28);
-  --shadow-2: var(--shadow-raised);
-
-  --color-chrome-bg: color-mix(in srgb, var(--color-bg) 94%, var(--color-ink));
-  --color-sidebar-bg: color-mix(in srgb, var(--color-bg) 94%, var(--color-ink));
-  --color-sidebar-active-bg: color-mix(in srgb, var(--color-bg) 89%, var(--color-ink));
-  --color-sidebar-hover-bg: color-mix(in srgb, var(--color-bg) 89%, var(--color-ink));
-  --state-hover-bg: var(--color-sidebar-hover-bg);
-  --state-active-bg: color-mix(in srgb, var(--color-bg) 86%, var(--color-ink));
-  --color-workbench-bg: var(--surface-base);
-  --color-panel-bg: var(--surface-panel);
-  --color-panel-elevated-bg: var(--surface-raised);
-  --color-panel-border: var(--border-subtle);
-  --color-panel-shadow: var(--shadow-float);
-  --color-panel-shadow-raised: var(--shadow-raised);
-  --color-panel-shadow-soft: var(--shadow-resting);
-  --color-scrollbar: color-mix(in srgb, var(--color-bg) 86%, var(--color-ink));
-  --color-scrollbar-hover: color-mix(in srgb, var(--color-bg) 75%, var(--color-ink));
-  --color-diff-added: #00a240;
-  --color-diff-removed: #e02e2a;
-  --color-skill: #b06dff;
-
+  --state-hover-bg: var(--state-hover);
+  --state-active-bg: var(--state-selected);
 }
