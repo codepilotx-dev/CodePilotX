@@ -201,42 +201,6 @@
   white-space: pre-wrap;
 }
 
-.md-table-block {
-  margin: 14px 0;
-  overflow: hidden;
-  border: 1px solid var(--color-border-soft);
-  border-radius: 10px;
-  background: var(--surface-panel);
-}
-
-.md-table-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 28px;
-  padding: 0 8px 0 10px;
-  border-bottom: 1px solid var(--color-border-faint);
-  color: var(--color-text-meta);
-  font-family: var(--font-family-mono);
-  font-size: var(--type-caption);
-  letter-spacing: 0.04em;
-}
-
-.md-table-toolbar button {
-  min-height: 24px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-.md-table-toolbar button:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text);
-}
-
 .md-table-scroll {
   overflow-x: auto;
 }

@@ -247,6 +247,39 @@
   color: var(--color-danger);
 }
 
+.ui-button[data-size="toolbar"] {
+  min-height: 28px;
+  height: 28px;
+  gap: 4px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.ui-button[data-size="toolbar"]:where([data-variant="secondary"]) {
+  border-color: transparent;
+  background: color-mix(
+    in srgb,
+    var(--color-text-strong) 5%,
+    transparent
+  );
+  color: var(--color-text-strong);
+  box-shadow: none;
+}
+
+.ui-button[data-size="toolbar"]:where(
+    [data-variant="secondary"]
+  ):hover:not(:disabled) {
+  border-color: transparent;
+  background: color-mix(
+    in srgb,
+    var(--color-text-strong) 10%,
+    transparent
+  );
+  box-shadow: none;
+}
+
 .ui-button[data-size="icon"] {
   width: var(--control-size-md);
   height: var(--control-size-md);
@@ -267,15 +300,13 @@
 .settings-button:not(.ui-button):not(.primary),
 .plugins-button:not(.is-primary),
 .automation-button:not(.is-primary),
-.settings-dropdown,
 .settings-input,
 .settings-textarea,
 .settings-input-number,
 .search-input-row,
 .plugins-search,
 .plugins-filter,
-.right-dock-search,
-.right-dock-terminal-composer input {
+.right-dock-search {
   border-color: var(--color-border-soft);
   background: var(--color-bg);
   color: var(--color-text-strong);
@@ -295,8 +326,7 @@
 .settings-input-number,
 .plugins-search,
 .plugins-filter,
-.right-dock-search,
-.right-dock-terminal-composer input {
+.right-dock-search {
   border-radius: var(--radius-button);
 }
 
@@ -306,8 +336,7 @@
 .search-input-row,
 .plugins-search,
 .plugins-filter,
-.right-dock-search,
-.right-dock-terminal-composer input {
+.right-dock-search {
   border-radius: var(--radius-input);
 }
 

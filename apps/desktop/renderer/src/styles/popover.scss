@@ -59,6 +59,28 @@
   padding: var(--popover-surface-padding);
 }
 
+.settings-dropdown-content {
+  margin: 1px;
+  padding: 4px;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(
+    in srgb,
+    var(--color-background-elevated-secondary-opaque, var(--surface-raised))
+      90%,
+    transparent
+  );
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow:
+    0 0 0 0.5px var(--border-control),
+    0 8px 16px -4px color-mix(
+        in srgb,
+        var(--color-text-strong) 12%,
+        transparent
+      );
+}
+
 :root[data-glass-surfaces="on"] {
   .popover-surface,
   .sidebar-context-menu-content,

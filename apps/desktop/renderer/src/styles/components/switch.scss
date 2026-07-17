@@ -15,7 +15,6 @@
   }
 }
 
-.toggle-knob,
 .chat-input__dropdown-switch-thumb,
 .context-menu-switch-thumb {
   background: var(--color-bg);
@@ -24,8 +23,8 @@
 /* --- Settings Page Toggle Switch --- */
 .toggle-switch {
   width: 32px;
-  height: 18px;
-  border-radius: var(--radius-base);
+  height: 20px;
+  border-radius: var(--radius-marquee);
   position: relative;
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -40,14 +39,17 @@
 }
 
 .toggle-knob {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--color-text-strong);
   border-radius: var(--radius-full);
   position: absolute;
   top: 2px;
-  left: 2px;
+  left: 0;
   transition: transform 0.15s ease;
+  transform: translateX(2px);
   box-shadow: var(--shadow-resting);
+  background: var(--color-text-strong);
 }
 
 /* --- Chat Input Dropdown Switch --- */

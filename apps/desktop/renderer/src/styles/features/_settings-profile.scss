@@ -567,7 +567,7 @@
   background-color: var(--color-bg);
 }
 
-.radio-card[data-state="checked"] .radio-indicator {
+.radio-card[data-state='checked'] .radio-indicator {
   border-color: var(--color-text-strong);
 }
 
@@ -583,7 +583,7 @@
     transform 0.15s ease;
 }
 
-.radio-card[data-state="checked"] .radio-indicator-inner {
+.radio-card[data-state='checked'] .radio-indicator-inner {
   opacity: 1;
   transform: scale(1);
 }
@@ -607,12 +607,44 @@
 }
 
 .settings-dropdown-search {
-  padding: var(--space-2);
-  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 0;
+}
+
+.settings-dropdown-search-icon {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  color: var(--color-text-soft);
 }
 
 .settings-dropdown-search-input {
-  width: 100%;
+  width: auto;
+  min-width: 0;
+  height: 18px;
+  min-height: 18px;
+  flex: 1 1 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-strong);
+  font-size: 12px;
+  line-height: 18px;
+
+  &:focus {
+    border: 0;
+    box-shadow: none;
+  }
+
+  &::placeholder {
+    color: var(--color-text-placeholder);
+  }
 }
 
 .settings-dropdown-scroll-area {
@@ -625,7 +657,16 @@
 .settings-dropdown-scroll-content {
   min-width: 0;
   display: grid;
-  gap: 2px;
+  gap: 0;
+}
+
+.settings-dropdown-item {
+  min-height: 28px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  color: var(--color-text-strong);
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .settings-dropdown-item-inner {
@@ -638,16 +679,26 @@
 
 .settings-dropdown-item-copy {
   display: grid;
+  flex: 1 1 auto;
   gap: 1px;
   min-width: 0;
+}
 
-  span {
-    overflow: hidden;
-    color: var(--color-text-soft);
-    font-size: var(--type-meta);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+.settings-dropdown-item-label,
+.settings-dropdown-item-detail {
+  overflow: hidden;
+  font-size: var(--type-meta);
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-dropdown-item-label {
+  color: var(--color-text-strong);
+}
+
+.settings-dropdown-item-detail {
+  color: var(--color-text-meta);
 }
 
 .settings-dropdown-empty {
@@ -655,4 +706,3 @@
   color: var(--color-text-soft);
   font-size: var(--type-secondary);
 }
-
