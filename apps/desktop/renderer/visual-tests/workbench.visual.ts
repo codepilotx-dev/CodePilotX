@@ -29,7 +29,13 @@ const SCENARIOS: readonly VisualScenario[] = [
     readyText: '已完成工作台结构梳理。',
     prepare: async page => {
       await page.getByRole('button', { name: '显示右侧面板' }).click()
-      await expect(page.getByLabel('右侧工具栏')).toBeVisible()
+      await expect(
+        page.getByRole('complementary', { name: '右侧面板' }),
+      ).toBeVisible()
+      await page
+        .getByRole('complementary', { name: '右侧面板' })
+        .getByRole('button', { name: /^审阅/ })
+        .click()
     },
   },
 ] as const
@@ -53,12 +59,15 @@ for (const viewport of VIEWPORTS) {
         await page.goto(scenario.route)
         await closeTransientErrorToast(page)
         await expect(page.getByText(scenario.readyText, { exact: true })).toBeVisible()
-        await scenario.prepare?.(page)
+        if (viewport.width > 960) {
+          await scenario.prepare?.(page)
+        }
         await expect(page.locator('html')).toHaveAttribute('data-theme', mode)
         await expect(page.locator('html')).toHaveAttribute(
           'data-code-theme-id',
           mode === 'light' ? 'codex-light' : 'codex-dark',
         )
+        await closeTransientErrorToast(page, 3_000)
         await expect(page.locator('body')).toHaveScreenshot(
           `${viewport.id}-${mode}-${scenario.id}.png`,
           {
@@ -107,6 +116,123 @@ for (const viewport of VIEWPORTS) {
     })
   }
 }
+
+test('session header aligns with the right panel and bottom panel spans the workspace', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.goto('/?visualCase=rich#/sessions/visual-rich')
+  await closeTransientErrorToast(page)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+
+  const header = page.getByRole('toolbar', { name: '会话工具栏' })
+  const workflow = page.locator('.workflow-page')
+  const scrollArea = page.locator('[data-component="thread-scroll-layout"]')
+  const initialHeader = await header.boundingBox()
+  const initialWorkflow = await workflow.boundingBox()
+  expect(initialHeader).not.toBeNull()
+  expect(initialWorkflow).not.toBeNull()
+  expect(initialHeader!.x).toBeCloseTo(initialWorkflow!.x, 0)
+  expect(initialHeader!.width).toBeCloseTo(initialWorkflow!.width, 0)
+
+  await scrollArea.evaluate(element => {
+    element.scrollTop = 0
+  })
+  const scrolledHeader = await header.boundingBox()
+  expect(scrolledHeader!.y).toBeCloseTo(initialHeader!.y, 0)
+  expect(scrolledHeader!.height).toBeCloseTo(initialHeader!.height, 0)
+
+  const bottomPanelButton = page.getByRole('button', {
+    name: '显示底部面板',
+  })
+  const rightDockButton = page.getByRole('button', {
+    name: '显示右侧面板',
+  })
+  await expect(bottomPanelButton).toHaveAttribute('aria-pressed', 'false')
+  await expect(rightDockButton).toHaveAttribute('aria-pressed', 'false')
+
+  const rightDockButtonBefore = await rightDockButton.boundingBox()
+  await rightDockButton.click()
+  const activeRightDockButton = page.getByRole('button', {
+    name: '关闭右侧面板',
+  })
+  await expect(activeRightDockButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(
+    page.getByRole('complementary', { name: '右侧面板' }),
+  ).toBeVisible()
+  await expect(
+    page
+      .getByRole('complementary', { name: '右侧面板' })
+      .getByLabel('可用面板标签'),
+  ).toBeVisible()
+  await page
+    .getByRole('complementary', { name: '右侧面板' })
+    .getByRole('button', { name: /^审阅/ })
+    .click()
+
+  const headerWithDock = await header.boundingBox()
+  const dock = await page
+    .getByRole('complementary', { name: '右侧面板' })
+    .boundingBox()
+  const dockHeader = await page.locator('.right-dock-header').boundingBox()
+  const upper = await page.locator('.desktop-workspace__upper').boundingBox()
+  const rightDockButtonAfter = await activeRightDockButton.boundingBox()
+  expect(headerWithDock!.width).toBeLessThan(initialHeader!.width)
+  expect(dock!.y).toBeCloseTo(headerWithDock!.y, 0)
+  expect(dockHeader!.height).toBeCloseTo(headerWithDock!.height, 0)
+  expect(headerWithDock!.width + dock!.width).toBeCloseTo(
+    upper!.width,
+    0,
+  )
+  expect(rightDockButtonAfter!.x).toBeCloseTo(rightDockButtonBefore!.x, 0)
+
+  const expandRightPanel = page.getByRole('button', {
+    name: '展开右侧面板',
+  })
+  await expandRightPanel.click()
+  await expect(
+    page.getByRole('button', { name: '恢复右侧面板宽度' }),
+  ).toHaveAttribute('aria-pressed', 'true')
+  const fullWidthDock = await page
+    .getByRole('complementary', { name: '右侧面板' })
+    .boundingBox()
+  expect(fullWidthDock!.width).toBeCloseTo(upper!.width, 0)
+  await page.getByRole('button', { name: '恢复右侧面板宽度' }).click()
+
+  await bottomPanelButton.click()
+  const activeBottomPanelButton = page.getByRole('button', {
+    name: '隐藏底部面板',
+  })
+  await expect(activeBottomPanelButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(
+    page.locator(
+      '[role="tabpanel"][data-app-shell-tab-panel-controller="bottom"]',
+    ),
+  ).toBeFocused()
+  const bottomPanel = await page
+    .getByRole('complementary', { name: '底部面板' })
+    .boundingBox()
+  const workspace = await page.locator('.desktop-workspace').boundingBox()
+  expect(bottomPanel!.x).toBeCloseTo(workspace!.x, 0)
+  expect(bottomPanel!.width).toBeCloseTo(workspace!.width, 0)
+  await expect(
+    page.getByRole('tab', { name: /终端/ }),
+  ).toHaveAttribute('aria-selected', 'true')
+  await page.getByRole('button', { name: '移到底部面板' }).click()
+  await expect(
+    page.getByRole('tab', { name: /审查/ }),
+  ).toHaveAttribute('aria-selected', 'true')
+
+  const sessionMenuButton = page.getByRole('button', {
+    name: '更多会话操作',
+  })
+  await sessionMenuButton.click()
+  await expect(
+    page.getByRole('menuitem', { name: /显示 workflow 事件/ }),
+  ).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(sessionMenuButton).toBeFocused()
+})
 
 for (const mode of MODES) {
   test(`accessibility ${mode}`, async ({ page }) => {
