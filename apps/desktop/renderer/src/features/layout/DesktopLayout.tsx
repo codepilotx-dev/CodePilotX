@@ -176,7 +176,6 @@ export function DesktopLayout(): React.ReactNode {
     setRightDockState,
     rightDockPlan,
     setRightDockPlan,
-    environmentDockRegistration,
     bottomPanelVisible,
     rightDockWidth,
     openRightDockTool,
@@ -186,7 +185,6 @@ export function DesktopLayout(): React.ReactNode {
     handleSetRightDockWidth,
     handleResetRightDockWidth,
     handleOpenPlanDock,
-    handleSetEnvironmentDockContent,
     toggleBottomPanelVisible,
   } = useWorkbenchShellController(menubarDebugMode)
   const handleErrorMessage = useCallback((message: string): void => {
@@ -1717,7 +1715,6 @@ export function DesktopLayout(): React.ReactNode {
       minWidth={RIGHT_DOCK_MIN_WIDTH}
       reviewView={reviewView}
       plan={rightDockPlan}
-      environmentContent={environmentDockRegistration?.content ?? null}
       selectedFile={selectedFile}
       sessionId={sessionId}
       sessionStatus={sessionStatus}
@@ -1827,7 +1824,6 @@ export function DesktopLayout(): React.ReactNode {
             onOpenAutomation: () => navigate('/automation'),
             onOpenWorkspacePath: handleOpenWorkspacePath,
             onOpenRightDock: openRightDockTool,
-            onSetEnvironmentDockContent: handleSetEnvironmentDockContent,
             onOpenPlanInRightDock: handleOpenPlanDock,
             onSubmitEditedUserMessage: handleSubmitEditedUserMessage,
             onAppendComposerText: handleAppendComposerText,

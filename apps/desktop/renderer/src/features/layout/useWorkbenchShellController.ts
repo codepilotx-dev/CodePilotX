@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { EnvironmentDockContentRegistration } from '../session/QuickChatContext.js'
-import { reduceEnvironmentDockContentRegistration } from '../session/QuickChatContext.js'
 import {
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
@@ -35,8 +33,6 @@ export function useWorkbenchShellController(debugMode: boolean) {
     openTools: [],
   })
   const [rightDockPlan, setRightDockPlan] = useState<RightDockPlan | null>(null)
-  const [environmentDockRegistration, setEnvironmentDockRegistration] =
-    useState<EnvironmentDockContentRegistration | null>(null)
   const [bottomPanelVisible, setBottomPanelVisible] = useState(false)
   const [rightDockWidth, setRightDockWidth] = useState(() =>
     getInitialRightDockWidth(),
@@ -93,15 +89,6 @@ export function useWorkbenchShellController(debugMode: boolean) {
     [openRightDockTool],
   )
 
-  const handleSetEnvironmentDockContent = useCallback(
-    (next: EnvironmentDockContentRegistration | null): void => {
-      setEnvironmentDockRegistration((current) =>
-        reduceEnvironmentDockContentRegistration(current, next),
-      )
-    },
-    [],
-  )
-
   const toggleBottomPanelVisible = useCallback((): void => {
     setBottomPanelVisible((current) => !current)
   }, [])
@@ -133,7 +120,6 @@ export function useWorkbenchShellController(debugMode: boolean) {
     setRightDockState,
     rightDockPlan,
     setRightDockPlan,
-    environmentDockRegistration,
     bottomPanelVisible,
     rightDockWidth,
     openRightDockTool,
@@ -143,7 +129,6 @@ export function useWorkbenchShellController(debugMode: boolean) {
     handleSetRightDockWidth,
     handleResetRightDockWidth,
     handleOpenPlanDock,
-    handleSetEnvironmentDockContent,
     toggleBottomPanelVisible,
   }
 }

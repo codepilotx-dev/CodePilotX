@@ -22,20 +22,6 @@ export type ProviderModelOption = {
   baseURL: string | undefined
 }
 
-export type EnvironmentDockContentRegistration = {
-  content: React.ReactNode
-  revision: object
-}
-
-export function reduceEnvironmentDockContentRegistration(
-  current: EnvironmentDockContentRegistration | null,
-  next: EnvironmentDockContentRegistration | null,
-): EnvironmentDockContentRegistration | null {
-  if (next === null) return current === null ? current : null
-  if (current?.revision === next.revision) return current
-  return next
-}
-
 export type QuickChatContextValue = {
   isConversationRoute: boolean
   isConversationLoading: boolean
@@ -58,9 +44,6 @@ export type QuickChatContextValue = {
   onOpenAutomation: () => void
   onOpenWorkspacePath: () => void
   onOpenRightDock: (tool: RightDockToolId) => void
-  onSetEnvironmentDockContent: (
-    registration: EnvironmentDockContentRegistration | null,
-  ) => void
   onOpenPlanInRightDock: (plan: RightDockPlan) => void
   onSubmitEditedUserMessage: (text: string) => Promise<void>
   onAppendComposerText: (text: string) => void

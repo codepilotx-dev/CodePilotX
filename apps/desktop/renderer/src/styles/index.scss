@@ -47,6 +47,7 @@
   @include meta.load-css('features/composer-status');
   @include meta.load-css('features/composer-follow-up');
   @include meta.load-css('features/session-page');
+  @include meta.load-css('features/thread-summary');
   @include meta.load-css('features/session-approvals');
   @include meta.load-css('features/session-messages');
   @include meta.load-css('features/session-timeline');

@@ -19,7 +19,6 @@ import {
   Filter,
   FolderOpen,
   GitBranch,
-  GitPullRequest,
   Laptop,
   LayoutList,
   LoaderCircle,
@@ -34,7 +33,6 @@ import {
   Sparkles,
   Sliders,
   SquareTerminal,
-  Upload,
   Workflow,
   X,
 } from "lucide-react";
@@ -93,8 +91,15 @@ import {
 import { SessionTimelineView } from "./SessionTimelineView.js";
 import { ThreadScrollLayout } from "./ThreadScrollLayout.js";
 import { ConversationTurnNavRail } from "./ConversationTurnNavRail.js";
-import { BranchSelectPopover } from "./BranchSelectPopover.js";
 import type { SubagentProjection } from "@codepilotx/shared/thread";
+import {
+  ThreadSummaryErrorBoundary,
+  ThreadSummaryInline,
+  ThreadSummaryPanel,
+  ThreadSummaryPopover,
+} from "./ThreadSummaryPanel.js";
+import { useThreadSummaryController } from "./threadSummaryState.js";
+import { deriveThreadSummaryViewModel } from "./threadSummaryViewModel.js";
 import { useConversationController } from "./useConversationController.js";
 import {
   TimelineSystemNotice,
@@ -151,22 +156,6 @@ const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
 ];
 
 const DEBUG_ASK_USER_QUESTION_REQUEST_ID_PREFIX = "debug-ask-user-question";
-const ENVIRONMENT_PANEL_VISIBLE_STORAGE_KEY =
-  "conversation.environment-panel.visible";
-
-function readGlobalEnvironmentPanelVisible(): boolean {
-  if (typeof window === "undefined") {
-    return true;
-  }
-  try {
-    return (
-      window.localStorage.getItem(ENVIRONMENT_PANEL_VISIBLE_STORAGE_KEY) !==
-      "false"
-    );
-  } catch {
-    return true;
-  }
-}
 
 function useElapsedSeconds(
   startTimeMs: number | undefined,
@@ -214,7 +203,6 @@ export function ConversationPage(): React.ReactNode {
     onDecidePermission,
     onAcceptExitPlanMode,
     onOpenRightDock,
-    onSetEnvironmentDockContent,
     onOpenPlanInRightDock,
     onAppendComposerText,
     onAppendSideChatText,
@@ -296,19 +284,6 @@ export function ConversationPage(): React.ReactNode {
   const [openTargets, setOpenTargets] = React.useState<DesktopOpenTarget[]>(
     FALLBACK_OPEN_TARGETS,
   );
-  const [showPinnedSummary, setShowPinnedSummary] = React.useState(
-    readGlobalEnvironmentPanelVisible,
-  );
-  React.useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        ENVIRONMENT_PANEL_VISIBLE_STORAGE_KEY,
-        showPinnedSummary ? "true" : "false",
-      );
-    } catch {
-      /* localStorage full or disabled; keep the in-memory state only. */
-    }
-  }, [showPinnedSummary]);
   React.useEffect(() => {
     return () => {
       clearConversationSelectionHighlight();
@@ -441,73 +416,30 @@ export function ConversationPage(): React.ReactNode {
     () => extractSourceLinks(timelineEvents),
     [timelineEvents],
   );
-  const environmentDockContent = React.useMemo(
+  const threadSummaryModel = React.useMemo(
     () =>
-      workspacePath ? (
-        <EnvironmentPanel
-          branchName={branchName}
-          branches={branches}
-          diff={diff}
-          gitStatus={gitStatus}
-          sourceLinks={sourceLinks}
-          subagents={subagents}
-          workspacePath={workspacePath}
-          onBranchSelect={onBranchSelect}
-          onCommitOrPush={onCommitOrPush}
-          onCreateBranch={onCreateBranch}
-          onCreatePullRequest={onCreatePullRequest}
-          onOpenWorkspacePath={onOpenWorkspacePath}
-          onRefreshDiff={onRefreshDiff}
-          onOpenSubagent={onOpenSubagent}
-        />
-      ) : null,
+      deriveThreadSummaryViewModel({
+        additions: composerDiffSummary.additions,
+        branchName,
+        changedFileCount,
+        deletions: composerDiffSummary.deletions,
+        events: timelineEvents,
+        sources: sourceLinks,
+        subagents,
+        workspacePath,
+      }),
     [
       branchName,
-      branches,
-      diff,
-      gitStatus,
-      onBranchSelect,
-      onCommitOrPush,
-      onCreateBranch,
-      onCreatePullRequest,
-      onOpenSubagent,
-      onOpenWorkspacePath,
-      onRefreshDiff,
+      changedFileCount,
+      composerDiffSummary,
       sourceLinks,
       subagents,
+      timelineEvents,
       workspacePath,
     ],
   );
-  const environmentDockRevision = React.useMemo(
-    () => ({}),
-    [
-      branchName,
-      branches,
-      diff,
-      gitStatus,
-      sourceLinks,
-      subagents,
-      workspacePath,
-    ],
-  );
-  React.useLayoutEffect(() => {
-    onSetEnvironmentDockContent(
-      environmentDockContent
-        ? {
-            content: environmentDockContent,
-            revision: environmentDockRevision,
-          }
-        : null,
-    );
-  }, [
-    environmentDockContent,
-    environmentDockRevision,
-    onSetEnvironmentDockContent,
-  ]);
-  React.useLayoutEffect(
-    () => () => onSetEnvironmentDockContent(null),
-    [onSetEnvironmentDockContent],
-  );
+  const workflowMainRef = React.useRef<HTMLElement>(null);
+  const threadSummary = useThreadSummaryController(workflowMainRef);
   const fallbackTitle = React.useMemo(
     () => getConversationTitle(timelineEvents),
     [timelineEvents],
@@ -841,8 +773,57 @@ export function ConversationPage(): React.ReactNode {
   );
 
   const workspaceHeaderActions = React.useMemo(
-    () => (
-      <div className="chat-session-actions">
+    () => {
+      const summaryPanel = (
+        <ThreadSummaryErrorBoundary>
+          <ThreadSummaryPanel
+            branches={branches}
+            model={threadSummaryModel}
+            onBranchSelect={onBranchSelect}
+            onCommitOrPush={onCommitOrPush}
+            onCreateBranch={onCreateBranch}
+            onCreatePullRequest={onCreatePullRequest}
+            onOpenPlan={onOpenPlanInRightDock}
+            onOpenReview={openReviewSidebar}
+            onOpenSubagent={onOpenSubagent}
+            onOpenWorkspacePath={onOpenWorkspacePath}
+          />
+        </ThreadSummaryErrorBoundary>
+      );
+      const summaryToggle = (
+        <button
+          aria-label={
+            threadSummary.displayMode === "overlay"
+              ? threadSummary.isPopoverOpen
+                ? "关闭置顶摘要"
+                : "打开置顶摘要"
+              : threadSummary.isPinned
+                ? "取消置顶摘要"
+                : "置顶摘要"
+          }
+          aria-pressed={
+            threadSummary.displayMode === "overlay"
+              ? threadSummary.isPopoverOpen
+              : threadSummary.isPinned
+          }
+          className="message-action"
+          title="置顶摘要"
+          type="button"
+          onClick={
+            threadSummary.displayMode === "overlay"
+              ? undefined
+              : threadSummary.toggle
+          }
+        >
+          <LayoutList
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
+        </button>
+      );
+
+      return (
+        <div className="chat-session-actions">
         <div className="open-target-split-button">
           <Tooltip content={`用 ${selectedOpenTarget.label} 打开`}>
             <button
@@ -889,24 +870,17 @@ export function ConversationPage(): React.ReactNode {
             ))}
           </PopoverMenu>
         </div>
-        <Tooltip content="在右侧面板显示环境信息">
-          <button
-            aria-label="在右侧面板显示环境信息"
-            aria-pressed={rightDockOpen && rightDockTool === "environment"}
-            className="message-action"
-            disabled={!workspacePath}
-            type="button"
-            onClick={() => {
-              setShowPinnedSummary(true);
-              onOpenRightDock("environment");
-            }}
+        {threadSummary.displayMode === "overlay" ? (
+          <ThreadSummaryPopover
+            open={threadSummary.isPopoverOpen}
+            panel={summaryPanel}
+            onOpenChange={threadSummary.setPopoverOpen}
           >
-            <LayoutList
-              size={APP_ICON_SIZE}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-            />
-          </button>
-        </Tooltip>
+            {summaryToggle}
+          </ThreadSummaryPopover>
+        ) : (
+          <Tooltip content="置顶摘要">{summaryToggle}</Tooltip>
+        )}
         <Tooltip
           content={
             workflowTimelineVisible
@@ -970,19 +944,27 @@ export function ConversationPage(): React.ReactNode {
             </Tooltip>
           </>
         ) : null}
-      </div>
-    ),
+        </div>
+      );
+    },
     [
+      branches,
       debugMode,
       defaultOpenTargetId,
       hasActiveSession,
       hasRealPendingPermission,
+      onBranchSelect,
+      onCommitOrPush,
+      onCreateBranch,
+      onCreatePullRequest,
+      onOpenPlanInRightDock,
+      onOpenSubagent,
+      onOpenWorkspacePath,
       openTargetMenuOpen,
       openTargets,
       selectedOpenTarget,
-      onOpenRightDock,
-      rightDockOpen,
-      rightDockTool,
+      threadSummary,
+      threadSummaryModel,
       workflowTimelineVisible,
     ],
   );
@@ -1056,7 +1038,15 @@ export function ConversationPage(): React.ReactNode {
             : undefined
         }
       >
-        <main className="workflow-page__main">
+        <main
+          ref={workflowMainRef}
+          className="workflow-page__main"
+          style={
+            {
+              "--thread-summary-content-shift": `${threadSummary.contentShift}px`,
+            } as React.CSSProperties
+          }
+        >
           <header
             className={
               rightDockOpen
@@ -1205,6 +1195,24 @@ export function ConversationPage(): React.ReactNode {
             </ContextMenu.Root>
             </ThreadScrollLayout>
           </div>
+          {threadSummary.shouldShowInline ? (
+            <ThreadSummaryInline>
+              <ThreadSummaryErrorBoundary>
+                <ThreadSummaryPanel
+                  branches={branches}
+                  model={threadSummaryModel}
+                  onBranchSelect={onBranchSelect}
+                  onCommitOrPush={onCommitOrPush}
+                  onCreateBranch={onCreateBranch}
+                  onCreatePullRequest={onCreatePullRequest}
+                  onOpenPlan={onOpenPlanInRightDock}
+                  onOpenReview={openReviewSidebar}
+                  onOpenSubagent={onOpenSubagent}
+                  onOpenWorkspacePath={onOpenWorkspacePath}
+                />
+              </ThreadSummaryErrorBoundary>
+            </ThreadSummaryInline>
+          ) : null}
         </main>
         {rightDockNode}
       </div>
@@ -3778,181 +3786,6 @@ function isLocalURL(url: string): boolean {
   } catch {
     return false;
   }
-}
-
-function EnvironmentPanel({
-  branchName,
-  branches,
-  diff: _diff,
-  gitStatus,
-  sourceLinks,
-  subagents,
-  workspacePath,
-  onBranchSelect,
-  onCommitOrPush,
-  onCreateBranch,
-  onCreatePullRequest,
-  onOpenWorkspacePath,
-  onRefreshDiff,
-  onOpenSubagent,
-}: {
-  branchName: string | null;
-  branches: string[];
-  diff: string;
-  gitStatus: DesktopGitStatus | null;
-  sourceLinks: SourceLink[];
-  subagents: SubagentProjection[];
-  workspacePath: string | null;
-  onBranchSelect: (branch: string) => Promise<void>;
-  onCommitOrPush: () => void;
-  onCreateBranch: () => void;
-  onCreatePullRequest: () => void;
-  onOpenWorkspacePath: () => void;
-  onRefreshDiff: () => void;
-  onOpenSubagent: (taskId: string) => void;
-}): React.ReactNode {
-  const diffSummary = summarizeDiff(_diff);
-  const gitLabel = branchName?.trim() || "未检测到 Git 分支";
-  const currentBranchName = branchName?.trim() ?? "";
-  const changedFileCount = gitStatus?.files.length ?? 0;
-  const workspaceAvailable = Boolean(workspacePath);
-  const [branchPopoverOpen, setBranchPopoverOpen] = React.useState(false);
-  const [branchSearch, setBranchSearch] = React.useState("");
-
-  return (
-    <aside className="environment-panel" aria-label="环境信息">
-      <header className="environment-panel-header">
-        <span className="environment-panel-leading" />
-        <span className="environment-panel-title">环境信息</span>
-        <span className="environment-panel-trailing" />
-      </header>
-      <div className="environment-action-list">
-        <button
-          className="environment-action-row"
-          disabled={!workspaceAvailable}
-          type="button"
-          onClick={onRefreshDiff}
-        >
-          <span className="environment-action-leading">
-            <FileDiff size={APP_ICON_SIZE} />
-          </span>
-          <span className="environment-action-label">
-            变更{changedFileCount ? ` (${changedFileCount})` : ""}
-          </span>
-          <span className="environment-action-trailing">
-            <span className="environment-diff-counts">
-              <strong>+{formatPanelNumber(diffSummary.additions)}</strong>
-              <em>-{formatPanelNumber(diffSummary.deletions)}</em>
-            </span>
-          </span>
-        </button>
-        <button
-          className="environment-action-row"
-          disabled={!workspaceAvailable}
-          type="button"
-          onClick={onOpenWorkspacePath}
-        >
-          <span className="environment-action-leading">
-            <Laptop size={APP_ICON_SIZE} />
-          </span>
-          <span className="environment-action-label">本地</span>
-          <span className="environment-action-trailing" />
-        </button>
-        <BranchSelectPopover
-          align="start"
-          branchSearch={branchSearch}
-          branches={branches}
-          className="popover-environment-branch"
-          currentBranchDetail={`未提交：${changedFileCount} 个文件`}
-          width={200}
-          currentBranchName={currentBranchName}
-          open={branchPopoverOpen}
-          side="left"
-          sideOffset={8}
-          onBranchSearchChange={setBranchSearch}
-          onBranchSelect={onBranchSelect}
-          onCreateBranch={onCreateBranch}
-          trigger={
-            <button
-              className="environment-action-row"
-              disabled={!workspaceAvailable}
-              title={gitLabel}
-              type="button"
-            >
-              <span className="environment-action-leading">
-                <GitBranch size={APP_ICON_SIZE} />
-              </span>
-              <span className="environment-action-label">{gitLabel}</span>
-              <span className="environment-action-trailing">
-                <ChevronDown
-                  className="environment-row-chevron"
-                  size={APP_ICON_SIZE}
-                />
-              </span>
-            </button>
-          }
-          onOpenChange={setBranchPopoverOpen}
-        />
-        <button
-          className="environment-action-row"
-          disabled={!workspaceAvailable}
-          type="button"
-          onClick={onCommitOrPush}
-        >
-          <span className="environment-action-leading">
-            <Upload size={APP_ICON_SIZE} />
-          </span>
-          <span className="environment-action-label">提交或推送</span>
-          <span className="environment-action-trailing" />
-        </button>
-        <button
-          className="environment-action-row"
-          disabled={!workspaceAvailable}
-          type="button"
-          onClick={onCreatePullRequest}
-        >
-          <span className="environment-action-leading">
-            <GitPullRequest size={APP_ICON_SIZE} />
-          </span>
-          <span className="environment-action-label">创建拉取请求</span>
-          <span className="environment-action-trailing" />
-        </button>
-      </div>
-      {subagents.length ? (
-        <div className="environment-subagents">
-          <span>子智能体</span>
-          {subagents.map(({ task, currentRun }) => (
-            <button className="environment-action-row" key={task.id} type="button" onClick={() => onOpenSubagent(task.id)}>
-              <span className="environment-action-leading"><Bot size={APP_ICON_SIZE} /></span>
-              <span className="environment-action-label">{task.displayName}</span>
-              <span className="environment-action-trailing"><small>{subagentPanelStatus(currentRun?.status ?? "interrupted")}</small></span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-      <div className="environment-source">
-        <span>来源</span>
-        {sourceLinks.length === 0 ? (
-          <small>暂无来源</small>
-        ) : (
-          <ul className="environment-source-list">
-            {sourceLinks.slice(0, 5).map((source) => (
-              <li key={source.url}>
-                <a
-                  href={source.url}
-                  rel="noreferrer"
-                  target="_blank"
-                  title={source.url}
-                >
-                  {source.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </aside>
-  );
 }
 
 function subagentPanelStatus(status: string): string {

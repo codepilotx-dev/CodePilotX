@@ -37,25 +37,6 @@ type PlanPanelProps = {
   plan: RightDockPlan | null
 }
 
-export function RightDockEnvironmentPanel({
-  content,
-}: {
-  content: React.ReactNode | null
-}): React.ReactNode {
-  return (
-    <section
-      aria-label="环境信息"
-      className="right-dock-environment tw:min-h-0 tw:flex-1 tw:overflow-y-auto tw:bg-app-canvas tw:p-3"
-    >
-      {content ?? (
-        <div className="right-dock-empty-state tw:grid tw:h-full tw:place-content-center tw:text-app-text-soft">
-          暂无环境信息
-        </div>
-      )}
-    </section>
-  )
-}
-
 export function RightDockPlanPanel({
   plan,
 }: PlanPanelProps): React.ReactNode {

@@ -6,7 +6,6 @@ import { ToolProbePanel } from '../debug/ToolProbePanel.js'
 import { ConfirmationDialogDebug } from '../debug/ConfirmationDialogDebug.js'
 import { PerformanceDiagnosticsPanel } from '../debug/PerformanceDiagnosticsPanel.js'
 import {
-  RightDockEnvironmentPanel,
   RightDockFilesPanel,
   RightDockPlanPanel,
   RightDockSideChatPanel,
@@ -16,9 +15,6 @@ import {
 export type RightDockPanelRenderer = (ctx: RightDockPanelContext) => ReactNode
 
 export const rightDockPanelRenderers: Record<RightDockToolId, RightDockPanelRenderer> = {
-  environment: ctx => (
-    <RightDockEnvironmentPanel content={ctx.environment.content} />
-  ),
   review: ctx => (
     <WorkspaceReviewSidebar
       {...ctx.review}

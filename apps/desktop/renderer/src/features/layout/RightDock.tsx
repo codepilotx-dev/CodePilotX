@@ -53,7 +53,6 @@ type Props = {
   sessionId: string | null;
   sessionStatus: DesktopSessionStatus;
   plan: RightDockPlan | null;
-  environmentContent: React.ReactNode | null;
   width: number;
   workspace: DesktopWorkspace | null;
   quickChatOnly?: boolean;
@@ -104,7 +103,6 @@ export function RightDock({
   sessionId,
   sessionStatus,
   plan,
-  environmentContent,
   width,
   workspace,
   quickChatOnly = false,
@@ -150,9 +148,6 @@ export function RightDock({
 
   const panelContext = useMemo<RightDockPanelContext>(
     () => ({
-      environment: {
-        content: environmentContent,
-      },
       review: {
         activeSessionId: sessionId,
         defaultBranch,
@@ -193,7 +188,6 @@ export function RightDock({
     }),
     [
       browserState,
-      environmentContent,
       defaultBranch,
       files,
       flags,

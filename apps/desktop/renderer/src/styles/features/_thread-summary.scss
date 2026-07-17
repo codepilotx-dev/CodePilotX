@@ -1,0 +1,297 @@
+.workflow-main-scroll-frame {
+  transform: translateX(var(--thread-summary-content-shift, 0));
+  transition: transform var(--motion-emphasis) cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.thread-summary-inline {
+  position: absolute;
+  z-index: 40;
+  top: 58px;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  width: 300px;
+  min-height: 0;
+  transform-origin: right center;
+  animation: thread-summary-enter var(--motion-emphasis)
+    cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.thread-summary-popover {
+  z-index: 80;
+  width: 300px;
+  max-height: min(680px, calc(100vh - 80px));
+  outline: none;
+  transform-origin: top right;
+
+  &[data-state="open"] {
+    animation: thread-summary-enter var(--motion-emphasis)
+      cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  &[data-state="closed"] {
+    animation: thread-summary-exit var(--motion-exit) ease-in;
+  }
+}
+
+.thread-summary-panel,
+.thread-summary-error {
+  width: 300px;
+  max-width: 100%;
+  border: 1px solid var(--color-panel-border);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--surface-raised) 96%, transparent);
+  box-shadow: var(--shadow-float);
+  color: var(--color-text);
+}
+
+.thread-summary-panel {
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: var(--space-3);
+  scrollbar-width: thin;
+}
+
+.thread-summary-panel__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-3);
+
+  strong {
+    color: var(--color-text-strong);
+    font-size: var(--type-card-title);
+    font-weight: var(--font-weight-label);
+  }
+
+  span {
+    color: var(--color-text-meta);
+    font-size: var(--type-meta);
+  }
+}
+
+.thread-summary-section {
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--color-border-soft);
+
+  > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    min-height: 28px;
+    padding: 0 var(--space-2);
+    color: var(--color-text-meta);
+    font-size: var(--type-meta);
+    font-weight: var(--font-weight-label);
+  }
+}
+
+.thread-summary-section__rows {
+  display: grid;
+  gap: 2px;
+}
+
+.thread-summary-row {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: var(--app-icon-size) minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-2);
+  border: 0;
+  border-radius: var(--radius-4);
+  outline: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--type-control);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+
+  > svg:first-child {
+    color: var(--color-icon);
+    stroke-width: var(--app-icon-stroke-width);
+  }
+
+  > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  > small {
+    color: var(--color-text-meta);
+    font-size: var(--type-meta);
+    white-space: nowrap;
+  }
+
+  &:hover {
+    background: var(--color-bg-hover);
+  }
+
+  &:focus-visible {
+    box-shadow: inset 0 0 0 1px var(--color-accent);
+  }
+
+  .thread-summary-row__action {
+    opacity: 0;
+    color: var(--color-text-meta);
+    transition: opacity var(--motion-fast) ease;
+  }
+
+  &:hover .thread-summary-row__action,
+  &:focus-visible .thread-summary-row__action,
+  &:focus-within .thread-summary-row__action {
+    opacity: 1;
+  }
+}
+
+.thread-summary-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2) 0 calc(var(--app-icon-size) + 16px);
+
+  button {
+    min-height: 26px;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 3px 7px;
+    border: 0;
+    border-radius: var(--radius-3);
+    background: transparent;
+    color: var(--color-text-meta);
+    font: inherit;
+    font-size: var(--type-meta);
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      outline: none;
+      background: var(--color-bg-hover);
+      color: var(--color-text);
+    }
+  }
+}
+
+.thread-summary-diff {
+  display: inline-flex;
+  gap: 5px;
+  margin-left: var(--space-2);
+  font-size: var(--type-meta);
+  font-variant-numeric: tabular-nums;
+
+  strong {
+    color: var(--color-diff-added);
+    font-weight: 400;
+  }
+
+  em {
+    color: var(--color-diff-removed);
+    font-style: normal;
+  }
+}
+
+.thread-summary-section__toggle {
+  padding: 2px 5px;
+  border: 0;
+  border-radius: var(--radius-3);
+  background: transparent;
+  color: var(--color-text-meta);
+  font: inherit;
+  font-size: var(--type-meta);
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    outline: none;
+    background: var(--color-bg-hover);
+    color: var(--color-text);
+  }
+}
+
+.thread-summary-error {
+  min-height: 180px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  text-align: center;
+
+  span {
+    color: var(--color-text-meta);
+    font-size: var(--type-secondary);
+  }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
+    padding: 6px 10px;
+    border: 1px solid var(--color-border-soft);
+    border-radius: var(--radius-4);
+    background: var(--surface-panel);
+    color: var(--color-text);
+    font: inherit;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 1px solid var(--color-accent);
+      outline-offset: 2px;
+    }
+  }
+}
+
+@keyframes thread-summary-enter {
+  from {
+    opacity: 0;
+    transform: translateX(100%) scale(0.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes thread-summary-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(100%) scale(0.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workflow-main-scroll-frame,
+  .thread-summary-inline,
+  .thread-summary-popover,
+  .thread-summary-row__action {
+    animation: none;
+    transition: none;
+  }
+}
+
+:root[data-reduce-motion="on"] {
+  .workflow-main-scroll-frame,
+  .thread-summary-inline,
+  .thread-summary-popover,
+  .thread-summary-row__action {
+    animation: none;
+    transition: none;
+  }
+}
