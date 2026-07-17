@@ -4,11 +4,11 @@ import { Model } from "@codepilotx/model-schema"
 import type { ThreadSettings } from "@codepilotx/shared/thread"
 import type { ProviderRuntime } from "@codepilotx/provider-runtime"
 import { AgentError, type AgentExecution, type SubmitMessage } from "../domain"
-import type { AgentDatabase } from "../storage/Database"
+import type { AgentDatabase, QueueMutationMeta } from "../storage/Database"
 import type { EventHub } from "../storage/EventHub"
 import type { ApprovalService } from "../permission/ApprovalService"
 import type { QuestionService } from "./QuestionService"
-import type { AgentOrchestrator } from "../orchestration/AgentOrchestrator"
+import { SafeBoundaryInterrupt, type AgentOrchestrator } from "../orchestration/AgentOrchestrator"
 import { WorkspaceService } from "../workspace/WorkspaceService"
 import type { AttachmentService } from "../subagent/AttachmentService"
 import type { SubagentService } from "../subagent/SubagentService"
@@ -55,12 +55,13 @@ export class ThreadService {
       FROM turns AS r
       JOIN threads AS t ON t.id = r.thread_id AND t.kind = 'main'
       WHERE r.status = 'queued'
+        AND t.queue_pause_reason IS NULL
         AND NOT EXISTS (
           SELECT 1 FROM turns AS active
           WHERE active.thread_id = r.thread_id
             AND active.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_plan_confirmation', 'waiting_subagents')
         )
-      ORDER BY r.created_at
+      ORDER BY r.thread_id, r.queue_position, r.created_at, r.id
     `).all() as Array<{ id: string; thread_id: string }>
     const threads = new Set<string>()
     for (const row of rows) {
@@ -208,13 +209,96 @@ export class ThreadService {
     if (created.settingsEvent) await Effect.runPromise(this.hub.publish(created.settingsEvent))
     await Effect.runPromise(this.hub.publish(created.event))
     await Effect.runPromise(this.hub.publish(created.agentEvent))
-    if (!active) void this.executeTurn(threadID, created.turnID)
-    return { disposition: active ? "queued" as const : "started" as const, turnID: created.turnID, inputID: created.inputID }
+    const shouldStart = !active && !this.db.queueStateMeta(threadID)?.pauseReason
+    if (shouldStart) void this.executeTurn(threadID, created.turnID)
+    return { disposition: shouldStart ? "started" as const : "queued" as const, turnID: created.turnID, inputID: created.inputID }
+  }
+
+  private async publishQueueMutation(result: { event: import("../domain").EventEnvelope | null }) {
+    if (result.event) await Effect.runPromise(this.hub.publish(result.event))
+    return result
+  }
+
+  async updateQueue(threadID: string, inputID: string, content: string, attachmentIDs: readonly string[] | undefined, meta: QueueMutationMeta) {
+    const duplicate = this.db.lookupQueueOperation(threadID, "queue/update", meta.operationID)
+    if (duplicate) return duplicate
+    if (!content.trim()) throw new AgentError("EMPTY_MESSAGE", "消息不能为空", 400)
+    const queued = this.db.queuedInput(inputID)
+    if (!queued || queued.thread_id !== threadID) throw new AgentError("QUEUED_INPUT_NOT_FOUND", "排队消息不存在或已开始执行", 409)
+    const desired = attachmentIDs ? [...attachmentIDs] : null
+    if (desired && (desired.length > 8 || new Set(desired).size !== desired.length)) throw new AgentError("ATTACHMENT_COUNT_LIMIT", "每条排队消息最多包含 8 个不重复附件", 413)
+    const binding = { type: "input", id: inputID } as const
+    const current = await this.attachments.listByBinding(binding)
+    const currentIDs = current.map((record) => record.id)
+    const nextIDs = desired ?? currentIDs
+    const records = await Promise.all(nextIDs.map((id) => this.attachments.read(id).then((value) => value.record)))
+    if (records.some((record) => record.binding && (record.binding.type !== binding.type || record.binding.id !== binding.id))) throw new AgentError("ATTACHMENT_ALREADY_BOUND", "附件已绑定到其他 Turn", 409)
+    if (records.some((record) => record.kind === "image")) {
+      const model = await this.providers.resolve(JSON.parse(queued.model_ref) as Model.Ref)
+      if (!model.capabilities.input.includes("image")) throw new AgentError("MODEL_IMAGE_UNSUPPORTED", "当前模型不支持图片输入", 409)
+    }
+    const removed = currentIDs.filter((id) => !nextIDs.includes(id))
+    const added = nextIDs.filter((id) => !currentIDs.includes(id))
+    try {
+      if (removed.length) await this.attachments.unbind(removed, binding)
+      if (added.length) await this.attachments.bind(added, binding)
+      return await this.publishQueueMutation(this.db.updateQueuedInput(threadID, inputID, content.trim(), meta))
+    } catch (cause) {
+      if (added.length) await this.attachments.unbind(added, binding).catch(() => undefined)
+      if (removed.length) await this.attachments.bind(removed, binding).catch(() => undefined)
+      throw cause
+    }
+  }
+
+  async removeQueue(threadID: string, inputID: string, meta: QueueMutationMeta) {
+    const duplicate = this.db.lookupQueueOperation(threadID, "queue/remove", meta.operationID)
+    if (duplicate) return duplicate
+    const queued = this.db.queuedInput(inputID)
+    if (!queued || queued.thread_id !== threadID) throw new AgentError("QUEUED_INPUT_NOT_FOUND", "排队消息不存在或已开始执行", 409)
+    const binding = { type: "input", id: inputID } as const
+    const attachments = await this.attachments.listByBinding(binding)
+    const attachmentIDs = attachments.map((record) => record.id)
+    if (attachmentIDs.length) await this.attachments.unbind(attachmentIDs, binding)
+    try {
+      return await this.publishQueueMutation(this.db.removeQueuedInput(threadID, inputID, meta))
+    } catch (cause) {
+      if (attachmentIDs.length) await this.attachments.bind(attachmentIDs, binding).catch(() => undefined)
+      throw cause
+    }
+  }
+
+  async reorderQueue(threadID: string, inputIDs: readonly string[], meta: QueueMutationMeta) {
+    const duplicate = this.db.lookupQueueOperation(threadID, "queue/reorder", meta.operationID)
+    if (duplicate) return duplicate
+    return this.publishQueueMutation(this.db.reorderQueuedInputs(threadID, inputIDs, meta))
+  }
+
+  async steerQueue(threadID: string, inputID: string, meta: QueueMutationMeta) {
+    const duplicate = this.db.lookupQueueOperation(threadID, "queue/steer", meta.operationID)
+    if (duplicate) return duplicate
+    const result = await this.publishQueueMutation(this.db.steerQueuedInput(threadID, inputID, meta))
+    if (!this.db.activeTurn(threadID)) {
+      const next = this.db.nextQueuedTurn(threadID)
+      if (next) queueMicrotask(() => { void this.executeTurn(threadID, next.id) })
+    }
+    return result
+  }
+
+  async resumeQueue(threadID: string, meta: QueueMutationMeta) {
+    const duplicate = this.db.lookupQueueOperation(threadID, "queue/resume", meta.operationID)
+    if (duplicate) return duplicate
+    const result = await this.publishQueueMutation(this.db.resumeQueue(threadID, meta))
+    if (!this.db.activeTurn(threadID)) {
+      const next = this.db.nextQueuedTurn(threadID)
+      if (next) queueMicrotask(() => { void this.executeTurn(threadID, next.id) })
+    }
+    return result
   }
 
   private async executeTurn(threadID: string, turnID: string) {
     const input = this.db.getTurnInput(turnID)
     if (!input) return
+    const steeringContinuation = Boolean(this.db.sqlite.query("SELECT started_at FROM turns WHERE id = ? AND started_at IS NOT NULL").get(turnID))
     const agent = this.db.claimTurnExecution(turnID)
     if (!agent) return
     const permissionCheckpoint = this.approvals.claimResume(turnID)
@@ -247,7 +331,8 @@ export class ThreadService {
       if (mailbox.length) {
         const latest = mailbox.at(-1)
         if (latest) activeModel = latest.model
-        content += `\n\n用户补充要求：\n${mailbox.map((item) => item.content).join("\n")}`
+        const supplement = `用户补充要求：\n${mailbox.map((item) => item.content).join("\n")}`
+        content = steeringContinuation ? supplement : `${content}\n\n${supplement}`
         await this.emit(threadID, turnID, "queue/updated", { turnId: turnID, inputs: mailbox, action: "guide-consumed", safeBoundary: "before-model" })
       }
       const projectID = this.db.threadProjectID(threadID)
@@ -323,7 +408,7 @@ export class ThreadService {
       const languageModel = await this.providers.getLanguage(selectedModel) as LanguageModel
       const contextWindowTokens = selectedInfo.limit.context > 0 ? selectedInfo.limit.context : DEFAULT_CONTEXT_WINDOW_TOKENS
       const session = new SqliteAgentSession(this.db, agent.sessionID)
-      const attachments = await this.agentAttachments(input.id)
+      const attachments = (await Promise.all([input.id, ...mailbox.map((item) => item.id)].map((inputID) => this.agentAttachments(inputID)))).flat()
       let budgetText = ""
       const result = await this.orchestrator.run({
         threadID,
@@ -388,6 +473,7 @@ export class ThreadService {
             await this.approvals.attachRunState(approval.toolCallID, approval.checkpoint.state, approval.checkpoint.interruption)
           } else await this.questions.checkpoint(threadID, turnID, agent.id, approval)
         },
+        checkSafeBoundary: async () => this.db.hasGuideMailbox(turnID),
       })
       if (controller.signal.aborted) return
       if (result.status === "paused") {
@@ -401,6 +487,11 @@ export class ThreadService {
         await this.emit(threadID, turnID, "plan/ready", { turnId: turnID, agentId: agent.id, plan: result.plan })
         return
       }
+      if (this.db.hasGuideMailbox(turnID)) {
+        const requeued = this.db.requeueTurnForSteer(turnID)
+        if (requeued) await this.emitAgent(requeued.agent)
+        return
+      }
       const memoryJob = this.memory.enqueue({ threadID, projectKey: projectMemoryKey(workspace.rootPath), transcript: `用户任务：\n${content}\n\nAgent 结果：\n${result.output}` })
       if (memoryJob) queueMicrotask(() => { void this.memory.drain() })
       this.db.deleteAgentTurnCheckpoint(turnID)
@@ -409,6 +500,11 @@ export class ThreadService {
       await this.emit(threadID, turnID, "turn/completed", { turnId: turnID, rootAgentId: agent.id, finishedAt: Date.now() })
     } catch (cause) {
       if (controller.signal.aborted) return
+      if (cause instanceof SafeBoundaryInterrupt) {
+        const requeued = this.db.requeueTurnForSteer(turnID)
+        if (requeued) await this.emitAgent(requeued.agent)
+        return
+      }
       if (cause instanceof AgentError && cause.code === "SIDE_EFFECT_RECOVERY_REQUIRED") return
       if (cause instanceof AgentError && cause.code === "HOOK_TRUST_REQUIRED") {
         const pausedAgent = this.db.agentForTurn(turnID)
@@ -419,6 +515,8 @@ export class ThreadService {
       this.db.updateTurnStatus(turnID, "failed")
       await this.emitAgent(this.db.updateAgentStatus(agent.id, "failed", message))
       await this.emit(threadID, turnID, "turn/failed", { turnId: turnID, rootAgentId: agent.id, message, finishedAt: Date.now() })
+      const queueEvent = this.db.pauseQueue(threadID, "turn_failed")
+      if (queueEvent) await Effect.runPromise(this.hub.publish(queueEvent))
     } finally {
       this.controllers.delete(turnID)
       if (!this.db.activeTurn(threadID)) {
@@ -469,6 +567,8 @@ export class ThreadService {
       this.db.run("UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE turn_id = ? AND status = 'pending'", Date.now(), active.id)
       this.db.run("UPDATE question_requests SET status = 'cancelled', resolved_at = ? WHERE turn_id = ? AND status = 'pending'", Date.now(), active.id)
     })
+    const queueEvent = this.db.pauseQueue(threadID, "interrupted")
+    if (queueEvent) await Effect.runPromise(this.hub.publish(queueEvent))
     if (agent) await this.emitAgent(this.db.getAgentExecution(agent.id)!)
     await this.emit(threadID, active.id, "turn/interrupted", { turnId: active.id, rootAgentId: agent?.id ?? null, finishedAt: Date.now() })
     await this.hooks.run("stop", { reason: "user", turnID: active.id }, { threadID, turnID: active.id }).catch(() => undefined)

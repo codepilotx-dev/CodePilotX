@@ -40,4 +40,32 @@ describe("manifest-driven event decoding", () => {
       params: { ...notification.params, event: { ...durable, payload: {} } },
     })).toThrow()
   })
+
+  test("兼容 queue/updated 的局部 outbox payload", () => {
+    const event = {
+      eventId: "event-queue-1",
+      streamId: "thread-1",
+      type: "queue/updated",
+      version: 1,
+      occurredAt: 1,
+      durability: "durable",
+      sequence: 3,
+      payload: { threadId: "thread-1", pauseReason: "interrupted" },
+    } as const
+    expect(decodeEventEnvelope(event)).toEqual(event)
+  })
+
+  test("兼容历史 guide mailbox 事件未重复携带 threadId", () => {
+    const event = {
+      eventId: "event-queue-guide-1",
+      streamId: "thread-1",
+      type: "queue/updated",
+      version: 1,
+      occurredAt: 1,
+      durability: "durable",
+      sequence: 4,
+      payload: {},
+    } as const
+    expect(decodeEventEnvelope(event)).toEqual(event)
+  })
 })

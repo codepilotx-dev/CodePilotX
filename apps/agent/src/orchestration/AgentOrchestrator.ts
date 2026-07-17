@@ -701,6 +701,10 @@ export class AgentOrchestrator {
       await saveText("completed", finalOutput)
       return { status: "completed", output: finalOutput, ...(result ? { result } : {}) }
     } catch (cause) {
+      if (cause instanceof SafeBoundaryInterrupt) {
+        await saveText("completed", "")
+        throw cause
+      }
       const error = cause instanceof Error ? cause.message : String(cause)
       const retry = request.contextRetry ?? 0
       const session = this.options.sessionFor?.(request.sessionID) as (Session & { rollbackFromOrdinal?: (ordinal: number) => Promise<number>; dropOldestRound?: () => Promise<number> }) | undefined

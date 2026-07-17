@@ -147,10 +147,10 @@ describe('desktop history client', () => {
       if (rpcMethod === 'turn/start') {
         expect(params).toMatchObject({
           threadId: 'session-1',
+          inputId: expect.any(String),
           content: '继续推进',
           model: { providerID: 'openai', id: 'gpt-5' },
           permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
-          strategy: 'queue',
           taskMode: 'chat',
         })
         return rpc(body.id, {

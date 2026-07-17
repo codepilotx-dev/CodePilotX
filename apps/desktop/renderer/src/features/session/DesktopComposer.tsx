@@ -6,6 +6,7 @@ import type {
   DesktopContextUsage,
   DesktopModelMetadata,
   DesktopPermissionMode,
+  DesktopQueuePauseReason,
   DesktopQueuedFollowUp,
   DesktopSlashCommandSuggestion,
   DesktopSessionStatus,
@@ -92,9 +93,12 @@ type Props = {
     value: DesktopUserMessageInput,
   ) => Promise<void>
   queuedFollowUps?: DesktopQueuedFollowUp[]
-  onFollowUpEdit?: (followUpId: string) => void
+  queuePauseReason?: DesktopQueuePauseReason | null
+  onFollowUpEdit?: (followUpId: string, input: DesktopUserMessageInput) => void
   onFollowUpRemove?: (followUpId: string) => void
   onFollowUpSendNow?: (followUpId: string) => void
+  onFollowUpReorder?: (followUpIds: string[]) => void
+  onFollowUpResume?: () => void
   threadGoal?: DesktopThreadGoal | null
   onGoalPause?: () => void
   onGoalResume?: () => void
@@ -152,9 +156,12 @@ export function DesktopComposer({
   createSessionForWorkspace,
   submitToSession,
   queuedFollowUps,
+  queuePauseReason,
   onFollowUpEdit,
   onFollowUpRemove,
   onFollowUpSendNow,
+  onFollowUpReorder,
+  onFollowUpResume,
   threadGoal,
   onGoalPause,
   onGoalResume,
@@ -180,8 +187,6 @@ export function DesktopComposer({
     !hasAttachmentErrors &&
     !unsupportedAttachmentReason &&
     modelConfigured &&
-    sessionStatus !== 'running' &&
-    sessionStatus !== 'waiting' &&
     (isQuickChatPage || Boolean(routedSessionId))
   const attachmentIds = useMemo(
     () => new Set(attachments.map(attachment => attachment.id)),
@@ -218,8 +223,7 @@ export function DesktopComposer({
       return
     }
     let cancelled = false
-    desktopClient
-      .listSlashCommands(workspace?.path)
+    loadCachedSlashCommands(workspace?.path)
       .then(commands => {
         if (!cancelled) setSlashCommands(commands)
       })
@@ -230,22 +234,6 @@ export function DesktopComposer({
       cancelled = true
     }
   }, [subagentMode, workspace?.path])
-
-  useEffect(() => {
-    if (!input.trimStart().startsWith('/')) return
-    let cancelled = false
-    desktopClient
-      .listSlashCommands(workspace?.path)
-      .then(commands => {
-        if (!cancelled) setSlashCommands(commands)
-      })
-      .catch(() => {
-        if (!cancelled) setSlashCommands([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [input, workspace?.path])
 
 	  function handleSubmit(): void {
 	    void (async () => {
@@ -419,9 +407,12 @@ export function DesktopComposer({
       routedSessionId={routedSessionId}
       contextDropdownSide={isQuickChatPage ? 'bottom' : 'top'}
       queuedFollowUps={queuedFollowUps}
+      queuePauseReason={queuePauseReason}
       onFollowUpEdit={onFollowUpEdit}
       onFollowUpRemove={onFollowUpRemove}
       onFollowUpSendNow={onFollowUpSendNow}
+      onFollowUpReorder={onFollowUpReorder}
+      onFollowUpResume={onFollowUpResume}
       threadGoal={threadGoal}
       onGoalPause={onGoalPause}
       onGoalResume={onGoalResume}
@@ -430,6 +421,33 @@ export function DesktopComposer({
       showBottomBar={isQuickChatPage}
     />
   )
+}
+
+const slashCommandCache = new Map<string, DesktopSlashCommandSuggestion[]>()
+const slashCommandRequests = new Map<string, Promise<DesktopSlashCommandSuggestion[]>>()
+
+export function loadCachedSlashCommands(
+  workspacePath?: string,
+  loader: (workspacePath?: string) => Promise<DesktopSlashCommandSuggestion[]> =
+    path => desktopClient.listSlashCommands(path),
+): Promise<DesktopSlashCommandSuggestion[]> {
+  const key = workspacePath?.trim() || '__no_workspace__'
+  const cached = slashCommandCache.get(key)
+  if (cached) return Promise.resolve(cached)
+  const pending = slashCommandRequests.get(key)
+  if (pending) return pending
+  const request = loader(workspacePath)
+    .then(commands => {
+      slashCommandCache.set(key, commands)
+      slashCommandRequests.delete(key)
+      return commands
+    })
+    .catch(error => {
+      slashCommandRequests.delete(key)
+      throw error
+    })
+  slashCommandRequests.set(key, request)
+  return request
 }
 
 function getUnsupportedAttachmentReason(

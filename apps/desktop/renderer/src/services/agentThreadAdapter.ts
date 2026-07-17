@@ -14,6 +14,8 @@ import { collaborationModeFromPlanModeActive } from '../shims/core/agent/codepil
 import type {
   DesktopAgentEvent,
   DesktopPermissionMode,
+  DesktopQueuedFollowUp,
+  DesktopQueuePauseReason,
   DesktopPermissionRequest,
   DesktopSessionEvent,
   DesktopSessionListItem,
@@ -126,7 +128,7 @@ export function agentThreadSnapshotToDesktop(
   snapshot: ThreadSnapshot,
   project?: Project | null,
 ): DesktopSessionSnapshot {
-  const latestTurn = snapshot.turns.at(-1) ?? null
+  const latestTurn = latestDisplayTurn(snapshot.turns)
   const latestInput = snapshot.inputs.at(-1) ?? null
   const workspace = projectToDesktopWorkspace(project, snapshot.thread.projectID)
   const planModeActive = snapshot.thread.settings.taskMode === 'plan'
@@ -184,8 +186,64 @@ export function agentThreadSnapshotToDesktop(
     eventModelVersion: 1,
     workflowEvents: [],
     reviewComments: [],
+    queuedFollowUps: agentQueuedFollowUpsToDesktop(snapshot),
+    queuePauseReason: queuePauseReasonFromSnapshot(snapshot),
+    queueVersion: queueVersionFromSnapshot(snapshot),
     updatedAt: iso(snapshot.thread.updatedAt),
   }
+}
+
+function latestDisplayTurn(turns: ThreadSnapshot['turns']): Turn | null {
+  const active = turns
+    .filter(turn => turn.status === 'running' || turn.status.startsWith('waiting-'))
+    .sort((left, right) => (right.startedAt ?? 0) - (left.startedAt ?? 0))[0]
+  if (active) return active
+  return [...turns].reverse().find(turn => turn.status !== 'queued') ?? turns.at(-1) ?? null
+}
+
+export function agentQueuedFollowUpsToDesktop(
+  snapshot: ThreadSnapshot,
+): DesktopQueuedFollowUp[] {
+  const queuedInputs = new Map(
+    snapshot.inputs
+      .filter(input => input.state === 'queued')
+      .map(input => [input.id, input] as const),
+  )
+  const orderedInputIds = snapshot.turns
+    .filter(turn => turn.status === 'queued')
+    .sort((left, right) =>
+      (left.queuePosition ?? Number.MAX_SAFE_INTEGER) -
+      (right.queuePosition ?? Number.MAX_SAFE_INTEGER),
+    )
+    .map(turn => turn.sourceInputID)
+  const seen = new Set(orderedInputIds)
+  const remainingInputIds = [...queuedInputs.values()]
+    .filter(input => !seen.has(input.id))
+    .sort((left, right) => left.createdAt - right.createdAt)
+    .map(input => input.id)
+
+  return [...orderedInputIds, ...remainingInputIds].flatMap(inputId => {
+    const input = queuedInputs.get(inputId)
+    if (!input) return []
+    return [{
+      id: input.id,
+      input: { text: input.content },
+      previewText: input.content,
+      createdAt: iso(input.createdAt),
+    }]
+  })
+}
+
+function queuePauseReasonFromSnapshot(
+  snapshot: ThreadSnapshot,
+): DesktopQueuePauseReason | null {
+  const value = record(record(snapshot).queue).pauseReason
+  return value === 'interrupted' || value === 'turn_failed' ? value : null
+}
+
+function queueVersionFromSnapshot(snapshot: ThreadSnapshot): number | undefined {
+  const value = record(record(snapshot).queue).version
+  return typeof value === 'number' ? value : undefined
 }
 
 export function agentEventsFromNotification(
@@ -251,7 +309,7 @@ export function agentEventsFromNotification(
 
 function snapshotEvents(snapshot: ThreadSnapshot): DesktopSessionEvent[] {
   const inputEvents = snapshot.inputs
-    .filter(input => input.state !== 'cancelled')
+    .filter(input => input.state !== 'cancelled' && input.state !== 'queued')
     .map(inputToSessionEvent)
   const itemEvents = snapshot.items.flatMap(item => itemToSessionEvents(snapshot.thread.id, item))
   const approvalEvents = snapshot.approvals

@@ -120,6 +120,8 @@ export const DESKTOP_API_METHODS = [
   'updateQueuedFollowUp',
   'removeQueuedFollowUp',
   'sendQueuedFollowUpNow',
+  'reorderQueuedFollowUps',
+  'resumeQueuedFollowUps',
   'compactSession',
   'rollbackSession',
   'getSessionGoal',

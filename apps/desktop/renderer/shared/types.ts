@@ -984,6 +984,8 @@ export type DesktopQueuedFollowUp = {
   createdAt: string
 }
 
+export type DesktopQueuePauseReason = 'interrupted' | 'turn_failed'
+
 export type DesktopSessionViewSnapshot = {
   messages: DesktopSessionMessage[]
   toolLog: DesktopToolLogEntry[]
@@ -1009,6 +1011,8 @@ export type DesktopSessionSnapshot = {
   workflowEventModelVersion?: 1
   reviewComments?: DesktopReviewComment[]
   queuedFollowUps?: DesktopQueuedFollowUp[]
+  queuePauseReason?: DesktopQueuePauseReason | null
+  queueVersion?: number
   updatedAt: string
 }
 
@@ -1641,6 +1645,11 @@ export type DesktopApi = {
     sessionId: string,
     followUpId: string,
   ): Promise<void>
+  reorderQueuedFollowUps(
+    sessionId: string,
+    followUpIds: string[],
+  ): Promise<DesktopSessionSnapshot>
+  resumeQueuedFollowUps(sessionId: string): Promise<DesktopSessionSnapshot>
   compactSession(sessionId: string): Promise<void>
   getSessionPromptPreview(sessionId: string): Promise<unknown>
   rollbackSession(

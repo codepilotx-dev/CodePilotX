@@ -4,6 +4,10 @@ import {
   ThreadSettingsPatchSchema,
   ThreadSettingsSchema,
   TurnStartParamsSchema,
+  QueueUpdateParamsSchema,
+  QueueInputParamsSchema,
+  QueueReorderParamsSchema,
+  QueueResumeParamsSchema,
   SandboxUninstallParamsSchema,
   AgentRpcRequestSchema,
   type AgentRpcRequest,
@@ -66,6 +70,10 @@ const decodeParams = <A>(decode: (value: unknown) => A, value: unknown, name: st
 }
 
 const decodeTurnStart = Schema.decodeUnknownSync(TurnStartParamsSchema)
+const decodeQueueUpdate = Schema.decodeUnknownSync(QueueUpdateParamsSchema)
+const decodeQueueInput = Schema.decodeUnknownSync(QueueInputParamsSchema)
+const decodeQueueReorder = Schema.decodeUnknownSync(QueueReorderParamsSchema)
+const decodeQueueResume = Schema.decodeUnknownSync(QueueResumeParamsSchema)
 const decodeThreadSettings = Schema.decodeUnknownSync(ThreadSettingsSchema)
 const decodeThreadSettingsPatch = Schema.decodeUnknownSync(ThreadSettingsPatchSchema)
 const decodeApprovalRespond = Schema.decodeUnknownSync(ApprovalRespondParamsSchema)
@@ -137,7 +145,7 @@ export class RpcRouter {
     switch (method) {
       case "initialize":
         db.sqlite.query("SELECT 1").get()
-        return { ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid, readyAt: Date.now(), protocol: "thread-rpc-v2", capabilities: { agentExecutions: 1, subagents: 1, attachments: 1, prompt: 2, memory: 2, compact: 1, hookTrust: 1 } }
+        return { ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid, readyAt: Date.now(), protocol: "thread-rpc-v2", capabilities: { agentExecutions: 1, subagents: 1, attachments: 1, prompt: 2, memory: 2, compact: 1, hookTrust: 1, queueManagement: 1 } }
       case "sandbox/status":
         return { sandbox: await sandbox.getStatus() }
       case "sandbox/install":
@@ -313,6 +321,31 @@ export class RpcRouter {
       case "turn/resume":
         threads.resumeTurn(stringParam(params, "threadId"), stringParam(params, "turnId"))
         return { ok: true }
+      case "queue/update": {
+        const request = decodeParams(decodeQueueUpdate, rawParams, "queue/update")
+        const mutation = await threads.updateQueue(request.threadId, request.inputId, request.content, request.attachmentIds, { operationID: request.operationId, ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }) })
+        return this.queueStateResult(request.threadId, mutation.event?.id)
+      }
+      case "queue/remove": {
+        const request = decodeParams(decodeQueueInput, rawParams, "queue/remove")
+        const mutation = await threads.removeQueue(request.threadId, request.inputId, { operationID: request.operationId, ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }) })
+        return this.queueStateResult(request.threadId, mutation.event?.id)
+      }
+      case "queue/reorder": {
+        const request = decodeParams(decodeQueueReorder, rawParams, "queue/reorder")
+        const mutation = await threads.reorderQueue(request.threadId, request.inputIds, { operationID: request.operationId, ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }) })
+        return this.queueStateResult(request.threadId, mutation.event?.id)
+      }
+      case "queue/steer": {
+        const request = decodeParams(decodeQueueInput, rawParams, "queue/steer")
+        const mutation = await threads.steerQueue(request.threadId, request.inputId, { operationID: request.operationId, ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }) })
+        return this.queueStateResult(request.threadId, mutation.event?.id)
+      }
+      case "queue/resume": {
+        const request = decodeParams(decodeQueueResume, rawParams, "queue/resume")
+        const mutation = await threads.resumeQueue(request.threadId, { operationID: request.operationId, ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }) })
+        return this.queueStateResult(request.threadId, mutation.event?.id)
+      }
       case "turn/submitPlanDecision": {
         const result = await threads.submitPlanDecision(stringParam(params, "turnId"), enumValue(params.decision, ["continue", "reject"] as const, "decision"))
         if (!result) throw new AgentError("PLAN_DECISION_NOT_AVAILABLE", "当前规划不等待确认", 409)
@@ -488,6 +521,20 @@ export class RpcRouter {
     const snapshot = this.projection.snapshot(threadId)
     if (!snapshot) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
     return snapshot
+  }
+
+  private queueStateResult(threadId: string, eventID?: number) {
+    const snapshot = this.requiredSnapshot(threadId)
+    const metadata = this.dependencies.db.queueStateMeta(threadId) ?? { version: 0, pauseReason: null }
+    const sequence = eventID ?? (this.dependencies.db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS id FROM events WHERE thread_id = ?").get(threadId) as { id: number }).id
+    return {
+      threadId,
+      version: metadata.version,
+      pauseReason: metadata.pauseReason,
+      turns: snapshot.turns,
+      inputs: snapshot.inputs,
+      streamPosition: { streamId: threadId, sequence },
+    }
   }
 
   private async modelCatalog() {

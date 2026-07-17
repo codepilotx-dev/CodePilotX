@@ -3,6 +3,7 @@ import { copyFileSync, existsSync, mkdirSync, renameSync } from "node:fs"
 import { basename, dirname, extname, resolve } from "node:path"
 import { Effect } from "effect"
 import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
+import { AgentError } from "../domain"
 import type {
   EventEnvelope,
   AgentExecution,
@@ -133,7 +134,10 @@ const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const now = () => Date.now()
 const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
-export const SCHEMA_VERSION = 9
+export const SCHEMA_VERSION = 10
+
+export type QueuePauseReason = "interrupted" | "turn_failed" | null
+export type QueueMutationMeta = { operationID: string; expectedVersion?: number }
 
 type PermissionColumns = {
   sandbox_mode: PermissionConfig["sandboxMode"]
@@ -461,6 +465,7 @@ export class AgentDatabase {
     if (currentVersion < 7) this.migrateContextV7()
     if (currentVersion < 8) this.migrateContextV8()
     if (currentVersion < 9) this.migrateHookTrustV9()
+    if (currentVersion < 10) this.migrateQueueV10()
     this.sqlite.exec(`CREATE TABLE IF NOT EXISTS hook_trust_waiters (
       request_id TEXT NOT NULL REFERENCES hook_trust_requests(id) ON DELETE CASCADE,
       agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
@@ -486,6 +491,30 @@ export class AgentDatabase {
     ); CREATE INDEX IF NOT EXISTS sandbox_escalations_turn_status ON sandbox_escalations(turn_id, status, created_at);`)
     this.addColumn("sandbox_escalations", "invocation_hash", "TEXT NOT NULL DEFAULT ''")
     this.sqlite.exec("CREATE UNIQUE INDEX IF NOT EXISTS agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL")
+  }
+
+  private migrateQueueV10() {
+    this.transaction(() => {
+      this.addColumn("threads", "queue_version", "INTEGER NOT NULL DEFAULT 0")
+      this.addColumn("threads", "queue_pause_reason", "TEXT")
+      this.addColumn("turns", "queue_position", "INTEGER")
+      this.sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS queue_operations (
+          operation_id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          method TEXT NOT NULL,
+          event_id INTEGER REFERENCES events(id) ON DELETE SET NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS turns_queue_position ON turns(thread_id, status, queue_position, created_at);
+      `)
+      const threads = this.sqlite.query("SELECT DISTINCT thread_id FROM turns WHERE status = 'queued'").all() as Array<{ thread_id: string }>
+      for (const thread of threads) {
+        const turns = this.sqlite.query("SELECT id FROM turns WHERE thread_id = ? AND status = 'queued' ORDER BY created_at, id").all(thread.thread_id) as Array<{ id: string }>
+        turns.forEach((turn, index) => this.sqlite.query("UPDATE turns SET queue_position = ? WHERE id = ?").run(index + 1, turn.id))
+      }
+      this.sqlite.exec("PRAGMA user_version = 10")
+    })
   }
 
   private migrateContextV7() {
@@ -1068,6 +1097,10 @@ export class AgentDatabase {
       this.sqlite.query(`UPDATE subagent_tasks SET status = 'queued', updated_at = ? WHERE current_run_id IN (SELECT id FROM subagent_runs WHERE status = 'queued')`).run(timestamp)
       this.sqlite.query(`UPDATE items SET status = 'pending', data = json_set(data, '$.status', 'queued', '$.queueReason', NULL), updated_at = ? WHERE type = 'subagent' AND json_extract(data, '$.runId') IN (SELECT id FROM subagent_runs WHERE status = 'queued')`).run(timestamp)
       this.sqlite.query(`UPDATE subagent_runs SET status = 'interrupted', error = COALESCE(error, 'Agent 重启时运行被中断'), finished_at = ?, updated_at = ? WHERE status IN ('preparing', 'running', 'steering') OR (status = 'waiting_permission' AND id IN (SELECT a.subagent_run_id FROM agent_executions AS a JOIN turns AS t ON t.id = a.turn_id WHERE t.status = 'interrupted' AND a.subagent_run_id IS NOT NULL))`).run(timestamp, timestamp)
+      this.sqlite.query(`UPDATE threads SET queue_pause_reason = 'interrupted', queue_version = queue_version + 1, updated_at = ?
+        WHERE kind = 'main' AND EXISTS (SELECT 1 FROM turns AS q WHERE q.thread_id = threads.id AND q.status = 'queued')
+          AND EXISTS (SELECT 1 FROM turns AS stopped WHERE stopped.thread_id = threads.id AND stopped.status = 'interrupted' AND stopped.finished_at = ?)`
+      ).run(timestamp, timestamp)
       this.sqlite.query(`UPDATE subagent_tasks SET status = 'interrupted', updated_at = ? WHERE current_run_id IN (SELECT id FROM subagent_runs WHERE status = 'interrupted')`).run(timestamp)
       this.sqlite.query(`UPDATE items SET status = 'interrupted', data = json_set(data, '$.status', 'interrupted', '$.queueReason', NULL), updated_at = ? WHERE type = 'subagent' AND json_extract(data, '$.runId') IN (SELECT id FROM subagent_runs WHERE status = 'interrupted')`).run(timestamp)
       this.sqlite.query(`DELETE FROM workspace_writer_leases WHERE run_id NOT IN (SELECT id FROM subagent_runs WHERE status IN ('preparing', 'running', 'steering', 'waiting_question', 'waiting_permission'))`)
@@ -1242,11 +1275,14 @@ export class AgentDatabase {
     const inputID = crypto.randomUUID()
     const timestamp = now()
     return this.transaction(() => {
+      const queuePosition = status === "queued"
+        ? (this.sqlite.query("SELECT COALESCE(MAX(queue_position), 0) AS position FROM turns WHERE thread_id = ? AND status = 'queued'").get(threadID) as { position: number }).position + 1
+        : null
       const settingsUpdate = this.syncThreadSettings(threadID, {
         taskMode: input.taskMode,
         permissionConfig: input.permissionConfig,
       })
-      this.sqlite.query(`INSERT INTO turns (id, thread_id, root_agent_id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, strategy, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`).run(
+      this.sqlite.query(`INSERT INTO turns (id, thread_id, root_agent_id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, strategy, queue_position, started_at, finished_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`).run(
         turnID,
         threadID,
         agentID,
@@ -1257,6 +1293,7 @@ export class AgentDatabase {
         input.permissionConfig.approvalsReviewer,
         stringify(input.model),
         input.strategy,
+        queuePosition,
         timestamp,
         timestamp,
       )
@@ -1288,6 +1325,7 @@ export class AgentDatabase {
       this.appendUserMessage({ id: inputID, threadID, turnID, content: input.content, createdAt: timestamp })
       const method = status === "queued" ? "turn/queued" : "turn/started"
       const event = this.insertEvent(threadID, turnID, method, { turnId: turnID, inputID, input, createdAt: timestamp })
+      if (status === "queued") this.sqlite.query("UPDATE threads SET queue_version = queue_version + 1 WHERE id = ?").run(threadID)
       const agentEvent = this.insertEvent(threadID, turnID, "agent/upserted", { agent: this.getAgentExecution(agentID) })
       return { turnID, agentID, inputID, settingsEvent: settingsUpdate.event, event, agentEvent }
     })
@@ -1345,7 +1383,19 @@ export class AgentDatabase {
       const started = this.sqlite.query(`UPDATE turns SET status = 'running', started_at = COALESCE(started_at, ?), finished_at = NULL, updated_at = ? WHERE id = ? AND status = 'queued'`).run(timestamp, timestamp, turnID)
       if (started.changes === 0) throw new Error(`Turn ${turnID} claim 失败`)
       this.sqlite.query(`UPDATE inputs SET status = 'active' WHERE turn_id = ? AND status = 'queued'`).run(turnID)
+      this.sqlite.query("UPDATE threads SET queue_version = queue_version + 1 WHERE id = (SELECT thread_id FROM turns WHERE id = ?)").run(turnID)
       return this.getAgentExecution(turn.root_agent_id)
+    })
+  }
+
+  requeueTurnForSteer(turnID: string) {
+    const timestamp = now()
+    return this.transaction(() => {
+      const row = this.sqlite.query("SELECT thread_id, root_agent_id FROM turns WHERE id = ? AND status = 'running'").get(turnID) as { thread_id: string; root_agent_id: string } | null
+      if (!row) return null
+      this.sqlite.query("UPDATE turns SET status = 'queued', finished_at = NULL, updated_at = ? WHERE id = ?").run(timestamp, turnID)
+      this.sqlite.query("UPDATE agent_executions SET status = 'queued', error = NULL, updated_at = ? WHERE id = ?").run(timestamp, row.root_agent_id)
+      return { threadID: row.thread_id, agent: this.getAgentExecution(row.root_agent_id)! }
     })
   }
 
@@ -1637,7 +1687,141 @@ export class AgentDatabase {
   }
 
   nextQueuedTurn(threadID: string) {
-    return this.sqlite.query("SELECT id FROM turns WHERE thread_id = ? AND status = 'queued' ORDER BY created_at LIMIT 1").get(threadID) as { id: string } | null
+    const state = this.queueStateMeta(threadID)
+    if (!state || state.pauseReason) return null
+    return this.sqlite.query("SELECT id FROM turns WHERE thread_id = ? AND status = 'queued' ORDER BY queue_position, created_at, id LIMIT 1").get(threadID) as { id: string } | null
+  }
+
+  queueStateMeta(threadID: string) {
+    const row = this.sqlite.query("SELECT queue_version, queue_pause_reason FROM threads WHERE id = ?").get(threadID) as { queue_version: number; queue_pause_reason: QueuePauseReason } | null
+    return row ? { version: row.queue_version, pauseReason: row.queue_pause_reason } : null
+  }
+
+  hasGuideMailbox(turnID: string) {
+    return Boolean(this.sqlite.query("SELECT 1 FROM inputs WHERE turn_id = ? AND status = 'mailbox' LIMIT 1").get(turnID))
+  }
+
+  queuedInput(inputID: string) {
+    return this.sqlite.query(`
+      SELECT i.id, i.thread_id, i.turn_id, i.content, i.model_ref, i.sandbox_mode, i.approval_policy,
+        i.approvals_reviewer, i.strategy, i.task_mode, t.queue_position
+      FROM inputs AS i JOIN turns AS t ON t.id = i.turn_id
+      WHERE i.id = ? AND i.status = 'queued' AND t.status = 'queued'
+    `).get(inputID) as ({ id: string; thread_id: string; turn_id: string; content: string; model_ref: string; strategy: SendStrategy; task_mode: TaskMode; queue_position: number | null } & PermissionColumns) | null
+  }
+
+  private eventByID(id: number): EventEnvelope | null {
+    const row = this.sqlite.query("SELECT id, thread_id, turn_id, method, params, created_at FROM events WHERE id = ?").get(id) as { id: number; thread_id: string | null; turn_id: string | null; method: string; params: string; created_at: number } | null
+    return row ? { id: row.id, threadId: row.thread_id, turnId: row.turn_id, method: row.method, params: parse(row.params), createdAt: row.created_at } : null
+  }
+
+  lookupQueueOperation(threadID: string, method: string, operationID: string) {
+    const existing = this.sqlite.query("SELECT thread_id, method, event_id FROM queue_operations WHERE operation_id = ?").get(operationID) as { thread_id: string; method: string; event_id: number | null } | null
+    if (!existing) return null
+    if (existing.thread_id !== threadID || existing.method !== method) throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已用于其他队列操作", 409)
+    return { duplicate: true as const, event: existing.event_id == null ? null : this.eventByID(existing.event_id), details: {}, ...this.queueStateMeta(threadID)! }
+  }
+
+  private mutateQueue<T extends Record<string, unknown>>(threadID: string, method: string, meta: QueueMutationMeta, mutate: () => T) {
+    return this.transaction(() => {
+      const state = this.queueStateMeta(threadID)
+      if (!state) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
+      const existing = this.sqlite.query("SELECT thread_id, method, event_id FROM queue_operations WHERE operation_id = ?").get(meta.operationID) as { thread_id: string; method: string; event_id: number | null } | null
+      if (existing) {
+        if (existing.thread_id !== threadID || existing.method !== method) throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已用于其他队列操作", 409)
+        return { duplicate: true as const, event: existing.event_id == null ? null : this.eventByID(existing.event_id), details: {} as T, ...this.queueStateMeta(threadID)! }
+      }
+      if (meta.expectedVersion !== undefined && meta.expectedVersion !== state.version) {
+        throw new AgentError("QUEUE_VERSION_CONFLICT", "队列版本已变化，请刷新后重试", 409, { expectedVersion: meta.expectedVersion, actualVersion: state.version })
+      }
+      const details = mutate()
+      this.sqlite.query("UPDATE threads SET queue_version = queue_version + 1, updated_at = ? WHERE id = ?").run(now(), threadID)
+      const next = this.queueStateMeta(threadID)!
+      const event = this.insertEvent(threadID, null, "queue/updated", { threadId: threadID, version: next.version, pauseReason: next.pauseReason, action: method, ...details })
+      this.sqlite.query("INSERT INTO queue_operations (operation_id, thread_id, method, event_id, created_at) VALUES (?, ?, ?, ?, ?)").run(meta.operationID, threadID, method, event.id, now())
+      return { duplicate: false as const, event, details, ...next }
+    })
+  }
+
+  updateQueuedInput(threadID: string, inputID: string, content: string, meta: QueueMutationMeta) {
+    return this.mutateQueue(threadID, "queue/update", meta, () => {
+      const input = this.queuedInput(inputID)
+      if (!input || input.thread_id !== threadID) throw new AgentError("QUEUED_INPUT_NOT_FOUND", "排队消息不存在或已开始执行", 409)
+      const timestamp = now()
+      this.sqlite.query("UPDATE inputs SET content = ? WHERE id = ?").run(content, inputID)
+      this.sqlite.query("UPDATE messages SET content = ? WHERE id = ?").run(content, inputID)
+      this.sqlite.query("UPDATE threads SET preview = (SELECT substr(content, 1, 180) FROM messages WHERE thread_id = ? ORDER BY ordinal DESC, created_at DESC, id DESC LIMIT 1) WHERE id = ?").run(threadID, threadID)
+      this.sqlite.query("UPDATE agent_executions SET task = ?, updated_at = ? WHERE turn_id = ?").run(content, timestamp, input.turn_id)
+      this.sqlite.query("UPDATE turns SET updated_at = ? WHERE id = ?").run(timestamp, input.turn_id)
+      return { inputId: inputID, turnId: input.turn_id }
+    })
+  }
+
+  removeQueuedInput(threadID: string, inputID: string, meta: QueueMutationMeta) {
+    return this.mutateQueue(threadID, "queue/remove", meta, () => {
+      const input = this.queuedInput(inputID)
+      if (!input || input.thread_id !== threadID) throw new AgentError("QUEUED_INPUT_NOT_FOUND", "排队消息不存在或已开始执行", 409)
+      const timestamp = now()
+      this.sqlite.query("UPDATE inputs SET status = 'cancelled' WHERE id = ?").run(inputID)
+      this.sqlite.query("UPDATE turns SET status = 'cancelled', finished_at = ?, updated_at = ? WHERE id = ?").run(timestamp, timestamp, input.turn_id)
+      this.sqlite.query("UPDATE agent_executions SET status = 'cancelled', updated_at = ? WHERE turn_id = ?").run(timestamp, input.turn_id)
+      this.sqlite.query("DELETE FROM messages WHERE id = ?").run(inputID)
+      if (!this.sqlite.query("SELECT 1 FROM turns WHERE thread_id = ? AND status = 'queued' LIMIT 1").get(threadID)) {
+        this.sqlite.query("UPDATE threads SET queue_pause_reason = NULL WHERE id = ?").run(threadID)
+      }
+      this.sqlite.query(`UPDATE threads SET
+        message_count = (SELECT COUNT(*) FROM messages WHERE thread_id = ?),
+        first_user_message = (SELECT content FROM messages WHERE thread_id = ? AND role = 'user' ORDER BY ordinal, created_at, id LIMIT 1),
+        preview = (SELECT substr(content, 1, 180) FROM messages WHERE thread_id = ? ORDER BY ordinal DESC, created_at DESC, id DESC LIMIT 1)
+        WHERE id = ?`).run(threadID, threadID, threadID, threadID)
+      return { inputId: inputID, turnId: input.turn_id }
+    })
+  }
+
+  reorderQueuedInputs(threadID: string, inputIDs: readonly string[], meta: QueueMutationMeta) {
+    return this.mutateQueue(threadID, "queue/reorder", meta, () => {
+      if (new Set(inputIDs).size !== inputIDs.length) throw new AgentError("QUEUE_ORDER_INVALID", "队列顺序包含重复 inputId", 409)
+      const queued = this.sqlite.query(`SELECT i.id FROM inputs AS i JOIN turns AS t ON t.id = i.turn_id WHERE i.thread_id = ? AND i.status = 'queued' AND t.status = 'queued' ORDER BY t.queue_position, t.created_at, t.id`).all(threadID) as Array<{ id: string }>
+      const current = queued.map((row) => row.id)
+      if (current.length !== inputIDs.length || current.some((id) => !inputIDs.includes(id))) throw new AgentError("QUEUE_ORDER_CONFLICT", "排序必须包含当前线程全部排队消息", 409, { current })
+      inputIDs.forEach((inputID, index) => this.sqlite.query("UPDATE turns SET queue_position = ?, updated_at = ? WHERE id = (SELECT turn_id FROM inputs WHERE id = ?)").run(index + 1, now(), inputID))
+      return { inputIds: [...inputIDs] }
+    })
+  }
+
+  steerQueuedInput(threadID: string, inputID: string, meta: QueueMutationMeta) {
+    return this.mutateQueue(threadID, "queue/steer", meta, () => {
+      const input = this.queuedInput(inputID)
+      if (!input || input.thread_id !== threadID) throw new AgentError("QUEUED_INPUT_NOT_FOUND", "排队消息不存在或已开始执行", 409)
+      const active = this.activeTurn(threadID)
+      if (!active) {
+        this.sqlite.query("UPDATE threads SET queue_pause_reason = NULL WHERE id = ?").run(threadID)
+        this.sqlite.query("UPDATE turns SET queue_position = 0, updated_at = ? WHERE id = ?").run(now(), input.turn_id)
+        return { inputId: inputID, turnId: input.turn_id, disposition: "started" }
+      }
+      this.sqlite.query("UPDATE inputs SET turn_id = ?, strategy = 'guide', status = 'mailbox' WHERE id = ?").run(active.id, inputID)
+      this.sqlite.query("UPDATE messages SET turn_id = ? WHERE id = ?").run(active.id, inputID)
+      this.sqlite.query("DELETE FROM turns WHERE id = ?").run(input.turn_id)
+      return { inputId: inputID, turnId: active.id, disposition: "guide" }
+    })
+  }
+
+  resumeQueue(threadID: string, meta: QueueMutationMeta) {
+    return this.mutateQueue(threadID, "queue/resume", meta, () => {
+      this.sqlite.query("UPDATE threads SET queue_pause_reason = NULL WHERE id = ?").run(threadID)
+      return { resumed: true }
+    })
+  }
+
+  pauseQueue(threadID: string, reason: Exclude<QueuePauseReason, null>) {
+    return this.transaction(() => {
+      if (!this.sqlite.query("SELECT 1 FROM turns WHERE thread_id = ? AND status = 'queued' LIMIT 1").get(threadID)) return null
+      const current = this.queueStateMeta(threadID)
+      if (!current || current.pauseReason === reason) return null
+      this.sqlite.query("UPDATE threads SET queue_pause_reason = ?, queue_version = queue_version + 1, updated_at = ? WHERE id = ?").run(reason, now(), threadID)
+      const next = this.queueStateMeta(threadID)!
+      return this.insertEvent(threadID, null, "queue/updated", { threadId: threadID, version: next.version, pauseReason: next.pauseReason, action: "queue/pause" })
+    })
   }
 
   getTurnInput(turnID: string) {

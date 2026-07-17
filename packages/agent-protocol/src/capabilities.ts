@@ -9,6 +9,7 @@ export const Capabilities = [
   "turn.admission.v1",
   "turn.steer.v1",
   "turn.resume.v1",
+  "turn.queue.management.v1",
   "attachments.v1",
   "memory.v2",
   "context.compact.v1",

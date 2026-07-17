@@ -109,6 +109,50 @@ describe('agent thread adapter', () => {
     expect(desktop.item.permissionMode).toBe('full-access')
   })
 
+  test('projects queued inputs in queue order without duplicating them in the timeline', () => {
+    const permissionConfig = { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' } as const
+    const model = { providerID: 'openai', id: 'gpt-5' }
+    const snapshot: ThreadSnapshot = {
+      thread: {
+        id: 'thread-queue', title: '队列投影', projectID: project.id,
+        settings: { taskMode: 'chat', permissionConfig },
+        createdAt: 1_700_000_000_000, updatedAt: 1_700_000_004_000,
+      },
+      queue: { version: 4, pauseReason: 'interrupted' },
+      turns: [
+        {
+          id: 'turn-active', threadId: 'thread-queue', sourceInputID: 'input-active', status: 'running', mode: 'chat', model, permissionConfig,
+          rootAgentId: 'agent-active', canContinueFromPlan: false, mergedInputIDs: [], startedAt: 1_700_000_001_000,
+          finishedAt: null, elapsedSeconds: 3, error: null,
+        },
+        {
+          id: 'turn-third', threadId: 'thread-queue', sourceInputID: 'input-third', status: 'queued', mode: 'chat', model, permissionConfig,
+          rootAgentId: 'agent-third', canContinueFromPlan: false, mergedInputIDs: [], queuePosition: 2, startedAt: null,
+          finishedAt: null, elapsedSeconds: 0, error: null,
+        },
+        {
+          id: 'turn-second', threadId: 'thread-queue', sourceInputID: 'input-second', status: 'queued', mode: 'chat', model, permissionConfig,
+          rootAgentId: 'agent-second', canContinueFromPlan: false, mergedInputIDs: [], queuePosition: 1, startedAt: null,
+          finishedAt: null, elapsedSeconds: 0, error: null,
+        },
+      ],
+      agents: [],
+      inputs: [
+        { id: 'input-active', threadId: 'thread-queue', turnId: 'turn-active', content: '正在执行', strategy: 'queue', mode: 'chat', model, permissionConfig, state: 'active', createdAt: 1_700_000_001_000 },
+        { id: 'input-third', threadId: 'thread-queue', turnId: 'turn-third', content: '第三条', strategy: 'queue', mode: 'chat', model, permissionConfig, state: 'queued', createdAt: 1_700_000_003_000 },
+        { id: 'input-second', threadId: 'thread-queue', turnId: 'turn-second', content: '第二条', strategy: 'queue', mode: 'chat', model, permissionConfig, state: 'queued', createdAt: 1_700_000_002_000 },
+      ],
+      messages: [], items: [], approvals: [],
+    }
+
+    const desktop = agentThreadSnapshotToDesktop(snapshot, project)
+    expect(desktop.item.status).toBe('running')
+    expect(desktop.queuedFollowUps?.map(item => item.previewText)).toEqual(['第二条', '第三条'])
+    expect(desktop.queuePauseReason).toBe('interrupted')
+    expect(desktop.queueVersion).toBe(4)
+    expect(desktop.view.messages.map(message => message.text)).toEqual(['正在执行'])
+  })
+
   test('maps native item notification into a live desktop event', () => {
     const notification: AgentNotification = {
       jsonrpc: '2.0',

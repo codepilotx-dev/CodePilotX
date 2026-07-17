@@ -80,7 +80,7 @@ export class ThreadProjection {
       state: inputState(String(row.status)),
       createdAt: Number(row.created_at),
     }))
-    const turns = (this.db.sqlite.query("SELECT id, thread_id, root_agent_id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, started_at, finished_at, created_at FROM turns WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Turn => {
+    const turns = (this.db.sqlite.query("SELECT id, thread_id, root_agent_id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, queue_position, started_at, finished_at, created_at FROM turns WHERE thread_id = ? ORDER BY CASE WHEN status = 'queued' THEN 1 ELSE 0 END, CASE WHEN status = 'queued' THEN queue_position END, created_at, id").all(threadId) as Array<Record<string, string | number | null>>).map((row): Turn => {
       const turnInputs = inputs.filter((input) => input.turnId === row.id)
       const startedAt = row.started_at == null ? null : Number(row.started_at)
       const finishedAt = row.finished_at == null ? null : Number(row.finished_at)
@@ -98,6 +98,7 @@ export class ThreadProjection {
         },
         rootAgentId: String(row.root_agent_id),
         mergedInputIDs: turnInputs.slice(1).map((input) => input.id),
+        queuePosition: row.queue_position == null ? null : Number(row.queue_position),
         canContinueFromPlan: String(row.status) === "waiting_plan_confirmation",
         startedAt,
         finishedAt,
@@ -165,6 +166,7 @@ export class ThreadProjection {
       messages,
       items,
       approvals,
+      queue: this.db.queueStateMeta(threadId) ?? { version: 0, pauseReason: null },
     }
   }
 
@@ -181,7 +183,9 @@ export class ThreadProjection {
     const sql = `
       SELECT t.id, t.project_id, t.title, t.preview, t.first_user_message, t.message_count,
         t.archived_at, t.task_mode, t.sandbox_mode, t.approval_policy, t.approvals_reviewer, t.created_at, t.updated_at,
-        (SELECT status FROM turns AS u WHERE u.thread_id = t.id ORDER BY u.created_at DESC LIMIT 1) AS latest_turn_status
+        (SELECT status FROM turns AS u WHERE u.thread_id = t.id
+          ORDER BY CASE WHEN u.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_plan_confirmation', 'waiting_subagents') THEN 0 ELSE 1 END,
+            u.created_at DESC LIMIT 1) AS latest_turn_status
       FROM threads AS t
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
       ORDER BY t.updated_at DESC, t.id DESC

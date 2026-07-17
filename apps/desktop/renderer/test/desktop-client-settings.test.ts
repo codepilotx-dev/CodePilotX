@@ -171,9 +171,6 @@ describe('desktop thread settings client', () => {
       ['resolveSessionReviewComment', () => client.resolveSessionReviewComment({ sessionId: 'real-uuid' } as never)],
       ['deleteSessionReviewComment', () => client.deleteSessionReviewComment({ sessionId: 'real-uuid' } as never)],
       ['setSessionLocalRouterMode', () => client.setSessionLocalRouterMode('real-uuid', 'off')],
-      ['updateQueuedFollowUp', () => client.updateQueuedFollowUp('real-uuid', 'follow-up', { text: 'x' })],
-      ['removeQueuedFollowUp', () => client.removeQueuedFollowUp('real-uuid', 'follow-up')],
-      ['sendQueuedFollowUpNow', () => client.sendQueuedFollowUpNow('real-uuid', 'follow-up')],
       ['rollbackSession', () => client.rollbackSession({ sessionId: 'real-uuid' } as never)],
       ['getSessionGoal', () => client.getSessionGoal('real-uuid')],
       ['setSessionGoal', () => client.setSessionGoal('real-uuid', {})],
@@ -192,6 +189,94 @@ describe('desktop thread settings client', () => {
         expect(message).not.toContain('Mock session not found')
       }
     }
+  })
+
+  test('uses real queue RPCs with optimistic queue versions', async () => {
+    const queueRequests: Array<{ method: string; params: Record<string, unknown> }> = []
+    const fetcher = async (_path: string, init?: RequestInit): Promise<Response> => {
+      const body = init?.body ? JSON.parse(String(init.body)) : null
+      if (body?.method === 'initialize') return rpc(body.id, { ok: true, capabilities: {} })
+      if (body?.method === 'project/list') return rpc(body.id, { projects: [project] })
+      if (body?.method === 'thread/read') {
+        return rpc(body.id, {
+          ...snapshot(body.params.threadId, defaultSettings),
+          queue: { version: 7, pauseReason: null },
+        })
+      }
+      if (typeof body?.method === 'string' && body.method.startsWith('queue/')) {
+        queueRequests.push({ method: body.method, params: body.params })
+        return rpc(body.id, {
+          threadId: body.params.threadId,
+          version: 8,
+          pauseReason: null,
+          turns: [],
+          inputs: [],
+          streamPosition: { streamId: 'stream-1', sequence: 8 },
+        })
+      }
+      throw new Error(`Unexpected RPC method: ${body?.method}`)
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+    await client.getSession('thread-queue')
+
+    await client.updateQueuedFollowUp('thread-queue', 'input-1', { text: '更新' })
+    await client.removeQueuedFollowUp('thread-queue', 'input-2')
+    await client.sendQueuedFollowUpNow('thread-queue', 'input-3')
+    await client.reorderQueuedFollowUps('thread-queue', ['input-3', 'input-1'])
+    await client.resumeQueuedFollowUps('thread-queue')
+
+    expect(queueRequests.map(request => request.method)).toEqual([
+      'queue/update',
+      'queue/remove',
+      'queue/steer',
+      'queue/reorder',
+      'queue/resume',
+    ])
+    for (const request of queueRequests) {
+      expect(request.params).toMatchObject({
+        threadId: 'thread-queue',
+        operationId: expect.any(String),
+        expectedVersion: 7,
+      })
+    }
+    expect(queueRequests[0]?.params).not.toHaveProperty('attachmentIds')
+  })
+
+  test('uses turn steer for an active follow-up without legacy strategy params', async () => {
+    let steerParams: Record<string, unknown> | null = null
+    const activeSnapshot = (): ThreadSnapshot => ({
+      ...snapshot('thread-active', defaultSettings),
+      turns: [{
+        id: 'turn-active', threadId: 'thread-active', sourceInputID: 'input-active', status: 'running', mode: 'chat',
+        model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: defaultSettings.permissionConfig,
+        rootAgentId: 'agent-active', canContinueFromPlan: false, mergedInputIDs: [],
+        startedAt: now, finishedAt: null, elapsedSeconds: 1, error: null,
+      }],
+    })
+    const client = createDesktopClient({
+      fetch: async (_path, init) => {
+        const body = init?.body ? JSON.parse(String(init.body)) : null
+        if (body?.method === 'initialize') return rpc(body.id, { ok: true, capabilities: {} })
+        if (body?.method === 'project/list') return rpc(body.id, { projects: [project] })
+        if (body?.method === 'thread/read') return rpc(body.id, activeSnapshot())
+        if (body?.method === 'turn/steer') {
+          steerParams = body.params
+          return rpc(body.id, { accepted: true })
+        }
+        throw new Error(`Unexpected RPC method: ${body?.method}`)
+      },
+    })
+    await client.getSession('thread-active')
+    await client.submitSessionFollowUp('thread-active', { text: '补充要求' }, 'steer')
+
+    expect(steerParams).toMatchObject({
+      threadId: 'thread-active',
+      turnId: 'turn-active',
+      inputId: expect.any(String),
+      content: '补充要求',
+    })
+    expect(steerParams).not.toHaveProperty('strategy')
+    expect(steerParams).not.toHaveProperty('model')
   })
 
   test('reports unavailable without mock fallback and preserves browser mock behavior', async () => {

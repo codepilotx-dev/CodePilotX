@@ -3,6 +3,8 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { AgentDatabase } from "../src/storage/Database"
+import { AgentError } from "../src/domain"
+import { ThreadProjection } from "../src/transport/ThreadProjection"
 import { Model, Provider } from "@codepilotx/model-schema"
 
 const paths: string[] = []
@@ -31,6 +33,86 @@ describe("持久化队列", () => {
     const first = db.createTurn(thread.id, input)
     db.createTurn(thread.id, { ...input, content: "second" })
     expect(db.nextQueuedTurn(thread.id)?.id).toBe(first.turnID)
+    db.close()
+  })
+
+  test("重排顺序持久化并参与下一条 Turn 选择", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-db-"))
+    paths.push(root)
+    const databasePath = join(root, "agent.sqlite")
+    const input = { content: "first", model: modelRef("openai", "gpt"), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "auto_review" }, strategy: "queue", taskMode: "chat" } as const
+    const db = new AgentDatabase(databasePath)
+    const thread = db.createThread()
+    const first = db.createTurn(thread.id, input)
+    const second = db.createTurn(thread.id, { ...input, content: "second" })
+    const third = db.createTurn(thread.id, { ...input, content: "third" })
+    db.reorderQueuedInputs(thread.id, [third.inputID, first.inputID, second.inputID], { operationID: "reorder-1", expectedVersion: 3 })
+    db.close()
+
+    const reopened = new AgentDatabase(databasePath)
+    expect(reopened.nextQueuedTurn(thread.id)?.id).toBe(third.turnID)
+    reopened.close()
+  })
+
+  test("编辑删除校验版本且相同 operationId 可安全重试", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-db-"))
+    paths.push(root)
+    const db = new AgentDatabase(join(root, "agent.sqlite"))
+    const thread = db.createThread()
+    const input = { content: "queued", model: modelRef("openai", "gpt"), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "auto_review" }, strategy: "queue", taskMode: "chat" } as const
+    const queued = db.createTurn(thread.id, input)
+    db.updateQueuedInput(thread.id, queued.inputID, "edited", { operationID: "update-1", expectedVersion: 1 })
+    const removed = db.removeQueuedInput(thread.id, queued.inputID, { operationID: "remove-1", expectedVersion: 2 })
+    const duplicate = db.removeQueuedInput(thread.id, queued.inputID, { operationID: "remove-1", expectedVersion: 2 })
+    expect(duplicate.duplicate).toBe(true)
+    expect(duplicate.event?.id).toBe(removed.event?.id)
+    expect(() => db.resumeQueue(thread.id, { operationID: "stale", expectedVersion: 1 })).toThrow(AgentError)
+    expect(db.queueStateMeta(thread.id)).toEqual({ version: 3, pauseReason: null })
+    db.close()
+  })
+
+  test("中断暂停队列并由 resume 恢复", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-db-"))
+    paths.push(root)
+    const db = new AgentDatabase(join(root, "agent.sqlite"))
+    const thread = db.createThread()
+    const input = { content: "queued", model: modelRef("openai", "gpt"), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "auto_review" }, strategy: "queue", taskMode: "chat" } as const
+    const queued = db.createTurn(thread.id, input)
+    db.pauseQueue(thread.id, "interrupted")
+    expect(db.nextQueuedTurn(thread.id)).toBeNull()
+    db.resumeQueue(thread.id, { operationID: "resume-1", expectedVersion: 2 })
+    expect(db.nextQueuedTurn(thread.id)?.id).toBe(queued.turnID)
+    db.close()
+  })
+
+  test("删除暂停队列最后一条消息会清除暂停原因", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-db-"))
+    paths.push(root)
+    const db = new AgentDatabase(join(root, "agent.sqlite"))
+    const thread = db.createThread()
+    const input = { content: "queued", model: modelRef("openai", "gpt"), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "auto_review" }, strategy: "queue", taskMode: "chat" } as const
+    const queued = db.createTurn(thread.id, input)
+    db.pauseQueue(thread.id, "interrupted")
+    db.removeQueuedInput(thread.id, queued.inputID, { operationID: "remove-last", expectedVersion: 2 })
+    expect(db.queueStateMeta(thread.id)).toEqual({ version: 3, pauseReason: null })
+    db.close()
+  })
+
+  test("Steer 原子转移 queued input 到活动 Turn mailbox", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-db-"))
+    paths.push(root)
+    const db = new AgentDatabase(join(root, "agent.sqlite"))
+    const thread = db.createThread()
+    const input = { content: "active", model: modelRef("openai", "gpt"), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "auto_review" }, strategy: "queue", taskMode: "chat" } as const
+    const active = db.createTurn(thread.id, input)
+    db.claimTurnExecution(active.turnID)
+    const queued = db.createTurn(thread.id, { ...input, content: "steer me" })
+    expect(new ThreadProjection(db).list().find((item) => item.id === thread.id)?.latestTurnStatus).toBe("running")
+    db.steerQueuedInput(thread.id, queued.inputID, { operationID: "steer-1", expectedVersion: 3 })
+    expect(db.activeTurn(thread.id)?.id).toBe(active.turnID)
+    expect(db.hasGuideMailbox(active.turnID)).toBe(true)
+    expect(db.sqlite.query("SELECT turn_id, status FROM inputs WHERE id = ?").get(queued.inputID)).toEqual({ turn_id: active.turnID, status: "mailbox" })
+    expect(db.sqlite.query("SELECT 1 FROM turns WHERE id = ?").get(queued.turnID)).toBeNull()
     db.close()
   })
 

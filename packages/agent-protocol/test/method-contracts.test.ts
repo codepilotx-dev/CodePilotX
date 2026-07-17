@@ -391,6 +391,21 @@ const fixtures = {
     turnId: admission.turnId,
     status: "running",
   }),
+  "queue/update": methodFixture("queue/update", {
+    threadId: threadListItem.id, inputId: "input:queued:1", content: "edited", operationId: "operation:queue-update", expectedVersion: 1,
+  }, { threadId: threadListItem.id, version: 2, pauseReason: null, turns: [], inputs: [], streamPosition }),
+  "queue/remove": methodFixture("queue/remove", {
+    threadId: threadListItem.id, inputId: "input:queued:1", operationId: "operation:queue-remove", expectedVersion: 2,
+  }, { threadId: threadListItem.id, version: 3, pauseReason: null, turns: [], inputs: [], streamPosition }),
+  "queue/reorder": methodFixture("queue/reorder", {
+    threadId: threadListItem.id, inputIds: ["input:queued:2", "input:queued:1"], operationId: "operation:queue-reorder", expectedVersion: 3,
+  }, { threadId: threadListItem.id, version: 4, pauseReason: null, turns: [], inputs: [], streamPosition }),
+  "queue/steer": methodFixture("queue/steer", {
+    threadId: threadListItem.id, inputId: "input:queued:1", operationId: "operation:queue-steer", expectedVersion: 4,
+  }, { threadId: threadListItem.id, version: 5, pauseReason: null, turns: [], inputs: [], streamPosition }),
+  "queue/resume": methodFixture("queue/resume", {
+    threadId: threadListItem.id, operationId: "operation:queue-resume", expectedVersion: 5,
+  }, { threadId: threadListItem.id, version: 6, pauseReason: null, turns: [], inputs: [], streamPosition }),
   "sandbox/status": methodFixture("sandbox/status", {}, { sandbox: sandboxStatus }),
   "sandbox/install": methodFixture("sandbox/install", { operationId: "operation:sandbox-install" }, { sandbox: sandboxStatus }),
   "sandbox/repair": methodFixture("sandbox/repair", { operationId: "operation:sandbox-repair" }, { sandbox: sandboxStatus }),
@@ -559,9 +574,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 55 formal methods decodable", () => {
+  test("keeps valid params and results for all 60 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(55)
+    expect(methods).toHaveLength(60)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {

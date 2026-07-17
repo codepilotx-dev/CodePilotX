@@ -506,6 +506,40 @@ export const TurnSteerParamsSchema = Schema.Struct({
   ...TurnContentFields,
 })
 
+export const QueuePauseReasonSchema = Schema.NullOr(Schema.Literals(["interrupted", "turn_failed"]))
+
+const QueueMutationFields = {
+  threadId: OpaqueIDSchema,
+  ...MutationMetaSchema.fields,
+}
+
+export const QueueUpdateParamsSchema = Schema.Struct({
+  ...QueueMutationFields,
+  inputId: OpaqueIDSchema,
+  ...TurnContentFields,
+})
+
+export const QueueInputParamsSchema = Schema.Struct({
+  ...QueueMutationFields,
+  inputId: OpaqueIDSchema,
+})
+
+export const QueueReorderParamsSchema = Schema.Struct({
+  ...QueueMutationFields,
+  inputIds: Schema.Array(OpaqueIDSchema),
+})
+
+export const QueueResumeParamsSchema = Schema.Struct(QueueMutationFields)
+
+export const QueueStateResultSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  version: SequenceSchema,
+  pauseReason: QueuePauseReasonSchema,
+  turns: Schema.Array(AgentThread.TurnSchema),
+  inputs: Schema.Array(AgentThread.InputSchema),
+  streamPosition: StreamPositionSchema,
+})
+
 export const TurnInterruptParamsSchema = Schema.Struct({
   threadId: OpaqueIDSchema,
   turnId: Schema.optional(OpaqueIDSchema),
@@ -664,6 +698,11 @@ export const CoreRpcMethods = {
   "turn/steer": defineMethod({ params: TurnSteerParamsSchema, result: AdmissionSchema, errors: ThreadErrors, capability: "turn.steer.v1", mutation: true, exactParams: true }),
   "turn/interrupt": defineMethod({ params: TurnInterruptParamsSchema, result: TurnInterruptResultSchema, errors: ThreadErrors, capability: null, mutation: true }),
   "turn/resume": defineMethod({ params: TurnResumeParamsSchema, result: TurnResumeResultSchema, errors: ThreadErrors, capability: "turn.resume.v1", mutation: true }),
+  "queue/update": defineMethod({ params: QueueUpdateParamsSchema, result: QueueStateResultSchema, errors: ThreadErrors, capability: "turn.queue.management.v1", mutation: true, exactParams: true, exactResult: true }),
+  "queue/remove": defineMethod({ params: QueueInputParamsSchema, result: QueueStateResultSchema, errors: ThreadErrors, capability: "turn.queue.management.v1", mutation: true, exactParams: true, exactResult: true }),
+  "queue/reorder": defineMethod({ params: QueueReorderParamsSchema, result: QueueStateResultSchema, errors: ThreadErrors, capability: "turn.queue.management.v1", mutation: true, exactParams: true, exactResult: true }),
+  "queue/steer": defineMethod({ params: QueueInputParamsSchema, result: QueueStateResultSchema, errors: ThreadErrors, capability: "turn.queue.management.v1", mutation: true, exactParams: true, exactResult: true }),
+  "queue/resume": defineMethod({ params: QueueResumeParamsSchema, result: QueueStateResultSchema, errors: ThreadErrors, capability: "turn.queue.management.v1", mutation: true, exactParams: true, exactResult: true }),
   "sandbox/status": defineMethod({ params: EmptyParamsSchema, result: SandboxResultSchema, errors: SandboxErrors, capability: "sandbox.management.v1", mutation: false, exactResult: true }),
   "sandbox/install": defineMethod({ params: OperationParamsSchema, result: SandboxResultSchema, errors: SandboxErrors, capability: "sandbox.management.v1", mutation: true, exactParams: true, exactResult: true }),
   "sandbox/repair": defineMethod({ params: OperationParamsSchema, result: SandboxResultSchema, errors: SandboxErrors, capability: "sandbox.management.v1", mutation: true, exactParams: true, exactResult: true }),

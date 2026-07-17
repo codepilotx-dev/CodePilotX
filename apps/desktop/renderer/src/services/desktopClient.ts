@@ -34,6 +34,7 @@ import type {
 } from '@codepilotx/shared'
 import type {
   PermissionConfig,
+  QueueStateResult,
   SubagentProjection,
   ThreadListItem,
   ThreadSettings,
@@ -537,18 +538,65 @@ function createAgentSessionDesktopClient(
   ): Promise<unknown> {
     await awaitPendingSettingsUpdate(sessionId)
     const attachmentIds = await importAgentAttachments(input)
-    const response = await rpc.call('turn/start', {
-      threadId: sessionId,
-      content: desktopUserMessageInputToPreviewText(input),
-      model: await resolveAgentModelRef(model, sessionId),
-      permissionConfig: permissionConfigForSession(sessionId),
-      strategy,
-      taskMode: taskModeForSession(sessionId),
-      ...(attachmentIds.length ? { attachmentIds } : {}),
-    })
+    const content = desktopUserMessageInputToPreviewText(input)
+    const inputId = crypto.randomUUID()
+    let response: unknown
+    if (strategy === 'guide') {
+      const current = await rpc.call<ThreadSnapshot>('thread/read', { threadId: sessionId })
+      const activeTurn = [...current.turns].reverse().find(turn =>
+        turn.status === 'running' || turn.status.startsWith('waiting-'),
+      )
+      response = activeTurn
+        ? await rpc.call('turn/steer', {
+            threadId: sessionId,
+            turnId: activeTurn.id,
+            inputId,
+            content,
+            ...(attachmentIds.length ? { attachmentIds } : {}),
+          })
+        : await rpc.call('turn/start', {
+            threadId: sessionId,
+            inputId,
+            content,
+            model: await resolveAgentModelRef(model, sessionId),
+            permissionConfig: permissionConfigForSession(sessionId),
+            taskMode: taskModeForSession(sessionId),
+            ...(attachmentIds.length ? { attachmentIds } : {}),
+          })
+    } else {
+      response = await rpc.call('turn/start', {
+        threadId: sessionId,
+        inputId,
+        content,
+        model: await resolveAgentModelRef(model, sessionId),
+        permissionConfig: permissionConfigForSession(sessionId),
+        taskMode: taskModeForSession(sessionId),
+        ...(attachmentIds.length ? { attachmentIds } : {}),
+      })
+    }
     await loadAgentSessionSnapshot(sessionId).catch(() => null)
     emitSessionStoreChange()
     return response
+  }
+
+  async function callQueueMutation(
+    sessionId: string,
+    method: 'queue/update' | 'queue/remove' | 'queue/reorder' | 'queue/steer' | 'queue/resume',
+    params: Record<string, unknown>,
+  ): Promise<QueueStateResult> {
+    const expectedVersion = sessionSnapshots.get(sessionId)?.queueVersion
+    try {
+      return await rpc.call<QueueStateResult>(method, {
+        threadId: sessionId,
+        ...params,
+        operationId: crypto.randomUUID(),
+        ...(typeof expectedVersion === 'number' ? { expectedVersion } : {}),
+      })
+    } catch (error) {
+      await loadAgentSessionSnapshot(sessionId).catch(() => null)
+      emitSessionStoreChange()
+      throw error
+    }
   }
 
   async function importAgentAttachments(input: DesktopUserMessageInput) {
@@ -1154,19 +1202,67 @@ function createAgentSessionDesktopClient(
         () => mockClient.submitSessionFollowUp(sessionId, input, behavior),
       ),
     updateQueuedFollowUp: (sessionId, followUpId, input) =>
-      withUnsupportedAgentFallback(
-        'updateQueuedFollowUp',
+      withAgentOrMock(
+        async () => {
+          const shouldReplaceAttachments = input.attachments !== undefined
+          const attachmentIds = shouldReplaceAttachments
+            ? await importAgentAttachments(input)
+            : undefined
+          await callQueueMutation(sessionId, 'queue/update', {
+            inputId: followUpId,
+            content: desktopUserMessageInputToPreviewText(input),
+            ...(shouldReplaceAttachments ? { attachmentIds } : {}),
+          })
+          const snapshot = await loadAgentSessionSnapshot(sessionId)
+          emitSessionStoreChange()
+          return snapshot
+        },
         () => mockClient.updateQueuedFollowUp(sessionId, followUpId, input),
       ),
     removeQueuedFollowUp: (sessionId, followUpId) =>
-      withUnsupportedAgentFallback(
-        'removeQueuedFollowUp',
+      withAgentOrMock(
+        async () => {
+          await callQueueMutation(sessionId, 'queue/remove', {
+            inputId: followUpId,
+          })
+          const snapshot = await loadAgentSessionSnapshot(sessionId)
+          emitSessionStoreChange()
+          return snapshot
+        },
         () => mockClient.removeQueuedFollowUp(sessionId, followUpId),
       ),
     sendQueuedFollowUpNow: (sessionId, followUpId) =>
-      withUnsupportedAgentFallback(
-        'sendQueuedFollowUpNow',
+      withAgentOrMock(
+        async () => {
+          await callQueueMutation(sessionId, 'queue/steer', {
+            inputId: followUpId,
+          })
+          await loadAgentSessionSnapshot(sessionId).catch(() => null)
+          emitSessionStoreChange()
+        },
         () => mockClient.sendQueuedFollowUpNow(sessionId, followUpId),
+      ),
+    reorderQueuedFollowUps: (sessionId, followUpIds) =>
+      withAgentOrMock(
+        async () => {
+          await callQueueMutation(sessionId, 'queue/reorder', {
+            inputIds: followUpIds,
+          })
+          const snapshot = await loadAgentSessionSnapshot(sessionId)
+          emitSessionStoreChange()
+          return snapshot
+        },
+        () => mockClient.reorderQueuedFollowUps(sessionId, followUpIds),
+      ),
+    resumeQueuedFollowUps: sessionId =>
+      withAgentOrMock(
+        async () => {
+          await callQueueMutation(sessionId, 'queue/resume', {})
+          const snapshot = await loadAgentSessionSnapshot(sessionId)
+          emitSessionStoreChange()
+          return snapshot
+        },
+        () => mockClient.resumeQueuedFollowUps(sessionId),
       ),
     compactSession: sessionId =>
       withAgentOrMock(
@@ -1290,6 +1386,7 @@ function createAgentSessionDesktopClient(
               'thread/updated',
               'thread/settings/updated',
               'turn/queued',
+              'queue/updated',
               'turn/started',
               'turn/statusChanged',
               'turn/completed',
@@ -1942,6 +2039,8 @@ function createBrowserMockDesktopClient(): DesktopApi {
     updateQueuedFollowUp: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
     removeQueuedFollowUp: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
     sendQueuedFollowUpNow: async () => {},
+    reorderQueuedFollowUps: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
+    resumeQueuedFollowUps: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
     compactSession: async () => {},
     getSessionPromptPreview: async () => null,
     rollbackSession: async () => ({

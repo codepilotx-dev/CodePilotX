@@ -366,10 +366,11 @@ export const EventManifest = {
   }),
   "queue/updated": defineEvent({
     payload: Schema.Struct({
-      threadId: OpaqueIDSchema,
-      turns: Schema.Array(TurnSchema),
-      inputs: Schema.Array(InputSchema),
-      version: VersionSchema,
+      threadId: Schema.optional(OpaqueIDSchema),
+      turns: Schema.optional(Schema.Array(TurnSchema)),
+      inputs: Schema.optional(Schema.Array(InputSchema)),
+      version: Schema.optional(VersionSchema),
+      pauseReason: Schema.optional(Schema.NullOr(Schema.Literals(["interrupted", "turn_failed"]))),
     }),
     version: 1,
     durability: "durable",
