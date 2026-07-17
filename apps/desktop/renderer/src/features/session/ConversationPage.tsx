@@ -2693,7 +2693,12 @@ function ChatMessage({
   message: Message;
   showActions: boolean;
 }): React.ReactNode {
-  const { messages, onSubmitEditedUserMessage, sessionStatus } = useQuickChatContext();
+  const {
+    messages,
+    onSubmitEditedUserMessage,
+    sessionStatus,
+    workspacePath,
+  } = useQuickChatContext();
   const [isEditing, setIsEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(message.text);
   const [isSubmittingEdit, setIsSubmittingEdit] = React.useState(false);
@@ -2831,6 +2836,7 @@ function ChatMessage({
     >
       <div className="assistant-message-body tw:w-full tw:max-w-[48rem] tw:text-base tw:leading-[22px] tw:text-app-text">
         <MarkdownMessage
+          cwd={workspacePath}
           text={renderedText}
           streaming={Boolean(message.streaming)}
         />

@@ -22,9 +22,7 @@
 
 /* --- Product / Code Surface --- */
 .ds-product-surface,
-.md-body .md-code-block,
-.md-body pre,
-.md-body pre code {
+.ds-product-surface code {
   border-color: var(--border-control);
   background: var(--surface-product);
   color: var(--color-text-on-accent);

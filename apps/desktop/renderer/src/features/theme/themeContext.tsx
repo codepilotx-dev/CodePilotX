@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react'
 import type {
+  DesktopThemeConfigV1,
   DesktopThemeMode,
   DesktopThemeSettings,
   DesktopThemeVariant,
@@ -25,6 +26,8 @@ import { deriveThemeVariables } from './themeVariables.js'
 type DesktopThemeContextValue = {
   settings: DesktopThemeSettings
   resolvedVariant: DesktopThemeVariant
+  activeTheme: DesktopThemeConfigV1
+  codeThemeId: string
   draft: DesktopThemeDraft
   setMode: (mode: DesktopThemeMode) => Promise<void>
   saveSettings: (settings: DesktopThemeSettings) => Promise<void>
@@ -129,6 +132,10 @@ export function DesktopThemeProvider({
   const draftResolvedVariant =
     draftSettings.mode === 'system' ? systemVariant : draftSettings.mode
   const draftDirty = !desktopThemeSettingsEqual(draftSettings, settings)
+  const activeTheme = useMemo(
+    () => getDesktopThemeForSelection(draftSettings, draftResolvedVariant),
+    [draftResolvedVariant, draftSettings],
+  )
 
   useEffect(() => {
     applyDesktopTheme(draftSettings, draftResolvedVariant, systemReduceMotion)
@@ -217,11 +224,13 @@ export function DesktopThemeProvider({
     () => ({
       settings,
       resolvedVariant,
+      activeTheme,
+      codeThemeId: activeTheme.codeThemeId,
       draft,
       setMode,
       saveSettings,
     }),
-    [draft, resolvedVariant, saveSettings, setMode, settings],
+    [activeTheme, draft, resolvedVariant, saveSettings, setMode, settings],
   )
 
   return (
@@ -263,6 +272,7 @@ function applyDesktopTheme(
   }
 
   const config = getDesktopThemeForSelection(settings, variant)
+  root.dataset.codeThemeId = config.codeThemeId
   for (const [name, value] of Object.entries(deriveThemeVariables(config))) {
     root.style.setProperty(name, value)
   }

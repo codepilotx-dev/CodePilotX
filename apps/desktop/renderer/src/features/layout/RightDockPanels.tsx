@@ -12,6 +12,10 @@ import { buildPopoverSizingStyle } from '../../components/ui/popoverSizing.js'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
 import { ComposerFrame } from '../session/ComposerSurface.js'
 import { MarkdownMessage } from '../session/MarkdownMessage.js'
+import {
+  CodeBlock,
+  resolveLanguageFromPath,
+} from '../syntax/index.js'
 import { cx } from '../../utils/cx.js'
 import type { RightDockPlan } from './rightDockTools.js'
 
@@ -231,15 +235,12 @@ export function RightDockFilesPanel({
                     contentClassName="right-dock-file-preview-scroll-content"
                     direction="y"
                   >
-                    <div
-                      className={cx(
-                        'right-dock-file-preview-x-scroll',
-                        'u-overflow-hidden',
-                        'u-overflow-x-auto',
-                      )}
-                    >
-                      <pre>{selectedFile.content}</pre>
-                    </div>
+                    <CodeBlock
+                      ariaLabel={`${selectedFile.path} 文件预览`}
+                      className="right-dock-file-code"
+                      code={selectedFile.content}
+                      language={resolveLanguageFromPath(selectedFile.path)}
+                    />
                   </ScrollArea>
                 </div>
               </ContextMenu.Trigger>

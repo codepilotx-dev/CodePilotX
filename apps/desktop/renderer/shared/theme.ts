@@ -7,6 +7,7 @@ import type {
   DesktopThemeSettings,
   DesktopThemeVariant,
 } from "./types.js";
+import { SHIKI_THEME_SEEDS } from "./shikiThemeSeeds.js";
 
 export const CODEPILOTX_THEME_PREFIX = "codepilotx-theme-v1:";
 export const DEFAULT_LIGHT_THEME_ID = "light-codepilotx";
@@ -155,7 +156,7 @@ export const DEFAULT_DESKTOP_THEME_SETTINGS: DesktopThemeSettings = {
   presetOverrides: {},
 };
 
-export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
+const CORE_DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
   {
     id: DEFAULT_LIGHT_THEME_ID,
     label: "CodePilotX",
@@ -393,6 +394,60 @@ export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
     }),
   },
 ];
+
+export const DESKTOP_THEME_PRESETS: DesktopThemePreset[] = [
+  ...CORE_DESKTOP_THEME_PRESETS,
+  ...createShikiThemePresets(CORE_DESKTOP_THEME_PRESETS),
+];
+
+function createShikiThemePresets(
+  existingPresets: readonly DesktopThemePreset[],
+): DesktopThemePreset[] {
+  const existingThemeKeys = new Set(
+    existingPresets.map((preset) =>
+      themeCatalogKey(preset.config.variant, preset.config.codeThemeId),
+    ),
+  );
+
+  return SHIKI_THEME_SEEDS.flatMap((seed) => {
+    const key = themeCatalogKey(seed.variant, seed.id);
+    if (existingThemeKeys.has(key)) {
+      return [];
+    }
+    existingThemeKeys.add(key);
+
+    return [
+      {
+        id: `${seed.variant}-shiki-${seed.id}`,
+        label: seed.label,
+        config: {
+          codeThemeId: seed.id,
+          theme: {
+            accent: seed.accent,
+            contrast: 40,
+            fonts: DEFAULT_FONTS,
+            ink: seed.ink,
+            opaqueWindows: true,
+            semanticColors: {
+              diffAdded: seed.diffAdded,
+              diffRemoved: seed.diffRemoved,
+              skill: seed.skill,
+            },
+            surface: seed.surface,
+          },
+          variant: seed.variant,
+        },
+      },
+    ];
+  });
+}
+
+function themeCatalogKey(
+  variant: DesktopThemeVariant,
+  codeThemeId: string,
+): string {
+  return `${variant}:${codeThemeId}`;
+}
 
 function createRadixThemePreset(
   options: RadixThemePresetOptions,

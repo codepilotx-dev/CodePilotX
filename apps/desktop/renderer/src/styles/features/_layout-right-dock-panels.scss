@@ -212,21 +212,16 @@
     }
   }
 
-  pre {
-    min-width: max-content;
+  .right-dock-file-code {
+    min-height: 100%;
     margin: 0;
-    padding: 18px;
-    border-color: color-mix(
-      in srgb,
-      var(--color-text-on-accent) 10%,
-      transparent
-    );
-    background: var(--surface-product);
-    color: var(--color-text);
-    font-family: var(--font-family-mono);
-    font-size: var(--type-code);
-    line-height: 1.55;
-    white-space: pre;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .right-dock-file-code .md-code-pre {
+    min-width: 0;
   }
 
   p {

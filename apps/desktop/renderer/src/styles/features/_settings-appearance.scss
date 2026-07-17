@@ -809,6 +809,15 @@
   line-height: 1.7;
 }
 
+.appearance-theme-live-preview .appearance-diff-preview {
+  margin-bottom: 12px;
+}
+
+.appearance-theme-live-preview .appearance-shiki-code-preview {
+  margin-top: 0;
+  margin-bottom: 24px;
+}
+
 .appearance-diff-pane {
   min-width: 0;
   overflow: hidden;

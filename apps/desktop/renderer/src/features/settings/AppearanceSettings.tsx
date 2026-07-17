@@ -35,6 +35,7 @@ import {
 import { useDesktopTheme } from '../theme/themeContext.js'
 import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
+import { CodeBlock } from '../syntax/index.js'
 
 const THEME_MODE_OPTIONS: Array<{
   value: DesktopThemeMode
@@ -576,10 +577,12 @@ export function AppearanceSettings() {
                 导出
               </Button>
               <SettingsDropdown
-                width={260}
+                width={320}
                 value={activeThemeId}
                 options={activeThemeOptions}
                 onChange={themeId => handleSelectTheme(resolvedVariant, themeId)}
+                searchable
+                searchPlaceholder="搜索应用或代码主题..."
                 variant="theme"
               />
             </div>
@@ -771,12 +774,23 @@ function ThemePreviewPane({
   codeSize: number
   diffMarkerStyle: DesktopDiffMarkerStyle
 }) {
+  const previewCode = [
+    'const themePreview: ThemeConfig = {',
+    '  surface: "sidebar-elevated",',
+    `  accent: "${activeTheme.theme.accent}",`,
+    `  contrast: ${activeTheme.theme.contrast},`,
+    '};',
+  ].join('\n')
+
   return (
     <div
-      className={`appearance-diff-preview theme-${activeTheme.variant} marker-${diffMarkerStyle}`}
+      className="appearance-theme-live-preview"
       style={{ fontFamily: codeFontStack, fontSize: codeSize }}
     >
-      <div className="appearance-diff-pane appearance-diff-pane-removed">
+      <div
+        className={`appearance-diff-preview theme-${activeTheme.variant} marker-${diffMarkerStyle}`}
+      >
+        <div className="appearance-diff-pane appearance-diff-pane-removed">
         <CodeLine number={1}>
           <span className="appearance-syntax-keyword">const</span>
           <span> themePreview</span>
@@ -812,8 +826,8 @@ function ThemePreviewPane({
         <CodeLine number={5}>
           <span className="appearance-syntax-punct">{'};'}</span>
         </CodeLine>
-      </div>
-      <div className="appearance-diff-pane appearance-diff-pane-added">
+        </div>
+        <div className="appearance-diff-pane appearance-diff-pane-added">
         <CodeLine number={1}>
           <span className="appearance-syntax-keyword">const</span>
           <span> themePreview</span>
@@ -849,7 +863,14 @@ function ThemePreviewPane({
         <CodeLine number={5}>
           <span className="appearance-syntax-punct">{'};'}</span>
         </CodeLine>
+        </div>
       </div>
+      <CodeBlock
+        ariaLabel="当前 Shiki 主题代码预览"
+        className="appearance-shiki-code-preview"
+        code={previewCode}
+        language="typescript"
+      />
     </div>
   )
 }
@@ -1027,13 +1048,19 @@ function isThemeExportShape(
 function getThemeDropdownOptions(
   settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,
-): Array<{ value: string; label: string; icon: React.ReactNode }> {
+): Array<{
+  value: string
+  label: string
+  detail: string
+  icon: React.ReactNode
+}> {
   const options = [
     ...DESKTOP_THEME_PRESETS.filter(
       preset => preset.config.variant === variant,
     ).map(preset => ({
       value: preset.id,
       label: preset.label,
+      detail: preset.config.codeThemeId,
       icon: <ThemeOptionIcon theme={preset.config} />,
     })),
     ...settings.customThemes
@@ -1041,6 +1068,7 @@ function getThemeDropdownOptions(
       .map(theme => ({
         value: theme.id,
         label: theme.label,
+        detail: theme.config.codeThemeId,
         icon: <ThemeOptionIcon theme={theme.config} />,
       })),
   ]
