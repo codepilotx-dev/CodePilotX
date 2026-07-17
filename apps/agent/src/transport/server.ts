@@ -38,6 +38,20 @@ export interface TransportDependencies {
   logger: AgentLogger
 }
 
+export const resolveEventCursor = (
+  queryAfter: string | undefined,
+  headerAfter: string | undefined,
+  latestEventID: number,
+) => {
+  if (queryAfter === undefined && headerAfter === undefined) return latestEventID
+  const queryCursor = Number(queryAfter ?? "0")
+  const headerCursor = Number(headerAfter ?? "0")
+  return Math.max(
+    Number.isFinite(queryCursor) ? queryCursor : 0,
+    Number.isFinite(headerCursor) ? headerCursor : 0,
+  )
+}
+
 const cookieValue = (header: string | null, name: string) => header?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1)
 
 export const createApp = (dependencies: TransportDependencies) => {
@@ -96,9 +110,12 @@ export const createApp = (dependencies: TransportDependencies) => {
   })
 
   app.get("/rpc/events", (context) => {
-    const queryAfter = Number(context.req.query("after") ?? "0")
-    const headerAfter = Number(context.req.header("Last-Event-ID") ?? "0")
-    let cursor = Math.max(Number.isFinite(queryAfter) ? queryAfter : 0, Number.isFinite(headerAfter) ? headerAfter : 0)
+    const latestEventID = Number((db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS id FROM events").get() as { id: number }).id)
+    let cursor = resolveEventCursor(
+      context.req.query("after"),
+      context.req.header("Last-Event-ID"),
+      latestEventID,
+    )
     const threadId = context.req.query("threadId")
     return streamSSE(context, async (stream) => {
       let heartbeatAt = Date.now()
