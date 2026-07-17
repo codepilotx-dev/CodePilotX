@@ -18,10 +18,14 @@ export {
   syntaxHighlighterService,
 } from './service.js'
 export {
-  SyntaxThemeRegistry,
+  CODEX_HIGHLIGHT_THEMES,
+  DEFAULT_CODEX_SYNTAX_THEMES,
   resolveThemeId,
 } from './theme.js'
-export type { SyntaxThemeVariant } from './theme.js'
+export type {
+  CodexHighlightThemeSlug,
+  SyntaxThemeVariant,
+} from './theme.js'
 export type {
   HighlightCodeOptions,
   SyntaxHighlightPresentation,

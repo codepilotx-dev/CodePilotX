@@ -1,355 +1,88 @@
 import { describe, expect, test } from 'bun:test'
-import type { DesktopThemeConfigV1 } from '../shared/types.js'
+
 import {
   DEFAULT_DARK_THEME,
+  DEFAULT_DESKTOP_THEME_SETTINGS,
   DEFAULT_LIGHT_THEME,
-  DESKTOP_THEME_PRESETS,
+  normalizeDesktopThemeSettings,
 } from '../shared/theme.js'
 import { deriveThemeVariables } from '../src/features/theme/themeVariables.js'
 
-const ROLE_KEYS = [
-  '--surface-chrome',
-  '--surface-panel',
-  '--surface-raised',
-  '--surface-code-block',
-  '--surface-code-inline',
-  '--surface-user-message',
-  '--surface-composer',
-  '--state-hover',
-  '--state-selected',
-  '--border-subtle',
-  '--border-control',
-  '--border-strong',
-  '--scrollbar-rest',
-  '--scrollbar-hover',
-] as const
-
-const DARK_40_THEMES = [
-  ['Rose Pine', theme('dark', '#191724', '#e0def4', 'codepilotx')],
-  ['Matrix', theme('dark', '#071a0d', '#d1ffd9', 'codepilotx')],
-  ['Absolutely', preset('dark-absolutely')],
-] as const
-
-const LIGHT_40_THEMES = [
-  ['Linear', theme('light', '#f7f8fa', '#1f2328', 'codepilotx')],
-  ['Rose Pine', theme('light', '#faf4ed', '#575279', 'codepilotx')],
-] as const
-
-describe('theme variable derivation', () => {
-  test('locks the default Codex palette, typography, and contrast gears', () => {
-    expect(DEFAULT_LIGHT_THEME.theme).toMatchObject({
-      accent: '#339cff',
-      ink: '#1a1c1f',
-      semanticColors: { skill: '#924ff7' },
-      surface: '#ffffff',
-    })
-    expect(DEFAULT_DARK_THEME.theme).toMatchObject({
-      accent: '#339cff',
-      ink: '#ffffff',
-      semanticColors: { skill: '#ad7bf9' },
-      surface: '#181818',
-    })
-
+describe('fixed Codex UI themes', () => {
+  test('locks the Codex light and dark semantic surfaces', () => {
     const light = deriveThemeVariables(DEFAULT_LIGHT_THEME)
-    expect(light['--font-family-sans']).toBe(
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    )
-    expect(light['--font-family-mono']).toBe(
-      '"JetBrains Mono", "Consolas", monospace',
-    )
-    expect(pickSurfaceRoles(light)).toEqual({
-      canvas: '#ffffff',
-      chrome: '#f9f9f9',
-      panel: '#f9f9f9',
-      raised: '#ffffff',
-      codeBlock: '#f9f9f9',
-      codeInline: '#ededed',
-      userMessage: '#f9f9f9',
-      composer: '#ffffff',
-    })
     const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
-    expect(pickSurfaceRoles(dark)).toEqual({
-      canvas: '#181818',
-      chrome: '#000000',
-      panel: '#212121',
-      raised: '#282828',
-      codeBlock: '#212121',
-      codeInline: '#303030',
-      userMessage: '#282828',
-      composer: '#212121',
-    })
+
+    expect(DEFAULT_LIGHT_THEME.codeThemeId).toBe('codex-light')
     expect(light['--surface-underlay']).toBe('#f9f9f9')
+    expect(light['--surface-canvas']).toBe('#ffffff')
+    expect(light['--color-text']).toBe('#1a1c1f')
+    expect(light['--color-text-meta']).toBe('#5f6062')
+    expect(light['--color-text-soft']).toBe('#8d8e8f')
+    expect(light['--border-subtle']).toBe(
+      'color-mix(in srgb, #1a1c1f 5%, transparent)',
+    )
     expect(light['--border-control']).toBe(
-      'color-mix(in srgb, #1a1c1f 10%, transparent)',
+      'color-mix(in srgb, #1a1c1f 8%, transparent)',
     )
+    expect(light['--border-strong']).toBe(
+      'color-mix(in srgb, #1a1c1f 12%, transparent)',
+    )
+
+    expect(DEFAULT_DARK_THEME.codeThemeId).toBe('codex-dark')
     expect(dark['--surface-underlay']).toBe('#000000')
-    expect(dark['--border-control']).toBe(
-      'color-mix(in srgb, #ffffff 10%, transparent)',
+    expect(dark['--surface-canvas']).toBe('#181818')
+    expect(dark['--color-text']).toBe('#ffffff')
+    expect(dark['--color-text-meta']).toBe('#bababa')
+    expect(dark['--color-text-soft']).toBe('#8c8c8c')
+    expect(dark['--border-subtle']).toBe(
+      'color-mix(in srgb, #ffffff 4%, transparent)',
     )
-    expect(dark['--color-accent']).toBe('#339cff')
-    expect(dark['--color-skill']).toBe('#ad7bf9')
-    expect(dark['--color-primary-action']).toBe('#339cff')
-    expect(dark['--color-send-bg']).toBe('var(--color-primary-action)')
-
-    for (const config of [DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME]) {
-      for (const contrast of [0, 100] as const) {
-        const variables = deriveThemeVariables(withContrast(config, contrast))
-        const anchors = config.variant === 'dark'
-          ? contrast === 0
-            ? { chrome: 7.5, panel: 1, codeInline: 4.3 }
-            : { chrome: 22, panel: 10, codeInline: 24 }
-          : contrast === 0
-            ? { chrome: 1, panel: 1, codeInline: 4.3 }
-            : { chrome: 9, panel: 10, codeInline: 24 }
-        expect(variables['--surface-chrome']).toBe(
-          mixHex(
-            config.theme.surface,
-            config.variant === 'dark' ? '#000000' : config.theme.ink,
-            anchors.chrome,
-          ),
-        )
-        expect(variables['--surface-panel']).toBe(
-          mixHex(config.theme.surface, config.theme.ink, anchors.panel),
-        )
-        expect(variables['--surface-code-inline']).toBe(
-          mixHex(config.theme.surface, config.theme.ink, anchors.codeInline),
-        )
-      }
-    }
+    expect(dark['--border-control']).toBe(
+      'color-mix(in srgb, #ffffff 8%, transparent)',
+    )
+    expect(dark['--border-strong']).toBe(
+      'color-mix(in srgb, #ffffff 16%, transparent)',
+    )
+    expect(dark['--color-accent-a3']).toBe('#339cffb3')
   })
 
-  test('locks Dracula dark semantic anchors at contrast 0/40/100', () => {
-    const base = preset('dark-dracula')
-    const expectedByContrast = {
-      0: {
-        chrome: mixHex(base.theme.surface, '#000000', 7.5),
-        panel: mixHex(base.theme.surface, base.theme.ink, 1),
-        codeBlock: mixHex(base.theme.surface, base.theme.ink, 1.2),
-        userMessage: mixHex(base.theme.surface, base.theme.ink, 1.5),
-        composer: mixHex(base.theme.surface, base.theme.ink, 2.5),
-        codeInline: mixHex(base.theme.surface, base.theme.ink, 4.3),
-      },
-      40: {
-        chrome: '#23252f',
-        panel: '#2f313c',
-        codeBlock: '#31333e',
-        userMessage: '#32343f',
-        composer: '#363843',
-        codeInline: '#3d3f48',
-      },
-      100: {
-        chrome: mixHex(base.theme.surface, '#000000', 22),
-        panel: mixHex(base.theme.surface, base.theme.ink, 10),
-        codeBlock: mixHex(base.theme.surface, base.theme.ink, 11),
-        userMessage: mixHex(base.theme.surface, base.theme.ink, 13),
-        composer: mixHex(base.theme.surface, base.theme.ink, 17),
-        codeInline: mixHex(base.theme.surface, base.theme.ink, 24),
-      },
-    } as const
-
-    for (const contrast of [0, 40, 100] as const) {
-      const variables = deriveThemeVariables(withContrast(base, contrast))
-      expect({
-        chrome: variables['--surface-chrome'],
-        panel: variables['--surface-panel'],
-        codeBlock: variables['--surface-code-block'],
-        userMessage: variables['--surface-user-message'],
-        composer: variables['--surface-composer'],
-        codeInline: variables['--surface-code-inline'],
-      }).toEqual(expectedByContrast[contrast])
-      expect(variables['--surface-canvas']).toBe('#282a36')
-    }
-    expect(
-      deriveThemeVariables(base)['--color-popover-divider'],
-    ).toBe('#43454e')
-  })
-
-  test('uses the same dark contrast-40 proportions across theme surfaces', () => {
-    for (const [name, config] of DARK_40_THEMES) {
-      const variables = deriveThemeVariables(withContrast(config, 40))
-      expect(variables['--surface-chrome'], name).toBe(
-        mixHex(config.theme.surface, '#000000', 13),
-      )
-      expect(variables['--surface-panel'], name).toBe(
-        mixHex(config.theme.surface, config.theme.ink, 3.5),
-      )
-      expect(variables['--surface-code-block'], name).toBe(
-        mixHex(config.theme.surface, config.theme.ink, 4.2),
-      )
-      expect(variables['--surface-user-message'], name).toBe(
-        mixHex(config.theme.surface, config.theme.ink, 5),
-      )
-      expect(variables['--surface-composer'], name).toBe(
-        mixHex(config.theme.surface, config.theme.ink, 6.8),
-      )
-      expect(variables['--surface-code-inline'], name).toBe(
-        mixHex(config.theme.surface, config.theme.ink, 10),
-      )
-    }
-  })
-
-  test('uses light contrast-40 canvas, raised, and ink role anchors', () => {
-    for (const [name, config] of LIGHT_40_THEMES) {
-      const variables = deriveThemeVariables(withContrast(config, 40))
-      expect(variables['--surface-canvas'], name).toBe(config.theme.surface)
-      expect(variables['--surface-chrome'], name).toBe(
-        mixHex(config.theme.surface, config.theme.ink, 3.5),
-      )
-      expect(variables['--surface-panel'], name).toBe(
-        mixHex(config.theme.surface, config.theme.ink, 3.5),
-      )
-      expect(variables['--surface-raised'], name).toBe(
-        mixHex(config.theme.surface, '#ffffff', 20),
-      )
-      expect(variables['--surface-code-block'], name).toBe(
-        mixHex(config.theme.surface, config.theme.ink, 4.2),
-      )
-      expect(variables['--surface-user-message'], name).toBe(
-        mixHex(config.theme.surface, config.theme.ink, 5),
-      )
-      expect(variables['--surface-composer'], name).toBe(
-        mixHex(config.theme.surface, '#ffffff', 20),
-      )
-      expect(variables['--surface-code-inline'], name).toBe(
-        mixHex(config.theme.surface, config.theme.ink, 10),
-      )
-    }
-  })
-
-  test('keeps every contrast-controlled role monotonic from 0 to 40 to 100', () => {
-    for (const [, config] of [...DARK_40_THEMES, ...LIGHT_40_THEMES]) {
-      const gears = [0, 40, 100].map(contrast =>
-        deriveThemeVariables(withContrast(config, contrast)),
-      )
-      for (const role of ROLE_KEYS) {
-        const distances = gears.map(variables =>
-          colorDistance(config.theme.surface, variables[role]),
-        )
-        expect(distances[1] + 0.001, role).toBeGreaterThanOrEqual(distances[0])
-        expect(distances[2] + 0.001, role).toBeGreaterThanOrEqual(distances[1])
-      }
-    }
-  })
-
-  test('does not alter source, accent, or diff colors at any contrast gear', () => {
-    for (const [, config] of [...DARK_40_THEMES, ...LIGHT_40_THEMES]) {
-      for (const contrast of [0, 40, 100]) {
-        const variables = deriveThemeVariables(withContrast(config, contrast))
-        expect(variables['--color-bg']).toBe(config.theme.surface)
-        expect(variables['--color-ink']).toBe(config.theme.ink)
-        expect(variables['--color-accent']).toBe(config.theme.accent)
-        expect(variables['--color-diff-added']).toBe(
-          config.theme.semanticColors.diffAdded,
-        )
-        expect(variables['--color-diff-removed']).toBe(
-          config.theme.semanticColors.diffRemoved,
-        )
-      }
-    }
-  })
-
-  test('maps every known code theme family to a syntax palette', () => {
-    const ids = [
-      'absolutely',
-      'catppuccin',
-      'raycast',
-      'github',
-      'dracula',
-      'material',
-      'vscode-plus',
-      'codepilotx',
-    ]
-    const signatures = ids.map(codeThemeId => {
-      const variables = deriveThemeVariables({
-        ...DEFAULT_DARK_THEME,
-        codeThemeId,
-      })
-      return [
-        variables['--syntax-keyword'],
-        variables['--syntax-property'],
-        variables['--syntax-string'],
-        variables['--syntax-number'],
-      ].join('|')
+  test('migrates legacy settings without retaining old theme data', () => {
+    const migrated = normalizeDesktopThemeSettings({
+      mode: 'dark',
+      codeThemeId: 'dracula',
+      activeThemeIds: { light: 'light-codepilotx', dark: 'dark-dracula' },
+      customThemes: [{ id: 'custom-theme' }],
+      presetOverrides: { 'dark-dracula': {} },
+      reduceMotion: 'on',
+      glassmorphismEnabled: false,
+      pointerCursorEnabled: false,
+      fontSizes: { ui: 17, code: 15 },
     })
-    expect(new Set(signatures).size).toBe(ids.length)
+
+    expect(migrated).toEqual({
+      version: 2,
+      mode: 'dark',
+      codeThemeId: 'auto',
+      reduceMotion: 'on',
+      glassmorphismEnabled: false,
+      pointerCursorEnabled: false,
+      fontSizes: { ui: 17, code: 15 },
+    })
+  })
+
+  test('keeps valid V2 Codex selections and rejects unknown slugs', () => {
+    expect(
+      normalizeDesktopThemeSettings({
+        ...DEFAULT_DESKTOP_THEME_SETTINGS,
+        codeThemeId: 'dracula',
+      }).codeThemeId,
+    ).toBe('dracula')
+    expect(
+      normalizeDesktopThemeSettings({
+        ...DEFAULT_DESKTOP_THEME_SETTINGS,
+        codeThemeId: 'not-in-codex',
+      }).codeThemeId,
+    ).toBe('auto')
   })
 })
-
-function pickSurfaceRoles(variables: ReturnType<typeof deriveThemeVariables>) {
-  return {
-    canvas: variables['--surface-canvas'],
-    chrome: variables['--surface-chrome'],
-    panel: variables['--surface-panel'],
-    raised: variables['--surface-raised'],
-    codeBlock: variables['--surface-code-block'],
-    codeInline: variables['--surface-code-inline'],
-    userMessage: variables['--surface-user-message'],
-    composer: variables['--surface-composer'],
-  }
-}
-
-function preset(id: string): DesktopThemeConfigV1 {
-  const match = DESKTOP_THEME_PRESETS.find(entry => entry.id === id)
-  if (!match) throw new Error(`Missing theme preset: ${id}`)
-  return match.config
-}
-
-function theme(
-  variant: DesktopThemeConfigV1['variant'],
-  surface: string,
-  ink: string,
-  codeThemeId: string,
-): DesktopThemeConfigV1 {
-  return {
-    codeThemeId,
-    variant,
-    theme: {
-      accent: '#5e6ad2',
-      contrast: 40,
-      fonts: DEFAULT_LIGHT_THEME.theme.fonts,
-      ink,
-      opaqueWindows: true,
-      semanticColors: {
-        diffAdded: '#2da44e',
-        diffRemoved: '#cf222e',
-        skill: '#8250df',
-      },
-      surface,
-    },
-  }
-}
-
-function withContrast(
-  config: DesktopThemeConfigV1,
-  contrast: number,
-): DesktopThemeConfigV1 {
-  return { ...config, theme: { ...config.theme, contrast } }
-}
-
-function mixHex(first: string, second: string, secondPercent: number): string {
-  const left = parseHex(first)
-  const right = parseHex(second)
-  const amount = secondPercent / 100
-  return `#${left
-    .map((channel, index) =>
-      Math.round(channel + (right[index] - channel) * amount),
-    )
-    .map(channel => channel.toString(16).padStart(2, '0'))
-    .join('')}`
-}
-
-function colorDistance(first: string, second: string): number {
-  const left = parseHex(first)
-  const right = parseHex(second)
-  return Math.hypot(...left.map((channel, index) => channel - right[index]))
-}
-
-function parseHex(value: string): [number, number, number] {
-  const match = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(value)
-  if (!match) throw new Error(`Expected a hex color, received ${value}`)
-  return match.slice(1).map(channel => Number.parseInt(channel, 16)) as [
-    number,
-    number,
-    number,
-  ]
-}

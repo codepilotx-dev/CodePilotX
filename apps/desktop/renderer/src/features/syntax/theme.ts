@@ -1,48 +1,30 @@
-import { bundledThemes } from 'shiki/themes'
+import {
+  CODEX_HIGHLIGHT_THEMES,
+  isCodexHighlightThemeSlug,
+} from '../../../shared/codexThemes/manifest.js'
+import type {
+  CodexHighlightThemeSlug,
+} from '../../../shared/codexThemes/manifest.js'
 
 export type SyntaxThemeVariant = 'light' | 'dark'
 
-type SyntaxThemePair = Readonly<Record<SyntaxThemeVariant, string>>
-
-const CODEPILOTX_THEME: SyntaxThemePair = {
-  light: 'github-light-default',
-  dark: 'github-dark-default',
-}
-
-export const SyntaxThemeRegistry: Readonly<
-  Record<string, SyntaxThemePair>
+export const DEFAULT_CODEX_SYNTAX_THEMES: Readonly<
+  Record<SyntaxThemeVariant, CodexHighlightThemeSlug>
 > = {
-  codepilotx: CODEPILOTX_THEME,
-  catppuccin: {
-    light: 'catppuccin-latte',
-    dark: 'catppuccin-mocha',
-  },
-  dracula: {
-    light: 'dracula',
-    dark: 'dracula',
-  },
-  github: CODEPILOTX_THEME,
-  material: {
-    light: 'material-theme-lighter',
-    dark: 'material-theme',
-  },
-  'vscode-plus': {
-    light: 'light-plus',
-    dark: 'dark-plus',
-  },
+  light: 'codex-light',
+  dark: 'codex-dark',
 }
+
+export { CODEX_HIGHLIGHT_THEMES }
+export type { CodexHighlightThemeSlug }
 
 export function resolveThemeId(
   codeThemeId: string | null | undefined,
   variant: SyntaxThemeVariant,
-): string {
+): CodexHighlightThemeSlug {
   const normalized = codeThemeId?.trim().toLowerCase() ?? ''
-  const mappedTheme = SyntaxThemeRegistry[normalized]?.[variant]
-  if (mappedTheme) return mappedTheme
-
-  if (normalized && Object.hasOwn(bundledThemes, normalized)) {
+  if (normalized !== 'auto' && isCodexHighlightThemeSlug(normalized)) {
     return normalized
   }
-
-  return CODEPILOTX_THEME[variant]
+  return DEFAULT_CODEX_SYNTAX_THEMES[variant]
 }

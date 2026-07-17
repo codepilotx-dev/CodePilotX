@@ -74,11 +74,11 @@
   --color-send-bg-disabled: var(--color-primary-action-disabled);
   --color-user-bubble-bg: var(--surface-user-message);
 
-  --surface-base: color-mix(in srgb, var(--color-bg) 98%, var(--color-ink));
-  --surface-canvas: var(--color-bg);
-  --surface-underlay: var(--surface-chrome);
-  --surface-chrome: color-mix(in srgb, var(--color-bg) 96.5%, var(--color-ink));
-  --surface-panel: color-mix(in srgb, var(--color-bg) 96.5%, var(--color-ink));
+  --surface-base: #f9f9f9;
+  --surface-canvas: #ffffff;
+  --surface-underlay: #f9f9f9;
+  --surface-chrome: #f9f9f9;
+  --surface-panel: #f9f9f9;
   --surface-raised: var(--color-bg);
   --surface-code-block: color-mix(in srgb, var(--color-bg) 95.8%, var(--color-ink));
   --surface-code-inline: color-mix(in srgb, var(--color-bg) 90%, var(--color-ink));
@@ -87,10 +87,10 @@
   --surface-subtle: color-mix(in srgb, var(--color-bg) 97%, var(--color-ink));
   --surface-product: var(--surface-panel);
   --surface-product-raised: var(--surface-raised);
-  --border-subtle: color-mix(in srgb, var(--color-bg) 93%, var(--color-ink));
-  --border-control: color-mix(in srgb, var(--color-bg) 93.2%, var(--color-ink));
-  --border-strong: color-mix(in srgb, var(--color-bg) 90%, var(--color-ink));
-  --border-muted: color-mix(in srgb, var(--color-bg) 97%, var(--color-ink));
+  --border-subtle: color-mix(in oklab, var(--color-ink) 5%, transparent);
+  --border-control: color-mix(in oklab, var(--color-ink) 8%, transparent);
+  --border-strong: color-mix(in oklab, var(--color-ink) 12%, transparent);
+  --border-muted: color-mix(in oklab, var(--color-ink) 4%, transparent);
   --shadow-resting:
     0 1px 2px color-mix(in srgb, var(--color-ink) 5%, transparent),
     0 1px 0 color-mix(in srgb, var(--color-bg) 70%, transparent) inset;
@@ -230,8 +230,8 @@
   --color-diff-added: #00a240;
   --color-diff-removed: #e02e2a;
   --color-skill: #924ff7;
-  --state-hover: color-mix(in srgb, var(--color-bg) 95.8%, var(--color-ink));
-  --state-selected: color-mix(in srgb, var(--color-bg) 93%, var(--color-ink));
+  --state-hover: color-mix(in oklab, var(--color-ink) 8%, transparent);
+  --state-selected: color-mix(in oklab, var(--color-ink) 12%, transparent);
   --scrollbar-rest: var(--state-selected);
   --scrollbar-hover: var(--border-strong);
 

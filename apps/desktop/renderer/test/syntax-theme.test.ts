@@ -1,25 +1,23 @@
 import { describe, expect, test } from 'bun:test'
 
-import { resolveThemeId } from '../src/features/syntax/theme.js'
+import {
+  CODEX_HIGHLIGHT_THEMES,
+  resolveThemeId,
+} from '../src/features/syntax/theme.js'
 
-describe('syntax theme resolution', () => {
-  test('maps product theme families by variant', () => {
-    expect(resolveThemeId('CodePilotX', 'light')).toBe(
-      'github-light-default',
-    )
-    expect(resolveThemeId('catppuccin', 'dark')).toBe('catppuccin-mocha')
-    expect(resolveThemeId('material', 'light')).toBe(
-      'material-theme-lighter',
-    )
-    expect(resolveThemeId('vscode-plus', 'dark')).toBe('dark-plus')
+describe('Codex syntax theme resolution', () => {
+  test('uses Codex defaults for automatic and invalid selections', () => {
+    expect(resolveThemeId('auto', 'light')).toBe('codex-light')
+    expect(resolveThemeId('auto', 'dark')).toBe('codex-dark')
+    expect(resolveThemeId('codepilotx', 'light')).toBe('codex-light')
+    expect(resolveThemeId('not-a-theme', 'dark')).toBe('codex-dark')
   })
 
-  test('keeps native Shiki themes and falls back unknown product themes', () => {
-    expect(resolveThemeId('tokyo-night', 'dark')).toBe('tokyo-night')
-    expect(resolveThemeId('nord', 'light')).toBe('nord')
-    expect(resolveThemeId('raycast', 'dark')).toBe('github-dark-default')
-    expect(resolveThemeId('absolutely', 'light')).toBe(
-      'github-light-default',
-    )
+  test('accepts only the 91 generated Codex theme slugs', () => {
+    expect(CODEX_HIGHLIGHT_THEMES).toHaveLength(91)
+    for (const theme of CODEX_HIGHLIGHT_THEMES) {
+      expect(resolveThemeId(theme.slug, 'light')).toBe(theme.slug)
+      expect(resolveThemeId(theme.slug, 'dark')).toBe(theme.slug)
+    }
   })
 })

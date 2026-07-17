@@ -46,6 +46,7 @@ import type {
   OkResponse,
   ProviderTestResponse,
 } from '@codepilotx/shared'
+import type { CodexHighlightThemeSlug } from './codexThemes/manifest.js'
 
 export type DesktopAuthStatus = {
   authenticated: boolean
@@ -856,16 +857,10 @@ export type DesktopThemeConfigV1 = {
   variant: DesktopThemeVariant
 }
 
-export type DesktopThemeCustomTheme = {
-  id: string
-  label: string
-  config: DesktopThemeConfigV1
-  sourcePresetId?: string
-}
-
-export type DesktopThemeSettings = {
+export type DesktopThemeSettingsV2 = {
+  version: 2
   mode: DesktopThemeMode
-  activeThemeIds: Record<DesktopThemeVariant, string>
+  codeThemeId: 'auto' | CodexHighlightThemeSlug
   glassmorphismEnabled: boolean
   pointerCursorEnabled: boolean
   reduceMotion: 'system' | 'on' | 'off'
@@ -873,9 +868,9 @@ export type DesktopThemeSettings = {
     code: number
     ui: number
   }
-  customThemes: DesktopThemeCustomTheme[]
-  presetOverrides: Record<string, DesktopThemeConfigV1>
 }
+
+export type DesktopThemeSettings = DesktopThemeSettingsV2
 
 export type DesktopPermissionRememberOptionId = 'session' | 'persistentPrefix'
 

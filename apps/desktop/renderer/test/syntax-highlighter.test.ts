@@ -6,13 +6,13 @@ import {
 } from '../src/features/syntax/index.js'
 
 describe('Shiki highlighter', () => {
-  test('loads representative bundled themes and returns token colors', async () => {
+  test('lazily loads representative Codex themes and returns token colors', async () => {
     clearSyntaxHighlightCache()
     const themes = [
-      resolveThemeId('codepilotx', 'light'),
-      resolveThemeId('codepilotx', 'dark'),
+      resolveThemeId('auto', 'light'),
+      resolveThemeId('auto', 'dark'),
+      resolveThemeId('absolutely-dark', 'dark'),
       resolveThemeId('dracula', 'dark'),
-      resolveThemeId('nord', 'dark'),
       resolveThemeId('tokyo-night', 'dark'),
     ]
 
@@ -31,7 +31,7 @@ describe('Shiki highlighter', () => {
     const result = await highlightCode({
       code: 'plain content',
       language: 'not-a-real-language',
-      theme: 'github-dark-default',
+      theme: 'codex-dark',
     })
 
     expect(result.language).toBe('text')

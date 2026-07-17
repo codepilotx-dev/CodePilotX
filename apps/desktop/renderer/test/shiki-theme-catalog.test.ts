@@ -1,51 +1,47 @@
 import { describe, expect, test } from 'bun:test'
-import { SHIKI_THEME_SEEDS } from '../shared/shikiThemeSeeds.js'
-import { DESKTOP_THEME_PRESETS } from '../shared/theme.js'
+import { bundledLanguages, getSingletonHighlighter } from 'shiki'
 
-describe('Shiki theme catalog', () => {
-  test('contains every theme bundled with the pinned Shiki version', () => {
-    expect(SHIKI_THEME_SEEDS).toHaveLength(65)
-    expect(new Set(SHIKI_THEME_SEEDS.map(seed => seed.id)).size).toBe(
-      SHIKI_THEME_SEEDS.length,
+import {
+  CODEX_HIGHLIGHT_THEMES,
+  loadCodexHighlightTheme,
+} from '../shared/codexThemes/manifest.js'
+
+describe('Codex Shiki theme catalog', () => {
+  test('contains exactly 91 logical themes backed by 151 physical modules', () => {
+    expect(CODEX_HIGHLIGHT_THEMES).toHaveLength(91)
+    expect(new Set(CODEX_HIGHLIGHT_THEMES.map(theme => theme.slug)).size).toBe(
+      91,
     )
-
-    for (const seed of SHIKI_THEME_SEEDS) {
-      const matchingPresets = DESKTOP_THEME_PRESETS.filter(
-        preset =>
-          preset.config.variant === seed.variant &&
-          preset.config.codeThemeId === seed.id,
-      )
-      expect(matchingPresets).toHaveLength(1)
-    }
+    expect(
+      new Set(
+        CODEX_HIGHLIGHT_THEMES.flatMap(theme =>
+          theme.physicalFiles.map(file => file.path),
+        ),
+      ).size,
+    ).toBe(151)
+    expect(CODEX_HIGHLIGHT_THEMES.map(theme => theme.slug)).toContain(
+      'codex-light',
+    )
+    expect(CODEX_HIGHLIGHT_THEMES.map(theme => theme.slug)).toContain(
+      'codex-dark',
+    )
   })
 
-  test('keeps an existing preset when it already owns a code theme', () => {
-    const dracula = DESKTOP_THEME_PRESETS.find(
-      preset =>
-        preset.config.variant === 'dark' &&
-        preset.config.codeThemeId === 'dracula',
-    )
+  test('loads and highlights with every generated theme', async () => {
+    const highlighter = await getSingletonHighlighter({
+      langs: [bundledLanguages.typescript],
+      themes: [],
+    })
 
-    expect(dracula?.id).toBe('dark-dracula')
-    expect(dracula?.config.theme.surface).toBe('#282a36')
-  })
-
-  test('derives usable application colors for generated presets', () => {
-    const generatedPresets = DESKTOP_THEME_PRESETS.filter(preset =>
-      preset.id.includes('-shiki-'),
-    )
-
-    expect(generatedPresets.length).toBeGreaterThan(50)
-    for (const preset of generatedPresets) {
-      expect(preset.config.theme.surface).toMatch(/^#[\da-f]{6}$/)
-      expect(preset.config.theme.ink).toMatch(/^#[\da-f]{6}$/)
-      expect(preset.config.theme.accent).toMatch(/^#[\da-f]{6}$/)
-      expect(preset.config.theme.semanticColors.diffAdded).toMatch(
-        /^#[\da-f]{6}$/,
-      )
-      expect(preset.config.theme.semanticColors.diffRemoved).toMatch(
-        /^#[\da-f]{6}$/,
-      )
+    for (const metadata of CODEX_HIGHLIGHT_THEMES) {
+      const theme = await loadCodexHighlightTheme(metadata.slug)
+      expect(theme.name).toBe(metadata.slug)
+      await highlighter.loadTheme(theme)
+      const result = highlighter.codeToTokens('const answer = 42', {
+        lang: 'typescript',
+        theme: metadata.slug,
+      })
+      expect(result.tokens.flat().some(token => Boolean(token.color))).toBeTrue()
     }
   })
 })

@@ -1,9 +1,15 @@
 import type {
   BundledLanguage,
-  BundledTheme,
   Highlighter,
   ThemedToken,
 } from 'shiki'
+import {
+  isCodexHighlightThemeSlug,
+  loadCodexHighlightTheme,
+} from '../../../shared/codexThemes/manifest.js'
+import type {
+  CodexHighlightThemeSlug,
+} from '../../../shared/codexThemes/manifest.js'
 
 import { LruCache } from './LruCache.js'
 import { normalizeSyntaxLanguage } from './language.js'
@@ -126,7 +132,7 @@ async function highlightCodeUncached({
 }): Promise<SyntaxHighlightResult> {
   const shiki = await loadShiki()
   const language = resolveBundledLanguage(shiki, requestedLanguage)
-  const theme = resolveBundledTheme(shiki, requestedTheme)
+  const theme = resolveCodexTheme(requestedTheme)
 
   if (language === 'text') {
     return plainTextResult({
@@ -145,7 +151,9 @@ async function highlightCodeUncached({
         : highlighter.loadLanguage(shiki.bundledLanguages[language]),
       highlighter.getLoadedThemes().includes(theme)
         ? undefined
-        : highlighter.loadTheme(shiki.bundledThemes[theme]),
+        : loadCodexHighlightTheme(theme).then(registration =>
+            highlighter.loadTheme(registration),
+          ),
     ])
     const highlighted = highlighter.codeToTokens(code, {
       lang: language,
@@ -183,14 +191,12 @@ function resolveBundledLanguage(
   return 'text'
 }
 
-function resolveBundledTheme(
-  shiki: ShikiModule,
+function resolveCodexTheme(
   requestedTheme: string,
-): BundledTheme {
-  if (Object.hasOwn(shiki.bundledThemes, requestedTheme)) {
-    return requestedTheme as BundledTheme
-  }
-  return 'github-dark'
+): CodexHighlightThemeSlug {
+  return isCodexHighlightThemeSlug(requestedTheme)
+    ? requestedTheme
+    : 'codex-dark'
 }
 
 function toSyntaxToken(token: ThemedToken): SyntaxToken {

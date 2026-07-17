@@ -225,12 +225,20 @@ export function DesktopThemeProvider({
       settings,
       resolvedVariant,
       activeTheme,
-      codeThemeId: activeTheme.codeThemeId,
+      codeThemeId: draftSettings.codeThemeId,
       draft,
       setMode,
       saveSettings,
     }),
-    [activeTheme, draft, resolvedVariant, saveSettings, setMode, settings],
+    [
+      activeTheme,
+      draft,
+      draftSettings.codeThemeId,
+      resolvedVariant,
+      saveSettings,
+      setMode,
+      settings,
+    ],
   )
 
   return (
@@ -272,7 +280,8 @@ function applyDesktopTheme(
   }
 
   const config = getDesktopThemeForSelection(settings, variant)
-  root.dataset.codeThemeId = config.codeThemeId
+  root.dataset.codeThemeId =
+    settings.codeThemeId === 'auto' ? config.codeThemeId : settings.codeThemeId
   for (const [name, value] of Object.entries(deriveThemeVariables(config))) {
     root.style.setProperty(name, value)
   }
