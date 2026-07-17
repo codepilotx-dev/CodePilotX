@@ -36,8 +36,6 @@ import {
   Sparkles,
   Sliders,
   SquareTerminal,
-  ThumbsDown,
-  ThumbsUp,
   Upload,
   Workflow,
   X,
@@ -79,7 +77,7 @@ import { InlineApprovalCard } from "./InlineApprovalCard.js";
 import { WorkflowPlanCard, planTitleFromSummary } from "./WorkflowPlanCard.js";
 import { parseAskUserQuestions } from "./AskUserQuestionApproval.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
-import { ComposerSurface } from "./ComposerSurface.js";
+import { ComposerFrame } from "./ComposerSurface.js";
 import {
   clearConversationSelectionHighlight,
   createConversationSelectionSnapshot,
@@ -96,6 +94,7 @@ import {
   saveConversationUiState,
 } from "../layout/conversationUiState.js";
 import { SessionTimelineView } from "./SessionTimelineView.js";
+import { ThreadScrollLayout } from "./ThreadScrollLayout.js";
 import { ConversationTurnNavRail } from "./ConversationTurnNavRail.js";
 import { BranchSelectPopover } from "./BranchSelectPopover.js";
 import type { SubagentProjection } from "@codepilotx/shared/thread";
@@ -182,6 +181,7 @@ export function ConversationPage(): React.ReactNode {
     onDecidePermission,
     onAcceptExitPlanMode,
     onOpenRightDock,
+    onSetEnvironmentDockContent,
     onOpenPlanInRightDock,
     onAppendComposerText,
     onAppendSideChatText,
@@ -222,8 +222,9 @@ export function ConversationPage(): React.ReactNode {
     };
   }, [activeSessionId]);
 
-  const conversationMessages = messages.filter(
-    (message) => message.role !== "system",
+  const conversationMessages = React.useMemo(
+    () => messages.filter((message) => message.role !== "system"),
+    [messages],
   );
   const workflowDerivedState = React.useMemo(
     () => deriveWorkflowSessionState(workflowEvents, activeSessionId),
@@ -336,11 +337,22 @@ export function ConversationPage(): React.ReactNode {
     };
   }, []);
   const [isRefreshingDiff, setIsRefreshingDiff] = React.useState(false);
-  const timelineListRef = React.useRef<import("virtua").VListHandle | null>(
+  const timelineListRef = React.useRef<
+    import("virtua").VirtualizerHandle | null
+  >(
     null,
   );
+  const threadScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const threadFooterRef = React.useRef<HTMLElement | null>(null);
+  const initialTimelineScrollTop = React.useMemo(
+    () =>
+      activeSessionId
+        ? (loadConversationUiState(activeSessionId)?.mainScrollTop ?? 0)
+        : 0,
+    [activeSessionId],
+  );
   const mainScrollTopRef = React.useRef(0);
-  const scrollRestoredRef = React.useRef(false);
+  const scrollRestoredRef = React.useRef<string | null>(null);
 
   const handleTimelineScroll = React.useCallback((scrollTop: number) => {
     mainScrollTopRef.current = scrollTop;
@@ -350,7 +362,7 @@ export function ConversationPage(): React.ReactNode {
     const sessionId = activeSessionId;
 
     return () => {
-      if (!sessionId || mainScrollTopRef.current <= 0) return;
+      if (!sessionId) return;
       const existing = loadConversationUiState(sessionId);
       if (existing) {
         existing.mainScrollTop = mainScrollTopRef.current;
@@ -361,10 +373,11 @@ export function ConversationPage(): React.ReactNode {
 
   React.useEffect(() => {
     if (isConversationLoading || !activeSessionId) return;
-    if (scrollRestoredRef.current) return;
+    if (scrollRestoredRef.current === activeSessionId) return;
     const saved = loadConversationUiState(activeSessionId);
+    scrollRestoredRef.current = activeSessionId;
+    mainScrollTopRef.current = saved?.mainScrollTop ?? 0;
     if (saved?.mainScrollTop && timelineListRef.current) {
-      scrollRestoredRef.current = true;
       requestAnimationFrame(() => {
         try {
           timelineListRef.current?.scrollTo(saved.mainScrollTop);
@@ -437,9 +450,6 @@ export function ConversationPage(): React.ReactNode {
   );
   const [workflowTimelineVisible, setWorkflowTimelineVisible] =
     React.useState(false);
-  const showEnvironmentPanel = Boolean(
-    workspacePath && showPinnedSummary && !rightDockOpen,
-  );
   const changedFileCount = workspacePath ? (gitStatus?.files.length ?? 0) : 0;
   const hasComposerPlan = timelineEvents.some(
     (event) => event.type === "proposed_plan",
@@ -452,6 +462,73 @@ export function ConversationPage(): React.ReactNode {
   const sourceLinks = React.useMemo(
     () => extractSourceLinks(timelineEvents),
     [timelineEvents],
+  );
+  const environmentDockContent = React.useMemo(
+    () =>
+      workspacePath ? (
+        <EnvironmentPanel
+          branchName={branchName}
+          branches={branches}
+          diff={diff}
+          gitStatus={gitStatus}
+          sourceLinks={sourceLinks}
+          subagents={subagents}
+          workspacePath={workspacePath}
+          onBranchSelect={onBranchSelect}
+          onCommitOrPush={onCommitOrPush}
+          onCreateBranch={onCreateBranch}
+          onCreatePullRequest={onCreatePullRequest}
+          onOpenWorkspacePath={onOpenWorkspacePath}
+          onRefreshDiff={onRefreshDiff}
+          onOpenSubagent={onOpenSubagent}
+        />
+      ) : null,
+    [
+      branchName,
+      branches,
+      diff,
+      gitStatus,
+      onBranchSelect,
+      onCommitOrPush,
+      onCreateBranch,
+      onCreatePullRequest,
+      onOpenSubagent,
+      onOpenWorkspacePath,
+      onRefreshDiff,
+      sourceLinks,
+      subagents,
+      workspacePath,
+    ],
+  );
+  const environmentDockRevision = React.useMemo(
+    () => ({}),
+    [
+      branchName,
+      branches,
+      diff,
+      gitStatus,
+      sourceLinks,
+      subagents,
+      workspacePath,
+    ],
+  );
+  React.useLayoutEffect(() => {
+    onSetEnvironmentDockContent(
+      environmentDockContent
+        ? {
+            content: environmentDockContent,
+            revision: environmentDockRevision,
+          }
+        : null,
+    );
+  }, [
+    environmentDockContent,
+    environmentDockRevision,
+    onSetEnvironmentDockContent,
+  ]);
+  React.useLayoutEffect(
+    () => () => onSetEnvironmentDockContent(null),
+    [onSetEnvironmentDockContent],
   );
   const fallbackTitle = React.useMemo(
     () => getConversationTitle(timelineEvents),
@@ -834,14 +911,17 @@ export function ConversationPage(): React.ReactNode {
             ))}
           </PopoverMenu>
         </div>
-        <Tooltip content={showPinnedSummary ? "隐藏置顶摘要" : "显示置顶摘要"}>
+        <Tooltip content="在右侧面板显示环境信息">
           <button
-            aria-label={showPinnedSummary ? "隐藏置顶摘要" : "显示置顶摘要"}
-            aria-pressed={showPinnedSummary}
+            aria-label="在右侧面板显示环境信息"
+            aria-pressed={rightDockOpen && rightDockTool === "environment"}
             className="message-action"
             disabled={!workspacePath}
             type="button"
-            onClick={() => setShowPinnedSummary((current) => !current)}
+            onClick={() => {
+              setShowPinnedSummary(true);
+              onOpenRightDock("environment");
+            }}
           >
             <LayoutList
               size={APP_ICON_SIZE}
@@ -922,18 +1002,70 @@ export function ConversationPage(): React.ReactNode {
       openTargetMenuOpen,
       openTargets,
       selectedOpenTarget,
-      showPinnedSummary,
+      onOpenRightDock,
+      rightDockOpen,
+      rightDockTool,
       workflowTimelineVisible,
     ],
   );
+
+  const composerFooter = composer ? (
+    <div className="chat-composer workflow-page__composer tw:pointer-events-none tw:flex tw:w-full tw:justify-center">
+      <ComposerFrame
+        ref={composerTransition.ref}
+        className="workflow-page__composer-inner"
+        style={composerTransition.style}
+      >
+        {showComposerStatusSummary ? (
+          <div className="composer-change-summary">
+            {hasComposerPlan ? (
+              <span className="composer-change-summary__plan">
+                <LoaderCircle
+                  aria-hidden="true"
+                  size={APP_ICON_SIZE}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
+                计划
+              </span>
+            ) : null}
+            {hasComposerPlan && changedFileCount > 0 ? (
+              <span
+                aria-hidden="true"
+                className="composer-change-summary__separator"
+              >
+                ·
+              </span>
+            ) : null}
+            {changedFileCount > 0 ? (
+              <span className="composer-change-summary__changes">
+                {changedFileCount} 个文件已更改
+                <strong> +{formatPanelNumber(composerDiffSummary.additions)}</strong>
+                <em> -{formatPanelNumber(composerDiffSummary.deletions)}</em>
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+        {activePermissionRequest ? (
+          <InlineApprovalCard
+            request={activePermissionRequest}
+            currentPermissionMode={permissionMode}
+            onDecide={decideInlinePermission}
+            onAcceptExitPlanMode={onAcceptExitPlanMode}
+          />
+        ) : (
+          composer
+        )}
+      </ComposerFrame>
+    </div>
+  ) : null;
 
   return (
     <section
       ref={workflowPageRef}
       className={
         activePermissionRequest
-          ? "conversation-page workflow-page approval-active"
-          : "conversation-page workflow-page"
+          ? "conversation-page workflow-page approval-active tw:relative tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-col tw:bg-app-canvas tw:text-app-text"
+          : "conversation-page workflow-page tw:relative tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-col tw:bg-app-canvas tw:text-app-text"
       }
     >
       <div
@@ -946,14 +1078,7 @@ export function ConversationPage(): React.ReactNode {
             : undefined
         }
       >
-        <main
-          className={
-            "workflow-page__main" +
-            (showEnvironmentPanel
-              ? " workflow-page__main--with-environment-panel"
-              : "")
-          }
-        >
+        <main className="workflow-page__main">
           <header
             className={
               rightDockOpen
@@ -964,7 +1089,12 @@ export function ConversationPage(): React.ReactNode {
             {workspaceHeaderTitle}
             {workspaceHeaderActions}
           </header>
-          <div className="workflow-main-scroll-area">
+          <ThreadScrollLayout
+            className="workflow-main-scroll-area"
+            footer={composerFooter}
+            footerRef={threadFooterRef}
+            scrollRef={threadScrollRef}
+          >
             <ContextMenu.Root
               onOpenChange={(open) => {
                 if (!open) {
@@ -974,10 +1104,7 @@ export function ConversationPage(): React.ReactNode {
             >
               <ContextMenu.Trigger asChild>
                 <div
-                  className={
-                    "session-timeline-wrapper" +
-                    (showEnvironmentPanel ? " has-environment-panel" : "")
-                  }
+                  className="session-timeline-wrapper"
                   onContextMenu={handleConversationContextMenu}
                 >
                   <ConversationTurnNavRail
@@ -988,8 +1115,7 @@ export function ConversationPage(): React.ReactNode {
                       });
                     }}
                   />
-                  <div className="session-timeline-env-lane">
-                    <div className="session-timeline-env-main">
+                  <div className="session-timeline-main tw:min-w-0">
                       {isConversationLoading ? (
                         <div className="assistant-thinking">加载对话中</div>
                       ) : (
@@ -1017,17 +1143,20 @@ export function ConversationPage(): React.ReactNode {
                             </div>
                           ) : null}
                           <SessionTimelineView
-                            count={phaseItems.length + (showThinking ? 1 : 0) + 1}
+                            count={phaseItems.length + (showThinking ? 1 : 0)}
+                            initialScrollOffset={initialTimelineScrollTop}
+                            sessionKey={activeSessionId ?? undefined}
                             scrollToBottom={
                               sessionStatus === "running" ||
                               sessionStatus === "waiting"
                             }
                             onScroll={handleTimelineScroll}
                             listRef={timelineListRef}
+                            scrollRef={threadScrollRef}
                           >
                             {phaseItems.map((item) => (
                               <div
-                                className="session-turn-row"
+                                className="session-turn-row tw:mx-auto tw:w-full tw:max-w-[48rem] tw:min-w-0"
                                 data-component="session-turn"
                                 data-slot={timelineItemSlot(item)}
                                 key={item.id}
@@ -1067,29 +1196,9 @@ export function ConversationPage(): React.ReactNode {
                                 <span>正在思考</span>
                               </div>
                             ) : null}
-                            <div className="session-bottom-spacer" />
                           </SessionTimelineView>
                         </>
                       )}
-                    </div>
-                    {showEnvironmentPanel ? (
-                      <EnvironmentPanel
-                        branchName={branchName}
-                        branches={branches}
-                        diff={diff}
-                        gitStatus={gitStatus}
-                        sourceLinks={sourceLinks}
-                        subagents={subagents}
-                        workspacePath={workspacePath}
-                        onBranchSelect={onBranchSelect}
-                        onCommitOrPush={onCommitOrPush}
-                        onCreateBranch={onCreateBranch}
-                        onCreatePullRequest={onCreatePullRequest}
-                        onOpenWorkspacePath={onOpenWorkspacePath}
-                        onRefreshDiff={onRefreshDiff}
-                        onOpenSubagent={onOpenSubagent}
-                      />
-                    ) : null}
                   </div>
                 </div>
               </ContextMenu.Trigger>
@@ -1115,60 +1224,7 @@ export function ConversationPage(): React.ReactNode {
                 </ContextMenu.Portal>
               ) : null}
             </ContextMenu.Root>
-          </div>
-
-          {composer ? (
-            <footer className="chat-composer workflow-page__composer">
-              <ComposerSurface
-                ref={composerTransition.ref}
-                className="workflow-page__composer-inner"
-                style={composerTransition.style}
-              >
-                {showComposerStatusSummary ? (
-                  <div className="composer-change-summary">
-                    {hasComposerPlan ? (
-                      <span className="composer-change-summary__plan">
-                        <LoaderCircle
-                          aria-hidden="true"
-                          size={APP_ICON_SIZE}
-                          strokeWidth={APP_ICON_STROKE_WIDTH}
-                        />
-                        计划
-                      </span>
-                    ) : null}
-                    {hasComposerPlan && changedFileCount > 0 ? (
-                      <span aria-hidden="true" className="composer-change-summary__separator">
-                        ·
-                      </span>
-                    ) : null}
-                    {changedFileCount > 0 ? (
-                      <span className="composer-change-summary__changes">
-                        {changedFileCount} 个文件已更改
-                        <strong>
-                          {" "}
-                          +{formatPanelNumber(composerDiffSummary.additions)}
-                        </strong>
-                        <em>
-                          {" "}
-                          -{formatPanelNumber(composerDiffSummary.deletions)}
-                        </em>
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
-                {activePermissionRequest ? (
-                  <InlineApprovalCard
-                    request={activePermissionRequest}
-                    currentPermissionMode={permissionMode}
-                    onDecide={decideInlinePermission}
-                    onAcceptExitPlanMode={onAcceptExitPlanMode}
-                  />
-                ) : (
-                  composer
-                )}
-              </ComposerSurface>
-            </footer>
-          ) : null}
+          </ThreadScrollLayout>
         </main>
         {rightDockNode}
       </div>
@@ -2069,8 +2125,8 @@ function TimelineItem({
     if (!summary) return null;
     const title = planTitleFromSummary(summary);
     return (
-      <article className="chat-message-row assistant">
-        <div className="assistant-message-body">
+      <article className="chat-message-row assistant tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-start tw:text-base tw:text-app-text">
+        <div className="assistant-message-body tw:w-full tw:max-w-[48rem] tw:text-base tw:leading-[22px] tw:text-app-text">
           <WorkflowPlanCard
             summary={summary}
             streaming={event.metadata?.streaming === true}
@@ -2594,12 +2650,12 @@ function TimelineCommandRunItem({
 
       <div aria-hidden={!isOpen} className="timeline-command-shell-wrap">
         <article
-          className={`timeline-command-shell timeline-command-shell--${view.statusKind}`}
+          className={`timeline-command-shell timeline-command-shell--${view.statusKind} tw:my-1 tw:overflow-hidden tw:rounded-lg tw:bg-app-panel`}
         >
           <div className="timeline-command-shell-header">{view.shellTitle}</div>
           <div className="timeline-command-shell-scroll-area">
             <div className="timeline-command-shell-scroll-x">
-              <pre className="timeline-command-shell-body">
+          <pre className="timeline-command-shell-body tw:m-0 tw:min-w-max tw:px-3 tw:py-2 tw:font-mono tw:text-sm tw:leading-5 tw:text-app-text">
                 <span className="timeline-command-shell-prompt">$</span>{" "}
                 {view.displayCommand}
                 {view.displayOutput ? `\n${view.displayOutput}` : ""}
@@ -2637,7 +2693,7 @@ function ChatMessage({
   message: Message;
   showActions: boolean;
 }): React.ReactNode {
-  const { onSubmitEditedUserMessage, sessionStatus } = useQuickChatContext();
+  const { messages, onSubmitEditedUserMessage, sessionStatus } = useQuickChatContext();
   const [isEditing, setIsEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(message.text);
   const [isSubmittingEdit, setIsSubmittingEdit] = React.useState(false);
@@ -2652,6 +2708,17 @@ function ChatMessage({
   const canSubmitEdit =
     Boolean(draft.trim()) &&
     !isSubmittingEdit &&
+    sessionStatus !== "running" &&
+    sessionStatus !== "waiting";
+  const messageIndex = messages.findIndex((item) => item.id === message.id);
+  const retryInput = messageIndex > 0
+    ? messages
+        .slice(0, messageIndex)
+        .reverse()
+        .find((item) => item.role === "user")?.text.trim() ?? ""
+    : "";
+  const canRetry =
+    Boolean(retryInput) &&
     sessionStatus !== "running" &&
     sessionStatus !== "waiting";
 
@@ -2686,7 +2753,7 @@ function ChatMessage({
     const sentAt = formatUserMessageTime(message.createdAt);
     if (isEditing) {
       return (
-        <article className="chat-message-row user">
+        <article className="chat-message-row user tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-end tw:text-base tw:text-app-text">
           <div className="user-message-editor">
             <textarea
               ref={editTextareaRef}
@@ -2731,8 +2798,10 @@ function ChatMessage({
     }
 
     return (
-      <article className="chat-message-row user">
-        <div className="user-message-bubble">{message.text}</div>
+      <article className="chat-message-row user tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-end tw:text-base tw:text-app-text">
+        <div className="user-message-bubble tw:max-w-[77%] tw:rounded-2xl tw:px-3 tw:py-2 tw:text-base tw:leading-6 tw:text-app-text">
+          {message.text}
+        </div>
         <div className="user-message-meta" aria-label="用户消息操作">
           {sentAt ? <time>{sentAt}</time> : null}
           <MessageActionButton label="复制" tip="复制" text={message.text}>
@@ -2757,37 +2826,30 @@ function ChatMessage({
   }
 
   return (
-    <article className={`chat-message-row ${message.role}`}>
-      <div className="assistant-message-body">
+    <article
+      className={`chat-message-row ${message.role} tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-start tw:text-base tw:text-app-text`}
+    >
+      <div className="assistant-message-body tw:w-full tw:max-w-[48rem] tw:text-base tw:leading-[22px] tw:text-app-text">
         <MarkdownMessage
           text={renderedText}
           streaming={Boolean(message.streaming)}
         />
       </div>
       {showActions && message.role === "assistant" && message.text.trim() ? (
-        <div className="user-message-meta">
+        <div className="user-message-meta assistant-message-actions">
           <MessageActionButton label="复制" tip="复制" text={message.text}>
             <Copy size={APP_ICON_SIZE} />
           </MessageActionButton>
-          <Tooltip content="赞">
-            <button aria-label="赞" className="message-action" type="button">
-              <ThumbsUp size={APP_ICON_SIZE} />
-            </button>
-          </Tooltip>
-          <Tooltip content="踩">
-            <button aria-label="踩" className="message-action" type="button">
-              <ThumbsDown size={APP_ICON_SIZE} />
-            </button>
-          </Tooltip>
-          <Tooltip content="重新生成">
+          {canRetry ? <Tooltip content="重新生成">
             <button
               aria-label="重新生成"
               className="message-action"
+              onClick={() => void onSubmitEditedUserMessage(retryInput)}
               type="button"
             >
               <RotateCcw size={APP_ICON_SIZE} />
             </button>
-          </Tooltip>
+          </Tooltip> : null}
         </div>
       ) : null}
     </article>
@@ -3387,12 +3449,17 @@ function ReviewDiffInline({
     >
       <div className="review-diff-lines-scroll-x">
         <div
-          className={`review-diff-lines review-diff-inline marker-${diffMarkerStyle}`}
+          className="review-diff-lines review-diff-inline"
+          data-marker-style={diffMarkerStyle}
         >
           {lines.map((line) => {
             if (line.type === "meta") {
               return (
-                <div className={`review-diff-row ${line.type}`} key={line.id}>
+                <div
+                  className="review-diff-row u-grid u-items-stretch"
+                  data-line-type={line.type}
+                  key={line.id}
+                >
                   <span className="review-diff-line-content">
                     {line.content}
                   </span>
@@ -3407,7 +3474,10 @@ function ReviewDiffInline({
                       {line.unmodifiedBefore} unmodified lines
                     </div>
                   ) : null}
-                  <div className={`review-diff-row ${line.type}`}>
+                  <div
+                    className="review-diff-row u-grid u-items-stretch"
+                    data-line-type={line.type}
+                  >
                     <span className="review-diff-line-content">
                       {line.content}
                     </span>
@@ -3418,15 +3488,14 @@ function ReviewDiffInline({
             const lineNumber =
               line.type === "added" ? line.newLine : line.oldLine;
             return (
-              <div className={`review-diff-row ${line.type}`} key={line.id}>
+              <div
+                className="review-diff-row u-grid u-items-stretch"
+                data-line-type={line.type}
+                key={line.id}
+              >
                 <span
-                  className={`review-diff-line-number ${
-                    line.type === "added"
-                      ? "added"
-                      : line.type === "removed"
-                        ? "removed"
-                        : ""
-                  }`}
+                  className="review-diff-line-number u-text-right"
+                  data-tone={line.type}
                 >
                   {lineNumber ?? ""}
                 </span>
@@ -3458,12 +3527,17 @@ function ReviewDiffSplit({
     >
       <div className="review-diff-lines-scroll-x">
         <div
-          className={`review-diff-lines review-diff-split marker-${diffMarkerStyle}`}
+          className="review-diff-lines review-diff-split"
+          data-marker-style={diffMarkerStyle}
         >
           {rows.map((row) => {
             if (row.hunk) {
               return (
-                <div className="review-diff-row hunk" key={row.id}>
+                <div
+                  className="review-diff-row u-grid u-items-stretch"
+                  data-line-type="hunk"
+                  key={row.id}
+                >
                   <span className="review-diff-line-content">
                     {row.hunk.content}
                   </span>
@@ -3472,7 +3546,11 @@ function ReviewDiffSplit({
             }
             if (row.meta) {
               return (
-                <div className="review-diff-row meta" key={row.id}>
+                <div
+                  className="review-diff-row u-grid u-items-stretch"
+                  data-line-type="meta"
+                  key={row.id}
+                >
                   <span className="review-diff-line-content">
                     {row.meta.content}
                   </span>
@@ -3487,18 +3565,16 @@ function ReviewDiffSplit({
                   </div>
                 ) : null}
                 <div
-                  className={`review-diff-split-row ${
-                    row.paired ? "paired" : "single"
-                  }`}
+                  className="review-diff-split-row u-grid u-min-w-0"
+                  data-layout={row.paired ? "paired" : "single"}
                 >
                   <div
-                    className={`review-diff-side ${row.left.tone}`}
+                    className="review-diff-side u-grid u-min-w-0"
                     data-tone={row.left.tone}
                   >
                     <span
-                      className={`review-diff-line-number ${
-                        row.left.tone === "removed" ? "removed" : ""
-                      }`}
+                      className="review-diff-line-number u-text-right"
+                      data-tone={row.left.tone}
                     >
                       {row.left.number ?? ""}
                     </span>
@@ -3508,13 +3584,12 @@ function ReviewDiffSplit({
                     </code>
                   </div>
                   <div
-                    className={`review-diff-side ${row.right.tone}`}
+                    className="review-diff-side u-grid u-min-w-0"
                     data-tone={row.right.tone}
                   >
                     <span
-                      className={`review-diff-line-number ${
-                        row.right.tone === "added" ? "added" : ""
-                      }`}
+                      className="review-diff-line-number u-text-right"
+                      data-tone={row.right.tone}
                     >
                       {row.right.number ?? ""}
                     </span>
@@ -3542,7 +3617,7 @@ function DiffMarker({
     | ReviewSplitRow["right"]["tone"];
 }): React.ReactNode {
   return (
-    <span className={`review-diff-marker ${tone}`} aria-hidden="true">
+    <span className="review-diff-marker" data-tone={tone} aria-hidden="true">
       {tone === "added" ? "+" : tone === "removed" ? "-" : ""}
     </span>
   );

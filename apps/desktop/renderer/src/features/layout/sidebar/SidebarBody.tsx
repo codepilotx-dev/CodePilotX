@@ -17,6 +17,7 @@ import { SidebarEmptyRow } from "./SidebarRow.js";
 import { SidebarProjectGroup } from "./SidebarProjectGroup.js";
 import { SidebarSessionGroup } from "./SidebarSessionGroup.js";
 import { useDesktopSettings } from "../../settings/useDesktopSettings.js";
+import { cx } from "../../../utils/cx.js";
 
 type Props = {
   activeSessionId: string | null;
@@ -83,12 +84,12 @@ export function SidebarBody({
 
   return (
     <ScrollArea
-      className="sidebar-scroll-area"
+      className="sidebar-scroll-area tw:mt-4.5 tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
       contentClassName="sidebar-scroll-content"
     >
-      <div className="sidebar-section-group">
+      <div className="sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5">
         {pinnedSessions.length > 0 || pinnedWorkspaces.length > 0 ? (
-          <section className="sidebar-section">
+          <section className="sidebar-section tw:grid tw:gap-1">
             <SidebarSectionHeader
               sidebarOrganization={sidebarOrganization}
               sidebarSort={sidebarSort}
@@ -146,7 +147,7 @@ export function SidebarBody({
         ) : null}
 
         {isProjectOrganization ? (
-        <section className="sidebar-section sidebar-projects-section">
+        <section className="sidebar-section sidebar-projects-section tw:grid tw:gap-1">
           <SidebarSectionHeader
             sidebarOrganization={sidebarOrganization}
             sidebarSort={sidebarSort}
@@ -193,7 +194,7 @@ export function SidebarBody({
         </section>
         ) : null}
 
-        <section className="sidebar-section">
+        <section className="sidebar-section tw:grid tw:gap-1">
           <SidebarSectionHeader
             sidebarOrganization={sidebarOrganization}
             sidebarSort={sidebarSort}
@@ -259,7 +260,7 @@ function SidebarSectionHeader({
   const actionsVisible = hovered || menuOpen;
   return (
     <div
-      className="sidebar-section-header"
+      className="sidebar-section-header tw:grid tw:w-full tw:grid-cols-[auto_minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-md tw:px-2 tw:py-1.25 tw:text-sm tw:text-app-text-soft tw:transition-colors tw:duration-[var(--motion-fast)] tw:hover:bg-app-panel tw:hover:text-app-text tw:focus-visible:outline-none tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
       role="button"
       tabIndex={0}
       aria-expanded={!isCollapsed}
@@ -273,10 +274,12 @@ function SidebarSectionHeader({
         }
       }}
     >
-      <h2 className="sidebar-section-title">
-        <span className="sidebar-section-label">{title}</span>
+      <h2 className="sidebar-section-title tw:m-0 tw:flex tw:min-w-0 tw:items-center tw:text-xs tw:font-[var(--font-weight-label)] tw:text-app-text-soft">
+        <span className={cx('sidebar-section-label', 'u-min-w-0', 'u-truncate')}>
+          {title}
+        </span>
       </h2>
-      <span className="sidebar-section-main">
+      <span className={cx('sidebar-section-main', 'u-min-w-0', 'u-flex', 'u-items-center')}>
         <ChevronDown
           className={
             "sidebar-section-chevron" +
@@ -285,7 +288,7 @@ function SidebarSectionHeader({
           size={APP_ICON_SIZE}
         />
       </span>
-      <div className="sidebar-section-trailing">
+      <div className="sidebar-section-trailing tw:flex tw:min-h-4 tw:min-w-0 tw:items-center tw:justify-end">
         <div
           className={
             "sidebar-section-actions" +

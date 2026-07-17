@@ -28,6 +28,7 @@ import {
   SidebarContextMenu,
   type ContextMenuAction,
 } from "./SidebarContextMenu.js";
+import { cx } from "../../../utils/cx.js";
 
 type Props = {
   activeSessionId: string | null;
@@ -144,7 +145,10 @@ export function SidebarProjectGroup({
   }
 
   return (
-    <section className="sidebar-project" onMouseLeave={() => setHovered(false)}>
+    <section
+      className={cx('sidebar-project', 'u-flex', 'u-flex-col', 'tw:flex tw:flex-col tw:gap-0.5')}
+      onMouseLeave={() => setHovered(false)}
+    >
       <SidebarContextMenu
         actions={getProjectContextMenuActions()}
         width={240}
@@ -293,7 +297,9 @@ export function SidebarProjectGroup({
               </div>
             }
           >
-            <span className="sidebar-project-title-text">{project.name}</span>
+            <span className={cx('sidebar-project-title-text', 'u-min-w-0', 'u-truncate')}>
+              {project.name}
+            </span>
             {projectSessions.length > 0 ? (
               <ChevronDown
                 aria-hidden="true"

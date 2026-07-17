@@ -18,6 +18,7 @@ import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
 } from '../../components/ui/popoverSizing.js'
+import { cx } from '../../utils/cx.js'
 
 export type FileMenuAction =
   | 'close'
@@ -113,10 +114,19 @@ function MenuItem({
         onSelect()
       }}
     >
-      <span className="menubar-item-label">{children}</span>
+      <span className={cx('menubar-item-label', 'u-min-w-0', 'u-truncate')}>{children}</span>
       <span className="menubar-item-trailing">
         {shortcut ? (
-          <span className="menubar-shortcut">{shortcut}</span>
+          <span
+            className={cx(
+              'menubar-shortcut',
+              disabled ? 'u-text-disabled' : 'u-text-meta',
+              'u-type-caption',
+              'u-nowrap',
+            )}
+          >
+            {shortcut}
+          </span>
         ) : null}
       </span>
     </Menubar.Item>
@@ -132,7 +142,9 @@ function DebugModeToggle({
 }): React.ReactNode {
   return (
     <label className="menubar-debug-mode">
-      <span className="menubar-debug-mode-label">调试模式</span>
+      <span className={cx('menubar-debug-mode-label', 'u-text-secondary', 'u-type-meta')}>
+        调试模式
+      </span>
       <ToggleSwitch checked={checked} onChange={onChange} ariaLabel="调试模式" />
     </label>
   )

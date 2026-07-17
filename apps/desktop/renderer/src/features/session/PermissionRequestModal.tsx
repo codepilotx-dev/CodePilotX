@@ -40,11 +40,11 @@ export function PermissionRequestModal({
         {request ? (
           <Dialog.Overlay className="permission-modal-backdrop">
             <Dialog.Content
-              className="permission-modal"
+              className="permission-modal tw:grid tw:w-[min(38.75rem,100%)] tw:gap-3 tw:rounded-xl tw:p-5 tw:text-app-text"
               onEscapeKeyDown={event => event.preventDefault()}
               onInteractOutside={event => event.preventDefault()}
             >
-              <header>
+              <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
                 <Dialog.Title asChild>
                   <h2>权限请求</h2>
                 </Dialog.Title>
@@ -81,12 +81,12 @@ export function PermissionRequestModal({
                 />
               ) : (
                 <>
-                  <div className="permission-code-scroll-area">
-                    <div className="permission-code-scroll-content">
+                  <div className="permission-code-scroll-area tw:overflow-hidden tw:overflow-y-auto">
+                    <div className="permission-code-scroll-content tw:overflow-hidden tw:overflow-x-auto">
                       <code>{JSON.stringify(request.input)}</code>
                     </div>
                   </div>
-                  <div className="permission-modal-actions">
+                  <div className="permission-modal-actions tw:flex tw:items-center tw:justify-between tw:gap-3">
                     <button
                       className="primary-button"
                       onClick={() => onDecide(request, 'allow')}

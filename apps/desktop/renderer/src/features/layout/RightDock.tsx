@@ -53,6 +53,7 @@ type Props = {
   sessionId: string | null;
   sessionStatus: DesktopSessionStatus;
   plan: RightDockPlan | null;
+  environmentContent: React.ReactNode | null;
   width: number;
   workspace: DesktopWorkspace | null;
   quickChatOnly?: boolean;
@@ -103,6 +104,7 @@ export function RightDock({
   sessionId,
   sessionStatus,
   plan,
+  environmentContent,
   width,
   workspace,
   quickChatOnly = false,
@@ -148,6 +150,9 @@ export function RightDock({
 
   const panelContext = useMemo<RightDockPanelContext>(
     () => ({
+      environment: {
+        content: environmentContent,
+      },
       review: {
         activeSessionId: sessionId,
         defaultBranch,
@@ -188,6 +193,7 @@ export function RightDock({
     }),
     [
       browserState,
+      environmentContent,
       defaultBranch,
       files,
       flags,
@@ -231,7 +237,11 @@ export function RightDock({
   return (
     <>
       <aside
-        className={resizing ? "right-dock resizing" : "right-dock"}
+        className={
+          resizing
+            ? "right-dock resizing tw:relative tw:flex tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:flex-col tw:overflow-hidden tw:border-l tw:border-app-border tw:bg-app-chrome tw:text-app-text"
+            : "right-dock tw:relative tw:flex tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:flex-col tw:overflow-hidden tw:border-l tw:border-app-border tw:bg-app-chrome tw:text-app-text"
+        }
         aria-label="右侧工具栏"
       >
         <div
@@ -248,7 +258,7 @@ export function RightDock({
           onKeyDown={handleResizeKey}
           onPointerDown={startResize}
         />
-        <div className="right-dock-header">
+        <div className="right-dock-header tw:flex tw:h-[46px] tw:max-h-[46px] tw:shrink-0 tw:items-center tw:overflow-hidden tw:border-b tw:border-app-border tw:bg-app-chrome tw:pr-[92px] tw:pl-2.5">
           <RightDockTabsHeader
             state={state}
             debugMode={debugMode}
@@ -259,13 +269,13 @@ export function RightDock({
             onSelectTool={onSelectTool}
           />
         </div>
-        <div className="right-dock-content">
+        <div className="right-dock-content tw:flex tw:min-h-0 tw:flex-1 tw:overflow-hidden tw:bg-app-canvas">
           {state.open && activePanelRenderer ? (
             activePanelRenderer(panelContext)
           ) : (
-            <div className="right-dock-empty-state">
-              <strong>右侧工具栏</strong>
-              <span>使用 + 选择要打开的工具</span>
+            <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:min-w-0 tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-6 tw:text-center tw:text-app-text-soft">
+              <strong className="tw:text-base tw:font-[var(--font-weight-label)] tw:text-app-text">右侧工具栏</strong>
+              <span className="tw:max-w-full tw:text-sm tw:text-app-text-soft">使用 + 选择要打开的工具</span>
             </div>
           )}
         </div>
@@ -323,7 +333,7 @@ function RightDockTabsHeader({
 
   return (
     <>
-      <div className="right-dock-tab-list" role="tablist">
+      <div className="right-dock-tab-list tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-1 tw:overflow-hidden" role="tablist">
         {openedTools.length > 0 ? (
           openedTools.map((tool, index) => {
             const isActive = state.activeTool === tool.id;
@@ -334,8 +344,8 @@ function RightDockTabsHeader({
                 <div
                   className={
                     isActive
-                      ? "right-dock-tab-wrap active"
-                      : "right-dock-tab-wrap"
+                      ? "right-dock-tab-wrap active tw:relative tw:flex tw:h-7 tw:min-w-0 tw:max-w-[156px] tw:flex-[0_1_auto] tw:items-center tw:gap-1 tw:overflow-hidden tw:rounded-[10px] tw:bg-app-panel tw:px-1 tw:text-app-text"
+                      : "right-dock-tab-wrap tw:relative tw:flex tw:h-7 tw:min-w-0 tw:max-w-[156px] tw:flex-[0_1_auto] tw:items-center tw:gap-1 tw:overflow-hidden tw:rounded-[10px] tw:px-1 tw:text-app-text-soft tw:transition-colors tw:duration-[var(--motion-fast)] tw:hover:bg-app-panel tw:hover:text-app-text"
                   }
                   role="tab"
                   aria-selected={isActive}
@@ -343,7 +353,9 @@ function RightDockTabsHeader({
                        <span className="right-dock-tab-icon">{tool.icon}</span>
                   <button
                     className={
-                      isActive ? "right-dock-tab active" : "right-dock-tab"
+                      isActive
+                        ? "right-dock-tab active tw:min-w-0 tw:flex-1 tw:truncate tw:px-1 tw:py-0 tw:text-sm tw:text-app-text"
+                        : "right-dock-tab tw:min-w-0 tw:flex-1 tw:truncate tw:px-1 tw:py-0 tw:text-sm tw:text-app-text-soft"
                     }
                     title={label}
                     type="button"
@@ -370,7 +382,7 @@ function RightDockTabsHeader({
             );
           })
         ) : (
-          <span className="right-dock-tab-empty">使用 + 添加工具</span>
+          <span className="right-dock-tab-empty tw:min-w-0 tw:flex-1 tw:truncate tw:px-2 tw:text-xs tw:text-app-text-soft">使用 + 添加工具</span>
         )}
         <PopoverMenu
           align="end"
@@ -383,7 +395,7 @@ function RightDockTabsHeader({
           width={220}
           trigger={
             <button
-              className="right-dock-add-button"
+              className="right-dock-add-button tw:flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:text-app-text-soft tw:transition-colors tw:duration-[var(--motion-fast)] tw:hover:bg-app-panel tw:hover:text-app-text tw:focus-visible:outline-none tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
               type="button"
               title="添加工具"
             >
@@ -445,7 +457,7 @@ export const DesktopWorkspaceFixedControls = forwardRef<
   ref,
 ): React.ReactNode {
   return (
-    <div ref={ref} className="desktop-workspace-fixed-controls">
+    <div ref={ref} className="desktop-workspace-fixed-controls tw:flex tw:h-full tw:max-h-[46px] tw:items-center tw:gap-0.5 tw:pr-3">
       {showBottomPanel ? (
         <IconButton
           className="desktop-workspace-fixed-control-button"

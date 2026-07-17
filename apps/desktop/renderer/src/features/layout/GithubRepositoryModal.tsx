@@ -10,6 +10,7 @@ import type {
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { cx } from '../../utils/cx.js'
 
 type Props = {
   open: boolean
@@ -155,7 +156,14 @@ export function GithubRepositoryModal({
             aria-describedby="github-repository-description"
             className="permission-modal github-repository-modal"
           >
-            <header>
+            <header
+              className={cx(
+                'u-flex',
+                'u-items-center',
+                'u-justify-between',
+                'u-gap-3',
+              )}
+            >
               <Dialog.Title asChild>
                 <h2>从 GitHub 克隆项目</h2>
               </Dialog.Title>
@@ -233,16 +241,46 @@ export function GithubRepositoryModal({
                   />
                 </label>
                 <div className="github-repository-list-scroll-area">
-                  <div className="github-repository-list-scroll-content">
+                  <div
+                    className={cx(
+                      'github-repository-list-scroll-content',
+                      'u-min-w-0',
+                      'u-grid',
+                    )}
+                  >
                     {loading ? (
-                      <div className="github-repository-empty">正在加载仓库...</div>
+                      <div
+                        className={cx(
+                          'github-repository-empty',
+                          'u-p-5',
+                          'u-text-center',
+                        )}
+                      >
+                        正在加载仓库...
+                      </div>
                     ) : filteredRepositories.length === 0 ? (
-                      <div className="github-repository-empty">没有匹配仓库</div>
+                      <div
+                        className={cx(
+                          'github-repository-empty',
+                          'u-p-5',
+                          'u-text-center',
+                        )}
+                      >
+                        没有匹配仓库
+                      </div>
                     ) : (
                       filteredRepositories.map(repository => (
                         <div className="github-repository-row" key={repository.id}>
                           <div className="github-repository-main">
-                            <div className="github-repository-title">
+                            <div
+                              className={cx(
+                                'github-repository-title',
+                                'u-min-w-0',
+                                'u-flex',
+                                'u-items-center',
+                                'u-gap-2',
+                              )}
+                            >
                               {repository.private ? (
                                 <Lock size={APP_ICON_SIZE} />
                               ) : (
@@ -275,7 +313,15 @@ export function GithubRepositoryModal({
               </>
             )}
 
-            <div className="permission-modal-actions">
+            <div
+              className={cx(
+                'permission-modal-actions',
+                'u-flex',
+                'u-items-center',
+                'u-justify-between',
+                'u-gap-3',
+              )}
+            >
               <button onClick={onClose} type="button">
                 关闭
               </button>

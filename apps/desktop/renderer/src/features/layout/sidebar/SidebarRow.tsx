@@ -1,5 +1,6 @@
 import { Children, cloneElement, forwardRef } from "react";
 import type { HTMLAttributes, ReactElement, ReactNode, Ref } from "react";
+import { cx } from "../../../utils/cx.js";
 
 type SidebarRowLeadingMode = "icon" | "spacer" | "none";
 type SidebarRowIndent = "none" | "session";
@@ -33,8 +34,10 @@ export const SidebarRow = forwardRef<HTMLElement, Props>(function SidebarRow(
   },
   ref,
 ): ReactNode {
-  const rowClassName = joinClassNames(
+  const rowClassName = cx(
     "sidebar-row",
+    "tw:grid tw:min-h-[31px] tw:w-full tw:grid-cols-[auto_minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-[10px] tw:px-2 tw:py-[5px] tw:text-left tw:text-base tw:leading-[21px] tw:text-app-text tw:no-underline tw:transition-colors tw:duration-[var(--motion-fast)] tw:hover:bg-[var(--color-sidebar-hover-bg)] tw:focus-visible:outline-none tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent",
+    active ? "tw:bg-[var(--color-sidebar-active-bg)] tw:text-app-text" : undefined,
     active ? "active" : undefined,
     indent === "session" ? "sidebar-row--session" : undefined,
     className,
@@ -51,7 +54,7 @@ export const SidebarRow = forwardRef<HTMLElement, Props>(function SidebarRow(
       child,
       {
         ...rowProps,
-        className: joinClassNames(rowClassName, child.props.className),
+        className: cx(rowClassName, child.props.className),
         ref,
       },
       renderRowContent({
@@ -95,8 +98,9 @@ function renderRowContent({
     <>
       <span
         aria-hidden={leadingMode === "none" ? true : undefined}
-        className={joinClassNames(
+        className={cx(
           "sidebar-row-leading",
+          "tw:flex tw:min-w-0 tw:items-center",
           leadingMode === "icon"
             ? "icon-button sidebar-item-icon"
             : "sidebar-row-leading-spacer",
@@ -104,12 +108,21 @@ function renderRowContent({
       >
         {leadingMode === "icon" ? leading : null}
       </span>
-      <span className={joinClassNames("sidebar-row-main", labelClassName)}>
+      <span
+        className={cx(
+          "sidebar-row-main",
+          "tw:flex tw:w-full tw:min-w-0 tw:items-center",
+          labelClassName,
+        )}
+      >
         {children}
       </span>
       <span
         aria-hidden={trailing ? undefined : true}
-        className="sidebar-row-trailing"
+        className={cx(
+          "sidebar-row-trailing",
+          "tw:flex tw:w-full tw:min-w-0 tw:items-center tw:justify-end",
+        )}
       >
         {trailing}
       </span>
@@ -125,17 +138,29 @@ export function SidebarEmptyRow({
   return (
     <div
       {...props}
-      className={joinClassNames("sidebar-row", "sidebar-empty-row", className)}
+      className={cx(
+        "sidebar-row",
+        "sidebar-empty-row",
+        "tw:grid tw:min-h-[31px] tw:w-full tw:grid-cols-[auto_minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-[10px] tw:px-2 tw:py-[5px] tw:text-base tw:leading-[21px] tw:text-app-text-soft",
+        className,
+      )}
     >
-      <span aria-hidden="true" className="sidebar-row-leading sidebar-row-leading-spacer" />
-      <p className="sidebar-empty">{children}</p>
-      <span aria-hidden="true" className="sidebar-row-trailing" />
+      <span
+        aria-hidden="true"
+        className={cx(
+          "sidebar-row-leading",
+          "sidebar-row-leading-spacer",
+          "tw:flex tw:min-w-0 tw:items-center",
+        )}
+      />
+      <p className="sidebar-empty tw:m-0 tw:min-w-0 tw:text-app-text-soft">{children}</p>
+      <span
+        aria-hidden="true"
+        className={cx(
+          "sidebar-row-trailing",
+          "tw:flex tw:w-full tw:min-w-0 tw:items-center tw:justify-end",
+        )}
+      />
     </div>
   );
-}
-
-function joinClassNames(
-  ...classNames: Array<string | false | null | undefined>
-): string {
-  return classNames.filter(Boolean).join(" ");
 }

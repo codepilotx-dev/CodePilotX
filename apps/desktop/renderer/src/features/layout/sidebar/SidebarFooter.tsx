@@ -1,5 +1,5 @@
 import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowUpRight,
@@ -29,6 +29,7 @@ import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { SidebarRow } from "./SidebarRow.js";
 import { isBillingProviderID } from '../../../utils/billingProviders.js'
 import { formatRemainingWindow, formatDuration, clampPercent } from '../../../utils/providerBalanceUtils.js'
+import { cx } from '../../../utils/cx.js'
 
 type PopoverUsageRow = {
   label: string;
@@ -54,7 +55,10 @@ const EMPTY_USAGE: ProviderUsageState = {
   error: null,
 };
 
-export function SidebarFooter(): React.ReactNode {
+export const SidebarFooter = forwardRef<HTMLElement>(function SidebarFooter(
+  _props,
+  ref,
+): React.ReactNode {
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -118,7 +122,10 @@ export function SidebarFooter(): React.ReactNode {
   );
 
   return (
-    <footer className="sidebar-footer">
+    <footer
+      className="sidebar-footer tw:mt-2 tw:flex tw:w-full tw:shrink-0 tw:items-center tw:gap-1 tw:px-1.5"
+      ref={ref}
+    >
       <PopoverMenu
         className="popover-sidebar-footer"
         open={menuOpen}
@@ -130,7 +137,7 @@ export function SidebarFooter(): React.ReactNode {
             active={settingsActive}
             asChild
             className="sidebar-settings-link"
-            labelClassName="sidebar-settings-label"
+            labelClassName={cx('sidebar-settings-label', 'u-min-w-0', 'u-truncate')}
             leading={
               <span className="sidebar-settings-icon-wrap">
                 <Settings2 size={APP_ICON_SIZE} />
@@ -245,7 +252,16 @@ export function SidebarFooter(): React.ReactNode {
                       }}
                       type="button"
                     >
-                      <span className="popover-usage-action-label">了解更多</span>
+                      <span
+                        className={cx(
+                          'popover-usage-action-label',
+                          'u-flex-1',
+                          'u-min-w-0',
+                          'u-truncate',
+                        )}
+                      >
+                        了解更多
+                      </span>
                       <ArrowUpRight
                         className="popover-usage-action-icon"
                         size={APP_ICON_SIZE}
@@ -296,7 +312,7 @@ export function SidebarFooter(): React.ReactNode {
       </IconButton>
     </footer>
   );
-}
+});
 
 function buildUsageRows(usage: ProviderUsageState): PopoverUsageRow[] {
   const { balance } = usage;

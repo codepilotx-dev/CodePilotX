@@ -19,7 +19,6 @@ import {
   GitBranch,
   Hand,
   ListChecks,
-  Mic,
   MessageSquare,
   Monitor,
   Palette,
@@ -43,6 +42,8 @@ import {
 import type {
   DesktopPermissionMode,
   DesktopQueuedFollowUp,
+  DesktopQueuePauseReason,
+  DesktopUserMessageInput,
   DesktopSessionStatus,
   DesktopThinkingMode,
   DesktopThreadGoal,
@@ -270,9 +271,12 @@ type Props = {
   contextDropdownSide?: "top" | "bottom";
   debugMode?: boolean;
   queuedFollowUps?: DesktopQueuedFollowUp[];
-  onFollowUpEdit?: (followUpId: string) => void;
+  queuePauseReason?: DesktopQueuePauseReason | null;
+  onFollowUpEdit?: (followUpId: string, input: DesktopUserMessageInput) => void;
   onFollowUpRemove?: (followUpId: string) => void;
   onFollowUpSendNow?: (followUpId: string) => void;
+  onFollowUpReorder?: (followUpIds: string[]) => void;
+  onFollowUpResume?: () => void;
   threadGoal?: DesktopThreadGoal | null;
   onGoalPause?: () => void;
   onGoalResume?: () => void;
@@ -340,9 +344,12 @@ export function ComposerCard({
   contextDropdownSide = "top",
   debugMode = false,
   queuedFollowUps,
+  queuePauseReason,
   onFollowUpEdit,
   onFollowUpRemove,
   onFollowUpSendNow,
+  onFollowUpReorder,
+  onFollowUpResume,
   threadGoal,
   onGoalPause,
   onGoalResume,
@@ -401,7 +408,7 @@ export function ComposerCard({
         : "高"
     : (selectedThinking?.label ?? "默认");
 
-  const showSlashContextDropdown =
+  const slashDropdownRequested =
     input.startsWith("/") && input !== dismissedSlashInput;
 
   const slashSearch = useMemo(() => {
@@ -412,16 +419,10 @@ export function ComposerCard({
   const activeMention = useMemo(() => {
     if (isComposing) return null;
     if (dismissedMention !== null) return null;
-    const sel = selectionStart;
-    if (sel == null || sel <= 0) return null;
-    const textBefore = input.slice(0, sel);
-    const atIndex = textBefore.lastIndexOf("@");
-    if (atIndex === -1) return null;
-    if (atIndex > 0 && input[atIndex - 1] !== " ") return null;
-    const query = textBefore.slice(atIndex + 1);
-    if (query.includes(" ")) return null;
-    return { start: atIndex, end: sel, query };
+    return getActiveComposerMention(input, selectionStart);
   }, [input, isComposing, dismissedMention, selectionStart]);
+
+  const showSlashContextDropdown = slashDropdownRequested && !activeMention;
 
   const unifiedMenuItems = useMemo((): UnifiedMenuItem[] => {
     const items: UnifiedMenuItem[] = [];
@@ -715,6 +716,24 @@ export function ComposerCard({
     subagentMode,
   ]);
 
+  const [activeMenuIndex, setActiveMenuIndex] = useState(0);
+  const activeMenuKeyword = openDropdown === "context"
+    ? ""
+    : activeMention?.query ?? slashSearch;
+  const activeMenuItems = useMemo(
+    () => filterUnifiedMenuItems(unifiedMenuItems, activeMenuKeyword),
+    [activeMenuKeyword, unifiedMenuItems],
+  );
+  const unifiedMenuOpen =
+    openDropdown === "context" ||
+    showSlashContextDropdown ||
+    Boolean(activeMention);
+
+  useEffect(() => {
+    if (!unifiedMenuOpen) return;
+    setActiveMenuIndex(firstEnabledMenuIndex(activeMenuItems));
+  }, [activeMenuItems, unifiedMenuOpen]);
+
   useEffect(() => {
     if (input.trimStart() !== "/") {
       setDismissedSlashInput(null);
@@ -837,15 +856,16 @@ export function ComposerCard({
     items,
     keyword,
     onItemSelect,
+    activeIndex,
+    onActiveIndexChange,
   }: {
     items: UnifiedMenuItem[];
     keyword: string;
     onItemSelect: (item: UnifiedMenuItem) => void;
+    activeIndex: number;
+    onActiveIndexChange: (index: number) => void;
   }): React.ReactNode {
-    const kw = keyword.toLowerCase().trim();
-    const filtered = kw
-      ? items.filter((item) => item.matchText.toLowerCase().includes(kw))
-      : items;
+    const filtered = filterUnifiedMenuItems(items, keyword);
 
     // Group by group in fixed order
     const grouped = new Map<UnifiedMenuGroup, UnifiedMenuItem[]>();
@@ -864,7 +884,12 @@ export function ComposerCard({
     }
 
     return (
-      <div className="chat-input__dropdown-items">
+      <div
+        aria-label="Composer 命令"
+        className="chat-input__dropdown-items"
+        id="composer-unified-menu"
+        role="menu"
+      >
         {visibleGroups.map((group, gi) => (
           <Fragment key={group}>
             {gi > 0 ? (
@@ -877,19 +902,27 @@ export function ComposerCard({
               </span>
               <span className="chat-input__dropdown-section-trailing" />
             </div>
-            {(grouped.get(group) ?? []).map((item) => (
-              <div
+            {(grouped.get(group) ?? []).map((item) => {
+              const itemIndex = filtered.indexOf(item);
+              return (
+              <button
                 aria-disabled={item.disabled ? true : undefined}
-                aria-pressed={item.isActive ? true : undefined}
+                aria-current={item.isActive ? "true" : undefined}
                 className={[
                   "chat-input__dropdown-item",
                   item.isActive ? "is-active" : "",
+                  itemIndex === activeIndex ? "is-keyboard-active" : "",
                   item.disabled ? "is-disabled" : "",
                 ].join(" ")}
+                id={composerMenuItemId(item.key)}
                 key={item.key}
                 onClick={() => {
                   if (!item.disabled) onItemSelect(item);
                 }}
+                onMouseEnter={() => onActiveIndexChange(itemIndex)}
+                role="menuitem"
+                tabIndex={itemIndex === activeIndex ? 0 : -1}
+                type="button"
               >
                 <span className="chat-input__dropdown-leading">
                   {item.icon}
@@ -904,8 +937,8 @@ export function ComposerCard({
                     </span>
                   ) : null}
                 </span>
-              </div>
-            ))}
+              </button>
+            )})}
           </Fragment>
         ))}
       </div>
@@ -914,7 +947,7 @@ export function ComposerCard({
 
   return (
     <div
-      className="composer"
+      className="composer tw:relative tw:flex tw:w-full tw:max-w-[48rem] tw:flex-col tw:overflow-visible tw:p-3"
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes("Files")) {
           event.preventDefault();
@@ -922,13 +955,17 @@ export function ComposerCard({
       }}
       onDrop={handleFileDrop}
     >
-      <div className="composer-top">
+      <div className="composer-top tw:relative tw:flex tw:min-h-0 tw:flex-col tw:justify-between tw:transition-[min-height] tw:duration-[220ms]">
         {attachments.length > 0 ? (
-          <div className="composer-attachments" aria-label="已添加附件">
+          <div
+            className="composer-attachments tw:mb-2 tw:flex tw:flex-wrap tw:items-start tw:gap-2"
+            aria-label="已添加附件"
+          >
             {attachments.map((attachment) => (
               <div
                 className={[
                   "composer-attachment-card",
+                  "tw:relative tw:inline-flex tw:size-20 tw:min-w-0 tw:items-stretch tw:overflow-visible",
                   `composer-attachment-${attachment.kind}`,
                   attachment.status,
                   attachment.status === "error" ? "error" : "",
@@ -972,7 +1009,7 @@ export function ComposerCard({
             ))}
           </div>
         ) : null}
-        <div className="composer-input">
+        <div className="composer-input tw:flex tw:min-w-0 tw:items-start">
           {selectedSkillToken ? (
             <span className="composer-skill-token">
               <Sparkles
@@ -986,6 +1023,15 @@ export function ComposerCard({
             </span>
           ) : null}
           <textarea
+            aria-activedescendant={
+              unifiedMenuOpen && activeMenuItems[activeMenuIndex]
+                ? composerMenuItemId(activeMenuItems[activeMenuIndex].key)
+                : undefined
+            }
+            aria-controls={unifiedMenuOpen ? "composer-unified-menu" : undefined}
+            aria-expanded={unifiedMenuOpen}
+            aria-haspopup="menu"
+            className="tw:min-h-10 tw:w-full tw:min-w-0 tw:flex-1 tw:resize-none tw:border-0 tw:bg-transparent tw:p-0 tw:text-base tw:leading-6 tw:text-app-text tw:outline-none"
             ref={textareaRef}
             value={input}
             onChange={(event) => {
@@ -1001,6 +1047,38 @@ export function ComposerCard({
               setSelectionStart(textareaRef.current?.selectionStart ?? null);
             }}
             onKeyDown={(event) => {
+              if (unifiedMenuOpen) {
+                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setActiveMenuIndex((current) =>
+                    nextEnabledMenuIndex(
+                      activeMenuItems,
+                      current,
+                      event.key === "ArrowDown" ? 1 : -1,
+                    ),
+                  );
+                  return;
+                }
+                if (event.key === "Home" || event.key === "End") {
+                  event.preventDefault();
+                  setActiveMenuIndex(
+                    event.key === "Home"
+                      ? firstEnabledMenuIndex(activeMenuItems)
+                      : lastEnabledMenuIndex(activeMenuItems),
+                  );
+                  return;
+                }
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  const item = activeMenuItems[activeMenuIndex];
+                  if (item && !item.disabled) {
+                    if (activeMention) handleUnifiedMentionSelect(item);
+                    else handleUnifiedSlashSelect(item);
+                  }
+                  return;
+                }
+              }
+
               // Escape: dismiss dropdowns or interrupt session
               if (event.key === "Escape") {
                 if (showSlashContextDropdown) {
@@ -1034,14 +1112,6 @@ export function ComposerCard({
                 return;
               }
 
-              // Prevent Enter during slash dropdown
-              if (showSlashContextDropdown) {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  return;
-                }
-              }
-
               if (event.key !== "Enter" || event.shiftKey) return;
               event.preventDefault();
               if (canSubmit) onSubmit();
@@ -1063,8 +1133,10 @@ export function ComposerCard({
           }}
         >
           <UnifiedMenuContent
+            activeIndex={activeMenuIndex}
             items={unifiedMenuItems}
             keyword={slashSearch}
+            onActiveIndexChange={setActiveMenuIndex}
             onItemSelect={handleUnifiedSlashSelect}
           />
         </ChatInputDropdown>
@@ -1080,14 +1152,16 @@ export function ComposerCard({
           }}
         >
           <UnifiedMenuContent
+            activeIndex={activeMenuIndex}
             items={unifiedMenuItems}
             keyword={activeMention?.query ?? ""}
+            onActiveIndexChange={setActiveMenuIndex}
             onItemSelect={handleUnifiedMentionSelect}
           />
         </ChatInputDropdown>
 
-        <div className="composer-toolbar">
-          <div className="toolbar-left">
+        <div className="composer-toolbar tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:pt-2">
+          <div className="toolbar-left tw:flex tw:min-w-0 tw:items-center tw:gap-1.5">
             <IconButton
               active={openDropdown === "context"}
               aria-expanded={openDropdown === "context"}
@@ -1287,7 +1361,7 @@ export function ComposerCard({
             ) : null}
           </div>
 
-          <div className="toolbar-right">
+          <div className="toolbar-right tw:flex tw:min-w-0 tw:items-center tw:gap-1.5">
             {showContextUsage ? (
               <span
                 aria-label={`上下文窗口使用量：${contextUsage ? `已用 ${usedPercent}%，剩余 ${100 - usedPercent}%` : "暂无数据"}`}
@@ -1560,19 +1634,13 @@ export function ComposerCard({
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
 
-            <IconButton
-              className="composer-mic-button"
-              title="语音输入"
-            >
-              <Mic size={APP_ICON_SIZE} />
-            </IconButton>
             <button
-              aria-label={isRunning ? "停止" : "发送"}
+              aria-label={isRunning && !canSubmit ? "停止" : "发送"}
               className="send-button"
               disabled={!isRunning && !canSubmit}
-              onClick={isRunning ? onInterrupt : onSubmit}
+              onClick={isRunning && !canSubmit ? onInterrupt : onSubmit}
               title={
-                isRunning
+                isRunning && !canSubmit
                   ? "停止 Esc"
                   : modelConfigured
                     ? (submitDisabledReason ?? "发送")
@@ -1580,7 +1648,7 @@ export function ComposerCard({
               }
               type="button"
             >
-              {isRunning ? (
+              {isRunning && !canSubmit ? (
                 <Square size={APP_ICON_SIZE} fill="currentColor" />
               ) : (
                 <ArrowUp
@@ -1600,8 +1668,10 @@ export function ComposerCard({
           maxWidth="100%"
         >
           <UnifiedMenuContent
+            activeIndex={activeMenuIndex}
             items={unifiedMenuItems}
             keyword=""
+            onActiveIndexChange={setActiveMenuIndex}
             onItemSelect={handleUnifiedPlusSelect}
           />
         </ChatInputDropdown>
@@ -1617,7 +1687,7 @@ export function ComposerCard({
       </div>
 
       {showBottomBar ? (
-        <div className="composer-bottom">
+        <div className="composer-bottom tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2 tw:pt-2">
           {subagentMode ? (
             <MetaChip
               icon={<Folder size={APP_ICON_SIZE} />}
@@ -1805,9 +1875,12 @@ export function ComposerCard({
 
       <SessionFollowUpDock
         items={queuedFollowUps ?? []}
+        pauseReason={queuePauseReason}
         onEdit={onFollowUpEdit ?? (() => {})}
         onRemove={onFollowUpRemove ?? (() => {})}
         onSendNow={onFollowUpSendNow ?? (() => {})}
+        onReorder={onFollowUpReorder ?? (() => {})}
+        onResume={onFollowUpResume ?? (() => {})}
       />
     </div>
   );
@@ -1853,6 +1926,45 @@ function getFilePathsFromFileList(files: FileList): string[] {
     .filter(
       (path): path is string => typeof path === "string" && path.length > 0,
     );
+}
+
+function filterUnifiedMenuItems(
+  items: UnifiedMenuItem[],
+  keyword: string,
+): UnifiedMenuItem[] {
+  const normalized = keyword.toLowerCase().trim();
+  return normalized
+    ? items.filter((item) => item.matchText.toLowerCase().includes(normalized))
+    : items;
+}
+
+function firstEnabledMenuIndex(items: UnifiedMenuItem[]): number {
+  return items.findIndex((item) => !item.disabled);
+}
+
+function lastEnabledMenuIndex(items: UnifiedMenuItem[]): number {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    if (!items[index]?.disabled) return index;
+  }
+  return -1;
+}
+
+function nextEnabledMenuIndex(
+  items: UnifiedMenuItem[],
+  current: number,
+  direction: 1 | -1,
+): number {
+  if (items.length === 0) return -1;
+  let index = current;
+  for (let attempts = 0; attempts < items.length; attempts += 1) {
+    index = (index + direction + items.length) % items.length;
+    if (!items[index]?.disabled) return index;
+  }
+  return -1;
+}
+
+function composerMenuItemId(key: string): string {
+  return `composer-menu-item-${encodeURIComponent(key)}`;
 }
 
 /**

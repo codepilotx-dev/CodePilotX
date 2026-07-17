@@ -1,7 +1,7 @@
 /**
  * SessionTimelineView — Virtual-scrolling container for session timeline.
  *
- * Wraps virtua's VList and handles scroll management, bottom anchoring,
+ * Wraps virtua's Virtualizer and handles scroll management, bottom anchoring,
  * and hash navigation. Row rendering is done by the parent via children,
  * avoiding circular import issues with ConversationPage's renderers.
  *
@@ -10,17 +10,28 @@
  */
 
 import React from 'react';
-import { VList, type VListHandle } from 'virtua';
+import { ArrowDown } from 'lucide-react';
+import { Virtualizer, type VirtualizerHandle } from 'virtua';
+
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+} from '../../components/ui/iconTokens.js';
+import { useThreadScrollController } from './useThreadScrollController.js';
 
 /* ── Props ──────────────────────────────────────────────── */
 
 export type SessionTimelineViewProps = {
   /** Rendered row elements. Each must have a stable `key` prop. */
   children: React.ReactNode;
-  /** Ref to the VListHandle for imperative scroll control. */
-  listRef?: React.RefObject<VListHandle | null>;
+  /** Ref to the VirtualizerHandle for imperative scroll control. */
+  listRef?: React.RefObject<VirtualizerHandle | null>;
+  /** The single overflow element owned by ThreadScrollLayout. */
+  scrollRef: React.RefObject<HTMLElement | null>;
   /** Called when the user scrolls (for scroll-position persistence). */
   onScroll?: (scrollTop: number) => void;
+  /** Persisted scroll offset to restore when mounting this session. */
+  initialScrollOffset?: number;
   /**
    * If true, scroll to the end whenever the child count changes.
    * Used during streaming to keep the latest content visible.
@@ -28,70 +39,79 @@ export type SessionTimelineViewProps = {
   scrollToBottom?: boolean;
   /** Number of children — used to detect additions for auto-scroll. */
   count: number;
+  /** Stable session identity used to reset and restore per-session scroll state. */
+  sessionKey?: string;
 };
-
-/* ── Constants ──────────────────────────────────────────── */
-
-const CHECK_INTERVAL_MS = 120;
-const MAX_CHECK_ATTEMPTS = 15;
 
 /* ── Main component ─────────────────────────────────────── */
 
 export function SessionTimelineView({
   children,
   listRef: externalListRef,
+  scrollRef,
   onScroll,
+  initialScrollOffset,
   scrollToBottom,
   count,
+  sessionKey,
 }: SessionTimelineViewProps): React.ReactNode {
-  const internalListRef = React.useRef<VListHandle>(null);
+  const internalListRef = React.useRef<VirtualizerHandle>(null);
   const listHandle = externalListRef ?? internalListRef;
-  const prevCountRef = React.useRef(count);
-  const scrollAttemptRef = React.useRef(0);
-
-  // Auto-scroll to bottom when new items arrive and scrollToBottom is true
-  React.useEffect(() => {
-    if (!scrollToBottom) return;
-
-    if (count > prevCountRef.current) {
-      // New items added — scroll to end with retry for VList layout settling
-      scrollAttemptRef.current = 0;
-      const attemptScroll = (): void => {
-        if (scrollAttemptRef.current >= MAX_CHECK_ATTEMPTS) return;
-        scrollAttemptRef.current++;
-        try {
-          listHandle.current?.scrollToIndex(count - 1, { align: 'end' });
-        } catch {
-          // VList may not be ready yet; retry
-          setTimeout(attemptScroll, CHECK_INTERVAL_MS);
-          return;
-        }
-        // Single attempt should suffice, but retry once more for safety
-        if (scrollAttemptRef.current < 2) {
-          requestAnimationFrame(() => {
-            listHandle.current?.scrollToIndex(count - 1, { align: 'end' });
-          });
-        }
-      };
-      attemptScroll();
-    }
-
-    prevCountRef.current = count;
-  }, [count, scrollToBottom, listHandle]);
+  const scrollController = useThreadScrollController({
+    active: Boolean(scrollToBottom),
+    initialScrollOffset,
+    itemCount: count,
+    listRef: listHandle,
+    onScroll,
+    scrollRef,
+    sessionKey,
+  });
 
   return (
     <div
-      className="session-timeline-container"
+      className="session-timeline-container tw:mx-auto tw:w-full tw:max-w-[48rem] tw:min-w-0"
       data-component="session-timeline"
+      data-scroll-mode={scrollController.mode}
     >
-      <VList
-        ref={listHandle}
-        className="session-timeline-vlist"
-        onScroll={onScroll}
-        style={{ height: '100%', width: '100%' }}
-      >
-        {children}
-      </VList>
+      {scrollController.mode === 'static' &&
+      !scrollController.isAtBottom &&
+      Boolean(scrollToBottom) ? (
+        <div className="session-timeline-floating-controls">
+          <button
+            type="button"
+            className="session-timeline-return-button"
+            onClick={scrollController.returnToBottom}
+            aria-label={
+              scrollController.hasNewContent
+                ? '回到底部，有新内容'
+                : '回到底部'
+            }
+          >
+            <ArrowDown
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
+            <span>
+              回到底部{scrollController.hasNewContent ? ' · 新内容' : ''}
+            </span>
+          </button>
+        </div>
+      ) : null}
+      <div className="session-timeline-virtualizer">
+        <Virtualizer
+          ref={listHandle}
+          scrollRef={scrollRef}
+          onScroll={scrollController.handleScroll}
+        >
+          {children}
+          <div
+            ref={scrollController.bottomSentinelRef}
+            aria-hidden="true"
+            className="session-timeline-bottom-sentinel"
+          />
+        </Virtualizer>
+      </div>
     </div>
   );
 }
@@ -102,7 +122,7 @@ export function SessionTimelineView({
  * Imperative scroll to a given index.
  */
 export function scrollToIndex(
-  handle: VListHandle | null,
+  handle: VirtualizerHandle | null,
   index: number,
   align: 'start' | 'end' | 'center' = 'start',
 ): void {
@@ -110,6 +130,6 @@ export function scrollToIndex(
   try {
     handle.scrollToIndex(index, { align });
   } catch {
-    // VList may not be mounted yet
+    // Virtualizer may not be mounted yet
   }
 }

@@ -10,8 +10,9 @@ import type {
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { buildPopoverSizingStyle } from '../../components/ui/popoverSizing.js'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
-import { ComposerSurface } from '../session/ComposerSurface.js'
+import { ComposerFrame } from '../session/ComposerSurface.js'
 import { MarkdownMessage } from '../session/MarkdownMessage.js'
+import { cx } from '../../utils/cx.js'
 import type { RightDockPlan } from './rightDockTools.js'
 
 const FILE_TREE_PANEL_DEFAULT_WIDTH = 360
@@ -32,6 +33,25 @@ type PlanPanelProps = {
   plan: RightDockPlan | null
 }
 
+export function RightDockEnvironmentPanel({
+  content,
+}: {
+  content: React.ReactNode | null
+}): React.ReactNode {
+  return (
+    <section
+      aria-label="环境信息"
+      className="right-dock-environment tw:min-h-0 tw:flex-1 tw:overflow-y-auto tw:bg-app-canvas tw:p-3"
+    >
+      {content ?? (
+        <div className="right-dock-empty-state tw:grid tw:h-full tw:place-content-center tw:text-app-text-soft">
+          暂无环境信息
+        </div>
+      )}
+    </section>
+  )
+}
+
 export function RightDockPlanPanel({
   plan,
 }: PlanPanelProps): React.ReactNode {
@@ -39,13 +59,13 @@ export function RightDockPlanPanel({
     return (
       <ScrollArea
         aria-label="计划"
-        className="right-dock-plan-scroll-area"
-        contentClassName="right-dock-plan-scroll-content"
+        className="right-dock-plan-scroll-area tw:min-h-0 tw:flex-1 tw:bg-app-canvas"
+        contentClassName="right-dock-plan-scroll-content tw:min-w-0 tw:p-4"
       >
-        <div className="right-dock-empty-state">
+        <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-6 tw:text-center tw:text-app-text-soft">
           <ListChecks size={58} strokeWidth={1.8} />
-          <strong>暂无计划</strong>
-          <span>从主对话里的计划卡片打开计划书</span>
+          <strong className="tw:text-base tw:font-[var(--font-weight-label)] tw:text-app-text">暂无计划</strong>
+          <span className="tw:max-w-full tw:text-sm tw:text-app-text-soft">从主对话里的计划卡片打开计划书</span>
         </div>
       </ScrollArea>
     )
@@ -54,10 +74,10 @@ export function RightDockPlanPanel({
   return (
     <ScrollArea
       aria-label="计划"
-      className="right-dock-plan-scroll-area"
-      contentClassName="right-dock-plan-scroll-content"
+      className="right-dock-plan-scroll-area tw:min-h-0 tw:flex-1 tw:bg-app-canvas"
+      contentClassName="right-dock-plan-scroll-content tw:min-w-0 tw:p-4"
     >
-      <article className="right-dock-plan-document">
+      <article className="right-dock-plan-document tw:mx-auto tw:w-full tw:max-w-[48rem] tw:text-app-text">
         <MarkdownMessage text={plan.content} />
       </article>
     </ScrollArea>
@@ -186,7 +206,16 @@ export function RightDockFilesPanel({
     >
       <div className="right-dock-file-preview">
         {selectedFile ? (
-          <article className="right-dock-file-document">
+          <article
+            className={cx(
+              'right-dock-file-document',
+              'u-flex',
+              'u-flex-col',
+              'u-min-w-0',
+              'u-w-full',
+              'u-min-h-0',
+            )}
+          >
             <header>
               <FileText size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               <span title={selectedFile.path}>{selectedFile.path}</span>
@@ -202,7 +231,13 @@ export function RightDockFilesPanel({
                     contentClassName="right-dock-file-preview-scroll-content"
                     direction="y"
                   >
-                    <div className="right-dock-file-preview-x-scroll">
+                    <div
+                      className={cx(
+                        'right-dock-file-preview-x-scroll',
+                        'u-overflow-hidden',
+                        'u-overflow-x-auto',
+                      )}
+                    >
                       <pre>{selectedFile.content}</pre>
                     </div>
                   </ScrollArea>
@@ -256,8 +291,8 @@ export function RightDockFilesPanel({
         onKeyDown={handleFileTreePanelResizeKey}
         onPointerDown={startFileTreePanelResize}
       />
-      <div className="right-dock-file-tree">
-        <label className="right-dock-search">
+      <div className="right-dock-file-tree tw:flex tw:min-h-0 tw:min-w-0 tw:flex-col tw:overflow-hidden tw:p-3">
+        <label className="right-dock-search tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:rounded-md tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-app-text-soft">
           <Search size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           <input
             aria-label="筛选文件"
@@ -358,21 +393,21 @@ export function RightDockSideChatPanel({
   }, [focusVersion])
 
   return (
-    <section className="right-dock-side-chat" aria-label="侧边聊天">
-      {content ?? <ComposerSurface ref={surfaceRef}>{composer}</ComposerSurface>}
+    <section className="right-dock-side-chat tw:relative tw:min-h-0 tw:min-w-0 tw:flex-1 tw:bg-app-canvas" aria-label="侧边聊天">
+      {content ?? <ComposerFrame ref={surfaceRef}>{composer}</ComposerFrame>}
     </section>
   )
 }
 
 export function RightDockTerminalPanel(): React.ReactNode {
   return (
-    <section className="right-dock-terminal" aria-label="终端">
-      <div className="right-dock-terminal-empty">
+    <section className="right-dock-terminal tw:relative tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-col tw:bg-app-canvas" aria-label="终端">
+      <div className="right-dock-terminal-empty tw:grid tw:min-h-0 tw:flex-1 tw:place-content-center tw:gap-3 tw:text-center tw:text-app-text-soft">
         <SquareTerminal size={48} strokeWidth={1.6} />
         <strong>终端</strong>
         <span>终端复制发送到对话框将在后续版本接入</span>
       </div>
-      <div className="right-dock-terminal-composer">
+      <div className="right-dock-terminal-composer tw:border-t tw:border-app-border tw:p-3">
         <input
           aria-label="终端输入"
           disabled

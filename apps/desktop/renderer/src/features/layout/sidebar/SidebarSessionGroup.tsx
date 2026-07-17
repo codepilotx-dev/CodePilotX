@@ -10,6 +10,7 @@ import { motionTransition, standardTween } from '../../motion/motionTransitions.
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 import { sortSessionsForSidebar } from '../../session/sessionSorting.js'
 import { SidebarRow } from "./SidebarRow.js";
+import { cx } from "../../../utils/cx.js";
 import {
   SidebarContextMenu,
   type ContextMenuAction,
@@ -135,13 +136,15 @@ export function SidebarSessionGroup({
     const awaitingApproval =
       session.status === "waiting" ||
       pendingPermissionSessionIds.has(session.id);
-    const metaClassName = [
+    const metaClassName = cx(
       "sidebar-session-meta",
-      awaitingApproval ? "sidebar-session-meta--approval" : null,
-      confirmArchiveSessionId === session.id ? "confirming-archive" : null,
-    ]
-      .filter(Boolean)
-      .join(" ");
+      "u-flex",
+      "u-items-center",
+      "u-justify-end",
+      awaitingApproval ? "u-w-auto" : "u-w-full",
+      awaitingApproval && "sidebar-session-meta--approval",
+      confirmArchiveSessionId === session.id && "confirming-archive",
+    );
     const row = (
       <SidebarRow
         active={session.id === activeSessionId}
@@ -258,7 +261,7 @@ export function SidebarSessionGroup({
           }}
           type="button"
         >
-          <span className="sidebar-session-title">
+          <span className={cx('sidebar-session-title', 'u-min-w-0', 'u-truncate')}>
             {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
             {session.unreadAt ? (
               <span aria-label="未读" className="sidebar-session-unread-dot" />
@@ -279,14 +282,14 @@ export function SidebarSessionGroup({
 
   return (
     <>
-      <ul className="sidebar-session-list">
+      <ul className="sidebar-session-list tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-0.5 tw:p-0">
         {baseSessions.map(renderSessionRow)}
       </ul>
       <AnimatePresence initial={false}>
         {extraSessions.length > 0 ? (
           <motion.ul
             animate={{ height: "auto", opacity: 1 }}
-            className="sidebar-session-list sidebar-session-list-extra"
+            className="sidebar-session-list sidebar-session-list-extra tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-0.5 tw:overflow-hidden tw:p-0"
             exit={{ height: 0, opacity: 0 }}
             initial={{ height: 0, opacity: 0 }}
             key={`${groupKey}-extra-sessions`}
@@ -298,12 +301,26 @@ export function SidebarSessionGroup({
       </AnimatePresence>
       {hasOverflow ? (
         <div className="sidebar-show-more-actions">
-          <span aria-hidden="true" className="sidebar-row-leading sidebar-row-leading-spacer" />
-          <div className="sidebar-row-main">
+          <span
+            aria-hidden="true"
+            className={cx(
+              'sidebar-row-leading',
+              'sidebar-row-leading-spacer',
+              'u-min-w-0',
+              'u-flex',
+              'u-items-center',
+            )}
+          />
+          <div className={cx('sidebar-row-main', 'u-min-w-0', 'u-flex', 'u-items-center')}>
             {canShowMore ? (
               <button
                 aria-expanded={canCollapse}
-                className="sidebar-show-more-button"
+                className={cx(
+                  'sidebar-show-more-button',
+                  'u-type-control',
+                  'u-w-auto',
+                  'u-p-0',
+                )}
                 onClick={() =>
                   setVisibleLimit((current) =>
                     Math.min(current + GROUP_LIMIT, sessions.length),
@@ -316,7 +333,12 @@ export function SidebarSessionGroup({
             ) : null}
             {canCollapse ? (
               <button
-                className="sidebar-show-more-button"
+                className={cx(
+                  'sidebar-show-more-button',
+                  'u-type-control',
+                  'u-w-auto',
+                  'u-p-0',
+                )}
                 onClick={() => setVisibleLimit(GROUP_LIMIT)}
                 type="button"
               >
@@ -324,7 +346,17 @@ export function SidebarSessionGroup({
               </button>
             ) : null}
           </div>
-          <span aria-hidden="true" className="sidebar-row-trailing" />
+          <span
+            aria-hidden="true"
+            className={cx(
+              'sidebar-row-trailing',
+              'u-min-w-0',
+              'u-flex',
+              'u-items-center',
+              'u-w-full',
+              'u-justify-end',
+            )}
+          />
         </div>
       ) : null}
     </>

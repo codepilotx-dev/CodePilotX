@@ -42,7 +42,11 @@ import type {
   ViewMenuAction,
   WindowMenuAction,
 } from './MenuBar.js'
-import { QuickChatContext } from '../session/QuickChatContext.js'
+import {
+  QuickChatContext,
+  reduceEnvironmentDockContentRegistration,
+  type EnvironmentDockContentRegistration,
+} from '../session/QuickChatContext.js'
 import { SearchContext } from '../search/SearchContext.js'
 import {
   sessionDisplayTitle,
@@ -79,6 +83,7 @@ import type {
   DesktopComposerAttachment,
   DesktopPermissionMode,
   DesktopRemovedWorkspace,
+  DesktopUserMessageInput,
   DesktopWorkspace,
   LocalRouterMode,
   ModelProviderID,
@@ -90,10 +95,11 @@ import type { DesktopSubagentRead } from '../../../shared/types.js'
 import { SubagentThreadPanel } from '../session/SubagentThreadPanel.js'
 
 const QUICK_CHAT_PATH = '/quick-chat'
+const EMPTY_BRANCHES: string[] = []
 const RIGHT_DOCK_WIDTH_STORAGE_KEY = 'codepilotx.desktop.rightDockWidth'
-const RIGHT_DOCK_MIN_WIDTH = 400
+const RIGHT_DOCK_MIN_WIDTH = 320
 const RIGHT_DOCK_MAX_WIDTH = 850
-const RIGHT_DOCK_DEFAULT_WIDTH = 680
+const RIGHT_DOCK_DEFAULT_WIDTH = 600
 const RIGHT_DOCK_MAIN_MIN_WIDTH = 520
 
 export function DesktopLayout(): React.ReactNode {
@@ -124,6 +130,7 @@ export function DesktopLayout(): React.ReactNode {
     providerID,
     providerBaseURL,
     showContextUsage,
+    followUpBehavior,
     diffMarkerStyle,
     reviewView,
     gitBranchPrefix,
@@ -171,6 +178,8 @@ export function DesktopLayout(): React.ReactNode {
     openTools: [],
   })
   const [rightDockPlan, setRightDockPlan] = useState<RightDockPlan | null>(null)
+  const [environmentDockRegistration, setEnvironmentDockRegistration] =
+    useState<EnvironmentDockContentRegistration | null>(null)
   const [bottomPanelVisible, setBottomPanelVisible] = useState(false)
   const [sideChatInput, setSideChatInput] = useState('')
   const [sideChatFocusVersion, setSideChatFocusVersion] = useState(0)
@@ -295,6 +304,7 @@ export function DesktopLayout(): React.ReactNode {
     installCodePilotXDependencies,
     enableMemory,
     rustSearchAndDiffKernels,
+    followUpBehavior,
     onError: (message: string) => setErrorMessage(message),
     onDiffForActive: (patch: string) => setDiffState(patch),
     onRefreshActiveWorkspace: (sessionId: string) => {
@@ -318,6 +328,8 @@ export function DesktopLayout(): React.ReactNode {
     workflowEvents,
     messages,
     contextUsage,
+    queuedFollowUps,
+    queuePauseReason,
     pendingPermissions,
     pendingPermissionSessionIds,
     input,
@@ -607,6 +619,27 @@ export function DesktopLayout(): React.ReactNode {
     if (!currentWorkspace) return
     void refreshWorkspace(currentWorkspace, { clearSelectedFile: false })
   }, [currentWorkspace, refreshWorkspace])
+
+  const handleCreateBranch = useCallback((): void => {
+    setGitWorkflowMode('branch')
+  }, [])
+
+  const handleCommitOrPush = useCallback((): void => {
+    setGitWorkflowMode('commitPush')
+  }, [])
+
+  const handleCreatePullRequest = useCallback((): void => {
+    setGitWorkflowMode('pullRequest')
+  }, [])
+
+  const handleSetEnvironmentDockContent = useCallback(
+    (next: EnvironmentDockContentRegistration | null): void => {
+      setEnvironmentDockRegistration(current =>
+        reduceEnvironmentDockContentRegistration(current, next),
+      )
+    },
+    [],
+  )
 
   useEffect(() => {
     writeDesktopBrowserDebugMode(undefined, menubarDebugMode)
@@ -1641,6 +1674,63 @@ export function DesktopLayout(): React.ReactNode {
     />
   )
 
+  const handleFollowUpEdit = useCallback(
+    async (followUpId: string, value: DesktopUserMessageInput): Promise<void> => {
+      if (!sessionId) return
+      try {
+        await desktopClient.updateQueuedFollowUp(sessionId, followUpId, value)
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : String(error))
+      }
+    },
+    [sessionId],
+  )
+
+  const handleFollowUpRemove = useCallback(
+    async (followUpId: string): Promise<void> => {
+      if (!sessionId) return
+      try {
+        await desktopClient.removeQueuedFollowUp(sessionId, followUpId)
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : String(error))
+      }
+    },
+    [sessionId],
+  )
+
+  const handleFollowUpSteer = useCallback(
+    async (followUpId: string): Promise<void> => {
+      if (!sessionId) return
+      try {
+        await desktopClient.sendQueuedFollowUpNow(sessionId, followUpId)
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : String(error))
+      }
+    },
+    [sessionId],
+  )
+
+  const handleFollowUpReorder = useCallback(
+    async (followUpIds: string[]): Promise<void> => {
+      if (!sessionId) return
+      try {
+        await desktopClient.reorderQueuedFollowUps(sessionId, followUpIds)
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : String(error))
+      }
+    },
+    [sessionId],
+  )
+
+  const handleFollowUpResume = useCallback(async (): Promise<void> => {
+    if (!sessionId) return
+    try {
+      await desktopClient.resumeQueuedFollowUps(sessionId)
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error))
+    }
+  }, [sessionId])
+
   const sidebar = (
     <SidebarFrame
       collapsed={sidebarCollapsed}
@@ -1696,13 +1786,20 @@ export function DesktopLayout(): React.ReactNode {
       onClearWorkspace={handleClearWorkspace}
       onOpenBrowser={handleOpenBrowser}
       onBranchSelect={handleBranchSelect}
-      onCreateBranch={() => setGitWorkflowMode('branch')}
+      onCreateBranch={handleCreateBranch}
       onPermissionChange={handlePermissionChange}
       onPlanModeChange={handlePlanModeChange}
       onLocalRouterModeChange={handleLocalRouterModeChange}
       onThinkingChange={setThinkingMode}
       createSessionForWorkspace={createSessionForWorkspace}
       submitToSession={submitToSession}
+      queuedFollowUps={queuedFollowUps}
+      queuePauseReason={queuePauseReason}
+      onFollowUpEdit={(followUpId, value) => void handleFollowUpEdit(followUpId, value)}
+      onFollowUpRemove={followUpId => void handleFollowUpRemove(followUpId)}
+      onFollowUpSendNow={followUpId => void handleFollowUpSteer(followUpId)}
+      onFollowUpReorder={followUpIds => void handleFollowUpReorder(followUpIds)}
+      onFollowUpResume={() => void handleFollowUpResume()}
     />
   ) : null
   const sideChatComposer =
@@ -1748,7 +1845,7 @@ export function DesktopLayout(): React.ReactNode {
         onClearWorkspace={handleClearWorkspace}
         onOpenBrowser={handleOpenBrowser}
         onBranchSelect={handleBranchSelect}
-        onCreateBranch={() => setGitWorkflowMode('branch')}
+        onCreateBranch={handleCreateBranch}
         onPermissionChange={selectedSubagentTaskId ? setSubagentPermissionMode : handlePermissionChange}
         onPlanModeChange={selectedSubagentTaskId ? () => {} : handlePlanModeChange}
         onLocalRouterModeChange={handleLocalRouterModeChange}
@@ -1812,6 +1909,7 @@ export function DesktopLayout(): React.ReactNode {
       minWidth={RIGHT_DOCK_MIN_WIDTH}
       reviewView={reviewView}
       plan={rightDockPlan}
+      environmentContent={environmentDockRegistration?.content ?? null}
       selectedFile={selectedFile}
       sessionId={sessionId}
       sessionStatus={sessionStatus}
@@ -1824,7 +1922,7 @@ export function DesktopLayout(): React.ReactNode {
       onBrowserStateChange={setBrowserState}
       onClose={closeRightDock}
       onCloseTool={closeRightDockTool}
-      onCreateBranch={() => setGitWorkflowMode('branch')}
+      onCreateBranch={handleCreateBranch}
       onOpenTool={handleRightDockToolSelect}
       onOpenWorkspacePath={handleOpenWorkspacePath}
       onPreviewFile={file => void previewFile(file)}
@@ -1842,7 +1940,7 @@ export function DesktopLayout(): React.ReactNode {
   ) : null
 
   return (
-    <div className="desktop-frame">
+    <div className="desktop-frame tw:min-h-0 tw:w-full tw:overflow-hidden tw:bg-app-canvas tw:text-app-text">
       <GlobalErrorModal
         message={errorMessage}
         onDismiss={() => {
@@ -1907,7 +2005,7 @@ export function DesktopLayout(): React.ReactNode {
             workspaceName: currentWorkspace?.name ?? null,
             workspacePath: currentWorkspace?.path ?? null,
             branchName,
-            branches: currentWorkspace?.branches ?? [],
+            branches: currentWorkspace?.branches ?? EMPTY_BRANCHES,
             diff: workspace.diff,
             gitStatus,
             recentWorkspaces,
@@ -1917,10 +2015,11 @@ export function DesktopLayout(): React.ReactNode {
                 archivedAt: new Date().toISOString(),
               })
             },
-            onCreateBranch: () => setGitWorkflowMode('branch'),
+            onCreateBranch: handleCreateBranch,
             onOpenAutomation: () => navigate('/automation'),
             onOpenWorkspacePath: handleOpenWorkspacePath,
             onOpenRightDock: openRightDockTool,
+            onSetEnvironmentDockContent: handleSetEnvironmentDockContent,
             onOpenPlanInRightDock: handleOpenPlanDock,
             onSubmitEditedUserMessage: handleSubmitEditedUserMessage,
             onAppendComposerText: handleAppendComposerText,
@@ -1937,8 +2036,8 @@ export function DesktopLayout(): React.ReactNode {
                   : new Date().toISOString(),
               })
             },
-            onCommitOrPush: () => setGitWorkflowMode('commitPush'),
-            onCreatePullRequest: () => setGitWorkflowMode('pullRequest'),
+            onCommitOrPush: handleCommitOrPush,
+            onCreatePullRequest: handleCreatePullRequest,
             onChooseWorkspace: handleChooseWorkspace,
             onCloneGithub: () => setGithubRepositoryModalOpen(true),
             onOpenWorkspace: handleOpenRecentWorkspace,
@@ -2006,7 +2105,7 @@ export function DesktopLayout(): React.ReactNode {
               }}
             >
               <div
-                className="desktop-workspace"
+                className="desktop-workspace tw:relative tw:flex tw:h-full tw:min-h-0 tw:min-w-0 tw:flex-1 tw:overflow-hidden tw:bg-app-canvas"
                 style={
                   {
                     '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
@@ -2026,11 +2125,11 @@ export function DesktopLayout(): React.ReactNode {
                 <div
                   className={
                     rightDockState.open
-                      ? 'desktop-main-browser-layout'
-                      : 'desktop-main-browser-layout browser-closed'
+                      ? 'desktop-main-browser-layout tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:overflow-hidden'
+                      : 'desktop-main-browser-layout browser-closed tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:overflow-hidden'
                   }
                 >
-                  <div className="desktop-main-route">
+                  <div className="desktop-main-route tw:min-h-0 tw:min-w-0 tw:flex-1 tw:overflow-hidden">
                     <Outlet />
                   </div>
                 </div>

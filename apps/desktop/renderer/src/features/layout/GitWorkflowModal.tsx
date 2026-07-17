@@ -6,6 +6,7 @@ import type {
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import { desktopClient } from '../../services/desktopClient.js'
+import { cx } from '../../utils/cx.js'
 
 export type GitWorkflowMode = 'branch' | 'commitPush' | 'pullRequest'
 
@@ -185,7 +186,14 @@ export function GitWorkflowModal({
               aria-describedby="git-workflow-description"
               className="permission-modal git-workflow-modal"
             >
-              <header>
+              <header
+                className={cx(
+                  'u-flex',
+                  'u-items-center',
+                  'u-justify-between',
+                  'u-gap-3',
+                )}
+              >
                 <Dialog.Title asChild>
                   <h2>{title}</h2>
                 </Dialog.Title>
@@ -198,7 +206,7 @@ export function GitWorkflowModal({
                 <div className="git-workflow-error">{localError}</div>
               ) : null}
               {mode === 'branch' ? (
-                <div className="git-workflow-form">
+                <div className={cx('git-workflow-form', 'u-grid', 'u-gap-3')}>
                   <label>
                     <span>分支名称</span>
                     <input
@@ -209,7 +217,7 @@ export function GitWorkflowModal({
                 </div>
               ) : null}
               {mode === 'commitPush' ? (
-                <div className="git-workflow-form">
+                <div className={cx('git-workflow-form', 'u-grid', 'u-gap-3')}>
                   <label>
                     <span>提交信息</span>
                     <textarea
@@ -270,7 +278,7 @@ export function GitWorkflowModal({
                 </div>
               ) : null}
               {mode === 'pullRequest' ? (
-                <div className="git-workflow-form">
+                <div className={cx('git-workflow-form', 'u-grid', 'u-gap-3')}>
                   <label>
                     <span>标题</span>
                     <input
@@ -295,7 +303,15 @@ export function GitWorkflowModal({
                   </label>
                 </div>
               ) : null}
-              <div className="permission-modal-actions">
+              <div
+                className={cx(
+                  'permission-modal-actions',
+                  'u-flex',
+                  'u-items-center',
+                  'u-justify-between',
+                  'u-gap-3',
+                )}
+              >
                 <button type="button" onClick={onClose}>
                   取消
                 </button>

@@ -4,6 +4,7 @@ import {
   GitPullRequest,
   Globe2,
   Gauge,
+  LayoutList,
   ListChecks,
   MessageSquarePlus,
   Search,
@@ -22,6 +23,7 @@ import type {
 } from '../../../shared/types.js'
 
 export type RightDockToolId =
+  | 'environment'
   | 'review'
   | 'browser'
   | 'plan'
@@ -38,6 +40,9 @@ export type RightDockFlags = {
 }
 
 export type RightDockPanelContext = {
+  environment: {
+    content: ReactNode | null
+  }
   review: {
     activeSessionId: string | null
     defaultBranch: string | null
@@ -93,6 +98,12 @@ export type RightDockToolMeta = {
 const iconSize = 14
 
 export const rightDockTools: readonly RightDockToolMeta[] = [
+  {
+    id: 'environment',
+    label: '环境',
+    icon: <LayoutList size={iconSize} />,
+    enabled: true,
+  },
   {
     id: 'review',
     label: '审查',

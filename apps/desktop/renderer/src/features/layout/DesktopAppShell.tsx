@@ -15,13 +15,17 @@ export function DesktopAppShell({
 }: Props): React.ReactNode {
   return (
     <div
-      className={menubarDebugMode ? 'app-shell menubar-debug-mode' : 'app-shell'}
+      className={
+        menubarDebugMode
+          ? 'app-shell menubar-debug-mode tw:flex tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:bg-app-canvas tw:text-app-text'
+          : 'app-shell tw:flex tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:bg-app-canvas tw:text-app-text'
+      }
     >
-      <div className="desktop-menubar">{menuBar}</div>
-      <div className="app-body">
+      <div className="desktop-menubar tw:h-[46px] tw:min-h-[46px] tw:shrink-0 tw:bg-app-chrome">{menuBar}</div>
+      <div className="app-body tw:flex tw:min-h-0 tw:flex-1 tw:overflow-hidden">
         {sidebar}
-        <section className="desktop-main">
-          <div className="desktop-main-stage">{children}</div>
+        <section className="desktop-main tw:flex tw:min-w-0 tw:flex-1 tw:overflow-hidden tw:bg-app-canvas">
+          <div className="desktop-main-stage tw:min-w-0 tw:flex-1 tw:overflow-hidden">{children}</div>
         </section>
       </div>
     </div>
