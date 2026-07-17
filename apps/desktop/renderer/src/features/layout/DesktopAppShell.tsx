@@ -23,7 +23,7 @@ export function DesktopAppShell({
           : 'app-shell tw:flex tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:bg-app-canvas tw:text-app-text'
       }
     >
-      <div className="desktop-menubar tw:h-[46px] tw:min-h-[46px] tw:shrink-0 tw:bg-app-chrome">{menuBar}</div>
+      <div className="desktop-menubar tw:shrink-0 tw:bg-app-chrome">{menuBar}</div>
       <div
         className="app-body tw:flex tw:min-h-0 tw:flex-1 tw:overflow-hidden"
         ref={appBodyRef}
