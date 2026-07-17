@@ -293,6 +293,12 @@ async function connectAndLoad(token: string): Promise<void> {
   try { await connectionTask } finally { connectionTask = undefined }
 }
 
+function resolveWindowIconPath(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, "icon.ico")
+    : resolve(__dirname, "../../build/icon.ico")
+}
+
 function createStartupWindow(): BrowserWindow {
   if (startupWindow && !startupWindow.isDestroyed()) return startupWindow
   startupWindow = new BrowserWindow({
@@ -304,6 +310,7 @@ function createStartupWindow(): BrowserWindow {
     resizable: false,
     autoHideMenuBar: true,
     title: "CodePilotX 正在连接",
+    icon: resolveWindowIconPath(),
     backgroundColor: "#f8f8f6",
     webPreferences: {
       preload: join(__dirname, "preload.cjs"),
@@ -346,6 +353,7 @@ function createWindow(): BrowserWindow {
     backgroundColor: "#f8f8f6",
     autoHideMenuBar: true,
     title: "CodePilotX",
+    icon: resolveWindowIconPath(),
     webPreferences: {
       preload: join(__dirname, "preload.cjs"),
       contextIsolation: true,

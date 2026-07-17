@@ -21,13 +21,18 @@
     "productName": "CodePilotX",
     "asar": true,
     "directories": {
-      "output": "../../../release"
+      "output": "../../../release",
+      "buildResources": "../build"
     },
     "files": [
       "dist/**/*",
       "package.json"
     ],
     "extraResources": [
+      {
+        "from": "../build/icon.ico",
+        "to": "icon.ico"
+      },
       {
         "from": "../../agent/dist/codepilotx-agent.exe",
         "to": "agent/codepilotx-agent.exe"
@@ -58,6 +63,7 @@
       }
     ],
     "win": {
+      "icon": "icon.ico",
       "target": [
         {
           "target": "nsis",
