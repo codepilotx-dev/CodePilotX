@@ -37,4 +37,26 @@ describe('Shiki highlighter', () => {
     expect(result.language).toBe('text')
     expect(result.tokens[0]?.[0]?.content).toBe('plain content')
   })
+
+  test('returns fresh colors when the selected theme changes', async () => {
+    clearSyntaxHighlightCache()
+    const code = 'const codexTheme = "ready"'
+    const codexDark = await highlightCode({
+      code,
+      language: 'typescript',
+      theme: 'codex-dark',
+    })
+    const dracula = await highlightCode({
+      code,
+      language: 'typescript',
+      theme: 'dracula',
+    })
+
+    expect(codexDark.theme).toBe('codex-dark')
+    expect(dracula.theme).toBe('dracula')
+    expect(dracula.background).not.toBe(codexDark.background)
+    expect(
+      dracula.tokens.flat().map(token => token.color),
+    ).not.toEqual(codexDark.tokens.flat().map(token => token.color))
+  })
 })

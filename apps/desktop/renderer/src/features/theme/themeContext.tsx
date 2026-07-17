@@ -17,6 +17,7 @@ import type {
 } from '../../../shared/types.js'
 import {
   DEFAULT_DESKTOP_THEME_SETTINGS,
+  getCodeThemeSelectionForVariant,
   getDesktopThemeForSelection,
   getDesktopThemeIdForVariant,
   normalizeDesktopThemeSettings,
@@ -225,7 +226,10 @@ export function DesktopThemeProvider({
       settings,
       resolvedVariant,
       activeTheme,
-      codeThemeId: draftSettings.codeThemeId,
+      codeThemeId: getCodeThemeSelectionForVariant(
+        draftSettings,
+        draftResolvedVariant,
+      ),
       draft,
       setMode,
       saveSettings,
@@ -233,7 +237,8 @@ export function DesktopThemeProvider({
     [
       activeTheme,
       draft,
-      draftSettings.codeThemeId,
+      draftResolvedVariant,
+      draftSettings.codeThemeIds,
       resolvedVariant,
       saveSettings,
       setMode,
@@ -280,8 +285,9 @@ function applyDesktopTheme(
   }
 
   const config = getDesktopThemeForSelection(settings, variant)
+  const codeThemeId = getCodeThemeSelectionForVariant(settings, variant)
   root.dataset.codeThemeId =
-    settings.codeThemeId === 'auto' ? config.codeThemeId : settings.codeThemeId
+    codeThemeId === 'auto' ? config.codeThemeId : codeThemeId
   for (const [name, value] of Object.entries(deriveThemeVariables(config))) {
     root.style.setProperty(name, value)
   }

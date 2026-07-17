@@ -20,6 +20,9 @@ export {
 export {
   CODEX_HIGHLIGHT_THEMES,
   DEFAULT_CODEX_SYNTAX_THEMES,
+  getThemesForVariant,
+  isThemeCompatibleWithVariant,
+  normalizeThemeIdForVariant,
   resolveThemeId,
 } from './theme.js'
 export type {

@@ -4,6 +4,7 @@ import {
   DEFAULT_DARK_THEME,
   DEFAULT_DESKTOP_THEME_SETTINGS,
   DEFAULT_LIGHT_THEME,
+  getCodeThemeSelectionForVariant,
   normalizeDesktopThemeSettings,
 } from '../shared/theme.js'
 import { deriveThemeVariables } from '../src/features/theme/themeVariables.js'
@@ -63,7 +64,10 @@ describe('fixed Codex UI themes', () => {
     expect(migrated).toEqual({
       version: 2,
       mode: 'dark',
-      codeThemeId: 'auto',
+      codeThemeIds: {
+        light: 'auto',
+        dark: 'auto',
+      },
       reduceMotion: 'on',
       glassmorphismEnabled: false,
       pointerCursorEnabled: false,
@@ -71,18 +75,59 @@ describe('fixed Codex UI themes', () => {
     })
   })
 
-  test('keeps valid V2 Codex selections and rejects unknown slugs', () => {
+  test('keeps separate light and dark selections and rejects mismatches', () => {
     expect(
       normalizeDesktopThemeSettings({
         ...DEFAULT_DESKTOP_THEME_SETTINGS,
+        codeThemeIds: {
+          light: 'github-light',
+          dark: 'dracula',
+        },
+      }).codeThemeIds,
+    ).toEqual({
+      light: 'github-light',
+      dark: 'dracula',
+    })
+    expect(
+      normalizeDesktopThemeSettings({
+        ...DEFAULT_DESKTOP_THEME_SETTINGS,
+        codeThemeIds: {
+          light: 'dracula',
+          dark: 'github-light',
+        },
+      }).codeThemeIds,
+    ).toEqual({
+      light: 'auto',
+      dark: 'auto',
+    })
+  })
+
+  test('migrates a previous V2 single selection into its matching slot', () => {
+    expect(
+      normalizeDesktopThemeSettings({
+        version: 2,
+        mode: 'system',
         codeThemeId: 'dracula',
-      }).codeThemeId,
-    ).toBe('dracula')
-    expect(
-      normalizeDesktopThemeSettings({
-        ...DEFAULT_DESKTOP_THEME_SETTINGS,
-        codeThemeId: 'not-in-codex',
-      }).codeThemeId,
-    ).toBe('auto')
+      }).codeThemeIds,
+    ).toEqual({
+      light: 'auto',
+      dark: 'dracula',
+    })
+  })
+
+  test('keeps both System selections and resolves the system variant slot', () => {
+    const settings = normalizeDesktopThemeSettings({
+      ...DEFAULT_DESKTOP_THEME_SETTINGS,
+      mode: 'system',
+      codeThemeIds: {
+        light: 'proof-light',
+        dark: 'dracula',
+      },
+    })
+
+    expect(getCodeThemeSelectionForVariant(settings, 'light')).toBe(
+      'proof-light',
+    )
+    expect(getCodeThemeSelectionForVariant(settings, 'dark')).toBe('dracula')
   })
 })

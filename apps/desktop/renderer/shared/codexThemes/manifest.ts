@@ -8,7 +8,7 @@ export const CODEX_HIGHLIGHT_THEMES = [
   {
     slug: "absolutely-dark",
     label: "Absolutely Dark",
-    variant: "unknown",
+    variant: "dark",
     normalizedHash: "7a6884d229b62973cab6269059f75973832c5d430a0b200cdadb2d1caf73bac6",
     contentHash: "7a13eeb771716b45fac8d89a7f3fa04176055e533acb1ffec7db32bfbe04c175",
     recoverability: "signature",
@@ -17,7 +17,7 @@ export const CODEX_HIGHLIGHT_THEMES = [
   {
     slug: "absolutely-light",
     label: "Absolutely Light",
-    variant: "unknown",
+    variant: "light",
     normalizedHash: "4f2856efc5d14e4c5b747327290eabeb397f09a6159fb3ad67b6bf08c413f6ba",
     contentHash: "df6d3aaba482ac288716d757a120afc167a13f5f2279c69ad8fbb233c58c744c",
     recoverability: "signature",
@@ -359,7 +359,7 @@ export const CODEX_HIGHLIGHT_THEMES = [
   {
     slug: "linear-dark",
     label: "Linear Dark",
-    variant: "unknown",
+    variant: "dark",
     normalizedHash: "7cebab117d81a7c11210ab41119ab7a67ff8dd95be563101ba15928564607bdc",
     contentHash: "1c0d82d95ddee4026e386b627a22a80b62fe6a9822c26df3d5f65abe52daaf74",
     recoverability: "signature",
@@ -368,7 +368,7 @@ export const CODEX_HIGHLIGHT_THEMES = [
   {
     slug: "linear-light",
     label: "Linear Light",
-    variant: "unknown",
+    variant: "light",
     normalizedHash: "c77391307b0f8dcb937a2bc7f7bef45504a257cc4e32b1f593a80c7d52f9075e",
     contentHash: "2d80867ae234004b333cd10460a0b3bead0e576a65a1235d29593258f616d02a",
     recoverability: "signature",
@@ -377,7 +377,7 @@ export const CODEX_HIGHLIGHT_THEMES = [
   {
     slug: "lobster-dark",
     label: "Lobster Dark",
-    variant: "unknown",
+    variant: "dark",
     normalizedHash: "1aca29d925caf3b0af38c3904f984ebfacc72cd1e97077165a4d5f4cf36e81df",
     contentHash: "f1bc37561eeada7a6a74ce7f0c43bd3d3837dcc67b679aa048504cf80fc62a2c",
     recoverability: "signature",
@@ -431,7 +431,7 @@ export const CODEX_HIGHLIGHT_THEMES = [
   {
     slug: "matrix-dark",
     label: "Matrix Dark",
-    variant: "unknown",
+    variant: "dark",
     normalizedHash: "a32707aa877b8c585014d780ed666c1271e526453d512b0bf0d1e17b517803dd",
     contentHash: "bd91ee5ca4e50a3bc1284a4905f0e8c570b128004addaeeab141164b9d111ca9",
     recoverability: "signature",
@@ -494,7 +494,7 @@ export const CODEX_HIGHLIGHT_THEMES = [
   {
     slug: "notion-dark",
     label: "Notion Dark",
-    variant: "unknown",
+    variant: "dark",
     normalizedHash: "dd567002d251c1e4829b36f109987f97756316a2e97b34e915cb82de77dd06dd",
     contentHash: "2f43c5e9794d839ac59deac31082802c95ec23fb616c2ee4de10cb4198776872",
     recoverability: "signature",
@@ -503,7 +503,7 @@ export const CODEX_HIGHLIGHT_THEMES = [
   {
     slug: "notion-light",
     label: "Notion Light",
-    variant: "unknown",
+    variant: "light",
     normalizedHash: "666753760fb71ca4dc46f6c62326804b714447d0a34fb6f21df840db10ce20fa",
     contentHash: "4a4d44e3b7ffa253caaeb594290d2c90522a3d2bd778cfa24b8d028ecf827133",
     recoverability: "signature",
@@ -611,7 +611,7 @@ export const CODEX_HIGHLIGHT_THEMES = [
   {
     slug: "proof-light",
     label: "Proof Light",
-    variant: "unknown",
+    variant: "light",
     normalizedHash: "e38e215c7413a2707f655d41a7bdde0a003d1db11282f358463890c89c23ac06",
     contentHash: "9a8a339c5e06c9c9f358929b8e2bb99613418d9e4ba666f1b8a07f645941fbb2",
     recoverability: "signature",
@@ -674,7 +674,7 @@ export const CODEX_HIGHLIGHT_THEMES = [
   {
     slug: "sentry-dark",
     label: "Sentry Dark",
-    variant: "unknown",
+    variant: "dark",
     normalizedHash: "fe20d8bbb80db88b79b9e93081afc36a1afecf4f7cfad2ab6a04687bdb23e9fc",
     contentHash: "58ca66644c61881c191638a9c8bc0b27ab189af292f99012344506b3a4a52b8a",
     recoverability: "signature",
@@ -737,7 +737,7 @@ export const CODEX_HIGHLIGHT_THEMES = [
   {
     slug: "temple-dark",
     label: "Temple Dark",
-    variant: "unknown",
+    variant: "dark",
     normalizedHash: "f47e509b83643eb127539fab41a740b264c36e6cf5ab8cf0a8c7d0bcf7b33990",
     contentHash: "6b825db6d94f478e040ca37f0fe7a726ad069ba36eb1add132323555b170bff8",
     recoverability: "signature",
@@ -755,7 +755,7 @@ export const CODEX_HIGHLIGHT_THEMES = [
   {
     slug: "vercel-dark",
     label: "Vercel Dark",
-    variant: "unknown",
+    variant: "dark",
     normalizedHash: "b856e9fbc5fa4ad728ceff540ca14cd711c7b02326505988715b39653e29958e",
     contentHash: "39fc345247ec1b5030ceede4ba166a7f3e1a81c31025648fcb245326076b8f85",
     recoverability: "signature",
@@ -764,7 +764,7 @@ export const CODEX_HIGHLIGHT_THEMES = [
   {
     slug: "vercel-light",
     label: "Vercel Light",
-    variant: "unknown",
+    variant: "light",
     normalizedHash: "cc6b25e16cee3583042588d29bcfe49fcaf87aeaa361558491b3eaa8ddcf03b5",
     contentHash: "0a0b3a3dc436350b54ca98201eb030c2d25742f316c76e6eef7facfbe65b6841",
     recoverability: "signature",

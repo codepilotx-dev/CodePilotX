@@ -860,7 +860,10 @@ export type DesktopThemeConfigV1 = {
 export type DesktopThemeSettingsV2 = {
   version: 2
   mode: DesktopThemeMode
-  codeThemeId: 'auto' | CodexHighlightThemeSlug
+  codeThemeIds: Record<
+    DesktopThemeVariant,
+    'auto' | CodexHighlightThemeSlug
+  >
   glassmorphismEnabled: boolean
   pointerCursorEnabled: boolean
   reduceMotion: 'system' | 'on' | 'off'

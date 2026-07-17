@@ -4,7 +4,10 @@ import type {
   DesktopThemeSettings,
   DesktopThemeVariant,
 } from './types.js'
-import { isCodexHighlightThemeSlug } from './codexThemes/manifest.js'
+import {
+  CODEX_HIGHLIGHT_THEMES,
+  isCodexHighlightThemeSlug,
+} from './codexThemes/manifest.js'
 
 export const DEFAULT_LIGHT_THEME_ID = 'light-codex'
 export const DEFAULT_DARK_THEME_ID = 'dark-codex'
@@ -63,7 +66,10 @@ export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
 export const DEFAULT_DESKTOP_THEME_SETTINGS: DesktopThemeSettings = {
   version: 2,
   mode: 'system',
-  codeThemeId: 'auto',
+  codeThemeIds: {
+    light: 'auto',
+    dark: 'auto',
+  },
   glassmorphismEnabled: true,
   pointerCursorEnabled: true,
   reduceMotion: 'system',
@@ -87,6 +93,13 @@ export function getDesktopThemeIdForVariant(
   return variant === 'dark' ? DEFAULT_DARK_THEME_ID : DEFAULT_LIGHT_THEME_ID
 }
 
+export function getCodeThemeSelectionForVariant(
+  settings: DesktopThemeSettings,
+  variant: DesktopThemeVariant,
+): DesktopThemeSettings['codeThemeIds'][DesktopThemeVariant] {
+  return settings.codeThemeIds[variant]
+}
+
 export function normalizeDesktopThemeSettings(
   value: unknown,
 ): DesktopThemeSettings {
@@ -101,12 +114,7 @@ export function normalizeDesktopThemeSettings(
       value.mode === 'system'
         ? value.mode
         : DEFAULT_DESKTOP_THEME_SETTINGS.mode,
-    codeThemeId:
-      isVersion2 &&
-      (value.codeThemeId === 'auto' ||
-        isCodexHighlightThemeSlug(value.codeThemeId))
-        ? value.codeThemeId
-        : 'auto',
+    codeThemeIds: normalizeCodeThemeIds(value, isVersion2),
     glassmorphismEnabled:
       typeof value.glassmorphismEnabled === 'boolean'
         ? value.glassmorphismEnabled
@@ -123,6 +131,48 @@ export function normalizeDesktopThemeSettings(
         : DEFAULT_DESKTOP_THEME_SETTINGS.reduceMotion,
     fontSizes: normalizeFontSizes(value.fontSizes),
   }
+}
+
+function normalizeCodeThemeIds(
+  value: Record<string, unknown>,
+  isVersion2: boolean,
+): DesktopThemeSettings['codeThemeIds'] {
+  const selections = isRecord(value.codeThemeIds) ? value.codeThemeIds : {}
+  const normalized = {
+    light: normalizeCodeThemeIdForVariant(selections.light, 'light'),
+    dark: normalizeCodeThemeIdForVariant(selections.dark, 'dark'),
+  } satisfies DesktopThemeSettings['codeThemeIds']
+
+  if (
+    normalized.light !== 'auto' ||
+    normalized.dark !== 'auto' ||
+    !isVersion2 ||
+    !isCodexHighlightThemeSlug(value.codeThemeId)
+  ) {
+    return normalized
+  }
+
+  const legacyTheme = CODEX_HIGHLIGHT_THEMES.find(
+    theme => theme.slug === value.codeThemeId,
+  )
+  if (!legacyTheme) return normalized
+  return {
+    ...normalized,
+    [legacyTheme.variant]: legacyTheme.slug,
+  }
+}
+
+function normalizeCodeThemeIdForVariant(
+  value: unknown,
+  variant: DesktopThemeVariant,
+): DesktopThemeSettings['codeThemeIds'][DesktopThemeVariant] {
+  if (value === 'auto') return 'auto'
+  if (!isCodexHighlightThemeSlug(value)) return 'auto'
+  return CODEX_HIGHLIGHT_THEMES.some(
+    theme => theme.slug === value && theme.variant === variant,
+  )
+    ? value
+    : 'auto'
 }
 
 function normalizeFontSizes(

@@ -2,6 +2,9 @@ import { describe, expect, test } from 'bun:test'
 
 import {
   CODEX_HIGHLIGHT_THEMES,
+  getThemesForVariant,
+  isThemeCompatibleWithVariant,
+  normalizeThemeIdForVariant,
   resolveThemeId,
 } from '../src/features/syntax/theme.js'
 
@@ -13,11 +16,34 @@ describe('Codex syntax theme resolution', () => {
     expect(resolveThemeId('not-a-theme', 'dark')).toBe('codex-dark')
   })
 
-  test('accepts only the 91 generated Codex theme slugs', () => {
+  test('accepts only themes matching the active light or dark mode', () => {
     expect(CODEX_HIGHLIGHT_THEMES).toHaveLength(91)
     for (const theme of CODEX_HIGHLIGHT_THEMES) {
-      expect(resolveThemeId(theme.slug, 'light')).toBe(theme.slug)
-      expect(resolveThemeId(theme.slug, 'dark')).toBe(theme.slug)
+      expect(theme.variant === 'light' || theme.variant === 'dark').toBeTrue()
+      expect(isThemeCompatibleWithVariant(theme.slug, theme.variant)).toBeTrue()
+      expect(resolveThemeId(theme.slug, theme.variant)).toBe(theme.slug)
+
+      const oppositeVariant = theme.variant === 'light' ? 'dark' : 'light'
+      expect(isThemeCompatibleWithVariant(theme.slug, oppositeVariant)).toBeFalse()
+      expect(normalizeThemeIdForVariant(theme.slug, oppositeVariant)).toBe(
+        'auto',
+      )
+      expect(resolveThemeId(theme.slug, oppositeVariant)).toBe(
+        oppositeVariant === 'light' ? 'codex-light' : 'codex-dark',
+      )
     }
+  })
+
+  test('filters the selector catalog by the active mode', () => {
+    const lightThemes = getThemesForVariant('light')
+    const darkThemes = getThemesForVariant('dark')
+
+    expect(lightThemes.length + darkThemes.length).toBe(91)
+    expect(lightThemes.every(theme => theme.variant === 'light')).toBeTrue()
+    expect(darkThemes.every(theme => theme.variant === 'dark')).toBeTrue()
+    expect(lightThemes.some(theme => theme.slug === 'github-light')).toBeTrue()
+    expect(lightThemes.some(theme => theme.slug === 'dracula')).toBeFalse()
+    expect(darkThemes.some(theme => theme.slug === 'dracula')).toBeTrue()
+    expect(darkThemes.some(theme => theme.slug === 'github-light')).toBeFalse()
   })
 })

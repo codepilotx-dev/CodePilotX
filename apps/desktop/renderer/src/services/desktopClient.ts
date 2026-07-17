@@ -2213,7 +2213,10 @@ function defaultMockThemeSettings(): DesktopThemeSettings {
   return {
     version: 2,
     mode: 'system',
-    codeThemeId: 'auto',
+    codeThemeIds: {
+      light: 'auto',
+      dark: 'auto',
+    },
     glassmorphismEnabled: true,
     pointerCursorEnabled: true,
     reduceMotion: 'system',

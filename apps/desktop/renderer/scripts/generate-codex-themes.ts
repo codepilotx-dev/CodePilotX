@@ -116,7 +116,7 @@ for (const inventoryTheme of sortedThemes) {
     inventoryTheme.slug,
     inventoryTheme.type,
   )
-  const variant = normalizeVariant(inventoryTheme.type)
+  const variant = normalizeVariant(theme.type)
   const label =
     normalizeLabel(original.displayName) ??
     normalizeLabel(original.name) ??
