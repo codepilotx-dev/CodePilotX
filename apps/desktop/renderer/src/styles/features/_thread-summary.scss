@@ -18,7 +18,9 @@
 }
 
 .thread-summary-popover {
+  position: relative;
   z-index: 80;
+  top: var(--space-4);
   width: 300px;
   max-height: min(680px, calc(100vh - 80px));
   outline: none;
@@ -592,24 +594,24 @@
 @keyframes thread-summary-enter {
   from {
     opacity: 0;
-    transform: translateX(100%) scale(0.8);
+    transform: scale(0.8);
   }
 
   to {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: scale(1);
   }
 }
 
 @keyframes thread-summary-exit {
   from {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: scale(1);
   }
 
   to {
     opacity: 0;
-    transform: translateX(100%) scale(0.8);
+    transform: scale(0.8);
   }
 }
 
