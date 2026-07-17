@@ -58,6 +58,7 @@ import type {
   DesktopPermissionDecision,
   DesktopPermissionMode,
   DesktopReviewDiffResult,
+  DesktopSessionEvent,
   DesktopSessionCatalogStatus,
   DesktopSessionMetadataPatch,
   DesktopRuntimeStatus,
@@ -1582,6 +1583,11 @@ function createBrowserMockDesktopClient(): DesktopApi {
     models: provider.defaultModels,
     modelMetadata: provider.modelMetadata,
   })
+  const visualFixture = createBrowserVisualFixture()
+  if (visualFixture) {
+    sessions.set(visualFixture.item.id, visualFixture)
+    activeSessionId = visualFixture.item.id
+  }
 
   return {
     getAuthStatus: async () => ({
@@ -2205,11 +2211,9 @@ function emptyBrowserState(): DesktopBrowserState {
 
 function defaultMockThemeSettings(): DesktopThemeSettings {
   return {
-    mode: 'light',
-    activeThemeIds: {
-      light: 'browser-mock-light',
-      dark: 'browser-mock-dark',
-    },
+    version: 2,
+    mode: 'system',
+    codeThemeId: 'auto',
     glassmorphismEnabled: true,
     pointerCursorEnabled: true,
     reduceMotion: 'system',
@@ -2217,8 +2221,6 @@ function defaultMockThemeSettings(): DesktopThemeSettings {
       code: 12,
       ui: 14,
     },
-    customThemes: [],
-    presetOverrides: {},
   }
 }
 
@@ -2325,6 +2327,131 @@ function mockSessionSnapshot(
     reviewComments: [],
     updatedAt: now,
   }
+}
+
+function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return null
+  const visualCase = new URLSearchParams(window.location.search).get('visualCase')
+  if (
+    visualCase !== 'rich' &&
+    visualCase !== 'permission' &&
+    visualCase !== 'review'
+  ) {
+    return null
+  }
+
+  const sessionId = `visual-${visualCase}`
+  const workspace = mockWorkspace('F:\\CodeProject\\CodePilotX-Ts')
+  const snapshot = mockSessionSnapshot(sessionId, workspace, {
+    workspacePath: workspace.path,
+    sessionName:
+      visualCase === 'rich'
+        ? 'Codex 富消息工作台'
+        : visualCase === 'permission'
+          ? '权限与计划'
+          : 'Review 与 Diff',
+    collaborationMode: {
+      mode: visualCase === 'permission' ? 'plan' : 'default',
+    },
+    planModeActive: visualCase === 'permission',
+    thinkingMode: 'adaptive',
+  })
+  const baseTime = Date.now()
+  const timestamp = (offsetMs: number): string =>
+    new Date(baseTime + offsetMs).toISOString()
+  const createdAt = timestamp(0)
+  const events: DesktopSessionEvent[] = [
+    {
+      id: `${sessionId}-user`,
+      sessionId,
+      type: 'message',
+      role: 'user',
+      content:
+        visualCase === 'review'
+          ? '请审查主题重构并确认 diff。'
+          : '把核心工作台重构成 Codex 风格，并保留现有 Agent 边界。',
+      createdAt,
+    },
+    {
+      id: `${sessionId}-assistant`,
+      sessionId,
+      type: 'message',
+      role: 'assistant',
+      content:
+        '已完成工作台结构梳理。\n\n```ts\nconst theme = mode === \"dark\" ? \"codex-dark\" : \"codex-light\"\n```\n\n- 固定 Codex 语义表面\n- 高亮主题按需加载',
+      createdAt: timestamp(2_000),
+    },
+  ]
+
+  if (visualCase === 'rich' || visualCase === 'review') {
+    events.push(
+      {
+        id: `${sessionId}-tool`,
+        sessionId,
+        type: 'tool_call',
+        content: 'Bash: bun run typecheck',
+        createdAt: timestamp(3_000),
+        metadata: { toolName: 'Bash', toolUseId: 'visual-tool-1' },
+      },
+      {
+        id: `${sessionId}-tool-output`,
+        sessionId,
+        type: 'tool_output_delta',
+        content: '63 tests passed\nrenderer build complete',
+        createdAt: timestamp(4_000),
+        metadata: { toolName: 'Bash', toolUseId: 'visual-tool-1' },
+      },
+      {
+        id: `${sessionId}-patch`,
+        sessionId,
+        type: 'file_patch',
+        content: '更新 Codex 主题与工作台样式',
+        createdAt: timestamp(5_000),
+        metadata: {
+          turnScoped: true,
+          files: [
+            { path: 'apps/desktop/renderer/shared/theme.ts' },
+            { path: 'apps/desktop/renderer/src/styles/index.scss' },
+          ],
+        },
+      },
+    )
+  }
+
+  if (visualCase === 'permission') {
+    events.push({
+      id: `${sessionId}-plan`,
+      sessionId,
+      type: 'proposed_plan',
+      role: 'assistant',
+      content:
+        '# 实施计划\n\n1. 固定 Codex Light / Dark\n2. 生成 91 主题白名单\n3. 验证权限、Plan 与 Dock',
+      createdAt: timestamp(3_000),
+    })
+    snapshot.view.pendingPermissions = [
+      {
+        requestId: `${sessionId}-permission`,
+        toolName: 'Bash',
+        requestKind: 'shell-command',
+        description: '允许运行 renderer 验收命令',
+        input: { command: 'bun run --cwd apps/desktop/renderer test' },
+      },
+    ]
+  }
+
+  snapshot.events = events
+  snapshot.view.messages = events
+    .filter(event => event.type === 'message')
+    .map(event => ({
+      id: event.id,
+      role: event.role as 'user' | 'assistant',
+      text: event.content,
+      createdAt: event.createdAt,
+    }))
+  snapshot.item.status = visualCase === 'rich' ? 'running' : 'idle'
+  snapshot.item.lastMessageAt = events.at(-1)?.createdAt ?? createdAt
+  snapshot.updatedAt = snapshot.item.lastMessageAt
+  return snapshot
 }
 
 function requireMockSession(

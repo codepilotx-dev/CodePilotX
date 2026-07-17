@@ -16,6 +16,8 @@ data
 release
 apps/agent/catalog.cache.json
 .playwright-cli/
+apps/desktop/renderer/test-results/
+apps/desktop/renderer/playwright-report/
 
 # Editor directories and files
 .vscode/*
