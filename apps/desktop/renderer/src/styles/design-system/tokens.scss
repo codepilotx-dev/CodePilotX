@@ -31,7 +31,7 @@
     var(--color-bg)
   );
   --color-surface: var(--color-bg);
-  --color-ink: #0d0d0d;
+  --color-ink: #1a1c1f;
   --color-border: var(--border-control);
   --color-border-soft: var(--border-subtle);
   --color-border-faint: var(--border-subtle);
@@ -54,16 +54,29 @@
   --color-icon: var(--color-ink);
   --color-icon-soft: color-mix(in srgb, var(--color-bg) 60%, var(--color-ink));
   --color-icon-arrow: color-mix(in srgb, var(--color-bg) 70%, var(--color-ink));
-  --color-accent: #0169cc;
+  --color-accent: #339cff;
   --color-accent-11: color-mix(in srgb, var(--color-accent) 85%, var(--color-bg));
   --color-accent-a3: color-mix(in srgb, var(--color-accent) 30%, transparent);
-  --color-send-bg: var(--color-accent);
-  --color-send-bg-hover: color-mix(in srgb, var(--color-accent) 82%, var(--color-ink));
-  --color-send-bg-disabled: color-mix(in srgb, var(--color-accent) 50%, var(--color-ink));
+  --color-primary-action: var(--color-accent);
+  --color-primary-action-foreground: #ffffff;
+  --color-primary-action-hover: color-mix(
+    in srgb,
+    var(--color-primary-action) 82%,
+    var(--color-ink)
+  );
+  --color-primary-action-disabled: color-mix(
+    in srgb,
+    var(--color-primary-action) 45%,
+    transparent
+  );
+  --color-send-bg: var(--color-primary-action);
+  --color-send-bg-hover: var(--color-primary-action-hover);
+  --color-send-bg-disabled: var(--color-primary-action-disabled);
   --color-user-bubble-bg: var(--surface-user-message);
 
   --surface-base: color-mix(in srgb, var(--color-bg) 98%, var(--color-ink));
   --surface-canvas: var(--color-bg);
+  --surface-underlay: var(--surface-chrome);
   --surface-chrome: color-mix(in srgb, var(--color-bg) 96.5%, var(--color-ink));
   --surface-panel: color-mix(in srgb, var(--color-bg) 96.5%, var(--color-ink));
   --surface-raised: var(--color-bg);
@@ -108,7 +121,7 @@
   --layout-sidebar-row-pad-x: 5px;
   --layout-sidebar-session-indent: 30px;
   --layout-sidebar-section-gap: 18px;
-  --layout-content-w: 760px;
+  --layout-content-w: 48rem;
   --layout-bento-w: 840px;
 
   --space-1: 4px;
@@ -156,12 +169,13 @@
   --type-meta: max(10px, calc(var(--font-size-ui) - 2px));
   --type-caption: max(10px, calc(var(--font-size-ui) - 3px));
 
-  --radius-1: calc(var(--radius-base) - 6px);
-  --radius-2: calc(var(--radius-base) - 4px);
-  --radius-3: calc(var(--radius-base) - 2px);
-  --radius-4: var(--radius-base);
-  --radius-5: calc(var(--radius-base) + 4px);
-  --radius-6: var(--radius-card);
+  --radius-1: 2px;
+  --radius-2: 4px;
+  --radius-3: 6px;
+  --radius-4: 8px;
+  --radius-5: 10px;
+  --radius-6: 12px;
+  --radius-7: 16px;
   --radius-full: 9999px;
   --radius-user-message: var(--radius-6);
 
@@ -177,9 +191,9 @@
   --app-icon-size-md: calc(var(--font-size-ui) + 4px);
   --app-icon-stroke-width: 1.75;
 
-  --motion-fast: 120ms;
-  --motion-standard: 160ms;
-  --motion-emphasis: 220ms;
+  --motion-fast: 150ms;
+  --motion-standard: 150ms;
+  --motion-emphasis: 300ms;
   --motion-hover: var(--motion-fast);
   --motion-enter: var(--motion-standard);
   --motion-exit: var(--motion-fast);
@@ -187,7 +201,7 @@
   --ease-out: ease-out;
   --ease-in: ease-in;
 
-  --composer-width: 760px;
+  --composer-width: 48rem;
   --floating-composer-h: 142px;
   --chrome-h: calc(
     var(--font-size-ui) + var(--font-size-ui) + 7px
@@ -215,7 +229,7 @@
   --color-scrollbar-hover: var(--scrollbar-hover);
   --color-diff-added: #00a240;
   --color-diff-removed: #e02e2a;
-  --color-skill: #751ed9;
+  --color-skill: #924ff7;
   --state-hover: color-mix(in srgb, var(--color-bg) 95.8%, var(--color-ink));
   --state-selected: color-mix(in srgb, var(--color-bg) 93%, var(--color-ink));
   --scrollbar-rest: var(--state-selected);
@@ -232,7 +246,7 @@
   --syntax-punctuation: var(--color-text-meta);
 
   --font-family-sans:
-    "MiSans VF Regular", "MiSans", Inter, sans-serif;
+    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-family-mono:
     "JetBrains Mono", Consolas, monospace;
   --type-card-title: var(--font-size-ui);
@@ -243,7 +257,7 @@
   --type-page-title: calc(var(--font-size-ui) + 12px);
   --type-hero-title: calc(var(--font-size-ui) + 16px);
   --type-code: var(--font-size-code);
-  --font-weight-body: 400;
+  --font-weight-body: 445;
   --font-weight-label: 500;
   --font-weight-heading: 560;
   --font-weight-emphasis: 600;

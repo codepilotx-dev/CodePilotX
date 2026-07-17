@@ -7,6 +7,7 @@ import { useDesktopSettings } from './useDesktopSettings.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsContentArea } from './SettingsContentArea.js';
+import { Button } from '../../components/ui/Button.js'
 
 export function BrowserSettings(): React.ReactNode {
   const settings = useDesktopSettings()
@@ -62,15 +63,15 @@ export function BrowserSettings(): React.ReactNode {
               : '暂无站点权限。'
           }
           actions={
-            <button
-              className="settings-button danger"
+            <Button
+              tone="danger"
               disabled={sitePermissions.length === 0 && browserAllowedSites.length === 0}
               type="button"
               onClick={() => void clearAllowedSites()}
             >
               <Trash2 size={APP_ICON_SIZE} />
               <span>清空</span>
-            </button>
+            </Button>
           }
         >
           {sitePermissions.length ? (

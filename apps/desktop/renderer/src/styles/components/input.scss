@@ -58,8 +58,15 @@
   background: var(--color-bg-card);
   color: var(--color-text);
   padding: var(--control-padding-block) var(--control-padding-inline);
-  font-size: var(--type-control);
   line-height: var(--control-line-height);
+}
+
+.settings-input:not(.ui-input) {
+  font-size: var(--type-control);
+}
+
+.ui-input[aria-invalid="true"] {
+  border-color: var(--color-danger);
 }
 
 .settings-input-narrow {

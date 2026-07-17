@@ -1,19 +1,22 @@
-.desktop-frame,
-.app-shell {
+.desktop-frame {
   height: 100vh;
   min-height: 0;
   overflow: hidden;
 }
 
 .desktop-frame {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   background: var(--color-bg);
 }
 
 .app-shell {
+  height: auto;
+  min-height: 0;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: var(--color-bg-mask);
 }
 

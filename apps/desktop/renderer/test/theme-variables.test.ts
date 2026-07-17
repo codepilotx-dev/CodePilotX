@@ -25,19 +25,99 @@ const ROLE_KEYS = [
 ] as const
 
 const DARK_40_THEMES = [
-  ['Codex', DEFAULT_DARK_THEME],
   ['Rose Pine', theme('dark', '#191724', '#e0def4', 'codepilotx')],
   ['Matrix', theme('dark', '#071a0d', '#d1ffd9', 'codepilotx')],
   ['Absolutely', preset('dark-absolutely')],
 ] as const
 
 const LIGHT_40_THEMES = [
-  ['Codex', DEFAULT_LIGHT_THEME],
   ['Linear', theme('light', '#f7f8fa', '#1f2328', 'codepilotx')],
   ['Rose Pine', theme('light', '#faf4ed', '#575279', 'codepilotx')],
 ] as const
 
 describe('theme variable derivation', () => {
+  test('locks the default Codex palette, typography, and contrast gears', () => {
+    expect(DEFAULT_LIGHT_THEME.theme).toMatchObject({
+      accent: '#339cff',
+      ink: '#1a1c1f',
+      semanticColors: { skill: '#924ff7' },
+      surface: '#ffffff',
+    })
+    expect(DEFAULT_DARK_THEME.theme).toMatchObject({
+      accent: '#339cff',
+      ink: '#ffffff',
+      semanticColors: { skill: '#ad7bf9' },
+      surface: '#181818',
+    })
+
+    const light = deriveThemeVariables(DEFAULT_LIGHT_THEME)
+    expect(light['--font-family-sans']).toBe(
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    )
+    expect(light['--font-family-mono']).toBe(
+      '"JetBrains Mono", "Consolas", monospace',
+    )
+    expect(pickSurfaceRoles(light)).toEqual({
+      canvas: '#ffffff',
+      chrome: '#f9f9f9',
+      panel: '#f9f9f9',
+      raised: '#ffffff',
+      codeBlock: '#f9f9f9',
+      codeInline: '#ededed',
+      userMessage: '#f9f9f9',
+      composer: '#ffffff',
+    })
+    const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
+    expect(pickSurfaceRoles(dark)).toEqual({
+      canvas: '#181818',
+      chrome: '#000000',
+      panel: '#212121',
+      raised: '#282828',
+      codeBlock: '#212121',
+      codeInline: '#303030',
+      userMessage: '#282828',
+      composer: '#212121',
+    })
+    expect(light['--surface-underlay']).toBe('#f9f9f9')
+    expect(light['--border-control']).toBe(
+      'color-mix(in srgb, #1a1c1f 10%, transparent)',
+    )
+    expect(dark['--surface-underlay']).toBe('#000000')
+    expect(dark['--border-control']).toBe(
+      'color-mix(in srgb, #ffffff 10%, transparent)',
+    )
+    expect(dark['--color-accent']).toBe('#339cff')
+    expect(dark['--color-skill']).toBe('#ad7bf9')
+    expect(dark['--color-primary-action']).toBe('#339cff')
+    expect(dark['--color-send-bg']).toBe('var(--color-primary-action)')
+
+    for (const config of [DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME]) {
+      for (const contrast of [0, 100] as const) {
+        const variables = deriveThemeVariables(withContrast(config, contrast))
+        const anchors = config.variant === 'dark'
+          ? contrast === 0
+            ? { chrome: 7.5, panel: 1, codeInline: 4.3 }
+            : { chrome: 22, panel: 10, codeInline: 24 }
+          : contrast === 0
+            ? { chrome: 1, panel: 1, codeInline: 4.3 }
+            : { chrome: 9, panel: 10, codeInline: 24 }
+        expect(variables['--surface-chrome']).toBe(
+          mixHex(
+            config.theme.surface,
+            config.variant === 'dark' ? '#000000' : config.theme.ink,
+            anchors.chrome,
+          ),
+        )
+        expect(variables['--surface-panel']).toBe(
+          mixHex(config.theme.surface, config.theme.ink, anchors.panel),
+        )
+        expect(variables['--surface-code-inline']).toBe(
+          mixHex(config.theme.surface, config.theme.ink, anchors.codeInline),
+        )
+      }
+    }
+  })
+
   test('locks Dracula dark semantic anchors at contrast 0/40/100', () => {
     const base = preset('dark-dracula')
     const expectedByContrast = {
@@ -194,6 +274,19 @@ describe('theme variable derivation', () => {
     expect(new Set(signatures).size).toBe(ids.length)
   })
 })
+
+function pickSurfaceRoles(variables: ReturnType<typeof deriveThemeVariables>) {
+  return {
+    canvas: variables['--surface-canvas'],
+    chrome: variables['--surface-chrome'],
+    panel: variables['--surface-panel'],
+    raised: variables['--surface-raised'],
+    codeBlock: variables['--surface-code-block'],
+    codeInline: variables['--surface-code-inline'],
+    userMessage: variables['--surface-user-message'],
+    composer: variables['--surface-composer'],
+  }
+}
 
 function preset(id: string): DesktopThemeConfigV1 {
   const match = DESKTOP_THEME_PRESETS.find(entry => entry.id === id)

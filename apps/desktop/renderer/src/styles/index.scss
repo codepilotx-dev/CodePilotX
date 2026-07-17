@@ -1,5 +1,9 @@
 @use 'sass:meta';
-@layer vendor, reset, tokens, primitives, shell, features, utilities, overrides;
+@layer theme, vendor, reset, tokens, primitives, shell, features, utilities, overrides;
+
+@layer theme {
+  // Tailwind's theme layer is loaded by the approved direct CSS entrypoint.
+}
 
 @layer vendor {
   @include meta.load-css('vendor');

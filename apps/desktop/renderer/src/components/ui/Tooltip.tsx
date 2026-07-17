@@ -47,7 +47,18 @@ export function Tooltip({
       <RadixTooltip.Portal>
         <RadixTooltip.Content
           align={align}
-          className={['tooltip-content', className].filter(Boolean).join(' ')}
+          className={[
+            'tooltip-content',
+            'tw:max-w-[min(20rem,calc(100vw-2rem))]',
+            'tw:rounded-md',
+            'tw:px-2',
+            'tw:py-1',
+            'tw:text-xs',
+            'tw:leading-4',
+            'tw:text-app-text-soft',
+            'tw:shadow-md',
+            className,
+          ].filter(Boolean).join(' ')}
           side={side}
           sideOffset={sideOffset}
         >

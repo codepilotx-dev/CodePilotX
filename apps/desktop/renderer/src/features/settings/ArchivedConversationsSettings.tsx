@@ -6,6 +6,7 @@ import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { sessionDisplayTitle, type SessionListItem } from '../../uiTypes.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsContentArea } from './SettingsContentArea.js';
+import { Button } from '../../components/ui/Button.js'
 
 export function ArchivedConversationsSettings(): React.ReactNode {
   const [sessions, setSessions] = useState<SessionListItem[]>([])
@@ -84,22 +85,21 @@ export function ArchivedConversationsSettings(): React.ReactNode {
                   </p>
                 </div>
                 <div className="archived-session-actions">
-                  <button
-                    className="settings-button"
+                  <Button
                     onClick={() => void restoreSession(session)}
                     type="button"
                   >
                     <ArchiveRestore size={APP_ICON_SIZE} />
                     <span>恢复</span>
-                  </button>
-                  <button
-                    className="settings-button danger"
+                  </Button>
+                  <Button
+                    tone="danger"
                     onClick={() => void deleteSession(session)}
                     type="button"
                   >
                     <Trash2 size={APP_ICON_SIZE} />
                     <span>删除</span>
-                  </button>
+                  </Button>
                 </div>
               </article>
             ))

@@ -23,11 +23,6 @@
   flex-direction: column;
   background: transparent;
   position: relative;
-  --session-environment-panel-column-w: 0px;
-}
-
-.workflow-page__main--with-environment-panel {
-  --session-environment-panel-column-w: 348px;
 }
 
 .workflow-main-scroll-area {
@@ -98,39 +93,12 @@
   }
 }
 
-.workflow-page__composer .composer-surface {
-  --composer-surface-top-padding: 0.85em 1em 0.7em;
-  --composer-surface-top-border: 0;
-  --composer-surface-top-radius: var(--radius-card);
-  --composer-surface-top-bg: color-mix(
-    in srgb,
-    var(--color-panel-bg) 90%,
-    transparent
-  );
-  --composer-surface-footer-display: flex;
-  --composer-surface-footer-margin-top: 2px;
-  --composer-surface-footer-padding: 0.57em 0.57em 0.14em;
-  --composer-surface-footer-border-top: 1px solid
-    color-mix(in srgb, var(--color-text-strong) 8%, transparent);
-
-  padding: 0 0 12px;
-  background: transparent;
-  box-shadow: none;
-}
-
 .workflow-page__composer .composer {
   width: 100%;
-  padding: 5px;
-  border: 1px solid var(--color-panel-border);
-  border-radius: var(--radius-marquee);
-  background: var(--color-panel-bg);
-  box-shadow:
-    0 22px 60px color-mix(in srgb, var(--color-text-strong) 10%, transparent),
-    0 1px 0 color-mix(in srgb, var(--color-ink) 6%, transparent) inset;
 }
 
-.workflow-page__composer .composer-surface .inline-approval-card,
-.workflow-page__composer .composer-surface .workflow-composer-card {
+.workflow-page__composer .composer-frame .inline-approval-card,
+.workflow-page__composer .composer-frame .workflow-composer-card {
   width: 100%;
   max-width: none;
 }
@@ -288,26 +256,13 @@
   font-weight: var(--font-weight-label);
 }
 
-/* --- Workflow page composer --- */
+/* Composer placement is owned by ThreadScrollLayout's sticky footer. */
 .workflow-page .chat-composer.workflow-page__composer {
-  position: absolute;
-  bottom: 0;
+  position: relative;
   flex: 0 0 auto;
-  display: flex;
-  justify-content: center;
-  flex-direction: column;
-  align-items: center;
   width: 100%;
   padding: 0;
   pointer-events: none;
-}
-
-/* Wide layout: narrow composer to match timeline content column */
-@media (min-width: 1200px) {
-  .workflow-page__main--with-environment-panel
-    .chat-composer.workflow-page__composer {
-    width: calc(100% - var(--session-environment-panel-column-w, 0px));
-  }
 }
 
 
@@ -438,16 +393,6 @@
   .workflow-page__composer-inner {
     transition: none;
   }
-}
-
-.workflow-page__composer .composer {
-  border-color: var(--border-subtle);
-  background: var(--surface-composer);
-  box-shadow: var(--color-panel-shadow);
-}
-
-.workflow-page__composer .composer-surface {
-  --composer-surface-top-bg: var(--surface-composer);
 }
 
 .workflow-plan-card {

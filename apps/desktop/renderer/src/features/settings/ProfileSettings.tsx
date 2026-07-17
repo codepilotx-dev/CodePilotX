@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Edit3,
   GitFork,
@@ -18,6 +18,7 @@ import type {
   DesktopGithubProfileRepository,
 } from '../../../shared/types.js'
 import { desktopClient } from '../../services/desktopClient.js'
+import { Button } from '../../components/ui/Button.js'
 
 export function ProfileSettings(): React.ReactNode {
   const navigate = useNavigate()
@@ -282,22 +283,21 @@ export function ProfileSettings(): React.ReactNode {
               }
             </p>
             <div className="profile-empty-actions">
-              <button
-                className="settings-button"
+              <Button
                 disabled={loading}
                 onClick={() => void loadGithubAuth()}
                 type="button"
               >
                 <RefreshCw />
                 刷新
-              </button>
-              <button
-                className="settings-button primary"
+              </Button>
+              <Button
+                variant="primary"
                 onClick={() => navigate('/settings?tab=git')}
                 type="button"
               >
                 前往 Git 设置
-              </button>
+              </Button>
             </div>
           </section>
         )}
@@ -342,22 +342,21 @@ export function ProfileSettings(): React.ReactNode {
               Busy
             </label>
             <div className="profile-status-actions">
-              <button
-                className="settings-button"
+              <Button
                 disabled={statusBusy}
                 onClick={() => void clearStatus()}
                 type="button"
               >
                 Clear status
-              </button>
-              <button
-                className="settings-button primary"
+              </Button>
+              <Button
+                variant="primary"
                 disabled={statusBusy || !statusMessage.trim()}
                 onClick={() => void saveStatus()}
                 type="button"
               >
                 Set status
-              </button>
+              </Button>
             </div>
           </div>
         ) : null}

@@ -27,6 +27,7 @@
 
 .desktop-sidebar,
 .desktop-sidebar-hover-overlay {
+  --sidebar-footer-height: 0px;
   --sidebar-padding-x: var(--control-padding-inline-compact);
   --sidebar-item-gap: var(--control-gap);
   --sidebar-row-pad-y: var(--control-padding-block-compact);
@@ -67,13 +68,6 @@
 
 .sidebar-layout {
   min-width: var(--sidebar-current-width);
-  flex: 1;
-  min-height: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 10px 0;
   transition: opacity var(--motion-fast) var(--ease-out);
 }
 
@@ -92,20 +86,13 @@
   height: 100%;
 }
 
-.sidebar-top-nav,
-.sidebar-session-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 0 5px;
-}
-
 .sidebar-scroll-area {
   flex: 1 1 auto;
   min-height: 0;
   margin-top: 18px;
   overflow-x: hidden;
   overflow-y: auto;
+  scroll-padding-bottom: calc(var(--sidebar-footer-height) + 8px);
 
   &::-webkit-scrollbar {
     width: 8px;
@@ -129,22 +116,6 @@
   min-width: 0;
 }
 
-.sidebar-section-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--layout-sidebar-section-gap);
-  min-width: 0;
-  padding: 0 5px;
-}
-
-.sidebar-section {
-  display: grid;
-  gap: 4px;
-  margin-top: 0;
-}
-
-.sidebar-row,
-.sidebar-section-header,
 .sidebar-show-more-actions {
   width: 100%;
   display: grid;
@@ -164,15 +135,8 @@
     color var(--motion-fast) var(--ease-standard);
 }
 
-.sidebar-row:hover:not(.sidebar-empty-row),
 .sidebar-show-more-button:hover {
   background: var(--color-sidebar-hover-bg);
-}
-
-.sidebar-nav-link.active,
-.sidebar-session-row.active,
-.sidebar-settings-link.active {
-  border-color: transparent;
 }
 
 .sidebar-row-leading,
@@ -197,20 +161,6 @@
   justify-content: flex-end;
 }
 
-.sidebar-nav-link:hover,
-.sidebar-project-header:hover,
-.sidebar-session-row:hover,
-.sidebar-settings-link:hover {
-  background: var(--color-sidebar-hover-bg);
-}
-
-.sidebar-nav-link.active,
-.sidebar-session-row.active,
-.sidebar-settings-link.active {
-  color: var(--color-text-strong);
-  background: var(--color-sidebar-active-bg);
-}
-
 .sidebar-nav-link:hover .sidebar-item-icon,
 .sidebar-nav-link.active .sidebar-item-icon,
 .sidebar-project-header:hover .sidebar-item-icon,
@@ -229,18 +179,6 @@
 
 .sidebar-project-header--unavailable:hover {
   background: transparent;
-}
-
-.sidebar-item-label,
-.sidebar-project-title-text,
-.sidebar-session-title,
-.sidebar-section-label,
-.sidebar-settings-label,
-.sidebar-settings-link span:last-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .sidebar-section-title {
@@ -277,12 +215,6 @@
   user-select: none;
 }
 
-.sidebar-section-main {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-}
-
 .sidebar-section-chevron {
   flex: 0 0 auto;
   color: var(--color-text-meta);
@@ -302,11 +234,6 @@
 .sidebar-section-header:hover .sidebar-section-chevron,
 .sidebar-section-header:focus-within .sidebar-section-chevron {
   opacity: 1;
-}
-
-.sidebar-project {
-  display: flex;
-  flex-direction: column;
 }
 
 .sidebar-project-header {
@@ -450,13 +377,6 @@
   padding-left: var(--sidebar-padding-x);
 }
 
-.sidebar-session-meta {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  width: 100%;
-}
-
 .sidebar-session-meta--approval {
   width: auto;
   gap: var(--control-gap);
@@ -504,17 +424,11 @@
 
 .sidebar-show-more-button {
   color: var(--color-text-meta);
-  font-size: var(--type-control);
 }
 
 .sidebar-show-more-actions {
   .sidebar-row-main {
     gap: 1em;
-  }
-
-  .sidebar-show-more-button {
-    width: auto;
-    padding: 0;
   }
 }
 
@@ -528,13 +442,23 @@
 }
 
 .sidebar-footer {
-  flex: 0 0 auto;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 10px;
-  padding: 0 5px;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .desktop-sidebar:not(.is-collapsed) {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: var(--z-right-dock);
+    box-shadow: 2px 0 10px color-mix(in srgb, var(--color-ink) 10%, transparent);
+  }
+}
+
+@media (forced-colors: active) and (max-width: 720px) {
+  .desktop-sidebar:not(.is-collapsed) {
+    border-right: 1px solid CanvasText;
+    box-shadow: none;
+  }
 }
 
 .sidebar-settings-link {
@@ -684,14 +608,6 @@
   &:hover {
     background: var(--color-bg-row-hover);
   }
-}
-
-.popover-usage-action-label {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .popover-usage-action-icon {

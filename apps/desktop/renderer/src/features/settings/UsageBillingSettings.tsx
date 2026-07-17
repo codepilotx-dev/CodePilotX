@@ -12,6 +12,7 @@ import {
   BILLING_PROVIDERS,
   type BillingProviderEntry,
 } from '../../utils/billingProviders.js'
+import { Button } from '../../components/ui/Button.js'
 
 type ConfiguredBillingProvider = {
   providerID: ModelProviderID
@@ -101,14 +102,13 @@ export function UsageBillingSettings(): React.ReactNode {
               title="连接状态"
               description="请先到配置页连接模型提供商并保存 API key。"
               control={
-                <button
-                  className="settings-button"
+                <Button
                   disabled={loading}
                   type="button"
                   onClick={() => void refreshBalance()}
                 >
                   重新检查
-                </button>
+                </Button>
               }
             />
           </SettingsSection>
@@ -121,14 +121,13 @@ export function UsageBillingSettings(): React.ReactNode {
               title="支持的提供商"
               description="配置 DeepSeek 或 MiniMax API key 后，这里会显示余额或 Token Plan 用量。"
               control={
-                <button
-                  className="settings-button"
+                <Button
                   disabled={loading}
                   type="button"
                   onClick={() => void refreshBalance()}
                 >
                   重新检查
-                </button>
+                </Button>
               }
             />
           </SettingsSection>
@@ -140,14 +139,13 @@ export function UsageBillingSettings(): React.ReactNode {
                   title="已配置"
                   description={configuredProviderLabels}
                   control={
-                    <button
-                      className="settings-button"
+                    <Button
                       disabled={loading}
                       type="button"
                       onClick={() => void refreshBalance()}
                     >
                       重新检查
-                    </button>
+                    </Button>
                   }
                 />
               </SettingsSection>
@@ -323,21 +321,19 @@ function ProviderActions({
 }): React.ReactNode {
   return (
     <div className="settings-inline-actions">
-      <button
-        className="settings-button"
+      <Button
         disabled={loading}
         type="button"
         onClick={() => void onRefresh()}
       >
         {loading ? loadingLabel : refreshLabel}
-      </button>
-      <button
-        className="settings-button"
+      </Button>
+      <Button
         type="button"
         onClick={() => void desktopClient.openExternalURL(secondaryURL)}
       >
         {secondaryLabel}
-      </button>
+      </Button>
     </div>
   )
 }

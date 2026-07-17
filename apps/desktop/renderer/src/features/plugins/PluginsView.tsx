@@ -27,6 +27,7 @@ import {
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktopClient.js'
 import { IconButton } from '../../components/ui/IconButton.js'
+import { cx } from '../../utils/cx.js'
 import type {
   DesktopSkillAuditStatus,
   DesktopSkillCatalogItem,
@@ -303,7 +304,14 @@ export function PluginsView(): React.ReactNode {
   return (
     <section className="plugins-view">
       <header className="plugins-toolbar">
-        <div className="plugins-tabs">
+        <div
+          className={cx(
+            'plugins-tabs',
+            'u-inline-flex',
+            'u-items-center',
+            'u-gap-2',
+          )}
+        >
           <button
             aria-pressed={tab === 'plugins'}
             className={tab === 'plugins' ? 'plugins-tab is-active' : 'plugins-tab'}
@@ -450,10 +458,28 @@ export function PluginsView(): React.ReactNode {
         </ol>
       </div>
 
-      <section className="plugins-section">
-        <header className="plugins-section-header">
-          <h2>{isSkillsTab ? 'Skills' : 'Featured'}</h2>
-          <span className="plugins-section-count">{listCount}</span>
+      <section className={cx('plugins-section', 'u-grid', 'u-gap-4')}>
+        <header
+          className={cx(
+            'plugins-section-header',
+            'u-inline-flex',
+            'u-items-baseline',
+            'u-gap-2',
+          )}
+        >
+          <h2
+            className={cx(
+              'u-m-0',
+              'u-type-body',
+              'u-font-label',
+              'u-text-primary',
+            )}
+          >
+            {isSkillsTab ? 'Skills' : 'Featured'}
+          </h2>
+          <span className={cx('plugins-section-count', 'u-type-meta', 'u-text-meta')}>
+            {listCount}
+          </span>
         </header>
 
         {isSkillsTab && skillsError ? (
@@ -514,7 +540,18 @@ export function PluginsView(): React.ReactNode {
                   </span>
                   <div className="plugins-card-meta">
                     <div className="plugins-card-title-row">
-                      <h3>{skill.name}</h3>
+                      <h3
+                        className={cx(
+                          'u-m-0',
+                          'u-min-w-0',
+                          'u-truncate',
+                          'u-type-body',
+                          'u-font-label',
+                          'u-text-primary',
+                        )}
+                      >
+                        {skill.name}
+                      </h3>
                       {skill.audit ? (
                         <span
                           className={`plugins-audit-badge is-${skill.audit.status}`}
@@ -525,7 +562,15 @@ export function PluginsView(): React.ReactNode {
                         </span>
                       ) : null}
                     </div>
-                    <p className="plugins-card-source">
+                    <p
+                      className={cx(
+                        'plugins-card-source',
+                        'u-m-0',
+                        'u-truncate',
+                        'u-type-meta',
+                        'u-text-meta',
+                      )}
+                    >
                       {skill.source} · {skill.installs.toLocaleString()} installs
                     </p>
                   </div>
@@ -555,8 +600,29 @@ export function PluginsView(): React.ReactNode {
                   {plugin.icon}
                 </span>
                 <div className="plugins-card-meta">
-                  <h3>{plugin.name}</h3>
-                  <p className="plugins-card-description">{plugin.description}</p>
+                  <h3
+                    className={cx(
+                      'u-m-0',
+                      'u-min-w-0',
+                      'u-truncate',
+                      'u-type-body',
+                      'u-font-label',
+                      'u-text-primary',
+                    )}
+                  >
+                    {plugin.name}
+                  </h3>
+                  <p
+                    className={cx(
+                      'plugins-card-description',
+                      'u-m-0',
+                      'u-truncate',
+                      'u-type-secondary',
+                      'u-text-meta',
+                    )}
+                  >
+                    {plugin.description}
+                  </p>
                 </div>
                 <button
                   aria-pressed={plugin.installed}

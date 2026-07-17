@@ -1,8 +1,10 @@
 .desktop-menubar {
+  height: 46px;
   background: var(--color-chrome-bg);
 }
 
 .app-menubar {
+  height: 100%;
   background: var(--color-chrome-bg);
   user-select: none;
 }
@@ -25,6 +27,10 @@
   align-items: center;
   gap: 4px;
   overflow: visible;
+
+  > button {
+    -webkit-app-region: no-drag;
+  }
 }
 
 .menubar-root {
@@ -84,22 +90,9 @@
   }
 }
 
-.menubar-item-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .menubar-item-trailing {
   justify-self: end;
   min-width: 0;
-}
-
-.menubar-shortcut {
-  color: var(--color-text-meta);
-  font-size: var(--type-caption);
-  white-space: nowrap;
 }
 
 .menubar-item[data-disabled] .menubar-shortcut {
@@ -124,14 +117,10 @@
     white-space: nowrap;
     -webkit-app-region: no-drag;
   }
-
-  .menubar-debug-mode-label {
-    color: var(--color-text-soft);
-    font-size: var(--type-meta);
-  }
 }
 
 .window-controls {
+  height: 100%;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -140,7 +129,7 @@
 
 .window-control-button {
   width: 46px;
-  height: var(--chrome-h);
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -10,12 +10,7 @@
 }
 
 .permission-modal {
-  width: min(620px, 100%);
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-5);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-5);
   background: var(--color-bg);
   box-shadow: var(--shadow-float);
 }
@@ -24,9 +19,13 @@
 .github-repository-modal,
 .git-workflow-modal {
   border-color: var(--color-panel-border);
-  border-radius: var(--radius-panel);
   background: var(--color-panel-bg);
   box-shadow: var(--color-panel-shadow);
+}
+
+.github-repository-modal,
+.git-workflow-modal {
+  border-radius: var(--radius-panel);
 }
 
 :root[data-glass-surfaces="on"] {
@@ -41,14 +40,6 @@
       0 1px 0 var(--glass-surface-highlight) inset,
       var(--color-panel-shadow);
   }
-}
-
-.permission-modal header,
-.permission-modal-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
 }
 
 .permission-modal header span {
@@ -83,34 +74,16 @@
   top: 20px;
   left: 50%;
   z-index: var(--z-toast);
-  max-width: min(880px, calc(100vw - 32px));
   max-height: min(70vh, 520px);
-  display: flex;
-  align-items: flex-start;
-  gap: var(--control-gap);
-  padding: 0.5em 0.7em 0.5em 0.9em;
-  border: 1px solid var(--color-panel-border);
-  border-radius: var(--radius-4);
-  background: var(--color-bg);
-  box-shadow: var(--shadow-raised);
-  color: var(--color-text-strong);
-  font-size: var(--type-body);
   line-height: 1.4;
   transform: translateX(-50%);
 }
 
-.global-error-toast,
 .archive-session-toast {
   border-color: var(--color-panel-border);
   border-radius: var(--radius-card);
   background: var(--color-panel-bg);
   box-shadow: var(--color-panel-shadow);
-}
-
-.global-error-toast-scroll-area {
-  min-width: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
 }
 
 .global-error-toast-scroll-content {
@@ -201,15 +174,7 @@
 }
 
 /* --- Permission code scroll --- */
-.permission-code-scroll-area {
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
 .permission-code-scroll-content {
-  overflow-x: auto;
-  overflow-y: hidden;
-
   code {
     display: block;
     min-width: max-content;
@@ -233,9 +198,6 @@
 }
 
 .git-workflow-form {
-  display: grid;
-  gap: var(--space-3);
-
   label {
     display: grid;
     gap: 6px;
@@ -395,11 +357,6 @@
   background: var(--color-bg);
 }
 
-.github-repository-list-scroll-content {
-  min-width: 0;
-  display: grid;
-}
-
 .github-repository-row {
   display: flex;
   align-items: center;
@@ -437,11 +394,6 @@
 }
 
 .github-repository-title {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-
   strong {
     min-width: 0;
     overflow: hidden;
@@ -464,102 +416,17 @@
   }
 }
 
-.github-repository-empty {
-  padding: var(--space-5);
-  text-align: center;
-}
-
 /* --- Confirmation Dialog --- */
-.confirmation-dialog {
-  width: min(440px, 100%);
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-5);
-}
-
 .confirmation-dialog-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
-
   h2 {
-    min-width: 0;
-    flex: 1 1 auto;
     margin: 0;
-    color: var(--color-text-strong);
-    font-size: var(--type-title-md);
-    font-weight: 700;
-    line-height: 1.4;
     text-decoration: none;
     word-break: break-word;
   }
 }
 
-.confirmation-dialog-close {
-  width: var(--control-size-sm);
-  height: var(--control-size-sm);
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-full);
-  color: var(--color-text-soft);
-
-  &:hover {
-    background: var(--color-bg-hover);
-    color: var(--color-text-strong);
-  }
-}
-
-.confirmation-dialog-description {
-  margin: 0;
-  color: var(--color-text-soft);
-  font-size: var(--type-secondary);
-  line-height: 1.5;
-}
-
 .confirmation-dialog-input {
-  width: 100%;
-  padding: 0.57em 0.86em;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-4);
-  background: var(--color-bg);
-  color: var(--color-text);
   font: inherit;
-  line-height: var(--control-line-height);
-
-  &:focus {
-    outline: none;
-    border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
-  }
-}
-
-.confirmation-dialog-actions {
-  margin-top: var(--space-2);
-
-  button {
-    min-width: 76px;
-    padding: var(--control-padding-block) 1.08em;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-4);
-    font-size: var(--type-control);
-    font-weight: 500;
-    line-height: var(--control-line-height);
-  }
-
-  button.confirmation-cancel {
-    border: 1px solid var(--color-border-soft);
-    background: var(--color-bg);
-    color: var(--color-text);
-
-    &:hover {
-      background: var(--state-hover-bg);
-    }
-  }
 }
 
 .confirmation-dialog-action {

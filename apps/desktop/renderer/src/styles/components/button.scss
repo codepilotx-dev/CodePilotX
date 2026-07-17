@@ -112,17 +112,20 @@
 
 /* --- Secondary/Default Buttons --- */
 .settings-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   gap: var(--button-gap, var(--control-gap-compact));
   cursor: pointer;
-  white-space: nowrap;
   transition:
     background var(--motion-standard) var(--ease-standard),
     border-color var(--motion-standard) var(--ease-standard),
     box-shadow var(--motion-standard) var(--ease-standard),
     color var(--motion-standard) var(--ease-standard);
+}
+
+.settings-button:not(.ui-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .plugins-button {
@@ -149,7 +152,7 @@
     color var(--motion-standard) var(--ease-standard);
 }
 
-.settings-button:where(:not(.is-primary):not(.primary):not(.danger):not(.link)),
+.settings-button:not(.ui-button):not(.primary),
 .plugins-button:not(.is-primary),
 .automation-button:not(.is-primary) {
   padding: var(
@@ -166,7 +169,7 @@
   line-height: var(--button-line-height, var(--control-line-height));
 }
 
-.settings-button:hover {
+.settings-button:not(.ui-button):hover {
   background-color: var(--color-bg-chip-hover);
 }
 
@@ -177,7 +180,91 @@
   stroke-width: var(--app-icon-stroke-width);
 }
 
-.settings-button:where(:not(.is-primary):not(.primary):not(.danger):not(.link)),
+.ui-button-spinner {
+  width: var(--app-icon-size-sm);
+  height: var(--app-icon-size-sm);
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--radius-full);
+  animation: ui-button-spin 0.9s linear infinite;
+}
+
+@keyframes ui-button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ui-button[data-variant="secondary"] {
+  padding: var(
+    --button-padding,
+    calc(var(--control-padding-block) + 0.2em)
+      calc(var(--control-padding-inline) + var(--control-padding-inline))
+  );
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-button);
+  background: var(--color-bg);
+  color: var(--color-text-strong);
+  font-weight: var(--font-weight-label);
+  line-height: var(--button-line-height, var(--control-line-height));
+}
+
+.ui-button[data-variant="primary"] {
+  padding: var(--control-padding-block)
+    calc(var(--control-padding-inline) + var(--control-padding-inline));
+  border: 1px solid var(--color-send-bg);
+  border-radius: var(--radius-button);
+  background: var(--color-send-bg);
+  color: var(--color-text-on-accent);
+  font-weight: var(--font-weight-label);
+  line-height: var(--control-line-height);
+}
+
+.ui-button[data-variant="primary"]:hover:not(:disabled) {
+  border-color: var(--color-send-bg-hover);
+  background: var(--color-send-bg-hover);
+  color: var(--color-text-on-accent);
+}
+
+.ui-button[data-variant="secondary"]:hover:not(:disabled) {
+  border-color: var(--color-panel-border);
+  background: var(--state-hover-bg);
+  box-shadow: var(--color-panel-shadow-soft);
+}
+
+.ui-button[data-variant="ghost"],
+.ui-button[data-variant="link"] {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ui-button[data-variant="ghost"]:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+}
+
+.ui-button[data-tone="danger"] {
+  color: var(--color-danger);
+}
+
+.ui-button[data-size="icon"] {
+  width: var(--control-size-md);
+  height: var(--control-size-md);
+  padding: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-meta);
+}
+
+.ui-button[data-size="icon"]:hover,
+.ui-button[data-size="icon"][aria-pressed="true"],
+.ui-button[data-size="icon"][data-state="open"] {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}
+
+.settings-button:not(.ui-button):not(.primary),
 .plugins-button:not(.is-primary),
 .automation-button:not(.is-primary),
 .settings-dropdown,
@@ -225,7 +312,7 @@
 }
 
 /* --- Generic Hover Effect for Buttons & Cards --- */
-.settings-button:hover,
+.settings-button:not(.ui-button):hover,
 .plugins-button.is-ghost:hover,
 .automation-button.is-ghost:hover,
 .utility-card:hover,

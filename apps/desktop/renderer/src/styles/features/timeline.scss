@@ -20,93 +20,109 @@
   margin: 0 auto;
 }
 
-/* ── Environment panel lane ──────────────────────────── */
+/* ── Single thread scroller + sticky footer ───────────── */
 
-.session-timeline-env-lane {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
+.thread-scroll-layout {
+  --thread-scroll-padding-bottom: 16px;
+  --thread-scroll-viewport-height: 100%;
+
   position: relative;
-  container-type: inline-size;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  scroll-padding-block-end: var(--thread-scroll-padding-bottom);
 }
 
-.session-timeline-env-main {
+.thread-scroll-layout__inner {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100%;
+}
+
+.thread-scroll-layout__content {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.thread-scroll-layout {
+  .session-timeline-wrapper,
+  .session-timeline-main {
+    flex: 1 0 auto;
+    height: auto;
+  }
+
+  .session-timeline-main {
+    overflow: visible;
+  }
+}
+
+.thread-scroll-layout__footer {
+  position: sticky;
+  z-index: 3;
+  bottom: 0;
+  isolation: isolate;
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  width: 100%;
+  padding: 0 16px 16px;
+  pointer-events: none;
+
+  &::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: -32px 0 0;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      color-mix(in srgb, var(--color-bg) 88%, transparent) 32px,
+      var(--color-bg) 100%
+    );
+  }
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.session-timeline-main {
   flex: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-}
-
-/* Wide layout: side-by-side grid */
-@container (min-width: 1140px) {
-  .session-timeline-env-lane {
-    display: grid;
-    grid-template-columns:
-      minmax(0, 1fr)
-      var(--session-environment-panel-column-w, auto);
-  }
-
-  .session-timeline-env-main {
-    grid-column: 1 / -1;
-    grid-row: 1;
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .session-timeline-env-lane {
-    --session-timeline-left-column-w: calc(
-      100% - var(--session-environment-panel-column-w, 0px)
-    );
-    --session-timeline-content-w: min(
-      var(--layout-content-w, 760px),
-      calc(
-        var(--session-timeline-left-column-w) -
-          (var(--session-content-inline-gutter, 32px) * 2)
-      )
-    );
-  }
-
-  .session-timeline-env-lane .session-timeline-vlist > :first-child,
-  .session-timeline-env-lane .workflow-debug-timeline {
-    width: var(--session-timeline-content-w);
-    max-width: var(--session-timeline-content-w);
-    margin-left: max(
-      0px,
-      calc(
-        (
-            var(--session-timeline-left-column-w) -
-              var(--session-timeline-content-w)
-          ) / 2
-      )
-    );
-    margin-right: auto;
-  }
+  overflow: visible;
 }
 
 /* ── Top-level container ──────────────────────────────── */
 
 .session-timeline-container {
-  flex: 1;
   min-width: 0;
-  min-height: 0;
   width: 100%;
   position: relative;
-  overflow: hidden;
 }
 
-/* Keep the VList from causing layout shifts */
-.session-timeline-vlist {
+/* Keep the virtualized content from causing inline layout shifts. */
+.session-timeline-virtualizer {
+  position: relative;
+  z-index: 0;
+  width: 100%;
   outline: none;
 
   > :first-child {
     min-width: 0;
-    width: var(--session-content-w, min(var(--layout-content-w, 760px), 100%));
-    max-width: var(--session-content-w, var(--layout-content-w, 760px));
-    margin: auto;
+    width: 100%;
   }
 }
 
@@ -167,7 +183,7 @@
   }
 
   .assistant-message-body {
-    max-width: min(780px, 100%);
+    max-width: min(40rem, 100%);
   }
 }
 
@@ -196,11 +212,57 @@
   margin-bottom: 0;
 }
 
-/* ── Bottom spacer ────────────────────────────────────── */
-
-.session-bottom-spacer {
-  height: 330px;
+.session-timeline-bottom-sentinel {
+  width: 100%;
+  height: 1px;
   pointer-events: none;
+}
+
+.session-timeline-floating-controls {
+  position: sticky;
+  z-index: 2;
+  top: calc(
+    var(--thread-scroll-viewport-height) -
+      var(--thread-scroll-padding-bottom) - 40px
+  );
+  display: flex;
+  justify-content: flex-end;
+  height: 0;
+  padding-inline: 16px;
+  pointer-events: none;
+}
+
+.session-timeline-return-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--control-size-sm);
+  padding: 5px 10px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-panel-bg) 94%, transparent);
+  box-shadow: var(--shadow-card);
+  color: var(--color-text-strong);
+  font-size: var(--type-meta);
+  font-weight: var(--font-weight-label);
+  cursor: pointer;
+  pointer-events: auto;
+  backdrop-filter: blur(12px);
+  transition:
+    background 120ms ease-out,
+    border-color 120ms ease-out,
+    transform 120ms ease-out;
+
+  &:hover {
+    border-color: var(--color-border);
+    background: var(--color-panel-bg);
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
 }
 
 /* ── Turn divider ─────────────────────────────────────── */
@@ -271,9 +333,24 @@
     opacity: 1;
   }
 
+  :where(.chat-message-row.user:hover) .user-message-meta,
+  :where(.chat-message-row.user:focus-within) .user-message-meta {
+    opacity: 1;
+  }
+
   .chat-thinking-pill {
     margin: 0;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .session-timeline-return-button {
+    transition: none;
+  }
+}
+
+:root[data-reduce-motion="on"] .session-timeline-return-button {
+  transition: none;
 }
 
 /* ── Workflow debug timeline stays visible above virtual list ── */

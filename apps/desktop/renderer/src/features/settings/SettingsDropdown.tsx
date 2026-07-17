@@ -7,6 +7,7 @@ import {
   type PopoverSizingProps,
 } from '../../components/ui/popoverSizing.js'
 import { readDesktopBrowserDebugMode } from '../../services/desktopClient.js'
+import { Input } from '../../components/ui/Input.js'
 
 type Option = {
   value: string
@@ -77,22 +78,22 @@ export function SettingsDropdown({
     >
       <Select.Trigger
         aria-label={ariaLabel}
-        className="settings-dropdown"
+        className="settings-dropdown tw:flex tw:min-h-8 tw:min-w-36 tw:items-center tw:justify-between tw:gap-2 tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-left tw:text-sm tw:text-app-text tw:shadow-sm tw:transition-colors tw:duration-[var(--motion-fast)] tw:hover:bg-app-panel tw:focus-visible:outline-none tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
         data-variant={variant}
         tabIndex={-1}
       >
-        <div className="settings-dropdown-value">
+        <div className="settings-dropdown-value tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:truncate">
           {selectedOption?.icon}
           <Select.Value placeholder={selectedOption?.label} />
         </div>
         <Select.Icon asChild>
-          <ChevronDown className="settings-dropdown-icon" />
+          <ChevronDown className="settings-dropdown-icon tw:size-4 tw:shrink-0 tw:text-app-text-soft" />
         </Select.Icon>
       </Select.Trigger>
       <Select.Portal>
         <Select.Content
           align="start"
-          className="popover-surface settings-dropdown-content"
+          className="popover-surface settings-dropdown-content tw:z-[var(--z-popover)] tw:max-h-[min(420px,calc(100vh-24px))] tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border tw:bg-app-raised tw:p-1 tw:text-app-text tw:shadow-lg"
           collisionPadding={12}
           data-variant={variant}
           position="popper"
@@ -114,10 +115,10 @@ export function SettingsDropdown({
           }}
         >
           {searchable ? (
-            <div className="settings-dropdown-search">
-              <input
+            <div className="settings-dropdown-search tw:border-b tw:border-app-border tw:p-1.5">
+              <Input
                 ref={searchInputRef}
-                className="settings-input settings-dropdown-search-input"
+                className="settings-dropdown-search-input tw:w-full tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-sm tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-1 tw:focus:ring-app-accent"
                 placeholder={searchPlaceholder}
                 value={searchQuery}
                 onChange={event => setSearchQuery(event.target.value)}
@@ -125,27 +126,27 @@ export function SettingsDropdown({
               />
             </div>
           ) : null}
-          <Select.Viewport className="settings-dropdown-scroll-area">
-            <div className="settings-dropdown-scroll-content">
+          <Select.Viewport className="settings-dropdown-scroll-area tw:max-h-[inherit] tw:overflow-y-auto">
+            <div className="settings-dropdown-scroll-content tw:grid tw:gap-0.5">
               {visibleOptions.length ? (
                 visibleOptions.map(opt => (
                   <Select.Item
-                    className="settings-dropdown-item"
+                    className="settings-dropdown-item tw:cursor-default tw:rounded-md tw:px-2 tw:py-2 tw:text-sm tw:text-app-text tw:outline-none tw:transition-colors tw:duration-[var(--motion-fast)] tw:data-[highlighted]:bg-app-panel tw:data-[state=checked]:bg-app-panel"
                     key={opt.value}
                     tabIndex={-1}
                     value={opt.value === '' ? EMPTY_VALUE : opt.value}
                   >
-                    <div className="settings-dropdown-item-inner">
+                    <div className="settings-dropdown-item-inner tw:flex tw:min-w-0 tw:items-center tw:gap-2">
                       {opt.icon}
-                      <div className="settings-dropdown-item-copy">
+                      <div className="settings-dropdown-item-copy tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-0.5">
                         <Select.ItemText>{opt.label}</Select.ItemText>
-                        {opt.detail ? <span>{opt.detail}</span> : null}
+                        {opt.detail ? <span className="tw:text-xs tw:text-app-text-soft">{opt.detail}</span> : null}
                       </div>
                     </div>
                   </Select.Item>
                 ))
               ) : (
-                <div className="settings-dropdown-empty">未找到匹配项</div>
+                <div className="settings-dropdown-empty tw:px-3 tw:py-4 tw:text-center tw:text-sm tw:text-app-text-soft">未找到匹配项</div>
               )}
             </div>
           </Select.Viewport>

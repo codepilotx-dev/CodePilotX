@@ -13,11 +13,7 @@
 }
 
 .automation-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
   gap: var(--layout-section-gap);
-  flex-wrap: wrap;
 }
 
 .automation-header-meta {
@@ -73,9 +69,7 @@
 }
 
 .automation-empty-state {
-  display: grid;
-  place-items: center;
-  gap: var(--space-4);
+  justify-items: center;
 }
 
 .automation-cloud {
@@ -97,13 +91,6 @@
   align-items: center;
   justify-content: center;
   color: var(--color-text-meta);
-}
-
-.automation-empty-title {
-  margin: 0;
-  font-size: var(--type-section-title);
-  font-weight: var(--font-weight-label);
-  color: var(--color-text-strong);
 }
 
 .automation-quick-starts {
@@ -154,10 +141,6 @@
 }
 
 .automation-quick-icon {
-  display: inline-flex;
-  align-items: center;
-  color: var(--color-text-strong);
-
   svg {
     width: var(--app-icon-size-md);
     height: var(--app-icon-size-md);

@@ -12,6 +12,8 @@ import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
+import { Button } from '../../components/ui/Button.js'
+import { Input } from '../../components/ui/Input.js'
 
 const MEMORY_TYPES = ['all', 'user', 'feedback', 'project', 'reference'] as const
 
@@ -194,8 +196,7 @@ export function MemorySettings(): React.ReactNode {
             title="工作区"
             description={memoryDir || '选择或输入工作区路径后加载记忆'}
             control={
-              <input
-                className="settings-input"
+              <Input
                 value={workspacePath}
                 onChange={event => setWorkspacePath(event.target.value)}
                 placeholder="D:\\path\\to\\workspace"
@@ -208,37 +209,34 @@ export function MemorySettings(): React.ReactNode {
           title="项目记忆"
           actions={
             <div className="settings-inline-actions">
-              <button
-                className="settings-button"
+              <Button
                 disabled={busy || !workspacePath.trim()}
                 onClick={() => void refresh()}
                 type="button"
               >
                 <RefreshCw size={APP_ICON_SIZE} />
                 刷新
-              </button>
-              <button
-                className="settings-button"
+              </Button>
+              <Button
                 disabled={busy || !workspacePath.trim()}
                 onClick={() => void resetMemories(false)}
                 type="button"
               >
                 重置记忆
-              </button>
-              <button
-                className="settings-button"
+              </Button>
+              <Button
                 disabled={busy || !workspacePath.trim()}
                 onClick={() => void resetMemories(true)}
                 type="button"
               >
                 全部重置
-              </button>
+              </Button>
             </div>
           }
         >
           <div className="memory-settings-toolbar">
-            <input
-              className="settings-input memory-settings-search"
+            <Input
+              className="memory-settings-search"
               value={query}
               onChange={event => setQuery(event.target.value)}
               placeholder="搜索文件名或描述"
@@ -307,24 +305,23 @@ export function MemorySettings(): React.ReactNode {
                 </span>
                 {selectedMemory ? (
                   <div className="memory-settings-editor-actions">
-                    <button
-                      className="settings-button"
+                    <Button
                       disabled={busy}
                       onClick={() => void saveSelected()}
                       type="button"
                     >
                       <Save size={APP_ICON_SIZE} />
                       保存
-                    </button>
-                    <button
-                      className="settings-button danger"
+                    </Button>
+                    <Button
+                      tone="danger"
                       disabled={busy}
                       onClick={() => void deleteSelected()}
                       type="button"
                     >
                       <Trash2 size={APP_ICON_SIZE} />
                       删除
-                    </button>
+                    </Button>
                   </div>
                 ) : null}
               </div>

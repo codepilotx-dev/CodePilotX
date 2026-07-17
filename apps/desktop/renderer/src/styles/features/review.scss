@@ -378,7 +378,6 @@
   padding: 0 8px;
   border-right: 1px solid var(--color-border-faint);
   color: var(--color-text-mute);
-  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
@@ -480,9 +479,7 @@
 }
 
 .review-diff-vlist-row .review-diff-split-row {
-  display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  min-width: 0;
 }
 
 .review-diff-lines-scroll-x {
@@ -493,33 +490,31 @@
 
 /* --- Diff rows --- */
 .review-diff-row {
-  display: grid;
   grid-template-columns: 24px 42px 0 minmax(0, 1fr);
-  align-items: stretch;
   color: var(--color-text);
   white-space: pre;
 
-  &.added {
+  &[data-line-type="added"] {
     background: color-mix(in srgb, var(--color-diff-added) 20%, transparent);
   }
 
-  &.removed {
+  &[data-line-type="removed"] {
     background: color-mix(in srgb, var(--color-diff-removed) 22%, transparent);
   }
 
-  &.hunk {
+  &[data-line-type="hunk"] {
     grid-template-columns: minmax(0, 1fr) auto;
     background: var(--color-bg-soft);
     color: var(--color-text-meta);
   }
 
-  &.meta {
+  &[data-line-type="meta"] {
     background: var(--color-bg-soft);
     color: var(--color-text-mute);
   }
 }
 
-.review-diff-row.meta .review-diff-line-content {
+.review-diff-row[data-line-type="meta"] .review-diff-line-content {
   grid-column: 1 / -1;
 }
 
@@ -538,26 +533,28 @@
   font-variant-numeric: tabular-nums;
 }
 
-.marker-symbol .review-diff-marker {
+[data-marker-style="symbol"] .review-diff-marker {
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.marker-symbol .review-diff-marker.added {
+[data-marker-style="symbol"] .review-diff-marker[data-tone="added"] {
   color: var(--color-diff-added);
 }
 
-.marker-symbol .review-diff-marker.removed {
+[data-marker-style="symbol"] .review-diff-marker[data-tone="removed"] {
   color: var(--color-diff-removed);
 }
 
-.review-diff-lines.marker-symbol .review-diff-row {
+.review-diff-lines[data-marker-style="symbol"] .review-diff-row {
   grid-template-columns: 24px 42px 20px minmax(0, 1fr);
 }
 
-.review-diff-lines.marker-symbol .review-diff-row.hunk,
-.review-diff-lines.marker-symbol .review-diff-row.meta {
+.review-diff-lines[data-marker-style="symbol"]
+  .review-diff-row[data-line-type="hunk"],
+.review-diff-lines[data-marker-style="symbol"]
+  .review-diff-row[data-line-type="meta"] {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
@@ -618,11 +615,11 @@
   color: var(--color-accent);
 }
 
-.review-diff-row .review-diff-line-number.added {
+.review-diff-row .review-diff-line-number[data-tone="added"] {
   color: var(--color-diff-added);
 }
 
-.review-diff-row .review-diff-line-number.removed {
+.review-diff-row .review-diff-line-number[data-tone="removed"] {
   color: var(--color-diff-removed);
 }
 
@@ -638,35 +635,31 @@
 
 /* --- Split diff --- */
 .review-diff-split .review-diff-split-row {
-  display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  min-width: 0;
 }
 
 .review-diff-split .review-diff-side {
-  display: grid;
   grid-template-columns: 24px 42px 0 minmax(0, 1fr);
-  min-width: 0;
   white-space: pre;
 }
 
-.review-diff-split.marker-symbol .review-diff-side {
+.review-diff-split[data-marker-style="symbol"] .review-diff-side {
   grid-template-columns: 24px 42px 20px minmax(0, 1fr);
 }
 
-.review-diff-split .review-diff-side.removed {
+.review-diff-split .review-diff-side[data-tone="removed"] {
   background: color-mix(in srgb, var(--color-diff-removed) 22%, transparent);
 }
 
-.review-diff-split .review-diff-side.added {
+.review-diff-split .review-diff-side[data-tone="added"] {
   background: color-mix(in srgb, var(--color-diff-added) 20%, transparent);
 }
 
-.review-diff-split .review-diff-side.context {
+.review-diff-split .review-diff-side[data-tone="context"] {
   background: transparent;
 }
 
-.review-diff-split .review-diff-side.empty {
+.review-diff-split .review-diff-side[data-tone="empty"] {
   background: repeating-linear-gradient(
     135deg,
     transparent 0 6px,
@@ -680,11 +673,15 @@
   font-family: inherit;
 }
 
-.review-diff-split .review-diff-side .review-diff-line-number.added {
+.review-diff-split
+  .review-diff-side
+  .review-diff-line-number[data-tone="added"] {
   color: var(--color-diff-added);
 }
 
-.review-diff-split .review-diff-side .review-diff-line-number.removed {
+.review-diff-split
+  .review-diff-side
+  .review-diff-line-number[data-tone="removed"] {
   color: var(--color-diff-removed);
 }
 

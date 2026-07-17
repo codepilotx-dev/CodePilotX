@@ -33,6 +33,8 @@ import {
   normalizeDesktopThemeSettings,
 } from '../../../shared/theme.js'
 import { useDesktopTheme } from '../theme/themeContext.js'
+import { Button } from '../../components/ui/Button.js'
+import { Input } from '../../components/ui/Input.js'
 
 const THEME_MODE_OPTIONS: Array<{
   value: DesktopThemeMode
@@ -165,14 +167,14 @@ function FontStackInput({
   }
 
   return (
-    <input
+    <Input
       ref={inputRef}
       type="text"
       value={inputValue}
       onBlur={handleBlur}
       onChange={e => handleChange(e.target.value)}
       placeholder={placeholder}
-      className="settings-input settings-input-narrow"
+      className="settings-input-narrow"
     />
   )
 }
@@ -539,40 +541,40 @@ export function AppearanceSettings() {
           diffMarkerStyle={desktopSettings.draft.values.diffMarkerStyle}
         />
 
-        <section className="settings-card appearance-core-card appearance-table-card">
+        <section className="settings-card appearance-core-card appearance-table-card tw:overflow-hidden tw:rounded-xl tw:border tw:border-app-border tw:bg-app-panel tw:shadow-sm">
           <div className="appearance-table-header">
             <h3>{resolvedVariant === 'dark' ? '深色主题' : '浅色主题'}</h3>
             <div className="appearance-theme-controls-actions">
-              <button
+              <Button
+                variant="link"
                 type="button"
-                className="settings-button link"
                 onClick={handleImportTheme}
               >
                 导入
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="link"
                 type="button"
-                className="settings-button link"
                 disabled={!activeThemeIsBuiltin}
                 onClick={handleCopyPreset}
               >
                 复制主题
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="link"
                 type="button"
-                className="settings-button link"
                 disabled={!activeThemeCanReset}
                 onClick={handleResetTheme}
               >
                 重置主题
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="link"
                 type="button"
-                className="settings-button link"
                 onClick={handleCopyTheme}
               >
                 导出
-              </button>
+              </Button>
               <SettingsDropdown
                 width={260}
                 value={activeThemeId}

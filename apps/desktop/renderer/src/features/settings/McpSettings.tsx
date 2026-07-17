@@ -12,6 +12,8 @@ import { SettingsAutoSaveBadge, SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
+import { Button } from '../../components/ui/Button.js'
+import { Input } from '../../components/ui/Input.js'
 
 type McpTransportTemplate = 'stdio' | 'http' | 'sse' | 'ws'
 
@@ -229,19 +231,19 @@ export function McpSettings(): React.ReactNode {
           }
           actions={
             <div className="settings-inline-actions">
-              <button className="settings-button" type="button" onClick={() => void loadServers()}>
+              <Button  type="button" onClick={() => void loadServers()}>
                 刷新
-              </button>
+              </Button>
               {reloadResult?.failed ? (
-                <button className="settings-button" type="button" onClick={() => void triggerReload()}>
+                <Button  type="button" onClick={() => void triggerReload()}>
                   <RefreshCw size={APP_ICON_SIZE} />
                   <span>重试应用到当前会话</span>
-                </button>
+                </Button>
               ) : null}
-              <button className="settings-button primary" type="button" onClick={() => startCreate()}>
+              <Button variant="primary"  type="button" onClick={() => startCreate()}>
                 <Plus size={APP_ICON_SIZE} />
                 <span>新增</span>
-              </button>
+              </Button>
             </div>
           }
         >
@@ -268,24 +270,23 @@ export function McpSettings(): React.ReactNode {
                     onChange={enabled => void toggleServer(server, enabled)}
                     ariaLabel={`启停 ${server.name}`}
                   />
-                  <button
-                    className="settings-button"
+                  <Button
                     disabled={!server.editable || busy}
                     type="button"
                     onClick={() => startEdit(server)}
                   >
                     <Pencil size={APP_ICON_SIZE} />
                     <span>编辑</span>
-                  </button>
-                  <button
-                    className="settings-button danger"
+                  </Button>
+                  <Button
+                    tone="danger"
                     disabled={!server.removable || busy}
                     type="button"
                     onClick={() => void removeServer(server)}
                   >
                     <Trash2 size={APP_ICON_SIZE} />
                     <span>删除</span>
-                  </button>
+                  </Button>
                 </div>
               </article>
             ))
@@ -304,8 +305,8 @@ export function McpSettings(): React.ReactNode {
             title="名称"
             description="只能包含字母、数字、短横线和下划线。"
             control={
-              <input
-                className="settings-input settings-input-narrow"
+              <Input
+                className="settings-input-narrow"
                 value={form.name}
                 placeholder="server-name"
                 onChange={event =>
@@ -368,21 +369,20 @@ export function McpSettings(): React.ReactNode {
             description={busy ? '正在保存...' : '保存后新会话会读取更新后的 MCP 配置。'}
             control={
               <div className="settings-inline-actions">
-                <button
-                  className="settings-button"
+                <Button
                   type="button"
                   onClick={() => setForm(EMPTY_FORM)}
                 >
                   重置
-                </button>
-                <button
-                  className="settings-button primary"
+                </Button>
+                <Button
+                  variant="primary"
                   disabled={busy}
                   type="button"
                   onClick={() => void saveServer()}
                 >
                   保存
-                </button>
+                </Button>
               </div>
             }
           />

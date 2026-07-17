@@ -8,6 +8,11 @@ body,
   height: 100%;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
 body {
   margin: 0;
   overflow: hidden;
@@ -15,6 +20,8 @@ body {
   color: var(--color-text);
   font-family: var(--font-family-sans);
   font-size: var(--font-size-ui);
+  font-weight: var(--font-weight-body);
+  line-height: 1.5;
   scrollbar-color: var(--color-scrollbar) transparent;
   scrollbar-width: thin;
 }
@@ -23,10 +30,13 @@ button,
 input,
 select,
 textarea {
+  color: inherit;
   font: inherit;
+  letter-spacing: inherit;
 }
 
 button {
+  padding: 0;
   border: 0;
   background: transparent;
   color: inherit;

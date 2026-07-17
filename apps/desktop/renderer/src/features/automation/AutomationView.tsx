@@ -9,6 +9,7 @@ import {
   TerminalSquare,
 } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
+import { cx } from '../../utils/cx.js'
 
 type QuickStart = {
   id: string
@@ -25,7 +26,15 @@ const QUICK_STARTS: QuickStart[] = [
 export function AutomationView(): React.ReactNode {
   return (
     <section className="automation-view">
-      <header className="automation-header">
+      <header
+        className={cx(
+          'automation-header',
+          'u-flex',
+          'u-items-start',
+          'u-justify-between',
+          'u-flex-wrap',
+        )}
+      >
         <div className="automation-header-meta">
           <h1>自动化</h1>
           <p>
@@ -46,21 +55,47 @@ export function AutomationView(): React.ReactNode {
       </header>
 
       <div className="automation-canvas">
-        <div className="automation-empty-state">
+        <div
+          className={cx(
+            'automation-empty-state',
+            'u-grid',
+            'u-items-center',
+            'u-gap-4',
+          )}
+        >
           <span className="automation-cloud" aria-hidden="true">
             <Cloud size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             <span className="automation-cloud-prompt">
               <TerminalSquare size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </span>
           </span>
-          <p className="automation-empty-title">创建首个自动化</p>
+          <p
+            className={cx(
+              'automation-empty-title',
+              'u-m-0',
+              'u-type-body',
+              'u-font-label',
+              'u-text-primary',
+            )}
+          >
+            创建首个自动化
+          </p>
         </div>
 
         <ul className="automation-quick-starts" aria-label="快捷创建">
           {QUICK_STARTS.map(item => (
             <li key={item.id}>
               <button className="automation-quick-button" type="button">
-                <span className="automation-quick-icon">{item.icon}</span>
+                <span
+                  className={cx(
+                    'automation-quick-icon',
+                    'u-inline-flex',
+                    'u-items-center',
+                    'u-text-primary',
+                  )}
+                >
+                  {item.icon}
+                </span>
                 <span className="automation-quick-label">{item.label}</span>
               </button>
             </li>

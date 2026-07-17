@@ -1,16 +1,7 @@
 /* --- Right Dock --- */
 .right-dock {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  border-left: 1px solid var(--color-border-soft);
-  background: var(--color-bg);
-  color: var(--color-text-strong);
+  border-radius: 0;
+  box-shadow: -2px 0 8px color-mix(in srgb, var(--color-ink) 6%, transparent);
 }
 
 .right-dock-resize-handle {
@@ -50,17 +41,11 @@
   user-select: none;
 }
 
-.right-dock-tab-list,
 .right-dock-controls {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-}
-
-.right-dock-tab-list {
-  flex: 1 1 auto;
-  overflow: hidden;
 }
 
 .right-dock-controls {
@@ -70,14 +55,14 @@
 .right-dock-tab-wrap {
   position: relative;
   min-width: 0;
-  max-width: 240px;
+  max-width: 156px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
   flex: 0 1 auto;
   overflow: hidden;
-  border-radius: 12px;
-  padding: 5px 8px;
+  border-radius: 10px;
+  padding: 0 4px;
   color: var(--color-text-meta);
   transition:
     background var(--motion-standard) var(--ease-standard),
@@ -185,7 +170,9 @@
   }
 }
 
-.right-dock-tab-wrap:hover .right-dock-tab-close {
+.right-dock-tab-wrap:hover .right-dock-tab-close,
+.right-dock-tab-wrap:focus-within .right-dock-tab-close,
+.right-dock-tab-close:focus-visible {
   opacity: 1;
   pointer-events: auto;
 }
@@ -238,24 +225,6 @@
   bottom: auto;
   left: auto;
   transform-origin: top right;
-}
-
-.right-dock-header {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  padding: 0 92px 0 10px;
-  max-height: 40px;
-  height: 100%;
-  overflow: hidden;
-}
-
-.right-dock-content {
-  min-height: 0;
-  flex: 1 1 auto;
-  display: flex;
-  overflow: hidden;
-  background: var(--color-bg);
 }
 
 .right-dock-browser {
@@ -397,4 +366,20 @@
 .right-dock-plan-document .md-body .md-code-header {
   border-bottom-color: var(--border-subtle);
   background: var(--surface-raised);
+}
+
+:root[data-reduce-motion="on"] {
+  .right-dock-tab-wrap,
+  .right-dock-tab-close,
+  .right-dock-add-button,
+  .right-dock-control {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .right-dock {
+    border-left-color: CanvasText;
+    box-shadow: none;
+  }
 }

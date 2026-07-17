@@ -5,6 +5,7 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
+import { cx } from '../../utils/cx.js'
 
 type FrameStats = {
   fps: number
@@ -71,7 +72,9 @@ export function PerformanceDiagnosticsPanel(): React.ReactNode {
     <section className="performance-diagnostics-panel" aria-label="性能诊断">
       <div className="performance-diagnostics-panel-content">
         <div className="performance-diagnostics-header">
-          <h3>性能诊断</h3>
+          <h3 className={cx('u-m-0', 'u-text-primary', 'u-type-control', 'u-font-label')}>
+            性能诊断
+          </h3>
           <p className="performance-diagnostics-summary">
             基于 requestAnimationFrame 的本地采样，仅在调试模式显示。
           </p>
@@ -114,7 +117,16 @@ function StatCard({
     <div className="performance-diagnostics-stat">
       <span className="performance-diagnostics-stat-icon">{icon}</span>
       <span className="performance-diagnostics-stat-label">{label}</span>
-      <strong className="performance-diagnostics-stat-value">{value}</strong>
+      <strong
+        className={cx(
+          'performance-diagnostics-stat-value',
+          'u-text-primary',
+          'u-type-title-md',
+          'u-font-heading',
+        )}
+      >
+        {value}
+      </strong>
     </div>
   )
 }

@@ -88,10 +88,10 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
   return (
     <ScrollArea
       aria-label="设置分类"
-      className="settings-nav-scroll-area"
-      contentClassName="settings-nav-scroll-content"
+      className="settings-nav-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
+      contentClassName="settings-nav-scroll-content tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-1.5"
     >
-      <div className="settings-nav-header">
+      <div className="settings-nav-header tw:grid tw:shrink-0 tw:gap-3">
         <SidebarRow
           asChild
           className="settings-back-btn"
@@ -101,10 +101,11 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
             <span>返回应用</span>
           </button>
         </SidebarRow>
-        <label className="settings-nav-search">
-          <Search className="settings-nav-search-icon" />
+        <label className="settings-nav-search tw:relative tw:flex tw:w-full tw:items-center">
+          <Search className="settings-nav-search-icon tw:pointer-events-none tw:absolute tw:left-2.5 tw:size-4 tw:text-app-text-soft" />
           <input
             aria-label="搜索设置"
+            className="tw:w-full tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:py-2 tw:pr-3 tw:pl-8.5 tw:text-sm tw:text-app-text tw:outline-none tw:transition-colors tw:duration-[var(--motion-fast)] tw:placeholder:text-app-text-soft tw:focus:border-app-accent tw:focus:ring-1 tw:focus:ring-app-accent"
             onChange={event => setSearchQuery(event.target.value)}
             placeholder="搜索设置..."
             type="search"
@@ -112,15 +113,15 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
           />
         </label>
       </div>
-      <div className="settings-nav-menu">
+      <div className="settings-nav-menu tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:gap-4">
         {visibleGroups.map(group => (
-          <section className="settings-nav-group" key={group.title}>
-            <div className="settings-nav-group-title-row">
-              <h2 className="settings-nav-group-title">{group.title}</h2>
+          <section className="settings-nav-group tw:grid tw:gap-1" key={group.title}>
+            <div className="settings-nav-group-title-row tw:grid tw:grid-cols-[auto_minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:px-2 tw:py-1">
+              <h2 className="settings-nav-group-title tw:m-0 tw:text-xs tw:font-[var(--font-weight-label)] tw:text-app-text-soft">{group.title}</h2>
               <span aria-hidden="true" className="sidebar-row-main" />
               <span aria-hidden="true" className="sidebar-row-trailing" />
             </div>
-            <div className="settings-nav-group-items">
+            <div className="settings-nav-group-items tw:grid tw:gap-0.5">
               {group.items.map(item => (
                 <SidebarRow
                   active={activeTab === item.id}

@@ -19,12 +19,6 @@
   gap: var(--layout-toolbar-gap);
 }
 
-.plugins-tabs {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .plugins-tab {
   position: relative;
   padding: 6px 4px 8px;
@@ -232,29 +226,6 @@
 
 /* ===== Featured Grid ===== */
 
-.plugins-section {
-  display: grid;
-  gap: var(--space-4);
-}
-
-.plugins-section-header {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 8px;
-
-  h2 {
-    margin: 0;
-    font-size: var(--type-section-title);
-    font-weight: var(--font-weight-label);
-    color: var(--color-text-strong);
-  }
-}
-
-.plugins-section-count {
-  font-size: var(--type-meta);
-  color: var(--color-text-meta);
-}
-
 .plugins-grid {
   list-style: none;
   padding: 0;
@@ -358,34 +329,6 @@
   min-width: 0;
   display: grid;
   gap: 2px;
-
-  h3 {
-    margin: 0;
-    font-size: var(--type-card-title);
-    font-weight: var(--font-weight-label);
-    color: var(--color-text-strong);
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-.plugins-card-source,
-.plugins-card-description {
-  margin: 0;
-  color: var(--color-text-meta);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.plugins-card-source {
-  font-size: var(--type-meta);
-}
-
-.plugins-card-description {
-  font-size: var(--type-secondary);
 }
 
 .plugins-card-title-row {

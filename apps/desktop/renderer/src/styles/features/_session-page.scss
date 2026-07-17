@@ -122,18 +122,6 @@
 .quick-chat-view .chat-composer > .composer {
   width: var(--quick-chat-surface-width);
   max-width: 100%;
-  padding: 6px;
-  border: 1px solid
-    color-mix(in srgb, var(--color-text-strong) 10%, var(--color-panel-border));
-  border-radius: var(--radius-marquee);
-  background: color-mix(
-    in srgb,
-    var(--color-panel-bg) 86%,
-    var(--color-panel-elevated-bg)
-  );
-  box-shadow:
-    0 22px 64px color-mix(in srgb, var(--color-text-strong) 12%, transparent),
-    0 1px 0 color-mix(in srgb, var(--color-bg) 70%, transparent) inset;
 }
 
 /* --- Conversation page --- */
@@ -161,10 +149,6 @@
     z-index: var(--z-composer);
     width: 100%;
     pointer-events: auto;
-  }
-
-  .chat-composer.with-environment-panel {
-    width: calc(100% - 368px - min(4vw, 48px));
   }
 
   .chat-composer.with-review-sidebar {
@@ -275,13 +259,6 @@
   overflow: hidden;
 }
 
-.quick-chat-workspace.with-environment-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 368px;
-  column-gap: min(4vw, 30px);
-  align-items: start;
-}
-
 .quick-chat-workspace.with-review-sidebar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 520px;
@@ -345,16 +322,6 @@
     color: var(--color-diff-removed);
     font-style: normal;
   }
-}
-
-.quick-chat-view .chat-composer > .composer {
-  border-color: var(--border-subtle);
-  background: var(--surface-composer);
-  box-shadow: var(--color-panel-shadow);
-}
-
-.quick-chat-view {
-  --composer-surface-top-bg: var(--surface-composer);
 }
 
 @keyframes composer-status-summary-spin {

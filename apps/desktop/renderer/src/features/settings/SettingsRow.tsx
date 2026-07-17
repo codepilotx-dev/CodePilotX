@@ -13,13 +13,13 @@ type Props = {
 
 export function SettingsRow({ title, description, control, autoSave }: Props) {
   return (
-    <div className="settings-row">
-      <div className="settings-row-info">
-        <h4 className="settings-row-title">{title}</h4>
-        {description && <p className="settings-row-desc">{description}</p>}
+    <div className="settings-row tw:flex tw:items-center tw:gap-4 tw:bg-transparent tw:px-4 tw:py-3.5">
+      <div className="settings-row-info tw:min-w-0 tw:flex-1">
+        <h4 className="settings-row-title tw:mt-0 tw:mb-0.5 tw:text-base tw:font-[var(--font-weight-body)] tw:text-app-text">{title}</h4>
+        {description && <p className="settings-row-desc tw:m-0 tw:text-sm tw:leading-5 tw:text-app-text-soft">{description}</p>}
       </div>
       {control && (
-        <div className="settings-row-control">
+        <div className="settings-row-control tw:relative tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:justify-end tw:gap-2">
           {autoSave ? <SettingsAutoSaveBadge /> : null}
           {control}
         </div>

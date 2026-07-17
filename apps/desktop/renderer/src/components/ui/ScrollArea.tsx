@@ -1,4 +1,5 @@
 import React from 'react'
+import { cx } from '../../utils/cx.js'
 
 type ScrollAreaProps = {
   children: React.ReactNode
@@ -18,10 +19,18 @@ export function ScrollArea({
   viewportRef,
   ...rest
 }: ScrollAreaProps): React.ReactNode {
-  const rootClassName = ['scroll-area', className].filter(Boolean).join(' ')
-  const contentClass = ['scroll-area__content', contentClassName]
-    .filter(Boolean)
-    .join(' ')
+  const rootClassName = cx(
+    'scroll-area',
+    'u-overflow-hidden',
+    direction === 'x' ? 'u-overflow-x-auto' : 'u-overflow-y-auto',
+    className,
+  )
+  const contentClass = cx(
+    'scroll-area__content',
+    'u-w-full',
+    'u-min-w-0',
+    contentClassName,
+  )
 
   return (
     <div

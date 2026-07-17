@@ -25,6 +25,7 @@ import {
   uninstallSandboxRuntime,
   type SandboxRuntimeStatus,
 } from '../../shared/sandboxRuntime.js'
+import { Button } from '../../components/ui/Button.js'
 
 function LearnMoreLink() {
   return (
@@ -266,15 +267,14 @@ export function ConfigSettings(): React.ReactNode {
                 options={[{ value: 'user', label: '用户配置' }]}
                 onChange={() => {}}
               />
-              <button
-                className="settings-button"
+              <Button
                 disabled={openingConfig}
                 onClick={() => void handleOpenConfigFile()}
                 type="button"
               >
                 <Search size={APP_ICON_SIZE} />
                 打开 config.toml
-              </button>
+              </Button>
             </div>
           }
         >
@@ -305,8 +305,7 @@ export function ConfigSettings(): React.ReactNode {
           title="完整提示词诊断"
           description="仅在你主动请求时读取当前任务的 system/developer/contextual-user sections、来源、hash、token 估算和缓存分类；内容不会写入日志或遥测。"
           actions={
-            <button
-              className="settings-button"
+            <Button
               type="button"
               onClick={() => void (async () => {
                 try {
@@ -320,7 +319,7 @@ export function ConfigSettings(): React.ReactNode {
               })()}
             >
               预览当前任务提示词
-            </button>
+            </Button>
           }
         >
           {promptPreview ? <pre className="settings-code-block">{promptPreview}</pre> : null}
@@ -345,41 +344,38 @@ export function ConfigSettings(): React.ReactNode {
             title="安装沙盒运行环境"
             description="首次安装会请求一次 Windows 管理员权限。"
             control={
-              <button
+              <Button
                 aria-label="安装沙盒运行环境"
-                className="settings-button"
                 disabled={sandboxRuntimeBusy || !sandboxRuntimeStatus.canInstall}
                 onClick={() => void runSandboxRuntimeAction(installSandboxRuntime)}
                 type="button"
               >
                 <Download size={APP_ICON_SIZE} />
                 安装
-              </button>
+              </Button>
             }
           />
           <SettingsRow
             title="修复沙盒运行环境"
             description="重新检查专用账户、WFP 规则和 helper。"
             control={
-              <button
+              <Button
                 aria-label="修复沙盒运行环境"
-                className="settings-button"
                 disabled={sandboxRuntimeBusy || !sandboxRuntimeStatus.canRepair}
                 onClick={() => void runSandboxRuntimeAction(repairSandboxRuntime)}
                 type="button"
               >
                 <Wrench size={APP_ICON_SIZE} />
                 修复
-              </button>
+              </Button>
             }
           />
           <SettingsRow
             title="卸载沙盒运行环境"
             description="卸载会删除专用账户和 WFP 规则，必须单独确认。"
             control={
-              <button
+              <Button
                 aria-label="卸载沙盒运行环境"
-                className="settings-button"
                 disabled={sandboxRuntimeBusy || sandboxRuntimeStatus.state !== 'healthy'}
                 onClick={() => {
                   if (window.confirm('确认卸载 CodePilotX SRT 沙箱吗？')) void runSandboxRuntimeAction(uninstallSandboxRuntime)
@@ -388,7 +384,7 @@ export function ConfigSettings(): React.ReactNode {
               >
                 <Trash2 size={APP_ICON_SIZE} />
                 卸载
-              </button>
+              </Button>
             }
           />
           <SettingsRow
@@ -618,8 +614,7 @@ export function ConfigSettings(): React.ReactNode {
                 : '选择新的数据存储目录，系统将自动迁移现有数据。'
             }
             control={
-              <button
-                className="settings-button"
+              <Button
                 disabled={
                   changingLocation ||
                   dataLocation?.isEnvControlled
@@ -628,7 +623,7 @@ export function ConfigSettings(): React.ReactNode {
                 type="button"
               >
                 {changingLocation ? '处理中…' : '选择目录'}
-              </button>
+              </Button>
             }
           />
         </SettingsSection>
@@ -662,15 +657,14 @@ export function ConfigSettings(): React.ReactNode {
             title="诊断 CodePilotX 工作空间中的问题"
             description="检查当前捆绑包并记录诊断日志"
             control={
-              <button
-                className="settings-button"
+              <Button
                 disabled={diagnosingToolchain}
                 onClick={() => void handleDiagnose()}
                 type="button"
               >
                 <Search size={APP_ICON_SIZE} />
                 {diagnosingToolchain ? '诊断中' : '诊断'}
-              </button>
+              </Button>
             }
           />
           {toolchainReport ? (
@@ -692,15 +686,14 @@ export function ConfigSettings(): React.ReactNode {
             title="重置并安装工作空间"
             description="删除本地捆绑包，重新下载后重新加载工具"
             control={
-              <button
-                className="settings-button"
+              <Button
                 disabled={reinstallingToolchain}
                 onClick={() => void handleReinstall()}
                 type="button"
               >
                 <RotateCcw size={APP_ICON_SIZE} />
                 {reinstallingToolchain ? '安装中' : '重新安装'}
-              </button>
+              </Button>
             }
           />
         </SettingsSection>

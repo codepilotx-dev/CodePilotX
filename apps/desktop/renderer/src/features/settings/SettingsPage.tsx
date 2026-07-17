@@ -43,9 +43,9 @@ export function SettingsPage({
   if (activeTab === 'browser') return <BrowserSettings />
   return (
     <SettingsContentArea className="">
-      <div className="settings-content-inner">
-        <div className="settings-page-header">
-          <h2 className="settings-page-title">建设中</h2>
+      <div className="settings-content-inner tw:mx-auto tw:w-full tw:max-w-[48rem] tw:px-6 tw:py-8">
+        <div className="settings-page-header tw:mb-7 tw:grid tw:gap-2">
+          <h2 className="settings-page-title tw:m-0 tw:text-xl tw:font-[var(--font-weight-heading)] tw:text-app-text">建设中</h2>
         </div>
         <SettingsSection description="此设置页面暂未实现。">
           <div />

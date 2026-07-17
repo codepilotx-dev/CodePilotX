@@ -53,6 +53,10 @@ export function Dropdown({
           className={[
             'popover-surface',
             'popover',
+            'tw:rounded-lg',
+            'tw:p-1',
+            'tw:text-sm',
+            'tw:text-app-text',
             className,
             textMode === 'wrap' ? 'popover-text-wrap' : '',
           ].join(' ')}
@@ -65,7 +69,9 @@ export function Dropdown({
             preventOutsideDismissWhenDebug(disableOutsideDismiss, event)
           }}
         >
-          <div className="popover-scroll-content">{children}</div>
+          <div className="popover-scroll-content tw:min-w-0 tw:overflow-y-auto">
+            {children}
+          </div>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

@@ -41,6 +41,20 @@ export default {
   },
   overrides: [
     {
+      files: ['**/tailwind.css'],
+      rules: {
+        'color-no-hex': null,
+        'custom-property-pattern': null,
+        'function-disallowed-list': null,
+        'scss/at-rule-no-unknown': [
+          true,
+          {
+            ignoreAtRules: ['theme'],
+          },
+        ],
+      },
+    },
+    {
       files: [
         '**/design-system/tokens.scss',
         '**/features/_settings-appearance.scss',

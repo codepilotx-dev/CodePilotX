@@ -13,8 +13,8 @@ export const DEFAULT_LIGHT_THEME_ID = "light-codepilotx";
 export const DEFAULT_DARK_THEME_ID = "dark-codepilotx";
 
 export const DEFAULT_UI_FONT: DesktopThemeFontEntry = {
-  preset: "MiSans VF Regular",
-  fallback: "MiSans, Inter",
+  preset: "-apple-system",
+  fallback: 'BlinkMacSystemFont, "Segoe UI", sans-serif',
 };
 
 export const DEFAULT_CODE_FONT: DesktopThemeFontEntry = {
@@ -105,15 +105,15 @@ const RADIX_DARK: Record<RadixScale, Record<string, string>> = {
 export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 = {
   codeThemeId: "codepilotx",
   theme: {
-    accent: "#0169cc",
+    accent: "#339cff",
     contrast: 40,
     fonts: DEFAULT_FONTS,
-    ink: "#0d0d0d",
+    ink: "#1a1c1f",
     opaqueWindows: true,
     semanticColors: {
       diffAdded: "#00a240",
       diffRemoved: "#e02e2a",
-      skill: "#751ed9",
+      skill: "#924ff7",
     },
     surface: "#ffffff",
   },
@@ -123,17 +123,17 @@ export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 = {
 export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
   codeThemeId: "CodePilotX",
   theme: {
-    accent: "#0169cc",
+    accent: "#339cff",
     contrast: 40,
     fonts: DEFAULT_FONTS,
-    ink: "#fcfcfc",
+    ink: "#ffffff",
     opaqueWindows: true,
     semanticColors: {
       diffAdded: "#00a240",
       diffRemoved: "#e02e2a",
-      skill: "#b06dff",
+      skill: "#ad7bf9",
     },
-    surface: "#111111",
+    surface: "#181818",
   },
   variant: "dark",
 };

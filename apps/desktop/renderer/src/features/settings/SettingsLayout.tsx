@@ -40,7 +40,7 @@ export function SettingsLayout(): React.ReactNode {
   }, [settings.draft, theme.draft])
 
   return (
-    <div className="settings-page">
+    <div className="settings-page tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-col tw:overflow-hidden tw:bg-app-canvas tw:text-app-text">
       <GlobalErrorModal
         message={errorMessage}
         onDismiss={() => setErrorMessage(null)}

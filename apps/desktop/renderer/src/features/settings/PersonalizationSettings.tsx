@@ -5,6 +5,7 @@ import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
+import { Button } from '../../components/ui/Button.js'
 
 const PERSONALITY_OPTIONS: Array<{
   value: DesktopPersonality
@@ -95,14 +96,13 @@ export function PersonalizationSettings({
               value={draft.values.customInstructions}
             />
             <div className="personalization-actions">
-              <button
-                className="settings-button"
+              <Button
                 disabled={draft.saving}
                 onClick={() => void saveCustomInstructions()}
                 type="button"
               >
                 {draft.saving ? '保存中' : '保存'}
-              </button>
+              </Button>
             </div>
           </div>
         </SettingsSection>

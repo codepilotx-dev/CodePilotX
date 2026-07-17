@@ -23,6 +23,7 @@ import type {
   DesktopReviewView,
   DesktopThinkingMode,
 } from '../../../shared/types.js';
+import { Button } from '../../components/ui/Button.js'
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
@@ -494,18 +495,18 @@ export function GeneralSettings({
             title='从其他 AI 应用导入工作内容'
             description='导入您的设置、项目和最近聊天记录'
             control={
-              <button type='button' className='settings-button'>
+              <Button type='button'>
                 导入
-              </button>
+              </Button>
             }
           />
           <SettingsRow
             title='打开源许可证'
             description='捆绑依赖项的第三方声明'
             control={
-              <button type='button' className='settings-button'>
+              <Button type='button'>
                 查看
-              </button>
+              </Button>
             }
           />
         </SettingsSection>
@@ -541,9 +542,9 @@ export function GeneralSettings({
                 <span className='settings-row-status'>
                   {popupShortcut ? popupShortcut : '禁用'}
                 </span>
-                <button type='button' className='settings-button'>
+                <Button type='button'>
                   设置
-                </button>
+                </Button>
               </>
             }
           />
@@ -569,9 +570,9 @@ export function GeneralSettings({
                 <span className='settings-row-status'>
                   {holdDictation ? holdDictation : '关闭'}
                 </span>
-                <button type='button' className='settings-button'>
+                <Button type='button'>
                   设置
-                </button>
+                </Button>
               </>
             }
           />
@@ -583,9 +584,9 @@ export function GeneralSettings({
                 <span className='settings-row-status'>
                   {toggleDictation ? toggleDictation : '关闭'}
                 </span>
-                <button type='button' className='settings-button'>
+                <Button type='button'>
                   设置
-                </button>
+                </Button>
               </>
             }
           />

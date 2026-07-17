@@ -10,6 +10,8 @@ import type {
   DesktopGithubAuthStatus,
   DesktopGithubLoginStatus,
 } from '../../../shared/types.js'
+import { Button } from '../../components/ui/Button.js'
+import { Input } from '../../components/ui/Input.js'
 
 const PR_MERGE_OPTIONS: Array<{ value: 'merge' | 'squash'; label: string }> = [
   { value: 'merge', label: '合并' },
@@ -118,8 +120,8 @@ export function GitSettings(): React.ReactNode {
             title="分支前缀"
             description="在 CodePilotX 中创建新分支时使用的前缀"
             control={
-              <input
-                className="settings-input settings-input-narrow"
+              <Input
+                className="settings-input-narrow"
                 value={gitBranchPrefix}
                 placeholder="codepilotx/"
                 onChange={event =>
@@ -207,8 +209,8 @@ export function GitSettings(): React.ReactNode {
             title="自动删除限制"
             description="自动清理较旧工作树前保留的 CodePilotX 工作树数量。CodePilotX 会在删除前为工作树创建快照，因此被清理的工作树应始终可恢复。"
             control={
-              <input
-                className="settings-input settings-input-narrow"
+              <Input
+                className="settings-input-narrow"
                 type="number"
                 min={1}
                 step={1}
@@ -277,20 +279,19 @@ export function GitSettings(): React.ReactNode {
                 </p>
               </div>
               <div className="github-device-code-actions">
-                <button
-                  className="settings-button"
+                <Button
                   onClick={() => void copyGithubCode()}
                   type="button"
                 >
                   复制验证码
-                </button>
-                <button
-                  className="settings-button primary"
+                </Button>
+                <Button
+                  variant="primary"
                   onClick={() => void openGithubDevicePage()}
                   type="button"
                 >
                   打开验证页面
-                </button>
+                </Button>
               </div>
             </div>
           ) : null}
@@ -298,8 +299,8 @@ export function GitSettings(): React.ReactNode {
             title="OAuth Client ID"
             description="GitHub OAuth App 的公开 client_id；需要在 OAuth App 设置里启用 device flow。"
             control={
-              <input
-                className="settings-input settings-input-narrow"
+              <Input
+                className="settings-input-narrow"
                 value={githubOAuthClientId}
                 placeholder="Iv1.xxxxxxxxxxxxxxxx"
                 onChange={event => {
@@ -327,23 +328,22 @@ export function GitSettings(): React.ReactNode {
               <div className="settings-inline-actions">
                 <span className="settings-row-status">{githubStatusText}</span>
                 {githubAuth?.authenticated ? (
-                  <button
-                    className="settings-button"
+                  <Button
                     disabled={githubBusy}
                     onClick={() => void logoutGithub()}
                     type="button"
                   >
                     退出
-                  </button>
+                  </Button>
                 ) : (
-                  <button
-                    className="settings-button primary"
+                  <Button
+                    variant="primary"
                     disabled={githubBusy || !githubClientConfigured}
                     onClick={() => void startGithubLogin()}
                     type="button"
                   >
                     登录 GitHub
-                  </button>
+                  </Button>
                 )}
               </div>
             }

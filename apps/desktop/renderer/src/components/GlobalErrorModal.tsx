@@ -33,10 +33,10 @@ export function GlobalErrorModal({
   return (
     <div
       aria-live={isError ? 'assertive' : 'polite'}
-      className={`global-error-toast ${isError ? '' : 'status'}`}
+      className={`global-error-toast ${isError ? '' : 'status'} tw:flex tw:max-w-[min(55rem,calc(100vw-2rem))] tw:items-start tw:gap-2 tw:rounded-lg tw:border tw:border-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-base tw:text-app-text tw:shadow-lg`}
       role={isError ? 'alert' : 'status'}
     >
-      <div className="global-error-toast-scroll-area">
+      <div className="global-error-toast-scroll-area tw:min-w-0 tw:overflow-hidden tw:overflow-y-auto">
         <div className="global-error-toast-scroll-content">{message}</div>
       </div>
       <button

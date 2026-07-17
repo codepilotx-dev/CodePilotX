@@ -2,6 +2,7 @@
   "styleEntrypoint": "src/styles/index.scss",
   "styleEntrypointImporter": "src/main.tsx",
   "cascadeLayerOrder": [
+    "theme",
     "vendor",
     "reset",
     "tokens",
@@ -18,14 +19,14 @@
     "maxBytes": 18432,
     "maxGzipBytes": 4096
   },
-  "directStyleImportAllowlist": [],
+  "directStyleImportAllowlist": [
+    "src/main.tsx -> src/styles/tailwind.css"
+  ],
   "customPropertyReferenceAllowlist": [
     "--button-font-size",
     "--button-gap",
     "--button-line-height",
     "--button-padding",
-    "--composer-surface-footer-gap",
-    "--font-mono",
     "--inline-approval-card-margin-bottom",
     "--inline-approval-card-radius",
     "--popover-overflow-x"

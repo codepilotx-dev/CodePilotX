@@ -160,13 +160,6 @@
   padding: 16px;
 }
 
-.performance-diagnostics-header h3 {
-  margin: 0;
-  color: var(--color-text-strong);
-  font-size: var(--type-section-title);
-  font-weight: var(--font-weight-label);
-}
-
 .performance-diagnostics-summary,
 .performance-diagnostics-footnote {
   margin: 6px 0 0;
@@ -201,19 +194,7 @@
   font-size: var(--type-meta);
 }
 
-.performance-diagnostics-stat-value {
-  color: var(--color-text-strong);
-  font-size: var(--type-title-md);
-  font-weight: var(--font-weight-heading);
-}
-
 .right-dock-file-document {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  width: 100%;
-  min-height: 0;
-
   header {
     display: flex;
     align-items: center;
@@ -266,11 +247,6 @@
 
 .right-dock-file-preview-scroll-content {
   min-width: 0;
-}
-
-.right-dock-file-preview-x-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
 }
 
 .right-dock-file-selection-target {

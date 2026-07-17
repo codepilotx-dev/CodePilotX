@@ -12,6 +12,10 @@
 }
 
 .session-follow-up-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   font-size: var(--type-secondary);
   color: var(--color-text-meta);
   padding: 2px 4px 4px;
@@ -21,6 +25,31 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  max-height: 30vh;
+  overflow-y: auto;
+}
+
+.session-follow-up-paused {
+  padding: 4px 6px;
+  color: var(--color-text-soft);
+  font-size: var(--type-secondary);
+  background: var(--color-surface);
+  border-radius: var(--radius-2);
+}
+
+.session-follow-up-resume {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  color: var(--color-text);
+  background: transparent;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--color-accent);
+  }
 }
 
 .session-follow-up-item {
@@ -35,6 +64,24 @@
   &:hover {
     background: var(--state-hover-bg);
   }
+
+  &.is-dragging {
+    opacity: 0.55;
+  }
+
+  &:focus-within .session-follow-up-action {
+    opacity: 1;
+  }
+}
+
+.session-follow-up-drag-handle {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  color: var(--color-text-meta);
+  background: transparent;
+  cursor: grab;
 }
 
 .session-follow-up-preview {
@@ -51,6 +98,22 @@
   display: flex;
   gap: 2px;
   flex-shrink: 0;
+}
+
+.session-follow-up-edit-input {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2);
+  color: var(--color-text);
+  background: var(--color-panel-elevated-bg);
+  font: inherit;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
 }
 
 .session-follow-up-action {

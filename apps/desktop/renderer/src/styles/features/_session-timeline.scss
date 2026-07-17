@@ -235,10 +235,6 @@
 }
 
 .timeline-command-shell {
-  margin: 4px 0;
-  overflow: hidden;
-  border-radius: var(--radius-3);
-  background: var(--color-bg-soft);
   box-shadow: none;
 }
 
@@ -261,13 +257,6 @@
 }
 
 .timeline-command-shell-body {
-  min-width: max-content;
-  margin: 0;
-  padding: 8px 12px 10px;
-  color: var(--color-text);
-  font-family: var(--font-family-mono);
-  font-size: var(--type-code);
-  line-height: 1.55;
   white-space: pre;
 }
 
@@ -306,11 +295,11 @@
 
 /* --- User message --- */
 .user-message-bubble {
-  padding: 10px 12px;
-
-  border-radius: var(--radius-user-message);
-  background: var(--surface-user-message);
-  color: var(--color-text-strong);
+  background: color-mix(
+    in srgb,
+    var(--color-text-strong) 5%,
+    transparent
+  );
   box-shadow: none;
 
   word-break: break-word;

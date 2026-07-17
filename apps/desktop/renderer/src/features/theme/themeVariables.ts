@@ -9,6 +9,26 @@ export type ThemeVariableMap = Record<ThemeVariableName, string>
 type ThemeTokens = DesktopThemeConfigV1['theme']
 type ContrastAnchors = readonly [number, number, number]
 
+type SemanticRoles = {
+  canvas: string
+  underlay: string
+  chrome: string
+  panel: string
+  raised: string
+  codeBlock: string
+  codeInline: string
+  userMessage: string
+  composer: string
+  hover: string
+  selected: string
+  borderSubtle: string
+  borderControl: string
+  borderStrong: string
+  separator: string
+  scrollbarRest: string
+  scrollbarHover: string
+}
+
 const DARK_ROLE_ANCHORS = {
   chrome: [7.5, 13, 22],
   panel: [1, 3.5, 10],
@@ -29,6 +49,46 @@ const LIGHT_ROLE_ANCHORS = {
   inline: DARK_ROLE_ANCHORS.inline,
   selected: DARK_ROLE_ANCHORS.sidebarActive,
 } as const satisfies Record<string, ContrastAnchors>
+
+const CODEPILOTX_DARK_40_ROLES = {
+  canvas: '#181818',
+  underlay: '#000000',
+  chrome: '#000000',
+  panel: '#212121',
+  raised: '#282828',
+  codeBlock: '#212121',
+  codeInline: '#303030',
+  userMessage: '#282828',
+  composer: '#212121',
+  hover: '#212121',
+  selected: '#282828',
+  borderSubtle: 'color-mix(in srgb, #ffffff 7%, transparent)',
+  borderControl: 'color-mix(in srgb, #ffffff 10%, transparent)',
+  borderStrong: 'color-mix(in srgb, #ffffff 16%, transparent)',
+  separator: 'color-mix(in srgb, #ffffff 8%, transparent)',
+  scrollbarRest: '#282828',
+  scrollbarHover: '#303030',
+} as const satisfies SemanticRoles
+
+const CODEPILOTX_LIGHT_40_ROLES = {
+  canvas: '#ffffff',
+  underlay: '#f9f9f9',
+  chrome: '#f9f9f9',
+  panel: '#f9f9f9',
+  raised: '#ffffff',
+  codeBlock: '#f9f9f9',
+  codeInline: '#ededed',
+  userMessage: '#f9f9f9',
+  composer: '#ffffff',
+  hover: '#f9f9f9',
+  selected: '#ededed',
+  borderSubtle: 'color-mix(in srgb, #1a1c1f 7%, transparent)',
+  borderControl: 'color-mix(in srgb, #1a1c1f 10%, transparent)',
+  borderStrong: 'color-mix(in srgb, #1a1c1f 16%, transparent)',
+  separator: 'color-mix(in srgb, #1a1c1f 8%, transparent)',
+  scrollbarRest: '#ededed',
+  scrollbarHover: '#d9d9d9',
+} as const satisfies SemanticRoles
 
 const DRACULA_DARK_40_ROLES = {
   chrome: '#23252f',
@@ -241,13 +301,21 @@ export function deriveThemeVariables(
     '--color-accent': theme.accent,
     '--color-accent-a3': colorMix(theme.accent, 30, 'transparent'),
     '--color-accent-11': mixColors(theme.surface, theme.accent, 85),
-    '--color-send-bg': theme.accent,
-    '--color-send-bg-hover': mixColors(
+    '--color-primary-action': theme.accent,
+    '--color-primary-action-foreground': '#ffffff',
+    '--color-primary-action-hover': mixColors(
       theme.accent,
       theme.ink,
       variant === 'dark' ? 12 : 18,
     ),
-    '--color-send-bg-disabled': mixColors(theme.accent, theme.ink, 50),
+    '--color-primary-action-disabled': colorMix(
+      theme.accent,
+      45,
+      'transparent',
+    ),
+    '--color-send-bg': 'var(--color-primary-action)',
+    '--color-send-bg-hover': 'var(--color-primary-action-hover)',
+    '--color-send-bg-disabled': 'var(--color-primary-action-disabled)',
     '--color-user-bubble-bg': roles.userMessage,
     '--color-scrollbar': roles.scrollbarRest,
     '--color-scrollbar-hover': roles.scrollbarHover,
@@ -256,6 +324,7 @@ export function deriveThemeVariables(
     '--color-skill': theme.semanticColors.skill,
     '--surface-base': roles.canvas,
     '--surface-canvas': roles.canvas,
+    '--surface-underlay': roles.underlay,
     '--surface-chrome': roles.chrome,
     '--surface-panel': roles.panel,
     '--surface-raised': roles.raised,
@@ -307,25 +376,11 @@ export function deriveThemeVariables(
 function deriveSemanticRoles(
   config: DesktopThemeConfigV1,
   contrast: number,
-): {
-  canvas: string
-  chrome: string
-  panel: string
-  raised: string
-  codeBlock: string
-  codeInline: string
-  userMessage: string
-  composer: string
-  hover: string
-  selected: string
-  borderSubtle: string
-  borderControl: string
-  borderStrong: string
-  separator: string
-  scrollbarRest: string
-  scrollbarHover: string
-} {
+): SemanticRoles {
   const { theme, variant } = config
+  const exactCodePilotX = getExactCodePilotXRoles(config, contrast)
+  if (exactCodePilotX) return exactCodePilotX
+
   const exactDracula = getExactDraculaRoles(config, contrast)
   if (variant === 'dark') {
     const chrome = exactDracula?.chrome ?? mixByAnchors(
@@ -368,6 +423,7 @@ function deriveSemanticRoles(
     )
     return {
       canvas: exactDracula?.canvas ?? theme.surface,
+      underlay: chrome,
       chrome,
       panel,
       raised: composer,
@@ -415,6 +471,7 @@ function deriveSemanticRoles(
   const selected = roleInkMix(theme, contrast, LIGHT_ROLE_ANCHORS.selected)
   return {
     canvas: theme.surface,
+    underlay: chrome,
     chrome,
     panel,
     raised,
@@ -431,6 +488,38 @@ function deriveSemanticRoles(
     scrollbarRest: selected,
     scrollbarHover: codeInline,
   }
+}
+
+function getExactCodePilotXRoles(
+  config: DesktopThemeConfigV1,
+  contrast: number,
+): SemanticRoles | undefined {
+  if (
+    contrast !== 40 ||
+    config.codeThemeId.toLowerCase() !== 'codepilotx'
+  ) {
+    return undefined
+  }
+
+  if (
+    config.variant === 'dark' &&
+    config.theme.surface.toLowerCase() === '#181818' &&
+    config.theme.ink.toLowerCase() === '#ffffff' &&
+    config.theme.accent.toLowerCase() === '#339cff'
+  ) {
+    return CODEPILOTX_DARK_40_ROLES
+  }
+
+  if (
+    config.variant === 'light' &&
+    config.theme.surface.toLowerCase() === '#ffffff' &&
+    config.theme.ink.toLowerCase() === '#1a1c1f' &&
+    config.theme.accent.toLowerCase() === '#339cff'
+  ) {
+    return CODEPILOTX_LIGHT_40_ROLES
+  }
+
+  return undefined
 }
 
 function getExactDraculaRoles(

@@ -3,6 +3,7 @@ import { Search } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { useSearchContext } from './SearchContext.js'
 import { sessionDisplayTitle } from '../../uiTypes.js'
+import { cx } from '../../utils/cx.js'
 
 export function SearchView(): React.ReactNode {
   const {
@@ -31,7 +32,9 @@ export function SearchView(): React.ReactNode {
       </label>
       <div className="utility-grid">
         <section className="utility-card">
-          <h2>项目</h2>
+          <h2 className={cx('u-type-body', 'u-font-label', 'u-text-primary')}>
+            项目
+          </h2>
           {workspaces.length === 0 ? (
             <p className="muted-copy">没有匹配的项目。</p>
           ) : (
@@ -49,7 +52,9 @@ export function SearchView(): React.ReactNode {
           )}
         </section>
         <section className="utility-card">
-          <h2>对话</h2>
+          <h2 className={cx('u-type-body', 'u-font-label', 'u-text-primary')}>
+            对话
+          </h2>
           {sessions.length === 0 ? (
             <p className="muted-copy">没有匹配的对话。</p>
           ) : (

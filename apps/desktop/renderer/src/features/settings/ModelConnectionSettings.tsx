@@ -17,6 +17,8 @@ import { SettingsSection } from './SettingsSection.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { fullErrorMessage } from '../../utils/errors.js'
 import { Brain, Braces, Eye, Hammer, Link2, RefreshCw, Search } from 'lucide-react'
+import { Button } from '../../components/ui/Button.js'
+import { Input } from '../../components/ui/Input.js'
 
 const BUILT_IN_PROVIDER_IDS = new Set([
   'openai',
@@ -642,8 +644,8 @@ const nextState = await desktopClient.saveModelProvider({
               title="Base URL"
               description={baseURLDescription(selectedProvider, isMiniMax)}
               control={
-                <input
-                  className="settings-input settings-input-wide settings-input-mono"
+                <Input
+                  className="settings-input-wide settings-input-mono"
                   readOnly={!baseURLEditable}
                   value={baseURL}
                   placeholder={selectedProvider?.baseURL ?? 'https://.../v1'}
@@ -688,8 +690,8 @@ const nextState = await desktopClient.saveModelProvider({
                         }
                       />
                     ) : (
-                      <input
-                        className="settings-input settings-credential-input"
+                      <Input
+                        className="settings-credential-input"
                         value={oauthInputs[prompt.key] ?? ''}
                         placeholder={prompt.placeholder}
                         onChange={event =>
@@ -706,22 +708,21 @@ const nextState = await desktopClient.saveModelProvider({
                 <span className={`settings-chip ${apiKeyConfigured ? 'ok' : oauthAttempt ? 'pending' : 'warn'}`}>
                   {apiKeyConfigured ? '已授权' : oauthAttempt ? '等待授权' : '未授权'}
                 </span>
-                <button
-                  className="settings-button"
+                <Button
                   disabled={busy}
                   type="button"
                   onClick={() => void startOAuthAuthorization()}
                 >
                   {apiKeyConfigured ? '重新授权' : '开始授权'}
-                </button>
-                <button
-                  className="settings-button settings-button-danger"
+                </Button>
+                <Button
+                  tone="danger"
                   disabled={busy || !apiKeyConfigured}
                   type="button"
                   onClick={() => void disconnectOAuth()}
                 >
                   断开
-                </button>
+                </Button>
               </div>
               {oauthAttempt ? (
                 <div className="settings-copilot-device-code">
@@ -741,20 +742,19 @@ const nextState = await desktopClient.saveModelProvider({
                   ) : null}
                   {oauthAttempt.mode === 'code' ? (
                     <div className="settings-copilot-device-code-row">
-                      <input
-                        className="settings-input settings-input-mono"
+                      <Input
+                        className="settings-input-mono"
                         value={oauthCode}
                         placeholder="输入授权返回码"
                         onChange={event => setOauthCode(event.target.value)}
                       />
-                      <button
-                        className="settings-button"
+                      <Button
                         disabled={!oauthCode.trim()}
                         type="button"
                         onClick={() => void completeOAuthAuthorization()}
                       >
                         提交
-                      </button>
+                      </Button>
                     </div>
                   ) : null}
                 </div>
@@ -766,8 +766,8 @@ const nextState = await desktopClient.saveModelProvider({
                 <label className="settings-credential-label">API 密钥</label>
               </div>
               <div className="settings-credential-controls">
-                <input
-                  className="settings-input settings-credential-input"
+                <Input
+                  className="settings-credential-input"
                   value={apiKey}
                   placeholder={apiKeyConfigured ? '输入后保存 (已配置)' : '输入后保存'}
                   type="password"
@@ -777,16 +777,15 @@ const nextState = await desktopClient.saveModelProvider({
                   {formatApiKeyState(apiKeySource, apiKeyConfigured)}
                 </span>
                 <div className="settings-credential-actions">
-                  <button
-                    className="settings-button"
+                  <Button
                     disabled={busy}
                     type="button"
                     onClick={() => void saveApiKey()}
                   >
                     保存
-                  </button>
-                  <button
-                    className="settings-button settings-button-danger"
+                  </Button>
+                  <Button
+                    tone="danger"
                     disabled={
                       busy ||
                       !apiKeyConfigured ||
@@ -801,7 +800,7 @@ const nextState = await desktopClient.saveModelProvider({
                     onClick={() => void clearApiKey()}
                   >
                     删除
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -816,22 +815,21 @@ const nextState = await desktopClient.saveModelProvider({
             <div className="settings-model-toolbar-main">
               <div className="settings-model-search">
                 <Search className="settings-model-search-icon" />
-                <input
-                  className="settings-input settings-model-search-input"
+                <Input
+                  className="settings-model-search-input"
                   value={modelQuery}
                   placeholder="搜索模型 / 供应商 / 能力..."
                   onChange={event => setModelQuery(event.target.value)}
                 />
               </div>
-              <button
-                className="settings-button"
+              <Button
                 disabled={busy}
                 type="button"
                 onClick={() => void fetchModels()}
               >
                 <RefreshCw className="settings-model-toolbar-icon" />
                 刷新目录
-              </button>
+              </Button>
             </div>
             {modelError || status ? (
               <p className="settings-model-toolbar-desc">
@@ -952,22 +950,21 @@ const nextState = await desktopClient.saveModelProvider({
                     文档
                   </a>
                 ) : null}
-                <button
-                  className="settings-button"
+                <Button
                   disabled={busy}
                   type="button"
                   onClick={() => void testConnection()}
                 >
                   测试连接
-                </button>
-                <button
-                  className="settings-button primary"
+                </Button>
+                <Button
+                  variant="primary"
                   disabled={busy}
                   type="button"
                   onClick={() => void saveProvider()}
                 >
                   保存连接
-                </button>
+                </Button>
               </div>
             }
           />

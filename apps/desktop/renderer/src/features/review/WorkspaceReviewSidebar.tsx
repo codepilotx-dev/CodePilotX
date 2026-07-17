@@ -1686,20 +1686,18 @@ function VirtualDiffInlineRow({
 
   return (
     <div className="review-diff-vlist-row">
-      <div className={`review-diff-row ${line.type}`}>
+      <div
+        className="review-diff-row u-grid u-items-stretch"
+        data-line-type={line.type}
+      >
         <LineCommentButton
           anchor={anchor}
           disabled={!anchor}
           onCreateDraft={onCreateDraft}
         />
         <span
-          className={`review-diff-line-number ${
-            line.type === "added"
-              ? "added"
-              : line.type === "removed"
-                ? "removed"
-                : ""
-          }`}
+          className="review-diff-line-number u-text-right"
+          data-tone={line.type}
         >
           {lineNumber ?? ""}
         </span>
@@ -1749,7 +1747,10 @@ function VirtualDiffSplitRow({
 }): React.ReactNode {
   return (
     <div className="review-diff-vlist-row">
-      <div className="review-diff-split-row paired">
+      <div
+        className="review-diff-split-row u-grid u-min-w-0"
+        data-layout="paired"
+      >
         {[left, right].map((cell) => {
           const anchor = buildAnchor(
             file.path,
@@ -1762,7 +1763,7 @@ function VirtualDiffSplitRow({
             : [];
           return (
             <div
-              className={`review-diff-side ${cell.tone}`}
+              className="review-diff-side"
               data-tone={cell.tone}
               key={cell.side}
             >
@@ -1772,13 +1773,8 @@ function VirtualDiffSplitRow({
                 onCreateDraft={onCreateDraft}
               />
               <span
-                className={`review-diff-line-number ${
-                  cell.tone === "added"
-                    ? "added"
-                    : cell.tone === "removed"
-                      ? "removed"
-                      : ""
-                }`}
+                className="review-diff-line-number u-text-right"
+                data-tone={cell.tone}
               >
                 {cell.number ?? ""}
               </span>
@@ -1821,7 +1817,8 @@ function ReviewDiffInline({
 }: ReviewDiffBodyProps): React.ReactNode {
   return (
     <div
-      className={`review-diff-lines-scroll-x review-diff-inline marker-${diffMarkerStyle}`}
+      className="review-diff-lines-scroll-x review-diff-inline"
+      data-marker-style={diffMarkerStyle}
     >
       <div className="review-diff-lines">
         {file.hunks.map((hunk) => (
@@ -1847,20 +1844,19 @@ function ReviewDiffInline({
                 ? (attachedComments.get(commentKey(anchor)) ?? [])
                 : [];
               return (
-                <div className={`review-diff-row ${line.type}`} key={line.id}>
+                <div
+                  className="review-diff-row u-grid u-items-stretch"
+                  data-line-type={line.type}
+                  key={line.id}
+                >
                   <LineCommentButton
                     anchor={anchor}
                     disabled={!anchor}
                     onCreateDraft={onCreateDraft}
                   />
                   <span
-                    className={`review-diff-line-number ${
-                      line.type === "added"
-                        ? "added"
-                        : line.type === "removed"
-                          ? "removed"
-                          : ""
-                    }`}
+                    className="review-diff-line-number u-text-right"
+                    data-tone={line.type}
                   >
                     {lineNumber ?? ""}
                   </span>
@@ -1905,7 +1901,8 @@ function ReviewDiffSplit({
 }: ReviewDiffBodyProps): React.ReactNode {
   return (
     <div
-      className={`review-diff-lines-scroll-x review-diff-split marker-${diffMarkerStyle}`}
+      className="review-diff-lines-scroll-x review-diff-split"
+      data-marker-style={diffMarkerStyle}
     >
       <div className="review-diff-lines">
         {file.hunks.map((hunk) => (
@@ -1919,9 +1916,8 @@ function ReviewDiffSplit({
             />
             {splitDiffLines(hunk.lines).map((row) => (
               <div
-                className={`review-diff-split-row ${
-                  row.paired ? "paired" : "single"
-                }`}
+                className="review-diff-split-row u-grid u-min-w-0"
+                data-layout={row.paired ? "paired" : "single"}
                 key={row.id}
               >
                 {[row.left, row.right].map((cell) => {
@@ -1936,7 +1932,7 @@ function ReviewDiffSplit({
                     : [];
                   return (
                     <div
-                      className={`review-diff-side ${cell.tone}`}
+                      className="review-diff-side u-grid u-min-w-0"
                       data-tone={cell.tone}
                       key={cell.side}
                     >
@@ -1946,13 +1942,8 @@ function ReviewDiffSplit({
                         onCreateDraft={onCreateDraft}
                       />
                       <span
-                        className={`review-diff-line-number ${
-                          cell.tone === "added"
-                            ? "added"
-                            : cell.tone === "removed"
-                              ? "removed"
-                              : ""
-                        }`}
+                        className="review-diff-line-number u-text-right"
+                        data-tone={cell.tone}
                       >
                         {cell.number ?? ""}
                       </span>
@@ -2009,7 +2000,7 @@ function DiffMarker({
   tone: DesktopReviewDiffLine["type"] | ReviewCell["tone"];
 }): React.ReactNode {
   return (
-    <span className={`review-diff-marker ${tone}`} aria-hidden="true">
+    <span className="review-diff-marker" data-tone={tone} aria-hidden="true">
       {tone === "added" ? "+" : tone === "removed" ? "-" : ""}
     </span>
   );
@@ -2032,7 +2023,10 @@ function ReviewHunkHeader({
   ) => void;
 }): React.ReactNode {
   return (
-    <div className="review-diff-row hunk">
+    <div
+      className="review-diff-row u-grid u-items-stretch"
+      data-line-type="hunk"
+    >
       <span className="review-diff-line-content">{hunk.header}</span>
       <div className="review-hunk-actions">
         {scope === "unstaged" ? (
