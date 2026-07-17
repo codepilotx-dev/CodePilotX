@@ -1,14 +1,14 @@
 import type { RightDockPlan, RightDockToolId } from './rightDockTools.js'
+import {
+  createDefaultWorkbenchPanelState,
+  type WorkbenchPanelState,
+} from './rightDockState.js'
 import type { DesktopComposerAttachment } from '../../../shared/types.js'
 
 const STORAGE_PREFIX = 'conversation.ui-state.'
 
 export type ConversationUiState = {
-  rightDock: {
-    open: boolean
-    activeTool: RightDockToolId | null
-    openTools: RightDockToolId[]
-  }
+  panels: WorkbenchPanelState
   plan: RightDockPlan | null
   mainScrollTop: number
   sideChatInput: string
@@ -17,11 +17,7 @@ export type ConversationUiState = {
 
 export function createDefaultConversationUiState(): ConversationUiState {
   return {
-    rightDock: {
-      open: false,
-      activeTool: null,
-      openTools: [],
-    },
+    panels: createDefaultWorkbenchPanelState(),
     plan: null,
     mainScrollTop: 0,
     sideChatInput: '',
@@ -64,28 +60,64 @@ export function removeConversationUiState(sessionId: string): void {
 }
 
 export function validateConversationUiState(
-  state: ConversationUiState,
+  state: ConversationUiState | LegacyConversationUiState,
   enabledTools: readonly RightDockToolId[],
 ): ConversationUiState {
   const enabledSet = new Set(enabledTools)
-  const openTools = state.rightDock.openTools.filter(id => enabledSet.has(id))
-  const activeTool =
-    state.rightDock.activeTool !== null && openTools.includes(state.rightDock.activeTool)
-      ? state.rightDock.activeTool
-      : openTools.length > 0
-        ? openTools[openTools.length - 1]!
-        : null
-  const open = openTools.length > 0 && state.rightDock.open
+  const defaults = createDefaultWorkbenchPanelState()
+  const legacy = state as LegacyConversationUiState
+  const storedPanels =
+    'panels' in state && state.panels
+      ? state.panels
+      : {
+          ...defaults,
+          right: legacy.rightDock ?? defaults.right,
+        }
+  const right = validatePanelSnapshot(storedPanels.right, enabledSet)
+  const bottom = validatePanelSnapshot(storedPanels.bottom, enabledSet)
 
   return {
-    rightDock: {
-      open,
-      activeTool,
-      openTools,
+    panels: {
+      right,
+      bottom,
+      rightFullWidth: Boolean(storedPanels.rightFullWidth && right.open),
+      restoreRightFullWidthOnNextOpen: Boolean(
+        storedPanels.restoreRightFullWidthOnNextOpen,
+      ),
+      focusArea:
+        storedPanels.focusArea === 'right-panel' ||
+        storedPanels.focusArea === 'bottom-panel'
+          ? storedPanels.focusArea
+          : 'main',
     },
     plan: state.plan,
     mainScrollTop: state.mainScrollTop,
     sideChatInput: state.sideChatInput ?? '',
     sideChatAttachments: state.sideChatAttachments ?? [],
+  }
+}
+
+type LegacyConversationUiState = Omit<ConversationUiState, 'panels'> & {
+  rightDock?: {
+    open: boolean
+    activeTool: RightDockToolId | null
+    openTools: RightDockToolId[]
+  }
+  panels?: WorkbenchPanelState
+}
+
+function validatePanelSnapshot(
+  panel: WorkbenchPanelState['right'] | undefined,
+  enabledTools: ReadonlySet<RightDockToolId>,
+): WorkbenchPanelState['right'] {
+  const openTools = (panel?.openTools ?? []).filter(id => enabledTools.has(id))
+  const activeTool =
+    panel?.activeTool && openTools.includes(panel.activeTool)
+      ? panel.activeTool
+      : (openTools[openTools.length - 1] ?? null)
+  return {
+    open: Boolean(panel?.open),
+    activeTool,
+    openTools,
   }
 }

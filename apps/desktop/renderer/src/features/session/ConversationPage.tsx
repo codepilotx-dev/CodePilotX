@@ -213,8 +213,6 @@ export function ConversationPage(): React.ReactNode {
     rightDockOpen,
     rightDockTool,
     rightDockPlanContent,
-    rightDockNode,
-    rightDockWidth,
     debugMode,
   } = useQuickChatContext();
   const {
@@ -653,6 +651,12 @@ export function ConversationPage(): React.ReactNode {
   const workspaceHeaderTitle = React.useMemo(
     () => (
       <div className="chat-session-title">
+        <FolderOpen
+          aria-hidden="true"
+          className="chat-session-title__icon"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
         <span>
           {isConversationLoading ? "加载对话中" : renderedSessionTitle}
         </span>
@@ -755,6 +759,36 @@ export function ConversationPage(): React.ReactNode {
             添加自动化...
           </PopoverItem>
           <div className="popover-divider" />
+          <PopoverItem
+            disabled={!hasActiveSession}
+            icon={<Workflow size={APP_ICON_SIZE} />}
+            selected={workflowTimelineVisible}
+            withCheck
+            onClick={() =>
+              setWorkflowTimelineVisible((current) => !current)
+            }
+          >
+            显示 workflow 事件
+          </PopoverItem>
+          {debugMode ? (
+            <>
+              <PopoverItem
+                disabled={hasRealPendingPermission}
+                icon={<MessageSquarePlus size={APP_ICON_SIZE} />}
+                onClick={openDebugAskUserQuestionCard}
+              >
+                弹出 AskUserQuestion 调试卡片
+              </PopoverItem>
+              <PopoverItem
+                disabled={hasRealPendingPermission}
+                icon={<FileDiff size={APP_ICON_SIZE} />}
+                onClick={openDebugPlanCard}
+              >
+                弹出 PlanCard 调试卡片
+              </PopoverItem>
+            </>
+          ) : null}
+          <div className="popover-divider" />
           <PopoverItem disabled icon={<AppWindow size={APP_ICON_SIZE} />}>
             在新窗口中打开
           </PopoverItem>
@@ -763,11 +797,14 @@ export function ConversationPage(): React.ReactNode {
     ),
     [
       activeSessionId,
+      debugMode,
       hasActiveSession,
+      hasRealPendingPermission,
       isConversationLoading,
       isSessionPinned,
       renderedSessionTitle,
       sessionMenuOpen,
+      workflowTimelineVisible,
       workspacePath,
     ],
   );
@@ -881,78 +918,12 @@ export function ConversationPage(): React.ReactNode {
         ) : (
           <Tooltip content="置顶摘要">{summaryToggle}</Tooltip>
         )}
-        <Tooltip
-          content={
-            workflowTimelineVisible
-              ? "隐藏 workflow 事件"
-              : "显示 workflow 事件"
-          }
-        >
-          <button
-            aria-label={
-              workflowTimelineVisible
-                ? "隐藏 workflow 事件"
-                : "显示 workflow 事件"
-            }
-            aria-pressed={workflowTimelineVisible}
-            className="message-action"
-            disabled={!hasActiveSession}
-            type="button"
-            onClick={() => setWorkflowTimelineVisible((current) => !current)}
-          >
-            <Workflow
-              size={APP_ICON_SIZE}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-            />
-          </button>
-        </Tooltip>
-        {debugMode ? (
-          <>
-            <Tooltip
-              content={
-                hasRealPendingPermission
-                  ? "已有真实审批请求，不能打开 mock 卡片"
-                  : "弹出 AskUserQuestion 调试卡片"
-              }
-            >
-              <button
-                aria-label="弹出 AskUserQuestion 调试卡片"
-                className="message-action"
-                disabled={hasRealPendingPermission}
-                type="button"
-                onClick={openDebugAskUserQuestionCard}
-              >
-                <MessageSquarePlus
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
-              </button>
-            </Tooltip>
-            <Tooltip content="弹出 PlanCard 调试卡片">
-              <button
-                aria-label="弹出 PlanCard 调试卡片"
-                className="message-action"
-                disabled={hasRealPendingPermission}
-                type="button"
-                onClick={openDebugPlanCard}
-              >
-                <FileDiff
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
-              </button>
-            </Tooltip>
-          </>
-        ) : null}
         </div>
       );
     },
     [
       branches,
-      debugMode,
       defaultOpenTargetId,
-      hasActiveSession,
-      hasRealPendingPermission,
       onBranchSelect,
       onCommitOrPush,
       onCreateBranch,
@@ -965,7 +936,6 @@ export function ConversationPage(): React.ReactNode {
       selectedOpenTarget,
       threadSummary,
       threadSummaryModel,
-      workflowTimelineVisible,
     ],
   );
 
@@ -1028,15 +998,16 @@ export function ConversationPage(): React.ReactNode {
           : "conversation-page workflow-page tw:relative tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-col tw:bg-app-canvas tw:text-app-text"
       }
     >
+      <header
+        aria-label="会话工具栏"
+        className="chat-session-header"
+        role="toolbar"
+      >
+        {workspaceHeaderTitle}
+        {workspaceHeaderActions}
+      </header>
       <div
         className="workflow-page__body"
-        style={
-          rightDockNode
-            ? ({
-                "--right-dock-current-w": `${rightDockWidth}px`,
-              } as React.CSSProperties)
-            : undefined
-        }
       >
         <main
           ref={workflowMainRef}
@@ -1047,16 +1018,6 @@ export function ConversationPage(): React.ReactNode {
             } as React.CSSProperties
           }
         >
-          <header
-            className={
-              rightDockOpen
-                ? "chat-session-header"
-                : "chat-session-header chat-session-header--dock-closed"
-            }
-          >
-            {workspaceHeaderTitle}
-            {workspaceHeaderActions}
-          </header>
           <div className="workflow-main-scroll-frame">
             <ConversationTurnNavRail
               items={turnNavItems}
@@ -1214,7 +1175,6 @@ export function ConversationPage(): React.ReactNode {
             </ThreadSummaryInline>
           ) : null}
         </main>
-        {rightDockNode}
       </div>
     </section>
   );

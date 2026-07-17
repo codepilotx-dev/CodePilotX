@@ -10,10 +10,14 @@ import {
   getDesktopComposerBranchName,
 } from '../session/DesktopComposer.js'
 import { deriveWorkflowSessionState } from '../../../shared/workflowReducer.js'
-import { RightDock, DesktopWorkspaceFixedControls } from './RightDock.js'
 import {
-  applyRightDockAction,
+  DesktopWorkspaceFixedControls,
+  WorkbenchPanel,
+} from './RightDock.js'
+import {
+  createDefaultWorkbenchPanelState,
   type RightDockToolId,
+  type WorkbenchPanelTarget,
 } from './rightDockState.js'
 import { rightDockTools, isRightDockToolEnabled, type RightDockPlan } from './rightDockTools.js'
 import {
@@ -78,7 +82,7 @@ import {
   useWorkbenchRouteController,
 } from './useWorkbenchRouteController.js'
 import {
-  RIGHT_DOCK_MAX_WIDTH,
+  RIGHT_DOCK_MAIN_MIN_WIDTH,
   RIGHT_DOCK_MIN_WIDTH,
   useWorkbenchShellController,
 } from './useWorkbenchShellController.js'
@@ -172,20 +176,31 @@ export function DesktopLayout(): React.ReactNode {
     collapseSidebar,
     sidebarMinWidth,
     sidebarMaxWidth,
+    workbenchPanelState,
+    setWorkbenchPanelState,
     rightDockState,
     setRightDockState,
+    bottomPanelState,
     rightDockPlan,
     setRightDockPlan,
     bottomPanelVisible,
     rightDockWidth,
+    bottomPanelHeight,
     openRightDockTool,
-    selectRightDockTool,
-    closeRightDockTool,
-    closeRightDock,
     handleSetRightDockWidth,
     handleResetRightDockWidth,
+    handleSetBottomPanelHeight,
+    handleResetBottomPanelHeight,
     handleOpenPlanDock,
     toggleBottomPanelVisible,
+    openPanelTool,
+    selectPanelTool,
+    closePanelTool,
+    togglePanel,
+    closePanel,
+    movePanelTool,
+    reorderPanelTool,
+    toggleRightFullWidth,
   } = useWorkbenchShellController(menubarDebugMode)
   const handleErrorMessage = useCallback((message: string): void => {
     setErrorMessage(message || null)
@@ -745,11 +760,7 @@ export function DesktopLayout(): React.ReactNode {
     createDefaultConversationUiState(),
   )
   uiSnapshotRef.current = {
-    rightDock: {
-      open: rightDockState.open,
-      activeTool: rightDockState.activeTool,
-      openTools: rightDockState.openTools,
-    },
+    panels: workbenchPanelState,
     plan: rightDockPlan,
     mainScrollTop: 0,
     sideChatInput,
@@ -775,32 +786,20 @@ export function DesktopLayout(): React.ReactNode {
       const saved = loadConversationUiState(currentId)
       if (saved) {
         const validated = validateConversationUiState(saved, enabledTools)
-        setRightDockState({
-          open: validated.rightDock.open,
-          activeTool: validated.rightDock.activeTool,
-          openTools: validated.rightDock.openTools,
-        })
+        setWorkbenchPanelState(validated.panels)
         setRightDockPlan(validated.plan)
         setSideChatInput(validated.sideChatInput)
         setSideChatAttachments(validated.sideChatAttachments)
       } else {
         /* No saved state — force defaults */
-        setRightDockState({
-          open: false,
-          activeTool: null,
-          openTools: [],
-        })
+        setWorkbenchPanelState(createDefaultWorkbenchPanelState())
         setRightDockPlan(null)
         setSideChatInput('')
         setSideChatAttachments([])
       }
     } else {
       /* Quick-chat — force defaults */
-      setRightDockState({
-        open: false,
-        activeTool: null,
-        openTools: [],
-      })
+      setWorkbenchPanelState(createDefaultWorkbenchPanelState())
       setRightDockPlan(null)
       setSideChatInput('')
       setSideChatAttachments([])
@@ -882,15 +881,7 @@ export function DesktopLayout(): React.ReactNode {
         return
       }
       if (action === 'toggleSidePanel') {
-        setRightDockState(current => {
-          if (current.open) {
-            return applyRightDockAction(current, { type: 'close' })
-          }
-          if (current.openTools.length > 0) {
-            return { ...current, open: true }
-          }
-          return current
-        })
+        togglePanel('right')
         return
       }
       if (action === 'reloadBrowserPage') {
@@ -902,6 +893,7 @@ export function DesktopLayout(): React.ReactNode {
       handleOpenBrowser,
       handleOpenFilesDock,
       handleReloadBrowser,
+      togglePanel,
       toggleSidebarCollapsed,
     ],
   )
@@ -1701,9 +1693,16 @@ export function DesktopLayout(): React.ReactNode {
     return () => observer.disconnect()
   }, [])
 
-  const rightDockNode: React.ReactNode | null = rightDockState.open ? (
-    <RightDock
-      state={rightDockState}
+  const renderWorkbenchPanel = (
+    target: WorkbenchPanelTarget,
+  ): React.ReactNode => {
+    const state =
+      target === 'right' ? rightDockState : bottomPanelState
+    if (!state.open) return null
+    return (
+    <WorkbenchPanel
+      target={target}
+      state={state}
       browserState={browserState}
       debugMode={menubarDebugMode}
       defaultBranch={derivedDefaultBranch}
@@ -1711,7 +1710,10 @@ export function DesktopLayout(): React.ReactNode {
       gitStatus={gitStatus}
       isRefreshingReview={false}
       diffMarkerStyle={diffMarkerStyle}
-      maxWidth={RIGHT_DOCK_MAX_WIDTH}
+      maxWidth={Math.max(
+        RIGHT_DOCK_MIN_WIDTH,
+        window.innerWidth - RIGHT_DOCK_MAIN_MIN_WIDTH,
+      )}
       minWidth={RIGHT_DOCK_MIN_WIDTH}
       reviewView={reviewView}
       plan={rightDockPlan}
@@ -1719,22 +1721,39 @@ export function DesktopLayout(): React.ReactNode {
       sessionId={sessionId}
       sessionStatus={sessionStatus}
       width={rightDockWidth}
+      height={bottomPanelHeight}
+      rightFullWidth={workbenchPanelState.rightFullWidth}
       workspace={currentWorkspace}
       quickChatOnly={isQuickChatPage}
       onAppendBrowserAnnotation={handleBrowserAnnotation}
       onAppendComposerText={handleAppendComposerText}
       onAddComposerFiles={handleAddComposerFiles}
       onBrowserStateChange={setBrowserState}
-      onClose={closeRightDock}
-      onCloseTool={closeRightDockTool}
+      onClose={() => closePanel(target)}
+      onCloseTool={tool => closePanelTool(target, tool)}
       onCreateBranch={handleCreateBranch}
-      onOpenTool={handleRightDockToolSelect}
+      onOpenTool={tool => {
+        if (tool === 'browser') {
+          void desktopClient
+            .openBrowser()
+            .then(setBrowserState)
+            .catch(error =>
+              setErrorMessage(error instanceof Error ? error.message : String(error)),
+            )
+        }
+        openPanelTool(target, tool)
+      }}
       onOpenWorkspacePath={handleOpenWorkspacePath}
       onPreviewFile={file => void previewFile(file)}
       onRefreshReview={handleRefreshDiff}
+      onResetHeight={handleResetBottomPanelHeight}
       onResetWidth={handleResetRightDockWidth}
-      onSelectTool={selectRightDockTool}
+      onSelectTool={tool => selectPanelTool(target, tool)}
+      onMoveTool={movePanelTool}
+      onReorderTool={reorderPanelTool}
+      onSetHeight={handleSetBottomPanelHeight}
       onSetWidth={handleSetRightDockWidth}
+      onToggleRightFullWidth={toggleRightFullWidth}
       onToggleReviewView={() =>
         setReviewView(reviewView === 'inline' ? 'split' : 'inline')
       }
@@ -1742,7 +1761,11 @@ export function DesktopLayout(): React.ReactNode {
       sideChatContent={subagentSideChatContent}
       sideChatFocusVersion={sideChatFocusVersion}
     />
-  ) : null
+    )
+  }
+
+  const rightDockNode = renderWorkbenchPanel('right')
+  const bottomPanelNode = renderWorkbenchPanel('bottom')
 
   return (
     <div className="desktop-frame tw:min-h-0 tw:w-full tw:overflow-hidden tw:bg-app-canvas tw:text-app-text">
@@ -1893,8 +1916,6 @@ export function DesktopLayout(): React.ReactNode {
             rightDockOpen: rightDockState.open,
             rightDockTool: rightDockState.activeTool,
             rightDockPlanContent: rightDockPlan?.content ?? null,
-            rightDockNode,
-            rightDockWidth,
             debugMode: menubarDebugMode,
             }}
           >
@@ -1909,7 +1930,7 @@ export function DesktopLayout(): React.ReactNode {
               }}
             >
               <div
-                className="desktop-workspace tw:relative tw:flex tw:h-full tw:min-h-0 tw:min-w-0 tw:flex-1 tw:overflow-hidden tw:bg-app-canvas"
+                className="desktop-workspace"
                 style={
                   {
                     '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
@@ -1923,20 +1944,52 @@ export function DesktopLayout(): React.ReactNode {
                   bottomPanelVisible={bottomPanelVisible}
                   showBottomPanel={isQuickChatPage || isConversationRoute}
                   onToggleBottomPanel={toggleBottomPanelVisible}
-                  onOpenRightDockTool={handleRightDockToolSelect}
-                  onCloseRightDock={closeRightDock}
+                  onToggleRightPanel={() => togglePanel('right')}
                 />
                 <div
-                  className={
-                    rightDockState.open
-                      ? 'desktop-main-browser-layout tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:overflow-hidden'
-                      : 'desktop-main-browser-layout browser-closed tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:overflow-hidden'
-                  }
+                  className="desktop-workspace__upper"
                 >
-                  <div className="desktop-main-route tw:min-h-0 tw:min-w-0 tw:flex-1 tw:overflow-hidden">
+                  <div
+                    className="desktop-main-route"
+                    style={
+                      {
+                        '--workspace-fixed-controls-width':
+                          rightDockState.open ? '0px' : `${fixedControlsWidth}px`,
+                        flexBasis: workbenchPanelState.rightFullWidth ? 0 : undefined,
+                        width: workbenchPanelState.rightFullWidth ? 0 : undefined,
+                      } as React.CSSProperties
+                    }
+                  >
                     <Outlet />
                   </div>
+                  {rightDockNode ? (
+                    <div
+                      className={
+                        workbenchPanelState.rightFullWidth
+                          ? 'desktop-workspace-panel desktop-workspace-panel--right full-width'
+                          : 'desktop-workspace-panel desktop-workspace-panel--right'
+                      }
+                      style={
+                        {
+                          '--workspace-fixed-controls-width': `${fixedControlsWidth}px`,
+                          width: workbenchPanelState.rightFullWidth
+                            ? '100%'
+                            : `${rightDockWidth}px`,
+                        } as React.CSSProperties
+                      }
+                    >
+                      {rightDockNode}
+                    </div>
+                  ) : null}
                 </div>
+                {bottomPanelNode ? (
+                  <div
+                    className="desktop-workspace-panel desktop-workspace-panel--bottom"
+                    style={{ height: `${bottomPanelHeight}px` }}
+                  >
+                    {bottomPanelNode}
+                  </div>
+                ) : null}
               </div>
             </SearchContext.Provider>
           </QuickChatContext.Provider>

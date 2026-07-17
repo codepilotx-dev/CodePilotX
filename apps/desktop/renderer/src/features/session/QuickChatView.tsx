@@ -12,8 +12,6 @@ export function QuickChatView(): React.ReactNode {
     recentWorkspaces,
     workspaceName,
     workspacePath,
-    rightDockNode,
-    rightDockWidth,
     onChooseWorkspace,
     onCloneGithub,
     onClearWorkspace,
@@ -32,14 +30,7 @@ export function QuickChatView(): React.ReactNode {
   }, [branchName, recentWorkspaces, workspaceName, workspacePath]);
 
   return (
-    <div
-      className="quick-chat-workspace"
-      style={
-        rightDockNode
-          ? ({ '--right-dock-current-w': `${rightDockWidth}px` } as React.CSSProperties)
-          : undefined
-      }
-    >
+    <div className="quick-chat-workspace">
       <div className="quick-chat-view">
         <div className="quick-chat-hero">
           {workspaceName ? (
@@ -93,7 +84,6 @@ export function QuickChatView(): React.ReactNode {
 
         {composer ? <div className="chat-composer">{composer}</div> : null}
       </div>
-      {rightDockNode}
     </div>
   );
 }

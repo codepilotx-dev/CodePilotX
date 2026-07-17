@@ -173,31 +173,38 @@
 
 /* --- Chat session header --- */
 .chat-session-header {
+  min-height: 46px;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex: 0 0 auto;
   gap: var(--space-2);
-  padding: 0.2em 10px;
-  flex-shrink: 0;
+  padding: 0 calc(var(--workspace-fixed-controls-width) + 4px) 0 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-canvas);
+  box-shadow: none;
+  backdrop-filter: none;
   line-height: var(--control-line-height);
 }
 
-.chat-session-header--dock-closed {
-  width: calc(100% - var(--workspace-fixed-controls-width));
-  padding-right: 2px;
-}
-
 .chat-session-title {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  flex: 1 1 auto;
   gap: var(--space-2);
   min-width: 0;
   color: var(--color-text-strong);
   font-size: var(--type-card-title);
   font-weight: var(--font-weight-label);
 
+  .chat-session-title__icon {
+    flex: 0 0 auto;
+    color: var(--color-icon);
+  }
+
   span {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -207,8 +214,9 @@
 .chat-session-actions {
   display: inline-flex;
   align-items: center;
-  flex-shrink: 0;
+  flex: 0 0 auto;
   gap: 5px;
+  white-space: nowrap;
 }
 
 .open-target-split-button {
@@ -254,8 +262,7 @@
   height: 100%;
   width: 100%;
   min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--right-dock-current-w, 0px);
+  display: flex;
   overflow: hidden;
 }
 
