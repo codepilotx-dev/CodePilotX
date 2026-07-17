@@ -15,37 +15,62 @@ describe('fixed Codex UI themes', () => {
     const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
 
     expect(DEFAULT_LIGHT_THEME.codeThemeId).toBe('codex-light')
-    expect(light['--surface-underlay']).toBe('#f9f9f9')
+    expect(light['--surface-underlay']).toBe('#f6f6f6')
     expect(light['--surface-canvas']).toBe('#ffffff')
     expect(light['--color-text']).toBe('#1a1c1f')
-    expect(light['--color-text-meta']).toBe('#5f6062')
-    expect(light['--color-text-soft']).toBe('#8d8e8f')
-    expect(light['--border-subtle']).toBe(
-      'color-mix(in srgb, #1a1c1f 5%, transparent)',
-    )
-    expect(light['--border-control']).toBe(
-      'color-mix(in srgb, #1a1c1f 8%, transparent)',
-    )
-    expect(light['--border-strong']).toBe(
-      'color-mix(in srgb, #1a1c1f 12%, transparent)',
-    )
+    expect(light['--color-text-meta']).toBe('rgba(26, 28, 31, 0.695)')
+    expect(light['--color-text-soft']).toBe('rgba(26, 28, 31, 0.495)')
+    expect(light['--border-subtle']).toBe('rgba(26, 28, 31, 0.049)')
+    expect(light['--border-control']).toBe('rgba(26, 28, 31, 0.078)')
+    expect(light['--border-strong']).toBe('rgba(26, 28, 31, 0.117)')
 
     expect(DEFAULT_DARK_THEME.codeThemeId).toBe('codex-dark')
-    expect(dark['--surface-underlay']).toBe('#000000')
+    expect(dark['--surface-underlay']).toBe('#141414')
     expect(dark['--surface-canvas']).toBe('#181818')
     expect(dark['--color-text']).toBe('#ffffff')
-    expect(dark['--color-text-meta']).toBe('#bababa')
-    expect(dark['--color-text-soft']).toBe('#8c8c8c')
+    expect(dark['--surface-panel']).toBe('#232323')
+    expect(dark['--color-text-meta']).toBe(
+      'rgba(255, 255, 255, 0.71)',
+    )
+    expect(dark['--color-text-soft']).toBe(
+      'rgba(255, 255, 255, 0.498)',
+    )
     expect(dark['--border-subtle']).toBe(
-      'color-mix(in srgb, #ffffff 4%, transparent)',
+      'rgba(255, 255, 255, 0.042)',
     )
     expect(dark['--border-control']).toBe(
-      'color-mix(in srgb, #ffffff 8%, transparent)',
+      'rgba(255, 255, 255, 0.084)',
     )
     expect(dark['--border-strong']).toBe(
-      'color-mix(in srgb, #ffffff 16%, transparent)',
+      'rgba(255, 255, 255, 0.156)',
     )
     expect(dark['--color-accent-a3']).toBe('#339cffb3')
+  })
+
+  test('uses the recovered Codex runtime formulas for Dracula', () => {
+    const variables = deriveThemeVariables({
+      codeThemeId: 'dracula',
+      variant: 'dark',
+      theme: {
+        ...DEFAULT_DARK_THEME.theme,
+        accent: '#ff79c6',
+        surface: '#282a36',
+        ink: '#f8f8f2',
+        semanticColors: {
+          diffAdded: '#50fa7b',
+          diffRemoved: '#ff5555',
+          skill: '#ff79c6',
+        },
+      },
+    })
+
+    expect(variables['--surface-canvas']).toBe('#282a36')
+    expect(variables['--surface-chrome']).toBe('#22232d')
+    expect(variables['--surface-panel']).toBe('#32343f')
+    expect(variables['--surface-composer']).toBe('#373843')
+    expect(variables['--surface-code-block']).toBe('rgb(55, 56, 67)')
+    expect(variables['--color-text-accent']).toBe('rgb(255, 173, 220)')
+    expect(variables['--color-decoration-added']).toBe('#50fa7b')
   })
 
   test('migrates legacy settings without retaining old theme data', () => {
@@ -61,18 +86,19 @@ describe('fixed Codex UI themes', () => {
       fontSizes: { ui: 17, code: 15 },
     })
 
-    expect(migrated).toEqual({
-      version: 2,
+    expect(migrated).toMatchObject({
+      version: 3,
       mode: 'dark',
       codeThemeIds: {
-        light: 'auto',
-        dark: 'auto',
+        light: 'codex-light',
+        dark: 'dracula',
       },
       reduceMotion: 'on',
-      glassmorphismEnabled: false,
       pointerCursorEnabled: false,
-      fontSizes: { ui: 17, code: 15 },
+      fontSizes: { ui: 16, code: 15 },
     })
+    expect(migrated.chromeThemes.light.opaqueWindows).toBeTrue()
+    expect(migrated.chromeThemes.dark.opaqueWindows).toBeTrue()
   })
 
   test('keeps separate light and dark selections and rejects mismatches', () => {
@@ -80,12 +106,12 @@ describe('fixed Codex UI themes', () => {
       normalizeDesktopThemeSettings({
         ...DEFAULT_DESKTOP_THEME_SETTINGS,
         codeThemeIds: {
-          light: 'github-light',
+          light: 'github-light-default',
           dark: 'dracula',
         },
       }).codeThemeIds,
     ).toEqual({
-      light: 'github-light',
+      light: 'github-light-default',
       dark: 'dracula',
     })
     expect(
@@ -97,8 +123,8 @@ describe('fixed Codex UI themes', () => {
         },
       }).codeThemeIds,
     ).toEqual({
-      light: 'auto',
-      dark: 'auto',
+      light: 'codex-light',
+      dark: 'codex-dark',
     })
   })
 
@@ -110,7 +136,7 @@ describe('fixed Codex UI themes', () => {
         codeThemeId: 'dracula',
       }).codeThemeIds,
     ).toEqual({
-      light: 'auto',
+      light: 'codex-light',
       dark: 'dracula',
     })
   })

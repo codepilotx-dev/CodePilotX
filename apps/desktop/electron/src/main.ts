@@ -2,9 +2,19 @@ import { randomBytes } from "node:crypto"
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { app, BrowserWindow, dialog, ipcMain, session, shell, type OpenDialogOptions } from "electron"
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  nativeTheme,
+  session,
+  shell,
+  type OpenDialogOptions,
+} from "electron"
 import { resolveBunExecutable } from "./sidecar-command.js"
 import { createDesktopLogger, type DesktopLogger } from "./desktop-logger.js"
+import { AppearanceSettingsStore } from "./appearance-settings-store.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const READY_TIMEOUT_MS = 20_000
@@ -217,6 +227,7 @@ let quitting = false
 let allowedApplicationOrigin: string | undefined
 let connectionStatus: ConnectionStatus = { state: "unknown", phase: "starting", attempt: 0 }
 let connectionTask: Promise<void> | undefined
+let appearanceSettingsStore: AppearanceSettingsStore | undefined
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
 if (!hasSingleInstanceLock) {
@@ -237,7 +248,9 @@ if (!hasSingleInstanceLock) {
 }
 
 async function startDesktop(): Promise<void> {
+  appearanceSettingsStore = new AppearanceSettingsStore(app.getPath("userData"))
   registerWindowIpc()
+  registerAppearanceIpc()
   logger = createDesktopLogger(resolve(process.env.CODEPILOTX_LOG_DIR ?? join(app.getPath("logs"), "codepilotx")))
   logger.info("desktop.starting", { version: app.getVersion(), packaged: app.isPackaged, pid: process.pid })
   createStartupWindow()
@@ -433,6 +446,56 @@ function registerWindowIpc(): void {
       : await dialog.showOpenDialog(options)
     return result.canceled ? null : (result.filePaths[0] ?? null)
   })
+}
+
+function registerAppearanceIpc(): void {
+  const settingsStore = appearanceSettingsStore
+  if (!settingsStore) throw new Error("外观设置存储尚未初始化")
+
+  ipcMain.handle("appearance:settings:get", () => settingsStore.load())
+  ipcMain.handle("appearance:settings:save", async (_event, settings: unknown) => {
+    await settingsStore.save(settings)
+  })
+  ipcMain.handle("appearance:system-theme:get", () => systemThemeVariant())
+  ipcMain.handle("appearance:backdrop:get-capability", () => ({
+    supported: supportsWindowBackdrop(),
+    platform: process.platform,
+  }))
+  ipcMain.handle("appearance:backdrop:apply", (_event, enabled: unknown) => {
+    if (typeof enabled !== "boolean") throw new Error("窗口背景材质参数无效")
+    return applyWindowBackdrop(enabled)
+  })
+
+  nativeTheme.on("updated", broadcastSystemTheme)
+  app.once("will-quit", () => nativeTheme.removeListener("updated", broadcastSystemTheme))
+}
+
+function systemThemeVariant(): "light" | "dark" {
+  return nativeTheme.shouldUseDarkColors ? "dark" : "light"
+}
+
+function broadcastSystemTheme(): void {
+  const variant = systemThemeVariant()
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) window.webContents.send("appearance:system-theme:changed", variant)
+  }
+}
+
+function supportsWindowBackdrop(): boolean {
+  return process.platform === "win32"
+    && Boolean(mainWindow)
+    && typeof mainWindow?.setBackgroundMaterial === "function"
+}
+
+function applyWindowBackdrop(enabled: boolean): boolean {
+  if (!mainWindow || mainWindow.isDestroyed() || !supportsWindowBackdrop()) return false
+  try {
+    mainWindow.setBackgroundMaterial(enabled ? "acrylic" : "none")
+    return true
+  } catch (error) {
+    logger?.warn("desktop.window-backdrop-failed", { enabled, error: formatError(error) })
+    return false
+  }
 }
 
 async function configureAuthCookie(origin: string, token: string): Promise<void> {

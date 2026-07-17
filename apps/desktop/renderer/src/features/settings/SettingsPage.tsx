@@ -27,7 +27,9 @@ export function SettingsPage({
   onNotice,
 }: Props): React.ReactNode {
   if (activeTab === 'general') return <GeneralSettings onNotice={onNotice} />
-  if (activeTab === 'appearance') return <AppearanceSettings />
+  if (activeTab === 'appearance') {
+    return <AppearanceSettings onError={onError} onNotice={onNotice} />
+  }
   if (activeTab === 'config') return <ConfigSettings />
   if (activeTab === 'connections') return <ModelConnectionSettings onError={onError} />
   if (activeTab === 'mcp') return <McpSettings />

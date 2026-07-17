@@ -41,7 +41,10 @@ import type {
   ThreadSettingsPatch,
   ThreadSnapshot,
 } from '@codepilotx/shared/thread'
-import { normalizeDesktopThemeSettings } from '../../shared/theme.js'
+import {
+  DEFAULT_DESKTOP_THEME_SETTINGS,
+  normalizeDesktopThemeSettings,
+} from '../../shared/theme.js'
 import { desktopUserMessageInputToPreviewText } from '../../shared/desktopUserMessage.js'
 import type {
   CreateDesktopSessionOptions,
@@ -90,11 +93,24 @@ export const DESKTOP_BROWSER_DEBUG_MODE_EVENT =
   'desktop-browser-debug-mode-change'
 
 const DEFAULT_BROWSER_DEBUG_PORT = 53271
+const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY =
+  'codepilotx.desktop.appearance.v3'
 
 type DesktopClientWindow = {
   desktopApi?: DesktopApi
   codePilotXDesktop?: {
     pickWorkspaceDirectory(): Promise<string | null>
+    getAppearanceSettings?(): Promise<unknown>
+    saveAppearanceSettings?(settings: unknown): Promise<unknown>
+    getSystemTheme?(): Promise<'light' | 'dark'>
+    onSystemThemeChange?(
+      listener: (theme: 'light' | 'dark') => void,
+    ): () => void
+    getWindowBackdropCapability?(): Promise<{
+      supported: boolean
+      platform: string
+    }>
+    applyWindowBackdrop?(enabled: boolean): Promise<boolean>
   }
   addEventListener?: Window['addEventListener']
   removeEventListener?: Window['removeEventListener']
@@ -727,6 +743,24 @@ function createAgentSessionDesktopClient(
         },
         () => mockClient.getDesktopSettings(),
       ),
+    getThemeSettings: () => {
+      const getter =
+        environment.window?.codePilotXDesktop?.getAppearanceSettings
+      return getter
+        ? getter().then(normalizeDesktopThemeSettings)
+        : mockClient.getThemeSettings()
+    },
+    saveThemeSettings: async settings => {
+      const normalized = normalizeDesktopThemeSettings(settings)
+      const saver =
+        environment.window?.codePilotXDesktop?.saveAppearanceSettings
+      if (saver) {
+        await saver(normalized)
+        await mockClient.saveThemeSettings(normalized)
+        return
+      }
+      await mockClient.saveThemeSettings(normalized)
+    },
     saveDesktopSettings: settings =>
       withAgentOrMock(
         async () => {
@@ -1490,7 +1524,7 @@ function createSwitchingBrowserDesktopClient(
       debugClient ??= createBrowserDebugDesktopClient(environment)
       return debugClient
     }
-    mockClient ??= createBrowserMockDesktopClient()
+    mockClient ??= createBrowserMockDesktopClient(environment.localStorage)
     return mockClient
   }
 
@@ -1542,14 +1576,14 @@ function subscribeWithModeSwitch(
 }
 
 function createBrowserDebugDesktopClient(
-  _environment: DesktopClientEnvironment,
+  environment: DesktopClientEnvironment,
 ): DesktopApi {
-  return createBrowserMockDesktopClient()
+  return createBrowserMockDesktopClient(environment.localStorage)
 }
 
-function createBrowserMockDesktopClient(): DesktopApi {
+function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
-  let themeSettings: DesktopThemeSettings = defaultMockThemeSettings()
+  let themeSettings: DesktopThemeSettings = readBrowserThemeSettings(storage)
   let browserState: DesktopBrowserState = emptyBrowserState()
   const sessions = new Map<string, DesktopSessionSnapshot>()
   let activeSessionId: string | null = null
@@ -1873,6 +1907,14 @@ function createBrowserMockDesktopClient(): DesktopApi {
     getThemeSettings: async () => themeSettings,
     saveThemeSettings: async next => {
       themeSettings = normalizeDesktopThemeSettings(next)
+      try {
+        storage?.setItem(
+          BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY,
+          JSON.stringify(themeSettings),
+        )
+      } catch {
+        // Browser preview persistence is best-effort.
+      }
     },
     createSession: async options => {
       const workspace = options.workspacePath
@@ -2210,20 +2252,17 @@ function emptyBrowserState(): DesktopBrowserState {
 }
 
 function defaultMockThemeSettings(): DesktopThemeSettings {
-  return {
-    version: 2,
-    mode: 'system',
-    codeThemeIds: {
-      light: 'auto',
-      dark: 'auto',
-    },
-    glassmorphismEnabled: true,
-    pointerCursorEnabled: true,
-    reduceMotion: 'system',
-    fontSizes: {
-      code: 12,
-      ui: 14,
-    },
+  return normalizeDesktopThemeSettings(DEFAULT_DESKTOP_THEME_SETTINGS)
+}
+
+function readBrowserThemeSettings(storage?: Storage): DesktopThemeSettings {
+  try {
+    const value = storage?.getItem(BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY)
+    return value
+      ? normalizeDesktopThemeSettings(JSON.parse(value))
+      : defaultMockThemeSettings()
+  } catch {
+    return defaultMockThemeSettings()
   }
 }
 

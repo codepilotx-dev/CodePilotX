@@ -1,6 +1,13 @@
 import { contextBridge, ipcRenderer } from "electron"
+import type { DesktopThemeSettingsV3 } from "./appearance-settings-store.js"
 
 type AgentConnectionState = "connected" | "disconnected" | "unknown"
+type SystemThemeVariant = "light" | "dark"
+
+interface WindowBackdropCapability {
+  supported: boolean
+  platform: NodeJS.Platform
+}
 
 const desktop = {
   minimize: (): Promise<void> => ipcRenderer.invoke("window:minimize"),
@@ -26,6 +33,23 @@ const desktop = {
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke("shell:open-external", url),
   openLogDirectory: (): Promise<string> => ipcRenderer.invoke("startup:open-logs"),
   quitDuringStartup: (): Promise<void> => ipcRenderer.invoke("startup:quit"),
+  getAppearanceSettings: (): Promise<DesktopThemeSettingsV3> =>
+    ipcRenderer.invoke("appearance:settings:get"),
+  saveAppearanceSettings: (settings: DesktopThemeSettingsV3): Promise<void> =>
+    ipcRenderer.invoke("appearance:settings:save", settings),
+  getSystemTheme: (): Promise<SystemThemeVariant> =>
+    ipcRenderer.invoke("appearance:system-theme:get"),
+  onSystemThemeChange: (listener: (variant: SystemThemeVariant) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, variant: unknown) => {
+      if (variant === "light" || variant === "dark") listener(variant)
+    }
+    ipcRenderer.on("appearance:system-theme:changed", handler)
+    return () => ipcRenderer.removeListener("appearance:system-theme:changed", handler)
+  },
+  getWindowBackdropCapability: (): Promise<WindowBackdropCapability> =>
+    ipcRenderer.invoke("appearance:backdrop:get-capability"),
+  applyWindowBackdrop: (enabled: boolean): Promise<boolean> =>
+    ipcRenderer.invoke("appearance:backdrop:apply", enabled),
 }
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)

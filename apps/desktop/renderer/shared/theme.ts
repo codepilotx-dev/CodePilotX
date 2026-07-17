@@ -1,78 +1,76 @@
 import type {
+  DesktopChromeTheme,
   DesktopThemeConfigV1,
-  DesktopThemeFontEntry,
   DesktopThemeSettings,
   DesktopThemeVariant,
 } from './types.js'
 import {
   CODEX_HIGHLIGHT_THEMES,
+  type CodexHighlightThemeSlug,
   isCodexHighlightThemeSlug,
 } from './codexThemes/manifest.js'
 
 export const DEFAULT_LIGHT_THEME_ID = 'light-codex'
 export const DEFAULT_DARK_THEME_ID = 'dark-codex'
+export const DEFAULT_UI_FONT =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+export const DEFAULT_CODE_FONT =
+  '"JetBrains Mono", "SFMono-Regular", Consolas, monospace'
 
-export const DEFAULT_UI_FONT: DesktopThemeFontEntry = {
-  preset: '-apple-system',
-  fallback: 'BlinkMacSystemFont, "Segoe UI", sans-serif',
+export const DEFAULT_LIGHT_CHROME_THEME: DesktopChromeTheme = {
+  accent: '#339cff',
+  contrast: 45,
+  fonts: { code: null, ui: null },
+  ink: '#1a1c1f',
+  opaqueWindows: false,
+  semanticColors: {
+    diffAdded: '#00a240',
+    diffRemoved: '#ba2623',
+    skill: '#924ff7',
+  },
+  surface: '#ffffff',
 }
 
-export const DEFAULT_CODE_FONT: DesktopThemeFontEntry = {
-  preset: 'JetBrains Mono',
-  fallback: 'Consolas, monospace',
-}
-
-const DEFAULT_FONTS: DesktopThemeConfigV1['theme']['fonts'] = {
-  ui: DEFAULT_UI_FONT,
-  code: DEFAULT_CODE_FONT,
+export const DEFAULT_DARK_CHROME_THEME: DesktopChromeTheme = {
+  accent: '#339cff',
+  contrast: 60,
+  fonts: { code: null, ui: null },
+  ink: '#ffffff',
+  opaqueWindows: false,
+  semanticColors: {
+    diffAdded: '#40c977',
+    diffRemoved: '#fa423e',
+    skill: '#ad7bf9',
+  },
+  surface: '#181818',
 }
 
 export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 = {
   codeThemeId: 'codex-light',
-  theme: {
-    accent: '#339cff',
-    contrast: 40,
-    fonts: DEFAULT_FONTS,
-    ink: '#1a1c1f',
-    opaqueWindows: true,
-    semanticColors: {
-      diffAdded: '#00a240',
-      diffRemoved: '#e02e2a',
-      skill: '#924ff7',
-    },
-    surface: '#ffffff',
-  },
+  theme: DEFAULT_LIGHT_CHROME_THEME,
   variant: 'light',
 }
 
 export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
   codeThemeId: 'codex-dark',
-  theme: {
-    accent: '#339cff',
-    contrast: 40,
-    fonts: DEFAULT_FONTS,
-    ink: '#ffffff',
-    opaqueWindows: true,
-    semanticColors: {
-      diffAdded: '#00a240',
-      diffRemoved: '#e02e2a',
-      skill: '#ad7bf9',
-    },
-    surface: '#181818',
-  },
+  theme: DEFAULT_DARK_CHROME_THEME,
   variant: 'dark',
 }
 
 export const DEFAULT_DESKTOP_THEME_SETTINGS: DesktopThemeSettings = {
-  version: 2,
+  version: 3,
   mode: 'system',
-  codeThemeIds: {
-    light: 'auto',
-    dark: 'auto',
+  chromeThemes: {
+    light: DEFAULT_LIGHT_CHROME_THEME,
+    dark: DEFAULT_DARK_CHROME_THEME,
   },
-  glassmorphismEnabled: true,
-  pointerCursorEnabled: true,
+  codeThemeIds: {
+    light: 'codex-light',
+    dark: 'codex-dark',
+  },
+  pointerCursorEnabled: false,
   reduceMotion: 'system',
+  fontSmoothingEnabled: true,
   fontSizes: {
     code: 12,
     ui: 14,
@@ -80,10 +78,14 @@ export const DEFAULT_DESKTOP_THEME_SETTINGS: DesktopThemeSettings = {
 }
 
 export function getDesktopThemeForSelection(
-  _settings: DesktopThemeSettings,
+  settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,
 ): DesktopThemeConfigV1 {
-  return variant === 'dark' ? DEFAULT_DARK_THEME : DEFAULT_LIGHT_THEME
+  return {
+    codeThemeId: settings.codeThemeIds[variant],
+    theme: settings.chromeThemes[variant],
+    variant,
+  }
 }
 
 export function getDesktopThemeIdForVariant(
@@ -96,83 +98,143 @@ export function getDesktopThemeIdForVariant(
 export function getCodeThemeSelectionForVariant(
   settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,
-): DesktopThemeSettings['codeThemeIds'][DesktopThemeVariant] {
+): CodexHighlightThemeSlug {
   return settings.codeThemeIds[variant]
 }
 
 export function normalizeDesktopThemeSettings(
   value: unknown,
 ): DesktopThemeSettings {
-  if (!isRecord(value)) return { ...DEFAULT_DESKTOP_THEME_SETTINGS }
+  const record = isRecord(value) ? value : {}
+  const legacyGlass =
+    typeof record.glassmorphismEnabled === 'boolean'
+      ? record.glassmorphismEnabled
+      : undefined
+  const chromeThemes = isRecord(record.chromeThemes)
+    ? record.chromeThemes
+    : {}
 
-  const isVersion2 = value.version === 2
   return {
-    version: 2,
-    mode:
-      value.mode === 'light' ||
-      value.mode === 'dark' ||
-      value.mode === 'system'
-        ? value.mode
-        : DEFAULT_DESKTOP_THEME_SETTINGS.mode,
-    codeThemeIds: normalizeCodeThemeIds(value, isVersion2),
-    glassmorphismEnabled:
-      typeof value.glassmorphismEnabled === 'boolean'
-        ? value.glassmorphismEnabled
-        : DEFAULT_DESKTOP_THEME_SETTINGS.glassmorphismEnabled,
+    version: 3,
+    mode: normalizeMode(record.mode),
+    chromeThemes: {
+      light: normalizeChromeTheme(
+        chromeThemes.light,
+        DEFAULT_LIGHT_CHROME_THEME,
+        legacyGlass,
+      ),
+      dark: normalizeChromeTheme(
+        chromeThemes.dark,
+        DEFAULT_DARK_CHROME_THEME,
+        legacyGlass,
+      ),
+    },
+    codeThemeIds: normalizeCodeThemeIds(record),
     pointerCursorEnabled:
-      typeof value.pointerCursorEnabled === 'boolean'
-        ? value.pointerCursorEnabled
+      typeof record.pointerCursorEnabled === 'boolean'
+        ? record.pointerCursorEnabled
         : DEFAULT_DESKTOP_THEME_SETTINGS.pointerCursorEnabled,
-    reduceMotion:
-      value.reduceMotion === 'on' ||
-      value.reduceMotion === 'off' ||
-      value.reduceMotion === 'system'
-        ? value.reduceMotion
-        : DEFAULT_DESKTOP_THEME_SETTINGS.reduceMotion,
-    fontSizes: normalizeFontSizes(value.fontSizes),
+    reduceMotion: normalizeReducedMotion(record.reduceMotion),
+    fontSmoothingEnabled:
+      typeof record.fontSmoothingEnabled === 'boolean'
+        ? record.fontSmoothingEnabled
+        : DEFAULT_DESKTOP_THEME_SETTINGS.fontSmoothingEnabled,
+    fontSizes: normalizeFontSizes(record.fontSizes),
+  }
+}
+
+function normalizeMode(value: unknown): DesktopThemeSettings['mode'] {
+  return value === 'light' || value === 'dark' || value === 'system'
+    ? value
+    : DEFAULT_DESKTOP_THEME_SETTINGS.mode
+}
+
+function normalizeReducedMotion(
+  value: unknown,
+): DesktopThemeSettings['reduceMotion'] {
+  return value === 'on' || value === 'off' || value === 'system'
+    ? value
+    : DEFAULT_DESKTOP_THEME_SETTINGS.reduceMotion
+}
+
+function normalizeChromeTheme(
+  value: unknown,
+  fallback: DesktopChromeTheme,
+  legacyGlass: boolean | undefined,
+): DesktopChromeTheme {
+  const record = isRecord(value) ? value : {}
+  const fonts = isRecord(record.fonts) ? record.fonts : {}
+  const semanticColors = isRecord(record.semanticColors)
+    ? record.semanticColors
+    : {}
+  return {
+    accent: normalizeHex(record.accent, fallback.accent),
+    contrast: clampNumber(record.contrast, 0, 100, fallback.contrast),
+    fonts: {
+      code: normalizeOptionalFont(fonts.code),
+      ui: normalizeOptionalFont(fonts.ui),
+    },
+    ink: normalizeHex(record.ink, fallback.ink),
+    opaqueWindows:
+      typeof record.opaqueWindows === 'boolean'
+        ? record.opaqueWindows
+        : legacyGlass === undefined
+          ? fallback.opaqueWindows
+          : !legacyGlass,
+    semanticColors: {
+      diffAdded: normalizeHex(
+        semanticColors.diffAdded,
+        fallback.semanticColors.diffAdded,
+      ),
+      diffRemoved: normalizeHex(
+        semanticColors.diffRemoved,
+        fallback.semanticColors.diffRemoved,
+      ),
+      skill: normalizeHex(
+        semanticColors.skill,
+        fallback.semanticColors.skill,
+      ),
+    },
+    surface: normalizeHex(record.surface, fallback.surface),
   }
 }
 
 function normalizeCodeThemeIds(
   value: Record<string, unknown>,
-  isVersion2: boolean,
 ): DesktopThemeSettings['codeThemeIds'] {
   const selections = isRecord(value.codeThemeIds) ? value.codeThemeIds : {}
-  const normalized = {
-    light: normalizeCodeThemeIdForVariant(selections.light, 'light'),
-    dark: normalizeCodeThemeIdForVariant(selections.dark, 'dark'),
-  } satisfies DesktopThemeSettings['codeThemeIds']
+  const legacyTheme = isCodexHighlightThemeSlug(value.codeThemeId)
+    ? CODEX_HIGHLIGHT_THEMES.find(theme => theme.slug === value.codeThemeId)
+    : undefined
 
-  if (
-    normalized.light !== 'auto' ||
-    normalized.dark !== 'auto' ||
-    !isVersion2 ||
-    !isCodexHighlightThemeSlug(value.codeThemeId)
-  ) {
-    return normalized
-  }
-
-  const legacyTheme = CODEX_HIGHLIGHT_THEMES.find(
-    theme => theme.slug === value.codeThemeId,
-  )
-  if (!legacyTheme) return normalized
   return {
-    ...normalized,
-    [legacyTheme.variant]: legacyTheme.slug,
+    light: normalizeCodeThemeIdForVariant(
+      selections.light ??
+        (legacyTheme?.variant === 'light' ? legacyTheme.slug : undefined),
+      'light',
+    ),
+    dark: normalizeCodeThemeIdForVariant(
+      selections.dark ??
+        (legacyTheme?.variant === 'dark' ? legacyTheme.slug : undefined),
+      'dark',
+    ),
   }
 }
 
 function normalizeCodeThemeIdForVariant(
   value: unknown,
   variant: DesktopThemeVariant,
-): DesktopThemeSettings['codeThemeIds'][DesktopThemeVariant] {
-  if (value === 'auto') return 'auto'
-  if (!isCodexHighlightThemeSlug(value)) return 'auto'
+): CodexHighlightThemeSlug {
+  if (value === 'auto' || !isCodexHighlightThemeSlug(value)) {
+    return variant === 'light' ? 'codex-light' : 'codex-dark'
+  }
   return CODEX_HIGHLIGHT_THEMES.some(
     theme => theme.slug === value && theme.variant === variant,
   )
     ? value
-    : 'auto'
+    : variant === 'light'
+      ? 'codex-light'
+      : 'codex-dark'
 }
 
 function normalizeFontSizes(
@@ -182,17 +244,32 @@ function normalizeFontSizes(
   return {
     code: clampNumber(
       record.code,
-      10,
-      20,
+      8,
+      24,
       DEFAULT_DESKTOP_THEME_SETTINGS.fontSizes.code,
     ),
     ui: clampNumber(
       record.ui,
       11,
-      20,
+      16,
       DEFAULT_DESKTOP_THEME_SETTINGS.fontSizes.ui,
     ),
   }
+}
+
+function normalizeHex(
+  value: unknown,
+  fallback: `#${string}`,
+): `#${string}` {
+  return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
+    ? (value.toLowerCase() as `#${string}`)
+    : fallback
+}
+
+function normalizeOptionalFont(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed ? trimmed.slice(0, 512) : null
 }
 
 function clampNumber(

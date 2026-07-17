@@ -79,6 +79,41 @@ function sessionSnapshot(overrides: Partial<ThreadSnapshot['thread']> = {}): Thr
 }
 
 describe('desktop history client', () => {
+  test('persists appearance settings through the minimal Electron bridge', async () => {
+    let stored: unknown = {
+      version: 2,
+      mode: 'dark',
+      codeThemeIds: { light: 'auto', dark: 'dracula' },
+      glassmorphismEnabled: false,
+      pointerCursorEnabled: true,
+      reduceMotion: 'on',
+      fontSizes: { ui: 15, code: 13 },
+    }
+    const client = createDesktopClient({
+      window: {
+        codePilotXDesktop: {
+          pickWorkspaceDirectory: async () => null,
+          getAppearanceSettings: async () => stored,
+          saveAppearanceSettings: async settings => {
+            stored = settings
+            return settings
+          },
+        },
+      },
+    })
+
+    const loaded = await client.getThemeSettings()
+    expect(loaded).toMatchObject({
+      version: 3,
+      mode: 'dark',
+      codeThemeIds: { light: 'codex-light', dark: 'dracula' },
+    })
+    expect(loaded.chromeThemes.light.opaqueWindows).toBeTrue()
+
+    await client.saveThemeSettings({ ...loaded, mode: 'light' })
+    expect(stored).toMatchObject({ version: 3, mode: 'light' })
+  })
+
   test('uses agent fetch for list, create, get, message, rename, archive, and delete', async () => {
     const requests: Array<{ path: string; method: string; body: unknown }> = []
     let currentItem = sessionItem()

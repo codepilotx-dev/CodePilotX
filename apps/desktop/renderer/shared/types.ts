@@ -831,49 +831,44 @@ export type DesktopThemeMode = 'light' | 'dark' | 'system'
 
 export type DesktopThemeVariant = 'light' | 'dark'
 
-export type DesktopThemeFontEntry = {
-  preset: string
-  fallback: string
+export type DesktopChromeTheme = {
+  accent: `#${string}`
+  contrast: number
+  fonts: {
+    code: string | null
+    ui: string | null
+  }
+  ink: `#${string}`
+  opaqueWindows: boolean
+  semanticColors: {
+    diffAdded: `#${string}`
+    diffRemoved: `#${string}`
+    skill: `#${string}`
+  }
+  surface: `#${string}`
 }
 
 export type DesktopThemeConfigV1 = {
   codeThemeId: string
-  theme: {
-    accent: string
-    contrast: number
-    fonts: {
-      code: DesktopThemeFontEntry
-      ui: DesktopThemeFontEntry
-    }
-    ink: string
-    opaqueWindows: boolean
-    semanticColors: {
-      diffAdded: string
-      diffRemoved: string
-      skill: string
-    }
-    surface: string
-  }
+  theme: DesktopChromeTheme
   variant: DesktopThemeVariant
 }
 
-export type DesktopThemeSettingsV2 = {
-  version: 2
+export type DesktopThemeSettingsV3 = {
+  version: 3
   mode: DesktopThemeMode
-  codeThemeIds: Record<
-    DesktopThemeVariant,
-    'auto' | CodexHighlightThemeSlug
-  >
-  glassmorphismEnabled: boolean
+  chromeThemes: Record<DesktopThemeVariant, DesktopChromeTheme>
+  codeThemeIds: Record<DesktopThemeVariant, CodexHighlightThemeSlug>
   pointerCursorEnabled: boolean
   reduceMotion: 'system' | 'on' | 'off'
+  fontSmoothingEnabled: boolean
   fontSizes: {
     code: number
     ui: number
   }
 }
 
-export type DesktopThemeSettings = DesktopThemeSettingsV2
+export type DesktopThemeSettings = DesktopThemeSettingsV3
 
 export type DesktopPermissionRememberOptionId = 'session' | 'persistentPrefix'
 

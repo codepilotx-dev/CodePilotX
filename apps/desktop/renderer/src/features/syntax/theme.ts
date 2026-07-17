@@ -18,8 +18,14 @@ export const DEFAULT_CODEX_SYNTAX_THEMES: Readonly<
 export { CODEX_HIGHLIGHT_THEMES }
 export type { CodexHighlightThemeSlug }
 
+const THEME_LABEL_COLLATOR = new Intl.Collator()
+
 export function getThemesForVariant(variant: SyntaxThemeVariant) {
-  return CODEX_HIGHLIGHT_THEMES.filter(theme => theme.variant === variant)
+  return CODEX_HIGHLIGHT_THEMES.filter(
+    theme => theme.variant === variant,
+  ).toSorted((left, right) =>
+    THEME_LABEL_COLLATOR.compare(left.label, right.label),
+  )
 }
 
 export function isThemeCompatibleWithVariant(

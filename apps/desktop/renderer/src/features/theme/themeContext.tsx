@@ -29,12 +29,11 @@ type DesktopThemeContextValue = {
   resolvedVariant: DesktopThemeVariant
   activeTheme: DesktopThemeConfigV1
   codeThemeId: string
+  backdropSupported: boolean
   draft: DesktopThemeDraft
   setMode: (mode: DesktopThemeMode) => Promise<void>
   saveSettings: (settings: DesktopThemeSettings) => Promise<void>
 }
-
-const DesktopThemeContext = createContext<DesktopThemeContextValue | null>(null)
 
 type DesktopThemeDraft = {
   settings: DesktopThemeSettings
@@ -47,6 +46,8 @@ type DesktopThemeDraft = {
   reset: () => void
   autoSave: () => void
 }
+
+const DesktopThemeContext = createContext<DesktopThemeContextValue | null>(null)
 
 const SETTINGS_THEME_VARIABLES = [
   '--font-family-sans',
@@ -64,6 +65,8 @@ const SETTINGS_THEME_VARIABLES = [
   '--font-size-20',
   '--font-size-24',
   '--font-size-26',
+  '--vscode-font-size',
+  '--vscode-editor-font-size',
 ]
 
 export function DesktopThemeProvider({
@@ -79,7 +82,12 @@ export function DesktopThemeProvider({
   )
   const draftSettingsRef = useRef(draftSettings)
   draftSettingsRef.current = draftSettings
+  const committedSettingsRef = useRef(settings)
+  committedSettingsRef.current = settings
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const pendingSavesRef = useRef(0)
   const [draftSaving, setDraftSaving] = useState(false)
+  const [backdropSupported, setBackdropSupported] = useState(false)
   const [systemVariant, setSystemVariant] =
     useState<DesktopThemeVariant>(getSystemThemeVariant)
   const [systemReduceMotion, setSystemReduceMotion] = useState(
@@ -91,17 +99,16 @@ export function DesktopThemeProvider({
     void desktopClient
       .getThemeSettings()
       .then(next => {
-        if (mounted) {
-          const normalized = normalizeDesktopThemeSettings(next)
-          setSettings(normalized)
-          setDraftSettings(normalized)
-        }
+        if (!mounted) return
+        const normalized = normalizeDesktopThemeSettings(next)
+        committedSettingsRef.current = normalized
+        setSettings(normalized)
+        setDraftSettings(normalized)
       })
       .catch(() => {
-        if (mounted) {
-          setSettings(DEFAULT_DESKTOP_THEME_SETTINGS)
-          setDraftSettings(DEFAULT_DESKTOP_THEME_SETTINGS)
-        }
+        if (!mounted) return
+        setSettings(DEFAULT_DESKTOP_THEME_SETTINGS)
+        setDraftSettings(DEFAULT_DESKTOP_THEME_SETTINGS)
       })
     return () => {
       mounted = false
@@ -109,6 +116,19 @@ export function DesktopThemeProvider({
   }, [])
 
   useEffect(() => {
+    const bridge = window.codePilotXDesktop
+    let cancelled = false
+    if (bridge?.getSystemTheme && bridge.onSystemThemeChange) {
+      void bridge.getSystemTheme().then(theme => {
+        if (!cancelled) setSystemVariant(theme)
+      })
+      const unsubscribe = bridge.onSystemThemeChange(setSystemVariant)
+      return () => {
+        cancelled = true
+        unsubscribe()
+      }
+    }
+
     const query = window.matchMedia('(prefers-color-scheme: dark)')
     const handleChange = (): void => {
       setSystemVariant(query.matches ? 'dark' : 'light')
@@ -116,6 +136,21 @@ export function DesktopThemeProvider({
     handleChange()
     query.addEventListener('change', handleChange)
     return () => query.removeEventListener('change', handleChange)
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    void window.codePilotXDesktop
+      ?.getWindowBackdropCapability?.()
+      .then(capability => {
+        if (mounted) setBackdropSupported(capability.supported)
+      })
+      .catch(() => {
+        if (mounted) setBackdropSupported(false)
+      })
+    return () => {
+      mounted = false
+    }
   }, [])
 
   useEffect(() => {
@@ -128,8 +163,6 @@ export function DesktopThemeProvider({
     return () => query.removeEventListener('change', handleChange)
   }, [])
 
-  const resolvedVariant =
-    settings.mode === 'system' ? systemVariant : settings.mode
   const draftResolvedVariant =
     draftSettings.mode === 'system' ? systemVariant : draftSettings.mode
   const draftDirty = !desktopThemeSettingsEqual(draftSettings, settings)
@@ -139,24 +172,74 @@ export function DesktopThemeProvider({
   )
 
   useEffect(() => {
-    applyDesktopTheme(draftSettings, draftResolvedVariant, systemReduceMotion)
-  }, [draftResolvedVariant, draftSettings, systemReduceMotion])
+    applyDesktopTheme(
+      draftSettings,
+      draftResolvedVariant,
+      systemReduceMotion,
+      backdropSupported,
+    )
+    const configuredOpaque =
+      draftSettings.chromeThemes[draftResolvedVariant].opaqueWindows
+    if (backdropSupported) {
+      void window.codePilotXDesktop
+        ?.applyWindowBackdrop?.(!configuredOpaque)
+        .catch(() => undefined)
+    }
+  }, [
+    backdropSupported,
+    draftResolvedVariant,
+    draftSettings,
+    systemReduceMotion,
+  ])
 
-  const saveSettings = useCallback(
-    async (nextSettings: DesktopThemeSettings): Promise<void> => {
+  const persistSettings = useCallback(
+    async (nextSettings: DesktopThemeSettings): Promise<DesktopThemeSettings> => {
       const normalized = normalizeDesktopThemeSettings(nextSettings)
-      setSettings(normalized)
-      setDraftSettings(normalized)
-      await desktopClient.saveThemeSettings(normalized)
+      pendingSavesRef.current += 1
+      setDraftSaving(true)
+      const operation = saveQueueRef.current.then(async () => {
+        await desktopClient.saveThemeSettings(normalized)
+        committedSettingsRef.current = normalized
+        setSettings(normalized)
+        setDraftSettings(current =>
+          desktopThemeSettingsEqual(current, normalized)
+            ? normalized
+            : current,
+        )
+      })
+      saveQueueRef.current = operation.catch(() => undefined)
+      try {
+        await operation
+        return normalized
+      } catch (error) {
+        setDraftSettings(current =>
+          desktopThemeSettingsEqual(current, normalized)
+            ? committedSettingsRef.current
+            : current,
+        )
+        throw error
+      } finally {
+        pendingSavesRef.current -= 1
+        if (pendingSavesRef.current === 0) setDraftSaving(false)
+      }
     },
     [],
   )
 
+  const saveSettings = useCallback(
+    async (nextSettings: DesktopThemeSettings): Promise<void> => {
+      const normalized = normalizeDesktopThemeSettings(nextSettings)
+      setDraftSettings(normalized)
+      await persistSettings(normalized)
+    },
+    [persistSettings],
+  )
+
   const setMode = useCallback(
     async (mode: DesktopThemeMode): Promise<void> => {
-      await saveSettings({ ...settings, mode })
+      await saveSettings({ ...draftSettingsRef.current, mode })
     },
-    [saveSettings, settings],
+    [saveSettings],
   )
 
   const setDraftMode = useCallback((mode: DesktopThemeMode): void => {
@@ -173,27 +256,19 @@ export function DesktopThemeProvider({
   )
 
   const saveDraft = useCallback(async (): Promise<DesktopThemeSettings> => {
-    const normalized = normalizeDesktopThemeSettings(draftSettingsRef.current)
-    setDraftSaving(true)
-    try {
-      await desktopClient.saveThemeSettings(normalized)
-      setSettings(normalized)
-      setDraftSettings(normalized)
-      return normalized
-    } finally {
-      setDraftSaving(false)
-    }
-  }, [])
+    return persistSettings(draftSettingsRef.current)
+  }, [persistSettings])
 
   const resetDraft = useCallback((): void => {
-    setDraftSettings(settings)
-  }, [settings])
+    setDraftSettings(committedSettingsRef.current)
+  }, [])
 
   const saveDraftRef = useRef(saveDraft)
   saveDraftRef.current = saveDraft
-
   const autoSave = useCallback(() => {
-    setTimeout(() => { void saveDraftRef.current(); }, 0)
+    setTimeout(() => {
+      void saveDraftRef.current().catch(() => undefined)
+    }, 0)
   }, [])
 
   const draft = useMemo<DesktopThemeDraft>(
@@ -209,6 +284,7 @@ export function DesktopThemeProvider({
       autoSave,
     }),
     [
+      autoSave,
       draftDirty,
       draftResolvedVariant,
       draftSaving,
@@ -217,29 +293,29 @@ export function DesktopThemeProvider({
       saveDraft,
       setDraftMode,
       setDraftSettingsValue,
-      autoSave,
     ],
   )
 
   const value = useMemo<DesktopThemeContextValue>(
     () => ({
       settings,
-      resolvedVariant,
+      resolvedVariant: draftResolvedVariant,
       activeTheme,
       codeThemeId: getCodeThemeSelectionForVariant(
         draftSettings,
         draftResolvedVariant,
       ),
+      backdropSupported,
       draft,
       setMode,
       saveSettings,
     }),
     [
       activeTheme,
+      backdropSupported,
       draft,
       draftResolvedVariant,
-      draftSettings.codeThemeIds,
-      resolvedVariant,
+      draftSettings,
       saveSettings,
       setMode,
       settings,
@@ -265,36 +341,48 @@ function applyDesktopTheme(
   settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,
   systemReduceMotion: boolean,
+  backdropSupported: boolean,
 ): void {
   const root = document.documentElement
   const reduceMotion =
     settings.reduceMotion === 'system'
       ? systemReduceMotion
       : settings.reduceMotion === 'on'
+  const opaque =
+    settings.chromeThemes[variant].opaqueWindows || !backdropSupported
+
   root.dataset.theme = variant
   root.dataset.themeId = getDesktopThemeIdForVariant(settings, variant)
   root.classList.toggle('light-theme', variant === 'light')
   root.classList.toggle('dark-theme', variant === 'dark')
-  root.dataset.glassSurfaces = settings.glassmorphismEnabled ? 'on' : 'off'
+  root.classList.toggle('electron-light', variant === 'light')
+  root.classList.toggle('electron-dark', variant === 'dark')
+  root.classList.toggle('electron-opaque', opaque)
+  root.dataset.glassSurfaces = opaque ? 'off' : 'on'
   root.dataset.pointerCursor = settings.pointerCursorEnabled ? 'on' : 'off'
   root.dataset.reduceMotion = reduceMotion ? 'on' : 'off'
   root.style.setProperty('color-scheme', variant)
+  root.style.setProperty(
+    '-webkit-font-smoothing',
+    settings.fontSmoothingEnabled ? 'antialiased' : 'auto',
+  )
 
   for (const variable of SETTINGS_THEME_VARIABLES) {
     root.style.removeProperty(variable)
   }
 
   const config = getDesktopThemeForSelection(settings, variant)
-  const codeThemeId = getCodeThemeSelectionForVariant(settings, variant)
-  root.dataset.codeThemeId =
-    codeThemeId === 'auto' ? config.codeThemeId : codeThemeId
+  root.dataset.codeThemeId = getCodeThemeSelectionForVariant(settings, variant)
   for (const [name, value] of Object.entries(deriveThemeVariables(config))) {
     root.style.setProperty(name, value)
   }
-  const uiFontSize = clamp(settings.fontSizes.ui, 11, 20)
-  const codeFontSize = clamp(settings.fontSizes.code, 10, 20)
+
+  const uiFontSize = clamp(settings.fontSizes.ui, 11, 16)
+  const codeFontSize = clamp(settings.fontSizes.code, 8, 24)
   root.style.setProperty('--font-size-ui', `${uiFontSize}px`)
   root.style.setProperty('--font-size-code', `${codeFontSize}px`)
+  root.style.setProperty('--vscode-font-size', `${uiFontSize}px`)
+  root.style.setProperty('--vscode-editor-font-size', `${codeFontSize}px`)
   root.style.setProperty('--font-size-11', `${uiFontSize - 3}px`)
   root.style.setProperty('--font-size-12', `${uiFontSize - 2}px`)
   root.style.setProperty('--font-size-13', `${uiFontSize - 1}px`)

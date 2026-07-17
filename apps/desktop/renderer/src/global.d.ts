@@ -10,6 +10,17 @@ declare global {
       isMaximized(): Promise<boolean>
       pickWorkspaceDirectory(): Promise<string | null>
       openExternal(url: string): Promise<void>
+      getAppearanceSettings(): Promise<unknown>
+      saveAppearanceSettings(settings: unknown): Promise<unknown>
+      getSystemTheme(): Promise<'light' | 'dark'>
+      onSystemThemeChange(
+        listener: (theme: 'light' | 'dark') => void,
+      ): () => void
+      getWindowBackdropCapability(): Promise<{
+        supported: boolean
+        platform: string
+      }>
+      applyWindowBackdrop(enabled: boolean): Promise<boolean>
     }
   }
 }

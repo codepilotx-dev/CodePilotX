@@ -44,6 +44,46 @@ const THEMES_ROOT = resolve(OUTPUT_ROOT, 'themes')
 const EXPECTED_LOGICAL_THEMES = 91
 const EXPECTED_PHYSICAL_THEMES = 151
 
+type CodexThemeFamilyRegistration = {
+  id: string
+  label: string
+  light?: string
+  dark?: string
+}
+
+// Exact product selector registry recovered from Codex qtn/Jtn. The extracted
+// assets contain more Shiki resources, but only these families are user-facing.
+const CODEX_THEME_FAMILIES: readonly CodexThemeFamilyRegistration[] = [
+  { id: 'ayu', label: 'Ayu', dark: 'ayu-dark' },
+  { id: 'catppuccin', label: 'Catppuccin', dark: 'catppuccin-mocha', light: 'catppuccin-latte' },
+  { id: 'absolutely', label: 'Absolutely', dark: 'absolutely-dark', light: 'absolutely-light' },
+  { id: 'codex', label: 'Codex', dark: 'codex-dark', light: 'codex-light' },
+  { id: 'dracula', label: 'Dracula', dark: 'dracula' },
+  { id: 'everforest', label: 'Everforest', dark: 'everforest-dark', light: 'everforest-light' },
+  { id: 'github', label: 'GitHub', dark: 'github-dark-default', light: 'github-light-default' },
+  { id: 'gruvbox', label: 'Gruvbox', dark: 'gruvbox-dark-medium', light: 'gruvbox-light-medium' },
+  { id: 'linear', label: 'Linear', dark: 'linear-dark', light: 'linear-light' },
+  { id: 'lobster', label: 'Lobster', dark: 'lobster-dark' },
+  { id: 'material', label: 'Material', dark: 'material-theme-darker' },
+  { id: 'matrix', label: 'Matrix', dark: 'matrix-dark' },
+  { id: 'monokai', label: 'Monokai', dark: 'monokai' },
+  { id: 'night-owl', label: 'Night Owl', dark: 'night-owl' },
+  { id: 'nord', label: 'Nord', dark: 'nord' },
+  { id: 'notion', label: 'Notion', dark: 'notion-dark', light: 'notion-light' },
+  { id: 'oscurange', label: 'Oscurange', dark: 'oscurange' },
+  { id: 'one', label: 'One', dark: 'one-dark-pro', light: 'one-light' },
+  { id: 'proof', label: 'Proof', light: 'proof-light' },
+  { id: 'raycast', label: 'Raycast', dark: 'raycast-dark', light: 'raycast-light' },
+  { id: 'rose-pine', label: 'Rose Pine', dark: 'rose-pine-moon', light: 'rose-pine-dawn' },
+  { id: 'sentry', label: 'Sentry', dark: 'sentry-dark' },
+  { id: 'solarized', label: 'Solarized', dark: 'solarized-dark', light: 'solarized-light' },
+  { id: 'tokyo-night', label: 'Tokyo Night', dark: 'tokyo-night' },
+  { id: 'temple', label: 'Temple', dark: 'temple-dark' },
+  { id: 'vercel', label: 'Vercel', dark: 'vercel-dark', light: 'vercel-light' },
+  { id: 'vscode-plus', label: 'VS Code Plus', dark: 'dark-plus', light: 'light-plus' },
+  { id: 'xcode', label: 'Xcode', dark: 'xcode-dark', light: 'xcode-light' },
+] as const
+
 const args = parseArgs(process.argv.slice(2))
 const assetsRoot = resolve(args['assets-root'] ?? DEFAULT_ASSETS_ROOT)
 const inventoryPath = resolve(args.inventory ?? DEFAULT_INVENTORY)
@@ -141,13 +181,35 @@ for (const inventoryTheme of sortedThemes) {
   })
 }
 
-expectedFiles.set('manifest.ts', renderManifest(metadata))
+const metadataBySlug = new Map(metadata.map(theme => [theme.slug, theme]))
+for (const family of CODEX_THEME_FAMILIES) {
+  for (const variant of ['light', 'dark'] as const) {
+    const slug = family[variant]
+    if (!slug) continue
+    const theme = metadataBySlug.get(slug)
+    if (!theme) {
+      throw new Error(
+        `Codex selector family "${family.id}" references missing theme "${slug}".`,
+      )
+    }
+    if (theme.variant !== variant) {
+      throw new Error(
+        `Codex selector family "${family.id}" maps ${variant} to ${theme.variant} theme "${slug}".`,
+      )
+    }
+  }
+}
+
+expectedFiles.set(
+  'manifest.ts',
+  renderManifest(metadata, CODEX_THEME_FAMILIES),
+)
 await synchronizeGeneratedFiles(expectedFiles, checkOnly)
 
 console.log(
   checkOnly
-    ? `Codex theme catalog is current: ${metadata.length} logical / ${physicalFiles.length} physical.`
-    : `Generated ${metadata.length} Codex themes from ${physicalFiles.length} physical modules.`,
+    ? `Codex theme catalog is current: ${CODEX_THEME_FAMILIES.length} families / ${countSelectableThemes(CODEX_THEME_FAMILIES)} selectable / ${metadata.length} logical resources / ${physicalFiles.length} physical.`
+    : `Generated ${CODEX_THEME_FAMILIES.length} Codex theme families (${countSelectableThemes(CODEX_THEME_FAMILIES)} selectable variants) from ${metadata.length} logical / ${physicalFiles.length} physical resources.`,
 )
 
 function normalizeTheme(
@@ -205,14 +267,26 @@ export const codexThemeSlug = ${JSON.stringify(slug)}
 
 function renderManifest(
   themes: ReadonlyArray<(typeof metadata)[number]>,
+  families: typeof CODEX_THEME_FAMILIES,
 ): string {
   const defaultImports = `import codexDark from './themes/codex-dark.js'
 import codexLight from './themes/codex-light.js'`
-  const rows = themes
+  const themesBySlug = new Map(themes.map(theme => [theme.slug, theme]))
+  const selectableThemes = families.flatMap(family =>
+    (['light', 'dark'] as const).flatMap(variant => {
+      const slug = family[variant]
+      if (!slug) return []
+      const theme = themesBySlug.get(slug)
+      if (!theme) throw new Error(`Missing selectable theme "${slug}".`)
+      return [{ ...theme, familyId: family.id, label: family.label }]
+    }),
+  )
+  const rows = selectableThemes
     .map(
       theme => `  {
     slug: ${JSON.stringify(theme.slug)},
     label: ${JSON.stringify(theme.label)},
+    familyId: ${JSON.stringify(theme.familyId)},
     variant: ${JSON.stringify(theme.variant)},
     normalizedHash: ${JSON.stringify(theme.normalizedHash)},
     contentHash: ${JSON.stringify(theme.contentHash)},
@@ -221,7 +295,7 @@ import codexLight from './themes/codex-light.js'`
   },`,
     )
     .join('\n')
-  const loaders = themes
+  const loaders = selectableThemes
     .map(theme => {
       const expression =
         theme.slug === 'codex-dark'
@@ -232,6 +306,18 @@ import codexLight from './themes/codex-light.js'`
       return `  ${JSON.stringify(theme.slug)}: () => ${expression},`
     })
     .join('\n')
+  const familyRows = families
+    .map(
+      family => `  {
+    id: ${JSON.stringify(family.id)},
+    label: ${JSON.stringify(family.label)},
+    themes: {
+      light: ${JSON.stringify(family.light ?? null)},
+      dark: ${JSON.stringify(family.dark ?? null)},
+    },
+  },`,
+    )
+    .join('\n')
 
   return `// Generated by scripts/generate-codex-themes.ts.
 // Do not edit this file manually.
@@ -240,6 +326,10 @@ ${defaultImports}
 
 export const CODEX_HIGHLIGHT_THEMES = [
 ${rows}
+] as const
+
+export const CODEX_HIGHLIGHT_THEME_FAMILIES = [
+${familyRows}
 ] as const
 
 export type CodexHighlightThemeSlug =
@@ -273,6 +363,16 @@ export function loadCodexHighlightTheme(
   return CODEX_HIGHLIGHT_THEME_LOADERS[slug]()
 }
 `
+}
+
+function countSelectableThemes(
+  families: typeof CODEX_THEME_FAMILIES,
+): number {
+  return families.reduce(
+    (count, family) =>
+      count + Number(Boolean(family.light)) + Number(Boolean(family.dark)),
+    0,
+  )
 }
 
 async function synchronizeGeneratedFiles(
