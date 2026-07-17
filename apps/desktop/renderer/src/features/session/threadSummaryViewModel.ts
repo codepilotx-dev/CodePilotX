@@ -21,9 +21,12 @@ export type ThreadSummarySubagent = {
 export type ThreadSummaryViewModel = {
   environment: {
     workspacePath: string;
-    workspaceName: string;
     branchName: string | null;
     changedFileCount: number;
+    commitOrPushEnabled: boolean;
+    commitOrPushDisabledReason: string | null;
+    createPullRequestEnabled: boolean;
+    createPullRequestDisabledReason: string | null;
   } | null;
   changes: {
     fileCount: number;
@@ -35,10 +38,9 @@ export type ThreadSummaryViewModel = {
   subagents: ThreadSummarySubagent[];
 };
 
-export type VisibleThreadSummarySources = {
+export type ThreadSummarySourcePreview = {
   items: ThreadSummarySource[];
-  canExpand: boolean;
-  hiddenCount: number;
+  totalCount: number;
 };
 
 export function deriveThreadSummaryViewModel({
@@ -62,19 +64,22 @@ export function deriveThreadSummaryViewModel({
 }): ThreadSummaryViewModel {
   const normalizedWorkspacePath = workspacePath?.trim() || null;
   const normalizedBranchName = branchName?.trim() || null;
-  const hasChanges =
-    changedFileCount > 0 || additions > 0 || deletions > 0;
 
   return {
     environment: normalizedWorkspacePath
       ? {
           workspacePath: normalizedWorkspacePath,
-          workspaceName: workspaceNameFromPath(normalizedWorkspacePath),
           branchName: normalizedBranchName,
           changedFileCount,
+          commitOrPushEnabled: true,
+          commitOrPushDisabledReason: null,
+          createPullRequestEnabled: Boolean(normalizedBranchName),
+          createPullRequestDisabledReason: normalizedBranchName
+            ? null
+            : "创建拉取请求前需要先创建或检出 Git 分支",
         }
       : null,
-    changes: hasChanges
+    changes: normalizedWorkspacePath
       ? {
           fileCount: changedFileCount,
           additions,
@@ -108,20 +113,13 @@ export function findLatestThreadSummaryPlan(
   return null;
 }
 
-export function visibleThreadSummarySources(
+export function previewThreadSummarySources(
   sources: readonly ThreadSummarySource[],
-  expanded: boolean,
-  limit = 5,
-): VisibleThreadSummarySources {
+  limit = 3,
+): ThreadSummarySourcePreview {
   const safeLimit = Math.max(0, Math.floor(limit));
   return {
-    items: expanded ? [...sources] : sources.slice(0, safeLimit),
-    canExpand: sources.length > safeLimit,
-    hiddenCount: Math.max(0, sources.length - safeLimit),
+    items: sources.slice(0, safeLimit),
+    totalCount: sources.length,
   };
-}
-
-function workspaceNameFromPath(path: string): string {
-  const normalized = path.replace(/[\\/]+$/, "");
-  return normalized.split(/[\\/]/).pop() || normalized;
 }

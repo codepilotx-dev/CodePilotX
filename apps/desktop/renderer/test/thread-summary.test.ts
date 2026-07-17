@@ -10,7 +10,7 @@ import {
 import {
   deriveThreadSummaryViewModel,
   findLatestThreadSummaryPlan,
-  visibleThreadSummarySources,
+  previewThreadSummarySources,
 } from "../src/features/session/threadSummaryViewModel.js";
 
 describe("thread summary state", () => {
@@ -115,9 +115,12 @@ describe("thread summary view model", () => {
 
     expect(model.environment).toEqual({
       workspacePath: "F:\\CodeProject\\CodePilotX-Ts",
-      workspaceName: "CodePilotX-Ts",
       branchName: "feature/summary",
       changedFileCount: 3,
+      commitOrPushEnabled: true,
+      commitOrPushDisabledReason: null,
+      createPullRequestEnabled: true,
+      createPullRequestDisabledReason: null,
     });
     expect(model.changes).toEqual({
       fileCount: 3,
@@ -156,18 +159,43 @@ describe("thread summary view model", () => {
     expect(findLatestThreadSummaryPlan([])).toBeNull();
   });
 
-  test("limits sources to five and expands deterministically", () => {
+  test("keeps the changes entry for a workspace with no changes and explains disabled Git actions", () => {
+    const model = deriveThreadSummaryViewModel({
+      additions: 0,
+      branchName: "  ",
+      changedFileCount: 0,
+      deletions: 0,
+      events: [],
+      sources: [],
+      subagents: [],
+      workspacePath: "F:\\CodeProject\\CodePilotX-Ts",
+    });
+
+    expect(model.environment).toMatchObject({
+      branchName: null,
+      changedFileCount: 0,
+      commitOrPushEnabled: true,
+      commitOrPushDisabledReason: null,
+      createPullRequestEnabled: false,
+      createPullRequestDisabledReason:
+        "创建拉取请求前需要先创建或检出 Git 分支",
+    });
+    expect(model.changes).toEqual({
+      fileCount: 0,
+      additions: 0,
+      deletions: 0,
+    });
+  });
+
+  test("previews the first three sources for the summary side panel", () => {
     const sources = Array.from({ length: 7 }, (_, index) => ({
       label: `来源 ${index + 1}`,
       url: `https://example.com/${index + 1}`,
     }));
 
-    expect(visibleThreadSummarySources(sources, false)).toMatchObject({
-      canExpand: true,
-      hiddenCount: 2,
+    expect(previewThreadSummarySources(sources)).toEqual({
+      items: sources.slice(0, 3),
+      totalCount: 7,
     });
-    expect(visibleThreadSummarySources(sources, false).items).toHaveLength(5);
-    expect(visibleThreadSummarySources(sources, true).items).toHaveLength(7);
   });
 });
-
