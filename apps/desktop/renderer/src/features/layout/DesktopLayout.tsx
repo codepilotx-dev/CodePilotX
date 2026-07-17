@@ -4,17 +4,15 @@ import {
   writeDesktopBrowserDebugMode,
 } from '../../services/desktopClient.js'
 import type React from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import {
   DesktopComposer,
   getDesktopComposerBranchName,
 } from '../session/DesktopComposer.js'
 import { deriveWorkflowSessionState } from '../../../shared/workflowReducer.js'
-import { DesktopAppShell } from './DesktopAppShell.js'
 import { RightDock, DesktopWorkspaceFixedControls } from './RightDock.js'
 import {
   applyRightDockAction,
-  type RightDockState,
   type RightDockToolId,
 } from './rightDockState.js'
 import { rightDockTools, isRightDockToolEnabled, type RightDockPlan } from './rightDockTools.js'
@@ -42,11 +40,7 @@ import type {
   ViewMenuAction,
   WindowMenuAction,
 } from './MenuBar.js'
-import {
-  QuickChatContext,
-  reduceEnvironmentDockContentRegistration,
-  type EnvironmentDockContentRegistration,
-} from '../session/QuickChatContext.js'
+import { QuickChatContext } from '../session/QuickChatContext.js'
 import { SearchContext } from '../search/SearchContext.js'
 import {
   sessionDisplayTitle,
@@ -54,35 +48,21 @@ import {
   type SessionListItem,
 } from '../../uiTypes.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
-import {
-  SIDEBAR_MAX_WIDTH,
-  SIDEBAR_MIN_WIDTH,
-  useDesktopLayout,
-} from './useDesktopLayout.js'
-import {
-  NO_WORKSPACE_DIFF,
-  useWorkspaceState,
-} from '../workspace/useWorkspaceState.js'
+import { NO_WORKSPACE_DIFF } from '../workspace/useWorkspaceState.js'
 import { shouldRestoreLastWorkspace } from '../workspace/lastWorkspaceRestore.js'
 import { useSessionState } from '../session/useSessionState.js'
 import { useDesktopCommands } from '../session/useDesktopCommands.js'
 import { useDesktopSearch } from '../search/useDesktopSearch.js'
-import {
-  useModelCatalogLoading,
-  withModelCatalogLoading,
-} from '../../hooks/useModelCatalogLoading.js'
+import { withModelCatalogLoading } from '../../hooks/useModelCatalogLoading.js'
 import {
   buildModelPresets,
   resolveModelPresetId,
 } from '../../modelPresets.js'
 import type {
   DesktopModelMetadata,
-  DesktopModelProviderSummary,
-  DesktopModelProviderState,
   DesktopBrowserState,
   DesktopComposerAttachment,
   DesktopPermissionMode,
-  DesktopRemovedWorkspace,
   DesktopUserMessageInput,
   DesktopWorkspace,
   LocalRouterMode,
@@ -91,16 +71,23 @@ import type {
 } from '../../../shared/types.js'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { upsertRecentWorkspace } from '../../../shared/settings.js'
-import type { DesktopSubagentRead } from '../../../shared/types.js'
 import { SubagentThreadPanel } from '../session/SubagentThreadPanel.js'
+import {
+  QUICK_CHAT_PATH,
+  sessionPath,
+  useWorkbenchRouteController,
+} from './useWorkbenchRouteController.js'
+import {
+  RIGHT_DOCK_MAX_WIDTH,
+  RIGHT_DOCK_MIN_WIDTH,
+  useWorkbenchShellController,
+} from './useWorkbenchShellController.js'
+import { useWorkbenchWorkspaceController } from './useWorkbenchWorkspaceController.js'
+import { useModelProviderController } from './useModelProviderController.js'
+import { useSubagentDockController } from './useSubagentDockController.js'
+import { WorkbenchShellView } from './WorkbenchShellView.js'
 
-const QUICK_CHAT_PATH = '/quick-chat'
 const EMPTY_BRANCHES: string[] = []
-const RIGHT_DOCK_WIDTH_STORAGE_KEY = 'codepilotx.desktop.rightDockWidth'
-const RIGHT_DOCK_MIN_WIDTH = 320
-const RIGHT_DOCK_MAX_WIDTH = 850
-const RIGHT_DOCK_DEFAULT_WIDTH = 600
-const RIGHT_DOCK_MAIN_MIN_WIDTH = 520
 
 export function DesktopLayout(): React.ReactNode {
   const settings = useDesktopSettings()
@@ -157,11 +144,6 @@ export function DesktopLayout(): React.ReactNode {
   const [archiveNoticeVisible, setArchiveNoticeVisible] = useState(false)
   const [isWindowMaximized, setIsWindowMaximized] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [providerState, setProviderState] =
-    useState<DesktopModelProviderState | null>(null)
-  const [modelProviders, setModelProviders] = useState<
-    DesktopModelProviderSummary[]
-  >([])
   const [gitWorkflowMode, setGitWorkflowMode] =
     useState<GitWorkflowMode | null>(null)
   const [githubRepositoryModalOpen, setGithubRepositoryModalOpen] =
@@ -172,89 +154,60 @@ export function DesktopLayout(): React.ReactNode {
   const [composerAttachments, setComposerAttachments] = useState<
     DesktopComposerAttachment[]
   >([])
-  const [rightDockState, setRightDockState] = useState<RightDockState>({
-    open: false,
-    activeTool: null,
-    openTools: [],
-  })
-  const [rightDockPlan, setRightDockPlan] = useState<RightDockPlan | null>(null)
-  const [environmentDockRegistration, setEnvironmentDockRegistration] =
-    useState<EnvironmentDockContentRegistration | null>(null)
-  const [bottomPanelVisible, setBottomPanelVisible] = useState(false)
-  const [sideChatInput, setSideChatInput] = useState('')
-  const [sideChatFocusVersion, setSideChatFocusVersion] = useState(0)
-  const [sideChatAttachments, setSideChatAttachments] = useState<
-    DesktopComposerAttachment[]
-  >([])
-  const [selectedSubagentTaskId, setSelectedSubagentTaskId] = useState<string | null>(null)
-  const [selectedSubagent, setSelectedSubagent] = useState<DesktopSubagentRead | null>(null)
-  const [subagentPermissionMode, setSubagentPermissionMode] = useState<DesktopPermissionMode>('default')
-  const subagentDraftsRef = useRef(new Map<string, { input: string; attachments: DesktopComposerAttachment[] }>())
   const [menubarDebugMode, setMenubarDebugMode] = useState(() =>
     readDesktopBrowserDebugMode(),
   )
-  const [rightDockWidth, setRightDockWidth] = useState(() =>
-    getInitialRightDockWidth(),
-  )
-  const modelCatalogLoading = useModelCatalogLoading()
-
-  const layout = useDesktopLayout()
+  const {
+    providerState,
+    setProviderState,
+    modelProviders,
+    setModelProviders,
+    modelCatalogLoading,
+  } = useModelProviderController()
   const {
     sidebarCollapsed,
     sidebarWidth,
-    setSidebarCollapsed,
     setSidebarWidth,
     toggleSidebarCollapsed,
-  } = layout
-
-  const collapseSidebar = useCallback((): void => {
-    setSidebarCollapsed(true)
-  }, [setSidebarCollapsed])
-
-  const [unavailableWorkspacePaths, setUnavailableWorkspacePaths] = useState<
-    Set<string>
-  >(() => new Set())
-  const [removedWorkspaces, setRemovedWorkspaces] = useState<
-    DesktopRemovedWorkspace[]
-  >(() => settings.draft.values.removedWorkspaces ?? [])
-  const [lastActiveWorkspacePath, setLastActiveWorkspacePath] = useState(
-    () => settings.draft.values.lastActiveWorkspacePath ?? '',
-  )
-  const markWorkspaceUnavailable = useCallback((target: DesktopWorkspace): void => {
-    setErrorMessage(null)
-    setUnavailableWorkspacePaths(current => {
-      if (current.has(target.path)) return current
-      const next = new Set(current)
-      next.add(target.path)
-      return next
-    })
+    collapseSidebar,
+    sidebarMinWidth,
+    sidebarMaxWidth,
+    rightDockState,
+    setRightDockState,
+    rightDockPlan,
+    setRightDockPlan,
+    environmentDockRegistration,
+    bottomPanelVisible,
+    rightDockWidth,
+    openRightDockTool,
+    selectRightDockTool,
+    closeRightDockTool,
+    closeRightDock,
+    handleSetRightDockWidth,
+    handleResetRightDockWidth,
+    handleOpenPlanDock,
+    handleSetEnvironmentDockContent,
+    toggleBottomPanelVisible,
+  } = useWorkbenchShellController(menubarDebugMode)
+  const handleErrorMessage = useCallback((message: string): void => {
+    setErrorMessage(message || null)
   }, [])
-  const clearWorkspaceRemoved = useCallback(
-    (target: DesktopWorkspace): void => {
-      setRemovedWorkspaces(current => {
-        const next = current.filter(r => r.path !== target.path)
-        if (next.length === current.length) return current
-        settings.syncExternalSettingsPatch({ removedWorkspaces: next })
-        return next
-      })
-    },
-    [settings],
-  )
-  const clearWorkspaceUnavailable = useCallback((target: DesktopWorkspace): void => {
-    setUnavailableWorkspacePaths(current => {
-      if (!current.has(target.path)) return current
-      const next = new Set(current)
-      next.delete(target.path)
-      return next
-    })
-  }, [])
-
-  const workspace = useWorkspaceState({
-    onError: (message: string) => setErrorMessage(message || null),
-    onWorkspaceUnavailable: markWorkspaceUnavailable,
-    onRecentWorkspacesChange: next => {
-      setRecentWorkspaces(next)
-    },
+  const {
+    workspace,
+    unavailableWorkspacePaths,
+    setUnavailableWorkspacePaths,
+    removedWorkspaces,
+    setRemovedWorkspaces,
+    lastActiveWorkspacePath,
+    setLastActiveWorkspacePath,
+    clearWorkspaceRemoved,
+    clearWorkspaceUnavailable,
+  } = useWorkbenchWorkspaceController({
+    initialLastActiveWorkspacePath:
+      settings.draft.values.lastActiveWorkspacePath ?? '',
+    initialRemovedWorkspaces: settings.draft.values.removedWorkspaces ?? [],
+    settings,
+    onError: handleErrorMessage,
   })
   const {
     workspace: currentWorkspace,
@@ -351,17 +304,17 @@ export function DesktopLayout(): React.ReactNode {
   const isBrowserMockSession = sessionId?.startsWith('browser-mock-') === true
   const localRouterAvailable = !sessionId || isBrowserMockSession
 
-  const location = useLocation()
-  const navigate = useNavigate()
-  const routedSessionId = getRoutedSessionId(location.pathname)
-  const isQuickChatPage = location.pathname === QUICK_CHAT_PATH
-  const isConversationRoute = routedSessionId !== null
-  const isSettingsRoute = location.pathname === '/settings'
-  const fullLocationPath = `${location.pathname}${location.search}${location.hash}`
-  const settingsReturnPathRef = useRef(QUICK_CHAT_PATH)
+  const {
+    navigate,
+    routedSessionId,
+    isQuickChatPage,
+    isConversationRoute,
+    isSettingsRoute,
+    settingsActiveTab,
+    handleSettingsTabChange,
+    handleSettingsBack,
+  } = useWorkbenchRouteController()
   const lastWorkspaceRestoreAttemptedRef = useRef(false)
-  const settingsActiveTab =
-    new URLSearchParams(location.search).get('tab') ?? 'general'
 
   useEffect(() => {
     if (!settingsLoaded) return
@@ -372,12 +325,6 @@ export function DesktopLayout(): React.ReactNode {
     settings.draft.values.removedWorkspaces,
     settingsLoaded,
   ])
-
-  useEffect(() => {
-    if (!isSettingsRoute) {
-      settingsReturnPathRef.current = fullLocationPath
-    }
-  }, [fullLocationPath, isSettingsRoute])
 
   useEffect(() => {
     setActiveSessionId(sessionId)
@@ -632,15 +579,6 @@ export function DesktopLayout(): React.ReactNode {
     setGitWorkflowMode('pullRequest')
   }, [])
 
-  const handleSetEnvironmentDockContent = useCallback(
-    (next: EnvironmentDockContentRegistration | null): void => {
-      setEnvironmentDockRegistration(current =>
-        reduceEnvironmentDockContentRegistration(current, next),
-      )
-    },
-    [],
-  )
-
   useEffect(() => {
     writeDesktopBrowserDebugMode(undefined, menubarDebugMode)
     if (menubarDebugMode) {
@@ -657,49 +595,6 @@ export function DesktopLayout(): React.ReactNode {
       )
   }, [])
 
-  const openRightDockTool = useCallback(
-    (tool: RightDockToolId): void => {
-      setRightDockState(current =>
-        applyRightDockAction(
-          current,
-          { type: 'openTool', tool },
-          { debugMode: menubarDebugMode },
-        ),
-      )
-    },
-    [menubarDebugMode],
-  )
-
-  const selectRightDockTool = useCallback(
-    (tool: RightDockToolId): void => {
-      setRightDockState(current =>
-        applyRightDockAction(current, { type: 'selectTool', tool }),
-      )
-    },
-    [],
-  )
-
-  const closeRightDockTool = useCallback(
-    (tool: RightDockToolId): void => {
-      setRightDockState(current =>
-        applyRightDockAction(current, { type: 'closeTool', tool }),
-      )
-    },
-    [],
-  )
-
-  const closeRightDock = useCallback((): void => {
-    setRightDockState(current => applyRightDockAction(current, { type: 'close' }))
-  }, [])
-
-  const handleSetRightDockWidth = useCallback((nextWidth: number): void => {
-    setRightDockWidth(clampRightDockWidth(nextWidth))
-  }, [])
-
-  const handleResetRightDockWidth = useCallback((): void => {
-    setRightDockWidth(clampRightDockWidth(RIGHT_DOCK_DEFAULT_WIDTH))
-  }, [])
-
   const handleOpenBrowser = useCallback((): void => {
     openRightDockTool('browser')
     void desktopClient
@@ -713,14 +608,6 @@ export function DesktopLayout(): React.ReactNode {
   const handleOpenFilesDock = useCallback((): void => {
     openRightDockTool('files')
   }, [openRightDockTool])
-
-  const handleOpenPlanDock = useCallback(
-    (plan: RightDockPlan): void => {
-      setRightDockPlan(plan)
-      openRightDockTool('plan')
-    },
-    [openRightDockTool],
-  )
 
   const handleRightDockToolSelect = useCallback(
     (tool: RightDockToolId): void => {
@@ -760,75 +647,27 @@ export function DesktopLayout(): React.ReactNode {
     [input, setInput],
   )
 
-  const handleAppendSideChatText = useCallback(
-    (text: string): void => {
-      const trimmed = text.trim()
-      if (!trimmed) return
-      setSelectedSubagentTaskId(null)
-      setSelectedSubagent(null)
-      setSideChatInput(prev => {
-        const existing = prev.trim()
-        if (!existing) return trimmed
-        return `${prev}\n\n${trimmed}`
-      })
-      setSideChatFocusVersion(v => v + 1)
-      setRightDockState(current =>
-        applyRightDockAction(
-          current,
-          { type: 'openTool', tool: 'sideChat' },
-          { debugMode: menubarDebugMode },
-        ),
-      )
-    },
-    [menubarDebugMode],
-  )
-
-  const sideChatSubmitToSession = useCallback(
-    async (
-      sessionId: string,
-      value: { text: string; attachments: DesktopComposerAttachment[] },
-    ): Promise<void> => {
-      if (selectedSubagentTaskId && desktopClient.sendSubagent) {
-        await desktopClient.sendSubagent(selectedSubagentTaskId, value, model, selectedSubagent?.task.profile === 'explorer' ? undefined : subagentPermissionMode)
-      } else {
-        await submitToSession(sessionId, value)
-      }
-      setSideChatInput('')
-      setSideChatAttachments([])
-    },
-    [model, selectedSubagent?.task.profile, selectedSubagentTaskId, subagentPermissionMode, submitToSession],
-  )
-
-  const refreshSelectedSubagent = useCallback(async (): Promise<void> => {
-    if (!selectedSubagentTaskId || !desktopClient.readSubagent) {
-      setSelectedSubagent(null)
-      return
-    }
-    setSelectedSubagent(await desktopClient.readSubagent(selectedSubagentTaskId))
-  }, [selectedSubagentTaskId])
-
-  useEffect(() => {
-    const config = selectedSubagent?.currentRun?.permissionConfig
-    if (!config) return
-    setSubagentPermissionMode(config.sandboxMode === 'danger-full-access' ? 'full-access' : config.approvalsReviewer === 'auto_review' ? 'auto-review' : 'default')
-  }, [selectedSubagent?.task.id])
-
-  useEffect(() => {
-    if (!selectedSubagentTaskId) return
-    void refreshSelectedSubagent().catch(error => setErrorMessage(error instanceof Error ? error.message : String(error)))
-    const timer = window.setInterval(() => { void refreshSelectedSubagent().catch(() => undefined) }, 1000)
-    return () => window.clearInterval(timer)
-  }, [refreshSelectedSubagent, selectedSubagentTaskId])
-
-  const handleOpenSubagent = useCallback((taskId: string): void => {
-    if (selectedSubagentTaskId) subagentDraftsRef.current.set(selectedSubagentTaskId, { input: sideChatInput, attachments: sideChatAttachments })
-    const draft = subagentDraftsRef.current.get(taskId)
-    setSelectedSubagentTaskId(taskId)
-    setSelectedSubagent(null)
-    setSideChatInput(draft?.input ?? '')
-    setSideChatAttachments(draft?.attachments ?? [])
-    setRightDockState(current => applyRightDockAction(current, { type: 'openTool', tool: 'sideChat' }, { debugMode: menubarDebugMode }))
-  }, [menubarDebugMode, selectedSubagentTaskId, sideChatAttachments, sideChatInput])
+  const {
+    sideChatInput,
+    setSideChatInput,
+    sideChatFocusVersion,
+    sideChatAttachments,
+    setSideChatAttachments,
+    selectedSubagentTaskId,
+    selectedSubagent,
+    subagentPermissionMode,
+    setSubagentPermissionMode,
+    handleAppendSideChatText,
+    sideChatSubmitToSession,
+    refreshSelectedSubagent,
+    handleOpenSubagent,
+  } = useSubagentDockController({
+    debugMode: menubarDebugMode,
+    model,
+    setRightDockState,
+    submitToSession,
+    onError: handleErrorMessage,
+  })
 
   const handleSubmitEditedUserMessage = useCallback(
     async (text: string): Promise<void> => {
@@ -902,13 +741,6 @@ export function DesktopLayout(): React.ReactNode {
     const id = window.setInterval(refreshBrowserState, 1000)
     return () => window.clearInterval(id)
   }, [browserState?.open, refreshBrowserState])
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      RIGHT_DOCK_WIDTH_STORAGE_KEY,
-      String(rightDockWidth),
-    )
-  }, [rightDockWidth])
 
   const prevSessionIdRef = useRef<string | null>(null)
   const uiSnapshotRef = useRef<ConversationUiState>(
@@ -987,14 +819,6 @@ export function DesktopLayout(): React.ReactNode {
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [sessionId])
-
-  useEffect(() => {
-    const onResize = (): void => {
-      setRightDockWidth(current => clampRightDockWidth(current))
-    }
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -1628,18 +1452,6 @@ export function DesktopLayout(): React.ReactNode {
     />
   )
 
-  function handleSettingsTabChange(tab: string): void {
-    navigate(
-      tab === 'general'
-        ? '/settings'
-        : `/settings?tab=${encodeURIComponent(tab)}`,
-    )
-  }
-
-  function handleSettingsBack(): void {
-    navigate(settingsReturnPathRef.current || QUICK_CHAT_PATH)
-  }
-
   const appSidebarContent = (
     <DesktopSidebar
       activeSessionId={sessionId}
@@ -1734,8 +1546,8 @@ export function DesktopLayout(): React.ReactNode {
   const sidebar = (
     <SidebarFrame
       collapsed={sidebarCollapsed}
-      maxWidth={SIDEBAR_MAX_WIDTH}
-      minWidth={SIDEBAR_MIN_WIDTH}
+      maxWidth={sidebarMaxWidth}
+      minWidth={sidebarMinWidth}
       width={sidebarWidth}
       onCollapse={collapseSidebar}
       onSetWidth={setSidebarWidth}
@@ -1874,10 +1686,6 @@ export function DesktopLayout(): React.ReactNode {
       }}
     />
   ) : selectedSubagentTaskId ? <div className="right-dock-empty-state">正在加载子 Agent...</div> : undefined
-  const toggleBottomPanelVisible = useCallback((): void => {
-    setBottomPanelVisible(current => !current)
-  }, [])
-
   const fixedControlsRef = useRef<HTMLDivElement>(null)
   const [fixedControlsWidth, setFixedControlsWidth] = useState(0)
   useEffect(() => {
@@ -1989,10 +1797,10 @@ export function DesktopLayout(): React.ReactNode {
         />
       ) : null}
 
-      <DesktopAppShell
+      <WorkbenchShellView
         menuBar={menuBar}
         sidebar={sidebar}
-        menubarDebugMode={menubarDebugMode}
+        debugMode={menubarDebugMode}
       >
         <QuickChatContext.Provider
             value={{
@@ -2136,7 +1944,7 @@ export function DesktopLayout(): React.ReactNode {
               </div>
             </SearchContext.Provider>
           </QuickChatContext.Provider>
-      </DesktopAppShell>
+      </WorkbenchShellView>
     </div>
   )
 }
@@ -2168,30 +1976,6 @@ function ArchiveConversationNotice({
       </button>
     </div>
   )
-}
-
-function getRoutedSessionId(pathname: string): string | null {
-  const match = /^\/sessions\/([^/]+)$/.exec(pathname)
-  return match ? decodeURIComponent(match[1]!) : null
-}
-
-function sessionPath(sessionId: string): string {
-  return `/sessions/${encodeURIComponent(sessionId)}`
-}
-
-function getInitialRightDockWidth(): number {
-  const stored = Number(window.localStorage.getItem(RIGHT_DOCK_WIDTH_STORAGE_KEY))
-  return clampRightDockWidth(stored || RIGHT_DOCK_DEFAULT_WIDTH)
-}
-
-function clampRightDockWidth(width: number): number {
-  const viewportMax = Math.max(
-    RIGHT_DOCK_MIN_WIDTH,
-    window.innerWidth - RIGHT_DOCK_MAIN_MIN_WIDTH,
-  )
-  const maxWidth = Math.min(RIGHT_DOCK_MAX_WIDTH, viewportMax)
-  const safeWidth = Number.isFinite(width) ? width : RIGHT_DOCK_DEFAULT_WIDTH
-  return Math.min(maxWidth, Math.max(RIGHT_DOCK_MIN_WIDTH, Math.round(safeWidth)))
 }
 
 function isDeepSeekThinkingModel({

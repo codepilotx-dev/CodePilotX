@@ -4,7 +4,6 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   AppWindow,
   Archive,
-  Box,
   Bot,
   Check,
   ChevronDown,
@@ -21,7 +20,6 @@ import {
   FolderOpen,
   GitBranch,
   GitPullRequest,
-  Info,
   Laptop,
   LayoutList,
   LoaderCircle,
@@ -44,7 +42,6 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from "../../components/ui/iconTokens.js";
-import { legacyMessagesToSessionEvents } from "../../../shared/sessionEventModel.js";
 import { deriveWorkflowSessionState } from "../../../shared/workflowReducer.js";
 import type {
   DesktopDiffMarkerStyle,
@@ -98,6 +95,42 @@ import { ThreadScrollLayout } from "./ThreadScrollLayout.js";
 import { ConversationTurnNavRail } from "./ConversationTurnNavRail.js";
 import { BranchSelectPopover } from "./BranchSelectPopover.js";
 import type { SubagentProjection } from "@codepilotx/shared/thread";
+import { useConversationController } from "./useConversationController.js";
+import {
+  TimelineSystemNotice,
+  timelineItemSlot,
+} from "./TimelineItemView.js";
+import {
+  deriveAssistantActionMessageIds,
+  deriveConversationTurnNavItems,
+  deriveTimelineSourceEvents,
+  foldTimelineEvents,
+  groupTimelineExecutionPhases,
+  groupTimelineToolEvents,
+  type ConversationTurnNavItem,
+  type ExecutionPhaseGroup,
+  type PhaseTimelineItem,
+  type TimelineItem,
+  type TimelineToolGroup,
+  type TimelineToolRun,
+} from "./timelineModel.js";
+
+export {
+  deriveAssistantActionMessageIds,
+  deriveConversationTurnNavItems,
+  deriveTimelineSourceEvents,
+  foldTimelineEvents,
+  groupTimelineExecutionPhases,
+  groupTimelineToolEvents,
+} from "./timelineModel.js";
+export type {
+  ConversationTurnNavItem,
+  ExecutionPhaseGroup,
+  PhaseTimelineItem,
+  TimelineItem,
+  TimelineToolGroup,
+  TimelineToolRun,
+} from "./timelineModel.js";
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
@@ -226,10 +259,6 @@ export function ConversationPage(): React.ReactNode {
     () => messages.filter((message) => message.role !== "system"),
     [messages],
   );
-  const workflowDerivedState = React.useMemo(
-    () => deriveWorkflowSessionState(workflowEvents, activeSessionId),
-    [activeSessionId, workflowEvents],
-  );
   const workflowConsistencyDiagnostics = React.useMemo(
     () =>
       deriveWorkflowConsistencyDiagnostics({
@@ -239,77 +268,26 @@ export function ConversationPage(): React.ReactNode {
       }),
     [activeSessionId, messages, workflowEvents],
   );
-  const [debugPlanCardSummary, setDebugPlanCardSummary] =
-    React.useState<string | null>(null);
-  const [debugAskUserQuestionRequest, setDebugAskUserQuestionRequest] =
-    React.useState<DesktopPermissionRequest | null>(null);
-  React.useEffect(() => {
-    if (!debugMode || pendingPermissions.length > 0) {
-      setDebugAskUserQuestionRequest(null);
-    }
-    if (!debugMode) {
-      setDebugPlanCardSummary(null);
-    }
-  }, [debugMode, pendingPermissions.length]);
-  const timelineEvents = React.useMemo(() => {
-    const sourceEvents = deriveTimelineSourceEvents({
-      conversationMessages,
-      events,
-      sessionStatus,
-      workflowEvents: workflowDerivedState.events,
-    });
-    const folded = foldTimelineEvents(sourceEvents);
-    // Inject synthetic proposed_plan for debug PlanCard
-    if (debugPlanCardSummary) {
-      const hasRealPlan = folded.some(e => e.type === "proposed_plan");
-      if (!hasRealPlan) {
-        return [
-          ...folded,
-          {
-            id: "debug-plan-card",
-            sessionId: activeSessionId ?? "debug",
-            type: "proposed_plan" as const,
-            role: "assistant" as const,
-            content: debugPlanCardSummary,
-            createdAt: new Date().toISOString(),
-            metadata: {},
-          },
-        ];
-      }
-    }
-    return folded;
-  }, [
-    conversationMessages,
-    events,
-    sessionStatus,
-    workflowDerivedState.events,
+  const {
+    assistantActionMessageIds,
+    debugAskUserQuestionRequest,
     debugPlanCardSummary,
+    phaseItems,
+    setDebugAskUserQuestionRequest,
+    setDebugPlanCardSummary,
+    showThinking,
+    timelineEvents,
+    timelineItems,
+    turnNavItems,
+    workflowDerivedState,
+  } = useConversationController({
     activeSessionId,
-  ]);
-  const timelineItems = React.useMemo(
-    () => groupTimelineToolEvents(timelineEvents),
-    [timelineEvents],
-  );
-  const phaseItems = React.useMemo(
-    () => groupTimelineExecutionPhases(timelineItems, sessionStatus),
-    [timelineItems, sessionStatus],
-  );
-  const turnNavItems = React.useMemo(
-    () => deriveConversationTurnNavItems(phaseItems),
-    [phaseItems],
-  );
-  const assistantActionMessageIds = React.useMemo(
-    () =>
-      deriveAssistantActionMessageIds({
-        sessionStatus,
-        timelineEvents,
-      }),
-    [sessionStatus, timelineEvents],
-  );
-  const showThinking = deriveWorkflowThinkingVisible({
+    conversationMessages,
+    debugMode,
+    events,
     pendingPermissions,
     sessionStatus,
-    timelineEvents,
+    workflowEvents,
   });
   const [sessionMenuOpen, setSessionMenuOpen] = React.useState(false);
   const [conversationSelectedText, setConversationSelectedText] =
@@ -1089,12 +1067,21 @@ export function ConversationPage(): React.ReactNode {
             {workspaceHeaderTitle}
             {workspaceHeaderActions}
           </header>
-          <ThreadScrollLayout
-            className="workflow-main-scroll-area"
-            footer={composerFooter}
-            footerRef={threadFooterRef}
-            scrollRef={threadScrollRef}
-          >
+          <div className="workflow-main-scroll-frame">
+            <ConversationTurnNavRail
+              items={turnNavItems}
+              onNavigate={(rowIndex) => {
+                timelineListRef.current?.scrollToIndex(rowIndex, {
+                  align: "center",
+                });
+              }}
+            />
+            <ThreadScrollLayout
+              className="workflow-main-scroll-area"
+              footer={composerFooter}
+              footerRef={threadFooterRef}
+              scrollRef={threadScrollRef}
+            >
             <ContextMenu.Root
               onOpenChange={(open) => {
                 if (!open) {
@@ -1107,14 +1094,6 @@ export function ConversationPage(): React.ReactNode {
                   className="session-timeline-wrapper"
                   onContextMenu={handleConversationContextMenu}
                 >
-                  <ConversationTurnNavRail
-                    items={turnNavItems}
-                    onNavigate={(rowIndex) => {
-                      timelineListRef.current?.scrollToIndex(rowIndex, {
-                        align: "center",
-                      });
-                    }}
-                  />
                   <div className="session-timeline-main tw:min-w-0">
                       {isConversationLoading ? (
                         <div className="assistant-thinking">加载对话中</div>
@@ -1224,7 +1203,8 @@ export function ConversationPage(): React.ReactNode {
                 </ContextMenu.Portal>
               ) : null}
             </ContextMenu.Root>
-          </ThreadScrollLayout>
+            </ThreadScrollLayout>
+          </div>
         </main>
         {rightDockNode}
       </div>
@@ -1602,291 +1582,7 @@ type WorkflowNodeViewModel = {
   detail?: string;
 };
 
-function deriveWorkflowThinkingVisible({
-  pendingPermissions,
-  sessionStatus,
-  timelineEvents,
-}: {
-  pendingPermissions: DesktopPermissionRequest[];
-  sessionStatus: DesktopSessionStatus;
-  timelineEvents: DesktopSessionEvent[];
-}): boolean {
-  if (sessionStatus !== "running" && sessionStatus !== "waiting") return false;
-  if (pendingPermissions.length > 0) return false;
-
-  const lastUserMessageIndex = findLastIndex(
-    timelineEvents,
-    (event) =>
-      event.type === "message" &&
-      event.role === "user" &&
-      Boolean(event.content?.trim()),
-  );
-  if (lastUserMessageIndex === -1) return false;
-
-  const currentTurnEvents = timelineEvents.slice(lastUserMessageIndex + 1);
-  for (const event of currentTurnEvents) {
-    const type = event.type as string;
-    if (
-      type === "checkpoint" ||
-      type === "error" ||
-      type === "turn.interrupted"
-    ) {
-      return false;
-    }
-    if (
-      (event.type === "message" || event.type === "assistant_delta") &&
-      event.role === "assistant" &&
-      Boolean(event.content?.trim())
-    ) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-export function deriveTimelineSourceEvents({
-  conversationMessages,
-  events,
-  sessionStatus,
-  workflowEvents,
-}: {
-  conversationMessages: Message[];
-  events: DesktopSessionEvent[];
-  sessionStatus: DesktopSessionStatus;
-  workflowEvents: DesktopSessionEvent[];
-}): DesktopSessionEvent[] {
-  if (isActiveSessionStatus(sessionStatus) && events.length > 0) {
-    return events;
-  }
-  if (workflowEvents.length > 0) {
-    return workflowEvents;
-  }
-  if (events.length > 0) {
-    return events;
-  }
-  return legacyMessagesToSessionEvents("legacy", conversationMessages);
-}
-
-export function deriveAssistantActionMessageIds({
-  sessionStatus,
-  timelineEvents,
-}: {
-  sessionStatus: DesktopSessionStatus;
-  timelineEvents: DesktopSessionEvent[];
-}): Set<string> {
-  const visibleIds = new Set<string>();
-  let turnAssistantMessageId: string | null = null;
-
-  const resetTurn = () => {
-    turnAssistantMessageId = null;
-  };
-
-  const commitCompletedTurn = () => {
-    if (!turnAssistantMessageId) return;
-    visibleIds.add(turnAssistantMessageId);
-    resetTurn();
-  };
-
-  for (const event of timelineEvents) {
-    if (
-      event.type === "message" &&
-      event.role === "assistant" &&
-      Boolean(event.content?.trim())
-    ) {
-      turnAssistantMessageId = event.id;
-      continue;
-    }
-    if (event.type === "checkpoint" || event.type === "error") {
-      commitCompletedTurn();
-    }
-  }
-
-  if (!isActiveSessionStatus(sessionStatus)) {
-    commitCompletedTurn();
-  }
-
-  return visibleIds;
-}
-
-function isActiveSessionStatus(sessionStatus: DesktopSessionStatus): boolean {
-  return sessionStatus === "running" || sessionStatus === "waiting";
-}
-
-function findLastIndex<T>(
-  values: readonly T[],
-  predicate: (value: T) => boolean,
-): number {
-  for (let index = values.length - 1; index >= 0; index -= 1) {
-    if (predicate(values[index]!)) return index;
-  }
-  return -1;
-}
-
 export { planCardPresentation, planTitleFromSummary } from "./WorkflowPlanCard.js";
-
-export type TimelineToolRun = {
-  id: string;
-  toolUseId?: string;
-  toolName: string;
-  callContent: string;
-  resultContent: string;
-  /** Live output accumulated from tool_output_delta events */
-  outputContent: string;
-  permissionRequest?: DesktopPermissionRequest;
-  resultMetadata?: Record<string, unknown>;
-  isError: boolean;
-  isRunning: boolean;
-  isWaitingForPermission: boolean;
-  startedAtMs?: number;
-};
-
-export type TimelineToolGroup = {
-  id: string;
-  type: "tool_group";
-  runs: TimelineToolRun[];
-};
-
-export type ExecutionPhaseGroup = {
-  id: string;
-  type: "execution_phase";
-  items: TimelineItem[];
-  isComplete: boolean;
-};
-
-export type PhaseTimelineItem = TimelineItem | ExecutionPhaseGroup;
-
-export type TimelineItem = DesktopSessionEvent | TimelineToolGroup;
-
-/* ── Turn navigation model ─────────────────────────────── */
-
-export type ConversationTurnNavItem = {
-  id: string;
-  rowIndex: number;
-  userText: string;
-  assistantText: string | null;
-  files: string[];
-};
-
-/**
- * Derive turn-navigation items from phaseItems.
- * A "turn" starts at each user message.  For every turn we collect:
- *   – userText: the user's message content
- *   – assistantText: the last assistant message text in the turn (or null)
- *   – files: paths from file_patch events with metadata.turnScoped === true
- * The rowIndex is the index of the user message within phaseItems,
- * which also serves as the VList row index.
- */
-export function deriveConversationTurnNavItems(
-  items: PhaseTimelineItem[],
-): ConversationTurnNavItem[] {
-  const navItems: ConversationTurnNavItem[] = [];
-  let currentId = "";
-  let currentIndex = -1;
-  let currentUserText = "";
-  let currentAssistantText: string | null = null;
-  const currentFilesSet = new Set<string>();
-
-  function flushTurn(): void {
-    if (currentIndex < 0) return;
-    navItems.push({
-      id: currentId,
-      rowIndex: currentIndex,
-      userText: currentUserText,
-      assistantText: currentAssistantText,
-      files: [...currentFilesSet],
-    });
-    currentId = "";
-    currentIndex = -1;
-    currentUserText = "";
-    currentAssistantText = null;
-    currentFilesSet.clear();
-  }
-
-  function collectEvent(event: DesktopSessionEvent): void {
-    if (
-      (event.type === "message" || event.type === "assistant_delta") &&
-      event.role === "assistant"
-    ) {
-      if (event.content?.trim()) {
-        currentAssistantText = event.content.trim();
-      }
-      return;
-    }
-    if (event.type === "file_patch" && event.metadata?.turnScoped === true) {
-      collectFilesFromPatchEvent(event, currentFilesSet);
-    }
-  }
-
-  function collectItemsRecursive(phaseItem: TimelineItem): void {
-    if (phaseItem.type === "tool_group") {
-      // Tool groups don't contain user messages or file_patches we care about here
-      return;
-    }
-    collectEvent(phaseItem as DesktopSessionEvent);
-  }
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-
-    if (item.type === "execution_phase") {
-      // If we have an open turn, collect from inside the phase
-      if (currentIndex >= 0) {
-        for (const child of item.items) {
-          collectItemsRecursive(child);
-        }
-      }
-      continue;
-    }
-
-    const event = item as DesktopSessionEvent;
-
-    // User message → start new turn
-    if (event.type === "message" && event.role === "user") {
-      flushTurn();
-      currentId = event.id;
-      currentIndex = i;
-      currentUserText = event.content?.trim() ?? "";
-      continue;
-    }
-
-    // Everything else collected into current turn
-    if (currentIndex >= 0) {
-      collectItemsRecursive(item);
-    }
-  }
-
-  // Flush final turn
-  flushTurn();
-
-  return navItems;
-}
-
-function collectFilesFromPatchEvent(
-  event: DesktopSessionEvent,
-  fileSet: Set<string>,
-): void {
-  const meta = event.metadata ?? {};
-  const files = Array.isArray(meta.files)
-    ? (meta.files as Array<Record<string, unknown>>)
-    : [];
-
-  if (files.length > 0) {
-    for (const file of files) {
-      const path = file.path;
-      if (typeof path === "string") {
-        fileSet.add(path);
-      }
-    }
-    return;
-  }
-
-  // Fallback to single filePath
-  const filePath = meta.filePath;
-  if (typeof filePath === "string") {
-    fileSet.add(filePath);
-  }
-}
 
 function workflowComposerMode(
   request: DesktopPermissionRequest | null,
@@ -2060,13 +1756,6 @@ function trimNodeTitle(value: string): string {
   return `${normalized.slice(0, 30)}...`;
 }
 
-function timelineItemSlot(item: PhaseTimelineItem): string {
-  if (item.type === "message" || item.type === "assistant_delta") {
-    return `${item.role ?? "system"}-message`;
-  }
-  return item.type;
-}
-
 function TimelineItem({
   item,
   rightDockPlanContent,
@@ -2126,7 +1815,7 @@ function TimelineItem({
     const title = planTitleFromSummary(summary);
     return (
       <article className="chat-message-row assistant tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-start tw:text-base tw:text-app-text">
-        <div className="assistant-message-body tw:w-full tw:max-w-[48rem] tw:text-base tw:leading-[22px] tw:text-app-text">
+        <div className="assistant-message-body tw:w-full tw:text-base tw:leading-[22px] tw:text-app-text">
           <WorkflowPlanCard
             summary={summary}
             streaming={event.metadata?.streaming === true}
@@ -2252,38 +1941,6 @@ function TimelineItem({
   }
 
   return null;
-}
-
-function TimelineSystemNotice({
-  content,
-  type,
-}: {
-  content: string;
-  type?: string;
-}): React.ReactNode {
-  if (isModelSwitchNotice(content)) {
-    return (
-      <article className="timeline-model-switch-event">
-        <span className="timeline-model-switch-line" />
-        <span className="timeline-model-switch-content">
-          <Box size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          <strong>{content}</strong>
-          <Info size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-        </span>
-        <span className="timeline-model-switch-line" />
-      </article>
-    );
-  }
-
-  return (
-    <article className={`timeline-system-event ${type ?? "message"}`}>
-      {content}
-    </article>
-  );
-}
-
-function isModelSwitchNotice(content: string): boolean {
-  return /^模型已从 .+ 更改为 .+$/.test(content.trim());
 }
 
 function TimelineToolGroupView({
@@ -2702,7 +2359,13 @@ function ChatMessage({
   const [isEditing, setIsEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(message.text);
   const [isSubmittingEdit, setIsSubmittingEdit] = React.useState(false);
+  const [isUserMessageExpanded, setIsUserMessageExpanded] =
+    React.useState(false);
+  const [canExpandUserMessage, setCanExpandUserMessage] =
+    React.useState(false);
   const editTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const userMessageContentRef = React.useRef<HTMLDivElement | null>(null);
+  const userMessageContentId = React.useId();
   // Typewriter effect removed: completed messages display immediately.
   // Real streaming output is handled via MarkdownMessage `streaming` prop.
   const shouldTypewrite = false;
@@ -2738,6 +2401,30 @@ function ChatMessage({
       );
     });
   }, [isEditing, message.text]);
+
+  React.useLayoutEffect(() => {
+    if (message.role !== "user") return;
+    const element = userMessageContentRef.current;
+    if (!element) return;
+
+    if (isUserMessageExpanded) {
+      setCanExpandUserMessage(true);
+      return;
+    }
+
+    const updateOverflowState = (): void => {
+      setCanExpandUserMessage(element.scrollHeight > element.clientHeight + 1);
+    };
+    updateOverflowState();
+
+    const observer = new ResizeObserver(updateOverflowState);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [isUserMessageExpanded, message.role, message.text]);
+
+  React.useEffect(() => {
+    setIsUserMessageExpanded(false);
+  }, [message.text]);
 
   async function submitEdit(): Promise<void> {
     if (!canSubmitEdit) return;
@@ -2804,8 +2491,30 @@ function ChatMessage({
 
     return (
       <article className="chat-message-row user tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-end tw:text-base tw:text-app-text">
-        <div className="user-message-bubble tw:max-w-[77%] tw:rounded-2xl tw:px-3 tw:py-2 tw:text-base tw:leading-6 tw:text-app-text">
-          {message.text}
+        <div
+          className={`user-message-bubble${isUserMessageExpanded ? " is-expanded" : ""} tw:rounded-2xl tw:px-3 tw:py-2 tw:text-base tw:leading-6 tw:text-app-text`}
+        >
+          <div
+            className="user-message-content"
+            id={userMessageContentId}
+            ref={userMessageContentRef}
+          >
+            {message.text}
+          </div>
+          {canExpandUserMessage ? (
+            <button
+              aria-controls={userMessageContentId}
+              aria-expanded={isUserMessageExpanded}
+              className="user-message-expand-toggle"
+              onClick={() => setIsUserMessageExpanded((expanded) => !expanded)}
+              type="button"
+            >
+              <span>
+                {isUserMessageExpanded ? "收起" : "显示更多"}
+              </span>
+              <ChevronDown aria-hidden="true" />
+            </button>
+          ) : null}
         </div>
         <div className="user-message-meta" aria-label="用户消息操作">
           {sentAt ? <time>{sentAt}</time> : null}
@@ -2834,7 +2543,7 @@ function ChatMessage({
     <article
       className={`chat-message-row ${message.role} tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-start tw:text-base tw:text-app-text`}
     >
-      <div className="assistant-message-body tw:w-full tw:max-w-[48rem] tw:text-base tw:leading-[22px] tw:text-app-text">
+      <div className="assistant-message-body tw:w-full tw:text-base tw:leading-[22px] tw:text-app-text">
         <MarkdownMessage
           cwd={workspacePath}
           text={renderedText}
@@ -4258,222 +3967,6 @@ function subagentPanelStatus(status: string): string {
   return "运行中";
 }
 
-function foldTimelineEvents(
-  sourceEvents: DesktopSessionEvent[],
-): DesktopSessionEvent[] {
-  const folded: DesktopSessionEvent[] = [];
-  for (const event of sourceEvents) {
-    const previous = folded.at(-1);
-    if (event.type === "assistant_delta") {
-      if (previous?.type === "assistant_delta") {
-        folded[folded.length - 1] = event;
-      } else {
-        folded.push(event);
-      }
-      continue;
-    }
-    if (
-      event.type === "message" &&
-      event.role === "assistant" &&
-      previous?.type === "assistant_delta"
-    ) {
-      folded[folded.length - 1] = event;
-      continue;
-    }
-    folded.push(event);
-  }
-  return folded;
-}
-
-export function groupTimelineToolEvents(
-  sourceEvents: DesktopSessionEvent[],
-): TimelineItem[] {
-  const items: TimelineItem[] = [];
-  let pendingToolEvents: DesktopSessionEvent[] = [];
-
-  function flushToolEvents(options?: { forceStopRuns?: boolean }): void {
-    if (pendingToolEvents.length === 0) return;
-    const group = buildToolGroup(pendingToolEvents);
-    if (group) {
-      // When flushing due to a non-tool event (e.g. user message), the turn
-      // has moved on — stop any remaining running runs defensively.
-      if (options?.forceStopRuns) {
-        for (const run of group.runs) {
-          if (run.isRunning) {
-            run.isRunning = false;
-            run.isError = true;
-            if (!run.resultContent) {
-              run.resultContent = '操作已停止';
-            }
-          }
-        }
-      }
-      items.push(group);
-    }
-    pendingToolEvents = [];
-  }
-
-  for (const event of sourceEvents) {
-    // Turn terminal: status events like idle/done mean the session is no
-    // longer active — any remaining pending tool runs must be stopped.
-    if (event.type === "status") {
-      if (
-        pendingToolEvents.length > 0 &&
-        (event.content === "idle" || event.content === "done")
-      ) {
-        pendingToolEvents.push(terminalToolResultEvent(event));
-      }
-      continue;
-    }
-    if (
-      pendingToolEvents.length > 0 &&
-      (event.type === "error" || event.type === "checkpoint")
-    ) {
-      pendingToolEvents.push(terminalToolResultEvent(event));
-    }
-    if (
-      event.type === "tool_call" ||
-      event.type === "tool_result" ||
-      event.type === "permission_request" ||
-      event.type === "tool_output_delta"
-    ) {
-      pendingToolEvents.push(event);
-      continue;
-    }
-    // Non-tool event: flush with defensive stop
-    flushToolEvents({ forceStopRuns: true });
-    items.push(event);
-  }
-
-  // Final flush: do NOT force-stop runs — they may still be live
-  flushToolEvents();
-  return items;
-}
-
-export function groupTimelineExecutionPhases(
-  items: TimelineItem[],
-  sessionStatus: DesktopSessionStatus,
-): PhaseTimelineItem[] {
-  const result: PhaseTimelineItem[] = [];
-  let i = 0;
-
-  while (i < items.length) {
-    const item = items[i];
-
-    if (item.type === "proposed_plan") {
-      // Found a proposed_plan — look ahead to find the rest of this turn
-      const planItem = item;
-
-      // Find the turn end: next checkpoint, error, user message, or end of items
-      let turnEnd = i + 1;
-      while (turnEnd < items.length) {
-        const next = items[turnEnd];
-        if (
-          next.type === "checkpoint" ||
-          next.type === "error" ||
-          (next.type === "message" && next.role === "user")
-        ) {
-          break;
-        }
-        turnEnd++;
-      }
-
-      // Emit the plan card
-      result.push(planItem);
-      i++;
-
-      // Categorize items between plan and end of turn
-      const turnItems = items.slice(i, turnEnd);
-
-      // Find the last assistant message in the turn items
-      let lastAssistantIndex = -1;
-      for (let j = turnItems.length - 1; j >= 0; j--) {
-        const ti = turnItems[j];
-        if (ti && ti.type === "message" && ti.role === "assistant") {
-          lastAssistantIndex = j;
-          break;
-        }
-      }
-
-      // Separate items into execution, file patches, and final message
-      const executionItems: TimelineItem[] = [];
-      const filePatches: TimelineItem[] = [];
-      let finalMessage: TimelineItem | null = null;
-
-      for (let j = 0; j < turnItems.length; j++) {
-        const ti = turnItems[j];
-        if (ti.type === "file_patch") {
-          filePatches.push(ti);
-        } else if (
-          j === lastAssistantIndex &&
-          ti.type === "message" &&
-          ti.role === "assistant"
-        ) {
-          finalMessage = ti;
-        } else if (ti.type === "checkpoint") {
-          // Skip checkpoints inside execution phase (rendered hidden)
-        } else {
-          executionItems.push(ti);
-        }
-      }
-
-      // Determine if the turn is complete
-      const isActive =
-        sessionStatus === "running" || sessionStatus === "waiting";
-      const hasTurnEnd = turnEnd < items.length;
-      const endedByCheckpointOrError =
-        hasTurnEnd &&
-        (items[turnEnd]?.type === "checkpoint" ||
-          items[turnEnd]?.type === "error");
-      const isComplete = endedByCheckpointOrError || (!isActive && !hasTurnEnd);
-
-      // Emit execution phase group only if there are execution items
-      if (executionItems.length > 0) {
-        result.push({
-          id: `execution-phase-${planItem.id}`,
-          type: "execution_phase",
-          items: executionItems,
-          isComplete,
-        });
-      }
-
-      // Emit file patches (result cards — stay visible)
-      for (const fp of filePatches) {
-        result.push(fp);
-      }
-
-      // Emit final summary message (with actions)
-      if (finalMessage) {
-        result.push(finalMessage);
-      }
-
-      // Skip past the turn items we've processed
-      i = turnEnd;
-    } else {
-      result.push(item);
-      i++;
-    }
-  }
-
-  return result;
-}
-
-function terminalToolResultEvent(
-  event: DesktopSessionEvent,
-): DesktopSessionEvent {
-  return {
-    id: `${event.id}-terminal-tool-result`,
-    sessionId: event.sessionId,
-    type: "tool_result",
-    content:
-      event.type === "error" ? event.content || "操作已中止" : "操作已停止",
-    createdAt: event.createdAt,
-    metadata: {
-      isError: true,
-    },
-  };
-}
-
 export function buildDebugAskUserQuestionRequest(
   idSuffix = "sample",
 ): DesktopPermissionRequest {
@@ -4571,127 +4064,6 @@ function isDebugAskUserQuestionRequest(
   );
 }
 
-function buildToolGroup(
-  events: DesktopSessionEvent[],
-): TimelineToolGroup | null {
-  const runs: TimelineToolRun[] = [];
-
-  for (const event of events) {
-    const toolName = stringMetadata(event, "toolName") ?? "Tool";
-    const toolUseId = toolUseIdForEvent(event);
-    const content = normalizedToolContent(event, toolName);
-
-    if (event.type === "tool_call") {
-      runs.push({
-        id: event.id,
-        toolUseId,
-        toolName,
-        callContent: content,
-        resultContent: "",
-        outputContent: "",
-        isError: false,
-        isRunning: true,
-        isWaitingForPermission: false,
-        startedAtMs: Date.parse(event.createdAt) || undefined,
-      });
-      continue;
-    }
-
-    if (event.type === "tool_output_delta") {
-      const match = findPendingToolRun(runs, toolName, toolUseId) ??
-        findPendingToolRun(runs, undefined, toolUseId);
-      if (match) {
-        // Use raw event.content (not normalizedToolContent) to preserve whitespace
-        match.outputContent += event.content ?? "";
-        // First output delta implies permission was resolved and the
-        // command is now executing — clear the waiting flag.
-        match.isWaitingForPermission = false;
-      }
-      continue;
-    }
-
-    const pendingRun =
-      (toolUseId ? findPendingToolRun(runs, undefined, toolUseId) : null) ??
-      findPendingToolRun(runs, toolName) ??
-      findPendingToolRun(runs);
-    if (event.type === "permission_request") {
-      if (pendingRun) {
-        pendingRun.isWaitingForPermission = true;
-        pendingRun.permissionRequest = permissionRequestFromEvent(event);
-      }
-      continue;
-    }
-    if (pendingRun) {
-      pendingRun.resultContent = content;
-      pendingRun.resultMetadata = event.metadata;
-      pendingRun.isError = event.metadata?.isError === true;
-      pendingRun.isRunning = false;
-      pendingRun.isWaitingForPermission = false;
-      continue;
-    }
-
-    if (!content && event.metadata?.isError !== true) {
-      continue;
-    }
-    runs.push({
-      id: event.id,
-      toolUseId,
-      toolName,
-      callContent: "",
-      resultContent: content,
-      outputContent: "",
-      resultMetadata: event.metadata,
-      isError: event.metadata?.isError === true,
-      isRunning: false,
-      isWaitingForPermission: false,
-    });
-  }
-
-  const visibleRuns = runs.filter(
-    (run) =>
-      run.callContent || run.resultContent || run.isError || run.isRunning,
-  );
-
-  if (visibleRuns.length === 0) return null;
-
-  return {
-    id: `tool-group-${events[0]?.id ?? "empty"}`,
-    type: "tool_group",
-    runs: visibleRuns,
-  };
-}
-
-function permissionRequestFromEvent(
-  event: DesktopSessionEvent,
-): DesktopPermissionRequest | undefined {
-  const request = event.metadata?.request;
-  if (!isRecordValue(request)) return undefined;
-  return request as DesktopPermissionRequest;
-}
-
-function findPendingToolRun(
-  runs: TimelineToolRun[],
-  toolName?: string,
-  toolUseId?: string,
-): TimelineToolRun | null {
-  for (let index = runs.length - 1; index >= 0; index -= 1) {
-    const run = runs[index];
-    if (!run || !run.isRunning) continue;
-    if (toolUseId && run.toolUseId !== toolUseId) continue;
-    if (toolName && run.toolName !== toolName) continue;
-    return run;
-  }
-  return null;
-}
-
-function stringMetadata(
-  event: DesktopSessionEvent,
-  key: string,
-): string | null {
-  const value = event.metadata?.[key];
-  return typeof value === "string" ? value : null;
-}
-
 function numberMetadata(
   event: DesktopSessionEvent,
   key: string,
@@ -4700,29 +4072,8 @@ function numberMetadata(
   return typeof value === "number" ? value : null;
 }
 
-function toolUseIdForEvent(event: DesktopSessionEvent): string | undefined {
-  const metadataToolUseId =
-    stringMetadata(event, "toolUseId") ?? stringMetadata(event, "tool_use_id");
-  if (metadataToolUseId) return metadataToolUseId;
-  const directToolUseId = (event as { toolUseId?: unknown }).toolUseId;
-  return typeof directToolUseId === "string" ? directToolUseId : undefined;
-}
-
 function displayToolName(toolName: string): string {
   return toolName === "Bash" ? "Shell" : toolName;
-}
-
-function normalizedToolContent(
-  event: DesktopSessionEvent,
-  toolName: string,
-): string {
-  const content = event.content?.trim() ?? "";
-  if (!content) return "";
-  if (event.type === "tool_result" && content === toolName) return "";
-  const prefix = `${toolName}:`;
-  return content.startsWith(prefix)
-    ? content.slice(prefix.length).trim()
-    : content;
 }
 
 function summarizeDiff(diff: string): { additions: number; deletions: number } {
