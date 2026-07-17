@@ -296,6 +296,40 @@ const fixtures = {
     settings: { defaultModel: modelRef },
     version: 2,
   }),
+  "workspace/file/read": methodFixture("workspace/file/read", {
+    projectId: project.id,
+    path: "src/index.ts",
+  }, {
+    path: "src/index.ts",
+    content: "export {}",
+    sizeBytes: 9,
+    readonly: false,
+    truncated: false,
+    revision: { mtimeMs: 1, sha256: "a".repeat(64) },
+  }),
+  "workspace/file/save": methodFixture("workspace/file/save", {
+    projectId: project.id,
+    path: "src/index.ts",
+    content: "export {}",
+    expectedRevision: { mtimeMs: 1, sha256: "a".repeat(64) },
+  }, {
+    outcome: "saved",
+    revision: { mtimeMs: 2, sha256: "b".repeat(64) },
+  }),
+  "workspace/file/watch": methodFixture("workspace/file/watch", {
+    projectId: project.id,
+    path: "src/index.ts",
+  }, {
+    watching: true,
+    path: "src/index.ts",
+  }),
+  "workspace/file/unwatch": methodFixture("workspace/file/unwatch", {
+    projectId: project.id,
+    path: "src/index.ts",
+  }, {
+    watching: false,
+    path: "src/index.ts",
+  }),
   "thread/list": methodFixture("thread/list", {
     projectId: project.id,
     archived: false,
@@ -574,9 +608,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 60 formal methods decodable", () => {
+  test("keeps valid params and results for all 64 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(60)
+    expect(methods).toHaveLength(64)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {

@@ -100,6 +100,12 @@ const resolveMemoryProjectKey = async (db: AgentDatabase, params: Record<string,
   return projectMemoryKey(workspace.rootPath)
 }
 
+const resolveProjectWorkspace = async (db: AgentDatabase, projectId: string) => {
+  const project = db.getProject(projectId)
+  if (!project) throw new AgentError("PROJECT_NOT_FOUND", "项目不存在", 404)
+  return WorkspaceService.open(project.rootPath)
+}
+
 const submitMessage = (raw: unknown): SubmitMessage => {
   const body = decodeParams(decodeTurnStart, raw, "turn/start")
   return {
@@ -113,6 +119,7 @@ const submitMessage = (raw: unknown): SubmitMessage => {
 
 export class RpcRouter {
   readonly projection: ThreadProjection
+  private readonly workspaceFileWatchers = new Map<string, { close: () => void }>()
 
   constructor(private readonly dependencies: RpcRouterDependencies) {
     this.projection = new ThreadProjection(dependencies.db)
@@ -145,7 +152,7 @@ export class RpcRouter {
     switch (method) {
       case "initialize":
         db.sqlite.query("SELECT 1").get()
-        return { ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid, readyAt: Date.now(), protocol: "thread-rpc-v2", capabilities: { agentExecutions: 1, subagents: 1, attachments: 1, prompt: 2, memory: 2, compact: 1, hookTrust: 1, queueManagement: 1 } }
+        return { ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid, readyAt: Date.now(), protocol: "thread-rpc-v2", capabilities: { agentExecutions: 1, subagents: 1, attachments: 1, prompt: 2, memory: 2, compact: 1, hookTrust: 1, queueManagement: 1, workspaceEditor: 1 } }
       case "sandbox/status":
         return { sandbox: await sandbox.getStatus() }
       case "sandbox/install":
@@ -173,6 +180,43 @@ export class RpcRouter {
         if (typeof params.rootPath !== "string" || !params.rootPath.trim()) throw new AgentError("INVALID_REQUEST", "rootPath 参数无效", 400)
         const workspace = await WorkspaceService.open(params.rootPath)
         return { project: db.createProject({ rootPath: workspace.rootPath }) }
+      }
+      case "workspace/file/read": {
+        const workspace = await resolveProjectWorkspace(db, stringParam(params, "projectId"))
+        return workspace.readEditorFile(stringParam(params, "path"))
+      }
+      case "workspace/file/save": {
+        const workspace = await resolveProjectWorkspace(db, stringParam(params, "projectId"))
+        const expectedRevision = record(params.expectedRevision, "expectedRevision")
+        if (typeof params.content !== "string") throw new AgentError("INVALID_REQUEST", "content 参数无效", 400)
+        if (typeof expectedRevision.mtimeMs !== "number" || typeof expectedRevision.sha256 !== "string") {
+          throw new AgentError("INVALID_REQUEST", "expectedRevision 参数无效", 400)
+        }
+        return workspace.saveEditorFile(stringParam(params, "path"), params.content, {
+          mtimeMs: expectedRevision.mtimeMs,
+          sha256: expectedRevision.sha256,
+        })
+      }
+      case "workspace/file/watch": {
+        const projectId = stringParam(params, "projectId")
+        const workspace = await resolveProjectWorkspace(db, projectId)
+        const requestedPath = stringParam(params, "path")
+        const watched = await workspace.watchEditorFile(requestedPath, (path) => {
+          void this.emit("workspace/file/changed", { projectId, path, changedAt: Date.now() })
+        })
+        const key = `${projectId}\0${watched.path}`
+        if (this.workspaceFileWatchers.has(key)) watched.close()
+        else this.workspaceFileWatchers.set(key, watched)
+        return { watching: true, path: watched.path }
+      }
+      case "workspace/file/unwatch": {
+        const projectId = stringParam(params, "projectId")
+        const workspace = await resolveProjectWorkspace(db, projectId)
+        const path = await workspace.resolveEditorFilePath(stringParam(params, "path"))
+        const key = `${projectId}\0${path}`
+        this.workspaceFileWatchers.get(key)?.close()
+        this.workspaceFileWatchers.delete(key)
+        return { watching: false, path }
       }
       case "project/updateSettings": {
         const projectId = stringParam(params, "projectId")

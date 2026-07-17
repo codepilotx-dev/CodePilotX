@@ -81,3 +81,63 @@ describe("WorkspaceService.applyPatch", () => {
     expect(await Bun.file(join(outside, "new.txt")).exists()).toBe(false)
   })
 })
+
+describe("WorkspaceService editor files", () => {
+  test("读取 UTF-8 文件并使用 revision 原子保存", async () => {
+    const { root, service } = await workspace()
+    await writeFile(join(root, "source.ts"), "const value = 1\n", "utf8")
+
+    const opened = await service.readEditorFile("source.ts")
+    expect(opened).toMatchObject({
+      path: "source.ts",
+      content: "const value = 1\n",
+      sizeBytes: 16,
+      readonly: false,
+    })
+    expect(opened.revision.sha256).toBe(hash(opened.content))
+
+    const saved = await service.saveEditorFile("source.ts", "const value = 2\n", opened.revision)
+    expect(saved.outcome).toBe("saved")
+    expect(await readFile(join(root, "source.ts"), "utf8")).toBe("const value = 2\n")
+  })
+
+  test("磁盘内容变化时返回 conflict 且不覆盖", async () => {
+    const { root, service } = await workspace()
+    await writeFile(join(root, "source.txt"), "before", "utf8")
+    const opened = await service.readEditorFile("source.txt")
+    await writeFile(join(root, "source.txt"), "external change", "utf8")
+
+    const result = await service.saveEditorFile("source.txt", "local change", opened.revision)
+
+    expect(result.outcome).toBe("conflict")
+    expect(await readFile(join(root, "source.txt"), "utf8")).toBe("external change")
+  })
+
+  test("超过 10 MiB 的文件只读，并拒绝非法 UTF-8", async () => {
+    const { root, service } = await workspace()
+    await writeFile(join(root, "large.txt"), Buffer.alloc(10 * 1024 * 1024 + 1, 97))
+    await writeFile(join(root, "binary.txt"), new Uint8Array([0xff, 0xfe]))
+
+    const large = await service.readEditorFile("large.txt")
+    expect(large.readonly).toBe(true)
+    await expect(service.saveEditorFile("large.txt", "small", large.revision)).rejects.toMatchObject({ code: "WORKSPACE_FILE_READONLY" })
+    await expect(service.readEditorFile("binary.txt")).rejects.toMatchObject({ code: "WORKSPACE_FILE_UNREADABLE" })
+  })
+
+  test("监听文件变化并可显式释放 watcher", async () => {
+    const { root, service } = await workspace()
+    await writeFile(join(root, "watched.txt"), "before", "utf8")
+    const changed = new Promise<string>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("watch timeout")), 2_000)
+      void service.watchEditorFile("watched.txt", (path) => {
+        clearTimeout(timeout)
+        resolve(path)
+      }).then(async (watcher) => {
+        await writeFile(join(root, "watched.txt"), "after", "utf8")
+        void changed.finally(watcher.close)
+      }, reject)
+    })
+
+    await expect(changed).resolves.toBe("watched.txt")
+  })
+})

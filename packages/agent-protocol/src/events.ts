@@ -42,6 +42,18 @@ const ToolTerminalPayloadSchema = Schema.Struct({
 })
 
 export const EventManifest = {
+  "workspace/file/changed": defineEvent({
+    payload: Schema.Struct({
+      projectId: OpaqueIDSchema,
+      path: Schema.String.check(Schema.isMinLength(1)),
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "workspace.editor.v1",
+    reconcilesWith: "workspace/file/read",
+  }),
   "thread/created": defineEvent({
     payload: Schema.Struct({ thread: ThreadSchema }),
     version: 1,

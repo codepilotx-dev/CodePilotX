@@ -667,6 +667,10 @@ export const AgentRpcMethodSchema = Schema.Literals([
   "project/list",
   "project/open",
   "project/updateSettings",
+  "workspace/file/read",
+  "workspace/file/save",
+  "workspace/file/watch",
+  "workspace/file/unwatch",
   "thread/list",
   "thread/create",
   "thread/read",
@@ -724,6 +728,7 @@ export const AgentRpcMethodSchema = Schema.Literals([
 export type AgentRpcMethod = typeof AgentRpcMethodSchema.Type
 
 export const AgentEventMethodSchema = Schema.Literals([
+  "workspace/file/changed",
   "thread/created",
   "thread/snapshot",
   "thread/updated",

@@ -1,10 +1,13 @@
 import { createHash, randomUUID } from "node:crypto"
+import { watch as watchFileSystem } from "node:fs"
 import { chmod, lstat, readdir, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises"
 import { basename, dirname, isAbsolute, relative, resolve } from "node:path"
 import { AgentError } from "../domain"
 
 const IGNORED_DIRECTORIES = new Set([".git", "node_modules", "dist", "build", ".next", "out", "coverage"])
 const MAX_FILE_BYTES = 1_000_000
+const EDITOR_READ_MAX_BYTES = 20 * 1024 * 1024
+const EDITOR_WRITE_MAX_BYTES = 10 * 1024 * 1024
 const SEARCH_LIMIT = 200
 const LIST_LIMIT = 2_000
 const SEARCH_MAX_FILES = 10_000
@@ -19,6 +22,20 @@ export interface WorkspaceSearchResult {
   path: string
   line?: number
   preview?: string
+}
+
+export interface WorkspaceFileRevision {
+  mtimeMs: number
+  sha256: string
+}
+
+export interface WorkspaceEditorFile {
+  path: string
+  content: string
+  sizeBytes: number
+  readonly: boolean
+  truncated: false
+  revision: WorkspaceFileRevision
 }
 
 export type ApplyPatchInput =
@@ -141,8 +158,8 @@ export class WorkspaceService {
     return canonical
   }
 
-  private async replaceAtomically(path: string, content: string, mode?: number) {
-    if (Buffer.byteLength(content, "utf8") > MAX_FILE_BYTES) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `最终文件超过 ${MAX_FILE_BYTES} 字节上限`, 413)
+  private async replaceAtomically(path: string, content: string, mode?: number, maxBytes = MAX_FILE_BYTES) {
+    if (Buffer.byteLength(content, "utf8") > maxBytes) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `最终文件超过 ${maxBytes} 字节上限`, 413)
     const temporary = resolve(dirname(path), `.codepilotx-${randomUUID()}.tmp`)
     try {
       await writeFile(temporary, content, { encoding: "utf8", flag: "wx" })
@@ -185,6 +202,100 @@ export class WorkspaceService {
       return fileLines.slice(Math.max(0, offset), Math.max(0, offset) + Math.max(1, Math.min(10_000, limit))).join("\n")
     } catch {
       throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件无法按 UTF-8 读取", 400)
+    }
+  }
+
+  async readEditorFile(path: string): Promise<WorkspaceEditorFile> {
+    const canonical = await this.existingPath(path)
+    const metadata = await stat(canonical)
+    if (!metadata.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
+    if (metadata.size > EDITOR_READ_MAX_BYTES) {
+      throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `文件超过 ${EDITOR_READ_MAX_BYTES} 字节编辑器读取上限`, 413, {
+        sizeBytes: metadata.size,
+        maxBytes: EDITOR_READ_MAX_BYTES,
+      })
+    }
+    let content: string
+    try {
+      content = decodeUtf8(await readFile(canonical))
+    } catch (cause) {
+      if (cause instanceof AgentError) throw cause
+      throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件无法按 UTF-8 读取", 400)
+    }
+    const current = await stat(canonical)
+    if (!current.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
+    return {
+      path: this.displayPath(canonical),
+      content,
+      sizeBytes: Buffer.byteLength(content, "utf8"),
+      readonly: current.size > EDITOR_WRITE_MAX_BYTES,
+      truncated: false,
+      revision: { mtimeMs: current.mtimeMs, sha256: sha256(content) },
+    }
+  }
+
+  async watchEditorFile(path: string, onChange: (path: string) => void) {
+    const canonical = await this.existingPath(path)
+    const metadata = await stat(canonical)
+    if (!metadata.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
+    const displayPath = this.displayPath(canonical)
+    let debounce: ReturnType<typeof setTimeout> | undefined
+    const watcher = watchFileSystem(canonical, { persistent: false }, () => {
+      if (debounce) clearTimeout(debounce)
+      debounce = setTimeout(() => onChange(displayPath), 50)
+    })
+    watcher.on("error", () => {
+      if (debounce) clearTimeout(debounce)
+    })
+    return {
+      path: displayPath,
+      close: () => {
+        if (debounce) clearTimeout(debounce)
+        watcher.close()
+      },
+    }
+  }
+
+  async resolveEditorFilePath(path: string) {
+    const canonical = await this.existingPath(path)
+    const metadata = await stat(canonical)
+    if (!metadata.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
+    return this.displayPath(canonical)
+  }
+
+  async saveEditorFile(path: string, content: string, expectedRevision: WorkspaceFileRevision) {
+    if (!Number.isFinite(expectedRevision.mtimeMs) || expectedRevision.mtimeMs < 0 || !/^[a-f\d]{64}$/i.test(expectedRevision.sha256)) {
+      throw new AgentError("INVALID_REQUEST", "expectedRevision 参数无效", 400)
+    }
+    const contentBytes = Buffer.byteLength(content, "utf8")
+    if (contentBytes > EDITOR_WRITE_MAX_BYTES) {
+      throw new AgentError("WORKSPACE_FILE_READONLY", `编辑器只允许保存不超过 ${EDITOR_WRITE_MAX_BYTES} 字节的文件`, 413, {
+        sizeBytes: contentBytes,
+        maxBytes: EDITOR_WRITE_MAX_BYTES,
+      })
+    }
+    const canonical = await this.existingPath(path)
+    const metadata = await stat(canonical)
+    if (!metadata.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
+    if (metadata.size > EDITOR_WRITE_MAX_BYTES) {
+      throw new AgentError("WORKSPACE_FILE_READONLY", `超过 ${EDITOR_WRITE_MAX_BYTES} 字节的文件为只读`, 409, {
+        sizeBytes: metadata.size,
+        maxBytes: EDITOR_WRITE_MAX_BYTES,
+      })
+    }
+    const current = await readFile(canonical).then(decodeUtf8).catch((cause) => {
+      if (cause instanceof AgentError) throw cause
+      throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件无法按 UTF-8 读取", 400)
+    })
+    const currentRevision = { mtimeMs: metadata.mtimeMs, sha256: sha256(current) }
+    if (currentRevision.mtimeMs !== expectedRevision.mtimeMs || currentRevision.sha256 !== expectedRevision.sha256.toLowerCase()) {
+      return { outcome: "conflict" as const, revision: currentRevision }
+    }
+    await this.replaceAtomically(canonical, content, metadata.mode, EDITOR_WRITE_MAX_BYTES)
+    const saved = await stat(canonical)
+    return {
+      outcome: "saved" as const,
+      revision: { mtimeMs: saved.mtimeMs, sha256: sha256(content) },
     }
   }
 

@@ -29,9 +29,9 @@ const assertCompleteMigration = (
 }
 
 describe("v2 migration manifests", () => {
-  test("covers all 60 methods and all 43 events", () => {
-    assertCompleteMigration(V2MethodMigrationManifest, AgentRpcMethodSchema.literals, 60)
-    assertCompleteMigration(V2EventMigrationManifest, AgentEventMethodSchema.literals, 43)
+  test("covers all 64 methods and all 44 events", () => {
+    assertCompleteMigration(V2MethodMigrationManifest, AgentRpcMethodSchema.literals, 64)
+    assertCompleteMigration(V2EventMigrationManifest, AgentEventMethodSchema.literals, 44)
   })
 
   test("uses only supported statuses and valid unique method targets", () => {

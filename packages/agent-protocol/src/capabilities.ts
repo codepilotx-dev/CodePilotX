@@ -12,6 +12,7 @@ export const Capabilities = [
   "turn.queue.management.v1",
   "attachments.v1",
   "memory.v2",
+  "workspace.editor.v1",
   "context.compact.v1",
   "hooks.trust.v1",
   "subagents.v1",

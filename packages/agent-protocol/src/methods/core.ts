@@ -24,6 +24,7 @@ const InitializationErrors = ["PROTOCOL_VERSION_UNSUPPORTED", "CAPABILITY_REQUIR
 const SubscriptionErrors = ["CURSOR_EXPIRED", "SUBSCRIPTION_NOT_FOUND", "SUBSCRIPTION_OVERFLOW", "CAPABILITY_REQUIRED", ...CommonErrors] as const
 const InteractionErrors = ["REQUEST_NOT_PENDING", "CONFLICT", "CHECKPOINT_UNAVAILABLE", "CAPABILITY_REQUIRED", ...CommonErrors] as const
 const ProjectErrors = ["PROJECT_NOT_FOUND", "PATH_DENIED", "CONFLICT", ...CommonErrors] as const
+const WorkspaceFileErrors = ["PROJECT_NOT_FOUND", "PATH_DENIED", "FILE_NOT_FOUND", "FILE_NOT_TEXT", "FILE_TOO_LARGE", "FILE_READONLY", "CONFLICT", ...CommonErrors] as const
 const ThreadErrors = ["THREAD_NOT_FOUND", "TURN_NOT_FOUND", "CONFLICT", "CHECKPOINT_UNAVAILABLE", "MODEL_UNAVAILABLE", ...CommonErrors] as const
 const SandboxErrors = ["SANDBOX_UNAVAILABLE", "PERMISSION_DENIED", "CONFLICT", ...CommonErrors] as const
 const AttachmentErrors = ["ATTACHMENT_NOT_FOUND", "ATTACHMENT_LIMIT", "PERMISSION_DENIED", ...CommonErrors] as const
@@ -31,6 +32,7 @@ const MemoryErrors = ["MEMORY_NOT_FOUND", "MEMORY_REJECTED", "PERMISSION_DENIED"
 
 const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
+const NonNegativeNumberSchema = Schema.Number.check(Schema.isGreaterThanOrEqualTo(0))
 const PositiveIntSchema = Schema.Int.check(Schema.isGreaterThan(0))
 const NullableCursorSchema = Schema.NullOr(CursorSchema)
 
@@ -270,6 +272,47 @@ export const ProjectSettingsUpdateResultSchema = Schema.Struct({
   projectId: OpaqueIDSchema,
   settings: AgentThread.ProjectSettingsSchema,
   version: SequenceSchema,
+})
+
+export const WorkspaceFileRevisionSchema = Schema.Struct({
+  mtimeMs: NonNegativeNumberSchema,
+  sha256: NonEmptyStringSchema,
+})
+
+export const WorkspaceFileReadParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  path: NonEmptyStringSchema,
+})
+
+export const WorkspaceFileReadResultSchema = Schema.Struct({
+  path: NonEmptyStringSchema,
+  content: Schema.String,
+  sizeBytes: NonNegativeIntSchema,
+  readonly: Schema.Boolean,
+  truncated: Schema.Literal(false),
+  revision: WorkspaceFileRevisionSchema,
+})
+
+export const WorkspaceFileSaveParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  path: NonEmptyStringSchema,
+  content: Schema.String,
+  expectedRevision: WorkspaceFileRevisionSchema,
+})
+
+export const WorkspaceFileSaveResultSchema = Schema.Struct({
+  outcome: Schema.Literals(["saved", "conflict"]),
+  revision: WorkspaceFileRevisionSchema,
+})
+
+export const WorkspaceFileWatchParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  path: NonEmptyStringSchema,
+})
+
+export const WorkspaceFileWatchResultSchema = Schema.Struct({
+  watching: Schema.Boolean,
+  path: NonEmptyStringSchema,
 })
 
 export const ThreadListParamsSchema = Schema.Struct({
@@ -685,6 +728,10 @@ export const CoreRpcMethods = {
   "project/list": defineMethod({ params: ProjectListParamsSchema, result: ProjectListResultSchema, errors: ProjectErrors, capability: null, mutation: false }),
   "project/open": defineMethod({ params: ProjectOpenParamsSchema, result: ProjectOpenResultSchema, errors: ProjectErrors, capability: null, mutation: true, exactParams: true }),
   "project/settings/update": defineMethod({ params: ProjectSettingsUpdateParamsSchema, result: ProjectSettingsUpdateResultSchema, errors: ProjectErrors, capability: null, mutation: true }),
+  "workspace/file/read": defineMethod({ params: WorkspaceFileReadParamsSchema, result: WorkspaceFileReadResultSchema, errors: WorkspaceFileErrors, capability: "workspace.editor.v1", mutation: false, exactParams: true, exactResult: true }),
+  "workspace/file/save": defineMethod({ params: WorkspaceFileSaveParamsSchema, result: WorkspaceFileSaveResultSchema, errors: WorkspaceFileErrors, capability: "workspace.editor.v1", mutation: true, exactParams: true, exactResult: true }),
+  "workspace/file/watch": defineMethod({ params: WorkspaceFileWatchParamsSchema, result: WorkspaceFileWatchResultSchema, errors: WorkspaceFileErrors, capability: "workspace.editor.v1", mutation: true, exactParams: true, exactResult: true }),
+  "workspace/file/unwatch": defineMethod({ params: WorkspaceFileWatchParamsSchema, result: WorkspaceFileWatchResultSchema, errors: WorkspaceFileErrors, capability: "workspace.editor.v1", mutation: true, exactParams: true, exactResult: true }),
   "thread/list": defineMethod({ params: ThreadListParamsSchema, result: ThreadListResultSchema, errors: ThreadErrors, capability: null, mutation: false }),
   "thread/create": defineMethod({ params: ThreadCreateParamsSchema, result: ThreadSnapshotResultSchema, errors: ThreadErrors, capability: null, mutation: true }),
   "thread/read": defineMethod({ params: ThreadReadParamsSchema, result: ThreadSnapshotResultSchema, errors: ThreadErrors, capability: null, mutation: false }),

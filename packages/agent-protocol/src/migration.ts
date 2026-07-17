@@ -20,6 +20,10 @@ export const V2MethodMigrationManifest = {
   "project/list": { status: "keep", target: "project/list" },
   "project/open": { status: "keep", target: "project/open" },
   "project/updateSettings": { status: "rename", target: "project/settings/update" },
+  "workspace/file/read": { status: "keep", target: "workspace/file/read" },
+  "workspace/file/save": { status: "keep", target: "workspace/file/save" },
+  "workspace/file/watch": { status: "keep", target: "workspace/file/watch" },
+  "workspace/file/unwatch": { status: "keep", target: "workspace/file/unwatch" },
   "thread/list": { status: "keep", target: "thread/list" },
   "thread/create": { status: "keep", target: "thread/create" },
   "thread/read": { status: "keep", target: "thread/read" },
@@ -76,6 +80,7 @@ export const V2MethodMigrationManifest = {
 } as const satisfies Record<AgentRpcMethod, MigrationEntry>
 
 export const V2EventMigrationManifest = {
+  "workspace/file/changed": { status: "keep", target: "workspace/file/changed" },
   "thread/created": { status: "keep", target: "thread/created" },
   "thread/snapshot": { status: "remove", reason: "Snapshots are returned by thread/read with a stream position." },
   "thread/updated": { status: "keep", target: "thread/updated" },
