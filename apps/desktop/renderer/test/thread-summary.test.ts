@@ -128,6 +128,7 @@ describe("thread summary view model", () => {
       deletions: 4,
     });
     expect(model.plan).toEqual({
+      eventId: "plan-2",
       title: "新计划",
       content: "# 新计划\n\n内容",
     });

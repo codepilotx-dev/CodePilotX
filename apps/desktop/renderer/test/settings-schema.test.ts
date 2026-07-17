@@ -27,3 +27,73 @@ describe("高级权限设置归一化", () => {
     expect(normalizeDesktopStoredSettings({ approvalPolicy: "on-failure" }).permissionConfig.approvalPolicy).toBe("on-request")
   })
 })
+
+describe("侧边栏设置归一化", () => {
+  test("提供完整默认值并迁移旧的 recent 排序", () => {
+    const defaults = normalizeDesktopStoredSettings({})
+    expect(defaults).toMatchObject({
+      sidebarSort: "priority",
+      sidebarSessionPins: {},
+      collapsedSidebarProjectPaths: [],
+      sidebarSectionOrder: ["pinned", "projects", "conversations"],
+    })
+
+    expect(normalizeDesktopStoredSettings({ sidebarSort: "recent" }).sidebarSort).toBe("updated")
+    expect(normalizeDesktopStoredSettings({ sidebarSort: "updated" }).sidebarSort).toBe("updated")
+    expect(normalizeDesktopStoredSettings({ sidebarSort: "created" }).sidebarSort).toBe("created")
+    expect(normalizeDesktopStoredSettings({ sidebarSort: "invalid" }).sidebarSort).toBe("priority")
+  })
+
+  test("规范化并过滤会话置顶与折叠项目路径", () => {
+    const settings = normalizeDesktopStoredSettings({
+      sidebarSessionPins: {
+        " se\u0301ssion ": " 2026-07-18T01:00:00Z ",
+        "séssion": "duplicate",
+        empty: " ",
+        invalid: 123,
+      },
+      collapsedSidebarProjectPaths: [
+        " C:\\Cafe\u0301 ",
+        "C:\\Café",
+        "",
+        123,
+        " C:\\Other ",
+      ],
+    })
+
+    expect(settings.sidebarSessionPins).toEqual({
+      "séssion": "2026-07-18T01:00:00.000Z",
+    })
+    expect(settings.collapsedSidebarProjectPaths).toEqual([
+      "C:\\Café",
+      "C:\\Other",
+    ])
+  })
+
+  test("过滤 section order 非法项与重复项并补齐缺失 section", () => {
+    expect(
+      normalizeDesktopStoredSettings({
+        sidebarSectionOrder: [
+          " conversations ",
+          "invalid",
+          "conversations",
+          "pinned",
+          123,
+        ],
+      }).sidebarSectionOrder,
+    ).toEqual(["conversations", "pinned", "projects"])
+  })
+
+  test("手动会话顺序规范化 UTF-8 并去重非法值", () => {
+    expect(
+      normalizeDesktopStoredSettings({
+        sidebarManualOrder: {
+          " proje\u0301ct ": [" se\u0301ssion ", "séssion", "", 123],
+          invalid: "not-an-array",
+        },
+      }).sidebarManualOrder,
+    ).toEqual({
+      "projéct": ["séssion"],
+    })
+  })
+})

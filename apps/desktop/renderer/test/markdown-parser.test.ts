@@ -4,6 +4,7 @@ import {
   classifyMarkdownTarget,
   lexMarkdown,
   parseMarkdown,
+  parseMarkdownFileReference,
   segmentStreamingMarkdown,
 } from '../src/features/markdown/index.js'
 import type {
@@ -139,18 +140,46 @@ describe('safe markdown targets', () => {
     expect(classifyMarkdownTarget('C:\\repo\\file.ts:42')).toEqual({
       kind: 'file',
       path: 'C:\\repo\\file.ts',
+      line: 42,
     })
     expect(classifyMarkdownTarget('./src/file.ts#L10-L12')).toEqual({
       kind: 'file',
       path: './src/file.ts',
+      line: 10,
+      endLine: 12,
     })
     expect(classifyMarkdownTarget('src/file.ts#L10-L12')).toEqual({
       kind: 'file',
       path: 'src/file.ts',
+      line: 10,
+      endLine: 12,
     })
     expect(classifyMarkdownTarget('#section')).toEqual({
       kind: 'anchor',
       href: '#section',
+    })
+  })
+
+  test('preserves line, column, and range locations on file references', () => {
+    expect(parseMarkdownFileReference('src/file.ts:10:4')).toEqual({
+      path: 'src/file.ts',
+      line: 10,
+      column: 4,
+    })
+    expect(parseMarkdownFileReference('C:\\repo\\file.ts#L10C4-L20C8')).toEqual({
+      path: 'C:\\repo\\file.ts',
+      line: 10,
+      column: 4,
+      endLine: 20,
+      endColumn: 8,
+    })
+    expect(
+      classifyMarkdownTarget('file:///C:/repo/file.ts#L7-L9'),
+    ).toEqual({
+      kind: 'file',
+      path: 'C:/repo/file.ts',
+      line: 7,
+      endLine: 9,
     })
   })
 

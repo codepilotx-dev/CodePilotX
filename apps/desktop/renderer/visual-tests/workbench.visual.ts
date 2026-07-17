@@ -27,7 +27,7 @@ const SCENARIOS: readonly VisualScenario[] = [
     id: 'review',
     route: '/?visualCase=review#/sessions/visual-review',
     readyText: '已完成工作台结构梳理。',
-    prepare: async page => {
+    prepare: async (page) => {
       await page.getByRole('button', { name: '显示右侧面板' }).click()
       await expect(
         page.getByRole('complementary', { name: '右侧面板' }),
@@ -58,7 +58,9 @@ for (const viewport of VIEWPORTS) {
         })
         await page.goto(scenario.route)
         await closeTransientErrorToast(page)
-        await expect(page.getByText(scenario.readyText, { exact: true })).toBeVisible()
+        await expect(
+          page.getByText(scenario.readyText, { exact: true }),
+        ).toBeVisible()
         if (viewport.width > 960) {
           await scenario.prepare?.(page)
         }
@@ -117,7 +119,64 @@ for (const viewport of VIEWPORTS) {
   }
 }
 
-test('session header aligns with the right panel and bottom panel spans the workspace', async ({ page }) => {
+for (const mode of MODES) {
+  test(`open file empty state ${mode}`, async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 })
+    await page.emulateMedia({
+      colorScheme: mode,
+      forcedColors: 'none',
+      reducedMotion: 'reduce',
+    })
+    await page.goto('/?visualCase=rich#/sessions/visual-rich')
+    await closeTransientErrorToast(page)
+    await expect(
+      page.getByText('已完成工作台结构梳理。', { exact: true }),
+    ).toBeVisible()
+    await page.getByRole('button', { name: '显示右侧面板' }).click()
+    const rightPanel = page.getByRole('complementary', {
+      name: '右侧面板',
+    })
+    await rightPanel
+      .getByRole('button', { name: '打开文件 Ctrl+Shift+E' })
+      .click()
+
+    await expect(rightPanel.getByRole('tab', { name: '打开文件' })).toBeVisible()
+    await expect(
+      rightPanel.getByRole('region', { name: '打开文件' }),
+    ).toBeVisible()
+    await expect(
+      rightPanel.getByLabel('文件路径：工作区根目录'),
+    ).toContainText('/')
+    await expect(
+      rightPanel.getByRole('complementary', { name: '工作区文件树' }),
+    ).toBeVisible()
+    await expect(rightPanel.getByRole('textbox', { name: '筛选文件' })).toBeFocused()
+    await expect(rightPanel.locator('.right-dock-header')).toHaveCSS(
+      'height',
+      '40px',
+    )
+    await expect(rightPanel.locator('.file-breadcrumb-toolbar')).toHaveCSS(
+      'height',
+      '40px',
+    )
+    await expect(rightPanel.locator('.right-dock-search')).toHaveCSS(
+      'height',
+      '28px',
+    )
+    await expect(rightPanel).toHaveScreenshot(
+      `open-file-empty-${mode}.png`,
+      {
+        animations: 'disabled',
+        caret: 'hide',
+        scale: 'css',
+      },
+    )
+  })
+}
+
+test('session header aligns with the right panel and bottom panel spans the workspace', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 920 })
   await page.goto('/?visualCase=rich#/sessions/visual-rich')
   await closeTransientErrorToast(page)
@@ -135,7 +194,7 @@ test('session header aligns with the right panel and bottom panel spans the work
   expect(initialHeader!.x).toBeCloseTo(initialWorkflow!.x, 0)
   expect(initialHeader!.width).toBeCloseTo(initialWorkflow!.width, 0)
 
-  await scrollArea.evaluate(element => {
+  await scrollArea.evaluate((element) => {
     element.scrollTop = 0
   })
   const scrolledHeader = await header.boundingBox()
@@ -180,10 +239,7 @@ test('session header aligns with the right panel and bottom panel spans the work
   expect(headerWithDock!.width).toBeLessThan(initialHeader!.width)
   expect(dock!.y).toBeCloseTo(headerWithDock!.y, 0)
   expect(dockHeader!.height).toBeCloseTo(headerWithDock!.height, 0)
-  expect(headerWithDock!.width + dock!.width).toBeCloseTo(
-    upper!.width,
-    0,
-  )
+  expect(headerWithDock!.width + dock!.width).toBeCloseTo(upper!.width, 0)
   expect(rightDockButtonAfter!.x).toBeCloseTo(rightDockButtonBefore!.x, 0)
 
   const expandRightPanel = page.getByRole('button', {
@@ -215,13 +271,15 @@ test('session header aligns with the right panel and bottom panel spans the work
   const workspace = await page.locator('.desktop-workspace').boundingBox()
   expect(bottomPanel!.x).toBeCloseTo(workspace!.x, 0)
   expect(bottomPanel!.width).toBeCloseTo(workspace!.width, 0)
-  await expect(
-    page.getByRole('tab', { name: /终端/ }),
-  ).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tab', { name: /终端/ })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
   await page.getByRole('button', { name: '移到底部面板' }).click()
-  await expect(
-    page.getByRole('tab', { name: /审查/ }),
-  ).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tab', { name: /审查/ })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
 
   const sessionMenuButton = page.getByRole('button', {
     name: '更多会话操作',
@@ -243,8 +301,13 @@ for (const mode of MODES) {
     })
     await page.goto('/?visualCase=empty#/quick-chat')
     await closeTransientErrorToast(page)
-    await expect(page.getByText('我们该做什么？', { exact: true })).toBeVisible()
-    await expect(page.locator('html')).toHaveAttribute('data-reduce-motion', 'on')
+    await expect(
+      page.getByText('我们该做什么？', { exact: true }),
+    ).toBeVisible()
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-reduce-motion',
+      'on',
+    )
 
     const contrastRatio = await page.evaluate(() => {
       const styles = getComputedStyle(document.documentElement)
@@ -263,10 +326,11 @@ for (const mode of MODES) {
 
       function luminance(hex: string): number {
         const normalized = hex.replace('#', '')
-        const channels = [0, 2, 4].map(offset =>
-          Number.parseInt(normalized.slice(offset, offset + 2), 16) / 255,
+        const channels = [0, 2, 4].map(
+          (offset) =>
+            Number.parseInt(normalized.slice(offset, offset + 2), 16) / 255,
         )
-        const linear = channels.map(channel =>
+        const linear = channels.map((channel) =>
           channel <= 0.04045
             ? channel / 12.92
             : ((channel + 0.055) / 1.055) ** 2.4,
@@ -277,7 +341,7 @@ for (const mode of MODES) {
     expect(contrastRatio).toBeGreaterThanOrEqual(4.5)
 
     const sidebarSeparator = page.getByRole('separator', {
-      name: '调整侧边栏宽度',
+      name: '调整任务侧栏宽度',
     })
     await sidebarSeparator.focus()
     const before = Number(await sidebarSeparator.getAttribute('aria-valuenow'))
@@ -292,14 +356,77 @@ for (const mode of MODES) {
   })
 }
 
+test('sidebar keeps one mounted tree across docked and hover preview modes', async ({
+  page,
+}) => {
+  await page.goto('/?visualCase=rich#/quick-chat')
+  await closeTransientErrorToast(page)
+  const sidebar = page.locator('aside.desktop-sidebar')
+  await page.getByTitle('收起侧边栏').click()
+  await expect(sidebar).toHaveClass(/is-collapsed/)
+
+  await page.locator('.sidebar-hover-zone').hover()
+  await expect(sidebar).toHaveClass(/is-preview/)
+  await expect(page.locator('.desktop-sidebar')).toHaveCount(1)
+
+  await page.locator('.desktop-main').hover()
+  await expect(sidebar).toHaveClass(/is-collapsed/)
+  await page.keyboard.press('Control+b')
+  await expect(sidebar).toHaveClass(/is-docked/)
+})
+
+test('narrow sidebar drawer does not overwrite the desktop dock preference', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 720, height: 800 })
+  await page.goto('/?visualCase=empty#/quick-chat')
+  await closeTransientErrorToast(page)
+  const sidebar = page.locator('aside.desktop-sidebar')
+  await expect(sidebar).toHaveClass(/is-collapsed/)
+  await page.getByTitle('展开侧边栏').click()
+  await expect(sidebar).toHaveClass(/is-drawer/)
+  await page.getByRole('button', { name: '关闭任务侧栏' }).click()
+  await expect(sidebar).toHaveClass(/is-collapsed/)
+
+  await page.setViewportSize({ width: 900, height: 800 })
+  await expect(sidebar).toHaveClass(/is-docked/)
+})
+
+test('settings uses the shared full-label sidebar in preview and drawer modes', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 900, height: 800 })
+  await page.goto('/?visualCase=empty#/settings?tab=appearance')
+  await closeTransientErrorToast(page)
+  const sidebar = page.locator('aside.desktop-sidebar')
+  await expect(sidebar).toHaveAttribute('data-sidebar-content', 'settings')
+  await expect(sidebar).toHaveAttribute('aria-label', '设置侧栏')
+  await expect(page.getByRole('searchbox', { name: '搜索设置' })).toBeVisible()
+
+  await page.keyboard.press('Control+b')
+  await expect(sidebar).toHaveClass(/is-collapsed/)
+  await page.locator('.sidebar-hover-zone').hover()
+  await expect(sidebar).toHaveClass(/is-preview/)
+  await expect(page.getByRole('searchbox', { name: '搜索设置' })).toBeVisible()
+
+  await page.setViewportSize({ width: 720, height: 800 })
+  await expect(sidebar).toHaveClass(/is-collapsed/)
+  await page.getByTitle('展开侧边栏').click()
+  await expect(sidebar).toHaveClass(/is-drawer/)
+  await expect(
+    page.getByRole('button', { name: '关闭设置侧栏' }),
+  ).toBeVisible()
+})
+
 test('Escape closes the theme picker and restores focus', async ({ page }) => {
   await page.goto('/?visualCase=empty#/settings?tab=appearance')
   await closeTransientErrorToast(page)
   const picker = page.getByRole('combobox', { name: '浅色代码主题' })
   await picker.click()
+  await expect(page.getByRole('listbox')).toBeVisible()
   await expect(
     page.getByRole('textbox', { name: '搜索代码主题…' }),
-  ).toBeFocused()
+  ).toHaveCount(0)
   await page.keyboard.press('Escape')
   await expect(picker).toBeFocused()
 })
@@ -315,18 +442,18 @@ test('appearance modes support radio keys, variant editors, and reload persisten
   const darkMode = modeGroup.getByRole('radio', { name: '深色' })
   const systemMode = modeGroup.getByRole('radio', { name: '系统' })
 
-  await expect(systemMode).toHaveAttribute('aria-checked', 'true')
+  await expect(systemMode).toBeChecked()
   await expect(page.getByRole('heading', { name: '浅色主题' })).toBeVisible()
   await expect(page.getByRole('heading', { name: '深色主题' })).toBeVisible()
 
   await lightMode.click()
-  await expect(lightMode).toHaveAttribute('aria-checked', 'true')
+  await expect(lightMode).toBeChecked()
   await expect(page.getByRole('heading', { name: '浅色主题' })).toBeVisible()
   await expect(page.getByRole('heading', { name: '深色主题' })).toBeHidden()
 
   await lightMode.press('ArrowRight')
   await expect(darkMode).toBeFocused()
-  await expect(darkMode).toHaveAttribute('aria-checked', 'true')
+  await expect(darkMode).toBeChecked()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 
   await page.reload()
@@ -334,7 +461,7 @@ test('appearance modes support radio keys, variant editors, and reload persisten
     page.getByRole('radiogroup', { name: '外观模式' }).getByRole('radio', {
       name: '深色',
     }),
-  ).toHaveAttribute('aria-checked', 'true')
+  ).toBeChecked()
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 })
 
@@ -350,7 +477,6 @@ test('Dracula code theme applies the recovered Codex runtime hierarchy', async (
     .click()
 
   await page.getByRole('combobox', { name: '深色代码主题' }).click()
-  await page.getByRole('textbox', { name: '搜索代码主题…' }).fill('dracula')
   await page.getByRole('option', { name: /^Dracula/ }).click()
 
   await expect(page.locator('html')).toHaveAttribute(
@@ -375,6 +501,13 @@ test('Dracula code theme applies the recovered Codex runtime hierarchy', async (
       panel: '#32343f',
       composer: '#373843',
     })
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        localStorage.getItem('codepilotx.desktop.appearance.v3'),
+      ),
+    )
+    .toContain('"dracula"')
 
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute(
@@ -395,6 +528,410 @@ test('Dracula code theme applies the recovered Codex runtime hierarchy', async (
       scale: 'css',
     },
   )
+})
+
+test('settings shell search and appearance source contracts', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.goto('/?visualCase=empty#/settings?tab=general')
+  await closeTransientErrorToast(page)
+
+  const defaultOpenTarget = page.getByRole('combobox', {
+    name: '默认打开目标',
+  })
+  await expect(
+    defaultOpenTarget.evaluate((trigger) => {
+      const style = getComputedStyle(trigger)
+      const bounds = trigger.getBoundingClientRect()
+      const probe = document.createElement('span')
+      probe.style.background =
+        'color-mix(in oklab, var(--color-text-strong) 2.5%, transparent)'
+      probe.style.color = 'var(--color-text-strong)'
+      document.body.append(probe)
+      const expectedBackgroundColor = getComputedStyle(probe).backgroundColor
+      const expectedForeground = getComputedStyle(probe).color
+      probe.remove()
+      return {
+        backgroundMatchesFog: style.backgroundColor === expectedBackgroundColor,
+        borderRadius: style.borderRadius,
+        colorMatchesForeground: style.color === expectedForeground,
+        fontSize: style.fontSize,
+        height: bounds.height,
+        lineHeight: style.lineHeight,
+        paddingInline: style.paddingInline,
+      }
+    }),
+  ).resolves.toEqual({
+    backgroundMatchesFog: true,
+    borderRadius: '8px',
+    colorMatchesForeground: true,
+    fontSize: '14px',
+    height: 28,
+    lineHeight: '18px',
+    paddingInline: '12px',
+  })
+
+  const languageDropdown = page.getByRole('combobox', { name: '语言' })
+  await languageDropdown.click()
+  const languageMenu = page.getByRole('listbox')
+  await expect(languageMenu).toBeVisible()
+  await expect(
+    languageMenu.evaluate((menu) => {
+      const style = getComputedStyle(menu)
+      const bounds = menu.getBoundingClientRect()
+      const firstItem = menu.querySelector<HTMLElement>(
+        '.settings-dropdown-item',
+      )
+      const firstItemStyle = firstItem ? getComputedStyle(firstItem) : null
+      return {
+        backdropFilter: style.backdropFilter,
+        borderRadius: style.borderRadius,
+        itemFontSize: firstItemStyle?.fontSize,
+        itemHeight: firstItem?.getBoundingClientRect().height,
+        itemLineHeight: firstItemStyle?.lineHeight,
+        padding: style.padding,
+        width: bounds.width,
+      }
+    }),
+  ).resolves.toEqual({
+    backdropFilter: 'blur(8px)',
+    borderRadius: '12px',
+    itemFontSize: '12px',
+    itemHeight: 28,
+    itemLineHeight: '18px',
+    padding: '4px',
+    width: 240,
+  })
+  await expect(page.getByRole('textbox', { name: '搜索语言' })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  await page.goto('/?visualCase=empty#/settings?tab=config')
+  const sandboxDropdown = page.getByRole('combobox', { name: '沙盒设置' })
+  await sandboxDropdown.click()
+  const sandboxMenu = page.getByRole('listbox')
+  await expect(sandboxMenu).toBeVisible()
+  await expect(
+    sandboxMenu.evaluate((menu) => {
+      const item = menu.querySelector<HTMLElement>('.settings-dropdown-item')
+      const label = item?.querySelector<HTMLElement>(
+        '.settings-dropdown-item-label',
+      )
+      const detail = item?.querySelector<HTMLElement>(
+        '.settings-dropdown-item-detail',
+      )
+      const foregroundProbe = document.createElement('span')
+      foregroundProbe.style.color = 'var(--color-text-strong)'
+      const secondaryProbe = document.createElement('span')
+      secondaryProbe.style.color = 'var(--color-text-meta)'
+      menu.append(foregroundProbe, secondaryProbe)
+      const expectedForeground = getComputedStyle(foregroundProbe).color
+      const expectedSecondary = getComputedStyle(secondaryProbe).color
+      foregroundProbe.remove()
+      secondaryProbe.remove()
+      return {
+        detailMatchesSecondary:
+          detail !== null &&
+          getComputedStyle(detail).color === expectedSecondary,
+        labelMatchesForeground:
+          label !== null &&
+          getComputedStyle(label).color === expectedForeground,
+      }
+    }),
+  ).resolves.toEqual({
+    detailMatchesSecondary: true,
+    labelMatchesForeground: true,
+  })
+  await page.keyboard.press('Escape')
+  await page.goto('/?visualCase=empty#/settings?tab=general')
+  await closeTransientErrorToast(page)
+
+  await expect(
+    page.getByRole('button', { name: '导入' }).evaluate((button) => {
+      const style = getComputedStyle(button)
+      const bounds = button.getBoundingClientRect()
+      const probe = document.createElement('span')
+      probe.style.background =
+        'color-mix(in srgb, var(--color-text-strong) 5%, transparent)'
+      document.body.append(probe)
+      const expectedBackgroundColor = getComputedStyle(probe).backgroundColor
+      probe.remove()
+      return {
+        backgroundMatchesForegroundFivePercent:
+          style.backgroundColor === expectedBackgroundColor,
+        borderColor: style.borderColor,
+        borderRadius: style.borderRadius,
+        fontSize: style.fontSize,
+        height: bounds.height,
+        lineHeight: style.lineHeight,
+        paddingInline: style.paddingInline,
+      }
+    }),
+  ).resolves.toEqual({
+    backgroundMatchesForegroundFivePercent: true,
+    borderColor: 'rgba(0, 0, 0, 0)',
+    borderRadius: '8px',
+    fontSize: '14px',
+    height: 28,
+    lineHeight: '18px',
+    paddingInline: '8px',
+  })
+
+  await page.keyboard.press('Control+f')
+  const search = page.getByRole('searchbox', { name: '搜索设置' })
+  await expect(search).toBeFocused()
+  await search.fill('对比度')
+  await expect(page.getByRole('option', { name: /对比度.*外观/ })).toBeVisible()
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/tab=appearance/)
+  await expect(page.getByRole('heading', { name: '外观' })).toBeVisible()
+
+  const modeGroup = page.getByRole('radiogroup', { name: '外观模式' })
+  await expect(modeGroup.getByRole('radio')).toHaveCount(3)
+  await expect(
+    modeGroup
+      .getByRole('radio')
+      .evaluateAll((radios) =>
+        radios.map((radio) => radio.parentElement?.textContent?.trim()),
+      ),
+  ).resolves.toEqual(['系统', '浅色', '深色'])
+  await expect(modeGroup.locator('svg[viewBox="0 0 170 120"]')).toHaveCount(3)
+  await expect(
+    modeGroup.locator('#appearance-system-preview-sheet'),
+  ).toHaveCount(1)
+
+  const preview = page.locator('.appearance-diff-preview')
+  await expect(preview).toHaveAttribute('data-diff-style', 'split')
+  await expect(preview).toHaveAttribute('data-line-diff-type', 'none')
+  await expect(preview).toHaveAttribute('data-hunk-separators', 'line-info')
+  await expect(preview).toHaveAttribute('data-expansion-line-count', '8')
+  await expect(preview.locator('.appearance-diff-side')).toHaveCount(2)
+
+  const structure = await page.evaluate(() => {
+    const gallery = document.querySelector('.appearance-mode-gallery')!
+    const diff = document.querySelector('.appearance-diff-preview')!
+    const editors = document.querySelector('.appearance-theme-editors')!
+    const inner = document.querySelector('.appearance-settings')!
+    const card = document.querySelector('.appearance-mode-visual')!
+    const galleryStyle = getComputedStyle(gallery)
+    const innerStyle = getComputedStyle(inner)
+    const cardStyle = getComputedStyle(card)
+    const cardBounds = card.getBoundingClientRect()
+    return {
+      diffAfterGallery: Boolean(
+        gallery.compareDocumentPosition(diff) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+      editorsAfterDiff: Boolean(
+        diff.compareDocumentPosition(editors) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+      galleryMaxWidth: galleryStyle.maxWidth,
+      innerMaxWidth: innerStyle.maxWidth,
+      innerPadding: innerStyle.paddingTop,
+      cardRadius: cardStyle.borderRadius,
+      cardRatio: cardBounds.width / cardBounds.height,
+    }
+  })
+  expect(structure).toMatchObject({
+    diffAfterGallery: true,
+    editorsAfterDiff: true,
+    galleryMaxWidth: '512px',
+    innerMaxWidth: '768px',
+    innerPadding: '20px',
+    cardRadius: '10px',
+  })
+  expect(structure.cardRatio).toBeCloseTo(17 / 12, 2)
+
+  await modeGroup.getByRole('radio', { name: '浅色' }).click()
+  await expect(page.locator('.appearance-theme-editor')).toHaveCount(1)
+  await expect(
+    page
+      .locator('.appearance-theme-editor')
+      .first()
+      .locator('.settings-row-title')
+      .evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim())),
+  ).resolves.toEqual([
+    '浅色主题',
+    '强调色',
+    '背景',
+    '前景',
+    'UI 字体',
+    '代码字体',
+    '对比度',
+  ])
+  const lightPicker = page.getByRole('combobox', { name: '浅色代码主题' })
+  await expect(
+    page
+      .getByRole('button', { name: '导入' })
+      .evaluate((button) => getComputedStyle(button).fontSize),
+  ).resolves.toBe('14px')
+  await expect(
+    page
+      .getByRole('button', { name: '复制主题' })
+      .evaluate((button) => getComputedStyle(button).fontSize),
+  ).resolves.toBe('14px')
+  await lightPicker.click()
+  await expect(page.getByRole('option')).toHaveCount(16)
+  await expect(
+    page.getByRole('textbox', { name: '搜索代码主题…' }),
+  ).toHaveCount(0)
+  await page.keyboard.press('Escape')
+
+  const accentInput = page.getByRole('textbox', { name: '浅色强调色' })
+  await accentInput.fill('#12abef')
+  await expect(accentInput).toHaveValue('#12ABEF')
+  await page.getByRole('button', { name: '浅色强调色颜色选择器' }).click()
+  await expect(page.locator('.appearance-color-palette')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(
+    page.getByPlaceholder('ui-sans-serif, system-ui, sans-serif'),
+  ).toBeVisible()
+  await expect(
+    page.getByPlaceholder('ui-monospace, SFMono-Regular, Consolas, monospace'),
+  ).toBeVisible()
+
+  await modeGroup.getByRole('radio', { name: '系统' }).click()
+  await expect(page.locator('.appearance-theme-editor')).toHaveCount(2)
+  await expect(
+    page
+      .locator('.appearance-settings > .settings-section')
+      .last()
+      .locator('.settings-row-title')
+      .evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim())),
+  ).resolves.toEqual([
+    '使用指针光标',
+    '差异标记',
+    '界面字号',
+    '代码字号',
+    '减少动态效果',
+  ])
+
+  const diffMarkerGroup = page.getByRole('group', { name: '差异标记选项' })
+  const reduceMotionGroup = page.getByRole('group', {
+    name: '减少动态效果选项',
+  })
+  await expect(diffMarkerGroup.getByRole('button')).toHaveCount(2)
+  await expect(reduceMotionGroup.getByRole('button')).toHaveCount(3)
+  await expect(page.getByRole('tablist')).toHaveCount(0)
+  await expect(page.getByRole('tab')).toHaveCount(0)
+
+  const groupChrome = await diffMarkerGroup.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return {
+      backgroundColor: style.backgroundColor,
+      borderTopWidth: style.borderTopWidth,
+      paddingTop: style.paddingTop,
+    }
+  })
+  expect(groupChrome).toEqual({
+    backgroundColor: 'rgba(0, 0, 0, 0)',
+    borderTopWidth: '0px',
+    paddingTop: '0px',
+  })
+
+  const symbolButton = diffMarkerGroup.getByRole('button', { name: '+/-' })
+  const motionOffButton = reduceMotionGroup.getByRole('button', {
+    name: '关闭',
+  })
+  await symbolButton.click()
+  await motionOffButton.click()
+  await expect(symbolButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(motionOffButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(
+    motionOffButton.evaluate((button) => {
+      const style = getComputedStyle(button)
+      return {
+        borderRadius: style.borderRadius,
+        fontSize: style.fontSize,
+        height: button.getBoundingClientRect().height,
+        lineHeight: style.lineHeight,
+        paddingBlock: style.paddingBlock,
+        paddingInline: style.paddingInline,
+      }
+    }),
+  ).resolves.toEqual({
+    borderRadius: '9999px',
+    fontSize: '12px',
+    height: 24,
+    lineHeight: '18px',
+    paddingBlock: '2px',
+    paddingInline: '8px',
+  })
+
+  const pointerSwitch = page.getByRole('switch', { name: '使用指针光标' })
+  await pointerSwitch.click()
+  await expect(pointerSwitch).toBeChecked()
+  await expect(
+    pointerSwitch.evaluate((switchElement) => {
+      const thumb = switchElement.querySelector<HTMLElement>('.toggle-knob')!
+      const switchBounds = switchElement.getBoundingClientRect()
+      const thumbBounds = thumb.getBoundingClientRect()
+      const foregroundProbe = document.createElement('span')
+      foregroundProbe.style.color = 'var(--color-text-strong)'
+      document.body.append(foregroundProbe)
+      const foreground = getComputedStyle(foregroundProbe).color
+      foregroundProbe.remove()
+      return {
+        switchSize: [switchBounds.width, switchBounds.height],
+        thumbSize: [thumbBounds.width, thumbBounds.height],
+        thumbUsesForeground:
+          getComputedStyle(thumb).backgroundColor === foreground,
+      }
+    }),
+  ).resolves.toMatchObject({
+    switchSize: [32, 20],
+    thumbSize: [16, 16],
+    thumbUsesForeground: true,
+  })
+
+  const uiFontSizeInput = page.getByRole('spinbutton', { name: '界面字号' })
+  await expect(
+    uiFontSizeInput.evaluate((input) => {
+      const style = getComputedStyle(input)
+      const bounds = input.getBoundingClientRect()
+      const unit = input.parentElement?.querySelector('span')
+      const unitStyle = unit ? getComputedStyle(unit) : null
+      const probe = document.createElement('span')
+      probe.style.background = 'var(--color-background-control)'
+      probe.style.color = 'var(--color-text-foreground-secondary)'
+      document.body.append(probe)
+      const probeStyle = getComputedStyle(probe)
+      const matches = {
+        background: style.backgroundColor === probeStyle.backgroundColor,
+        unitColor: unitStyle?.color === probeStyle.color,
+      }
+      probe.remove()
+      return {
+        ...matches,
+        borderRadius: style.borderRadius,
+        fontSize: style.fontSize,
+        gap: getComputedStyle(input.parentElement!).gap,
+        height: bounds.height,
+        lineHeight: style.lineHeight,
+        textAlign: style.textAlign,
+        width: bounds.width,
+      }
+    }),
+  ).resolves.toEqual({
+    background: true,
+    borderRadius: '8px',
+    fontSize: '12px',
+    gap: '8px',
+    height: 28,
+    lineHeight: '18px',
+    textAlign: 'right',
+    unitColor: true,
+    width: 64,
+  })
+
+  await page.reload()
+  await closeTransientErrorToast(page)
+  await expect(
+    page
+      .getByRole('group', { name: '减少动态效果选项' })
+      .getByRole('button', { name: '关闭' }),
+  ).toHaveAttribute('aria-pressed', 'true')
 })
 
 async function closeTransientErrorToast(
