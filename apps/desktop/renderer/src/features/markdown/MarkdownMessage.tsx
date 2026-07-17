@@ -317,7 +317,6 @@ function renderCode(
       key={key}
     >
       <CodeBlock
-        className={context.allowWideBlocks ? 'md-wide-block' : undefined}
         code={code}
         language={normalizedLanguage}
         streaming={streaming}
@@ -424,9 +423,7 @@ function MarkdownTable({
   }
 
   return (
-    <figure
-      className={`md-table-block${context.allowWideBlocks ? ' md-wide-block' : ''}`}
-    >
+    <figure className="md-table-block">
       <figcaption className="md-table-toolbar">
         <span>TABLE</span>
         <button type="button" onClick={() => void copyTable()}>

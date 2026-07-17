@@ -2,12 +2,11 @@ import { useState } from 'react'
 import type React from 'react'
 import {
   Check,
-  ChevronDown,
-  ChevronUp,
+  CornerDownLeft,
   GripVertical,
-  Pencil,
+  MoreHorizontal,
   Play,
-  Send,
+  Trash2,
   X,
 } from 'lucide-react'
 import {
@@ -43,6 +42,10 @@ export function SessionFollowUpDock({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingText, setEditingText] = useState('')
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<{
+    id: string
+    edge: 'before' | 'after'
+  } | null>(null)
 
   if (items.length === 0) return null
 
@@ -59,35 +62,26 @@ export function SessionFollowUpDock({
     setEditingText('')
   }
 
-  function moveItem(itemId: string, offset: -1 | 1): void {
-    const from = items.findIndex(item => item.id === itemId)
-    const to = from + offset
-    if (from < 0 || to < 0 || to >= items.length) return
-    const next = items.map(item => item.id)
-    const [moved] = next.splice(from, 1)
-    if (!moved) return
-    next.splice(to, 0, moved)
-    onReorder(next)
-  }
-
-  function dropBefore(targetId: string): void {
+  function dropAt(targetId: string, edge: 'before' | 'after'): void {
     if (!draggingId || draggingId === targetId) return
     const next = items.map(item => item.id)
     const from = next.indexOf(draggingId)
-    const target = next.indexOf(targetId)
-    if (from < 0 || target < 0) return
+    if (from < 0) return
     const [moved] = next.splice(from, 1)
     if (!moved) return
-    next.splice(from < target ? target - 1 : target, 0, moved)
+    const target = next.indexOf(targetId)
+    if (target < 0) return
+    next.splice(edge === 'after' ? target + 1 : target, 0, moved)
     onReorder(next)
     setDraggingId(null)
+    setDropTarget(null)
   }
 
   return (
     <section aria-label="消息队列" className="session-follow-up-dock">
-      <div className="session-follow-up-header">
-        <span>已排队 {items.length} 条</span>
-        {pauseReason ? (
+      {pauseReason ? (
+        <div className="session-follow-up-header">
+          <span>已排队 {items.length} 条</span>
           <button
             className="session-follow-up-resume"
             onClick={onResume}
@@ -96,8 +90,8 @@ export function SessionFollowUpDock({
             <Play aria-hidden="true" size={12} />
             继续队列
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       {pauseReason ? (
         <div className="session-follow-up-paused" role="status">
           {pauseReason === 'interrupted'
@@ -114,12 +108,34 @@ export function SessionFollowUpDock({
               className={[
                 'session-follow-up-item',
                 draggingId === item.id ? 'is-dragging' : '',
+                dropTarget?.id === item.id
+                  ? `is-drop-${dropTarget.edge}`
+                  : '',
               ].join(' ')}
               key={item.id}
-              onDragOver={event => event.preventDefault()}
+              onDragLeave={event => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                  setDropTarget(current =>
+                    current?.id === item.id ? null : current,
+                  )
+                }
+              }}
+              onDragOver={event => {
+                event.preventDefault()
+                if (!draggingId || draggingId === item.id) return
+                const bounds = event.currentTarget.getBoundingClientRect()
+                const edge =
+                  event.clientY < bounds.top + bounds.height / 2
+                    ? 'before'
+                    : 'after'
+                setDropTarget({ id: item.id, edge })
+                event.dataTransfer.dropEffect = 'move'
+              }}
               onDrop={event => {
                 event.preventDefault()
-                dropBefore(item.id)
+                dropAt(item.id, dropTarget?.id === item.id
+                  ? dropTarget.edge
+                  : 'before')
               }}
               role="listitem"
             >
@@ -127,7 +143,10 @@ export function SessionFollowUpDock({
                 aria-label="拖动以调整排队顺序"
                 className="session-follow-up-drag-handle"
                 draggable={!isEditing}
-                onDragEnd={() => setDraggingId(null)}
+                onDragEnd={() => {
+                  setDraggingId(null)
+                  setDropTarget(null)
+                }}
                 onDragStart={event => {
                   setDraggingId(item.id)
                   event.dataTransfer.effectAllowed = 'move'
@@ -182,47 +201,38 @@ export function SessionFollowUpDock({
                   </>
                 ) : (
                   <>
-                    <IconButton
-                      aria-label="上移排队消息"
-                      className="session-follow-up-action"
-                      disabled={index === 0}
-                      onClick={() => moveItem(item.id, -1)}
-                      title="上移"
-                    >
-                      <ChevronUp size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                    </IconButton>
-                    <IconButton
-                      aria-label="下移排队消息"
-                      className="session-follow-up-action"
-                      disabled={index === items.length - 1}
-                      onClick={() => moveItem(item.id, 1)}
-                      title="下移"
-                    >
-                      <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                    </IconButton>
-                    <IconButton
-                      aria-label="编辑排队消息"
-                      className="session-follow-up-action"
-                      onClick={() => beginEdit(item)}
-                      title="编辑"
-                    >
-                      <Pencil size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                    </IconButton>
-                    <IconButton
+                    <button
                       aria-label="将排队消息作为补充要求发送"
-                      className="session-follow-up-action"
+                      className="session-follow-up-action session-follow-up-action--guide"
                       onClick={() => onSendNow(item.id)}
                       title="Steer：不中断当前任务"
+                      type="button"
                     >
-                      <Send size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                    </IconButton>
+                      <CornerDownLeft
+                        aria-hidden="true"
+                        size={APP_ICON_SIZE}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
+                      <span>引导</span>
+                    </button>
                     <IconButton
                       aria-label="移除排队消息"
                       className="session-follow-up-action"
                       onClick={() => onRemove(item.id)}
                       title="移除"
                     >
-                      <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      <Trash2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                    </IconButton>
+                    <IconButton
+                      aria-label="编辑排队消息"
+                      className="session-follow-up-action"
+                      onClick={() => beginEdit(item)}
+                      title="更多：编辑消息"
+                    >
+                      <MoreHorizontal
+                        size={APP_ICON_SIZE}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
                     </IconButton>
                   </>
                 )}

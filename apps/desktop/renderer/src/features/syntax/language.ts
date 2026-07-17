@@ -135,8 +135,6 @@ export function resolveLanguageFromPath(path: string): string {
 
 export function formatSyntaxLanguageLabel(language?: string | null): string {
   const normalized = normalizeSyntaxLanguage(language)
-  if (normalized === 'text') return 'TEXT'
-  if (normalized === 'shellscript') return 'SHELL'
-  if (normalized === 'objective-c') return 'OBJECTIVE-C'
-  return normalized.toUpperCase()
+  if (normalized === 'shellscript') return 'shell'
+  return normalized
 }

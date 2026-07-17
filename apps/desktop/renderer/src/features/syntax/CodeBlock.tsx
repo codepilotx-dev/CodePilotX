@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import React, { useEffect, useRef, useState } from 'react'
-import { Check, Copy, WrapText } from 'lucide-react'
+import { Check, Copy } from 'lucide-react'
 
 import {
   APP_ICON_SIZE,
@@ -15,7 +15,6 @@ import {
 import type { SyntaxHighlightResult, SyntaxToken } from './types.js'
 import { resolveThemeId } from './theme.js'
 import { useHighlightedCode } from './useHighlightedCode.js'
-import { useCodeWrapPreference } from './wrapPreference.js'
 
 const COPY_FEEDBACK_DURATION_MS = 2_000
 
@@ -42,7 +41,6 @@ export function CodeBlock({
     streaming,
     theme: resolvedTheme,
   })
-  const [wrap, setWrap] = useCodeWrapPreference()
   const [copied, setCopied] = useState(false)
   const copyFeedbackTimerRef = useRef<number | null>(null)
   const highlightedLanguage =
@@ -92,32 +90,15 @@ export function CodeBlock({
         'tw:max-w-full',
         'tw:overflow-hidden',
         'tw:rounded-lg',
-        'tw:border',
-        'tw:border-app-border',
-        'tw:bg-app-panel',
         className,
       )}
       style={surfaceStyle}
     >
-      <figcaption className="md-code-header tw:flex tw:h-7 tw:items-center tw:justify-between tw:border-b tw:border-app-border tw:px-2 tw:text-xs tw:text-app-text-soft">
+      <figcaption className="md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between tw:px-2 tw:text-xs tw:text-app-text-soft">
         <span className="md-code-lang tw:font-mono">
           {languageLabel}
         </span>
-        <span className="md-code-actions tw:flex tw:items-center tw:gap-1">
-          <button
-            aria-label={wrap ? '关闭代码自动换行' : '开启代码自动换行'}
-            aria-pressed={wrap}
-            className="md-code-action md-code-wrap tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-md tw:text-app-text-soft tw:transition-colors tw:duration-[120ms] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
-            title={wrap ? '关闭自动换行' : '自动换行'}
-            type="button"
-            onClick={() => setWrap(!wrap)}
-          >
-            <WrapText
-              aria-hidden="true"
-              size={APP_ICON_SIZE}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-            />
-          </button>
+        <span className="md-code-actions tw:flex tw:items-center">
           <button
             aria-label={copied ? '已复制代码' : '复制代码'}
             className={cx(
@@ -155,9 +136,8 @@ export function CodeBlock({
           'tw:font-mono',
           'tw:text-sm',
           'tw:leading-5',
-          wrap
-            ? 'tw:overflow-x-hidden tw:whitespace-pre-wrap tw:break-words'
-            : 'tw:overflow-x-auto tw:whitespace-pre',
+          'tw:overflow-x-auto',
+          'tw:whitespace-pre',
         )}
       >
         <code className="md-code-content" style={codeStyle}>

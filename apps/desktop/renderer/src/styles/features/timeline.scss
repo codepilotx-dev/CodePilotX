@@ -109,7 +109,8 @@
 
 .session-timeline-container {
   min-width: 0;
-  width: 100%;
+  width: var(--session-content-w, min(var(--layout-content-w, 48rem), 100%));
+  max-width: 100%;
   position: relative;
 }
 
@@ -183,7 +184,7 @@
   }
 
   .assistant-message-body {
-    max-width: min(40rem, 100%);
+    max-width: none;
   }
 }
 
@@ -194,7 +195,7 @@
 
   .workflow-plan-card {
     width: 100%;
-    max-width: min(760px, 100%);
+    max-width: none;
   }
 }
 
@@ -207,7 +208,8 @@
 [data-component="session-turn"][data-slot="system-message"] .timeline-system-event,
 [data-component="session-turn"][data-slot="permission_request"]
   .timeline-system-event {
-  max-width: min(680px, 100%);
+  width: 100%;
+  max-width: none;
   margin-top: 0;
   margin-bottom: 0;
 }
@@ -363,30 +365,35 @@
 
 /* ── Responsive: narrower viewports ───────────────────── */
 
-@container (max-width: 600px) {
-  .session-turn-row {
-    padding: 0 12px;
-  }
-}
-
 /* ── Conversation turn navigation rail ───────────────────── */
 
 .conversation-turn-nav-rail {
   position: absolute;
-  left: max(
-    8px,
-    calc((100% - var(--workflow-content-width, 760px)) / 2 - 34px)
-  );
+  left: 0;
   top: 0;
   bottom: 0;
   z-index: 5;
-  width: 28px;
+  width: 30px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: var(--layout-section-gap, 6px);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-4px);
   pointer-events: none;
+  transition:
+    opacity var(--motion-fast, 150ms) var(--ease-out, ease-out),
+    transform var(--motion-fast, 150ms) var(--ease-out, ease-out),
+    visibility 0s linear var(--motion-fast, 150ms);
+}
+
+.conversation-turn-nav-rail[data-visible="true"] {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+  transition-delay: 0s;
 }
 
 .conversation-turn-nav-item {
@@ -513,4 +520,14 @@
   .preview-card-files {
     color: var(--glass-surface-text-meta, var(--color-text-meta));
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conversation-turn-nav-rail {
+    transition: none;
+  }
+}
+
+:root[data-reduce-motion="on"] .conversation-turn-nav-rail {
+  transition: none;
 }

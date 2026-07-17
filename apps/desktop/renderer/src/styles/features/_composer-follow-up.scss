@@ -1,14 +1,19 @@
 // ── Session Follow-Up Dock ─────────────────────────────────────
 
 .session-follow-up-dock {
+  position: absolute;
+  z-index: 2;
+  right: 36px;
+  bottom: calc(100% - 1px);
+  left: 36px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: var(--layout-card-pad, 8px);
-  border-top: 1px solid var(--color-border-faint);
-  background: var(--color-panel-elevated-bg);
-  border-radius: var(--radius-4);
-  margin-top: 8px;
+  max-height: 30vh;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: auto;
 }
 
 .session-follow-up-header {
@@ -25,7 +30,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 30vh;
+  min-width: 0;
+  max-height: inherit;
   overflow-y: auto;
 }
 
@@ -53,16 +59,24 @@
 }
 
 .session-follow-up-item {
-  display: flex;
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  border-radius: var(--radius-2);
-  background: var(--color-surface);
-  transition: background 0.15s ease;
+  gap: 10px;
+  min-height: 54px;
+  padding: 8px 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-control);
+  border-radius: 18px;
+  background: var(--surface-composer);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 
   &:hover {
-    background: var(--state-hover-bg);
+    border-color: var(--color-border);
+    background: color-mix(in srgb, var(--surface-composer) 94%, var(--color-ink));
   }
 
   &.is-dragging {
@@ -72,31 +86,64 @@
   &:focus-within .session-follow-up-action {
     opacity: 1;
   }
+
+  &.is-drop-before::before,
+  &.is-drop-after::after {
+    content: "";
+    position: absolute;
+    z-index: 1;
+    right: 12px;
+    left: 12px;
+    height: 2px;
+    border-radius: var(--radius-full);
+    background: var(--color-accent);
+  }
+
+  &.is-drop-before::before {
+    top: 1px;
+  }
+
+  &.is-drop-after::after {
+    bottom: 1px;
+  }
 }
 
 .session-follow-up-drag-handle {
   display: inline-flex;
   flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 30px;
   padding: 0;
   border: 0;
   color: var(--color-text-meta);
   background: transparent;
   cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
 }
 
 .session-follow-up-preview {
-  flex: 1;
+  display: block;
+  width: fit-content;
+  max-width: min(40rem, 100%);
+  min-width: 0;
+  overflow: hidden;
   font-size: var(--type-body);
+  font-weight: var(--font-weight-label);
   color: var(--color-text);
   white-space: nowrap;
-  overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
 }
 
 .session-follow-up-actions {
   display: flex;
+  align-items: center;
   gap: 2px;
+  min-width: max-content;
   flex-shrink: 0;
 }
 
@@ -117,10 +164,43 @@
 }
 
 .session-follow-up-action {
-  opacity: 0.5;
-  transition: opacity 0.15s ease;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-meta);
+  opacity: 0.72;
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
 
   .session-follow-up-item:hover & {
     opacity: 1;
+  }
+
+  &:hover {
+    color: var(--color-text);
+  }
+}
+
+.session-follow-up-action--guide {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: var(--control-size-sm);
+  padding: 0 6px;
+  border-radius: var(--radius-4);
+  font: inherit;
+  font-size: var(--type-secondary);
+  font-weight: var(--font-weight-label);
+  cursor: pointer;
+}
+
+@container (max-width: 560px) {
+  .session-follow-up-dock {
+    right: 12px;
+    left: 12px;
+  }
+
+  .session-follow-up-action--guide span {
+    display: none;
   }
 }

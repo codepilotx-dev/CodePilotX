@@ -17,7 +17,7 @@ describe('syntax language normalization', () => {
   test('normalizes missing and plain-text aliases', () => {
     expect(normalizeSyntaxLanguage()).toBe('text')
     expect(normalizeSyntaxLanguage('plaintext')).toBe('text')
-    expect(formatSyntaxLanguageLabel('text')).toBe('TEXT')
+    expect(formatSyntaxLanguageLabel('text')).toBe('text')
   })
 
   test('preserves an unknown normalized language for fallback resolution', () => {

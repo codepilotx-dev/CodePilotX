@@ -8,14 +8,11 @@
 .composer {
   z-index: var(--z-composer);
   container-type: inline-size;
-  border: 0;
+  border: 1px solid var(--border-control);
   border-radius: 20px;
   background: color-mix(in srgb, var(--surface-composer) 96%, transparent);
-  box-shadow:
-    0 0 0 0.5px color-mix(in srgb, var(--color-text-strong) 12%, transparent),
-    0 3px 7.5px color-mix(in srgb, var(--color-ink) 8%, transparent),
-    0 20px 40px color-mix(in srgb, var(--color-ink) 6%, transparent);
-  backdrop-filter: blur(18px) saturate(1.04);
+  box-shadow: none;
+  backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.04);
 }
 
 .composer-top {

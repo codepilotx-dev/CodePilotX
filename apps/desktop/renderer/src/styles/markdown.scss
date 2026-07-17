@@ -1,6 +1,5 @@
 .md-body {
   width: 100%;
-  max-width: 40rem;
   color: var(--color-text);
   font-size: var(--type-body);
   line-height: calc(1em + 8px);
@@ -39,7 +38,7 @@
 
   h2 {
     padding-bottom: 4px;
-    border-bottom: 1px solid var(--color-border-faint);
+  
     font-size: var(--type-title-md);
   }
 
@@ -151,15 +150,15 @@
 .md-code-block {
   margin-top: 14px;
   margin-bottom: 14px;
-  box-shadow: var(--shadow-sm);
+  background: var(--surface-code-block);
 }
 
 .md-code-header {
-  background: color-mix(in srgb, currentcolor 4%, transparent);
+  background: transparent;
 }
 
 .md-code-lang {
-  letter-spacing: 0.04em;
+  letter-spacing: normal;
 }
 
 .md-code-action {
