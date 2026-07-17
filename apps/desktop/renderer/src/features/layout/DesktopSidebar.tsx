@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   DesktopRemovedWorkspace,
   DesktopSessionCatalogStatus,
-  DesktopSessionMetadataPatch,
   DesktopWorkspace,
   SidebarSectionId,
 } from "../../../shared/types.js";
@@ -13,6 +12,8 @@ import { SidebarBody } from "./sidebar/SidebarBody.js";
 import { SidebarFooter } from "./sidebar/SidebarFooter.js";
 import { SidebarEmptyRow } from "./sidebar/SidebarRow.js";
 import { SidebarTopNav } from "./sidebar/SidebarTopNav.js";
+import { buildSidebarViewModel } from './sidebar/sidebarViewModel.js'
+import { useDesktopSettings } from '../settings/useDesktopSettings.js'
 
 type Props = {
   activeSessionId: string | null;
@@ -31,10 +32,12 @@ type Props = {
   onUnpinWorkspace: (workspace: DesktopWorkspace) => void;
   onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
-  onUpdateSessionMetadata: (
-    sessionId: string,
-    patch: DesktopSessionMetadataPatch,
-  ) => void;
+  onArchiveSessions: (sessionIds: readonly string[]) => Promise<{
+    failedSessionIds: string[]
+    succeededSessionIds: string[]
+  }>
+  onRenameSession: (sessionId: string, title: string) => Promise<boolean>
+  onReport: (message: string) => void
   collapsedSidebarSections: SidebarSectionId[];
   onToggleSidebarSection: (section: SidebarSectionId) => void;
 };
@@ -56,55 +59,47 @@ export function DesktopSidebar({
   onUnpinWorkspace,
   onRemoveWorkspace,
   onSelectSession,
-  onUpdateSessionMetadata,
+  onArchiveSessions,
+  onRenameSession,
+  onReport,
   collapsedSidebarSections,
   onToggleSidebarSection,
 }: Props): React.ReactNode {
   const location = useLocation();
   const [relativeNow, setRelativeNow] = useState(() => Date.now());
-  const [collapsedProjectPaths, setCollapsedProjectPaths] = useState<
-    Set<string>
-  >(() => new Set());
+  const {
+    collapsedSidebarProjectPaths,
+    setCollapsedSidebarProjectPaths,
+    sidebarSessionPins,
+    setSidebarSessionPins,
+  } = useDesktopSettings()
+  const collapsedProjectPaths = useMemo(
+    () => new Set(collapsedSidebarProjectPaths),
+    [collapsedSidebarProjectPaths],
+  )
 
   useEffect(() => {
     const timer = window.setInterval(() => setRelativeNow(Date.now()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
 
-  const visibleSessions = useMemo(
-    () => sessions.filter((session) => !session.archivedAt),
-    [sessions],
-  );
-  const pinnedSessions = useMemo(
+  const viewModel = useMemo(
     () =>
-      visibleSessions
-        .filter((session) => session.pinnedAt)
-        .sort((left, right) => compareTimestamp(right.pinnedAt, left.pinnedAt)),
-    [visibleSessions],
-  );
-  const unpinnedSessions = useMemo(
-    () => visibleSessions.filter((session) => !session.pinnedAt),
-    [visibleSessions],
-  );
-  const standaloneSessions = useMemo(
-    () => unpinnedSessions.filter((session) => session.standalone),
-    [unpinnedSessions],
-  );
-  const projectWorkspaces = useMemo(
-    () => mergeProjectWorkspaces(recentWorkspaces, unpinnedSessions, removedWorkspaces),
-    [recentWorkspaces, unpinnedSessions, removedWorkspaces],
-  );
-  const pinnedWorkspaces = useMemo(
-    () =>
-      projectWorkspaces
-        .filter(w => w.pinnedAt)
-        .sort((a, b) => compareTimestamp(b.pinnedAt, a.pinnedAt)),
-    [projectWorkspaces],
-  );
-  const unpinnedWorkspaces = useMemo(
-    () => projectWorkspaces.filter(w => !w.pinnedAt),
-    [projectWorkspaces],
-  );
+      buildSidebarViewModel({
+        pendingPermissionSessionIds,
+        recentWorkspaces,
+        removedWorkspaces,
+        sessionPins: sidebarSessionPins,
+        sessions,
+      }),
+    [
+      pendingPermissionSessionIds,
+      recentWorkspaces,
+      removedWorkspaces,
+      sessions,
+      sidebarSessionPins,
+    ],
+  )
 
   function isActiveView(view: AppView): boolean {
     if (view === "quickChat") return location.pathname === "/quick-chat";
@@ -112,35 +107,59 @@ export function DesktopSidebar({
   }
 
   const toggleProjectCollapsed = useCallback((projectPath: string): void => {
-    setCollapsedProjectPaths((current) => {
-      const next = new Set(current);
+    setCollapsedSidebarProjectPaths((current) => {
+      const next = new Set(current)
       if (next.has(projectPath)) {
-        next.delete(projectPath);
+        next.delete(projectPath)
       } else {
-        next.add(projectPath);
+        next.add(projectPath)
       }
-      return next;
+      return [...next]
     });
-  }, []);
+  }, [setCollapsedSidebarProjectPaths]);
 
   function pinSession(session: SessionListItem): void {
-    onUpdateSessionMetadata(session.id, { pinnedAt: new Date().toISOString() });
+    setSidebarSessionPins(current => ({
+      ...current,
+      [session.id]: new Date().toISOString(),
+    }))
   }
 
   function unpinSession(session: SessionListItem): void {
-    onUpdateSessionMetadata(session.id, { pinnedAt: null });
+    setSidebarSessionPins(current => {
+      const { [session.id]: _removed, ...next } = current
+      return next
+    })
   }
 
-  function archiveSession(session: SessionListItem): void {
-    onUpdateSessionMetadata(session.id, {
-      archivedAt: new Date().toISOString(),
-    });
+  async function archiveSessions(targetSessions: readonly SessionListItem[]): Promise<boolean> {
+    const result = await onArchiveSessions(targetSessions.map(session => session.id))
+    if (result.succeededSessionIds.length > 0) {
+      const removedIds = new Set(result.succeededSessionIds)
+      setSidebarSessionPins(current =>
+        Object.fromEntries(
+          Object.entries(current).filter(([sessionId]) => !removedIds.has(sessionId)),
+        ),
+      )
+    }
+    if (result.failedSessionIds.length > 0) {
+      onReport(
+        `已归档 ${result.succeededSessionIds.length} 个任务，${result.failedSessionIds.length} 个失败。`,
+      )
+      return false
+    }
+    if (result.succeededSessionIds.length > 1) {
+      onReport(`已归档 ${result.succeededSessionIds.length} 个任务。`)
+    }
+    return true
   }
 
   return (
     <div className="sidebar-layout tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:bg-app-chrome tw:py-2">
       <SidebarTopNav isActiveView={isActiveView} />
-      {catalogStatus.state === 'unavailable' ? (
+      {catalogStatus.state === 'loading' ? (
+        <SidebarEmptyRow role="status">正在加载任务目录…</SidebarEmptyRow>
+      ) : catalogStatus.state === 'unavailable' ? (
         <SidebarEmptyRow role="status">
           {catalogStatus.error ?? 'The app-server is unavailable. Please try again.'}
         </SidebarEmptyRow>
@@ -150,15 +169,15 @@ export function DesktopSidebar({
         pendingPermissionSessionIds={pendingPermissionSessionIds}
         collapsedProjectPaths={collapsedProjectPaths}
         now={relativeNow}
-        pinnedSessions={pinnedSessions}
-        pinnedWorkspaces={pinnedWorkspaces}
-        projectWorkspaces={unpinnedWorkspaces}
+        pinnedSessions={viewModel.pinnedSessions}
+        pinnedWorkspaces={viewModel.pinnedWorkspaces}
+        projectWorkspaces={viewModel.projectWorkspaces}
         sessionFallbackTitles={sessionFallbackTitles}
-        standaloneSessions={standaloneSessions}
+        standaloneSessions={viewModel.standaloneSessions}
         unavailableWorkspacePaths={unavailableWorkspacePaths}
-        unpinnedSessions={unpinnedSessions}
+        unpinnedSessions={viewModel.unpinnedSessions}
         workspace={workspace}
-        onArchiveSession={archiveSession}
+        onArchiveSessions={archiveSessions}
         onChooseWorkspace={onChooseWorkspace}
         onCreateSession={onCreateSession}
         onOpenWorkspace={onOpenWorkspace}
@@ -169,39 +188,11 @@ export function DesktopSidebar({
         onToggleSidebarSection={onToggleSidebarSection}
         onRemoveWorkspace={onRemoveWorkspace}
         onSelectSession={onSelectSession}
+        onRenameSession={onRenameSession}
         onToggleProjectCollapsed={toggleProjectCollapsed}
         onUnpinSession={unpinSession}
       />
       <SidebarFooter />
     </div>
   );
-}
-
-function compareTimestamp(
-  left: string | null | undefined,
-  right: string | null | undefined,
-): number {
-  return new Date(left ?? 0).getTime() - new Date(right ?? 0).getTime();
-}
-
-function mergeProjectWorkspaces(
-  recentWorkspaces: DesktopWorkspace[],
-  sessions: SessionListItem[],
-  removedWorkspaces: DesktopRemovedWorkspace[],
-): DesktopWorkspace[] {
-  const removedPaths = new Set(removedWorkspaces.map(r => r.path));
-  const byPath = new Map<string, DesktopWorkspace>();
-  for (const workspace of recentWorkspaces) {
-    if (removedPaths.has(workspace.path)) continue;
-    byPath.set(workspace.path, workspace);
-  }
-  for (const session of sessions) {
-    if (session.standalone || byPath.has(session.workspacePath)) continue;
-    if (removedPaths.has(session.workspacePath)) continue;
-    byPath.set(session.workspacePath, {
-      name: session.workspaceName,
-      path: session.workspacePath,
-    });
-  }
-  return [...byPath.values()];
 }

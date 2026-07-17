@@ -42,7 +42,6 @@ export type EditMenuAction =
 export type ViewMenuAction =
   | 'toggleSidebar'
   | 'toggleBottomPanel'
-  | 'openTerminal'
   | 'toggleFileTree'
   | 'openBrowserTab'
   | 'reloadBrowserPage'
@@ -304,15 +303,14 @@ export function MenuBar({
               </MenuItem>
               <MenuItem
                 shortcut="Ctrl+J"
+                onSelect={() => onViewMenuAction('toggleSidePanel')}
+              >
+                切换右侧面板
+              </MenuItem>
+              <MenuItem
                 onSelect={() => onViewMenuAction('toggleBottomPanel')}
               >
                 切换底部面板
-              </MenuItem>
-              <MenuItem
-                shortcut="Ctrl+`"
-                onSelect={() => onViewMenuAction('openTerminal')}
-              >
-                打开终端
               </MenuItem>
               <MenuItem
                 shortcut="Ctrl+Shift+E"
@@ -332,12 +330,6 @@ export function MenuBar({
                 onSelect={() => onViewMenuAction('reloadBrowserPage')}
               >
                 重新加载浏览器
-              </MenuItem>
-              <MenuItem
-                shortcut="Alt+Ctrl+B"
-                onSelect={() => onViewMenuAction('toggleSidePanel')}
-              >
-                切换侧边面板
               </MenuItem>
               <MenuItem shortcut="Ctrl+F" onSelect={() => onViewMenuAction('find')}>
                 查找

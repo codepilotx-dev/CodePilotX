@@ -70,7 +70,8 @@ export const DESKTOP_SIDEBAR_ORGANIZATIONS = new Set<DesktopSidebarOrganization>
 
 export const DESKTOP_SIDEBAR_SORTS = new Set<DesktopSidebarSort>([
   'priority',
-  'recent',
+  'updated',
+  'created',
   'manual',
 ])
 
@@ -145,6 +146,9 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     sidebarOrganization: 'projects',
     sidebarSort: 'priority',
     sidebarManualOrder: {},
+    sidebarSessionPins: {},
+    collapsedSidebarProjectPaths: [],
+    sidebarSectionOrder: [...VALID_SIDEBAR_SECTION_IDS],
 	    browserAllowedSites: [],
 	    collapsedSidebarSections: [],
 	    browserSitePermissions: [],
@@ -159,6 +163,7 @@ export function normalizeDesktopStoredSettings(
       ? (value as Partial<DesktopStoredSettings>)
       : {}
   const defaults = defaultDesktopStoredSettings()
+  const rawSidebarSort = (parsed as { sidebarSort?: unknown }).sidebarSort
   const permissionMode = normalizeDesktopPermissionMode(parsed.permissionMode)
   const legacyPermissionProfile = normalizeDesktopPermissionProfile(parsed.permissionProfile, ':workspace')
   const sandboxMode = isDesktopSandboxMode(parsed.sandboxMode)
@@ -372,12 +377,26 @@ export function normalizeDesktopStoredSettings(
     sidebarOrganization: isDesktopSidebarOrganization(parsed.sidebarOrganization)
       ? parsed.sidebarOrganization
       : defaults.sidebarOrganization,
-    sidebarSort: isDesktopSidebarSort(parsed.sidebarSort)
-      ? parsed.sidebarSort
-      : defaults.sidebarSort,
+    sidebarSort:
+      rawSidebarSort === 'recent'
+        ? 'updated'
+        : isDesktopSidebarSort(rawSidebarSort)
+          ? rawSidebarSort
+          : defaults.sidebarSort,
     sidebarManualOrder: normalizeSidebarManualOrder(
       parsed.sidebarManualOrder,
       defaults.sidebarManualOrder,
+    ),
+    sidebarSessionPins: normalizeStringRecord(
+      parsed.sidebarSessionPins,
+      defaults.sidebarSessionPins,
+    ),
+    collapsedSidebarProjectPaths: normalizeUniqueStringList(
+      parsed.collapsedSidebarProjectPaths,
+      defaults.collapsedSidebarProjectPaths,
+    ),
+    sidebarSectionOrder: normalizeSidebarSectionOrder(
+      parsed.sidebarSectionOrder,
     ),
     browserAllowedSites: normalizeStringList(
       parsed.browserAllowedSites,
@@ -700,6 +719,60 @@ function normalizeStringList(value: unknown, fallback: string[]): string[] {
   return value.filter(item => typeof item === 'string')
 }
 
+function normalizeUtf8String(value: string): string {
+  return value.normalize('NFC').trim()
+}
+
+function normalizeUniqueStringList(
+  value: unknown,
+  fallback: string[],
+): string[] {
+  if (!Array.isArray(value)) return [...fallback]
+  const normalized = value.flatMap(item => {
+    if (typeof item !== 'string') return []
+    const normalizedItem = normalizeUtf8String(item)
+    return normalizedItem ? [normalizedItem] : []
+  })
+  return normalized.filter((item, index) => normalized.indexOf(item) === index)
+}
+
+function normalizeStringRecord(
+  value: unknown,
+  fallback: Record<string, string>,
+): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { ...fallback }
+  }
+  const normalized: Record<string, string> = {}
+  for (const [rawKey, rawValue] of Object.entries(value)) {
+    if (typeof rawValue !== 'string') continue
+    const key = normalizeUtf8String(rawKey)
+    const normalizedValue = normalizeUtf8String(rawValue)
+    const timestamp = Date.parse(normalizedValue)
+    if (
+      !key ||
+      !normalizedValue ||
+      Number.isNaN(timestamp) ||
+      key in normalized
+    ) {
+      continue
+    }
+    normalized[key] = new Date(timestamp).toISOString()
+  }
+  return normalized
+}
+
+function normalizeSidebarSectionOrder(value: unknown): SidebarSectionId[] {
+  const normalized = normalizeUniqueStringList(value, []).filter(
+    (id): id is SidebarSectionId =>
+      (VALID_SIDEBAR_SECTION_IDS as readonly string[]).includes(id),
+  )
+  return [
+    ...normalized,
+    ...VALID_SIDEBAR_SECTION_IDS.filter(id => !normalized.includes(id)),
+  ]
+}
+
 function normalizeSidebarManualOrder(
   value: unknown,
   fallback: Record<string, string[]>,
@@ -708,11 +781,11 @@ function normalizeSidebarManualOrder(
     return fallback
   }
   const normalized: Record<string, string[]> = {}
-  for (const [scopeKey, sessionIds] of Object.entries(value)) {
+  for (const [rawScopeKey, sessionIds] of Object.entries(value)) {
     if (!Array.isArray(sessionIds)) continue
-    const deduped = sessionIds.filter((sessionId, index, list): sessionId is string => {
-      return typeof sessionId === 'string' && list.indexOf(sessionId) === index
-    })
+    const scopeKey = normalizeUtf8String(rawScopeKey)
+    if (!scopeKey || scopeKey in normalized) continue
+    const deduped = normalizeUniqueStringList(sessionIds, [])
     if (deduped.length > 0) {
       normalized[scopeKey] = deduped
     }

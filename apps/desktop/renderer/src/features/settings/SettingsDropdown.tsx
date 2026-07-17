@@ -1,6 +1,6 @@
 import React from 'react'
 import * as Select from '@radix-ui/react-select'
-import { ChevronDown } from 'lucide-react'
+import { Check, ChevronDown, Search } from 'lucide-react'
 import { preventOutsideDismissWhenDebug } from '../../components/ui/debugDropdown.js'
 import {
   buildPopoverSizingStyle,
@@ -25,6 +25,7 @@ type Props = {
   searchable?: boolean
   searchPlaceholder?: string
   disableOutsideDismiss?: boolean
+  showSelectedIndicator?: boolean
 } & PopoverSizingProps
 
 const EMPTY_VALUE = '__radix_empty_value__'
@@ -38,18 +39,19 @@ export function SettingsDropdown({
   searchable = false,
   searchPlaceholder = '搜索...',
   disableOutsideDismiss = readDesktopBrowserDebugMode(),
+  showSelectedIndicator = false,
   width,
   maxWidth,
 }: Props) {
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
   const searchInputRef = React.useRef<HTMLInputElement | null>(null)
-  const selectedOption = options.find(o => o.value === value) || options[0]
+  const selectedOption = options.find((o) => o.value === value) || options[0]
   const radixValue = value === '' ? EMPTY_VALUE : value
   const isThemeVariant = variant === 'theme'
   const normalizedQuery = searchQuery.trim().toLowerCase()
   const visibleOptions = searchable
-    ? options.filter(option => {
+    ? options.filter((option) => {
         if (!normalizedQuery) return true
         return (
           option.label.toLowerCase().includes(normalizedQuery) ||
@@ -72,33 +74,33 @@ export function SettingsDropdown({
       open={open}
       value={radixValue}
       onOpenChange={setOpen}
-      onValueChange={nextValue =>
+      onValueChange={(nextValue) =>
         onChange(nextValue === EMPTY_VALUE ? '' : nextValue)
       }
     >
       <Select.Trigger
         aria-label={ariaLabel}
-        className="settings-dropdown tw:flex tw:min-h-8 tw:min-w-36 tw:items-center tw:justify-between tw:gap-2 tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-left tw:text-sm tw:text-app-text tw:shadow-sm tw:transition-colors tw:duration-[var(--motion-fast)] tw:hover:bg-app-panel tw:focus-visible:outline-none tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+        className="settings-dropdown"
         data-variant={variant}
         tabIndex={-1}
       >
-        <div className="settings-dropdown-value tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:truncate">
+        <div className="settings-dropdown-value">
           {selectedOption?.icon}
           <Select.Value placeholder={selectedOption?.label} />
         </div>
         <Select.Icon asChild>
-          <ChevronDown className="settings-dropdown-icon tw:size-4 tw:shrink-0 tw:text-app-text-soft" />
+          <ChevronDown className="settings-dropdown-icon" />
         </Select.Icon>
       </Select.Trigger>
       <Select.Portal>
         <Select.Content
-          align="start"
-          className="popover-surface settings-dropdown-content tw:z-[var(--z-popover)] tw:max-h-[min(420px,calc(100vh-24px))] tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border tw:bg-app-raised tw:p-1 tw:text-app-text tw:shadow-lg"
-          collisionPadding={12}
+          align="end"
+          className="popover-surface settings-dropdown-content"
+          collisionPadding={6}
           data-variant={variant}
           position="popper"
           side="bottom"
-          sideOffset={6}
+          sideOffset={1}
           style={buildPopoverSizingStyle({
             width,
             maxWidth:
@@ -107,7 +109,7 @@ export function SettingsDropdown({
                 ? 'min(calc(420px + var(--popover-width-extra)), calc(100vw - 24px))'
                 : undefined),
           })}
-          onPointerDownOutside={event => {
+          onPointerDownOutside={(event) => {
             preventOutsideDismissWhenDebug(disableOutsideDismiss, event)
           }}
           onCloseAutoFocus={() => {
@@ -115,38 +117,56 @@ export function SettingsDropdown({
           }}
         >
           {searchable ? (
-            <div className="settings-dropdown-search tw:border-b tw:border-app-border tw:p-1.5">
+            <div className="settings-dropdown-search">
+              <Search
+                aria-hidden="true"
+                className="settings-dropdown-search-icon"
+              />
               <Input
                 ref={searchInputRef}
-                className="settings-dropdown-search-input tw:w-full tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-sm tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-1 tw:focus:ring-app-accent"
+                className="settings-dropdown-search-input"
+                size="compact"
                 placeholder={searchPlaceholder}
                 value={searchQuery}
-                onChange={event => setSearchQuery(event.target.value)}
-                onKeyDown={event => event.stopPropagation()}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onKeyDown={(event) => event.stopPropagation()}
               />
             </div>
           ) : null}
-          <Select.Viewport className="settings-dropdown-scroll-area tw:max-h-[inherit] tw:overflow-y-auto">
-            <div className="settings-dropdown-scroll-content tw:grid tw:gap-0.5">
+          <Select.Viewport className="settings-dropdown-scroll-area">
+            <div className="settings-dropdown-scroll-content">
               {visibleOptions.length ? (
-                visibleOptions.map(opt => (
+                visibleOptions.map((opt) => (
                   <Select.Item
-                    className="settings-dropdown-item tw:cursor-default tw:rounded-md tw:px-2 tw:py-2 tw:text-sm tw:text-app-text tw:outline-none tw:transition-colors tw:duration-[var(--motion-fast)] tw:data-[highlighted]:bg-app-panel tw:data-[state=checked]:bg-app-panel"
+                    className="settings-dropdown-item"
                     key={opt.value}
                     tabIndex={-1}
                     value={opt.value === '' ? EMPTY_VALUE : opt.value}
                   >
-                    <div className="settings-dropdown-item-inner tw:flex tw:min-w-0 tw:items-center tw:gap-2">
+                    <div className="settings-dropdown-item-inner">
                       {opt.icon}
-                      <div className="settings-dropdown-item-copy tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:gap-0.5">
-                        <Select.ItemText>{opt.label}</Select.ItemText>
-                        {opt.detail ? <span className="tw:text-xs tw:text-app-text-soft">{opt.detail}</span> : null}
+                      <div className="settings-dropdown-item-copy">
+                        <Select.ItemText>
+                          <span className="settings-dropdown-item-label">
+                            {opt.label}
+                          </span>
+                        </Select.ItemText>
+                        {opt.detail ? (
+                          <span className="settings-dropdown-item-detail">
+                            {opt.detail}
+                          </span>
+                        ) : null}
                       </div>
+                      {showSelectedIndicator ? (
+                        <Select.ItemIndicator className="settings-dropdown-item-indicator">
+                          <Check aria-hidden="true" size={14} />
+                        </Select.ItemIndicator>
+                      ) : null}
                     </div>
                   </Select.Item>
                 ))
               ) : (
-                <div className="settings-dropdown-empty tw:px-3 tw:py-4 tw:text-center tw:text-sm tw:text-app-text-soft">未找到匹配项</div>
+                <div className="settings-dropdown-empty">未找到匹配项</div>
               )}
             </div>
           </Select.Viewport>

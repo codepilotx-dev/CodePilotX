@@ -7,9 +7,7 @@ import {
   Download,
   Gauge,
   LogOut,
-  Send,
   Settings2,
-  Smartphone,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
@@ -175,14 +173,6 @@ export const SidebarFooter = forwardRef<HTMLElement>(function SidebarFooter(
           >
             设置
           </PopoverItem>
-          <PopoverItem
-            icon={<Send size={APP_ICON_SIZE} />}
-            onClick={() => {
-              setMenuOpen(false);
-            }}
-          >
-            邀请好友
-          </PopoverItem>
         </div>
         <div className="popover-divider" />
         <div className="popover-section">
@@ -303,13 +293,6 @@ export const SidebarFooter = forwardRef<HTMLElement>(function SidebarFooter(
           </PopoverItem>
         </div>
       </PopoverMenu>
-      <IconButton
-        className="sidebar-mobile-button"
-        onClick={() => {}}
-        title="移动端"
-      >
-        <Smartphone size={APP_ICON_SIZE} />
-      </IconButton>
     </footer>
   );
 });

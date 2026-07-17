@@ -3,7 +3,7 @@ import type React from 'react'
 import { cx } from '../../utils/cx.js'
 
 export type ButtonVariant = 'secondary' | 'primary' | 'ghost' | 'link'
-export type ButtonSize = 'sm' | 'md' | 'icon'
+export type ButtonSize = 'sm' | 'md' | 'icon' | 'compact' | 'toolbar'
 export type ButtonTone = 'default' | 'danger'
 
 type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -14,9 +14,11 @@ type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 }
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: 'u-type-caption',
+  sm: 'u-type-control',
   md: 'u-type-control',
   icon: 'u-type-control',
+  compact: '',
+  toolbar: 'u-type-control',
 }
 
 export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
@@ -25,7 +27,7 @@ export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
     className,
     disabled,
     loading = false,
-    size = 'md',
+    size = 'toolbar',
     tone = 'default',
     type = 'button',
     variant = 'secondary',

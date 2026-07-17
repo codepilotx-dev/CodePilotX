@@ -86,6 +86,9 @@ export type UseDesktopSettingsResult = {
   sidebarOrganization: DesktopSidebarOrganization
   sidebarSort: DesktopSidebarSort
   sidebarManualOrder: Record<string, string[]>
+  sidebarSessionPins: Record<string, string>
+  collapsedSidebarProjectPaths: string[]
+  sidebarSectionOrder: SidebarSectionId[]
 	  browserAllowedSites: string[]
 	  collapsedSidebarSections: SidebarSectionId[]
 	  browserSitePermissions: DesktopBrowserSitePermission[]
@@ -141,6 +144,19 @@ export type UseDesktopSettingsResult = {
   setSidebarOrganization: (value: DesktopSidebarOrganization) => void
   setSidebarSort: (value: DesktopSidebarSort) => void
   setSidebarManualOrder: (value: Record<string, string[]>) => void
+  setSidebarSessionPins: (
+    value:
+      | Record<string, string>
+      | ((current: Record<string, string>) => Record<string, string>),
+  ) => void
+  setCollapsedSidebarProjectPaths: (
+    value: string[] | ((current: string[]) => string[]),
+  ) => void
+  setSidebarSectionOrder: (
+    value:
+      | SidebarSectionId[]
+      | ((current: SidebarSectionId[]) => SidebarSectionId[]),
+  ) => void
   setBrowserAllowedSites: (value: string[]) => void
   setCollapsedSidebarSections: (
     value: SidebarSectionId[] | ((current: SidebarSectionId[]) => SidebarSectionId[]),
@@ -410,6 +426,14 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [sidebarManualOrder, setSidebarManualOrder] = useState<
     Record<string, string[]>
   >(initial.sidebarManualOrder)
+  const [sidebarSessionPins, setSidebarSessionPins] = useState<
+    Record<string, string>
+  >(initial.sidebarSessionPins)
+  const [collapsedSidebarProjectPaths, setCollapsedSidebarProjectPaths] =
+    useState<string[]>(initial.collapsedSidebarProjectPaths)
+  const [sidebarSectionOrder, setSidebarSectionOrder] = useState<
+    SidebarSectionId[]
+  >(initial.sidebarSectionOrder)
   const [browserAllowedSites, setBrowserAllowedSites] = useState<string[]>(
     initial.browserAllowedSites,
   )
@@ -496,7 +520,11 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setSidebarOrganization(settings.sidebarOrganization)
         setSidebarSort(settings.sidebarSort)
         setSidebarManualOrder(settings.sidebarManualOrder)
+        setSidebarSessionPins(settings.sidebarSessionPins)
+        setCollapsedSidebarProjectPaths(settings.collapsedSidebarProjectPaths)
+        setSidebarSectionOrder(settings.sidebarSectionOrder)
         setBrowserAllowedSites(settings.browserAllowedSites)
+        setCollapsedSidebarSections(settings.collapsedSidebarSections)
         setBrowserSitePermissions(settings.browserSitePermissions)
         setDraftValues(cloneDesktopSettings(settings))
         draftDirtyKeysRef.current.clear()
@@ -567,6 +595,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       sidebarOrganization,
       sidebarSort,
       sidebarManualOrder,
+      sidebarSessionPins,
+      collapsedSidebarProjectPaths,
+      sidebarSectionOrder,
 	      rustSearchAndDiffKernels,
 	      browserAllowedSites,
 	      collapsedSidebarSections,
@@ -625,6 +656,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       sidebarOrganization,
       sidebarSort,
       sidebarManualOrder,
+      sidebarSessionPins,
+      collapsedSidebarProjectPaths,
+      sidebarSectionOrder,
 	      rustSearchAndDiffKernels,
 	      browserAllowedSites,
 	      collapsedSidebarSections,
@@ -727,6 +761,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setSidebarOrganization(snapshot.sidebarOrganization)
       setSidebarSort(snapshot.sidebarSort)
       setSidebarManualOrder(snapshot.sidebarManualOrder)
+      setSidebarSessionPins(snapshot.sidebarSessionPins)
+      setCollapsedSidebarProjectPaths(snapshot.collapsedSidebarProjectPaths)
+      setSidebarSectionOrder(snapshot.sidebarSectionOrder)
         setRustSearchAndDiffKernels(snapshot.rustSearchAndDiffKernels)
 	        setBrowserAllowedSites(snapshot.browserAllowedSites)
 	        setCollapsedSidebarSections(snapshot.collapsedSidebarSections)
@@ -870,6 +907,9 @@ defaultOpenTargetId,
     sidebarOrganization,
     sidebarSort,
     sidebarManualOrder,
+    sidebarSessionPins,
+    collapsedSidebarProjectPaths,
+    sidebarSectionOrder,
     rustSearchAndDiffKernels,
 	    browserAllowedSites,
 	    collapsedSidebarSections,
@@ -923,6 +963,9 @@ defaultOpenTargetId,
     setSidebarOrganization,
     setSidebarSort,
     setSidebarManualOrder,
+    setSidebarSessionPins,
+    setCollapsedSidebarProjectPaths,
+    setSidebarSectionOrder,
     setRustSearchAndDiffKernels,
 	    setBrowserAllowedSites,
 	    setCollapsedSidebarSections,
@@ -949,6 +992,11 @@ function cloneDesktopSettings(
         [...sessionIds],
       ]),
     ),
+    sidebarSessionPins: { ...settings.sidebarSessionPins },
+    collapsedSidebarProjectPaths: [
+      ...settings.collapsedSidebarProjectPaths,
+    ],
+    sidebarSectionOrder: [...settings.sidebarSectionOrder],
     browserAllowedSites: [...settings.browserAllowedSites],
     collapsedSidebarSections: [...settings.collapsedSidebarSections],
     browserSitePermissions: settings.browserSitePermissions.map(permission => ({

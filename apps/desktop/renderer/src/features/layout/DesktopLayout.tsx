@@ -3,6 +3,7 @@ import {
   readDesktopBrowserDebugMode,
   writeDesktopBrowserDebugMode,
 } from '../../services/desktopClient.js'
+import { AgentRpcError } from '../../services/agentRpcClient.js'
 import type React from 'react'
 import { Outlet } from 'react-router-dom'
 import {
@@ -15,11 +16,10 @@ import {
   WorkbenchPanel,
 } from './RightDock.js'
 import {
-  createDefaultWorkbenchPanelState,
-  type RightDockToolId,
+  createDefaultWorkbenchTabsState,
   type WorkbenchPanelTarget,
+  type WorkbenchTabId,
 } from './rightDockState.js'
-import { rightDockTools, isRightDockToolEnabled, type RightDockPlan } from './rightDockTools.js'
 import {
   createDefaultConversationUiState,
   saveConversationUiState,
@@ -66,6 +66,7 @@ import type {
   DesktopModelMetadata,
   DesktopBrowserState,
   DesktopComposerAttachment,
+  DesktopFileEntry,
   DesktopPermissionMode,
   DesktopUserMessageInput,
   DesktopWorkspace,
@@ -90,8 +91,101 @@ import { useWorkbenchWorkspaceController } from './useWorkbenchWorkspaceControll
 import { useModelProviderController } from './useModelProviderController.js'
 import { useSubagentDockController } from './useSubagentDockController.js'
 import { WorkbenchShellView } from './WorkbenchShellView.js'
+import { resolveSidebarEscapeAction } from './sidebarShellState.js'
+import type {
+  MarkdownFileOpenOptions,
+  MarkdownFileReference,
+} from '../markdown/index.js'
+import {
+  hasDirtyFileDocuments,
+  prefetchFileDocument,
+  saveAllFileDocuments,
+  saveFileDocument,
+} from '../workspace/fileDocumentStore.js'
 
 const EMPTY_BRANCHES: string[] = []
+const EXTERNAL_FILE_EXTENSIONS = new Set([
+  'bmp',
+  'doc',
+  'docx',
+  'gif',
+  'ico',
+  'ipynb',
+  'jpeg',
+  'jpg',
+  'ods',
+  'odt',
+  'pdf',
+  'png',
+  'ppt',
+  'pptx',
+  'svg',
+  'webp',
+  'xls',
+  'xlsm',
+  'xlsx',
+])
+
+function isTextEntryTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false
+  return target.closest('input, textarea, select, [contenteditable="true"]') !== null
+}
+
+function hasOpenDialog(): boolean {
+  return document.querySelector('[role="dialog"], dialog[open]') !== null
+}
+
+function createFilePreviewTabId(
+  workspacePath: string,
+  relativePath: string,
+): `file:${string}` {
+  const normalizedWorkspace = workspacePath.replace(/\\/g, '/').toLowerCase()
+  const normalizedFile = relativePath.replace(/\\/g, '/').toLowerCase()
+  return `file:${encodeURIComponent(`${normalizedWorkspace}\u0000${normalizedFile}`)}`
+}
+
+function resolveWorkspaceFileReference(
+  workspacePath: string,
+  referencePath: string,
+): { relativePath: string; absolutePath: string } | null {
+  const workspace = workspacePath.replace(/\\/g, '/').replace(/\/+$/u, '')
+  const value = referencePath.trim().replace(/\\/g, '/')
+  if (!value) return null
+  const isAbsolute = /^(?:[a-zA-Z]:\/|\/\/|\/)/u.test(value)
+  let relativePath = value
+  if (isAbsolute) {
+    const prefix = `${workspace}/`
+    const matchesWorkspace =
+      /^[a-zA-Z]:\//u.test(workspace) || /^[a-zA-Z]:\//u.test(value)
+        ? value.toLowerCase().startsWith(prefix.toLowerCase())
+        : value.startsWith(prefix)
+    if (!matchesWorkspace) return null
+    relativePath = value.slice(prefix.length)
+  }
+  relativePath = relativePath.replace(/^(?:\.\/)+/u, '')
+  const segments = relativePath.split('/').filter(Boolean)
+  if (segments.length === 0 || segments.some(segment => segment === '..')) {
+    return null
+  }
+  relativePath = segments.join('/')
+  return {
+    relativePath,
+    absolutePath: `${workspace}/${relativePath}`,
+  }
+}
+
+function shouldOpenFileExternally(path: string): boolean {
+  const extension = path.split(/[\\/]/u).pop()?.split('.').pop()?.toLowerCase()
+  return extension ? EXTERNAL_FILE_EXTENSIONS.has(extension) : false
+}
+
+function shouldFallbackToExternalOpen(error: unknown): boolean {
+  return (
+    error instanceof AgentRpcError &&
+    (error.errorCode === 'WORKSPACE_FILE_UNREADABLE' ||
+      error.errorCode === 'WORKSPACE_FILE_TOO_LARGE')
+  )
+}
 
 export function DesktopLayout(): React.ReactNode {
   const settings = useDesktopSettings()
@@ -140,6 +234,8 @@ export function DesktopLayout(): React.ReactNode {
 	    setReviewView,
 	    collapsedSidebarSections,
 	    setCollapsedSidebarSections,
+	    sidebarSessionPins,
+	    setSidebarSessionPins,
 	    syncExternalSettingsPatch,
   } = settings
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -174,32 +270,33 @@ export function DesktopLayout(): React.ReactNode {
     setSidebarWidth,
     toggleSidebarCollapsed,
     collapseSidebar,
+    sidebarShell,
     sidebarMinWidth,
     sidebarMaxWidth,
     workbenchPanelState,
     setWorkbenchPanelState,
     rightDockState,
-    setRightDockState,
     bottomPanelState,
-    rightDockPlan,
-    setRightDockPlan,
     bottomPanelVisible,
     rightDockWidth,
     bottomPanelHeight,
-    openRightDockTool,
+    openRightDockTab,
     handleSetRightDockWidth,
     handleResetRightDockWidth,
     handleSetBottomPanelHeight,
     handleResetBottomPanelHeight,
     handleOpenPlanDock,
     toggleBottomPanelVisible,
-    openPanelTool,
-    selectPanelTool,
-    closePanelTool,
+    openPanelTab,
+    selectPanelTab,
+    closePanelTab,
     togglePanel,
     closePanel,
-    movePanelTool,
-    reorderPanelTool,
+    movePanelTab,
+    reorderPanelTab,
+    closeOtherTabs,
+    closeTabsToRight,
+    pinTab,
     toggleRightFullWidth,
   } = useWorkbenchShellController(menubarDebugMode)
   const handleErrorMessage = useCallback((message: string): void => {
@@ -305,7 +402,8 @@ export function DesktopLayout(): React.ReactNode {
     submitToSession,
     interrupt,
     decidePermission,
-    updateSessionMetadata,
+    archiveSessions,
+    renameSession,
     setSessionPermissionMode,
     setSessionPlanModeActive,
     setSessionLocalRouterMode,
@@ -609,29 +707,26 @@ export function DesktopLayout(): React.ReactNode {
   }, [])
 
   const handleOpenBrowser = useCallback((): void => {
-    openRightDockTool('browser')
+    openRightDockTab({ id: 'browser', kind: 'browser' })
     void desktopClient
       .openBrowser()
       .then(setBrowserState)
       .catch(error =>
         setErrorMessage(error instanceof Error ? error.message : String(error)),
       )
-  }, [openRightDockTool])
+  }, [openRightDockTab])
 
   const handleOpenFilesDock = useCallback((): void => {
-    openRightDockTool('files')
-  }, [openRightDockTool])
+    openRightDockTab({ id: 'file-browser', kind: 'file-browser' })
+  }, [openRightDockTab])
 
-  const handleRightDockToolSelect = useCallback(
-    (tool: RightDockToolId): void => {
-      if (tool === 'browser') {
-        handleOpenBrowser()
-        return
-      }
-      openRightDockTool(tool)
-    },
-    [handleOpenBrowser, openRightDockTool],
-  )
+  const handleOpenSideChat = useCallback((): void => {
+    openRightDockTab({ id: 'side-chat', kind: 'side-chat' })
+  }, [openRightDockTab])
+
+  const handleOpenReview = useCallback((): void => {
+    openRightDockTab({ id: 'review', kind: 'review' })
+  }, [openRightDockTab])
 
   const handleReloadBrowser = useCallback((): void => {
     void desktopClient
@@ -660,6 +755,20 @@ export function DesktopLayout(): React.ReactNode {
     [input, setInput],
   )
 
+  const activeSideTaskId = useMemo(() => {
+    const preferredTarget =
+      workbenchPanelState.focusArea === 'bottom-panel' ? 'bottom' : 'right'
+    const fallbackTarget =
+      preferredTarget === 'right' ? 'bottom' : 'right'
+    for (const target of [preferredTarget, fallbackTarget] as const) {
+      const panel = workbenchPanelState[target]
+      if (!panel.open || !panel.activeTabId) continue
+      const tab = workbenchPanelState.tabsById[panel.activeTabId]
+      if (tab?.kind === 'side-task') return tab.taskId
+    }
+    return null
+  }, [workbenchPanelState])
+
   const {
     sideChatInput,
     setSideChatInput,
@@ -675,9 +784,9 @@ export function DesktopLayout(): React.ReactNode {
     refreshSelectedSubagent,
     handleOpenSubagent,
   } = useSubagentDockController({
-    debugMode: menubarDebugMode,
+    activeSideTaskId,
     model,
-    setRightDockState,
+    openRightDockTab,
     submitToSession,
     onError: handleErrorMessage,
   })
@@ -755,13 +864,33 @@ export function DesktopLayout(): React.ReactNode {
     return () => window.clearInterval(id)
   }, [browserState?.open, refreshBrowserState])
 
+  const browserTabVisible = useMemo(
+    () =>
+      (['right', 'bottom'] as const).some(target => {
+        const panel = workbenchPanelState[target]
+        if (!panel.open || !panel.activeTabId) return false
+        return (
+          workbenchPanelState.tabsById[panel.activeTabId]?.kind === 'browser'
+        )
+      }),
+    [workbenchPanelState],
+  )
+
+  useEffect(() => {
+    if (browserTabVisible) return
+    void desktopClient
+      .setBrowserBounds({ x: 0, y: 0, width: 0, height: 0 })
+      .then(setBrowserState)
+      .catch(() => undefined)
+  }, [browserTabVisible])
+
   const prevSessionIdRef = useRef<string | null>(null)
   const uiSnapshotRef = useRef<ConversationUiState>(
     createDefaultConversationUiState(),
   )
   uiSnapshotRef.current = {
-    panels: workbenchPanelState,
-    plan: rightDockPlan,
+    schemaVersion: 2,
+    workbench: workbenchPanelState,
     mainScrollTop: 0,
     sideChatInput,
     sideChatAttachments,
@@ -777,40 +906,38 @@ export function DesktopLayout(): React.ReactNode {
 
     prevSessionIdRef.current = currentId
 
-    const flags = { debugMode: menubarDebugMode }
-    const enabledTools = rightDockTools
-      .filter(tool => isRightDockToolEnabled(tool.id, flags))
-      .map(tool => tool.id)
-
     if (currentId) {
       const saved = loadConversationUiState(currentId)
       if (saved) {
-        const validated = validateConversationUiState(saved, enabledTools)
-        setWorkbenchPanelState(validated.panels)
-        setRightDockPlan(validated.plan)
+        const validated = validateConversationUiState(saved, {
+          debugMode: menubarDebugMode,
+        })
+        setWorkbenchPanelState(validated.workbench)
         setSideChatInput(validated.sideChatInput)
         setSideChatAttachments(validated.sideChatAttachments)
       } else {
         /* No saved state — force defaults */
-        setWorkbenchPanelState(createDefaultWorkbenchPanelState())
-        setRightDockPlan(null)
+        setWorkbenchPanelState(createDefaultWorkbenchTabsState())
         setSideChatInput('')
         setSideChatAttachments([])
       }
     } else {
       /* Quick-chat — force defaults */
-      setWorkbenchPanelState(createDefaultWorkbenchPanelState())
-      setRightDockPlan(null)
+      setWorkbenchPanelState(createDefaultWorkbenchTabsState())
       setSideChatInput('')
       setSideChatAttachments([])
     }
-  }, [sessionId, menubarDebugMode])
+  }, [sessionId])
 
   useEffect(() => {
-    const handleBeforeUnload = (): void => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
       const currentSessionId = sessionId
       if (currentSessionId) {
         saveConversationUiState(currentSessionId, uiSnapshotRef.current)
+      }
+      if (hasDirtyFileDocuments()) {
+        void saveAllFileDocuments()
+        event.preventDefault()
       }
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
@@ -819,15 +946,65 @@ export function DesktopLayout(): React.ReactNode {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (!event.ctrlKey || !event.shiftKey || event.key.toLowerCase() !== 'b') {
-        return
+      if (!event.ctrlKey || event.metaKey || event.repeat) return
+      const key = event.key.toLowerCase()
+      if (!event.shiftKey && !event.altKey && key === 'b') {
+        event.preventDefault()
+        toggleSidebarCollapsed()
+      } else if (!event.shiftKey && !event.altKey && key === 'j') {
+        event.preventDefault()
+        togglePanel('right')
+      } else if (!event.shiftKey && !event.altKey && key === 't') {
+        event.preventDefault()
+        handleOpenBrowser()
+      } else if (event.shiftKey && !event.altKey && key === 'e') {
+        event.preventDefault()
+        handleOpenFilesDock()
+      } else if (event.shiftKey && !event.altKey && key === 'g') {
+        event.preventDefault()
+        handleOpenReview()
+      } else if (!event.shiftKey && event.altKey && key === 's') {
+        event.preventDefault()
+        handleOpenSideChat()
       }
-      event.preventDefault()
-      handleOpenBrowser()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [handleOpenBrowser])
+  }, [
+    handleOpenBrowser,
+    handleOpenFilesDock,
+    handleOpenReview,
+    handleOpenSideChat,
+    togglePanel,
+    toggleSidebarCollapsed,
+  ])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return
+      const action = resolveSidebarEscapeAction({
+        defaultPrevented: event.defaultPrevented,
+        isDialogOpen: hasOpenDialog(),
+        isSettingsRoute,
+        isTextEntry: isTextEntryTarget(event.target),
+        mode: sidebarShell.mode,
+      })
+      if (action === 'none') return
+      event.preventDefault()
+      if (action === 'close-transient') {
+        sidebarShell.closeTransient()
+        return
+      }
+      handleSettingsBack()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [
+    handleSettingsBack,
+    isSettingsRoute,
+    sidebarShell.closeTransient,
+    sidebarShell.mode,
+  ])
 
   const handleFileMenuAction = useCallback(
     (action: FileMenuAction): void => {
@@ -870,6 +1047,10 @@ export function DesktopLayout(): React.ReactNode {
     (action: ViewMenuAction): void => {
       if (action === 'toggleSidebar') {
         toggleSidebarCollapsed()
+        return
+      }
+      if (action === 'toggleBottomPanel') {
+        togglePanel('bottom')
         return
       }
       if (action === 'openBrowserTab') {
@@ -1218,6 +1399,7 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleSelectSession = useCallback(
     (sessionItem: SessionListItem): void => {
+      sidebarShell.closeTransient()
       const nextWorkspace = activateSessionById(sessionItem.id)
       navigate(sessionPath(sessionItem.id))
       if (!nextWorkspace) {
@@ -1238,23 +1420,28 @@ export function DesktopLayout(): React.ReactNode {
       setDiffState,
       setSelectedFile,
       setWorkspaceState,
+      sidebarShell,
     ],
   )
 
-  const handleUpdateSessionMetadata = useCallback(
-    async (
-      targetSessionId: string,
-      patch: { pinnedAt?: string | null; archivedAt?: string | null },
-    ): Promise<void> => {
-      const archivingSession = Boolean(patch.archivedAt)
-      const archivingActiveSession =
-        targetSessionId === routedSessionId && archivingSession
-      const result = await updateSessionMetadata(targetSessionId, patch)
-      if (!result) return
-      if (archivingSession) {
+  const handleArchiveSessions = useCallback(
+    async (targetSessionIds: readonly string[]) => {
+      const result = await archiveSessions(targetSessionIds)
+      if (result.succeededSessionIds.length > 0) {
         setArchiveNoticeVisible(true)
+        const archivedIds = new Set(result.succeededSessionIds)
+        setSidebarSessionPins(current =>
+          Object.fromEntries(
+            Object.entries(current).filter(
+              ([targetSessionId]) => !archivedIds.has(targetSessionId),
+            ),
+          ),
+        )
       }
-      if (!archivingActiveSession) return
+      if (!result.succeededSessionIds.includes(routedSessionId ?? '')) {
+        return result
+      }
+      sidebarShell.closeTransient()
       navigate(
         result.nextActiveSession
           ? sessionPath(result.nextActiveSession.id)
@@ -1271,16 +1458,18 @@ export function DesktopLayout(): React.ReactNode {
         setDiffState('未选择项目。')
         setSelectedFile(null)
       }
+      return result
     },
     [
+      archiveSessions,
       navigate,
       refreshWorkspace,
       routedSessionId,
       setDiffState,
       setSelectedFile,
       setWorkspaceState,
-      updateSessionMetadata,
-      setArchiveNoticeVisible,
+      sidebarShell,
+      setSidebarSessionPins,
     ],
   )
 
@@ -1418,7 +1607,7 @@ export function DesktopLayout(): React.ReactNode {
 
   const menuBar = (
     <MenuBar
-      sidebarCollapsed={sidebarCollapsed}
+      sidebarCollapsed={sidebarShell.mode === 'collapsed'}
       isMaximized={isWindowMaximized}
       onToggleSidebar={toggleSidebarCollapsed}
       isDebugMode={menubarDebugMode}
@@ -1462,9 +1651,11 @@ export function DesktopLayout(): React.ReactNode {
       collapsedSidebarSections={collapsedSidebarSections}
       onToggleSidebarSection={handleToggleSidebarSection}
       onSelectSession={handleSelectSession}
-      onUpdateSessionMetadata={(targetSessionId, patch) =>
-        void handleUpdateSessionMetadata(targetSessionId, patch)
+      onArchiveSessions={handleArchiveSessions}
+      onRenameSession={async (targetSessionId, title) =>
+        Boolean(await renameSession(targetSessionId, title))
       }
+      onReport={setNoticeMessage}
     />
   )
 
@@ -1536,11 +1727,13 @@ export function DesktopLayout(): React.ReactNode {
   const sidebar = (
     <SidebarFrame
       collapsed={sidebarCollapsed}
+      contentKind={isSettingsRoute ? 'settings' : 'tasks'}
       maxWidth={sidebarMaxWidth}
       minWidth={sidebarMinWidth}
       width={sidebarWidth}
       onCollapse={collapseSidebar}
       onSetWidth={setSidebarWidth}
+      shell={sidebarShell}
     >
       {isSettingsRoute ? settingsSidebarContent : appSidebarContent}
     </SidebarFrame>
@@ -1693,6 +1886,160 @@ export function DesktopLayout(): React.ReactNode {
     return () => observer.disconnect()
   }, [])
 
+  const planContentByEventId = useMemo(() => {
+    const result: Record<string, string> = {}
+    for (const event of events) {
+      if (event.type !== 'proposed_plan') continue
+      const content = event.content?.trim()
+      if (content) result[event.id] = content
+    }
+    return result
+  }, [events])
+  const rightDockPlanEventId = useMemo(() => {
+    for (const target of ['right', 'bottom'] as const) {
+      const panel = workbenchPanelState[target]
+      if (!panel.open || !panel.activeTabId) continue
+      const tab = workbenchPanelState.tabsById[panel.activeTabId]
+      if (tab?.kind === 'plan') return tab.eventId
+    }
+    return null
+  }, [workbenchPanelState])
+
+  const handleOpenFilePreview = useCallback(
+    (target: WorkbenchPanelTarget, file: DesktopFileEntry): void => {
+      if (file.type !== 'file' || !currentWorkspace) return
+      void previewFile(file)
+      openPanelTab(target, {
+        id: createFilePreviewTabId(currentWorkspace.path, file.path),
+        kind: 'file-preview',
+        workspacePath: currentWorkspace.path,
+        relativePath: file.path,
+        preview: true,
+      })
+    },
+    [currentWorkspace, openPanelTab, previewFile],
+  )
+
+  const handleOpenFileFromBrowser = useCallback(
+    (target: WorkbenchPanelTarget, file: DesktopFileEntry): void => {
+      if (file.type !== 'file' || !currentWorkspace) return
+      const workspacePath = currentWorkspace.path
+      const tabId = createFilePreviewTabId(workspacePath, file.path)
+      void prefetchFileDocument(workspacePath, file.path)
+        .then(() => {
+          void previewFile(file)
+          openPanelTab(target, {
+            id: tabId,
+            kind: 'file-preview',
+            workspacePath,
+            relativePath: file.path,
+            preview: false,
+          })
+          closePanelTab(target, 'file-browser')
+        })
+        .catch(error => {
+          setErrorMessage(error instanceof Error ? error.message : String(error))
+        })
+    },
+    [
+      closePanelTab,
+      currentWorkspace,
+      openPanelTab,
+      previewFile,
+      setErrorMessage,
+    ],
+  )
+
+  const handleOpenMarkdownFileReference = useCallback(
+    (
+      reference: MarkdownFileReference,
+      options: MarkdownFileOpenOptions,
+    ): void => {
+      if (!currentWorkspace) return
+      const resolved = resolveWorkspaceFileReference(
+        currentWorkspace.path,
+        reference.path,
+      )
+      if (!resolved || shouldOpenFileExternally(reference.path)) {
+        const target = resolved?.absolutePath ?? reference.path
+        if (/^(?:[a-zA-Z]:[\\/]|\\\\|\/)/u.test(target)) {
+          void desktopClient.openPathWithDefaultTarget(target)
+        }
+        return
+      }
+      const load = prefetchFileDocument(
+        currentWorkspace.path,
+        resolved.relativePath,
+      )
+      if (options.prefetch) {
+        void load.catch(() => undefined)
+        return
+      }
+      const tabId = createFilePreviewTabId(
+        currentWorkspace.path,
+        resolved.relativePath,
+      )
+      void load.catch(error => {
+        if (shouldFallbackToExternalOpen(error)) {
+          closePanelTab('right', tabId)
+          return desktopClient.openPathWithDefaultTarget(resolved.absolutePath)
+        }
+        setErrorMessage(error instanceof Error ? error.message : String(error))
+      })
+      openPanelTab('right', {
+        id: tabId,
+        kind: 'file-preview',
+        workspacePath: currentWorkspace.path,
+        relativePath: resolved.relativePath,
+        preview: options.preview,
+        ...(reference.line ? { line: reference.line } : {}),
+        ...(reference.column ? { column: reference.column } : {}),
+        ...(reference.endLine ? { endLine: reference.endLine } : {}),
+        ...(reference.endColumn ? { endColumn: reference.endColumn } : {}),
+      })
+    },
+    [closePanelTab, currentWorkspace, openPanelTab],
+  )
+
+  const handleSelectPanelTab = useCallback(
+    (target: WorkbenchPanelTarget, tabId: WorkbenchTabId): void => {
+      selectPanelTab(target, tabId)
+      const tab = workbenchPanelState.tabsById[tabId]
+      if (tab?.kind !== 'file-preview') return
+      const file = workspaceFiles.find(
+        candidate =>
+          candidate.type === 'file' &&
+          candidate.path === tab.relativePath,
+      )
+      if (file) void previewFile(file)
+      void prefetchFileDocument(tab.workspacePath, tab.relativePath).catch(
+        error =>
+          setErrorMessage(error instanceof Error ? error.message : String(error)),
+      )
+    },
+    [
+      previewFile,
+      selectPanelTab,
+      workbenchPanelState.tabsById,
+      workspaceFiles,
+    ],
+  )
+
+  const saveTabsBeforeClose = useCallback(
+    async (tabIds: readonly WorkbenchTabId[]): Promise<boolean> => {
+      for (const tabId of tabIds) {
+        const tab = workbenchPanelState.tabsById[tabId]
+        if (tab?.kind !== 'file-preview') continue
+        if (!(await saveFileDocument(tab.workspacePath, tab.relativePath))) {
+          setErrorMessage(`无法关闭 ${tab.relativePath}：文件尚未保存。`)
+          return false
+        }
+      }
+      return true
+    },
+    [workbenchPanelState.tabsById],
+  )
+
   const renderWorkbenchPanel = (
     target: WorkbenchPanelTarget,
   ): React.ReactNode => {
@@ -1703,6 +2050,7 @@ export function DesktopLayout(): React.ReactNode {
     <WorkbenchPanel
       target={target}
       state={state}
+      tabsById={workbenchPanelState.tabsById}
       browserState={browserState}
       debugMode={menubarDebugMode}
       defaultBranch={derivedDefaultBranch}
@@ -1716,7 +2064,7 @@ export function DesktopLayout(): React.ReactNode {
       )}
       minWidth={RIGHT_DOCK_MIN_WIDTH}
       reviewView={reviewView}
-      plan={rightDockPlan}
+      planContentByEventId={planContentByEventId}
       selectedFile={selectedFile}
       sessionId={sessionId}
       sessionStatus={sessionStatus}
@@ -1724,16 +2072,36 @@ export function DesktopLayout(): React.ReactNode {
       height={bottomPanelHeight}
       rightFullWidth={workbenchPanelState.rightFullWidth}
       workspace={currentWorkspace}
-      quickChatOnly={isQuickChatPage}
       onAppendBrowserAnnotation={handleBrowserAnnotation}
       onAppendComposerText={handleAppendComposerText}
       onAddComposerFiles={handleAddComposerFiles}
       onBrowserStateChange={setBrowserState}
-      onClose={() => closePanel(target)}
-      onCloseTool={tool => closePanelTool(target, tool)}
+      onClose={() => {
+        void saveTabsBeforeClose(state.tabIds).then(saved => {
+          if (saved) closePanel(target)
+        })
+      }}
+      onCloseTab={tabId => {
+        void saveTabsBeforeClose([tabId]).then(saved => {
+          if (saved) closePanelTab(target, tabId)
+        })
+      }}
+      onCloseOtherTabs={tabId => {
+        const closing = state.tabIds.filter(id => id !== tabId)
+        void saveTabsBeforeClose(closing).then(saved => {
+          if (saved) closeOtherTabs(target, tabId)
+        })
+      }}
+      onCloseTabsToRight={tabId => {
+        const index = state.tabIds.indexOf(tabId)
+        const closing = index < 0 ? [] : state.tabIds.slice(index + 1)
+        void saveTabsBeforeClose(closing).then(saved => {
+          if (saved) closeTabsToRight(target, tabId)
+        })
+      }}
       onCreateBranch={handleCreateBranch}
-      onOpenTool={tool => {
-        if (tool === 'browser') {
+      onOpenTab={tab => {
+        if (tab.kind === 'browser') {
           void desktopClient
             .openBrowser()
             .then(setBrowserState)
@@ -1741,16 +2109,20 @@ export function DesktopLayout(): React.ReactNode {
               setErrorMessage(error instanceof Error ? error.message : String(error)),
             )
         }
-        openPanelTool(target, tool)
+        openPanelTab(target, tab)
       }}
       onOpenWorkspacePath={handleOpenWorkspacePath}
-      onPreviewFile={file => void previewFile(file)}
+      onOpenFileFromBrowser={file =>
+        handleOpenFileFromBrowser(target, file)
+      }
+      onPreviewFile={file => handleOpenFilePreview(target, file)}
       onRefreshReview={handleRefreshDiff}
       onResetHeight={handleResetBottomPanelHeight}
       onResetWidth={handleResetRightDockWidth}
-      onSelectTool={tool => selectPanelTool(target, tool)}
-      onMoveTool={movePanelTool}
-      onReorderTool={reorderPanelTool}
+      onSelectTab={tabId => handleSelectPanelTab(target, tabId)}
+      onMoveTab={movePanelTab}
+      onReorderTab={reorderPanelTab}
+      onPinTab={pinTab}
       onSetHeight={handleSetBottomPanelHeight}
       onSetWidth={handleSetRightDockWidth}
       onToggleRightFullWidth={toggleRightFullWidth}
@@ -1758,8 +2130,9 @@ export function DesktopLayout(): React.ReactNode {
         setReviewView(reviewView === 'inline' ? 'split' : 'inline')
       }
       sideChatComposer={sideChatComposer}
-      sideChatContent={subagentSideChatContent}
       sideChatFocusVersion={sideChatFocusVersion}
+      activeSideTaskId={activeSideTaskId}
+      sideTaskContent={subagentSideChatContent}
     />
     )
   }
@@ -1821,14 +2194,17 @@ export function DesktopLayout(): React.ReactNode {
         menuBar={menuBar}
         sidebar={sidebar}
         debugMode={menubarDebugMode}
+        appBodyRef={sidebarShell.appBodyRef}
       >
         <QuickChatContext.Provider
             value={{
             isConversationRoute,
             isConversationLoading,
-            sidebarCollapsed,
+            sidebarCollapsed: sidebarShell.mode === 'collapsed',
             activeSessionId: activeSessionItem?.id ?? null,
-            activeSessionPinnedAt: activeSessionItem?.pinnedAt ?? null,
+            activeSessionPinnedAt: activeSessionItem
+              ? sidebarSessionPins[activeSessionItem.id] ?? null
+              : null,
             sessionTitle: quickChatSessionTitle,
             workspaceName: currentWorkspace?.name ?? null,
             workspacePath: currentWorkspace?.path ?? null,
@@ -1839,15 +2215,15 @@ export function DesktopLayout(): React.ReactNode {
             recentWorkspaces,
             onArchiveSession: () => {
               if (!activeSessionItem) return
-              void handleUpdateSessionMetadata(activeSessionItem.id, {
-                archivedAt: new Date().toISOString(),
-              })
+              void handleArchiveSessions([activeSessionItem.id])
             },
             onCreateBranch: handleCreateBranch,
             onOpenAutomation: () => navigate('/automation'),
             onOpenWorkspacePath: handleOpenWorkspacePath,
-            onOpenRightDock: openRightDockTool,
+            onOpenRightDock: () =>
+              openRightDockTab({ id: 'review', kind: 'review' }),
             onOpenPlanInRightDock: handleOpenPlanDock,
+            onOpenFileReference: handleOpenMarkdownFileReference,
             onSubmitEditedUserMessage: handleSubmitEditedUserMessage,
             onAppendComposerText: handleAppendComposerText,
             onAppendSideChatText: handleAppendSideChatText,
@@ -1857,10 +2233,15 @@ export function DesktopLayout(): React.ReactNode {
             onToggleSidebar: toggleSidebarCollapsed,
             onToggleSessionPinned: () => {
               if (!activeSessionItem) return
-              void handleUpdateSessionMetadata(activeSessionItem.id, {
-                pinnedAt: activeSessionItem.pinnedAt
-                  ? null
-                  : new Date().toISOString(),
+              setSidebarSessionPins(current => {
+                if (current[activeSessionItem.id]) {
+                  const { [activeSessionItem.id]: _removed, ...next } = current
+                  return next
+                }
+                return {
+                  ...current,
+                  [activeSessionItem.id]: new Date().toISOString(),
+                }
               })
             },
             onCommitOrPush: handleCommitOrPush,
@@ -1913,9 +2294,7 @@ export function DesktopLayout(): React.ReactNode {
             composer: isConversationLoading ? null : composer,
             bottomPanelVisible,
             onToggleBottomPanel: toggleBottomPanelVisible,
-            rightDockOpen: rightDockState.open,
-            rightDockTool: rightDockState.activeTool,
-            rightDockPlanContent: rightDockPlan?.content ?? null,
+            rightDockPlanEventId,
             debugMode: menubarDebugMode,
             }}
           >

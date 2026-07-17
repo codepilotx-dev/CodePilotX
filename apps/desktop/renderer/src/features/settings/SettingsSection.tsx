@@ -8,26 +8,91 @@ type Props = {
   children: React.ReactNode
 }
 
-export function SettingsSection({ title, description, actions, bare, children }: Props) {
-  const hasHeader = Boolean(title || description || actions)
+type HeaderProps = {
+  title?: React.ReactNode
+  description?: React.ReactNode
+  actions?: React.ReactNode
+  children?: React.ReactNode
+}
+
+type SlotProps = {
+  children: React.ReactNode
+}
+
+export function SettingsSectionHeader({
+  title,
+  description,
+  actions,
+  children,
+}: HeaderProps): React.ReactNode {
+  if (!title && !description && !actions && !children) return null
   return (
-    <section className="settings-section tw:mb-6">
-      {hasHeader && (
-        <div className="settings-section-header tw:mb-3 tw:flex tw:items-start tw:justify-between tw:gap-4">
-          <div className="settings-section-header-copy tw:min-w-0 tw:flex-1">
-            {title && <h3 className="settings-section-title tw:m-0 tw:text-base tw:font-[var(--font-weight-label)] tw:text-app-text">{title}</h3>}
-            {description && <p className="settings-section-desc tw:mt-1 tw:mb-0 tw:text-sm tw:leading-5 tw:text-app-text-soft">{description}</p>}
-          </div>
-          {actions ? (
-            <div className="settings-section-header-actions tw:flex tw:shrink-0 tw:flex-wrap tw:items-center tw:justify-end tw:gap-3">{actions}</div>
-          ) : null}
-        </div>
-      )}
-      {bare ? children : (
-        <div className="settings-card tw:overflow-hidden tw:rounded-xl tw:border tw:border-app-border tw:bg-app-panel tw:shadow-sm tw:transition-colors tw:duration-[var(--motion-standard)]">
-          {children}
-        </div>
+    <header className="settings-section-header">
+      <div className="settings-section-header-copy">
+        {title ? <h3 className="settings-section-title">{title}</h3> : null}
+        {description ? (
+          <p className="settings-section-desc">{description}</p>
+        ) : null}
+        {children}
+      </div>
+      {actions ? (
+        <div className="settings-section-header-actions">{actions}</div>
+      ) : null}
+    </header>
+  )
+}
+
+export function SettingsSectionContent({
+  children,
+}: SlotProps): React.ReactNode {
+  return <div className="settings-section-content settings-card">{children}</div>
+}
+
+export function SettingsSectionFooter({ children }: SlotProps): React.ReactNode {
+  return <footer className="settings-section-footer">{children}</footer>
+}
+
+function SettingsSectionRoot({
+  title,
+  description,
+  actions,
+  bare,
+  children,
+}: Props): React.ReactNode {
+  const hasHeader = Boolean(title || description || actions)
+  const usesSlots = React.Children.toArray(children).some(child => {
+    if (!React.isValidElement(child)) return false
+    return (
+      child.type === SettingsSectionHeader ||
+      child.type === SettingsSectionContent ||
+      child.type === SettingsSectionFooter
+    )
+  })
+
+  return (
+    <section className="settings-section">
+      {hasHeader ? (
+        <SettingsSectionHeader
+          actions={actions}
+          description={description}
+          title={title}
+        />
+      ) : null}
+      {usesSlots || bare ? children : (
+        <SettingsSectionContent>{children}</SettingsSectionContent>
       )}
     </section>
   )
 }
+
+type SettingsSectionComponent = typeof SettingsSectionRoot & {
+  Header: typeof SettingsSectionHeader
+  Content: typeof SettingsSectionContent
+  Footer: typeof SettingsSectionFooter
+}
+
+export const SettingsSection = Object.assign(SettingsSectionRoot, {
+  Header: SettingsSectionHeader,
+  Content: SettingsSectionContent,
+  Footer: SettingsSectionFooter,
+}) as SettingsSectionComponent

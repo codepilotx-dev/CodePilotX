@@ -20,13 +20,14 @@ import { Tooltip } from "../../components/ui/Tooltip.js";
 import { BranchSelectPopover } from "./BranchSelectPopover.js";
 import type { ThreadSummaryViewModel } from "./threadSummaryViewModel.js";
 import { previewThreadSummarySources } from "./threadSummaryViewModel.js";
+import type { OpenPlanInDockRequest } from "./WorkflowPlanCard.js";
 
 type ThreadSummaryActions = {
   onBranchSelect: (branch: string) => Promise<void>;
   onCommitOrPush: () => void;
   onCreateBranch: () => void;
   onCreatePullRequest: () => void;
-  onOpenPlan: (plan: { title: string; content: string }) => void;
+  onOpenPlan: (plan: OpenPlanInDockRequest) => void;
   onOpenReview: () => void;
   onOpenSubagent?: (taskId: string) => void;
   onOpenWorkspacePath: () => void;

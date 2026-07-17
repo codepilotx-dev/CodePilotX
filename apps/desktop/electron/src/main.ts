@@ -15,6 +15,7 @@ import {
 import { resolveBunExecutable } from "./sidecar-command.js"
 import { createDesktopLogger, type DesktopLogger } from "./desktop-logger.js"
 import { AppearanceSettingsStore } from "./appearance-settings-store.js"
+import { ExternalOpenTargetService } from "./external-open-targets.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const READY_TIMEOUT_MS = 20_000
@@ -228,6 +229,7 @@ let allowedApplicationOrigin: string | undefined
 let connectionStatus: ConnectionStatus = { state: "unknown", phase: "starting", attempt: 0 }
 let connectionTask: Promise<void> | undefined
 let appearanceSettingsStore: AppearanceSettingsStore | undefined
+let externalOpenTargetService: ExternalOpenTargetService | undefined
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
 if (!hasSingleInstanceLock) {
@@ -249,6 +251,14 @@ if (!hasSingleInstanceLock) {
 
 async function startDesktop(): Promise<void> {
   appearanceSettingsStore = new AppearanceSettingsStore(app.getPath("userData"))
+  externalOpenTargetService = new ExternalOpenTargetService({
+    platform: process.platform,
+    env: process.env,
+    getFileIconDataUrl: async path => (await app.getFileIcon(path, { size: "normal" })).toDataURL(),
+    openPath: path => shell.openPath(path),
+    revealPath: path => shell.showItemInFolder(path),
+    spawnProcess: (executablePath, args, options) => spawn(executablePath, [...args], options),
+  })
   registerWindowIpc()
   registerAppearanceIpc()
   logger = createDesktopLogger(resolve(process.env.CODEPILOTX_LOG_DIR ?? join(app.getPath("logs"), "codepilotx")))
@@ -424,6 +434,33 @@ function registerWindowIpc(): void {
       throw new Error("拒绝打开不安全的外部链接")
     }
     await shell.openExternal(url)
+  })
+  ipcMain.handle("shell:list-external-open-targets", async (
+    _event,
+    targetPath: unknown,
+  ) => {
+    if (!externalOpenTargetService) throw new Error("外部打开服务尚未初始化")
+    if (typeof targetPath !== "string") throw new Error("路径参数无效")
+    return externalOpenTargetService.listTargets(targetPath)
+  })
+  ipcMain.handle("shell:open-path-with-target", async (
+    _event,
+    targetPath: unknown,
+    targetId: unknown,
+  ) => {
+    if (!externalOpenTargetService) throw new Error("外部打开服务尚未初始化")
+    if (typeof targetPath !== "string" || typeof targetId !== "string") {
+      throw new Error("外部打开参数无效")
+    }
+    await externalOpenTargetService.openPathWithTarget(targetPath, targetId)
+  })
+  ipcMain.handle("shell:reveal-path-in-folder", (
+    _event,
+    targetPath: unknown,
+  ) => {
+    if (!externalOpenTargetService) throw new Error("外部打开服务尚未初始化")
+    if (typeof targetPath !== "string") throw new Error("路径参数无效")
+    externalOpenTargetService.revealPathInFolder(targetPath)
   })
   ipcMain.handle("startup:open-logs", async () => {
     const directory = logger?.directory ?? join(app.getPath("logs"), "codepilotx")

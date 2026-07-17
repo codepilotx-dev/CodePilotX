@@ -2,7 +2,7 @@ import { forwardRef } from 'react'
 import type React from 'react'
 import { cx } from '../../utils/cx.js'
 
-export type InputSize = 'sm' | 'md'
+export type InputSize = 'sm' | 'md' | 'compact'
 
 type Props = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> & {
   invalid?: boolean
@@ -12,6 +12,7 @@ type Props = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> & {
 const SIZE_CLASSES: Record<InputSize, string> = {
   sm: 'u-type-secondary',
   md: 'u-type-control',
+  compact: '',
 }
 
 export const Input = forwardRef<HTMLInputElement, Props>(function Input(

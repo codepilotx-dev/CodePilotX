@@ -91,34 +91,29 @@ const SHORTCUT_ROWS: ShortcutRow[] = [
     keys: ['Ctrl+T'],
   },
   {
-    title: '打开命令面板',
-    description: 'Open the native tab',
+    title: '打开审阅标签',
+    description: 'Open the review tab',
     keys: ['Ctrl+Shift+G'],
   },
   {
-    title: '切换底部面板',
-    description: 'Show or hide the bottom panel',
+    title: '切换右侧面板',
+    description: 'Show or hide the right dock',
     keys: ['Ctrl+J'],
   },
   {
-    title: '显示/隐藏浏览器面板',
-    description: 'Show or hide the browser panel',
-    keys: ['Ctrl+Shift+B'],
+    title: '打开文件标签',
+    description: 'Open the workspace file browser',
+    keys: ['Ctrl+Shift+E'],
+  },
+  {
+    title: '打开侧边聊天',
+    description: 'Open the side chat tab',
+    keys: ['Ctrl+Alt+S'],
   },
   {
     title: '切换边栏',
     description: 'Show or hide the sidebar',
     keys: ['Ctrl+B'],
-  },
-  {
-    title: '切换右边栏',
-    description: 'Show or hide the side panel',
-    keys: ['Ctrl+Alt+B'],
-  },
-  {
-    title: '打开面板',
-    description: 'Open the terminal panel',
-    keys: ['Ctrl+`'],
   },
   {
     title: '环境动作 1',

@@ -379,7 +379,7 @@ export function GeneralSettings({
             description='默认打开文件和文件夹的位置'
             control={
               <SettingsDropdown
-                width={240}
+                width={220}
                 value={defaultOpenTargetId}
                 options={openTargetOptions}
                 onChange={setDefaultOpenTargetId}
@@ -392,7 +392,7 @@ export function GeneralSettings({
             description='选择要在集成终端中打开的 Shell。'
             control={
               <SettingsDropdown
-                width={240}
+                width={220}
                 value={terminalShell}
                 options={TERMINAL_SHELL_OPTIONS}
                 onChange={setTerminalShell}
@@ -405,11 +405,13 @@ export function GeneralSettings({
             description='应用 UI 语言'
             control={
               <SettingsDropdown
-                width={220}
+                width={240}
                 value={language}
                 options={LANGUAGE_OPTIONS}
                 onChange={setLanguage}
                 ariaLabel='语言'
+                searchable
+                searchPlaceholder='搜索语言'
               />
             }
           />
@@ -495,7 +497,7 @@ export function GeneralSettings({
             title='从其他 AI 应用导入工作内容'
             description='导入您的设置、项目和最近聊天记录'
             control={
-              <Button type='button'>
+              <Button size='toolbar' type='button'>
                 导入
               </Button>
             }
@@ -504,7 +506,7 @@ export function GeneralSettings({
             title='打开源许可证'
             description='捆绑依赖项的第三方声明'
             control={
-              <Button type='button'>
+              <Button size='toolbar' type='button'>
                 查看
               </Button>
             }

@@ -69,7 +69,11 @@ import { submitReviewAction } from "./reviewAction.js";
 import { deriveReviewTurns } from "./reviewTurns.js";
 import type { Message } from "../../uiTypes.js";
 import { InlineApprovalCard } from "./InlineApprovalCard.js";
-import { WorkflowPlanCard, planTitleFromSummary } from "./WorkflowPlanCard.js";
+import {
+  WorkflowPlanCard,
+  planTitleFromSummary,
+  type OpenPlanInDockRequest,
+} from "./WorkflowPlanCard.js";
 import { parseAskUserQuestions } from "./AskUserQuestionApproval.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
 import { ComposerFrame } from "./ComposerSurface.js";
@@ -210,9 +214,7 @@ export function ConversationPage(): React.ReactNode {
     permissionMode,
     pendingPermissions,
     composer,
-    rightDockOpen,
-    rightDockTool,
-    rightDockPlanContent,
+    rightDockPlanEventId,
     debugMode,
   } = useQuickChatContext();
   const {
@@ -1093,10 +1095,7 @@ export function ConversationPage(): React.ReactNode {
                               >
                                 <TimelineItem
                                   item={item}
-                                  rightDockPlanContent={rightDockPlanContent}
-                                  rightDockPlanOpen={
-                                    rightDockOpen && rightDockTool === "plan"
-                                  }
+                                  rightDockPlanEventId={rightDockPlanEventId}
                                   showActions={
                                     item.type === "message" &&
                                     item.role === "assistant" &&
@@ -1726,8 +1725,7 @@ function trimNodeTitle(value: string): string {
 
 function TimelineItem({
   item,
-  rightDockPlanContent,
-  rightDockPlanOpen,
+  rightDockPlanEventId,
   showActions,
   onOpenPlanInRightDock,
   onReviewFiles,
@@ -1735,10 +1733,9 @@ function TimelineItem({
   onDiscardChanges,
 }: {
   item: PhaseTimelineItem;
-  rightDockPlanContent: string | null;
-  rightDockPlanOpen: boolean;
+  rightDockPlanEventId: string | null;
   showActions: boolean;
-  onOpenPlanInRightDock: (plan: { title: string; content: string }) => void;
+  onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void;
   onReviewFiles: () => void;
   onReviewCode: () => void;
   onDiscardChanges: (paths: string[], turnRestoreId?: string | null) => void;
@@ -1780,17 +1777,15 @@ function TimelineItem({
   if (event.type === "proposed_plan") {
     const summary = event.content?.trim() ?? "";
     if (!summary) return null;
-    const title = planTitleFromSummary(summary);
     return (
       <article className="chat-message-row assistant tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-start tw:text-base tw:text-app-text">
         <div className="assistant-message-body tw:w-full tw:text-base tw:leading-[22px] tw:text-app-text">
           <WorkflowPlanCard
+            eventId={event.id}
             summary={summary}
             streaming={event.metadata?.streaming === true}
-            isDocked={rightDockPlanOpen && rightDockPlanContent === summary}
-            onOpenInRightDock={() =>
-              onOpenPlanInRightDock({ title, content: summary })
-            }
+            isDocked={rightDockPlanEventId === event.id}
+            onOpenInRightDock={onOpenPlanInRightDock}
           />
         </div>
       </article>
@@ -1995,7 +1990,7 @@ function ExecutionPhaseView({
   onReviewFiles,
 }: {
   phase: ExecutionPhaseGroup;
-  onOpenPlanInRightDock: (plan: { title: string; content: string }) => void;
+  onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void;
   onDiscardChanges: (paths: string[], turnRestoreId?: string | null) => void;
   onReviewCode: () => void;
   onReviewFiles: () => void;
@@ -2037,8 +2032,7 @@ function ExecutionPhaseView({
             <TimelineItem
               item={childItem}
               key={childItem.id}
-              rightDockPlanContent={null}
-              rightDockPlanOpen={false}
+              rightDockPlanEventId={null}
               showActions={false}
               onOpenPlanInRightDock={onOpenPlanInRightDock}
               onDiscardChanges={onDiscardChanges}
@@ -2321,6 +2315,7 @@ function ChatMessage({
   const {
     messages,
     onSubmitEditedUserMessage,
+    onOpenFileReference,
     sessionStatus,
     workspacePath,
   } = useQuickChatContext();
@@ -2514,6 +2509,7 @@ function ChatMessage({
       <div className="assistant-message-body tw:w-full tw:text-base tw:leading-[22px] tw:text-app-text">
         <MarkdownMessage
           cwd={workspacePath}
+          onOpenFileReference={onOpenFileReference}
           text={renderedText}
           streaming={Boolean(message.streaming)}
         />

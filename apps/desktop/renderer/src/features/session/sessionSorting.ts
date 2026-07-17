@@ -27,6 +27,13 @@ export function sortSessionsForSidebar<T extends SessionListItem>(
       compareSessionsByPriority(left, right, options),
     )
   }
+  if (options.sort === 'created') {
+    return [...sessions].sort(
+      (left, right) =>
+        timestampMs(right.createdAt) - timestampMs(left.createdAt) ||
+        right.id.localeCompare(left.id),
+    )
+  }
   return sortSessionsByRecency(sessions)
 }
 

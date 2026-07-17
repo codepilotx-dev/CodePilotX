@@ -1,46 +1,60 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
 import * as ContextMenu from '@radix-ui/react-context-menu'
-import { FileText, Folder, FolderOpen, ListChecks, Search, SquareTerminal } from 'lucide-react'
+import { Folder, FolderOpen, ListChecks } from 'lucide-react'
 import type {
   DesktopFileEntry,
-  DesktopFilePreview,
   DesktopWorkspace,
 } from '../../../shared/types.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { buildPopoverSizingStyle } from '../../components/ui/popoverSizing.js'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
 import { ComposerFrame } from '../session/ComposerSurface.js'
 import { MarkdownMessage } from '../session/MarkdownMessage.js'
-import {
-  CodeBlock,
-  resolveLanguageFromPath,
-} from '../syntax/index.js'
+import { resolveLanguageFromPath } from '../syntax/index.js'
 import { cx } from '../../utils/cx.js'
-import type { RightDockPlan } from './rightDockTools.js'
+import { ConflictMergeEditor, FileEditor } from '../editor/index.js'
+import {
+  prefetchFileDocument,
+  resolveFileDocumentConflict,
+  saveFileDocument,
+  startFileDocumentExternalChecks,
+  updateFileDocument,
+  useFileDocument,
+} from '../workspace/fileDocumentStore.js'
+import { FileBreadcrumbToolbar } from './FileBreadcrumbToolbar.js'
+import {
+  createWorkspaceFileTabId,
+  getSendableFilePath,
+  WorkspaceFileTree,
+  type WorkspaceFileOpenOptions,
+} from './WorkspaceFileTree.js'
 
-const FILE_TREE_PANEL_DEFAULT_WIDTH = 360
-const FILE_TREE_PANEL_MIN_WIDTH = 220
-const FILE_TREE_PANEL_MAX_WIDTH = 560
-const FILE_TREE_PANEL_KEYBOARD_STEP = 24
+const FILE_TREE_DEFAULT_WIDTH = 280
+const FILE_TREE_MIN_WIDTH = 200
+const FILE_TREE_LAYOUT_MIN_WIDTH = 528
+const OPEN_FILE_MAIN_MIN_WIDTH = 200
+const OPEN_FILE_TREE_LAYOUT_MIN_WIDTH =
+  OPEN_FILE_MAIN_MIN_WIDTH + FILE_TREE_MIN_WIDTH + 8
 
 type FilesPanelProps = {
   files: DesktopFileEntry[]
-  selectedFile: DesktopFilePreview | null
+  activePath?: string | null
   workspace: DesktopWorkspace | null
-  onPreviewFile: (file: DesktopFileEntry) => void
-  onAppendComposerText?: (text: string) => void
+  onOpenFile: (
+    file: DesktopFileEntry,
+    options: WorkspaceFileOpenOptions,
+  ) => void
   onAddComposerFiles?: (filePaths: string[]) => void
 }
 
 type PlanPanelProps = {
-  plan: RightDockPlan | null
+  content: string | null
 }
 
 export function RightDockPlanPanel({
-  plan,
+  content,
 }: PlanPanelProps): React.ReactNode {
-  if (!plan) {
+  if (!content) {
     return (
       <ScrollArea
         aria-label="计划"
@@ -63,7 +77,7 @@ export function RightDockPlanPanel({
       contentClassName="right-dock-plan-scroll-content tw:min-w-0 tw:p-4"
     >
       <article className="right-dock-plan-document tw:mx-auto tw:w-full tw:max-w-[48rem] tw:text-app-text">
-        <MarkdownMessage text={plan.content} />
+        <MarkdownMessage text={content} />
       </article>
     </ScrollArea>
   )
@@ -71,287 +85,516 @@ export function RightDockPlanPanel({
 
 export function RightDockFilesPanel({
   files,
-  selectedFile,
+  activePath,
   workspace,
-  onPreviewFile,
-  onAppendComposerText,
+  onOpenFile,
   onAddComposerFiles,
 }: FilesPanelProps): React.ReactNode {
-  const [query, setQuery] = useState('')
-  const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(() => new Set())
-  const [selectedText, setSelectedText] = useState('')
-  const [fileTreePanelWidth, setFileTreePanelWidth] = useState(
-    FILE_TREE_PANEL_DEFAULT_WIDTH,
+  const workspacePath = workspace?.path ?? ''
+  const initialTreeState = useRef(
+    readFileTreeViewState(workspacePath, true),
   )
-  const [fileTreePanelResizing, setFileTreePanelResizing] = useState(false)
-  const visibleFiles = useMemo(
-    () => filterVisibleFiles(files, query, collapsedDirs),
-    [collapsedDirs, files, query],
+  const [treeVisible, setTreeVisible] = useState(
+    initialTreeState.current.visible,
   )
+  const [treeAvailable, setTreeAvailable] = useState(true)
+  const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
+  const layoutRef = useRef<HTMLDivElement | null>(null)
 
-  function toggleDirectory(path: string): void {
-    setCollapsedDirs(current => {
-      const next = new Set(current)
-      if (next.has(path)) {
-        next.delete(path)
-      } else {
-        next.add(path)
-      }
-      return next
+  useEffect(() => {
+    const next = readFileTreeViewState(workspacePath, true)
+    setTreeVisible(next.visible)
+    setTreeWidth(next.width)
+  }, [workspacePath])
+
+  useEffect(() => {
+    if (!workspacePath) return
+    writeFileTreeViewState(workspacePath, {
+      visible: treeVisible,
+      width: treeWidth,
     })
+  }, [treeVisible, treeWidth, workspacePath])
+
+  useEffect(() => {
+    if (!layoutRef.current) return
+    const layout = layoutRef.current
+    const clampToLayout = (): void => {
+      const layoutWidth = layout.getBoundingClientRect().width
+      const available = layoutWidth >= OPEN_FILE_TREE_LAYOUT_MIN_WIDTH
+      setTreeAvailable(available)
+      if (!available) {
+        setTreeVisible(false)
+        return
+      }
+      if (!treeVisible) return
+      setTreeWidth(current =>
+        Math.min(
+          Math.max(
+            FILE_TREE_MIN_WIDTH,
+            Math.min(
+              layoutWidth * 0.6,
+              layoutWidth - OPEN_FILE_MAIN_MIN_WIDTH - 8,
+            ),
+          ),
+          Math.max(FILE_TREE_MIN_WIDTH, Math.round(current)),
+        ),
+      )
+    }
+    clampToLayout()
+    const observer = new ResizeObserver(clampToLayout)
+    observer.observe(layout)
+    return () => observer.disconnect()
+  }, [treeVisible])
+
+  function clampTreeWidth(width: number): number {
+    const layoutWidth = layoutRef.current?.getBoundingClientRect().width ?? 0
+    const maximum =
+      layoutWidth > 0
+        ? Math.max(
+            FILE_TREE_MIN_WIDTH,
+            Math.min(
+              layoutWidth * 0.6,
+              layoutWidth - OPEN_FILE_MAIN_MIN_WIDTH - 8,
+            ),
+          )
+        : 480
+    return Math.min(
+      maximum,
+      Math.max(FILE_TREE_MIN_WIDTH, Math.round(width)),
+    )
   }
 
-  function handlePreviewContextMenu(): void {
-    setSelectedText(window.getSelection()?.toString() ?? '')
+  function startTreeResize(event: React.PointerEvent<HTMLDivElement>): void {
+    event.preventDefault()
+    const startX = event.clientX
+    const startWidth = treeWidth
+    const onPointerMove = (moveEvent: PointerEvent): void => {
+      setTreeWidth(clampTreeWidth(startWidth + startX - moveEvent.clientX))
+    }
+    const onPointerUp = (): void => {
+      window.document.body.classList.remove('file-tree-is-resizing')
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+    }
+    window.document.body.classList.add('file-tree-is-resizing')
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
   }
+
+  return (
+    <section className="right-dock-file-browser" aria-label="打开文件">
+      <header className="file-breadcrumb-toolbar file-breadcrumb-toolbar--empty">
+        <div
+          aria-label="文件路径：工作区根目录"
+          className="file-breadcrumb-toolbar__path"
+        >
+          <strong className="file-breadcrumb-toolbar__root">/</strong>
+        </div>
+        <div className="file-breadcrumb-toolbar__actions">
+          <button
+            aria-label={treeVisible ? '隐藏文件树' : '显示文件树'}
+            aria-pressed={treeVisible}
+            className="file-breadcrumb-toolbar__action"
+            disabled={!treeAvailable}
+            title={
+              treeAvailable
+                ? treeVisible
+                  ? '隐藏文件树'
+                  : '显示文件树'
+                : '面板过窄，无法显示文件树'
+            }
+            type="button"
+            onClick={() => setTreeVisible(current => !current)}
+          >
+            <FolderOpen
+              aria-hidden="true"
+              size={16}
+              strokeWidth={1.8}
+            />
+          </button>
+        </div>
+      </header>
+      <div
+        ref={layoutRef}
+        className={cx(
+          'right-dock-file-editor-layout',
+          'right-dock-open-file-layout',
+          treeVisible && 'has-file-tree',
+        )}
+        style={
+          {
+            '--right-dock-editor-tree-width': `${treeWidth}px`,
+          } as React.CSSProperties
+        }
+      >
+        <div className="right-dock-open-file-empty">
+          <Folder aria-hidden="true" size={48} strokeWidth={1.5} />
+          <strong>打开文件</strong>
+          <span>
+            {workspace
+              ? '从工作区目录树中选择文件'
+              : '先打开一个工作区以浏览文件'}
+          </span>
+        </div>
+        {treeVisible ? (
+          <>
+            <div
+              aria-label="调整文件树宽度"
+              aria-orientation="vertical"
+              aria-valuemax={Math.round(
+                Math.max(
+                  FILE_TREE_MIN_WIDTH,
+                  Math.min(
+                    (layoutRef.current?.getBoundingClientRect().width ?? 800) *
+                      0.6,
+                    (layoutRef.current?.getBoundingClientRect().width ?? 800) -
+                      OPEN_FILE_MAIN_MIN_WIDTH -
+                      8,
+                  ),
+                ),
+              )}
+              aria-valuemin={FILE_TREE_MIN_WIDTH}
+              aria-valuenow={treeWidth}
+              className="right-dock-editor-tree-resize-handle"
+              role="separator"
+              tabIndex={0}
+              title="拖拽调整文件树宽度，双击恢复默认宽度"
+              onDoubleClick={() => setTreeWidth(FILE_TREE_DEFAULT_WIDTH)}
+              onKeyDown={event => {
+                const step = event.shiftKey ? 40 : 10
+                if (event.key === 'ArrowLeft') {
+                  event.preventDefault()
+                  setTreeWidth(current => clampTreeWidth(current + step))
+                } else if (event.key === 'ArrowRight') {
+                  event.preventDefault()
+                  setTreeWidth(current => clampTreeWidth(current - step))
+                } else if (event.key === 'Home') {
+                  event.preventDefault()
+                  setTreeWidth(FILE_TREE_DEFAULT_WIDTH)
+                }
+              }}
+              onPointerDown={startTreeResize}
+            />
+            <aside
+              aria-label="工作区文件树"
+              className="right-dock-editor-file-tree"
+            >
+              <WorkspaceFileTree
+                key={workspacePath}
+                activePath={activePath}
+                autoFocusSearch
+                files={files}
+                workspace={workspace}
+                onAddComposerFiles={onAddComposerFiles}
+                onEscape={() => setTreeVisible(false)}
+                onOpenFile={onOpenFile}
+              />
+            </aside>
+          </>
+        ) : null}
+      </div>
+    </section>
+  )
+}
+
+export function RightDockFilePreviewPanel({
+  workspacePath,
+  expectedPath,
+  revealLine,
+  previewTab,
+  files,
+  workspace,
+  onPinTab,
+  onAppendComposerText,
+  onAddComposerFiles,
+  onOpenFile,
+}: {
+  workspacePath: string
+  expectedPath: string
+  revealLine?: number
+  previewTab: boolean
+  files: DesktopFileEntry[]
+  workspace: DesktopWorkspace | null
+  onPinTab: () => void
+  onAppendComposerText?: (text: string) => void
+  onAddComposerFiles?: (filePaths: string[]) => void
+  onOpenFile: (
+    file: DesktopFileEntry,
+    options: WorkspaceFileOpenOptions,
+  ) => void
+}): React.ReactNode {
+  const [selectedText, setSelectedText] = useState('')
+  const initialTreeState = useRef(readFileTreeViewState(workspacePath))
+  const [treeVisible, setTreeVisible] = useState(
+    initialTreeState.current.visible,
+  )
+  const [treeAvailable, setTreeAvailable] = useState(true)
+  const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
+  const layoutRef = useRef<HTMLDivElement | null>(null)
+  const document = useFileDocument(workspacePath, expectedPath)
+  const language = resolveLanguageFromPath(expectedPath)
+
+  useEffect(() => {
+    void prefetchFileDocument(workspacePath, expectedPath).catch(
+      () => undefined,
+    )
+    return startFileDocumentExternalChecks(workspacePath, expectedPath)
+  }, [expectedPath, workspacePath])
+
+  useEffect(() => {
+    writeFileTreeViewState(workspacePath, {
+      visible: treeVisible,
+      width: treeWidth,
+    })
+  }, [treeVisible, treeWidth, workspacePath])
+
+  useEffect(() => {
+    if (!layoutRef.current) return
+    const layout = layoutRef.current
+    const clampToLayout = (): void => {
+      const layoutWidth = layout.getBoundingClientRect().width
+      const available = layoutWidth >= FILE_TREE_LAYOUT_MIN_WIDTH
+      setTreeAvailable(available)
+      if (!available) {
+        setTreeVisible(false)
+        return
+      }
+      if (!treeVisible) return
+      const maximum = Math.max(
+        FILE_TREE_MIN_WIDTH,
+        layoutWidth * 0.6,
+      )
+      setTreeWidth(current =>
+        Math.min(
+          maximum,
+          Math.max(FILE_TREE_MIN_WIDTH, Math.round(current)),
+        ),
+      )
+    }
+    clampToLayout()
+    const observer = new ResizeObserver(clampToLayout)
+    observer.observe(layout)
+    return () => observer.disconnect()
+  }, [treeVisible])
 
   function sendSelectedTextToComposer(): void {
-    if (!selectedFile || !shouldShowSelectionSendAction(selectedText)) return
+    if (!shouldShowSelectionSendAction(selectedText)) return
     onAppendComposerText?.(
       buildFileSelectionPrompt({
-        path: selectedFile.path,
+        path: expectedPath,
         selectedText,
       }),
     )
     setSelectedText('')
   }
 
-  function setClampedFileTreePanelWidth(width: number): void {
-    setFileTreePanelWidth(
-      Math.min(
-        FILE_TREE_PANEL_MAX_WIDTH,
-        Math.max(FILE_TREE_PANEL_MIN_WIDTH, Math.round(width)),
-      ),
+  function clampTreeWidth(width: number): number {
+    const layoutWidth = layoutRef.current?.getBoundingClientRect().width ?? 0
+    const maximum =
+      layoutWidth > 0
+        ? Math.max(FILE_TREE_MIN_WIDTH, layoutWidth * 0.6)
+        : 480
+    return Math.min(
+      maximum,
+      Math.max(FILE_TREE_MIN_WIDTH, Math.round(width)),
     )
   }
 
-  function startFileTreePanelResize(
-    event: React.PointerEvent<HTMLDivElement>,
-  ): void {
+  function startTreeResize(event: React.PointerEvent<HTMLDivElement>): void {
     event.preventDefault()
     const startX = event.clientX
-    const startWidth = fileTreePanelWidth
-    const pointerId = event.pointerId
-    const target = event.currentTarget
-    target.setPointerCapture(pointerId)
-    setFileTreePanelResizing(true)
-
-    const handlePointerMove = (moveEvent: PointerEvent): void => {
-      setClampedFileTreePanelWidth(startWidth - (moveEvent.clientX - startX))
+    const startWidth = treeWidth
+    const onPointerMove = (moveEvent: PointerEvent): void => {
+      setTreeWidth(clampTreeWidth(startWidth + startX - moveEvent.clientX))
     }
-
-    const stopResize = (): void => {
-      setFileTreePanelResizing(false)
-      target.releasePointerCapture(pointerId)
-      target.removeEventListener('pointermove', handlePointerMove)
-      target.removeEventListener('pointerup', stopResize)
-      target.removeEventListener('pointercancel', stopResize)
+    const onPointerUp = (): void => {
+      window.document.body.classList.remove('file-tree-is-resizing')
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
     }
-
-    target.addEventListener('pointermove', handlePointerMove)
-    target.addEventListener('pointerup', stopResize)
-    target.addEventListener('pointercancel', stopResize)
+    window.document.body.classList.add('file-tree-is-resizing')
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
   }
 
-  function handleFileTreePanelResizeKey(
-    event: React.KeyboardEvent<HTMLDivElement>,
-  ): void {
-    if (event.key === 'ArrowLeft') {
-      event.preventDefault()
-      setClampedFileTreePanelWidth(
-        fileTreePanelWidth + FILE_TREE_PANEL_KEYBOARD_STEP,
-      )
-    } else if (event.key === 'ArrowRight') {
-      event.preventDefault()
-      setClampedFileTreePanelWidth(
-        fileTreePanelWidth - FILE_TREE_PANEL_KEYBOARD_STEP,
-      )
-    } else if (event.key === 'Home') {
-      event.preventDefault()
-      setClampedFileTreePanelWidth(FILE_TREE_PANEL_MIN_WIDTH)
-    } else if (event.key === 'End') {
-      event.preventDefault()
-      setClampedFileTreePanelWidth(FILE_TREE_PANEL_MAX_WIDTH)
-    }
+  if (document.status === 'error') {
+    return (
+      <div className="right-dock-empty-state" role="alert">
+        <Folder size={58} strokeWidth={1.8} />
+        <strong>无法打开文件</strong>
+        <span>{document.loadError ?? expectedPath}</span>
+      </div>
+    )
+  }
+
+  if (document.status !== 'ready') {
+    return (
+      <div className="right-dock-empty-state">
+        <Folder size={58} strokeWidth={1.8} />
+        <strong>正在读取文件</strong>
+        <span>{expectedPath}</span>
+      </div>
+    )
   }
 
   return (
-    <section
-      className={
-        fileTreePanelResizing
-          ? 'right-dock-files resizing-file-tree'
-          : 'right-dock-files'
-      }
-      aria-label="打开文件"
-      style={
-        {
-          '--right-dock-file-tree-w': `${fileTreePanelWidth}px`,
-        } as React.CSSProperties
-      }
-    >
-      <div className="right-dock-file-preview">
-        {selectedFile ? (
-          <article
-            className={cx(
-              'right-dock-file-document',
-              'u-flex',
-              'u-flex-col',
-              'u-min-w-0',
-              'u-w-full',
-              'u-min-h-0',
-            )}
-          >
-            <header>
-              <FileText size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              <span title={selectedFile.path}>{selectedFile.path}</span>
-            </header>
-            <ContextMenu.Root>
-              <ContextMenu.Trigger asChild>
-                <div
-                  className="right-dock-file-selection-target"
-                  onContextMenu={handlePreviewContextMenu}
-                >
-                  <ScrollArea
-                    className="right-dock-file-preview-scroll-area"
-                    contentClassName="right-dock-file-preview-scroll-content"
-                    direction="y"
-                  >
-                    <CodeBlock
-                      ariaLabel={`${selectedFile.path} 文件预览`}
-                      className="right-dock-file-code"
-                      code={selectedFile.content}
-                      language={resolveLanguageFromPath(selectedFile.path)}
-                    />
-                  </ScrollArea>
-                </div>
-              </ContextMenu.Trigger>
-              {shouldShowSelectionSendAction(selectedText) ? (
-                <ContextMenu.Portal>
-                  <ContextMenu.Content
-                    className="sidebar-context-menu-content"
-                    style={buildPopoverSizingStyle({ width: 220 })}
-                  >
-                    <ContextMenu.Item
-                      className="sidebar-context-menu-item"
-                      onSelect={sendSelectedTextToComposer}
-                    >
-                      发送到对话框
-                    </ContextMenu.Item>
-                  </ContextMenu.Content>
-                </ContextMenu.Portal>
-              ) : null}
-            </ContextMenu.Root>
-            {selectedFile.truncated ? (
-              <p>文件较大，已截断预览。</p>
-            ) : null}
-          </article>
-        ) : (
-          <div className="right-dock-empty-state">
-            <Folder size={58} strokeWidth={1.8} />
-            <strong>打开文件</strong>
-            <span>
-              {workspace
-                ? '从工作区目录树中选择文件'
-                : '先打开一个工作区以浏览文件'}
-            </span>
-          </div>
+    <section className="right-dock-file-preview" aria-label={expectedPath}>
+      <article
+        className={cx(
+          'right-dock-file-document',
+          'u-flex',
+          'u-flex-col',
+          'u-min-w-0',
+          'u-w-full',
+          'u-min-h-0',
         )}
-      </div>
-      <div
-        aria-label="调整文件目录树宽度"
-        aria-orientation="vertical"
-        aria-valuemax={FILE_TREE_PANEL_MAX_WIDTH}
-        aria-valuemin={FILE_TREE_PANEL_MIN_WIDTH}
-        aria-valuenow={fileTreePanelWidth}
-        className="right-dock-file-tree-resize-handle"
-        role="separator"
-        tabIndex={0}
-        title="拖拽调整目录树宽度，双击恢复默认宽度"
-        onDoubleClick={() =>
-          setClampedFileTreePanelWidth(FILE_TREE_PANEL_DEFAULT_WIDTH)
-        }
-        onKeyDown={handleFileTreePanelResizeKey}
-        onPointerDown={startFileTreePanelResize}
-      />
-      <div className="right-dock-file-tree tw:flex tw:min-h-0 tw:min-w-0 tw:flex-col tw:overflow-hidden tw:p-3">
-        <label className="right-dock-search tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:rounded-md tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-app-text-soft">
-          <Search size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          <input
-            aria-label="筛选文件"
-            placeholder="筛选文件..."
-            value={query}
-            onChange={event => setQuery(event.target.value)}
-          />
-        </label>
-        <ScrollArea
-          className="right-dock-tree-scroll-area"
-          contentClassName="right-dock-tree-scroll-content"
-          role="tree"
-        >
-          {visibleFiles.length > 0 ? (
-            visibleFiles.map(file => {
-              const sendablePath = getSendableFilePath({
-                workspacePath: workspace?.path ?? null,
-                file,
-              })
-              const row = (
-                <button
-                  className={
-                    selectedFile?.path === file.path
-                      ? 'right-dock-tree-row active'
-                      : 'right-dock-tree-row'
-                  }
-                  key={file.path}
-                  style={{ paddingLeft: `${12 + file.depth * 18}px` }}
-                  title={file.path}
-                  type="button"
-                  onClick={() => {
-                    if (file.type === 'directory') {
-                      toggleDirectory(file.path)
-                      return
-                    }
-                    onPreviewFile(file)
-                  }}
-                >
-                  {file.type === 'directory' ? (
-                    collapsedDirs.has(file.path) ? (
-                      <Folder size={APP_ICON_SIZE} />
-                    ) : (
-                      <FolderOpen size={APP_ICON_SIZE} />
-                    )
-                  ) : (
-                    <FileText size={APP_ICON_SIZE} />
-                  )}
-                  <span>{file.name}</span>
-                </button>
-              )
-              if (!sendablePath) return row
-              return (
-                <ContextMenu.Root key={file.path}>
-                  <ContextMenu.Trigger asChild>{row}</ContextMenu.Trigger>
-                  <ContextMenu.Portal>
-                    <ContextMenu.Content
-                      className="sidebar-context-menu-content"
-                      style={buildPopoverSizingStyle({ width: 220 })}
-                    >
-                      <ContextMenu.Item
-                        className="sidebar-context-menu-item"
-                        onSelect={() => onAddComposerFiles?.([sendablePath])}
-                      >
-                        发送到对话框
-                      </ContextMenu.Item>
-                    </ContextMenu.Content>
-                  </ContextMenu.Portal>
-                </ContextMenu.Root>
-              )
-            })
-          ) : (
-            <div className="right-dock-tree-empty">
-              {workspace ? '没有匹配的文件。' : '未打开工作区。'}
-            </div>
+      >
+        <FileBreadcrumbToolbar
+          files={files}
+          path={expectedPath}
+          readonly={document.readonly}
+          treeAvailable={treeAvailable}
+          treeVisible={treeVisible}
+          workspace={workspace}
+          workspacePath={workspacePath}
+          onOpenFile={onOpenFile}
+          onToggleTree={() => setTreeVisible(current => !current)}
+        />
+        <div
+          ref={layoutRef}
+          className={cx(
+            'right-dock-file-editor-layout',
+            treeVisible && 'has-file-tree',
           )}
-        </ScrollArea>
-      </div>
+          style={
+            {
+              '--right-dock-editor-tree-width': `${treeWidth}px`,
+            } as React.CSSProperties
+          }
+        >
+          <ContextMenu.Root>
+            <ContextMenu.Trigger asChild>
+              <div
+                className="right-dock-file-selection-target"
+                onContextMenu={() =>
+                  setSelectedText(window.getSelection()?.toString() ?? '')
+                }
+              >
+                {document.conflict ? (
+                  <ConflictMergeEditor
+                    diskValue={document.conflict.diskContent}
+                    error={document.saveError}
+                    language={language}
+                    localValue={document.draftContent}
+                    path={expectedPath}
+                    saving={document.saving}
+                    onChangeLocal={value =>
+                      updateFileDocument(workspacePath, expectedPath, value)
+                    }
+                    onKeepLocal={() =>
+                      resolveFileDocumentConflict(
+                        workspacePath,
+                        expectedPath,
+                        'local',
+                      )
+                    }
+                    onUseDisk={() =>
+                      resolveFileDocumentConflict(
+                        workspacePath,
+                        expectedPath,
+                        'disk',
+                      )
+                    }
+                  />
+                ) : (
+                  <FileEditor
+                    ariaLabel={`${expectedPath} 文件编辑器`}
+                    className="right-dock-file-code"
+                    error={document.saveError}
+                    language={language}
+                    path={expectedPath}
+                    readonly={document.readonly}
+                    revealLine={revealLine}
+                    saving={document.saving}
+                    value={document.draftContent}
+                    onChange={value => {
+                      if (previewTab) onPinTab()
+                      updateFileDocument(workspacePath, expectedPath, value)
+                    }}
+                    onSave={async () => {
+                      await saveFileDocument(workspacePath, expectedPath)
+                    }}
+                  />
+                )}
+              </div>
+            </ContextMenu.Trigger>
+            {shouldShowSelectionSendAction(selectedText) ? (
+              <ContextMenu.Portal>
+                <ContextMenu.Content
+                  className="sidebar-context-menu-content"
+                  style={buildPopoverSizingStyle({ width: 220 })}
+                >
+                  <ContextMenu.Item
+                    className="sidebar-context-menu-item"
+                    onSelect={sendSelectedTextToComposer}
+                  >
+                    发送到对话框
+                  </ContextMenu.Item>
+                </ContextMenu.Content>
+              </ContextMenu.Portal>
+            ) : null}
+          </ContextMenu.Root>
+          {treeVisible ? (
+            <>
+              <div
+                aria-label="调整文件树宽度"
+                aria-orientation="vertical"
+                aria-valuemax={Math.round(
+                  Math.max(
+                    FILE_TREE_MIN_WIDTH,
+                    (layoutRef.current?.getBoundingClientRect().width ?? 800) *
+                      0.6,
+                  ),
+                )}
+                aria-valuemin={FILE_TREE_MIN_WIDTH}
+                aria-valuenow={treeWidth}
+                className="right-dock-editor-tree-resize-handle"
+                role="separator"
+                tabIndex={0}
+                title="拖拽调整文件树宽度，双击恢复默认宽度"
+                onDoubleClick={() => setTreeWidth(FILE_TREE_DEFAULT_WIDTH)}
+                onKeyDown={event => {
+                  const step = event.shiftKey ? 40 : 10
+                  if (event.key === 'ArrowLeft') {
+                    event.preventDefault()
+                    setTreeWidth(current => clampTreeWidth(current + step))
+                  } else if (event.key === 'ArrowRight') {
+                    event.preventDefault()
+                    setTreeWidth(current => clampTreeWidth(current - step))
+                  } else if (event.key === 'Home') {
+                    event.preventDefault()
+                    setTreeWidth(FILE_TREE_DEFAULT_WIDTH)
+                  }
+                }}
+                onPointerDown={startTreeResize}
+              />
+              <aside
+                aria-label="当前文件的工作区文件树"
+                className="right-dock-editor-file-tree"
+              >
+                <WorkspaceFileTree
+                  activePath={expectedPath}
+                  files={files}
+                  workspace={workspace}
+                  onAddComposerFiles={onAddComposerFiles}
+                  onEscape={() => setTreeVisible(false)}
+                  onOpenFile={onOpenFile}
+                />
+              </aside>
+            </>
+          ) : null}
+        </div>
+      </article>
     </section>
   )
 }
@@ -368,34 +611,20 @@ export function RightDockSideChatPanel({
   const surfaceRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    if (focusVersion > 0) {
-      const textarea = surfaceRef.current?.querySelector('textarea')
-      textarea?.focus()
-    }
+    const textarea = surfaceRef.current?.querySelector('textarea')
+    textarea?.focus()
   }, [focusVersion])
 
   return (
     <section className="right-dock-side-chat tw:relative tw:min-h-0 tw:min-w-0 tw:flex-1 tw:bg-app-canvas" aria-label="侧边聊天">
-      {content ?? <ComposerFrame ref={surfaceRef}>{composer}</ComposerFrame>}
-    </section>
-  )
-}
-
-export function RightDockTerminalPanel(): React.ReactNode {
-  return (
-    <section className="right-dock-terminal tw:relative tw:flex tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-col tw:bg-app-canvas" aria-label="终端">
-      <div className="right-dock-terminal-empty tw:grid tw:min-h-0 tw:flex-1 tw:place-content-center tw:gap-3 tw:text-center tw:text-app-text-soft">
-        <SquareTerminal size={48} strokeWidth={1.6} />
-        <strong>终端</strong>
-        <span>终端复制发送到对话框将在后续版本接入</span>
-      </div>
-      <div className="right-dock-terminal-composer tw:border-t tw:border-app-border tw:p-3">
-        <input
-          aria-label="终端输入"
-          disabled
-          placeholder="$ 终端占位，暂不接入"
-        />
-      </div>
+      {content ?? (
+        <ComposerFrame
+          ref={surfaceRef}
+          className="right-dock-side-chat__composer tw:mx-auto tw:px-4 tw:pb-4"
+        >
+          {composer}
+        </ComposerFrame>
+      )}
     </section>
   )
 }
@@ -436,42 +665,60 @@ export function buildAppendText(prev: string, text: string): string {
   return `${prev}\n\n${trimmed}`
 }
 
-export function getSendableFilePath({
-  workspacePath,
-  file,
-}: {
-  workspacePath: string | null
-  file: DesktopFileEntry
-}): string | null {
-  if (!workspacePath || file.type !== 'file') return null
-  return `${workspacePath.replace(/[\\/]$/, '')}/${file.path.replace(/^[\\/]/, '')}`
+export { getSendableFilePath }
+export { createWorkspaceFileTabId }
+
+type FileTreeViewState = {
+  visible: boolean
+  width: number
 }
 
-function filterVisibleFiles(
-  files: DesktopFileEntry[],
-  query: string,
-  collapsedDirs: Set<string>,
-): DesktopFileEntry[] {
-  const trimmedQuery = query.trim().toLowerCase()
-  const hiddenPrefixes: string[] = []
-  return files.filter(file => {
-    while (
-      hiddenPrefixes.length > 0 &&
-      !isDescendantOf(file.path, hiddenPrefixes[hiddenPrefixes.length - 1] ?? '')
-    ) {
-      hiddenPrefixes.pop()
-    }
-    if (hiddenPrefixes.some(prefix => isDescendantOf(file.path, prefix))) {
-      return false
-    }
-    if (file.type === 'directory' && collapsedDirs.has(file.path)) {
-      hiddenPrefixes.push(file.path)
-    }
-    if (!trimmedQuery) return true
-    return file.path.toLowerCase().includes(trimmedQuery)
-  })
+function fileTreeViewStorageKey(workspacePath: string): string {
+  return `codepilotx.desktop.fileTreeView:${workspacePath
+    .replace(/\\/g, '/')
+    .toLowerCase()}`
 }
 
-function isDescendantOf(path: string, directoryPath: string): boolean {
-  return path.startsWith(`${directoryPath}/`) || path.startsWith(`${directoryPath}\\`)
+function readFileTreeViewState(
+  workspacePath: string,
+  defaultVisible = false,
+): FileTreeViewState {
+  const fallback = {
+    visible: defaultVisible,
+    width: FILE_TREE_DEFAULT_WIDTH,
+  }
+  if (typeof window === 'undefined') return fallback
+  try {
+    const raw = window.localStorage.getItem(fileTreeViewStorageKey(workspacePath))
+    if (!raw) return fallback
+    const parsed = JSON.parse(raw) as {
+      visible?: unknown
+      width?: unknown
+    }
+    return {
+      visible:
+        typeof parsed.visible === 'boolean' ? parsed.visible : fallback.visible,
+      width:
+        typeof parsed.width === 'number' && Number.isFinite(parsed.width)
+          ? Math.max(FILE_TREE_MIN_WIDTH, Math.round(parsed.width))
+          : fallback.width,
+    }
+  } catch {
+    return fallback
+  }
+}
+
+function writeFileTreeViewState(
+  workspacePath: string,
+  state: FileTreeViewState,
+): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(
+      fileTreeViewStorageKey(workspacePath),
+      JSON.stringify(state),
+    )
+  } catch {
+    // File tree view persistence is best-effort.
+  }
 }

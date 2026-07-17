@@ -6,19 +6,28 @@ import {
 } from "../../components/ui/iconTokens.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
 
+export type OpenPlanInDockRequest = {
+  eventId: string;
+  title: string;
+  content: string;
+};
+
 export function WorkflowPlanCard({
+  eventId,
   summary,
   streaming,
   isDocked,
   onOpenInRightDock,
 }: {
+  eventId: string;
   summary: string;
   streaming: boolean;
   isDocked: boolean;
-  onOpenInRightDock: () => void;
+  onOpenInRightDock: (plan: OpenPlanInDockRequest) => void;
 }): React.ReactNode {
   const title = planTitleFromSummary(summary);
   const presentation = planCardPresentation({ streaming, isDocked });
+  const plan = { eventId, title, content: summary };
 
   if (presentation.compact) {
     return (
@@ -26,7 +35,7 @@ export function WorkflowPlanCard({
         <button
           className="workflow-plan-card__compact-button"
           type="button"
-          onClick={onOpenInRightDock}
+          onClick={() => onOpenInRightDock(plan)}
         >
           <span className="workflow-plan-card__label">
             {presentation.label}
@@ -52,7 +61,7 @@ export function WorkflowPlanCard({
               className="workflow-plan-card__dock"
               title="在右侧打开计划"
               type="button"
-              onClick={onOpenInRightDock}
+              onClick={() => onOpenInRightDock(plan)}
             >
               <Maximize2
                 size={APP_ICON_SIZE}

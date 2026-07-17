@@ -12,8 +12,11 @@ import type {
   DesktopWorkflowEvent,
   DesktopWorkspace,
 } from '../../../shared/types.js'
-import type { RightDockToolId } from '../layout/rightDockState.js'
-import type { RightDockPlan } from '../layout/rightDockTools.js'
+import type { OpenPlanInDockRequest } from './WorkflowPlanCard.js'
+import type {
+  MarkdownFileOpenOptions,
+  MarkdownFileReference,
+} from '../markdown/index.js'
 
 export type ProviderModelOption = {
   providerID: string
@@ -43,8 +46,12 @@ export type QuickChatContextValue = {
   onCreateBranch: () => void
   onOpenAutomation: () => void
   onOpenWorkspacePath: () => void
-  onOpenRightDock: (tool: RightDockToolId) => void
-  onOpenPlanInRightDock: (plan: RightDockPlan) => void
+  onOpenRightDock: (tool: 'review') => void
+  onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void
+  onOpenFileReference: (
+    reference: MarkdownFileReference,
+    options: MarkdownFileOpenOptions,
+  ) => void
   onSubmitEditedUserMessage: (text: string) => Promise<void>
   onAppendComposerText: (text: string) => void
   onAppendSideChatText: (text: string) => void
@@ -88,9 +95,7 @@ export type QuickChatContextValue = {
   composer: React.ReactNode
   bottomPanelVisible: boolean
   onToggleBottomPanel: () => void
-  rightDockOpen: boolean
-  rightDockTool: RightDockToolId | null
-  rightDockPlanContent: string | null
+  rightDockPlanEventId: string | null
   debugMode: boolean
 }
 

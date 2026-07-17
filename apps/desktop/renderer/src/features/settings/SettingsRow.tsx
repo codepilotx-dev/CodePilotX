@@ -9,17 +9,32 @@ type Props = {
   description?: React.ReactNode
   control?: React.ReactNode
   autoSave?: boolean
+  id?: string
+  size?: 'default' | 'compact'
 }
 
-export function SettingsRow({ title, description, control, autoSave }: Props) {
+export function SettingsRow({
+  title,
+  description,
+  control,
+  autoSave,
+  id,
+  size = 'default',
+}: Props) {
   return (
-    <div className="settings-row tw:flex tw:items-center tw:gap-4 tw:bg-transparent tw:px-4 tw:py-3.5">
-      <div className="settings-row-info tw:min-w-0 tw:flex-1">
-        <h4 className="settings-row-title tw:mt-0 tw:mb-0.5 tw:text-base tw:font-[var(--font-weight-body)] tw:text-app-text">{title}</h4>
-        {description && <p className="settings-row-desc tw:m-0 tw:text-sm tw:leading-5 tw:text-app-text-soft">{description}</p>}
+    <div
+      className="settings-row"
+      data-size={size}
+      id={id}
+    >
+      <div className="settings-row-info">
+        <h4 className="settings-row-title">{title}</h4>
+        {description ? (
+          <p className="settings-row-desc">{description}</p>
+        ) : null}
       </div>
       {control && (
-        <div className="settings-row-control tw:relative tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:justify-end tw:gap-2">
+        <div className="settings-row-control">
           {autoSave ? <SettingsAutoSaveBadge /> : null}
           {control}
         </div>

@@ -54,6 +54,9 @@ import type {
   DesktopDataLocationMigrationResult,
   DesktopDataLocationState,
   DesktopFollowUpBehavior,
+  DesktopFilePreview,
+  DesktopFileRevision,
+  DesktopFileSaveResult,
   DesktopModelSelection,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
@@ -91,6 +94,8 @@ export const DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY =
   'codepilotx.desktop.browserDebugMode'
 export const DESKTOP_BROWSER_DEBUG_MODE_EVENT =
   'desktop-browser-debug-mode-change'
+export const WORKSPACE_FILE_CHANGED_EVENT =
+  'codepilotx-workspace-file-changed'
 
 const DEFAULT_BROWSER_DEBUG_PORT = 53271
 const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY =
@@ -111,6 +116,14 @@ type DesktopClientWindow = {
       platform: string
     }>
     applyWindowBackdrop?(enabled: boolean): Promise<boolean>
+    listExternalOpenTargets?(targetPath: string): Promise<Array<{
+      targetId: string
+      label: string
+      kind: 'default-app' | 'editor'
+      iconDataUrl?: string
+    }>>
+    openPathWithTarget?(targetPath: string, targetId: string): Promise<void>
+    revealPathInFolder?(targetPath: string): Promise<void>
   }
   addEventListener?: Window['addEventListener']
   removeEventListener?: Window['removeEventListener']
@@ -705,6 +718,73 @@ function createAgentSessionDesktopClient(
 
   const client: DesktopApi = {
     ...mockClient,
+    listExternalOpenTargets: async targetPath => {
+      const listTargets =
+        environment.window?.codePilotXDesktop?.listExternalOpenTargets
+      if (!listTargets) return mockClient.listExternalOpenTargets(targetPath)
+      const [targets, settings] = await Promise.all([
+        listTargets(targetPath),
+        client.getDesktopSettings(),
+      ])
+      const preferredId = targets.some(
+        target => target.targetId === settings.defaultOpenTargetId,
+      )
+        ? settings.defaultOpenTargetId
+        : 'default-app'
+      return targets.map(target => ({
+        id: target.targetId,
+        label: target.label,
+        kind: target.kind,
+        ...(target.iconDataUrl ? { iconDataUrl: target.iconDataUrl } : {}),
+        preferred: target.targetId === preferredId,
+      }))
+    },
+    listOpenTargets: async () => {
+      const settings = await client.getDesktopSettings()
+      const targetPath =
+        settings.lastActiveWorkspacePath ||
+        settings.recentWorkspaces[0]?.path
+      if (!targetPath) return mockClient.listOpenTargets()
+      const targets = await client.listExternalOpenTargets(targetPath)
+      return targets.map(target => ({
+        id: target.id,
+        label: target.label,
+        kind: target.kind,
+        ...(target.iconDataUrl ? { iconDataUrl: target.iconDataUrl } : {}),
+      }))
+    },
+    openPathWithTarget: async (targetPath, targetId) => {
+      const openPath =
+        environment.window?.codePilotXDesktop?.openPathWithTarget
+      if (openPath) await openPath(targetPath, targetId)
+      else await mockClient.openPathWithTarget(targetPath, targetId)
+      const settings = await client.getDesktopSettings()
+      if (settings.defaultOpenTargetId !== targetId) {
+        await client.saveDesktopSettings({
+          ...settings,
+          defaultOpenTargetId: targetId,
+        })
+      }
+    },
+    openPathWithDefaultTarget: async targetPath => {
+      const openPath =
+        environment.window?.codePilotXDesktop?.openPathWithTarget
+      if (!openPath) return mockClient.openPathWithDefaultTarget(targetPath)
+      const settings = await client.getDesktopSettings()
+      const targets = await client.listExternalOpenTargets(targetPath)
+      const targetId = targets.some(
+        target => target.id === settings.defaultOpenTargetId,
+      )
+        ? settings.defaultOpenTargetId
+        : 'default-app'
+      return openPath(targetPath, targetId)
+    },
+    revealPathInFolder: async targetPath => {
+      const revealPath =
+        environment.window?.codePilotXDesktop?.revealPathInFolder
+      if (revealPath) return revealPath(targetPath)
+      return mockClient.revealPathInFolder(targetPath)
+    },
     getMcpRuntimeStatus: sessionId =>
       withUnsupportedAgentFallback(
         'getMcpRuntimeStatus',
@@ -734,6 +814,80 @@ function createAgentSessionDesktopClient(
       withAgentOrMock(
         async () => projectToDesktopWorkspace(await loadProjectForPath(workspacePath), null),
         () => mockClient.getWorkspaceContext(workspacePath),
+      ),
+    readWorkspaceFile: (workspacePath, filePath) =>
+      withAgentOrMock(
+        async () => {
+          const project = await loadProjectForPath(workspacePath)
+          return rpc.call<DesktopFilePreview>('workspace/file/read', {
+            projectId: project.id,
+            path: filePath,
+          })
+        },
+        () => mockClient.readWorkspaceFile(workspacePath, filePath),
+      ),
+    readOptionalWorkspaceFile: (workspacePath, filePath) =>
+      withAgentOrMock(
+        async () => {
+          const project = await loadProjectForPath(workspacePath)
+          try {
+            return await rpc.call<DesktopFilePreview>('workspace/file/read', {
+              projectId: project.id,
+              path: filePath,
+            })
+          } catch {
+            return null
+          }
+        },
+        () => mockClient.readOptionalWorkspaceFile(workspacePath, filePath),
+      ),
+    saveWorkspaceFile: input =>
+      withAgentOrMock(
+        async (): Promise<DesktopFileSaveResult> => {
+          const project = await loadProjectForPath(input.workspacePath)
+          const result = await rpc.call<
+            | { outcome: 'saved'; revision: DesktopFileRevision }
+            | { outcome: 'conflict'; revision: DesktopFileRevision }
+          >('workspace/file/save', {
+            projectId: project.id,
+            path: input.filePath,
+            content: input.content,
+            expectedRevision: input.expectedRevision,
+          })
+          if (result.outcome === 'saved') return result
+          const latest = await rpc.call<DesktopFilePreview>(
+            'workspace/file/read',
+            { projectId: project.id, path: input.filePath },
+          )
+          return {
+            outcome: 'conflict',
+            revision: latest.revision,
+            content: latest.content,
+          }
+        },
+        () => mockClient.saveWorkspaceFile(input),
+      ),
+    watchWorkspaceFile: (workspacePath, filePath) =>
+      withAgentOrMock(
+        async () => {
+          const project = await loadProjectForPath(workspacePath)
+          await rpc.call('workspace/file/watch', {
+            projectId: project.id,
+            path: filePath,
+          })
+        },
+        () => mockClient.watchWorkspaceFile(workspacePath, filePath),
+      ),
+    unwatchWorkspaceFile: (workspacePath, filePath) =>
+      withAgentOrMock(
+        async () => {
+          const project = await loadProjectForPath(workspacePath)
+          await rpc.call('workspace/file/unwatch', {
+            projectId: project.id,
+            path: filePath,
+          })
+        },
+        () => mockClient.unwatchWorkspaceFile(workspacePath, filePath),
       ),
     getDesktopSettings: () =>
       withAgentOrMock(
@@ -1122,16 +1276,8 @@ function createAgentSessionDesktopClient(
               item: {
                 ...snapshot.item,
                 ...listSnapshot.item,
-                pinnedAt: patch.pinnedAt ?? snapshot.item.pinnedAt,
               },
               updatedAt: listSnapshot.updatedAt,
-            }
-          }
-          if (patch.pinnedAt !== undefined) {
-            snapshot = {
-              ...snapshot,
-              item: { ...snapshot.item, pinnedAt: patch.pinnedAt },
-              updatedAt: new Date().toISOString(),
             }
           }
           sessionSnapshots.set(sessionId, snapshot)
@@ -1406,6 +1552,18 @@ function createAgentSessionDesktopClient(
       source.onmessage = message => {
         try {
           const notification = JSON.parse(message.data)
+          if (
+            notification?.method === 'workspace/file/changed' &&
+            notification.params &&
+            typeof notification.params === 'object' &&
+            typeof window !== 'undefined'
+          ) {
+            window.dispatchEvent(
+              new CustomEvent(WORKSPACE_FILE_CHANGED_EVENT, {
+                detail: notification.params,
+              }),
+            )
+          }
           for (const event of agentEventsFromNotification(notification)) {
             callback(event)
           }
@@ -1780,8 +1938,20 @@ function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     removeMcpServer: async () => [],
     setMcpServerEnabled: async () => [],
     reloadMcpConfiguration: async () => ({ refreshed: 0, skipped: 0, failed: 0 }),
-    listOpenTargets: async () => [],
+    listOpenTargets: async () => [
+      { id: 'default-app', label: '系统默认应用', kind: 'default-app' },
+    ],
+    listExternalOpenTargets: async () => [
+      {
+        id: 'default-app',
+        label: '系统默认应用',
+        kind: 'default-app',
+        preferred: true,
+      },
+    ],
+    openPathWithTarget: async () => {},
     openPathWithDefaultTarget: async () => {},
+    revealPathInFolder: async () => {},
     listModelProviders: async () => [provider],
     getModelProviderState: async () => providerState(),
     fetchProviderModels: async () => ({ models: provider.defaultModels }),
@@ -1896,8 +2066,17 @@ function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       path: filePath,
       content: '',
       truncated: false,
+      sizeBytes: 0,
+      readonly: false,
+      revision: { mtimeMs: 0, sha256: '' },
     }),
     readOptionalWorkspaceFile: async () => null,
+    saveWorkspaceFile: async input => ({
+      outcome: 'saved',
+      revision: input.expectedRevision,
+    }),
+    watchWorkspaceFile: async () => {},
+    unwatchWorkspaceFile: async () => {},
     chooseComposerFiles: async () => [],
     authorizeComposerFilePaths: async () => {},
     readComposerFiles: async () => [],

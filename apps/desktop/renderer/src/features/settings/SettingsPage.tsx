@@ -11,9 +11,8 @@ import { MemorySettings } from './MemorySettings.js'
 import { ModelConnectionSettings } from './ModelConnectionSettings.js'
 import { PersonalizationSettings } from './PersonalizationSettings.js'
 import { ProfileSettings } from './ProfileSettings.js'
-import { SettingsSection } from './SettingsSection.js'
 import { UsageBillingSettings } from './UsageBillingSettings.js'
-import { SettingsContentArea } from './SettingsContentArea.js';
+import { SETTINGS_ITEMS } from './settingsRegistry.js'
 
 type Props = {
   activeTab: string
@@ -26,33 +25,25 @@ export function SettingsPage({
   onError,
   onNotice,
 }: Props): React.ReactNode {
-  if (activeTab === 'general') return <GeneralSettings onNotice={onNotice} />
-  if (activeTab === 'appearance') {
+  const resolvedTab = SETTINGS_ITEMS.some(item => item.routeId === activeTab)
+    ? activeTab
+    : 'general'
+  if (resolvedTab === 'general') return <GeneralSettings onNotice={onNotice} />
+  if (resolvedTab === 'appearance') {
     return <AppearanceSettings onError={onError} onNotice={onNotice} />
   }
-  if (activeTab === 'config') return <ConfigSettings />
-  if (activeTab === 'connections') return <ModelConnectionSettings onError={onError} />
-  if (activeTab === 'mcp') return <McpSettings />
-  if (activeTab === 'git') return <GitSettings />
-  if (activeTab === 'profile') return <ProfileSettings />
-  if (activeTab === 'personalization') {
+  if (resolvedTab === 'config') return <ConfigSettings />
+  if (resolvedTab === 'connections') return <ModelConnectionSettings onError={onError} />
+  if (resolvedTab === 'mcp') return <McpSettings />
+  if (resolvedTab === 'git') return <GitSettings />
+  if (resolvedTab === 'profile') return <ProfileSettings />
+  if (resolvedTab === 'personalization') {
     return <PersonalizationSettings onError={onError} onNotice={onNotice} />
   }
-  if (activeTab === 'memory') return <MemorySettings />
-  if (activeTab === 'shortcuts') return <KeyboardShortcutsSettings />
-  if (activeTab === 'archived') return <ArchivedConversationsSettings />
-  if (activeTab === 'billing') return <UsageBillingSettings />
-  if (activeTab === 'browser') return <BrowserSettings />
-  return (
-    <SettingsContentArea className="">
-      <div className="settings-content-inner tw:mx-auto tw:w-full tw:max-w-[48rem] tw:px-6 tw:py-8">
-        <div className="settings-page-header tw:mb-7 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:text-xl tw:font-[var(--font-weight-heading)] tw:text-app-text">建设中</h2>
-        </div>
-        <SettingsSection description="此设置页面暂未实现。">
-          <div />
-        </SettingsSection>
-      </div>
-    </SettingsContentArea>
-  )
+  if (resolvedTab === 'memory') return <MemorySettings />
+  if (resolvedTab === 'shortcuts') return <KeyboardShortcutsSettings />
+  if (resolvedTab === 'archived') return <ArchivedConversationsSettings />
+  if (resolvedTab === 'billing') return <UsageBillingSettings />
+  if (resolvedTab === 'browser') return <BrowserSettings />
+  return <GeneralSettings onNotice={onNotice} />
 }

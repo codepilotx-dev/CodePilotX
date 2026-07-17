@@ -6,18 +6,23 @@ import type {
   DesktopUserMessageInput,
 } from '../../../shared/types.js'
 import { desktopClient } from '../../services/desktopClient.js'
-import { applyRightDockAction, type RightDockState } from './rightDockState.js'
+import type { WorkbenchTabDescriptor } from './rightDockState.js'
+
+type Draft = {
+  input: string
+  attachments: DesktopComposerAttachment[]
+}
 
 export function useSubagentDockController({
-  debugMode,
+  activeSideTaskId,
   model,
-  setRightDockState,
+  openRightDockTab,
   submitToSession,
   onError,
 }: {
-  debugMode: boolean
+  activeSideTaskId: string | null
   model: string
-  setRightDockState: React.Dispatch<React.SetStateAction<RightDockState>>
+  openRightDockTab: (tab: WorkbenchTabDescriptor) => void
   submitToSession: (
     sessionId: string,
     input: DesktopUserMessageInput,
@@ -29,41 +34,48 @@ export function useSubagentDockController({
   const [sideChatAttachments, setSideChatAttachments] = useState<
     DesktopComposerAttachment[]
   >([])
-  const [selectedSubagentTaskId, setSelectedSubagentTaskId] = useState<
-    string | null
-  >(null)
   const [selectedSubagent, setSelectedSubagent] =
     useState<DesktopSubagentRead | null>(null)
   const [subagentPermissionMode, setSubagentPermissionMode] =
     useState<DesktopPermissionMode>('default')
-  const subagentDraftsRef = useRef(
-    new Map<
-      string,
-      { input: string; attachments: DesktopComposerAttachment[] }
-    >(),
-  )
+  const draftsRef = useRef(new Map<string, Draft>())
+  const activeComposerKeyRef = useRef('side-chat')
+  const inputRef = useRef(sideChatInput)
+  const attachmentsRef = useRef(sideChatAttachments)
+  inputRef.current = sideChatInput
+  attachmentsRef.current = sideChatAttachments
+
+  const selectedSubagentTaskId = activeSideTaskId
+  const activeComposerKey = activeSideTaskId
+    ? `side-task:${activeSideTaskId}`
+    : 'side-chat'
+
+  useEffect(() => {
+    const previousKey = activeComposerKeyRef.current
+    if (previousKey === activeComposerKey) return
+    draftsRef.current.set(previousKey, {
+      input: inputRef.current,
+      attachments: attachmentsRef.current,
+    })
+    const nextDraft = draftsRef.current.get(activeComposerKey)
+    activeComposerKeyRef.current = activeComposerKey
+    setSideChatInput(nextDraft?.input ?? '')
+    setSideChatAttachments(nextDraft?.attachments ?? [])
+  }, [activeComposerKey])
 
   const handleAppendSideChatText = useCallback(
     (text: string): void => {
       const trimmed = text.trim()
       if (!trimmed) return
-      setSelectedSubagentTaskId(null)
-      setSelectedSubagent(null)
-      setSideChatInput((previous) => {
+      openRightDockTab({ id: 'side-chat', kind: 'side-chat' })
+      setSideChatInput(previous => {
         const existing = previous.trim()
         if (!existing) return trimmed
         return `${previous}\n\n${trimmed}`
       })
-      setSideChatFocusVersion((version) => version + 1)
-      setRightDockState((current) =>
-        applyRightDockAction(
-          current,
-          { type: 'openTool', tool: 'sideChat' },
-          { debugMode },
-        ),
-      )
+      setSideChatFocusVersion(version => version + 1)
     },
-    [debugMode, setRightDockState],
+    [openRightDockTab],
   )
 
   const sideChatSubmitToSession = useCallback(
@@ -115,11 +127,14 @@ export function useSubagentDockController({
           ? 'auto-review'
           : 'default',
     )
-  }, [selectedSubagent?.task.id])
+  }, [selectedSubagent?.task.id, selectedSubagent?.currentRun?.permissionConfig])
 
   useEffect(() => {
-    if (!selectedSubagentTaskId) return
-    void refreshSelectedSubagent().catch((error) =>
+    if (!selectedSubagentTaskId) {
+      setSelectedSubagent(null)
+      return
+    }
+    void refreshSelectedSubagent().catch(error =>
       onError(error instanceof Error ? error.message : String(error)),
     )
     const timer = window.setInterval(() => {
@@ -130,32 +145,25 @@ export function useSubagentDockController({
 
   const handleOpenSubagent = useCallback(
     (taskId: string): void => {
-      if (selectedSubagentTaskId) {
-        subagentDraftsRef.current.set(selectedSubagentTaskId, {
-          input: sideChatInput,
-          attachments: sideChatAttachments,
-        })
+      if (!desktopClient.readSubagent) {
+        onError('当前桌面桥接不支持读取子智能体')
+        return
       }
-      const draft = subagentDraftsRef.current.get(taskId)
-      setSelectedSubagentTaskId(taskId)
-      setSelectedSubagent(null)
-      setSideChatInput(draft?.input ?? '')
-      setSideChatAttachments(draft?.attachments ?? [])
-      setRightDockState((current) =>
-        applyRightDockAction(
-          current,
-          { type: 'openTool', tool: 'sideChat' },
-          { debugMode },
-        ),
-      )
+      void desktopClient
+        .readSubagent(taskId)
+        .then(read => {
+          openRightDockTab({
+            id: `side-task:${taskId}`,
+            kind: 'side-task',
+            taskId,
+            childThreadId: read.task.childThreadId,
+          })
+        })
+        .catch(error =>
+          onError(error instanceof Error ? error.message : String(error)),
+        )
     },
-    [
-      debugMode,
-      selectedSubagentTaskId,
-      setRightDockState,
-      sideChatAttachments,
-      sideChatInput,
-    ],
+    [onError, openRightDockTab],
   )
 
   return {

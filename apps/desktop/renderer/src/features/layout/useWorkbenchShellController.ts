@@ -1,4 +1,3 @@
-import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   SIDEBAR_MAX_WIDTH,
@@ -6,14 +5,16 @@ import {
   useDesktopLayout,
 } from './useDesktopLayout.js'
 import {
-  applyWorkbenchPanelAction,
-  createDefaultWorkbenchPanelState,
-  type RightDockState,
-  type RightDockToolId,
-  type WorkbenchPanelState,
+  applyWorkbenchTabsAction,
+  createDefaultWorkbenchTabsState,
+  type WorkbenchPanelAction,
   type WorkbenchPanelTarget,
+  type WorkbenchTabDescriptor,
+  type WorkbenchTabId,
+  type WorkbenchTabsState,
 } from './rightDockState.js'
-import type { RightDockPlan } from './rightDockTools.js'
+import type { OpenPlanInDockRequest } from '../session/WorkflowPlanCard.js'
+import { useSidebarShellController } from './sidebarShellState.js'
 
 export const RIGHT_DOCK_MIN_WIDTH = 320
 export const RIGHT_DOCK_MAIN_MIN_WIDTH = 352
@@ -23,7 +24,6 @@ export const BOTTOM_PANEL_DEFAULT_HEIGHT = 280
 const RIGHT_DOCK_WIDTH_STORAGE_KEY = 'codepilotx.desktop.rightDockWidth'
 const BOTTOM_PANEL_HEIGHT_STORAGE_KEY =
   'codepilotx.desktop.bottomPanelHeight'
-const RIGHT_DOCK_DEFAULT_WIDTH = 600
 const RIGHT_DOCK_RESPONSIVE_BREAKPOINT = 960
 
 export function useWorkbenchShellController(debugMode: boolean) {
@@ -36,128 +36,87 @@ export function useWorkbenchShellController(debugMode: boolean) {
     toggleSidebarCollapsed,
   } = layout
   const [workbenchPanelState, setWorkbenchPanelState] =
-    useState<WorkbenchPanelState>(createDefaultWorkbenchPanelState)
-  const [rightDockPlan, setRightDockPlan] = useState<RightDockPlan | null>(null)
-  const [rightDockWidth, setRightDockWidth] = useState(() =>
-    getInitialRightDockWidth(),
+    useState<WorkbenchTabsState>(createDefaultWorkbenchTabsState)
+  const [rightDockWidth, setRightDockWidth] = useState(getInitialRightDockWidth)
+  const [bottomPanelHeight, setBottomPanelHeight] = useState(
+    getInitialBottomPanelHeight,
   )
-  const [bottomPanelHeight, setBottomPanelHeight] = useState(() =>
-    getInitialBottomPanelHeight(),
-  )
+  const sidebarShell = useSidebarShellController({
+    desktopCollapsed: sidebarCollapsed,
+    setDesktopCollapsed: setSidebarCollapsed,
+  })
   const autoCollapsedRightRef = useRef(false)
   const rightDockState = workbenchPanelState.right
   const bottomPanelState = workbenchPanelState.bottom
-
-  const setRightDockState = useCallback<
-    React.Dispatch<React.SetStateAction<RightDockState>>
-  >((next) => {
-    setWorkbenchPanelState(current => {
-      const right =
-        typeof next === 'function' ? next(current.right) : next
-      return applyWorkbenchPanelAction(current, {
-        type: 'replaceRight',
-        state: right,
-      })
-    })
-  }, [])
 
   const collapseSidebar = useCallback((): void => {
     setSidebarCollapsed(true)
   }, [setSidebarCollapsed])
 
-  const openRightDockTool = useCallback(
-    (tool: RightDockToolId): void => {
-      autoCollapsedRightRef.current = false
+  const dispatchPanelAction = useCallback(
+    (action: WorkbenchPanelAction): void => {
       setWorkbenchPanelState(current =>
-        applyWorkbenchPanelAction(
-          current,
-          { type: 'openTool', target: 'right', tool },
-          { debugMode },
-        ),
+        applyWorkbenchTabsAction(current, action, { debugMode }),
       )
     },
     [debugMode],
   )
 
-  const selectRightDockTool = useCallback((tool: RightDockToolId): void => {
-    setWorkbenchPanelState(current =>
-      applyWorkbenchPanelAction(current, {
-        type: 'selectTool',
-        target: 'right',
-        tool,
-      }),
-    )
-  }, [])
+  const openPanelTab = useCallback(
+    (
+      target: WorkbenchPanelTarget,
+      tab: WorkbenchTabDescriptor,
+      index?: number,
+    ): void => {
+      if (target === 'right') autoCollapsedRightRef.current = false
+      dispatchPanelAction({ type: 'openTab', target, tab, index })
+    },
+    [dispatchPanelAction],
+  )
 
-  const closeRightDockTool = useCallback((tool: RightDockToolId): void => {
-    setWorkbenchPanelState(current =>
-      applyWorkbenchPanelAction(current, {
-        type: 'closeTool',
-        target: 'right',
-        tool,
-      }),
-    )
-  }, [])
+  const openRightDockTab = useCallback(
+    (tab: WorkbenchTabDescriptor): void => {
+      openPanelTab('right', tab)
+    },
+    [openPanelTab],
+  )
+
+  const selectPanelTab = useCallback(
+    (target: WorkbenchPanelTarget, tabId: WorkbenchTabId): void => {
+      dispatchPanelAction({ type: 'selectTab', target, tabId })
+    },
+    [dispatchPanelAction],
+  )
+
+  const closePanelTab = useCallback(
+    (target: WorkbenchPanelTarget, tabId: WorkbenchTabId): void => {
+      dispatchPanelAction({ type: 'closeTab', target, tabId })
+    },
+    [dispatchPanelAction],
+  )
 
   const closeRightDock = useCallback((): void => {
     autoCollapsedRightRef.current = false
-    setWorkbenchPanelState(current =>
-      applyWorkbenchPanelAction(current, {
-        type: 'closePanel',
-        target: 'right',
-      }),
-    )
-  }, [])
-
-  const dispatchPanelAction = useCallback(
-    (
-      action: Parameters<typeof applyWorkbenchPanelAction>[1],
-    ): void => {
-      setWorkbenchPanelState(current =>
-        applyWorkbenchPanelAction(current, action, { debugMode }),
-      )
-    },
-    [debugMode],
-  )
-
-  const openPanelTool = useCallback(
-    (target: WorkbenchPanelTarget, tool: RightDockToolId): void => {
-      if (target === 'right') autoCollapsedRightRef.current = false
-      dispatchPanelAction({ type: 'openTool', target, tool })
-    },
-    [dispatchPanelAction],
-  )
-
-  const selectPanelTool = useCallback(
-    (target: WorkbenchPanelTarget, tool: RightDockToolId): void => {
-      dispatchPanelAction({ type: 'selectTool', target, tool })
-    },
-    [dispatchPanelAction],
-  )
-
-  const closePanelTool = useCallback(
-    (target: WorkbenchPanelTarget, tool: RightDockToolId): void => {
-      dispatchPanelAction({ type: 'closeTool', target, tool })
-    },
-    [dispatchPanelAction],
-  )
+    dispatchPanelAction({ type: 'closePanel', target: 'right' })
+  }, [dispatchPanelAction])
 
   const togglePanel = useCallback(
     (target: WorkbenchPanelTarget): void => {
       if (target === 'right') autoCollapsedRightRef.current = false
       setWorkbenchPanelState(current => {
         const opening = !current[target].open
-        const next = applyWorkbenchPanelAction(
+        const next = applyWorkbenchTabsAction(
           current,
           { type: 'togglePanel', target },
           { debugMode },
         )
         if (opening) {
           requestAnimationFrame(() => {
-            const panel = document.querySelector<HTMLElement>(
-              `[role="tabpanel"][data-app-shell-tab-panel-controller="${target}"]`,
-            )
-            panel?.focus({ preventScroll: true })
+            document
+              .querySelector<HTMLElement>(
+                `[data-app-shell-tab-panel-controller="${target}"]`,
+              )
+              ?.focus({ preventScroll: true })
           })
         }
         return next
@@ -174,25 +133,46 @@ export function useWorkbenchShellController(debugMode: boolean) {
     [dispatchPanelAction],
   )
 
-  const movePanelTool = useCallback(
+  const movePanelTab = useCallback(
     (
       source: WorkbenchPanelTarget,
       target: WorkbenchPanelTarget,
-      tool: RightDockToolId,
+      tabId: WorkbenchTabId,
       index?: number,
     ): void => {
-      dispatchPanelAction({ type: 'moveTool', source, target, tool, index })
+      dispatchPanelAction({ type: 'moveTab', source, target, tabId, index })
     },
     [dispatchPanelAction],
   )
 
-  const reorderPanelTool = useCallback(
+  const reorderPanelTab = useCallback(
     (
       target: WorkbenchPanelTarget,
-      tool: RightDockToolId,
+      tabId: WorkbenchTabId,
       index: number,
     ): void => {
-      dispatchPanelAction({ type: 'reorderTool', target, tool, index })
+      dispatchPanelAction({ type: 'reorderTab', target, tabId, index })
+    },
+    [dispatchPanelAction],
+  )
+
+  const closeOtherTabs = useCallback(
+    (target: WorkbenchPanelTarget, tabId: WorkbenchTabId): void => {
+      dispatchPanelAction({ type: 'closeOtherTabs', target, tabId })
+    },
+    [dispatchPanelAction],
+  )
+
+  const closeTabsToRight = useCallback(
+    (target: WorkbenchPanelTarget, tabId: WorkbenchTabId): void => {
+      dispatchPanelAction({ type: 'closeTabsToRight', target, tabId })
+    },
+    [dispatchPanelAction],
+  )
+
+  const pinTab = useCallback(
+    (tabId: WorkbenchTabId): void => {
+      dispatchPanelAction({ type: 'pinTab', tabId })
     },
     [dispatchPanelAction],
   )
@@ -206,32 +186,35 @@ export function useWorkbenchShellController(debugMode: boolean) {
   }, [])
 
   const handleResetRightDockWidth = useCallback((): void => {
-    setRightDockWidth(clampRightDockWidth(RIGHT_DOCK_DEFAULT_WIDTH))
+    setRightDockWidth(clampRightDockWidth(getResponsiveRightDockDefaultWidth()))
   }, [])
 
-  const handleSetBottomPanelHeight = useCallback((nextHeight: number): void => {
-    if (nextHeight < BOTTOM_PANEL_MIN_HEIGHT) {
-      dispatchPanelAction({ type: 'closePanel', target: 'bottom' })
-      return
-    }
-    setBottomPanelHeight(clampBottomPanelHeight(nextHeight))
-  }, [dispatchPanelAction])
+  const handleSetBottomPanelHeight = useCallback(
+    (nextHeight: number): void => {
+      if (nextHeight < BOTTOM_PANEL_MIN_HEIGHT) {
+        dispatchPanelAction({ type: 'closePanel', target: 'bottom' })
+        return
+      }
+      setBottomPanelHeight(clampBottomPanelHeight(nextHeight))
+    },
+    [dispatchPanelAction],
+  )
 
   const handleResetBottomPanelHeight = useCallback((): void => {
     setBottomPanelHeight(clampBottomPanelHeight(BOTTOM_PANEL_DEFAULT_HEIGHT))
   }, [])
 
   const handleOpenPlanDock = useCallback(
-    (plan: RightDockPlan): void => {
-      setRightDockPlan(plan)
-      openRightDockTool('plan')
+    (plan: OpenPlanInDockRequest): void => {
+      openRightDockTab({
+        id: `plan:${plan.eventId}`,
+        kind: 'plan',
+        eventId: plan.eventId,
+        title: plan.title,
+      })
     },
-    [openRightDockTool],
+    [openRightDockTab],
   )
-
-  const toggleBottomPanelVisible = useCallback((): void => {
-    togglePanel('bottom')
-  }, [togglePanel])
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -249,13 +232,13 @@ export function useWorkbenchShellController(debugMode: boolean) {
 
   useEffect(() => {
     const onResize = (): void => {
-      setRightDockWidth((current) => clampRightDockWidth(current))
+      setRightDockWidth(current => clampRightDockWidth(current))
       setBottomPanelHeight(current => clampBottomPanelHeight(current))
       if (window.innerWidth <= RIGHT_DOCK_RESPONSIVE_BREAKPOINT) {
         setWorkbenchPanelState(current => {
           if (!current.right.open) return current
           autoCollapsedRightRef.current = true
-          return applyWorkbenchPanelAction(current, {
+          return applyWorkbenchTabsAction(current, {
             type: 'closePanel',
             target: 'right',
             responsive: true,
@@ -264,7 +247,7 @@ export function useWorkbenchShellController(debugMode: boolean) {
       } else if (autoCollapsedRightRef.current) {
         autoCollapsedRightRef.current = false
         setWorkbenchPanelState(current =>
-          applyWorkbenchPanelAction(current, {
+          applyWorkbenchTabsAction(current, {
             type: 'togglePanel',
             target: 'right',
           }),
@@ -280,46 +263,48 @@ export function useWorkbenchShellController(debugMode: boolean) {
     sidebarCollapsed,
     sidebarWidth,
     setSidebarWidth,
-    toggleSidebarCollapsed,
+    toggleSidebarCollapsed: sidebarShell.toggle,
     collapseSidebar,
+    sidebarShell,
     sidebarMinWidth: SIDEBAR_MIN_WIDTH,
     sidebarMaxWidth: SIDEBAR_MAX_WIDTH,
     workbenchPanelState,
     setWorkbenchPanelState,
     rightDockState,
-    setRightDockState,
     bottomPanelState,
-    rightDockPlan,
-    setRightDockPlan,
     bottomPanelVisible: bottomPanelState.open,
     rightDockWidth,
     bottomPanelHeight,
-    openRightDockTool,
-    selectRightDockTool,
-    closeRightDockTool,
+    openRightDockTab,
+    openPanelTab,
+    selectPanelTab,
+    closePanelTab,
     closeRightDock,
     handleSetRightDockWidth,
     handleResetRightDockWidth,
     handleSetBottomPanelHeight,
     handleResetBottomPanelHeight,
     handleOpenPlanDock,
-    toggleBottomPanelVisible,
-    openPanelTool,
-    selectPanelTool,
-    closePanelTool,
+    toggleBottomPanelVisible: () => togglePanel('bottom'),
     togglePanel,
     closePanel,
-    movePanelTool,
-    reorderPanelTool,
+    movePanelTab,
+    reorderPanelTab,
+    closeOtherTabs,
+    closeTabsToRight,
+    pinTab,
     toggleRightFullWidth,
   }
 }
 
 function getInitialRightDockWidth(): number {
-  const stored = Number(
-    window.localStorage.getItem(RIGHT_DOCK_WIDTH_STORAGE_KEY),
+  const storedValue = window.localStorage.getItem(RIGHT_DOCK_WIDTH_STORAGE_KEY)
+  const stored = storedValue == null ? Number.NaN : Number(storedValue)
+  return clampRightDockWidth(
+    Number.isFinite(stored) && stored > 0
+      ? stored
+      : getResponsiveRightDockDefaultWidth(),
   )
-  return clampRightDockWidth(stored || RIGHT_DOCK_DEFAULT_WIDTH)
 }
 
 function clampRightDockWidth(width: number): number {
@@ -327,11 +312,17 @@ function clampRightDockWidth(width: number): number {
     RIGHT_DOCK_MIN_WIDTH,
     window.innerWidth - RIGHT_DOCK_MAIN_MIN_WIDTH,
   )
-  const safeWidth = Number.isFinite(width) ? width : RIGHT_DOCK_DEFAULT_WIDTH
+  const safeWidth = Number.isFinite(width)
+    ? width
+    : getResponsiveRightDockDefaultWidth()
   return Math.min(
     viewportMax,
     Math.max(RIGHT_DOCK_MIN_WIDTH, Math.round(safeWidth)),
   )
+}
+
+function getResponsiveRightDockDefaultWidth(): number {
+  return Math.min(1000, Math.max(420, window.innerWidth * 0.35))
 }
 
 function getInitialBottomPanelHeight(): number {

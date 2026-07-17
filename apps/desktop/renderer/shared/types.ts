@@ -70,6 +70,32 @@ export type DesktopFilePreview = {
   path: string
   content: string
   truncated: boolean
+  sizeBytes: number
+  readonly: boolean
+  revision: DesktopFileRevision
+}
+
+export type DesktopFileRevision = {
+  mtimeMs: number
+  sha256: string
+}
+
+export type DesktopFileSaveResult =
+  | {
+      outcome: 'saved'
+      revision: DesktopFileRevision
+    }
+  | {
+      outcome: 'conflict'
+      revision: DesktopFileRevision
+      content: string
+    }
+
+export type DesktopFileSaveInput = {
+  workspacePath: string
+  filePath: string
+  content: string
+  expectedRevision: DesktopFileRevision
 }
 
 export type DesktopComposerAttachmentKind =
@@ -385,6 +411,14 @@ export type DesktopOpenTarget = {
   iconDataUrl?: string
 }
 
+export type DesktopExternalOpenTarget = {
+  id: string
+  label: string
+  kind: 'default-app' | 'editor'
+  iconDataUrl?: string
+  preferred: boolean
+}
+
 export type DesktopSessionStatus = AgentSessionStatus
 
 export type DesktopPermissionMode = DesktopAgentPermissionMode
@@ -688,7 +722,11 @@ export type DesktopReviewView = 'inline' | 'split'
 export type DesktopDiffMarkerStyle = 'color' | 'symbol'
 export type DesktopFollowUpBehavior = 'steer' | 'queue'
 export type DesktopSidebarOrganization = 'projects' | 'flat'
-export type DesktopSidebarSort = 'priority' | 'recent' | 'manual'
+export type DesktopSidebarSort =
+  | 'priority'
+  | 'updated'
+  | 'created'
+  | 'manual'
 
 export type DesktopRemovedWorkspace = {
   path: string
@@ -762,6 +800,9 @@ gitBranchPrefix: string
   sidebarOrganization: DesktopSidebarOrganization
   sidebarSort: DesktopSidebarSort
   sidebarManualOrder: Record<string, string[]>
+  sidebarSessionPins: Record<string, string>
+  collapsedSidebarProjectPaths: string[]
+  sidebarSectionOrder: SidebarSectionId[]
 	  browserAllowedSites: string[]
 	  collapsedSidebarSections: SidebarSectionId[]
 	  browserSitePermissions: DesktopBrowserSitePermission[]
@@ -1041,7 +1082,6 @@ export type DesktopSettingsChange = {
 }
 
 export type DesktopSessionMetadataPatch = {
-  pinnedAt?: string | null
   archivedAt?: string | null
 }
 
@@ -1469,7 +1509,10 @@ export type DesktopApi = {
   setMcpServerEnabled(name: string, enabled: boolean): Promise<DesktopMcpServerListItem[]>
   reloadMcpConfiguration(): Promise<McpReloadResult>
   listOpenTargets(): Promise<DesktopOpenTarget[]>
+  listExternalOpenTargets(targetPath: string): Promise<DesktopExternalOpenTarget[]>
+  openPathWithTarget(targetPath: string, targetId: string): Promise<void>
   openPathWithDefaultTarget(targetPath: string): Promise<void>
+  revealPathInFolder(targetPath: string): Promise<void>
   listModelProviders(): Promise<DesktopModelProviderSummary[]>
   getModelProviderState(): Promise<DesktopModelProviderState>
   fetchProviderModels(options: {
@@ -1564,6 +1607,9 @@ export type DesktopApi = {
     workspacePath: string,
     filePath: string,
   ): Promise<DesktopFilePreview | null>
+  saveWorkspaceFile(input: DesktopFileSaveInput): Promise<DesktopFileSaveResult>
+  watchWorkspaceFile(workspacePath: string, filePath: string): Promise<void>
+  unwatchWorkspaceFile(workspacePath: string, filePath: string): Promise<void>
   chooseComposerFiles(): Promise<DesktopComposerAttachment[]>
   authorizeComposerFilePaths(filePaths: string[]): Promise<void>
   readComposerFiles(filePaths: string[]): Promise<DesktopComposerAttachment[]>

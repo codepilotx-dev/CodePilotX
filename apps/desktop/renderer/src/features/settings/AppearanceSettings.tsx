@@ -1,12 +1,8 @@
-import React, { useEffect, useId, useState } from 'react'
+import React, { useEffect, useId, useMemo, useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
+import * as Popover from '@radix-ui/react-popover'
 import {
-  Clipboard,
   Download,
-  Laptop,
-  Moon,
-  Sun,
-  Upload,
   X,
 } from 'lucide-react'
 
@@ -28,7 +24,10 @@ import {
   parseCodexThemeShare,
   serializeCodexThemeShare,
 } from '../../../shared/themeShare.js'
-import { CodeBlock } from '../syntax/index.js'
+import {
+  syntaxTokenStyle,
+  useHighlightedCode,
+} from '../syntax/index.js'
 import { getThemesForVariant } from '../syntax/theme.js'
 import { useDesktopTheme } from '../theme/themeContext.js'
 import {
@@ -53,22 +52,11 @@ const HEX_COLOR = /^#[0-9a-f]{6}$/i
 const THEME_MODE_OPTIONS: Array<{
   value: DesktopThemeMode
   label: string
-  icon: React.ReactNode
 }> = [
-  { value: 'light', label: '浅色', icon: <Sun size={APP_ICON_SIZE} /> },
-  { value: 'dark', label: '深色', icon: <Moon size={APP_ICON_SIZE} /> },
-  { value: 'system', label: '系统', icon: <Laptop size={APP_ICON_SIZE} /> },
+  { value: 'system', label: '系统' },
+  { value: 'light', label: '浅色' },
+  { value: 'dark', label: '深色' },
 ]
-
-function getCodeThemeOptions(
-  variant: DesktopThemeVariant,
-): Array<{ value: string; label: string; detail: string }> {
-  return getThemesForVariant(variant).map(theme => ({
-    value: theme.slug,
-    label: theme.label,
-    detail: `${variant === 'light' ? '浅色' : '深色'} · ${theme.slug}`,
-  }))
-}
 
 function NumberInput({
   ariaLabel,
@@ -104,6 +92,7 @@ function NumberInput({
         aria-label={ariaLabel}
         max={max}
         min={min}
+        size="compact"
         type="number"
         value={inputValue}
         onBlur={commit}
@@ -123,10 +112,12 @@ function NumberInput({
 
 function FontInput({
   ariaLabel,
+  placeholder,
   value,
   onCommit,
 }: {
   ariaLabel: string
+  placeholder: string
   value: string | null
   onCommit: (value: string | null) => void
 }) {
@@ -143,12 +134,10 @@ function FontInput({
     <Input
       aria-label={ariaLabel}
       className="appearance-font-input"
-      placeholder="使用系统默认字体"
+      placeholder={placeholder}
       value={draft}
       onBlur={commit}
-          onChange={event =>
-            setDraft(event.target.value as `#${string}`)
-          }
+      onChange={event => setDraft(event.target.value)}
       onKeyDown={event => {
         if (event.key === 'Enter') event.currentTarget.blur()
         if (event.key === 'Escape') {
@@ -169,34 +158,56 @@ function ColorControl({
   value: `#${string}`
   onCommit: (value: `#${string}`) => void
 }) {
-  const [draft, setDraft] = useState(value)
-  useEffect(() => setDraft(value), [value])
+  const normalizedValue = value.toUpperCase() as `#${string}`
+  const [draft, setDraft] = useState(normalizedValue)
+  useEffect(() => setDraft(normalizedValue), [normalizedValue])
 
   const commit = (): void => {
     if (!HEX_COLOR.test(draft)) {
-      setDraft(value)
+      setDraft(normalizedValue)
       return
     }
-    const next = draft.toLowerCase() as `#${string}`
+    const next = draft.toUpperCase() as `#${string}`
     setDraft(next)
-    if (next !== value) onCommit(next)
+    if (next !== normalizedValue) onCommit(next)
   }
 
+  const foreground = getReadableColor(normalizedValue)
+
   return (
-    <div className="appearance-color-control">
-      <label
-        aria-label={`${ariaLabel}颜色选择器`}
-        className="appearance-color-swatch"
-        style={{ backgroundColor: value }}
-      >
-        <input
-          type="color"
-          value={value}
-          onChange={event =>
-            onCommit(event.target.value.toLowerCase() as `#${string}`)
-          }
-        />
-      </label>
+    <div
+      className="appearance-color-control"
+      style={{
+        backgroundColor: normalizedValue,
+        color: foreground,
+      }}
+    >
+      <Popover.Root>
+        <Popover.Trigger asChild>
+          <button
+            aria-label={`${ariaLabel}颜色选择器`}
+            className="appearance-color-swatch"
+            style={{ backgroundColor: normalizedValue }}
+            type="button"
+          />
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content
+            align="end"
+            className="popover-surface appearance-color-popover"
+            collisionPadding={12}
+            sideOffset={6}
+          >
+            <ColorPalette
+              value={normalizedValue}
+              onChange={next => {
+                setDraft(next)
+                onCommit(next)
+              }}
+            />
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
       <Input
         aria-label={ariaLabel}
         invalid={!HEX_COLOR.test(draft)}
@@ -204,16 +215,177 @@ function ColorControl({
         spellCheck={false}
         value={draft}
         onBlur={commit}
-        onChange={event =>
-          setDraft(event.target.value as `#${string}`)
-        }
+        onChange={event => {
+          const sanitized = sanitizeHexColor(event.target.value)
+          setDraft(sanitized as `#${string}`)
+          if (HEX_COLOR.test(sanitized)) {
+            const next = sanitized.toUpperCase() as `#${string}`
+            setDraft(next)
+            onCommit(next)
+          }
+        }}
         onKeyDown={event => {
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') {
-            setDraft(value)
+            setDraft(normalizedValue)
             event.currentTarget.blur()
           }
         }}
+        style={{ color: foreground }}
+      />
+    </div>
+  )
+}
+
+function sanitizeHexColor(value: string): string {
+  const characters = value.toUpperCase().replace(/[^#0-9A-F]/g, '')
+  return `#${characters.replaceAll('#', '').slice(0, 6)}`
+}
+
+function getReadableColor(value: string): '#101010' | '#FFFFFF' {
+  const [red, green, blue] = hexToRgb(value)
+  const luminance =
+    (0.2126 * linearColor(red) +
+      0.7152 * linearColor(green) +
+      0.0722 * linearColor(blue))
+  return luminance > 0.62 ? '#101010' : '#FFFFFF'
+}
+
+function linearColor(value: number): number {
+  const channel = value / 255
+  return channel <= 0.04045
+    ? channel / 12.92
+    : ((channel + 0.055) / 1.055) ** 2.4
+}
+
+function hexToRgb(value: string): [number, number, number] {
+  const normalized = value.replace('#', '').padEnd(6, '0')
+  return [0, 2, 4].map(offset =>
+    Number.parseInt(normalized.slice(offset, offset + 2), 16),
+  ) as [number, number, number]
+}
+
+function rgbToHex(red: number, green: number, blue: number): `#${string}` {
+  const channel = (value: number): string =>
+    Math.round(Math.max(0, Math.min(255, value)))
+      .toString(16)
+      .padStart(2, '0')
+      .toUpperCase()
+  return `#${channel(red)}${channel(green)}${channel(blue)}`
+}
+
+function rgbToHsv(
+  red: number,
+  green: number,
+  blue: number,
+): [number, number, number] {
+  const [r, g, b] = [red, green, blue].map(channel => channel / 255)
+  const maximum = Math.max(r, g, b)
+  const minimum = Math.min(r, g, b)
+  const delta = maximum - minimum
+  let hue = 0
+  if (delta !== 0) {
+    if (maximum === r) hue = 60 * (((g - b) / delta) % 6)
+    else if (maximum === g) hue = 60 * ((b - r) / delta + 2)
+    else hue = 60 * ((r - g) / delta + 4)
+  }
+  return [
+    hue < 0 ? hue + 360 : hue,
+    maximum === 0 ? 0 : delta / maximum,
+    maximum,
+  ]
+}
+
+function hsvToRgb(
+  hue: number,
+  saturation: number,
+  value: number,
+): [number, number, number] {
+  const chroma = value * saturation
+  const segment = hue / 60
+  const intermediate = chroma * (1 - Math.abs((segment % 2) - 1))
+  const [red, green, blue] =
+    segment < 1 ? [chroma, intermediate, 0]
+      : segment < 2 ? [intermediate, chroma, 0]
+        : segment < 3 ? [0, chroma, intermediate]
+          : segment < 4 ? [0, intermediate, chroma]
+            : segment < 5 ? [intermediate, 0, chroma]
+              : [chroma, 0, intermediate]
+  const match = value - chroma
+  return [
+    (red + match) * 255,
+    (green + match) * 255,
+    (blue + match) * 255,
+  ]
+}
+
+function ColorPalette({
+  value,
+  onChange,
+}: {
+  value: `#${string}`
+  onChange: (value: `#${string}`) => void
+}): React.ReactNode {
+  const [hue, saturation, brightness] = rgbToHsv(...hexToRgb(value))
+  const hueColor = rgbToHex(...hsvToRgb(hue, 1, 1))
+
+  const updateSaturation = (
+    event: React.PointerEvent<HTMLDivElement>,
+  ): void => {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const nextSaturation = Math.max(
+      0,
+      Math.min(1, (event.clientX - bounds.left) / bounds.width),
+    )
+    const nextBrightness = Math.max(
+      0,
+      Math.min(1, 1 - (event.clientY - bounds.top) / bounds.height),
+    )
+    event.currentTarget.setPointerCapture(event.pointerId)
+    onChange(rgbToHex(...hsvToRgb(hue, nextSaturation, nextBrightness)))
+  }
+
+  return (
+    <div className="appearance-color-palette">
+      <div
+        aria-label="颜色饱和度与亮度"
+        className="appearance-color-palette-square"
+        role="slider"
+        style={{ '--appearance-picker-hue': hueColor } as React.CSSProperties}
+        tabIndex={0}
+        onPointerDown={updateSaturation}
+        onPointerMove={event => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            updateSaturation(event)
+          }
+        }}
+      >
+        <span
+          className="appearance-color-palette-thumb"
+          style={{
+            left: `${saturation * 100}%`,
+            top: `${(1 - brightness) * 100}%`,
+          }}
+        />
+      </div>
+      <input
+        aria-label="色相"
+        className="appearance-color-hue"
+        max={359}
+        min={0}
+        type="range"
+        value={Math.round(hue)}
+        onChange={event =>
+          onChange(
+            rgbToHex(
+              ...hsvToRgb(
+                Number.parseInt(event.target.value, 10),
+                saturation,
+                brightness,
+              ),
+            ),
+          )
+        }
       />
     </div>
   )
@@ -223,46 +395,165 @@ function ThemeModeCard({
   mode,
   selected,
   label,
-  icon,
   onSelect,
 }: {
   mode: DesktopThemeMode
   selected: boolean
   label: string
-  icon: React.ReactNode
   onSelect: () => void
 }) {
   return (
-    <button
-      aria-checked={selected}
+    <label
       className="appearance-mode-card"
       data-mode={mode}
       data-state={selected ? 'checked' : 'unchecked'}
-      role="radio"
-      tabIndex={selected ? 0 : -1}
-      type="button"
-      onClick={onSelect}
     >
+      <input
+        checked={selected}
+        name="appearance-theme"
+        type="radio"
+        value={mode}
+        onChange={onSelect}
+      />
       <span aria-hidden="true" className="appearance-mode-visual">
-        <span className="appearance-mode-sidebar" />
-        <span className="appearance-mode-composer" />
-        <span className="appearance-mode-copy" />
+        <ThemeModePreview mode={mode} />
       </span>
-      <span className="appearance-mode-label">
-        {icon}
-        {label}
-      </span>
-    </button>
+      <span className="appearance-mode-label">{label}</span>
+    </label>
   )
 }
+
+function ThemeModePreview({
+  mode,
+}: {
+  mode: DesktopThemeMode
+}): React.ReactNode {
+  if (mode === 'system') {
+    return (
+      <svg viewBox="0 0 170 120">
+        <defs>
+          <clipPath id="appearance-system-preview-sheet">
+            <path d="M7 42a8 8 0 0 1 8-8h140a8 8 0 0 1 8 8v78H7V42Z" />
+          </clipPath>
+        </defs>
+        <g clipPath="url(#appearance-system-preview-sheet)">
+          <path fill="#f3f3f3" d="M7 34h78v86H7z" />
+          <path fill="#393939" d="M85 34h78v86H85z" />
+          <path
+            fill="#cdcdcd"
+            d="M73 59h12v6H73a3 3 0 0 1 0-6Z"
+          />
+          <path fill="#767676" d="M85 59h9a3 3 0 0 1 0 6h-9Z" />
+          <path fill="#dfdfdf" d="M53 68h32v3H53z" />
+          <path fill="#8f8f8f" d="M85 68h32v3H85z" />
+          <path
+            fill="#fff"
+            d="M26 84a7 7 0 0 1 7-7h52v43H26V84Z"
+          />
+          <path
+            fill="#4f4f4f"
+            d="M85 77h52a7 7 0 0 1 7 7v36H85V77Z"
+          />
+          <path
+            fill="#dfdfdf"
+            d="M32 88a3 3 0 0 1 3-3h29a3 3 0 0 1 0 6H35a3 3 0 0 1-3-3Z"
+          />
+          <path
+            fill="#767676"
+            d="M103 88a3 3 0 0 1 3-3h29a3 3 0 0 1 0 6h-29a3 3 0 0 1-3-3Z"
+          />
+          <path
+            fill="#f3f3f3"
+            d="M32 96h53v2H32zM26 105h59v1H26z"
+          />
+          <path
+            fill="#767676"
+            d="M85 96h53v2H85zM85 105h59v1H85z"
+          />
+          <path
+            fill="#dfdfdf"
+            d="M32 114a3 3 0 0 1 3-3h29a3 3 0 0 1 0 6H35a3 3 0 0 1-3-3Z"
+          />
+          <path
+            fill="#767676"
+            d="M103 114a3 3 0 0 1 3-3h29a3 3 0 0 1 0 6h-29a3 3 0 0 1-3-3Z"
+          />
+        </g>
+      </svg>
+    )
+  }
+
+  const dark = mode === 'dark'
+  return (
+    <svg viewBox="0 0 170 120">
+      <path
+        fill={dark ? '#9f9f9f' : '#cdcdcd'}
+        d="M49 26h72a3 3 0 0 1 0 6H49a3 3 0 0 1 0-6Z"
+      />
+      <path
+        fill={dark ? '#8f8f8f' : '#dfdfdf'}
+        d="M28 35h114a2 2 0 0 1 0 4H28a2 2 0 0 1 0-4Z"
+      />
+      <path
+        fill="#fff"
+        d="M15 52a8 8 0 0 1 8-8h124a8 8 0 0 1 8 8v68H15V52Z"
+      />
+      <path
+        fill="#dfdfdf"
+        d="M22 59a3 3 0 0 1 3-3h39a3 3 0 0 1 0 6H25a3 3 0 0 1-3-3Z"
+      />
+      <path fill="#f3f3f3" d="M22 67h65v2H22zM15 76h140v1H15z" />
+      <path
+        fill="#dfdfdf"
+        d="M22 83a3 3 0 0 1 3-3h39a3 3 0 0 1 0 6H25a3 3 0 0 1-3-3Z"
+      />
+      <path fill="#f3f3f3" d="M22 91h65v2H22zM15 100h140v1H15z" />
+      <path
+        fill="#dfdfdf"
+        d="M22 107a3 3 0 0 1 3-3h39a3 3 0 0 1 0 6H25a3 3 0 0 1-3-3Z"
+      />
+      <path fill="#f3f3f3" d="M22 115h65v2H22z" />
+    </svg>
+  )
+}
+
+const BEFORE_THEME_PREVIEW = [
+  'const themePreview: ThemeConfig = {',
+  '  surface: "sidebar",',
+  '  accent: "#2563eb",',
+  '  contrast: 42,',
+  '};',
+].join('\n')
+
+const AFTER_THEME_PREVIEW = [
+  'const themePreview: ThemeConfig = {',
+  '  surface: "sidebar-elevated",',
+  '  accent: "#0ea5e9",',
+  '  contrast: 68,',
+  '};',
+].join('\n')
 
 function ThemePreview({
   variant,
   theme,
+  codeThemeId,
+  markerStyle,
 }: {
   variant: DesktopThemeVariant
   theme: DesktopChromeTheme
+  codeThemeId: string
+  markerStyle: DesktopDiffMarkerStyle
 }) {
+  const before = useHighlightedCode({
+    code: BEFORE_THEME_PREVIEW,
+    language: 'typescript',
+    theme: codeThemeId,
+  })
+  const after = useHighlightedCode({
+    code: AFTER_THEME_PREVIEW,
+    language: 'typescript',
+    theme: codeThemeId,
+  })
   const style = {
     '--appearance-preview-surface': theme.surface,
     '--appearance-preview-ink': theme.ink,
@@ -275,25 +566,77 @@ function ThemePreview({
     <div
       aria-label={`${variant === 'light' ? '浅色' : '深色'}主题差异预览`}
       className="appearance-diff-preview"
+      data-diff-style="split"
+      data-expansion-line-count="8"
+      data-hunk-separators="line-info"
+      data-line-diff-type="none"
+      data-overflow="scroll"
+      data-marker-style={markerStyle}
       data-variant={variant}
       style={style}
     >
-      <div className="appearance-diff-pane appearance-diff-pane-removed">
-        <span className="appearance-diff-caption">Before</span>
-        <CodeBlock
-          ariaLabel="修改前代码"
-          code={'const theme = "legacy"\nreturn theme'}
-          language="typescript"
+      <div className="appearance-diff-file-header">src/theme-preview.ts</div>
+      <div className="appearance-diff-hunk-header">@@ -1,5 +1,5 @@</div>
+      <div className="appearance-diff-split">
+        <ThemePreviewSide
+          changedLines={new Set([1, 2, 3])}
+          lineTone="removed"
+          presentation={before}
+          source={BEFORE_THEME_PREVIEW}
+        />
+        <ThemePreviewSide
+          changedLines={new Set([1, 2, 3])}
+          lineTone="added"
+          presentation={after}
+          source={AFTER_THEME_PREVIEW}
         />
       </div>
-      <div className="appearance-diff-pane appearance-diff-pane-added">
-        <span className="appearance-diff-caption">After</span>
-        <CodeBlock
-          ariaLabel="修改后代码"
-          code={'const theme = "codex"\nreturn theme'}
-          language="typescript"
-        />
-      </div>
+    </div>
+  )
+}
+
+function ThemePreviewSide({
+  changedLines,
+  lineTone,
+  presentation,
+  source,
+}: {
+  changedLines: ReadonlySet<number>
+  lineTone: 'added' | 'removed'
+  presentation: ReturnType<typeof useHighlightedCode>
+  source: string
+}): React.ReactNode {
+  const fallbackLines = source.split('\n')
+  return (
+    <div className="appearance-diff-side">
+      {fallbackLines.map((line, lineIndex) => {
+        const tone = changedLines.has(lineIndex) ? lineTone : 'context'
+        const tokens = presentation.highlighted?.tokens[lineIndex]
+        return (
+          <div
+            className="appearance-diff-line"
+            data-tone={tone}
+            key={`${lineIndex}:${line}`}
+          >
+            <span className="appearance-diff-line-number">{lineIndex + 1}</span>
+            <span className="appearance-diff-marker" aria-hidden="true">
+              {tone === 'removed' ? '−' : tone === 'added' ? '+' : ''}
+            </span>
+            <code>
+              {tokens?.length
+                ? tokens.map((token, tokenIndex) => (
+                    <span
+                      key={`${lineIndex}:${tokenIndex}`}
+                      style={syntaxTokenStyle(token)}
+                    >
+                      {token.content}
+                    </span>
+                  ))
+                : line || ' '}
+            </code>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -387,6 +730,66 @@ function VariantThemeEditor({
   const chromeTheme = settings.chromeThemes[variant]
   const codeThemeId = settings.codeThemeIds[variant]
   const variantLabel = variant === 'light' ? '浅色' : '深色'
+  const themes = useMemo(() => getThemesForVariant(variant), [variant])
+  const [themeSeeds, setThemeSeeds] = useState<
+    Record<string, Pick<DesktopChromeTheme, 'surface' | 'ink' | 'accent'>>
+  >({})
+
+  useEffect(() => {
+    let cancelled = false
+    void Promise.all(
+      themes.map(async theme => ({
+        slug: theme.slug,
+        seed: await loadChromeThemeSeed(theme.slug, variant),
+      })),
+    ).then(entries => {
+      if (cancelled) return
+      setThemeSeeds(
+        Object.fromEntries(
+          entries.map(({ slug, seed }) => [
+            slug,
+            {
+              surface: seed.surface,
+              ink: seed.ink,
+              accent: seed.accent,
+            },
+          ]),
+        ),
+      )
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [themes, variant])
+
+  const codeThemeOptions = useMemo(
+    () =>
+      themes.map(theme => {
+        const seed = themeSeeds[theme.slug]
+        return {
+          value: theme.slug,
+          label: theme.label,
+          icon: (
+            <span
+              aria-hidden="true"
+              className="appearance-theme-seed"
+              style={
+                seed
+                  ? {
+                      backgroundColor: seed.surface,
+                      color: seed.accent,
+                      borderColor: `color-mix(in srgb, ${seed.ink} 18%, transparent)`,
+                    }
+                  : undefined
+              }
+            >
+              Aa
+            </span>
+          ),
+        }
+      }),
+    [themeSeeds, themes],
+  )
 
   const updateChromeTheme = (patch: Partial<DesktopChromeTheme>): void => {
     onUpdate({
@@ -443,28 +846,23 @@ function VariantThemeEditor({
 
   return (
     <article className="appearance-theme-editor">
-      <header className="appearance-theme-editor-header">
-        <div>
-          <h4>{variantLabel}主题</h4>
-          <span>{codeThemeId}</span>
-        </div>
-        <div className="appearance-theme-editor-actions">
-          <Button size="sm" variant="ghost" onClick={() => setImportOpen(true)}>
-            <Upload size={APP_ICON_SIZE} />
+      <SettingsRow
+        title={`${variantLabel}主题`}
+        control={
+          <div className="appearance-theme-editor-actions">
+          <Button size="toolbar" variant="ghost" onClick={() => setImportOpen(true)}>
             导入
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => void copyTheme()}>
-            <Clipboard size={APP_ICON_SIZE} />
+          <Button size="toolbar" variant="ghost" onClick={() => void copyTheme()}>
             复制主题
           </Button>
           <SettingsDropdown
             ariaLabel={`${variantLabel}代码主题`}
-            options={getCodeThemeOptions(variant)}
-            searchable
-            searchPlaceholder="搜索代码主题…"
+            options={codeThemeOptions}
+            showSelectedIndicator
             value={codeThemeId}
             variant="theme"
-            width={280}
+            width={176}
             onChange={nextId => {
               const nextCodeThemeId =
                 nextId as DesktopThemeSettings['codeThemeIds'][typeof variant]
@@ -493,14 +891,14 @@ function VariantThemeEditor({
                 })
             }}
           />
-        </div>
-      </header>
-
-      <ThemePreview variant={variant} theme={chromeTheme} />
+          </div>
+        }
+      />
 
       <div className="appearance-theme-editor-rows">
         <SettingsRow
           title="强调色"
+          size="compact"
           control={
             <ColorControl
               ariaLabel={`${variantLabel}强调色`}
@@ -510,7 +908,8 @@ function VariantThemeEditor({
           }
         />
         <SettingsRow
-          title="背景色"
+          title="背景"
+          size="compact"
           control={
             <ColorControl
               ariaLabel={`${variantLabel}背景色`}
@@ -520,7 +919,8 @@ function VariantThemeEditor({
           }
         />
         <SettingsRow
-          title="前景色"
+          title="前景"
+          size="compact"
           control={
             <ColorControl
               ariaLabel={`${variantLabel}前景色`}
@@ -530,10 +930,12 @@ function VariantThemeEditor({
           }
         />
         <SettingsRow
-          title="界面字体"
+          title="UI 字体"
+          size="compact"
           control={
             <FontInput
               ariaLabel={`${variantLabel}界面字体`}
+              placeholder="ui-sans-serif, system-ui, sans-serif"
               value={chromeTheme.fonts.ui}
               onCommit={ui => updateFonts({ ui })}
             />
@@ -541,9 +943,11 @@ function VariantThemeEditor({
         />
         <SettingsRow
           title="代码字体"
+          size="compact"
           control={
             <FontInput
               ariaLabel={`${variantLabel}代码字体`}
+              placeholder="ui-monospace, SFMono-Regular, Consolas, monospace"
               value={chromeTheme.fonts.code}
               onCommit={code => updateFonts({ code })}
             />
@@ -553,7 +957,7 @@ function VariantThemeEditor({
           <SettingsRow
             autoSave
             title="半透明侧边栏"
-            description="使用系统材质时让窗口侧栏透出桌面背景"
+            size="compact"
             control={
               <ToggleSwitch
                 checked={!chromeTheme.opaqueWindows}
@@ -566,6 +970,7 @@ function VariantThemeEditor({
         ) : null}
         <SettingsRow
           title="对比度"
+          size="compact"
           control={
             <label className="appearance-contrast-control">
               <input
@@ -574,6 +979,7 @@ function VariantThemeEditor({
                 min={0}
                 style={{
                   '--appearance-slider-accent': chromeTheme.accent,
+                  '--appearance-slider-surface': chromeTheme.surface,
                 } as React.CSSProperties}
                 type="range"
                 value={chromeTheme.contrast}
@@ -615,7 +1021,7 @@ export function AppearanceSettings({
 
   const saveThemeSettings = (next: DesktopThemeSettings): void => {
     theme.draft.setSettings(next)
-    theme.draft.autoSave()
+    theme.draft.autoSave(next)
   }
 
   const updateThemeSettings = (
@@ -636,14 +1042,9 @@ export function AppearanceSettings({
       <div className="settings-content-inner appearance-settings">
         <div className="settings-page-header">
           <h2 className="settings-page-title">外观</h2>
-          <p>自定义 CodePilotX 的主题、代码高亮、字体与动态效果。</p>
         </div>
 
-        <SettingsSection
-          bare
-          title="主题"
-          description="外观模式、界面颜色和代码主题会作为一套配置保存。"
-        >
+        <SettingsSection bare title="主题">
           <div
             aria-label="外观模式"
             className="appearance-mode-gallery"
@@ -675,28 +1076,33 @@ export function AppearanceSettings({
               event.preventDefault()
               const nextMode = THEME_MODE_OPTIONS[nextIndex]?.value
               if (!nextMode) return
-              const nextCard =
-                event.currentTarget.querySelector<HTMLButtonElement>(
-                  `[data-mode="${nextMode}"]`,
+              const nextInput =
+                event.currentTarget.querySelector<HTMLInputElement>(
+                  `input[value="${nextMode}"]`,
                 )
-              nextCard?.focus()
-              nextCard?.click()
+              nextInput?.focus()
+              nextInput?.click()
             }}
           >
             {THEME_MODE_OPTIONS.map(option => (
               <ThemeModeCard
                 key={option.value}
-                icon={option.icon}
                 label={option.label}
                 mode={option.value}
                 selected={settings.mode === option.value}
                 onSelect={() => {
-                  theme.draft.setMode(option.value)
-                  theme.draft.autoSave()
+                  saveThemeSettings({ ...settings, mode: option.value })
                 }}
               />
             ))}
           </div>
+
+          <ThemePreview
+            codeThemeId={settings.codeThemeIds[resolvedVariant]}
+            markerStyle={desktopSettings.draft.values.diffMarkerStyle}
+            theme={settings.chromeThemes[resolvedVariant]}
+            variant={resolvedVariant}
+          />
 
           <div className="appearance-theme-editors">
             {visibleVariants.map(variant => (
@@ -720,6 +1126,7 @@ export function AppearanceSettings({
             description="悬停按钮、菜单等交互元素时显示手形指针"
             control={
               <ToggleSwitch
+                ariaLabel="使用指针光标"
                 checked={settings.pointerCursorEnabled}
                 onChange={pointerCursorEnabled =>
                   updateThemeSettings({ pointerCursorEnabled })
@@ -729,23 +1136,17 @@ export function AppearanceSettings({
           />
           <SettingsRow
             autoSave
-            title="减少动态效果"
-            description="跟随系统，或始终开启、关闭界面动画"
+            title="差异标记"
+            description="使用彩色背景，或在更改行显示 + / - 符号"
             control={
               <SegmentedControl
+                ariaLabel="差异标记选项"
                 options={[
-                  { value: 'system', label: '系统' },
-                  { value: 'on', label: '开启' },
-                  { value: 'off', label: '关闭' },
+                  { value: 'color', label: '颜色' },
+                  { value: 'symbol', label: '+/-' },
                 ]}
-                value={settings.reduceMotion}
-                onChange={next => {
-                  const reduceMotion =
-                    typeof next === 'function'
-                      ? next(settings.reduceMotion)
-                      : next
-                  updateThemeSettings({ reduceMotion })
-                }}
+                value={desktopSettings.draft.values.diffMarkerStyle}
+                onChange={updateDiffMarkerStyle}
               />
             }
           />
@@ -783,22 +1184,18 @@ export function AppearanceSettings({
           />
           <SettingsRow
             autoSave
-            title="差异标记"
-            description="使用彩色背景，或在更改行显示 + / - 符号"
+            title="减少动态效果"
+            description="跟随系统，或始终开启、关闭界面动画"
             control={
               <SegmentedControl
+                ariaLabel="减少动态效果选项"
                 options={[
-                  { value: 'color', label: '颜色' },
-                  { value: 'symbol', label: '+/-' },
+                  { value: 'system', label: '系统' },
+                  { value: 'on', label: '开启' },
+                  { value: 'off', label: '关闭' },
                 ]}
-                value={desktopSettings.draft.values.diffMarkerStyle}
-                onChange={next => {
-                  const current =
-                    desktopSettings.draft.values.diffMarkerStyle
-                  updateDiffMarkerStyle(
-                    typeof next === 'function' ? next(current) : next,
-                  )
-                }}
+                value={settings.reduceMotion}
+                onChange={reduceMotion => updateThemeSettings({ reduceMotion })}
               />
             }
           />

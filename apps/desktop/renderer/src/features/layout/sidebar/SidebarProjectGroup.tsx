@@ -6,9 +6,7 @@ import {
   ExternalLink,
   FolderGit2,
   FolderOpen,
-  FolderTree,
   MoreHorizontal,
-  Pencil,
   Pin,
   PinOff,
   SquarePen,
@@ -40,13 +38,14 @@ type Props = {
   sessionFallbackTitles: Record<string, string>;
   sessions: SessionListItem[];
   workspace: DesktopWorkspace | null;
-  onArchiveSession: (session: SessionListItem) => void;
+  onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>;
   onCreateSession: (workspace?: DesktopWorkspace | null) => void;
   onOpenWorkspace: (workspace: DesktopWorkspace) => void;
   onPinSession: (session: SessionListItem) => void;
   onPinWorkspace: (workspace: DesktopWorkspace) => void;
   onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
   onSelectSession: (session: SessionListItem) => void;
+  onRenameSession: (sessionId: string, title: string) => Promise<boolean>;
   onToggleProjectCollapsed: (projectPath: string) => void;
   onUnpinSession: (session: SessionListItem) => void;
   onUnpinWorkspace: (workspace: DesktopWorkspace) => void;
@@ -62,13 +61,14 @@ export function SidebarProjectGroup({
   sessionFallbackTitles,
   sessions,
   workspace,
-  onArchiveSession,
+  onArchiveSessions,
   onCreateSession,
   onOpenWorkspace,
   onPinSession,
   onPinWorkspace,
   onRemoveWorkspace,
   onSelectSession,
+  onRenameSession,
   onToggleProjectCollapsed,
   onUnpinSession,
   onUnpinWorkspace,
@@ -76,6 +76,9 @@ export function SidebarProjectGroup({
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+  const [processingAction, setProcessingAction] = useState<
+    'archive' | 'remove' | null
+  >(null)
   const groupKey = `project:${project.path}`;
   const projectSessions = sessions.filter(
     (session) => !session.standalone && session.workspacePath === project.path,
@@ -108,6 +111,20 @@ export function SidebarProjectGroup({
       },
       {
         kind: 'item',
+        label: '打开项目',
+        icon: <ExternalLink size={APP_ICON_SIZE} />,
+        disabled: isUnavailable,
+        onSelect: () => onOpenWorkspace(project),
+      },
+      {
+        kind: 'item',
+        label: '新建任务',
+        icon: <SquarePen size={APP_ICON_SIZE} />,
+        disabled: isUnavailable,
+        onSelect: () => onCreateSession(project),
+      },
+      {
+        kind: 'item',
         label: '在资源管理器中打开',
         icon: <FolderOpen size={APP_ICON_SIZE} />,
         disabled: isUnavailable,
@@ -115,23 +132,17 @@ export function SidebarProjectGroup({
           void desktopClient.openPathWithDefaultTarget(project.path);
         },
       },
-      {
-        kind: 'item',
-        label: '重命名项目',
-        icon: <Pencil size={APP_ICON_SIZE} />,
-        onSelect: () => {
-          // eslint-disable-next-line no-console
-          console.log('[TODO] rename project', project.path);
-        },
-      },
       { kind: 'separator' },
       {
         kind: 'item',
         label: '归档所有对话',
         icon: <Archive size={APP_ICON_SIZE} />,
-        disabled: projectSessions.length === 0,
+        disabled: projectSessions.length === 0 || processingAction !== null,
         onSelect: () => {
-          projectSessions.forEach((session) => onArchiveSession(session));
+          setProcessingAction('archive')
+          void onArchiveSessions(projectSessions).finally(() =>
+            setProcessingAction(null),
+          )
         },
       },
       {
@@ -239,23 +250,16 @@ export function SidebarProjectGroup({
                       在资源管理器中打开
                     </PopoverItem>
                     <PopoverItem
-                      disabled={isUnavailable}
-                      icon={<FolderTree size={APP_ICON_SIZE} />}
-                      onClick={() => {}}
-                    >
-                      创建永久工作树
-                    </PopoverItem>
-                    <PopoverItem icon={<Pencil size={APP_ICON_SIZE} />} onClick={() => {}}>
-                      重命名项目
-                    </PopoverItem>
-                    <PopoverItem
-                      disabled={projectSessions.length === 0}
+                      disabled={projectSessions.length === 0 || processingAction !== null}
                       icon={<Archive size={APP_ICON_SIZE} />}
                       onClick={() => {
-                        projectSessions.forEach((session) => onArchiveSession(session));
+                        setProcessingAction('archive')
+                        void onArchiveSessions(projectSessions).finally(() =>
+                          setProcessingAction(null),
+                        )
                       }}
                     >
-                      归档对话
+                      {processingAction === 'archive' ? '归档中…' : '归档任务'}
                     </PopoverItem>
                     <PopoverItem
                       icon={<X size={APP_ICON_SIZE} />}
@@ -269,16 +273,21 @@ export function SidebarProjectGroup({
                   </PopoverMenu>
 
                   <ConfirmationDialog
-                    actionLabel="移除"
+                    actionDisabled={processingAction !== null}
+                    actionLabel={processingAction === 'remove' ? '处理中…' : '移除'}
                     cancelLabel="取消"
                     description="该项目将从 CodePilotX 中移除，其下的对话将一并归档。磁盘上的文件不会被删除。"
                     open={confirmRemoveOpen}
                     title={`移除 ${project.name}?`}
                     tone="danger"
                     onAction={() => {
-                      setConfirmRemoveOpen(false);
-                      projectSessions.forEach((session) => onArchiveSession(session));
-                      onRemoveWorkspace(project);
+                      if (processingAction) return
+                      setProcessingAction('remove')
+                      void onArchiveSessions(projectSessions).then(success => {
+                        if (!success) return
+                        setConfirmRemoveOpen(false)
+                        onRemoveWorkspace(project)
+                      }).finally(() => setProcessingAction(null))
                     }}
                     onCancel={() => {
                       setConfirmRemoveOpen(false);
@@ -323,9 +332,10 @@ export function SidebarProjectGroup({
           now={now}
           sessionFallbackTitles={sessionFallbackTitles}
           sessions={projectSessions}
-          onArchiveSession={onArchiveSession}
+          onArchiveSessions={onArchiveSessions}
           onPinSession={onPinSession}
           onSelectSession={onSelectSession}
+          onRenameSession={onRenameSession}
           onUnpinSession={onUnpinSession}
         />
       ) : null}

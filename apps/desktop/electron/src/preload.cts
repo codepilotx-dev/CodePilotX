@@ -9,6 +9,13 @@ interface WindowBackdropCapability {
   platform: NodeJS.Platform
 }
 
+interface DesktopExternalOpenTarget {
+  targetId: string
+  label: string
+  kind: "default-app" | "editor"
+  iconDataUrl?: string
+}
+
 const desktop = {
   minimize: (): Promise<void> => ipcRenderer.invoke("window:minimize"),
   toggleMaximize: (): Promise<boolean> => ipcRenderer.invoke("window:toggle-maximize"),
@@ -31,6 +38,12 @@ const desktop = {
   },
   getAgentConnectionState: (): Promise<AgentConnectionState> => ipcRenderer.invoke("agent:connection-state"),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke("shell:open-external", url),
+  listExternalOpenTargets: (targetPath: string): Promise<DesktopExternalOpenTarget[]> =>
+    ipcRenderer.invoke("shell:list-external-open-targets", targetPath),
+  openPathWithTarget: (targetPath: string, targetId: string): Promise<void> =>
+    ipcRenderer.invoke("shell:open-path-with-target", targetPath, targetId),
+  revealPathInFolder: (targetPath: string): Promise<void> =>
+    ipcRenderer.invoke("shell:reveal-path-in-folder", targetPath),
   openLogDirectory: (): Promise<string> => ipcRenderer.invoke("startup:open-logs"),
   quitDuringStartup: (): Promise<void> => ipcRenderer.invoke("startup:quit"),
   getAppearanceSettings: (): Promise<DesktopThemeSettingsV3> =>

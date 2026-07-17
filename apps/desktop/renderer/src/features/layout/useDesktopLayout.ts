@@ -14,7 +14,12 @@ export function clampSidebarWidth(value: number): number {
 }
 
 export function readStoredSidebarWidth(): number {
-  const raw = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+  let raw: string | null = null
+  try {
+    raw = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
+  } catch {
+    return clampSidebarWidth(DEFAULT_SIDEBAR_WIDTH)
+  }
   if (!raw) return clampSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
   const parsed = Number.parseInt(raw, 10);
   if (Number.isNaN(parsed)) {

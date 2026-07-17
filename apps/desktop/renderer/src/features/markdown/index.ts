@@ -14,6 +14,7 @@ export {
   isLikelyFileReference,
   isSafeHttpsMediaSource,
   mediaKindForUrl,
+  parseMarkdownFileReference,
 } from './safeTargets.js'
 export { segmentStreamingMarkdown } from './streaming.js'
 export type {
@@ -21,6 +22,8 @@ export type {
   MarkdownDirectiveRenderer,
   MarkdownDirectiveRenderProps,
   MarkdownExternalResourcePolicy,
+  MarkdownFileOpenOptions,
+  MarkdownFileReference,
   MarkdownParseResult,
   MarkdownToken,
 } from './types.js'

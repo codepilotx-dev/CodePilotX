@@ -10,6 +10,14 @@ declare global {
       isMaximized(): Promise<boolean>
       pickWorkspaceDirectory(): Promise<string | null>
       openExternal(url: string): Promise<void>
+      listExternalOpenTargets(targetPath: string): Promise<Array<{
+        targetId: string
+        label: string
+        kind: 'default-app' | 'editor'
+        iconDataUrl?: string
+      }>>
+      openPathWithTarget(targetPath: string, targetId: string): Promise<void>
+      revealPathInFolder(targetPath: string): Promise<void>
       getAppearanceSettings(): Promise<unknown>
       saveAppearanceSettings(settings: unknown): Promise<unknown>
       getSystemTheme(): Promise<'light' | 'dark'>

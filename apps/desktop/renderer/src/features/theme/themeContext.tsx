@@ -44,7 +44,7 @@ type DesktopThemeDraft = {
   setMode: (mode: DesktopThemeMode) => void
   save: () => Promise<DesktopThemeSettings>
   reset: () => void
-  autoSave: () => void
+  autoSave: (settings?: DesktopThemeSettings) => void
 }
 
 const DesktopThemeContext = createContext<DesktopThemeContextValue | null>(null)
@@ -265,11 +265,17 @@ export function DesktopThemeProvider({
 
   const saveDraftRef = useRef(saveDraft)
   saveDraftRef.current = saveDraft
-  const autoSave = useCallback(() => {
+  const autoSave = useCallback((nextSettings?: DesktopThemeSettings) => {
+    if (nextSettings) {
+      const normalized = normalizeDesktopThemeSettings(nextSettings)
+      setDraftSettings(normalized)
+      void persistSettings(normalized).catch(() => undefined)
+      return
+    }
     setTimeout(() => {
       void saveDraftRef.current().catch(() => undefined)
     }, 0)
-  }, [])
+  }, [persistSettings])
 
   const draft = useMemo<DesktopThemeDraft>(
     () => ({

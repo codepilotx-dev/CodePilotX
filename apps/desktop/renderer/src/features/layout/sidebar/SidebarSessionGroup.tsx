@@ -10,6 +10,7 @@ import { motionTransition, standardTween } from '../../motion/motionTransitions.
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 import { sortSessionsForSidebar } from '../../session/sessionSorting.js'
 import { SidebarRow } from "./SidebarRow.js";
+import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { cx } from "../../../utils/cx.js";
 import {
   SidebarContextMenu,
@@ -28,9 +29,10 @@ type Props = {
   pendingPermissionSessionIds: ReadonlySet<string>;
   sessionFallbackTitles: Record<string, string>;
   sessions: SessionListItem[];
-  onArchiveSession: (session: SessionListItem) => void;
+  onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>;
   onPinSession: (session: SessionListItem) => void;
   onSelectSession: (session: SessionListItem) => void;
+  onRenameSession: (sessionId: string, title: string) => Promise<boolean>;
   onUnpinSession: (session: SessionListItem) => void;
 };
 
@@ -41,17 +43,22 @@ export function SidebarSessionGroup({
   pendingPermissionSessionIds,
   sessionFallbackTitles,
   sessions,
-  onArchiveSession,
+  onArchiveSessions,
   onPinSession,
   onSelectSession,
+  onRenameSession,
   onUnpinSession,
 }: Props): React.ReactNode {
   const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null);
+  const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
   const [confirmArchiveSessionId, setConfirmArchiveSessionId] = useState<
     string | null
   >(null);
   const [visibleLimit, setVisibleLimit] = useState(GROUP_LIMIT);
   const [draggedSessionId, setDraggedSessionId] = useState<string | null>(null);
+  const [renameSession, setRenameSession] = useState<SessionListItem | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [renaming, setRenaming] = useState(false)
   const reducedMotion = usePrefersReducedMotion()
   const {
     sidebarSort,
@@ -97,8 +104,8 @@ export function SidebarSessionGroup({
         label: "重命名",
         icon: <Pencil size={APP_ICON_SIZE} />,
         onSelect: () => {
-          // eslint-disable-next-line no-console
-          console.log("[TODO] rename session", session.id);
+          setRenameSession(session)
+          setRenameValue(sessionDisplayTitle(session, sessionFallbackTitles[session.id]))
         },
       },
       {
@@ -127,7 +134,7 @@ export function SidebarSessionGroup({
         kind: "item",
         label: "归档",
         icon: <Archive size={APP_ICON_SIZE} />,
-        onSelect: () => onArchiveSession(session),
+        onSelect: () => setConfirmArchiveSessionId(session.id),
       },
     ];
   }
@@ -188,6 +195,27 @@ export function SidebarSessionGroup({
             current === session.id ? null : current,
           );
         }}
+        onFocusCapture={() => setFocusedSessionId(session.id)}
+        onBlurCapture={event => {
+          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
+          setFocusedSessionId(current => current === session.id ? null : current)
+        }}
+        onKeyDown={event => {
+          if (
+            sidebarSort !== 'manual' ||
+            !event.altKey ||
+            (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')
+          ) {
+            return
+          }
+          event.preventDefault()
+          const order = sortedSessions.map(item => item.id)
+          const currentIndex = order.indexOf(session.id)
+          const nextIndex = currentIndex + (event.key === 'ArrowUp' ? -1 : 1)
+          if (nextIndex < 0 || nextIndex >= order.length) return
+          ;[order[currentIndex], order[nextIndex]] = [order[nextIndex]!, order[currentIndex]!]
+          setSidebarManualOrder({ ...sidebarManualOrder, [groupKey]: order })
+        }}
         trailing={
           <div className={metaClassName}>
             {awaitingApproval ? (
@@ -210,13 +238,13 @@ export function SidebarSessionGroup({
             ) : confirmArchiveSessionId === session.id ? (
               <button
                 className="sidebar-session-confirm-archive-button"
-                onClick={() => onArchiveSession(session)}
+                onClick={() => void onArchiveSessions([session])}
                 title="确认归档"
                 type="button"
               >
                 确认
               </button>
-            ) : hoveredSessionId === session.id ? (
+            ) : hoveredSessionId === session.id || focusedSessionId === session.id ? (
               <div className="sidebar-session-actions">
                 {session.pinnedAt ? (
                   <IconButton
@@ -359,6 +387,30 @@ export function SidebarSessionGroup({
           />
         </div>
       ) : null}
+      <ConfirmationDialog
+        actionDisabled={renaming || renameValue.trim().length === 0}
+        actionLabel={renaming ? '重命名中…' : '重命名'}
+        input={{
+          value: renameValue,
+          onChange: setRenameValue,
+          maxLength: 160,
+          placeholder: '输入任务名称',
+        }}
+        open={renameSession !== null}
+        title="重命名任务"
+        onAction={() => {
+          if (!renameSession || renaming) return
+          setRenaming(true)
+          void onRenameSession(renameSession.id, renameValue).then(success => {
+            setRenaming(false)
+            if (success) setRenameSession(null)
+          })
+        }}
+        onCancel={() => {
+          if (renaming) return
+          setRenameSession(null)
+        }}
+      />
     </>
   );
 }

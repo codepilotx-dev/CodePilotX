@@ -51,6 +51,19 @@ export type MarkdownExternalResourcePolicy = {
   allowRemoteMedia?: boolean
 }
 
+export type MarkdownFileReference = {
+  path: string
+  line?: number
+  column?: number
+  endLine?: number
+  endColumn?: number
+}
+
+export type MarkdownFileOpenOptions = {
+  preview: boolean
+  prefetch?: boolean
+}
+
 export type MarkdownParseResult = {
   tokens: MarkdownToken[]
   stableText: string

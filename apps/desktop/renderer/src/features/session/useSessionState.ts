@@ -30,10 +30,12 @@ import type {
 import { sessionViewFallbackTitle } from '../../uiTypes.js'
 import {
   activateSession,
+  archiveSessionsAction,
   closeSessionAction,
   createSessionForWorkspaceAction,
   decidePermissionAction,
   interruptSessionAction,
+  renameSessionAction,
   selectSessionAction,
   setSessionLocalRouterModeAction,
   setSessionPermissionModeAction,
@@ -41,6 +43,7 @@ import {
   submitSessionMessageAction,
   updateSessionMetadataAction,
   type CloseSessionResult,
+  type ArchiveSessionsResult,
   type SessionActionContext,
   type SessionSettingsSnapshot,
 } from './sessionActions.js'
@@ -143,6 +146,13 @@ export type UseSessionStateResult = {
     targetSessionId: string,
     patch: DesktopSessionMetadataPatch,
   ) => Promise<CloseSessionResult | null>
+  archiveSessions: (
+    targetSessionIds: readonly string[],
+  ) => Promise<ArchiveSessionsResult>
+  renameSession: (
+    targetSessionId: string,
+    title: string,
+  ) => Promise<SessionListItem | null>
   setSessionPermissionMode: (
     targetSessionId: string,
     mode: DesktopPermissionMode,
@@ -852,6 +862,21 @@ export function useSessionState(
     [actionContext, sessions],
   )
 
+  const archiveSessions = useCallback(
+    async (targetSessionIds: readonly string[]): Promise<ArchiveSessionsResult> =>
+      archiveSessionsAction(actionContext, sessions, targetSessionIds),
+    [actionContext, sessions],
+  )
+
+  const renameSession = useCallback(
+    async (
+      targetSessionId: string,
+      title: string,
+    ): Promise<SessionListItem | null> =>
+      renameSessionAction(actionContext, targetSessionId, title),
+    [actionContext],
+  )
+
   const setSessionPermissionMode = useCallback(
     async (
       targetSessionId: string,
@@ -934,6 +959,8 @@ export function useSessionState(
     decidePermission,
     closeSession,
     updateSessionMetadata,
+    archiveSessions,
+    renameSession,
     setSessionPermissionMode,
     setSessionPlanModeActive,
     setSessionLocalRouterMode,

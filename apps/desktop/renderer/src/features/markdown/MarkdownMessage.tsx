@@ -1,6 +1,12 @@
 import React, { useMemo } from 'react'
 import type { Token, Tokens } from 'marked'
+import { Check, Copy } from 'lucide-react'
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+} from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktopClient.js'
+import { cx } from '../../utils/cx.js'
 import { CodeBlock } from '../syntax/index.js'
 import {
   DEFAULT_MARKDOWN_DIRECTIVES,
@@ -16,10 +22,13 @@ import {
   isLikelyFileReference,
   isSafeHttpsMediaSource,
   mediaKindForUrl,
+  parseMarkdownFileReference,
 } from './safeTargets.js'
 import type {
   MarkdownDirectiveRegistry,
   MarkdownExternalResourcePolicy,
+  MarkdownFileOpenOptions,
+  MarkdownFileReference,
   MarkdownDirectiveToken,
   MarkdownMathToken,
   MarkdownStreamingCodeToken,
@@ -33,6 +42,10 @@ export type MarkdownMessageProps = {
   directives?: MarkdownDirectiveRegistry
   directiveRegistry?: MarkdownDirectiveRegistry
   externalResourcePolicy?: MarkdownExternalResourcePolicy
+  onOpenFileReference?: (
+    reference: MarkdownFileReference,
+    options: MarkdownFileOpenOptions,
+  ) => void
   streaming?: boolean
   streamingChunks?: readonly string[]
   text: string
@@ -44,6 +57,12 @@ type RenderContext = {
   cwd: string | null
   directives: MarkdownDirectiveRegistry
   externalResourcePolicy: Required<MarkdownExternalResourcePolicy>
+  onOpenFileReference:
+    | ((
+        reference: MarkdownFileReference,
+        options: MarkdownFileOpenOptions,
+      ) => void)
+    | undefined
   streaming: boolean
 }
 
@@ -54,6 +73,7 @@ export function MarkdownMessage({
   directives,
   directiveRegistry,
   externalResourcePolicy,
+  onOpenFileReference,
   streaming = false,
   streamingChunks,
   text,
@@ -76,6 +96,7 @@ export function MarkdownMessage({
         allowRemoteMedia:
           externalResourcePolicy?.allowRemoteMedia ?? true,
       },
+      onOpenFileReference,
       streaming,
     }),
     [
@@ -86,6 +107,7 @@ export function MarkdownMessage({
       directives,
       externalResourcePolicy?.allowExternalLinks,
       externalResourcePolicy?.allowRemoteMedia,
+      onOpenFileReference,
       streaming,
     ],
   )
@@ -423,12 +445,47 @@ function MarkdownTable({
   }
 
   return (
-    <figure className="md-table-block">
-      <figcaption className="md-table-toolbar">
-        <span>TABLE</span>
-        <button type="button" onClick={() => void copyTable()}>
-          {copied ? '已复制' : '复制'}
-        </button>
+    <figure
+      className={cx(
+        'md-table-block',
+        'md-code-block',
+        'tw:mx-0',
+        'tw:my-3',
+        'tw:w-full',
+        'tw:max-w-full',
+        'tw:overflow-hidden',
+        'tw:rounded-lg',
+      )}
+    >
+      <figcaption className="md-table-toolbar md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between tw:px-2 tw:text-base tw:text-app-text-soft">
+        <span className="md-code-lang tw:font-mono">table</span>
+        <span className="md-code-actions tw:flex tw:items-center">
+          <button
+            aria-label={copied ? '已复制' : '复制表格'}
+            className={cx(
+              'md-code-action md-code-copy',
+              copied && 'is-copied',
+              'tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-md tw:text-app-text-soft tw:transition-colors tw:duration-[120ms] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent',
+            )}
+            title={copied ? '已复制' : '复制表格'}
+            type="button"
+            onClick={() => void copyTable()}
+          >
+            {copied ? (
+              <Check
+                aria-hidden="true"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            ) : (
+              <Copy
+                aria-hidden="true"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            )}
+          </button>
+        </span>
       </figcaption>
       <div className="md-table-scroll">
         <table>
@@ -501,15 +558,15 @@ function renderLink(
   }
   if (target.kind === 'file') {
     return (
-      <button
+      <FileReferenceButton
         className="md-file-reference"
+        context={context}
         key={key}
-        onClick={() => openFile(context, target.path)}
+        reference={target}
         title={link.title ?? target.path}
-        type="button"
       >
         {children}
-      </button>
+      </FileReferenceButton>
     )
   }
   if (target.kind === 'anchor') {
@@ -553,15 +610,15 @@ function renderCodeSpan(
   const target = classifyMarkdownTarget(text)
   if (target.kind !== 'file') return <code key={key}>{text}</code>
   return (
-    <button
+    <FileReferenceButton
       className="md-file-reference md-file-reference-inline"
+      context={context}
       key={key}
-      onClick={() => openFile(context, target.path)}
+      reference={target}
       title={target.path}
-      type="button"
     >
       <code>{text}</code>
-    </button>
+    </FileReferenceButton>
   )
 }
 
@@ -712,7 +769,7 @@ function renderTextWithFileReferences(
   context: RenderContext,
   key: string,
 ): React.ReactNode {
-  const pattern = /【([^†】]+)†L\d+(?:-L?\d+)?】/gu
+  const pattern = /【([^†】]+)†(L\d+(?:C\d+)?(?:-L?\d+(?:C\d+)?)?)】/gu
   const parts: React.ReactNode[] = []
   let cursor = 0
   let matchIndex = 0
@@ -722,17 +779,19 @@ function renderTextWithFileReferences(
       parts.push(text.slice(cursor, match.index))
     }
     const label = match[0]
-    const path = match[1]
+    const reference = parseMarkdownFileReference(
+      `${match[1]}#${match[2]}`,
+    )
     parts.push(
-      <button
+      <FileReferenceButton
         className="md-file-reference md-file-reference-inline"
+        context={context}
         key={`${key}-file-${matchIndex}`}
-        onClick={() => openFile(context, path)}
-        title={path}
-        type="button"
+        reference={reference}
+        title={reference.path}
       >
         {label}
-      </button>,
+      </FileReferenceButton>,
     )
     cursor = match.index + label.length
     matchIndex += 1
@@ -841,4 +900,60 @@ function openFile(context: RenderContext, path: string): void {
   const target = resolveWorkspacePath(context.cwd, path)
   if (!target) return
   void desktopClient.openPathWithDefaultTarget(target).catch(() => undefined)
+}
+
+function FileReferenceButton({
+  children,
+  className,
+  context,
+  reference,
+  title,
+}: {
+  children: React.ReactNode
+  className: string
+  context: RenderContext
+  reference: MarkdownFileReference
+  title: string
+}): React.ReactNode {
+  const prefetch = (): void => {
+    context.onOpenFileReference?.(reference, {
+      prefetch: true,
+      preview: true,
+    })
+  }
+  const open = (preview: boolean): void => {
+    if (context.onOpenFileReference) {
+      context.onOpenFileReference(reference, { preview })
+      return
+    }
+    openFile(context, reference.path)
+  }
+  return (
+    <button
+      className={className}
+      onClick={event => {
+        if (event.ctrlKey || event.altKey) {
+          openFile(context, reference.path)
+          return
+        }
+        open(true)
+      }}
+      onDoubleClick={event => {
+        if (event.ctrlKey || event.altKey) return
+        open(false)
+      }}
+      onFocus={prefetch}
+      onKeyDown={event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        open(true)
+      }}
+      onMouseEnter={prefetch}
+      onPointerDown={prefetch}
+      title={title}
+      type="button"
+    >
+      {children}
+    </button>
+  )
 }

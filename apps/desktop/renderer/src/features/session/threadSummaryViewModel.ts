@@ -1,16 +1,16 @@
 import type { SubagentProjection } from "@codepilotx/shared/thread";
 import type { DesktopSessionEvent } from "../../../shared/types.js";
-import { planTitleFromSummary } from "./WorkflowPlanCard.js";
+import {
+  planTitleFromSummary,
+  type OpenPlanInDockRequest,
+} from "./WorkflowPlanCard.js";
 
 export type ThreadSummarySource = {
   label: string;
   url: string;
 };
 
-export type ThreadSummaryPlan = {
-  title: string;
-  content: string;
-};
+export type ThreadSummaryPlan = OpenPlanInDockRequest;
 
 export type ThreadSummarySubagent = {
   id: string;
@@ -106,6 +106,7 @@ export function findLatestThreadSummaryPlan(
       typeof event.content === "string" ? event.content.trim() : "";
     if (!content) continue;
     return {
+      eventId: event.id,
       title: planTitleFromSummary(content),
       content,
     };

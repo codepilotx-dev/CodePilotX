@@ -70,6 +70,11 @@ export type CloseSessionResult = {
   nextWorkspace: DesktopWorkspace | null
 }
 
+export type ArchiveSessionsResult = CloseSessionResult & {
+  failedSessionIds: string[]
+  succeededSessionIds: string[]
+}
+
 export function activateSession(
   context: SessionActionContext,
   nextSessionId: string | null,
@@ -356,6 +361,99 @@ export async function updateSessionMetadataAction(
 
   applySessionView(createEmptySessionView(), context.viewSetters)
   return { nextActiveSession: null, nextWorkspace: null }
+}
+
+export async function renameSessionAction(
+  context: SessionActionContext,
+  targetSessionId: string,
+  title: string,
+): Promise<SessionListItem | null> {
+  const normalizedTitle = title.trim()
+  if (!normalizedTitle) return null
+  try {
+    const snapshot = await desktopClient.renameSession(
+      targetSessionId,
+      normalizedTitle,
+    )
+    context.setSessions(current =>
+      current.map(session =>
+        session.id === targetSessionId ? snapshot.item : session,
+      ),
+    )
+    return snapshot.item
+  } catch (error) {
+    context.onErrorRef.current(errorMessageOf(error))
+    return null
+  }
+}
+
+export async function archiveSessionsAction(
+  context: SessionActionContext,
+  sessions: SessionListItem[],
+  targetSessionIds: readonly string[],
+): Promise<ArchiveSessionsResult> {
+  const uniqueIds = [...new Set(targetSessionIds)]
+  const archivedAt = new Date().toISOString()
+  const results = await Promise.allSettled(
+    uniqueIds.map(sessionId =>
+      desktopClient.updateSessionMetadata(sessionId, { archivedAt }),
+    ),
+  )
+  const updatedById = new Map<string, SessionListItem>()
+  const failedSessionIds: string[] = []
+  for (const [index, result] of results.entries()) {
+    const sessionId = uniqueIds[index]!
+    if (result.status === 'fulfilled') {
+      updatedById.set(sessionId, result.value.item)
+    } else {
+      failedSessionIds.push(sessionId)
+    }
+  }
+  const succeededSessionIds = [...updatedById.keys()]
+  context.setSessions(current =>
+    sortSessionsByRecency(
+      current.map(session => updatedById.get(session.id) ?? session),
+    ),
+  )
+  const activeArchived = updatedById.has(context.activeSessionIdRef.current ?? '')
+  if (!activeArchived) {
+    return {
+      failedSessionIds,
+      succeededSessionIds,
+      nextActiveSession: null,
+      nextWorkspace: null,
+    }
+  }
+  const next =
+    sessions.find(
+      session => !updatedById.has(session.id) && !session.archivedAt,
+    ) ?? null
+  activateSession(context, next?.id ?? null)
+  context.setSessionStatus(next?.status ?? 'idle')
+  if (!next) {
+    applySessionView(createEmptySessionView(), context.viewSetters)
+    return {
+      failedSessionIds,
+      succeededSessionIds,
+      nextActiveSession: null,
+      nextWorkspace: null,
+    }
+  }
+  applySessionView(
+    context.sessionViewsRef.current[next.id] ?? createEmptySessionView(),
+    context.viewSetters,
+  )
+  const nextWorkspace = context.sessionWorkspacesRef.current[next.id] ?? {
+    name: next.workspaceName,
+    path: next.workspacePath,
+    isStandalone: next.standalone,
+  }
+  return {
+    failedSessionIds,
+    succeededSessionIds,
+    nextActiveSession: next,
+    nextWorkspace: next.standalone ? null : nextWorkspace,
+  }
 }
 
 export async function setSessionPermissionModeAction(

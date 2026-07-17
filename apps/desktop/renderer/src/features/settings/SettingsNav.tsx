@@ -1,89 +1,104 @@
-import React, { useMemo, useState } from 'react'
-import { ScrollArea } from '../../components/ui/ScrollArea.js'
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { ScrollArea } from "../../components/ui/ScrollArea.js";
+import { ArrowLeft, Search, X } from "lucide-react";
+import { APP_ICON_SIZE } from "../../components/ui/iconTokens.js";
+import { SidebarRow } from "../layout/sidebar/SidebarRow.js";
 import {
-  ArrowLeft,
-  Settings,
-  User,
-  Palette,
-  Sliders,
-  Sparkles,
-  Keyboard,
-  Link,
-  GitBranch,
-  Box,
-  FolderTree,
-  Search,
-  Square,
-  Archive,
-  CreditCard,
-  Anchor,
-  Cat,
-  Gauge,
-  Network,
-  Brain,
-} from 'lucide-react'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
-import { SidebarRow } from '../layout/sidebar/SidebarRow.js'
-
-const SETTINGS_GROUPS = [
-  {
-    title: '个人',
-    items: [
-      { id: 'general', label: '常规', icon: Settings },
-      { id: 'profile', label: '个人资料', icon: User },
-      { id: 'appearance', label: '外观', icon: Palette },
-      { id: 'config', label: '配置', icon: Sliders },
-      { id: 'personalization', label: '个性化', icon: Gauge },
-      { id: 'memory', label: '记忆', icon: Brain },
-      { id: 'pets', label: 'Pets', icon: Cat },
-      { id: 'shortcuts', label: '键盘快捷键', icon: Keyboard },
-      { id: 'billing', label: '使用情况和计费', icon: CreditCard },
-    ],
-  },
-  {
-    title: '集成',
-    items: [
-      { id: 'mcp', label: 'MCP 服务器', icon: Link },
-      { id: 'browser', label: '浏览器', icon: Square },
-      { id: 'computer', label: '电脑操控', icon: Sparkles },
-    ],
-  },
-  {
-    title: '编码',
-    items: [
-      { id: 'hooks', label: '钩子', icon: Anchor },
-      { id: 'connections', label: '模型', icon: Box },
-      { id: 'git', label: 'Git', icon: GitBranch },
-      { id: 'environment', label: '环境', icon: Box },
-      { id: 'worktree', label: '工作树', icon: FolderTree },
-    ],
-  },
-  {
-    title: '已归档',
-    items: [
-      { id: 'archived', label: '已归档对话', icon: Archive },
-    ],
-  },
-]
+  SETTINGS_GROUPS,
+  SETTINGS_SEARCH_DOCUMENTS,
+  type SettingsSearchDocument,
+} from "./settingsRegistry.js";
 
 type Props = {
-  activeTab: string
-  onBack: () => void
-  onTabChange: (tabId: string) => void
-}
+  activeTab: string;
+  onBack: () => void;
+  onTabChange: (tabId: string) => void;
+};
 
 export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const normalizedQuery = searchQuery.trim().toLocaleLowerCase()
-  const visibleGroups = useMemo(() => {
-    if (!normalizedQuery) return SETTINGS_GROUPS
-    return SETTINGS_GROUPS.map(group => ({
-      ...group,
-      items: group.items.filter(item =>
-        item.label.toLocaleLowerCase().includes(normalizedQuery),
-      ),
-    })).filter(group => group.items.length > 0)
-  }, [normalizedQuery])
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeResultIndex, setActiveResultIndex] = useState(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const normalizedQuery = normalizeSearchText(searchQuery);
+  const searchResults = useMemo(
+    () => searchSettings(normalizedQuery),
+    [normalizedQuery],
+  );
+
+  useEffect(() => {
+    setActiveResultIndex(0);
+  }, [normalizedQuery]);
+
+  useEffect(() => {
+    if (!normalizedQuery) return;
+    document
+      .getElementById(`settings-search-result-${activeResultIndex}`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [activeResultIndex, normalizedQuery]);
+
+  useEffect(() => {
+    const focusSearch = (event: KeyboardEvent): void => {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLocaleLowerCase() === "f"
+      ) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }
+    };
+    window.addEventListener("keydown", focusSearch);
+    return () => window.removeEventListener("keydown", focusSearch);
+  }, []);
+
+  const clearSearch = useCallback((): void => {
+    setSearchQuery("");
+    setActiveResultIndex(0);
+    searchInputRef.current?.focus();
+  }, []);
+
+  const activateResult = useCallback(
+    (result: SettingsSearchDocument): void => {
+      onTabChange(result.tabId);
+      scrollToSettingsTarget(result);
+    },
+    [onTabChange],
+  );
+
+  const handleSearchKeyDown = (
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ): void => {
+    if (event.key === "Escape") {
+      if (searchQuery) {
+        event.preventDefault();
+        clearSearch();
+      } else {
+        searchInputRef.current?.blur();
+      }
+      return;
+    }
+    if (!normalizedQuery || searchResults.length === 0) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const direction = event.key === "ArrowDown" ? 1 : -1;
+      setActiveResultIndex(
+        (index) =>
+          (index + direction + searchResults.length) % searchResults.length,
+      );
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const result = searchResults[activeResultIndex];
+      if (result) activateResult(result);
+    }
+  };
 
   return (
     <ScrollArea
@@ -105,40 +120,242 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
           <Search className="settings-nav-search-icon tw:pointer-events-none tw:absolute tw:left-2.5 tw:size-4 tw:text-app-text-soft" />
           <input
             aria-label="搜索设置"
-            className="tw:w-full tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:py-2 tw:pr-3 tw:pl-8.5 tw:text-sm tw:text-app-text tw:outline-none tw:transition-colors tw:duration-[var(--motion-fast)] tw:placeholder:text-app-text-soft tw:focus:border-app-accent tw:focus:ring-1 tw:focus:ring-app-accent"
-            onChange={event => setSearchQuery(event.target.value)}
+            aria-activedescendant={
+              normalizedQuery && searchResults[activeResultIndex]
+                ? `settings-search-result-${activeResultIndex}`
+                : undefined
+            }
+            aria-controls="settings-search-results"
+            aria-expanded={Boolean(normalizedQuery)}
+            aria-haspopup="listbox"
+            className="tw:w-full tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:py-2 tw:pr-3 tw:pl-8.5 tw:text-app-text tw:outline-none tw:transition-colors tw:duration-[var(--motion-fast)] tw:placeholder:text-app-text-soft tw:focus:border-app-accent tw:focus:ring-1 tw:focus:ring-app-accent"
+            onChange={(event) => setSearchQuery(event.target.value)}
+            onKeyDown={handleSearchKeyDown}
             placeholder="搜索设置..."
+            ref={searchInputRef}
             type="search"
             value={searchQuery}
           />
+          {searchQuery ? (
+            <button
+              aria-label="清除搜索"
+              className="tw:absolute tw:right-1.5 tw:flex tw:size-7 tw:items-center tw:justify-center tw:rounded-md tw:text-app-text-soft tw:hover:bg-app-hover tw:hover:text-app-text"
+              onClick={clearSearch}
+              type="button"
+            >
+              <X size={APP_ICON_SIZE} />
+            </button>
+          ) : null}
         </label>
       </div>
       <div className="settings-nav-menu tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:gap-4">
-        {visibleGroups.map(group => (
-          <section className="settings-nav-group tw:grid tw:gap-1" key={group.title}>
-            <div className="settings-nav-group-title-row tw:grid tw:grid-cols-[auto_minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:px-2 tw:py-1">
-              <h2 className="settings-nav-group-title tw:m-0 tw:text-xs tw:font-[var(--font-weight-label)] tw:text-app-text-soft">{group.title}</h2>
-              <span aria-hidden="true" className="sidebar-row-main" />
-              <span aria-hidden="true" className="sidebar-row-trailing" />
-            </div>
-            <div className="settings-nav-group-items tw:grid tw:gap-0.5">
-              {group.items.map(item => (
-                <SidebarRow
-                  active={activeTab === item.id}
-                  asChild
-                  key={item.id}
-                  className="settings-nav-item"
-                  leading={<item.icon className="settings-nav-icon" />}
-                >
-                  <button onClick={() => onTabChange(item.id)} type="button">
-                    <span>{item.label}</span>
-                  </button>
-                </SidebarRow>
-              ))}
-            </div>
-          </section>
-        ))}
+        {normalizedQuery ? (
+          <SearchResults
+            activeIndex={activeResultIndex}
+            onActivate={activateResult}
+            onActiveIndexChange={setActiveResultIndex}
+            results={searchResults}
+          />
+        ) : (
+          SETTINGS_GROUPS.map((group) => (
+            <section
+              className="settings-nav-group tw:grid tw:gap-1"
+              key={group.title}
+            >
+              <div className="settings-nav-group-title-row tw:grid tw:grid-cols-[auto_minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:px-2 tw:py-1">
+                <h2 className="settings-nav-group-title tw:m-0 tw:font-[var(--font-weight-label)] tw:text-app-text-soft">
+                  {group.title}
+                </h2>
+                <span aria-hidden="true" className="sidebar-row-main" />
+                <span aria-hidden="true" className="sidebar-row-trailing" />
+              </div>
+              <div className="settings-nav-group-items tw:grid tw:gap-0.5">
+                {group.items.map((item) => (
+                  <SidebarRow
+                    active={activeTab === item.routeId}
+                    asChild
+                    key={item.id}
+                    className="settings-nav-item"
+                    leading={<item.icon className="settings-nav-icon" />}
+                  >
+                    <button
+                      onClick={() => onTabChange(item.routeId)}
+                      type="button"
+                    >
+                      <span>{item.label}</span>
+                    </button>
+                  </SidebarRow>
+                ))}
+              </div>
+            </section>
+          ))
+        )}
       </div>
     </ScrollArea>
-  )
+  );
+}
+
+type SearchResultsProps = {
+  activeIndex: number;
+  onActivate: (result: SettingsSearchDocument) => void;
+  onActiveIndexChange: (index: number) => void;
+  results: readonly SettingsSearchDocument[];
+};
+
+function SearchResults({
+  activeIndex,
+  onActivate,
+  onActiveIndexChange,
+  results,
+}: SearchResultsProps): React.ReactNode {
+  if (results.length === 0) {
+    return (
+      <div id="settings-search-results" role="listbox">
+        <p className="tw:m-0 tw:px-3 tw:py-4 tw:text-sm tw:text-app-text-soft">
+          未找到匹配的设置
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div
+      aria-label="设置搜索结果"
+      className="tw:grid tw:gap-1"
+      id="settings-search-results"
+      role="listbox"
+    >
+      {results.map((result, index) => {
+        const selected = index === activeIndex;
+        return (
+          <button
+            aria-selected={selected}
+            className={[
+              "tw:grid tw:w-full tw:min-w-0 tw:gap-0.5 tw:rounded-lg tw:px-3 tw:py-2 tw:text-left tw:outline-none",
+              selected
+                ? "tw:bg-app-selected tw:text-app-text"
+                : "tw:text-app-text tw:hover:bg-app-hover",
+            ].join(" ")}
+            id={`settings-search-result-${index}`}
+            key={result.key}
+            onClick={() => onActivate(result)}
+            onMouseEnter={() => onActiveIndexChange(index)}
+            role="option"
+            tabIndex={-1}
+            type="button"
+          >
+            <span className="tw:flex tw:min-w-0 tw:items-baseline tw:gap-1.5">
+              <span className="tw:truncate tw:text-sm tw:font-[var(--font-weight-label)]">
+                {result.rowTitle ?? result.pageLabel}
+              </span>
+              {result.rowTitle ? (
+                <span className="tw:shrink-0 tw:text-xs tw:text-app-text-soft">
+                  {result.pageLabel}
+                </span>
+              ) : null}
+            </span>
+            <span className="tw:line-clamp-2 tw:text-xs tw:leading-4 tw:text-app-text-soft">
+              {result.description}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function normalizeSearchText(value: string): string {
+  return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+}
+
+function searchSettings(query: string): readonly SettingsSearchDocument[] {
+  if (!query) return [];
+  const terms = query.split(" ");
+  return SETTINGS_SEARCH_DOCUMENTS.map((document) => ({
+    document,
+    score: scoreSearchDocument(document, terms),
+  }))
+    .filter((result) => result.score > 0)
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        left.document.pageLabel.localeCompare(
+          right.document.pageLabel,
+          "zh-CN",
+        ),
+    )
+    .slice(0, 40)
+    .map((result) => result.document);
+}
+
+function scoreSearchDocument(
+  document: SettingsSearchDocument,
+  terms: readonly string[],
+): number {
+  const page = normalizeSearchText(document.pageLabel);
+  const rowTitle = normalizeSearchText(document.rowTitle ?? "");
+  const description = normalizeSearchText(document.description);
+  const group = normalizeSearchText(document.groupTitle);
+  let total = 0;
+  for (const term of terms) {
+    const pageScore = scoreSearchField(page, term, 160, 130, 95);
+    const rowScore = scoreSearchField(rowTitle, term, 130, 100, 75);
+    const descriptionScore = description.includes(term) ? 35 : 0;
+    const groupScore = group.includes(term) ? 20 : 0;
+    const termScore = Math.max(
+      pageScore,
+      rowScore,
+      descriptionScore,
+      groupScore,
+    );
+    if (termScore === 0) return 0;
+    total += termScore;
+  }
+  return total + (document.rowTitle ? 5 : 0);
+}
+
+function scoreSearchField(
+  field: string,
+  term: string,
+  exact: number,
+  prefix: number,
+  contains: number,
+): number {
+  if (!field) return 0;
+  if (field === term) return exact;
+  if (field.startsWith(term)) return prefix;
+  return field.includes(term) ? contains : 0;
+}
+
+function scrollToSettingsTarget(result: SettingsSearchDocument): void {
+  let attempts = 0;
+  const locate = (): void => {
+    attempts += 1;
+    const registeredTarget = document.getElementById(result.targetId);
+    const candidates = document.querySelectorAll<HTMLElement>(
+      ".settings-row-title, .settings-section-title, .settings-page-title",
+    );
+    const heading = [...candidates].find(
+      (candidate) =>
+        candidate.textContent?.trim() === (result.rowTitle ?? result.pageLabel),
+    );
+    const target =
+      registeredTarget ??
+      heading?.closest<HTMLElement>(".settings-row, .settings-section") ??
+      heading;
+    if (!target) {
+      if (attempts < 12) {
+        window.setTimeout(locate, 25);
+      } else if (!result.rowTitle) {
+        document
+          .querySelector<HTMLElement>(".settings-content-area")
+          ?.scrollTo({ behavior: "smooth", top: 0 });
+      }
+      return;
+    }
+    target.id = result.targetId;
+    target.tabIndex = -1;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.focus({ preventScroll: true });
+  };
+  window.setTimeout(locate, 0);
 }

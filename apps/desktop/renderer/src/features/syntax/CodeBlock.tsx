@@ -94,7 +94,7 @@ export function CodeBlock({
       )}
       style={surfaceStyle}
     >
-      <figcaption className="md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between tw:px-2 tw:text-xs tw:text-app-text-soft">
+      <figcaption className="md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between tw:px-2 tw:text-base tw:text-app-text-soft">
         <span className="md-code-lang tw:font-mono">
           {languageLabel}
         </span>

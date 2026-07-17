@@ -1,25 +1,73 @@
-import { isRightDockToolEnabled } from './rightDockTools.js'
-import type { RightDockToolId } from './rightDockTools.js'
-
-export type { RightDockToolId } from './rightDockTools.js'
-
-export type RightDockFlags = {
-  debugMode: boolean
-}
-
-export type RightDockState = {
-  open: boolean
-  activeTool: RightDockToolId | null
-  openTools: RightDockToolId[]
-}
-
 export type WorkbenchPanelTarget = 'right' | 'bottom'
 
 export type WorkbenchFocusArea = 'main' | 'right-panel' | 'bottom-panel'
 
-export type WorkbenchPanelSnapshot = RightDockState
+export type WorkbenchTabKind =
+  | 'review'
+  | 'browser'
+  | 'file-browser'
+  | 'file-preview'
+  | 'plan'
+  | 'side-chat'
+  | 'side-task'
+  | 'tool-probe'
+  | 'dialog-debug'
+  | 'performance-diagnostics'
 
-export type WorkbenchPanelState = {
+export type DebugTabDescriptor =
+  | { id: 'tool-probe'; kind: 'tool-probe' }
+  | { id: 'dialog-debug'; kind: 'dialog-debug' }
+  | {
+      id: 'performance-diagnostics'
+      kind: 'performance-diagnostics'
+    }
+
+export type WorkbenchTabDescriptor =
+  | { id: 'review'; kind: 'review' }
+  | { id: 'browser'; kind: 'browser' }
+  | { id: 'file-browser'; kind: 'file-browser' }
+  | {
+      id: `file:${string}`
+      kind: 'file-preview'
+      workspacePath: string
+      relativePath: string
+      preview: boolean
+      line?: number
+      column?: number
+      endLine?: number
+      endColumn?: number
+    }
+  | {
+      id: `plan:${string}`
+      kind: 'plan'
+      eventId: string
+      title: string
+      legacyContent?: string
+    }
+  | { id: 'side-chat'; kind: 'side-chat' }
+  | {
+      id: `side-task:${string}`
+      kind: 'side-task'
+      taskId: string
+      childThreadId: string
+    }
+  | DebugTabDescriptor
+
+export type WorkbenchTabId = WorkbenchTabDescriptor['id']
+
+export type WorkbenchFlags = {
+  debugMode: boolean
+}
+
+export type WorkbenchPanelSnapshot = {
+  open: boolean
+  activeTabId: WorkbenchTabId | null
+  tabIds: WorkbenchTabId[]
+}
+
+export type WorkbenchTabsState = {
+  schemaVersion: 2
+  tabsById: Partial<Record<WorkbenchTabId, WorkbenchTabDescriptor>>
   right: WorkbenchPanelSnapshot
   bottom: WorkbenchPanelSnapshot
   rightFullWidth: boolean
@@ -27,72 +75,82 @@ export type WorkbenchPanelState = {
   focusArea: WorkbenchFocusArea
 }
 
+/**
+ * Temporary naming compatibility for callers migrating from the fixed-tool
+ * workbench. The shape is the v2 dynamic-tab state.
+ */
+export type WorkbenchPanelState = WorkbenchTabsState
+
 export type WorkbenchPanelAction =
-  | { type: 'togglePanel'; target: WorkbenchPanelTarget }
-  | { type: 'openTool'; target: WorkbenchPanelTarget; tool: RightDockToolId }
-  | { type: 'selectTool'; target: WorkbenchPanelTarget; tool: RightDockToolId }
-  | { type: 'closeTool'; target: WorkbenchPanelTarget; tool: RightDockToolId }
-  | { type: 'closePanel'; target: WorkbenchPanelTarget; responsive?: boolean }
   | {
-      type: 'moveTool'
-      source: WorkbenchPanelTarget
+      type: 'openTab'
       target: WorkbenchPanelTarget
-      tool: RightDockToolId
+      tab: WorkbenchTabDescriptor
       index?: number
     }
   | {
-      type: 'reorderTool'
+      type: 'selectTab'
       target: WorkbenchPanelTarget
-      tool: RightDockToolId
+      tabId: WorkbenchTabId
+    }
+  | {
+      type: 'closeTab'
+      target: WorkbenchPanelTarget
+      tabId: WorkbenchTabId
+    }
+  | {
+      type: 'closeOtherTabs'
+      target: WorkbenchPanelTarget
+      tabId: WorkbenchTabId
+    }
+  | {
+      type: 'closeTabsToRight'
+      target: WorkbenchPanelTarget
+      tabId: WorkbenchTabId
+    }
+  | { type: 'pinTab'; tabId: WorkbenchTabId }
+  | {
+      type: 'moveTab'
+      source: WorkbenchPanelTarget
+      target: WorkbenchPanelTarget
+      tabId: WorkbenchTabId
+      index?: number
+    }
+  | {
+      type: 'reorderTab'
+      target: WorkbenchPanelTarget
+      tabId: WorkbenchTabId
       index: number
+    }
+  | { type: 'togglePanel'; target: WorkbenchPanelTarget }
+  | {
+      type: 'closePanel'
+      target: WorkbenchPanelTarget
+      responsive?: boolean
     }
   | { type: 'toggleRightFullWidth' }
   | { type: 'focusPanel'; target: WorkbenchPanelTarget | 'main' }
-  | { type: 'replaceRight'; state: RightDockState }
 
-export function createDefaultWorkbenchPanelState(): WorkbenchPanelState {
+export function createDefaultWorkbenchPanelState(): WorkbenchTabsState {
   return {
-    right: {
-      open: false,
-      activeTool: null,
-      openTools: [],
-    },
-    bottom: {
-      open: false,
-      activeTool: null,
-      openTools: [],
-    },
+    schemaVersion: 2,
+    tabsById: {},
+    right: createEmptyPanel(),
+    bottom: createEmptyPanel(),
     rightFullWidth: false,
     restoreRightFullWidthOnNextOpen: false,
     focusArea: 'main',
   }
 }
 
-export function applyWorkbenchPanelAction(
-  state: WorkbenchPanelState,
-  action: WorkbenchPanelAction,
-  flags: RightDockFlags = { debugMode: false },
-): WorkbenchPanelState {
-  if (action.type === 'replaceRight') {
-    const rightTools = new Set(action.state.openTools)
-    const bottomTools = state.bottom.openTools.filter(
-      tool => !rightTools.has(tool),
-    )
-    const bottomActive =
-      state.bottom.activeTool && bottomTools.includes(state.bottom.activeTool)
-        ? state.bottom.activeTool
-        : (bottomTools[0] ?? null)
-    return {
-      ...state,
-      right: action.state,
-      bottom: {
-        ...state.bottom,
-        activeTool: bottomActive,
-        openTools: bottomTools,
-      },
-    }
-  }
+export const createDefaultWorkbenchTabsState =
+  createDefaultWorkbenchPanelState
 
+export function applyWorkbenchPanelAction(
+  state: WorkbenchTabsState,
+  action: WorkbenchPanelAction,
+  flags: WorkbenchFlags = { debugMode: false },
+): WorkbenchTabsState {
   if (action.type === 'focusPanel') {
     const focusArea: WorkbenchFocusArea =
       action.target === 'main' ? 'main' : `${action.target}-panel`
@@ -118,15 +176,9 @@ export function applyWorkbenchPanelAction(
   }
 
   if (action.type === 'togglePanel') {
-    const panel = state[action.target]
-    if (panel.open) {
-      return closeWorkbenchPanel(state, action.target)
-    }
-    const fallbackTool =
-      action.target === 'bottom' && panel.openTools.length === 0
-        ? 'terminal'
-        : undefined
-    return openWorkbenchPanel(state, action.target, fallbackTool, flags)
+    return state[action.target].open
+      ? closeWorkbenchPanel(state, action.target)
+      : openWorkbenchPanel(state, action.target)
   }
 
   if (action.type === 'closePanel') {
@@ -144,63 +196,139 @@ export function applyWorkbenchPanelAction(
     return closeWorkbenchPanel(state, action.target)
   }
 
-  if (action.type === 'openTool') {
-    if (!isRightDockToolEnabled(action.tool, flags)) return state
-    const otherTarget = action.target === 'right' ? 'bottom' : 'right'
-    const other = removeTool(state[otherTarget], action.tool)
-    const target = addTool(state[action.target], action.tool)
-    return {
-      ...state,
-      [otherTarget]: other,
-      [action.target]: { ...target, open: true, activeTool: action.tool },
-      focusArea: `${action.target}-panel`,
-    }
-  }
+  if (action.type === 'openTab') {
+    if (!isWorkbenchTabEnabled(action.tab, flags)) return state
 
-  if (action.type === 'selectTool') {
-    const panel = state[action.target]
-    if (!panel.openTools.includes(action.tool)) return state
+    const existingTarget = findTabTarget(state, action.tab.id)
+    if (existingTarget) {
+      const existing = state.tabsById[action.tab.id]
+      const tab =
+        existing?.kind === 'file-preview' &&
+        !existing.preview &&
+        action.tab.kind === 'file-preview'
+          ? { ...action.tab, preview: false }
+          : action.tab
+      return {
+        ...state,
+        tabsById: { ...state.tabsById, [tab.id]: tab },
+        [existingTarget]: {
+          ...state[existingTarget],
+          open: true,
+          activeTabId: tab.id,
+        },
+        focusArea: `${existingTarget}-panel`,
+      }
+    }
+
+    let next = state
+    if (action.tab.kind === 'file-preview' && action.tab.preview) {
+      const replaceableId = findReplaceablePreviewTab(state)
+      if (replaceableId) {
+        next = removeTabEverywhere(state, replaceableId)
+      }
+    }
+
     return {
-      ...state,
+      ...next,
+      tabsById: {
+        ...next.tabsById,
+        [action.tab.id]: action.tab,
+      },
       [action.target]: {
-        ...panel,
+        ...insertTab(next[action.target], action.tab.id, action.index),
         open: true,
-        activeTool: action.tool,
+        activeTabId: action.tab.id,
       },
       focusArea: `${action.target}-panel`,
     }
   }
 
-  if (action.type === 'closeTool') {
+  if (action.type === 'selectTab') {
     const panel = state[action.target]
-    if (!panel.openTools.includes(action.tool)) return state
+    if (!panel.tabIds.includes(action.tabId)) return state
     return {
       ...state,
-      [action.target]: removeTool(panel, action.tool),
-    }
-  }
-
-  if (action.type === 'moveTool') {
-    if (!state[action.source].openTools.includes(action.tool)) return state
-    if (!isRightDockToolEnabled(action.tool, flags)) return state
-    const source = removeTool(state[action.source], action.tool)
-    const target = insertTool(state[action.target], action.tool, action.index)
-    return {
-      ...state,
-      [action.source]: source,
-      [action.target]: { ...target, open: true, activeTool: action.tool },
+      [action.target]: {
+        ...panel,
+        open: true,
+        activeTabId: action.tabId,
+      },
       focusArea: `${action.target}-panel`,
     }
   }
 
-  if (action.type === 'reorderTool') {
+  if (action.type === 'closeTab') {
+    if (!state[action.target].tabIds.includes(action.tabId)) return state
+    return removeTabEverywhere(state, action.tabId)
+  }
+
+  if (action.type === 'closeOtherTabs') {
     const panel = state[action.target]
-    if (!panel.openTools.includes(action.tool)) return state
+    if (!panel.tabIds.includes(action.tabId)) return state
+    return removeTabsFromPanel(
+      state,
+      action.target,
+      panel.tabIds.filter(id => id !== action.tabId),
+      action.tabId,
+    )
+  }
+
+  if (action.type === 'closeTabsToRight') {
+    const panel = state[action.target]
+    const index = panel.tabIds.indexOf(action.tabId)
+    if (index < 0 || index === panel.tabIds.length - 1) return state
+    return removeTabsFromPanel(
+      state,
+      action.target,
+      panel.tabIds.slice(index + 1),
+      action.tabId,
+    )
+  }
+
+  if (action.type === 'pinTab') {
+    const tab = state.tabsById[action.tabId]
+    if (tab?.kind !== 'file-preview' || !tab.preview) return state
     return {
       ...state,
-      [action.target]: insertTool(
-        removeTool(panel, action.tool),
-        action.tool,
+      tabsById: {
+        ...state.tabsById,
+        [tab.id]: { ...tab, preview: false },
+      },
+    }
+  }
+
+  if (action.type === 'moveTab') {
+    if (!state[action.source].tabIds.includes(action.tabId)) return state
+    if (action.source === action.target) {
+      return applyWorkbenchPanelAction(state, {
+        type: 'reorderTab',
+        target: action.target,
+        tabId: action.tabId,
+        index: action.index ?? state[action.target].tabIds.length - 1,
+      })
+    }
+    const source = removeTab(state[action.source], action.tabId)
+    const target = insertTab(state[action.target], action.tabId, action.index)
+    return {
+      ...state,
+      [action.source]: source,
+      [action.target]: {
+        ...target,
+        open: true,
+        activeTabId: action.tabId,
+      },
+      focusArea: `${action.target}-panel`,
+    }
+  }
+
+  if (action.type === 'reorderTab') {
+    const panel = state[action.target]
+    if (!panel.tabIds.includes(action.tabId)) return state
+    return {
+      ...state,
+      [action.target]: insertTab(
+        removeTab(panel, action.tabId),
+        action.tabId,
         action.index,
       ),
     }
@@ -209,21 +337,42 @@ export function applyWorkbenchPanelAction(
   return state
 }
 
-function openWorkbenchPanel(
-  state: WorkbenchPanelState,
-  target: WorkbenchPanelTarget,
-  fallbackTool: RightDockToolId | undefined,
-  flags: RightDockFlags,
-): WorkbenchPanelState {
-  let panel = openPanelWithFallback(state[target])
-  if (fallbackTool && isRightDockToolEnabled(fallbackTool, flags)) {
-    panel = addTool(panel, fallbackTool)
+export const applyWorkbenchTabsAction = applyWorkbenchPanelAction
+
+export function isDebugWorkbenchTab(
+  tab: WorkbenchTabDescriptor,
+): tab is DebugTabDescriptor {
+  return (
+    tab.kind === 'tool-probe' ||
+    tab.kind === 'dialog-debug' ||
+    tab.kind === 'performance-diagnostics'
+  )
+}
+
+export function isWorkbenchTabEnabled(
+  tab: WorkbenchTabDescriptor,
+  flags: WorkbenchFlags,
+): boolean {
+  return !isDebugWorkbenchTab(tab) || flags.debugMode
+}
+
+function createEmptyPanel(): WorkbenchPanelSnapshot {
+  return {
+    open: false,
+    activeTabId: null,
+    tabIds: [],
   }
+}
+
+function openWorkbenchPanel(
+  state: WorkbenchTabsState,
+  target: WorkbenchPanelTarget,
+): WorkbenchTabsState {
   const restoringFullWidth =
     target === 'right' && state.restoreRightFullWidthOnNextOpen
   return {
     ...state,
-    [target]: { ...panel, open: true },
+    [target]: { ...openPanelWithFallback(state[target]), open: true },
     rightFullWidth: restoringFullWidth ? true : state.rightFullWidth,
     restoreRightFullWidthOnNextOpen:
       target === 'right' ? false : state.restoreRightFullWidthOnNextOpen,
@@ -232,9 +381,9 @@ function openWorkbenchPanel(
 }
 
 function closeWorkbenchPanel(
-  state: WorkbenchPanelState,
+  state: WorkbenchTabsState,
   target: WorkbenchPanelTarget,
-): WorkbenchPanelState {
+): WorkbenchTabsState {
   const wasFullWidth = target === 'right' && state.rightFullWidth
   return {
     ...state,
@@ -252,94 +401,93 @@ function openPanelWithFallback(
 ): WorkbenchPanelSnapshot {
   return {
     ...panel,
-    activeTool:
-      panel.activeTool && panel.openTools.includes(panel.activeTool)
-        ? panel.activeTool
-        : (panel.openTools[0] ?? null),
+    activeTabId:
+      panel.activeTabId && panel.tabIds.includes(panel.activeTabId)
+        ? panel.activeTabId
+        : (panel.tabIds[0] ?? null),
   }
 }
 
-function addTool(
-  panel: WorkbenchPanelSnapshot,
-  tool: RightDockToolId,
-): WorkbenchPanelSnapshot {
-  if (panel.openTools.includes(tool)) {
-    return { ...panel, activeTool: tool }
-  }
-  return {
-    ...panel,
-    activeTool: tool,
-    openTools: [...panel.openTools, tool],
-  }
+function findTabTarget(
+  state: WorkbenchTabsState,
+  tabId: WorkbenchTabId,
+): WorkbenchPanelTarget | null {
+  if (state.right.tabIds.includes(tabId)) return 'right'
+  if (state.bottom.tabIds.includes(tabId)) return 'bottom'
+  return null
 }
 
-function insertTool(
+function findReplaceablePreviewTab(
+  state: WorkbenchTabsState,
+): WorkbenchTabId | null {
+  for (const tabId of [...state.right.tabIds, ...state.bottom.tabIds]) {
+    const tab = state.tabsById[tabId]
+    if (tab?.kind === 'file-preview' && tab.preview) return tabId
+  }
+  return null
+}
+
+function insertTab(
   panel: WorkbenchPanelSnapshot,
-  tool: RightDockToolId,
+  tabId: WorkbenchTabId,
   index?: number,
 ): WorkbenchPanelSnapshot {
-  const tools = panel.openTools.filter(id => id !== tool)
+  const tabIds = panel.tabIds.filter(id => id !== tabId)
   const safeIndex =
     index === undefined
-      ? tools.length
-      : Math.max(0, Math.min(tools.length, Math.round(index)))
-  tools.splice(safeIndex, 0, tool)
-  return { ...panel, activeTool: tool, openTools: tools }
+      ? tabIds.length
+      : Math.max(0, Math.min(tabIds.length, Math.round(index)))
+  tabIds.splice(safeIndex, 0, tabId)
+  return { ...panel, activeTabId: tabId, tabIds }
 }
 
-function removeTool(
+function removeTab(
   panel: WorkbenchPanelSnapshot,
-  tool: RightDockToolId,
+  tabId: WorkbenchTabId,
 ): WorkbenchPanelSnapshot {
-  const index = panel.openTools.indexOf(tool)
+  const index = panel.tabIds.indexOf(tabId)
   if (index < 0) return panel
-  const openTools = panel.openTools.filter(id => id !== tool)
-  const activeTool =
-    panel.activeTool === tool
-      ? (openTools[Math.min(index, openTools.length - 1)] ?? null)
-      : panel.activeTool
-  return { ...panel, activeTool, openTools }
+  const tabIds = panel.tabIds.filter(id => id !== tabId)
+  const activeTabId =
+    panel.activeTabId === tabId
+      ? (tabIds[Math.min(index, tabIds.length - 1)] ?? null)
+      : panel.activeTabId && tabIds.includes(panel.activeTabId)
+        ? panel.activeTabId
+        : (tabIds[tabIds.length - 1] ?? null)
+  return { ...panel, activeTabId, tabIds }
 }
 
-export type RightDockAction =
-  | { type: 'openTool'; tool: RightDockToolId }
-  | { type: 'selectTool'; tool: RightDockToolId }
-  | { type: 'closeTool'; tool: RightDockToolId }
-  | { type: 'close' }
+function removeTabEverywhere(
+  state: WorkbenchTabsState,
+  tabId: WorkbenchTabId,
+): WorkbenchTabsState {
+  const tabsById = { ...state.tabsById }
+  delete tabsById[tabId]
+  return {
+    ...state,
+    tabsById,
+    right: removeTab(state.right, tabId),
+    bottom: removeTab(state.bottom, tabId),
+  }
+}
 
-export function applyRightDockAction(
-  state: RightDockState,
-  action: RightDockAction,
-  flags: RightDockFlags = { debugMode: false },
-): RightDockState {
-  if (action.type === 'close') {
-    if (!state.open) return state
-    return { ...state, open: false }
+function removeTabsFromPanel(
+  state: WorkbenchTabsState,
+  target: WorkbenchPanelTarget,
+  tabIdsToRemove: readonly WorkbenchTabId[],
+  activeTabId: WorkbenchTabId,
+): WorkbenchTabsState {
+  const removeSet = new Set(tabIdsToRemove)
+  const tabsById = { ...state.tabsById }
+  for (const tabId of removeSet) delete tabsById[tabId]
+  const panel = state[target]
+  return {
+    ...state,
+    tabsById,
+    [target]: {
+      ...panel,
+      activeTabId,
+      tabIds: panel.tabIds.filter(id => !removeSet.has(id)),
+    },
   }
-  if (action.type === 'openTool') {
-    if (!isRightDockToolEnabled(action.tool, flags)) return state
-    const exists = state.openTools.includes(action.tool)
-    return {
-      open: true,
-      activeTool: action.tool,
-      openTools: exists ? state.openTools : [...state.openTools, action.tool],
-    }
-  }
-  if (action.type === 'selectTool') {
-    if (!state.openTools.includes(action.tool)) return state
-    return { ...state, open: true, activeTool: action.tool }
-  }
-  if (action.type === 'closeTool') {
-    if (!state.openTools.includes(action.tool)) return state
-    const next = state.openTools.filter(id => id !== action.tool)
-    const wasActive = state.activeTool === action.tool
-    const fallback = wasActive ? (next[next.length - 1] ?? null) : state.activeTool
-    const nextActive = fallback && next.includes(fallback) ? fallback : (next[0] ?? null)
-    return {
-      openTools: next,
-      activeTool: nextActive,
-      open: next.length === 0 ? false : state.open,
-    }
-  }
-  return state
 }

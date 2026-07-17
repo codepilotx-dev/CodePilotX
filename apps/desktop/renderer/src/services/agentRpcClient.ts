@@ -10,6 +10,37 @@ export type AgentRpcSubscription = {
   after?: number
 }
 
+export class AgentRpcError extends Error {
+  readonly code: number
+  readonly data: unknown
+
+  constructor(message: string, code: number, data?: unknown) {
+    super(message)
+    this.name = 'AgentRpcError'
+    this.code = code
+    this.data = data
+  }
+
+  get errorCode(): string | null {
+    if (!this.data || typeof this.data !== 'object') return null
+    const value = (this.data as { code?: unknown }).code
+    return typeof value === 'string' ? value : null
+  }
+
+  get status(): number | null {
+    if (this.data && typeof this.data === 'object') {
+      const value = (this.data as { status?: unknown }).status
+      if (typeof value === 'number') return value
+    }
+    return this.code >= 400 && this.code <= 599 ? this.code : null
+  }
+
+  get details(): unknown {
+    if (!this.data || typeof this.data !== 'object') return undefined
+    return (this.data as { details?: unknown }).details
+  }
+}
+
 export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
   const fetcher = environment.fetch ?? fetch
   let nextId = 1
@@ -24,7 +55,13 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     })
     if (!response.ok) throw new Error(await rpcHttpError(response))
     const payload = (await response.json()) as AgentRpcResponse
-    if (payload.error) throw new Error(payload.error.message)
+    if (payload.error) {
+      throw new AgentRpcError(
+        payload.error.message,
+        payload.error.code,
+        payload.error.data,
+      )
+    }
     return payload.result as T
   }
 
