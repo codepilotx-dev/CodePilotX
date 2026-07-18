@@ -206,6 +206,92 @@ for (const mode of MODES) {
   })
 }
 
+test('Markdown file switches between rich and source presentations', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 768 })
+  await page.goto('/?visualCase=rich#/sessions/visual-rich')
+  await closeTransientErrorToast(page)
+  await expect(
+    page.getByText('已完成工作台结构梳理。', { exact: true }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: '显示右侧面板' }).click()
+
+  const rightPanel = page.getByRole('complementary', { name: '右侧面板' })
+  await rightPanel
+    .getByRole('button', { name: '打开文件 Ctrl+Shift+E' })
+    .click()
+  await rightPanel.getByText('README.md', { exact: true }).click()
+
+  await expect(rightPanel.getByRole('tab', { name: 'README.md' })).toBeVisible()
+  await expect(
+    rightPanel.getByRole('button', { name: '查看源代码' }),
+  ).toBeVisible()
+  await expect(rightPanel.locator('.cm-editor.cm-markdown-rich')).toBeVisible()
+  await expect(rightPanel.locator('.cm-md-rich-h1')).toHaveText('CodePilotX')
+  await expect(rightPanel.locator('.cm-md-rich-list-marker')).toHaveText('•')
+  await expect(rightPanel.locator('.cm-md-rich-table-widget table')).toBeVisible()
+  await expect(rightPanel.locator('.cm-md-rich-table-widget th')).toHaveText([
+    '优化点',
+    '说明',
+  ])
+  await expect(rightPanel.locator('.cm-md-rich-table-widget td')).toHaveText([
+    '缓存命中优化',
+    '稳定复用前缀',
+  ])
+  await expect(rightPanel.locator('.cm-md-rich-code-block').first()).toBeVisible()
+  const richBlockBackgrounds = await rightPanel.evaluate(panel => {
+    const table = panel.querySelector<HTMLElement>('.cm-md-rich-table-widget')
+    const codeLines = panel.querySelectorAll<HTMLElement>('.cm-md-rich-code-block')
+    const firstCodeLine = codeLines.item(0)
+    const lastCodeLine = codeLines.item(codeLines.length - 1)
+    if (!table || !firstCodeLine || !lastCodeLine) return null
+    const probe = document.createElement('span')
+    probe.style.backgroundColor = 'var(--surface-code-block)'
+    probe.style.borderRadius = 'var(--radius-lg, var(--radius-5))'
+    panel.append(probe)
+    const probeStyle = getComputedStyle(probe)
+    const expected = probeStyle.backgroundColor
+    const expectedRadius = probeStyle.borderTopLeftRadius
+    probe.remove()
+    return {
+      code: getComputedStyle(firstCodeLine).backgroundColor,
+      codeBottomRadius: getComputedStyle(lastCodeLine).borderBottomLeftRadius,
+      codeTopRadius: getComputedStyle(firstCodeLine).borderTopLeftRadius,
+      expected,
+      expectedRadius,
+      table: getComputedStyle(table).backgroundColor,
+      tableRadius: getComputedStyle(table).borderTopLeftRadius,
+    }
+  })
+  expect(richBlockBackgrounds).toEqual({
+    code: richBlockBackgrounds?.expected,
+    codeBottomRadius: richBlockBackgrounds?.expectedRadius,
+    codeTopRadius: richBlockBackgrounds?.expectedRadius,
+    expected: richBlockBackgrounds?.expected,
+    expectedRadius: richBlockBackgrounds?.expectedRadius,
+    table: richBlockBackgrounds?.expected,
+    tableRadius: richBlockBackgrounds?.expectedRadius,
+  })
+  await expect(rightPanel.locator('.cm-activeLine')).toHaveCount(0)
+  await expect(rightPanel.locator('.cm-gutters')).toHaveCount(0)
+  await expect(rightPanel.locator('.cm-foldGutter')).toHaveCount(0)
+
+  await rightPanel.locator('.cm-md-rich-table-widget').click()
+  await expect(rightPanel.locator('.cm-md-rich-table-widget')).toHaveCount(0)
+  await expect(rightPanel.locator('.cm-content')).toContainText('| 优化点 | 说明 |')
+
+  await rightPanel.getByRole('button', { name: '查看源代码' }).click()
+
+  await expect(
+    rightPanel.getByRole('button', { name: '查看预览' }),
+  ).toBeVisible()
+  await expect(rightPanel.locator('.cm-editor.cm-markdown-rich')).toHaveCount(0)
+  await expect(rightPanel.locator('.cm-gutters')).toBeVisible()
+  await expect(rightPanel.locator('.cm-content')).toContainText('# CodePilotX')
+  await expect(rightPanel.locator('.cm-foldGutter')).toHaveCount(0)
+})
+
 test('session header aligns with the right panel and bottom panel spans the workspace', async ({
   page,
 }) => {

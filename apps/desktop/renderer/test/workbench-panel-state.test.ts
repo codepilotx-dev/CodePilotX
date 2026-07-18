@@ -200,6 +200,35 @@ describe('workbench dynamic tab state', () => {
     })
   })
 
+  test('persists a Markdown view mode when the same file is reopened', () => {
+    let state = open(createDefaultWorkbenchTabsState(), {
+      id: 'file:README.md',
+      kind: 'file-preview',
+      workspacePath: 'F:\\project',
+      relativePath: 'README.md',
+      preview: false,
+    })
+    state = applyWorkbenchPanelAction(state, {
+      type: 'setFileMarkdownViewMode',
+      tabId: 'file:README.md',
+      mode: 'source',
+    })
+    state = open(state, {
+      id: 'file:README.md',
+      kind: 'file-preview',
+      workspacePath: 'F:\\project',
+      relativePath: 'README.md',
+      line: 12,
+      preview: true,
+    })
+
+    expect(state.tabsById['file:README.md']).toMatchObject({
+      markdownViewMode: 'source',
+      line: 12,
+      preview: false,
+    })
+  })
+
   test('move and reorder preserve one instance across both panels', () => {
     let state = open(createDefaultWorkbenchTabsState(), review)
     state = open(state, browser)
@@ -355,5 +384,51 @@ describe('workbench dynamic tab state', () => {
     expect(state.workbench.bottom.tabIds).toEqual(['browser'])
     expect(state.workbench.tabsById['tool-probe']).toBeUndefined()
     expect(state.workbench.focusArea).toBe('bottom-panel')
+  })
+
+  test('restores only valid Markdown view modes from session UI state', () => {
+    const state = validateConversationUiState({
+      schemaVersion: 2,
+      workbench: {
+        schemaVersion: 2,
+        tabsById: {
+          'file:README.md': {
+            id: 'file:README.md',
+            kind: 'file-preview',
+            workspacePath: 'F:\\project',
+            relativePath: 'README.md',
+            preview: false,
+            markdownViewMode: 'source',
+          },
+          'file:docs/guide.md': {
+            id: 'file:docs/guide.md',
+            kind: 'file-preview',
+            workspacePath: 'F:\\project',
+            relativePath: 'docs/guide.md',
+            preview: false,
+            markdownViewMode: 'invalid',
+          },
+        },
+        right: {
+          open: true,
+          activeTabId: 'file:README.md',
+          tabIds: ['file:README.md', 'file:docs/guide.md'],
+        },
+        bottom: { open: false, activeTabId: null, tabIds: [] },
+        rightFullWidth: false,
+        restoreRightFullWidthOnNextOpen: false,
+        focusArea: 'right-panel',
+      },
+      mainScrollTop: 0,
+      sideChatInput: '',
+      sideChatAttachments: [],
+    })
+
+    expect(state.workbench.tabsById['file:README.md']).toMatchObject({
+      markdownViewMode: 'source',
+    })
+    expect(
+      state.workbench.tabsById['file:docs/guide.md'],
+    ).not.toHaveProperty('markdownViewMode')
   })
 })

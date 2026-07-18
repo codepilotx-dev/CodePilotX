@@ -2097,9 +2097,17 @@ function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     },
     readWorkspaceFile: async (_workspacePath, filePath) => ({
       path: filePath,
-      content: '',
+      content:
+        filePath === 'README.md'
+          ? '# CodePilotX\n\n**可编辑的 Markdown** 与 `inline code`。\n\n- 无序列表项目\n\n| 优化点 | 说明 |\n| --- | --- |\n| 缓存命中优化 | 稳定复用前缀 |\n\n```text\nbun run build\n```\n'
+          : '',
       truncated: false,
-      sizeBytes: 0,
+      sizeBytes:
+        filePath === 'README.md'
+          ? new TextEncoder().encode(
+              '# CodePilotX\n\n**可编辑的 Markdown** 与 `inline code`。\n\n- 无序列表项目\n\n| 优化点 | 说明 |\n| --- | --- |\n| 缓存命中优化 | 稳定复用前缀 |\n\n```text\nbun run build\n```\n',
+            ).byteLength
+          : 0,
       readonly: false,
       revision: { mtimeMs: 0, sha256: '' },
     }),
