@@ -283,7 +283,6 @@
   color: var(--color-text-mute);
 }
 
-.file-breadcrumb-toolbar__directory,
 .file-breadcrumb-toolbar__action,
 .file-breadcrumb-toolbar__open,
 .file-breadcrumb-toolbar__open-menu {
@@ -313,13 +312,27 @@
 }
 
 .file-breadcrumb-toolbar__directory {
+  display: inline-flex;
+  height: var(--control-size-sm);
   min-width: 0;
   max-width: 144px;
+  align-items: center;
   padding: 0 var(--space-1);
   overflow: hidden;
+  color: inherit;
+  cursor: default;
   font-size: var(--font-size-11);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.file-breadcrumb-toolbar__action[aria-pressed="true"] {
+  background: color-mix(
+    in srgb,
+    var(--color-text) 6%,
+    var(--surface-canvas)
+  );
+  color: var(--color-text);
 }
 
 .file-breadcrumb-toolbar__filename {
@@ -756,7 +769,6 @@
 }
 
 :root[data-reduce-motion="on"] {
-  .file-breadcrumb-toolbar__directory,
   .file-breadcrumb-toolbar__action,
   .right-dock-editor-tree-resize-handle {
     transition: none;
