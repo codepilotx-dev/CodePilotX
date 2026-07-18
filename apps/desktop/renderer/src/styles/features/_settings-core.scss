@@ -2,7 +2,7 @@
   --sidebar-padding-x: 8px;
   --sidebar-item-gap: var(--control-gap);
   --sidebar-row-pad-y: 5px;
-  --sidebar-trailing-width: 0px;
+  --sidebar-trailing-width: 4.286em;
 }
 
 .settings-nav-scroll-area {
@@ -94,7 +94,7 @@
 
 .settings-nav-item {
   min-height: 31px;
-  grid-template-columns: 20px minmax(0, 1fr) 0;
+  grid-template-columns: 20px minmax(0, 1fr) var(--sidebar-trailing-width);
   gap: 8px;
   padding: 5px 8px;
   border-radius: 10px;
@@ -152,7 +152,7 @@
 }
 
 .settings-nav-group-title-row {
-  grid-template-columns: auto minmax(0, 1fr) 0;
+  grid-template-columns: auto minmax(0, 1fr) var(--sidebar-trailing-width);
   padding: 4px 8px;
 }
 

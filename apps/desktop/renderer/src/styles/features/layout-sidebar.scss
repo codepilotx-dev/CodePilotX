@@ -53,7 +53,6 @@
 
 .sidebar-section-title {
   color: color-mix(in srgb, var(--color-text-meta) 82%, transparent);
-  font-size: var(--type-section-title);
   letter-spacing: 0.02em;
 }
 
@@ -125,12 +124,17 @@
   min-width: 0;
 }
 
+.sidebar-row,
+.sidebar-section-header,
 .sidebar-show-more-actions {
   width: 100%;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) var(--sidebar-trailing-width);
   align-items: center;
   column-gap: var(--sidebar-item-gap);
+}
+
+.sidebar-show-more-actions {
   padding: var(--sidebar-row-pad-y) var(--sidebar-padding-x);
   color: var(--color-text);
   font-size: var(--type-control);
@@ -157,6 +161,7 @@
 }
 
 .sidebar-row-leading-spacer {
+  width: var(--app-icon-size);
   min-width: var(--app-icon-size);
   height: var(--app-icon-size);
 }

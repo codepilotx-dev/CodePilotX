@@ -351,7 +351,7 @@ function SidebarSectionHeader({
   const actionsVisible = hovered || menuOpen;
   return (
     <div
-      className="sidebar-section-header tw:grid tw:w-full tw:grid-cols-[auto_minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-md tw:px-2 tw:py-1.25 tw:text-sm tw:text-app-text-soft tw:transition-colors tw:duration-[var(--motion-fast)] tw:hover:bg-app-panel tw:hover:text-app-text tw:focus-visible:outline-none tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+      className="sidebar-section-header tw:w-full tw:items-center tw:gap-x-2 tw:rounded-md tw:px-2 tw:py-1.25 tw:text-sm tw:text-app-text-soft tw:transition-colors tw:duration-[var(--motion-fast)] tw:hover:bg-app-panel tw:hover:text-app-text tw:focus-visible:outline-none tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
       role="button"
       tabIndex={0}
       draggable
@@ -388,7 +388,7 @@ function SidebarSectionHeader({
         }
       }}
     >
-      <h2 className="sidebar-section-title tw:m-0 tw:flex tw:min-w-0 tw:items-center tw:text-xs tw:font-[var(--font-weight-label)] tw:text-app-text-soft">
+      <h2 className="sidebar-section-title tw:m-0 tw:flex tw:min-w-0 tw:items-center tw:font-[var(--font-weight-label)] tw:text-app-text-soft">
         <span className={cx('sidebar-section-label', 'u-min-w-0', 'u-truncate')}>
           {title}
         </span>

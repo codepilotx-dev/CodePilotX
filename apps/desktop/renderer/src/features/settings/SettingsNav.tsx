@@ -162,7 +162,7 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
               className="settings-nav-group tw:grid tw:gap-1"
               key={group.title}
             >
-              <div className="settings-nav-group-title-row tw:grid tw:grid-cols-[auto_minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:px-2 tw:py-1">
+              <div className="settings-nav-group-title-row tw:grid tw:items-center tw:gap-x-2 tw:px-2 tw:py-1">
                 <h2 className="settings-nav-group-title tw:m-0 tw:font-[var(--font-weight-label)] tw:text-app-text-soft">
                   {group.title}
                 </h2>

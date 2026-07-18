@@ -2,7 +2,7 @@ import { Children, cloneElement, forwardRef } from "react";
 import type { HTMLAttributes, ReactElement, ReactNode, Ref } from "react";
 import { cx } from "../../../utils/cx.js";
 
-type SidebarRowLeadingMode = "icon" | "spacer" | "none";
+type SidebarRowLeadingMode = "icon" | "spacer";
 type SidebarRowIndent = "none" | "session";
 
 type Props = HTMLAttributes<HTMLElement> & {
@@ -28,7 +28,7 @@ export const SidebarRow = forwardRef<HTMLElement, Props>(function SidebarRow(
     indent = "none",
     labelClassName,
     leading,
-    leadingMode = leading ? "icon" : "none",
+    leadingMode = leading ? "icon" : "spacer",
     trailing,
     ...rowProps
   },
@@ -36,7 +36,7 @@ export const SidebarRow = forwardRef<HTMLElement, Props>(function SidebarRow(
 ): ReactNode {
   const rowClassName = cx(
     "sidebar-row",
-    "tw:grid tw:min-h-[31px] tw:w-full tw:grid-cols-[auto_minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-[10px] tw:px-2 tw:py-[5px] tw:text-left tw:text-base tw:leading-[21px] tw:text-app-text tw:no-underline tw:transition-colors tw:duration-[var(--motion-fast)] tw:hover:bg-[var(--color-sidebar-hover-bg)] tw:focus-visible:outline-none tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent",
+    "tw:min-h-[31px] tw:w-full tw:items-center tw:gap-x-2 tw:rounded-[10px] tw:px-2 tw:py-[5px] tw:text-left tw:text-base tw:leading-[21px] tw:text-app-text tw:no-underline tw:transition-colors tw:duration-[var(--motion-fast)] tw:hover:bg-[var(--color-sidebar-hover-bg)] tw:focus-visible:outline-none tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent",
     active ? "tw:bg-[var(--color-sidebar-active-bg)] tw:text-app-text" : undefined,
     active ? "active" : undefined,
     indent === "session" ? "sidebar-row--session" : undefined,
@@ -97,7 +97,7 @@ function renderRowContent({
   return (
     <>
       <span
-        aria-hidden={leadingMode === "none" ? true : undefined}
+        aria-hidden={leadingMode === "spacer" ? true : undefined}
         className={cx(
           "sidebar-row-leading",
           "tw:flex tw:min-w-0 tw:items-center",
@@ -141,19 +141,18 @@ export function SidebarEmptyRow({
       className={cx(
         "sidebar-row",
         "sidebar-empty-row",
-        "tw:grid tw:min-h-[31px] tw:w-full tw:grid-cols-[auto_minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-[10px] tw:px-2 tw:py-[5px] tw:text-base tw:leading-[21px] tw:text-app-text-soft",
+        "tw:min-h-[31px] tw:w-full tw:items-center tw:gap-x-2 tw:rounded-[10px] tw:px-2 tw:py-[5px] tw:text-base tw:leading-[21px] tw:text-app-text-soft",
         className,
       )}
     >
+      <p className="sidebar-empty tw:m-0 tw:min-w-0 tw:text-app-text-soft">{children}</p>
       <span
         aria-hidden="true"
         className={cx(
-          "sidebar-row-leading",
-          "sidebar-row-leading-spacer",
-          "tw:flex tw:min-w-0 tw:items-center",
+          "sidebar-row-main",
+          "tw:flex tw:w-full tw:min-w-0 tw:items-center",
         )}
       />
-      <p className="sidebar-empty tw:m-0 tw:min-w-0 tw:text-app-text-soft">{children}</p>
       <span
         aria-hidden="true"
         className={cx(
