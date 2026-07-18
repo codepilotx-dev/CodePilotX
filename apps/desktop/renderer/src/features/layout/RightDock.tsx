@@ -4,6 +4,7 @@ import {
   forwardRef,
   Fragment,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -464,6 +465,15 @@ function WorkbenchTabsHeader({
     [flags],
   )
 
+  useEffect(() => {
+    const activeTabId = state.activeTabId
+    if (!activeTabId) return
+    tabRefs.current.get(activeTabId)?.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+    })
+  }, [state.activeTabId])
+
   const focusAt = (index: number): void => {
     const tabId = state.tabIds[index]
     if (!tabId) return
@@ -496,90 +506,111 @@ function WorkbenchTabsHeader({
 
   return (
     <div
-      aria-label={target === 'right' ? '右侧面板标签' : '底部面板标签'}
-      className="right-dock-tab-list tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-1 tw:overflow-hidden"
-      role="tablist"
+      className="right-dock-tabs-header"
     >
-      {state.tabIds.map((tabId, index) => {
-        const tab = tabsById[tabId]
-        if (!tab) return null
-        const definition = getWorkbenchTabDefinition(tab)
-        const tabIcon = definition.getIcon?.(tab) ?? definition.icon
-        const active = state.activeTabId === tab.id
-        const canCloseRight = index < state.tabIds.length - 1
-        return (
-          <Fragment key={tab.id}>
-            <ContextMenu.Root>
-              <ContextMenu.Trigger asChild>
-                <div
-                  className={`right-dock-tab-wrap${active ? ' active' : ''}`}
-                  data-panel-tab={tab.id}
-                  draggable
-                  onDragEnd={event =>
-                    event.currentTarget.classList.remove('dragging')
-                  }
-                  onDragOver={event => event.preventDefault()}
-                  onDragStart={event => {
-                    event.currentTarget.classList.add('dragging')
-                    event.dataTransfer.effectAllowed = 'move'
-                    event.dataTransfer.setData(
-                      'application/x-codepilotx-workbench-tab',
-                      JSON.stringify({ source: target, tabId: tab.id }),
-                    )
-                  }}
-                  onDrop={event => {
-                    event.preventDefault()
-                    const payload = readTabDragPayload(event)
-                    if (!payload) return
-                    if (payload.source === target) {
-                      onReorderTab(target, payload.tabId, index)
-                    } else {
-                      onMoveTab(payload.source, target, payload.tabId, index)
-                    }
-                  }}
-                >
-                  <span className="right-dock-tab-icon">{tabIcon}</span>
-                  <button
-                    ref={element => {
-                      if (element) tabRefs.current.set(tab.id, element)
-                      else tabRefs.current.delete(tab.id)
-                    }}
-                    aria-controls={`workbench-panel-${target}-${domId(tab.id)}`}
-                    aria-selected={active}
-                    className={`right-dock-tab${active ? ' active' : ''}${tab.kind === 'file-preview' && tab.preview ? ' preview' : ''}`}
-                    id={`workbench-tab-${target}-${domId(tab.id)}`}
-                    role="tab"
-                    tabIndex={active ? 0 : -1}
-                    title={definition.getTitle(tab)}
-                    type="button"
-                    onClick={() => onSelectTab(tab.id)}
-                    onDoubleClick={() => {
-                      if (tab.kind === 'file-preview' && tab.preview) {
-                        onPinTab(tab.id)
+      <div className="right-dock-tabs-viewport">
+        <div
+          aria-label={target === 'right' ? '右侧面板标签' : '底部面板标签'}
+          className="right-dock-tab-list"
+          role="tablist"
+        >
+          {state.tabIds.map((tabId, index) => {
+            const tab = tabsById[tabId]
+            if (!tab) return null
+            const definition = getWorkbenchTabDefinition(tab)
+            const tabIcon = definition.getIcon?.(tab) ?? definition.icon
+            const active = state.activeTabId === tab.id
+            const canCloseRight = index < state.tabIds.length - 1
+            const hasDivider =
+              !active &&
+              canCloseRight &&
+              state.tabIds[index + 1] !== state.activeTabId
+            return (
+              <Fragment key={tab.id}>
+                <ContextMenu.Root>
+                  <ContextMenu.Trigger asChild>
+                    <div
+                      className={`right-dock-tab-wrap${active ? ' active' : ''}${hasDivider ? ' has-divider' : ''}`}
+                      data-panel-tab={tab.id}
+                      draggable
+                      onDragEnd={event =>
+                        event.currentTarget.classList.remove('dragging')
                       }
-                    }}
-                    onKeyDown={event =>
-                      handleTabKeyDown(event, index, tab.id)
-                    }
-                  >
-                    <span>{definition.getTitle(tab)}</span>
-                  </button>
-                  <IconButton
-                    aria-label={`关闭 ${definition.getTitle(tab)}`}
-                    className="right-dock-tab-close"
-                    title={`关闭 ${definition.getTitle(tab)}`}
-                    variant="plain"
-                    onClick={event => {
-                      event.stopPropagation()
-                      onCloseTab(tab.id)
-                    }}
-                  >
-                    <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                  </IconButton>
-                </div>
-              </ContextMenu.Trigger>
-              <ContextMenu.Portal>
-                <ContextMenu.Content className="sidebar-context-menu-content">
+                      onDragOver={event => event.preventDefault()}
+                      onDragStart={event => {
+                        event.currentTarget.classList.add('dragging')
+                        event.dataTransfer.effectAllowed = 'move'
+                        event.dataTransfer.setData(
+                          'application/x-codepilotx-workbench-tab',
+                          JSON.stringify({ source: target, tabId: tab.id }),
+                        )
+                      }}
+                      onDrop={event => {
+                        event.preventDefault()
+                        const payload = readTabDragPayload(event)
+                        if (!payload) return
+                        if (payload.source === target) {
+                          onReorderTab(target, payload.tabId, index)
+                        } else {
+                          onMoveTab(payload.source, target, payload.tabId, index)
+                        }
+                      }}
+                    >
+                      <button
+                        ref={element => {
+                          if (element) tabRefs.current.set(tab.id, element)
+                          else tabRefs.current.delete(tab.id)
+                        }}
+                        aria-controls={`workbench-panel-${target}-${domId(tab.id)}`}
+                        aria-selected={active}
+                        className={`right-dock-tab${active ? ' active' : ''}${tab.kind === 'file-preview' && tab.preview ? ' preview' : ''}`}
+                        id={`workbench-tab-${target}-${domId(tab.id)}`}
+                        role="tab"
+                        tabIndex={active ? 0 : -1}
+                        title={definition.getTitle(tab)}
+                        type="button"
+                        onClick={() => onSelectTab(tab.id)}
+                        onDoubleClick={() => {
+                          if (tab.kind === 'file-preview' && tab.preview) {
+                            onPinTab(tab.id)
+                          }
+                        }}
+                        onKeyDown={event =>
+                          handleTabKeyDown(event, index, tab.id)
+                        }
+                        onMouseDown={event => {
+                          if (event.button !== 1) return
+                          event.preventDefault()
+                          event.stopPropagation()
+                          onCloseTab(tab.id)
+                        }}
+                      >
+                        <span className="right-dock-tab-icon">{tabIcon}</span>
+                        <span className="right-dock-tab-title">
+                          {definition.getTitle(tab)}
+                        </span>
+                      </button>
+                      <IconButton
+                        aria-label={`关闭 ${definition.getTitle(tab)}`}
+                        className="right-dock-tab-close"
+                        title={`关闭 ${definition.getTitle(tab)}`}
+                        variant="plain"
+                        onMouseDown={event => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                        }}
+                        onPointerDown={event => event.stopPropagation()}
+                        onClick={event => {
+                          event.stopPropagation()
+                          onCloseTab(tab.id)
+                        }}
+                      >
+                        <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                      </IconButton>
+                    </div>
+                  </ContextMenu.Trigger>
+                  <ContextMenu.Portal>
+                    <ContextMenu.Content className="sidebar-context-menu-content">
                   {tab.kind === 'file-preview' && tab.preview ? (
                     <ContextMenu.Item
                       className="sidebar-context-menu-item"
@@ -627,12 +658,26 @@ function WorkbenchTabsHeader({
                     )}
                     移到{target === 'right' ? '底部' : '右侧'}面板
                   </ContextMenu.Item>
-                </ContextMenu.Content>
-              </ContextMenu.Portal>
-            </ContextMenu.Root>
-          </Fragment>
-        )
-      })}
+                    </ContextMenu.Content>
+                  </ContextMenu.Portal>
+                </ContextMenu.Root>
+              </Fragment>
+            )
+          })}
+          <span
+            aria-hidden="true"
+            className="right-dock-tab-empty"
+            onDragOver={event => event.preventDefault()}
+            onDrop={event => {
+              event.preventDefault()
+              const payload = readTabDragPayload(event)
+              if (payload && payload.source !== target) {
+                onMoveTab(payload.source, target, payload.tabId)
+              }
+            }}
+          />
+        </div>
+      </div>
       <PopoverMenu
         align="end"
         avoidCollisions={false}
@@ -676,18 +721,6 @@ function WorkbenchTabsHeader({
           )
         })}
       </PopoverMenu>
-      <span
-        aria-hidden="true"
-        className="right-dock-tab-empty tw:min-w-0 tw:flex-1"
-        onDragOver={event => event.preventDefault()}
-        onDrop={event => {
-          event.preventDefault()
-          const payload = readTabDragPayload(event)
-          if (payload && payload.source !== target) {
-            onMoveTab(payload.source, target, payload.tabId)
-          }
-        }}
-      />
     </div>
   )
 }

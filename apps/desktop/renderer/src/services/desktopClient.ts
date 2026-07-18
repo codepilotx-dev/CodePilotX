@@ -54,6 +54,7 @@ import type {
   DesktopDataLocationMigrationResult,
   DesktopDataLocationState,
   DesktopFollowUpBehavior,
+  DesktopFileEntry,
   DesktopFilePreview,
   DesktopFileRevision,
   DesktopFileSaveResult,
@@ -814,6 +815,18 @@ function createAgentSessionDesktopClient(
       withAgentOrMock(
         async () => projectToDesktopWorkspace(await loadProjectForPath(workspacePath), null),
         () => mockClient.getWorkspaceContext(workspacePath),
+      ),
+    listWorkspaceFiles: (workspacePath, directoryPath = '.') =>
+      withAgentOrMock(
+        async () => {
+          const project = await loadProjectForPath(workspacePath)
+          const result = await rpc.call<{ entries: DesktopFileEntry[] }>(
+            'workspace/file/list',
+            { projectId: project.id, path: directoryPath },
+          )
+          return result.entries
+        },
+        () => mockClient.listWorkspaceFiles(workspacePath, directoryPath),
       ),
     readWorkspaceFile: (workspacePath, filePath) =>
       withAgentOrMock(
@@ -2061,7 +2074,27 @@ function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       ok: false,
       error: '浏览器 mock 模式不会修改 git 暂存区。',
     }),
-    listWorkspaceFiles: async () => [],
+    listWorkspaceFiles: async (_workspacePath, directoryPath = '.') => {
+      const tree: DesktopFileEntry[] = [
+        { name: 'apps', path: 'apps', type: 'directory', depth: 0 },
+        { name: 'packages', path: 'packages', type: 'directory', depth: 0 },
+        { name: 'README.md', path: 'README.md', type: 'file', depth: 0 },
+        { name: 'desktop', path: 'apps/desktop', type: 'directory', depth: 1 },
+        { name: 'renderer', path: 'apps/desktop/renderer', type: 'directory', depth: 2 },
+        {
+          name: 'package.json',
+          path: 'apps/desktop/renderer/package.json',
+          type: 'file',
+          depth: 3,
+        },
+      ]
+      const parent = directoryPath === '' ? '.' : directoryPath.replaceAll('\\', '/')
+      return tree.filter(entry => {
+        const separator = entry.path.lastIndexOf('/')
+        const entryParent = separator < 0 ? '.' : entry.path.slice(0, separator)
+        return entryParent === parent
+      })
+    },
     readWorkspaceFile: async (_workspacePath, filePath) => ({
       path: filePath,
       content: '',

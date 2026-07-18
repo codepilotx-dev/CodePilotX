@@ -1601,7 +1601,7 @@ export type DesktopApi = {
   applyWorkspaceReviewOperation(
     input: DesktopReviewOperationInput,
   ): Promise<DesktopReviewOperationResult>
-  listWorkspaceFiles(workspacePath: string): Promise<DesktopFileEntry[]>
+  listWorkspaceFiles(workspacePath: string, directoryPath?: string): Promise<DesktopFileEntry[]>
   readWorkspaceFile(workspacePath: string, filePath: string): Promise<DesktopFilePreview>
   readOptionalWorkspaceFile(
     workspacePath: string,

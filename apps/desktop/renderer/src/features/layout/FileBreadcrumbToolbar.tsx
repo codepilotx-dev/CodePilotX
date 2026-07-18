@@ -8,7 +8,6 @@ import {
 } from 'lucide-react'
 import type {
   DesktopExternalOpenTarget,
-  DesktopFileEntry,
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import {
@@ -19,23 +18,14 @@ import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import { desktopClient } from '../../services/desktopClient.js'
 import { FileTypeIcon } from './FileTypeIcon.js'
-import {
-  WorkspaceFileTree,
-  type WorkspaceFileOpenOptions,
-} from './WorkspaceFileTree.js'
 
 export type FileBreadcrumbToolbarProps = {
-  files: DesktopFileEntry[]
   path: string
   readonly?: boolean
   treeAvailable: boolean
   treeVisible: boolean
   workspace: DesktopWorkspace | null
   workspacePath: string
-  onOpenFile: (
-    file: DesktopFileEntry,
-    options: WorkspaceFileOpenOptions,
-  ) => void
   onToggleTree: () => void
 }
 
@@ -45,17 +35,14 @@ const externalOpenTargetsPromises = new Map<
 >()
 
 export function FileBreadcrumbToolbar({
-  files,
   path,
   readonly = false,
   treeAvailable,
   treeVisible,
   workspace,
   workspacePath,
-  onOpenFile,
   onToggleTree,
 }: FileBreadcrumbToolbarProps): React.ReactNode {
-  const [openDirectory, setOpenDirectory] = useState<string | null>(null)
   const [openTargetMenu, setOpenTargetMenu] = useState(false)
   const [openTargets, setOpenTargets] = useState<DesktopExternalOpenTarget[]>([])
   const segments = useMemo(
@@ -143,41 +130,12 @@ export function FileBreadcrumbToolbar({
                   <strong>{segment.label}</strong>
                 </span>
               ) : (
-                <PopoverMenu
-                  align="start"
-                  className="file-breadcrumb-directory-popover"
-                  open={openDirectory === segment.key}
-                  side="bottom"
-                  sideOffset={6}
-                  width={320}
-                  trigger={
-                    <button
-                      aria-label={`浏览目录 ${segment.title}`}
-                      className="file-breadcrumb-toolbar__directory"
-                      title={segment.title}
-                      type="button"
-                    >
-                      {segment.label}
-                    </button>
-                  }
-                  onOpenChange={open =>
-                    setOpenDirectory(open ? segment.key : null)
-                  }
+                <span
+                  className="file-breadcrumb-toolbar__directory"
+                  title={segment.title}
                 >
-                  <WorkspaceFileTree
-                    activePath={path}
-                    className="workspace-file-tree--popover"
-                    files={files}
-                    rootPath={segment.directoryPath}
-                    searchable={false}
-                    workspace={workspace}
-                    onEscape={() => setOpenDirectory(null)}
-                    onOpenFile={(file, options) => {
-                      onOpenFile(file, options)
-                      setOpenDirectory(null)
-                    }}
-                  />
-                </PopoverMenu>
+                  {segment.label}
+                </span>
               )}
             </span>
           )

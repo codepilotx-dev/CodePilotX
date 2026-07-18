@@ -450,14 +450,12 @@ export function RightDockFilePreviewPanel({
         )}
       >
         <FileBreadcrumbToolbar
-          files={files}
           path={expectedPath}
           readonly={document.readonly}
           treeAvailable={treeAvailable}
           treeVisible={treeVisible}
           workspace={workspace}
           workspacePath={workspacePath}
-          onOpenFile={onOpenFile}
           onToggleTree={() => setTreeVisible(current => !current)}
         />
         <div

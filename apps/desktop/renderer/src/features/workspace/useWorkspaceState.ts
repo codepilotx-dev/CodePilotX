@@ -160,7 +160,6 @@ export function useWorkspaceState(
         } else {
           await refreshSelectedFilePreview(
             nextContext,
-            nextFiles,
             refreshOptions.expectedSessionId ?? activeSessionIdRef.current,
           )
         }
@@ -177,7 +176,6 @@ export function useWorkspaceState(
 
   async function refreshSelectedFilePreview(
     target: DesktopWorkspace,
-    nextFiles: DesktopFileEntry[],
     targetSessionId: string | null,
   ): Promise<void> {
     if (!targetSessionId || targetSessionId !== activeSessionIdRef.current) {
@@ -185,13 +183,6 @@ export function useWorkspaceState(
     }
     const currentSelectedFile = selectedFileRef.current
     if (!currentSelectedFile) return
-    const stillExists = nextFiles.some(
-      file => file.type === 'file' && file.path === currentSelectedFile.path,
-    )
-    if (!stillExists) {
-      setSelectedFile(null)
-      return
-    }
     try {
       const preview = await desktopClient.readWorkspaceFile(
         target.path,
