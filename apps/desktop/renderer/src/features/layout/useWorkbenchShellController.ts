@@ -9,6 +9,7 @@ import {
   createDefaultWorkbenchTabsState,
   type WorkbenchPanelAction,
   type WorkbenchPanelTarget,
+  type MarkdownFileViewMode,
   type WorkbenchTabDescriptor,
   type WorkbenchTabId,
   type WorkbenchTabsState,
@@ -177,6 +178,13 @@ export function useWorkbenchShellController(debugMode: boolean) {
     [dispatchPanelAction],
   )
 
+  const setFileMarkdownViewMode = useCallback(
+    (tabId: WorkbenchTabId, mode: MarkdownFileViewMode): void => {
+      dispatchPanelAction({ type: 'setFileMarkdownViewMode', tabId, mode })
+    },
+    [dispatchPanelAction],
+  )
+
   const toggleRightFullWidth = useCallback((): void => {
     dispatchPanelAction({ type: 'toggleRightFullWidth' })
   }, [dispatchPanelAction])
@@ -293,6 +301,7 @@ export function useWorkbenchShellController(debugMode: boolean) {
     closeOtherTabs,
     closeTabsToRight,
     pinTab,
+    setFileMarkdownViewMode,
     toggleRightFullWidth,
   }
 }

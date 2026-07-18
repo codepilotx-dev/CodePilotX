@@ -18,15 +18,19 @@ import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import { desktopClient } from '../../services/desktopClient.js'
 import { FileTypeIcon } from './FileTypeIcon.js'
+import type { MarkdownFileViewMode } from './rightDockState.js'
 
 export type FileBreadcrumbToolbarProps = {
   path: string
   readonly?: boolean
   treeAvailable: boolean
   treeVisible: boolean
+  markdownViewMode?: MarkdownFileViewMode
+  switching?: boolean
   workspace: DesktopWorkspace | null
   workspacePath: string
   onToggleTree: () => void
+  onToggleMarkdownViewMode?: () => void
 }
 
 const externalOpenTargetsPromises = new Map<
@@ -39,9 +43,12 @@ export function FileBreadcrumbToolbar({
   readonly = false,
   treeAvailable,
   treeVisible,
+  markdownViewMode,
+  switching = false,
   workspace,
   workspacePath,
   onToggleTree,
+  onToggleMarkdownViewMode,
 }: FileBreadcrumbToolbarProps): React.ReactNode {
   const [openTargetMenu, setOpenTargetMenu] = useState(false)
   const [openTargets, setOpenTargets] = useState<DesktopExternalOpenTarget[]>([])
@@ -142,6 +149,17 @@ export function FileBreadcrumbToolbar({
         })}
       </div>
       <div className="file-breadcrumb-toolbar__actions">
+        {markdownViewMode && onToggleMarkdownViewMode ? (
+          <button
+            aria-busy={switching}
+            className="file-breadcrumb-toolbar__view-mode"
+            disabled={switching}
+            type="button"
+            onClick={onToggleMarkdownViewMode}
+          >
+            {markdownViewMode === 'rich' ? '查看源代码' : '查看预览'}
+          </button>
+        ) : null}
         {readonly ? <small>只读</small> : null}
         <button
           aria-label={treeVisible ? '隐藏文件树' : '显示文件树'}

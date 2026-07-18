@@ -297,6 +297,7 @@ export function DesktopLayout(): React.ReactNode {
     closeOtherTabs,
     closeTabsToRight,
     pinTab,
+    setFileMarkdownViewMode,
     toggleRightFullWidth,
   } = useWorkbenchShellController(menubarDebugMode)
   const handleErrorMessage = useCallback((message: string): void => {
@@ -2123,6 +2124,7 @@ export function DesktopLayout(): React.ReactNode {
       onMoveTab={movePanelTab}
       onReorderTab={reorderPanelTab}
       onPinTab={pinTab}
+      onSetFileMarkdownViewMode={setFileMarkdownViewMode}
       onSetHeight={handleSetBottomPanelHeight}
       onSetWidth={handleSetRightDockWidth}
       onToggleRightFullWidth={toggleRightFullWidth}

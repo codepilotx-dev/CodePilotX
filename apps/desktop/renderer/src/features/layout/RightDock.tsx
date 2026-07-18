@@ -38,6 +38,7 @@ import { IconButton } from '../../components/ui/IconButton.js'
 import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import type {
+  MarkdownFileViewMode,
   WorkbenchPanelSnapshot,
   WorkbenchPanelTarget,
   WorkbenchTabDescriptor,
@@ -109,6 +110,10 @@ type Props = {
     index: number,
   ) => void
   onPinTab: (tabId: WorkbenchTabId) => void
+  onSetFileMarkdownViewMode: (
+    tabId: WorkbenchTabId,
+    mode: MarkdownFileViewMode,
+  ) => void
   onToggleRightFullWidth?: () => void
   onToggleReviewView: () => void
   sideChatComposer: React.ReactNode
@@ -161,6 +166,7 @@ export function WorkbenchPanel({
   onMoveTab,
   onReorderTab,
   onPinTab,
+  onSetFileMarkdownViewMode,
   onToggleRightFullWidth,
   onToggleReviewView,
   sideChatComposer,
@@ -257,6 +263,7 @@ export function WorkbenchPanel({
         onAppendComposerText,
         onAddComposerFiles,
         onPinFileTab: onPinTab,
+        onSetFileMarkdownViewMode,
       },
       planContentByEventId,
       sideChat: {
@@ -288,6 +295,7 @@ export function WorkbenchPanel({
       onOpenFileFromBrowser,
       onPreviewFile,
       onPinTab,
+      onSetFileMarkdownViewMode,
       onRefreshReview,
       onToggleReviewView,
       planContentByEventId,

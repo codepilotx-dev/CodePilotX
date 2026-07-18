@@ -22,6 +22,7 @@ import {
   useFileDocument,
 } from '../workspace/fileDocumentStore.js'
 import { FileBreadcrumbToolbar } from './FileBreadcrumbToolbar.js'
+import type { MarkdownFileViewMode } from './rightDockState.js'
 import {
   createWorkspaceFileTabId,
   getSendableFilePath,
@@ -302,9 +303,11 @@ export function RightDockFilePreviewPanel({
   expectedPath,
   revealLine,
   previewTab,
+  markdownViewMode,
   files,
   workspace,
   onPinTab,
+  onSetMarkdownViewMode,
   onAppendComposerText,
   onAddComposerFiles,
   onOpenFile,
@@ -313,9 +316,11 @@ export function RightDockFilePreviewPanel({
   expectedPath: string
   revealLine?: number
   previewTab: boolean
+  markdownViewMode?: MarkdownFileViewMode
   files: DesktopFileEntry[]
   workspace: DesktopWorkspace | null
   onPinTab: () => void
+  onSetMarkdownViewMode: (mode: MarkdownFileViewMode) => void
   onAppendComposerText?: (text: string) => void
   onAddComposerFiles?: (filePaths: string[]) => void
   onOpenFile: (
@@ -330,9 +335,14 @@ export function RightDockFilePreviewPanel({
   )
   const [treeAvailable, setTreeAvailable] = useState(true)
   const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
+  const [switchingMarkdownMode, setSwitchingMarkdownMode] = useState(false)
   const layoutRef = useRef<HTMLDivElement | null>(null)
   const document = useFileDocument(workspacePath, expectedPath)
   const language = resolveLanguageFromPath(expectedPath)
+  const isMarkdown = isMarkdownFilePath(expectedPath)
+  const resolvedMarkdownViewMode = isMarkdown
+    ? (markdownViewMode ?? 'rich')
+    : undefined
 
   useEffect(() => {
     void prefetchFileDocument(workspacePath, expectedPath).catch(
@@ -417,6 +427,26 @@ export function RightDockFilePreviewPanel({
     window.addEventListener('pointerup', onPointerUp)
   }
 
+  async function toggleMarkdownViewMode(): Promise<void> {
+    if (!resolvedMarkdownViewMode || switchingMarkdownMode || document.conflict) {
+      return
+    }
+    setSwitchingMarkdownMode(true)
+    try {
+      if (
+        document.dirty &&
+        !(await saveFileDocument(workspacePath, expectedPath))
+      ) {
+        return
+      }
+      onSetMarkdownViewMode(
+        resolvedMarkdownViewMode === 'rich' ? 'source' : 'rich',
+      )
+    } finally {
+      setSwitchingMarkdownMode(false)
+    }
+  }
+
   if (document.status === 'error') {
     return (
       <div className="right-dock-empty-state" role="alert">
@@ -454,9 +484,16 @@ export function RightDockFilePreviewPanel({
           readonly={document.readonly}
           treeAvailable={treeAvailable}
           treeVisible={treeVisible}
+          markdownViewMode={
+            document.conflict ? undefined : resolvedMarkdownViewMode
+          }
+          switching={switchingMarkdownMode}
           workspace={workspace}
           workspacePath={workspacePath}
           onToggleTree={() => setTreeVisible(current => !current)}
+          onToggleMarkdownViewMode={() => {
+            void toggleMarkdownViewMode()
+          }}
         />
         <div
           ref={layoutRef}
@@ -511,6 +548,11 @@ export function RightDockFilePreviewPanel({
                     error={document.saveError}
                     language={language}
                     path={expectedPath}
+                    presentation={
+                      resolvedMarkdownViewMode === 'rich'
+                        ? 'markdown-rich'
+                        : 'source'
+                    }
                     readonly={document.readonly}
                     revealLine={revealLine}
                     saving={document.saving}
@@ -595,6 +637,10 @@ export function RightDockFilePreviewPanel({
       </article>
     </section>
   )
+}
+
+function isMarkdownFilePath(path: string): boolean {
+  return /\.(?:md|markdown|mdown|mdx|mkd)$/i.test(path)
 }
 
 export function RightDockSideChatPanel({

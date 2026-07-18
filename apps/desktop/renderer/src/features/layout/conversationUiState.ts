@@ -269,6 +269,10 @@ function validateTabDescriptor(
       workspacePath: tab.workspacePath,
       relativePath: tab.relativePath,
       preview: Boolean(tab.preview),
+      ...(tab.markdownViewMode === 'rich' ||
+      tab.markdownViewMode === 'source'
+        ? { markdownViewMode: tab.markdownViewMode }
+        : {}),
       ...(isPositiveInteger(tab.line) ? { line: tab.line } : {}),
       ...(isPositiveInteger(tab.column) ? { column: tab.column } : {}),
       ...(isPositiveInteger(tab.endLine) ? { endLine: tab.endLine } : {}),

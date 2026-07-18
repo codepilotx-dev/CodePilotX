@@ -33,6 +33,7 @@ import {
 } from './RightDockPanels.js'
 import { FileTypeIcon } from './FileTypeIcon.js'
 import type {
+  MarkdownFileViewMode,
   WorkbenchFlags,
   WorkbenchTabDescriptor,
   WorkbenchTabKind,
@@ -70,6 +71,10 @@ export type WorkbenchTabRenderContext = {
     onAppendComposerText?: (text: string) => void
     onAddComposerFiles?: (filePaths: string[]) => void
     onPinFileTab: (tabId: WorkbenchTabDescriptor['id']) => void
+    onSetFileMarkdownViewMode: (
+      tabId: WorkbenchTabDescriptor['id'],
+      mode: MarkdownFileViewMode,
+    ) => void
   }
   planContentByEventId: Readonly<Record<string, string>>
   sideChat: {
@@ -172,6 +177,10 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           workspace={context.files.workspace}
           revealLine={tab.line}
           previewTab={tab.preview}
+          markdownViewMode={tab.markdownViewMode}
+          onSetMarkdownViewMode={mode =>
+            context.files.onSetFileMarkdownViewMode(tab.id, mode)
+          }
           onPinTab={() => context.files.onPinFileTab(tab.id)}
           onOpenFile={(file, options) => {
             context.files.onPreviewFile(file)

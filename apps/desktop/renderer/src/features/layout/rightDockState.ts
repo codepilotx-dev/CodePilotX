@@ -2,6 +2,8 @@ export type WorkbenchPanelTarget = 'right' | 'bottom'
 
 export type WorkbenchFocusArea = 'main' | 'right-panel' | 'bottom-panel'
 
+export type MarkdownFileViewMode = 'rich' | 'source'
+
 export type WorkbenchTabKind =
   | 'review'
   | 'browser'
@@ -32,6 +34,7 @@ export type WorkbenchTabDescriptor =
       workspacePath: string
       relativePath: string
       preview: boolean
+      markdownViewMode?: MarkdownFileViewMode
       line?: number
       column?: number
       endLine?: number
@@ -109,6 +112,11 @@ export type WorkbenchPanelAction =
       tabId: WorkbenchTabId
     }
   | { type: 'pinTab'; tabId: WorkbenchTabId }
+  | {
+      type: 'setFileMarkdownViewMode'
+      tabId: WorkbenchTabId
+      mode: MarkdownFileViewMode
+    }
   | {
       type: 'moveTab'
       source: WorkbenchPanelTarget
@@ -202,12 +210,21 @@ export function applyWorkbenchPanelAction(
     const existingTarget = findTabTarget(state, action.tab.id)
     if (existingTarget) {
       const existing = state.tabsById[action.tab.id]
+      const reopenedTab =
+        existing?.kind === 'file-preview' &&
+        action.tab.kind === 'file-preview' &&
+        existing.markdownViewMode
+          ? {
+              ...action.tab,
+              markdownViewMode: existing.markdownViewMode,
+            }
+          : action.tab
       const tab =
         existing?.kind === 'file-preview' &&
         !existing.preview &&
-        action.tab.kind === 'file-preview'
-          ? { ...action.tab, preview: false }
-          : action.tab
+        reopenedTab.kind === 'file-preview'
+          ? { ...reopenedTab, preview: false }
+          : reopenedTab
       return {
         ...state,
         tabsById: { ...state.tabsById, [tab.id]: tab },
@@ -293,6 +310,23 @@ export function applyWorkbenchPanelAction(
       tabsById: {
         ...state.tabsById,
         [tab.id]: { ...tab, preview: false },
+      },
+    }
+  }
+
+  if (action.type === 'setFileMarkdownViewMode') {
+    const tab = state.tabsById[action.tabId]
+    if (
+      tab?.kind !== 'file-preview' ||
+      tab.markdownViewMode === action.mode
+    ) {
+      return state
+    }
+    return {
+      ...state,
+      tabsById: {
+        ...state.tabsById,
+        [tab.id]: { ...tab, markdownViewMode: action.mode },
       },
     }
   }

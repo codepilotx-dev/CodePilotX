@@ -5,10 +5,16 @@ import { useEffect, useRef } from 'react'
 import type React from 'react'
 import { Button } from '../../components/ui/Button.js'
 import { cx } from '../../utils/cx.js'
+import { useDesktopTheme } from '../theme/themeContext.js'
 import {
   createCodeMirrorExtensions,
+  createCodeMirrorSourceExtensions,
   loadCodeMirrorLanguage,
 } from './codeMirrorSetup.js'
+import { loadCodeMirrorTheme } from './codeMirrorTheme.js'
+
+const CODE_FONT_FALLBACK =
+  'ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace'
 
 export type ConflictMergeEditorProps = {
   className?: string
@@ -35,12 +41,23 @@ export function ConflictMergeEditor({
   path,
   saving = false,
 }: ConflictMergeEditorProps): React.ReactNode {
+  const { activeTheme, codeThemeId, draft, resolvedVariant } =
+    useDesktopTheme()
+  const configuredCodeFont = activeTheme.theme.fonts.code?.trim()
+  const codeFontFamily = configuredCodeFont
+    ? `${configuredCodeFont}, ${CODE_FONT_FALLBACK}`
+    : CODE_FONT_FALLBACK
+  const codeFontSize = draft.settings.fontSizes.code
   const hostRef = useRef<HTMLDivElement>(null)
   const mergeRef = useRef<MergeView | null>(null)
   const onChangeRef = useRef(onChangeLocal)
   const onSaveRef = useRef(onKeepLocal)
   const applyingExternalLocalValueRef = useRef(false)
-  const languageCompartmentRef = useRef(new Compartment())
+  const diskLanguageCompartmentRef = useRef(new Compartment())
+  const localLanguageCompartmentRef = useRef(new Compartment())
+  const diskThemeCompartmentRef = useRef(new Compartment())
+  const localThemeCompartmentRef = useRef(new Compartment())
+  const themeRequestRef = useRef(0)
 
   onChangeRef.current = onChangeLocal
   onSaveRef.current = onKeepLocal
@@ -49,7 +66,6 @@ export function ConflictMergeEditor({
     if (!hostRef.current) {
       return
     }
-    const languageCompartment = languageCompartmentRef.current
     const merge = new MergeView({
       parent: hostRef.current,
       orientation: 'a-b',
@@ -59,9 +75,11 @@ export function ConflictMergeEditor({
         doc: diskValue,
         extensions: [
           ...createCodeMirrorExtensions({}),
+          ...createCodeMirrorSourceExtensions(),
           EditorState.readOnly.of(true),
           EditorView.editable.of(false),
-          languageCompartment.of([]),
+          diskLanguageCompartmentRef.current.of([]),
+          diskThemeCompartmentRef.current.of([]),
         ],
       },
       b: {
@@ -77,7 +95,9 @@ export function ConflictMergeEditor({
               void onSaveRef.current()
             },
           }),
-          languageCompartment.of([]),
+          ...createCodeMirrorSourceExtensions(),
+          localLanguageCompartmentRef.current.of([]),
+          localThemeCompartmentRef.current.of([]),
         ],
       },
     })
@@ -121,10 +141,13 @@ export function ConflictMergeEditor({
       if (!active || mergeRef.current !== merge) {
         return
       }
-      const effect = languageCompartmentRef.current.reconfigure(extension)
-      merge.a.dispatch({ effects: effect })
       merge.b.dispatch({
-        effects: languageCompartmentRef.current.reconfigure(extension),
+        effects:
+          localLanguageCompartmentRef.current.reconfigure(extension),
+      })
+      merge.a.dispatch({
+        effects:
+          diskLanguageCompartmentRef.current.reconfigure(extension),
       })
     })
 
@@ -132,6 +155,45 @@ export function ConflictMergeEditor({
       active = false
     }
   }, [language, path])
+
+  useEffect(() => {
+    const merge = mergeRef.current
+    const request = ++themeRequestRef.current
+    if (!merge) {
+      return
+    }
+
+    void loadCodeMirrorTheme({
+      codeThemeId,
+      fontFamily: codeFontFamily,
+      fontSize: codeFontSize,
+      variant: resolvedVariant,
+    })
+      .then(extension => {
+        if (
+          request !== themeRequestRef.current ||
+          mergeRef.current !== merge
+        ) {
+          return
+        }
+        merge.a.dispatch({
+          effects:
+            diskThemeCompartmentRef.current.reconfigure(extension),
+        })
+        merge.b.dispatch({
+          effects:
+            localThemeCompartmentRef.current.reconfigure(extension),
+        })
+        merge.a.requestMeasure()
+        merge.b.requestMeasure()
+      })
+      .catch(() => undefined)
+  }, [
+    codeFontFamily,
+    codeFontSize,
+    codeThemeId,
+    resolvedVariant,
+  ])
 
   return (
     <section className={cx('conflict-merge-editor', className)}>

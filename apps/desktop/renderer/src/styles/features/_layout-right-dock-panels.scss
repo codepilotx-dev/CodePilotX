@@ -284,6 +284,7 @@
 }
 
 .file-breadcrumb-toolbar__action,
+.file-breadcrumb-toolbar__view-mode,
 .file-breadcrumb-toolbar__open,
 .file-breadcrumb-toolbar__open-menu {
   display: inline-flex;
@@ -372,6 +373,12 @@
 .file-breadcrumb-toolbar__action {
   width: var(--control-size-sm);
   padding: 0;
+}
+
+.file-breadcrumb-toolbar__view-mode {
+  padding: 0 var(--space-2);
+  font-size: var(--type-secondary);
+  white-space: nowrap;
 }
 
 .file-breadcrumb-toolbar__open {
