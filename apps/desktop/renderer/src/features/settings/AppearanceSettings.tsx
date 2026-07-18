@@ -575,8 +575,6 @@ function ThemePreview({
       data-variant={variant}
       style={style}
     >
-      <div className="appearance-diff-file-header">src/theme-preview.ts</div>
-      <div className="appearance-diff-hunk-header">@@ -1,5 +1,5 @@</div>
       <div className="appearance-diff-split">
         <ThemePreviewSide
           changedLines={new Set([1, 2, 3])}
