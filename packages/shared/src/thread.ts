@@ -667,6 +667,7 @@ export const AgentRpcMethodSchema = Schema.Literals([
   "project/list",
   "project/open",
   "project/updateSettings",
+  "workspace/file/list",
   "workspace/file/read",
   "workspace/file/save",
   "workspace/file/watch",

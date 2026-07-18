@@ -83,6 +83,35 @@ describe("WorkspaceService.applyPatch", () => {
 })
 
 describe("WorkspaceService editor files", () => {
+  test("只列出指定目录的直接子项并忽略目录与符号链接", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "codepilotx-workspace-"))
+    paths.push(parent)
+    const root = join(parent, "project")
+    const outside = join(parent, "outside")
+    await mkdir(join(root, "src", "nested"), { recursive: true })
+    await mkdir(join(root, "node_modules", "ignored"), { recursive: true })
+    await mkdir(outside)
+    await writeFile(join(root, "README.md"), "readme", "utf8")
+    await writeFile(join(root, "src", "index.ts"), "export {}", "utf8")
+    await writeFile(join(root, "src", "nested", "value.ts"), "export const value = 1", "utf8")
+    await writeFile(join(root, "node_modules", "ignored", "index.js"), "ignored", "utf8")
+    await writeFile(join(outside, "secret.txt"), "secret", "utf8")
+    await symlink(outside, join(root, "outside-link"), "dir")
+    const service = await WorkspaceService.open(root)
+
+    expect(await service.listEditorFiles(".")).toEqual([
+      { name: "src", path: "src", type: "directory", depth: 0 },
+      { name: "README.md", path: "README.md", type: "file", depth: 0 },
+    ])
+    expect(await service.listEditorFiles("src")).toEqual([
+      { name: "nested", path: "src/nested", type: "directory", depth: 1 },
+      { name: "index.ts", path: "src/index.ts", type: "file", depth: 1 },
+    ])
+    expect(await service.listEditorFiles("src/nested")).toEqual([
+      { name: "value.ts", path: "src/nested/value.ts", type: "file", depth: 2 },
+    ])
+  })
+
   test("读取 UTF-8 文件并使用 revision 原子保存", async () => {
     const { root, service } = await workspace()
     await writeFile(join(root, "source.ts"), "const value = 1\n", "utf8")

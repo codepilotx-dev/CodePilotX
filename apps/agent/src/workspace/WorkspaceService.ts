@@ -38,6 +38,13 @@ export interface WorkspaceEditorFile {
   revision: WorkspaceFileRevision
 }
 
+export interface WorkspaceFileEntry {
+  name: string
+  path: string
+  type: "file" | "directory"
+  depth: number
+}
+
 export type ApplyPatchInput =
   | { operation: "update"; path: string; before: string; after: string }
   | { operation: "create"; path: string; content: string }
@@ -189,6 +196,35 @@ export class WorkspaceService {
         path: this.displayPath(resolve(directory, entry.name)),
         type: entry.isDirectory() ? "directory" : entry.isFile() ? "file" : "other",
       }))
+  }
+
+  async listEditorFiles(path = "."): Promise<WorkspaceFileEntry[]> {
+    const directory = await this.directory(path || ".")
+    const directoryPath = this.displayPath(directory)
+    const depth = directoryPath === "." ? 0 : directoryPath.split("/").length
+    const entries = await readdir(directory, { withFileTypes: true })
+    entries.sort((left, right) => {
+      const typeOrder = Number(right.isDirectory()) - Number(left.isDirectory())
+      return typeOrder || left.name.localeCompare(right.name)
+    })
+
+    const result: WorkspaceFileEntry[] = []
+    for (const entry of entries) {
+      if (result.length >= LIST_LIMIT) break
+      if (entry.isSymbolicLink()) continue
+      if (entry.isDirectory() && IGNORED_DIRECTORIES.has(entry.name)) continue
+      if (!entry.isDirectory() && !entry.isFile()) continue
+
+      const entryPath = resolve(directory, entry.name)
+      this.ensureWithinRoot(entryPath)
+      result.push({
+        name: entry.name,
+        path: this.displayPath(entryPath),
+        type: entry.isDirectory() ? "directory" : "file",
+        depth,
+      })
+    }
+    return result
   }
 
   async read(path: string, offset = 0, limit = 400) {

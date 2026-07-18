@@ -20,6 +20,7 @@ export const V2MethodMigrationManifest = {
   "project/list": { status: "keep", target: "project/list" },
   "project/open": { status: "keep", target: "project/open" },
   "project/updateSettings": { status: "rename", target: "project/settings/update" },
+  "workspace/file/list": { status: "keep", target: "workspace/file/list" },
   "workspace/file/read": { status: "keep", target: "workspace/file/read" },
   "workspace/file/save": { status: "keep", target: "workspace/file/save" },
   "workspace/file/watch": { status: "keep", target: "workspace/file/watch" },

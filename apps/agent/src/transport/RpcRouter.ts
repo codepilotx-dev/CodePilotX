@@ -181,6 +181,11 @@ export class RpcRouter {
         const workspace = await WorkspaceService.open(params.rootPath)
         return { project: db.createProject({ rootPath: workspace.rootPath }) }
       }
+      case "workspace/file/list": {
+        const workspace = await resolveProjectWorkspace(db, stringParam(params, "projectId"))
+        if (typeof params.path !== "string") throw new AgentError("INVALID_REQUEST", "path 参数无效", 400)
+        return { entries: await workspace.listEditorFiles(params.path) }
+      }
       case "workspace/file/read": {
         const workspace = await resolveProjectWorkspace(db, stringParam(params, "projectId"))
         return workspace.readEditorFile(stringParam(params, "path"))

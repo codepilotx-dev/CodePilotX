@@ -279,6 +279,20 @@ export const WorkspaceFileRevisionSchema = Schema.Struct({
   sha256: NonEmptyStringSchema,
 })
 
+export const WorkspaceFileListParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  path: Schema.String,
+})
+
+export const WorkspaceFileListResultSchema = Schema.Struct({
+  entries: Schema.Array(Schema.Struct({
+    name: NonEmptyStringSchema,
+    path: NonEmptyStringSchema,
+    type: Schema.Literals(["file", "directory"]),
+    depth: NonNegativeIntSchema,
+  })),
+})
+
 export const WorkspaceFileReadParamsSchema = Schema.Struct({
   projectId: OpaqueIDSchema,
   path: NonEmptyStringSchema,
@@ -728,6 +742,7 @@ export const CoreRpcMethods = {
   "project/list": defineMethod({ params: ProjectListParamsSchema, result: ProjectListResultSchema, errors: ProjectErrors, capability: null, mutation: false }),
   "project/open": defineMethod({ params: ProjectOpenParamsSchema, result: ProjectOpenResultSchema, errors: ProjectErrors, capability: null, mutation: true, exactParams: true }),
   "project/settings/update": defineMethod({ params: ProjectSettingsUpdateParamsSchema, result: ProjectSettingsUpdateResultSchema, errors: ProjectErrors, capability: null, mutation: true }),
+  "workspace/file/list": defineMethod({ params: WorkspaceFileListParamsSchema, result: WorkspaceFileListResultSchema, errors: WorkspaceFileErrors, capability: "workspace.editor.v1", mutation: false, exactParams: true, exactResult: true }),
   "workspace/file/read": defineMethod({ params: WorkspaceFileReadParamsSchema, result: WorkspaceFileReadResultSchema, errors: WorkspaceFileErrors, capability: "workspace.editor.v1", mutation: false, exactParams: true, exactResult: true }),
   "workspace/file/save": defineMethod({ params: WorkspaceFileSaveParamsSchema, result: WorkspaceFileSaveResultSchema, errors: WorkspaceFileErrors, capability: "workspace.editor.v1", mutation: true, exactParams: true, exactResult: true }),
   "workspace/file/watch": defineMethod({ params: WorkspaceFileWatchParamsSchema, result: WorkspaceFileWatchResultSchema, errors: WorkspaceFileErrors, capability: "workspace.editor.v1", mutation: true, exactParams: true, exactResult: true }),

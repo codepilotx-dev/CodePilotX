@@ -296,6 +296,15 @@ const fixtures = {
     settings: { defaultModel: modelRef },
     version: 2,
   }),
+  "workspace/file/list": methodFixture("workspace/file/list", {
+    projectId: project.id,
+    path: ".",
+  }, {
+    entries: [
+      { name: "src", path: "src", type: "directory", depth: 0 },
+      { name: "README.md", path: "README.md", type: "file", depth: 0 },
+    ],
+  }),
   "workspace/file/read": methodFixture("workspace/file/read", {
     projectId: project.id,
     path: "src/index.ts",
@@ -608,9 +617,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 64 formal methods decodable", () => {
+  test("keeps valid params and results for all 65 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(64)
+    expect(methods).toHaveLength(65)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
