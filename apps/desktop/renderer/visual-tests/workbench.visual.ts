@@ -150,10 +150,17 @@ for (const mode of MODES) {
     await expect(
       rightPanel.getByRole('complementary', { name: '工作区文件树' }),
     ).toBeVisible()
+    await expect(rightPanel.getByText('README.md', { exact: true })).toBeVisible()
+    await expect(
+      rightPanel.getByText('没有匹配的文件。', { exact: true }),
+    ).toBeHidden()
+    await expect(
+      rightPanel.getByRole('button', { name: '隐藏文件树' }),
+    ).toHaveAttribute('aria-pressed', 'true')
     await expect(rightPanel.getByRole('textbox', { name: '筛选文件' })).toBeFocused()
     await expect(rightPanel.locator('.right-dock-header')).toHaveCSS(
       'height',
-      '40px',
+      '46px',
     )
     await expect(rightPanel.locator('.file-breadcrumb-toolbar')).toHaveCSS(
       'height',
@@ -163,6 +170,20 @@ for (const mode of MODES) {
       'height',
       '28px',
     )
+    await expect(rightPanel.locator('.right-dock-tabs-viewport')).toHaveCSS(
+      'overflow-x',
+      'auto',
+    )
+    await expect(
+      rightPanel.locator(
+        '.right-dock-tabs-viewport .right-dock-add-button',
+      ),
+    ).toHaveCount(0)
+    const appsDirectory = rightPanel.getByRole('treeitem', { name: 'apps' })
+    await expect(appsDirectory).toHaveAttribute('aria-expanded', 'false')
+    await expect(
+      rightPanel.locator('[data-file-tree-virtualized-scroll="true"]'),
+    ).toBeVisible()
     await expect(rightPanel).toHaveScreenshot(
       `open-file-empty-${mode}.png`,
       {
@@ -171,6 +192,17 @@ for (const mode of MODES) {
         scale: 'css',
       },
     )
+
+    await appsDirectory.click()
+    await expect(appsDirectory).toHaveAttribute('aria-expanded', 'true')
+    await expect(
+      rightPanel.getByRole('treeitem', { name: 'desktop' }),
+    ).toBeVisible()
+    await rightPanel.getByText('README.md', { exact: true }).click()
+    await expect(rightPanel.getByRole('tab', { name: 'README.md' })).toBeVisible()
+    await expect(
+      rightPanel.locator('.file-breadcrumb-toolbar__path button'),
+    ).toHaveCount(0)
   })
 }
 
