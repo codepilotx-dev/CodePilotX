@@ -43,7 +43,7 @@
   border: 1px solid
     color-mix(in srgb, var(--color-panel-border) 52%, transparent);
   border-radius: 24px;
-  background: var(--surface-panel);
+  background: var(--surface-raised);
   box-shadow: var(--shadow-resting);
   color: var(--color-text);
 }
@@ -97,7 +97,7 @@
     min-width: 0;
     height: 28px;
     padding: 0 10px 2px 14px;
-    background: var(--surface-panel);
+    background: var(--surface-raised);
     color: var(--color-text-meta);
     font-size: 14px;
     font-weight: 500;

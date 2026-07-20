@@ -61,6 +61,20 @@
   }
 }
 
+.right-dock-file-load-error {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  align-content: center;
+  justify-items: center;
+  padding: var(--space-4);
+  color: var(--color-text-soft);
+  font-size: var(--type-secondary);
+  text-align: center;
+}
+
 .dialog-debug-panel {
   display: flex;
   flex: 1 1 auto;
@@ -421,26 +435,9 @@
 }
 
 .file-type-icon {
+  display: block;
   flex: 0 0 auto;
-}
-
-.file-type-icon--typescript,
-.file-type-icon--css {
-  color: var(--syntax-property);
-}
-
-.file-type-icon--javascript,
-.file-type-icon--json {
-  color: var(--syntax-number);
-}
-
-.file-type-icon--markdown {
-  color: var(--syntax-keyword);
-}
-
-.file-type-icon--html,
-.file-type-icon--rust {
-  color: var(--syntax-string);
+  color: inherit;
 }
 
 .popover.file-breadcrumb-directory-popover {

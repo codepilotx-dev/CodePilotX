@@ -369,77 +369,191 @@
 
 .conversation-turn-nav-rail {
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
+  left: 16px;
+  top: 50%;
   z-index: 5;
-  width: 30px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--layout-section-gap, 6px);
+  width: 36px;
+  max-height: min(70vh, 640px);
   opacity: 0;
   visibility: hidden;
-  transform: translateX(-4px);
+  transform: translateY(-50%);
   pointer-events: none;
   transition:
-    opacity var(--motion-fast, 150ms) var(--ease-out, ease-out),
-    transform var(--motion-fast, 150ms) var(--ease-out, ease-out),
-    visibility 0s linear var(--motion-fast, 150ms);
+    opacity 150ms var(--ease-out, ease-out),
+    visibility 0s linear 150ms;
+
 }
 
 .conversation-turn-nav-rail[data-visible="true"] {
   opacity: 1;
   visibility: visible;
-  transform: translateX(0);
+  pointer-events: auto;
   transition-delay: 0s;
 }
 
+.conversation-turn-nav-list {
+  display: flex;
+  width: 36px;
+  max-height: min(70vh, 640px);
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    var(--color-ink) 40px,
+    var(--color-ink) calc(100% - 40px),
+    transparent 100%
+  );
+
+  &::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
 .conversation-turn-nav-item {
-  pointer-events: auto;
-  display: block;
+  position: relative;
+  display: flex;
+  width: 36px;
+  height: 10px;
+  min-width: 36px;
+  min-height: 10px;
+  align-items: center;
+  justify-content: flex-start;
   padding: 0;
   border: none;
-  border-radius: 1px;
   cursor: pointer;
-  background: var(--color-border-faint, var(--color-border-soft));
-  width: 8px;
-  height: 2px;
-  min-width: 0;
-  min-height: 0;
+  background: transparent;
   flex-shrink: 0;
-  transition:
-    width var(--motion-fast, 150ms) var(--ease-out, ease-out),
-    background var(--motion-fast, 150ms) var(--ease-out, ease-out);
-
-  &:hover,
-  &:focus-visible {
-    outline: none;
-    width: 22px;
-    height: 2px;
-    background: var(--color-text-strong);
-  }
+  outline: none;
 
   &:focus-visible {
     outline: 1px solid var(--color-accent);
     outline-offset: 2px;
+    border-radius: 2px;
   }
+}
+
+.conversation-turn-nav-marker {
+  display: block;
+  width: 26px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--color-text-meta, var(--color-text-soft));
+  opacity: 0.4;
+  transform: scaleX(0.230769);
+  transform-origin: left center;
+  transition:
+    transform 150ms var(--ease-out, ease-out),
+    opacity 150ms var(--ease-out, ease-out),
+    background-color 150ms var(--ease-out, ease-out);
+}
+
+.conversation-turn-nav-item[aria-current="true"] .conversation-turn-nav-marker {
+  opacity: 0.6;
+}
+
+.conversation-turn-nav-item:is(
+    :hover,
+    :focus-visible,
+    [data-scrub-target]
+  )
+  .conversation-turn-nav-marker {
+  opacity: 1;
+  background: var(--color-text-strong, var(--color-text));
+  transform: scaleX(1);
+}
+
+/* Neighbouring ticks follow the same .7 / .4 / .2 progress curve in both
+ * directions around the hovered, focused, or scrubbed tick. */
+:where(.conversation-turn-nav-item):is(:hover, :focus-visible, [data-scrub-target])
+  + :where(.conversation-turn-nav-item)
+  .conversation-turn-nav-marker,
+:where(.conversation-turn-nav-item):has(
+    + :where(.conversation-turn-nav-item):is(
+        :hover,
+        :focus-visible,
+        [data-scrub-target]
+      )
+  )
+  .conversation-turn-nav-marker {
+  transform: scaleX(0.769231);
+}
+
+:where(.conversation-turn-nav-item):is(:hover, :focus-visible, [data-scrub-target])
+  + :where(.conversation-turn-nav-item)
+  + :where(.conversation-turn-nav-item)
+  .conversation-turn-nav-marker,
+:where(.conversation-turn-nav-item):has(
+    + :where(.conversation-turn-nav-item)
+      + :where(.conversation-turn-nav-item):is(
+        :hover,
+        :focus-visible,
+        [data-scrub-target]
+      )
+  )
+  .conversation-turn-nav-marker {
+  transform: scaleX(0.538462);
+}
+
+:where(.conversation-turn-nav-item):is(:hover, :focus-visible, [data-scrub-target])
+  + :where(.conversation-turn-nav-item)
+  + :where(.conversation-turn-nav-item)
+  + :where(.conversation-turn-nav-item)
+  .conversation-turn-nav-marker,
+:where(.conversation-turn-nav-item):has(
+    + :where(.conversation-turn-nav-item)
+      + :where(.conversation-turn-nav-item)
+      + :where(.conversation-turn-nav-item):is(
+        :hover,
+        :focus-visible,
+        [data-scrub-target]
+      )
+  )
+  .conversation-turn-nav-marker {
+  transform: scaleX(0.384615);
+}
+
+.conversation-turn-nav-list[data-scrubbing]
+  .conversation-turn-nav-marker {
+  transition: none;
 }
 
 /* ── Turn preview card (inside tooltip) ──────────────────── */
 
 .conversation-turn-preview-card {
-  min-width: 200px;
-  max-width: 280px;
-  padding: 10px;
+  box-sizing: border-box;
+  width: 320px;
+  max-width: calc(100vw - 16px);
+  padding: 8px;
+  border: 0.5px solid var(--color-popover-border, var(--color-border-soft));
+  border-radius: 12px;
+  background-color: var(--color-popover-bg, var(--surface-raised));
+  background-color: color-mix(
+    in srgb,
+    var(--color-popover-bg, var(--surface-raised)) 95%,
+    transparent
+  );
   color: var(--color-text);
+  font-size: 12px;
+  line-height: 20px;
+  box-shadow:
+    0 8px 16px -4px
+    color-mix(in srgb, var(--color-ink) 12%, transparent);
+  backdrop-filter: blur(8px);
 }
 
 .preview-card-user-text {
   font-weight: 500;
-  font-size: var(--type-body);
-  line-height: 1.4;
+  font-size: 12px;
+  line-height: 20px;
   color: var(--color-text-strong);
   white-space: nowrap;
   overflow: hidden;
@@ -447,17 +561,19 @@
 }
 
 .preview-card-assistant-text {
-  margin-top: 6px;
+  display: -webkit-box;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--color-text-meta);
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .preview-card-assistant-text .md-body {
-  font-size: var(--type-secondary);
-  line-height: 1.45;
-  color: var(--color-text-meta);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  font: inherit;
+  color: inherit;
 
   p,
   li {
@@ -488,18 +604,51 @@
   }
 }
 
-.preview-card-files {
-  margin-top: 6px;
-  font-size: var(--type-caption);
-  line-height: 1.3;
+.preview-card-files,
+.preview-card-outputs {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 20px;
   color: var(--color-text-mute, var(--color-text-meta));
   white-space: nowrap;
+  overflow: hidden;
+}
+
+.preview-card-file,
+.preview-card-output {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 168px;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview-card-files-icon,
+.preview-card-file-icon,
+.preview-card-output-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  opacity: 0.7;
+}
+
+.preview-card-file-name,
+.preview-card-output-name,
+.preview-card-output-label {
+  max-width: 144px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.preview-card-files-icon {
-  opacity: 0.7;
+.preview-card-files-more,
+.preview-card-outputs-more,
+.preview-card-output-more {
+  flex: 0 0 auto;
 }
 
 /* ── Glass surfaces override for the preview card ────────── */
@@ -517,7 +666,8 @@
     color: var(--glass-surface-text-meta, var(--color-text-meta));
   }
 
-  .preview-card-files {
+  .preview-card-files,
+  .preview-card-outputs {
     color: var(--glass-surface-text-meta, var(--color-text-meta));
   }
 }
@@ -526,8 +676,42 @@
   .conversation-turn-nav-rail {
     transition: none;
   }
+
+  .conversation-turn-nav-marker {
+    transition: none;
+  }
 }
 
-:root[data-reduce-motion="on"] .conversation-turn-nav-rail {
-  transition: none;
+:root[data-reduce-motion="on"] {
+  .conversation-turn-nav-rail,
+  .conversation-turn-nav-marker {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .conversation-turn-nav-marker {
+    background: ButtonText;
+    forced-color-adjust: none;
+  }
+
+  .conversation-turn-nav-item:focus-visible {
+    outline-color: Highlight;
+  }
+
+  .conversation-turn-preview-card {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+    backdrop-filter: none;
+    forced-color-adjust: none;
+  }
+
+  .preview-card-user-text,
+  .preview-card-assistant-text,
+  .preview-card-files,
+  .preview-card-outputs {
+    color: CanvasText;
+  }
 }
