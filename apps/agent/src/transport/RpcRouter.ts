@@ -338,10 +338,13 @@ export class RpcRouter {
         this.workspaceFileWatchers.delete(key)
         return { watching: false, path }
       }
-      case "review/summary":
+      case "review/summary": {
+        const input = decodeParams(decodeReviewSummary, rawParams, method)
+        return review.summaryResult(input.projectId, input.source)
+      }
       case "review/refresh": {
         const input = decodeParams(decodeReviewSummary, rawParams, method)
-        return { snapshot: await review.summary(input.projectId, input.source) }
+        return review.summaryResult(input.projectId, input.source, true)
       }
       case "review/fileDiff": {
         const input = decodeParams(decodeReviewFileDiff, rawParams, method)

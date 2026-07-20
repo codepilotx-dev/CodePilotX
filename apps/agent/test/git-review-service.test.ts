@@ -31,7 +31,16 @@ const git = async (cwd: string, ...args: string[]) => {
   return stdout.trim()
 }
 
-const fixture = async () => {
+const fixture = async (options: {
+  onChanged?: (projectId: string) => void | Promise<void>
+  onGitCommand?: (args: readonly string[]) => void
+  resolvePullRequest?: (input: {
+    workspaceRoot: string
+    owner: string
+    repository: string
+    number: number
+  }) => Promise<{ baseSha: string; headSha: string }>
+} = {}) => {
   const container = await mkdtemp(join(tmpdir(), "codepilotx-review-"))
   roots.push(container)
   const root = join(container, "repository")
@@ -46,7 +55,18 @@ const fixture = async () => {
   const db = new AgentDatabase(join(container, "agent.sqlite"))
   const project = db.createProject({ rootPath: root })
   const thread = db.createThread("Review fixture", project.id)
-  return { root, db, project, thread, review: new GitReviewService(db) }
+  return {
+    root,
+    db,
+    project,
+    thread,
+    review: new GitReviewService(
+      db,
+      options.onChanged,
+      options.resolvePullRequest,
+      options.onGitCommand,
+    ),
+  }
 }
 
 describe("GitReviewService", () => {
@@ -209,6 +229,197 @@ describe("GitReviewService", () => {
       status: 503,
       details: { operation: "merge" },
     })
+    db.close()
+  }, 30_000)
+
+  test("批量摘要的 Git 子进程数量不随文件数增长，文件加载不会重跑摘要", async () => {
+    const commands: string[][] = []
+    const { root, db, project, review } = await fixture({
+      onGitCommand: (args) => commands.push([...args]),
+    })
+    for (let index = 0; index < 50; index += 1) {
+      await writeFile(
+        join(root, "src", `bulk-${index}.ts`),
+        `export const value${index} = ${index}\n`,
+        "utf8",
+      )
+    }
+    await git(root, "add", ".")
+    await git(root, "commit", "-m", "bulk fixture")
+    for (let index = 0; index < 50; index += 1) {
+      await writeFile(
+        join(root, "src", `bulk-${index}.ts`),
+        `export const value${index} = ${index + 1}\n`,
+        "utf8",
+      )
+    }
+
+    commands.length = 0
+    const snapshot = await review.summary(project.id, { kind: "unstaged" })
+    expect(snapshot.files).toHaveLength(50)
+    expect(commands.length).toBeLessThanOrEqual(8)
+    expect(commands.filter((args) => args.includes("--numstat"))).toHaveLength(1)
+    expect(commands.filter((args) => args.includes("--name-status"))).toHaveLength(1)
+
+    const commandCountAfterSummary = commands.length
+    await Promise.all(snapshot.files.slice(0, 5).map((file) => review.fileDiff({
+      projectId: project.id,
+      source: { kind: "unstaged" },
+      generation: snapshot.generation,
+      path: file.path,
+    })))
+    expect(commands).toHaveLength(commandCountAfterSummary)
+    db.close()
+  }, 30_000)
+
+  test("相同摘要刷新和文件 Diff 的并发请求会合并", async () => {
+    const commands: string[][] = []
+    const { root, db, project, review } = await fixture({
+      onGitCommand: (args) => commands.push([...args]),
+    })
+    await writeFile(join(root, "src", "index.ts"), "export const value = 2\n", "utf8")
+
+    const [first, second] = await Promise.all([
+      review.summaryResult(project.id, { kind: "unstaged" }, true),
+      review.summaryResult(project.id, { kind: "unstaged" }, true),
+    ])
+    expect(first.snapshot.generation).toBe(second.snapshot.generation)
+    expect(first.cacheState).toBe("fresh")
+    expect(commands.filter((args) => args.includes("--name-status"))).toHaveLength(1)
+
+    commands.length = 0
+    const input = {
+      projectId: project.id,
+      source: { kind: "unstaged" } as const,
+      generation: first.snapshot.generation,
+      path: "src/index.ts",
+      hideWhitespace: true,
+    }
+    const [firstDiff, secondDiff] = await Promise.all([
+      review.fileDiff(input),
+      review.fileDiff(input),
+    ])
+    expect(firstDiff).toEqual(secondDiff)
+    expect(commands.filter((args) => args[0] === "diff")).toHaveLength(1)
+    db.close()
+  }, 30_000)
+
+  test("大型未跟踪文件摘要进入降级模式，显式加载时才生成文件 Patch", async () => {
+    const commands: string[][] = []
+    const { root, db, project, review } = await fixture({
+      onGitCommand: (args) => commands.push([...args]),
+    })
+    await writeFile(
+      join(root, "src", "large.txt"),
+      Buffer.alloc(12 * 1024 * 1024 + 1, 97),
+    )
+
+    const snapshot = await review.summary(project.id, { kind: "unstaged" })
+    const file = snapshot.files.find((candidate) => candidate.path === "src/large.txt")
+    expect(snapshot.largeDiffMode).toBe(true)
+    expect(file?.changedBytes).toBeGreaterThan(12 * 1024 * 1024)
+    const diffCommandsAfterSummary = commands.filter((args) => args[0] === "diff").length
+
+    const diff = await review.fileDiff({
+      projectId: project.id,
+      source: { kind: "unstaged" },
+      generation: snapshot.generation,
+      path: "src/large.txt",
+    })
+    expect(diff.renderable).toBe(false)
+    expect(diff.tooLargeReason).toBe("changed-bytes")
+    expect(commands.filter((args) => args[0] === "diff").length).toBe(diffCommandsAfterSummary + 1)
+    db.close()
+  }, 30_000)
+
+  test("本地分支来源不准备远端，PR 来源继续走现有远端准备器", async () => {
+    let pullRequestPreparations = 0
+    const { db, project, review } = await fixture({
+      resolvePullRequest: async () => {
+        pullRequestPreparations += 1
+        return {
+          baseSha: "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+          headSha: "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+        }
+      },
+    })
+
+    await review.summary(project.id, { kind: "branch", baseBranch: "main" })
+    expect(pullRequestPreparations).toBe(0)
+    await review.summary(project.id, {
+      kind: "pull-request",
+      owner: "codepilotx",
+      repository: "fixture",
+      number: 1,
+    })
+    expect(pullRequestPreparations).toBe(1)
+    db.close()
+  }, 30_000)
+
+  test("watcher 仅标记旧快照 stale，refresh 再返回新 generation", async () => {
+    let resolveChanged: (() => void) | undefined
+    const changed = new Promise<void>((resolve) => {
+      resolveChanged = resolve
+    })
+    let changedCalls = 0
+    const { root, db, project, review } = await fixture({
+      onChanged: () => {
+        changedCalls += 1
+        resolveChanged?.()
+      },
+    })
+    const initial = await review.summaryResult(project.id, { kind: "unstaged" })
+    await writeFile(join(root, "src", "index.ts"), "export const value = 2\n", "utf8")
+    await Promise.race([
+      changed,
+      Bun.sleep(3_000).then(() => {
+        throw new Error("等待 Git watcher 超时")
+      }),
+    ])
+
+    const stale = await review.summaryResult(project.id, { kind: "unstaged" })
+    expect(stale.cacheState).toBe("stale")
+    expect(stale.snapshot.generation).toBe(initial.snapshot.generation)
+    const refreshed = await review.summaryResult(project.id, { kind: "unstaged" }, true)
+    expect(refreshed.cacheState).toBe("fresh")
+    expect(refreshed.snapshot.generation).not.toBe(initial.snapshot.generation)
+    expect(changedCalls).toBe(1)
+    review.dispose()
+    db.close()
+  }, 30_000)
+
+  test("watcher 合并事件风暴并忽略 gitignored 文件", async () => {
+    let changedCalls = 0
+    let resolveChanged: (() => void) | undefined
+    const changed = new Promise<void>((resolve) => {
+      resolveChanged = resolve
+    })
+    const { root, db, project, review } = await fixture({
+      onChanged: () => {
+        changedCalls += 1
+        resolveChanged?.()
+      },
+    })
+    await writeFile(join(root, ".gitignore"), "ignored.log\n", "utf8")
+    await git(root, "add", ".gitignore")
+    await git(root, "commit", "-m", "ignore fixture")
+    await review.summaryResult(project.id, { kind: "unstaged" })
+
+    await writeFile(join(root, "ignored.log"), "ignored\n", "utf8")
+    await Bun.sleep(600)
+    expect(changedCalls).toBe(0)
+
+    await Promise.all(Array.from({ length: 10 }, (_, index) =>
+      writeFile(join(root, "src", "index.ts"), `export const value = ${index}\n`, "utf8")))
+    await Promise.race([
+      changed,
+      Bun.sleep(3_000).then(() => {
+        throw new Error("等待合并后的 Git watcher 事件超时")
+      }),
+    ])
+    await Bun.sleep(600)
+    expect(changedCalls).toBe(1)
+    review.dispose()
     db.close()
   }, 30_000)
 

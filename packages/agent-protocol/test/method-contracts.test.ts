@@ -819,6 +819,7 @@ const fixtures = {
       totals: { files: 0, additions: 0, deletions: 0, changedLines: 0, changedBytes: 0 },
       largeDiffMode: false,
     },
+    cacheState: "stale",
   }),
   "review/fileDiff": methodFixture("review/fileDiff", {
     projectId: project.id,
@@ -867,6 +868,7 @@ const fixtures = {
       totals: { files: 0, additions: 0, deletions: 0, changedLines: 0, changedBytes: 0 },
       largeDiffMode: false,
     },
+    cacheState: "fresh",
   }),
   "review/apply": methodFixture("review/apply", {
     projectId: project.id,
@@ -1046,6 +1048,19 @@ describe("RPC method schema contracts", () => {
       ...fixtures["turn/start"].params,
       taskMode: "execute",
     })).toThrow()
+
+    for (const method of ["review/summary", "review/refresh"] as const) {
+      const result = fixtures[method].result
+      expect(() => Schema.decodeUnknownSync(RpcMethods[method].result)({
+        ...result,
+        cacheState: "warming",
+      }), `${method} cacheState`).toThrow()
+      const withoutCacheState = { ...result } as Record<string, unknown>
+      delete withoutCacheState.cacheState
+      expect(() => Schema.decodeUnknownSync(RpcMethods[method].result)(
+        withoutCacheState,
+      ), `${method} requires cacheState`).toThrow()
+    }
   })
 
   test("rejects excess fields for every security-sensitive exact params schema", () => {

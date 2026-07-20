@@ -76,9 +76,14 @@ export const ReviewSummaryParamsSchema = Schema.Struct({
   source: ReviewSourceSchema,
 })
 
+export const ReviewSummaryCacheStateSchema = Schema.Literals(["fresh", "stale"])
+export type ReviewSummaryCacheState = typeof ReviewSummaryCacheStateSchema.Type
+
 export const ReviewSummaryResultSchema = Schema.Struct({
   snapshot: ReviewSummarySnapshotSchema,
+  cacheState: ReviewSummaryCacheStateSchema,
 })
+export type ReviewSummaryResult = typeof ReviewSummaryResultSchema.Type
 
 export const ReviewHunkSchema = Schema.Struct({
   id: NonEmptyStringSchema,

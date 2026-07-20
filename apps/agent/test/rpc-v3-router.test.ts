@@ -33,19 +33,27 @@ const fixture = async (
   const db = new AgentDatabase(join(root, "agent.sqlite"))
   let reviewSummaryCalls = 0
   let githubStatusCalls = 0
+  const reviewSnapshot = (projectId: string, source: { kind: "unstaged" }) => ({
+    projectId,
+    generation: "generation:1",
+    source,
+    repositoryRoot: root,
+    headSha: null,
+    baseSha: null,
+    files: [],
+    totals: { files: 0, additions: 0, deletions: 0, changedLines: 0, changedBytes: 0 },
+    largeDiffMode: false,
+  })
   const review = {
     summary: async (projectId: string, source: { kind: "unstaged" }) => {
       reviewSummaryCalls += 1
+      return reviewSnapshot(projectId, source)
+    },
+    summaryResult: async (projectId: string, source: { kind: "unstaged" }) => {
+      reviewSummaryCalls += 1
       return {
-        projectId,
-        generation: "generation:1",
-        source,
-        repositoryRoot: root,
-        headSha: null,
-        baseSha: null,
-        files: [],
-        totals: { files: 0, additions: 0, deletions: 0, changedLines: 0, changedBytes: 0 },
-        largeDiffMode: false,
+        snapshot: reviewSnapshot(projectId, source),
+        cacheState: "fresh" as const,
       }
     },
   }
@@ -162,6 +170,7 @@ describe("RPC v3 Router", () => {
         generation: "generation:1",
         totals: { files: 0 },
       },
+      cacheState: "fresh",
     })
     const github = await call("github/auth/status", {})
     expect(github.result).toEqual({ configured: false, authenticated: false, user: null })
