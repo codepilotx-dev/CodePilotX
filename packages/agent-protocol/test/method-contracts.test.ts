@@ -206,6 +206,107 @@ const integrationAttemptState = {
   connection: null,
 } as const
 
+const githubUser = {
+  login: "octocat",
+  id: 1,
+  name: "Octocat",
+  avatarUrl: "https://avatars.githubusercontent.com/u/1",
+  htmlUrl: "https://github.com/octocat",
+}
+
+const githubAuth = {
+  configured: true,
+  authenticated: true,
+  user: githubUser,
+}
+
+const githubLogin = {
+  loginId: "github-login:1",
+  state: "awaiting_auth",
+  userCode: "ABCD-EFGH",
+  verificationUri: "https://github.com/login/device",
+  expiresAt: "2026-07-18T10:00:00.000Z",
+  error: null,
+  auth: null,
+  elapsedMs: 1,
+} as const
+
+const githubRepository = {
+  id: 1,
+  name: "fixture",
+  fullName: "octocat/fixture",
+  owner: "octocat",
+  private: false,
+  fork: false,
+  archived: false,
+  disabled: false,
+  cloneUrl: "https://github.com/octocat/fixture.git",
+  sshUrl: "git@github.com:octocat/fixture.git",
+  htmlUrl: "https://github.com/octocat/fixture",
+  description: "Fixture repository",
+  defaultBranch: "main",
+  pushedAt: "2026-07-18T09:00:00.000Z",
+  updatedAt: "2026-07-18T09:00:00.000Z",
+}
+
+const githubPullRequest = {
+  id: 10,
+  number: 7,
+  title: "Fixture pull request",
+  body: "Fixture body",
+  state: "open",
+  draft: false,
+  htmlUrl: "https://github.com/octocat/fixture/pull/7",
+  base: { ref: "main", sha: "base-sha" },
+  head: { ref: "feature", sha: "head-sha" },
+  additions: 2,
+  deletions: 1,
+  changedFiles: 1,
+  mergeable: true,
+}
+
+const githubProfileRepository = {
+  id: "repo:1",
+  name: "fixture",
+  fullName: "octocat/fixture",
+  url: "https://github.com/octocat/fixture",
+  description: null,
+  isPrivate: false,
+  isFork: false,
+  primaryLanguage: { name: "TypeScript", color: "#3178c6" },
+  stargazerCount: 1,
+  forkCount: 0,
+  updatedAt: "2026-07-18T09:00:00.000Z",
+}
+
+const githubProfileOverview = {
+  user: {
+    ...githubUser,
+    bio: null,
+    company: null,
+    location: null,
+    websiteUrl: null,
+    email: null,
+    followers: 1,
+    following: 0,
+    repositoryCount: 1,
+    starredRepositoryCount: 1,
+    status: null,
+  },
+  organizations: [],
+  pinnedRepositories: [githubProfileRepository],
+  popularRepositories: [githubProfileRepository],
+  contributions: {
+    totalContributions: 1,
+    totalCommitContributions: 1,
+    totalIssueContributions: 0,
+    totalPullRequestContributions: 0,
+    totalPullRequestReviewContributions: 0,
+    restrictedContributionsCount: 0,
+    weeks: [{ days: [{ date: "2026-07-18", count: 1, color: "#40c463" }] }],
+  },
+}
+
 const modelCatalog = {
   providers: [],
   defaultModel: modelRef,
@@ -614,12 +715,302 @@ const fixtures = {
     credentialId,
     operationId: "operation:integration-disconnect",
   }, { integration: integrationInfo }),
+  "github/auth/status": methodFixture("github/auth/status", {}, githubAuth),
+  "github/auth/start": methodFixture("github/auth/start", {
+    clientId: "github-client-id",
+  }, githubLogin),
+  "github/auth/poll": methodFixture("github/auth/poll", { loginId: "github-login:1" }, githubLogin),
+  "github/auth/logout": methodFixture("github/auth/logout", {}, {
+    configured: true,
+    authenticated: false,
+    user: null,
+  }),
+  "github/profile": methodFixture("github/profile", {}, { user: githubUser }),
+  "github/profileOverview": methodFixture("github/profileOverview", {}, {
+    overview: githubProfileOverview,
+  }),
+  "github/repositories": methodFixture("github/repositories", {}, {
+    repositories: [githubRepository],
+  }),
+  "github/pullRequest/read": methodFixture("github/pullRequest/read", {
+    owner: "octocat",
+    repository: "fixture",
+    number: 7,
+  }, { pullRequest: githubPullRequest }),
+  "github/pullRequest/create": methodFixture("github/pullRequest/create", {
+    owner: "octocat",
+    repository: "fixture",
+    title: "Fixture pull request",
+    head: "feature",
+    base: "main",
+    body: "Fixture body",
+    draft: false,
+  }, { pullRequest: githubPullRequest }),
+  "github/pullRequest/createForProject": methodFixture("github/pullRequest/createForProject", {
+    projectId: project.id,
+    title: "Fixture pull request",
+    body: "Fixture body",
+    draft: false,
+  }, { pullRequest: githubPullRequest }),
+  "github/pullRequest/comment": methodFixture("github/pullRequest/comment", {
+    owner: "octocat",
+    repository: "fixture",
+    number: 7,
+    body: "Please fix this.",
+    path: "src/index.ts",
+    side: "RIGHT",
+    line: 1,
+    expectedHeadRevision: "head-sha",
+    commitId: "head-sha",
+  }, {
+    comment: {
+      id: 1,
+      nodeId: "comment-node:1",
+      htmlUrl: "https://github.com/octocat/fixture/pull/7#discussion_r1",
+      body: "Please fix this.",
+    },
+  }),
+  "github/pullRequest/resolveThread": methodFixture("github/pullRequest/resolveThread", {
+    threadId: "review-thread:1",
+    resolved: true,
+  }, { thread: { id: "review-thread:1", resolved: true } }),
+  "github/pullRequest/submitReview": methodFixture("github/pullRequest/submitReview", {
+    owner: "octocat",
+    repository: "fixture",
+    number: 7,
+    event: "APPROVE",
+    expectedHeadRevision: "head-sha",
+  }, {
+    review: {
+      id: 1,
+      state: "APPROVED",
+      htmlUrl: "https://github.com/octocat/fixture/pull/7#pullrequestreview-1",
+    },
+  }),
+  "github/push": methodFixture("github/push", {
+    projectId: project.id,
+    remote: "origin",
+    branch: "feature",
+  }, {
+    remote: "origin",
+    branch: "feature",
+    repositoryUrl: "https://github.com/octocat/fixture",
+    status: {
+      branchName: "feature",
+      upstream: "origin/feature",
+      ahead: 0,
+      behind: 0,
+      clean: true,
+      files: [],
+    },
+  }),
+  "review/summary": methodFixture("review/summary", {
+    projectId: project.id,
+    source: { kind: "unstaged" },
+  }, {
+    snapshot: {
+      projectId: project.id,
+      generation: "generation:1",
+      source: { kind: "unstaged" },
+      repositoryRoot: "F:\\fixture",
+      headSha: "0123456789012345678901234567890123456789",
+      baseSha: null,
+      files: [],
+      totals: { files: 0, additions: 0, deletions: 0, changedLines: 0, changedBytes: 0 },
+      largeDiffMode: false,
+    },
+  }),
+  "review/fileDiff": methodFixture("review/fileDiff", {
+    projectId: project.id,
+    source: { kind: "unstaged" },
+    generation: "generation:1",
+    path: "src/index.ts",
+    hideWhitespace: false,
+  }, {
+    file: {
+      path: "src/index.ts",
+      previousPath: null,
+      status: "modified",
+      additions: 1,
+      deletions: 1,
+      changedLines: 2,
+      changedBytes: 32,
+      binary: false,
+      revision: "revision:1",
+    },
+    revision: "revision:1",
+    patch: "@@ -1 +1 @@\n-old\n+new",
+    hunks: [{
+      id: "hunk:1",
+      header: "@@ -1 +1 @@",
+      oldStart: 1,
+      oldLines: 1,
+      newStart: 1,
+      newLines: 1,
+      patch: "@@ -1 +1 @@\n-old\n+new",
+    }],
+    renderable: true,
+    tooLargeReason: null,
+  }),
+  "review/refresh": methodFixture("review/refresh", {
+    projectId: project.id,
+    source: { kind: "staged" },
+  }, {
+    snapshot: {
+      projectId: project.id,
+      generation: "generation:2",
+      source: { kind: "staged" },
+      repositoryRoot: "F:\\fixture",
+      headSha: null,
+      baseSha: null,
+      files: [],
+      totals: { files: 0, additions: 0, deletions: 0, changedLines: 0, changedBytes: 0 },
+      largeDiffMode: false,
+    },
+  }),
+  "review/apply": methodFixture("review/apply", {
+    projectId: project.id,
+    source: { kind: "unstaged" },
+    generation: "generation:1",
+    expectedRevision: "revision:1",
+    action: "stage",
+    target: { kind: "file", path: "src/index.ts" },
+    atomic: true,
+  }, {
+    ok: true,
+    action: "stage",
+    path: "src/index.ts",
+    generation: "generation:2",
+  }),
+  "review/branches": methodFixture("review/branches", { projectId: project.id }, {
+    current: "main",
+    branches: [{
+      name: "main",
+      sha: "0123456789012345678901234567890123456789",
+      current: true,
+      remote: false,
+    }],
+  }),
+  "review/commits": methodFixture("review/commits", { projectId: project.id, limit: 50 }, {
+    commits: [{
+      sha: "0123456789012345678901234567890123456789",
+      shortSha: "0123456",
+      subject: "Fixture commit",
+      author: "Fixture author",
+      authoredAt: 1,
+    }],
+  }),
+  "review/status": methodFixture("review/status", { projectId: project.id }, {
+    status: {
+      branchName: "main",
+      upstream: "origin/main",
+      ahead: 1,
+      behind: 0,
+      clean: false,
+      files: [{
+        path: "src/index.ts",
+        previousPath: null,
+        stagedStatus: "M",
+        unstagedStatus: " ",
+        untracked: false,
+      }],
+    },
+  }),
+  "review/commit": methodFixture("review/commit", {
+    projectId: project.id,
+    message: "Update fixture",
+    paths: ["src/index.ts"],
+  }, {
+    ok: true,
+    headSha: "0123456789012345678901234567890123456789",
+    output: "[main 0123456] Update fixture",
+    status: {
+      branchName: "main",
+      upstream: "origin/main",
+      ahead: 1,
+      behind: 0,
+      clean: true,
+      files: [],
+    },
+  }),
+  "review/comment/list": methodFixture("review/comment/list", {
+    threadId: threadListItem.id,
+    projectId: project.id,
+    sourceKey: "unstaged",
+  }, { comments: [] }),
+  "review/comment/save": methodFixture("review/comment/save", {
+    threadId: threadListItem.id,
+    projectId: project.id,
+    sourceKey: "unstaged",
+    path: "src/index.ts",
+    side: "new",
+    line: 1,
+    hunkId: null,
+    revision: "revision:1",
+    body: "Please verify this change.",
+  }, {
+    comment: {
+      id: "comment:1",
+      threadId: threadListItem.id,
+      projectId: project.id,
+      sourceKey: "unstaged",
+      path: "src/index.ts",
+      side: "new",
+      line: 1,
+      hunkId: null,
+      revision: "revision:1",
+      body: "Please verify this change.",
+      status: "open",
+      githubCommentId: null,
+      githubThreadId: null,
+      createdAt: 1,
+      updatedAt: 1,
+    },
+  }),
+  "review/comment/resolve": methodFixture("review/comment/resolve", {
+    id: "comment:1",
+    threadId: threadListItem.id,
+    projectId: project.id,
+  }, {
+    comment: {
+      id: "comment:1",
+      threadId: threadListItem.id,
+      projectId: project.id,
+      sourceKey: "unstaged",
+      path: "src/index.ts",
+      side: "new",
+      line: 1,
+      hunkId: null,
+      revision: "revision:1",
+      body: "Please verify this change.",
+      status: "resolved",
+      githubCommentId: null,
+      githubThreadId: null,
+      createdAt: 1,
+      updatedAt: 2,
+    },
+  }),
+  "review/comment/delete": methodFixture("review/comment/delete", {
+    id: "comment:1",
+    threadId: threadListItem.id,
+    projectId: project.id,
+  }, { ok: true }),
+  "review/ai/start": methodFixture("review/ai/start", {
+    threadId: threadListItem.id,
+    target: { type: "uncommittedChanges" },
+    delivery: "inline",
+  }, {
+    threadId: threadListItem.id,
+    turnId: "turn:review:1",
+    delivery: "inline",
+    source: { kind: "unstaged" },
+  }),
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 65 formal methods decodable", () => {
+  test("keeps valid params and results for all 92 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(65)
+    expect(methods).toHaveLength(92)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
