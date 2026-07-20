@@ -32,6 +32,8 @@ import { z } from "zod"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { GitReviewService } from "./review/GitReviewService"
+import { GithubService } from "./github/GithubService"
 
 export const bootstrap = Effect.gen(function* () {
   const config = yield* loadConfig
@@ -39,6 +41,20 @@ export const bootstrap = Effect.gen(function* () {
   const db = new AgentDatabase(config.databasePath)
   const hub = yield* EventHub.make
   const credentials = new EncryptedCredentialRepository(db)
+  const github = new GithubService(credentials, {
+    getConfiguredClientId: () => {
+      const settings = db.getSetting<Record<string, unknown>>("desktop.settings.v1")
+      return typeof settings?.githubOAuthClientId === "string" ? settings.githubOAuthClientId : null
+    },
+  })
+  const review = new GitReviewService(
+    db,
+    async (projectId) => {
+      const event = db.insertEvent(null, null, "workspace/git/changed", { projectId, changedAt: Date.now() })
+      await Effect.runPromise(hub.publish(event))
+    },
+    (input) => github.preparePullRequestComparison(input),
+  )
   const pluginHost = createPluginHost({ builtins: createBuiltinProviderPlugins() })
   let integrations: IntegrationService
   const providers = createProviderRuntime({
@@ -142,8 +158,8 @@ export const bootstrap = Effect.gen(function* () {
   })
   const subagentWorkspaces = new SubagentWorkspaceCoordinator(db, config.dataDir)
   const subagents = new SubagentService(db, hub, providers, approvals, questions, orchestrator, attachments, subagentWorkspaces, config.dataDir, memory, hooks)
-  const threads = new ThreadService(db, hub, providers, approvals, questions, orchestrator, subagents, attachments, config.dataDir, memory, hooks)
+  const threads = new ThreadService(db, hub, providers, approvals, questions, orchestrator, subagents, attachments, config.dataDir, memory, hooks, review)
   const history = new ThreadHistoryService(db, hub)
-  const app = createApp({ config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, memory, hooks, logger, sandbox })
+  const app = createApp({ config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, memory, hooks, logger, sandbox, review, github })
   return { config, db, app, logger, providers, sandbox }
 })

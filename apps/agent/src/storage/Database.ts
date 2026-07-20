@@ -4,6 +4,7 @@ import { basename, dirname, extname, resolve } from "node:path"
 import { Effect } from "effect"
 import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
 import { AgentError } from "../domain"
+import type { ReviewComment } from "@codepilotx/agent-protocol"
 import type {
   EventEnvelope,
   AgentExecution,
@@ -134,7 +135,7 @@ const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const now = () => Date.now()
 const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
-export const SCHEMA_VERSION = 10
+export const SCHEMA_VERSION = 12
 
 export type QueuePauseReason = "interrupted" | "turn_failed" | null
 export type QueueMutationMeta = { operationID: string; expectedVersion?: number }
@@ -466,6 +467,8 @@ export class AgentDatabase {
     if (currentVersion < 8) this.migrateContextV8()
     if (currentVersion < 9) this.migrateHookTrustV9()
     if (currentVersion < 10) this.migrateQueueV10()
+    if (currentVersion < 11) this.migrateReviewV11()
+    if (currentVersion < 12) this.migrateInteractionV12()
     this.sqlite.exec(`CREATE TABLE IF NOT EXISTS hook_trust_waiters (
       request_id TEXT NOT NULL REFERENCES hook_trust_requests(id) ON DELETE CASCADE,
       agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
@@ -514,6 +517,63 @@ export class AgentDatabase {
         turns.forEach((turn, index) => this.sqlite.query("UPDATE turns SET queue_position = ? WHERE id = ?").run(index + 1, turn.id))
       }
       this.sqlite.exec("PRAGMA user_version = 10")
+    })
+  }
+
+  private migrateReviewV11() {
+    this.transaction(() => {
+      this.sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS review_comments (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          source_key TEXT NOT NULL,
+          path TEXT NOT NULL,
+          side TEXT NOT NULL CHECK(side IN ('old', 'new')),
+          line INTEGER NOT NULL CHECK(line > 0),
+          hunk_id TEXT,
+          revision TEXT NOT NULL,
+          body TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'resolved')),
+          github_comment_id TEXT,
+          github_thread_id TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS review_comments_scope
+          ON review_comments(thread_id, project_id, source_key, updated_at);
+        CREATE TABLE IF NOT EXISTS turn_git_snapshots (
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          repository_root TEXT NOT NULL,
+          before_tree TEXT,
+          after_tree TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY (thread_id, turn_id)
+        );
+        CREATE INDEX IF NOT EXISTS turn_git_snapshots_project
+          ON turn_git_snapshots(project_id, updated_at DESC);
+        PRAGMA user_version = 11;
+      `)
+    })
+  }
+
+  private migrateInteractionV12() {
+    this.transaction(() => {
+      this.sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS interaction_operations (
+          operation_id TEXT PRIMARY KEY,
+          interaction_id TEXT NOT NULL,
+          response TEXT NOT NULL,
+          result TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS interaction_operations_interaction
+          ON interaction_operations(interaction_id, created_at);
+        PRAGMA user_version = 12;
+      `)
     })
   }
 
@@ -1269,10 +1329,10 @@ export class AgentDatabase {
       | null
   }
 
-  createTurn(threadID: string, input: SubmitMessage, status: TurnStatus = "queued") {
+  createTurn(threadID: string, input: SubmitMessage, status: TurnStatus = "queued", ids: { inputID?: string } = {}) {
     const turnID = crypto.randomUUID()
     const agentID = crypto.randomUUID()
-    const inputID = crypto.randomUUID()
+    const inputID = ids.inputID ?? crypto.randomUUID()
     const timestamp = now()
     return this.transaction(() => {
       const queuePosition = status === "queued"
@@ -1331,8 +1391,8 @@ export class AgentDatabase {
     })
   }
 
-  appendGuide(threadID: string, turnID: string, input: SubmitMessage) {
-    const id = crypto.randomUUID()
+  appendGuide(threadID: string, turnID: string, input: SubmitMessage, inputID?: string) {
+    const id = inputID ?? crypto.randomUUID()
     const timestamp = now()
     return this.transaction(() => {
       const settingsUpdate = this.syncThreadSettings(threadID, {
@@ -1355,6 +1415,19 @@ export class AgentDatabase {
       const event = this.insertEvent(threadID, turnID, "queue/updated", { turnId: turnID, inputID: id, input, action: "guide-appended", createdAt: timestamp })
       return { inputID: id, settingsEvent: settingsUpdate.event, event }
     })
+  }
+
+  inputAdmission(inputID: string) {
+    return this.sqlite.query(`
+      SELECT id, thread_id, turn_id, content, strategy
+      FROM inputs WHERE id = ?
+    `).get(inputID) as {
+      id: string
+      thread_id: string
+      turn_id: string
+      content: string
+      strategy: string
+    } | null
   }
 
   takeGuideMailbox(turnID: string) {
@@ -2222,6 +2295,35 @@ export class AgentDatabase {
     return this.getProjectSettings(projectID)
   }
 
+  interactionOperation(operationID: string) {
+    const row = this.sqlite.query("SELECT interaction_id, response, result FROM interaction_operations WHERE operation_id = ?").get(operationID) as {
+      interaction_id: string
+      response: string
+      result: string
+    } | null
+    return row ? {
+      interactionID: row.interaction_id,
+      response: parse<Record<string, unknown>>(row.response),
+      result: parse<Record<string, unknown>>(row.result),
+    } : null
+  }
+
+  saveInteractionOperation(input: {
+    operationID: string
+    interactionID: string
+    response: Record<string, unknown>
+    result: Record<string, unknown>
+  }) {
+    const existing = this.interactionOperation(input.operationID)
+    if (existing) return existing
+    this.sqlite.query(`
+      INSERT INTO interaction_operations (
+        operation_id, interaction_id, response, result, created_at
+      ) VALUES (?, ?, ?, ?, ?)
+    `).run(input.operationID, input.interactionID, stringify(input.response), stringify(input.result), now())
+    return this.interactionOperation(input.operationID)!
+  }
+
   resolveProjectModel(projectID: string, globalDefault: ModelRef | null) {
     const settings = this.getProjectSettings(projectID)
     return settings.defaultModel ?? globalDefault
@@ -2237,6 +2339,212 @@ export class AgentDatabase {
     if (projectID) this.requireProject(projectID)
     const result = this.sqlite.query("UPDATE threads SET project_id = ?, updated_at = ? WHERE id = ?").run(projectID, now(), threadID)
     if (result.changes === 0) throw new Error(`Thread ${threadID} 不存在`)
+  }
+
+  private mapReviewComment(row: {
+    id: string
+    thread_id: string
+    project_id: string
+    source_key: string
+    path: string
+    side: "old" | "new"
+    line: number
+    hunk_id: string | null
+    revision: string
+    body: string
+    status: "open" | "resolved"
+    github_comment_id: string | null
+    github_thread_id: string | null
+    created_at: number
+    updated_at: number
+  }): ReviewComment {
+    return {
+      id: row.id,
+      threadId: row.thread_id,
+      projectId: row.project_id,
+      sourceKey: row.source_key,
+      path: row.path,
+      side: row.side,
+      line: row.line,
+      hunkId: row.hunk_id,
+      revision: row.revision,
+      body: row.body,
+      status: row.status,
+      githubCommentId: row.github_comment_id,
+      githubThreadId: row.github_thread_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }
+  }
+
+  listReviewComments(input: { threadId: string; projectId: string; sourceKey: string }) {
+    if (this.threadProjectID(input.threadId) !== input.projectId) {
+      throw new AgentError("PROJECT_SCOPE_MISMATCH", "Thread 与 Review 项目不匹配", 409)
+    }
+    const rows = this.sqlite.query(`
+      SELECT id, thread_id, project_id, source_key, path, side, line, hunk_id,
+             revision, body, status, github_comment_id, github_thread_id,
+             created_at, updated_at
+      FROM review_comments
+      WHERE thread_id = ? AND project_id = ? AND source_key = ?
+      ORDER BY created_at, id
+    `).all(input.threadId, input.projectId, input.sourceKey) as Parameters<AgentDatabase["mapReviewComment"]>[0][]
+    return rows.map((row) => this.mapReviewComment(row))
+  }
+
+  saveReviewComment(input: {
+    id?: string | undefined
+    threadId: string
+    projectId: string
+    sourceKey: string
+    path: string
+    side: "old" | "new"
+    line: number
+    hunkId: string | null
+    revision: string
+    body: string
+    githubCommentId?: string | undefined
+    githubThreadId?: string | undefined
+  }) {
+    if (this.threadProjectID(input.threadId) !== input.projectId) {
+      throw new AgentError("PROJECT_SCOPE_MISMATCH", "Thread 与 Review 项目不匹配", 409)
+    }
+    const body = input.body.trim()
+    if (!body) throw new AgentError("INVALID_REQUEST", "Review 评论不能为空", 400)
+    const timestamp = now()
+    const id = input.id ?? crypto.randomUUID()
+    const existing = this.sqlite.query("SELECT thread_id, project_id, created_at FROM review_comments WHERE id = ?").get(id) as {
+      thread_id: string
+      project_id: string
+      created_at: number
+    } | null
+    if (existing && (existing.thread_id !== input.threadId || existing.project_id !== input.projectId)) {
+      throw new AgentError("PROJECT_SCOPE_MISMATCH", "不能修改其他 Thread 或项目的 Review 评论", 409)
+    }
+    this.sqlite.query(`
+      INSERT INTO review_comments (
+        id, thread_id, project_id, source_key, path, side, line, hunk_id,
+        revision, body, status, github_comment_id, github_thread_id,
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        source_key = excluded.source_key,
+        path = excluded.path,
+        side = excluded.side,
+        line = excluded.line,
+        hunk_id = excluded.hunk_id,
+        revision = excluded.revision,
+        body = excluded.body,
+        github_comment_id = COALESCE(excluded.github_comment_id, review_comments.github_comment_id),
+        github_thread_id = COALESCE(excluded.github_thread_id, review_comments.github_thread_id),
+        updated_at = excluded.updated_at
+    `).run(
+      id,
+      input.threadId,
+      input.projectId,
+      input.sourceKey,
+      input.path,
+      input.side,
+      input.line,
+      input.hunkId,
+      input.revision,
+      body,
+      input.githubCommentId ?? null,
+      input.githubThreadId ?? null,
+      existing?.created_at ?? timestamp,
+      timestamp,
+    )
+    return this.reviewComment(id)!
+  }
+
+  private reviewComment(id: string) {
+    const row = this.sqlite.query(`
+      SELECT id, thread_id, project_id, source_key, path, side, line, hunk_id,
+             revision, body, status, github_comment_id, github_thread_id,
+             created_at, updated_at
+      FROM review_comments WHERE id = ?
+    `).get(id) as Parameters<AgentDatabase["mapReviewComment"]>[0] | null
+    return row ? this.mapReviewComment(row) : null
+  }
+
+  resolveReviewComment(input: { id: string; threadId: string; projectId: string }) {
+    const comment = this.reviewComment(input.id)
+    if (!comment) throw new AgentError("REVIEW_COMMENT_NOT_FOUND", "Review 评论不存在", 404)
+    if (comment.threadId !== input.threadId || comment.projectId !== input.projectId) {
+      throw new AgentError("PROJECT_SCOPE_MISMATCH", "不能修改其他 Thread 或项目的 Review 评论", 409)
+    }
+    this.sqlite.query("UPDATE review_comments SET status = 'resolved', updated_at = ? WHERE id = ?").run(now(), input.id)
+    return this.reviewComment(input.id)!
+  }
+
+  deleteReviewComment(input: { id: string; threadId: string; projectId: string }) {
+    const comment = this.reviewComment(input.id)
+    if (!comment) throw new AgentError("REVIEW_COMMENT_NOT_FOUND", "Review 评论不存在", 404)
+    if (comment.threadId !== input.threadId || comment.projectId !== input.projectId) {
+      throw new AgentError("PROJECT_SCOPE_MISMATCH", "不能删除其他 Thread 或项目的 Review 评论", 409)
+    }
+    this.sqlite.query("DELETE FROM review_comments WHERE id = ?").run(input.id)
+  }
+
+  saveTurnGitSnapshot(input: {
+    threadId: string
+    turnId: string
+    projectId: string
+    repositoryRoot: string
+    beforeTree?: string | null
+    afterTree?: string | null
+  }) {
+    if (this.threadProjectID(input.threadId) !== input.projectId) {
+      throw new AgentError("PROJECT_SCOPE_MISMATCH", "Thread 与 Git 快照项目不匹配", 409)
+    }
+    const timestamp = now()
+    this.sqlite.query(`
+      INSERT INTO turn_git_snapshots (
+        thread_id, turn_id, project_id, repository_root,
+        before_tree, after_tree, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(thread_id, turn_id) DO UPDATE SET
+        repository_root = excluded.repository_root,
+        before_tree = COALESCE(excluded.before_tree, turn_git_snapshots.before_tree),
+        after_tree = COALESCE(excluded.after_tree, turn_git_snapshots.after_tree),
+        updated_at = excluded.updated_at
+    `).run(
+      input.threadId,
+      input.turnId,
+      input.projectId,
+      input.repositoryRoot,
+      input.beforeTree ?? null,
+      input.afterTree ?? null,
+      timestamp,
+      timestamp,
+    )
+  }
+
+  getTurnGitSnapshot(threadId: string, turnId: string) {
+    const row = this.sqlite.query(`
+      SELECT thread_id, turn_id, project_id, repository_root, before_tree,
+             after_tree, created_at, updated_at
+      FROM turn_git_snapshots WHERE thread_id = ? AND turn_id = ?
+    `).get(threadId, turnId) as {
+      thread_id: string
+      turn_id: string
+      project_id: string
+      repository_root: string
+      before_tree: string | null
+      after_tree: string | null
+      created_at: number
+      updated_at: number
+    } | null
+    return row ? {
+      threadId: row.thread_id,
+      turnId: row.turn_id,
+      projectId: row.project_id,
+      repositoryRoot: row.repository_root,
+      beforeTree: row.before_tree,
+      afterTree: row.after_tree,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    } : null
   }
 
 }

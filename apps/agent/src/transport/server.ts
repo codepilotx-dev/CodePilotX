@@ -1,9 +1,10 @@
 import { Hono } from "hono"
 import { streamSSE } from "hono/streaming"
+import { EventManifest, type EventType } from "@codepilotx/agent-protocol"
 import { relative, resolve, sep } from "node:path"
 import type { ProviderRuntime } from "@codepilotx/provider-runtime"
 import type { AgentConfig } from "../config/Config"
-import { AgentError } from "../domain"
+import { AgentError, type EventEnvelope as StoredEventEnvelope } from "../domain"
 import type { AgentDatabase } from "../storage/Database"
 import type { EventHub } from "../storage/EventHub"
 import type { ThreadService } from "../session/ThreadService"
@@ -19,6 +20,8 @@ import type { SubagentService } from "../subagent/SubagentService"
 import type { AttachmentService } from "../subagent/AttachmentService"
 import type { MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
+import type { GitReviewService } from "../review/GitReviewService"
+import type { GithubService } from "../github/GithubService"
 
 export interface TransportDependencies {
   config: AgentConfig
@@ -35,6 +38,8 @@ export interface TransportDependencies {
   memory: MemoryService
   hooks: HookService
   sandbox: SandboxRuntimeAdapter
+  review: GitReviewService
+  github: GithubService
   logger: AgentLogger
 }
 
@@ -53,11 +58,46 @@ export const resolveEventCursor = (
 }
 
 const cookieValue = (header: string | null, name: string) => header?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1)
+const DESKTOP_SETTINGS_KEY = "desktop.settings.v1"
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
+
+const eventNextNotification = (
+  subscriptionId: string,
+  streamId: string,
+  event: StoredEventEnvelope,
+  rpc: RpcRouter,
+) => {
+  if (!(event.method in EventManifest)) return null
+  const type = event.method as EventType
+  const definition = EventManifest[type]
+  const payload = rpc.projection.notification(event).notification.params
+  const base = {
+    eventId: String(event.id),
+    streamId,
+    type,
+    version: definition.version,
+    occurredAt: event.createdAt,
+    ...(event.threadId ? { threadId: event.threadId } : {}),
+    ...(event.turnId ? { turnId: event.turnId } : {}),
+    payload,
+  }
+  return {
+    jsonrpc: "2.0" as const,
+    method: "event/next" as const,
+    params: {
+      subscriptionId,
+      event: definition.durability === "live"
+        ? { ...base, durability: "live" as const, sequence: null, afterSequence: event.id }
+        : { ...base, durability: "durable" as const, sequence: event.id },
+    },
+  }
+}
 
 export const createApp = (dependencies: TransportDependencies) => {
-  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, memory, hooks, sandbox, logger } = dependencies
+  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, memory, hooks, sandbox, review, github, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, memory, hooks, sandbox })
+  const rpc = new RpcRouter({ db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, memory, hooks, sandbox, review, github })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)
@@ -103,34 +143,103 @@ export const createApp = (dependencies: TransportDependencies) => {
 
   app.post("/rpc", async (context) => {
     const body = await context.req.json().catch(() => null)
-    const result = await rpc.handle(body)
+    const connectionId = context.req.header("x-codepilotx-connection-id")
+    const result = await rpc.handle(body, connectionId ? { connectionId } : {})
     if (Array.isArray(result)) return context.json(result.filter(Boolean))
     if (!result) return new Response(null, { status: 204 })
     return context.json(result)
   })
 
   app.get("/rpc/events", (context) => {
-    const latestEventID = Number((db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS id FROM events").get() as { id: number }).id)
-    let cursor = resolveEventCursor(
-      context.req.query("after"),
-      context.req.header("Last-Event-ID"),
-      latestEventID,
+    const subscriptionId = context.req.query("subscriptionId")
+    const connectionId = context.req.query("connectionId")
+    if (!subscriptionId || !connectionId) {
+      throw new AgentError("INVALID_REQUEST", "SSE 缺少 subscriptionId 或 connectionId", 400)
+    }
+    const subscription = rpc.subscriptions.get(subscriptionId, connectionId)
+    if (!subscription) throw new AgentError("SUBSCRIPTION_NOT_FOUND", "事件订阅不存在或不属于当前连接", 404)
+    const cursors = new Map(subscription.acknowledged)
+    if (cursors.size === 1) {
+      const lastEventId = Number(context.req.header("Last-Event-ID"))
+      if (Number.isFinite(lastEventId)) {
+        const [streamId, current] = [...cursors][0]!
+        cursors.set(streamId, Math.max(current, lastEventId))
+      }
+    }
+    const replayTargets = new Map(
+      [...subscription.streams.keys()].map((streamId) => {
+        const row = streamId === "global"
+          ? db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS sequence FROM events").get()
+          : db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS sequence FROM events WHERE thread_id = ?").get(streamId)
+        return [streamId, Number((row as { sequence: number }).sequence)] as const
+      }),
     )
-    const threadId = context.req.query("threadId")
     return streamSSE(context, async (stream) => {
       let heartbeatAt = Date.now()
+      let replayCompleted = false
       while (!stream.aborted) {
-        const events = db.eventsAfter(cursor, threadId, 500)
-        for (const event of events) {
-          const projected = rpc.projection.notification(event)
-          await stream.writeSSE({ id: String(event.id), data: JSON.stringify(projected.notification) })
-          cursor = event.id
+        const active = rpc.subscriptions.get(subscriptionId, connectionId)
+        if (!active) {
+          await stream.writeSSE({
+            data: JSON.stringify({
+              jsonrpc: "2.0",
+              method: "event/subscriptionClosed",
+              params: {
+                subscriptionId,
+                reason: "unsubscribed",
+                positions: [...cursors].map(([streamId, sequence]) => ({ streamId, sequence })),
+              },
+            }),
+          })
+          return
+        }
+        let delivered = 0
+        for (const [streamId, cursor] of cursors) {
+          const events = db.eventsAfter(cursor, streamId === "global" ? undefined : streamId, 500)
+          for (const event of events) {
+            cursors.set(streamId, event.id)
+            const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
+            if (!notification) continue
+            if (
+              active.liveEventTypes
+              && notification.params.event.durability === "live"
+              && !active.liveEventTypes.has(notification.params.event.type)
+            ) continue
+            await stream.writeSSE({ id: String(event.id), data: JSON.stringify(notification) })
+            delivered += 1
+          }
+        }
+        if (
+          !replayCompleted
+          && [...replayTargets].every(([streamId, target]) => (cursors.get(streamId) ?? 0) >= target)
+        ) {
+          await stream.writeSSE({
+            data: JSON.stringify({
+              jsonrpc: "2.0",
+              method: "event/replayComplete",
+              params: {
+                subscriptionId,
+                positions: [...cursors].map(([streamId, sequence]) => ({ streamId, sequence })),
+              },
+            }),
+          })
+          replayCompleted = true
         }
         if (Date.now() - heartbeatAt >= 10_000) {
-          await stream.writeSSE({ event: "heartbeat", data: JSON.stringify({ jsonrpc: "2.0", method: "heartbeat", params: { at: Date.now(), cursor } }) })
+          await stream.writeSSE({
+            event: "heartbeat",
+            data: JSON.stringify({
+              jsonrpc: "2.0",
+              method: "heartbeat",
+              params: {
+                at: Date.now(),
+                positions: [...cursors].map(([streamId, sequence]) => ({ streamId, sequence })),
+              },
+            }),
+          })
           heartbeatAt = Date.now()
         }
-        await stream.sleep(events.length ? 10 : 250)
+        await stream.sleep(delivered ? 10 : 250)
       }
     })
   })
@@ -138,6 +247,16 @@ export const createApp = (dependencies: TransportDependencies) => {
   app.get("/api/ready", (context) => {
     db.sqlite.query("SELECT 1").get()
     return context.json({ ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid, readyAt: Date.now() })
+  })
+
+  app.get("/api/desktop-settings", (context) =>
+    context.json(db.getSetting<Record<string, unknown>>(DESKTOP_SETTINGS_KEY) ?? {}))
+
+  app.put("/api/desktop-settings", async (context) => {
+    const settings = await context.req.json().catch(() => null)
+    if (!isPlainObject(settings)) throw new AgentError("INVALID_REQUEST", "桌面设置参数无效", 400)
+    db.setSetting(DESKTOP_SETTINGS_KEY, settings)
+    return context.json(settings)
   })
 
   app.post("/api/shutdown", (context) => {

@@ -21,6 +21,7 @@ import { ContextManager, DEFAULT_CONTEXT_WINDOW_TOKENS, type ContextFragment } f
 import { createModelContextCompactor } from "../context/ModelContextCompactor"
 import { SqliteAgentSession } from "../storage/SqliteAgentSession"
 import { inferPromptCacheCapability, languageModelProvider } from "../prompt/PromptCache"
+import type { GitReviewService } from "../review/GitReviewService"
 
 type ThreadPromptSettingsSnapshot = { engine: "prompt-engine-v2"; version: 2; snapshottedAt: number; settings: Record<string, unknown>; baseHash?: string; contextHash?: string; cacheKey?: string }
 
@@ -39,6 +40,7 @@ export class ThreadService {
     private readonly promptDataRoot: string,
     private readonly memory: MemoryService,
     private readonly hooks: HookService,
+    private readonly review?: GitReviewService,
   ) {
     this.questions.setResumeHandler((threadID, turnID) => {
       const agent = this.db.agentForTurn(turnID)
@@ -182,17 +184,30 @@ export class ThreadService {
     })
   }
 
-  async submit(threadID: string, input: SubmitMessage) {
+  async submit(threadID: string, input: SubmitMessage, requestedInputID?: string) {
     this.get(threadID)
     if (!input.content.trim()) throw new AgentError("EMPTY_MESSAGE", "消息不能为空", 400)
     if (!this.db.threadProjectID(threadID)) throw new AgentError("PROJECT_REQUIRED", "请先选择项目后再开始任务", 409)
+    if (requestedInputID) {
+      const existing = this.db.inputAdmission(requestedInputID)
+      if (existing) {
+        if (existing.thread_id !== threadID || existing.content !== input.content) {
+          throw new AgentError("CONFLICT", "inputId 已被其他请求使用", 409)
+        }
+        return {
+          disposition: "duplicate" as const,
+          turnID: existing.turn_id,
+          inputID: existing.id,
+        }
+      }
+    }
     const model = await this.resolveAvailableModel([input.model])
     if (!model.capabilities.tools) {
       await this.emit(threadID, null, "turn/statusChanged", { state: "model-tools-unavailable", model: input.model, message: "该模型不支持工具调用，主 Agent只能给出文字回复" })
     }
     const active = this.db.activeTurn(threadID)
     if (active && input.strategy === "guide" && active.status !== "waiting_question") {
-      const guide = this.db.appendGuide(threadID, active.id, input)
+      const guide = this.db.appendGuide(threadID, active.id, input, requestedInputID)
       if (guide.settingsEvent) await Effect.runPromise(this.hub.publish(guide.settingsEvent))
       await Effect.runPromise(this.hub.publish(guide.event))
       if (active.status === "waiting_plan_confirmation") {
@@ -205,7 +220,7 @@ export class ThreadService {
       }
       return { disposition: "guide" as const, turnID: active.id, inputID: guide.inputID }
     }
-    const created = this.db.createTurn(threadID, input, "queued")
+    const created = this.db.createTurn(threadID, input, "queued", { ...(requestedInputID ? { inputID: requestedInputID } : {}) })
     if (created.settingsEvent) await Effect.runPromise(this.hub.publish(created.settingsEvent))
     await Effect.runPromise(this.hub.publish(created.event))
     await Effect.runPromise(this.hub.publish(created.agentEvent))
@@ -340,6 +355,15 @@ export class ThreadService {
       const project = this.db.getProject(projectID)
       if (!project) throw new AgentError("PROJECT_NOT_FOUND", "当前项目不存在", 404)
       const workspace = await WorkspaceService.open(project.rootPath)
+      const existingReviewSnapshot = this.db.getTurnGitSnapshot(threadID, turnID)
+      if (!existingReviewSnapshot?.beforeTree) {
+        await this.review?.captureTurnSnapshot({
+          projectId: projectID,
+          threadId: threadID,
+          turnId: turnID,
+          phase: "before",
+        }).catch(() => undefined)
+      }
       this.hooks.load({ userConfigPath: join(this.promptDataRoot, "hooks.json"), projectRoot: workspace.rootPath })
       const priorHistory = (this.db.sqlite.query("SELECT COUNT(*) AS count FROM agent_thread_items WHERE thread_id = ?").get(agent.sessionID) as { count: number }).count
       const lifecycleEvent = priorHistory > 0 || resumeCheckpoint || continueFromPlan || sideEffectRecovery ? "session_resume" as const : "session_start" as const
@@ -495,6 +519,12 @@ export class ThreadService {
       const memoryJob = this.memory.enqueue({ threadID, projectKey: projectMemoryKey(workspace.rootPath), transcript: `用户任务：\n${content}\n\nAgent 结果：\n${result.output}` })
       if (memoryJob) queueMicrotask(() => { void this.memory.drain() })
       this.db.deleteAgentTurnCheckpoint(turnID)
+      await this.review?.captureTurnSnapshot({
+        projectId: projectID,
+        threadId: threadID,
+        turnId: turnID,
+        phase: "after",
+      }).catch(() => undefined)
       this.db.updateTurnStatus(turnID, "completed")
       await this.emitAgent(this.db.updateAgentStatus(agent.id, "completed"))
       await this.emit(threadID, turnID, "turn/completed", { turnId: turnID, rootAgentId: agent.id, finishedAt: Date.now() })
