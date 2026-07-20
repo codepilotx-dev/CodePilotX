@@ -745,7 +745,7 @@ export function DesktopLayout(): React.ReactNode {
           selectedFile: null,
           selectedCommentId: null,
           scrollTop: 0,
-          expandedFiles: [],
+          diffExpansion: { mode: 'all' },
         }))
         openRightDockTab({ id: 'review', kind: 'review' })
         if (
@@ -939,7 +939,7 @@ export function DesktopLayout(): React.ReactNode {
     createDefaultConversationUiState(),
   )
   uiSnapshotRef.current = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     workbench: workbenchPanelState,
     mainScrollTop: 0,
     sideChatInput,

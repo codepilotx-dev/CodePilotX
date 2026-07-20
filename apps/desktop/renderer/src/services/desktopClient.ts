@@ -210,6 +210,11 @@ export type DesktopReviewAgentSummary = {
   largeDiffMode: boolean
 }
 
+export type DesktopReviewAgentSummaryResult = {
+  snapshot: DesktopReviewAgentSummary
+  cacheState: 'fresh' | 'stale'
+}
+
 export type DesktopReviewAgentFileDiff = {
   file: DesktopReviewAgentFileSummary
   revision: string
@@ -285,7 +290,7 @@ export type DesktopAgentReviewApi = {
     workspacePath: string
     source: DesktopReviewSource
     refresh?: boolean
-  }): Promise<DesktopReviewAgentSummary>
+  }): Promise<DesktopReviewAgentSummaryResult>
   getAgentReviewFileDiff(input: {
     workspacePath: string
     source: DesktopReviewSource
@@ -1273,11 +1278,10 @@ function createAgentSessionDesktopClient(
         async () => {
           requireAgentCapability('git.review.v1')
           const project = await loadProjectForPath(input.workspacePath)
-          const result = await rpc.call<{ snapshot: DesktopReviewAgentSummary }>(
+          return rpc.call<DesktopReviewAgentSummaryResult>(
             input.refresh ? 'review/refresh' : 'review/summary',
             { projectId: project.id, source: input.source },
           )
-          return result.snapshot
         },
         async () => unsupportedAgentOperation('git.review.v1'),
       ),

@@ -1,4 +1,5 @@
 import React from 'react'
+import { formatReviewCount } from './reviewFormat.js'
 import {
   ArrowUpRight,
   ChevronDown,
@@ -222,6 +223,5 @@ export function PullRequestPopover({
 }
 
 function formatPanelNumber(value: number): string {
-  if (value > 999) return '999+'
-  return String(value)
+  return formatReviewCount(value)
 }

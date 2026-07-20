@@ -20,7 +20,7 @@ export type ReviewTabUiState = {
   selectedFile: string | null
   selectedCommentId: string | null
   scrollTop: number
-  expandedFiles: string[]
+  diffExpansion: ReviewDiffExpansion
   viewedRevisions: Record<string, string>
   fileTreeVisible: boolean
   fileTreeWidth: number
@@ -31,8 +31,48 @@ export type ReviewTabUiState = {
   richPreview: boolean
 }
 
-export type ConversationUiStateV3 = {
-  schemaVersion: 3
+export type ReviewDiffExpansion =
+  | { mode: 'all' }
+  | { mode: 'none' }
+  | { mode: 'custom'; expandedFiles: string[] }
+
+export function isReviewDiffExpanded(
+  expansion: ReviewDiffExpansion,
+  path: string,
+): boolean {
+  if (expansion.mode === 'all') return true
+  if (expansion.mode === 'none') return false
+  return expansion.expandedFiles.includes(path)
+}
+
+export function toggleReviewDiffExpansion(
+  expansion: ReviewDiffExpansion,
+  allPaths: readonly string[],
+  path: string,
+): ReviewDiffExpansion {
+  const expanded = new Set(
+    allPaths.filter((candidate) =>
+      isReviewDiffExpanded(expansion, candidate),
+    ),
+  )
+  if (expanded.has(path)) expanded.delete(path)
+  else expanded.add(path)
+
+  if (expanded.size === 0) return { mode: 'none' }
+  if (
+    allPaths.length > 0 &&
+    allPaths.every((candidate) => expanded.has(candidate))
+  ) {
+    return { mode: 'all' }
+  }
+  return {
+    mode: 'custom',
+    expandedFiles: allPaths.filter((candidate) => expanded.has(candidate)),
+  }
+}
+
+export type ConversationUiStateV4 = {
+  schemaVersion: 4
   workbench: WorkbenchTabsState
   mainScrollTop: number
   sideChatInput: string
@@ -40,7 +80,7 @@ export type ConversationUiStateV3 = {
   review: ReviewTabUiState
 }
 
-export type ConversationUiState = ConversationUiStateV3
+export type ConversationUiState = ConversationUiStateV4
 
 export type ConversationUiValidationOptions = {
   debugMode?: boolean
@@ -51,7 +91,7 @@ export type ConversationUiValidationOptions = {
 
 export function createDefaultConversationUiState(): ConversationUiState {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     workbench: createDefaultWorkbenchTabsState(),
     mainScrollTop: 0,
     sideChatInput: '',
@@ -66,7 +106,7 @@ export function createDefaultReviewTabUiState(): ReviewTabUiState {
     selectedFile: null,
     selectedCommentId: null,
     scrollTop: 0,
-    expandedFiles: [],
+    diffExpansion: { mode: 'all' },
     viewedRevisions: {},
     fileTreeVisible: true,
     fileTreeWidth: 340,
@@ -123,13 +163,15 @@ export function validateConversationUiState(
 
   const options = normalizeOptions(optionsOrLegacyTools)
   const workbench =
-    (state.schemaVersion === 2 || state.schemaVersion === 3) &&
+    (state.schemaVersion === 2 ||
+      state.schemaVersion === 3 ||
+      state.schemaVersion === 4) &&
     isRecord(state.workbench)
       ? validateWorkbenchState(state.workbench, options)
       : migrateLegacyWorkbenchState(state, options)
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     workbench,
     mainScrollTop: toFiniteNonNegativeNumber(state.mainScrollTop),
     sideChatInput:
@@ -137,11 +179,14 @@ export function validateConversationUiState(
     sideChatAttachments: Array.isArray(state.sideChatAttachments)
       ? (state.sideChatAttachments as DesktopComposerAttachment[])
       : [],
-    review: validateReviewTabUiState(state.review),
+    review: validateReviewTabUiState(state.review, state.schemaVersion),
   }
 }
 
-function validateReviewTabUiState(value: unknown): ReviewTabUiState {
+function validateReviewTabUiState(
+  value: unknown,
+  schemaVersion: unknown,
+): ReviewTabUiState {
   const defaults = createDefaultReviewTabUiState()
   if (!isRecord(value)) return defaults
   const source = validateReviewSource(value.source)
@@ -154,7 +199,13 @@ function validateReviewTabUiState(value: unknown): ReviewTabUiState {
         ? value.selectedCommentId
         : null,
     scrollTop: toFiniteNonNegativeNumber(value.scrollTop),
-    expandedFiles: normalizeStringList(value.expandedFiles),
+    diffExpansion:
+      schemaVersion === 4
+        ? validateReviewDiffExpansion(
+            value.diffExpansion,
+            defaults.diffExpansion,
+          )
+        : migrateLegacyReviewDiffExpansion(value.expandedFiles),
     viewedRevisions: normalizeStringRecord(value.viewedRevisions),
     fileTreeVisible:
       typeof value.fileTreeVisible === 'boolean'
@@ -186,6 +237,30 @@ function validateReviewTabUiState(value: unknown): ReviewTabUiState {
         ? value.richPreview
         : defaults.richPreview,
   }
+}
+
+function validateReviewDiffExpansion(
+  value: unknown,
+  fallback: ReviewDiffExpansion,
+): ReviewDiffExpansion {
+  if (!isRecord(value)) return fallback
+  if (value.mode === 'all' || value.mode === 'none') {
+    return { mode: value.mode }
+  }
+  if (value.mode !== 'custom') return fallback
+  const expandedFiles = normalizeStringList(value.expandedFiles)
+  return expandedFiles.length > 0
+    ? { mode: 'custom', expandedFiles }
+    : { mode: 'none' }
+}
+
+function migrateLegacyReviewDiffExpansion(
+  expandedFiles: unknown,
+): ReviewDiffExpansion {
+  const normalized = normalizeStringList(expandedFiles)
+  return normalized.length > 0
+    ? { mode: 'custom', expandedFiles: normalized }
+    : { mode: 'all' }
 }
 
 function validateReviewSource(value: unknown): DesktopReviewSource | null {

@@ -1,4 +1,5 @@
 import React from 'react'
+import { formatReviewCount } from './reviewFormat.js'
 import {
   ChevronDown,
   ChevronRight,
@@ -140,8 +141,7 @@ function fileBadge(path: string): React.ReactNode {
 }
 
 function formatPanelNumber(value: number): string {
-  if (value > 999) return '999+'
-  return String(value)
+  return formatReviewCount(value)
 }
 
 function basenameOf(path: string): string {

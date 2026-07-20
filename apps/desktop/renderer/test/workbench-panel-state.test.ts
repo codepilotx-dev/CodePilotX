@@ -5,7 +5,11 @@ import {
   type WorkbenchTabDescriptor,
 } from '../src/features/layout/rightDockState.js'
 import { getWorkbenchTabDefinition } from '../src/features/layout/workbenchTabRegistry.js'
-import { validateConversationUiState } from '../src/features/layout/conversationUiState.js'
+import {
+  isReviewDiffExpanded,
+  toggleReviewDiffExpansion,
+  validateConversationUiState,
+} from '../src/features/layout/conversationUiState.js'
 
 const review = { id: 'review', kind: 'review' } as const
 const browser = { id: 'browser', kind: 'browser' } as const
@@ -336,7 +340,7 @@ describe('workbench dynamic tab state', () => {
       {},
     )
 
-    expect(state.schemaVersion).toBe(3)
+    expect(state.schemaVersion).toBe(4)
     expect(state.review).toMatchObject({
       source: { kind: 'unstaged' },
       selectedFile: null,
@@ -389,10 +393,10 @@ describe('workbench dynamic tab state', () => {
     expect(state.workbench.bottom.tabIds).toEqual(['browser'])
     expect(state.workbench.tabsById['tool-probe']).toBeUndefined()
     expect(state.workbench.focusArea).toBe('bottom-panel')
-    expect(state.schemaVersion).toBe(3)
+    expect(state.schemaVersion).toBe(4)
   })
 
-  test('restores valid Review tab UI state and rejects invalid source data', () => {
+  test('migrates v3 Review expansion state and validates the remaining fields', () => {
     const state = validateConversationUiState({
       schemaVersion: 3,
       workbench: createDefaultWorkbenchTabsState(),
@@ -421,7 +425,10 @@ describe('workbench dynamic tab state', () => {
       selectedFile: 'src/main.ts',
       selectedCommentId: 'comment-1',
       scrollTop: 128,
-      expandedFiles: ['src/main.ts'],
+      diffExpansion: {
+        mode: 'custom',
+        expandedFiles: ['src/main.ts'],
+      },
       viewedRevisions: { 'src/main.ts': 'revision-1' },
       fileTreeVisible: false,
       fileTreeWidth: 520,
@@ -431,6 +438,62 @@ describe('workbench dynamic tab state', () => {
       hideWhitespace: true,
       richPreview: false,
     })
+    expect(state.schemaVersion).toBe(4)
+  })
+
+  test('distinguishes all, none, and custom Review diff expansion states', () => {
+    const v3All = validateConversationUiState({
+      schemaVersion: 3,
+      workbench: createDefaultWorkbenchTabsState(),
+      review: { expandedFiles: [] },
+    })
+    const v4None = validateConversationUiState({
+      schemaVersion: 4,
+      workbench: createDefaultWorkbenchTabsState(),
+      review: { diffExpansion: { mode: 'none' } },
+    })
+    const v4Custom = validateConversationUiState({
+      schemaVersion: 4,
+      workbench: createDefaultWorkbenchTabsState(),
+      review: {
+        diffExpansion: {
+          mode: 'custom',
+          expandedFiles: ['src/a.ts', 'src/a.ts', 'src/b.ts'],
+        },
+      },
+    })
+
+    expect(v3All.review.diffExpansion).toEqual({ mode: 'all' })
+    expect(v4None.review.diffExpansion).toEqual({ mode: 'none' })
+    expect(v4Custom.review.diffExpansion).toEqual({
+      mode: 'custom',
+      expandedFiles: ['src/a.ts', 'src/b.ts'],
+    })
+  })
+
+  test('toggles one Review diff without confusing all-expanded and all-collapsed', () => {
+    const paths = ['src/a.ts', 'src/b.ts']
+    const custom = toggleReviewDiffExpansion(
+      { mode: 'all' },
+      paths,
+      'src/a.ts',
+    )
+    const none = toggleReviewDiffExpansion(custom, paths, 'src/b.ts')
+    const one = toggleReviewDiffExpansion(none, paths, 'src/a.ts')
+    const all = toggleReviewDiffExpansion(one, paths, 'src/b.ts')
+
+    expect(custom).toEqual({
+      mode: 'custom',
+      expandedFiles: ['src/b.ts'],
+    })
+    expect(none).toEqual({ mode: 'none' })
+    expect(isReviewDiffExpanded(none, 'src/a.ts')).toBe(false)
+    expect(isReviewDiffExpanded(none, 'src/b.ts')).toBe(false)
+    expect(one).toEqual({
+      mode: 'custom',
+      expandedFiles: ['src/a.ts'],
+    })
+    expect(all).toEqual({ mode: 'all' })
   })
 
   test('restores only valid Markdown view modes from session UI state', () => {

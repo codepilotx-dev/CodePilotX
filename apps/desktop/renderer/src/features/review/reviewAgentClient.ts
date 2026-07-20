@@ -49,6 +49,11 @@ export type ReviewSummarySnapshot = {
   largeDiffMode: boolean
 }
 
+export type ReviewSummaryResult = {
+  snapshot: ReviewSummarySnapshot
+  cacheState: 'fresh' | 'stale'
+}
+
 export type ReviewFileDiff = {
   file: ReviewFileSummary
   revision: string
@@ -96,7 +101,7 @@ export const reviewAgentClient = {
     workspacePath: string,
     source: DesktopReviewSource,
     refresh = false,
-  ): Promise<ReviewSummarySnapshot> {
+  ): Promise<ReviewSummaryResult> {
     return desktopClient.getAgentReviewSummary({
       workspacePath,
       source,
@@ -287,6 +292,94 @@ export const reviewAgentClient = {
   },
 }
 
+type ReviewFileRequest = {
+  key: string
+  run: () => Promise<void>
+  resolve: () => void
+  reject: (error: unknown) => void
+}
+
+/**
+ * Shares queued and active file loads by generation/path/options, while keeping
+ * viewport prefetches from flooding the local Agent with Git work.
+ */
+export class ReviewFileRequestCoordinator {
+  readonly #maxConcurrency: number
+  readonly #requests = new Map<string, Promise<void>>()
+  readonly #queue: ReviewFileRequest[] = []
+  #activeCount = 0
+
+  constructor(maxConcurrency = 2) {
+    this.#maxConcurrency = Math.max(1, Math.floor(maxConcurrency))
+  }
+
+  schedule(
+    key: string,
+    run: () => Promise<void>,
+    priority: 'selected' | 'prefetch' = 'prefetch',
+  ): Promise<void> {
+    const existing = this.#requests.get(key)
+    if (existing) {
+      if (priority === 'selected') {
+        const queuedIndex = this.#queue.findIndex(request => request.key === key)
+        if (queuedIndex > 0) {
+          const [queued] = this.#queue.splice(queuedIndex, 1)
+          if (queued) this.#queue.unshift(queued)
+        }
+      }
+      return existing
+    }
+
+    let resolveRequest!: () => void
+    let rejectRequest!: (error: unknown) => void
+    const promise = new Promise<void>((resolve, reject) => {
+      resolveRequest = resolve
+      rejectRequest = reject
+    })
+    const request = {
+      key,
+      run,
+      resolve: resolveRequest,
+      reject: rejectRequest,
+    }
+    this.#requests.set(key, promise)
+    if (priority === 'selected') this.#queue.unshift(request)
+    else this.#queue.push(request)
+    this.#drain()
+    return promise
+  }
+
+  #drain(): void {
+    while (
+      this.#activeCount < this.#maxConcurrency &&
+      this.#queue.length > 0
+    ) {
+      const request = this.#queue.shift()
+      if (!request) return
+      this.#activeCount += 1
+      void request.run().then(request.resolve, request.reject).finally(() => {
+        this.#activeCount -= 1
+        this.#requests.delete(request.key)
+        this.#drain()
+      })
+    }
+  }
+}
+
+export function retainCurrentReviewFileDiffs(
+  nextSummary: ReviewSummarySnapshot,
+  loadedDiffs: ReadonlyMap<string, ReviewFileDiff>,
+): Map<string, ReviewFileDiff> {
+  const revisions = new Map(
+    nextSummary.files.map(file => [file.path, file.revision] as const),
+  )
+  return new Map(
+    [...loadedDiffs].filter(
+      ([path, loaded]) => revisions.get(path) === loaded.revision,
+    ),
+  )
+}
+
 export function reviewSourceKey(source: DesktopReviewSource): string {
   switch (source.kind) {
     case 'unstaged':
@@ -310,14 +403,41 @@ export function reviewSourceLabel(source: DesktopReviewSource): string {
     case 'staged':
       return '已暂存'
     case 'branch':
-      return `分支 · ${source.baseBranch}`
+      return '分支'
     case 'commit':
-      return `提交 · ${source.commitSha.slice(0, 8)}`
+      return '提交'
     case 'last-turn':
-      return '上轮对话'
+      return '上一轮'
     case 'pull-request':
       return `PR #${source.number}`
   }
+}
+
+export function pickDefaultReviewBaseBranch(
+  branches: readonly ReviewBranch[],
+): string | null {
+  if (branches.length === 0) return null
+  const preferredNames = [
+    'origin/main',
+    'upstream/main',
+    'main',
+    'origin/master',
+    'upstream/master',
+    'master',
+  ]
+  for (const name of preferredNames) {
+    const match = branches.find(
+      branch => !branch.current && branch.name === name,
+    )
+    if (match) return match.name
+  }
+  return (
+    branches.find(branch => !branch.current && branch.remote)?.name ??
+    branches.find(branch => !branch.current)?.name ??
+    branches.find(branch => branch.current)?.name ??
+    branches[0]?.name ??
+    null
+  )
 }
 
 export function reviewLoadStateForError(error: unknown): ReviewLoadState {
