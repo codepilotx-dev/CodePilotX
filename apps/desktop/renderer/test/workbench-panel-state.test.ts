@@ -10,6 +10,11 @@ import {
   toggleReviewDiffExpansion,
   validateConversationUiState,
 } from '../src/features/layout/conversationUiState.js'
+import {
+  getResponsiveRightDockDefaultWidth,
+  rightDockWidthFromRatio,
+  rightDockWidthToRatio,
+} from '../src/features/layout/useWorkbenchShellController.js'
 
 const review = { id: 'review', kind: 'review' } as const
 const browser = { id: 'browser', kind: 'browser' } as const
@@ -540,5 +545,15 @@ describe('workbench dynamic tab state', () => {
     expect(
       state.workbench.tabsById['file:docs/guide.md'],
     ).not.toHaveProperty('markdownViewMode')
+  })
+})
+
+describe('workbench right panel sizing', () => {
+  test('使用 Codex 响应式默认值并按比例适配窗口宽度', () => {
+    expect(getResponsiveRightDockDefaultWidth(1_500, 800)).toBe(1_000)
+
+    const ratio = rightDockWidthToRatio(700, 1_500)
+    expect(rightDockWidthFromRatio(ratio, 1_500)).toBe(700)
+    expect(rightDockWidthFromRatio(ratio, 1_200)).toBe(562)
   })
 })

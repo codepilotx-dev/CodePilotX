@@ -19,6 +19,7 @@ import { useSidebarShellController } from './sidebarShellState.js'
 
 export const RIGHT_DOCK_MIN_WIDTH = 320
 export const RIGHT_DOCK_MAIN_MIN_WIDTH = 352
+export const RIGHT_DOCK_DEFAULT_WIDTH = 600
 export const BOTTOM_PANEL_MIN_HEIGHT = 160
 export const BOTTOM_PANEL_DEFAULT_HEIGHT = 280
 
@@ -38,7 +39,25 @@ export function useWorkbenchShellController(debugMode: boolean) {
   } = layout
   const [workbenchPanelState, setWorkbenchPanelState] =
     useState<WorkbenchTabsState>(createDefaultWorkbenchTabsState)
-  const [rightDockWidth, setRightDockWidth] = useState(getInitialRightDockWidth)
+  const [rightDockViewport, setRightDockViewport] = useState(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  }))
+  const rightDockMainContentWidth = getRightDockMainContentWidth(
+    rightDockViewport.width,
+    sidebarCollapsed,
+    sidebarWidth,
+  )
+  const [rightDockWidthRatio, setRightDockWidthRatio] = useState(() =>
+    getInitialRightDockWidthRatio(
+      rightDockMainContentWidth,
+      rightDockViewport.height,
+    ),
+  )
+  const rightDockWidth = rightDockWidthFromRatio(
+    rightDockWidthRatio,
+    rightDockMainContentWidth,
+  )
   const [bottomPanelHeight, setBottomPanelHeight] = useState(
     getInitialBottomPanelHeight,
   )
@@ -190,13 +209,26 @@ export function useWorkbenchShellController(debugMode: boolean) {
     dispatchPanelAction({ type: 'toggleRightFullWidth' })
   }, [dispatchPanelAction])
 
-  const handleSetRightDockWidth = useCallback((nextWidth: number): void => {
-    setRightDockWidth(clampRightDockWidth(nextWidth))
-  }, [])
+  const handleSetRightDockWidth = useCallback(
+    (nextWidth: number): void => {
+      setRightDockWidthRatio(
+        rightDockWidthToRatio(nextWidth, rightDockMainContentWidth),
+      )
+    },
+    [rightDockMainContentWidth],
+  )
 
   const handleResetRightDockWidth = useCallback((): void => {
-    setRightDockWidth(clampRightDockWidth(getResponsiveRightDockDefaultWidth()))
-  }, [])
+    setRightDockWidthRatio(
+      rightDockWidthToRatio(
+        getResponsiveRightDockDefaultWidth(
+          rightDockMainContentWidth,
+          rightDockViewport.height,
+        ),
+        rightDockMainContentWidth,
+      ),
+    )
+  }, [rightDockMainContentWidth, rightDockViewport.height])
 
   const handleSetBottomPanelHeight = useCallback(
     (nextHeight: number): void => {
@@ -228,9 +260,9 @@ export function useWorkbenchShellController(debugMode: boolean) {
   useEffect(() => {
     window.localStorage.setItem(
       RIGHT_DOCK_WIDTH_STORAGE_KEY,
-      String(rightDockWidth),
+      String(rightDockWidthRatio),
     )
-  }, [rightDockWidth])
+  }, [rightDockWidthRatio])
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -241,7 +273,10 @@ export function useWorkbenchShellController(debugMode: boolean) {
 
   useEffect(() => {
     const onResize = (): void => {
-      setRightDockWidth(current => clampRightDockWidth(current))
+      setRightDockViewport({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      })
       setBottomPanelHeight(current => clampBottomPanelHeight(current))
       if (window.innerWidth <= RIGHT_DOCK_RESPONSIVE_BREAKPOINT) {
         setWorkbenchPanelState(current => {
@@ -307,32 +342,86 @@ export function useWorkbenchShellController(debugMode: boolean) {
   }
 }
 
-function getInitialRightDockWidth(): number {
+function getInitialRightDockWidthRatio(
+  mainContentWidth: number,
+  shellHeight: number,
+): number {
   const storedValue = window.localStorage.getItem(RIGHT_DOCK_WIDTH_STORAGE_KEY)
   const stored = storedValue == null ? Number.NaN : Number(storedValue)
-  return clampRightDockWidth(
-    Number.isFinite(stored) && stored > 0
+  if (Number.isFinite(stored) && stored >= 0 && stored <= 1) {
+    return clampUnitInterval(stored)
+  }
+  return rightDockWidthToRatio(
+    Number.isFinite(stored) && stored > 1
       ? stored
-      : getResponsiveRightDockDefaultWidth(),
+      : getResponsiveRightDockDefaultWidth(mainContentWidth, shellHeight),
+    mainContentWidth,
   )
 }
 
-function clampRightDockWidth(width: number): number {
-  const viewportMax = Math.max(
-    RIGHT_DOCK_MIN_WIDTH,
-    window.innerWidth - RIGHT_DOCK_MAIN_MIN_WIDTH,
+export function rightDockWidthFromRatio(
+  ratio: number,
+  mainContentWidth: number,
+): number {
+  const { minimum, maximum } = getRightDockWidthRange(mainContentWidth)
+  return Math.round(
+    minimum + clampUnitInterval(ratio) * (maximum - minimum),
   )
+}
+
+export function rightDockWidthToRatio(
+  width: number,
+  mainContentWidth: number,
+): number {
+  const { minimum, maximum } = getRightDockWidthRange(mainContentWidth)
+  const range = maximum - minimum
+  if (range === 0) return 0
   const safeWidth = Number.isFinite(width)
     ? width
-    : getResponsiveRightDockDefaultWidth()
-  return Math.min(
-    viewportMax,
-    Math.max(RIGHT_DOCK_MIN_WIDTH, Math.round(safeWidth)),
+    : RIGHT_DOCK_DEFAULT_WIDTH
+  return clampUnitInterval(
+    (Math.min(maximum, Math.max(minimum, safeWidth)) - minimum) / range,
   )
 }
 
-function getResponsiveRightDockDefaultWidth(): number {
-  return Math.min(1000, Math.max(420, window.innerWidth * 0.35))
+function getRightDockWidthRange(mainContentWidth: number): {
+  minimum: number
+  maximum: number
+} {
+  const maximum = Math.max(
+    RIGHT_DOCK_MIN_WIDTH,
+    mainContentWidth - RIGHT_DOCK_MAIN_MIN_WIDTH,
+  )
+  return {
+    minimum: Math.min(RIGHT_DOCK_MIN_WIDTH, maximum),
+    maximum,
+  }
+}
+
+export function getResponsiveRightDockDefaultWidth(
+  mainContentWidth: number,
+  shellHeight: number,
+): number {
+  return Math.max(
+    RIGHT_DOCK_MIN_WIDTH,
+    Math.min(shellHeight * 1.6, mainContentWidth - 500),
+    Math.min(640, mainContentWidth - RIGHT_DOCK_MAIN_MIN_WIDTH),
+  )
+}
+
+function getRightDockMainContentWidth(
+  viewportWidth: number,
+  sidebarCollapsed: boolean,
+  sidebarWidth: number,
+): number {
+  return Math.max(
+    0,
+    viewportWidth - (sidebarCollapsed ? 0 : sidebarWidth),
+  )
+}
+
+function clampUnitInterval(value: number): number {
+  return Math.max(0, Math.min(1, value))
 }
 
 function getInitialBottomPanelHeight(): number {

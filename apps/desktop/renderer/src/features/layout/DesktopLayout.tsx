@@ -1919,7 +1919,13 @@ export function DesktopLayout(): React.ReactNode {
     />
   ) : selectedSubagentTaskId ? <div className="right-dock-empty-state">正在加载子 Agent...</div> : undefined
   const fixedControlsRef = useRef<HTMLDivElement>(null)
+  const rightDockPanelRef = useRef<HTMLDivElement>(null)
   const [fixedControlsWidth, setFixedControlsWidth] = useState(0)
+  const handlePreviewRightDockWidth = useCallback((width: number): void => {
+    if (rightDockPanelRef.current) {
+      rightDockPanelRef.current.style.width = `${width}px`
+    }
+  }, [])
   useEffect(() => {
     const el = fixedControlsRef.current
     if (!el) return
@@ -2227,6 +2233,9 @@ export function DesktopLayout(): React.ReactNode {
       onReviewTabStateChange={setReviewTabState}
       onResetHeight={handleResetBottomPanelHeight}
       onResetWidth={handleResetRightDockWidth}
+      onResizePreviewWidth={
+        target === 'right' ? handlePreviewRightDockWidth : undefined
+      }
       onSelectTab={tabId => handleSelectPanelTab(target, tabId)}
       onMoveTab={movePanelTab}
       onReorderTab={reorderPanelTab}
@@ -2456,6 +2465,7 @@ export function DesktopLayout(): React.ReactNode {
                   </div>
                   {rightDockNode ? (
                     <div
+                      ref={rightDockPanelRef}
                       className={
                         workbenchPanelState.rightFullWidth
                           ? 'desktop-workspace-panel desktop-workspace-panel--right full-width'

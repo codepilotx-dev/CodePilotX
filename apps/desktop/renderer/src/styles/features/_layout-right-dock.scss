@@ -337,7 +337,8 @@
     justify-content: center;
     border-radius: var(--radius-5);
     color: var(--color-text-meta);
-    outline: 1px dashed color-mix(in srgb, var(--color-text-meta) 35%, transparent);
+    outline: 1px dashed
+      color-mix(in srgb, var(--color-text-meta) 35%, transparent);
     outline-offset: -1px;
   }
 

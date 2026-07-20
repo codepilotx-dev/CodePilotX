@@ -105,6 +105,7 @@ type Props = {
   onResetWidth: () => void
   onResetHeight?: () => void
   onSelectTab: (tabId: WorkbenchTabId) => void
+  onResizePreviewWidth?: (width: number) => void
   onSetWidth: (width: number) => void
   onSetHeight?: (height: number) => void
   onMoveTab: (
@@ -185,6 +186,7 @@ export function WorkbenchPanel({
   onResetWidth,
   onResetHeight,
   onSelectTab,
+  onResizePreviewWidth,
   onSetWidth,
   onSetHeight,
   onMoveTab,
@@ -211,6 +213,7 @@ export function WorkbenchPanel({
     minWidth,
     width,
     onCollapse: onClose,
+    onResizePreview: target === 'right' ? onResizePreviewWidth : undefined,
     onSetWidth,
     direction: 'right',
   })
@@ -348,7 +351,7 @@ export function WorkbenchPanel({
         className={`${target === 'right' ? 'right-dock' : 'bottom-panel'}${resizing && target === 'right' ? ' resizing' : ''} workbench-panel`}
         data-workbench-panel-target={target}
       >
-        {target === 'right' ? (
+        {target === 'right' && !rightFullWidth ? (
           <div
             aria-label="调整右侧面板宽度"
             aria-orientation="vertical"
@@ -363,7 +366,7 @@ export function WorkbenchPanel({
             onKeyDown={handleResizeKey}
             onPointerDown={startResize}
           />
-        ) : (
+        ) : target === 'bottom' ? (
           <div
             aria-label="调整底部面板高度"
             aria-orientation="horizontal"
@@ -378,7 +381,7 @@ export function WorkbenchPanel({
             onKeyDown={handleBottomResizeKey}
             onPointerDown={startBottomResize}
           />
-        )}
+        ) : null}
         <div className={`${target === 'right' ? 'right-dock-header' : 'bottom-panel-header'} workbench-panel-header`}>
           <WorkbenchTabsHeader
             flags={flags}
