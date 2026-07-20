@@ -336,7 +336,12 @@ describe('workbench dynamic tab state', () => {
       {},
     )
 
-    expect(state.schemaVersion).toBe(2)
+    expect(state.schemaVersion).toBe(3)
+    expect(state.review).toMatchObject({
+      source: { kind: 'unstaged' },
+      selectedFile: null,
+      viewedRevisions: {},
+    })
     expect(state.workbench.right.tabIds).toEqual(['review', 'plan:legacy'])
     expect(state.workbench.right.activeTabId).toBe('plan:legacy')
     expect(state.workbench.tabsById['plan:legacy']).toMatchObject({
@@ -384,6 +389,48 @@ describe('workbench dynamic tab state', () => {
     expect(state.workbench.bottom.tabIds).toEqual(['browser'])
     expect(state.workbench.tabsById['tool-probe']).toBeUndefined()
     expect(state.workbench.focusArea).toBe('bottom-panel')
+    expect(state.schemaVersion).toBe(3)
+  })
+
+  test('restores valid Review tab UI state and rejects invalid source data', () => {
+    const state = validateConversationUiState({
+      schemaVersion: 3,
+      workbench: createDefaultWorkbenchTabsState(),
+      mainScrollTop: 0,
+      sideChatInput: '',
+      sideChatAttachments: [],
+      review: {
+        source: { kind: 'branch', baseBranch: 'origin/main' },
+        selectedFile: 'src/main.ts',
+        selectedCommentId: 'comment-1',
+        scrollTop: 128,
+        expandedFiles: ['src/main.ts', 'src/main.ts'],
+        viewedRevisions: { 'src/main.ts': 'revision-1', bad: 1 },
+        fileTreeVisible: false,
+        fileTreeWidth: 9_999,
+        diffMode: 'split',
+        wrapLines: false,
+        showWordDiff: false,
+        hideWhitespace: true,
+        richPreview: false,
+      },
+    })
+
+    expect(state.review).toEqual({
+      source: { kind: 'branch', baseBranch: 'origin/main' },
+      selectedFile: 'src/main.ts',
+      selectedCommentId: 'comment-1',
+      scrollTop: 128,
+      expandedFiles: ['src/main.ts'],
+      viewedRevisions: { 'src/main.ts': 'revision-1' },
+      fileTreeVisible: false,
+      fileTreeWidth: 520,
+      diffMode: 'split',
+      wrapLines: false,
+      showWordDiff: false,
+      hideWhitespace: true,
+      richPreview: false,
+    })
   })
 
   test('restores only valid Markdown view modes from session UI state', () => {

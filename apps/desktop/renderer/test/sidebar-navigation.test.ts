@@ -6,8 +6,14 @@ import type {
 import type { SessionListItem } from '../src/uiTypes.js'
 import {
   deriveSidebarShellMode,
+  isSidebarEdgeHit,
+  isSidebarNarrow,
+  isSidebarPanelHit,
+  isSidebarTriggerHoverReady,
   resolveSidebarEscapeAction,
-  SIDEBAR_DRAWER_BREAKPOINT,
+  SIDEBAR_EDGE_HIT_WIDTH,
+  SIDEBAR_RESPONSIVE_BREAKPOINT,
+  shouldShowSidebarPreview,
 } from '../src/features/layout/sidebarShellState.js'
 import {
   buildSidebarViewModel,
@@ -17,57 +23,99 @@ import { sortSessionsForSidebar } from '../src/features/session/sessionSorting.j
 
 describe('sidebar shell modes', () => {
   test('uses the 720px container boundary without changing desktop preference', () => {
+    expect(isSidebarNarrow(SIDEBAR_RESPONSIVE_BREAKPOINT)).toBe(true)
+    expect(isSidebarNarrow(SIDEBAR_RESPONSIVE_BREAKPOINT + 1)).toBe(false)
     expect(
       deriveSidebarShellMode({
-        containerWidth: SIDEBAR_DRAWER_BREAKPOINT,
         desktopCollapsed: false,
-        drawerOpen: false,
         previewOpen: false,
+        responsiveAutoHidden: true,
       }),
     ).toBe('collapsed')
     expect(
       deriveSidebarShellMode({
-        containerWidth: SIDEBAR_DRAWER_BREAKPOINT,
         desktopCollapsed: true,
-        drawerOpen: true,
-        previewOpen: false,
+        previewOpen: true,
+        responsiveAutoHidden: false,
       }),
-    ).toBe('drawer')
+    ).toBe('preview')
     expect(
       deriveSidebarShellMode({
-        containerWidth: SIDEBAR_DRAWER_BREAKPOINT + 1,
         desktopCollapsed: false,
-        drawerOpen: false,
         previewOpen: false,
+        responsiveAutoHidden: false,
       }),
     ).toBe('docked')
     expect(
       deriveSidebarShellMode({
-        containerWidth: SIDEBAR_DRAWER_BREAKPOINT + 1,
         desktopCollapsed: true,
-        drawerOpen: false,
         previewOpen: true,
+        responsiveAutoHidden: false,
       }),
     ).toBe('preview')
   })
 
-  test('keeps the narrow drawer independent from the desktop preference', () => {
+  test('opens at the 12px edge and keeps an open preview through its full width', () => {
+    expect(isSidebarEdgeHit(-1)).toBe(false)
+    expect(isSidebarEdgeHit(0)).toBe(true)
+    expect(isSidebarEdgeHit(SIDEBAR_EDGE_HIT_WIDTH)).toBe(true)
+    expect(isSidebarEdgeHit(SIDEBAR_EDGE_HIT_WIDTH + 0.01)).toBe(false)
+
+    expect(isSidebarPanelHit(275, 275)).toBe(true)
+    expect(isSidebarPanelHit(276, 275)).toBe(false)
     expect(
-      deriveSidebarShellMode({
-        containerWidth: SIDEBAR_DRAWER_BREAKPOINT,
-        desktopCollapsed: false,
-        drawerOpen: true,
+      shouldShowSidebarPreview({
+        delayedTriggerHover: false,
+        pointerX: 100,
         previewOpen: false,
+        rearmBlocked: false,
+        resizing: false,
+        sidebarWidth: 275,
       }),
-    ).toBe('drawer')
+    ).toBe(false)
     expect(
-      deriveSidebarShellMode({
-        containerWidth: SIDEBAR_DRAWER_BREAKPOINT + 1,
-        desktopCollapsed: false,
-        drawerOpen: true,
-        previewOpen: false,
+      shouldShowSidebarPreview({
+        delayedTriggerHover: false,
+        pointerX: 100,
+        previewOpen: true,
+        rearmBlocked: false,
+        resizing: false,
+        sidebarWidth: 275,
       }),
-    ).toBe('docked')
+    ).toBe(true)
+  })
+
+  test('honors trigger delay, rearm blocking, and floating resize', () => {
+    expect(isSidebarTriggerHoverReady(99)).toBe(false)
+    expect(isSidebarTriggerHoverReady(100)).toBe(true)
+    const base = {
+      delayedTriggerHover: false,
+      pointerX: null,
+      previewOpen: false,
+      rearmBlocked: false,
+      resizing: false,
+      sidebarWidth: 275,
+    }
+    expect(
+      shouldShowSidebarPreview({
+        ...base,
+        delayedTriggerHover: true,
+      }),
+    ).toBe(true)
+    expect(
+      shouldShowSidebarPreview({
+        ...base,
+        delayedTriggerHover: true,
+        rearmBlocked: true,
+      }),
+    ).toBe(false)
+    expect(
+      shouldShowSidebarPreview({
+        ...base,
+        rearmBlocked: true,
+        resizing: true,
+      }),
+    ).toBe(true)
   })
 
   test('prioritizes local handlers, transient panels, and settings return', () => {
@@ -88,9 +136,9 @@ describe('sidebar shell modes', () => {
       resolveSidebarEscapeAction({
         ...base,
         isTextEntry: true,
-        mode: 'drawer',
+        mode: 'preview',
       }),
-    ).toBe('close-transient')
+    ).toBe('none')
     expect(
       resolveSidebarEscapeAction({
         ...base,

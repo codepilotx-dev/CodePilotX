@@ -81,6 +81,26 @@ describe('markdown parser', () => {
     })
   })
 
+  test('parses code-comment directive attributes without treating it as prose', () => {
+    const [directive] = lexMarkdown(
+      '::code-comment{title="空值处理" body="这里可能抛错，建议提前返回。" file="src/main.ts" start=12 end=14 priority=2}\n',
+    )
+
+    expect(directive).toMatchObject({
+      type: 'directive',
+      name: 'code-comment',
+      argument: '',
+      attributes: {
+        title: '空值处理',
+        body: '这里可能抛错，建议提前返回。',
+        file: 'src/main.ts',
+        start: '12',
+        end: '14',
+        priority: '2',
+      },
+    })
+  })
+
   test('keeps completed streaming prefixes separate from pending prose', () => {
     expect(segmentStreamingMarkdown('done\n\npending')).toEqual({
       kind: 'text',

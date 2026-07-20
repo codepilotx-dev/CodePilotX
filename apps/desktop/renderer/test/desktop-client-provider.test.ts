@@ -47,6 +47,12 @@ describe('desktop provider client', () => {
       if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
       const body = JSON.parse(String(init?.body))
       methods.push(body.method)
+      if (body.method === 'initialize') {
+        return rpc(body.id, initializedResult())
+      }
+      if (body.method === 'initialized') {
+        return new Response(null, { status: 204 })
+      }
       if (body.method === 'model/list') {
         return rpc(body.id, {
           providers: [provider],
@@ -55,6 +61,7 @@ describe('desktop provider client', () => {
             id: 'MiniMax-M3',
           },
           reviewerModel: null,
+          catalogVersion: 1,
         })
       }
       if (body.method === 'integration/list') {
@@ -71,11 +78,19 @@ describe('desktop provider client', () => {
       }
       if (body.method === 'integration/disconnect') {
         expect(body.params).toEqual({
-          integrationID: 'minimax-cn-coding-plan',
-          credentialID: 'credential-1',
+          integrationId: 'minimax-cn-coding-plan',
+          credentialId: 'credential-1',
+          operationId: expect.any(String),
         })
         connections = []
-        return rpc(body.id, { ok: true })
+        return rpc(body.id, {
+          integration: {
+            id: 'minimax-cn-coding-plan',
+            name: 'MiniMax Token Plan (minimaxi.com)',
+            methods: [{ type: 'key' }],
+            connections,
+          },
+        })
       }
       throw new Error(`Unhandled RPC method: ${body.method}`)
     }
@@ -94,4 +109,19 @@ function rpc(id: string | number, result: unknown): Response {
   return new Response(JSON.stringify({ jsonrpc: '2.0', id, result }), {
     headers: { 'content-type': 'application/json' },
   })
+}
+
+function initializedResult() {
+  return {
+    protocol: 'thread-rpc-v3',
+    serverInfo: { name: 'test-agent', version: '1.0.0' },
+    capabilities: ['rpc.typed.v1'],
+    limits: {
+      maxFrameBytes: 1024,
+      maxSubscriptions: 8,
+      maxStreamsPerSubscription: 8,
+      maxPendingRequests: 32,
+    },
+    connectionId: 'test-connection',
+  }
 }

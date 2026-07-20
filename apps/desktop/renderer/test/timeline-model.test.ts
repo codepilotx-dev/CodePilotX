@@ -8,6 +8,10 @@ import {
   groupTimelineExecutionPhases,
   groupTimelineToolEvents,
 } from '../src/features/session/timelineModel.js'
+import {
+  markdownToTurnPreview,
+  shouldShowTurnNavigation,
+} from '../src/features/session/ConversationTurnNavRail.js'
 
 function event(
   id: string,
@@ -24,6 +28,20 @@ function event(
 }
 
 describe('timeline model', () => {
+  test('matches Codex turn navigation visibility boundaries', () => {
+    expect(shouldShowTurnNavigation(3, 200)).toBe(false)
+    expect(shouldShowTurnNavigation(4, 47.99)).toBe(false)
+    expect(shouldShowTurnNavigation(4, 48)).toBe(true)
+  })
+
+  test('creates a compact plain-text turn preview from Markdown', () => {
+    expect(
+      markdownToTurnPreview(
+        '# 标题\n\n- 第一项\n- `code` [链接](https://example.com)',
+      ),
+    ).toBe('标题 第一项 code 链接')
+  })
+
   test('groups tool runs without stopping the active final run', () => {
     const items = groupTimelineToolEvents([
       event('call-1', 'tool_call', {

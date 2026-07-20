@@ -75,6 +75,8 @@ function sessionSnapshot(overrides: Partial<ThreadSnapshot['thread']> = {}): Thr
     items: [],
     approvals: [],
     proposals: [],
+    agents: [],
+    subagents: [],
   }
 }
 
@@ -125,12 +127,16 @@ describe('desktop history client', () => {
       if (path !== '/rpc') throw new Error(`Unhandled request: ${method} ${path}`)
       const rpcMethod = body?.method
       const params = body?.params ?? {}
-      if (rpcMethod === 'initialize') return rpc(body.id, { ok: true })
+      if (rpcMethod === 'initialize') return rpc(body.id, initializedResult())
+      if (rpcMethod === 'initialized') return new Response(null, { status: 204 })
       if (rpcMethod === 'project/list') {
-        return rpc(body.id, { projects: [project] })
+        return rpc(body.id, { projects: [project], nextCursor: null })
       }
       if (rpcMethod === 'project/open') {
-        expect(params).toEqual({ rootPath: project.rootPath })
+        expect(params).toEqual({
+          rootPath: project.rootPath,
+          operationId: expect.any(String),
+        })
         return rpc(body.id, { project })
       }
       if (rpcMethod === 'thread/list') {
@@ -138,14 +144,15 @@ describe('desktop history client', () => {
       }
       if (rpcMethod === 'thread/create') {
         expect(params).toEqual({
-          projectID: project.id,
+          projectId: project.id,
           settings: defaultThreadSettings,
           title: '新会话',
+          operationId: expect.any(String),
         })
-        return rpc(body.id, sessionSnapshot({ title: '新会话' }))
+        return rpc(body.id, snapshotResult(sessionSnapshot({ title: '新会话' })))
       }
       if (rpcMethod === 'thread/read') {
-        return rpc(body.id, sessionSnapshot())
+        return rpc(body.id, snapshotResult(sessionSnapshot()))
       }
       if (rpcMethod === 'model/list') {
         return rpc(body.id, {
@@ -177,6 +184,7 @@ describe('desktop history client', () => {
           ],
           defaultModel: { providerID: 'openai', id: 'gpt-5' },
           reviewerModel: null,
+          catalogVersion: 1,
         })
       }
       if (rpcMethod === 'turn/start') {
@@ -189,31 +197,28 @@ describe('desktop history client', () => {
           taskMode: 'chat',
         })
         return rpc(body.id, {
-          input: {
-            id: 'input-2',
-            threadId: 'session-1',
-            turnId: null,
-            content: '继续推进',
-            strategy: 'queue',
-            mode: 'chat',
-            model: { providerID: 'openai', id: 'gpt-5' },
-            permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
-            state: 'queued',
-            createdAt: now + 2000,
+          inputId: 'input-2',
+          turnId: 'turn-2',
+          disposition: 'accepted',
+          streamPosition: {
+            streamId: 'session-1',
+            sequence: 2,
           },
-          turn: null,
         })
       }
       if (rpcMethod === 'thread/update') {
-        if (params.title) currentItem = sessionItem({ title: params.title })
-        if (params.archived === true) {
+        if (params.patch?.title) currentItem = sessionItem({ title: params.patch.title })
+        if (params.patch?.archived === true) {
           currentItem = sessionItem({ archivedAt: now + 3000 })
         }
         return rpc(body.id, { thread: currentItem })
       }
       if (rpcMethod === 'thread/delete') {
         currentItem = sessionItem({ id: 'deleted' })
-        return rpc(body.id, { ok: true })
+        return rpc(body.id, {
+          threadId: params.threadId,
+          deletedAt: now + 4000,
+        })
       }
       throw new Error(`Unhandled RPC method: ${rpcMethod}`)
     }
@@ -267,17 +272,11 @@ describe('desktop history client', () => {
       if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
       const body = init?.body ? JSON.parse(String(init.body)) : null
       const params = body?.params ?? {}
-      if (body?.method === 'initialize') return rpc(body.id, { ok: true })
+      if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body?.method === 'initialized') return new Response(null, { status: 204 })
       if (body?.method === 'project/open') {
         openedPaths.push(params.rootPath)
         return rpc(body.id, { project })
-      }
-      if (body?.method === 'desktop/settings/get') {
-        return rpc(body.id, { settings: storedSettings })
-      }
-      if (body?.method === 'desktop/settings/save') {
-        storedSettings = params.settings
-        return rpc(body.id, { settings: storedSettings })
       }
       throw new Error(`Unhandled RPC method: ${body?.method}`)
     }
@@ -286,6 +285,11 @@ describe('desktop history client', () => {
       window: {
         codePilotXDesktop: {
           pickWorkspaceDirectory: async () => project.rootPath,
+          getDesktopSettings: async () => storedSettings,
+          saveDesktopSettings: async settings => {
+            storedSettings = settings
+            return settings
+          },
         },
       },
     })
@@ -346,4 +350,29 @@ function json(value: unknown, status = 200): Response {
 
 function rpc(id: string | number, result: unknown): Response {
   return json({ jsonrpc: '2.0', id, result })
+}
+
+function snapshotResult(snapshot: ThreadSnapshot) {
+  return {
+    snapshot,
+    streamPosition: {
+      streamId: snapshot.thread.id,
+      sequence: 1,
+    },
+  }
+}
+
+function initializedResult() {
+  return {
+    protocol: 'thread-rpc-v3',
+    serverInfo: { name: 'test-agent', version: '1.0.0' },
+    capabilities: ['rpc.typed.v1'],
+    limits: {
+      maxFrameBytes: 1024,
+      maxSubscriptions: 8,
+      maxStreamsPerSubscription: 8,
+      maxPendingRequests: 32,
+    },
+    connectionId: 'test-connection',
+  }
 }

@@ -411,6 +411,76 @@ test('session header aligns with the right panel and bottom panel spans the work
 })
 
 for (const mode of MODES) {
+  test(`summary and command output use Codex surfaces in ${mode} mode`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 920 })
+    await page.emulateMedia({
+      colorScheme: mode,
+      forcedColors: 'none',
+      reducedMotion: 'reduce',
+    })
+    await page.goto('/?visualCase=rich#/sessions/visual-rich')
+    await closeTransientErrorToast(page)
+    await expect(
+      page.getByText('已完成工作台结构梳理。', { exact: true }),
+    ).toBeVisible()
+
+    const summary = page.locator('.thread-summary-panel')
+    const summaryHeader = summary.locator('.thread-summary-section > header').first()
+    await expect(summary).toBeVisible()
+    await expect(summaryHeader).toBeVisible()
+
+    const commandGroup = page.locator('.timeline-command-group-summary').first()
+    await commandGroup.click()
+    const commandRow = page.locator('.timeline-command-row').first()
+    await commandRow.click()
+    const commandShell = page.locator('.timeline-command-shell').first()
+    await expect(commandShell).toBeVisible()
+
+    const surfaces = await page.evaluate(() => {
+      const panel = document.querySelector<HTMLElement>('.thread-summary-panel')
+      const header = panel?.querySelector<HTMLElement>(
+        '.thread-summary-section > header',
+      )
+      const shell = document.querySelector<HTMLElement>('.timeline-command-shell')
+      if (!panel || !header || !shell) return null
+
+      const resolveBackground = (
+        parent: HTMLElement,
+        token: string,
+      ): string => {
+        const probe = document.createElement('span')
+        probe.style.backgroundColor = `var(${token})`
+        parent.append(probe)
+        const background = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return background
+      }
+
+      return {
+        header: getComputedStyle(header).backgroundColor,
+        output: resolveBackground(shell, '--color-bg-soft'),
+        panel: getComputedStyle(panel).backgroundColor,
+        panelSurface: resolveBackground(panel, '--surface-panel'),
+        raised: resolveBackground(panel, '--surface-raised'),
+        shell: getComputedStyle(shell).backgroundColor,
+      }
+    })
+
+    expect(surfaces).toEqual({
+      header: surfaces?.raised,
+      output: surfaces?.output,
+      panel: surfaces?.raised,
+      panelSurface: surfaces?.panelSurface,
+      raised: surfaces?.raised,
+      shell: surfaces?.output,
+    })
+    expect(surfaces?.shell).not.toBe(surfaces?.panelSurface)
+  })
+}
+
+for (const mode of MODES) {
   test(`accessibility ${mode}`, async ({ page }) => {
     await page.emulateMedia({
       colorScheme: mode,
@@ -480,20 +550,79 @@ test('sidebar keeps one mounted tree across docked and hover preview modes', asy
   await page.goto('/?visualCase=rich#/quick-chat')
   await closeTransientErrorToast(page)
   const sidebar = page.locator('aside.desktop-sidebar')
+  const sidebarTrigger = page.locator('[data-app-shell-sidebar-trigger]')
   await page.getByTitle('收起侧边栏').click()
   await expect(sidebar).toHaveClass(/is-collapsed/)
+  await expect(page.locator('.sidebar-hover-zone')).toHaveCount(0)
 
-  await page.locator('.sidebar-hover-zone').hover()
+  await page.mouse.move(600, 400)
+  await page.mouse.move(6, 400)
   await expect(sidebar).toHaveClass(/is-preview/)
   await expect(page.locator('.desktop-sidebar')).toHaveCount(1)
 
-  await page.locator('.desktop-main').hover()
+  await page.mouse.move(600, 400)
   await expect(sidebar).toHaveClass(/is-collapsed/)
+  await sidebarTrigger.hover()
+  await expect(sidebar).toHaveClass(/is-preview/, { timeout: 1_000 })
   await page.keyboard.press('Control+b')
   await expect(sidebar).toHaveClass(/is-docked/)
 })
 
-test('narrow sidebar drawer does not overwrite the desktop dock preference', async ({
+test('turn navigation preview matches Codex geometry and output limits', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.emulateMedia({
+    colorScheme: 'dark',
+    forcedColors: 'none',
+    reducedMotion: 'no-preference',
+  })
+  await page.goto('/?visualCase=turn-nav#/sessions/visual-turn-nav')
+  await closeTransientErrorToast(page)
+  await expect(page.getByText('第 4 轮已完成。', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '取消置顶摘要' }).click()
+
+  const rail = page.getByRole('navigation', { name: '用户消息导航' })
+  await expect(rail).toBeVisible()
+  const items = rail.getByRole('button')
+  await expect(items).toHaveCount(4)
+  await expect(rail.locator('[aria-current="true"]')).toHaveCount(1)
+
+  const lastItem = items.last()
+  await expect(lastItem).toHaveCSS('width', '36px')
+  await expect(lastItem).toHaveCSS('height', '10px')
+
+  const marker = lastItem.locator('.conversation-turn-nav-marker')
+  const idleMarkerBox = await marker.boundingBox()
+  expect(idleMarkerBox?.width).toBeCloseTo(6, 0)
+
+  await lastItem.focus()
+  const tooltip = page.locator('.conversation-turn-preview-tooltip').last()
+  const preview = tooltip.locator(
+    '[data-thread-user-message-navigation-tooltip-preview]',
+  ).last()
+  await expect(preview).toBeVisible()
+  await expect(preview).toHaveCSS('width', '320px')
+  await expect(preview).toHaveCSS('padding', '8px')
+  await expect(preview).toHaveCSS('font-size', '12px')
+  await expect(preview).toHaveCSS('line-height', '20px')
+  await expect(preview).toHaveCSS('border-radius', '12px')
+  await expect(
+    preview.locator('.preview-card-assistant-text'),
+  ).toHaveCSS('-webkit-line-clamp', '3')
+
+  await expect(preview.locator('.preview-card-output')).toHaveCount(2)
+  await expect(preview.locator('.preview-card-output-more')).toHaveText('+1')
+  await expect(tooltip.locator('.tooltip-arrow')).toHaveCount(0)
+  await expect(tooltip).toHaveCSS('padding', '0px')
+
+  await lastItem.hover()
+  await expect
+    .poll(async () => (await marker.boundingBox())?.width)
+    .toBeCloseTo(26, 0)
+})
+
+test('narrow sidebar uses floating preview without drawer or backdrop', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 720, height: 800 })
@@ -501,16 +630,18 @@ test('narrow sidebar drawer does not overwrite the desktop dock preference', asy
   await closeTransientErrorToast(page)
   const sidebar = page.locator('aside.desktop-sidebar')
   await expect(sidebar).toHaveClass(/is-collapsed/)
-  await page.getByTitle('展开侧边栏').click()
-  await expect(sidebar).toHaveClass(/is-drawer/)
-  await page.getByRole('button', { name: '关闭任务侧栏' }).click()
-  await expect(sidebar).toHaveClass(/is-collapsed/)
+  await page.mouse.move(6, 400)
+  await expect(sidebar).toHaveClass(/is-preview/)
+  await expect(page.locator('.sidebar-drawer-backdrop')).toHaveCount(0)
+  await expect(sidebar).not.toHaveClass(/is-drawer/)
 
+  await page.getByTitle('展开侧边栏').click()
+  await expect(sidebar).toHaveClass(/is-docked/)
   await page.setViewportSize({ width: 900, height: 800 })
   await expect(sidebar).toHaveClass(/is-docked/)
 })
 
-test('settings uses the shared full-label sidebar in preview and drawer modes', async ({
+test('settings uses the shared full-label sidebar in desktop and narrow previews', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 900, height: 800 })
@@ -523,17 +654,37 @@ test('settings uses the shared full-label sidebar in preview and drawer modes', 
 
   await page.keyboard.press('Control+b')
   await expect(sidebar).toHaveClass(/is-collapsed/)
-  await page.locator('.sidebar-hover-zone').hover()
+  await page.mouse.move(6, 400)
   await expect(sidebar).toHaveClass(/is-preview/)
   await expect(page.getByRole('searchbox', { name: '搜索设置' })).toBeVisible()
 
+  await page.mouse.move(600, 400)
+  await expect(sidebar).toHaveClass(/is-collapsed/)
   await page.setViewportSize({ width: 720, height: 800 })
   await expect(sidebar).toHaveClass(/is-collapsed/)
-  await page.getByTitle('展开侧边栏').click()
-  await expect(sidebar).toHaveClass(/is-drawer/)
-  await expect(
-    page.getByRole('button', { name: '关闭设置侧栏' }),
-  ).toBeVisible()
+  await page.mouse.move(6, 400)
+  await expect(sidebar).toHaveClass(/is-preview/)
+  await expect(page.locator('.sidebar-drawer-backdrop')).toHaveCount(0)
+  await expect(page.getByRole('searchbox', { name: '搜索设置' })).toBeVisible()
+})
+
+test('sidebar trigger does not reopen the preview until the pointer leaves', async ({
+  page,
+}) => {
+  await page.goto('/?visualCase=empty#/quick-chat')
+  await closeTransientErrorToast(page)
+  const sidebar = page.locator('aside.desktop-sidebar')
+  const sidebarTrigger = page.locator('[data-app-shell-sidebar-trigger]')
+
+  await sidebarTrigger.hover()
+  await sidebarTrigger.click()
+  await expect(sidebar).toHaveClass(/is-collapsed/)
+  await page.waitForTimeout(150)
+  await expect(sidebar).toHaveClass(/is-collapsed/)
+
+  await page.mouse.move(600, 400)
+  await sidebarTrigger.hover()
+  await expect(sidebar).toHaveClass(/is-preview/, { timeout: 1_000 })
 })
 
 test('Escape closes the theme picker and restores focus', async ({ page }) => {

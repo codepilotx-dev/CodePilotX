@@ -10,23 +10,14 @@ describe('desktop external open client', () => {
       defaultOpenTargetId: 'cursor',
     }
     const client = createDesktopClient({
-      fetch: async (_path, init) => {
-        const request = JSON.parse(String(init?.body))
-        if (request.method === 'initialize') {
-          return rpc(request.id, { ok: true, capabilities: {} })
-        }
-        if (request.method === 'desktop/settings/get') {
-          return rpc(request.id, { settings })
-        }
-        if (request.method === 'desktop/settings/save') {
-          settings = request.params.settings
-          return rpc(request.id, { settings })
-        }
-        throw new Error(`Unexpected RPC method: ${request.method}`)
-      },
       window: {
         codePilotXDesktop: {
           pickWorkspaceDirectory: async () => null,
+          getDesktopSettings: async () => settings,
+          saveDesktopSettings: async value => {
+            settings = value as typeof settings
+            return settings
+          },
           listExternalOpenTargets: async () => [
             {
               targetId: 'default-app',
@@ -75,8 +66,3 @@ describe('desktop external open client', () => {
     })
   })
 })
-
-const rpc = (id: unknown, result: unknown): Response =>
-  new Response(JSON.stringify({ jsonrpc: '2.0', id, result }), {
-    headers: { 'Content-Type': 'application/json' },
-  })

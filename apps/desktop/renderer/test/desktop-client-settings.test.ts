@@ -47,16 +47,18 @@ describe('desktop thread settings client', () => {
       const body = init?.body ? JSON.parse(String(init.body)) : null
       const params = body?.params ?? {}
       if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
-      if (body?.method === 'initialize') return rpc(body.id, { ok: true, capabilities: { prompt: 2, memory: 2, compact: 1, hookTrust: 1 } })
+      if (body?.method === 'initialized') return new Response(null, { status: 204 })
+      if (body?.method === 'initialize') return rpc(body.id, initializedResult())
       if (body?.method === 'project/open') return rpc(body.id, { project })
-      if (body?.method === 'project/list') return rpc(body.id, { projects: [project] })
+      if (body?.method === 'project/list') return rpc(body.id, { projects: [project], nextCursor: null })
       if (body?.method === 'thread/create') {
         expect(params).toEqual({
-          projectID: project.id,
+          projectId: project.id,
           settings,
           title: 'Plan 会话',
+          operationId: expect.any(String),
         })
-        return rpc(body.id, snapshot('session-1', settings))
+        return rpc(body.id, snapshotResult(snapshot('session-1', settings)))
       }
       if (body?.method === 'thread/list') {
         return rpc(body.id, {
@@ -65,19 +67,31 @@ describe('desktop thread settings client', () => {
         })
       }
       if (body?.method === 'thread/read') {
-        return rpc(body.id, snapshot(params.threadId, settings))
+        return rpc(body.id, snapshotResult(snapshot(params.threadId, settings)))
       }
       if (body?.method === 'thread/settings/update') {
         methods.push(body.method)
         settings = { ...settings, ...params.settings }
         await Promise.resolve()
-        return rpc(body.id, { threadId: params.threadId, settings })
+        return rpc(body.id, {
+          threadId: params.threadId,
+          settings,
+          version: 1,
+        })
       }
       if (body?.method === 'model/list') return rpc(body.id, modelCatalog())
       if (body?.method === 'turn/start') {
         methods.push(body.method)
         turnStarts.push(params)
-        return rpc(body.id, { input: null, turn: null })
+        return rpc(body.id, {
+          inputId: params.inputId,
+          turnId: 'turn-1',
+          disposition: 'accepted',
+          streamPosition: {
+            streamId: params.threadId,
+            sequence: 1,
+          },
+        })
       }
       throw new Error(`Unhandled RPC method: ${body?.method}`)
     }
@@ -131,30 +145,50 @@ describe('desktop thread settings client', () => {
     const client = createDesktopClient({
       fetch: async (_path, init) => {
         const body = init?.body ? JSON.parse(String(init.body)) : null
-        if (body?.method === 'initialize') return rpc(body.id, { ok: true, capabilities: { prompt: 2, memory: 2, compact: 1, hookTrust: 1 } })
-        if (body?.method === 'project/list') return rpc(body.id, { projects: [project] })
+        if (body?.method === 'initialized') return new Response(null, { status: 204 })
+        if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+        if (body?.method === 'project/list') return rpc(body.id, { projects: [project], nextCursor: null })
         if (body?.method === 'thread/compact') {
           compactRequests.push(body.params)
-          return rpc(body.id, { compaction: { id: 'compaction-1' } })
+          return rpc(body.id, {
+            compaction: {
+              id: 'compaction-1',
+              beforeCount: 10,
+              afterCount: 5,
+              beforeTokens: 100,
+              afterTokens: 50,
+              targetTokens: 60,
+              usageSampleId: 'usage-1',
+              baselineVersion: 1,
+            },
+          })
         }
         if (body?.method === 'thread/read') {
-          return rpc(body.id, snapshot(body.params.threadId, defaultSettings))
+          return rpc(
+            body.id,
+            snapshotResult(snapshot(body.params.threadId, defaultSettings)),
+          )
         }
         if (body?.method === 'thread/settings/update') {
           settingsRequests.push(body.params)
           return rpc(body.id, {
             threadId: body.params.threadId,
             settings: { ...defaultSettings, ...body.params.settings },
+            version: 1,
           })
         }
         throw new Error(`Unexpected RPC method: ${body?.method}`)
       },
     })
     await client.compactSession('real-uuid')
-    expect(compactRequests).toEqual([{ threadId: 'real-uuid' }])
+    expect(compactRequests).toEqual([{
+      threadId: 'real-uuid',
+      operationId: expect.any(String),
+    }])
     await client.setSessionPermissionProfile('real-uuid', 'read-only', 'never')
     expect(settingsRequests).toEqual([{
       threadId: 'real-uuid',
+      operationId: expect.any(String),
       settings: {
         permissionConfig: {
           sandboxMode: 'read-only',
@@ -175,7 +209,6 @@ describe('desktop thread settings client', () => {
       ['getSessionGoal', () => client.getSessionGoal('real-uuid')],
       ['setSessionGoal', () => client.setSessionGoal('real-uuid', {})],
       ['clearSessionGoal', () => client.clearSessionGoal('real-uuid')],
-      ['startSessionReview', () => client.startSessionReview('real-uuid', { type: 'uncommittedChanges' })],
     ]
 
     for (const [operation, invoke] of unsupported) {
@@ -191,17 +224,65 @@ describe('desktop thread settings client', () => {
     }
   })
 
+  test('starts AI Review with the persisted delivery preference', async () => {
+    const requests: unknown[] = []
+    const client = createDesktopClient({
+      window: {
+        codePilotXDesktop: {
+          pickWorkspaceDirectory: async () => null,
+          getDesktopSettings: async () => ({ reviewDelivery: 'detached' }),
+        },
+      },
+      fetch: async (_path, init) => {
+        const body = init?.body ? JSON.parse(String(init.body)) : null
+        if (body?.method === 'initialized') return new Response(null, { status: 204 })
+        if (body?.method === 'initialize') {
+          return rpc(body.id, initializedResult())
+        }
+        if (body?.method === 'review/ai/start') {
+          requests.push(body.params)
+          return rpc(body.id, {
+            threadId: 'review-thread',
+            turnId: 'review-turn',
+            delivery: 'detached',
+            source: { kind: 'branch', baseBranch: 'main' },
+          })
+        }
+        throw new Error(`Unexpected RPC method: ${body?.method}`)
+      },
+    })
+
+    const result = await client.startSessionReview('source-thread', {
+      type: 'baseBranch',
+      branch: 'main',
+    })
+
+    expect(requests).toEqual([
+      {
+        threadId: 'source-thread',
+        target: { type: 'baseBranch', branch: 'main' },
+        delivery: 'detached',
+      },
+    ])
+    expect(result).toMatchObject({
+      threadId: 'review-thread',
+      delivery: 'detached',
+      source: { kind: 'branch', baseBranch: 'main' },
+    })
+  })
+
   test('uses real queue RPCs with optimistic queue versions', async () => {
     const queueRequests: Array<{ method: string; params: Record<string, unknown> }> = []
     const fetcher = async (_path: string, init?: RequestInit): Promise<Response> => {
       const body = init?.body ? JSON.parse(String(init.body)) : null
-      if (body?.method === 'initialize') return rpc(body.id, { ok: true, capabilities: {} })
-      if (body?.method === 'project/list') return rpc(body.id, { projects: [project] })
+      if (body?.method === 'initialized') return new Response(null, { status: 204 })
+      if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body?.method === 'project/list') return rpc(body.id, { projects: [project], nextCursor: null })
       if (body?.method === 'thread/read') {
-        return rpc(body.id, {
+        return rpc(body.id, snapshotResult({
           ...snapshot(body.params.threadId, defaultSettings),
           queue: { version: 7, pauseReason: null },
-        })
+        }))
       }
       if (typeof body?.method === 'string' && body.method.startsWith('queue/')) {
         queueRequests.push({ method: body.method, params: body.params })
@@ -256,12 +337,23 @@ describe('desktop thread settings client', () => {
     const client = createDesktopClient({
       fetch: async (_path, init) => {
         const body = init?.body ? JSON.parse(String(init.body)) : null
-        if (body?.method === 'initialize') return rpc(body.id, { ok: true, capabilities: {} })
-        if (body?.method === 'project/list') return rpc(body.id, { projects: [project] })
-        if (body?.method === 'thread/read') return rpc(body.id, activeSnapshot())
+        if (body?.method === 'initialized') return new Response(null, { status: 204 })
+        if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+        if (body?.method === 'project/list') return rpc(body.id, { projects: [project], nextCursor: null })
+        if (body?.method === 'thread/read') {
+          return rpc(body.id, snapshotResult(activeSnapshot()))
+        }
         if (body?.method === 'turn/steer') {
           steerParams = body.params
-          return rpc(body.id, { accepted: true })
+          return rpc(body.id, {
+            inputId: body.params.inputId,
+            turnId: 'turn-active',
+            disposition: 'accepted',
+            streamPosition: {
+              streamId: 'thread-active',
+              sequence: 1,
+            },
+          })
         }
         throw new Error(`Unexpected RPC method: ${body?.method}`)
       },
@@ -311,12 +403,32 @@ describe('desktop thread settings client', () => {
       onerror: null as (() => void) | null,
       close: () => {},
     }
+    let subscriptionCount = 0
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
       const body = init?.body ? JSON.parse(String(init.body)) : null
       const params = body?.params ?? {}
       if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
-      if (body?.method === 'initialize') return rpc(body.id, { ok: true, capabilities: { prompt: 2, memory: 2, compact: 1, hookTrust: 1 } })
-      if (body?.method === 'project/list') return rpc(body.id, { projects: [project] })
+      if (body?.method === 'initialized') return new Response(null, { status: 204 })
+      if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body?.method === 'event/subscribe') {
+        subscriptionCount += 1
+        return rpc(body.id, {
+          subscriptionId: `subscription-${subscriptionCount}`,
+          highWatermarks: [{ streamId: 'global', sequence: 12 }],
+        })
+      }
+      if (body?.method === 'event/unsubscribe') {
+        return rpc(body.id, { ok: true })
+      }
+      if (body?.method === 'event/ack') {
+        return rpc(body.id, {
+          subscriptionId: params.subscriptionId,
+          acknowledged: params.positions,
+        })
+      }
+      if (body?.method === 'project/list') {
+        return rpc(body.id, { projects: [project], nextCursor: null })
+      }
       if (body?.method === 'thread/list') {
         return rpc(body.id, {
           threads: [
@@ -328,7 +440,10 @@ describe('desktop thread settings client', () => {
       }
       if (body?.method === 'thread/read') {
         readThreadIds.push(params.threadId)
-        return rpc(body.id, snapshot(params.threadId, defaultSettings))
+        return rpc(
+          body.id,
+          snapshotResult(snapshot(params.threadId, defaultSettings)),
+        )
       }
       throw new Error(`Unhandled RPC method: ${body?.method}`)
     }
@@ -338,16 +453,198 @@ describe('desktop thread settings client', () => {
     })
     await client.listSessions()
     const unsubscribe = client.onAgentEvent(() => {})
+    for (let index = 0; index < 20 && !source.onmessage; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
     source.onmessage?.({
       data: JSON.stringify({
-        method: 'thread/settings/updated',
-        params: { threadId: 'session-2', settings: defaultSettings },
+        method: 'event/next',
+        params: {
+          subscriptionId: 'subscription-2',
+          event: {
+            eventId: 'event-13',
+            type: 'thread/settings/updated',
+            version: 1,
+            occurredAt: now,
+            threadId: 'session-2',
+            durability: 'durable',
+            sequence: 13,
+            payload: {
+              threadId: 'session-2',
+              settings: defaultSettings,
+              version: 1,
+            },
+          },
+        },
       }),
     } as MessageEvent)
     await new Promise(resolve => setTimeout(resolve, 350))
     unsubscribe()
 
     expect(readThreadIds).toEqual(['session-2'])
+  })
+
+  test('routes GitHub auth, profile, repositories, push and PR creation through Agent RPC', async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = []
+    const githubUser = {
+      login: 'octocat',
+      id: 1,
+      name: 'Octocat',
+      avatarUrl: null,
+      htmlUrl: 'https://github.com/octocat',
+    }
+    const auth = { configured: true, authenticated: true, user: githubUser }
+    const login = {
+      loginId: 'login-1',
+      state: 'awaiting_auth',
+      userCode: 'ABCD-EFGH',
+      verificationUri: 'https://github.com/login/device',
+      expiresAt: '2026-07-18T00:00:00.000Z',
+      error: null,
+      auth: null,
+      elapsedMs: 0,
+    }
+    const fetcher = async (_path: string, init?: RequestInit): Promise<Response> => {
+      const body = init?.body ? JSON.parse(String(init.body)) : null
+      const params = body?.params ?? {}
+      if (body?.method === 'initialized') return new Response(null, { status: 204 })
+      if (body?.method !== 'initialize') {
+        requests.push({ method: body.method, params })
+      }
+      switch (body?.method) {
+        case 'initialize':
+          return rpc(body.id, initializedResult())
+        case 'github/auth/status':
+          return rpc(body.id, auth)
+        case 'github/auth/start':
+        case 'github/auth/poll':
+          return rpc(body.id, login)
+        case 'github/auth/logout':
+          return rpc(body.id, { configured: true, authenticated: false, user: null })
+        case 'github/repositories':
+          return rpc(body.id, { repositories: [] })
+        case 'github/profileOverview':
+          return rpc(body.id, {
+            overview: {
+              user: {
+                ...githubUser,
+                bio: null,
+                company: null,
+                location: null,
+                websiteUrl: null,
+                email: null,
+                followers: 0,
+                following: 0,
+                repositoryCount: 0,
+                starredRepositoryCount: 0,
+                status: null,
+              },
+              organizations: [],
+              pinnedRepositories: [],
+              popularRepositories: [],
+              contributions: {
+                totalContributions: 0,
+                totalCommitContributions: 0,
+                totalIssueContributions: 0,
+                totalPullRequestContributions: 0,
+                totalPullRequestReviewContributions: 0,
+                restrictedContributionsCount: 0,
+                weeks: [],
+              },
+            },
+          })
+        case 'project/list':
+          return rpc(body.id, { projects: [project], nextCursor: null })
+        case 'project/open':
+          return rpc(body.id, { project })
+        case 'github/push':
+          return rpc(body.id, {
+            remote: 'origin',
+            branch: 'feature',
+            repositoryUrl: 'https://github.com/octocat/repo',
+            status: {
+              branchName: 'feature',
+              upstream: 'origin/feature',
+              ahead: 0,
+              behind: 0,
+              clean: true,
+              files: [],
+            },
+          })
+        case 'github/pullRequest/createForProject':
+          return rpc(body.id, {
+            pullRequest: {
+              id: 7,
+              number: 7,
+              title: 'PR title',
+              body: 'PR body',
+              state: 'open',
+              draft: true,
+              htmlUrl: 'https://github.com/octocat/repo/pull/7',
+              base: { ref: 'main', sha: 'base-sha' },
+              head: { ref: 'feature', sha: 'head-sha' },
+              additions: 1,
+              deletions: 0,
+              changedFiles: 1,
+              mergeable: true,
+            },
+          })
+        default:
+          throw new Error(`Unexpected RPC method: ${body?.method}`)
+      }
+    }
+    const client = createDesktopClient({ fetch: fetcher })
+
+    expect(await client.getGithubAuthStatus()).toEqual(auth)
+    expect(await client.startGithubLogin({ clientId: 'client-id' })).toEqual(login)
+    expect(await client.pollGithubLogin()).toEqual(login)
+    expect(await client.listGithubRepositories()).toEqual({ ok: true, repositories: [] })
+    expect(await client.getGithubProfileOverview()).toMatchObject({
+      ok: true,
+      overview: { user: { login: 'octocat' } },
+    })
+    expect(await client.pushWorkspaceBranch({
+      workspacePath: project.rootPath,
+      setUpstream: true,
+      forceWithLease: false,
+    })).toMatchObject({ ok: true, status: { branchName: 'feature' } })
+    expect(await client.createPullRequest({
+      workspacePath: project.rootPath,
+      title: 'PR title',
+      body: 'PR body',
+      draft: true,
+    })).toEqual({
+      ok: true,
+      url: 'https://github.com/octocat/repo/pull/7',
+      output: '已创建 Pull Request #7',
+    })
+    expect(await client.logoutGithub()).toEqual({
+      configured: true,
+      authenticated: false,
+      user: null,
+    })
+
+    expect(requests).toContainEqual({
+      method: 'github/auth/start',
+      params: { clientId: 'client-id' },
+    })
+    expect(requests).toContainEqual({
+      method: 'github/push',
+      params: {
+        projectId: project.id,
+        setUpstream: true,
+        forceWithLease: false,
+      },
+    })
+    expect(requests).toContainEqual({
+      method: 'github/pullRequest/createForProject',
+      params: {
+        projectId: project.id,
+        title: 'PR title',
+        body: 'PR body',
+        draft: true,
+      },
+    })
   })
 })
 
@@ -378,11 +675,23 @@ function snapshot(id: string, settings: ThreadSettings): ThreadSnapshot {
       updatedAt: now,
     },
     turns: [],
+    agents: [],
+    subagents: [],
     inputs: [],
     messages: [],
     items: [],
     approvals: [],
     proposals: [],
+  }
+}
+
+function snapshotResult(value: ThreadSnapshot) {
+  return {
+    snapshot: value,
+    streamPosition: {
+      streamId: value.thread.id,
+      sequence: 1,
+    },
   }
 }
 
@@ -412,6 +721,7 @@ function modelCatalog() {
     }],
     defaultModel: { providerID: 'openai', id: 'gpt-5' },
     reviewerModel: null,
+    catalogVersion: 1,
   }
 }
 
@@ -419,4 +729,40 @@ function rpc(id: string | number, result: unknown): Response {
   return new Response(JSON.stringify({ jsonrpc: '2.0', id, result }), {
     headers: { 'content-type': 'application/json' },
   })
+}
+
+function initializedResult() {
+  return {
+    protocol: 'thread-rpc-v3',
+    serverInfo: { name: 'test-agent', version: '1.0.0' },
+    capabilities: [
+      'rpc.typed.v1',
+      'events.replay.v1',
+      'events.live.v1',
+      'interactions.serverRequests.v1',
+      'interaction.recovery.v1',
+      'turn.admission.v1',
+      'turn.steer.v1',
+      'turn.queue.management.v1',
+      'attachments.v1',
+      'memory.v2',
+      'workspace.editor.v1',
+      'git.review.v1',
+      'ai.review.v1',
+      'github.oauth.v1',
+      'github.pullRequests.v1',
+      'context.compact.v1',
+      'hooks.trust.v1',
+      'subagents.v1',
+      'sandbox.management.v1',
+      'prompt.preview.sensitive.v1',
+    ],
+    limits: {
+      maxFrameBytes: 1024,
+      maxSubscriptions: 8,
+      maxStreamsPerSubscription: 8,
+      maxPendingRequests: 32,
+    },
+    connectionId: 'test-connection',
+  }
 }
