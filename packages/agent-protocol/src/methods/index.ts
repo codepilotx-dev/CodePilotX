@@ -2,10 +2,14 @@ import type { Schema } from "effect"
 import type { ParamsOf, ResultOf } from "../definition"
 import { CoreRpcMethods } from "./core"
 import { ExtendedRpcMethods } from "./extended"
+import { GithubRpcMethods } from "./github"
+import { ReviewRpcMethods } from "./review"
 
 export const RpcMethods = {
   ...CoreRpcMethods,
   ...ExtendedRpcMethods,
+  ...GithubRpcMethods,
+  ...ReviewRpcMethods,
 } as const
 export const RpcMethodMap = RpcMethods
 
@@ -16,5 +20,7 @@ export type RpcErrors<M extends RpcMethod> = (typeof RpcMethods)[M]["errors"][nu
 export type RpcParamsSchema<M extends RpcMethod> = (typeof RpcMethods)[M]["params"] & Schema.Top
 export type RpcResultSchema<M extends RpcMethod> = (typeof RpcMethods)[M]["result"] & Schema.Top
 
-export { CoreRpcMethods } from "./core"
-export { ExtendedRpcMethods } from "./extended"
+export * from "./core"
+export * from "./extended"
+export * from "./github"
+export * from "./review"

@@ -42,6 +42,17 @@ const ToolTerminalPayloadSchema = Schema.Struct({
 })
 
 export const EventManifest = {
+  "workspace/git/changed": defineEvent({
+    payload: Schema.Struct({
+      projectId: OpaqueIDSchema,
+      changedAt: TimestampSchema,
+    }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "git.review.v1",
+    reconcilesWith: "review/summary",
+  }),
   "workspace/file/changed": defineEvent({
     payload: Schema.Struct({
       projectId: OpaqueIDSchema,
@@ -390,7 +401,7 @@ export const EventManifest = {
     capability: "events.replay.v1",
   }),
   "catalog/updated": defineEvent({
-    payload: Schema.Struct({ catalogVersion: OpaqueIDSchema, models: Schema.optional(Schema.Array(Model.Info)) }),
+    payload: Schema.Struct({ catalogVersion: SequenceSchema, models: Schema.optional(Schema.Array(Model.Info)) }),
     version: 1,
     durability: "live",
     stream: "global",
