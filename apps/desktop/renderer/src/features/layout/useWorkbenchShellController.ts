@@ -44,6 +44,7 @@ export function useWorkbenchShellController(debugMode: boolean) {
   )
   const sidebarShell = useSidebarShellController({
     desktopCollapsed: sidebarCollapsed,
+    sidebarWidth,
     setDesktopCollapsed: setSidebarCollapsed,
   })
   const autoCollapsedRightRef = useRef(false)

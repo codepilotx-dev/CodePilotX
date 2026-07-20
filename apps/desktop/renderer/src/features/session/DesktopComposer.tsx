@@ -80,6 +80,11 @@ type Props = {
   onOpenBrowser?: () => void
   onBranchSelect: (branch: string) => Promise<void>
   onCreateBranch: () => void
+  onStartReview?: (
+    target:
+      | { type: 'uncommittedChanges' }
+      | { type: 'baseBranch'; branch: string },
+  ) => void
   onPermissionChange: (value: DesktopPermissionMode) => void
   onPlanModeChange: (active: boolean) => void
   onLocalRouterModeChange: (mode: LocalRouterMode) => void
@@ -149,6 +154,7 @@ export function DesktopComposer({
   onOpenBrowser,
   onBranchSelect,
   onCreateBranch,
+  onStartReview,
   onPermissionChange,
   onPlanModeChange,
   onLocalRouterModeChange,
@@ -266,6 +272,7 @@ export function DesktopComposer({
       onOpenBrowser={onOpenBrowser}
       onBranchSelect={branch => void onBranchSelect(branch)}
       onCreateBranch={onCreateBranch}
+      onStartReview={onStartReview}
       onPermissionChange={onPermissionChange}
       onPlanModeChange={onPlanModeChange}
       onLocalRouterModeChange={onLocalRouterModeChange}

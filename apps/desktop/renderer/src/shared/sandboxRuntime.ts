@@ -31,6 +31,34 @@ type BackendSandboxStatus = {
 }
 
 const rpc = createAgentRpcClient({})
+const sandboxClientInstanceId = crypto.randomUUID()
+let sandboxRpcReady: Promise<void> | null = null
+
+function ensureSandboxRpcReady(): Promise<void> {
+  sandboxRpcReady ??= (async () => {
+    const initialized = await rpc.call('initialize', {
+      clientInfo: {
+        name: 'codepilotx-desktop-sandbox-settings',
+        version: '0.2.0',
+        platform:
+          typeof navigator === 'undefined' ? 'desktop' : navigator.platform,
+        instanceId: sandboxClientInstanceId,
+      },
+      protocols: ['thread-rpc-v3'],
+      capabilities: ['rpc.typed.v1', 'sandbox.management.v1'],
+      interactionDelivery: 'observe',
+    })
+    rpc.setConnectionId(initialized.connectionId)
+    await rpc.initialized({
+      protocol: 'thread-rpc-v3',
+      clientInstanceId: sandboxClientInstanceId,
+    })
+  })().catch(error => {
+    sandboxRpcReady = null
+    throw error
+  })
+  return sandboxRpcReady
+}
 
 function normalizeStatus(status: BackendSandboxStatus): SandboxRuntimeStatus {
   const state: SandboxRuntimeState = status.state === 'available'
@@ -50,22 +78,35 @@ function normalizeStatus(status: BackendSandboxStatus): SandboxRuntimeStatus {
 }
 
 export async function loadSandboxRuntimeStatus(): Promise<SandboxRuntimeStatus> {
-  const response = await rpc.call<{ sandbox: BackendSandboxStatus }>('sandbox/status')
+  await ensureSandboxRpcReady()
+  const response = await rpc.call('sandbox/status', {})
   return normalizeStatus(response.sandbox)
 }
 
 export async function installSandboxRuntime(): Promise<SandboxRuntimeStatus> {
-  const response = await rpc.call<{ sandbox: BackendSandboxStatus }>('sandbox/install')
+  await ensureSandboxRpcReady()
+  const response = await rpc.call(
+    'sandbox/install',
+    { operationId: crypto.randomUUID() },
+  )
   return normalizeStatus(response.sandbox)
 }
 
 export async function repairSandboxRuntime(): Promise<SandboxRuntimeStatus> {
-  const response = await rpc.call<{ sandbox: BackendSandboxStatus }>('sandbox/repair')
+  await ensureSandboxRpcReady()
+  const response = await rpc.call(
+    'sandbox/repair',
+    { operationId: crypto.randomUUID() },
+  )
   return normalizeStatus(response.sandbox)
 }
 
 export async function uninstallSandboxRuntime(): Promise<SandboxRuntimeStatus> {
-  const response = await rpc.call<{ sandbox: BackendSandboxStatus }>('sandbox/uninstall', { confirm: true })
+  await ensureSandboxRpcReady()
+  const response = await rpc.call(
+    'sandbox/uninstall',
+    { confirm: true, operationId: crypto.randomUUID() },
+  )
   return normalizeStatus(response.sandbox)
 }
 

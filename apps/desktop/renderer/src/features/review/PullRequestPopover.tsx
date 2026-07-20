@@ -181,7 +181,7 @@ export function PullRequestPopover({
           type="checkbox"
           onChange={event => setPushFirst(event.target.checked)}
         />
-        <span>提交并推送本地更改</span>
+        <span>先推送当前分支</span>
       </label>
 
       <div className="review-popover-actions">

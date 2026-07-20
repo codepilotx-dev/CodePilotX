@@ -76,6 +76,8 @@ type Props = {
   sidebarCollapsed: boolean
   isMaximized: boolean
   onToggleSidebar: () => void
+  onSidebarTriggerPointerEnter: () => void
+  onSidebarTriggerPointerLeave: () => void
   isDebugMode: boolean
   onDebugModeChange: (checked: boolean) => void
   onMinimize: () => void
@@ -194,6 +196,8 @@ export function MenuBar({
   sidebarCollapsed,
   isMaximized,
   onToggleSidebar,
+  onSidebarTriggerPointerEnter,
+  onSidebarTriggerPointerLeave,
   isDebugMode,
   onDebugModeChange,
   onMinimize,
@@ -210,7 +214,10 @@ export function MenuBar({
       <div className="menubar-titlebar">
         <div className="menubar-left">
           <IconButton
+            data-app-shell-sidebar-trigger
             onClick={onToggleSidebar}
+            onPointerEnter={onSidebarTriggerPointerEnter}
+            onPointerLeave={onSidebarTriggerPointerLeave}
             size="sm"
             title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
             variant="toolbar"

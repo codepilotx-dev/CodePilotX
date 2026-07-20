@@ -1,12 +1,24 @@
 import React, { useMemo } from 'react'
 import type { Token, Tokens } from 'marked'
-import { Check, Copy } from 'lucide-react'
+import { Check, Code2, Copy, FileText, FolderOpen } from 'lucide-react'
+import type { DesktopExternalOpenTarget } from '../../../shared/types.js'
+import {
+  AppContextMenu,
+  type AppContextMenuAction,
+} from '../../components/ui/AppContextMenu.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktopClient.js'
+import {
+  loadExternalOpenTargets,
+  openPathWithExternalTarget,
+  openPathWithPreferredExternalTarget,
+  prefetchExternalOpenTargets,
+} from '../../services/externalOpenTargetsStore.js'
 import { cx } from '../../utils/cx.js'
+import { FileTypeIcon } from '../layout/FileTypeIcon.js'
 import { CodeBlock } from '../syntax/index.js'
 import {
   DEFAULT_MARKDOWN_DIRECTIVES,
@@ -46,6 +58,12 @@ export type MarkdownMessageProps = {
     reference: MarkdownFileReference,
     options: MarkdownFileOpenOptions,
   ) => void
+  canCopyFileReferenceContents?: (
+    reference: MarkdownFileReference,
+  ) => boolean
+  onCopyFileReferenceContents?: (
+    reference: MarkdownFileReference,
+  ) => void | Promise<void>
   streaming?: boolean
   streamingChunks?: readonly string[]
   text: string
@@ -63,6 +81,12 @@ type RenderContext = {
         options: MarkdownFileOpenOptions,
       ) => void)
     | undefined
+  canCopyFileReferenceContents:
+    | ((reference: MarkdownFileReference) => boolean)
+    | undefined
+  onCopyFileReferenceContents:
+    | ((reference: MarkdownFileReference) => void | Promise<void>)
+    | undefined
   streaming: boolean
 }
 
@@ -73,6 +97,8 @@ export function MarkdownMessage({
   directives,
   directiveRegistry,
   externalResourcePolicy,
+  canCopyFileReferenceContents,
+  onCopyFileReferenceContents,
   onOpenFileReference,
   streaming = false,
   streamingChunks,
@@ -96,6 +122,8 @@ export function MarkdownMessage({
         allowRemoteMedia:
           externalResourcePolicy?.allowRemoteMedia ?? true,
       },
+      canCopyFileReferenceContents,
+      onCopyFileReferenceContents,
       onOpenFileReference,
       streaming,
     }),
@@ -107,6 +135,8 @@ export function MarkdownMessage({
       directives,
       externalResourcePolicy?.allowExternalLinks,
       externalResourcePolicy?.allowRemoteMedia,
+      canCopyFileReferenceContents,
+      onCopyFileReferenceContents,
       onOpenFileReference,
       streaming,
     ],
@@ -353,6 +383,9 @@ function renderDirective(
   key: string,
 ): React.ReactNode {
   const name = normalizeDirectiveName(token.name)
+  if (name === 'code-comment') {
+    return renderCodeCommentDirective(token, context, key)
+  }
   const renderer = context.directives.get(name)
   const children = renderTokens(token.tokens, context, `${key}-body`)
   if (!renderer) {
@@ -370,12 +403,68 @@ function renderDirective(
     <React.Fragment key={key}>
       {renderer({
         argument: token.argument,
+        attributes: token.attributes,
         children,
         name,
         rawText: token.text,
       })}
     </React.Fragment>
   )
+}
+
+function renderCodeCommentDirective(
+  token: MarkdownDirectiveToken,
+  context: RenderContext,
+  key: string,
+): React.ReactNode {
+  const { attributes } = token
+  const file = attributes.file?.trim()
+  const start = positiveInteger(attributes.start)
+  const end = positiveInteger(attributes.end)
+  const title = attributes.title?.trim() || '代码审查发现'
+  const body = attributes.body?.trim() || token.argument || token.text
+  const priority = positiveInteger(attributes.priority)
+  const open = (): void => {
+    if (!file || !context.onOpenFileReference) return
+    context.onOpenFileReference(
+      {
+        path: file,
+        ...(start ? { line: start } : {}),
+        ...(end ? { endLine: end } : {}),
+      },
+      { preview: false },
+    )
+  }
+  return (
+    <aside
+      className="md-directive md-code-comment"
+      data-md-directive="code-comment"
+      data-priority={priority ?? undefined}
+      key={key}
+    >
+      <button
+        className="md-code-comment__target"
+        disabled={!file || !context.onOpenFileReference}
+        type="button"
+        onClick={open}
+      >
+        <strong>{title}</strong>
+        {file ? (
+          <code>
+            {file}
+            {start ? `:${start}` : ''}
+          </code>
+        ) : null}
+      </button>
+      {body ? <p>{body}</p> : null}
+    </aside>
+  )
+}
+
+function positiveInteger(value: string | undefined): number | null {
+  if (!value || !/^\d+$/u.test(value)) return null
+  const parsed = Number(value)
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null
 }
 
 function renderListItem(
@@ -617,7 +706,7 @@ function renderCodeSpan(
       reference={target}
       title={target.path}
     >
-      <code>{text}</code>
+      {text}
     </FileReferenceButton>
   )
 }
@@ -899,7 +988,7 @@ function openExternal(context: RenderContext, url: string): void {
 function openFile(context: RenderContext, path: string): void {
   const target = resolveWorkspacePath(context.cwd, path)
   if (!target) return
-  void desktopClient.openPathWithDefaultTarget(target).catch(() => undefined)
+  void openPathWithPreferredExternalTarget(target).catch(() => undefined)
 }
 
 function FileReferenceButton({
@@ -915,11 +1004,25 @@ function FileReferenceButton({
   reference: MarkdownFileReference
   title: string
 }): React.ReactNode {
+  const absolutePath = resolveWorkspacePath(context.cwd, reference.path)
+  const [openTargets, setOpenTargets] = React.useState<
+    DesktopExternalOpenTarget[]
+  >([])
+  const [loadingTargets, setLoadingTargets] = React.useState(false)
+  const canCopyContents =
+    context.canCopyFileReferenceContents?.(reference) ?? false
+
   const prefetch = (): void => {
-    context.onOpenFileReference?.(reference, {
-      prefetch: true,
-      preview: true,
-    })
+    if (!absolutePath) return
+    void prefetchExternalOpenTargets(absolutePath).catch(() => undefined)
+  }
+  const loadTargets = (): void => {
+    if (!absolutePath) return
+    setLoadingTargets(true)
+    void loadExternalOpenTargets(absolutePath)
+      .then(setOpenTargets)
+      .catch(() => setOpenTargets([]))
+      .finally(() => setLoadingTargets(false))
   }
   const open = (preview: boolean): void => {
     if (context.onOpenFileReference) {
@@ -928,32 +1031,196 @@ function FileReferenceButton({
     }
     openFile(context, reference.path)
   }
-  return (
-    <button
-      className={className}
-      onClick={event => {
-        if (event.ctrlKey || event.altKey) {
-          openFile(context, reference.path)
-          return
+  const openWithTarget = (targetId: string): void => {
+    if (!absolutePath) return
+    void openPathWithExternalTarget(absolutePath, targetId)
+      .then(selected => {
+        setOpenTargets(current =>
+          current.map(target => ({
+            ...target,
+            preferred: target.id === selected.id,
+          })),
+        )
+      })
+      .catch(() => undefined)
+  }
+  const preferredTarget =
+    openTargets.find(target => target.preferred) ?? openTargets[0]
+  const targetActions: AppContextMenuAction[] = loadingTargets &&
+    openTargets.length === 0
+    ? [
+        {
+          kind: 'item',
+          label: '正在查找打开方式…',
+          disabled: true,
+          onSelect: () => undefined,
+        },
+      ]
+    : openTargets.length > 0
+      ? [
+          {
+            kind: 'item',
+            label: `使用 ${preferredTarget?.label ?? '首选应用'} 打开`,
+            icon: openTargetIcon(preferredTarget),
+            onSelect: () => {
+              if (preferredTarget) openWithTarget(preferredTarget.id)
+            },
+          },
+          {
+            kind: 'sub',
+            label: '打开方式',
+            icon: (
+              <Code2
+                aria-hidden="true"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            ),
+            children: openTargets.map(target => ({
+              kind: 'item' as const,
+              label: target.label,
+              icon: openTargetIcon(target),
+              onSelect: () => openWithTarget(target.id),
+            })),
+          },
+        ]
+      : [
+          {
+            kind: 'item',
+            label: '没有可用的外部应用',
+            disabled: true,
+            onSelect: () => undefined,
+          },
+        ]
+  const actions: AppContextMenuAction[] = [
+    ...targetActions,
+    { kind: 'separator' },
+    {
+      kind: 'item',
+      label: '复制路径',
+      icon: (
+        <Copy
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      ),
+      onSelect: () => {
+        void navigator.clipboard
+          .writeText(absolutePath ?? reference.path)
+          .catch(() => undefined)
+      },
+    },
+    {
+      kind: 'item',
+      label: '复制文件内容',
+      disabled: !canCopyContents || !context.onCopyFileReferenceContents,
+      icon: (
+        <FileText
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      ),
+      onSelect: () => {
+        try {
+          void Promise.resolve(
+            context.onCopyFileReferenceContents?.(reference),
+          ).catch(() => undefined)
+        } catch {
+          // The workspace handler reports copy failures through the app error UI.
         }
-        open(true)
+      },
+    },
+    { kind: 'separator' },
+    {
+      kind: 'item',
+      label: '在文件资源管理器中显示',
+      disabled: !absolutePath,
+      icon: (
+        <FolderOpen
+          aria-hidden="true"
+          size={APP_ICON_SIZE}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+        />
+      ),
+      onSelect: () => {
+        if (!absolutePath) return
+        void desktopClient
+          .revealPathInFolder(absolutePath)
+          .catch(() => undefined)
+      },
+    },
+  ]
+  return (
+    <AppContextMenu
+      actions={actions}
+      onOpenChange={open => {
+        if (open) loadTargets()
       }}
-      onDoubleClick={event => {
-        if (event.ctrlKey || event.altKey) return
-        open(false)
-      }}
-      onFocus={prefetch}
-      onKeyDown={event => {
-        if (event.key !== 'Enter' && event.key !== ' ') return
-        event.preventDefault()
-        open(true)
-      }}
-      onMouseEnter={prefetch}
-      onPointerDown={prefetch}
-      title={title}
-      type="button"
-    >
-      {children}
-    </button>
+      trigger={
+        <span
+          aria-label={`打开文件 ${reference.path}`}
+          className={className}
+          data-file-reference=""
+          onClick={event => {
+            if (event.detail > 1) return
+            if (event.ctrlKey || event.altKey) {
+              openFile(context, reference.path)
+              return
+            }
+            open(true)
+          }}
+          onDoubleClick={event => {
+            if (event.ctrlKey || event.altKey || !canCopyContents) return
+            open(false)
+          }}
+          onFocus={prefetch}
+          onKeyDown={event => {
+            if (event.key !== 'Enter' && event.key !== ' ') return
+            event.preventDefault()
+            open(true)
+          }}
+          onMouseEnter={prefetch}
+          onPointerDown={prefetch}
+          role="button"
+          tabIndex={0}
+          title={title}
+        >
+          <span className="md-file-reference__content">
+            <span aria-hidden="true" className="md-file-reference__icon">
+              <FileTypeIcon
+                path={reference.path}
+                size={16}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            </span>
+            <span className="md-file-reference__label">{children}</span>
+          </span>
+        </span>
+      }
+      width={240}
+    />
+  )
+}
+
+function openTargetIcon(
+  target: DesktopExternalOpenTarget | undefined,
+): React.ReactNode {
+  if (target?.iconDataUrl) {
+    return (
+      <img
+        alt=""
+        className="md-file-reference__target-icon"
+        src={target.iconDataUrl}
+      />
+    )
+  }
+  return (
+    <Code2
+      aria-hidden="true"
+      size={APP_ICON_SIZE}
+      strokeWidth={APP_ICON_STROKE_WIDTH}
+    />
   )
 }

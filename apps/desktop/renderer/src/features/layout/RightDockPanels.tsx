@@ -37,6 +37,8 @@ const OPEN_FILE_MAIN_MIN_WIDTH = 200
 const OPEN_FILE_TREE_LAYOUT_MIN_WIDTH =
   OPEN_FILE_MAIN_MIN_WIDTH + FILE_TREE_MIN_WIDTH + 8
 
+export type FileDocumentLoadErrorPhase = 'initial' | 'external-sync'
+
 type FilesPanelProps = {
   files: DesktopFileEntry[]
   activePath?: string | null
@@ -311,6 +313,7 @@ export function RightDockFilePreviewPanel({
   onAppendComposerText,
   onAddComposerFiles,
   onOpenFile,
+  onLoadError,
 }: {
   workspacePath: string
   expectedPath: string
@@ -327,6 +330,10 @@ export function RightDockFilePreviewPanel({
     file: DesktopFileEntry,
     options: WorkspaceFileOpenOptions,
   ) => void
+  onLoadError?: (
+    error: Error,
+    phase: FileDocumentLoadErrorPhase,
+  ) => void
 }): React.ReactNode {
   const [selectedText, setSelectedText] = useState('')
   const initialTreeState = useRef(readFileTreeViewState(workspacePath))
@@ -337,6 +344,8 @@ export function RightDockFilePreviewPanel({
   const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
   const [switchingMarkdownMode, setSwitchingMarkdownMode] = useState(false)
   const layoutRef = useRef<HTMLDivElement | null>(null)
+  const initialLoadKeyRef = useRef<string | null>(null)
+  const onLoadErrorRef = useRef(onLoadError)
   const document = useFileDocument(workspacePath, expectedPath)
   const language = resolveLanguageFromPath(expectedPath)
   const isMarkdown = isMarkdownFilePath(expectedPath)
@@ -345,11 +354,29 @@ export function RightDockFilePreviewPanel({
     : undefined
 
   useEffect(() => {
-    void prefetchFileDocument(workspacePath, expectedPath).catch(
-      () => undefined,
-    )
-    return startFileDocumentExternalChecks(workspacePath, expectedPath)
+    onLoadErrorRef.current = onLoadError
+  }, [onLoadError])
+
+  useEffect(() => {
+    const loadKey = `${workspacePath}\u0000${expectedPath}`
+    if (initialLoadKeyRef.current === loadKey) return
+    initialLoadKeyRef.current = loadKey
+    void prefetchFileDocument(workspacePath, expectedPath).catch(error => {
+      if (initialLoadKeyRef.current !== loadKey) return
+      onLoadErrorRef.current?.(
+        error instanceof Error ? error : new Error(String(error)),
+        'initial',
+      )
+    })
   }, [expectedPath, workspacePath])
+
+  useEffect(() => {
+    if (document.status !== 'ready') return
+    return startFileDocumentExternalChecks(workspacePath, expectedPath, {
+      onLoadError: error =>
+        onLoadErrorRef.current?.(error, 'external-sync'),
+    })
+  }, [document.status, expectedPath, workspacePath])
 
   useEffect(() => {
     writeFileTreeViewState(workspacePath, {
@@ -449,10 +476,8 @@ export function RightDockFilePreviewPanel({
 
   if (document.status === 'error') {
     return (
-      <div className="right-dock-empty-state" role="alert">
-        <Folder size={58} strokeWidth={1.8} />
-        <strong>无法打开文件</strong>
-        <span>{document.loadError ?? expectedPath}</span>
+      <div className="right-dock-file-load-error" role="alert">
+        无法打开文件
       </div>
     )
   }

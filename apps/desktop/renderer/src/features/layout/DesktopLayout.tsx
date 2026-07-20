@@ -3,7 +3,10 @@ import {
   readDesktopBrowserDebugMode,
   writeDesktopBrowserDebugMode,
 } from '../../services/desktopClient.js'
-import { AgentRpcError } from '../../services/agentRpcClient.js'
+import {
+  openPathWithPreferredExternalTarget,
+  shouldFallbackToExternalOpen,
+} from '../../services/externalOpenTargetsStore.js'
 import type React from 'react'
 import { Outlet } from 'react-router-dom'
 import {
@@ -14,18 +17,22 @@ import { deriveWorkflowSessionState } from '../../../shared/workflowReducer.js'
 import {
   DesktopWorkspaceFixedControls,
   WorkbenchPanel,
+  type WorkbenchFileLoadErrorEvent,
 } from './RightDock.js'
 import {
+  applyWorkbenchPanelAction,
   createDefaultWorkbenchTabsState,
   type WorkbenchPanelTarget,
   type WorkbenchTabId,
 } from './rightDockState.js'
 import {
   createDefaultConversationUiState,
+  createDefaultReviewTabUiState,
   saveConversationUiState,
   loadConversationUiState,
   validateConversationUiState,
   type ConversationUiState,
+  type ReviewTabUiState,
 } from './conversationUiState.js'
 import { DesktopSidebar } from './DesktopSidebar.js'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
@@ -179,14 +186,6 @@ function shouldOpenFileExternally(path: string): boolean {
   return extension ? EXTERNAL_FILE_EXTENSIONS.has(extension) : false
 }
 
-function shouldFallbackToExternalOpen(error: unknown): boolean {
-  return (
-    error instanceof AgentRpcError &&
-    (error.errorCode === 'WORKSPACE_FILE_UNREADABLE' ||
-      error.errorCode === 'WORKSPACE_FILE_TOO_LARGE')
-  )
-}
-
 export function DesktopLayout(): React.ReactNode {
   const settings = useDesktopSettings()
   const {
@@ -329,7 +328,6 @@ export function DesktopLayout(): React.ReactNode {
     refreshWorkspace,
     chooseWorkspace,
     openRecentWorkspace,
-    previewFile,
     setSelectedFile,
     setWorkspace: setWorkspaceState,
     setDiff: setDiffState,
@@ -729,6 +727,54 @@ export function DesktopLayout(): React.ReactNode {
     openRightDockTab({ id: 'review', kind: 'review' })
   }, [openRightDockTab])
 
+  const handleStartAiReview = useCallback(
+    async (
+      target:
+        | { type: 'uncommittedChanges' }
+        | { type: 'baseBranch'; branch: string },
+    ): Promise<void> => {
+      if (!sessionId) {
+        setErrorMessage('请先打开一个任务，再发起代码审查。')
+        return
+      }
+      try {
+        const result = await desktopClient.startSessionReview(sessionId, target)
+        setReviewTabState(current => ({
+          ...current,
+          source: result.source,
+          selectedFile: null,
+          selectedCommentId: null,
+          scrollTop: 0,
+          expandedFiles: [],
+        }))
+        openRightDockTab({ id: 'review', kind: 'review' })
+        if (
+          result.delivery === 'detached' &&
+          result.threadId !== sessionId
+        ) {
+          const detachedState = createDefaultConversationUiState()
+          detachedState.workbench = applyWorkbenchPanelAction(
+            detachedState.workbench,
+            {
+              type: 'openTab',
+              target: 'right',
+              tab: { id: 'review', kind: 'review' },
+            },
+          )
+          detachedState.review = {
+            ...detachedState.review,
+            source: result.source,
+          }
+          saveConversationUiState(result.threadId, detachedState)
+          navigate(sessionPath(result.threadId))
+        }
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : String(error))
+      }
+    },
+    [navigate, openRightDockTab, sessionId],
+  )
+
   const handleReloadBrowser = useCallback((): void => {
     void desktopClient
       .reloadBrowser()
@@ -886,15 +932,19 @@ export function DesktopLayout(): React.ReactNode {
   }, [browserTabVisible])
 
   const prevSessionIdRef = useRef<string | null>(null)
+  const [reviewTabState, setReviewTabState] = useState<ReviewTabUiState>(
+    createDefaultReviewTabUiState,
+  )
   const uiSnapshotRef = useRef<ConversationUiState>(
     createDefaultConversationUiState(),
   )
   uiSnapshotRef.current = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     workbench: workbenchPanelState,
     mainScrollTop: 0,
     sideChatInput,
     sideChatAttachments,
+    review: reviewTabState,
   }
 
   useEffect(() => {
@@ -916,17 +966,20 @@ export function DesktopLayout(): React.ReactNode {
         setWorkbenchPanelState(validated.workbench)
         setSideChatInput(validated.sideChatInput)
         setSideChatAttachments(validated.sideChatAttachments)
+        setReviewTabState(validated.review)
       } else {
         /* No saved state — force defaults */
         setWorkbenchPanelState(createDefaultWorkbenchTabsState())
         setSideChatInput('')
         setSideChatAttachments([])
+        setReviewTabState(createDefaultReviewTabUiState())
       }
     } else {
       /* Quick-chat — force defaults */
       setWorkbenchPanelState(createDefaultWorkbenchTabsState())
       setSideChatInput('')
       setSideChatAttachments([])
+      setReviewTabState(createDefaultReviewTabUiState())
     }
   }, [sessionId])
 
@@ -992,10 +1045,6 @@ export function DesktopLayout(): React.ReactNode {
       })
       if (action === 'none') return
       event.preventDefault()
-      if (action === 'close-transient') {
-        sidebarShell.closeTransient()
-        return
-      }
       handleSettingsBack()
     }
     window.addEventListener('keydown', onKeyDown)
@@ -1003,7 +1052,6 @@ export function DesktopLayout(): React.ReactNode {
   }, [
     handleSettingsBack,
     isSettingsRoute,
-    sidebarShell.closeTransient,
     sidebarShell.mode,
   ])
 
@@ -1400,7 +1448,6 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleSelectSession = useCallback(
     (sessionItem: SessionListItem): void => {
-      sidebarShell.closeTransient()
       const nextWorkspace = activateSessionById(sessionItem.id)
       navigate(sessionPath(sessionItem.id))
       if (!nextWorkspace) {
@@ -1421,7 +1468,6 @@ export function DesktopLayout(): React.ReactNode {
       setDiffState,
       setSelectedFile,
       setWorkspaceState,
-      sidebarShell,
     ],
   )
 
@@ -1442,7 +1488,6 @@ export function DesktopLayout(): React.ReactNode {
       if (!result.succeededSessionIds.includes(routedSessionId ?? '')) {
         return result
       }
-      sidebarShell.closeTransient()
       navigate(
         result.nextActiveSession
           ? sessionPath(result.nextActiveSession.id)
@@ -1469,7 +1514,6 @@ export function DesktopLayout(): React.ReactNode {
       setDiffState,
       setSelectedFile,
       setWorkspaceState,
-      sidebarShell,
       setSidebarSessionPins,
     ],
   )
@@ -1608,9 +1652,11 @@ export function DesktopLayout(): React.ReactNode {
 
   const menuBar = (
     <MenuBar
-      sidebarCollapsed={sidebarShell.mode === 'collapsed'}
+      sidebarCollapsed={sidebarShell.mode !== 'docked'}
       isMaximized={isWindowMaximized}
       onToggleSidebar={toggleSidebarCollapsed}
+      onSidebarTriggerPointerEnter={sidebarShell.onTriggerPointerEnter}
+      onSidebarTriggerPointerLeave={sidebarShell.onTriggerPointerLeave}
       isDebugMode={menubarDebugMode}
       onDebugModeChange={setMenubarDebugMode}
       onClose={() => {
@@ -1783,6 +1829,7 @@ export function DesktopLayout(): React.ReactNode {
       onOpenBrowser={handleOpenBrowser}
       onBranchSelect={handleBranchSelect}
       onCreateBranch={handleCreateBranch}
+      onStartReview={handleStartAiReview}
       onPermissionChange={handlePermissionChange}
       onPlanModeChange={handlePlanModeChange}
       onLocalRouterModeChange={handleLocalRouterModeChange}
@@ -1842,6 +1889,7 @@ export function DesktopLayout(): React.ReactNode {
         onOpenBrowser={handleOpenBrowser}
         onBranchSelect={handleBranchSelect}
         onCreateBranch={handleCreateBranch}
+        onStartReview={handleStartAiReview}
         onPermissionChange={selectedSubagentTaskId ? setSubagentPermissionMode : handlePermissionChange}
         onPlanModeChange={selectedSubagentTaskId ? () => {} : handlePlanModeChange}
         onLocalRouterModeChange={handleLocalRouterModeChange}
@@ -1906,19 +1954,74 @@ export function DesktopLayout(): React.ReactNode {
     return null
   }, [workbenchPanelState])
 
+  const handledFileLoadErrorsRef = useRef(new WeakSet<Error>())
+  const handleFileLoadError = useCallback(
+    ({
+      error,
+      phase,
+      tab,
+      target,
+    }: WorkbenchFileLoadErrorEvent): void => {
+      if (handledFileLoadErrorsRef.current.has(error)) return
+      handledFileLoadErrorsRef.current.add(error)
+      if (phase === 'initial' && shouldFallbackToExternalOpen(error)) {
+        const resolved = resolveWorkspaceFileReference(
+          tab.workspacePath,
+          tab.relativePath,
+        )
+        if (!resolved) {
+          setErrorMessage('无法打开文件')
+          return
+        }
+        closePanelTab(target, tab.id)
+        void openPathWithPreferredExternalTarget(resolved.absolutePath).catch(
+          () => setErrorMessage('无法打开文件'),
+        )
+        return
+      }
+      setErrorMessage('无法打开文件')
+    },
+    [closePanelTab, setErrorMessage],
+  )
+
+  const retryExistingFileTab = useCallback(
+    (tabId: WorkbenchTabId): void => {
+      const tab = workbenchPanelState.tabsById[tabId]
+      if (tab?.kind !== 'file-preview') return
+      const target = workbenchPanelState.right.tabIds.includes(tabId)
+        ? 'right'
+        : workbenchPanelState.bottom.tabIds.includes(tabId)
+          ? 'bottom'
+          : null
+      if (!target) return
+      void prefetchFileDocument(tab.workspacePath, tab.relativePath).catch(
+        error =>
+          handleFileLoadError({
+            error:
+              error instanceof Error ? error : new Error(String(error)),
+            phase: 'initial',
+            tab,
+            target,
+          }),
+      )
+    },
+    [handleFileLoadError, workbenchPanelState],
+  )
+
   const handleOpenFilePreview = useCallback(
     (target: WorkbenchPanelTarget, file: DesktopFileEntry): void => {
       if (file.type !== 'file' || !currentWorkspace) return
-      void previewFile(file)
+      const tabId = createFilePreviewTabId(currentWorkspace.path, file.path)
+      retryExistingFileTab(tabId)
       openPanelTab(target, {
-        id: createFilePreviewTabId(currentWorkspace.path, file.path),
+        id: tabId,
         kind: 'file-preview',
         workspacePath: currentWorkspace.path,
         relativePath: file.path,
         preview: true,
       })
     },
-    [currentWorkspace, openPanelTab, previewFile],
+    [currentWorkspace, openPanelTab, retryExistingFileTab],
   )
 
   const handleOpenFileFromBrowser = useCallback(
@@ -1926,28 +2029,21 @@ export function DesktopLayout(): React.ReactNode {
       if (file.type !== 'file' || !currentWorkspace) return
       const workspacePath = currentWorkspace.path
       const tabId = createFilePreviewTabId(workspacePath, file.path)
-      void prefetchFileDocument(workspacePath, file.path)
-        .then(() => {
-          void previewFile(file)
-          openPanelTab(target, {
-            id: tabId,
-            kind: 'file-preview',
-            workspacePath,
-            relativePath: file.path,
-            preview: false,
-          })
-          closePanelTab(target, 'file-browser')
-        })
-        .catch(error => {
-          setErrorMessage(error instanceof Error ? error.message : String(error))
-        })
+      retryExistingFileTab(tabId)
+      openPanelTab(target, {
+        id: tabId,
+        kind: 'file-preview',
+        workspacePath,
+        relativePath: file.path,
+        preview: false,
+      })
+      closePanelTab(target, 'file-browser')
     },
     [
       closePanelTab,
       currentWorkspace,
       openPanelTab,
-      previewFile,
-      setErrorMessage,
+      retryExistingFileTab,
     ],
   )
 
@@ -1964,29 +2060,19 @@ export function DesktopLayout(): React.ReactNode {
       if (!resolved || shouldOpenFileExternally(reference.path)) {
         const target = resolved?.absolutePath ?? reference.path
         if (/^(?:[a-zA-Z]:[\\/]|\\\\|\/)/u.test(target)) {
-          void desktopClient.openPathWithDefaultTarget(target)
+          void openPathWithPreferredExternalTarget(target).catch(error => {
+            setErrorMessage(
+              error instanceof Error ? error.message : String(error),
+            )
+          })
         }
-        return
-      }
-      const load = prefetchFileDocument(
-        currentWorkspace.path,
-        resolved.relativePath,
-      )
-      if (options.prefetch) {
-        void load.catch(() => undefined)
         return
       }
       const tabId = createFilePreviewTabId(
         currentWorkspace.path,
         resolved.relativePath,
       )
-      void load.catch(error => {
-        if (shouldFallbackToExternalOpen(error)) {
-          closePanelTab('right', tabId)
-          return desktopClient.openPathWithDefaultTarget(resolved.absolutePath)
-        }
-        setErrorMessage(error instanceof Error ? error.message : String(error))
-      })
+      retryExistingFileTab(tabId)
       openPanelTab('right', {
         id: tabId,
         kind: 'file-preview',
@@ -1999,31 +2085,49 @@ export function DesktopLayout(): React.ReactNode {
         ...(reference.endColumn ? { endColumn: reference.endColumn } : {}),
       })
     },
-    [closePanelTab, currentWorkspace, openPanelTab],
+    [currentWorkspace, openPanelTab, retryExistingFileTab],
+  )
+
+  const canCopyMarkdownFileReferenceContents = useCallback(
+    (reference: MarkdownFileReference): boolean => {
+      if (!currentWorkspace || shouldOpenFileExternally(reference.path)) {
+        return false
+      }
+      return (
+        resolveWorkspaceFileReference(currentWorkspace.path, reference.path) !==
+        null
+      )
+    },
+    [currentWorkspace],
+  )
+
+  const handleCopyMarkdownFileReferenceContents = useCallback(
+    async (reference: MarkdownFileReference): Promise<void> => {
+      if (!currentWorkspace || shouldOpenFileExternally(reference.path)) return
+      const resolved = resolveWorkspaceFileReference(
+        currentWorkspace.path,
+        reference.path,
+      )
+      if (!resolved) return
+      try {
+        const document = await prefetchFileDocument(
+          currentWorkspace.path,
+          resolved.relativePath,
+        )
+        await navigator.clipboard.writeText(document.draftContent)
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : String(error))
+      }
+    },
+    [currentWorkspace],
   )
 
   const handleSelectPanelTab = useCallback(
     (target: WorkbenchPanelTarget, tabId: WorkbenchTabId): void => {
       selectPanelTab(target, tabId)
-      const tab = workbenchPanelState.tabsById[tabId]
-      if (tab?.kind !== 'file-preview') return
-      const file = workspaceFiles.find(
-        candidate =>
-          candidate.type === 'file' &&
-          candidate.path === tab.relativePath,
-      )
-      if (file) void previewFile(file)
-      void prefetchFileDocument(tab.workspacePath, tab.relativePath).catch(
-        error =>
-          setErrorMessage(error instanceof Error ? error.message : String(error)),
-      )
+      retryExistingFileTab(tabId)
     },
-    [
-      previewFile,
-      selectPanelTab,
-      workbenchPanelState.tabsById,
-      workspaceFiles,
-    ],
+    [retryExistingFileTab, selectPanelTab],
   )
 
   const saveTabsBeforeClose = useCallback(
@@ -2065,6 +2169,7 @@ export function DesktopLayout(): React.ReactNode {
       )}
       minWidth={RIGHT_DOCK_MIN_WIDTH}
       reviewView={reviewView}
+      reviewTabState={reviewTabState}
       planContentByEventId={planContentByEventId}
       selectedFile={selectedFile}
       sessionId={sessionId}
@@ -2101,6 +2206,7 @@ export function DesktopLayout(): React.ReactNode {
         })
       }}
       onCreateBranch={handleCreateBranch}
+      onFileLoadError={handleFileLoadError}
       onOpenTab={tab => {
         if (tab.kind === 'browser') {
           void desktopClient
@@ -2118,6 +2224,7 @@ export function DesktopLayout(): React.ReactNode {
       }
       onPreviewFile={file => handleOpenFilePreview(target, file)}
       onRefreshReview={handleRefreshDiff}
+      onReviewTabStateChange={setReviewTabState}
       onResetHeight={handleResetBottomPanelHeight}
       onResetWidth={handleResetRightDockWidth}
       onSelectTab={tabId => handleSelectPanelTab(target, tabId)}
@@ -2225,6 +2332,10 @@ export function DesktopLayout(): React.ReactNode {
             onOpenRightDock: () =>
               openRightDockTab({ id: 'review', kind: 'review' }),
             onOpenPlanInRightDock: handleOpenPlanDock,
+            canCopyFileReferenceContents:
+              canCopyMarkdownFileReferenceContents,
+            onCopyFileReferenceContents:
+              handleCopyMarkdownFileReferenceContents,
             onOpenFileReference: handleOpenMarkdownFileReference,
             onSubmitEditedUserMessage: handleSubmitEditedUserMessage,
             onAppendComposerText: handleAppendComposerText,

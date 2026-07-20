@@ -75,12 +75,13 @@ class SidecarSupervisor {
       this.#onStateChange?.({ state: "disconnected", phase: attempt === 1 ? "connecting" : "reconnecting", attempt })
       try {
         const connection = await this.#connectOnce(attempt)
+        this.#connection = connection
         this.#onStateChange?.({ state: "disconnected", phase: "authenticating", attempt })
         await validate(connection)
-        this.#connection = connection
         this.#logger.info("sidecar.connected", { origin: connection.origin, managed: connection.managed, port: connection.port, attempt })
         return connection
       } catch (error) {
+        this.#connection = undefined
         const message = formatError(error)
         this.#logger.warn("sidecar.connect-failed", { attempt, message })
         await this.#disposeChild()
@@ -99,10 +100,9 @@ class SidecarSupervisor {
     if (this.#connection && !this.#connection.managed) {
       try {
         this.#logger.info("sidecar.shutdown-request", { origin: this.#connection.origin })
-        await fetch(`${this.#connection.origin}/rpc`, {
+        await fetch(`${this.#connection.origin}/api/shutdown`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${this.#token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ jsonrpc: "2.0", id: "desktop-shutdown", method: "shutdown", params: {} }),
+          headers: { Authorization: `Bearer ${this.#token}` },
           signal: AbortSignal.timeout(SHUTDOWN_TIMEOUT_MS),
         })
       } catch { /* process signal below is the fallback */ }
@@ -125,7 +125,7 @@ class SidecarSupervisor {
     this.#watchdog = setInterval(() => {
       if (this.#watchdogBusy || this.#stopping) return
       this.#watchdogBusy = true
-      void probeInitialize(connection.origin, fetch, this.#token, 1_000).then(() => {
+      void probeReady(connection.origin, fetch, this.#token, 1_000).then(() => {
         failures = 0
       }).catch((error) => {
         failures += 1
@@ -139,6 +139,23 @@ class SidecarSupervisor {
         }
       })
     }, WATCHDOG_INTERVAL_MS)
+  }
+
+  async request(path: string, init: RequestInit = {}): Promise<Response> {
+    const connection = this.#connection
+    if (!connection) throw new Error("Agent 尚未连接")
+    const headers = new Headers(init.headers)
+    headers.set("Authorization", `Bearer ${this.#token}`)
+    const response = await fetch(`${connection.origin}${path}`, {
+      ...init,
+      headers,
+      signal: init.signal ?? AbortSignal.timeout(10_000),
+    })
+    if (!response.ok) {
+      const body = await response.json().catch(() => null) as { error?: { message?: string } } | null
+      throw new Error(body?.error?.message ?? `Agent 请求失败（HTTP ${response.status}）`)
+    }
+    return response
   }
 
   async #connectOnce(attempt: number): Promise<SidecarConnection> {
@@ -429,6 +446,19 @@ function registerWindowIpc(): void {
   ipcMain.handle("window:close", () => mainWindow?.close())
   ipcMain.handle("window:is-maximized", () => mainWindow?.isMaximized() ?? false)
   ipcMain.handle("agent:connection-state", () => connectionStatus.state)
+  ipcMain.handle("desktop-settings:get", async () => {
+    if (!supervisor) throw new Error("Agent 尚未初始化")
+    return supervisor.request("/api/desktop-settings").then(response => response.json())
+  })
+  ipcMain.handle("desktop-settings:save", async (_event, settings: unknown) => {
+    if (!supervisor) throw new Error("Agent 尚未初始化")
+    if (!isPlainObject(settings)) throw new Error("桌面设置参数无效")
+    return supervisor.request("/api/desktop-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    }).then(response => response.json())
+  })
   ipcMain.handle("shell:open-external", async (_event, url: unknown) => {
     if (typeof url !== "string" || !isSafeExternalUrl(url)) {
       throw new Error("拒绝打开不安全的外部链接")
@@ -549,7 +579,7 @@ async function configureAuthCookie(origin: string, token: string): Promise<void>
 }
 
 async function verifyCookie(origin: string): Promise<void> {
-  await probeInitialize(origin, (input, init) => session.defaultSession.fetch(input, init), undefined, 2_000)
+  await probeReady(origin, (input, init) => session.defaultSession.fetch(input, init), undefined, 2_000)
   logger?.info("desktop.auth-cookie-verified", { origin })
 }
 
@@ -648,7 +678,7 @@ async function waitForReady(origin: string, token: string, log: DesktopLogger, a
   while (Date.now() < deadline) {
     probeCount += 1
     try {
-      await probeInitialize(origin, fetch, token, 1_500)
+      await probeReady(origin, fetch, token, 1_500)
       log.info("sidecar.ready-probe-ok", { origin, attempt })
       return
     } catch (error) {
@@ -662,20 +692,21 @@ async function waitForReady(origin: string, token: string, log: DesktopLogger, a
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
 
-async function probeInitialize(origin: string, fetcher: FetchLike, token: string | undefined, timeoutMs: number): Promise<void> {
-  const response = await fetcher(`${origin}/rpc`, {
-    method: "POST",
+async function probeReady(origin: string, fetcher: FetchLike, token: string | undefined, timeoutMs: number): Promise<void> {
+  const response = await fetcher(`${origin}/api/ready`, {
+    method: "GET",
     headers: {
-      "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ jsonrpc: "2.0", id: "desktop-initialize", method: "initialize", params: {} }),
     signal: AbortSignal.timeout(timeoutMs),
   })
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
-  const body = await response.json() as { result?: { ok?: boolean }; error?: { message?: string } }
-  if (body.error) throw new Error(body.error.message ?? "Agent initialize 失败")
-  if (body.result?.ok !== true) throw new Error("Agent initialize 返回无效")
+  const body = await response.json() as { ok?: boolean }
+  if (body.ok !== true) throw new Error("Agent ready 返回无效")
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
 function normalizeOrigin(value: string): string {

@@ -13,6 +13,7 @@ export type MarkdownDirectiveToken = {
   raw: string
   name: string
   argument: string
+  attributes: Readonly<Record<string, string>>
   text: string
   tokens: MarkdownToken[]
 }
@@ -32,6 +33,7 @@ export type MarkdownToken =
 
 export type MarkdownDirectiveRenderProps = {
   argument: string
+  attributes: Readonly<Record<string, string>>
   children: React.ReactNode
   name: string
   rawText: string
@@ -61,7 +63,6 @@ export type MarkdownFileReference = {
 
 export type MarkdownFileOpenOptions = {
   preview: boolean
-  prefetch?: boolean
 }
 
 export type MarkdownParseResult = {

@@ -52,6 +52,12 @@ export type QuickChatContextValue = {
     reference: MarkdownFileReference,
     options: MarkdownFileOpenOptions,
   ) => void
+  canCopyFileReferenceContents: (
+    reference: MarkdownFileReference,
+  ) => boolean
+  onCopyFileReferenceContents: (
+    reference: MarkdownFileReference,
+  ) => void | Promise<void>
   onSubmitEditedUserMessage: (text: string) => Promise<void>
   onAppendComposerText: (text: string) => void
   onAppendSideChatText: (text: string) => void

@@ -37,6 +37,10 @@ const desktop = {
     return () => ipcRenderer.removeListener("agent:connection-changed", handler)
   },
   getAgentConnectionState: (): Promise<AgentConnectionState> => ipcRenderer.invoke("agent:connection-state"),
+  getDesktopSettings: (): Promise<unknown> =>
+    ipcRenderer.invoke("desktop-settings:get"),
+  saveDesktopSettings: (settings: unknown): Promise<unknown> =>
+    ipcRenderer.invoke("desktop-settings:save", settings),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke("shell:open-external", url),
   listExternalOpenTargets: (targetPath: string): Promise<DesktopExternalOpenTarget[]> =>
     ipcRenderer.invoke("shell:list-external-open-targets", targetPath),

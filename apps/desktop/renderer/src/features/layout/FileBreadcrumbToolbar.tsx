@@ -17,6 +17,10 @@ import {
 import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import { desktopClient } from '../../services/desktopClient.js'
+import {
+  loadExternalOpenTargets,
+  openPathWithExternalTarget,
+} from '../../services/externalOpenTargetsStore.js'
 import { FileTypeIcon } from './FileTypeIcon.js'
 import type { MarkdownFileViewMode } from './rightDockState.js'
 
@@ -32,11 +36,6 @@ export type FileBreadcrumbToolbarProps = {
   onToggleTree: () => void
   onToggleMarkdownViewMode?: () => void
 }
-
-const externalOpenTargetsPromises = new Map<
-  string,
-  Promise<DesktopExternalOpenTarget[]>
->()
 
 export function FileBreadcrumbToolbar({
   path,
@@ -69,15 +68,12 @@ export function FileBreadcrumbToolbar({
       preferred: candidate.id === target.id,
     }))
     setOpenTargets(next)
-    if (absolutePath) {
-      externalOpenTargetsPromises.set(absolutePath, Promise.resolve(next))
-    }
   }
 
   function openWithTarget(target: DesktopExternalOpenTarget): void {
     if (!absolutePath) return
     rememberPreferredTarget(target)
-    void desktopClient.openPathWithTarget(absolutePath, target.id)
+    void openPathWithExternalTarget(absolutePath, target.id)
   }
 
   useEffect(() => {
@@ -86,15 +82,7 @@ export function FileBreadcrumbToolbar({
       return
     }
     let active = true
-    const existing = externalOpenTargetsPromises.get(absolutePath)
-    const request =
-      existing ??
-      desktopClient.listExternalOpenTargets(absolutePath).catch(error => {
-        externalOpenTargetsPromises.delete(absolutePath)
-        throw error
-      })
-    externalOpenTargetsPromises.set(absolutePath, request)
-    void request
+    void loadExternalOpenTargets(absolutePath)
       .then(targets => {
         if (active) setOpenTargets(targets)
       })

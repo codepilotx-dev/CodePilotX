@@ -1,4 +1,7 @@
-import type { DesktopComposerAttachment } from '../../../shared/types.js'
+import type {
+  DesktopComposerAttachment,
+  DesktopReviewSource,
+} from '../../../shared/types.js'
 import {
   createDefaultWorkbenchTabsState,
   isWorkbenchTabEnabled,
@@ -12,15 +15,32 @@ import {
 
 const STORAGE_PREFIX = 'conversation.ui-state.'
 
-export type ConversationUiStateV2 = {
-  schemaVersion: 2
+export type ReviewTabUiState = {
+  source: DesktopReviewSource
+  selectedFile: string | null
+  selectedCommentId: string | null
+  scrollTop: number
+  expandedFiles: string[]
+  viewedRevisions: Record<string, string>
+  fileTreeVisible: boolean
+  fileTreeWidth: number
+  diffMode: 'inline' | 'split'
+  wrapLines: boolean
+  showWordDiff: boolean
+  hideWhitespace: boolean
+  richPreview: boolean
+}
+
+export type ConversationUiStateV3 = {
+  schemaVersion: 3
   workbench: WorkbenchTabsState
   mainScrollTop: number
   sideChatInput: string
   sideChatAttachments: DesktopComposerAttachment[]
+  review: ReviewTabUiState
 }
 
-export type ConversationUiState = ConversationUiStateV2
+export type ConversationUiState = ConversationUiStateV3
 
 export type ConversationUiValidationOptions = {
   debugMode?: boolean
@@ -31,11 +51,30 @@ export type ConversationUiValidationOptions = {
 
 export function createDefaultConversationUiState(): ConversationUiState {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     workbench: createDefaultWorkbenchTabsState(),
     mainScrollTop: 0,
     sideChatInput: '',
     sideChatAttachments: [],
+    review: createDefaultReviewTabUiState(),
+  }
+}
+
+export function createDefaultReviewTabUiState(): ReviewTabUiState {
+  return {
+    source: { kind: 'unstaged' },
+    selectedFile: null,
+    selectedCommentId: null,
+    scrollTop: 0,
+    expandedFiles: [],
+    viewedRevisions: {},
+    fileTreeVisible: true,
+    fileTreeWidth: 340,
+    diffMode: 'inline',
+    wrapLines: true,
+    showWordDiff: true,
+    hideWhitespace: false,
+    richPreview: true,
   }
 }
 
@@ -84,12 +123,13 @@ export function validateConversationUiState(
 
   const options = normalizeOptions(optionsOrLegacyTools)
   const workbench =
-    state.schemaVersion === 2 && isRecord(state.workbench)
+    (state.schemaVersion === 2 || state.schemaVersion === 3) &&
+    isRecord(state.workbench)
       ? validateWorkbenchState(state.workbench, options)
       : migrateLegacyWorkbenchState(state, options)
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     workbench,
     mainScrollTop: toFiniteNonNegativeNumber(state.mainScrollTop),
     sideChatInput:
@@ -97,7 +137,108 @@ export function validateConversationUiState(
     sideChatAttachments: Array.isArray(state.sideChatAttachments)
       ? (state.sideChatAttachments as DesktopComposerAttachment[])
       : [],
+    review: validateReviewTabUiState(state.review),
   }
+}
+
+function validateReviewTabUiState(value: unknown): ReviewTabUiState {
+  const defaults = createDefaultReviewTabUiState()
+  if (!isRecord(value)) return defaults
+  const source = validateReviewSource(value.source)
+  return {
+    source: source ?? defaults.source,
+    selectedFile:
+      typeof value.selectedFile === 'string' ? value.selectedFile : null,
+    selectedCommentId:
+      typeof value.selectedCommentId === 'string'
+        ? value.selectedCommentId
+        : null,
+    scrollTop: toFiniteNonNegativeNumber(value.scrollTop),
+    expandedFiles: normalizeStringList(value.expandedFiles),
+    viewedRevisions: normalizeStringRecord(value.viewedRevisions),
+    fileTreeVisible:
+      typeof value.fileTreeVisible === 'boolean'
+        ? value.fileTreeVisible
+        : defaults.fileTreeVisible,
+    fileTreeWidth:
+      typeof value.fileTreeWidth === 'number' &&
+      Number.isFinite(value.fileTreeWidth)
+        ? Math.min(520, Math.max(240, value.fileTreeWidth))
+        : defaults.fileTreeWidth,
+    diffMode:
+      value.diffMode === 'split' || value.diffMode === 'inline'
+        ? value.diffMode
+        : defaults.diffMode,
+    wrapLines:
+      typeof value.wrapLines === 'boolean'
+        ? value.wrapLines
+        : defaults.wrapLines,
+    showWordDiff:
+      typeof value.showWordDiff === 'boolean'
+        ? value.showWordDiff
+        : defaults.showWordDiff,
+    hideWhitespace:
+      typeof value.hideWhitespace === 'boolean'
+        ? value.hideWhitespace
+        : defaults.hideWhitespace,
+    richPreview:
+      typeof value.richPreview === 'boolean'
+        ? value.richPreview
+        : defaults.richPreview,
+  }
+}
+
+function validateReviewSource(value: unknown): DesktopReviewSource | null {
+  if (!isRecord(value) || typeof value.kind !== 'string') return null
+  if (value.kind === 'unstaged' || value.kind === 'staged') {
+    return { kind: value.kind }
+  }
+  if (value.kind === 'branch' && typeof value.baseBranch === 'string') {
+    return { kind: 'branch', baseBranch: value.baseBranch }
+  }
+  if (value.kind === 'commit' && typeof value.commitSha === 'string') {
+    return { kind: 'commit', commitSha: value.commitSha }
+  }
+  if (
+    value.kind === 'last-turn' &&
+    typeof value.threadId === 'string' &&
+    typeof value.turnId === 'string'
+  ) {
+    return {
+      kind: 'last-turn',
+      threadId: value.threadId,
+      turnId: value.turnId,
+    }
+  }
+  if (
+    value.kind === 'pull-request' &&
+    typeof value.owner === 'string' &&
+    typeof value.repository === 'string' &&
+    Number.isSafeInteger(value.number) &&
+    Number(value.number) > 0
+  ) {
+    return {
+      kind: 'pull-request',
+      owner: value.owner,
+      repository: value.repository,
+      number: Number(value.number),
+    }
+  }
+  return null
+}
+
+function normalizeStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return [...new Set(value.filter((entry): entry is string => typeof entry === 'string'))]
+}
+
+function normalizeStringRecord(value: unknown): Record<string, string> {
+  if (!isRecord(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string',
+    ),
+  )
 }
 
 function validateWorkbenchState(

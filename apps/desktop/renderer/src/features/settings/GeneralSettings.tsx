@@ -20,6 +20,7 @@ import { SettingsContentArea } from './SettingsContentArea.js';
 import { permissionConfigForMode, permissionModeForConfig } from './settingsStorage.js'
 import type {
   DesktopOpenTarget,
+  DesktopReviewDelivery,
   DesktopReviewView,
   DesktopThinkingMode,
 } from '../../../shared/types.js';
@@ -71,6 +72,13 @@ const FOLLOW_UP_OPTIONS: Array<{ value: 'queue' | 'steer'; label: string }> = [
 const REVIEW_OPTIONS: Array<{ value: DesktopReviewView; label: string }> = [
   { value: 'inline', label: '行内视图' },
   { value: 'split', label: '分离视图' },
+];
+const REVIEW_DELIVERY_OPTIONS: Array<{
+  value: DesktopReviewDelivery;
+  label: string;
+}> = [
+  { value: 'inline', label: '当前任务' },
+  { value: 'detached', label: '独立任务' },
 ];
 
 type WorkMode = 'coding' | 'daily';
@@ -147,6 +155,7 @@ export function GeneralSettings({
     showContextUsage,
     defaultOpenTargetId,
     reviewView,
+    reviewDelivery,
     rustSearchAndDiffKernels,
     enableParetoCodeRouter,
     enableFusionRouter,
@@ -194,6 +203,13 @@ export function GeneralSettings({
   const setReviewView = useCallback(
     (value: DesktopReviewView) => {
       draft.setValue('reviewView', value)
+      draft.autoSave()
+    },
+    [draft],
+  )
+  const setReviewDelivery = useCallback(
+    (value: DesktopReviewDelivery) => {
+      draft.setValue('reviewDelivery', value)
       draft.autoSave()
     },
     [draft],
@@ -479,6 +495,18 @@ export function GeneralSettings({
                 value={reviewView}
                 options={REVIEW_OPTIONS}
                 onChange={setReviewView}
+              />
+            }
+          />
+          <SettingsRow
+            title='AI 审查结果'
+            description='在当前任务继续审查，或为每次 AI Review 创建独立任务'
+            autoSave
+            control={
+              <SegmentedControl
+                value={reviewDelivery}
+                options={REVIEW_DELIVERY_OPTIONS}
+                onChange={setReviewDelivery}
               />
             }
           />

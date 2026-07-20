@@ -29,6 +29,8 @@ declare global {
         platform: string
       }>
       applyWindowBackdrop(enabled: boolean): Promise<boolean>
+      getDesktopSettings(): Promise<unknown>
+      saveDesktopSettings(settings: unknown): Promise<unknown>
     }
   }
 }

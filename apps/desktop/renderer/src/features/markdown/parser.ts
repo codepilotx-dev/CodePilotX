@@ -218,7 +218,7 @@ function readMathBlock(
 function readDirectiveBlock(
   source: string,
 ): { length: number; token: MarkdownDirectiveToken } | null {
-  const inline = /^(:{1,2})([a-zA-Z][\w-]*)(?:[ \t]+([^\r\n]*))?[ \t]*(?:\r?\n|$)/u.exec(
+  const inline = /^(:{1,2})([a-zA-Z][\w-]*)(?:\{((?:[^}"']|"[^"]*"|'[^']*')*)\})?(?:[ \t]+([^\r\n]*))?[ \t]*(?:\r?\n|$)/u.exec(
     source,
   )
   if (inline) {
@@ -229,7 +229,8 @@ function readDirectiveBlock(
         type: 'directive',
         raw: inline[0],
         name,
-        argument: inline[3]?.trim() ?? '',
+        argument: inline[4]?.trim() ?? '',
+        attributes: parseDirectiveAttributes(inline[3] ?? ''),
         text: '',
         tokens: [],
       },
@@ -260,10 +261,23 @@ function readDirectiveBlock(
       raw: source.slice(0, rawLength),
       name,
       argument: opener[2]?.trim() ?? '',
+      attributes: {},
       text: body,
       tokens: lexMarkdown(body),
     },
   }
+}
+
+function parseDirectiveAttributes(source: string): Record<string, string> {
+  const attributes: Record<string, string> = {}
+  const pattern =
+    /([a-zA-Z][\w-]*)=(?:"((?:\\.|[^"])*)"|'((?:\\.|[^'])*)'|([^\s]+))/gu
+  for (const match of source.matchAll(pattern)) {
+    const key = match[1].toLowerCase()
+    const value = match[2] ?? match[3] ?? match[4] ?? ''
+    attributes[key] = value.replace(/\\(["'\\])/gu, '$1')
+  }
+  return attributes
 }
 
 function textToken(text: string): Tokens.Text {

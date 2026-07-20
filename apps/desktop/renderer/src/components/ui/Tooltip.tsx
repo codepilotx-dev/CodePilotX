@@ -1,6 +1,8 @@
 import type React from 'react'
 import * as RadixTooltip from '@radix-ui/react-tooltip'
 
+type TooltipVariant = 'default' | 'unstyled'
+
 type Props = {
   children: React.ReactNode
   content: React.ReactNode
@@ -9,6 +11,7 @@ type Props = {
   delay?: number
   delayDuration?: number
   className?: string
+  variant?: TooltipVariant
   sideOffset?: number
   open?: boolean
   defaultOpen?: boolean
@@ -31,6 +34,7 @@ export function Tooltip({
   delay,
   delayDuration,
   className = '',
+  variant = 'default',
   sideOffset = 6,
   open,
   defaultOpen,
@@ -47,23 +51,31 @@ export function Tooltip({
       <RadixTooltip.Portal>
         <RadixTooltip.Content
           align={align}
-          className={[
-            'tooltip-content',
-            'tw:max-w-[min(20rem,calc(100vw-2rem))]',
-            'tw:rounded-md',
-            'tw:px-2',
-            'tw:py-1',
-            'tw:text-xs',
-            'tw:leading-4',
-            'tw:text-app-text-soft',
-            'tw:shadow-md',
-            className,
-          ].filter(Boolean).join(' ')}
+          className={
+            variant === 'unstyled'
+              ? className
+              : [
+                  'tooltip-content',
+                  'tw:max-w-[min(20rem,calc(100vw-2rem))]',
+                  'tw:rounded-md',
+                  'tw:px-2',
+                  'tw:py-1',
+                  'tw:text-xs',
+                  'tw:leading-4',
+                  'tw:text-app-text-soft',
+                  'tw:shadow-md',
+                  className,
+                ]
+                  .filter(Boolean)
+                  .join(' ')
+          }
           side={side}
           sideOffset={sideOffset}
         >
           {content}
-          <RadixTooltip.Arrow className="tooltip-arrow" />
+          {variant === 'default' ? (
+            <RadixTooltip.Arrow className="tooltip-arrow" />
+          ) : null}
         </RadixTooltip.Content>
       </RadixTooltip.Portal>
     </RadixTooltip.Root>

@@ -17,6 +17,7 @@ import type {
   DesktopPermissionMode,
   DesktopPersonality,
   DesktopReviewView,
+  DesktopReviewDelivery,
   DesktopSandboxMode,
   DesktopBrowserSitePermission,
   DesktopSidebarOrganization,
@@ -81,6 +82,7 @@ export type UseDesktopSettingsResult = {
   githubMemorySyncEnabled: boolean
   githubMemoryRepository: string
   reviewView: DesktopReviewView
+  reviewDelivery: DesktopReviewDelivery
   diffMarkerStyle: DesktopDiffMarkerStyle
   rustSearchAndDiffKernels: boolean
   sidebarOrganization: DesktopSidebarOrganization
@@ -139,6 +141,7 @@ export type UseDesktopSettingsResult = {
   setGithubMemorySyncEnabled: (value: boolean) => void
   setGithubMemoryRepository: (value: string) => void
   setReviewView: (value: DesktopReviewView) => void
+  setReviewDelivery: (value: DesktopReviewDelivery) => void
   setDiffMarkerStyle: (value: DesktopDiffMarkerStyle) => void
   setRustSearchAndDiffKernels: (value: boolean) => void
   setSidebarOrganization: (value: DesktopSidebarOrganization) => void
@@ -413,6 +416,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [reviewView, setReviewView] = useState<DesktopReviewView>(
     initial.reviewView,
   )
+  const [reviewDelivery, setReviewDelivery] = useState<DesktopReviewDelivery>(
+    initial.reviewDelivery,
+  )
   const [diffMarkerStyle, setDiffMarkerStyle] =
     useState<DesktopDiffMarkerStyle>(initial.diffMarkerStyle)
   const [rustSearchAndDiffKernels, setRustSearchAndDiffKernels] = useState(
@@ -515,6 +521,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setGithubMemorySyncEnabled(settings.githubMemorySyncEnabled)
         setGithubMemoryRepository(settings.githubMemoryRepository)
         setReviewView(settings.reviewView)
+        setReviewDelivery(settings.reviewDelivery)
         setDiffMarkerStyle(settings.diffMarkerStyle)
         setRustSearchAndDiffKernels(settings.rustSearchAndDiffKernels)
         setSidebarOrganization(settings.sidebarOrganization)
@@ -591,6 +598,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       githubMemorySyncEnabled,
       githubMemoryRepository,
       reviewView,
+      reviewDelivery,
       diffMarkerStyle,
       sidebarOrganization,
       sidebarSort,
@@ -652,6 +660,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       githubMemorySyncEnabled,
       githubMemoryRepository,
       reviewView,
+      reviewDelivery,
       diffMarkerStyle,
       sidebarOrganization,
       sidebarSort,
@@ -757,6 +766,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setGithubMemorySyncEnabled(snapshot.githubMemorySyncEnabled)
       setGithubMemoryRepository(snapshot.githubMemoryRepository)
       setReviewView(snapshot.reviewView)
+      setReviewDelivery(snapshot.reviewDelivery)
       setDiffMarkerStyle(snapshot.diffMarkerStyle)
       setSidebarOrganization(snapshot.sidebarOrganization)
       setSidebarSort(snapshot.sidebarSort)
@@ -903,6 +913,7 @@ defaultOpenTargetId,
       githubMemorySyncEnabled,
     githubMemoryRepository,
       reviewView,
+      reviewDelivery,
       diffMarkerStyle,
     sidebarOrganization,
     sidebarSort,
@@ -959,6 +970,7 @@ defaultOpenTargetId,
     setGithubMemorySyncEnabled,
     setGithubMemoryRepository,
     setReviewView,
+    setReviewDelivery,
     setDiffMarkerStyle,
     setSidebarOrganization,
     setSidebarSort,

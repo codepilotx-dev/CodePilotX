@@ -146,6 +146,21 @@ export type DesktopDiffSummary = {
 
 export type DesktopReviewScope = 'unstaged' | 'staged'
 
+export type DesktopReviewSource =
+  | { kind: 'unstaged' }
+  | { kind: 'staged' }
+  | { kind: 'branch'; baseBranch: string }
+  | { kind: 'commit'; commitSha: string }
+  | { kind: 'last-turn'; threadId: string; turnId: string }
+  | {
+      kind: 'pull-request'
+      owner: string
+      repository: string
+      number: number
+    }
+
+export type DesktopReviewDelivery = 'inline' | 'detached'
+
 export type DesktopReviewSide = 'left' | 'right'
 
 export type DesktopReviewLineType = 'added' | 'removed' | 'context' | 'meta'
@@ -178,6 +193,9 @@ export type DesktopReviewDiffFile = {
   deletions: number
   isUntracked: boolean
   hunks: DesktopReviewDiffHunk[]
+  revision?: string
+  renderable?: boolean
+  tooLargeReason?: 'changed-lines' | 'changed-bytes' | 'line-bytes' | null
 }
 
 export type DesktopReviewScopeSummary = {
@@ -227,6 +245,10 @@ export type DesktopReviewComment = {
   lineContent: string
   body: string
   status: DesktopReviewCommentStatus
+  revision?: string
+  hunkId?: string | null
+  githubCommentId?: string | null
+  githubThreadId?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -547,6 +569,7 @@ export type DesktopGithubLoginState =
   | 'failed'
 
 export type DesktopGithubLoginStatus = {
+  loginId: string | null
   state: DesktopGithubLoginState
   userCode: string | null
   verificationUri: string | null
@@ -795,6 +818,7 @@ gitBranchPrefix: string
   githubMemorySyncEnabled: boolean
   githubMemoryRepository: string
   reviewView: DesktopReviewView
+  reviewDelivery: DesktopReviewDelivery
   diffMarkerStyle: DesktopDiffMarkerStyle
   rustSearchAndDiffKernels: boolean
   sidebarOrganization: DesktopSidebarOrganization
@@ -1183,6 +1207,13 @@ export type DesktopAiReviewTarget =
   | { type: 'baseBranch'; branch: string }
   | { type: 'commit'; sha: string; title?: string | null }
   | { type: 'custom'; instructions: string }
+
+export type DesktopAiReviewStartResult = {
+  threadId: string
+  turnId: string
+  delivery: DesktopReviewDelivery
+  source: DesktopReviewSource
+}
 
 export type DesktopRollbackRequest = {
   sessionId: string
@@ -1706,7 +1737,7 @@ export type DesktopApi = {
   startSessionReview(
     sessionId: string,
     target: DesktopAiReviewTarget,
-  ): Promise<void>
+  ): Promise<DesktopAiReviewStartResult>
   listRuntimePermissionProfiles(
     workspacePath: string,
     options?: { forceRefresh?: boolean },

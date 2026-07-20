@@ -58,6 +58,11 @@ export const DESKTOP_DIFF_MARKER_STYLES = new Set<DesktopDiffMarkerStyle>([
   'symbol',
 ])
 
+export const DESKTOP_REVIEW_DELIVERIES = new Set([
+  'inline',
+  'detached',
+] as const)
+
 export const DESKTOP_FOLLOW_UP_BEHAVIORS = new Set<DesktopFollowUpBehavior>([
   'steer',
   'queue',
@@ -141,6 +146,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     githubMemorySyncEnabled: false,
     githubMemoryRepository: '',
     reviewView: 'inline',
+    reviewDelivery: 'inline',
     diffMarkerStyle: 'color',
     rustSearchAndDiffKernels: false,
     sidebarOrganization: 'projects',
@@ -367,6 +373,11 @@ export function normalizeDesktopStoredSettings(
     reviewView: isDesktopReviewView(parsed.reviewView)
       ? parsed.reviewView
       : defaults.reviewView,
+    reviewDelivery:
+      parsed.reviewDelivery === 'inline' ||
+      parsed.reviewDelivery === 'detached'
+        ? parsed.reviewDelivery
+        : defaults.reviewDelivery,
     diffMarkerStyle: isDesktopDiffMarkerStyle(parsed.diffMarkerStyle)
       ? parsed.diffMarkerStyle
       : defaults.diffMarkerStyle,

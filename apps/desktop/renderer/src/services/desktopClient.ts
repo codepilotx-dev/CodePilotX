@@ -29,7 +29,6 @@ import type {
   ModelRef,
   OkResponse,
   Project,
-  ProviderTestResponse,
   ProvidersResponse,
 } from '@codepilotx/shared'
 import type {
@@ -41,6 +40,10 @@ import type {
   ThreadSettingsPatch,
   ThreadSnapshot,
 } from '@codepilotx/shared/thread'
+import type {
+  ProtocolCapability,
+  RpcResult,
+} from '@codepilotx/agent-protocol'
 import {
   DEFAULT_DESKTOP_THEME_SETTINGS,
   normalizeDesktopThemeSettings,
@@ -65,10 +68,18 @@ import type {
   DesktopPermissionDecision,
   DesktopPermissionMode,
   DesktopReviewDiffResult,
+  DesktopReviewSource,
   DesktopSessionEvent,
   DesktopSessionCatalogStatus,
   DesktopSessionMetadataPatch,
   DesktopRuntimeStatus,
+  DesktopGithubAuthStatus,
+  DesktopGithubLoginStatus,
+  DesktopGithubProfileOverviewResult,
+  DesktopGithubRepositoryListResult,
+  DesktopGitStatus,
+  DesktopGitOperationResult,
+  DesktopPullRequestResult,
   DesktopSettingsChange,
   DesktopSessionStoreChange,
   DesktopSessionSnapshot,
@@ -97,10 +108,37 @@ export const DESKTOP_BROWSER_DEBUG_MODE_EVENT =
   'desktop-browser-debug-mode-change'
 export const WORKSPACE_FILE_CHANGED_EVENT =
   'codepilotx-workspace-file-changed'
+export const WORKSPACE_GIT_CHANGED_EVENT =
+  'codepilotx-workspace-git-changed'
 
 const DEFAULT_BROWSER_DEBUG_PORT = 53271
 const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY =
   'codepilotx.desktop.appearance.v3'
+const RENDERER_PROTOCOL = 'thread-rpc-v3' as const
+const RENDERER_CAPABILITIES = [
+  'rpc.typed.v1',
+  'events.replay.v1',
+  'events.live.v1',
+  'interactions.serverRequests.v1',
+  'interaction.recovery.v1',
+  'turn.admission.v1',
+  'turn.steer.v1',
+  'turn.queue.management.v1',
+  'attachments.v1',
+  'memory.v2',
+  'workspace.editor.v1',
+  'git.review.v1',
+  'ai.review.v1',
+  'github.oauth.v1',
+  'github.pullRequests.v1',
+  'context.compact.v1',
+  'hooks.trust.v1',
+  'subagents.v1',
+  'sandbox.management.v1',
+  'prompt.preview.sensitive.v1',
+] as const satisfies ReadonlyArray<ProtocolCapability>
+type PendingInteraction =
+  RpcResult<'interaction/listPending'>['interactions'][number]
 
 type DesktopClientWindow = {
   desktopApi?: DesktopApi
@@ -108,6 +146,8 @@ type DesktopClientWindow = {
     pickWorkspaceDirectory(): Promise<string | null>
     getAppearanceSettings?(): Promise<unknown>
     saveAppearanceSettings?(settings: unknown): Promise<unknown>
+    getDesktopSettings?(): Promise<unknown>
+    saveDesktopSettings?(settings: unknown): Promise<unknown>
     getSystemTheme?(): Promise<'light' | 'dark'>
     onSystemThemeChange?(
       listener: (theme: 'light' | 'dark') => void,
@@ -140,9 +180,193 @@ export type DesktopClientEnvironment = {
   debugBridgeToken?: string
 }
 
+export type DesktopReviewAgentFileSummary = {
+  path: string
+  previousPath: string | null
+  status: 'added' | 'modified' | 'deleted' | 'renamed' | 'copied' | 'untracked' | 'type-changed' | 'unknown'
+  additions: number | null
+  deletions: number | null
+  changedLines: number
+  changedBytes: number
+  binary: boolean
+  revision: string
+}
+
+export type DesktopReviewAgentSummary = {
+  projectId: string
+  generation: string
+  source: DesktopReviewSource
+  repositoryRoot: string
+  headSha: string | null
+  baseSha: string | null
+  files: DesktopReviewAgentFileSummary[]
+  totals: {
+    files: number
+    additions: number
+    deletions: number
+    changedLines: number
+    changedBytes: number
+  }
+  largeDiffMode: boolean
+}
+
+export type DesktopReviewAgentFileDiff = {
+  file: DesktopReviewAgentFileSummary
+  revision: string
+  patch: string
+  hunks: Array<{
+    id: string
+    header: string
+    oldStart: number
+    oldLines: number
+    newStart: number
+    newLines: number
+    patch: string
+  }>
+  renderable: boolean
+  tooLargeReason: 'changed-lines' | 'changed-bytes' | 'line-bytes' | null
+}
+
+export type DesktopReviewAgentComment = {
+  id: string
+  threadId: string
+  projectId: string
+  sourceKey: string
+  path: string
+  side: 'old' | 'new'
+  line: number
+  hunkId: string | null
+  revision: string
+  body: string
+  status: 'open' | 'resolved'
+  githubCommentId: string | null
+  githubThreadId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+type ReviewAgentGitStatus = {
+  branchName: string | null
+  upstream: string | null
+  ahead: number
+  behind: number
+  clean: boolean
+  files: Array<{
+    path: string
+    previousPath: string | null
+    stagedStatus: string
+    unstagedStatus: string
+    untracked: boolean
+  }>
+}
+
+function desktopGitStatus(status: ReviewAgentGitStatus): DesktopGitStatus {
+  return {
+    branchName: status.branchName,
+    upstream: status.upstream,
+    ahead: status.ahead,
+    behind: status.behind,
+    clean: status.clean,
+    files: status.files.map(file => ({
+      path: file.path,
+      ...(file.previousPath ? { originalPath: file.previousPath } : {}),
+      status: `${file.stagedStatus}${file.unstagedStatus}`,
+      stagedStatus: file.stagedStatus,
+      unstagedStatus: file.unstagedStatus,
+      additions: null,
+      deletions: null,
+      isUntracked: file.untracked,
+    })),
+  }
+}
+
+export type DesktopAgentReviewApi = {
+  getAgentReviewSummary(input: {
+    workspacePath: string
+    source: DesktopReviewSource
+    refresh?: boolean
+  }): Promise<DesktopReviewAgentSummary>
+  getAgentReviewFileDiff(input: {
+    workspacePath: string
+    source: DesktopReviewSource
+    generation: string
+    path: string
+    hideWhitespace?: boolean
+  }): Promise<DesktopReviewAgentFileDiff>
+  applyAgentReviewOperation(input: {
+    workspacePath: string
+    source: DesktopReviewSource
+    generation: string
+    expectedRevision: string
+    action: 'stage' | 'unstage' | 'revert'
+    target:
+      | { kind: 'file'; path: string }
+      | { kind: 'hunk'; path: string; hunkId: string }
+  }): Promise<void>
+  getAgentReviewBranches(workspacePath: string): Promise<Array<{
+    name: string
+    sha: string
+    current: boolean
+    remote: boolean
+  }>>
+  getAgentReviewCommits(workspacePath: string): Promise<Array<{
+    sha: string
+    shortSha: string
+    subject: string
+    author: string
+    authoredAt: string
+  }>>
+  listAgentReviewComments(input: {
+    workspacePath: string
+    threadId: string
+    sourceKey: string
+  }): Promise<DesktopReviewAgentComment[]>
+  saveAgentReviewComment(input: {
+    id?: string
+    workspacePath: string
+    threadId: string
+    sourceKey: string
+    path: string
+    side: 'old' | 'new'
+    line: number
+    hunkId: string | null
+    revision: string
+    body: string
+    githubCommentId?: string
+    githubThreadId?: string
+  }): Promise<DesktopReviewAgentComment>
+  resolveAgentReviewComment(input: {
+    workspacePath: string
+    threadId: string
+    id: string
+  }): Promise<DesktopReviewAgentComment>
+  deleteAgentReviewComment(input: {
+    workspacePath: string
+    threadId: string
+    id: string
+  }): Promise<void>
+  publishAgentGithubReviewComment(input: {
+    source: Extract<DesktopReviewSource, { kind: 'pull-request' }>
+    body: string
+    path: string
+    side: 'LEFT' | 'RIGHT'
+    line: number
+    expectedHeadRevision: string
+    commitId?: string
+  }): Promise<{ id: number; nodeId: string; htmlUrl: string }>
+  submitAgentGithubReview(input: {
+    source: Extract<DesktopReviewSource, { kind: 'pull-request' }>
+    event: 'COMMENT' | 'APPROVE' | 'REQUEST_CHANGES'
+    expectedHeadRevision: string
+    body?: string
+  }): Promise<{ id: number; state: string; htmlUrl: string }>
+}
+
+export type CodePilotXDesktopClient = DesktopApi & DesktopAgentReviewApi
+
 export function createDesktopClient(
   environment: DesktopClientEnvironment = defaultDesktopClientEnvironment(),
-): DesktopApi {
+): CodePilotXDesktopClient {
   const productionClient = environment.window?.desktopApi
   const fallbackClient = productionClient ?? createSwitchingBrowserDesktopClient(environment)
   return createAgentSessionDesktopClient(
@@ -167,18 +391,40 @@ export function writeDesktopBrowserDebugMode(
   }
 }
 
-export const desktopClient: DesktopApi = createDesktopClient()
+export const desktopClient: CodePilotXDesktopClient = createDesktopClient()
 
 function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
   mockClient: DesktopApi,
   allowBrowserMockFallback: boolean,
-): DesktopApi {
+): CodePilotXDesktopClient {
   const fetcher = environment.fetch
-  const rpc = createAgentRpcClient(environment)
+  const clientInstanceId = crypto.randomUUID()
+  const rpc = createAgentRpcClient({
+    ...environment,
+    handshake: {
+      initialize: {
+        clientInfo: {
+          name: 'codepilotx-desktop-renderer',
+          version: '0.2.0',
+          platform:
+            typeof navigator === 'undefined' ? 'desktop' : navigator.platform,
+          instanceId: clientInstanceId,
+        },
+        protocols: [RENDERER_PROTOCOL],
+        capabilities: [...RENDERER_CAPABILITIES],
+        interactionDelivery: 'active',
+      },
+      initialized: {
+        protocol: RENDERER_PROTOCOL,
+        clientInstanceId,
+      },
+    },
+  })
   let activeSessionId: string | null = null
   let agentReady = false
-  let agentCapabilities: Record<string, number> = {}
+  let agentCapabilities = new Set<string>()
+  let activeGithubLoginId: string | null = null
   let readyProbe: Promise<boolean> | null = null
   let readinessError: unknown = null
   let projectsByIdCache: Map<string, Project> | null = null
@@ -205,8 +451,8 @@ function createAgentSessionDesktopClient(
       return false
     }
     try {
-      const initialized = await rpc.call<{ capabilities?: Record<string, number> }>('initialize')
-      agentCapabilities = initialized.capabilities ?? {}
+      const initialized = await rpc.ensureInitialized()
+      agentCapabilities = new Set(initialized.capabilities)
       readinessError = null
       return true
     } catch (error) {
@@ -228,6 +474,17 @@ function createAgentSessionDesktopClient(
     return agentOperation()
   }
 
+  async function withRequiredAgent<T>(
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    if (!(await isAgentAvailable())) {
+      throw readinessError instanceof Error
+        ? readinessError
+        : new Error('Agent RPC 当前不可用。')
+    }
+    return operation()
+  }
+
   function unsupportedAgentOperation(operation: string): never {
     const error = new Error(
       `AGENT_OPERATION_UNSUPPORTED: 真实 Agent 会话暂不支持 ${operation}。`,
@@ -236,8 +493,32 @@ function createAgentSessionDesktopClient(
     throw error
   }
 
-  function requireAgentCapability(name: 'prompt' | 'memory' | 'compact' | 'hookTrust', version = 1): void {
-    if ((agentCapabilities[name] ?? 0) >= version) return
+  function requireAgentCapability(
+    name:
+      | 'prompt'
+      | 'memory'
+      | 'compact'
+      | 'hookTrust'
+      | 'git.review.v1'
+      | 'ai.review.v1'
+      | 'github.oauth.v1'
+      | 'github.pullRequests.v1',
+    version = 1,
+  ): void {
+    const capabilities: Record<typeof name, string> = {
+      prompt: 'prompt.preview.sensitive.v1',
+      memory: 'memory.v2',
+      compact: 'context.compact.v1',
+      hookTrust: 'hooks.trust.v1',
+      'git.review.v1': 'git.review.v1',
+      'ai.review.v1': 'ai.review.v1',
+      'github.oauth.v1': 'github.oauth.v1',
+      'github.pullRequests.v1': 'github.pullRequests.v1',
+    }
+    if (version <= 1 && agentCapabilities.has(capabilities[name])) return
+    if (version === 2 && (name === 'prompt' || name === 'memory')) {
+      if (agentCapabilities.has(capabilities[name])) return
+    }
     unsupportedAgentOperation(`${name} v${version}`)
   }
 
@@ -280,9 +561,16 @@ function createAgentSessionDesktopClient(
 
   async function loadModelCatalog(refresh = false): Promise<ProvidersResponse> {
     if (modelCatalogCache && !refresh) return modelCatalogCache
-    modelCatalogCache = await rpc.call<ProvidersResponse>(
-      refresh ? 'model/refresh' : 'model/list',
-    )
+    const result = refresh
+      ? await rpc.call('model/refresh', {
+          operationId: crypto.randomUUID(),
+        })
+      : await rpc.call('model/list', {})
+    modelCatalogCache = {
+      providers: [...result.providers],
+      defaultModel: result.defaultModel,
+      reviewerModel: result.reviewerModel,
+    }
     return modelCatalogCache
   }
 
@@ -290,7 +578,7 @@ function createAgentSessionDesktopClient(
     refresh = false,
   ): Promise<IntegrationListResponse['integrations']> {
     if (integrationsCache && !refresh) return integrationsCache
-    const response = await rpc.call<IntegrationListResponse>('integration/list')
+    const response = await rpc.call('integration/list', {})
     integrationsCache = response.integrations
     return integrationsCache
   }
@@ -384,13 +672,16 @@ function createAgentSessionDesktopClient(
 
   async function loadProjectsById(refresh = false): Promise<Map<string, Project>> {
     if (projectsByIdCache && !refresh) return projectsByIdCache
-    const response = await rpc.call<{ projects: Project[] }>('project/list')
+    const response = await rpc.call('project/list', {})
     projectsByIdCache = new Map(response.projects.map(project => [project.id, project]))
     return projectsByIdCache
   }
 
   async function loadProjectForPath(rootPath: string): Promise<Project> {
-    const response = await rpc.call<{ project: Project }>('project/open', { rootPath })
+    const response = await rpc.call('project/open', {
+      rootPath,
+      operationId: crypto.randomUUID(),
+    })
     projectsByIdCache = null
     return response.project
   }
@@ -401,7 +692,7 @@ function createAgentSessionDesktopClient(
     const archived = options?.archived === true
     const [projectsById, response] = await Promise.all([
       loadProjectsById(),
-      rpc.call<{ threads: ThreadListItem[]; nextCursor: string | null }>('thread/list', {
+      rpc.call('thread/list', {
         archived,
         limit: 100,
       }),
@@ -433,7 +724,9 @@ function createAgentSessionDesktopClient(
   async function loadAgentSessionSnapshot(
     sessionId: string,
   ): Promise<DesktopSessionSnapshot> {
-    const sharedSnapshot = await rpc.call<ThreadSnapshot>('thread/read', { threadId: sessionId })
+    const { snapshot: sharedSnapshot } = await rpc.call('thread/read', {
+      threadId: sessionId,
+    })
     sessionPermissionConfigs.set(sessionId, sharedSnapshot.thread.settings.permissionConfig)
     const projectsById = await loadProjectsById()
     const snapshot = agentThreadSnapshotToDesktop(
@@ -545,12 +838,10 @@ function createAgentSessionDesktopClient(
     settings: ThreadSettingsPatch,
   ): Promise<DesktopSessionSnapshot> {
     return queueSettingsUpdate(sessionId, async () => {
-      const response = await rpc.call<{
-        threadId: string
-        settings: ThreadSettings
-      }>('thread/settings/update', {
+      const response = await rpc.call('thread/settings/update', {
         threadId: sessionId,
         settings,
+        operationId: crypto.randomUUID(),
       })
       if (response.threadId !== sessionId) {
         throw new Error(
@@ -573,7 +864,9 @@ function createAgentSessionDesktopClient(
     const inputId = crypto.randomUUID()
     let response: unknown
     if (strategy === 'guide') {
-      const current = await rpc.call<ThreadSnapshot>('thread/read', { threadId: sessionId })
+      const { snapshot: current } = await rpc.call('thread/read', {
+        threadId: sessionId,
+      })
       const activeTurn = [...current.turns].reverse().find(turn =>
         turn.status === 'running' || turn.status.startsWith('waiting-'),
       )
@@ -638,13 +931,80 @@ function createAgentSessionDesktopClient(
       if (attachment.kind === 'image') {
         const data = attachment.contentBase64 ?? attachment.previewDataUrl?.replace(/^data:[^;]+;base64,/, '')
         if (!data) throw new Error(`图片附件 ${attachment.name} 缺少内容。`)
-        return { kind: 'image' as const, name: attachment.name, mediaType: attachment.mediaType, data, encoding: 'base64' }
+        return { kind: 'image' as const, name: attachment.name, mediaType: attachment.mediaType, data, encoding: 'base64' as const }
       }
       if (typeof attachment.textContent !== 'string' || attachment.truncated) throw new Error(`附件 ${attachment.name} 不是完整的 UTF-8 文本或受支持图片。`)
-      return { kind: 'text' as const, name: attachment.name, mediaType: attachment.mediaType || 'text/plain', data: attachment.textContent, encoding: 'utf8' }
+      return { kind: 'text' as const, name: attachment.name, mediaType: attachment.mediaType || 'text/plain', data: attachment.textContent, encoding: 'utf8' as const }
     })
-    const response = await rpc.call<{ attachments: Array<{ id: string }> }>('attachment/import', { attachments: payload })
+    const response = await rpc.call('attachment/import', {
+      uploads: payload,
+      operationId: crypto.randomUUID(),
+    })
     return response.attachments.map(attachment => attachment.id)
+  }
+
+  async function findPendingInteraction(
+    predicate: (interaction: PendingInteraction) => boolean,
+    threadId?: string,
+  ): Promise<PendingInteraction> {
+    const result = await rpc.call('interaction/listPending', {
+      ...(threadId ? { threadId } : {}),
+      limit: 500,
+    })
+    const interaction = result.interactions.find(predicate)
+    if (!interaction) {
+      throw new Error('该交互请求已失效或已由其他客户端处理，请刷新任务后重试。')
+    }
+    return interaction
+  }
+
+  async function respondToInteraction(
+    interaction: PendingInteraction,
+    response: RpcResult<'interaction/respond'>['response'],
+  ): Promise<void> {
+    await rpc.call('interaction/respond', {
+      interactionId: interaction.interactionId,
+      expectedVersion: interaction.version,
+      response,
+      operationId: crypto.randomUUID(),
+    })
+  }
+
+  async function respondToQuestionInteraction(
+    interaction: Extract<PendingInteraction, { kind: 'question' }>,
+    answer: string | null,
+    ignored: boolean,
+  ): Promise<void> {
+    if (ignored) {
+      await respondToInteraction(interaction, {
+        kind: 'question',
+        status: 'ignored',
+      })
+      return
+    }
+    const rawAnswers = parseQuestionAnswerMap(answer)
+    const answers = interaction.questions.map((question, index) => {
+      const value =
+        rawAnswers[question.id] ??
+        (interaction.questions.length === 1 && index === 0 ? answer : null) ??
+        ''
+      const choice = question.choices.find(
+        candidate =>
+          candidate.id === value ||
+          candidate.label === value ||
+          candidate.label.replace(/\s+\(Recommended\)$/u, '') === value,
+      )
+      return {
+        questionId: question.id,
+        choiceIds: choice ? [choice.id] : [],
+        ...(!choice && value ? { text: value } : {}),
+      }
+    })
+    await respondToInteraction(interaction, {
+      kind: 'question',
+      status: 'answered',
+      answers,
+    })
   }
 
   async function resolveAgentModelRef(
@@ -717,8 +1077,395 @@ function createAgentSessionDesktopClient(
     return url => new EventSource(url, { withCredentials: true })
   }
 
-  const client: DesktopApi = {
+  const operationError = (error: unknown) =>
+    error instanceof Error ? error.message : String(error)
+
+  const client: CodePilotXDesktopClient = {
     ...mockClient,
+    getGithubAuthStatus: async (): Promise<DesktopGithubAuthStatus> => {
+      try {
+        return await withRequiredAgent(async () => {
+          requireAgentCapability('github.oauth.v1')
+          return rpc.call<DesktopGithubAuthStatus>('github/auth/status')
+        })
+      } catch (error) {
+        const settings = await mockClient.getDesktopSettings()
+        return {
+          configured: Boolean(settings.githubOAuthClientId.trim()),
+          authenticated: false,
+          user: null,
+          error: operationError(error),
+        }
+      }
+    },
+    startGithubLogin: async input => {
+      try {
+        return await withRequiredAgent(async () => {
+          requireAgentCapability('github.oauth.v1')
+          const clientId = input?.clientId?.trim()
+          if (!clientId) throw new Error('请先填写 GitHub OAuth Client ID。')
+          const status = await rpc.call('github/auth/start', {
+            clientId,
+          })
+          activeGithubLoginId = status.loginId
+          return status
+        })
+      } catch (error) {
+        return githubLoginFailure(operationError(error), activeGithubLoginId)
+      }
+    },
+    pollGithubLogin: async () => {
+      try {
+        return await withRequiredAgent(async () => {
+          requireAgentCapability('github.oauth.v1')
+          if (!activeGithubLoginId) {
+            throw new Error('当前没有可轮询的 GitHub 登录请求，请重新开始登录。')
+          }
+          const status = await rpc.call('github/auth/poll', {
+            loginId: activeGithubLoginId,
+          })
+          if (status.state === 'completed' || status.state === 'failed') {
+            activeGithubLoginId = null
+          }
+          return status
+        })
+      } catch (error) {
+        return githubLoginFailure(operationError(error), activeGithubLoginId)
+      }
+    },
+    logoutGithub: async (): Promise<DesktopGithubAuthStatus> => {
+      try {
+        return await withRequiredAgent(async () => {
+          requireAgentCapability('github.oauth.v1')
+          const status = await rpc.call<DesktopGithubAuthStatus>('github/auth/logout')
+          activeGithubLoginId = null
+          return status
+        })
+      } catch (error) {
+        const settings = await mockClient.getDesktopSettings()
+        return {
+          configured: Boolean(settings.githubOAuthClientId.trim()),
+          authenticated: false,
+          user: null,
+          error: operationError(error),
+        }
+      }
+    },
+    listGithubRepositories: async (): Promise<DesktopGithubRepositoryListResult> => {
+      try {
+        return await withRequiredAgent(async () => {
+          requireAgentCapability('github.oauth.v1')
+          const result = await rpc.call<{
+            repositories: Extract<DesktopGithubRepositoryListResult, { ok: true }>['repositories']
+          }>('github/repositories')
+          return { ok: true, repositories: result.repositories }
+        })
+      } catch (error) {
+        return { ok: false, error: operationError(error) }
+      }
+    },
+    getGithubProfileOverview: async (): Promise<DesktopGithubProfileOverviewResult> => {
+      try {
+        return await withRequiredAgent(async () => {
+          requireAgentCapability('github.oauth.v1')
+          const result = await rpc.call<{
+            overview: Extract<DesktopGithubProfileOverviewResult, { ok: true }>['overview']
+          }>('github/profileOverview')
+          return { ok: true, overview: result.overview }
+        })
+      } catch (error) {
+        return { ok: false, error: operationError(error) }
+      }
+    },
+    setGithubUserStatus: async () => ({
+      ok: false,
+      error: 'GitHub 用户状态编辑尚未接入 Agent。',
+    }),
+    clearGithubUserStatus: async () => ({
+      ok: false,
+      error: 'GitHub 用户状态编辑尚未接入 Agent。',
+    }),
+    pushWorkspaceBranch: async input => {
+      try {
+        return await withRequiredAgent(async (): Promise<DesktopGitOperationResult> => {
+          requireAgentCapability('github.pullRequests.v1')
+          const project = await loadProjectForPath(input.workspacePath)
+          const result = await rpc.call<{
+            repositoryUrl: string
+            status: Extract<DesktopGitOperationResult, { ok: true }>['status']
+          }>('github/push', {
+            projectId: project.id,
+            setUpstream: input.setUpstream === true,
+            forceWithLease: input.forceWithLease === true,
+          })
+          return {
+            ok: true,
+            status: result.status,
+            output: `已推送到 ${result.repositoryUrl}`,
+          }
+        })
+      } catch (error) {
+        return { ok: false, error: operationError(error) }
+      }
+    },
+    createPullRequest: async input => {
+      try {
+        return await withRequiredAgent(async (): Promise<DesktopPullRequestResult> => {
+          requireAgentCapability('github.pullRequests.v1')
+          const project = await loadProjectForPath(input.workspacePath)
+          const result = await rpc.call<{
+            pullRequest: { htmlUrl: string; number: number }
+          }>('github/pullRequest/createForProject', {
+            projectId: project.id,
+            title: input.title,
+            ...(input.body === undefined ? {} : { body: input.body }),
+            ...(input.draft === undefined ? {} : { draft: input.draft }),
+          })
+          return {
+            ok: true,
+            url: result.pullRequest.htmlUrl,
+            output: `已创建 Pull Request #${result.pullRequest.number}`,
+          }
+        })
+      } catch (error) {
+        return { ok: false, error: operationError(error) }
+      }
+    },
+    getWorkspaceGitStatus: async workspacePath => {
+      try {
+        return await withRequiredAgent(async () => {
+          requireAgentCapability('git.review.v1')
+          const project = await loadProjectForPath(workspacePath)
+          const result = await rpc.call<{
+            status: ReviewAgentGitStatus
+          }>('review/status', { projectId: project.id })
+          return { ok: true as const, status: desktopGitStatus(result.status) }
+        })
+      } catch (error) {
+        return { ok: false as const, error: operationError(error) }
+      }
+    },
+    commitWorkspaceChanges: async input => {
+      try {
+        return await withRequiredAgent(async (): Promise<DesktopGitOperationResult> => {
+          requireAgentCapability('git.review.v1')
+          const project = await loadProjectForPath(input.workspacePath)
+          const result = await rpc.call<{
+            output: string
+            status: ReviewAgentGitStatus
+          }>('review/commit', {
+            projectId: project.id,
+            message: input.message,
+            paths: input.paths,
+          })
+          return {
+            ok: true,
+            status: desktopGitStatus(result.status),
+            output: result.output,
+          }
+        })
+      } catch (error) {
+        return { ok: false, error: operationError(error) }
+      }
+    },
+    getAgentReviewSummary: input =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('git.review.v1')
+          const project = await loadProjectForPath(input.workspacePath)
+          const result = await rpc.call<{ snapshot: DesktopReviewAgentSummary }>(
+            input.refresh ? 'review/refresh' : 'review/summary',
+            { projectId: project.id, source: input.source },
+          )
+          return result.snapshot
+        },
+        async () => unsupportedAgentOperation('git.review.v1'),
+      ),
+    getAgentReviewFileDiff: input =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('git.review.v1')
+          const project = await loadProjectForPath(input.workspacePath)
+          return rpc.call<DesktopReviewAgentFileDiff>('review/fileDiff', {
+            projectId: project.id,
+            source: input.source,
+            generation: input.generation,
+            path: input.path,
+            hideWhitespace: input.hideWhitespace,
+          })
+        },
+        async () => unsupportedAgentOperation('git.review.v1'),
+      ),
+    applyAgentReviewOperation: input =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('git.review.v1')
+          const project = await loadProjectForPath(input.workspacePath)
+          await rpc.call('review/apply', {
+            projectId: project.id,
+            source: input.source,
+            generation: input.generation,
+            expectedRevision: input.expectedRevision,
+            action: input.action,
+            target: input.target,
+            atomic: true,
+          })
+        },
+        async () => unsupportedAgentOperation('git.review.v1'),
+      ),
+    getAgentReviewBranches: workspacePath =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('git.review.v1')
+          const project = await loadProjectForPath(workspacePath)
+          const result = await rpc.call<{
+            branches: Array<{
+              name: string
+              sha: string
+              current: boolean
+              remote: boolean
+            }>
+          }>('review/branches', { projectId: project.id })
+          return result.branches
+        },
+        async () => unsupportedAgentOperation('git.review.v1'),
+      ),
+    getAgentReviewCommits: workspacePath =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('git.review.v1')
+          const project = await loadProjectForPath(workspacePath)
+          const result = await rpc.call<{
+            commits: Array<{
+              sha: string
+              shortSha: string
+              subject: string
+              author: string
+              authoredAt: string
+            }>
+          }>('review/commits', { projectId: project.id, limit: 20 })
+          return result.commits
+        },
+        async () => unsupportedAgentOperation('git.review.v1'),
+      ),
+    listAgentReviewComments: input =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('git.review.v1')
+          const project = await loadProjectForPath(input.workspacePath)
+          const result = await rpc.call<{
+            comments: DesktopReviewAgentComment[]
+          }>('review/comment/list', {
+            projectId: project.id,
+            threadId: input.threadId,
+            sourceKey: input.sourceKey,
+          })
+          return result.comments
+        },
+        async () => unsupportedAgentOperation('git.review.v1'),
+      ),
+    saveAgentReviewComment: input =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('git.review.v1')
+          const project = await loadProjectForPath(input.workspacePath)
+          const result = await rpc.call<{
+            comment: DesktopReviewAgentComment
+          }>('review/comment/save', {
+            ...(input.id ? { id: input.id } : {}),
+            projectId: project.id,
+            threadId: input.threadId,
+            sourceKey: input.sourceKey,
+            path: input.path,
+            side: input.side,
+            line: input.line,
+            hunkId: input.hunkId,
+            revision: input.revision,
+            body: input.body,
+            ...(input.githubCommentId
+              ? { githubCommentId: input.githubCommentId }
+              : {}),
+            ...(input.githubThreadId
+              ? { githubThreadId: input.githubThreadId }
+              : {}),
+          })
+          return result.comment
+        },
+        async () => unsupportedAgentOperation('git.review.v1'),
+      ),
+    resolveAgentReviewComment: input =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('git.review.v1')
+          const project = await loadProjectForPath(input.workspacePath)
+          const result = await rpc.call<{
+            comment: DesktopReviewAgentComment
+          }>('review/comment/resolve', {
+            projectId: project.id,
+            threadId: input.threadId,
+            id: input.id,
+          })
+          return result.comment
+        },
+        async () => unsupportedAgentOperation('git.review.v1'),
+      ),
+    deleteAgentReviewComment: input =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('git.review.v1')
+          const project = await loadProjectForPath(input.workspacePath)
+          await rpc.call('review/comment/delete', {
+            projectId: project.id,
+            threadId: input.threadId,
+            id: input.id,
+          })
+        },
+        async () => unsupportedAgentOperation('git.review.v1'),
+      ),
+    publishAgentGithubReviewComment: input =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('github.pullRequests.v1')
+          const result = await rpc.call<{
+            comment: {
+              id: number
+              nodeId: string
+              htmlUrl: string
+              body: string
+            }
+          }>('github/pullRequest/comment', {
+            owner: input.source.owner,
+            repository: input.source.repository,
+            number: input.source.number,
+            body: input.body,
+            path: input.path,
+            side: input.side,
+            line: input.line,
+            expectedHeadRevision: input.expectedHeadRevision,
+            ...(input.commitId ? { commitId: input.commitId } : {}),
+          })
+          return result.comment
+        },
+        async () => unsupportedAgentOperation('github.pullRequests.v1'),
+      ),
+    submitAgentGithubReview: input =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('github.pullRequests.v1')
+          const result = await rpc.call<{
+            review: { id: number; state: string; htmlUrl: string }
+          }>('github/pullRequest/submitReview', {
+            owner: input.source.owner,
+            repository: input.source.repository,
+            number: input.source.number,
+            event: input.event,
+            expectedHeadRevision: input.expectedHeadRevision,
+            ...(input.body ? { body: input.body } : {}),
+          })
+          return result.review
+        },
+        async () => unsupportedAgentOperation('github.pullRequests.v1'),
+      ),
     listExternalOpenTargets: async targetPath => {
       const listTargets =
         environment.window?.codePilotXDesktop?.listExternalOpenTargets
@@ -902,14 +1649,13 @@ function createAgentSessionDesktopClient(
         },
         () => mockClient.unwatchWorkspaceFile(workspacePath, filePath),
       ),
-    getDesktopSettings: () =>
-      withAgentOrMock(
-        async () => {
-          const response = await rpc.call<{ settings: unknown }>('desktop/settings/get')
-          return normalizeDesktopStoredSettings(response.settings)
-        },
-        () => mockClient.getDesktopSettings(),
-      ),
+    getDesktopSettings: async () => {
+      const getter =
+        environment.window?.codePilotXDesktop?.getDesktopSettings
+      return getter
+        ? normalizeDesktopStoredSettings(await getter())
+        : mockClient.getDesktopSettings()
+    },
     getThemeSettings: () => {
       const getter =
         environment.window?.codePilotXDesktop?.getAppearanceSettings
@@ -928,20 +1674,17 @@ function createAgentSessionDesktopClient(
       }
       await mockClient.saveThemeSettings(normalized)
     },
-    saveDesktopSettings: settings =>
-      withAgentOrMock(
-        async () => {
-          const normalized = normalizeDesktopStoredSettings(settings)
-          const response = await rpc.call<{ settings: unknown }>(
-            'desktop/settings/save',
-            { settings: normalized },
-          )
-          const saved = normalizeDesktopStoredSettings(response.settings)
-          await mockClient.saveDesktopSettings(saved)
-          return saved
-        },
-        () => mockClient.saveDesktopSettings(settings),
-      ),
+    saveDesktopSettings: async settings => {
+      const normalized = normalizeDesktopStoredSettings(settings)
+      const saver =
+        environment.window?.codePilotXDesktop?.saveDesktopSettings
+      if (!saver) return mockClient.saveDesktopSettings(normalized)
+      const saved = normalizeDesktopStoredSettings(
+        await saver(normalized),
+      )
+      await mockClient.saveDesktopSettings(saved)
+      return saved
+    },
     listProjectMemories: workspacePath =>
       withAgentOrMock(
         async () => {
@@ -971,15 +1714,15 @@ function createAgentSessionDesktopClient(
         async () => {
           requireAgentCapability('memory', 2)
           const project = await loadProjectForPath(input.workspacePath)
-          const response = await rpc.call<{ entry: { id: string; content: string; updatedAt: number } }>('memory/save', { scope: 'project', projectId: project.id, ...(input.relativePath ? { id: input.relativePath } : {}), content: input.content })
+          const response = await rpc.call<{ entry: { id: string; content: string; updatedAt: number } }>('memory/save', { scope: 'project', projectId: project.id, ...(input.relativePath ? { id: input.relativePath } : {}), content: input.content, operationId: crypto.randomUUID() })
           return { relativePath: response.entry.id, absolutePath: response.entry.id, type: 'project' as const, description: response.entry.content.slice(0, 120), size: response.entry.content.length, mtimeMs: response.entry.updatedAt }
         },
         () => mockClient.saveProjectMemory(input),
       ),
     deleteProjectMemory: input =>
-      withAgentOrMock(async () => { requireAgentCapability('memory', 2); const project = await loadProjectForPath(input.workspacePath); await rpc.call('memory/delete', { id: input.relativePath, scope: 'project', projectId: project.id }) }, () => mockClient.deleteProjectMemory(input)),
+      withAgentOrMock(async () => { requireAgentCapability('memory', 2); const project = await loadProjectForPath(input.workspacePath); await rpc.call('memory/delete', { id: input.relativePath, scope: 'project', projectId: project.id, operationId: crypto.randomUUID() }) }, () => mockClient.deleteProjectMemory(input)),
     resetProjectMemory: input =>
-      withAgentOrMock(async () => { requireAgentCapability('memory', 2); const project = await loadProjectForPath(input.workspacePath); await rpc.call('memory/reset', { scope: 'project', projectId: project.id, includeEventLog: input.includeRecallLog === true }) }, () => mockClient.resetProjectMemory(input)),
+      withAgentOrMock(async () => { requireAgentCapability('memory', 2); const project = await loadProjectForPath(input.workspacePath); await rpc.call('memory/reset', { scope: 'project', projectId: project.id, includeEventLog: input.includeRecallLog === true, operationId: crypto.randomUUID() }) }, () => mockClient.resetProjectMemory(input)),
     listProjectMemoryRecalls: workspacePath =>
       withAgentOrMock(async () => ({ recallLogPath: 'SQLite prompt context fragments', recalls: [] }), () => mockClient.listProjectMemoryRecalls(workspacePath)),
     listUserMemories: () =>
@@ -1004,15 +1747,15 @@ function createAgentSessionDesktopClient(
       withAgentOrMock(
         async () => {
           requireAgentCapability('memory', 2)
-          const response = await rpc.call<{ entry: { id: string; content: string; updatedAt: number } }>('memory/save', { scope: 'user', ...(input.relativePath ? { id: input.relativePath } : {}), content: input.content })
+          const response = await rpc.call<{ entry: { id: string; content: string; updatedAt: number } }>('memory/save', { scope: 'user', ...(input.relativePath ? { id: input.relativePath } : {}), content: input.content, operationId: crypto.randomUUID() })
           return { relativePath: response.entry.id, absolutePath: response.entry.id, type: 'user' as const, description: response.entry.content.slice(0, 120), size: response.entry.content.length, mtimeMs: response.entry.updatedAt }
         },
         () => mockClient.saveUserMemory(input),
       ),
     deleteUserMemory: input =>
-      withAgentOrMock(async () => { requireAgentCapability('memory', 2); await rpc.call('memory/delete', { id: input.relativePath, scope: 'user' }) }, () => mockClient.deleteUserMemory(input)),
+      withAgentOrMock(async () => { requireAgentCapability('memory', 2); await rpc.call('memory/delete', { id: input.relativePath, scope: 'user', operationId: crypto.randomUUID() }) }, () => mockClient.deleteUserMemory(input)),
     resetUserMemory: input =>
-      withAgentOrMock(async () => { requireAgentCapability('memory', 2); await rpc.call('memory/reset', { scope: 'user', includeEventLog: input.includeEventLog }) }, () => mockClient.resetUserMemory(input)),
+      withAgentOrMock(async () => { requireAgentCapability('memory', 2); await rpc.call('memory/reset', { scope: 'user', includeEventLog: input.includeEventLog, operationId: crypto.randomUUID() }) }, () => mockClient.resetUserMemory(input)),
     listModelProviders: async () => {
       const [catalog, integrations] = await Promise.all([
         loadModelCatalog(),
@@ -1048,17 +1791,13 @@ function createAgentSessionDesktopClient(
         options.baseURL !== undefined &&
         options.baseURL !== catalogProvider.provider.api.url
       ) {
-        const updatedProvider: CatalogProvider = {
-          ...catalogProvider,
-          provider: {
-            ...catalogProvider.provider,
-            api: {
-              ...catalogProvider.provider.api,
-              url: options.baseURL || undefined,
-            },
+        await rpc.call('provider/updateSettings', {
+          providerId: catalogProvider.provider.id,
+          settings: {
+            ...(options.baseURL ? { api: options.baseURL } : {}),
           },
-        }
-        await rpc.call<OkResponse>('provider/updateSettings', updatedProvider)
+          operationId: crypto.randomUUID(),
+        })
       }
       if (options.id) {
         const selectedModel = catalogProvider.models.find(
@@ -1075,17 +1814,21 @@ function createAgentSessionDesktopClient(
           id: selectedModel.id,
           ...(selectedVariant ? { variant: selectedVariant } : {}),
         }
-        await rpc.call<OkResponse>('model/setDefault', model)
+        await rpc.call('model/setDefault', {
+          model,
+          operationId: crypto.randomUUID(),
+        })
       }
       modelCatalogCache = null
       return providerState(options.providerID)
     },
     saveProviderApiKey: async (providerID, apiKey) => {
       const { integration } = await integrationForProvider(providerID)
-      await rpc.call<OkResponse>('integration/connect', {
-        integrationID: integration.id,
+      await rpc.call('integration/connect', {
+        integrationId: integration.id,
         key: apiKey,
-      } satisfies IntegrationConnectRequest)
+        operationId: crypto.randomUUID(),
+      })
       integrationsCache = null
       modelCatalogCache = null
       return providerState(providerID)
@@ -1106,10 +1849,11 @@ function createAgentSessionDesktopClient(
         )
       }
       for (const connection of credentials) {
-        await rpc.call<OkResponse>('integration/disconnect', {
-          integrationID: integration.id,
-          credentialID: connection.id,
-        } satisfies IntegrationDisconnectRequest)
+        await rpc.call('integration/disconnect', {
+          integrationId: integration.id,
+          credentialId: connection.id,
+          operationId: crypto.randomUUID(),
+        })
       }
       integrationsCache = null
       modelCatalogCache = null
@@ -1130,44 +1874,65 @@ function createAgentSessionDesktopClient(
       const catalog = await loadModelCatalog()
       const provider = catalog.providers.find(item => item.provider.id === providerID)
       if (!provider) throw new Error(`未找到模型提供商：${providerID}`)
-      return rpc.call<ProviderTestResponse>('provider/test', {
-        providerID: provider.provider.id,
+      const result = await rpc.call('provider/test', {
+        providerId: provider.provider.id,
       })
+      return result.status === 'reachable'
+        ? {
+            ok: true,
+            message: `连接正常（${result.latencyMs} ms）`,
+          }
+        : {
+            ok: false,
+            message: result.message,
+          }
     },
     listIntegrations: async () => [...await loadIntegrations(true)],
     connectIntegration: async input => {
-      const result = await rpc.call<OkResponse>('integration/connect', input)
+      await rpc.call('integration/connect', {
+        integrationId: input.integrationID,
+        key: input.key,
+        ...(input.label ? { label: input.label } : {}),
+        operationId: crypto.randomUUID(),
+      })
       integrationsCache = null
       modelCatalogCache = null
-      return result
+      return { ok: true as const }
     },
     authorizeIntegration: async input => {
-      const result = await rpc.call<IntegrationAuthorizeResponse>(
-        'integration/authorize',
-        input satisfies IntegrationAuthorizeRequest,
-      )
+      const result = await rpc.call('integration/authorize', {
+        integrationId: input.integrationID,
+        methodId: input.methodID,
+        inputs: input.inputs,
+        ...(input.label ? { label: input.label } : {}),
+        operationId: crypto.randomUUID(),
+      })
       await openAuthorizationURL(result.attempt.url)
       return result
     },
     completeIntegrationAuthorization: async input => {
-      const result = await rpc.call<OkResponse>(
-        'integration/authorizeComplete',
-        input,
-      )
+      await rpc.call('integration/authorizeComplete', {
+        attemptId: input.attemptID,
+        ...(input.code ? { code: input.code } : {}),
+        operationId: crypto.randomUUID(),
+      })
       integrationsCache = null
       modelCatalogCache = null
-      return result
+      return { ok: true as const }
     },
     getIntegrationAuthorizationStatus: input =>
-      rpc.call<IntegrationAuthorizeStatusResponse>(
-        'integration/authorizeStatus',
-        input,
-      ),
+      rpc.call('integration/authorizeStatus', {
+        attemptId: input.attemptID,
+      }).then(result => ({ status: result.attempt.status })),
     disconnectIntegration: async input => {
-      const result = await rpc.call<OkResponse>('integration/disconnect', input)
+      await rpc.call('integration/disconnect', {
+        integrationId: input.integrationID,
+        credentialId: input.credentialID,
+        operationId: crypto.randomUUID(),
+      })
       integrationsCache = null
       modelCatalogCache = null
-      return result
+      return { ok: true as const }
     },
     createSession: async (options: CreateDesktopSessionOptions) =>
       withAgentOrMock<CreateDesktopSessionResult>(
@@ -1188,10 +1953,11 @@ function createAgentSessionDesktopClient(
               : 'chat',
             permissionConfig: advancedPermission,
           }
-          const sharedSnapshot = await rpc.call<ThreadSnapshot>('thread/create', {
-            projectID: project.id,
+          const { snapshot: sharedSnapshot } = await rpc.call('thread/create', {
+            projectId: project.id,
             settings,
             title: options.sessionName,
+            operationId: crypto.randomUUID(),
           })
           const snapshot = agentThreadSnapshotToDesktop(sharedSnapshot, project)
           sessionSnapshots.set(snapshot.item.id, snapshot)
@@ -1233,22 +1999,39 @@ function createAgentSessionDesktopClient(
     readSubagent: taskId => rpc.call<DesktopSubagentRead>('subagent/read', { taskId }),
     sendSubagent: async (taskId, input, selectedModel, selectedPermissionMode) => rpc.call('subagent/send', {
       taskId,
+      inputId: crypto.randomUUID(),
       message: desktopUserMessageInputToPreviewText(input),
-      requestId: crypto.randomUUID(),
       model: await resolveAgentModelRef(selectedModel, activeSessionId ?? ''),
       attachmentIds: await importAgentAttachments(input),
       ...(selectedPermissionMode ? { permissionConfig: desktopPermissionModeToPermissionConfig(selectedPermissionMode) } : {}),
     }),
-    stopSubagent: taskId => rpc.call('subagent/stop', { taskId, requestId: crypto.randomUUID() }),
-    retrySubagent: taskId => rpc.call('subagent/retry', { taskId, requestId: crypto.randomUUID() }),
-    applySubagentWorktree: taskId => rpc.call('subagent/worktree/apply', { taskId, requestId: crypto.randomUUID() }),
-    discardSubagentWorktree: taskId => rpc.call('subagent/worktree/discard', { taskId, requestId: crypto.randomUUID() }),
-    restoreSubagentWorkspace: taskId => rpc.call('subagent/workspace/restore', { taskId, requestId: crypto.randomUUID() }),
+    stopSubagent: taskId => rpc.call('subagent/stop', { taskId, operationId: crypto.randomUUID() }),
+    retrySubagent: taskId => rpc.call('subagent/retry', { taskId, operationId: crypto.randomUUID() }),
+    applySubagentWorktree: taskId => rpc.call('subagent/worktree/apply', { taskId, operationId: crypto.randomUUID() }),
+    discardSubagentWorktree: taskId => rpc.call('subagent/worktree/discard', { taskId, operationId: crypto.randomUUID() }),
+    restoreSubagentWorkspace: taskId => rpc.call('subagent/workspace/restore', { taskId, operationId: crypto.randomUUID() }),
     respondSubagentApproval: async (approval, decision) => {
-      await rpc.call('approval/respond', { approvalId: approval.id, decision })
+      const interaction = await findPendingInteraction(
+        candidate =>
+          candidate.kind === 'approval' &&
+          (candidate.interactionId === approval.id ||
+            candidate.toolCallId === approval.toolCallID),
+        approval.threadId,
+      )
+      if (interaction.kind !== 'approval') return
+      await respondToInteraction(interaction, {
+        kind: 'approval',
+        decision,
+      })
     },
     respondSubagentQuestion: async (questionId, answer, ignored) => {
-      await rpc.call('question/respond', { questionId, answer, ignored })
+      const interaction = await findPendingInteraction(
+        candidate =>
+          candidate.kind === 'question' &&
+          candidate.questions.some(question => question.id === questionId),
+      )
+      if (interaction.kind !== 'question') return
+      await respondToQuestionInteraction(interaction, answer, ignored)
     },
     getActiveSessionId: () =>
       withAgentOrMock(
@@ -1273,9 +2056,10 @@ function createAgentSessionDesktopClient(
             sessionSnapshots.get(sessionId) ??
             (await loadAgentSessionSnapshot(sessionId))
           if (patch.archivedAt !== undefined) {
-            const response = await rpc.call<{ thread: ThreadListItem }>('thread/update', {
+            const response = await rpc.call('thread/update', {
               threadId: sessionId,
-              archived: patch.archivedAt !== null,
+              patch: { archived: patch.archivedAt !== null },
+              operationId: crypto.randomUUID(),
             })
             const projectsById = await loadProjectsById()
             const listSnapshot = agentThreadListItemToDesktopSnapshot(
@@ -1302,9 +2086,10 @@ function createAgentSessionDesktopClient(
     renameSession: async (sessionId: string, name: string) =>
       withAgentOrMock(
         async () => {
-          const response = await rpc.call<{ thread: ThreadListItem }>('thread/update', {
+          const response = await rpc.call('thread/update', {
             threadId: sessionId,
-            title: name,
+            patch: { title: name },
+            operationId: crypto.randomUUID(),
           })
           const projectsById = await loadProjectsById()
           const listSnapshot = agentThreadListItemToDesktopSnapshot(
@@ -1364,7 +2149,10 @@ function createAgentSessionDesktopClient(
     disposeSession: async sessionId =>
       withAgentOrMock(
         async () => {
-          await rpc.call('thread/delete', { threadId: sessionId })
+          await rpc.call('thread/delete', {
+            threadId: sessionId,
+            operationId: crypto.randomUUID(),
+          })
           sessionSnapshots.delete(sessionId)
           if (activeSessionId === sessionId) {
             activeSessionId =
@@ -1462,7 +2250,10 @@ function createAgentSessionDesktopClient(
       withAgentOrMock(
         async () => {
           requireAgentCapability('compact')
-          await rpc.call('thread/compact', { threadId: sessionId })
+          await rpc.call('thread/compact', {
+            threadId: sessionId,
+            operationId: crypto.randomUUID(),
+          })
         },
         () => mockClient.compactSession(sessionId),
       ),
@@ -1492,8 +2283,23 @@ function createAgentSessionDesktopClient(
         () => mockClient.clearSessionGoal(sessionId),
       ),
     startSessionReview: (sessionId, target) =>
-      withUnsupportedAgentFallback(
-        'startSessionReview',
+      withAgentOrMock(
+        async () => {
+          if (
+            !agentCapabilities.has('ai.review.v1')
+          ) {
+            unsupportedAgentOperation('startSessionReview (ai.review.v1)')
+          }
+          if (target.type === 'custom') {
+            unsupportedAgentOperation('自定义 AI Review 目标')
+          }
+          const settings = await client.getDesktopSettings()
+          return rpc.call('review/ai/start', {
+            threadId: sessionId,
+            target,
+            delivery: settings.reviewDelivery,
+          })
+        },
         () => mockClient.startSessionReview(sessionId, target),
       ),
     setSessionPermissionProfile: (sessionId, profile, approvalPolicy) =>
@@ -1510,7 +2316,11 @@ function createAgentSessionDesktopClient(
             approvalPolicy: approvalPolicy ?? 'on-request',
             approvalsReviewer: current.settings.permissionConfig.approvalsReviewer,
           }
-          const response = await rpc.call<{ threadId: string; settings: ThreadSettings }>('thread/settings/update', { threadId: sessionId, settings: { permissionConfig } })
+          const response = await rpc.call('thread/settings/update', {
+            threadId: sessionId,
+            settings: { permissionConfig },
+            operationId: crypto.randomUUID(),
+          })
           return applyThreadSettings(response.threadId, response.settings)
         },
         () => mockClient.setSessionPermissionProfile(sessionId, profile, approvalPolicy),
@@ -1524,21 +2334,40 @@ function createAgentSessionDesktopClient(
         async () => {
           const questionId = agentQuestionIdFromRequestId(requestId)
           const planRunId = agentPlanRunIdFromRequestId(requestId)
-          if (planRunId) {
-            await rpc.call('turn/submitPlanDecision', {
-              turnId: planRunId,
+          const interaction = await findPendingInteraction(
+            candidate =>
+              planRunId
+                ? candidate.kind === 'plan' && candidate.turnId === planRunId
+                : questionId
+                  ? candidate.kind === 'question' &&
+                    candidate.questions.some(question => question.id === questionId)
+                  : candidate.kind === 'approval' &&
+                    candidate.interactionId === requestId,
+            sessionId,
+          )
+          if (interaction.kind === 'plan') {
+            await respondToInteraction(interaction, {
+              kind: 'plan',
               decision: decision.behavior === 'allow' ? 'continue' : 'reject',
             })
-          } else if (questionId) {
-            await rpc.call('question/respond', {
-              questionId,
-              answer: questionAnswerFromDecision(decision),
-              ignored: decision.behavior === 'deny',
-            })
-          } else {
-            await rpc.call('approval/respond', {
-              approvalId: requestId,
+          } else if (interaction.kind === 'question') {
+            await respondToQuestionInteraction(
+              interaction,
+              questionAnswerFromDecision(decision),
+              decision.behavior === 'deny',
+            )
+          } else if (interaction.kind === 'approval') {
+            await respondToInteraction(interaction, {
+              kind: 'approval',
               decision: decision.behavior === 'allow' ? 'allow-once' : 'deny',
+              ...(decision.alwaysAllow
+                ? {
+                    remember: {
+                      scope: 'tool' as const,
+                      value: interaction.tool,
+                    },
+                  }
+                : {}),
             })
           }
           await loadAgentSessionSnapshot(sessionId).catch(() => null)
@@ -1549,7 +2378,10 @@ function createAgentSessionDesktopClient(
     interruptSession: async sessionId =>
       withAgentOrMock(
         async () => {
-          await rpc.call('turn/interrupt', { threadId: sessionId })
+          await rpc.call('turn/interrupt', {
+            threadId: sessionId,
+            operationId: crypto.randomUUID(),
+          })
           scheduleSessionRefresh(sessionId)
         },
         () => mockClient.interruptSession(sessionId),
@@ -1561,58 +2393,60 @@ function createAgentSessionDesktopClient(
           ? mockClient.onAgentEvent(callback)
           : noop
       }
-      const source = makeEventSource('/rpc/events')
-      source.onmessage = message => {
-        try {
-          const notification = JSON.parse(message.data)
-          if (
-            notification?.method === 'workspace/file/changed' &&
-            notification.params &&
-            typeof notification.params === 'object' &&
-            typeof window !== 'undefined'
-          ) {
-            window.dispatchEvent(
-              new CustomEvent(WORKSPACE_FILE_CHANGED_EVENT, {
-                detail: notification.params,
-              }),
-            )
-          }
-          for (const event of agentEventsFromNotification(notification)) {
-            callback(event)
-          }
-          const params =
-            notification?.params && typeof notification.params === 'object'
-              ? notification.params
-              : null
-          if (
-            typeof params?.threadId === 'string' &&
-            typeof notification?.method === 'string' &&
-            [
-              'thread/snapshot',
-              'thread/updated',
-              'thread/settings/updated',
-              'turn/queued',
-              'queue/updated',
-              'turn/started',
-              'turn/statusChanged',
-              'turn/completed',
-              'turn/failed',
-              'turn/interrupted',
-              'item/completed',
-              'approval/requested',
-              'question/requested',
-            ].includes(notification.method)
-          ) {
-            scheduleSessionRefresh(params.threadId)
-          }
-        } catch {
-          // Ignore malformed SSE payloads; connection state is handled elsewhere.
+      return rpc.subscribe({}, notification => {
+        const notificationMethod = notification.method as string
+        if (
+          notificationMethod === 'workspace/file/changed' &&
+          notification.params &&
+          typeof notification.params === 'object' &&
+          typeof window !== 'undefined'
+        ) {
+          window.dispatchEvent(
+            new CustomEvent(WORKSPACE_FILE_CHANGED_EVENT, {
+              detail: notification.params,
+            }),
+          )
         }
-      }
-      source.onerror = () => {}
-      return () => {
-        source.close()
-      }
+        if (
+          notificationMethod === 'workspace/git/changed' &&
+          notification.params &&
+          typeof notification.params === 'object' &&
+          typeof window !== 'undefined'
+        ) {
+          window.dispatchEvent(
+            new CustomEvent(WORKSPACE_GIT_CHANGED_EVENT, {
+              detail: notification.params,
+            }),
+          )
+        }
+        for (const event of agentEventsFromNotification(notification)) {
+          callback(event)
+        }
+        const params =
+          notification.params && typeof notification.params === 'object'
+            ? notification.params
+            : null
+        if (
+          typeof params?.threadId === 'string' &&
+          [
+            'thread/snapshot',
+            'thread/updated',
+            'thread/settings/updated',
+            'turn/queued',
+            'queue/updated',
+            'turn/started',
+            'turn/statusChanged',
+            'turn/completed',
+            'turn/failed',
+            'turn/interrupted',
+            'item/completed',
+            'approval/requested',
+            'question/requested',
+          ].includes(notificationMethod)
+        ) {
+          scheduleSessionRefresh(params.threadId)
+        }
+      })
     },
     onSessionStoreChange: callback => {
       sessionStoreListeners.add(callback)
@@ -2327,7 +3161,17 @@ function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       updatedAt: Date.now(),
     }),
     clearSessionGoal: async () => true,
-    startSessionReview: async () => {},
+    startSessionReview: async (sessionId, target) => ({
+      threadId: sessionId,
+      turnId: `mock-review-${Date.now()}`,
+      delivery: 'inline',
+      source:
+        target.type === 'baseBranch'
+          ? { kind: 'branch', baseBranch: target.branch }
+          : target.type === 'commit'
+            ? { kind: 'commit', commitSha: target.sha }
+            : { kind: 'unstaged' },
+    }),
     listRuntimePermissionProfiles: async () => ({
       state: 'unavailable',
       data: null,
@@ -2444,6 +3288,23 @@ function questionAnswerFromDecision(decision: DesktopPermissionDecision): string
     if (values.length > 1) return JSON.stringify(answers)
   }
   return decision.message ?? ''
+}
+
+function parseQuestionAnswerMap(
+  answer: string | null,
+): Record<string, string> {
+  if (!answer?.trim().startsWith('{')) return {}
+  try {
+    const parsed = JSON.parse(answer) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        (entry): entry is [string, string] => typeof entry[1] === 'string',
+      ),
+    )
+  } catch {
+    return {}
+  }
 }
 
 function getBrowserDebugPort(): number {
@@ -2597,7 +3458,8 @@ function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
   if (
     visualCase !== 'rich' &&
     visualCase !== 'permission' &&
-    visualCase !== 'review'
+    visualCase !== 'review' &&
+    visualCase !== 'turn-nav'
   ) {
     return null
   }
@@ -2611,7 +3473,9 @@ function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
         ? 'Codex 富消息工作台'
         : visualCase === 'permission'
           ? '权限与计划'
-          : 'Review 与 Diff',
+          : visualCase === 'turn-nav'
+            ? '用户消息导航'
+            : 'Review 与 Diff',
     collaborationMode: {
       mode: visualCase === 'permission' ? 'plan' : 'default',
     },
@@ -2631,6 +3495,8 @@ function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
       content:
         visualCase === 'review'
           ? '请审查主题重构并确认 diff。'
+          : visualCase === 'turn-nav'
+            ? '第一轮：梳理 Codex 导航轨。'
           : '把核心工作台重构成 Codex 风格，并保留现有 Agent 边界。',
       createdAt,
     },
@@ -2640,10 +3506,53 @@ function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
       type: 'message',
       role: 'assistant',
       content:
-        '已完成工作台结构梳理。\n\n```ts\nconst theme = mode === \"dark\" ? \"codex-dark\" : \"codex-light\"\n```\n\n- 固定 Codex 语义表面\n- 高亮主题按需加载',
+        visualCase === 'turn-nav'
+          ? '第一轮已完成。'
+          : '已完成工作台结构梳理。\n\n```ts\nconst theme = mode === \"dark\" ? \"codex-dark\" : \"codex-light\"\n```\n\n- 固定 Codex 语义表面\n- 高亮主题按需加载',
       createdAt: timestamp(2_000),
     },
   ]
+
+  if (visualCase === 'turn-nav') {
+    for (let turn = 2; turn <= 4; turn += 1) {
+      events.push(
+        {
+          id: `${sessionId}-user-${turn}`,
+          sessionId,
+          type: 'message',
+          role: 'user',
+          content: `第 ${turn} 轮：继续校准交互和视觉。`,
+          createdAt: timestamp(turn * 3_000),
+        },
+        {
+          id: `${sessionId}-assistant-${turn}`,
+          sessionId,
+          type: 'message',
+          role: 'assistant',
+          content:
+            turn === 4
+              ? '第 4 轮已完成。\n\n- 卡片固定 320px\n- padding 为 8px\n- 摘要最多三行'
+              : `第 ${turn} 轮已完成。`,
+          createdAt: timestamp(turn * 3_000 + 1_000),
+        },
+      )
+    }
+    events.push({
+      id: `${sessionId}-patch`,
+      sessionId,
+      type: 'file_patch',
+      content: '更新用户消息导航轨',
+      createdAt: timestamp(13_000),
+      metadata: {
+        turnScoped: true,
+        files: [
+          { path: 'apps/desktop/renderer/src/features/session/ConversationTurnNavRail.tsx' },
+          { path: 'apps/desktop/renderer/src/styles/features/timeline.scss' },
+          { path: 'apps/desktop/renderer/src/components/ui/Tooltip.tsx' },
+        ],
+      },
+    })
+  }
 
   if (visualCase === 'rich' || visualCase === 'review') {
     events.push(
@@ -2738,11 +3647,28 @@ function mockCopilotLogin() {
 
 function mockGithubLogin() {
   return {
+    loginId: null,
     state: 'idle' as const,
     userCode: null,
     verificationUri: null,
     expiresAt: null,
     error: null,
+    auth: null,
+    elapsedMs: 0,
+  }
+}
+
+function githubLoginFailure(
+  error: string,
+  loginId: string | null = null,
+): DesktopGithubLoginStatus {
+  return {
+    loginId,
+    state: 'failed',
+    userCode: null,
+    verificationUri: null,
+    expiresAt: null,
+    error,
     auth: null,
     elapsedMs: 0,
   }

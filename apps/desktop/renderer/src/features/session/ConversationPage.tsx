@@ -94,7 +94,10 @@ import {
 } from "../layout/conversationUiState.js";
 import { SessionTimelineView } from "./SessionTimelineView.js";
 import { ThreadScrollLayout } from "./ThreadScrollLayout.js";
-import { ConversationTurnNavRail } from "./ConversationTurnNavRail.js";
+import {
+  ConversationTurnNavRail,
+  type TurnNavigationReason,
+} from "./ConversationTurnNavRail.js";
 import type { SubagentProjection } from "@codepilotx/shared/thread";
 import {
   ThreadSummaryErrorBoundary,
@@ -160,6 +163,13 @@ const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
 ];
 
 const DEBUG_ASK_USER_QUESTION_REQUEST_ID_PREFIX = "debug-ask-user-question";
+
+function escapeCssAttributeValue(value: string): string {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+    return CSS.escape(value);
+  }
+  return value.replace(/\\/gu, "\\\\").replace(/"/gu, '\\"');
+}
 
 function useElapsedSeconds(
   startTimeMs: number | undefined,
@@ -310,6 +320,62 @@ export function ConversationPage(): React.ReactNode {
   const handleTimelineScroll = React.useCallback((scrollTop: number) => {
     mainScrollTopRef.current = scrollTop;
   }, []);
+
+  const handleTurnNavigate = React.useCallback(
+    (item: ConversationTurnNavItem, reason: TurnNavigationReason): void => {
+      try {
+        timelineListRef.current?.scrollToIndex(item.rowIndex, {
+          align: "start",
+          smooth: reason !== "scrub",
+        });
+      } catch {
+        return;
+      }
+
+      const reduceMotion =
+        document.documentElement.dataset.reduceMotion === "on" ||
+        (typeof window.matchMedia === "function" &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      if (reduceMotion) return;
+
+      let remainingAttempts = 6;
+      const flashTurn = (): void => {
+        const root = threadScrollRef.current;
+        const selector = `[data-turn-navigation-id="${escapeCssAttributeValue(
+          item.id,
+        )}"]`;
+        const row = root?.querySelector<HTMLElement>(selector);
+        if (!row) {
+          remainingAttempts -= 1;
+          if (remainingAttempts > 0) window.requestAnimationFrame(flashTurn);
+          return;
+        }
+        row.animate?.(
+          [
+            {
+              backgroundColor:
+                "color-mix(in srgb, var(--color-text-strong) 14%, transparent)",
+            },
+            {
+              backgroundColor:
+                "color-mix(in srgb, var(--color-text-strong) 14%, transparent)",
+              offset: 0.35,
+            },
+            {
+              backgroundColor:
+                "color-mix(in srgb, var(--color-text-strong) 5%, transparent)",
+            },
+          ],
+          {
+            duration: 1400,
+            easing: "cubic-bezier(0.23, 1, 0.32, 1)",
+          },
+        );
+      };
+      window.requestAnimationFrame(flashTurn);
+    },
+    [],
+  );
 
   React.useEffect(() => {
     const sessionId = activeSessionId;
@@ -1023,11 +1089,8 @@ export function ConversationPage(): React.ReactNode {
           <div className="workflow-main-scroll-frame">
             <ConversationTurnNavRail
               items={turnNavItems}
-              onNavigate={(rowIndex) => {
-                timelineListRef.current?.scrollToIndex(rowIndex, {
-                  align: "center",
-                });
-              }}
+              onNavigate={handleTurnNavigate}
+              scrollRef={threadScrollRef}
             />
             <ThreadScrollLayout
               className="workflow-main-scroll-area"
@@ -1091,6 +1154,12 @@ export function ConversationPage(): React.ReactNode {
                                 className="session-turn-row tw:mx-auto tw:w-full tw:max-w-[48rem] tw:min-w-0"
                                 data-component="session-turn"
                                 data-slot={timelineItemSlot(item)}
+                                data-turn-navigation-id={
+                                  item.type === "message" &&
+                                  item.role === "user"
+                                    ? item.id
+                                    : undefined
+                                }
                                 key={item.id}
                               >
                                 <TimelineItem
@@ -2269,7 +2338,7 @@ function TimelineCommandRunItem({
 
       <div aria-hidden={!isOpen} className="timeline-command-shell-wrap">
         <article
-          className={`timeline-command-shell timeline-command-shell--${view.statusKind} tw:my-1 tw:overflow-hidden tw:rounded-lg tw:bg-app-panel`}
+          className={`timeline-command-shell timeline-command-shell--${view.statusKind} tw:my-1 tw:overflow-hidden tw:rounded-lg`}
         >
           <div className="timeline-command-shell-header">{view.shellTitle}</div>
           <div className="timeline-command-shell-scroll-area">
@@ -2313,7 +2382,9 @@ function ChatMessage({
   showActions: boolean;
 }): React.ReactNode {
   const {
+    canCopyFileReferenceContents,
     messages,
+    onCopyFileReferenceContents,
     onSubmitEditedUserMessage,
     onOpenFileReference,
     sessionStatus,
@@ -2508,7 +2579,9 @@ function ChatMessage({
     >
       <div className="assistant-message-body tw:w-full tw:text-base tw:leading-[22px] tw:text-app-text">
         <MarkdownMessage
+          canCopyFileReferenceContents={canCopyFileReferenceContents}
           cwd={workspacePath}
+          onCopyFileReferenceContents={onCopyFileReferenceContents}
           onOpenFileReference={onOpenFileReference}
           text={renderedText}
           streaming={Boolean(message.streaming)}

@@ -24,8 +24,10 @@ import { ConfirmationDialogDebug } from '../debug/ConfirmationDialogDebug.js'
 import { PerformanceDiagnosticsPanel } from '../debug/PerformanceDiagnosticsPanel.js'
 import { ToolProbePanel } from '../debug/ToolProbePanel.js'
 import { WorkspaceReviewSidebar } from '../review/WorkspaceReviewSidebar.js'
+import type { ReviewTabUiState } from './conversationUiState.js'
 import {
   createWorkspaceFileTabId,
+  type FileDocumentLoadErrorPhase,
   RightDockFilePreviewPanel,
   RightDockFilesPanel,
   RightDockPlanPanel,
@@ -47,6 +49,7 @@ export type WorkbenchTabRenderContext = {
     isRefreshing: boolean
     diffMarkerStyle: DesktopDiffMarkerStyle
     reviewView: DesktopReviewView
+    reviewTabState: ReviewTabUiState
     sessionStatus: DesktopSessionStatus
     workspacePath: string | null
     onAppendComposerText?: (text: string) => void
@@ -54,6 +57,11 @@ export type WorkbenchTabRenderContext = {
     onCreateBranch: () => void
     onOpenWorkspacePath: () => void
     onRefreshDiff: () => void
+    onReviewTabStateChange: (
+      value:
+        | ReviewTabUiState
+        | ((current: ReviewTabUiState) => ReviewTabUiState),
+    ) => void
     onToggleReviewView: () => void
   }
   browser: {
@@ -74,6 +82,11 @@ export type WorkbenchTabRenderContext = {
     onSetFileMarkdownViewMode: (
       tabId: WorkbenchTabDescriptor['id'],
       mode: MarkdownFileViewMode,
+    ) => void
+    onLoadError: (
+      tab: Extract<WorkbenchTabDescriptor, { kind: 'file-preview' }>,
+      error: Error,
+      phase: FileDocumentLoadErrorPhase,
     ) => void
   }
   planContentByEventId: Readonly<Record<string, string>>
@@ -182,6 +195,9 @@ const definitions: readonly WorkbenchTabDefinition[] = [
             context.files.onSetFileMarkdownViewMode(tab.id, mode)
           }
           onPinTab={() => context.files.onPinFileTab(tab.id)}
+          onLoadError={(error, phase) =>
+            context.files.onLoadError(tab, error, phase)
+          }
           onOpenFile={(file, options) => {
             context.files.onPreviewFile(file)
             if (!options.preview && file.type === 'file') {

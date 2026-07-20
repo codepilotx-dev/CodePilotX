@@ -16,6 +16,15 @@ export type FileDocumentConflict = {
   diskRevision: DesktopFileRevision
 }
 
+export type FileDocumentExternalCheckResult =
+  | { status: 'skipped' }
+  | { status: 'available' }
+  | { status: 'unavailable'; error: Error }
+
+export type FileDocumentExternalCheckOptions = {
+  onLoadError?: (error: Error) => void
+}
+
 export type FileDocumentSnapshot = {
   key: string
   workspacePath: string
@@ -241,18 +250,23 @@ async function saveUntilClean(
 export async function checkFileDocumentForExternalChange(
   workspacePath: string,
   path: string,
-): Promise<void> {
+): Promise<FileDocumentExternalCheckResult> {
   const before = snapshotFor(workspacePath, path)
-  if (before.status !== 'ready' || before.saving || before.conflict) return
+  if (before.status !== 'ready' || before.saving || before.conflict) {
+    return { status: 'skipped' }
+  }
   try {
     const disk = await desktopClient.readWorkspaceFile(workspacePath, path)
     const current = snapshotFor(workspacePath, path)
+    if (current.status !== 'ready' || current.saving || current.conflict) {
+      return { status: 'skipped' }
+    }
     if (
       !current.revision ||
       (disk.revision.mtimeMs === current.revision.mtimeMs &&
         disk.revision.sha256 === current.revision.sha256)
     ) {
-      return
+      return { status: 'available' }
     }
     if (disk.content === current.baseContent) {
       publish({ ...current, revision: disk.revision, sizeBytes: disk.sizeBytes })
@@ -268,11 +282,9 @@ export async function checkFileDocumentForExternalChange(
         saveError: '文件已在外部修改。',
       })
     }
+    return { status: 'available' }
   } catch (error) {
-    publish({
-      ...snapshotFor(workspacePath, path),
-      saveError: error instanceof Error ? error.message : String(error),
-    })
+    return { status: 'unavailable', error: toError(error) }
   }
 }
 
@@ -299,10 +311,36 @@ export function useFileDocument(
 export function startFileDocumentExternalChecks(
   workspacePath: string,
   path: string,
+  options: FileDocumentExternalCheckOptions = {},
 ): () => void {
+  let stopped = false
+  let unavailableNotified = false
+  let checkPromise: Promise<void> | null = null
   const check = (): void => {
-    if (document.visibilityState !== 'hidden') {
-      void checkFileDocumentForExternalChange(workspacePath, path)
+    if (
+      !stopped &&
+      !checkPromise &&
+      document.visibilityState !== 'hidden'
+    ) {
+      checkPromise = checkFileDocumentForExternalChange(
+        workspacePath,
+        path,
+      )
+        .then(result => {
+          if (stopped) return
+          if (result.status === 'available') {
+            unavailableNotified = false
+          } else if (
+            result.status === 'unavailable' &&
+            !unavailableNotified
+          ) {
+            unavailableNotified = true
+            options.onLoadError?.(result.error)
+          }
+        })
+        .finally(() => {
+          checkPromise = null
+        })
     }
   }
   const onChanged = (event: Event): void => {
@@ -320,6 +358,7 @@ export function startFileDocumentExternalChecks(
   window.addEventListener('focus', check)
   window.addEventListener(WORKSPACE_FILE_CHANGED_EVENT, onChanged)
   return () => {
+    stopped = true
     window.clearInterval(timer)
     window.removeEventListener('focus', check)
     window.removeEventListener(WORKSPACE_FILE_CHANGED_EVENT, onChanged)
@@ -389,4 +428,8 @@ export function isFileDocumentDirty(
   path: string,
 ): boolean {
   return snapshotFor(workspacePath, path).dirty
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error))
 }

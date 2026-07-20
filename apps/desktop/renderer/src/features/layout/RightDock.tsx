@@ -30,6 +30,7 @@ import type {
   DesktopSessionStatus,
   DesktopWorkspace,
 } from '../../../shared/types.js'
+import type { ReviewTabUiState } from './conversationUiState.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -51,6 +52,7 @@ import {
   getWorkbenchTabDefinition,
   type WorkbenchTabRenderContext,
 } from './workbenchTabRegistry.js'
+import type { FileDocumentLoadErrorPhase } from './RightDockPanels.js'
 import {
   SIDEBAR_COLLAPSE_HOLD_MS,
   SIDEBAR_COLLAPSE_TARGET_SIZE,
@@ -71,6 +73,7 @@ type Props = {
   maxWidth: number
   minWidth: number
   reviewView: DesktopReviewView
+  reviewTabState: ReviewTabUiState
   selectedFile: DesktopFilePreview | null
   sessionId: string | null
   sessionStatus: DesktopSessionStatus
@@ -86,6 +89,7 @@ type Props = {
   onCloseOtherTabs: (tabId: WorkbenchTabId) => void
   onCloseTabsToRight: (tabId: WorkbenchTabId) => void
   onCreateBranch: () => void
+  onFileLoadError: (event: WorkbenchFileLoadErrorEvent) => void
   onOpenTab: (tab: WorkbenchTabDescriptor) => void
   onOpenWorkspacePath: () => void
   onOpenFileFromBrowser: (file: DesktopFileEntry) => void
@@ -93,6 +97,11 @@ type Props = {
   onAppendComposerText: (text: string) => void
   onAddComposerFiles: (filePaths: string[]) => void
   onRefreshReview: () => void
+  onReviewTabStateChange: (
+    value:
+      | ReviewTabUiState
+      | ((current: ReviewTabUiState) => ReviewTabUiState),
+  ) => void
   onResetWidth: () => void
   onResetHeight?: () => void
   onSelectTab: (tabId: WorkbenchTabId) => void
@@ -122,6 +131,18 @@ type Props = {
   sideTaskContent?: React.ReactNode
 }
 
+type FilePreviewTab = Extract<
+  WorkbenchTabDescriptor,
+  { kind: 'file-preview' }
+>
+
+export type WorkbenchFileLoadErrorEvent = {
+  error: Error
+  phase: FileDocumentLoadErrorPhase
+  tab: FilePreviewTab
+  target: WorkbenchPanelTarget
+}
+
 export function WorkbenchPanel({
   target,
   state,
@@ -136,6 +157,7 @@ export function WorkbenchPanel({
   maxWidth,
   minWidth,
   reviewView,
+  reviewTabState,
   selectedFile,
   sessionId,
   sessionStatus,
@@ -151,6 +173,7 @@ export function WorkbenchPanel({
   onCloseOtherTabs,
   onCloseTabsToRight,
   onCreateBranch,
+  onFileLoadError,
   onOpenTab,
   onOpenWorkspacePath,
   onOpenFileFromBrowser,
@@ -158,6 +181,7 @@ export function WorkbenchPanel({
   onAppendComposerText,
   onAddComposerFiles,
   onRefreshReview,
+  onReviewTabStateChange,
   onResetWidth,
   onResetHeight,
   onSelectTab,
@@ -239,6 +263,7 @@ export function WorkbenchPanel({
         isRefreshing: isRefreshingReview,
         diffMarkerStyle,
         reviewView,
+        reviewTabState,
         sessionStatus,
         workspacePath: workspace?.path ?? null,
         onAppendComposerText,
@@ -246,6 +271,7 @@ export function WorkbenchPanel({
         onCreateBranch,
         onOpenWorkspacePath,
         onRefreshDiff: onRefreshReview,
+        onReviewTabStateChange,
         onToggleReviewView,
       },
       browser: {
@@ -264,6 +290,8 @@ export function WorkbenchPanel({
         onAddComposerFiles,
         onPinFileTab: onPinTab,
         onSetFileMarkdownViewMode,
+        onLoadError: (tab, error, phase) =>
+          onFileLoadError({ error, phase, tab, target }),
       },
       planContentByEventId,
       sideChat: {
@@ -291,6 +319,7 @@ export function WorkbenchPanel({
       onBrowserStateChange,
       onClose,
       onCreateBranch,
+      onFileLoadError,
       onOpenWorkspacePath,
       onOpenFileFromBrowser,
       onPreviewFile,
@@ -307,6 +336,7 @@ export function WorkbenchPanel({
       sideChatFocusVersion,
       activeSideTaskId,
       sideTaskContent,
+      target,
       workspace,
     ],
   )

@@ -136,10 +136,10 @@ export function CommitPopover({
       </header>
 
       <label className="review-popover-field">
-        <span>提交信息（留空将自动生成）</span>
+        <span>提交信息</span>
         <textarea
           autoFocus
-          placeholder="提交信息（留空将自动生成）..."
+          placeholder="输入提交信息..."
           rows={3}
           value={message}
           onChange={event => {

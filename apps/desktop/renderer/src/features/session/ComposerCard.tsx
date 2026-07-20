@@ -258,6 +258,11 @@ type Props = {
   onOpenBrowser?: () => void;
   onBranchSelect: (branch: string) => void;
   onCreateBranch: () => void;
+  onStartReview?: (
+    target:
+      | { type: "uncommittedChanges" }
+      | { type: "baseBranch"; branch: string },
+  ) => void;
   onPermissionChange: (value: DesktopPermissionMode) => void;
   onPlanModeChange?: (active: boolean) => void;
   onLocalRouterModeChange?: (mode: LocalRouterMode) => void;
@@ -333,6 +338,7 @@ export function ComposerCard({
   onOpenBrowser,
   onBranchSelect,
   onCreateBranch,
+  onStartReview,
   onPermissionChange,
   onPlanModeChange,
   onLocalRouterModeChange,
@@ -462,13 +468,14 @@ export function ComposerCard({
       },
       {
         group: "添加",
-        key: "code-review",
-        label: "代码审查",
-        hint: "审查未暂存的更改，或与某个分支进行比较",
+        key: "code-review-uncommitted",
+        label: "审阅未提交的更改",
+        hint: "让 AI 审查当前工作树和暂存区中的变更",
         icon: <ShieldCheck size={14} />,
         matchText: "代码审查 code review",
-        disabled: true,
-        onSelect: () => {},
+        disabled:
+          subagentMode || !onStartReview || !routedSessionId || !workspace,
+        onSelect: () => onStartReview?.({ type: "uncommittedChanges" }),
       },
       {
         group: "添加",
@@ -572,6 +579,23 @@ export function ComposerCard({
         onSelect: () => {},
       },
     );
+
+    for (const branch of branches
+      .filter((candidate) => candidate && candidate !== branchName)
+      .slice(0, 6)) {
+      items.push({
+        group: "添加",
+        key: `code-review-branch:${branch}`,
+        label: `与 ${branch} 比较`,
+        hint: "从 merge-base 开始审阅当前分支的变更",
+        icon: <GitBranch size={14} />,
+        matchText: `代码审查 branch review ${branch}`,
+        disabled:
+          subagentMode || !onStartReview || !routedSessionId || !workspace,
+        onSelect: () =>
+          onStartReview?.({ type: "baseBranch", branch }),
+      });
+    }
 
     // 目标
     items.push({
@@ -710,10 +734,15 @@ export function ComposerCard({
     onGoalModeChange,
     onPlanModeChange,
     onOpenBrowser,
+    onStartReview,
     onSkillSelect,
     selectedModelLabel,
     selectedThinkingLabel,
     subagentMode,
+    branches,
+    branchName,
+    routedSessionId,
+    workspace,
   ]);
 
   const [activeMenuIndex, setActiveMenuIndex] = useState(0);
