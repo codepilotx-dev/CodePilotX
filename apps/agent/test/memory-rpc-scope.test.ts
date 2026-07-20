@@ -2,7 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { AgentNotificationSchema, AgentRpcRequestSchema, type AgentRpcResponse } from "@codepilotx/shared/thread"
+import { AgentNotificationSchema, AgentRpcRequestSchema } from "@codepilotx/shared/thread"
+import { Capabilities } from "@codepilotx/agent-protocol"
 import { Schema } from "effect"
 import { MemoryService, projectMemoryKey } from "../src/memory/MemoryService"
 import { AgentDatabase } from "../src/storage/Database"
@@ -32,7 +33,27 @@ const fixture = async () => {
   } as unknown as RpcRouterDependencies
   const router = new RpcRouter(dependencies)
   let id = 0
-  const call = async (method: string, params: Record<string, unknown>) => await router.handle({ jsonrpc: "2.0", id: ++id, method, params }) as AgentRpcResponse
+  const initialized = await router.handle({
+    jsonrpc: "2.0",
+    id: ++id,
+    method: "initialize",
+    params: {
+      clientInfo: { name: "memory-rpc-test", version: "1.0.0" },
+      protocols: ["thread-rpc-v3"],
+      capabilities: [...Capabilities],
+      interactionDelivery: "active",
+    },
+  }) as any
+  const connectionId = initialized.result.connectionId as string
+  await router.handle({
+    jsonrpc: "2.0",
+    method: "initialized",
+    params: { protocol: "thread-rpc-v3" },
+  }, { connectionId })
+  const call = async (method: string, params: Record<string, unknown>) => await router.handle(
+    { jsonrpc: "2.0", id: ++id, method, params },
+    { connectionId },
+  ) as any
   return { root, db, memory, call }
 }
 
@@ -60,12 +81,12 @@ describe("Memory RPC 项目作用域", () => {
     const projectB = db.createProject({ rootPath: workspaceB })
     const entry = memory.remember({ scope: "project", projectKey: projectMemoryKey(workspaceA), content: "仅属于 A" })!
 
-    expect((await call("memory/read", { id: entry.id })).error).toMatchObject({ code: 400 })
-    expect((await call("memory/read", { id: entry.id, scope: "project", projectId: projectB.id })).error).toMatchObject({ code: 404 })
+    expect((await call("memory/read", { id: entry.id })).error).toMatchObject({ code: -32602 })
+    expect((await call("memory/read", { id: entry.id, scope: "project", projectId: projectB.id })).error).toMatchObject({ code: -32000, data: { code: "MEMORY_NOT_FOUND" } })
     expect((await call("memory/read", { id: entry.id, scope: "project", projectId: projectA.id })).result).toMatchObject({ entry: { id: entry.id, content: "仅属于 A" } })
-    expect((await call("memory/delete", { id: entry.id, scope: "project", projectId: projectB.id })).result).toEqual({ deleted: false })
+    expect((await call("memory/delete", { id: entry.id, scope: "project", projectId: projectB.id, operationId: "delete:b" })).result).toEqual({ deleted: false, id: entry.id })
     expect(memory.read({ id: entry.id, scope: "project", projectKey: projectMemoryKey(workspaceA) })).not.toBeNull()
-    expect((await call("memory/delete", { id: entry.id, scope: "project", projectId: projectA.id })).result).toEqual({ deleted: true })
+    expect((await call("memory/delete", { id: entry.id, scope: "project", projectId: projectA.id, operationId: "delete:a" })).result).toEqual({ deleted: true, id: entry.id })
     db.close()
   })
 
@@ -80,22 +101,22 @@ describe("Memory RPC 项目作用域", () => {
     memory.remember({ scope: "project", projectKey: projectMemoryKey(workspaceA), content: "A" })
     memory.remember({ scope: "project", projectKey: projectMemoryKey(workspaceB), content: "B" })
 
-    expect((await call("memory/list", { scope: "project" })).error).toMatchObject({ code: 400 })
-    expect((await call("memory/reset", { scope: "project" })).error).toMatchObject({ code: 400 })
-    expect((await call("memory/list", { scope: "project", workspacePath: workspaceA })).error).toMatchObject({ code: 400 })
-    expect((await call("memory/reset", { scope: "project", projectId: projectB.id })).result).toEqual({ deleted: 1 })
+    expect((await call("memory/list", { scope: "project" })).error).toMatchObject({ code: -32602 })
+    expect((await call("memory/reset", { scope: "project" })).error).toMatchObject({ code: -32602 })
+    expect((await call("memory/list", { scope: "project", workspacePath: workspaceA })).error).toMatchObject({ code: -32602 })
+    expect((await call("memory/reset", { scope: "project", projectId: projectB.id, includeEventLog: false, operationId: "reset:b" })).result).toEqual({ deleted: 1 })
     expect(memory.list({ scope: "project", projectKey: projectMemoryKey(workspaceA) })).toHaveLength(1)
     expect(memory.list({ scope: "project", projectKey: projectMemoryKey(workspaceB) })).toHaveLength(0)
     expect((await call("memory/list", { scope: "project", projectId: projectA.id })).result).toMatchObject({ entries: [{ content: "A" }] })
-    expect((await call("memory/list", { scope: "project", threadId: threadA.id })).result).toMatchObject({ entries: [{ content: "A" }] })
+    expect((await call("memory/list", { scope: "project", threadId: threadA.id })).error).toMatchObject({ code: -32602 })
     db.close()
   })
 
   test("memory/save 使用可选 id 原地更新", async () => {
     const { db, call } = await fixture()
-    const created = await call("memory/save", { scope: "user", content: "旧内容" })
+    const created = await call("memory/save", { scope: "user", content: "旧内容", operationId: "save:create" })
     const id = (created.result as { entry: { id: string } }).entry.id
-    const updated = await call("memory/save", { id, scope: "user", content: "新内容" })
+    const updated = await call("memory/save", { id, scope: "user", content: "新内容", operationId: "save:update" })
     expect(updated.result).toMatchObject({ entry: { id, content: "新内容" } })
     expect((await call("memory/list", { scope: "user" })).result).toMatchObject({ entries: [{ id, content: "新内容" }] })
     for (const table of ["turns", "inputs"]) {

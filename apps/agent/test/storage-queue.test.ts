@@ -24,6 +24,29 @@ const removePath = async (path: string) => {
 afterEach(async () => Promise.all(paths.splice(0).map((path) => removePath(path))))
 
 describe("持久化队列", () => {
+  test("保留客户端 inputId 并可恢复既有 turn admission", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-db-"))
+    paths.push(root)
+    const db = new AgentDatabase(join(root, "agent.sqlite"))
+    const thread = db.createThread()
+    const input = { content: "client admission", model: modelRef("openai", "gpt"), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "auto_review" }, strategy: "queue", taskMode: "chat" } as const
+    const created = db.createTurn(thread.id, input, "queued", { inputID: "input:client:1" })
+    expect(created.inputID).toBe("input:client:1")
+    expect(db.inputAdmission("input:client:1")).toMatchObject({
+      id: "input:client:1",
+      thread_id: thread.id,
+      turn_id: created.turnID,
+      content: input.content,
+    })
+    const guide = db.appendGuide(thread.id, created.turnID, { ...input, strategy: "guide", content: "steer" }, "input:steer:1")
+    expect(guide.inputID).toBe("input:steer:1")
+    expect(db.inputAdmission("input:steer:1")).toMatchObject({
+      turn_id: created.turnID,
+      strategy: "guide",
+    })
+    db.close()
+  })
+
   test("严格按创建顺序取下一条 Turn", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-db-"))
     paths.push(root)
