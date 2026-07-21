@@ -250,6 +250,7 @@ export class GitReviewService {
   private readonly snapshotRequests = new Map<string, Promise<CachedReviewSnapshot>>()
   private readonly projectEpochs = new Map<string, number>()
   private readonly repositoryRoots = new Map<string, string>()
+  private readonly dirtyProjects = new Set<string>()
 
   constructor(
     private readonly db: AgentDatabase,
@@ -446,16 +447,22 @@ export class GitReviewService {
   private ensureWatcher(projectId: string, rootPath: string) {
     if (!this.onChanged || this.watchers.has(projectId)) return
     let debounce: ReturnType<typeof setTimeout> | undefined
+    let maxWait: ReturnType<typeof setTimeout> | undefined
     let unknownPath = false
     const pendingPaths = new Set<string>()
     const flush = async () => {
+      if (debounce) clearTimeout(debounce)
+      if (maxWait) clearTimeout(maxWait)
       debounce = undefined
+      maxWait = undefined
       const paths = [...pendingPaths]
       pendingPaths.clear()
       const invalidate = unknownPath || await this.shouldInvalidateWatchPaths(rootPath, paths)
       unknownPath = false
       if (!invalidate) return
       this.markProjectStale(projectId)
+      if (this.dirtyProjects.has(projectId)) return
+      this.dirtyProjects.add(projectId)
       await Promise.resolve(this.onChanged?.(projectId)).catch(() => undefined)
     }
     try {
@@ -466,9 +473,13 @@ export class GitReviewService {
         debounce = setTimeout(() => {
           void flush()
         }, 250)
+        maxWait ??= setTimeout(() => {
+          void flush()
+        }, 1_000)
       })
       watcher.on("error", () => {
         if (debounce) clearTimeout(debounce)
+        if (maxWait) clearTimeout(maxWait)
         this.watchers.delete(projectId)
         watcher.close()
       })
@@ -650,7 +661,7 @@ export class GitReviewService {
       [0, 1],
     )
     if (tracked.stdout) return tracked.stdout
-    if (resolved.source.kind === "unstaged" || resolved.source.kind === "branch") {
+    if (resolved.source.kind === "branch") {
       return (await this.untrackedFile(rootPath, path))?.patch ?? ""
     }
     return ""
@@ -795,7 +806,7 @@ export class GitReviewService {
       if (section.patch !== null) patches.set(entry.path, section.patch)
     }
 
-    if (resolved.source.kind === "unstaged" || resolved.source.kind === "branch") {
+    if (resolved.source.kind === "branch") {
       const untracked = (await this.git(rootPath, ["ls-files", "--others", "--exclude-standard", "-z"])).stdout.split("\0").filter(Boolean)
       for (const path of untracked) {
         const normalized = validateRelativePath(path)
@@ -899,6 +910,10 @@ export class GitReviewService {
     const key = this.cacheKey(projectId, source)
     const active = this.snapshotRequests.get(key)
     if (active) return active
+    // Starting reconciliation acknowledges the previous dirty notification.
+    // A filesystem change racing this refresh may therefore emit exactly one
+    // trailing notification and the epoch check keeps the result stale.
+    this.dirtyProjects.delete(projectId)
     const request = this.buildSnapshot(projectId, source).then((entry) => {
       this.snapshots.set(key, entry)
       return entry

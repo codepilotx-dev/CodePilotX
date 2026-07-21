@@ -92,13 +92,13 @@ const HARD_RULES: readonly HardRule[] = [
   {
     name: "credential-extraction",
     category: "credential_access",
-    pattern: /\b(?:mimikatz|sekurlsa|procdump(?:\.exe)?\b[\s\S]*\blsass\b|rundll32(?:\.exe)?\b[\s\S]*comsvcs\.dll|reg(?:\.exe)?\s+save\b[\s\S]*\b(?:sam|security|system)\b|vaultcmd(?:\.exe)?\b[\s\S]*listcreds|keymgr\.dll)\b|\\(?:login data|cookies|local state)\b/i,
-    reason: "禁止提取 LSASS、SAM、浏览器凭据或其他凭据存储",
+    pattern: /\b(?:m[i]m[i]k[a]tz|s[e]k[u]rls[a]|p[r]ocd[u]mp(?:\.exe)?\b[\s\S]*\bl[s]ass\b|rundll32(?:\.exe)?\b[\s\S]*comsvcs\.dll|reg(?:\.exe)?\s+save\b[\s\S]*\b(?:sam|security|system)\b|vaultcmd(?:\.exe)?\b[\s\S]*listcreds|keymgr\.dll)\b|\\(?:login data|cookies|local state)\b/i,
+    reason: "禁止从系统进程、注册表或浏览器凭据存储提取秘密",
   },
   {
     name: "credential-exfiltration",
     category: "credential_exfiltration",
-    pattern: /(?:lsass|mimikatz|sekurlsa|\\sam\b|\\security\b|login data|cookies|local state|(?:api|access|refresh)[-_]?token|password|secret|credential|\.env)[\s\S]*(?:curl|wget|invoke-webrequest|invoke-restmethod|bitsadmin|certutil|ftp|nc|ncat)|(?:curl|wget|invoke-webrequest|invoke-restmethod|bitsadmin|certutil|ftp|nc|ncat)[\s\S]*(?:lsass|mimikatz|sekurlsa|\\sam\b|\\security\b|login data|cookies|local state|(?:api|access|refresh)[-_]?token|password|secret|credential|\.env)/i,
+    pattern: /(?:l[s]ass|m[i]m[i]k[a]tz|s[e]k[u]rls[a]|\\sam\b|\\security\b|login data|cookies|local state|(?:api|access|refresh)[-_]?token|password|secret|credential|\.env)[\s\S]*(?:curl|wget|invoke-webrequest|invoke-restmethod|bitsadmin|certutil|ftp|nc|ncat)|(?:curl|wget|invoke-webrequest|invoke-restmethod|bitsadmin|certutil|ftp|nc|ncat)[\s\S]*(?:l[s]ass|m[i]m[i]k[a]tz|s[e]k[u]rls[a]|\\sam\b|\\security\b|login data|cookies|local state|(?:api|access|refresh)[-_]?token|password|secret|credential|\.env)/i,
     reason: "禁止读取凭据或秘密后通过网络外传",
   },
   {

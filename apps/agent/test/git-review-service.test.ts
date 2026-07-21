@@ -304,31 +304,49 @@ describe("GitReviewService", () => {
     db.close()
   }, 30_000)
 
-  test("大型未跟踪文件摘要进入降级模式，显式加载时才生成文件 Patch", async () => {
-    const commands: string[][] = []
-    const { root, db, project, review } = await fixture({
-      onGitCommand: (args) => commands.push([...args]),
-    })
+  test("未暂存摘要遵循原生 git diff，未跟踪文件暂存后进入已暂存来源", async () => {
+    const { root, db, project, review } = await fixture()
     await writeFile(
-      join(root, "src", "large.txt"),
-      Buffer.alloc(12 * 1024 * 1024 + 1, 97),
+      join(root, "src", "index.ts"),
+      "export const value = 2\nexport const tracked = true\n",
+      "utf8",
+    )
+    await writeFile(
+      join(root, "src", "untracked.ts"),
+      "export const first = true\nexport const second = true\n",
+      "utf8",
     )
 
+    const nativeNumstat = await git(root, "diff", "--numstat")
+    const [nativeAdditions, nativeDeletions] = nativeNumstat.split("\t").map(Number)
     const snapshot = await review.summary(project.id, { kind: "unstaged" })
-    const file = snapshot.files.find((candidate) => candidate.path === "src/large.txt")
-    expect(snapshot.largeDiffMode).toBe(true)
-    expect(file?.changedBytes).toBeGreaterThan(12 * 1024 * 1024)
-    const diffCommandsAfterSummary = commands.filter((args) => args[0] === "diff").length
-
-    const diff = await review.fileDiff({
+    expect(snapshot.files.map((file) => file.path)).toEqual(["src/index.ts"])
+    expect(snapshot.totals).toMatchObject({
+      files: 1,
+      additions: nativeAdditions,
+      deletions: nativeDeletions,
+    })
+    await expect(review.fileDiff({
       projectId: project.id,
       source: { kind: "unstaged" },
       generation: snapshot.generation,
-      path: "src/large.txt",
+      path: "src/untracked.ts",
+    })).rejects.toMatchObject({
+      code: "REVIEW_SOURCE_UNAVAILABLE",
+      status: 404,
     })
-    expect(diff.renderable).toBe(false)
-    expect(diff.tooLargeReason).toBe("changed-bytes")
-    expect(commands.filter((args) => args[0] === "diff").length).toBe(diffCommandsAfterSummary + 1)
+
+    await git(root, "add", "--", "src/untracked.ts")
+    const staged = await review.summary(project.id, { kind: "staged" })
+    expect(staged.files).toEqual([
+      expect.objectContaining({
+        path: "src/untracked.ts",
+        status: "added",
+        additions: 2,
+        deletions: 0,
+      }),
+    ])
+    expect(staged.totals).toMatchObject({ files: 1, additions: 2, deletions: 0 })
     db.close()
   }, 30_000)
 
