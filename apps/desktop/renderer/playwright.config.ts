@@ -2,6 +2,10 @@ import { defineConfig, devices } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 
 const rendererRoot = fileURLToPath(new URL('.', import.meta.url))
+const localNoProxy = ['127.0.0.1', 'localhost']
+const inheritedNoProxy = process.env.NO_PROXY?.split(',').filter(Boolean) ?? []
+process.env.NO_PROXY = [...new Set([...inheritedNoProxy, ...localNoProxy])].join(',')
+process.env.no_proxy = process.env.NO_PROXY
 
 export default defineConfig({
   testDir: './visual-tests',
@@ -15,7 +19,7 @@ export default defineConfig({
     '{testDir}/__screenshots__/{testFilePath}/{arg}{ext}',
   use: {
     ...devices['Desktop Chrome'],
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: 'http://127.0.0.1:47173',
     channel: 'chrome',
     locale: 'zh-CN',
     reducedMotion: 'reduce',
@@ -23,10 +27,10 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'bun run dev',
+    command: 'bun run dev -- --host 127.0.0.1 --port 47173 --strictPort',
     cwd: rendererRoot,
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     timeout: 120_000,
-    url: 'http://127.0.0.1:5173',
+    url: 'http://127.0.0.1:47173',
   },
 })

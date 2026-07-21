@@ -11,7 +11,7 @@ const SCENARIOS: readonly VisualScenario[] = [
   {
     id: 'empty',
     route: '/?visualCase=empty#/quick-chat',
-    readyText: '我们该做什么？',
+    readyText: '我们应该构建什么？',
   },
   {
     id: 'rich',
