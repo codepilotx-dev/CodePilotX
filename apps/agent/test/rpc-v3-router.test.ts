@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Effect } from "effect"
+import { Effect, Schema } from "effect"
 import { DEFAULT_PERMISSION_CONFIG } from "@codepilotx/shared/thread"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { Capabilities } from "@codepilotx/agent-protocol"
@@ -245,6 +245,60 @@ describe("RPC v3 Router", () => {
     db.close()
   })
 
+  test("paged model catalog filters, caches, and expires versioned cursors", async () => {
+    const providerID = Schema.decodeUnknownSync(Provider.ID)("provider:test")
+    const otherProviderID = Schema.decodeUnknownSync(Provider.ID)("provider:other")
+    const models = [
+      Model.Info.empty(providerID, Schema.decodeUnknownSync(Model.ID)("alpha")),
+      Model.Info.empty(providerID, Schema.decodeUnknownSync(Model.ID)("beta")),
+      Model.Info.empty(otherProviderID, Schema.decodeUnknownSync(Model.ID)("gamma")),
+    ]
+    let listCalls = 0
+    let modelCalls = 0
+    const { db, call, initialize } = await fixture({
+      providers: {
+        list: async () => {
+          listCalls += 1
+          return [Provider.Info.empty(providerID), Provider.Info.empty(otherProviderID)]
+        },
+        models: async () => {
+          modelCalls += 1
+          return models
+        },
+        refresh: async () => undefined,
+      } as unknown as RpcRouterDependencies["providers"],
+    })
+    await initialize()
+
+    const providers = await call("provider/list", {})
+    expect(providers.result.providers).toHaveLength(2)
+    const first = await call("model/list", { providerId: providerID, enabled: true, limit: 1 })
+    expect(first.result).toMatchObject({ total: 2, catalogVersion: 1 })
+    expect(first.result.providers[0].models.map((model: Model.Info) => model.id)).toEqual(["alpha"])
+    expect(typeof first.result.nextCursor).toBe("string")
+
+    const second = await call("model/list", {
+      providerId: providerID,
+      enabled: true,
+      limit: 1,
+      cursor: first.result.nextCursor,
+    })
+    expect(second.result.providers[0].models.map((model: Model.Info) => model.id)).toEqual(["beta"])
+    expect(second.result.nextCursor).toBeUndefined()
+    expect(listCalls).toBe(1)
+    expect(modelCalls).toBe(1)
+
+    await call("model/refresh", { operationId: "operation:model-refresh-paged" })
+    const expired = await call("model/list", {
+      providerId: providerID,
+      enabled: true,
+      limit: 1,
+      cursor: first.result.nextCursor,
+    })
+    expect(expired.error).toMatchObject({ data: { code: "CURSOR_EXPIRED" } })
+    db.close()
+  })
+
   test("model mutations and refresh return their declared versioned results", async () => {
     let refreshCalls = 0
     const { db, call, initialize } = await fixture({
@@ -449,6 +503,38 @@ describe("RPC v3 Router", () => {
     expect((await call("event/subscribe", {
       streams: [{ streamId: "global", after: 99 }],
     })).error).toMatchObject({ code: -32000, data: { code: "CURSOR_EXPIRED" } })
+    db.close()
+  })
+
+  test("latest event cursors normalize to the captured high-watermark after retained history advances", async () => {
+    const { db, router, call, initialize } = await fixture()
+    const initialized = await initialize()
+    const discarded = db.insertEvent("thread:1", null, "thread/updated", {})
+    const retained = db.insertEvent("thread:1", null, "thread/updated", {})
+    db.sqlite.query("DELETE FROM events WHERE id = ?").run(discarded.id)
+
+    expect((await call("event/subscribe", {
+      streams: [{ streamId: "global", after: 0 }],
+    })).error).toMatchObject({
+      code: -32000,
+      data: {
+        code: "CURSOR_EXPIRED",
+        details: { streamId: "global", lowWatermark: retained.id, highWatermark: retained.id },
+      },
+    })
+
+    const subscribed = await call("event/subscribe", {
+      streams: [{ streamId: "global", after: "latest" }],
+    })
+    expect(subscribed.result.highWatermarks).toEqual([
+      { streamId: "global", sequence: retained.id },
+    ])
+    const subscription = router.subscriptions.get(
+      subscribed.result.subscriptionId,
+      initialized.result.connectionId,
+    )
+    expect(subscription?.streams.get("global")).toBe(retained.id)
+    expect(subscription?.acknowledged.get("global")).toBe(retained.id)
     db.close()
   })
 

@@ -67,13 +67,16 @@ const eventNextNotification = (
   streamId: string,
   event: StoredEventEnvelope,
   rpc: RpcRouter,
+  afterSequence = event.id,
 ) => {
   if (!(event.method in EventManifest)) return null
   const type = event.method as EventType
   const definition = EventManifest[type]
   const payload = rpc.projection.notification(event).notification.params
   const base = {
-    eventId: String(event.id),
+    eventId: definition.durability === "live"
+      ? `live:${event.createdAt}:${crypto.randomUUID()}`
+      : String(event.id),
     streamId,
     type,
     version: definition.version,
@@ -88,7 +91,7 @@ const eventNextNotification = (
     params: {
       subscriptionId,
       event: definition.durability === "live"
-        ? { ...base, durability: "live" as const, sequence: null, afterSequence: event.id }
+        ? { ...base, durability: "live" as const, sequence: null, afterSequence }
         : { ...base, durability: "durable" as const, sequence: event.id },
     },
   }
@@ -166,80 +169,139 @@ export const createApp = (dependencies: TransportDependencies) => {
         cursors.set(streamId, Math.max(current, lastEventId))
       }
     }
-    const replayTargets = new Map(
-      [...subscription.streams.keys()].map((streamId) => {
-        const row = streamId === "global"
-          ? db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS sequence FROM events").get()
-          : db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS sequence FROM events WHERE thread_id = ?").get(streamId)
-        return [streamId, Number((row as { sequence: number }).sequence)] as const
-      }),
-    )
     return streamSSE(context, async (stream) => {
       let heartbeatAt = Date.now()
       let replayCompleted = false
-      while (!stream.aborted) {
-        const active = rpc.subscriptions.get(subscriptionId, connectionId)
-        if (!active) {
-          await stream.writeSSE({
-            data: JSON.stringify({
-              jsonrpc: "2.0",
-              method: "event/subscriptionClosed",
-              params: {
-                subscriptionId,
-                reason: "unsubscribed",
-                positions: [...cursors].map(([streamId, sequence]) => ({ streamId, sequence })),
-              },
-            }),
-          })
+      const buffered: StoredEventEnvelope[] = []
+      let overflow = false
+      const appliesToAnyStream = (event: StoredEventEnvelope) =>
+        [...cursors.keys()].some((streamId) => streamId === "global" || event.threadId === null || event.threadId === streamId)
+      const unlisten = hub.listen((event) => {
+        if (!appliesToAnyStream(event)) return
+        const definition = event.method in EventManifest ? EventManifest[event.method as EventType] : null
+        if (!definition) return
+        if (definition.durability === "live" && subscription.liveEventTypes && !subscription.liveEventTypes.has(event.method)) return
+        if (buffered.length >= 1024) {
+          overflow = true
           return
         }
-        let delivered = 0
-        for (const [streamId, cursor] of cursors) {
-          const events = db.eventsAfter(cursor, streamId === "global" ? undefined : streamId, 500)
-          for (const event of events) {
-            cursors.set(streamId, event.id)
-            const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
-            if (!notification) continue
-            if (
-              active.liveEventTypes
-              && notification.params.event.durability === "live"
-              && !active.liveEventTypes.has(notification.params.event.type)
-            ) continue
-            await stream.writeSSE({ id: String(event.id), data: JSON.stringify(notification) })
-            delivered += 1
+        buffered.push(event)
+      })
+      // Capture the durable high-watermarks only after live delivery is
+      // subscribed so commits racing replay are buffered rather than lost.
+      const replayTargets = new Map(
+        [...subscription.streams.keys()].map((streamId) => {
+          const row = streamId === "global"
+            ? db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS sequence FROM events").get()
+            : db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS sequence FROM events WHERE thread_id = ?").get(streamId)
+          return [streamId, Number((row as { sequence: number }).sequence)] as const
+        }),
+      )
+      try {
+        while (!stream.aborted) {
+          const active = rpc.subscriptions.get(subscriptionId, connectionId)
+          if (!active || overflow) {
+            await stream.writeSSE({
+              data: JSON.stringify({
+                jsonrpc: "2.0",
+                method: "event/subscriptionClosed",
+                params: {
+                  subscriptionId,
+                  reason: overflow ? "overflow" : "unsubscribed",
+                  positions: [...cursors].map(([streamId, sequence]) => ({ streamId, sequence })),
+                },
+              }),
+            })
+            return
           }
+          let delivered = 0
+          if (!replayCompleted) {
+            for (const [streamId, cursor] of cursors) {
+              const target = replayTargets.get(streamId) ?? 0
+              const events = db.eventsAfter(cursor, streamId === "global" ? undefined : streamId, 500)
+              for (const event of events) {
+                if (event.id > target) break
+                // Historical rows for manifest-live events are cleanup data,
+                // never replayable state. Advance over them without delivery.
+                cursors.set(streamId, event.id)
+                if (!(event.method in EventManifest) || EventManifest[event.method as EventType].durability === "live") continue
+                const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
+                if (!notification) continue
+                await stream.writeSSE({ id: String(event.id), data: JSON.stringify(notification) })
+                delivered += 1
+              }
+              if ((cursors.get(streamId) ?? 0) < target && events.length === 0) cursors.set(streamId, target)
+            }
+            if ([...replayTargets].every(([streamId, target]) => (cursors.get(streamId) ?? 0) >= target)) {
+              await stream.writeSSE({
+                data: JSON.stringify({
+                  jsonrpc: "2.0",
+                  method: "event/replayComplete",
+                  params: {
+                    subscriptionId,
+                    positions: [...cursors].map(([streamId, sequence]) => ({ streamId, sequence })),
+                  },
+                }),
+              })
+              replayCompleted = true
+            }
+          }
+          if (replayCompleted) {
+            // Durable rows remain the source of truth. Polling here also
+            // covers transactional producers that commit an outbox row
+            // without publishing a best-effort EventHub wake-up.
+            for (const [streamId, cursor] of cursors) {
+              const events = db.eventsAfter(cursor, streamId === "global" ? undefined : streamId, 500)
+              for (const event of events) {
+                cursors.set(streamId, event.id)
+                if (!(event.method in EventManifest)) continue
+                if (EventManifest[event.method as EventType].durability === "live") continue
+                const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
+                if (!notification) continue
+                await stream.writeSSE({ id: String(event.id), data: JSON.stringify(notification) })
+                delivered += 1
+              }
+            }
+            const pending = buffered.splice(0, buffered.length)
+            for (const event of pending) {
+              for (const [streamId, cursor] of cursors) {
+                if (streamId !== "global" && event.threadId !== null && event.threadId !== streamId) continue
+                const definition = event.method in EventManifest ? EventManifest[event.method as EventType] : null
+                if (!definition) continue
+                if (definition.durability === "durable") {
+                  if (event.id <= cursor) continue
+                  cursors.set(streamId, event.id)
+                } else if (active.liveEventTypes && !active.liveEventTypes.has(event.method)) {
+                  continue
+                }
+                const notification = eventNextNotification(subscriptionId, streamId, event, rpc, cursor)
+                if (!notification) continue
+                await stream.writeSSE({
+                  ...(definition.durability === "durable" ? { id: String(event.id) } : {}),
+                  data: JSON.stringify(notification),
+                })
+                delivered += 1
+              }
+            }
+          }
+          if (Date.now() - heartbeatAt >= 10_000) {
+            await stream.writeSSE({
+              event: "heartbeat",
+              data: JSON.stringify({
+                jsonrpc: "2.0",
+                method: "heartbeat",
+                params: {
+                  at: Date.now(),
+                  positions: [...cursors].map(([streamId, sequence]) => ({ streamId, sequence })),
+                },
+              }),
+            })
+            heartbeatAt = Date.now()
+          }
+          await stream.sleep(delivered ? 10 : 100)
         }
-        if (
-          !replayCompleted
-          && [...replayTargets].every(([streamId, target]) => (cursors.get(streamId) ?? 0) >= target)
-        ) {
-          await stream.writeSSE({
-            data: JSON.stringify({
-              jsonrpc: "2.0",
-              method: "event/replayComplete",
-              params: {
-                subscriptionId,
-                positions: [...cursors].map(([streamId, sequence]) => ({ streamId, sequence })),
-              },
-            }),
-          })
-          replayCompleted = true
-        }
-        if (Date.now() - heartbeatAt >= 10_000) {
-          await stream.writeSSE({
-            event: "heartbeat",
-            data: JSON.stringify({
-              jsonrpc: "2.0",
-              method: "heartbeat",
-              params: {
-                at: Date.now(),
-                positions: [...cursors].map(([streamId, sequence]) => ({ streamId, sequence })),
-              },
-            }),
-          })
-          heartbeatAt = Date.now()
-        }
-        await stream.sleep(delivered ? 10 : 250)
+      } finally {
+        unlisten()
       }
     })
   })

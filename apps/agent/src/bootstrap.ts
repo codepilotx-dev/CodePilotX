@@ -5,6 +5,7 @@ import { createProviderRuntime, type ProviderConfig } from "@codepilotx/provider
 import { loadConfig } from "./config/Config"
 import { AgentDatabase } from "./storage/Database"
 import { EventHub } from "./storage/EventHub"
+import { publishAgentEvent } from "./storage/EventPublisher"
 import { EncryptedCredentialRepository } from "./auth/EncryptedCredentialRepository"
 import { ToolRegistry } from "./tool/ToolRegistry"
 import { ToolExecutor } from "./tool/ToolExecutor"
@@ -50,8 +51,7 @@ export const bootstrap = Effect.gen(function* () {
   const review = new GitReviewService(
     db,
     async (projectId) => {
-      const event = db.insertEvent(null, null, "workspace/git/changed", { projectId, changedAt: Date.now() })
-      await Effect.runPromise(hub.publish(event))
+      await publishAgentEvent(db, hub, null, null, "workspace/git/changed", { projectId, changedAt: Date.now() })
     },
     (input) => github.preparePullRequestComparison(input),
   )

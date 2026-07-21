@@ -15,6 +15,7 @@ import { createPromptSections } from "../prompt/sections"
 import type { SkillService } from "../prompt/SkillService"
 import type { PromptBundle, PromptSection } from "../prompt/types"
 import { secretScrubber } from "../security/SecretScrubber"
+import { publishAgentEvent } from "../storage/EventPublisher"
 
 export interface PlanCheckpoint {
   state: string
@@ -49,6 +50,7 @@ export interface DelegationController {
 
 export interface OrchestrationPersistence {
   upsertItem(threadID: string, item: Item): void
+  upsertItemWithEvent?(threadID: string, item: Item, method: string, params?: unknown): { item: Item; event: EventEnvelope }
   getItem(itemID: string): Item | null
   insertEvent(threadId: string | null, turnId: string | null, method: string, params: unknown): EventEnvelope
   interruptForSideEffectRecovery?(input: {
@@ -185,13 +187,17 @@ export class AgentOrchestrator {
   }
 
   private async publish(threadID: string, turnID: string, method: string, params: unknown) {
-    const event = this.options.db.insertEvent(threadID, turnID, method, params)
-    await Effect.runPromise(this.options.hub.publish(event))
+    await publishAgentEvent(this.options.db, this.options.hub, threadID, turnID, method, params)
   }
 
   private async saveItem(threadID: string, item: Item) {
-    this.options.db.upsertItem(threadID, item)
     const method = item.status === "pending" || item.status === "running" ? "item/started" : "item/completed"
+    const persisted = this.options.db.upsertItemWithEvent?.(threadID, item, method)
+    if (persisted) {
+      await Effect.runPromise(this.options.hub.publish(persisted.event))
+      return
+    }
+    this.options.db.upsertItem(threadID, item)
     await this.publish(threadID, item.turnID, method, { item: this.options.db.getItem(item.id) ?? item })
   }
 
@@ -577,23 +583,74 @@ export class AgentOrchestrator {
     let segmentStartedAt = startedAt
     let segmentText = ""
     let segmentSaved = false
+    let segmentStartedEvent = false
+    let checkpointTimer: ReturnType<typeof setTimeout> | undefined
+    let checkpointBytes = 0
+    let lastCheckpointAt = startedAt
     let rawOutput = ""
     let finalizedPlan = ""
+    const textItem = (status: Item["status"], fallback = "正在分析…", error?: string): Item => ({
+      id: textItemID,
+      turnID: request.turnID,
+      agentID: request.agentID,
+      type: "text",
+      status,
+      data: { placement: "result", text: cleanText(segmentText) || fallback, ...(error ? { error } : {}) },
+      createdAt: segmentStartedAt,
+      updatedAt: now(),
+    })
+    const checkpointText = () => {
+      if (checkpointTimer) clearTimeout(checkpointTimer)
+      checkpointTimer = undefined
+      checkpointBytes = 0
+      lastCheckpointAt = now()
+      if (!segmentSaved) return
+      this.options.db.upsertItem(request.threadID, textItem("running"))
+    }
+    const scheduleCheckpoint = () => {
+      if (checkpointTimer) return
+      const delay = Math.max(0, 100 - (now() - lastCheckpointAt))
+      checkpointTimer = setTimeout(checkpointText, delay)
+    }
     const saveText = async (status: Item["status"], fallback = "正在分析…", error?: string) => {
       const text = cleanText(segmentText) || fallback
       if (!segmentSaved && !text) return
+      if (checkpointTimer) clearTimeout(checkpointTimer)
+      checkpointTimer = undefined
+      const item = textItem(status, fallback, error)
       segmentSaved = true
-      await this.saveItem(request.threadID, {
-        id: textItemID, turnID: request.turnID, agentID: request.agentID, type: "text", status,
-        data: { placement: "result", text, ...(error ? { error } : {}) },
-        createdAt: segmentStartedAt, updatedAt: now(),
-      })
+      if (status === "running") {
+        if (!segmentStartedEvent) {
+          segmentStartedEvent = true
+          await this.saveItem(request.threadID, item)
+        } else {
+          this.options.db.upsertItem(request.threadID, item)
+        }
+        checkpointBytes = 0
+        lastCheckpointAt = now()
+        return
+      }
+      if (status === "pending") {
+        if (!segmentStartedEvent) {
+          segmentStartedEvent = true
+          await this.saveItem(request.threadID, item)
+        } else {
+          this.options.db.upsertItem(request.threadID, item)
+        }
+        return
+      }
+      await this.saveItem(request.threadID, item)
     }
     const startNextSegment = () => {
+      if (checkpointTimer) clearTimeout(checkpointTimer)
+      checkpointTimer = undefined
       textItemID = crypto.randomUUID()
       segmentStartedAt = now()
       segmentText = ""
       segmentSaved = false
+      segmentStartedEvent = false
+      checkpointBytes = 0
+      lastCheckpointAt = segmentStartedAt
     }
     const planning = profile === "main" && request.taskMode === "plan" && !request.continueFromPlan
     const legacyInstructions = profile === "main"
@@ -662,8 +719,31 @@ export class AgentOrchestrator {
         : await run(agent, resume, { stream: true, signal: request.signal, maxTurns: profile === "worker" ? 24 : 12 })
       for await (const delta of streamed.toTextStream() as AsyncIterable<string>) {
         rawOutput += delta
+        if (!segmentStartedEvent) {
+          segmentSaved = true
+          segmentStartedEvent = true
+          await this.saveItem(request.threadID, {
+            id: textItemID,
+            turnID: request.turnID,
+            agentID: request.agentID,
+            type: "text",
+            status: "running",
+            data: { placement: "result", text: "" },
+            createdAt: segmentStartedAt,
+            updatedAt: now(),
+          })
+          lastCheckpointAt = now()
+        }
         segmentText += delta
-        await saveText("running")
+        await this.publish(request.threadID, request.turnID, "item/agentMessage/delta", {
+          itemId: textItemID,
+          turnId: request.turnID,
+          agentId: request.agentID,
+          delta,
+        })
+        checkpointBytes += Buffer.byteLength(delta, "utf8")
+        if (checkpointBytes >= 4_096 || now() - lastCheckpointAt >= 100) checkpointText()
+        else scheduleCheckpoint()
       }
       await streamed.completed
       const aggregate = streamed.runContext.usage

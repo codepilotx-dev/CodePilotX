@@ -12,6 +12,7 @@ import {
 } from "@codepilotx/shared/thread"
 import { Effect, Schema } from "effect"
 import { Model, Provider } from "@codepilotx/model-schema"
+import { createHash } from "node:crypto"
 import type { ProviderConfig, ProviderRuntime } from "@codepilotx/provider-runtime"
 import { AgentError, type SendStrategy, type SubmitMessage, type TaskMode } from "../domain"
 import type { ApprovalService } from "../permission/ApprovalService"
@@ -21,6 +22,7 @@ import type { ThreadHistoryService } from "../session/ThreadHistoryService"
 import type { ThreadService } from "../session/ThreadService"
 import type { AgentDatabase } from "../storage/Database"
 import type { EventHub } from "../storage/EventHub"
+import { publishAgentEvent } from "../storage/EventPublisher"
 import type { SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
 import type { SubagentService } from "../subagent/SubagentService"
 import type { AttachmentService } from "../subagent/AttachmentService"
@@ -78,6 +80,15 @@ export type RpcRouterDependencies = {
 
 export type RpcRouterContext = {
   connectionId?: string
+}
+
+type ModelCatalogPage = {
+  providers: Array<{ provider: Provider.Info; models: Model.Info[] }>
+  defaultModel: Model.Ref | null
+  reviewerModel: Model.Ref | null
+  catalogVersion: number
+  total?: number
+  nextCursor?: string
 }
 
 const enumValue = <T extends string>(value: unknown, allowed: readonly T[], name: string): T => {
@@ -191,6 +202,12 @@ export class RpcRouter {
   readonly subscriptions: EventSubscriptionRegistry
   private readonly workspaceFileWatchers = new Map<string, { close: () => void }>()
   private catalogVersion = 1
+  private catalogSource: Promise<{
+    providers: readonly Provider.Info[]
+    models: readonly Model.Info[]
+    modelsByProvider: ReadonlyMap<string, readonly Model.Info[]>
+  }> | null = null
+  private readonly modelPageCache = new Map<string, Promise<ModelCatalogPage>>()
   private readonly handlers: RpcHandlers<RpcRouterContext>
   private readonly connections = new Map<string, {
     initialized: boolean
@@ -799,8 +816,10 @@ export class RpcRouter {
           range: { offset, length: data.byteLength, total: all.byteLength },
         }
       }
+      case "provider/list":
+        return this.providerList()
       case "model/list":
-        return this.modelCatalog()
+        return this.modelCatalog(params)
       case "model/refresh":
         await providers.refresh(true)
         return this.publishCatalogUpdated()
@@ -808,7 +827,7 @@ export class RpcRouter {
         const model = modelRefOrNull(params.model)
         if (model) await providers.resolve(model)
         db.setSetting("defaultModel", model)
-        const catalog = await this.publishCatalogUpdated()
+        const catalog = await this.publishCatalogUpdated(false)
         return {
           defaultModel: model,
           settingsVersion: catalog.catalogVersion,
@@ -818,7 +837,7 @@ export class RpcRouter {
         const model = modelRefOrNull(params.model)
         if (model) await providers.resolve(model)
         db.setSetting("reviewerModel", model)
-        const catalog = await this.publishCatalogUpdated()
+        const catalog = await this.publishCatalogUpdated(false)
         return {
           reviewerModel: model,
           settingsVersion: catalog.catalogVersion,
@@ -1295,32 +1314,142 @@ export class RpcRouter {
     }
   }
 
-  private async modelCatalog() {
-    const { db, providers } = this.dependencies
-    const providerInfos = await providers.list()
-    const models = await providers.models()
-    const catalog = providerInfos.map((provider) => ({ provider, models: models.filter((model) => model.providerID === provider.id) }))
-    const first = models.find((model) => model.enabled)
-    const configuredDefault = db.getSetting<Model.Ref>("defaultModel")
-    const configuredReviewer = db.getSetting<Model.Ref>("reviewerModel")
-    const available = async (ref: Model.Ref | null) => {
+  private loadCatalogSource() {
+    if (this.catalogSource) return this.catalogSource
+    const { providers } = this.dependencies
+    this.catalogSource = Promise.all([providers.list(), providers.models()]).then(([providerInfos, models]) => {
+      const modelsByProvider = new Map<string, Model.Info[]>()
+      for (const model of models) {
+        const group = modelsByProvider.get(model.providerID) ?? []
+        group.push(model)
+        modelsByProvider.set(model.providerID, group)
+      }
+      return {
+        providers: providerInfos,
+        models,
+        modelsByProvider: modelsByProvider as ReadonlyMap<string, readonly Model.Info[]>,
+      }
+    }).catch((cause) => {
+      this.catalogSource = null
+      throw cause
+    })
+    return this.catalogSource
+  }
+
+  private invalidateCatalogSource() {
+    this.catalogSource = null
+    this.modelPageCache.clear()
+  }
+
+  private async configuredModels() {
+    const source = await this.loadCatalogSource()
+    const first = source.models.find((model) => model.enabled)
+    const configuredDefault = this.dependencies.db.getSetting<Model.Ref>("defaultModel")
+    const configuredReviewer = this.dependencies.db.getSetting<Model.Ref>("reviewerModel")
+    const available = (ref: Model.Ref | null) => {
       if (!ref) return null
-      try { await providers.resolve(ref); return ref } catch { return null }
+      const match = source.modelsByProvider.get(ref.providerID)?.find((model) => model.id === ref.id)
+      if (!match || !match.enabled) return null
+      if (ref.variant && !match.variants.some((variant) => variant.id === ref.variant)) return null
+      return ref
     }
     return {
-      providers: catalog,
-      defaultModel: await available(configuredDefault) ?? (first ? { providerID: first.providerID, id: first.id } : null),
-      reviewerModel: await available(configuredReviewer),
+      defaultModel: available(configuredDefault) ?? (first ? { providerID: first.providerID, id: first.id } : null),
+      reviewerModel: available(configuredReviewer),
+    }
+  }
+
+  private async providerList() {
+    const source = await this.loadCatalogSource()
+    return {
+      providers: [...source.providers],
+      ...await this.configuredModels(),
       catalogVersion: this.catalogVersion,
     }
   }
 
-  private async publishCatalogUpdated() {
+  private normalizedModelQuery(params: Record<string, unknown>) {
+    const filters = {
+      ...(typeof params.providerId === "string" ? { providerId: params.providerId } : {}),
+      ...(typeof params.query === "string" && params.query.trim() ? { query: params.query.trim().toLowerCase() } : {}),
+      ...(typeof params.enabled === "boolean" ? { enabled: params.enabled } : {}),
+      ...(typeof params.inputModality === "string" && params.inputModality ? { inputModality: params.inputModality } : {}),
+      ...(typeof params.outputModality === "string" && params.outputModality ? { outputModality: params.outputModality } : {}),
+    }
+    return {
+      filters,
+      ...(typeof params.cursor === "string" ? { cursor: params.cursor } : {}),
+      ...(typeof params.limit === "number" ? { limit: Math.max(1, Math.min(100, Math.trunc(params.limit))) } : {}),
+    }
+  }
+
+  private async modelCatalog(params: Record<string, unknown> = {}) {
+    const query = this.normalizedModelQuery(params)
+    const legacyFullCatalog = Object.keys(query.filters).length === 0 && query.limit === undefined && query.cursor === undefined
+    if (legacyFullCatalog) return this.buildModelCatalog(query)
+    const key = JSON.stringify({ version: this.catalogVersion, ...query })
+    const cached = this.modelPageCache.get(key)
+    if (cached) return cached
+    const pending = this.buildModelCatalog(query).catch((cause) => {
+      this.modelPageCache.delete(key)
+      throw cause
+    })
+    this.modelPageCache.set(key, pending)
+    return pending
+  }
+
+  private async buildModelCatalog(query: ReturnType<RpcRouter["normalizedModelQuery"]>) {
+    const source = await this.loadCatalogSource()
+    const filterHash = createHash("sha256").update(JSON.stringify(query.filters)).digest("base64url").slice(0, 16)
+    let offset = 0
+    if (query.cursor) {
+      try {
+        const decoded = JSON.parse(Buffer.from(query.cursor, "base64url").toString("utf8")) as { version?: unknown; filter?: unknown; offset?: unknown }
+        if (decoded.version !== this.catalogVersion || decoded.filter !== filterHash || !Number.isInteger(decoded.offset) || Number(decoded.offset) < 0) throw new Error("expired")
+        offset = Number(decoded.offset)
+      } catch {
+        throw new AgentError("CURSOR_EXPIRED", "模型目录游标已失效，请重新查询", 409)
+      }
+    }
+
+    const matches = source.models.filter((model) => {
+      const { filters } = query
+      if (filters.providerId !== undefined && model.providerID !== filters.providerId) return false
+      if (filters.query !== undefined && !model.id.toLowerCase().includes(filters.query) && !model.name.toLowerCase().includes(filters.query)) return false
+      if (filters.enabled !== undefined && model.enabled !== filters.enabled) return false
+      if (filters.inputModality !== undefined && !model.capabilities.input.includes(filters.inputModality)) return false
+      if (filters.outputModality !== undefined && !model.capabilities.output.includes(filters.outputModality)) return false
+      return true
+    })
+    const page = query.limit === undefined ? matches : matches.slice(offset, offset + query.limit)
+    const pageByProvider = new Map<string, Model.Info[]>()
+    for (const model of page) {
+      const group = pageByProvider.get(model.providerID) ?? []
+      group.push(model)
+      pageByProvider.set(model.providerID, group)
+    }
+    const nextOffset = offset + page.length
+    const hasFilters = Object.keys(query.filters).length > 0
+    return {
+      providers: source.providers
+        .filter((provider) => !hasFilters || pageByProvider.has(provider.id) || query.filters.providerId === provider.id)
+        .map((provider) => ({ provider, models: pageByProvider.get(provider.id) ?? [] })),
+      ...await this.configuredModels(),
+      catalogVersion: this.catalogVersion,
+      ...(query.limit === undefined ? {} : { total: matches.length }),
+      ...(query.limit !== undefined && nextOffset < matches.length
+        ? { nextCursor: Buffer.from(JSON.stringify({ version: this.catalogVersion, filter: filterHash, offset: nextOffset })).toString("base64url") }
+        : {}),
+    }
+  }
+
+  private async publishCatalogUpdated(invalidateSource = true) {
+    if (invalidateSource) this.invalidateCatalogSource()
     this.catalogVersion += 1
+    this.modelPageCache.clear()
     const catalog = await this.modelCatalog()
     await this.emit("catalog/updated", {
       catalogVersion: catalog.catalogVersion,
-      models: catalog.providers.flatMap((provider) => provider.models),
     })
     return catalog
   }
@@ -1332,8 +1461,7 @@ export class RpcRouter {
   }
 
   private async emit(method: string, params: unknown) {
-    const event = this.dependencies.db.insertEvent(null, null, method, params)
-    await Effect.runPromise(this.dependencies.hub.publish(event))
+    await publishAgentEvent(this.dependencies.db, this.dependencies.hub, null, null, method, params)
   }
 
   private async emitIntegration(method: string, integrationID: string) {

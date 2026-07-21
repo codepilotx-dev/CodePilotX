@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Database } from "bun:sqlite"
-import { mkdtemp, readdir, rm } from "node:fs/promises"
+import { mkdtemp, readdir, rename, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { AgentDatabase, SCHEMA_VERSION } from "../src/storage/Database"
@@ -11,6 +11,14 @@ const removePath = async (path: string) => {
     try { await rm(path, { recursive: true, force: true }); return } catch (cause) {
       if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY") throw cause
       await Bun.sleep(100)
+    }
+  }
+}
+const renamePath = async (source: string, destination: string) => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try { await rename(source, destination); return } catch (cause) {
+      if (!(cause instanceof Error) || !("code" in cause) || cause.code !== "EBUSY" || attempt === 19) throw cause
+      await Bun.sleep(50)
     }
   }
 }
@@ -118,5 +126,44 @@ describe("数据库迁移", () => {
     expect(tables.has("subagent_runs")).toBe(true)
     expect(tables.has("input_attachments")).toBe(true)
     migrated.close()
+  })
+
+  test("v12 到 v13 删除 live 事件并用校验后的压缩库原子替换", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-v13-"))
+    paths.push(root)
+    const path = join(root, "agent.sqlite")
+    const initial = new AgentDatabase(path)
+    initial.insertEvent("thread:kept", null, "thread/updated", { marker: "durable" })
+    const largeCatalog = { catalogVersion: 1, models: [{ id: "model", description: "x".repeat(1_000_000) }] }
+    for (let index = 0; index < 6; index += 1) initial.insertEvent(null, null, "catalog/updated", largeCatalog)
+    initial.sqlite.exec("PRAGMA user_version = 12; PRAGMA wal_checkpoint(TRUNCATE)")
+    initial.close()
+    const before = (await stat(path)).size
+
+    const migrated = new AgentDatabase(path)
+    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 13 })
+    expect(migrated.sqlite.query("SELECT method FROM events ORDER BY id").all()).toEqual([{ method: "thread/updated" }])
+    migrated.close()
+
+    const after = (await stat(path)).size
+    expect(after).toBeLessThan(before / 2)
+    expect((await readdir(root)).some((name) => name.includes("v12-replaced") || name.includes("v13-compacting"))).toBe(false)
+  })
+
+  test("v13 原子替换中断后优先恢复原库再重试迁移", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-v13-recover-"))
+    paths.push(root)
+    const path = join(root, "agent.sqlite")
+    const initial = new AgentDatabase(path)
+    const thread = initial.createThread("替换前保留")
+    initial.sqlite.exec("PRAGMA user_version = 12; PRAGMA wal_checkpoint(TRUNCATE)")
+    initial.close()
+    await renamePath(path, `${path}.v12-replaced`)
+
+    const recovered = new AgentDatabase(path)
+    expect(recovered.getThread(thread.id)?.title).toBe("替换前保留")
+    expect(recovered.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 13 })
+    recovered.close()
+    expect((await readdir(root)).some((name) => name.includes("v12-replaced"))).toBe(false)
   })
 })

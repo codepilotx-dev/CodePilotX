@@ -1,10 +1,10 @@
 import { Database } from "bun:sqlite"
-import { copyFileSync, existsSync, mkdirSync, renameSync } from "node:fs"
+import { copyFileSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs"
 import { basename, dirname, extname, resolve } from "node:path"
 import { Effect } from "effect"
 import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
 import { AgentError } from "../domain"
-import type { ReviewComment } from "@codepilotx/agent-protocol"
+import { EventManifest, type EventType, type ReviewComment } from "@codepilotx/agent-protocol"
 import type {
   EventEnvelope,
   AgentExecution,
@@ -135,7 +135,7 @@ const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const now = () => Date.now()
 const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
-export const SCHEMA_VERSION = 12
+export const SCHEMA_VERSION = 13
 
 export type QueuePauseReason = "interrupted" | "turn_failed" | null
 export type QueueMutationMeta = { operationID: string; expectedVersion?: number }
@@ -178,8 +178,98 @@ const versionBackupPath = (path: string, version: number) => {
   return `${stem}.pre-v${version}-${new Date().toISOString().replace(/[:.]/g, "-")}${extension}`
 }
 
+const liveEventMethods = (Object.keys(EventManifest) as EventType[])
+  .filter((method) => EventManifest[method].durability === "live")
+const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`
+
+const recoverInterruptedV13Swap = (path: string) => {
+  const temporary = `${path}.v13-compacting`
+  const rollback = `${path}.v12-replaced`
+  if (!existsSync(rollback)) return
+  if (!existsSync(path)) {
+    renameSync(rollback, path)
+    rmSync(temporary, { force: true })
+    return
+  }
+  let replacementValid = false
+  try {
+    const replacement = new Database(path, { create: false, strict: true })
+    try {
+      const integrity = replacement.query("PRAGMA integrity_check").get() as { integrity_check: string }
+      const version = (replacement.query("PRAGMA user_version").get() as { user_version: number }).user_version
+      replacementValid = integrity.integrity_check === "ok" && version === 13
+    } finally {
+      replacement.close()
+    }
+  } catch {
+    replacementValid = false
+  }
+  if (replacementValid) {
+    rmSync(rollback, { force: true })
+  } else {
+    rmSync(path, { force: true })
+    renameSync(rollback, path)
+  }
+  rmSync(temporary, { force: true })
+}
+
+const compactLiveEventsV13 = (path: string) => {
+  const temporary = `${path}.v13-compacting`
+  const rollback = `${path}.v12-replaced`
+  rmSync(temporary, { force: true })
+  rmSync(rollback, { force: true })
+  let expectedThreads = 0
+  let expectedItems = 0
+  const source = new Database(path, { create: false, strict: true })
+  try {
+    source.exec("PRAGMA journal_mode = WAL")
+    source.exec("PRAGMA busy_timeout = 5000")
+    source.exec("PRAGMA wal_checkpoint(TRUNCATE)")
+    expectedThreads = Number((source.query("SELECT COUNT(*) AS count FROM threads").get() as { count: number }).count)
+    expectedItems = Number((source.query("SELECT COUNT(*) AS count FROM items").get() as { count: number }).count)
+    source.transaction(() => {
+      if (liveEventMethods.length) source.exec(`DELETE FROM events WHERE method IN (${liveEventMethods.map(sqlString).join(",")})`)
+    })()
+    source.exec(`VACUUM INTO ${sqlString(temporary)}`)
+  } finally {
+    source.close()
+  }
+  rmSync(`${path}-wal`, { force: true })
+  rmSync(`${path}-shm`, { force: true })
+  const compacted = new Database(temporary, { create: false, strict: true })
+  try {
+    compacted.exec("PRAGMA user_version = 13")
+    const integrity = compacted.query("PRAGMA integrity_check").get() as { integrity_check: string }
+    const version = (compacted.query("PRAGMA user_version").get() as { user_version: number }).user_version
+    const threads = Number((compacted.query("SELECT COUNT(*) AS count FROM threads").get() as { count: number }).count)
+    const items = Number((compacted.query("SELECT COUNT(*) AS count FROM items").get() as { count: number }).count)
+    if (integrity.integrity_check !== "ok" || version !== 13 || threads !== expectedThreads || items !== expectedItems) {
+      throw new Error("v13 compacted database validation failed")
+    }
+  } finally {
+    compacted.close()
+  }
+  renameSync(path, rollback)
+  try {
+    renameSync(temporary, path)
+    const replacement = new Database(path, { create: false, strict: true })
+    try {
+      const integrity = replacement.query("PRAGMA integrity_check").get() as { integrity_check: string }
+      if (integrity.integrity_check !== "ok") throw new Error("v13 replacement database validation failed")
+    } finally {
+      replacement.close()
+    }
+    rmSync(rollback, { force: true })
+  } catch (cause) {
+    rmSync(path, { force: true })
+    renameSync(rollback, path)
+    throw cause
+  }
+}
+
 const prepareDatabase = (path: string) => {
-  if (!existsSync(path)) return
+  recoverInterruptedV13Swap(path)
+  if (!existsSync(path)) return true
   const probe = new Database(path, { create: false, strict: true })
   let legacy = false
   let version = 0
@@ -197,9 +287,21 @@ const prepareDatabase = (path: string) => {
     for (const suffix of ["-wal", "-shm"]) {
       if (existsSync(`${path}${suffix}`)) renameSync(`${path}${suffix}`, `${backup}${suffix}`)
     }
-    return
+    return true
+  }
+  if (version === 12) {
+    try {
+      compactLiveEventsV13(path)
+      return true
+    } catch {
+      // Logical deletion already completed transactionally. Keep user_version
+      // at 12 so the next startup retries physical compaction.
+      rmSync(`${path}.v13-compacting`, { force: true })
+      return false
+    }
   }
   if (version > 0 && version < SCHEMA_VERSION) copyFileSync(path, versionBackupPath(path, SCHEMA_VERSION))
+  return true
 }
 
 export class AgentDatabase {
@@ -207,12 +309,12 @@ export class AgentDatabase {
 
   constructor(path: string) {
     mkdirSync(dirname(path), { recursive: true })
-    prepareDatabase(path)
+    const finalizeV13 = prepareDatabase(path)
     this.sqlite = new Database(path, { create: true, strict: true })
     this.sqlite.exec("PRAGMA journal_mode = WAL")
     this.sqlite.exec("PRAGMA foreign_keys = ON")
     this.sqlite.exec("PRAGMA busy_timeout = 5000")
-    this.migrate()
+    this.migrate(finalizeV13)
     this.recoverInterruptedTurns()
   }
 
@@ -220,7 +322,7 @@ export class AgentDatabase {
     this.sqlite.close()
   }
 
-  private migrate() {
+  private migrate(finalizeV13 = true) {
     const currentVersion = (this.sqlite.query("PRAGMA user_version").get() as { user_version: number }).user_version
     const legacyViews = [
       "sessions",
@@ -469,6 +571,7 @@ export class AgentDatabase {
     if (currentVersion < 10) this.migrateQueueV10()
     if (currentVersion < 11) this.migrateReviewV11()
     if (currentVersion < 12) this.migrateInteractionV12()
+    if (currentVersion < 13 && finalizeV13) this.migrateEventsV13()
     this.sqlite.exec(`CREATE TABLE IF NOT EXISTS hook_trust_waiters (
       request_id TEXT NOT NULL REFERENCES hook_trust_requests(id) ON DELETE CASCADE,
       agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
@@ -494,6 +597,13 @@ export class AgentDatabase {
     ); CREATE INDEX IF NOT EXISTS sandbox_escalations_turn_status ON sandbox_escalations(turn_id, status, created_at);`)
     this.addColumn("sandbox_escalations", "invocation_hash", "TEXT NOT NULL DEFAULT ''")
     this.sqlite.exec("CREATE UNIQUE INDEX IF NOT EXISTS agent_executions_run_sequence_unique ON agent_executions(subagent_run_id, run_sequence) WHERE subagent_run_id IS NOT NULL")
+  }
+
+  private migrateEventsV13() {
+    this.transaction(() => {
+      if (liveEventMethods.length) this.sqlite.exec(`DELETE FROM events WHERE method IN (${liveEventMethods.map(sqlString).join(",")})`)
+      this.sqlite.exec("PRAGMA user_version = 13")
+    })
   }
 
   private migrateQueueV10() {
@@ -2103,6 +2213,17 @@ export class AgentDatabase {
       item.createdAt,
       item.updatedAt,
     )
+  }
+
+  upsertItemWithEvent(threadID: string, item: Item, method: string, params?: unknown) {
+    return this.transaction(() => {
+      this.upsertItem(threadID, item)
+      const persisted = this.getItem(item.id) ?? item
+      return {
+        item: persisted,
+        event: this.insertEvent(threadID, item.turnID, method, params ?? { item: persisted }),
+      }
+    })
   }
 
   getItem(itemID: string) {

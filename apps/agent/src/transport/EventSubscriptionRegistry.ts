@@ -40,17 +40,20 @@ export class EventSubscriptionRegistry {
       throw new AgentError("SUBSCRIPTION_OVERFLOW", "事件订阅的 stream 数量无效", 409)
     }
     const streams = new Map<string, number>()
+    const highWatermarks = new Map<string, number>()
     for (const cursor of params.streams) {
       if (streams.has(cursor.streamId)) throw new AgentError("CONFLICT", `重复的事件 stream：${cursor.streamId}`, 409)
       const bounds = this.cursorBounds(cursor.streamId)
-      if (cursor.after > bounds.high || (bounds.low !== null && cursor.after < bounds.low - 1)) {
+      const after = cursor.after === "latest" ? bounds.high : cursor.after
+      if (cursor.after !== "latest" && (after > bounds.high || (bounds.low !== null && after < bounds.low - 1))) {
         throw new AgentError("CURSOR_EXPIRED", `事件游标不在可重放范围内：${cursor.streamId}`, 409, {
           streamId: cursor.streamId,
           lowWatermark: bounds.low,
           highWatermark: bounds.high,
         })
       }
-      streams.set(cursor.streamId, cursor.after)
+      streams.set(cursor.streamId, after)
+      highWatermarks.set(cursor.streamId, bounds.high)
     }
     const id = crypto.randomUUID()
     const subscription: EventSubscription = {
@@ -66,7 +69,7 @@ export class EventSubscriptionRegistry {
       subscriptionId: id,
       highWatermarks: [...streams.keys()].map((streamId) => ({
         streamId,
-        sequence: this.highWatermark(streamId),
+        sequence: highWatermarks.get(streamId)!,
       })),
     }
   }
