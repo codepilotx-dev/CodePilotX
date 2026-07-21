@@ -158,15 +158,18 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     launcher: true,
     enabled: always,
     getTitle: () => '打开文件',
-    render: (_tab, context) => deferred(
-      <RightDockFilesPanel
-        activePath={null}
-        files={context.files.files}
-        workspace={context.files.workspace}
-        onAddComposerFiles={context.files.onAddComposerFiles}
-        onOpenFile={(file) => context.files.onOpenFileFromBrowser(file)}
-      />,
-    ),
+    render: (tab, context) => {
+      const directoryPath = tab.kind === 'file-browser' ? tab.directoryPath : undefined
+      return deferred(
+        <RightDockFilesPanel
+          activePath={directoryPath ?? null}
+          files={context.files.files}
+          workspace={context.files.workspace}
+          onAddComposerFiles={context.files.onAddComposerFiles}
+          onOpenFile={(file) => context.files.onOpenFileFromBrowser(file)}
+        />,
+      )
+    },
   },
   {
     kind: 'file-preview',

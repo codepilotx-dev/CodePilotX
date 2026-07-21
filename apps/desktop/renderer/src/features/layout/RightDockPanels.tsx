@@ -43,6 +43,7 @@ type FilesPanelProps = {
   files: DesktopFileEntry[]
   activePath?: string | null
   workspace: DesktopWorkspace | null
+  revealToken?: number
   onOpenFile: (
     file: DesktopFileEntry,
     options: WorkspaceFileOpenOptions,
@@ -90,6 +91,7 @@ export function RightDockFilesPanel({
   files,
   activePath,
   workspace,
+  revealToken,
   onOpenFile,
   onAddComposerFiles,
 }: FilesPanelProps): React.ReactNode {
@@ -287,6 +289,7 @@ export function RightDockFilesPanel({
                 activePath={activePath}
                 autoFocusSearch
                 files={files}
+                revealToken={revealToken}
                 workspace={workspace}
                 onAddComposerFiles={onAddComposerFiles}
                 onEscape={() => setTreeVisible(false)}
