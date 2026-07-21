@@ -546,6 +546,177 @@ describe('workbench dynamic tab state', () => {
       state.workbench.tabsById['file:docs/guide.md'],
     ).not.toHaveProperty('markdownViewMode')
   })
+
+  test('reopens the file-browser tab with updated directoryPath', () => {
+    let state = open(createDefaultWorkbenchTabsState(), {
+      id: 'file-browser',
+      kind: 'file-browser',
+    })
+
+    expect(state.right.tabIds).toEqual(['file-browser'])
+    expect(state.tabsById['file-browser']).toMatchObject({
+      kind: 'file-browser',
+    })
+    expect(state.tabsById['file-browser']).not.toHaveProperty('directoryPath')
+
+    // Reopen with a directory path — should update the existing tab
+    state = open(state, {
+      id: 'file-browser',
+      kind: 'file-browser',
+      directoryPath: 'src/components',
+      revealToken: 1,
+    })
+
+    expect(state.right.tabIds).toEqual(['file-browser'])
+    expect(state.tabsById['file-browser']).toMatchObject({
+      kind: 'file-browser',
+      directoryPath: 'src/components',
+      revealToken: 1,
+    })
+
+    // Update again with different directory
+    state = open(state, {
+      id: 'file-browser',
+      kind: 'file-browser',
+      directoryPath: 'src/features',
+      revealToken: 2,
+    })
+
+    expect(state.right.tabIds).toEqual(['file-browser'])
+    expect(state.tabsById['file-browser']).toMatchObject({
+      kind: 'file-browser',
+      directoryPath: 'src/features',
+      revealToken: 2,
+    })
+  })
+
+  test('reopening file-browser tab preserves its panel location', () => {
+    let state = open(createDefaultWorkbenchTabsState(), {
+      id: 'file-browser',
+      kind: 'file-browser',
+    }, 'bottom')
+
+    expect(state.bottom.tabIds).toEqual(['file-browser'])
+    expect(state.right.tabIds).toEqual([])
+
+    // Reopen with directoryPath — should stay in bottom panel
+    state = open(state, {
+      id: 'file-browser',
+      kind: 'file-browser',
+      directoryPath: 'src/components',
+      revealToken: 42,
+    })
+
+    expect(state.bottom.tabIds).toEqual(['file-browser'])
+    expect(state.right.tabIds).toEqual([])
+    expect(state.tabsById['file-browser']).toMatchObject({
+      directoryPath: 'src/components',
+      revealToken: 42,
+    })
+  })
+
+  test('validates valid relative directory paths from persisted file-browser state', () => {
+    const state = validateConversationUiState({
+      schemaVersion: 4,
+      workbench: {
+        schemaVersion: 2,
+        tabsById: {
+          'file-browser': {
+            id: 'file-browser',
+            kind: 'file-browser',
+            directoryPath: 'src/components',
+          },
+        },
+        right: {
+          open: true,
+          activeTabId: 'file-browser',
+          tabIds: ['file-browser'],
+        },
+        bottom: { open: false, activeTabId: null, tabIds: [] },
+        rightFullWidth: false,
+        restoreRightFullWidthOnNextOpen: false,
+        focusArea: 'right-panel',
+      },
+      mainScrollTop: 0,
+      sideChatInput: '',
+      sideChatAttachments: [],
+    })
+
+    expect(state.workbench.tabsById['file-browser']).toMatchObject({
+      kind: 'file-browser',
+      directoryPath: 'src/components',
+    })
+  })
+
+  test('rejects absolute directory paths from persisted file-browser state', () => {
+    const state = validateConversationUiState({
+      schemaVersion: 4,
+      workbench: {
+        schemaVersion: 2,
+        tabsById: {
+          'file-browser': {
+            id: 'file-browser',
+            kind: 'file-browser',
+            directoryPath: '/absolute/path',
+          },
+        },
+        right: {
+          open: true,
+          activeTabId: 'file-browser',
+          tabIds: ['file-browser'],
+        },
+        bottom: { open: false, activeTabId: null, tabIds: [] },
+        rightFullWidth: false,
+        restoreRightFullWidthOnNextOpen: false,
+        focusArea: 'right-panel',
+      },
+      mainScrollTop: 0,
+      sideChatInput: '',
+      sideChatAttachments: [],
+    })
+
+    expect(state.workbench.tabsById['file-browser']).toMatchObject({
+      kind: 'file-browser',
+    })
+    expect(
+      state.workbench.tabsById['file-browser'],
+    ).not.toHaveProperty('directoryPath')
+  })
+
+  test('rejects directory paths with parent traversal from persisted file-browser state', () => {
+    const state = validateConversationUiState({
+      schemaVersion: 4,
+      workbench: {
+        schemaVersion: 2,
+        tabsById: {
+          'file-browser': {
+            id: 'file-browser',
+            kind: 'file-browser',
+            directoryPath: '../outside',
+          },
+        },
+        right: {
+          open: true,
+          activeTabId: 'file-browser',
+          tabIds: ['file-browser'],
+        },
+        bottom: { open: false, activeTabId: null, tabIds: [] },
+        rightFullWidth: false,
+        restoreRightFullWidthOnNextOpen: false,
+        focusArea: 'right-panel',
+      },
+      mainScrollTop: 0,
+      sideChatInput: '',
+      sideChatAttachments: [],
+    })
+
+    expect(state.workbench.tabsById['file-browser']).toMatchObject({
+      kind: 'file-browser',
+    })
+    expect(
+      state.workbench.tabsById['file-browser'],
+    ).not.toHaveProperty('directoryPath')
+  })
 })
 
 describe('workbench right panel sizing', () => {
