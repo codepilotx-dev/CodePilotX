@@ -1,23 +1,47 @@
-import { useMemo, useState } from "react";
+import { Sparkles } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import type { DesktopWorkspace } from "../../../shared/types.js";
+import { NewSessionSuggestions } from "./NewSessionSuggestionPanel.js";
+import {
+  createNewSessionSuggestionState,
+  removeGeneratedSuggestionStarter,
+  selectNewSessionSuggestionCategory,
+  syncNewSessionSuggestionState,
+} from "./newSessionSuggestionState.js";
+import type {
+  NewSessionSuggestionCategory,
+  NewSessionSuggestionTask,
+} from "./newSessionSuggestions.js";
 import { ProjectSwitcherPopover } from "./ProjectSwitcherPopover.js";
+import { DesktopComposer } from "./DesktopComposer.js";
 import { useQuickChatContext } from "./QuickChatContext.js";
 
 export function QuickChatView(): React.ReactNode {
   const {
     branchName,
-    composer,
+    composerProps,
+    composerDraft,
     debugMode,
+    gitStatus,
     recentWorkspaces,
     workspaceName,
     workspacePath,
+    onAppendComposerText,
     onChooseWorkspace,
     onCloneGithub,
     onClearWorkspace,
     onOpenWorkspace,
   } = useQuickChatContext();
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const [observedComposerValue, setObservedComposerValue] = useState(
+    composerDraft?.value ?? "",
+  );
+  const [suggestionState, setSuggestionState] = useState(() =>
+    createNewSessionSuggestionState(composerDraft?.value ?? ""),
+  );
+  const pageRef = useRef<HTMLDivElement | null>(null);
+  const programmaticValueRef = useRef<string | null>(null);
   const currentWorkspace = useMemo<DesktopWorkspace | null>(() => {
     if (!workspaceName || !workspacePath) return null;
     return (
@@ -29,61 +53,203 @@ export function QuickChatView(): React.ReactNode {
     );
   }, [branchName, recentWorkspaces, workspaceName, workspacePath]);
 
-  return (
-    <div className="quick-chat-workspace">
-      <div className="quick-chat-view">
-        <div className="quick-chat-hero">
-          {workspaceName ? (
-            <h1>
-              我们应该在{" "}
-              <ProjectSwitcherPopover
-                align="center"
-                className="popover-project quick-chat-project-popover"
-                disableOutsideDismiss={debugMode}
-                maxWidth="min(420px, calc(100vw - 48px))"
-                open={projectMenuOpen}
-                recentWorkspaces={recentWorkspaces}
-                side="top"
-                sideOffset={6}
-                trigger={
-                  <button
-                    aria-label="选择项目"
-                    className="project-name"
-                    type="button"
-                  >
-                    {workspaceName}
-                  </button>
-                }
-                width={200}
-                workspace={currentWorkspace}
-                onChooseWorkspace={() => {
-                  void onChooseWorkspace();
-                  setProjectMenuOpen(false);
-                }}
-                onCloneGithub={() => {
-                  onCloneGithub();
-                  setProjectMenuOpen(false);
-                }}
-                onClearWorkspace={() => {
-                  onClearWorkspace();
-                  setProjectMenuOpen(false);
-                }}
-                onOpenChange={setProjectMenuOpen}
-                onOpenWorkspace={workspace => {
-                  void onOpenWorkspace(workspace);
-                  setProjectMenuOpen(false);
-                }}
-              />
-              {" "}
-              中构建什么？
-            </h1>
-          ) : (
-            <h1>我们该做什么？</h1>
-          )}
-        </div>
+  const composerDraftValue = composerDraft?.value;
 
-        {composer ? <div className="chat-composer">{composer}</div> : null}
-      </div>
+  useEffect(() => {
+    if (composerDraftValue === undefined) return;
+    setObservedComposerValue(composerDraftValue);
+    if (programmaticValueRef.current === composerDraftValue) {
+      programmaticValueRef.current = null;
+      return;
+    }
+    setSuggestionState(current =>
+      syncNewSessionSuggestionState(current, composerDraftValue),
+    );
+  }, [composerDraftValue]);
+
+  const focusComposer = useCallback(() => {
+    if (composerDraft?.focus) {
+      composerDraft.focus();
+      return;
+    }
+    const editor = pageRef.current?.querySelector<HTMLElement>(
+      "textarea, [contenteditable='true']",
+    );
+    editor?.focus();
+  }, [composerDraft]);
+
+  const replaceComposerValue = useCallback(
+    (value: string) => {
+      programmaticValueRef.current = value;
+      setObservedComposerValue(value);
+      if (composerDraft) {
+        composerDraft.replace(value);
+      } else if (observedComposerValue.length === 0) {
+        onAppendComposerText(value);
+      }
+      requestAnimationFrame(focusComposer);
+    }, [composerDraft, focusComposer, observedComposerValue, onAppendComposerText],
+  );
+
+  const handleSelectCategory = useCallback(
+    (category: NewSessionSuggestionCategory) => {
+      setSuggestionState(selectNewSessionSuggestionCategory(category.id));
+      replaceComposerValue(category.starter);
+    },
+    [replaceComposerValue],
+  );
+
+  const handleSelectTask = useCallback(
+    (
+      category: NewSessionSuggestionCategory,
+      task: NewSessionSuggestionTask,
+    ) => {
+      if (!composerDraft && observedComposerValue === category.starter) {
+        const completion = task.prompt.startsWith(category.starter)
+          ? task.prompt.slice(category.starter.length)
+          : task.prompt;
+        programmaticValueRef.current = task.prompt;
+        setObservedComposerValue(task.prompt);
+        onAppendComposerText(completion);
+        requestAnimationFrame(focusComposer);
+        return;
+      }
+      replaceComposerValue(task.prompt);
+    },
+    [
+      composerDraft,
+      focusComposer,
+      observedComposerValue,
+      onAppendComposerText,
+      replaceComposerValue,
+    ],
+  );
+
+  const handleShowAll = useCallback(
+    (category: NewSessionSuggestionCategory) => {
+      const nextValue = removeGeneratedSuggestionStarter(
+        observedComposerValue,
+        category.starter,
+      );
+      setSuggestionState({ kind: "root" });
+      if (nextValue !== observedComposerValue) replaceComposerValue(nextValue);
+    },
+    [observedComposerValue, replaceComposerValue],
+  );
+
+  const handleComposerInputCapture = useCallback(
+    (event: React.FormEvent<HTMLDivElement>) => {
+      const target = event.target;
+      let value: string | null = null;
+      if (
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLInputElement
+      ) {
+        value = target.value;
+      } else if (target instanceof HTMLElement && target.isContentEditable) {
+        value = target.textContent ?? "";
+      }
+      if (value === null) return;
+      programmaticValueRef.current = null;
+      setObservedComposerValue(value);
+      setSuggestionState(current =>
+        syncNewSessionSuggestionState(current, value),
+      );
+    },
+    [],
+  );
+
+  const hasGitWorkspace = Boolean(branchName || gitStatus);
+  const headingUsesProject = Boolean(workspaceName && workspaceName.length <= 15);
+  const headingVerb = hasGitWorkspace ? "构建" : "开展";
+
+  return (
+    <div ref={pageRef} className="quick-chat-workspace">
+      <main
+        className="quick-chat-view"
+        onInputCapture={handleComposerInputCapture}
+      >
+        <section className="quick-chat-hero-region">
+          <div className="quick-chat-hero">
+            <span aria-hidden className="quick-chat-mark">
+              <Sparkles size={32} strokeWidth={1.5} />
+            </span>
+            {headingUsesProject ? (
+              <h1>
+                我们应该在{" "}
+                <ProjectSwitcherPopover
+                  align="center"
+                  className="popover-project quick-chat-project-popover"
+                  disableOutsideDismiss={debugMode}
+                  maxWidth="min(420px, calc(100vw - 48px))"
+                  open={projectMenuOpen}
+                  recentWorkspaces={recentWorkspaces}
+                  side="top"
+                  sideOffset={6}
+                  trigger={
+                    <button
+                      aria-label="选择项目"
+                      className="project-name"
+                      type="button"
+                    >
+                      {workspaceName}
+                    </button>
+                  }
+                  width={200}
+                  workspace={currentWorkspace}
+                  onChooseWorkspace={() => {
+                    void onChooseWorkspace();
+                    setProjectMenuOpen(false);
+                  }}
+                  onCloneGithub={() => {
+                    onCloneGithub();
+                    setProjectMenuOpen(false);
+                  }}
+                  onClearWorkspace={() => {
+                    onClearWorkspace();
+                    setProjectMenuOpen(false);
+                  }}
+                  onOpenChange={setProjectMenuOpen}
+                  onOpenWorkspace={workspace => {
+                    void onOpenWorkspace(workspace);
+                    setProjectMenuOpen(false);
+                  }}
+                />
+                {" "}
+                中{headingVerb}什么？
+              </h1>
+            ) : (
+              <h1>
+                {hasGitWorkspace ? "我们应该构建什么？" : "我们该做什么？"}
+              </h1>
+            )}
+          </div>
+          {suggestionState.kind === "root" ? (
+            <NewSessionSuggestions
+              state={suggestionState}
+              onSelectCategory={handleSelectCategory}
+              onSelectTask={handleSelectTask}
+              onShowAll={handleShowAll}
+            />
+          ) : null}
+        </section>
+
+        <section className="quick-chat-composer-region">
+          {suggestionState.kind === "category" ? (
+            <NewSessionSuggestions
+              state={suggestionState}
+              onSelectCategory={handleSelectCategory}
+              onSelectTask={handleSelectTask}
+              onShowAll={handleShowAll}
+            />
+          ) : null}
+          {composerProps ? (
+            <div className="chat-composer">
+              <DesktopComposer {...composerProps} />
+            </div>
+          ) : null}
+        </section>
+      </main>
     </div>
   );
 }

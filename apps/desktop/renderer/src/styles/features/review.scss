@@ -309,23 +309,11 @@
   }
 }
 
-.review-file-badge {
+.review-file-icon {
   width: 16px;
   min-width: 16px;
   height: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   flex: 0 0 auto;
-  padding: 0;
-  overflow: hidden;
-  border-radius: var(--radius-2);
-  background: var(--state-active-bg);
-  color: var(--color-text-strong);
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1;
-  text-transform: uppercase;
   margin-right: 8px;
 }
 

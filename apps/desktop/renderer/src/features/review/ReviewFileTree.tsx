@@ -1,11 +1,9 @@
 import React from 'react'
+import { FileIcon, FolderIcon } from '@codepilotx/material-icon-theme'
 import { formatReviewCount } from './reviewFormat.js'
 import {
   ChevronDown,
   ChevronRight,
-  FileDiff,
-  Folder,
-  FolderOpen,
   MessageSquare,
 } from 'lucide-react'
 import type { DesktopReviewDiffFile } from '../../../shared/types.js'
@@ -52,11 +50,12 @@ export function ReviewFileTreeNode({
           ) : (
             <ChevronDown size={APP_ICON_SIZE} />
           )}
-          {collapsed ? (
-            <Folder size={APP_ICON_SIZE} />
-          ) : (
-            <FolderOpen size={APP_ICON_SIZE} />
-          )}
+          <FolderIcon
+            aria-hidden="true"
+            expanded={!collapsed}
+            path={node.dirPath}
+            size={APP_ICON_SIZE}
+          />
           <span className="review-file-tree-dir-label">{node.dirLabel}</span>
           {dirCommentCount > 0 ? (
             <span className="review-comment-badge">{dirCommentCount}</span>
@@ -119,7 +118,7 @@ function ReviewFileRow({
       type="button"
       onClick={() => onSelect(file.path)}
     >
-      <span className="review-file-badge">{fileBadge(file.path)}</span>
+      <FileIcon aria-hidden="true" path={file.path} size={APP_ICON_SIZE} />
       <span className="review-file-path">{displayName}</span>
       {commentCount > 0 ? (
         <span className="review-comment-badge">
@@ -133,11 +132,6 @@ function ReviewFileRow({
       </span>
     </button>
   )
-}
-
-function fileBadge(path: string): React.ReactNode {
-  const ext = path.split('.').pop()?.slice(0, 4).toUpperCase()
-  return ext || <FileDiff size={APP_ICON_SIZE} />
 }
 
 function formatPanelNumber(value: number): string {

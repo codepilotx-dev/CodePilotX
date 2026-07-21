@@ -6,6 +6,10 @@ import type {
   DesktopUserMessageInput,
 } from '../../../shared/types.js'
 import { desktopClient } from '../../services/desktopClient.js'
+import type {
+  ComposerDraftContentSnapshot,
+  ComposerDraftKey,
+} from '../session/composerTypes.js'
 import type { WorkbenchTabDescriptor } from './rightDockState.js'
 
 type Draft = {
@@ -26,7 +30,8 @@ export function useSubagentDockController({
   submitToSession: (
     sessionId: string,
     input: DesktopUserMessageInput,
-  ) => Promise<void>
+    options?: { propagateError?: boolean },
+  ) => Promise<'sent' | 'queued' | 'steered' | null>
   onError: (message: string) => void
 }) {
   const [sideChatInput, setSideChatInput] = useState('')
@@ -82,7 +87,8 @@ export function useSubagentDockController({
     async (
       sessionId: string,
       value: DesktopUserMessageInput,
-    ): Promise<void> => {
+      options?: { propagateError?: boolean },
+    ): Promise<'sent' | 'queued'> => {
       if (selectedSubagentTaskId && desktopClient.sendSubagent) {
         await desktopClient.sendSubagent(
           selectedSubagentTaskId,
@@ -92,11 +98,12 @@ export function useSubagentDockController({
             ? undefined
             : subagentPermissionMode,
         )
+        return 'sent'
       } else {
-        await submitToSession(sessionId, value)
+        const outcome = await submitToSession(sessionId, value, options)
+        if (!outcome) throw new Error('发送失败，请重试')
+        return outcome === 'queued' ? 'queued' : 'sent'
       }
-      setSideChatInput('')
-      setSideChatAttachments([])
     },
     [
       model,
@@ -105,6 +112,88 @@ export function useSubagentDockController({
       subagentPermissionMode,
       submitToSession,
     ],
+  )
+
+  const appendSideComposerAttachmentsForDraft = useCallback(
+    (
+      draftKey: ComposerDraftKey,
+      nextAttachments: DesktopComposerAttachment[],
+    ): void => {
+      if (nextAttachments.length === 0) return
+      const key = draftKey
+      const current =
+        activeComposerKeyRef.current === key
+          ? attachmentsRef.current
+          : draftsRef.current.get(key)?.attachments ?? []
+      const existingIds = new Set(current.map(attachment => attachment.id))
+      const next = [
+        ...current,
+        ...nextAttachments.filter(attachment => !existingIds.has(attachment.id)),
+      ]
+      draftsRef.current.set(key, {
+        input:
+          activeComposerKeyRef.current === key
+            ? inputRef.current
+            : draftsRef.current.get(key)?.input ?? '',
+        attachments: next,
+      })
+      if (activeComposerKeyRef.current === key) {
+        attachmentsRef.current = next
+        setSideChatAttachments(next)
+      }
+    },
+    [],
+  )
+
+  const removeSideComposerAttachmentForDraft = useCallback(
+    (draftKey: ComposerDraftKey, attachmentId: string): void => {
+      const key = draftKey
+      const current =
+        activeComposerKeyRef.current === key
+          ? attachmentsRef.current
+          : draftsRef.current.get(key)?.attachments ?? []
+      const next = current.filter(attachment => attachment.id !== attachmentId)
+      draftsRef.current.set(key, {
+        input:
+          activeComposerKeyRef.current === key
+            ? inputRef.current
+            : draftsRef.current.get(key)?.input ?? '',
+        attachments: next,
+      })
+      if (activeComposerKeyRef.current === key) {
+        attachmentsRef.current = next
+        setSideChatAttachments(next)
+      }
+    },
+    [],
+  )
+
+  const clearSideComposerDraftIfUnchanged = useCallback(
+    (
+      draftKey: ComposerDraftKey,
+      snapshot: ComposerDraftContentSnapshot,
+    ): boolean => {
+      const key = draftKey
+      const current =
+        activeComposerKeyRef.current === key
+          ? { input: inputRef.current, attachments: attachmentsRef.current }
+          : draftsRef.current.get(key) ?? { input: '', attachments: [] }
+      if (
+        current.input !== snapshot.text ||
+        !sameAttachmentIds(current.attachments, snapshot.attachments)
+      ) {
+        return false
+      }
+      draftsRef.current.set(key, { input: '', attachments: [] })
+      if (activeComposerKeyRef.current === key) {
+        inputRef.current = ''
+        attachmentsRef.current = []
+        setSideChatInput('')
+        setSideChatAttachments([])
+      }
+      return true
+    },
+    [],
   )
 
   const refreshSelectedSubagent = useCallback(async (): Promise<void> => {
@@ -178,7 +267,20 @@ export function useSubagentDockController({
     setSubagentPermissionMode,
     handleAppendSideChatText,
     sideChatSubmitToSession,
+    appendSideComposerAttachmentsForDraft,
+    removeSideComposerAttachmentForDraft,
+    clearSideComposerDraftIfUnchanged,
     refreshSelectedSubagent,
     handleOpenSubagent,
   }
+}
+
+function sameAttachmentIds(
+  left: DesktopComposerAttachment[],
+  right: DesktopComposerAttachment[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((attachment, index) => attachment.id === right[index]?.id)
+  )
 }

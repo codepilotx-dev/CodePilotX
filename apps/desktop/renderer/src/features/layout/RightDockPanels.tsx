@@ -24,11 +24,11 @@ import {
 import { FileBreadcrumbToolbar } from './FileBreadcrumbToolbar.js'
 import type { MarkdownFileViewMode } from './rightDockState.js'
 import {
-  createWorkspaceFileTabId,
   getSendableFilePath,
   WorkspaceFileTree,
   type WorkspaceFileOpenOptions,
 } from './WorkspaceFileTree.js'
+import { createWorkspaceFileTabId } from './workspaceFileTabId.js'
 
 const FILE_TREE_DEFAULT_WIDTH = 280
 const FILE_TREE_MIN_WIDTH = 200

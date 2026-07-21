@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import React, { Suspense, type ReactNode } from 'react'
 import {
   FileText,
   Gauge,
@@ -19,27 +19,30 @@ import type {
   DesktopSessionStatus,
   DesktopWorkspace,
 } from '../../../shared/types.js'
-import { DesktopBrowserPanel } from '../browser/DesktopBrowserPanel.js'
-import { ConfirmationDialogDebug } from '../debug/ConfirmationDialogDebug.js'
-import { PerformanceDiagnosticsPanel } from '../debug/PerformanceDiagnosticsPanel.js'
-import { ToolProbePanel } from '../debug/ToolProbePanel.js'
-import { WorkspaceReviewSidebar } from '../review/WorkspaceReviewSidebar.js'
 import type { ReviewTabUiState } from './conversationUiState.js'
-import {
-  createWorkspaceFileTabId,
-  type FileDocumentLoadErrorPhase,
-  RightDockFilePreviewPanel,
-  RightDockFilesPanel,
-  RightDockPlanPanel,
-  RightDockSideChatPanel,
-} from './RightDockPanels.js'
+import type { FileDocumentLoadErrorPhase } from './RightDockPanels.js'
 import { FileTypeIcon } from './FileTypeIcon.js'
+import { createWorkspaceFileTabId } from './workspaceFileTabId.js'
 import type {
   MarkdownFileViewMode,
   WorkbenchFlags,
   WorkbenchTabDescriptor,
   WorkbenchTabKind,
 } from './rightDockState.js'
+
+const DesktopBrowserPanel = React.lazy(() => import('../browser/DesktopBrowserPanel.js').then(module => ({ default: module.DesktopBrowserPanel })))
+const ConfirmationDialogDebug = React.lazy(() => import('../debug/ConfirmationDialogDebug.js').then(module => ({ default: module.ConfirmationDialogDebug })))
+const PerformanceDiagnosticsPanel = React.lazy(() => import('../debug/PerformanceDiagnosticsPanel.js').then(module => ({ default: module.PerformanceDiagnosticsPanel })))
+const ToolProbePanel = React.lazy(() => import('../debug/ToolProbePanel.js').then(module => ({ default: module.ToolProbePanel })))
+const WorkspaceReviewSidebar = React.lazy(() => import('../review/WorkspaceReviewSidebar.js').then(module => ({ default: module.WorkspaceReviewSidebar })))
+const RightDockFilePreviewPanel = React.lazy(() => import('./RightDockPanels.js').then(module => ({ default: module.RightDockFilePreviewPanel })))
+const RightDockFilesPanel = React.lazy(() => import('./RightDockPanels.js').then(module => ({ default: module.RightDockFilesPanel })))
+const RightDockPlanPanel = React.lazy(() => import('./RightDockPanels.js').then(module => ({ default: module.RightDockPlanPanel })))
+const RightDockSideChatPanel = React.lazy(() => import('./RightDockPanels.js').then(module => ({ default: module.RightDockSideChatPanel })))
+
+function deferred(element: ReactNode): ReactNode {
+  return <Suspense fallback={null}>{element}</Suspense>
+}
 
 export type WorkbenchTabRenderContext = {
   review: {
@@ -130,11 +133,11 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     launcher: true,
     enabled: always,
     getTitle: () => '审阅',
-    render: (_tab, context) => (
+    render: (_tab, context) => deferred(
       <WorkspaceReviewSidebar
         {...context.review}
         debugMode={context.flags.debugMode}
-      />
+      />,
     ),
   },
   {
@@ -145,7 +148,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     launcher: true,
     enabled: always,
     getTitle: () => '浏览器',
-    render: (_tab, context) => <DesktopBrowserPanel {...context.browser} />,
+    render: (_tab, context) => deferred(<DesktopBrowserPanel {...context.browser} />),
   },
   {
     kind: 'file-browser',
@@ -155,14 +158,14 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     launcher: true,
     enabled: always,
     getTitle: () => '打开文件',
-    render: (_tab, context) => (
+    render: (_tab, context) => deferred(
       <RightDockFilesPanel
         activePath={null}
         files={context.files.files}
         workspace={context.files.workspace}
         onAddComposerFiles={context.files.onAddComposerFiles}
         onOpenFile={(file) => context.files.onOpenFileFromBrowser(file)}
-      />
+      />,
     ),
   },
   {
@@ -181,7 +184,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
       ) : (
         <FileText size={iconSize} />
       ),
-    render: (tab, context) =>
+    render: (tab, context) => deferred(
       tab.kind === 'file-preview' ? (
         <RightDockFilePreviewPanel
           expectedPath={tab.relativePath}
@@ -210,6 +213,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           onAppendComposerText={context.files.onAppendComposerText}
         />
       ) : null,
+    ),
   },
   {
     kind: 'plan',
@@ -218,7 +222,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     launcher: false,
     enabled: always,
     getTitle: tab => (tab.kind === 'plan' ? tab.title : '计划'),
-    render: (tab, context) => (
+    render: (tab, context) => deferred(
       <RightDockPlanPanel
         content={
           tab.kind === 'plan'
@@ -227,7 +231,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
               null
             : null
         }
-      />
+      />,
     ),
   },
   {
@@ -240,10 +244,10 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     getTitle: () => '侧边聊天',
     render: (_tab, context) =>
       context.sideChat.available ? (
-        <RightDockSideChatPanel
+        deferred(<RightDockSideChatPanel
           composer={context.sideChat.composer}
           focusVersion={context.sideChat.focusVersion}
-        />
+        />)
       ) : (
         <div className="right-dock-empty-state">
           <strong>侧边聊天已在其他标签切换</strong>
@@ -279,7 +283,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     launcher: true,
     enabled: debugOnly,
     getTitle: () => '工具探针',
-    render: () => <ToolProbePanel />,
+    render: () => deferred(<ToolProbePanel />),
   },
   {
     kind: 'dialog-debug',
@@ -288,7 +292,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     launcher: true,
     enabled: debugOnly,
     getTitle: () => '对话框调试',
-    render: () => <ConfirmationDialogDebug />,
+    render: () => deferred(<ConfirmationDialogDebug />),
   },
   {
     kind: 'performance-diagnostics',
@@ -297,7 +301,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     launcher: true,
     enabled: debugOnly,
     getTitle: () => '性能诊断',
-    render: () => <PerformanceDiagnosticsPanel />,
+    render: () => deferred(<PerformanceDiagnosticsPanel />),
   },
 ]
 

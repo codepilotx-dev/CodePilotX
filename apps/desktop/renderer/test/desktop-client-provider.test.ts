@@ -38,6 +38,64 @@ const provider = {
 }
 
 describe('desktop provider client', () => {
+  test('分页目录启动只加载 provider 摘要和当前 provider 首页', async () => {
+    const requests: Array<{ method: string; params?: Record<string, unknown> }> = []
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      const body = JSON.parse(String(init?.body))
+      requests.push({ method: body.method, params: body.params })
+      if (body.method === 'initialize') {
+        return rpc(body.id, initializedResult(['rpc.typed.v1', 'model.catalog.paged.v1']))
+      }
+      if (body.method === 'initialized') return new Response(null, { status: 204 })
+      if (body.method === 'provider/list') {
+        return rpc(body.id, {
+          providers: [provider.provider],
+          defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3' },
+          reviewerModel: null,
+          catalogVersion: 7,
+        })
+      }
+      if (body.method === 'model/list') {
+        expect(body.params).toEqual({
+          providerId: provider.provider.id,
+          enabled: true,
+          limit: 100,
+        })
+        return rpc(body.id, {
+          providers: [provider],
+          defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3' },
+          reviewerModel: null,
+          catalogVersion: 7,
+          total: 1,
+        })
+      }
+      if (body.method === 'integration/list') {
+        return rpc(body.id, {
+          integrations: [{
+            id: provider.provider.integrationID,
+            name: provider.provider.name,
+            methods: [{ type: 'key' }],
+            connections: [{ type: 'credential', id: 'credential-1', label: 'API Key' }],
+          }],
+        })
+      }
+      throw new Error(`Unhandled RPC method: ${body.method}`)
+    }
+
+    const client = createDesktopClient({ fetch: fetcher })
+    const [state, providers] = await Promise.all([
+      client.getModelProviderState(),
+      client.listModelProviders(),
+    ])
+
+    expect(state.model).toBe('MiniMax-M3')
+    expect(providers).toHaveLength(1)
+    expect(requests.filter(request => request.method === 'provider/list')).toHaveLength(1)
+    expect(requests.filter(request => request.method === 'model/list')).toHaveLength(1)
+    expect(requests.some(request => request.method === 'model/list' && Object.keys(request.params ?? {}).length === 0)).toBe(false)
+  })
+
   test('删除 API 密钥后重新读取 Integration，并返回真实未配置状态', async () => {
     const methods: string[] = []
     let connections: Array<Record<string, string>> = [
@@ -111,11 +169,11 @@ function rpc(id: string | number, result: unknown): Response {
   })
 }
 
-function initializedResult() {
+function initializedResult(capabilities: string[] = ['rpc.typed.v1']) {
   return {
     protocol: 'thread-rpc-v3',
     serverInfo: { name: 'test-agent', version: '1.0.0' },
-    capabilities: ['rpc.typed.v1'],
+    capabilities,
     limits: {
       maxFrameBytes: 1024,
       maxSubscriptions: 8,

@@ -2,6 +2,7 @@ import { desktopClient } from '../../services/desktopClient.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopAgentEvent,
+  DesktopComposerAttachment,
   DesktopContextUsage,
   DesktopSessionCatalogStatus,
   DesktopPermissionDecision,
@@ -66,6 +67,10 @@ import {
   type UpdateSessionView,
 } from './sessionViewState.js'
 import { sortSessionsByRecency } from './sessionSorting.js'
+import type {
+  ComposerDraftContentSnapshot,
+  ComposerDraftKey,
+} from './composerTypes.js'
 
 export type UseSessionStateOptions = {
   permissionMode: DesktopPermissionMode
@@ -120,13 +125,32 @@ export type UseSessionStateResult = {
   canSubmit: boolean
   input: string
   setInput: (value: string) => void
+  composerAttachments: DesktopComposerAttachment[]
+  setComposerAttachments: (
+    value:
+      | DesktopComposerAttachment[]
+      | ((current: DesktopComposerAttachment[]) => DesktopComposerAttachment[]),
+  ) => void
+  appendComposerAttachmentsForDraft: (
+    draftKey: ComposerDraftKey,
+    attachments: DesktopComposerAttachment[],
+  ) => void
+  removeComposerAttachmentForDraft: (
+    draftKey: ComposerDraftKey,
+    attachmentId: string,
+  ) => void
+  clearComposerDraftIfUnchanged: (
+    draftKey: ComposerDraftKey,
+    snapshot: ComposerDraftContentSnapshot,
+  ) => boolean
   activateSessionById: (targetSessionId: string | null) => DesktopWorkspace | null
   createSessionForWorkspace: (target?: DesktopWorkspace | null, initialSessionName?: string) => Promise<string | null>
   submit: (target?: DesktopWorkspace | null) => Promise<void>
   submitToSession: (
     targetSessionId: string,
     value: DesktopUserMessageInput,
-  ) => Promise<void>
+    options?: { propagateError?: boolean },
+  ) => Promise<'sent' | 'queued' | 'steered' | null>
   interrupt: () => Promise<void>
   decidePermission: (
     request: DesktopPermissionRequest,
@@ -228,6 +252,9 @@ export function useSessionState(
   const [queuedFollowUps, setQueuedFollowUps] = useState<DesktopQueuedFollowUp[]>([])
   const [queuePauseReason, setQueuePauseReason] = useState<DesktopQueuePauseReason | null>(null)
   const [input, setInput] = useState('')
+  const [composerAttachments, setComposerAttachments] = useState<
+    DesktopComposerAttachment[]
+  >([])
   const activeSessionItem = useMemo(
     () => sessions.find(session => session.id === sessionId) ?? null,
     [sessions, sessionId],
@@ -246,6 +273,9 @@ export function useSessionState(
   const sessionViewsRef = useRef<Record<string, SessionViewState>>({})
   const sessionWorkspacesRef = useRef<Record<string, DesktopWorkspace>>({})
   const inputBySessionRef = useRef<Record<string, string>>({})
+  const attachmentsBySessionRef = useRef<
+    Record<string, DesktopComposerAttachment[]>
+  >({})
   const queueStateBySessionRef = useRef<Record<string, {
     items: DesktopQueuedFollowUp[]
     pauseReason: DesktopQueuePauseReason | null
@@ -305,6 +335,95 @@ export function useSessionState(
     }
     setInput(value)
   }, [])
+
+  const setScopedComposerAttachments = useCallback(
+    (
+      value:
+        | DesktopComposerAttachment[]
+        | ((current: DesktopComposerAttachment[]) => DesktopComposerAttachment[]),
+    ): void => {
+      const key = activeSessionIdRef.current ?? HOME_INPUT_KEY
+      const current = attachmentsBySessionRef.current[key] ?? []
+      const next = typeof value === 'function' ? value(current) : value
+      attachmentsBySessionRef.current = {
+        ...attachmentsBySessionRef.current,
+        [key]: next,
+      }
+      setComposerAttachments(next)
+    },
+    [],
+  )
+
+  const appendComposerAttachmentsForDraft = useCallback(
+    (
+      draftKey: ComposerDraftKey,
+      nextAttachments: DesktopComposerAttachment[],
+    ): void => {
+      if (nextAttachments.length === 0) return
+      const key = composerDraftStorageKey(draftKey)
+      const current = attachmentsBySessionRef.current[key] ?? []
+      const existingIds = new Set(current.map(attachment => attachment.id))
+      const next = [
+        ...current,
+        ...nextAttachments.filter(attachment => !existingIds.has(attachment.id)),
+      ]
+      attachmentsBySessionRef.current = {
+        ...attachmentsBySessionRef.current,
+        [key]: next,
+      }
+      if (isActiveComposerDraftKey(draftKey, activeSessionIdRef.current)) {
+        setComposerAttachments(next)
+      }
+    },
+    [],
+  )
+
+  const removeComposerAttachmentForDraft = useCallback(
+    (draftKey: ComposerDraftKey, attachmentId: string): void => {
+      const key = composerDraftStorageKey(draftKey)
+      const current = attachmentsBySessionRef.current[key] ?? []
+      const next = current.filter(attachment => attachment.id !== attachmentId)
+      attachmentsBySessionRef.current = {
+        ...attachmentsBySessionRef.current,
+        [key]: next,
+      }
+      if (isActiveComposerDraftKey(draftKey, activeSessionIdRef.current)) {
+        setComposerAttachments(next)
+      }
+    },
+    [],
+  )
+
+  const clearComposerDraftIfUnchanged = useCallback(
+    (
+      draftKey: ComposerDraftKey,
+      snapshot: ComposerDraftContentSnapshot,
+    ): boolean => {
+      const key = composerDraftStorageKey(draftKey)
+      const currentInput = inputBySessionRef.current[key] ?? ''
+      const currentAttachments = attachmentsBySessionRef.current[key] ?? []
+      if (
+        currentInput !== snapshot.text ||
+        !sameAttachmentIds(currentAttachments, snapshot.attachments)
+      ) {
+        return false
+      }
+      inputBySessionRef.current = {
+        ...inputBySessionRef.current,
+        [key]: '',
+      }
+      attachmentsBySessionRef.current = {
+        ...attachmentsBySessionRef.current,
+        [key]: [],
+      }
+      if (isActiveComposerDraftKey(draftKey, activeSessionIdRef.current)) {
+        setInput('')
+        setComposerAttachments([])
+      }
+      return true
+    },
+    [],
+  )
 
   const syncPendingPermissionSessionIds = useCallback((): void => {
     const next = buildPendingPermissionSessionIds(sessionViewsRef.current)
@@ -565,6 +684,9 @@ export function useSessionState(
         setQueuePauseReason(null)
         applySessionView(createEmptySessionView(), viewSetters)
         setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
+        setComposerAttachments(
+          attachmentsBySessionRef.current[HOME_INPUT_KEY] ?? [],
+        )
         return
       }
       setSessionStatus(currentSession.status)
@@ -635,6 +757,9 @@ export function useSessionState(
         setQueuePauseReason(null)
         applySessionView(createEmptySessionView(), viewSetters)
         setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
+        setComposerAttachments(
+          attachmentsBySessionRef.current[HOME_INPUT_KEY] ?? [],
+        )
         setSessionsHydrated(true)
       } catch (error) {
         setCatalogStatus({
@@ -703,13 +828,32 @@ export function useSessionState(
   )
 
   const createSessionForWorkspace = useCallback(
-    async (target: DesktopWorkspace | null, initialSessionName?: string): Promise<string | null> =>
-      createSessionForWorkspaceAction(
+    async (target: DesktopWorkspace | null, initialSessionName?: string): Promise<string | null> => {
+      const nextSessionId = await createSessionForWorkspaceAction(
         actionContext,
         settingsSnapshot,
         target,
         initialSessionName,
-      ),
+      )
+      if (!nextSessionId) return null
+
+      const homeInput = inputBySessionRef.current[HOME_INPUT_KEY] ?? ''
+      const homeAttachments =
+        attachmentsBySessionRef.current[HOME_INPUT_KEY] ?? []
+      const { [HOME_INPUT_KEY]: _homeInput, ...remainingInputs } =
+        inputBySessionRef.current
+      const { [HOME_INPUT_KEY]: _homeAttachments, ...remainingAttachments } =
+        attachmentsBySessionRef.current
+      inputBySessionRef.current = {
+        ...remainingInputs,
+        [nextSessionId]: homeInput,
+      }
+      attachmentsBySessionRef.current = {
+        ...remainingAttachments,
+        [nextSessionId]: homeAttachments,
+      }
+      return nextSessionId
+    },
     [actionContext, settingsSnapshot],
   )
 
@@ -722,6 +866,9 @@ export function useSessionState(
         setQueuePauseReason(null)
         applySessionView(createEmptySessionView(), viewSetters)
         setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
+        setComposerAttachments(
+          attachmentsBySessionRef.current[HOME_INPUT_KEY] ?? [],
+        )
         return null
       }
 
@@ -743,6 +890,9 @@ export function useSessionState(
       )
       void hydrateSessionDetails(targetSessionId)
       setInput(inputBySessionRef.current[targetSessionId] ?? '')
+      setComposerAttachments(
+        attachmentsBySessionRef.current[targetSessionId] ?? [],
+      )
       if (targetSession.standalone) {
         return null
       }
@@ -766,34 +916,29 @@ export function useSessionState(
   const submitToSession = useCallback(async (
     targetSessionId: string,
     value: DesktopUserMessageInput,
-  ): Promise<void> => {
+    options?: { propagateError?: boolean },
+  ): Promise<'sent' | 'queued' | 'steered' | null> => {
     const targetStatus =
       sessionsRef.current.find(session => session.id === targetSessionId)
         ?.status ??
       (activeSessionIdRef.current === targetSessionId
         ? sessionStatusRef.current
         : 'idle')
-    await submitSessionMessageAction(
+    return submitSessionMessageAction(
       onErrorRef,
       targetSessionId,
       value,
       Boolean(
           targetSessionId &&
-          (value.text.trim() || (value.attachments?.length ?? 0) > 0),
+          (value.text.trim() ||
+            (value.attachments?.length ?? 0) > 0 ||
+            value.skillInvocation),
       ),
       settingsSnapshot,
-      nextValue => {
-        inputBySessionRef.current = {
-          ...inputBySessionRef.current,
-          [targetSessionId]: nextValue,
-        }
-        if (activeSessionIdRef.current === targetSessionId) {
-          setInput(nextValue)
-        }
-      },
       {
         sessionStatus: targetStatus,
         followUpBehavior,
+        propagateError: options?.propagateError,
       },
     )
   }, [followUpBehavior, settingsSnapshot])
@@ -951,6 +1096,11 @@ export function useSessionState(
     canSubmit,
     input,
     setInput: setScopedInput,
+    composerAttachments,
+    setComposerAttachments: setScopedComposerAttachments,
+    appendComposerAttachmentsForDraft,
+    removeComposerAttachmentForDraft,
+    clearComposerDraftIfUnchanged,
     activateSessionById,
     createSessionForWorkspace,
     submit,
@@ -970,6 +1120,27 @@ export function useSessionState(
 }
 
 const HOME_INPUT_KEY = '__home__'
+
+function composerDraftStorageKey(draftKey: ComposerDraftKey): string {
+  return draftKey === 'home' ? HOME_INPUT_KEY : draftKey.slice('session:'.length)
+}
+
+function isActiveComposerDraftKey(
+  draftKey: ComposerDraftKey,
+  activeSessionId: string | null,
+): boolean {
+  return draftKey === (activeSessionId ? `session:${activeSessionId}` : 'home')
+}
+
+function sameAttachmentIds(
+  left: DesktopComposerAttachment[],
+  right: DesktopComposerAttachment[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((attachment, index) => attachment.id === right[index]?.id)
+  )
+}
 
 function errorMessageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)

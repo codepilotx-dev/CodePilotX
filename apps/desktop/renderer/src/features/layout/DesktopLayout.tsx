@@ -12,7 +12,9 @@ import { Outlet } from 'react-router-dom'
 import {
   DesktopComposer,
   getDesktopComposerBranchName,
+  type DesktopComposerProps,
 } from '../session/DesktopComposer.js'
+import type { ComposerDraftKey } from '../session/composerTypes.js'
 import { deriveWorkflowSessionState } from '../../../shared/workflowReducer.js'
 import {
   DesktopWorkspaceFixedControls,
@@ -36,12 +38,7 @@ import {
 } from './conversationUiState.js'
 import { DesktopSidebar } from './DesktopSidebar.js'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
-import {
-  GitWorkflowModal,
-  type GitWorkflowMode,
-} from './GitWorkflowModal.js'
-import { GithubRepositoryModal } from './GithubRepositoryModal.js'
-import { SettingsSidebarContent } from '../settings/SettingsSidebarContent.js'
+import type { GitWorkflowMode } from './GitWorkflowModal.js'
 import { SidebarFrame } from './SidebarFrame.js'
 import { MenuBar } from './MenuBar.js'
 import type {
@@ -72,7 +69,6 @@ import {
 import type {
   DesktopModelMetadata,
   DesktopBrowserState,
-  DesktopComposerAttachment,
   DesktopFileEntry,
   DesktopPermissionMode,
   DesktopUserMessageInput,
@@ -81,9 +77,8 @@ import type {
   ModelProviderID,
   SidebarSectionId,
 } from '../../../shared/types.js'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { upsertRecentWorkspace } from '../../../shared/settings.js'
-import { SubagentThreadPanel } from '../session/SubagentThreadPanel.js'
 import {
   QUICK_CHAT_PATH,
   sessionPath,
@@ -109,6 +104,11 @@ import {
   saveAllFileDocuments,
   saveFileDocument,
 } from '../workspace/fileDocumentStore.js'
+
+const GitWorkflowModal = lazy(() => import('./GitWorkflowModal.js').then(module => ({ default: module.GitWorkflowModal })))
+const GithubRepositoryModal = lazy(() => import('./GithubRepositoryModal.js').then(module => ({ default: module.GithubRepositoryModal })))
+const SettingsSidebarContent = lazy(() => import('../settings/SettingsSidebarContent.js').then(module => ({ default: module.SettingsSidebarContent })))
+const SubagentThreadPanel = lazy(() => import('../session/SubagentThreadPanel.js').then(module => ({ default: module.SubagentThreadPanel })))
 
 const EMPTY_BRANCHES: string[] = []
 const EXTERNAL_FILE_EXTENSIONS = new Set([
@@ -250,9 +250,6 @@ export function DesktopLayout(): React.ReactNode {
   const [browserState, setBrowserState] = useState<DesktopBrowserState | null>(
     null,
   )
-  const [composerAttachments, setComposerAttachments] = useState<
-    DesktopComposerAttachment[]
-  >([])
   const [menubarDebugMode, setMenubarDebugMode] = useState(() =>
     readDesktopBrowserDebugMode(),
   )
@@ -396,6 +393,11 @@ export function DesktopLayout(): React.ReactNode {
     pendingPermissionSessionIds,
     input,
     setInput,
+    composerAttachments,
+    setComposerAttachments,
+    appendComposerAttachmentsForDraft,
+    removeComposerAttachmentForDraft,
+    clearComposerDraftIfUnchanged,
     activateSessionById,
     createSessionForWorkspace,
     submitToSession,
@@ -424,6 +426,9 @@ export function DesktopLayout(): React.ReactNode {
     handleSettingsTabChange,
     handleSettingsBack,
   } = useWorkbenchRouteController()
+  const mainComposerDraftKey: ComposerDraftKey = routedSessionId
+    ? `session:${routedSessionId}`
+    : 'home'
   const lastWorkspaceRestoreAttemptedRef = useRef(false)
 
   useEffect(() => {
@@ -828,6 +833,9 @@ export function DesktopLayout(): React.ReactNode {
     setSubagentPermissionMode,
     handleAppendSideChatText,
     sideChatSubmitToSession,
+    appendSideComposerAttachmentsForDraft,
+    removeSideComposerAttachmentForDraft,
+    clearSideComposerDraftIfUnchanged,
     refreshSelectedSubagent,
     handleOpenSubagent,
   } = useSubagentDockController({
@@ -837,6 +845,9 @@ export function DesktopLayout(): React.ReactNode {
     submitToSession,
     onError: handleErrorMessage,
   })
+  const sideComposerDraftKey: ComposerDraftKey = selectedSubagentTaskId
+    ? `side-task:${selectedSubagentTaskId}`
+    : 'side-chat'
 
   const handleSubmitEditedUserMessage = useCallback(
     async (text: string): Promise<void> => {
@@ -851,22 +862,13 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleAddComposerFiles = useCallback((filePaths: string[]): void => {
     if (filePaths.length === 0) return
+    const targetDraftKey = mainComposerDraftKey
     void desktopClient
       .authorizeComposerFilePaths(filePaths)
       .then(() => desktopClient.readComposerFiles(filePaths))
       .then(nextAttachments => {
         if (nextAttachments.length === 0) return
-        setComposerAttachments(current => {
-          const attachmentIds = new Set(
-            current.map(attachment => attachment.id),
-          )
-          return [
-            ...current,
-            ...nextAttachments.filter(
-              attachment => !attachmentIds.has(attachment.id),
-            ),
-          ]
-        })
+        appendComposerAttachmentsForDraft(targetDraftKey, nextAttachments)
       })
       .catch(error =>
         setErrorMessage(error instanceof Error ? error.message : String(error)),
@@ -876,10 +878,12 @@ export function DesktopLayout(): React.ReactNode {
   const handleNewConversation = useCallback(async (): Promise<void> => {
     activateSessionById(null)
     setInput('')
+    setComposerAttachments([])
     navigate(QUICK_CHAT_PATH)
   }, [
     activateSessionById,
     navigate,
+    setComposerAttachments,
     setInput,
   ])
 
@@ -1164,6 +1168,7 @@ export function DesktopLayout(): React.ReactNode {
   const activeSessionModelRef = useRef<string | null>(null)
   const fetchedModelCatalogKeysRef = useRef<Set<string>>(new Set())
   const pendingModelCatalogKeysRef = useRef<Set<string>>(new Set())
+  const openedProviderCatalogsRef = useRef<Set<ModelProviderID>>(new Set())
   useEffect(() => {
     modelRef.current = model
   }, [model])
@@ -1311,6 +1316,10 @@ export function DesktopLayout(): React.ReactNode {
               return {
                 ...current,
                 models: result.models,
+                modelMetadata: {
+                  ...current.modelMetadata,
+                  ...result.modelMetadata,
+                },
                 error: result.error,
               }
             })
@@ -1333,6 +1342,8 @@ export function DesktopLayout(): React.ReactNode {
   useEffect(() => {
     void refreshProviderState()
     const listener = () => {
+      openedProviderCatalogsRef.current.clear()
+      fetchedModelCatalogKeysRef.current.clear()
       void refreshProviderState()
     }
     window.addEventListener('desktop:model-provider-changed', listener)
@@ -1469,6 +1480,52 @@ export function DesktopLayout(): React.ReactNode {
       setSelectedFile,
       setWorkspaceState,
     ],
+  )
+
+  const handleProviderOpen = useCallback(
+    (providerID: ModelProviderID): void => {
+      if (openedProviderCatalogsRef.current.has(providerID)) return
+      openedProviderCatalogsRef.current.add(providerID)
+      void desktopClient.fetchProviderModels({ providerID, limit: 100 })
+        .then(result => {
+          setModelProviders(current => current.map(provider =>
+            provider.providerID === providerID
+              ? {
+                  ...provider,
+                  defaultModels: result.models,
+                  modelMetadata: {
+                    ...provider.modelMetadata,
+                    ...result.modelMetadata,
+                  },
+                }
+              : provider,
+          ))
+        })
+        .catch(error => {
+          openedProviderCatalogsRef.current.delete(providerID)
+          setErrorMessage(error instanceof Error ? error.message : String(error))
+        })
+    },
+    [setModelProviders],
+  )
+
+  const handleProviderSearch = useCallback(
+    (providerID: ModelProviderID, query: string): void => {
+      void desktopClient.fetchProviderModels({ providerID, query, limit: 100 })
+        .then(result => {
+          setModelProviders(current => current.map(provider =>
+            provider.providerID === providerID
+              ? {
+                  ...provider,
+                  defaultModels: result.models,
+                  modelMetadata: result.modelMetadata,
+                }
+              : provider,
+          ))
+        })
+        .catch(error => setErrorMessage(error instanceof Error ? error.message : String(error)))
+    },
+    [setModelProviders],
   )
 
   const handleArchiveSessions = useCallback(
@@ -1707,11 +1764,13 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const settingsSidebarContent = (
-    <SettingsSidebarContent
-      activeTab={settingsActiveTab}
-      onBack={handleSettingsBack}
-      onTabChange={handleSettingsTabChange}
-    />
+    <Suspense fallback={null}>
+      <SettingsSidebarContent
+        activeTab={settingsActiveTab}
+        onBack={handleSettingsBack}
+        onTabChange={handleSettingsTabChange}
+      />
+    </Suspense>
   )
 
   const handleFollowUpEdit = useCallback(
@@ -1786,72 +1845,90 @@ export function DesktopLayout(): React.ReactNode {
     </SidebarFrame>
   )
 
-  const composer = isQuickChatPage || isConversationRoute ? (
-    <DesktopComposer
-      input={input}
-      messages={messages}
-      isQuickChatPage={isQuickChatPage}
-      routedSessionId={routedSessionId}
-      sessionStatus={sessionStatus}
-      permissionMode={effectivePermissionMode}
-      planModeActive={planModeActive}
-      localRouterMode={effectiveLocalRouterMode}
-      enableParetoCodeRouter={localRouterAvailable && (enableParetoCodeRouter ?? false)}
-      enableFusionRouter={localRouterAvailable && (enableFusionRouter ?? false)}
-      enableAutoReviewPermissionMode={enableAutoReviewPermissionMode ?? false}
-      enableFullAccessPermissionMode={enableFullAccessPermissionMode ?? false}
-      planExecutionModel={planExecutionModel}
-      thinkingMode={thinkingMode}
-      selectedProviderID={selectedProviderID}
-      selectedModelPreset={resolvedSelectedModelPreset}
-      modelConfigured={modelConfigured}
-      modelCatalogLoading={modelCatalogLoading}
-      modelConfigurationMessage={modelConfigurationMessage}
-      selectedModelMetadata={selectedModelMetadata}
-      showThinkingOptions={showThinkingOptions}
-      deepSeekThinkingControls={deepSeekThinkingControls}
-      debugMode={menubarDebugMode}
-      showContextUsage={showContextUsage}
-      contextUsage={contextUsage}
-      modelPresets={selectedProviderModelPresets}
-      providerOptions={providerModelOptions}
-      recentWorkspaces={recentWorkspaces}
-      workspace={currentWorkspace}
-      attachments={composerAttachments}
-      onAttachmentsChange={setComposerAttachments}
-      onChooseWorkspace={handleChooseWorkspace}
-      onInputChange={setInput}
-      onInterrupt={interrupt}
-      onProviderModelChange={handleProviderModelChange}
-      onOpenWorkspace={handleOpenRecentWorkspace}
-      onCloneGithub={() => setGithubRepositoryModalOpen(true)}
-      onClearWorkspace={handleClearWorkspace}
-      onOpenBrowser={handleOpenBrowser}
-      onBranchSelect={handleBranchSelect}
-      onCreateBranch={handleCreateBranch}
-      onStartReview={handleStartAiReview}
-      onPermissionChange={handlePermissionChange}
-      onPlanModeChange={handlePlanModeChange}
-      onLocalRouterModeChange={handleLocalRouterModeChange}
-      onThinkingChange={setThinkingMode}
-      createSessionForWorkspace={createSessionForWorkspace}
-      submitToSession={submitToSession}
-      queuedFollowUps={queuedFollowUps}
-      queuePauseReason={queuePauseReason}
-      onFollowUpEdit={(followUpId, value) => void handleFollowUpEdit(followUpId, value)}
-      onFollowUpRemove={followUpId => void handleFollowUpRemove(followUpId)}
-      onFollowUpSendNow={followUpId => void handleFollowUpSteer(followUpId)}
-      onFollowUpReorder={followUpIds => void handleFollowUpReorder(followUpIds)}
-      onFollowUpResume={() => void handleFollowUpResume()}
-    />
-  ) : null
+  const composerProps: DesktopComposerProps | null =
+    isQuickChatPage || isConversationRoute
+      ? {
+          input,
+          messages,
+          placement: isQuickChatPage ? 'new-session' : 'thread',
+          draftKey: mainComposerDraftKey,
+          routedSessionId,
+          sessionStatus,
+          permissionMode: effectivePermissionMode,
+          planModeActive,
+          localRouterMode: effectiveLocalRouterMode,
+          enableParetoCodeRouter:
+            localRouterAvailable && (enableParetoCodeRouter ?? false),
+          enableFusionRouter:
+            localRouterAvailable && (enableFusionRouter ?? false),
+          enableAutoReviewPermissionMode:
+            enableAutoReviewPermissionMode ?? false,
+          enableFullAccessPermissionMode:
+            enableFullAccessPermissionMode ?? false,
+          planExecutionModel,
+          thinkingMode,
+          selectedProviderID,
+          selectedModelPreset: resolvedSelectedModelPreset,
+          modelConfigured,
+          modelCatalogLoading,
+          modelConfigurationMessage,
+          selectedModelMetadata,
+          showThinkingOptions,
+          deepSeekThinkingControls,
+          debugMode: menubarDebugMode,
+          showContextUsage,
+          contextUsage,
+          modelPresets: selectedProviderModelPresets,
+          providerOptions: providerModelOptions,
+          recentWorkspaces,
+          workspace: currentWorkspace,
+          attachments: composerAttachments,
+          onAttachmentsChange: setComposerAttachments,
+          onAppendAttachmentsForDraft: appendComposerAttachmentsForDraft,
+          onRemoveAttachmentForDraft: removeComposerAttachmentForDraft,
+          onDraftAccepted: clearComposerDraftIfUnchanged,
+          onChooseWorkspace: handleChooseWorkspace,
+          onInputChange: setInput,
+          onInterrupt: interrupt,
+          onProviderModelChange: handleProviderModelChange,
+          onProviderOpen: handleProviderOpen,
+          onProviderSearch: handleProviderSearch,
+          onOpenWorkspace: handleOpenRecentWorkspace,
+          onCloneGithub: () => setGithubRepositoryModalOpen(true),
+          onClearWorkspace: handleClearWorkspace,
+          onOpenBrowser: handleOpenBrowser,
+          onBranchSelect: handleBranchSelect,
+          onCreateBranch: handleCreateBranch,
+          onStartReview: handleStartAiReview,
+          onPermissionChange: handlePermissionChange,
+          onPlanModeChange: handlePlanModeChange,
+          onLocalRouterModeChange: handleLocalRouterModeChange,
+          onThinkingChange: setThinkingMode,
+          createSessionForWorkspace,
+          submitToSession,
+          queuedFollowUps,
+          queuePauseReason,
+          onFollowUpEdit: (followUpId, value) =>
+            void handleFollowUpEdit(followUpId, value),
+          onFollowUpRemove: followUpId =>
+            void handleFollowUpRemove(followUpId),
+          onFollowUpSendNow: followUpId =>
+            void handleFollowUpSteer(followUpId),
+          onFollowUpReorder: followUpIds =>
+            void handleFollowUpReorder(followUpIds),
+          onFollowUpResume: () => void handleFollowUpResume(),
+        }
+      : null
   const sideChatComposer =
     isQuickChatPage || isConversationRoute ? (
       <DesktopComposer
         input={sideChatInput}
         messages={messages}
-        isQuickChatPage={isQuickChatPage}
-        routedSessionId={activeSessionItem?.id ?? null}
+        placement="side-task"
+        draftKey={sideComposerDraftKey}
+        routedSessionId={
+          selectedSubagent?.task.childThreadId ?? activeSessionItem?.id ?? null
+        }
         sessionStatus={sessionStatus}
         permissionMode={selectedSubagentTaskId ? subagentPermissionMode : effectivePermissionMode}
         planModeActive={selectedSubagentTaskId ? false : planModeActive}
@@ -1879,10 +1956,15 @@ export function DesktopLayout(): React.ReactNode {
         workspace={currentWorkspace}
         attachments={sideChatAttachments}
         onAttachmentsChange={setSideChatAttachments}
+        onAppendAttachmentsForDraft={appendSideComposerAttachmentsForDraft}
+        onRemoveAttachmentForDraft={removeSideComposerAttachmentForDraft}
+        onDraftAccepted={clearSideComposerDraftIfUnchanged}
         onChooseWorkspace={handleChooseWorkspace}
         onInputChange={setSideChatInput}
         onInterrupt={selectedSubagentTaskId && desktopClient.stopSubagent ? async () => { await desktopClient.stopSubagent!(selectedSubagentTaskId); await refreshSelectedSubagent() } : interrupt}
         onProviderModelChange={handleProviderModelChange}
+        onProviderOpen={handleProviderOpen}
+        onProviderSearch={handleProviderSearch}
         onOpenWorkspace={handleOpenRecentWorkspace}
         onCloneGithub={() => setGithubRepositoryModalOpen(true)}
         onClearWorkspace={handleClearWorkspace}
@@ -1900,13 +1982,14 @@ export function DesktopLayout(): React.ReactNode {
       />
     ) : null
   const subagentSideChatContent = selectedSubagent?.currentRun ? (
-    <SubagentThreadPanel
-      task={selectedSubagent.task}
-      run={selectedSubagent.currentRun}
-      snapshot={selectedSubagent.snapshot}
-      capabilities={selectedSubagent.capabilities}
-      composer={sideChatComposer}
-      callbacks={{
+    <Suspense fallback={null}>
+      <SubagentThreadPanel
+        task={selectedSubagent.task}
+        run={selectedSubagent.currentRun}
+        snapshot={selectedSubagent.snapshot}
+        capabilities={selectedSubagent.capabilities}
+        composer={sideChatComposer}
+        callbacks={{
         onStop: task => { void desktopClient.stopSubagent?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
         onRetry: task => { void desktopClient.retrySubagent?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
         onApplyWorktree: task => { void desktopClient.applySubagentWorktree?.(task.id).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
@@ -1915,8 +1998,9 @@ export function DesktopLayout(): React.ReactNode {
         onOpenSubagent: item => handleOpenSubagent(item.subagentTaskId),
         onApprovalRespond: (approval, decision) => { void desktopClient.respondSubagentApproval?.(approval, decision).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
         onQuestionRespond: (question, response) => { void desktopClient.respondSubagentQuestion?.(question.id, response.answer, response.ignored).then(refreshSelectedSubagent).catch(error => setErrorMessage(error instanceof Error ? error.message : String(error))) },
-      }}
-    />
+        }}
+      />
+    </Suspense>
   ) : selectedSubagentTaskId ? <div className="right-dock-empty-state">正在加载子 Agent...</div> : undefined
   const fixedControlsRef = useRef<HTMLDivElement>(null)
   const rightDockPanelRef = useRef<HTMLDivElement>(null)
@@ -1925,7 +2009,7 @@ export function DesktopLayout(): React.ReactNode {
     if (rightDockPanelRef.current) {
       rightDockPanelRef.current.style.width = `${width}px`
     }
-  }, [])
+  }, [appendComposerAttachmentsForDraft, mainComposerDraftKey])
   useEffect(() => {
     const el = fixedControlsRef.current
     if (!el) return
@@ -2275,7 +2359,7 @@ export function DesktopLayout(): React.ReactNode {
         tone="status"
         onDismiss={() => setNoticeMessage(null)}
       />
-      <GitWorkflowModal
+      {gitWorkflowMode ? <Suspense fallback={null}><GitWorkflowModal
         allowForcePush={allowForcePush}
         commitMessagePrompt={commitMessagePrompt}
         gitBranchPrefix={gitBranchPrefix}
@@ -2291,13 +2375,13 @@ export function DesktopLayout(): React.ReactNode {
           }
         }}
         onWorkspaceChanged={handleWorkspaceChanged}
-      />
-      <GithubRepositoryModal
+      /></Suspense> : null}
+      {githubRepositoryModalOpen ? <Suspense fallback={null}><GithubRepositoryModal
         open={githubRepositoryModalOpen}
         onClose={() => setGithubRepositoryModalOpen(false)}
         onError={message => setErrorMessage(message)}
         onWorkspaceCloned={handleGithubWorkspaceCloned}
-      />
+      /></Suspense> : null}
       {archiveNoticeVisible ? (
         <ArchiveConversationNotice
           onClose={() => setArchiveNoticeVisible(false)}
@@ -2413,7 +2497,11 @@ export function DesktopLayout(): React.ReactNode {
             pendingPermissions:
               isQuickChatPage || isConversationLoading ? [] : pendingPermissions,
             sessionStatus,
-            composer: isConversationLoading ? null : composer,
+            composerProps: isConversationLoading ? null : composerProps,
+            composerDraft: {
+              value: input,
+              replace: setInput,
+            },
             bottomPanelVisible,
             onToggleBottomPanel: toggleBottomPanelVisible,
             rightDockPlanEventId,

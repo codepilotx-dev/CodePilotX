@@ -1,5 +1,14 @@
 ﻿import type React from "react";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  lazy,
+  Suspense,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Select from "@radix-ui/react-select";
 import {
@@ -67,6 +76,18 @@ import { ProjectSwitcherPopover } from "./ProjectSwitcherPopover.js";
 import { ChatInputDropdown } from "./ChatInputDropdown.js";
 import { BranchSelectPopover } from "./BranchSelectPopover.js";
 import { ComposerStatusOverlay } from "./ComposerStatusOverlay.js";
+import { ComposerAttachmentTray } from "./ComposerAttachmentTray.js";
+import type {
+  ComposerEditorHandle,
+  ComposerEditorProps,
+} from "./ComposerEditor.js";
+import {
+  DEFAULT_COMPOSER_CAPABILITIES,
+  type ComposerCapabilities,
+  type ComposerPlacement,
+  type ComposerSubmitOutcome,
+  type ComposerSubmitShortcut,
+} from "./composerTypes.js";
 
 type Option<T extends string> = {
   value: T;
@@ -163,11 +184,7 @@ const INSTALLED_CONTEXT_PLUGINS: ContextPlugin[] = [
   },
 ];
 
-type UnifiedMenuGroup =
-  | "添加"
-  | "子智能体"
-  | "插件"
-  | "Skills";
+type UnifiedMenuGroup = "添加" | "子智能体" | "插件" | "Skills";
 
 type UnifiedMenuItem = {
   group: UnifiedMenuGroup;
@@ -195,9 +212,9 @@ const UNIFIED_GROUP_ORDER: UnifiedMenuGroup[] = [
 ];
 
 const UNIFIED_GROUP_LABELS: Record<UnifiedMenuGroup, string> = {
-  "添加": "添加",
-  "子智能体": "子智能体",
-  "插件": "插件",
+  添加: "添加",
+  子智能体: "子智能体",
+  插件: "插件",
   Skills: "技能",
 };
 
@@ -249,6 +266,8 @@ type Props = {
     providerID: ModelProviderID,
     modelPresetID: string,
   ) => void;
+  onProviderOpen?: (providerID: ModelProviderID) => void;
+  onProviderSearch?: (providerID: ModelProviderID, query: string) => void;
   onAddFiles?: (filePaths: string[]) => void;
   onOpenFiles: () => void;
   onRemoveAttachment?: (attachmentId: string) => void;
@@ -287,9 +306,23 @@ type Props = {
   onGoalResume?: () => void;
   onGoalComplete?: () => void;
   onGoalClear?: () => void;
-  subagentMode?: boolean;
-  showBottomBar?: boolean;
+  placement?: ComposerPlacement;
+  capabilities?: Partial<ComposerCapabilities>;
+  submitting?: boolean;
+  submitOutcome?: ComposerSubmitOutcome | null;
+  onCompositionStart?: () => void;
+  onCompositionEnd?: () => void;
+  submitShortcut?: ComposerSubmitShortcut;
 };
+
+const ComposerEditor = lazy(async () => {
+  const module = await import("./ComposerEditor.js");
+  return {
+    default: module.ComposerEditor as React.ForwardRefExoticComponent<
+      ComposerEditorProps & React.RefAttributes<ComposerEditorHandle>
+    >,
+  };
+});
 
 export function ComposerCard({
   input,
@@ -329,6 +362,8 @@ export function ComposerCard({
   onInputChange,
   onInterrupt,
   onProviderModelChange,
+  onProviderOpen,
+  onProviderSearch,
   onAddFiles,
   onOpenFiles,
   onRemoveAttachment,
@@ -347,7 +382,7 @@ export function ComposerCard({
   onSkillSelect,
   onSkillDeselect,
   routedSessionId,
-  contextDropdownSide = "top",
+  contextDropdownSide: contextDropdownSideOverride,
   debugMode = false,
   queuedFollowUps,
   queuePauseReason,
@@ -361,18 +396,67 @@ export function ComposerCard({
   onGoalResume,
   onGoalComplete,
   onGoalClear,
-  subagentMode = false,
-  showBottomBar = true,
+  placement = "thread",
+  capabilities: capabilityOverrides,
+  submitting = false,
+  submitOutcome,
+  onCompositionStart,
+  onCompositionEnd,
+  submitShortcut = "enter",
 }: Props): React.ReactNode {
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const editorRef = useRef<ComposerEditorHandle | null>(null);
+  const menuId = useId();
+  const menuItemId = (key: string): string =>
+    `${menuId}-item-${encodeURIComponent(key)}`;
+  const capabilities = useMemo(
+    () => ({ ...DEFAULT_COMPOSER_CAPABILITIES, ...capabilityOverrides }),
+    [capabilityOverrides],
+  );
+  const submitErrorId = `${menuId}-submit-error`;
+  const subagentMode = placement === "side-task";
+  const contextDropdownSide = contextDropdownSideOverride ?? "top";
   const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(
     null,
   );
   const [branchSearch, setBranchSearch] = useState("");
+  const [providerSearchQueries, setProviderSearchQueries] = useState<
+    Record<string, string>
+  >({});
+  const providerSearchTimersRef = useRef(
+    new Map<string, ReturnType<typeof setTimeout>>(),
+  );
+  useEffect(
+    () => () => {
+      for (const timer of providerSearchTimersRef.current.values())
+        clearTimeout(timer);
+      providerSearchTimersRef.current.clear();
+    },
+    [],
+  );
+  const queueProviderSearch = (
+    providerID: ModelProviderID,
+    query: string,
+  ): void => {
+    setProviderSearchQueries((current) => ({
+      ...current,
+      [providerID]: query,
+    }));
+    const previous = providerSearchTimersRef.current.get(providerID);
+    if (previous) clearTimeout(previous);
+    const timer = setTimeout(() => {
+      providerSearchTimersRef.current.delete(providerID);
+      onProviderSearch?.(providerID, query.trim());
+    }, 150);
+    providerSearchTimersRef.current.set(providerID, timer);
+  };
   const [dismissedSlashInput, setDismissedSlashInput] = useState<string | null>(
     null,
   );
   const [isComposing, setIsComposing] = useState(false);
+
+  useEffect(() => {
+    if (submitOutcome?.status === "failed") editorRef.current?.focus();
+  }, [submitOutcome]);
   const [dismissedMention, setDismissedMention] = useState<number | null>(null);
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const selectedPermission = permissionOptions.find(
@@ -592,8 +676,7 @@ export function ComposerCard({
         matchText: `代码审查 branch review ${branch}`,
         disabled:
           subagentMode || !onStartReview || !routedSessionId || !workspace,
-        onSelect: () =>
-          onStartReview?.({ type: "baseBranch", branch }),
+        onSelect: () => onStartReview?.({ type: "baseBranch", branch }),
       });
     }
 
@@ -672,7 +755,10 @@ export function ComposerCard({
         label: plugin.name,
         hint: plugin.description,
         icon: (
-          <span className="chat-input__dropdown-bullet" style={{ background: bgColor }} />
+          <span
+            className="chat-input__dropdown-bullet"
+            style={{ background: bgColor }}
+          />
         ),
         matchText: `${plugin.name} ${plugin.description} 插件`,
         onSelect: () => {
@@ -725,7 +811,25 @@ export function ComposerCard({
       }
     }
 
-    return items;
+    return items.filter((item) => {
+      if (item.disabled) return false;
+      if (item.key === "add-files") return capabilities.fileAttachments;
+      if (item.key.startsWith("code-review")) return capabilities.review;
+      if (item.key === "goal-mode") return capabilities.goals;
+      if (item.key === "status") return capabilities.status;
+      if (item.key.startsWith("skill-")) return capabilities.skills;
+      if (item.key.startsWith("plugin-")) {
+        return (
+          capabilities.plugins &&
+          item.key === "plugin-浏览器" &&
+          Boolean(onOpenBrowser)
+        );
+      }
+      if (item.key.startsWith("agent-") || item.key.startsWith("cmd-")) {
+        return false;
+      }
+      return true;
+    });
   }, [
     slashCommands,
     goalModeEnabled,
@@ -743,12 +847,12 @@ export function ComposerCard({
     branchName,
     routedSessionId,
     workspace,
+    capabilities,
   ]);
 
   const [activeMenuIndex, setActiveMenuIndex] = useState(0);
-  const activeMenuKeyword = openDropdown === "context"
-    ? ""
-    : activeMention?.query ?? slashSearch;
+  const activeMenuKeyword =
+    openDropdown === "context" ? "" : (activeMention?.query ?? slashSearch);
   const activeMenuItems = useMemo(
     () => filterUnifiedMenuItems(unifiedMenuItems, activeMenuKeyword),
     [activeMenuKeyword, unifiedMenuItems],
@@ -779,14 +883,6 @@ export function ComposerCard({
     }
   }, [input, dismissedMention]);
 
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const maxHeight = Math.floor((window.innerHeight || 0) * 0.4);
-    textarea.style.height = "auto";
-    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
-  }, [input]);
-
   function closeDropdown(): void {
     setOpenDropdown(null);
   }
@@ -796,7 +892,8 @@ export function ComposerCard({
     // Items that manage their own dropdown (status, model, reasoning) should
     // not be followed by closeDropdown(), otherwise React batches the two
     // setOpenDropdown calls and the sub-dropdown never opens.
-    const managesOwnDropdown = item.key === "status" || item.key === "model" || item.key === "reasoning";
+    const managesOwnDropdown =
+      item.key === "status" || item.key === "model" || item.key === "reasoning";
     item.onSelect();
     if (!managesOwnDropdown) {
       closeDropdown();
@@ -814,7 +911,8 @@ export function ComposerCard({
     // Same logic as handleUnifiedPlusSelect: skip closeDropdown for items
     // that open a sub-dropown, otherwise React batches both setOpenDropdown
     // calls and the sub-dropdown never opens.
-    const managesOwnDropdown = item.key === "status" || item.key === "model" || item.key === "reasoning";
+    const managesOwnDropdown =
+      item.key === "status" || item.key === "model" || item.key === "reasoning";
     item.onSelect();
     if (!managesOwnDropdown) {
       closeDropdown();
@@ -825,8 +923,7 @@ export function ComposerCard({
     if (item.disabled) return;
     if (activeMention) {
       const newInput =
-        input.slice(0, activeMention.start) +
-        input.slice(activeMention.end);
+        input.slice(0, activeMention.start) + input.slice(activeMention.end);
       onInputChange(newInput);
       setDismissedMention(activeMention.start);
       setSelectionStart(activeMention.start);
@@ -838,14 +935,6 @@ export function ComposerCard({
   function handleFileDrop(event: React.DragEvent<HTMLDivElement>): void {
     if (!onAddFiles) return;
     const filePaths = getFilePathsFromFileList(event.dataTransfer.files);
-    if (filePaths.length === 0) return;
-    event.preventDefault();
-    onAddFiles(filePaths);
-  }
-
-  function handlePaste(event: React.ClipboardEvent<HTMLTextAreaElement>): void {
-    if (!onAddFiles) return;
-    const filePaths = getFilePathsFromFileList(event.clipboardData.files);
     if (filePaths.length === 0) return;
     event.preventDefault();
     onAddFiles(filePaths);
@@ -916,14 +1005,12 @@ export function ComposerCard({
       <div
         aria-label="Composer 命令"
         className="chat-input__dropdown-items"
-        id="composer-unified-menu"
+        id={menuId}
         role="menu"
       >
         {visibleGroups.map((group, gi) => (
           <Fragment key={group}>
-            {gi > 0 ? (
-              <div className="chat-input__dropdown-separator" />
-            ) : null}
+            {gi > 0 ? <div className="chat-input__dropdown-separator" /> : null}
             <div className="chat-input__dropdown-section-title">
               <span className="chat-input__dropdown-section-leading" />
               <span className="chat-input__dropdown-section-label">
@@ -934,40 +1021,41 @@ export function ComposerCard({
             {(grouped.get(group) ?? []).map((item) => {
               const itemIndex = filtered.indexOf(item);
               return (
-              <button
-                aria-disabled={item.disabled ? true : undefined}
-                aria-current={item.isActive ? "true" : undefined}
-                className={[
-                  "chat-input__dropdown-item",
-                  item.isActive ? "is-active" : "",
-                  itemIndex === activeIndex ? "is-keyboard-active" : "",
-                  item.disabled ? "is-disabled" : "",
-                ].join(" ")}
-                id={composerMenuItemId(item.key)}
-                key={item.key}
-                onClick={() => {
-                  if (!item.disabled) onItemSelect(item);
-                }}
-                onMouseEnter={() => onActiveIndexChange(itemIndex)}
-                role="menuitem"
-                tabIndex={itemIndex === activeIndex ? 0 : -1}
-                type="button"
-              >
-                <span className="chat-input__dropdown-leading">
-                  {item.icon}
-                </span>
-                <span className="chat-input__dropdown-label">
-                  {item.label}
-                </span>
-                <span className="chat-input__dropdown-trailing">
-                  {item.hint ? (
-                    <span className="chat-input__dropdown-hint">
-                      {item.hint}
-                    </span>
-                  ) : null}
-                </span>
-              </button>
-            )})}
+                <button
+                  aria-disabled={item.disabled ? true : undefined}
+                  aria-current={item.isActive ? "true" : undefined}
+                  className={[
+                    "chat-input__dropdown-item",
+                    item.isActive ? "is-active" : "",
+                    itemIndex === activeIndex ? "is-keyboard-active" : "",
+                    item.disabled ? "is-disabled" : "",
+                  ].join(" ")}
+                  id={menuItemId(item.key)}
+                  key={item.key}
+                  onClick={() => {
+                    if (!item.disabled) onItemSelect(item);
+                  }}
+                  onMouseEnter={() => onActiveIndexChange(itemIndex)}
+                  role="menuitem"
+                  tabIndex={itemIndex === activeIndex ? 0 : -1}
+                  type="button"
+                >
+                  <span className="chat-input__dropdown-leading">
+                    {item.icon}
+                  </span>
+                  <span className="chat-input__dropdown-label">
+                    {item.label}
+                  </span>
+                  <span className="chat-input__dropdown-trailing">
+                    {item.hint ? (
+                      <span className="chat-input__dropdown-hint">
+                        {item.hint}
+                      </span>
+                    ) : null}
+                  </span>
+                </button>
+              );
+            })}
           </Fragment>
         ))}
       </div>
@@ -976,7 +1064,9 @@ export function ComposerCard({
 
   return (
     <div
-      className="composer tw:relative tw:flex tw:w-full tw:max-w-[48rem] tw:flex-col tw:overflow-visible tw:p-3"
+      className="composer-stack tw:relative tw:flex tw:w-full tw:max-w-[48rem] tw:flex-col tw:overflow-hidden"
+      data-placement={placement}
+      aria-busy={submitting}
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes("Files")) {
           event.preventDefault();
@@ -984,63 +1074,38 @@ export function ComposerCard({
       }}
       onDrop={handleFileDrop}
     >
-      <div className="composer-top tw:relative tw:flex tw:min-h-0 tw:flex-col tw:justify-between tw:transition-[min-height] tw:duration-[220ms]">
-        {attachments.length > 0 ? (
+      <div
+        className="composer composer-input-surface composer-top tw:relative tw:flex tw:min-h-0 tw:flex-col tw:justify-between tw:transition-[min-height] tw:duration-[220ms]"
+        inert={submitting || undefined}
+      >
+        {submitOutcome?.status === "failed" ? (
           <div
-            className="composer-attachments tw:mb-2 tw:flex tw:flex-wrap tw:items-start tw:gap-2"
-            aria-label="已添加附件"
+            className="composer-submit-error"
+            id={submitErrorId}
+            role="alert"
           >
-            {attachments.map((attachment) => (
-              <div
-                className={[
-                  "composer-attachment-card",
-                  "tw:relative tw:inline-flex tw:size-20 tw:min-w-0 tw:items-stretch tw:overflow-visible",
-                  `composer-attachment-${attachment.kind}`,
-                  attachment.status,
-                  attachment.status === "error" ? "error" : "",
-                ].join(" ")}
-                key={attachment.id}
-                title={attachment.error ?? attachment.path}
-              >
-                <span className="composer-attachment-preview">
-                  {attachment.kind === "image" && attachment.previewDataUrl ? (
-                    <img
-                      alt={attachment.name}
-                      className="composer-attachment-thumbnail"
-                      src={attachment.previewDataUrl}
-                    />
-                  ) : (
-                    <span className="composer-attachment-file-icon">
-                      <FileText size={APP_ICON_SIZE} />
-                    </span>
-                  )}
-                </span>
-                <span className="composer-attachment-body">
-                  <span className="composer-attachment-name">
-                    {attachment.name}
-                  </span>
-                  <span className="composer-attachment-meta">
-                    {attachment.status === "error"
-                      ? attachment.error
-                      : attachmentTypeLabel(attachment)}
-                  </span>
-                </span>
-                <button
-                  aria-label={`移除 ${attachment.name}`}
-                  className="composer-attachment-remove"
-                  onClick={() => onRemoveAttachment?.(attachment.id)}
-                  title="移除附件"
-                  type="button"
-                >
-                  <X size={12} strokeWidth={2.25} />
-                </button>
-              </div>
-            ))}
+            {submitOutcome.message}，请修改后重试。
           </div>
         ) : null}
-        <div className="composer-input tw:flex tw:min-w-0 tw:items-start">
+        <ComposerAttachmentTray
+          attachments={attachments}
+          onRemove={onRemoveAttachment}
+        />
+        <div
+          className="composer-input tw:flex tw:min-w-0 tw:items-start"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget)
+              editorRef.current?.focus();
+          }}
+        >
           {selectedSkillToken ? (
-            <span className="composer-skill-token">
+            <button
+              aria-label={`移除技能 ${selectedSkillToken.title}`}
+              className="composer-skill-token"
+              onClick={() => onSkillDeselect?.()}
+              title="移除技能"
+              type="button"
+            >
               <Sparkles
                 className="composer-skill-token-icon"
                 size={14}
@@ -1049,106 +1114,136 @@ export function ComposerCard({
               <span className="composer-skill-token-label">
                 {selectedSkillToken.title}
               </span>
-            </span>
+            </button>
           ) : null}
-          <textarea
-            aria-activedescendant={
-              unifiedMenuOpen && activeMenuItems[activeMenuIndex]
-                ? composerMenuItemId(activeMenuItems[activeMenuIndex].key)
-                : undefined
-            }
-            aria-controls={unifiedMenuOpen ? "composer-unified-menu" : undefined}
-            aria-expanded={unifiedMenuOpen}
-            aria-haspopup="menu"
-            className="tw:min-h-10 tw:w-full tw:min-w-0 tw:flex-1 tw:resize-none tw:border-0 tw:bg-transparent tw:p-0 tw:text-base tw:leading-6 tw:text-app-text tw:outline-none"
-            ref={textareaRef}
-            value={input}
-            onChange={(event) => {
-              setSelectionStart(event.target.selectionStart);
-              onInputChange(event.target.value);
-            }}
-            onSelect={(event) => {
-              setSelectionStart(event.currentTarget.selectionStart);
-            }}
-            onCompositionStart={() => setIsComposing(true)}
-            onCompositionEnd={() => {
-              setIsComposing(false);
-              setSelectionStart(textareaRef.current?.selectionStart ?? null);
-            }}
-            onKeyDown={(event) => {
-              if (unifiedMenuOpen) {
-                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                  event.preventDefault();
-                  setActiveMenuIndex((current) =>
-                    nextEnabledMenuIndex(
-                      activeMenuItems,
-                      current,
-                      event.key === "ArrowDown" ? 1 : -1,
-                    ),
-                  );
-                  return;
-                }
-                if (event.key === "Home" || event.key === "End") {
-                  event.preventDefault();
-                  setActiveMenuIndex(
-                    event.key === "Home"
-                      ? firstEnabledMenuIndex(activeMenuItems)
-                      : lastEnabledMenuIndex(activeMenuItems),
-                  );
-                  return;
-                }
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  const item = activeMenuItems[activeMenuIndex];
-                  if (item && !item.disabled) {
-                    if (activeMention) handleUnifiedMentionSelect(item);
-                    else handleUnifiedSlashSelect(item);
+          <Suspense
+            fallback={
+              <div aria-hidden="true" className="composer-editor">
+                <div
+                  className="composer-editor-content is-empty"
+                  data-placeholder={
+                    selectedSkillToken ? "" : composerPlaceholder
                   }
-                  return;
-                }
+                />
+              </div>
+            }
+          >
+            <ComposerEditor
+              ariaActiveDescendant={
+                unifiedMenuOpen && activeMenuItems[activeMenuIndex]
+                  ? menuItemId(activeMenuItems[activeMenuIndex].key)
+                  : undefined
               }
+              ariaControls={unifiedMenuOpen ? menuId : undefined}
+              ariaDescribedBy={
+                submitOutcome?.status === "failed" ? submitErrorId : undefined
+              }
+              ariaExpanded={unifiedMenuOpen}
+              ref={editorRef}
+              value={input}
+              onChange={onInputChange}
+              onSelectionChange={setSelectionStart}
+              onCompositionChange={(composing) => {
+                setIsComposing(composing);
+                if (composing) onCompositionStart?.();
+                else onCompositionEnd?.();
+              }}
+              onKeyDown={(event) => {
+                if (event.isComposing || event.keyCode === 229) return false;
+                if (unifiedMenuOpen) {
+                  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                    event.preventDefault();
+                    setActiveMenuIndex((current) =>
+                      nextEnabledMenuIndex(
+                        activeMenuItems,
+                        current,
+                        event.key === "ArrowDown" ? 1 : -1,
+                      ),
+                    );
+                    return true;
+                  }
+                  if (event.key === "Home" || event.key === "End") {
+                    event.preventDefault();
+                    setActiveMenuIndex(
+                      event.key === "Home"
+                        ? firstEnabledMenuIndex(activeMenuItems)
+                        : lastEnabledMenuIndex(activeMenuItems),
+                    );
+                    return true;
+                  }
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    const item = activeMenuItems[activeMenuIndex];
+                    if (item && !item.disabled) {
+                      if (activeMention) handleUnifiedMentionSelect(item);
+                      else handleUnifiedSlashSelect(item);
+                    }
+                    return true;
+                  }
+                }
 
-              // Escape: dismiss dropdowns or interrupt session
-              if (event.key === "Escape") {
-                if (showSlashContextDropdown) {
-                  event.preventDefault();
-                  setDismissedSlashInput(input);
-                  return;
+                // Escape: dismiss dropdowns or interrupt session
+                if (event.key === "Escape") {
+                  if (showSlashContextDropdown) {
+                    event.preventDefault();
+                    setDismissedSlashInput(input);
+                    return true;
+                  }
+                  if (activeMention) {
+                    event.preventDefault();
+                    setDismissedMention(activeMention.start);
+                    return true;
+                  }
+                  if (
+                    sessionStatus === "running" ||
+                    sessionStatus === "waiting"
+                  ) {
+                    event.preventDefault();
+                    onInterrupt();
+                    return true;
+                  }
                 }
-                if (activeMention) {
-                  event.preventDefault();
-                  setDismissedMention(activeMention.start);
-                  return;
-                }
+
+                // Backspace: remove skill chip when input is empty
                 if (
-                  sessionStatus === "running" ||
-                  sessionStatus === "waiting"
+                  event.key === "Backspace" &&
+                  input.length === 0 &&
+                  selectedSkillToken
                 ) {
                   event.preventDefault();
-                  onInterrupt();
-                  return;
+                  onSkillDeselect?.();
+                  return true;
                 }
-              }
 
-              // Backspace: remove skill chip when input is empty
-              if (
-                event.key === "Backspace" &&
-                input.length === 0 &&
-                selectedSkillToken
-              ) {
+                if (event.key === "Backspace" && input.length === 0) {
+                  if (goalModeEnabled) {
+                    event.preventDefault();
+                    onGoalModeChange?.(false);
+                    return true;
+                  }
+                  if (planModeActive) {
+                    event.preventDefault();
+                    onPlanModeChange?.(false);
+                    return true;
+                  }
+                }
+
+                if (!shouldSubmitComposerKey(event, submitShortcut, input))
+                  return false;
                 event.preventDefault();
-                onSkillDeselect?.();
-                return;
-              }
-
-              if (event.key !== "Enter" || event.shiftKey) return;
-              event.preventDefault();
-              if (canSubmit) onSubmit();
-            }}
-            onPaste={handlePaste}
-            placeholder={selectedSkillToken ? "" : composerPlaceholder}
-            rows={1}
-          />
+                if (canSubmit) onSubmit();
+                return true;
+              }}
+              onPasteFiles={(files) => {
+                if (!onAddFiles) return false;
+                const filePaths = getFilePathsFromFileList(files);
+                if (filePaths.length === 0) return false;
+                onAddFiles(filePaths);
+                return true;
+              }}
+              placeholder={selectedSkillToken ? "" : composerPlaceholder}
+            />
+          </Suspense>
         </div>
 
         <ChatInputDropdown
@@ -1597,6 +1692,10 @@ export function ComposerCard({
                               ? "selected"
                               : "",
                           ].join(" ")}
+                          onFocus={() => onProviderOpen?.(provider.providerID)}
+                          onPointerEnter={() =>
+                            onProviderOpen?.(provider.providerID)
+                          }
                         >
                           <span className="rm-sub-trigger-content">
                             <span className="rm-item-label">
@@ -1626,8 +1725,33 @@ export function ComposerCard({
                                 "min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px))",
                             })}
                           >
+                            <div className="settings-model-search">
+                              <Search
+                                className="settings-model-search-icon"
+                                size={14}
+                              />
+                              <input
+                                aria-label={`搜索 ${provider.displayName} 模型`}
+                                className="settings-model-search-input"
+                                placeholder="搜索模型…"
+                                value={
+                                  providerSearchQueries[provider.providerID] ??
+                                  ""
+                                }
+                                onChange={(event) =>
+                                  queueProviderSearch(
+                                    provider.providerID,
+                                    event.target.value,
+                                  )
+                                }
+                                onKeyDown={(event) => event.stopPropagation()}
+                              />
+                            </div>
                             <div className="rm-model-submenu-scroll-content">
                               <div className="rm-section-header">模型</div>
+                              {provider.modelPresets.length === 0 ? (
+                                <div className="rm-empty">加载模型中…</div>
+                              ) : null}
                               {provider.modelPresets.map((preset) => (
                                 <DropdownMenu.Item
                                   className="rm-menu-item"
@@ -1664,8 +1788,14 @@ export function ComposerCard({
             </DropdownMenu.Root>
 
             <button
-              aria-label={isRunning && !canSubmit ? "停止" : "发送"}
-              className="send-button"
+              aria-label={
+                submitting
+                  ? "正在发送"
+                  : isRunning && !canSubmit
+                    ? "停止"
+                    : "发送"
+              }
+              className={`send-button${submitting ? " is-submitting" : ""}`}
               disabled={!isRunning && !canSubmit}
               onClick={isRunning && !canSubmit ? onInterrupt : onSubmit}
               title={
@@ -1677,7 +1807,9 @@ export function ComposerCard({
               }
               type="button"
             >
-              {isRunning && !canSubmit ? (
+              {submitting ? (
+                <Activity aria-hidden="true" size={APP_ICON_SIZE} />
+              ) : isRunning && !canSubmit ? (
                 <Square size={APP_ICON_SIZE} fill="currentColor" />
               ) : (
                 <ArrowUp
@@ -1715,8 +1847,8 @@ export function ComposerCard({
         />
       </div>
 
-      {showBottomBar ? (
-        <div className="composer-bottom tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2 tw:pt-2">
+      {placement !== "thread" ? (
+        <div className="composer-bottom composer-utility-bar tw:flex  tw:min-w-0 tw:items-center tw:gap-2 tw:pt-2">
           {subagentMode ? (
             <MetaChip
               icon={<Folder size={APP_ICON_SIZE} />}
@@ -1758,39 +1890,11 @@ export function ComposerCard({
 
           {workspace ? (
             <>
-              <PopoverMenu
-                className="popover-mode"
-                disableOutsideDismiss={debugMode}
-                open={openDropdown === "mode"}
-                side="top"
-                width={200}
-                onOpenChange={(open) => setOpenDropdown(open ? "mode" : null)}
-                trigger={
-                  <MetaChip
-                    active={openDropdown === "mode"}
-                    icon={<Monitor size={APP_ICON_SIZE} />}
-                    label="本地模式"
-                    title="启动模式"
-                  />
-                }
-              >
-                <div className="popover-header">启动模式</div>
-                <div className="popover-section">
-                  <PopoverItem
-                    icon={<Monitor size={APP_ICON_SIZE} />}
-                    selected
-                    withCheck
-                  >
-                    本地模式
-                  </PopoverItem>
-                  <PopoverItem icon={<GitBranch size={APP_ICON_SIZE} />} disabled>
-                    新工作树
-                  </PopoverItem>
-                  <PopoverItem icon={<Search size={APP_ICON_SIZE} />} disabled>
-                    关联 CodePilotX Web
-                  </PopoverItem>
-                </div>
-              </PopoverMenu>
+              <MetaChip
+                icon={<Monitor size={APP_ICON_SIZE} />}
+                label="本地"
+                title="本地执行"
+              />
 
               {threadGoal ? (
                 <PopoverMenu
@@ -1819,7 +1923,9 @@ export function ComposerCard({
                 >
                   <div className="popover-header">目标</div>
                   <div className="popover-section">
-                    <div className="popover-item-text">{threadGoal.objective}</div>
+                    <div className="popover-item-text">
+                      {threadGoal.objective}
+                    </div>
                     <div className="popover-item-meta">
                       已用 Tokens: {threadGoal.tokensUsed}
                       {threadGoal.timeUsedSeconds > 0
@@ -1832,8 +1938,8 @@ export function ComposerCard({
                       <PopoverItem
                         icon={<Target size={APP_ICON_SIZE} />}
                         onClick={() => {
-                          closeDropdown()
-                          onGoalPause?.()
+                          closeDropdown();
+                          onGoalPause?.();
                         }}
                       >
                         暂停
@@ -1843,8 +1949,8 @@ export function ComposerCard({
                       <PopoverItem
                         icon={<Target size={APP_ICON_SIZE} />}
                         onClick={() => {
-                          closeDropdown()
-                          onGoalResume?.()
+                          closeDropdown();
+                          onGoalResume?.();
                         }}
                       >
                         继续
@@ -1854,8 +1960,8 @@ export function ComposerCard({
                       <PopoverItem
                         icon={<Check size={APP_ICON_SIZE} />}
                         onClick={() => {
-                          closeDropdown()
-                          onGoalComplete?.()
+                          closeDropdown();
+                          onGoalComplete?.();
                         }}
                       >
                         标记完成
@@ -1864,8 +1970,8 @@ export function ComposerCard({
                     <PopoverItem
                       icon={<X size={APP_ICON_SIZE} />}
                       onClick={() => {
-                        closeDropdown()
-                        onGoalClear?.()
+                        closeDropdown();
+                        onGoalClear?.();
                       }}
                     >
                       清除目标
@@ -1929,32 +2035,36 @@ function trimNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
-function attachmentTypeLabel(attachment: DesktopComposerAttachment): string {
-  const extension = attachment.name.split(".").pop();
-  if (extension && extension !== attachment.name)
-    return extension.toUpperCase();
-  switch (attachment.kind) {
-    case "image":
-      return "IMAGE";
-    case "document":
-      return "DOCUMENT";
-    case "text":
-      return "TEXT";
-    case "audio":
-      return "AUDIO";
-    case "video":
-      return "VIDEO";
-    default:
-      return "FILE";
-  }
-}
-
 function getFilePathsFromFileList(files: FileList): string[] {
   return Array.from(files)
     .map((file) => (file as File & { path?: string }).path)
     .filter(
       (path): path is string => typeof path === "string" && path.length > 0,
     );
+}
+
+export function shouldSubmitComposerKey(
+  event: Pick<
+    KeyboardEvent,
+    "key" | "shiftKey" | "ctrlKey" | "metaKey" | "isComposing" | "keyCode"
+  >,
+  shortcut: ComposerSubmitShortcut,
+  input: string,
+): boolean {
+  if (
+    event.key !== "Enter" ||
+    event.shiftKey ||
+    event.isComposing ||
+    event.keyCode === 229
+  ) {
+    return false;
+  }
+  const modifierPressed = event.ctrlKey || event.metaKey;
+  if (shortcut === "ctrl-enter") return modifierPressed;
+  if (shortcut === "multiline-ctrl-enter" && input.includes("\n")) {
+    return modifierPressed;
+  }
+  return true;
 }
 
 function filterUnifiedMenuItems(
@@ -1990,10 +2100,6 @@ function nextEnabledMenuIndex(
     if (!items[index]?.disabled) return index;
   }
   return -1;
-}
-
-function composerMenuItemId(key: string): string {
-  return `composer-menu-item-${encodeURIComponent(key)}`;
 }
 
 /**

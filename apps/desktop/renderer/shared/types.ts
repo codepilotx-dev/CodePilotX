@@ -510,6 +510,9 @@ export type DesktopModelProviderState = {
 
 export type DesktopProviderModelListResult = {
   models: string[]
+  modelMetadata?: Record<string, DesktopModelMetadata>
+  total?: number
+  nextCursor?: string
   error?: string
 }
 
@@ -1550,6 +1553,9 @@ export type DesktopApi = {
     providerID: ModelProviderID
     apiKey?: string
     baseURL?: string
+    query?: string
+    cursor?: string
+    limit?: number
   }): Promise<DesktopProviderModelListResult>
   fetchProviderBalance(options: {
     providerID: ModelProviderID

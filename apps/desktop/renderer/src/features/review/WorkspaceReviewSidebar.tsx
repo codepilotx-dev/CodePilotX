@@ -1,4 +1,5 @@
 import React from "react";
+import { FileIcon } from "@codepilotx/material-icon-theme";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { VList } from "virtua";
 import {
@@ -2692,7 +2693,12 @@ function ReviewDiffFilePreview({
         onClick={() => toggleCollapseDiff(file.path)}
         onKeyDown={handleKeyDown}
       >
-        <span className="review-file-badge">{fileBadge(file.path)}</span>
+        <FileIcon
+          aria-hidden="true"
+          className="review-file-icon"
+          path={file.path}
+          size={APP_ICON_SIZE}
+        />
         <span className="review-file-path" title={file.path}>
           <span className="review-file-path__content">
             <span className="review-file-path__directory">
@@ -4069,11 +4075,6 @@ function scopeLabel(scope: DesktopReviewScope): string {
     default:
       return "未暂存";
   }
-}
-
-function fileBadge(path: string): React.ReactNode {
-  const ext = path.split(".").pop()?.slice(0, 4).toUpperCase();
-  return ext || <FileDiff size={APP_ICON_SIZE} />;
 }
 
 function formatPanelNumber(value: number): string {

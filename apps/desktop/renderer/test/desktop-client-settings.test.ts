@@ -460,7 +460,7 @@ describe('desktop thread settings client', () => {
       data: JSON.stringify({
         method: 'event/next',
         params: {
-          subscriptionId: 'subscription-2',
+          subscriptionId: 'subscription-1',
           event: {
             eventId: 'event-13',
             type: 'thread/settings/updated',
@@ -482,6 +482,111 @@ describe('desktop thread settings client', () => {
     unsubscribe()
 
     expect(readThreadIds).toEqual(['session-2'])
+  })
+
+  test('reconciles the active thread after event replay completes', async () => {
+    let completed = false
+    const readThreadIds: string[] = []
+    const observedStatuses: string[] = []
+    const source = {
+      onmessage: null as ((event: MessageEvent) => void) | null,
+      onerror: null as (() => void) | null,
+      close: () => {},
+    }
+    const currentSnapshot = (): ThreadSnapshot => ({
+      ...snapshot('session-1', defaultSettings),
+      turns: [{
+        id: 'turn-1',
+        threadId: 'session-1',
+        sourceInputID: 'input-1',
+        status: completed ? 'completed' : 'running',
+        mode: 'chat',
+        model: { providerID: 'openai', id: 'gpt-5' },
+        permissionConfig: defaultSettings.permissionConfig,
+        rootAgentId: 'agent-1',
+        canContinueFromPlan: false,
+        mergedInputIDs: [],
+        startedAt: now,
+        finishedAt: completed ? now + 1_000 : null,
+        elapsedSeconds: completed ? 1 : 0,
+        error: null,
+      }],
+    })
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      const body = init?.body ? JSON.parse(String(init.body)) : null
+      const params = body?.params ?? {}
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      if (body?.method === 'initialized') return new Response(null, { status: 204 })
+      if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body?.method === 'event/subscribe') {
+        expect(params.streams).toEqual([{ streamId: 'global', after: 'latest' }])
+        return rpc(body.id, {
+          subscriptionId: 'subscription-1',
+          highWatermarks: [{ streamId: 'global', sequence: 12 }],
+        })
+      }
+      if (body?.method === 'event/unsubscribe') return rpc(body.id, { ok: true })
+      if (body?.method === 'event/ack') {
+        return rpc(body.id, {
+          subscriptionId: params.subscriptionId,
+          acknowledged: params.positions,
+        })
+      }
+      if (body?.method === 'project/list') {
+        return rpc(body.id, { projects: [project], nextCursor: null })
+      }
+      if (body?.method === 'thread/list') {
+        return rpc(body.id, {
+          threads: [{
+            ...listItem('session-1', defaultSettings),
+            latestTurnStatus: completed ? 'completed' : 'running',
+          }],
+          nextCursor: null,
+        })
+      }
+      if (body?.method === 'thread/read') {
+        readThreadIds.push(params.threadId)
+        return rpc(body.id, snapshotResult(currentSnapshot()))
+      }
+      throw new Error(`Unhandled RPC method: ${body?.method}`)
+    }
+    const client = createDesktopClient({
+      fetch: fetcher,
+      eventSourceFactory: () => source as unknown as EventSource,
+    })
+    await client.listSessions()
+    await client.setActiveSession('session-1')
+    const unsubscribeStore = client.onSessionStoreChange(change => {
+      const status = change.sessions.find(item => item.item.id === 'session-1')?.item.status
+      if (status) observedStatuses.push(status)
+    })
+    const unsubscribeEvents = client.onAgentEvent(() => {})
+    for (let index = 0; index < 20 && !source.onmessage; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
+
+    completed = true
+    source.onmessage?.({
+      data: JSON.stringify({
+        method: 'event/replayComplete',
+        params: {
+          subscriptionId: 'subscription-1',
+          positions: [{ streamId: 'global', sequence: 12 }],
+        },
+      }),
+    } as MessageEvent)
+    for (
+      let index = 0;
+      index < 50 && !observedStatuses.includes('done');
+      index += 1
+    ) {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
+    unsubscribeEvents()
+    unsubscribeStore()
+
+    expect(readThreadIds).toEqual(['session-1'])
+    expect(observedStatuses).toContain('done')
   })
 
   test('routes GitHub auth, profile, repositories, push and PR creation through Agent RPC', async () => {

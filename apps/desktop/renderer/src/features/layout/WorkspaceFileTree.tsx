@@ -8,12 +8,14 @@ import {
 } from 'react'
 import type React from 'react'
 import * as ContextMenu from '@radix-ui/react-context-menu'
-import { Folder, FolderOpen, LoaderCircle, RotateCcw, Search } from 'lucide-react'
+import { FolderIcon } from '@codepilotx/material-icon-theme'
+import { LoaderCircle, RotateCcw, Search } from 'lucide-react'
 import { VList, type VListHandle } from 'virtua'
 import type {
   DesktopFileEntry,
   DesktopWorkspace,
 } from '../../../shared/types.js'
+import { createWorkspaceFileTabId } from './workspaceFileTabId.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -417,19 +419,12 @@ export function WorkspaceFileTree({
         }}
       >
         {file.type === 'directory' ? (
-          expandedDirectories.has(key) ? (
-            <FolderOpen
-              aria-hidden="true"
-              size={APP_ICON_SIZE}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-            />
-          ) : (
-            <Folder
-              aria-hidden="true"
-              size={APP_ICON_SIZE}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-            />
-          )
+          <FolderIcon
+            aria-hidden="true"
+            expanded={expandedDirectories.has(key)}
+            path={file.path}
+            size={APP_ICON_SIZE}
+          />
         ) : (
           <FileTypeIcon
             aria-hidden="true"
@@ -544,14 +539,7 @@ export function getSendableFilePath({
   return `${workspacePath.replace(/[\\/]$/, '')}/${file.path.replace(/^[\\/]/, '')}`
 }
 
-export function createWorkspaceFileTabId(
-  workspacePath: string,
-  relativePath: string,
-): `file:${string}` {
-  const normalizedWorkspace = workspacePath.replace(/\\/g, '/').toLowerCase()
-  const normalizedFile = relativePath.replace(/\\/g, '/').toLowerCase()
-  return `file:${encodeURIComponent(`${normalizedWorkspace}\u0000${normalizedFile}`)}`
-}
+export { createWorkspaceFileTabId }
 
 function normalizeRootEntries(files: DesktopFileEntry[]): DesktopFileEntry[] {
   return dedupeEntries(files.map(file => ({ ...file, depth: 0 })))

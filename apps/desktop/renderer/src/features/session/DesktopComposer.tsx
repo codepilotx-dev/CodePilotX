@@ -18,6 +18,13 @@ import { THINKING_MODE_OPTIONS } from '../settings/settingsStorage.js'
 import type { ModelPreset } from '../../modelPresets.js'
 import type { Message } from '../../uiTypes.js'
 import { ComposerCard } from './ComposerCard.js'
+import type {
+  ComposerCapabilities,
+  ComposerDraftContentSnapshot,
+  ComposerDraftKey,
+  ComposerPlacement,
+  ComposerSubmitShortcut,
+} from './composerTypes.js'
 import {
   useDesktopComposerController,
 } from './useDesktopComposerController.js'
@@ -26,6 +33,14 @@ export {
   getDesktopComposerBranchName,
   loadCachedSlashCommands,
 } from './useDesktopComposerController.js'
+export type {
+  ComposerCapabilities,
+  ComposerCollaborationMode,
+  ComposerExecutionMode,
+  ComposerPlacement,
+  ComposerStackMode,
+  ComposerSubmitShortcut,
+} from './composerTypes.js'
 
 type ProviderModelOption = {
   providerID: ModelProviderID
@@ -33,10 +48,13 @@ type ProviderModelOption = {
   modelPresets: ModelPreset[]
 }
 
-type Props = {
+export type DesktopComposerProps = {
   input: string
   messages: Message[]
-  isQuickChatPage: boolean
+  placement: ComposerPlacement
+  draftKey: ComposerDraftKey
+  capabilities?: Partial<ComposerCapabilities>
+  submitShortcut?: ComposerSubmitShortcut
   routedSessionId: string | null
   sessionStatus: DesktopSessionStatus
   permissionMode: DesktopPermissionMode
@@ -65,6 +83,18 @@ type Props = {
   workspace: DesktopWorkspace | null
   attachments: DesktopComposerAttachment[]
   onAttachmentsChange: (attachments: DesktopComposerAttachment[]) => void
+  onAppendAttachmentsForDraft?: (
+    draftKey: ComposerDraftKey,
+    attachments: DesktopComposerAttachment[],
+  ) => void
+  onRemoveAttachmentForDraft?: (
+    draftKey: ComposerDraftKey,
+    attachmentId: string,
+  ) => void
+  onDraftAccepted?: (
+    draftKey: ComposerDraftKey,
+    snapshot: ComposerDraftContentSnapshot,
+  ) => void
   onChooseWorkspace: () => Promise<DesktopWorkspace | null>
   onInputChange: (value: string) => void
   onInterrupt: () => Promise<void>
@@ -72,6 +102,8 @@ type Props = {
     providerID: ModelProviderID,
     modelPresetID: string,
   ) => void
+  onProviderOpen?: (providerID: ModelProviderID) => void
+  onProviderSearch?: (providerID: ModelProviderID, query: string) => void
   onOpenWorkspace: (
     workspace: DesktopWorkspace,
   ) => Promise<DesktopWorkspace | null>
@@ -96,7 +128,8 @@ type Props = {
   submitToSession: (
     targetSessionId: string,
     value: DesktopUserMessageInput,
-  ) => Promise<void>
+    options?: { propagateError?: boolean },
+  ) => Promise<'sent' | 'queued' | 'steered' | null>
   queuedFollowUps?: DesktopQueuedFollowUp[]
   queuePauseReason?: DesktopQueuePauseReason | null
   onFollowUpEdit?: (followUpId: string, input: DesktopUserMessageInput) => void
@@ -115,7 +148,10 @@ type Props = {
 export function DesktopComposer({
   input,
   messages,
-  isQuickChatPage,
+  placement,
+  draftKey,
+  capabilities,
+  submitShortcut,
   routedSessionId,
   sessionStatus,
   permissionMode,
@@ -144,10 +180,15 @@ export function DesktopComposer({
   workspace,
   attachments,
   onAttachmentsChange,
+  onAppendAttachmentsForDraft,
+  onRemoveAttachmentForDraft,
+  onDraftAccepted,
   onChooseWorkspace,
   onInputChange,
   onInterrupt,
   onProviderModelChange,
+  onProviderOpen,
+  onProviderSearch,
   onOpenWorkspace,
   onCloneGithub,
   onClearWorkspace,
@@ -174,7 +215,11 @@ export function DesktopComposer({
   onGoalComplete,
   onGoalClear,
   subagentMode = false,
-}: Props): React.ReactNode {
+}: DesktopComposerProps): React.ReactNode {
+  const effectiveCapabilities =
+    placement === 'new-session'
+      ? { ...capabilities, goals: false }
+      : capabilities
   const {
     branchName,
     canSubmit,
@@ -186,7 +231,11 @@ export function DesktopComposer({
     handleSkillDeselect,
     handleSkillSelect,
     handleSubmit,
+    handleCompositionEnd,
+    handleCompositionStart,
     hasConversationMessages,
+    isSubmitting,
+    lastSubmitOutcome,
     permissionOptions,
     selectedSkillToken,
     setGoalModeEnabled,
@@ -195,19 +244,23 @@ export function DesktopComposer({
   } = useDesktopComposerController({
     input,
     messages,
-    isQuickChatPage,
+    placement,
+    draftKey,
     routedSessionId,
     permissionMode,
     enableAutoReviewPermissionMode,
     enableFullAccessPermissionMode,
     planExecutionModel,
+    planModeActive,
     modelConfigured,
     selectedModelMetadata,
     workspace,
     attachments,
     subagentMode,
     onAttachmentsChange,
-    onInputChange,
+    onAppendAttachmentsForDraft,
+    onRemoveAttachmentForDraft,
+    onDraftAccepted,
     onPermissionChange,
     onProviderModelChange,
     createSessionForWorkspace,
@@ -221,7 +274,11 @@ export function DesktopComposer({
       sessionStatus={sessionStatus}
       permissionMode={effectivePermissionMode}
       planModeActive={planModeActive}
-      subagentMode={subagentMode}
+      placement={placement}
+      capabilities={effectiveCapabilities}
+      submitShortcut={submitShortcut}
+      submitting={isSubmitting}
+      submitOutcome={lastSubmitOutcome}
       goalModeEnabled={goalModeEnabled}
       onGoalModeChange={setGoalModeEnabled}
       localRouterMode={localRouterMode}
@@ -261,8 +318,12 @@ export function DesktopComposer({
       }
       onChooseWorkspace={() => void onChooseWorkspace()}
       onInputChange={onInputChange}
+      onCompositionStart={handleCompositionStart}
+      onCompositionEnd={handleCompositionEnd}
       onInterrupt={() => void onInterrupt()}
       onProviderModelChange={onProviderModelChange}
+      onProviderOpen={onProviderOpen}
+      onProviderSearch={onProviderSearch}
       onAddFiles={filePaths => void handleAddFilePaths(filePaths)}
       onOpenFiles={() => void handleOpenFiles()}
       onRemoveAttachment={handleRemoveAttachment}
@@ -281,7 +342,7 @@ export function DesktopComposer({
       onSkillSelect={handleSkillSelect}
       onSkillDeselect={handleSkillDeselect}
       routedSessionId={routedSessionId}
-      contextDropdownSide={isQuickChatPage ? 'bottom' : 'top'}
+      contextDropdownSide="top"
       queuedFollowUps={queuedFollowUps}
       queuePauseReason={queuePauseReason}
       onFollowUpEdit={onFollowUpEdit}
@@ -294,7 +355,6 @@ export function DesktopComposer({
       onGoalResume={onGoalResume}
       onGoalComplete={onGoalComplete}
       onGoalClear={onGoalClear}
-      showBottomBar={isQuickChatPage}
     />
   )
 }

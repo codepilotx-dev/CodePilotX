@@ -146,12 +146,7 @@ export function TaskModelSelect({
           )
           if (cancelled) return
           models[provider.providerID] = result.models
-          metadata[provider.providerID] = result.models.reduce<
-            Record<string, DesktopModelMetadata>
-          >((acc, id) => {
-            acc[id] = provider.modelMetadata?.[id]
-            return acc
-          }, {})
+          metadata[provider.providerID] = result.modelMetadata
         } catch {
           // ignore — individual provider failures don't break the whole list
         }
@@ -183,6 +178,7 @@ export function TaskModelSelect({
       const models = providerModels[provider.providerID]
       if (!models || models.length === 0) continue
       for (const modelID of models) {
+        if (opts.length >= 100) break
         const fullValue = `${provider.providerID}/${modelID}`
         const meta = providerMetadata[provider.providerID]?.[modelID]
         opts.push({
@@ -191,6 +187,7 @@ export function TaskModelSelect({
           detail: `${provider.displayName}${meta ? ` · ${formatModelDetail(modelID, meta)}` : ''}`,
         })
       }
+      if (opts.length >= 100) break
     }
 
     // Append saved value if it doesn't exist in any catalog

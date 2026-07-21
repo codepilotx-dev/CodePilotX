@@ -14,6 +14,7 @@ import type { AgentNotification } from '@codepilotx/shared/thread'
 export type AgentRpcClientEnvironment = {
   fetch?: (input: string, init?: RequestInit) => Promise<Response>
   eventSourceFactory?: (url: string) => EventSource
+  eventReconnectDelay?: (attempt: number) => number
   handshake?: {
     initialize: RpcParams<'initialize'>
     initialized: InitializedNotification['params']
@@ -23,6 +24,7 @@ export type AgentRpcClientEnvironment = {
 export type AgentRpcSubscription = {
   threadId?: string
   after?: number
+  onReplayComplete?: () => void | Promise<void>
 }
 
 export class AgentRpcError extends Error {
@@ -213,63 +215,102 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
   ): () => void {
     const factory = environment.eventSourceFactory ?? defaultEventSourceFactory()
     if (!factory) return () => {}
+    const streamId = options.threadId ?? 'global'
     let disposed = false
     let source: EventSource | null = null
     let subscriptionId: string | null = null
     let ackTimer: ReturnType<typeof setTimeout> | null = null
-    const positions = new Map<string, number>()
-
-    const flushAck = async (force = false): Promise<void> => {
-      if (!subscriptionId || positions.size === 0 || (disposed && !force)) return
-      const acknowledged = [...positions].map(([streamId, sequence]) => ({
-        streamId,
-        sequence,
-      }))
-      positions.clear()
-      await call('event/ack', {
-        subscriptionId,
-        positions: acknowledged,
-      }).catch(() => undefined)
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+    let reconnectAttempt = 0
+    let generation = 1
+    let replayCompleteGeneration = 0
+    let forceLatest = false
+    const pendingPositions = new Map<string, number>()
+    const acknowledgedPositions = new Map<string, number>()
+    if (options.after !== undefined) {
+      acknowledgedPositions.set(streamId, options.after)
     }
 
-    const scheduleAck = (): void => {
-      if (ackTimer !== null) return
-      ackTimer = setTimeout(() => {
-        ackTimer = null
-        void flushAck()
-      }, 1_000)
+    const reconnectDelay = (attempt: number): number =>
+      environment.eventReconnectDelay?.(attempt) ??
+      Math.min(250 * 2 ** attempt, 5_000)
+
+    const recordPendingPosition = (
+      positionStreamId: string,
+      sequence: number,
+    ): void => {
+      pendingPositions.set(
+        positionStreamId,
+        Math.max(pendingPositions.get(positionStreamId) ?? 0, sequence),
+      )
     }
 
-    void (async () => {
-      let after = options.after
-      if (after === undefined) {
-        const probe = await call('event/subscribe', {
-          streams: [{ streamId: 'global', after: 0 }],
+    const clearAckTimer = (): void => {
+      if (ackTimer === null) return
+      clearTimeout(ackTimer)
+      ackTimer = null
+    }
+
+    const unsubscribeBestEffort = (id: string | null): void => {
+      if (!id) return
+      void call('event/unsubscribe', { subscriptionId: id }).catch(
+        () => undefined,
+      )
+    }
+
+    const closeCurrentConnection = (unsubscribe: boolean): void => {
+      const currentSubscriptionId = subscriptionId
+      source?.close()
+      source = null
+      subscriptionId = null
+      clearAckTimer()
+      if (unsubscribe) unsubscribeBestEffort(currentSubscriptionId)
+    }
+
+    const connect = async (expectedGeneration: number): Promise<void> => {
+      const acknowledged = acknowledgedPositions.get(streamId)
+      let after: number | 'latest' =
+        !forceLatest && acknowledged !== undefined ? acknowledged : 'latest'
+      let subscription: RpcResult<'event/subscribe'>
+      try {
+        subscription = await call('event/subscribe', {
+          streams: [{ streamId, after }],
         })
-        after =
-          probe.highWatermarks.find(item => item.streamId === 'global')
-            ?.sequence ?? 0
-        await call('event/unsubscribe', {
-          subscriptionId: probe.subscriptionId,
-        })
+      } catch (error) {
+        if (after !== 'latest' && isCursorExpiredError(error)) {
+          forceLatest = true
+          after = 'latest'
+          subscription = await call('event/subscribe', {
+            streams: [{ streamId, after }],
+          })
+        } else {
+          throw error
+        }
       }
-      if (disposed) return
-      const subscription = await call('event/subscribe', {
-        streams: [{ streamId: options.threadId ?? 'global', after }],
-      })
-      subscriptionId = subscription.subscriptionId
-      if (disposed) {
-        await call('event/unsubscribe', {
-          subscriptionId: subscription.subscriptionId,
-        }).catch(() => undefined)
+
+      if (disposed || generation !== expectedGeneration) {
+        unsubscribeBestEffort(subscription.subscriptionId)
         return
       }
-      source = factory(
+
+      subscriptionId = subscription.subscriptionId
+      const nextSource = factory(
         `/rpc/events?subscriptionId=${encodeURIComponent(subscription.subscriptionId)}&connectionId=${encodeURIComponent(connectionId ?? '')}`,
       )
-      source.onmessage = message => {
+      source = nextSource
+      nextSource.onmessage = message => {
+        if (
+          disposed ||
+          generation !== expectedGeneration ||
+          source !== nextSource
+        ) {
+          return
+        }
         try {
-          const notification = JSON.parse(message.data) as Record<string, unknown>
+          const notification = JSON.parse(message.data) as Record<
+            string,
+            unknown
+          >
           if (notification.method === 'event/next') {
             const params = asRecord(notification.params)
             const event = asRecord(params.event)
@@ -280,10 +321,10 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
                   ? event.afterSequence
                   : null
             if (sequence !== null) {
-              positions.set(
+              recordPendingPosition(
                 typeof event.streamId === 'string'
                   ? event.streamId
-                  : options.threadId ?? 'global',
+                  : streamId,
                 sequence,
               )
               scheduleAck()
@@ -293,18 +334,21 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
           }
           if (notification.method === 'event/replayComplete') {
             const params = asRecord(notification.params)
-            if (Array.isArray(params.positions)) {
-              for (const position of params.positions) {
-                const value = asRecord(position)
-                if (
-                  typeof value.streamId === 'string' &&
-                  typeof value.sequence === 'number'
-                ) {
-                  positions.set(value.streamId, value.sequence)
-                }
-              }
-              scheduleAck()
+            recordNotificationPositions(params.positions)
+            scheduleAck()
+            reconnectAttempt = 0
+            if (replayCompleteGeneration !== expectedGeneration) {
+              replayCompleteGeneration = expectedGeneration
+              void Promise.resolve(options.onReplayComplete?.()).catch(
+                () => undefined,
+              )
             }
+            return
+          }
+          if (notification.method === 'event/subscriptionClosed') {
+            const params = asRecord(notification.params)
+            recordNotificationPositions(params.positions)
+            scheduleReconnect(expectedGeneration)
             return
           }
           callback(notification as AgentNotification)
@@ -312,19 +356,108 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
           // Ignore malformed event payloads.
         }
       }
-      source.onerror = () => {}
-    })().catch(() => undefined)
+      nextSource.onerror = () => {
+        scheduleReconnect(expectedGeneration)
+      }
+    }
+
+    const startConnect = (expectedGeneration: number): void => {
+      void connect(expectedGeneration).catch(() => {
+        scheduleReconnect(expectedGeneration)
+      })
+    }
+
+    const scheduleReconnect = (expectedGeneration: number): void => {
+      if (disposed || generation !== expectedGeneration) return
+      generation += 1
+      closeCurrentConnection(true)
+      if (retryTimer !== null) clearTimeout(retryTimer)
+      const reconnectGeneration = generation
+      const delay = reconnectDelay(reconnectAttempt)
+      reconnectAttempt += 1
+      retryTimer = setTimeout(() => {
+        retryTimer = null
+        if (disposed || generation !== reconnectGeneration) return
+        startConnect(reconnectGeneration)
+      }, delay)
+    }
+
+    const recordNotificationPositions = (value: unknown): void => {
+      if (!Array.isArray(value)) return
+      for (const position of value) {
+        const item = asRecord(position)
+        if (
+          typeof item.streamId === 'string' &&
+          typeof item.sequence === 'number'
+        ) {
+          recordPendingPosition(item.streamId, item.sequence)
+        }
+      }
+    }
+
+    const flushAck = async (force = false): Promise<void> => {
+      const ackSubscriptionId = subscriptionId
+      const ackGeneration = generation
+      if (
+        !ackSubscriptionId ||
+        pendingPositions.size === 0 ||
+        (disposed && !force)
+      ) {
+        return
+      }
+      const positions = [...pendingPositions].map(
+        ([positionStreamId, sequence]) => ({
+          streamId: positionStreamId,
+          sequence,
+        }),
+      )
+      try {
+        await call('event/ack', {
+          subscriptionId: ackSubscriptionId,
+          positions,
+        })
+        for (const position of positions) {
+          acknowledgedPositions.set(
+            position.streamId,
+            Math.max(
+              acknowledgedPositions.get(position.streamId) ?? 0,
+              position.sequence,
+            ),
+          )
+          if (
+            (pendingPositions.get(position.streamId) ?? 0) <= position.sequence
+          ) {
+            pendingPositions.delete(position.streamId)
+          }
+        }
+        forceLatest = false
+      } catch {
+        if (!disposed && !force) scheduleReconnect(ackGeneration)
+      }
+    }
+
+    const scheduleAck = (): void => {
+      if (ackTimer !== null) return
+      ackTimer = setTimeout(() => {
+        ackTimer = null
+        void flushAck()
+      }, 1_000)
+    }
+
+    startConnect(generation)
 
     return () => {
       disposed = true
+      generation += 1
+      if (retryTimer !== null) clearTimeout(retryTimer)
+      retryTimer = null
+      clearAckTimer()
+      const finalSubscriptionId = subscriptionId
       source?.close()
-      if (ackTimer !== null) clearTimeout(ackTimer)
+      source = null
       void flushAck(true).finally(() => {
-        if (subscriptionId) {
-          void call('event/unsubscribe', { subscriptionId }).catch(
-            () => undefined,
-          )
-        }
+        subscriptionId = null
+        unsubscribeBestEffort(finalSubscriptionId)
       })
     }
   }
@@ -396,6 +529,10 @@ function isUninitializedConnectionError(error: unknown): boolean {
     !Array.isArray(data) &&
     (data as { code?: unknown }).code === 'UNAUTHORIZED'
   )
+}
+
+function isCursorExpiredError(error: unknown): boolean {
+  return error instanceof AgentRpcError && error.errorCode === 'CURSOR_EXPIRED'
 }
 
 function defaultEventSourceFactory(): ((url: string) => EventSource) | null {

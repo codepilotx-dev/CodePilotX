@@ -1,4 +1,3 @@
-import type React from 'react'
 import { createContext, useContext } from 'react'
 import type { Message } from '../../uiTypes.js'
 import type { ModelPreset } from '../../modelPresets.js'
@@ -17,12 +16,19 @@ import type {
   MarkdownFileOpenOptions,
   MarkdownFileReference,
 } from '../markdown/index.js'
+import type { DesktopComposerProps } from './DesktopComposer.js'
 
 export type ProviderModelOption = {
   providerID: string
   displayName: string
   modelPresets: ModelPreset[]
   baseURL: string | undefined
+}
+
+export type QuickChatComposerDraftBridge = {
+  value: string
+  replace: (value: string) => void
+  focus?: () => void
 }
 
 export type QuickChatContextValue = {
@@ -98,7 +104,8 @@ export type QuickChatContextValue = {
   messages: Message[]
   pendingPermissions: DesktopPermissionRequest[]
   sessionStatus: DesktopSessionStatus
-  composer: React.ReactNode
+  composerProps: DesktopComposerProps | null
+  composerDraft?: QuickChatComposerDraftBridge
   bottomPanelVisible: boolean
   onToggleBottomPanel: () => void
   rightDockPlanEventId: string | null

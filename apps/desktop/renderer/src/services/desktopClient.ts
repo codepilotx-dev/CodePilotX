@@ -29,7 +29,6 @@ import type {
   ModelRef,
   OkResponse,
   Project,
-  ProvidersResponse,
 } from '@codepilotx/shared'
 import type {
   PermissionConfig,
@@ -136,6 +135,7 @@ const RENDERER_CAPABILITIES = [
   'subagents.v1',
   'sandbox.management.v1',
   'prompt.preview.sensitive.v1',
+  'model.catalog.paged.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 type PendingInteraction =
   RpcResult<'interaction/listPending'>['interactions'][number]
@@ -433,13 +433,18 @@ function createAgentSessionDesktopClient(
   let readyProbe: Promise<boolean> | null = null
   let readinessError: unknown = null
   let projectsByIdCache: Map<string, Project> | null = null
-  let modelCatalogCache: ProvidersResponse | null = null
+  let modelCatalogCache: RpcResult<'model/list'> | null = null
+  let providerCatalogCache: RpcResult<'provider/list'> | null = null
+  let providerCatalogRequest: Promise<RpcResult<'provider/list'>> | null = null
+  const providerModelCache = new Map<string, CatalogProvider['models']>()
+  const providerModelRequests = new Map<string, Promise<RpcResult<'model/list'>>>()
   let integrationsCache: IntegrationListResponse['integrations'] | null = null
   const sessionSnapshots = new Map<string, DesktopSessionSnapshot>()
   const sessionPermissionConfigs = new Map<string, PermissionConfig>()
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
   const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>()
   const pendingSettingsUpdates = new Map<string, Promise<void>>()
+  let sessionStoreReconcile: Promise<void> | null = null
 
   async function isAgentAvailable(): Promise<boolean> {
     if (agentReady) return true
@@ -564,7 +569,15 @@ function createAgentSessionDesktopClient(
     await pendingSettingsUpdates.get(sessionId)
   }
 
-  async function loadModelCatalog(refresh = false): Promise<ProvidersResponse> {
+  function invalidateModelCatalog(): void {
+    modelCatalogCache = null
+    providerCatalogCache = null
+    providerCatalogRequest = null
+    providerModelCache.clear()
+    providerModelRequests.clear()
+  }
+
+  async function loadModelCatalog(refresh = false): Promise<RpcResult<'model/list'>> {
     if (modelCatalogCache && !refresh) return modelCatalogCache
     const result = refresh
       ? await rpc.call('model/refresh', {
@@ -575,8 +588,100 @@ function createAgentSessionDesktopClient(
       providers: [...result.providers],
       defaultModel: result.defaultModel,
       reviewerModel: result.reviewerModel,
+      catalogVersion: result.catalogVersion,
     }
     return modelCatalogCache
+  }
+
+  async function loadProviderCatalog(
+    refresh = false,
+  ): Promise<RpcResult<'provider/list'>> {
+    await isAgentAvailable()
+    if (providerCatalogCache && !refresh) return providerCatalogCache
+    if (providerCatalogRequest && !refresh) return providerCatalogRequest
+    if (agentCapabilities.has('model.catalog.paged.v1')) {
+      const pending = rpc.call('provider/list', {}).then(result => {
+        providerCatalogCache = result
+        return result
+      }).finally(() => {
+        if (providerCatalogRequest === pending) providerCatalogRequest = null
+      })
+      providerCatalogRequest = pending
+      return pending
+    }
+    const legacy = await loadModelCatalog(refresh)
+    providerCatalogCache = {
+      providers: legacy.providers.map(item => item.provider),
+      defaultModel: legacy.defaultModel,
+      reviewerModel: legacy.reviewerModel,
+      catalogVersion: legacy.catalogVersion,
+    }
+    for (const item of legacy.providers) {
+      providerModelCache.set(item.provider.id, [...item.models])
+    }
+    return providerCatalogCache
+  }
+
+  async function loadProviderModelPage(options: {
+    providerID: ModelProviderID
+    query?: string
+    cursor?: string
+    limit?: number
+  }): Promise<RpcResult<'model/list'>> {
+    if (!agentCapabilities.has('model.catalog.paged.v1')) {
+      const legacy = await loadModelCatalog()
+      const provider = legacy.providers.find(
+        item => item.provider.id === options.providerID,
+      )
+      if (!provider) throw new Error(`未找到模型提供商：${options.providerID}`)
+      providerModelCache.set(provider.provider.id, [...provider.models])
+      return {
+        ...legacy,
+        providers: [provider],
+        total: provider.models.length,
+      }
+    }
+
+    const directory = await loadProviderCatalog()
+    const providerID = directory.providers.find(
+      provider => provider.id === options.providerID,
+    )?.id
+    if (!providerID) throw new Error(`未找到模型提供商：${options.providerID}`)
+    const requestKey = JSON.stringify({
+      version: directory.catalogVersion,
+      providerID,
+      query: options.query?.trim().toLowerCase() ?? '',
+      cursor: options.cursor ?? '',
+      limit: options.limit ?? 100,
+    })
+    let pending = providerModelRequests.get(requestKey)
+    if (!pending) {
+      pending = rpc.call('model/list', {
+        providerId: providerID,
+        enabled: true,
+        limit: Math.max(1, Math.min(100, options.limit ?? 100)),
+        ...(options.query?.trim() ? { query: options.query.trim() } : {}),
+        ...(options.cursor ? { cursor: options.cursor } : {}),
+      }).catch(error => {
+        providerModelRequests.delete(requestKey)
+        throw error
+      })
+      providerModelRequests.set(requestKey, pending)
+    }
+    const result = await pending
+    if (result.catalogVersion !== directory.catalogVersion) {
+      invalidateModelCatalog()
+      if (options.cursor) throw new Error('模型目录已更新，请重新查询。')
+      return loadProviderModelPage(options)
+    }
+    const page = result.providers.find(
+      item => item.provider.id === options.providerID,
+    )?.models ?? []
+    const previous = providerModelCache.get(options.providerID) ?? []
+    const merged = new Map(previous.map(model => [model.id, model]))
+    for (const model of page) merged.set(model.id, model)
+    providerModelCache.set(options.providerID, [...merged.values()])
+    return result
   }
 
   async function loadIntegrations(
@@ -591,32 +696,51 @@ function createAgentSessionDesktopClient(
   async function providerState(
     preferredProviderID?: ModelProviderID,
   ): Promise<DesktopModelProviderState> {
-    const [catalog, integrations, desktopSettings] = await Promise.all([
-      loadModelCatalog(),
+    const [directory, integrations, desktopSettings] = await Promise.all([
+      loadProviderCatalog(),
       loadIntegrations(),
       mockClient.getDesktopSettings(),
     ])
     const selectedProviderID =
       preferredProviderID ??
-      catalog.defaultModel?.providerID ??
+      directory.defaultModel?.providerID ??
       desktopSettings.providerID ??
-      catalog.providers[0]?.provider.id
-    const catalogProvider =
-      catalog.providers.find(item => item.provider.id === selectedProviderID) ??
-      catalog.providers[0]
-    if (!catalogProvider) throw new Error('Agent 未返回可用模型提供商。')
+      directory.providers[0]?.id
+    const provider =
+      directory.providers.find(item => item.id === selectedProviderID) ??
+      directory.providers[0]
+    if (!provider) throw new Error('Agent 未返回可用模型提供商。')
+    const firstPage = await loadProviderModelPage({
+      providerID: provider.id,
+      limit: 100,
+    })
+    let models = firstPage.providers.find(
+      item => item.provider.id === provider.id,
+    )?.models ?? []
+    const selectedModel =
+      directory.defaultModel?.providerID === provider.id
+        ? directory.defaultModel
+        : null
+    if (selectedModel && !models.some(item => item.id === selectedModel.id)) {
+      const selectedPage = await loadProviderModelPage({
+        providerID: provider.id,
+        query: selectedModel.id,
+        limit: 100,
+      })
+      const exact = selectedPage.providers
+        .find(item => item.provider.id === provider.id)
+        ?.models.find(item => item.id === selectedModel.id)
+      if (exact) models = [...models, exact]
+    }
+    const catalogProvider: CatalogProvider = { provider, models }
     const integration = integrations.find(
-      item => item.id === catalogProvider.provider.integrationID,
+      item => item.id === provider.integrationID,
     )
     const summary = catalogProviderToDesktop(catalogProvider, integration)
-    const selectedModel =
-      catalog.defaultModel?.providerID === catalogProvider.provider.id
-        ? catalog.defaultModel
-        : null
     const model =
       selectedModel?.id ??
-      catalogProvider.models.find(item => item.enabled)?.id ??
-      catalogProvider.models[0]?.id ??
+      models.find(item => item.enabled)?.id ??
+      models[0]?.id ??
       ''
     const credentialConnection = integration?.connections.find(
       connection => connection.type === 'credential',
@@ -647,13 +771,13 @@ function createAgentSessionDesktopClient(
     providerID: ModelProviderID,
     refreshIntegrations = false,
   ) {
-    const [catalog, integrations] = await Promise.all([
-      loadModelCatalog(),
+    const [directory, integrations] = await Promise.all([
+      loadProviderCatalog(),
       loadIntegrations(refreshIntegrations),
     ])
-    const provider = catalog.providers.find(item => item.provider.id === providerID)
+    const provider = directory.providers.find(item => item.id === providerID)
     if (!provider) throw new Error(`未找到模型提供商：${providerID}`)
-    const integrationID = provider.provider.integrationID
+    const integrationID = provider.integrationID
     if (!integrationID) throw new Error(`模型提供商 ${providerID} 未声明凭据 Integration。`)
     const integration = integrations.find(item => item.id === integrationID)
     if (!integration) throw new Error(`未找到模型提供商 ${providerID} 的 Integration。`)
@@ -751,7 +875,9 @@ function createAgentSessionDesktopClient(
     return sessionSnapshots.get(sessionId)!
   }
 
-  async function refreshAgentSessionStoreChange(): Promise<void> {
+  async function refreshAgentSessionStoreChange(
+    options: { reloadActive?: boolean } = {},
+  ): Promise<void> {
     const sessions = await listAgentSessions({ archived: false })
     const visibleIds = new Set(sessions.map(snapshot => snapshot.item.id))
     for (const sessionId of [...sessionSnapshots.keys()]) {
@@ -763,7 +889,24 @@ function createAgentSessionDesktopClient(
     if (activeSessionId && !visibleIds.has(activeSessionId)) {
       activeSessionId = sessions[0]?.item.id ?? null
     }
-    emitSessionStoreChange(sessions)
+    if (options.reloadActive && activeSessionId) {
+      await loadAgentSessionSnapshot(activeSessionId)
+    }
+    emitSessionStoreChange()
+  }
+
+  function reconcileAgentSessionStore(): Promise<void> {
+    if (sessionStoreReconcile) return sessionStoreReconcile
+    integrationsCache = null
+    invalidateModelCatalog()
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('desktop:model-provider-changed'))
+    }
+    sessionStoreReconcile = refreshAgentSessionStoreChange({ reloadActive: true })
+      .finally(() => {
+        sessionStoreReconcile = null
+      })
+    return sessionStoreReconcile
   }
 
   function emitSessionStoreChange(
@@ -1761,52 +1904,71 @@ function createAgentSessionDesktopClient(
     resetUserMemory: input =>
       withAgentOrMock(async () => { requireAgentCapability('memory', 2); await rpc.call('memory/reset', { scope: 'user', includeEventLog: input.includeEventLog, operationId: crypto.randomUUID() }) }, () => mockClient.resetUserMemory(input)),
     listModelProviders: async () => {
-      const [catalog, integrations] = await Promise.all([
-        loadModelCatalog(),
+      const [directory, integrations] = await Promise.all([
+        loadProviderCatalog(),
         loadIntegrations(),
       ])
-      return catalog.providers.map(provider =>
+      return directory.providers.map(provider =>
         catalogProviderToDesktop(
-          provider,
+          {
+            provider,
+            models: providerModelCache.get(provider.id) ?? [],
+          },
           integrations.find(
-            integration => integration.id === provider.provider.integrationID,
+            integration => integration.id === provider.integrationID,
           ),
         ),
       )
     },
     getModelProviderState: () => providerState(),
     fetchProviderModels: async options => {
-      const catalog = await loadModelCatalog(true)
-      const provider = catalog.providers.find(
+      const result = await loadProviderModelPage({
+        providerID: options.providerID,
+        query: options.query,
+        cursor: options.cursor,
+        limit: options.limit,
+      })
+      const provider = result.providers.find(
         item => item.provider.id === options.providerID,
       )
       if (!provider) throw new Error(`未找到模型提供商：${options.providerID}`)
+      const metadata = catalogProviderToDesktop(provider).modelMetadata
       return {
         models: provider.models.filter(item => item.enabled).map(item => item.id),
+        modelMetadata: metadata,
+        total: result.total,
+        nextCursor: result.nextCursor,
       }
     },
     saveModelProvider: async options => {
-      const catalog = await loadModelCatalog()
-      const catalogProvider = catalog.providers.find(
-        item => item.provider.id === options.providerID,
-      )
-      if (!catalogProvider) throw new Error(`未找到模型提供商：${options.providerID}`)
+      let directory = await loadProviderCatalog()
+      let provider = directory.providers.find(item => item.id === options.providerID)
+      if (!provider) throw new Error(`未找到模型提供商：${options.providerID}`)
       if (
         options.baseURL !== undefined &&
-        options.baseURL !== catalogProvider.provider.api.url
+        options.baseURL !== provider.api.url
       ) {
         await rpc.call('provider/updateSettings', {
-          providerId: catalogProvider.provider.id,
+          providerId: provider.id,
           settings: {
             ...(options.baseURL ? { api: options.baseURL } : {}),
           },
           operationId: crypto.randomUUID(),
         })
+        invalidateModelCatalog()
+        directory = await loadProviderCatalog()
+        provider = directory.providers.find(item => item.id === options.providerID)
+        if (!provider) throw new Error(`未找到模型提供商：${options.providerID}`)
       }
       if (options.id) {
-        const selectedModel = catalogProvider.models.find(
-          model => model.id === options.id,
-        )
+        const page = await loadProviderModelPage({
+          providerID: options.providerID,
+          query: options.id,
+          limit: 100,
+        })
+        const selectedModel = page.providers
+          .find(item => item.provider.id === provider.id)
+          ?.models.find(model => model.id === options.id)
         if (!selectedModel) {
           throw new Error(`未找到模型：${options.providerID}/${options.id}`)
         }
@@ -1814,7 +1976,7 @@ function createAgentSessionDesktopClient(
           ? selectedModel.variants.find(variant => variant.id === options.variant)?.id
           : undefined
         const model: ModelRef = {
-          providerID: catalogProvider.provider.id,
+          providerID: provider.id,
           id: selectedModel.id,
           ...(selectedVariant ? { variant: selectedVariant } : {}),
         }
@@ -1823,7 +1985,7 @@ function createAgentSessionDesktopClient(
           operationId: crypto.randomUUID(),
         })
       }
-      modelCatalogCache = null
+      invalidateModelCatalog()
       return providerState(options.providerID)
     },
     saveProviderApiKey: async (providerID, apiKey) => {
@@ -1834,7 +1996,7 @@ function createAgentSessionDesktopClient(
         operationId: crypto.randomUUID(),
       })
       integrationsCache = null
-      modelCatalogCache = null
+      invalidateModelCatalog()
       return providerState(providerID)
     },
     deleteProviderApiKey: async providerID => {
@@ -1860,7 +2022,7 @@ function createAgentSessionDesktopClient(
         })
       }
       integrationsCache = null
-      modelCatalogCache = null
+      invalidateModelCatalog()
       const nextState = await providerState(providerID)
       const refreshedIntegration = (await loadIntegrations()).find(
         item => item.id === integration.id,
@@ -1875,11 +2037,11 @@ function createAgentSessionDesktopClient(
       return nextState
     },
     testModelProvider: async providerID => {
-      const catalog = await loadModelCatalog()
-      const provider = catalog.providers.find(item => item.provider.id === providerID)
+      const directory = await loadProviderCatalog()
+      const provider = directory.providers.find(item => item.id === providerID)
       if (!provider) throw new Error(`未找到模型提供商：${providerID}`)
       const result = await rpc.call('provider/test', {
-        providerId: provider.provider.id,
+        providerId: provider.id,
       })
       return result.status === 'reachable'
         ? {
@@ -1900,7 +2062,7 @@ function createAgentSessionDesktopClient(
         operationId: crypto.randomUUID(),
       })
       integrationsCache = null
-      modelCatalogCache = null
+      invalidateModelCatalog()
       return { ok: true as const }
     },
     authorizeIntegration: async input => {
@@ -1921,7 +2083,7 @@ function createAgentSessionDesktopClient(
         operationId: crypto.randomUUID(),
       })
       integrationsCache = null
-      modelCatalogCache = null
+      invalidateModelCatalog()
       return { ok: true as const }
     },
     getIntegrationAuthorizationStatus: input =>
@@ -1935,7 +2097,7 @@ function createAgentSessionDesktopClient(
         operationId: crypto.randomUUID(),
       })
       integrationsCache = null
-      modelCatalogCache = null
+      invalidateModelCatalog()
       return { ok: true as const }
     },
     createSession: async (options: CreateDesktopSessionOptions) =>
@@ -2397,8 +2559,22 @@ function createAgentSessionDesktopClient(
           ? mockClient.onAgentEvent(callback)
           : noop
       }
-      return rpc.subscribe({}, notification => {
+      return rpc.subscribe({
+        onReplayComplete: () => {
+          void reconcileAgentSessionStore().catch(() => {})
+        },
+      }, notification => {
         const notificationMethod = notification.method as string
+        if (notificationMethod === 'catalog/updated') {
+          invalidateModelCatalog()
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('desktop:model-provider-changed'))
+          }
+        }
+        if (notificationMethod === 'integration/updated') {
+          integrationsCache = null
+          invalidateModelCatalog()
+        }
         if (
           notificationMethod === 'workspace/file/changed' &&
           notification.params &&

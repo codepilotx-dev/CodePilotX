@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { resolveFileIconName } from '@codepilotx/material-icon-theme'
 import { FileTypeIcon } from '../src/features/layout/FileTypeIcon.js'
 
 describe('FileTypeIcon', () => {
-  test('renders a local currentColor glyph without text for a known type', () => {
+  test('renders a material file icon and consumes Lucide-only stroke props', () => {
     const html = renderToStaticMarkup(
       <FileTypeIcon
         aria-hidden="true"
@@ -14,39 +15,22 @@ describe('FileTypeIcon', () => {
       />,
     )
 
-    expect(html).toContain('data-file-icon-kind="react"')
-    expect(html).toContain('class="file-type-icon file-type-icon--react fixture-icon"')
+    expect(html).toContain('<svg')
+    expect(html).toContain('fixture-icon')
     expect(html).toContain('height="14"')
     expect(html).toContain('width="14"')
-    expect(html).toContain('currentColor')
-    expect(html).not.toContain('<text')
     expect(html).not.toContain('stroke-width="9"')
     expect(html).not.toContain('absoluteStrokeWidth')
   })
 
-  test('keeps Lucide as the fallback for unknown and extensionless files', () => {
-    const unknown = renderToStaticMarkup(
-      <FileTypeIcon path="/repo/source.unknown" size={16} />,
-    )
-    const extensionless = renderToStaticMarkup(
-      <FileTypeIcon path="/repo/LICENSE-CUSTOM" size={16} />,
-    )
-
-    expect(unknown).toContain('data-file-icon-kind="code"')
-    expect(unknown).toContain('lucide-file-code2')
-    expect(extensionless).toContain('data-file-icon-kind="file"')
-    expect(extensionless).toContain('lucide-file')
+  test('selects material icons from the complete file path', () => {
+    expect(resolveFileIconName('/repo/src/Component.tsx')).toBe('react_ts')
+    expect(resolveFileIconName('/repo/docs/README.md')).toBe('readme')
   })
 
-  test('renders special file names with their dedicated glyph', () => {
-    const skill = renderToStaticMarkup(
-      <FileTypeIcon path="/repo/SKILL.md" />,
-    )
-    const build = renderToStaticMarkup(
-      <FileTypeIcon path="/repo/package.json" />,
-    )
+  test('renders a fallback material icon when the path is absent', () => {
+    const html = renderToStaticMarkup(<FileTypeIcon path={null} />)
 
-    expect(skill).toContain('data-file-icon-kind="skill"')
-    expect(build).toContain('data-file-icon-kind="build"')
+    expect(html).toContain('<svg')
   })
 })

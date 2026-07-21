@@ -397,6 +397,10 @@
   .composer-chip-spinner {
     animation: none;
   }
+
+  .composer-utility-bar {
+    animation: none;
+  }
 }
 
 /* --- Chat input dropdown --- */
@@ -528,7 +532,7 @@
   font-size: var(--app-icon-size);
 }
 
-.composer-input textarea::placeholder {
+.composer-editor-content[data-placeholder]::before {
   color: var(--color-text-meta);
 }
 
@@ -552,12 +556,13 @@
   );
 }
 
-/* Transparent placement frame; the ComposerCard root owns the surface. */
+/* Transparent placement frame; ComposerStack owns its nested surfaces. */
 .composer-frame {
   container-type: inline-size;
   transition: height var(--motion-emphasis) var(--ease-standard);
 
-  > .composer {
+  > .composer-stack,
+  > .composer-stack > .composer {
     width: 100%;
     max-width: none;
   }

@@ -10,7 +10,10 @@ import type {
 } from './types.js'
 import { normalizeDirectiveName } from './directives.js'
 
-const TOKEN_CACHE = new LruCache<string, MarkdownToken[]>(100)
+const TOKEN_CACHE = new LruCache<string, MarkdownToken[]>(100, {
+  maxWeight: 2 * 1024 * 1024,
+  weigh: source => new TextEncoder().encode(source).byteLength,
+})
 const BLOCK_START = /^(?: {0,3})(:{1,3}[a-zA-Z][\w-]*|\$\$)[^\r\n]*(?:\r?\n|$)/m
 
 export function parseMarkdown(

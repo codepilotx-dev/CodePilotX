@@ -14,7 +14,6 @@ import type {
   DesktopUserMessageInput,
   DesktopWorkspace,
 } from '../../../shared/types.js'
-import { desktopUserMessageInputToPreviewText } from '../../../shared/desktopUserMessage.js'
 import type { SessionListItem, SessionViewState } from '../../uiTypes.js'
 import {
   normalizeOptionalText,
@@ -179,20 +178,19 @@ export async function submitSessionMessageAction(
   input: DesktopUserMessageInput,
   canSubmit: boolean,
   settings: SessionSettingsSnapshot,
-  setInput: (value: string) => void,
   options?: {
     sessionStatus?: DesktopSessionStatus
     followUpBehavior?: DesktopFollowUpBehavior
     followUpOverride?: DesktopFollowUpBehavior
+    propagateError?: boolean
   },
-): Promise<void> {
-  if (!canSubmit || !sessionId) return
+): Promise<'sent' | 'queued' | 'steered' | null> {
+  if (!canSubmit || !sessionId) return null
   const isActive = options?.sessionStatus === 'running' || options?.sessionStatus === 'waiting'
-  setInput('')
   try {
     if (isActive) {
       const behavior = options?.followUpOverride ?? options?.followUpBehavior ?? 'steer'
-      await desktopClient.submitSessionFollowUp(sessionId, input, behavior)
+      return await desktopClient.submitSessionFollowUp(sessionId, input, behavior)
     } else {
       await desktopClient.sendUserMessage(
         sessionId,
@@ -205,10 +203,12 @@ export async function submitSessionMessageAction(
           localRouterMode: settings.localRouterMode === 'off' ? undefined : settings.localRouterMode,
         },
       )
+      return 'sent'
     }
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))
-    setInput(desktopUserMessageInputToPreviewText(input))
+    if (options?.propagateError) throw error
+    return null
   }
 }
 

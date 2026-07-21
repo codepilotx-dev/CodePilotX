@@ -77,6 +77,7 @@ import {
 import { parseAskUserQuestions } from "./AskUserQuestionApproval.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
 import { ComposerFrame } from "./ComposerSurface.js";
+import { DesktopComposer } from "./DesktopComposer.js";
 import {
   clearConversationSelectionHighlight,
   createConversationSelectionSnapshot,
@@ -223,7 +224,7 @@ export function ConversationPage(): React.ReactNode {
     onOpenSubagent,
     permissionMode,
     pendingPermissions,
-    composer,
+    composerProps,
     rightDockPlanEventId,
     debugMode,
   } = useQuickChatContext();
@@ -524,7 +525,7 @@ export function ConversationPage(): React.ReactNode {
     composerMode,
     activePermissionRequest?.requestId ?? "",
     showComposerStatusSummary,
-    composer ? "mounted" : "unmounted",
+    composerProps ? "mounted" : "unmounted",
   ]);
 
   const workflowPageRef = React.useRef<HTMLElement>(null);
@@ -567,7 +568,7 @@ export function ConversationPage(): React.ReactNode {
       }
       observer?.disconnect();
     };
-  }, [composer, composerTransition.ref, workflowPageRef]);
+  }, [composerProps, composerTransition.ref, workflowPageRef]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -683,10 +684,10 @@ export function ConversationPage(): React.ReactNode {
     );
   }
 
-  function openReviewSidebar(): void {
+  const openReviewSidebar = React.useCallback((): void => {
     onRefreshDiff();
     onOpenRightDock("review");
-  }
+  }, [onOpenRightDock, onRefreshDiff]);
 
   function handleConversationContextMenu(): void {
     clearConversationSelectionHighlight();
@@ -1007,7 +1008,7 @@ export function ConversationPage(): React.ReactNode {
     ],
   );
 
-  const composerFooter = composer ? (
+  const composerFooter = composerProps ? (
     <div className="chat-composer workflow-page__composer tw:pointer-events-none tw:flex tw:w-full tw:justify-center">
       <ComposerFrame
         ref={composerTransition.ref}
@@ -1051,7 +1052,7 @@ export function ConversationPage(): React.ReactNode {
             onAcceptExitPlanMode={onAcceptExitPlanMode}
           />
         ) : (
-          composer
+          <DesktopComposer {...composerProps} />
         )}
       </ComposerFrame>
     </div>
@@ -1171,9 +1172,7 @@ export function ConversationPage(): React.ReactNode {
                                     assistantActionMessageIds.has(item.id)
                                   }
                                   onOpenPlanInRightDock={onOpenPlanInRightDock}
-                                  onDiscardChanges={(paths, turnRestoreId) =>
-                                    void handleDiscardChanges(paths, turnRestoreId)
-                                  }
+                                  onDiscardChanges={handleDiscardChanges}
                                   onReviewCode={handleRunCodeReview}
                                   onReviewFiles={openReviewSidebar}
                                 />
@@ -1792,7 +1791,7 @@ function trimNodeTitle(value: string): string {
   return `${normalized.slice(0, 30)}...`;
 }
 
-function TimelineItem({
+const TimelineItem = React.memo(function TimelineItem({
   item,
   rightDockPlanEventId,
   showActions,
@@ -1973,7 +1972,28 @@ function TimelineItem({
   }
 
   return null;
-}
+}, (previous, next) => {
+  const previousItem = previous.item;
+  const nextItem = next.item;
+  if (
+    previousItem.type !== "message" ||
+    nextItem.type !== "message" ||
+    previousItem.role !== "assistant" ||
+    nextItem.role !== "assistant"
+  ) {
+    return false;
+  }
+  return (
+    previousItem.id === nextItem.id &&
+    previousItem.content === nextItem.content &&
+    previous.showActions === next.showActions &&
+    previous.rightDockPlanEventId === next.rightDockPlanEventId &&
+    previous.onOpenPlanInRightDock === next.onOpenPlanInRightDock &&
+    previous.onDiscardChanges === next.onDiscardChanges &&
+    previous.onReviewCode === next.onReviewCode &&
+    previous.onReviewFiles === next.onReviewFiles
+  );
+});
 
 function TimelineToolGroupView({
   group,

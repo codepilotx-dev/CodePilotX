@@ -364,11 +364,20 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
     settings.draft.setValue('model', nextModel)
   }
 
-  function applyFetchedModels(models: string[], error?: string): void {
+  function applyFetchedModels(
+    models: string[],
+    error?: string,
+    fetchedMetadata?: Record<string, DesktopModelMetadata>,
+  ): void {
     const cleanModels = models.filter(Boolean)
     setProviderState(current => {
       if (current && current.selectedProviderID === providerID) {
-        return { ...current, models: cleanModels, error }
+        return {
+          ...current,
+          models: cleanModels,
+          modelMetadata: { ...current.modelMetadata, ...fetchedMetadata },
+          error,
+        }
       }
       if (!selectedProvider) return current
       return {
@@ -381,7 +390,7 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
         modelConfigured: false,
         configurationMessage: '未配置模型，请先在设置中配置模型。',
         models: cleanModels,
-        modelMetadata,
+        modelMetadata: { ...modelMetadata, ...fetchedMetadata },
         error,
       }
     })
@@ -400,7 +409,7 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
           baseURL: baseURL.trim() || undefined,
         }),
       )
-      applyFetchedModels(result.models, result.error)
+      applyFetchedModels(result.models, result.error, result.modelMetadata)
       setModelError(result.error ?? null)
       setStatus(result.error ? null : `已加载 ${result.models.length} 个模型。`)
     } catch (error) {
