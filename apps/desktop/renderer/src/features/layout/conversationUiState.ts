@@ -466,7 +466,15 @@ function validateTabDescriptor(
     return { id: 'browser', kind: 'browser' }
   }
   if (tab.id === 'file-browser' && tab.kind === 'file-browser') {
-    return { id: 'file-browser', kind: 'file-browser' }
+    const directoryPath =
+      typeof tab.directoryPath === 'string' && isSafePath(tab.directoryPath, true)
+        ? tab.directoryPath
+        : undefined
+    return {
+      id: 'file-browser',
+      kind: 'file-browser',
+      ...(directoryPath ? { directoryPath } : {}),
+    }
   }
   if (tab.id === 'side-chat' && tab.kind === 'side-chat') {
     return { id: 'side-chat', kind: 'side-chat' }
