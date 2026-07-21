@@ -158,22 +158,41 @@ function resolveWorkspaceFileReference(
   const workspace = workspacePath.replace(/\\/g, '/').replace(/\/+$/u, '')
   const value = referencePath.trim().replace(/\\/g, '/')
   if (!value) return null
+
   const isAbsolute = /^(?:[a-zA-Z]:\/|\/\/|\/)/u.test(value)
   let relativePath = value
+
   if (isAbsolute) {
     const prefix = `${workspace}/`
     const matchesWorkspace =
       /^[a-zA-Z]:\//u.test(workspace) || /^[a-zA-Z]:\//u.test(value)
         ? value.toLowerCase().startsWith(prefix.toLowerCase())
         : value.startsWith(prefix)
-    if (!matchesWorkspace) return null
+    if (!matchesWorkspace) {
+      // Check if reference IS the workspace root itself (exact match)
+      if (value.toLowerCase() === workspace.toLowerCase()) {
+        return { relativePath: '.', absolutePath: workspace }
+      }
+      return null
+    }
     relativePath = value.slice(prefix.length)
   }
+
   relativePath = relativePath.replace(/^(?:\.\/)+/u, '')
+
+  // Handle workspace root (empty or '.' after stripping)
+  if (!relativePath || relativePath === '.') {
+    return { relativePath: '.', absolutePath: workspace }
+  }
+
   const segments = relativePath.split('/').filter(Boolean)
-  if (segments.length === 0 || segments.some(segment => segment === '..')) {
+  if (segments.some(segment => segment === '..')) {
     return null
   }
+  if (segments.length === 0) {
+    return { relativePath: '.', absolutePath: workspace }
+  }
+
   relativePath = segments.join('/')
   return {
     relativePath,
@@ -185,6 +204,13 @@ function shouldOpenFileExternally(path: string): boolean {
   const extension = path.split(/[\\/]/u).pop()?.split('.').pop()?.toLowerCase()
   return extension ? EXTERNAL_FILE_EXTENSIONS.has(extension) : false
 }
+
+function normalizePathForCompare(path: string): string {
+  return path.replace(/\\/g, '/').replace(/\/+$/u, '').toLowerCase()
+}
+
+/** Incrementing counter to sequence directory probe requests */
+let directoryProbeRequestId = 0
 
 export function DesktopLayout(): React.ReactNode {
   const settings = useDesktopSettings()
@@ -2147,35 +2173,106 @@ export function DesktopLayout(): React.ReactNode {
         currentWorkspace.path,
         reference.path,
       )
-      if (!resolved || shouldOpenFileExternally(reference.path)) {
-        const target = resolved?.absolutePath ?? reference.path
-        if (/^(?:[a-zA-Z]:[\\/]|\\\\|\/)/u.test(target)) {
-          void openPathWithPreferredExternalTarget(target).catch(error => {
-            setErrorMessage(
-              error instanceof Error ? error.message : String(error),
-            )
-          })
+      if (!resolved) {
+        // Not a workspace path — open with system
+        if (/^(?:[a-zA-Z]:[\\/]|\\\\|\/)/u.test(reference.path)) {
+          void openPathWithPreferredExternalTarget(reference.path).catch(
+            error => {
+              setErrorMessage(
+                error instanceof Error ? error.message : String(error),
+              )
+            },
+          )
         }
         return
       }
-      const tabId = createFilePreviewTabId(
-        currentWorkspace.path,
-        resolved.relativePath,
+
+      // Workspace root directory — open file-browser tab
+      if (resolved.relativePath === '.') {
+        directoryProbeRequestId += 1
+        openPanelTab('right', {
+          id: 'file-browser',
+          kind: 'file-browser',
+          directoryPath: undefined,
+          revealToken: directoryProbeRequestId,
+        })
+        return
+      }
+
+      // Check if it's a known directory from workspaceFiles (root-level entries)
+      const isKnownDirectory = workspaceFiles.some(
+        file =>
+          file.type === 'directory' &&
+          normalizePathForCompare(file.path) ===
+            normalizePathForCompare(resolved.relativePath),
       )
-      retryExistingFileTab(tabId)
-      openPanelTab('right', {
-        id: tabId,
-        kind: 'file-preview',
-        workspacePath: currentWorkspace.path,
-        relativePath: resolved.relativePath,
-        preview: options.preview,
-        ...(reference.line ? { line: reference.line } : {}),
-        ...(reference.column ? { column: reference.column } : {}),
-        ...(reference.endLine ? { endLine: reference.endLine } : {}),
-        ...(reference.endColumn ? { endColumn: reference.endColumn } : {}),
-      })
+      if (isKnownDirectory) {
+        directoryProbeRequestId += 1
+        openPanelTab('right', {
+          id: 'file-browser',
+          kind: 'file-browser',
+          directoryPath: resolved.relativePath,
+          revealToken: directoryProbeRequestId,
+        })
+        return
+      }
+
+      // Asynchronously probe unknown paths to determine if directory or file
+      const probeRequestId = ++directoryProbeRequestId
+      desktopClient
+        .listWorkspaceFiles(currentWorkspace.path, resolved.relativePath)
+        .then(() => {
+          // Probe succeeded → it's a directory
+          if (directoryProbeRequestId === probeRequestId) {
+            openPanelTab('right', {
+              id: 'file-browser',
+              kind: 'file-browser',
+              directoryPath: resolved.relativePath,
+              revealToken: probeRequestId,
+            })
+          }
+        })
+        .catch(() => {
+          // Probe failed → it's a file (or doesn't exist)
+          if (directoryProbeRequestId !== probeRequestId) return
+
+          // External file types still open with system
+          if (shouldOpenFileExternally(reference.path)) {
+            void openPathWithPreferredExternalTarget(
+              resolved.absolutePath,
+            ).catch(error => {
+              setErrorMessage(
+                error instanceof Error ? error.message : String(error),
+              )
+            })
+            return
+          }
+
+          // Open as file-preview tab
+          const tabId = createFilePreviewTabId(
+            currentWorkspace.path,
+            resolved.relativePath,
+          )
+          retryExistingFileTab(tabId)
+          openPanelTab('right', {
+            id: tabId,
+            kind: 'file-preview',
+            workspacePath: currentWorkspace.path,
+            relativePath: resolved.relativePath,
+            preview: options.preview,
+            ...(reference.line ? { line: reference.line } : {}),
+            ...(reference.column ? { column: reference.column } : {}),
+            ...(reference.endLine ? { endLine: reference.endLine } : {}),
+            ...(reference.endColumn ? { endColumn: reference.endColumn } : {}),
+          })
+        })
     },
-    [currentWorkspace, openPanelTab, retryExistingFileTab],
+    [
+      currentWorkspace,
+      openPanelTab,
+      retryExistingFileTab,
+      workspaceFiles,
+    ],
   )
 
   const canCopyMarkdownFileReferenceContents = useCallback(
@@ -2183,10 +2280,11 @@ export function DesktopLayout(): React.ReactNode {
       if (!currentWorkspace || shouldOpenFileExternally(reference.path)) {
         return false
       }
-      return (
-        resolveWorkspaceFileReference(currentWorkspace.path, reference.path) !==
-        null
+      const resolved = resolveWorkspaceFileReference(
+        currentWorkspace.path,
+        reference.path,
       )
+      return resolved !== null && resolved.relativePath !== '.'
     },
     [currentWorkspace],
   )
