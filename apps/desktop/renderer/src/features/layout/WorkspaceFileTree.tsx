@@ -34,6 +34,7 @@ export type WorkspaceFileTreeProps = {
   autoFocusSearch?: boolean
   className?: string
   files: DesktopFileEntry[]
+  revealToken?: number
   rootPath?: string | null
   searchable?: boolean
   workspace: DesktopWorkspace | null
@@ -60,6 +61,7 @@ export function WorkspaceFileTree({
   autoFocusSearch = false,
   className,
   files,
+  revealToken,
   rootPath = null,
   searchable = true,
   workspace,
@@ -186,12 +188,25 @@ export function WorkspaceFileTree({
         )
         await loadDirectory(directory.path, directory.depth)
       }
+      if (cancelled) return
+      // If activePath itself is a directory, expand and load it too
+      const targetEntry = entriesRef.current.find(
+        entry =>
+          entry.type === 'directory' &&
+          normalizePath(entry.path) === normalizePath(activePath),
+      )
+      if (targetEntry) {
+        setExpandedDirectories(current =>
+          addSetValue(current, normalizePath(targetEntry.path)),
+        )
+        await loadDirectory(targetEntry.path, targetEntry.depth)
+      }
     }
     void revealActivePath().catch(() => undefined)
     return () => {
       cancelled = true
     }
-  }, [activePath, loadDirectory, rootPath, workspace?.path])
+  }, [activePath, loadDirectory, revealToken, rootPath, workspace?.path])
 
   const visibleRows = useMemo(
     () =>
@@ -225,7 +240,7 @@ export function WorkspaceFileTree({
         block: 'nearest',
       })
     })
-  }, [activePath, visibleRows])
+  }, [activePath, revealToken, visibleRows])
 
   useEffect(
     () => () => {
