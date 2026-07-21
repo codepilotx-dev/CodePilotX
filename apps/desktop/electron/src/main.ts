@@ -12,7 +12,7 @@ import {
   shell,
   type OpenDialogOptions,
 } from "electron"
-import { resolveBunExecutable } from "./sidecar-command.js"
+import { missingPackagedSidecarError, resolveSidecarCommand as resolveConfiguredSidecarCommand, SidecarInstallationError } from "./sidecar-command.js"
 import { createDesktopLogger, type DesktopLogger } from "./desktop-logger.js"
 import { AppearanceSettingsStore } from "./appearance-settings-store.js"
 import { ExternalOpenTargetService } from "./external-open-targets.js"
@@ -82,9 +82,10 @@ class SidecarSupervisor {
         return connection
       } catch (error) {
         this.#connection = undefined
+        await this.#disposeChild()
+        if (error instanceof SidecarInstallationError) throw error
         const message = formatError(error)
         this.#logger.warn("sidecar.connect-failed", { attempt, message })
-        await this.#disposeChild()
         if (this.#stopping) break
         delay = delay === 0 ? 500 : Math.min(10_000, delay * 2)
         await sleep(delay + Math.round(Math.random() * Math.min(500, delay * 0.2)))
@@ -210,6 +211,8 @@ class SidecarSupervisor {
       await waitForReady(origin, this.#token, this.#logger, attempt)
     } catch (error) {
       await this.#disposeChild()
+      const missingSidecar = app.isPackaged ? missingPackagedSidecarError(error, command.executable) : undefined
+      if (missingSidecar) throw missingSidecar
       throw error
     }
 
@@ -309,20 +312,25 @@ async function connectAndLoad(token: string): Promise<void> {
         connectionStatus = { state: "connected", phase: "loading", attempt: connectionStatus.attempt }
         logger?.info("desktop.ready", { origin: connection.origin, port: connection.port })
         mainWindow?.webContents.send("agent:connection-changed", "connected")
-        startupWindow?.hide()
         mainWindow?.show()
+        startupWindow?.destroy()
         supervisor.watch(connection, () => {
           if (quitting || connectionStatus.state !== "connected") return
           logger?.warn("desktop.connection-lost", { origin: connection.origin })
           connectionStatus = { state: "disconnected", phase: "reconnecting", attempt: 0 }
           mainWindow?.hide()
-          startupWindow?.show()
+          createStartupWindow()
           mainWindow?.webContents.send("agent:connection-changed", "disconnected")
           supervisor?.invalidate()
           void connectAndLoad(token)
         })
         return
       } catch (error) {
+        if (error instanceof SidecarInstallationError) {
+          logger?.error("desktop.startup-failed", { code: error.code, message: error.message, executable: error.executable })
+          showStartupStatus("安装不完整，请重新安装", "CodePilotX Agent 文件缺失")
+          return
+        }
         logger?.error("desktop.connection-cycle-failed", { error })
         showStartupStatus("连接失败，正在继续重试", formatError(error))
         if (quitting) return
@@ -613,20 +621,11 @@ async function loadApplication(agentOrigin: string): Promise<void> {
 }
 
 function resolveSidecarCommand(): { executable: string; args: string[]; cwd: string } {
-  if (app.isPackaged) {
-    return {
-      executable: join(process.resourcesPath, "agent", "codepilotx-agent.exe"),
-      args: [],
-      cwd: process.resourcesPath,
-    }
-  }
-
-  const workspaceRoot = resolve(__dirname, "../../../../")
-  return {
-    executable: resolveBunExecutable(),
-    args: ["run", process.env.CODEPILOTX_AGENT_ENTRY ?? "apps/agent/src/main.ts"],
-    cwd: workspaceRoot,
-  }
+  return resolveConfiguredSidecarCommand({
+    packaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    moduleDirectory: __dirname,
+  })
 }
 
 function waitForReadyMessage(child: ChildProcessWithoutNullStreams, log: DesktopLogger): Promise<ReadyMessage> {

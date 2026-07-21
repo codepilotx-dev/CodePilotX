@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "build:js": "bun build src/index.ts --target=bun --outdir=dist",
-    "build": "bun build src/index.ts --compile --outfile=dist/codepilotx-agent.exe",
+    "build": "bun ../../scripts/build-agent-win-x64.ts",
     "compile": "bun run build"
   },
   "dependencies": {

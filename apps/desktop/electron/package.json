@@ -8,7 +8,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.json",
     "dev": "bun run build && electron .",
-    "package:win": "bun ../../../scripts/copy-srt-win.ts && bun run build && electron-builder --win"
+    "package:win": "electron-builder --win --x64"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
@@ -34,7 +34,7 @@
         "to": "icon.ico"
       },
       {
-        "from": "../../agent/dist/codepilotx-agent.exe",
+        "from": "../../agent/dist/x64/codepilotx-agent.exe",
         "to": "agent/codepilotx-agent.exe"
       },
       {
@@ -58,21 +58,13 @@
         "to": "third_party"
       },
       {
-        "from": "../../../resources/srt-win",
-        "to": "srt-win"
+        "from": "../../../resources/srt-win/x64/srt-win.exe",
+        "to": "srt-win/x64/srt-win.exe"
       }
     ],
     "win": {
       "icon": "icon.ico",
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
+      "target": "nsis",
       "artifactName": "CodePilotX-${version}-${arch}.${ext}"
     },
     "nsis": {

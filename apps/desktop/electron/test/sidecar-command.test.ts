@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { resolveBunExecutable } from "../src/sidecar-command"
+import { missingPackagedSidecarError, resolveBunExecutable, resolveSidecarCommand, SidecarInstallationError } from "../src/sidecar-command"
 
 const roots: string[] = []
 
@@ -24,5 +24,36 @@ describe("Bun sidecar 命令解析", () => {
   test("显式路径优先于 PATH 自动发现", () => {
     expect(resolveBunExecutable({ CODEPILOTX_BUN_PATH: "D:\\tools\\bun.exe", Path: "" }, "win32"))
       .toBe("D:\\tools\\bun.exe")
+  })
+
+  test("packaged 模式解析固定资源路径", () => {
+    const root = join(import.meta.dir, `.tmp-${crypto.randomUUID()}`)
+    const executable = join(root, "agent", "codepilotx-agent.exe")
+    roots.push(root)
+    mkdirSync(join(root, "agent"), { recursive: true })
+    writeFileSync(executable, "")
+
+    expect(resolveSidecarCommand({
+      packaged: true,
+      resourcesPath: root,
+      moduleDirectory: import.meta.dir,
+    })).toEqual({ executable, args: [], cwd: root })
+  })
+
+  test("packaged 模式缺失 Agent 时返回不可重试的安装错误", () => {
+    const root = join(import.meta.dir, `.tmp-${crypto.randomUUID()}`)
+    roots.push(root)
+    mkdirSync(root, { recursive: true })
+
+    expect(() => resolveSidecarCommand({
+      packaged: true,
+      resourcesPath: root,
+      moduleDirectory: import.meta.dir,
+    })).toThrow(SidecarInstallationError)
+
+    expect(missingPackagedSidecarError(Object.assign(new Error("spawn failed"), { code: "ENOENT" }), "C:\\resources\\agent.exe"))
+      .toBeInstanceOf(SidecarInstallationError)
+    expect(missingPackagedSidecarError(Object.assign(new Error("access denied"), { code: "EACCES" }), "C:\\resources\\agent.exe"))
+      .toBeUndefined()
   })
 })

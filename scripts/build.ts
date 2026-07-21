@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url"
 const root = fileURLToPath(new URL("..", import.meta.url))
 
 console.log("\n[CodePilotX] SRT Windows resources")
-const srt = Bun.spawn(["bun", "scripts/copy-srt-win.ts"], { cwd: root, stdin: "inherit", stdout: "inherit", stderr: "inherit" })
+const srt = Bun.spawn(["bun", "scripts/copy-srt-win.ts", "--x64"], { cwd: root, stdin: "inherit", stdout: "inherit", stderr: "inherit" })
 if (await srt.exited !== 0) process.exit(1)
 
 for (const [label, command] of [
