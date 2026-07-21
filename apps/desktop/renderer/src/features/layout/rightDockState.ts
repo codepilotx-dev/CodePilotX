@@ -27,7 +27,12 @@ export type DebugTabDescriptor =
 export type WorkbenchTabDescriptor =
   | { id: 'review'; kind: 'review' }
   | { id: 'browser'; kind: 'browser' }
-  | { id: 'file-browser'; kind: 'file-browser' }
+  | {
+      id: 'file-browser'
+      kind: 'file-browser'
+      directoryPath?: string
+      revealToken?: number
+    }
   | {
       id: `file:${string}`
       kind: 'file-preview'
