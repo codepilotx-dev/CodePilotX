@@ -73,7 +73,7 @@ export const ShutdownResultSchema = Schema.Struct({
 
 export const StreamCursorSchema = Schema.Struct({
   streamId: OpaqueIDSchema,
-  after: SequenceSchema,
+  after: Schema.Union([SequenceSchema, Schema.Literal("latest")]),
 })
 
 export const EventSubscribeParamsSchema = Schema.Struct({

@@ -67,6 +67,7 @@ export const V2MethodMigrationManifest = {
   "subagent/worktree/discard": { status: "keep", target: "subagent/worktree/discard" },
   "subagent/workspace/restore": { status: "keep", target: "subagent/workspace/restore" },
   "model/list": { status: "keep", target: "model/list" },
+  "provider/list": { status: "keep", target: "provider/list" },
   "model/refresh": { status: "keep", target: "model/refresh" },
   "model/setDefault": { status: "keep", target: "model/setDefault" },
   "model/setReviewer": { status: "keep", target: "model/setReviewer" },

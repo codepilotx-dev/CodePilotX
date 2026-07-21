@@ -57,7 +57,7 @@ validation failures use JSON-RPC `-32602` instead of a domain error.
 | `initialize` | `clientInfo`, supported `protocols`, requested `capabilities`, interaction delivery `active` or `observe` | selected protocol, server info, capabilities, limits, `connectionId` | First request on every connection. Selects `thread-rpc-v3`. |
 | `initialized` | negotiated protocol and optional restored client instance ID | none; client notification | Opens the connection for normal calls and server requests. |
 | `shutdown` | `operationId` | `{ ok, acceptedAt }` | Requires `agent.shutdown` and desktop-managed Agent capability. |
-| `event/subscribe` | array of `{ streamId, after }`, optional live event filters | `subscriptionId`, per-stream high-watermarks | Replay and live tail use one subscription. |
+| `event/subscribe` | array of `{ streamId, after: number \| "latest" }`, optional live event filters | `subscriptionId`, per-stream high-watermarks | A number resumes durable replay; `"latest"` is normalized to the captured high-watermark for snapshot-aligned live tailing. After `CURSOR_EXPIRED`, clients reconcile authoritative snapshots before using `"latest"`. |
 | `event/ack` | `subscriptionId`, per-stream acknowledged durable positions | acknowledged positions | Controls connection backpressure; does not delete events. |
 | `event/unsubscribe` | `subscriptionId` | `{ ok }` | Idempotent. |
 | `interaction/listPending` | optional `threadId`, `kinds`, query cursor, limit | page of pending interactions | Required after reconnect and before enabling interaction UI. |

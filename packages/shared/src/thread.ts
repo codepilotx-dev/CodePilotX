@@ -714,6 +714,7 @@ export const AgentRpcMethodSchema = Schema.Literals([
   "subagent/worktree/discard",
   "subagent/workspace/restore",
   "model/list",
+  "provider/list",
   "model/refresh",
   "model/setDefault",
   "model/setReviewer",

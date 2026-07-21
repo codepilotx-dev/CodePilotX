@@ -655,7 +655,10 @@ const fixtures = {
     enabled: true,
     inputModality: "text",
     outputModality: "text",
+    cursor: "model-cursor:1",
+    limit: 100,
   }, modelCatalog),
+  "provider/list": methodFixture("provider/list", {}, modelCatalog),
   "model/refresh": methodFixture("model/refresh", { operationId: "operation:model-refresh" }, modelCatalog),
   "model/setDefault": methodFixture("model/setDefault", {
     model: modelRef,
@@ -1010,9 +1013,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 92 formal methods decodable", () => {
+  test("keeps valid params and results for all 93 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(92)
+    expect(methods).toHaveLength(93)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -1061,6 +1064,18 @@ describe("RPC method schema contracts", () => {
         withoutCacheState,
       ), `${method} requires cacheState`).toThrow()
     }
+  })
+
+  test("accepts numeric and latest event cursors while rejecting unknown cursor modes", () => {
+    const decode = Schema.decodeUnknownSync(RpcMethods["event/subscribe"].params)
+
+    expect(decode({ streams: [{ streamId: "global", after: 0 }] })).toEqual({
+      streams: [{ streamId: "global", after: 0 }],
+    })
+    expect(decode({ streams: [{ streamId: "global", after: "latest" }] })).toEqual({
+      streams: [{ streamId: "global", after: "latest" }],
+    })
+    expect(() => decode({ streams: [{ streamId: "global", after: "newest" }] })).toThrow()
   })
 
   test("rejects excess fields for every security-sensitive exact params schema", () => {

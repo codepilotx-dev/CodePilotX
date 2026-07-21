@@ -61,7 +61,18 @@ const workspaceMutationResult = <const Action extends "apply" | "discard" | "res
 const CatalogResultSchema = Schema.Struct({
   ...ModelCatalogSchema.fields,
   catalogVersion: SequenceSchema,
+  total: Schema.optional(NonNegativeIntSchema),
+  nextCursor: Schema.optional(CursorSchema),
 })
+
+const ProviderListResultSchema = Schema.Struct({
+  providers: Schema.Array(Provider.Info),
+  defaultModel: Schema.NullOr(Model.Ref),
+  reviewerModel: Schema.NullOr(Model.Ref),
+  catalogVersion: SequenceSchema,
+})
+
+const ModelPageLimitSchema = Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 100 }))
 
 const SettingsVersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 
@@ -290,10 +301,20 @@ export const ExtendedRpcMethods = {
       enabled: Schema.optional(Schema.Boolean),
       inputModality: Schema.optional(Schema.String),
       outputModality: Schema.optional(Schema.String),
+      cursor: Schema.optional(CursorSchema),
+      limit: Schema.optional(ModelPageLimitSchema),
     }),
     result: CatalogResultSchema,
-    errors: ["RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    errors: ["CURSOR_EXPIRED", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
     capability: null,
+    mutation: false,
+  }),
+
+  "provider/list": defineMethod({
+    params: Schema.Struct({}),
+    result: ProviderListResultSchema,
+    errors: ["RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "model.catalog.paged.v1",
     mutation: false,
   }),
 

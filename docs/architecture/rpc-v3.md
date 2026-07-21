@@ -202,8 +202,13 @@ latest durable stream position that causally precedes it.
 
 ### 6. Subscription and replay
 
-`event/subscribe` accepts one or more `{ streamId, after }` positions. The
-server returns a subscription ID and a high-watermark for every stream.
+`event/subscribe` accepts one or more `{ streamId, after }` positions. `after`
+is either a durable sequence number or the literal `"latest"`. A numeric
+cursor replays durable events after that position. `"latest"` is resolved to
+the stream's current high-watermark when the subscription is registered, so it
+starts with a snapshot-aligned live tail instead of replaying retained history.
+The server returns a subscription ID and the captured high-watermark for every
+stream.
 
 For each stream the server:
 
@@ -220,7 +225,9 @@ skip durable events. The client reconnects using its last acknowledged durable
 sequence and reconciles pending requests and snapshots.
 
 Cursor expiry is allowed only after an explicit retention policy exists. The
-server returns `CURSOR_EXPIRED` with the required snapshot/reconciliation path.
+server returns `CURSOR_EXPIRED` with the stream's low and high watermarks. The
+client may re-subscribe with `"latest"` only after arranging authoritative
+snapshot reconciliation; snapshots, not skipped events, restore current state.
 
 ### 7. Input admission and execution wake
 
