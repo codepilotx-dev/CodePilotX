@@ -1146,6 +1146,8 @@ export type CreateDesktopSessionOptions = {
   appServerThreadId?: string | null
   localRouterMode?: LocalRouterMode
   workspacePath?: string
+  /** First submitted text used to name/materialize a projectless workspace. */
+  projectlessPrompt?: string
   permissionConfig?: DesktopPermissionConfig
   collaborationMode?: DesktopCollaborationMode
   planModeActive?: boolean

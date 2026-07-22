@@ -2201,10 +2201,10 @@ function createAgentSessionDesktopClient(
     createSession: async (options: CreateDesktopSessionOptions) =>
       withAgentOrMock<CreateDesktopSessionResult>(
         async () => {
-          if (!options.workspacePath?.trim()) {
-            throw new Error('历史会话需要先选择项目工作区。')
-          }
-          const project = await loadProjectForPath(options.workspacePath)
+          const workspacePath = options.workspacePath?.trim()
+          const project = workspacePath
+            ? await loadProjectForPath(workspacePath)
+            : null
           const collaborationMode = resolveCodePilotXCollaborationMode({
             collaborationMode: options.collaborationMode,
             planModeActive: options.planModeActive,
@@ -2218,7 +2218,14 @@ function createAgentSessionDesktopClient(
             permissionConfig: advancedPermission,
           }
           const { snapshot: sharedSnapshot } = await rpc.call('thread/create', {
-            projectId: project.id,
+            workspace: project
+              ? { kind: 'project', projectId: project.id }
+              : {
+                  kind: 'projectless',
+                  ...(options.projectlessPrompt?.trim()
+                    ? { prompt: options.projectlessPrompt.trim() }
+                    : {}),
+                },
             settings,
             title: options.sessionName,
             operationId: crypto.randomUUID(),
@@ -2230,7 +2237,7 @@ function createAgentSessionDesktopClient(
           return {
             sessionId: snapshot.item.id,
             workspace: snapshot.workspace,
-            standalone: false,
+            standalone: sharedSnapshot.thread.workspace.kind === 'projectless',
           }
         },
         () => mockClient.createSession(options),

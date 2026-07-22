@@ -93,10 +93,13 @@ export async function createSessionForWorkspaceAction(
   settings: SessionSettingsSnapshot,
   target: DesktopWorkspace | null,
   initialSessionName?: string,
+  projectlessPrompt?: string,
+  options?: { propagateError?: boolean },
 ): Promise<string | null> {
   try {
     const session = await desktopClient.createSession({
       workspacePath: target?.path,
+      projectlessPrompt: target ? undefined : projectlessPrompt,
       localRouterMode: settings.localRouterMode,
       permissionConfig: settings.permissionConfig,
       planModeActive: settings.planModeActive,
@@ -168,6 +171,7 @@ export async function createSessionForWorkspaceAction(
     return session.sessionId
   } catch (error) {
     context.onErrorRef.current(errorMessageOf(error))
+    if (options?.propagateError) throw error
     return null
   }
 }

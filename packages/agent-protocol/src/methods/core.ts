@@ -341,12 +341,30 @@ export const ThreadListResultSchema = Schema.Struct({
   nextCursor: NullableCursorSchema,
 })
 
-export const ThreadCreateParamsSchema = Schema.Struct({
-  projectId: OpaqueIDSchema,
+export const ThreadCreateWorkspaceSchema = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("project"), projectId: OpaqueIDSchema }),
+  Schema.Struct({
+    kind: Schema.Literal("projectless"),
+    prompt: Schema.optional(Schema.String),
+  }),
+])
+
+const ThreadCreateFields = {
   title: Schema.optional(Schema.String),
   settings: Schema.optional(AgentThread.ThreadSettingsSchema),
   ...OperationParamsSchema.fields,
-})
+}
+
+/**
+ * `projectId` is retained as the legacy project-thread request shape. New
+ * callers use the discriminated `workspace` field, including projectless
+ * threads. Keeping the shapes as a union prevents ambiguous requests that
+ * provide both fields.
+ */
+export const ThreadCreateParamsSchema = Schema.Union([
+  Schema.Struct({ projectId: OpaqueIDSchema, ...ThreadCreateFields }),
+  Schema.Struct({ workspace: ThreadCreateWorkspaceSchema, ...ThreadCreateFields }),
+])
 
 export const ThreadSnapshotResultSchema = Schema.Struct({
   snapshot: AgentThread.ThreadSnapshotSchema,

@@ -17,10 +17,18 @@ const project: Project = {
   settings: { defaultModel: null },
 }
 
+const projectWorkspace = {
+  kind: 'project' as const,
+  projectID: project.id,
+  workspaceRoot: project.rootPath,
+  cwd: project.rootPath,
+  outputDirectory: null,
+}
+
 describe('agent thread adapter', () => {
   test('maps thread list item status and workspace fields', () => {
     const thread: ThreadListItem = {
-      id: 'thread-1', projectID: project.id, title: '历史对话', preview: '预览',
+      id: 'thread-1', projectID: project.id, workspace: projectWorkspace, title: '历史对话', preview: '预览',
       firstUserMessage: '第一条消息', messageCount: 3, latestTurnStatus: 'waiting-permission',
       settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'auto_review' } },
       archivedAt: null, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_001_000,
@@ -33,9 +41,45 @@ describe('agent thread adapter', () => {
     expect(item.planModeActive).toBe(true)
   })
 
+  test('maps a projectless thread to a standalone session with its real cwd', () => {
+    const cwd = 'C:\\Users\\tester\\Documents\\CodePilotX\\2026-07-22\\new-chat'
+    const thread: ThreadListItem = {
+      id: 'thread-projectless',
+      projectID: null,
+      workspace: {
+        kind: 'projectless',
+        projectID: null,
+        workspaceRoot: 'C:\\Users\\tester\\Documents\\CodePilotX',
+        cwd,
+        outputDirectory: `${cwd}\\outputs`,
+      },
+      title: '无项目对话',
+      preview: null,
+      firstUserMessage: null,
+      messageCount: 0,
+      latestTurnStatus: null,
+      settings: {
+        taskMode: 'chat',
+        permissionConfig: {
+          sandboxMode: 'workspace-write',
+          approvalPolicy: 'on-request',
+          approvalsReviewer: 'user',
+        },
+      },
+      archivedAt: null,
+      createdAt: 1_700_000_000_000,
+      updatedAt: 1_700_000_000_000,
+    }
+
+    const item = agentThreadListItemToDesktop(thread, null)
+    expect(item.standalone).toBe(true)
+    expect(item.workspaceName).toBe('无项目会话')
+    expect(item.workspacePath).toBe(cwd)
+  })
+
   test('maps native snapshot text, plan, tool, patch, approval, and question', () => {
     const snapshot: ThreadSnapshot = {
-      thread: { id: 'thread-1', title: '历史对话', projectID: project.id, settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' } }, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000 },
+      thread: { id: 'thread-1', title: '历史对话', projectID: project.id, workspace: projectWorkspace, settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' } }, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000 },
       turns: [{
         id: 'turn-1', threadId: 'thread-1', sourceInputID: 'input-1', status: 'running', mode: 'plan',
         model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }, rootAgentId: 'agent-1',
@@ -85,7 +129,7 @@ describe('agent thread adapter', () => {
   test('uses current thread settings instead of the latest historical turn snapshot', () => {
     const snapshot: ThreadSnapshot = {
       thread: {
-        id: 'thread-settings', title: '设置投影', projectID: project.id,
+        id: 'thread-settings', title: '设置投影', projectID: project.id, workspace: projectWorkspace,
         settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'auto_review' } },
         createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000,
       },
@@ -114,7 +158,7 @@ describe('agent thread adapter', () => {
     const model = { providerID: 'openai', id: 'gpt-5' }
     const snapshot: ThreadSnapshot = {
       thread: {
-        id: 'thread-queue', title: '队列投影', projectID: project.id,
+        id: 'thread-queue', title: '队列投影', projectID: project.id, workspace: projectWorkspace,
         settings: { taskMode: 'chat', permissionConfig },
         createdAt: 1_700_000_000_000, updatedAt: 1_700_000_004_000,
       },

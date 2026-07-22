@@ -144,7 +144,11 @@ export type UseSessionStateResult = {
     snapshot: ComposerDraftContentSnapshot,
   ) => boolean
   activateSessionById: (targetSessionId: string | null) => DesktopWorkspace | null
-  createSessionForWorkspace: (target?: DesktopWorkspace | null, initialSessionName?: string) => Promise<string | null>
+  createSessionForWorkspace: (
+    target?: DesktopWorkspace | null,
+    initialSessionName?: string,
+    projectlessPrompt?: string,
+  ) => Promise<string | null>
   submit: (target?: DesktopWorkspace | null) => Promise<void>
   submitToSession: (
     targetSessionId: string,
@@ -828,12 +832,18 @@ export function useSessionState(
   )
 
   const createSessionForWorkspace = useCallback(
-    async (target: DesktopWorkspace | null, initialSessionName?: string): Promise<string | null> => {
+    async (
+      target: DesktopWorkspace | null,
+      initialSessionName?: string,
+      projectlessPrompt?: string,
+    ): Promise<string | null> => {
       const nextSessionId = await createSessionForWorkspaceAction(
         actionContext,
         settingsSnapshot,
         target,
         initialSessionName,
+        projectlessPrompt,
+        { propagateError: true },
       )
       if (!nextSessionId) return null
 

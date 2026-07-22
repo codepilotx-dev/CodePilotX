@@ -412,7 +412,12 @@ export class RpcRouter {
         if (!projectID) throw new AgentError("PROJECT_REQUIRED", "当前任务未绑定项目", 409)
         const source = await resolveAiReviewSource(review, projectID, input.target)
         const targetThread = input.delivery === "detached"
-          ? threads.create(aiReviewTitle(input.target), projectID, sourceThread.settings)
+          ? await threads.create({
+              title: aiReviewTitle(input.target),
+              workspace: { kind: "project", projectID },
+              settings: sourceThread.settings,
+              operationID: crypto.randomUUID(),
+            })
           : sourceThread
         const model = await aiReviewModel(db, providers, input.threadId, projectID)
         const submitted = await threads.submit(targetThread.id, {
@@ -512,12 +517,27 @@ export class RpcRouter {
         return { threads: this.projection.list({ ...(projectID !== undefined ? { projectID } : {}), ...(archived !== undefined ? { archived } : {}), limit: typeof params.limit === "number" ? params.limit : 100 }), nextCursor: null }
       }
       case "thread/create": {
-        const projectID = stringParam(params, "projectID", "projectId")
+        if (params.workspace !== undefined && (params.projectId !== undefined || params.projectID !== undefined)) {
+          throw new AgentError("INVALID_REQUEST", "thread/create 不能同时提供 workspace 和 projectId", 400)
+        }
+        const workspaceValue = params.workspace === undefined ? null : record(params.workspace, "workspace")
+        const workspace = workspaceValue
+          ? workspaceValue.kind === "project"
+            ? { kind: "project" as const, projectID: stringParam(workspaceValue, "projectId", "projectID") }
+            : workspaceValue.kind === "projectless"
+              ? { kind: "projectless" as const, ...(typeof workspaceValue.prompt === "string" ? { prompt: workspaceValue.prompt } : {}) }
+              : (() => { throw new AgentError("INVALID_REQUEST", "workspace.kind 参数无效", 400) })()
+          : { kind: "project" as const, projectID: stringParam(params, "projectID", "projectId") }
         const settings = params.settings === undefined
           ? undefined
           : decodeParams(decodeThreadSettings, params.settings, "thread/create.settings")
         if (settings) supportedPermissionConfig(settings.permissionConfig)
-        const created = threads.create(typeof params.title === "string" ? params.title : undefined, projectID, settings)
+        const created = await threads.create({
+          ...(typeof params.title === "string" ? { title: params.title } : {}),
+          ...(settings ? { settings } : {}),
+          workspace,
+          operationID: stringParam(params, "operationId"),
+        })
         return this.threadSnapshotResult(created.id)
       }
       case "thread/read":

@@ -20,6 +20,8 @@ export interface ToolExecutionContext {
   taskMode: TaskMode
   signal: AbortSignal
   workspace: WorkspaceService
+  /** Default process cwd. It must remain inside workspace.rootPath. */
+  defaultCwd?: string
   permissionConfig?: PermissionConfig
   model?: Model.Ref
   taskSummary?: string
@@ -133,7 +135,9 @@ export class ToolExecutor {
       ...(parsedShell.additionalPermissions.networkDomains ? { networkDomains: [...new Set(parsedShell.additionalPermissions.networkDomains.map((domain) => domain.trim().toLowerCase()))] } : {}),
     } : undefined
     const shell: ShellInput = { ...parsedShell, ...(additionalPermissions ? { additionalPermissions } : {}) }
-    const requestedCwd = shell.cwd ? (isAbsolute(shell.cwd) ? resolve(shell.cwd) : resolve(workspaceRoot, shell.cwd)) : workspaceRoot
+    const requestedCwd = shell.cwd
+      ? (isAbsolute(shell.cwd) ? resolve(shell.cwd) : resolve(context.defaultCwd ?? workspaceRoot, shell.cwd))
+      : resolve(context.defaultCwd ?? workspaceRoot)
     const cwd = await realpath(requestedCwd).catch(() => { throw new AgentError("SHELL_CWD_NOT_FOUND", "Shell cwd 不存在或无法解析", 400) })
     if (permissionConfig.sandboxMode !== "danger-full-access") {
       const relativePath = relative(workspaceRoot, cwd)

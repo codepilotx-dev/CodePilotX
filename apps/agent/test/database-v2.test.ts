@@ -166,4 +166,47 @@ describe("数据库迁移", () => {
     recovered.close()
     expect((await readdir(root)).some((name) => name.includes("v12-replaced"))).toBe(false)
   })
+
+  test("v15 持久化 projectless workspace 和创建操作幂等键", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-projectless-v15-"))
+    paths.push(root)
+    const db = new AgentDatabase(join(root, "agent.sqlite"))
+    const workspaceRoot = join(root, "managed", "thread-1")
+    const cwd = join(workspaceRoot, "work")
+    const outputDirectory = join(workspaceRoot, "outputs")
+
+    const thread = db.createThread({
+      id: "thread:projectless",
+      title: "无项目会话",
+      workspace: { kind: "projectless", workspaceRoot, cwd, outputDirectory },
+      operationID: "operation:projectless-create",
+      requestHash: "request-hash",
+    })
+
+    expect(thread.workspace).toEqual({
+      kind: "projectless",
+      projectID: null,
+      workspaceRoot,
+      cwd,
+      outputDirectory,
+    })
+    expect(db.threadWorkspace(thread.id)).toEqual(thread.workspace)
+    expect(db.threadForCreateOperation("operation:projectless-create")).toEqual({
+      threadID: thread.id,
+      requestHash: "request-hash",
+    })
+    expect(() => db.createThread({
+      title: "越界会话",
+      workspace: {
+        kind: "projectless",
+        workspaceRoot,
+        cwd: join(root, "outside"),
+        outputDirectory,
+      },
+    })).toThrow("必须位于工作区根目录内")
+
+    const legacy = db.createThread("旧式无项目记录")
+    expect(db.threadWorkspace(legacy.id)).toBeNull()
+    db.close()
+  })
 })

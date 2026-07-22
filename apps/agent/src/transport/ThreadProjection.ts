@@ -64,6 +64,7 @@ export class ThreadProjection {
       | { id: string; title: string; project_id: string | null; task_mode: ThreadSnapshot["thread"]["settings"]["taskMode"]; sandbox_mode: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["sandboxMode"]; approval_policy: string; approvals_reviewer: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["approvalsReviewer"]; created_at: number; updated_at: number }
       | null
     if (!thread) return null
+    const threadWorkspace = this.db.threadWorkspace(threadId)
     const inputs = (this.db.sqlite.query("SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at FROM inputs WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Input => ({
       id: String(row.id),
       threadId: String(row.thread_id),
@@ -148,6 +149,7 @@ export class ThreadProjection {
         id: thread.id,
         title: thread.title,
         projectID: thread.project_id,
+        ...(threadWorkspace ? { workspace: threadWorkspace } : {}),
         settings: {
           taskMode: thread.task_mode,
           permissionConfig: {
@@ -193,9 +195,13 @@ export class ThreadProjection {
     `
     values.push(params.limit ?? 100)
     const rows = this.db.sqlite.query(sql).all(...values) as Array<Record<string, string | number | null>>
-    return rows.map((row): ThreadListItem => ({
-      id: String(row.id),
+    return rows.map((row): ThreadListItem => {
+      const id = String(row.id)
+      const workspace = this.db.threadWorkspace(id)
+      return {
+      id,
       projectID: row.project_id == null ? null : String(row.project_id),
+      ...(workspace ? { workspace } : {}),
       title: String(row.title),
       preview: row.preview == null ? null : String(row.preview),
       firstUserMessage: row.first_user_message == null ? null : String(row.first_user_message),
@@ -212,7 +218,7 @@ export class ThreadProjection {
       },
       createdAt: Number(row.created_at),
       updatedAt: Number(row.updated_at),
-    }))
+    }})
   }
 
   item(item: StoredItem): Item | null {

@@ -49,9 +49,12 @@ export class ThreadHistoryService {
       FROM threads AS t
       WHERE t.id = ?
     `).get(threadID) as ThreadRow | null
-    return row ? {
+    if (!row) return null
+    const workspace = this.db.threadWorkspace(threadID)
+    return {
       id: row.id,
       projectID: row.project_id,
+      ...(workspace ? { workspace } : {}),
       title: row.title,
       preview: row.preview,
       firstUserMessage: row.first_user_message,
@@ -68,7 +71,7 @@ export class ThreadHistoryService {
       },
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-    } : null
+    }
   }
 
   async patch(threadID: string, patch: ThreadMetadataPatch) {

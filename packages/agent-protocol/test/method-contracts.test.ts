@@ -39,6 +39,13 @@ const project = {
 const threadListItem = {
   id: "thread:1",
   projectID: project.id,
+  workspace: {
+    kind: "project",
+    projectID: project.id,
+    workspaceRoot: project.rootPath,
+    cwd: project.rootPath,
+    outputDirectory: null,
+  } as const,
   title: "Fixture thread",
   preview: null,
   firstUserMessage: null,
@@ -55,6 +62,7 @@ const threadSnapshot = {
     id: threadListItem.id,
     title: threadListItem.title,
     projectID: project.id,
+    workspace: threadListItem.workspace,
     settings: threadSettings,
     createdAt: 1,
     updatedAt: 1,
@@ -1110,6 +1118,33 @@ describe("RPC method schema contracts", () => {
         withoutCacheState,
       ), `${method} requires cacheState`).toThrow()
     }
+  })
+
+  test("accepts explicit project and projectless thread workspaces while preserving legacy projectId", () => {
+    const decode = Schema.decodeUnknownSync(
+      RpcMethods["thread/create"].params,
+      { onExcessProperty: "error" },
+    )
+    const common = {
+      title: "Workspace thread",
+      operationId: "operation:workspace-thread",
+    }
+
+    expect(decode({ ...common, projectId: project.id })).toEqual({ ...common, projectId: project.id })
+    expect(decode({ ...common, workspace: { kind: "project", projectId: project.id } })).toEqual({
+      ...common,
+      workspace: { kind: "project", projectId: project.id },
+    })
+    expect(decode({ ...common, workspace: { kind: "projectless", prompt: "整理需求" } })).toEqual({
+      ...common,
+      workspace: { kind: "projectless", prompt: "整理需求" },
+    })
+    expect(() => decode(common)).toThrow()
+    expect(() => decode({
+      ...common,
+      projectId: project.id,
+      workspace: { kind: "projectless" },
+    })).toThrow()
   })
 
   test("accepts numeric and latest event cursors while rejecting unknown cursor modes", () => {

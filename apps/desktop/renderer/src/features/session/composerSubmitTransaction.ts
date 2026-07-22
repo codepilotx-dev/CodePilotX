@@ -12,7 +12,10 @@ export type ComposerDeliveryStatus = 'sent' | 'queued'
 type SubmitTransactionOptions = {
   draft: ComposerDraft
   targetSessionId?: string | null
-  createSession?: (initialSessionName?: string) => Promise<string | null>
+  createSession?: (
+    initialSessionName?: string,
+    projectlessPrompt?: string,
+  ) => Promise<string | null>
   navigateToSession?: (sessionId: string) => void
   submitToSession: (
     sessionId: string,
@@ -71,7 +74,7 @@ export async function executeComposerSubmitTransaction({
       return failed('prepare', '缺少可用的会话目标')
     }
     try {
-      sessionId = await createSession(prepared.sessionName)
+      sessionId = await createSession(prepared.sessionName, prepared.input.text)
     } catch (error) {
       return failed('create', errorMessageOf(error))
     }

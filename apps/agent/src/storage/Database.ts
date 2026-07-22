@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite"
 import { copyFileSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs"
-import { basename, dirname, extname, resolve } from "node:path"
+import { basename, dirname, extname, isAbsolute, relative, resolve } from "node:path"
 import { Effect } from "effect"
 import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
 import { AgentError } from "../domain"
@@ -153,10 +153,40 @@ const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const now = () => Date.now()
 const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
-export const SCHEMA_VERSION = 14
+const containedPath = (root: string, candidate: string) => {
+  const path = relative(root, candidate)
+  return path === "" || (!path.startsWith("..") && !isAbsolute(path))
+}
+export const SCHEMA_VERSION = 15
 
 export type QueuePauseReason = "interrupted" | "turn_failed" | null
 export type QueueMutationMeta = { operationID: string; expectedVersion?: number }
+
+export type StoredThreadWorkspace =
+  | { kind: "project"; projectID: string; workspaceRoot: string; cwd: string; outputDirectory: null }
+  | { kind: "projectless"; projectID: null; workspaceRoot: string; cwd: string; outputDirectory: string }
+
+export type CreateThreadInput = {
+  id?: string
+  title?: string | undefined
+  settings?: ThreadSettings | undefined
+  workspace:
+    | { kind: "project"; projectID: string }
+    | { kind: "projectless"; workspaceRoot: string; cwd: string; outputDirectory: string }
+  operationID?: string | undefined
+  requestHash?: string | undefined
+}
+
+export type CreatedThreadRecord = {
+  id: string
+  title: string
+  projectID: string | null
+  workspace: StoredThreadWorkspace | null
+  settings: ThreadSettings
+  createdAt: number
+  updatedAt: number
+  event: EventEnvelope
+}
 
 type PermissionColumns = {
   sandbox_mode: PermissionConfig["sandboxMode"]
@@ -559,6 +589,12 @@ export class AgentDatabase {
       this.sqlite.exec("ALTER TABLE threads ADD COLUMN project_id TEXT REFERENCES projects(id) ON DELETE SET NULL")
       this.sqlite.exec("CREATE INDEX IF NOT EXISTS threads_project_updated ON threads(project_id, updated_at DESC)")
     }
+    this.addColumn("threads", "workspace_kind", "TEXT NOT NULL DEFAULT 'legacy'")
+    this.addColumn("threads", "workspace_root", "TEXT")
+    this.addColumn("threads", "workspace_cwd", "TEXT")
+    this.addColumn("threads", "output_directory", "TEXT")
+    this.addColumn("threads", "create_operation_id", "TEXT")
+    this.addColumn("threads", "create_request_hash", "TEXT")
     this.addColumn("threads", "archived_at", "INTEGER")
     this.addColumn("threads", "preview", "TEXT")
     this.addColumn("threads", "first_user_message", "TEXT")
@@ -592,6 +628,9 @@ export class AgentDatabase {
     if (currentVersion < 13 && finalizeV13) this.migrateEventsV13()
     if (currentVersion < 14 && (currentVersion === 0 || currentVersion >= 13 || finalizeV13)) {
       this.migrateCredentialsV14()
+    }
+    if (currentVersion < 15 && (currentVersion === 0 || currentVersion >= 13 || finalizeV13)) {
+      this.migrateProjectlessV15()
     }
     this.sqlite.exec(`CREATE TABLE IF NOT EXISTS hook_trust_waiters (
       request_id TEXT NOT NULL REFERENCES hook_trust_requests(id) ON DELETE CASCADE,
@@ -698,6 +737,60 @@ export class AgentDatabase {
         INSERT INTO credential_health (credential_id, status, updated_at)
           SELECT id, 'untested', updated_at FROM credentials WHERE kind = 'api-key';
         PRAGMA user_version = 14;
+      `)
+    })
+  }
+
+  private migrateProjectlessV15() {
+    // The v5 migration rebuilds `threads`, so ensure v15 columns exist after
+    // every earlier table-replacement migration has completed.
+    this.addColumn("threads", "workspace_kind", "TEXT NOT NULL DEFAULT 'legacy'")
+    this.addColumn("threads", "workspace_root", "TEXT")
+    this.addColumn("threads", "workspace_cwd", "TEXT")
+    this.addColumn("threads", "output_directory", "TEXT")
+    this.addColumn("threads", "create_operation_id", "TEXT")
+    this.addColumn("threads", "create_request_hash", "TEXT")
+    this.transaction(() => {
+      this.sqlite.exec(`
+        UPDATE threads
+        SET workspace_kind = CASE WHEN project_id IS NULL THEN 'legacy' ELSE 'project' END,
+            workspace_root = NULL,
+            workspace_cwd = NULL,
+            output_directory = NULL
+        WHERE workspace_kind IS NULL OR workspace_kind = 'legacy';
+        CREATE UNIQUE INDEX IF NOT EXISTS threads_create_operation_unique
+          ON threads(create_operation_id) WHERE create_operation_id IS NOT NULL;
+        CREATE TRIGGER IF NOT EXISTS threads_workspace_insert_valid
+        BEFORE INSERT ON threads
+        WHEN NOT (
+          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL
+            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)
+          OR
+          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL
+            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)
+          OR
+          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL
+            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)
+        )
+        BEGIN
+          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');
+        END;
+        CREATE TRIGGER IF NOT EXISTS threads_workspace_update_valid
+        BEFORE UPDATE OF project_id, workspace_kind, workspace_root, workspace_cwd, output_directory ON threads
+        WHEN NOT (
+          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL
+            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)
+          OR
+          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL
+            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)
+          OR
+          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL
+            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)
+        )
+        BEGIN
+          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');
+        END;
+        PRAGMA user_version = 15;
       `)
     })
   }
@@ -1453,16 +1546,74 @@ export class AgentDatabase {
     })
   }
 
-  createThread(title = "新对话", projectID?: string, initialSettings?: ThreadSettings) {
-    const id = crypto.randomUUID()
+  createThread(input: CreateThreadInput): CreatedThreadRecord
+  createThread(title?: string, projectID?: string, initialSettings?: ThreadSettings): CreatedThreadRecord
+  createThread(
+    inputOrTitle: CreateThreadInput | string = "新对话",
+    legacyProjectID?: string,
+    legacySettings?: ThreadSettings,
+  ) {
+    const input: CreateThreadInput | null = typeof inputOrTitle === "object" ? inputOrTitle : null
+    const id = input?.id ?? crypto.randomUUID()
+    const title = input?.title ?? (typeof inputOrTitle === "string" ? inputOrTitle : "新对话")
+    const initialSettings = input?.settings ?? legacySettings
+    const workspace = input?.workspace ?? (legacyProjectID
+      ? { kind: "project" as const, projectID: legacyProjectID }
+      : null)
+    return this.insertThread({
+      id,
+      title,
+      workspace,
+      ...(initialSettings ? { initialSettings } : {}),
+      ...(input?.operationID ? { operationID: input.operationID } : {}),
+      ...(input?.requestHash ? { requestHash: input.requestHash } : {}),
+    })
+  }
+
+  private insertThread(input: {
+    id: string
+    title: string
+    initialSettings?: ThreadSettings
+    workspace: CreateThreadInput["workspace"] | null
+    operationID?: string
+    requestHash?: string
+  }): CreatedThreadRecord {
+    const { id, title, initialSettings } = input
     const timestamp = now()
     const settings = initialSettings ?? defaultThreadSettings()
+    let projectID: string | null = null
+    let workspaceKind: "project" | "projectless" | "legacy" = "legacy"
+    let workspaceRoot: string | null = null
+    let workspaceCwd: string | null = null
+    let outputDirectory: string | null = null
+    if (input.workspace?.kind === "project") {
+      this.requireProject(input.workspace.projectID)
+      projectID = input.workspace.projectID
+      workspaceKind = "project"
+    } else if (input.workspace?.kind === "projectless") {
+      workspaceRoot = resolve(input.workspace.workspaceRoot)
+      workspaceCwd = resolve(input.workspace.cwd)
+      outputDirectory = resolve(input.workspace.outputDirectory)
+      if (!containedPath(workspaceRoot, workspaceCwd) || !containedPath(workspaceRoot, outputDirectory)) {
+        throw new AgentError("WORKSPACE_INVALID", "无项目会话的 cwd 和输出目录必须位于工作区根目录内", 400)
+      }
+      workspaceKind = "projectless"
+    }
     return this.transaction(() => {
-      if (projectID) this.requireProject(projectID)
-      this.sqlite.query("INSERT INTO threads (id, title, project_id, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      this.sqlite.query(`INSERT INTO threads (
+        id, title, project_id, workspace_kind, workspace_root, workspace_cwd, output_directory,
+        create_operation_id, create_request_hash,
+        task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ).run(
         id,
         title,
-        projectID ?? null,
+        projectID,
+        workspaceKind,
+        workspaceRoot,
+        workspaceCwd,
+        outputDirectory,
+        input.operationID ?? null,
+        input.requestHash ?? null,
         settings.taskMode,
         settings.permissionConfig.sandboxMode,
         encodeApprovalPolicy(settings.permissionConfig.approvalPolicy),
@@ -1470,8 +1621,13 @@ export class AgentDatabase {
         timestamp,
         timestamp,
       )
-      const event = this.insertEvent(id, null, "thread/created", { id, title, projectID: projectID ?? null, settings, createdAt: timestamp, updatedAt: timestamp })
-      return { id, title, projectID: projectID ?? null, settings, createdAt: timestamp, updatedAt: timestamp, event }
+      const persistedWorkspace = this.threadWorkspace(id)
+      const event = this.insertEvent(id, null, "thread/created", { thread: {
+        id, title, projectID,
+        ...(persistedWorkspace ? { workspace: persistedWorkspace } : {}),
+        settings, createdAt: timestamp, updatedAt: timestamp,
+      } })
+      return { id, title, projectID, workspace: persistedWorkspace, settings, createdAt: timestamp, updatedAt: timestamp, event }
     })
   }
 
@@ -2649,10 +2805,74 @@ export class AgentDatabase {
     return row.project_id
   }
 
+  threadWorkspace(threadID: string): StoredThreadWorkspace | null {
+    const row = this.sqlite.query(`
+      SELECT project_id, workspace_kind, workspace_root, workspace_cwd, output_directory
+      FROM threads WHERE id = ?
+    `).get(threadID) as {
+      project_id: string | null
+      workspace_kind: string
+      workspace_root: string | null
+      workspace_cwd: string | null
+      output_directory: string | null
+    } | null
+    if (!row || row.workspace_kind === "legacy") return null
+    if (row.workspace_kind === "project" && row.project_id) {
+      const project = this.getProject(row.project_id)
+      if (!project) throw new AgentError("PROJECT_NOT_FOUND", `Thread ${threadID} 绑定的项目不存在`, 404)
+      return { kind: "project", projectID: row.project_id, workspaceRoot: project.rootPath, cwd: project.rootPath, outputDirectory: null }
+    }
+    if (
+      row.workspace_kind === "projectless" &&
+      row.project_id === null &&
+      row.workspace_root &&
+      row.workspace_cwd &&
+      row.output_directory
+    ) {
+      return {
+        kind: "projectless",
+        projectID: null,
+        workspaceRoot: row.workspace_root,
+        cwd: row.workspace_cwd,
+        outputDirectory: row.output_directory,
+      }
+    }
+    throw new AgentError("WORKSPACE_INVALID", `Thread ${threadID} 的工作区描述无效`, 500)
+  }
+
+  threadForCreateOperation(operationID: string) {
+    const row = this.sqlite.query(`
+      SELECT id, create_request_hash FROM threads WHERE create_operation_id = ?
+    `).get(operationID) as { id: string; create_request_hash: string | null } | null
+    return row ? { threadID: row.id, requestHash: row.create_request_hash } : null
+  }
+
   setThreadProject(threadID: string, projectID: string | null) {
     if (projectID) this.requireProject(projectID)
-    const result = this.sqlite.query("UPDATE threads SET project_id = ?, updated_at = ? WHERE id = ?").run(projectID, now(), threadID)
+    const result = this.sqlite.query(`UPDATE threads
+      SET project_id = ?, workspace_kind = ?, workspace_root = NULL, workspace_cwd = NULL,
+        output_directory = NULL, updated_at = ?
+      WHERE id = ?`).run(projectID, projectID ? "project" : "legacy", now(), threadID)
     if (result.changes === 0) throw new Error(`Thread ${threadID} 不存在`)
+  }
+
+  setThreadWorkspace(threadID: string, workspace: CreateThreadInput["workspace"]) {
+    if (workspace.kind === "project") {
+      this.setThreadProject(threadID, workspace.projectID)
+      return this.threadWorkspace(threadID)
+    }
+    const workspaceRoot = resolve(workspace.workspaceRoot)
+    const cwd = resolve(workspace.cwd)
+    const outputDirectory = resolve(workspace.outputDirectory)
+    if (!containedPath(workspaceRoot, cwd) || !containedPath(workspaceRoot, outputDirectory)) {
+      throw new AgentError("WORKSPACE_INVALID", "无项目会话的 cwd 和输出目录必须位于工作区根目录内", 400)
+    }
+    const result = this.sqlite.query(`UPDATE threads
+      SET project_id = NULL, workspace_kind = 'projectless', workspace_root = ?, workspace_cwd = ?,
+        output_directory = ?, updated_at = ?
+      WHERE id = ?`).run(workspaceRoot, cwd, outputDirectory, now(), threadID)
+    if (result.changes === 0) throw new Error(`Thread ${threadID} 不存在`)
+    return this.threadWorkspace(threadID)
   }
 
   private mapReviewComment(row: {

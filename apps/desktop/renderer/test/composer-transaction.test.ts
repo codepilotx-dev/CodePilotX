@@ -78,6 +78,49 @@ describe('composer submit transaction', () => {
     expect(source.document.text).toBe('检查当前改动')
   })
 
+  test('passes the first submitted text when creating a new session', async () => {
+    const calls: Array<{ name?: string; prompt?: string }> = []
+    const outcome = await executeComposerSubmitTransaction({
+      draft: draft({ skillInvocation: { name: 'review', path: 'skills/review' } }),
+      createSession: async (name, prompt) => {
+        calls.push({ name, prompt })
+        return 'session-projectless'
+      },
+      submitToSession: async () => 'sent',
+    })
+
+    expect(calls).toEqual([{
+      name: '$review 检查当前改动',
+      prompt: '检查当前改动',
+    }])
+    expect(outcome).toEqual({ status: 'sent', sessionId: 'session-projectless' })
+  })
+
+  test('keeps a new-session draft on the source route when creation fails', async () => {
+    const events: string[] = []
+    const source = draft()
+    const outcome = await executeComposerSubmitTransaction({
+      draft: source,
+      createSession: async () => {
+        throw new Error('无法创建无项目工作区')
+      },
+      navigateToSession: sessionId => events.push(`navigate:${sessionId}`),
+      submitToSession: async sessionId => {
+        events.push(`send:${sessionId}`)
+        return 'sent'
+      },
+    })
+
+    expect(events).toEqual([])
+    expect(outcome).toEqual({
+      status: 'failed',
+      phase: 'create',
+      message: '无法创建无项目工作区',
+      sessionId: undefined,
+    })
+    expect(source.document.text).toBe('检查当前改动')
+  })
+
   test('preserves the queued delivery outcome', async () => {
     const outcome = await executeComposerSubmitTransaction({
       draft: draft(),

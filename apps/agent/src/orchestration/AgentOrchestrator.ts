@@ -79,6 +79,7 @@ export interface OrchestrationRequest {
   permissionConfig: PermissionConfig
   signal: AbortSignal
   workspace: WorkspaceService
+  defaultCwd?: string
   resume?: PlanCheckpoint
   continueFromPlan?: boolean
   plan?: string
@@ -210,6 +211,7 @@ export class AgentOrchestrator {
       taskMode: request.continueFromPlan ? "chat" : request.taskMode,
       signal: request.signal,
       workspace: request.workspace,
+      ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
       permissionConfig: request.permissionConfig,
       model: request.fallbackModel,
       taskSummary: request.content,
@@ -241,6 +243,7 @@ export class AgentOrchestrator {
       taskMode: request.continueFromPlan ? "chat" : request.taskMode,
       signal: request.signal,
       workspace: request.workspace,
+      ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
       permissionConfig: request.permissionConfig,
       model: request.fallbackModel,
       taskSummary: request.content,
@@ -439,7 +442,7 @@ export class AgentOrchestrator {
           const escalated = await this.options.toolExecutor.executeSandboxEscalation(input.escalationToken, {
             threadID: request.threadID, turnID: request.turnID, agentID: request.agentID,
             profile: request.profile ?? "main", taskMode: request.continueFromPlan ? "chat" : request.taskMode,
-            signal: request.signal, workspace: request.workspace, permissionConfig: request.permissionConfig, model: request.fallbackModel,
+            signal: request.signal, workspace: request.workspace, ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}), permissionConfig: request.permissionConfig, model: request.fallbackModel,
           })
           if (details?.toolCall?.id) this.recordCompletedSideEffect(request, details.toolCall.id, "request_permissions(host-escalation)", escalated)
           return escalated
@@ -482,9 +485,9 @@ export class AgentOrchestrator {
           result = await this.executeTool<ProcessResult>(request, "shell", executionInput, details?.toolCall?.id)
           const output = `${result.stdout}${result.stderr ? `\n${result.stderr}` : ""}`.trim()
           const capped = capActivityOutput(output)
-          await this.recordActivity(request, "执行 Shell", input.cwd ?? request.workspace.rootPath, { command, output: capped.output, status: result.exitCode === 0 ? "success" : "error", ...(result.truncated || capped.truncated ? { truncated: true } : {}) })
+          await this.recordActivity(request, "执行 Shell", input.cwd ?? request.defaultCwd ?? request.workspace.rootPath, { command, output: capped.output, status: result.exitCode === 0 ? "success" : "error", ...(result.truncated || capped.truncated ? { truncated: true } : {}) })
         } catch (cause) {
-          await this.recordError(request, "执行 Shell", input.cwd ?? request.workspace.rootPath, command, cause)
+          await this.recordError(request, "执行 Shell", input.cwd ?? request.defaultCwd ?? request.workspace.rootPath, command, cause)
           throw cause
         }
         await this.interruptAtSafeBoundary(request)

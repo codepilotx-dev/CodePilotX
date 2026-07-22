@@ -184,6 +184,7 @@ class SidecarSupervisor {
         CODEPILOTX_AUTH_TOKEN: this.#token,
         CODEPILOTX_DESKTOP_MANAGED: "1",
         CODEPILOTX_DATA_DIR: join(app.getPath("userData"), "agent"),
+        CODEPILOTX_DOCUMENTS_DIR: app.getPath("documents"),
         CODEPILOTX_LOG_DIR: this.#logger.directory,
         CODEPILOTX_MODEL_SNAPSHOT: app.isPackaged
           ? join(process.resourcesPath, "agent", "models.snapshot.json")

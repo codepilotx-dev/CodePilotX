@@ -308,10 +308,29 @@ export const TurnStatusSchema = Schema.Literals([
 ])
 export type TurnStatus = typeof TurnStatusSchema.Type
 
+export const ThreadWorkspaceSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal("project"),
+    projectID: Schema.String,
+    workspaceRoot: Schema.String,
+    cwd: Schema.String,
+    outputDirectory: Schema.Null,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("projectless"),
+    projectID: Schema.Null,
+    workspaceRoot: Schema.String,
+    cwd: Schema.String,
+    outputDirectory: Schema.String,
+  }),
+])
+export type ThreadWorkspace = typeof ThreadWorkspaceSchema.Type
+
 export const ThreadSchema = Schema.Struct({
   id: Schema.String,
   title: Schema.String,
   projectID: Schema.NullOr(Schema.String),
+  workspace: Schema.optional(ThreadWorkspaceSchema),
   settings: ThreadSettingsSchema,
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
@@ -321,6 +340,7 @@ export type Thread = typeof ThreadSchema.Type
 export const ThreadListItemSchema = Schema.Struct({
   id: Schema.String,
   projectID: Schema.NullOr(Schema.String),
+  workspace: Schema.optional(ThreadWorkspaceSchema),
   title: Schema.String,
   preview: Schema.NullOr(Schema.String),
   firstUserMessage: Schema.NullOr(Schema.String),

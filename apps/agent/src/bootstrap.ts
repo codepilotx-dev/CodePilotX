@@ -28,19 +28,59 @@ import { SqliteAttachmentCatalog } from "./subagent/SqliteAttachmentCatalog"
 import { MemoryService } from "./memory/MemoryService"
 import { secretScrubber } from "./security/SecretScrubber"
 import { HookService } from "./hooks/HookService"
-import { WorkspaceService } from "./workspace/WorkspaceService"
 import { generateObject } from "ai"
 import { z } from "zod"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { createHash } from "node:crypto"
 import { GitReviewService } from "./review/GitReviewService"
 import { GithubService } from "./github/GithubService"
+import { ManagedProjectlessWorkspaceService } from "./workspace/ManagedProjectlessWorkspaceService"
+import { ThreadWorkspaceResolver } from "./workspace/ThreadWorkspaceResolver"
+
+const migrateLegacyProjectlessWorkspaces = async (db: AgentDatabase, service: ManagedProjectlessWorkspaceService) => {
+  const rows = db.sqlite.query(`
+    SELECT id, title, first_user_message, created_at
+    FROM threads
+    WHERE workspace_kind = 'legacy' AND project_id IS NULL
+    ORDER BY created_at, id
+  `).all() as Array<{ id: string; title: string; first_user_message: string | null; created_at: number }>
+  for (const row of rows) {
+    const operationID = `legacy:${createHash("sha256").update(row.id).digest("hex")}`
+    const allocation = await service.allocate({
+      workspaceID: crypto.randomUUID(),
+      threadID: row.id,
+      prompt: row.first_user_message ?? row.title,
+      now: new Date(row.created_at),
+    })
+    try {
+      const requestHash = createHash("sha256").update(JSON.stringify({ legacyThreadID: row.id })).digest("hex")
+      const changed = db.sqlite.query(`
+        UPDATE threads
+        SET workspace_kind = 'projectless', workspace_root = ?, workspace_cwd = ?, output_directory = ?,
+            create_operation_id = COALESCE(create_operation_id, ?), create_request_hash = COALESCE(create_request_hash, ?)
+        WHERE id = ? AND workspace_kind = 'legacy' AND project_id IS NULL
+      `).run(allocation.sessionRoot, allocation.cwd, allocation.outputDirectory, operationID, requestHash, row.id)
+      if (!changed.changes) {
+        await service.rollback(allocation)
+        continue
+      }
+      await service.activate(allocation)
+    } catch (cause) {
+      await service.rollback(allocation).catch(() => undefined)
+      throw cause
+    }
+  }
+}
 
 export const bootstrap = Effect.gen(function* () {
   const config = yield* loadConfig
   const logger = new AgentLogger(config.logDir)
   const db = new AgentDatabase(config.databasePath)
+  const projectlessWorkspaces = new ManagedProjectlessWorkspaceService(config.documentsDir)
+  yield* Effect.promise(() => migrateLegacyProjectlessWorkspaces(db, projectlessWorkspaces))
+  const workspaceResolver = new ThreadWorkspaceResolver(db, projectlessWorkspaces)
   const hub = yield* EventHub.make
   const credentials = new EncryptedCredentialRepository(db)
   yield* credentials.backfillApiKeyMetadata()
@@ -98,11 +138,10 @@ export const bootstrap = Effect.gen(function* () {
   const hooks = new HookService(db, {
     run: async (input) => {
       if (!input.threadID || !input.turnID) throw new Error("Hook command 缺少 thread/turn 上下文")
-      const projectID = db.threadProjectID(input.threadID)
-      const project = projectID ? db.getProject(projectID) : null
       const turn = db.getTurnInput(input.turnID)
-      if (!project || !turn) throw new Error("Hook command 无法解析工作区或权限快照")
-      const workspace = await WorkspaceService.open(project.rootPath)
+      if (!turn) throw new Error("Hook command 无法解析权限快照")
+      const runtime = await workspaceResolver.resolve(input.threadID)
+      const workspace = runtime.workspace
       const evidenceDir = await mkdtemp(join(tmpdir(), "codepilotx-hook-evidence-"))
       const evidencePath = join(evidenceDir, "evidence.json")
       await writeFile(evidencePath, input.evidence, "utf8")
@@ -118,6 +157,7 @@ export const bootstrap = Effect.gen(function* () {
           taskMode: turn.taskMode,
           signal: new AbortController().signal,
           workspace,
+          defaultCwd: runtime.cwd,
           permissionConfig: turn.permissionConfig,
           model: turn.model,
           taskSummary: `Hook ${input.hookID}`,
@@ -170,7 +210,7 @@ export const bootstrap = Effect.gen(function* () {
   })
   const subagentWorkspaces = new SubagentWorkspaceCoordinator(db, config.dataDir)
   const subagents = new SubagentService(db, hub, providers, approvals, questions, orchestrator, attachments, subagentWorkspaces, config.dataDir, memory, hooks)
-  const threads = new ThreadService(db, hub, providers, approvals, questions, orchestrator, subagents, attachments, config.dataDir, memory, hooks, review)
+  const threads = new ThreadService(db, hub, providers, approvals, questions, orchestrator, subagents, attachments, config.dataDir, memory, hooks, workspaceResolver, review)
   const history = new ThreadHistoryService(db, hub)
   const app = createApp({ config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, logger, sandbox, review, github })
   return { config, db, app, logger, providers, sandbox }
