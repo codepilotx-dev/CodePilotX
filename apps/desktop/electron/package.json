@@ -58,6 +58,10 @@
         "to": "third_party"
       },
       {
+        "from": "../../../packages/pi-agent-core/LICENSE",
+        "to": "packages/pi-agent-core/LICENSE"
+      },
+      {
         "from": "../../../resources/srt-win/x64/srt-win.exe",
         "to": "srt-win/x64/srt-win.exe"
       }
