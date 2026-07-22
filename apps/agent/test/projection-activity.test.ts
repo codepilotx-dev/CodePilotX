@@ -69,4 +69,14 @@ describe("活动投影", () => {
       item: { id: "text-1", turnId: "turn-1", type: "text", text: "完成" },
     })
   })
+
+  test("工具投影保留调用标识、命令和实际时间", () => {
+    const projection = new ThreadProjection({} as unknown as AgentDatabase)
+    const item: Item = {
+      id: "stored-item", turnID: "turn-1", agentID: "agent-1", type: "tool", status: "completed",
+      data: { callID: "call-1", tool: "shell", title: "执行命令", input: { command: "pwd" }, command: "pwd", output: "ok", error: null, startedAt: 1000, finishedAt: 1250, durationMs: 250 },
+      createdAt: 900, updatedAt: 1300,
+    }
+    expect(projection.item(item)).toMatchObject({ callID: "call-1", tool: "shell", title: "执行命令", command: "pwd", startedAt: 1000, finishedAt: 1250, durationMs: 250 })
+  })
 })

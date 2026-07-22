@@ -1,6 +1,47 @@
 import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
 import type { PiRuntimeEventContext, PiRuntimeEventSink } from "./types"
 
+type ToolResultLike = {
+  content?: unknown
+  details?: unknown
+}
+
+const textContent = (content: unknown): string => {
+  if (!Array.isArray(content)) return ""
+  return content.flatMap((part) => {
+    if (!part || typeof part !== "object") return []
+    const text = (part as { text?: unknown }).text
+    return typeof text === "string" ? [text] : []
+  }).join("\n").trim()
+}
+
+const detailText = (details: unknown, key: string): string => {
+  if (!details || typeof details !== "object") return ""
+  const value = (details as Record<string, unknown>)[key]
+  return typeof value === "string" ? value : ""
+}
+
+/** Converts Pi's AgentToolResult wrapper into user-facing semantic text. */
+export const piToolResultText = (value: unknown, options: { tool: string; progress?: boolean }): string => {
+  if (typeof value === "string") return value
+  if (value == null) return ""
+  if (!value || typeof value !== "object") return String(value)
+  const result = value as ToolResultLike
+  const message = detailText(result.details, "message")
+  if (options.progress && message) return message
+  if (/^(shell|bash|command|exec)/i.test(options.tool)) {
+    const output = [detailText(result.details, "stdout"), detailText(result.details, "stderr")]
+      .filter(Boolean)
+      .join("\n")
+      .trim()
+    if (output) return output
+  }
+  const content = textContent(result.content)
+  if (content) return content
+  if (message) return message
+  return ""
+}
+
 /** Converts Pi's protocol into stable semantic callbacks used by the Agent persistence layer. */
 export class PiEventAdapter {
   private beforeCompactionCount: number | undefined
@@ -23,10 +64,19 @@ export class PiEventAdapter {
         await this.sink.toolStarted?.(this.context, { toolCallID: event.toolCallId, tool: event.toolName, input: event.args })
         break
       case "tool_execution_update":
-        await this.sink.toolUpdated?.(this.context, { toolCallID: event.toolCallId, tool: event.toolName, update: event.partialResult })
+        await this.sink.toolUpdated?.(this.context, {
+          toolCallID: event.toolCallId,
+          tool: event.toolName,
+          update: piToolResultText(event.partialResult, { tool: event.toolName, progress: true }),
+        })
         break
       case "tool_execution_end":
-        await this.sink.toolFinished?.(this.context, { toolCallID: event.toolCallId, tool: event.toolName, result: event.result, isError: event.isError })
+        await this.sink.toolFinished?.(this.context, {
+          toolCallID: event.toolCallId,
+          tool: event.toolName,
+          result: piToolResultText(event.result, { tool: event.toolName }),
+          isError: event.isError,
+        })
         break
       case "queue_update":
         await this.sink.queueUpdated?.(this.context, { steer: event.steer.length, followUp: event.followUp.length, nextTurn: event.nextTurn.length })

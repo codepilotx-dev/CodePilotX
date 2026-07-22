@@ -46,8 +46,40 @@ type PendingTurn = {
   storage: SqlitePiSessionStorage;
 };
 
-const outputDelta = (value: unknown) =>
-  typeof value === "string" ? value : (JSON.stringify(value) ?? String(value));
+const outputDelta = (value: unknown) => typeof value === "string" ? value : "";
+
+const commandFromInput = (input: unknown) => input && typeof input === "object"
+  && typeof (input as Record<string, unknown>).command === "string"
+  ? (input as Record<string, unknown>).command as string
+  : null;
+
+export const piToolItemPayload = (item: Item) => {
+  const data = item.data;
+  const terminal = item.status === "completed" || item.status === "error" || item.status === "interrupted";
+  return {
+    id: item.id,
+    messageID: item.turnID,
+    turnId: item.turnID,
+    agentId: item.agentID,
+    type: "tool" as const,
+    callID: typeof data.callID === "string" ? data.callID : item.id,
+    tool: typeof data.tool === "string" ? data.tool : "tool",
+    title: typeof data.title === "string" ? data.title : `运行了 ${typeof data.tool === "string" ? data.tool : "tool"}`,
+    state: item.status === "pending" ? "pending" as const
+      : item.status === "running" ? "running" as const
+      : item.status === "error" ? "error" as const
+      : item.status === "interrupted" ? "interrupted" as const
+      : "completed" as const,
+    input: data.input ?? null,
+    command: typeof data.command === "string" ? data.command : null,
+    output: typeof data.output === "string" ? data.output : null,
+    error: typeof data.error === "string" ? data.error : null,
+    startedAt: typeof data.startedAt === "number" ? data.startedAt : item.createdAt,
+    finishedAt: typeof data.finishedAt === "number" ? data.finishedAt : terminal ? item.updatedAt : null,
+    durationMs: typeof data.durationMs === "number" ? data.durationMs : terminal ? item.updatedAt - item.createdAt : null,
+    createdAt: item.createdAt,
+  };
+};
 
 const reasoningItemID = (turnID: string) => `${turnID}:pi:reasoning`;
 
@@ -184,7 +216,7 @@ export class PiOrchestratorAdapter {
             title: input.tool,
             state: "running",
             input: input.input,
-            command: null,
+            command: commandFromInput(input.input),
             output: null,
             error: null,
             startedAt: timestamp,
@@ -197,7 +229,11 @@ export class PiOrchestratorAdapter {
         const persisted = this.options.db.upsertItemWithEvent(
           context.threadID,
           item,
-          "item/started",
+          "tool/callStarted",
+          {
+            item: piToolItemPayload(item),
+            inputSummary: commandFromInput(input.input) ?? input.tool,
+          },
         );
         await this.publish(persisted.event);
       },
@@ -218,11 +254,8 @@ export class PiOrchestratorAdapter {
       toolFinished: async (context, input) => {
         const timestamp = Date.now();
         const current = this.options.db.getItem(input.toolCallID);
-        const output =
-          typeof input.result === "string"
-            ? input.result
-            : JSON.stringify(input.result);
-        pendingFor(context).items.set(input.toolCallID, {
+        const output = typeof input.result === "string" ? input.result : "";
+        const item: Item = {
           id: input.toolCallID,
           turnID: context.turnID,
           agentID: context.agentID,
@@ -241,7 +274,17 @@ export class PiOrchestratorAdapter {
           },
           createdAt: current?.createdAt ?? timestamp,
           updatedAt: timestamp,
-        });
+        };
+        const projected = piToolItemPayload(item);
+        const persisted = this.options.db.upsertItemWithEvent(
+          context.threadID,
+          item,
+          input.isError ? "tool/error" : "tool/callCompleted",
+          input.isError
+            ? { item: projected, error: { code: "TOOL_EXECUTION_ERROR", message: output || "工具执行失败", retryable: false } }
+            : { item: projected },
+        );
+        await this.publish(persisted.event);
       },
       savePoint: async (context) => {
         const pending = this.pending.get(context.threadID);

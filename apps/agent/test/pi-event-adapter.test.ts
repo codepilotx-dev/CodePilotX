@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test"
 import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
 import { EventManifest } from "@codepilotx/agent-protocol"
 import { Schema } from "effect"
-import { PiEventAdapter } from "../src/orchestration/pi/PiEventAdapter"
-import { piCompactionEventPayload, piItemDeltaPayload } from "../src/orchestration/PiOrchestratorAdapter"
+import { PiEventAdapter, piToolResultText } from "../src/orchestration/pi/PiEventAdapter"
+import { piCompactionEventPayload, piItemDeltaPayload, piToolItemPayload } from "../src/orchestration/PiOrchestratorAdapter"
 
 describe("PiEventAdapter", () => {
   test("routes live text and reasoning deltas without inventing durable events", async () => {
@@ -54,8 +54,33 @@ describe("PiEventAdapter", () => {
     expect(seen).toEqual([{
       toolCallID: "call-1",
       tool: "read_file",
-      update: { content: [{ type: "text", text: "partial" }] },
+      update: "partial",
     }])
+  })
+
+  test("unwraps semantic progress and shell output instead of displaying AgentToolResult JSON", () => {
+    expect(piToolResultText({
+      content: [{ type: "text", text: "fallback" }],
+      details: { message: "正在执行 Bash" },
+    }, { tool: "shell", progress: true })).toBe("正在执行 Bash")
+    expect(piToolResultText({
+      content: [{ type: "text", text: "fallback" }],
+      details: { stdout: "out", stderr: "warning" },
+    }, { tool: "shell" })).toBe("out\nwarning")
+  })
+
+  test("builds protocol-valid public tool items", () => {
+    const item = piToolItemPayload({
+      id: "call-1", turnID: "turn", agentID: "agent", type: "tool", status: "completed",
+      data: { callID: "call-1", tool: "shell", title: "shell", input: { command: "pwd" }, command: "pwd", output: "ok", error: null, startedAt: 100, finishedAt: 125, durationMs: 25 },
+      createdAt: 100, updatedAt: 125,
+    })
+    expect(() => Schema.decodeUnknownSync(EventManifest["tool/callStarted"].payload)({ item: { ...item, state: "running", output: null, finishedAt: null, durationMs: null }, inputSummary: "pwd" })).not.toThrow()
+    expect(() => Schema.decodeUnknownSync(EventManifest["tool/callCompleted"].payload)({ item })).not.toThrow()
+    expect(() => Schema.decodeUnknownSync(EventManifest["tool/error"].payload)({
+      item: { ...item, state: "error", output: null, error: "failed" },
+      error: { code: "TOOL_EXECUTION_ERROR", message: "failed", retryable: false },
+    })).not.toThrow()
   })
 
   test("maps Pi compaction metadata to the existing protocol payload", () => {
