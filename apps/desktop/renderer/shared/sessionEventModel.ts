@@ -12,35 +12,37 @@ export function desktopAgentEventToSessionEvent(
     case 'message':
       if (isInternalReviewerMessageText(event.text)) return null
       return {
-        id: randomId(),
+        id: stableEventId(event, 'message'),
         sessionId: event.sessionId,
         type: 'message',
         role: event.role,
         content: event.text,
         createdAt,
+        metadata: eventMetadata(event),
         ...eventSource(event),
       }
     case 'partial_message':
       if (isInternalReviewerMessageText(event.text)) return null
       return {
-        id: randomId(),
+        id: stableEventId(event, 'delta'),
         sessionId: event.sessionId,
         type: 'assistant_delta',
         role: 'assistant',
         content: event.text,
         createdAt,
+        metadata: eventMetadata(event),
         ...eventSource(event),
       }
     case 'proposed_plan':
       if (isInternalReviewerMessageText(event.text)) return null
       return {
-        id: randomId(),
+        id: stableEventId(event, 'plan'),
         sessionId: event.sessionId,
         type: 'proposed_plan',
         role: 'assistant',
         content: event.text,
         createdAt,
-        metadata: { streaming: event.streaming === true },
+        metadata: { ...eventMetadata(event), streaming: event.streaming === true },
         ...eventSource(event),
       }
     case 'context_usage':
@@ -53,23 +55,24 @@ export function desktopAgentEventToSessionEvent(
       }
     case 'tool_start':
       return {
-        id: randomId(),
+        id: stableEventId(event, 'tool-call'),
         sessionId: event.sessionId,
         type: 'tool_call',
         content: event.summary,
         createdAt,
-        metadata: toolMetadata(event.toolName, event.toolUseId),
+        metadata: { ...toolMetadata(event.toolName, event.toolUseId), ...eventMetadata(event) },
         ...eventSource(event),
       }
     case 'tool_result':
       return {
-        id: randomId(),
+        id: stableEventId(event, 'tool-result'),
         sessionId: event.sessionId,
         type: 'tool_result',
         content: event.summary,
         createdAt,
         metadata: {
           ...toolMetadata(event.toolName, event.toolUseId),
+          ...eventMetadata(event),
           isError: event.isError === true,
         },
         ...eventSource(event),
@@ -150,12 +153,12 @@ export function desktopAgentEventToSessionEvent(
       }
     case 'tool_output_delta':
       return {
-        id: randomId(),
+        id: stableEventId(event, 'tool-output'),
         sessionId: event.sessionId,
         type: 'tool_output_delta',
         content: event.delta,
         createdAt,
-        metadata: toolMetadata(event.toolName, event.toolUseId),
+        metadata: { ...toolMetadata(event.toolName, event.toolUseId), ...eventMetadata(event) },
         ...eventSource(event),
       }
     case 'session_title':
@@ -234,6 +237,16 @@ function eventMetadata(event: DesktopAgentEvent): Record<string, unknown> {
   return 'metadata' in event && event.metadata && typeof event.metadata === 'object'
     ? event.metadata
     : {}
+}
+
+function stableEventId(event: DesktopAgentEvent, suffix: string): string {
+  const metadata = eventMetadata(event)
+  const itemId = typeof metadata.itemId === 'string' ? metadata.itemId : null
+  if (itemId) return `${itemId}:${suffix}`
+  if ('toolUseId' in event && typeof event.toolUseId === 'string' && event.toolUseId) {
+    return `${event.toolUseId}:${suffix}`
+  }
+  return randomId()
 }
 
 function summarizePatch(patch: string): string {

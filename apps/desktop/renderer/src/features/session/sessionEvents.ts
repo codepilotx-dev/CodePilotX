@@ -1,6 +1,7 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type {
   DesktopAgentEvent,
+  DesktopSessionEvent,
   DesktopSessionStatus,
 } from '../../../shared/types.js'
 import {
@@ -52,7 +53,7 @@ export function handleSessionAgentEvent(
       ...view,
       events:
         view.eventModelVersion === 1
-          ? [...view.events, sessionEvent]
+          ? reconcileLiveSessionEvent(view.events, sessionEvent)
           : view.events,
     }))
   }
@@ -73,6 +74,7 @@ export function handleSessionAgentEvent(
 
   if (event.type === 'message') {
     const createdAt = event.createdAt ?? new Date().toISOString()
+    const itemId = agentEventItemId(event)
     setSessions(current =>
       sortSessionsByRecency(
         current.map(session =>
@@ -85,12 +87,17 @@ export function handleSessionAgentEvent(
     updateSessionView(event.sessionId, view => ({
       ...view,
       messages: [
-        ...view.messages.filter(message => !message.streaming),
+        ...view.messages.filter(message =>
+          itemId
+            ? message.metadata?.itemId !== itemId
+            : !message.streaming,
+        ),
         {
-          id: crypto.randomUUID(),
+          id: itemId ?? crypto.randomUUID(),
           role: event.role,
           text: event.text,
           createdAt,
+          metadata: event.metadata,
         },
       ],
     }))
@@ -99,17 +106,26 @@ export function handleSessionAgentEvent(
 
   if (event.type === 'partial_message') {
     updateSessionView(event.sessionId, view => {
-      const index = view.messages.findIndex(message => message.streaming)
+      const itemId = agentEventItemId(event)
+      const kind = agentEventKind(event)
+      const index = view.messages.findIndex(message =>
+        message.streaming && (
+          itemId
+            ? message.metadata?.itemId === itemId
+            : message.metadata?.kind === kind
+        ),
+      )
       const createdAt =
         event.createdAt ??
         (index >= 0 ? view.messages[index]?.createdAt : undefined) ??
         new Date().toISOString()
       const nextMessage: Message = {
-        id: index >= 0 ? view.messages[index]!.id : crypto.randomUUID(),
+        id: index >= 0 ? view.messages[index]!.id : itemId ?? crypto.randomUUID(),
         role: 'assistant',
-        text: event.text,
+        text: `${index >= 0 ? view.messages[index]!.text : ''}${event.text}`,
         createdAt,
         streaming: true,
+        metadata: event.metadata,
       }
       if (index === -1) {
         return { ...view, messages: [...view.messages, nextMessage] }
@@ -241,6 +257,54 @@ export function handleSessionAgentEvent(
       ),
     }))
   }
+}
+
+function reconcileLiveSessionEvent(
+  events: DesktopSessionEvent[],
+  incoming: DesktopSessionEvent,
+): DesktopSessionEvent[] {
+  const itemId = typeof incoming.metadata?.itemId === 'string'
+    ? incoming.metadata.itemId
+    : null
+  if (incoming.type === 'message' && itemId) {
+    return [
+      ...events.filter(event => !(
+        event.type === 'assistant_delta' && event.metadata?.itemId === itemId
+      )),
+      incoming,
+    ]
+  }
+  if (
+    incoming.type === 'assistant_delta'
+    || incoming.type === 'tool_output_delta'
+    || incoming.type === 'proposed_plan'
+  ) {
+    const index = events.findIndex(event => event.id === incoming.id)
+    if (index >= 0) {
+      const previous = events[index]!
+      const shouldAppend = incoming.type !== 'proposed_plan'
+        || incoming.metadata?.streaming === true
+      const merged = {
+        ...previous,
+        ...incoming,
+        content: shouldAppend
+          ? `${previous.content ?? ''}${incoming.content ?? ''}`
+          : incoming.content,
+      }
+      return events.map((event, eventIndex) => eventIndex === index ? merged : event)
+    }
+  }
+  return [...events, incoming]
+}
+
+function agentEventItemId(event: DesktopAgentEvent): string | null {
+  const value = event.metadata?.itemId
+  return typeof value === 'string' && value ? value : null
+}
+
+function agentEventKind(event: DesktopAgentEvent): string {
+  const value = event.metadata?.kind
+  return typeof value === 'string' ? value : 'text'
 }
 
 function isInternalReviewerAgentEvent(event: DesktopAgentEvent): boolean {

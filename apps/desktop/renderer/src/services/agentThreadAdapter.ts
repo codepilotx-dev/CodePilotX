@@ -273,30 +273,34 @@ export function agentEventsFromNotification(
     return isItem(params.item) ? itemToAgentEvents(threadId, params.item) : []
   }
   if (notification.method === 'item/agentMessage/delta') {
-    return [{ ...base, type: 'partial_message', role: 'assistant', text: stringValue(params.delta) }]
+    return [{ ...base, type: 'partial_message', role: 'assistant', text: stringValue(params.delta), metadata: liveItemMetadata(params, 'text') }]
   }
   if (
     notification.method === 'reasoning/textDelta'
     || notification.method === 'reasoning/summaryTextDelta'
   ) {
-    return [{ ...base, type: 'partial_message', role: 'assistant', text: stringValue(params.delta), metadata: { kind: 'reasoning' } }]
+    return [{ ...base, type: 'partial_message', role: 'assistant', text: stringValue(params.delta), metadata: liveItemMetadata(params, 'reasoning') }]
   }
   if (notification.method === 'plan/delta' || notification.method === 'plan/ready') {
     return [{
       ...base,
       type: 'proposed_plan',
-      text: stringValue(params.delta) || stringValue(params.plan),
+      text: stringValue(params.delta) || stringValue(params.markdown) || stringValue(params.plan),
       streaming: notification.method === 'plan/delta',
+      metadata: liveItemMetadata(params, 'plan'),
     }]
   }
   if (notification.method === 'tool/callStarted') {
-    return [{ ...base, type: 'tool_start', toolName: stringValue(params.tool), toolUseId: stringValue(params.itemId) || stringValue(params.callID), summary: stringValue(params.title) }]
+    const item = record(params.item)
+    return [{ ...base, type: 'tool_start', toolName: stringValue(item.tool) || stringValue(params.tool), toolUseId: stringValue(item.callID) || stringValue(item.id) || stringValue(params.itemId) || stringValue(params.callID), summary: stringValue(item.title) || stringValue(params.inputSummary) || stringValue(params.title), metadata: { itemId: stringValue(item.id) || stringValue(params.itemId) } }]
   }
   if (notification.method === 'tool/outputDelta') {
-    return [{ ...base, type: 'tool_result', toolName: stringValue(params.tool), toolUseId: stringValue(params.itemId) || stringValue(params.callID), summary: stringValue(params.delta) }]
+    return [{ ...base, type: 'tool_output_delta', toolName: stringValue(params.tool) || 'tool', toolUseId: stringValue(params.callID) || stringValue(params.itemId), delta: stringValue(params.delta), metadata: { itemId: stringValue(params.itemId) } }]
   }
   if (notification.method === 'tool/callCompleted' || notification.method === 'tool/error') {
-    return [{ ...base, type: 'tool_result', toolName: stringValue(params.tool), toolUseId: stringValue(params.itemId) || stringValue(params.callID), summary: stringValue(params.output) || stringValue(params.message), isError: notification.method === 'tool/error' }]
+    const item = record(params.item)
+    const error = record(params.error)
+    return [{ ...base, type: 'tool_result', toolName: stringValue(item.tool) || stringValue(params.tool), toolUseId: stringValue(item.callID) || stringValue(item.id) || stringValue(params.itemId) || stringValue(params.callID), summary: stringValue(item.error) || stringValue(item.output) || stringValue(error.message) || stringValue(params.output) || stringValue(params.message) || stringValue(item.title), isError: notification.method === 'tool/error' || item.state === 'error', metadata: { itemId: stringValue(item.id) || stringValue(params.itemId) } }]
   }
   if (notification.method === 'approval/requested') {
     return [{ ...base, type: 'permission_request', request: approvalParamsToRequest(params) }]
@@ -429,14 +433,14 @@ function activityToSessionEvents(threadId: string, item: Extract<Item, { type: '
 function itemToAgentEvents(threadId: string, item: Item): DesktopAgentEvent[] {
   const createdAt = iso(item.createdAt)
   if (item.type === 'text' || item.type === 'reasoning') {
-    return [{ type: item.status === 'streaming' ? 'partial_message' : 'message', sessionId: threadId, role: 'assistant', text: item.text, createdAt, ...(item.type === 'reasoning' ? { metadata: { kind: 'reasoning' } } : {}) }]
+    return [{ type: item.status === 'streaming' ? 'partial_message' : 'message', sessionId: threadId, role: 'assistant', text: item.text, createdAt, metadata: { itemId: item.id, turnId: item.turnId, agentId: item.agentId, kind: item.type } }]
   }
   if (item.type === 'tool') {
-    const start = { type: 'tool_start', sessionId: threadId, toolName: item.tool, toolUseId: item.callID, summary: item.title, createdAt: iso(item.startedAt ?? item.createdAt) }
+    const start = { type: 'tool_start', sessionId: threadId, toolName: item.tool, toolUseId: item.callID, summary: item.title, createdAt: iso(item.startedAt ?? item.createdAt), metadata: { itemId: item.id } }
     if (['pending', 'running', 'waiting-permission'].includes(item.state)) return [start]
-    return [start, { type: 'tool_result', sessionId: threadId, toolName: item.tool, toolUseId: item.callID, summary: item.error ?? item.output ?? item.title, isError: item.state === 'error', createdAt: iso(item.finishedAt ?? item.createdAt) }]
+    return [start, { type: 'tool_result', sessionId: threadId, toolName: item.tool, toolUseId: item.callID, summary: item.error ?? item.output ?? item.title, isError: item.state === 'error', createdAt: iso(item.finishedAt ?? item.createdAt), metadata: { itemId: item.id } }]
   }
-  if (item.type === 'plan') return [{ type: 'proposed_plan', sessionId: threadId, text: item.markdown, streaming: item.state === 'draft', createdAt }]
+  if (item.type === 'plan') return [{ type: 'proposed_plan', sessionId: threadId, text: item.markdown, streaming: item.state === 'draft', createdAt, metadata: { itemId: item.id, turnId: item.turnId, agentId: item.agentId, kind: 'plan' } }]
   if (item.type === 'patch') return item.files.map(file => ({ type: 'diff', sessionId: threadId, filePath: file.path, patch: file.patch ?? '', createdAt, metadata: { additions: file.additions, deletions: file.deletions, turnScoped: true } }))
   if (item.type === 'question' && item.status === 'pending') return [{ type: 'permission_request', sessionId: threadId, request: questionToRequest(item), createdAt }]
   return []
@@ -470,12 +474,12 @@ function approvalToRequest(approval: ApprovalRequest): DesktopPermissionRequest 
 
 function approvalParamsToRequest(params: Record<string, unknown>): DesktopPermissionRequest {
   return {
-    requestId: stringValue(params.id),
+    requestId: stringValue(params.interactionId) || stringValue(params.id),
     toolName: stringValue(params.tool) || 'tool',
-    toolUseId: stringValue(params.toolCallID) || stringValue(params.itemId),
-    input: record(params.input),
+    toolUseId: stringValue(params.toolCallId) || stringValue(params.toolCallID) || stringValue(params.itemId),
+    input: { command: params.command, cwd: params.cwd, requestedPermissions: params.requestedPermissions, risk: params.risk },
     description: stringValue(params.reason) || '需要批准工具调用',
-    requestKind: typeof record(params.input).command === 'string' ? 'shell-command' : 'tool',
+    requestKind: typeof params.command === 'string' ? 'shell-command' : 'tool',
   }
 }
 
@@ -485,12 +489,26 @@ function questionToRequest(question: QuestionItem): DesktopPermissionRequest {
 }
 
 function questionParamsToRequest(params: Record<string, unknown>): DesktopPermissionRequest {
-  const id = stringValue(params.id)
-  const question = stringValue(params.question) || '需要你的确认'
-  const options = Array.isArray(params.options)
-    ? questionOptions(params.options.map((value, index) => ({ id: String(index), label: String(value), recommended: index === 0 })))
-    : questionOptions([])
-  return { requestId: agentQuestionRequestId(id), toolName: 'AskUserQuestion', toolUseId: id, input: { question, header: '问题', options, questions: [{ id, question, header: '问题', options }] }, description: question, requestKind: 'tool' }
+  const rawQuestions = Array.isArray(params.questions) ? params.questions.map(record) : []
+  const first = rawQuestions[0] ?? params
+  const id = stringValue(first.id) || stringValue(params.interactionId) || stringValue(params.id)
+  const question = stringValue(first.prompt) || stringValue(first.question) || stringValue(params.question) || '需要你的确认'
+  const mappedQuestions = (rawQuestions.length ? rawQuestions : [first]).map((candidate, index) => {
+    const choices = Array.isArray(candidate.choices) ? candidate.choices.map(record) : []
+    const options = questionOptions(choices.map((choice, choiceIndex) => ({ id: stringValue(choice.id) || String(choiceIndex), label: stringValue(choice.label) || String(choice.value ?? ''), description: stringValue(choice.description), recommended: choice.recommended === true || choiceIndex === 0 })))
+    return { id: stringValue(candidate.id) || `${id}:${index}`, question: stringValue(candidate.prompt) || stringValue(candidate.question) || question, header: stringValue(candidate.header) || '问题', options }
+  })
+  const primary = mappedQuestions[0]!
+  return { requestId: agentQuestionRequestId(primary.id), toolName: 'AskUserQuestion', toolUseId: primary.id, input: { question: primary.question, header: primary.header, options: primary.options, questions: mappedQuestions }, description: primary.question, requestKind: 'tool' }
+}
+
+function liveItemMetadata(params: Record<string, unknown>, kind: 'text' | 'reasoning' | 'plan'): Record<string, unknown> {
+  return {
+    itemId: stringValue(params.itemId),
+    turnId: stringValue(params.turnId),
+    agentId: stringValue(params.agentId),
+    kind,
+  }
 }
 
 function questionOptions(choices: ReadonlyArray<{ label: string; description?: string; recommended: boolean }>) {

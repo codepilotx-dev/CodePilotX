@@ -293,6 +293,18 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
         return
       }
 
+      if (after === 'latest') {
+        for (const position of subscription.highWatermarks) {
+          acknowledgedPositions.set(
+            position.streamId,
+            Math.max(
+              acknowledgedPositions.get(position.streamId) ?? 0,
+              position.sequence,
+            ),
+          )
+        }
+      }
+
       subscriptionId = subscription.subscriptionId
       const nextSource = factory(
         `/rpc/events?subscriptionId=${encodeURIComponent(subscription.subscriptionId)}&connectionId=${encodeURIComponent(connectionId ?? '')}`,

@@ -2620,8 +2620,15 @@ function createAgentSessionDesktopClient(
             'turn/failed',
             'turn/interrupted',
             'item/completed',
+            'tool/callCompleted',
+            'tool/error',
             'approval/requested',
+            'approval/cancelled',
             'question/requested',
+            'plan/ready',
+            'plan/decision',
+            'interaction/resolved',
+            'context/compacted',
           ].includes(notificationMethod)
         ) {
           scheduleSessionRefresh(params.threadId)

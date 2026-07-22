@@ -27,7 +27,11 @@ const provider = {
       },
       capabilities: { tools: true, input: ['text'], output: ['text'] },
       request: { headers: {}, body: {} },
-      variants: [],
+      variants: [
+        { id: 'off', headers: {}, body: {} },
+        { id: 'medium', headers: {}, body: {} },
+        { id: 'high', headers: {}, body: {} },
+      ],
       time: { released: 0 },
       cost: [],
       status: 'active',
@@ -51,7 +55,7 @@ describe('desktop provider client', () => {
       if (body.method === 'provider/list') {
         return rpc(body.id, {
           providers: [provider.provider],
-          defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3' },
+          defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3', variant: 'medium' },
           reviewerModel: null,
           catalogVersion: 7,
         })
@@ -64,7 +68,7 @@ describe('desktop provider client', () => {
         })
         return rpc(body.id, {
           providers: [provider],
-          defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3' },
+          defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3', variant: 'medium' },
           reviewerModel: null,
           catalogVersion: 7,
           total: 1,
@@ -90,6 +94,8 @@ describe('desktop provider client', () => {
     ])
 
     expect(state.model).toBe('MiniMax-M3')
+    expect(state.variant).toBe('medium')
+    expect(state.modelMetadata?.['MiniMax-M3']?.variants).toEqual(['off', 'medium', 'high'])
     expect(providers).toHaveLength(1)
     expect(requests.filter(request => request.method === 'provider/list')).toHaveLength(1)
     expect(requests.filter(request => request.method === 'model/list')).toHaveLength(1)

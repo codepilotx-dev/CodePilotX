@@ -375,7 +375,7 @@ describe('agent RPC v3 client', () => {
     expect(
       requests.filter(request => request.method === 'event/subscribe').at(-1)
         ?.params,
-    ).toEqual({ streams: [{ streamId: 'global', after: 'latest' }] })
+    ).toEqual({ streams: [{ streamId: 'global', after: 12 }] })
     unsubscribe()
   })
 
@@ -517,6 +517,56 @@ describe('agent RPC v3 client', () => {
     expect(
       requests.filter(request => request.body.method === 'event/subscribe'),
     ).toHaveLength(subscribeRequestCount)
+  })
+
+  test('首次 latest 订阅在事件未 ACK 即断线时从订阅高水位重放', async () => {
+    const requests: Array<Record<string, unknown>> = []
+    const sources: FakeEventSource[] = []
+    const client = createAgentRpcClient({
+      handshake: automaticHandshake('renderer-unacked-replay'),
+      fetch: createSubscriptionFetcher(requests),
+      eventReconnectDelay: () => 0,
+      eventSourceFactory: url => {
+        const source = new FakeEventSource(url)
+        sources.push(source)
+        return source as unknown as EventSource
+      },
+    })
+
+    const notifications: string[] = []
+    const unsubscribe = client.subscribe({}, notification => {
+      notifications.push(notification.method)
+    })
+    await waitFor(() => sources.length === 1)
+
+    sources[0]?.emit({
+      jsonrpc: '2.0',
+      method: 'event/next',
+      params: {
+        subscriptionId: 'subscription-1',
+        event: {
+          id: 'event-13',
+          streamId: 'global',
+          sequence: 13,
+          type: 'thread/updated',
+          payload: {},
+          occurredAt: '2026-07-22T00:00:00.000Z',
+        },
+      },
+    })
+    expect(notifications).toEqual(['thread/updated'])
+
+    sources[0]?.fail()
+    await waitFor(() => sources.length === 2)
+
+    expect(
+      requests.filter(request => request.method === 'event/ack'),
+    ).toHaveLength(0)
+    expect(
+      requests.filter(request => request.method === 'event/subscribe').at(-1)
+        ?.params,
+    ).toEqual({ streams: [{ streamId: 'global', after: 12 }] })
+    unsubscribe()
   })
 
   test('恢复游标过期时仅回退到 latest 并建立订阅', async () => {

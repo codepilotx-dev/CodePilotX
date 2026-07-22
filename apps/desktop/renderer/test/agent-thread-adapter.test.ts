@@ -164,6 +164,7 @@ describe('agent thread adapter', () => {
     }
     expect(agentEventsFromNotification(notification)).toEqual([{
       type: 'message', sessionId: 'thread-1', role: 'assistant', text: '完成', createdAt: '2023-11-14T22:13:30.000Z',
+      metadata: { itemId: 'text-1', turnId: 'turn-1', agentId: 'agent-1', kind: 'text' },
     }])
   })
 
@@ -182,5 +183,46 @@ describe('agent thread adapter', () => {
       },
     }
     expect(agentEventsFromNotification(notification)).toEqual([])
+  })
+
+  test('projects stable Pi live deltas and nested terminal tool payloads', () => {
+    const text = agentEventsFromNotification({
+      jsonrpc: '2.0', method: 'item/agentMessage/delta',
+      params: { threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1', itemId: 'text-1', delta: '你好' },
+    })[0]!
+    const reasoning = agentEventsFromNotification({
+      jsonrpc: '2.0', method: 'reasoning/textDelta',
+      params: { threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1', itemId: 'reasoning-1', delta: '分析' },
+    })[0]!
+    const output = agentEventsFromNotification({
+      jsonrpc: '2.0', method: 'tool/outputDelta',
+      params: { threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1', itemId: 'tool-1', delta: '50%' },
+    })[0]!
+    const terminal = agentEventsFromNotification({
+      jsonrpc: '2.0', method: 'tool/callCompleted',
+      params: {
+        threadId: 'thread-1', turnId: 'turn-1',
+        item: { id: 'tool-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'tool', callID: 'call-1', tool: 'shell_command', title: '执行命令', state: 'completed', input: {}, command: null, output: '完成', error: null, startedAt: 1, finishedAt: 2, durationMs: 1, createdAt: 1 },
+      },
+    })[0]!
+
+    expect(text).toMatchObject({ type: 'partial_message', text: '你好', metadata: { itemId: 'text-1', kind: 'text' } })
+    expect(reasoning).toMatchObject({ type: 'partial_message', text: '分析', metadata: { itemId: 'reasoning-1', kind: 'reasoning' } })
+    expect(output).toMatchObject({ type: 'tool_output_delta', toolUseId: 'tool-1', delta: '50%', metadata: { itemId: 'tool-1' } })
+    expect(terminal).toMatchObject({ type: 'tool_result', toolName: 'shell_command', toolUseId: 'call-1', summary: '完成', metadata: { itemId: 'tool-1' } })
+  })
+
+  test('projects Pi interaction payloads using persisted interaction and question ids', () => {
+    const approval = agentEventsFromNotification({
+      jsonrpc: '2.0', method: 'approval/requested',
+      params: { threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1', interactionId: 'approval-1', createdAt: 1, version: 1, kind: 'approval', toolCallId: 'call-1', tool: 'shell_command', command: 'bun test', risk: 'medium', reason: '需要执行', requestedPermissions: { readPaths: [], writePaths: [], networkDomains: [] }, allowedChoices: ['allow-once', 'deny'] },
+    })[0]!
+    const question = agentEventsFromNotification({
+      jsonrpc: '2.0', method: 'question/requested',
+      params: { threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1', interactionId: 'interaction-1', createdAt: 1, version: 1, kind: 'question', questions: [{ id: 'question-1', header: '方式', prompt: '如何继续？', choices: [{ id: 'safe', label: '安全模式', description: '只读', recommended: true }, { id: 'fast', label: '快速模式', description: '可写', recommended: false }], allowFreeform: false, required: true }] },
+    })[0]!
+
+    expect(approval).toMatchObject({ type: 'permission_request', request: { requestId: 'approval-1', toolUseId: 'call-1', toolName: 'shell_command', requestKind: 'shell-command' } })
+    expect(question).toMatchObject({ type: 'permission_request', request: { requestId: 'question:question-1', toolUseId: 'question-1', description: '如何继续？' } })
   })
 })
