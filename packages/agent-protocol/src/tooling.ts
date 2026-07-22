@@ -1,6 +1,11 @@
 import { Schema } from "effect"
 
-export const ToolingIDSchema = Schema.Literals(["git-bash", "ripgrep"])
+export const ToolingIDSchema = Schema.Literals([
+  "nodejs",
+  "python",
+  "git-bash",
+  "ripgrep",
+])
 export const ToolingPreferenceSchema = Schema.Literals(["managed", "system"])
 export const ToolingSourceSchema = Schema.Literals(["managed", "system"])
 export const ToolingPhaseSchema = Schema.Literals([

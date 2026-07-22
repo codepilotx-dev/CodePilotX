@@ -53,13 +53,13 @@ describe("manifest-driven event decoding", () => {
       afterSequence: 2,
       payload: {
         status: {
-          id: "ripgrep",
+          id: "python",
           preference: "managed",
           phase: "downloading",
           activeSource: null,
-          pinnedVersion: "15.2.0",
+          pinnedVersion: "3.14.6",
           managed: { installed: false, version: null },
-          system: { available: true, version: "15.2.0", path: "C:\\Tools\\rg.exe" },
+          system: { available: true, version: "3.14.6", path: "C:\\Python314\\python.exe" },
           progress: { receivedBytes: 1024, totalBytes: 2048 },
         },
       },

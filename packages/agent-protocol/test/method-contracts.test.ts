@@ -330,16 +330,16 @@ type MethodFixtures = {
 const fixtures = {
   "tooling/list": methodFixture("tooling/list", {}, { statuses: [] }),
   "tooling/setPreference": methodFixture("tooling/setPreference", {
-    id: "git-bash",
+    id: "nodejs",
     preference: "system",
     operationId: "operation:tooling-preference",
   }, {
     status: {
-      id: "git-bash",
+      id: "nodejs",
       preference: "system",
       phase: "idle",
       activeSource: null,
-      pinnedVersion: "2.55.0.3",
+      pinnedVersion: "24.18.0",
       managed: { installed: false, version: null },
       system: { available: false, version: null, path: null },
     },
