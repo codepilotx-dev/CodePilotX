@@ -26,12 +26,30 @@ export type ProjectModelSettings = {
 export type StoredEncryptedCredential = {
   id: string
   integrationID: string
+  kind: "api-key" | "oauth"
   methodID: string | null
   label: string
+  keySuffix: string | null
+  fingerprint: string | null
+  enabled: boolean
+  priority: number
   ciphertext: string
   nonce: string
   keyVersion: number
   createdAt: number
+  updatedAt: number
+}
+
+export type CredentialHealthStatus = "untested" | "healthy" | "auth-failed" | "rate-limited" | "error"
+export type CredentialErrorCategory = "authentication" | "rate-limit" | "network" | "unknown"
+
+export type StoredCredentialHealth = {
+  credentialID: string
+  status: CredentialHealthStatus
+  lastTestedAt: number | null
+  lastUsedAt: number | null
+  lastErrorCategory: CredentialErrorCategory | null
+  cooldownUntil: number | null
   updatedAt: number
 }
 
@@ -135,7 +153,7 @@ const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const now = () => Date.now()
 const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
-export const SCHEMA_VERSION = 13
+export const SCHEMA_VERSION = 14
 
 export type QueuePauseReason = "interrupted" | "turn_failed" | null
 export type QueueMutationMeta = { operationID: string; expectedVersion?: number }
@@ -572,6 +590,9 @@ export class AgentDatabase {
     if (currentVersion < 11) this.migrateReviewV11()
     if (currentVersion < 12) this.migrateInteractionV12()
     if (currentVersion < 13 && finalizeV13) this.migrateEventsV13()
+    if (currentVersion < 14 && (currentVersion === 0 || currentVersion >= 13 || finalizeV13)) {
+      this.migrateCredentialsV14()
+    }
     this.sqlite.exec(`CREATE TABLE IF NOT EXISTS hook_trust_waiters (
       request_id TEXT NOT NULL REFERENCES hook_trust_requests(id) ON DELETE CASCADE,
       agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
@@ -603,6 +624,81 @@ export class AgentDatabase {
     this.transaction(() => {
       if (liveEventMethods.length) this.sqlite.exec(`DELETE FROM events WHERE method IN (${liveEventMethods.map(sqlString).join(",")})`)
       this.sqlite.exec("PRAGMA user_version = 13")
+    })
+  }
+
+  private migrateCredentialsV14() {
+    this.transaction(() => {
+      if (this.columns("credentials").includes("kind")) {
+        this.sqlite.exec(`
+          CREATE INDEX IF NOT EXISTS credentials_integration_priority ON credentials(integration_id, kind, priority, created_at);
+          CREATE UNIQUE INDEX IF NOT EXISTS credentials_api_key_fingerprint ON credentials(integration_id, fingerprint)
+            WHERE kind = 'api-key' AND fingerprint IS NOT NULL;
+          CREATE TABLE IF NOT EXISTS integration_credential_bindings (
+            integration_id TEXT PRIMARY KEY,
+            credential_id TEXT NOT NULL REFERENCES credentials(id) ON DELETE CASCADE,
+            updated_at INTEGER NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS credential_health (
+            credential_id TEXT PRIMARY KEY REFERENCES credentials(id) ON DELETE CASCADE,
+            status TEXT NOT NULL CHECK (status IN ('untested', 'healthy', 'auth-failed', 'rate-limited', 'error')),
+            last_tested_at INTEGER, last_used_at INTEGER, last_error_category TEXT, cooldown_until INTEGER,
+            updated_at INTEGER NOT NULL
+          );
+          PRAGMA user_version = 14;
+        `)
+        return
+      }
+      this.sqlite.exec(`
+        DROP INDEX IF EXISTS credentials_integration;
+        ALTER TABLE credentials RENAME TO credentials_v13;
+        CREATE TABLE credentials (
+          id TEXT PRIMARY KEY,
+          integration_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('api-key', 'oauth')),
+          method_id TEXT,
+          label TEXT NOT NULL,
+          key_suffix TEXT,
+          fingerprint TEXT,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          priority INTEGER NOT NULL DEFAULT 0,
+          ciphertext TEXT NOT NULL,
+          nonce TEXT NOT NULL,
+          key_version INTEGER NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        INSERT INTO credentials (
+          id, integration_id, kind, method_id, label, key_suffix, fingerprint, enabled, priority,
+          ciphertext, nonce, key_version, created_at, updated_at
+        )
+        SELECT id, integration_id, CASE WHEN method_id IS NULL THEN 'api-key' ELSE 'oauth' END,
+          method_id, label, NULL, NULL, 1, 0, ciphertext, nonce, key_version, created_at, updated_at
+        FROM credentials_v13;
+        DROP TABLE credentials_v13;
+        CREATE INDEX credentials_integration_priority ON credentials(integration_id, kind, priority, created_at);
+        CREATE UNIQUE INDEX credentials_api_key_fingerprint ON credentials(integration_id, fingerprint)
+          WHERE kind = 'api-key' AND fingerprint IS NOT NULL;
+        CREATE TABLE integration_credential_bindings (
+          integration_id TEXT PRIMARY KEY,
+          credential_id TEXT NOT NULL REFERENCES credentials(id) ON DELETE CASCADE,
+          updated_at INTEGER NOT NULL
+        );
+        INSERT INTO integration_credential_bindings (integration_id, credential_id, updated_at)
+          SELECT integration_id, id, updated_at FROM credentials;
+        CREATE TABLE credential_health (
+          credential_id TEXT PRIMARY KEY REFERENCES credentials(id) ON DELETE CASCADE,
+          status TEXT NOT NULL CHECK (status IN ('untested', 'healthy', 'auth-failed', 'rate-limited', 'error')),
+          last_tested_at INTEGER,
+          last_used_at INTEGER,
+          last_error_category TEXT,
+          cooldown_until INTEGER,
+          updated_at INTEGER NOT NULL
+        );
+        INSERT INTO credential_health (credential_id, status, updated_at)
+          SELECT id, 'untested', updated_at FROM credentials WHERE kind = 'api-key';
+        PRAGMA user_version = 14;
+      `)
     })
   }
 
@@ -2273,12 +2369,17 @@ export class AgentDatabase {
 
   listEncryptedCredentials(): StoredEncryptedCredential[] {
     const rows = this.sqlite.query(
-      "SELECT id, integration_id, method_id, label, ciphertext, nonce, key_version, created_at, updated_at FROM credentials ORDER BY created_at, id",
+      "SELECT id, integration_id, kind, method_id, label, key_suffix, fingerprint, enabled, priority, ciphertext, nonce, key_version, created_at, updated_at FROM credentials ORDER BY integration_id, priority, created_at, id",
     ).all() as Array<{
       id: string
       integration_id: string
+      kind: "api-key" | "oauth"
       method_id: string | null
       label: string
+      key_suffix: string | null
+      fingerprint: string | null
+      enabled: number
+      priority: number
       ciphertext: string
       nonce: string
       key_version: number
@@ -2288,8 +2389,13 @@ export class AgentDatabase {
     return rows.map((row) => ({
       id: row.id,
       integrationID: row.integration_id,
+      kind: row.kind,
       methodID: row.method_id,
       label: row.label,
+      keySuffix: row.key_suffix,
+      fingerprint: row.fingerprint,
+      enabled: row.enabled === 1,
+      priority: row.priority,
       ciphertext: row.ciphertext,
       nonce: row.nonce,
       keyVersion: row.key_version,
@@ -2299,38 +2405,125 @@ export class AgentDatabase {
   }
 
   encryptedCredential(integrationID: string) {
-    return this.listEncryptedCredentials().find((item) => item.integrationID === integrationID) ?? null
+    const binding = this.sqlite.query("SELECT credential_id FROM integration_credential_bindings WHERE integration_id = ?").get(integrationID) as { credential_id: string } | null
+    return binding ? this.encryptedCredentialByID(binding.credential_id) : null
+  }
+
+  encryptedCredentialByID(id: string) {
+    return this.listEncryptedCredentials().find((item) => item.id === id) ?? null
   }
 
   upsertEncryptedCredential(input: Omit<StoredEncryptedCredential, "createdAt" | "updatedAt">) {
     const timestamp = now()
-    this.sqlite.query(`
-      INSERT INTO credentials (id, integration_id, method_id, label, ciphertext, nonce, key_version, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(integration_id) DO UPDATE SET
-        id = excluded.id,
-        method_id = excluded.method_id,
-        label = excluded.label,
-        ciphertext = excluded.ciphertext,
-        nonce = excluded.nonce,
-        key_version = excluded.key_version,
-        updated_at = excluded.updated_at
-    `).run(
-      input.id,
-      input.integrationID,
-      input.methodID,
-      input.label,
-      input.ciphertext,
-      input.nonce,
-      input.keyVersion,
-      timestamp,
-      timestamp,
-    )
-    return this.encryptedCredential(input.integrationID)!
+    this.transaction(() => {
+      this.sqlite.query(`
+        INSERT INTO credentials (id, integration_id, kind, method_id, label, key_suffix, fingerprint, enabled, priority, ciphertext, nonce, key_version, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          integration_id = excluded.integration_id,
+          kind = excluded.kind,
+          method_id = excluded.method_id,
+          label = excluded.label,
+          key_suffix = excluded.key_suffix,
+          fingerprint = excluded.fingerprint,
+          enabled = excluded.enabled,
+          priority = excluded.priority,
+          ciphertext = excluded.ciphertext,
+          nonce = excluded.nonce,
+          key_version = excluded.key_version,
+          updated_at = excluded.updated_at
+      `).run(input.id, input.integrationID, input.kind, input.methodID, input.label, input.keySuffix, input.fingerprint,
+        input.enabled ? 1 : 0, input.priority, input.ciphertext, input.nonce, input.keyVersion, timestamp, timestamp)
+      this.sqlite.query(`INSERT INTO integration_credential_bindings (integration_id, credential_id, updated_at) VALUES (?, ?, ?)
+        ON CONFLICT(integration_id) DO UPDATE SET credential_id = excluded.credential_id, updated_at = excluded.updated_at`)
+        .run(input.integrationID, input.id, timestamp)
+      if (input.kind === "api-key") this.sqlite.query(`INSERT INTO credential_health (credential_id, status, updated_at) VALUES (?, 'untested', ?)
+        ON CONFLICT(credential_id) DO NOTHING`).run(input.id, timestamp)
+    })
+    return this.encryptedCredentialByID(input.id)!
   }
 
   removeEncryptedCredential(integrationID: string) {
+    // Compatibility API: callers historically disconnected an integration in
+    // one operation. Hub callers that delete one pool member use the ID-based
+    // deleteEncryptedCredential method instead.
     return this.sqlite.query("DELETE FROM credentials WHERE integration_id = ?").run(integrationID).changes > 0
+  }
+
+  setActiveEncryptedCredential(integrationID: string, credentialID: string) {
+    const row = this.encryptedCredentialByID(credentialID)
+    if (!row || row.integrationID !== integrationID || !row.enabled) return false
+    this.sqlite.query(`INSERT INTO integration_credential_bindings (integration_id, credential_id, updated_at) VALUES (?, ?, ?)
+      ON CONFLICT(integration_id) DO UPDATE SET credential_id = excluded.credential_id, updated_at = excluded.updated_at`)
+      .run(integrationID, credentialID, now())
+    return true
+  }
+
+  compareAndSetActiveEncryptedCredential(integrationID: string, expectedCredentialID: string, credentialID: string) {
+    const row = this.encryptedCredentialByID(credentialID)
+    if (!row || row.integrationID !== integrationID || !row.enabled) return false
+    return this.sqlite.query(`UPDATE integration_credential_bindings
+      SET credential_id = ?, updated_at = ?
+      WHERE integration_id = ? AND credential_id = ?`)
+      .run(credentialID, now(), integrationID, expectedCredentialID).changes > 0
+  }
+
+  updateEncryptedCredential(id: string, patch: Partial<Pick<StoredEncryptedCredential, "label" | "keySuffix" | "fingerprint" | "enabled" | "priority" | "ciphertext" | "nonce">>) {
+    const row = this.encryptedCredentialByID(id)
+    if (!row) return null
+    const next = { ...row, ...patch, updatedAt: now() }
+    this.sqlite.query(`UPDATE credentials SET label = ?, key_suffix = ?, fingerprint = ?, enabled = ?, priority = ?, ciphertext = ?, nonce = ?, updated_at = ? WHERE id = ?`)
+      .run(next.label, next.keySuffix, next.fingerprint, next.enabled ? 1 : 0, next.priority, next.ciphertext, next.nonce, next.updatedAt, id)
+    return this.encryptedCredentialByID(id)
+  }
+
+  reorderEncryptedCredentials(integrationID: string, orderedIDs: readonly string[]) {
+    const rows = this.listEncryptedCredentials().filter((row) => row.integrationID === integrationID && row.kind === "api-key")
+    if (rows.length !== orderedIDs.length || new Set(orderedIDs).size !== orderedIDs.length || orderedIDs.some((id) => !rows.some((row) => row.id === id))) return false
+    this.transaction(() => orderedIDs.forEach((id, priority) => {
+      this.sqlite.query("UPDATE credentials SET priority = ?, updated_at = ? WHERE id = ?").run(priority, now(), id)
+    }))
+    return true
+  }
+
+  deleteEncryptedCredential(id: string) {
+    const row = this.encryptedCredentialByID(id)
+    if (!row) return false
+    this.transaction(() => {
+      const active = this.encryptedCredential(row.integrationID)?.id === id
+      this.sqlite.query("DELETE FROM credentials WHERE id = ?").run(id)
+      if (active) {
+        const replacement = this.listEncryptedCredentials().find((candidate) =>
+          candidate.integrationID === row.integrationID && candidate.kind === row.kind && candidate.enabled)
+        if (replacement) this.setActiveEncryptedCredential(row.integrationID, replacement.id)
+      }
+    })
+    return true
+  }
+
+  credentialHealth(credentialID: string): StoredCredentialHealth | null {
+    const row = this.sqlite.query(`SELECT credential_id, status, last_tested_at, last_used_at, last_error_category, cooldown_until, updated_at
+      FROM credential_health WHERE credential_id = ?`).get(credentialID) as {
+        credential_id: string; status: CredentialHealthStatus; last_tested_at: number | null; last_used_at: number | null
+        last_error_category: CredentialErrorCategory | null; cooldown_until: number | null; updated_at: number
+      } | null
+    return row ? { credentialID: row.credential_id, status: row.status, lastTestedAt: row.last_tested_at,
+      lastUsedAt: row.last_used_at, lastErrorCategory: row.last_error_category, cooldownUntil: row.cooldown_until, updatedAt: row.updated_at } : null
+  }
+
+  updateCredentialHealth(credentialID: string, patch: Partial<Omit<StoredCredentialHealth, "credentialID" | "updatedAt">>) {
+    const previous = this.credentialHealth(credentialID) ?? {
+      credentialID, status: "untested" as const, lastTestedAt: null, lastUsedAt: null,
+      lastErrorCategory: null, cooldownUntil: null, updatedAt: now(),
+    }
+    const next = { ...previous, ...patch, updatedAt: now() }
+    this.sqlite.query(`INSERT INTO credential_health
+      (credential_id, status, last_tested_at, last_used_at, last_error_category, cooldown_until, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(credential_id) DO UPDATE SET status = excluded.status, last_tested_at = excluded.last_tested_at,
+      last_used_at = excluded.last_used_at, last_error_category = excluded.last_error_category,
+      cooldown_until = excluded.cooldown_until, updated_at = excluded.updated_at`)
+      .run(credentialID, next.status, next.lastTestedAt, next.lastUsedAt, next.lastErrorCategory, next.cooldownUntil, next.updatedAt)
+    return this.credentialHealth(credentialID)!
   }
 
   setSetting(key: string, value: unknown) {

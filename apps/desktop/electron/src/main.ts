@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url"
 import {
   app,
   BrowserWindow,
+  clipboard,
   dialog,
   ipcMain,
   nativeTheme,
@@ -25,6 +26,7 @@ const APPLICATION_LOAD_TIMEOUT_MS = 20_000
 const WATCHDOG_INTERVAL_MS = 2_000
 const WATCHDOG_FAILURE_LIMIT = 3
 const AUTH_COOKIE = "codepilotx_session"
+const API_KEY_CLIPBOARD_CLEAR_DELAY_MS = 60_000
 type AgentConnectionState = "connected" | "disconnected" | "unknown"
 
 interface ConnectionStatus {
@@ -466,6 +468,31 @@ function registerWindowIpc(): void {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),
     }).then(response => response.json())
+  })
+  ipcMain.handle("api-key:copy", async (_event, credentialId: unknown) => {
+    if (!supervisor) throw new Error("Agent 尚未初始化")
+    if (
+      typeof credentialId !== "string" ||
+      credentialId.length < 1 ||
+      credentialId.length > 200 ||
+      !/^[A-Za-z0-9._:-]+$/.test(credentialId)
+    ) {
+      throw new Error("API Key 凭据 ID 无效")
+    }
+    const response = await supervisor.request(
+      `/api/desktop/api-keys/${encodeURIComponent(credentialId)}/copy-material`,
+      { method: "POST" },
+    )
+    const payload = await response.json() as { key?: unknown }
+    if (typeof payload.key !== "string" || payload.key.length === 0) {
+      throw new Error("Agent 未返回有效的 API Key")
+    }
+    const material = payload.key
+    clipboard.writeText(material)
+    setTimeout(() => {
+      if (clipboard.readText() === material) clipboard.clear()
+    }, API_KEY_CLIPBOARD_CLEAR_DELAY_MS).unref()
+    return { clearAfterMs: API_KEY_CLIPBOARD_CLEAR_DELAY_MS }
   })
   ipcMain.handle("shell:open-external", async (_event, url: unknown) => {
     if (typeof url !== "string" || !isSafeExternalUrl(url)) {

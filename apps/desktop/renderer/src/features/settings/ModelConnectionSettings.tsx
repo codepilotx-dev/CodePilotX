@@ -3,6 +3,7 @@ import { withModelCatalogLoading } from '../../hooks/useModelCatalogLoading.js'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import type {
   DesktopIntegration,
+  DesktopApiKeySummary,
   DesktopModelMetadata,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
@@ -19,6 +20,7 @@ import { fullErrorMessage } from '../../utils/errors.js'
 import { Brain, Braces, Eye, Hammer, Link2, RefreshCw, Search } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
+import { ApiKeyHub } from './ApiKeyHub.js'
 
 const BUILT_IN_PROVIDER_IDS = new Set([
   'openai',
@@ -73,7 +75,7 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
   )
   const [modelQuery, setModelQuery] = useState('')
   const [baseURL, setBaseURL] = useState(settings.providerBaseURL)
-  const [apiKey, setApiKey] = useState('')
+  const [apiKeys, setApiKeys] = useState<DesktopApiKeySummary[]>([])
   const [model, setModel] = useState(settings.model)
   const [variant, setVariant] = useState('')
   const [integrations, setIntegrations] = useState<DesktopIntegration[]>([])
@@ -139,6 +141,23 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
   const baseURLEditable = requiresBaseURL
   const apiKeySource = selectedProviderState?.apiKeySource ?? null
   const apiKeyConfigured = Boolean(selectedProviderState?.apiKeyConfigured)
+  const providerApiKeys = useMemo(
+    () => apiKeys
+      .filter(key => key.providerId === providerID)
+      .sort((left, right) => left.priority - right.priority),
+    [apiKeys, providerID],
+  )
+  const activeApiKey = providerApiKeys.find(key => key.active)
+  const handleApiKeysChanged = useCallback((next: DesktopApiKeySummary[]) => {
+    setApiKeys(next)
+    void Promise.all([
+      desktopClient.listIntegrations(),
+      desktopClient.getModelProviderState(),
+    ]).then(([nextIntegrations, nextState]) => {
+      setIntegrations(nextIntegrations)
+      setProviderState(nextState)
+    }).catch(error => onError(fullErrorMessage(error)))
+  }, [onError])
 
   useEffect(() => {
     if (providerID === providerState?.selectedProviderID) return
@@ -405,7 +424,6 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
       const result = await withModelCatalogLoading(() =>
         desktopClient.fetchProviderModels({
           providerID,
-          apiKey: apiKey.trim() || undefined,
           baseURL: baseURL.trim() || undefined,
         }),
       )
@@ -422,7 +440,6 @@ export function ModelConnectionSettings({ onError }: Props): React.ReactNode {
   async function fetchBalance(): Promise<DesktopProviderBalanceResult> {
     const result = await desktopClient.fetchProviderBalance({
       providerID,
-      apiKey: apiKey.trim() || undefined,
       baseURL: baseURL.trim() || undefined,
     })
     setBalanceStatus(formatBalanceStatus(result))
@@ -489,76 +506,17 @@ const nextState = await desktopClient.saveModelProvider({
     }
   }
 
-  async function saveApiKey(): Promise<void> {
-    if (!apiKey.trim()) {
-      setModelError('请输入 API 密钥。')
-      return
-    }
+  async function selectActiveApiKey(credentialId: string): Promise<void> {
     setBusy(true)
-    setModelError(null)
     try {
-      const nextState = await desktopClient.saveProviderApiKey(
-        providerID,
-        apiKey.trim(),
-      )
-      setApiKey('')
-      const nextConnection = getProviderConnectionState({
-        provider: selectedProvider,
-        model,
-        providerModels,
-        baseURL,
-        baseURLEditable,
-      })
-      const [nextProviders, nextIntegrations] = await Promise.all([
-        desktopClient.listModelProviders(),
-        desktopClient.listIntegrations(),
+      await desktopClient.setActiveApiKey(providerID, credentialId)
+      const [nextKeys, nextState] = await Promise.all([
+        desktopClient.listApiKeys(),
+        desktopClient.getModelProviderState(),
       ])
-      setProviders(nextProviders)
-      setIntegrations(nextIntegrations)
-      applyProviderState({
-        ...nextState,
-        model: nextConnection.model,
-        baseURL: nextConnection.baseURL,
-        modelConfigured: Boolean(
-          nextConnection.model && nextState.apiKeyConfigured,
-        ),
-      })
-      setStatus('API 密钥已保存。')
-      window.dispatchEvent(new Event('desktop:model-provider-changed'))
-      if (providerID === 'deepseek') {
-        const result = await desktopClient.fetchProviderBalance({
-          providerID,
-          baseURL: baseURL.trim() || nextState.baseURL,
-        })
-        setBalanceStatus(formatBalanceStatus(result))
-        if (result.error) setModelError(result.error)
-      }
-    } catch (error) {
-      showOperationError(error)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function clearApiKey(): Promise<void> {
-    if (!apiKeyConfigured) return
-    setBusy(true)
-    setModelError(null)
-    try {
-      const nextState = await desktopClient.deleteProviderApiKey(providerID)
-      setApiKey('')
-      const [nextProviders, nextIntegrations] = await Promise.all([
-        desktopClient.listModelProviders(),
-        desktopClient.listIntegrations(),
-      ])
-      setProviders(nextProviders)
-      setIntegrations(nextIntegrations)
+      setApiKeys(nextKeys)
       applyProviderState(nextState)
-      setStatus(
-        nextState.apiKeyConfigured
-          ? `应用内 API 密钥已删除，当前仍使用 ${nextState.apiKeySource ?? '其他凭据'}。`
-          : 'API 密钥已删除。',
-      )
+      setStatus('当前 API Key 已切换。')
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
     } catch (error) {
       showOperationError(error)
@@ -580,7 +538,7 @@ const nextState = await desktopClient.saveModelProvider({
         <div className="settings-page-header">
           <h2 className="settings-page-title">模型</h2>
           <p className="settings-page-desc">
-            管理模型供应商、模型、API key、Base URL 和连接状态。已有会话会继续使用创建时保存的配置快照。
+            Provider Hub 管理模型与连接，API Key Hub 集中保存、切换和安全复制密钥。已有会话会继续使用创建时保存的配置快照。
           </p>
         </div>
 
@@ -670,7 +628,7 @@ const nextState = await desktopClient.saveModelProvider({
           description={
             oauthMethod
               ? `通过 ${oauthMethod.label} 完成授权连接。`
-              : 'API 密钥按供应商 ID 保存在安全存储中。'
+              : '选择当前 API Key；新增、更换、复制和备用顺序在下方 API Key Hub 管理。'
           }
         >
           {oauthMethod && selectedIntegration ? (
@@ -772,16 +730,24 @@ const nextState = await desktopClient.saveModelProvider({
           ) : (
             <div className="settings-credential-panel">
               <div className="settings-credential-header">
-                <label className="settings-credential-label">API 密钥</label>
+                <label className="settings-credential-label">当前 API Key</label>
               </div>
               <div className="settings-credential-controls">
-                <Input
-                  className="settings-credential-input"
-                  value={apiKey}
-                  placeholder={apiKeyConfigured ? '输入后保存 (已配置)' : '输入后保存'}
-                  type="password"
-                  onChange={event => setApiKey(event.target.value)}
-                />
+                {providerApiKeys.length > 0 ? (
+                  <SettingsDropdown
+                    width={340}
+                    ariaLabel="当前 API Key"
+                    value={activeApiKey?.id ?? ''}
+                    options={providerApiKeys.filter(key => key.enabled).map(key => ({
+                      value: key.id,
+                      label: `${key.label} · ${key.maskedValue}`,
+                      detail: key.enabled ? formatApiKeyHealth(key) : '已停用',
+                    }))}
+                    onChange={value => void selectActiveApiKey(value)}
+                  />
+                ) : (
+                  <span className="settings-credential-empty">尚未保存应用内 API Key</span>
+                )}
                 <span className={`settings-chip ${apiKeyConfigured ? 'ok' : 'warn'}`}>
                   {formatApiKeyState(apiKeySource, apiKeyConfigured)}
                 </span>
@@ -789,26 +755,15 @@ const nextState = await desktopClient.saveModelProvider({
                   <Button
                     disabled={busy}
                     type="button"
-                    onClick={() => void saveApiKey()}
+                    onClick={() => document.getElementById('api-key-hub')?.scrollIntoView({ behavior: 'smooth' })}
                   >
-                    保存
+                    添加 Key
                   </Button>
-                  <Button
-                    tone="danger"
-                    disabled={
-                      busy ||
-                      !apiKeyConfigured ||
-                      apiKeySource !== 'secureStorage'
-                    }
-                    title={
-                      apiKeyConfigured && apiKeySource !== 'secureStorage'
-                        ? '当前凭据来自环境变量，不能在应用内删除'
-                        : undefined
-                    }
+                  <Button variant="ghost"
                     type="button"
-                    onClick={() => void clearApiKey()}
+                    onClick={() => document.getElementById('api-key-hub')?.scrollIntoView({ behavior: 'smooth' })}
                   >
-                    删除
+                    转到 API Key Hub
                   </Button>
                 </div>
               </div>
@@ -1014,6 +969,18 @@ const nextState = await desktopClient.saveModelProvider({
             }
           />
         </SettingsSection>
+
+        <div id="api-key-hub">
+          <ApiKeyHub
+            providers={providers.filter(provider => {
+              const integration = integrations.find(item => item.id === provider.integrationID)
+              return !integration?.methods.some(method => method.type === 'oauth')
+            })}
+            selectedProviderId={providerID}
+            onError={onError}
+            onChanged={handleApiKeysChanged}
+          />
+        </div>
       </div>
     </SettingsContentArea>
   )
@@ -1159,7 +1126,15 @@ function formatCompactNumber(value: number): string {
 
 function formatApiKeyState(source: string | null, configured: boolean): string {
   if (!configured) return '未配置'
-  return '已配置'
+  return source === 'secureStorage' ? '已配置' : '环境变量'
+}
+
+function formatApiKeyHealth(key: DesktopApiKeySummary): string {
+  if (key.health.status === 'healthy') return key.active ? '当前 · 健康' : '备用 · 健康'
+  if (key.health.status === 'auth-failed') return '鉴权失败'
+  if (key.health.status === 'rate-limited') return '限流冷却中'
+  if (key.health.status === 'error') return '测试异常'
+  return '未测试'
 }
 
 function formatBalanceStatus(result: DesktopProviderBalanceResult): string {

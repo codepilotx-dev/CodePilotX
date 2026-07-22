@@ -1,7 +1,7 @@
 import { Effect } from "effect"
 import type { Model } from "@codepilotx/model-schema"
 import { createBuiltinProviderPlugins, createPluginHost } from "@codepilotx/provider-plugin"
-import { createProviderRuntime, type ProviderConfig } from "@codepilotx/provider-runtime"
+import { createProviderRuntime, type CredentialPoolSource, type ProviderConfig } from "@codepilotx/provider-runtime"
 import { loadConfig } from "./config/Config"
 import { AgentDatabase } from "./storage/Database"
 import { EventHub } from "./storage/EventHub"
@@ -19,6 +19,7 @@ import { SqliteAgentSession } from "./storage/SqliteAgentSession"
 import { createApp } from "./transport/server"
 import { AgentLogger } from "./observability/AgentLogger"
 import { IntegrationService } from "./provider/IntegrationService"
+import { ApiKeyService } from "./provider/ApiKeyService"
 import { AnthropicSandboxRuntimeAdapter } from "./sandbox/SandboxRuntimeAdapter"
 import { SubagentService } from "./subagent/SubagentService"
 import { SubagentWorkspaceCoordinator } from "./subagent/SubagentWorkspaceCoordinator"
@@ -42,6 +43,7 @@ export const bootstrap = Effect.gen(function* () {
   const db = new AgentDatabase(config.databasePath)
   const hub = yield* EventHub.make
   const credentials = new EncryptedCredentialRepository(db)
+  yield* credentials.backfillApiKeyMetadata()
   const github = new GithubService(credentials, {
     getConfiguredClientId: () => {
       const settings = db.getSetting<Record<string, unknown>>("desktop.settings.v1")
@@ -57,6 +59,11 @@ export const bootstrap = Effect.gen(function* () {
   )
   const pluginHost = createPluginHost({ builtins: createBuiltinProviderPlugins() })
   let integrations: IntegrationService
+  const credentialPool: CredentialPoolSource = {
+    get: (providerID) => integrations.credentialSource().get(providerID),
+    candidates: (providerID) => integrations.credentialSource().candidates(providerID),
+    report: (outcome) => integrations.credentialSource().report(outcome),
+  }
   const providers = createProviderRuntime({
     cachePath: config.modelCachePath,
     source: config.modelsDevURL,
@@ -71,13 +78,18 @@ export const bootstrap = Effect.gen(function* () {
         ...(defaultModel ? { default: defaultModel } : {}),
       }
     },
-    credentials: {
-      get: (providerID) => integrations.credentialSource().get(providerID),
-    },
+    credentials: credentialPool,
     pluginHost,
   })
   integrations = new IntegrationService(providers, pluginHost, credentials)
-  yield* Effect.promise(() => providers.models().then(() => undefined))
+  const apiKeys = new ApiKeyService(providers, integrations, credentials)
+  yield* Effect.promise(async () => {
+    await providers.models()
+    // ProviderRuntime 的凭据查询使用 provider ID，先通过集成目录建立
+    // provider -> integration 映射，再重载一次以便重启后立即恢复存储的 Key 池。
+    await integrations.list()
+    await providers.reload()
+  })
   const tools = new ToolRegistry()
   const sandbox = new AnthropicSandboxRuntimeAdapter(config.srtWinPath)
   const reviewer = new ReviewerService(db, providers)
@@ -160,6 +172,6 @@ export const bootstrap = Effect.gen(function* () {
   const subagents = new SubagentService(db, hub, providers, approvals, questions, orchestrator, attachments, subagentWorkspaces, config.dataDir, memory, hooks)
   const threads = new ThreadService(db, hub, providers, approvals, questions, orchestrator, subagents, attachments, config.dataDir, memory, hooks, review)
   const history = new ThreadHistoryService(db, hub)
-  const app = createApp({ config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, memory, hooks, logger, sandbox, review, github })
+  const app = createApp({ config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, logger, sandbox, review, github })
   return { config, db, app, logger, providers, sandbox }
 })

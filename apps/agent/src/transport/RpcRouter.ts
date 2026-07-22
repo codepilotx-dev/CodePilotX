@@ -18,6 +18,7 @@ import { AgentError, type SendStrategy, type SubmitMessage, type TaskMode } from
 import type { ApprovalService } from "../permission/ApprovalService"
 import type { QuestionService } from "../session/QuestionService"
 import type { IntegrationService } from "../provider/IntegrationService"
+import type { ApiKeyService } from "../provider/ApiKeyService"
 import type { ThreadHistoryService } from "../session/ThreadHistoryService"
 import type { ThreadService } from "../session/ThreadService"
 import type { AgentDatabase } from "../storage/Database"
@@ -71,6 +72,7 @@ export type RpcRouterDependencies = {
   attachments: AttachmentService
   providers: ProviderRuntime
   integrations: IntegrationService
+  apiKeys: ApiKeyService
   memory: MemoryService
   hooks: HookService
   sandbox: SandboxRuntimeAdapter
@@ -253,7 +255,7 @@ export class RpcRouter {
   }
 
   private async dispatch(method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, memory, sandbox, review, github } = this.dependencies
+    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, sandbox, review, github } = this.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "initialize":
@@ -897,6 +899,83 @@ export class RpcRouter {
           catalogVersion: catalog.catalogVersion,
         }
       }
+      case "apiKey/list": {
+        return {
+          apiKeys: await apiKeys.list(typeof params.providerId === "string" ? params.providerId : undefined),
+        }
+      }
+      case "apiKey/create": {
+        const apiKey = await apiKeys.create({
+          providerID: stringParam(params, "providerId"),
+          label: stringParam(params, "label"),
+          key: stringParam(params, "key"),
+        })
+        await providers.reload()
+        await this.emitIntegration("integration/updated", await this.providerIntegrationID(String(apiKey.providerId)))
+        await this.publishCatalogUpdated()
+        return { apiKey }
+      }
+      case "apiKey/update": {
+        const apiKey = await apiKeys.update({
+          credentialID: stringParam(params, "credentialId"),
+          ...(typeof params.label === "string" ? { label: params.label } : {}),
+          ...(typeof params.key === "string" ? { key: params.key } : {}),
+        })
+        await providers.reload()
+        await this.emitIntegration("integration/updated", await this.providerIntegrationID(String(apiKey.providerId)))
+        await this.publishCatalogUpdated()
+        return { apiKey }
+      }
+      case "apiKey/setActive": {
+        const apiKey = await apiKeys.setActive(
+          stringParam(params, "providerId"),
+          stringParam(params, "credentialId"),
+        )
+        await providers.reload()
+        await this.emitIntegration("integration/updated", await this.providerIntegrationID(String(apiKey.providerId)))
+        await this.publishCatalogUpdated()
+        return { apiKey }
+      }
+      case "apiKey/setEnabled": {
+        const apiKey = await apiKeys.setEnabled(
+          stringParam(params, "credentialId"),
+          booleanParam(params, "enabled"),
+        )
+        await providers.reload()
+        await this.emitIntegration("integration/updated", await this.providerIntegrationID(String(apiKey.providerId)))
+        await this.publishCatalogUpdated()
+        return { apiKey }
+      }
+      case "apiKey/reorder": {
+        if (!Array.isArray(params.orderedCredentialIds) || params.orderedCredentialIds.some((id) => typeof id !== "string")) {
+          throw new AgentError("INVALID_REQUEST", "orderedCredentialIds 参数无效", 400)
+        }
+        const providerID = stringParam(params, "providerId")
+        const apiKeyList = await apiKeys.reorder(providerID, params.orderedCredentialIds as string[])
+        await this.emitIntegration("integration/updated", await this.providerIntegrationID(providerID))
+        return { apiKeys: apiKeyList }
+      }
+      case "apiKey/test": {
+        const credentialID = stringParam(params, "credentialId")
+        try {
+          const apiKey = await apiKeys.test(credentialID)
+          await this.emitIntegration("integration/updated", await this.providerIntegrationID(String(apiKey.providerId)))
+          return { apiKey }
+        } catch (cause) {
+          const summary = (await apiKeys.list()).find((item) => String(item.id) === credentialID)
+          if (summary) await this.emitIntegration("integration/updated", await this.providerIntegrationID(String(summary.providerId)))
+          throw cause
+        }
+      }
+      case "apiKey/delete": {
+        const credentialID = stringParam(params, "credentialId")
+        const before = (await apiKeys.list()).find((item) => String(item.id) === credentialID)
+        const apiKeyList = await apiKeys.delete(credentialID)
+        await providers.reload()
+        if (before) await this.emitIntegration("integration/updated", await this.providerIntegrationID(String(before.providerId)))
+        await this.publishCatalogUpdated()
+        return { apiKeys: apiKeyList }
+      }
       case "integration/list": {
         const listed = await integrations.list()
         return {
@@ -1460,6 +1539,11 @@ export class RpcRouter {
     return integration
   }
 
+  private async providerIntegrationID(providerID: string) {
+    const provider = (await this.dependencies.providers.list()).find((item) => String(item.id) === providerID)
+    return String(provider?.integrationID ?? providerID)
+  }
+
   private async emit(method: string, params: unknown) {
     await publishAgentEvent(this.dependencies.db, this.dependencies.hub, null, null, method, params)
   }
@@ -1636,6 +1720,12 @@ const stringParam = (params: Record<string, unknown>, ...names: string[]) => {
     if (typeof value === "string" && value) return value
   }
   throw new AgentError("INVALID_REQUEST", `${names[0]} 参数无效`, 400)
+}
+
+const booleanParam = (params: Record<string, unknown>, name: string) => {
+  const value = params[name]
+  if (typeof value !== "boolean") throw new AgentError("INVALID_REQUEST", `${name} 参数无效`, 400)
+  return value
 }
 
 const positiveIntegerParam = (params: Record<string, unknown>, name: string) => {

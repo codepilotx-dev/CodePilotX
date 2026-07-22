@@ -101,6 +101,30 @@ export interface CredentialSource {
   readonly get: (providerID: Provider.ID) => Awaitable<Credential.Value | string | undefined>
 }
 
+export interface CredentialCandidate {
+  readonly credentialId: Credential.ID
+  readonly revision: number
+  readonly value: Credential.Value | string
+  readonly active: boolean
+  readonly priority: number
+  readonly cooldownUntil?: number
+}
+
+export type CredentialOutcome = {
+  readonly providerID: Provider.ID
+  readonly credentialId: Credential.ID
+  readonly revision: number
+  readonly activeCredentialId?: Credential.ID
+  readonly result: "success" | "authentication" | "rate-limit"
+  readonly retryAfterMs?: number
+  readonly occurredAt: number
+}
+
+export interface CredentialPoolSource extends CredentialSource {
+  readonly candidates: (providerID: Provider.ID) => Awaitable<readonly CredentialCandidate[]>
+  readonly report: (outcome: CredentialOutcome) => Awaitable<void>
+}
+
 export interface ProviderRuntimeExtension {
   readonly transformCatalog?: (catalog: ProviderCatalog) => Awaitable<ProviderCatalog>
   readonly providerOptions?: (

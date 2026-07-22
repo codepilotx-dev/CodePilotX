@@ -214,7 +214,7 @@ export const SETTINGS_GROUPS = [
         id: 'connections',
         routeId: 'connections',
         label: '模型',
-        description: '模型供应商、凭据、连接测试和 Router',
+        description: 'Provider Hub、API Key Hub、模型和连接测试',
         icon: Box,
         rows: [
           row('供应商', '选择新会话使用的模型供应商'),

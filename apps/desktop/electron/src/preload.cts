@@ -41,6 +41,10 @@ const desktop = {
     ipcRenderer.invoke("desktop-settings:get"),
   saveDesktopSettings: (settings: unknown): Promise<unknown> =>
     ipcRenderer.invoke("desktop-settings:save", settings),
+  copyProviderApiKey: (
+    credentialId: string,
+  ): Promise<{ clearAfterMs: 60000 }> =>
+    ipcRenderer.invoke("api-key:copy", credentialId),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke("shell:open-external", url),
   listExternalOpenTargets: (targetPath: string): Promise<DesktopExternalOpenTarget[]> =>
     ipcRenderer.invoke("shell:list-external-open-targets", targetPath),

@@ -63,6 +63,7 @@ import type {
   DesktopModelSelection,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
+  DesktopApiKeySummary,
   DesktopModelMetadata,
   DesktopPermissionDecision,
   DesktopPermissionMode,
@@ -148,6 +149,7 @@ type DesktopClientWindow = {
     saveAppearanceSettings?(settings: unknown): Promise<unknown>
     getDesktopSettings?(): Promise<unknown>
     saveDesktopSettings?(settings: unknown): Promise<unknown>
+    copyProviderApiKey?(credentialId: string): Promise<{ clearAfterMs: 60000 }>
     getSystemTheme?(): Promise<'light' | 'dark'>
     onSystemThemeChange?(
       listener: (theme: 'light' | 'dark') => void,
@@ -2036,6 +2038,102 @@ function createAgentSessionDesktopClient(
       }
       return nextState
     },
+    listApiKeys: providerId =>
+      withAgentOrMock(
+        async () => {
+          const result = await rpc.call<{ apiKeys: DesktopApiKeySummary[] }>(
+            'apiKey/list',
+            providerId ? { providerId } : {},
+          )
+          return result.apiKeys
+        },
+        () => mockClient.listApiKeys(providerId),
+      ),
+    createApiKey: input =>
+      withAgentOrMock(
+        async () => {
+          await rpc.call<void>('apiKey/create', {
+            ...input,
+            operationId: crypto.randomUUID(),
+          })
+          integrationsCache = null
+          invalidateModelCatalog()
+        },
+        () => mockClient.createApiKey(input),
+      ),
+    updateApiKey: input =>
+      withAgentOrMock(
+        async () => {
+          await rpc.call<void>('apiKey/update', {
+            ...input,
+            operationId: crypto.randomUUID(),
+          })
+          integrationsCache = null
+          invalidateModelCatalog()
+        },
+        () => mockClient.updateApiKey(input),
+      ),
+    setActiveApiKey: (providerId, credentialId) =>
+      withAgentOrMock(
+        async () => {
+          await rpc.call<void>('apiKey/setActive', {
+            providerId,
+            credentialId,
+            operationId: crypto.randomUUID(),
+          })
+          integrationsCache = null
+          invalidateModelCatalog()
+        },
+        () => mockClient.setActiveApiKey(providerId, credentialId),
+      ),
+    setApiKeyEnabled: (credentialId, enabled) =>
+      withAgentOrMock(
+        async () => {
+          await rpc.call<void>('apiKey/setEnabled', {
+            credentialId,
+            enabled,
+            operationId: crypto.randomUUID(),
+          })
+          integrationsCache = null
+          invalidateModelCatalog()
+        },
+        () => mockClient.setApiKeyEnabled(credentialId, enabled),
+      ),
+    reorderApiKeys: (providerId, orderedCredentialIds) =>
+      withAgentOrMock(
+        async () => {
+          await rpc.call<void>('apiKey/reorder', {
+            providerId,
+            orderedCredentialIds,
+            operationId: crypto.randomUUID(),
+          })
+        },
+        () => mockClient.reorderApiKeys(providerId, orderedCredentialIds),
+      ),
+    testApiKey: credentialId =>
+      withAgentOrMock(
+        async () => {
+          await rpc.call<void>('apiKey/test', { credentialId })
+        },
+        () => mockClient.testApiKey(credentialId),
+      ),
+    deleteApiKey: credentialId =>
+      withAgentOrMock(
+        async () => {
+          await rpc.call<void>('apiKey/delete', {
+            credentialId,
+            operationId: crypto.randomUUID(),
+          })
+          integrationsCache = null
+          invalidateModelCatalog()
+        },
+        () => mockClient.deleteApiKey(credentialId),
+      ),
+    copyProviderApiKey: credentialId => {
+      const copy = environment.window?.codePilotXDesktop?.copyProviderApiKey
+      if (!copy) throw new Error('安全复制仅在桌面应用中可用。')
+      return copy(credentialId)
+    },
     testModelProvider: async providerID => {
       const directory = await loadProviderCatalog()
       const provider = directory.providers.find(item => item.id === providerID)
@@ -2994,6 +3092,17 @@ function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     },
     saveProviderApiKey: async () => providerState(),
     deleteProviderApiKey: async () => providerState(),
+    listApiKeys: async () => [],
+    createApiKey: async () => undefined,
+    updateApiKey: async () => undefined,
+    setActiveApiKey: async () => undefined,
+    setApiKeyEnabled: async () => undefined,
+    reorderApiKeys: async () => undefined,
+    testApiKey: async () => undefined,
+    deleteApiKey: async () => undefined,
+    copyProviderApiKey: async () => {
+      throw new Error('安全复制仅在桌面应用中可用。')
+    },
     testModelProvider: async () => ({ ok: true }),
     listIntegrations: async () => [],
     connectIntegration: async () => ({ ok: true }),

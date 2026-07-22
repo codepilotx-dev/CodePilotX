@@ -141,7 +141,7 @@ describe("数据库迁移", () => {
     const before = (await stat(path)).size
 
     const migrated = new AgentDatabase(path)
-    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 13 })
+    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     expect(migrated.sqlite.query("SELECT method FROM events ORDER BY id").all()).toEqual([{ method: "thread/updated" }])
     migrated.close()
 
@@ -162,7 +162,7 @@ describe("数据库迁移", () => {
 
     const recovered = new AgentDatabase(path)
     expect(recovered.getThread(thread.id)?.title).toBe("替换前保留")
-    expect(recovered.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 13 })
+    expect(recovered.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     recovered.close()
     expect((await readdir(root)).some((name) => name.includes("v12-replaced"))).toBe(false)
   })

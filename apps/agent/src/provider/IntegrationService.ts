@@ -1,6 +1,6 @@
 import { Connection, Credential, Integration, Provider } from "@codepilotx/model-schema"
 import type { AuthRegistration, HookSpec, PluginHost } from "@codepilotx/provider-plugin"
-import type { CredentialSource, ProviderRuntime } from "@codepilotx/provider-runtime"
+import type { CredentialOutcome, CredentialPoolSource, ProviderRuntime } from "@codepilotx/provider-runtime"
 import { Effect, Schema } from "effect"
 import type { EncryptedCredentialRepository } from "../auth/EncryptedCredentialRepository"
 import { AgentError } from "../domain"
@@ -33,7 +33,10 @@ const PROVIDER_ENV_NAMES: Readonly<Record<string, readonly string[]>> = {
 
 type Runtime = Pick<ProviderRuntime, "list">
 type Host = Pick<PluginHost<HookSpec>, "integrations" | "authRegistrations">
-type CredentialRepository = Pick<EncryptedCredentialRepository, "list" | "get" | "set" | "remove">
+type CredentialRepository = Pick<EncryptedCredentialRepository,
+  "list" | "listApiKeys" | "get" | "getById" | "set" | "remove" | "setActive" |
+  "compareAndSetActive" | "updateHealth"
+>
 type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
 
 export interface IntegrationServiceOptions {
@@ -330,10 +333,72 @@ export class IntegrationService {
     }
   }
 
-  credentialSource(): CredentialSource {
+  credentialSource(): CredentialPoolSource {
     return {
       get: (providerID) => this.credentialForProvider(providerID),
+      candidates: (providerID) => this.credentialCandidates(providerID),
+      report: (outcome) => this.reportCredentialOutcome(outcome),
     }
+  }
+
+  private async credentialCandidates(providerID: Provider.ID) {
+    const integrationID = this.integrationByProvider.get(String(providerID)) ?? Integration.ID.make(String(providerID))
+    const now = this.now()
+    const result = []
+    for (const summary of this.credentials.listApiKeys(String(integrationID))) {
+      if (!summary.enabled || summary.health.status === "auth-failed") continue
+      const stored = await Effect.runPromise(this.credentials.getById<Credential.Value>(summary.id))
+      if (!stored || !Schema.is(Credential.Value)(stored.value)) continue
+      result.push({
+        credentialId: Credential.ID.make(summary.id),
+        revision: summary.updatedAt,
+        value: stored.value,
+        active: summary.active,
+        priority: summary.priority,
+        ...(summary.health.cooldownUntil !== null && summary.health.cooldownUntil > now
+          ? { cooldownUntil: summary.health.cooldownUntil }
+          : {}),
+      })
+    }
+    return result
+  }
+
+  private async reportCredentialOutcome(outcome: CredentialOutcome) {
+    const summary = this.credentials.listApiKeys().find((item) => item.id === String(outcome.credentialId))
+    if (!summary || summary.updatedAt !== outcome.revision) return
+    if (outcome.result === "authentication") {
+      await Effect.runPromise(this.credentials.updateHealth(summary.id, {
+        status: "auth-failed",
+        lastUsedAt: outcome.occurredAt,
+        lastErrorCategory: "authentication",
+        cooldownUntil: null,
+      }))
+      return
+    }
+    if (outcome.result === "rate-limit") {
+      const retryAfterMs = Math.min(24 * 60 * 60_000, Math.max(0, outcome.retryAfterMs ?? 60_000))
+      await Effect.runPromise(this.credentials.updateHealth(summary.id, {
+        status: "rate-limited",
+        lastUsedAt: outcome.occurredAt,
+        lastErrorCategory: "rate-limit",
+        cooldownUntil: outcome.occurredAt + retryAfterMs,
+      }))
+      return
+    }
+    await Effect.runPromise(this.credentials.updateHealth(summary.id, {
+      status: "healthy",
+      lastUsedAt: outcome.occurredAt,
+      lastErrorCategory: null,
+      cooldownUntil: null,
+    }))
+    if (!outcome.activeCredentialId || String(outcome.activeCredentialId) === summary.id) return
+    const active = this.credentials.listApiKeys(summary.integrationID).find((item) => item.active)
+    if (active?.id !== String(outcome.activeCredentialId) || active.health.status !== "auth-failed") return
+    await Effect.runPromise(this.credentials.compareAndSetActive(
+      summary.integrationID,
+      String(outcome.activeCredentialId),
+      summary.id,
+    ))
   }
 
   private async integration(integrationID: string): Promise<Integration.Info> {

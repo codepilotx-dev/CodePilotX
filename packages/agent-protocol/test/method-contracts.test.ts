@@ -314,6 +314,19 @@ const modelCatalog = {
   catalogVersion: 1,
 }
 
+const apiKeySummary = {
+  id: credentialId,
+  providerId,
+  label: "Fixture API Key",
+  maskedValue: "••••test",
+  enabled: true,
+  active: true,
+  priority: 0,
+  health: { status: "healthy" as const, lastTestedAt: 1, lastUsedAt: 2 },
+  createdAt: 1,
+  updatedAt: 2,
+}
+
 const methodFixture = <M extends RpcMethod>(
   _method: M,
   params: RpcParams<M>,
@@ -693,6 +706,39 @@ const fixtures = {
     },
     catalogVersion: 2,
   }),
+  "apiKey/list": methodFixture("apiKey/list", { providerId }, { apiKeys: [apiKeySummary] }),
+  "apiKey/create": methodFixture("apiKey/create", {
+    providerId,
+    label: "Fixture API Key",
+    key: "fixture-secret",
+    operationId: "operation:api-key-create",
+  }, { apiKey: apiKeySummary }),
+  "apiKey/update": methodFixture("apiKey/update", {
+    credentialId,
+    label: "Updated API Key",
+    key: "updated-secret",
+    operationId: "operation:api-key-update",
+  }, { apiKey: { ...apiKeySummary, label: "Updated API Key" } }),
+  "apiKey/setActive": methodFixture("apiKey/setActive", {
+    providerId,
+    credentialId,
+    operationId: "operation:api-key-active",
+  }, { apiKey: apiKeySummary }),
+  "apiKey/setEnabled": methodFixture("apiKey/setEnabled", {
+    credentialId,
+    enabled: true,
+    operationId: "operation:api-key-enabled",
+  }, { apiKey: apiKeySummary }),
+  "apiKey/reorder": methodFixture("apiKey/reorder", {
+    providerId,
+    orderedCredentialIds: [credentialId],
+    operationId: "operation:api-key-reorder",
+  }, { apiKeys: [apiKeySummary] }),
+  "apiKey/test": methodFixture("apiKey/test", { credentialId }, { apiKey: apiKeySummary }),
+  "apiKey/delete": methodFixture("apiKey/delete", {
+    credentialId,
+    operationId: "operation:api-key-delete",
+  }, { apiKeys: [] }),
   "integration/list": methodFixture("integration/list", { kind: "oauth", status: "connected" }, { integrations: [integrationInfo] }),
   "integration/connect": methodFixture("integration/connect", {
     integrationId,
@@ -1013,9 +1059,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 93 formal methods decodable", () => {
+  test("keeps valid params and results for all 101 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(93)
+    expect(methods).toHaveLength(101)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -1159,6 +1205,32 @@ describe("RPC method schema contracts", () => {
         ...fixtures["provider/updateSettings"].result.provider,
         sensitiveHeaders: [{ name: "authorization", value: "fixture-secret" }],
       },
+    })).toThrow()
+
+    const createParams = Schema.decodeUnknownSync(
+      RpcMethods["apiKey/create"].params,
+      { onExcessProperty: "error" },
+    )(fixtures["apiKey/create"].params)
+    expect(createParams.key).toBe("fixture-secret")
+    expect(() => Schema.decodeUnknownSync(
+      RpcMethods["apiKey/create"].result,
+      { onExcessProperty: "error" },
+    )({
+      ...fixtures["apiKey/create"].result,
+      key: "fixture-secret",
+    })).toThrow()
+
+    const updateParams = Schema.decodeUnknownSync(
+      RpcMethods["apiKey/update"].params,
+      { onExcessProperty: "error" },
+    )(fixtures["apiKey/update"].params)
+    expect(updateParams.key).toBe("updated-secret")
+    expect(() => Schema.decodeUnknownSync(
+      RpcMethods["apiKey/update"].result,
+      { onExcessProperty: "error" },
+    )({
+      ...fixtures["apiKey/update"].result,
+      key: "updated-secret",
     })).toThrow()
   })
 })

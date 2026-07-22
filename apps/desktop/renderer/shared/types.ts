@@ -516,6 +516,32 @@ export type DesktopProviderModelListResult = {
   error?: string
 }
 
+export type DesktopApiKeyHealthStatus =
+  | 'untested'
+  | 'healthy'
+  | 'auth-failed'
+  | 'rate-limited'
+  | 'error'
+
+export type DesktopApiKeySummary = {
+  id: string
+  providerId: ModelProviderID
+  label: string
+  maskedValue: string
+  enabled: boolean
+  active: boolean
+  priority: number
+  health: {
+    status: DesktopApiKeyHealthStatus
+    lastTestedAt?: number
+    lastUsedAt?: number
+    errorCategory?: 'authentication' | 'rate-limit' | 'network' | 'unknown'
+    cooldownUntil?: number
+  }
+  createdAt: number
+  updatedAt: number
+}
+
 export type DesktopProviderBalanceInfo = ProviderBalanceInfo
 export type DesktopProviderTokenPlanUsageInfo = ProviderTokenPlanUsageInfo
 
@@ -1572,6 +1598,23 @@ export type DesktopApi = {
   deleteProviderApiKey(
     providerID: ModelProviderID,
   ): Promise<DesktopModelProviderState>
+  listApiKeys(providerId?: ModelProviderID): Promise<DesktopApiKeySummary[]>
+  createApiKey(input: {
+    providerId: ModelProviderID
+    label: string
+    key: string
+  }): Promise<void>
+  updateApiKey(input: {
+    credentialId: string
+    label?: string
+    key?: string
+  }): Promise<void>
+  setActiveApiKey(providerId: ModelProviderID, credentialId: string): Promise<void>
+  setApiKeyEnabled(credentialId: string, enabled: boolean): Promise<void>
+  reorderApiKeys(providerId: ModelProviderID, orderedCredentialIds: string[]): Promise<void>
+  testApiKey(credentialId: string): Promise<void>
+  deleteApiKey(credentialId: string): Promise<void>
+  copyProviderApiKey(credentialId: string): Promise<{ clearAfterMs: 60000 }>
   testModelProvider(providerID: ModelProviderID): Promise<ProviderTestResponse>
   listIntegrations(): Promise<DesktopIntegration[]>
   connectIntegration(input: DesktopIntegrationConnectRequest): Promise<OkResponse>

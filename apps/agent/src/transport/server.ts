@@ -15,6 +15,7 @@ import { RpcRouter } from "./RpcRouter"
 import { proxyRendererRequest } from "./RendererProxy"
 import type { AgentLogger } from "../observability/AgentLogger"
 import type { IntegrationService } from "../provider/IntegrationService"
+import type { ApiKeyService } from "../provider/ApiKeyService"
 import type { SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
 import type { SubagentService } from "../subagent/SubagentService"
 import type { AttachmentService } from "../subagent/AttachmentService"
@@ -35,6 +36,7 @@ export interface TransportDependencies {
   attachments: AttachmentService
   providers: ProviderRuntime
   integrations: IntegrationService
+  apiKeys: ApiKeyService
   memory: MemoryService
   hooks: HookService
   sandbox: SandboxRuntimeAdapter
@@ -98,9 +100,9 @@ const eventNextNotification = (
 }
 
 export const createApp = (dependencies: TransportDependencies) => {
-  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, memory, hooks, sandbox, review, github, logger } = dependencies
+  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, memory, hooks, sandbox, review, github })
+  const rpc = new RpcRouter({ db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, sandbox, review, github })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)
@@ -127,6 +129,21 @@ export const createApp = (dependencies: TransportDependencies) => {
   })
 
   app.get("/health", (context) => context.json({ ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid }))
+
+  app.post("/api/desktop/api-keys/:credentialId/copy-material", async (context) => {
+    const bearer = context.req.header("Authorization")?.replace(/^Bearer\s+/i, "")
+    if (!config.authToken || bearer !== config.authToken) {
+      throw new AgentError("PERMISSION_DENIED", "安全复制仅允许桌面主进程调用", 403)
+    }
+    const credentialID = context.req.param("credentialId")
+    if (!/^cred_[0-9a-f-]{36}$/i.test(credentialID)) {
+      throw new AgentError("INVALID_REQUEST", "API Key 标识无效", 400)
+    }
+    const key = await apiKeys.copyMaterial(credentialID)
+    context.header("Cache-Control", "no-store, max-age=0")
+    context.header("Pragma", "no-cache")
+    return context.json({ key })
+  })
 
   app.use("/api/*", async (context, next) => {
     if (!config.authToken) return next()

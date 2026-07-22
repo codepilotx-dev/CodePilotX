@@ -1,7 +1,13 @@
 import type { Credential, Model, Provider } from "@codepilotx/model-schema"
 import { Integration, Model as ModelSchema, Provider as ProviderSchema } from "@codepilotx/model-schema"
 import type { ProviderCatalog } from "@codepilotx/provider-plugin"
-import type { LanguageModelV3 } from "@ai-sdk/provider"
+import type {
+  LanguageModelV3,
+  LanguageModelV3CallOptions,
+  LanguageModelV3GenerateResult,
+  LanguageModelV3StreamPart,
+  LanguageModelV3StreamResult,
+} from "@ai-sdk/provider"
 import { Effect } from "effect"
 import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises"
 import { dirname } from "node:path"
@@ -16,6 +22,9 @@ import type {
   ProviderConfig,
   ProviderLoader,
   BundledSDK,
+  CredentialCandidate,
+  CredentialOutcome,
+  CredentialPoolSource,
   ProviderRuntimeExtension,
   ProviderRuntimeOptions,
   RuntimeConfig,
@@ -119,6 +128,62 @@ function credentialKey(value: Credential.Value | string | undefined) {
   if (value?.type === "key") return value.key
   if (value?.type === "oauth") return value.access
   return undefined
+}
+
+const MAX_RETRY_AFTER_MS = 24 * 60 * 60 * 1_000
+const DEFAULT_RETRY_AFTER_MS = 60_000
+
+function credentialPool(source: ProviderRuntimeOptions["credentials"]): CredentialPoolSource | undefined {
+  if (!source || !("candidates" in source) || typeof source.candidates !== "function" || !("report" in source) || typeof source.report !== "function") {
+    return undefined
+  }
+  return source as unknown as CredentialPoolSource
+}
+
+function errorStatus(error: unknown): number | undefined {
+  let current = error
+  const visited = new Set<object>()
+  while (isObject(current) && !visited.has(current)) {
+    visited.add(current)
+    if (typeof current.statusCode === "number") return current.statusCode
+    if (typeof current.status === "number") return current.status
+    current = current.cause
+  }
+  return undefined
+}
+
+function errorHeaders(error: unknown): Headers | Readonly<Record<string, string>> | undefined {
+  let current = error
+  const visited = new Set<object>()
+  while (isObject(current) && !visited.has(current)) {
+    visited.add(current)
+    const headers = current.responseHeaders ?? current.headers
+    if (headers instanceof Headers || isObject(headers)) return headers as Headers | Readonly<Record<string, string>>
+    current = current.cause
+  }
+  return undefined
+}
+
+function retryAfterMs(error: unknown, now: number): number {
+  const headers = errorHeaders(error)
+  const value = headers instanceof Headers
+    ? headers.get("retry-after")
+    : Object.entries(headers ?? {}).find(([name]) => name.toLowerCase() === "retry-after")?.[1]
+  if (!value) return DEFAULT_RETRY_AFTER_MS
+  const seconds = Number(value)
+  const parsed = Number.isFinite(seconds) ? seconds * 1_000 : Date.parse(value) - now
+  return Math.min(MAX_RETRY_AFTER_MS, Math.max(0, Number.isFinite(parsed) ? parsed : DEFAULT_RETRY_AFTER_MS))
+}
+
+function retryableCredentialError(error: unknown, now: number): Pick<CredentialOutcome, "result" | "retryAfterMs"> | undefined {
+  const status = errorStatus(error)
+  if (status === 401 || status === 403) return { result: "authentication" }
+  if (status === 429) return { result: "rate-limit", retryAfterMs: retryAfterMs(error, now) }
+  return undefined
+}
+
+function isVisibleStreamPart(part: LanguageModelV3StreamPart): boolean {
+  return part.type !== "stream-start" && part.type !== "response-metadata"
 }
 
 function applyVariant(model: Model.Info, variantID: string): Model.Info {
@@ -298,6 +363,33 @@ export class ProviderRuntime {
 
   async getLanguage(ref: Model.Ref): Promise<LanguageModelV3> {
     const model = await this.resolve(ref)
+    const pool = credentialPool(this.input.credentials)
+    if (pool) {
+      const languageKey = stableStringify({
+        providerID: model.providerID,
+        package: model.api.type === "aisdk" ? model.api.package : undefined,
+        modelID: model.api.id,
+        variant: model.request.variant,
+        body: model.request.body,
+        headers: model.request.headers,
+        credentialPool: true,
+      })
+      const cached = this.languages.get(languageKey)
+      if (cached) return cached
+      const language = this.failoverLanguage(model, pool)
+      this.languages.set(languageKey, language)
+      return language
+    }
+    return this.createLanguage(model)
+  }
+
+  /** Builds a model for one exact stored credential without consulting or updating the candidate pool. */
+  async getLanguageForCredential(ref: Model.Ref, candidate: CredentialCandidate): Promise<LanguageModelV3> {
+    const model = await this.resolve(ref)
+    return this.createLanguage(model, candidate)
+  }
+
+  private async createLanguage(model: Model.Info, candidate?: CredentialCandidate): Promise<LanguageModelV3> {
     if (model.api.type !== "aisdk") {
       throw new ProviderRuntimeError("PROVIDER_NOT_BUNDLED", `Model ${model.providerID}/${model.id} does not use an AI SDK provider`)
     }
@@ -306,15 +398,21 @@ export class ProviderRuntime {
     if (!record) throw new ProviderRuntimeError("PROVIDER_NOT_FOUND", `Provider ${model.providerID} was not found`)
     const configurationError = state.configurationErrors.get(model.providerID)
     if (configurationError) throw new ProviderRuntimeError("PROVIDER_NOT_CONFIGURED", configurationError)
-    let baseOptions = state.options.get(model.providerID) ?? {}
+    const credential = candidate?.value ?? state.credentials.get(String(model.providerID))
+    let baseOptions: Readonly<Record<string, unknown>> = state.options.get(model.providerID) ?? {}
+    if (candidate) {
+      const { apiKey: _activeApiKey, ...candidateOptions } = baseOptions
+      const key = credentialKey(candidate.value)
+      baseOptions = key ? { ...candidateOptions, apiKey: key } : candidateOptions
+    }
     if (String(model.providerID) === "sap-ai-core") {
-      const serviceKey = credentialKey(state.credentials.get(String(model.providerID)))
+      const serviceKey = credentialKey(credential)
       if (serviceKey) process.env.AICORE_SERVICE_KEY = serviceKey
       const { apiKey: _apiKey, baseURL: _baseURL, ...sapOptions } = baseOptions
       baseOptions = sapOptions
     }
     const configuredHeaders = isObject(baseOptions.headers) ? baseOptions.headers : {}
-    const options = {
+    const options: Readonly<Record<string, unknown>> = {
       ...baseOptions,
       ...(Object.keys(model.request.headers).length ? { headers: { ...configuredHeaders, ...model.request.headers } } : {}),
     }
@@ -325,6 +423,7 @@ export class ProviderRuntime {
       variant: model.request.variant,
       body: model.request.body,
       headers: model.request.headers,
+      credential: candidate ? `${candidate.credentialId}:${candidate.revision}` : "legacy",
     })
     const cached = this.languages.get(languageKey)
     if (cached) return cached
@@ -335,7 +434,7 @@ export class ProviderRuntime {
         provider: record.provider,
         model,
         env: state.env,
-        credential: state.credentials.get(model.providerID),
+        credential,
         options,
       })
       if (customLanguage) {
@@ -352,7 +451,13 @@ export class ProviderRuntime {
       const loaders = { ...BUNDLED_PROVIDERS, ...(this.input.providerLoaders ?? {}) }
       const loader = loaders[model.api.package]
       if (!loader) throw new ProviderRuntimeError("PROVIDER_NOT_BUNDLED", `Provider package ${model.api.package} is not bundled`)
-      const sdkKey = stableStringify({ providerID: model.providerID, package: model.api.package, options })
+      const { apiKey: _apiKey, ...cacheSafeOptions } = options
+      const sdkKey = stableStringify({
+        providerID: model.providerID,
+        package: model.api.package,
+        options: cacheSafeOptions,
+        credential: candidate ? `${candidate.credentialId}:${candidate.revision}` : "legacy",
+      })
       let sdk = this.sdks.get(sdkKey)
       if (!sdk) {
         const create = await loader()
@@ -365,6 +470,162 @@ export class ProviderRuntime {
     } catch (cause) {
       if (cause instanceof ProviderRuntimeError) throw cause
       throw new ProviderRuntimeError("LANGUAGE_MODEL_FAILED", `Failed to create ${model.providerID}/${model.id}`, { cause })
+    }
+  }
+
+  private failoverLanguage(model: Model.Info, pool: CredentialPoolSource): LanguageModelV3 {
+    const runtime = this
+    const orderedCandidates = async () => {
+      const now = Date.now()
+      return [...await pool.candidates(model.providerID)]
+        .filter((candidate) => candidate.cooldownUntil === undefined || candidate.cooldownUntil <= now)
+        .sort((left, right) => Number(right.active) - Number(left.active) || left.priority - right.priority)
+    }
+    const report = async (candidate: CredentialCandidate, activeCredentialId: Credential.ID | undefined, result: CredentialOutcome["result"], retry?: number) => {
+      await Promise.resolve(pool.report({
+        providerID: model.providerID,
+        credentialId: candidate.credentialId,
+        revision: candidate.revision,
+        ...(activeCredentialId ? { activeCredentialId } : {}),
+        result,
+        ...(retry === undefined ? {} : { retryAfterMs: retry }),
+        occurredAt: Date.now(),
+      })).catch(() => undefined)
+    }
+    const generate = async (options: LanguageModelV3CallOptions): Promise<LanguageModelV3GenerateResult> => {
+      const candidates = await orderedCandidates()
+      if (candidates.length === 0) return runtime.createLanguage(model).then((language) => language.doGenerate(options))
+      const activeCredentialId = candidates.find((candidate) => candidate.active)?.credentialId
+      let lastError: unknown
+      for (const candidate of candidates) {
+        try {
+          const result = await (await runtime.createLanguage(model, candidate)).doGenerate(options)
+          await report(candidate, activeCredentialId, "success")
+          return result
+        } catch (error) {
+          const retryable = retryableCredentialError(error, Date.now())
+          if (!retryable) throw error
+          await report(candidate, activeCredentialId, retryable.result, retryable.retryAfterMs)
+          lastError = error
+        }
+      }
+      throw lastError
+    }
+    const stream = async (options: LanguageModelV3CallOptions): Promise<LanguageModelV3StreamResult> => {
+      const candidates = await orderedCandidates()
+      if (candidates.length === 0) return (await runtime.createLanguage(model)).doStream(options)
+      const activeCredentialId = candidates.find((candidate) => candidate.active)?.credentialId
+      let index = 0
+      let current: { candidate: CredentialCandidate; result: LanguageModelV3StreamResult } | undefined
+      let lastError: unknown
+      while (index < candidates.length && !current) {
+        const candidate = candidates[index++]!
+        try {
+          current = { candidate, result: await (await runtime.createLanguage(model, candidate)).doStream(options) }
+        } catch (error) {
+          const retryable = retryableCredentialError(error, Date.now())
+          if (!retryable) throw error
+          await report(candidate, activeCredentialId, retryable.result, retryable.retryAfterMs)
+          lastError = error
+        }
+      }
+      if (!current) throw lastError
+      const initial = current
+      return {
+        ...(initial.result.request ? { request: initial.result.request } : {}),
+        ...(initial.result.response ? { response: initial.result.response } : {}),
+        stream: new ReadableStream<LanguageModelV3StreamPart>({
+          start(controller) {
+            void (async () => {
+              let attempt: typeof initial | undefined = initial
+              let visible = false
+              let reportedSuccess = false
+              let endedWithError = false
+              let buffered: LanguageModelV3StreamPart[] = []
+              while (attempt) {
+                const reader = attempt.result.stream.getReader()
+                let switched = false
+                try {
+                  while (true) {
+                    const item = await reader.read()
+                    if (item.done) {
+                      if (!reportedSuccess && !endedWithError) await report(attempt.candidate, activeCredentialId, "success")
+                      for (const part of buffered) controller.enqueue(part)
+                      controller.close()
+                      return
+                    }
+                    const part = item.value
+                    const retryable = part.type === "error" ? retryableCredentialError(part.error, Date.now()) : undefined
+                    if (retryable) {
+                      await report(attempt.candidate, activeCredentialId, retryable.result, retryable.retryAfterMs)
+                      if (!visible && index < candidates.length) {
+                        await reader.cancel().catch(() => undefined)
+                        buffered = []
+                        switched = true
+                        break
+                      }
+                    }
+                    if (part.type === "error") endedWithError = true
+                    if (!visible && !isVisibleStreamPart(part)) {
+                      buffered.push(part)
+                      continue
+                    }
+                    if (!visible) {
+                      visible = true
+                      for (const pending of buffered) controller.enqueue(pending)
+                      buffered = []
+                    }
+                    if (part.type !== "error" && !reportedSuccess) {
+                      reportedSuccess = true
+                      await report(attempt.candidate, activeCredentialId, "success")
+                    }
+                    controller.enqueue(part)
+                  }
+                } catch (error) {
+                  const retryable = retryableCredentialError(error, Date.now())
+                  if (retryable) await report(attempt.candidate, activeCredentialId, retryable.result, retryable.retryAfterMs)
+                  if (!retryable || visible) throw error
+                  if (index >= candidates.length) throw error
+                  buffered = []
+                  switched = true
+                } finally {
+                  reader.releaseLock()
+                }
+                if (!switched) return
+                attempt = undefined
+                while (index < candidates.length && !attempt) {
+                  const candidate = candidates[index++]!
+                  try {
+                    attempt = { candidate, result: await (await runtime.createLanguage(model, candidate)).doStream(options) }
+                  } catch (error) {
+                    const retryable = retryableCredentialError(error, Date.now())
+                    if (!retryable) throw error
+                    await report(candidate, activeCredentialId, retryable.result, retryable.retryAfterMs)
+                    lastError = error
+                  }
+                }
+              }
+              throw lastError
+            })().catch((error) => controller.error(error))
+          },
+        }),
+      }
+    }
+    return {
+      specificationVersion: "v3",
+      provider: String(model.providerID),
+      modelId: String(model.api.id),
+      supportedUrls: {
+        then(onfulfilled, onrejected) {
+          return orderedCandidates()
+            .then(async (candidates) => await (candidates.length
+              ? (await runtime.createLanguage(model, candidates[0])).supportedUrls
+              : (await runtime.createLanguage(model)).supportedUrls))
+            .then(onfulfilled, onrejected)
+        },
+      },
+      doGenerate: generate,
+      doStream: stream,
     }
   }
 
