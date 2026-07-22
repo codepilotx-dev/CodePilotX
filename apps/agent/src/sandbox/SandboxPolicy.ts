@@ -10,6 +10,8 @@ export interface SandboxPolicyOptions {
   permissionConfig: PermissionConfig
   additionalPermissions?: AdditionalPermissions
   helperPath?: string | null
+  /** CodePilotX-validated runtime directories; never sourced from model input. */
+  trustedReadPaths?: readonly string[]
 }
 
 export interface GeneratedSandboxPolicy {
@@ -133,7 +135,7 @@ export function generateSandboxPolicy(options: SandboxPolicyOptions): GeneratedS
     ...(process.env.ProgramFiles ? [process.env.ProgramFiles] : []),
   ]))
   const systemRead = safePathDirectories()
-  const allowRead = unique([workspace, sessionTemp, ...systemRead, ...requestedRead])
+  const allowRead = unique([workspace, sessionTemp, ...systemRead, ...(options.trustedReadPaths ?? []), ...requestedRead])
   const allowWrite = unique([
     sessionTemp,
     ...(options.permissionConfig.sandboxMode === "workspace-write" ? [workspace] : []),

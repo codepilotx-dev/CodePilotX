@@ -1,16 +1,19 @@
+import { existsSync } from "node:fs"
 import { realpath } from "node:fs/promises"
-import { isAbsolute, relative, resolve } from "node:path"
+import { isAbsolute, join, relative, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { z } from "zod"
 import { AgentError } from "../domain"
 import type { ToolDefinition } from "../tool/ToolRegistry"
-import { resolveToolingExecutable } from "../tool/ToolingResources"
+import { environmentWithToolingPath, resolveToolingEnvironment, type ToolingEnvironmentResolver } from "../tool/ToolingRuntime"
+import type { ManagedToolID } from "../tool/ToolingManager"
 
 export type LspServerConfig = {
   id: string
   languages: readonly string[]
   extensions: readonly string[]
   command: readonly string[]
+  runtimeDependencies?: readonly ManagedToolID[]
   initializationOptions?: unknown
 }
 
@@ -38,9 +41,9 @@ class ProcessLspClient implements LspClient {
   private closed = false
   private readonly process: LspProcess
 
-  constructor(private readonly config: LspServerConfig, private readonly rootPath: string) {
+  constructor(private readonly config: LspServerConfig, private readonly rootPath: string, env?: NodeJS.ProcessEnv) {
     try {
-      this.process = Bun.spawn([...config.command], { cwd: rootPath, stdin: "pipe", stdout: "pipe", stderr: "pipe" }) as unknown as LspProcess
+      this.process = Bun.spawn([...config.command], { cwd: rootPath, ...(env ? { env } : {}), stdin: "pipe", stdout: "pipe", stderr: "pipe" }) as unknown as LspProcess
     } catch (cause) {
       throw new AgentError("LSP_SERVER_UNAVAILABLE", `无法启动 LSP Server ${config.id}`, 503, cause)
     }
@@ -158,15 +161,20 @@ class ProcessLspClient implements LspClient {
 const typeScriptLanguageServerCommand = () => {
   const explicit = process.env.CODEPILOTX_TYPESCRIPT_LANGUAGE_SERVER?.trim()
   if (explicit) return explicit
-  const packaged = resolveToolingExecutable("typescript-language-server")
-  return packaged.available ? packaged.path : "typescript-language-server"
+  return "typescript-language-server"
 }
+
+const TYPESCRIPT_LANGUAGE_SERVER_COMMAND = typeScriptLanguageServerCommand()
 
 export const TYPESCRIPT_LSP_CONFIG: LspServerConfig = {
   id: "typescript",
   languages: ["typescript", "typescriptreact", "javascript", "javascriptreact"],
   extensions: [".ts", ".tsx", ".js", ".jsx", ".mts", ".cts", ".mjs", ".cjs"],
-  command: [typeScriptLanguageServerCommand(), "--stdio"],
+  command: [TYPESCRIPT_LANGUAGE_SERVER_COMMAND, "--stdio"],
+  runtimeDependencies: /(?:^|[\\/])typescript-language-server(?:\.cmd)?$/i.test(TYPESCRIPT_LANGUAGE_SERVER_COMMAND)
+    || /\.(?:[cm]?js|cmd)$/i.test(TYPESCRIPT_LANGUAGE_SERVER_COMMAND)
+    ? ["nodejs"]
+    : [],
 }
 
 const position = z.object({ filePath: z.string().min(1), line: z.number().int().min(1), character: z.number().int().min(1) })
@@ -184,7 +192,10 @@ export const lspInputSchema = z.discriminatedUnion("operation", [
 export type LspToolInput = z.infer<typeof lspInputSchema>
 
 type OpenDocument = { version: number; content: string }
-type ManagerOptions = { createClient?: (config: LspServerConfig, rootPath: string) => LspClient }
+type ManagerOptions = {
+  createClient?: (config: LspServerConfig, rootPath: string, env?: NodeJS.ProcessEnv) => LspClient
+  resolveEnvironment?: ToolingEnvironmentResolver
+}
 
 const languageId = (path: string, config: LspServerConfig) => ({
   ".ts": "typescript", ".mts": "typescript", ".cts": "typescript", ".tsx": "typescriptreact",
@@ -235,11 +246,13 @@ const validateLspUris = async (rootPath: string, value: unknown): Promise<void> 
 export class LspManager {
   private readonly configs: LspServerConfig[]
   private readonly createClient: NonNullable<ManagerOptions["createClient"]>
+  private readonly resolveEnvironment: ToolingEnvironmentResolver
   private readonly connections = new Map<string, Promise<LspClient>>()
   private readonly documents = new Map<string, OpenDocument>()
   constructor(configs: LspServerConfig[] = [TYPESCRIPT_LSP_CONFIG], options: ManagerOptions = {}) {
     this.configs = configs
-    this.createClient = options.createClient ?? ((config, rootPath) => new ProcessLspClient(config, rootPath))
+    this.createClient = options.createClient ?? ((config, rootPath, env) => new ProcessLspClient(config, rootPath, env))
+    this.resolveEnvironment = options.resolveEnvironment ?? resolveToolingEnvironment
   }
 
   private configFor(path: string) {
@@ -253,7 +266,24 @@ export class LspManager {
     const key = `${config.id}\0${rootPath}`
     let connection = this.connections.get(key)
     if (!connection) {
-      connection = Promise.resolve().then(async () => { const created = this.createClient(config, rootPath); await created.initialize(); return created })
+      connection = Promise.resolve().then(async () => {
+        const required = config.runtimeDependencies ?? []
+        const runtime = required.length > 0
+          ? await this.resolveEnvironment(required)
+          : { pathEntries: [] as readonly string[], resolutions: new Map() }
+        for (const id of config.runtimeDependencies ?? []) {
+          const resolution = runtime.resolutions.get(id)
+          if (!resolution?.available) throw new AgentError("LSP_RUNTIME_UNAVAILABLE", resolution?.reason ?? `${id} 运行环境不可用`, 503, { toolingID: id })
+        }
+        let resolvedConfig = config
+        if (config.id === "typescript" && config.command[0] === "typescript-language-server") {
+          const workspaceCommand = join(rootPath, "node_modules", ".bin", process.platform === "win32" ? "typescript-language-server.cmd" : "typescript-language-server")
+          if (existsSync(workspaceCommand)) resolvedConfig = { ...config, command: [workspaceCommand, ...config.command.slice(1)] }
+        }
+        const created = this.createClient(resolvedConfig, rootPath, environmentWithToolingPath(runtime.pathEntries))
+        await created.initialize()
+        return created
+      })
       this.connections.set(key, connection); void connection.catch(() => this.connections.delete(key))
     }
     return connection

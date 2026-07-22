@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { AUTO_REVIEW_PERMISSION_CONFIG, DEFAULT_PERMISSION_CONFIG, FULL_ACCESS_PERMISSION_CONFIG, type PermissionConfig } from "@codepilotx/shared/thread"
-import { ToolExecutor } from "../src/tool/ToolExecutor"
+import { shellRuntimeDependencies, ToolExecutor } from "../src/tool/ToolExecutor"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { WorkspaceService } from "../src/workspace/WorkspaceService"
 import type { ProcessResult, SandboxedProcessRequest } from "../src/sandbox/SandboxRuntimeAdapter"
@@ -38,6 +38,73 @@ async function context(root: string, permissionConfig = config) {
 }
 
 describe("统一 Shell 执行门", () => {
+  test("只识别命令起始位置的 Node.js 与 Python 运行时", () => {
+    expect(shellRuntimeDependencies("node app.js && npm test; npx tsc | python script.py\npip install x")).toEqual(["nodejs", "python"])
+    expect(shellRuntimeDependencies("corepack enable; python3 -V; pip3 -V")).toEqual(["nodejs", "python"])
+    expect(shellRuntimeDependencies("Write-Output 'npm python'; echo node; bun run test")).toEqual([])
+    expect(shellRuntimeDependencies("Write-Output 'safe; npm test'; echo \"python | pip\"")).toEqual([])
+    expect(shellRuntimeDependencies("C:\\custom\\node.exe app.js; ./python script.py")).toEqual([])
+  })
+
+  test("Shell 仅解析命令实际需要的运行时并注入受控 PATH", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
+    tempPaths.push(root)
+    const requested: string[][] = []
+    let receivedEnv: NodeJS.ProcessEnv | undefined
+    const executor = new ToolExecutor(new ToolRegistry(), {
+      dataDir: join(root, ".agent-data"),
+      sandbox: adapter(async () => { throw new Error("not used") }),
+      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
+      resolveToolingEnvironment: async (required) => {
+        requested.push([...required])
+        return {
+          pathEntries: required.map((id) => `C:\\managed\\${id}`),
+          resolutions: new Map(required.map((id) => [id, { available: true as const, path: `C:\\managed\\${id}\\runtime.exe`, source: "managed" as const, version: "test" }])),
+        }
+      },
+      runHost: async (_command, _cwd, _timeout, _signal, env) => {
+        receivedEnv = env
+        return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false }
+      },
+    })
+
+    await executor.execute("PowerShell", { command: "npm test" }, await context(root, FULL_ACCESS_PERMISSION_CONFIG))
+    expect(requested).toEqual([["nodejs"]])
+    expect(Object.values(receivedEnv ?? {}).join(";")).toContain("C:\\managed\\nodejs")
+  })
+
+  test("SRT 只为校验通过的内置运行时增加只读路径", async () => {
+    if (process.platform !== "win32") return
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
+    tempPaths.push(root)
+    const received: SandboxedProcessRequest[] = []
+    const executor = new ToolExecutor(new ToolRegistry(), {
+      dataDir: join(root, ".agent-data"),
+      sandbox: adapter(async (request) => {
+        received.push(request)
+        return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false }
+      }),
+      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
+      resolveToolingEnvironment: async () => ({
+        pathEntries: ["C:\\CodePilotX\\nodejs"],
+        resolutions: new Map([
+          ["nodejs", { available: true as const, path: "C:\\CodePilotX\\nodejs\\node.exe", source: "managed" as const, version: "test" }],
+        ]),
+      }),
+      resolveTooling: async () => ({
+        available: true,
+        path: "C:\\CodePilotX\\git-bash\\2.55.0.3\\bin\\bash.exe",
+        source: "managed",
+        version: "test",
+      }),
+    })
+
+    await executor.execute("Bash", { command: "node --version" }, await context(root))
+    const allowRead = received[0]?.config.filesystem?.allowRead ?? []
+    expect(allowRead).toContain("C:\\CodePilotX\\nodejs")
+    expect(allowRead).toContain("C:\\CodePilotX\\git-bash\\2.55.0.3")
+  })
+
   test("Bash 在审批通过后按调用动态解析 Git Bash", async () => {
     if (process.platform !== "win32") return
     const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))

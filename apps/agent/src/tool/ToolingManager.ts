@@ -3,8 +3,9 @@ import { spawn } from "node:child_process"
 import { access, mkdir, open, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path"
+import extractZip from "extract-zip"
 
-export type ManagedToolID = "git-bash" | "ripgrep"
+export type ManagedToolID = "nodejs" | "python" | "git-bash" | "ripgrep"
 export type ToolingPreference = "managed" | "system"
 export type ToolingSource = "managed" | "system"
 export type ToolingPhase = "idle" | "detecting" | "downloading" | "installing" | "ready" | "error" | "cleanup-pending"
@@ -25,12 +26,17 @@ export type ToolingResolution =
   | { available: true; path: string; source: ToolingSource; version: string }
   | { available: false; code: string; reason: string }
 
+export interface ToolingEnvironment {
+  pathEntries: readonly string[]
+  resolutions: ReadonlyMap<ManagedToolID, ToolingResolution>
+}
+
 type ToolCatalogEntry = {
   id: ManagedToolID
   version: string
   url: string
   archiveSha256: string
-  archive: "portable-git" | "zip"
+  archive: "portable-git" | "python-installer" | "zip"
   executable: string
   maxBytes: number
   totalTimeoutMs: number
@@ -38,6 +44,28 @@ type ToolCatalogEntry = {
 }
 
 export const TOOLING_CATALOG: Readonly<Record<ManagedToolID, ToolCatalogEntry>> = {
+  nodejs: {
+    id: "nodejs",
+    version: "24.18.0",
+    url: "https://nodejs.org/dist/v24.18.0/node-v24.18.0-win-x64.zip",
+    archiveSha256: "0ae68406b42d7725661da979b1403ec9926da205c6770827f33aac9d8f26e821",
+    archive: "zip",
+    executable: "node-v24.18.0-win-x64/node.exe",
+    maxBytes: 64 * 1024 * 1024,
+    totalTimeoutMs: 3 * 60_000,
+    inactivityTimeoutMs: 30_000,
+  },
+  python: {
+    id: "python",
+    version: "3.14.6",
+    url: "https://www.python.org/ftp/python/3.14.6/python-3.14.6-amd64.exe",
+    archiveSha256: "14b3e9a710a3fcf0bd9b55ab6b60412bd91227563f813fc49040cabc0209e0bd",
+    archive: "python-installer",
+    executable: "python.exe",
+    maxBytes: 64 * 1024 * 1024,
+    totalTimeoutMs: 5 * 60_000,
+    inactivityTimeoutMs: 30_000,
+  },
   "git-bash": {
     id: "git-bash",
     version: "2.55.0.3",
@@ -62,7 +90,7 @@ export const TOOLING_CATALOG: Readonly<Record<ManagedToolID, ToolCatalogEntry>> 
   },
 }
 
-type ToolingSettings = { version: 1; preferences: Record<ManagedToolID, ToolingPreference> }
+type ToolingSettings = { version: 2; preferences: Record<ManagedToolID, ToolingPreference> }
 type InstallManifest = { version: 1; id: ManagedToolID; toolVersion: string; archiveSha256: string; executable: string; executableSha256: string; installedAt: string }
 type Listener = (status: ToolingStatus) => void
 
@@ -76,10 +104,22 @@ export class ToolingError extends Error {
 export interface ToolingManagerOptions {
   root?: string
   fetch?: typeof fetch
+  legacyInstallCodePilotXDependencies?: boolean
 }
 
-const DEFAULT_SETTINGS: ToolingSettings = { version: 1, preferences: { "git-bash": "managed", ripgrep: "managed" } }
-const ALLOWED_DOWNLOAD_HOSTS = new Set(["github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com", "github-releases.githubusercontent.com"])
+const TOOL_IDS = ["nodejs", "python", "git-bash", "ripgrep"] as const
+const DEFAULT_SETTINGS: ToolingSettings = {
+  version: 2,
+  preferences: { nodejs: "managed", python: "managed", "git-bash": "managed", ripgrep: "managed" },
+}
+const ALLOWED_DOWNLOAD_HOSTS = new Set([
+  "github.com",
+  "release-assets.githubusercontent.com",
+  "objects.githubusercontent.com",
+  "github-releases.githubusercontent.com",
+  "nodejs.org",
+  "www.python.org",
+])
 
 const fileExists = async (path: string) => {
   try { return (await stat(path)).isFile() } catch { return false }
@@ -99,6 +139,7 @@ const sanitizeError = (cause: unknown) => cause instanceof ToolingError
 export class ToolingManager {
   readonly root: string
   private readonly fetchImpl: typeof fetch
+  private readonly legacyInstallCodePilotXDependencies: boolean | undefined
   private readonly phases = new Map<ManagedToolID, Pick<ToolingStatus, "phase" | "progress" | "error">>()
   private readonly installs = new Map<ManagedToolID, Promise<ToolingResolution>>()
   private readonly listeners = new Set<Listener>()
@@ -106,10 +147,12 @@ export class ToolingManager {
   private readonly statusCache = new Map<ManagedToolID, ToolingStatus>()
   private settings: ToolingSettings = structuredClone(DEFAULT_SETTINGS)
   private initialization: Promise<void> | undefined
+  private settingsSave: Promise<void> = Promise.resolve()
 
   constructor(options: ToolingManagerOptions = {}) {
     this.root = resolve(options.root ?? (process.env.CODEPILOTX_TOOLING_HOME?.trim() || join(homedir(), ".codepilotx", "tooling")))
     this.fetchImpl = options.fetch ?? fetch
+    this.legacyInstallCodePilotXDependencies = options.legacyInstallCodePilotXDependencies
   }
 
   subscribe(listener: Listener) {
@@ -119,7 +162,7 @@ export class ToolingManager {
 
   async listStatuses(): Promise<ToolingStatus[]> {
     await this.initialize()
-    return Promise.all((["git-bash", "ripgrep"] as const).map((id) => this.getStatus(id)))
+    return Promise.all(TOOL_IDS.map((id) => this.getStatus(id)))
   }
 
   async getStatus(id: ManagedToolID): Promise<ToolingStatus> {
@@ -168,6 +211,23 @@ export class ToolingManager {
     return system ?? installed
   }
 
+  async resolveEnvironment(
+    required: readonly ManagedToolID[],
+    options: { signal?: AbortSignal } = {},
+  ): Promise<ToolingEnvironment> {
+    const ids = [...new Set(required)]
+    const resolved = await Promise.all(ids.map(async (id) => [id, await this.resolve(id, options)] as const))
+    const resolutions = new Map<ManagedToolID, ToolingResolution>(resolved)
+    const pathEntries: string[] = []
+    for (const [id, resolution] of resolved) {
+      if (!resolution.available) continue
+      for (const path of this.environmentPaths(id, resolution.path)) {
+        if (!pathEntries.some((entry) => entry.toLowerCase() === path.toLowerCase())) pathEntries.push(path)
+      }
+    }
+    return { pathEntries, resolutions }
+  }
+
   async install(id: ManagedToolID, options: { force?: boolean; signal?: AbortSignal } = {}): Promise<ToolingStatus> {
     await this.initialize()
     const resolution = await this.installResolution(id, options)
@@ -199,7 +259,7 @@ export class ToolingManager {
       await mkdir(extracted, { recursive: true })
       this.setPhase(id, { phase: "downloading", progress: { receivedBytes: 0 } })
       await this.download(entry, partialPath, signal)
-      const archivePath = entry.archive === "portable-git" ? join(jobRoot, "download.exe") : partialPath
+      const archivePath = entry.archive === "zip" ? partialPath : join(jobRoot, "download.exe")
       if (archivePath !== partialPath) await rename(partialPath, archivePath)
       this.setPhase(id, { phase: "installing" })
       await this.extract(entry, archivePath, extracted, signal)
@@ -295,7 +355,25 @@ export class ToolingManager {
       await this.runChecked(archivePath, ["-y", `-o${destination}`], 3 * 60_000, signal)
       return
     }
-    const script = [
+    if (entry.archive === "python-installer") {
+      await this.runChecked(archivePath, [
+        "/quiet",
+        "InstallAllUsers=0",
+        `TargetDir=${destination}`,
+        "Include_pip=1",
+        "Include_launcher=0",
+        "AssociateFiles=0",
+        "Shortcuts=0",
+        "PrependPath=0",
+        "Include_test=0",
+        "Include_doc=0",
+        "Include_tcltk=0",
+        "Include_tools=1",
+        "CompileAll=0",
+      ], 4 * 60_000, signal)
+      return
+    }
+    const validationScript = [
       "$ErrorActionPreference='Stop'",
       "Add-Type -AssemblyName System.IO.Compression.FileSystem",
       "$zip=[IO.Compression.ZipFile]::OpenRead($args[0])",
@@ -306,13 +384,22 @@ export class ToolingManager {
       "  if(-not $target.StartsWith($root,[StringComparison]::OrdinalIgnoreCase)){throw 'archive path escape'}",
       "  $unixType=(($e.ExternalAttributes -shr 16) -band 0xF000)",
       "  if($unixType -eq 0xA000){throw 'archive symlink rejected'}",
-      "  if([string]::IsNullOrEmpty($e.Name)){[IO.Directory]::CreateDirectory($target)|Out-Null;continue}",
-      "  [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($target))|Out-Null",
-      "  $input=$e.Open(); $output=[IO.File]::Create($target); try{$input.CopyTo($output)}finally{$output.Dispose();$input.Dispose()}",
       "} } finally { $zip.Dispose() }",
     ].join("; ")
     const shell = process.env.SystemRoot ? join(process.env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe") : "powershell.exe"
-    await this.runChecked(shell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script, archivePath, destination], 90_000, signal)
+    await this.runChecked(shell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", validationScript, archivePath, destination], 30_000, signal)
+    if (signal?.aborted) throw new ToolingError("TOOLING_ABORTED", "工具安装已取消")
+    await extractZip(archivePath, {
+      dir: destination,
+      onEntry: (entry) => {
+        const target = resolve(destination, entry.fileName)
+        const unixType = (entry.externalFileAttributes >> 16) & 0xF000
+        if (!contained(destination, target) || unixType === 0xA000) {
+          throw new ToolingError("TOOLING_ARCHIVE_UNSAFE", "ZIP 包含越界路径或 symlink")
+        }
+      },
+    })
+    if (signal?.aborted) throw new ToolingError("TOOLING_ABORTED", "工具安装已取消")
   }
 
   private async activateInstall(id: ManagedToolID, version: string, extracted: string) {
@@ -353,10 +440,13 @@ export class ToolingManager {
   }
 
   private async findSystem(id: ManagedToolID): Promise<Extract<ToolingResolution, { available: true }> | null> {
-    const override = id === "git-bash" ? process.env.CODEPILOTX_GIT_BASH_PATH?.trim() : process.env.CODEPILOTX_RIPGREP_PATH?.trim()
+    const override = this.systemOverride(id)
     const candidates = override ? [resolve(override)] : await this.systemCandidates(id)
     for (const candidate of [...new Set(candidates)]) {
-      if (id === "git-bash" && candidate.toLowerCase().includes("\\windows\\system32\\bash.exe")) continue
+      const normalized = candidate.replaceAll("/", "\\").toLowerCase()
+      if (id === "git-bash" && normalized.includes("\\windows\\system32\\bash.exe")) continue
+      // Windows 的 Microsoft Store execution alias 只是跳转 stub，不能作为稳定运行环境。
+      if (id === "python" && normalized.includes("\\microsoft\\windowsapps\\")) continue
       const version = await this.validateExecutable(id, candidate)
       if (version) return { available: true, path: candidate, source: "system", version }
     }
@@ -364,6 +454,8 @@ export class ToolingManager {
   }
 
   private async systemCandidates(id: ManagedToolID) {
+    if (id === "nodejs") return this.where("node.exe")
+    if (id === "python") return this.where("python.exe")
     if (id === "ripgrep") return this.where("rg.exe")
     const candidates: string[] = []
     for (const git of await this.where("git.exe")) candidates.push(join(dirname(dirname(git)), "bin", "bash.exe"))
@@ -383,6 +475,19 @@ export class ToolingManager {
     if (!(await fileExists(executable))) return null
     try {
       const output = await this.runCapture(executable, ["--version"], 8_000)
+      if (id === "nodejs") {
+        const match = /^v([^\s]+)/im.exec(output)
+        if (!match) return null
+        const directory = dirname(executable)
+        if (!(await fileExists(join(directory, "npm.cmd"))) || !(await fileExists(join(directory, "npx.cmd")))) return null
+        return match[1] ?? null
+      }
+      if (id === "python") {
+        const match = /Python\s+([^\s]+)/i.exec(output)
+        if (!match) return null
+        await this.runCapture(executable, ["-m", "pip", "--version"], 12_000)
+        return match[1] ?? null
+      }
       if (id === "ripgrep") {
         const match = /ripgrep\s+([^\s]+)/i.exec(output)
         return match?.[1] ?? null
@@ -419,7 +524,27 @@ export class ToolingManager {
   }
 
   private installDir(id: ManagedToolID) { return join(this.root, id, TOOLING_CATALOG[id].version) }
-  private settingsPath() { return join(this.root, "v1", "settings.json") }
+  private settingsPath() { return join(this.root, "v2", "settings.json") }
+  private legacySettingsPath() { return join(this.root, "v1", "settings.json") }
+
+  private systemOverride(id: ManagedToolID) {
+    switch (id) {
+      case "nodejs": return process.env.CODEPILOTX_NODEJS_PATH?.trim()
+      case "python": return process.env.CODEPILOTX_PYTHON_PATH?.trim()
+      case "git-bash": return process.env.CODEPILOTX_GIT_BASH_PATH?.trim()
+      case "ripgrep": return process.env.CODEPILOTX_RIPGREP_PATH?.trim()
+    }
+  }
+
+  private environmentPaths(id: ManagedToolID, executable: string) {
+    const directory = dirname(executable)
+    switch (id) {
+      case "nodejs": return [directory]
+      case "python": return [directory, join(directory, "Scripts")]
+      case "git-bash": return [directory, join(dirname(directory), "cmd")]
+      case "ripgrep": return [directory]
+    }
+  }
 
   private async initialize() {
     if (!this.initialization) this.initialization = this.doInitialize()
@@ -427,35 +552,67 @@ export class ToolingManager {
   }
 
   private async doInitialize() {
-    await mkdir(join(this.root, "v1"), { recursive: true })
+    await mkdir(join(this.root, "v2"), { recursive: true })
     await mkdir(join(this.root, ".staging"), { recursive: true })
     await mkdir(join(this.root, ".trash"), { recursive: true })
     try {
       const parsed = JSON.parse(await readFile(this.settingsPath(), "utf8")) as Partial<ToolingSettings>
-      this.settings = {
-        version: 1,
-        preferences: {
-          "git-bash": parsed.preferences?.["git-bash"] === "system" ? "system" : "managed",
-          ripgrep: parsed.preferences?.ripgrep === "system" ? "system" : "managed",
-        },
-      }
+      this.settings = this.normalizeSettings(parsed)
     } catch {
-      this.settings = structuredClone(DEFAULT_SETTINGS)
+      this.settings = await this.migrateLegacySettings()
       await this.saveSettings()
     }
     await this.cleanupDirectory(join(this.root, ".staging"))
     await this.cleanupDirectory(join(this.root, ".trash"))
-    for (const id of ["git-bash", "ripgrep"] as const) {
+    for (const id of TOOL_IDS) {
       if (this.settings.preferences[id] === "system") await this.removeManaged(id)
     }
   }
 
-  private async saveSettings() {
+  private normalizeSettings(parsed: Partial<ToolingSettings>): ToolingSettings {
+    return {
+      version: 2,
+      preferences: Object.fromEntries(TOOL_IDS.map((id) => [
+        id,
+        parsed.preferences?.[id] === "system" ? "system" : "managed",
+      ])) as Record<ManagedToolID, ToolingPreference>,
+    }
+  }
+
+  private async migrateLegacySettings(): Promise<ToolingSettings> {
+    let legacy: { preferences?: Partial<Record<ManagedToolID, unknown>>; installCodePilotXDependencies?: unknown } = {}
+    try {
+      legacy = JSON.parse(await readFile(this.legacySettingsPath(), "utf8")) as typeof legacy
+    } catch { /* 首次安装没有旧设置。 */ }
+    const oldDependencyPreference = typeof this.legacyInstallCodePilotXDependencies === "boolean"
+      ? this.legacyInstallCodePilotXDependencies
+      : typeof legacy.installCodePilotXDependencies === "boolean"
+        ? legacy.installCodePilotXDependencies
+        : true
+    return {
+      version: 2,
+      preferences: {
+        nodejs: oldDependencyPreference ? "managed" : "system",
+        python: oldDependencyPreference ? "managed" : "system",
+        "git-bash": legacy.preferences?.["git-bash"] === "system" ? "system" : "managed",
+        ripgrep: legacy.preferences?.ripgrep === "system" ? "system" : "managed",
+      },
+    }
+  }
+
+  private saveSettings() {
+    const snapshot = structuredClone(this.settings)
+    const task = this.settingsSave.catch(() => undefined).then(() => this.writeSettings(snapshot))
+    this.settingsSave = task
+    return task
+  }
+
+  private async writeSettings(settings: ToolingSettings) {
     const path = this.settingsPath()
     const temporary = `${path}.${randomUUID()}.tmp`
     const previous = `${path}.${randomUUID()}.previous`
     await mkdir(dirname(path), { recursive: true })
-    await writeFile(temporary, `${JSON.stringify(this.settings, null, 2)}\n`, "utf8")
+    await writeFile(temporary, `${JSON.stringify(settings, null, 2)}\n`, "utf8")
     let movedPrevious = false
     try {
       await rename(path, previous)
@@ -523,4 +680,4 @@ export class ToolingManager {
 }
 
 let defaultManager: ToolingManager | undefined
-export const getToolingManager = () => defaultManager ??= new ToolingManager()
+export const getToolingManager = (options: ToolingManagerOptions = {}) => defaultManager ??= new ToolingManager(options)

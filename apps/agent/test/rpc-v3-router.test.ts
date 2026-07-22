@@ -74,8 +74,8 @@ const fixture = async (
   }
   const tooling = {
     listStatuses: async () => [toolingStatus],
-    setPreference: async (_id: string, preference: "managed" | "system") => ({ ...toolingStatus, preference }),
-    install: async () => ({ ...toolingStatus, phase: "ready" as const, managed: { installed: true, version: "15.2.0" } }),
+    setPreference: async (id: "nodejs" | "python" | "git-bash" | "ripgrep", preference: "managed" | "system") => ({ ...toolingStatus, id, preference }),
+    install: async (id: "nodejs" | "python" | "git-bash" | "ripgrep") => ({ ...toolingStatus, id, phase: "ready" as const, managed: { installed: true, version: "15.2.0" } }),
   }
   const router = new RpcRouter({
     db,
@@ -203,6 +203,10 @@ describe("RPC v3 Router", () => {
       .toMatchObject({ id: "ripgrep", preference: "system" })
     expect((await call("tooling/install", { id: "ripgrep", force: true, operationId: "tooling:install:1" })).result.status)
       .toMatchObject({ id: "ripgrep", phase: "ready", managed: { installed: true } })
+    expect((await call("tooling/setPreference", { id: "nodejs", preference: "managed", operationId: "tooling:preference:node" })).result.status)
+      .toMatchObject({ id: "nodejs", preference: "managed" })
+    expect((await call("tooling/install", { id: "python", force: false, operationId: "tooling:install:python" })).result.status)
+      .toMatchObject({ id: "python", phase: "ready" })
     db.close()
   })
 

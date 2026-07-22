@@ -40,6 +40,8 @@ export interface SandboxStatus {
 export interface SandboxedProcessRequest {
   command: string
   cwd: string
+  /** Trusted runtime environment additions resolved by the Agent. */
+  env?: NodeJS.ProcessEnv
   timeoutMs?: number
   config: SandboxRuntimeConfig
   signal?: AbortSignal
@@ -125,6 +127,18 @@ function normalizeFingerprintValue(value: unknown, key = ""): unknown {
     )
   }
   return value
+}
+
+const mergeProcessEnvironment = (base: NodeJS.ProcessEnv, additions?: NodeJS.ProcessEnv): NodeJS.ProcessEnv => {
+  if (!additions) return { ...base }
+  const merged = { ...base }
+  for (const [key, value] of Object.entries(additions)) {
+    if (key.toLowerCase() === "path") {
+      for (const existing of Object.keys(merged)) if (existing.toLowerCase() === "path") delete merged[existing]
+    }
+    merged[key] = value
+  }
+  return merged
 }
 
 export function sandboxPolicyFingerprint(config: SandboxRuntimeConfig): string {
@@ -217,11 +231,11 @@ async function collectProcess(child: CapturedChild, timeoutMs: number, signal?: 
   return { exitCode, signal: exitSignal, stdout, stderr, timedOut, truncated }
 }
 
-export async function runHostCommand(command: string, cwd: string, timeoutMs?: number, signal?: AbortSignal): Promise<ProcessResult> {
+export async function runHostCommand(command: string, cwd: string, timeoutMs?: number, signal?: AbortSignal, env?: NodeJS.ProcessEnv): Promise<ProcessResult> {
   const shell = preferredShell()
   const child = spawn(shell.exe, [...shell.args, command], {
     cwd,
-    env: { ...process.env },
+    env: mergeProcessEnvironment(process.env, env),
     shell: false,
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
@@ -335,7 +349,7 @@ class DirectSandboxRuntime implements SandboxRuntimeAdapter {
       const wrapped = await api.SandboxManager.wrapWithSandboxArgv(request.command, { exe: shell.exe, args: shell.args }, undefined, request.signal, request.cwd)
       const child = spawn(wrapped.argv[0]!, wrapped.argv.slice(1), {
         cwd: request.cwd,
-        env: wrapped.env,
+        env: mergeProcessEnvironment(wrapped.env, request.env),
         shell: false,
         windowsHide: true,
         stdio: ["ignore", "pipe", "pipe"],

@@ -32,6 +32,28 @@ const setup = async () => {
 }
 
 describe("LSP manager", () => {
+  test("LSP 启动前解析声明的运行时并把托管路径注入子进程环境", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "codepilotx-lsp-")); roots.push(parent)
+    const rootPath = join(parent, "workspace"); await mkdir(rootPath)
+    const client = new FakeClient()
+    let requested: readonly string[] = []
+    let receivedEnv: NodeJS.ProcessEnv | undefined
+    const manager = new LspManager([{ ...config, runtimeDependencies: ["nodejs"] }], {
+      resolveEnvironment: async (required) => {
+        requested = required
+        return {
+          pathEntries: ["C:\\managed\\nodejs"],
+          resolutions: new Map([["nodejs", { available: true, path: "C:\\managed\\nodejs\\node.exe", source: "managed", version: "test" }]]),
+        }
+      },
+      createClient: (_config, _rootPath, env) => { receivedEnv = env; return client },
+    })
+
+    await manager.execute({ operation: "workspaceSymbol", query: "value" }, { rootPath, read: async () => "" })
+    expect(requested).toEqual(["nodejs"])
+    expect(Object.values(receivedEnv ?? {}).join(";")).toContain("C:\\managed\\nodejs")
+  })
+
   test("统一操作映射到协议方法并把 1-based 位置转换为 0-based", async () => {
     const { rootPath, client, manager, read } = await setup()
     client.result = (method) => method === "textDocument/prepareCallHierarchy"

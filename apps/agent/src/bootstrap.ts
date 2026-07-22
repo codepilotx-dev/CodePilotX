@@ -57,7 +57,19 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const db = new AgentDatabase(config.databasePath);
     options.initializeDatabase?.(db);
     const hub = yield* EventHub.make;
-    const tooling = getToolingManager();
+    const desktopSettings = db.getSetting<Record<string, unknown>>(
+      "desktop.settings.v1",
+    );
+    const legacyToolingPreference = desktopSettings?.workspaceDependenciesMigrated === true
+      ? undefined
+      : typeof desktopSettings?.installCodePilotXDependencies === "boolean"
+        ? desktopSettings.installCodePilotXDependencies
+        : undefined;
+    const tooling = getToolingManager(
+      legacyToolingPreference === undefined
+        ? {}
+        : { legacyInstallCodePilotXDependencies: legacyToolingPreference },
+    );
     const unsubscribeTooling = tooling.subscribe((status) => {
       void publishAgentEvent(db, hub, null, null, "tooling/updated", { status })
         .catch((cause) => logger.warn("tooling.status.publish.failed", {
@@ -193,6 +205,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       sandbox,
       helperPath: config.srtWinPath,
       resolveTooling: (id, resolveOptions) => tooling.resolve(id, resolveOptions),
+      resolveToolingEnvironment: (required, resolveOptions) => tooling.resolveEnvironment(required, resolveOptions),
       authorizeShell: (invocation, signal) =>
         approvals.authorize(invocation, signal),
       recordToolCall: (invocation, status, output, error, startedAt) =>

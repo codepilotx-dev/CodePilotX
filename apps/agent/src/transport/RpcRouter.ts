@@ -290,12 +290,12 @@ export class RpcRouter {
       case "tooling/list":
         return { statuses: await tooling.listStatuses() }
       case "tooling/setPreference": {
-        const id = enumValue<ManagedToolID>(params.id, ["git-bash", "ripgrep"], "id")
+        const id = enumValue<ManagedToolID>(params.id, ["nodejs", "python", "git-bash", "ripgrep"], "id")
         const preference = enumValue<ToolingPreference>(params.preference, ["managed", "system"], "preference")
         return { status: await tooling.setPreference(id, preference) }
       }
       case "tooling/install": {
-        const id = enumValue<ManagedToolID>(params.id, ["git-bash", "ripgrep"], "id")
+        const id = enumValue<ManagedToolID>(params.id, ["nodejs", "python", "git-bash", "ripgrep"], "id")
         if (params.force !== undefined && typeof params.force !== "boolean") throw new AgentError("INVALID_REQUEST", "force 参数无效", 400)
         try {
           return { status: await tooling.install(id, { force: params.force === true }) }

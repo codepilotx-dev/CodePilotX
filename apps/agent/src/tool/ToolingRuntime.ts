@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process"
 import { AgentError } from "../domain"
-import { getToolingManager, type ManagedToolID, type ToolingResolution } from "./ToolingManager"
+import { getToolingManager, type ManagedToolID, type ToolingEnvironment, type ToolingResolution } from "./ToolingManager"
 
 export type ToolingResolver = (id: ManagedToolID, options?: { signal?: AbortSignal }) => Promise<ToolingResolution>
+export type ToolingEnvironmentResolver = (required: readonly ManagedToolID[], options?: { signal?: AbortSignal }) => Promise<ToolingEnvironment>
 
 export interface ToolProcessRequest {
   executable: string
@@ -22,6 +23,24 @@ export interface ToolProcessResult {
 export type ToolProcessRunner = (request: ToolProcessRequest) => Promise<ToolProcessResult>
 
 export const resolveManagedTool: ToolingResolver = (id, options) => getToolingManager().resolve(id, options)
+export const resolveToolingEnvironment: ToolingEnvironmentResolver = (required, options) => getToolingManager().resolveEnvironment(required, options)
+
+export const environmentWithToolingPath = (
+  pathEntries: readonly string[],
+  base: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv => {
+  if (pathEntries.length === 0) return { ...base }
+  const environment = { ...base }
+  const pathKey = Object.keys(environment).find((key) => key.toLowerCase() === "path") ?? "PATH"
+  environment[pathKey] = [...new Set(pathEntries), environment[pathKey]].filter(Boolean).join(process.platform === "win32" ? ";" : ":")
+  return environment
+}
+
+export const toolingPathOverride = (pathEntries: readonly string[], base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv => {
+  if (pathEntries.length === 0) return {}
+  const pathKey = Object.keys(base).find((key) => key.toLowerCase() === "path") ?? "PATH"
+  return { [pathKey]: [...new Set(pathEntries), base[pathKey]].filter(Boolean).join(process.platform === "win32" ? ";" : ":") }
+}
 
 export const runToolProcess: ToolProcessRunner = (request) => new Promise((resolve, reject) => {
   if (request.signal.aborted) {

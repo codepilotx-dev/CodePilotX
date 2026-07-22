@@ -12,7 +12,49 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path"
 import { PermissionDecisionEngine } from "../permission/PermissionDecisionEngine"
 import { analyzeShellRisk } from "../security/ShellRiskClassifier"
 import { secretScrubber } from "../security/SecretScrubber"
-import { resolveManagedTool, runToolProcess, type ToolingResolver, type ToolProcessRunner } from "./ToolingRuntime"
+import { resolveManagedTool, resolveToolingEnvironment, runToolProcess, toolingPathOverride, type ToolingEnvironmentResolver, type ToolingResolver, type ToolProcessRunner } from "./ToolingRuntime"
+import type { ManagedToolID, ToolingResolution } from "./ToolingManager"
+
+const RUNTIME_COMMANDS: Readonly<Record<string, ManagedToolID>> = {
+  node: "nodejs", npm: "nodejs", npx: "nodejs", corepack: "nodejs",
+  python: "python", python3: "python", pip: "python", pip3: "python",
+}
+
+/** Finds runtime executables only where a shell command may begin. */
+export function shellRuntimeDependencies(command: string): ManagedToolID[] {
+  const dependencies = new Set<ManagedToolID>()
+  const segments: string[] = []
+  let start = 0
+  let quote: "'" | '"' | null = null
+  let escaped = false
+  for (let index = 0; index < command.length; index += 1) {
+    const character = command[index]!
+    if (escaped) { escaped = false; continue }
+    if (character === "\\" || character === "`") { escaped = true; continue }
+    if (quote) { if (character === quote) quote = null; continue }
+    if (character === "'" || character === '"') { quote = character; continue }
+    if ("|;&\r\n(){}".includes(character)) { segments.push(command.slice(start, index)); start = index + 1 }
+  }
+  segments.push(command.slice(start))
+  for (const segment of segments) {
+    const candidate = segment.trim().replace(/^sudo\s+/i, "")
+    const raw = /^(?:"([^"]+)"|'([^']+)'|([^\s]+))/.exec(candidate)?.slice(1).find(Boolean)
+    if (!raw) continue
+    if (raw.includes("/") || raw.includes("\\") || /^[a-z]:/i.test(raw)) continue
+    const token = raw.toLowerCase().replace(/\.(?:exe|cmd|bat)$/i, "")
+    const dependency = RUNTIME_COMMANDS[token]
+    if (dependency) dependencies.add(dependency)
+  }
+  return [...dependencies]
+}
+
+const managedToolReadPaths = (id: ManagedToolID, resolution: ToolingResolution | undefined): string[] => {
+  if (!resolution?.available || resolution.source !== "managed") return []
+  const executableDirectory = dirname(resolution.path)
+  if (id === "python") return [executableDirectory, join(executableDirectory, "Scripts")]
+  if (id === "git-bash") return [dirname(executableDirectory)]
+  return [executableDirectory]
+}
 
 export interface ToolExecutionContext {
   threadID: string
@@ -53,6 +95,7 @@ export interface ToolExecutorOptions {
   completeSandboxEscalation?: (token: string, output: unknown) => void
   runHost?: typeof runHostCommand
   resolveTooling?: ToolingResolver
+  resolveToolingEnvironment?: ToolingEnvironmentResolver
   runToolProcess?: ToolProcessRunner
   fileSaved?: (input: { workspaceRoot: string; filePath: string; content: string }) => Promise<void>
 }
@@ -243,12 +286,12 @@ export class ToolExecutor {
       if (context.authorizationOnly) return decision
       if (staticRisk.hardDenied) throw new AgentError("SHELL_HARD_DENY", staticRisk.reason, 403, staticRisk)
       if (decision.decision !== "allow") throw new AgentError("SHELL_PERMISSION_DENIED", decision.reason, 403, decision)
-      const command = await this.commandForShell(shellTool, parsedShell.command, context.signal)
+      const runtime = await this.commandForShell(shellTool, parsedShell.command, context.signal)
       const startedAt = Date.now()
       const auditInvocation = secretScrubber.scrub(invocation)
       this.options.recordToolCall?.(auditInvocation, "running", null, null, startedAt)
       if (permissionConfig.sandboxMode === "danger-full-access") {
-        const result = await (this.options.runHost ?? runHostCommand)(command, cwd, shell.timeoutMs, context.signal)
+        const result = await (this.options.runHost ?? runHostCommand)(runtime.command, cwd, shell.timeoutMs, context.signal, runtime.env)
         const safeResult = secretScrubber.scrub(result)
         this.options.recordToolCall?.(auditInvocation, "completed", safeResult, null, startedAt)
         if (!context.skipHooks) await this.options.hooks?.run("post_tool_use", { input: invocation.input, output: safeResult }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
@@ -262,12 +305,14 @@ export class ToolExecutor {
           permissionConfig,
           ...(shell.additionalPermissions ? { additionalPermissions: shell.additionalPermissions } : {}),
           ...(options.helperPath ? { helperPath: options.helperPath } : {}),
+          trustedReadPaths: runtime.trustedReadPaths,
         })
         let result: ProcessResult
         try {
           result = await options.sandbox.run({
-            command,
+            command: runtime.command,
             cwd,
+            env: runtime.env,
             ...(shell.timeoutMs === undefined ? {} : { timeoutMs: shell.timeoutMs }),
             config: policy.config,
             signal: context.signal,
@@ -327,8 +372,8 @@ export class ToolExecutor {
     const startedAt = Date.now()
     this.options.recordToolCall?.(auditInvocation, "running", null, null, startedAt)
     try {
-      const command = await this.commandForShell(escalation.invocation.name as "Bash" | "PowerShell", shell.command, context.signal)
-      const result = await (this.options.runHost ?? runHostCommand)(command, cwd, shell.timeoutMs, context.signal)
+      const runtime = await this.commandForShell(escalation.invocation.name as "Bash" | "PowerShell", shell.command, context.signal)
+      const result = await (this.options.runHost ?? runHostCommand)(runtime.command, cwd, shell.timeoutMs, context.signal, runtime.env)
       this.options.completeSandboxEscalation(token, result)
       this.options.recordToolCall?.(auditInvocation, "completed", secretScrubber.scrub(result), null, startedAt)
       return result
@@ -430,14 +475,28 @@ export class ToolExecutor {
   }
 
   private async commandForShell(shellTool: "Bash" | "PowerShell", command: string, signal: AbortSignal) {
+    const required = shellRuntimeDependencies(command)
+    const environment = required.length > 0
+      ? await (this.options?.resolveToolingEnvironment ?? resolveToolingEnvironment)(required, { signal })
+      : { pathEntries: [] as readonly string[], resolutions: new Map() }
+    for (const id of required) {
+      const resolution = environment.resolutions.get(id)
+      if (!resolution?.available) throw new AgentError("RUNTIME_DEPENDENCY_UNAVAILABLE", resolution?.reason ?? `${id} 运行环境不可用`, 503, { toolingID: id, reason: resolution?.code ?? "TOOLING_UNAVAILABLE" })
+    }
+    const env = toolingPathOverride(environment.pathEntries)
+    const trustedReadPaths = required.flatMap((id) => managedToolReadPaths(id, environment.resolutions.get(id)))
     if (process.platform === "win32" && shellTool === "Bash") {
       const resolution = await (this.options?.resolveTooling ?? resolveManagedTool)("git-bash", { signal })
       if (!resolution.available) throw new AgentError("BASH_RUNTIME_UNAVAILABLE", resolution.reason, 503, { toolingID: "git-bash", reason: resolution.code })
       const executable = resolution.path.replaceAll("'", "''")
-      return `& '${executable}' -lc '${command.replaceAll("'", "''")}'`
+      return {
+        command: `& '${executable}' -lc '${command.replaceAll("'", "''")}'`,
+        env,
+        trustedReadPaths: [...trustedReadPaths, ...managedToolReadPaths("git-bash", resolution)],
+      }
     }
-    if (process.platform !== "win32" && shellTool === "PowerShell") return `pwsh -NoProfile -NonInteractive -Command '${command.replaceAll("'", "'\\''")}'`
-    return command
+    if (process.platform !== "win32" && shellTool === "PowerShell") return { command: `pwsh -NoProfile -NonInteractive -Command '${command.replaceAll("'", "'\\''")}'`, env, trustedReadPaths }
+    return { command, env, trustedReadPaths }
   }
 
   private async canonicalPath(workspaceRoot: string, value: string, allowMissingLeaf: boolean) {
