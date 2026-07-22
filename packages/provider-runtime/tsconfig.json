@@ -3,7 +3,6 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "baseUrl": ".",
     "paths": {
       "@codepilotx/model-schema": ["../model-schema/src/index.ts"],
       "@codepilotx/provider-plugin": ["../provider-plugin/src/index.ts"],
