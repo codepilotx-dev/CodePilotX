@@ -13,7 +13,8 @@ import {
 import { Effect, Schema } from "effect"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { createHash } from "node:crypto"
-import type { ProviderConfig, ProviderRuntime } from "@codepilotx/provider-runtime"
+import type { ProviderConfig } from "@codepilotx/provider-runtime"
+import type { AgentModelCatalog } from "../provider/AgentModelCatalog"
 import { AgentError, type SendStrategy, type SubmitMessage, type TaskMode } from "../domain"
 import type { ApprovalService } from "../permission/ApprovalService"
 import type { QuestionService } from "../session/QuestionService"
@@ -69,7 +70,7 @@ export type RpcRouterDependencies = {
   questions: QuestionService
   subagents: SubagentService
   attachments: AttachmentService
-  providers: ProviderRuntime
+  providers: AgentModelCatalog
   integrations: IntegrationService
   memory: MemoryService
   hooks: HookService
@@ -858,7 +859,7 @@ export class RpcRouter {
           }
         }
         try {
-          await providers.getLanguage({ providerID: model.providerID, id: model.id })
+          await providers.getModel({ providerID: model.providerID, id: model.id })
           return {
             providerId: providerID,
             status: "reachable",
@@ -1569,7 +1570,7 @@ const resolveAiReviewSource = async (
 
 const aiReviewModel = async (
   db: AgentDatabase,
-  providers: ProviderRuntime,
+  providers: AgentModelCatalog,
   threadId: string,
   projectId: string,
 ): Promise<Model.Ref> => {

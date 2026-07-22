@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { AgentDatabase } from "../src/storage/Database"
-import { isMainAgentRequestUserInputEnabled } from "../src/orchestration/AgentOrchestrator"
+import { isMainAgentRequestUserInputEnabled } from "../src/orchestration/AgentRuntimeTypes"
 
 const paths: string[] = []
 const removePath = async (path: string) => {

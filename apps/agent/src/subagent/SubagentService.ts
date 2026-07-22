@@ -1,10 +1,9 @@
-import type { LanguageModel } from "ai"
 import type { Model } from "@codepilotx/model-schema"
 import type { PermissionConfig, SubagentProfile } from "@codepilotx/shared/thread"
 import { Effect } from "effect"
-import type { ProviderRuntime } from "@codepilotx/provider-runtime"
+import type { AgentModelCatalog } from "../provider/AgentModelCatalog"
 import { AgentError } from "../domain"
-import { SafeBoundaryInterrupt, type AgentOrchestrator, type DelegationController, type PendingApproval, type PlanCheckpoint } from "../orchestration/AgentOrchestrator"
+import { SafeBoundaryInterrupt, type PiOrchestratorAdapter, type DelegationController, type PendingApproval, type PlanCheckpoint } from "../orchestration/PiOrchestratorAdapter"
 import type { ApprovalService } from "../permission/ApprovalService"
 import type { QuestionService } from "../session/QuestionService"
 import type { AgentDatabase } from "../storage/Database"
@@ -15,9 +14,7 @@ import type { AttachmentService } from "./AttachmentService"
 import { InstructionDiscoveryService, SkillService, createPromptSections } from "../prompt"
 import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
-import { ContextManager, DEFAULT_CONTEXT_WINDOW_TOKENS, type ContextFragment } from "../context/ContextManager"
-import { createModelContextCompactor } from "../context/ModelContextCompactor"
-import { SqliteAgentSession } from "../storage/SqliteAgentSession"
+import { ContextManager, type ContextFragment } from "../context/ContextManager"
 
 const terminal = new Set(["completed", "failed", "stopped", "interrupted"])
 export const pausedSubagentStatus = (kind: PendingApproval["kind"] | null) => kind === "permission" ? "waiting_permission" as const : "waiting_question" as const
@@ -50,10 +47,10 @@ export class SubagentService {
   constructor(
     private readonly db: AgentDatabase,
     private readonly hub: EventHub,
-    private readonly providers: ProviderRuntime,
+    private readonly providers: AgentModelCatalog,
     private readonly approvals: ApprovalService,
     private readonly questions: QuestionService,
-    private readonly orchestrator: AgentOrchestrator,
+    private readonly orchestrator: PiOrchestratorAdapter,
     private readonly attachments: AttachmentService,
     private readonly workspaces?: SubagentWorkspaceProvider,
     private readonly promptDataRoot?: string,
@@ -398,11 +395,9 @@ export class SubagentService {
         externalData: invokedSkillData,
         userMessage: input.content,
       })
-      const resolvedModelInfo = await this.resolveModel(run.model)
-      const resolvedLanguageModel = await this.providers.getLanguage(run.model) as LanguageModel
-      const contextWindowTokens = resolvedModelInfo.limit.context > 0 ? resolvedModelInfo.limit.context : DEFAULT_CONTEXT_WINDOW_TOKENS
+      await this.resolveModel(run.model)
+      const piModel = await this.providers.getModel(run.model)
       const contextManager = new ContextManager(this.db)
-      const session = new SqliteAgentSession(this.db, agent.sessionID)
       const attachments = await this.agentAttachments(input.id)
       let budgetText = ""
       let pausedKind: PendingApproval["kind"] | null = null
@@ -415,7 +410,7 @@ export class SubagentService {
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
         attachments,
         ...(permissionResume ? { resume: permissionResume } : checkpoint ? { resume: checkpoint.approval } : {}),
-        resolveModel: async () => ({ ref: run.model, model: resolvedLanguageModel }),
+        resolveModel: async () => ({ ref: run.model, model: piModel }),
         onPromptComposed: async (bundle, context) => {
           budgetText = context.budgetText
           const timestamp = Date.now()
@@ -430,25 +425,6 @@ export class SubagentService {
           }))
           if (!previous) contextManager.establishBaseline({ threadID: task.childThreadId, promptVersion: "prompt-engine-v2", baseHash: bundle.baseHash, contextHash: bundle.contextHash, cacheKey: bundle.cacheKey, fragments })
           else contextManager.appendFragments(task.childThreadId, fragments, bundle.contextHash)
-          if (!permissionResume && !checkpoint) {
-            const snapshot = contextManager.snapshot({ threadID: task.childThreadId, turnID: agent.turnID, sessionID: agent.sessionID, items: await session.getItems(), promptText: budgetText, contextWindowTokens })
-            if (snapshot.needsCompaction) {
-              const hookRuns = await this.hooks?.run("pre_compact", { snapshot, automatic: true, subagent: true }, { threadID: task.childThreadId, turnID: agent.turnID }) ?? []
-              const denied = hookRuns.find(({ result }) => result.decision === "deny")
-              if (denied) throw new AgentError("HOOK_DENIED", denied.result.reason ?? "PreCompact Hook 拒绝压缩", 403)
-              if (hookRuns.some(({ result }) => result.decision === "ask")) throw new AgentError("HOOK_CONFIRMATION_REQUIRED", "PreCompact Hook 要求人工确认", 409)
-              await contextManager.compact({ threadID: task.childThreadId, turnID: agent.turnID, session, compactor: createModelContextCompactor(resolvedLanguageModel), promptText: budgetText, contextWindowTokens, signal: controller.signal })
-              let after = contextManager.snapshot({ threadID: task.childThreadId, turnID: agent.turnID, sessionID: agent.sessionID, items: await session.getItems(), promptText: budgetText, contextWindowTokens })
-              for (let attempt = 0; after.needsCompaction && attempt < 3; attempt += 1) {
-                if (!(await session.dropOldestRound())) break
-                after = contextManager.snapshot({ threadID: task.childThreadId, turnID: agent.turnID, sessionID: agent.sessionID, items: await session.getItems(), promptText: budgetText, contextWindowTokens })
-              }
-              if (after.needsCompaction) throw new AgentError("CONTEXT_BUDGET_EXCEEDED", "子 Agent 上下文压缩后三次裁剪仍超过 80%", 413)
-            }
-          }
-        },
-        onUsage: async (usage) => {
-          contextManager.recordMeasuredUsage({ threadID: task.childThreadId, turnID: agent.turnID, sessionID: agent.sessionID, items: await session.getItems(), promptText: budgetText, contextWindowTokens, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens })
         },
         pause: async (approval) => {
           pausedKind = approval.kind
@@ -540,11 +516,6 @@ export class SubagentService {
 
   private async resolveModel(ref: Model.Ref) {
     try { return await this.providers.resolve(ref) } catch (cause) { throw new AgentError("MODEL_UNAVAILABLE", "子 Agent 模型不可用", 409, cause) }
-  }
-
-  private async languageModel(ref: Model.Ref): Promise<{ ref: Model.Ref; model: LanguageModel }> {
-    const resolved = await this.resolveModel(ref)
-    return { ref, model: await this.providers.getLanguage(ref) as LanguageModel }
   }
 
   private assertPermissionCeiling(ceiling: PermissionConfig, requested: PermissionConfig) {

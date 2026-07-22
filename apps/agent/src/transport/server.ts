@@ -2,7 +2,7 @@ import { Hono } from "hono"
 import { streamSSE } from "hono/streaming"
 import { EventManifest, type EventType } from "@codepilotx/agent-protocol"
 import { relative, resolve, sep } from "node:path"
-import type { ProviderRuntime } from "@codepilotx/provider-runtime"
+import type { AgentModelCatalog } from "../provider/AgentModelCatalog"
 import type { AgentConfig } from "../config/Config"
 import { AgentError, type EventEnvelope as StoredEventEnvelope } from "../domain"
 import type { AgentDatabase } from "../storage/Database"
@@ -33,7 +33,7 @@ export interface TransportDependencies {
   questions: QuestionService
   subagents: SubagentService
   attachments: AttachmentService
-  providers: ProviderRuntime
+  providers: AgentModelCatalog
   integrations: IntegrationService
   memory: MemoryService
   hooks: HookService

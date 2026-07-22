@@ -127,7 +127,7 @@ describe("Agent IntegrationService", () => {
     await Effect.runPromise(host.init())
     const requested: string[] = []
     const service = new IntegrationService(
-      { list: async () => [provider("minimax-coding-plan")] },
+      { list: async () => [provider("minimax")] },
       host,
       credentials,
       {
@@ -140,7 +140,7 @@ describe("Agent IntegrationService", () => {
     )
 
     await expect(service.connect({
-      integrationID: "minimax-coding-plan",
+      integrationID: "minimax",
       key: "region-secret",
     })).rejects.toMatchObject({
       code: "INTEGRATION_REGION_MISMATCH",
@@ -150,7 +150,7 @@ describe("Agent IntegrationService", () => {
       "https://api.minimax.io/anthropic/v1/models",
       "https://api.minimaxi.com/anthropic/v1/models",
     ])
-    expect(db.encryptedCredential("minimax-coding-plan")).toBeNull()
+    expect(db.encryptedCredential("minimax")).toBeNull()
     await Effect.runPromise(host.dispose())
   })
 

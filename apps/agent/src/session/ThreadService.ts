@@ -1,14 +1,13 @@
 import { Effect } from "effect"
-import type { LanguageModel } from "ai"
 import { Model } from "@codepilotx/model-schema"
 import type { ThreadSettings } from "@codepilotx/shared/thread"
-import type { ProviderRuntime } from "@codepilotx/provider-runtime"
+import type { AgentModelCatalog } from "../provider/AgentModelCatalog"
 import { AgentError, type AgentExecution, type SubmitMessage } from "../domain"
 import type { AgentDatabase, QueueMutationMeta } from "../storage/Database"
 import type { EventHub } from "../storage/EventHub"
 import type { ApprovalService } from "../permission/ApprovalService"
 import type { QuestionService } from "./QuestionService"
-import { SafeBoundaryInterrupt, type AgentOrchestrator } from "../orchestration/AgentOrchestrator"
+import { SafeBoundaryInterrupt, type PiOrchestratorAdapter } from "../orchestration/PiOrchestratorAdapter"
 import { WorkspaceService } from "../workspace/WorkspaceService"
 import type { AttachmentService } from "../subagent/AttachmentService"
 import type { SubagentService } from "../subagent/SubagentService"
@@ -17,10 +16,8 @@ import { secretScrubber } from "../security/SecretScrubber"
 import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
 import { join } from "node:path"
-import { ContextManager, DEFAULT_CONTEXT_WINDOW_TOKENS, type ContextFragment } from "../context/ContextManager"
-import { createModelContextCompactor } from "../context/ModelContextCompactor"
-import { SqliteAgentSession } from "../storage/SqliteAgentSession"
-import { inferPromptCacheCapability, languageModelProvider } from "../prompt/PromptCache"
+import { ContextManager, type ContextFragment } from "../context/ContextManager"
+import { inferPromptCacheCapability } from "../prompt/PromptCache"
 import type { GitReviewService } from "../review/GitReviewService"
 
 type ThreadPromptSettingsSnapshot = { engine: "prompt-engine-v2"; version: 2; snapshottedAt: number; settings: Record<string, unknown>; baseHash?: string; contextHash?: string; cacheKey?: string }
@@ -31,10 +28,10 @@ export class ThreadService {
   constructor(
     private readonly db: AgentDatabase,
     private readonly hub: EventHub,
-    private readonly providers: ProviderRuntime,
+    private readonly providers: AgentModelCatalog,
     private readonly approvals: ApprovalService,
     private readonly questions: QuestionService,
-    private readonly orchestrator: AgentOrchestrator,
+    private readonly orchestrator: PiOrchestratorAdapter,
     private readonly subagents: SubagentService,
     private readonly attachments: AttachmentService,
     private readonly promptDataRoot: string,
@@ -131,8 +128,12 @@ export class ThreadService {
     const latest = this.db.sqlite.query("SELECT content, model_ref FROM inputs WHERE thread_id = ? ORDER BY created_at DESC LIMIT 1").get(threadID) as { content: string; model_ref: string } | null
     const userMessage = latest?.content ?? ""
     const memories = this.memory.recall({ query: userMessage, projectKey: projectMemoryKey(workspace.rootPath) })
-    const exposedTools = ["workspace_list", "workspace_read", "workspace_search", "shell", "skill_list", "skill_read", "request_user_input", "spawn_agents", "wait_agents", "send_agent", "stop_agent",
-      ...(thread.settings.taskMode === "plan" ? ["finalize_plan"] : thread.settings.permissionConfig.sandboxMode === "read-only" ? [] : ["apply_patch"])]
+    const exposedTools = this.orchestrator.toolExposure({
+      taskMode: thread.settings.taskMode,
+      sandboxMode: thread.settings.permissionConfig.sandboxMode,
+      profile: "main",
+      hasSkillService: true,
+    }).exposed
     const sections = createPromptSections({
       permissionInstructions: `Resolved permission config: ${JSON.stringify(thread.settings.permissionConfig)}.`,
       mode: thread.settings.taskMode, profile: "main",
@@ -153,8 +154,7 @@ export class ThreadService {
         projectSettings?.defaultModel,
         this.db.getSetting<Model.Ref>("defaultModel"),
       ])
-      const languageModel = await this.providers.getLanguage({ providerID: selected.providerID, id: selected.id }) as LanguageModel
-      cacheMode = inferPromptCacheCapability(languageModelProvider(languageModel))
+      cacheMode = inferPromptCacheCapability(String(selected.providerID))
     } catch {
       // Preview must remain available even when the snapshotted model/provider is no longer configured.
     }
@@ -164,24 +164,7 @@ export class ThreadService {
   async compact(threadID: string) {
     this.get(threadID)
     if (this.db.activeTurn(threadID)) throw new AgentError("THREAD_ACTIVE", "运行中的任务不能手动压缩上下文", 409)
-    const projectID = this.db.threadProjectID(threadID)
-    const projectSettings = projectID ? this.db.getProjectSettings(projectID) : null
-    const selected = await this.resolveAvailableModel([projectSettings?.defaultModel, this.db.getSetting<Model.Ref>("defaultModel")])
-    const model = await this.providers.getLanguage({ providerID: selected.providerID, id: selected.id }) as LanguageModel
-    const session = new SqliteAgentSession(this.db, `${threadID}:main`)
-    const contextManager = new ContextManager(this.db)
-    if (!contextManager.state(threadID)) contextManager.establishBaseline({
-      threadID,
-      promptVersion: "compatibility-baseline-v1",
-      baseHash: `legacy:${threadID}`,
-      contextHash: `legacy:${threadID}`,
-      cacheKey: threadID,
-    })
-    return contextManager.compact({
-      threadID,
-      session,
-      compactor: createModelContextCompactor(model),
-    })
+    return this.orchestrator.compact(threadID)
   }
 
   async submit(threadID: string, input: SubmitMessage, requestedInputID?: string) {
@@ -383,11 +366,15 @@ export class ThreadService {
       const memories = this.memory.recall({ query: content, projectKey: projectMemoryKey(workspace.rootPath) })
       const stringSetting = (key: string) => typeof desktopSettings?.[key] === "string" && desktopSettings[key].trim() ? desktopSettings[key] as string : null
       const effectiveMode = continueFromPlan ? "chat" as const : input.taskMode
-      const exposedTools = [
-        "workspace_list", "workspace_read", "workspace_search", "shell",
-        ...(effectiveMode === "plan" ? ["finalize_plan"] : input.permissionConfig.sandboxMode === "read-only" ? [] : ["apply_patch"]),
-        "skill_list", "skill_read", "request_user_input", "spawn_agents", "wait_agents", "send_agent", "stop_agent",
-      ]
+      const exposedTools = this.orchestrator.toolExposure({
+        taskMode: effectiveMode,
+        sandboxMode: input.permissionConfig.sandboxMode,
+        profile: "main",
+        hasSkillService: true,
+        ...(continueFromPlan ? { continueFromPlan: true } : {}),
+        ...(defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : {}),
+        ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
+      }).exposed
       const permissionInstructions = [
         `Resolved sandbox mode: ${input.permissionConfig.sandboxMode}.`,
         `Resolved approval policy: ${JSON.stringify(input.permissionConfig.approvalPolicy)}.`,
@@ -429,9 +416,7 @@ export class ThreadService {
       const globalDefault = this.db.getSetting<Model.Ref>("defaultModel")
       const selectedInfo = await this.resolveAvailableModel([projectModels.defaultModel, globalDefault, activeModel])
       const selectedModel = Model.Ref.make({ providerID: selectedInfo.providerID, id: selectedInfo.id, ...(selectedInfo.request.variant ? { variant: Model.VariantID.make(selectedInfo.request.variant) } : {}) })
-      const languageModel = await this.providers.getLanguage(selectedModel) as LanguageModel
-      const contextWindowTokens = selectedInfo.limit.context > 0 ? selectedInfo.limit.context : DEFAULT_CONTEXT_WINDOW_TOKENS
-      const session = new SqliteAgentSession(this.db, agent.sessionID)
+      const piModel = await this.providers.getModel(selectedModel)
       const attachments = (await Promise.all([input.id, ...mailbox.map((item) => item.id)].map((inputID) => this.agentAttachments(inputID)))).flat()
       let budgetText = ""
       const result = await this.orchestrator.run({
@@ -465,20 +450,6 @@ export class ThreadService {
           }))
           if (!previous) contextManager.establishBaseline({ threadID, promptVersion: "prompt-engine-v2", baseHash: bundle.baseHash, contextHash: bundle.contextHash, cacheKey: bundle.cacheKey, fragments })
           else contextManager.appendFragments(threadID, fragments, bundle.contextHash)
-          if (!resumeCheckpoint) {
-            const items = await session.getItems()
-            const snapshot = contextManager.snapshot({ threadID, turnID, sessionID: agent.sessionID, items, promptText: budgetText, contextWindowTokens })
-            if (snapshot.needsCompaction) {
-              const hookRuns = await this.hooks.run("pre_compact", { snapshot, automatic: true }, { threadID, turnID })
-              const denied = hookRuns.find(({ result }) => result.decision === "deny")
-              if (denied) throw new AgentError("HOOK_DENIED", denied.result.reason ?? "PreCompact Hook 拒绝压缩", 403)
-              if (hookRuns.some(({ result }) => result.decision === "ask")) throw new AgentError("HOOK_CONFIRMATION_REQUIRED", "PreCompact Hook 要求人工确认", 409)
-              await contextManager.compact({ threadID, turnID, session, compactor: createModelContextCompactor(languageModel), promptText: budgetText, contextWindowTokens, signal: controller.signal })
-            }
-          }
-        },
-        onUsage: async (usage) => {
-          contextManager.recordMeasuredUsage({ threadID, turnID, sessionID: agent.sessionID, items: await session.getItems(), promptText: budgetText, contextWindowTokens, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens })
         },
         profile: "main",
         depth: 0,
@@ -489,7 +460,7 @@ export class ThreadService {
         attachments,
         ...(resumeCheckpoint ? { resume: resumeCheckpoint } : {}),
         ...(continueFromPlan ? { continueFromPlan: true, plan: this.db.currentPlan(turnID) ?? "" } : {}),
-        resolveModel: async () => ({ ref: selectedModel, model: languageModel }),
+        resolveModel: async () => ({ ref: selectedModel, model: piModel as never }),
         pause: async (approval) => {
           if (approval.kind === "subagents") await this.subagents.checkpointWait(threadID, turnID, agent.id, approval)
           else if (approval.kind === "permission") {
@@ -506,7 +477,20 @@ export class ThreadService {
         return
       }
       if (result.status === "plan-ready") {
-        this.db.waitForPlanConfirmation({ agentID: agent.id, turnID, threadID, payload: { plan: result.plan }, version: 1 })
+        const createdAt = Date.now()
+        this.db.transaction(() => {
+          this.db.upsertItem(threadID, {
+            id: `${turnID}:pi:plan`,
+            turnID,
+            agentID: agent.id,
+            type: "plan",
+            status: "completed",
+            data: { title: "实施计划", markdown: result.plan, version: 1, state: "awaiting-confirmation" },
+            createdAt,
+            updatedAt: createdAt,
+          })
+          this.db.waitForPlanConfirmation({ agentID: agent.id, turnID, threadID, payload: { plan: result.plan }, version: 1 })
+        })
         await this.emitAgent(this.db.getAgentExecution(agent.id)!)
         await this.emit(threadID, turnID, "plan/ready", { turnId: turnID, agentId: agent.id, plan: result.plan })
         return

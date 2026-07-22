@@ -1,18 +1,26 @@
-import type { AgentInputItem, Session } from "@openai/agents"
 import type { AgentDatabase } from "./Database"
 
-export const isUserSessionItem = (item: AgentInputItem | Record<string, unknown>) => {
+export type LegacyAgentInputItem = Record<string, any>
+interface LegacySession {
+  getSessionId(): Promise<string>
+  getItems(limit?: number): Promise<LegacyAgentInputItem[]>
+  addItems(items: LegacyAgentInputItem[]): Promise<void>
+  popItem(): Promise<LegacyAgentInputItem | undefined>
+  clearSession(): Promise<void>
+}
+
+export const isUserSessionItem = (item: LegacyAgentInputItem | Record<string, unknown>) => {
   const value = item as unknown as Record<string, unknown>
   return value.role === "user" || value.type === "message" && value.role === "user"
 }
 
 /** Returns logical user-round starts; consecutive contextual/user input items belong to one round. */
-export const userRoundStarts = (items: readonly AgentInputItem[]) => items.flatMap((item, index) =>
+export const userRoundStarts = (items: readonly LegacyAgentInputItem[]) => items.flatMap((item, index) =>
   isUserSessionItem(item) && (index === 0 || !isUserSessionItem(items[index - 1]!)) ? [index] : [],
 )
 
 /** Durable Agents SDK history backed by the local SQLite sidecar database. */
-export class SqliteAgentSession implements Session {
+export class SqliteAgentSession implements LegacySession {
   constructor(
     private readonly db: AgentDatabase,
     private readonly sessionID: string,
@@ -22,14 +30,14 @@ export class SqliteAgentSession implements Session {
     return this.sessionID
   }
 
-  async getItems(limit?: number): Promise<AgentInputItem[]> {
+  async getItems(limit?: number): Promise<LegacyAgentInputItem[]> {
     const rows = limit === undefined
       ? this.db.sqlite.query("SELECT payload FROM agent_thread_items WHERE thread_id = ? ORDER BY ordinal").all(this.sessionID) as Array<{ payload: string }>
       : (this.db.sqlite.query("SELECT payload FROM (SELECT payload, ordinal FROM agent_thread_items WHERE thread_id = ? ORDER BY ordinal DESC LIMIT ?) ORDER BY ordinal").all(this.sessionID, limit) as Array<{ payload: string }>)
-    return rows.map((row) => JSON.parse(row.payload) as AgentInputItem)
+    return rows.map((row) => JSON.parse(row.payload) as LegacyAgentInputItem)
   }
 
-  async addItems(items: AgentInputItem[]) {
+  async addItems(items: LegacyAgentInputItem[]) {
     if (!items.length) return
     const timestamp = Date.now()
     this.db.transaction(() => {
@@ -39,12 +47,12 @@ export class SqliteAgentSession implements Session {
     })
   }
 
-  async popItem(): Promise<AgentInputItem | undefined> {
+  async popItem(): Promise<LegacyAgentInputItem | undefined> {
     return this.db.transaction(() => {
       const row = this.db.sqlite.query("SELECT ordinal, payload FROM agent_thread_items WHERE thread_id = ? ORDER BY ordinal DESC LIMIT 1").get(this.sessionID) as { ordinal: number; payload: string } | null
       if (!row) return undefined
       this.db.sqlite.query("DELETE FROM agent_thread_items WHERE thread_id = ? AND ordinal = ?").run(this.sessionID, row.ordinal)
-      return JSON.parse(row.payload) as AgentInputItem
+      return JSON.parse(row.payload) as LegacyAgentInputItem
     })
   }
 
@@ -73,7 +81,7 @@ export class SqliteAgentSession implements Session {
   }
 
   /** Atomically replaces model history. Used only after a compaction result is complete. */
-  async replaceItems(items: AgentInputItem[]) {
+  async replaceItems(items: LegacyAgentInputItem[]) {
     const timestamp = Date.now()
     this.db.transaction(() => {
       this.db.sqlite.query("DELETE FROM agent_thread_items WHERE thread_id = ?").run(this.sessionID)

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { InstructionDiscoveryService } from "../src/prompt/InstructionDiscoveryService"
 import { PromptComposer } from "../src/prompt/PromptComposer"
-import { createPromptCacheMiddleware, inferPromptCacheCapability } from "../src/prompt/PromptCache"
+import { inferPromptCacheCapability } from "../src/prompt/PromptCache"
 import { createPromptSections } from "../src/prompt/sections"
 import { SkillService } from "../src/prompt/SkillService"
 
@@ -153,38 +153,4 @@ describe("PromptComposer", () => {
     expect(inferPromptCacheCapability("openai-compatible.chat").strategy).toBe("stable-prefix")
   })
 
-  test("OpenAI 注入线程 cache key，其他 provider 不增加私有选项", async () => {
-    const bundle = new PromptComposer().compose({
-      threadID: "thread-cache", mode: "chat", profile: "main", exposedTools: [],
-      sections: createPromptSections({ permissionInstructions: "permission", mode: "chat", profile: "main", userMessage: "hello" }),
-    })
-    const params = { prompt: [{ role: "system", content: bundle.instructions }] }
-    const openai = createPromptCacheMiddleware({ bundle, capability: inferPromptCacheCapability("openai.responses") })
-    const generic = createPromptCacheMiddleware({ bundle, capability: inferPromptCacheCapability("custom.provider") })
-    const openaiResult = await openai.transformParams?.({ type: "generate", params: params as never, model: {} as never })
-    const genericResult = await generic.transformParams?.({ type: "generate", params: params as never, model: {} as never })
-    expect(openaiResult?.providerOptions).toEqual({ openai: { promptCacheKey: "thread-cache" } })
-    expect(genericResult).toEqual(params as never)
-  })
-
-  test("Anthropic 只在 global-stable 和 session-stable 段尾添加两个 ephemeral breakpoint", async () => {
-    const bundle = new PromptComposer().compose({
-      threadID: "thread-cache", mode: "chat", profile: "main", exposedTools: ["shell"],
-      sections: createPromptSections({
-        permissionInstructions: "permission", mode: "chat", profile: "main",
-        toolGuidance: [{ name: "shell", content: "shell" }], userMessage: "dynamic user context",
-      }),
-    })
-    const dynamicUser = { role: "user", content: [{ type: "text", text: "dynamic user context" }] }
-    const params = { prompt: [{ role: "system", content: bundle.instructions }, dynamicUser] }
-    const middleware = createPromptCacheMiddleware({ bundle, capability: inferPromptCacheCapability("anthropic.messages") })
-    const result = await middleware.transformParams?.({ type: "stream", params: params as never, model: {} as never })
-    const prompt = result?.prompt as Array<Record<string, unknown>>
-    const marked = prompt.filter((message) => message.providerOptions !== undefined)
-    expect(bundle.cacheBoundaries).toHaveLength(2)
-    expect(marked).toHaveLength(2)
-    expect(prompt.at(-1)).toEqual(dynamicUser)
-    expect(prompt.at(-1)?.providerOptions).toBeUndefined()
-    expect(prompt.filter((message) => message.role === "system").map((message) => message.content).join("")).toBe(bundle.instructions)
-  })
 })

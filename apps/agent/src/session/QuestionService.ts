@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 import { AgentError } from "../domain"
-import type { PendingApproval, PlanCheckpoint } from "../orchestration/AgentOrchestrator"
+import type { PendingApproval, PlanCheckpoint } from "../orchestration/AgentRuntimeTypes"
 import type { AgentDatabase } from "../storage/Database"
 import type { EventHub } from "../storage/EventHub"
 
