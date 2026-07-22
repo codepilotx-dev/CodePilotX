@@ -1248,7 +1248,10 @@ function createAgentSessionDesktopClient(
     if (!value || typeof value !== 'object' || Array.isArray(value)) return false
     const status = value as Partial<ToolingStatus>
     return (
-      (status.id === 'git-bash' || status.id === 'ripgrep') &&
+      (status.id === 'nodejs' ||
+        status.id === 'python' ||
+        status.id === 'git-bash' ||
+        status.id === 'ripgrep') &&
       (status.preference === 'managed' || status.preference === 'system') &&
       typeof status.pinnedVersion === 'string'
     )
@@ -2843,12 +2846,6 @@ function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     agentExecutablePath: '',
     agentExecutableExists: false,
     configDirectoryPath: '',
-    toolchainEnabled: true,
-    toolchainRoot: null,
-    managedToolchainRoot: '',
-    packagedToolchainRoot: '',
-    toolchainPathEntries: [],
-    toolchainBinaries: [],
   }
   const provider = mockModelProvider(settings.providerID)
   const providerState = (): DesktopModelProviderState => ({
@@ -2877,40 +2874,6 @@ function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       organizationName: null,
     }),
     getRuntimeStatus: async () => runtimeStatus,
-    diagnoseDesktopToolchain: async () => ({
-      enabled: settings.installCodePilotXDependencies,
-      root: runtimeStatus.toolchainRoot,
-      managedRoot: runtimeStatus.managedToolchainRoot,
-      packagedRoot: runtimeStatus.packagedToolchainRoot,
-      pathEntries: runtimeStatus.toolchainPathEntries,
-      binaries: runtimeStatus.toolchainBinaries,
-    }),
-    reinstallDesktopToolchain: async () => ({
-      ok: true,
-      root: runtimeStatus.managedToolchainRoot,
-      copiedFrom: null,
-      diagnostics: {
-        enabled: settings.installCodePilotXDependencies,
-        root: runtimeStatus.toolchainRoot,
-        managedRoot: runtimeStatus.managedToolchainRoot,
-        packagedRoot: runtimeStatus.packagedToolchainRoot,
-        pathEntries: runtimeStatus.toolchainPathEntries,
-        binaries: runtimeStatus.toolchainBinaries,
-      },
-    }),
-    deleteDesktopToolchain: async () => ({
-      ok: true,
-      root: runtimeStatus.managedToolchainRoot,
-      copiedFrom: null,
-      diagnostics: {
-        enabled: settings.installCodePilotXDependencies,
-        root: null,
-        managedRoot: runtimeStatus.managedToolchainRoot,
-        packagedRoot: runtimeStatus.packagedToolchainRoot,
-        pathEntries: [],
-        binaries: runtimeStatus.toolchainBinaries,
-      },
-    }),
     getDesktopSettings: async () => settings,
     saveDesktopSettings: async next => {
       settings = { ...settings, ...next }

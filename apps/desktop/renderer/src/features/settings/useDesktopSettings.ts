@@ -75,6 +75,7 @@ export type UseDesktopSettingsResult = {
 	  sandboxMode: DesktopSandboxMode
   allowNetworkAccess: boolean
   installCodePilotXDependencies: boolean
+  workspaceDependenciesMigrated: boolean
   personality: DesktopPersonality
   customInstructions: string
   enableMemory: boolean
@@ -394,6 +395,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [installCodePilotXDependencies, setInstallCodePilotXDependencies] = useState(
     initial.installCodePilotXDependencies,
   )
+  const [workspaceDependenciesMigrated, setWorkspaceDependenciesMigrated] = useState(
+    initial.workspaceDependenciesMigrated,
+  )
   const [personality, setPersonality] = useState<DesktopPersonality>(
     initial.personality,
   )
@@ -513,6 +517,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
 	        setSandboxMode(settings.sandboxMode)
         setAllowNetworkAccess(settings.allowNetworkAccess)
         setInstallCodePilotXDependencies(settings.installCodePilotXDependencies)
+        setWorkspaceDependenciesMigrated(settings.workspaceDependenciesMigrated)
         setPersonality(settings.personality)
         setCustomInstructions(settings.customInstructions)
         setEnableMemory(settings.enableMemory)
@@ -590,6 +595,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       sandboxMode,
       allowNetworkAccess,
       installCodePilotXDependencies,
+      workspaceDependenciesMigrated,
       personality,
       customInstructions,
       enableMemory,
@@ -652,6 +658,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       sandboxMode,
       allowNetworkAccess,
       installCodePilotXDependencies,
+      workspaceDependenciesMigrated,
       personality,
       customInstructions,
       enableMemory,
@@ -708,7 +715,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const setDraftValue = useCallback<DesktopSettingsDraftSetter>(
     (key, value) => {
       draftDirtyKeysRef.current.add(key)
-      setDraftValues(current => updateDesktopSettingsValue(current, key, value))
+      const next = updateDesktopSettingsValue(draftValuesRef.current, key, value)
+      draftValuesRef.current = next
+      setDraftValues(next)
     },
     [],
   )
@@ -758,6 +767,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setSandboxMode(snapshot.sandboxMode)
       setAllowNetworkAccess(snapshot.allowNetworkAccess)
       setInstallCodePilotXDependencies(snapshot.installCodePilotXDependencies)
+      setWorkspaceDependenciesMigrated(snapshot.workspaceDependenciesMigrated)
       setPersonality(snapshot.personality)
       setCustomInstructions(snapshot.customInstructions)
       setEnableMemory(snapshot.enableMemory)
@@ -906,6 +916,7 @@ defaultOpenTargetId,
     sandboxMode,
     allowNetworkAccess,
     installCodePilotXDependencies,
+    workspaceDependenciesMigrated,
     personality,
     customInstructions,
     enableMemory,

@@ -12,7 +12,6 @@ import {
   Square,
   User,
   Gauge,
-  Wrench,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -120,7 +119,7 @@ export const SETTINGS_GROUPS = [
           row('审批执行者', '选择由你或 Guardian 处理审批'),
           row('任务模型', '配置快速、默认、深度和计划执行模型'),
           row('数据位置', '更改 CodePilotX 配置和会话数据目录'),
-          row('工作空间依赖项', '管理内置 Node.js 和 Python 工具链'),
+          row('工作空间依赖项', '独立管理 Node.js、Python、Git Bash 和 ripgrep 的内置或本机来源'),
           row('自定义 config.toml 设置', '编辑底层 Codex 配置'),
           row('完整提示词诊断', '查看提示词来源、哈希与 token 估算'),
         ],
@@ -211,18 +210,6 @@ export const SETTINGS_GROUPS = [
     id: 'coding',
     title: '编码',
     items: [
-      {
-        id: 'tooling',
-        routeId: 'tooling',
-        label: '工具链',
-        description: 'Git Bash 与 ripgrep 的托管安装和本机来源',
-        icon: Wrench,
-        rows: [
-          row('Git Bash', '选择 CodePilotX 托管版或本机 Git Bash'),
-          row('ripgrep', '选择 Glob 和 Grep 使用的 ripgrep 来源'),
-          row('安装托管版', '按需下载代码内固定并校验的版本'),
-        ],
-      },
       {
         id: 'connections',
         routeId: 'connections',

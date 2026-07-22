@@ -92,7 +92,6 @@ export type UseSessionStateOptions = {
   systemPrompt: string
   appendSystemPrompt: string
   additionalDirectories: string
-  installCodePilotXDependencies: boolean
   enableMemory: boolean
   rustSearchAndDiffKernels: boolean
   followUpBehavior: DesktopFollowUpBehavior
@@ -216,7 +215,6 @@ export function useSessionState(
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
-    installCodePilotXDependencies,
     enableMemory,
     rustSearchAndDiffKernels,
     followUpBehavior,
@@ -797,14 +795,12 @@ export function useSessionState(
       systemPrompt,
       appendSystemPrompt,
       additionalDirectories,
-      installCodePilotXDependencies,
       enableMemory,
       rustSearchAndDiffKernels,
     }),
     [
       additionalDirectories,
       appendSystemPrompt,
-      installCodePilotXDependencies,
       enableMemory,
       rustSearchAndDiffKernels,
       debugConversationDump,

@@ -48,7 +48,6 @@ export type SessionSettingsSnapshot = {
   systemPrompt: string
   appendSystemPrompt: string
   additionalDirectories: string
-  installCodePilotXDependencies: boolean
   enableMemory: boolean
   rustSearchAndDiffKernels: boolean
 }
@@ -117,7 +116,6 @@ export async function createSessionForWorkspaceAction(
       additionalDirectories: parseAdditionalDirectories(
         settings.additionalDirectories,
       ),
-      installCodePilotXDependencies: settings.installCodePilotXDependencies,
       enableMemory: settings.enableMemory,
       rustSearchAndDiffKernels: settings.rustSearchAndDiffKernels,
     })

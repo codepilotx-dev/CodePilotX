@@ -8,19 +8,32 @@ import type {
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { Button } from '../../components/ui/Button.js'
 import { desktopClient } from '../../services/desktopClient.js'
-import { SettingsContentArea } from './SettingsContentArea.js'
-import { SettingsDropdown } from './SettingsDropdown.js'
+import { SegmentedControl } from './SegmentedControl.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 
 type Props = {
+  legacyManagedPreference: boolean
+  migrationComplete: boolean
+  onMigrationComplete: () => Promise<void>
   onError: (message: string) => void
   onNotice?: (message: string) => void
 }
 
+const TOOL_IDS: readonly ToolingID[] = ['nodejs', 'python', 'git-bash', 'ripgrep']
+
 const TOOL_LABELS: Record<ToolingID, string> = {
+  nodejs: 'Node.js',
+  python: 'Python',
   'git-bash': 'Git Bash',
   ripgrep: 'ripgrep',
+}
+
+const TOOL_DESCRIPTIONS: Record<ToolingID, string> = {
+  nodejs: '提供 node、npm、npx 和 corepack。',
+  python: '提供 python 和 pip。',
+  'git-bash': '用于执行 Bash 命令，仅识别 Git for Windows 的 Git Bash。',
+  ripgrep: '用于 Glob 和 Grep 文件搜索。',
 }
 
 const PHASE_LABELS: Record<ToolingStatus['phase'], string> = {
@@ -33,23 +46,31 @@ const PHASE_LABELS: Record<ToolingStatus['phase'], string> = {
   'cleanup-pending': '等待清理',
 }
 
-const SOURCE_OPTIONS = [
-  {
-    value: 'managed',
-    label: 'CodePilotX 托管版',
-    detail: '首次使用时下载固定版本，由 CodePilotX 管理',
-  },
-  {
-    value: 'system',
-    label: '本机版',
-    detail: '仅使用本机已安装并通过校验的工具',
-  },
+const SOURCE_OPTIONS: readonly { value: ToolingPreference; label: string }[] = [
+  { value: 'managed', label: '内置' },
+  { value: 'system', label: '本机' },
 ]
 
-export function ToolingSettings({ onError, onNotice }: Props): React.ReactNode {
+export function WorkspaceDependenciesSection({
+  legacyManagedPreference,
+  migrationComplete,
+  onMigrationComplete,
+  onError,
+  onNotice,
+}: Props): React.ReactNode {
   const [statuses, setStatuses] = React.useState<readonly ToolingStatus[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [busyTool, setBusyTool] = React.useState<ToolingID | null>(null)
+  const [busyTools, setBusyTools] = React.useState<ReadonlySet<ToolingID>>(() => new Set())
+  const migrationStarted = React.useRef(false)
+
+  const setToolBusy = React.useCallback((id: ToolingID, busy: boolean): void => {
+    setBusyTools(current => {
+      const next = new Set(current)
+      if (busy) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }, [])
 
   const replaceStatus = React.useCallback((next: ToolingStatus): void => {
     setStatuses(current => {
@@ -65,7 +86,7 @@ export function ToolingSettings({ onError, onNotice }: Props): React.ReactNode {
     try {
       setStatuses(await desktopClient.listTooling())
     } catch (error) {
-      onError(errorMessage(error, '无法读取工具链状态。'))
+      onError(errorMessage(error, '无法读取工作空间依赖项状态。'))
     } finally {
       setLoading(false)
     }
@@ -74,11 +95,24 @@ export function ToolingSettings({ onError, onNotice }: Props): React.ReactNode {
   React.useEffect(() => {
     let active = true
     void desktopClient.listTooling()
-      .then(next => {
-        if (active) setStatuses(next)
+      .then(async next => {
+        if (!active) return
+        setStatuses(next)
+        if (!migrationComplete && !migrationStarted.current) {
+          migrationStarted.current = true
+          const preference: ToolingPreference = legacyManagedPreference ? 'managed' : 'system'
+          const migrated = await Promise.all([
+            desktopClient.setToolingPreference('nodejs', preference),
+            desktopClient.setToolingPreference('python', preference),
+          ])
+          if (!active) return
+          for (const status of migrated) replaceStatus(status)
+          await onMigrationComplete()
+        }
       })
       .catch(error => {
-        if (active) onError(errorMessage(error, '无法读取工具链状态。'))
+        migrationStarted.current = false
+        if (active) onError(errorMessage(error, '无法读取或迁移工作空间依赖项状态。'))
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -90,74 +124,78 @@ export function ToolingSettings({ onError, onNotice }: Props): React.ReactNode {
       active = false
       unsubscribe()
     }
-  }, [onError, replaceStatus])
+  }, [legacyManagedPreference, migrationComplete, onError, onMigrationComplete, replaceStatus])
 
   const changePreference = async (
     status: ToolingStatus,
     preference: ToolingPreference,
   ): Promise<void> => {
-    if (preference === status.preference || busyTool) return
+    if (preference === status.preference || busyTools.has(status.id)) return
     if (
       preference === 'system' &&
       status.managed.installed &&
-      !window.confirm(
-        `切换到本机版会删除 CodePilotX 托管的 ${TOOL_LABELS[status.id]}。确认继续吗？`,
-      )
-    ) {
-      return
-    }
-    setBusyTool(status.id)
+      !window.confirm(`切换到本机会删除 CodePilotX 内置的 ${TOOL_LABELS[status.id]}。确认继续吗？`)
+    ) return
+
+    setToolBusy(status.id, true)
     try {
       replaceStatus(await desktopClient.setToolingPreference(status.id, preference))
-      onNotice?.(`${TOOL_LABELS[status.id]} 已切换为${preference === 'managed' ? '托管版' : '本机版'}。`)
+      onNotice?.(`${TOOL_LABELS[status.id]} 已切换为${preference === 'managed' ? '内置' : '本机'}。`)
     } catch (error) {
       onError(errorMessage(error, `无法切换 ${TOOL_LABELS[status.id]} 来源。`))
       await refresh()
     } finally {
-      setBusyTool(null)
+      setToolBusy(status.id, false)
     }
   }
 
   const install = async (status: ToolingStatus): Promise<void> => {
-    if (busyTool) return
-    setBusyTool(status.id)
+    if (busyTools.has(status.id)) return
+    setToolBusy(status.id, true)
     try {
       replaceStatus(await desktopClient.installTooling(status.id, status.managed.installed))
-      onNotice?.(`${TOOL_LABELS[status.id]} 托管版已安装。`)
+      onNotice?.(`${TOOL_LABELS[status.id]} 内置版已安装。`)
     } catch (error) {
       onError(errorMessage(error, `${TOOL_LABELS[status.id]} 安装失败。`))
       await refresh()
     } finally {
-      setBusyTool(null)
+      setToolBusy(status.id, false)
     }
   }
 
-  return (
-    <SettingsContentArea>
-      <div className="settings-content-inner">
-        <div className="settings-page-header">
-          <h2 className="settings-page-title">工具链</h2>
-          <p className="settings-page-desc">
-            分别选择 Git Bash 和 ripgrep 的运行来源。托管版只在首次使用或主动安装时下载，不会自动检查更新。
-          </p>
-        </div>
+  if (loading && statuses.length === 0) {
+    return (
+      <SettingsSection title="工作空间依赖项">
+        <SettingsRow title="正在读取依赖项状态…" />
+      </SettingsSection>
+    )
+  }
 
-        {loading ? <p className="settings-page-desc">正在读取工具链状态…</p> : null}
-        {statuses.map(status => (
-          <ToolingSection
-            busy={busyTool === status.id}
-            key={status.id}
+  return (
+    <>
+      <div className="settings-section">
+        <SettingsSection.Header
+          title="工作空间依赖项"
+          description="四项运行环境彼此独立；内置版只在首次使用或手动安装时下载，不会打包进应用。"
+        />
+      </div>
+      {TOOL_IDS.map(id => {
+        const status = statuses.find(item => item.id === id)
+        return status ? (
+          <DependencySection
+            busy={busyTools.has(id)}
+            key={id}
             onInstall={() => void install(status)}
             onPreferenceChange={preference => void changePreference(status, preference)}
             status={status}
           />
-        ))}
-      </div>
-    </SettingsContentArea>
+        ) : null
+      })}
+    </>
   )
 }
 
-function ToolingSection({
+function DependencySection({
   busy,
   onInstall,
   onPreferenceChange,
@@ -170,32 +208,27 @@ function ToolingSection({
 }): React.ReactNode {
   const installing = status.phase === 'downloading' || status.phase === 'installing'
   const activeLabel = status.activeSource === 'managed'
-    ? 'CodePilotX 托管版'
+    ? '内置'
     : status.activeSource === 'system'
-      ? '本机版'
-      : '当前不可用'
+      ? '本机'
+      : '不可用'
 
   return (
-    <SettingsSection
-      title={TOOL_LABELS[status.id]}
-      description={status.id === 'git-bash'
-        ? '用于执行 Bash 命令，仅识别 Git for Windows 的 Git Bash。'
-        : '用于 Glob 和 Grep 文件搜索。'}
-    >
+    <SettingsSection title={TOOL_LABELS[status.id]} description={TOOL_DESCRIPTIONS[status.id]}>
       <SettingsRow
-        title="工具来源"
+        title="来源"
         description={status.preference === 'system' && !status.system.available
-          ? '未检测到有效的本机工具；当前不会回退到托管版。'
-          : 'Git Bash 与 ripgrep 的来源可以独立设置。'}
+          ? '未检测到有效的本机版本；当前不会回退到内置版。'
+          : '内置版按需下载；本机版仅使用通过校验的系统工具。'}
         control={
-          <SettingsDropdown
-            ariaLabel={`${TOOL_LABELS[status.id]} 工具来源`}
+          <SegmentedControl
+            ariaLabel={`${TOOL_LABELS[status.id]} 来源`}
+            className="settings-segmented-control"
             onChange={value => {
-              if (!busy) onPreferenceChange(value as ToolingPreference)
+              if (!busy) onPreferenceChange(value)
             }}
             options={SOURCE_OPTIONS}
             value={status.preference}
-            width={260}
           />
         }
       />
@@ -211,20 +244,20 @@ function ToolingSection({
       />
       <SettingsRow
         title="版本"
-        description={`固定版本：${status.pinnedVersion}；托管版：${status.managed.version ?? '未安装'}；本机版：${status.system.version ?? '未检测到'}`}
+        description={`固定版本：${status.pinnedVersion}；内置：${status.managed.version ?? '未安装'}；本机：${status.system.version ?? '未检测到'}`}
       />
       {status.preference === 'managed' ? (
         <SettingsRow
-          title={status.managed.installed ? '重新安装托管版' : '安装托管版'}
+          title={status.managed.installed ? '重新安装内置版' : '安装内置版'}
           description={status.managed.installed
             ? '重新下载并校验固定版本；失败时保留当前有效安装。'
-            : '从官方发布源下载代码内固定的版本。'}
+            : '首次使用时也会自动安装代码内固定的版本。'}
           control={
             <Button disabled={busy || installing} onClick={onInstall} type="button">
               {status.managed.installed
                 ? <RotateCcw size={APP_ICON_SIZE} />
                 : <Download size={APP_ICON_SIZE} />}
-              {installing ? '处理中…' : status.managed.installed ? '重新安装' : '安装托管版'}
+              {installing ? '处理中…' : status.managed.installed ? '重新安装' : '安装内置版'}
             </Button>
           }
         />
@@ -237,7 +270,7 @@ function progressDescription(status: ToolingStatus): string {
   const progress = status.progress
   if (!progress) {
     if (status.phase === 'cleanup-pending') return '文件正在使用，CodePilotX 会在下次启动时继续清理。'
-    return status.phase === 'idle' ? '尚未解析可用工具。' : '工具状态已更新。'
+    return status.phase === 'idle' ? '尚未解析可用版本。' : '依赖项状态已更新。'
   }
   const received = formatBytes(progress.receivedBytes)
   return progress.totalBytes === undefined
@@ -247,7 +280,9 @@ function progressDescription(status: ToolingStatus): string {
 
 function resolvedPath(status: ToolingStatus): string {
   if (status.activeSource === 'system') return status.system.path ?? '本机路径不可用'
-  if (status.activeSource === 'managed') return `~/.codepilotx/tooling/${status.id}/${status.managed.version ?? status.pinnedVersion}`
+  if (status.activeSource === 'managed') {
+    return `~/.codepilotx/tooling/${status.id}/${status.managed.version ?? status.pinnedVersion}`
+  }
   return '没有可执行文件路径'
 }
 

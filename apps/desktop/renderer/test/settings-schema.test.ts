@@ -1,6 +1,22 @@
 import { describe, expect, test } from "bun:test"
 import { defaultDesktopStoredSettings, normalizeDesktopStoredSettings } from "../shared/settingsSchema"
 
+describe("工作空间依赖项迁移", () => {
+  test("默认等待一次性迁移并持久化完成标记", () => {
+    expect(defaultDesktopStoredSettings()).toMatchObject({
+      installCodePilotXDependencies: true,
+      workspaceDependenciesMigrated: false,
+    })
+    expect(normalizeDesktopStoredSettings({
+      installCodePilotXDependencies: false,
+      workspaceDependenciesMigrated: true,
+    })).toMatchObject({
+      installCodePilotXDependencies: false,
+      workspaceDependenciesMigrated: true,
+    })
+  })
+})
+
 describe("高级权限设置归一化", () => {
   test("完整保存并回填 granular PermissionConfig", () => {
     const granular = { type: "granular" as const, sandboxApproval: false, rules: true, skillApproval: false, requestPermissions: true, mcpElicitations: false }

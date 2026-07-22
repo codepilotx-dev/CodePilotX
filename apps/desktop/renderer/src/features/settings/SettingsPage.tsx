@@ -14,7 +14,6 @@ const ModelConnectionSettings = React.lazy(() => import('./ModelConnectionSettin
 const PersonalizationSettings = React.lazy(() => import('./PersonalizationSettings.js').then(module => ({ default: module.PersonalizationSettings })))
 const ProfileSettings = React.lazy(() => import('./ProfileSettings.js').then(module => ({ default: module.ProfileSettings })))
 const UsageBillingSettings = React.lazy(() => import('./UsageBillingSettings.js').then(module => ({ default: module.UsageBillingSettings })))
-const ToolingSettings = React.lazy(() => import('./ToolingSettings.js').then(module => ({ default: module.ToolingSettings })))
 
 type Props = {
   activeTab: string
@@ -33,7 +32,7 @@ export function SettingsPage({
   let content: React.ReactNode
   if (resolvedTab === 'general') content = <GeneralSettings onNotice={onNotice} />
   else if (resolvedTab === 'appearance') content = <AppearanceSettings onError={onError} onNotice={onNotice} />
-  else if (resolvedTab === 'config') content = <ConfigSettings />
+  else if (resolvedTab === 'config') content = <ConfigSettings onError={onError} onNotice={onNotice} />
   else if (resolvedTab === 'connections') content = <ModelConnectionSettings onError={onError} />
   else if (resolvedTab === 'mcp') content = <McpSettings />
   else if (resolvedTab === 'git') content = <GitSettings />
@@ -44,7 +43,6 @@ export function SettingsPage({
   else if (resolvedTab === 'archived') content = <ArchivedConversationsSettings />
   else if (resolvedTab === 'billing') content = <UsageBillingSettings />
   else if (resolvedTab === 'browser') content = <BrowserSettings />
-  else if (resolvedTab === 'tooling') content = <ToolingSettings onError={onError} onNotice={onNotice} />
   else content = <GeneralSettings onNotice={onNotice} />
   return <Suspense fallback={null}>{content}</Suspense>
 }
