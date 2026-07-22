@@ -63,6 +63,20 @@ const fixture = async (
       return { configured: false, authenticated: false, user: null }
     },
   }
+  const toolingStatus = {
+    id: "ripgrep" as const,
+    preference: "managed" as const,
+    phase: "idle" as const,
+    activeSource: null,
+    pinnedVersion: "15.2.0",
+    managed: { installed: false, version: null },
+    system: { available: false, version: null, path: null },
+  }
+  const tooling = {
+    listStatuses: async () => [toolingStatus],
+    setPreference: async (_id: string, preference: "managed" | "system") => ({ ...toolingStatus, preference }),
+    install: async () => ({ ...toolingStatus, phase: "ready" as const, managed: { installed: true, version: "15.2.0" } }),
+  }
   const router = new RpcRouter({
     db,
     review,
@@ -79,6 +93,7 @@ const fixture = async (
     memory: null,
     hooks: null,
     sandbox: null,
+    tooling,
     ...overrides,
   } as unknown as RpcRouterDependencies)
   let id = 0
@@ -175,6 +190,19 @@ describe("RPC v3 Router", () => {
     const github = await call("github/auth/status", {})
     expect(github.result).toEqual({ configured: false, authenticated: false, user: null })
     expect(counts()).toEqual({ reviewSummaryCalls: 1, githubStatusCalls: 1 })
+    db.close()
+  })
+
+  test("tooling methods pass through the typed dispatcher", async () => {
+    const { db, call, initialize } = await fixture()
+    await initialize()
+    expect((await call("tooling/list", {})).result.statuses).toEqual([
+      expect.objectContaining({ id: "ripgrep", preference: "managed", pinnedVersion: "15.2.0" }),
+    ])
+    expect((await call("tooling/setPreference", { id: "ripgrep", preference: "system", operationId: "tooling:preference:1" })).result.status)
+      .toMatchObject({ id: "ripgrep", preference: "system" })
+    expect((await call("tooling/install", { id: "ripgrep", force: true, operationId: "tooling:install:1" })).result.status)
+      .toMatchObject({ id: "ripgrep", phase: "ready", managed: { installed: true } })
     db.close()
   })
 

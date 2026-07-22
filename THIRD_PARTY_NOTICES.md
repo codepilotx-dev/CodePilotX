@@ -36,16 +36,13 @@ CodePilotX distributes the precompiled Windows helper from
 `@anthropic-ai/sandbox-runtime@0.0.65` under the Apache License 2.0. See
 `third_party/sandbox-runtime/LICENSE`.
 
-CodePilotX packaging reserves `resources/tooling` for optional language-server
-resources. Release builds that include `typescript-language-server` or
-`typescript` must also include their upstream license texts at the paths
-declared by `resources/tooling/manifest.json`. Both projects are distributed
-under the Apache License 2.0. The source tree does not currently include those
-binaries or license payloads, so the integration remains optional.
+CodePilotX can download pinned official releases of Git for Windows
+PortableGit 2.55.0.3 and ripgrep 15.2.0 into the user's
+`~/.codepilotx/tooling` directory when their tools are first used. These
+binaries are not included in CodePilotX installers. Git for Windows and its
+bundled components retain their respective upstream license terms; ripgrep is
+distributed under the MIT License. CodePilotX verifies the release archives
+with fixed SHA-256 digests before installation.
 
-Windows release packages include Git for Windows PortableGit 2.55.0.3 and
-ripgrep 15.2.0. Git for Windows and its bundled components retain their
-respective upstream license terms; ripgrep is distributed under the MIT
-License. Their license payloads and verified executable SHA-256 digests are
-stored under `resources/tooling`; release packaging rejects missing or altered
-resources.
+Optional TypeScript language-server resources are resolved independently and
+are not part of the managed Git Bash or ripgrep installation.

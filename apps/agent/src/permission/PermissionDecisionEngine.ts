@@ -2,6 +2,7 @@ import { isGranularApprovalPolicy } from "@codepilotx/shared/thread";
 import type { PermissionDecision, ToolInvocation } from "../domain";
 import type { ApprovalStrategy, ToolCatalogEntry } from "../tool/ToolRegistry";
 import { toolAllowedInSandbox } from "../tool/ToolRegistry";
+import { analyzeShellRisk } from "../security/ShellRiskClassifier";
 
 export interface RequestedPermissions {
   readPaths: string[];
@@ -65,11 +66,21 @@ const riskFor = (
   tool: ToolCatalogEntry,
 ): PermissionDecision["risk"] => {
   const requested = requestedPermissions(invocation.input);
-  if (
-    invocation.permissionConfig.sandboxMode === "danger-full-access" ||
-    tool.capabilities.filesystem === "host-write"
-  )
-    return "critical";
+  if (typeof invocation.input.command === "string") {
+    const analysis = analyzeShellRisk({
+      command: invocation.input.command,
+      ...(typeof invocation.input.cwd === "string" ? { cwd: invocation.input.cwd } : {}),
+      ...(typeof invocation.input.workspaceRoot === "string" ? { workspaceRoot: invocation.input.workspaceRoot } : {}),
+      ...(invocation.input.additionalPermissions && typeof invocation.input.additionalPermissions === "object"
+        ? { additionalPermissions: invocation.input.additionalPermissions as never }
+        : {}),
+    });
+    if (analysis.hardDenied) return "critical";
+    if (requested.readPaths.length || requested.writePaths.length) return analysis.risk === "critical" ? "critical" : "high";
+    if (requested.networkDomains.length && analysis.risk === "low") return "medium";
+    return analysis.risk;
+  }
+  if (tool.capabilities.filesystem === "host-write") return "high";
   if (
     requested.writePaths.length ||
     tool.capabilities.filesystem === "workspace-write" ||
@@ -165,6 +176,8 @@ export class PermissionDecisionEngine {
       reason,
     });
     const policy = invocation.permissionConfig.approvalPolicy;
+    const hostPreset = invocation.permissionConfig.sandboxMode === "danger-full-access"
+      && (policy === "on-request" || policy === "never");
     // Capability switches are hard gates, not merely instructions about who
     // reviews a request. They must run before always-review can create one.
     const hardCapability = hardGatedCapability(invocation, tool);
@@ -179,6 +192,37 @@ export class PermissionDecisionEngine {
       return invocation.permissionConfig.approvalPolicy === "never"
         ? deny("never 策略禁止等待审批")
         : review("工具始终需要审批");
+
+    // The built-in desktop presets execute on the host. Execution isolation is
+    // deliberately independent from command risk: safe operations use a
+    // deterministic fast path, while ambiguous/risky operations go through
+    // Guardian. Full access still cannot override a critical classification.
+    if (hostPreset) {
+      if (risk === "critical") {
+        if (policy !== "never") return deny("灾难级或硬拒绝操作不可执行");
+        return {
+          action: "review",
+          reviewer: "auto_review",
+          sandbox,
+          decision: "ask",
+          risk,
+          reason: "完全访问的灾难级候选必须经 Guardian 复核并拒绝",
+        };
+      }
+      if (policy === "never") return allow("完全访问允许非灾难级主机操作");
+      const elevated = hasRequestedPermissions(invocation.input)
+        || invocation.input.__hookRequiresApproval === true
+        || invocation.input.__ruleRequiresApproval === true;
+      if (risk === "low" && !elevated) return allow("确定性安全操作快速放行");
+      return {
+        action: "review",
+        reviewer: "auto_review",
+        sandbox,
+        decision: "ask",
+        risk,
+        reason: risk === "high" ? "高风险或工作区外操作需要 Guardian 证据和人工确认" : "操作需要 Guardian 审核",
+      };
+    }
 
     // sandboxMode is the thread's already-selected baseline. Only a per-call
     // scope request is an elevation; danger-full-access is not re-approved on

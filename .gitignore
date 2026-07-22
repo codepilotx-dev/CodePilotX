@@ -14,6 +14,7 @@ dist-ssr
 .codepilotx
 data
 release
+resources/tooling/
 apps/agent/catalog.cache.json
 .playwright-cli/
 apps/desktop/renderer/test-results/

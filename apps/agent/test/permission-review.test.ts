@@ -54,7 +54,7 @@ describe("Shell ReviewerService", () => {
     expect(engine.evaluate({ ...base, input: { command: "npm test", additionalPermissions: { networkDomains: ["npmjs.org"] } } }, tools.get("PowerShell"))).toMatchObject({ action: "review", reviewer: "user" })
   })
 
-  test("never 不重复审批已选择的 full access，但拒绝动态提升", () => {
+  test("never 不重复审批已选择的 full access，并允许非灾难级动态范围", () => {
     const tools = new ToolRegistry()
     const engine = new PermissionDecisionEngine()
     const invocation = {
@@ -67,7 +67,29 @@ describe("Shell ReviewerService", () => {
       permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "never", approvalsReviewer: "auto_review" },
       taskMode: "chat",
     } as unknown as ToolInvocation
-    expect(engine.evaluate(invocation, tools.get("PowerShell"))).toMatchObject({ action: "allow", risk: "critical" })
-    expect(engine.evaluate({ ...invocation, input: { command: "x", additionalPermissions: { writePaths: ["C:\\outside"] } } }, tools.get("PowerShell"))).toMatchObject({ action: "deny" })
+    expect(engine.evaluate(invocation, tools.get("PowerShell"))).toMatchObject({ action: "allow", risk: "low" })
+    expect(engine.evaluate({ ...invocation, input: { command: "x", additionalPermissions: { writePaths: ["C:\\outside"] } } }, tools.get("PowerShell"))).toMatchObject({ action: "allow", risk: "high" })
+    expect(engine.evaluate({ ...invocation, input: { command: "format C:" } }, tools.get("PowerShell"))).toMatchObject({ action: "review", reviewer: "auto_review", risk: "critical" })
+    expect(engine.evaluate({ ...invocation, input: { command: "format C:" }, permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "on-request", approvalsReviewer: "auto_review" } }, tools.get("PowerShell"))).toMatchObject({ action: "deny", risk: "critical" })
+  })
+
+  test("主机预设安全快放、中风险 Guardian、高风险人工、完全访问放行高风险", () => {
+    const shell = new ToolRegistry().get("PowerShell")
+    const engine = new PermissionDecisionEngine()
+    const base = {
+      id: "tool-host",
+      threadID: "thread-1",
+      turnID: "turn-1",
+      agentID: "agent-1",
+      name: "PowerShell",
+      input: { command: "npm test" },
+      permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "on-request", approvalsReviewer: "user" },
+      taskMode: "chat",
+    } as unknown as ToolInvocation
+    expect(engine.evaluate(base, shell)).toMatchObject({ action: "allow", risk: "low" })
+    expect(engine.evaluate({ ...base, input: { command: "curl https://example.com" } }, shell)).toMatchObject({ action: "review", reviewer: "auto_review", risk: "medium" })
+    expect(engine.evaluate({ ...base, input: { command: "git reset --hard" } }, shell)).toMatchObject({ action: "review", reviewer: "auto_review", risk: "high" })
+    expect(engine.evaluate({ ...base, input: { command: "Get-Content C:\\outside\\secret.txt", cwd: "C:\\repo", workspaceRoot: "C:\\repo" } }, shell)).toMatchObject({ action: "review", reviewer: "auto_review", risk: "high" })
+    expect(engine.evaluate({ ...base, input: { command: "git reset --hard" }, permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "never", approvalsReviewer: "auto_review" } }, shell)).toMatchObject({ action: "allow", risk: "high" })
   })
 })

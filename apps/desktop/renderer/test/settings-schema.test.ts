@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { normalizeDesktopStoredSettings } from "../shared/settingsSchema"
+import { defaultDesktopStoredSettings, normalizeDesktopStoredSettings } from "../shared/settingsSchema"
 
 describe("高级权限设置归一化", () => {
   test("完整保存并回填 granular PermissionConfig", () => {
@@ -25,6 +25,35 @@ describe("高级权限设置归一化", () => {
 
   test("旧 on-failure 审批策略迁移为 on-request", () => {
     expect(normalizeDesktopStoredSettings({ approvalPolicy: "on-failure" }).permissionConfig.approvalPolicy).toBe("on-request")
+  })
+
+  test("新默认使用主机权限并显示三个内置模式", () => {
+    expect(defaultDesktopStoredSettings()).toMatchObject({
+      enableAutoReviewPermissionMode: true,
+      enableFullAccessPermissionMode: true,
+      permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "on-request", approvalsReviewer: "user" },
+    })
+  })
+
+  test("仅精确迁移历史默认权限，显式自定义 SRT 保持不变", () => {
+    expect(normalizeDesktopStoredSettings({
+      permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" },
+      enableAutoReviewPermissionMode: false,
+      enableFullAccessPermissionMode: false,
+    })).toMatchObject({
+      enableAutoReviewPermissionMode: true,
+      enableFullAccessPermissionMode: true,
+      permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "on-request", approvalsReviewer: "user" },
+    })
+    expect(normalizeDesktopStoredSettings({
+      permissionMode: "custom",
+      permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" },
+    }).permissionConfig).toEqual({ sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" })
+    expect(normalizeDesktopStoredSettings({
+      permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" },
+      enableAutoReviewPermissionMode: true,
+      enableFullAccessPermissionMode: false,
+    }).permissionConfig).toEqual({ sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" })
   })
 })
 

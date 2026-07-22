@@ -25,6 +25,7 @@ export const Capabilities = [
   "prompt.preview.sensitive.v1",
   "prompt.refresh.v1",
   "model.catalog.paged.v1",
+  "tooling.management.v1",
 ] as const
 
 export const ProtocolCapabilitySchema = Schema.Literals(Capabilities)

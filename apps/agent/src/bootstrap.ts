@@ -13,7 +13,7 @@ import { publishAgentEvent } from "./storage/EventPublisher";
 import { EncryptedCredentialRepository } from "./auth/EncryptedCredentialRepository";
 import { ToolRegistry } from "./tool/ToolRegistry";
 import { ToolExecutor } from "./tool/ToolExecutor";
-import { resolveToolingExecutable } from "./tool/ToolingResources";
+import { getToolingManager } from "./tool/ToolingManager";
 import { createBraveSearchTool, createWebFetchTool } from "./tool/web";
 import { createLspTool, LspManager } from "./lsp";
 import { ApprovalService } from "./permission/ApprovalService";
@@ -57,6 +57,14 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const db = new AgentDatabase(config.databasePath);
     options.initializeDatabase?.(db);
     const hub = yield* EventHub.make;
+    const tooling = getToolingManager();
+    const unsubscribeTooling = tooling.subscribe((status) => {
+      void publishAgentEvent(db, hub, null, null, "tooling/updated", { status })
+        .catch((cause) => logger.warn("tooling.status.publish.failed", {
+          id: status.id,
+          error: cause instanceof Error ? cause.message : String(cause),
+        }));
+    });
     const credentials = new EncryptedCredentialRepository(db);
     const github = new GithubService(credentials, {
       getConfiguredClientId: () => {
@@ -109,8 +117,6 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     yield* Effect.promise(() => providers.models().then(() => undefined));
     const tools = new ToolRegistry();
     const lsp = new LspManager();
-    const bashRuntime = resolveToolingExecutable("git-bash");
-    if (!bashRuntime.available) logger.warn("tooling.git-bash.unavailable", { reason: bashRuntime.reason });
     tools.register(createWebFetchTool());
     tools.register(createBraveSearchTool({ credentials }));
     tools.register(createLspTool(lsp));
@@ -186,7 +192,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       dataDir: config.dataDir,
       sandbox,
       helperPath: config.srtWinPath,
-      bashPath: bashRuntime.available ? bashRuntime.path : null,
+      resolveTooling: (id, resolveOptions) => tooling.resolve(id, resolveOptions),
       authorizeShell: (invocation, signal) =>
         approvals.authorize(invocation, signal),
       recordToolCall: (invocation, status, output, error, startedAt) =>
@@ -306,11 +312,13 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       sandbox,
       review,
       github,
+      tooling,
     });
     let disposed = false;
     const dispose = async () => {
       if (disposed) return;
       disposed = true;
+      unsubscribeTooling();
       await lsp.close();
       await toolExecutor.dispose();
       await sandbox.dispose();

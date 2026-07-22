@@ -328,6 +328,37 @@ type MethodFixtures = {
 }
 
 const fixtures = {
+  "tooling/list": methodFixture("tooling/list", {}, { statuses: [] }),
+  "tooling/setPreference": methodFixture("tooling/setPreference", {
+    id: "git-bash",
+    preference: "system",
+    operationId: "operation:tooling-preference",
+  }, {
+    status: {
+      id: "git-bash",
+      preference: "system",
+      phase: "idle",
+      activeSource: null,
+      pinnedVersion: "2.55.0.3",
+      managed: { installed: false, version: null },
+      system: { available: false, version: null, path: null },
+    },
+  }),
+  "tooling/install": methodFixture("tooling/install", {
+    id: "ripgrep",
+    force: true,
+    operationId: "operation:tooling-install",
+  }, {
+    status: {
+      id: "ripgrep",
+      preference: "managed",
+      phase: "ready",
+      activeSource: "managed",
+      pinnedVersion: "15.2.0",
+      managed: { installed: true, version: "15.2.0" },
+      system: { available: false, version: null, path: null },
+    },
+  }),
   initialize: methodFixture("initialize", {
     clientInfo: { name: "CodePilotX Desktop", version: "0.1.0", platform: "win32", instanceId: "client:1" },
     protocols: ["thread-rpc-v3"],
@@ -1013,9 +1044,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 93 formal methods decodable", () => {
+  test("keeps valid params and results for all 96 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(93)
+    expect(methods).toHaveLength(96)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {

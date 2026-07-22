@@ -42,6 +42,9 @@ import type {
 import type {
   ProtocolCapability,
   RpcResult,
+  ToolingID,
+  ToolingPreference,
+  ToolingStatus,
 } from '@codepilotx/agent-protocol'
 import {
   DEFAULT_DESKTOP_THEME_SETTINGS,
@@ -136,6 +139,7 @@ const RENDERER_CAPABILITIES = [
   'sandbox.management.v1',
   'prompt.preview.sensitive.v1',
   'model.catalog.paged.v1',
+  'tooling.management.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 type PendingInteraction =
   RpcResult<'interaction/listPending'>['interactions'][number]
@@ -367,7 +371,17 @@ export type DesktopAgentReviewApi = {
   }): Promise<{ id: number; state: string; htmlUrl: string }>
 }
 
-export type CodePilotXDesktopClient = DesktopApi & DesktopAgentReviewApi
+export type DesktopToolingApi = {
+  listTooling(): Promise<readonly ToolingStatus[]>
+  setToolingPreference(
+    id: ToolingID,
+    preference: ToolingPreference,
+  ): Promise<ToolingStatus>
+  installTooling(id: ToolingID, force?: boolean): Promise<ToolingStatus>
+  onToolingUpdated(callback: (status: ToolingStatus) => void): () => void
+}
+
+export type CodePilotXDesktopClient = DesktopApi & DesktopAgentReviewApi & DesktopToolingApi
 
 export function createDesktopClient(
   environment: DesktopClientEnvironment = defaultDesktopClientEnvironment(),
@@ -512,7 +526,8 @@ function createAgentSessionDesktopClient(
       | 'git.review.v1'
       | 'ai.review.v1'
       | 'github.oauth.v1'
-      | 'github.pullRequests.v1',
+      | 'github.pullRequests.v1'
+      | 'tooling.management.v1',
     version = 1,
   ): void {
     const capabilities: Record<typeof name, string> = {
@@ -524,6 +539,7 @@ function createAgentSessionDesktopClient(
       'ai.review.v1': 'ai.review.v1',
       'github.oauth.v1': 'github.oauth.v1',
       'github.pullRequests.v1': 'github.pullRequests.v1',
+      'tooling.management.v1': 'tooling.management.v1',
     }
     if (version <= 1 && agentCapabilities.has(capabilities[name])) return
     if (version === 2 && (name === 'prompt' || name === 'memory')) {
@@ -1228,8 +1244,46 @@ function createAgentSessionDesktopClient(
   const operationError = (error: unknown) =>
     error instanceof Error ? error.message : String(error)
 
+  const isToolingStatus = (value: unknown): value is ToolingStatus => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+    const status = value as Partial<ToolingStatus>
+    return (
+      (status.id === 'git-bash' || status.id === 'ripgrep') &&
+      (status.preference === 'managed' || status.preference === 'system') &&
+      typeof status.pinnedVersion === 'string'
+    )
+  }
+
   const client: CodePilotXDesktopClient = {
     ...mockClient,
+    listTooling: async () => withRequiredAgent(async () => {
+      requireAgentCapability('tooling.management.v1')
+      return (await rpc.call('tooling/list', {})).statuses
+    }),
+    setToolingPreference: async (id, preference) => withRequiredAgent(async () => {
+      requireAgentCapability('tooling.management.v1')
+      return (await rpc.call('tooling/setPreference', {
+        id,
+        preference,
+        operationId: crypto.randomUUID(),
+      })).status
+    }),
+    installTooling: async (id, force = false) => withRequiredAgent(async () => {
+      requireAgentCapability('tooling.management.v1')
+      return (await rpc.call('tooling/install', {
+        id,
+        force,
+        operationId: crypto.randomUUID(),
+      })).status
+    }),
+    onToolingUpdated: callback => rpc.subscribe({}, notification => {
+      if ((notification.method as string) !== 'tooling/updated') return
+      const params = notification.params
+      if (!params || typeof params !== 'object') return
+      const status = (params as { status?: unknown }).status
+      if (!isToolingStatus(status)) return
+      callback(status)
+    }),
     getGithubAuthStatus: async (): Promise<DesktopGithubAuthStatus> => {
       try {
         return await withRequiredAgent(async () => {
@@ -3863,8 +3917,8 @@ function githubLoginFailure(
 
 function permissionModeFromDesktopConfig(config: PermissionConfig): DesktopPermissionMode {
   if (config.sandboxMode === 'danger-full-access' && config.approvalPolicy === 'never') return 'full-access'
-  if (config.sandboxMode === 'workspace-write' && config.approvalPolicy === 'on-request' && config.approvalsReviewer === 'auto_review') return 'auto-review'
-  if (config.sandboxMode === 'workspace-write' && config.approvalPolicy === 'on-request' && config.approvalsReviewer === 'user') return 'default'
+  if (config.sandboxMode === 'danger-full-access' && config.approvalPolicy === 'on-request' && config.approvalsReviewer === 'auto_review') return 'auto-review'
+  if (config.sandboxMode === 'danger-full-access' && config.approvalPolicy === 'on-request' && config.approvalsReviewer === 'user') return 'default'
   return 'custom'
 }
 

@@ -25,6 +25,8 @@ export interface ShellReview {
   categories: RiskCategory[];
   requestedScopeValid: boolean;
   reason: string;
+  /** Infrastructure/model failure. Callers may fail closed via human review. */
+  reviewUnavailable?: boolean;
 }
 
 const shellReviewSchema = z.object({
@@ -76,12 +78,14 @@ const asShellReviewInput = (
   const command = invocation.input.command;
   if (typeof command !== "string") return null;
   const cwd = invocation.input.cwd;
+  const workspaceRoot = invocation.input.workspaceRoot;
   const permissions = invocation.input.additionalPermissions;
   const justification = invocation.input.justification;
   const taskSummary = invocation.input.taskSummary ?? invocation.input.goal;
   return {
     command,
     ...(typeof cwd === "string" ? { cwd } : {}),
+    ...(typeof workspaceRoot === "string" ? { workspaceRoot } : {}),
     ...(permissions &&
     typeof permissions === "object" &&
     !Array.isArray(permissions)
@@ -210,15 +214,15 @@ export class ReviewerService {
     const analysis = analyzeShellRisk(input);
     if (input.command.length > 32_000)
       return deniedShellReview(analysis, "命令超过审核长度上限，拒绝执行");
-    if (analysis.hardDenied)
-      return deniedShellReview(analysis, analysis.reason);
     if (signal.aborted)
       return deniedShellReview(analysis, "Shell 审核已中断，命令已拒绝");
 
     try {
       const ref = this.db.getSetting<Model.Ref>("reviewerModel");
+      if (!ref && analysis.hardDenied)
+        return deniedShellReview(analysis, analysis.reason);
       if (!ref)
-        return deniedShellReview(analysis, "未配置 Shell 审核模型，命令已拒绝");
+        return { ...deniedShellReview(analysis, "未配置 Shell 审核模型，命令已拒绝"), reviewUnavailable: true };
       const model = await this.providers.getPiModel(ref);
       const object = await withReviewTimeout(signal, (reviewSignal) =>
         generatePiObject({
@@ -249,6 +253,13 @@ export class ReviewerService {
         object.categories,
       );
       const risk = maxRisk(analysis.risk, object.risk);
+      if (analysis.hardDenied) {
+        return deniedShellReview(
+          analysis,
+          `${analysis.reason}；Guardian 复核：${object.reason}`,
+          categories,
+        );
+      }
       if (!analysis.requestedScopeValid || !object.requestedScopeValid)
         return deniedShellReview(
           analysis,
@@ -272,11 +283,15 @@ export class ReviewerService {
       }
       return { ...object, risk, categories };
     } catch (cause) {
-      return deniedShellReview(
-        analysis,
-        `Shell 审核异常，命令已拒绝：${reviewErrorReason(cause)}`,
-        mergeCategories(analysis.categories, ["unknown_infrastructure"]),
-      );
+      if (analysis.hardDenied) return deniedShellReview(analysis, `${analysis.reason}；Guardian 复核不可用，仍拒绝执行`);
+      return {
+        ...deniedShellReview(
+          analysis,
+          `Shell 审核异常，命令已拒绝：${reviewErrorReason(cause)}`,
+          mergeCategories(analysis.categories, ["unknown_infrastructure"]),
+        ),
+        reviewUnavailable: true,
+      };
     }
   }
 
@@ -325,13 +340,7 @@ export class ReviewerService {
       this.recordGuardianDecision(invocation, cursor, object);
       return object;
     } catch (cause) {
-      const decision = {
-        decision: "deny" as const,
-        risk: "high" as const,
-        reason: `Guardian 审核失败，已拒绝：${reviewErrorReason(cause)}`,
-      };
-      this.recordGuardianDecision(invocation, cursor, decision);
-      return decision;
+      throw new AgentError("REVIEWER_UNAVAILABLE", `Guardian 审核失败：${reviewErrorReason(cause)}`, 503);
     }
   }
 }

@@ -5,6 +5,7 @@ import {
   agentQuestionIdFromRequestId,
   agentThreadListItemToDesktop,
   agentThreadSnapshotToDesktop,
+  desktopPermissionModeToPermissionConfig,
 } from '../src/services/agentThreadAdapter.js'
 
 const project: Project = {
@@ -18,6 +19,12 @@ const project: Project = {
 }
 
 describe('agent thread adapter', () => {
+  test('maps all built-in permission modes to host execution', () => {
+    expect(desktopPermissionModeToPermissionConfig('default')).toEqual({ sandboxMode: 'danger-full-access', approvalPolicy: 'on-request', approvalsReviewer: 'user' })
+    expect(desktopPermissionModeToPermissionConfig('auto-review')).toEqual({ sandboxMode: 'danger-full-access', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' })
+    expect(desktopPermissionModeToPermissionConfig('full-access')).toEqual({ sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'auto_review' })
+  })
+
   test('maps thread list item status and workspace fields', () => {
     const thread: ThreadListItem = {
       id: 'thread-1', projectID: project.id, title: '历史对话', preview: '预览',

@@ -104,27 +104,27 @@ export function permissionPolicyForDesktopMode(
   switch (normalizeDesktopAgentPermissionMode(mode)) {
     case 'auto-review':
       return {
-        profile: ':workspace',
+        profile: ':danger-full-access',
         approvalMode: 'on-request',
         approvalsReviewer: 'auto_review',
-        sandboxMode: 'workspace-write',
-        sandboxPolicy: ':workspace',
+        sandboxMode: 'danger-full-access',
+        sandboxPolicy: ':danger-full-access',
       }
     case 'full-access':
       return {
         profile: ':danger-full-access',
         approvalMode: 'never',
-        approvalsReviewer: 'user',
+        approvalsReviewer: 'auto_review',
         sandboxMode: 'danger-full-access',
         sandboxPolicy: ':danger-full-access',
       }
     default:
       return {
-        profile: ':workspace',
+        profile: ':danger-full-access',
         approvalMode: 'on-request',
         approvalsReviewer: 'user',
-        sandboxMode: 'workspace-write',
-        sandboxPolicy: ':workspace',
+        sandboxMode: 'danger-full-access',
+        sandboxPolicy: ':danger-full-access',
       }
   }
 }

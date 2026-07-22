@@ -340,7 +340,7 @@ export function GeneralSettings({
         <SettingsSection title='权限'>
           <SettingsRow
             title='默认权限'
-            description='默认情况下，CodePilotX 可以自动读取工作区内容；写入文件、运行命令、联网和 MCP 请求需要你授权。'
+            description='在主机运行。安全操作快速放行，其余由 Guardian 审核；高风险或工作区外操作需要你确认。'
             autoSave
             control={
               <ToggleSwitch
@@ -356,14 +356,13 @@ export function GeneralSettings({
             autoSave
             description={
               <>
-                CodePilotX 可以读取和编辑其工作区中的文件。CodePilotX
-                会自动审核额外访问权限请求。自动审核可能会出错。
+                在主机运行。安全操作快速放行，其余由 Guardian 自动审核；高风险操作仍需要你确认。自动审核可能会出错。
                 <LearnMoreLink />
               </>
             }
             control={
               <ToggleSwitch
-                checked={enableAutoReviewPermissionMode ?? false}
+                checked={enableAutoReviewPermissionMode ?? true}
                 onChange={handleAutoApprove}
                 ariaLabel='自动审核'
               />
@@ -374,14 +373,13 @@ export function GeneralSettings({
             autoSave
             description={
               <>
-                当 CodePilotX
-                以完全访问权限运行时，无需你批准，即可自动放行所有权限工具，编辑你的电脑上的任何文件并运行联网命令。这会显著增加数据丢失、泄露或意外行为的风险。
+                在主机运行且不弹出人工确认。低、中、高风险操作会直接执行；灾难级操作经 Guardian 复核后拒绝。这会显著增加数据丢失、泄露或意外行为的风险。
                 <LearnMoreLink />
               </>
             }
             control={
               <ToggleSwitch
-                checked={enableFullAccessPermissionMode ?? false}
+                checked={enableFullAccessPermissionMode ?? true}
                 onChange={handleFullAccess}
                 ariaLabel='完全访问权限'
               />

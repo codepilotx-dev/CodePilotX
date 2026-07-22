@@ -10,6 +10,7 @@ import {
 } from "@codepilotx/shared"
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../definition"
+import { ToolingIDSchema, ToolingPreferenceSchema, ToolingStatusSchema } from "../tooling"
 import {
   AdmissionSchema,
   CursorSchema,
@@ -143,6 +144,38 @@ const IntegrationAttemptStateSchema = Schema.Struct({
 const SUBAGENT_CAPABILITY = "subagents.v1"
 
 export const ExtendedRpcMethods = {
+  "tooling/list": defineMethod({
+    params: Schema.Struct({}),
+    result: Schema.Struct({ statuses: Schema.Array(ToolingStatusSchema) }),
+    errors: ["RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "tooling.management.v1",
+    mutation: false,
+  }),
+
+  "tooling/setPreference": defineMethod({
+    params: Schema.Struct({
+      id: ToolingIDSchema,
+      preference: ToolingPreferenceSchema,
+      ...OperationParamsSchema.fields,
+    }),
+    result: Schema.Struct({ status: ToolingStatusSchema }),
+    errors: ["TOOLING_UNAVAILABLE", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "tooling.management.v1",
+    mutation: true,
+  }),
+
+  "tooling/install": defineMethod({
+    params: Schema.Struct({
+      id: ToolingIDSchema,
+      force: Schema.optional(Schema.Boolean),
+      ...OperationParamsSchema.fields,
+    }),
+    result: Schema.Struct({ status: ToolingStatusSchema }),
+    errors: ["TOOLING_DOWNLOAD_FAILED", "TOOLING_INTEGRITY_FAILED", "TOOLING_UNAVAILABLE", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: "tooling.management.v1",
+    mutation: true,
+  }),
+
   "subagent/list": defineMethod({
     params: Schema.Struct({
       threadId: OpaqueIDSchema,

@@ -33,6 +33,7 @@ import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
 import type { GitReviewService } from "../review/GitReviewService"
 import type { GithubService } from "../github/GithubService"
+import { ToolingError, type ManagedToolID, type ToolingManager, type ToolingPreference } from "../tool/ToolingManager"
 import { EventSubscriptionRegistry } from "./EventSubscriptionRegistry"
 import {
   ReviewApplyParamsSchema,
@@ -77,6 +78,7 @@ export type RpcRouterDependencies = {
   sandbox: SandboxRuntimeAdapter
   review: GitReviewService
   github: GithubService
+  tooling: ToolingManager
 }
 
 export type RpcRouterContext = {
@@ -254,7 +256,7 @@ export class RpcRouter {
   }
 
   private async dispatch(method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, memory, sandbox, review, github } = this.dependencies
+    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, memory, sandbox, review, github, tooling } = this.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "initialize":
@@ -285,6 +287,24 @@ export class RpcRouter {
         }
       case "sandbox/status":
         return { sandbox: await sandbox.getStatus() }
+      case "tooling/list":
+        return { statuses: await tooling.listStatuses() }
+      case "tooling/setPreference": {
+        const id = enumValue<ManagedToolID>(params.id, ["git-bash", "ripgrep"], "id")
+        const preference = enumValue<ToolingPreference>(params.preference, ["managed", "system"], "preference")
+        return { status: await tooling.setPreference(id, preference) }
+      }
+      case "tooling/install": {
+        const id = enumValue<ManagedToolID>(params.id, ["git-bash", "ripgrep"], "id")
+        if (params.force !== undefined && typeof params.force !== "boolean") throw new AgentError("INVALID_REQUEST", "force 参数无效", 400)
+        try {
+          return { status: await tooling.install(id, { force: params.force === true }) }
+        } catch (cause) {
+          if (!(cause instanceof ToolingError)) throw cause
+          const integrityFailure = /CHECKSUM|INTEGRITY|ARCHIVE_UNSAFE|VALIDATION/.test(cause.code)
+          throw new AgentError(integrityFailure ? "TOOLING_INTEGRITY_FAILED" : "TOOLING_DOWNLOAD_FAILED", cause.message, 503, { toolingID: id })
+        }
+      }
       case "sandbox/install":
       case "sandbox/repair":
         await sandbox.install()

@@ -12,6 +12,7 @@ import {
   Square,
   User,
   Gauge,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -210,6 +211,18 @@ export const SETTINGS_GROUPS = [
     id: 'coding',
     title: '编码',
     items: [
+      {
+        id: 'tooling',
+        routeId: 'tooling',
+        label: '工具链',
+        description: 'Git Bash 与 ripgrep 的托管安装和本机来源',
+        icon: Wrench,
+        rows: [
+          row('Git Bash', '选择 CodePilotX 托管版或本机 Git Bash'),
+          row('ripgrep', '选择 Glob 和 Grep 使用的 ripgrep 来源'),
+          row('安装托管版', '按需下载代码内固定并校验的版本'),
+        ],
+      },
       {
         id: 'connections',
         routeId: 'connections',

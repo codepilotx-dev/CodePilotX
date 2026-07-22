@@ -57,13 +57,13 @@ export const PermissionConfigSchema = Schema.Struct({
 export type PermissionConfig = typeof PermissionConfigSchema.Type
 
 export const DEFAULT_PERMISSION_CONFIG: PermissionConfig = {
-  sandboxMode: "workspace-write",
+  sandboxMode: "danger-full-access",
   approvalPolicy: "on-request",
   approvalsReviewer: "user",
 }
 
 export const AUTO_REVIEW_PERMISSION_CONFIG: PermissionConfig = {
-  sandboxMode: "workspace-write",
+  sandboxMode: "danger-full-access",
   approvalPolicy: "on-request",
   approvalsReviewer: "auto_review",
 }
@@ -115,6 +115,7 @@ export const ShellReviewSchema = Schema.Struct({
   categories: Schema.Array(RiskCategorySchema),
   requestedScopeValid: Schema.Boolean,
   reason: Schema.String,
+  reviewUnavailable: Schema.optional(Schema.Boolean),
 })
 export type ShellReview = typeof ShellReviewSchema.Type
 

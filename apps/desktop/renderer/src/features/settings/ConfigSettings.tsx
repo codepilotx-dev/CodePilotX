@@ -327,7 +327,7 @@ export function ConfigSettings(): React.ReactNode {
 
         <SettingsSection
           title="沙盒运行环境"
-          description="负责隔离命令进程、文件访问和网络访问。"
+          description="仅供自定义权限使用，用于隔离命令进程、文件访问和网络访问；三个内置模式不依赖 SRT。"
         >
           <SettingsRow
             title="状态"

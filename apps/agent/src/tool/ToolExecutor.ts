@@ -12,6 +12,7 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path"
 import { PermissionDecisionEngine } from "../permission/PermissionDecisionEngine"
 import { analyzeShellRisk } from "../security/ShellRiskClassifier"
 import { secretScrubber } from "../security/SecretScrubber"
+import { resolveManagedTool, runToolProcess, type ToolingResolver, type ToolProcessRunner } from "./ToolingRuntime"
 
 export interface ToolExecutionContext {
   threadID: string
@@ -51,7 +52,8 @@ export interface ToolExecutorOptions {
   claimSandboxEscalation?: (token: string, scope: { threadID: string; turnID: string; agentID: string }) => { token: string; invocation: ToolInvocation; invocationHash: string; failure: string } | null
   completeSandboxEscalation?: (token: string, output: unknown) => void
   runHost?: typeof runHostCommand
-  bashPath?: string | null
+  resolveTooling?: ToolingResolver
+  runToolProcess?: ToolProcessRunner
   fileSaved?: (input: { workspaceRoot: string; filePath: string; content: string }) => Promise<void>
 }
 
@@ -161,7 +163,7 @@ export class ToolExecutor {
         profile: context.profile ?? "main",
         ...(context.allowedTools ? { allowedTools: context.allowedTools } : {}),
       })
-      const output = await this.registry.execute(name, input, { signal: context.signal, taskMode: context.taskMode, profile: context.profile ?? "main", workspace: context.workspace, permissionConfig, model, deferredTools, ...(snapshotKey && this.readSnapshots.has(snapshotKey) ? { readSnapshot: this.readSnapshots.get(snapshotKey)! } : {}), ...(this.options?.fileSaved ? { fileSaved: (saved) => this.options!.fileSaved!({ workspaceRoot: context.workspace.rootPath, ...saved }) } : {}), ...(context.onProgress ? { onProgress: context.onProgress } : {}) })
+      const output = await this.registry.execute(name, input, { signal: context.signal, taskMode: context.taskMode, profile: context.profile ?? "main", workspace: context.workspace, permissionConfig, model, deferredTools, resolveTooling: this.options?.resolveTooling ?? resolveManagedTool, runToolProcess: this.options?.runToolProcess ?? runToolProcess, ...(snapshotKey && this.readSnapshots.has(snapshotKey) ? { readSnapshot: this.readSnapshots.get(snapshotKey)! } : {}), ...(this.options?.fileSaved ? { fileSaved: (saved) => this.options!.fileSaved!({ workspaceRoot: context.workspace.rootPath, ...saved }) } : {}), ...(context.onProgress ? { onProgress: context.onProgress } : {}) })
       if (snapshotKey && ["Read", "Write", "Edit"].includes(name)) {
         const revision = (output as { snapshot?: { mtimeMs: number; sha256: string }; revision?: { mtimeMs: number; sha256: string } }).snapshot ?? (output as { revision?: { mtimeMs: number; sha256: string } }).revision
           ?? (await context.workspace.readEditorFile(String(input.file_path))).revision
@@ -185,7 +187,6 @@ export class ToolExecutor {
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
     const parsedShell = this.parseShellInput(input)
-    const command = this.commandForShell(shellTool, parsedShell.command)
     const workspaceRoot = await realpath(context.workspace.rootPath)
     const additionalPermissions = parsedShell.additionalPermissions ? {
       ...(parsedShell.additionalPermissions.readPaths ? { readPaths: await Promise.all(parsedShell.additionalPermissions.readPaths.map((path) => this.canonicalPath(workspaceRoot, path, false))) } : {}),
@@ -212,6 +213,7 @@ export class ToolExecutor {
         ...shell as unknown as Record<string, unknown>,
         __shellTool: shellTool,
         cwd,
+        workspaceRoot,
         ...(context.taskSummary ? { taskSummary: context.taskSummary.slice(0, 4_000) } : {}),
       },
       permissionConfig,
@@ -220,8 +222,11 @@ export class ToolExecutor {
       ...(context.authorizationOnly ? { durableApproval: true } : {}),
     }
     try {
-      const staticRisk = analyzeShellRisk({ command: shell.command, cwd, ...(shell.additionalPermissions ? { additionalPermissions: shell.additionalPermissions } : {}), ...(shell.justification ? { justification: shell.justification } : {}), ...(context.taskSummary ? { taskSummary: context.taskSummary } : {}) })
-      if (staticRisk.hardDenied) throw new AgentError("SHELL_HARD_DENY", staticRisk.reason, 403, staticRisk)
+      const staticRisk = analyzeShellRisk({ command: shell.command, cwd, workspaceRoot, ...(shell.additionalPermissions ? { additionalPermissions: shell.additionalPermissions } : {}), ...(shell.justification ? { justification: shell.justification } : {}), ...(context.taskSummary ? { taskSummary: context.taskSummary } : {}) })
+      const fullAccessCriticalReview = staticRisk.hardDenied
+        && permissionConfig.sandboxMode === "danger-full-access"
+        && permissionConfig.approvalPolicy === "never"
+      if (staticRisk.hardDenied && !fullAccessCriticalReview) throw new AgentError("SHELL_HARD_DENY", staticRisk.reason, 403, staticRisk)
       const resumedApproval = context.approvedToolCallID === invocation.id
       const hookResults = context.skipHooks || resumedApproval ? [] : await this.options.hooks?.run("pre_tool_use", { input: invocation.input, staticRisk }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }) ?? []
       const denied = hookResults.find(({ result }) => result.decision === "deny")
@@ -236,7 +241,9 @@ export class ToolExecutor {
         ? { decision: "allow", risk: staticRisk.risk, reason: "已恢复并校验一次性审批" } satisfies PermissionDecision
         : await this.options.authorizeShell(secretScrubber.scrub(invocation), context.signal)
       if (context.authorizationOnly) return decision
+      if (staticRisk.hardDenied) throw new AgentError("SHELL_HARD_DENY", staticRisk.reason, 403, staticRisk)
       if (decision.decision !== "allow") throw new AgentError("SHELL_PERMISSION_DENIED", decision.reason, 403, decision)
+      const command = await this.commandForShell(shellTool, parsedShell.command, context.signal)
       const startedAt = Date.now()
       const auditInvocation = secretScrubber.scrub(invocation)
       this.options.recordToolCall?.(auditInvocation, "running", null, null, startedAt)
@@ -314,13 +321,14 @@ export class ToolExecutor {
     if (JSON.stringify(normalizedPermissions ?? {}) !== JSON.stringify(shell.additionalPermissions ?? {})) throw new AgentError("SANDBOX_ESCALATION_INVALID", "Sandbox escalation permissions 已变化", 409)
     const relativeCwd = relative(workspaceRoot, cwd)
     if ((relativeCwd.startsWith("..") || isAbsolute(relativeCwd)) && !(shell.additionalPermissions?.readPaths ?? []).some((path) => path === cwd || cwd.startsWith(path + "\\"))) throw new AgentError("SANDBOX_ESCALATION_INVALID", "Sandbox escalation cwd 不在已审批路径内", 409)
-    const staticRisk = analyzeShellRisk({ command: shell.command, cwd, ...(shell.additionalPermissions ? { additionalPermissions: shell.additionalPermissions } : {}), justification: "一次性 sandbox failure escalation" })
+    const staticRisk = analyzeShellRisk({ command: shell.command, cwd, workspaceRoot, ...(shell.additionalPermissions ? { additionalPermissions: shell.additionalPermissions } : {}), justification: "一次性 sandbox failure escalation" })
     if (staticRisk.hardDenied) throw new AgentError("SHELL_HARD_DENY", staticRisk.reason, 403, staticRisk)
     const auditInvocation = secretScrubber.scrub({ ...escalation.invocation, id: crypto.randomUUID(), name: "shell.host-escalation", input: { ...input, escalationToken: token, failureSummary: escalation.failure } })
     const startedAt = Date.now()
     this.options.recordToolCall?.(auditInvocation, "running", null, null, startedAt)
     try {
-      const result = await (this.options.runHost ?? runHostCommand)(this.commandForShell(escalation.invocation.name as "Bash" | "PowerShell", shell.command), cwd, shell.timeoutMs, context.signal)
+      const command = await this.commandForShell(escalation.invocation.name as "Bash" | "PowerShell", shell.command, context.signal)
+      const result = await (this.options.runHost ?? runHostCommand)(command, cwd, shell.timeoutMs, context.signal)
       this.options.completeSandboxEscalation(token, result)
       this.options.recordToolCall?.(auditInvocation, "completed", secretScrubber.scrub(result), null, startedAt)
       return result
@@ -421,10 +429,11 @@ export class ToolExecutor {
     }
   }
 
-  private commandForShell(shellTool: "Bash" | "PowerShell", command: string) {
+  private async commandForShell(shellTool: "Bash" | "PowerShell", command: string, signal: AbortSignal) {
     if (process.platform === "win32" && shellTool === "Bash") {
-      if (!this.options?.bashPath) throw new AgentError("BASH_RUNTIME_UNAVAILABLE", "打包的 Git Bash 缺失或未通过完整性校验", 503)
-      const executable = this.options.bashPath.replaceAll("'", "''")
+      const resolution = await (this.options?.resolveTooling ?? resolveManagedTool)("git-bash", { signal })
+      if (!resolution.available) throw new AgentError("BASH_RUNTIME_UNAVAILABLE", resolution.reason, 503, { toolingID: "git-bash", reason: resolution.code })
+      const executable = resolution.path.replaceAll("'", "''")
       return `& '${executable}' -lc '${command.replaceAll("'", "''")}'`
     }
     if (process.platform !== "win32" && shellTool === "PowerShell") return `pwsh -NoProfile -NonInteractive -Command '${command.replaceAll("'", "'\\''")}'`

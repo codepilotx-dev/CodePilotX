@@ -29,6 +29,46 @@ const setup = (db: AgentDatabase) => {
 }
 
 describe("可恢复审批 checkpoint", () => {
+  test("主机预设强制高风险转人工，Guardian 故障不静默放行", async () => {
+    const path = join(tmpdir(), `codepilotx-approval-${crypto.randomUUID()}.sqlite`)
+    paths.push(path)
+    const db = new AgentDatabase(path)
+    databases.push(db)
+    const { thread, turn, input } = setup(db)
+    const tools = new ToolRegistry()
+    const base: ToolInvocation = {
+      id: "host-review",
+      threadID: thread.id,
+      turnID: turn.turnID,
+      agentID: turn.agentID,
+      name: "PowerShell",
+      input: { command: "git reset --hard" },
+      permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "on-request", approvalsReviewer: "user" },
+      model: input.model,
+      taskMode: "chat",
+    }
+    const hub = await Effect.runPromise(EventHub.make)
+    let reviews = 0
+    const reviewed = new ApprovalService(db, hub, tools, async () => {
+      reviews += 1
+      return { decision: "allow", risk: "high", reason: "Guardian 识别为高风险" }
+    })
+    await expect(reviewed.authorize(base, new AbortController().signal)).resolves.toMatchObject({ decision: "ask", risk: "high" })
+    expect(reviews).toBe(1)
+
+    const unavailable = new ApprovalService(db, hub, tools, async () => { throw new Error("reviewer offline") })
+    await expect(unavailable.authorize({ ...base, id: "host-review-offline", input: { command: "curl https://example.com" } }, new AbortController().signal)).resolves.toMatchObject({ decision: "ask", reason: expect.stringContaining("Guardian 不可用") })
+
+    const fullAccess = new ApprovalService(db, hub, tools, async () => {
+      reviews += 1
+      return { decision: "deny", risk: "high", reason: "不应调用" }
+    })
+    await expect(fullAccess.authorize({ ...base, id: "host-full", permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "never", approvalsReviewer: "auto_review" } }, new AbortController().signal)).resolves.toMatchObject({ decision: "allow", risk: "high" })
+    expect(reviews).toBe(1)
+    await expect(fullAccess.authorize({ ...base, id: "host-critical", input: { command: "format C:" }, permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "never", approvalsReviewer: "auto_review" } }, new AbortController().signal)).resolves.toMatchObject({ decision: "deny", risk: "critical" })
+    expect(reviews).toBe(2)
+  })
+
   test("子 Agent permission pause 不会被覆盖为 waiting_question", () => {
     expect(pausedSubagentStatus("permission")).toBe("waiting_permission")
     expect(pausedSubagentStatus("clarification")).toBe("waiting_question")

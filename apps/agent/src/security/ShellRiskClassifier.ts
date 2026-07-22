@@ -1,4 +1,5 @@
 import type { AdditionalPermissions, ShellInput } from "@codepilotx/shared/thread"
+import { isAbsolute, relative, resolve } from "node:path"
 
 export const RISK_CATEGORIES = [
   "destructive",
@@ -22,6 +23,7 @@ export type ShellRiskLevel = "low" | "medium" | "high" | "critical"
 
 export interface ShellReviewInput extends ShellInput {
   taskSummary?: string
+  workspaceRoot?: string
 }
 
 export interface ShellRiskAnalysis {
@@ -114,6 +116,23 @@ const INFRASTRUCTURE_COMMAND = /\b(?:docker|kubectl|helm|terraform|ansible|ssh|s
 const PROMPT_INJECTION = /ignore\s+(?:all\s+)?(?:previous|prior|earlier)\s+instructions?|忽略(?:之前|先前|上面)的指令|bypass\s+(?:the\s+)?(?:review|approval|sandbox)|绕过(?:审核|审批|沙箱)/i
 const OBFUSCATED_COMMAND = /\b(?:powershell|pwsh)\b[\s\S]*(?:-enc(?:odedcommand)?\b|-e\s+[a-z0-9+/=]{16,})|\b(?:certutil|mshta|rundll32)\b[\s\S]*(?:javascript:|vbscript:|url\.dll)/i
 const IRREVERSIBLE_CHANGE = /\bgit\s+(?:reset\s+--hard|clean\s+-[^\n]*f)|\bgit\s+push\b[\s\S]*--force(?:-with-lease)?\b|\b(?:drop\s+database|drop\s+table)\b|\bterraform\s+destroy\b/i
+const WINDOWS_ABSOLUTE_PATH = /(?:^|[\s"'=])([a-z]:[\\/][^\s"'|;&<>]*)/gi
+
+const pathOutsideWorkspace = (workspaceRoot: string, path: string) => {
+  const fromRoot = relative(resolve(workspaceRoot), resolve(path))
+  return fromRoot.startsWith("..") || isAbsolute(fromRoot)
+}
+
+const referencesWorkspaceExternalPath = (input: ShellReviewInput, command: string) => {
+  const workspaceRoot = input.workspaceRoot?.trim()
+  if (!workspaceRoot) return false
+  if (input.cwd && isAbsolute(input.cwd) && pathOutsideWorkspace(workspaceRoot, input.cwd)) return true
+  WINDOWS_ABSOLUTE_PATH.lastIndex = 0
+  for (const match of command.matchAll(WINDOWS_ABSOLUTE_PATH)) {
+    if (match[1] && pathOutsideWorkspace(workspaceRoot, match[1])) return true
+  }
+  return false
+}
 
 const pathIsValid = (path: string) => {
   const value = path.trim()
@@ -165,6 +184,8 @@ export const analyzeShellRisk = (input: ShellReviewInput): ShellRiskAnalysis => 
   if (PROMPT_INJECTION.test(command)) addCategory(categories, "prompt_injection")
   if (OBFUSCATED_COMMAND.test(command)) addCategory(categories, "obfuscation")
   if (IRREVERSIBLE_CHANGE.test(command)) addCategory(categories, "irreversible_change")
+  const workspaceExternal = referencesWorkspaceExternalPath(input, command)
+  if (workspaceExternal) addCategory(categories, "scope_escape")
 
   const scopeValid = requestedScopeValid(input.additionalPermissions)
   if (!scopeValid) addCategory(categories, "scope_escape")
@@ -174,7 +195,7 @@ export const analyzeShellRisk = (input: ShellReviewInput): ShellRiskAnalysis => 
   const reason = invalidCommand
     ? "Shell command 缺失或为空，命令已拒绝"
     : hardMatches[0]?.reason
-      ?? (!scopeValid ? "申请的额外权限范围无效或过于宽泛" : categories.length > 0 ? "命令包含需要审核的风险特征" : "未发现静态灾难级特征")
+      ?? (!scopeValid ? "申请的额外权限范围无效或过于宽泛" : workspaceExternal ? "命令或 cwd 指向工作区外路径" : categories.length > 0 ? "命令包含需要审核的风险特征" : "未发现静态灾难级特征")
 
   return {
     hardDenied,

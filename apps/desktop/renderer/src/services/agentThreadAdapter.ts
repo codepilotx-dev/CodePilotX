@@ -51,9 +51,9 @@ export function agentPlanRunIdFromRequestId(requestId: string): string | null {
 export function desktopPermissionModeToPermissionConfig(
   mode: DesktopPermissionMode | undefined,
 ): PermissionConfig {
-  if (mode === 'auto-review') return { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }
+  if (mode === 'auto-review') return { sandboxMode: 'danger-full-access', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }
   if (mode === 'full-access') return { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'auto_review' }
-  return { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' }
+  return { sandboxMode: 'danger-full-access', approvalPolicy: 'on-request', approvalsReviewer: 'user' }
 }
 
 export function agentTurnStatusToDesktopStatus(
@@ -543,8 +543,9 @@ function eventTime(params: Record<string, unknown>): number {
 }
 
 function permissionModeToDesktop(config: PermissionConfig | undefined): DesktopPermissionMode {
-  if (config?.sandboxMode === 'danger-full-access') return 'full-access'
+  if (config?.sandboxMode === 'danger-full-access' && config.approvalPolicy === 'never') return 'full-access'
   if (config?.approvalsReviewer === 'auto_review') return 'auto-review'
+  if (config?.sandboxMode !== 'danger-full-access' || config.approvalPolicy !== 'on-request') return 'custom'
   return 'default'
 }
 
