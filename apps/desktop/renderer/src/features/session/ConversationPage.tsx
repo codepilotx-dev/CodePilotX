@@ -301,11 +301,6 @@ export function ConversationPage(): React.ReactNode {
     };
   }, []);
   const [isRefreshingDiff, setIsRefreshingDiff] = React.useState(false);
-  const timelineListRef = React.useRef<
-    import("virtua").VirtualizerHandle | null
-  >(
-    null,
-  );
   const threadScrollRef = React.useRef<HTMLDivElement | null>(null);
   const threadFooterRef = React.useRef<HTMLElement | null>(null);
   const initialTimelineScrollTop = React.useMemo(
@@ -324,14 +319,15 @@ export function ConversationPage(): React.ReactNode {
 
   const handleTurnNavigate = React.useCallback(
     (item: ConversationTurnNavItem, reason: TurnNavigationReason): void => {
-      try {
-        timelineListRef.current?.scrollToIndex(item.rowIndex, {
-          align: "start",
-          smooth: reason !== "scrub",
-        });
-      } catch {
-        return;
-      }
+      const root = threadScrollRef.current;
+      const selector = `[data-turn-navigation-id="${escapeCssAttributeValue(
+        item.id,
+      )}"]`;
+      const row = root?.querySelector<HTMLElement>(selector);
+      row?.scrollIntoView({
+        block: "start",
+        behavior: reason === "scrub" ? "auto" : "smooth",
+      });
 
       const reduceMotion =
         document.documentElement.dataset.reduceMotion === "on" ||
@@ -341,17 +337,13 @@ export function ConversationPage(): React.ReactNode {
 
       let remainingAttempts = 6;
       const flashTurn = (): void => {
-        const root = threadScrollRef.current;
-        const selector = `[data-turn-navigation-id="${escapeCssAttributeValue(
-          item.id,
-        )}"]`;
-        const row = root?.querySelector<HTMLElement>(selector);
-        if (!row) {
+        const targetRow = root?.querySelector<HTMLElement>(selector);
+        if (!targetRow) {
           remainingAttempts -= 1;
           if (remainingAttempts > 0) window.requestAnimationFrame(flashTurn);
           return;
         }
-        row.animate?.(
+        targetRow.animate?.(
           [
             {
               backgroundColor:
@@ -397,12 +389,10 @@ export function ConversationPage(): React.ReactNode {
     const saved = loadConversationUiState(activeSessionId);
     scrollRestoredRef.current = activeSessionId;
     mainScrollTopRef.current = saved?.mainScrollTop ?? 0;
-    if (saved?.mainScrollTop && timelineListRef.current) {
+    if (saved?.mainScrollTop) {
       requestAnimationFrame(() => {
-        try {
-          timelineListRef.current?.scrollTo(saved.mainScrollTop);
-        } catch {
-          // VList may not be ready yet; silently ignore
+        if (threadScrollRef.current) {
+          threadScrollRef.current.scrollTop = saved.mainScrollTop;
         }
       });
     }
@@ -1147,7 +1137,6 @@ export function ConversationPage(): React.ReactNode {
                               sessionStatus === "waiting"
                             }
                             onScroll={handleTimelineScroll}
-                            listRef={timelineListRef}
                             scrollRef={threadScrollRef}
                           >
                             {phaseItems.map((item) => (

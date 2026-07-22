@@ -1,5 +1,4 @@
 import React from 'react'
-import type { VirtualizerHandle } from 'virtua'
 
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
 
@@ -82,7 +81,6 @@ type UseThreadScrollControllerOptions = {
   active: boolean
   initialScrollOffset?: number
   itemCount: number
-  listRef: React.RefObject<VirtualizerHandle | null>
   onScroll?: (scrollTop: number) => void
   scrollRef: React.RefObject<HTMLElement | null>
   sessionKey?: string
@@ -98,29 +96,18 @@ const savedThreadScrollStates = new Map<string, SavedThreadScrollState>()
 
 type ThreadScrollController = {
   bottomSentinelRef: (node: HTMLDivElement | null) => void
-  handleScroll: (scrollTop: number) => void
   hasNewContent: boolean
   isAtBottom: boolean
   mode: ThreadScrollMode
   returnToBottom: () => void
 }
 
-function readMetrics(
-  handle: VirtualizerHandle | null,
-  scrollElement?: HTMLElement | null,
-): ScrollMetrics | null {
-  if (scrollElement) {
-    return {
-      scrollOffset: scrollElement.scrollTop,
-      scrollSize: scrollElement.scrollHeight,
-      viewportSize: scrollElement.clientHeight,
-    }
-  }
-  if (!handle) return null
+function readMetrics(scrollElement: HTMLElement | null): ScrollMetrics | null {
+  if (!scrollElement) return null
   return {
-    scrollOffset: handle.scrollOffset,
-    scrollSize: handle.scrollSize,
-    viewportSize: handle.viewportSize,
+    scrollOffset: scrollElement.scrollTop,
+    scrollSize: scrollElement.scrollHeight,
+    viewportSize: scrollElement.clientHeight,
   }
 }
 
@@ -128,7 +115,6 @@ export function useThreadScrollController({
   active,
   initialScrollOffset = 0,
   itemCount,
-  listRef,
   onScroll,
   scrollRef,
   sessionKey,
@@ -172,26 +158,21 @@ export function useThreadScrollController({
       }
       scrollFrameRef.current = requestAnimationFrame(() => {
         scrollFrameRef.current = null
-        const handle = listRef.current
         const viewport = scrollRef.current
-        const metrics = readMetrics(handle, viewport)
-        if (!handle || !metrics) return
+        const metrics = readMetrics(viewport)
+        if (!viewport || !metrics) return
         const target = Math.max(0, metrics.scrollSize - metrics.viewportSize)
         const useSmoothScroll = smooth && !reducedMotion
         programmaticScrollUntilRef.current =
           Date.now() + (useSmoothScroll ? 500 : 140)
-        if (viewport) {
-          viewport.scrollTo({
-            top: target,
-            behavior: useSmoothScroll ? 'smooth' : 'auto',
-          })
-        } else {
-          handle.scrollTo(target)
-        }
+        viewport.scrollTo({
+          top: target,
+          behavior: useSmoothScroll ? 'smooth' : 'auto',
+        })
         updateAtBottom(true)
       })
     },
-    [listRef, reducedMotion, scrollRef, updateAtBottom],
+    [reducedMotion, scrollRef, updateAtBottom],
   )
 
   const applyDecision = React.useCallback(
@@ -205,7 +186,7 @@ export function useThreadScrollController({
   const handleScroll = React.useCallback(
     (scrollTop: number): void => {
       onScroll?.(scrollTop)
-      const metrics = readMetrics(listRef.current, scrollRef.current)
+      const metrics = readMetrics(scrollRef.current)
       if (!metrics) return
 
       const distance = distanceFromThreadBottom({
@@ -239,11 +220,11 @@ export function useThreadScrollController({
         })
       }
     },
-    [applyDecision, listRef, onScroll, scrollRef, updateAtBottom],
+    [applyDecision, onScroll, scrollRef, updateAtBottom],
   )
 
   const handleContentResize = React.useCallback((): void => {
-    const metrics = readMetrics(listRef.current, scrollRef.current)
+    const metrics = readMetrics(scrollRef.current)
     if (!metrics) return
     const previousSize = previousScrollSizeRef.current
     previousScrollSizeRef.current = metrics.scrollSize
@@ -269,7 +250,7 @@ export function useThreadScrollController({
         scrollOffset: metrics.scrollOffset,
       })
     }
-  }, [listRef, scrollRef, scrollToEnd])
+  }, [scrollRef, scrollToEnd])
 
   const returnToBottom = React.useCallback((): void => {
     applyDecision(
@@ -301,7 +282,7 @@ export function useThreadScrollController({
     previousActiveRef.current = preserveHistoricalPosition
       ? activeRef.current
       : false
-    const metrics = readMetrics(listRef.current, scrollRef.current)
+    const metrics = readMetrics(scrollRef.current)
     previousCountRef.current = itemCount
     previousOffsetRef.current = restoredOffset
     previousScrollSizeRef.current = metrics?.scrollSize ?? 0
@@ -310,18 +291,12 @@ export function useThreadScrollController({
     if (restoredOffset > 0) {
       programmaticScrollUntilRef.current = Date.now() + 180
       const frame = requestAnimationFrame(() => {
-        if (listRef.current) {
-          listRef.current.scrollTo(restoredOffset)
-          return
-        }
         if (scrollRef.current) scrollRef.current.scrollTop = restoredOffset
       })
       return () => cancelAnimationFrame(frame)
     }
   }, [
     initialScrollOffset,
-    itemCount,
-    listRef,
     scrollRef,
     sessionKey,
     setMode,
@@ -340,9 +315,9 @@ export function useThreadScrollController({
 
     setMode('prework_watch')
     const frame = requestAnimationFrame(() => {
-      const handle = listRef.current
-      const metrics = readMetrics(handle, scrollRef.current)
-      if (!handle || !metrics) return
+      const viewport = scrollRef.current
+      const metrics = readMetrics(viewport)
+      if (!viewport || !metrics) return
       const atBottom =
         distanceFromThreadBottom(metrics) <= THREAD_BOTTOM_THRESHOLD_PX
       setMode('prework_follow')
@@ -352,25 +327,24 @@ export function useThreadScrollController({
         return
       }
 
-      try {
-        const latestTurnIndex = Math.max(0, itemCount - 1)
+      const rows = viewport.querySelectorAll<HTMLElement>('.session-turn-row')
+      const latestTurn = rows.item(rows.length - 1)
+      if (latestTurn) {
         const latestTurnDistance =
-          handle.getItemOffset(latestTurnIndex) - metrics.scrollOffset
+          latestTurn.getBoundingClientRect().top -
+          viewport.getBoundingClientRect().top
         programmaticScrollUntilRef.current = Date.now() + 180
         if (latestTurnDistance > LATEST_TURN_PLACEMENT_THRESHOLD_PX) {
-          handle.scrollToIndex(latestTurnIndex, { align: 'start' })
+          latestTurn.scrollIntoView({ block: 'start', behavior: 'auto' })
           return
         }
-      } catch {
-        // The virtualizer can still be measuring the new row; bottom anchoring
-        // is the safe fallback and the ResizeObserver will correct it again.
       }
       if (activeRef.current) {
         scrollToEnd(false)
       }
     })
     return () => cancelAnimationFrame(frame)
-  }, [active, itemCount, listRef, scrollRef, scrollToEnd, sessionKey, setMode])
+  }, [active, itemCount, scrollRef, scrollToEnd, sessionKey, setMode])
 
   React.useEffect(() => {
     if (itemCount <= previousCountRef.current) {
@@ -390,15 +364,23 @@ export function useThreadScrollController({
 
   React.useEffect(() => {
     const content = scrollRef.current?.querySelector<HTMLElement>(
-      '.session-timeline-virtualizer',
+      '.session-timeline-content',
     )
     if (!content || typeof ResizeObserver === 'undefined') return
-    const metrics = readMetrics(listRef.current, scrollRef.current)
+    const metrics = readMetrics(scrollRef.current)
     previousScrollSizeRef.current = metrics?.scrollSize ?? 0
     const observer = new ResizeObserver(handleContentResize)
     observer.observe(content)
     return () => observer.disconnect()
-  }, [handleContentResize, itemCount, listRef, scrollRef, sessionKey])
+  }, [handleContentResize, itemCount, scrollRef, sessionKey])
+
+  React.useEffect(() => {
+    const viewport = scrollRef.current
+    if (!viewport) return
+    const onViewportScroll = (): void => handleScroll(viewport.scrollTop)
+    viewport.addEventListener('scroll', onViewportScroll, { passive: true })
+    return () => viewport.removeEventListener('scroll', onViewportScroll)
+  }, [handleScroll, scrollRef, sessionKey])
 
   React.useEffect(() => {
     const viewport = scrollRef.current
@@ -436,7 +418,6 @@ export function useThreadScrollController({
 
   return {
     bottomSentinelRef: setBottomSentinel,
-    handleScroll,
     hasNewContent,
     isAtBottom,
     mode,

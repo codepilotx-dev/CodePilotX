@@ -117,16 +117,12 @@
 }
 
 .timeline-command-details {
-  max-height: 0;
-  overflow: hidden;
+  display: none;
   opacity: 0;
-  transition:
-    max-height 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.18s ease-out;
 }
 
 .timeline-command-group--expanded .timeline-command-details {
-  max-height: 900px;
+  display: block;
   opacity: 1;
 }
 
@@ -223,16 +219,12 @@
 }
 
 .timeline-command-shell-wrap {
-  max-height: 0;
-  overflow: hidden;
+  display: none;
   opacity: 0;
-  transition:
-    max-height 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.18s ease-out;
 }
 
 .timeline-command-item--open .timeline-command-shell-wrap {
-  max-height: 520px;
+  display: block;
   opacity: 1;
 }
 
@@ -575,16 +567,12 @@
 }
 
 .execution-phase-details {
-  max-height: 0;
-  overflow: hidden;
+  display: none;
   opacity: 0;
-  transition:
-    max-height 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.18s ease-out;
 }
 
 .execution-phase--expanded .execution-phase-details {
-  max-height: 900px;
+  display: block;
   opacity: 1;
 }
 
