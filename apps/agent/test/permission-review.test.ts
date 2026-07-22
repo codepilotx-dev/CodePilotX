@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test"
-import type { ProviderRuntime } from "@codepilotx/provider-runtime"
 import type { AgentDatabase } from "../src/storage/Database"
 import type { ToolInvocation } from "../src/domain"
 import { ReviewerService } from "../src/permission/ReviewerService"
+import type { PiModelService } from "../src/provider/pi"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { PermissionDecisionEngine } from "../src/permission/PermissionDecisionEngine"
 
-const reviewer = (getSetting: AgentDatabase["getSetting"], providers: ProviderRuntime = {} as ProviderRuntime) => new ReviewerService({ getSetting } as AgentDatabase, providers)
+const reviewer = (getSetting: AgentDatabase["getSetting"], providers: PiModelService = {} as PiModelService) => new ReviewerService({ getSetting } as AgentDatabase, providers)
 
 describe("Shell ReviewerService", () => {
   test("静态灾难级命令在没有审核模型时也直接拒绝", async () => {
@@ -50,8 +50,8 @@ describe("Shell ReviewerService", () => {
       permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" },
       taskMode: "chat",
     } as unknown as ToolInvocation
-    expect(engine.evaluate(base, tools.get("shell"))).toMatchObject({ action: "allow" })
-    expect(engine.evaluate({ ...base, input: { command: "npm test", additionalPermissions: { networkDomains: ["npmjs.org"] } } }, tools.get("shell"))).toMatchObject({ action: "review", reviewer: "user" })
+    expect(engine.evaluate(base, tools.get("PowerShell"))).toMatchObject({ action: "allow" })
+    expect(engine.evaluate({ ...base, input: { command: "npm test", additionalPermissions: { networkDomains: ["npmjs.org"] } } }, tools.get("PowerShell"))).toMatchObject({ action: "review", reviewer: "user" })
   })
 
   test("never 不重复审批已选择的 full access，但拒绝动态提升", () => {
@@ -67,7 +67,7 @@ describe("Shell ReviewerService", () => {
       permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "never", approvalsReviewer: "auto_review" },
       taskMode: "chat",
     } as unknown as ToolInvocation
-    expect(engine.evaluate(invocation, tools.get("shell"))).toMatchObject({ action: "allow", risk: "critical" })
-    expect(engine.evaluate({ ...invocation, input: { command: "x", additionalPermissions: { writePaths: ["C:\\outside"] } } }, tools.get("shell"))).toMatchObject({ action: "deny" })
+    expect(engine.evaluate(invocation, tools.get("PowerShell"))).toMatchObject({ action: "allow", risk: "critical" })
+    expect(engine.evaluate({ ...invocation, input: { command: "x", additionalPermissions: { writePaths: ["C:\\outside"] } } }, tools.get("PowerShell"))).toMatchObject({ action: "deny" })
   })
 })

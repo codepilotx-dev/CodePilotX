@@ -1,5 +1,8 @@
-import type { ToolInvocation } from "../domain"
+import type { ToolInvocation } from "../domain";
 
 export const isShellInvocation = (invocation: ToolInvocation) => {
-  return invocation.name === "shell" && typeof invocation.input.command === "string"
-}
+  return (
+    (invocation.name === "Bash" || invocation.name === "PowerShell") &&
+    typeof invocation.input.command === "string"
+  );
+};

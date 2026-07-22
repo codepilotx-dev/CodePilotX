@@ -20,10 +20,12 @@ describe("工作区工具", () => {
     const executor = new ToolExecutor(tools)
     const context = { threadID: "thread", turnID: "turn", taskMode: "chat" as const, signal: new AbortController().signal, workspace }
 
-    const patch = await executor.execute("apply_patch", { operation: "update", path: "source.txt", before: "before", after: "after" }, context)
-    expect(patch).toMatchObject({ operation: "update", path: "source.txt" })
+    const initial = await executor.execute<any>("Read", { file_path: "source.txt" }, context)
+    const patch = await executor.execute("Edit", { file_path: "source.txt", old_string: "before", new_string: "after" }, context)
+    expect(patch).toMatchObject({ operation: "edit", path: "source.txt" })
     expect(await Bun.file(file).text()).toBe("after")
-    await expect(executor.execute("apply_patch", { operation: "update", path: "source.txt", before: "after", after: "blocked" }, { ...context, taskMode: "plan" })).rejects.toMatchObject({ code: "TOOL_PERMISSION_DENIED" })
+    await executor.execute<any>("Read", { file_path: "source.txt" }, context)
+    await expect(executor.execute("Edit", { file_path: "source.txt", old_string: "after", new_string: "blocked" }, { ...context, taskMode: "plan" })).rejects.toMatchObject({ code: "TOOL_PERMISSION_DENIED" })
     expect(await Bun.file(file).text()).toBe("after")
   })
 
@@ -40,16 +42,16 @@ describe("工作区工具", () => {
     expect(await workspace.read("utf8.txt")).toBe("中文 UTF-8")
   })
 
-  test("ToolCatalog 传递 workspace.read offset/limit", async () => {
+  test("ToolCatalog 传递 Read offset/limit", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-workspace-"))
     paths.push(root)
     await Bun.write(join(root, "lines.txt"), "zero\none\ntwo\nthree")
     const workspace = await WorkspaceService.open(root)
     const executor = new ToolExecutor(new ToolRegistry())
-    const result = await executor.execute("workspace.read", { path: "lines.txt", offset: 1, limit: 2 }, {
+    const result = await executor.execute<any>("Read", { file_path: "lines.txt", offset: 1, limit: 2 }, {
       threadID: "thread", turnID: "turn", taskMode: "chat", signal: new AbortController().signal, workspace,
     })
-    expect(result).toBe("one\ntwo")
+    expect(result.content).toBe("one\ntwo")
   })
 
   test("Skill allowedTools 在执行器最终边界只能收紧工具", async () => {
@@ -62,8 +64,8 @@ describe("工作区工具", () => {
       threadID: "thread", turnID: "turn", taskMode: "chat" as const,
       signal: new AbortController().signal, workspace, allowedTools: ["Read"],
     }
-    await expect(executor.execute("workspace.read", { path: "file.txt" }, context)).resolves.toBe("ok")
-    await expect(executor.execute("workspace.search", { path: ".", query: "ok" }, context)).rejects.toMatchObject({ code: "SKILL_TOOL_NOT_ALLOWED" })
+    await expect(executor.execute<any>("Read", { file_path: "file.txt" }, context).then((result) => result.content)).resolves.toBe("ok")
+    await expect(executor.execute("Grep", { path: ".", pattern: "ok" }, context)).rejects.toMatchObject({ code: "SKILL_TOOL_NOT_ALLOWED" })
   })
 
   test("拒绝通过符号链接逃离工作区", async () => {
@@ -79,13 +81,13 @@ describe("工作区工具", () => {
     await expect(workspace.read("outside-link.txt")).rejects.toMatchObject({ code: "WORKSPACE_PATH_DENIED" })
   })
 
-  test("统一执行器最低层拒绝 read-only apply_patch", async () => {
+  test("统一执行器最低层拒绝 read-only Write", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-workspace-"))
     paths.push(root)
     const workspace = await WorkspaceService.open(root)
     const executor = new ToolExecutor(new ToolRegistry())
 
-    await expect(executor.execute("apply_patch", { operation: "create", path: "blocked.txt", content: "blocked" }, {
+    await expect(executor.execute("Write", { file_path: "blocked.txt", content: "blocked" }, {
       threadID: "thread",
       turnID: "turn",
       taskMode: "chat",
@@ -95,14 +97,33 @@ describe("工作区工具", () => {
     })).rejects.toMatchObject({ code: "TOOL_PERMISSION_DENIED" })
   })
 
+  test("已完成的 toolCallId 复用持久结果且不重复副作用", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-tool-idempotency-"))
+    paths.push(root)
+    const workspace = await WorkspaceService.open(root)
+    const input = { file_path: "once.txt", content: "should-not-run" }
+    const executor = new ToolExecutor(new ToolRegistry(), {
+      dataDir: root,
+      sandbox: {} as never,
+      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "test" }),
+      completedToolCall: (id) => id === "call-once" ? { name: "Write", input, output: { reused: true } } : null,
+    })
+
+    await expect(executor.execute("Write", input, {
+      threadID: "thread", turnID: "turn", toolCallID: "call-once", taskMode: "chat",
+      signal: new AbortController().signal, workspace,
+    })).resolves.toEqual({ reused: true })
+    expect(await Bun.file(join(root, "once.txt")).exists()).toBe(false)
+  })
+
   test("Explorer 不暴露 Shell 且直接调用也在执行器最低层拒绝", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-explorer-"))
     paths.push(root)
     const workspace = await WorkspaceService.open(root)
     const registry = new ToolRegistry()
-    expect(registry.list("chat", "workspace-write", "explorer").map((tool) => tool.sdkName)).not.toContain("shell")
+    expect(registry.list("chat", "workspace-write", "explorer").map((tool) => tool.sdkName)).not.toContain("PowerShell")
     const executor = new ToolExecutor(registry)
-    await expect(executor.execute("shell", { command: "Get-ChildItem" }, {
+    await expect(executor.execute("PowerShell", { command: "Get-ChildItem" }, {
       threadID: "thread", turnID: "turn", profile: "explorer", taskMode: "chat",
       signal: new AbortController().signal, workspace,
     })).rejects.toMatchObject({ code: "TOOL_NOT_ALLOWED_FOR_PROFILE" })

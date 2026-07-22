@@ -22,6 +22,7 @@ const adapter = (onRun: (request: SandboxedProcessRequest) => Promise<ProcessRes
   install: async () => undefined,
   uninstall: async () => undefined,
   reset: async () => undefined,
+  dispose: async () => undefined,
   run: onRun,
 })
 
@@ -50,7 +51,7 @@ describe("统一 Shell 执行门", () => {
       authorizeShell: async () => ({ decision: "deny", risk: "medium", reason: "等待人工审批" }),
     })
 
-    await expect(executor.execute("shell", { command: "Write-Output blocked" }, await context(root))).rejects.toMatchObject({ code: "SHELL_PERMISSION_DENIED" })
+    await expect(executor.execute("PowerShell", { command: "Write-Output blocked" }, await context(root))).rejects.toMatchObject({ code: "SHELL_PERMISSION_DENIED" })
     expect(runs).toBe(0)
   })
 
@@ -58,6 +59,7 @@ describe("统一 Shell 执行门", () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
     tempPaths.push(root)
     let received: SandboxedProcessRequest | null = null
+    let audited: { name: string; input: Record<string, unknown> } | null = null
     const executor = new ToolExecutor(new ToolRegistry(), {
       dataDir: join(root, ".agent-data"),
       sandbox: adapter(async (request) => {
@@ -65,10 +67,13 @@ describe("统一 Shell 执行门", () => {
         return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false }
       }),
       authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "审核通过" }),
+      recordToolCall: (invocation, status) => { if (status === "running") audited = invocation },
     })
 
-    await executor.execute("shell", { command: "Write-Output ok" }, await context(root))
+    await executor.execute("PowerShell", { command: "Write-Output ok", timeout: 1_234, description: "测试命令" }, await context(root))
     expect(received).not.toBeNull()
+    expect(received!.timeoutMs).toBe(1_234)
+    expect(audited).toMatchObject({ name: "PowerShell", input: { justification: "测试命令" } })
     const policy = received!.config
     expect(policy.filesystem.allowWrite).toContain(root)
     expect(policy.network.allowedDomains).toEqual([])
@@ -87,7 +92,7 @@ describe("统一 Shell 执行门", () => {
       authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "审核通过" }),
     })
 
-    await expect(executor.execute("shell", { command: "Write-Output no-fallback" }, await context(root))).rejects.toThrow("SRT not ready")
+    await expect(executor.execute("PowerShell", { command: "Write-Output no-fallback" }, await context(root))).rejects.toThrow("SRT not ready")
     expect(runs).toBe(1)
   })
 
@@ -101,7 +106,7 @@ describe("统一 Shell 执行门", () => {
       authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
       hooks: { run: async (event) => event === "pre_tool_use" ? [{ result: { decision: "deny", reason: "blocked" } }] : [] },
     })
-    await expect(preDenied.execute("shell", { command: "Write-Output blocked" }, await context(root))).rejects.toMatchObject({ code: "HOOK_DENIED" })
+    await expect(preDenied.execute("PowerShell", { command: "Write-Output blocked" }, await context(root))).rejects.toMatchObject({ code: "HOOK_DENIED" })
     expect(runs).toBe(0)
 
     const success = new ToolExecutor(new ToolRegistry(), {
@@ -110,7 +115,7 @@ describe("统一 Shell 执行门", () => {
       authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
       hooks: { run: async (event) => { if (event === "post_tool_use") throw new Error("post failed"); return [] } },
     })
-    await expect(success.execute("shell", { command: "Write-Output ok" }, await context(root))).resolves.toMatchObject({ stdout: "ok" })
+    await expect(success.execute("PowerShell", { command: "Write-Output ok" }, await context(root))).resolves.toMatchObject({ stdout: "ok" })
 
     const originalFailure = new ToolExecutor(new ToolRegistry(), {
       dataDir: join(root, ".agent-data"),
@@ -118,7 +123,7 @@ describe("统一 Shell 执行门", () => {
       authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
       hooks: { run: async (event) => { if (event === "post_tool_error") throw new Error("post failed"); return [] } },
     })
-    await expect(originalFailure.execute("shell", { command: "Write-Output fail" }, await context(root))).rejects.toThrow("original sandbox failure")
+    await expect(originalFailure.execute("PowerShell", { command: "Write-Output fail" }, await context(root))).rejects.toThrow("original sandbox failure")
   })
 
   test("on-failure 生成两阶段 escalation，sandbox 一次且 host 最多一次", async () => {
@@ -145,7 +150,7 @@ describe("统一 Shell 执行门", () => {
     })
     const onFailure = { ...config, approvalPolicy: "on-failure" as const }
     const executionContext = await context(root, onFailure)
-    const first = await executor.execute<ProcessResult>("shell", { command: "Write-Output once" }, executionContext)
+    const first = await executor.execute<ProcessResult>("PowerShell", { command: "Write-Output once" }, executionContext)
     expect(first).toMatchObject({ exitCode: 126 })
     expect(first.stderr).toContain("request_permissions")
     expect(sandboxRuns).toBe(1)

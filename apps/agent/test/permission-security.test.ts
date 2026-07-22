@@ -10,7 +10,7 @@ import { secretScrubber } from "../src/security/SecretScrubber"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 
 const invocation = (overrides: Partial<ToolInvocation> = {}): ToolInvocation => ({
-  id: "tool", threadID: "thread", turnID: "turn", agentID: "agent", name: "shell", input: { command: "Get-ChildItem" },
+  id: "tool", threadID: "thread", turnID: "turn", agentID: "agent", name: "PowerShell", input: { command: "Get-ChildItem" },
   permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" }, taskMode: "chat",
   model: {} as ToolInvocation["model"], ...overrides,
 })
@@ -18,7 +18,7 @@ const invocation = (overrides: Partial<ToolInvocation> = {}): ToolInvocation => 
 describe("统一权限真值", () => {
   test("Codex approval policy 与 reviewer 决策矩阵", () => {
     const engine = new PermissionDecisionEngine()
-    const shell = new ToolRegistry().get("shell")
+    const shell = new ToolRegistry().get("PowerShell")
     for (const reviewer of ["user", "auto_review"] as const) {
       expect(engine.evaluate(invocation({ permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "untrusted", approvalsReviewer: reviewer } }), shell)).toMatchObject({ action: "review", reviewer })
       expect(engine.evaluate(invocation({ permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: reviewer } }), shell)).toMatchObject({ action: "allow" })
@@ -34,18 +34,18 @@ describe("统一权限真值", () => {
     const policy = { type: "granular", sandboxApproval: true, rules: false, skillApproval: false, requestPermissions: true, mcpElicitations: false } as const
     expect(decodeApprovalPolicy(encodeApprovalPolicy(policy))).toEqual(policy)
     const engine = new PermissionDecisionEngine()
-    expect(engine.evaluate(invocation({ permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: policy, approvalsReviewer: "auto_review" } }), new ToolRegistry().get("shell"))).toMatchObject({ action: "review", reviewer: "auto_review" })
+    expect(engine.evaluate(invocation({ permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: policy, approvalsReviewer: "auto_review" } }), new ToolRegistry().get("PowerShell"))).toMatchObject({ action: "review", reviewer: "auto_review" })
     expect(engine.evaluate(invocation({ name: "request_permissions", input: { scope: "tool-call", justification: "need" }, permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: { ...policy, requestPermissions: false }, approvalsReviewer: "user" } }), new ToolRegistry().get("request_permissions"))).toMatchObject({ action: "deny", reason: expect.stringContaining("requestPermissions") })
-    expect(engine.evaluate(invocation({ input: { command: "run-skill", __skillScript: true }, permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: { ...policy, skillApproval: true }, approvalsReviewer: "user" } }), new ToolRegistry().get("shell"))).toMatchObject({ action: "review", reason: expect.stringContaining("skillApproval") })
-    expect(engine.evaluate(invocation({ input: { command: "run-skill", __skillScript: true }, permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: { ...policy, skillApproval: false }, approvalsReviewer: "user" } }), new ToolRegistry().get("shell"))).toMatchObject({ action: "deny", reason: expect.stringContaining("skillApproval") })
-    expect(engine.evaluate(invocation({ input: { command: "mcp", __mcpElicitation: true }, permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: { ...policy, mcpElicitations: true }, approvalsReviewer: "user" } }), new ToolRegistry().get("shell"))).toMatchObject({ action: "review", reason: expect.stringContaining("mcpElicitations") })
+    expect(engine.evaluate(invocation({ input: { command: "run-skill", __skillScript: true }, permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: { ...policy, skillApproval: true }, approvalsReviewer: "user" } }), new ToolRegistry().get("PowerShell"))).toMatchObject({ action: "review", reason: expect.stringContaining("skillApproval") })
+    expect(engine.evaluate(invocation({ input: { command: "run-skill", __skillScript: true }, permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: { ...policy, skillApproval: false }, approvalsReviewer: "user" } }), new ToolRegistry().get("PowerShell"))).toMatchObject({ action: "deny", reason: expect.stringContaining("skillApproval") })
+    expect(engine.evaluate(invocation({ input: { command: "mcp", __mcpElicitation: true }, permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: { ...policy, mcpElicitations: true }, approvalsReviewer: "user" } }), new ToolRegistry().get("PowerShell"))).toMatchObject({ action: "review", reason: expect.stringContaining("mcpElicitations") })
   })
 
   test("Plan Shell 沿用任务原权限，显式写工具仍拒绝", () => {
     const catalog = new ToolRegistry()
     const engine = new PermissionDecisionEngine()
-    expect(engine.evaluate(invocation({ taskMode: "plan" }), catalog.get("shell"))).toMatchObject({ action: "allow" })
-    expect(engine.evaluate(invocation({ name: "apply_patch", taskMode: "plan", input: { operation: "create", path: "x", content: "x" } }), catalog.get("apply_patch"))).toMatchObject({ action: "deny" })
+    expect(engine.evaluate(invocation({ taskMode: "plan" }), catalog.get("PowerShell"))).toMatchObject({ action: "allow" })
+    expect(engine.evaluate(invocation({ name: "Write", taskMode: "plan", input: { file_path: "x", content: "x" } }), catalog.get("Write"))).toMatchObject({ action: "deny" })
   })
 })
 

@@ -40,7 +40,7 @@ describe("可恢复审批 checkpoint", () => {
     databases.push(db)
     const { thread, turn, input } = setup(db)
     const service = new ApprovalService(db, await Effect.runPromise(EventHub.make), new ToolRegistry())
-    const decision = await service.authorize({ id: "direct-tool", threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, name: "shell", input: { command: "npm publish" }, permissionConfig: input.permissionConfig, model: input.model, taskMode: "chat" }, new AbortController().signal)
+    const decision = await service.authorize({ id: "direct-tool", threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, name: "PowerShell", input: { command: "npm publish" }, permissionConfig: input.permissionConfig, model: input.model, taskMode: "chat" }, new AbortController().signal)
     expect(decision.decision).toBe("ask")
     expect(db.sqlite.query("SELECT COUNT(*) AS count FROM approval_requests").get()).toEqual({ count: 0 })
     expect(db.sqlite.query("SELECT COUNT(*) AS count FROM approval_checkpoints").get()).toEqual({ count: 0 })
@@ -52,8 +52,8 @@ describe("可恢复审批 checkpoint", () => {
     let db = new AgentDatabase(path)
     const { thread, turn, input } = setup(db)
     const tools = new ToolRegistry()
-    const invocation: ToolInvocation = { id: "tool-1", threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, name: "shell", input: { command: "api_key=super-secret; npm test" }, permissionConfig: input.permissionConfig, model: input.model, taskMode: "chat" }
-    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get("shell"))
+    const invocation: ToolInvocation = { id: "tool-1", threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, name: "PowerShell", input: { command: "api_key=super-secret; npm test" }, permissionConfig: input.permissionConfig, model: input.model, taskMode: "chat" }
+    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get("PowerShell"))
     if (resolved.action !== "review") throw new Error("测试需要 review 决策")
     let service = new ApprovalService(db, await Effect.runPromise(EventHub.make), tools)
     const prepared = service.prepare(invocation, { decision: "ask", risk: "high", reason: "需要确认" }, resolved)
@@ -61,7 +61,7 @@ describe("可恢复审批 checkpoint", () => {
     expect(service.load(prepared.approvalID)?.status).toBe("preparing")
     expect(db.sqlite.query("SELECT COUNT(*) AS count FROM events WHERE method = 'approval/requested'").get()).toEqual({ count: 0 })
     await expect(service.respond(prepared.approvalID, "allow")).rejects.toMatchObject({ code: "APPROVAL_NOT_READY" })
-    await service.attachRunState("tool-1", JSON.stringify({ version: 1, command: "npm test" }), { name: "shell", callId: "tool-1" })
+    await service.attachRunState("tool-1", JSON.stringify({ version: 1, command: "npm test" }), { name: "PowerShell", callId: "tool-1" })
     expect(db.sqlite.query("SELECT COUNT(*) AS count FROM events WHERE method = 'approval/requested'").get()).toEqual({ count: 1 })
     expect(service.load(prepared.approvalID)?.payload.invocation.input.command).toContain("<redacted>")
     expect(service.load(prepared.approvalID)?.payload.runState).not.toContain("super-secret")
@@ -127,13 +127,13 @@ describe("可恢复审批 checkpoint", () => {
     let db = new AgentDatabase(path)
     const { thread, turn, input } = setup(db)
     const tools = new ToolRegistry()
-    const invocation: ToolInvocation = { id: "tool-deny", threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, name: "shell", input: { command: "npm publish" }, permissionConfig: input.permissionConfig, model: input.model, taskMode: "chat", durableApproval: true }
-    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get("shell"))
+    const invocation: ToolInvocation = { id: "tool-deny", threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, name: "PowerShell", input: { command: "npm publish" }, permissionConfig: input.permissionConfig, model: input.model, taskMode: "chat", durableApproval: true }
+    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get("PowerShell"))
     if (resolved.action !== "review") throw new Error("测试需要 review 决策")
     let service = new ApprovalService(db, await Effect.runPromise(EventHub.make), tools)
     const prepared = service.prepare(invocation, { decision: "ask", risk: "high", reason: "需要确认" }, resolved)
     service.persist(prepared)
-    await service.attachRunState("tool-deny", JSON.stringify({ version: 1 }), { name: "shell", callId: "tool-deny" })
+    await service.attachRunState("tool-deny", JSON.stringify({ version: 1 }), { name: "PowerShell", callId: "tool-deny" })
     db.close()
 
     db = new AgentDatabase(path)
@@ -152,8 +152,8 @@ describe("可恢复审批 checkpoint", () => {
     const { thread, turn, input } = setup(db)
     const tools = new ToolRegistry()
     const service = new ApprovalService(db, await Effect.runPromise(EventHub.make), tools)
-    const invocation: ToolInvocation = { id: "tool-tampered", threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, name: "shell", input: { command: "npm test" }, permissionConfig: input.permissionConfig, model: input.model, taskMode: "chat" }
-    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get("shell"))
+    const invocation: ToolInvocation = { id: "tool-tampered", threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, name: "PowerShell", input: { command: "npm test" }, permissionConfig: input.permissionConfig, model: input.model, taskMode: "chat" }
+    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get("PowerShell"))
     if (resolved.action !== "review") throw new Error("测试需要 review 决策")
     const prepared = service.prepare(invocation, { decision: "ask", risk: "high", reason: "需要确认" }, resolved)
     service.persist(prepared)
@@ -168,7 +168,7 @@ describe("可恢复审批 checkpoint", () => {
     let db = new AgentDatabase(path)
     const { thread, turn, input } = setup(db)
     let service = new ApprovalService(db, await Effect.runPromise(EventHub.make), new ToolRegistry())
-    const invocation: ToolInvocation = { id: "shell-failed", threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, name: "shell", input: { command: "Write-Output once", cwd: tmpdir() }, permissionConfig: { ...input.permissionConfig, approvalPolicy: "on-failure" }, model: input.model, taskMode: "chat" }
+    const invocation: ToolInvocation = { id: "shell-failed", threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, name: "PowerShell", input: { command: "Write-Output once", cwd: tmpdir() }, permissionConfig: { ...input.permissionConfig, approvalPolicy: "on-failure" }, model: input.model, taskMode: "chat" }
     const escalation = service.prepareSandboxEscalation(invocation, "sandbox denied")
     const permissionInput = { scope: "tool-call", escalationToken: escalation.token, justification: "sandbox failed" }
     const parsed = new ToolRegistry().get("request_permissions").schema.parse(permissionInput) as typeof permissionInput
@@ -198,7 +198,7 @@ describe("可恢复审批 checkpoint", () => {
     databases.push(db)
     const { thread, turn, input } = setup(db)
     const service = new ApprovalService(db, await Effect.runPromise(EventHub.make), new ToolRegistry())
-    const invocation: ToolInvocation = { id: "shell-tampered", threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, name: "shell", input: { command: "Write-Output safe", cwd: tmpdir() }, permissionConfig: { ...input.permissionConfig, approvalPolicy: "on-failure" }, model: input.model, taskMode: "chat" }
+    const invocation: ToolInvocation = { id: "shell-tampered", threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, name: "PowerShell", input: { command: "Write-Output safe", cwd: tmpdir() }, permissionConfig: { ...input.permissionConfig, approvalPolicy: "on-failure" }, model: input.model, taskMode: "chat" }
     const escalation = service.prepareSandboxEscalation(invocation, "sandbox denied")
     db.sqlite.query("UPDATE sandbox_escalations SET invocation = json_set(invocation, '$.input.command', 'Remove-Item dangerous') WHERE token = ?").run(escalation.token)
     expect(service.claimSandboxEscalation(escalation.token, { threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID })).toBeNull()
@@ -250,8 +250,8 @@ describe("可恢复审批 checkpoint", () => {
     const { thread, turn, input } = setup(db)
     const tools = new ToolRegistry()
     const service = new ApprovalService(db, await Effect.runPromise(EventHub.make), tools)
-    const invocation: ToolInvocation = { id: "tool-stop", threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, name: "shell", input: { command: "npm publish" }, permissionConfig: input.permissionConfig, model: input.model, taskMode: "chat", durableApproval: true }
-    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get("shell"))
+    const invocation: ToolInvocation = { id: "tool-stop", threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, name: "PowerShell", input: { command: "npm publish" }, permissionConfig: input.permissionConfig, model: input.model, taskMode: "chat", durableApproval: true }
+    const resolved = new PermissionDecisionEngine().evaluate(invocation, tools.get("PowerShell"))
     if (resolved.action !== "review") throw new Error("测试需要 review 决策")
     const prepared = service.prepare(invocation, { decision: "ask", risk: "high", reason: "需要确认" }, resolved)
     service.persist(prepared)

@@ -1,13 +1,14 @@
 import { AgentError, type PermissionDecision, type SubagentProfile, type TaskMode, type ToolInvocation } from "../domain"
 import type { WorkspaceService } from "../workspace/WorkspaceService"
-import { toolNameMatches, type ToolRegistry } from "./ToolRegistry"
+import { toolNameMatches, type ToolProgress, type ToolRegistry } from "./ToolRegistry"
+import { createToolExposurePlan, type ToolExposureInput } from "./ToolExposurePlan"
 import { DEFAULT_PERMISSION_CONFIG, type PermissionConfig, type ShellInput } from "@codepilotx/shared/thread"
 import { Model, Provider } from "@codepilotx/model-schema"
-import { createSessionTemp, runHostCommand, type ProcessResult, type SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
+import { runHostCommand, type ProcessResult, type SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
 import { generateSandboxPolicy } from "../sandbox/SandboxPolicy"
-import { rm } from "node:fs/promises"
-import { realpath } from "node:fs/promises"
-import { dirname, isAbsolute, relative, resolve } from "node:path"
+import { mkdtemp, readdir, realpath, rm } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import { dirname, isAbsolute, join, relative, resolve } from "node:path"
 import { PermissionDecisionEngine } from "../permission/PermissionDecisionEngine"
 import { analyzeShellRisk } from "../security/ShellRiskClassifier"
 import { secretScrubber } from "../security/SecretScrubber"
@@ -33,6 +34,7 @@ export interface ToolExecutionContext {
   authorizationOnly?: boolean
   /** Optional active Skill ceiling. It can only remove tools from the effective policy. */
   allowedTools?: readonly string[]
+  onProgress?: (progress: ToolProgress) => void
 }
 
 export interface ToolExecutorOptions {
@@ -40,6 +42,7 @@ export interface ToolExecutorOptions {
   sandbox: SandboxRuntimeAdapter
   authorizeShell: (invocation: ToolInvocation, signal: AbortSignal) => Promise<PermissionDecision>
   recordToolCall?: (invocation: ToolInvocation, status: "running" | "completed" | "error" | "interrupted", output?: unknown, error?: string | null, startedAt?: number) => void
+  completedToolCall?: (toolCallID: string) => { name: string; input: Record<string, unknown>; output: unknown } | null
   helperPath?: string | null
   hooks?: {
     run(event: "pre_tool_use" | "post_tool_use" | "post_tool_error", evidence: unknown, context?: { threadID?: string; turnID?: string; toolCallID?: string; toolName?: string; workspaceRoot?: string }): Promise<Array<{ result: { decision: "continue" | "ask" | "deny"; reason?: string; narrowedInput?: Record<string, unknown> } }>>
@@ -48,15 +51,29 @@ export interface ToolExecutorOptions {
   claimSandboxEscalation?: (token: string, scope: { threadID: string; turnID: string; agentID: string }) => { token: string; invocation: ToolInvocation; invocationHash: string; failure: string } | null
   completeSandboxEscalation?: (token: string, output: unknown) => void
   runHost?: typeof runHostCommand
+  bashPath?: string | null
+  fileSaved?: (input: { workspaceRoot: string; filePath: string; content: string }) => Promise<void>
 }
 
 /** The sole host-capability entrypoint. Later stages add approval and SRT gates here. */
 export class ToolExecutor {
   private readonly decisions = new PermissionDecisionEngine()
+  private readonly readSnapshots = new Map<string, { mtimeMs: number; sha256: string }>()
+  private sandboxTempRoot: string | null = null
+  private sandboxOperations: Promise<void> = Promise.resolve()
+  private sandboxDisposed = false
   constructor(private readonly registry: ToolRegistry, private readonly options?: ToolExecutorOptions) {}
 
   definition(name: string) {
     return this.registry.get(name)
+  }
+
+  exposurePlan(input: ToolExposureInput) {
+    return createToolExposurePlan(this.registry, input)
+  }
+
+  deferredDefinitions(input: ToolExposureInput) {
+    return this.exposurePlan(input).deferred.map((name) => this.registry.get(name))
   }
 
   async previewApproval(name: string, input: Record<string, unknown>, context: ToolExecutionContext, toolCallID: string) {
@@ -69,19 +86,48 @@ export class ToolExecutor {
     if (context.allowedTools && !toolNameMatches(definition, context.allowedTools)) throw new AgentError("SKILL_TOOL_NOT_ALLOWED", `当前 Skill 不允许使用工具 ${definition.sdkName}`, 403)
     const parsed = definition.schema.safeParse(input)
     if (!parsed.success) throw new AgentError("INVALID_TOOL_INPUT", parsed.error.message, 400)
+    const canonicalName = definition.sdkName
+    const parsedInput = parsed.data as Record<string, unknown>
+    const normalized = canonicalName === "Bash" || canonicalName === "PowerShell" ? {
+      command: parsedInput.command,
+      ...(parsedInput.timeout === undefined ? {} : { timeoutMs: parsedInput.timeout }),
+      ...(parsedInput.description === undefined ? {} : { justification: parsedInput.description }),
+    } : parsedInput
+    if (context.toolCallID && !context.authorizationOnly) {
+      const completed = this.options?.completedToolCall?.(context.toolCallID)
+      if (completed) {
+        const storedInput = Object.fromEntries(Object.keys(normalized).map((key) => [key, completed.input[key]]))
+        if (completed.name !== canonicalName || JSON.stringify(storedInput) !== JSON.stringify(normalized)) {
+          throw new AgentError("TOOL_CALL_ID_CONFLICT", "toolCallId 已被不同的工具调用使用", 409)
+        }
+        return completed.output as T
+      }
+    }
     const profile = context.profile ?? "main"
-    if (!definition.allowedProfiles.includes(profile)) throw new AgentError("TOOL_NOT_ALLOWED_FOR_PROFILE", `工具 ${name} 不允许 ${profile} profile 使用`, 403)
-    const normalized = parsed.data as Record<string, unknown>
-    if (name === "shell") return await this.executeShell(normalized, context) as T
-    return this.executeRegistered<T>(name, normalized, context)
+    if (!definition.allowedProfiles.includes(profile)) throw new AgentError("TOOL_NOT_ALLOWED_FOR_PROFILE", `工具 ${canonicalName} 不允许 ${profile} profile 使用`, 403)
+    if (canonicalName === "Bash" || canonicalName === "PowerShell") {
+      const progress = definition.progress?.(parsed.data, {
+        signal: context.signal,
+        taskMode: context.taskMode,
+        profile,
+        workspace: context.workspace,
+        permissionConfig: context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG,
+        model: context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") }),
+        ...(context.onProgress ? { onProgress: context.onProgress } : {}),
+      })
+      if (progress) context.onProgress?.(progress)
+      return await this.executeShell(canonicalName, normalized, context) as T
+    }
+    return this.executeRegistered<T>(canonicalName, normalized, context)
   }
 
   private async executeRegistered<T>(name: string, input: Record<string, unknown>, context: ToolExecutionContext) {
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
-    const relativeToolPath = typeof input.path === "string" ? input.path.replaceAll("\\", "/").toLowerCase() : ""
+    const pathValue = typeof input.file_path === "string" ? input.file_path : input.path
+    const relativeToolPath = typeof pathValue === "string" ? pathValue.replaceAll("\\", "/").toLowerCase() : ""
     const sensitiveEnvironment = /^\.env(?:\..+)?$/.test(relativeToolPath) && !/^\.env\.(?:example|template)$/.test(relativeToolPath)
-    const protectedGitWrite = name === "apply_patch" && (relativeToolPath === ".git/config" || relativeToolPath.startsWith(".git/hooks/"))
+    const protectedGitWrite = (name === "Write" || name === "Edit") && (relativeToolPath === ".git/config" || relativeToolPath.startsWith(".git/hooks/"))
     const policyInput = sensitiveEnvironment || protectedGitWrite ? { ...input, __ruleRequiresApproval: true } : input
     const invocation: ToolInvocation = { id: context.toolCallID ?? crypto.randomUUID(), threadID: context.threadID, turnID: context.turnID, agentID: context.agentID ?? context.turnID, name, input: policyInput, permissionConfig, model, taskMode: context.taskMode, ...(context.authorizationOnly ? { durableApproval: true } : {}) }
     const resolved = this.decisions.evaluate(invocation, this.registry.get(name))
@@ -108,7 +154,19 @@ export class ToolExecutor {
     const auditInvocation = secretScrubber.scrub(invocation)
     this.options?.recordToolCall?.(auditInvocation, "running", null, null, startedAt)
     try {
-      const output = await this.registry.execute(name, input, { signal: context.signal, taskMode: context.taskMode, profile: context.profile ?? "main", workspace: context.workspace, permissionConfig, model })
+      const snapshotKey = this.snapshotKey(context, typeof input.file_path === "string" ? input.file_path : null)
+      const deferredTools = this.deferredDefinitions({
+        taskMode: context.taskMode,
+        sandboxMode: permissionConfig.sandboxMode,
+        profile: context.profile ?? "main",
+        ...(context.allowedTools ? { allowedTools: context.allowedTools } : {}),
+      })
+      const output = await this.registry.execute(name, input, { signal: context.signal, taskMode: context.taskMode, profile: context.profile ?? "main", workspace: context.workspace, permissionConfig, model, deferredTools, ...(snapshotKey && this.readSnapshots.has(snapshotKey) ? { readSnapshot: this.readSnapshots.get(snapshotKey)! } : {}), ...(this.options?.fileSaved ? { fileSaved: (saved) => this.options!.fileSaved!({ workspaceRoot: context.workspace.rootPath, ...saved }) } : {}), ...(context.onProgress ? { onProgress: context.onProgress } : {}) })
+      if (snapshotKey && ["Read", "Write", "Edit"].includes(name)) {
+        const revision = (output as { snapshot?: { mtimeMs: number; sha256: string }; revision?: { mtimeMs: number; sha256: string } }).snapshot ?? (output as { revision?: { mtimeMs: number; sha256: string } }).revision
+          ?? (await context.workspace.readEditorFile(String(input.file_path))).revision
+        this.readSnapshots.set(snapshotKey, revision)
+      }
       const safeOutput = secretScrubber.scrub(output)
       this.options?.recordToolCall?.(auditInvocation, "completed", safeOutput, null, startedAt)
       if (!context.skipHooks) await this.options?.hooks?.run("post_tool_use", { input, output: safeOutput }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: name, workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
@@ -121,11 +179,13 @@ export class ToolExecutor {
     }
   }
 
-  private async executeShell(input: Record<string, unknown>, context: ToolExecutionContext): Promise<ProcessResult | PermissionDecision> {
-    if (!this.options) throw new AgentError("SHELL_EXECUTOR_REQUIRED", "Shell 执行器未配置", 500)
+  private async executeShell(shellTool: "Bash" | "PowerShell", input: Record<string, unknown>, context: ToolExecutionContext): Promise<ProcessResult | PermissionDecision> {
+    const options = this.options
+    if (!options) throw new AgentError("SHELL_EXECUTOR_REQUIRED", "Shell 执行器未配置", 500)
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
     const parsedShell = this.parseShellInput(input)
+    const command = this.commandForShell(shellTool, parsedShell.command)
     const workspaceRoot = await realpath(context.workspace.rootPath)
     const additionalPermissions = parsedShell.additionalPermissions ? {
       ...(parsedShell.additionalPermissions.readPaths ? { readPaths: await Promise.all(parsedShell.additionalPermissions.readPaths.map((path) => this.canonicalPath(workspaceRoot, path, false))) } : {}),
@@ -147,9 +207,10 @@ export class ToolExecutor {
       threadID: context.threadID,
       turnID: context.turnID,
       agentID: context.agentID ?? context.turnID,
-      name: "shell",
+      name: shellTool,
       input: {
         ...shell as unknown as Record<string, unknown>,
+        __shellTool: shellTool,
         cwd,
         ...(context.taskSummary ? { taskSummary: context.taskSummary.slice(0, 4_000) } : {}),
       },
@@ -162,13 +223,13 @@ export class ToolExecutor {
       const staticRisk = analyzeShellRisk({ command: shell.command, cwd, ...(shell.additionalPermissions ? { additionalPermissions: shell.additionalPermissions } : {}), ...(shell.justification ? { justification: shell.justification } : {}), ...(context.taskSummary ? { taskSummary: context.taskSummary } : {}) })
       if (staticRisk.hardDenied) throw new AgentError("SHELL_HARD_DENY", staticRisk.reason, 403, staticRisk)
       const resumedApproval = context.approvedToolCallID === invocation.id
-      const hookResults = context.skipHooks || resumedApproval ? [] : await this.options.hooks?.run("pre_tool_use", { input: invocation.input, staticRisk }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: "shell", workspaceRoot: context.workspace.rootPath }) ?? []
+      const hookResults = context.skipHooks || resumedApproval ? [] : await this.options.hooks?.run("pre_tool_use", { input: invocation.input, staticRisk }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }) ?? []
       const denied = hookResults.find(({ result }) => result.decision === "deny")
       if (denied) throw new AgentError("HOOK_DENIED", denied.result.reason ?? "PreToolUse Hook 拒绝执行", 403)
       const narrowed = hookResults.map(({ result }) => result.narrowedInput).filter((value): value is Record<string, unknown> => Boolean(value)).at(-1)
       if (narrowed && JSON.stringify(narrowed) !== JSON.stringify(input)) {
         if ((context.hookDepth ?? 0) >= 2) throw new AgentError("HOOK_REWRITE_LIMIT", "Hook 重写 Shell 输入次数过多", 409)
-        return this.executeShell({ ...input, ...narrowed }, { ...context, hookDepth: (context.hookDepth ?? 0) + 1 })
+        return this.executeShell(shellTool, { ...input, ...narrowed }, { ...context, hookDepth: (context.hookDepth ?? 0) + 1 })
       }
       if (hookResults.some(({ result }) => result.decision === "ask")) invocation.input = { ...invocation.input, __hookRequiresApproval: true }
       const decision = resumedApproval
@@ -180,48 +241,56 @@ export class ToolExecutor {
       const auditInvocation = secretScrubber.scrub(invocation)
       this.options.recordToolCall?.(auditInvocation, "running", null, null, startedAt)
       if (permissionConfig.sandboxMode === "danger-full-access") {
-        const result = await (this.options.runHost ?? runHostCommand)(shell.command, cwd, shell.timeoutMs, context.signal)
+        const result = await (this.options.runHost ?? runHostCommand)(command, cwd, shell.timeoutMs, context.signal)
         const safeResult = secretScrubber.scrub(result)
         this.options.recordToolCall?.(auditInvocation, "completed", safeResult, null, startedAt)
-        if (!context.skipHooks) await this.options.hooks?.run("post_tool_use", { input: invocation.input, output: safeResult }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: "shell", workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
+        if (!context.skipHooks) await this.options.hooks?.run("post_tool_use", { input: invocation.input, output: safeResult }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
         return result
       }
-      const sessionTemp = createSessionTemp()
-      try {
+      return await this.withSandboxTemp(async (sessionTemp) => {
         const policy = generateSandboxPolicy({
           workspace: workspaceRoot,
           sessionTemp,
-          dataDir: this.options.dataDir,
+          dataDir: options.dataDir,
           permissionConfig,
           ...(shell.additionalPermissions ? { additionalPermissions: shell.additionalPermissions } : {}),
-          ...(this.options.helperPath ? { helperPath: this.options.helperPath } : {}),
+          ...(options.helperPath ? { helperPath: options.helperPath } : {}),
         })
         let result: ProcessResult
         try {
-          result = await this.options.sandbox.run({ command: shell.command, cwd, ...(shell.timeoutMs === undefined ? {} : { timeoutMs: shell.timeoutMs }), config: policy.config, signal: context.signal })
+          result = await options.sandbox.run({
+            command,
+            cwd,
+            ...(shell.timeoutMs === undefined ? {} : { timeoutMs: shell.timeoutMs }),
+            config: policy.config,
+            signal: context.signal,
+            diagnostics: {
+              threadID: context.threadID,
+              turnID: context.turnID,
+              toolCallID: invocation.id,
+            },
+          })
         } catch (sandboxCause) {
           if (permissionConfig.approvalPolicy !== "on-failure") throw sandboxCause
-          if (!this.options.prepareSandboxEscalation) throw sandboxCause
+          if (!options.prepareSandboxEscalation) throw sandboxCause
           const failure = sandboxCause instanceof Error ? sandboxCause.message : String(sandboxCause)
-          const escalation = this.options.prepareSandboxEscalation(invocation, failure)
+          const escalation = options.prepareSandboxEscalation(invocation, failure)
           result = {
             exitCode: 126, signal: null, stdout: "", timedOut: false, truncated: false,
             stderr: `SANDBOX_ESCALATION_REQUIRED ${JSON.stringify({ escalationToken: escalation.token, action: "call request_permissions", justification: "sandbox execution failed; request one-time host execution" })}`,
           }
         }
         const safeResult = secretScrubber.scrub(result)
-        this.options.recordToolCall?.(auditInvocation, "completed", safeResult, null, startedAt)
-        if (!context.skipHooks) await this.options.hooks?.run("post_tool_use", { input: invocation.input, output: safeResult }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: "shell", workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
+        options.recordToolCall?.(auditInvocation, "completed", safeResult, null, startedAt)
+        if (!context.skipHooks) await options.hooks?.run("post_tool_use", { input: invocation.input, output: safeResult }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
         return result
-      } finally {
-        await rm(sessionTemp, { recursive: true, force: true }).catch(() => undefined)
-      }
+      })
     } catch (cause) {
       if (!context.authorizationOnly) {
         const startedAt = Date.now()
         this.options.recordToolCall?.(secretScrubber.scrub(invocation), context.signal.aborted ? "interrupted" : "error", null, secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause)), startedAt)
       }
-      if (!context.skipHooks && !context.authorizationOnly) await this.options.hooks?.run("post_tool_error", { input: invocation.input, error: secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause)) }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: "shell", workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
+      if (!context.skipHooks && !context.authorizationOnly) await this.options.hooks?.run("post_tool_error", { input: invocation.input, error: secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause)) }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
       throw cause
     }
   }
@@ -232,7 +301,7 @@ export class ToolExecutor {
     const escalation = this.options.claimSandboxEscalation(token, { threadID: context.threadID, turnID: context.turnID, agentID })
     if (!escalation) throw new AgentError("SANDBOX_ESCALATION_INVALID", "Sandbox escalation 不存在、已消费、被篡改或作用域不匹配", 409)
     const input = escalation.invocation.input
-    if (escalation.invocation.name !== "shell" || typeof input.command !== "string" || typeof input.cwd !== "string") throw new AgentError("SANDBOX_ESCALATION_INVALID", "Sandbox escalation invocation 无效", 409)
+    if (!["Bash", "PowerShell"].includes(escalation.invocation.name) || typeof input.command !== "string" || typeof input.cwd !== "string") throw new AgentError("SANDBOX_ESCALATION_INVALID", "Sandbox escalation invocation 无效", 409)
     const shell = this.parseShellInput(input)
     const workspaceRoot = await realpath(context.workspace.rootPath)
     const cwd = await realpath(input.cwd).catch(() => { throw new AgentError("SANDBOX_ESCALATION_INVALID", "Sandbox escalation cwd 已失效", 409) })
@@ -251,7 +320,7 @@ export class ToolExecutor {
     const startedAt = Date.now()
     this.options.recordToolCall?.(auditInvocation, "running", null, null, startedAt)
     try {
-      const result = await (this.options.runHost ?? runHostCommand)(shell.command, cwd, shell.timeoutMs, context.signal)
+      const result = await (this.options.runHost ?? runHostCommand)(this.commandForShell(escalation.invocation.name as "Bash" | "PowerShell", shell.command), cwd, shell.timeoutMs, context.signal)
       this.options.completeSandboxEscalation(token, result)
       this.options.recordToolCall?.(auditInvocation, "completed", secretScrubber.scrub(result), null, startedAt)
       return result
@@ -261,6 +330,66 @@ export class ToolExecutor {
       this.options.recordToolCall?.(auditInvocation, context.signal.aborted ? "interrupted" : "error", null, error, startedAt)
       throw cause
     }
+  }
+
+  private snapshotKey(context: ToolExecutionContext, path: string | null) {
+    if (!path) return null
+    const normalized = path.replaceAll("\\", "/")
+    return `${context.threadID}:${context.agentID ?? context.turnID}:${process.platform === "win32" ? normalized.toLowerCase() : normalized}`
+  }
+
+  async dispose(): Promise<void> {
+    if (this.sandboxDisposed) return
+    this.sandboxDisposed = true
+    await this.sandboxOperations
+    const root = this.sandboxTempRoot
+    this.sandboxTempRoot = null
+    if (root) await rm(root, { recursive: true, force: true }).catch(() => undefined)
+  }
+
+  private withSandboxTemp<T>(operation: (sessionTemp: string) => Promise<T>): Promise<T> {
+    const run = this.sandboxOperations.then(async () => {
+      if (this.sandboxDisposed) throw new AgentError("SHELL_EXECUTOR_DISPOSED", "Shell 执行器已关闭", 503)
+      const sessionTemp = await this.getSandboxTempRoot()
+      try {
+        await this.cleanSandboxTemp(sessionTemp)
+      } catch {
+        await this.invalidateSandboxTemp(sessionTemp)
+        throw new AgentError("SANDBOX_TEMP_CLEANUP_FAILED", "沙箱临时目录清理失败，当前沙箱会话已失效", 500)
+      }
+      try {
+        return await operation(sessionTemp)
+      } finally {
+        try {
+          await this.cleanSandboxTemp(sessionTemp)
+        } catch {
+          // The command may already have produced side effects. Invalidate the
+          // reusable session without turning a successful command into a
+          // retryable tool failure.
+          await this.invalidateSandboxTemp(sessionTemp)
+        }
+      }
+    })
+    this.sandboxOperations = run.then(() => undefined, () => undefined)
+    return run
+  }
+
+  private async getSandboxTempRoot(): Promise<string> {
+    if (!this.sandboxTempRoot) {
+      this.sandboxTempRoot = await mkdtemp(join(tmpdir(), "codepilotx-session-"))
+    }
+    return this.sandboxTempRoot
+  }
+
+  private async cleanSandboxTemp(root: string): Promise<void> {
+    const entries = await readdir(root)
+    await Promise.all(entries.map((entry) => rm(join(root, entry), { recursive: true, force: true })))
+  }
+
+  private async invalidateSandboxTemp(root: string): Promise<void> {
+    if (this.sandboxTempRoot === root) this.sandboxTempRoot = null
+    await this.options?.sandbox.reset().catch(() => undefined)
+    await rm(root, { recursive: true, force: true }).catch(() => undefined)
   }
 
   private parseShellInput(input: Record<string, unknown>): ShellInput {
@@ -290,6 +419,16 @@ export class ToolExecutor {
       } : {}),
       ...(typeof input.justification === "string" ? { justification: input.justification } : {}),
     }
+  }
+
+  private commandForShell(shellTool: "Bash" | "PowerShell", command: string) {
+    if (process.platform === "win32" && shellTool === "Bash") {
+      if (!this.options?.bashPath) throw new AgentError("BASH_RUNTIME_UNAVAILABLE", "打包的 Git Bash 缺失或未通过完整性校验", 503)
+      const executable = this.options.bashPath.replaceAll("'", "''")
+      return `& '${executable}' -lc '${command.replaceAll("'", "''")}'`
+    }
+    if (process.platform !== "win32" && shellTool === "PowerShell") return `pwsh -NoProfile -NonInteractive -Command '${command.replaceAll("'", "'\\''")}'`
+    return command
   }
 
   private async canonicalPath(workspaceRoot: string, value: string, allowMissingLeaf: boolean) {
