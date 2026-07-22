@@ -1,6 +1,6 @@
 import type React from "react";
 import { Link } from "react-router-dom";
-import { Boxes, Clock3, Search, SquarePen } from "lucide-react";
+import { Boxes, BrainCircuit, Clock3, Search, SquarePen } from "lucide-react";
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import type { AppView } from "../../../uiTypes.js";
 import { cx } from "../../../utils/cx.js";
@@ -14,7 +14,7 @@ type SidebarNavItem = {
   showActiveStyle?: boolean;
 };
 
-const TOP_NAV_ITEMS: SidebarNavItem[] = [
+export const TOP_NAV_ITEMS: SidebarNavItem[] = [
   {
     view: "quickChat",
     label: "快速对话",
@@ -28,6 +28,12 @@ const TOP_NAV_ITEMS: SidebarNavItem[] = [
     icon: <Search size={APP_ICON_SIZE} />,
     path: "/search",
     showActiveStyle: false,
+  },
+  {
+    view: "models",
+    label: "模型中心",
+    icon: <BrainCircuit size={APP_ICON_SIZE} />,
+    path: "/models",
   },
   {
     view: "plugins",

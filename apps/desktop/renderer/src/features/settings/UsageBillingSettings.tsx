@@ -100,7 +100,7 @@ export function UsageBillingSettings(): React.ReactNode {
           >
             <SettingsRow
               title="连接状态"
-              description="请先到配置页连接模型提供商并保存 API key。"
+              description="请先到模型中心连接模型提供商并保存 API Key。"
               control={
                 <Button
                   disabled={loading}

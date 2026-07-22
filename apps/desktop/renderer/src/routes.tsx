@@ -23,6 +23,11 @@ const SearchView = lazy(() =>
     default: module.SearchView,
   })),
 )
+const ModelCenterView = lazy(() =>
+  import('./features/models/ModelCenterView.js').then(module => ({
+    default: module.ModelCenterView,
+  })),
+)
 const SettingsLayout = lazy(() =>
   import('./features/settings/SettingsLayout.js').then(module => ({
     default: module.SettingsLayout,
@@ -45,6 +50,7 @@ const router = createHashRouter([
         element: deferred(<ConversationPage />),
       },
       { path: 'search', element: deferred(<SearchView />) },
+      { path: 'models', element: deferred(<ModelCenterView />) },
       { path: 'plugins', element: deferred(<PluginsView />) },
       { path: 'automation', element: deferred(<AutomationView />) },
       { path: 'settings', element: deferred(<SettingsLayout />) },

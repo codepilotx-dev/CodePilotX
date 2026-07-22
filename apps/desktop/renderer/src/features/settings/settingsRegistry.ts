@@ -1,6 +1,5 @@
 import {
   Archive,
-  Box,
   Brain,
   CreditCard,
   GitBranch,
@@ -210,22 +209,6 @@ export const SETTINGS_GROUPS = [
     id: 'coding',
     title: '编码',
     items: [
-      {
-        id: 'connections',
-        routeId: 'connections',
-        label: '模型',
-        description: 'Provider Hub、API Key Hub、模型和连接测试',
-        icon: Box,
-        rows: [
-          row('供应商', '选择新会话使用的模型供应商'),
-          row('凭据', '配置 API key 和认证信息'),
-          row('Base URL', '设置供应商 API 地址'),
-          row('模型', '选择模型及其原生请求变体'),
-          row('账户状态', '查看供应商余额或账户状态'),
-          row('连接测试', '测试当前凭据与 Base URL'),
-          row('实验 Router', '启用 Pareto Code 或 Fusion Router'),
-        ],
-      },
       {
         id: 'git',
         routeId: 'git',

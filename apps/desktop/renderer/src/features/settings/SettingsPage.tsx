@@ -10,7 +10,6 @@ const GitSettings = React.lazy(() => import('./GitSettings.js').then(module => (
 const KeyboardShortcutsSettings = React.lazy(() => import('./KeyboardShortcutsSettings.js').then(module => ({ default: module.KeyboardShortcutsSettings })))
 const McpSettings = React.lazy(() => import('./McpSettings.js').then(module => ({ default: module.McpSettings })))
 const MemorySettings = React.lazy(() => import('./MemorySettings.js').then(module => ({ default: module.MemorySettings })))
-const ModelConnectionSettings = React.lazy(() => import('./ModelConnectionSettings.js').then(module => ({ default: module.ModelConnectionSettings })))
 const PersonalizationSettings = React.lazy(() => import('./PersonalizationSettings.js').then(module => ({ default: module.PersonalizationSettings })))
 const ProfileSettings = React.lazy(() => import('./ProfileSettings.js').then(module => ({ default: module.ProfileSettings })))
 const UsageBillingSettings = React.lazy(() => import('./UsageBillingSettings.js').then(module => ({ default: module.UsageBillingSettings })))
@@ -33,7 +32,6 @@ export function SettingsPage({
   if (resolvedTab === 'general') content = <GeneralSettings onNotice={onNotice} />
   else if (resolvedTab === 'appearance') content = <AppearanceSettings onError={onError} onNotice={onNotice} />
   else if (resolvedTab === 'config') content = <ConfigSettings />
-  else if (resolvedTab === 'connections') content = <ModelConnectionSettings onError={onError} />
   else if (resolvedTab === 'mcp') content = <McpSettings />
   else if (resolvedTab === 'git') content = <GitSettings />
   else if (resolvedTab === 'profile') content = <ProfileSettings />
