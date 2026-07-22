@@ -11,6 +11,12 @@ The models.dev database is licensed under the MIT License. See
 Additional JavaScript dependencies retain the license terms distributed in
 their respective packages.
 
+CodePilotX includes the `@codepilotx/pi-agent-core` workspace fork of
+pi-agent-core 0.81.0
+under the MIT License. The fork preserves upstream attribution and contains
+CodePilotX changes for dynamic tool execution, deferred activation and session
+recovery. See `packages/pi-agent-core/LICENSE`.
+
 CodePilotX uses Marked, Shiki, KaTeX, and Mermaid to render Markdown, syntax
 highlighting, mathematical notation, and diagrams. These packages retain the
 license notices distributed with their respective npm packages. Marked, Shiki,
@@ -29,3 +35,17 @@ derived from Material Icon Theme 5.37.0 under the MIT License. See
 CodePilotX distributes the precompiled Windows helper from
 `@anthropic-ai/sandbox-runtime@0.0.65` under the Apache License 2.0. See
 `third_party/sandbox-runtime/LICENSE`.
+
+CodePilotX packaging reserves `resources/tooling` for optional language-server
+resources. Release builds that include `typescript-language-server` or
+`typescript` must also include their upstream license texts at the paths
+declared by `resources/tooling/manifest.json`. Both projects are distributed
+under the Apache License 2.0. The source tree does not currently include those
+binaries or license payloads, so the integration remains optional.
+
+Windows release packages include Git for Windows PortableGit 2.55.0.3 and
+ripgrep 15.2.0. Git for Windows and its bundled components retain their
+respective upstream license terms; ripgrep is distributed under the MIT
+License. Their license payloads and verified executable SHA-256 digests are
+stored under `resources/tooling`; release packaging rejects missing or altered
+resources.
