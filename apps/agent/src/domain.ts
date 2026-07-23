@@ -177,6 +177,8 @@ export interface ThreadSnapshot {
 
 export interface EventEnvelope<T = unknown> {
   id: number
+  /** Fixed global durable cursor captured when a non-durable event is published. */
+  afterSequence?: number
   threadId: string | null
   turnId: string | null
   method: string

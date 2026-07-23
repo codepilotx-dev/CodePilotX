@@ -1,23 +1,35 @@
 import { PubSub, Effect } from "effect"
+import { EventManifest, type EventType } from "@codepilotx/agent-protocol"
 import type { EventEnvelope } from "../domain"
 
-export class EventHub {
-  private readonly pubsub: PubSub.PubSub<EventEnvelope>
-  private readonly listeners = new Set<(event: EventEnvelope) => void>()
+export type EventHubSignal =
+  | { kind: "live"; event: EventEnvelope & { afterSequence: number } }
+  | { kind: "durable"; sequence: number }
 
-  private constructor(pubsub: PubSub.PubSub<EventEnvelope>) {
+export class EventHub {
+  private readonly pubsub: PubSub.PubSub<EventHubSignal>
+  private readonly listeners = new Set<(signal: EventHubSignal) => void>()
+
+  private constructor(pubsub: PubSub.PubSub<EventHubSignal>) {
     this.pubsub = pubsub
   }
 
   static make = Effect.gen(function* () {
-    return new EventHub(yield* PubSub.unbounded<EventEnvelope>())
+    return new EventHub(yield* PubSub.unbounded<EventHubSignal>())
   })
 
   publish(event: EventEnvelope) {
-    for (const listener of this.listeners) {
-      try { listener(event) } catch { /* one SSE consumer must not block publication */ }
+    const definition = event.method in EventManifest ? EventManifest[event.method as EventType] : null
+    if (definition?.durability === "live" && typeof event.afterSequence !== "number") {
+      throw new Error(`Live event is missing its fixed durable anchor: ${event.method}`)
     }
-    return PubSub.publish(this.pubsub, event)
+    const signal: EventHubSignal = definition?.durability === "live"
+      ? { kind: "live", event: event as EventEnvelope & { afterSequence: number } }
+      : { kind: "durable", sequence: event.id }
+    for (const listener of this.listeners) {
+      try { listener(signal) } catch { /* one SSE consumer must not block publication */ }
+    }
+    return PubSub.publish(this.pubsub, signal)
   }
 
   subscribe() {
@@ -29,7 +41,7 @@ export class EventHub {
    * the lifetime of an SSE response. This listener API preserves the same
    * fan-out while making subscription-before-replay ordering explicit.
    */
-  listen(listener: (event: EventEnvelope) => void) {
+  listen(listener: (signal: EventHubSignal) => void) {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
   }

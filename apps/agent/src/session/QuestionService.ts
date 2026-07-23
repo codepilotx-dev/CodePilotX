@@ -29,24 +29,10 @@ const toolCallID = (value: unknown) => {
 export class QuestionService {
   private resumeHandler: ResumeHandler | undefined
 
-  constructor(private readonly db: AgentDatabase, private readonly hub: EventHub) {
-    // AgentDatabase marks active turns interrupted on process start. Re-open only
-    // checkpoint-backed question_requests that were not explicitly stopped by the user.
-    this.db.transaction(() => {
-      this.db.run("UPDATE question_requests SET status = 'pending', resolved_at = NULL WHERE status = 'cancelled' AND answer IS NULL AND json_extract(payload, '$.checkpoint.state') IS NOT NULL")
-      this.db.run("UPDATE turns SET status = 'waiting_question', finished_at = NULL WHERE status = 'interrupted' AND id IN (SELECT turn_id FROM question_requests WHERE status = 'pending' AND json_extract(payload, '$.checkpoint.state') IS NOT NULL)")
-      this.db.run("UPDATE agent_executions SET status = 'waiting_question', updated_at = ? WHERE turn_id IN (SELECT turn_id FROM question_requests WHERE status = 'pending' AND json_extract(payload, '$.checkpoint.state') IS NOT NULL)", Date.now())
-      this.db.run("UPDATE items SET status = 'pending', updated_at = ? WHERE type = 'question' AND id IN (SELECT id FROM question_requests WHERE status = 'pending' AND json_extract(payload, '$.checkpoint.state') IS NOT NULL)", Date.now())
-    })
-  }
+  constructor(private readonly db: AgentDatabase, private readonly hub: EventHub) {}
 
   setResumeHandler(handler: ResumeHandler) {
     this.resumeHandler = handler
-  }
-
-  private async emit(threadID: string, turnID: string, method: string, params: unknown) {
-    const event = this.db.insertEvent(threadID, turnID, method, params)
-    await Effect.runPromise(this.hub.publish(event))
   }
 
   async checkpoint(threadID: string, turnID: string, agentID: string, approval: PendingApproval) {
@@ -56,7 +42,7 @@ export class QuestionService {
       checkpoint: approval.checkpoint,
       kind: approval.kind,
     }
-    const created = this.db.createResumableQuestion({
+    const { question: created, events } = this.db.createResumableQuestion({
       threadID,
       turnID,
       agentID,
@@ -68,8 +54,7 @@ export class QuestionService {
         version: 1,
       },
     })
-    await this.emit(threadID, turnID, "agent/upserted", { agent: this.db.getAgentExecution(agentID) })
-    await this.emit(threadID, turnID, "question/requested", { id: created.id, turnId: turnID, agentId: agentID, ...payload, createdAt: created.createdAt })
+    for (const event of events) await Effect.runPromise(this.hub.publish(event))
     return created.id
   }
 
@@ -95,15 +80,13 @@ export class QuestionService {
     this.db.run("UPDATE question_requests SET status = 'resuming' WHERE id = ? AND status = 'resolved'", row.id)
     const storedAnswer = row.answer ? parse(row.answer) : {}
     const answer = Object.prototype.hasOwnProperty.call(storedAnswer, "value") ? storedAnswer.value : row.answer === "null" ? null : row.answer
-    return { id: row.id, approval: { state, interruption, answer: typeof answer === "string" ? answer : answer == null ? null : JSON.stringify(answer) } }
+    return { id: row.id, approval: { state, interruption, answer: typeof answer === "string" ? answer : answer == null ? null : JSON.stringify(answer), checkpointID: row.id } }
   }
 
   async reply(id: string, answer: unknown, ignored = false) {
     const row = this.db.resolveResumableQuestion(id, answer, ignored)
     if (!row) throw new AgentError("QUESTION_NOT_FOUND", "问题不存在或已经回答", 409)
-    const agent = this.db.agentForTurn(row.turnID)
-    if (agent) await this.emit(row.threadID, row.turnID, "agent/upserted", { agent })
-    await this.emit(row.threadID, row.turnID, "serverRequest/resolved", { id, turnId: row.turnID, kind: "question", answer, ignored })
+    for (const event of row.events) await Effect.runPromise(this.hub.publish(event))
     this.resumeHandler?.(row.threadID, row.turnID)
   }
 

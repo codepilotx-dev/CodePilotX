@@ -27,6 +27,7 @@ afterEach(async () => {
 
 const fixture = async (
   overrides: Partial<RpcRouterDependencies> = {},
+  routerOptions: { connectionLeaseMs?: number; now?: () => number } = {},
 ) => {
   const root = await mkdtemp(join(tmpdir(), "codepilotx-rpc-v3-"))
   roots.push(root)
@@ -80,7 +81,7 @@ const fixture = async (
     hooks: null,
     sandbox: null,
     ...overrides,
-  } as unknown as RpcRouterDependencies)
+  } as unknown as RpcRouterDependencies, routerOptions)
   let id = 0
   let connectionId: string | null = null
   const call = (method: string, params: Record<string, unknown>) =>
@@ -535,6 +536,52 @@ describe("RPC v3 Router", () => {
     expect((await call("event/subscribe", {
       streams: [{ streamId: "global", after: 99 }],
     })).error).toMatchObject({ code: -32000, data: { code: "CURSOR_EXPIRED" } })
+    db.close()
+  })
+
+  test("thread stream cursors use the global event high-watermark", async () => {
+    const { db, call, initialize } = await fixture()
+    await initialize()
+    db.insertEvent("thread:1", null, "thread/updated", {})
+    const globalHigh = db.insertEvent("thread:2", null, "thread/updated", {}).id
+
+    const subscribed = await call("event/subscribe", {
+      streams: [{ streamId: "thread:1", after: "latest" }],
+    })
+    expect(subscribed.result.highWatermarks).toEqual([
+      { streamId: "thread:1", sequence: globalHigh },
+    ])
+    expect((await call("event/ack", {
+      subscriptionId: subscribed.result.subscriptionId,
+      positions: [{ streamId: "thread:1", sequence: globalHigh }],
+    })).result.acknowledged).toEqual([
+      { streamId: "thread:1", sequence: globalHigh },
+    ])
+    db.close()
+  })
+
+  test("connection lease is touched by RPC/SSE activity and lazily closes subscriptions", async () => {
+    let now = 1_000
+    const { db, router, call, initialize } = await fixture({}, {
+      connectionLeaseMs: 1_000,
+      now: () => now,
+    })
+    const initialized = await initialize()
+    const connectionId = initialized.result.connectionId as string
+    const subscribed = await call("event/subscribe", {
+      streams: [{ streamId: "global", after: "latest" }],
+    })
+
+    now = 1_900
+    expect((await call("github/auth/status", {})).error).toBeUndefined()
+    now = 2_800
+    expect(router.touchConnection(connectionId)).toBe(true)
+    now = 3_801
+    expect(router.touchConnection(connectionId)).toBe(false)
+    expect(router.subscriptions.get(subscribed.result.subscriptionId, connectionId)).toBeNull()
+    expect((await call("github/auth/status", {})).error).toMatchObject({
+      data: { code: "UNAUTHORIZED" },
+    })
     db.close()
   })
 

@@ -113,8 +113,20 @@ export class ThreadHistoryService {
   async remove(threadID: string) {
     const existing = this.getListItem(threadID)
     if (!existing) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
-    if (this.db.activeTurn(threadID)) throw new AgentError("THREAD_ACTIVE", "运行中的 Thread 不能删除", 409)
     const event = this.db.transaction(() => {
+      const active = this.db.sqlite.query(`
+        WITH RECURSIVE subtree(id) AS (
+          SELECT id FROM threads WHERE id = ?
+          UNION ALL
+          SELECT child.id FROM threads AS child JOIN subtree AS parent ON child.parent_thread_id = parent.id
+        )
+        SELECT turns.id AS turn_id
+        FROM turns
+        JOIN subtree ON subtree.id = turns.thread_id
+        WHERE turns.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_plan_confirmation', 'waiting_subagents')
+        LIMIT 1
+      `).get(threadID) as { turn_id: string } | null
+      if (active) throw new AgentError("THREAD_ACTIVE", "运行中的 Thread 或子 Agent Thread 不能删除", 409)
       this.db.sqlite.query("DELETE FROM threads WHERE id = ?").run(threadID)
       return this.db.insertEvent(null, null, "thread/deleted", { threadId: threadID, deletedAt: Date.now() })
     })

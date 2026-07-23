@@ -7,6 +7,7 @@ import {
 } from "@earendil-works/pi-ai";
 import {
   AgentHarness,
+  SessionError,
   type AgentHarnessEvent,
 } from "@codepilotx/pi-agent-core";
 import type { AgentRuntimeRequest, PendingApproval } from "./AgentRuntimeTypes";
@@ -179,7 +180,7 @@ export class PiOrchestratorAdapter {
     await Effect.runPromise(this.options.hub.publish(event));
   }
 
-  private async finishTool(context: PiRuntimeEventContext, input: {
+  private persistFinishedTool(context: PiRuntimeEventContext, input: {
     toolCallID: string;
     tool: string;
     output: string;
@@ -192,7 +193,7 @@ export class PiOrchestratorAdapter {
       ...input,
       timestamp: Date.now(),
     });
-    if (!item) return;
+    if (!item) return null;
     const projected = piToolItemPayload(item);
     const persisted = this.options.db.upsertItemWithEvent(
       context.threadID,
@@ -202,7 +203,17 @@ export class PiOrchestratorAdapter {
         ? { item: projected, error: { code: "TOOL_EXECUTION_ERROR", message: input.output || "工具执行失败", retryable: false } }
         : { item: projected },
     );
-    await this.publish(persisted.event);
+    return persisted.event;
+  }
+
+  private async finishTool(context: PiRuntimeEventContext, input: {
+    toolCallID: string;
+    tool: string;
+    output: string;
+    isError: boolean;
+  }) {
+    const event = this.persistFinishedTool(context, input);
+    if (event) await this.publish(event);
   }
 
   private eventSink(storage: SqlitePiSessionStorage): PiRuntimeEventSink {
@@ -219,6 +230,7 @@ export class PiOrchestratorAdapter {
       textDelta: async (context, delta) => {
         await this.publish(
           createLiveEvent(
+            this.options.db,
             context.threadID,
             context.turnID,
             "item/agentMessage/delta",
@@ -229,6 +241,7 @@ export class PiOrchestratorAdapter {
       reasoningDelta: async (context, delta) => {
         await this.publish(
           createLiveEvent(
+            this.options.db,
             context.threadID,
             context.turnID,
             "reasoning/textDelta",
@@ -312,6 +325,7 @@ export class PiOrchestratorAdapter {
       toolUpdated: async (context, input) => {
         await this.publish(
           createLiveEvent(
+            this.options.db,
             context.threadID,
             context.turnID,
             "tool/outputDelta",
@@ -379,8 +393,9 @@ export class PiOrchestratorAdapter {
     const model = resolved.model as unknown as PiModel<Api>;
     let session;
     try {
-      session = await this.repo.openByID(request.sessionID);
-    } catch {
+      session = await this.repo.openForThread(request.sessionID, request.threadID);
+    } catch (cause) {
+      if (!(cause instanceof SessionError) || cause.code !== "not_found") throw cause;
       session = await this.repo.create({
         id: request.sessionID,
         threadID: request.threadID,
@@ -459,16 +474,6 @@ export class PiOrchestratorAdapter {
           resolutionText = secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause));
         }
       }
-      await this.finishTool({
-        threadID: request.threadID,
-        turnID: request.turnID,
-        agentID: request.agentID,
-      }, {
-        toolCallID: request.resume.toolCallID,
-        tool: toolCall.name,
-        output: resolutionText,
-        isError,
-      });
       await session.appendMessage({
         role: "toolResult",
         toolCallId: request.resume.toolCallID,
@@ -482,7 +487,22 @@ export class PiOrchestratorAdapter {
         isError,
         timestamp: Date.now(),
       });
-      this.options.db.transaction(() => storage.flush());
+      let completedEvent: ReturnType<AgentDatabase["insertEvent"]> | null = null;
+      this.options.db.transaction(() => {
+        storage.flush();
+        if (request.resume?.checkpointID) this.options.db.completeQuestionResume(request.resume.checkpointID);
+        completedEvent = this.persistFinishedTool({
+          threadID: request.threadID,
+          turnID: request.turnID,
+          agentID: request.agentID,
+        }, {
+          toolCallID: request.resume!.toolCallID!,
+          tool: toolCall.name,
+          output: resolutionText,
+          isError,
+        });
+      });
+      if (completedEvent) await this.publish(completedEvent);
     }
     const previousRuntime = this.active.get(request.threadID);
     if (previousRuntime) await previousRuntime.dispose();
@@ -723,7 +743,7 @@ export class PiOrchestratorAdapter {
     const ref = JSON.parse(row.model_ref) as { providerID: string; id: string };
     const model = this.options.models.getModel(ref.providerID, ref.id);
     if (!model) throw new Error(`Pi 模型 ${ref.providerID}/${ref.id} 不可用`);
-    const session = await this.repo.openByID(row.session_id);
+    const session = await this.repo.openForThread(row.session_id, threadID);
     const storage = session.getStorage() as SqlitePiSessionStorage;
     const env = new CodePilotXExecutionEnv(
       await WorkspaceService.open(row.root_path),

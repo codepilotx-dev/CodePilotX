@@ -1,9 +1,6 @@
 import type { AgentDatabase } from "../storage/Database";
-import {
-  SqliteAgentSession,
-  userRoundStarts,
-  type LegacyAgentInputItem as AgentInputItem,
-} from "../storage/SqliteAgentSession";
+
+export type AgentInputItem = Record<string, any>;
 
 export type ContextFragmentKind =
   | "mode"
@@ -46,21 +43,6 @@ export type EstablishBaselineInput = Pick<
   "threadID" | "promptVersion" | "baseHash" | "contextHash" | "cacheKey"
 > & { fragments?: ContextFragment[] };
 
-export type CompactionResult = {
-  summary: string;
-  replacementHistory: AgentInputItem[];
-};
-
-export interface ContextCompactor {
-  compact(input: {
-    items: AgentInputItem[];
-    preserveRecentUserTurns: number;
-    targetRatio: number;
-    targetTokens: number;
-    signal?: AbortSignal;
-  }): Promise<CompactionResult>;
-}
-
 export type ContextUsageSource =
   | "measured"
   | "estimated"
@@ -95,7 +77,6 @@ export type ContextBudgetSnapshot = {
 };
 
 const parse = <T>(value: string) => JSON.parse(value) as T;
-const MAX_VISIBLE_TOOL_OUTPUT_CHARS = 80_000;
 export const CONTEXT_COMPACTION_TRIGGER_RATIO = 0.8;
 export const CONTEXT_COMPACTION_TARGET_RATIO = 0.55;
 export const DEFAULT_CONTEXT_WINDOW_TOKENS = 128_000;
@@ -139,93 +120,6 @@ const thresholds = (contextWindowTokens: number) => ({
     contextWindowTokens * CONTEXT_COMPACTION_TARGET_RATIO,
   ),
 });
-
-const truncateText = (value: string, limit = MAX_VISIBLE_TOOL_OUTPUT_CHARS) => {
-  if (value.length <= limit) return value;
-  const marker = `\n…[${value.length - limit} chars omitted]…\n`;
-  const remaining = Math.max(0, limit - marker.length);
-  const head = Math.ceil(remaining / 2);
-  return (
-    value.slice(0, head) +
-    marker +
-    value.slice(value.length - (remaining - head))
-  );
-};
-
-/** Keeps tool evidence bounded while retaining both failure prelude and useful tail. */
-export const boundModelVisibleOutputs = (
-  items: AgentInputItem[],
-): AgentInputItem[] =>
-  items.map((item) => {
-    if (!item || typeof item !== "object") return item;
-    const record = { ...(item as unknown as Record<string, unknown>) };
-    for (const key of ["output", "content", "result"]) {
-      if (typeof record[key] === "string")
-        record[key] = truncateText(record[key] as string);
-    }
-    return record as unknown as AgentInputItem;
-  });
-
-const fitReplacementToBudget = (
-  items: AgentInputItem[],
-  promptText: string | undefined,
-  targetTokens: number,
-) => {
-  const replacement = structuredClone(items);
-  const tokens = () =>
-    estimateContextTokens({
-      items: replacement,
-      ...(promptText === undefined ? {} : { promptText }),
-    });
-  while (tokens() > targetTokens) {
-    const starts = userRoundStarts(replacement);
-    if (starts.length > 4) {
-      replacement.splice(starts[0]!, starts[1]! - starts[0]!);
-      continue;
-    }
-    const strings: Array<{
-      path: string;
-      value: string;
-      set(value: string): void;
-    }> = [];
-    const visit = (value: unknown, path: string): void => {
-      if (!value || typeof value !== "object") return;
-      for (const key of Object.keys(value as Record<string, unknown>).sort()) {
-        const record = value as Record<string, unknown>;
-        const child = record[key];
-        const childPath = `${path}.${key}`;
-        if (typeof child === "string" && child.length > 256)
-          strings.push({
-            path: childPath,
-            value: child,
-            set: (next) => {
-              record[key] = next;
-            },
-          });
-        else visit(child, childPath);
-      }
-    };
-    replacement.forEach((item, index) => visit(item, String(index)));
-    strings.sort(
-      (left, right) =>
-        right.value.length - left.value.length ||
-        left.path.localeCompare(right.path),
-    );
-    const candidate = strings[0];
-    if (!candidate)
-      throw new Error(
-        `压缩结果无法确定性裁剪到 55% 目标预算 (${tokens()}/${targetTokens})`,
-      );
-    const excessChars = Math.max(256, (tokens() - targetTokens) * 4);
-    candidate.set(
-      truncateText(
-        candidate.value,
-        Math.max(256, candidate.value.length - excessChars),
-      ),
-    );
-  }
-  return replacement;
-};
 
 export class ContextManager {
   constructor(private readonly db: AgentDatabase) {}
@@ -491,174 +385,4 @@ export class ContextManager {
     });
   }
 
-  async compact(input: {
-    threadID: string;
-    turnID?: string;
-    session: SqliteAgentSession;
-    compactor: ContextCompactor;
-    promptText?: string;
-    contextWindowTokens?: number;
-    signal?: AbortSignal;
-  }) {
-    const original = await input.session.getItems();
-    const sessionID = await input.session.getSessionId();
-    const stateBefore = this.state(input.threadID);
-    const contextWindowTokens =
-      input.contextWindowTokens ??
-      stateBefore?.contextWindowTokens ??
-      DEFAULT_CONTEXT_WINDOW_TOKENS;
-    const effectiveWindow =
-      contextWindowTokens > 0
-        ? contextWindowTokens
-        : DEFAULT_CONTEXT_WINDOW_TOKENS;
-    const { targetTokens, triggerTokens } = thresholds(effectiveWindow);
-    const originalFingerprint = contextFingerprint({
-      items: original,
-      ...(input.promptText !== undefined
-        ? { promptText: input.promptText }
-        : {}),
-    });
-    const measured = this.db.sqlite
-      .query(
-        "SELECT input_tokens FROM context_usage_samples WHERE thread_id = ? AND context_fingerprint = ? AND source = 'measured' ORDER BY created_at DESC, id DESC LIMIT 1",
-      )
-      .get(input.threadID, originalFingerprint) as {
-      input_tokens: number;
-    } | null;
-    const beforeTokens =
-      measured?.input_tokens ??
-      estimateContextTokens({
-        items: original,
-        ...(input.promptText !== undefined
-          ? { promptText: input.promptText }
-          : {}),
-      });
-    const result = await input.compactor.compact({
-      items: boundModelVisibleOutputs(original),
-      preserveRecentUserTurns: 4,
-      targetRatio: CONTEXT_COMPACTION_TARGET_RATIO,
-      targetTokens,
-      ...(input.signal ? { signal: input.signal } : {}),
-    });
-    if (!result.summary.trim() || !result.replacementHistory.length)
-      throw new Error("压缩器返回了空 history");
-    const replacement = fitReplacementToBudget(
-      boundModelVisibleOutputs(result.replacementHistory),
-      input.promptText,
-      targetTokens,
-    );
-    const replacementFingerprint = contextFingerprint({
-      items: replacement,
-      ...(input.promptText !== undefined
-        ? { promptText: input.promptText }
-        : {}),
-    });
-    const afterTokens = estimateContextTokens({
-      items: replacement,
-      ...(input.promptText !== undefined
-        ? { promptText: input.promptText }
-        : {}),
-    });
-    if (afterTokens > targetTokens)
-      throw new Error(
-        `压缩结果仍超过 55% 目标预算 (${afterTokens}/${targetTokens})`,
-      );
-    const timestamp = Date.now();
-    const id = crypto.randomUUID();
-    let usageSampleID = "";
-    this.db.transaction(() => {
-      this.db.sqlite
-        .query("DELETE FROM agent_thread_items WHERE thread_id = ?")
-        .run(sessionID);
-      const insert = this.db.sqlite.query(
-        "INSERT INTO agent_thread_items (thread_id, ordinal, payload, created_at) VALUES (?, ?, ?, ?)",
-      );
-      replacement.forEach((item, ordinal) =>
-        insert.run(sessionID, ordinal, JSON.stringify(item), timestamp),
-      );
-      const state = this.state(input.threadID);
-      const baselineVersion = (state?.baselineVersion ?? 0) + 1;
-      if (state)
-        this.db.sqlite
-          .query(
-            "UPDATE prompt_session_state SET baseline_version = ?, fragments = '[]', updated_at = ? WHERE thread_id = ?",
-          )
-          .run(baselineVersion, timestamp, input.threadID);
-      const usage = this.insertUsageSample({
-        threadID: input.threadID,
-        turnID: input.turnID ?? null,
-        sessionID,
-        contextFingerprint: replacementFingerprint,
-        contextWindowTokens: effectiveWindow,
-        inputTokens: afterTokens,
-        outputTokens: 0,
-        source: "compaction-estimate",
-      });
-      usageSampleID = usage.id;
-      this.updateBudgetState(usage, false);
-      this.db.sqlite
-        .query(
-          "INSERT INTO agent_compactions (id, thread_id, turn_id, baseline_version, before_count, after_count, summary, replacement_history, created_at, before_tokens, after_tokens, target_tokens, usage_sample_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .run(
-          id,
-          input.threadID,
-          input.turnID ?? null,
-          baselineVersion,
-          original.length,
-          replacement.length,
-          truncateText(result.summary, 40_000),
-          JSON.stringify(replacement),
-          timestamp,
-          beforeTokens,
-          afterTokens,
-          targetTokens,
-          usage.id,
-        );
-      this.db.insertEvent(
-        input.threadID,
-        input.turnID ?? null,
-        "context/compacted",
-        {
-          id,
-          beforeCount: original.length,
-          afterCount: replacement.length,
-          beforeTokens,
-          afterTokens,
-          targetTokens,
-          triggerTokens,
-          usageSampleID: usage.id,
-          baselineVersion,
-          createdAt: timestamp,
-        },
-      );
-    });
-    return {
-      id,
-      beforeCount: original.length,
-      afterCount: replacement.length,
-      beforeTokens,
-      afterTokens,
-      targetTokens,
-      usageSampleID,
-      baselineVersion: this.state(input.threadID)?.baselineVersion ?? 1,
-    };
-  }
-
-  /** Retries prompt-too-long at most three times, removing one oldest complete round per retry. */
-  async withPromptTooLongRecovery<T>(input: {
-    session: SqliteAgentSession;
-    run: () => Promise<T>;
-    isPromptTooLong: (cause: unknown) => boolean;
-  }) {
-    for (let attempt = 0; ; attempt += 1) {
-      try {
-        return await input.run();
-      } catch (cause) {
-        if (!input.isPromptTooLong(cause) || attempt >= 3) throw cause;
-        const removed = await input.session.dropOldestRound();
-        if (!removed) throw cause;
-      }
-    }
-  }
 }

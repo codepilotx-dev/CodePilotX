@@ -10,6 +10,7 @@ export interface PlanCheckpoint {
   decision?: "allow" | "deny"
   toolCallID?: string
   approvalID?: string
+  checkpointID?: string
 }
 
 export interface PendingApproval {

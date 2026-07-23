@@ -24,7 +24,7 @@ import type { ThreadHistoryService } from "../session/ThreadHistoryService"
 import type { ThreadService } from "../session/ThreadService"
 import type { AgentDatabase } from "../storage/Database"
 import type { EventHub } from "../storage/EventHub"
-import { publishAgentEvent } from "../storage/EventPublisher"
+import { globalEventSequence, publishAgentEvent } from "../storage/EventPublisher"
 import type { SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
 import type { SubagentService } from "../subagent/SubagentService"
 import type { AttachmentService } from "../subagent/AttachmentService"
@@ -216,10 +216,18 @@ export class RpcRouter {
   private readonly connections = new Map<string, {
     initialized: boolean
     createdAt: number
+    lastSeenAt: number
     capabilities: ReadonlySet<string>
   }>()
+  private readonly connectionLeaseMs: number
+  private readonly now: () => number
 
-  constructor(private readonly dependencies: RpcRouterDependencies) {
+  constructor(
+    private readonly dependencies: RpcRouterDependencies,
+    options: { connectionLeaseMs?: number; now?: () => number } = {},
+  ) {
+    this.connectionLeaseMs = options.connectionLeaseMs ?? 60_000
+    this.now = options.now ?? Date.now
     this.projection = new ThreadProjection(dependencies.db)
     this.subscriptions = new EventSubscriptionRegistry(dependencies.db)
     this.handlers = defineRpcHandlers(Object.fromEntries(
@@ -237,6 +245,8 @@ export class RpcRouter {
   }
 
   async handle(input: unknown, context: RpcRouterContext = {}) {
+    if (context.connectionId) this.touchConnection(context.connectionId)
+    else this.reapExpiredConnections()
     if (isInitializedNotification(input)) {
       const notification = Schema.decodeUnknownSync(InitializedNotificationSchema)(input)
       const connectionId = context.connectionId
@@ -269,9 +279,11 @@ export class RpcRouter {
           throw new AgentError("CAPABILITY_REQUIRED", "客户端缺少 rpc.typed.v1 capability", 409)
         }
         const connectionId = crypto.randomUUID()
+        const createdAt = this.now()
         this.connections.set(connectionId, {
           initialized: false,
-          createdAt: Date.now(),
+          createdAt,
+          lastSeenAt: createdAt,
           capabilities: new Set(params.capabilities as string[]),
         })
         return {
@@ -640,7 +652,7 @@ export class RpcRouter {
         const execution = db.sqlite.query("SELECT turn_id FROM agent_executions WHERE subagent_run_id = ? ORDER BY run_sequence DESC LIMIT 1").get(runId) as { turn_id: string } | null
         if (!execution) throw new AgentError("CHECKPOINT_UNAVAILABLE", "子 Agent admission 尚未建立", 409)
         const childThreadId = subagents.read(taskId).task.childThreadId
-        const sequence = (db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS id FROM events WHERE thread_id = ?").get(childThreadId) as { id: number }).id
+        const sequence = globalEventSequence(db)
         return {
           taskId,
           runId,
@@ -663,7 +675,7 @@ export class RpcRouter {
         const input = db.sqlite.query("SELECT id FROM inputs WHERE turn_id = ? ORDER BY created_at LIMIT 1").get(execution.turn_id) as { id: string } | null
         if (!input) throw new AgentError("CHECKPOINT_UNAVAILABLE", "子 Agent retry input 尚未建立", 409)
         const childThreadId = subagents.read(taskId).task.childThreadId
-        const sequence = (db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS id FROM events WHERE thread_id = ?").get(childThreadId) as { id: number }).id
+        const sequence = globalEventSequence(db)
         return {
           task: value.task,
           run: value.run,
@@ -738,7 +750,7 @@ export class RpcRouter {
         }
         const submitted = await threads.submit(threadId, submitMessage(start), stringParam(params, "inputId"))
         if (attachmentIds.length) await attachments.bind(attachmentIds, { type: "input", id: submitted.inputID })
-        const sequence = (db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS id FROM events WHERE thread_id = ?").get(threadId) as { id: number }).id
+        const sequence = globalEventSequence(db)
         return {
           inputId: submitted.inputID,
           turnId: submitted.turnID,
@@ -755,7 +767,7 @@ export class RpcRouter {
           if (existing.thread_id !== threadId || existing.turn_id !== turnId || existing.content !== stringParam(params, "content")) {
             throw new AgentError("CONFLICT", "inputId 已被其他请求使用", 409)
           }
-          const sequence = (db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS id FROM events WHERE thread_id = ?").get(threadId) as { id: number }).id
+          const sequence = globalEventSequence(db)
           return {
             inputId,
             turnId,
@@ -775,7 +787,7 @@ export class RpcRouter {
           strategy: "guide",
           taskMode: thread.settings.taskMode,
         }, inputId)
-        const sequence = (db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS id FROM events WHERE thread_id = ?").get(threadId) as { id: number }).id
+        const sequence = globalEventSequence(db)
         return {
           inputId: submitted.inputID,
           turnId: submitted.turnID,
@@ -1410,6 +1422,27 @@ export class RpcRouter {
     return connectionId
   }
 
+  touchConnection(connectionId: string) {
+    const now = this.now()
+    this.reapExpiredConnections(now)
+    const connection = this.connections.get(connectionId)
+    if (!connection) return false
+    connection.lastSeenAt = now
+    return true
+  }
+
+  closeConnection(connectionId: string) {
+    const deleted = this.connections.delete(connectionId)
+    this.subscriptions.closeConnection(connectionId)
+    return deleted
+  }
+
+  private reapExpiredConnections(now = this.now()) {
+    for (const [connectionId, connection] of this.connections) {
+      if (now - connection.lastSeenAt > this.connectionLeaseMs) this.closeConnection(connectionId)
+    }
+  }
+
   private requiredSnapshot(threadId: string) {
     const snapshot = this.projection.snapshot(threadId)
     if (!snapshot) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
@@ -1418,7 +1451,7 @@ export class RpcRouter {
 
   private threadSnapshotResult(threadId: string) {
     const snapshot = this.requiredSnapshot(threadId)
-    const sequence = (this.dependencies.db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS id FROM events WHERE thread_id = ?").get(threadId) as { id: number }).id
+    const sequence = globalEventSequence(this.dependencies.db)
     return { snapshot, streamPosition: { streamId: threadId, sequence } }
   }
 
@@ -1426,7 +1459,7 @@ export class RpcRouter {
     return this.dependencies.db.transaction(() => {
       const page = this.projection.historyPage(threadId, params)
       if (!page) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
-      const sequence = (this.dependencies.db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS id FROM events WHERE thread_id = ?").get(threadId) as { id: number }).id
+      const sequence = globalEventSequence(this.dependencies.db)
       return { ...page, streamPosition: { streamId: threadId, sequence } }
     })
   }
@@ -1434,7 +1467,7 @@ export class RpcRouter {
   private queueStateResult(threadId: string, eventID?: number) {
     const snapshot = this.requiredSnapshot(threadId)
     const metadata = this.dependencies.db.queueStateMeta(threadId) ?? { version: 0, pauseReason: null }
-    const sequence = eventID ?? (this.dependencies.db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS id FROM events WHERE thread_id = ?").get(threadId) as { id: number }).id
+    const sequence = Math.max(eventID ?? 0, globalEventSequence(this.dependencies.db))
     return {
       threadId,
       version: metadata.version,

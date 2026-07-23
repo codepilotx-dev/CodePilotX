@@ -2,13 +2,11 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import type { LegacyAgentInputItem as AgentInputItem } from "../src/storage/SqliteAgentSession"
 import { Model, Provider } from "@codepilotx/model-schema"
-import { ContextManager, contextFingerprint, estimateContextTokens } from "../src/context/ContextManager"
+import { ContextManager, contextFingerprint, estimateContextTokens, type AgentInputItem } from "../src/context/ContextManager"
 import { HookService } from "../src/hooks/HookService"
 import { MemoryService, projectMemoryKey } from "../src/memory/MemoryService"
 import { AgentDatabase, SCHEMA_VERSION } from "../src/storage/Database"
-import { SqliteAgentSession } from "../src/storage/SqliteAgentSession"
 
 const roots: string[] = []
 const removeRoot = async (root: string) => {
@@ -41,51 +39,6 @@ describe("v8 上下文存储", () => {
     db.close()
   })
 
-  test("压缩原子替换历史并记录 outbox", async () => {
-    const { db, thread } = await fixture()
-    const session = new SqliteAgentSession(db, thread.id)
-    await session.addItems([{ role: "user", content: "旧问题" }, { role: "assistant", content: "旧回答" }] as AgentInputItem[])
-    const manager = new ContextManager(db)
-    manager.establishBaseline({ threadID: thread.id, promptVersion: "v1", baseHash: "base", contextHash: "context", cacheKey: thread.id })
-    let targetTokens = 0
-    const compacted = await manager.compact({
-      threadID: thread.id,
-      session,
-      contextWindowTokens: 100,
-      compactor: {
-        compact: async (input) => {
-          targetTokens = input.targetTokens
-          return { summary: "摘要", replacementHistory: [{ role: "user", content: "摘要" }] as AgentInputItem[] }
-        },
-      },
-    })
-    expect(compacted).toMatchObject({ beforeCount: 2, afterCount: 1, baselineVersion: 2, targetTokens: 55 })
-    expect(targetTokens).toBe(55)
-    expect(await session.getItems()).toHaveLength(1)
-    expect(db.sqlite.query("SELECT COUNT(*) AS count FROM agent_compactions").get()).toEqual({ count: 1 })
-    expect(db.sqlite.query("SELECT source FROM context_usage_samples").get()).toEqual({ source: "compaction-estimate" })
-    expect(db.sqlite.query("SELECT method FROM events WHERE method = 'context/compacted'").get()).toEqual({ method: "context/compacted" })
-    expect(manager.state(thread.id)?.needsCompaction).toBe(false)
-    db.close()
-  })
-
-  test("压缩器返回过大 history 时在事务前确定性裁剪到 55%", async () => {
-    const { db, thread } = await fixture()
-    const session = new SqliteAgentSession(db, thread.id)
-    await session.addItems([{ role: "user", content: "旧问题" }, { role: "assistant", content: "旧回答" }] as AgentInputItem[])
-    const manager = new ContextManager(db)
-    manager.establishBaseline({ threadID: thread.id, promptVersion: "v1", baseHash: "base", contextHash: "context", cacheKey: thread.id })
-    const result = await manager.compact({
-      threadID: thread.id,
-      session,
-      contextWindowTokens: 1_000,
-      compactor: { compact: async () => ({ summary: "摘要", replacementHistory: [{ role: "user", content: "x".repeat(20_000) }] as AgentInputItem[] }) },
-    })
-    expect(result.afterTokens).toBeLessThanOrEqual(550)
-    expect(estimateContextTokens({ items: await session.getItems() })).toBeLessThanOrEqual(550)
-    db.close()
-  })
-
   test("估算确定且仅在同一输入指纹上优先使用实测 usage", async () => {
     const { db, thread } = await fixture()
     const manager = new ContextManager(db)
@@ -110,49 +63,6 @@ describe("v8 上下文存储", () => {
     db.close()
   })
 
-  test("prompt-too-long 只裁剪完整 round 并保留稳定前缀与下一轮", async () => {
-    const { db, thread } = await fixture()
-    const session = new SqliteAgentSession(db, thread.id)
-    await session.addItems([
-      { role: "system", content: "stable" },
-      { role: "user", content: "first" },
-      { type: "function_call", callId: "call-1", name: "read", arguments: "{}" },
-      { type: "function_call_result", callId: "call-1", output: "ok" },
-      { role: "assistant", content: "done" },
-      { role: "user", content: "second" },
-      { role: "assistant", content: "keep" },
-    ] as unknown as AgentInputItem[])
-    expect(await session.dropOldestRound()).toBe(4)
-    expect(await session.getItems()).toEqual([
-      { role: "system", content: "stable" },
-      { role: "user", content: "second" },
-      { role: "assistant", content: "keep" },
-    ] as AgentInputItem[])
-    db.close()
-  })
-
-  test("连续 contextual-user 与当前用户输入按同一 round 成对裁剪", async () => {
-    const { db, thread } = await fixture()
-    const session = new SqliteAgentSession(db, thread.id)
-    await session.addItems([
-      { role: "system", content: "stable" },
-      { role: "user", content: [{ type: "input_text", text: '<context_data section_id="context.project">project</context_data>' }] },
-      { role: "user", content: [{ type: "input_text", text: '<context_data section_id="memory.0">memory</context_data>' }] },
-      { role: "user", content: [{ type: "input_text", text: '<context_data section_id="turn.user-message">first</context_data>' }] },
-      { type: "function_call", callId: "call-context", name: "read", arguments: "{}" },
-      { type: "function_call_result", callId: "call-context", output: "ok" },
-      { role: "assistant", content: "done" },
-      { role: "user", content: [{ type: "input_text", text: '<context_data section_id="turn.user-message">second</context_data>' }] },
-      { role: "assistant", content: "keep" },
-    ] as unknown as AgentInputItem[])
-    expect(await session.dropOldestRound()).toBe(6)
-    expect(await session.getItems()).toEqual([
-      { role: "system", content: "stable" },
-      { role: "user", content: [{ type: "input_text", text: '<context_data section_id="turn.user-message">second</context_data>' }] },
-      { role: "assistant", content: "keep" },
-    ] as unknown as AgentInputItem[])
-    db.close()
-  })
 })
 
 describe("Hooks 与记忆", () => {

@@ -5,6 +5,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { ThreadHistoryService } from "../src/session/ThreadHistoryService"
 import { AgentDatabase } from "../src/storage/Database"
+import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/SqlitePiSession"
 import { EventHub } from "../src/storage/EventHub"
 import { ThreadProjection } from "../src/transport/ThreadProjection"
 import { Model, Provider } from "@codepilotx/model-schema"
@@ -77,8 +78,34 @@ describe("Thread 历史", () => {
 
     const active = await history.patch(thread.id, { archived: false })
     expect(active.archivedAt).toBeNull()
+    const session = await new SqlitePiSessionRepo(db).create({ id: `${thread.id}:main`, threadID: thread.id, agentID: "creator" })
+    await session.appendMessage({ role: "user", content: "private history", timestamp: Date.now() })
+    ;(session.getStorage() as SqlitePiSessionStorage).flush()
     await history.remove(thread.id)
     expect(db.getThread(thread.id)).toBeNull()
+    expect(db.sqlite.query("SELECT 1 FROM pi_sessions WHERE thread_id = ?").get(thread.id)).toBeNull()
+    expect(db.sqlite.query("SELECT 1 FROM pi_session_entries WHERE session_id = ?").get(`${thread.id}:main`)).toBeNull()
+  })
+
+  test("父 Thread 删除会清理子 Agent Pi 历史，但拒绝删除活跃子 Thread", async () => {
+    const { db, history } = await makeHistory()
+    const parent = db.createThread("parent")
+    const child = db.createThread("child")
+    db.sqlite.query("UPDATE threads SET kind = 'subagent', parent_thread_id = ? WHERE id = ?").run(parent.id, child.id)
+    const repo = new SqlitePiSessionRepo(db)
+    const childSession = await repo.create({ id: `subagent:${child.id}`, threadID: child.id, agentID: "creator" })
+    await childSession.appendMessage({ role: "user", content: "child history", timestamp: Date.now() })
+    ;(childSession.getStorage() as SqlitePiSessionStorage).flush()
+
+    const childTurn = db.createTurn(child.id, input("running"))
+    db.claimTurnExecution(childTurn.turnID)
+    await expect(history.remove(parent.id)).rejects.toMatchObject({ code: "THREAD_ACTIVE" })
+    db.sqlite.query("UPDATE turns SET status = 'completed', finished_at = ?, updated_at = ? WHERE id = ?").run(Date.now(), Date.now(), childTurn.turnID)
+
+    await history.remove(parent.id)
+    expect(db.getThread(parent.id)).toBeNull()
+    expect(db.getThread(child.id)).toBeNull()
+    expect(db.sqlite.query("SELECT 1 FROM pi_sessions WHERE id = ?").get(`subagent:${child.id}`)).toBeNull()
   })
 
   test("ThreadSnapshot 返回对应 Turn 的 Item", async () => {

@@ -41,6 +41,67 @@ describe("数据库 Pi epoch", () => {
     db.close()
   })
 
+  test("v16 升级为带 Thread ownership 的 v17 Pi schema 并清理孤儿", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-pi-v17-"))
+    paths.push(root)
+    const path = join(root, "agent.sqlite")
+    const seeded = new AgentDatabase(path)
+    const validThread = seeded.createThread("valid")
+    seeded.sqlite.query("UPDATE threads SET id = 'thread-valid' WHERE id = ?").run(validThread.id)
+    seeded.close()
+    const legacy = new Database(path, { create: true })
+    legacy.exec(`
+      PRAGMA foreign_keys = OFF;
+      DROP TABLE pi_session_entries;
+      DROP TABLE pi_sessions;
+      PRAGMA user_version = 16;
+      CREATE TABLE pi_sessions (
+        id TEXT PRIMARY KEY,
+        thread_id TEXT NOT NULL,
+        agent_id TEXT NOT NULL,
+        leaf_id TEXT,
+        name TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE pi_session_entries (
+        session_id TEXT NOT NULL REFERENCES pi_sessions(id) ON DELETE CASCADE,
+        sequence INTEGER NOT NULL,
+        id TEXT NOT NULL,
+        parent_id TEXT,
+        type TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (session_id, sequence),
+        UNIQUE (session_id, id)
+      );
+      CREATE TABLE agent_thread_items (
+        thread_id TEXT NOT NULL,
+        ordinal INTEGER NOT NULL,
+        payload TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (thread_id, ordinal)
+      );
+      INSERT INTO pi_sessions VALUES ('valid', 'thread-valid', 'creator', NULL, NULL, 1, 1);
+      INSERT INTO pi_sessions VALUES ('orphan', 'thread-missing', 'creator', NULL, NULL, 1, 1);
+      INSERT INTO pi_session_entries VALUES ('valid', 0, 'entry-valid', NULL, 'message', '{}', 1);
+      INSERT INTO pi_session_entries VALUES ('orphan', 0, 'entry-orphan', NULL, 'message', '{}', 1);
+      PRAGMA foreign_keys = ON;
+    `)
+    legacy.close()
+
+    const db = new AgentDatabase(path)
+    expect(db.sqlite.query("SELECT id FROM pi_sessions ORDER BY id").all()).toEqual([{ id: "valid" }])
+    expect(db.sqlite.query("SELECT id FROM pi_session_entries ORDER BY id").all()).toEqual([{ id: "entry-valid" }])
+    expect(db.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'agent_thread_items'").get()).toBeNull()
+    expect(db.sqlite.query("PRAGMA foreign_key_check").all()).toEqual([])
+    expect((db.sqlite.query("PRAGMA foreign_key_list(pi_sessions)").all() as Array<{ table: string; from: string; on_delete: string }>))
+      .toContainEqual(expect.objectContaining({ table: "threads", from: "thread_id", on_delete: "CASCADE" }))
+    db.close()
+
+    expect((await readdir(root)).some((name) => name.includes("pre-v17"))).toBe(true)
+  })
+
   test("旧 epoch 数据库及 WAL/SHM 被一次性清空且不创建备份", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-reset-pi-epoch-"))
     paths.push(root)

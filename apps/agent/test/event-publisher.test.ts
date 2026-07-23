@@ -25,16 +25,26 @@ describe("manifest-aware event publisher", () => {
     const db = new AgentDatabase(path)
     const hub = await Effect.runPromise(EventHub.make)
     const received: string[] = []
-    const unlisten = hub.listen((event) => received.push(event.method))
+    const unlisten = hub.listen((signal) => received.push(
+      signal.kind === "live" ? signal.event.method : `wake:${signal.sequence}`,
+    ))
 
     const live = await publishAgentEvent(db, hub, null, null, "catalog/updated", { catalogVersion: 2 })
     expect(live.id).toBe(0)
+    expect(live.afterSequence).toBe(0)
     expect(db.eventsAfter(0)).toEqual([])
 
     const durable = await publishAgentEvent(db, hub, "thread:1", null, "thread/updated", {})
     expect(durable.id).toBeGreaterThan(0)
     expect(db.eventsAfter(0).map((event) => event.method)).toEqual(["thread/updated"])
-    expect(received).toEqual(["catalog/updated", "thread/updated"])
+    expect(received).toEqual(["catalog/updated", `wake:${durable.id}`])
+
+    const anchored = await publishAgentEvent(db, hub, null, null, "catalog/updated", { catalogVersion: 3 })
+    expect(anchored.afterSequence).toBe(durable.id)
+    const { afterSequence: _afterSequence, ...unanchored } = anchored
+    expect(() => hub.publish(unanchored)).toThrow(
+      "Live event is missing its fixed durable anchor",
+    )
 
     unlisten()
     db.close()

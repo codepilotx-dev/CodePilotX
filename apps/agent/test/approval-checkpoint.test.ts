@@ -11,7 +11,6 @@ import { AgentDatabase } from "../src/storage/Database"
 import { EventHub } from "../src/storage/EventHub"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { pausedSubagentStatus } from "../src/subagent/SubagentService"
-import { SqliteAgentSession } from "../src/storage/SqliteAgentSession"
 
 const paths: string[] = []
 const databases: AgentDatabase[] = []
@@ -264,24 +263,17 @@ describe("可恢复审批 checkpoint", () => {
     expect(db.sqlite.query("SELECT status FROM approval_requests WHERE id = ?").get(prepared.approvalID)).toEqual({ status: "cancelled" })
   })
 
-  test("副作用 prompt recovery 回滚本 attempt 并持久中断后可重新排队", async () => {
+  test("副作用 prompt recovery 持久中断后可重新排队", async () => {
     const path = join(tmpdir(), `codepilotx-recovery-${crypto.randomUUID()}.sqlite`)
     paths.push(path)
     const db = new AgentDatabase(path)
     databases.push(db)
     const { thread, turn } = setup(db)
-    const execution = db.getAgentExecution(turn.agentID)!
-    const session = new SqliteAgentSession(db, execution.sessionID)
-    await session.addItems([{ role: "user", content: "keep" }, { role: "assistant", content: "keep" }] as never)
-    const ordinal = await session.nextOrdinal()
-    await session.addItems([{ role: "user", content: "attempt" }, { role: "assistant", content: "partial" }] as never)
-    expect(await session.rollbackFromOrdinal(ordinal)).toBe(2)
-    expect(await session.getItems()).toHaveLength(2)
     const persisted = db.interruptForSideEffectRecovery({
       threadID: thread.id,
       turnID: turn.turnID,
       agentID: turn.agentID,
-      payload: { kind: "side-effect-prompt-recovery", attemptOrdinal: ordinal, completed: [{ toolCallID: "call-1", tool: "shell", summary: "done" }], error: "context too long" },
+      payload: { kind: "side-effect-prompt-recovery", attemptOrdinal: 2, completed: [{ toolCallID: "call-1", tool: "shell", summary: "done" }], error: "context too long" },
     })
     expect(persisted.events.map(({ method }) => method).sort()).toEqual(["agent/upserted", "context/recoveryRequired", "turn/interrupted"])
     expect(db.sqlite.query("SELECT method FROM events WHERE method = 'context/recoveryRequired' AND turn_id = ?").get(turn.turnID)).toEqual({ method: "context/recoveryRequired" })

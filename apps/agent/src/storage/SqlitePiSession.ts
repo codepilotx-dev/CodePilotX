@@ -306,6 +306,15 @@ export class SqlitePiSessionRepo implements SessionRepo<SqlitePiSessionMetadata,
     return this.open(metadataFromRow(row))
   }
 
+  async openForThread(id: string, threadID: string) {
+    const session = await this.openByID(id)
+    const metadata = await session.getMetadata()
+    if (metadata.threadID !== threadID) {
+      throw new SessionError("invalid_session", `Session ${id} belongs to a different thread`)
+    }
+    return session
+  }
+
   async list(options?: SqlitePiSessionListOptions) {
     const clauses: string[] = []
     const values: string[] = []

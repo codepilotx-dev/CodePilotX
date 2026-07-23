@@ -6,7 +6,11 @@ import type { AgentDatabase } from "./Database"
 export const isLiveEvent = (method: string): method is EventType =>
   method in EventManifest && EventManifest[method as EventType].durability === "live"
 
+export const globalEventSequence = (db: Pick<AgentDatabase, "sqlite">) =>
+  Number((db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS sequence FROM events").get() as { sequence: number }).sequence)
+
 export const createLiveEvent = (
+  db: Pick<AgentDatabase, "sqlite">,
   threadId: string | null,
   turnId: string | null,
   method: string,
@@ -15,6 +19,7 @@ export const createLiveEvent = (
   // Live events deliberately have no durable sequence. The internal zero is
   // never exposed as a sequence by the SSE adapter.
   id: 0,
+  afterSequence: globalEventSequence(db),
   threadId,
   turnId,
   method,
@@ -24,7 +29,7 @@ export const createLiveEvent = (
 
 /** Manifest-aware publishing boundary shared by transport and orchestration. */
 export const publishAgentEvent = async (
-  db: Pick<AgentDatabase, "insertEvent">,
+  db: Pick<AgentDatabase, "insertEvent" | "sqlite">,
   hub: { publish(event: EventEnvelope): Effect.Effect<unknown> },
   threadId: string | null,
   turnId: string | null,
@@ -32,7 +37,7 @@ export const publishAgentEvent = async (
   params: unknown,
 ) => {
   const event = isLiveEvent(method)
-    ? createLiveEvent(threadId, turnId, method, params)
+    ? createLiveEvent(db, threadId, turnId, method, params)
     : db.insertEvent(threadId, turnId, method, params)
   await Effect.runPromise(hub.publish(event))
   return event

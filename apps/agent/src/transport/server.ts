@@ -7,6 +7,7 @@ import type { AgentConfig } from "../config/Config"
 import { AgentError, type EventEnvelope as StoredEventEnvelope } from "../domain"
 import type { AgentDatabase } from "../storage/Database"
 import type { EventHub } from "../storage/EventHub"
+import { globalEventSequence } from "../storage/EventPublisher"
 import type { ThreadService } from "../session/ThreadService"
 import type { ThreadHistoryService } from "../session/ThreadHistoryService"
 import type { ApprovalService } from "../permission/ApprovalService"
@@ -59,6 +60,19 @@ export const resolveEventCursor = (
   )
 }
 
+export const deliverAnchoredLive = async (
+  currentSequence: () => number,
+  afterSequence: number,
+  deliverDurableThrough: (target: number) => Promise<void>,
+  deliverLive: () => Promise<void>,
+) => {
+  if (currentSequence() > afterSequence) return false
+  await deliverDurableThrough(afterSequence)
+  if (currentSequence() > afterSequence) return false
+  await deliverLive()
+  return true
+}
+
 const cookieValue = (header: string | null, name: string) => header?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1)
 const DESKTOP_SETTINGS_KEY = "desktop.settings.v1"
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
@@ -69,11 +83,11 @@ const eventNextNotification = (
   streamId: string,
   event: StoredEventEnvelope,
   rpc: RpcRouter,
-  afterSequence = event.id,
 ) => {
   if (!(event.method in EventManifest)) return null
   const type = event.method as EventType
   const definition = EventManifest[type]
+  if (definition.durability === "live" && event.afterSequence === undefined) return null
   const payload = rpc.projection.notification(event).notification.params
   const base = {
     eventId: definition.durability === "live"
@@ -93,7 +107,7 @@ const eventNextNotification = (
     params: {
       subscriptionId,
       event: definition.durability === "live"
-        ? { ...base, durability: "live" as const, sequence: null, afterSequence }
+        ? { ...base, durability: "live" as const, sequence: null, afterSequence: event.afterSequence! }
         : { ...base, durability: "durable" as const, sequence: event.id },
     },
   }
@@ -178,6 +192,7 @@ export const createApp = (dependencies: TransportDependencies) => {
     }
     const subscription = rpc.subscriptions.get(subscriptionId, connectionId)
     if (!subscription) throw new AgentError("SUBSCRIPTION_NOT_FOUND", "事件订阅不存在或不属于当前连接", 404)
+    if (!rpc.touchConnection(connectionId)) throw new AgentError("UNAUTHORIZED", "RPC 连接已过期", 401)
     const cursors = new Map(subscription.acknowledged)
     if (cursors.size === 1) {
       const lastEventId = Number(context.req.header("Last-Event-ID"))
@@ -191,13 +206,19 @@ export const createApp = (dependencies: TransportDependencies) => {
       let replayCompleted = false
       const buffered: StoredEventEnvelope[] = []
       let overflow = false
+      let durableWake = false
       const appliesToAnyStream = (event: StoredEventEnvelope) =>
         [...cursors.keys()].some((streamId) => streamId === "global" || event.threadId === null || event.threadId === streamId)
-      const unlisten = hub.listen((event) => {
+      const unlisten = hub.listen((signal) => {
+        if (signal.kind === "durable") {
+          durableWake = true
+          return
+        }
+        const event = signal.event
         if (!appliesToAnyStream(event)) return
         const definition = event.method in EventManifest ? EventManifest[event.method as EventType] : null
-        if (!definition) return
-        if (definition.durability === "live" && subscription.liveEventTypes && !subscription.liveEventTypes.has(event.method)) return
+        if (!definition || definition.durability !== "live") return
+        if (subscription.liveEventTypes && !subscription.liveEventTypes.has(event.method)) return
         if (buffered.length >= 1024) {
           overflow = true
           return
@@ -206,14 +227,31 @@ export const createApp = (dependencies: TransportDependencies) => {
       })
       // Capture the durable high-watermarks only after live delivery is
       // subscribed so commits racing replay are buffered rather than lost.
-      const replayTargets = new Map(
-        [...subscription.streams.keys()].map((streamId) => {
-          const row = streamId === "global"
-            ? db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS sequence FROM events").get()
-            : db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS sequence FROM events WHERE thread_id = ?").get(streamId)
-          return [streamId, Number((row as { sequence: number }).sequence)] as const
-        }),
-      )
+      const replayTarget = globalEventSequence(db)
+      const deliverDurableThrough = async (streamId: string, target: number) => {
+        let cursor = cursors.get(streamId) ?? 0
+        let delivered = 0
+        while (cursor < target) {
+          const events = db.eventsAfter(cursor, streamId === "global" ? undefined : streamId, 500)
+          let advanced = false
+          for (const event of events) {
+            if (event.id > target) break
+            cursor = event.id
+            cursors.set(streamId, cursor)
+            advanced = true
+            if (!(event.method in EventManifest) || EventManifest[event.method as EventType].durability === "live") continue
+            const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
+            if (!notification) continue
+            await stream.writeSSE({ id: String(event.id), data: JSON.stringify(notification) })
+            delivered += 1
+          }
+          if (!advanced || events.length < 500 || events.at(-1)!.id > target) {
+            cursor = target
+            cursors.set(streamId, cursor)
+          }
+        }
+        return delivered
+      }
       try {
         while (!stream.aborted) {
           const active = rpc.subscriptions.get(subscriptionId, connectionId)
@@ -233,23 +271,8 @@ export const createApp = (dependencies: TransportDependencies) => {
           }
           let delivered = 0
           if (!replayCompleted) {
-            for (const [streamId, cursor] of cursors) {
-              const target = replayTargets.get(streamId) ?? 0
-              const events = db.eventsAfter(cursor, streamId === "global" ? undefined : streamId, 500)
-              for (const event of events) {
-                if (event.id > target) break
-                // Historical rows for manifest-live events are cleanup data,
-                // never replayable state. Advance over them without delivery.
-                cursors.set(streamId, event.id)
-                if (!(event.method in EventManifest) || EventManifest[event.method as EventType].durability === "live") continue
-                const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
-                if (!notification) continue
-                await stream.writeSSE({ id: String(event.id), data: JSON.stringify(notification) })
-                delivered += 1
-              }
-              if ((cursors.get(streamId) ?? 0) < target && events.length === 0) cursors.set(streamId, target)
-            }
-            if ([...replayTargets].every(([streamId, target]) => (cursors.get(streamId) ?? 0) >= target)) {
+            for (const streamId of cursors.keys()) delivered += await deliverDurableThrough(streamId, replayTarget)
+            if ([...cursors.values()].every((cursor) => cursor >= replayTarget)) {
               await stream.writeSSE({
                 data: JSON.stringify({
                   jsonrpc: "2.0",
@@ -264,41 +287,32 @@ export const createApp = (dependencies: TransportDependencies) => {
             }
           }
           if (replayCompleted) {
-            // Durable rows remain the source of truth. Polling here also
-            // covers transactional producers that commit an outbox row
-            // without publishing a best-effort EventHub wake-up.
-            for (const [streamId, cursor] of cursors) {
-              const events = db.eventsAfter(cursor, streamId === "global" ? undefined : streamId, 500)
-              for (const event of events) {
-                cursors.set(streamId, event.id)
-                if (!(event.method in EventManifest)) continue
-                if (EventManifest[event.method as EventType].durability === "live") continue
-                const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
-                if (!notification) continue
-                await stream.writeSSE({ id: String(event.id), data: JSON.stringify(notification) })
-                delivered += 1
-              }
-            }
             const pending = buffered.splice(0, buffered.length)
             for (const event of pending) {
-              for (const [streamId, cursor] of cursors) {
+              for (const streamId of cursors.keys()) {
                 if (streamId !== "global" && event.threadId !== null && event.threadId !== streamId) continue
-                const definition = event.method in EventManifest ? EventManifest[event.method as EventType] : null
-                if (!definition) continue
-                if (definition.durability === "durable") {
-                  if (event.id <= cursor) continue
-                  cursors.set(streamId, event.id)
-                } else if (active.liveEventTypes && !active.liveEventTypes.has(event.method)) {
-                  continue
-                }
-                const notification = eventNextNotification(subscriptionId, streamId, event, rpc, cursor)
-                if (!notification) continue
-                await stream.writeSSE({
-                  ...(definition.durability === "durable" ? { id: String(event.id) } : {}),
-                  data: JSON.stringify(notification),
-                })
-                delivered += 1
+                if (active.liveEventTypes && !active.liveEventTypes.has(event.method)) continue
+                const anchor = event.afterSequence
+                if (anchor === undefined) continue
+                let durableDelivered = 0
+                const liveDelivered = await deliverAnchoredLive(
+                  () => cursors.get(streamId) ?? 0,
+                  anchor,
+                  async (target) => { durableDelivered += await deliverDurableThrough(streamId, target) },
+                  async () => {
+                    const notification = eventNextNotification(subscriptionId, streamId, event, rpc)
+                    if (notification) await stream.writeSSE({ data: JSON.stringify(notification) })
+                  },
+                )
+                delivered += durableDelivered + (liveDelivered ? 1 : 0)
               }
+            }
+            // Durable rows remain the source of truth. A durable EventHub
+            // signal is only a wake-up; polling also covers a missed wake.
+            const durableTarget = globalEventSequence(db)
+            if (durableWake || [...cursors.values()].some((cursor) => cursor < durableTarget)) {
+              durableWake = false
+              for (const streamId of cursors.keys()) delivered += await deliverDurableThrough(streamId, durableTarget)
             }
           }
           if (Date.now() - heartbeatAt >= 10_000) {
@@ -314,6 +328,7 @@ export const createApp = (dependencies: TransportDependencies) => {
               }),
             })
             heartbeatAt = Date.now()
+            if (!rpc.touchConnection(connectionId)) return
           }
           await stream.sleep(delivered ? 10 : 100)
         }

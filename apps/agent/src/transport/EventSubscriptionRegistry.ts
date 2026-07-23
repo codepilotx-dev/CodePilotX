@@ -5,6 +5,7 @@ import type {
 import type { Schema } from "effect"
 import type { AgentDatabase } from "../storage/Database"
 import { AgentError } from "../domain"
+import { globalEventSequence } from "../storage/EventPublisher"
 
 type SubscribeParams = typeof EventSubscribeParamsSchema.Type
 type AckParams = typeof EventAckParamsSchema.Type
@@ -122,11 +123,12 @@ export class EventSubscriptionRegistry {
   }
 
   private cursorBounds(streamId: string) {
+    const high = globalEventSequence(this.db)
     if (streamId === "global") {
-      const row = this.db.sqlite.query("SELECT MIN(id) AS low, COALESCE(MAX(id), 0) AS high FROM events").get() as { low: number | null; high: number }
-      return { low: row.low === null ? null : Number(row.low), high: Number(row.high) }
+      const row = this.db.sqlite.query("SELECT MIN(id) AS low FROM events").get() as { low: number | null }
+      return { low: row.low === null ? null : Number(row.low), high }
     }
-    const row = this.db.sqlite.query("SELECT MIN(id) AS low, COALESCE(MAX(id), 0) AS high FROM events WHERE thread_id = ?").get(streamId) as { low: number | null; high: number }
-    return { low: row.low === null ? null : Number(row.low), high: Number(row.high) }
+    const row = this.db.sqlite.query("SELECT MIN(id) AS low FROM events WHERE thread_id = ?").get(streamId) as { low: number | null }
+    return { low: row.low === null ? null : Number(row.low), high }
   }
 }
