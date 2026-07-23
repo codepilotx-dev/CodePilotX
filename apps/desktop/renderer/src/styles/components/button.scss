@@ -21,6 +21,30 @@
   }
 }
 
+.ui-button.segmented-control-item {
+  min-height: 24px;
+  padding: 2px 8px;
+  border-color: transparent;
+  border-radius: var(--radius-full);
+  font-size: var(--type-secondary);
+  font-weight: 400;
+  line-height: 18px;
+
+  &[data-variant="secondary"] {
+    border-color: transparent;
+    background: color-mix(
+      in srgb,
+      var(--color-token-foreground) 5%,
+      transparent
+    );
+    box-shadow: none;
+  }
+
+  &[data-variant="ghost"] {
+    color: var(--color-token-description-foreground);
+  }
+}
+
 /* --- Icon Buttons --- */
 .icon-button {
   display: inline-flex;
@@ -70,6 +94,7 @@
   height: var(--control-size-md);
 }
 
+.ui-button > svg,
 .icon-button svg,
 .ghost-icon-button svg,
 .icon-button[data-variant="toolbar"] svg,
@@ -216,19 +241,19 @@
   }
 }
 
-.ui-button[data-variant="secondary"] {
-  padding: var(
-    --button-padding,
-    calc(var(--control-padding-block) + 0.2em)
-      calc(var(--control-padding-inline) + var(--control-padding-inline))
-  );
-  border: 1px solid var(--color-token-button-border);
-  border-radius: var(--radius-button);
-  background: var(--color-token-bg-fog);
-  color: var(--color-token-foreground);
-  font-weight: var(--font-weight-label);
-  line-height: var(--button-line-height, var(--control-line-height));
-}
+// {
+//   padding: var(
+//     --button-padding,
+//     calc(var(--control-padding-block) + 0.2em)
+//       calc(var(--control-padding-inline) + var(--control-padding-inline))
+//   );
+//   border: 1px solid var(--color-token-button-border);
+//   border-radius: var(--radius-button);
+//   background: var(--color-token-bg-fog);
+//   color: var(--color-token-foreground);
+//   font-weight: var(--font-weight-label);
+//   line-height: var(--button-line-height, var(--control-line-height));
+// }
 
 .ui-button[data-variant="primary"] {
   padding: var(--control-padding-block)
@@ -294,18 +319,14 @@
 
 .ui-button[data-size="toolbar"]:where([data-variant="secondary"]) {
   border-color: transparent;
-  background: color-mix(
-    in srgb,
-    var(--color-token-foreground) 5%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--color-token-foreground) 5%, transparent);
   color: var(--color-token-foreground);
   box-shadow: none;
 }
 
-.ui-button[data-size="toolbar"]:where(
-    [data-variant="secondary"]
-  ):hover:not(:disabled) {
+.ui-button[data-size="toolbar"]:where([data-variant="secondary"]):hover:not(
+    :disabled
+  ) {
   border-color: transparent;
   background: color-mix(
     in srgb,

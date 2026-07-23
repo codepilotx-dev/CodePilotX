@@ -79,11 +79,14 @@ export function DesktopThemeProvider({
         if (!mounted) return
         const normalized = normalizeDesktopThemeSettings(next)
         committedSettingsRef.current = normalized
+        draftSettingsRef.current = normalized
         setSettings(normalized)
         setDraftSettings(normalized)
       })
       .catch(() => {
         if (!mounted) return
+        committedSettingsRef.current = DEFAULT_DESKTOP_THEME_SETTINGS
+        draftSettingsRef.current = DEFAULT_DESKTOP_THEME_SETTINGS
         setSettings(DEFAULT_DESKTOP_THEME_SETTINGS)
         setDraftSettings(DEFAULT_DESKTOP_THEME_SETTINGS)
       })
@@ -178,22 +181,19 @@ export function DesktopThemeProvider({
         await desktopClient.saveThemeSettings(normalized)
         committedSettingsRef.current = normalized
         setSettings(normalized)
-        setDraftSettings(current =>
-          desktopThemeSettingsEqual(current, normalized)
-            ? normalized
-            : current,
-        )
       })
       saveQueueRef.current = operation.catch(() => undefined)
       try {
         await operation
         return normalized
       } catch (error) {
-        setDraftSettings(current =>
-          desktopThemeSettingsEqual(current, normalized)
-            ? committedSettingsRef.current
-            : current,
-        )
+        if (
+          desktopThemeSettingsEqual(draftSettingsRef.current, normalized)
+        ) {
+          const rollback = committedSettingsRef.current
+          draftSettingsRef.current = rollback
+          setDraftSettings(rollback)
+        }
         throw error
       } finally {
         pendingSavesRef.current -= 1
@@ -206,6 +206,7 @@ export function DesktopThemeProvider({
   const saveSettings = useCallback(
     async (nextSettings: DesktopThemeSettings): Promise<void> => {
       const normalized = normalizeDesktopThemeSettings(nextSettings)
+      draftSettingsRef.current = normalized
       setDraftSettings(normalized)
       await persistSettings(normalized)
     },
@@ -220,14 +221,19 @@ export function DesktopThemeProvider({
   )
 
   const setDraftMode = useCallback((mode: DesktopThemeMode): void => {
-    setDraftSettings(current =>
-      normalizeDesktopThemeSettings({ ...current, mode }),
-    )
+    const normalized = normalizeDesktopThemeSettings({
+      ...draftSettingsRef.current,
+      mode,
+    })
+    draftSettingsRef.current = normalized
+    setDraftSettings(normalized)
   }, [])
 
   const setDraftSettingsValue = useCallback(
     (nextSettings: DesktopThemeSettings): void => {
-      setDraftSettings(normalizeDesktopThemeSettings(nextSettings))
+      const normalized = normalizeDesktopThemeSettings(nextSettings)
+      draftSettingsRef.current = normalized
+      setDraftSettings(normalized)
     },
     [],
   )
@@ -237,14 +243,31 @@ export function DesktopThemeProvider({
   }, [persistSettings])
 
   const resetDraft = useCallback((): void => {
-    setDraftSettings(committedSettingsRef.current)
+    const committed = committedSettingsRef.current
+    draftSettingsRef.current = committed
+    setDraftSettings(committed)
   }, [])
+
+  const updateAndAutoSave = useCallback(
+    async (
+      updater: (current: DesktopThemeSettings) => DesktopThemeSettings,
+    ): Promise<void> => {
+      const normalized = normalizeDesktopThemeSettings(
+        updater(draftSettingsRef.current),
+      )
+      draftSettingsRef.current = normalized
+      setDraftSettings(normalized)
+      await persistSettings(normalized)
+    },
+    [persistSettings],
+  )
 
   const saveDraftRef = useRef(saveDraft)
   saveDraftRef.current = saveDraft
   const autoSave = useCallback((nextSettings?: DesktopThemeSettings) => {
     if (nextSettings) {
       const normalized = normalizeDesktopThemeSettings(nextSettings)
+      draftSettingsRef.current = normalized
       setDraftSettings(normalized)
       void persistSettings(normalized).catch(() => undefined)
       return
@@ -265,6 +288,7 @@ export function DesktopThemeProvider({
       save: saveDraft,
       reset: resetDraft,
       autoSave,
+      updateAndAutoSave,
     }),
     [
       autoSave,
@@ -276,6 +300,7 @@ export function DesktopThemeProvider({
       saveDraft,
       setDraftMode,
       setDraftSettingsValue,
+      updateAndAutoSave,
     ],
   )
 

@@ -584,14 +584,14 @@
 
   &[data-line-type="added"] {
     background: var(
-      --color-editor-added,
+      --color-token-diff-editor-inserted-line-background,
       color-mix(in srgb, var(--color-token-git-decoration-added-resource-foreground) 15%, transparent)
     );
   }
 
   &[data-line-type="removed"] {
     background: var(
-      --color-editor-deleted,
+      --color-token-diff-editor-removed-line-background,
       color-mix(in srgb, var(--color-token-git-decoration-deleted-resource-foreground) 15%, transparent)
     );
   }
@@ -765,14 +765,14 @@
 
 .review-diff-side[data-tone="removed"] {
   background: var(
-    --color-editor-deleted,
+    --color-token-diff-editor-removed-line-background,
     color-mix(in srgb, var(--color-token-git-decoration-deleted-resource-foreground) 15%, transparent)
   );
 }
 
 .review-diff-side[data-tone="added"] {
   background: var(
-    --color-editor-added,
+    --color-token-diff-editor-inserted-line-background,
     color-mix(in srgb, var(--color-token-git-decoration-added-resource-foreground) 15%, transparent)
   );
 }
@@ -875,7 +875,7 @@
   overflow-y: clip;
   overscroll-behavior-x: none;
   scrollbar-width: thin;
-  scrollbar-color: var(--color-token-border-light) transparent;
+  scrollbar-color: var(--color-token-scrollbar-slider-background) transparent;
 }
 
 .review-codex-diff [data-gutter],
@@ -988,14 +988,14 @@
 
 .review-codex-diff [data-line-type="change-addition"] {
   background: var(
-    --color-editor-added,
+    --color-token-diff-editor-inserted-line-background,
     color-mix(in srgb, var(--color-token-git-decoration-added-resource-foreground) 15%, transparent)
   );
 }
 
 .review-codex-diff [data-line-type="change-deletion"] {
   background: var(
-    --color-editor-deleted,
+    --color-token-diff-editor-removed-line-background,
     color-mix(in srgb, var(--color-token-git-decoration-deleted-resource-foreground) 15%, transparent)
   );
 }

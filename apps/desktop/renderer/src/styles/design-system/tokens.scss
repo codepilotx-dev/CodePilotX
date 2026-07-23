@@ -1,108 +1,60 @@
 :root {
   --workspace-fixed-controls-width: 0px;
   --contrast: 0;
-  --color-bg: #ffffff;
-  --color-bg-pure: #ffffff;
-  --color-bg-soft: var(--surface-code-inline);
-  --color-bg-subtle: var(--surface-panel);
-  --color-bg-mask: var(--surface-code-block);
-  --color-bg-hover: var(--color-sidebar-hover-bg);
-  --color-bg-row-hover: var(--color-sidebar-hover-bg);
-  --color-bg-chip-hover: var(--color-sidebar-hover-bg);
-  --color-bg-card: var(--surface-panel);
-  --color-popover-bg: var(--surface-raised);
-  --color-popover-border: var(--border-strong);
-  --color-popover-divider: var(--border-control);
-  --glass-surface-bg: color-mix(in srgb, var(--color-bg) 20%, transparent);
-  --glass-surface-border: color-mix(
+
+  // Theme-provider foundation values. Pages consume --color-token-* instead.
+  --codex-base-accent: #339cff;
+  --codex-base-contrast: 0;
+  --codex-base-ink: #1a1c1f;
+  --codex-base-on-accent: #ffffff;
+  --codex-base-surface: #ffffff;
+  --color-accent-blue: var(--codex-base-accent);
+  --color-accent-purple: #924ff7;
+  --color-decoration-added: #00a240;
+  --color-decoration-deleted: #e02e2a;
+  --color-danger: var(--color-decoration-deleted);
+  --color-warning: #a05a00;
+
+  // Window-material values are consumed only by the glass adaptation layer.
+  --glass-surface-bg: color-mix(
     in srgb,
-    var(--color-ink) 10%,
+    var(--color-background-surface) 20%,
     transparent
   );
-  --glass-surface-highlight: color-mix(in srgb, var(--color-ink) 8%, transparent);
-  --glass-surface-text: var(--color-ink);
+  --glass-surface-border: color-mix(
+    in srgb,
+    var(--color-text-foreground) 10%,
+    transparent
+  );
+  --glass-surface-highlight: color-mix(
+    in srgb,
+    var(--color-text-foreground) 8%,
+    transparent
+  );
+  --glass-surface-text: var(--color-text-foreground);
   --glass-surface-text-meta: color-mix(
     in srgb,
-    var(--color-ink) 78%,
-    var(--color-bg)
+    var(--color-text-foreground) 78%,
+    var(--color-background-surface)
   );
   --glass-surface-text-disabled: color-mix(
     in srgb,
-    var(--color-ink) 52%,
-    var(--color-bg)
+    var(--color-text-foreground) 52%,
+    var(--color-background-surface)
   );
-  --color-surface: var(--color-bg);
-  --color-ink: #1a1c1f;
-  --color-border: var(--border-control);
-  --color-border-soft: var(--border-subtle);
-  --color-border-faint: var(--border-subtle);
-  --color-border-row: var(--border-subtle);
-  --color-danger: #e02e2a;
-  --color-warning: color-mix(in srgb, var(--color-bg) 35%, var(--color-ink));
-  --color-success: #00a240;
-  --color-text: var(--color-ink);
-  --color-text-strong: var(--color-ink);
-  --color-text-meta: color-mix(in srgb, var(--color-bg) 45%, var(--color-ink));
-  --color-text-soft: color-mix(in srgb, var(--color-bg) 55%, var(--color-ink));
-  --color-text-mute: color-mix(in srgb, var(--color-bg) 65%, var(--color-ink));
-  --color-text-muted: var(--color-text-mute);
-  --color-text-placeholder: color-mix(in srgb, var(--color-bg) 75%, var(--color-ink));
-  --color-text-disabled: color-mix(
-    in srgb,
-    var(--color-bg) 85%,
-    var(--color-ink)
-  );
-  --color-text-on-accent: #ffffff;
-  --color-accent-contrast: var(--color-text-on-accent);
-  --color-icon: var(--color-ink);
-  --color-icon-soft: color-mix(in srgb, var(--color-bg) 60%, var(--color-ink));
-  --color-icon-arrow: color-mix(in srgb, var(--color-bg) 70%, var(--color-ink));
-  --color-accent: #339cff;
-  --color-accent-11: color-mix(in srgb, var(--color-accent) 85%, var(--color-bg));
-  --color-accent-a3: color-mix(in srgb, var(--color-accent) 30%, transparent);
-  --color-primary-action: var(--color-accent);
-  --color-primary-action-foreground: #ffffff;
-  --color-primary-action-hover: color-mix(
-    in srgb,
-    var(--color-primary-action) 82%,
-    var(--color-ink)
-  );
-  --color-primary-action-disabled: color-mix(
-    in srgb,
-    var(--color-primary-action) 45%,
-    transparent
-  );
-  --color-send-bg: var(--color-primary-action);
-  --color-send-bg-hover: var(--color-primary-action-hover);
-  --color-send-bg-disabled: var(--color-primary-action-disabled);
-  --color-user-bubble-bg: var(--surface-user-message);
-
-  --surface-base: #f9f9f9;
-  --surface-canvas: #ffffff;
-  --surface-underlay: #f9f9f9;
-  --surface-chrome: #f9f9f9;
-  --surface-panel: #f9f9f9;
-  --surface-raised: var(--color-bg);
-  --surface-code-block: color-mix(in srgb, var(--color-bg) 95.8%, var(--color-ink));
-  --surface-code-inline: color-mix(in srgb, var(--color-bg) 90%, var(--color-ink));
-  --surface-user-message: color-mix(in srgb, var(--color-bg) 95%, var(--color-ink));
-  --surface-composer: var(--color-bg);
-  --surface-subtle: color-mix(in srgb, var(--color-bg) 97%, var(--color-ink));
-  --surface-product: var(--surface-panel);
-  --surface-product-raised: var(--surface-raised);
-  --border-subtle: color-mix(in oklab, var(--color-ink) 5%, transparent);
-  --border-control: color-mix(in oklab, var(--color-ink) 8%, transparent);
-  --border-strong: color-mix(in oklab, var(--color-ink) 12%, transparent);
-  --border-muted: color-mix(in oklab, var(--color-ink) 4%, transparent);
   --shadow-resting:
-    0 1px 2px color-mix(in srgb, var(--color-ink) 5%, transparent),
-    0 1px 0 color-mix(in srgb, var(--color-bg) 70%, transparent) inset;
+    0 1px 2px color-mix(in srgb, var(--color-token-foreground) 5%, transparent),
+    0 1px 0
+      color-mix(in srgb, var(--color-token-main-surface-primary) 70%, transparent)
+      inset;
   --shadow-raised:
-    0 10px 28px color-mix(in srgb, var(--color-ink) 8%, transparent),
-    0 1px 2px color-mix(in srgb, var(--color-ink) 5%, transparent);
+    0 10px 28px
+      color-mix(in srgb, var(--color-token-foreground) 8%, transparent),
+    0 1px 2px color-mix(in srgb, var(--color-token-foreground) 5%, transparent);
   --shadow-float:
-    0 22px 60px color-mix(in srgb, var(--color-ink) 12%, transparent),
-    0 8px 24px color-mix(in srgb, var(--color-ink) 8%, transparent);
+    0 22px 60px
+      color-mix(in srgb, var(--color-token-foreground) 12%, transparent),
+    0 8px 24px color-mix(in srgb, var(--color-token-foreground) 8%, transparent);
   --shadow-2: var(--shadow-raised);
 
   --radius-button: 8px;
@@ -217,36 +169,15 @@
   --glass-surface-blur: 14px;
   --plan-md-base-size: 0.9em;
 
-  --color-chrome-bg: var(--surface-chrome);
-  --color-sidebar-bg: var(--surface-chrome);
-  --color-sidebar-active-bg: var(--state-selected);
-  --color-sidebar-hover-bg: var(--state-hover);
-  --color-workbench-bg: var(--surface-canvas);
-  --color-panel-bg: var(--surface-panel);
-  --color-panel-elevated-bg: var(--surface-raised);
-  --color-panel-border: var(--border-subtle);
-  --color-panel-shadow: var(--shadow-float);
-  --color-panel-shadow-raised: var(--shadow-raised);
-  --color-panel-shadow-soft: var(--shadow-resting);
-  --color-scrollbar: var(--scrollbar-rest);
-  --color-scrollbar-hover: var(--scrollbar-hover);
-  --color-diff-added: #00a240;
-  --color-diff-removed: #e02e2a;
-  --color-skill: #924ff7;
-  --state-hover: color-mix(in oklab, var(--color-ink) 8%, transparent);
-  --state-selected: color-mix(in oklab, var(--color-ink) 12%, transparent);
-  --scrollbar-rest: var(--state-selected);
-  --scrollbar-hover: var(--border-strong);
-
-  --syntax-keyword: var(--color-accent);
+  --syntax-keyword: var(--color-text-accent);
   --syntax-type: var(--syntax-keyword);
-  --syntax-property: var(--color-accent);
-  --syntax-string: var(--color-success);
-  --syntax-number: var(--color-skill);
+  --syntax-property: var(--color-text-accent);
+  --syntax-string: var(--color-decoration-added);
+  --syntax-number: var(--color-accent-purple);
   --syntax-operator: var(--syntax-number);
-  --syntax-comment: var(--color-text-mute);
-  --syntax-variable: var(--color-text-soft);
-  --syntax-punctuation: var(--color-text-meta);
+  --syntax-comment: var(--color-token-description-foreground);
+  --syntax-variable: var(--color-token-text-tertiary);
+  --syntax-punctuation: var(--color-token-text-secondary);
 
   --font-family-sans:
     -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -266,9 +197,7 @@
   --font-weight-emphasis: 600;
 
   --focus-ring: 0 0 0 3px
-    color-mix(in srgb, var(--color-accent) 24%, transparent);
+    color-mix(in srgb, var(--color-token-focus-border) 24%, transparent);
   --focus-ring-soft: 0 0 0 2px
-    color-mix(in srgb, var(--color-accent) 18%, transparent);
-  --state-hover-bg: var(--state-hover);
-  --state-active-bg: var(--state-selected);
+    color-mix(in srgb, var(--color-token-focus-border) 18%, transparent);
 }

@@ -10,6 +10,7 @@ import {
 } from './useDesktopSettings.js'
 import { SETTINGS_ITEMS } from './settingsRegistry.js'
 import { NotFoundPage } from '../routing/NotFoundPage.js'
+import '../../styles/lazy/settings.scss'
 
 export function SettingsLayout(): React.ReactNode {
   const { tab = '' } = useParams<{ tab: string }>()

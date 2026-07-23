@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-6);
-  background: color-mix(in srgb, var(--color-token-foreground) 28%, transparent);
+  background: color-mix(in srgb, var(--color-token-foreground) 1%, transparent);
 }
 
 .permission-modal {

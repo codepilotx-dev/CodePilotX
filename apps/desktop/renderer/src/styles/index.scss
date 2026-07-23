@@ -60,17 +60,10 @@
   @include meta.load-css('features/review');
   @include meta.load-css('features/timeline');
   @include meta.load-css('features/canonical-conversation');
-  @include meta.load-css('features/settings-core');
-  @include meta.load-css('features/settings-profile');
-  @include meta.load-css('features/settings-appearance');
-  @include meta.load-css('features/settings-connections');
-  @include meta.load-css('features/settings-billing');
-  @include meta.load-css('features/settings-memory');
   @include meta.load-css('features/marketplace');
   @include meta.load-css('features/automation');
   @include meta.load-css('features/model-center');
   @include meta.load-css('features/file-editor');
-  @include meta.load-css('features/labs');
   @include meta.load-css('model-menu-pilot');
 }
 

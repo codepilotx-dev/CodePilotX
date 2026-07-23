@@ -67,9 +67,9 @@
   --vscode-progressBar-background: var(--color-background-surface);
   --vscode-radio-activeForeground: var(--color-text-foreground);
   --vscode-radio-inactiveBorder: var(--color-border);
-  --vscode-scrollbarSlider-activeBackground: var(--color-background-surface);
-  --vscode-scrollbarSlider-background: var(--color-background-surface);
-  --vscode-scrollbarSlider-hoverBackground: var(--color-background-surface);
+  --vscode-scrollbarSlider-activeBackground: color-mix(in srgb, var(--color-text-foreground) 42%, transparent);
+  --vscode-scrollbarSlider-background: color-mix(in srgb, var(--color-text-foreground) 22%, transparent);
+  --vscode-scrollbarSlider-hoverBackground: color-mix(in srgb, var(--color-text-foreground) 32%, transparent);
   --vscode-sideBar-background: var(--color-background-surface-under);
   --vscode-terminal-ansiBlack: var(--color-background-surface-under);
   --vscode-terminal-ansiBlue: var(--color-accent-blue);
@@ -177,7 +177,7 @@
   --color-token-menubar-selection-background: var(--vscode-menubar-selectionBackground);
   --color-token-menubar-selection-foreground: var(--vscode-menubar-selectionForeground);
   --color-token-non-assistant-body-descendant: color-mix(in oklab, var(--color-token-foreground) 50%, transparent);
-  --color-token-on-accent: var(--color-text-on-accent,var(--vscode-button-foreground));
+  --color-token-on-accent: var(--codex-base-on-accent,var(--vscode-button-foreground));
   --color-token-primary: var(--color-token-text-link-foreground);
   --color-token-progress-bar-background: var(--vscode-progressBar-background);
   --color-token-radio-active-foreground: var(--vscode-radio-activeForeground);

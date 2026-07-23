@@ -17,7 +17,9 @@ type StyleContractManifest = {
   cascadeLayerOrder: string[]
   utilityContract: UtilityContract
   directStyleImportAllowlist: string[]
+  lazyStyleEntrypoints: Record<string, 'vendor' | 'features'>
   customPropertyReferenceAllowlist: string[]
+  forbiddenCustomPropertyPatterns: string[]
   importantDeclarationAllowlist: Record<string, number>
   dataThemeSelectorAllowlist: Record<string, number>
 }
@@ -188,8 +190,44 @@ for (const descriptor of allowedDirectImports) {
   }
 }
 
+const lazyStyleEntrypoints = new Map(
+  Object.entries(manifest.lazyStyleEntrypoints).map(([path, layer]) => [
+    resolve(workspaceRoot, path),
+    layer,
+  ]),
+)
+for (const [lazyEntrypoint, expectedLayer] of lazyStyleEntrypoints) {
+  if (!directStyleTargets.has(lazyEntrypoint)) {
+    errors.push(`lazy style entrypoint must be directly imported: ${workspacePath(lazyEntrypoint)}`)
+    continue
+  }
+  const source = await readFile(lazyEntrypoint, 'utf8')
+  const layers = [...source.matchAll(/@layer\s+([\w-]+)\s*\{/g)].map((match) => match[1])
+  if (layers.length !== 1 || layers[0] !== expectedLayer) {
+    errors.push(
+      `lazy style entrypoint ${workspacePath(lazyEntrypoint)} must declare only @layer ${expectedLayer}`,
+    )
+  }
+}
+for (const directStyleTarget of directStyleTargets) {
+  const targetPath = workspacePath(directStyleTarget)
+  if (
+    targetPath !== 'src/styles/tailwind.css' &&
+    !lazyStyleEntrypoints.has(directStyleTarget)
+  ) {
+    errors.push(`direct style target must be a declared lazy entrypoint: ${targetPath}`)
+  }
+}
+
+const completeStyleGraph = new Set(entryGraph)
+for (const lazyEntrypoint of lazyStyleEntrypoints.keys()) {
+  for (const styleFile of await collectEntryGraph(lazyEntrypoint)) {
+    completeStyleGraph.add(styleFile)
+  }
+}
+
 for (const styleFile of styleFiles) {
-  if (!entryGraph.has(styleFile) && !directStyleTargets.has(styleFile)) {
+  if (!completeStyleGraph.has(styleFile) && !directStyleTargets.has(styleFile)) {
     errors.push(`style file is outside the single-entry graph: ${workspacePath(styleFile)}`)
   }
 }
@@ -298,6 +336,14 @@ for (const file of [...styleFiles, ...scriptFiles]) {
 }
 
 const allowedCustomPropertyReferences = new Set(manifest.customPropertyReferenceAllowlist)
+const forbiddenCustomPropertyPatterns = manifest.forbiddenCustomPropertyPatterns.map(
+  (pattern) => new RegExp(pattern),
+)
+for (const definition of customPropertyDefinitions) {
+  if (forbiddenCustomPropertyPatterns.some((pattern) => pattern.test(definition))) {
+    errors.push(`forbidden legacy custom property definition: ${definition}`)
+  }
+}
 for (const reference of customPropertyReferences) {
   if (!customPropertyDefinitions.has(reference) && !allowedCustomPropertyReferences.has(reference)) {
     errors.push(`undefined custom property reference: ${reference}`)

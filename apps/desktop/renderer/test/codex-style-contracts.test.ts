@@ -20,6 +20,21 @@ describe('Codex semantic token contract', () => {
     expect(tokens).toContain('--color-token-dropdown-background')
     expect(tokens).toContain('--color-token-main-surface-primary')
   })
+
+  test('does not reintroduce removed theme compatibility aliases', async () => {
+    const sources = await Promise.all(
+      [
+        '../src/features/theme/themeVariables.ts',
+        '../src/styles/design-system/tokens.scss',
+      ].map(path => Bun.file(new URL(path, import.meta.url)).text()),
+    )
+    const removedAliasPattern =
+      /--(?:color-bg(?:-[\w-]+)?|surface-[\w-]+|state-[\w-]+|border-(?:subtle|muted|control|strong)|color-text(?:-(?:strong|meta|soft|mute|muted|placeholder|disabled|on-accent))?)(?=['"]?\s*:)/
+
+    for (const source of sources) {
+      expect(source.match(removedAliasPattern)).toBeNull()
+    }
+  })
 })
 
 describe('Codex Labs registry', () => {

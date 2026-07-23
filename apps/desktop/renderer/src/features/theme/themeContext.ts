@@ -20,6 +20,9 @@ export type DesktopThemeDraft = {
   save: () => Promise<DesktopThemeSettings>
   reset: () => void
   autoSave: (settings?: DesktopThemeSettings) => void
+  updateAndAutoSave: (
+    updater: (current: DesktopThemeSettings) => DesktopThemeSettings,
+  ) => Promise<void>
 }
 
 export type DesktopThemeContextValue = {

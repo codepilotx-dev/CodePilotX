@@ -20,8 +20,14 @@
     "maxGzipBytes": 4096
   },
   "directStyleImportAllowlist": [
-    "src/main.tsx -> src/styles/tailwind.css"
+    "src/main.tsx -> src/styles/tailwind.css",
+    "src/features/labs/LabsPage.tsx -> src/styles/lazy/labs.scss",
+    "src/features/settings/SettingsLayout.tsx -> src/styles/lazy/settings.scss"
   ],
+  "lazyStyleEntrypoints": {
+    "src/styles/lazy/labs.scss": "features",
+    "src/styles/lazy/settings.scss": "features"
+  },
   "customPropertyReferenceAllowlist": [
     "--button-font-size",
     "--button-gap",
@@ -31,6 +37,13 @@
     "--inline-approval-card-radius",
     "--popover-overflow-x",
     "--radix-select-trigger-width"
+  ],
+  "forbiddenCustomPropertyPatterns": [
+    "^--color-bg(?:-|$)",
+    "^--surface-",
+    "^--state-",
+    "^--border-(?:subtle|muted|control|strong)$",
+    "^--color-text(?:$|-(?:strong|meta|soft|mute|muted|placeholder|disabled|on-accent)$)"
   ],
   "importantDeclarationAllowlist": {
     "src/styles/base.scss": 12,

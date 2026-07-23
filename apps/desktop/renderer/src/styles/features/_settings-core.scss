@@ -46,7 +46,11 @@
   height: 36px;
   border: 1px solid var(--color-token-border);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--color-token-main-surface-primary) 50%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--color-token-main-surface-primary) 50%,
+    transparent
+  );
   box-shadow: var(--shadow-resting);
   backdrop-filter: blur(8px);
 

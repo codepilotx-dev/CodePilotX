@@ -1,4 +1,10 @@
-import React, { useEffect, useId, useMemo, useState } from 'react'
+import React, {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import * as Popover from '@radix-ui/react-popover'
 import {
@@ -45,6 +51,10 @@ type Props = {
   onError?: (message: string) => void
   onNotice?: (message: string) => void
 }
+
+type ThemeSettingsUpdater = (
+  current: DesktopThemeSettings,
+) => DesktopThemeSettings
 
 const VARIANTS = ['light', 'dark'] as const
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
@@ -122,12 +132,22 @@ function FontInput({
   onCommit: (value: string | null) => void
 }) {
   const [draft, setDraft] = useState(value ?? '')
-  useEffect(() => setDraft(value ?? ''), [value])
+  const focusedRef = useRef(false)
+  const skipBlurCommitRef = useRef(false)
+  const latestValueRef = useRef(value)
+
+  useEffect(() => {
+    latestValueRef.current = value
+    if (!focusedRef.current) setDraft(value ?? '')
+  }, [value])
 
   const commit = (): void => {
     const next = draft.trim() || null
     setDraft(next ?? '')
-    if (next !== value) onCommit(next)
+    if (next !== latestValueRef.current) {
+      latestValueRef.current = next
+      onCommit(next)
+    }
   }
 
   return (
@@ -136,12 +156,23 @@ function FontInput({
       className="appearance-font-input"
       placeholder={placeholder}
       value={draft}
-      onBlur={commit}
+      onBlur={() => {
+        focusedRef.current = false
+        if (skipBlurCommitRef.current) {
+          skipBlurCommitRef.current = false
+          return
+        }
+        commit()
+      }}
       onChange={event => setDraft(event.target.value)}
+      onFocus={() => {
+        focusedRef.current = true
+      }}
       onKeyDown={event => {
         if (event.key === 'Enter') event.currentTarget.blur()
         if (event.key === 'Escape') {
-          setDraft(value ?? '')
+          skipBlurCommitRef.current = true
+          setDraft(latestValueRef.current ?? '')
           event.currentTarget.blur()
         }
       }}
@@ -719,7 +750,7 @@ function VariantThemeEditor({
 }: {
   variant: DesktopThemeVariant
   settings: DesktopThemeSettings
-  onUpdate: (settings: DesktopThemeSettings) => void
+  onUpdate: (updater: ThemeSettingsUpdater) => void
   onError: (message: string) => void
   onNotice: (message: string) => void
   backdropSupported: boolean
@@ -790,20 +821,33 @@ function VariantThemeEditor({
   )
 
   const updateChromeTheme = (patch: Partial<DesktopChromeTheme>): void => {
-    onUpdate({
-      ...settings,
-      chromeThemes: {
-        ...settings.chromeThemes,
-        [variant]: { ...chromeTheme, ...patch },
-      },
+    onUpdate(current => {
+      const currentTheme = current.chromeThemes[variant]
+      return {
+        ...current,
+        chromeThemes: {
+          ...current.chromeThemes,
+          [variant]: { ...currentTheme, ...patch },
+        },
+      }
     })
   }
 
   const updateFonts = (
     patch: Partial<DesktopChromeTheme['fonts']>,
   ): void => {
-    updateChromeTheme({
-      fonts: { ...chromeTheme.fonts, ...patch },
+    onUpdate(current => {
+      const currentTheme = current.chromeThemes[variant]
+      return {
+        ...current,
+        chromeThemes: {
+          ...current.chromeThemes,
+          [variant]: {
+            ...currentTheme,
+            fonts: { ...currentTheme.fonts, ...patch },
+          },
+        },
+      }
     })
   }
 
@@ -825,17 +869,17 @@ function VariantThemeEditor({
   const importTheme = (raw: string): void => {
     try {
       const imported = parseCodexThemeShare(raw, variant)
-      onUpdate({
-        ...settings,
+      onUpdate(current => ({
+        ...current,
         codeThemeIds: {
-          ...settings.codeThemeIds,
+          ...current.codeThemeIds,
           [variant]: imported.codeThemeId,
         },
         chromeThemes: {
-          ...settings.chromeThemes,
+          ...current.chromeThemes,
           [variant]: imported.theme,
         },
-      })
+      }))
       setImportOpen(false)
       onNotice(`${variantLabel}主题已导入`)
     } catch (error) {
@@ -869,16 +913,19 @@ function VariantThemeEditor({
                 loadChromeThemeSeed(nextCodeThemeId, variant),
               )
                 .then(seed => {
-                  onUpdate({
-                    ...settings,
-                    codeThemeIds: {
-                      ...settings.codeThemeIds,
-                      [variant]: nextCodeThemeId,
-                    },
-                    chromeThemes: {
-                      ...settings.chromeThemes,
-                      [variant]: mergeChromeThemeSeed(chromeTheme, seed),
-                    },
+                  onUpdate(current => {
+                    const currentTheme = current.chromeThemes[variant]
+                    return {
+                      ...current,
+                      codeThemeIds: {
+                        ...current.codeThemeIds,
+                        [variant]: nextCodeThemeId,
+                      },
+                      chromeThemes: {
+                        ...current.chromeThemes,
+                        [variant]: mergeChromeThemeSeed(currentTheme, seed),
+                      },
+                    }
                   })
                 })
                 .catch(error => {
@@ -1018,15 +1065,18 @@ export function AppearanceSettings({
   const reportError = onError ?? (() => undefined)
   const reportNotice = onNotice ?? (() => undefined)
 
-  const saveThemeSettings = (next: DesktopThemeSettings): void => {
-    theme.draft.setSettings(next)
-    theme.draft.autoSave(next)
+  const saveThemeSettings = (updater: ThemeSettingsUpdater): void => {
+    void theme.draft.updateAndAutoSave(updater).catch(error => {
+      reportError(
+        error instanceof Error ? error.message : '外观设置保存失败',
+      )
+    })
   }
 
   const updateThemeSettings = (
     patch: Partial<DesktopThemeSettings>,
   ): void => {
-    saveThemeSettings({ ...settings, ...patch })
+    saveThemeSettings(current => ({ ...current, ...patch }))
   }
 
   const updateDiffMarkerStyle = (
@@ -1090,7 +1140,10 @@ export function AppearanceSettings({
                 mode={option.value}
                 selected={settings.mode === option.value}
                 onSelect={() => {
-                  saveThemeSettings({ ...settings, mode: option.value })
+                  saveThemeSettings(current => ({
+                    ...current,
+                    mode: option.value,
+                  }))
                 }}
               />
             ))}
@@ -1158,9 +1211,10 @@ export function AppearanceSettings({
                 min={11}
                 value={settings.fontSizes.ui}
                 onChange={ui =>
-                  updateThemeSettings({
-                    fontSizes: { ...settings.fontSizes, ui },
-                  })
+                  saveThemeSettings(current => ({
+                    ...current,
+                    fontSizes: { ...current.fontSizes, ui },
+                  }))
                 }
               />
             }
@@ -1174,9 +1228,10 @@ export function AppearanceSettings({
                 min={8}
                 value={settings.fontSizes.code}
                 onChange={code =>
-                  updateThemeSettings({
-                    fontSizes: { ...settings.fontSizes, code },
-                  })
+                  saveThemeSettings(current => ({
+                    ...current,
+                    fontSizes: { ...current.fontSizes, code },
+                  }))
                 }
               />
             }

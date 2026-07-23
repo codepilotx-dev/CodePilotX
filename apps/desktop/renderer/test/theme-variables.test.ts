@@ -15,36 +15,40 @@ describe('fixed Codex UI themes', () => {
     const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
 
     expect(DEFAULT_LIGHT_THEME.codeThemeId).toBe('codex-light')
-    expect(light['--surface-underlay']).toBe('#f6f6f6')
-    expect(light['--surface-canvas']).toBe('#ffffff')
-    expect(light['--color-text']).toBe('#1a1c1f')
-    expect(light['--color-text-meta']).toBe('rgba(26, 28, 31, 0.695)')
-    expect(light['--color-text-soft']).toBe('rgba(26, 28, 31, 0.495)')
-    expect(light['--border-subtle']).toBe('rgba(26, 28, 31, 0.049)')
-    expect(light['--border-control']).toBe('rgba(26, 28, 31, 0.078)')
-    expect(light['--border-strong']).toBe('rgba(26, 28, 31, 0.117)')
+    expect(light['--color-background-surface-under']).toBe('#f6f6f6')
+    expect(light['--color-background-surface']).toBe('#ffffff')
+    expect(light['--color-text-foreground']).toBe('#1a1c1f')
+    expect(light['--color-text-foreground-secondary']).toBe(
+      'rgba(26, 28, 31, 0.695)',
+    )
+    expect(light['--color-text-foreground-tertiary']).toBe(
+      'rgba(26, 28, 31, 0.495)',
+    )
+    expect(light['--color-border-light']).toBe('rgba(26, 28, 31, 0.049)')
+    expect(light['--color-border']).toBe('rgba(26, 28, 31, 0.078)')
+    expect(light['--color-border-heavy']).toBe('rgba(26, 28, 31, 0.117)')
 
     expect(DEFAULT_DARK_THEME.codeThemeId).toBe('codex-dark')
-    expect(dark['--surface-underlay']).toBe('#141414')
-    expect(dark['--surface-canvas']).toBe('#181818')
-    expect(dark['--color-text']).toBe('#ffffff')
-    expect(dark['--surface-panel']).toBe('#232323')
-    expect(dark['--color-text-meta']).toBe(
+    expect(dark['--color-background-surface-under']).toBe('#141414')
+    expect(dark['--color-background-surface']).toBe('#181818')
+    expect(dark['--color-text-foreground']).toBe('#ffffff')
+    expect(dark['--color-background-panel']).toBe('#232323')
+    expect(dark['--color-text-foreground-secondary']).toBe(
       'rgba(255, 255, 255, 0.71)',
     )
-    expect(dark['--color-text-soft']).toBe(
+    expect(dark['--color-text-foreground-tertiary']).toBe(
       'rgba(255, 255, 255, 0.498)',
     )
-    expect(dark['--border-subtle']).toBe(
+    expect(dark['--color-border-light']).toBe(
       'rgba(255, 255, 255, 0.042)',
     )
-    expect(dark['--border-control']).toBe(
+    expect(dark['--color-border']).toBe(
       'rgba(255, 255, 255, 0.084)',
     )
-    expect(dark['--border-strong']).toBe(
+    expect(dark['--color-border-heavy']).toBe(
       'rgba(255, 255, 255, 0.156)',
     )
-    expect(dark['--color-accent-a3']).toBe('#339cffb3')
+    expect(dark['--codex-base-on-accent']).toBe('#ffffff')
   })
 
   test('uses the recovered Codex runtime formulas for Dracula', () => {
@@ -64,13 +68,48 @@ describe('fixed Codex UI themes', () => {
       },
     })
 
-    expect(variables['--surface-canvas']).toBe('#282a36')
-    expect(variables['--surface-chrome']).toBe('#22232d')
-    expect(variables['--surface-panel']).toBe('#32343f')
-    expect(variables['--surface-composer']).toBe('#373843')
-    expect(variables['--surface-code-block']).toBe('rgb(55, 56, 67)')
+    expect(variables['--color-background-surface']).toBe('#282a36')
+    expect(variables['--color-background-surface-under']).toBe('#22232d')
+    expect(variables['--color-background-panel']).toBe('#32343f')
+    expect(variables['--color-background-elevated-secondary-opaque']).toBe(
+      '#373843',
+    )
+    expect(variables['--color-background-editor-opaque']).toBe(
+      'rgb(55, 56, 67)',
+    )
     expect(variables['--color-text-accent']).toBe('rgb(255, 173, 220)')
     expect(variables['--color-decoration-added']).toBe('#50fa7b')
+  })
+
+  test('keeps the recovered contrast boundary palette deterministic', () => {
+    const expected = [
+      [0, 'rgba(26, 28, 31, 0.039)', '#ffffff'],
+      [45, 'rgba(26, 28, 31, 0.078)', '#f6f6f6'],
+      [60, 'rgba(26, 28, 31, 0.104)', '#f2f2f2'],
+      [100, 'rgba(26, 28, 31, 0.173)', '#e7e7e7'],
+    ] as const
+
+    for (const [contrast, border, surfaceUnder] of expected) {
+      const variables = deriveThemeVariables({
+        ...DEFAULT_LIGHT_THEME,
+        theme: {
+          ...DEFAULT_LIGHT_THEME.theme,
+          contrast,
+        },
+      })
+
+      expect(variables['--color-border']).toBe(border)
+      expect(variables['--color-background-surface-under']).toBe(
+        surfaceUnder,
+      )
+      expect(deriveThemeVariables({
+        ...DEFAULT_LIGHT_THEME,
+        theme: {
+          ...DEFAULT_LIGHT_THEME.theme,
+          contrast,
+        },
+      })).toEqual(variables)
+    }
   })
 
   test('migrates legacy settings without retaining old theme data', () => {

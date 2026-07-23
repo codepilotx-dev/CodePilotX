@@ -20,26 +20,6 @@
   }
 }
 
-.ui-button.segmented-control-item {
-  min-height: 24px;
-  padding: 2px 8px;
-  border-color: transparent;
-  border-radius: var(--radius-full);
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 18px;
-
-  &[data-variant="secondary"] {
-    border-color: transparent;
-    background: color-mix(in srgb, var(--color-token-foreground) 5%, transparent);
-    box-shadow: none;
-  }
-
-  &[data-variant="ghost"] {
-    color: var(--color-token-description-foreground);
-  }
-}
-
 .appearance-settings {
   width: 100%;
 }

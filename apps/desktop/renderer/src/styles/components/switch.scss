@@ -11,7 +11,7 @@
 
   &[data-state="checked"],
   &[aria-checked="true"] {
-    background: var(--color-token-text-link-foreground);
+    background: var(--codex-base-accent);
   }
 }
 
@@ -41,14 +41,14 @@
 .toggle-knob {
   width: 16px;
   height: 16px;
-  border: 1px solid var(--color-token-foreground);
+  border: 1px solid white;
   border-radius: var(--radius-full);
   position: absolute;
   top: 2px;
   left: 0;
   transition: transform 0.15s ease;
   transform: translateX(2px);
-  background: var(--color-token-foreground);
+  background: white;
 }
 
 /* --- Chat Input Dropdown Switch --- */

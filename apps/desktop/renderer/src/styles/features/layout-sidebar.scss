@@ -94,6 +94,10 @@
   &:hover::-webkit-scrollbar-thumb {
     background-color: var(--color-token-scrollbar-slider-hover-background);
   }
+
+  &::-webkit-scrollbar-thumb:active {
+    background-color: var(--color-token-scrollbar-slider-active-background);
+  }
 }
 
 .sidebar-scroll-content {
@@ -436,6 +440,15 @@
 }
 
 @media (forced-colors: active) {
+  .sidebar-scroll-area {
+    scrollbar-color: auto;
+
+    &::-webkit-scrollbar-thumb {
+      border-color: Canvas;
+      background: ButtonText;
+    }
+  }
+
   .desktop-sidebar.is-preview {
     border: 1px solid CanvasText;
     box-shadow: none;

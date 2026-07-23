@@ -1,6 +1,12 @@
 import type React from 'react'
-import { FileIcon } from '@codepilotx/material-icon-theme'
-import type { LucideProps } from 'lucide-react'
+import { lazy, Suspense } from 'react'
+import { File, type LucideProps } from 'lucide-react'
+
+const MaterialFileIcon = lazy(() =>
+  import('@codepilotx/material-icon-theme').then(module => ({
+    default: module.FileIcon,
+  })),
+)
 
 export type FileTypeIconProps = LucideProps & {
   path?: string | null
@@ -12,5 +18,9 @@ export function FileTypeIcon({
   absoluteStrokeWidth: _absoluteStrokeWidth,
   ...iconProps
 }: FileTypeIconProps): React.ReactNode {
-  return <FileIcon {...iconProps} path={path} />
+  return (
+    <Suspense fallback={<File {...iconProps} />}>
+      <MaterialFileIcon {...iconProps} path={path} />
+    </Suspense>
+  )
 }

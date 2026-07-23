@@ -2,6 +2,7 @@ import React, { Suspense, useMemo, useState } from 'react'
 import { FlaskConical, Search } from 'lucide-react'
 import { LAB_CATEGORY_LABELS, LAB_DEMOS } from './labRegistry.js'
 import type { LabDemoDefinition } from './labTypes.js'
+import '../../styles/lazy/labs.scss'
 
 export function LabsPage(): React.ReactNode {
   const [query, setQuery] = useState('')

@@ -26,6 +26,32 @@ body {
   scrollbar-width: thin;
 }
 
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--color-token-scrollbar-slider-background);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-token-scrollbar-slider-hover-background);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: var(--color-token-scrollbar-slider-active-background);
+  background-clip: padding-box;
+}
+
 button,
 input,
 select,
@@ -96,6 +122,15 @@ textarea:focus-visible,
 }
 
 @media (forced-colors: active) {
+  * {
+    scrollbar-color: auto;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border-color: Canvas;
+    background: ButtonText;
+  }
+
   button:focus-visible,
   a:focus-visible,
   input:focus-visible,

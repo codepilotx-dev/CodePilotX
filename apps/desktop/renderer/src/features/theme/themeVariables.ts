@@ -5,26 +5,14 @@ export type ThemeVariableMap = Record<ThemeVariableName, string>
 
 type CodexRoles = {
   tokens: ThemeVariableMap
-  canvas: string
-  underlay: string
-  chrome: string
-  panel: string
   raised: string
-  codeBlock: string
   codeInline: string
-  userMessage: string
-  composer: string
   hover: string
   selected: string
-  borderSubtle: string
   borderControl: string
   borderStrong: string
-  separator: string
-  scrollbarRest: string
-  scrollbarHover: string
   textSecondary: string
   textTertiary: string
-  textPlaceholder: string
   textDisabled: string
 }
 
@@ -81,27 +69,7 @@ export function deriveThemeVariables(
     '--color-accent-purple': theme.semanticColors.skill,
     '--color-decoration-added': theme.semanticColors.diffAdded,
     '--color-decoration-deleted': theme.semanticColors.diffRemoved,
-    '--color-editor-added': rgba(
-      parseHex(theme.semanticColors.diffAdded),
-      dark ? 0.23 : 0.15,
-    ),
-    '--color-editor-deleted': rgba(
-      parseHex(theme.semanticColors.diffRemoved),
-      dark ? 0.23 : 0.15,
-    ),
     '--contrast': String(theme.contrast),
-    '--color-bg': roles.canvas,
-    '--color-bg-pure': roles.canvas,
-    '--color-bg-soft': roles.codeInline,
-    '--color-bg-subtle': roles.panel,
-    '--color-bg-mask': roles.codeBlock,
-    '--color-bg-hover': roles.hover,
-    '--color-bg-row-hover': roles.composer,
-    '--color-bg-chip-hover': roles.hover,
-    '--color-bg-card': roles.panel,
-    '--color-popover-bg': roles.raised,
-    '--color-popover-border': roles.borderStrong,
-    '--color-popover-divider': roles.separator,
     '--glass-surface-bg': rgba(parseHex(theme.surface), 0.2),
     '--glass-surface-border': rgba(parseHex(theme.ink), 0.12),
     '--glass-surface-highlight': rgba(parseHex(theme.ink), 0.08),
@@ -109,83 +77,12 @@ export function deriveThemeVariables(
     '--glass-surface-text-meta': roles.textSecondary,
     '--glass-surface-text-disabled': roles.textDisabled,
     '--glass-surface-blur': '14px',
-    '--color-surface': roles.canvas,
-    '--color-ink': theme.ink,
-    '--color-border': roles.borderControl,
-    '--color-border-soft': roles.borderSubtle,
-    '--color-border-faint': roles.borderSubtle,
-    '--color-border-row': roles.borderSubtle,
     '--color-danger': theme.semanticColors.diffRemoved,
     '--color-warning': dark ? '#f0a33b' : '#a05a00',
-    '--color-success': theme.semanticColors.diffAdded,
-    '--color-text': theme.ink,
-    '--color-text-strong': theme.ink,
-    '--color-text-meta': roles.textSecondary,
-    '--color-text-soft': roles.textTertiary,
-    '--color-text-mute': roles.textTertiary,
-    '--color-text-placeholder': roles.textPlaceholder,
-    '--color-text-disabled': roles.textDisabled,
-    '--color-text-on-accent': textOnAccent(theme.accent),
-    '--color-icon': theme.ink,
-    '--color-icon-soft': roles.textSecondary,
-    '--color-icon-arrow': roles.textTertiary,
-    '--color-accent': theme.accent,
-    '--color-accent-a3': `${theme.accent}b3`,
-    '--color-accent-11': theme.accent,
-    '--color-primary-action':
-      roles.tokens['--color-background-button-primary'],
-    '--color-primary-action-foreground':
-      roles.tokens['--color-text-button-primary'],
-    '--color-primary-action-hover':
-      roles.tokens['--color-background-button-primary-hover'],
-    '--color-primary-action-disabled':
-      roles.tokens['--color-background-button-primary-inactive'],
-    '--color-send-bg': 'var(--color-primary-action)',
-    '--color-send-bg-hover': 'var(--color-primary-action-hover)',
-    '--color-send-bg-disabled': 'var(--color-primary-action-disabled)',
-    '--color-user-bubble-bg': roles.userMessage,
-    '--color-scrollbar': roles.scrollbarRest,
-    '--color-scrollbar-hover': roles.scrollbarHover,
-    '--color-diff-added': theme.semanticColors.diffAdded,
-    '--color-diff-removed': theme.semanticColors.diffRemoved,
-    '--color-skill': theme.semanticColors.skill,
-    '--surface-base': roles.canvas,
-    '--surface-canvas': roles.canvas,
-    '--surface-underlay': roles.underlay,
-    '--surface-chrome': roles.chrome,
-    '--surface-panel': roles.panel,
-    '--surface-raised': roles.raised,
-    '--surface-code-block': roles.codeBlock,
-    '--surface-code-inline': roles.codeInline,
-    '--surface-user-message': roles.userMessage,
-    '--surface-composer': roles.composer,
-    '--surface-subtle': roles.panel,
-    '--surface-product': roles.codeBlock,
-    '--surface-product-raised': roles.codeInline,
-    '--state-hover': roles.hover,
-    '--state-selected': roles.selected,
-    '--state-hover-bg': roles.hover,
-    '--state-active-bg': roles.selected,
-    '--border-subtle': roles.borderSubtle,
-    '--border-muted': roles.borderControl,
-    '--border-control': roles.borderControl,
-    '--border-strong': roles.borderStrong,
-    '--scrollbar-rest': roles.scrollbarRest,
-    '--scrollbar-hover': roles.scrollbarHover,
+    '--codex-base-on-accent': textOnAccent(theme.accent),
     '--shadow-resting': shadowResting,
     '--shadow-raised': shadowRaised,
     '--shadow-float': shadowFloat,
-    '--color-chrome-bg': roles.chrome,
-    '--color-sidebar-bg': roles.chrome,
-    '--color-sidebar-active-bg': roles.selected,
-    '--color-sidebar-hover-bg': roles.hover,
-    '--color-workbench-bg': roles.canvas,
-    '--color-panel-bg': roles.panel,
-    '--color-panel-elevated-bg': roles.raised,
-    '--color-panel-border': roles.borderSubtle,
-    '--color-panel-shadow': 'var(--shadow-float)',
-    '--color-panel-shadow-raised': 'var(--shadow-raised)',
-    '--color-panel-shadow-soft': 'var(--shadow-resting)',
     '--font-family-sans':
       theme.fonts.ui ??
       '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -344,26 +241,14 @@ function deriveCodexRoles(
       '--color-text-foreground-secondary': palette.textForegroundSecondary,
       '--color-text-foreground-tertiary': palette.textForegroundTertiary,
     },
-    canvas: surface,
-    underlay: surfaceUnder,
-    chrome: surfaceUnder,
-    panel,
     raised: palette.elevatedSecondaryOpaque,
-    codeBlock: rgbString(editorBackground),
     codeInline: palette.buttonSecondaryBackground,
-    userMessage: palette.elevatedSecondaryOpaque,
-    composer: palette.elevatedSecondaryOpaque,
     hover: palette.buttonSecondaryBackgroundHover,
     selected: palette.buttonSecondaryBackgroundActive,
-    borderSubtle: palette.borderLight,
     borderControl: palette.border,
     borderStrong: palette.borderHeavy,
-    separator: palette.border,
-    scrollbarRest: palette.buttonSecondaryBackground,
-    scrollbarHover: palette.buttonSecondaryBackgroundHover,
     textSecondary: palette.textForegroundSecondary,
     textTertiary: palette.textForegroundTertiary,
-    textPlaceholder: palette.textForegroundTertiary,
     textDisabled: palette.buttonPrimaryBackgroundInactive,
   }
 }

@@ -202,21 +202,21 @@
 
   &.is-blue {
     --new-session-suggestion-tone: var(
-      --color-accent-blue,
+      --color-token-charts-blue,
       var(--color-token-text-link-foreground)
     );
   }
 
   &.is-purple {
     --new-session-suggestion-tone: var(
-      --color-accent-purple,
+      --color-token-charts-purple,
       var(--color-token-text-link-foreground)
     );
   }
 
   &.is-green {
     --new-session-suggestion-tone: var(
-      --color-decoration-added,
+      --color-token-charts-green,
       var(--color-token-git-decoration-added-resource-foreground)
     );
   }
@@ -282,21 +282,21 @@
 
   &.is-blue {
     --new-session-suggestion-tone: var(
-      --color-accent-blue,
+      --color-token-charts-blue,
       var(--color-token-text-link-foreground)
     );
   }
 
   &.is-purple {
     --new-session-suggestion-tone: var(
-      --color-accent-purple,
+      --color-token-charts-purple,
       var(--color-token-text-link-foreground)
     );
   }
 
   &.is-green {
     --new-session-suggestion-tone: var(
-      --color-decoration-added,
+      --color-token-charts-green,
       var(--color-token-git-decoration-added-resource-foreground)
     );
   }
