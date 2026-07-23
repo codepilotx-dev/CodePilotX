@@ -45,21 +45,51 @@ export const piToolResultText = (value: unknown, options: { tool: string; progre
 /** Converts Pi's protocol into stable semantic callbacks used by the Agent persistence layer. */
 export class PiEventAdapter {
   private beforeCompactionCount: number | undefined
+  private assistantItems: { textItemID: string; reasoningItemID: string } | null = null
 
   constructor(private readonly context: PiRuntimeEventContext, private readonly sink: PiRuntimeEventSink) {}
+
+  private newAssistantItems() {
+    const segmentID = crypto.randomUUID()
+    return {
+      textItemID: `${this.context.turnID}:pi:text:${segmentID}`,
+      reasoningItemID: `${this.context.turnID}:pi:reasoning:${segmentID}`,
+    }
+  }
+
+  private async ensureAssistantItems() {
+    if (this.assistantItems) return this.assistantItems
+    this.assistantItems = this.newAssistantItems()
+    await this.sink.assistantMessageStarted?.(this.context, this.assistantItems)
+    return this.assistantItems
+  }
 
   async handle(event: AgentHarnessEvent) {
     await this.sink.event?.(this.context, event)
     switch (event.type) {
+      case "message_start":
+        if (event.message.role === "assistant") {
+          this.assistantItems = this.newAssistantItems()
+          await this.sink.assistantMessageStarted?.(this.context, this.assistantItems)
+        }
+        break
       case "session_before_compact":
         this.beforeCompactionCount = event.branchEntries.length
         break
       case "message_update": {
         const update = event.assistantMessageEvent
-        if (update.type === "text_delta") await this.sink.textDelta?.(this.context, update.delta)
-        if (update.type === "thinking_delta") await this.sink.reasoningDelta?.(this.context, update.delta)
+        const items = await this.ensureAssistantItems()
+        if (update.type === "text_delta") await this.sink.textDelta?.(this.context, { itemID: items.textItemID, delta: update.delta })
+        if (update.type === "thinking_delta") await this.sink.reasoningDelta?.(this.context, { itemID: items.reasoningItemID, delta: update.delta })
         break
       }
+      case "message_end":
+        if (event.message.role === "assistant") {
+          const items = await this.ensureAssistantItems()
+          await this.sink.assistantMessageCompleted?.(this.context, { ...items, content: event.message.content })
+          this.assistantItems = null
+        }
+        break
       case "tool_execution_start":
         await this.sink.toolStarted?.(this.context, { toolCallID: event.toolCallId, tool: event.toolName, input: event.args })
         break

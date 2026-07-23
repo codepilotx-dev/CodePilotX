@@ -80,10 +80,11 @@ export class SubagentRepository {
         ].join("\n\n"),
         model: input.model, permission, taskMode: input.taskMode ?? "chat", sequence: 0, timestamp,
       })
-      this.db.sqlite.query(`INSERT INTO items (id, thread_id, turn_id, agent_id, type, status, data, created_at, updated_at) VALUES (?, ?, ?, ?, 'subagent', 'pending', ?, ?, ?)`).run(
+      const itemOrdinal = (this.db.sqlite.query("SELECT COALESCE(MAX(ordinal), -1) + 1 AS ordinal FROM items WHERE turn_id = ?").get(input.parentTurnID) as { ordinal: number }).ordinal
+      this.db.sqlite.query(`INSERT INTO items (id, thread_id, turn_id, agent_id, type, status, data, ordinal, created_at, updated_at) VALUES (?, ?, ?, ?, 'subagent', 'pending', ?, ?, ?, ?)`).run(
         itemID, input.parentThreadID, input.parentTurnID, input.parentAgentID,
         stringify({ subagentTaskId: taskID, runId: runID, childThreadId: childThreadID, displayName: input.displayName, profile: input.profile, task: input.task, status: "queued", queueReason: null, result: null }),
-        timestamp, timestamp,
+        itemOrdinal, timestamp, timestamp,
       )
       const events = [
         this.db.insertEvent(input.parentThreadID, input.parentTurnID, "subagent/created", { task: this.task(taskID), run: this.run(runID), itemId: itemID }),

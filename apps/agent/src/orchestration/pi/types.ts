@@ -66,8 +66,10 @@ export interface PiRuntimeEventContext {
  */
 export interface PiRuntimeEventSink {
   event?(context: PiRuntimeEventContext, event: AgentHarnessEvent): void | Promise<void>
-  textDelta?(context: PiRuntimeEventContext, delta: string): void | Promise<void>
-  reasoningDelta?(context: PiRuntimeEventContext, delta: string): void | Promise<void>
+  assistantMessageStarted?(context: PiRuntimeEventContext, input: { textItemID: string; reasoningItemID: string }): void | Promise<void>
+  assistantMessageCompleted?(context: PiRuntimeEventContext, input: { textItemID: string; reasoningItemID: string; content: unknown }): void | Promise<void>
+  textDelta?(context: PiRuntimeEventContext, input: { itemID: string; delta: string }): void | Promise<void>
+  reasoningDelta?(context: PiRuntimeEventContext, input: { itemID: string; delta: string }): void | Promise<void>
   toolStarted?(context: PiRuntimeEventContext, input: { toolCallID: string; tool: string; input: unknown }): void | Promise<void>
   toolUpdated?(context: PiRuntimeEventContext, input: { toolCallID: string; tool: string; update: unknown }): void | Promise<void>
   toolFinished?(context: PiRuntimeEventContext, input: { toolCallID: string; tool: string; result: unknown; isError: boolean }): void | Promise<void>

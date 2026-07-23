@@ -730,7 +730,11 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
     }
 
   upsertItem(threadID: string, item: Item) {
-      this.sqlite.query(`INSERT INTO items (id, thread_id, turn_id, agent_id, type, status, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET status = excluded.status, data = excluded.data, updated_at = excluded.updated_at`).run(
+      const existing = this.sqlite.query("SELECT ordinal FROM items WHERE id = ?").get(item.id) as { ordinal: number } | null
+      const ordinal = item.ordinal ?? existing?.ordinal ?? Number(
+        (this.sqlite.query("SELECT COALESCE(MAX(ordinal), -1) + 1 AS ordinal FROM items WHERE turn_id = ?").get(item.turnID) as { ordinal: number }).ordinal,
+      )
+      this.sqlite.query(`INSERT INTO items (id, thread_id, turn_id, agent_id, type, status, data, ordinal, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET status = excluded.status, data = excluded.data, updated_at = excluded.updated_at`).run(
         item.id,
         threadID,
         item.turnID,
@@ -738,27 +742,28 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
         item.type,
         item.status,
         stringify(item.data),
+        ordinal,
         item.createdAt,
         item.updatedAt,
       )
     }
 
-  upsertItemWithEvent(threadID: string, item: Item, method: string, params?: unknown) {
+  upsertItemWithEvent(threadID: string, item: Item, method: string, params?: unknown | ((item: Item) => unknown)) {
       return this.transaction(() => {
         this.upsertItem(threadID, item)
         const persisted = this.getItem(item.id) ?? item
         return {
           item: persisted,
-          event: this.insertEvent(threadID, item.turnID, method, params ?? { item: persisted }),
+          event: this.insertEvent(threadID, item.turnID, method, typeof params === "function" ? params(persisted) : params ?? { item: persisted }),
         }
       })
     }
 
   getItem(itemID: string) {
-      const row = this.sqlite.query("SELECT id, turn_id, agent_id, type, status, data, created_at, updated_at FROM items WHERE id = ?").get(itemID) as
-        | { id: string; turn_id: string; agent_id: string; type: Item["type"]; status: Item["status"]; data: string; created_at: number; updated_at: number }
+      const row = this.sqlite.query("SELECT id, turn_id, agent_id, type, status, data, ordinal, created_at, updated_at FROM items WHERE id = ?").get(itemID) as
+        | { id: string; turn_id: string; agent_id: string; type: Item["type"]; status: Item["status"]; data: string; ordinal: number; created_at: number; updated_at: number }
         | null
-      return row ? { id: row.id, turnID: row.turn_id, agentID: row.agent_id, type: row.type, status: row.status, data: parse<Record<string, unknown>>(row.data), createdAt: row.created_at, updatedAt: row.updated_at } satisfies Item : null
+      return row ? { id: row.id, turnID: row.turn_id, agentID: row.agent_id, type: row.type, status: row.status, data: parse<Record<string, unknown>>(row.data), ordinal: row.ordinal, createdAt: row.created_at, updatedAt: row.updated_at } satisfies Item : null
     }
 
   insertEvent(threadId: string | null, turnId: string | null, method: string, params: unknown): EventEnvelope {

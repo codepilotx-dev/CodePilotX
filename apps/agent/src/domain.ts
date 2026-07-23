@@ -152,6 +152,7 @@ export interface Item {
   type: ItemType
   status: "pending" | "running" | "completed" | "error" | "interrupted"
   data: Record<string, unknown>
+  ordinal?: number
   createdAt: number
   updatedAt: number
 }

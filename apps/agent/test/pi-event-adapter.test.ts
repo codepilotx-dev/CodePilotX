@@ -9,14 +9,37 @@ describe("PiEventAdapter", () => {
   test("routes live text and reasoning deltas without inventing durable events", async () => {
     const seen: string[] = []
     const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
-      textDelta: async (_context, delta) => { seen.push(`text:${delta}`) },
-      reasoningDelta: async (_context, delta) => { seen.push(`reasoning:${delta}`) },
+      textDelta: async (_context, input) => { seen.push(`text:${input.delta}`) },
+      reasoningDelta: async (_context, input) => { seen.push(`reasoning:${input.delta}`) },
     })
 
     await adapter.handle({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "hello" } } as AgentHarnessEvent)
     await adapter.handle({ type: "message_update", assistantMessageEvent: { type: "thinking_delta", delta: "why" } } as AgentHarnessEvent)
 
     expect(seen).toEqual(["text:hello", "reasoning:why"])
+  })
+
+  test("allocates a unique stable item identity for each assistant message", async () => {
+    const started: string[] = []
+    const deltas: string[] = []
+    const completed: string[] = []
+    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
+      assistantMessageStarted: async (_context, input) => { started.push(input.textItemID) },
+      textDelta: async (_context, input) => { deltas.push(input.itemID) },
+      assistantMessageCompleted: async (_context, input) => { completed.push(input.textItemID) },
+    })
+    const assistant = (text: string) => ({ role: "assistant", content: [{ type: "text", text }] })
+
+    await adapter.handle({ type: "message_start", message: assistant("") } as unknown as AgentHarnessEvent)
+    await adapter.handle({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "开始检查" } } as AgentHarnessEvent)
+    await adapter.handle({ type: "message_end", message: assistant("开始检查") } as unknown as AgentHarnessEvent)
+    await adapter.handle({ type: "message_start", message: assistant("") } as unknown as AgentHarnessEvent)
+    await adapter.handle({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "检查完成" } } as AgentHarnessEvent)
+    await adapter.handle({ type: "message_end", message: assistant("检查完成") } as unknown as AgentHarnessEvent)
+
+    expect(new Set(started).size).toBe(2)
+    expect(deltas).toEqual(started)
+    expect(completed).toEqual(started)
   })
 
   test("routes transaction boundaries and queue counts", async () => {

@@ -8,7 +8,6 @@ import {
 import {
   AgentHarness,
   SessionError,
-  type AgentHarnessEvent,
 } from "@codepilotx/pi-agent-core";
 import type { AgentRuntimeRequest, PendingApproval } from "./AgentRuntimeTypes";
 import {
@@ -90,11 +89,10 @@ export const piToolItemPayload = (item: Item) => {
     startedAt: typeof data.startedAt === "number" ? data.startedAt : item.createdAt,
     finishedAt: typeof data.finishedAt === "number" ? data.finishedAt : terminal ? item.updatedAt : null,
     durationMs: typeof data.durationMs === "number" ? data.durationMs : terminal ? item.updatedAt - item.createdAt : null,
+    ...(item.ordinal === undefined ? {} : { ordinal: item.ordinal }),
     createdAt: item.createdAt,
   };
 };
-
-const reasoningItemID = (turnID: string) => `${turnID}:pi:reasoning`;
 
 export const finishedPiToolItem = (input: {
   current: Item | null;
@@ -194,14 +192,13 @@ export class PiOrchestratorAdapter {
       timestamp: Date.now(),
     });
     if (!item) return null;
-    const projected = piToolItemPayload(item);
     const persisted = this.options.db.upsertItemWithEvent(
       context.threadID,
       item,
       input.isError ? "tool/error" : "tool/callCompleted",
-      input.isError
-        ? { item: projected, error: { code: "TOOL_EXECUTION_ERROR", message: input.output || "工具执行失败", retryable: false } }
-        : { item: projected },
+      (stored: Item) => input.isError
+        ? { item: stored, error: { code: "TOOL_EXECUTION_ERROR", message: input.output || "工具执行失败", retryable: false } }
+        : { item: stored },
     );
     return persisted.event;
   }
@@ -217,8 +214,6 @@ export class PiOrchestratorAdapter {
   }
 
   private eventSink(storage: SqlitePiSessionStorage): PiRuntimeEventSink {
-    const itemID = (context: PiRuntimeEventContext) =>
-      `${context.turnID}:pi:text`;
     const pendingFor = (context: PiRuntimeEventContext) => {
       const existing = this.pending.get(context.threadID);
       if (existing) return existing;
@@ -227,18 +222,32 @@ export class PiOrchestratorAdapter {
       return created;
     };
     return {
-      textDelta: async (context, delta) => {
+      assistantMessageStarted: async (context, input) => {
+        const timestamp = Date.now();
+        const persisted = this.options.db.upsertItemWithEvent(context.threadID, {
+          id: input.textItemID,
+          turnID: context.turnID,
+          agentID: context.agentID,
+          type: "text",
+          status: "running",
+          data: { placement: "result", text: "" },
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        }, "item/started");
+        await this.publish(persisted.event);
+      },
+      textDelta: async (context, input) => {
         await this.publish(
           createLiveEvent(
             this.options.db,
             context.threadID,
             context.turnID,
             "item/agentMessage/delta",
-            piItemDeltaPayload({ itemID: itemID(context), context, delta }),
+            piItemDeltaPayload({ itemID: input.itemID, context, delta: input.delta }),
           ),
         );
       },
-      reasoningDelta: async (context, delta) => {
+      reasoningDelta: async (context, input) => {
         await this.publish(
           createLiveEvent(
             this.options.db,
@@ -246,38 +255,39 @@ export class PiOrchestratorAdapter {
             context.turnID,
             "reasoning/textDelta",
             piItemDeltaPayload({
-              itemID: reasoningItemID(context.turnID),
+              itemID: input.itemID,
               context,
-              delta,
+              delta: input.delta,
             }),
           ),
         );
       },
-      event: async (context, event: AgentHarnessEvent) => {
-        if (event.type !== "message_end" || event.message.role !== "assistant")
-          return;
+      assistantMessageCompleted: async (context, input) => {
         const timestamp = Date.now();
         const pending = pendingFor(context);
-        pending.items.set(itemID(context), {
-          id: itemID(context),
+        const currentText = this.options.db.getItem(input.textItemID);
+        pending.items.set(input.textItemID, {
+          id: input.textItemID,
           turnID: context.turnID,
           agentID: context.agentID,
           type: "text",
           status: "completed",
           data: {
             placement: "result",
-            text: contentText(event.message.content, "\n").trim(),
+            text: contentText(input.content as never, "\n").trim(),
           },
-          createdAt: timestamp,
+          ...(currentText?.ordinal === undefined ? {} : { ordinal: currentText.ordinal }),
+          createdAt: currentText?.createdAt ?? timestamp,
           updatedAt: timestamp,
         });
-        const reasoning = event.message.content
+        const content = Array.isArray(input.content) ? input.content : [];
+        const reasoning = content
           .flatMap((part) => (part.type === "thinking" ? [part.thinking] : []))
           .join("\n")
           .trim();
-        if (reasoning)
-          pending.items.set(reasoningItemID(context.turnID), {
-            id: reasoningItemID(context.turnID),
+        if (reasoning) {
+          pending.items.set(input.reasoningItemID, {
+            id: input.reasoningItemID,
             turnID: context.turnID,
             agentID: context.agentID,
             type: "reasoning",
@@ -286,6 +296,7 @@ export class PiOrchestratorAdapter {
             createdAt: timestamp,
             updatedAt: timestamp,
           });
+        }
       },
       toolStarted: async (context, input) => {
         const timestamp = Date.now();
@@ -315,10 +326,10 @@ export class PiOrchestratorAdapter {
           context.threadID,
           item,
           "tool/callStarted",
-          {
-            item: piToolItemPayload(item),
+          (stored: Item) => ({
+            item: stored,
             inputSummary: commandFromInput(input.input) ?? input.tool,
-          },
+          }),
         );
         await this.publish(persisted.event);
       },
@@ -349,12 +360,13 @@ export class PiOrchestratorAdapter {
           if (pending) {
             for (const item of pending.items.values()) {
               this.options.db.upsertItem(context.threadID, item);
+              const persisted = this.options.db.getItem(item.id) ?? item;
               durable.push(
                 this.options.db.insertEvent(
                   context.threadID,
                   context.turnID,
                   "item/completed",
-                  { item },
+                  { item: persisted },
                 ),
               );
             }

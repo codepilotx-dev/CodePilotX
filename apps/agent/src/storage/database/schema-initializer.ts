@@ -26,7 +26,7 @@ export const FINAL_SCHEMA = [
   "CREATE TABLE inputs (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n        content TEXT NOT NULL,\n        model_ref TEXT NOT NULL,\n        sandbox_mode TEXT NOT NULL DEFAULT 'workspace-write',\n        approval_policy TEXT NOT NULL DEFAULT 'on-request',\n        approvals_reviewer TEXT NOT NULL DEFAULT 'user',\n        strategy TEXT NOT NULL,\n        task_mode TEXT NOT NULL,\n        status TEXT NOT NULL,\n        created_at INTEGER NOT NULL\n      )",
   "CREATE TABLE integration_credential_bindings (\n          integration_id TEXT PRIMARY KEY,\n          credential_id TEXT NOT NULL REFERENCES credentials(id) ON DELETE CASCADE,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE interaction_operations (\n          operation_id TEXT PRIMARY KEY,\n          interaction_id TEXT NOT NULL,\n          response TEXT NOT NULL,\n          result TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        )",
-  "CREATE TABLE items (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n        agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n        type TEXT NOT NULL,\n        status TEXT NOT NULL,\n        data TEXT NOT NULL,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
+  "CREATE TABLE items (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n        agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,\n        type TEXT NOT NULL,\n        status TEXT NOT NULL,\n        data TEXT NOT NULL,\n        ordinal INTEGER NOT NULL,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )",
   "CREATE TABLE memory_entries (\n          id TEXT PRIMARY KEY,\n          scope TEXT NOT NULL,\n          project_key TEXT NOT NULL DEFAULT '',\n          content TEXT NOT NULL,\n          source_thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          content_hash TEXT NOT NULL,\n          created_at INTEGER NOT NULL,\n          updated_at INTEGER NOT NULL,\n          UNIQUE(scope, project_key, content_hash)\n        )",
   "CREATE TABLE memory_jobs (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL,\n          project_key TEXT,\n          status TEXT NOT NULL,\n          payload TEXT NOT NULL,\n          result TEXT,\n          error TEXT,\n          created_at INTEGER NOT NULL,\n          started_at INTEGER,\n          finished_at INTEGER,\n          updated_at INTEGER NOT NULL\n        )",
   "CREATE TABLE messages (\n        id TEXT PRIMARY KEY,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n        role TEXT NOT NULL,\n        content TEXT NOT NULL,\n        created_at INTEGER NOT NULL\n      , ordinal INTEGER)",
@@ -63,6 +63,7 @@ export const FINAL_SCHEMA = [
   "CREATE INDEX input_attachments_thread ON input_attachments(thread_id, created_at)",
   "CREATE INDEX interaction_operations_interaction\n          ON interaction_operations(interaction_id, created_at)",
   "CREATE INDEX items_turn_created ON items(turn_id, created_at)",
+  "CREATE UNIQUE INDEX items_turn_ordinal_unique ON items(turn_id, ordinal)",
   "CREATE INDEX memory_entries_scope ON memory_entries(scope, project_key, updated_at DESC)",
   "CREATE INDEX memory_jobs_status ON memory_jobs(status, created_at)",
   "CREATE INDEX messages_session_ordinal ON messages(thread_id, ordinal, id)",
@@ -111,6 +112,143 @@ const tableName = (statement: string) => {
 const indexTable = (statement: string) => {
   const match = statement.match(/\sON\s+(?:"([^"]+)"|([^\s(]+))/)
   return match?.[1] ?? match?.[2] ?? null
+}
+
+type RecoverableEventItem = {
+  id: string
+  turnID: string
+  agentID: string
+  type: string
+  status: string
+  data: Record<string, unknown>
+  createdAt: number
+  updatedAt: number
+}
+
+const recoverableEventItem = (value: unknown, fallbackTurnID: string | null, eventCreatedAt: number): RecoverableEventItem | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null
+  const item = value as Record<string, unknown>
+  const id = typeof item.id === "string" ? item.id : null
+  const turnID = typeof item.turnID === "string"
+    ? item.turnID
+    : typeof item.turnId === "string"
+      ? item.turnId
+      : fallbackTurnID
+  const agentID = typeof item.agentID === "string"
+    ? item.agentID
+    : typeof item.agentId === "string"
+      ? item.agentId
+      : null
+  const type = typeof item.type === "string" ? item.type : null
+  if (!id || !turnID || !agentID || !type) return null
+  const data = item.data && typeof item.data === "object" && !Array.isArray(item.data)
+    ? item.data as Record<string, unknown>
+    : type === "text"
+      ? {
+          placement: item.placement === "process" ? "process" : "result",
+          text: typeof item.text === "string" ? item.text : "",
+        }
+      : {}
+  return {
+    id,
+    turnID,
+    agentID,
+    type,
+    status: typeof item.status === "string" ? item.status : type === "tool" ? "completed" : "completed",
+    data,
+    createdAt: typeof item.createdAt === "number" ? item.createdAt : eventCreatedAt,
+    updatedAt: typeof item.updatedAt === "number" ? item.updatedAt : eventCreatedAt,
+  }
+}
+
+const migrateHistory18To19 = (sqlite: Database) => {
+  sqlite.exec("ALTER TABLE items ADD COLUMN ordinal INTEGER")
+  const eventRows = sqlite.query(`
+    SELECT id, thread_id, turn_id, method, params, created_at
+    FROM events
+    WHERE method IN ('item/started', 'item/completed', 'tool/callStarted')
+    ORDER BY id
+  `).all() as Array<{
+    id: number
+    thread_id: string | null
+    turn_id: string | null
+    method: string
+    params: string
+    created_at: number
+  }>
+  const textSnapshots = new Map<string, Array<{ eventID: number; threadID: string; item: RecoverableEventItem }>>()
+
+  for (const row of eventRows) {
+    let params: Record<string, unknown>
+    try {
+      const parsed = JSON.parse(row.params)
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) continue
+      params = parsed as Record<string, unknown>
+    } catch {
+      continue
+    }
+    const item = recoverableEventItem(params.item, row.turn_id, row.created_at)
+    if (!item || item.type !== "text" || row.method !== "item/completed" || !row.thread_id) continue
+    const text = typeof item.data.text === "string" ? item.data.text : ""
+    if (!text.trim()) continue
+    const key = `${item.turnID}\u0000${item.id}`
+    textSnapshots.set(key, [...(textSnapshots.get(key) ?? []), { eventID: row.id, threadID: row.thread_id, item }])
+  }
+
+  for (const snapshots of textSnapshots.values()) {
+    if (snapshots.length < 2) continue
+    const originalID = snapshots[0]!.item.id
+    const original = sqlite.query("SELECT type, data FROM items WHERE id = ?").get(originalID) as { type: string; data: string } | null
+    let originalText: string | null = null
+    try {
+      const data = original ? JSON.parse(original.data) as Record<string, unknown> : null
+      originalText = typeof data?.text === "string" ? data.text : null
+    } catch {
+      originalText = null
+    }
+    const fullyReplaced = original?.type === "text"
+      && originalText !== null
+      && snapshots.some((snapshot) => snapshot.item.data.text === originalText)
+    if (fullyReplaced) sqlite.query("DELETE FROM items WHERE id = ?").run(originalID)
+    for (const snapshot of snapshots) {
+      const item = snapshot.item
+      const recoveredID = `${item.id}:history:${snapshot.eventID}`
+      sqlite.query(`
+        INSERT OR IGNORE INTO items
+          (id, thread_id, turn_id, agent_id, type, status, data, ordinal, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'text', ?, ?, NULL, ?, ?)
+      `).run(
+        recoveredID,
+        snapshot.threadID,
+        item.turnID,
+        item.agentID,
+        item.status,
+        JSON.stringify(item.data),
+        item.createdAt,
+        item.updatedAt,
+      )
+    }
+  }
+
+  const turns = sqlite.query("SELECT DISTINCT turn_id FROM items ORDER BY turn_id").all() as Array<{ turn_id: string }>
+  for (const { turn_id: turnID } of turns) {
+    const rows = sqlite.query(`
+      SELECT id, type, created_at
+      FROM items
+      WHERE turn_id = ?
+      ORDER BY created_at, id
+    `).all(turnID) as Array<{ id: string; type: string; created_at: number }>
+    rows.sort((left, right) => {
+      const created = left.created_at - right.created_at
+      if (created !== 0) return created
+      const priority = (type: string) => type === "text" ? 0 : type === "reasoning" ? 1 : type === "tool" ? 2 : 3
+      return priority(left.type) - priority(right.type) || left.id.localeCompare(right.id)
+    })
+    rows.forEach((row, ordinal) => {
+      sqlite.query("UPDATE items SET ordinal = ? WHERE id = ?").run(ordinal, row.id)
+    })
+  }
+  sqlite.exec("CREATE UNIQUE INDEX items_turn_ordinal_unique ON items(turn_id, ordinal)")
 }
 
 export const PROFILE_SCHEMA = FINAL_SCHEMA
@@ -168,6 +306,7 @@ class SchemaInitializer {
           // prepareStorage rebuilds former mixed v17 databases. Keep the
           // sequential registry entry for already-split prerelease stores.
           17: () => undefined,
+          18: () => migrateHistory18To19(this.sqlite),
         }
       : {}
     this.sqlite.transaction(() => {

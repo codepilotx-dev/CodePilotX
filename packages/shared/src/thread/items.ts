@@ -76,6 +76,7 @@ export const TextItemSchema = Schema.Struct({
   placement: Schema.Literals(["process", "result"]),
   text: Schema.String,
   status: Schema.Literals(["streaming", "completed", "interrupted"]),
+  ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })
 export type TextItem = typeof TextItemSchema.Type
@@ -88,6 +89,7 @@ export const ReasoningItemSchema = Schema.Struct({
   type: Schema.Literal("reasoning"),
   text: Schema.String,
   status: Schema.Literals(["streaming", "completed", "interrupted"]),
+  ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })
 export type ReasoningItem = typeof ReasoningItemSchema.Type
@@ -111,6 +113,7 @@ export const ActivityItemSchema = Schema.Struct({
   detail: Schema.optional(Schema.String),
   commands: Schema.optional(Schema.Array(ActivityCommandSchema)),
   status: Schema.Literals(["running", "completed", "error", "interrupted"]),
+  ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })
 export type ActivityItem = typeof ActivityItemSchema.Type
@@ -132,6 +135,7 @@ export const ToolItemSchema = Schema.Struct({
   startedAt: Schema.NullOr(Schema.Number),
   finishedAt: Schema.NullOr(Schema.Number),
   durationMs: Schema.NullOr(Schema.Number),
+  ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })
 export type ToolItem = typeof ToolItemSchema.Type
@@ -146,6 +150,7 @@ export const PlanItemSchema = Schema.Struct({
   markdown: Schema.String,
   version: Schema.Number,
   state: Schema.Literals(["draft", "awaiting-confirmation", "confirmed", "rejected"]),
+  ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })
 export type PlanItem = typeof PlanItemSchema.Type
@@ -160,6 +165,7 @@ export const QuestionItemSchema = Schema.Struct({
   choices: Schema.Array(QuestionChoiceSchema),
   status: Schema.Literals(["pending", "answered", "ignored", "cancelled"]),
   answer: Schema.NullOr(Schema.String),
+  ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })
 export type QuestionItem = typeof QuestionItemSchema.Type
@@ -176,6 +182,7 @@ export const PatchItemSchema = Schema.Struct({
   files: Schema.Array(EditedFileSchema),
   totalAdditions: Schema.Number,
   totalDeletions: Schema.Number,
+  ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })
 export type PatchItem = typeof PatchItemSchema.Type
@@ -195,6 +202,7 @@ export const SubagentItemSchema = Schema.Struct({
   status: SubagentStatusSchema,
   queueReason: SubagentQueueReasonSchema,
   result: Schema.NullOr(SubagentResultSchema),
+  ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })
 export type SubagentItem = typeof SubagentItemSchema.Type

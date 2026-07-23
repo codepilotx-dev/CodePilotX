@@ -4,7 +4,7 @@ import { mkdtemp, readdir, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { AgentDatabase, DATA_EPOCH, SCHEMA_VERSION } from "../src/storage/database/AgentDatabase"
-import { FINAL_SCHEMA } from "../src/storage/database/schema-initializer"
+import { FINAL_SCHEMA, initializeSchema } from "../src/storage/database/schema-initializer"
 import { PROFILE_APPLICATION_ID, PROFILE_SCHEMA_VERSION } from "../src/storage/database/schema"
 
 const paths: string[] = []
@@ -19,6 +19,66 @@ const removePath = async (path: string) => {
 afterEach(async () => Promise.all(paths.splice(0).map(removePath)))
 
 describe("数据库 Pi epoch", () => {
+  test("v18 到 v19 从 durable events 恢复被覆盖正文并分配稳定 ordinal", () => {
+    const sqlite = new Database(":memory:")
+    sqlite.exec(`
+      CREATE TABLE items (
+        id TEXT PRIMARY KEY, thread_id TEXT NOT NULL, turn_id TEXT NOT NULL,
+        agent_id TEXT NOT NULL, type TEXT NOT NULL, status TEXT NOT NULL,
+        data TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, thread_id TEXT, turn_id TEXT,
+        method TEXT NOT NULL, params TEXT NOT NULL, created_at INTEGER NOT NULL
+      );
+      PRAGMA user_version = 18;
+    `)
+    const internalItem = (id: string, type: string, data: Record<string, unknown>, createdAt: number) => ({
+      id, turnID: "turn-1", agentID: "agent-1", type, status: "completed", data, createdAt, updatedAt: createdAt,
+    })
+    const first = internalItem("turn-1:pi:text", "text", { placement: "result", text: "开始检查" }, 100)
+    const final = internalItem("turn-1:pi:text", "text", { placement: "result", text: "根 package.json 已读取" }, 200)
+    const tool = internalItem("tool-1", "tool", { tool: "Read" }, 101)
+    sqlite.query("INSERT INTO items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      final.id, "thread-1", final.turnID, final.agentID, final.type, final.status, JSON.stringify(final.data), final.createdAt, final.updatedAt,
+    )
+    sqlite.query("INSERT INTO items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      tool.id, "thread-1", tool.turnID, tool.agentID, tool.type, tool.status, JSON.stringify(tool.data), tool.createdAt, tool.updatedAt,
+    )
+    sqlite.query("INSERT INTO items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      "legacy-unproven", "thread-1", "turn-1", "agent-1", "activity", "completed", "{}", 300, 300,
+    )
+    for (const [method, item, createdAt] of [
+      ["item/completed", first, 100],
+      ["tool/callStarted", tool, 101],
+      ["item/completed", final, 200],
+    ] as const) {
+      sqlite.query("INSERT INTO events (thread_id, turn_id, method, params, created_at) VALUES (?, ?, ?, ?, ?)").run(
+        "thread-1", "turn-1", method, JSON.stringify({ item }), createdAt,
+      )
+    }
+
+    initializeSchema(sqlite)
+    initializeSchema(sqlite)
+
+    const rows = sqlite.query("SELECT id, type, data, ordinal FROM items WHERE turn_id = ? ORDER BY ordinal").all("turn-1") as Array<{
+      id: string
+      type: string
+      data: string
+      ordinal: number
+    }>
+    expect(rows.map((row) => [row.type, JSON.parse(row.data).text ?? null])).toEqual([
+      ["text", "开始检查"],
+      ["tool", null],
+      ["text", "根 package.json 已读取"],
+      ["activity", null],
+    ])
+    expect(rows.map((row) => row.ordinal)).toEqual([0, 1, 2, 3])
+    expect(rows.some((row) => row.id === "legacy-unproven")).toBe(true)
+    expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 19 })
+    sqlite.close()
+  })
+
   test("读取旧 on-failure 审批策略时迁移为 on-request", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-on-failure-"))
     paths.push(root)
