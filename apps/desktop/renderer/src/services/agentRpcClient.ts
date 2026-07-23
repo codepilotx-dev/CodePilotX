@@ -4,6 +4,7 @@ import {
   type RpcClient,
   type RpcError,
   type InitializedNotification,
+  type EventEnvelope,
   type RpcMethod,
   type RpcParams,
   type RpcResult,
@@ -25,6 +26,7 @@ export type AgentRpcSubscription = {
   threadId?: string
   after?: number
   onReplayComplete?: () => void | Promise<void>
+  onCursorExpired?: () => number | void | Promise<number | void>
 }
 
 export class AgentRpcError extends Error {
@@ -209,9 +211,9 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     }
   }
 
-  function subscribe(
+  function subscribeEnvelope(
     options: AgentRpcSubscription,
-    callback: (notification: AgentNotification) => void,
+    callback: (event: EventEnvelope) => void,
   ): () => void {
     const factory = environment.eventSourceFactory ?? defaultEventSourceFactory()
     if (!factory) return () => {}
@@ -278,8 +280,14 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
         })
       } catch (error) {
         if (after !== 'latest' && isCursorExpiredError(error)) {
-          forceLatest = true
-          after = 'latest'
+          const recoveredAfter = await Promise.resolve(
+            options.onCursorExpired?.(),
+          ).catch(() => undefined)
+          forceLatest = typeof recoveredAfter !== 'number'
+          after = typeof recoveredAfter === 'number' ? recoveredAfter : 'latest'
+          if (typeof recoveredAfter === 'number') {
+            acknowledgedPositions.set(streamId, recoveredAfter)
+          }
           subscription = await call('event/subscribe', {
             streams: [{ streamId, after }],
           })
@@ -329,7 +337,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
               )
               scheduleAck()
             }
-            callback(eventEnvelopeToAgentNotification(event))
+            callback(event as EventEnvelope)
             return
           }
           if (notification.method === 'event/replayComplete') {
@@ -351,7 +359,6 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
             scheduleReconnect(expectedGeneration)
             return
           }
-          callback(notification as AgentNotification)
         } catch {
           // Ignore malformed event payloads.
         }
@@ -462,6 +469,15 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     }
   }
 
+  function subscribe(
+    options: AgentRpcSubscription,
+    callback: (notification: AgentNotification) => void,
+  ): () => void {
+    return subscribeEnvelope(options, event => {
+      callback(eventEnvelopeToAgentNotification(event))
+    })
+  }
+
   return {
     call,
     ensureInitialized,
@@ -470,11 +486,12 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
       connectionId = value
     },
     subscribe,
+    subscribeEnvelope,
   }
 }
 
 function eventEnvelopeToAgentNotification(
-  event: Record<string, unknown>,
+  event: EventEnvelope,
 ): AgentNotification {
   const payload = asRecord(event.payload)
   const turn = asRecord(payload.turn)

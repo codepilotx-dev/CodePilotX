@@ -40,7 +40,9 @@ import type {
   ThreadSnapshot,
 } from '@codepilotx/shared/thread'
 import type {
+  EventEnvelope,
   ProtocolCapability,
+  RpcParams,
   RpcResult,
 } from '@codepilotx/agent-protocol'
 import {
@@ -100,7 +102,10 @@ import {
   desktopPermissionModeToPermissionConfig,
   projectToDesktopWorkspace,
 } from './agentThreadAdapter.js'
-import { createAgentRpcClient } from './agentRpcClient.js'
+import {
+  createAgentRpcClient,
+  type AgentRpcSubscription,
+} from './agentRpcClient.js'
 
 export const DESKTOP_BROWSER_DEBUG_MODE_STORAGE_KEY =
   'codepilotx.desktop.browserDebugMode'
@@ -369,7 +374,19 @@ export type DesktopAgentReviewApi = {
   }): Promise<{ id: number; state: string; htmlUrl: string }>
 }
 
-export type CodePilotXDesktopClient = DesktopApi & DesktopAgentReviewApi
+export type DesktopAgentEventEnvelopeApi = {
+  readThreadHistoryPage(
+    params: RpcParams<'thread/history/read'>,
+  ): Promise<RpcResult<'thread/history/read'>>
+  subscribeAgentEventEnvelopes(
+    options: AgentRpcSubscription,
+    callback: (event: EventEnvelope) => void,
+  ): () => void
+}
+
+export type CodePilotXDesktopClient = DesktopApi &
+  DesktopAgentReviewApi &
+  DesktopAgentEventEnvelopeApi
 
 export function createDesktopClient(
   environment: DesktopClientEnvironment = defaultDesktopClientEnvironment(),
@@ -2657,6 +2674,18 @@ function createAgentSessionDesktopClient(
         },
         () => mockClient.interruptSession(sessionId),
       ),
+    readThreadHistoryPage: params =>
+      withAgentOrMock(
+        () => rpc.call('thread/history/read', params),
+        async () => mockThreadHistoryPage(
+          await mockClient.getSession(params.threadId),
+        ),
+      ),
+    subscribeAgentEventEnvelopes: (options, callback) => {
+      const makeEventSource = eventSourceFactory()
+      if (!makeEventSource) return noop
+      return rpc.subscribeEnvelope(options, callback)
+    },
     onAgentEvent: callback => {
       const makeEventSource = eventSourceFactory()
       if (!makeEventSource) {
@@ -3682,6 +3711,133 @@ function mockWorkspace(path: string): DesktopWorkspace {
     name: path ? path.split(/[\\/]/).filter(Boolean).at(-1) ?? path : '浏览器 Mock',
     branchName: null,
   }
+}
+
+/**
+ * Browser fixtures still enter the same canonical Turn renderer as real Agent
+ * sessions. The adapter lives at the mock transport boundary so production
+ * conversation code never falls back to the legacy flattened timeline.
+ */
+function mockThreadHistoryPage(
+  snapshot: DesktopSessionSnapshot,
+): RpcResult<'thread/history/read'> {
+  const threadId = snapshot.item.id
+  const createdAt = Date.parse(snapshot.item.createdAt) || Date.now()
+  const updatedAt = Date.parse(snapshot.updatedAt) || createdAt
+  const permissionConfig = snapshot.settings.permissionConfig
+  const mode = snapshot.settings.planModeActive ? 'plan' : 'chat'
+  const model = { providerID: 'mock', id: snapshot.settings.model ?? 'mock' }
+  const bundles: Array<Record<string, unknown>> = []
+  let current: {
+    turn: Record<string, unknown>
+    inputs: Array<Record<string, unknown>>
+    messages: Array<Record<string, unknown>>
+    agents: Array<Record<string, unknown>>
+    items: Array<Record<string, unknown>>
+    approvals: Array<Record<string, unknown>>
+    attachments: Array<Record<string, unknown>>
+  } | null = null
+
+  for (const [index, message] of snapshot.view.messages.entries()) {
+    const messageCreatedAt = typeof message.createdAt === 'number'
+      ? message.createdAt
+      : Date.parse(message.createdAt ?? '') || createdAt + index
+    if (message.role === 'user') {
+      const turnId = `mock-turn:${message.id}`
+      const agentId = `mock-agent:${message.id}`
+      current = {
+        turn: {
+          id: turnId,
+          threadId,
+          sourceInputID: message.id,
+          status: 'completed',
+          mode,
+          model,
+          permissionConfig,
+          rootAgentId: agentId,
+          canContinueFromPlan: false,
+          mergedInputIDs: [],
+          startedAt: messageCreatedAt,
+          finishedAt: messageCreatedAt,
+          elapsedSeconds: 0,
+          error: null,
+        },
+        inputs: [{
+          id: message.id,
+          threadId,
+          turnId,
+          content: message.text,
+          strategy: 'queue',
+          mode,
+          model,
+          permissionConfig,
+          attachmentIds: [],
+          state: 'completed',
+          createdAt: messageCreatedAt,
+        }],
+        messages: [{ id: message.id, threadId, turnId, role: 'user', createdAt: messageCreatedAt }],
+        agents: [{
+          id: agentId,
+          threadId,
+          turnId,
+          parentAgentId: null,
+          profile: 'main',
+          task: message.text,
+          model,
+          sessionId: `mock-session:${turnId}`,
+          depth: 0,
+          status: 'completed',
+          error: null,
+          subagentRunId: null,
+          runSequence: 0,
+          createdAt: messageCreatedAt,
+          updatedAt: messageCreatedAt,
+        }],
+        items: [],
+        approvals: [],
+        attachments: [],
+      }
+      bundles.push(current)
+      continue
+    }
+    if (message.role !== 'assistant' || !current) continue
+    const turnId = current.turn.id as string
+    const agentId = current.turn.rootAgentId as string
+    current.messages.push({ id: message.id, threadId, turnId, role: 'assistant', createdAt: messageCreatedAt })
+    current.items.push({
+      id: message.id,
+      messageID: message.id,
+      turnId,
+      agentId,
+      type: 'text',
+      placement: 'result',
+      text: message.text,
+      status: message.streaming ? 'streaming' : 'completed',
+      createdAt: messageCreatedAt,
+    })
+    if (message.streaming) {
+      current.turn.status = 'running'
+      current.turn.finishedAt = null
+      current.agents[0]!.status = 'running'
+    }
+  }
+
+  return {
+    thread: {
+      id: threadId,
+      title: snapshot.item.sessionName ?? snapshot.item.aiTitle ?? '浏览器会话',
+      projectID: null,
+      settings: { taskMode: mode, permissionConfig },
+      createdAt,
+      updatedAt,
+    },
+    subagents: [],
+    turns: bundles,
+    queue: { version: 0, pauseReason: null, turns: [], inputs: [] },
+    olderCursor: null,
+    hasOlder: false,
+    streamPosition: { streamId: `mock-thread:${threadId}`, sequence: 0 },
+  } as unknown as RpcResult<'thread/history/read'>
 }
 
 function mockSessionSnapshot(
