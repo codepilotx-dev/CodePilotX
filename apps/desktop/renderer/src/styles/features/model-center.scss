@@ -20,15 +20,6 @@
     var(--layout-page-pad-bottom);
 }
 
-/* ===== Page Toolbar & Navigation ===== */
-
-.model-center-toolbar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-5);
-}
-
 .model-center-heading {
   min-width: 0;
   display: grid;
@@ -54,7 +45,7 @@
   }
 }
 
-.model-center-toolbar-actions,
+.model-center-header-actions,
 .model-center-detail-actions {
   display: inline-flex;
   align-items: center;
@@ -64,15 +55,12 @@
   flex-shrink: 0;
 }
 
-.model-center-workspace-tabs {
-  display: flex;
-  align-items: center;
-  gap: var(--space-5);
-  min-height: 38px;
-  border-bottom: 1px solid var(--border-subtle);
+@media (max-width: 479px) {
+  .model-center-header-action-label {
+    display: none;
+  }
 }
 
-.model-center-workspace-tab,
 .model-center-detail-tab {
   position: relative;
   border: 0;
@@ -103,25 +91,6 @@
       border-radius: var(--radius-1);
       background: var(--color-text-strong);
     }
-  }
-}
-
-.model-center-workspace-tab {
-  min-height: 38px;
-  padding: 7px 3px 9px;
-
-  > span {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 20px;
-    min-height: 20px;
-    margin-left: 4px;
-    padding: 1px 6px;
-    border-radius: var(--radius-full);
-    background: var(--color-bg-soft);
-    color: var(--color-text-soft);
-    font-size: var(--type-caption);
   }
 }
 
@@ -1110,17 +1079,6 @@ html[data-theme="dark"] .model-center-key-dialog {
   filter: var(--model-center-provider-logo-filter, none);
 }
 
-.model-center-notice {
-  margin: 0;
-  padding: 10px var(--space-3);
-  border: 1px solid color-mix(in srgb, var(--color-success) 22%, transparent);
-  border-radius: var(--radius-5);
-  background: color-mix(in srgb, var(--color-success) 8%, transparent);
-  color: var(--color-success);
-  font-size: var(--type-secondary);
-  line-height: 1.45;
-}
-
 .model-center-key-group {
   min-width: 0;
   overflow: hidden;
@@ -1486,7 +1444,6 @@ html[data-theme="dark"] .model-center-key-dialog {
     padding: var(--space-5) var(--space-4) var(--space-7);
   }
 
-  .model-center-toolbar,
   .model-center-catalog-header,
   .model-center-detail-header,
   .model-center-provider-detail-header,
@@ -1495,20 +1452,17 @@ html[data-theme="dark"] .model-center-key-dialog {
     flex-direction: column;
   }
 
-  .model-center-toolbar-actions,
   .model-center-detail-actions,
   .model-center-provider-context-actions {
     width: 100%;
     justify-content: flex-start;
   }
 
-  .model-center-toolbar-actions > *,
   .model-center-detail-actions > *,
   .model-center-provider-context-actions > * {
     flex: 1 1 auto;
   }
 
-  .model-center-workspace-tabs,
   .model-center-detail-tabs,
   .model-center-provider-tabs {
     overflow-x: auto;

@@ -5,6 +5,7 @@ import { ModelCenterWorkbench } from './ModelCenterWorkbench.js'
 
 export function ModelCenterView(): React.ReactNode {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
 
   return (
     <div className="model-center-page">
@@ -12,7 +13,15 @@ export function ModelCenterView(): React.ReactNode {
         message={errorMessage}
         onDismiss={() => setErrorMessage(null)}
       />
-      <ModelCenterWorkbench onError={setErrorMessage} />
+      <GlobalErrorModal
+        message={noticeMessage}
+        onDismiss={() => setNoticeMessage(null)}
+        tone="status"
+      />
+      <ModelCenterWorkbench
+        onError={setErrorMessage}
+        onNotice={setNoticeMessage}
+      />
     </div>
   )
 }

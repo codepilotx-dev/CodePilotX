@@ -14,9 +14,21 @@ import { useDesktopSettings } from '../settings/useDesktopSettings.js'
 import { SettingsDropdown } from '../settings/SettingsDropdown.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { fullErrorMessage } from '../../utils/errors.js'
-import { Brain, Braces, Eye, Hammer, KeyRound, RefreshCw, Search, Workflow } from 'lucide-react'
+import {
+  Brain,
+  Braces,
+  Cable,
+  Eye,
+  Hammer,
+  KeyRound,
+  RefreshCw,
+  Save,
+  Search,
+  Workflow,
+} from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
+import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { useSearchParams } from 'react-router-dom'
 import { ApiKeyWorkspace } from './ApiKeyWorkspace.js'
 import {
@@ -30,6 +42,7 @@ import {
   projectProviderDirectory,
   updateModelCenterSearchParams,
 } from './modelCenterState.js'
+import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 
 const BUILT_IN_PROVIDER_IDS = new Set([
   'openai',
@@ -43,6 +56,7 @@ const NO_MODEL_OPTION = '__no_models_available__'
 
 type Props = {
   onError: (message: string) => void
+  onNotice: (message: string) => void
 }
 
 export function getProviderSelectionState(
@@ -74,7 +88,10 @@ export function getProviderConnectionState({
   }
 }
 
-export function ModelCenterWorkbench({ onError }: Props): React.ReactNode {
+export function ModelCenterWorkbench({
+  onError,
+  onNotice,
+}: Props): React.ReactNode {
   const settings = useDesktopSettings()
   const [searchParams, setSearchParams] = useSearchParams()
   const [providerID, setProviderID] = useState<ModelProviderID>(
@@ -576,23 +593,94 @@ const nextState = await desktopClient.saveModelProvider({
 
   return (
     <div className="model-center-shell">
-      <header className="model-center-toolbar">
-        <nav className="model-center-workspace-tabs" role="tablist" aria-label="模型中心工作区">
-          <button aria-selected={workspaceView === 'providers'} className="model-center-workspace-tab" onClick={() => updateLocation({ view: 'providers' })} role="tab" type="button">Provider</button>
-          <button aria-selected={workspaceView === 'keys'} className="model-center-workspace-tab" onClick={() => updateLocation({ view: 'keys' })} role="tab" type="button">API Keys <span>{apiKeys.length}</span></button>
-        </nav>
-        <div className="model-center-toolbar-actions">
+      <WorkspaceHeaderItem
+        align="start"
+        id="models.tabs"
+        order={0}
+        slot="left"
+      >
+        <SegmentedControl<'providers' | 'keys'>
+          ariaLabel="模型中心工作区"
+          className="model-center-workspace-tabs"
+          onChange={view => updateLocation({ view })}
+          overflowMode="fit"
+          options={[
+            { value: 'providers', label: 'Provider' },
+            {
+              value: 'keys',
+              label: <>API Keys <span>{apiKeys.length}</span></>,
+            },
+          ]}
+          semantics="tabs"
+          value={workspaceView}
+        />
+      </WorkspaceHeaderItem>
+      <WorkspaceHeaderItem
+        align="end"
+        id="models.actions"
+        order={100}
+        slot="right"
+      >
+        <div className="model-center-header-actions">
           {workspaceView === 'providers' && !showingProviderDetail ? (
-            <Button variant="primary" onClick={() => openApiKeys(true)}><KeyRound aria-hidden /> 添加 API Key</Button>
+            <Button
+              aria-label="添加 API Key"
+              onClick={() => openApiKeys(true)}
+              title="添加 API Key"
+              variant="primary"
+            >
+              <KeyRound aria-hidden />
+              <span className="model-center-header-action-label">添加 API Key</span>
+            </Button>
           ) : null}
           {showingProviderDetail && providerSection === 'connection' ? (
-            <><Button disabled={busy} onClick={() => void testConnection()}>测试连接</Button><Button variant="primary" disabled={busy} onClick={() => void saveProvider()}>保存连接</Button></>
+            <>
+              <Button
+                aria-label="测试连接"
+                disabled={busy}
+                onClick={() => void testConnection()}
+                title="测试连接"
+              >
+                <Cable aria-hidden />
+                <span className="model-center-header-action-label">测试连接</span>
+              </Button>
+              <Button
+                aria-label="保存连接"
+                disabled={busy}
+                onClick={() => void saveProvider()}
+                title="保存连接"
+                variant="primary"
+              >
+                <Save aria-hidden />
+                <span className="model-center-header-action-label">保存连接</span>
+              </Button>
+            </>
           ) : null}
           {showingProviderDetail && providerSection === 'models' ? (
-            <><Button disabled={busy} onClick={() => void fetchModels()}><RefreshCw aria-hidden /> 刷新目录</Button><Button variant="primary" disabled={busy || !model} onClick={() => void saveProvider()}>保存模型</Button></>
+            <>
+              <Button
+                aria-label="刷新目录"
+                disabled={busy}
+                onClick={() => void fetchModels()}
+                title="刷新目录"
+              >
+                <RefreshCw aria-hidden />
+                <span className="model-center-header-action-label">刷新目录</span>
+              </Button>
+              <Button
+                aria-label="保存模型"
+                disabled={busy || !model}
+                onClick={() => void saveProvider()}
+                title="保存模型"
+                variant="primary"
+              >
+                <Save aria-hidden />
+                <span className="model-center-header-action-label">保存模型</span>
+              </Button>
+            </>
           ) : null}
         </div>
-      </header>
+      </WorkspaceHeaderItem>
 
       {!showingProviderDetail ? (
         <header className="model-center-heading">
@@ -725,7 +813,7 @@ const nextState = await desktopClient.saveModelProvider({
         <ApiKeyWorkspace providers={providers.filter(provider => {
           const integration = integrations.find(item => item.id === provider.integrationID)
           return !integration?.methods.some(method => method.type === 'oauth')
-        })} keys={apiKeys} selectedProviderId={providerID} createRequestToken={createKeyRequestToken} onSelectedProviderIdChange={selectProvider} onChanged={handleApiKeysChanged} onError={onError} />
+        })} keys={apiKeys} selectedProviderId={providerID} createRequestToken={createKeyRequestToken} onSelectedProviderIdChange={selectProvider} onChanged={handleApiKeysChanged} onError={onError} onNotice={onNotice} />
       )}
     </div>
   )

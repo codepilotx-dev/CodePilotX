@@ -36,6 +36,7 @@ export type ApiKeyWorkspaceProps = {
   onSelectedProviderIdChange: (providerId: ModelProviderID) => void
   onChanged: (keys: DesktopApiKeySummary[]) => void | Promise<void>
   onError: (message: string) => void
+  onNotice: (message: string) => void
 }
 
 type HealthFilter = 'all' | DesktopApiKeyHealthStatus
@@ -56,6 +57,7 @@ export function ApiKeyWorkspace({
   onSelectedProviderIdChange,
   onChanged,
   onError,
+  onNotice,
 }: ApiKeyWorkspaceProps): React.ReactNode {
   const apiKeyProviders = useMemo(
     () => providers.filter(provider => provider.kind !== 'github-copilot'),
@@ -68,7 +70,6 @@ export function ApiKeyWorkspace({
   const [query, setQuery] = useState('')
   const [healthFilter, setHealthFilter] = useState<HealthFilter>('all')
   const [busyId, setBusyId] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingKey, setEditingKey] = useState<DesktopApiKeySummary | null>(null)
   const [deleteKey, setDeleteKey] = useState<DesktopApiKeySummary | null>(null)
@@ -133,11 +134,10 @@ export function ApiKeyWorkspace({
 
   async function mutate(id: string, action: () => Promise<void>, success: string): Promise<boolean> {
     setBusyId(id)
-    setNotice(null)
     try {
       await action()
       await refresh()
-      setNotice(success)
+      onNotice(success)
       window.dispatchEvent(new Event('desktop:model-provider-changed'))
       return true
     } catch (error) {
@@ -185,10 +185,9 @@ export function ApiKeyWorkspace({
 
   async function copyKey(key: DesktopApiKeySummary): Promise<void> {
     setBusyId(key.id)
-    setNotice(null)
     try {
       const result = await desktopClient.copyProviderApiKey(key.id)
-      setNotice(`已复制，剪贴板将在 ${Math.round(result.clearAfterMs / 1000)} 秒后清理。`)
+      onNotice(`已复制，剪贴板将在 ${Math.round(result.clearAfterMs / 1000)} 秒后清理。`)
     } catch (error) {
       onError(fullErrorMessage(error))
     } finally {
@@ -256,8 +255,6 @@ export function ApiKeyWorkspace({
           <Plus aria-hidden /> 新增 Key
         </Button>
       </div>
-
-      {notice ? <p className="model-center-notice" role="status">{notice}</p> : null}
 
       <div className="model-center-key-groups">
         {groups.length === 0 ? (
