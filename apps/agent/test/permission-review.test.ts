@@ -5,6 +5,7 @@ import { ReviewerService } from "../src/permission/ReviewerService"
 import type { PiModelService } from "../src/provider/pi"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { PermissionDecisionEngine } from "../src/permission/PermissionDecisionEngine"
+import { Model, Provider } from "@codepilotx/model-schema"
 
 const reviewer = (getSetting: AgentDatabase["getSetting"], providers: PiModelService = {} as PiModelService) => new ReviewerService({ getSetting } as AgentDatabase, providers)
 
@@ -71,6 +72,47 @@ describe("Shell ReviewerService", () => {
     expect(engine.evaluate({ ...invocation, input: { command: "x", additionalPermissions: { writePaths: ["C:\\outside"] } } }, tools.get("PowerShell"))).toMatchObject({ action: "allow", risk: "high" })
     expect(engine.evaluate({ ...invocation, input: { command: "format C:" } }, tools.get("PowerShell"))).toMatchObject({ action: "review", reviewer: "auto_review", risk: "critical" })
     expect(engine.evaluate({ ...invocation, input: { command: "format C:" }, permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "on-request", approvalsReviewer: "auto_review" } }, tools.get("PowerShell"))).toMatchObject({ action: "deny", risk: "critical" })
+  })
+
+  test("独立审核模型不可用时回退当前任务模型", async () => {
+    const configured = Model.Ref.make({ providerID: Provider.ID.make("configured"), id: Model.ID.make("reviewer") })
+    const fallback = Model.Ref.make({ providerID: Provider.ID.make("fallback"), id: Model.ID.make("task") })
+    const resolved: string[] = []
+    const providers = {
+      getPiModel: async (ref: Model.Ref) => {
+        resolved.push(`${ref.providerID}/${ref.id}`)
+        if (String(ref.providerID) === "configured") throw new Error("reviewer unavailable")
+        return { provider: "fallback", id: "task" }
+      },
+      pi: {
+        completeSimple: async () => ({
+          stopReason: "stop",
+          content: [{ type: "text", text: JSON.stringify({
+            decision: "allow",
+            risk: "low",
+            confidence: "high",
+            categories: [],
+            requestedScopeValid: true,
+            reason: "任务模型审核通过",
+          }) }],
+        }),
+      },
+    } as unknown as PiModelService
+    const service = reviewer((() => configured) as AgentDatabase["getSetting"], providers)
+
+    await expect(service.reviewShell({ command: "npm test" }, new AbortController().signal, fallback)).resolves.toMatchObject({ decision: "allow", reason: "任务模型审核通过" })
+    expect(resolved).toEqual(["configured/reviewer", "fallback/task"])
+  })
+
+  test("独立审核模型与任务模型都不可用时保持 fail-closed", async () => {
+    const configured = Model.Ref.make({ providerID: Provider.ID.make("configured"), id: Model.ID.make("reviewer") })
+    const fallback = Model.Ref.make({ providerID: Provider.ID.make("fallback"), id: Model.ID.make("task") })
+    const providers = {
+      getPiModel: async () => { throw new Error("all reviewers unavailable") },
+    } as unknown as PiModelService
+    const service = reviewer((() => configured) as AgentDatabase["getSetting"], providers)
+
+    await expect(service.reviewShell({ command: "npm test" }, new AbortController().signal, fallback)).resolves.toMatchObject({ decision: "deny", reviewUnavailable: true })
   })
 
   test("主机预设安全快放、中风险 Guardian、高风险人工、完全访问放行高风险", () => {
