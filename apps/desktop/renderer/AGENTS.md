@@ -1,28 +1,29 @@
 # AGENTS.md
 
-## Scope
+## 适用范围
 
-These instructions apply to the React 19 and Vite 7 renderer workspace under
-`apps/desktop/renderer/` and extend the repository-level instructions.
+本文件适用于 `apps/desktop/renderer/`，并补充仓库根目录规则。
 
-## Workspace Boundaries
+## Workspace 边界
 
-- Keep bridge, settings, workflow, and other cross-context types in `shared/`.
-  Keep UI implementation in `src/` and renderer tests in `test/`.
-- Access system capabilities only through the existing preload bridge and Agent
-  clients. Do not use Node.js, SQLite, credentials, or the filesystem directly.
-- Reuse `desktopClient`, `agentRpcClient`, `agentThreadAdapter`, and the shared
-  workflow reducer for API, SSE, and thread-state transitions. Do not create a
-  second transport or state protocol.
-- Preserve the desktop-first layout. Do not add mobile or narrow-viewport
-  behavior unless the task explicitly requires it.
+- `shared/` 保存跨 renderer/preload 的明确契约，`src/` 保存 UI 实现，`test/` 保存 renderer 测试。
+- 系统能力只能通过 typed preload bridge 或 Agent client 使用；禁止直接访问 Node、Electron、SQLite、凭据或文件系统。
+- RPC wire 契约来自 `@codepilotx/agent-protocol`，thread 领域模型来自 `@codepilotx/shared/thread`。
+- Desktop client 稳定入口为 `src/services/desktop-client/index.ts`；入口只负责环境选择、组合和导出。
+- 复用现有 `agentRpcClient`、`agentThreadAdapter`、desktop client 和 session-view projection；禁止创建第二套 transport 或状态协议。
+- 保留 desktop-first 布局；除非任务明确要求，不新增移动端或窄视口行为。
 
-## Tests and Validation
+## 数据代际
 
-- Keep tests focused on state transitions, client contracts, and concrete
-  regressions. Add them under the existing `test/` directory.
-- Run `bun run --cwd apps/desktop/renderer typecheck` for renderer code changes.
-- Run `bun run --cwd apps/desktop/renderer build` for UI build, Vite, TypeScript
-  project-reference, or asset-pipeline changes.
-- Run relevant Bun tests only when the affected behavior has test coverage or a
-  regression test is necessary.
+- Renderer 数据代际只清理明确列出的 CodePilotX localStorage/sessionStorage 键和前缀。
+- 禁止调用 `localStorage.clear()` 或删除其他 origin 所有者的数据。
+- 数据 epoch 已淘汰旧 UI state；禁止重新加入 v3、legacy plan、旧 Review expansion 或旧单问题兼容分支。
+
+## 测试与验证
+
+- 测试重点是状态转换、client contract 和具体回归，放在现有 `test/` 目录。
+- 类型检查：`bun run --cwd apps/desktop/renderer typecheck`
+- 完整测试：`bun run --cwd apps/desktop/renderer test`
+- UI、lazy import、Vite、TypeScript project reference 或 asset pipeline 变化时运行：`bun run build:renderer`
+- 样式变化时运行：`bun run --cwd apps/desktop/renderer css:check`
+- 不得为了通过检查而盲目更新 CSS/style/test 基线。

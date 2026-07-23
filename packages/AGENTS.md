@@ -1,51 +1,46 @@
 # AGENTS.md
 
-## Scope
+## 适用范围
 
-These instructions apply to all shared workspaces under `packages/` and extend
-the repository-level instructions.
+本文件适用于 `packages/` 下所有 workspace，并补充仓库根目录规则。
 
-## Package Responsibilities and Dependency Direction
+## 包职责与依赖方向
 
-- `model-schema` defines foundational provider, model, integration, connection,
-  and credential schemas.
-- `provider-plugin` defines statically linked built-in plugins and their ordered
-  lifecycle.
-- `provider-runtime` defines provider catalogs, runtime construction, variants,
-  security filtering, and error normalization.
-- `shared` defines application-level API, event, thread, session, and model
-  contracts consumed across processes.
-- `session-view` performs pure transformations from shared session contracts to
-  presentation models.
-- Keep dependencies flowing through these public contracts. Do not duplicate a
-  lower-level schema or create a circular package dependency.
+- `model-schema` 定义 provider、model、integration、connection 和 credential 的基础 schema。
+- `provider-plugin` 定义静态链接的内置插件及其有序生命周期。
+- `provider-runtime` 负责凭据解析、provider 构建、模型目录、variant、安全过滤、failover 和错误规范化。
+- `shared` 定义跨进程复用的应用领域模型；`shared/thread` 不拥有 RPC 编排类型。
+- `agent-protocol` 是 v4 method、event、wire error、capability 和 runtime dispatcher 的唯一协议来源。
+- `session-view` 只进行 canonical projection 和 thread projection 的纯转换。
+- 依赖必须沿公开契约流动，禁止复制底层 schema 或制造循环依赖。
 
-## Public Interfaces
+## 公开接口与兼容策略
 
-- Export public APIs from a package's `src/index.ts` or an explicit
-  `package.json` export. Consumers must not deep-import internal files.
-- When changing schemas or events, update and validate Agent and renderer
-  consumers together. Preserve compatibility or migrate every call site in the
-  same change.
+- 公共 API 通过包级 `src/index.ts` 或明确的 `package.json` export 暴露；消费者禁止 deep import 内部文件。
+- 只允许包级公开入口和稳定门面使用 `index.ts`，禁止构造全仓 barrel。
+- 当前协议和数据升级是破坏性开发版本升级。改变 schema、method 或 event 时，一次性迁移仓库内所有消费者。
+- 除非用户明确要求，禁止添加 legacy export、migration adapter、双协议或临时兼容层。
+- `thread/create` 只接受 `workspace`。
 
-## Upstream-Derived Code
+## Provider 上游代码
 
-- Follow the package `UPSTREAM.md` when changing `model-schema`,
-  `provider-plugin`, or `provider-runtime`.
-- Preserve upstream attribution and license files. Prefer copying or adapting
-  the recorded upstream implementation over inventing equivalent logic.
-- Do not reintroduce intentionally omitted behavior such as runtime npm
-  installation, arbitrary file plugins, unrestricted dynamic imports, or
-  external plugin execution.
-- When resynchronizing upstream code, update the recorded source, import date,
-  and checksums or revision information.
-- Preserve provider registration order, security filtering, the static
-  allowlist, and error normalization unless the task explicitly changes them.
+- 修改 `model-schema`、`provider-plugin` 或 `provider-runtime` 时遵守对应 `UPSTREAM.md`。
+- 保留上游署名和许可证；优先复制或改造记录的上游实现。
+- 不得恢复运行时 npm 安装、任意文件插件、不受限动态 import 或外部插件执行。
+- 上游同步时更新来源、导入日期及 checksum/revision。
+- 除非任务明确改变，保留 provider 注册顺序、安全过滤、静态 allowlist、failover 和错误规范化。
 
-## Validation
+## 目录约定
 
-- Run the affected package's `typecheck` script.
-- Run its `test` script only when the package defines one and behavior changes
-  or a relevant regression test is needed.
-- For public contract changes, also validate every direct Agent, Electron, and
-  renderer consumer affected by the change.
+- `shared/src/thread/` 按 permission、settings、items、queue、subagent 和 transport/domain boundary 维护。
+- `agent-protocol/src/` 按 `methods/`、`wire/`、`runtime/` 维护。
+- `session-view/src/` 保持 canonical 与 thread projection 分离。
+- `provider-runtime/src/runtime/` 保持 credential resolution、provider builder、model catalog 和 failover 分离。
+- 不为生成型 `material-icon-theme` 或小型 `model-schema` 强制增加无意义目录。
+
+## 验证
+
+- 运行受影响包的 `typecheck`。
+- 只有行为变化或存在相关回归风险时运行包测试。
+- 公共契约变化时，同时验证所有受影响的 Agent、Electron 和 renderer 消费者，并运行根目录 `bun run typecheck`。
+- 交付前搜索 v3、legacy、migration export 和旧路径残留。

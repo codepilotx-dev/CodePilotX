@@ -1,64 +1,101 @@
 # AGENTS.md
 
-## Scope
+## 适用范围与优先级
 
-These instructions apply to the entire CodePilotX repository. More specific
-`AGENTS.md` files override or extend them for their directory trees.
+- 本文件适用于整个 CodePilotX 仓库；更深目录中的 `AGENTS.md` 可以补充或覆盖对应目录的规则。
+- 所有文本文件必须按 UTF-8 读取和写入。
+- 开始修改前必须检查当前实现、相关测试和 dirty worktree。现有修改及未跟踪文件默认属于用户，禁止回退、覆盖或顺手整理。
+- 需求、边界或高影响取舍不明确时先询问用户；明确且低风险的仓库内实现步骤可直接执行。
+- 大型或可并行任务使用子代理；小型、强耦合任务由当前 Agent 直接完成。
+- 优先移动、复用或改造现有实现；能安全复制已有逻辑时，不创建平行实现。
+- 只编写能保护本次行为的必要测试，不添加无关测试或大面积快照。
 
-## Repository
+## 仓库与技术栈
 
-- CodePilotX is a Windows-first TypeScript monorepo using Bun 1.3.14.
-- `apps/agent/` contains the Bun + Effect modular monolith, including HTTP/SSE,
-  sessions, SQLite, providers, tools, and permissions.
-- `apps/desktop/electron/` contains the Electron main process, preload bridge,
-  Agent sidecar lifecycle, and Windows packaging.
-- `apps/desktop/renderer/` contains the React and Vite desktop renderer.
-- `packages/` contains shared contracts, view projections, model schemas,
-  provider plugins, and provider runtime code.
+- CodePilotX 是 Windows-first TypeScript monorepo，统一使用 Bun 1.3.14。
+- 未经明确架构决策，不得新增、合并、删除或重新划分 workspace。
+- `apps/agent/` 负责会话、SQLite、provider、工具、权限、编排和 HTTP/SSE。
+- `apps/desktop/electron/` 负责 Electron 主进程、preload、窗口、Agent sidecar 和 Windows 打包。
+- `apps/desktop/renderer/` 负责 React + Vite renderer。
+- `packages/` 负责共享领域契约、RPC 协议、view projection、模型 schema、provider 插件与 runtime。
 
-## Working Conventions
+## 当前目录约定
 
-- Read and write text files as UTF-8.
-- Inspect the current implementation before editing. Reuse or adapt existing
-  code instead of introducing a parallel implementation when possible.
-- Ask before proceeding when requirements, boundaries, or high-impact
-  tradeoffs remain ambiguous.
-- Use sub-agents for large or meaningfully parallel tasks. Handle small,
-  tightly coupled changes directly.
-- Add only tests that are directly relevant to the change and protect useful
-  behavior from regression.
-- Do not modify unrelated files or overwrite changes that belong to the user.
+### Agent
 
-## Architecture and Security Boundaries
+- `apps/agent/src/bootstrap.ts` 只能作为 composition root，不放业务逻辑。
+- `storage/database/` 负责连接、最终 schema、数据代际和事务基础设施。
+- `storage/repositories/` 按领域保存实际 SQL。
+- `storage/events/` 负责 event store、outbox 和事件发布。
+- `storage/recovery/` 负责中断运行恢复。
+- `AgentDatabase` 只负责连接、最终 schema、repository 装配和恢复入口；禁止重新堆回领域 SQL。
+- 跨 repository 原子操作必须复用同一 SQLite 连接和 transaction。
+- `transport/rpc/` 使用注册式 handler registry；`RpcRouter` 只负责鉴权、初始化/capability 门禁、方法查找和统一错误编码。
+- RPC handler 负责参数解码和调用 service，禁止直接写 SQL。
+- Review、GitHub、orchestration、subagent 的新职责必须放入对应领域目录，禁止继续扩大单文件聚合服务。
 
-- Keep renderer code isolated from Node.js, the filesystem, credentials, and
-  direct database access. Route system capabilities through the existing typed
-  preload or Agent client boundaries.
-- Keep the preload bridge minimal and typed. Do not expose broad Electron or
-  Node.js APIs to the renderer.
-- Keep session, SQLite, provider, tool, permission, and orchestration business
-  logic in `apps/agent/`, not in Electron or the renderer.
-- Never persist API keys in SQLite or include credentials in logs, events, or
-  error messages.
-- Preserve the same-origin development proxy, SSE cursor replay, transactional
-  outbox behavior, and interrupted-task recovery semantics.
+### Electron
 
-## Commands and Validation
+- `apps/desktop/electron/src/main.ts` 是唯一启动与依赖装配入口，只保留单实例、生命周期和模块装配。
+- Sidecar、窗口、IPC、安全、设置和日志分别放在 `sidecar/`、`windows/`、`ipc/`、`security/`、`settings/`、`logging/`。
+- 保留 sidecar watchdog、就绪超时、优雅退出、单实例、安全 URL 校验和 API key 剪贴板定时清理。
+- preload 只暴露明确且类型化的方法；禁止向 renderer 暴露 Node、Electron、文件系统或任意 IPC 调用能力。
+- IPC channel、参数和返回类型必须集中维护，并由 main 与 preload 共享。
 
-- Run the development stack with `bun run dev`.
-- Run the repository typecheck with `bun run typecheck`.
-- Build individual layers with `bun run build:renderer`,
-  `bun run build:agent`, or `bun run build:desktop`.
-- Build the Windows installer with `bun run package:win` only when packaging or
-  release behavior is in scope.
-- By default, run typechecks and tests only for affected workspaces. When a
-  cross-workspace contract changes, validate every affected consumer.
-- Run repository-wide checks, builds, or packaging only when the change crosses
-  those boundaries or the task explicitly requires them.
+### Renderer
 
-## Commits
+- Renderer 禁止直接访问 Node、Electron、SQLite、凭据或文件系统；系统能力只能经过 typed preload bridge 或 Agent client。
+- Desktop client 的稳定入口是 `services/desktop-client/index.ts`；入口只负责环境选择、组合和公开导出。
+- Session 按 `conversation/`、`composer/`、`timeline/`、`approvals/`、`workflow/`、`summary/`、`subagents/`、`state/` 维护。
+- Review 按 `workspace/`、`diff/`、`comments/`、`source/`、`state/` 维护；diff 解析和展示逻辑只能有一个实现来源。
+- Layout 按 `shell/`、`dock/`、`tabs/`、`panels/` 维护。
+- 保持 `routes.tsx` 与 workbench registry 的 lazy import 和代码分割边界。
+- 新代码不得继续扩大 2000 行以上的聚合组件；修改现有超大组件时，优先抽出本次涉及的独立职责。
+- 不得无意改变视觉设计、快捷键、焦点、主题、reduced-motion、popover 定位或会话恢复行为。
 
-- Create a commit only when the user explicitly requests one.
-- Use Chinese Conventional Commit messages in the form
-  `feat(desktop)：中文说明`.
-- Replace `feat` and `desktop` with the actual change type and workspace scope.
+### Packages
+
+- 保留现有包名和 workspace 边界。
+- `@codepilotx/agent-protocol` 是 RPC method、event、wire error 和 capability schema 的唯一来源。
+- `@codepilotx/shared/thread` 只保存 thread 领域模型，不得重新引入 RPC 编排类型。
+- `session-view` 维护 canonical projection 和 thread projection，不新增旧 timeline 兼容层。
+- `provider-runtime` 的凭据解析、provider 构建、模型目录和 failover 必须保持为独立模块。
+- 不为生成型 `material-icon-theme` 或小型 `model-schema` 强行增加无意义目录层级。
+- 只允许包级公开入口和稳定模块门面使用 `index.ts`；禁止建立全仓 barrel。
+
+## 协议、数据代际与兼容策略
+
+- 当前唯一桌面通信协议是 `thread-rpc-v4`。禁止重新加入 v3 dispatcher、adapter、migration、legacy export 或双协议分支。
+- `thread/create` 只接受 `workspace`，不得恢复 `projectId`/`projectID` 兼容参数。
+- v4 错误必须使用统一、安全的 envelope；禁止返回原始异常、凭据、命令环境或敏感绝对路径。
+- 当前升级策略是破坏性开发版本升级，不支持旧客户端、旧数据库或旧设置回退。
+- 数据代际不匹配时，只能删除 CodePilotX 明确拥有的 SQLite 主文件及 `-wal`/`-shm`、`appearance-settings.json`、明确列出的 localStorage/sessionStorage 键或前缀。
+- 禁止删除整个 `userData`、数据目录或浏览器存储；禁止调用 `localStorage.clear()`；禁止创建旧数据备份。
+- 重置日志只能记录无敏感信息的事件和原因，不记录路径、凭据、设置内容或会话内容。
+- 除非用户明确要求新的迁移策略，否则不得新增 legacy/migration 兼容代码。
+
+## 必须保持的架构与安全语义
+
+- 保留 WAL、外键、同源开发代理、事务 outbox、事件顺序、SSE cursor replay、审批/提问 checkpoint 和中断恢复语义。
+- Agent 业务模块不得依赖 renderer 或 Electron。
+- API key 不得写入 SQLite，也不得出现在日志、事件、错误信息或测试快照中。
+- 系统能力必须沿既有方向流动：`renderer -> typed bridge/Agent client -> Electron/Agent service -> repository`。
+
+## 验证规则
+
+- 开发栈：`bun run dev`
+- 全仓类型检查：`bun run typecheck`
+- 分层构建：`bun run build:agent`、`bun run build:renderer`、`bun run build:desktop`
+- Renderer 样式检查：`bun run --cwd apps/desktop/renderer css:check`
+- 默认先运行受影响 workspace 的 typecheck 和相关测试；跨 workspace 契约变化必须验证所有消费者。
+- RPC、共享契约、数据 schema 或 preload 接口变化后，必须运行对应应用测试以及根目录 typecheck。
+- Renderer 目录或 lazy import 变化后必须运行 renderer build，确认 chunk 可解析。
+- 只有修改打包或发布行为，或用户明确要求时，才运行 `bun run package:win`。
+- 不得为了让检查通过而盲目更新 CSS、style 或 test 基线。
+- 交付前搜索旧协议、旧路径和失效 import，并运行 `git diff --check`。
+
+## 提交规则
+
+- 只有用户明确要求时才创建提交。
+- 使用中文 Conventional Commit，格式示例：`feat(desktop)：中文说明`。
+- `feat` 与 scope 必须按实际改动类型和 workspace 调整。
