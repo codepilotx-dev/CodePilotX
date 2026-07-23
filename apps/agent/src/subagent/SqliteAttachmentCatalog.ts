@@ -1,5 +1,5 @@
 import { AgentError } from "../domain"
-import type { AgentDatabase } from "../storage/Database"
+import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import type { AttachmentBinding, AttachmentCatalog, AttachmentRecord } from "./AttachmentService"
 
 export class SqliteAttachmentCatalog implements AttachmentCatalog {

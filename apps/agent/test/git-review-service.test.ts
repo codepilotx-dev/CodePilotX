@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { GitReviewService } from "../src/review/GitReviewService"
-import { AgentDatabase } from "../src/storage/Database"
+import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 
 const roots: string[] = []
 afterEach(async () => {

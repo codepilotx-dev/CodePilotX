@@ -2,12 +2,10 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { AgentNotificationSchema, AgentRpcRequestSchema } from "@codepilotx/shared/thread"
-import { Capabilities } from "@codepilotx/agent-protocol"
-import { Schema } from "effect"
+import { Capabilities, EventManifest, RpcMethods } from "@codepilotx/agent-protocol"
 import { MemoryService, projectMemoryKey } from "../src/memory/MemoryService"
-import { AgentDatabase } from "../src/storage/Database"
-import { RpcRouter, type RpcRouterDependencies } from "../src/transport/RpcRouter"
+import { AgentDatabase } from "../src/storage/database/AgentDatabase"
+import { RpcRouter, type RpcRouterDependencies } from "../src/transport/rpc/RpcRouter"
 import { ThreadService } from "../src/session/ThreadService"
 
 const roots: string[] = []
@@ -39,7 +37,7 @@ const fixture = async () => {
     method: "initialize",
     params: {
       clientInfo: { name: "memory-rpc-test", version: "1.0.0" },
-      protocols: ["thread-rpc-v3"],
+      protocols: ["thread-rpc-v4"],
       capabilities: [...Capabilities],
       interactionDelivery: "active",
     },
@@ -48,7 +46,7 @@ const fixture = async () => {
   await router.handle({
     jsonrpc: "2.0",
     method: "initialized",
-    params: { protocol: "thread-rpc-v3" },
+    params: { protocol: "thread-rpc-v4" },
   }, { connectionId })
   const call = async (method: string, params: Record<string, unknown>) => await router.handle(
     { jsonrpc: "2.0", id: ++id, method, params },
@@ -59,16 +57,14 @@ const fixture = async () => {
 
 describe("Memory RPC 项目作用域", () => {
   test("Prompt、compact 与 Memory Router 方法均可通过共享 RPC 边界", () => {
-    const decode = Schema.decodeUnknownSync(AgentRpcRequestSchema)
     for (const method of ["prompt/preview", "prompt/refresh", "thread/compact", "memory/list", "memory/read", "memory/save", "memory/delete", "memory/reset"] as const) {
-      expect(decode({ jsonrpc: "2.0", id: 1, method }).method).toBe(method)
+      expect(RpcMethods[method]).toBeDefined()
     }
   })
 
   test("Context、Hook trust 与审批取消事件通过共享 SSE 边界", () => {
-    const decode = Schema.decodeUnknownSync(AgentNotificationSchema)
     for (const method of ["context/compacted", "context/recoveryRequired", "hook/trust/requested", "hook/trust/resolved", "approval/cancelled"] as const) {
-      expect(decode({ jsonrpc: "2.0", method, params: {} }).method).toBe(method)
+      expect(EventManifest[method]).toBeDefined()
     }
   })
 

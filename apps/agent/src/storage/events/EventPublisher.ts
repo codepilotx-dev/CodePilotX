@@ -1,7 +1,7 @@
 import { EventManifest, type EventType } from "@codepilotx/agent-protocol"
 import { Effect } from "effect"
-import type { EventEnvelope } from "../domain"
-import type { AgentDatabase } from "./Database"
+import type { EventEnvelope } from "../../domain"
+import type { AgentDatabase } from "../database/AgentDatabase"
 
 export const isLiveEvent = (method: string): method is EventType =>
   method in EventManifest && EventManifest[method as EventType].durability === "live"

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, realpathSync } from "node:fs"
 import { createHash } from "node:crypto"
 import { isAbsolute, relative, resolve } from "node:path"
-import type { AgentDatabase } from "../storage/Database"
+import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import { AgentError, type EventEnvelope } from "../domain"
 
 export type HookEvent = "session_start" | "session_resume" | "user_prompt_submit" | "pre_tool_use" | "permission_request" | "post_tool_use" | "post_tool_error" | "pre_compact" | "stop"

@@ -1,5 +1,5 @@
 import { AgentError } from "../domain"
-import type { AgentDatabase } from "../storage/Database"
+import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import { ManagedProjectlessWorkspaceService } from "./ManagedProjectlessWorkspaceService"
 import type { AllocateManagedProjectlessWorkspaceInput, ManagedProjectlessWorkspaceAllocation } from "./ManagedProjectlessWorkspaceService"
 import { WorkspaceService } from "./WorkspaceService"

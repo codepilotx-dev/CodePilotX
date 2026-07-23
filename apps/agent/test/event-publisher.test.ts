@@ -3,9 +3,9 @@ import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect } from "effect"
-import { AgentDatabase } from "../src/storage/Database"
-import { EventHub } from "../src/storage/EventHub"
-import { publishAgentEvent } from "../src/storage/EventPublisher"
+import { AgentDatabase } from "../src/storage/database/AgentDatabase"
+import { EventHub } from "../src/storage/events/EventHub"
+import { publishAgentEvent } from "../src/storage/events/EventPublisher"
 
 const paths: string[] = []
 const removePath = async (path: string) => {

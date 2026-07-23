@@ -13,7 +13,21 @@ import type {
   ReviewSummarySnapshot,
 } from "@codepilotx/agent-protocol"
 import { AgentError } from "../domain"
-import type { AgentDatabase } from "../storage/Database"
+import type { AgentDatabase } from "../storage/database/AgentDatabase"
+import {
+  decodeGitOutput,
+  normalizedPath,
+  parseHunks,
+  parseNameStatus,
+  parseNumstat,
+  parseNumstats,
+  parsePorcelainStatus,
+  sha256,
+  textFilePatch,
+  validateRelativePath,
+} from "./diff/parsers"
+import { fileState } from "./state/file-state"
+import { reviewSourceKey } from "./source/source-key"
 
 const MAX_GIT_OUTPUT_BYTES = 32 * 1024 * 1024
 const GIT_TIMEOUT_MS = 20_000
@@ -33,11 +47,6 @@ type ResolvedSource = {
   headSha: string | null
   baseSha: string | null
 }
-type NameStatus = {
-  path: string
-  previousPath: string | null
-  status: ReviewFileSummary["status"]
-}
 type PatchScanSection = {
   patch: string | null
   revision: string
@@ -54,194 +63,6 @@ type CachedReviewSnapshot = {
   fileDiffs: Map<string, ReviewFileDiffResult>
   fileDiffRequests: Map<string, Promise<ReviewFileDiffResult>>
   stale: boolean
-}
-
-const sha256 = (value: string) => createHash("sha256").update(value, "utf8").digest("hex")
-const sourceKey = (source: ReviewSource) => JSON.stringify(source)
-const normalizedPath = (path: string) => path.replaceAll("\\", "/")
-const fileState = async (path: string) => {
-  const metadata = await stat(path, { bigint: true }).catch(() => null)
-  if (!metadata) return "missing"
-  return `${metadata.size}:${metadata.mtimeNs}:${metadata.ctimeNs}`
-}
-
-const decode = (bytes: ArrayBuffer, stream: "stdout" | "stderr") => {
-  if (bytes.byteLength > MAX_GIT_OUTPUT_BYTES) {
-    throw new AgentError("REVIEW_OUTPUT_TOO_LARGE", `Git ${stream} 超过 ${MAX_GIT_OUTPUT_BYTES} 字节限制`, 413)
-  }
-  try {
-    return decoder.decode(bytes)
-  } catch {
-    throw new AgentError("REVIEW_INVALID_UTF8", `Git ${stream} 包含非法 UTF-8`, 400)
-  }
-}
-
-const validateRelativePath = (path: string) => {
-  const normalized = normalizedPath(path)
-  if (!normalized || isAbsolute(path) || normalized.split("/").includes("..") || normalized.includes("\0")) {
-    throw new AgentError("PATH_DENIED", "Review 文件路径必须是仓库内相对路径", 403)
-  }
-  return normalized
-}
-
-const mapStatus = (status: string): ReviewFileSummary["status"] => {
-  switch (status[0]) {
-    case "A": return "added"
-    case "M": return "modified"
-    case "D": return "deleted"
-    case "R": return "renamed"
-    case "C": return "copied"
-    case "T": return "type-changed"
-    case "?": return "untracked"
-    default: return "unknown"
-  }
-}
-
-const parseNameStatus = (value: string): NameStatus[] => {
-  const fields = value.split("\0")
-  const result: NameStatus[] = []
-  for (let index = 0; index < fields.length;) {
-    const rawStatus = fields[index++]
-    if (!rawStatus) continue
-    const firstPath = fields[index++]
-    if (!firstPath) continue
-    if (rawStatus.startsWith("R") || rawStatus.startsWith("C")) {
-      const destination = fields[index++]
-      if (!destination) continue
-      result.push({
-        path: validateRelativePath(destination),
-        previousPath: validateRelativePath(firstPath),
-        status: mapStatus(rawStatus),
-      })
-    } else {
-      result.push({
-        path: validateRelativePath(firstPath),
-        previousPath: null,
-        status: mapStatus(rawStatus),
-      })
-    }
-  }
-  return result
-}
-
-const parsePorcelainStatus = (value: string) => {
-  const fields = value.split("\0")
-  const files: Array<{
-    path: string
-    previousPath: string | null
-    stagedStatus: string
-    unstagedStatus: string
-    untracked: boolean
-  }> = []
-  for (let index = 0; index < fields.length;) {
-    const field = fields[index++]
-    if (!field || field.length < 4) continue
-    const stagedStatus = field[0] ?? " "
-    const unstagedStatus = field[1] ?? " "
-    const path = validateRelativePath(field.slice(3))
-    const renamedOrCopied =
-      stagedStatus === "R" ||
-      stagedStatus === "C" ||
-      unstagedStatus === "R" ||
-      unstagedStatus === "C"
-    const previousPath = renamedOrCopied
-      ? validateRelativePath(fields[index++] ?? "")
-      : null
-    files.push({
-      path,
-      previousPath,
-      stagedStatus,
-      unstagedStatus,
-      untracked: stagedStatus === "?" && unstagedStatus === "?",
-    })
-  }
-  return files
-}
-
-const parseNumstat = (value: string) => {
-  const first = value.split("\0").find(Boolean)
-  if (!first) return { additions: 0, deletions: 0, binary: false }
-  const [added = "0", deleted = "0"] = first.split("\t")
-  if (added === "-" || deleted === "-") return { additions: null, deletions: null, binary: true }
-  return {
-    additions: Number.parseInt(added, 10) || 0,
-    deletions: Number.parseInt(deleted, 10) || 0,
-    binary: false,
-  }
-}
-
-const parseNumstats = (value: string) => {
-  const result = new Map<string, {
-    additions: number | null
-    deletions: number | null
-    binary: boolean
-  }>()
-  const fields = value.split("\0")
-  for (let index = 0; index < fields.length;) {
-    const field = fields[index++]
-    if (!field) continue
-    const [added = "0", deleted = "0", inlinePath = ""] = field.split("\t")
-    let path = inlinePath
-    if (!path) {
-      index += 1
-      path = fields[index++] ?? ""
-    }
-    if (!path) continue
-    const normalized = validateRelativePath(path)
-    result.set(
-      normalized,
-      added === "-" || deleted === "-"
-        ? { additions: null, deletions: null, binary: true }
-        : {
-            additions: Number.parseInt(added, 10) || 0,
-            deletions: Number.parseInt(deleted, 10) || 0,
-            binary: false,
-          },
-    )
-  }
-  return result
-}
-
-const textFilePatch = (path: string, content: string) => {
-  const normalized = content.replaceAll("\r\n", "\n")
-  const hasFinalNewline = normalized.endsWith("\n")
-  const body = hasFinalNewline ? normalized.slice(0, -1) : normalized
-  const lines = body ? body.split("\n") : []
-  const additions = lines.length
-  const patchLines = [
-    `diff --git a/${path} b/${path}`,
-    "new file mode 100644",
-    "--- /dev/null",
-    `+++ b/${path}`,
-    `@@ -0,0 +1,${additions} @@`,
-    ...lines.map((line) => `+${line}`),
-  ]
-  if (!hasFinalNewline && lines.length > 0) patchLines.push("\\ No newline at end of file")
-  return {
-    patch: `${patchLines.join("\n")}\n`,
-    additions,
-  }
-}
-
-const parseHunks = (patch: string) => {
-  const matches = [...patch.matchAll(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@.*$/gm)]
-  if (!matches.length) return []
-  const preamble = patch.slice(0, matches[0]!.index)
-  return matches.map((match, index) => {
-    const start = match.index!
-    const end = matches[index + 1]?.index ?? patch.length
-    const body = patch.slice(start, end)
-    const hunkPatch = `${preamble}${body}`
-    return {
-      id: sha256(hunkPatch),
-      header: match[0],
-      oldStart: Number.parseInt(match[1]!, 10),
-      oldLines: match[2] === undefined ? 1 : Number.parseInt(match[2], 10),
-      newStart: Number.parseInt(match[3]!, 10),
-      newLines: match[4] === undefined ? 1 : Number.parseInt(match[4], 10),
-      patch: hunkPatch,
-    }
-  })
 }
 
 export class GitReviewService {
@@ -297,8 +118,8 @@ export class GitReviewService {
       ])
       const result = {
         code,
-        stdout: decode(stdoutBytes, "stdout"),
-        stderr: decode(stderrBytes, "stderr"),
+        stdout: decodeGitOutput(stdoutBytes, "stdout", MAX_GIT_OUTPUT_BYTES),
+        stderr: decodeGitOutput(stderrBytes, "stderr", MAX_GIT_OUTPUT_BYTES),
       }
       if (!acceptedCodes.includes(code)) {
         throw new AgentError("GIT_COMMAND_FAILED", "Git 操作失败", 409, {
@@ -405,7 +226,7 @@ export class GitReviewService {
         new Response(child.stderr).arrayBuffer(),
         child.exited,
       ])
-      const stderr = decode(stderrBytes, "stderr")
+      const stderr = decodeGitOutput(stderrBytes, "stderr", MAX_GIT_OUTPUT_BYTES)
       if (code !== 0 && code !== 1) {
         throw new AgentError("GIT_COMMAND_FAILED", "Git 操作失败", 409, {
           args: args.slice(0, 3),
@@ -852,7 +673,7 @@ export class GitReviewService {
   }
 
   private cacheKey(projectId: string, source: ReviewSource) {
-    return `${projectId}\0${sourceKey(source)}`
+    return `${projectId}\0${reviewSourceKey(source)}`
   }
 
   private async buildSnapshot(projectId: string, source: ReviewSource): Promise<CachedReviewSnapshot> {
@@ -873,7 +694,7 @@ export class GitReviewService {
     const changedBytes = files.reduce((total, file) => total + file.changedBytes, 0)
     const changedLines = additions + deletions
     const generation = sha256([
-      sourceKey(source),
+      reviewSourceKey(source),
       resolved.headSha ?? "",
       resolved.baseSha ?? "",
       ...files

@@ -1,4 +1,4 @@
-import type { AgentDatabase } from "../storage/Database";
+import type { AgentDatabase } from "../storage/database/AgentDatabase";
 
 export type AgentInputItem = Record<string, any>;
 

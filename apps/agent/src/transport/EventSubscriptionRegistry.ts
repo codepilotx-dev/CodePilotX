@@ -3,9 +3,9 @@ import type {
   EventSubscribeParamsSchema,
 } from "@codepilotx/agent-protocol"
 import type { Schema } from "effect"
-import type { AgentDatabase } from "../storage/Database"
+import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import { AgentError } from "../domain"
-import { globalEventSequence } from "../storage/EventPublisher"
+import { globalEventSequence } from "../storage/events/EventPublisher"
 
 type SubscribeParams = typeof EventSubscribeParamsSchema.Type
 type AckParams = typeof EventAckParamsSchema.Type
@@ -20,7 +20,7 @@ export type EventSubscription = {
 }
 
 /**
- * Owns RPC v3 subscription identity and cursor acknowledgements. The HTTP/SSE
+ * Owns RPC v4 subscription identity and cursor acknowledgements. The HTTP/SSE
  * adapter consumes these records; replay data remains in the existing events
  * table and is never duplicated here.
  */

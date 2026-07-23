@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { Item } from "../src/domain"
 import { ThreadProjection } from "../src/transport/ThreadProjection"
-import type { AgentDatabase } from "../src/storage/Database"
+import type { AgentDatabase } from "../src/storage/database/AgentDatabase"
 
 describe("活动投影", () => {
   test("透传只读工具命令和输出", () => {

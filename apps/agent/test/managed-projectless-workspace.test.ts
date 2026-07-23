@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { basename, join } from "node:path"
 import { ManagedProjectlessWorkspaceService, projectlessWorkspaceSlug } from "../src/workspace/ManagedProjectlessWorkspaceService"
 import { ThreadWorkspaceResolver } from "../src/workspace/ThreadWorkspaceResolver"
-import { AgentDatabase } from "../src/storage/Database"
+import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { ThreadService } from "../src/session/ThreadService"
 
 const roots: string[] = []

@@ -10,7 +10,9 @@ export interface AgentConfig {
   dataDir: string
   documentsDir: string
   logDir: string
-  databasePath: string
+  historyDatabasePath: string
+  profileDatabasePath: string
+  legacyDatabasePath: string
   modelSnapshotPath: string
   modelCachePath: string
   srtWinPath: string | null
@@ -39,7 +41,9 @@ export const loadConfig = Effect.sync((): AgentConfig => {
     dataDir,
     documentsDir: resolve(process.env.CODEPILOTX_DOCUMENTS_DIR ?? join(homedir(), "Documents")),
     logDir: resolve(process.env.CODEPILOTX_LOG_DIR ?? resolve(dataDir, "logs")),
-    databasePath: resolve(dataDir, "agent.sqlite"),
+    historyDatabasePath: resolve(dataDir, "history.sqlite"),
+    profileDatabasePath: resolve(dataDir, "profile.sqlite"),
+    legacyDatabasePath: resolve(dataDir, "agent.sqlite"),
     modelSnapshotPath: snapshot,
     modelCachePath: resolve(dataDir, "models.cache.json"),
     srtWinPath: process.env.CODEPILOTX_SRT_WIN_PATH ? resolve(process.env.CODEPILOTX_SRT_WIN_PATH) : null,

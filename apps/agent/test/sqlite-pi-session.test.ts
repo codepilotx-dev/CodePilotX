@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Model, Provider } from "@codepilotx/model-schema"
-import { AgentDatabase } from "../src/storage/Database"
+import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { SqlitePiSessionRepo, SqlitePiSessionStorage } from "../src/storage/SqlitePiSession"
 
 const roots: string[] = []

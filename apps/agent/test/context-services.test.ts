@@ -6,7 +6,7 @@ import { Model, Provider } from "@codepilotx/model-schema"
 import { ContextManager, contextFingerprint, estimateContextTokens, type AgentInputItem } from "../src/context/ContextManager"
 import { HookService } from "../src/hooks/HookService"
 import { MemoryService, projectMemoryKey } from "../src/memory/MemoryService"
-import { AgentDatabase, SCHEMA_VERSION } from "../src/storage/Database"
+import { AgentDatabase, SCHEMA_VERSION } from "../src/storage/database/AgentDatabase"
 
 const roots: string[] = []
 const removeRoot = async (root: string) => {

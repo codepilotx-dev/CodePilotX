@@ -7,7 +7,7 @@ import { createPluginHost, define } from "@codepilotx/provider-plugin"
 import { Effect } from "effect"
 import { EncryptedCredentialRepository, type MasterKeyStore } from "../src/auth/EncryptedCredentialRepository"
 import { IntegrationService } from "../src/provider/IntegrationService"
-import { AgentDatabase } from "../src/storage/Database"
+import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 
 const paths: string[] = []
 const databases: AgentDatabase[] = []

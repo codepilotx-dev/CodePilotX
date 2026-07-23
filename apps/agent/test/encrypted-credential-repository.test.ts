@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Effect } from "effect"
 import { EncryptedCredentialRepository, type MasterKeyStore } from "../src/auth/EncryptedCredentialRepository"
-import { AgentDatabase } from "../src/storage/Database"
+import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 
 const paths: string[] = []
 const removePath = async (path: string) => {
@@ -44,8 +44,9 @@ describe("加密凭据仓库", () => {
     const { db, keys } = await setup()
     const repository = new EncryptedCredentialRepository(db, keys)
     await Effect.runPromise(repository.set({ integrationID: "openai", value: { type: "key", key: "secret" } }))
-    db.sqlite.query("UPDATE credentials SET ciphertext = ? WHERE integration_id = ?").run("AAAA", "openai")
+    db.profileSqlite.query("UPDATE credentials SET ciphertext = ? WHERE integration_id = ?").run("AAAA", "openai")
     await expect(Effect.runPromise(repository.get("openai"))).rejects.toMatchObject({ code: "CREDENTIAL_READ_FAILED" })
+    await expect(Effect.runPromise(repository.validateAll())).rejects.toMatchObject({ code: "CREDENTIAL_READ_FAILED" })
     db.close()
   })
 
@@ -101,37 +102,4 @@ describe("加密凭据仓库", () => {
     db.close()
   })
 
-  test("v13 凭据迁移保持密文与 AAD 并可补齐尾号和指纹", async () => {
-    const { db, keys } = await setup()
-    const repository = new EncryptedCredentialRepository(db, keys)
-    await Effect.runPromise(repository.set({ integrationID: "openai", label: "旧 Key", value: { type: "key", key: "sk-legacy-1234" } }))
-    const original = db.encryptedCredential("openai")!
-    const path = db.sqlite.filename
-    db.sqlite.exec(`
-      PRAGMA foreign_keys = OFF;
-      DROP TABLE credential_health;
-      DROP TABLE integration_credential_bindings;
-      ALTER TABLE credentials RENAME TO credentials_v14_test;
-      CREATE TABLE credentials (
-        id TEXT PRIMARY KEY, integration_id TEXT NOT NULL UNIQUE, method_id TEXT, label TEXT NOT NULL,
-        ciphertext TEXT NOT NULL, nonce TEXT NOT NULL, key_version INTEGER NOT NULL,
-        created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
-      );
-      INSERT INTO credentials SELECT id, integration_id, method_id, label, ciphertext, nonce, key_version, created_at, updated_at FROM credentials_v14_test;
-      DROP TABLE credentials_v14_test;
-      PRAGMA user_version = 13;
-      PRAGMA foreign_keys = ON;
-    `)
-    db.close()
-
-    const migrated = new AgentDatabase(path)
-    const migratedRepository = new EncryptedCredentialRepository(migrated, keys)
-    const beforeBackfill = migrated.encryptedCredential("openai")!
-    expect(beforeBackfill).toMatchObject({ id: original.id, ciphertext: original.ciphertext, nonce: original.nonce, kind: "api-key" })
-    expect((await Effect.runPromise(migratedRepository.get<{ key: string }>("openai")))?.value.key).toBe("sk-legacy-1234")
-    expect(await Effect.runPromise(migratedRepository.backfillApiKeyMetadata())).toBe(1)
-    expect(migratedRepository.listApiKeys("openai")[0]?.maskedValue).toBe("••••1234")
-    expect(migrated.encryptedCredential("openai")?.fingerprint).not.toBeNull()
-    migrated.close()
-  })
 })

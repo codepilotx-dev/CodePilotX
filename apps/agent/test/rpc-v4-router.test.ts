@@ -6,8 +6,8 @@ import { Effect, Schema } from "effect"
 import { DEFAULT_PERMISSION_CONFIG } from "@codepilotx/shared/thread"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { Capabilities } from "@codepilotx/agent-protocol"
-import { AgentDatabase } from "../src/storage/Database"
-import { RpcRouter, type RpcRouterDependencies } from "../src/transport/RpcRouter"
+import { AgentDatabase } from "../src/storage/database/AgentDatabase"
+import { RpcRouter, type RpcRouterDependencies } from "../src/transport/rpc/RpcRouter"
 
 const roots: string[] = []
 const removeRoot = async (root: string) => {
@@ -29,7 +29,7 @@ const fixture = async (
   overrides: Partial<RpcRouterDependencies> = {},
   routerOptions: { connectionLeaseMs?: number; now?: () => number } = {},
 ) => {
-  const root = await mkdtemp(join(tmpdir(), "codepilotx-rpc-v3-"))
+  const root = await mkdtemp(join(tmpdir(), "codepilotx-rpc-v4-"))
   roots.push(root)
   const db = new AgentDatabase(join(root, "agent.sqlite"))
   let reviewSummaryCalls = 0
@@ -92,7 +92,7 @@ const fixture = async (
   const initialize = async (capabilities: readonly string[] = Capabilities) => {
     const response = await call("initialize", {
       clientInfo: { name: "test", version: "1.0.0", platform: "win32" },
-      protocols: ["thread-rpc-v3"],
+      protocols: ["thread-rpc-v4"],
       capabilities: [...capabilities],
       interactionDelivery: "active",
     })
@@ -100,7 +100,7 @@ const fixture = async (
     await router.handle({
       jsonrpc: "2.0",
       method: "initialized",
-      params: { protocol: "thread-rpc-v3" },
+      params: { protocol: "thread-rpc-v4" },
     }, { connectionId: connectionId! })
     return response
   }
@@ -113,12 +113,12 @@ const fixture = async (
   }
 }
 
-describe("RPC v3 Router", () => {
-  test("initialize negotiates thread-rpc-v3 and returns formal capabilities", async () => {
+describe("RPC v4 Router", () => {
+  test("initialize negotiates thread-rpc-v4 and returns formal capabilities", async () => {
     const { db, initialize } = await fixture()
     const response = await initialize()
     expect(response.result).toMatchObject({
-      protocol: "thread-rpc-v3",
+      protocol: "thread-rpc-v4",
       serverInfo: { name: "codepilotx-agent" },
       capabilities: expect.arrayContaining(["rpc.typed.v1", "git.review.v1", "github.oauth.v1"]),
       limits: { maxSubscriptions: 16, maxStreamsPerSubscription: 64 },
@@ -259,7 +259,7 @@ describe("RPC v3 Router", () => {
     db.close()
   })
 
-  test("model/list returns the complete versioned v3 catalog", async () => {
+  test("model/list returns the complete versioned v4 catalog", async () => {
     const { db, call, initialize } = await fixture({
       providers: {
         list: async () => [],
@@ -368,7 +368,7 @@ describe("RPC v3 Router", () => {
     db.close()
   })
 
-  test("integration methods consume camelCase v3 params and return declared resources", async () => {
+  test("integration methods consume camelCase v4 params and return declared resources", async () => {
     const integrationId = "integration:fixture"
     const attemptId = "attempt:fixture"
     const connection = {
@@ -467,7 +467,7 @@ describe("RPC v3 Router", () => {
     db.close()
   })
 
-  test("provider methods return the declared v3 health and summary shapes", async () => {
+  test("provider methods return the declared v4 health and summary shapes", async () => {
     const provider = Provider.Info.empty(Provider.ID.make("provider:fixture"))
     const { db, call, initialize } = await fixture({
       providers: {

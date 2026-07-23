@@ -11,7 +11,7 @@ import {
   type SessionStorage,
   type SessionTreeEntry,
 } from "@codepilotx/pi-agent-core"
-import type { AgentDatabase } from "./Database"
+import type { AgentDatabase } from "./database/AgentDatabase"
 
 export interface SqlitePiSessionMetadata extends SessionMetadata {
   threadID: string

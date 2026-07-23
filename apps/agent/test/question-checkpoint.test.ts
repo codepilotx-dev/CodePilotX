@@ -3,8 +3,8 @@ import { Effect } from "effect"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { QuestionService } from "../src/session/QuestionService"
-import { EventHub } from "../src/storage/EventHub"
-import { AgentDatabase } from "../src/storage/Database"
+import { EventHub } from "../src/storage/events/EventHub"
+import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { Model, Provider } from "@codepilotx/model-schema"
 
 const databases: AgentDatabase[] = []

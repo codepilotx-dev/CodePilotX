@@ -3,7 +3,7 @@ import { rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Model, Provider } from "@codepilotx/model-schema"
-import { AgentDatabase } from "../src/storage/Database"
+import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 
 const paths: string[] = []
 const databases: AgentDatabase[] = []

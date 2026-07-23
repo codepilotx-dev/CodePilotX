@@ -39,13 +39,13 @@ try {
   }
   const initialized = await call("initialize", {
     clientInfo: { name: "pi-rpc-smoke", version: "1.0.0", platform: "win32" },
-    protocols: ["thread-rpc-v3"], capabilities: [...Capabilities], interactionDelivery: "active",
+    protocols: ["thread-rpc-v4"], capabilities: [...Capabilities], interactionDelivery: "active",
   })
   connectionId = initialized.connectionId
   await runtime.app.request("http://agent.local/rpc", {
     method: "POST",
     headers: { "content-type": "application/json", "x-codepilotx-connection-id": connectionId },
-    body: JSON.stringify({ jsonrpc: "2.0", method: "initialized", params: { protocol: "thread-rpc-v3" } }),
+    body: JSON.stringify({ jsonrpc: "2.0", method: "initialized", params: { protocol: "thread-rpc-v4" } }),
   })
   const providers = (await call("provider/list", {})).providers as Array<{ id: string; integrationID?: string }>
   const integrations = (await call("integration/list", {})).integrations as Array<{ id: string; methods: Array<{ type: string }> }>
@@ -55,7 +55,10 @@ try {
     throw new Error(`Pi provider/integration catalog mismatch: provider=${JSON.stringify(smokeProvider)}, integration=${JSON.stringify(smokeIntegration)}`)
   }
   const project = (await call("project/open", { rootPath: resolve(import.meta.dir, "../../.."), operationId: crypto.randomUUID() })).project
-  const created = await call("thread/create", { projectId: project.id, operationId: crypto.randomUUID() })
+  const created = await call("thread/create", {
+    workspace: { kind: "project", projectId: project.id },
+    operationId: crypto.randomUUID(),
+  })
   const threadId = created.snapshot.thread.id
   const subscription = await call("event/subscribe", { streams: [{ streamId: threadId, after: "latest" }] })
   let sawDelta = false

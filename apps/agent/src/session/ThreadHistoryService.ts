@@ -1,8 +1,8 @@
 import { Effect } from "effect"
 import { decodeApprovalPolicy, type ThreadListItem, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
 import { AgentError } from "../domain"
-import type { AgentDatabase } from "../storage/Database"
-import type { EventHub } from "../storage/EventHub"
+import type { AgentDatabase } from "../storage/database/AgentDatabase"
+import type { EventHub } from "../storage/events/EventHub"
 
 export type ThreadMetadataPatch = {
   title?: string | null

@@ -6,7 +6,7 @@ import { Effect } from "effect"
 import { EncryptedCredentialRepository, type MasterKeyStore } from "../src/auth/EncryptedCredentialRepository"
 import { AgentError } from "../src/domain"
 import { GithubService, __test } from "../src/github/GithubService"
-import { AgentDatabase } from "../src/storage/Database"
+import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 
 const paths: string[] = []
 const removePath = async (path: string) => {

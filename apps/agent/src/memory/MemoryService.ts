@@ -1,4 +1,4 @@
-import type { AgentDatabase } from "../storage/Database"
+import type { AgentDatabase } from "../storage/database/AgentDatabase"
 
 export type MemoryScope = "user" | "project"
 export type MemoryEntry = {
@@ -62,14 +62,14 @@ export class MemoryService {
     if (input.projectKey) { clauses.push("project_key = ?"); params.push(input.projectKey) }
     const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""
     const limit = Math.max(1, Math.min(500, input.limit ?? 100))
-    return (this.db.sqlite.query(`SELECT id, scope, project_key, content, source_thread_id, created_at, updated_at FROM memory_entries ${where} ORDER BY updated_at DESC LIMIT ?`).all(...params, limit) as Array<Record<string, string | number | null>>).map(parseEntry)
+    return (this.db.profileSqlite.query(`SELECT id, scope, project_key, content, source_thread_id, created_at, updated_at FROM memory_entries ${where} ORDER BY updated_at DESC LIMIT ?`).all(...params, limit) as Array<Record<string, string | number | null>>).map(parseEntry)
   }
 
   read(input: { id: string; scope: MemoryScope; projectKey?: string }) {
     if (!this.enabled()) return null
     if (input.scope === "project" && !input.projectKey) throw new Error("project memory 缺少 projectKey")
     const projectKey = input.scope === "project" ? input.projectKey! : ""
-    const row = this.db.sqlite.query("SELECT id, scope, project_key, content, source_thread_id, created_at, updated_at FROM memory_entries WHERE id = ? AND scope = ? AND project_key = ?").get(input.id, input.scope, projectKey) as Record<string, string | number | null> | null
+    const row = this.db.profileSqlite.query("SELECT id, scope, project_key, content, source_thread_id, created_at, updated_at FROM memory_entries WHERE id = ? AND scope = ? AND project_key = ?").get(input.id, input.scope, projectKey) as Record<string, string | number | null> | null
     return row ? parseEntry(row) : null
   }
 
@@ -77,7 +77,7 @@ export class MemoryService {
     if (!this.enabled()) return false
     if (input.scope === "project" && !input.projectKey) throw new Error("project memory 缺少 projectKey")
     const projectKey = input.scope === "project" ? input.projectKey! : ""
-    return this.db.sqlite.query("DELETE FROM memory_entries WHERE id = ? AND scope = ? AND project_key = ?").run(input.id, input.scope, projectKey).changes > 0
+    return this.db.profileSqlite.query("DELETE FROM memory_entries WHERE id = ? AND scope = ? AND project_key = ?").run(input.id, input.scope, projectKey).changes > 0
   }
 
   recall(input: { query: string; projectKey?: string; subagent?: boolean; limit?: number }) {
@@ -103,39 +103,37 @@ export class MemoryService {
     if (input.scope === "project" && !input.projectKey) throw new Error("project memory 缺少 projectKey")
     const timestamp = Date.now()
     const projectKey = input.scope === "project" ? input.projectKey! : ""
-    if (input.id) return this.db.transaction(() => {
+    if (input.id) return this.db.profileSqlite.transaction(() => {
       const existing = this.read({ id: input.id!, scope: input.scope, ...(input.projectKey ? { projectKey: input.projectKey } : {}) })
       if (!existing) return null
-      this.db.sqlite.query("UPDATE memory_entries SET content = ?, source_thread_id = ?, content_hash = ?, updated_at = ? WHERE id = ? AND scope = ? AND project_key = ?").run(
+      this.db.profileSqlite.query("UPDATE memory_entries SET content = ?, source_thread_id = ?, content_hash = ?, updated_at = ? WHERE id = ? AND scope = ? AND project_key = ?").run(
         content, input.sourceThreadID ?? existing.sourceThreadID, hash(content), timestamp, input.id!, input.scope, projectKey,
       )
       return this.read({ id: input.id!, scope: input.scope, ...(input.projectKey ? { projectKey: input.projectKey } : {}) })
-    })
+    })()
     const id = crypto.randomUUID()
-    this.db.sqlite.query(`INSERT INTO memory_entries (id, scope, project_key, content, source_thread_id, content_hash, created_at, updated_at)
+    this.db.profileSqlite.query(`INSERT INTO memory_entries (id, scope, project_key, content, source_thread_id, content_hash, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(scope, project_key, content_hash) DO UPDATE SET content = excluded.content, source_thread_id = excluded.source_thread_id, updated_at = excluded.updated_at`).run(
       id, input.scope, projectKey, content, input.sourceThreadID ?? null, hash(content), timestamp, timestamp,
     )
-    const row = this.db.sqlite.query("SELECT id, scope, project_key, content, source_thread_id, created_at, updated_at FROM memory_entries WHERE scope = ? AND project_key = ? AND content_hash = ?").get(input.scope, projectKey, hash(content)) as Record<string, string | number | null>
+    const row = this.db.profileSqlite.query("SELECT id, scope, project_key, content, source_thread_id, created_at, updated_at FROM memory_entries WHERE scope = ? AND project_key = ? AND content_hash = ?").get(input.scope, projectKey, hash(content)) as Record<string, string | number | null>
     return parseEntry(row)
   }
 
   reset(input: { scope?: MemoryScope; projectKey?: string; includeEventLog?: boolean } = {}) {
     if (!this.enabled()) return 0
-    return this.db.transaction(() => {
-      const deleted = input.projectKey
-        ? this.db.sqlite.query("DELETE FROM memory_entries WHERE scope = 'project' AND project_key = ?").run(input.projectKey).changes
+    const deleted = this.db.profileSqlite.transaction(() => input.projectKey
+        ? this.db.profileSqlite.query("DELETE FROM memory_entries WHERE scope = 'project' AND project_key = ?").run(input.projectKey).changes
         : input.scope
-          ? this.db.sqlite.query("DELETE FROM memory_entries WHERE scope = ?").run(input.scope).changes
-          : this.db.sqlite.query("DELETE FROM memory_entries").run().changes
-      if (input.includeEventLog) {
-        if (input.projectKey) this.db.sqlite.query("DELETE FROM memory_jobs WHERE project_key = ?").run(input.projectKey)
-        else if (input.scope === "user") this.db.sqlite.query("DELETE FROM memory_jobs WHERE project_key IS NULL OR project_key = ''").run()
-        else this.db.sqlite.query("DELETE FROM memory_jobs").run()
-      }
-      return deleted
-    })
+          ? this.db.profileSqlite.query("DELETE FROM memory_entries WHERE scope = ?").run(input.scope).changes
+          : this.db.profileSqlite.query("DELETE FROM memory_entries").run().changes)()
+    if (input.includeEventLog) {
+      if (input.projectKey) this.db.sqlite.query("DELETE FROM memory_jobs WHERE project_key = ?").run(input.projectKey)
+      else if (input.scope === "user") this.db.sqlite.query("DELETE FROM memory_jobs WHERE project_key IS NULL OR project_key = ''").run()
+      else this.db.sqlite.query("DELETE FROM memory_jobs").run()
+    }
+    return deleted
   }
 
   enqueue(input: { threadID?: string; projectKey?: string; transcript: string }) {

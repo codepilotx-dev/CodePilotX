@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 import { homedir } from "node:os"
 import { isAbsolute, join, relative, resolve } from "node:path"
 import { AgentError } from "../domain"
-import type { AgentDatabase } from "../storage/Database"
+import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import {
   WorkspaceIsolationService,
   type BaselineMetadata,

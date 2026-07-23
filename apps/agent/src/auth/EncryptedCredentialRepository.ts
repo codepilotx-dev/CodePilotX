@@ -7,7 +7,7 @@ import type {
   CredentialHealthStatus,
   StoredCredentialHealth,
   StoredEncryptedCredential,
-} from "../storage/Database"
+} from "../storage/database/AgentDatabase"
 
 const SERVICE = "com.codepilotx.credentials"
 const MASTER_KEY_NAME = "master-key-v1"
@@ -258,10 +258,10 @@ export class EncryptedCredentialRepository {
           const replacement = this.db.listEncryptedCredentials().find((candidate) =>
             candidate.integrationID === row.integrationID && candidate.kind === "api-key" && candidate.id !== row.id && candidate.enabled)
           if (!replacement) throw new AgentError("CREDENTIAL_REQUIRED", "请先启用或新增备用 API Key", 409)
-          this.db.transaction(() => {
+          this.db.profileSqlite.transaction(() => {
             this.db.setActiveEncryptedCredential(row.integrationID, replacement.id)
             this.db.updateEncryptedCredential(row.id, { enabled: false })
-          })
+          })()
         } else {
           this.db.updateEncryptedCredential(row.id, { enabled })
         }
@@ -320,6 +320,21 @@ export class EncryptedCredentialRepository {
         return updated
       },
       catch: (cause) => this.error("CREDENTIAL_READ_FAILED", "无法补齐 API Key 元数据", cause),
+    })
+  }
+
+  validateAll() {
+    return Effect.tryPromise({
+      try: async () => {
+        for (const row of this.db.listEncryptedCredentials()) {
+          await this.decrypt(row)
+        }
+      },
+      catch: (cause) => this.error(
+        "CREDENTIAL_READ_FAILED",
+        "无法验证迁移后的加密凭据",
+        cause,
+      ),
     })
   }
 

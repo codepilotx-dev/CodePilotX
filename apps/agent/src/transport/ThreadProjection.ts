@@ -14,7 +14,7 @@ import type {
 } from "@codepilotx/shared/thread"
 import { decodeApprovalPolicy } from "@codepilotx/shared/thread"
 import type { EventEnvelope, Item as StoredItem } from "../domain"
-import type { AgentDatabase } from "../storage/Database"
+import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import { SubagentRepository } from "../subagent/SubagentRepository"
 
 const parse = <T>(value: string): T => JSON.parse(value) as T

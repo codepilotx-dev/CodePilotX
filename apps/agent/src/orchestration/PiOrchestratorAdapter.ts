@@ -22,12 +22,12 @@ import {
   SqlitePiSessionRepo,
   type SqlitePiSessionStorage,
 } from "../storage/SqlitePiSession";
-import type { AgentDatabase } from "../storage/Database";
-import type { EventHub } from "../storage/EventHub";
+import type { AgentDatabase } from "../storage/database/AgentDatabase";
+import type { EventHub } from "../storage/events/EventHub";
 import type { ToolExecutor } from "../tool/ToolExecutor";
 import { PI_LIFECYCLE_TOOLS, type ToolExposureInput } from "../tool/ToolExposurePlan";
 import type { Item, SubagentResult } from "../domain";
-import { createLiveEvent } from "../storage/EventPublisher";
+import { createLiveEvent } from "../storage/events/EventPublisher";
 import { WorkspaceService } from "../workspace/WorkspaceService";
 import { secretScrubber } from "../security/SecretScrubber";
 
@@ -723,12 +723,10 @@ export class PiOrchestratorAdapter {
     const row = this.options.db.sqlite
       .query(
         `
-      SELECT a.session_id, a.model_ref,
-             COALESCE(p.root_path, t.workspace_root) AS root_path,
-             COALESCE(t.workspace_cwd, p.root_path) AS default_cwd
+      SELECT a.session_id, a.model_ref, t.project_id,
+             t.workspace_root, t.workspace_cwd
       FROM agent_executions AS a
       JOIN threads AS t ON t.id = a.thread_id
-      LEFT JOIN projects AS p ON p.id = t.project_id
       WHERE a.thread_id = ? AND a.profile = 'main'
       ORDER BY a.created_at DESC LIMIT 1
     `,
@@ -736,18 +734,23 @@ export class PiOrchestratorAdapter {
       .get(threadID) as {
       session_id: string;
       model_ref: string;
-      root_path: string;
-      default_cwd: string;
+      project_id: string | null;
+      workspace_root: string | null;
+      workspace_cwd: string | null;
     } | null;
     if (!row) throw new Error("Pi session 不存在，无法执行手动压缩");
+    const project = row.project_id ? this.options.db.getProject(row.project_id) : null;
+    const rootPath = project?.rootPath ?? row.workspace_root;
+    const defaultCwd = row.workspace_cwd ?? project?.rootPath;
+    if (!rootPath || !defaultCwd) throw new Error("Pi session 绑定的项目或工作区不存在");
     const ref = JSON.parse(row.model_ref) as { providerID: string; id: string };
     const model = this.options.models.getModel(ref.providerID, ref.id);
     if (!model) throw new Error(`Pi 模型 ${ref.providerID}/${ref.id} 不可用`);
     const session = await this.repo.openForThread(row.session_id, threadID);
     const storage = session.getStorage() as SqlitePiSessionStorage;
     const env = new CodePilotXExecutionEnv(
-      await WorkspaceService.open(row.root_path),
-      row.default_cwd,
+      await WorkspaceService.open(rootPath),
+      defaultCwd,
     );
     const harness = new AgentHarness({
       env,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { AgentDatabase } from "../src/storage/Database"
+import type { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import type { ToolInvocation } from "../src/domain"
 import { ReviewerService } from "../src/permission/ReviewerService"
 import type { PiModelService } from "../src/provider/pi"

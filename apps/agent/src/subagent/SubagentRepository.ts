@@ -10,7 +10,7 @@ import type {
 } from "@codepilotx/shared/thread"
 import { encodeApprovalPolicy } from "@codepilotx/shared/thread"
 import { AgentError, type AgentExecution, type EventEnvelope } from "../domain"
-import type { AgentDatabase } from "../storage/Database"
+import type { AgentDatabase } from "../storage/database/AgentDatabase"
 
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const stringify = (value: unknown) => JSON.stringify(value ?? null)

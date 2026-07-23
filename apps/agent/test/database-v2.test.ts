@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Database } from "bun:sqlite"
-import { mkdtemp, readdir, rm } from "node:fs/promises"
+import { mkdtemp, readdir, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { AgentDatabase, DATA_EPOCH, SCHEMA_VERSION } from "../src/storage/Database"
+import { AgentDatabase, DATA_EPOCH, SCHEMA_VERSION } from "../src/storage/database/AgentDatabase"
+import { FINAL_SCHEMA } from "../src/storage/database/schema-initializer"
+import { PROFILE_APPLICATION_ID, PROFILE_SCHEMA_VERSION } from "../src/storage/database/schema"
 
 const paths: string[] = []
 const removePath = async (path: string) => {
@@ -41,68 +43,25 @@ describe("数据库 Pi epoch", () => {
     db.close()
   })
 
-  test("v16 升级为带 Thread ownership 的 v17 Pi schema 并清理孤儿", async () => {
+  test("无法识别的旧 schema 会保留原文件并阻止启动", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-pi-v17-"))
     paths.push(root)
     const path = join(root, "agent.sqlite")
-    const seeded = new AgentDatabase(path)
-    const validThread = seeded.createThread("valid")
-    seeded.sqlite.query("UPDATE threads SET id = 'thread-valid' WHERE id = ?").run(validThread.id)
-    seeded.close()
-    const legacy = new Database(path, { create: true })
-    legacy.exec(`
-      PRAGMA foreign_keys = OFF;
-      DROP TABLE pi_session_entries;
-      DROP TABLE pi_sessions;
+    const seeded = new Database(path, { create: true })
+    seeded.exec(`
+      PRAGMA application_id = ${DATA_EPOCH};
       PRAGMA user_version = 16;
-      CREATE TABLE pi_sessions (
-        id TEXT PRIMARY KEY,
-        thread_id TEXT NOT NULL,
-        agent_id TEXT NOT NULL,
-        leaf_id TEXT,
-        name TEXT,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      );
-      CREATE TABLE pi_session_entries (
-        session_id TEXT NOT NULL REFERENCES pi_sessions(id) ON DELETE CASCADE,
-        sequence INTEGER NOT NULL,
-        id TEXT NOT NULL,
-        parent_id TEXT,
-        type TEXT NOT NULL,
-        payload TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        PRIMARY KEY (session_id, sequence),
-        UNIQUE (session_id, id)
-      );
-      CREATE TABLE agent_thread_items (
-        thread_id TEXT NOT NULL,
-        ordinal INTEGER NOT NULL,
-        payload TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        PRIMARY KEY (thread_id, ordinal)
-      );
-      INSERT INTO pi_sessions VALUES ('valid', 'thread-valid', 'creator', NULL, NULL, 1, 1);
-      INSERT INTO pi_sessions VALUES ('orphan', 'thread-missing', 'creator', NULL, NULL, 1, 1);
-      INSERT INTO pi_session_entries VALUES ('valid', 0, 'entry-valid', NULL, 'message', '{}', 1);
-      INSERT INTO pi_session_entries VALUES ('orphan', 0, 'entry-orphan', NULL, 'message', '{}', 1);
-      PRAGMA foreign_keys = ON;
+      CREATE TABLE stale_schema (value TEXT NOT NULL);
+      INSERT INTO stale_schema VALUES ('must reset');
     `)
-    legacy.close()
+    seeded.close()
+    const originalSize = (await stat(path)).size
 
-    const db = new AgentDatabase(path)
-    expect(db.sqlite.query("SELECT id FROM pi_sessions ORDER BY id").all()).toEqual([{ id: "valid" }])
-    expect(db.sqlite.query("SELECT id FROM pi_session_entries ORDER BY id").all()).toEqual([{ id: "entry-valid" }])
-    expect(db.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'agent_thread_items'").get()).toBeNull()
-    expect(db.sqlite.query("PRAGMA foreign_key_check").all()).toEqual([])
-    expect((db.sqlite.query("PRAGMA foreign_key_list(pi_sessions)").all() as Array<{ table: string; from: string; on_delete: string }>))
-      .toContainEqual(expect.objectContaining({ table: "threads", from: "thread_id", on_delete: "CASCADE" }))
-    db.close()
-
-    expect((await readdir(root)).some((name) => name.includes("pre-v17"))).toBe(true)
+    expect(() => new AgentDatabase(path)).toThrow("缺少 16 → 17 迁移")
+    expect((await stat(path)).size).toBe(originalSize)
   })
 
-  test("旧 epoch 数据库及 WAL/SHM 被一次性清空且不创建备份", async () => {
+  test("旧 history epoch 备份后重建", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-reset-pi-epoch-"))
     paths.push(root)
     const path = join(root, "agent.sqlite")
@@ -122,7 +81,7 @@ describe("数据库 Pi epoch", () => {
     expect(tables.has("pi_sessions")).toBe(true)
     db.close()
 
-    expect((await readdir(root)).some((name) => name.includes("legacy") || name.includes("pre-v"))).toBe(false)
+    expect((await readdir(root)).some((name) => name.startsWith("agent.sqlite.epoch-0.") && name.endsWith(".bak"))).toBe(true)
   })
 
   test("当前 Pi epoch 重开时保留数据", async () => {
@@ -137,6 +96,87 @@ describe("数据库 Pi epoch", () => {
     expect(reopened.getThread(thread.id)?.title).toBe("保留的会话")
     expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
     reopened.close()
+  })
+
+  test("旧单库原子拆分为 history/profile 并保留来源与备份", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-split-"))
+    paths.push(root)
+    const legacyPath = join(root, "agent.sqlite")
+    const historyPath = join(root, "history.sqlite")
+    const profilePath = join(root, "profile.sqlite")
+    const legacy = new Database(legacyPath, { create: true })
+    legacy.exec("PRAGMA foreign_keys = ON")
+    legacy.exec(FINAL_SCHEMA.join(";\n"))
+    legacy.exec(`
+      PRAGMA application_id = ${DATA_EPOCH};
+      PRAGMA user_version = 17;
+      INSERT INTO app_settings VALUES ('desktop.settings.v1', '{"theme":"dark"}', 1);
+      INSERT INTO projects VALUES ('project:1', '项目', 'F:\\workspace', 1, 1, 1);
+      INSERT INTO project_settings VALUES ('project:1', NULL, 1);
+      INSERT INTO threads (id, title, project_id, workspace_kind, created_at, updated_at)
+        VALUES ('thread:1', '保留的会话', 'project:1', 'project', 1, 1);
+      INSERT INTO memory_entries VALUES ('memory:1', 'user', '', '偏好深色主题', 'thread:1', 'hash:1', 1, 1);
+    `)
+    legacy.close()
+
+    const db = new AgentDatabase({ legacyPath, historyPath, profilePath })
+    expect(db.getThread("thread:1")?.title).toBe("保留的会话")
+    expect(db.getSetting<{ theme: string }>("desktop.settings.v1")).toEqual({ theme: "dark" })
+    expect(db.getProject("project:1")?.name).toBe("项目")
+    expect(db.profileSqlite.query("SELECT content FROM memory_entries WHERE id = 'memory:1'").get()).toEqual({ content: "偏好深色主题" })
+    expect(db.sqlite.query("SELECT name FROM sqlite_master WHERE name IN ('app_settings', 'projects', 'memory_entries')").all()).toEqual([])
+    expect(db.profileSqlite.query("PRAGMA application_id").get()).toEqual({ application_id: PROFILE_APPLICATION_ID })
+    expect(db.profileSqlite.query("PRAGMA user_version").get()).toEqual({ user_version: PROFILE_SCHEMA_VERSION })
+    db.sqlite.query("DELETE FROM threads WHERE id = 'thread:1'").run()
+    expect(db.profileSqlite.query("SELECT source_thread_id FROM memory_entries WHERE id = 'memory:1'").get()).toEqual({ source_thread_id: "thread:1" })
+    db.close()
+
+    const names = await readdir(root)
+    expect(names.some((name) => name.startsWith("agent.sqlite.epoch-") && name.endsWith(".bak"))).toBe(true)
+    expect(names).toContain("agent.sqlite")
+  })
+
+  test("history epoch 更换只备份并重建会话库", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-history-epoch-"))
+    paths.push(root)
+    const pathsForDatabase = {
+      legacyPath: join(root, "agent.sqlite"),
+      historyPath: join(root, "history.sqlite"),
+      profilePath: join(root, "profile.sqlite"),
+    }
+    const initial = new AgentDatabase(pathsForDatabase)
+    initial.setSetting("desktop.settings.v1", { fontSize: 16 })
+    const staleThread = initial.createThread("应重建的会话")
+    initial.close()
+    const staleHistory = new Database(pathsForDatabase.historyPath)
+    staleHistory.exec("PRAGMA application_id = 1")
+    staleHistory.close()
+
+    const reopened = new AgentDatabase(pathsForDatabase)
+    expect(reopened.getThread(staleThread.id)).toBeNull()
+    expect(reopened.getSetting<{ fontSize: number }>("desktop.settings.v1")).toEqual({ fontSize: 16 })
+    reopened.close()
+    expect((await readdir(root)).some((name) => name.startsWith("history.sqlite.epoch-1.") && name.endsWith(".bak"))).toBe(true)
+  })
+
+  test("资料迁移校验失败时保留旧库且不发布正式双库", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-profile-failure-"))
+    paths.push(root)
+    const legacyPath = join(root, "agent.sqlite")
+    const historyPath = join(root, "history.sqlite")
+    const profilePath = join(root, "profile.sqlite")
+    const legacy = new Database(legacyPath, { create: true })
+    legacy.exec(FINAL_SCHEMA.join(";\n"))
+    legacy.exec(`
+      PRAGMA application_id = ${DATA_EPOCH};
+      PRAGMA user_version = 17;
+      INSERT INTO app_settings VALUES ('desktop.settings.v1', '{broken', 1);
+    `)
+    legacy.close()
+
+    expect(() => new AgentDatabase({ legacyPath, historyPath, profilePath })).toThrow("不是有效 JSON")
+    expect(await Bun.file(legacyPath).exists()).toBe(true)
+    expect(await Bun.file(profilePath).exists()).toBe(false)
   })
 
   test("v16 持久化 projectless workspace 和创建操作幂等键", async () => {

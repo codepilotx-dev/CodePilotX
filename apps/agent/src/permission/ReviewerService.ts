@@ -13,7 +13,7 @@ import {
   type ShellRiskAnalysis,
   type ShellRiskLevel,
 } from "../security/ShellRiskClassifier";
-import type { AgentDatabase } from "../storage/Database";
+import type { AgentDatabase } from "../storage/database/AgentDatabase";
 import { secretScrubber } from "../security/SecretScrubber";
 import type { PiModelService } from "../provider/pi";
 import { generatePiObject } from "../provider/pi/PiStructuredOutput";

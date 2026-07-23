@@ -5,9 +5,9 @@ import {
   createPluginHost,
 } from "@codepilotx/provider-plugin";
 import { loadConfig } from "./config/Config";
-import { AgentDatabase } from "./storage/Database";
-import { EventHub } from "./storage/EventHub";
-import { publishAgentEvent } from "./storage/EventPublisher";
+import { AgentDatabase } from "./storage/database/AgentDatabase";
+import { EventHub } from "./storage/events/EventHub";
+import { publishAgentEvent } from "./storage/events/EventPublisher";
 import { EncryptedCredentialRepository } from "./auth/EncryptedCredentialRepository";
 import { ToolRegistry } from "./tool/ToolRegistry";
 import { ToolExecutor } from "./tool/ToolExecutor";
@@ -36,7 +36,6 @@ import { z } from "zod";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createHash } from "node:crypto";
 import { GitReviewService } from "./review/GitReviewService";
 import { GithubService } from "./github/GithubService";
 import type { Models } from "@earendil-works/pi-ai";
@@ -48,69 +47,18 @@ export interface BootstrapOptions {
   initializeDatabase?: (db: AgentDatabase) => void;
 }
 
-const migrateLegacyProjectlessWorkspaces = async (
-  db: AgentDatabase,
-  service: ManagedProjectlessWorkspaceService,
-) => {
-  const rows = db.sqlite.query(`
-    SELECT id, title, first_user_message, created_at
-    FROM threads
-    WHERE workspace_kind = 'legacy' AND project_id IS NULL
-    ORDER BY created_at, id
-  `).all() as Array<{
-    id: string;
-    title: string;
-    first_user_message: string | null;
-    created_at: number;
-  }>;
-  for (const row of rows) {
-    const operationID = `legacy:${createHash("sha256").update(row.id).digest("hex")}`;
-    const allocation = await service.allocate({
-      workspaceID: crypto.randomUUID(),
-      threadID: row.id,
-      prompt: row.first_user_message ?? row.title,
-      now: new Date(row.created_at),
-    });
-    try {
-      const requestHash = createHash("sha256")
-        .update(JSON.stringify({ legacyThreadID: row.id }))
-        .digest("hex");
-      const changed = db.sqlite.query(`
-        UPDATE threads
-        SET workspace_kind = 'projectless', workspace_root = ?, workspace_cwd = ?, output_directory = ?,
-            create_operation_id = COALESCE(create_operation_id, ?), create_request_hash = COALESCE(create_request_hash, ?)
-        WHERE id = ? AND workspace_kind = 'legacy' AND project_id IS NULL
-      `).run(
-        allocation.sessionRoot,
-        allocation.cwd,
-        allocation.outputDirectory,
-        operationID,
-        requestHash,
-        row.id,
-      );
-      if (!changed.changes) {
-        await service.rollback(allocation);
-        continue;
-      }
-      await service.activate(allocation);
-    } catch (cause) {
-      await service.rollback(allocation).catch(() => undefined);
-      throw cause;
-    }
-  }
-};
-
 export const createBootstrap = (options: BootstrapOptions = {}) =>
   Effect.gen(function* () {
     const config = yield* loadConfig;
     const logger = new AgentLogger(config.logDir);
-    const db = new AgentDatabase(config.databasePath);
+    const db = new AgentDatabase({
+      historyPath: config.historyDatabasePath,
+      profilePath: config.profileDatabasePath,
+      legacyPath: config.legacyDatabasePath,
+    });
     options.initializeDatabase?.(db);
     const projectlessWorkspaces = new ManagedProjectlessWorkspaceService(
       config.documentsDir,
-    );
-    yield* Effect.promise(() =>
-      migrateLegacyProjectlessWorkspaces(db, projectlessWorkspaces),
     );
     const workspaceResolver = new ThreadWorkspaceResolver(
       db,
@@ -118,6 +66,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     );
     const hub = yield* EventHub.make;
     const credentials = new EncryptedCredentialRepository(db);
+    yield* credentials.validateAll();
     yield* credentials.backfillApiKeyMetadata();
     const github = new GithubService(credentials, {
       getConfiguredClientId: () => {
