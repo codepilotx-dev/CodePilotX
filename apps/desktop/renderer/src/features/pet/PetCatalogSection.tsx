@@ -16,7 +16,6 @@ import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import { SettingsSection } from './SettingsSection.js'
 import {
   filterPetCatalog,
   listPetCatalogCategories,
@@ -92,7 +91,7 @@ export function PetCatalogSection({
 
   useEffect(() => {
     void loadCatalog()
-    // The catalog loads once when the settings section mounts.
+    // The catalog loads once when the standalone page mounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -137,23 +136,24 @@ export function PetCatalogSection({
 
   return (
     <>
-      <SettingsSection
-        bare
-        title="社区宠物"
-        description="浏览并一键安装 awesome-codex-pet 社区中的桌面伙伴。"
-        actions={
-          <Button
-            aria-label="刷新社区宠物"
-            disabled={loading}
-            onClick={() => void loadCatalog(true)}
-            type="button"
-          >
-            <RefreshCw size={APP_ICON_SIZE} />
-            刷新
-          </Button>
-        }
-      >
-        <div className="pet-catalog-panel settings-card">
+      <section aria-label="社区宠物目录" className="pet-catalog-browser">
+        <div className="pet-catalog-panel">
+          <div className="pet-catalog-toolbar">
+            <span role="status">
+              {loading
+                ? '正在刷新目录…'
+                : `共 ${catalog.pets.length} 只社区宠物`}
+            </span>
+            <Button
+              aria-label="刷新社区宠物"
+              disabled={loading}
+              onClick={() => void loadCatalog(true)}
+              type="button"
+            >
+              <RefreshCw size={APP_ICON_SIZE} />
+              刷新
+            </Button>
+          </div>
           <div className="pet-catalog-filters">
             <SearchInput
               aria-label="搜索社区宠物"
@@ -163,7 +163,7 @@ export function PetCatalogSection({
             />
             <select
               aria-label="宠物分类"
-              className="pet-settings-select"
+              className="pet-catalog-select"
               onChange={event => setCategory(event.target.value)}
               value={category}
             >
@@ -176,7 +176,7 @@ export function PetCatalogSection({
             </select>
             <select
               aria-label="宠物图集版本"
-              className="pet-settings-select"
+              className="pet-catalog-select"
               onChange={event => {
                 const value = event.target.value
                 setVersion(value === 'all' ? 'all' : Number(value) as 1 | 2)
@@ -303,7 +303,7 @@ export function PetCatalogSection({
             </div>
           ) : null}
         </div>
-      </SettingsSection>
+      </section>
 
       <ConfirmationDialog
         actionDisabled={installingSlug !== null}

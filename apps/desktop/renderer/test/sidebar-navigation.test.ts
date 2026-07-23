@@ -44,6 +44,13 @@ describe('模型中心导航', () => {
 })
 
 describe('设置导航', () => {
+  test('宠物设置保留商店入口但主侧栏不增加商店项', () => {
+    const pets = SETTINGS_ITEMS.find(item => item.routeId === 'pets')
+
+    expect(pets?.rows.some(row => row.title === '社区宠物商店')).toBeTrue()
+    expect(TOP_NAV_ITEMS.some(item => item.path === '/pets')).toBeFalse()
+  })
+
   test('工作空间依赖项是编码分组中的独立页面', () => {
     const codingGroup = SETTINGS_GROUPS.find(group => group.id === 'coding')
     const dependencies = SETTINGS_ITEMS.find(

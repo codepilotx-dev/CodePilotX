@@ -5,6 +5,11 @@ import type {
 
 export type PetCatalogVersionFilter = 'all' | 1 | 2
 
+export type PetCatalogCategoryOption = {
+  id: string
+  label: string
+}
+
 export type PetCatalogFilters = {
   query: string
   category: string
@@ -36,7 +41,7 @@ export function filterPetCatalog(
 
 export function listPetCatalogCategories(
   pets: readonly PetCatalogItem[],
-): Array<{ id: string; label: string }> {
+): PetCatalogCategoryOption[] {
   const labels = new Map<string, string>()
   for (const pet of pets) {
     if (!labels.has(pet.category)) {

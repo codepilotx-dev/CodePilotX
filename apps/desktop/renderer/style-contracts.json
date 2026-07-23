@@ -22,11 +22,13 @@
   "directStyleImportAllowlist": [
     "src/main.tsx -> src/styles/tailwind.css",
     "src/features/labs/LabsPage.tsx -> src/styles/lazy/labs.scss",
+    "src/features/pet/PetCatalogPage.tsx -> src/styles/lazy/pet-catalog.scss",
     "src/features/pet/PetOverlayPage.tsx -> src/styles/lazy/pet-overlay.scss",
     "src/features/settings/SettingsLayout.tsx -> src/styles/lazy/settings.scss"
   ],
   "lazyStyleEntrypoints": {
     "src/styles/lazy/labs.scss": "features",
+    "src/styles/lazy/pet-catalog.scss": "features",
     "src/styles/lazy/pet-overlay.scss": "features",
     "src/styles/lazy/settings.scss": "features"
   },

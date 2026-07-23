@@ -44,6 +44,11 @@ const PetOverlayPage = lazy(() =>
     default: module.PetOverlayPage,
   })),
 )
+const PetCatalogPage = lazy(() =>
+  import('./features/pet/PetCatalogPage.js').then(module => ({
+    default: module.PetCatalogPage,
+  })),
+)
 
 function deferred(element: ReactNode): ReactNode {
   return <Suspense fallback={null}>{element}</Suspense>
@@ -68,6 +73,7 @@ const router = createHashRouter([
       { path: 'models', element: deferred(<ModelCenterView />) },
       { path: 'plugins', element: deferred(<PluginsView />) },
       { path: 'automations', element: deferred(<AutomationView />) },
+      { path: 'pets', element: deferred(<PetCatalogPage />) },
       { path: 'settings/:tab', element: deferred(<SettingsLayout />) },
       { path: 'labs', element: deferred(<LabsPage />) },
       { path: '*', element: <NotFoundPage /> },

@@ -4,7 +4,7 @@ import {
   filterPetCatalog,
   listPetCatalogCategories,
   petLicenseNeedsConfirmation,
-} from '../src/features/settings/petCatalogModel.js'
+} from '../src/features/pet/petCatalogModel.js'
 
 const PETS: PetCatalogItem[] = [
   pet({
