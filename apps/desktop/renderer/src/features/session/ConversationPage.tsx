@@ -53,6 +53,7 @@ import type {
 } from "../../../shared/types.js";
 import { useQuickChatContext } from "./QuickChatContext.js";
 import { useDesktopSettings } from "../settings/useDesktopSettings.js";
+import { WorkspaceHeaderItem } from "../layout/workspace-header/index.js";
 import {
   buildWorkflowMarkdownReport,
   type WorkflowMarkdownLogDiagnostics,
@@ -1067,14 +1068,22 @@ export function ConversationPage(): React.ReactNode {
           : "conversation-page workflow-page tw:relative tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-col tw:bg-app-canvas tw:text-app-text"
       }
     >
-      <header
-        aria-label="会话工具栏"
-        className="chat-session-header"
-        role="toolbar"
+      <WorkspaceHeaderItem
+        align="start"
+        id="conversation.title"
+        order={0}
+        slot="left"
       >
         {workspaceHeaderTitle}
+      </WorkspaceHeaderItem>
+      <WorkspaceHeaderItem
+        align="end"
+        id="conversation.actions"
+        order={100}
+        slot="right"
+      >
         {workspaceHeaderActions}
-      </header>
+      </WorkspaceHeaderItem>
       <div
         className="workflow-page__body"
       >

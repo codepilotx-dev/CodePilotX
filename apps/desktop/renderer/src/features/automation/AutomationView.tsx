@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { cx } from '../../utils/cx.js'
+import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 
 type QuickStart = {
   id: string
@@ -26,6 +27,36 @@ const QUICK_STARTS: QuickStart[] = [
 export function AutomationView(): React.ReactNode {
   return (
     <section className="automation-view">
+      <WorkspaceHeaderItem
+        align="end"
+        id="automation.actions"
+        order={100}
+        slot="right"
+      >
+        <div className="automation-header-actions">
+          <button
+            aria-label="查看自动化模板（尚未开放）"
+            className="automation-button is-ghost"
+            disabled
+            type="button"
+          >
+            查看模板
+            <span aria-hidden="true">尚未开放</span>
+          </button>
+          <button
+            aria-label="通过聊天创建自动化（尚未开放）"
+            className="automation-button is-primary"
+            disabled
+            type="button"
+          >
+            <Sparkles aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <span>通过聊天创建</span>
+            <span aria-hidden="true">尚未开放</span>
+            <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          </button>
+        </div>
+      </WorkspaceHeaderItem>
+
       <header
         className={cx(
           'automation-header',
@@ -42,16 +73,6 @@ export function AutomationView(): React.ReactNode {
           </p>
         </div>
 
-        <div className="automation-header-actions">
-          <button className="automation-button is-ghost" type="button">
-            查看模板
-          </button>
-          <button className="automation-button is-primary" type="button">
-            <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            <span>通过聊天创建</span>
-            <ChevronDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </button>
-        </div>
       </header>
 
       <div className="automation-canvas">
