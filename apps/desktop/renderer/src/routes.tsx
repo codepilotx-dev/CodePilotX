@@ -39,12 +39,21 @@ const LabsPage = lazy(() =>
     default: module.LabsPage,
   })),
 )
+const PetOverlayPage = lazy(() =>
+  import('./features/pet/PetOverlayPage.js').then(module => ({
+    default: module.PetOverlayPage,
+  })),
+)
 
 function deferred(element: ReactNode): ReactNode {
   return <Suspense fallback={null}>{element}</Suspense>
 }
 
 const router = createHashRouter([
+  {
+    path: '/pet-overlay',
+    element: deferred(<PetOverlayPage />),
+  },
   {
     path: '/',
     element: <DesktopLayout />,

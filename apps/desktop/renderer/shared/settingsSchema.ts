@@ -159,6 +159,14 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
 	    browserAllowedSites: [],
 	    collapsedSidebarSections: [],
 	    browserSitePermissions: [],
+    pet: {
+      enabled: false,
+      selectedPetId: null,
+      size: 112,
+      notifyAttention: true,
+      notifyCompletion: true,
+      notifyFailure: true,
+    },
   }
 }
 
@@ -430,6 +438,41 @@ export function normalizeDesktopStoredSettings(
       parsed.browserSitePermissions,
       parsed.browserAllowedSites,
     ),
+    pet: normalizePetSettings(parsed.pet, defaults.pet),
+  }
+}
+
+function normalizePetSettings(
+  value: unknown,
+  fallback: DesktopStoredSettings['pet'],
+): DesktopStoredSettings['pet'] {
+  const pet = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Partial<DesktopStoredSettings['pet']>
+    : {}
+  const rawSize = typeof pet.size === 'number' && Number.isFinite(pet.size)
+    ? Math.round(pet.size)
+    : fallback.size
+  const selectedPetId =
+    typeof pet.selectedPetId === 'string'
+    && /^[a-z0-9][a-z0-9-]{0,63}$/.test(pet.selectedPetId)
+      ? pet.selectedPetId
+      : null
+  return {
+    enabled: typeof pet.enabled === 'boolean' ? pet.enabled : fallback.enabled,
+    selectedPetId,
+    size: Math.min(224, Math.max(80, rawSize)),
+    notifyAttention:
+      typeof pet.notifyAttention === 'boolean'
+        ? pet.notifyAttention
+        : fallback.notifyAttention,
+    notifyCompletion:
+      typeof pet.notifyCompletion === 'boolean'
+        ? pet.notifyCompletion
+        : fallback.notifyCompletion,
+    notifyFailure:
+      typeof pet.notifyFailure === 'boolean'
+        ? pet.notifyFailure
+        : fallback.notifyFailure,
   }
 }
 

@@ -3,6 +3,7 @@ import type {
   DesktopStoredSettings,
   DesktopThemeSettings,
 } from '../shared/types.js'
+import type { DesktopPetOverlayBridge } from '@codepilotx/shared/desktop-pet-overlay'
 
 declare global {
   interface Window {
@@ -40,7 +41,7 @@ declare global {
       copyProviderApiKey(
         credentialId: string,
       ): Promise<{ clearAfterMs: 60000 }>
-    }
+    } & DesktopPetOverlayBridge
   }
 }
 

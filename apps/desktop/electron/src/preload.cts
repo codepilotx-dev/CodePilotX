@@ -1,6 +1,22 @@
 import { contextBridge, ipcRenderer } from "electron"
 import type { DesktopThemeSettingsV5 } from "./settings/appearance-settings-store.js"
 import type { DesktopSettingsPayload } from "./settings/desktop-settings-contract.js"
+import type { DesktopPetOverlayBridge } from "@codepilotx/shared/desktop-pet-overlay"
+
+// Sandboxed preload scripts cannot resolve workspace packages at runtime.
+// Keep this literal type-checked against the shared contract so the emitted
+// preload remains self-contained without allowing IPC channel drift.
+const PET_OVERLAY_CHANNELS = {
+  open: "pet-overlay:open",
+  hide: "pet-overlay:hide",
+  getState: "pet-overlay:get-state",
+  beginDrag: "pet-overlay:drag-begin",
+  updateDrag: "pet-overlay:drag-update",
+  endDrag: "pet-overlay:drag-end",
+  setPointerPassthrough: "pet-overlay:pointer-passthrough",
+  requestKeyboardFocus: "pet-overlay:keyboard-focus",
+  openSession: "pet-overlay:open-session",
+} as const satisfies typeof import("@codepilotx/shared/desktop-pet-overlay").PET_OVERLAY_CHANNELS
 
 type AgentConnectionState = "connected" | "disconnected" | "unknown"
 type SystemThemeVariant = "light" | "dark"
@@ -74,6 +90,29 @@ const desktop = {
     ipcRenderer.invoke("appearance:backdrop:get-capability"),
   applyWindowBackdrop: (enabled: boolean): Promise<boolean> =>
     ipcRenderer.invoke("appearance:backdrop:apply", enabled),
-}
+  openPetOverlay: (): Promise<void> =>
+    ipcRenderer.invoke(PET_OVERLAY_CHANNELS.open),
+  hidePetOverlay: (): Promise<void> =>
+    ipcRenderer.invoke(PET_OVERLAY_CHANNELS.hide),
+  getPetOverlayWindowState: () =>
+    ipcRenderer.invoke(PET_OVERLAY_CHANNELS.getState),
+  beginPetDrag: (): void => ipcRenderer.send(PET_OVERLAY_CHANNELS.beginDrag),
+  updatePetDrag: (): void => ipcRenderer.send(PET_OVERLAY_CHANNELS.updateDrag),
+  endPetDrag: (): void => ipcRenderer.send(PET_OVERLAY_CHANNELS.endDrag),
+  setPetPointerPassthrough: (passthrough: boolean): void =>
+    ipcRenderer.send(PET_OVERLAY_CHANNELS.setPointerPassthrough, passthrough),
+  requestPetKeyboardFocus: (focused: boolean): Promise<void> =>
+    ipcRenderer.invoke(PET_OVERLAY_CHANNELS.requestKeyboardFocus, focused),
+  openPetSession: (sessionId: string): Promise<void> =>
+    ipcRenderer.invoke(PET_OVERLAY_CHANNELS.openSession, sessionId),
+  onPetOpenSession: (listener: (sessionId: string) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, sessionId: unknown) => {
+      if (typeof sessionId === "string") listener(sessionId)
+    }
+    ipcRenderer.on(PET_OVERLAY_CHANNELS.openSession, handler)
+    return () =>
+      ipcRenderer.removeListener(PET_OVERLAY_CHANNELS.openSession, handler)
+  },
+} satisfies DesktopPetOverlayBridge & Record<string, unknown>
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)

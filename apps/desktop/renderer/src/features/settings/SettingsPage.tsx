@@ -10,6 +10,7 @@ const GitSettings = React.lazy(() => import('./GitSettings.js').then(module => (
 const KeyboardShortcutsSettings = React.lazy(() => import('./KeyboardShortcutsSettings.js').then(module => ({ default: module.KeyboardShortcutsSettings })))
 const McpSettings = React.lazy(() => import('./McpSettings.js').then(module => ({ default: module.McpSettings })))
 const MemorySettings = React.lazy(() => import('./MemorySettings.js').then(module => ({ default: module.MemorySettings })))
+const PetSettings = React.lazy(() => import('./PetSettings.js').then(module => ({ default: module.PetSettings })))
 const PersonalizationSettings = React.lazy(() => import('./PersonalizationSettings.js').then(module => ({ default: module.PersonalizationSettings })))
 const ProfileSettings = React.lazy(() => import('./ProfileSettings.js').then(module => ({ default: module.ProfileSettings })))
 const UsageBillingSettings = React.lazy(() => import('./UsageBillingSettings.js').then(module => ({ default: module.UsageBillingSettings })))
@@ -37,6 +38,7 @@ export function SettingsPage({
   else if (resolvedTab === 'profile') content = <ProfileSettings />
   else if (resolvedTab === 'personalization') content = <PersonalizationSettings onError={onError} onNotice={onNotice} />
   else if (resolvedTab === 'memory') content = <MemorySettings />
+  else if (resolvedTab === 'pets') content = <PetSettings onError={onError} onNotice={onNotice} />
   else if (resolvedTab === 'shortcuts') content = <KeyboardShortcutsSettings />
   else if (resolvedTab === 'archived') content = <ArchivedConversationsSettings />
   else if (resolvedTab === 'billing') content = <UsageBillingSettings />

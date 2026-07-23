@@ -125,6 +125,7 @@ const RENDERER_CAPABILITIES = [
   'turn.queue.management.v1',
   'attachments.v1',
   'memory.v2',
+  'pets.management.v1',
   'workspace.editor.v1',
   'git.review.v1',
   'ai.review.v1',
@@ -277,7 +278,8 @@ export function createAgentSessionDesktopClient(
       | 'ai.review.v1'
       | 'github.oauth.v1'
       | 'github.pullRequests.v1'
-      | 'tooling.management.v1',
+      | 'tooling.management.v1'
+      | 'pets.management.v1',
     version = 1,
   ): void {
     const capabilities: Record<typeof name, string> = {
@@ -290,6 +292,7 @@ export function createAgentSessionDesktopClient(
       'github.oauth.v1': 'github.oauth.v1',
       'github.pullRequests.v1': 'github.pullRequests.v1',
       'tooling.management.v1': 'tooling.management.v1',
+      'pets.management.v1': 'pets.management.v1',
     }
     if (version <= 1 && agentCapabilities.has(capabilities[name])) return
     if (version === 2 && (name === 'prompt' || name === 'memory')) {
@@ -1043,6 +1046,34 @@ export function createAgentSessionDesktopClient(
         if (!payload || typeof payload !== 'object') return
         const status = (payload as { status?: unknown }).status
         if (isToolingStatus(status)) callback(status)
+      }),
+    listPets: () =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('pets.management.v1')
+        return (await rpc.call('pet/list', {})).pets
+      }),
+    previewPetInstall: url =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('pets.management.v1')
+        return rpc.call('pet/install/preview', { url })
+      }),
+    installPet: url =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('pets.management.v1')
+        return (
+          await rpc.call('pet/install', {
+            url,
+            operationId: crypto.randomUUID(),
+          })
+        ).pet
+      }),
+    removePet: id =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('pets.management.v1')
+        await rpc.call('pet/remove', {
+          id,
+          operationId: crypto.randomUUID(),
+        })
       }),
     getGithubAuthStatus: async (): Promise<DesktopGithubAuthStatus> => {
       try {

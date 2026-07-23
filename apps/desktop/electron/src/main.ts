@@ -27,6 +27,9 @@ import {
 import { SidecarInstallationError } from "./sidecar/command.js"
 import { WindowAppearanceController } from "./windows/appearance.js"
 import { WindowManager } from "./windows/window-manager.js"
+import { registerPetOverlayIpc } from "./ipc/register-pet-overlay-ipc.js"
+import { PetOverlayWindowController } from "./windows/pet-overlay-window.js"
+import { PetOverlayWindowStateStore } from "./windows/pet-overlay-window-state.js"
 import { resolveStartupPageTheme } from "./windows/startup-page.js"
 import {
   type DesktopDisplayWorkArea,
@@ -43,6 +46,7 @@ if (configuredUserDataDirectory) {
 let supervisor: SidecarSupervisor | undefined
 let logger: DesktopLogger | undefined
 let windows: WindowManager | undefined
+let petOverlay: PetOverlayWindowController | undefined
 let quitting = false
 let connectionStatus: ConnectionStatus = {
   state: "unknown",
@@ -100,6 +104,20 @@ async function startDesktop(): Promise<void> {
     startupTheme,
     windowStateStore,
   })
+  const petOverlayStateStore = new PetOverlayWindowStateStore(
+    app.getPath("userData"),
+    logger,
+  )
+  const initialPetOverlayState = await petOverlayStateStore.load(
+    displayWorkAreas,
+    primaryWorkArea,
+  )
+  petOverlay = new PetOverlayWindowController(
+    logger,
+    moduleDirectory,
+    petOverlayStateStore,
+    initialPetOverlayState,
+  )
   const appearance = new WindowAppearanceController(windows, logger)
   const externalOpenTargets = new ExternalOpenTargetService({
     platform: process.platform,
@@ -122,6 +140,7 @@ async function startDesktop(): Promise<void> {
     quitDuringStartup: () => app.quit(),
   })
   registerAppearanceIpc(appearanceSettings, appearance)
+  registerPetOverlayIpc(windows, petOverlay)
   windows.createStartupWindow()
 
   const token = process.env.CODEPILOTX_AUTH_TOKEN
@@ -162,6 +181,7 @@ async function runConnectionCycle(token: string): Promise<void> {
         if (!logger || !windows) throw new Error("桌面服务尚未初始化")
         await configureAuthCookie(candidate.origin, token, logger)
         await verifyAuthCookie(candidate.origin, logger)
+        petOverlay?.setApplicationOrigin(candidate.origin)
         connectionStatus = {
           state: "disconnected",
           phase: "loading",
@@ -229,6 +249,7 @@ app.on("before-quit", (event) => {
   void Promise.allSettled([
     Promise.resolve(supervisor?.stop()),
     windows?.flushWindowState() ?? Promise.resolve(),
+    petOverlay?.flushState() ?? Promise.resolve(),
   ]).finally(() => app.exit(0))
 })
 

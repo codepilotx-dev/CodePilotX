@@ -457,6 +457,25 @@ export function DesktopLayout(): React.ReactNode {
     handleSettingsTabChange,
     handleSettingsBack,
   } = useWorkbenchRouteController()
+  useEffect(() => {
+    const bridge = window.codePilotXDesktop
+    if (!bridge) return
+    if (
+      settingsLoaded &&
+      settings.draft.values.pet.enabled &&
+      typeof bridge.openPetOverlay === 'function'
+    ) {
+      void bridge.openPetOverlay()
+    }
+    if (typeof bridge.onPetOpenSession !== 'function') return
+    return bridge.onPetOpenSession(threadId => {
+      navigate(sessionPath(threadId))
+    })
+  }, [
+    navigate,
+    settings.draft.values.pet.enabled,
+    settingsLoaded,
+  ])
   const mainComposerDraftKey: ComposerDraftKey = routedSessionId
     ? `session:${routedSessionId}`
     : 'home'

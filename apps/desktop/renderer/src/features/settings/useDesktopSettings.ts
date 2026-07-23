@@ -616,6 +616,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
 	      browserAllowedSites,
 	      collapsedSidebarSections,
 	      browserSitePermissions,
+      pet: draftValues.pet,
 	    }),
 	    [
 	      enableParetoCodeRouter,
@@ -679,6 +680,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
 	      browserAllowedSites,
 	      collapsedSidebarSections,
 	      browserSitePermissions,
+      draftValues.pet,
 	    ],
   )
   const effectiveSettingsRef = useRef(effectiveSettings)
@@ -1025,6 +1027,7 @@ function cloneDesktopSettings(
     browserSitePermissions: settings.browserSitePermissions.map(permission => ({
       ...permission,
     })),
+    pet: { ...settings.pet },
   }
 }
 

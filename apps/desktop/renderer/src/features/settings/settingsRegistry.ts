@@ -11,6 +11,7 @@ import {
   Square,
   User,
   Gauge,
+  PawPrint,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -103,6 +104,20 @@ export const SETTINGS_GROUPS = [
           row('代码字号', '调整代码和终端字号'),
           row('差异标记', '使用颜色或加减号展示代码更改'),
           row('字体平滑', '在 macOS 上优化浅色文字边缘'),
+        ],
+      },
+      {
+        id: 'pets',
+        routeId: 'pets',
+        label: '宠物',
+        description: '让桌面伙伴管理任务并提醒需要你处理的事项',
+        icon: PawPrint,
+        rows: [
+          row('唤醒宠物', '显示或收起桌面宠物'),
+          row('选择宠物', '选择已安装的自定义宠物'),
+          row('宠物大小', '在 80 到 224 像素之间调整显示大小'),
+          row('任务提醒', '显示完成、失败、权限、问题和计划提醒'),
+          row('安装自定义宠物', '从 HTTPS 地址预览并安装宠物包'),
         ],
       },
       {

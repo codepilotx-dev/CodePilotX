@@ -786,6 +786,15 @@ export type DesktopRemovedWorkspace = {
   removedAt: string
 }
 
+export type DesktopPetSettings = {
+  enabled: boolean
+  selectedPetId: string | null
+  size: number
+  notifyAttention: boolean
+  notifyCompletion: boolean
+  notifyFailure: boolean
+}
+
 export type SidebarSectionId = 'pinned' | 'projects' | 'conversations'
 
 export type DesktopStoredSettings = {
@@ -860,6 +869,7 @@ gitBranchPrefix: string
 	  browserAllowedSites: string[]
 	  collapsedSidebarSections: SidebarSectionId[]
 	  browserSitePermissions: DesktopBrowserSitePermission[]
+  pet: DesktopPetSettings
 }
 
 export type DesktopMcpScope =

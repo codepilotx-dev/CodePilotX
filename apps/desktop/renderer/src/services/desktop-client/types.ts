@@ -5,7 +5,10 @@ import type {
   ToolingID,
   ToolingPreference,
   ToolingStatus,
+  PetDescriptor,
+  PetInstallPreview,
 } from '@codepilotx/agent-protocol'
+import type { DesktopPetOverlayBridge } from '@codepilotx/shared/desktop-pet-overlay'
 import type { AgentRpcSubscription } from '../agentRpcClient.js'
 import type {
   DesktopApi,
@@ -43,7 +46,7 @@ type DesktopClientWindow = {
     }>>
     openPathWithTarget?(targetPath: string, targetId: string): Promise<void>
     revealPathInFolder?(targetPath: string): Promise<void>
-  }
+  } & Partial<DesktopPetOverlayBridge>
   addEventListener?: Window['addEventListener']
   removeEventListener?: Window['removeEventListener']
 }
@@ -231,7 +234,15 @@ export type DesktopToolingApi = {
   onToolingUpdated(callback: (status: ToolingStatus) => void): () => void
 }
 
+export type DesktopPetApi = {
+  listPets(): Promise<readonly PetDescriptor[]>
+  previewPetInstall(url: string): Promise<PetInstallPreview>
+  installPet(url: string): Promise<PetDescriptor>
+  removePet(id: string): Promise<void>
+}
+
 export type CodePilotXDesktopClient = DesktopApi &
   DesktopAgentReviewApi &
   DesktopAgentEventEnvelopeApi &
-  DesktopToolingApi
+  DesktopToolingApi &
+  DesktopPetApi
