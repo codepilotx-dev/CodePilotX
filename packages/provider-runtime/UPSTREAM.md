@@ -20,7 +20,7 @@ OpenCode global services were intentionally omitted. OAuth refresh and provider
 specific transports can only be added through statically supplied custom loaders
 or extensions. The complete upstream bundled provider allowlist is retained.
 
-Local implementation files: `src/runtime.ts`, `src/catalog.ts`,
+Local implementation files: `src/runtime/ProviderRuntime.ts`, `src/runtime/index.ts`, `src/catalog.ts`,
 `src/bundled.ts`, `src/custom.ts`, `src/variants.ts`, `src/security.ts`,
 `src/error.ts`, and `src/types.ts`.
 

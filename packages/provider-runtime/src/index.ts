@@ -2,7 +2,7 @@ export { BUNDLED_PROVIDERS } from "./bundled"
 export { BUILTIN_CUSTOM_PROVIDERS } from "./custom"
 export { mapModelsDev, mapModelsDevCost, type CatalogMetadata } from "./catalog"
 export { ProviderRuntimeError } from "./error"
-export { createProviderRuntime, ProviderRuntime } from "./runtime"
+export { createProviderRuntime, ProviderRuntime } from "./runtime/index"
 export { modelVariants } from "./variants"
 export type {
   Awaitable,
