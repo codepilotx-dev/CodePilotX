@@ -1,4 +1,8 @@
-import type { DesktopApi } from '../shared/types.js'
+import type {
+  DesktopApi,
+  DesktopStoredSettings,
+  DesktopThemeSettings,
+} from '../shared/types.js'
 
 declare global {
   interface Window {
@@ -18,8 +22,8 @@ declare global {
       }>>
       openPathWithTarget(targetPath: string, targetId: string): Promise<void>
       revealPathInFolder(targetPath: string): Promise<void>
-      getAppearanceSettings(): Promise<unknown>
-      saveAppearanceSettings(settings: unknown): Promise<unknown>
+      getAppearanceSettings(): Promise<DesktopThemeSettings>
+      saveAppearanceSettings(settings: DesktopThemeSettings): Promise<void>
       getSystemTheme(): Promise<'light' | 'dark'>
       onSystemThemeChange(
         listener: (theme: 'light' | 'dark') => void,
@@ -29,8 +33,13 @@ declare global {
         platform: string
       }>
       applyWindowBackdrop(enabled: boolean): Promise<boolean>
-      getDesktopSettings(): Promise<unknown>
-      saveDesktopSettings(settings: unknown): Promise<unknown>
+      getDesktopSettings(): Promise<DesktopStoredSettings>
+      saveDesktopSettings(
+        settings: DesktopStoredSettings,
+      ): Promise<DesktopStoredSettings>
+      copyProviderApiKey(
+        credentialId: string,
+      ): Promise<{ clearAfterMs: 60000 }>
     }
   }
 }

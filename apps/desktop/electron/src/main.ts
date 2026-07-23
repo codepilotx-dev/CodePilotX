@@ -17,6 +17,10 @@ import { missingPackagedSidecarError, resolveSidecarCommand as resolveConfigured
 import { createDesktopLogger, type DesktopLogger } from "./desktop-logger.js"
 import { AppearanceSettingsStore } from "./appearance-settings-store.js"
 import { ExternalOpenTargetService } from "./external-open-targets.js"
+import {
+  normalizeDesktopSettingsPayload,
+  requireApiKeyMaterial,
+} from "./desktop-settings-contract.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const READY_TIMEOUT_MS = 20_000
@@ -459,16 +463,18 @@ function registerWindowIpc(): void {
   ipcMain.handle("agent:connection-state", () => connectionStatus.state)
   ipcMain.handle("desktop-settings:get", async () => {
     if (!supervisor) throw new Error("Agent 尚未初始化")
-    return supervisor.request("/api/desktop-settings").then(response => response.json())
+    const response = await supervisor.request("/api/desktop-settings")
+    return normalizeDesktopSettingsPayload(await response.json())
   })
   ipcMain.handle("desktop-settings:save", async (_event, settings: unknown) => {
     if (!supervisor) throw new Error("Agent 尚未初始化")
-    if (!isPlainObject(settings)) throw new Error("桌面设置参数无效")
-    return supervisor.request("/api/desktop-settings", {
+    const normalizedSettings = normalizeDesktopSettingsPayload(settings)
+    const response = await supervisor.request("/api/desktop-settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
-    }).then(response => response.json())
+      body: JSON.stringify(normalizedSettings),
+    })
+    return normalizeDesktopSettingsPayload(await response.json())
   })
   ipcMain.handle("api-key:copy", async (_event, credentialId: unknown) => {
     if (!supervisor) throw new Error("Agent 尚未初始化")
@@ -485,10 +491,7 @@ function registerWindowIpc(): void {
       { method: "POST" },
     )
     const payload = await response.json() as { key?: unknown }
-    if (typeof payload.key !== "string" || payload.key.length === 0) {
-      throw new Error("Agent 未返回有效的 API Key")
-    }
-    const material = payload.key
+    const material = requireApiKeyMaterial(payload.key)
     clipboard.writeText(material)
     setTimeout(() => {
       if (clipboard.readText() === material) clipboard.clear()
@@ -730,10 +733,6 @@ async function probeReady(origin: string, fetcher: FetchLike, token: string | un
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
   const body = await response.json() as { ok?: boolean }
   if (body.ok !== true) throw new Error("Agent ready 返回无效")
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
 function normalizeOrigin(value: string): string {

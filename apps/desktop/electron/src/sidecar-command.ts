@@ -76,7 +76,7 @@ export function resolveSidecarCommand(input: {
 
   return {
     executable: resolveBunExecutable(env),
-    args: ["run", env.CODEPILOTX_AGENT_ENTRY ?? "apps/agent/src/main.ts"],
+    args: ["run", env.CODEPILOTX_AGENT_ENTRY ?? "apps/agent/src/index.ts"],
     cwd: resolve(input.moduleDirectory, "../../../../"),
   }
 }

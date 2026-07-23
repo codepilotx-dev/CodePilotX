@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron"
 import type { DesktopThemeSettingsV3 } from "./appearance-settings-store.js"
+import type { DesktopSettingsPayload } from "./desktop-settings-contract.js"
 
 type AgentConnectionState = "connected" | "disconnected" | "unknown"
 type SystemThemeVariant = "light" | "dark"
@@ -37,9 +38,11 @@ const desktop = {
     return () => ipcRenderer.removeListener("agent:connection-changed", handler)
   },
   getAgentConnectionState: (): Promise<AgentConnectionState> => ipcRenderer.invoke("agent:connection-state"),
-  getDesktopSettings: (): Promise<unknown> =>
+  getDesktopSettings: (): Promise<DesktopSettingsPayload> =>
     ipcRenderer.invoke("desktop-settings:get"),
-  saveDesktopSettings: (settings: unknown): Promise<unknown> =>
+  saveDesktopSettings: (
+    settings: DesktopSettingsPayload,
+  ): Promise<DesktopSettingsPayload> =>
     ipcRenderer.invoke("desktop-settings:save", settings),
   copyProviderApiKey: (
     credentialId: string,

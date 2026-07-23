@@ -26,6 +26,15 @@ describe("Bun sidecar 命令解析", () => {
       .toBe("D:\\tools\\bun.exe")
   })
 
+  test("开发模式默认启动统一 Agent 入口", () => {
+    expect(resolveSidecarCommand({
+      packaged: false,
+      resourcesPath: "",
+      moduleDirectory: import.meta.dir,
+      env: { CODEPILOTX_BUN_PATH: "D:\\tools\\bun.exe" },
+    }).args).toEqual(["run", "apps/agent/src/index.ts"])
+  })
+
   test("packaged 模式解析固定资源路径", () => {
     const root = join(import.meta.dir, `.tmp-${crypto.randomUUID()}`)
     const executable = join(root, "agent", "codepilotx-agent.exe")

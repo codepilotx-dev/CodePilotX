@@ -150,10 +150,12 @@ type DesktopClientWindow = {
   desktopApi?: DesktopApi
   codePilotXDesktop?: {
     pickWorkspaceDirectory(): Promise<string | null>
-    getAppearanceSettings?(): Promise<unknown>
-    saveAppearanceSettings?(settings: unknown): Promise<unknown>
-    getDesktopSettings?(): Promise<unknown>
-    saveDesktopSettings?(settings: unknown): Promise<unknown>
+    getAppearanceSettings?(): Promise<DesktopThemeSettings>
+    saveAppearanceSettings?(settings: DesktopThemeSettings): Promise<void>
+    getDesktopSettings?(): Promise<DesktopStoredSettings>
+    saveDesktopSettings?(
+      settings: DesktopStoredSettings,
+    ): Promise<DesktopStoredSettings>
     copyProviderApiKey?(credentialId: string): Promise<{ clearAfterMs: 60000 }>
     getSystemTheme?(): Promise<'light' | 'dark'>
     onSystemThemeChange?(

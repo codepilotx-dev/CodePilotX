@@ -9,7 +9,7 @@
 - `CODEPILOTX_RENDERER_URL`：供开发编排器传给 Agent 的 Vite 地址。Electron 始终加载 Agent URL，由 Agent 在开发时反代 Vite、生产时提供静态页面。
 - `CODEPILOTX_AUTH_TOKEN`：可由开发编排器预先提供；未设置时主进程生成 256 位随机令牌。
 - `CODEPILOTX_BUN_PATH`：开发时 Bun 可执行文件路径，默认 `bun`。
-- `CODEPILOTX_AGENT_ENTRY`：开发时 Agent 入口，默认 `apps/agent/src/main.ts`。
+- `CODEPILOTX_AGENT_ENTRY`：开发时 Agent 入口，默认 `apps/agent/src/index.ts`。
 - `CODEPILOTX_STATIC_DIR`：生产时由 Electron 自动指向 `extraResources/renderer`；开发时通常由 Agent 使用 `CODEPILOTX_RENDERER_URL` 反代 Vite。
 - `CODEPILOTX_DEVTOOLS=1`：打包后显式启用 DevTools。
 
