@@ -11,6 +11,7 @@ import { publishAgentEvent } from "./storage/events/EventPublisher";
 import { EncryptedCredentialRepository } from "./auth/EncryptedCredentialRepository";
 import { ToolRegistry } from "./tool/ToolRegistry";
 import { ToolExecutor } from "./tool/ToolExecutor";
+import { getToolingManager } from "./tool/ToolingManager";
 import { ApprovalService } from "./permission/ApprovalService";
 import { ReviewerService } from "./permission/ReviewerService";
 import { QuestionService } from "./session/QuestionService";
@@ -65,6 +66,37 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       projectlessWorkspaces,
     );
     const hub = yield* EventHub.make;
+    const desktopSettings = db.getSetting<Record<string, unknown>>(
+      "desktop.settings.v1",
+    );
+    const legacyToolingPreference =
+      desktopSettings?.workspaceDependenciesMigrated === true
+        ? undefined
+        : typeof desktopSettings?.installCodePilotXDependencies === "boolean"
+          ? desktopSettings.installCodePilotXDependencies
+          : undefined;
+    const tooling = getToolingManager(
+      legacyToolingPreference === undefined
+        ? {}
+        : {
+            legacyInstallCodePilotXDependencies: legacyToolingPreference,
+          },
+    );
+    const unsubscribeTooling = tooling.subscribe((status) => {
+      void publishAgentEvent(
+        db,
+        hub,
+        null,
+        null,
+        "tooling/updated",
+        { status },
+      ).catch((cause) =>
+        logger.warn("tooling.status.publish.failed", {
+          id: status.id,
+          error: cause instanceof Error ? cause.message : String(cause),
+        }),
+      );
+    });
     const credentials = new EncryptedCredentialRepository(db);
     yield* credentials.validateAll();
     yield* credentials.backfillApiKeyMetadata();
@@ -186,6 +218,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       dataDir: config.dataDir,
       sandbox,
       helperPath: config.srtWinPath,
+      resolveTooling: (id, resolveOptions) =>
+        tooling.resolve(id, resolveOptions),
+      resolveToolingEnvironment: (required, resolveOptions) =>
+        tooling.resolveEnvironment(required, resolveOptions),
       authorizeShell: (invocation, signal) =>
         approvals.authorize(invocation, signal),
       recordToolCall: (invocation, status, output, error, startedAt) =>
@@ -296,11 +332,13 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       sandbox,
       review,
       github,
+      tooling,
     });
     let disposed = false;
     const dispose = async () => {
       if (disposed) return;
       disposed = true;
+      unsubscribeTooling();
       await toolExecutor.dispose();
       await providers.dispose();
       await Effect.runPromise(pluginHost.dispose());

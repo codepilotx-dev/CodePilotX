@@ -34,6 +34,7 @@ import { projectMemoryKey, type MemoryService } from "../../memory/MemoryService
 import type { HookService } from "../../hooks/HookService"
 import type { GitReviewService } from "../../review/GitReviewService"
 import type { GithubService } from "../../github/GithubService"
+import type { ToolingManager } from "../../tool/ToolingManager"
 import { EventSubscriptionRegistry } from "../EventSubscriptionRegistry"
 import { secretScrubber } from "../../security/SecretScrubber"
 import { createRpcHandlerRegistry } from "./registry"
@@ -98,6 +99,7 @@ export type RpcRouterDependencies = {
   sandbox: SandboxRuntimeAdapter
   review: GitReviewService
   github: GithubService
+  tooling: ToolingManager
 }
 
 export type { RpcRouterContext } from "./request-context"

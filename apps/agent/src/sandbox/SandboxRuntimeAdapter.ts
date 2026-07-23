@@ -35,9 +35,24 @@ export interface SandboxStatus {
   error: string | null
 }
 
+export interface PublicSandboxStatus {
+  state: SandboxState
+  platform: string
+  architecture: string
+  runtimeVersion: string
+  error: string | null
+  operations: {
+    canInstall: boolean
+    canRepair: boolean
+    canUninstall: boolean
+  }
+}
+
 export interface SandboxedProcessRequest {
   command: string
   cwd: string
+  /** Trusted runtime environment additions resolved by the Agent. */
+  env?: NodeJS.ProcessEnv
   timeoutMs?: number
   config: SandboxRuntimeConfig
   signal?: AbortSignal
@@ -70,6 +85,139 @@ interface CommandShell {
 }
 
 const unique = (values: readonly string[]) => [...new Set(values.map((value) => resolve(value)))]
+
+const errorText = (cause: unknown) => cause instanceof Error ? cause.message : String(cause)
+
+const isSandboxTimeout = (message: string) =>
+  /\bETIMEDOUT\b|timed?\s*out/i.test(message)
+
+const isSandboxPathAccessDenied = (message: string) =>
+  /acl\s+(?:grant|stamp)|ERROR_ACCESS_DENIED|WIN32_ERROR\s*=\s*0x0*5\b|0x0*5\b.*access/i.test(message)
+
+export function mapSandboxInitializationError(cause: unknown): AgentError {
+  if (cause instanceof AgentError) return cause
+  const message = errorText(cause)
+  if (isSandboxPathAccessDenied(message)) {
+    return new AgentError(
+      "SANDBOX_PATH_ACCESS_DENIED",
+      "SRT 无法为工作区配置访问权限。请检查项目目录权限或安全软件拦截后重试。",
+      503,
+    )
+  }
+  if (isSandboxTimeout(message)) {
+    return new AgentError(
+      "SANDBOX_RUNTIME_TIMEOUT",
+      "SRT 沙箱初始化超时。请先重启 CodePilotX；如果持续出现，请在设置中修复沙箱运行环境。",
+      504,
+    )
+  }
+  return new AgentError(
+    "SANDBOX_UNAVAILABLE",
+    "SRT 沙箱初始化失败。请重试或在设置中检查沙箱运行环境。",
+    503,
+  )
+}
+
+export function sandboxStatusFailure(cause: unknown, phase: "helper" | "runtime-status") {
+  if (cause instanceof AgentError) return cause.message
+  const message = errorText(cause)
+  if (isSandboxTimeout(message)) {
+    return "SRT 状态检测超时。请先重启 CodePilotX；如果持续出现，请在设置中修复沙箱运行环境。"
+  }
+  if (isSandboxPathAccessDenied(message)) {
+    return "SRT 无法检查沙箱权限。请检查安全软件拦截；如果持续出现，请修复沙箱运行环境。"
+  }
+  return phase === "helper"
+    ? "SRT helper 无法加载或校验失败，请修复沙箱运行环境。"
+    : "SRT 状态无法验证，请重启 CodePilotX 后重试。"
+}
+
+const mergeProcessEnvironment = (
+  base: NodeJS.ProcessEnv,
+  additions?: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv => {
+  if (!additions) return { ...base }
+  const merged = { ...base }
+  for (const [key, value] of Object.entries(additions)) {
+    if (key.toLowerCase() === "path") {
+      for (const existing of Object.keys(merged)) {
+        if (existing.toLowerCase() === "path") delete merged[existing]
+      }
+    }
+    merged[key] = value
+  }
+  return merged
+}
+
+export function classifyWindowsSandboxStatus(
+  user: WindowsSandboxUserStatus,
+  wfp: WindowsWfpStatusResult,
+): Pick<SandboxStatus, "state" | "error"> {
+  if (!user.provisioned) {
+    return {
+      state: "not-installed",
+      error: "SRT 沙箱尚未安装，首次使用需要完成安装。",
+    }
+  }
+
+  const missing: string[] = []
+  if (!user.credPresent) missing.push("沙箱账号凭据")
+  if (!user.groupExists) missing.push("sandbox-runtime-users 本地组")
+  if (!user.inBuiltinUsers) missing.push("Users 组成员关系")
+  if (!user.inSandboxGroup) missing.push("sandbox-runtime-users 组成员关系")
+  if (!user.hiddenFromLogon) missing.push("登录界面隐藏配置")
+  if (wfp.state === "absent") missing.push("WFP 网络过滤器")
+  if (missing.length > 0) {
+    return {
+      state: "repair-required",
+      error: `SRT 沙箱需要修复：缺少或异常的${missing.join("、")}。`,
+    }
+  }
+
+  // BFE filter enumeration requires elevation. sandbox-runtime performs the
+  // non-elevated behavioral WFP verification during initialize() and fails
+  // closed there, so "cannot-read" is informational rather than an error.
+  return { state: "available", error: null }
+}
+
+export function toPublicSandboxStatus(status: SandboxStatus): PublicSandboxStatus {
+  const canInstall = status.state === "not-installed"
+  const canRepair = status.state === "repair-required" || status.state === "damaged"
+  const canUninstall = status.state === "available" || canRepair
+  return {
+    state: status.state,
+    platform: status.platform,
+    architecture: status.architecture,
+    runtimeVersion: status.runtimeVersion,
+    error: status.error,
+    operations: { canInstall, canRepair, canUninstall },
+  }
+}
+
+export function sandboxNotReadyError(status: SandboxStatus): AgentError {
+  if (status.state === "not-installed") {
+    return new AgentError(
+      "SANDBOX_SETUP_REQUIRED",
+      status.error ?? "SRT 沙箱尚未安装，首次使用需要完成安装。",
+      503,
+      toPublicSandboxStatus(status),
+    )
+  }
+  if (status.state === "repair-required" || status.state === "damaged") {
+    return new AgentError(
+      "SANDBOX_REPAIR_REQUIRED",
+      status.error ?? "SRT 沙箱需要修复后才能执行命令。",
+      503,
+      toPublicSandboxStatus(status),
+    )
+  }
+  return new AgentError(
+    "SANDBOX_UNAVAILABLE",
+    status.error ?? "SRT 沙箱当前不可用。",
+    503,
+    toPublicSandboxStatus(status),
+  )
+}
 
 function findExecutable(names: readonly string[]) {
   const pathEntries = (process.env.PATH ?? "").split(";").filter(Boolean)
@@ -157,11 +305,17 @@ async function collectProcess(child: CapturedChild, timeoutMs: number, signal?: 
   return { exitCode, signal: exitSignal, stdout, stderr, timedOut, truncated }
 }
 
-export async function runHostCommand(command: string, cwd: string, timeoutMs?: number, signal?: AbortSignal): Promise<ProcessResult> {
+export async function runHostCommand(
+  command: string,
+  cwd: string,
+  timeoutMs?: number,
+  signal?: AbortSignal,
+  env?: NodeJS.ProcessEnv,
+): Promise<ProcessResult> {
   const shell = preferredShell()
   const child = spawn(shell.exe, [...shell.args, command], {
     cwd,
-    env: { ...process.env },
+    env: mergeProcessEnvironment(process.env, env),
     shell: false,
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
@@ -217,20 +371,22 @@ export class AnthropicSandboxRuntimeAdapter implements SandboxRuntimeAdapter {
       error: null,
     }
     if (process.platform !== "win32" || !("x64" === process.arch || "arm64" === process.arch)) return base
+    let phase: "helper" | "runtime-status" = "helper"
     try {
       const api = await this.api()
       const helper = await this.resolvedHelper()
       base.helperPath = helper.path
       base.helperSha256 = this.validateHelper(helper.path)
+      phase = "runtime-status"
       base.user = api.getWindowsSandboxUserStatus({ srtWin: helper.spawn })
       base.wfp = api.getWindowsWfpStatus({ srtWin: helper.spawn })
-      base.state = base.user.provisioned && base.user.credPresent && base.wfp.state !== "absent" ? "available" : base.user.provisioned ? "repair-required" : "not-installed"
-      if (base.user.provisioned !== base.user.inSandboxGroup || !base.user.hiddenFromLogon || !base.user.groupExists) base.state = "repair-required"
-      if (base.wfp.state === "cannot-read") base.error = base.wfp.hint ?? "无法读取 WFP 状态；运行时会执行非管理员行为验证"
+      const classified = classifyWindowsSandboxStatus(base.user, base.wfp)
+      base.state = classified.state
+      base.error = classified.error
     } catch (cause) {
       base.helperPath ??= this.helperPath
-      base.state = base.helperPath ? "damaged" : "not-installed"
-      base.error = cause instanceof Error ? cause.message : String(cause)
+      base.state = phase === "helper" ? "damaged" : "repair-required"
+      base.error = sandboxStatusFailure(cause, phase)
     }
     return base
   }
@@ -261,14 +417,23 @@ export class AnthropicSandboxRuntimeAdapter implements SandboxRuntimeAdapter {
     try {
       const api = await this.api()
       const status = await this.getStatus()
-      if (status.state !== "available") throw new AgentError("SANDBOX_NOT_READY", status.error ?? "SRT 沙箱未安装或需要修复", 503, status)
+      if (status.state !== "available") throw sandboxNotReadyError(status)
       try {
         await api.SandboxManager.initialize(request.config)
+      } catch (cause) {
+        try {
+          await api.SandboxManager.reset()
+        } catch {
+          // Best-effort cleanup must never replace the actionable initialize error.
+        }
+        throw mapSandboxInitializationError(cause)
+      }
+      try {
         const shell = preferredShell()
         const wrapped = await api.SandboxManager.wrapWithSandboxArgv(request.command, { exe: shell.exe, args: shell.args }, undefined, request.signal, request.cwd)
         const child = spawn(wrapped.argv[0]!, wrapped.argv.slice(1), {
           cwd: request.cwd,
-          env: wrapped.env,
+          env: mergeProcessEnvironment(wrapped.env, request.env),
           shell: false,
           windowsHide: true,
           stdio: ["ignore", "pipe", "pipe"],

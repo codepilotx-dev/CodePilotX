@@ -55,6 +55,7 @@ import {
   supportedPermissionConfig,
 } from "../RpcRouter"
 import type { RpcHandlerGroup } from "./types"
+import { requireAvailableSandbox, sandboxResult } from "../../../sandbox/SandboxStatusView"
 
 export const systemHandlers = {
   name: "system",
@@ -102,15 +103,17 @@ export const systemHandlers = {
           connectionId,
         }
       case "sandbox/status":
-        return { sandbox: await sandbox.getStatus() }
+        return sandboxResult(await sandbox.getStatus())
       case "sandbox/install":
+        await sandbox.install()
+        return requireAvailableSandbox(await sandbox.getStatus(), "安装")
       case "sandbox/repair":
         await sandbox.install()
-        return { sandbox: await sandbox.getStatus() }
+        return requireAvailableSandbox(await sandbox.getStatus(), "修复")
       case "sandbox/uninstall":
         decodeParams(decodeSandboxUninstall, rawParams, "sandbox/uninstall")
         await sandbox.uninstall()
-        return { sandbox: await sandbox.getStatus() }
+        return sandboxResult(await sandbox.getStatus())
       case "shutdown":
         if (process.env.CODEPILOTX_DESKTOP_MANAGED !== "1") throw new AgentError("SHUTDOWN_DENIED", "仅桌面托管的 Agent 可以通过 RPC 关闭", 403)
         setTimeout(() => process.emit("SIGTERM"), 25)

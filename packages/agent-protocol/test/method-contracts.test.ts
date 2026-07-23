@@ -101,6 +101,16 @@ const sandboxStatus = {
   },
 } as const
 
+const toolingStatus = {
+  id: "git-bash",
+  preference: "managed",
+  phase: "ready",
+  activeSource: "managed",
+  pinnedVersion: "2.55.0.3",
+  managed: { installed: true, version: "2.55.0.3" },
+  system: { available: false, version: null, path: null },
+} as const
+
 const attachment = {
   id: "attachment:1",
   kind: "text",
@@ -591,6 +601,17 @@ const fixtures = {
     confirm: true,
     operationId: "operation:sandbox-uninstall",
   }, { sandbox: sandboxStatus }),
+  "tooling/list": methodFixture("tooling/list", {}, { statuses: [toolingStatus] }),
+  "tooling/setPreference": methodFixture("tooling/setPreference", {
+    id: "git-bash",
+    preference: "managed",
+    operationId: "operation:tooling-preference",
+  }, { status: toolingStatus }),
+  "tooling/install": methodFixture("tooling/install", {
+    id: "git-bash",
+    force: false,
+    operationId: "operation:tooling-install",
+  }, { status: toolingStatus }),
   "attachment/import": methodFixture("attachment/import", {
     uploads: [{ kind: "text", name: attachment.name, mediaType: attachment.mediaType, encoding: "utf8", data: "fixture" }],
     operationId: "operation:attachment-import",
@@ -1080,9 +1101,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 102 formal methods decodable", () => {
+  test("keeps valid params and results for all 105 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(102)
+    expect(methods).toHaveLength(105)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {

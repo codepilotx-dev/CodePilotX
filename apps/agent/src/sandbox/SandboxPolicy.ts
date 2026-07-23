@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, realpathSync, statSync } from "node:fs"
-import { basename, isAbsolute, join, parse, resolve } from "node:path"
+import { basename, isAbsolute, join, parse, resolve, sep } from "node:path"
 import type { SandboxRuntimeConfig } from "@anthropic-ai/sandbox-runtime"
 import type { AdditionalPermissions, PermissionConfig } from "@codepilotx/shared/thread"
 
@@ -10,6 +10,8 @@ export interface SandboxPolicyOptions {
   permissionConfig: PermissionConfig
   additionalPermissions?: AdditionalPermissions
   helperPath?: string | null
+  /** CodePilotX-validated runtime directories; never sourced from model input. */
+  trustedReadPaths?: readonly string[]
 }
 
 export interface GeneratedSandboxPolicy {
@@ -113,7 +115,22 @@ function sensitiveWorkspaceReads(workspace: string) {
 
 // Only an explicit grant for the protected path (or one of its ancestors) may
 // remove a deny rule. A grant for one child file must never uncover siblings.
-const requestedCovers = (requested: readonly string[], protectedPath: string) => requested.some((value) => value === protectedPath || protectedPath.startsWith(value + "\\"))
+const normalizedPathKey = (value: string) => {
+  const normalized = resolve(value).replace(/[\\/]+$/, "")
+  return process.platform === "win32" ? normalized.toLowerCase() : normalized
+}
+
+export const pathContains = (parent: string, candidate: string) => {
+  const parentKey = normalizedPathKey(parent)
+  const candidateKey = normalizedPathKey(candidate)
+  return candidateKey === parentKey || candidateKey.startsWith(`${parentKey}${sep}`)
+}
+
+const requestedCovers = (requested: readonly string[], protectedPath: string) =>
+  requested.some((value) => pathContains(value, protectedPath))
+
+const coveredByAny = (roots: readonly string[], candidate: string) =>
+  roots.some((root) => pathContains(root, candidate))
 
 export function generateSandboxPolicy(options: SandboxPolicyOptions): GeneratedSandboxPolicy {
   const workspace = resolve(options.workspace)
@@ -123,8 +140,21 @@ export function generateSandboxPolicy(options: SandboxPolicyOptions): GeneratedS
   const requestedWrite = unique((additional.writePaths ?? []).map((path) => expandRequestedPath(workspace, path)))
   const requestedDomains = [...new Set((additional.networkDomains ?? []).map((domain) => domain.trim().toLowerCase()).filter(Boolean))]
   const immutableSecretPaths = userSecretPaths().map((path) => resolve(path))
-  const protectedRead = unique([options.dataDir, ...immutableSecretPaths, ...sensitiveWorkspaceReads(workspace)]).filter((path) => path === resolve(options.dataDir) || immutableSecretPaths.includes(path) || !requestedCovers(requestedRead, path))
-  const protectedWrite = unique([
+  const allowRead = unique([workspace, sessionTemp, ...(options.trustedReadPaths ?? []), ...requestedRead])
+  const allowWrite = unique([
+    sessionTemp,
+    ...(options.permissionConfig.sandboxMode === "workspace-write" ? [workspace] : []),
+    ...(options.permissionConfig.sandboxMode === "read-only" ? [] : requestedWrite),
+  ])
+  const protectedReadCandidates = unique([
+    options.dataDir,
+    ...immutableSecretPaths,
+    ...sensitiveWorkspaceReads(workspace),
+  ]).filter((path) =>
+    path === resolve(options.dataDir)
+    || immutableSecretPaths.includes(path)
+    || !requestedCovers(requestedRead, path))
+  const protectedWriteCandidates = unique([
     ...protectedWorkspacePaths(workspace),
   ]).filter((path) => !requestedCovers(requestedWrite, path)).concat(unique([
     options.dataDir,
@@ -132,13 +162,16 @@ export function generateSandboxPolicy(options: SandboxPolicyOptions): GeneratedS
     ...(process.env.ProgramData ? [process.env.ProgramData] : []),
     ...(process.env.ProgramFiles ? [process.env.ProgramFiles] : []),
   ]))
-  const systemRead = safePathDirectories()
-  const allowRead = unique([workspace, sessionTemp, ...systemRead, ...requestedRead])
-  const allowWrite = unique([
-    sessionTemp,
-    ...(options.permissionConfig.sandboxMode === "workspace-write" ? [workspace] : []),
-    ...(options.permissionConfig.sandboxMode === "read-only" ? [] : requestedWrite),
-  ])
+  // srt-win materializes every allow/deny rule as an ACL entry. Windows system
+  // locations already grant BUILTIN\Users read/execute and reject ACL writes
+  // from the unelevated Agent, so only stamp denies that live inside a tree we
+  // explicitly grant. Other platforms retain the existing deny list.
+  const protectedRead = process.platform === "win32"
+    ? protectedReadCandidates.filter((path) => coveredByAny(allowRead, path))
+    : protectedReadCandidates
+  const protectedWrite = process.platform === "win32"
+    ? protectedWriteCandidates.filter((path) => coveredByAny([...allowRead, ...allowWrite], path))
+    : protectedWriteCandidates
   const base: SandboxRuntimeConfig = {
     filesystem: {
       denyRead: protectedRead,

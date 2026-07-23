@@ -4,6 +4,10 @@ import { WorkspaceService } from "../workspace/WorkspaceService"
 import type { PermissionConfig, SandboxMode } from "@codepilotx/shared/thread"
 import type { Model } from "@codepilotx/model-schema"
 import type { ToolExecutionMode as PiToolExecutionMode } from "@codepilotx/pi-agent-core"
+import { isAbsolute, relative, resolve, sep } from "node:path"
+import { realpath } from "node:fs/promises"
+import { resolveManagedTool, runToolProcess, type ToolingResolver, type ToolProcessRunner } from "./ToolingRuntime"
+import { nativeGlobWorkspace, nativeGrepWorkspace } from "./NativeWorkspaceSearch"
 
 export type ToolCapabilities = {
   filesystem: "none" | "read" | "workspace-write" | "host-write"
@@ -49,6 +53,8 @@ export interface ToolContext {
   deferredTools?: readonly ToolCatalogEntry[]
   readSnapshot?: { mtimeMs: number; sha256: string }
   fileSaved?: (input: { filePath: string; content: string }) => Promise<void>
+  resolveTooling?: ToolingResolver
+  runToolProcess?: ToolProcessRunner
 }
 
 export interface ToolDefinition<Input = unknown, Output = unknown> extends ToolCatalogEntry<Input, Output> {
@@ -66,89 +72,90 @@ const shellSchema = z.object({
 }).strict()
 const shellInputSchema = jsonObject({ command: { type: "string", maxLength: 32_000 }, timeout: { type: "number", maximum: 600_000 }, description: { type: "string", maxLength: 2_000 } }, ["command"])
 
-const globRegex = (pattern: string) => {
-  let source = "^"
-  for (let index = 0; index < pattern.length; index += 1) {
-    const character = pattern[index]!
-    if (character === "*" && pattern[index + 1] === "*") {
-      source += ".*"
-      index += 1
-    } else if (character === "*") source += "[^/]*"
-    else if (character === "?") source += "[^/]"
-    else source += character.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&")
+const searchPath = async (context: ToolContext, value?: string) => {
+  const requested = value?.trim() || "."
+  const root = await realpath(context.workspace.rootPath)
+  if (!isAbsolute(requested) && requested.split(/[\\/]+/).includes("..")) {
+    throw new AgentError("WORKSPACE_PATH_DENIED", "搜索路径不得通过 .. 越出工作区", 403)
   }
-  return new RegExp(`${source}$`, "i")
+  const canonical = await realpath(isAbsolute(requested) ? resolve(requested) : resolve(root, requested))
+    .catch(() => { throw new AgentError("WORKSPACE_PATH_NOT_FOUND", "搜索路径不存在或不可访问", 404) })
+  const child = relative(root, canonical)
+  if (child === ".." || child.startsWith(`..${sep}`) || isAbsolute(child)) throw new AgentError("WORKSPACE_PATH_DENIED", "搜索路径不在当前工作区内", 403)
+  return { root, target: child ? child.replaceAll("\\", "/") : "." }
 }
 
-const typeGlob = (type?: string) => ({
-  ts: "*.{ts,tsx}", js: "*.{js,jsx,mjs,cjs}", json: "*.json", py: "*.py", rust: "*.rs",
-  go: "*.go", java: "*.java", c: "*.{c,h}", cpp: "*.{cc,cpp,cxx,h,hpp}", markdown: "*.{md,mdx}",
-}[type ?? ""])
-
-const expandedGlobRegex = (pattern: string) => {
-  const match = pattern.match(/^(.*)\{([^{}]+)\}(.*)$/)
-  return match ? new RegExp(`^(?:${match[2]!.split(",").map((part) => globRegex(`${match[1]}${part}${match[3]}`).source.slice(1, -1)).join("|")})$`, "i") : globRegex(pattern)
+const resolveRipgrep = async (context: ToolContext) => {
+  const resolution = await (context.resolveTooling ?? resolveManagedTool)("ripgrep", { signal: context.signal })
+  if (!resolution.available && (resolution.code === "TOOLING_ABORTED" || context.signal.aborted)) {
+    throw new AgentError("RUN_ABORTED", "任务已停止", 499)
+  }
+  return resolution
 }
+
+const ripgrep = async (context: ToolContext, executable: string, args: readonly string[]) => {
+  const result = await (context.runToolProcess ?? runToolProcess)({ executable, args, cwd: context.workspace.rootPath, signal: context.signal, timeoutMs: 10_000, maxOutputBytes: 8 * 1024 * 1024 })
+  if (result.exitCode !== 0 && result.exitCode !== 1) throw new AgentError("WORKSPACE_SEARCH_FAILED", result.stderr || `ripgrep 退出码 ${result.exitCode}`, 400)
+  return result
+}
+
+type RgEvent = { type?: string; data?: { path?: { text?: string }; lines?: { text?: string }; line_number?: number | null; submatches?: unknown[] } }
 
 const grepWorkspace = async (input: any, context: ToolContext) => {
-  let expression: RegExp
-  try { expression = new RegExp(input.pattern, `${input["-i"] ? "i" : ""}${input.multiline ? "ms" : "m"}g`) } catch {
-    throw new AgentError("INVALID_TOOL_INPUT", "pattern 不是有效的正则表达式", 400)
-  }
-  const root = input.path ?? "."
-  const fileMatcher = input.glob ? expandedGlobRegex(input.glob.replaceAll("\\", "/")) : typeGlob(input.type) ? expandedGlobRegex(typeGlob(input.type)!) : null
-  const queue = [root]
-  const files: Array<{ path: string; count: number; matches: Array<{ line?: number; text: string; before?: string[]; after?: string[] }> }> = []
-  const deadline = Date.now() + 10_000
-  let visited = 0
-  let bytes = 0
-  const wanted = (input.offset ?? 0) + (input.head_limit ?? 200)
-  const collected = () => input.output_mode === "content" ? files.reduce((sum, file) => sum + file.matches.length, 0) : files.length
-  while (queue.length && visited < 10_000 && bytes < 50 * 1024 * 1024 && Date.now() < deadline && collected() < wanted) {
-    if (context.signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
-    const directory = queue.shift()!
-    for (const entry of await context.workspace.listEditorFiles(directory)) {
-      if (entry.type === "directory") { queue.push(entry.path); continue }
-      visited += 1
-      if (fileMatcher && !fileMatcher.test(entry.path)) continue
-      try {
-        const file = await context.workspace.readEditorFile(entry.path)
-        if (bytes + file.sizeBytes > 50 * 1024 * 1024) break
-        bytes += file.sizeBytes
-        expression.lastIndex = 0
-        const matches: Array<{ line?: number; text: string; before?: string[]; after?: string[] }> = []
-        if (input.multiline) {
-          for (const match of file.content.matchAll(expression)) {
-            matches.push({ ...(input["-n"] === false ? {} : { line: file.content.slice(0, match.index).split(/\r?\n/).length }), text: match[0].slice(0, 8_000) })
-            if (matches.length >= wanted) break
-          }
-        } else {
-          const lines = file.content.split(/\r?\n/)
-          const before = input["-B"] ?? input["-C"] ?? input.context ?? 0
-          const after = input["-A"] ?? input["-C"] ?? input.context ?? 0
-          for (let index = 0; index < lines.length; index += 1) {
-            expression.lastIndex = 0
-            const line = lines[index]!
-            const occurrences = [...line.matchAll(expression)].length
-            if (!occurrences) continue
-            for (let count = 0; count < occurrences; count += 1) matches.push({ ...(input["-n"] === false ? {} : { line: index + 1 }), text: line, ...(before ? { before: lines.slice(Math.max(0, index - before), index) } : {}), ...(after ? { after: lines.slice(index + 1, index + 1 + after) } : {}) })
-            if (matches.length >= wanted) break
-          }
-        }
-        if (matches.length) files.push({ path: entry.path, count: matches.length, matches })
-      } catch (cause) {
-        if (cause instanceof AgentError && cause.code === "RUN_ABORTED") throw cause
-      }
-      if (collected() >= wanted) break
+  const { target } = await searchPath(context, input.path)
+  const resolution = await resolveRipgrep(context)
+  if (!resolution.available) return nativeGrepWorkspace(input, context, target)
+  const before = input["-B"] ?? input["-C"] ?? input.context ?? 0
+  const after = input["-A"] ?? input["-C"] ?? input.context ?? 0
+  const args = ["--json", "--color", "never", "--no-messages", "--sort", "path"]
+  if (input["-i"]) args.push("--ignore-case")
+  if (input.multiline) args.push("--multiline", "--multiline-dotall")
+  if (before) args.push("--before-context", String(before))
+  if (after) args.push("--after-context", String(after))
+  if (input.glob) args.push("--glob", input.glob)
+  if (input.type) args.push("--type", input.type)
+  args.push("--", input.pattern, target)
+  const result = await ripgrep(context, resolution.path, args)
+  const matches: Array<{ path: string; line?: number; text: string; before?: string[]; after?: string[] }> = []
+  const counts = new Map<string, number>()
+  const contexts = new Map<string, Map<number, string>>()
+  for (const raw of result.stdout.toString("utf8").split(/\r?\n/)) {
+    if (!raw) continue
+    let event: RgEvent
+    try { event = JSON.parse(raw) as RgEvent } catch { throw new AgentError("WORKSPACE_SEARCH_INVALID_OUTPUT", "ripgrep 返回了无法解析的输出", 502) }
+    const path = event.data?.path?.text?.replaceAll("\\", "/")
+    const text = event.data?.lines?.text?.replace(/\r?\n$/, "")
+    const line = event.data?.line_number ?? undefined
+    if (!path || text === undefined || line === undefined) continue
+    if (event.type === "context") {
+      const byLine = contexts.get(path) ?? new Map<number, string>()
+      byLine.set(line, text)
+      contexts.set(path, byLine)
+    } else if (event.type === "match") {
+      const occurrences = Math.max(1, event.data?.submatches?.length ?? 1)
+      counts.set(path, (counts.get(path) ?? 0) + occurrences)
+      for (let index = 0; index < occurrences; index += 1) matches.push({ path, ...(input["-n"] === false ? {} : { line }), text: text.slice(0, 8_000) })
     }
   }
-  if (Date.now() >= deadline) throw new AgentError("WORKSPACE_SEARCH_TIMEOUT", "工作区搜索超过 10 秒预算", 408)
+  for (const match of matches) {
+    if (match.line === undefined) continue
+    const byLine = contexts.get(match.path)
+    const prior = Array.from({ length: before }, (_, index) => byLine?.get(match.line! - before + index)).filter((line): line is string => line !== undefined)
+    const following = Array.from({ length: after }, (_, index) => byLine?.get(match.line! + index + 1)).filter((line): line is string => line !== undefined)
+    if (prior.length) match.before = prior
+    if (following.length) match.after = following
+  }
   const offset = input.offset ?? 0
   const limit = input.head_limit ?? 200
-  if (input.output_mode === "files_with_matches") return { files: files.map((file) => file.path).slice(offset, offset + limit), truncated: files.length > offset + limit, visited, bytes }
-  if (input.output_mode === "count") return { counts: files.map(({ path, count }) => ({ path, count })).slice(offset, offset + limit), truncated: files.length > offset + limit, visited, bytes }
-  const content = files.flatMap((file) => file.matches.map((match) => ({ path: file.path, ...match })))
-  return { matches: content.slice(offset, offset + limit), truncated: content.length > offset + limit || visited >= 10_000 || bytes >= 50 * 1024 * 1024, visited, bytes }
+  if (input.output_mode === "files_with_matches") {
+    const files = [...counts.keys()]
+    return { files: files.slice(offset, offset + limit), truncated: files.length > offset + limit, engine: "ripgrep" as const }
+  }
+  if (input.output_mode === "count") {
+    const values = [...counts].map(([path, count]) => ({ path, count }))
+    return { counts: values.slice(offset, offset + limit), truncated: values.length > offset + limit, engine: "ripgrep" as const }
+  }
+  return { matches: matches.slice(offset, offset + limit), truncated: matches.length > offset + limit, engine: "ripgrep" as const }
 }
 
 const builtinTools = (): ToolDefinition<any, any>[] => [
@@ -209,45 +216,31 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     },
   },
   {
-    sdkName: "Glob", name: "workspace.glob", description: "在工作区内按 glob 模式查找文件；结果和遍历量都有固定上限。",
+    sdkName: "Glob", name: "workspace.glob", description: "优先使用受管或本机 ripgrep 在工作区内按 glob 模式查找文件；无法获取 ripgrep 时使用有界原生搜索。path 默认为 .，优先传工作区相对路径，也接受工作区内绝对路径。",
     schema: z.object({ pattern: z.string().min(1).max(1_000), path: z.string().optional(), limit: z.number().int().min(1).max(500).optional() }).strict(),
     inputSchema: jsonObject({ pattern: { type: "string", maxLength: 1_000 }, path: { type: "string" }, limit: { type: "number", minimum: 1, maximum: 500 } }, ["pattern"]),
-    capabilities: { ...noCapabilities(), filesystem: "read" }, allowedModes: allModes, allowedProfiles: allProfiles, approvalStrategy: "policy", visibility: "eager", executionMode: "parallel",
+    capabilities: { ...noCapabilities(), filesystem: "read", process: true }, allowedModes: allModes, allowedProfiles: allProfiles, approvalStrategy: "policy", visibility: "eager", executionMode: "parallel",
     progress: (input) => ({ message: `正在匹配 ${input.pattern}` }),
     execute: async (input, context) => {
-      const root = input.path ?? "."
-      const prefix = root === "." ? "" : `${root.replaceAll("\\", "/").replace(/\/$/, "")}/`
-      const matcher = globRegex(input.pattern.replaceAll("\\", "/"))
+      const { target } = await searchPath(context, input.path)
       const limit = input.limit ?? 200
-      const queue = [root]
-      const matches: string[] = []
-      let visited = 0
-      while (queue.length && matches.length < limit && visited < 10_000) {
-        if (context.signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
-        const directory = queue.shift()!
-        for (const entry of await context.workspace.listEditorFiles(directory)) {
-          visited += 1
-          if (entry.type === "directory" && visited < 10_000) queue.push(entry.path)
-          else if (entry.type === "file") {
-            const relative = prefix && entry.path.startsWith(prefix) ? entry.path.slice(prefix.length) : entry.path
-            if (matcher.test(relative)) matches.push(entry.path)
-          }
-          if (matches.length >= limit || visited >= 10_000) break
-        }
-      }
-      return { matches, truncated: matches.length >= limit || visited >= 10_000, visited }
+      const resolution = await resolveRipgrep(context)
+      if (!resolution.available) return nativeGlobWorkspace(input, context, target)
+      const result = await ripgrep(context, resolution.path, ["--files", "--null", "--color", "never", "--sort", "path", "--glob", input.pattern, "--", target])
+      const all = result.stdout.toString("utf8").split("\0").filter(Boolean).map((path) => path.replaceAll("\\", "/"))
+      return { matches: all.slice(0, limit), truncated: all.length > limit, visited: all.length, engine: "ripgrep" as const }
     },
   },
   {
-    sdkName: "Grep", name: "workspace.grep", description: "在工作区 UTF-8 文本中执行有界正则搜索，支持文件过滤、上下文和多种输出模式。",
-    schema: z.object({ pattern: z.string().min(1), path: z.string().optional(), glob: z.string().optional(), output_mode: z.enum(["content", "files_with_matches", "count"]).default("content"), "-A": z.number().int().min(0).max(100).optional(), "-B": z.number().int().min(0).max(100).optional(), "-C": z.number().int().min(0).max(100).optional(), context: z.number().int().min(0).max(100).optional(), "-n": z.boolean().optional(), "-i": z.boolean().optional(), type: z.string().optional(), head_limit: z.number().int().min(1).max(1_000).default(200), offset: z.number().int().min(0).default(0), multiline: z.boolean().default(false) }).strict(),
-    inputSchema: jsonObject({ pattern: { type: "string" }, path: { type: "string" }, glob: { type: "string" }, output_mode: { enum: ["content", "files_with_matches", "count"], default: "content" }, "-A": { type: "integer", minimum: 0, maximum: 100 }, "-B": { type: "integer", minimum: 0, maximum: 100 }, "-C": { type: "integer", minimum: 0, maximum: 100 }, context: { type: "integer", minimum: 0, maximum: 100 }, "-n": { type: "boolean" }, "-i": { type: "boolean" }, type: { type: "string" }, head_limit: { type: "integer", minimum: 1, maximum: 1_000, default: 200 }, offset: { type: "integer", minimum: 0, default: 0 }, multiline: { type: "boolean", default: false } }, ["pattern"]),
+    sdkName: "Grep", name: "workspace.grep", description: "优先使用受管或本机 ripgrep 在工作区内执行有界正则搜索；无法获取 ripgrep 时使用有界原生搜索。path 默认为 .，优先传工作区相对路径，也接受工作区内绝对路径；支持文件过滤、上下文和多种输出模式。",
+    schema: z.object({ pattern: z.string().min(1).max(10_000), path: z.string().optional(), glob: z.string().max(1_000).optional(), output_mode: z.enum(["content", "files_with_matches", "count"]).default("content"), "-A": z.number().int().min(0).max(100).optional(), "-B": z.number().int().min(0).max(100).optional(), "-C": z.number().int().min(0).max(100).optional(), context: z.number().int().min(0).max(100).optional(), "-n": z.boolean().optional(), "-i": z.boolean().optional(), type: z.string().max(100).optional(), head_limit: z.number().int().min(1).max(1_000).default(200), offset: z.number().int().min(0).default(0), multiline: z.boolean().default(false) }).strict(),
+    inputSchema: jsonObject({ pattern: { type: "string", maxLength: 10_000 }, path: { type: "string" }, glob: { type: "string", maxLength: 1_000 }, output_mode: { enum: ["content", "files_with_matches", "count"], default: "content" }, "-A": { type: "integer", minimum: 0, maximum: 100 }, "-B": { type: "integer", minimum: 0, maximum: 100 }, "-C": { type: "integer", minimum: 0, maximum: 100 }, context: { type: "integer", minimum: 0, maximum: 100 }, "-n": { type: "boolean" }, "-i": { type: "boolean" }, type: { type: "string", maxLength: 100 }, head_limit: { type: "integer", minimum: 1, maximum: 1_000, default: 200 }, offset: { type: "integer", minimum: 0, default: 0 }, multiline: { type: "boolean", default: false } }, ["pattern"]),
     capabilities: { ...noCapabilities(), filesystem: "read", process: true }, allowedModes: allModes, allowedProfiles: allProfiles, approvalStrategy: "policy", visibility: "eager", executionMode: "parallel",
     progress: (input) => ({ message: `正在搜索 ${input.pattern}` }),
     execute: grepWorkspace,
   },
   ...(["Bash", "PowerShell"] as const).map((sdkName): ToolDefinition<any, any> => ({
-    sdkName, name: sdkName, description: sdkName === "Bash" ? "通过统一权限、Hook、幂等与沙箱边界执行 Bash 命令。禁止后台和绕过沙箱。" : "通过统一权限、Hook、幂等与沙箱边界执行 PowerShell 命令。禁止后台和绕过沙箱。",
+    sdkName, name: sdkName, description: sdkName === "Bash" ? "以工作区为默认 cwd，通过统一权限、Hook、幂等与沙箱边界执行 Bash 命令。禁止后台和绕过沙箱。" : "以工作区为默认 cwd，通过统一权限、Hook、幂等与沙箱边界执行 PowerShell 命令。禁止后台和绕过沙箱。",
     schema: shellSchema, inputSchema: shellInputSchema,
     capabilities: { filesystem: "host-write", network: "declared", process: true, externalState: true, userInteraction: false }, allowedModes: allModes, allowedProfiles: ["main", "default", "worker"], approvalStrategy: "policy", visibility: "eager", executionMode: "sequential",
     progress: () => ({ message: `正在执行 ${sdkName}` }),

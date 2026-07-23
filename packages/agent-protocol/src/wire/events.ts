@@ -21,6 +21,7 @@ import {
   QuestionRequestParamsSchema,
 } from "./interactions"
 import { JsonValueSchema, OpaqueIDSchema, SequenceSchema, TimestampSchema } from "./primitives"
+import { ToolingStatusSchema } from "../methods/tooling"
 
 const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 const SanitizedErrorSchema = Schema.Struct({
@@ -64,6 +65,16 @@ export const EventManifest = {
     stream: "global",
     capability: "workspace.editor.v1",
     reconcilesWith: "workspace/file/read",
+  }),
+  "tooling/updated": defineEvent({
+    payload: Schema.Struct({
+      status: ToolingStatusSchema,
+    }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "tooling.management.v1",
+    reconcilesWith: "tooling/list",
   }),
   "thread/created": defineEvent({
     payload: Schema.Struct({ thread: ThreadSchema }),

@@ -21,6 +21,7 @@ export const Capabilities = [
   "hooks.trust.v1",
   "subagents.v1",
   "sandbox.management.v1",
+  "tooling.management.v1",
   "agent.shutdown.v1",
   "prompt.preview.sensitive.v1",
   "prompt.refresh.v1",

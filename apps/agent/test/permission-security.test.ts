@@ -5,7 +5,7 @@ import { join, resolve } from "node:path"
 import { decodeApprovalPolicy, encodeApprovalPolicy } from "@codepilotx/shared/thread"
 import type { ToolInvocation } from "../src/domain"
 import { PermissionDecisionEngine } from "../src/permission/PermissionDecisionEngine"
-import { generateSandboxPolicy, safePathDirectories } from "../src/sandbox/SandboxPolicy"
+import { generateSandboxPolicy, pathContains, safePathDirectories } from "../src/sandbox/SandboxPolicy"
 import { secretScrubber } from "../src/security/SecretScrubber"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 
@@ -90,5 +90,58 @@ describe("沙箱与脱敏", () => {
       const paths = safePathDirectories({ path: ["bin", home, windowsRoot, homeLink, resolve(root).slice(0, 3)].join(";"), cwd, userHome: home, windowsRoot })
       expect(paths).toEqual([resolve(bin)])
     } finally { await rm(root, { recursive: true, force: true }) }
+  })
+
+  test("Windows 策略不把宿主 PATH 或外部系统目录写入 ACL", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-acl-policy-"))
+    try {
+      const workspace = join(root, "workspace")
+      const sessionTemp = join(root, "temp")
+      const dataDir = join(root, "data")
+      const managedTool = join(root, "tooling", "git-bash")
+      await Promise.all([
+        mkdir(workspace),
+        mkdir(sessionTemp),
+        mkdir(dataDir),
+        mkdir(managedTool, { recursive: true }),
+      ])
+      const policy = generateSandboxPolicy({
+        workspace,
+        sessionTemp,
+        dataDir,
+        permissionConfig: {
+          sandboxMode: "workspace-write",
+          approvalPolicy: "never",
+          approvalsReviewer: "user",
+        },
+        trustedReadPaths: [managedTool],
+      })
+      const allowRead = policy.config.filesystem?.allowRead ?? []
+      expect(allowRead).toEqual([
+        resolve(workspace),
+        resolve(sessionTemp),
+        resolve(managedTool),
+      ])
+      expect(allowRead.some((path) => /System32|WindowsPowerShell|OpenSSH|Git[\\/]cmd/i.test(path))).toBe(false)
+      if (process.platform === "win32") {
+        expect(policy.config.filesystem?.denyRead).not.toContain(resolve(dataDir))
+        expect(policy.config.filesystem?.denyWrite).not.toContain(resolve(dataDir))
+        for (const externalRoot of [
+          process.env.ProgramFiles,
+          process.env.ProgramData,
+          process.env.APPDATA,
+        ].filter((path): path is string => Boolean(path))) {
+          expect(policy.config.filesystem?.denyWrite).not.toContain(resolve(externalRoot))
+        }
+      }
+    } finally { await rm(root, { recursive: true, force: true }) }
+  })
+
+  test("路径包含判断具有目录边界且 Windows 大小写不敏感", () => {
+    expect(pathContains("C:\\Work\\Repo", "C:\\Work\\Repo\\src")).toBe(true)
+    expect(pathContains("C:\\Work\\Repo", "C:\\Work\\Repository")).toBe(false)
+    if (process.platform === "win32") {
+      expect(pathContains("C:\\WORK\\REPO", "c:\\work\\repo\\src")).toBe(true)
+    }
   })
 })
