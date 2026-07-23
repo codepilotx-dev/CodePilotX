@@ -28,6 +28,7 @@ export const V2MethodMigrationManifest = {
   "thread/list": { status: "keep", target: "thread/list" },
   "thread/create": { status: "keep", target: "thread/create" },
   "thread/read": { status: "keep", target: "thread/read" },
+  "thread/history/read": { status: "keep", target: "thread/history/read" },
   "prompt/preview": { status: "keep", target: "prompt/preview" },
   "prompt/refresh": { status: "keep", target: "prompt/refresh" },
   "thread/compact": { status: "keep", target: "thread/compact" },

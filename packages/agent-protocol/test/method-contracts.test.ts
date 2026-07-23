@@ -474,6 +474,19 @@ const fixtures = {
     operationId: "operation:thread-create",
   }, { snapshot: threadSnapshot, streamPosition }),
   "thread/read": methodFixture("thread/read", { threadId: threadListItem.id }, { snapshot: threadSnapshot, streamPosition }),
+  "thread/history/read": methodFixture("thread/history/read", {
+    threadId: threadListItem.id,
+    before: "history-cursor:1",
+    limit: 10,
+  }, {
+    thread: threadSnapshot.thread,
+    subagents: [],
+    turns: [],
+    queue: { version: 0, pauseReason: null, turns: [], inputs: [] },
+    olderCursor: null,
+    hasOlder: false,
+    streamPosition,
+  }),
   "thread/update": methodFixture("thread/update", {
     threadId: threadListItem.id,
     patch: { title: "Updated fixture thread", archived: false },
@@ -1067,9 +1080,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 101 formal methods decodable", () => {
+  test("keeps valid params and results for all 102 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(101)
+    expect(methods).toHaveLength(102)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -1092,6 +1105,10 @@ describe("RPC method schema contracts", () => {
 
   test("rejects invalid opaque IDs, limits, and enums", () => {
     expect(() => Schema.decodeUnknownSync(RpcMethods["thread/read"].params)({ threadId: "" })).toThrow()
+    const decodeThreadHistory = Schema.decodeUnknownSync(RpcMethods["thread/history/read"].params)
+    expect(decodeThreadHistory({ threadId: "thread:1" })).toEqual({ threadId: "thread:1" })
+    expect(() => decodeThreadHistory({ threadId: "thread:1", limit: 0 })).toThrow()
+    expect(() => decodeThreadHistory({ threadId: "thread:1", limit: 51 })).toThrow()
 
     const decodeProjectList = Schema.decodeUnknownSync(RpcMethods["project/list"].params)
     expect(() => decodeProjectList({ limit: 0 })).toThrow()

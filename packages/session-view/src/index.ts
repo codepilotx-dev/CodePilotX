@@ -7,6 +7,9 @@ import type {
   SessionSnapshot,
 } from "@codepilotx/shared/legacy"
 
+export * from "./canonical"
+export * from "./thread"
+
 export type TimelinePartStatus = "streaming" | "completed" | "interrupted"
 export type TimelineRunStatus = Run["status"]
 

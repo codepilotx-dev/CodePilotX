@@ -381,6 +381,7 @@ export const InputSchema = Schema.Struct({
   mode: TaskModeSchema,
   model: Model.Ref,
   permissionConfig: PermissionConfigSchema,
+  attachmentIds: Schema.optional(Schema.Array(Schema.String)),
   state: Schema.Literals(["queued", "merged", "active", "completed", "cancelled"]),
   createdAt: Schema.Number,
 })
@@ -595,6 +596,17 @@ export const AttachmentSchema = Schema.Struct({
 })
 export type Attachment = typeof AttachmentSchema.Type
 
+export const ThreadTurnBundleSchema = Schema.Struct({
+  turn: TurnSchema,
+  inputs: Schema.Array(InputSchema),
+  messages: Schema.Array(MessageSchema),
+  agents: Schema.Array(AgentExecutionSchema),
+  items: Schema.Array(ItemSchema),
+  approvals: Schema.Array(ApprovalRequestSchema),
+  attachments: Schema.Array(AttachmentSchema),
+})
+export type ThreadTurnBundle = typeof ThreadTurnBundleSchema.Type
+
 export const TurnStartParamsSchema = Schema.Struct({
   threadId: Schema.String,
   content: Schema.String,
@@ -695,6 +707,7 @@ export const AgentRpcMethodSchema = Schema.Literals([
   "thread/list",
   "thread/create",
   "thread/read",
+  "thread/history/read",
   "prompt/preview",
   "prompt/refresh",
   "thread/compact",
