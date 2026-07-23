@@ -11,11 +11,10 @@ import { desktopClient } from '../../services/desktop-client/index.js'
 import { SegmentedControl } from './SegmentedControl.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
+import { SettingsContentArea } from './SettingsContentArea.js'
+import { useDesktopSettings } from './useDesktopSettings.js'
 
 type Props = {
-  legacyManagedPreference: boolean
-  migrationComplete: boolean
-  onMigrationComplete: () => Promise<void>
   onError: (message: string) => void
   onNotice?: (message: string) => void
 }
@@ -51,13 +50,13 @@ const SOURCE_OPTIONS: readonly { value: ToolingPreference; label: string }[] = [
   { value: 'system', label: '本机' },
 ]
 
-export function WorkspaceDependenciesSection({
-  legacyManagedPreference,
-  migrationComplete,
-  onMigrationComplete,
+export function WorkspaceDependenciesSettings({
   onError,
   onNotice,
 }: Props): React.ReactNode {
+  const { draft } = useDesktopSettings()
+  const legacyManagedPreference = draft.values.installCodePilotXDependencies
+  const migrationComplete = draft.values.workspaceDependenciesMigrated
   const [statuses, setStatuses] = React.useState<readonly ToolingStatus[]>([])
   const [loading, setLoading] = React.useState(true)
   const [busyTools, setBusyTools] = React.useState<ReadonlySet<ToolingID>>(
@@ -83,6 +82,11 @@ export function WorkspaceDependenciesSection({
       return copy
     })
   }, [])
+
+  const completeMigration = React.useCallback(async (): Promise<void> => {
+    draft.setValue('workspaceDependenciesMigrated', true)
+    await draft.save()
+  }, [draft])
 
   const refresh = React.useCallback(async (): Promise<void> => {
     try {
@@ -111,7 +115,7 @@ export function WorkspaceDependenciesSection({
           ])
           if (!active) return
           for (const status of migrated) replaceStatus(status)
-          await onMigrationComplete()
+          await completeMigration()
         }
       })
       .catch(error => {
@@ -134,7 +138,7 @@ export function WorkspaceDependenciesSection({
     legacyManagedPreference,
     migrationComplete,
     onError,
-    onMigrationComplete,
+    completeMigration,
     replaceStatus,
   ])
 
@@ -189,35 +193,48 @@ export function WorkspaceDependenciesSection({
 
   if (loading && statuses.length === 0) {
     return (
-      <SettingsSection title="工作空间依赖项">
-        <SettingsRow title="正在读取依赖项状态…" />
-      </SettingsSection>
+      <SettingsContentArea>
+        <div className="settings-content-inner">
+          <WorkspaceDependenciesHeader />
+          <SettingsSection title="运行环境">
+            <SettingsRow title="正在读取依赖项状态…" />
+          </SettingsSection>
+        </div>
+      </SettingsContentArea>
     )
   }
 
   return (
-    <>
-      <div className="settings-section">
-        <SettingsSection.Header
-          title="工作空间依赖项"
-          description="四项运行环境彼此独立；内置版只在首次使用或手动安装时下载，不会打包进应用。"
-        />
+    <SettingsContentArea>
+      <div className="settings-content-inner">
+        <WorkspaceDependenciesHeader />
+        {TOOL_IDS.map(id => {
+          const status = statuses.find(item => item.id === id)
+          return status ? (
+            <DependencySection
+              busy={busyTools.has(id)}
+              key={id}
+              onInstall={() => void install(status)}
+              onPreferenceChange={preference =>
+                void changePreference(status, preference)
+              }
+              status={status}
+            />
+          ) : null
+        })}
       </div>
-      {TOOL_IDS.map(id => {
-        const status = statuses.find(item => item.id === id)
-        return status ? (
-          <DependencySection
-            busy={busyTools.has(id)}
-            key={id}
-            onInstall={() => void install(status)}
-            onPreferenceChange={preference =>
-              void changePreference(status, preference)
-            }
-            status={status}
-          />
-        ) : null
-      })}
-    </>
+    </SettingsContentArea>
+  )
+}
+
+function WorkspaceDependenciesHeader(): React.ReactNode {
+  return (
+    <div className="settings-page-header">
+      <h2 className="settings-page-title">工作空间依赖项</h2>
+      <p className="settings-page-desc">
+        四项运行环境彼此独立；内置版只在首次使用或手动安装时下载，不会打包进应用。
+      </p>
+    </div>
   )
 }
 

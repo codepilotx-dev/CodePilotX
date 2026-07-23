@@ -21,7 +21,10 @@ import {
 } from '../src/features/layout/sidebar/sidebarViewModel.js'
 import { sortSessionsForSidebar } from '../src/features/session/state/sessionSorting.js'
 import { TOP_NAV_ITEMS } from '../src/features/layout/sidebar/SidebarTopNav.js'
-import { SETTINGS_ITEMS } from '../src/features/settings/settingsRegistry.js'
+import {
+  SETTINGS_GROUPS,
+  SETTINGS_ITEMS,
+} from '../src/features/settings/settingsRegistry.js'
 
 describe('模型中心导航', () => {
   test('作为搜索与插件之间的独立顶层入口', () => {
@@ -37,6 +40,26 @@ describe('模型中心导航', () => {
 
   test('从设置目录移除旧 connections 标签', () => {
     expect(SETTINGS_ITEMS.some(item => item.routeId === 'connections')).toBeFalse()
+  })
+})
+
+describe('设置导航', () => {
+  test('工作空间依赖项是编码分组中的独立页面', () => {
+    const codingGroup = SETTINGS_GROUPS.find(group => group.id === 'coding')
+    const dependencies = SETTINGS_ITEMS.find(
+      item => item.routeId === 'dependencies',
+    )
+    const config = SETTINGS_ITEMS.find(item => item.routeId === 'config')
+
+    expect(codingGroup?.items.some(item => item.routeId === 'dependencies')).toBeTrue()
+    expect(dependencies?.label).toBe('工作空间依赖项')
+    expect(dependencies?.rows.map(row => row.title)).toEqual([
+      'Node.js',
+      'Python',
+      'Git Bash',
+      'ripgrep',
+    ])
+    expect(config?.rows.some(row => row.title === '工作空间依赖项')).toBeFalse()
   })
 })
 

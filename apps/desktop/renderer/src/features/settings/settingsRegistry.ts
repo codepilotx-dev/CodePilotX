@@ -5,6 +5,7 @@ import {
   GitBranch,
   Keyboard,
   Link,
+  Package,
   Palette,
   Settings,
   Sliders,
@@ -52,10 +53,9 @@ export const SETTINGS_GROUPS = [
         id: 'general',
         routeId: 'general',
         label: '常规',
-        description: '工作模式、权限、语言、通知、听写与应用行为',
+        description: '权限、语言、通知、听写与应用行为',
         icon: Settings,
         rows: [
-          row('工作模式', '调整回复技术细节与默认工作方式'),
           row('默认权限', '设置读取、写入、命令、联网和 MCP 请求权限'),
           row('自动审核', '配置需要授权操作的自动审核行为'),
           row('完全访问权限', '允许 CodePilotX 使用完整系统能力'),
@@ -124,7 +124,7 @@ export const SETTINGS_GROUPS = [
         id: 'config',
         routeId: 'config',
         label: '配置',
-        description: '安全沙盒、审批、任务模型、数据与工具链',
+        description: '安全沙盒、审批、任务模型与数据设置',
         icon: Sliders,
         rows: [
           row('批准策略', '选择 CodePilotX 何时请求批准'),
@@ -133,7 +133,6 @@ export const SETTINGS_GROUPS = [
           row('审批执行者', '选择由你或 Guardian 处理审批'),
           row('任务模型', '配置快速、默认、深度和计划执行模型'),
           row('数据位置', '更改 CodePilotX 配置和会话数据目录'),
-          row('工作空间依赖项', '管理内置 Node.js 和 Python 工具链'),
           row('自定义 config.toml 设置', '编辑底层 Codex 配置'),
           row('完整提示词诊断', '查看提示词来源、哈希与 token 估算'),
         ],
@@ -224,6 +223,19 @@ export const SETTINGS_GROUPS = [
     id: 'coding',
     title: '编码',
     items: [
+      {
+        id: 'dependencies',
+        routeId: 'dependencies',
+        label: '工作空间依赖项',
+        description: '管理 Node.js、Python、Git Bash 和 ripgrep 运行环境',
+        icon: Package,
+        rows: [
+          row('Node.js', '选择内置或本机版本并查看安装状态'),
+          row('Python', '选择内置或本机版本并查看安装状态'),
+          row('Git Bash', '选择内置或本机版本并查看安装状态'),
+          row('ripgrep', '选择内置或本机版本并查看安装状态'),
+        ],
+      },
       {
         id: 'git',
         routeId: 'git',

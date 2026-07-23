@@ -1,17 +1,14 @@
 import { desktopClient } from '../../services/desktop-client/index.js'
 import React, { useCallback, useEffect, useState } from 'react';
-import * as RadioGroup from '@radix-ui/react-radio-group';
 import {
   Code,
   File,
   FolderOpen,
-  MessagesSquare,
   SquareTerminal,
 } from 'lucide-react';
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
-import { RadioCard } from './RadioCard.js';
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js';
-import { SettingsAutoSaveBadge, SettingsRow } from './SettingsRow.js';
+import { SettingsRow } from './SettingsRow.js';
 import { SettingsSection } from './SettingsSection.js';
 import { SettingsDropdown } from './SettingsDropdown.js';
 import { SegmentedControl } from './SegmentedControl.js';
@@ -22,7 +19,6 @@ import type {
   DesktopOpenTarget,
   DesktopReviewDelivery,
   DesktopReviewView,
-  DesktopThinkingMode,
 } from '../../../shared/types.js';
 import { Button } from '../../components/ui/Button.js'
 
@@ -81,28 +77,6 @@ const REVIEW_DELIVERY_OPTIONS: Array<{
   { value: 'detached', label: '独立任务' },
 ];
 
-type WorkMode = 'coding' | 'daily';
-
-const WORK_MODES: Array<{
-  value: WorkMode;
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-}> = [
-  {
-    value: 'coding',
-    title: '适用于编程',
-    description: '更具技术性的回复和控制',
-    icon: <SquareTerminal />,
-  },
-  {
-    value: 'daily',
-    title: '适用于日常工作',
-    description: '同样强大，技术细节更少',
-    icon: <MessagesSquare />,
-  },
-];
-
 function LearnMoreLink() {
   return (
     <a
@@ -148,7 +122,6 @@ export function GeneralSettings({
     draft,
   } = useDesktopSettings();
   const {
-    thinkingMode,
     permissionConfig,
     enableAutoReviewPermissionMode,
     enableFullAccessPermissionMode,
@@ -179,13 +152,6 @@ export function GeneralSettings({
   const [notifyOnComplete, setNotifyOnComplete] = useState('unfocused');
   const [notifyPermission, setNotifyPermission] = useState(true);
   const [notifyQuestions, setNotifyQuestions] = useState(true);
-  const setThinkingMode = useCallback(
-    (value: DesktopThinkingMode) => {
-      draft.setValue('thinkingMode', value)
-      draft.autoSave()
-    },
-    [draft],
-  )
   const setShowContextUsage = useCallback(
     (value: boolean) => {
       draft.setValue('showContextUsage', value)
@@ -242,11 +208,6 @@ export function GeneralSettings({
     },
     [draft],
   )
-
-  const workMode: WorkMode = thinkingMode === 'adaptive' ? 'daily' : 'coding';
-  const handleWorkMode = (next: WorkMode) => {
-    setThinkingMode(next === 'coding' ? 'default' : 'adaptive');
-  };
 
   const handleAutoApprove = (checked: boolean) => {
     draft.setValue('enableAutoReviewPermissionMode', checked);
@@ -312,30 +273,6 @@ export function GeneralSettings({
         <div className="settings-page-header">
           <h2 className='settings-page-title'>常规</h2>
         </div>
-
-        <SettingsSection
-          title='工作模式'
-          description='选择 CodePilotX 显示多少技术细节'
-          actions={<SettingsAutoSaveBadge />}
-          bare
-        >
-          <RadioGroup.Root
-            className='settings-radio-group'
-            value={workMode}
-            onValueChange={(value) => handleWorkMode(value as WorkMode)}
-          >
-            {WORK_MODES.map((mode) => (
-              <RadioCard
-                key={mode.value}
-                value={mode.value}
-                checked={workMode === mode.value}
-                description={mode.description}
-                icon={mode.icon}
-                title={mode.title}
-              />
-            ))}
-          </RadioGroup.Root>
-        </SettingsSection>
 
         <SettingsSection title='权限'>
           <SettingsRow

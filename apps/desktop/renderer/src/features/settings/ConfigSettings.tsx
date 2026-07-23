@@ -21,7 +21,6 @@ import {
   type SandboxRuntimeStatus,
 } from '../../shared/sandboxRuntime.js'
 import { Button } from '../../components/ui/Button.js'
-import { WorkspaceDependenciesSection } from './WorkspaceDependenciesSection.js'
 
 function LearnMoreLink() {
   return (
@@ -35,12 +34,7 @@ function LearnMoreLink() {
   )
 }
 
-type Props = {
-  onError: (message: string) => void
-  onNotice?: (message: string) => void
-}
-
-export function ConfigSettings({ onError, onNotice }: Props): React.ReactNode {
+export function ConfigSettings(): React.ReactNode {
   const settings = useDesktopSettings()
   const { draft } = settings
   const [openingConfig, setOpeningConfig] = useState(false)
@@ -518,16 +512,6 @@ export function ConfigSettings({ onError, onNotice }: Props): React.ReactNode {
           />
         </SettingsSection>
 
-        <WorkspaceDependenciesSection
-          legacyManagedPreference={draft.values.installCodePilotXDependencies}
-          migrationComplete={draft.values.workspaceDependenciesMigrated}
-          onError={onError}
-          onMigrationComplete={async () => {
-            draft.setValue('workspaceDependenciesMigrated', true)
-            await draft.save()
-          }}
-          onNotice={onNotice}
-        />
       </div>
     </SettingsContentArea>
   )
