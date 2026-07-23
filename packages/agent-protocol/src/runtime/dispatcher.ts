@@ -1,6 +1,6 @@
 import { Schema } from "effect"
-import type { RpcMethod, RpcParams, RpcResult } from "./methods"
-import { RpcMethods } from "./methods"
+import type { RpcMethod, RpcParams, RpcResult } from "../methods/index"
+import { RpcMethods } from "../methods/index"
 import {
   RPC_APPLICATION_ERROR,
   RPC_INTERNAL_ERROR,
@@ -11,8 +11,8 @@ import {
   type RpcFailureResponse,
   type RpcRequest,
   type RpcResponse,
-} from "./messages"
-import type { ApplicationErrorCode, JsonValue, RpcID } from "./wire"
+} from "../wire/messages"
+import type { ApplicationErrorCode, JsonValue, RpcID } from "../wire/primitives"
 
 export class RpcApplicationError extends Error {
   constructor(
@@ -54,7 +54,7 @@ export async function dispatchRpcMessage<Context extends RpcHandlerContext>(
   handlers: RpcHandlers<Context>,
   context: Context,
 ): Promise<RpcResponse> {
-  if (Array.isArray(input)) return failure(null, RPC_INVALID_REQUEST, "RPC v3 does not support batch messages")
+  if (Array.isArray(input)) return failure(null, RPC_INVALID_REQUEST, "RPC v4 does not support batch messages")
 
   let request: RpcRequest
   try {

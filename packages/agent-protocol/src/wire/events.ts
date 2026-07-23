@@ -20,7 +20,7 @@ import {
   PlanRequestParamsSchema,
   QuestionRequestParamsSchema,
 } from "./interactions"
-import { JsonValueSchema, OpaqueIDSchema, SequenceSchema, TimestampSchema } from "./wire"
+import { JsonValueSchema, OpaqueIDSchema, SequenceSchema, TimestampSchema } from "./primitives"
 
 const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 const SanitizedErrorSchema = Schema.Struct({

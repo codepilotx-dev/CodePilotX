@@ -1,6 +1,5 @@
 import type {
   AgentExecution,
-  AgentNotification,
   ApprovalRequest,
   Input,
   Item,
@@ -14,6 +13,13 @@ import type {
   Turn,
 } from "@codepilotx/shared/thread"
 import { decodeApprovalPolicy } from "@codepilotx/shared/thread"
+
+type AgentNotification = {
+  jsonrpc: "2.0"
+  id?: string | number
+  method: string
+  params: Record<string, unknown>
+}
 
 export interface ThreadViewOptions {
   agentId?: string

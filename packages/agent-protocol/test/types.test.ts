@@ -6,7 +6,7 @@ import type {
   ServerRequestParams,
   ServerRequestResult,
   DurableEventEnvelope,
-} from "../src"
+} from "../src/index"
 import {
   RpcMethodMap,
   ServerRequestMap,
@@ -14,7 +14,7 @@ import {
   defineRpcHandlers,
   type RpcHandlers,
   type RpcTransport,
-} from "../src"
+} from "../src/index"
 
 const params: RpcParams<"thread/read"> = { threadId: "thread-1" }
 const result: RpcResult<"sandbox/status"> = {

@@ -15,6 +15,7 @@
     "paths": {
       "@codepilotx/model-schema": ["../model-schema/src/index.ts"],
       "@codepilotx/shared": ["../shared/src/index.ts"],
+      "@codepilotx/shared/thread": ["../shared/src/thread/index.ts"],
       "@codepilotx/shared/*": ["../shared/src/*.ts"]
     }
   },

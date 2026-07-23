@@ -1,7 +1,7 @@
 import { Model } from "@codepilotx/model-schema"
 import { AgentThread } from "@codepilotx/shared"
 import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../definition"
+import { defineMethod, type MethodMap } from "../wire/definition"
 import {
   AdmissionSchema,
   CapabilityListSchema,
@@ -17,7 +17,7 @@ import {
   SequenceSchema,
   StreamPositionSchema,
   TimestampSchema,
-} from "../wire"
+} from "../wire/primitives"
 
 const CommonErrors = ["RATE_LIMITED", "INTERNAL_ERROR"] as const
 const InitializationErrors = ["PROTOCOL_VERSION_UNSUPPORTED", "CAPABILITY_REQUIRED", "UNAUTHORIZED", ...CommonErrors] as const
@@ -52,7 +52,7 @@ export const InitializeParamsSchema = Schema.Struct({
 })
 
 export const InitializeResultSchema = Schema.Struct({
-  protocol: Schema.Literal("thread-rpc-v3"),
+  protocol: Schema.Literal("thread-rpc-v4"),
   serverInfo: Schema.Struct({
     name: NonEmptyStringSchema,
     version: NonEmptyStringSchema,
@@ -357,16 +357,10 @@ const ThreadCreateFields = {
   ...OperationParamsSchema.fields,
 }
 
-/**
- * `projectId` is retained as the legacy project-thread request shape. New
- * callers use the discriminated `workspace` field, including projectless
- * threads. Keeping the shapes as a union prevents ambiguous requests that
- * provide both fields.
- */
-export const ThreadCreateParamsSchema = Schema.Union([
-  Schema.Struct({ projectId: OpaqueIDSchema, ...ThreadCreateFields }),
-  Schema.Struct({ workspace: ThreadCreateWorkspaceSchema, ...ThreadCreateFields }),
-])
+export const ThreadCreateParamsSchema = Schema.Struct({
+  workspace: ThreadCreateWorkspaceSchema,
+  ...ThreadCreateFields,
+})
 
 export const ThreadSnapshotResultSchema = Schema.Struct({
   snapshot: AgentThread.ThreadSnapshotSchema,

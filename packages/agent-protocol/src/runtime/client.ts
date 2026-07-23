@@ -1,13 +1,13 @@
 import { Schema } from "effect"
-import type { RpcMethod, RpcParams, RpcResult } from "./methods"
-import { RpcMethods } from "./methods"
+import type { RpcMethod, RpcParams, RpcResult } from "../methods/index"
+import { RpcMethods } from "../methods/index"
 import {
   InitializedNotificationSchema,
   RpcResponseSchema,
   type InitializedNotification,
   type RpcRequest,
-} from "./messages"
-import type { JsonValue, RpcError, RpcID } from "./wire"
+} from "../wire/messages"
+import type { JsonValue, RpcError, RpcID } from "../wire/primitives"
 
 export interface RpcTransport {
   request(message: RpcRequest): Promise<unknown>

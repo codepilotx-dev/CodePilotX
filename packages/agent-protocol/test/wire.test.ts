@@ -6,7 +6,7 @@ import {
   LimitSchema,
   RpcResponseSchema,
   SequenceSchema,
-} from "../src"
+} from "../src/index"
 
 describe("protocol wire primitives", () => {
   test("accepts recursive JSON but rejects non-JSON values", () => {

@@ -15,7 +15,7 @@ import {
   selectVisibleTurnEntries,
   type ThreadEventEnvelopeLike,
   type ThreadHistoryPageLike,
-} from "../src/canonical"
+} from "../src/canonical/index"
 
 const model = { providerID: "openai", id: "gpt-test" }
 const permissionConfig = {

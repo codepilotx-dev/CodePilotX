@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Credential, Integration, Model, Provider } from "@codepilotx/model-schema"
 import { Schema } from "effect"
-import { RpcMethods, type RpcMethod, type RpcParams, type RpcResult } from "../src/methods"
+import { RpcMethods, type RpcMethod, type RpcParams, type RpcResult } from "../src/methods/index"
 
 const providerId = Schema.decodeUnknownSync(Provider.ID)("provider:test")
 const modelId = Schema.decodeUnknownSync(Model.ID)("model:test")
@@ -351,11 +351,11 @@ type MethodFixtures = {
 const fixtures = {
   initialize: methodFixture("initialize", {
     clientInfo: { name: "CodePilotX Desktop", version: "0.1.0", platform: "win32", instanceId: "client:1" },
-    protocols: ["thread-rpc-v3"],
+    protocols: ["thread-rpc-v4"],
     capabilities: ["event.stream.v1"],
     interactionDelivery: "active",
   }, {
-    protocol: "thread-rpc-v3",
+    protocol: "thread-rpc-v4",
     serverInfo: { name: "CodePilotX Agent", version: "0.1.0" },
     capabilities: ["event.stream.v1"],
     limits: {
@@ -468,7 +468,7 @@ const fixtures = {
     limit: 20,
   }, { threads: [threadListItem], nextCursor: null }),
   "thread/create": methodFixture("thread/create", {
-    projectId: project.id,
+    workspace: { kind: "project", projectId: project.id },
     title: threadListItem.title,
     settings: threadSettings,
     operationId: "operation:thread-create",
@@ -1157,7 +1157,7 @@ describe("RPC method schema contracts", () => {
     })).toThrow()
   })
 
-  test("accepts explicit project and projectless thread workspaces while preserving legacy projectId", () => {
+  test("accepts explicit project and projectless thread workspaces", () => {
     const decode = Schema.decodeUnknownSync(
       RpcMethods["thread/create"].params,
       { onExcessProperty: "error" },
@@ -1167,7 +1167,6 @@ describe("RPC method schema contracts", () => {
       operationId: "operation:workspace-thread",
     }
 
-    expect(decode({ ...common, projectId: project.id })).toEqual({ ...common, projectId: project.id })
     expect(decode({ ...common, workspace: { kind: "project", projectId: project.id } })).toEqual({
       ...common,
       workspace: { kind: "project", projectId: project.id },
@@ -1177,11 +1176,7 @@ describe("RPC method schema contracts", () => {
       workspace: { kind: "projectless", prompt: "整理需求" },
     })
     expect(() => decode(common)).toThrow()
-    expect(() => decode({
-      ...common,
-      projectId: project.id,
-      workspace: { kind: "projectless" },
-    })).toThrow()
+    expect(() => decode({ ...common, projectId: project.id })).toThrow()
   })
 
   test("accepts numeric and latest event cursors while rejecting unknown cursor modes", () => {

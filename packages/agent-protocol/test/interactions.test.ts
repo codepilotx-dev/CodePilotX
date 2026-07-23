@@ -9,8 +9,8 @@ import {
   decodeServerRequestMessage,
   ServerRequestResultSchema,
   ServerRequests,
-} from "../src/interactions"
-import { RpcMethods } from "../src/methods"
+} from "../src/wire/interactions"
+import { RpcMethods } from "../src/methods/index"
 
 const responseBranches = [
   {

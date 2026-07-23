@@ -1,6 +1,6 @@
 import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../definition"
-import { OpaqueIDSchema, OkResultSchema, TimestampSchema } from "../wire"
+import { defineMethod, type MethodMap } from "../wire/definition"
+import { OpaqueIDSchema, OkResultSchema, TimestampSchema } from "../wire/primitives"
 
 const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))

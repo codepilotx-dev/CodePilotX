@@ -1,6 +1,6 @@
 import { Schema } from "effect"
 import { defineServerRequest, type ServerRequestParamsOf, type ServerRequestResultOf } from "./definition"
-import { JsonValueSchema, OpaqueIDSchema } from "./wire"
+import { JsonValueSchema, OpaqueIDSchema } from "./primitives"
 import {
   ApprovalInteractionResponseSchema,
   HookTrustInteractionResponseSchema,
@@ -12,7 +12,7 @@ import {
   PendingQuestionInteractionSchema,
   PlanInteractionResponseSchema,
   QuestionInteractionResponseSchema,
-} from "./methods/core"
+} from "../methods/core"
 
 export { InteractionKindSchema }
 export type InteractionKind = typeof InteractionKindSchema.Type

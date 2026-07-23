@@ -3,7 +3,7 @@ import {
   decodeEventEnvelope,
   decodeServerNotification,
   EventManifest,
-} from "../src/events"
+} from "../src/wire/events"
 
 const durable = {
   eventId: "event-1",

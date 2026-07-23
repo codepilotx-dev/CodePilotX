@@ -1,17 +1,17 @@
 import { describe, expect, test } from "bun:test"
-import { createRpcClient, RpcRemoteError, type RpcTransport } from "../src/client"
+import { createRpcClient, RpcRemoteError, type RpcTransport } from "../src/runtime/client"
 import {
   defineRpcHandlers,
   dispatchRpcMessage,
   RpcApplicationError,
   type RpcHandlers,
-} from "../src/dispatcher"
+} from "../src/runtime/dispatcher"
 import {
   RPC_APPLICATION_ERROR,
   RPC_INTERNAL_ERROR,
   RPC_INVALID_PARAMS,
   RPC_INVALID_REQUEST,
-} from "../src/messages"
+} from "../src/wire/messages"
 
 const sandboxResult = {
   sandbox: {

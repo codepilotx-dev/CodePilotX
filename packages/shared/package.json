@@ -8,8 +8,7 @@
     "./api": "./src/api.ts",
     "./events": "./src/llm-event.ts",
     "./model": "./src/model.ts",
-    "./legacy": "./src/legacy.ts",
-    "./thread": "./src/thread.ts"
+    "./thread": "./src/thread/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

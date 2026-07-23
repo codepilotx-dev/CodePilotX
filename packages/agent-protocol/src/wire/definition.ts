@@ -1,6 +1,6 @@
 import { Schema } from "effect"
-import type { CapabilityRequirement, ProtocolCapability } from "./capabilities"
-import type { ApplicationErrorCode } from "./wire"
+import type { CapabilityRequirement, ProtocolCapability } from "../runtime/capabilities"
+import type { ApplicationErrorCode } from "./primitives"
 
 export type AnySchema = Schema.Top
 

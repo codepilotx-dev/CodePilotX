@@ -5,13 +5,12 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./capabilities": "./src/capabilities.ts",
-    "./client": "./src/client.ts",
-    "./dispatcher": "./src/dispatcher.ts",
-    "./events": "./src/events.ts",
-    "./interactions": "./src/interactions.ts",
-    "./methods": "./src/methods/index.ts",
-    "./migration": "./src/migration.ts"
+    "./capabilities": "./src/runtime/capabilities.ts",
+    "./client": "./src/runtime/client.ts",
+    "./dispatcher": "./src/runtime/dispatcher.ts",
+    "./events": "./src/wire/events.ts",
+    "./interactions": "./src/wire/interactions.ts",
+    "./methods": "./src/methods/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

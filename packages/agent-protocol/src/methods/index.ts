@@ -1,5 +1,5 @@
 import type { Schema } from "effect"
-import type { ParamsOf, ResultOf } from "../definition"
+import type { ParamsOf, ResultOf } from "../wire/definition"
 import { CoreRpcMethods } from "./core"
 import { ExtendedRpcMethods } from "./extended"
 import { GithubRpcMethods } from "./github"

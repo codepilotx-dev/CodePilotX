@@ -1,5 +1,5 @@
 import { Schema } from "effect"
-import { JsonValueSchema, RpcErrorSchema, RpcIDSchema } from "./wire"
+import { JsonValueSchema, RpcErrorSchema, RpcIDSchema } from "./primitives"
 
 export const RpcRequestSchema = Schema.Struct({
   jsonrpc: Schema.Literal("2.0"),
@@ -30,7 +30,7 @@ export const InitializedNotificationSchema = Schema.Struct({
   jsonrpc: Schema.Literal("2.0"),
   method: Schema.Literal("initialized"),
   params: Schema.Struct({
-    protocol: Schema.Literal("thread-rpc-v3"),
+    protocol: Schema.Literal("thread-rpc-v4"),
     clientInstanceId: Schema.optional(Schema.String),
   }),
 })
