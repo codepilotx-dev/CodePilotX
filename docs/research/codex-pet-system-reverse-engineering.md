@@ -185,6 +185,16 @@ blocker 的稳定标识来自 `threadId + requestId`。完成/失败属于状态
 
 默认 renderer 版面约为 `356×320`；宠物主体约 `112×121`；提醒托盘宽度约 345。
 
+### 已复刻的方向与投掷参数
+
+v2 `8×11` 图集的 row 9/10 分别承载前 8 个和后 8 个鼠标方向，0° 从正上方开始，顺时针每 22.5° 一格。浮窗实现使用全局鼠标坐标与宠物 DOM 的屏幕中心计算，1px 内回退普通动画。
+
+投掷实现固定采用最近 160ms 样本、4px 拖动阈值、320px/s 启动阈值、1600px/s 原始速度上限和 3 倍投掷倍率。8ms tick 中将帧时间限制为 32ms，按 `0.88 ** (dt / 16)` 衰减；边缘以 0.7 系数反弹，并在 65px/s 或 900ms 时停止。
+
+### 已复刻的提醒交互
+
+提醒不再只有“打开任务”：问题沿用主会话的 AskUserQuestion 答案模型，审批只暴露一次性 allow/deny，计划暴露 execute/deny；自由回复按会话状态选择 follow-up 或普通用户消息。键盘焦点仍由专用 preload bridge 控制，没有向 renderer 开放任意 Electron IPC。
+
 ### 原生扩展
 
 build 包含 `avatar_overlay.node` 和 composition surface 页面。加载分支显示该扩展仅在 `darwin` 使用；Windows 并不依赖同一原生实现。
@@ -233,8 +243,8 @@ build 包含 `avatar_overlay.node` 和 composition surface 页面。加载分支
 | Overlay 透明置顶、点击穿透、拖拽与尺寸范围 | 高 |
 | blocker/完成/失败到动画的总体映射 | 高 |
 | macOS 原生 composition surface 内部实现 | 低，无法恢复 |
-| v2 方向动画的所有 renderer 插值细节 | 中 |
-| 投掷摩擦、速度上限和停靠曲线的精确参数 | 中 |
+| v2 方向行、角度映射和 1px 死区 | 高 |
+| 投掷采样、阈值、衰减、反弹和停止参数 | 高 |
 
 ## 相关资料
 

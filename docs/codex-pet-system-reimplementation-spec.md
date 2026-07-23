@@ -329,6 +329,42 @@ backgroundPosition =
 
 打开任务只调用 `openPetSession(threadId)`；Electron 把事件发给主 renderer，主 renderer 使用现有 `sessionPath` 导航。
 
+### v2 全局鼠标朝向
+
+v2 图集的第 9、10 行保存 16 个静态朝向帧。宠物浮窗可见且未拖动时，每 50ms 通过受限 preload bridge 读取一次全局鼠标位置；renderer 结合浮窗屏幕坐标和宠物 DOMRect 计算宠物中心：
+
+```ts
+const angle =
+  (Math.atan2(deltaX, -deltaY) * 180 / Math.PI + 360) % 360
+const directionIndex = Math.round(angle / 22.5) % 16
+const row = 9 + Math.floor(directionIndex / 8)
+const column = directionIndex % 8
+```
+
+中心 1px 死区返回普通动画。v1 不使用方向行。拖动期间暂停朝向，并按水平位移显示 `running-left` 或 `running-right`。
+
+### 投掷物理
+
+Electron 只使用 `screen.getCursorScreenPoint()` 采样，renderer 不提供可信坐标。拖动超过 4px 后，取最近 160ms 样本计算释放速度；低于 320px/s 不投掷，原始速度限制为 1600px/s，再乘以 3。
+
+投掷每 8ms 更新，单帧时间最多 32ms；速度每 16ms 乘以 0.88。碰到当前显示器 work area 四边时按 0.7 反向反弹。速度低于 65px/s 或累计 900ms 后停止，并且只在停止时持久化最终位置。新拖动、隐藏或销毁会立即取消旧动量。
+
+### 快捷回复
+
+提醒卡保留完整 `DesktopPermissionRequest`，复用主会话的 AskUserQuestion 解析和答案构造：
+
+- 单选、多选、多问题和自定义文本都生成完整 `updatedInput.answers`。
+- 普通审批只提供“允许一次”和“拒绝”；计划只提供“执行计划”和“拒绝”。
+- 自由文本在运行、排队或等待状态调用 `submitSessionFollowUp()`；完成和空闲状态调用 `sendUserMessage()`。
+- 提交期间禁用控件；成功移除已处理的审批提醒，失败保留提醒并显示行内错误。
+- 输入聚焦时启用浮窗键盘焦点并关闭点击穿透，失焦或提交后恢复。
+
+### 跨窗口实时设置
+
+角色和尺寸的 preview 与持久化分离。设置页立即发布 `{ selectedPetId, size }`；尺寸保存防抖 100ms，并在指针释放、失焦或卸载时强制提交。主进程只在设置保存成功后向主窗口和宠物窗口广播规范化的完整设置。保存失败时 renderer 回滚至最后一次 canonical presentation。
+
+preload 的 channel 全部保留为本地字面量，并以 `satisfies typeof import(...)` 编译期校验；构建产物不得出现 `require("@codepilotx/shared/...")`。
+
 ## 当前实现文件
 
 协议与 Agent：
@@ -398,11 +434,8 @@ git diff --check
 
 ## 后续阶段
 
-当前实现完成了跨平台 BrowserWindow 基线。以下能力应单独评审后再扩展：
+当前实现完成了跨平台 BrowserWindow、v2 朝向、投掷和快捷回复。以下能力应单独评审后再扩展：
 
-- v2 指针方向实时跟随（rows 9/10）
-- 拖拽投掷速度、摩擦与边缘停靠
-- overlay 内快捷回答问题或批准
 - macOS 原生 composition surface
 - Agent 内完整 PNG/WebP 像素级 atlas validator
 - 安装 preview token/staging 复用，消除预览到安装之间的二次下载
