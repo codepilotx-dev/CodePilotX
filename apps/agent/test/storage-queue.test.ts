@@ -6,6 +6,8 @@ import { AgentDatabase } from "../src/storage/database/AgentDatabase"
 import { AgentError } from "../src/domain"
 import { ThreadProjection } from "../src/transport/ThreadProjection"
 import { Model, Provider } from "@codepilotx/model-schema"
+import { EventManifest } from "@codepilotx/agent-protocol"
+import { Schema } from "effect"
 
 const paths: string[] = []
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -24,6 +26,39 @@ const removePath = async (path: string) => {
 afterEach(async () => Promise.all(paths.splice(0).map((path) => removePath(path))))
 
 describe("持久化队列", () => {
+  test("将旧 Turn lifecycle 事件投影为包含完整 turn 和 input 的 canonical payload", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-turn-events-"))
+    paths.push(root)
+    const db = new AgentDatabase(join(root, "agent.sqlite"))
+    const thread = db.createThread()
+    const submitted = {
+      content: "第二轮",
+      model: modelRef("openai", "gpt"),
+      permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" },
+      strategy: "queue",
+      taskMode: "chat",
+    } as const
+    const turn = db.createTurn(thread.id, submitted, "queued")
+    const projection = new ThreadProjection(db)
+    const queued = db.eventsAfter(0, thread.id).find((event) => event.method === "turn/queued")!
+    const queuedPayload = projection.notification(queued).notification.params
+    expect(() => Schema.decodeUnknownSync(EventManifest["turn/queued"].payload)(queuedPayload)).not.toThrow()
+    expect(queuedPayload).toMatchObject({
+      turn: { id: turn.turnID, status: "queued" },
+      input: { id: turn.inputID, content: "第二轮" },
+    })
+
+    const startedResult = db.startTurnExecution(turn.turnID, { ...submitted, id: turn.inputID })!
+    const started = startedResult.events.find((event) => event.method === "turn/started")!
+    const startedPayload = projection.notification(started).notification.params
+    expect(() => Schema.decodeUnknownSync(EventManifest["turn/started"].payload)(startedPayload)).not.toThrow()
+    expect(startedPayload).toMatchObject({
+      turn: { id: turn.turnID, status: "running" },
+      input: { id: turn.inputID, content: "第二轮" },
+    })
+    db.close()
+  })
+
   test("保留客户端 inputId 并可恢复既有 turn admission", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-db-"))
     paths.push(root)
