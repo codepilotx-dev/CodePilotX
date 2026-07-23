@@ -4,9 +4,9 @@ import {
   app,
   BrowserWindow,
   nativeImage,
-  nativeTheme,
   shell,
 } from "electron"
+import type { DesktopChromeTheme } from "@codepilotx/shared/desktop-theme"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 import {
   isAllowedApplicationUrl,
@@ -17,13 +17,31 @@ import {
   renderStartupPage,
   type StartupStatusKind,
 } from "./startup-page.js"
+import {
+  MAIN_WINDOW_MIN_HEIGHT,
+  MAIN_WINDOW_MIN_WIDTH,
+  type DesktopWindowBounds,
+  type DesktopWindowStateV1,
+  WindowStateStore,
+} from "./window-state.js"
 
 const APPLICATION_LOAD_TIMEOUT_MS = 20_000
+
+export interface WindowManagerOptions {
+  initialWindowState: DesktopWindowStateV1
+  startupTheme: {
+    variant: "light" | "dark"
+    theme: Pick<DesktopChromeTheme, "surface" | "ink" | "accent">
+  }
+  windowStateStore: WindowStateStore
+}
 
 export class WindowManager {
   readonly #logger: DesktopLogger
   readonly #moduleDirectory: string
+  readonly #options: WindowManagerOptions
   #mainWindow: BrowserWindow | undefined
+  #normalWindowBounds: DesktopWindowBounds
   #allowedApplicationOrigin: string | undefined
   #navigationGeneration = 0
   #startupPageActive = false
@@ -37,13 +55,30 @@ export class WindowManager {
     kind: "progress",
   }
 
-  constructor(logger: DesktopLogger, moduleDirectory: string) {
+  constructor(
+    logger: DesktopLogger,
+    moduleDirectory: string,
+    options: WindowManagerOptions,
+  ) {
     this.#logger = logger
     this.#moduleDirectory = moduleDirectory
+    this.#options = options
+    this.#normalWindowBounds = options.initialWindowState.bounds
   }
 
   get mainWindow(): BrowserWindow | undefined {
     return this.#mainWindow
+  }
+
+  flushWindowState(): Promise<void> {
+    return this.#options.windowStateStore.flush()
+  }
+
+  restoreBackgroundColor(): void {
+    const mainWindow = this.#mainWindow
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setBackgroundColor(this.#options.startupTheme.theme.surface)
+    }
   }
 
   focus(_connectionIsReady: boolean): void {
@@ -163,13 +198,12 @@ export class WindowManager {
     if (existingWindow && !existingWindow.isDestroyed()) return existingWindow
 
     const mainWindow = new BrowserWindow({
-      width: 1440,
-      height: 920,
-      minWidth: 960,
-      minHeight: 640,
+      ...this.#options.initialWindowState.bounds,
+      minWidth: MAIN_WINDOW_MIN_WIDTH,
+      minHeight: MAIN_WINDOW_MIN_HEIGHT,
       show: false,
       frame: false,
-      backgroundColor: "#ffffff",
+      backgroundColor: this.#options.startupTheme.theme.surface,
       autoHideMenuBar: true,
       title: "CodePilotX",
       icon: this.#resolveWindowIconPath(),
@@ -209,10 +243,26 @@ export class WindowManager {
     )
     mainWindow.on("maximize", () => {
       mainWindow.webContents.send("window:maximized-changed", true)
+      this.#scheduleWindowState(true)
     })
     mainWindow.on("unmaximize", () => {
       mainWindow.webContents.send("window:maximized-changed", false)
+      this.#scheduleWindowState(false)
     })
+    const rememberNormalBounds = () => {
+      if (
+        mainWindow.isDestroyed()
+        || mainWindow.isMaximized()
+        || mainWindow.isMinimized()
+        || mainWindow.isFullScreen()
+      ) {
+        return
+      }
+      this.#normalWindowBounds = mainWindow.getBounds()
+      this.#scheduleWindowState(false)
+    }
+    mainWindow.on("resize", rememberNormalBounds)
+    mainWindow.on("move", rememberNormalBounds)
     mainWindow.on("closed", () => {
       if (this.#mainWindow === mainWindow) this.#mainWindow = undefined
     })
@@ -230,6 +280,9 @@ export class WindowManager {
         event.preventDefault()
       }
     })
+    if (this.#options.initialWindowState.maximized) {
+      mainWindow.maximize()
+    }
     return mainWindow
   }
 
@@ -240,6 +293,7 @@ export class WindowManager {
     const page = `data:text/html;charset=utf-8,${encodeURIComponent(
       renderStartupPage({
         logoDataUrl: this.#resolveStartupLogoDataUrl(),
+        ...this.#options.startupTheme,
       }),
     )}`
 
@@ -320,14 +374,21 @@ export class WindowManager {
 
   #setStartupBackground(mainWindow: BrowserWindow): void {
     if (!mainWindow.isDestroyed()) {
-      mainWindow.setBackgroundColor("#ffffff")
+      mainWindow.setBackgroundColor(this.#options.startupTheme.theme.surface)
     }
   }
 
   #setThemeBackground(mainWindow: BrowserWindow): void {
     if (mainWindow.isDestroyed()) return
-    const dark = nativeTheme.shouldUseDarkColors
-    mainWindow.setBackgroundColor(dark ? "#181818" : "#ffffff")
+    mainWindow.setBackgroundColor(this.#options.startupTheme.theme.surface)
+  }
+
+  #scheduleWindowState(maximized: boolean): void {
+    this.#options.windowStateStore.scheduleSave({
+      version: 1,
+      bounds: this.#normalWindowBounds,
+      maximized,
+    })
   }
 
   #registerDevToolsShortcut(window: BrowserWindow): void {

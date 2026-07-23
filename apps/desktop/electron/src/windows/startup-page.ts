@@ -1,28 +1,51 @@
+import type {
+  DesktopChromeTheme,
+  DesktopThemeSettingsV5,
+} from "@codepilotx/shared/desktop-theme"
+
 export type StartupStatusKind = "progress" | "terminal-error"
 
 export interface StartupPageOptions {
   logoDataUrl: string
+  variant: "light" | "dark"
+  theme: Pick<DesktopChromeTheme, "surface" | "ink" | "accent">
+}
+
+export function resolveStartupPageTheme(
+  settings: DesktopThemeSettingsV5,
+  systemVariant: "light" | "dark",
+): Omit<StartupPageOptions, "logoDataUrl"> {
+  const variant = settings.mode === "system" ? systemVariant : settings.mode
+  const { surface, ink, accent } = settings.chromeThemes[variant]
+  return {
+    variant,
+    theme: { surface, ink, accent },
+  }
 }
 
 export function renderStartupPage({
   logoDataUrl,
+  variant,
+  theme,
 }: StartupPageOptions): string {
-  const background = "#ffffff"
-  const foreground = "#1a1c1f"
-  const muted = "rgb(26 28 31 / 0.62)"
-  const border = "rgb(26 28 31 / 0.14)"
-  const hover = "rgb(26 28 31 / 0.06)"
-  const baseFilter = "grayscale(1) brightness(0)"
+  const background = theme.surface
+  const foreground = theme.ink
+  const muted = `color-mix(in srgb, ${foreground} 62%, transparent)`
+  const border = `color-mix(in srgb, ${foreground} 14%, transparent)`
+  const hover = `color-mix(in srgb, ${foreground} 6%, transparent)`
+  const baseFilter = variant === "dark"
+    ? "grayscale(1) brightness(0) invert(1)"
+    : "grayscale(1) brightness(0)"
   const baseOpacity = "0.24"
-  const shimmerPeak = "rgb(255 255 255 / 0.92)"
+  const shimmerPeak = `color-mix(in srgb, ${foreground} 92%, transparent)`
   const safeLogoDataUrl = escapeHtmlAttribute(logoDataUrl)
   const safeLogoCssUrl = escapeCssUrl(logoDataUrl)
 
   return `<!doctype html>
-<html lang="zh-CN" data-theme="light">
+<html lang="zh-CN" data-theme="${variant}">
   <head>
     <meta charset="utf-8">
-    <meta name="color-scheme" content="light">
+    <meta name="color-scheme" content="${variant}">
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
@@ -35,6 +58,7 @@ export function renderStartupPage({
         --startup-muted: ${muted};
         --startup-border: ${border};
         --startup-hover: ${hover};
+        --startup-accent: ${theme.accent};
         --startup-logo-mask: url("${safeLogoCssUrl}");
         --startup-logo-base-opacity: ${baseOpacity};
         --startup-logo-base-filter: ${baseFilter};
@@ -191,7 +215,7 @@ export function renderStartupPage({
       }
 
       .startup-actions button:focus-visible {
-        outline: 2px solid #339cff;
+        outline: 2px solid var(--startup-accent);
         outline-offset: 2px;
       }
 

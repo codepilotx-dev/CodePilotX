@@ -42,6 +42,7 @@ export class WindowAppearanceController {
     }
     try {
       mainWindow.setBackgroundMaterial(enabled ? "acrylic" : "none")
+      if (!enabled) this.#windows.restoreBackgroundColor()
       return true
     } catch (error) {
       this.#logger.warn("desktop.window-backdrop-failed", {

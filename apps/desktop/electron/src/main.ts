@@ -2,7 +2,8 @@ import { spawn } from "node:child_process"
 import { randomBytes } from "node:crypto"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { app, shell } from "electron"
+import { app, nativeTheme, screen, shell } from "electron"
+import type { DesktopThemeSettingsV5 } from "@codepilotx/shared/desktop-theme"
 import { registerAppearanceIpc } from "./ipc/register-appearance-ipc.js"
 import { registerDesktopIpc } from "./ipc/register-desktop-ipc.js"
 import { ExternalOpenTargetService } from "./ipc/external-open-targets.js"
@@ -14,7 +15,10 @@ import {
   configureAuthCookie,
   verifyAuthCookie,
 } from "./security/auth-session.js"
-import { AppearanceSettingsStore } from "./settings/appearance-settings-store.js"
+import {
+  AppearanceSettingsStore,
+  DEFAULT_APPEARANCE_SETTINGS,
+} from "./settings/appearance-settings-store.js"
 import { formatError, sleep } from "./sidecar/readiness.js"
 import {
   type ConnectionStatus,
@@ -23,8 +27,18 @@ import {
 import { SidecarInstallationError } from "./sidecar/command.js"
 import { WindowAppearanceController } from "./windows/appearance.js"
 import { WindowManager } from "./windows/window-manager.js"
+import { resolveStartupPageTheme } from "./windows/startup-page.js"
+import {
+  type DesktopDisplayWorkArea,
+  WindowStateStore,
+} from "./windows/window-state.js"
 
 const moduleDirectory = dirname(fileURLToPath(import.meta.url))
+const configuredUserDataDirectory =
+  process.env.CODEPILOTX_USER_DATA_DIR?.trim()
+if (configuredUserDataDirectory) {
+  app.setPath("userData", resolve(configuredUserDataDirectory))
+}
 
 let supervisor: SidecarSupervisor | undefined
 let logger: DesktopLogger | undefined
@@ -66,11 +80,26 @@ async function startDesktop(): Promise<void> {
     pid: process.pid,
   })
 
-  windows = new WindowManager(logger, moduleDirectory)
   const appearanceSettings = new AppearanceSettingsStore(
     app.getPath("userData"),
     logger,
   )
+  const startupTheme = await resolveStartupTheme(appearanceSettings, logger)
+  const windowStateStore = new WindowStateStore(app.getPath("userData"), logger)
+  const displayWorkAreas = screen.getAllDisplays().map(
+    display => display.workArea as DesktopDisplayWorkArea,
+  )
+  const primaryWorkArea =
+    screen.getPrimaryDisplay().workArea as DesktopDisplayWorkArea
+  const initialWindowState = await windowStateStore.load(
+    displayWorkAreas,
+    primaryWorkArea,
+  )
+  windows = new WindowManager(logger, moduleDirectory, {
+    initialWindowState,
+    startupTheme,
+    windowStateStore,
+  })
   const appearance = new WindowAppearanceController(windows, logger)
   const externalOpenTargets = new ExternalOpenTargetService({
     platform: process.platform,
@@ -197,7 +226,27 @@ app.on("before-quit", (event) => {
   if (quitting) return
   quitting = true
   event.preventDefault()
-  void Promise.resolve(supervisor?.stop()).finally(() => app.exit(0))
+  void Promise.allSettled([
+    Promise.resolve(supervisor?.stop()),
+    windows?.flushWindowState() ?? Promise.resolve(),
+  ]).finally(() => app.exit(0))
 })
 
 app.on("window-all-closed", () => app.quit())
+
+async function resolveStartupTheme(
+  settingsStore: AppearanceSettingsStore,
+  desktopLogger: DesktopLogger,
+) {
+  let settings: DesktopThemeSettingsV5
+  try {
+    settings = await settingsStore.load()
+  } catch (error) {
+    desktopLogger.warn("appearance-settings.startup-fallback", { error })
+    settings = DEFAULT_APPEARANCE_SETTINGS
+  }
+  return resolveStartupPageTheme(
+    settings,
+    nativeTheme.shouldUseDarkColors ? "dark" : "light",
+  )
+}
