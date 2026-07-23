@@ -1,4 +1,6 @@
 import {
+  PetCatalogInstallParamsSchema,
+  PetCatalogListParamsSchema,
   PetInstallParamsSchema,
   PetInstallPreviewParamsSchema,
   PetRemoveParamsSchema,
@@ -12,10 +14,19 @@ import type { RpcHandlerGroup } from "./types"
 const decodePreview = Schema.decodeUnknownSync(PetInstallPreviewParamsSchema)
 const decodeInstall = Schema.decodeUnknownSync(PetInstallParamsSchema)
 const decodeRemove = Schema.decodeUnknownSync(PetRemoveParamsSchema)
+const decodeCatalogList = Schema.decodeUnknownSync(PetCatalogListParamsSchema)
+const decodeCatalogInstall = Schema.decodeUnknownSync(PetCatalogInstallParamsSchema)
 
 export const petHandlers = {
   name: "pet",
-  methods: ["pet/list", "pet/install/preview", "pet/install", "pet/remove"],
+  methods: [
+    "pet/list",
+    "pet/catalog/list",
+    "pet/catalog/install",
+    "pet/install/preview",
+    "pet/install",
+    "pet/remove",
+  ],
   async handle(
     runtime: RpcRouter,
     method: RpcMethod,
@@ -26,6 +37,15 @@ export const petHandlers = {
     switch (method) {
       case "pet/list":
         return { pets: await pets.list() }
+      case "pet/catalog/list":
+        return pets.catalog(decodeCatalogList(rawParams).refresh ?? false)
+      case "pet/catalog/install": {
+        const { slug, acceptedRestrictedLicense } =
+          decodeCatalogInstall(rawParams)
+        return {
+          pet: await pets.installCatalog(slug, acceptedRestrictedLicense),
+        }
+      }
       case "pet/install/preview":
         return pets.preview(decodePreview(rawParams).url)
       case "pet/install":

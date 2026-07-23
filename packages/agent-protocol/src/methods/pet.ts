@@ -34,6 +34,44 @@ export const PetListResultSchema = Schema.Struct({
   pets: Schema.Array(PetDescriptorSchema),
 })
 
+export const PetLicenseKindSchema = Schema.Literals([
+  "permissive",
+  "attribution",
+  "restricted",
+  "unknown",
+])
+
+export const PetCatalogItemSchema = Schema.Struct({
+  slug: PetIDSchema,
+  displayName: NonEmptyStringSchema,
+  englishName: Schema.optional(NonEmptyStringSchema),
+  description: Schema.optional(NonEmptyStringSchema),
+  author: NonEmptyStringSchema,
+  category: NonEmptyStringSchema,
+  categoryLabel: NonEmptyStringSchema,
+  spriteVersionNumber: Schema.Literals([1, 2]),
+  license: NonEmptyStringSchema,
+  licenseKind: PetLicenseKindSchema,
+  previewUrl: NonEmptyStringSchema,
+  installed: Schema.Boolean,
+})
+
+export const PetCatalogResultSchema = Schema.Struct({
+  pets: Schema.Array(PetCatalogItemSchema),
+  fetchedAt: Schema.NullOr(NonEmptyStringSchema),
+  cacheState: Schema.Literals(["fresh", "stale", "unavailable"]),
+})
+
+export const PetCatalogListParamsSchema = Schema.Struct({
+  refresh: Schema.optional(Schema.Boolean),
+})
+
+export const PetCatalogInstallParamsSchema = Schema.Struct({
+  slug: PetIDSchema,
+  acceptedRestrictedLicense: Schema.Boolean,
+  ...OperationParamsSchema.fields,
+})
+
 export const PetInstallPreviewParamsSchema = Schema.Struct({
   url: NonEmptyStringSchema,
 })
@@ -46,6 +84,10 @@ export const PetInstallPreviewResultSchema = Schema.Struct({
 export type PetManifest = typeof PetManifestSchema.Type
 export type PetDescriptor = typeof PetDescriptorSchema.Type
 export type PetInstallPreview = typeof PetInstallPreviewResultSchema.Type
+export type PetLicenseKind = typeof PetLicenseKindSchema.Type
+export type PetCatalogItem = typeof PetCatalogItemSchema.Type
+export type PetCatalogResult = typeof PetCatalogResultSchema.Type
+export type PetCatalogInstallParams = typeof PetCatalogInstallParamsSchema.Type
 
 export const PetInstallParamsSchema = Schema.Struct({
   url: NonEmptyStringSchema,
@@ -73,6 +115,24 @@ export const PetRpcMethods = {
     errors: PetErrors,
     capability: "pets.management.v1",
     mutation: false,
+    exactResult: true,
+  }),
+  "pet/catalog/list": defineMethod({
+    params: PetCatalogListParamsSchema,
+    result: PetCatalogResultSchema,
+    errors: PetErrors,
+    capability: "pets.management.v1",
+    mutation: false,
+    exactParams: true,
+    exactResult: true,
+  }),
+  "pet/catalog/install": defineMethod({
+    params: PetCatalogInstallParamsSchema,
+    result: PetInstallResultSchema,
+    errors: PetErrors,
+    capability: "pets.management.v1",
+    mutation: true,
+    exactParams: true,
     exactResult: true,
   }),
   "pet/install/preview": defineMethod({

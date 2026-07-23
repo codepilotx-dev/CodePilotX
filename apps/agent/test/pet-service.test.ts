@@ -95,6 +95,69 @@ describe("PetService", () => {
       service.preview("https://example.com/pet.json"),
     ).rejects.toThrow("1536x2288")
   })
+
+  test("installs a catalog pet through the existing package validation path", async () => {
+    const root = await temporaryRoot()
+    const atlas = fakePng(1536, 1872)
+    globalThis.fetch = mockFetch({
+      "https://raw.githubusercontent.com/legeling/awesome-codex-pet/main/pets.json":
+        new Response(JSON.stringify([{
+          slug: "sample-community-pet",
+          name: "Sample Community Pet",
+          author: "CodePilotX",
+          primary_category: "Original Characters",
+          license: "MIT",
+          spriteVersionNumber: 1,
+        }])),
+      "https://raw.githubusercontent.com/legeling/awesome-codex-pet/main/categories.json":
+        new Response(JSON.stringify([{
+          slug: "original-characters",
+          name: "Original Characters",
+          label: { zh: "原创角色" },
+        }])),
+      "https://raw.githubusercontent.com/legeling/awesome-codex-pet/main/pets/sample-community-pet/pet.json":
+        new Response(JSON.stringify({
+          id: "sample-community-pet",
+          displayName: "Sample Community Pet",
+          spriteVersionNumber: 1,
+          spritesheetPath: "spritesheet.png",
+        })),
+      "https://raw.githubusercontent.com/legeling/awesome-codex-pet/main/pets/sample-community-pet/spritesheet.png":
+        new Response(responseBody(atlas), {
+          headers: { "Content-Type": "image/png" },
+        }),
+    })
+    const service = new PetService(root)
+
+    const installed = await service.installCatalog(
+      "sample-community-pet",
+      false,
+    )
+
+    expect(installed).toMatchObject({
+      id: "sample-community-pet",
+      installed: true,
+    })
+    expect(await service.list()).toHaveLength(1)
+
+    globalThis.fetch = mockFetch({
+      "https://raw.githubusercontent.com/legeling/awesome-codex-pet/main/pets/sample-community-pet/pet.json":
+        new Response(JSON.stringify({
+          id: "different-pet",
+          displayName: "Different Pet",
+          spriteVersionNumber: 1,
+          spritesheetPath: "spritesheet.png",
+        })),
+      "https://raw.githubusercontent.com/legeling/awesome-codex-pet/main/pets/sample-community-pet/spritesheet.png":
+        new Response(responseBody(atlas), {
+          headers: { "Content-Type": "image/png" },
+        }),
+    })
+    await expect(
+      service.installCatalog("sample-community-pet", false),
+    ).rejects.toThrow("目录 slug 不一致")
+    expect(await service.list()).toHaveLength(1)
+  })
 })
 
 async function temporaryRoot(): Promise<string> {

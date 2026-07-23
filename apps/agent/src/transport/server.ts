@@ -373,6 +373,22 @@ export const createApp = (dependencies: TransportDependencies) => {
     })
   })
 
+  app.get("/api/pets/catalog/:slug/preview", async (context) => {
+    const asset = await pets.previewAsset(context.req.param("slug"))
+    const body = asset.bytes.buffer.slice(
+      asset.bytes.byteOffset,
+      asset.bytes.byteOffset + asset.bytes.byteLength,
+    ) as ArrayBuffer
+    return new Response(body, {
+      headers: {
+        "Content-Type": asset.contentType,
+        "Cache-Control": "private, max-age=14400",
+        ETag: asset.etag,
+        "X-Content-Type-Options": "nosniff",
+      },
+    })
+  })
+
   app.post("/api/shutdown", (context) => {
     if (process.env.CODEPILOTX_DESKTOP_MANAGED !== "1") throw new AgentError("SHUTDOWN_DENIED", "仅桌面托管的 Agent 可以通过 HTTP 关闭", 403)
     setTimeout(() => process.emit("SIGTERM"), 25)

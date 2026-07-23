@@ -1101,6 +1101,40 @@ const fixtures = {
   "pet/list": methodFixture("pet/list", {}, {
     pets: [],
   }),
+  "pet/catalog/list": methodFixture("pet/catalog/list", {
+    refresh: false,
+  }, {
+    pets: [{
+      slug: "sample-pet",
+      displayName: "示例宠物",
+      englishName: "Sample Pet",
+      description: "A sample community pet.",
+      author: "CodePilotX",
+      category: "original-characters",
+      categoryLabel: "原创角色",
+      spriteVersionNumber: 2,
+      license: "MIT",
+      licenseKind: "permissive",
+      previewUrl: "/api/pets/catalog/sample-pet/preview",
+      installed: false,
+    }],
+    fetchedAt: "2026-07-24T00:00:00.000Z",
+    cacheState: "fresh",
+  }),
+  "pet/catalog/install": methodFixture("pet/catalog/install", {
+    slug: "sample-pet",
+    acceptedRestrictedLicense: false,
+    operationId: "operation:pet-catalog-install:1",
+  }, {
+    pet: {
+      id: "sample-pet",
+      displayName: "Sample Pet",
+      spriteVersionNumber: 2,
+      spritesheetPath: "spritesheet.webp",
+      spritesheetUrl: "/api/pets/sample-pet/spritesheet",
+      installed: true,
+    },
+  }),
   "pet/install/preview": methodFixture("pet/install/preview", {
     url: "https://example.com/pet.json",
   }, {
@@ -1138,9 +1172,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 109 formal methods decodable", () => {
+  test("keeps valid params and results for all 111 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(109)
+    expect(methods).toHaveLength(111)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {

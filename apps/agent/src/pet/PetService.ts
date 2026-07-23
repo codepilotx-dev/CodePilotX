@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto"
 import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { basename, dirname, join, relative, resolve, sep } from "node:path"
+import type { PetCatalogResult } from "@codepilotx/agent-protocol"
 import { AgentError } from "../domain"
+import { PetCatalogService } from "./PetCatalogService"
 
 const MAX_MANIFEST_BYTES = 64 * 1024
 const MAX_SPRITESHEET_BYTES = 20 * 1024 * 1024
@@ -35,7 +37,11 @@ type DownloadedPet = {
 }
 
 export class PetService {
-  constructor(private readonly rootDirectory: string) {}
+  private readonly catalogService: PetCatalogService
+
+  constructor(private readonly rootDirectory: string) {
+    this.catalogService = new PetCatalogService(rootDirectory)
+  }
 
   async list(): Promise<PetDescriptor[]> {
     await mkdir(this.rootDirectory, { recursive: true })
@@ -64,8 +70,45 @@ export class PetService {
     }
   }
 
-  async install(source: string): Promise<PetDescriptor> {
+  async catalog(refresh = false): Promise<PetCatalogResult> {
+    const installed = await this.list()
+    return this.catalogService.list(
+      new Set(installed.map(pet => pet.id)),
+      refresh,
+    )
+  }
+
+  async installCatalog(
+    slug: string,
+    acceptedRestrictedLicense: boolean,
+  ): Promise<PetDescriptor> {
+    return this.catalogService.install(
+      slug,
+      acceptedRestrictedLicense,
+      source => this.install(source, slug),
+    )
+  }
+
+  async previewAsset(slug: string): Promise<{
+    bytes: Uint8Array
+    contentType: "image/gif"
+    etag: string
+  }> {
+    return this.catalogService.previewAsset(slug)
+  }
+
+  async install(
+    source: string,
+    expectedID?: string,
+  ): Promise<PetDescriptor> {
     const downloaded = await this.download(source)
+    if (expectedID !== undefined && downloaded.manifest.id !== expectedID) {
+      throw new AgentError(
+        "PET_INVALID",
+        "社区宠物清单 ID 与目录 slug 不一致",
+        400,
+      )
+    }
     const targetDirectory = this.petDirectory(downloaded.manifest.id)
     const stagingDirectory = join(
       this.rootDirectory,
