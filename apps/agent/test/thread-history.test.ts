@@ -103,6 +103,50 @@ describe("Thread 历史", () => {
     expect(snapshot?.items).toMatchObject([{ id: "item-1", type: "text", text: "回答" }])
   })
 
+  test("按稳定排他游标分页 Turn，并将 queued Turn 与附件独立投影", async () => {
+    const { db, projection } = await makeHistory()
+    const thread = db.createThread("分页会话")
+    const completed = Array.from({ length: 12 }, (_, index) => {
+      const created = db.createTurn(thread.id, input(`第 ${index + 1} 轮`), "completed")
+      db.updateTurnStatus(created.turnID, "completed")
+      return created
+    })
+    const queued = db.createTurn(thread.id, input("排队中的一轮"))
+    const sameTimestamp = 1_700_000_000_000
+    db.sqlite.query("UPDATE turns SET created_at = ? WHERE thread_id = ? AND status <> 'queued'").run(sameTimestamp, thread.id)
+    db.sqlite.query(`INSERT INTO input_attachments (id, thread_id, input_id, kind, name, media_type, size_bytes, sha256, storage_path, created_at, bound_at)
+      VALUES ('attachment-history', ?, ?, 'text', 'history.txt', 'text/plain', 7, 'sha-history', 'history.txt', ?, ?)`).run(
+      thread.id,
+      completed[0]!.inputID,
+      sameTimestamp,
+      sameTimestamp,
+    )
+
+    const first = projection.historyPage(thread.id)!
+    expect(first.turns).toHaveLength(10)
+    expect(first.hasOlder).toBe(true)
+    expect(first.olderCursor).toBeString()
+    expect(first.queue.turns.map((turn) => turn.id)).toEqual([queued.turnID])
+    expect(first.queue.inputs.map((item) => item.id)).toEqual([queued.inputID])
+
+    const second = projection.historyPage(thread.id, { before: first.olderCursor! })!
+    expect(second.turns).toHaveLength(2)
+    expect(second.hasOlder).toBe(false)
+    expect(second.olderCursor).toBeNull()
+    const allBundles = [...second.turns, ...first.turns]
+    expect(allBundles.flatMap((bundle) => bundle.attachments)).toMatchObject([{
+      id: "attachment-history",
+      name: "history.txt",
+      mediaType: "text/plain",
+    }])
+    expect(allBundles.flatMap((bundle) => bundle.inputs).find((item) => item.id === completed[0]!.inputID)?.attachmentIds).toEqual(["attachment-history"])
+
+    const combined = allBundles.map((bundle) => bundle.turn.id)
+    const expected = (db.sqlite.query("SELECT id FROM turns WHERE thread_id = ? AND status <> 'queued' ORDER BY created_at, id").all(thread.id) as Array<{ id: string }>).map((row) => row.id)
+    expect(combined).toEqual(expected)
+    expect(new Set(combined).size).toBe(12)
+  })
+
   test("设置立即持久化且幂等更新不修改活跃时间或重复写事件", async () => {
     const { db, history, databasePath } = await makeHistory()
     const thread = db.createThread("设置持久化")

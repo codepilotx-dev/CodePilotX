@@ -126,6 +126,38 @@ describe("RPC v3 Router", () => {
     db.close()
   })
 
+  test("thread/history/read 返回分页正文与同事务 streamPosition", async () => {
+    const { db, initialize, call } = await fixture()
+    await initialize()
+    const thread = db.createThread("分页 RPC")
+    const model = Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt") })
+    for (let index = 0; index < 11; index += 1) {
+      const turn = db.createTurn(thread.id, {
+        content: `第 ${index + 1} 轮`,
+        model,
+        permissionConfig: DEFAULT_PERMISSION_CONFIG,
+        strategy: "queue",
+        taskMode: "chat",
+      }, "completed")
+      db.updateTurnStatus(turn.turnID, "completed")
+    }
+
+    const response = await call("thread/history/read", { threadId: thread.id })
+    expect(response.error).toBeUndefined()
+    expect(response.result.turns).toHaveLength(10)
+    expect(response.result.hasOlder).toBe(true)
+    expect(response.result.streamPosition).toEqual({
+      streamId: thread.id,
+      sequence: (db.sqlite.query("SELECT MAX(id) AS id FROM events WHERE thread_id = ?").get(thread.id) as { id: number }).id,
+    })
+
+    const older = await call("thread/history/read", { threadId: thread.id, before: response.result.olderCursor })
+    expect(older.result.turns).toHaveLength(1)
+    expect(older.result.hasOlder).toBe(false)
+    expect(older.result.olderCursor).toBeNull()
+    db.close()
+  })
+
   test("RpcMethods is the only method allowlist and params are validated before services", async () => {
     const { db, call, counts, initialize } = await fixture()
     await initialize()

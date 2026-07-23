@@ -418,6 +418,7 @@ export class AgentDatabase {
         updated_at INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS turns_thread_status ON turns(thread_id, status, created_at);
+      CREATE INDEX IF NOT EXISTS turns_thread_history ON turns(thread_id, created_at DESC, id DESC);
       CREATE TABLE IF NOT EXISTS agent_executions (
         id TEXT PRIMARY KEY,
         thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
@@ -1233,6 +1234,7 @@ export class AgentDatabase {
           updated_at INTEGER NOT NULL
         );
         CREATE INDEX turns_thread_status ON turns(thread_id, status, created_at);
+        CREATE INDEX turns_thread_history ON turns(thread_id, created_at DESC, id DESC);
 
         CREATE TABLE agent_executions (
           id TEXT PRIMARY KEY,

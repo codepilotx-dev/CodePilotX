@@ -28,7 +28,7 @@ import type { SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
 import type { SubagentService } from "../subagent/SubagentService"
 import type { AttachmentService } from "../subagent/AttachmentService"
 import { WorkspaceService } from "../workspace/WorkspaceService"
-import { ThreadProjection } from "./ThreadProjection"
+import { InvalidThreadHistoryCursorError, ThreadProjection } from "./ThreadProjection"
 import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
 import type { GitReviewService } from "../review/GitReviewService"
@@ -542,6 +542,18 @@ export class RpcRouter {
       }
       case "thread/read":
         return this.threadSnapshotResult(stringParam(params, "threadId"))
+      case "thread/history/read": {
+        const threadId = stringParam(params, "threadId")
+        try {
+          return this.threadHistoryPageResult(threadId, {
+            ...(typeof params.before === "string" ? { before: params.before } : {}),
+            ...(typeof params.limit === "number" ? { limit: params.limit } : {}),
+          })
+        } catch (cause) {
+          if (cause instanceof InvalidThreadHistoryCursorError) throw new AgentError("CONFLICT", cause.message, 409)
+          throw cause
+        }
+      }
       case "prompt/preview": {
         const threadId = stringParam(params, "threadId")
         const preview = await threads.promptPreview(threadId)
@@ -1397,6 +1409,15 @@ export class RpcRouter {
     const snapshot = this.requiredSnapshot(threadId)
     const sequence = (this.dependencies.db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS id FROM events WHERE thread_id = ?").get(threadId) as { id: number }).id
     return { snapshot, streamPosition: { streamId: threadId, sequence } }
+  }
+
+  private threadHistoryPageResult(threadId: string, params: { before?: string; limit?: number }) {
+    return this.dependencies.db.transaction(() => {
+      const page = this.projection.historyPage(threadId, params)
+      if (!page) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
+      const sequence = (this.dependencies.db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS id FROM events WHERE thread_id = ?").get(threadId) as { id: number }).id
+      return { ...page, streamPosition: { streamId: threadId, sequence } }
+    })
   }
 
   private queueStateResult(threadId: string, eventID?: number) {

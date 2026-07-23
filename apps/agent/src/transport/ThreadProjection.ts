@@ -1,11 +1,15 @@
 import type {
   ApprovalRequest,
   AgentExecution,
+  Attachment,
   Input,
   Item,
   Message,
+  SubagentProjection,
+  Thread,
   ThreadListItem,
   ThreadSnapshot,
+  ThreadTurnBundle,
   Turn,
 } from "@codepilotx/shared/thread"
 import { decodeApprovalPolicy } from "@codepilotx/shared/thread"
@@ -52,6 +56,53 @@ const activityCommands = (value: unknown): Extract<Item, { type: "activity" }>["
   return commands.length ? commands : undefined
 }
 
+type ThreadRow = {
+  id: string
+  title: string
+  project_id: string | null
+  task_mode: Thread["settings"]["taskMode"]
+  sandbox_mode: Thread["settings"]["permissionConfig"]["sandboxMode"]
+  approval_policy: string
+  approvals_reviewer: Thread["settings"]["permissionConfig"]["approvalsReviewer"]
+  created_at: number
+  updated_at: number
+}
+
+type HistoryCursor = { v: 1; createdAt: number; id: string }
+
+const encodeHistoryCursor = (cursor: HistoryCursor) => Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url")
+
+const decodeHistoryCursor = (value: string): HistoryCursor => {
+  try {
+    const cursor = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as Partial<HistoryCursor>
+    if (cursor.v !== 1 || !Number.isSafeInteger(cursor.createdAt) || typeof cursor.id !== "string" || !cursor.id) throw new Error("invalid cursor")
+    return cursor as HistoryCursor
+  } catch {
+    throw new InvalidThreadHistoryCursorError()
+  }
+}
+
+export class InvalidThreadHistoryCursorError extends Error {
+  constructor() {
+    super("Turn 历史游标无效")
+    this.name = "InvalidThreadHistoryCursorError"
+  }
+}
+
+export type ThreadHistoryPage = {
+  thread: Thread
+  subagents: SubagentProjection[]
+  turns: ThreadTurnBundle[]
+  queue: {
+    version: number
+    pauseReason: "interrupted" | "turn_failed" | null
+    turns: Turn[]
+    inputs: Input[]
+  }
+  olderCursor: string | null
+  hasOlder: boolean
+}
+
 export class ThreadProjection {
   private readonly subagents: SubagentRepository
 
@@ -65,6 +116,9 @@ export class ThreadProjection {
       | null
     if (!thread) return null
     const threadWorkspace = this.db.threadWorkspace(threadId)
+    const attachmentRows = this.db.sqlite.query("SELECT id, input_id FROM input_attachments WHERE thread_id = ? AND input_id IS NOT NULL ORDER BY created_at, id").all(threadId) as Array<{ id: string; input_id: string }>
+    const attachmentIDsByInput = new Map<string, string[]>()
+    for (const attachment of attachmentRows) attachmentIDsByInput.set(attachment.input_id, [...(attachmentIDsByInput.get(attachment.input_id) ?? []), attachment.id])
     const inputs = (this.db.sqlite.query("SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at FROM inputs WHERE thread_id = ? ORDER BY created_at").all(threadId) as Array<Record<string, string | number | null>>).map((row): Input => ({
       id: String(row.id),
       threadId: String(row.thread_id),
@@ -78,6 +132,7 @@ export class ThreadProjection {
         approvalPolicy: decodeApprovalPolicy(row.approval_policy),
         approvalsReviewer: String(row.approvals_reviewer) as Input["permissionConfig"]["approvalsReviewer"],
       },
+      attachmentIds: attachmentIDsByInput.get(String(row.id)) ?? [],
       state: inputState(String(row.status)),
       createdAt: Number(row.created_at),
     }))
@@ -169,6 +224,173 @@ export class ThreadProjection {
       items,
       approvals,
       queue: this.db.queueStateMeta(threadId) ?? { version: 0, pauseReason: null },
+    }
+  }
+
+  historyPage(threadId: string, params: { before?: string; limit?: number } = {}): ThreadHistoryPage | null {
+    const thread = this.db.sqlite.query("SELECT id, title, project_id, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?").get(threadId) as ThreadRow | null
+    if (!thread) return null
+    const limit = Math.min(50, Math.max(1, params.limit ?? 10))
+    const cursor = params.before ? decodeHistoryCursor(params.before) : null
+    const turnRows = this.db.sqlite.query(`
+      SELECT id, thread_id, root_agent_id, status, mode, sandbox_mode, approval_policy,
+        approvals_reviewer, model_ref, queue_position, started_at, finished_at, created_at
+      FROM turns
+      WHERE thread_id = ? AND status <> 'queued'
+        ${cursor ? "AND (created_at < ? OR (created_at = ? AND id < ?))" : ""}
+      ORDER BY created_at DESC, id DESC
+      LIMIT ?
+    `).all(...(cursor
+      ? [threadId, cursor.createdAt, cursor.createdAt, cursor.id, limit + 1]
+      : [threadId, limit + 1])) as Array<Record<string, string | number | null>>
+    const hasOlder = turnRows.length > limit
+    const selectedTurnRows = turnRows.slice(0, limit)
+    const selectedTurnIDs = selectedTurnRows.map((row) => String(row.id))
+
+    const queueTurnRows = this.db.sqlite.query(`
+      SELECT id, thread_id, root_agent_id, status, mode, sandbox_mode, approval_policy,
+        approvals_reviewer, model_ref, queue_position, started_at, finished_at, created_at
+      FROM turns
+      WHERE thread_id = ? AND status = 'queued'
+      ORDER BY queue_position, created_at, id
+    `).all(threadId) as Array<Record<string, string | number | null>>
+    const queueTurnIDs = queueTurnRows.map((row) => String(row.id))
+    const allTurnIDs = [...selectedTurnIDs, ...queueTurnIDs]
+    const placeholders = allTurnIDs.map(() => "?").join(",")
+
+    const inputRows = allTurnIDs.length
+      ? this.db.sqlite.query(`SELECT id, thread_id, turn_id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode, status, created_at FROM inputs WHERE turn_id IN (${placeholders}) ORDER BY created_at, id`).all(...allTurnIDs) as Array<Record<string, string | number | null>>
+      : []
+    const inputIDs = inputRows.map((row) => String(row.id))
+    const inputPlaceholders = inputIDs.map(() => "?").join(",")
+    const attachmentRows = inputIDs.length
+      ? this.db.sqlite.query(`SELECT id, input_id, kind, name, media_type, size_bytes, sha256, created_at FROM input_attachments WHERE input_id IN (${inputPlaceholders}) ORDER BY created_at, id`).all(...inputIDs) as Array<Record<string, string | number | null>>
+      : []
+    const attachmentIDsByInput = new Map<string, string[]>()
+    const attachmentsByInput = new Map<string, Attachment[]>()
+    for (const row of attachmentRows) {
+      const inputID = String(row.input_id)
+      attachmentIDsByInput.set(inputID, [...(attachmentIDsByInput.get(inputID) ?? []), String(row.id)])
+      attachmentsByInput.set(inputID, [...(attachmentsByInput.get(inputID) ?? []), {
+        id: String(row.id),
+        kind: String(row.kind) as Attachment["kind"],
+        name: String(row.name),
+        mediaType: String(row.media_type),
+        sizeBytes: Number(row.size_bytes),
+        sha256: String(row.sha256),
+        createdAt: Number(row.created_at),
+      }])
+    }
+    const inputs = inputRows.map((row): Input => ({
+      id: String(row.id),
+      threadId: String(row.thread_id),
+      turnId: row.turn_id == null ? null : String(row.turn_id),
+      content: String(row.content),
+      strategy: String(row.strategy) as Input["strategy"],
+      mode: String(row.task_mode) as Input["mode"],
+      model: parse(String(row.model_ref)),
+      permissionConfig: {
+        sandboxMode: String(row.sandbox_mode) as Input["permissionConfig"]["sandboxMode"],
+        approvalPolicy: decodeApprovalPolicy(row.approval_policy),
+        approvalsReviewer: String(row.approvals_reviewer) as Input["permissionConfig"]["approvalsReviewer"],
+      },
+      attachmentIds: attachmentIDsByInput.get(String(row.id)) ?? [],
+      state: inputState(String(row.status)),
+      createdAt: Number(row.created_at),
+    }))
+    const inputsByTurn = new Map<string, Input[]>()
+    for (const input of inputs) {
+      if (!input.turnId) continue
+      inputsByTurn.set(input.turnId, [...(inputsByTurn.get(input.turnId) ?? []), input])
+    }
+    const mapTurn = (row: Record<string, string | number | null>): Turn => {
+      const turnInputs = inputsByTurn.get(String(row.id)) ?? []
+      const startedAt = row.started_at == null ? null : Number(row.started_at)
+      const finishedAt = row.finished_at == null ? null : Number(row.finished_at)
+      return {
+        id: String(row.id),
+        threadId: String(row.thread_id),
+        sourceInputID: turnInputs[0]?.id ?? "",
+        status: turnStatus(String(row.status)),
+        mode: String(row.mode) as Turn["mode"],
+        model: parse(String(row.model_ref)),
+        permissionConfig: {
+          sandboxMode: String(row.sandbox_mode) as Turn["permissionConfig"]["sandboxMode"],
+          approvalPolicy: decodeApprovalPolicy(row.approval_policy),
+          approvalsReviewer: String(row.approvals_reviewer) as Turn["permissionConfig"]["approvalsReviewer"],
+        },
+        rootAgentId: String(row.root_agent_id),
+        mergedInputIDs: turnInputs.slice(1).map((input) => input.id),
+        queuePosition: row.queue_position == null ? null : Number(row.queue_position),
+        canContinueFromPlan: String(row.status) === "waiting_plan_confirmation",
+        startedAt,
+        finishedAt,
+        elapsedSeconds: startedAt == null ? 0 : Math.max(0, Math.floor(((finishedAt ?? Date.now()) - startedAt) / 1000)),
+        error: null,
+      }
+    }
+
+    const selectedPlaceholders = selectedTurnIDs.map(() => "?").join(",")
+    const agentRows = selectedTurnIDs.length
+      ? this.db.sqlite.query(`SELECT id, thread_id, turn_id, parent_agent_id, profile, task, model_ref, session_id, depth, subagent_run_id, run_sequence, status, error, created_at, updated_at FROM agent_executions WHERE turn_id IN (${selectedPlaceholders}) ORDER BY created_at, id`).all(...selectedTurnIDs) as Array<Record<string, string | number | null>>
+      : []
+    const agents = agentRows.map((row): AgentExecution => ({
+      id: String(row.id), threadId: String(row.thread_id), turnId: String(row.turn_id),
+      parentAgentId: row.parent_agent_id == null ? null : String(row.parent_agent_id),
+      profile: String(row.profile), task: String(row.task), model: parse(String(row.model_ref)), sessionId: String(row.session_id),
+      depth: Number(row.depth), subagentRunId: row.subagent_run_id == null ? null : String(row.subagent_run_id),
+      runSequence: Number(row.run_sequence ?? 0), status: String(row.status).replaceAll("_", "-") as AgentExecution["status"],
+      error: row.error == null ? null : String(row.error), createdAt: Number(row.created_at), updatedAt: Number(row.updated_at),
+    }))
+    const messageRows = selectedTurnIDs.length
+      ? this.db.sqlite.query(`SELECT id, thread_id, turn_id, role, created_at FROM messages WHERE turn_id IN (${selectedPlaceholders}) ORDER BY ordinal, created_at, id`).all(...selectedTurnIDs) as Array<Record<string, string | number | null>>
+      : []
+    const messages = messageRows.map((row): Message => ({
+      id: String(row.id), threadId: String(row.thread_id), turnId: row.turn_id == null ? null : String(row.turn_id),
+      role: String(row.role) as Message["role"], createdAt: Number(row.created_at),
+    }))
+    const itemRows = selectedTurnIDs.length
+      ? this.db.sqlite.query(`SELECT id, turn_id, agent_id, type, status, data, created_at, updated_at FROM items WHERE turn_id IN (${selectedPlaceholders}) ORDER BY created_at, id`).all(...selectedTurnIDs) as Array<Record<string, string | number | null>>
+      : []
+    const items = itemRows.map((row) => this.item({
+      id: String(row.id), turnID: String(row.turn_id), agentID: String(row.agent_id), type: String(row.type) as StoredItem["type"],
+      status: String(row.status) as StoredItem["status"], data: parse(String(row.data)), createdAt: Number(row.created_at), updatedAt: Number(row.updated_at),
+    })).filter((item): item is Item => item !== null)
+    const approvalRows = selectedTurnIDs.length
+      ? this.db.sqlite.query(`SELECT id, thread_id, turn_id, agent_id, tool_call_id, risk, reason, status, reply, request_payload, review_payload, created_at FROM approval_requests WHERE turn_id IN (${selectedPlaceholders}) AND status <> 'preparing' ORDER BY created_at, id`).all(...selectedTurnIDs) as Array<Record<string, string | number | null>>
+      : []
+    const approvals = approvalRows.map((row) => this.approval(row))
+
+    const bundles = selectedTurnRows.slice().reverse().map((row): ThreadTurnBundle => {
+      const turnId = String(row.id)
+      const turnInputs = inputsByTurn.get(turnId) ?? []
+      return {
+        turn: mapTurn(row),
+        inputs: turnInputs,
+        messages: messages.filter((message) => message.turnId === turnId),
+        agents: agents.filter((agent) => agent.turnId === turnId),
+        items: items.filter((item) => item.turnId === turnId),
+        approvals: approvals.filter((approval) => approval.turnId === turnId),
+        attachments: turnInputs.flatMap((input) => attachmentsByInput.get(input.id) ?? []),
+      }
+    })
+    const workspace = this.db.threadWorkspace(threadId)
+    const oldest = selectedTurnRows.at(-1)
+    const queueMetadata = this.db.queueStateMeta(threadId) ?? { version: 0, pauseReason: null }
+    return {
+      thread: {
+        id: thread.id, title: thread.title, projectID: thread.project_id, ...(workspace ? { workspace } : {}),
+        settings: {
+          taskMode: thread.task_mode,
+          permissionConfig: { sandboxMode: thread.sandbox_mode, approvalPolicy: decodeApprovalPolicy(thread.approval_policy), approvalsReviewer: thread.approvals_reviewer },
+        },
+        createdAt: thread.created_at, updatedAt: thread.updated_at,
+      },
+      subagents: this.subagents.projectionForThread(threadId),
+      turns: bundles,
+      queue: { ...queueMetadata, turns: queueTurnRows.map(mapTurn), inputs: inputs.filter((input) => input.turnId != null && queueTurnIDs.includes(input.turnId)) },
+      olderCursor: hasOlder && oldest ? encodeHistoryCursor({ v: 1, createdAt: Number(oldest.created_at), id: String(oldest.id) }) : null,
+      hasOlder,
     }
   }
 
