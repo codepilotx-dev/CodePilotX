@@ -38,14 +38,6 @@ export type ExecutionPhaseGroup = {
 
 export type PhaseTimelineItem = TimelineItem | ExecutionPhaseGroup
 
-export type ConversationTurnNavItem = {
-  id: string
-  rowIndex: number
-  userText: string
-  assistantText: string | null
-  files: string[]
-}
-
 export function deriveTimelineSourceEvents({
   conversationMessages,
   events,
@@ -126,86 +118,6 @@ export function foldTimelineEvents(
     folded.push(event)
   }
   return folded
-}
-
-export function deriveConversationTurnNavItems(
-  items: PhaseTimelineItem[],
-): ConversationTurnNavItem[] {
-  const navItems: ConversationTurnNavItem[] = []
-  let currentId = ''
-  let currentIndex = -1
-  let currentUserText = ''
-  let currentAssistantText: string | null = null
-  const currentFilesSet = new Set<string>()
-
-  function flushTurn(): void {
-    if (currentIndex < 0) return
-    navItems.push({
-      id: currentId,
-      rowIndex: currentIndex,
-      userText: currentUserText,
-      assistantText: currentAssistantText,
-      files: [...currentFilesSet],
-    })
-    currentId = ''
-    currentIndex = -1
-    currentUserText = ''
-    currentAssistantText = null
-    currentFilesSet.clear()
-  }
-
-  function collectEvent(event: DesktopSessionEvent): void {
-    if (
-      (event.type === 'message' || event.type === 'assistant_delta') &&
-      event.role === 'assistant'
-    ) {
-      if (event.content?.trim()) currentAssistantText = event.content.trim()
-      return
-    }
-    if (event.type === 'file_patch' && event.metadata?.turnScoped === true) {
-      collectFilesFromPatchEvent(event, currentFilesSet)
-    }
-  }
-
-  function collectItem(item: TimelineItem): void {
-    if (item.type !== 'tool_group') collectEvent(item)
-  }
-
-  for (let index = 0; index < items.length; index += 1) {
-    const item = items[index]!
-    if (item.type === 'execution_phase') {
-      if (currentIndex >= 0) item.items.forEach(collectItem)
-      continue
-    }
-    if (item.type === 'message' && item.role === 'user') {
-      flushTurn()
-      currentId = item.id
-      currentIndex = index
-      currentUserText = item.content?.trim() ?? ''
-      continue
-    }
-    if (currentIndex >= 0) collectItem(item)
-  }
-  flushTurn()
-  return navItems
-}
-
-function collectFilesFromPatchEvent(
-  event: DesktopSessionEvent,
-  fileSet: Set<string>,
-): void {
-  const files = Array.isArray(event.metadata?.files)
-    ? (event.metadata.files as Array<Record<string, unknown>>)
-    : []
-  if (files.length > 0) {
-    for (const file of files) {
-      if (typeof file.path === 'string') fileSet.add(file.path)
-    }
-    return
-  }
-  if (typeof event.metadata?.filePath === 'string') {
-    fileSet.add(event.metadata.filePath)
-  }
 }
 
 export function groupTimelineToolEvents(

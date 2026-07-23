@@ -586,7 +586,7 @@ test('turn navigation preview matches Codex geometry and output limits', async (
   await expect(rail).toBeVisible()
   const items = rail.getByRole('button')
   await expect(items).toHaveCount(4)
-  await expect(rail.locator('[aria-current="true"]')).toHaveCount(1)
+  await expect(rail.locator('[aria-current="true"]')).toHaveCount(4)
 
   const lastItem = items.last()
   await expect(lastItem).toHaveCSS('width', '36px')
@@ -620,6 +620,56 @@ test('turn navigation preview matches Codex geometry and output limits', async (
   await expect
     .poll(async () => (await marker.boundingBox())?.width)
     .toBeCloseTo(26, 0)
+})
+
+test('turn navigation supports click, keyboard, and pointer scrubbing', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 920 })
+  await page.emulateMedia({
+    colorScheme: 'dark',
+    forcedColors: 'none',
+    reducedMotion: 'no-preference',
+  })
+  await page.goto('/?visualCase=turn-nav#/threads/visual-turn-nav')
+  await closeTransientErrorToast(page)
+  await expect(page.getByText('第 4 轮已完成。', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: '取消置顶摘要' }).click()
+
+  const rail = page.getByRole('navigation', { name: '用户消息导航' })
+  const items = rail.getByRole('button')
+  const userMessage = (text: string) =>
+    page.locator('[data-turn-navigation-id] [data-user-message-bubble]').filter({
+      hasText: text,
+    })
+  await expect(items).toHaveCount(4)
+
+  await items.first().click()
+  await expect(userMessage('第一轮：梳理 Codex 导航轨。')).toBeInViewport()
+
+  await page.keyboard.press('Alt+ArrowDown')
+  await expect(userMessage('第 2 轮：继续校准交互和视觉。')).toBeInViewport()
+
+  const firstBox = await items.first().boundingBox()
+  const lastBox = await items.last().boundingBox()
+  expect(firstBox).not.toBeNull()
+  expect(lastBox).not.toBeNull()
+  if (!firstBox || !lastBox) return
+
+  await page.mouse.move(
+    firstBox.x + firstBox.width / 2,
+    firstBox.y + firstBox.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    lastBox.x + lastBox.width / 2,
+    lastBox.y + lastBox.height / 2,
+    { steps: 4 },
+  )
+  await expect(items.last()).toHaveAttribute('data-scrub-target', '')
+  await page.mouse.up()
+  await expect(rail.locator('[data-scrub-target]')).toHaveCount(0)
+  await expect(userMessage('第 4 轮：继续校准交互和视觉。')).toBeInViewport()
 })
 
 test('narrow sidebar uses floating preview without drawer or backdrop', async ({

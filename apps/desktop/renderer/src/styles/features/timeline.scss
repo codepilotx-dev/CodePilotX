@@ -442,16 +442,29 @@
 }
 
 .conversation-turn-nav-marker {
+  --marker-progress: 0;
+
   display: block;
   width: 26px;
   height: 2px;
   border-radius: 1px;
   background: var(--color-token-description-foreground, var(--color-token-text-secondary));
   opacity: 0.4;
-  transform: scaleX(0.230769);
+  transform: scaleX(calc(0.2308 + 0.7692 * var(--marker-progress)));
   transform-origin: left center;
   transition:
-    transform 150ms var(--ease-out, ease-out),
+    transform 160ms linear(
+      0,
+      0.398 10%,
+      0.682 20%,
+      0.843 30%,
+      0.925 40%,
+      0.972 50%,
+      1.004 60%,
+      1.008 70%,
+      1.003 80%,
+      1
+    ),
     opacity 150ms var(--ease-out, ease-out),
     background-color 150ms var(--ease-out, ease-out);
 }
@@ -460,50 +473,38 @@
   opacity: 0.6;
 }
 
-.conversation-turn-nav-item:is(
-    :hover,
-    :focus-visible,
-    [data-scrub-target]
-  )
+.conversation-turn-nav-item:is(:focus-visible, [data-scrub-target])
   .conversation-turn-nav-marker {
+  --marker-progress: 1;
+
   opacity: 1;
   background: var(--color-token-foreground, var(--color-token-foreground));
-  transform: scaleX(1);
 }
 
-/* Neighbouring ticks follow the same .7 / .4 / .2 progress curve in both
- * directions around the hovered, focused, or scrubbed tick. */
-:where(.conversation-turn-nav-item):is(:hover, :focus-visible, [data-scrub-target])
+/* Scrubbing expands the target and its three nearest neighbours. */
+:where(.conversation-turn-nav-item)[data-scrub-target]
   + :where(.conversation-turn-nav-item)
   .conversation-turn-nav-marker,
 :where(.conversation-turn-nav-item):has(
-    + :where(.conversation-turn-nav-item):is(
-        :hover,
-        :focus-visible,
-        [data-scrub-target]
-      )
+    + :where(.conversation-turn-nav-item)[data-scrub-target]
   )
   .conversation-turn-nav-marker {
-  transform: scaleX(0.769231);
+  --marker-progress: 0.7;
 }
 
-:where(.conversation-turn-nav-item):is(:hover, :focus-visible, [data-scrub-target])
+:where(.conversation-turn-nav-item)[data-scrub-target]
   + :where(.conversation-turn-nav-item)
   + :where(.conversation-turn-nav-item)
   .conversation-turn-nav-marker,
 :where(.conversation-turn-nav-item):has(
     + :where(.conversation-turn-nav-item)
-      + :where(.conversation-turn-nav-item):is(
-        :hover,
-        :focus-visible,
-        [data-scrub-target]
-      )
+      + :where(.conversation-turn-nav-item)[data-scrub-target]
   )
   .conversation-turn-nav-marker {
-  transform: scaleX(0.538462);
+  --marker-progress: 0.4;
 }
 
-:where(.conversation-turn-nav-item):is(:hover, :focus-visible, [data-scrub-target])
+:where(.conversation-turn-nav-item)[data-scrub-target]
   + :where(.conversation-turn-nav-item)
   + :where(.conversation-turn-nav-item)
   + :where(.conversation-turn-nav-item)
@@ -511,19 +512,96 @@
 :where(.conversation-turn-nav-item):has(
     + :where(.conversation-turn-nav-item)
       + :where(.conversation-turn-nav-item)
-      + :where(.conversation-turn-nav-item):is(
-        :hover,
-        :focus-visible,
-        [data-scrub-target]
-      )
+      + :where(.conversation-turn-nav-item)[data-scrub-target]
   )
   .conversation-turn-nav-marker {
-  transform: scaleX(0.384615);
+  --marker-progress: 0.2;
 }
 
-.conversation-turn-nav-list[data-scrubbing]
-  .conversation-turn-nav-marker {
+.conversation-turn-nav-list[data-scrubbing] .conversation-turn-nav-marker {
   transition: none;
+}
+
+:where(
+    .conversation-turn-nav-list[data-scrubbing]
+      .conversation-turn-nav-item[aria-current="true"]:not([data-scrub-target])
+  )
+  .conversation-turn-nav-marker {
+  background: var(--color-token-description-foreground, var(--color-token-text-secondary));
+  opacity: 0.4;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :where(
+      .conversation-turn-nav-list:not([data-scrubbing]):hover
+        .conversation-turn-nav-item[aria-current="true"]:not(:hover):not(:focus-visible)
+    )
+    .conversation-turn-nav-marker {
+    background: var(--color-token-description-foreground, var(--color-token-text-secondary));
+    opacity: 0.4;
+  }
+
+  :where(
+      .conversation-turn-nav-list:not([data-scrubbing])
+        .conversation-turn-nav-item:hover
+    )
+    .conversation-turn-nav-marker {
+    --marker-progress: 1;
+
+    background: var(--color-token-foreground);
+    opacity: 1;
+  }
+
+  :where(
+      .conversation-turn-nav-list:not([data-scrubbing])
+        .conversation-turn-nav-item:hover
+        + .conversation-turn-nav-item
+    )
+    .conversation-turn-nav-marker,
+  :where(
+      .conversation-turn-nav-list:not([data-scrubbing])
+        .conversation-turn-nav-item:has(+ .conversation-turn-nav-item:hover)
+    )
+    .conversation-turn-nav-marker {
+    --marker-progress: 0.7;
+  }
+
+  :where(
+      .conversation-turn-nav-list:not([data-scrubbing])
+        .conversation-turn-nav-item:hover
+        + .conversation-turn-nav-item
+        + .conversation-turn-nav-item
+    )
+    .conversation-turn-nav-marker,
+  :where(
+      .conversation-turn-nav-list:not([data-scrubbing])
+        .conversation-turn-nav-item:has(
+          + .conversation-turn-nav-item + .conversation-turn-nav-item:hover
+        )
+    )
+    .conversation-turn-nav-marker {
+    --marker-progress: 0.4;
+  }
+
+  :where(
+      .conversation-turn-nav-list:not([data-scrubbing])
+        .conversation-turn-nav-item:hover
+        + .conversation-turn-nav-item
+        + .conversation-turn-nav-item
+        + .conversation-turn-nav-item
+    )
+    .conversation-turn-nav-marker,
+  :where(
+      .conversation-turn-nav-list:not([data-scrubbing])
+        .conversation-turn-nav-item:has(
+          + .conversation-turn-nav-item
+            + .conversation-turn-nav-item
+            + .conversation-turn-nav-item:hover
+        )
+    )
+    .conversation-turn-nav-marker {
+    --marker-progress: 0.2;
+  }
 }
 
 /* ── Turn preview card (inside tooltip) ──────────────────── */
@@ -604,7 +682,6 @@
   }
 }
 
-.preview-card-files,
 .preview-card-outputs {
   display: flex;
   min-width: 0;
@@ -618,7 +695,6 @@
   overflow: hidden;
 }
 
-.preview-card-file,
 .preview-card-output {
   display: inline-flex;
   min-width: 0;
@@ -628,8 +704,6 @@
   gap: 6px;
 }
 
-.preview-card-files-icon,
-.preview-card-file-icon,
 .preview-card-output-icon {
   width: 18px;
   height: 18px;
@@ -637,16 +711,12 @@
   opacity: 0.7;
 }
 
-.preview-card-file-name,
-.preview-card-output-name,
 .preview-card-output-label {
   max-width: 144px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.preview-card-files-more,
-.preview-card-outputs-more,
 .preview-card-output-more {
   flex: 0 0 auto;
 }
@@ -666,7 +736,6 @@
     color: var(--glass-surface-text-meta, var(--color-token-description-foreground));
   }
 
-  .preview-card-files,
   .preview-card-outputs {
     color: var(--glass-surface-text-meta, var(--color-token-description-foreground));
   }
@@ -710,7 +779,6 @@
 
   .preview-card-user-text,
   .preview-card-assistant-text,
-  .preview-card-files,
   .preview-card-outputs {
     color: CanvasText;
   }

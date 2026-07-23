@@ -1,9 +1,10 @@
 import React from "react";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
 import { FileTypeIcon } from "../../layout/FileTypeIcon.js";
+import { MarkdownMessage } from "../MarkdownMessage.js";
 import { parseMarkdown } from "../../markdown/parser.js";
 import type { MarkdownToken } from "../../markdown/types.js";
-import type { ConversationTurnNavItem } from "../timeline/timelineModel.js";
+import type { ConversationTurnNavItem } from "./turnNavigationModel.js";
 
 export type TurnNavigationReason = "activate" | "scrub" | "shortcut";
 
@@ -112,7 +113,8 @@ function isEditableShortcutTarget(target: EventTarget | null): boolean {
         "input",
         "textarea",
         "select",
-        "[contenteditable='true']",
+        "[contenteditable]:not([contenteditable='false'])",
+        "[role='textbox']",
         "[data-codex-composer]",
         ".chat-composer",
         ".desktop-sidebar",
@@ -130,7 +132,7 @@ function PreviewCard({
     () => markdownToTurnPreview(item.assistantText ?? ""),
     [item.assistantText],
   );
-  const displayedFiles = item.files.slice(0, 2);
+  const displayedOutputs = item.outputs.slice(0, 2);
 
   return (
     <div
@@ -141,26 +143,35 @@ function PreviewCard({
         {item.userText || "（无内容）"}
       </div>
       {assistantPreview ? (
-        <div className="preview-card-assistant-text">{assistantPreview}</div>
+        <div className="preview-card-assistant-text">
+          <MarkdownMessage
+            allowWideBlocks={false}
+            externalResourcePolicy={{
+              allowExternalLinks: false,
+              allowRemoteMedia: false,
+            }}
+            text={item.assistantText ?? ""}
+          />
+        </div>
       ) : null}
-      {displayedFiles.length > 0 ? (
+      {displayedOutputs.length > 0 ? (
         <div className="preview-card-outputs">
-          {displayedFiles.map((path) => (
-            <span className="preview-card-output" key={path}>
+          {displayedOutputs.map((output) => (
+            <span className="preview-card-output" key={`${output.type}:${output.path}`}>
               <FileTypeIcon
                 aria-hidden="true"
                 className="preview-card-output-icon"
-                path={path}
+                path={output.path}
                 size={18}
               />
               <span className="preview-card-output-label">
-                {fileName(path)}
+                {output.label || fileName(output.path)}
               </span>
             </span>
           ))}
-          {item.files.length > displayedFiles.length ? (
+          {item.outputs.length > displayedOutputs.length ? (
             <span className="preview-card-output-more">
-              +{item.files.length - displayedFiles.length}
+              +{item.outputs.length - displayedOutputs.length}
             </span>
           ) : null}
         </div>
@@ -193,6 +204,10 @@ export function ConversationTurnNavRail({
   const itemIdsKey = React.useMemo(
     () => items.map((item) => item.id).join("\0"),
     [items],
+  );
+  const itemOrder = React.useMemo(
+    () => items.map((item) => item.id),
+    [itemIdsKey],
   );
 
   const clearHoverTimer = React.useCallback((): void => {
@@ -298,6 +313,12 @@ export function ConversationTurnNavRail({
   React.useEffect(() => {
     const root = scrollRef.current;
     const latestId = items.at(-1)?.id;
+    const itemIds = new Set(itemOrder);
+    setVisibleItemIds((current) => {
+      const retained = new Set([...current].filter((id) => itemIds.has(id)));
+      if (retained.size > 0) return retained;
+      return new Set(latestId ? [latestId] : []);
+    });
     if (!root || items.length < MIN_TURN_NAV_ITEMS) {
       setVisibleItemIds(new Set(latestId ? [latestId] : []));
       return;
@@ -307,15 +328,28 @@ export function ConversationTurnNavRail({
       return;
     }
 
-    const itemIds = new Set(items.map((item) => item.id));
     const visibleIds = new Set<string>();
     const elementIds = new Map<Element, string>();
     const observedElements = new Set<Element>();
-    const itemOrder = items.map((item) => item.id);
 
     const publishVisibleIds = (): void => {
-      const currentId = itemOrder.find((id) => visibleIds.has(id)) ?? latestId;
-      setVisibleItemIds(new Set(currentId ? [currentId] : []));
+      const firstVisibleIndex = itemOrder.findIndex((id) => visibleIds.has(id));
+      if (firstVisibleIndex < 0) return;
+      const lastVisibleIndex = itemOrder.findLastIndex((id) =>
+        visibleIds.has(id),
+      );
+      const nextVisibleIds = new Set(
+        itemOrder.slice(firstVisibleIndex, lastVisibleIndex + 1),
+      );
+      setVisibleItemIds((current) => {
+        if (
+          current.size === nextVisibleIds.size &&
+          [...current].every((id) => nextVisibleIds.has(id))
+        ) {
+          return current;
+        }
+        return nextVisibleIds;
+      });
     };
 
     const observer = new IntersectionObserver(
@@ -364,7 +398,7 @@ export function ConversationTurnNavRail({
       mutationObserver.disconnect();
       observer.disconnect();
     };
-  }, [itemIdsKey, items, scrollRef]);
+  }, [itemIdsKey, itemOrder, scrollRef]);
 
   const currentItemId =
     items.find((item) => visibleItemIds.has(item.id))?.id ??

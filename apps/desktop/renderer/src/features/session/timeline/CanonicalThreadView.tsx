@@ -10,7 +10,10 @@ import {
   type CanonicalItemRendererProps,
 } from "./CanonicalItemRenderer.js";
 import { ConversationTurnErrorBoundary } from "../conversation/ConversationTurnErrorBoundary.js";
-import { SessionTimelineView } from "./SessionTimelineView.js";
+import {
+  SessionTimelineView,
+  type ThreadTimelineNavigationHandle,
+} from "./SessionTimelineView.js";
 import { summarizeProcessItems, type ProcessSummary } from "./summarizeProcessItems.js";
 import type { OpenPlanInDockRequest } from "../workflow/WorkflowPlanCard.js";
 
@@ -24,6 +27,7 @@ export type CanonicalThreadViewProps = {
   error: string | null;
   initialScrollOffset?: number;
   listRef: React.RefObject<VirtualizerHandle | null>;
+  navigationRef: React.Ref<ThreadTimelineNavigationHandle>;
   scrollRef: React.RefObject<HTMLElement | null>;
   onScroll?: (scrollTop: number) => void;
   onLoadOlder: () => Promise<void>;
@@ -80,6 +84,7 @@ export function CanonicalThreadView({
   error,
   initialScrollOffset,
   listRef,
+  navigationRef,
   scrollRef,
   onScroll,
   onLoadOlder,
@@ -142,6 +147,7 @@ export function CanonicalThreadView({
         count={turns.length}
         initialScrollOffset={initialScrollOffset}
         listRef={listRef}
+        navigationRef={navigationRef}
         onScroll={onScroll}
         scrollRef={scrollRef}
         scrollToBottom={active}

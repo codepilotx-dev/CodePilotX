@@ -26,6 +26,8 @@ export type SessionTimelineViewProps = {
   children: React.ReactNode;
   /** Ref to the VirtualizerHandle for imperative scroll control. */
   listRef?: React.RefObject<VirtualizerHandle | null>;
+  /** Commands used by overlays that navigate within the virtual timeline. */
+  navigationRef?: React.Ref<ThreadTimelineNavigationHandle>;
   /** The single overflow element owned by ThreadScrollLayout. */
   scrollRef: React.RefObject<HTMLElement | null>;
   /** Called when the user scrolls (for scroll-position persistence). */
@@ -43,11 +45,19 @@ export type SessionTimelineViewProps = {
   sessionKey?: string;
 };
 
+export type ThreadTimelineNavigationHandle = {
+  revealTurn: (
+    index: number,
+    behavior: 'smooth' | 'instant',
+  ) => boolean;
+};
+
 /* ── Main component ─────────────────────────────────────── */
 
 export function SessionTimelineView({
   children,
   listRef: externalListRef,
+  navigationRef,
   scrollRef,
   onScroll,
   initialScrollOffset,
@@ -66,6 +76,29 @@ export function SessionTimelineView({
     scrollRef,
     sessionKey,
   });
+
+  React.useImperativeHandle(
+    navigationRef,
+    () => ({
+      revealTurn: (
+        index: number,
+        behavior: 'smooth' | 'instant',
+      ): boolean => {
+        const handle = listHandle.current;
+        if (!handle) return false;
+        const smooth = scrollController.beginProgrammaticScroll(
+          behavior === 'smooth',
+        );
+        try {
+          handle.scrollToIndex(index, { align: 'start', smooth });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    }),
+    [listHandle, scrollController.beginProgrammaticScroll],
+  );
 
   return (
     <div

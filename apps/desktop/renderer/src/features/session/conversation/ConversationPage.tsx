@@ -60,6 +60,7 @@ import {
 } from "../workflow/workflowMarkdown.js";
 import { buildWorkspaceCodexContextDiagnostics } from "../codexContextDiagnostics.js";
 import { useHeightTransition } from "../../../hooks/useHeightTransition.js";
+import { usePrefersReducedMotion } from "../../../hooks/usePrefersReducedMotion.js";
 import {
   deriveWorkflowConsistencyDiagnostics,
   workflowConsistencyIssueCount,
@@ -95,6 +96,7 @@ import {
   saveConversationUiState,
 } from "../../layout/tabs/conversationUiState.js";
 import { CanonicalThreadView } from "../timeline/CanonicalThreadView.js";
+import type { ThreadTimelineNavigationHandle } from "../timeline/SessionTimelineView.js";
 import { ThreadScrollLayout } from "./ThreadScrollLayout.js";
 import {
   ConversationTurnNavRail,
@@ -110,16 +112,18 @@ import {
 import { useThreadSummaryController } from "../summary/threadSummaryState.js";
 import { deriveThreadSummaryViewModel } from "../summary/threadSummaryViewModel.js";
 import { useConversationController } from "./useConversationController.js";
+import {
+  deriveConversationTurnNavItems,
+  type ConversationTurnNavItem,
+} from "./turnNavigationModel.js";
 import { useCanonicalThreadConversation } from "../timeline/useCanonicalThreadConversation.js";
 import { TimelineSystemNotice } from "../timeline/TimelineItemView.js";
 import {
   deriveAssistantActionMessageIds,
-  deriveConversationTurnNavItems,
   deriveTimelineSourceEvents,
   foldTimelineEvents,
   groupTimelineExecutionPhases,
   groupTimelineToolEvents,
-  type ConversationTurnNavItem,
   type ExecutionPhaseGroup,
   type PhaseTimelineItem,
   type TimelineItem,
@@ -129,20 +133,20 @@ import {
 
 export {
   deriveAssistantActionMessageIds,
-  deriveConversationTurnNavItems,
   deriveTimelineSourceEvents,
   foldTimelineEvents,
   groupTimelineExecutionPhases,
   groupTimelineToolEvents,
 } from "../timeline/timelineModel.js";
+export { deriveConversationTurnNavItems } from "./turnNavigationModel.js";
 export type {
-  ConversationTurnNavItem,
   ExecutionPhaseGroup,
   PhaseTimelineItem,
   TimelineItem,
   TimelineToolGroup,
   TimelineToolRun,
 } from "../timeline/timelineModel.js";
+export type { ConversationTurnNavItem } from "./turnNavigationModel.js";
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
   {
@@ -282,15 +286,9 @@ export function ConversationPage(): React.ReactNode {
     workflowEvents,
   });
   const canonicalConversation = useCanonicalThreadConversation(activeSessionId);
+  const reduceMotion = usePrefersReducedMotion();
   const turnNavItems = React.useMemo<ConversationTurnNavItem[]>(
-    () => canonicalConversation.turns.map((entry, rowIndex) => ({
-      id: entry.id,
-      rowIndex,
-      userText: entry.userInputs.map((input) => input.content).join("\n"),
-      assistantText:
-        entry.assistantResultItems.map((item) => item.text).filter(Boolean).join("\n") || null,
-      files: entry.patchItems.flatMap((item) => item.files.map((file) => file.path)),
-    })),
+    () => deriveConversationTurnNavItems(canonicalConversation.turns),
     [canonicalConversation.turns],
   );
   const [sessionMenuOpen, setSessionMenuOpen] = React.useState(false);
@@ -311,6 +309,8 @@ export function ConversationPage(): React.ReactNode {
   >(
     null,
   );
+  const timelineNavigationRef =
+    React.useRef<ThreadTimelineNavigationHandle | null>(null);
   const threadScrollRef = React.useRef<HTMLDivElement | null>(null);
   const threadFooterRef = React.useRef<HTMLElement | null>(null);
   const initialTimelineScrollTop = React.useMemo(
@@ -329,19 +329,11 @@ export function ConversationPage(): React.ReactNode {
 
   const handleTurnNavigate = React.useCallback(
     (item: ConversationTurnNavItem, reason: TurnNavigationReason): void => {
-      try {
-        timelineListRef.current?.scrollToIndex(item.rowIndex, {
-          align: "start",
-          smooth: reason !== "scrub",
-        });
-      } catch {
-        return;
-      }
-
-      const reduceMotion =
-        document.documentElement.dataset.reduceMotion === "on" ||
-        (typeof window.matchMedia === "function" &&
-          window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      const didNavigate = timelineNavigationRef.current?.revealTurn(
+        item.rowIndex,
+        reason === "scrub" || reduceMotion ? "instant" : "smooth",
+      );
+      if (!didNavigate) return;
       if (reduceMotion) return;
 
       let remainingAttempts = 6;
@@ -356,7 +348,9 @@ export function ConversationPage(): React.ReactNode {
           if (remainingAttempts > 0) window.requestAnimationFrame(flashTurn);
           return;
         }
-        row.animate?.(
+        const highlightTarget =
+          row.querySelector<HTMLElement>("[data-user-message-bubble]") ?? row;
+        highlightTarget.animate?.(
           [
             {
               backgroundColor:
@@ -380,7 +374,7 @@ export function ConversationPage(): React.ReactNode {
       };
       window.requestAnimationFrame(flashTurn);
     },
-    [],
+    [reduceMotion],
   );
 
   React.useEffect(() => {
@@ -1121,6 +1115,7 @@ export function ConversationPage(): React.ReactNode {
                               hasOlder={canonicalConversation.hasOlder}
                               initialScrollOffset={initialTimelineScrollTop}
                               listRef={timelineListRef}
+                              navigationRef={timelineNavigationRef}
                               loading={canonicalConversation.loading}
                               loadingOlder={canonicalConversation.loadingOlder}
                               onLoadOlder={canonicalConversation.loadOlder}

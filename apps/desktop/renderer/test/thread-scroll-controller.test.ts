@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 
 import {
   distanceFromThreadBottom,
+  isProgrammaticScrollActive,
   LATEST_TURN_PLACEMENT_THRESHOLD_PX,
   resolveThreadScrollMode,
   scrollOffsetForThreadBottomDistance,
@@ -52,6 +53,21 @@ describe('thread scroll controller', () => {
         contentChanged: true,
       }),
     ).toEqual({ mode: 'static', hasNewContent: true })
+  })
+
+  test('does not classify a protected programmatic jump as user scrolling', () => {
+    expect(isProgrammaticScrollActive(1_000, 1_140)).toBe(true)
+    expect(isProgrammaticScrollActive(1_141, 1_140)).toBe(false)
+
+    expect(
+      resolveThreadScrollMode({
+        mode: 'prework_follow',
+        active: true,
+        atBottom: false,
+        userScrolledUp: false,
+        contentChanged: false,
+      }),
+    ).toEqual({ mode: 'prework_follow', hasNewContent: false })
   })
 
   test('keeps prework watch stable until placement is evaluated', () => {

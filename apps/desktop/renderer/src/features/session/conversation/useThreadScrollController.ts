@@ -97,12 +97,20 @@ type SavedThreadScrollState = {
 const savedThreadScrollStates = new Map<string, SavedThreadScrollState>()
 
 type ThreadScrollController = {
+  beginProgrammaticScroll: (smooth: boolean) => boolean
   bottomSentinelRef: (node: HTMLDivElement | null) => void
   handleScroll: (scrollTop: number) => void
   hasNewContent: boolean
   isAtBottom: boolean
   mode: ThreadScrollMode
   returnToBottom: () => void
+}
+
+export function isProgrammaticScrollActive(
+  now: number,
+  programmaticScrollUntil: number,
+): boolean {
+  return now <= programmaticScrollUntil
 }
 
 function readMetrics(
@@ -167,6 +175,16 @@ export function useThreadScrollController({
     )
   }, [])
 
+  const beginProgrammaticScroll = React.useCallback(
+    (smooth: boolean): boolean => {
+      const useSmoothScroll = smooth && !reducedMotion
+      programmaticScrollUntilRef.current =
+        Date.now() + (useSmoothScroll ? 500 : 140)
+      return useSmoothScroll
+    },
+    [reducedMotion],
+  )
+
   const scrollToEnd = React.useCallback(
     (smooth: boolean): void => {
       if (scrollFrameRef.current !== null) {
@@ -179,9 +197,7 @@ export function useThreadScrollController({
         const metrics = readMetrics(handle, viewport)
         if (!handle || !metrics) return
         const target = Math.max(0, metrics.scrollSize - metrics.viewportSize)
-        const useSmoothScroll = smooth && !reducedMotion
-        programmaticScrollUntilRef.current =
-          Date.now() + (useSmoothScroll ? 500 : 140)
+        const useSmoothScroll = beginProgrammaticScroll(smooth)
         if (viewport) {
           viewport.scrollTo({
             top: target,
@@ -193,7 +209,7 @@ export function useThreadScrollController({
         updateAtBottom(true)
       })
     },
-    [listRef, reducedMotion, scrollRef, updateAtBottom],
+    [beginProgrammaticScroll, listRef, scrollRef, updateAtBottom],
   )
 
   const applyDecision = React.useCallback(
@@ -220,7 +236,10 @@ export function useThreadScrollController({
       const previousOffset = previousOffsetRef.current
       const userScrolledUp =
         scrollTop < previousOffset - 2 &&
-        Date.now() > programmaticScrollUntilRef.current
+        !isProgrammaticScrollActive(
+          Date.now(),
+          programmaticScrollUntilRef.current,
+        )
 
       previousOffsetRef.current = scrollTop
       updateAtBottom(atBottom)
@@ -436,6 +455,7 @@ export function useThreadScrollController({
   )
 
   return {
+    beginProgrammaticScroll,
     bottomSentinelRef: setBottomSentinel,
     handleScroll,
     hasNewContent,
