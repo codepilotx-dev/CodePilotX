@@ -100,6 +100,7 @@ import {
   agentThreadListItemToDesktopSnapshot,
   agentThreadSnapshotToDesktop,
   desktopPermissionModeToPermissionConfig,
+  permissionModeFromPermissionConfig,
   projectToDesktopWorkspace,
 } from '../agentThreadAdapter.js'
 import {
@@ -693,10 +694,7 @@ export function githubLoginFailure(
 }
 
 export function permissionModeFromDesktopConfig(config: PermissionConfig): DesktopPermissionMode {
-  if (config.sandboxMode === 'danger-full-access' && config.approvalPolicy === 'never') return 'full-access'
-  if (config.sandboxMode === 'workspace-write' && config.approvalPolicy === 'on-request' && config.approvalsReviewer === 'auto_review') return 'auto-review'
-  if (config.sandboxMode === 'workspace-write' && config.approvalPolicy === 'on-request' && config.approvalsReviewer === 'user') return 'default'
-  return 'custom'
+  return permissionModeFromPermissionConfig(config)
 }
 
 export function noop(): void {}

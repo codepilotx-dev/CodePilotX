@@ -86,7 +86,7 @@ export function agentThreadListItemToDesktop(
     workspacePath: workspace.path,
     standalone,
     archivedAt: isoOrNull(thread.archivedAt),
-    permissionMode: permissionModeToDesktop(thread.settings.permissionConfig),
+    permissionMode: permissionModeFromPermissionConfig(thread.settings.permissionConfig),
     collaborationMode: collaborationModeFromPlanModeActive(planModeActive),
     planModeActive,
     model: null,
@@ -147,7 +147,7 @@ export function agentThreadSnapshotToDesktop(
     workspaceName: workspace.name,
     workspacePath: workspace.path,
     standalone,
-    permissionMode: permissionModeToDesktop(snapshot.thread.settings.permissionConfig),
+    permissionMode: permissionModeFromPermissionConfig(snapshot.thread.settings.permissionConfig),
     collaborationMode: collaborationModeFromPlanModeActive(planModeActive),
     planModeActive,
     model: latestTurn?.model.id ?? latestInput?.model.id ?? null,
@@ -558,11 +558,15 @@ function eventTime(params: Record<string, unknown>): number {
   return Date.now()
 }
 
-function permissionModeToDesktop(config: PermissionConfig | undefined): DesktopPermissionMode {
+export function permissionModeFromPermissionConfig(config: PermissionConfig | undefined): DesktopPermissionMode {
   if (config?.sandboxMode === 'danger-full-access' && config.approvalPolicy === 'never') return 'full-access'
   if (config?.approvalsReviewer === 'auto_review') return 'auto-review'
-  if (config?.sandboxMode !== 'danger-full-access' || config.approvalPolicy !== 'on-request') return 'custom'
-  return 'default'
+  if (
+    config?.sandboxMode === 'workspace-write'
+    && config.approvalPolicy === 'on-request'
+    && config.approvalsReviewer === 'user'
+  ) return 'default'
+  return 'custom'
 }
 
 export function projectToDesktopWorkspace(project: Project | null | undefined, projectID: string | null): DesktopWorkspace {

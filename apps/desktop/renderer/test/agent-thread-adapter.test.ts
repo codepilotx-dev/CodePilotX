@@ -6,6 +6,7 @@ import {
   agentThreadListItemToDesktop,
   agentThreadSnapshotToDesktop,
   desktopPermissionModeToPermissionConfig,
+  permissionModeFromPermissionConfig,
 } from '../src/services/agentThreadAdapter.js'
 
 const project: Project = {
@@ -31,6 +32,10 @@ describe('agent thread adapter', () => {
     expect(desktopPermissionModeToPermissionConfig('default')).toEqual({ sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' })
     expect(desktopPermissionModeToPermissionConfig('auto-review')).toEqual({ sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' })
     expect(desktopPermissionModeToPermissionConfig('full-access')).toEqual({ sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'auto_review' })
+    expect(permissionModeFromPermissionConfig({ sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' })).toBe('default')
+    expect(permissionModeFromPermissionConfig({ sandboxMode: 'read-only', approvalPolicy: 'on-request', approvalsReviewer: 'user' })).toBe('custom')
+    expect(permissionModeFromPermissionConfig({ sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' })).toBe('auto-review')
+    expect(permissionModeFromPermissionConfig({ sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'auto_review' })).toBe('full-access')
   })
 
   test('maps thread list item status and workspace fields', () => {
