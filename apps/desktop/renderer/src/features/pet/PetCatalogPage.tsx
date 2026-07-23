@@ -15,6 +15,7 @@ export function PetCatalogPage(): React.ReactNode {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const {
+    busy,
     pets,
     refreshPets,
     selectPet,
@@ -59,6 +60,7 @@ export function PetCatalogPage(): React.ReactNode {
 
           <PetCatalogSection
             installedPets={pets}
+            installedPetsLoading={busy}
             onEnableOverlay={() => setEnabled(true)}
             onError={setErrorMessage}
             onInstalled={installAndSelect}

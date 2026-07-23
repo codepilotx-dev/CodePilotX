@@ -53,14 +53,9 @@
   background: var(--color-token-main-surface-primary);
 }
 
-.pet-catalog-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+.pet-catalog-workspace-tabs .segmented-control-item > span {
   color: var(--color-token-description-foreground);
-  font-size: var(--type-secondary);
+  font-size: var(--type-caption);
 }
 
 .pet-catalog-filters {
@@ -157,6 +152,12 @@
   height: auto;
   max-height: 100%;
   object-fit: scale-down;
+}
+
+.pet-catalog-art .pet-sprite {
+  flex: 0 0 auto;
+  background-repeat: no-repeat;
+  image-rendering: auto;
 }
 
 .pet-catalog-card-body {

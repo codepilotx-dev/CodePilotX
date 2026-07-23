@@ -1,48 +1,55 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from "react";
 import type {
   PetCatalogItem,
   PetCatalogResult,
   PetDescriptor,
-} from '@codepilotx/agent-protocol'
+} from "@codepilotx/agent-protocol";
+import { Download, PawPrint, RefreshCw, SearchX, Sparkles } from "lucide-react";
+import { Button } from "../../components/ui/Button.js";
+import { ConfirmationDialog } from "../../components/ui/ConfirmationDialog.js";
+import { IconButton } from "../../components/ui/IconButton.js";
+import { SearchInput } from "../../components/ui/SearchInput.js";
+import { SegmentedControl } from "../../components/ui/SegmentedControl.js";
 import {
-  Download,
-  PawPrint,
-  RefreshCw,
-  SearchX,
-  Sparkles,
-} from 'lucide-react'
-import { Button } from '../../components/ui/Button.js'
-import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
-import { SearchInput } from '../../components/ui/SearchInput.js'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
-import { desktopClient } from '../../services/desktop-client/index.js'
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+} from "../../components/ui/iconTokens.js";
+import { desktopClient } from "../../services/desktop-client/index.js";
+import { WorkspaceHeaderItem } from "../layout/workspace-header/index.js";
+import { PetSprite } from "./PetSprite.js";
 import {
-  filterPetCatalog,
+  buildPetCatalogGroups,
+  DEFAULT_PET_CATALOG_TAB,
+  filterPetCatalogCards,
   listPetCatalogCategories,
   petLicenseLabel,
   petLicenseNeedsConfirmation,
+  type PetCatalogCardItem,
+  type PetCatalogTab,
   type PetCatalogVersionFilter,
-} from './petCatalogModel.js'
+} from "./petCatalogModel.js";
 
 type Props = {
-  installedPets: readonly PetDescriptor[]
-  selectedPetId: string | null
-  overlayEnabled: boolean
-  onEnableOverlay: () => Promise<void>
-  onInstalled: (pet: PetDescriptor) => Promise<void>
-  onSelect: (id: string) => void
-  onError: (message: string) => void
-  onNotice?: (message: string) => void
-}
+  installedPets: readonly PetDescriptor[];
+  installedPetsLoading: boolean;
+  selectedPetId: string | null;
+  overlayEnabled: boolean;
+  onEnableOverlay: () => Promise<void>;
+  onInstalled: (pet: PetDescriptor) => Promise<void>;
+  onSelect: (id: string) => void;
+  onError: (message: string) => void;
+  onNotice?: (message: string) => void;
+};
 
 const EMPTY_CATALOG: PetCatalogResult = {
   pets: [],
   fetchedAt: null,
-  cacheState: 'unavailable',
-}
+  cacheState: "unavailable",
+};
 
 export function PetCatalogSection({
   installedPets,
+  installedPetsLoading,
   selectedPetId,
   overlayEnabled,
   onEnableOverlay,
@@ -51,109 +58,152 @@ export function PetCatalogSection({
   onError,
   onNotice,
 }: Props): React.ReactNode {
-  const [catalog, setCatalog] = useState<PetCatalogResult>(EMPTY_CATALOG)
-  const [loading, setLoading] = useState(true)
-  const [installingSlug, setInstallingSlug] = useState<string | null>(null)
-  const [query, setQuery] = useState('')
-  const [category, setCategory] = useState('')
-  const [version, setVersion] =
-    useState<PetCatalogVersionFilter>('all')
-  const [licensePet, setLicensePet] = useState<PetCatalogItem | null>(null)
+  const [catalog, setCatalog] = useState<PetCatalogResult>(EMPTY_CATALOG);
+  const [loading, setLoading] = useState(true);
+  const [installingSlug, setInstallingSlug] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("");
+  const [version, setVersion] = useState<PetCatalogVersionFilter>("all");
+  const [tab, setTab] = useState<PetCatalogTab>(DEFAULT_PET_CATALOG_TAB);
+  const [licensePet, setLicensePet] = useState<PetCatalogItem | null>(null);
   const [previewFailures, setPreviewFailures] = useState<Set<string>>(
     () => new Set(),
-  )
-  const [showWakeAction, setShowWakeAction] = useState(false)
+  );
+  const [showWakeAction, setShowWakeAction] = useState(false);
 
   const installedIds = useMemo(
-    () => new Set(installedPets.map(pet => pet.id)),
+    () => new Set(installedPets.map((pet) => pet.id)),
     [installedPets],
-  )
+  );
+  const groups = useMemo(
+    () => buildPetCatalogGroups(catalog.pets, installedPets),
+    [catalog.pets, installedPets],
+  );
   const categories = useMemo(
-    () => listPetCatalogCategories(catalog.pets),
-    [catalog.pets],
-  )
+    () => listPetCatalogCategories([...groups.installed, ...groups.available]),
+    [groups],
+  );
+  const activePets = tab === "installed" ? groups.installed : groups.available;
   const visiblePets = useMemo(
-    () => filterPetCatalog(catalog.pets, { query, category, version }),
-    [catalog.pets, category, query, version],
-  )
+    () => filterPetCatalogCards(activePets, { query, category, version }),
+    [activePets, category, query, version],
+  );
+  const hasFilters = Boolean(query.trim() || category || version !== "all");
 
   const loadCatalog = async (refresh = false): Promise<void> => {
-    setLoading(true)
+    setLoading(true);
     try {
-      setCatalog(await desktopClient.listPetCatalog(refresh))
+      setCatalog(await desktopClient.listPetCatalog(refresh));
     } catch (error) {
-      onError(messageOf(error))
-      if (!catalog.pets.length) setCatalog(EMPTY_CATALOG)
+      onError(messageOf(error));
+      if (!catalog.pets.length) setCatalog(EMPTY_CATALOG);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    void loadCatalog()
+    void loadCatalog();
     // The catalog loads once when the standalone page mounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, []);
 
   const installAndUse = async (
     pet: PetCatalogItem,
     acceptedRestrictedLicense = false,
   ): Promise<void> => {
-    setLicensePet(null)
-    setInstallingSlug(pet.slug)
+    setLicensePet(null);
+    setInstallingSlug(pet.slug);
     try {
       const installed = await desktopClient.installCatalogPet(
         pet.slug,
         acceptedRestrictedLicense,
-      )
-      await onInstalled(installed)
-      setCatalog(current => ({
+      );
+      await onInstalled(installed);
+      setCatalog((current) => ({
         ...current,
-        pets: current.pets.map(item =>
-          item.slug === pet.slug ? { ...item, installed: true } : item
+        pets: current.pets.map((item) =>
+          item.slug === pet.slug ? { ...item, installed: true } : item,
         ),
-      }))
-      setShowWakeAction(!overlayEnabled)
-      onNotice?.(`已安装并使用 ${installed.displayName}`)
+      }));
+      setShowWakeAction(!overlayEnabled);
+      onNotice?.(`已安装并使用 ${installed.displayName}`);
     } catch (error) {
-      onError(messageOf(error))
+      onError(messageOf(error));
     } finally {
-      setInstallingSlug(null)
+      setInstallingSlug(null);
     }
-  }
+  };
 
-  const choosePet = (pet: PetCatalogItem): void => {
-    if (installedIds.has(pet.slug) || pet.installed) {
-      onSelect(pet.slug)
-      return
+  const choosePet = (pet: PetCatalogCardItem): void => {
+    if (pet.installed || installedIds.has(pet.id)) {
+      onSelect(pet.id);
+      return;
     }
-    if (petLicenseNeedsConfirmation(pet.licenseKind)) {
-      setLicensePet(pet)
-      return
+    const catalogPet = pet.catalogItem;
+    if (!catalogPet) return;
+    if (petLicenseNeedsConfirmation(catalogPet.licenseKind)) {
+      setLicensePet(catalogPet);
+      return;
     }
-    void installAndUse(pet)
-  }
+    void installAndUse(catalogPet);
+  };
 
   return (
     <>
+      <WorkspaceHeaderItem align="start" id="pets.tabs" order={0} slot="left">
+        <SegmentedControl<PetCatalogTab>
+          ariaLabel="宠物商店分组"
+          className="pet-catalog-workspace-tabs"
+          getPanelId={() => "pet-catalog-panel"}
+          getTabId={(value) => `pet-catalog-${value}-tab`}
+          onChange={setTab}
+          options={[
+            {
+              value: "available",
+              label: (
+                <>
+                  未安装 <span>{groups.available.length}</span>
+                </>
+              ),
+            },
+            {
+              value: "installed",
+              label: (
+                <>
+                  已安装 <span>{groups.installed.length}</span>
+                </>
+              ),
+            },
+          ]}
+          overflowMode="fit"
+          semantics="tabs"
+          value={tab}
+        />
+      </WorkspaceHeaderItem>
+      <WorkspaceHeaderItem
+        align="end"
+        id="pets.refresh"
+        order={100}
+        slot="right"
+      >
+        <IconButton
+          aria-busy={loading}
+          disabled={loading}
+          onClick={() => void loadCatalog(true)}
+          title="刷新社区宠物目录"
+          variant="toolbar"
+        >
+          <RefreshCw
+            aria-hidden="true"
+            size={APP_ICON_SIZE}
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+          />
+        </IconButton>
+      </WorkspaceHeaderItem>
+
       <section aria-label="社区宠物目录" className="pet-catalog-browser">
         <div className="pet-catalog-panel">
-          <div className="pet-catalog-toolbar">
-            <span role="status">
-              {loading
-                ? '正在刷新目录…'
-                : `共 ${catalog.pets.length} 只社区宠物`}
-            </span>
-            <Button
-              aria-label="刷新社区宠物"
-              disabled={loading}
-              onClick={() => void loadCatalog(true)}
-              type="button"
-            >
-              <RefreshCw size={APP_ICON_SIZE} />
-              刷新
-            </Button>
-          </div>
           <div className="pet-catalog-filters">
             <SearchInput
               aria-label="搜索社区宠物"
@@ -164,11 +214,11 @@ export function PetCatalogSection({
             <select
               aria-label="宠物分类"
               className="pet-catalog-select"
-              onChange={event => setCategory(event.target.value)}
+              onChange={(event) => setCategory(event.target.value)}
               value={category}
             >
               <option value="">全部分类</option>
-              {categories.map(item => (
+              {categories.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
                 </option>
@@ -177,9 +227,9 @@ export function PetCatalogSection({
             <select
               aria-label="宠物图集版本"
               className="pet-catalog-select"
-              onChange={event => {
-                const value = event.target.value
-                setVersion(value === 'all' ? 'all' : Number(value) as 1 | 2)
+              onChange={(event) => {
+                const value = event.target.value;
+                setVersion(value === "all" ? "all" : (Number(value) as 1 | 2));
               }}
               value={version}
             >
@@ -189,7 +239,7 @@ export function PetCatalogSection({
             </select>
           </div>
 
-          {catalog.cacheState === 'stale' ? (
+          {catalog.cacheState === "stale" ? (
             <p className="pet-catalog-status" role="status">
               当前显示上次成功获取的目录，联网后可手动刷新。
             </p>
@@ -199,7 +249,7 @@ export function PetCatalogSection({
               <span>新宠物已经准备好了。</span>
               <Button
                 onClick={() => {
-                  void onEnableOverlay().then(() => setShowWakeAction(false))
+                  void onEnableOverlay().then(() => setShowWakeAction(false));
                 }}
                 type="button"
                 variant="primary"
@@ -210,98 +260,158 @@ export function PetCatalogSection({
             </div>
           ) : null}
 
-          {loading && !catalog.pets.length ? (
-            <div className="pet-catalog-empty" role="status">
-              <span className="ui-button-spinner" />
-              正在载入社区宠物…
-            </div>
-          ) : null}
-          {!loading && catalog.cacheState === 'unavailable' ? (
-            <div className="pet-catalog-empty">
-              <PawPrint size={28} />
-              <strong>暂时无法获取社区目录</strong>
-              <span>请检查网络连接；已安装的宠物仍可正常使用。</span>
-              <Button onClick={() => void loadCatalog(true)} type="button">
-                重试
-              </Button>
-            </div>
-          ) : null}
-          {!loading
-            && catalog.cacheState !== 'unavailable'
-            && !visiblePets.length ? (
+          <div
+            aria-labelledby={`pet-catalog-${tab}-tab`}
+            id="pet-catalog-panel"
+            role="tabpanel"
+          >
+            {tab === "available" && loading && !catalog.pets.length ? (
+              <div className="pet-catalog-empty" role="status">
+                <span className="ui-button-spinner" />
+                正在载入社区宠物…
+              </div>
+            ) : null}
+            {tab === "installed" &&
+            installedPetsLoading &&
+            !groups.installed.length ? (
+              <div className="pet-catalog-empty" role="status">
+                <span className="ui-button-spinner" />
+                正在载入已安装宠物…
+              </div>
+            ) : null}
+            {tab === "available" &&
+            !loading &&
+            catalog.cacheState === "unavailable" ? (
+              <div className="pet-catalog-empty">
+                <PawPrint size={28} />
+                <strong>暂时无法获取社区目录</strong>
+                <span>请检查网络连接；已安装的宠物仍可正常使用。</span>
+                <Button onClick={() => void loadCatalog(true)} type="button">
+                  重试
+                </Button>
+              </div>
+            ) : null}
+            {!loading &&
+            !(tab === "available" && catalog.cacheState === "unavailable") &&
+            hasFilters &&
+            !visiblePets.length ? (
               <div className="pet-catalog-empty">
                 <SearchX size={28} />
                 <strong>没有匹配的宠物</strong>
                 <span>尝试更换关键词或筛选条件。</span>
               </div>
             ) : null}
+            {!loading &&
+            !hasFilters &&
+            tab === "installed" &&
+            !installedPetsLoading &&
+            !activePets.length ? (
+              <div className="pet-catalog-empty">
+                <PawPrint size={28} />
+                <strong>还没有安装宠物</strong>
+                <span>前往“未安装”挑选一个桌面伙伴。</span>
+                <Button onClick={() => setTab("available")} type="button">
+                  浏览未安装
+                </Button>
+              </div>
+            ) : null}
+            {!loading &&
+            !hasFilters &&
+            tab === "available" &&
+            catalog.cacheState !== "unavailable" &&
+            !activePets.length ? (
+              <div className="pet-catalog-empty">
+                <Sparkles size={28} />
+                <strong>社区宠物均已安装</strong>
+                <span>可以前往“已安装”切换当前使用的宠物。</span>
+                <Button onClick={() => setTab("installed")} type="button">
+                  查看已安装
+                </Button>
+              </div>
+            ) : null}
 
-          {visiblePets.length ? (
-            <div className="pet-catalog-grid">
-              {visiblePets.map(pet => {
-                const installed = installedIds.has(pet.slug) || pet.installed
-                const selected = selectedPetId === pet.slug
-                const installing = installingSlug === pet.slug
-                return (
-                  <article className="pet-catalog-card" key={pet.slug}>
-                    <div className="pet-catalog-art">
-                      {!previewFailures.has(pet.slug) ? (
-                        <img
-                          alt=""
-                          decoding="async"
-                          loading="lazy"
-                          onError={() => {
-                            setPreviewFailures(current => {
-                              const next = new Set(current)
-                              next.add(pet.slug)
-                              return next
-                            })
-                          }}
-                          src={pet.previewUrl}
-                        />
-                      ) : (
-                        <PawPrint aria-hidden="true" size={34} />
-                      )}
-                    </div>
-                    <div className="pet-catalog-card-body">
-                      <div className="pet-catalog-card-heading">
-                        <strong>{pet.displayName}</strong>
-                        <span>v{pet.spriteVersionNumber}</span>
+            {visiblePets.length ? (
+              <div className="pet-catalog-grid">
+                {visiblePets.map((pet) => {
+                  const installed = pet.installed || installedIds.has(pet.id);
+                  const selected = selectedPetId === pet.id;
+                  const installing = installingSlug === pet.id;
+                  return (
+                    <article className="pet-catalog-card" key={pet.id}>
+                      <div className="pet-catalog-art">
+                        {installed && pet.spritesheetUrl ? (
+                          <PetSprite
+                            animation="idle"
+                            size={100}
+                            spriteVersionNumber={pet.spriteVersionNumber}
+                            spritesheetUrl={pet.spritesheetUrl}
+                          />
+                        ) : pet.previewUrl && !previewFailures.has(pet.id) ? (
+                          <img
+                            alt=""
+                            decoding="async"
+                            loading="lazy"
+                            onError={() => {
+                              setPreviewFailures((current) => {
+                                const next = new Set(current);
+                                next.add(pet.id);
+                                return next;
+                              });
+                            }}
+                            src={pet.previewUrl}
+                          />
+                        ) : (
+                          <PawPrint aria-hidden="true" size={34} />
+                        )}
                       </div>
-                      <p className="pet-catalog-author">作者：{pet.author}</p>
-                      <p className="pet-catalog-description">
-                        {pet.description || '这个宠物还没有介绍。'}
-                      </p>
-                      <div className="pet-catalog-tags">
-                        <span>{pet.categoryLabel}</span>
-                        <span data-license={pet.licenseKind}>
-                          {petLicenseLabel(pet.licenseKind)}
-                        </span>
+                      <div className="pet-catalog-card-body">
+                        <div className="pet-catalog-card-heading">
+                          <strong>{pet.displayName}</strong>
+                          <span>v{pet.spriteVersionNumber}</span>
+                        </div>
+                        {pet.author ? (
+                          <p className="pet-catalog-author">
+                            作者：{pet.author}
+                          </p>
+                        ) : (
+                          <p className="pet-catalog-author">自定义来源</p>
+                        )}
+                        <p className="pet-catalog-description">
+                          {pet.description || "这个宠物还没有介绍。"}
+                        </p>
+                        <div className="pet-catalog-tags">
+                          <span>{pet.categoryLabel}</span>
+                          {pet.licenseKind ? (
+                            <span data-license={pet.licenseKind}>
+                              {petLicenseLabel(pet.licenseKind)}
+                            </span>
+                          ) : null}
+                        </div>
+                        <Button
+                          disabled={selected || installing}
+                          loading={installing}
+                          onClick={() => choosePet(pet)}
+                          type="button"
+                          variant={selected ? "secondary" : "primary"}
+                        >
+                          {!installing && !installed ? (
+                            <Download size={APP_ICON_SIZE} />
+                          ) : null}
+                          {installing
+                            ? "安装中"
+                            : selected
+                              ? "使用中"
+                              : installed
+                                ? "使用"
+                                : "安装并使用"}
+                        </Button>
                       </div>
-                      <Button
-                        disabled={selected || installing}
-                        loading={installing}
-                        onClick={() => choosePet(pet)}
-                        type="button"
-                        variant={selected ? 'secondary' : 'primary'}
-                      >
-                        {!installing && !installed ? (
-                          <Download size={APP_ICON_SIZE} />
-                        ) : null}
-                        {installing
-                          ? '安装中'
-                          : selected
-                            ? '使用中'
-                            : installed
-                              ? '使用'
-                              : '安装并使用'}
-                      </Button>
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
-          ) : null}
+                    </article>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
         </div>
       </section>
 
@@ -322,20 +432,20 @@ export function PetCatalogSection({
           ) : undefined
         }
         onAction={() => {
-          if (licensePet) void installAndUse(licensePet, true)
+          if (licensePet) void installAndUse(licensePet, true);
         }}
         onCancel={() => setLicensePet(null)}
         open={licensePet !== null}
         title={
-          licensePet?.licenseKind === 'unknown'
-            ? '确认未知许可证'
-            : '确认使用限制'
+          licensePet?.licenseKind === "unknown"
+            ? "确认未知许可证"
+            : "确认使用限制"
         }
       />
     </>
-  )
+  );
 }
 
 function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return error instanceof Error ? error.message : String(error);
 }
