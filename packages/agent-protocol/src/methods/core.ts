@@ -31,6 +31,7 @@ const AttachmentErrors = ["ATTACHMENT_NOT_FOUND", "ATTACHMENT_LIMIT", "PERMISSIO
 const MemoryErrors = ["MEMORY_NOT_FOUND", "MEMORY_REJECTED", "PERMISSION_DENIED", ...CommonErrors] as const
 
 const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
+const ApprovalFeedbackSchema = Schema.String.check(Schema.isMaxLength(4_000))
 const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 const NonNegativeNumberSchema = Schema.Number.check(Schema.isGreaterThanOrEqualTo(0))
 const PositiveIntSchema = Schema.Int.check(Schema.isGreaterThan(0))
@@ -189,6 +190,7 @@ export const InteractionListPendingResultSchema = Schema.Struct({
 export const ApprovalInteractionResponseSchema = Schema.Struct({
   kind: Schema.Literal("approval"),
   decision: Schema.Literals(["allow-once", "deny", "stop"]),
+  feedback: Schema.optional(ApprovalFeedbackSchema),
   remember: Schema.optional(Schema.Struct({
     scope: Schema.Literals(["command", "tool", "workspace"]),
     value: NonEmptyStringSchema,

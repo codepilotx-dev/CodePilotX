@@ -16,7 +16,7 @@ const responseBranches = [
   {
     method: "approval/request",
     resultSchema: ApprovalRequestResultSchema,
-    response: { kind: "approval", decision: "allow-once" },
+    response: { kind: "approval", decision: "deny", feedback: "请改用只读命令" },
     invalidResponse: { kind: "approval", decision: "continue" },
   },
   {
@@ -105,5 +105,11 @@ describe("server request interactions", () => {
     expect(message.id).toBe(params.interactionId)
     expect(decodeServerRequestMessage(message)).toEqual(message)
     expect(() => decodeServerRequestMessage({ ...message, id: "different-interaction" })).toThrow()
+  })
+
+  test("limits approval feedback to 4000 characters", () => {
+    const decode = Schema.decodeUnknownSync(ApprovalRequestResultSchema)
+    expect(decode({ kind: "approval", decision: "deny", feedback: "调".repeat(4_000) })).toMatchObject({ decision: "deny" })
+    expect(() => decode({ kind: "approval", decision: "deny", feedback: "调".repeat(4_001) })).toThrow()
   })
 })
