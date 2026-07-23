@@ -25,6 +25,7 @@ import type { HookService } from "../hooks/HookService"
 import type { GitReviewService } from "../review/GitReviewService"
 import type { GithubService } from "../github/GithubService"
 import type { ToolingManager } from "../tool/ToolingManager"
+import type { PetService } from "../pet/PetService"
 
 export interface TransportDependencies {
   config: AgentConfig
@@ -45,6 +46,7 @@ export interface TransportDependencies {
   review: GitReviewService
   github: GithubService
   tooling: ToolingManager
+  pets: PetService
   logger: AgentLogger
 }
 
@@ -116,9 +118,9 @@ const eventNextNotification = (
 }
 
 export const createApp = (dependencies: TransportDependencies) => {
-  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, logger } = dependencies
+  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling })
+  const rpc = new RpcRouter({ db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)
@@ -353,6 +355,22 @@ export const createApp = (dependencies: TransportDependencies) => {
     if (!isPlainObject(settings)) throw new AgentError("INVALID_REQUEST", "桌面设置参数无效", 400)
     db.setSetting(DESKTOP_SETTINGS_KEY, settings)
     return context.json(settings)
+  })
+
+  app.get("/api/pets/:id/spritesheet", async (context) => {
+    const asset = await pets.spritesheet(context.req.param("id"))
+    const body = asset.bytes.buffer.slice(
+      asset.bytes.byteOffset,
+      asset.bytes.byteOffset + asset.bytes.byteLength,
+    ) as ArrayBuffer
+    return new Response(body, {
+      headers: {
+        "Content-Type": asset.contentType,
+        "Cache-Control": "private, max-age=0, must-revalidate",
+        ETag: asset.etag,
+        "X-Content-Type-Options": "nosniff",
+      },
+    })
   })
 
   app.post("/api/shutdown", (context) => {

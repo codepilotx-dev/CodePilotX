@@ -42,6 +42,7 @@ import { GithubService } from "./github/GithubService";
 import type { Models } from "@earendil-works/pi-ai";
 import { ManagedProjectlessWorkspaceService } from "./workspace/ManagedProjectlessWorkspaceService";
 import { ThreadWorkspaceResolver } from "./workspace/ThreadWorkspaceResolver";
+import { PetService } from "./pet/PetService";
 
 export interface BootstrapOptions {
   models?: Models;
@@ -82,6 +83,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
             legacyInstallCodePilotXDependencies: legacyToolingPreference,
           },
     );
+    const pets = new PetService(config.petsDir);
     const unsubscribeTooling = tooling.subscribe((status) => {
       void publishAgentEvent(
         db,
@@ -333,6 +335,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       review,
       github,
       tooling,
+      pets,
     });
     let disposed = false;
     const dispose = async () => {

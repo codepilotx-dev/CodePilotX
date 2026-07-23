@@ -7,6 +7,7 @@ import {
 import { githubHandlers } from "./handlers/github"
 import { interactionHandlers } from "./handlers/interaction"
 import { memoryHandlers } from "./handlers/memory"
+import { petHandlers } from "./handlers/pet"
 import { permissionHandlers } from "./handlers/permission"
 import { providerHandlers } from "./handlers/provider"
 import { reviewHandlers } from "./handlers/review"
@@ -31,6 +32,7 @@ const groups: readonly RpcHandlerGroup[] = [
   githubHandlers,
   threadHandlers,
   memoryHandlers,
+  petHandlers,
   subagentHandlers,
   providerHandlers,
   toolingHandlers,

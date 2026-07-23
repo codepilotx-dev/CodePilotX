@@ -19,6 +19,7 @@ export interface AgentConfig {
   rendererDir: string | null
   rendererDevURL: string | null
   modelsDevURL: string
+  petsDir: string
 }
 
 const asPort = (value: string | undefined) => {
@@ -50,5 +51,11 @@ export const loadConfig = Effect.sync((): AgentConfig => {
     rendererDir: process.env.CODEPILOTX_RENDERER_DIST ? resolve(process.env.CODEPILOTX_RENDERER_DIST) : process.env.CODEPILOTX_STATIC_DIR ? resolve(process.env.CODEPILOTX_STATIC_DIR) : process.env.CODEPILOTX_RENDERER_DIR ? resolve(process.env.CODEPILOTX_RENDERER_DIR) : null,
     rendererDevURL: process.env.CODEPILOTX_RENDERER_DEV_URL ?? process.env.CODEPILOTX_RENDERER_URL ?? null,
     modelsDevURL: process.env.CODEPILOTX_MODELS_URL ?? "https://models.dev",
+    petsDir: resolve(
+      process.env.CODEPILOTX_PETS_DIR
+        ?? (process.env.CODEX_HOME
+          ? join(process.env.CODEX_HOME, "pets")
+          : join(dataDir, "pets")),
+    ),
   }
 })
