@@ -10,7 +10,6 @@ import {
 } from "@codepilotx/shared"
 import { Schema } from "effect"
 import { defineMethod, type MethodMap } from "../definition"
-import { ToolingIDSchema, ToolingPreferenceSchema, ToolingStatusSchema } from "../tooling"
 import {
   AdmissionSchema,
   CursorSchema,
@@ -134,6 +133,29 @@ const ProviderTestResultSchema = Schema.Union([
   }),
 ])
 
+export const ApiKeyHealthSchema = Schema.Struct({
+  status: Schema.Literals(["untested", "healthy", "auth-failed", "rate-limited", "error"]),
+  lastTestedAt: Schema.optional(TimestampSchema),
+  lastUsedAt: Schema.optional(TimestampSchema),
+  errorCategory: Schema.optional(Schema.Literals(["authentication", "rate-limit", "network", "unknown"])),
+  cooldownUntil: Schema.optional(TimestampSchema),
+})
+
+export const ApiKeySummarySchema = Schema.Struct({
+  id: Credential.ID,
+  providerId: Provider.ID,
+  label: Schema.String,
+  maskedValue: Schema.String,
+  enabled: Schema.Boolean,
+  active: Schema.Boolean,
+  priority: NonNegativeIntSchema,
+  health: ApiKeyHealthSchema,
+  createdAt: TimestampSchema,
+  updatedAt: TimestampSchema,
+})
+
+const ApiKeyMutationResultSchema = Schema.Struct({ apiKey: ApiKeySummarySchema })
+
 const IntegrationAttemptStateSchema = Schema.Struct({
   attemptId: Integration.AttemptID,
   integrationId: Integration.ID,
@@ -144,38 +166,6 @@ const IntegrationAttemptStateSchema = Schema.Struct({
 const SUBAGENT_CAPABILITY = "subagents.v1"
 
 export const ExtendedRpcMethods = {
-  "tooling/list": defineMethod({
-    params: Schema.Struct({}),
-    result: Schema.Struct({ statuses: Schema.Array(ToolingStatusSchema) }),
-    errors: ["RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: "tooling.management.v1",
-    mutation: false,
-  }),
-
-  "tooling/setPreference": defineMethod({
-    params: Schema.Struct({
-      id: ToolingIDSchema,
-      preference: ToolingPreferenceSchema,
-      ...OperationParamsSchema.fields,
-    }),
-    result: Schema.Struct({ status: ToolingStatusSchema }),
-    errors: ["TOOLING_UNAVAILABLE", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: "tooling.management.v1",
-    mutation: true,
-  }),
-
-  "tooling/install": defineMethod({
-    params: Schema.Struct({
-      id: ToolingIDSchema,
-      force: Schema.optional(Schema.Boolean),
-      ...OperationParamsSchema.fields,
-    }),
-    result: Schema.Struct({ status: ToolingStatusSchema }),
-    errors: ["TOOLING_DOWNLOAD_FAILED", "TOOLING_INTEGRITY_FAILED", "TOOLING_UNAVAILABLE", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
-    capability: "tooling.management.v1",
-    mutation: true,
-  }),
-
   "subagent/list": defineMethod({
     params: Schema.Struct({
       threadId: OpaqueIDSchema,
@@ -404,6 +394,96 @@ export const ExtendedRpcMethods = {
     capability: null,
     exactParams: true,
     exactResult: true,
+    mutation: true,
+  }),
+
+  "apiKey/list": defineMethod({
+    params: Schema.Struct({ providerId: Schema.optional(Provider.ID) }),
+    result: Schema.Struct({ apiKeys: Schema.Array(ApiKeySummarySchema) }),
+    errors: ["RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: null,
+    mutation: false,
+  }),
+
+  "apiKey/create": defineMethod({
+    params: Schema.Struct({
+      providerId: Provider.ID,
+      label: NonEmptyStringSchema,
+      key: NonEmptyStringSchema,
+      ...OperationParamsSchema.fields,
+    }),
+    result: ApiKeyMutationResultSchema,
+    errors: ["INTEGRATION_NOT_FOUND", "AUTHORIZATION_FAILED", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: null,
+    exactParams: true,
+    exactResult: true,
+    mutation: true,
+  }),
+
+  "apiKey/update": defineMethod({
+    params: Schema.Struct({
+      credentialId: Credential.ID,
+      label: Schema.optional(NonEmptyStringSchema),
+      key: Schema.optional(NonEmptyStringSchema),
+      ...OperationParamsSchema.fields,
+    }),
+    result: ApiKeyMutationResultSchema,
+    errors: ["AUTHORIZATION_FAILED", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: null,
+    exactParams: true,
+    exactResult: true,
+    mutation: true,
+  }),
+
+  "apiKey/setActive": defineMethod({
+    params: Schema.Struct({
+      providerId: Provider.ID,
+      credentialId: Credential.ID,
+      ...OperationParamsSchema.fields,
+    }),
+    result: ApiKeyMutationResultSchema,
+    errors: ["INTEGRATION_NOT_FOUND", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: null,
+    mutation: true,
+  }),
+
+  "apiKey/setEnabled": defineMethod({
+    params: Schema.Struct({
+      credentialId: Credential.ID,
+      enabled: Schema.Boolean,
+      ...OperationParamsSchema.fields,
+    }),
+    result: ApiKeyMutationResultSchema,
+    errors: ["CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: null,
+    mutation: true,
+  }),
+
+  "apiKey/reorder": defineMethod({
+    params: Schema.Struct({
+      providerId: Provider.ID,
+      orderedCredentialIds: Schema.Array(Credential.ID),
+      ...OperationParamsSchema.fields,
+    }),
+    result: Schema.Struct({ apiKeys: Schema.Array(ApiKeySummarySchema) }),
+    errors: ["INTEGRATION_NOT_FOUND", "CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: null,
+    mutation: true,
+  }),
+
+  "apiKey/test": defineMethod({
+    params: Schema.Struct({ credentialId: Credential.ID }),
+    result: ApiKeyMutationResultSchema,
+    errors: ["PROVIDER_UNAVAILABLE", "AUTHORIZATION_FAILED", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: null,
+    mutation: false,
+  }),
+
+  "apiKey/delete": defineMethod({
+    params: Schema.Struct({ credentialId: Credential.ID, ...OperationParamsSchema.fields }),
+    result: Schema.Struct({ apiKeys: Schema.Array(ApiKeySummarySchema) }),
+    errors: ["CONFLICT", "RATE_LIMITED", "INTERNAL_ERROR"] as const,
+    capability: null,
     mutation: true,
   }),
 

@@ -92,6 +92,7 @@ export type UseSessionStateOptions = {
   systemPrompt: string
   appendSystemPrompt: string
   additionalDirectories: string
+  installCodePilotXDependencies: boolean
   enableMemory: boolean
   rustSearchAndDiffKernels: boolean
   followUpBehavior: DesktopFollowUpBehavior
@@ -143,7 +144,11 @@ export type UseSessionStateResult = {
     snapshot: ComposerDraftContentSnapshot,
   ) => boolean
   activateSessionById: (targetSessionId: string | null) => DesktopWorkspace | null
-  createSessionForWorkspace: (target?: DesktopWorkspace | null, initialSessionName?: string) => Promise<string | null>
+  createSessionForWorkspace: (
+    target?: DesktopWorkspace | null,
+    initialSessionName?: string,
+    projectlessPrompt?: string,
+  ) => Promise<string | null>
   submit: (target?: DesktopWorkspace | null) => Promise<void>
   submitToSession: (
     targetSessionId: string,
@@ -215,6 +220,7 @@ export function useSessionState(
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
+    installCodePilotXDependencies,
     enableMemory,
     rustSearchAndDiffKernels,
     followUpBehavior,
@@ -278,6 +284,16 @@ export function useSessionState(
     items: DesktopQueuedFollowUp[]
     pauseReason: DesktopQueuePauseReason | null
   }>>({})
+  const sessionHydrationStateRef = useRef<
+    Record<string, 'loading' | 'hydrated' | undefined>
+  >({})
+  const sessionHydrationPromisesRef = useRef<
+    Record<string, Promise<void> | undefined>
+  >({})
+  const bufferedAgentEventsBySessionRef = useRef<
+    Record<string, DesktopAgentEvent[] | undefined>
+  >({})
+  const applyAgentEventRef = useRef<(event: DesktopAgentEvent) => void>(() => {})
 
   const onErrorRef = useRef(onError)
   onErrorRef.current = onError
@@ -536,22 +552,31 @@ export function useSessionState(
 
   const hydrateSessionDetails = useCallback(
     async (targetSessionId: string): Promise<void> => {
-      const currentView = sessionViewsRef.current[targetSessionId]
-      const hasHydratedContent = Boolean(
-        currentView &&
-          (currentView.messages.length > 0 ||
-            currentView.toolLog.length > 0 ||
-            currentView.events.length > 0),
-      )
-      if (hasHydratedContent) {
-        return
-      }
-      try {
-        const snapshot = await desktopClient.getSession(targetSessionId)
-        applyHydratedSessionSnapshot(snapshot)
-      } catch (error) {
-        onErrorRef.current(errorMessageOf(error))
-      }
+      if (sessionHydrationStateRef.current[targetSessionId] === 'hydrated') return
+      const pending = sessionHydrationPromisesRef.current[targetSessionId]
+      if (pending) return pending
+
+      sessionHydrationStateRef.current[targetSessionId] = 'loading'
+      const hydration = (async () => {
+        try {
+          const snapshot = await desktopClient.getSession(targetSessionId)
+          applyHydratedSessionSnapshot(snapshot)
+          sessionHydrationStateRef.current[targetSessionId] = 'hydrated'
+          const buffered =
+            bufferedAgentEventsBySessionRef.current[targetSessionId] ?? []
+          delete bufferedAgentEventsBySessionRef.current[targetSessionId]
+          for (const event of buffered) {
+            applyAgentEventRef.current(event)
+          }
+        } catch (error) {
+          delete sessionHydrationStateRef.current[targetSessionId]
+          onErrorRef.current(errorMessageOf(error))
+        } finally {
+          delete sessionHydrationPromisesRef.current[targetSessionId]
+        }
+      })()
+      sessionHydrationPromisesRef.current[targetSessionId] = hydration
+      return hydration
     },
     [applyHydratedSessionSnapshot],
   )
@@ -563,7 +588,7 @@ export function useSessionState(
     [updateSessionView, viewRefs],
   )
 
-  const handleAgentEvent = useCallback(
+  const applyAgentEvent = useCallback(
     (event: DesktopAgentEvent): void => {
       handleSessionAgentEvent(event, {
         activeSessionIdRef,
@@ -578,6 +603,22 @@ export function useSessionState(
       })
     },
     [addToolLogEntry, updateSessionView],
+  )
+  applyAgentEventRef.current = applyAgentEvent
+
+  const handleAgentEvent = useCallback(
+    (event: DesktopAgentEvent): void => {
+      if (sessionHydrationStateRef.current[event.sessionId] === 'loading') {
+        const buffered = bufferedAgentEventsBySessionRef.current[event.sessionId] ?? []
+        bufferedAgentEventsBySessionRef.current[event.sessionId] = [
+          ...buffered.slice(-999),
+          event,
+        ]
+        return
+      }
+      applyAgentEvent(event)
+    },
+    [applyAgentEvent],
   )
 
   const handleWorkflowEvent = useCallback(
@@ -795,12 +836,14 @@ export function useSessionState(
       systemPrompt,
       appendSystemPrompt,
       additionalDirectories,
+      installCodePilotXDependencies,
       enableMemory,
       rustSearchAndDiffKernels,
     }),
     [
       additionalDirectories,
       appendSystemPrompt,
+      installCodePilotXDependencies,
       enableMemory,
       rustSearchAndDiffKernels,
       debugConversationDump,
@@ -824,12 +867,18 @@ export function useSessionState(
   )
 
   const createSessionForWorkspace = useCallback(
-    async (target: DesktopWorkspace | null, initialSessionName?: string): Promise<string | null> => {
+    async (
+      target: DesktopWorkspace | null,
+      initialSessionName?: string,
+      projectlessPrompt?: string,
+    ): Promise<string | null> => {
       const nextSessionId = await createSessionForWorkspaceAction(
         actionContext,
         settingsSnapshot,
         target,
         initialSessionName,
+        projectlessPrompt,
+        { propagateError: true },
       )
       if (!nextSessionId) return null
 

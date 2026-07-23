@@ -43,7 +43,6 @@ describe('desktop thread settings client', () => {
     }
     const methods: string[] = []
     const turnStarts: unknown[] = []
-    const reviewerModels: unknown[] = []
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
       const body = init?.body ? JSON.parse(String(init.body)) : null
       const params = body?.params ?? {}
@@ -80,19 +79,7 @@ describe('desktop thread settings client', () => {
           version: 1,
         })
       }
-      if (body?.method === 'model/list' || body?.method === 'model/refresh') {
-        return rpc(body.id, {
-          ...modelCatalog(),
-          reviewerModel: reviewerModels.at(-1) ?? null,
-        })
-      }
-      if (body?.method === 'model/setReviewer') {
-        reviewerModels.push(params.model)
-        return rpc(body.id, {
-          reviewerModel: params.model,
-          settingsVersion: 2,
-        })
-      }
+      if (body?.method === 'model/list') return rpc(body.id, modelCatalog())
       if (body?.method === 'turn/start') {
         methods.push(body.method)
         turnStarts.push(params)
@@ -114,10 +101,7 @@ describe('desktop thread settings client', () => {
       sessionName: 'Plan 会话',
       permissionConfig: settings.permissionConfig,
       planModeActive: true,
-      reviewModel: 'openai/gpt-5',
     })
-
-    expect(reviewerModels).toEqual([{ providerID: 'openai', id: 'gpt-5' }])
 
     await client.sendUserMessage(created.sessionId, { text: '首轮' })
     expect(turnStarts[0]).toMatchObject({
@@ -153,129 +137,6 @@ describe('desktop thread settings client', () => {
     })
     expect(permissionSnapshot.item.permissionMode).toBe('full-access')
     expect(permissionSnapshot.item.planModeActive).toBe(false)
-  })
-
-  test('syncs saved reviewer settings and preserves them while the Agent is offline', async () => {
-    const reviewerModels: unknown[] = []
-    let persisted: unknown = null
-    const fetcher = async (_path: string, init?: RequestInit): Promise<Response> => {
-      const body = init?.body ? JSON.parse(String(init.body)) : null
-      if (body?.method === 'initialized') return new Response(null, { status: 204 })
-      if (body?.method === 'initialize') return rpc(body.id, initializedResult())
-      if (body?.method === 'model/list') {
-        return rpc(body.id, {
-          ...modelCatalog(),
-          reviewerModel: reviewerModels.at(-1) ?? null,
-        })
-      }
-      if (body?.method === 'model/setReviewer') {
-        reviewerModels.push(body.params.model)
-        return rpc(body.id, {
-          reviewerModel: body.params.model,
-          settingsVersion: 2,
-        })
-      }
-      throw new Error(`Unhandled RPC method: ${body?.method}`)
-    }
-    const bridge = {
-      pickWorkspaceDirectory: async () => null,
-      saveDesktopSettings: async (settings: unknown) => {
-        persisted = settings
-        return settings
-      },
-    }
-    const client = createDesktopClient({ fetch: fetcher, window: { codePilotXDesktop: bridge } })
-    const current = await client.getDesktopSettings()
-    const saved = await client.saveDesktopSettings({
-      ...current,
-      reviewModel: 'openai/gpt-5',
-    })
-
-    expect(saved.reviewModel).toBe('openai/gpt-5')
-    expect(persisted).toMatchObject({ reviewModel: 'openai/gpt-5' })
-    expect(reviewerModels).toEqual([{ providerID: 'openai', id: 'gpt-5' }])
-    await client.saveDesktopSettings(saved)
-    expect(reviewerModels).toHaveLength(1)
-
-    let offlinePersisted: unknown = null
-    const offlineClient = createDesktopClient({
-      fetch: async () => new Response('offline', { status: 503 }),
-      window: {
-        codePilotXDesktop: {
-          pickWorkspaceDirectory: async () => null,
-          saveDesktopSettings: async (settings: unknown) => {
-            offlinePersisted = settings
-            return settings
-          },
-        },
-      },
-    })
-    const offlineCurrent = await offlineClient.getDesktopSettings()
-    const offlineSaved = await offlineClient.saveDesktopSettings({
-      ...offlineCurrent,
-      reviewModel: 'openai/gpt-5',
-    })
-    expect(offlineSaved.reviewModel).toBe('openai/gpt-5')
-    expect(offlinePersisted).toMatchObject({ reviewModel: 'openai/gpt-5' })
-  })
-
-  test('forwards trimmed denial feedback in the approval response', async () => {
-    let response: unknown = null
-    const client = createDesktopClient({
-      fetch: async (_path, init) => {
-        const body = init?.body ? JSON.parse(String(init.body)) : null
-        if (body?.method === 'initialized') return new Response(null, { status: 204 })
-        if (body?.method === 'initialize') return rpc(body.id, initializedResult())
-        if (body?.method === 'interaction/listPending') {
-          return rpc(body.id, {
-            interactions: [{
-              interactionId: 'approval-1',
-              threadId: 'session-1',
-              turnId: 'turn-1',
-              agentId: 'agent-1',
-              createdAt: now,
-              version: 1,
-              kind: 'approval',
-              toolCallId: 'call-1',
-              tool: 'shell_command',
-              risk: 'high',
-              reason: '需要执行',
-              command: 'bun test',
-              requestedPermissions: {
-                readPaths: [],
-                writePaths: [],
-                networkDomains: [],
-              },
-              allowedChoices: ['allow-once', 'deny'],
-            }],
-            nextCursor: null,
-          })
-        }
-        if (body?.method === 'interaction/respond') {
-          response = body.params.response
-          return rpc(body.id, {
-            interactionId: 'approval-1',
-            kind: 'approval',
-            state: 'resolved',
-            version: 2,
-            resolvedAt: now + 1,
-            response: body.params.response,
-          })
-        }
-        throw new Error(`Unhandled RPC method: ${body?.method}`)
-      },
-    })
-
-    await client.respondToPermission('session-1', 'approval-1', {
-      behavior: 'deny',
-      updatedInput: { feedback: '  请改用只读命令  ' },
-    })
-
-    expect(response).toEqual({
-      kind: 'approval',
-      decision: 'deny',
-      feedback: '请改用只读命令',
-    })
   })
 
   test('returns explicit unsupported errors instead of entering the mock map', async () => {

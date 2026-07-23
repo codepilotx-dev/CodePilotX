@@ -1,6 +1,5 @@
 import {
   Archive,
-  Box,
   Brain,
   CreditCard,
   GitBranch,
@@ -119,7 +118,7 @@ export const SETTINGS_GROUPS = [
           row('审批执行者', '选择由你或 Guardian 处理审批'),
           row('任务模型', '配置快速、默认、深度和计划执行模型'),
           row('数据位置', '更改 CodePilotX 配置和会话数据目录'),
-          row('工作空间依赖项', '独立管理 Node.js、Python、Git Bash 和 ripgrep 的内置或本机来源'),
+          row('工作空间依赖项', '管理内置 Node.js 和 Python 工具链'),
           row('自定义 config.toml 设置', '编辑底层 Codex 配置'),
           row('完整提示词诊断', '查看提示词来源、哈希与 token 估算'),
         ],
@@ -210,22 +209,6 @@ export const SETTINGS_GROUPS = [
     id: 'coding',
     title: '编码',
     items: [
-      {
-        id: 'connections',
-        routeId: 'connections',
-        label: '模型',
-        description: '模型供应商、凭据、连接测试和 Router',
-        icon: Box,
-        rows: [
-          row('供应商', '选择新会话使用的模型供应商'),
-          row('凭据', '配置 API key 和认证信息'),
-          row('Base URL', '设置供应商 API 地址'),
-          row('模型', '选择模型及其原生请求变体'),
-          row('账户状态', '查看供应商余额或账户状态'),
-          row('连接测试', '测试当前凭据与 Base URL'),
-          row('实验 Router', '启用 Pareto Code 或 Fusion Router'),
-        ],
-      },
       {
         id: 'git',
         routeId: 'git',

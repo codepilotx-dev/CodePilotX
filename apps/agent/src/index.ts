@@ -2,7 +2,6 @@ import { Effect } from "effect"
 import { resolve } from "node:path"
 import { bootstrap } from "./bootstrap"
 import { AgentLogger } from "./observability/AgentLogger"
-import { runSandboxWorkerProcess } from "./sandbox/SandboxRuntimeAdapter"
 
 async function startAgentServer(): Promise<void> {
   const fallbackLogger = new AgentLogger(resolve(process.env.CODEPILOTX_LOG_DIR ?? resolve(process.env.CODEPILOTX_DATA_DIR ?? "./.codepilotx", "logs")))
@@ -44,8 +43,4 @@ async function startAgentServer(): Promise<void> {
   })
 }
 
-if (process.argv.includes("--sandbox-worker")) {
-  process.exitCode = await runSandboxWorkerProcess()
-} else {
-  await startAgentServer()
-}
+await startAgentServer()

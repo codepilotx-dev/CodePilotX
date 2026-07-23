@@ -58,15 +58,6 @@ export class ApprovalService {
       try {
         const reviewed = await this.reviewer(safeInvocation, signal)
         await this.emit(invocation.threadID, invocation.turnID, "serverRequest/resolved", { itemId: invocation.id, turnId: invocation.turnID, kind: "approval-review", ...reviewed })
-        if (resolved.risk === "critical" || reviewed.risk === "critical") return { ...reviewed, decision: "deny", risk: "critical", reason: `灾难级操作已拒绝：${reviewed.reason}` }
-        if (reviewed.review?.reviewUnavailable) {
-          if (invocation.permissionConfig.approvalPolicy === "never") return { decision: "deny", risk: reviewed.risk, reason: reviewed.reason }
-          return this.checkpointForHuman(safeInvocation, { ...reviewed, decision: "ask", reason: `Guardian 不可用，转人工确认：${reviewed.reason}` }, resolved)
-        }
-        if (resolved.risk === "high" || reviewed.risk === "high") {
-          if (invocation.permissionConfig.approvalPolicy === "never") return { ...reviewed, decision: "allow", reason: `完全访问已放行非灾难级操作：${reviewed.reason}` }
-          return this.checkpointForHuman(safeInvocation, { ...reviewed, decision: "ask", risk: "high", reason: `高风险操作需人工确认：${reviewed.reason}` }, resolved)
-        }
         if (reviewed.decision !== "ask") return reviewed
         return this.checkpointForHuman(safeInvocation, reviewed, resolved)
       } catch (cause) {

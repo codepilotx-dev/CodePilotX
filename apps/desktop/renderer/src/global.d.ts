@@ -1,5 +1,4 @@
 import type { DesktopApi } from '../shared/types.js'
-import type { AgentDiagnostic } from './services/desktopDiagnostics.js'
 
 declare global {
   interface Window {
@@ -30,9 +29,6 @@ declare global {
         platform: string
       }>
       applyWindowBackdrop(enabled: boolean): Promise<boolean>
-      onAgentDiagnostic(
-        listener: (diagnostic: AgentDiagnostic) => void,
-      ): () => void
       getDesktopSettings(): Promise<unknown>
       saveDesktopSettings(settings: unknown): Promise<unknown>
     }

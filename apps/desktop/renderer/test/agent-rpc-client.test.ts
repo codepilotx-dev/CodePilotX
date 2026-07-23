@@ -375,7 +375,53 @@ describe('agent RPC v3 client', () => {
     expect(
       requests.filter(request => request.method === 'event/subscribe').at(-1)
         ?.params,
-    ).toEqual({ streams: [{ streamId: 'global', after: 12 }] })
+    ).toEqual({ streams: [{ streamId: 'global', after: 'latest' }] })
+    unsubscribe()
+  })
+
+  test('raw 事件订阅完整保留 EventEnvelope 字段', async () => {
+    const requests: Array<Record<string, unknown>> = []
+    const sources: FakeEventSource[] = []
+    const received: Array<Record<string, unknown>> = []
+    const client = createAgentRpcClient({
+      handshake: automaticHandshake('renderer-raw-envelope'),
+      fetch: createSubscriptionFetcher(requests),
+      eventSourceFactory: url => {
+        const source = new FakeEventSource(url)
+        sources.push(source)
+        return source as unknown as EventSource
+      },
+    })
+
+    const unsubscribe = client.subscribeEnvelope(
+      { threadId: 'thread-1', after: 7 },
+      event => received.push(event as unknown as Record<string, unknown>),
+    )
+    await waitFor(() => sources.length === 1)
+    const envelope = {
+      eventId: 'event-8',
+      streamId: 'thread-1',
+      type: 'assistant/textDelta',
+      version: 1,
+      occurredAt: 1_721_000_000_000,
+      threadId: 'thread-1',
+      turnId: 'turn-1',
+      durability: 'live',
+      sequence: null,
+      afterSequence: 7,
+      payload: { itemId: 'item-1', delta: 'hello' },
+    }
+    sources[0]?.emit({
+      jsonrpc: '2.0',
+      method: 'event/next',
+      params: { subscriptionId: 'subscription-1', event: envelope },
+    })
+
+    await waitFor(() => received.length === 1)
+    expect(received[0]).toEqual(envelope)
+    expect(
+      requests.find(request => request.method === 'event/subscribe')?.params,
+    ).toEqual({ streams: [{ streamId: 'thread-1', after: 7 }] })
     unsubscribe()
   })
 
@@ -519,61 +565,12 @@ describe('agent RPC v3 client', () => {
     ).toHaveLength(subscribeRequestCount)
   })
 
-  test('首次 latest 订阅在事件未 ACK 即断线时从订阅高水位重放', async () => {
-    const requests: Array<Record<string, unknown>> = []
-    const sources: FakeEventSource[] = []
-    const client = createAgentRpcClient({
-      handshake: automaticHandshake('renderer-unacked-replay'),
-      fetch: createSubscriptionFetcher(requests),
-      eventReconnectDelay: () => 0,
-      eventSourceFactory: url => {
-        const source = new FakeEventSource(url)
-        sources.push(source)
-        return source as unknown as EventSource
-      },
-    })
-
-    const notifications: string[] = []
-    const unsubscribe = client.subscribe({}, notification => {
-      notifications.push(notification.method)
-    })
-    await waitFor(() => sources.length === 1)
-
-    sources[0]?.emit({
-      jsonrpc: '2.0',
-      method: 'event/next',
-      params: {
-        subscriptionId: 'subscription-1',
-        event: {
-          id: 'event-13',
-          streamId: 'global',
-          sequence: 13,
-          type: 'thread/updated',
-          payload: {},
-          occurredAt: '2026-07-22T00:00:00.000Z',
-        },
-      },
-    })
-    expect(notifications).toEqual(['thread/updated'])
-
-    sources[0]?.fail()
-    await waitFor(() => sources.length === 2)
-
-    expect(
-      requests.filter(request => request.method === 'event/ack'),
-    ).toHaveLength(0)
-    expect(
-      requests.filter(request => request.method === 'event/subscribe').at(-1)
-        ?.params,
-    ).toEqual({ streams: [{ streamId: 'global', after: 12 }] })
-    unsubscribe()
-  })
-
-  test('恢复游标过期时仅回退到 latest 并建立订阅', async () => {
+  test('恢复游标过期时使用上层重新 hydration 后的位置建立订阅', async () => {
     const requests: Array<Record<string, unknown>> = []
     const sources: FakeEventSource[] = []
     let rejected = false
     let replayCompleteCount = 0
+    let cursorExpiredCount = 0
     const client = createAgentRpcClient({
       handshake: automaticHandshake('renderer-cursor-expired'),
       eventReconnectDelay: () => 0,
@@ -624,6 +621,10 @@ describe('agent RPC v3 client', () => {
         onReplayComplete: () => {
           replayCompleteCount += 1
         },
+        onCursorExpired: () => {
+          cursorExpiredCount += 1
+          return 19
+        },
       },
       () => {},
     )
@@ -636,7 +637,7 @@ describe('agent RPC v3 client', () => {
       subscribeRequests.map(request => request.params),
     ).toEqual([
       { streams: [{ streamId: 'global', after: 5 }] },
-      { streams: [{ streamId: 'global', after: 'latest' }] },
+      { streams: [{ streamId: 'global', after: 19 }] },
     ])
     sources[0]?.emit({
       jsonrpc: '2.0',
@@ -647,6 +648,7 @@ describe('agent RPC v3 client', () => {
       },
     })
     await waitFor(() => replayCompleteCount === 1)
+    expect(cursorExpiredCount).toBe(1)
     unsubscribe()
   })
 })

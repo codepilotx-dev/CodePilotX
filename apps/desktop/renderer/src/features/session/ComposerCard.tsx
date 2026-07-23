@@ -225,22 +225,6 @@ const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
   custom: "permission-chip permission-chip-customConfig",
 };
 
-export const DOUBLE_ESCAPE_INTERRUPT_WINDOW_MS = 1_200;
-
-export function resolveDoubleEscapeInterrupt(
-  previousEscapeAt: number | null,
-  currentEscapeAt: number,
-  windowMs = DOUBLE_ESCAPE_INTERRUPT_WINDOW_MS,
-): { interrupt: boolean; nextEscapeAt: number | null } {
-  const elapsed = previousEscapeAt === null
-    ? Number.POSITIVE_INFINITY
-    : currentEscapeAt - previousEscapeAt;
-  if (elapsed >= 0 && elapsed <= windowMs) {
-    return { interrupt: true, nextEscapeAt: null };
-  }
-  return { interrupt: false, nextEscapeAt: currentEscapeAt };
-}
-
 type Props = {
   input: string;
   canSubmit: boolean;
@@ -469,59 +453,6 @@ export function ComposerCard({
     null,
   );
   const [isComposing, setIsComposing] = useState(false);
-  const onInterruptRef = useRef(onInterrupt);
-  onInterruptRef.current = onInterrupt;
-  const lastEscapeAtRef = useRef<number | null>(null);
-  const escapeResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    lastEscapeAtRef.current = null;
-    if (escapeResetTimerRef.current) {
-      clearTimeout(escapeResetTimerRef.current);
-      escapeResetTimerRef.current = null;
-    }
-  }, [routedSessionId, sessionStatus, workspace?.path]);
-
-  useEffect(() => {
-    if (sessionStatus !== "running" && sessionStatus !== "waiting") return;
-    const handleEscape = (event: KeyboardEvent): void => {
-      if (
-        event.key !== "Escape" ||
-        event.defaultPrevented ||
-        event.repeat ||
-        event.isComposing ||
-        isComposing
-      ) {
-        return;
-      }
-      const decision = resolveDoubleEscapeInterrupt(
-        lastEscapeAtRef.current,
-        Date.now(),
-      );
-      lastEscapeAtRef.current = decision.nextEscapeAt;
-      if (escapeResetTimerRef.current) clearTimeout(escapeResetTimerRef.current);
-      escapeResetTimerRef.current = null;
-      if (decision.interrupt) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        onInterruptRef.current();
-        return;
-      }
-      escapeResetTimerRef.current = setTimeout(() => {
-        lastEscapeAtRef.current = null;
-        escapeResetTimerRef.current = null;
-      }, DOUBLE_ESCAPE_INTERRUPT_WINDOW_MS);
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-      if (escapeResetTimerRef.current) {
-        clearTimeout(escapeResetTimerRef.current);
-        escapeResetTimerRef.current = null;
-      }
-      lastEscapeAtRef.current = null;
-    };
-  }, [isComposing, sessionStatus]);
 
   useEffect(() => {
     if (submitOutcome?.status === "failed") editorRef.current?.focus();
@@ -1251,8 +1182,7 @@ export function ComposerCard({
                   }
                 }
 
-                // Escape: dismiss composer-owned overlays. Unconsumed Esc
-                // presses are handled by the session-level double-Esc listener.
+                // Escape: dismiss dropdowns or interrupt session
                 if (event.key === "Escape") {
                   if (showSlashContextDropdown) {
                     event.preventDefault();
@@ -1262,6 +1192,14 @@ export function ComposerCard({
                   if (activeMention) {
                     event.preventDefault();
                     setDismissedMention(activeMention.start);
+                    return true;
+                  }
+                  if (
+                    sessionStatus === "running" ||
+                    sessionStatus === "waiting"
+                  ) {
+                    event.preventDefault();
+                    onInterrupt();
                     return true;
                   }
                 }
@@ -1862,7 +1800,7 @@ export function ComposerCard({
               onClick={isRunning && !canSubmit ? onInterrupt : onSubmit}
               title={
                 isRunning && !canSubmit
-                  ? "停止（双击 Esc）"
+                  ? "停止 Esc"
                   : modelConfigured
                     ? (submitDisabledReason ?? "发送")
                     : (modelConfigurationMessage ?? "未配置模型")

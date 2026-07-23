@@ -517,23 +517,6 @@
   padding-bottom: min(54vh, 520px);
 }
 
-/* --- Chat session header --- */
-.chat-session-header {
-  min-height: 46px;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex: 0 0 auto;
-  gap: var(--space-2);
-  padding: 0 calc(var(--workspace-fixed-controls-width) + 4px) 0 14px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface-canvas);
-  box-shadow: none;
-  backdrop-filter: none;
-  line-height: var(--control-line-height);
-}
-
 .chat-session-title {
   display: flex;
   align-items: center;

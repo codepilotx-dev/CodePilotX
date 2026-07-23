@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react'
-import { Download, Search, Trash2, Wrench } from 'lucide-react'
+import { Download, Search, RotateCcw, Trash2, Wrench } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktopClient.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import { PERMISSION_MODE_OPTIONS, permissionConfigForMode, permissionModeForConfig } from './settingsStorage.js'
 import type {
   DesktopDataLocationState,
+  DesktopRuntimeStatus,
+  DesktopToolchainDiagnosticReport,
 } from '../../../shared/types.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
@@ -13,6 +15,7 @@ import { SettingsDropdown } from './SettingsDropdown.js'
 import { TaskModelSelect } from './TaskModelSelect.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
+import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 import {
   SANDBOX_RUNTIME_STATUS_UNAVAILABLE,
   installSandboxRuntime,
@@ -23,7 +26,6 @@ import {
   type SandboxRuntimeStatus,
 } from '../../shared/sandboxRuntime.js'
 import { Button } from '../../components/ui/Button.js'
-import { WorkspaceDependenciesSection } from './WorkspaceDependenciesSection.js'
 
 function LearnMoreLink() {
   return (
@@ -37,15 +39,27 @@ function LearnMoreLink() {
   )
 }
 
-type Props = {
-  onError: (message: string) => void
-  onNotice?: (message: string) => void
+function extractVersionLabel(status: DesktopRuntimeStatus | null): string {
+  if (!status) return '—'
+  const executable = status.agentExecutablePath
+  const versionMatch = /codex[-_]([0-9][\w.\-]+)/i.exec(executable)
+  if (versionMatch) return versionMatch[1] ?? '—'
+  return '—'
 }
 
-export function ConfigSettings({ onError, onNotice }: Props): React.ReactNode {
+export function ConfigSettings(): React.ReactNode {
   const settings = useDesktopSettings()
   const { draft } = settings
+  const [runtimeStatus, setRuntimeStatus] = useState<DesktopRuntimeStatus | null>(
+    null,
+  )
+  const [toolchainReport, setToolchainReport] =
+    useState<DesktopToolchainDiagnosticReport | null>(null)
   const [openingConfig, setOpeningConfig] = useState(false)
+  const [diagnosingToolchain, setDiagnosingToolchain] = useState(false)
+  const [reinstallingToolchain, setReinstallingToolchain] = useState(false)
+  const [deletingToolchain, setDeletingToolchain] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [dataLocation, setDataLocation] = useState<DesktopDataLocationState | null>(
     null,
   )
@@ -102,6 +116,29 @@ export function ConfigSettings({ onError, onNotice }: Props): React.ReactNode {
     }
   }
 
+  useEffect(() => {
+    let mounted = true
+    void desktopClient
+      .getRuntimeStatus()
+      .then(status => {
+        if (mounted) setRuntimeStatus(status)
+      })
+      .catch(() => {
+        if (mounted) setRuntimeStatus(null)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const refreshRuntimeStatus = async (): Promise<void> => {
+    try {
+      setRuntimeStatus(await desktopClient.getRuntimeStatus())
+    } catch {
+      setRuntimeStatus(null)
+    }
+  }
+
   const handleChooseDataLocation = async (): Promise<void> => {
     if (changingLocation) return
     setChangingLocation(true)
@@ -135,6 +172,78 @@ export function ConfigSettings({ onError, onNotice }: Props): React.ReactNode {
       setOpeningConfig(false)
     }
   }
+
+  const handleDiagnose = async (): Promise<void> => {
+    if (diagnosingToolchain) return
+    setDiagnosingToolchain(true)
+    try {
+      const report = await desktopClient.diagnoseDesktopToolchain()
+      setToolchainReport(report)
+      window.alert(formatToolchainReport(report))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      window.alert(`诊断失败：${message}`)
+    } finally {
+      setDiagnosingToolchain(false)
+    }
+  }
+
+  const handleReinstall = async (): Promise<void> => {
+    if (reinstallingToolchain) return
+    const confirmed = window.confirm(
+      '将删除本地捆绑包并重新下载。确认继续吗？',
+    )
+    if (!confirmed) return
+    setReinstallingToolchain(true)
+    try {
+      const result = await desktopClient.reinstallDesktopToolchain()
+      setToolchainReport(result.diagnostics)
+      await refreshRuntimeStatus()
+      if (result.ok) {
+        window.alert('重置并重新安装完成。新会话会使用更新后的工具链。')
+      } else if ('error' in result) {
+        window.alert(`重置并重新安装失败：${result.error}`)
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      window.alert(`重置并重新安装失败：${message}`)
+    } finally {
+      setReinstallingToolchain(false)
+    }
+  }
+
+  const handleToolchainToggle = (value: boolean): void => {
+    if (!value && draft.values.installCodePilotXDependencies) {
+      setDeleteDialogOpen(true)
+      return
+    }
+    draft.setValue('installCodePilotXDependencies', value)
+    draft.autoSave()
+  }
+
+  const handleConfirmDisableToolchain = async (): Promise<void> => {
+    if (deletingToolchain) return
+    setDeletingToolchain(true)
+    try {
+      const result = await desktopClient.deleteDesktopToolchain()
+      setToolchainReport(result.diagnostics)
+      if ('error' in result) {
+        window.alert(`删除内置工具链失败：${result.error}`)
+        return
+      }
+      draft.setValue('installCodePilotXDependencies', false)
+      await draft.autoSave()
+      setDeleteDialogOpen(false)
+      await refreshRuntimeStatus()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      window.alert(`删除内置工具链失败：${message}`)
+    } finally {
+      setDeletingToolchain(false)
+    }
+  }
+
+  const versionLabel = extractVersionLabel(runtimeStatus)
 
   return (
     <SettingsContentArea className="">
@@ -218,7 +327,7 @@ export function ConfigSettings({ onError, onNotice }: Props): React.ReactNode {
 
         <SettingsSection
           title="沙盒运行环境"
-          description="仅供自定义权限使用，用于隔离命令进程、文件访问和网络访问；三个内置模式不依赖 SRT。"
+          description="负责隔离命令进程、文件访问和网络访问。"
         >
           <SettingsRow
             title="状态"
@@ -519,17 +628,106 @@ export function ConfigSettings({ onError, onNotice }: Props): React.ReactNode {
           />
         </SettingsSection>
 
-        <WorkspaceDependenciesSection
-          legacyManagedPreference={draft.values.installCodePilotXDependencies}
-          migrationComplete={draft.values.workspaceDependenciesMigrated}
-          onError={onError}
-          onMigrationComplete={async () => {
-            draft.setValue('workspaceDependenciesMigrated', true)
-            await draft.save()
-          }}
-          onNotice={onNotice}
-        />
+        <SettingsSection title="工作空间依赖项">
+          <SettingsRow
+            title="当前版本"
+            control={
+              <span className="settings-row-status settings-version-value">
+                {versionLabel}
+              </span>
+            }
+          />
+          <SettingsRow
+            title="CodePilotX 依赖项"
+            description={`允许 CodePilotX 安装并提供随附的 Node.js 和 Python 工具。更改后对新会话生效。${
+              runtimeStatus?.toolchainRoot
+                ? ` 当前工具链：${runtimeStatus.toolchainRoot}`
+                : ''
+            }`}
+            autoSave
+            control={
+              <ToggleSwitch
+                ariaLabel="CodePilotX 依赖项"
+                checked={draft.values.installCodePilotXDependencies}
+                onChange={handleToolchainToggle}
+              />
+            }
+          />
+          <SettingsRow
+            title="诊断 CodePilotX 工作空间中的问题"
+            description="检查当前捆绑包并记录诊断日志"
+            control={
+              <Button
+                disabled={diagnosingToolchain}
+                onClick={() => void handleDiagnose()}
+                type="button"
+              >
+                <Search size={APP_ICON_SIZE} />
+                {diagnosingToolchain ? '诊断中' : '诊断'}
+              </Button>
+            }
+          />
+          {toolchainReport ? (
+            <SettingsRow
+              title="最近诊断"
+              description={toolchainReport.binaries
+                .map(binary =>
+                  `${binary.name}: ${binary.version ?? binary.path ?? 'missing'}`,
+                )
+                .join('；')}
+              control={
+                <span className="settings-row-status">
+                  {toolchainReport.enabled ? '已启用' : '已禁用'}
+                </span>
+              }
+            />
+          ) : null}
+          <SettingsRow
+            title="重置并安装工作空间"
+            description="删除本地捆绑包，重新下载后重新加载工具"
+            control={
+              <Button
+                disabled={reinstallingToolchain}
+                onClick={() => void handleReinstall()}
+                type="button"
+              >
+                <RotateCcw size={APP_ICON_SIZE} />
+                {reinstallingToolchain ? '安装中' : '重新安装'}
+              </Button>
+            }
+          />
+        </SettingsSection>
       </div>
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        title="关闭 CodePilotX 依赖项？"
+        description="关闭后会删除用户数据目录中已安装的内置 Node.js / Python 工具链文件。安装包随附的只读工具链不会被删除；新会话将只使用项目本地工具和系统 PATH。"
+        cancelLabel="取消"
+        actionLabel={deletingToolchain ? '删除中' : '确认关闭并删除'}
+        tone="danger"
+        actionDisabled={deletingToolchain}
+        onCancel={() => {
+          if (!deletingToolchain) setDeleteDialogOpen(false)
+        }}
+        onAction={() => void handleConfirmDisableToolchain()}
+      />
     </SettingsContentArea>
   )
+}
+
+function formatToolchainReport(report: DesktopToolchainDiagnosticReport): string {
+  const lines = [
+    `工具链：${report.enabled ? '已启用' : '已禁用'}`,
+    `根目录：${report.root ?? '未找到'}`,
+    ...report.binaries.map(binary => {
+      const target = binary.targetVersion ? ` target ${binary.targetVersion}` : ''
+      const version = binary.version ? ` (${binary.version})` : ''
+      const error = binary.error ? ` - ${binary.error}` : ''
+      return `${binary.name}: ${binary.source} ${binary.path ?? 'missing'}${target}${version}${error}`
+    }),
+  ]
+  if (report.logPath) {
+    lines.push(`日志：${report.logPath}`)
+  }
+  return lines.join('\n')
 }

@@ -57,13 +57,13 @@ export const PermissionConfigSchema = Schema.Struct({
 export type PermissionConfig = typeof PermissionConfigSchema.Type
 
 export const DEFAULT_PERMISSION_CONFIG: PermissionConfig = {
-  sandboxMode: "danger-full-access",
+  sandboxMode: "workspace-write",
   approvalPolicy: "on-request",
   approvalsReviewer: "user",
 }
 
 export const AUTO_REVIEW_PERMISSION_CONFIG: PermissionConfig = {
-  sandboxMode: "danger-full-access",
+  sandboxMode: "workspace-write",
   approvalPolicy: "on-request",
   approvalsReviewer: "auto_review",
 }
@@ -115,7 +115,6 @@ export const ShellReviewSchema = Schema.Struct({
   categories: Schema.Array(RiskCategorySchema),
   requestedScopeValid: Schema.Boolean,
   reason: Schema.String,
-  reviewUnavailable: Schema.optional(Schema.Boolean),
 })
 export type ShellReview = typeof ShellReviewSchema.Type
 
@@ -309,10 +308,29 @@ export const TurnStatusSchema = Schema.Literals([
 ])
 export type TurnStatus = typeof TurnStatusSchema.Type
 
+export const ThreadWorkspaceSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal("project"),
+    projectID: Schema.String,
+    workspaceRoot: Schema.String,
+    cwd: Schema.String,
+    outputDirectory: Schema.Null,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("projectless"),
+    projectID: Schema.Null,
+    workspaceRoot: Schema.String,
+    cwd: Schema.String,
+    outputDirectory: Schema.String,
+  }),
+])
+export type ThreadWorkspace = typeof ThreadWorkspaceSchema.Type
+
 export const ThreadSchema = Schema.Struct({
   id: Schema.String,
   title: Schema.String,
   projectID: Schema.NullOr(Schema.String),
+  workspace: Schema.optional(ThreadWorkspaceSchema),
   settings: ThreadSettingsSchema,
   createdAt: Schema.Number,
   updatedAt: Schema.Number,
@@ -322,6 +340,7 @@ export type Thread = typeof ThreadSchema.Type
 export const ThreadListItemSchema = Schema.Struct({
   id: Schema.String,
   projectID: Schema.NullOr(Schema.String),
+  workspace: Schema.optional(ThreadWorkspaceSchema),
   title: Schema.String,
   preview: Schema.NullOr(Schema.String),
   firstUserMessage: Schema.NullOr(Schema.String),
@@ -362,6 +381,7 @@ export const InputSchema = Schema.Struct({
   mode: TaskModeSchema,
   model: Model.Ref,
   permissionConfig: PermissionConfigSchema,
+  attachmentIds: Schema.optional(Schema.Array(Schema.String)),
   state: Schema.Literals(["queued", "merged", "active", "completed", "cancelled"]),
   createdAt: Schema.Number,
 })
@@ -576,6 +596,17 @@ export const AttachmentSchema = Schema.Struct({
 })
 export type Attachment = typeof AttachmentSchema.Type
 
+export const ThreadTurnBundleSchema = Schema.Struct({
+  turn: TurnSchema,
+  inputs: Schema.Array(InputSchema),
+  messages: Schema.Array(MessageSchema),
+  agents: Schema.Array(AgentExecutionSchema),
+  items: Schema.Array(ItemSchema),
+  approvals: Schema.Array(ApprovalRequestSchema),
+  attachments: Schema.Array(AttachmentSchema),
+})
+export type ThreadTurnBundle = typeof ThreadTurnBundleSchema.Type
+
 export const TurnStartParamsSchema = Schema.Struct({
   threadId: Schema.String,
   content: Schema.String,
@@ -676,6 +707,7 @@ export const AgentRpcMethodSchema = Schema.Literals([
   "thread/list",
   "thread/create",
   "thread/read",
+  "thread/history/read",
   "prompt/preview",
   "prompt/refresh",
   "thread/compact",
@@ -721,6 +753,14 @@ export const AgentRpcMethodSchema = Schema.Literals([
   "model/setReviewer",
   "provider/test",
   "provider/updateSettings",
+  "apiKey/list",
+  "apiKey/create",
+  "apiKey/update",
+  "apiKey/setActive",
+  "apiKey/setEnabled",
+  "apiKey/reorder",
+  "apiKey/test",
+  "apiKey/delete",
   "integration/list",
   "integration/connect",
   "integration/authorize",

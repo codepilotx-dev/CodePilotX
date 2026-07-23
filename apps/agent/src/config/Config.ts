@@ -1,5 +1,6 @@
 import { Effect } from "effect"
-import { resolve } from "node:path"
+import { homedir } from "node:os"
+import { join, resolve } from "node:path"
 import { existsSync } from "node:fs"
 
 export interface AgentConfig {
@@ -7,6 +8,7 @@ export interface AgentConfig {
   port: number
   authToken: string | null
   dataDir: string
+  documentsDir: string
   logDir: string
   databasePath: string
   modelSnapshotPath: string
@@ -35,6 +37,7 @@ export const loadConfig = Effect.sync((): AgentConfig => {
     port: asPort(process.env.CODEPILOTX_PORT ?? process.env.PORT),
     authToken: process.env.CODEPILOTX_AUTH_TOKEN ?? null,
     dataDir,
+    documentsDir: resolve(process.env.CODEPILOTX_DOCUMENTS_DIR ?? join(homedir(), "Documents")),
     logDir: resolve(process.env.CODEPILOTX_LOG_DIR ?? resolve(dataDir, "logs")),
     databasePath: resolve(dataDir, "agent.sqlite"),
     modelSnapshotPath: snapshot,

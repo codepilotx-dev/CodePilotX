@@ -37,6 +37,7 @@ type RootContext = {
   model: Model.Ref
   permissionConfig: PermissionConfig
   workspaceRoot: string
+  projectless?: boolean
 }
 
 export class SubagentService {
@@ -168,6 +169,9 @@ export class SubagentService {
     const parent = this.db.getAgentExecution(root.agentID)
     if (!parent || parent.depth !== 0) throw new AgentError("SUBAGENT_DEPTH_EXCEEDED", "子 Agent 不能继续创建子 Agent", 409)
     if (agents.some((agent) => !agent.task.trim())) throw new AgentError("SUBAGENT_TASK_REQUIRED", "子 Agent 任务不能为空", 400)
+    if (root.projectless && agents.some((agent) => agent.workspaceMode === "worktree")) {
+      throw new AgentError("GIT_WORKSPACE_REQUIRED", "无项目会话不能创建 Git worktree 子 Agent，请使用 shared workspace", 409)
+    }
     const totals = this.db.sqlite.query("SELECT COUNT(*) AS total, SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) AS queued FROM subagent_tasks WHERE parent_agent_id = ?").get(root.agentID) as { total: number; queued: number | null }
     if (totals.total + agents.length > 64 || (totals.queued ?? 0) + agents.length > 24) {
       throw new AgentError("SUBAGENT_QUEUE_LIMIT", "该主 Agent 的子任务总量或排队量已达上限", 409)
@@ -187,7 +191,7 @@ export class SubagentService {
         parentThreadID: root.threadID, parentTurnID: root.turnID, parentAgentID: root.agentID,
         displayName, profile, task: requested.task.trim(), model,
         permissionCeiling: root.permissionConfig,
-        workspaceMode: requested.workspaceMode ?? (profile === "worker" ? "worktree" : "shared"),
+        workspaceMode: root.projectless ? "shared" : requested.workspaceMode ?? (profile === "worker" ? "worktree" : "shared"),
         workspaceRoot: root.workspaceRoot,
         taskMode: root.taskMode,
       }

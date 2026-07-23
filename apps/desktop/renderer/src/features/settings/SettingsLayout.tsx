@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { SettingsPage } from './SettingsPage.js'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
 import { useDesktopTheme } from '../theme/themeContext.js'
@@ -16,6 +16,7 @@ export function SettingsLayout(): React.ReactNode {
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const settings = useDesktopSettings()
   const theme = useDesktopTheme()
+  const legacyRedirect = legacySettingsRedirect(activeTab)
 
   useEffect(() => {
     const saveSettings = async (): Promise<void> => {
@@ -39,6 +40,8 @@ export function SettingsLayout(): React.ReactNode {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [settings.draft, theme.draft])
 
+  if (legacyRedirect) return <Navigate to={legacyRedirect} replace />
+
   return (
     <div className="settings-page tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-col tw:overflow-hidden tw:bg-app-canvas tw:text-app-text">
       <GlobalErrorModal
@@ -57,4 +60,8 @@ export function SettingsLayout(): React.ReactNode {
       />
     </div>
   )
+}
+
+export function legacySettingsRedirect(activeTab: string): string | null {
+  return activeTab === 'connections' ? '/models' : null
 }

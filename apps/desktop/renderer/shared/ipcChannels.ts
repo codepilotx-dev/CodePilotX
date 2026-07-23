@@ -13,6 +13,9 @@ export type DesktopApiMethod = Exclude<
 export const DESKTOP_API_METHODS = [
   'getAuthStatus',
   'getRuntimeStatus',
+  'diagnoseDesktopToolchain',
+  'reinstallDesktopToolchain',
+  'deleteDesktopToolchain',
   'getDesktopSettings',
   'saveDesktopSettings',
   'listProjectMemories',

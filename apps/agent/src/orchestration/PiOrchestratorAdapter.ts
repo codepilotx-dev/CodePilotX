@@ -445,6 +445,7 @@ export class PiOrchestratorAdapter {
               taskMode: request.continueFromPlan ? "chat" : request.taskMode,
               signal: request.signal,
               workspace: request.workspace,
+              ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
               permissionConfig: request.permissionConfig,
               model: request.fallbackModel,
               taskSummary: request.content,
@@ -500,6 +501,7 @@ export class PiOrchestratorAdapter {
       taskMode: request.continueFromPlan ? ("chat" as const) : request.taskMode,
       signal: request.signal,
       workspace: request.workspace,
+      ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
       permissionConfig: request.permissionConfig,
       model: request.fallbackModel,
       taskSummary: request.content,
@@ -510,7 +512,7 @@ export class PiOrchestratorAdapter {
         resolve: async () => ({
           models: this.options.models,
           model,
-          env: new CodePilotXExecutionEnv(request.workspace),
+          env: new CodePilotXExecutionEnv(request.workspace, request.defaultCwd),
           session,
         }),
       } as never,
@@ -663,6 +665,7 @@ export class PiOrchestratorAdapter {
       permissionConfig: request.permissionConfig,
       signal: request.signal,
       workspace: request.workspace,
+      ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
       model,
       policyModel: request.fallbackModel,
       ...(resolved.ref.variant
@@ -700,10 +703,12 @@ export class PiOrchestratorAdapter {
     const row = this.options.db.sqlite
       .query(
         `
-      SELECT a.session_id, a.model_ref, p.root_path
+      SELECT a.session_id, a.model_ref,
+             COALESCE(p.root_path, t.workspace_root) AS root_path,
+             COALESCE(t.workspace_cwd, p.root_path) AS default_cwd
       FROM agent_executions AS a
       JOIN threads AS t ON t.id = a.thread_id
-      JOIN projects AS p ON p.id = t.project_id
+      LEFT JOIN projects AS p ON p.id = t.project_id
       WHERE a.thread_id = ? AND a.profile = 'main'
       ORDER BY a.created_at DESC LIMIT 1
     `,
@@ -712,6 +717,7 @@ export class PiOrchestratorAdapter {
       session_id: string;
       model_ref: string;
       root_path: string;
+      default_cwd: string;
     } | null;
     if (!row) throw new Error("Pi session 不存在，无法执行手动压缩");
     const ref = JSON.parse(row.model_ref) as { providerID: string; id: string };
@@ -721,6 +727,7 @@ export class PiOrchestratorAdapter {
     const storage = session.getStorage() as SqlitePiSessionStorage;
     const env = new CodePilotXExecutionEnv(
       await WorkspaceService.open(row.root_path),
+      row.default_cwd,
     );
     const harness = new AgentHarness({
       env,

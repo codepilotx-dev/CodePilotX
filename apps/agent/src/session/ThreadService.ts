@@ -8,7 +8,6 @@ import type { EventHub } from "../storage/EventHub"
 import type { ApprovalService } from "../permission/ApprovalService"
 import type { QuestionService } from "./QuestionService"
 import { SafeBoundaryInterrupt, type PiOrchestratorAdapter } from "../orchestration/PiOrchestratorAdapter"
-import { WorkspaceService } from "../workspace/WorkspaceService"
 import type { AttachmentService } from "../subagent/AttachmentService"
 import type { SubagentService } from "../subagent/SubagentService"
 import { InstructionDiscoveryService, PromptComposer, SkillService, createPromptSections, type PromptSection } from "../prompt"
@@ -16,9 +15,11 @@ import { secretScrubber } from "../security/SecretScrubber"
 import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
 import { join } from "node:path"
+import { createHash } from "node:crypto"
 import { ContextManager, type ContextFragment } from "../context/ContextManager"
 import { inferPromptCacheCapability } from "../prompt/PromptCache"
 import type { GitReviewService } from "../review/GitReviewService"
+import type { ThreadWorkspaceResolver, ResolvedThreadWorkspace } from "../workspace/ThreadWorkspaceResolver"
 
 type ThreadPromptSettingsSnapshot = { engine: "prompt-engine-v2"; version: 2; snapshottedAt: number; settings: Record<string, unknown>; baseHash?: string; contextHash?: string; cacheKey?: string }
 
@@ -37,6 +38,7 @@ export class ThreadService {
     private readonly promptDataRoot: string,
     private readonly memory: MemoryService,
     private readonly hooks: HookService,
+    private readonly workspaceResolver: ThreadWorkspaceResolver,
     private readonly review?: GitReviewService,
   ) {
     this.questions.setResumeHandler((threadID, turnID) => {
@@ -80,10 +82,80 @@ export class ThreadService {
     await this.emit(agent.threadID, agent.turnID, "agent/upserted", { agent })
   }
 
-  create(title?: string, projectID?: string, settings?: ThreadSettings) {
-    const created = this.db.createThread(title, projectID, settings)
-    this.refreshPromptSettings(created.id)
-    return created
+  private workspaceEnvironment(runtime: ResolvedThreadWorkspace) {
+    if (runtime.kind === "project") return `工作区：${runtime.workspaceRoot}\n平台：${process.platform}`
+    return [
+      "会话类型：无项目会话",
+      `会话工作区：${runtime.workspaceRoot}`,
+      `默认工作目录：${runtime.cwd}`,
+      `交付物目录：${runtime.outputDirectory}`,
+      "临时工作写入默认工作目录；最终交付物写入交付物目录。不要向 Documents 的其他位置写文件。",
+      `平台：${process.platform}`,
+    ].join("\n")
+  }
+
+  async create(input: {
+    title?: string
+    settings?: ThreadSettings
+    operationID: string
+    workspace: { kind: "project"; projectID: string } | { kind: "projectless"; prompt?: string }
+  }) {
+    const requestHash = createHash("sha256").update(JSON.stringify({
+      title: input.title ?? null,
+      settings: input.settings ?? null,
+      workspace: input.workspace,
+    })).digest("hex")
+    const duplicate = this.db.threadForCreateOperation(input.operationID)
+    if (duplicate) {
+      if (duplicate.requestHash !== requestHash) throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已用于其他会话创建请求", 409)
+      return { id: duplicate.threadID }
+    }
+    if (input.workspace.kind === "project") {
+      const created = this.db.createThread({
+        title: input.title,
+        settings: input.settings,
+        workspace: { kind: "project", projectID: input.workspace.projectID },
+        operationID: input.operationID,
+        requestHash,
+      })
+      this.refreshPromptSettings(created.id)
+      return created
+    }
+
+    const threadID = crypto.randomUUID()
+    const allocation = await this.workspaceResolver.allocateProjectless({
+      workspaceID: crypto.randomUUID(),
+      threadID,
+      ...(input.workspace.prompt === undefined ? {} : { prompt: input.workspace.prompt }),
+    })
+    try {
+      const created = this.db.createThread({
+        id: threadID,
+        title: input.title,
+        settings: input.settings,
+        workspace: {
+          kind: "projectless",
+          workspaceRoot: allocation.sessionRoot,
+          cwd: allocation.cwd,
+          outputDirectory: allocation.outputDirectory,
+        },
+        operationID: input.operationID,
+        requestHash,
+      })
+      await this.workspaceResolver.activateProjectless(allocation)
+      this.refreshPromptSettings(created.id)
+      return created
+    } catch (cause) {
+      const duplicateAfterRace = this.db.threadForCreateOperation(input.operationID)
+      if (!duplicateAfterRace || duplicateAfterRace.threadID !== threadID) {
+        await this.workspaceResolver.rollbackProjectless(allocation).catch(() => undefined)
+      }
+      if (duplicateAfterRace) {
+        if (duplicateAfterRace.requestHash !== requestHash) throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已用于其他会话创建请求", 409)
+        return { id: duplicateAfterRace.threadID }
+      }
+      throw cause
+    }
   }
 
   private currentPromptSettingsSnapshot(): ThreadPromptSettingsSnapshot {
@@ -114,20 +186,18 @@ export class ThreadService {
 
   async promptPreview(threadID: string) {
     const thread = this.get(threadID)
-    const projectID = this.db.threadProjectID(threadID)
-    if (!projectID) throw new AgentError("PROJECT_REQUIRED", "当前任务未绑定项目", 409)
-    const project = this.db.getProject(projectID)
-    if (!project) throw new AgentError("PROJECT_NOT_FOUND", "当前项目不存在", 404)
-    const workspace = await WorkspaceService.open(project.rootPath)
+    const runtime = await this.workspaceResolver.resolve(threadID)
     const snapshot = this.promptSettingsSnapshot(threadID)
     const settings = snapshot.settings
     const stringSetting = (key: string) => typeof settings[key] === "string" && settings[key].trim() ? settings[key] as string : null
-    const projectInstructions = await new InstructionDiscoveryService().discover(workspace.rootPath)
+    const projectInstructions = runtime.kind === "project"
+      ? await new InstructionDiscoveryService().discover(runtime.workspaceRoot)
+      : { sources: [] }
     const skillService = new SkillService()
-    const skills = await skillService.scan(workspace.rootPath, this.promptDataRoot)
+    const skills = await skillService.scan(runtime.workspaceRoot, this.promptDataRoot, { includeWorkspace: runtime.kind === "project" })
     const latest = this.db.sqlite.query("SELECT content, model_ref FROM inputs WHERE thread_id = ? ORDER BY created_at DESC LIMIT 1").get(threadID) as { content: string; model_ref: string } | null
     const userMessage = latest?.content ?? ""
-    const memories = this.memory.recall({ query: userMessage, projectKey: projectMemoryKey(workspace.rootPath) })
+    const memories = this.memory.recall({ query: userMessage, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.workspaceRoot) } : {}) })
     const exposedTools = this.orchestrator.toolExposure({
       taskMode: thread.settings.taskMode,
       sandboxMode: thread.settings.permissionConfig.sandboxMode,
@@ -140,7 +210,7 @@ export class ThreadService {
       toolGuidance: exposedTools.map((name) => ({ name, content: `仅在需要时使用 ${name}，并服从 resolved permission policy。` })),
       systemPrompt: stringSetting("systemPrompt"), personality: stringSetting("personality"), customInstructions: stringSetting("customInstructions"),
       appendPrompt: stringSetting("appendPrompt") ?? stringSetting("appendSystemPrompt"),
-      environment: `工作区：${workspace.rootPath}\n平台：${process.platform}`,
+      environment: this.workspaceEnvironment(runtime),
       projectInstructions: projectInstructions.sources, skills: skills.skills,
       memories: memories.map((entry) => `可能过期的参考记忆（${entry.scope}）：${entry.content}`), userMessage,
     })
@@ -148,7 +218,7 @@ export class ThreadService {
     let cacheMode = inferPromptCacheCapability("")
     try {
       const latestModel = latest?.model_ref ? JSON.parse(latest.model_ref) as Model.Ref : null
-      const projectSettings = this.db.getProjectSettings(projectID)
+      const projectSettings = runtime.projectID ? this.db.getProjectSettings(runtime.projectID) : null
       const selected = await this.resolveAvailableModel([
         latestModel,
         projectSettings?.defaultModel,
@@ -170,7 +240,7 @@ export class ThreadService {
   async submit(threadID: string, input: SubmitMessage, requestedInputID?: string) {
     this.get(threadID)
     if (!input.content.trim()) throw new AgentError("EMPTY_MESSAGE", "消息不能为空", 400)
-    if (!this.db.threadProjectID(threadID)) throw new AgentError("PROJECT_REQUIRED", "请先选择项目后再开始任务", 409)
+    await this.workspaceResolver.resolve(threadID)
     if (requestedInputID) {
       const existing = this.db.inputAdmission(requestedInputID)
       if (existing) {
@@ -333,13 +403,11 @@ export class ThreadService {
         content = steeringContinuation ? supplement : `${content}\n\n${supplement}`
         await this.emit(threadID, turnID, "queue/updated", { turnId: turnID, inputs: mailbox, action: "guide-consumed", safeBoundary: "before-model" })
       }
-      const projectID = this.db.threadProjectID(threadID)
-      if (!projectID) throw new AgentError("PROJECT_REQUIRED", "当前会话未选择项目", 409)
-      const project = this.db.getProject(projectID)
-      if (!project) throw new AgentError("PROJECT_NOT_FOUND", "当前项目不存在", 404)
-      const workspace = await WorkspaceService.open(project.rootPath)
+      const runtime = await this.workspaceResolver.resolve(threadID)
+      const projectID = runtime.projectID
+      const workspace = runtime.workspace
       const existingReviewSnapshot = this.db.getTurnGitSnapshot(threadID, turnID)
-      if (!existingReviewSnapshot?.beforeTree) {
+      if (projectID && !existingReviewSnapshot?.beforeTree) {
         await this.review?.captureTurnSnapshot({
           projectId: projectID,
           threadId: threadID,
@@ -347,7 +415,11 @@ export class ThreadService {
           phase: "before",
         }).catch(() => undefined)
       }
-      this.hooks.load({ userConfigPath: join(this.promptDataRoot, "hooks.json"), projectRoot: workspace.rootPath })
+      this.hooks.load({
+        userConfigPath: join(this.promptDataRoot, "hooks.json"),
+        projectRoot: runtime.workspaceRoot,
+        includeProjectHooks: runtime.kind === "project",
+      })
       const priorHistory = (this.db.sqlite.query("SELECT COUNT(*) AS count FROM agent_thread_items WHERE thread_id = ?").get(agent.sessionID) as { count: number }).count
       const lifecycleEvent = priorHistory > 0 || resumeCheckpoint || continueFromPlan || sideEffectRecovery ? "session_resume" as const : "session_start" as const
       await this.hooks.run(lifecycleEvent, { threadID, turnID, workspace: workspace.rootPath }, { threadID, turnID })
@@ -358,12 +430,14 @@ export class ThreadService {
       const hookFeedback = promptHookResults.flatMap(({ hook, result }) => (result.suggestions ?? []).map((suggestion) => `Hook ${hook.id} 建议：${suggestion}`))
       const desktopSettings = this.promptSettingsSnapshot(threadID).settings
       const defaultModeRequestUserInput = desktopSettings?.defaultModeRequestUserInput === true
-      const projectInstructions = await new InstructionDiscoveryService().discover(workspace.rootPath)
+      const projectInstructions = runtime.kind === "project"
+        ? await new InstructionDiscoveryService().discover(runtime.workspaceRoot)
+        : { sources: [] }
       const skillService = new SkillService()
-      const skillCatalog = await skillService.scan(workspace.rootPath, this.promptDataRoot)
+      const skillCatalog = await skillService.scan(runtime.workspaceRoot, this.promptDataRoot, { includeWorkspace: runtime.kind === "project" })
       const invokedSkill = skillService.resolveInvocation(content)
       const invokedSkillData = invokedSkill ? [`用户显式调用 Skill $${invokedSkill.name}：\n${(await skillService.read(invokedSkill.name)).content}`] : []
-      const memories = this.memory.recall({ query: content, projectKey: projectMemoryKey(workspace.rootPath) })
+      const memories = this.memory.recall({ query: content, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.workspaceRoot) } : {}) })
       const stringSetting = (key: string) => typeof desktopSettings?.[key] === "string" && desktopSettings[key].trim() ? desktopSettings[key] as string : null
       const effectiveMode = continueFromPlan ? "chat" as const : input.taskMode
       const exposedTools = this.orchestrator.toolExposure({
@@ -390,7 +464,7 @@ export class ThreadService {
         personality: stringSetting("personality"),
         customInstructions: stringSetting("customInstructions"),
         appendPrompt: stringSetting("appendPrompt"),
-        environment: `工作区：${workspace.rootPath}\n平台：${process.platform}\n当前时间：${new Date().toISOString()}`,
+        environment: `${this.workspaceEnvironment(runtime)}\n当前时间：${new Date().toISOString()}`,
         projectInstructions: projectInstructions.sources,
         skills: skillCatalog.skills,
         memories: memories.map((entry) => `可能过期的参考记忆（${entry.scope}）：${entry.content}`),
@@ -412,9 +486,9 @@ export class ThreadService {
         content: `以下计划已经用户确认，是当前实施范围与顺序：\n${this.db.currentPlan(turnID) ?? ""}`,
       })
       const contextManager = new ContextManager(this.db)
-      const projectModels = this.db.getProjectSettings(projectID)
+      const projectModels = projectID ? this.db.getProjectSettings(projectID) : null
       const globalDefault = this.db.getSetting<Model.Ref>("defaultModel")
-      const selectedInfo = await this.resolveAvailableModel([projectModels.defaultModel, globalDefault, activeModel])
+      const selectedInfo = await this.resolveAvailableModel([projectModels?.defaultModel, globalDefault, activeModel])
       const selectedModel = Model.Ref.make({ providerID: selectedInfo.providerID, id: selectedInfo.id, ...(selectedInfo.request.variant ? { variant: Model.VariantID.make(selectedInfo.request.variant) } : {}) })
       const piModel = await this.providers.getModel(selectedModel)
       const attachments = (await Promise.all([input.id, ...mailbox.map((item) => item.id)].map((inputID) => this.agentAttachments(inputID)))).flat()
@@ -430,6 +504,7 @@ export class ThreadService {
         fallbackModel: activeModel,
         signal: controller.signal,
         workspace,
+        defaultCwd: runtime.cwd,
         defaultModeRequestUserInput,
         promptSections,
         skillService,
@@ -455,7 +530,8 @@ export class ThreadService {
         depth: 0,
         delegation: this.subagents.delegationFor({
           threadID, turnID, agentID: agent.id, taskMode: input.taskMode, continueFromPlan,
-          model: activeModel, permissionConfig: input.permissionConfig, workspaceRoot: workspace.rootPath,
+          model: activeModel, permissionConfig: input.permissionConfig, workspaceRoot: runtime.kind === "projectless" ? runtime.cwd : runtime.workspaceRoot,
+          ...(runtime.kind === "projectless" ? { projectless: true } : {}),
         }),
         attachments,
         ...(resumeCheckpoint ? { resume: resumeCheckpoint } : {}),
@@ -500,15 +576,17 @@ export class ThreadService {
         if (requeued) await this.emitAgent(requeued.agent)
         return
       }
-      const memoryJob = this.memory.enqueue({ threadID, projectKey: projectMemoryKey(workspace.rootPath), transcript: `用户任务：\n${content}\n\nAgent 结果：\n${result.output}` })
+      const memoryJob = this.memory.enqueue({ threadID, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.workspaceRoot) } : {}), transcript: `用户任务：\n${content}\n\nAgent 结果：\n${result.output}` })
       if (memoryJob) queueMicrotask(() => { void this.memory.drain() })
       this.db.deleteAgentTurnCheckpoint(turnID)
-      await this.review?.captureTurnSnapshot({
-        projectId: projectID,
-        threadId: threadID,
-        turnId: turnID,
-        phase: "after",
-      }).catch(() => undefined)
+      if (projectID) {
+        await this.review?.captureTurnSnapshot({
+          projectId: projectID,
+          threadId: threadID,
+          turnId: turnID,
+          phase: "after",
+        }).catch(() => undefined)
+      }
       this.db.updateTurnStatus(turnID, "completed")
       await this.emitAgent(this.db.updateAgentStatus(agent.id, "completed"))
       await this.emit(threadID, turnID, "turn/completed", { turnId: turnID, rootAgentId: agent.id, finishedAt: Date.now() })

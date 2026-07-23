@@ -61,6 +61,7 @@ type ControllerOptions = {
   createSessionForWorkspace: (
     target?: DesktopWorkspace | null,
     initialSessionName?: string,
+    projectlessPrompt?: string,
   ) => Promise<string | null>
   submitToSession: (
     targetSessionId: string,
@@ -303,8 +304,12 @@ export function useDesktopComposerController({
       draft,
       targetSessionId: isNewSession ? null : routedSessionId,
       createSession: isNewSession
-        ? initialSessionName =>
-            createSessionForWorkspace(workspace, initialSessionName)
+        ? (initialSessionName, projectlessPrompt) =>
+            createSessionForWorkspace(
+              workspace,
+              initialSessionName,
+              projectlessPrompt,
+            )
         : undefined,
       // Keep navigation before submission so the routed page owns all
       // streaming state from the first response event onward.

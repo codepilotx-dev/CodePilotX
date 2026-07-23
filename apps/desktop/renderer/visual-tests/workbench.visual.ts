@@ -206,55 +206,6 @@ for (const mode of MODES) {
   })
 }
 
-test('conversation rows remain in normal flow when command details expand', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1200, height: 760 })
-  await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.goto('/?visualCase=rich#/sessions/visual-rich')
-  await closeTransientErrorToast(page)
-  await expect(
-    page.getByText('已完成工作台结构梳理。', { exact: true }),
-  ).toBeVisible()
-
-  await page.locator('.timeline-command-group-summary').first().click()
-  await page.locator('.timeline-command-row').first().click()
-  await expect(page.locator('.timeline-command-shell').first()).toBeVisible()
-
-  const layout = await page.evaluate(() => {
-    const rows = Array.from(
-      document.querySelectorAll<HTMLElement>('.session-turn-row'),
-    )
-    const rects = rows.map((row) => row.getBoundingClientRect())
-    const details = document.querySelector<HTMLElement>(
-      '.timeline-command-details',
-    )
-    const shellWrap = document.querySelector<HTMLElement>(
-      '.timeline-command-shell-wrap',
-    )
-    const virtualPositionedRow = rows.some(
-      (row) => getComputedStyle(row).position === 'absolute',
-    )
-
-    return {
-      detailsMaxHeight: details ? getComputedStyle(details).maxHeight : null,
-      shellMaxHeight: shellWrap ? getComputedStyle(shellWrap).maxHeight : null,
-      overlaps: rects.slice(1).some((rect, index) => {
-        const previous = rects[index]
-        return Boolean(previous && previous.bottom > rect.top + 0.5)
-      }),
-      rowCount: rows.length,
-      virtualPositionedRow,
-    }
-  })
-
-  expect(layout.rowCount).toBeGreaterThan(1)
-  expect(layout.virtualPositionedRow).toBe(false)
-  expect(layout.overlaps).toBe(false)
-  expect(layout.detailsMaxHeight).toBe('none')
-  expect(layout.shellMaxHeight).toBe('none')
-})
-
 test('Markdown file switches between rich and source presentations', async ({
   page,
 }) => {

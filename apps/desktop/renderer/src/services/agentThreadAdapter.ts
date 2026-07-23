@@ -8,6 +8,7 @@ import type {
   QuestionItem,
   ThreadListItem,
   ThreadSnapshot,
+  ThreadWorkspace,
   Turn,
 } from '@codepilotx/shared/thread'
 import { collaborationModeFromPlanModeActive } from '../shims/core/agent/codepilotxSessionContract.js'
@@ -51,9 +52,9 @@ export function agentPlanRunIdFromRequestId(requestId: string): string | null {
 export function desktopPermissionModeToPermissionConfig(
   mode: DesktopPermissionMode | undefined,
 ): PermissionConfig {
-  if (mode === 'auto-review') return { sandboxMode: 'danger-full-access', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }
+  if (mode === 'auto-review') return { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }
   if (mode === 'full-access') return { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'auto_review' }
-  return { sandboxMode: 'danger-full-access', approvalPolicy: 'on-request', approvalsReviewer: 'user' }
+  return { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' }
 }
 
 export function agentTurnStatusToDesktopStatus(
@@ -73,7 +74,8 @@ export function agentThreadListItemToDesktop(
   thread: ThreadListItem,
   project?: Project | null,
 ): DesktopSessionListItem {
-  const workspace = projectToDesktopWorkspace(project, thread.projectID)
+  const workspace = threadWorkspaceToDesktopWorkspace(thread.workspace, project)
+  const standalone = thread.workspace.kind === 'projectless'
   const planModeActive = thread.settings.taskMode === 'plan'
   return {
     id: thread.id,
@@ -82,7 +84,7 @@ export function agentThreadListItemToDesktop(
     firstPrompt: thread.firstUserMessage ?? thread.preview,
     workspaceName: workspace.name,
     workspacePath: workspace.path,
-    standalone: !project,
+    standalone,
     archivedAt: isoOrNull(thread.archivedAt),
     permissionMode: permissionModeToDesktop(thread.settings.permissionConfig),
     collaborationMode: collaborationModeFromPlanModeActive(planModeActive),
@@ -106,7 +108,7 @@ export function agentThreadListItemToDesktopSnapshot(
   const item = agentThreadListItemToDesktop(thread, project)
   return {
     item,
-    workspace: projectToDesktopWorkspace(project, thread.projectID),
+    workspace: threadWorkspaceToDesktopWorkspace(thread.workspace, project),
     settings: {
       permissionConfig: thread.settings.permissionConfig,
       collaborationMode: item.collaborationMode,
@@ -130,7 +132,11 @@ export function agentThreadSnapshotToDesktop(
 ): DesktopSessionSnapshot {
   const latestTurn = latestDisplayTurn(snapshot.turns)
   const latestInput = snapshot.inputs.at(-1) ?? null
-  const workspace = projectToDesktopWorkspace(project, snapshot.thread.projectID)
+  const workspace = threadWorkspaceToDesktopWorkspace(
+    snapshot.thread.workspace,
+    project,
+  )
+  const standalone = snapshot.thread.workspace.kind === 'projectless'
   const planModeActive = snapshot.thread.settings.taskMode === 'plan'
   const events = snapshotEvents(snapshot)
   const item: DesktopSessionListItem = {
@@ -140,7 +146,7 @@ export function agentThreadSnapshotToDesktop(
     firstPrompt: snapshot.inputs[0]?.content ?? null,
     workspaceName: workspace.name,
     workspacePath: workspace.path,
-    standalone: !project,
+    standalone,
     permissionMode: permissionModeToDesktop(snapshot.thread.settings.permissionConfig),
     collaborationMode: collaborationModeFromPlanModeActive(planModeActive),
     planModeActive,
@@ -562,6 +568,20 @@ function permissionModeToDesktop(config: PermissionConfig | undefined): DesktopP
 export function projectToDesktopWorkspace(project: Project | null | undefined, projectID: string | null): DesktopWorkspace {
   if (project) return { path: project.rootPath, name: project.name, branchName: null }
   return { path: '', name: projectID ? `Project ${projectID}` : '未选择工作区', branchName: null }
+}
+
+function threadWorkspaceToDesktopWorkspace(
+  workspace: ThreadWorkspace,
+  project?: Project | null,
+): DesktopWorkspace {
+  if (workspace.kind === 'projectless') {
+    return {
+      path: workspace.cwd,
+      name: '无项目会话',
+      branchName: null,
+    }
+  }
+  return projectToDesktopWorkspace(project, workspace.projectID)
 }
 
 function record(value: unknown): Record<string, any> {

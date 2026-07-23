@@ -2,8 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { AUTO_REVIEW_PERMISSION_CONFIG, DEFAULT_PERMISSION_CONFIG, FULL_ACCESS_PERMISSION_CONFIG, type PermissionConfig } from "@codepilotx/shared/thread"
-import { shellRuntimeDependencies, ToolExecutor } from "../src/tool/ToolExecutor"
+import type { PermissionConfig } from "@codepilotx/shared/thread"
+import { ToolExecutor } from "../src/tool/ToolExecutor"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { WorkspaceService } from "../src/workspace/WorkspaceService"
 import type { ProcessResult, SandboxedProcessRequest } from "../src/sandbox/SandboxRuntimeAdapter"
@@ -22,7 +22,6 @@ const adapter = (onRun: (request: SandboxedProcessRequest) => Promise<ProcessRes
   install: async () => undefined,
   uninstall: async () => undefined,
   reset: async () => undefined,
-  dispose: async () => undefined,
   run: onRun,
 })
 
@@ -38,149 +37,6 @@ async function context(root: string, permissionConfig = config) {
 }
 
 describe("统一 Shell 执行门", () => {
-  test("只识别命令起始位置的 Node.js 与 Python 运行时", () => {
-    expect(shellRuntimeDependencies("node app.js && npm test; npx tsc | python script.py\npip install x")).toEqual(["nodejs", "python"])
-    expect(shellRuntimeDependencies("corepack enable; python3 -V; pip3 -V")).toEqual(["nodejs", "python"])
-    expect(shellRuntimeDependencies("Write-Output 'npm python'; echo node; bun run test")).toEqual([])
-    expect(shellRuntimeDependencies("Write-Output 'safe; npm test'; echo \"python | pip\"")).toEqual([])
-    expect(shellRuntimeDependencies("C:\\custom\\node.exe app.js; ./python script.py")).toEqual([])
-  })
-
-  test("Shell 仅解析命令实际需要的运行时并注入受控 PATH", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
-    tempPaths.push(root)
-    const requested: string[][] = []
-    let receivedEnv: NodeJS.ProcessEnv | undefined
-    const executor = new ToolExecutor(new ToolRegistry(), {
-      dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async () => { throw new Error("not used") }),
-      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
-      resolveToolingEnvironment: async (required) => {
-        requested.push([...required])
-        return {
-          pathEntries: required.map((id) => `C:\\managed\\${id}`),
-          resolutions: new Map(required.map((id) => [id, { available: true as const, path: `C:\\managed\\${id}\\runtime.exe`, source: "managed" as const, version: "test" }])),
-        }
-      },
-      runHost: async (_command, _cwd, _timeout, _signal, env) => {
-        receivedEnv = env
-        return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false }
-      },
-    })
-
-    await executor.execute("PowerShell", { command: "npm test" }, await context(root, FULL_ACCESS_PERMISSION_CONFIG))
-    expect(requested).toEqual([["nodejs"]])
-    expect(Object.values(receivedEnv ?? {}).join(";")).toContain("C:\\managed\\nodejs")
-  })
-
-  test("SRT 只为校验通过的内置运行时增加只读路径", async () => {
-    if (process.platform !== "win32") return
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
-    tempPaths.push(root)
-    const received: SandboxedProcessRequest[] = []
-    const executor = new ToolExecutor(new ToolRegistry(), {
-      dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async (request) => {
-        received.push(request)
-        return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false }
-      }),
-      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
-      resolveToolingEnvironment: async () => ({
-        pathEntries: ["C:\\CodePilotX\\nodejs"],
-        resolutions: new Map([
-          ["nodejs", { available: true as const, path: "C:\\CodePilotX\\nodejs\\node.exe", source: "managed" as const, version: "test" }],
-        ]),
-      }),
-      resolveTooling: async () => ({
-        available: true,
-        path: "C:\\CodePilotX\\git-bash\\2.55.0.3\\bin\\bash.exe",
-        source: "managed",
-        version: "test",
-      }),
-    })
-
-    await executor.execute("Bash", { command: "node --version" }, await context(root))
-    const allowRead = received[0]?.config.filesystem?.allowRead ?? []
-    expect(allowRead).toContain("C:\\CodePilotX\\nodejs")
-    expect(allowRead).toContain("C:\\CodePilotX\\git-bash\\2.55.0.3")
-  })
-
-  test("Bash 在审批通过后按调用动态解析 Git Bash", async () => {
-    if (process.platform !== "win32") return
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
-    tempPaths.push(root)
-    let resolutions = 0
-    let receivedCommand = ""
-    const executor = new ToolExecutor(new ToolRegistry(), {
-      dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async () => { throw new Error("not used") }),
-      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
-      resolveTooling: async () => {
-        resolutions += 1
-        return { available: true, path: "C:\\Program Files\\Git\\bin\\bash.exe", source: "system", version: "test" }
-      },
-      runHost: async (command) => {
-        receivedCommand = command
-        return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false }
-      },
-    })
-
-    const preview = await executor.previewApproval("Bash", { command: "pwd" }, await context(root, FULL_ACCESS_PERMISSION_CONFIG), "call-preview")
-    expect(preview.decision).toBe("allow")
-    expect(resolutions).toBe(0)
-    await executor.execute("Bash", { command: "pwd" }, await context(root, FULL_ACCESS_PERMISSION_CONFIG))
-    expect(resolutions).toBe(1)
-    expect(receivedCommand).toContain("C:\\Program Files\\Git\\bin\\bash.exe")
-  })
-
-  test("三个内置模式都直连主机，自定义 workspace-write 仍使用 SRT", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
-    tempPaths.push(root)
-    let hostRuns = 0
-    let sandboxRuns = 0
-    const executor = new ToolExecutor(new ToolRegistry(), {
-      dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async () => {
-        sandboxRuns += 1
-        return { exitCode: 0, signal: null, stdout: "sandbox", stderr: "", timedOut: false, truncated: false }
-      }),
-      runHost: async () => {
-        hostRuns += 1
-        return { exitCode: 0, signal: null, stdout: "host", stderr: "", timedOut: false, truncated: false }
-      },
-      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "允许" }),
-    })
-
-    for (const permissionConfig of [DEFAULT_PERMISSION_CONFIG, AUTO_REVIEW_PERMISSION_CONFIG, FULL_ACCESS_PERMISSION_CONFIG]) {
-      await expect(executor.execute("PowerShell", { command: "Write-Output host" }, await context(root, permissionConfig))).resolves.toMatchObject({ stdout: "host" })
-    }
-    await expect(executor.execute("PowerShell", { command: "Write-Output sandbox" }, await context(root, config))).resolves.toMatchObject({ stdout: "sandbox" })
-    expect(hostRuns).toBe(3)
-    expect(sandboxRuns).toBe(1)
-  })
-
-  test("完全访问的灾难级候选经过审核但即使审核误放行也不会执行", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
-    tempPaths.push(root)
-    let reviews = 0
-    let hostRuns = 0
-    const executor = new ToolExecutor(new ToolRegistry(), {
-      dataDir: join(root, ".agent-data"),
-      sandbox: adapter(async () => { throw new Error("不应进入 SRT") }),
-      authorizeShell: async () => {
-        reviews += 1
-        return { decision: "allow", risk: "critical", reason: "模拟错误放行" }
-      },
-      runHost: async () => {
-        hostRuns += 1
-        return { exitCode: 0, signal: null, stdout: "bad", stderr: "", timedOut: false, truncated: false }
-      },
-    })
-    await expect(executor.execute("PowerShell", { command: "format C:" }, await context(root, FULL_ACCESS_PERMISSION_CONFIG))).rejects.toMatchObject({ code: "SHELL_HARD_DENY" })
-    expect(reviews).toBe(1)
-    expect(hostRuns).toBe(0)
-  })
-
   test("人工审批未允许前绝不调用沙箱进程", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
     tempPaths.push(root)
@@ -202,7 +58,6 @@ describe("统一 Shell 执行门", () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
     tempPaths.push(root)
     let received: SandboxedProcessRequest | null = null
-    let audited: { name: string; input: Record<string, unknown> } | null = null
     const executor = new ToolExecutor(new ToolRegistry(), {
       dataDir: join(root, ".agent-data"),
       sandbox: adapter(async (request) => {
@@ -210,13 +65,10 @@ describe("统一 Shell 执行门", () => {
         return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false }
       }),
       authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "审核通过" }),
-      recordToolCall: (invocation, status) => { if (status === "running") audited = invocation },
     })
 
-    await executor.execute("PowerShell", { command: "Write-Output ok", timeout: 1_234, description: "测试命令" }, await context(root))
+    await executor.execute("PowerShell", { command: "Write-Output ok" }, await context(root))
     expect(received).not.toBeNull()
-    expect(received!.timeoutMs).toBe(1_234)
-    expect(audited).toMatchObject({ name: "PowerShell", input: { justification: "测试命令" } })
     const policy = received!.config
     expect(policy.filesystem.allowWrite).toContain(root)
     expect(policy.network.allowedDomains).toEqual([])

@@ -343,12 +343,30 @@ export const ThreadListResultSchema = Schema.Struct({
   nextCursor: NullableCursorSchema,
 })
 
-export const ThreadCreateParamsSchema = Schema.Struct({
-  projectId: OpaqueIDSchema,
+export const ThreadCreateWorkspaceSchema = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("project"), projectId: OpaqueIDSchema }),
+  Schema.Struct({
+    kind: Schema.Literal("projectless"),
+    prompt: Schema.optional(Schema.String),
+  }),
+])
+
+const ThreadCreateFields = {
   title: Schema.optional(Schema.String),
   settings: Schema.optional(AgentThread.ThreadSettingsSchema),
   ...OperationParamsSchema.fields,
-})
+}
+
+/**
+ * `projectId` is retained as the legacy project-thread request shape. New
+ * callers use the discriminated `workspace` field, including projectless
+ * threads. Keeping the shapes as a union prevents ambiguous requests that
+ * provide both fields.
+ */
+export const ThreadCreateParamsSchema = Schema.Union([
+  Schema.Struct({ projectId: OpaqueIDSchema, ...ThreadCreateFields }),
+  Schema.Struct({ workspace: ThreadCreateWorkspaceSchema, ...ThreadCreateFields }),
+])
 
 export const ThreadSnapshotResultSchema = Schema.Struct({
   snapshot: AgentThread.ThreadSnapshotSchema,
@@ -356,6 +374,29 @@ export const ThreadSnapshotResultSchema = Schema.Struct({
 })
 
 export const ThreadReadParamsSchema = Schema.Struct({ threadId: OpaqueIDSchema })
+
+const ThreadHistoryLimitSchema = Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 50 }))
+
+export const ThreadHistoryReadParamsSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  before: Schema.optional(CursorSchema),
+  limit: Schema.optional(ThreadHistoryLimitSchema),
+})
+
+export const ThreadHistoryPageResultSchema = Schema.Struct({
+  thread: AgentThread.ThreadSchema,
+  subagents: Schema.Array(AgentThread.SubagentProjectionSchema),
+  turns: Schema.Array(AgentThread.ThreadTurnBundleSchema),
+  queue: Schema.Struct({
+    version: SequenceSchema,
+    pauseReason: AgentThread.QueuePauseReasonSchema,
+    turns: Schema.Array(AgentThread.TurnSchema),
+    inputs: Schema.Array(AgentThread.InputSchema),
+  }),
+  olderCursor: Schema.NullOr(CursorSchema),
+  hasOlder: Schema.Boolean,
+  streamPosition: StreamPositionSchema,
+})
 
 export const ThreadUpdateParamsSchema = Schema.Struct({
   threadId: OpaqueIDSchema,
@@ -752,6 +793,7 @@ export const CoreRpcMethods = {
   "thread/list": defineMethod({ params: ThreadListParamsSchema, result: ThreadListResultSchema, errors: ThreadErrors, capability: null, mutation: false }),
   "thread/create": defineMethod({ params: ThreadCreateParamsSchema, result: ThreadSnapshotResultSchema, errors: ThreadErrors, capability: null, mutation: true }),
   "thread/read": defineMethod({ params: ThreadReadParamsSchema, result: ThreadSnapshotResultSchema, errors: ThreadErrors, capability: null, mutation: false }),
+  "thread/history/read": defineMethod({ params: ThreadHistoryReadParamsSchema, result: ThreadHistoryPageResultSchema, errors: ThreadErrors, capability: null, mutation: false, exactParams: true, exactResult: true }),
   "thread/update": defineMethod({ params: ThreadUpdateParamsSchema, result: ThreadUpdateResultSchema, errors: ThreadErrors, capability: null, mutation: true }),
   "thread/settings/update": defineMethod({ params: ThreadSettingsUpdateParamsSchema, result: ThreadSettingsUpdateResultSchema, errors: ThreadErrors, capability: null, mutation: true }),
   "thread/delete": defineMethod({ params: ThreadDeleteParamsSchema, result: ThreadDeleteResultSchema, errors: ThreadErrors, capability: null, mutation: true }),

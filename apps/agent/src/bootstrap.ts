@@ -3,9 +3,7 @@ import type { Model } from "@codepilotx/model-schema";
 import {
   createBuiltinProviderPlugins,
   createPluginHost,
-  define as defineProviderPlugin,
 } from "@codepilotx/provider-plugin";
-import { Integration } from "@codepilotx/model-schema";
 import { loadConfig } from "./config/Config";
 import { AgentDatabase } from "./storage/Database";
 import { EventHub } from "./storage/EventHub";
@@ -13,9 +11,6 @@ import { publishAgentEvent } from "./storage/EventPublisher";
 import { EncryptedCredentialRepository } from "./auth/EncryptedCredentialRepository";
 import { ToolRegistry } from "./tool/ToolRegistry";
 import { ToolExecutor } from "./tool/ToolExecutor";
-import { getToolingManager } from "./tool/ToolingManager";
-import { createBraveSearchTool, createWebFetchTool } from "./tool/web";
-import { createLspTool, LspManager } from "./lsp";
 import { ApprovalService } from "./permission/ApprovalService";
 import { ReviewerService } from "./permission/ReviewerService";
 import { QuestionService } from "./session/QuestionService";
@@ -28,6 +23,7 @@ import { generatePiObject } from "./provider/pi/PiStructuredOutput";
 import { createApp } from "./transport/server";
 import { AgentLogger } from "./observability/AgentLogger";
 import { IntegrationService } from "./provider/IntegrationService";
+import { ApiKeyService } from "./provider/ApiKeyService";
 import { AnthropicSandboxRuntimeAdapter } from "./sandbox/SandboxRuntimeAdapter";
 import { SubagentService } from "./subagent/SubagentService";
 import { SubagentWorkspaceCoordinator } from "./subagent/SubagentWorkspaceCoordinator";
@@ -36,19 +32,73 @@ import { SqliteAttachmentCatalog } from "./subagent/SqliteAttachmentCatalog";
 import { MemoryService } from "./memory/MemoryService";
 import { secretScrubber } from "./security/SecretScrubber";
 import { HookService } from "./hooks/HookService";
-import { WorkspaceService } from "./workspace/WorkspaceService";
 import { z } from "zod";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { GitReviewService } from "./review/GitReviewService";
 import { GithubService } from "./github/GithubService";
 import type { Models } from "@earendil-works/pi-ai";
+import { ManagedProjectlessWorkspaceService } from "./workspace/ManagedProjectlessWorkspaceService";
+import { ThreadWorkspaceResolver } from "./workspace/ThreadWorkspaceResolver";
 
 export interface BootstrapOptions {
   models?: Models;
   initializeDatabase?: (db: AgentDatabase) => void;
 }
+
+const migrateLegacyProjectlessWorkspaces = async (
+  db: AgentDatabase,
+  service: ManagedProjectlessWorkspaceService,
+) => {
+  const rows = db.sqlite.query(`
+    SELECT id, title, first_user_message, created_at
+    FROM threads
+    WHERE workspace_kind = 'legacy' AND project_id IS NULL
+    ORDER BY created_at, id
+  `).all() as Array<{
+    id: string;
+    title: string;
+    first_user_message: string | null;
+    created_at: number;
+  }>;
+  for (const row of rows) {
+    const operationID = `legacy:${createHash("sha256").update(row.id).digest("hex")}`;
+    const allocation = await service.allocate({
+      workspaceID: crypto.randomUUID(),
+      threadID: row.id,
+      prompt: row.first_user_message ?? row.title,
+      now: new Date(row.created_at),
+    });
+    try {
+      const requestHash = createHash("sha256")
+        .update(JSON.stringify({ legacyThreadID: row.id }))
+        .digest("hex");
+      const changed = db.sqlite.query(`
+        UPDATE threads
+        SET workspace_kind = 'projectless', workspace_root = ?, workspace_cwd = ?, output_directory = ?,
+            create_operation_id = COALESCE(create_operation_id, ?), create_request_hash = COALESCE(create_request_hash, ?)
+        WHERE id = ? AND workspace_kind = 'legacy' AND project_id IS NULL
+      `).run(
+        allocation.sessionRoot,
+        allocation.cwd,
+        allocation.outputDirectory,
+        operationID,
+        requestHash,
+        row.id,
+      );
+      if (!changed.changes) {
+        await service.rollback(allocation);
+        continue;
+      }
+      await service.activate(allocation);
+    } catch (cause) {
+      await service.rollback(allocation).catch(() => undefined);
+      throw cause;
+    }
+  }
+};
 
 export const createBootstrap = (options: BootstrapOptions = {}) =>
   Effect.gen(function* () {
@@ -56,28 +106,19 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const logger = new AgentLogger(config.logDir);
     const db = new AgentDatabase(config.databasePath);
     options.initializeDatabase?.(db);
+    const projectlessWorkspaces = new ManagedProjectlessWorkspaceService(
+      config.documentsDir,
+    );
+    yield* Effect.promise(() =>
+      migrateLegacyProjectlessWorkspaces(db, projectlessWorkspaces),
+    );
+    const workspaceResolver = new ThreadWorkspaceResolver(
+      db,
+      projectlessWorkspaces,
+    );
     const hub = yield* EventHub.make;
-    const desktopSettings = db.getSetting<Record<string, unknown>>(
-      "desktop.settings.v1",
-    );
-    const legacyToolingPreference = desktopSettings?.workspaceDependenciesMigrated === true
-      ? undefined
-      : typeof desktopSettings?.installCodePilotXDependencies === "boolean"
-        ? desktopSettings.installCodePilotXDependencies
-        : undefined;
-    const tooling = getToolingManager(
-      legacyToolingPreference === undefined
-        ? {}
-        : { legacyInstallCodePilotXDependencies: legacyToolingPreference },
-    );
-    const unsubscribeTooling = tooling.subscribe((status) => {
-      void publishAgentEvent(db, hub, null, null, "tooling/updated", { status })
-        .catch((cause) => logger.warn("tooling.status.publish.failed", {
-          id: status.id,
-          error: cause instanceof Error ? cause.message : String(cause),
-        }));
-    });
     const credentials = new EncryptedCredentialRepository(db);
+    yield* credentials.backfillApiKeyMetadata();
     const github = new GithubService(credentials, {
       getConfiguredClientId: () => {
         const settings = db.getSetting<Record<string, unknown>>(
@@ -98,18 +139,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
       (input) => github.preparePullRequestComparison(input),
     );
-    const braveSearchPlugin = defineProviderPlugin({
-      id: "brave-search",
-      init: ({ integration }) =>
-        integration.register({
-          id: Integration.ID.make("brave-search"),
-          name: "Brave Search",
-          methods: [{ type: "key", label: "Brave Search API Key" }],
-          connections: [],
-        }).pipe(Effect.asVoid),
-    });
     const pluginHost = createPluginHost({
-      builtins: [...createBuiltinProviderPlugins(), braveSearchPlugin],
+      builtins: createBuiltinProviderPlugins(),
     });
     yield* pluginHost.init();
     const piModels = new PiModelService(credentials, {
@@ -122,19 +153,22 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     });
     const providers = new PiModelCatalogAdapter(piModels);
     const integrations = new IntegrationService(
-      providers as never,
+      providers,
       pluginHost,
       credentials,
     );
-    yield* Effect.promise(() => providers.models().then(() => undefined));
-    const tools = new ToolRegistry();
-    const lsp = new LspManager();
-    tools.register(createWebFetchTool());
-    tools.register(createBraveSearchTool({ credentials }));
-    tools.register(createLspTool(lsp));
-    const sandbox = new AnthropicSandboxRuntimeAdapter(config.srtWinPath, {
-      logger,
+    const apiKeys = new ApiKeyService(
+      piModels,
+      integrations,
+      credentials,
+    );
+    yield* Effect.promise(async () => {
+      await providers.models();
+      await integrations.list();
+      await providers.reload();
     });
+    const tools = new ToolRegistry();
+    const sandbox = new AnthropicSandboxRuntimeAdapter(config.srtWinPath);
     const reviewer = new ReviewerService(db, piModels);
     const approvals = new ApprovalService(
       db,
@@ -149,12 +183,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         run: async (input) => {
           if (!input.threadID || !input.turnID)
             throw new Error("Hook command 缺少 thread/turn 上下文");
-          const projectID = db.threadProjectID(input.threadID);
-          const project = projectID ? db.getProject(projectID) : null;
           const turn = db.getTurnInput(input.turnID);
-          if (!project || !turn)
-            throw new Error("Hook command 无法解析工作区或权限快照");
-          const workspace = await WorkspaceService.open(project.rootPath);
+          if (!turn) throw new Error("Hook command 无法解析权限快照");
+          const runtime = await workspaceResolver.resolve(input.threadID);
+          const workspace = runtime.workspace;
           const evidenceDir = await mkdtemp(
             join(tmpdir(), "codepilotx-hook-evidence-"),
           );
@@ -178,6 +210,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
                 taskMode: turn.taskMode,
                 signal: new AbortController().signal,
                 workspace,
+                defaultCwd: runtime.cwd,
                 permissionConfig: turn.permissionConfig,
                 model: turn.model,
                 taskSummary: `Hook ${input.hookID}`,
@@ -204,8 +237,6 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       dataDir: config.dataDir,
       sandbox,
       helperPath: config.srtWinPath,
-      resolveTooling: (id, resolveOptions) => tooling.resolve(id, resolveOptions),
-      resolveToolingEnvironment: (required, resolveOptions) => tooling.resolveEnvironment(required, resolveOptions),
       authorizeShell: (invocation, signal) =>
         approvals.authorize(invocation, signal),
       recordToolCall: (invocation, status, output, error, startedAt) =>
@@ -217,17 +248,6 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         approvals.claimSandboxEscalation(token, scope),
       completeSandboxEscalation: (token, output) =>
         approvals.completeSandboxEscalation(token, output),
-      fileSaved: async ({ workspaceRoot, filePath, content }) => {
-        try {
-          await lsp.didChange({ rootPath: workspaceRoot, filePath, content });
-          await lsp.didSave({ rootPath: workspaceRoot, filePath, content });
-        } catch (cause) {
-          logger.warn("lsp.file-notification.failed", {
-            filePath,
-            error: cause instanceof Error ? cause.message : String(cause),
-          });
-        }
-      },
       hooks,
     });
     const questions = new QuestionService(db, hub);
@@ -304,6 +324,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       config.dataDir,
       memory,
       hooks,
+      workspaceResolver,
       review,
     );
     const history = new ThreadHistoryService(db, hub);
@@ -319,22 +340,19 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       attachments,
       providers,
       integrations,
+      apiKeys,
       memory,
       hooks,
       logger,
       sandbox,
       review,
       github,
-      tooling,
     });
     let disposed = false;
     const dispose = async () => {
       if (disposed) return;
       disposed = true;
-      unsubscribeTooling();
-      await lsp.close();
       await toolExecutor.dispose();
-      await sandbox.dispose();
       await providers.dispose();
       await Effect.runPromise(pluginHost.dispose());
     };

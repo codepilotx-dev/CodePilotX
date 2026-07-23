@@ -24,14 +24,18 @@ import type {
   ThreadSnapshot,
 } from '@codepilotx/shared/thread'
 import {
-  createThreadView,
+  createCanonicalThreadState,
+  pageFromThreadSnapshot,
+  selectRenderTurnEntries,
+  selectVisibleTurnEntries,
   type ThreadTimelineRow,
-} from '@codepilotx/session-view/thread'
+} from '@codepilotx/session-view'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 import { MarkdownMessage } from './MarkdownMessage.js'
+import { CanonicalConversationTurn } from './CanonicalThreadView.js'
 
 export interface SubagentThreadCapabilities {
   canSend: boolean
@@ -84,11 +88,32 @@ export function SubagentThreadPanel({
   composer,
 }: SubagentThreadPanelProps): React.ReactNode {
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
-  const view = React.useMemo(
-    () => createThreadView(snapshot, { runId: run.id }),
-    [run.id, snapshot],
+  const canonicalState = React.useMemo(
+    () => createCanonicalThreadState(pageFromThreadSnapshot(snapshot)),
+    [snapshot],
   )
-  const blocked = isBlockedRun(run) || view.blocked
+  const canonicalTurns = React.useMemo(
+    () => selectRenderTurnEntries(canonicalState, { type: 'subagent', runId: run.id }),
+    [canonicalState, run.id],
+  )
+  const visibleTurns = React.useMemo(
+    () => selectVisibleTurnEntries(canonicalState, { type: 'subagent', runId: run.id }),
+    [canonicalState, run.id],
+  )
+  const pendingApprovals = React.useMemo(
+    () => visibleTurns.flatMap((turn) => turn.approvals).filter((approval) => approval.status === 'pending'),
+    [visibleTurns],
+  )
+  const pendingQuestions = React.useMemo(
+    () => visibleTurns.flatMap((turn) => turn.items).filter((item): item is Extract<Item, { type: 'question' }> => item.type === 'question' && item.status === 'pending'),
+    [visibleTurns],
+  )
+  const pendingPlans = React.useMemo(
+    () => visibleTurns.flatMap((turn) => turn.items).filter((item): item is Extract<Item, { type: 'plan' }> => item.type === 'plan' && item.state === 'awaiting-confirmation'),
+    [visibleTurns],
+  )
+  const viewBlocked = pendingApprovals.length + pendingQuestions.length + pendingPlans.length > 0
+  const blocked = isBlockedRun(run) || viewBlocked
   const canStop = capabilities.canStop && Boolean(callbacks.onStop) && isActiveRun(run)
   const canRetry = capabilities.canRetry && Boolean(callbacks.onRetry) && isTerminalRun(run)
 
@@ -183,14 +208,18 @@ export function SubagentThreadPanel({
             </div>
           ) : null}
 
-          {view.rows.length > 0 ? (
+          {canonicalTurns.length > 0 ? (
             <div className="subagent-thread-panel__timeline">
-              {view.rows.map((row) => (
-                <ThreadRow
-                  key={row.id}
-                  row={row}
-                  capabilities={capabilities}
-                  callbacks={callbacks}
+              {canonicalTurns.map((turn) => (
+                <CanonicalConversationTurn
+                  entry={turn}
+                  key={turn.id}
+                  onOpenPlanInRightDock={() => undefined}
+                  onOpenSubagent={(taskId) => {
+                    const item = snapshot.items.find((candidate): candidate is Extract<Item, { type: 'subagent' }> => candidate.type === 'subagent' && candidate.subagentTaskId === taskId)
+                    if (item) callbacks.onOpenSubagent?.(item)
+                  }}
+                  rightDockPlanEventId={null}
                 />
               ))}
             </div>
@@ -202,7 +231,7 @@ export function SubagentThreadPanel({
             </div>
           )}
 
-          {view.pendingApprovals.map((approval) => (
+          {pendingApprovals.map((approval) => (
             <ApprovalCard
               key={approval.id}
               approval={approval}
@@ -211,7 +240,25 @@ export function SubagentThreadPanel({
             />
           ))}
 
-          {blocked ? <BlockedNotice run={run} viewBlocked={view.blocked} /> : null}
+          {pendingQuestions.map((question) => (
+            <QuestionRow
+              key={`response:${question.id}`}
+              item={question}
+              enabled={capabilities.canRespondToQuestions}
+              onRespond={callbacks.onQuestionRespond}
+            />
+          ))}
+
+          {pendingPlans.map((plan) => (
+            <PlanDecisionActions
+              key={`decision:${plan.id}`}
+              item={plan}
+              enabled={capabilities.canSubmitPlanDecision}
+              onDecision={callbacks.onPlanDecision}
+            />
+          ))}
+
+          {blocked ? <BlockedNotice run={run} viewBlocked={viewBlocked} /> : null}
           {run.error ? (
             <div className="subagent-thread-panel__error" role="alert">
               <AlertCircle size={APP_ICON_SIZE} />
@@ -410,6 +457,38 @@ function PlanRow({
         </div>
       ) : null}
     </article>
+  )
+}
+
+function PlanDecisionActions({
+  item,
+  enabled,
+  onDecision,
+}: {
+  item: Extract<Item, { type: 'plan' }>
+  enabled: boolean
+  onDecision?: SubagentThreadCallbacks['onPlanDecision']
+}): React.ReactNode {
+  return (
+    <div className="subagent-thread-row__actions subagent-thread-row__actions--plan">
+      <button
+        className="subagent-thread-panel__button"
+        disabled={!enabled || !onDecision}
+        type="button"
+        onClick={() => onDecision?.(item, 'reject')}
+      >
+        要求修改
+      </button>
+      <button
+        className="subagent-thread-panel__button is-primary"
+        disabled={!enabled || !onDecision}
+        type="button"
+        onClick={() => onDecision?.(item, 'continue')}
+      >
+        <Check size={APP_ICON_SIZE} />
+        继续
+      </button>
+    </div>
   )
 }
 

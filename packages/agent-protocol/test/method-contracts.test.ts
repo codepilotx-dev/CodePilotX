@@ -39,6 +39,13 @@ const project = {
 const threadListItem = {
   id: "thread:1",
   projectID: project.id,
+  workspace: {
+    kind: "project",
+    projectID: project.id,
+    workspaceRoot: project.rootPath,
+    cwd: project.rootPath,
+    outputDirectory: null,
+  } as const,
   title: "Fixture thread",
   preview: null,
   firstUserMessage: null,
@@ -55,6 +62,7 @@ const threadSnapshot = {
     id: threadListItem.id,
     title: threadListItem.title,
     projectID: project.id,
+    workspace: threadListItem.workspace,
     settings: threadSettings,
     createdAt: 1,
     updatedAt: 1,
@@ -314,6 +322,19 @@ const modelCatalog = {
   catalogVersion: 1,
 }
 
+const apiKeySummary = {
+  id: credentialId,
+  providerId,
+  label: "Fixture API Key",
+  maskedValue: "••••test",
+  enabled: true,
+  active: true,
+  priority: 0,
+  health: { status: "healthy" as const, lastTestedAt: 1, lastUsedAt: 2 },
+  createdAt: 1,
+  updatedAt: 2,
+}
+
 const methodFixture = <M extends RpcMethod>(
   _method: M,
   params: RpcParams<M>,
@@ -328,37 +349,6 @@ type MethodFixtures = {
 }
 
 const fixtures = {
-  "tooling/list": methodFixture("tooling/list", {}, { statuses: [] }),
-  "tooling/setPreference": methodFixture("tooling/setPreference", {
-    id: "nodejs",
-    preference: "system",
-    operationId: "operation:tooling-preference",
-  }, {
-    status: {
-      id: "nodejs",
-      preference: "system",
-      phase: "idle",
-      activeSource: null,
-      pinnedVersion: "24.18.0",
-      managed: { installed: false, version: null },
-      system: { available: false, version: null, path: null },
-    },
-  }),
-  "tooling/install": methodFixture("tooling/install", {
-    id: "ripgrep",
-    force: true,
-    operationId: "operation:tooling-install",
-  }, {
-    status: {
-      id: "ripgrep",
-      preference: "managed",
-      phase: "ready",
-      activeSource: "managed",
-      pinnedVersion: "15.2.0",
-      managed: { installed: true, version: "15.2.0" },
-      system: { available: false, version: null, path: null },
-    },
-  }),
   initialize: methodFixture("initialize", {
     clientInfo: { name: "CodePilotX Desktop", version: "0.1.0", platform: "win32", instanceId: "client:1" },
     protocols: ["thread-rpc-v3"],
@@ -484,6 +474,19 @@ const fixtures = {
     operationId: "operation:thread-create",
   }, { snapshot: threadSnapshot, streamPosition }),
   "thread/read": methodFixture("thread/read", { threadId: threadListItem.id }, { snapshot: threadSnapshot, streamPosition }),
+  "thread/history/read": methodFixture("thread/history/read", {
+    threadId: threadListItem.id,
+    before: "history-cursor:1",
+    limit: 10,
+  }, {
+    thread: threadSnapshot.thread,
+    subagents: [],
+    turns: [],
+    queue: { version: 0, pauseReason: null, turns: [], inputs: [] },
+    olderCursor: null,
+    hasOlder: false,
+    streamPosition,
+  }),
   "thread/update": methodFixture("thread/update", {
     threadId: threadListItem.id,
     patch: { title: "Updated fixture thread", archived: false },
@@ -724,6 +727,39 @@ const fixtures = {
     },
     catalogVersion: 2,
   }),
+  "apiKey/list": methodFixture("apiKey/list", { providerId }, { apiKeys: [apiKeySummary] }),
+  "apiKey/create": methodFixture("apiKey/create", {
+    providerId,
+    label: "Fixture API Key",
+    key: "fixture-secret",
+    operationId: "operation:api-key-create",
+  }, { apiKey: apiKeySummary }),
+  "apiKey/update": methodFixture("apiKey/update", {
+    credentialId,
+    label: "Updated API Key",
+    key: "updated-secret",
+    operationId: "operation:api-key-update",
+  }, { apiKey: { ...apiKeySummary, label: "Updated API Key" } }),
+  "apiKey/setActive": methodFixture("apiKey/setActive", {
+    providerId,
+    credentialId,
+    operationId: "operation:api-key-active",
+  }, { apiKey: apiKeySummary }),
+  "apiKey/setEnabled": methodFixture("apiKey/setEnabled", {
+    credentialId,
+    enabled: true,
+    operationId: "operation:api-key-enabled",
+  }, { apiKey: apiKeySummary }),
+  "apiKey/reorder": methodFixture("apiKey/reorder", {
+    providerId,
+    orderedCredentialIds: [credentialId],
+    operationId: "operation:api-key-reorder",
+  }, { apiKeys: [apiKeySummary] }),
+  "apiKey/test": methodFixture("apiKey/test", { credentialId }, { apiKey: apiKeySummary }),
+  "apiKey/delete": methodFixture("apiKey/delete", {
+    credentialId,
+    operationId: "operation:api-key-delete",
+  }, { apiKeys: [] }),
   "integration/list": methodFixture("integration/list", { kind: "oauth", status: "connected" }, { integrations: [integrationInfo] }),
   "integration/connect": methodFixture("integration/connect", {
     integrationId,
@@ -1044,9 +1080,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 96 formal methods decodable", () => {
+  test("keeps valid params and results for all 102 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(96)
+    expect(methods).toHaveLength(102)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -1069,6 +1105,10 @@ describe("RPC method schema contracts", () => {
 
   test("rejects invalid opaque IDs, limits, and enums", () => {
     expect(() => Schema.decodeUnknownSync(RpcMethods["thread/read"].params)({ threadId: "" })).toThrow()
+    const decodeThreadHistory = Schema.decodeUnknownSync(RpcMethods["thread/history/read"].params)
+    expect(decodeThreadHistory({ threadId: "thread:1" })).toEqual({ threadId: "thread:1" })
+    expect(() => decodeThreadHistory({ threadId: "thread:1", limit: 0 })).toThrow()
+    expect(() => decodeThreadHistory({ threadId: "thread:1", limit: 51 })).toThrow()
 
     const decodeProjectList = Schema.decodeUnknownSync(RpcMethods["project/list"].params)
     expect(() => decodeProjectList({ limit: 0 })).toThrow()
@@ -1095,6 +1135,53 @@ describe("RPC method schema contracts", () => {
         withoutCacheState,
       ), `${method} requires cacheState`).toThrow()
     }
+  })
+
+  test("accepts bounded deny feedback for approval interactions", () => {
+    const decode = Schema.decodeUnknownSync(RpcMethods["interaction/respond"].params)
+    const base = {
+      interactionId: "interaction:approval",
+      expectedVersion: 1,
+      operationId: "operation:approval-feedback",
+    }
+    expect(decode({
+      ...base,
+      response: { kind: "approval", decision: "deny", feedback: "请改用只读方案" },
+    })).toEqual({
+      ...base,
+      response: { kind: "approval", decision: "deny", feedback: "请改用只读方案" },
+    })
+    expect(() => decode({
+      ...base,
+      response: { kind: "approval", decision: "deny", feedback: "x".repeat(4_001) },
+    })).toThrow()
+  })
+
+  test("accepts explicit project and projectless thread workspaces while preserving legacy projectId", () => {
+    const decode = Schema.decodeUnknownSync(
+      RpcMethods["thread/create"].params,
+      { onExcessProperty: "error" },
+    )
+    const common = {
+      title: "Workspace thread",
+      operationId: "operation:workspace-thread",
+    }
+
+    expect(decode({ ...common, projectId: project.id })).toEqual({ ...common, projectId: project.id })
+    expect(decode({ ...common, workspace: { kind: "project", projectId: project.id } })).toEqual({
+      ...common,
+      workspace: { kind: "project", projectId: project.id },
+    })
+    expect(decode({ ...common, workspace: { kind: "projectless", prompt: "整理需求" } })).toEqual({
+      ...common,
+      workspace: { kind: "projectless", prompt: "整理需求" },
+    })
+    expect(() => decode(common)).toThrow()
+    expect(() => decode({
+      ...common,
+      projectId: project.id,
+      workspace: { kind: "projectless" },
+    })).toThrow()
   })
 
   test("accepts numeric and latest event cursors while rejecting unknown cursor modes", () => {
@@ -1190,6 +1277,32 @@ describe("RPC method schema contracts", () => {
         ...fixtures["provider/updateSettings"].result.provider,
         sensitiveHeaders: [{ name: "authorization", value: "fixture-secret" }],
       },
+    })).toThrow()
+
+    const createParams = Schema.decodeUnknownSync(
+      RpcMethods["apiKey/create"].params,
+      { onExcessProperty: "error" },
+    )(fixtures["apiKey/create"].params)
+    expect(createParams.key).toBe("fixture-secret")
+    expect(() => Schema.decodeUnknownSync(
+      RpcMethods["apiKey/create"].result,
+      { onExcessProperty: "error" },
+    )({
+      ...fixtures["apiKey/create"].result,
+      key: "fixture-secret",
+    })).toThrow()
+
+    const updateParams = Schema.decodeUnknownSync(
+      RpcMethods["apiKey/update"].params,
+      { onExcessProperty: "error" },
+    )(fixtures["apiKey/update"].params)
+    expect(updateParams.key).toBe("updated-secret")
+    expect(() => Schema.decodeUnknownSync(
+      RpcMethods["apiKey/update"].result,
+      { onExcessProperty: "error" },
+    )({
+      ...fixtures["apiKey/update"].result,
+      key: "updated-secret",
     })).toThrow()
   })
 })

@@ -124,6 +124,7 @@ export type DesktopComposerProps = {
   createSessionForWorkspace: (
     target?: DesktopWorkspace | null,
     initialSessionName?: string,
+    projectlessPrompt?: string,
   ) => Promise<string | null>
   submitToSession: (
     targetSessionId: string,

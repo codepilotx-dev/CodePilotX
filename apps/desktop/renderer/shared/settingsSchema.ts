@@ -101,9 +101,9 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
   return {
     enableParetoCodeRouter: false,
     enableFusionRouter: false,
-    enableAutoReviewPermissionMode: true,
-    enableFullAccessPermissionMode: true,
-    permissionConfig: { sandboxMode: 'danger-full-access', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
+    enableAutoReviewPermissionMode: false,
+    enableFullAccessPermissionMode: false,
+    permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
     model: '',
     planExecutionModel: '',
     reviewModel: '',
@@ -136,7 +136,6 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
 	    githubOAuthClientId: '',
 	    authBaseUrl: '',
 	    installCodePilotXDependencies: true,
-    workspaceDependenciesMigrated: false,
     personality: 'pragmatic',
     customInstructions: '',
     enableMemory: false,
@@ -181,7 +180,7 @@ export function normalizeDesktopStoredSettings(
         ? 'read-only'
         : 'workspace-write'
   const rawPermissionConfig = parsed.permissionConfig && typeof parsed.permissionConfig === 'object' ? parsed.permissionConfig : null
-  const normalizedPermissionConfig = rawPermissionConfig ? {
+  const permissionConfig = rawPermissionConfig ? {
     sandboxMode: isDesktopSandboxMode(rawPermissionConfig.sandboxMode)
       ? rawPermissionConfig.sandboxMode
       : sandboxMode,
@@ -192,15 +191,6 @@ export function normalizeDesktopStoredSettings(
     approvalPolicy: normalizeDesktopApprovalPolicy(parsed.approvalPolicy, 'on-request'),
     approvalsReviewer: normalizeDesktopApprovalsReviewer(parsed.approvalsReviewer, 'user'),
   }
-  const isLegacyFactoryDefault = permissionMode === 'default'
-    && normalizedPermissionConfig.sandboxMode === 'workspace-write'
-    && normalizedPermissionConfig.approvalPolicy === 'on-request'
-    && normalizedPermissionConfig.approvalsReviewer === 'user'
-    && parsed.enableAutoReviewPermissionMode !== true
-    && parsed.enableFullAccessPermissionMode !== true
-  const permissionConfig = isLegacyFactoryDefault
-    ? { sandboxMode: 'danger-full-access' as const, approvalPolicy: 'on-request' as const, approvalsReviewer: 'user' as const }
-    : normalizedPermissionConfig
   return {
     enableParetoCodeRouter:
       typeof parsed.enableParetoCodeRouter === 'boolean'
@@ -211,17 +201,13 @@ export function normalizeDesktopStoredSettings(
         ? parsed.enableFusionRouter
         : defaults.enableFusionRouter,
     enableAutoReviewPermissionMode:
-      isLegacyFactoryDefault
-        ? true
-        : typeof parsed.enableAutoReviewPermissionMode === 'boolean'
+      typeof parsed.enableAutoReviewPermissionMode === 'boolean'
         ? parsed.enableAutoReviewPermissionMode
         : permissionMode === 'auto-review'
           ? true
           : defaults.enableAutoReviewPermissionMode,
     enableFullAccessPermissionMode:
-      isLegacyFactoryDefault
-        ? true
-        : typeof parsed.enableFullAccessPermissionMode === 'boolean'
+      typeof parsed.enableFullAccessPermissionMode === 'boolean'
         ? parsed.enableFullAccessPermissionMode
         : permissionMode === 'full-access'
           ? true
@@ -349,10 +335,6 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.installCodePilotXDependencies === 'boolean'
         ? parsed.installCodePilotXDependencies
         : defaults.installCodePilotXDependencies,
-    workspaceDependenciesMigrated:
-      typeof parsed.workspaceDependenciesMigrated === 'boolean'
-        ? parsed.workspaceDependenciesMigrated
-        : defaults.workspaceDependenciesMigrated,
     personality: isDesktopPersonality(parsed.personality)
       ? parsed.personality
       : defaults.personality,

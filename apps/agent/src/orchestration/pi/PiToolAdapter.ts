@@ -17,6 +17,7 @@ const descriptionFor = (definition: ToolDefinition, request: PiRuntimeRequest) =
       taskMode: request.taskMode,
       profile: request.profile ?? "main",
       workspace: request.workspace,
+      ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
       permissionConfig: request.permissionConfig,
       model: request.policyModel,
     })
@@ -48,6 +49,7 @@ export function adaptToolDefinition(definition: ToolDefinition, options: PiToolA
         taskMode: request.taskMode,
         signal: toolContext.signal,
         workspace: request.workspace,
+        ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
         permissionConfig: request.permissionConfig,
         model: request.policyModel,
         taskSummary: request.content,

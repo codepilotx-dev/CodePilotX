@@ -9,8 +9,7 @@ The models.dev database is licensed under the MIT License. See
 `third_party/models.dev/LICENSE`.
 
 Additional JavaScript dependencies retain the license terms distributed in
-their respective packages. The Agent uses `extract-zip` 2.0.1 under the BSD
-2-Clause License to unpack validated Node.js and ripgrep ZIP archives.
+their respective packages.
 
 CodePilotX includes the `@codepilotx/pi-agent-core` workspace fork of
 pi-agent-core 0.81.0
@@ -36,16 +35,3 @@ derived from Material Icon Theme 5.37.0 under the MIT License. See
 CodePilotX distributes the precompiled Windows helper from
 `@anthropic-ai/sandbox-runtime@0.0.65` under the Apache License 2.0. See
 `third_party/sandbox-runtime/LICENSE`.
-
-CodePilotX can download pinned official releases of Node.js 24.18.0, Python
-3.14.6, Git for Windows PortableGit 2.55.0.3, and ripgrep 15.2.0 into the
-user's `~/.codepilotx/tooling` directory when their tools are first used.
-These binaries are not included in CodePilotX installers. Node.js and ripgrep
-are distributed under the MIT License; Python is distributed under the Python
-Software Foundation License; Git for Windows and its bundled components
-retain their respective upstream license terms. CodePilotX verifies every
-release archive with a fixed SHA-256 digest before installation.
-
-The TypeScript language server executable is resolved from the workspace or
-the configured system environment. It is not one of the four managed workspace
-dependencies.

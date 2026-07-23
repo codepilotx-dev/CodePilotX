@@ -46,14 +46,8 @@
 }
 
 .desktop-workspace {
-  --workspace-fixed-controls-control-button-size: var(--control-size-sm);
-  --workspace-fixed-controls-gap: 2px;
-  --workspace-fixed-controls-pad-x: 12px;
-  --workspace-fixed-controls-width: calc(
-    2 * var(--workspace-fixed-controls-control-button-size) +
-      var(--workspace-fixed-controls-gap) + 2 *
-      var(--workspace-fixed-controls-pad-x)
-  );
+  --workspace-header-height: 46px;
+  --workspace-right-panel-live-width: 0px;
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -95,76 +89,33 @@
 
 .desktop-main-route {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   flex: 1 1 auto;
   min-width: 320px;
   min-height: 0;
   overflow: hidden;
 }
 
-.desktop-workspace-fixed-controls {
-  position: absolute;
-  z-index: calc(var(--z-right-dock) + 1);
-  top: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding-right: 12px;
-  height: 46px;
+.desktop-main-route__header-spacer {
+  width: 100%;
+  height: var(--workspace-header-height, 46px);
+  min-height: var(--workspace-header-height, 46px);
+  flex: 0 0 var(--workspace-header-height, 46px);
   pointer-events: none;
-
-  > * {
-    pointer-events: auto;
-  }
 }
 
-.desktop-workspace-fixed-control-button {
-  width: var(--workspace-fixed-controls-control-button-size);
-  height: var(--workspace-fixed-controls-control-button-size);
-  display: inline-flex;
-  align-items: center;
+.desktop-main-route__body {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
   justify-content: center;
-  padding: 0;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--color-text-soft);
-  transition:
-    background var(--motion-standard) var(--ease-out),
-    color var(--motion-standard) var(--ease-out),
-    border-color var(--motion-standard) var(--ease-out),
-    box-shadow var(--motion-standard) var(--ease-out);
-
-  &:hover {
-    background: var(--color-sidebar-hover-bg);
-    color: var(--color-text-strong);
-  }
-
-  &[aria-pressed="true"] {
-    background: var(--state-selected);
-    color: var(--color-text-strong);
-  }
-
-  &:focus-visible {
-    outline-color: color-mix(in srgb, var(--color-accent) 72%, transparent);
-  }
+  overflow: hidden;
 }
 
 :root[data-reduce-motion="on"] {
-  .chat-session-header .message-action,
-  .desktop-workspace-fixed-control-button {
+  .chat-session-actions .message-action {
     transition: none;
-  }
-}
-
-@media (forced-colors: active) {
-  .chat-session-header {
-    border-bottom-color: CanvasText;
-  }
-
-  .desktop-workspace-fixed-control-button[aria-pressed="true"] {
-    outline: 1px solid CanvasText;
-    outline-offset: -1px;
   }
 }

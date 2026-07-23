@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite"
-import { existsSync, mkdirSync, rmSync } from "node:fs"
-import { basename, dirname, resolve } from "node:path"
+import { copyFileSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs"
+import { basename, dirname, extname, isAbsolute, relative, resolve } from "node:path"
 import { Effect } from "effect"
 import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, encodeApprovalPolicy, type ThreadSettings, type ThreadSettingsPatch } from "@codepilotx/shared/thread"
 import { AgentError } from "../domain"
@@ -26,12 +26,30 @@ export type ProjectModelSettings = {
 export type StoredEncryptedCredential = {
   id: string
   integrationID: string
+  kind: "api-key" | "oauth"
   methodID: string | null
   label: string
+  keySuffix: string | null
+  fingerprint: string | null
+  enabled: boolean
+  priority: number
   ciphertext: string
   nonce: string
   keyVersion: number
   createdAt: number
+  updatedAt: number
+}
+
+export type CredentialHealthStatus = "untested" | "healthy" | "auth-failed" | "rate-limited" | "error"
+export type CredentialErrorCategory = "authentication" | "rate-limit" | "network" | "unknown"
+
+export type StoredCredentialHealth = {
+  credentialID: string
+  status: CredentialHealthStatus
+  lastTestedAt: number | null
+  lastUsedAt: number | null
+  lastErrorCategory: CredentialErrorCategory | null
+  cooldownUntil: number | null
   updatedAt: number
 }
 
@@ -135,17 +153,41 @@ const stringify = (value: unknown) => JSON.stringify(value ?? null)
 const parse = <T>(value: string): T => JSON.parse(value) as T
 const now = () => Date.now()
 const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
-export const SCHEMA_VERSION = 14
-/**
- * Persistence compatibility boundary. Bumping this value permanently removes
- * the SQLite database and its sidecars before a new schema is created. Epochs
- * are intentionally not migrations: durable run state from different agent
- * runtimes must never be replayed or copied forward.
- */
+const containedPath = (root: string, candidate: string) => {
+  const path = relative(root, candidate)
+  return path === "" || (!path.startsWith("..") && !isAbsolute(path))
+}
+export const SCHEMA_VERSION = 16
 export const DATA_EPOCH = 1
 
 export type QueuePauseReason = "interrupted" | "turn_failed" | null
 export type QueueMutationMeta = { operationID: string; expectedVersion?: number }
+
+export type StoredThreadWorkspace =
+  | { kind: "project"; projectID: string; workspaceRoot: string; cwd: string; outputDirectory: null }
+  | { kind: "projectless"; projectID: null; workspaceRoot: string; cwd: string; outputDirectory: string }
+
+export type CreateThreadInput = {
+  id?: string
+  title?: string | undefined
+  settings?: ThreadSettings | undefined
+  workspace:
+    | { kind: "project"; projectID: string }
+    | { kind: "projectless"; workspaceRoot: string; cwd: string; outputDirectory: string }
+  operationID?: string | undefined
+  requestHash?: string | undefined
+}
+
+export type CreatedThreadRecord = {
+  id: string
+  title: string
+  projectID: string | null
+  workspace: StoredThreadWorkspace | null
+  settings: ThreadSettings
+  createdAt: number
+  updatedAt: number
+  event: EventEnvelope
+}
 
 type PermissionColumns = {
   sandbox_mode: PermissionConfig["sandboxMode"]
@@ -173,26 +215,147 @@ const defaultThreadSettings = (): ThreadSettings => ({
   permissionConfig: { ...DEFAULT_PERMISSION_CONFIG },
 })
 
+const legacyBackupPath = (path: string) => {
+  const extension = extname(path) || ".sqlite"
+  const stem = extension ? path.slice(0, -extension.length) : path
+  return `${stem}.legacy-v1-${new Date().toISOString().replace(/[:.]/g, "-")}${extension}`
+}
+
+const versionBackupPath = (path: string, version: number) => {
+  const extension = extname(path) || ".sqlite"
+  const stem = extension ? path.slice(0, -extension.length) : path
+  return `${stem}.pre-v${version}-${new Date().toISOString().replace(/[:.]/g, "-")}${extension}`
+}
+
 const liveEventMethods = (Object.keys(EventManifest) as EventType[])
   .filter((method) => EventManifest[method].durability === "live")
 const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`
 
+const recoverInterruptedV13Swap = (path: string) => {
+  const temporary = `${path}.v13-compacting`
+  const rollback = `${path}.v12-replaced`
+  if (!existsSync(rollback)) return
+  if (!existsSync(path)) {
+    renameSync(rollback, path)
+    rmSync(temporary, { force: true })
+    return
+  }
+  let replacementValid = false
+  try {
+    const replacement = new Database(path, { create: false, strict: true })
+    try {
+      const integrity = replacement.query("PRAGMA integrity_check").get() as { integrity_check: string }
+      const version = (replacement.query("PRAGMA user_version").get() as { user_version: number }).user_version
+      replacementValid = integrity.integrity_check === "ok" && version === 13
+    } finally {
+      replacement.close()
+    }
+  } catch {
+    replacementValid = false
+  }
+  if (replacementValid) {
+    rmSync(rollback, { force: true })
+  } else {
+    rmSync(path, { force: true })
+    renameSync(rollback, path)
+  }
+  rmSync(temporary, { force: true })
+}
+
+const compactLiveEventsV13 = (path: string) => {
+  const temporary = `${path}.v13-compacting`
+  const rollback = `${path}.v12-replaced`
+  rmSync(temporary, { force: true })
+  rmSync(rollback, { force: true })
+  let expectedThreads = 0
+  let expectedItems = 0
+  const source = new Database(path, { create: false, strict: true })
+  try {
+    source.exec("PRAGMA journal_mode = WAL")
+    source.exec("PRAGMA busy_timeout = 5000")
+    source.exec("PRAGMA wal_checkpoint(TRUNCATE)")
+    expectedThreads = Number((source.query("SELECT COUNT(*) AS count FROM threads").get() as { count: number }).count)
+    expectedItems = Number((source.query("SELECT COUNT(*) AS count FROM items").get() as { count: number }).count)
+    source.transaction(() => {
+      if (liveEventMethods.length) source.exec(`DELETE FROM events WHERE method IN (${liveEventMethods.map(sqlString).join(",")})`)
+    })()
+    source.exec(`VACUUM INTO ${sqlString(temporary)}`)
+  } finally {
+    source.close()
+  }
+  rmSync(`${path}-wal`, { force: true })
+  rmSync(`${path}-shm`, { force: true })
+  const compacted = new Database(temporary, { create: false, strict: true })
+  try {
+    compacted.exec("PRAGMA user_version = 13")
+    const integrity = compacted.query("PRAGMA integrity_check").get() as { integrity_check: string }
+    const version = (compacted.query("PRAGMA user_version").get() as { user_version: number }).user_version
+    const threads = Number((compacted.query("SELECT COUNT(*) AS count FROM threads").get() as { count: number }).count)
+    const items = Number((compacted.query("SELECT COUNT(*) AS count FROM items").get() as { count: number }).count)
+    if (integrity.integrity_check !== "ok" || version !== 13 || threads !== expectedThreads || items !== expectedItems) {
+      throw new Error("v13 compacted database validation failed")
+    }
+  } finally {
+    compacted.close()
+  }
+  renameSync(path, rollback)
+  try {
+    renameSync(temporary, path)
+    const replacement = new Database(path, { create: false, strict: true })
+    try {
+      const integrity = replacement.query("PRAGMA integrity_check").get() as { integrity_check: string }
+      if (integrity.integrity_check !== "ok") throw new Error("v13 replacement database validation failed")
+    } finally {
+      replacement.close()
+    }
+    rmSync(rollback, { force: true })
+  } catch (cause) {
+    rmSync(path, { force: true })
+    renameSync(rollback, path)
+    throw cause
+  }
+}
+
 const prepareDatabase = (path: string) => {
+  recoverInterruptedV13Swap(path)
   if (!existsSync(path)) return true
   const probe = new Database(path, { create: false, strict: true })
+  let legacy = false
+  let version = 0
   let epoch = 0
   try {
+    const tables = new Set((probe.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>).map((row) => row.name))
+    legacy = ["sessions", "runs", "parts"].some((name) => tables.has(name))
+    version = (probe.query("PRAGMA user_version").get() as { user_version: number }).user_version
     epoch = (probe.query("PRAGMA application_id").get() as { application_id: number }).application_id
-    if (epoch !== DATA_EPOCH) probe.exec("PRAGMA wal_checkpoint(TRUNCATE)")
+    if (epoch !== DATA_EPOCH || legacy || (version > 0 && version < SCHEMA_VERSION)) probe.exec("PRAGMA wal_checkpoint(TRUNCATE)")
   } finally {
     probe.close()
   }
-  if (epoch === DATA_EPOCH) return true
-
-  // Do not retain backups: an epoch mismatch means the whole persistence model
-  // is unsafe to replay. This also covers a valid-looking schema version from
-  // an older runtime, which schema-only checks cannot distinguish.
-  for (const target of [path, `${path}-wal`, `${path}-shm`, `${path}-journal`]) rmSync(target, { force: true })
+  if (epoch !== DATA_EPOCH) {
+    for (const target of [path, `${path}-wal`, `${path}-shm`, `${path}-journal`]) rmSync(target, { force: true })
+    return true
+  }
+  if (legacy) {
+    const backup = legacyBackupPath(path)
+    renameSync(path, backup)
+    for (const suffix of ["-wal", "-shm"]) {
+      if (existsSync(`${path}${suffix}`)) renameSync(`${path}${suffix}`, `${backup}${suffix}`)
+    }
+    return true
+  }
+  if (version === 12) {
+    try {
+      compactLiveEventsV13(path)
+      return true
+    } catch {
+      // Logical deletion already completed transactionally. Keep user_version
+      // at 12 so the next startup retries physical compaction.
+      rmSync(`${path}.v13-compacting`, { force: true })
+      return false
+    }
+  }
+  if (version > 0 && version < SCHEMA_VERSION) copyFileSync(path, versionBackupPath(path, SCHEMA_VERSION))
   return true
 }
 
@@ -266,6 +429,7 @@ export class AgentDatabase {
         updated_at INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS turns_thread_status ON turns(thread_id, status, created_at);
+      CREATE INDEX IF NOT EXISTS turns_thread_history ON turns(thread_id, created_at DESC, id DESC);
       CREATE TABLE IF NOT EXISTS agent_executions (
         id TEXT PRIMARY KEY,
         thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
@@ -437,6 +601,12 @@ export class AgentDatabase {
       this.sqlite.exec("ALTER TABLE threads ADD COLUMN project_id TEXT REFERENCES projects(id) ON DELETE SET NULL")
       this.sqlite.exec("CREATE INDEX IF NOT EXISTS threads_project_updated ON threads(project_id, updated_at DESC)")
     }
+    this.addColumn("threads", "workspace_kind", "TEXT NOT NULL DEFAULT 'legacy'")
+    this.addColumn("threads", "workspace_root", "TEXT")
+    this.addColumn("threads", "workspace_cwd", "TEXT")
+    this.addColumn("threads", "output_directory", "TEXT")
+    this.addColumn("threads", "create_operation_id", "TEXT")
+    this.addColumn("threads", "create_request_hash", "TEXT")
     this.addColumn("threads", "archived_at", "INTEGER")
     this.addColumn("threads", "preview", "TEXT")
     this.addColumn("threads", "first_user_message", "TEXT")
@@ -468,7 +638,15 @@ export class AgentDatabase {
     if (currentVersion < 11) this.migrateReviewV11()
     if (currentVersion < 12) this.migrateInteractionV12()
     if (currentVersion < 13 && finalizeV13) this.migrateEventsV13()
-    if (currentVersion < 14) this.migratePiSessionsV14()
+    if ((currentVersion < 14 || !this.columns("credentials").includes("kind")) && (currentVersion === 0 || currentVersion >= 13 || finalizeV13)) {
+      this.migrateCredentialsV14()
+    }
+    if (currentVersion < 15 && (currentVersion === 0 || currentVersion >= 13 || finalizeV13)) {
+      this.migrateProjectlessV15()
+    }
+    if (currentVersion < 16 && (currentVersion === 0 || currentVersion >= 13 || finalizeV13)) {
+      this.migratePiSessionsV16()
+    }
     this.sqlite.exec(`CREATE TABLE IF NOT EXISTS hook_trust_waiters (
       request_id TEXT NOT NULL REFERENCES hook_trust_requests(id) ON DELETE CASCADE,
       agent_id TEXT NOT NULL REFERENCES agent_executions(id) ON DELETE CASCADE,
@@ -503,7 +681,136 @@ export class AgentDatabase {
     })
   }
 
-  private migratePiSessionsV14() {
+  private migrateCredentialsV14() {
+    this.transaction(() => {
+      if (this.columns("credentials").includes("kind")) {
+        this.sqlite.exec(`
+          CREATE INDEX IF NOT EXISTS credentials_integration_priority ON credentials(integration_id, kind, priority, created_at);
+          CREATE UNIQUE INDEX IF NOT EXISTS credentials_api_key_fingerprint ON credentials(integration_id, fingerprint)
+            WHERE kind = 'api-key' AND fingerprint IS NOT NULL;
+          CREATE TABLE IF NOT EXISTS integration_credential_bindings (
+            integration_id TEXT PRIMARY KEY,
+            credential_id TEXT NOT NULL REFERENCES credentials(id) ON DELETE CASCADE,
+            updated_at INTEGER NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS credential_health (
+            credential_id TEXT PRIMARY KEY REFERENCES credentials(id) ON DELETE CASCADE,
+            status TEXT NOT NULL CHECK (status IN ('untested', 'healthy', 'auth-failed', 'rate-limited', 'error')),
+            last_tested_at INTEGER, last_used_at INTEGER, last_error_category TEXT, cooldown_until INTEGER,
+            updated_at INTEGER NOT NULL
+          );
+          PRAGMA user_version = 14;
+        `)
+        return
+      }
+      this.sqlite.exec(`
+        DROP INDEX IF EXISTS credentials_integration;
+        ALTER TABLE credentials RENAME TO credentials_v13;
+        CREATE TABLE credentials (
+          id TEXT PRIMARY KEY,
+          integration_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('api-key', 'oauth')),
+          method_id TEXT,
+          label TEXT NOT NULL,
+          key_suffix TEXT,
+          fingerprint TEXT,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          priority INTEGER NOT NULL DEFAULT 0,
+          ciphertext TEXT NOT NULL,
+          nonce TEXT NOT NULL,
+          key_version INTEGER NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        INSERT INTO credentials (
+          id, integration_id, kind, method_id, label, key_suffix, fingerprint, enabled, priority,
+          ciphertext, nonce, key_version, created_at, updated_at
+        )
+        SELECT id, integration_id, CASE WHEN method_id IS NULL THEN 'api-key' ELSE 'oauth' END,
+          method_id, label, NULL, NULL, 1, 0, ciphertext, nonce, key_version, created_at, updated_at
+        FROM credentials_v13;
+        DROP TABLE credentials_v13;
+        CREATE INDEX credentials_integration_priority ON credentials(integration_id, kind, priority, created_at);
+        CREATE UNIQUE INDEX credentials_api_key_fingerprint ON credentials(integration_id, fingerprint)
+          WHERE kind = 'api-key' AND fingerprint IS NOT NULL;
+        CREATE TABLE integration_credential_bindings (
+          integration_id TEXT PRIMARY KEY,
+          credential_id TEXT NOT NULL REFERENCES credentials(id) ON DELETE CASCADE,
+          updated_at INTEGER NOT NULL
+        );
+        INSERT INTO integration_credential_bindings (integration_id, credential_id, updated_at)
+          SELECT integration_id, id, updated_at FROM credentials;
+        CREATE TABLE credential_health (
+          credential_id TEXT PRIMARY KEY REFERENCES credentials(id) ON DELETE CASCADE,
+          status TEXT NOT NULL CHECK (status IN ('untested', 'healthy', 'auth-failed', 'rate-limited', 'error')),
+          last_tested_at INTEGER,
+          last_used_at INTEGER,
+          last_error_category TEXT,
+          cooldown_until INTEGER,
+          updated_at INTEGER NOT NULL
+        );
+        INSERT INTO credential_health (credential_id, status, updated_at)
+          SELECT id, 'untested', updated_at FROM credentials WHERE kind = 'api-key';
+        PRAGMA user_version = 14;
+      `)
+    })
+  }
+
+  private migrateProjectlessV15() {
+    // The v5 migration rebuilds `threads`, so ensure v15 columns exist after
+    // every earlier table-replacement migration has completed.
+    this.addColumn("threads", "workspace_kind", "TEXT NOT NULL DEFAULT 'legacy'")
+    this.addColumn("threads", "workspace_root", "TEXT")
+    this.addColumn("threads", "workspace_cwd", "TEXT")
+    this.addColumn("threads", "output_directory", "TEXT")
+    this.addColumn("threads", "create_operation_id", "TEXT")
+    this.addColumn("threads", "create_request_hash", "TEXT")
+    this.transaction(() => {
+      this.sqlite.exec(`
+        UPDATE threads
+        SET workspace_kind = CASE WHEN project_id IS NULL THEN 'legacy' ELSE 'project' END,
+            workspace_root = NULL,
+            workspace_cwd = NULL,
+            output_directory = NULL
+        WHERE workspace_kind IS NULL OR workspace_kind = 'legacy';
+        CREATE UNIQUE INDEX IF NOT EXISTS threads_create_operation_unique
+          ON threads(create_operation_id) WHERE create_operation_id IS NOT NULL;
+        CREATE TRIGGER IF NOT EXISTS threads_workspace_insert_valid
+        BEFORE INSERT ON threads
+        WHEN NOT (
+          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL
+            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)
+          OR
+          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL
+            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)
+          OR
+          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL
+            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)
+        )
+        BEGIN
+          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');
+        END;
+        CREATE TRIGGER IF NOT EXISTS threads_workspace_update_valid
+        BEFORE UPDATE OF project_id, workspace_kind, workspace_root, workspace_cwd, output_directory ON threads
+        WHEN NOT (
+          (NEW.workspace_kind = 'project' AND NEW.project_id IS NOT NULL
+            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)
+          OR
+          (NEW.workspace_kind = 'projectless' AND NEW.project_id IS NULL
+            AND NEW.workspace_root IS NOT NULL AND NEW.workspace_cwd IS NOT NULL AND NEW.output_directory IS NOT NULL)
+          OR
+          (NEW.workspace_kind = 'legacy' AND NEW.project_id IS NULL
+            AND NEW.workspace_root IS NULL AND NEW.workspace_cwd IS NULL AND NEW.output_directory IS NULL)
+        )
+        BEGIN
+          SELECT RAISE(ABORT, 'invalid thread workspace descriptor');
+        END;
+        PRAGMA user_version = 15;
+      `)
+    })
+  }
+
+  private migratePiSessionsV16() {
     this.transaction(() => {
       this.sqlite.exec(`
         CREATE TABLE IF NOT EXISTS pi_sessions (
@@ -530,7 +837,7 @@ export class AgentDatabase {
         );
         CREATE INDEX IF NOT EXISTS pi_session_entries_type
           ON pi_session_entries(session_id, type, sequence);
-        PRAGMA user_version = 14;
+        PRAGMA user_version = 16;
       `)
     })
   }
@@ -973,6 +1280,7 @@ export class AgentDatabase {
           updated_at INTEGER NOT NULL
         );
         CREATE INDEX turns_thread_status ON turns(thread_id, status, created_at);
+        CREATE INDEX turns_thread_history ON turns(thread_id, created_at DESC, id DESC);
 
         CREATE TABLE agent_executions (
           id TEXT PRIMARY KEY,
@@ -1314,16 +1622,74 @@ export class AgentDatabase {
     })
   }
 
-  createThread(title = "新对话", projectID?: string, initialSettings?: ThreadSettings) {
-    const id = crypto.randomUUID()
+  createThread(input: CreateThreadInput): CreatedThreadRecord
+  createThread(title?: string, projectID?: string, initialSettings?: ThreadSettings): CreatedThreadRecord
+  createThread(
+    inputOrTitle: CreateThreadInput | string = "新对话",
+    legacyProjectID?: string,
+    legacySettings?: ThreadSettings,
+  ) {
+    const input: CreateThreadInput | null = typeof inputOrTitle === "object" ? inputOrTitle : null
+    const id = input?.id ?? crypto.randomUUID()
+    const title = input?.title ?? (typeof inputOrTitle === "string" ? inputOrTitle : "新对话")
+    const initialSettings = input?.settings ?? legacySettings
+    const workspace = input?.workspace ?? (legacyProjectID
+      ? { kind: "project" as const, projectID: legacyProjectID }
+      : null)
+    return this.insertThread({
+      id,
+      title,
+      workspace,
+      ...(initialSettings ? { initialSettings } : {}),
+      ...(input?.operationID ? { operationID: input.operationID } : {}),
+      ...(input?.requestHash ? { requestHash: input.requestHash } : {}),
+    })
+  }
+
+  private insertThread(input: {
+    id: string
+    title: string
+    initialSettings?: ThreadSettings
+    workspace: CreateThreadInput["workspace"] | null
+    operationID?: string
+    requestHash?: string
+  }): CreatedThreadRecord {
+    const { id, title, initialSettings } = input
     const timestamp = now()
     const settings = initialSettings ?? defaultThreadSettings()
+    let projectID: string | null = null
+    let workspaceKind: "project" | "projectless" | "legacy" = "legacy"
+    let workspaceRoot: string | null = null
+    let workspaceCwd: string | null = null
+    let outputDirectory: string | null = null
+    if (input.workspace?.kind === "project") {
+      this.requireProject(input.workspace.projectID)
+      projectID = input.workspace.projectID
+      workspaceKind = "project"
+    } else if (input.workspace?.kind === "projectless") {
+      workspaceRoot = resolve(input.workspace.workspaceRoot)
+      workspaceCwd = resolve(input.workspace.cwd)
+      outputDirectory = resolve(input.workspace.outputDirectory)
+      if (!containedPath(workspaceRoot, workspaceCwd) || !containedPath(workspaceRoot, outputDirectory)) {
+        throw new AgentError("WORKSPACE_INVALID", "无项目会话的 cwd 和输出目录必须位于工作区根目录内", 400)
+      }
+      workspaceKind = "projectless"
+    }
     return this.transaction(() => {
-      if (projectID) this.requireProject(projectID)
-      this.sqlite.query("INSERT INTO threads (id, title, project_id, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+      this.sqlite.query(`INSERT INTO threads (
+        id, title, project_id, workspace_kind, workspace_root, workspace_cwd, output_directory,
+        create_operation_id, create_request_hash,
+        task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ).run(
         id,
         title,
-        projectID ?? null,
+        projectID,
+        workspaceKind,
+        workspaceRoot,
+        workspaceCwd,
+        outputDirectory,
+        input.operationID ?? null,
+        input.requestHash ?? null,
         settings.taskMode,
         settings.permissionConfig.sandboxMode,
         encodeApprovalPolicy(settings.permissionConfig.approvalPolicy),
@@ -1331,8 +1697,13 @@ export class AgentDatabase {
         timestamp,
         timestamp,
       )
-      const event = this.insertEvent(id, null, "thread/created", { id, title, projectID: projectID ?? null, settings, createdAt: timestamp, updatedAt: timestamp })
-      return { id, title, projectID: projectID ?? null, settings, createdAt: timestamp, updatedAt: timestamp, event }
+      const persistedWorkspace = this.threadWorkspace(id)
+      const event = this.insertEvent(id, null, "thread/created", { thread: {
+        id, title, projectID,
+        ...(persistedWorkspace ? { workspace: persistedWorkspace } : {}),
+        settings, createdAt: timestamp, updatedAt: timestamp,
+      } })
+      return { id, title, projectID, workspace: persistedWorkspace, settings, createdAt: timestamp, updatedAt: timestamp, event }
     })
   }
 
@@ -2236,12 +2607,17 @@ export class AgentDatabase {
 
   listEncryptedCredentials(): StoredEncryptedCredential[] {
     const rows = this.sqlite.query(
-      "SELECT id, integration_id, method_id, label, ciphertext, nonce, key_version, created_at, updated_at FROM credentials ORDER BY created_at, id",
+      "SELECT id, integration_id, kind, method_id, label, key_suffix, fingerprint, enabled, priority, ciphertext, nonce, key_version, created_at, updated_at FROM credentials ORDER BY integration_id, priority, created_at, id",
     ).all() as Array<{
       id: string
       integration_id: string
+      kind: "api-key" | "oauth"
       method_id: string | null
       label: string
+      key_suffix: string | null
+      fingerprint: string | null
+      enabled: number
+      priority: number
       ciphertext: string
       nonce: string
       key_version: number
@@ -2251,8 +2627,13 @@ export class AgentDatabase {
     return rows.map((row) => ({
       id: row.id,
       integrationID: row.integration_id,
+      kind: row.kind,
       methodID: row.method_id,
       label: row.label,
+      keySuffix: row.key_suffix,
+      fingerprint: row.fingerprint,
+      enabled: row.enabled === 1,
+      priority: row.priority,
       ciphertext: row.ciphertext,
       nonce: row.nonce,
       keyVersion: row.key_version,
@@ -2262,38 +2643,125 @@ export class AgentDatabase {
   }
 
   encryptedCredential(integrationID: string) {
-    return this.listEncryptedCredentials().find((item) => item.integrationID === integrationID) ?? null
+    const binding = this.sqlite.query("SELECT credential_id FROM integration_credential_bindings WHERE integration_id = ?").get(integrationID) as { credential_id: string } | null
+    return binding ? this.encryptedCredentialByID(binding.credential_id) : null
+  }
+
+  encryptedCredentialByID(id: string) {
+    return this.listEncryptedCredentials().find((item) => item.id === id) ?? null
   }
 
   upsertEncryptedCredential(input: Omit<StoredEncryptedCredential, "createdAt" | "updatedAt">) {
     const timestamp = now()
-    this.sqlite.query(`
-      INSERT INTO credentials (id, integration_id, method_id, label, ciphertext, nonce, key_version, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(integration_id) DO UPDATE SET
-        id = excluded.id,
-        method_id = excluded.method_id,
-        label = excluded.label,
-        ciphertext = excluded.ciphertext,
-        nonce = excluded.nonce,
-        key_version = excluded.key_version,
-        updated_at = excluded.updated_at
-    `).run(
-      input.id,
-      input.integrationID,
-      input.methodID,
-      input.label,
-      input.ciphertext,
-      input.nonce,
-      input.keyVersion,
-      timestamp,
-      timestamp,
-    )
-    return this.encryptedCredential(input.integrationID)!
+    this.transaction(() => {
+      this.sqlite.query(`
+        INSERT INTO credentials (id, integration_id, kind, method_id, label, key_suffix, fingerprint, enabled, priority, ciphertext, nonce, key_version, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          integration_id = excluded.integration_id,
+          kind = excluded.kind,
+          method_id = excluded.method_id,
+          label = excluded.label,
+          key_suffix = excluded.key_suffix,
+          fingerprint = excluded.fingerprint,
+          enabled = excluded.enabled,
+          priority = excluded.priority,
+          ciphertext = excluded.ciphertext,
+          nonce = excluded.nonce,
+          key_version = excluded.key_version,
+          updated_at = excluded.updated_at
+      `).run(input.id, input.integrationID, input.kind, input.methodID, input.label, input.keySuffix, input.fingerprint,
+        input.enabled ? 1 : 0, input.priority, input.ciphertext, input.nonce, input.keyVersion, timestamp, timestamp)
+      this.sqlite.query(`INSERT INTO integration_credential_bindings (integration_id, credential_id, updated_at) VALUES (?, ?, ?)
+        ON CONFLICT(integration_id) DO UPDATE SET credential_id = excluded.credential_id, updated_at = excluded.updated_at`)
+        .run(input.integrationID, input.id, timestamp)
+      if (input.kind === "api-key") this.sqlite.query(`INSERT INTO credential_health (credential_id, status, updated_at) VALUES (?, 'untested', ?)
+        ON CONFLICT(credential_id) DO NOTHING`).run(input.id, timestamp)
+    })
+    return this.encryptedCredentialByID(input.id)!
   }
 
   removeEncryptedCredential(integrationID: string) {
+    // Compatibility API: callers historically disconnected an integration in
+    // one operation. Hub callers that delete one pool member use the ID-based
+    // deleteEncryptedCredential method instead.
     return this.sqlite.query("DELETE FROM credentials WHERE integration_id = ?").run(integrationID).changes > 0
+  }
+
+  setActiveEncryptedCredential(integrationID: string, credentialID: string) {
+    const row = this.encryptedCredentialByID(credentialID)
+    if (!row || row.integrationID !== integrationID || !row.enabled) return false
+    this.sqlite.query(`INSERT INTO integration_credential_bindings (integration_id, credential_id, updated_at) VALUES (?, ?, ?)
+      ON CONFLICT(integration_id) DO UPDATE SET credential_id = excluded.credential_id, updated_at = excluded.updated_at`)
+      .run(integrationID, credentialID, now())
+    return true
+  }
+
+  compareAndSetActiveEncryptedCredential(integrationID: string, expectedCredentialID: string, credentialID: string) {
+    const row = this.encryptedCredentialByID(credentialID)
+    if (!row || row.integrationID !== integrationID || !row.enabled) return false
+    return this.sqlite.query(`UPDATE integration_credential_bindings
+      SET credential_id = ?, updated_at = ?
+      WHERE integration_id = ? AND credential_id = ?`)
+      .run(credentialID, now(), integrationID, expectedCredentialID).changes > 0
+  }
+
+  updateEncryptedCredential(id: string, patch: Partial<Pick<StoredEncryptedCredential, "label" | "keySuffix" | "fingerprint" | "enabled" | "priority" | "ciphertext" | "nonce">>) {
+    const row = this.encryptedCredentialByID(id)
+    if (!row) return null
+    const next = { ...row, ...patch, updatedAt: now() }
+    this.sqlite.query(`UPDATE credentials SET label = ?, key_suffix = ?, fingerprint = ?, enabled = ?, priority = ?, ciphertext = ?, nonce = ?, updated_at = ? WHERE id = ?`)
+      .run(next.label, next.keySuffix, next.fingerprint, next.enabled ? 1 : 0, next.priority, next.ciphertext, next.nonce, next.updatedAt, id)
+    return this.encryptedCredentialByID(id)
+  }
+
+  reorderEncryptedCredentials(integrationID: string, orderedIDs: readonly string[]) {
+    const rows = this.listEncryptedCredentials().filter((row) => row.integrationID === integrationID && row.kind === "api-key")
+    if (rows.length !== orderedIDs.length || new Set(orderedIDs).size !== orderedIDs.length || orderedIDs.some((id) => !rows.some((row) => row.id === id))) return false
+    this.transaction(() => orderedIDs.forEach((id, priority) => {
+      this.sqlite.query("UPDATE credentials SET priority = ?, updated_at = ? WHERE id = ?").run(priority, now(), id)
+    }))
+    return true
+  }
+
+  deleteEncryptedCredential(id: string) {
+    const row = this.encryptedCredentialByID(id)
+    if (!row) return false
+    this.transaction(() => {
+      const active = this.encryptedCredential(row.integrationID)?.id === id
+      this.sqlite.query("DELETE FROM credentials WHERE id = ?").run(id)
+      if (active) {
+        const replacement = this.listEncryptedCredentials().find((candidate) =>
+          candidate.integrationID === row.integrationID && candidate.kind === row.kind && candidate.enabled)
+        if (replacement) this.setActiveEncryptedCredential(row.integrationID, replacement.id)
+      }
+    })
+    return true
+  }
+
+  credentialHealth(credentialID: string): StoredCredentialHealth | null {
+    const row = this.sqlite.query(`SELECT credential_id, status, last_tested_at, last_used_at, last_error_category, cooldown_until, updated_at
+      FROM credential_health WHERE credential_id = ?`).get(credentialID) as {
+        credential_id: string; status: CredentialHealthStatus; last_tested_at: number | null; last_used_at: number | null
+        last_error_category: CredentialErrorCategory | null; cooldown_until: number | null; updated_at: number
+      } | null
+    return row ? { credentialID: row.credential_id, status: row.status, lastTestedAt: row.last_tested_at,
+      lastUsedAt: row.last_used_at, lastErrorCategory: row.last_error_category, cooldownUntil: row.cooldown_until, updatedAt: row.updated_at } : null
+  }
+
+  updateCredentialHealth(credentialID: string, patch: Partial<Omit<StoredCredentialHealth, "credentialID" | "updatedAt">>) {
+    const previous = this.credentialHealth(credentialID) ?? {
+      credentialID, status: "untested" as const, lastTestedAt: null, lastUsedAt: null,
+      lastErrorCategory: null, cooldownUntil: null, updatedAt: now(),
+    }
+    const next = { ...previous, ...patch, updatedAt: now() }
+    this.sqlite.query(`INSERT INTO credential_health
+      (credential_id, status, last_tested_at, last_used_at, last_error_category, cooldown_until, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(credential_id) DO UPDATE SET status = excluded.status, last_tested_at = excluded.last_tested_at,
+      last_used_at = excluded.last_used_at, last_error_category = excluded.last_error_category,
+      cooldown_until = excluded.cooldown_until, updated_at = excluded.updated_at`)
+      .run(credentialID, next.status, next.lastTestedAt, next.lastUsedAt, next.lastErrorCategory, next.cooldownUntil, next.updatedAt)
+    return this.credentialHealth(credentialID)!
   }
 
   setSetting(key: string, value: unknown) {
@@ -2419,10 +2887,74 @@ export class AgentDatabase {
     return row.project_id
   }
 
+  threadWorkspace(threadID: string): StoredThreadWorkspace | null {
+    const row = this.sqlite.query(`
+      SELECT project_id, workspace_kind, workspace_root, workspace_cwd, output_directory
+      FROM threads WHERE id = ?
+    `).get(threadID) as {
+      project_id: string | null
+      workspace_kind: string
+      workspace_root: string | null
+      workspace_cwd: string | null
+      output_directory: string | null
+    } | null
+    if (!row || row.workspace_kind === "legacy") return null
+    if (row.workspace_kind === "project" && row.project_id) {
+      const project = this.getProject(row.project_id)
+      if (!project) throw new AgentError("PROJECT_NOT_FOUND", `Thread ${threadID} 绑定的项目不存在`, 404)
+      return { kind: "project", projectID: row.project_id, workspaceRoot: project.rootPath, cwd: project.rootPath, outputDirectory: null }
+    }
+    if (
+      row.workspace_kind === "projectless" &&
+      row.project_id === null &&
+      row.workspace_root &&
+      row.workspace_cwd &&
+      row.output_directory
+    ) {
+      return {
+        kind: "projectless",
+        projectID: null,
+        workspaceRoot: row.workspace_root,
+        cwd: row.workspace_cwd,
+        outputDirectory: row.output_directory,
+      }
+    }
+    throw new AgentError("WORKSPACE_INVALID", `Thread ${threadID} 的工作区描述无效`, 500)
+  }
+
+  threadForCreateOperation(operationID: string) {
+    const row = this.sqlite.query(`
+      SELECT id, create_request_hash FROM threads WHERE create_operation_id = ?
+    `).get(operationID) as { id: string; create_request_hash: string | null } | null
+    return row ? { threadID: row.id, requestHash: row.create_request_hash } : null
+  }
+
   setThreadProject(threadID: string, projectID: string | null) {
     if (projectID) this.requireProject(projectID)
-    const result = this.sqlite.query("UPDATE threads SET project_id = ?, updated_at = ? WHERE id = ?").run(projectID, now(), threadID)
+    const result = this.sqlite.query(`UPDATE threads
+      SET project_id = ?, workspace_kind = ?, workspace_root = NULL, workspace_cwd = NULL,
+        output_directory = NULL, updated_at = ?
+      WHERE id = ?`).run(projectID, projectID ? "project" : "legacy", now(), threadID)
     if (result.changes === 0) throw new Error(`Thread ${threadID} 不存在`)
+  }
+
+  setThreadWorkspace(threadID: string, workspace: CreateThreadInput["workspace"]) {
+    if (workspace.kind === "project") {
+      this.setThreadProject(threadID, workspace.projectID)
+      return this.threadWorkspace(threadID)
+    }
+    const workspaceRoot = resolve(workspace.workspaceRoot)
+    const cwd = resolve(workspace.cwd)
+    const outputDirectory = resolve(workspace.outputDirectory)
+    if (!containedPath(workspaceRoot, cwd) || !containedPath(workspaceRoot, outputDirectory)) {
+      throw new AgentError("WORKSPACE_INVALID", "无项目会话的 cwd 和输出目录必须位于工作区根目录内", 400)
+    }
+    const result = this.sqlite.query(`UPDATE threads
+      SET project_id = NULL, workspace_kind = 'projectless', workspace_root = ?, workspace_cwd = ?,
+        output_directory = ?, updated_at = ?
+      WHERE id = ?`).run(workspaceRoot, cwd, outputDirectory, now(), threadID)
+    if (result.changes === 0) throw new Error(`Thread ${threadID} 不存在`)
+    return this.threadWorkspace(threadID)
   }
 
   private mapReviewComment(row: {

@@ -8,7 +8,7 @@ import {
   shouldFallbackToExternalOpen,
 } from '../../services/externalOpenTargetsStore.js'
 import type React from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import {
   DesktopComposer,
   getDesktopComposerBranchName,
@@ -17,10 +17,14 @@ import {
 import type { ComposerDraftKey } from '../session/composerTypes.js'
 import { deriveWorkflowSessionState } from '../../../shared/workflowReducer.js'
 import {
-  DesktopWorkspaceFixedControls,
+  WorkspaceShellControls,
   WorkbenchPanel,
   type WorkbenchFileLoadErrorEvent,
 } from './RightDock.js'
+import {
+  DesktopWorkspaceHeader,
+  WorkspaceHeaderProvider,
+} from './workspace-header/index.js'
 import {
   applyWorkbenchPanelAction,
   createDefaultWorkbenchTabsState,
@@ -213,6 +217,7 @@ function normalizePathForCompare(path: string): string {
 let directoryProbeRequestId = 0
 
 export function DesktopLayout(): React.ReactNode {
+  const location = useLocation()
   const settings = useDesktopSettings()
   const {
     permissionMode,
@@ -228,6 +233,7 @@ export function DesktopLayout(): React.ReactNode {
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
+    installCodePilotXDependencies,
     enableMemory,
     rustSearchAndDiffKernels,
     enableParetoCodeRouter,
@@ -385,6 +391,7 @@ export function DesktopLayout(): React.ReactNode {
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
+    installCodePilotXDependencies,
     enableMemory,
     rustSearchAndDiffKernels,
     followUpBehavior,
@@ -2026,27 +2033,16 @@ export function DesktopLayout(): React.ReactNode {
       />
     </Suspense>
   ) : selectedSubagentTaskId ? <div className="right-dock-empty-state">正在加载子 Agent...</div> : undefined
-  const fixedControlsRef = useRef<HTMLDivElement>(null)
+  const desktopWorkspaceRef = useRef<HTMLDivElement>(null)
   const rightDockPanelRef = useRef<HTMLDivElement>(null)
-  const [fixedControlsWidth, setFixedControlsWidth] = useState(0)
   const handlePreviewRightDockWidth = useCallback((width: number): void => {
     if (rightDockPanelRef.current) {
       rightDockPanelRef.current.style.width = `${width}px`
     }
-  }, [appendComposerAttachmentsForDraft, mainComposerDraftKey])
-  useEffect(() => {
-    const el = fixedControlsRef.current
-    if (!el) return
-    const observer = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        const width = entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentBoxSize?.[0]?.inlineSize ?? entry.target.getBoundingClientRect().width
-        if (Number.isFinite(width)) {
-          setFixedControlsWidth(Math.ceil(width))
-        }
-      }
-    })
-    observer.observe(el)
-    return () => observer.disconnect()
+    desktopWorkspaceRef.current?.style.setProperty(
+      '--workspace-right-panel-live-width',
+      `${width}px`,
+    )
   }, [])
 
   const planContentByEventId = useMemo(() => {
@@ -2614,69 +2610,81 @@ export function DesktopLayout(): React.ReactNode {
               onSelectSession: handleSelectSession,
               }}
             >
-              <div
-                className="desktop-workspace"
-                style={
-                  {
-                    '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
-                    ...(fixedControlsWidth > 0 ? { '--workspace-fixed-controls-width': `${fixedControlsWidth}px` } : {}),
-                  } as React.CSSProperties
-                }
-              >
-                <DesktopWorkspaceFixedControls
-                  ref={fixedControlsRef}
-                  rightDockState={rightDockState}
-                  bottomPanelVisible={bottomPanelVisible}
-                  showBottomPanel={isQuickChatPage || isConversationRoute}
-                  onToggleBottomPanel={toggleBottomPanelVisible}
-                  onToggleRightPanel={() => togglePanel('right')}
-                />
+              <WorkspaceHeaderProvider routeScope={location.pathname}>
                 <div
-                  className="desktop-workspace__upper"
+                  ref={desktopWorkspaceRef}
+                  className="desktop-workspace"
+                  style={
+                    {
+                      '--sidebar-w': sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
+                      '--workspace-right-panel-live-width': rightDockState.open
+                        ? workbenchPanelState.rightFullWidth
+                          ? '100%'
+                          : `${rightDockWidth}px`
+                        : '0px',
+                    } as React.CSSProperties
+                  }
                 >
-                  <div
-                    className="desktop-main-route"
-                    style={
-                      {
-                        '--workspace-fixed-controls-width':
-                          rightDockState.open ? '0px' : `${fixedControlsWidth}px`,
-                        flexBasis: workbenchPanelState.rightFullWidth ? 0 : undefined,
-                        width: workbenchPanelState.rightFullWidth ? 0 : undefined,
-                      } as React.CSSProperties
+                  <DesktopWorkspaceHeader
+                    fullWidth={workbenchPanelState.rightFullWidth}
+                    rightDockOpen={rightDockState.open}
+                    shellControls={
+                      <WorkspaceShellControls
+                        rightDockState={rightDockState}
+                        bottomPanelVisible={bottomPanelVisible}
+                        showBottomPanel={isQuickChatPage || isConversationRoute}
+                        showRightPanel={
+                          isQuickChatPage ||
+                          isConversationRoute
+                        }
+                        onToggleBottomPanel={toggleBottomPanelVisible}
+                        onToggleRightPanel={() => togglePanel('right')}
+                      />
                     }
-                  >
-                    <Outlet />
-                  </div>
-                  {rightDockNode ? (
+                  />
+                  <div className="desktop-workspace__upper">
                     <div
-                      ref={rightDockPanelRef}
-                      className={
-                        workbenchPanelState.rightFullWidth
-                          ? 'desktop-workspace-panel desktop-workspace-panel--right full-width'
-                          : 'desktop-workspace-panel desktop-workspace-panel--right'
-                      }
+                      className="desktop-main-route"
                       style={
                         {
-                          '--workspace-fixed-controls-width': `${fixedControlsWidth}px`,
-                          width: workbenchPanelState.rightFullWidth
-                            ? '100%'
-                            : `${rightDockWidth}px`,
+                          flexBasis: workbenchPanelState.rightFullWidth ? 0 : undefined,
+                          width: workbenchPanelState.rightFullWidth ? 0 : undefined,
                         } as React.CSSProperties
                       }
                     >
-                      {rightDockNode}
+                      <div aria-hidden="true" className="desktop-main-route__header-spacer" />
+                      <div className="desktop-main-route__body">
+                        <Outlet />
+                      </div>
+                    </div>
+                    {rightDockNode ? (
+                      <div
+                        ref={rightDockPanelRef}
+                        className={
+                          workbenchPanelState.rightFullWidth
+                            ? 'desktop-workspace-panel desktop-workspace-panel--right full-width'
+                            : 'desktop-workspace-panel desktop-workspace-panel--right'
+                        }
+                        style={{
+                          width: workbenchPanelState.rightFullWidth
+                            ? '100%'
+                            : `${rightDockWidth}px`,
+                        }}
+                      >
+                        {rightDockNode}
+                      </div>
+                    ) : null}
+                  </div>
+                  {bottomPanelNode ? (
+                    <div
+                      className="desktop-workspace-panel desktop-workspace-panel--bottom"
+                      style={{ height: `${bottomPanelHeight}px` }}
+                    >
+                      {bottomPanelNode}
                     </div>
                   ) : null}
                 </div>
-                {bottomPanelNode ? (
-                  <div
-                    className="desktop-workspace-panel desktop-workspace-panel--bottom"
-                    style={{ height: `${bottomPanelHeight}px` }}
-                  >
-                    {bottomPanelNode}
-                  </div>
-                ) : null}
-              </div>
+              </WorkspaceHeaderProvider>
             </SearchContext.Provider>
           </QuickChatContext.Provider>
       </WorkbenchShellView>

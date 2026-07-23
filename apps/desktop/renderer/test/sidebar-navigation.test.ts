@@ -20,6 +20,27 @@ import {
   deriveSidebarSessionVisualState,
 } from '../src/features/layout/sidebar/sidebarViewModel.js'
 import { sortSessionsForSidebar } from '../src/features/session/sessionSorting.js'
+import { TOP_NAV_ITEMS } from '../src/features/layout/sidebar/SidebarTopNav.js'
+import { legacySettingsRedirect } from '../src/features/settings/SettingsLayout.js'
+import { SETTINGS_ITEMS } from '../src/features/settings/settingsRegistry.js'
+
+describe('模型中心导航', () => {
+  test('作为搜索与插件之间的独立顶层入口', () => {
+    expect(TOP_NAV_ITEMS.map(item => ({ view: item.view, label: item.label, path: item.path }))).toEqual([
+      { view: 'quickChat', label: '快速对话', path: '/quick-chat' },
+      { view: 'search', label: '搜索', path: '/search' },
+      { view: 'models', label: '模型中心', path: '/models' },
+      { view: 'plugins', label: '插件', path: '/plugins' },
+      { view: 'automation', label: '自动化', path: '/automation' },
+    ])
+  })
+
+  test('从设置目录移除并兼容旧 connections 链接', () => {
+    expect(SETTINGS_ITEMS.some(item => item.routeId === 'connections')).toBeFalse()
+    expect(legacySettingsRedirect('connections')).toBe('/models')
+    expect(legacySettingsRedirect('general')).toBeNull()
+  })
+})
 
 describe('sidebar shell modes', () => {
   test('uses the 720px container boundary without changing desktop preference', () => {

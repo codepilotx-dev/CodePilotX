@@ -21,7 +21,6 @@ import {
   QuestionRequestParamsSchema,
 } from "./interactions"
 import { JsonValueSchema, OpaqueIDSchema, SequenceSchema, TimestampSchema } from "./wire"
-import { ToolingStatusSchema } from "./tooling"
 
 const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 const SanitizedErrorSchema = Schema.Struct({
@@ -43,14 +42,6 @@ const ToolTerminalPayloadSchema = Schema.Struct({
 })
 
 export const EventManifest = {
-  "tooling/updated": defineEvent({
-    payload: Schema.Struct({ status: ToolingStatusSchema }),
-    version: 1,
-    durability: "live",
-    stream: "global",
-    capability: "tooling.management.v1",
-    reconcilesWith: "tooling/list",
-  }),
   "workspace/git/changed": defineEvent({
     payload: Schema.Struct({
       projectId: OpaqueIDSchema,

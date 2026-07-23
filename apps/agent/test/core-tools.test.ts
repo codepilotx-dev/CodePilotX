@@ -6,41 +6,17 @@ import { z } from "zod"
 import { ToolExecutor } from "../src/tool/ToolExecutor"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { WorkspaceService } from "../src/workspace/WorkspaceService"
-import type { ToolingResolver, ToolProcessRunner } from "../src/tool/ToolingRuntime"
 
 const temporary: string[] = []
 afterEach(async () => Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
 
-const fixture = async (runtime: { resolveTooling?: ToolingResolver; runToolProcess?: ToolProcessRunner } = {}) => {
+const fixture = async () => {
   const root = await mkdtemp(join(tmpdir(), "codepilotx-core-tools-"))
   temporary.push(root)
   const workspace = await WorkspaceService.open(root)
-  const toolingCalls: string[][] = []
-  const executor = new ToolExecutor(new ToolRegistry(), {
-    dataDir: join(root, ".agent-data"),
-    sandbox: {
-      getStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "test", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
-      install: async () => undefined,
-      uninstall: async () => undefined,
-      reset: async () => undefined,
-      dispose: async () => undefined,
-      run: async () => { throw new Error("not used") },
-    },
-    authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "test" }),
-    resolveTooling: runtime.resolveTooling ?? (async (id) => ({ available: true, path: `${id}.exe`, source: "system", version: "test" })),
-    runToolProcess: runtime.runToolProcess ?? (async ({ args }) => {
-      toolingCalls.push([...args])
-      if (args.includes("--files")) return { exitCode: 0, stdout: Buffer.from("alpha.ts\0beta.ts\0"), stderr: "" }
-      const pattern = args.at(-2)
-      if (pattern === "needle" || pattern === "NEE.*") {
-        const line = JSON.stringify({ type: "match", data: { path: { text: "alpha.ts" }, lines: { text: "export const needle = true\n" }, line_number: 1, submatches: [{}] } })
-        return { exitCode: 0, stdout: Buffer.from(`${line}\n`), stderr: "" }
-      }
-      return { exitCode: 1, stdout: Buffer.alloc(0), stderr: "" }
-    }),
-  })
+  const executor = new ToolExecutor(new ToolRegistry())
   const context = { threadID: "thread", turnID: "turn", taskMode: "chat" as const, signal: new AbortController().signal, workspace }
-  return { root, workspace, executor, context, toolingCalls }
+  return { root, workspace, executor, context }
 }
 
 describe("核心工具面", () => {
@@ -107,7 +83,7 @@ describe("核心工具面", () => {
   })
 
   test("Glob 与 Grep 有界返回，Shell schema 禁止后台和绕过参数", async () => {
-    const { root, executor, context, toolingCalls } = await fixture()
+    const { root, executor, context } = await fixture()
     await Bun.write(join(root, "alpha.ts"), "export const needle = true")
     await Bun.write(join(root, "beta.ts"), "export const other = true")
     const glob = await executor.execute<any>("Glob", { pattern: "*.ts", limit: 1 }, context)
@@ -117,17 +93,7 @@ describe("核心工具面", () => {
     expect(grep.matches).toHaveLength(1)
     const regex = await executor.execute<any>("Grep", { pattern: "NEE.*", "-i": true, output_mode: "files_with_matches", glob: "*.ts" }, context)
     expect(regex.files).toEqual(["alpha.ts"])
-    expect(toolingCalls[0]).toEqual(["--files", "--null", "--color", "never", "--sort", "path", "--glob", "*.ts", "--", "."])
-    expect(toolingCalls[2]).toContain("--ignore-case")
-    expect(toolingCalls[2]).toContain("--glob")
     await expect(executor.execute("PowerShell", { command: "Get-Date", run_in_background: true }, context)).rejects.toMatchObject({ code: "INVALID_TOOL_INPUT" })
     await expect(executor.execute("Bash", { command: "pwd", dangerouslyDisableSandbox: true }, context)).rejects.toMatchObject({ code: "INVALID_TOOL_INPUT" })
-  })
-
-  test("Glob/Grep 拒绝越界路径，ripgrep 不可用时不回退文件遍历", async () => {
-    const resolveTooling: ToolingResolver = async () => ({ available: false, code: "SYSTEM_TOOL_NOT_FOUND", reason: "未找到 ripgrep" })
-    const { executor, context } = await fixture({ resolveTooling })
-    await expect(executor.execute("Glob", { pattern: "*.ts", path: "../outside" }, context)).rejects.toMatchObject({ code: "WORKSPACE_PATH_DENIED" })
-    await expect(executor.execute("Grep", { pattern: "needle" }, context)).rejects.toMatchObject({ code: "TOOLING_UNAVAILABLE" })
   })
 })

@@ -8,11 +8,20 @@ import type { WorkspaceService } from "../workspace/WorkspaceService"
  */
 export class CodePilotXExecutionEnv implements ExecutionEnv {
   readonly cwd: string
-  constructor(private readonly workspace: WorkspaceService) { this.cwd = workspace.rootPath }
+  constructor(
+    private readonly workspace: WorkspaceService,
+    defaultCwd = workspace.rootPath,
+  ) {
+    const relativeCwd = relative(workspace.rootPath, defaultCwd)
+    if (relativeCwd.startsWith("..") || isAbsolute(relativeCwd)) {
+      throw new FileError("permission_denied", "默认工作目录不在当前工作区内", defaultCwd)
+    }
+    this.cwd = resolve(defaultCwd)
+  }
 
-  private addressed(path: string) { return resolve(this.cwd, path) }
+  private addressed(path: string) { return isAbsolute(path) ? resolve(path) : resolve(this.cwd, path) }
   private local(path: string) {
-    const value = isAbsolute(path) ? relative(this.cwd, path) : path
+    const value = relative(this.workspace.rootPath, this.addressed(path))
     if (!value || value === ".") return "."
     if (value.startsWith("..") || isAbsolute(value)) throw new FileError("permission_denied", "路径不在当前工作区内", path)
     return value.replaceAll("\\", "/")
@@ -22,8 +31,8 @@ export class CodePilotXExecutionEnv implements ExecutionEnv {
     catch (cause) { return err(cause instanceof FileError ? cause : new FileError("unknown", "工作区文件操作失败", path, cause instanceof Error ? cause : undefined)) }
   }
 
-  absolutePath(path: string) { return this.file(path, async () => this.addressed(this.local(path))) }
-  joinPath(parts: string[]) { return this.file(parts.join("/"), async () => this.addressed(this.local(join(...parts)))) }
+  absolutePath(path: string) { return this.file(path, async () => { this.local(path); return this.addressed(path) }) }
+  joinPath(parts: string[]) { return this.absolutePath(join(...parts)) }
   readTextFile(path: string, abortSignal?: AbortSignal) {
     return this.file(path, async () => {
       if (abortSignal?.aborted) throw new FileError("aborted", "读取已停止", path)
@@ -43,7 +52,7 @@ export class CodePilotXExecutionEnv implements ExecutionEnv {
     return this.file(path, async () => {
       if (abortSignal?.aborted) throw new FileError("aborted", "枚举已停止", path)
       return (await this.workspace.list(this.local(path))).filter((entry) => entry.type !== "other").map((entry) => ({
-        name: entry.name, path: this.addressed(entry.path), kind: entry.type as "file" | "directory", size: 0, mtimeMs: 0,
+        name: entry.name, path: resolve(this.workspace.rootPath, entry.path), kind: entry.type as "file" | "directory", size: 0, mtimeMs: 0,
       }))
     })
   }

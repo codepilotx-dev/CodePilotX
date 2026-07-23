@@ -21,12 +21,13 @@ export const PERMISSION_MODE_OPTIONS: Array<{
   {
     value: "default",
     label: "默认权限",
-    detail: "在主机运行；安全操作快速放行，其余由 Guardian 审核，高风险需你确认。",
+    detail: "CodePilotX 可自动读取；写入、命令、联网和 MCP 请求需要你授权。",
   },
   {
     value: "auto-review",
     label: "自动审查",
-    detail: "在主机运行；安全操作快速放行，其余由 Guardian 自动审核，高风险需你确认。",
+    detail:
+      "CodePilotX 将在沙盒中运行命令，并对需升级处理的请求进行自动审查。了解更多",
   },
   {
     value: "full-access",
@@ -36,7 +37,7 @@ export const PERMISSION_MODE_OPTIONS: Array<{
   {
     value: "custom",
     label: "CodePilotX 自定义策略",
-    detail: "自定义 SRT 隔离、approval policy、reviewer 与 granular controls。",
+    detail: "使用配置页中的 sandbox、approval policy、reviewer 与 granular controls。",
   },
 ];
 
@@ -48,8 +49,8 @@ export function getVisiblePermissionModeOptions({
   enableFullAccessPermissionMode?: boolean;
 }): typeof PERMISSION_MODE_OPTIONS {
   return PERMISSION_MODE_OPTIONS.filter((option) => {
-    if (option.value === "auto-review") return enableAutoReviewPermissionMode !== false;
-    if (option.value === "full-access") return enableFullAccessPermissionMode !== false;
+    if (option.value === "auto-review") return enableAutoReviewPermissionMode;
+    if (option.value === "full-access") return enableFullAccessPermissionMode;
     return option.value === "default" || option.value === "custom";
   });
 }
@@ -74,14 +75,14 @@ export function defaultDesktopSettings(): StoredDesktopSettings {
 
 export function permissionModeForConfig(config: DesktopPermissionConfig): DesktopPermissionMode {
   if (config.sandboxMode === 'danger-full-access' && config.approvalPolicy === 'never') return 'full-access'
-  if (config.sandboxMode === 'danger-full-access' && config.approvalPolicy === 'on-request' && config.approvalsReviewer === 'auto_review') return 'auto-review'
-  if (config.sandboxMode === 'danger-full-access' && config.approvalPolicy === 'on-request' && config.approvalsReviewer === 'user') return 'default'
+  if (config.sandboxMode === 'workspace-write' && config.approvalPolicy === 'on-request' && config.approvalsReviewer === 'auto_review') return 'auto-review'
+  if (config.sandboxMode === 'workspace-write' && config.approvalPolicy === 'on-request' && config.approvalsReviewer === 'user') return 'default'
   return 'custom'
 }
 
 export function permissionConfigForMode(mode: DesktopPermissionMode): DesktopPermissionConfig {
-  if (mode === 'full-access') return { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'auto_review' }
-  return { sandboxMode: 'danger-full-access', approvalPolicy: 'on-request', approvalsReviewer: mode === 'auto-review' ? 'auto_review' : 'user' }
+  if (mode === 'full-access') return { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'user' }
+  return { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: mode === 'auto-review' ? 'auto_review' : 'user' }
 }
 
 export function readStoredDesktopSettings(): StoredDesktopSettings {

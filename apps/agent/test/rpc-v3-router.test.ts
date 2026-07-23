@@ -63,20 +63,6 @@ const fixture = async (
       return { configured: false, authenticated: false, user: null }
     },
   }
-  const toolingStatus = {
-    id: "ripgrep" as const,
-    preference: "managed" as const,
-    phase: "idle" as const,
-    activeSource: null,
-    pinnedVersion: "15.2.0",
-    managed: { installed: false, version: null },
-    system: { available: false, version: null, path: null },
-  }
-  const tooling = {
-    listStatuses: async () => [toolingStatus],
-    setPreference: async (id: "nodejs" | "python" | "git-bash" | "ripgrep", preference: "managed" | "system") => ({ ...toolingStatus, id, preference }),
-    install: async (id: "nodejs" | "python" | "git-bash" | "ripgrep") => ({ ...toolingStatus, id, phase: "ready" as const, managed: { installed: true, version: "15.2.0" } }),
-  }
   const router = new RpcRouter({
     db,
     review,
@@ -93,7 +79,6 @@ const fixture = async (
     memory: null,
     hooks: null,
     sandbox: null,
-    tooling,
     ...overrides,
   } as unknown as RpcRouterDependencies)
   let id = 0
@@ -138,6 +123,38 @@ describe("RPC v3 Router", () => {
       limits: { maxSubscriptions: 16, maxStreamsPerSubscription: 64 },
     })
     expect(typeof response.result.connectionId).toBe("string")
+    db.close()
+  })
+
+  test("thread/history/read 返回分页正文与同事务 streamPosition", async () => {
+    const { db, initialize, call } = await fixture()
+    await initialize()
+    const thread = db.createThread("分页 RPC")
+    const model = Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt") })
+    for (let index = 0; index < 11; index += 1) {
+      const turn = db.createTurn(thread.id, {
+        content: `第 ${index + 1} 轮`,
+        model,
+        permissionConfig: DEFAULT_PERMISSION_CONFIG,
+        strategy: "queue",
+        taskMode: "chat",
+      }, "completed")
+      db.updateTurnStatus(turn.turnID, "completed")
+    }
+
+    const response = await call("thread/history/read", { threadId: thread.id })
+    expect(response.error).toBeUndefined()
+    expect(response.result.turns).toHaveLength(10)
+    expect(response.result.hasOlder).toBe(true)
+    expect(response.result.streamPosition).toEqual({
+      streamId: thread.id,
+      sequence: (db.sqlite.query("SELECT MAX(id) AS id FROM events WHERE thread_id = ?").get(thread.id) as { id: number }).id,
+    })
+
+    const older = await call("thread/history/read", { threadId: thread.id, before: response.result.olderCursor })
+    expect(older.result.turns).toHaveLength(1)
+    expect(older.result.hasOlder).toBe(false)
+    expect(older.result.olderCursor).toBeNull()
     db.close()
   })
 
@@ -190,23 +207,6 @@ describe("RPC v3 Router", () => {
     const github = await call("github/auth/status", {})
     expect(github.result).toEqual({ configured: false, authenticated: false, user: null })
     expect(counts()).toEqual({ reviewSummaryCalls: 1, githubStatusCalls: 1 })
-    db.close()
-  })
-
-  test("tooling methods pass through the typed dispatcher", async () => {
-    const { db, call, initialize } = await fixture()
-    await initialize()
-    expect((await call("tooling/list", {})).result.statuses).toEqual([
-      expect.objectContaining({ id: "ripgrep", preference: "managed", pinnedVersion: "15.2.0" }),
-    ])
-    expect((await call("tooling/setPreference", { id: "ripgrep", preference: "system", operationId: "tooling:preference:1" })).result.status)
-      .toMatchObject({ id: "ripgrep", preference: "system" })
-    expect((await call("tooling/install", { id: "ripgrep", force: true, operationId: "tooling:install:1" })).result.status)
-      .toMatchObject({ id: "ripgrep", phase: "ready", managed: { installed: true } })
-    expect((await call("tooling/setPreference", { id: "nodejs", preference: "managed", operationId: "tooling:preference:node" })).result.status)
-      .toMatchObject({ id: "nodejs", preference: "managed" })
-    expect((await call("tooling/install", { id: "python", force: false, operationId: "tooling:install:python" })).result.status)
-      .toMatchObject({ id: "python", phase: "ready" })
     db.close()
   })
 

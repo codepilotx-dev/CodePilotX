@@ -348,7 +348,50 @@ export type DesktopRuntimeStatus = {
   agentExecutablePath: string
   agentExecutableExists: boolean
   configDirectoryPath: string
+  toolchainEnabled: boolean
+  toolchainRoot: string | null
+  managedToolchainRoot: string
+  packagedToolchainRoot: string
+  toolchainPathEntries: string[]
+  toolchainBinaries: DesktopRuntimeBinaryStatus[]
 }
+
+export type DesktopRuntimeBinaryName = 'node' | 'npm' | 'npx' | 'python' | 'pip'
+
+export type DesktopRuntimeBinarySource =
+  | 'managed'
+  | 'packaged'
+  | 'system'
+  | 'missing'
+
+export type DesktopRuntimeBinaryStatus = {
+  name: DesktopRuntimeBinaryName
+  source: DesktopRuntimeBinarySource
+  path: string | null
+  exists: boolean
+  targetVersion?: string
+  version: string | null
+  error?: string
+}
+
+export type DesktopToolchainDiagnosticReport = {
+  enabled: boolean
+  root: string | null
+  managedRoot: string
+  packagedRoot: string
+  pathEntries: string[]
+  binaries: DesktopRuntimeBinaryStatus[]
+  logPath?: string
+}
+
+export type DesktopToolchainInstallResult =
+  | {
+      ok: true
+      root: string
+      copiedFrom: string | null
+      diagnostics: DesktopToolchainDiagnosticReport
+    }
+  | { ok: false; error: string; diagnostics: DesktopToolchainDiagnosticReport }
 
 export type DesktopBrowserBounds = {
   x: number
@@ -471,6 +514,32 @@ export type DesktopProviderModelListResult = {
   total?: number
   nextCursor?: string
   error?: string
+}
+
+export type DesktopApiKeyHealthStatus =
+  | 'untested'
+  | 'healthy'
+  | 'auth-failed'
+  | 'rate-limited'
+  | 'error'
+
+export type DesktopApiKeySummary = {
+  id: string
+  providerId: ModelProviderID
+  label: string
+  maskedValue: string
+  enabled: boolean
+  active: boolean
+  priority: number
+  health: {
+    status: DesktopApiKeyHealthStatus
+    lastTestedAt?: number
+    lastUsedAt?: number
+    errorCategory?: 'authentication' | 'rate-limit' | 'network' | 'unknown'
+    cooldownUntil?: number
+  }
+  createdAt: number
+  updatedAt: number
 }
 
 export type DesktopProviderBalanceInfo = ProviderBalanceInfo
@@ -770,7 +839,6 @@ gitBranchPrefix: string
 	  sandboxMode?: DesktopSandboxMode
   allowNetworkAccess?: boolean
   installCodePilotXDependencies: boolean
-  workspaceDependenciesMigrated: boolean
   personality: DesktopPersonality
   customInstructions: string
   enableMemory: boolean
@@ -991,6 +1059,7 @@ export type DesktopSessionSettingsSnapshot = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories: string[]
+  installCodePilotXDependencies?: boolean
   enableMemory?: boolean
   rustSearchAndDiffKernels?: boolean
 }
@@ -1077,6 +1146,8 @@ export type CreateDesktopSessionOptions = {
   appServerThreadId?: string | null
   localRouterMode?: LocalRouterMode
   workspacePath?: string
+  /** First submitted text used to name/materialize a projectless workspace. */
+  projectlessPrompt?: string
   permissionConfig?: DesktopPermissionConfig
   collaborationMode?: DesktopCollaborationMode
   planModeActive?: boolean
@@ -1095,6 +1166,7 @@ export type CreateDesktopSessionOptions = {
   systemPrompt?: string
   appendSystemPrompt?: string
   additionalDirectories?: string[]
+  installCodePilotXDependencies?: boolean
   enableMemory?: boolean
   rustSearchAndDiffKernels?: boolean
 }
@@ -1450,6 +1522,9 @@ export type DesktopApi = {
   respondSubagentQuestion?(questionId: string, answer: string | null, ignored: boolean): Promise<void>
   getAuthStatus(): Promise<DesktopAuthStatus>
   getRuntimeStatus(): Promise<DesktopRuntimeStatus>
+  diagnoseDesktopToolchain(): Promise<DesktopToolchainDiagnosticReport>
+  reinstallDesktopToolchain(): Promise<DesktopToolchainInstallResult>
+  deleteDesktopToolchain(): Promise<DesktopToolchainInstallResult>
   getDesktopSettings(): Promise<DesktopStoredSettings>
   saveDesktopSettings(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
   listProjectMemories(workspacePath: string): Promise<DesktopProjectMemoryListing>
@@ -1525,6 +1600,23 @@ export type DesktopApi = {
   deleteProviderApiKey(
     providerID: ModelProviderID,
   ): Promise<DesktopModelProviderState>
+  listApiKeys(providerId?: ModelProviderID): Promise<DesktopApiKeySummary[]>
+  createApiKey(input: {
+    providerId: ModelProviderID
+    label: string
+    key: string
+  }): Promise<void>
+  updateApiKey(input: {
+    credentialId: string
+    label?: string
+    key?: string
+  }): Promise<void>
+  setActiveApiKey(providerId: ModelProviderID, credentialId: string): Promise<void>
+  setApiKeyEnabled(credentialId: string, enabled: boolean): Promise<void>
+  reorderApiKeys(providerId: ModelProviderID, orderedCredentialIds: string[]): Promise<void>
+  testApiKey(credentialId: string): Promise<void>
+  deleteApiKey(credentialId: string): Promise<void>
+  copyProviderApiKey(credentialId: string): Promise<{ clearAfterMs: 60000 }>
   testModelProvider(providerID: ModelProviderID): Promise<ProviderTestResponse>
   listIntegrations(): Promise<DesktopIntegration[]>
   connectIntegration(input: DesktopIntegrationConnectRequest): Promise<OkResponse>

@@ -93,11 +93,11 @@ export class HookService {
     private readonly publishEvent?: (event: EventEnvelope) => Promise<void>,
   ) {}
 
-  load(input: { userConfigPath?: string; projectRoot?: string }) {
+  load(input: { userConfigPath?: string; projectRoot?: string; includeProjectHooks?: boolean }) {
     const userHooks = input.userConfigPath && existsSync(input.userConfigPath) ? readConfig(input.userConfigPath).definitions : []
     const projectHooks: HookDefinition[] = []
     let projectConfig: ReturnType<typeof readConfig> | null = null
-    if (input.projectRoot) {
+    if (input.projectRoot && input.includeProjectHooks !== false) {
       const configFile = resolve(input.projectRoot, ".codepilotx/hooks.json")
       if (existsSync(configFile)) {
         const loaded = readConfig(configFile, input.projectRoot)

@@ -4,6 +4,7 @@
     "lib": ["ES2022", "DOM"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "baseUrl": ".",
     "paths": {
       "@codepilotx/model-schema": ["../model-schema/src/index.ts"]
     },

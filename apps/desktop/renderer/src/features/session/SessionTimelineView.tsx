@@ -1,9 +1,9 @@
 /**
- * SessionTimelineView — Normal-flow container for the session timeline.
+ * SessionTimelineView — Virtual-scrolling container for session timeline.
  *
- * Conversation rows contain streaming Markdown and expandable tool output, so
- * their heights are intentionally left to the browser's document flow. Scroll
- * management and bottom anchoring are owned by the outer ThreadScrollLayout.
+ * Wraps virtua's Virtualizer and handles scroll management, bottom anchoring,
+ * and hash navigation. Row rendering is done by the parent via children,
+ * avoiding circular import issues with ConversationPage's renderers.
  *
  * Layout follows opencode's turn/part spirit via data-* attributes
  * on the container.
@@ -11,6 +11,7 @@
 
 import React from 'react';
 import { ArrowDown } from 'lucide-react';
+import { Virtualizer, type VirtualizerHandle } from 'virtua';
 
 import {
   APP_ICON_SIZE,
@@ -23,6 +24,8 @@ import { useThreadScrollController } from './useThreadScrollController.js';
 export type SessionTimelineViewProps = {
   /** Rendered row elements. Each must have a stable `key` prop. */
   children: React.ReactNode;
+  /** Ref to the VirtualizerHandle for imperative scroll control. */
+  listRef?: React.RefObject<VirtualizerHandle | null>;
   /** The single overflow element owned by ThreadScrollLayout. */
   scrollRef: React.RefObject<HTMLElement | null>;
   /** Called when the user scrolls (for scroll-position persistence). */
@@ -44,6 +47,7 @@ export type SessionTimelineViewProps = {
 
 export function SessionTimelineView({
   children,
+  listRef: externalListRef,
   scrollRef,
   onScroll,
   initialScrollOffset,
@@ -51,10 +55,13 @@ export function SessionTimelineView({
   count,
   sessionKey,
 }: SessionTimelineViewProps): React.ReactNode {
+  const internalListRef = React.useRef<VirtualizerHandle>(null);
+  const listHandle = externalListRef ?? internalListRef;
   const scrollController = useThreadScrollController({
     active: Boolean(scrollToBottom),
     initialScrollOffset,
     itemCount: count,
+    listRef: listHandle,
     onScroll,
     scrollRef,
     sessionKey,
@@ -91,14 +98,38 @@ export function SessionTimelineView({
           </button>
         </div>
       ) : null}
-      <div className="session-timeline-content">
-        {children}
-        <div
-          ref={scrollController.bottomSentinelRef}
-          aria-hidden="true"
-          className="session-timeline-bottom-sentinel"
-        />
+      <div className="session-timeline-virtualizer">
+        <Virtualizer
+          ref={listHandle}
+          scrollRef={scrollRef}
+          onScroll={scrollController.handleScroll}
+        >
+          {children}
+          <div
+            ref={scrollController.bottomSentinelRef}
+            aria-hidden="true"
+            className="session-timeline-bottom-sentinel"
+          />
+        </Virtualizer>
       </div>
     </div>
   );
+}
+
+/* ── Scroll helpers ─────────────────────────────────────── */
+
+/**
+ * Imperative scroll to a given index.
+ */
+export function scrollToIndex(
+  handle: VirtualizerHandle | null,
+  index: number,
+  align: 'start' | 'end' | 'center' = 'start',
+): void {
+  if (!handle) return;
+  try {
+    handle.scrollToIndex(index, { align });
+  } catch {
+    // Virtualizer may not be mounted yet
+  }
 }

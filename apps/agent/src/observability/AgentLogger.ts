@@ -51,12 +51,8 @@ export class AgentLogger {
   private write(level: "info" | "warn" | "error", event: string, details?: Record<string, unknown>) {
     try {
       this.rotateIfNeeded()
-      const record = { at: new Date().toISOString(), level, event, ...(details ? { details: sanitize(details) } : {}) }
-      const line = `${JSON.stringify(record)}\n`
+      const line = `${JSON.stringify({ at: new Date().toISOString(), level, event, ...(details ? { details: sanitize(details) } : {}) })}\n`
       appendFileSync(this.activeFile, line, "utf8")
-      if (level !== "info" || event.startsWith("sandbox.worker.")) {
-        process.stderr.write(`[CodePilotX Agent] ${JSON.stringify(record)}\n`)
-      }
     } catch {
       // Observability must never take the local sidecar down.
     }

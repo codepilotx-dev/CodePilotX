@@ -41,37 +41,6 @@ describe("manifest-driven event decoding", () => {
     })).toThrow()
   })
 
-  test("校验工具链状态更新事件", () => {
-    const event = {
-      eventId: "event-tooling-1",
-      streamId: "global",
-      type: "tooling/updated",
-      version: 1,
-      occurredAt: 2,
-      durability: "live",
-      sequence: null,
-      afterSequence: 2,
-      payload: {
-        status: {
-          id: "python",
-          preference: "managed",
-          phase: "downloading",
-          activeSource: null,
-          pinnedVersion: "3.14.6",
-          managed: { installed: false, version: null },
-          system: { available: true, version: "3.14.6", path: "C:\\Python314\\python.exe" },
-          progress: { receivedBytes: 1024, totalBytes: 2048 },
-        },
-      },
-    } as const
-
-    expect(decodeEventEnvelope(event)).toEqual(event)
-    expect(() => decodeEventEnvelope({
-      ...event,
-      payload: { status: { ...event.payload.status, preference: "automatic" } },
-    })).toThrow()
-  })
-
   test("兼容 queue/updated 的局部 outbox payload", () => {
     const event = {
       eventId: "event-queue-1",

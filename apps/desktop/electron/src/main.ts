@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url"
 import {
   app,
   BrowserWindow,
+  clipboard,
   dialog,
   ipcMain,
   nativeTheme,
@@ -16,28 +17,16 @@ import { missingPackagedSidecarError, resolveSidecarCommand as resolveConfigured
 import { createDesktopLogger, type DesktopLogger } from "./desktop-logger.js"
 import { AppearanceSettingsStore } from "./appearance-settings-store.js"
 import { ExternalOpenTargetService } from "./external-open-targets.js"
-import {
-  AgentDiagnosticLineDecoder,
-  publishAgentDiagnostic,
-  type AgentDiagnostic,
-} from "./desktop-diagnostics.js"
-import {
-  ConnectionWatchdogState,
-  WATCHDOG_INTERVAL_MS,
-  WATCHDOG_PROBE_TIMEOUT_MS,
-  shouldDisposeOwnedSidecar,
-  shouldLoadApplication,
-  watchdogDiagnosticFields,
-  type ConnectionLossTrigger,
-  type WatchdogOutage,
-} from "./connection-watchdog.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const READY_TIMEOUT_MS = 20_000
 const HEALTH_TIMEOUT_MS = 20_000
 const SHUTDOWN_TIMEOUT_MS = 4_000
 const APPLICATION_LOAD_TIMEOUT_MS = 20_000
+const WATCHDOG_INTERVAL_MS = 2_000
+const WATCHDOG_FAILURE_LIMIT = 3
 const AUTH_COOKIE = "codepilotx_session"
+const API_KEY_CLIPBOARD_CLEAR_DELAY_MS = 60_000
 type AgentConnectionState = "connected" | "disconnected" | "unknown"
 
 interface ConnectionStatus {
@@ -59,11 +48,6 @@ interface SidecarConnection {
   readonly port: number
 }
 
-interface ConnectionLostDetails extends WatchdogOutage {
-  readonly origin: string
-  readonly managed: boolean
-}
-
 class SidecarSupervisor {
   readonly #token: string
   readonly #logger: DesktopLogger
@@ -73,16 +57,12 @@ class SidecarSupervisor {
   #stopping = false
   #watchdog: NodeJS.Timeout | undefined
   #watchdogBusy = false
-  #watchdogState: ConnectionWatchdogState | undefined
-  #lossNotified = false
   #onStateChange: ((status: ConnectionStatus) => void) | undefined
-  #onConnectionLost: ((details: ConnectionLostDetails) => void) | undefined
-  readonly #publishDiagnostic: (diagnostic: AgentDiagnostic) => void
+  #onConnectionLost: (() => void) | undefined
 
-  constructor(token: string, logger: DesktopLogger, publishDiagnostic: (diagnostic: AgentDiagnostic) => void = () => undefined) {
+  constructor(token: string, logger: DesktopLogger) {
     this.#token = token
     this.#logger = logger
-    this.#publishDiagnostic = publishDiagnostic
   }
 
   onStateChange(listener: (status: ConnectionStatus) => void): void {
@@ -100,9 +80,6 @@ class SidecarSupervisor {
         this.#connection = connection
         this.#onStateChange?.({ state: "disconnected", phase: "authenticating", attempt })
         await validate(connection)
-        if (!connection.managed && (!this.#child || this.#child.exitCode !== null || this.#child.signalCode !== null)) {
-          throw new Error("Agent 在连接验证期间退出")
-        }
         this.#logger.info("sidecar.connected", { origin: connection.origin, managed: connection.managed, port: connection.port, attempt })
         return connection
       } catch (error) {
@@ -123,7 +100,6 @@ class SidecarSupervisor {
     this.#stopping = true
     if (this.#watchdog) clearInterval(this.#watchdog)
     this.#watchdog = undefined
-    this.#watchdogState = undefined
     if (this.#connection && !this.#connection.managed) {
       try {
         this.#logger.info("sidecar.shutdown-request", { origin: this.#connection.origin })
@@ -138,87 +114,34 @@ class SidecarSupervisor {
     await this.#disposeChild()
   }
 
-  invalidate(trigger: ConnectionLossTrigger): void {
+  invalidate(): void {
     if (this.#watchdog) clearInterval(this.#watchdog)
     this.#watchdog = undefined
-    this.#watchdogState = undefined
-    this.#lossNotified = true
-    const connection = this.#connection
     this.#connection = undefined
-    this.#logger.info("sidecar.invalidated", {
-      origin: connection?.origin,
-      managed: connection?.managed,
-      trigger,
-      disposingOwned: connection?.managed === false,
-    })
-    if (connection && shouldDisposeOwnedSidecar(connection.managed)) void this.#disposeChild()
+    void this.#disposeChild()
   }
 
-  watch(connection: SidecarConnection, onLost: (details: ConnectionLostDetails) => void): void {
+  watch(connection: SidecarConnection, onLost: () => void): void {
     if (this.#watchdog) clearInterval(this.#watchdog)
     this.#onConnectionLost = onLost
-    this.#lossNotified = false
-    const state = new ConnectionWatchdogState()
-    this.#watchdogState = state
+    let failures = 0
     this.#watchdog = setInterval(() => {
       if (this.#watchdogBusy || this.#stopping) return
       this.#watchdogBusy = true
-      const startedAt = Date.now()
-      void probeReady(connection.origin, fetch, this.#token, WATCHDOG_PROBE_TIMEOUT_MS).then(() => {
-        if (this.#watchdogState !== state || this.#lossNotified) return
-        const completedAt = Date.now()
-        const transition = state.success(completedAt)
-        if (transition.type === "recovered") {
-          this.#logger.info("sidecar.watchdog-recovered", {
-            ...watchdogDiagnosticFields(connection, transition.outage),
-            probeLatencyMs: completedAt - startedAt,
-            recoveredAt: new Date(transition.recoveredAt).toISOString(),
-            recoveryDurationMs: transition.recoveryDurationMs,
-          })
-          this.#publishDiagnostic({
-            at: new Date(completedAt).toISOString(), level: "info", source: "desktop",
-            code: "sidecar.watchdog-recovered", message: "Agent 健康探测已恢复",
-            details: { durationMs: transition.recoveryDurationMs, failureCount: transition.outage.failureCount },
-          })
-        }
+      void probeReady(connection.origin, fetch, this.#token, 1_000).then(() => {
+        failures = 0
       }).catch((error) => {
-        if (this.#watchdogState !== state || this.#lossNotified) return
-        const completedAt = Date.now()
-        const transition = state.failure(completedAt, isProbeTimeout(error) ? "probe-timeout" : "request-failure")
-        const fields = {
-          ...watchdogDiagnosticFields(connection, transition.outage),
-          probeLatencyMs: completedAt - startedAt,
-          message: formatError(error),
-        }
-        if (transition.type === "lost") this.#notifyConnectionLost(connection, transition.outage, fields)
-        else {
-          const event = transition.outage.failureCount === 1 ? "sidecar.watchdog-degraded" : "sidecar.watchdog-error"
-          this.#logger.warn(event, fields)
-          this.#publishDiagnostic({
-            at: new Date(completedAt).toISOString(), level: "warn", source: "desktop",
-            code: event, message: "Agent 健康探测暂时失败，桌面将保持当前页面",
-            details: { durationMs: transition.outage.elapsedMs, failureCount: transition.outage.failureCount },
-          })
-        }
+        failures += 1
+        this.#logger.warn("sidecar.watchdog-error", { origin: connection.origin, failures, message: formatError(error) })
       }).finally(() => {
         this.#watchdogBusy = false
+        if (failures >= WATCHDOG_FAILURE_LIMIT) {
+          if (this.#watchdog) clearInterval(this.#watchdog)
+          this.#watchdog = undefined
+          this.#onConnectionLost?.()
+        }
       })
     }, WATCHDOG_INTERVAL_MS)
-  }
-
-  #notifyConnectionLost(connection: SidecarConnection, outage: WatchdogOutage, logFields?: Record<string, unknown>): void {
-    if (this.#lossNotified || this.#connection?.origin !== connection.origin) return
-    this.#lossNotified = true
-    if (this.#watchdog) clearInterval(this.#watchdog)
-    this.#watchdog = undefined
-    const details: ConnectionLostDetails = { ...outage, origin: connection.origin, managed: connection.managed }
-    this.#logger.warn("sidecar.watchdog-lost", logFields ?? watchdogDiagnosticFields(connection, outage))
-    this.#publishDiagnostic({
-      at: new Date().toISOString(), level: "error", source: "desktop",
-      code: "sidecar.watchdog-lost", message: "Agent 持续不可用，正在原地重连",
-      details: { durationMs: outage.elapsedMs, failureCount: outage.failureCount },
-    })
-    this.#onConnectionLost?.(details)
   }
 
   async request(path: string, init: RequestInit = {}): Promise<Response> {
@@ -261,6 +184,7 @@ class SidecarSupervisor {
         CODEPILOTX_AUTH_TOKEN: this.#token,
         CODEPILOTX_DESKTOP_MANAGED: "1",
         CODEPILOTX_DATA_DIR: join(app.getPath("userData"), "agent"),
+        CODEPILOTX_DOCUMENTS_DIR: app.getPath("documents"),
         CODEPILOTX_LOG_DIR: this.#logger.directory,
         CODEPILOTX_MODEL_SNAPSHOT: app.isPackaged
           ? join(process.resourcesPath, "agent", "models.snapshot.json")
@@ -279,11 +203,7 @@ class SidecarSupervisor {
     child.stdin.end()
 
     this.#logger.info("sidecar.spawned", { executable: command.executable, cwd: command.cwd, pid: child.pid, attempt, preferredPort: this.#preferredPort ?? null })
-    const diagnosticDecoder = new AgentDiagnosticLineDecoder()
-    child.stderr.on("data", (chunk: Buffer) => {
-      this.#logger.error("sidecar.stderr", { pid: child.pid, text: chunk.toString("utf8") })
-      for (const diagnostic of diagnosticDecoder.push(chunk)) this.#publishDiagnostic(diagnostic)
-    })
+    child.stderr.on("data", (chunk: Buffer) => this.#logger.error("sidecar.stderr", { pid: child.pid, text: chunk.toString("utf8") }))
 
     let origin: string
     try {
@@ -301,14 +221,7 @@ class SidecarSupervisor {
 
     child.once("exit", (code, signal) => {
       this.#logger.warn("sidecar.exit", { pid: child.pid, code, signal })
-      if (!this.#stopping && this.#connection?.origin === origin) {
-        const state = this.#watchdogState ?? new ConnectionWatchdogState()
-        this.#watchdogState = state
-        const transition = state.childExited()
-        if (transition.type === "lost") {
-          this.#notifyConnectionLost({ origin, managed: false, port: readyPort(origin) }, transition.outage)
-        }
-      }
+      if (!this.#stopping && this.#connection?.origin === origin) this.#onConnectionLost?.()
     })
 
     return { origin, managed: false, port: readyPort(origin) }
@@ -338,8 +251,6 @@ let quitting = false
 let allowedApplicationOrigin: string | undefined
 let connectionStatus: ConnectionStatus = { state: "unknown", phase: "starting", attempt: 0 }
 let connectionTask: Promise<void> | undefined
-let applicationLoaded = false
-let lastConnectionLoss: ConnectionLostDetails | undefined
 let appearanceSettingsStore: AppearanceSettingsStore | undefined
 let externalOpenTargetService: ExternalOpenTargetService | undefined
 
@@ -378,9 +289,7 @@ async function startDesktop(): Promise<void> {
   createStartupWindow()
 
   const token = process.env.CODEPILOTX_AUTH_TOKEN ?? randomBytes(32).toString("base64url")
-  supervisor = new SidecarSupervisor(token, logger, (diagnostic) => {
-    publishAgentDiagnostic(mainWindow?.webContents, diagnostic)
-  })
+  supervisor = new SidecarSupervisor(token, logger)
   supervisor.onStateChange((status) => {
     connectionStatus = status
     logger?.info("desktop.connection-state", { ...status })
@@ -399,42 +308,23 @@ async function connectAndLoad(token: string): Promise<void> {
           showStartupStatus("正在验证 Agent 认证", candidate.origin)
           await configureAuthCookie(candidate.origin, token)
           await verifyCookie(candidate.origin)
-          const candidateOrigin = normalizeOrigin(candidate.origin)
-          const hasUsableApplication = applicationLoaded && Boolean(mainWindow && !mainWindow.isDestroyed())
-          if (shouldLoadApplication(allowedApplicationOrigin, candidateOrigin, hasUsableApplication)) {
-            connectionStatus = { state: "disconnected", phase: "loading", attempt: connectionStatus.attempt }
-            showStartupStatus("正在加载桌面界面", candidate.origin)
-            await loadApplication(candidate.origin)
-          } else {
-            logger?.info("desktop.renderer-reused", { origin: candidateOrigin, attempt: connectionStatus.attempt })
-          }
+          connectionStatus = { state: "disconnected", phase: "loading", attempt: connectionStatus.attempt }
+          showStartupStatus("正在加载桌面界面", candidate.origin)
+          await loadApplication(candidate.origin)
         })
         connectionStatus = { state: "connected", phase: "loading", attempt: connectionStatus.attempt }
-        if (lastConnectionLoss) {
-          logger?.info("desktop.connection-recovered", {
-            ...watchdogDiagnosticFields(lastConnectionLoss, lastConnectionLoss),
-            recoveredOrigin: connection.origin,
-            recoveredManaged: connection.managed,
-            attempt: connectionStatus.attempt,
-            recoveryDurationMs: Math.max(0, Date.now() - lastConnectionLoss.firstFailureAt),
-          })
-          lastConnectionLoss = undefined
-        }
-        logger?.info("desktop.ready", { origin: connection.origin, port: connection.port, managed: connection.managed })
+        logger?.info("desktop.ready", { origin: connection.origin, port: connection.port })
         mainWindow?.webContents.send("agent:connection-changed", "connected")
         mainWindow?.show()
         startupWindow?.destroy()
-        supervisor.watch(connection, (details) => {
+        supervisor.watch(connection, () => {
           if (quitting || connectionStatus.state !== "connected") return
-          lastConnectionLoss = details
-          logger?.warn("desktop.connection-lost", {
-            ...watchdogDiagnosticFields(connection, details),
-            attempt: connectionStatus.attempt,
-            mainWindowVisible: Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()),
-          })
+          logger?.warn("desktop.connection-lost", { origin: connection.origin })
           connectionStatus = { state: "disconnected", phase: "reconnecting", attempt: 0 }
+          mainWindow?.hide()
+          createStartupWindow()
           mainWindow?.webContents.send("agent:connection-changed", "disconnected")
-          supervisor?.invalidate(details.trigger)
+          supervisor?.invalidate()
           void connectAndLoad(token)
         })
         return
@@ -526,19 +416,13 @@ function createWindow(): BrowserWindow {
   })
 
   registerDevToolsShortcut(window)
-  window.webContents.on("render-process-gone", (_event: Electron.Event, details: Electron.RenderProcessGoneDetails) => {
-    applicationLoaded = false
-    logger?.error("desktop.render-process-gone", { reason: details.reason, exitCode: details.exitCode })
-  })
+  window.webContents.on("render-process-gone", (_event: Electron.Event, details: Electron.RenderProcessGoneDetails) => logger?.error("desktop.render-process-gone", { reason: details.reason, exitCode: details.exitCode }))
   window.on("unresponsive", () => logger?.warn("desktop.renderer-unresponsive"))
   window.webContents.on("console-message", (_event, level, message, line, sourceId) => logger?.info("desktop.renderer-console", { level, message, line, sourceId }))
   window.on("maximize", () => window.webContents.send("window:maximized-changed", true))
   window.on("unmaximize", () => window.webContents.send("window:maximized-changed", false))
   window.on("closed", () => {
-    if (mainWindow === window) {
-      mainWindow = undefined
-      applicationLoaded = false
-    }
+    if (mainWindow === window) mainWindow = undefined
   })
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (!isAllowedApplicationUrl(url) && isSafeExternalUrl(url)) void shell.openExternal(url)
@@ -585,6 +469,31 @@ function registerWindowIpc(): void {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),
     }).then(response => response.json())
+  })
+  ipcMain.handle("api-key:copy", async (_event, credentialId: unknown) => {
+    if (!supervisor) throw new Error("Agent 尚未初始化")
+    if (
+      typeof credentialId !== "string" ||
+      credentialId.length < 1 ||
+      credentialId.length > 200 ||
+      !/^[A-Za-z0-9._:-]+$/.test(credentialId)
+    ) {
+      throw new Error("API Key 凭据 ID 无效")
+    }
+    const response = await supervisor.request(
+      `/api/desktop/api-keys/${encodeURIComponent(credentialId)}/copy-material`,
+      { method: "POST" },
+    )
+    const payload = await response.json() as { key?: unknown }
+    if (typeof payload.key !== "string" || payload.key.length === 0) {
+      throw new Error("Agent 未返回有效的 API Key")
+    }
+    const material = payload.key
+    clipboard.writeText(material)
+    setTimeout(() => {
+      if (clipboard.readText() === material) clipboard.clear()
+    }, API_KEY_CLIPBOARD_CLEAR_DELAY_MS).unref()
+    return { clearAfterMs: API_KEY_CLIPBOARD_CLEAR_DELAY_MS }
   })
   ipcMain.handle("shell:open-external", async (_event, url: unknown) => {
     if (typeof url !== "string" || !isSafeExternalUrl(url)) {
@@ -712,7 +621,6 @@ async function verifyCookie(origin: string): Promise<void> {
 
 async function loadApplication(agentOrigin: string): Promise<void> {
   if (!mainWindow || mainWindow.isDestroyed()) createWindow()
-  applicationLoaded = false
   allowedApplicationOrigin = normalizeOrigin(agentOrigin)
   const window = mainWindow
   if (!window) throw new Error("主窗口创建失败")
@@ -738,7 +646,6 @@ async function loadApplication(agentOrigin: string): Promise<void> {
     window.webContents.once("did-fail-load", onFailed)
     void window.loadURL(allowedApplicationOrigin ?? agentOrigin).catch((error) => { cleanup(); rejectLoad(error) })
   })
-  applicationLoaded = true
 }
 
 function resolveSidecarCommand(): { executable: string; args: string[]; cwd: string } {
@@ -855,10 +762,6 @@ function isSafeExternalUrl(value: string): boolean {
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error ?? "未知错误")
-}
-
-function isProbeTimeout(error: unknown): boolean {
-  return error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")
 }
 
 app.on("before-quit", (event) => {

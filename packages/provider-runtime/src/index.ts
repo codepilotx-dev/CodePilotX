@@ -7,6 +7,9 @@ export { modelVariants } from "./variants"
 export type {
   Awaitable,
   BundledSDK,
+  CredentialCandidate,
+  CredentialOutcome,
+  CredentialPoolSource,
   CredentialSource,
   CustomProviderContext,
   CustomProviderLoader,

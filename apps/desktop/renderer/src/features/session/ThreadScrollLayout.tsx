@@ -18,7 +18,7 @@ const THREAD_FOOTER_GAP_PX = 16
 /**
  * Owns the thread's only scrolling element and its sticky footer.
  *
- * The footer remains in normal flow, so the last conversation row is never
+ * The footer remains in normal flow, so the last virtualized row is never
  * covered by the composer. Its measured height is also exposed as a scroll
  * padding token for focus navigation and imperative scrolling.
  */

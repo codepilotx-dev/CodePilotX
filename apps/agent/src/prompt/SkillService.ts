@@ -81,13 +81,15 @@ const parseAllowedTools = (metadata: Record<string, unknown>) => {
 export class SkillService {
   private catalog = new Map<string, SkillMetadata>();
 
-  async scan(workspaceRoot: string, userRoot: string): Promise<SkillCatalog> {
+  async scan(workspaceRoot: string, userRoot: string, options: { includeWorkspace?: boolean } = {}): Promise<SkillCatalog> {
     const workspace = await realpath(resolve(workspaceRoot));
     const user = await realpath(resolve(userRoot));
     const found = new Map<string, SkillMetadata>();
     const shadowed: SkillCatalog["shadowed"] = [];
     const bases = [
-      { root: workspace, origin: "workspace" as const },
+      ...(options.includeWorkspace === false
+        ? []
+        : [{ root: workspace, origin: "workspace" as const }]),
       { root: user, origin: "user" as const },
     ];
 

@@ -30,6 +30,7 @@ export interface PiRuntimeRequest {
   permissionConfig: PermissionConfig
   signal: AbortSignal
   workspace: WorkspaceService
+  defaultCwd?: string
   model: Model<any>
   policyModel: ModelRef
   thinkingLevel?: ThinkingLevel

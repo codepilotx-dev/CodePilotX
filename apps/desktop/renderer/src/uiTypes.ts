@@ -9,7 +9,7 @@ import type {
   DesktopWorkflowEvent,
 } from '../shared/types.js'
 
-export type AppView = 'quickChat' | 'search' | 'plugins' | 'automation'
+export type AppView = 'quickChat' | 'search' | 'models' | 'plugins' | 'automation'
 
 export type DrawerTab =
   | 'files'

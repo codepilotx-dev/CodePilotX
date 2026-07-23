@@ -11,6 +11,7 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "verbatimModuleSyntax": true,
+    "baseUrl": ".",
     "paths": {
       "@codepilotx/model-schema": ["../model-schema/src/index.ts"],
       "@codepilotx/shared": ["../shared/src/index.ts"],

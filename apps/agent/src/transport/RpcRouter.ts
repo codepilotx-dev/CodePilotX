@@ -19,6 +19,7 @@ import { AgentError, type SendStrategy, type SubmitMessage, type TaskMode } from
 import type { ApprovalService } from "../permission/ApprovalService"
 import type { QuestionService } from "../session/QuestionService"
 import type { IntegrationService } from "../provider/IntegrationService"
+import type { ApiKeyService } from "../provider/ApiKeyService"
 import type { ThreadHistoryService } from "../session/ThreadHistoryService"
 import type { ThreadService } from "../session/ThreadService"
 import type { AgentDatabase } from "../storage/Database"
@@ -28,12 +29,11 @@ import type { SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
 import type { SubagentService } from "../subagent/SubagentService"
 import type { AttachmentService } from "../subagent/AttachmentService"
 import { WorkspaceService } from "../workspace/WorkspaceService"
-import { ThreadProjection } from "./ThreadProjection"
+import { InvalidThreadHistoryCursorError, ThreadProjection } from "./ThreadProjection"
 import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
 import type { GitReviewService } from "../review/GitReviewService"
 import type { GithubService } from "../github/GithubService"
-import { ToolingError, type ManagedToolID, type ToolingManager, type ToolingPreference } from "../tool/ToolingManager"
 import { EventSubscriptionRegistry } from "./EventSubscriptionRegistry"
 import { secretScrubber } from "../security/SecretScrubber"
 import {
@@ -74,12 +74,12 @@ export type RpcRouterDependencies = {
   attachments: AttachmentService
   providers: AgentModelCatalog
   integrations: IntegrationService
+  apiKeys: ApiKeyService
   memory: MemoryService
   hooks: HookService
   sandbox: SandboxRuntimeAdapter
   review: GitReviewService
   github: GithubService
-  tooling: ToolingManager
 }
 
 export type RpcRouterContext = {
@@ -257,7 +257,7 @@ export class RpcRouter {
   }
 
   private async dispatch(method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, memory, sandbox, review, github, tooling } = this.dependencies
+    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, sandbox, review, github } = this.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "initialize":
@@ -288,24 +288,6 @@ export class RpcRouter {
         }
       case "sandbox/status":
         return { sandbox: await sandbox.getStatus() }
-      case "tooling/list":
-        return { statuses: await tooling.listStatuses() }
-      case "tooling/setPreference": {
-        const id = enumValue<ManagedToolID>(params.id, ["nodejs", "python", "git-bash", "ripgrep"], "id")
-        const preference = enumValue<ToolingPreference>(params.preference, ["managed", "system"], "preference")
-        return { status: await tooling.setPreference(id, preference) }
-      }
-      case "tooling/install": {
-        const id = enumValue<ManagedToolID>(params.id, ["nodejs", "python", "git-bash", "ripgrep"], "id")
-        if (params.force !== undefined && typeof params.force !== "boolean") throw new AgentError("INVALID_REQUEST", "force 参数无效", 400)
-        try {
-          return { status: await tooling.install(id, { force: params.force === true }) }
-        } catch (cause) {
-          if (!(cause instanceof ToolingError)) throw cause
-          const integrityFailure = /CHECKSUM|INTEGRITY|ARCHIVE_UNSAFE|VALIDATION/.test(cause.code)
-          throw new AgentError(integrityFailure ? "TOOLING_INTEGRITY_FAILED" : "TOOLING_DOWNLOAD_FAILED", cause.message, 503, { toolingID: id })
-        }
-      }
       case "sandbox/install":
       case "sandbox/repair":
         await sandbox.install()
@@ -432,7 +414,12 @@ export class RpcRouter {
         if (!projectID) throw new AgentError("PROJECT_REQUIRED", "当前任务未绑定项目", 409)
         const source = await resolveAiReviewSource(review, projectID, input.target)
         const targetThread = input.delivery === "detached"
-          ? threads.create(aiReviewTitle(input.target), projectID, sourceThread.settings)
+          ? await threads.create({
+              title: aiReviewTitle(input.target),
+              workspace: { kind: "project", projectID },
+              settings: sourceThread.settings,
+              operationID: crypto.randomUUID(),
+            })
           : sourceThread
         const model = await aiReviewModel(db, providers, input.threadId, projectID)
         const submitted = await threads.submit(targetThread.id, {
@@ -532,16 +519,43 @@ export class RpcRouter {
         return { threads: this.projection.list({ ...(projectID !== undefined ? { projectID } : {}), ...(archived !== undefined ? { archived } : {}), limit: typeof params.limit === "number" ? params.limit : 100 }), nextCursor: null }
       }
       case "thread/create": {
-        const projectID = stringParam(params, "projectID", "projectId")
+        if (params.workspace !== undefined && (params.projectId !== undefined || params.projectID !== undefined)) {
+          throw new AgentError("INVALID_REQUEST", "thread/create 不能同时提供 workspace 和 projectId", 400)
+        }
+        const workspaceValue = params.workspace === undefined ? null : record(params.workspace, "workspace")
+        const workspace = workspaceValue
+          ? workspaceValue.kind === "project"
+            ? { kind: "project" as const, projectID: stringParam(workspaceValue, "projectId", "projectID") }
+            : workspaceValue.kind === "projectless"
+              ? { kind: "projectless" as const, ...(typeof workspaceValue.prompt === "string" ? { prompt: workspaceValue.prompt } : {}) }
+              : (() => { throw new AgentError("INVALID_REQUEST", "workspace.kind 参数无效", 400) })()
+          : { kind: "project" as const, projectID: stringParam(params, "projectID", "projectId") }
         const settings = params.settings === undefined
           ? undefined
           : decodeParams(decodeThreadSettings, params.settings, "thread/create.settings")
         if (settings) supportedPermissionConfig(settings.permissionConfig)
-        const created = threads.create(typeof params.title === "string" ? params.title : undefined, projectID, settings)
+        const created = await threads.create({
+          ...(typeof params.title === "string" ? { title: params.title } : {}),
+          ...(settings ? { settings } : {}),
+          workspace,
+          operationID: stringParam(params, "operationId"),
+        })
         return this.threadSnapshotResult(created.id)
       }
       case "thread/read":
         return this.threadSnapshotResult(stringParam(params, "threadId"))
+      case "thread/history/read": {
+        const threadId = stringParam(params, "threadId")
+        try {
+          return this.threadHistoryPageResult(threadId, {
+            ...(typeof params.before === "string" ? { before: params.before } : {}),
+            ...(typeof params.limit === "number" ? { limit: params.limit } : {}),
+          })
+        } catch (cause) {
+          if (cause instanceof InvalidThreadHistoryCursorError) throw new AgentError("CONFLICT", cause.message, 409)
+          throw cause
+        }
+      }
       case "prompt/preview": {
         const threadId = stringParam(params, "threadId")
         const preview = await threads.promptPreview(threadId)
@@ -918,6 +932,83 @@ export class RpcRouter {
           },
           catalogVersion: catalog.catalogVersion,
         }
+      }
+      case "apiKey/list": {
+        return {
+          apiKeys: await apiKeys.list(typeof params.providerId === "string" ? params.providerId : undefined),
+        }
+      }
+      case "apiKey/create": {
+        const apiKey = await apiKeys.create({
+          providerID: stringParam(params, "providerId"),
+          label: stringParam(params, "label"),
+          key: stringParam(params, "key"),
+        })
+        await providers.reload()
+        await this.emitIntegration("integration/updated", await this.providerIntegrationID(String(apiKey.providerId)))
+        await this.publishCatalogUpdated()
+        return { apiKey }
+      }
+      case "apiKey/update": {
+        const apiKey = await apiKeys.update({
+          credentialID: stringParam(params, "credentialId"),
+          ...(typeof params.label === "string" ? { label: params.label } : {}),
+          ...(typeof params.key === "string" ? { key: params.key } : {}),
+        })
+        await providers.reload()
+        await this.emitIntegration("integration/updated", await this.providerIntegrationID(String(apiKey.providerId)))
+        await this.publishCatalogUpdated()
+        return { apiKey }
+      }
+      case "apiKey/setActive": {
+        const apiKey = await apiKeys.setActive(
+          stringParam(params, "providerId"),
+          stringParam(params, "credentialId"),
+        )
+        await providers.reload()
+        await this.emitIntegration("integration/updated", await this.providerIntegrationID(String(apiKey.providerId)))
+        await this.publishCatalogUpdated()
+        return { apiKey }
+      }
+      case "apiKey/setEnabled": {
+        const apiKey = await apiKeys.setEnabled(
+          stringParam(params, "credentialId"),
+          booleanParam(params, "enabled"),
+        )
+        await providers.reload()
+        await this.emitIntegration("integration/updated", await this.providerIntegrationID(String(apiKey.providerId)))
+        await this.publishCatalogUpdated()
+        return { apiKey }
+      }
+      case "apiKey/reorder": {
+        if (!Array.isArray(params.orderedCredentialIds) || params.orderedCredentialIds.some((id) => typeof id !== "string")) {
+          throw new AgentError("INVALID_REQUEST", "orderedCredentialIds 参数无效", 400)
+        }
+        const providerID = stringParam(params, "providerId")
+        const apiKeyList = await apiKeys.reorder(providerID, params.orderedCredentialIds as string[])
+        await this.emitIntegration("integration/updated", await this.providerIntegrationID(providerID))
+        return { apiKeys: apiKeyList }
+      }
+      case "apiKey/test": {
+        const credentialID = stringParam(params, "credentialId")
+        try {
+          const apiKey = await apiKeys.test(credentialID)
+          await this.emitIntegration("integration/updated", await this.providerIntegrationID(String(apiKey.providerId)))
+          return { apiKey }
+        } catch (cause) {
+          const summary = (await apiKeys.list()).find((item) => String(item.id) === credentialID)
+          if (summary) await this.emitIntegration("integration/updated", await this.providerIntegrationID(String(summary.providerId)))
+          throw cause
+        }
+      }
+      case "apiKey/delete": {
+        const credentialID = stringParam(params, "credentialId")
+        const before = (await apiKeys.list()).find((item) => String(item.id) === credentialID)
+        const apiKeyList = await apiKeys.delete(credentialID)
+        await providers.reload()
+        if (before) await this.emitIntegration("integration/updated", await this.providerIntegrationID(String(before.providerId)))
+        await this.publishCatalogUpdated()
+        return { apiKeys: apiKeyList }
       }
       case "integration/list": {
         const listed = await integrations.list()
@@ -1331,6 +1422,15 @@ export class RpcRouter {
     return { snapshot, streamPosition: { streamId: threadId, sequence } }
   }
 
+  private threadHistoryPageResult(threadId: string, params: { before?: string; limit?: number }) {
+    return this.dependencies.db.transaction(() => {
+      const page = this.projection.historyPage(threadId, params)
+      if (!page) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
+      const sequence = (this.dependencies.db.sqlite.query("SELECT COALESCE(MAX(id), 0) AS id FROM events WHERE thread_id = ?").get(threadId) as { id: number }).id
+      return { ...page, streamPosition: { streamId: threadId, sequence } }
+    })
+  }
+
   private queueStateResult(threadId: string, eventID?: number) {
     const snapshot = this.requiredSnapshot(threadId)
     const metadata = this.dependencies.db.queueStateMeta(threadId) ?? { version: 0, pauseReason: null }
@@ -1489,6 +1589,11 @@ export class RpcRouter {
     const integration = (await this.dependencies.integrations.list()).find((item) => item.id === integrationID)
     if (!integration) throw new AgentError("INTEGRATION_NOT_FOUND", `未找到认证集成 ${integrationID}`, 404)
     return integration
+  }
+
+  private async providerIntegrationID(providerID: string) {
+    const provider = (await this.dependencies.providers.list()).find((item) => String(item.id) === providerID)
+    return String(provider?.integrationID ?? providerID)
   }
 
   private async emit(method: string, params: unknown) {
@@ -1667,6 +1772,12 @@ const stringParam = (params: Record<string, unknown>, ...names: string[]) => {
     if (typeof value === "string" && value) return value
   }
   throw new AgentError("INVALID_REQUEST", `${names[0]} 参数无效`, 400)
+}
+
+const booleanParam = (params: Record<string, unknown>, name: string) => {
+  const value = params[name]
+  if (typeof value !== "boolean") throw new AgentError("INVALID_REQUEST", `${name} 参数无效`, 400)
+  return value
 }
 
 const positiveIntegerParam = (params: Record<string, unknown>, name: string) => {

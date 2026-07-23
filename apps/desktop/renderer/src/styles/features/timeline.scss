@@ -1,5 +1,5 @@
 /**
- * Timeline — Session timeline (normal document-flow view) styles.
+ * Timeline — Session timeline (virtual-scroll view) styles.
  *
  * Visual conventions follow opencode's turn/part DOM structure
  * (data-component / data-slot), but all colors, radii, shadows,
@@ -114,12 +114,17 @@
   position: relative;
 }
 
-/* Conversation content stays in normal flow because row heights are dynamic. */
-.session-timeline-content {
+/* Keep the virtualized content from causing inline layout shifts. */
+.session-timeline-virtualizer {
   position: relative;
   z-index: 0;
   width: 100%;
   outline: none;
+
+  > :first-child {
+    min-width: 0;
+    width: 100%;
+  }
 }
 
 /* ── Individual row wrapper ───────────────────────────── */

@@ -44,6 +44,7 @@ export interface AgentRuntimeRequest {
   permissionConfig: PermissionConfig
   signal: AbortSignal
   workspace: WorkspaceService
+  defaultCwd?: string
   resume?: PlanCheckpoint
   continueFromPlan?: boolean
   plan?: string
