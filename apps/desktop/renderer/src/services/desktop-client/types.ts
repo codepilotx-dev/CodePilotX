@@ -5,6 +5,7 @@ import type {
   ToolingID,
   ToolingPreference,
   ToolingStatus,
+  PetCatalogResult,
   PetDescriptor,
   PetInstallPreview,
 } from '@codepilotx/agent-protocol'
@@ -243,6 +244,11 @@ export type DesktopToolingApi = {
 
 export type DesktopPetApi = {
   listPets(): Promise<readonly PetDescriptor[]>
+  listPetCatalog(refresh?: boolean): Promise<PetCatalogResult>
+  installCatalogPet(
+    slug: string,
+    acceptedRestrictedLicense?: boolean,
+  ): Promise<PetDescriptor>
   previewPetInstall(url: string): Promise<PetInstallPreview>
   installPet(url: string): Promise<PetDescriptor>
   removePet(id: string): Promise<void>

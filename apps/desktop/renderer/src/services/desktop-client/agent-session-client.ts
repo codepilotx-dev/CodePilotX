@@ -1052,6 +1052,22 @@ export function createAgentSessionDesktopClient(
         requireAgentCapability('pets.management.v1')
         return (await rpc.call('pet/list', {})).pets
       }),
+    listPetCatalog: (refresh = false) =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('pets.management.v1')
+        return rpc.call('pet/catalog/list', { refresh })
+      }),
+    installCatalogPet: (slug, acceptedRestrictedLicense = false) =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('pets.management.v1')
+        return (
+          await rpc.call('pet/catalog/install', {
+            slug,
+            acceptedRestrictedLicense,
+            operationId: crypto.randomUUID(),
+          })
+        ).pet
+      }),
     previewPetInstall: url =>
       withRequiredAgent(async () => {
         requireAgentCapability('pets.management.v1')
