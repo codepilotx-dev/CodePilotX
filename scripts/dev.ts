@@ -4,7 +4,7 @@ import { join } from "node:path"
 
 const root = fileURLToPath(new URL("..", import.meta.url))
 const bunExecutable = process.execPath
-const rendererURL = "http://127.0.0.1:5173"
+const rendererURL = "http://127.0.0.1:7788"
 const logDir = join(root, ".codepilotx", "logs")
 
 function configuredAgentPort() {
