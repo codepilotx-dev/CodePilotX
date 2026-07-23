@@ -214,12 +214,39 @@ describe("canonical thread state", () => {
   test("upserts a missing turn from turn/started and ignores replayed durable sequences", () => {
     const state = createCanonicalThreadState(page([]))
     const startedTurn = turn("turn-new")
-    const envelope = durable(11, "turn/started", { turn: startedTurn })
+    const startedInput = input("input-new", startedTurn.id, 1)
+    const envelope = durable(11, "turn/started", { turn: startedTurn, input: startedInput })
     const next = applyThreadEnvelope(state, envelope)
 
     expect(next.turnOrder).toEqual([startedTurn.id])
     expect(next.turnsById.get(startedTurn.id)).toEqual(startedTurn)
+    expect(next.inputsById.get(startedInput.id)).toEqual(startedInput)
     expect(applyThreadEnvelope(next, { ...envelope, eventId: "different-id" })).toBe(next)
+  })
+
+  test("keeps assistant text and separated process groups in ordinal order", () => {
+    const activeTurn = turn("turn-ordered")
+    const rootAgent = agent("agent-ordered", activeTurn.id)
+    const first = { ...textItem("text-1", activeTurn.id, "开始检查"), ordinal: 0, createdAt: 30 }
+    const tool: Extract<Item, { type: "tool" }> = {
+      id: "tool-1", messageID: activeTurn.id, turnId: activeTurn.id, agentId: rootAgent.id,
+      type: "tool", callID: "tool-1", tool: "Read", title: "Read", state: "completed",
+      input: {}, command: null, output: "ok", error: null, startedAt: 10, finishedAt: 20,
+      durationMs: 10, ordinal: 1, createdAt: 10,
+    }
+    const second = { ...textItem("text-2", activeTurn.id, "读取完成"), ordinal: 2, createdAt: 20 }
+    const state = createCanonicalThreadState(page([{
+      turn: activeTurn,
+      inputs: [input("input-ordered", activeTurn.id, 1)],
+      messages: [],
+      agents: [rootAgent],
+      items: [second, tool, first],
+      approvals: [],
+    }]))
+
+    const [entry] = selectRenderTurnEntries(state)
+    expect(entry?.items.map((item) => item.id)).toEqual(["text-1", "tool-1", "text-2"])
+    expect(entry?.contentBlocks.map((block) => block.kind)).toEqual(["assistant", "process", "assistant"])
   })
 
   test("projects semantic slots and filters subagent scope by run id", () => {

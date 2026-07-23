@@ -191,11 +191,7 @@ export function CanonicalConversationTurn({
   );
   const active = isActiveTurn(entry.turn.status);
   const hasAssistantResult = entry.assistantResultItems.some((item) => item.text.trim());
-  const processSummary = summarizeProcessItems(
-    entry.processItems,
-    entry.turn.status,
-    entry.turn.elapsedSeconds,
-  );
+  const lastProcessIndex = entry.contentBlocks.findLastIndex((block) => block.kind === "process");
 
   const renderGroupedItem = (item: Item) => (
     <CanonicalItemRenderer
@@ -221,33 +217,36 @@ export function CanonicalConversationTurn({
           ))}
         </section>
       ) : null}
-      {entry.processItems.length > 0 ? (
-        <section className="canonical-turn__process" aria-label="执行过程">
-          <CanonicalProcessGroup {...processSummary}>
-            {entry.processItems.map(renderGroupedItem)}
-          </CanonicalProcessGroup>
-        </section>
-      ) : null}
-      {entry.planItem ? (
-        <section className="canonical-turn__plan">
-          {renderItem(entry.planItem)}
-        </section>
-      ) : null}
-      {entry.assistantResultItems.length ? (
-        <section className="canonical-turn__result" aria-label="助手回复">
-          {entry.assistantResultItems.map(renderItem)}
-        </section>
-      ) : null}
-      {entry.patchItems.length ? (
-        <section className="canonical-turn__post" aria-label="文件更改">
-          {entry.patchItems.map(renderItem)}
-        </section>
-      ) : null}
-      {entry.postAssistantItems.length ? (
-        <section className="canonical-turn__post">
-          {entry.postAssistantItems.map(renderItem)}
-        </section>
-      ) : null}
+      {entry.contentBlocks.map((block, index) => {
+        if (block.kind === "process") {
+          const summary = summarizeProcessItems(
+            block.items,
+            index === lastProcessIndex ? entry.turn.status : "completed",
+            entry.turn.elapsedSeconds,
+          );
+          return (
+            <section className="canonical-turn__process" aria-label="执行过程" key={block.id}>
+              <CanonicalProcessGroup {...summary}>
+                {block.items.map(renderGroupedItem)}
+              </CanonicalProcessGroup>
+            </section>
+          );
+        }
+        if (block.kind === "assistant") {
+          return (
+            <section className="canonical-turn__result" aria-label="助手回复" key={block.id}>
+              {block.items.map(renderItem)}
+            </section>
+          );
+        }
+        if (block.kind === "plan") {
+          return <section className="canonical-turn__plan" key={block.id}>{renderItem(block.item)}</section>;
+        }
+        if (block.kind === "patch") {
+          return <section className="canonical-turn__post" aria-label="文件更改" key={block.id}>{renderItem(block.item)}</section>;
+        }
+        return <section className="canonical-turn__post" key={block.id}>{renderItem(block.item)}</section>;
+      })}
       {entry.blockers.length ? (
         <section className="canonical-turn__blockers" aria-label="等待处理">
           {entry.blockers.map((blocker) => (

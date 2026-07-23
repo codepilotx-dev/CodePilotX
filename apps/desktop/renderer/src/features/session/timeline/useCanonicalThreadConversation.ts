@@ -37,6 +37,7 @@ export function useCanonicalThreadConversation(
   const stateRef = React.useRef<CanonicalThreadState | null>(null);
   const generationRef = React.useRef(0);
   const unsubscribeRef = React.useRef<(() => void) | null>(null);
+  const reconcilingRef = React.useRef(false);
 
   const commit = React.useCallback((next: CanonicalThreadState | null): void => {
     stateRef.current = next;
@@ -83,8 +84,34 @@ export function useCanonicalThreadConversation(
           if (generation !== generationRef.current) return;
           const current = stateRef.current;
           if (!current) return;
-          const next = applyThreadEnvelope(current, envelope);
-          if (next !== current) commit(next);
+          try {
+            const next = applyThreadEnvelope(current, envelope);
+            if (next !== current) commit(next);
+          } catch (cause) {
+            const message = cause instanceof Error ? cause.message : String(cause);
+            console.error("会话事件投影失败，正在从历史记录对账", {
+              eventId: envelope.eventId,
+              type: envelope.type,
+              cause,
+            });
+            setError(`会话事件投影失败：${message}`);
+            if (reconcilingRef.current) return;
+            reconcilingRef.current = true;
+            void readLatest()
+              .then((replacement) => {
+                if (!replacement || generation !== generationRef.current) return;
+                commit(createCanonicalThreadState(replacement));
+                setError(null);
+              })
+              .catch((reconcileCause) => {
+                if (generation !== generationRef.current) return;
+                const reconcileMessage = reconcileCause instanceof Error ? reconcileCause.message : String(reconcileCause);
+                setError(`会话事件投影失败且对账未完成：${reconcileMessage}`);
+              })
+              .finally(() => {
+                reconcilingRef.current = false;
+              });
+          }
         },
       );
     } catch (cause) {

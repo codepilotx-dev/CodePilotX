@@ -111,6 +111,13 @@ export interface VisibleTurnEntry {
 
 export type RenderItem = Item
 
+export type RenderContentBlock =
+  | { kind: "assistant"; id: string; items: Array<Extract<Item, { type: "text" }>> }
+  | { kind: "process"; id: string; items: RenderItem[] }
+  | { kind: "plan"; id: string; item: Extract<Item, { type: "plan" }> }
+  | { kind: "patch"; id: string; item: Extract<Item, { type: "patch" }> }
+  | { kind: "post"; id: string; item: RenderItem }
+
 export type RenderBlocker =
   | { kind: "approval"; id: string; createdAt: number; approval: ApprovalRequest }
   | { kind: "question"; id: string; createdAt: number; question: Extract<Item, { type: "question" }> }
@@ -123,6 +130,7 @@ export interface RenderTurnEntry extends VisibleTurnEntry {
   postAssistantItems: RenderItem[]
   patchItems: Array<Extract<Item, { type: "patch" }>>
   planItem: Extract<Item, { type: "plan" }> | null
+  contentBlocks: RenderContentBlock[]
   blockers: RenderBlocker[]
   systemItems: RenderItem[]
 }
@@ -236,7 +244,7 @@ export function selectVisibleTurnEntries(
     if (!turn || state.queue.turnIds.includes(turnId)) continue
     const agents = sortedValues(state.agentsById, (agent) => agent.turnId === turnId && (!runAgentIds || runAgentIds.has(agent.id)))
     const agentIds = new Set(agents.map((agent) => agent.id))
-    const items = sortedValues(state.itemsById, (item) => item.turnId === turnId && (!runAgentIds || agentIds.has(item.agentId)))
+    const items = sortedValues(state.itemsById, (item) => item.turnId === turnId && (!runAgentIds || agentIds.has(item.agentId))).sort(compareOrdinal)
     const approvals = sortedValues(state.approvalsById, (approval) => approval.turnId === turnId && (!runAgentIds || agentIds.has(approval.agentId)))
     const attachmentIds = new Set(
       sortedValues(state.inputsById, (input) => input.turnId === turnId)
@@ -267,20 +275,33 @@ export function selectRenderTurnEntries(
     const assistantResultItems: Array<Extract<Item, { type: "text" }>> = []
     const postAssistantItems: Item[] = []
     const patchItems: Array<Extract<Item, { type: "patch" }>> = []
+    const contentBlocks: RenderContentBlock[] = []
     let planItem: Extract<Item, { type: "plan" }> | null = null
 
     for (const item of entry.items) {
       if (item.type === "text") {
-        if (item.placement === "result") assistantResultItems.push(item)
-        else processItems.push(item)
+        if (!item.text.trim()) continue
+        if (item.placement === "result") {
+          assistantResultItems.push(item)
+          const previous = contentBlocks.at(-1)
+          if (previous?.kind === "assistant") previous.items.push(item)
+          else contentBlocks.push({ kind: "assistant", id: `assistant:${item.id}`, items: [item] })
+        } else {
+          processItems.push(item)
+          appendProcessBlock(contentBlocks, item)
+        }
       } else if (item.type === "patch") {
         patchItems.push(item)
+        contentBlocks.push({ kind: "patch", id: `patch:${item.id}`, item })
       } else if (item.type === "plan") {
         planItem = item
+        contentBlocks.push({ kind: "plan", id: `plan:${item.id}`, item })
       } else if (item.type === "question" && item.status !== "pending") {
         postAssistantItems.push(item)
+        contentBlocks.push({ kind: "post", id: `post:${item.id}`, item })
       } else if (item.type !== "question") {
         processItems.push(item)
+        appendProcessBlock(contentBlocks, item)
       }
     }
 
@@ -304,10 +325,17 @@ export function selectRenderTurnEntries(
       postAssistantItems,
       patchItems,
       planItem,
+      contentBlocks,
       blockers,
       systemItems: [],
     }
   })
+}
+
+function appendProcessBlock(blocks: RenderContentBlock[], item: RenderItem): void {
+  const previous = blocks.at(-1)
+  if (previous?.kind === "process") previous.items.push(item)
+  else blocks.push({ kind: "process", id: `process:${item.id}`, items: [item] })
 }
 
 function applyEnvelopePayload(state: CanonicalThreadState, envelope: ThreadEventEnvelopeLike): void {
@@ -322,9 +350,14 @@ function applyEnvelopePayload(state: CanonicalThreadState, envelope: ThreadEvent
       return
     case "turn/queued":
       upsertTurn(state, payload.turn)
+      state.inputsById.set(payload.input.id, payload.input)
       if (!state.queue.turnIds.includes(payload.turn.id)) state.queue.turnIds.push(payload.turn.id)
       return
     case "turn/started":
+      upsertTurn(state, payload.turn)
+      state.inputsById.set(payload.input.id, payload.input)
+      state.queue.turnIds = state.queue.turnIds.filter((id) => id !== payload.turn.id)
+      return
     case "turn/completed":
     case "turn/failed":
     case "turn/interrupted":
@@ -637,6 +670,13 @@ function sortedValues<T extends { id: string; createdAt: number }>(map: Map<stri
 
 function compareCreated(left: { id: string; createdAt: number }, right: { id: string; createdAt: number }): number {
   return left.createdAt - right.createdAt || left.id.localeCompare(right.id)
+}
+
+function compareOrdinal(left: Item, right: Item): number {
+  if (left.ordinal !== undefined && right.ordinal !== undefined && left.ordinal !== right.ordinal) {
+    return left.ordinal - right.ordinal
+  }
+  return compareCreated(left, right)
 }
 
 function unique(values: readonly string[]): string[] {
