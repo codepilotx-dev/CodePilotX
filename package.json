@@ -23,6 +23,7 @@
     "build:renderer": "bun run --cwd apps/desktop/renderer build",
     "build:agent": "bun run --cwd apps/agent build",
     "build:desktop": "bun run --cwd apps/desktop/electron build",
+    "test:desktop:smoke": "bun run --cwd apps/desktop/electron test:smoke",
     "build": "bun run scripts/build.ts",
     "package:win": "bun scripts/package-win.ts --x64"
   },

@@ -11,9 +11,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.json",
     "dev": "bun run build && electron .",
+    "test:smoke": "playwright test --config playwright.smoke.config.ts",
     "package:win": "electron-builder --win --x64"
   },
   "devDependencies": {
+    "@playwright/test": "1.55.1",
     "@types/node": "^24.0.0",
     "electron": "^37.0.0",
     "electron-builder": "^26.0.12",
