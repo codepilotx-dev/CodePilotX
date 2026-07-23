@@ -40,6 +40,8 @@ export function QuickChatView(): React.ReactNode {
     createNewSessionSuggestionState(composerDraft?.value ?? ""),
   );
   const pageRef = useRef<HTMLDivElement | null>(null);
+  const whaleMarkRef = useRef<HTMLButtonElement | null>(null);
+  const whaleMarkAnimationRef = useRef<Animation | null>(null);
   const programmaticValueRef = useRef<string | null>(null);
   const currentWorkspace = useMemo<DesktopWorkspace | null>(() => {
     if (!workspaceName || !workspacePath) return null;
@@ -158,6 +160,35 @@ export function QuickChatView(): React.ReactNode {
     [],
   );
 
+  const handleWhaleMarkClick = useCallback(() => {
+    const mark = whaleMarkRef.current;
+    if (
+      !mark ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+    whaleMarkAnimationRef.current?.cancel();
+    whaleMarkAnimationRef.current = mark.animate(
+      [
+        { transform: "scale(1) rotate(0deg)" },
+        { transform: "scale(1.08) rotate(180deg)", offset: 0.5 },
+        { transform: "scale(1) rotate(360deg)" },
+      ],
+      {
+        duration: 420,
+        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+      },
+    );
+  }, []);
+
+  useEffect(
+    () => () => {
+      whaleMarkAnimationRef.current?.cancel();
+    },
+    [],
+  );
+
   const hasGitWorkspace = Boolean(branchName || gitStatus);
   const headingUsesProject = Boolean(workspaceName && workspaceName.length <= 15);
   const headingVerb = hasGitWorkspace ? "构建" : "开展";
@@ -170,7 +201,13 @@ export function QuickChatView(): React.ReactNode {
       >
         <section className="quick-chat-hero-region">
           <div className="quick-chat-hero">
-            <span aria-hidden className="quick-chat-mark" />
+            <button
+              ref={whaleMarkRef}
+              aria-label="旋转鲸鱼图标"
+              className="quick-chat-mark"
+              type="button"
+              onClick={handleWhaleMarkClick}
+            />
             {headingUsesProject ? (
               <h1>
                 我们应该在{" "}

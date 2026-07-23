@@ -86,18 +86,32 @@
   animation: quick-chat-hero-enter 280ms cubic-bezier(0.23, 1, 0.32, 1) both;
 
   .quick-chat-mark {
+    display: block;
     width: 56px;
     height: 56px;
+    padding: 0;
+    border: 0;
     background-color: var(--color-text-strong);
     mask-image: url('../../../../build/whale-icon.svg');
     mask-size: contain;
     mask-repeat: no-repeat;
     mask-position: center;
     opacity: 0.3;
-    transition: opacity var(--motion-hover) var(--ease-standard);
+    transform: scale(1) rotate(0deg);
+    transform-origin: center;
+    cursor: pointer;
+    user-select: none;
+    transition:
+      opacity var(--motion-hover) var(--ease-standard),
+      transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
 
     &:hover {
       opacity: 0.4;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 4px;
     }
   }
 
@@ -454,6 +468,11 @@
   }
 
   .new-session-suggestion-card {
+    transition: none;
+  }
+
+  .quick-chat-mark {
+    transform: none;
     transition: none;
   }
 }
