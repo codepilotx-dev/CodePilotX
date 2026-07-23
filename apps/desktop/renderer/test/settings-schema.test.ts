@@ -17,6 +17,44 @@ describe("工作空间依赖项迁移", () => {
   })
 })
 
+describe("宠物设置归一化", () => {
+  test("提供安全默认值并限制尺寸与宠物 ID", () => {
+    expect(defaultDesktopStoredSettings().pet).toEqual({
+      enabled: false,
+      selectedPetId: null,
+      size: 112,
+      notifyAttention: true,
+      notifyCompletion: true,
+      notifyFailure: true,
+    })
+    expect(
+      normalizeDesktopStoredSettings({
+        pet: {
+          enabled: true,
+          selectedPetId: "../unsafe",
+          size: 500,
+          notifyCompletion: false,
+        },
+      }).pet,
+    ).toEqual({
+      enabled: true,
+      selectedPetId: null,
+      size: 224,
+      notifyAttention: true,
+      notifyCompletion: false,
+      notifyFailure: true,
+    })
+    expect(
+      normalizeDesktopStoredSettings({
+        pet: { selectedPetId: "little-whale", size: 40 },
+      }).pet,
+    ).toMatchObject({
+      selectedPetId: "little-whale",
+      size: 80,
+    })
+  })
+})
+
 describe("高级权限设置归一化", () => {
   test("完整保存并回填 granular PermissionConfig", () => {
     const granular = { type: "granular" as const, sandboxApproval: false, rules: true, skillApproval: false, requestPermissions: true, mcpElicitations: false }

@@ -17,6 +17,16 @@ declare global {
     codePilotXDesktop: {
       getAppearanceSettings(): Promise<DesktopThemeSettingsV5>
       saveAppearanceSettings(settings: DesktopThemeSettingsV5): Promise<void>
+      openPetOverlay(): Promise<void>
+      hidePetOverlay(): Promise<void>
+      getPetOverlayWindowState(): Promise<{
+        open: boolean
+        bounds: { x: number; y: number; width: number; height: number }
+      }>
+      beginPetDrag(): void
+      updatePetDrag(): void
+      endPetDrag(): void
+      setPetPointerPassthrough(passthrough: boolean): void
     }
   }
 }
@@ -51,6 +61,65 @@ test.describe("真实 Electron 宿主", () => {
       window.codePilotXDesktop.getAppearanceSettings(),
     )
     expect(settings.version).toBe(5)
+
+    await page.evaluate(() => window.codePilotXDesktop.openPetOverlay())
+    await expect
+      .poll(() =>
+        application
+          ?.windows()
+          .find(candidate => candidate.url().endsWith("/#/pet-overlay"))
+          ?.url() ?? null,
+      )
+      .toMatch(/\/#\/pet-overlay$/)
+    const overlayPage = application
+      .windows()
+      .find(candidate => candidate.url().endsWith("/#/pet-overlay"))
+    if (!overlayPage) throw new Error("Electron smoke 未找到宠物悬浮窗")
+    await expect(overlayPage.locator(".pet-overlay-page")).toBeAttached()
+    expect(
+      await overlayPage.evaluate(() => ({
+        hasDesktopBridge: typeof window.codePilotXDesktop === "object",
+        hasDragBridge:
+          typeof window.codePilotXDesktop.beginPetDrag === "function",
+        hasPointerBridge:
+          typeof window.codePilotXDesktop.setPetPointerPassthrough ===
+          "function",
+      })),
+    ).toEqual({
+      hasDesktopBridge: true,
+      hasDragBridge: true,
+      hasPointerBridge: true,
+    })
+    await overlayPage.evaluate(() => {
+      window.codePilotXDesktop.setPetPointerPassthrough(false)
+      window.codePilotXDesktop.beginPetDrag()
+      window.codePilotXDesktop.updatePetDrag()
+      window.codePilotXDesktop.endPetDrag()
+      window.codePilotXDesktop.setPetPointerPassthrough(true)
+    })
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          window.codePilotXDesktop.getPetOverlayWindowState(),
+        ),
+      )
+      .toMatchObject({ open: true })
+    await page.evaluate(() => window.codePilotXDesktop.hidePetOverlay())
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          window.codePilotXDesktop.getPetOverlayWindowState(),
+        ),
+      )
+      .toMatchObject({ open: false })
+    await page.evaluate(() => window.codePilotXDesktop.openPetOverlay())
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          window.codePilotXDesktop.getPetOverlayWindowState(),
+        ),
+      )
+      .toMatchObject({ open: true })
 
     await page.evaluate(async current => {
       await window.codePilotXDesktop.saveAppearanceSettings({
@@ -110,7 +179,10 @@ test.describe("真实 Electron 宿主", () => {
     ).toBeVisible()
 
     const restoredBounds = await application.evaluate(async ({ BrowserWindow }) => {
-      const window = BrowserWindow.getAllWindows()[0]
+      const window = BrowserWindow.getAllWindows().find(
+        candidate =>
+          !candidate.webContents.getURL().endsWith("/#/pet-overlay"),
+      )
       if (!window) throw new Error("Electron smoke 未找到主窗口")
       const current = window.getBounds()
       const next = {
@@ -128,7 +200,10 @@ test.describe("真实 Electron 宿主", () => {
     })
     await expect.poll(() =>
       application?.evaluate(({ BrowserWindow }) =>
-        BrowserWindow.getAllWindows()[0]?.isMaximized() ?? false,
+        BrowserWindow.getAllWindows().find(
+          candidate =>
+            !candidate.webContents.getURL().endsWith("/#/pet-overlay"),
+        )?.isMaximized() ?? false,
       ),
     ).toBe(true)
 
@@ -156,7 +231,10 @@ test.describe("真实 Electron 宿主", () => {
     })
     await expect.poll(() =>
       application?.evaluate(({ BrowserWindow }) => {
-        const window = BrowserWindow.getAllWindows()[0]
+        const window = BrowserWindow.getAllWindows().find(
+          candidate =>
+            !candidate.webContents.getURL().endsWith("/#/pet-overlay"),
+        )
         return window
           ? {
               backgroundColor: window.getBackgroundColor().toLowerCase(),
@@ -170,7 +248,10 @@ test.describe("真实 Electron 宿主", () => {
       maximized: true,
     })
     const restoredWindowState = await application.evaluate(({ BrowserWindow }) => {
-      const window = BrowserWindow.getAllWindows()[0]
+      const window = BrowserWindow.getAllWindows().find(
+        candidate =>
+          !candidate.webContents.getURL().endsWith("/#/pet-overlay"),
+      )
       if (!window) throw new Error("Electron smoke 未找到重启后的主窗口")
       return window.getNormalBounds()
     })
