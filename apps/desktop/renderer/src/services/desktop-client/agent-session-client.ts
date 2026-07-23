@@ -2598,6 +2598,22 @@ export function createAgentSessionDesktopClient(
         unsubscribeMock()
       }
     },
+    onDesktopSettingsChange: callback => {
+      const subscribe =
+        environment.window?.codePilotXDesktop?.onDesktopSettingsChange
+      if (!subscribe) return mockClient.onDesktopSettingsChange(callback)
+      return subscribe(change => {
+        const value =
+          change
+          && typeof change === 'object'
+          && 'settings' in change
+            ? change.settings
+            : change
+        callback({
+          settings: normalizeDesktopStoredSettings(value),
+        })
+      })
+    },
   }
 
   return client

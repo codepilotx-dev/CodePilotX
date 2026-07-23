@@ -38,6 +38,13 @@ declare global {
       saveDesktopSettings(
         settings: DesktopStoredSettings,
       ): Promise<DesktopStoredSettings>
+      onDesktopSettingsChange?(
+        listener: (
+          change:
+            | DesktopStoredSettings
+            | { settings: DesktopStoredSettings },
+        ) => void,
+      ): () => void
       copyProviderApiKey(
         credentialId: string,
       ): Promise<{ clearAfterMs: 60000 }>

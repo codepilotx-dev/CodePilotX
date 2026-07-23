@@ -10,7 +10,7 @@
   min-width: 180px;
   padding: 7px 10px;
   color: var(--color-token-foreground);
-  background: var(--color-token-background-secondary);
+  background: var(--color-token-bg-secondary);
   border: 1px solid var(--color-token-border);
   border-radius: 8px;
 }
@@ -27,7 +27,7 @@
 .pet-settings-preview {
   margin: 0 14px 14px;
   padding: 12px;
-  background: var(--color-token-background-secondary);
+  background: var(--color-token-bg-secondary);
   border: 1px solid var(--color-token-border);
   border-radius: 10px;
 }
@@ -38,6 +38,6 @@
 
 .pet-settings-preview p {
   margin: 3px 0 0;
-  color: var(--color-token-foreground-secondary);
+  color: var(--color-token-description-foreground);
   font-size: 12px;
 }
