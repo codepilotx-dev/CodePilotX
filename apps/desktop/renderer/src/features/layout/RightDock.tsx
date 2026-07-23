@@ -1,7 +1,6 @@
 import type React from 'react'
 import {
   Component,
-  forwardRef,
   Fragment,
   useCallback,
   useEffect,
@@ -888,36 +887,34 @@ function domId(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, '-')
 }
 
-export type DesktopWorkspaceFixedControlsProps = {
+export type WorkspaceShellControlsProps = {
   rightDockState: WorkbenchPanelSnapshot
   bottomPanelVisible: boolean
   showBottomPanel: boolean
+  showRightPanel: boolean
   onToggleBottomPanel: () => void
   onToggleRightPanel: () => void
 }
 
-export const DesktopWorkspaceFixedControls = forwardRef<
-  HTMLDivElement,
-  DesktopWorkspaceFixedControlsProps
->(function DesktopWorkspaceFixedControls(
-  {
+export function WorkspaceShellControls({
     rightDockState,
     bottomPanelVisible,
     showBottomPanel,
-    onToggleBottomPanel,
-    onToggleRightPanel,
-  },
-  ref,
-): React.ReactNode {
+    showRightPanel,
+  onToggleBottomPanel,
+  onToggleRightPanel,
+}: WorkspaceShellControlsProps): React.ReactNode {
+  if (!showBottomPanel && !showRightPanel) return null
+
   return (
     <div
-      ref={ref}
-      className="desktop-workspace-fixed-controls tw:flex tw:h-full tw:max-h-[46px] tw:items-center tw:gap-0.5 tw:pr-3"
+      className="workspace-shell-controls"
     >
       {showBottomPanel ? (
         <IconButton
+          aria-label={bottomPanelVisible ? '隐藏底部面板' : '显示底部面板'}
           aria-pressed={bottomPanelVisible}
-          className="desktop-workspace-fixed-control-button"
+          className="workspace-shell-control-button"
           title={bottomPanelVisible ? '隐藏底部面板' : '显示底部面板'}
           variant="plain"
           onClick={onToggleBottomPanel}
@@ -925,18 +922,21 @@ export const DesktopWorkspaceFixedControls = forwardRef<
           <BottomPanelToggleIcon open={bottomPanelVisible} />
         </IconButton>
       ) : null}
-      <IconButton
-        aria-pressed={rightDockState.open}
-        className="desktop-workspace-fixed-control-button"
-        title={rightDockState.open ? '关闭右侧面板' : '显示右侧面板'}
-        variant="plain"
-        onClick={onToggleRightPanel}
-      >
-        <RightPanelToggleIcon open={rightDockState.open} />
-      </IconButton>
+      {showRightPanel ? (
+        <IconButton
+          aria-label={rightDockState.open ? '关闭右侧面板' : '显示右侧面板'}
+          aria-pressed={rightDockState.open}
+          className="workspace-shell-control-button"
+          title={rightDockState.open ? '关闭右侧面板' : '显示右侧面板'}
+          variant="plain"
+          onClick={onToggleRightPanel}
+        >
+          <RightPanelToggleIcon open={rightDockState.open} />
+        </IconButton>
+      ) : null}
     </div>
   )
-})
+}
 
 function BottomPanelToggleIcon({ open }: { open: boolean }): React.ReactNode {
   return (

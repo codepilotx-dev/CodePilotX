@@ -27,10 +27,10 @@
 .workbench-panel-header {
   position: relative;
   display: flex;
-  height: 46px;
-  max-height: 46px;
+  height: var(--workspace-header-height, 46px);
+  max-height: var(--workspace-header-height, 46px);
   min-width: 0;
-  flex: 0 0 46px;
+  flex: 0 0 var(--workspace-header-height, 46px);
   align-items: center;
   overflow: hidden;
   padding-left: 10px;
@@ -39,11 +39,14 @@
 }
 
 .right-dock-header {
-  height: 46px;
-  max-height: 46px;
-  flex-basis: 46px;
+  height: var(--workspace-header-height, 46px);
+  max-height: var(--workspace-header-height, 46px);
+  flex-basis: var(--workspace-header-height, 46px);
   padding-left: 8px;
-  padding-right: calc(var(--workspace-fixed-controls-width, 76px) + 36px);
+  padding-right: calc(
+    var(--workspace-header-shell-width, 0px) + var(--control-size-sm) +
+      var(--space-2)
+  );
 }
 
 .bottom-panel-header {
@@ -143,7 +146,7 @@
 
 .right-dock-full-width {
   position: absolute;
-  right: var(--workspace-fixed-controls-width, 76px);
+  right: var(--workspace-header-shell-width, 0px);
   width: var(--control-size-sm);
   height: var(--control-size-sm);
 }
