@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron"
-import type { DesktopThemeSettingsV3 } from "./appearance-settings-store.js"
-import type { DesktopSettingsPayload } from "./desktop-settings-contract.js"
+import type { DesktopThemeSettingsV4 } from "./settings/appearance-settings-store.js"
+import type { DesktopSettingsPayload } from "./settings/desktop-settings-contract.js"
 
 type AgentConnectionState = "connected" | "disconnected" | "unknown"
 type SystemThemeVariant = "light" | "dark"
@@ -57,9 +57,9 @@ const desktop = {
     ipcRenderer.invoke("shell:reveal-path-in-folder", targetPath),
   openLogDirectory: (): Promise<string> => ipcRenderer.invoke("startup:open-logs"),
   quitDuringStartup: (): Promise<void> => ipcRenderer.invoke("startup:quit"),
-  getAppearanceSettings: (): Promise<DesktopThemeSettingsV3> =>
+  getAppearanceSettings: (): Promise<DesktopThemeSettingsV4> =>
     ipcRenderer.invoke("appearance:settings:get"),
-  saveAppearanceSettings: (settings: DesktopThemeSettingsV3): Promise<void> =>
+  saveAppearanceSettings: (settings: DesktopThemeSettingsV4): Promise<void> =>
     ipcRenderer.invoke("appearance:settings:save", settings),
   getSystemTheme: (): Promise<SystemThemeVariant> =>
     ipcRenderer.invoke("appearance:system-theme:get"),

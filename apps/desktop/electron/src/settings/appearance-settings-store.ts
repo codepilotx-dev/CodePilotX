@@ -1,5 +1,5 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
-import { dirname, join } from "node:path"
+import { basename, dirname, extname, join } from "node:path"
 import { randomUUID } from "node:crypto"
 
 export type AppearanceVariant = "light" | "dark"
@@ -23,8 +23,8 @@ export interface DesktopChromeTheme {
   }
 }
 
-export interface DesktopThemeSettingsV3 {
-  version: 3
+export interface DesktopThemeSettingsV4 {
+  version: 4
   mode: AppearanceMode
   chromeThemes: Record<AppearanceVariant, DesktopChromeTheme>
   codeThemeIds: Record<AppearanceVariant, string>
@@ -66,8 +66,8 @@ const DEFAULT_CHROME_THEMES: Record<AppearanceVariant, DesktopChromeTheme> = {
   },
 }
 
-export const DEFAULT_APPEARANCE_SETTINGS: DesktopThemeSettingsV3 = {
-  version: 3,
+export const DEFAULT_APPEARANCE_SETTINGS: DesktopThemeSettingsV4 = {
+  version: 4,
   mode: "system",
   chromeThemes: DEFAULT_CHROME_THEMES,
   codeThemeIds: { light: "codex-light", dark: "codex-dark" },
@@ -78,6 +78,9 @@ export const DEFAULT_APPEARANCE_SETTINGS: DesktopThemeSettingsV3 = {
 }
 
 type RecordValue = Record<string, unknown>
+type AppearanceSettingsVersion = 1 | 2 | 3 | 4
+
+const CURRENT_APPEARANCE_SETTINGS_VERSION = 4
 
 function isRecord(value: unknown): value is RecordValue {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -134,7 +137,7 @@ function normalizeChromeTheme(value: unknown, fallback: DesktopChromeTheme): Des
   }
 }
 
-export function normalizeAppearanceSettings(value: unknown): DesktopThemeSettingsV3 {
+export function normalizeAppearanceSettings(value: unknown): DesktopThemeSettingsV4 {
   const source = isRecord(value) ? value : {}
   const mode = source.mode === "light" || source.mode === "dark" || source.mode === "system"
     ? source.mode
@@ -154,7 +157,7 @@ export function normalizeAppearanceSettings(value: unknown): DesktopThemeSetting
   }
 
   return {
-    version: 3,
+    version: 4,
     mode,
     chromeThemes: {
       light: normalizeVariant("light"),
@@ -182,30 +185,100 @@ export function normalizeAppearanceSettings(value: unknown): DesktopThemeSetting
   }
 }
 
+const APPEARANCE_SETTINGS_MIGRATIONS: Record<
+  Exclude<AppearanceSettingsVersion, 4>,
+  (value: RecordValue) => RecordValue
+> = {
+  1: value => ({ ...value, version: 2 }),
+  2: value => ({ ...value, version: 3 }),
+  3: value => ({ ...value, version: 4 }),
+}
+
+/**
+ * Advances a known appearance-settings document one version at a time.
+ *
+ * Fields are deliberately retained between versions and normalized only after
+ * the last migration, so preferences understood by the current application
+ * survive while newly introduced fields receive their current defaults.
+ */
+export function migrateAppearanceSettings(value: unknown): DesktopThemeSettingsV4 {
+  if (!isRecord(value)) {
+    throw new UnsupportedAppearanceSettingsVersionError(value)
+  }
+
+  const originalVersion = value.version
+  if (
+    typeof originalVersion !== "number"
+    || !Number.isInteger(originalVersion)
+    || originalVersion < 1
+  ) {
+    throw new UnsupportedAppearanceSettingsVersionError(originalVersion)
+  }
+  if (originalVersion > CURRENT_APPEARANCE_SETTINGS_VERSION) {
+    throw new NewerAppearanceSettingsVersionError(originalVersion)
+  }
+
+  let migrated = value
+  let version = originalVersion as AppearanceSettingsVersion
+  while (version < CURRENT_APPEARANCE_SETTINGS_VERSION) {
+    const migrate = APPEARANCE_SETTINGS_MIGRATIONS[
+      version as Exclude<AppearanceSettingsVersion, 4>
+    ]
+    migrated = migrate(migrated)
+    version = migrated.version as AppearanceSettingsVersion
+  }
+  return normalizeAppearanceSettings(migrated)
+}
+
+export class UnsupportedAppearanceSettingsVersionError extends Error {
+  constructor(readonly version: unknown) {
+    super("无法识别外观设置版本，原设置文件已保留")
+    this.name = "UnsupportedAppearanceSettingsVersionError"
+  }
+}
+
+export class NewerAppearanceSettingsVersionError extends Error {
+  constructor(readonly version: number) {
+    super(`外观设置版本 ${version} 高于当前支持的版本，原设置文件已保留`)
+    this.name = "NewerAppearanceSettingsVersionError"
+  }
+}
+
 export class AppearanceSettingsStore {
   readonly #filePath: string
+  readonly #logger: AppearanceSettingsLogger | undefined
   #writeQueue: Promise<void> = Promise.resolve()
 
-  constructor(userDataDirectory: string, fileName = "appearance-settings.json") {
+  constructor(
+    userDataDirectory: string,
+    logger?: AppearanceSettingsLogger,
+    fileName = "appearance-settings.json",
+  ) {
     this.#filePath = join(userDataDirectory, fileName)
+    this.#logger = logger
   }
 
   get filePath(): string {
     return this.#filePath
   }
 
-  async load(): Promise<DesktopThemeSettingsV3> {
+  async load(): Promise<DesktopThemeSettingsV4> {
     try {
       const source = await readFile(this.#filePath, "utf8")
-      const parsed: unknown = JSON.parse(source)
-      const normalized = normalizeAppearanceSettings(parsed)
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(source)
+      } catch (error) {
+        if (error instanceof SyntaxError) {
+          return this.#backupCorruptAndReset()
+        }
+        throw error
+      }
+      const normalized = migrateAppearanceSettings(parsed)
       if (JSON.stringify(parsed) !== JSON.stringify(normalized)) await this.save(normalized)
       return normalized
     } catch (error) {
-      if (!isMissingFileError(error) && !(error instanceof SyntaxError)) {
-        // Permission and I/O errors should not be disguised as corrupt settings.
-        throw error
-      }
+      if (!isMissingFileError(error)) throw error
       const fallback = normalizeAppearanceSettings(DEFAULT_APPEARANCE_SETTINGS)
       await this.save(fallback)
       return fallback
@@ -219,7 +292,22 @@ export class AppearanceSettingsStore {
     return write
   }
 
-  async #writeAtomically(settings: DesktopThemeSettingsV3): Promise<void> {
+  async #backupCorruptAndReset(): Promise<DesktopThemeSettingsV4> {
+    const extension = extname(this.#filePath)
+    const stem = basename(this.#filePath, extension)
+    const timestamp = new Date().toISOString().replace(/\D/g, "")
+    const backupPath = join(
+      dirname(this.#filePath),
+      `${stem}.corrupt-${timestamp}-${randomUUID()}${extension || ".json"}`,
+    )
+    await rename(this.#filePath, backupPath)
+    this.#logger?.info("appearance-settings.corrupt-backed-up", { reason: "invalid-json" })
+    const fallback = normalizeAppearanceSettings(DEFAULT_APPEARANCE_SETTINGS)
+    await this.save(fallback)
+    return fallback
+  }
+
+  async #writeAtomically(settings: DesktopThemeSettingsV4): Promise<void> {
     const directory = dirname(this.#filePath)
     const temporaryPath = `${this.#filePath}.${process.pid}.${randomUUID()}.tmp`
     await mkdir(directory, { recursive: true })
@@ -233,6 +321,10 @@ export class AppearanceSettingsStore {
       await rm(temporaryPath, { force: true }).catch(() => undefined)
     }
   }
+}
+
+export interface AppearanceSettingsLogger {
+  info(event: string, fields?: Record<string, unknown>): void
 }
 
 function isMissingFileError(error: unknown): boolean {

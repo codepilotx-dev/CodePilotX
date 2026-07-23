@@ -3,7 +3,7 @@ import {
   MAX_API_KEY_MATERIAL_LENGTH,
   normalizeDesktopSettingsPayload,
   requireApiKeyMaterial,
-} from "../src/desktop-settings-contract"
+} from "../src/settings/desktop-settings-contract"
 
 describe("Desktop IPC 设置契约", () => {
   test("只接受普通设置对象", () => {

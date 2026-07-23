@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import {
   AppearanceSettingsStore,
   DEFAULT_APPEARANCE_SETTINGS,
+  NewerAppearanceSettingsVersionError,
+  migrateAppearanceSettings,
   normalizeAppearanceSettings,
-} from "../src/appearance-settings-store"
+} from "../src/settings/appearance-settings-store"
 
 const roots: string[] = []
 
@@ -20,7 +22,7 @@ function temporaryRoot(): string {
 }
 
 describe("Electron 外观设置存储", () => {
-  test("首次读取创建规范化的 V3 设置文件", async () => {
+  test("首次读取创建当前代际的设置文件", async () => {
     const root = temporaryRoot()
     const store = new AppearanceSettingsStore(root)
 
@@ -28,19 +30,33 @@ describe("Electron 外观设置存储", () => {
     expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(DEFAULT_APPEARANCE_SETTINGS)
   })
 
-  test("损坏 JSON 回退默认值并修复设置文件", async () => {
+  test("损坏 JSON 备份旧文件、记录无敏感信息的事件并恢复默认值", async () => {
     const root = temporaryRoot()
-    const store = new AppearanceSettingsStore(root)
+    const records: Array<{ event: string; fields?: Record<string, unknown> }> = []
+    const store = new AppearanceSettingsStore(root, {
+      info: (event, fields) => records.push({ event, fields }),
+    })
     await mkdir(root, { recursive: true })
     await writeFile(store.filePath, "{not-json", "utf8")
 
     expect(await store.load()).toEqual(DEFAULT_APPEARANCE_SETTINGS)
     expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(DEFAULT_APPEARANCE_SETTINGS)
+    const corruptFiles = (await readdir(root)).filter(
+      name => name.startsWith("appearance-settings.corrupt-") && name.endsWith(".json"),
+    )
+    expect(corruptFiles).toHaveLength(1)
+    expect(await readFile(join(root, corruptFiles[0]!), "utf8")).toBe("{not-json")
+    expect(records).toEqual([{
+      event: "appearance-settings.corrupt-backed-up",
+      fields: { reason: "invalid-json" },
+    }])
+    expect(JSON.stringify(records)).not.toContain(root)
+    expect(JSON.stringify(records)).not.toContain("not-json")
   })
 
-  test("迁移 V2 字段并限制数值和颜色", () => {
-    const migrated = normalizeAppearanceSettings({
-      version: 2,
+  test("保存当前代际时规范化字段并限制数值和颜色", () => {
+    const normalized = normalizeAppearanceSettings({
+      version: 4,
       mode: "dark",
       codeThemeIds: { light: "auto", dark: "linear-dark" },
       glassmorphismEnabled: false,
@@ -49,34 +65,87 @@ describe("Electron 外观设置存储", () => {
       fontSizes: { ui: 999, code: 1 },
     })
 
-    expect(migrated).toMatchObject({
-      version: 3,
+    expect(normalized).toMatchObject({
+      version: 4,
       mode: "dark",
       codeThemeIds: { light: "codex-light", dark: "linear-dark" },
       pointerCursorEnabled: true,
       reduceMotion: "on",
       fontSizes: { ui: 16, code: 8 },
     })
-    expect(migrated.chromeThemes.light.opaqueWindows).toBe(true)
-    expect(migrated.chromeThemes.dark.opaqueWindows).toBe(true)
+    expect(normalized.chromeThemes.light.opaqueWindows).toBe(true)
+    expect(normalized.chromeThemes.dark.opaqueWindows).toBe(true)
   })
 
-  test("读取旧版本时持久化迁移结果", async () => {
+  test("逐版本迁移旧设置并保留可识别的用户字段", async () => {
     const root = temporaryRoot()
-    const store = new AppearanceSettingsStore(root)
+    const records: Array<{ event: string; fields?: Record<string, unknown> }> = []
+    const store = new AppearanceSettingsStore(root, {
+      info: (event, fields) => records.push({ event, fields }),
+    })
     await mkdir(root, { recursive: true })
     await writeFile(store.filePath, JSON.stringify({
       version: 2,
       mode: "light",
       codeThemeIds: { light: "auto", dark: "codex-dark" },
       glassmorphismEnabled: true,
+      chromeThemes: {
+        light: {
+          accent: "#ABCDEF",
+          fonts: { ui: "  Inter  ", code: "JetBrains Mono" },
+        },
+      },
+      reduceMotion: "on",
       fontSizes: { ui: 13, code: 11 },
     }), "utf8")
 
     const loaded = await store.load()
 
-    expect(loaded.version).toBe(3)
+    expect(loaded).toMatchObject({
+      version: 4,
+      mode: "light",
+      codeThemeIds: { light: "codex-light", dark: "codex-dark" },
+      reduceMotion: "on",
+      fontSizes: { ui: 13, code: 11 },
+    })
+    expect(loaded.chromeThemes.light.accent).toBe("#abcdef")
+    expect(loaded.chromeThemes.light.fonts).toEqual({
+      ui: "Inter",
+      code: "JetBrains Mono",
+    })
+    expect(loaded.chromeThemes.light.opaqueWindows).toBe(false)
+    expect(loaded.chromeThemes.dark.opaqueWindows).toBe(false)
     expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(loaded)
+    expect(records).toEqual([])
+  })
+
+  test("迁移函数按顺序支持所有已知旧版本", () => {
+    for (const version of [1, 2, 3]) {
+      expect(migrateAppearanceSettings({
+        version,
+        mode: "dark",
+        pointerCursorEnabled: true,
+      })).toMatchObject({
+        version: 4,
+        mode: "dark",
+        pointerCursorEnabled: true,
+      })
+    }
+  })
+
+  test("读取更新版本时保留原文件并拒绝覆盖", async () => {
+    const root = temporaryRoot()
+    const store = new AppearanceSettingsStore(root)
+    const futureSettings = JSON.stringify({
+      version: 5,
+      mode: "light",
+      futureField: "must-survive",
+    })
+    await mkdir(root, { recursive: true })
+    await writeFile(store.filePath, futureSettings, "utf8")
+
+    await expect(store.load()).rejects.toBeInstanceOf(NewerAppearanceSettingsVersionError)
+    expect(await readFile(store.filePath, "utf8")).toBe(futureSettings)
   })
 
   test("并发保存按调用顺序串行，文件始终是完整 JSON", async () => {

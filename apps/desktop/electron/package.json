@@ -34,6 +34,10 @@
         "to": "icon.ico"
       },
       {
+        "from": "../build/whale-icon.svg",
+        "to": "whale-icon.svg"
+      },
+      {
         "from": "../../agent/dist/x64/codepilotx-agent.exe",
         "to": "agent/codepilotx-agent.exe"
       },

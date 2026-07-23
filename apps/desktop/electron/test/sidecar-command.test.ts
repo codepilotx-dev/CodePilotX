@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { missingPackagedSidecarError, resolveBunExecutable, resolveSidecarCommand, SidecarInstallationError } from "../src/sidecar-command"
+import { missingPackagedSidecarError, resolveBunExecutable, resolveSidecarCommand, SidecarInstallationError } from "../src/sidecar/command"
 
 const roots: string[] = []
 

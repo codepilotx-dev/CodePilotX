@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { join } from "node:path"
-import { ExternalOpenTargetService } from "../src/external-open-targets"
+import { ExternalOpenTargetService } from "../src/ipc/external-open-targets"
 
 const targetPath = "C:\\workspace\\src\\index.ts"
 
