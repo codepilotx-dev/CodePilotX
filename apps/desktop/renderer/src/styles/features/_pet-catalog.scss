@@ -140,18 +140,23 @@
 }
 
 .pet-catalog-art {
-  display: grid;
+  display: flex;
   height: 132px;
-  place-items: center;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
+  padding: 10px;
   background: var(--color-token-editor-background);
   color: var(--color-token-icon-foreground);
 }
 
 .pet-catalog-art img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 100%;
+  object-fit: scale-down;
 }
 
 .pet-catalog-card-body {
