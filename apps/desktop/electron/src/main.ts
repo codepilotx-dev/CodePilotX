@@ -4,6 +4,10 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { app, nativeTheme, screen, shell } from "electron"
 import type { DesktopThemeSettingsV5 } from "@codepilotx/shared/desktop-theme"
+import {
+  DESKTOP_SETTINGS_IPC_CHANNELS,
+  type DesktopSettingsPayload,
+} from "@codepilotx/shared/desktop-settings-ipc"
 import { registerAppearanceIpc } from "./ipc/register-appearance-ipc.js"
 import { registerDesktopIpc } from "./ipc/register-desktop-ipc.js"
 import { ExternalOpenTargetService } from "./ipc/external-open-targets.js"
@@ -138,6 +142,12 @@ async function startDesktop(): Promise<void> {
     getConnectionState: () => connectionStatus.state,
     getLogDirectory: () => logger?.directory ?? logDirectory,
     quitDuringStartup: () => app.quit(),
+    isDesktopRendererSender: sender =>
+      windows?.isMainSender(sender) === true
+      || petOverlay?.isOverlaySender(sender) === true,
+    broadcastDesktopSettingsChanged: settings => {
+      broadcastDesktopSettingsChanged(settings)
+    },
   })
   registerAppearanceIpc(appearanceSettings, appearance)
   registerPetOverlayIpc(windows, petOverlay)
@@ -252,6 +262,13 @@ app.on("before-quit", (event) => {
     petOverlay?.flushState() ?? Promise.resolve(),
   ]).finally(() => app.exit(0))
 })
+
+function broadcastDesktopSettingsChanged(
+  settings: DesktopSettingsPayload,
+): void {
+  windows?.send(DESKTOP_SETTINGS_IPC_CHANNELS.changed, settings)
+  petOverlay?.send(DESKTOP_SETTINGS_IPC_CHANNELS.changed, settings)
+}
 
 app.on("window-all-closed", () => app.quit())
 

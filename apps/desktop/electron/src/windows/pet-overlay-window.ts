@@ -1,6 +1,10 @@
 import { join } from "node:path"
 import { BrowserWindow, screen, type WebContents } from "electron"
-import type { DesktopPetOverlayWindowState } from "@codepilotx/shared/desktop-pet-overlay"
+import {
+  PET_OVERLAY_CHANNELS,
+  type DesktopPetOverlayWindowState,
+  type DesktopPetPresentation,
+} from "@codepilotx/shared/desktop-pet-overlay"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 import {
   isAllowedApplicationUrl,
@@ -11,6 +15,15 @@ import {
   type PetOverlayWindowStateV1,
   PetOverlayWindowStateStore,
 } from "./pet-overlay-window-state.js"
+import {
+  advancePetThrow,
+  estimatePetThrowVelocity,
+  PET_DRAG_THRESHOLD_PX,
+  PET_THROW_SAMPLE_WINDOW_MS,
+  PET_THROW_TICK_MS,
+  type PetThrowSample,
+  type PetThrowVelocity,
+} from "./pet-overlay-throw.js"
 
 export class PetOverlayWindowController {
   #window?: BrowserWindow
@@ -19,6 +32,12 @@ export class PetOverlayWindowController {
     cursor: Electron.Point
     bounds: Electron.Rectangle
   }
+  #dragSamples: PetThrowSample[] = []
+  #dragActivated = false
+  #throwTimer?: ReturnType<typeof setInterval>
+  #throwVelocity: PetThrowVelocity = { x: 0, y: 0 }
+  #lastThrowFrameAt = 0
+  #throwStartedAt = 0
 
   constructor(
     private readonly logger: DesktopLogger,
@@ -44,6 +63,7 @@ export class PetOverlayWindowController {
   }
 
   hide(): void {
+    this.#stopThrow(true)
     this.#window?.hide()
   }
 
@@ -58,13 +78,32 @@ export class PetOverlayWindowController {
     return this.#window?.webContents === sender
   }
 
+  send(channel: string, ...args: unknown[]): void {
+    const overlay = this.#window
+    if (overlay && !overlay.isDestroyed()) {
+      overlay.webContents.send(channel, ...args)
+    }
+  }
+
+  previewPresentation(presentation: DesktopPetPresentation): void {
+    this.send(PET_OVERLAY_CHANNELS.presentationPreview, presentation)
+  }
+
+  globalPointerPosition(): Electron.Point {
+    return screen.getCursorScreenPoint()
+  }
+
   beginDrag(): void {
     const overlay = this.#window
     if (!overlay || overlay.isDestroyed()) return
+    this.#stopThrow(false)
+    const cursor = screen.getCursorScreenPoint()
     this.#dragStart = {
-      cursor: screen.getCursorScreenPoint(),
+      cursor,
       bounds: overlay.getBounds(),
     }
+    this.#dragSamples = [sampleCursor(cursor)]
+    this.#dragActivated = false
   }
 
   updateDrag(): void {
@@ -72,23 +111,52 @@ export class PetOverlayWindowController {
     const start = this.#dragStart
     if (!overlay || overlay.isDestroyed() || !start) return
     const cursor = screen.getCursorScreenPoint()
+    const sample = sampleCursor(cursor)
+    this.#dragSamples.push(sample)
+    this.#dragSamples = this.#dragSamples.filter(
+      item => item.timestampMs >= sample.timestampMs - PET_THROW_SAMPLE_WINDOW_MS,
+    )
+    const deltaX = cursor.x - start.cursor.x
+    const deltaY = cursor.y - start.cursor.y
+    if (
+      !this.#dragActivated
+      && Math.hypot(deltaX, deltaY) < PET_DRAG_THRESHOLD_PX
+    ) {
+      return
+    }
+    this.#dragActivated = true
     const candidate = {
       ...start.bounds,
-      x: start.bounds.x + cursor.x - start.cursor.x,
-      y: start.bounds.y + cursor.y - start.cursor.y,
+      x: start.bounds.x + deltaX,
+      y: start.bounds.y + deltaY,
     }
-    const workArea = screen.getDisplayNearestPoint(cursor).workArea
+    const candidateCenter = {
+      x: candidate.x + Math.round(candidate.width / 2),
+      y: candidate.y + Math.round(candidate.height / 2),
+    }
+    const workArea = screen.getDisplayNearestPoint(candidateCenter).workArea
     const bounds = clampPetOverlayBounds(candidate, workArea)
     overlay.setBounds(bounds, false)
     this.state = { version: 1, bounds }
   }
 
   endDrag(): void {
+    const wasDragging = this.#dragStart !== undefined && this.#dragActivated
+    if (wasDragging) {
+      this.#dragSamples.push(sampleCursor(screen.getCursorScreenPoint()))
+    }
     this.#dragStart = undefined
+    this.#dragActivated = false
     const overlay = this.#window
     if (!overlay || overlay.isDestroyed()) return
     this.state = { version: 1, bounds: overlay.getBounds() }
-    this.stateStore.scheduleSave(this.state)
+    const velocity = estimatePetThrowVelocity(this.#dragSamples)
+    this.#dragSamples = []
+    if (wasDragging && Math.hypot(velocity.x, velocity.y) > 0) {
+      this.#startThrow(velocity)
+    } else {
+      this.stateStore.scheduleSave(this.state)
+    }
   }
 
   setPointerPassthrough(passthrough: boolean): void {
@@ -107,13 +175,64 @@ export class PetOverlayWindowController {
   }
 
   async flushState(): Promise<void> {
-    this.endDrag()
+    this.#dragStart = undefined
+    this.#dragActivated = false
+    this.#dragSamples = []
+    this.#stopThrow(true)
     await this.stateStore.flush()
   }
 
   destroy(): void {
+    this.#stopThrow(false)
     if (this.#window && !this.#window.isDestroyed()) this.#window.destroy()
     this.#window = undefined
+  }
+
+  #startThrow(velocity: PetThrowVelocity): void {
+    this.#stopThrow(false)
+    this.#throwVelocity = velocity
+    this.#lastThrowFrameAt = Date.now()
+    this.#throwStartedAt = this.#lastThrowFrameAt
+    this.#throwTimer = setInterval(() => {
+      const overlay = this.#window
+      if (!overlay || overlay.isDestroyed()) {
+        this.#stopThrow(false)
+        return
+      }
+      const now = Date.now()
+      const currentBounds = overlay.getBounds()
+      const center = {
+        x: currentBounds.x + Math.round(currentBounds.width / 2),
+        y: currentBounds.y + Math.round(currentBounds.height / 2),
+      }
+      const workArea = screen.getDisplayNearestPoint(center).workArea
+      const step = advancePetThrow(
+        currentBounds,
+        this.#throwVelocity,
+        now - this.#lastThrowFrameAt,
+        now - this.#throwStartedAt,
+        workArea,
+      )
+      this.#lastThrowFrameAt = now
+      this.#throwVelocity = step.velocity
+      this.state = { version: 1, bounds: step.bounds }
+      overlay.setBounds(step.bounds, false)
+      if (step.stopped) this.#stopThrow(true)
+    }, PET_THROW_TICK_MS)
+    this.#throwTimer.unref()
+  }
+
+  #stopThrow(save: boolean): void {
+    if (this.#throwTimer) clearInterval(this.#throwTimer)
+    this.#throwTimer = undefined
+    this.#throwVelocity = { x: 0, y: 0 }
+    if (save) {
+      const overlay = this.#window
+      if (overlay && !overlay.isDestroyed()) {
+        this.state = { version: 1, bounds: overlay.getBounds() }
+      }
+      this.stateStore.scheduleSave(this.state)
+    }
   }
 
   #ensureWindow(): BrowserWindow {
@@ -177,5 +296,13 @@ export class PetOverlayWindowController {
       if (this.#window === overlay) this.#window = undefined
     })
     return overlay
+  }
+}
+
+function sampleCursor(cursor: Electron.Point): PetThrowSample {
+  return {
+    x: cursor.x,
+    y: cursor.y,
+    timestampMs: Date.now(),
   }
 }

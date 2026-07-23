@@ -1,7 +1,13 @@
 import { contextBridge, ipcRenderer } from "electron"
 import type { DesktopThemeSettingsV5 } from "./settings/appearance-settings-store.js"
-import type { DesktopSettingsPayload } from "./settings/desktop-settings-contract.js"
-import type { DesktopPetOverlayBridge } from "@codepilotx/shared/desktop-pet-overlay"
+import type {
+  DesktopPetOverlayBridge,
+  DesktopPetPresentation,
+} from "@codepilotx/shared/desktop-pet-overlay"
+import type {
+  DesktopSettingsIpcBridge,
+  DesktopSettingsPayload,
+} from "@codepilotx/shared/desktop-settings-ipc"
 
 // Sandboxed preload scripts cannot resolve workspace packages at runtime.
 // Keep this literal type-checked against the shared contract so the emitted
@@ -10,6 +16,10 @@ const PET_OVERLAY_CHANNELS = {
   open: "pet-overlay:open",
   hide: "pet-overlay:hide",
   getState: "pet-overlay:get-state",
+  previewPresentation: "desktop-pet-overlay:preview-presentation",
+  presentationPreview: "desktop-pet-overlay:presentation-preview",
+  getGlobalPointerPosition:
+    "desktop-pet-overlay:get-global-pointer-position",
   beginDrag: "pet-overlay:drag-begin",
   updateDrag: "pet-overlay:drag-update",
   endDrag: "pet-overlay:drag-end",
@@ -17,6 +27,12 @@ const PET_OVERLAY_CHANNELS = {
   requestKeyboardFocus: "pet-overlay:keyboard-focus",
   openSession: "pet-overlay:open-session",
 } as const satisfies typeof import("@codepilotx/shared/desktop-pet-overlay").PET_OVERLAY_CHANNELS
+
+const DESKTOP_SETTINGS_IPC_CHANNELS = {
+  get: "desktop-settings:get",
+  save: "desktop-settings:save",
+  changed: "desktop-settings:changed",
+} as const satisfies typeof import("@codepilotx/shared/desktop-settings-ipc").DESKTOP_SETTINGS_IPC_CHANNELS
 
 type AgentConnectionState = "connected" | "disconnected" | "unknown"
 type SystemThemeVariant = "light" | "dark"
@@ -55,11 +71,24 @@ const desktop = {
   },
   getAgentConnectionState: (): Promise<AgentConnectionState> => ipcRenderer.invoke("agent:connection-state"),
   getDesktopSettings: (): Promise<DesktopSettingsPayload> =>
-    ipcRenderer.invoke("desktop-settings:get"),
+    ipcRenderer.invoke(DESKTOP_SETTINGS_IPC_CHANNELS.get),
   saveDesktopSettings: (
     settings: DesktopSettingsPayload,
   ): Promise<DesktopSettingsPayload> =>
-    ipcRenderer.invoke("desktop-settings:save", settings),
+    ipcRenderer.invoke(DESKTOP_SETTINGS_IPC_CHANNELS.save, settings),
+  onDesktopSettingsChange: (
+    listener: (settings: DesktopSettingsPayload) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      settings: unknown,
+    ): void => {
+      if (isRecord(settings)) listener(settings as DesktopSettingsPayload)
+    }
+    ipcRenderer.on(DESKTOP_SETTINGS_IPC_CHANNELS.changed, handler)
+    return () =>
+      ipcRenderer.removeListener(DESKTOP_SETTINGS_IPC_CHANNELS.changed, handler)
+  },
   copyProviderApiKey: (
     credentialId: string,
   ): Promise<{ clearAfterMs: 60000 }> =>
@@ -96,6 +125,28 @@ const desktop = {
     ipcRenderer.invoke(PET_OVERLAY_CHANNELS.hide),
   getPetOverlayWindowState: () =>
     ipcRenderer.invoke(PET_OVERLAY_CHANNELS.getState),
+  previewPetPresentation: (
+    presentation: DesktopPetPresentation,
+  ): Promise<DesktopPetPresentation> =>
+    ipcRenderer.invoke(PET_OVERLAY_CHANNELS.previewPresentation, presentation),
+  onPetPresentationPreview: (
+    listener: (presentation: DesktopPetPresentation) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      presentation: unknown,
+    ): void => {
+      if (isPetPresentation(presentation)) listener(presentation)
+    }
+    ipcRenderer.on(PET_OVERLAY_CHANNELS.presentationPreview, handler)
+    return () =>
+      ipcRenderer.removeListener(
+        PET_OVERLAY_CHANNELS.presentationPreview,
+        handler,
+      )
+  },
+  getPetGlobalPointerPosition: () =>
+    ipcRenderer.invoke(PET_OVERLAY_CHANNELS.getGlobalPointerPosition),
   beginPetDrag: (): void => ipcRenderer.send(PET_OVERLAY_CHANNELS.beginDrag),
   updatePetDrag: (): void => ipcRenderer.send(PET_OVERLAY_CHANNELS.updateDrag),
   endPetDrag: (): void => ipcRenderer.send(PET_OVERLAY_CHANNELS.endDrag),
@@ -113,6 +164,19 @@ const desktop = {
     return () =>
       ipcRenderer.removeListener(PET_OVERLAY_CHANNELS.openSession, handler)
   },
-} satisfies DesktopPetOverlayBridge & Record<string, unknown>
+} satisfies DesktopPetOverlayBridge
+  & DesktopSettingsIpcBridge
+  & Record<string, unknown>
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function isPetPresentation(value: unknown): value is DesktopPetPresentation {
+  return isRecord(value)
+    && (typeof value.selectedPetId === "string" || value.selectedPetId === null)
+    && typeof value.size === "number"
+    && Number.isFinite(value.size)
+}

@@ -1,14 +1,11 @@
+import type {
+  DesktopSettingsPayload,
+  DesktopSettingsValue,
+} from "@codepilotx/shared/desktop-settings-ipc"
+
 export const MAX_API_KEY_MATERIAL_LENGTH = 16_384
 
-export type DesktopSettingsValue =
-  | boolean
-  | number
-  | string
-  | null
-  | DesktopSettingsValue[]
-  | { [key: string]: DesktopSettingsValue }
-
-export type DesktopSettingsPayload = Record<string, DesktopSettingsValue>
+export type { DesktopSettingsPayload, DesktopSettingsValue }
 
 export function normalizeDesktopSettingsPayload(
   value: unknown,

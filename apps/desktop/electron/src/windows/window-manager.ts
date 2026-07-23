@@ -5,6 +5,7 @@ import {
   BrowserWindow,
   nativeImage,
   shell,
+  type WebContents,
 } from "electron"
 import type { DesktopChromeTheme } from "@codepilotx/shared/desktop-theme"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
@@ -68,6 +69,10 @@ export class WindowManager {
 
   get mainWindow(): BrowserWindow | undefined {
     return this.#mainWindow
+  }
+
+  isMainSender(sender: WebContents): boolean {
+    return this.#mainWindow?.webContents === sender
   }
 
   flushWindowState(): Promise<void> {
@@ -190,7 +195,10 @@ export class WindowManager {
   }
 
   send(channel: string, ...args: unknown[]): void {
-    this.#mainWindow?.webContents.send(channel, ...args)
+    const mainWindow = this.#mainWindow
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(channel, ...args)
+    }
   }
 
   #ensureMainWindow(): BrowserWindow {

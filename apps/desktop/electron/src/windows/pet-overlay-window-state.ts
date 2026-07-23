@@ -30,6 +30,10 @@ export class PetOverlayWindowStateStore {
     this.#logger = logger
   }
 
+  get filePath(): string {
+    return this.#filePath
+  }
+
   async load(
     displays: readonly DesktopDisplayWorkArea[],
     primaryDisplay: DesktopDisplayWorkArea,

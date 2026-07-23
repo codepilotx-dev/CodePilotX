@@ -1,5 +1,8 @@
 import { ipcMain, type IpcMainInvokeEvent } from "electron"
-import { PET_OVERLAY_CHANNELS } from "@codepilotx/shared/desktop-pet-overlay"
+import {
+  normalizeDesktopPetPresentation,
+  PET_OVERLAY_CHANNELS,
+} from "@codepilotx/shared/desktop-pet-overlay"
 import type { WindowManager } from "../windows/window-manager.js"
 import type { PetOverlayWindowController } from "../windows/pet-overlay-window.js"
 
@@ -12,12 +15,25 @@ export function registerPetOverlayIpc(
     return pets.open()
   })
   ipcMain.handle(PET_OVERLAY_CHANNELS.hide, event => {
-    requireKnownSender(event, windows, pets)
+    requireMainSender(event, windows)
     pets.hide()
   })
   ipcMain.handle(PET_OVERLAY_CHANNELS.getState, event => {
     requireKnownSender(event, windows, pets)
     return pets.windowState()
+  })
+  ipcMain.handle(
+    PET_OVERLAY_CHANNELS.previewPresentation,
+    (event, presentation: unknown) => {
+      requireMainSender(event, windows)
+      const normalized = normalizeDesktopPetPresentation(presentation)
+      pets.previewPresentation(normalized)
+      return normalized
+    },
+  )
+  ipcMain.handle(PET_OVERLAY_CHANNELS.getGlobalPointerPosition, event => {
+    requireOverlaySender(event, pets)
+    return pets.globalPointerPosition()
   })
   ipcMain.on(PET_OVERLAY_CHANNELS.beginDrag, event => {
     requireOverlaySender(event, pets)
@@ -71,7 +87,7 @@ function requireMainSender(
   event: IpcMainInvokeEvent | Electron.IpcMainEvent,
   windows: WindowManager,
 ): void {
-  if (event.sender !== windows.mainWindow?.webContents) {
+  if (!windows.isMainSender(event.sender)) {
     throw new Error("IPC 调用来源无效")
   }
 }
@@ -90,10 +106,7 @@ function requireKnownSender(
   windows: WindowManager,
   pets: PetOverlayWindowController,
 ): void {
-  if (
-    event.sender !== windows.mainWindow?.webContents
-    && !pets.isOverlaySender(event.sender)
-  ) {
+  if (!windows.isMainSender(event.sender) && !pets.isOverlaySender(event.sender)) {
     throw new Error("IPC 调用来源无效")
   }
 }

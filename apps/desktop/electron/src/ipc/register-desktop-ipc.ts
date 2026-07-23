@@ -1,4 +1,15 @@
-import { clipboard, dialog, ipcMain, shell, type OpenDialogOptions } from "electron"
+import {
+  clipboard,
+  dialog,
+  ipcMain,
+  shell,
+  type OpenDialogOptions,
+  type WebContents,
+} from "electron"
+import {
+  DESKTOP_SETTINGS_IPC_CHANNELS,
+  type DesktopSettingsPayload,
+} from "@codepilotx/shared/desktop-settings-ipc"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 import { isSafeExternalUrl } from "../security/navigation.js"
 import {
@@ -22,6 +33,8 @@ interface DesktopIpcDependencies {
   getConnectionState: () => AgentConnectionState
   getLogDirectory: () => string
   quitDuringStartup: () => void
+  broadcastDesktopSettingsChanged: (settings: DesktopSettingsPayload) => void
+  isDesktopRendererSender: (sender: WebContents) => boolean
 }
 
 export function registerDesktopIpc(
@@ -35,30 +48,47 @@ export function registerDesktopIpc(
     getConnectionState,
     getLogDirectory,
     quitDuringStartup,
+    broadcastDesktopSettingsChanged,
+    isDesktopRendererSender,
   } = dependencies
 
-  ipcMain.handle("window:minimize", () => windows.mainWindow?.minimize())
-  ipcMain.handle("window:toggle-maximize", () => {
+  ipcMain.handle("window:minimize", event => {
+    requireMainWindowSender(event, windows)
+    windows.mainWindow?.minimize()
+  })
+  ipcMain.handle("window:toggle-maximize", event => {
+    requireMainWindowSender(event, windows)
     const mainWindow = windows.mainWindow
     if (!mainWindow) return false
     if (mainWindow.isMaximized()) mainWindow.unmaximize()
     else mainWindow.maximize()
     return mainWindow.isMaximized()
   })
-  ipcMain.handle("window:close", () => windows.mainWindow?.close())
+  ipcMain.handle("window:close", event => {
+    requireMainWindowSender(event, windows)
+    windows.mainWindow?.close()
+  })
   ipcMain.handle(
     "window:is-maximized",
-    () => windows.mainWindow?.isMaximized() ?? false,
+    event => {
+      requireMainWindowSender(event, windows)
+      return windows.mainWindow?.isMaximized() ?? false
+    },
   )
-  ipcMain.handle("agent:connection-state", () => getConnectionState())
-  ipcMain.handle("desktop-settings:get", async () => {
+  ipcMain.handle("agent:connection-state", event => {
+    requireDesktopRendererSender(event, isDesktopRendererSender)
+    return getConnectionState()
+  })
+  ipcMain.handle(DESKTOP_SETTINGS_IPC_CHANNELS.get, async (event) => {
+    requireDesktopRendererSender(event, isDesktopRendererSender)
     const supervisor = requireSupervisor(getSupervisor())
     const response = await supervisor.request("/api/desktop-settings")
     return normalizeDesktopSettingsPayload(await response.json())
   })
   ipcMain.handle(
-    "desktop-settings:save",
-    async (_event, settings: unknown) => {
+    DESKTOP_SETTINGS_IPC_CHANNELS.save,
+    async (event, settings: unknown) => {
+      requireMainWindowSender(event, windows)
       const supervisor = requireSupervisor(getSupervisor())
       const normalizedSettings = normalizeDesktopSettingsPayload(settings)
       const response = await supervisor.request("/api/desktop-settings", {
@@ -66,10 +96,13 @@ export function registerDesktopIpc(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(normalizedSettings),
       })
-      return normalizeDesktopSettingsPayload(await response.json())
+      const saved = normalizeDesktopSettingsPayload(await response.json())
+      broadcastDesktopSettingsChanged(saved)
+      return saved
     },
   )
-  ipcMain.handle("api-key:copy", async (_event, credentialId: unknown) => {
+  ipcMain.handle("api-key:copy", async (event, credentialId: unknown) => {
+    requireMainWindowSender(event, windows)
     const supervisor = requireSupervisor(getSupervisor())
     if (
       typeof credentialId !== "string"
@@ -91,7 +124,8 @@ export function registerDesktopIpc(
     }, API_KEY_CLIPBOARD_CLEAR_DELAY_MS).unref()
     return { clearAfterMs: API_KEY_CLIPBOARD_CLEAR_DELAY_MS }
   })
-  ipcMain.handle("shell:open-external", async (_event, url: unknown) => {
+  ipcMain.handle("shell:open-external", async (event, url: unknown) => {
+    requireMainWindowSender(event, windows)
     if (typeof url !== "string" || !isSafeExternalUrl(url)) {
       throw new Error("拒绝打开不安全的外部链接")
     }
@@ -99,14 +133,16 @@ export function registerDesktopIpc(
   })
   ipcMain.handle(
     "shell:list-external-open-targets",
-    async (_event, targetPath: unknown) => {
+    async (event, targetPath: unknown) => {
+      requireMainWindowSender(event, windows)
       if (typeof targetPath !== "string") throw new Error("路径参数无效")
       return externalOpenTargets.listTargets(targetPath)
     },
   )
   ipcMain.handle(
     "shell:open-path-with-target",
-    async (_event, targetPath: unknown, targetId: unknown) => {
+    async (event, targetPath: unknown, targetId: unknown) => {
+      requireMainWindowSender(event, windows)
       if (typeof targetPath !== "string" || typeof targetId !== "string") {
         throw new Error("外部打开参数无效")
       }
@@ -115,12 +151,14 @@ export function registerDesktopIpc(
   )
   ipcMain.handle(
     "shell:reveal-path-in-folder",
-    (_event, targetPath: unknown) => {
+    (event, targetPath: unknown) => {
+      requireMainWindowSender(event, windows)
       if (typeof targetPath !== "string") throw new Error("路径参数无效")
       externalOpenTargets.revealPathInFolder(targetPath)
     },
   )
-  ipcMain.handle("startup:open-logs", async () => {
+  ipcMain.handle("startup:open-logs", async event => {
+    requireMainWindowSender(event, windows)
     const directory = getLogDirectory()
     const openError = await shell.openPath(directory)
     if (openError) {
@@ -133,8 +171,12 @@ export function registerDesktopIpc(
     logger.info("desktop.log-directory-opened", { directory })
     return directory
   })
-  ipcMain.handle("startup:quit", () => quitDuringStartup())
-  ipcMain.handle("workspace:pick-directory", async () => {
+  ipcMain.handle("startup:quit", event => {
+    requireMainWindowSender(event, windows)
+    quitDuringStartup()
+  })
+  ipcMain.handle("workspace:pick-directory", async event => {
+    requireMainWindowSender(event, windows)
     const options: OpenDialogOptions = {
       title: "选择项目目录",
       properties: ["openDirectory", "createDirectory"],
@@ -145,6 +187,24 @@ export function registerDesktopIpc(
       : await dialog.showOpenDialog(options)
     return result.canceled ? null : (result.filePaths[0] ?? null)
   })
+}
+
+function requireDesktopRendererSender(
+  event: Electron.IpcMainInvokeEvent,
+  isAllowed: (sender: WebContents) => boolean,
+): void {
+  if (!isAllowed(event.sender)) {
+    throw new Error("IPC 调用来源无效")
+  }
+}
+
+function requireMainWindowSender(
+  event: Electron.IpcMainInvokeEvent,
+  windows: WindowManager,
+): void {
+  if (!windows.isMainSender(event.sender)) {
+    throw new Error("IPC 调用来源无效")
+  }
 }
 
 function requireSupervisor(
