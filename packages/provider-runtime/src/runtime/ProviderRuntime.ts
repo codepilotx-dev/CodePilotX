@@ -212,8 +212,6 @@ export class ProviderRuntime {
     }
   }
 
-  
-
   async refresh(force = false): Promise<void> {
     this.assertActive()
     if (this.refreshing) return this.refreshing

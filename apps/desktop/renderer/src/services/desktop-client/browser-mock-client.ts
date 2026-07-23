@@ -757,5 +757,3 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     }
   }
 }
-
-
