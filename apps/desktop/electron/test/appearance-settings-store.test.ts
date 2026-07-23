@@ -56,7 +56,7 @@ describe("Electron 外观设置存储", () => {
 
   test("保存当前代际时规范化字段并限制数值和颜色", () => {
     const normalized = normalizeAppearanceSettings({
-      version: 4,
+      version: 5,
       mode: "dark",
       codeThemeIds: { light: "auto", dark: "linear-dark" },
       glassmorphismEnabled: false,
@@ -66,7 +66,7 @@ describe("Electron 外观设置存储", () => {
     })
 
     expect(normalized).toMatchObject({
-      version: 4,
+      version: 5,
       mode: "dark",
       codeThemeIds: { light: "codex-light", dark: "linear-dark" },
       pointerCursorEnabled: true,
@@ -77,7 +77,7 @@ describe("Electron 外观设置存储", () => {
     expect(normalized.chromeThemes.dark.opaqueWindows).toBe(true)
   })
 
-  test("逐版本迁移旧设置并保留可识别的用户字段", async () => {
+  test("读取旧设置时直接覆盖为 V5 默认值", async () => {
     const root = temporaryRoot()
     const records: Array<{ event: string; fields?: Record<string, unknown> }> = []
     const store = new AppearanceSettingsStore(root, {
@@ -101,35 +101,18 @@ describe("Electron 外观设置存储", () => {
 
     const loaded = await store.load()
 
-    expect(loaded).toMatchObject({
-      version: 4,
-      mode: "light",
-      codeThemeIds: { light: "codex-light", dark: "codex-dark" },
-      reduceMotion: "on",
-      fontSizes: { ui: 13, code: 11 },
-    })
-    expect(loaded.chromeThemes.light.accent).toBe("#abcdef")
-    expect(loaded.chromeThemes.light.fonts).toEqual({
-      ui: "Inter",
-      code: "JetBrains Mono",
-    })
-    expect(loaded.chromeThemes.light.opaqueWindows).toBe(false)
-    expect(loaded.chromeThemes.dark.opaqueWindows).toBe(false)
+    expect(loaded).toEqual(DEFAULT_APPEARANCE_SETTINGS)
     expect(JSON.parse(await readFile(store.filePath, "utf8"))).toEqual(loaded)
     expect(records).toEqual([])
   })
 
-  test("迁移函数按顺序支持所有已知旧版本", () => {
-    for (const version of [1, 2, 3]) {
+  test("所有已知旧版本都重置为 V5 默认值", () => {
+    for (const version of [1, 2, 3, 4]) {
       expect(migrateAppearanceSettings({
         version,
         mode: "dark",
         pointerCursorEnabled: true,
-      })).toMatchObject({
-        version: 4,
-        mode: "dark",
-        pointerCursorEnabled: true,
-      })
+      })).toEqual(DEFAULT_APPEARANCE_SETTINGS)
     }
   })
 
@@ -137,7 +120,7 @@ describe("Electron 外观设置存储", () => {
     const root = temporaryRoot()
     const store = new AppearanceSettingsStore(root)
     const futureSettings = JSON.stringify({
-      version: 5,
+      version: 6,
       mode: "light",
       futureField: "must-survive",
     })

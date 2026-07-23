@@ -14,6 +14,7 @@ export type SandboxRuntimeStatus = {
   message: string
   canInstall: boolean
   canRepair: boolean
+  canUninstall: boolean
 }
 
 export const SANDBOX_RUNTIME_STATUS_UNAVAILABLE: SandboxRuntimeStatus = {
@@ -22,12 +23,18 @@ export const SANDBOX_RUNTIME_STATUS_UNAVAILABLE: SandboxRuntimeStatus = {
   message: '桌面端尚未提供 Sandbox runtime 状态接口。',
   canInstall: false,
   canRepair: false,
+  canUninstall: false,
 }
 
 type BackendSandboxStatus = {
   state: 'unsupported' | 'not-installed' | 'installing' | 'available' | 'damaged' | 'repair-required'
   runtimeVersion: string
   error: string | null
+  operations: {
+    canInstall: boolean
+    canRepair: boolean
+    canUninstall: boolean
+  }
 }
 
 const rpc = createAgentRpcClient({})
@@ -72,8 +79,9 @@ function normalizeStatus(status: BackendSandboxStatus): SandboxRuntimeStatus {
     state,
     version: status.runtimeVersion,
     message: status.error ?? (state === 'healthy' ? 'SRT 沙箱可用。' : state === 'not-installed' ? 'SRT 沙箱尚未安装。' : 'SRT 沙箱需要检查或修复。'),
-    canInstall: state === 'not-installed',
-    canRepair: state === 'damaged' || state === 'needs-repair',
+    canInstall: status.operations.canInstall,
+    canRepair: status.operations.canRepair,
+    canUninstall: status.operations.canUninstall,
   }
 }
 

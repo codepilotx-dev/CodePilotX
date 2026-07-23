@@ -929,7 +929,7 @@ export function DesktopLayout(): React.ReactNode {
       void refreshWorkspace()
     },
     onOpenSettings: () => {
-      navigate('/settings')
+      navigate('/settings/general')
     },
     onLogOut: () => {
       setErrorMessage('已退出登录。本地桌面端暂无持久账号切换，请重启应用。')
@@ -2479,7 +2479,7 @@ export function DesktopLayout(): React.ReactNode {
           onClose={() => setArchiveNoticeVisible(false)}
           onOpenSettings={() => {
             setArchiveNoticeVisible(false)
-            navigate('/settings?tab=archived')
+            navigate('/settings/archived')
           }}
         />
       ) : null}
@@ -2512,7 +2512,7 @@ export function DesktopLayout(): React.ReactNode {
               void handleArchiveSessions([activeSessionItem.id])
             },
             onCreateBranch: handleCreateBranch,
-            onOpenAutomation: () => navigate('/automation'),
+            onOpenAutomation: () => navigate('/automations'),
             onOpenWorkspacePath: handleOpenWorkspacePath,
             onOpenRightDock: () =>
               openRightDockTab({ id: 'review', kind: 'review' }),

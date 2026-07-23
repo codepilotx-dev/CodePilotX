@@ -1,5 +1,30 @@
 /* ===== Shared Input / Control Patterns ===== */
 
+.ui-input {
+  min-width: 0;
+  padding: var(--control-padding-block) var(--control-padding-inline);
+  border: 1px solid var(--color-token-input-border);
+  border-radius: var(--radius-input);
+  color: var(--color-token-input-foreground);
+  background: var(--color-token-input-background);
+  line-height: var(--control-line-height);
+  outline: none;
+
+  &:focus-visible {
+    border-color: var(--color-token-focus-border);
+    box-shadow: 0 0 0 2px color-mix(
+      in srgb,
+      var(--color-token-focus-border) 20%,
+      transparent
+    );
+  }
+
+  &:disabled {
+    color: var(--color-token-disabled-foreground);
+    cursor: not-allowed;
+  }
+}
+
 /* --- Dropdown (Select) Controls --- */
 .settings-dropdown {
   display: inline-flex;
@@ -12,11 +37,11 @@
   justify-content: space-between;
   gap: 6px;
   padding: 0 12px;
-  border: 1px solid var(--border-control);
+  border: 1px solid var(--color-token-border);
   border-radius: 8px;
   background-color: color-mix(
     in oklab,
-    var(--color-text-strong) 2.5%,
+    var(--color-token-foreground) 2.5%,
     transparent
   );
   cursor: pointer;
@@ -25,21 +50,21 @@
     background-color 0.15s ease;
   font-size: var(--type-control);
   line-height: 18px;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   outline: none;
   user-select: none;
   -webkit-user-select: none;
 
   &:hover {
-    background-color: var(--color-sidebar-hover-bg);
+    background-color: var(--color-token-list-hover-background);
   }
 
   &[data-state='open'] {
-    background-color: var(--color-sidebar-hover-bg);
+    background-color: var(--color-token-list-hover-background);
   }
 
   &:focus-visible {
-    box-shadow: 0 0 0 1px var(--color-border-focus, var(--color-accent));
+    box-shadow: 0 0 0 1px var(--color-token-focus-border, var(--color-token-text-link-foreground));
   }
 
   &:disabled,
@@ -73,16 +98,16 @@
 .settings-dropdown-icon {
   width: 12px;
   height: 12px;
-  color: var(--color-text-placeholder);
+  color: var(--color-token-input-placeholder-foreground);
   flex-shrink: 0;
 }
 
 /* --- Text Inputs --- */
 .settings-input {
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-token-border);
   border-radius: var(--radius-5);
-  background: var(--color-bg-card);
-  color: var(--color-text);
+  background: var(--color-token-bg-secondary);
+  color: var(--color-token-foreground);
   padding: var(--control-padding-block) var(--control-padding-inline);
   line-height: var(--control-line-height);
 }
@@ -92,7 +117,7 @@
 }
 
 .ui-input[aria-invalid='true'] {
-  border-color: var(--color-danger);
+  border-color: var(--color-token-input-validation-error-border);
 }
 
 .settings-input-narrow {
@@ -135,10 +160,10 @@
 .settings-textarea {
   width: min(360px, 48vw);
   resize: vertical;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-token-border);
   border-radius: var(--radius-5);
-  background: var(--color-bg-card);
-  color: var(--color-text);
+  background: var(--color-token-bg-secondary);
+  color: var(--color-token-foreground);
   padding: var(--control-padding-block) var(--control-padding-inline);
   font-size: var(--type-control);
   line-height: 1.45;
@@ -151,7 +176,7 @@
 
 .settings-input-unit {
   font-size: var(--type-secondary);
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
 }
 
 /* --- Input Focus --- */
@@ -160,7 +185,7 @@
 .settings-input-number:focus {
   border-color: color-mix(
     in srgb,
-    var(--color-accent) 42%,
-    var(--border-subtle)
+    var(--color-token-text-link-foreground) 42%,
+    var(--color-token-border-light)
   );
 }

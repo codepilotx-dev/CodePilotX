@@ -328,6 +328,8 @@ function applyDesktopTheme(
 
   root.dataset.theme = variant
   root.dataset.themeId = getDesktopThemeIdForVariant(settings, variant)
+  root.dataset.windowType = window.codePilotXDesktop ? 'electron' : 'browser-mock'
+  root.dataset.os = 'windows'
   root.classList.toggle('light-theme', variant === 'light')
   root.classList.toggle('dark-theme', variant === 'dark')
   root.classList.toggle('electron-light', variant === 'light')

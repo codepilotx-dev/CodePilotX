@@ -57,10 +57,13 @@ export default {
     {
       files: [
         '**/design-system/tokens.scss',
+        '**/design-system/codex-semantic-tokens.scss',
         '**/features/_settings-appearance.scss',
+        '**/features/_labs.scss',
       ],
       rules: {
         'color-no-hex': null,
+        'custom-property-pattern': null,
         'function-disallowed-list': null,
       },
     },

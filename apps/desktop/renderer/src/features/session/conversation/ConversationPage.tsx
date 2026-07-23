@@ -360,16 +360,16 @@ export function ConversationPage(): React.ReactNode {
           [
             {
               backgroundColor:
-                "color-mix(in srgb, var(--color-text-strong) 14%, transparent)",
+                "color-mix(in srgb, var(--color-token-foreground) 14%, transparent)",
             },
             {
               backgroundColor:
-                "color-mix(in srgb, var(--color-text-strong) 14%, transparent)",
+                "color-mix(in srgb, var(--color-token-foreground) 14%, transparent)",
               offset: 0.35,
             },
             {
               backgroundColor:
-                "color-mix(in srgb, var(--color-text-strong) 5%, transparent)",
+                "color-mix(in srgb, var(--color-token-foreground) 5%, transparent)",
             },
           ],
           {
@@ -565,7 +565,7 @@ export function ConversationPage(): React.ReactNode {
   function copySessionDeepLink(): void {
     if (!activeSessionId) return;
     const url = new URL(window.location.href);
-    url.pathname = `/sessions/${encodeURIComponent(activeSessionId)}`;
+    url.pathname = `/threads/${encodeURIComponent(activeSessionId)}`;
     url.search = "";
     url.hash = "";
     copyText(url.toString());

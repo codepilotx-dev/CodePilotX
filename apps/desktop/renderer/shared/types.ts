@@ -839,6 +839,7 @@ gitBranchPrefix: string
 	  sandboxMode?: DesktopSandboxMode
   allowNetworkAccess?: boolean
   installCodePilotXDependencies: boolean
+  workspaceDependenciesMigrated: boolean
   personality: DesktopPersonality
   customInstructions: string
   enableMemory: boolean
@@ -921,26 +922,16 @@ export type SaveDesktopMcpServerOptions = {
   config: DesktopMcpServerConfig
 }
 
-export type DesktopThemeMode = 'light' | 'dark' | 'system'
-
-export type DesktopThemeVariant = 'light' | 'dark'
-
-export type DesktopChromeTheme = {
-  accent: `#${string}`
-  contrast: number
-  fonts: {
-    code: string | null
-    ui: string | null
-  }
-  ink: `#${string}`
-  opaqueWindows: boolean
-  semanticColors: {
-    diffAdded: `#${string}`
-    diffRemoved: `#${string}`
-    skill: `#${string}`
-  }
-  surface: `#${string}`
-}
+export type {
+  DesktopChromeTheme,
+  DesktopThemeMode,
+  DesktopThemeVariant,
+} from '@codepilotx/shared/desktop-theme'
+import type {
+  DesktopChromeTheme,
+  DesktopThemeSettingsV5 as SharedDesktopThemeSettingsV5,
+  DesktopThemeVariant,
+} from '@codepilotx/shared/desktop-theme'
 
 export type DesktopThemeConfigV1 = {
   codeThemeId: string
@@ -948,21 +939,10 @@ export type DesktopThemeConfigV1 = {
   variant: DesktopThemeVariant
 }
 
-export type DesktopThemeSettingsV3 = {
-  version: 3
-  mode: DesktopThemeMode
-  chromeThemes: Record<DesktopThemeVariant, DesktopChromeTheme>
-  codeThemeIds: Record<DesktopThemeVariant, CodexHighlightThemeSlug>
-  pointerCursorEnabled: boolean
-  reduceMotion: 'system' | 'on' | 'off'
-  fontSmoothingEnabled: boolean
-  fontSizes: {
-    code: number
-    ui: number
-  }
-}
+export type DesktopThemeSettingsV5 =
+  SharedDesktopThemeSettingsV5<CodexHighlightThemeSlug>
 
-export type DesktopThemeSettings = DesktopThemeSettingsV3
+export type DesktopThemeSettings = DesktopThemeSettingsV5
 
 export type DesktopPermissionRememberOptionId = 'session' | 'persistentPrefix'
 

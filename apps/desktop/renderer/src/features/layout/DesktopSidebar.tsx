@@ -102,7 +102,7 @@ export function DesktopSidebar({
   )
 
   function isActiveView(view: AppView): boolean {
-    if (view === "quickChat") return location.pathname === "/quick-chat";
+    if (view === "new") return location.pathname === "/new";
     return location.pathname === `/${view}`;
   }
 

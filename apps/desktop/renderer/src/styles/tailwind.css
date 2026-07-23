@@ -28,19 +28,19 @@
 @theme inline {
   --font-sans: var(--font-family-sans);
   --font-mono: var(--font-family-mono);
-  --color-app-canvas: var(--surface-canvas);
-  --color-app-underlay: var(--surface-underlay);
-  --color-app-chrome: var(--surface-chrome);
-  --color-app-panel: var(--surface-panel);
-  --color-app-raised: var(--surface-raised);
-  --color-app-text: var(--color-text);
-  --color-app-text-soft: var(--color-text-soft);
-  --color-app-border: var(--border-control);
-  --color-app-accent: var(--color-accent);
-  --color-app-primary-action: var(--color-primary-action);
-  --color-app-primary-action-foreground: var(--color-primary-action-foreground);
-  --color-app-border-subtle: var(--border-subtle);
-  --color-app-border-strong: var(--border-strong);
-  --color-app-danger: var(--color-danger);
-  --color-app-success: var(--color-success);
+  --color-app-canvas: var(--color-token-main-surface-primary);
+  --color-app-underlay: var(--color-token-bg-primary);
+  --color-app-chrome: var(--color-token-side-bar-background);
+  --color-app-panel: var(--color-token-bg-secondary);
+  --color-app-raised: var(--color-token-editor-widget-background);
+  --color-app-text: var(--color-token-foreground);
+  --color-app-text-soft: var(--color-token-text-secondary);
+  --color-app-border: var(--color-token-border);
+  --color-app-accent: var(--color-token-text-link-foreground);
+  --color-app-primary-action: var(--color-token-button-background);
+  --color-app-primary-action-foreground: var(--color-token-button-foreground);
+  --color-app-border-subtle: var(--color-token-border-light);
+  --color-app-border-strong: var(--color-token-border-heavy);
+  --color-app-danger: var(--color-token-error-foreground);
+  --color-app-success: var(--color-token-git-decoration-added-resource-foreground);
 }

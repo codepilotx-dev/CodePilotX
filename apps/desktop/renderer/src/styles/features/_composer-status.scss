@@ -8,7 +8,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px 8px;
-  border-bottom: 1px solid var(--color-popover-divider);
+  border-bottom: 1px solid var(--color-token-border);
 }
 
 .composer-status-title {
@@ -25,10 +25,10 @@
   cursor: pointer;
   padding: 2px;
   border-radius: var(--radius-2);
-  color: var(--color-icon);
+  color: var(--color-token-icon-foreground);
 
   &:hover {
-    background: var(--color-bg-hover);
+    background: var(--color-token-list-hover-background);
   }
 }
 
@@ -37,12 +37,12 @@
 }
 
 .composer-status-section + .composer-status-section {
-  border-top: 1px solid var(--color-popover-divider);
+  border-top: 1px solid var(--color-token-border);
 }
 
 .composer-status-label {
   font-size: var(--type-meta);
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
 
   svg {
     width: var(--app-icon-size-sm);
@@ -54,14 +54,14 @@
 .composer-status-value {
   font-size: var(--type-meta);
   font-family: var(--font-mono, monospace);
-  color: var(--color-text);
+  color: var(--color-token-foreground);
   word-break: break-all;
 }
 
 .composer-status-bar-track {
   height: 6px;
   border-radius: 3px;
-  background: var(--color-popover-divider);
+  background: var(--color-token-border);
   overflow: hidden;
   margin: 4px 0;
 }
@@ -70,7 +70,7 @@
   height: 100%;
   width: calc(var(--usage-ratio, 0) * 100%);
   border-radius: 3px;
-  background: var(--color-accent);
+  background: var(--color-token-text-link-foreground);
   transition: width 0.2s ease;
 }
 
@@ -82,12 +82,12 @@
 }
 
 .composer-status-bar-percent {
-  color: var(--color-text);
+  color: var(--color-token-foreground);
   font-weight: 500;
 }
 
 .composer-status-bar-detail {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
 }
 
 .composer-status-quota-row + .composer-status-quota-row {
@@ -96,10 +96,10 @@
 
 .composer-status-empty {
   padding: 8px 0;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-secondary);
 }
 
 .composer-status-empty-error {
-  color: var(--color-danger);
+  color: var(--color-token-error-foreground);
 }

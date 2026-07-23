@@ -5,7 +5,7 @@ import {
   type NavigateFunction,
 } from 'react-router-dom'
 
-export const QUICK_CHAT_PATH = '/quick-chat'
+export const QUICK_CHAT_PATH = '/new'
 
 export type WorkbenchRouteController = {
   navigate: NavigateFunction
@@ -27,11 +27,11 @@ export function useWorkbenchRouteController(): WorkbenchRouteController {
   )
   const isQuickChatPage = location.pathname === QUICK_CHAT_PATH
   const isConversationRoute = routedSessionId !== null
-  const isSettingsRoute = location.pathname === '/settings'
+  const isSettingsRoute = location.pathname.startsWith('/settings/')
   const fullLocationPath = `${location.pathname}${location.search}${location.hash}`
   const settingsReturnPathRef = useRef(QUICK_CHAT_PATH)
   const settingsActiveTab =
-    new URLSearchParams(location.search).get('tab') ?? 'general'
+    /^\/settings\/([^/]+)$/.exec(location.pathname)?.[1] ?? 'general'
 
   useEffect(() => {
     if (!isSettingsRoute) {
@@ -41,11 +41,7 @@ export function useWorkbenchRouteController(): WorkbenchRouteController {
 
   const handleSettingsTabChange = useCallback(
     (tab: string): void => {
-      navigate(
-        tab === 'general'
-          ? '/settings'
-          : `/settings?tab=${encodeURIComponent(tab)}`,
-      )
+      navigate(`/settings/${encodeURIComponent(tab)}`)
     },
     [navigate],
   )
@@ -67,10 +63,10 @@ export function useWorkbenchRouteController(): WorkbenchRouteController {
 }
 
 export function sessionPath(sessionId: string): string {
-  return `/sessions/${encodeURIComponent(sessionId)}`
+  return `/threads/${encodeURIComponent(sessionId)}`
 }
 
 function getRoutedSessionId(pathname: string): string | null {
-  const match = /^\/sessions\/([^/]+)$/.exec(pathname)
+  const match = /^\/threads\/([^/]+)$/.exec(pathname)
   return match ? decodeURIComponent(match[1]!) : null
 }

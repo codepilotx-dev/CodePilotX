@@ -9,8 +9,8 @@
   flex-direction: column;
   overflow: hidden;
   border-right: 0;
-  background: var(--color-sidebar-bg);
-  color: var(--color-text);
+  background: var(--color-token-side-bar-background);
+  color: var(--color-token-foreground);
   user-select: none;
   transition:
     width var(--motion-emphasis) var(--ease-standard),
@@ -31,12 +31,12 @@
   }
 
   &.is-floating {
-    border: 0.5px solid var(--color-border);
+    border: 0.5px solid var(--color-token-border);
     border-radius: 10px;
-    background: var(--surface-raised);
+    background: var(--color-token-editor-widget-background);
     box-shadow:
-      0 3px 7.5px color-mix(in srgb, var(--color-ink) 3%, transparent),
-      0 0 16px color-mix(in srgb, var(--color-ink) 2%, transparent);
+      0 3px 7.5px color-mix(in srgb, var(--color-token-foreground) 3%, transparent),
+      0 0 16px color-mix(in srgb, var(--color-token-foreground) 2%, transparent);
   }
 }
 
@@ -51,11 +51,11 @@
 .sidebar-nav-link.active,
 .sidebar-session-row.active,
 .sidebar-settings-link.active {
-  background: var(--color-sidebar-active-bg);
+  background: var(--color-token-list-active-selection-background);
 }
 
 .sidebar-section-title {
-  color: color-mix(in srgb, var(--color-text-meta) 82%, transparent);
+  color: color-mix(in srgb, var(--color-token-description-foreground) 82%, transparent);
   letter-spacing: 0.02em;
 }
 
@@ -87,12 +87,12 @@
 
     &-thumb {
       border-radius: var(--radius-full);
-      background-color: var(--color-scrollbar);
+      background-color: var(--color-token-scrollbar-slider-background);
     }
   }
 
   &:hover::-webkit-scrollbar-thumb {
-    background-color: var(--color-scrollbar-hover);
+    background-color: var(--color-token-scrollbar-slider-hover-background);
   }
 }
 
@@ -112,7 +112,7 @@
 
 .sidebar-show-more-actions {
   padding: var(--sidebar-row-pad-y) var(--sidebar-padding-x);
-  color: var(--color-text);
+  color: var(--color-token-foreground);
   font-size: var(--type-control);
 
   border-radius: calc(var(--radius-base) + 2px);
@@ -125,7 +125,7 @@
 }
 
 .sidebar-show-more-button:hover {
-  background: var(--color-sidebar-hover-bg);
+  background: var(--color-token-list-hover-background);
 }
 
 .sidebar-row-leading,
@@ -156,7 +156,7 @@
 .sidebar-project-header:hover .sidebar-item-icon,
 .sidebar-settings-link:hover .sidebar-item-icon,
 .sidebar-settings-link.active .sidebar-item-icon {
-  color: var(--color-text);
+  color: var(--color-token-foreground);
 }
 
 .sidebar-project-header--unavailable,
@@ -164,7 +164,7 @@
 .sidebar-project-header--unavailable .sidebar-item-icon,
 .sidebar-project-header--unavailable:hover .sidebar-item-icon,
 .sidebar-project-header--unavailable .sidebar-project-chevron {
-  color: var(--color-text-disabled);
+  color: var(--color-token-disabled-foreground);
 }
 
 .sidebar-project-header--unavailable:hover {
@@ -207,7 +207,7 @@
 
 .sidebar-section-chevron {
   flex: 0 0 auto;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   opacity: 0;
   pointer-events: none;
   transition:
@@ -246,7 +246,7 @@
 .sidebar-project-chevron {
   flex: 0 0 auto;
   margin-left: 4px;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   opacity: 0;
   pointer-events: none;
   transition:
@@ -339,7 +339,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--control-gap-compact);
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-body);
   font-weight: var(--font-weight-label);
 }
@@ -349,7 +349,7 @@
   width: 6px;
   height: 6px;
   border-radius: var(--radius-full);
-  background: var(--color-accent);
+  background: var(--color-token-text-link-foreground);
 }
 
 .sidebar-session-list {
@@ -376,19 +376,19 @@
   width: 100%;
   padding: 0 var(--control-padding-inline-compact);
   border-radius: var(--radius-6);
-  color: var(--color-danger);
-  background: color-mix(in srgb, var(--color-danger) 18%, var(--color-bg));
+  color: var(--color-token-error-foreground);
+  background: color-mix(in srgb, var(--color-token-error-foreground) 18%, var(--color-token-main-surface-primary));
   line-height: var(--control-line-height);
   white-space: nowrap;
 
   &:hover {
-    color: var(--color-danger);
-    background: color-mix(in srgb, var(--color-danger) 24%, var(--color-bg));
+    color: var(--color-token-error-foreground);
+    background: color-mix(in srgb, var(--color-token-error-foreground) 24%, var(--color-token-main-surface-primary));
   }
 }
 
 .sidebar-session-time {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -399,8 +399,8 @@
   align-items: center;
   padding: 0.417em 0.667em;
   border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--color-diff-added) 14%, transparent);
-  color: var(--color-diff-added);
+  background: color-mix(in srgb, var(--color-token-git-decoration-added-resource-foreground) 14%, transparent);
+  color: var(--color-token-git-decoration-added-resource-foreground);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-label);
   line-height: 1;
@@ -408,12 +408,12 @@
 }
 
 .sidebar-session-spinner {
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   animation: sidebar-spin 0.9s linear infinite;
 }
 
 .sidebar-show-more-button {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
 }
 
 .sidebar-show-more-actions {
@@ -424,11 +424,11 @@
 
 .sidebar-show-more-button:hover {
   background: transparent;
-  color: var(--color-text);
+  color: var(--color-token-foreground);
 }
 
 .sidebar-empty {
-  color: var(--color-text-placeholder);
+  color: var(--color-token-input-placeholder-foreground);
 }
 
 .sidebar-footer {
@@ -446,7 +446,7 @@
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
 
   .sidebar-item-icon {
     color: inherit;
@@ -490,13 +490,13 @@
   gap: var(--control-gap);
   padding: var(--control-padding-block) var(--control-padding-inline);
   border-radius: var(--radius-4);
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font-size: var(--type-body);
   line-height: 1.4;
 }
 
 .popover-usage-label {
-  color: var(--color-text);
+  color: var(--color-token-foreground);
   font-weight: 500;
 }
 
@@ -505,7 +505,7 @@
   width: 100%;
   height: 4px;
   border-radius: var(--radius-full);
-  background: var(--color-border-row);
+  background: var(--color-token-border-light);
   overflow: hidden;
 }
 
@@ -514,20 +514,20 @@
   width: 100%;
   height: 100%;
   border-radius: var(--radius-full);
-  background: var(--color-text-strong);
+  background: var(--color-token-foreground);
   transform: scaleX(var(--usage-ratio, 0));
   transform-origin: left center;
   transition: transform var(--motion-standard) var(--ease-standard);
 }
 
 .popover-usage-percent {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
   font-variant-numeric: tabular-nums;
 }
 
 .popover-usage-detail {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -536,7 +536,7 @@
 .popover-usage-divider {
   height: 1px;
   margin: 4px 8px;
-  background: var(--color-border-row);
+  background: var(--color-token-border-light);
 }
 
 .popover-usage-header {
@@ -548,7 +548,7 @@
 }
 
 .popover-usage-header-name {
-  color: var(--color-text);
+  color: var(--color-token-foreground);
   font-size: var(--type-card-title);
   font-weight: var(--font-weight-label);
   overflow: hidden;
@@ -558,14 +558,14 @@
 
 .popover-usage-empty {
   padding: 12px 10px;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-secondary);
   line-height: 1.5;
   text-align: center;
 }
 
 .popover-usage-empty-error {
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
 }
 
 .popover-usage-action {
@@ -578,7 +578,7 @@
   border: 0;
   border-radius: var(--radius-4);
   background: transparent;
-  color: var(--color-text);
+  color: var(--color-token-foreground);
   font-size: var(--type-control);
   line-height: var(--control-line-height);
   text-align: left;
@@ -587,7 +587,7 @@
   -webkit-app-region: no-drag;
 
   &:hover {
-    background: var(--color-bg-row-hover);
+    background: var(--color-token-list-hover-background);
   }
 }
 
@@ -595,7 +595,7 @@
   flex: 0 0 auto;
   width: var(--app-icon-size);
   height: var(--app-icon-size);
-  color: var(--color-icon-arrow);
+  color: var(--color-token-description-foreground);
   stroke-width: var(--app-icon-stroke-width);
 }
 
@@ -624,7 +624,7 @@
   &:hover::after,
   &:focus-visible::after,
   .desktop-sidebar.is-resizing &::after {
-    background: var(--color-border);
+    background: var(--color-token-border);
   }
 
   &:focus-visible {
@@ -651,15 +651,15 @@
   background:
     radial-gradient(
       circle,
-      color-mix(in srgb, var(--color-accent) 10%, transparent) 0 54%,
+      color-mix(in srgb, var(--color-token-text-link-foreground) 10%, transparent) 0 54%,
       transparent 55%
     ),
     conic-gradient(
-      var(--color-accent) var(--sidebar-collapse-progress),
+      var(--color-token-text-link-foreground) var(--sidebar-collapse-progress),
       transparent 0turn
     );
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--color-accent) 42%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-token-text-link-foreground) 42%, transparent),
     var(--shadow-2);
   opacity: 0.95;
   transform: scale(1);
@@ -673,9 +673,9 @@
     position: absolute;
     inset: 8px;
     border-radius: inherit;
-    background: color-mix(in srgb, var(--color-bg) 86%, transparent);
+    background: color-mix(in srgb, var(--color-token-main-surface-primary) 86%, transparent);
     box-shadow: inset 0 0 0 1px
-      color-mix(in srgb, var(--color-border) 72%, transparent);
+      color-mix(in srgb, var(--color-token-border) 72%, transparent);
   }
 }
 
@@ -725,11 +725,11 @@
 
 .sidebar-brand-floating,
 .sidebar-history-watermark {
-  color: var(--color-text-mute);
+  color: var(--color-token-text-tertiary);
 }
 
 .sidebar-update-dot {
-  background: var(--color-warning);
+  background: var(--color-token-editor-warning-foreground);
 }
 
 .sidebar-settings-icon-wrap {

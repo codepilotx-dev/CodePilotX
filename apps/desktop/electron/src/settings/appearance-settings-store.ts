@@ -1,41 +1,20 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { basename, dirname, extname, join } from "node:path"
 import { randomUUID } from "node:crypto"
+import type {
+  DesktopChromeTheme,
+  DesktopHexColor,
+  DesktopThemeSettingsV5,
+  DesktopThemeVariant,
+} from "@codepilotx/shared/desktop-theme"
 
-export type AppearanceVariant = "light" | "dark"
-export type AppearanceMode = AppearanceVariant | "system"
-export type HexColor = `#${string}`
+export type {
+  DesktopChromeTheme,
+  DesktopThemeSettingsV5,
+} from "@codepilotx/shared/desktop-theme"
 
-export interface DesktopChromeTheme {
-  accent: HexColor
-  surface: HexColor
-  ink: HexColor
-  contrast: number
-  opaqueWindows: boolean
-  fonts: {
-    ui: string | null
-    code: string | null
-  }
-  semanticColors: {
-    diffAdded: HexColor
-    diffRemoved: HexColor
-    skill: HexColor
-  }
-}
-
-export interface DesktopThemeSettingsV4 {
-  version: 4
-  mode: AppearanceMode
-  chromeThemes: Record<AppearanceVariant, DesktopChromeTheme>
-  codeThemeIds: Record<AppearanceVariant, string>
-  pointerCursorEnabled: boolean
-  reduceMotion: "system" | "on" | "off"
-  fontSmoothingEnabled: boolean
-  fontSizes: {
-    ui: number
-    code: number
-  }
-}
+type HexColor = DesktopHexColor
+type AppearanceVariant = DesktopThemeVariant
 
 const DEFAULT_CHROME_THEMES: Record<AppearanceVariant, DesktopChromeTheme> = {
   light: {
@@ -66,8 +45,8 @@ const DEFAULT_CHROME_THEMES: Record<AppearanceVariant, DesktopChromeTheme> = {
   },
 }
 
-export const DEFAULT_APPEARANCE_SETTINGS: DesktopThemeSettingsV4 = {
-  version: 4,
+export const DEFAULT_APPEARANCE_SETTINGS: DesktopThemeSettingsV5 = {
+  version: 5,
   mode: "system",
   chromeThemes: DEFAULT_CHROME_THEMES,
   codeThemeIds: { light: "codex-light", dark: "codex-dark" },
@@ -78,9 +57,7 @@ export const DEFAULT_APPEARANCE_SETTINGS: DesktopThemeSettingsV4 = {
 }
 
 type RecordValue = Record<string, unknown>
-type AppearanceSettingsVersion = 1 | 2 | 3 | 4
-
-const CURRENT_APPEARANCE_SETTINGS_VERSION = 4
+const CURRENT_APPEARANCE_SETTINGS_VERSION = 5
 
 function isRecord(value: unknown): value is RecordValue {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -137,7 +114,7 @@ function normalizeChromeTheme(value: unknown, fallback: DesktopChromeTheme): Des
   }
 }
 
-export function normalizeAppearanceSettings(value: unknown): DesktopThemeSettingsV4 {
+export function normalizeAppearanceSettings(value: unknown): DesktopThemeSettingsV5 {
   const source = isRecord(value) ? value : {}
   const mode = source.mode === "light" || source.mode === "dark" || source.mode === "system"
     ? source.mode
@@ -157,7 +134,7 @@ export function normalizeAppearanceSettings(value: unknown): DesktopThemeSetting
   }
 
   return {
-    version: 4,
+    version: 5,
     mode,
     chromeThemes: {
       light: normalizeVariant("light"),
@@ -185,23 +162,12 @@ export function normalizeAppearanceSettings(value: unknown): DesktopThemeSetting
   }
 }
 
-const APPEARANCE_SETTINGS_MIGRATIONS: Record<
-  Exclude<AppearanceSettingsVersion, 4>,
-  (value: RecordValue) => RecordValue
-> = {
-  1: value => ({ ...value, version: 2 }),
-  2: value => ({ ...value, version: 3 }),
-  3: value => ({ ...value, version: 4 }),
-}
-
 /**
- * Advances a known appearance-settings document one version at a time.
- *
- * Fields are deliberately retained between versions and normalized only after
- * the last migration, so preferences understood by the current application
- * survive while newly introduced fields receive their current defaults.
+ * V5 is an intentional visual-system reset. Known V1-V4 documents are replaced
+ * with the new defaults instead of carrying old palette choices into the new
+ * semantic-token contract. Future documents remain protected from downgrade.
  */
-export function migrateAppearanceSettings(value: unknown): DesktopThemeSettingsV4 {
+export function migrateAppearanceSettings(value: unknown): DesktopThemeSettingsV5 {
   if (!isRecord(value)) {
     throw new UnsupportedAppearanceSettingsVersionError(value)
   }
@@ -218,16 +184,10 @@ export function migrateAppearanceSettings(value: unknown): DesktopThemeSettingsV
     throw new NewerAppearanceSettingsVersionError(originalVersion)
   }
 
-  let migrated = value
-  let version = originalVersion as AppearanceSettingsVersion
-  while (version < CURRENT_APPEARANCE_SETTINGS_VERSION) {
-    const migrate = APPEARANCE_SETTINGS_MIGRATIONS[
-      version as Exclude<AppearanceSettingsVersion, 4>
-    ]
-    migrated = migrate(migrated)
-    version = migrated.version as AppearanceSettingsVersion
+  if (originalVersion < CURRENT_APPEARANCE_SETTINGS_VERSION) {
+    return normalizeAppearanceSettings(DEFAULT_APPEARANCE_SETTINGS)
   }
-  return normalizeAppearanceSettings(migrated)
+  return normalizeAppearanceSettings(value)
 }
 
 export class UnsupportedAppearanceSettingsVersionError extends Error {
@@ -262,7 +222,7 @@ export class AppearanceSettingsStore {
     return this.#filePath
   }
 
-  async load(): Promise<DesktopThemeSettingsV4> {
+  async load(): Promise<DesktopThemeSettingsV5> {
     try {
       const source = await readFile(this.#filePath, "utf8")
       let parsed: unknown
@@ -292,7 +252,7 @@ export class AppearanceSettingsStore {
     return write
   }
 
-  async #backupCorruptAndReset(): Promise<DesktopThemeSettingsV4> {
+  async #backupCorruptAndReset(): Promise<DesktopThemeSettingsV5> {
     const extension = extname(this.#filePath)
     const stem = basename(this.#filePath, extension)
     const timestamp = new Date().toISOString().replace(/\D/g, "")
@@ -307,7 +267,7 @@ export class AppearanceSettingsStore {
     return fallback
   }
 
-  async #writeAtomically(settings: DesktopThemeSettingsV4): Promise<void> {
+  async #writeAtomically(settings: DesktopThemeSettingsV5): Promise<void> {
     const directory = dirname(this.#filePath)
     const temporaryPath = `${this.#filePath}.${process.pid}.${randomUUID()}.tmp`
     await mkdir(directory, { recursive: true })

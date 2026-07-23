@@ -293,7 +293,7 @@ export function ProfileSettings(): React.ReactNode {
               </Button>
               <Button
                 variant="primary"
-                onClick={() => navigate('/settings?tab=git')}
+                onClick={() => navigate('/settings/git')}
                 type="button"
               >
                 前往 Git 设置
@@ -426,7 +426,7 @@ function ProfileRepositoryRow({
         className="profile-repository-dot"
         style={{
           backgroundColor:
-            repository.primaryLanguage?.color ?? 'var(--color-text-soft)',
+            repository.primaryLanguage?.color ?? 'var(--color-token-text-secondary)',
         }}
       />
       <span className="profile-repository-name">{repository.fullName}</span>
@@ -503,6 +503,5 @@ function statusEmojiGlyph(value: string | null | undefined): string {
       return value ? '💬' : ''
   }
 }
-
 
 

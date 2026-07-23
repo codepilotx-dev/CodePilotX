@@ -16,12 +16,12 @@
   .rm-menu-item:hover .rm-item-arrow,
   .rm-menu-item[data-highlighted] .rm-item-check,
   .rm-menu-item[data-highlighted] .rm-item-arrow {
-    color: var(--color-text);
+    color: var(--color-token-foreground);
   }
 
   .rm-section-header {
     padding: var(--space-2) 10px var(--space-1);
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
     font-size: var(--type-meta);
     font-weight: 500;
   }
@@ -29,12 +29,12 @@
   .rm-divider {
     height: 1px;
     margin: 4px 0;
-    background: var(--color-popover-divider);
+    background: var(--color-token-border);
   }
 
   .rm-empty {
     padding: var(--space-3) 10px;
-    color: var(--color-text-placeholder);
+    color: var(--color-token-input-placeholder-foreground);
     font-size: var(--type-secondary);
     text-align: center;
   }
@@ -51,7 +51,7 @@
     flex-shrink: 0;
     width: var(--app-icon-size);
     height: var(--app-icon-size);
-    color: var(--color-icon);
+    color: var(--color-token-icon-foreground);
     stroke-width: var(--app-icon-stroke-width);
   }
 
@@ -59,7 +59,7 @@
     flex-shrink: 0;
     width: var(--app-icon-size);
     height: var(--app-icon-size);
-    color: var(--color-icon-arrow);
+    color: var(--color-token-description-foreground);
   }
 
   .rm-sub-trigger-content {

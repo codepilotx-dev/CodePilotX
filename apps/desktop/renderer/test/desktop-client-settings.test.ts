@@ -39,6 +39,103 @@ const projectWorkspace = {
 }
 
 describe('desktop thread settings client', () => {
+  test('routes tooling management and live updates through RPC v4', async () => {
+    const source = {
+      onmessage: null as ((event: MessageEvent) => void) | null,
+      onerror: null as (() => void) | null,
+      close: () => {},
+    }
+    const toolingStatus = {
+      id: 'ripgrep' as const,
+      preference: 'managed' as const,
+      phase: 'ready' as const,
+      activeSource: 'managed' as const,
+      pinnedVersion: '15.2.0',
+      managed: { installed: true, version: '15.2.0' },
+      system: { available: false, version: null, path: null },
+    }
+    const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
+      const body = init?.body ? JSON.parse(String(init.body)) : null
+      if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
+      if (body?.method === 'initialized') return new Response(null, { status: 204 })
+      if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+      if (body?.method === 'tooling/list') {
+        return rpc(body.id, { statuses: [toolingStatus] })
+      }
+      if (body?.method === 'tooling/setPreference') {
+        expect(body.params).toMatchObject({
+          id: 'ripgrep',
+          preference: 'system',
+          operationId: expect.any(String),
+        })
+        return rpc(body.id, {
+          status: { ...toolingStatus, preference: 'system' },
+        })
+      }
+      if (body?.method === 'tooling/install') {
+        expect(body.params).toMatchObject({
+          id: 'ripgrep',
+          force: true,
+          operationId: expect.any(String),
+        })
+        return rpc(body.id, { status: toolingStatus })
+      }
+      if (body?.method === 'event/subscribe') {
+        return rpc(body.id, {
+          subscriptionId: 'tooling-subscription',
+          highWatermarks: [{ streamId: 'global', sequence: 3 }],
+        })
+      }
+      if (body?.method === 'event/unsubscribe') {
+        return rpc(body.id, { ok: true })
+      }
+      if (body?.method === 'event/ack') {
+        return rpc(body.id, {
+          subscriptionId: body.params.subscriptionId,
+          acknowledged: body.params.positions,
+        })
+      }
+      throw new Error(`Unhandled RPC method: ${body?.method}`)
+    }
+    const client = createDesktopClient({
+      fetch: fetcher,
+      eventSourceFactory: () => source as unknown as EventSource,
+    })
+
+    expect(await client.listTooling()).toEqual([toolingStatus])
+    expect(
+      (await client.setToolingPreference('ripgrep', 'system')).preference,
+    ).toBe('system')
+    expect(await client.installTooling('ripgrep', true)).toEqual(toolingStatus)
+
+    const updates: unknown[] = []
+    const unsubscribe = client.onToolingUpdated(status => updates.push(status))
+    for (let index = 0; index < 20 && !source.onmessage; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
+    source.onmessage?.({
+      data: JSON.stringify({
+        method: 'event/next',
+        params: {
+          subscriptionId: 'tooling-subscription',
+          event: {
+            eventId: 'tooling-event-4',
+            streamId: 'global',
+            type: 'tooling/updated',
+            version: 1,
+            occurredAt: now,
+            durability: 'live',
+            sequence: null,
+            afterSequence: 3,
+            payload: { status: toolingStatus },
+          },
+        },
+      }),
+    } as MessageEvent)
+    expect(updates).toEqual([toolingStatus])
+    unsubscribe()
+  })
+
   test('uses initial settings for the first turn and serializes immediate updates', async () => {
     let settings: ThreadSettings = {
       taskMode: 'plan',
@@ -870,6 +967,7 @@ function initializedResult() {
       'subagents.v1',
       'sandbox.management.v1',
       'prompt.preview.sensitive.v1',
+      'tooling.management.v1',
     ],
     limits: {
       maxFrameBytes: 1024,

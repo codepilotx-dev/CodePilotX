@@ -3,38 +3,38 @@
 .workflow-composer-card-mcp-unsupported {
   --inline-approval-card-gap: 8px;
   --inline-approval-card-padding: 16px 10px 10px;
-  --inline-approval-card-border: 1px solid var(--color-border-soft);
-  --inline-approval-card-bg: var(--color-panel-bg);
-  --inline-approval-card-shadow: var(--color-panel-shadow);
+  --inline-approval-card-border: 1px solid var(--color-token-border-light);
+  --inline-approval-card-bg: var(--color-token-bg-secondary);
+  --inline-approval-card-shadow: var(--shadow-float);
   --inline-approval-header-padding: 0 12px 2px;
   --mcp-form-gap: var(--control-gap);
   --mcp-form-field-gap: var(--control-gap-compact);
   --mcp-form-input-padding: var(--control-padding-block)
     var(--control-padding-inline);
   --mcp-form-input-radius: var(--radius-5);
-  --mcp-form-input-border: 1px solid var(--color-border-soft);
-  --mcp-form-input-bg: color-mix(in srgb, var(--color-bg) 74%, transparent);
-  --mcp-form-input-focus-border: var(--color-accent);
-  --mcp-form-input-focus-shadow: 0 0 0 2px var(--color-accent-a3);
+  --mcp-form-input-border: 1px solid var(--color-token-border-light);
+  --mcp-form-input-bg: color-mix(in srgb, var(--color-token-main-surface-primary) 74%, transparent);
+  --mcp-form-input-focus-border: var(--color-token-text-link-foreground);
+  --mcp-form-input-focus-shadow: 0 0 0 2px var(--color-token-text-link-foreground);
   --mcp-form-actions-gap: var(--control-gap-compact);
   --mcp-form-submit-padding: var(--control-padding-block)
     var(--control-padding-inline);
   --mcp-form-submit-border: 1px solid
-    color-mix(in srgb, var(--color-text-strong) 18%, transparent);
+    color-mix(in srgb, var(--color-token-foreground) 18%, transparent);
   --mcp-form-submit-radius: var(--radius-full);
-  --mcp-form-submit-bg: var(--color-text-strong);
-  --mcp-form-submit-color: var(--color-bg);
+  --mcp-form-submit-bg: var(--color-token-foreground);
+  --mcp-form-submit-color: var(--color-token-main-surface-primary);
   --mcp-form-submit-hover-bg: color-mix(
     in srgb,
-    var(--color-text-strong) 88%,
-    var(--color-bg)
+    var(--color-token-foreground) 88%,
+    var(--color-token-main-surface-primary)
   );
   --mcp-form-submit-hover-border: color-mix(
     in srgb,
-    var(--color-text-strong) 26%,
+    var(--color-token-foreground) 26%,
     transparent
   );
-  --mcp-form-submit-hover-color: var(--color-bg);
+  --mcp-form-submit-hover-color: var(--color-token-main-surface-primary);
 }
 
 .workflow-composer-card-mcp-form .inline-approval-header {
@@ -50,7 +50,7 @@
   margin: 0;
   padding: 0 12px;
   font-size: var(--type-body);
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   line-height: 1.5;
   word-break: break-word;
 }
@@ -76,11 +76,11 @@
   gap: 2px;
   font-size: var(--type-body);
   font-weight: 500;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
 }
 
 .mcp-form-required-mark {
-  color: var(--color-danger);
+  color: var(--color-token-error-foreground);
   font-weight: 600;
   margin-left: 1px;
 }
@@ -88,7 +88,7 @@
 .mcp-form-field-desc {
   margin: 0;
   font-size: var(--type-secondary);
-  color: var(--color-text-mute);
+  color: var(--color-token-text-tertiary);
   line-height: 1.4;
 }
 
@@ -99,7 +99,7 @@
   border: var(--mcp-form-input-border);
   border-radius: var(--mcp-form-input-radius);
   background: var(--mcp-form-input-bg);
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-control);
   font-family: inherit;
   outline: none;
@@ -110,7 +110,7 @@
 }
 
 .mcp-form-field-input::placeholder {
-  color: var(--color-text-mute);
+  color: var(--color-token-text-tertiary);
   font-size: var(--type-secondary);
 }
 
@@ -121,24 +121,24 @@
 
 /* Error state */
 .mcp-form-field-error .mcp-form-field-input {
-  border-color: var(--color-danger);
+  border-color: var(--color-token-error-foreground);
 }
 
 .mcp-form-field-error .mcp-form-field-input:focus {
-  border-color: var(--color-danger);
+  border-color: var(--color-token-error-foreground);
   box-shadow: 0 0 0 2px
-    color-mix(in srgb, var(--color-danger) 30%, transparent);
+    color-mix(in srgb, var(--color-token-error-foreground) 30%, transparent);
 }
 
 .mcp-form-field-error-text {
   font-size: var(--type-secondary);
-  color: var(--color-danger);
+  color: var(--color-token-error-foreground);
 }
 
 .mcp-form-field-error {
   margin: 0;
   font-size: var(--type-secondary);
-  color: var(--color-danger);
+  color: var(--color-token-error-foreground);
   line-height: 1.4;
 }
 
@@ -147,7 +147,7 @@
   margin: 0;
   padding: 0 12px;
   font-size: var(--type-secondary);
-  color: var(--color-danger);
+  color: var(--color-token-error-foreground);
 }
 
 /* Boolean toggle */
@@ -159,7 +159,7 @@
   border: var(--mcp-form-input-border);
   border-radius: var(--radius-full);
   background: var(--mcp-form-input-bg);
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   cursor: pointer;
   font-size: var(--type-control);
   font-family: inherit;
@@ -170,25 +170,25 @@
 }
 
 .mcp-form-boolean:hover {
-  border-color: var(--color-border);
+  border-color: var(--color-token-border);
 }
 
 .mcp-form-boolean-on {
-  background: var(--state-active-bg);
-  border-color: var(--color-accent);
-  color: var(--color-text-strong);
+  background: var(--color-token-list-active-selection-background);
+  border-color: var(--color-token-text-link-foreground);
+  color: var(--color-token-foreground);
 }
 
 .mcp-form-boolean-thumb {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--color-text-mute);
+  background: var(--color-token-text-tertiary);
   transition: background 0.15s;
 }
 
 .mcp-form-boolean-on .mcp-form-boolean-thumb {
-  background: var(--color-accent);
+  background: var(--color-token-text-link-foreground);
 }
 
 .mcp-form-boolean-label {
@@ -212,7 +212,7 @@
   border: var(--mcp-form-input-border);
   border-radius: var(--mcp-form-input-radius);
   background: var(--mcp-form-input-bg);
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   cursor: pointer;
   font-size: var(--type-control);
   font-family: inherit;
@@ -224,13 +224,13 @@
 }
 
 .mcp-form-option:hover {
-  border-color: var(--color-border);
+  border-color: var(--color-token-border);
 }
 
 .mcp-form-option.selected {
-  background: var(--state-active-bg);
-  border-color: var(--color-border);
-  color: var(--color-text-strong);
+  background: var(--color-token-list-active-selection-background);
+  border-color: var(--color-token-border);
+  color: var(--color-token-foreground);
 }
 
 .mcp-form-option-index {
@@ -240,14 +240,14 @@
   width: var(--app-icon-size-md);
   height: var(--app-icon-size-md);
   border-radius: var(--radius-4);
-  background: color-mix(in srgb, var(--color-text-soft) 12%, transparent);
+  background: color-mix(in srgb, var(--color-token-text-secondary) 12%, transparent);
   font-size: var(--type-caption);
   font-weight: 600;
 }
 
 .mcp-form-option.selected .mcp-form-option-index {
-  background: var(--color-accent);
-  color: var(--color-bg);
+  background: var(--color-token-text-link-foreground);
+  color: var(--color-token-main-surface-primary);
 }
 
 .mcp-form-option-label {
@@ -288,13 +288,13 @@
   border: 1px solid transparent;
   border-radius: var(--radius-5);
   background: transparent;
-  color: var(--color-text-mute);
+  color: var(--color-token-text-tertiary);
 }
 
 .mcp-form-btn-decline:hover,
 .mcp-form-btn-cancel:hover {
-  background: var(--state-hover-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-list-hover-background);
+  color: var(--color-token-foreground);
 }
 
 .mcp-form-btn-submit {
@@ -320,7 +320,7 @@
   gap: 8px;
   padding: 0 12px;
   font-size: var(--type-secondary);
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   line-height: 1.5;
 }
 

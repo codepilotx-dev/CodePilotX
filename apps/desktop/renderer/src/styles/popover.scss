@@ -6,7 +6,7 @@
   );
   --popover-surface-radius: var(--radius-card);
   --popover-surface-padding: 6px;
-  --popover-surface-shadow: var(--color-panel-shadow);
+  --popover-surface-shadow: var(--shadow-float);
 }
 
 .popover-surface,
@@ -22,12 +22,12 @@
   overflow-x: var(--popover-overflow-x, hidden);
   overflow-y: var(--popover-overflow-y, auto);
   overscroll-behavior: contain;
-  border: 1px solid var(--color-popover-border);
+  border: 1px solid var(--color-token-menu-border);
   border-radius: var(--popover-surface-radius);
-  background-color: var(--color-popover-bg);
+  background-color: var(--color-token-menu-background);
   backdrop-filter: none;
   box-shadow: var(--popover-surface-shadow);
-  color: var(--color-text);
+  color: var(--color-token-foreground);
   font-size: var(--type-control);
   outline: none;
   user-select: none;
@@ -41,15 +41,15 @@
 }
 
 .popover-surface .search-input {
-  border-color: color-mix(in srgb, var(--color-text) 10%, transparent);
-  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+  border-color: color-mix(in srgb, var(--color-token-foreground) 10%, transparent);
+  background: color-mix(in srgb, var(--color-token-foreground) 4%, transparent);
 
   input {
     background: transparent;
-    color: var(--color-text);
+    color: var(--color-token-foreground);
 
     &::placeholder {
-      color: var(--color-text-meta);
+      color: var(--color-token-description-foreground);
     }
   }
 }
@@ -66,17 +66,17 @@
   border-radius: 12px;
   background: color-mix(
     in srgb,
-    var(--color-background-elevated-secondary-opaque, var(--surface-raised))
+    var(--color-token-editor-widget-background, var(--color-token-editor-widget-background))
       90%,
     transparent
   );
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   box-shadow:
-    0 0 0 0.5px var(--border-control),
+    0 0 0 0.5px var(--color-token-border),
     0 8px 16px -4px color-mix(
         in srgb,
-        var(--color-text-strong) 12%,
+        var(--color-token-foreground) 12%,
         transparent
       );
 }
@@ -90,7 +90,7 @@
   .rm-model-menu {
     border-color: var(--glass-surface-border);
     background-color: var(--glass-surface-bg);
-    color: var(--glass-surface-text, var(--color-text));
+    color: var(--glass-surface-text, var(--color-token-foreground));
     -webkit-backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
     backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
     box-shadow:
@@ -146,7 +146,7 @@
   background: transparent;
   backdrop-filter: none;
   box-shadow: none;
-  color: var(--color-text);
+  color: var(--color-token-foreground);
   font-size: var(--type-control);
   outline: none;
   user-select: none;
@@ -174,7 +174,7 @@
     --color-text-disabled: var(--glass-surface-text-disabled);
     border-color: var(--glass-surface-border);
     background-color: var(--glass-surface-bg);
-    color: var(--glass-surface-text-meta, var(--color-text-meta));
+    color: var(--glass-surface-text-meta, var(--color-token-description-foreground));
     -webkit-backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
     backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
     box-shadow:
@@ -196,7 +196,7 @@
 }
 
 .sidebar-context-menu-item[data-color="red"] {
-  color: var(--color-danger);
+  color: var(--color-token-error-foreground);
 }
 
 .sidebar-context-menu-label {
@@ -212,7 +212,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-icon);
+  color: var(--color-token-icon-foreground);
 }
 
 .sidebar-context-menu-leading > svg,
@@ -231,11 +231,11 @@
 }
 
 .sidebar-context-menu-arrow {
-  color: var(--color-icon-arrow);
+  color: var(--color-token-description-foreground);
 }
 
 .sidebar-context-menu-shortcut {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
   white-space: nowrap;
 }
@@ -243,7 +243,7 @@
 .sidebar-context-menu-separator {
   height: 1px;
   margin: 4px 0;
-  background-color: var(--color-popover-divider);
+  background-color: var(--color-token-border);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -337,13 +337,13 @@
 }
 
 .popover-menu-heading {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
 }
 
 .popover-menu-separator {
   height: 1px;
   margin: 8px 12px;
-  background: var(--border-subtle);
+  background: var(--color-token-border-light);
 }
 
 .popover-model-submenu {
@@ -433,41 +433,41 @@
   justify-content: center;
   flex: 0 0 auto;
   border-radius: var(--radius-4);
-  color: var(--color-text-on-accent);
+  color: var(--color-token-button-foreground);
 }
 
 .context-plugin-icon-docs {
-  background: var(--color-accent);
+  background: var(--color-token-text-link-foreground);
 }
 
 .context-plugin-icon-pdf {
-  background: var(--color-danger);
+  background: var(--color-token-error-foreground);
 }
 
 .context-plugin-icon-sheets {
-  background: var(--color-success);
+  background: var(--color-token-git-decoration-added-resource-foreground);
 }
 
 .context-plugin-icon-slides {
-  background: var(--color-warning);
+  background: var(--color-token-editor-warning-foreground);
 }
 
 .context-plugin-icon-template {
-  background: var(--color-accent);
+  background: var(--color-token-text-link-foreground);
 }
 
 .context-plugin-icon-browser {
-  background: var(--color-skill);
+  background: var(--color-token-charts-purple);
 }
 
 .context-plugin-icon-github {
-  background: var(--surface-product);
-  color: var(--color-text-on-accent);
+  background: var(--color-token-bg-secondary);
+  color: var(--color-token-button-foreground);
 }
 
 .context-plugin-icon-openai {
   border-radius: var(--radius-full);
-  background: var(--color-accent);
+  background: var(--color-token-text-link-foreground);
 }
 
 .popover-sidebar-project {
@@ -482,14 +482,14 @@
 
 .popover-header {
   padding: var(--space-2) 10px var(--space-1);
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
   font-weight: 500;
 }
 
 .popover-section-title {
   padding: var(--space-1) 10px 6px;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.2px;
@@ -502,12 +502,12 @@
 .popover-divider {
   height: 1px;
   margin: 4px 0;
-  background: var(--color-popover-divider);
+  background: var(--color-token-border);
 }
 
 .popover-empty {
   padding: var(--space-3) 10px;
-  color: var(--color-text-placeholder);
+  color: var(--color-token-input-placeholder-foreground);
   font-size: var(--type-secondary);
   text-align: center;
 }
@@ -522,13 +522,13 @@
 .rm-model-menu .rm-sub-trigger:hover .rm-item-check,
 .rm-model-menu .rm-sub-trigger[data-highlighted] .rm-item-check,
 .rm-model-menu .rm-sub-trigger[data-state="open"] .rm-item-check {
-  color: var(--color-text);
+  color: var(--color-token-foreground);
 }
 
 .popover-item:hover:not(:disabled) .popover-item-arrow,
 .popover-item.active .popover-item-arrow,
 .popover-item[data-highlighted] .popover-item-arrow {
-  color: var(--color-text);
+  color: var(--color-token-foreground);
 }
 
 /* --- Popover item children --- */
@@ -554,7 +554,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-icon);
+  color: var(--color-token-icon-foreground);
 }
 
 .popover-item-icon svg,
@@ -600,7 +600,7 @@
 }
 
 .popover-item-shortcut {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
   font-weight: 500;
   letter-spacing: 0.2px;
@@ -609,11 +609,11 @@
 
 .popover-item:disabled .popover-item-shortcut,
 .popover-item[data-disabled] .popover-item-shortcut {
-  color: var(--color-text-disabled);
+  color: var(--color-token-disabled-foreground);
 }
 
 .popover-item-arrow {
-  color: var(--color-icon-arrow);
+  color: var(--color-token-description-foreground);
 }
 
 /* --- Tooltip --- */
@@ -623,10 +623,10 @@
   max-width: min(calc(320px + var(--popover-width-extra)), calc(100vw - 32px));
   padding: 6px 8px;
   border-radius: var(--popover-surface-radius);
-  border: 1px solid var(--color-popover-border);
-  background: var(--color-popover-bg);
+  border: 1px solid var(--color-token-menu-border);
+  background: var(--color-token-menu-background);
   box-shadow: var(--popover-surface-shadow);
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
   line-height: 1.4;
   white-space: normal;
@@ -637,10 +637,10 @@
 .tooltip-content {
   z-index: var(--z-tooltip);
   padding: 4px 8px;
-  border: 1px solid var(--color-popover-border);
+  border: 1px solid var(--color-token-menu-border);
   border-radius: var(--radius-3);
-  background: var(--color-popover-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-menu-background);
+  color: var(--color-token-foreground);
   font-size: var(--type-caption);
   line-height: 1.4;
   font-weight: 500;
@@ -658,7 +658,7 @@
 }
 
 .tooltip-arrow {
-  fill: var(--color-popover-bg);
+  fill: var(--color-token-menu-background);
 }
 
 :root[data-glass-surfaces="on"] .tooltip-arrow {

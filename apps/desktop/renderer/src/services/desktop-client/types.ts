@@ -1,4 +1,11 @@
-import type { EventEnvelope, RpcParams, RpcResult } from '@codepilotx/agent-protocol'
+import type {
+  EventEnvelope,
+  RpcParams,
+  RpcResult,
+  ToolingID,
+  ToolingPreference,
+  ToolingStatus,
+} from '@codepilotx/agent-protocol'
 import type { AgentRpcSubscription } from '../agentRpcClient.js'
 import type {
   DesktopApi,
@@ -214,6 +221,17 @@ export type DesktopAgentEventEnvelopeApi = {
   ): () => void
 }
 
+export type DesktopToolingApi = {
+  listTooling(): Promise<readonly ToolingStatus[]>
+  setToolingPreference(
+    id: ToolingID,
+    preference: ToolingPreference,
+  ): Promise<ToolingStatus>
+  installTooling(id: ToolingID, force?: boolean): Promise<ToolingStatus>
+  onToolingUpdated(callback: (status: ToolingStatus) => void): () => void
+}
+
 export type CodePilotXDesktopClient = DesktopApi &
   DesktopAgentReviewApi &
-  DesktopAgentEventEnvelopeApi
+  DesktopAgentEventEnvelopeApi &
+  DesktopToolingApi

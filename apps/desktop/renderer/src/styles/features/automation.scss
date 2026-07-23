@@ -9,7 +9,7 @@
   margin: 0 auto;
   padding: var(--layout-page-pad-y) var(--layout-page-pad-x)
     var(--layout-page-pad-bottom);
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
 }
 
 .automation-header {
@@ -24,17 +24,17 @@
     margin: 0;
     font-size: var(--type-page-title);
     font-weight: var(--font-weight-heading);
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
   }
 
   p {
     margin: 0;
     font-size: var(--type-secondary);
-    color: var(--color-text-soft);
+    color: var(--color-token-text-secondary);
   }
 
   a {
-    color: var(--color-accent);
+    color: var(--color-token-text-link-foreground);
     text-decoration: none;
     margin-left: 4px;
 
@@ -62,10 +62,10 @@
   gap: var(--layout-section-gap);
   min-height: 460px;
   padding: var(--layout-card-pad);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-panel);
-  background: var(--color-panel-bg);
-  box-shadow: var(--color-panel-shadow-raised);
+  background: var(--color-token-bg-secondary);
+  box-shadow: var(--shadow-raised);
 }
 
 .automation-empty-state {
@@ -79,7 +79,7 @@
   justify-content: center;
   width: 120px;
   height: 84px;
-  color: var(--color-text-mute);
+  color: var(--color-token-text-tertiary);
 }
 
 .automation-cloud-prompt {
@@ -90,7 +90,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
 }
 
 .automation-quick-starts {
@@ -110,10 +110,10 @@
   gap: var(--control-gap-compact);
   padding: 0.68em 1.23em;
   border-radius: 14px;
-  border: 1px solid var(--border-subtle);
-  background: var(--color-panel-bg);
+  border: 1px solid var(--color-token-border-light);
+  background: var(--color-token-bg-secondary);
   box-shadow: none;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-control);
   line-height: var(--control-line-height);
   cursor: pointer;
@@ -124,19 +124,19 @@
     color var(--motion-standard) var(--ease-standard);
 
   &:hover {
-    border-color: var(--color-panel-border);
-    background: var(--color-bg-chip-hover);
+    border-color: var(--color-token-border-light);
+    background: var(--color-token-list-hover-background);
   }
 }
 
 .automation-button {
-  border-color: var(--border-subtle);
+  border-color: var(--color-token-border-light);
   border-radius: 14px;
   box-shadow: none;
 
   &:hover {
-    border-color: var(--color-panel-border);
-    background: var(--color-bg-chip-hover);
+    border-color: var(--color-token-border-light);
+    background: var(--color-token-list-hover-background);
   }
 }
 

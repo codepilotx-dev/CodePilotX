@@ -22,7 +22,7 @@
   padding: var(--control-padding-block)
     var(--control-padding-inline-compact);
   border-radius: 8px;
-  color: var(--color-text);
+  color: var(--color-token-foreground);
   font-size: var(--type-control);
 
   text-align: left;
@@ -69,7 +69,7 @@
 .chat-input__dropdown-item:disabled,
 .sidebar-context-menu-item[data-disabled],
 .rm-model-menu .rm-menu-item[data-disabled] {
-  color: var(--color-text-disabled);
+  color: var(--color-token-disabled-foreground);
   pointer-events: none;
 }
 
@@ -93,7 +93,7 @@
 .sidebar-context-menu-item[data-highlighted],
 .sidebar-context-menu-sub-trigger[data-highlighted],
 .sidebar-context-menu-sub-trigger[data-state="open"] {
-  background: var(--color-sidebar-hover-bg);
+  background: var(--color-token-list-hover-background);
 }
 
 .popover-item.active,
@@ -110,5 +110,5 @@
 .sidebar-context-menu-item[data-highlighted],
 .sidebar-context-menu-sub-trigger[data-highlighted],
 .sidebar-context-menu-sub-trigger[data-state="open"] {
-  background: var(--color-sidebar-hover-bg);
+  background: var(--color-token-list-hover-background);
 }

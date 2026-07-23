@@ -6,7 +6,7 @@
   margin: auto;
   padding: var(--space-6);
   text-align: center;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
 }
 
 .message-list {
@@ -21,7 +21,7 @@
 
 .message-card.user {
   align-self: flex-end;
-  background: var(--color-bg-chip-hover);
+  background: var(--color-token-list-hover-background);
 }
 
 .message-card.assistant,
@@ -30,7 +30,7 @@
 }
 
 .message-card span {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
 }
 
@@ -42,12 +42,12 @@
 }
 
 ::highlight(conversation-action-selection) {
-  background: color-mix(in srgb, var(--color-accent) 32%, transparent);
+  background: color-mix(in srgb, var(--color-token-text-link-foreground) 32%, transparent);
   color: inherit;
 }
 
 .conversation-stream ::selection {
-  background: color-mix(in srgb, var(--color-accent) 32%, transparent);
+  background: color-mix(in srgb, var(--color-token-text-link-foreground) 32%, transparent);
   color: inherit;
 }
 
@@ -87,14 +87,14 @@
     border: 0;
     border-radius: 6px;
     padding: 6px 10px;
-    color: var(--color-text);
-    background: var(--color-bg-soft);
+    color: var(--color-token-foreground);
+    background: var(--color-token-text-preformat-background);
     text-align: left;
     cursor: pointer;
   }
 
   button:hover {
-    background: var(--color-bg-hover);
+    background: var(--color-token-list-hover-background);
   }
 
   span {
@@ -104,7 +104,7 @@
   }
 
   small {
-    color: var(--color-text-soft);
+    color: var(--color-token-text-secondary);
     white-space: nowrap;
   }
 }
@@ -161,7 +161,7 @@
   }
 
   small {
-    color: var(--color-text-soft);
+    color: var(--color-token-text-secondary);
     font-size: var(--type-meta);
     font-weight: 400;
   }
@@ -174,13 +174,13 @@
   min-width: 0;
 
   strong {
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     font-size: var(--type-body);
     font-weight: var(--font-weight-label);
   }
 
   small {
-    color: var(--color-text-soft);
+    color: var(--color-token-text-secondary);
     font-size: var(--type-meta);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -192,7 +192,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-text-mute);
+  color: var(--color-token-text-tertiary);
 }
 
 .assistant-message-actions {
@@ -202,7 +202,7 @@
 }
 
 .assistant-thinking {
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font-size: var(--type-message);
 }
 

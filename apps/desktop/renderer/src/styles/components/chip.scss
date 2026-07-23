@@ -11,7 +11,7 @@
   border: 0;
 
   background: transparent;
-  color: var(--color-accent);
+  color: var(--color-token-text-link-foreground);
   font-size: calc(var(--type-control) - 1px);
 
   transition:
@@ -21,12 +21,12 @@
     transform var(--motion-fast) var(--ease-standard);
 
   &.subtle {
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
 
     &:hover,
     &.active {
-      background: var(--color-sidebar-hover-bg);
-      color: var(--color-text-strong);
+      background: var(--color-token-list-hover-background);
+      color: var(--color-token-foreground);
     }
   }
 }
@@ -40,7 +40,7 @@
   padding: calc(var(--control-padding-block-compact) + 0.05em)
     var(--control-padding-inline);
   border-radius: var(--radius-4);
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
 
   transition:
@@ -67,8 +67,8 @@
 .menubar-trigger:hover,
 .menubar-trigger[data-state="open"],
 .menubar-trigger[data-highlighted] {
-  background: var(--color-sidebar-hover-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-list-hover-background);
+  color: var(--color-token-foreground);
 }
 
 .chip-button[aria-expanded="true"],
@@ -78,13 +78,13 @@
 .message-action[data-state="open"],
 .menubar-trigger[data-state="open"],
 .menubar-trigger[data-highlighted] {
-  background: var(--color-sidebar-hover-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-list-hover-background);
+  color: var(--color-token-foreground);
 }
 
 .chip-button:hover,
 .meta-chip:hover {
-  background: var(--color-sidebar-hover-bg);
+  background: var(--color-token-list-hover-background);
 }
 
 /* --- Accent-colored chips --- */
@@ -96,7 +96,7 @@
 .profile-repository-row:hover .profile-repository-name,
 .plugins-hero-command,
 .chat-input__dropdown-check {
-  color: var(--color-accent);
+  color: var(--color-token-text-link-foreground);
 }
 
 /* --- Rounded chip controls --- */
@@ -107,16 +107,16 @@
 
 .chip-button:hover,
 .meta-chip:hover {
-  background: var(--color-sidebar-hover-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-list-hover-background);
+  color: var(--color-token-foreground);
 }
 
 .chip-button[aria-expanded="true"],
 .chip-button[data-state="open"],
 .meta-chip[aria-expanded="true"],
 .meta-chip[data-state="open"] {
-  background: var(--color-sidebar-hover-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-list-hover-background);
+  color: var(--color-token-foreground);
 }
 
 .chip-button:active,

@@ -680,7 +680,7 @@ function ThemeShareDialog({
               </Dialog.Close>
             </header>
             <Dialog.Description>
-              粘贴以 codex-theme-v1: 开头的主题内容。导入前会严格校验主题类型和所有颜色。
+              粘贴以 codex-theme-v2: 开头的主题内容。V1 已停止支持，导入前会严格校验主题类型和所有颜色。
             </Dialog.Description>
             <textarea
               aria-label="Codex 主题内容"
@@ -810,6 +810,7 @@ function VariantThemeEditor({
   const copyTheme = async (): Promise<void> => {
     try {
       const serialized = serializeCodexThemeShare({
+        version: 2,
         variant,
         codeThemeId,
         theme: chromeTheme,

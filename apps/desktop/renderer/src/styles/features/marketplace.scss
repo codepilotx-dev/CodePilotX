@@ -18,7 +18,7 @@
   padding: var(--layout-page-pad-y)
     clamp(var(--space-4), 4vw, var(--layout-page-pad-x))
     var(--layout-page-pad-bottom);
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
 }
 
 .plugins-heading,
@@ -48,7 +48,7 @@
 .plugins-page-title,
 .plugins-hero-header h1 {
   margin: 0;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-page-title);
   font-weight: var(--font-weight-heading);
   line-height: 1.2;
@@ -58,7 +58,7 @@
 .plugins-page-description {
   max-width: var(--layout-content-w);
   margin: 0;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-secondary);
   line-height: 1.5;
 }
@@ -68,7 +68,7 @@
   min-width: 0;
   align-items: center;
   gap: var(--space-1);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--color-token-border-light);
 }
 
 .plugins-tab {
@@ -77,7 +77,7 @@
   padding: 0 var(--space-2);
   border: 0;
   background: transparent;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font: inherit;
   font-size: var(--type-control);
   cursor: pointer;
@@ -98,13 +98,13 @@
 
   &.is-active,
   &[aria-selected="true"] {
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     font-weight: var(--font-weight-label);
   }
 
   &.is-active::after,
   &[aria-selected="true"]::after {
-    background: var(--color-accent);
+    background: var(--color-token-text-link-foreground);
   }
 }
 
@@ -126,17 +126,17 @@
   align-items: center;
   gap: var(--control-gap);
   padding: 0 var(--space-3);
-  border: 1px solid var(--border-control);
+  border: 1px solid var(--color-token-border);
   border-radius: var(--radius-input);
-  background: var(--color-panel-elevated-bg);
-  color: var(--color-icon-soft);
+  background: var(--color-token-editor-widget-background);
+  color: var(--color-token-description-foreground);
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     box-shadow var(--motion-fast) var(--ease-standard),
     background var(--motion-fast) var(--ease-standard);
 
   &:focus-within {
-    border-color: var(--color-accent);
+    border-color: var(--color-token-text-link-foreground);
     box-shadow: var(--focus-ring-soft);
   }
 
@@ -150,13 +150,13 @@
     border: 0;
     outline: 0;
     background: transparent;
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     font: inherit;
     font-size: var(--type-control);
     line-height: var(--control-line-height);
 
     &::placeholder {
-      color: var(--color-text-placeholder);
+      color: var(--color-token-input-placeholder-foreground);
     }
 
     &:disabled {
@@ -177,9 +177,9 @@
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-1);
-  border: 1px solid var(--border-control);
+  border: 1px solid var(--color-token-border);
   border-radius: var(--radius-input);
-  background: var(--color-panel-bg);
+  background: var(--color-token-bg-secondary);
 }
 
 .plugins-category-option,
@@ -189,7 +189,7 @@
   border: 0;
   border-radius: var(--radius-3);
   background: transparent;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font: inherit;
   font-size: var(--type-control);
   white-space: nowrap;
@@ -200,8 +200,8 @@
 
   &[aria-pressed="true"],
   &.is-selected {
-    background: var(--state-selected);
-    color: var(--color-text-strong);
+    background: var(--color-token-list-active-selection-background);
+    color: var(--color-token-foreground);
     font-weight: var(--font-weight-label);
   }
 }
@@ -215,10 +215,10 @@
   justify-content: space-between;
   gap: var(--control-gap-compact);
   padding: 0 var(--space-3);
-  border: 1px solid var(--border-control);
+  border: 1px solid var(--color-token-border);
   border-radius: var(--radius-input);
-  background: var(--color-panel-elevated-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-editor-widget-background);
+  color: var(--color-token-foreground);
   font: inherit;
   font-size: var(--type-control);
   line-height: var(--control-line-height);
@@ -230,7 +230,7 @@
     box-shadow var(--motion-fast) var(--ease-standard);
 
   &[data-state="open"] {
-    background: var(--state-selected);
+    background: var(--color-token-list-active-selection-background);
   }
 
   &:disabled,
@@ -267,25 +267,25 @@
 
 .plugins-section-header h2 {
   margin: 0;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-section-title);
   font-weight: var(--font-weight-heading);
 }
 
 .plugins-section-header > span {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
 }
 
 .plugins-section-title {
   margin: 0;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-section-title);
   font-weight: var(--font-weight-heading);
 }
 
 .plugins-section-count {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
 }
 
@@ -295,15 +295,15 @@
   align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-4);
-  border: 1px solid var(--border-control);
+  border: 1px solid var(--color-token-border);
   border-radius: var(--radius-panel);
-  background: var(--color-panel-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-bg-secondary);
+  color: var(--color-token-foreground);
 
   &.is-error,
   &[data-tone="danger"] {
-    border-color: color-mix(in srgb, var(--color-danger) 38%, var(--border-control));
-    background: color-mix(in srgb, var(--color-danger) 7%, var(--color-panel-bg));
+    border-color: color-mix(in srgb, var(--color-token-error-foreground) 38%, var(--color-token-border));
+    background: color-mix(in srgb, var(--color-token-error-foreground) 7%, var(--color-token-bg-secondary));
   }
 }
 
@@ -316,7 +316,7 @@
   p {
     margin: 0;
     overflow-wrap: anywhere;
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
     font-size: var(--type-secondary);
     line-height: 1.5;
   }
@@ -324,12 +324,12 @@
 
 .plugins-callout > svg {
   flex: 0 0 auto;
-  color: var(--color-danger);
+  color: var(--color-token-error-foreground);
 }
 
 .plugins-callout-icon {
   flex: 0 0 auto;
-  color: var(--color-danger);
+  color: var(--color-token-error-foreground);
 }
 
 .plugins-callout-content {
@@ -341,7 +341,7 @@
   p {
     margin: 0;
     overflow-wrap: anywhere;
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
     font-size: var(--type-secondary);
     line-height: 1.5;
   }
@@ -373,10 +373,10 @@
   gap: var(--space-4);
   padding: var(--space-4);
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-panel);
-  background: var(--color-panel-bg);
-  box-shadow: var(--color-panel-shadow-soft);
+  background: var(--color-token-bg-secondary);
+  box-shadow: var(--shadow-resting);
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     background var(--motion-fast) var(--ease-standard),
@@ -391,10 +391,10 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-5);
-  background: var(--color-panel-elevated-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-editor-widget-background);
+  color: var(--color-token-foreground);
 
   svg {
     display: block;
@@ -414,8 +414,8 @@
 .plugins-tone-creative,
 .plugins-tone-sales,
 .plugins-tone-codepilotx {
-  background: var(--color-panel-elevated-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-editor-widget-background);
+  color: var(--color-token-foreground);
 }
 
 .plugins-card-meta,
@@ -435,7 +435,7 @@
 .plugins-card-title {
   min-width: 0;
   margin: 0;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-card-title);
   font-weight: var(--font-weight-label);
   line-height: 1.35;
@@ -454,7 +454,7 @@ button.plugins-card-title {
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-secondary);
   line-height: 1.45;
   text-overflow: ellipsis;
@@ -477,10 +477,10 @@ button.plugins-card-title {
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--border-control);
+  border: 1px solid var(--color-token-border);
   border-radius: var(--radius-full);
-  background: var(--surface-subtle);
-  color: var(--color-text-meta);
+  background: var(--color-token-bg-fog);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-label);
   line-height: 1.2;
@@ -488,23 +488,23 @@ button.plugins-card-title {
 
   &[data-status="enabled"],
   &.is-enabled {
-    border-color: color-mix(in srgb, var(--color-success) 36%, var(--border-control));
-    background: color-mix(in srgb, var(--color-success) 9%, var(--color-panel-bg));
-    color: var(--color-success);
+    border-color: color-mix(in srgb, var(--color-token-git-decoration-added-resource-foreground) 36%, var(--color-token-border));
+    background: color-mix(in srgb, var(--color-token-git-decoration-added-resource-foreground) 9%, var(--color-token-bg-secondary));
+    color: var(--color-token-git-decoration-added-resource-foreground);
   }
 
   &[data-status="disabled"],
   &.is-disabled,
   &[data-status="unavailable"],
   &.is-unavailable {
-    color: var(--color-text-soft);
+    color: var(--color-token-text-secondary);
   }
 
   &[data-status="error"],
   &.is-error {
-    border-color: color-mix(in srgb, var(--color-danger) 36%, var(--border-control));
-    background: color-mix(in srgb, var(--color-danger) 9%, var(--color-panel-bg));
-    color: var(--color-danger);
+    border-color: color-mix(in srgb, var(--color-token-error-foreground) 36%, var(--color-token-border));
+    background: color-mix(in srgb, var(--color-token-error-foreground) 9%, var(--color-token-bg-secondary));
+    color: var(--color-token-error-foreground);
   }
 }
 
@@ -516,7 +516,7 @@ button.plugins-card-title {
   &.is-installed {
     border-color: transparent;
     background: transparent;
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     cursor: default;
   }
 
@@ -529,7 +529,7 @@ button.plugins-card-title {
 .plugins-operation-error {
   grid-column: 1 / -1;
   margin: 0;
-  color: var(--color-danger);
+  color: var(--color-token-error-foreground);
   font-size: var(--type-meta);
   line-height: 1.4;
 }
@@ -540,7 +540,7 @@ button.plugins-card-title {
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--border-control);
+  border: 1px solid var(--color-token-border);
   border-radius: var(--radius-full);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-label);
@@ -553,21 +553,21 @@ button.plugins-card-title {
   }
 
   &.is-pass {
-    border-color: color-mix(in srgb, var(--color-success) 36%, var(--border-control));
-    background: color-mix(in srgb, var(--color-success) 9%, var(--color-panel-bg));
-    color: var(--color-success);
+    border-color: color-mix(in srgb, var(--color-token-git-decoration-added-resource-foreground) 36%, var(--color-token-border));
+    background: color-mix(in srgb, var(--color-token-git-decoration-added-resource-foreground) 9%, var(--color-token-bg-secondary));
+    color: var(--color-token-git-decoration-added-resource-foreground);
   }
 
   &.is-warn {
-    border-color: color-mix(in srgb, var(--color-warning) 36%, var(--border-control));
-    background: color-mix(in srgb, var(--color-warning) 9%, var(--color-panel-bg));
-    color: var(--color-warning);
+    border-color: color-mix(in srgb, var(--color-token-editor-warning-foreground) 36%, var(--color-token-border));
+    background: color-mix(in srgb, var(--color-token-editor-warning-foreground) 9%, var(--color-token-bg-secondary));
+    color: var(--color-token-editor-warning-foreground);
   }
 
   &.is-fail {
-    border-color: color-mix(in srgb, var(--color-danger) 36%, var(--border-control));
-    background: color-mix(in srgb, var(--color-danger) 9%, var(--color-panel-bg));
-    color: var(--color-danger);
+    border-color: color-mix(in srgb, var(--color-token-error-foreground) 36%, var(--color-token-border));
+    background: color-mix(in srgb, var(--color-token-error-foreground) 9%, var(--color-token-bg-secondary));
+    color: var(--color-token-error-foreground);
   }
 }
 
@@ -589,23 +589,23 @@ button.plugins-card-title {
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-4);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-panel);
-  background: var(--color-panel-bg);
+  background: var(--color-token-bg-secondary);
 }
 
 .plugins-skeleton {
   min-height: calc(var(--control-size-lg) + var(--space-7));
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-panel);
   background:
     linear-gradient(
       90deg,
-      var(--state-selected),
-      var(--surface-subtle),
-      var(--state-selected)
+      var(--color-token-list-active-selection-background),
+      var(--color-token-bg-fog),
+      var(--color-token-list-active-selection-background)
     ),
-    var(--color-panel-bg);
+    var(--color-token-bg-secondary);
   background-size: 200% 100%;
   animation: plugins-skeleton-pulse var(--motion-emphasis) var(--ease-standard)
     infinite alternate;
@@ -624,7 +624,7 @@ button.plugins-card-title {
 .plugins-skeleton-icon,
 .plugins-skeleton-line {
   border-radius: var(--radius-3);
-  background: var(--state-selected);
+  background: var(--color-token-list-active-selection-background);
 }
 
 .plugins-skeleton-icon {
@@ -653,11 +653,11 @@ button.plugins-card-title {
   place-items: center;
   gap: var(--space-3);
   padding: var(--space-7);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-panel);
-  background: var(--color-panel-bg);
-  box-shadow: var(--color-panel-shadow-soft);
-  color: var(--color-text-meta);
+  background: var(--color-token-bg-secondary);
+  box-shadow: var(--shadow-resting);
+  color: var(--color-token-description-foreground);
   text-align: center;
 
   h3,
@@ -666,7 +666,7 @@ button.plugins-card-title {
   }
 
   h3 {
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     font-size: var(--type-body);
     font-weight: var(--font-weight-label);
   }
@@ -701,7 +701,7 @@ button.plugins-card-title {
   position: fixed;
   z-index: var(--z-modal);
   inset: 0;
-  background: color-mix(in srgb, var(--color-ink) 36%, transparent);
+  background: color-mix(in srgb, var(--color-token-foreground) 36%, transparent);
 }
 
 .plugins-dialog-content {
@@ -715,11 +715,11 @@ button.plugins-card-title {
   min-width: 0;
   overflow: hidden;
   transform: translate(-50%, -50%);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--color-token-border-heavy);
   border-radius: var(--radius-panel);
-  background: var(--color-panel-elevated-bg);
-  box-shadow: var(--color-panel-shadow);
-  color: var(--color-text-strong);
+  background: var(--color-token-editor-widget-background);
+  box-shadow: var(--shadow-float);
+  color: var(--color-token-foreground);
 }
 
 .plugins-dialog-header {
@@ -728,7 +728,7 @@ button.plugins-card-title {
   align-items: start;
   gap: var(--space-3);
   padding: var(--space-5);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--color-token-border-light);
 }
 
 .plugins-dialog-heading {
@@ -748,7 +748,7 @@ button.plugins-card-title {
 .plugins-dialog-description {
   margin: 0;
   overflow-wrap: anywhere;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-secondary);
   line-height: 1.5;
 }
@@ -780,12 +780,12 @@ button.plugins-card-title {
   }
 
   dt {
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
     font-size: var(--type-meta);
   }
 
   dd {
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     font-size: var(--type-secondary);
   }
 }
@@ -796,7 +796,7 @@ button.plugins-card-title {
   justify-content: flex-end;
   gap: var(--space-2);
   padding: var(--space-4) var(--space-5);
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--color-token-border-light);
 }
 
 /* Actual Radix detail component names. */
@@ -811,11 +811,11 @@ button.plugins-card-title {
   max-height: min(42rem, calc(100vh - var(--space-8)));
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--color-token-border-heavy);
   border-radius: var(--radius-panel);
-  background: var(--color-panel-elevated-bg);
-  box-shadow: var(--color-panel-shadow);
-  color: var(--color-text-strong);
+  background: var(--color-token-editor-widget-background);
+  box-shadow: var(--shadow-float);
+  color: var(--color-token-foreground);
 }
 
 .plugin-details-dialog__header {
@@ -824,7 +824,7 @@ button.plugins-card-title {
   align-items: start;
   gap: var(--space-3);
   padding: var(--space-5);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--color-token-border-light);
 }
 
 .plugin-details-dialog__heading {
@@ -836,7 +836,7 @@ button.plugins-card-title {
 .plugin-details-dialog__title {
   margin: 0;
   overflow-wrap: anywhere;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-title-md);
   font-weight: var(--font-weight-heading);
   line-height: 1.3;
@@ -845,7 +845,7 @@ button.plugins-card-title {
 .plugin-details-dialog__description {
   margin: 0;
   overflow-wrap: anywhere;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-secondary);
   line-height: 1.5;
 }
@@ -867,7 +867,7 @@ button.plugins-card-title {
   grid-template-columns: minmax(5rem, max-content) minmax(0, 1fr);
   gap: var(--space-4);
   padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--color-token-border-light);
 
   dt,
   dd {
@@ -877,12 +877,12 @@ button.plugins-card-title {
   }
 
   dt {
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
     font-size: var(--type-meta);
   }
 
   dd {
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     font-size: var(--type-secondary);
   }
 }
@@ -890,10 +890,10 @@ button.plugins-card-title {
 .plugin-details-dialog__error {
   margin: var(--space-4) 0 0;
   padding: var(--space-3);
-  border: 1px solid color-mix(in srgb, var(--color-danger) 38%, var(--border-control));
+  border: 1px solid color-mix(in srgb, var(--color-token-error-foreground) 38%, var(--color-token-border));
   border-radius: var(--radius-4);
-  background: color-mix(in srgb, var(--color-danger) 7%, var(--color-panel-bg));
-  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-token-error-foreground) 7%, var(--color-token-bg-secondary));
+  color: var(--color-token-error-foreground);
   font-size: var(--type-secondary);
   line-height: 1.45;
 }
@@ -904,7 +904,7 @@ button.plugins-card-title {
   justify-content: flex-end;
   gap: var(--space-2);
   padding: var(--space-4) var(--space-5);
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--color-token-border-light);
 }
 
 /* Plugin catalog workbench: full-width toolbar with a centered content column. */
@@ -917,7 +917,7 @@ button.plugins-card-title {
   padding: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  background: var(--color-workbench-bg);
+  background: var(--color-token-main-surface-primary);
 }
 
 .plugins-content {
@@ -947,7 +947,7 @@ button.plugins-card-title {
   display: grid;
   gap: var(--space-3);
   padding-bottom: var(--space-5);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--color-token-border-light);
 }
 
 .plugins-included-overview__header,
@@ -960,13 +960,13 @@ button.plugins-card-title {
 
   h2 {
     margin: 0;
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     font-size: var(--type-section-title);
     font-weight: var(--font-weight-heading);
   }
 
   span {
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
     font-size: var(--type-meta);
   }
 }
@@ -987,10 +987,10 @@ button.plugins-card-title {
   height: var(--control-size-lg);
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-4);
-  background: var(--color-panel-elevated-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-editor-widget-background);
+  color: var(--color-token-foreground);
   cursor: pointer;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
@@ -1037,7 +1037,7 @@ button.plugins-card-title {
   align-items: center;
   gap: var(--space-1) var(--space-3);
   padding: var(--space-4) var(--space-1);
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--color-token-border-light);
   background: transparent;
 }
 
@@ -1048,10 +1048,10 @@ button.plugins-card-title {
   grid-row: 1 / span 2;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-4);
-  background: var(--color-panel-elevated-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-editor-widget-background);
+  color: var(--color-token-foreground);
 }
 
 .plugin-catalog-row__content {
@@ -1067,7 +1067,7 @@ button.plugins-card-title {
   overflow: hidden;
   border: 0;
   background: transparent;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font: inherit;
   font-size: var(--type-card-title);
   font-weight: var(--font-weight-label);
@@ -1090,29 +1090,29 @@ button.plugins-card-title {
 }
 
 .plugin-catalog-row__description {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
 }
 
 .plugin-catalog-row__error {
-  color: var(--color-danger);
+  color: var(--color-token-error-foreground);
 }
 
 .plugin-catalog-row__status {
   grid-column: 2;
   width: fit-content;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
   line-height: 1.2;
 }
 
 .plugin-catalog-row[data-plugin-status="enabled"]
   .plugin-catalog-row__status {
-  color: var(--color-success);
+  color: var(--color-token-git-decoration-added-resource-foreground);
 }
 
 .plugin-catalog-row[data-plugin-status="error"]
   .plugin-catalog-row__status {
-  color: var(--color-danger);
+  color: var(--color-token-error-foreground);
 }
 
 .plugin-catalog-row__actions {
@@ -1138,14 +1138,14 @@ button.plugins-card-title:focus-visible,
 .plugins-view .ui-button:focus-visible,
 .plugin-details-dialog .ui-button:focus-visible,
 .plugin-details-dialog .icon-button:focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-token-text-link-foreground);
   outline-offset: 2px;
   box-shadow: var(--focus-ring-soft);
 }
 
 .plugins-included-overview__item:focus-visible,
 .plugin-catalog-row__title-button:focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-token-text-link-foreground);
   outline-offset: 2px;
   box-shadow: var(--focus-ring-soft);
 }
@@ -1156,28 +1156,28 @@ button.plugins-card-title:focus-visible,
   .plugins-segmented-button:hover,
   .plugins-filter:hover:not(:disabled),
   .plugins-status-trigger:hover:not(:disabled) {
-    background: var(--state-hover);
-    color: var(--color-text-strong);
+    background: var(--color-token-list-hover-background);
+    color: var(--color-token-foreground);
   }
 
   .plugins-card:hover {
-    border-color: var(--border-control);
-    background: var(--color-bg-chip-hover);
-    box-shadow: var(--color-panel-shadow-raised);
+    border-color: var(--color-token-border);
+    background: var(--color-token-list-hover-background);
+    box-shadow: var(--shadow-raised);
   }
 
   button.plugins-card-title:hover {
-    color: var(--color-accent);
+    color: var(--color-token-text-link-foreground);
   }
 
   .plugins-included-overview__item:hover,
   .plugin-catalog-row:hover {
-    border-color: var(--border-control);
-    background: var(--state-hover);
+    border-color: var(--color-token-border);
+    background: var(--color-token-list-hover-background);
   }
 
   .plugin-catalog-row__title-button:hover {
-    color: var(--color-accent);
+    color: var(--color-token-text-link-foreground);
   }
 }
 
@@ -1425,7 +1425,7 @@ button.plugins-card-title:focus-visible,
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: var(--color-workbench-bg);
+  background: var(--color-token-main-surface-primary);
 }
 
 .plugins-scroll-region {
@@ -1458,7 +1458,7 @@ button.plugins-card-title:focus-visible,
   top: 0;
   margin: calc(var(--space-2) * -1) 0;
   padding: var(--space-2) 0;
-  background: var(--color-workbench-bg);
+  background: var(--color-token-main-surface-primary);
 }
 
 .plugins-sticky-search .plugins-search {
@@ -1509,7 +1509,7 @@ button.plugins-card-title:focus-visible,
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-1);
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--color-token-border-light);
   background: transparent;
 }
 
@@ -1520,10 +1520,10 @@ button.plugins-card-title:focus-visible,
   height: var(--control-size-lg);
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-4);
-  background: var(--color-panel-elevated-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-editor-widget-background);
+  color: var(--color-token-foreground);
 }
 
 .plugin-catalog-row__content,
@@ -1538,7 +1538,7 @@ button.plugins-card-title:focus-visible,
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-card-title);
   font-weight: var(--font-weight-label);
   line-height: 1.35;
@@ -1560,7 +1560,7 @@ button.plugins-card-title:focus-visible,
 
 .plugin-catalog-row__description,
 .skill-catalog-row__content > p {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
 }
 
 .plugin-catalog-row__status {
@@ -1591,7 +1591,7 @@ button.plugins-card-title:focus-visible,
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-control);
   white-space: nowrap;
 }
@@ -1603,9 +1603,9 @@ button.plugins-card-title:focus-visible,
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-1);
-  border: 1px solid var(--border-control);
+  border: 1px solid var(--color-token-border);
   border-radius: var(--radius-input);
-  background: var(--color-panel-bg);
+  background: var(--color-token-bg-secondary);
 }
 
 .plugins-empty--section {
@@ -1615,7 +1615,7 @@ button.plugins-card-title:focus-visible,
 
 .plugin-catalog-row__actions .icon-button:focus-visible,
 .skill-catalog-row__action:focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-token-text-link-foreground);
   outline-offset: 2px;
   box-shadow: var(--focus-ring-soft);
 }
@@ -1623,8 +1623,8 @@ button.plugins-card-title:focus-visible,
 @media (hover: hover) and (pointer: fine) {
   .plugin-catalog-row:hover,
   .skill-catalog-row:hover {
-    border-color: var(--border-subtle);
-    background: var(--state-hover);
+    border-color: var(--color-token-border-light);
+    background: var(--color-token-list-hover-background);
     box-shadow: none;
   }
 }

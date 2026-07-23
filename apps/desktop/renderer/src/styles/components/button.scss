@@ -1,5 +1,26 @@
 /* ===== Shared Button Patterns ===== */
 
+.ui-button {
+  gap: var(--button-gap, var(--control-gap-compact));
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  transition:
+    background var(--motion-standard) var(--ease-standard),
+    border-color var(--motion-standard) var(--ease-standard),
+    box-shadow var(--motion-standard) var(--ease-standard),
+    color var(--motion-standard) var(--ease-standard);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-token-focus-border);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.45;
+  }
+}
+
 /* --- Icon Buttons --- */
 .icon-button {
   display: inline-flex;
@@ -23,7 +44,7 @@
   flex: 0 0 auto;
   padding: 0;
   border-radius: var(--radius-4);
-  color: var(--color-icon);
+  color: var(--color-token-icon-foreground);
   transition:
     background var(--motion-standard) var(--ease-standard),
     box-shadow var(--motion-standard) var(--ease-standard),
@@ -31,7 +52,7 @@
   -webkit-app-region: no-drag;
 
   &:hover {
-    color: var(--color-text);
+    color: var(--color-token-foreground);
   }
 
   &:focus-visible {
@@ -74,8 +95,8 @@
   justify-content: center;
   padding: 0;
   border-radius: var(--radius-full);
-  background: var(--color-ink);
-  color: var(--color-bg);
+  background: var(--color-token-foreground);
+  color: var(--color-token-main-surface-primary);
   transition: all 0.3 ease-in-out;
 
   &:disabled {
@@ -91,10 +112,10 @@
 .automation-button.is-primary {
   padding: var(--control-padding-block)
     calc(var(--control-padding-inline) + var(--control-padding-inline));
-  border: 1px solid var(--color-send-bg);
+  border: 1px solid var(--color-token-button-background);
   border-radius: var(--radius-button);
-  background: var(--color-send-bg);
-  color: var(--color-text-on-accent);
+  background: var(--color-token-button-background);
+  color: var(--color-token-button-foreground);
   font-size: var(--type-control);
   font-weight: var(--font-weight-label);
   line-height: var(--control-line-height);
@@ -105,9 +126,9 @@
 .plugins-button.is-primary:hover,
 .plugins-hero-cta:hover,
 .automation-button.is-primary:hover {
-  border-color: var(--color-send-bg-hover);
-  background: var(--color-send-bg-hover);
-  color: var(--color-text-on-accent);
+  border-color: var(--color-token-button-background);
+  background: var(--color-token-button-background);
+  color: var(--color-token-button-foreground);
 }
 
 /* --- Secondary/Default Buttons --- */
@@ -160,17 +181,17 @@
     calc(var(--control-padding-block) + 0.2em)
       calc(var(--control-padding-inline) + var(--control-padding-inline))
   );
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-button);
-  background: var(--color-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-main-surface-primary);
+  color: var(--color-token-foreground);
   font-size: var(--button-font-size, var(--type-control));
   font-weight: var(--font-weight-label);
   line-height: var(--button-line-height, var(--control-line-height));
 }
 
 .settings-button:not(.ui-button):hover {
-  background-color: var(--color-bg-chip-hover);
+  background-color: var(--color-token-list-hover-background);
 }
 
 .settings-button svg {
@@ -201,10 +222,10 @@
     calc(var(--control-padding-block) + 0.2em)
       calc(var(--control-padding-inline) + var(--control-padding-inline))
   );
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-button-border);
   border-radius: var(--radius-button);
-  background: var(--color-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-bg-fog);
+  color: var(--color-token-foreground);
   font-weight: var(--font-weight-label);
   line-height: var(--button-line-height, var(--control-line-height));
 }
@@ -212,39 +233,53 @@
 .ui-button[data-variant="primary"] {
   padding: var(--control-padding-block)
     calc(var(--control-padding-inline) + var(--control-padding-inline));
-  border: 1px solid var(--color-send-bg);
+  border: 1px solid var(--color-token-button-border);
   border-radius: var(--radius-button);
-  background: var(--color-send-bg);
-  color: var(--color-text-on-accent);
+  background: var(--color-token-button-background);
+  color: var(--color-token-button-foreground);
   font-weight: var(--font-weight-label);
   line-height: var(--control-line-height);
 }
 
 .ui-button[data-variant="primary"]:hover:not(:disabled) {
-  border-color: var(--color-send-bg-hover);
-  background: var(--color-send-bg-hover);
-  color: var(--color-text-on-accent);
+  border-color: var(--color-token-button-border);
+  background: var(--color-token-button-background);
+  color: var(--color-token-button-foreground);
 }
 
 .ui-button[data-variant="secondary"]:hover:not(:disabled) {
-  border-color: var(--color-panel-border);
-  background: var(--state-hover-bg);
-  box-shadow: var(--color-panel-shadow-soft);
+  border-color: var(--color-token-border-heavy);
+  background: var(--color-token-button-secondary-hover-background);
+  box-shadow: var(--shadow-resting);
 }
 
 .ui-button[data-variant="ghost"],
+.ui-button[data-variant="outline"],
 .ui-button[data-variant="link"] {
   border-color: transparent;
   background: transparent;
   box-shadow: none;
 }
 
+.ui-button[data-variant="outline"] {
+  border-color: var(--color-token-button-border);
+}
+
 .ui-button[data-variant="ghost"]:hover:not(:disabled) {
-  background: var(--color-bg-hover);
+  background: var(--color-token-list-hover-background);
 }
 
 .ui-button[data-tone="danger"] {
-  color: var(--color-danger);
+  color: var(--color-token-error-foreground);
+}
+
+.ui-button[data-tone="accent"] {
+  color: var(--color-token-text-link-foreground);
+}
+
+.ui-button[data-size="lg"] {
+  min-height: 2.5rem;
+  padding: 0 1rem;
 }
 
 .ui-button[data-size="toolbar"] {
@@ -261,10 +296,10 @@
   border-color: transparent;
   background: color-mix(
     in srgb,
-    var(--color-text-strong) 5%,
+    var(--color-token-foreground) 5%,
     transparent
   );
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   box-shadow: none;
 }
 
@@ -274,7 +309,7 @@
   border-color: transparent;
   background: color-mix(
     in srgb,
-    var(--color-text-strong) 10%,
+    var(--color-token-foreground) 10%,
     transparent
   );
   box-shadow: none;
@@ -287,14 +322,14 @@
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
 }
 
 .ui-button[data-size="icon"]:hover,
 .ui-button[data-size="icon"][aria-pressed="true"],
 .ui-button[data-size="icon"][data-state="open"] {
-  background: var(--color-bg-hover);
-  color: var(--color-text);
+  background: var(--color-token-list-hover-background);
+  color: var(--color-token-foreground);
 }
 
 .settings-button:not(.ui-button):not(.primary),
@@ -307,9 +342,9 @@
 .plugins-search,
 .plugins-filter,
 .right-dock-search {
-  border-color: var(--color-border-soft);
-  background: var(--color-bg);
-  color: var(--color-text-strong);
+  border-color: var(--color-token-border-light);
+  background: var(--color-token-main-surface-primary);
+  color: var(--color-token-foreground);
 }
 
 /* --- Button / Control Border Radius --- */
@@ -346,9 +381,9 @@
 .automation-button.is-ghost:hover,
 .utility-card:hover,
 .message-card:hover {
-  border-color: var(--color-panel-border);
-  background: var(--state-hover-bg);
-  box-shadow: var(--color-panel-shadow-soft);
+  border-color: var(--color-token-border-light);
+  background: var(--color-token-list-hover-background);
+  box-shadow: var(--shadow-resting);
 }
 
 /* --- Message Action Button --- */
@@ -362,21 +397,21 @@
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
 
   &:hover {
-    background: var(--color-bg-hover);
-    color: var(--color-text);
+    background: var(--color-token-list-hover-background);
+    color: var(--color-token-foreground);
   }
 
   &[aria-pressed="true"],
   &[data-state="open"] {
-    background: var(--color-bg-hover);
-    color: var(--color-text);
+    background: var(--color-token-list-hover-background);
+    color: var(--color-token-foreground);
   }
 
   &:disabled {
-    color: var(--color-text-disabled);
+    color: var(--color-token-disabled-foreground);
     cursor: default;
     opacity: 0.6;
   }
@@ -393,10 +428,10 @@
   justify-content: center;
   flex: 0 0 auto;
   border-radius: var(--radius-4);
-  color: var(--color-icon);
+  color: var(--color-token-icon-foreground);
   -webkit-app-region: no-drag;
 
   &:hover {
-    background: var(--color-bg-hover);
+    background: var(--color-token-list-hover-background);
   }
 }

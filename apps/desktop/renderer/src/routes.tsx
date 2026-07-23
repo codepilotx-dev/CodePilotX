@@ -2,6 +2,7 @@ import { lazy, Suspense, type ReactNode } from 'react'
 import { createHashRouter, Navigate } from 'react-router-dom'
 import { DesktopLayout } from './features/layout/shell/DesktopLayout.js'
 import { QuickChatView } from './features/session/QuickChatView.js'
+import { NotFoundPage } from './features/routing/NotFoundPage.js'
 
 const AutomationView = lazy(() =>
   import('./features/automation/AutomationView.js').then(module => ({
@@ -33,6 +34,11 @@ const SettingsLayout = lazy(() =>
     default: module.SettingsLayout,
   })),
 )
+const LabsPage = lazy(() =>
+  import('./features/labs/LabsPage.js').then(module => ({
+    default: module.LabsPage,
+  })),
+)
 
 function deferred(element: ReactNode): ReactNode {
   return <Suspense fallback={null}>{element}</Suspense>
@@ -43,17 +49,19 @@ const router = createHashRouter([
     path: '/',
     element: <DesktopLayout />,
     children: [
-      { index: true, element: <Navigate to="/quick-chat" replace /> },
-      { path: 'quick-chat', element: <QuickChatView /> },
+      { index: true, element: <Navigate to="/new" replace /> },
+      { path: 'new', element: <QuickChatView /> },
       {
-        path: 'sessions/:sessionId',
+        path: 'threads/:threadId',
         element: deferred(<ConversationPage />),
       },
       { path: 'search', element: deferred(<SearchView />) },
       { path: 'models', element: deferred(<ModelCenterView />) },
       { path: 'plugins', element: deferred(<PluginsView />) },
-      { path: 'automation', element: deferred(<AutomationView />) },
-      { path: 'settings', element: deferred(<SettingsLayout />) },
+      { path: 'automations', element: deferred(<AutomationView />) },
+      { path: 'settings/:tab', element: deferred(<SettingsLayout />) },
+      { path: 'labs', element: deferred(<LabsPage />) },
+      { path: '*', element: <NotFoundPage /> },
     ],
   },
 ])

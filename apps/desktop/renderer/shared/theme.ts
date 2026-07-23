@@ -58,7 +58,7 @@ export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
 }
 
 export const DEFAULT_DESKTOP_THEME_SETTINGS: DesktopThemeSettings = {
-  version: 3,
+  version: 5,
   mode: 'system',
   chromeThemes: {
     light: DEFAULT_LIGHT_CHROME_THEME,
@@ -106,6 +106,9 @@ export function normalizeDesktopThemeSettings(
   value: unknown,
 ): DesktopThemeSettings {
   const record = isRecord(value) ? value : {}
+  if (record.version !== 5) {
+    return cloneDefaultDesktopThemeSettings()
+  }
   const legacyGlass =
     typeof record.glassmorphismEnabled === 'boolean'
       ? record.glassmorphismEnabled
@@ -115,7 +118,7 @@ export function normalizeDesktopThemeSettings(
     : {}
 
   return {
-    version: 3,
+    version: 5,
     mode: normalizeMode(record.mode),
     chromeThemes: {
       light: normalizeChromeTheme(
@@ -140,6 +143,26 @@ export function normalizeDesktopThemeSettings(
         ? record.fontSmoothingEnabled
         : DEFAULT_DESKTOP_THEME_SETTINGS.fontSmoothingEnabled,
     fontSizes: normalizeFontSizes(record.fontSizes),
+  }
+}
+
+function cloneDefaultDesktopThemeSettings(): DesktopThemeSettings {
+  return {
+    ...DEFAULT_DESKTOP_THEME_SETTINGS,
+    chromeThemes: {
+      light: {
+        ...DEFAULT_LIGHT_CHROME_THEME,
+        fonts: { ...DEFAULT_LIGHT_CHROME_THEME.fonts },
+        semanticColors: { ...DEFAULT_LIGHT_CHROME_THEME.semanticColors },
+      },
+      dark: {
+        ...DEFAULT_DARK_CHROME_THEME,
+        fonts: { ...DEFAULT_DARK_CHROME_THEME.fonts },
+        semanticColors: { ...DEFAULT_DARK_CHROME_THEME.semanticColors },
+      },
+    },
+    codeThemeIds: { ...DEFAULT_DESKTOP_THEME_SETTINGS.codeThemeIds },
+    fontSizes: { ...DEFAULT_DESKTOP_THEME_SETTINGS.fontSizes },
   }
 }
 

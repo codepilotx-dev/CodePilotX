@@ -3,10 +3,11 @@ import { describe, expect, test } from 'bun:test'
 import {
   parseCodexThemeShare,
   serializeCodexThemeShare,
-  type CodexThemeShareV1,
+  type CodexThemeShareV2,
 } from '../shared/themeShare.js'
 
-const fixture: CodexThemeShareV1 = {
+const fixture: CodexThemeShareV2 = {
+  version: 2,
   variant: 'light',
   codeThemeId: 'codex-light',
   theme: {
@@ -25,9 +26,9 @@ const fixture: CodexThemeShareV1 = {
 }
 
 describe('Codex theme sharing', () => {
-  test('round trips the codex-theme-v1 format', () => {
+  test('round trips the codex-theme-v2 format', () => {
     const serialized = serializeCodexThemeShare(fixture)
-    expect(serialized.startsWith('codex-theme-v1:')).toBeTrue()
+    expect(serialized.startsWith('codex-theme-v2:')).toBeTrue()
     expect(parseCodexThemeShare(serialized, 'light')).toEqual(fixture)
   })
 
@@ -49,6 +50,9 @@ describe('Codex theme sharing', () => {
 
   test('rejects missing prefix and malformed JSON', () => {
     expect(() => parseCodexThemeShare('{}')).toThrow()
-    expect(() => parseCodexThemeShare('codex-theme-v1:{')).toThrow()
+    expect(() => parseCodexThemeShare('codex-theme-v2:{')).toThrow()
+    expect(() => parseCodexThemeShare('codex-theme-v1:{}')).toThrow(
+      'codex-theme-v1 主题已不再支持',
+    )
   })
 })

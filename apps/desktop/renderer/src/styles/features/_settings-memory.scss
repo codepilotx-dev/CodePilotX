@@ -45,7 +45,7 @@
 
 .memory-settings-count {
   margin-left: auto;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font-size: var(--type-meta);
   white-space: nowrap;
 }
@@ -62,9 +62,9 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border: 1px solid var(--border-muted);
+  border: 1px solid var(--color-token-border);
   border-radius: 8px;
-  background: var(--color-panel-bg);
+  background: var(--color-token-bg-secondary);
   overflow: hidden;
 }
 
@@ -73,11 +73,11 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border-muted);
+  border-bottom: 1px solid var(--color-token-border);
   font-size: var(--type-card-title);
   font-weight: var(--font-weight-label);
-  color: var(--color-text-soft);
-  background: var(--color-bg-subtle);
+  color: var(--color-token-text-secondary);
+  background: var(--color-token-bg-secondary);
   flex-shrink: 0;
   user-select: none;
 }
@@ -93,7 +93,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-card-title);
   font-weight: var(--font-weight-label);
 }
@@ -136,27 +136,27 @@
   padding: 10px 12px 10px 12px;
   border-width: 0 0 1px;
   border-style: solid;
-  border-color: var(--border-muted);
+  border-color: var(--color-token-border);
   background: transparent;
-  color: var(--color-text);
+  color: var(--color-token-foreground);
   text-align: left;
   cursor: pointer;
   position: relative;
 
   &:hover {
-    background: var(--color-bg-row-hover);
+    background: var(--color-token-list-hover-background);
   }
 
   &.active {
-    background: var(--state-active-bg);
-    box-shadow: inset 3px 0 0 0 var(--color-text-strong);
+    background: var(--color-token-list-active-selection-background);
+    box-shadow: inset 3px 0 0 0 var(--color-token-foreground);
     padding-left: 9px;
   }
 
   &-name {
     font-size: var(--type-card-title);
     font-weight: 500;
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -178,8 +178,8 @@
     align-items: center;
     padding: 1px 6px;
     border-radius: var(--radius-3);
-    background: var(--color-bg-hover);
-    color: var(--color-text-soft);
+    background: var(--color-token-list-hover-background);
+    color: var(--color-token-text-secondary);
     font-size: var(--type-caption);
     line-height: 1.4;
     flex-shrink: 0;
@@ -190,7 +190,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--color-text-soft);
+    color: var(--color-token-text-secondary);
     font-size: var(--type-secondary);
   }
 }
@@ -216,10 +216,10 @@
   min-height: 320px;
   box-sizing: border-box;
   resize: vertical;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-token-border-light);
   border-radius: 8px;
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: var(--color-token-main-surface-primary);
+  color: var(--color-token-foreground);
   padding: 10px 12px;
   font-family: var(--font-family-mono);
   font-size: var(--type-body);
@@ -230,8 +230,8 @@
   &:focus {
     border-color: color-mix(
       in srgb,
-      var(--color-accent) 42%,
-      var(--border-subtle)
+      var(--color-token-text-link-foreground) 42%,
+      var(--color-token-border-light)
     );
   }
 }
@@ -252,7 +252,7 @@
   display: grid;
   gap: 3px;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--border-muted);
+  border-bottom: 1px solid var(--color-token-border);
 
   &:last-child {
     border-bottom: none;
@@ -262,18 +262,18 @@
 .memory-recall-time {
   font-size: var(--type-meta);
   font-weight: var(--font-weight-label);
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
 }
 
 .memory-recall-summary {
   font-size: var(--type-body);
-  color: var(--color-text);
+  color: var(--color-token-foreground);
   line-height: 1.45;
 }
 
 .memory-recall-files {
   font-size: var(--type-meta);
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -282,7 +282,7 @@
 /* --- Model Card Grid --- */
 .settings-model-cards {
   padding: var(--space-3) var(--space-4) var(--space-2);
-  border-bottom: 1px solid var(--border-muted);
+  border-bottom: 1px solid var(--color-token-border);
 }
 
 .model-card-grid {
@@ -295,7 +295,7 @@
   grid-column: 1 / -1;
   padding: var(--space-4) var(--space-2);
   text-align: center;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
   line-height: 1.5;
 }
@@ -305,10 +305,10 @@
   flex-direction: column;
   gap: 2px;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-4);
-  background: var(--color-panel-bg);
-  box-shadow: var(--color-panel-shadow-soft);
+  background: var(--color-token-bg-secondary);
+  box-shadow: var(--shadow-resting);
   cursor: pointer;
   text-align: left;
   font-family: inherit;
@@ -319,19 +319,19 @@
     box-shadow var(--motion-standard) var(--ease-standard);
 
   &:hover {
-    border-color: var(--color-panel-border);
-    background: var(--color-bg-chip-hover);
-    box-shadow: var(--color-panel-shadow-raised);
+    border-color: var(--color-token-border-light);
+    background: var(--color-token-list-hover-background);
+    box-shadow: var(--shadow-raised);
   }
 
   &.selected {
-    border-color: var(--color-accent);
+    border-color: var(--color-token-text-link-foreground);
     background: color-mix(
       in srgb,
-      var(--color-accent) 8%,
-      var(--color-panel-bg)
+      var(--color-token-text-link-foreground) 8%,
+      var(--color-token-bg-secondary)
     );
-    box-shadow: var(--color-panel-shadow-raised);
+    box-shadow: var(--shadow-raised);
   }
 
   &.orphan {
@@ -346,7 +346,7 @@
   .model-card-name {
     font-size: var(--type-card-title);
     font-weight: var(--font-weight-label);
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -354,7 +354,7 @@
 
   .model-card-id {
     font-size: var(--type-caption);
-    color: var(--color-text-soft);
+    color: var(--color-token-text-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -370,7 +370,7 @@
 
     > span {
       font-size: var(--type-caption);
-      color: var(--color-text-soft);
+      color: var(--color-token-text-secondary);
       white-space: nowrap;
       line-height: 1.5;
     }
@@ -378,7 +378,7 @@
     > span + span::before {
       content: "·";
       margin: 0 4px;
-      color: var(--color-text-mute);
+      color: var(--color-token-text-tertiary);
     }
   }
 
@@ -395,8 +395,8 @@
     gap: 3px;
     padding: 1px 5px;
     border-radius: var(--radius-2);
-    background: var(--color-bg-hover);
-    color: var(--color-text-soft);
+    background: var(--color-token-list-hover-background);
+    color: var(--color-token-text-secondary);
     font-size: var(--type-caption);
   }
 
@@ -408,15 +408,15 @@
   }
 
   &.selected .model-card-tag {
-    background: color-mix(in srgb, var(--color-accent) 14%, var(--color-bg));
-    color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-token-text-link-foreground) 14%, var(--color-token-main-surface-primary));
+    color: var(--color-token-text-link-foreground);
   }
 
   .model-card-orphan-label {
     margin-top: 3px;
     font-size: var(--type-caption);
     font-weight: var(--font-weight-label);
-    color: var(--color-warning);
+    color: var(--color-token-editor-warning-foreground);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }

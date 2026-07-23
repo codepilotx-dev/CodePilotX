@@ -1,13 +1,13 @@
 .quick-chat-view,
 .utility-view {
   min-height: 100%;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
 }
 
 .utility-view-header h1 {
   width: 100%;
   max-width: 760px;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-page-title);
   font-weight: var(--font-weight-heading);
   letter-spacing: 0;
@@ -17,7 +17,7 @@
 .utility-view-header p {
   font-size: var(--type-secondary);
   line-height: 1.6;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
 }
 
 .utility-view {
@@ -56,9 +56,9 @@
   gap: var(--control-gap);
   padding: var(--control-padding-block)
     var(--control-padding-inline);
-  border: 1px solid var(--color-border-soft);
-  background: var(--color-bg);
-  color: var(--color-icon);
+  border: 1px solid var(--color-token-border-light);
+  background: var(--color-token-main-surface-primary);
+  color: var(--color-token-icon-foreground);
 
   input {
     flex: 1;
@@ -75,19 +75,19 @@
   gap: var(--control-gap);
   margin: 0 auto;
   padding: 1.15em 1em;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-panel);
-  background: var(--color-panel-bg);
-  color: var(--color-icon);
-  box-shadow: var(--color-panel-shadow-raised);
+  background: var(--color-token-bg-secondary);
+  color: var(--color-token-icon-foreground);
+  box-shadow: var(--shadow-raised);
   transition:
     border-color var(--motion-standard) var(--ease-standard),
     box-shadow var(--motion-standard) var(--ease-standard);
 
   &:focus-within {
-    border-color: color-mix(in srgb, var(--color-accent) 42%, var(--border-subtle));
+    border-color: color-mix(in srgb, var(--color-token-text-link-foreground) 42%, var(--color-token-border-light));
     box-shadow:
-      var(--color-panel-shadow-raised),
+      var(--shadow-raised),
       var(--focus-ring);
   }
 
@@ -113,7 +113,7 @@
     box-shadow var(--motion-standard) var(--ease-standard);
 
   span {
-    color: var(--color-text);
+    color: var(--color-token-foreground);
     font-size: var(--type-control);
     font-weight: 500;
   }
@@ -121,15 +121,15 @@
   small {
     max-width: 100%;
     overflow: hidden;
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
     font-size: var(--type-meta);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   &:hover {
-    border-color: var(--border-muted);
-    background: var(--color-bg-row-hover);
+    border-color: var(--color-token-border);
+    background: var(--color-token-list-hover-background);
   }
 
   &:focus-visible {
@@ -139,5 +139,5 @@
 
 .utility-card:hover,
 .message-card:hover {
-  box-shadow: var(--color-panel-shadow-raised);
+  box-shadow: var(--shadow-raised);
 }

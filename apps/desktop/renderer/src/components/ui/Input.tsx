@@ -30,7 +30,7 @@ export const Input = forwardRef<HTMLInputElement, Props>(function Input(
       {...inputProps}
       ref={ref}
       aria-invalid={invalid || undefined}
-      className={cx('ui-input', 'settings-input', SIZE_CLASSES[size], className)}
+      className={cx('ui-input', SIZE_CLASSES[size], className)}
       data-size={size}
       readOnly={readOnly}
     />

@@ -4,8 +4,8 @@
   height: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: var(--color-token-main-surface-primary);
+  color: var(--color-token-foreground);
   container-type: inline-size;
 }
 
@@ -16,8 +16,8 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: 10px 14px;
-  border-bottom: 1px solid var(--color-border-soft);
-  background: var(--color-panel-bg);
+  border-bottom: 1px solid var(--color-token-border-light);
+  background: var(--color-token-bg-secondary);
 }
 
 .subagent-thread-panel__identity,
@@ -46,10 +46,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-4);
-  background: var(--color-panel-elevated-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-editor-widget-background);
+  color: var(--color-token-foreground);
 }
 
 .subagent-thread-panel__title-block {
@@ -59,7 +59,7 @@
 
   > span {
     overflow: hidden;
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
     font-size: var(--type-meta);
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -74,7 +74,7 @@
     min-width: 0;
     margin: 0;
     overflow: hidden;
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     font-size: var(--type-section-title);
     font-weight: var(--font-weight-heading);
     letter-spacing: 0;
@@ -87,19 +87,19 @@
   flex: 0 0 auto;
   gap: 4px;
   padding: 2px 6px;
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-3);
-  background: var(--color-bg-soft);
-  color: var(--color-text-meta);
+  background: var(--color-token-text-preformat-background);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
 
   &[data-status='completed'] {
-    color: var(--color-diff-added);
+    color: var(--color-token-git-decoration-added-resource-foreground);
   }
 
   &[data-status='failed'],
   &[data-status='interrupted'] {
-    color: var(--color-danger);
+    color: var(--color-token-error-foreground);
   }
 }
 
@@ -117,15 +117,15 @@
   border: 0;
   border-radius: var(--radius-4);
   background: transparent;
-  color: var(--color-icon);
+  color: var(--color-token-icon-foreground);
 
   &:hover {
-    background: var(--color-bg-hover);
-    color: var(--color-text-strong);
+    background: var(--color-token-list-hover-background);
+    color: var(--color-token-foreground);
   }
 
   &.is-danger:hover {
-    color: var(--color-danger);
+    color: var(--color-token-error-foreground);
   }
 }
 
@@ -148,17 +148,17 @@
   display: grid;
   gap: 6px;
   padding-bottom: 14px;
-  border-bottom: 1px solid var(--color-border-faint, var(--color-border-soft));
+  border-bottom: 1px solid var(--color-token-border-light, var(--color-token-border-light));
 
   span {
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
     font-size: var(--type-meta);
     font-weight: var(--font-weight-label);
   }
 
   p {
     margin: 0;
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     font-size: var(--type-message);
     line-height: 1.6;
     overflow-wrap: anywhere;
@@ -172,7 +172,7 @@
 
 .subagent-thread-panel__empty {
   padding: 28px 0;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-body);
   text-align: center;
 }
@@ -187,36 +187,36 @@
 }
 
 .subagent-thread-panel__notice {
-  background: var(--color-bg-soft);
-  color: var(--color-text-meta);
+  background: var(--color-token-text-preformat-background);
+  color: var(--color-token-description-foreground);
 }
 
 .subagent-thread-panel__blocked {
-  border: 1px solid color-mix(in srgb, var(--color-warning) 36%, var(--color-border-soft));
-  background: color-mix(in srgb, var(--color-warning) 8%, var(--color-bg));
-  color: var(--color-text-strong);
+  border: 1px solid color-mix(in srgb, var(--color-token-editor-warning-foreground) 36%, var(--color-token-border-light));
+  background: color-mix(in srgb, var(--color-token-editor-warning-foreground) 8%, var(--color-token-main-surface-primary));
+  color: var(--color-token-foreground);
 }
 
 .subagent-thread-panel__error {
-  border: 1px solid color-mix(in srgb, var(--color-danger) 34%, var(--color-border-soft));
-  background: color-mix(in srgb, var(--color-danger) 7%, var(--color-bg));
-  color: var(--color-danger);
+  border: 1px solid color-mix(in srgb, var(--color-token-error-foreground) 34%, var(--color-token-border-light));
+  background: color-mix(in srgb, var(--color-token-error-foreground) 7%, var(--color-token-main-surface-primary));
+  color: var(--color-token-error-foreground);
 }
 
 .subagent-thread-row {
   min-width: 0;
-  color: var(--color-text);
+  color: var(--color-token-foreground);
   font-size: var(--type-body);
 }
 
 .subagent-thread-row--text {
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-message);
   line-height: 1.72;
 }
 
 .subagent-thread-row--details {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
 
   > summary {
     width: fit-content;
@@ -235,13 +235,13 @@
     > span {
       min-width: 0;
       overflow: hidden;
-      color: var(--color-text-soft);
+      color: var(--color-token-text-secondary);
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
     > small {
-      color: var(--color-text-meta);
+      color: var(--color-token-description-foreground);
       font-size: var(--type-caption);
     }
 
@@ -260,10 +260,10 @@
   gap: 8px;
   margin-top: 7px;
   padding: 10px 12px;
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-4);
-  background: var(--color-bg-soft);
-  color: var(--color-text);
+  background: var(--color-token-text-preformat-background);
+  color: var(--color-token-foreground);
 
   p {
     margin: 0;
@@ -274,13 +274,13 @@
     max-height: 280px;
     margin: 0;
     overflow: auto;
-    color: var(--color-text);
+    color: var(--color-token-foreground);
     font: var(--type-code) / 1.5 var(--font-family-mono);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 
     &.is-error {
-      color: var(--color-danger);
+      color: var(--color-token-error-foreground);
     }
   }
 }
@@ -289,7 +289,7 @@
   display: grid;
   gap: 6px;
   padding-top: 8px;
-  border-top: 1px solid var(--color-border-faint, var(--color-border-soft));
+  border-top: 1px solid var(--color-token-border-light, var(--color-token-border-light));
 
   code {
     font-family: var(--font-family-mono);
@@ -309,9 +309,9 @@
   display: grid;
   gap: 12px;
   padding: 12px;
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-4);
-  background: var(--color-panel-bg);
+  background: var(--color-token-bg-secondary);
 }
 
 .subagent-thread-row--plan > header,
@@ -320,13 +320,13 @@
   gap: 3px;
 
   > span {
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
     font-size: var(--type-caption);
     font-weight: var(--font-weight-label);
   }
 
   > strong {
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     font-size: var(--type-card-title);
   }
 }
@@ -345,25 +345,25 @@
   justify-content: center;
   gap: 5px;
   padding: var(--control-padding-block-compact) var(--control-padding-inline);
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-button);
-  background: var(--color-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-main-surface-primary);
+  color: var(--color-token-foreground);
   font-size: var(--type-control);
   font-weight: var(--font-weight-label);
 
   &:hover:not(:disabled) {
-    background: var(--color-bg-hover);
+    background: var(--color-token-list-hover-background);
   }
 
   &.is-primary {
-    border-color: var(--color-send-bg);
-    background: var(--color-send-bg);
-    color: var(--color-text-on-accent);
+    border-color: var(--color-token-button-background);
+    background: var(--color-token-button-background);
+    color: var(--color-token-button-foreground);
 
     &:hover:not(:disabled) {
-      border-color: var(--color-send-bg-hover);
-      background: var(--color-send-bg-hover);
+      border-color: var(--color-token-button-background);
+      background: var(--color-token-button-background);
     }
   }
 
@@ -382,13 +382,13 @@
     grid-template-columns: auto minmax(0, 1fr);
     gap: 8px;
     padding: 8px;
-    border: 1px solid var(--color-border-soft);
+    border: 1px solid var(--color-token-border-light);
     border-radius: var(--radius-4);
     cursor: pointer;
 
     &:has(input:checked) {
-      border-color: var(--color-accent);
-      background: var(--color-accent-a3);
+      border-color: var(--color-token-text-link-foreground);
+      background: var(--color-token-text-link-foreground);
     }
   }
 
@@ -402,12 +402,12 @@
     gap: 2px;
 
     strong {
-      color: var(--color-text-strong);
+      color: var(--color-token-foreground);
       font-size: var(--type-body);
     }
 
     small {
-      color: var(--color-text-meta);
+      color: var(--color-token-description-foreground);
       font-size: var(--type-meta);
       line-height: 1.45;
     }
@@ -419,16 +419,16 @@
   min-height: 54px;
   resize: vertical;
   padding: 8px 9px;
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-4);
   outline: none;
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: var(--color-token-main-surface-primary);
+  color: var(--color-token-foreground);
   font: inherit;
 
   &:focus {
-    border-color: var(--color-accent);
-    box-shadow: 0 0 0 2px var(--color-accent-a3);
+    border-color: var(--color-token-text-link-foreground);
+    box-shadow: 0 0 0 2px var(--color-token-text-link-foreground);
   }
 }
 
@@ -436,23 +436,23 @@
   display: grid;
   gap: 4px;
   padding-left: 10px;
-  border-left: 2px solid var(--color-border-soft);
+  border-left: 2px solid var(--color-token-border-light);
 
   p {
     margin: 0;
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
   }
 }
 
 .subagent-thread-row--patch {
   overflow: hidden;
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-4);
 
   > header {
     gap: 8px;
     padding: 9px 10px;
-    background: var(--color-bg-soft);
+    background: var(--color-token-text-preformat-background);
 
     > small {
       display: flex;
@@ -474,7 +474,7 @@
     justify-content: space-between;
     gap: 8px;
     padding: 7px 0;
-    border-top: 1px solid var(--color-border-faint, var(--color-border-soft));
+    border-top: 1px solid var(--color-token-border-light, var(--color-token-border-light));
     font-family: var(--font-family-mono);
     font-size: var(--type-code);
 
@@ -500,15 +500,15 @@
   align-items: center;
   gap: 9px;
   padding: 9px 10px;
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-4);
-  background: var(--color-bg-soft);
-  color: var(--color-text);
+  background: var(--color-token-text-preformat-background);
+  color: var(--color-token-foreground);
   text-align: left;
 
   &:hover:not(:disabled) {
-    border-color: var(--color-panel-border);
-    background: var(--color-bg-hover);
+    border-color: var(--color-token-border-light);
+    background: var(--color-token-list-hover-background);
   }
 
   &:disabled {
@@ -529,13 +529,13 @@
   }
 
   small {
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
     font-size: var(--type-meta);
   }
 }
 
 .subagent-thread-row__status {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
 }
 
@@ -549,7 +549,7 @@
     gap: 2px;
 
     small {
-      color: var(--color-text-meta);
+      color: var(--color-token-description-foreground);
       font-size: var(--type-meta);
       line-height: 1.4;
     }
@@ -557,13 +557,13 @@
 
   em {
     flex: 0 0 auto;
-    color: var(--color-warning);
+    color: var(--color-token-editor-warning-foreground);
     font-size: var(--type-caption);
     font-style: normal;
 
     &[data-risk='critical'],
     &[data-risk='high'] {
-      color: var(--color-danger);
+      color: var(--color-token-error-foreground);
     }
   }
 }
@@ -575,7 +575,7 @@
   overflow: auto;
   padding: 9px;
   border-radius: var(--radius-4);
-  background: var(--color-bg-soft);
+  background: var(--color-token-text-preformat-background);
   font-family: var(--font-family-mono);
   font-size: var(--type-code);
   line-height: 1.5;
@@ -588,7 +588,7 @@
 }
 
 .subagent-thread-panel__result[data-outcome='succeeded'] > header svg {
-  color: var(--color-diff-added);
+  color: var(--color-token-git-decoration-added-resource-foreground);
 }
 
 .subagent-thread-panel__result ul {
@@ -603,10 +603,10 @@
   display: grid;
   gap: 2px;
   padding-top: 8px;
-  border-top: 1px solid var(--color-border-faint, var(--color-border-soft));
+  border-top: 1px solid var(--color-token-border-light, var(--color-token-border-light));
 
   span {
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
     line-height: 1.5;
   }
 }
@@ -615,8 +615,8 @@
   position: relative;
   z-index: var(--z-composer);
   padding: 10px 14px 12px;
-  border-top: 1px solid var(--color-border-soft);
-  background: var(--color-panel-bg);
+  border-top: 1px solid var(--color-token-border-light);
+  background: var(--color-token-bg-secondary);
 
   &[data-disabled='true'] {
     pointer-events: none;

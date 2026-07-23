@@ -5,8 +5,8 @@
   min-height: 0;
   height: 100%;
   overflow: hidden;
-  color: var(--color-text);
-  background: var(--surface-canvas);
+  color: var(--color-token-foreground);
+  background: var(--color-token-main-surface-primary);
 }
 
 .file-editor-host {
@@ -34,13 +34,13 @@
   max-width: calc(100% - 32px);
   padding: var(--space-1) var(--space-2);
   overflow: hidden;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font-size: 11px;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
-  border: 1px solid var(--border-control);
+  background: color-mix(in srgb, var(--color-token-editor-widget-background) 92%, transparent);
+  border: 1px solid var(--color-token-border);
   border-radius: var(--radius-3);
   box-shadow: var(--shadow-resting);
   backdrop-filter: blur(8px);
@@ -59,8 +59,8 @@
 }
 
 .file-editor-status[data-error] {
-  color: var(--color-danger);
-  border-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
+  color: var(--color-token-error-foreground);
+  border-color: color-mix(in srgb, var(--color-token-error-foreground) 35%, transparent);
 }
 
 @keyframes file-editor-status-spin {
@@ -81,8 +81,8 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-3);
-  background: var(--surface-panel);
-  border-bottom: 1px solid var(--border-control);
+  background: var(--color-token-bg-secondary);
+  border-bottom: 1px solid var(--color-token-border);
 }
 
 .conflict-merge-editor-header > div:first-child {
@@ -97,7 +97,7 @@
 }
 
 .conflict-merge-editor-header span {
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font-size: var(--type-meta);
 }
 
@@ -110,10 +110,10 @@
 .conflict-merge-editor-labels {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font-size: var(--type-meta);
-  background: var(--surface-panel);
-  border-bottom: 1px solid var(--border-control);
+  background: var(--color-token-bg-secondary);
+  border-bottom: 1px solid var(--color-token-border);
 }
 
 .conflict-merge-editor-labels span {
@@ -121,7 +121,7 @@
 }
 
 .conflict-merge-editor-labels span + span {
-  border-left: 1px solid var(--border-control);
+  border-left: 1px solid var(--color-token-border);
 }
 
 .conflict-merge-editor-host {
@@ -139,15 +139,15 @@
 }
 
 .conflict-merge-editor-host .cm-mergeViewEditor + .cm-mergeViewEditor {
-  border-left: 1px solid var(--border-control);
+  border-left: 1px solid var(--color-token-border);
 }
 
 .conflict-merge-editor-host .cm-changedLine {
-  background: color-mix(in srgb, var(--color-accent) 9%, transparent);
+  background: color-mix(in srgb, var(--color-token-text-link-foreground) 9%, transparent);
 }
 
 .conflict-merge-editor-host .cm-changeGutter {
-  background: var(--surface-panel);
+  background: var(--color-token-bg-secondary);
 }
 
 @media (max-width: 720px) {
@@ -162,7 +162,7 @@
   }
 
   .conflict-merge-editor-host .cm-mergeViewEditor + .cm-mergeViewEditor {
-    border-top: 1px solid var(--border-control);
+    border-top: 1px solid var(--color-token-border);
     border-left: 0;
   }
 }

@@ -1,9 +1,9 @@
 /* --- Connection Summary --- */
 .settings-connection-summary {
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-panel);
-  background: var(--color-panel-bg);
-  box-shadow: var(--color-panel-shadow-soft);
+  background: var(--color-token-bg-secondary);
+  box-shadow: var(--shadow-resting);
   overflow: hidden;
   margin-bottom: var(--layout-section-gap);
 
@@ -13,8 +13,8 @@
     justify-content: space-between;
     gap: var(--space-3);
     padding: var(--space-4) var(--space-5);
-    background: var(--color-bg-subtle);
-    border-bottom: 1px solid var(--border-subtle);
+    background: var(--color-token-bg-secondary);
+    border-bottom: 1px solid var(--color-token-border-light);
   }
 
   &-title {
@@ -24,13 +24,13 @@
     margin: 0;
     font-size: var(--type-card-title);
     font-weight: var(--font-weight-label);
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
   }
 
   &-icon {
     width: var(--app-icon-size);
     height: var(--app-icon-size);
-    color: var(--color-text-soft);
+    color: var(--color-token-text-secondary);
     stroke-width: var(--app-icon-stroke-width);
   }
 
@@ -46,17 +46,17 @@
     white-space: nowrap;
 
     &.ok {
-      background: color-mix(in srgb, var(--color-success) 12%, transparent);
-      color: var(--color-success);
+      background: color-mix(in srgb, var(--color-token-git-decoration-added-resource-foreground) 12%, transparent);
+      color: var(--color-token-git-decoration-added-resource-foreground);
       border: 1px solid
-        color-mix(in srgb, var(--color-success) 24%, transparent);
+        color-mix(in srgb, var(--color-token-git-decoration-added-resource-foreground) 24%, transparent);
     }
 
     &.warn {
-      background: color-mix(in srgb, var(--color-warning) 12%, transparent);
-      color: var(--color-warning);
+      background: color-mix(in srgb, var(--color-token-editor-warning-foreground) 12%, transparent);
+      color: var(--color-token-editor-warning-foreground);
       border: 1px solid
-        color-mix(in srgb, var(--color-warning) 24%, transparent);
+        color-mix(in srgb, var(--color-token-editor-warning-foreground) 24%, transparent);
     }
   }
 
@@ -84,7 +84,7 @@
   &-name {
     font-size: var(--type-title-sm);
     font-weight: var(--font-weight-heading);
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     letter-spacing: -0.02em;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -95,14 +95,14 @@
     margin-top: 4px;
     font-size: var(--type-meta);
     font-family: var(--font-family-mono);
-    color: var(--color-text-soft);
+    color: var(--color-token-text-secondary);
     overflow-wrap: anywhere;
   }
 
   &-divider {
     width: 1px;
     height: 40px;
-    background: var(--border-subtle);
+    background: var(--color-token-border-light);
     flex-shrink: 0;
   }
 
@@ -119,13 +119,13 @@
 
   &-meta-label {
     font-size: var(--type-meta);
-    color: var(--color-text-soft);
+    color: var(--color-token-text-secondary);
   }
 
   &-meta-value {
     font-size: var(--type-body);
     font-weight: var(--font-weight-label);
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     display: flex;
     align-items: center;
     gap: 4px;
@@ -151,7 +151,7 @@
 .settings-credential-label {
   font-size: var(--type-body);
   font-weight: var(--font-weight-label);
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
 }
 
 .settings-credential-controls {
@@ -189,7 +189,7 @@
     transform: translateY(-50%);
     width: var(--app-icon-size);
     height: var(--app-icon-size);
-    color: var(--color-text-placeholder);
+    color: var(--color-token-input-placeholder-foreground);
     pointer-events: none;
     stroke-width: var(--app-icon-stroke-width);
   }
@@ -216,7 +216,7 @@
 .settings-model-toolbar-desc {
   margin: 0;
   font-size: var(--type-secondary);
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   line-height: 1.5;
 }
 
@@ -233,16 +233,16 @@
   flex-direction: column;
   gap: 6px;
   padding: 12px 14px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-panel);
-  background: var(--color-panel-bg);
-  box-shadow: var(--color-panel-shadow-soft);
+  background: var(--color-token-bg-secondary);
+  box-shadow: var(--shadow-resting);
 }
 
 .settings-copilot-device-code-label {
   font-size: var(--type-meta);
   font-weight: var(--font-weight-label);
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
 }
 
 .settings-copilot-device-code-row {
@@ -264,14 +264,14 @@
   word-break: break-all;
 
   a {
-    color: var(--color-accent);
+    color: var(--color-token-text-link-foreground);
   }
 }
 
 .settings-copilot-hint {
   margin: 0;
   font-size: var(--type-secondary);
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
 }
 
 /* --- Chips & Buttons --- */
@@ -279,55 +279,55 @@
   display: inline-flex;
   align-items: center;
   padding: var(--control-padding-block) 0.833em;
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-6);
-  background: var(--color-bg-card);
+  background: var(--color-token-bg-secondary);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-label);
   line-height: var(--control-line-height);
   white-space: nowrap;
 
   &.ok {
-    color: var(--color-success);
+    color: var(--color-token-git-decoration-added-resource-foreground);
   }
 
   &.warn {
-    color: var(--color-warning);
+    color: var(--color-token-editor-warning-foreground);
   }
 
   &.pending {
-    color: var(--color-accent-11, var(--color-accent, currentColor));
+    color: var(--color-token-text-link-foreground, var(--color-token-text-link-foreground, currentColor));
   }
 }
 
 .settings-button {
   &.primary {
-    border-color: var(--color-accent);
-    background: var(--color-accent);
-    color: var(--color-text-on-accent);
+    border-color: var(--color-token-text-link-foreground);
+    background: var(--color-token-text-link-foreground);
+    color: var(--color-token-button-foreground);
 
     &:hover {
-      border-color: var(--color-send-bg-hover);
-      background: var(--color-send-bg-hover);
-      color: var(--color-text-on-accent);
+      border-color: var(--color-token-button-background);
+      background: var(--color-token-button-background);
+      color: var(--color-token-button-foreground);
     }
   }
 
   &.ghost {
     border-color: transparent;
     background-color: transparent;
-    color: var(--color-text-soft);
+    color: var(--color-token-text-secondary);
 
     &:hover {
-      color: var(--color-text);
-      background-color: var(--color-bg-hover);
+      color: var(--color-token-foreground);
+      background-color: var(--color-token-list-hover-background);
     }
   }
 
   &.link {
     border-color: transparent;
     background-color: transparent;
-    color: var(--color-accent);
+    color: var(--color-token-text-link-foreground);
     padding: var(--control-padding-block-compact)
       var(--control-padding-inline-compact);
 
@@ -357,7 +357,7 @@
 .settings-empty-state {
   margin: 0;
   padding: 18px;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
 }
 
@@ -399,7 +399,7 @@
 
   h4 {
     margin: 0;
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     font-size: var(--type-card-title);
     font-weight: var(--font-weight-label);
   }
@@ -407,7 +407,7 @@
 
 .mcp-server-copy p {
   margin: 4px 0 0;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
   overflow-wrap: anywhere;
 }

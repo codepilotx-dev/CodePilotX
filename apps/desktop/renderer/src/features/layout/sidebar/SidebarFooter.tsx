@@ -63,7 +63,7 @@ export const SidebarFooter = forwardRef<HTMLElement>(function SidebarFooter(
   const [usageExpanded, setUsageExpanded] = useState(false);
   const reducedMotion = usePrefersReducedMotion()
   const [usage, setUsage] = useState<ProviderUsageState>(EMPTY_USAGE);
-  const settingsActive = location.pathname === "/settings";
+  const settingsActive = location.pathname.startsWith("/settings/");
   const [updateStatus, setUpdateStatus] = useState<DesktopUpdateStatus | null>(null)
 
   useEffect(() => {
@@ -157,7 +157,7 @@ export const SidebarFooter = forwardRef<HTMLElement>(function SidebarFooter(
             icon={<CircleUser size={APP_ICON_SIZE} />}
             onClick={() => {
               setMenuOpen(false);
-              navigate("/settings?tab=profile");
+              navigate("/settings/profile");
             }}
           >
             个人资料
@@ -168,7 +168,7 @@ export const SidebarFooter = forwardRef<HTMLElement>(function SidebarFooter(
             shortcut="Ctrl+,"
             onClick={() => {
               setMenuOpen(false);
-              navigate("/settings");
+              navigate("/settings/general");
             }}
           >
             设置
@@ -238,7 +238,7 @@ export const SidebarFooter = forwardRef<HTMLElement>(function SidebarFooter(
                       className="popover-usage-action"
                       onClick={() => {
                         setMenuOpen(false);
-                        navigate("/settings?tab=billing");
+                        navigate("/settings/billing");
                       }}
                       type="button"
                     >

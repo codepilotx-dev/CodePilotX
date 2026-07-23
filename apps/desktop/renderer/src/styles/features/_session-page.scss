@@ -16,7 +16,7 @@
 .quick-chat-view,
 .utility-view {
   min-height: 100%;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
 }
 
 .quick-chat-view {
@@ -26,13 +26,13 @@
   --composer-surface-top-radius: var(--radius-card);
   --composer-surface-top-bg: color-mix(
     in srgb,
-    var(--color-panel-bg) 92%,
+    var(--color-token-bg-secondary) 92%,
     transparent
   );
   --composer-surface-footer-margin-top: 2px;
   --composer-surface-footer-padding: 0.57em 0.57em 0.14em;
   --composer-surface-footer-border-top: 1px solid
-    color-mix(in srgb, var(--color-text-strong) 8%, transparent);
+    color-mix(in srgb, var(--color-token-foreground) 8%, transparent);
 
   display: flex;
   flex-direction: column;
@@ -80,7 +80,7 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-6);
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-hero-title);
   text-align: center;
   animation: quick-chat-hero-enter 280ms cubic-bezier(0.23, 1, 0.32, 1) both;
@@ -91,7 +91,7 @@
     height: 56px;
     padding: 0;
     border: 0;
-    background-color: var(--color-text-strong);
+    background-color: var(--color-token-foreground);
     mask-image: url('../../../../build/whale-icon.svg');
     mask-size: contain;
     mask-repeat: no-repeat;
@@ -110,7 +110,7 @@
     }
 
     &:focus-visible {
-      outline: 2px solid var(--color-accent);
+      outline: 2px solid var(--color-token-text-link-foreground);
       outline-offset: 4px;
     }
   }
@@ -118,7 +118,7 @@
   h1 {
     max-width: 100%;
     margin: 0;
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     font-size: inherit;
     font-weight: 400;
     padding: 3px 6px;
@@ -133,7 +133,7 @@
     border: 0;
     border-radius: 0;
     background: transparent;
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     font-family: inherit;
     font-size: inherit;
     font-weight: inherit;
@@ -150,12 +150,12 @@
     &[data-state="open"],
     &[aria-expanded="true"] {
       background: transparent;
-      color: var(--color-text-soft);
+      color: var(--color-token-text-secondary);
       text-decoration-color: currentColor;
     }
 
     &:focus-visible {
-      outline: 2px solid var(--color-accent);
+      outline: 2px solid var(--color-token-text-link-foreground);
       outline-offset: 3px;
     }
   }
@@ -181,7 +181,7 @@
 }
 
 .quick-chat-hero p {
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
 }
 
 .quick-chat-view .chat-composer > .composer {
@@ -190,7 +190,7 @@
 }
 
 .new-session-suggestions {
-  --new-session-suggestion-tone: var(--color-accent);
+  --new-session-suggestion-tone: var(--color-token-text-link-foreground);
 
   width: var(--quick-chat-surface-width);
   max-width: 100%;
@@ -203,26 +203,26 @@
   &.is-blue {
     --new-session-suggestion-tone: var(
       --color-accent-blue,
-      var(--color-accent)
+      var(--color-token-text-link-foreground)
     );
   }
 
   &.is-purple {
     --new-session-suggestion-tone: var(
       --color-accent-purple,
-      var(--color-accent)
+      var(--color-token-text-link-foreground)
     );
   }
 
   &.is-green {
     --new-session-suggestion-tone: var(
       --color-decoration-added,
-      var(--color-success)
+      var(--color-token-git-decoration-added-resource-foreground)
     );
   }
 
   &.is-orange {
-    --new-session-suggestion-tone: var(--color-warning);
+    --new-session-suggestion-tone: var(--color-token-editor-warning-foreground);
   }
 }
 
@@ -240,7 +240,7 @@
   cursor: pointer;
 
   &:focus-visible {
-    outline: 1px solid var(--color-accent);
+    outline: 1px solid var(--color-token-text-link-foreground);
     outline-offset: 2px;
   }
 }
@@ -255,11 +255,11 @@
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-7);
-  background: var(--surface-raised);
+  background: var(--color-token-editor-widget-background);
   box-shadow:
-    0 0 0 0.5px var(--border-control),
+    0 0 0 0.5px var(--color-token-border),
     var(--shadow-resting);
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   text-align: left;
   animation: new-session-suggestion-card-enter 150ms
     cubic-bezier(0.23, 1, 0.32, 1) both;
@@ -270,9 +270,9 @@
     box-shadow var(--motion-hover) var(--ease-standard);
 
   &:hover {
-    background: var(--state-hover-bg);
+    background: var(--color-token-list-hover-background);
     box-shadow:
-      0 0 0 0.5px var(--border-strong),
+      0 0 0 0.5px var(--color-token-border-heavy),
       var(--shadow-raised);
   }
 
@@ -283,26 +283,26 @@
   &.is-blue {
     --new-session-suggestion-tone: var(
       --color-accent-blue,
-      var(--color-accent)
+      var(--color-token-text-link-foreground)
     );
   }
 
   &.is-purple {
     --new-session-suggestion-tone: var(
       --color-accent-purple,
-      var(--color-accent)
+      var(--color-token-text-link-foreground)
     );
   }
 
   &.is-green {
     --new-session-suggestion-tone: var(
       --color-decoration-added,
-      var(--color-success)
+      var(--color-token-git-decoration-added-resource-foreground)
     );
   }
 
   &.is-orange {
-    --new-session-suggestion-tone: var(--color-warning);
+    --new-session-suggestion-tone: var(--color-token-editor-warning-foreground);
   }
 }
 
@@ -325,9 +325,9 @@
   gap: var(--space-2);
   padding: var(--space-2);
   border-radius: var(--radius-7);
-  background: var(--surface-raised);
+  background: var(--color-token-editor-widget-background);
   box-shadow:
-    0 0 0 0.5px var(--border-control),
+    0 0 0 0.5px var(--color-token-border),
     var(--shadow-raised);
   animation: new-session-suggestion-list-enter 150ms
     cubic-bezier(0.23, 1, 0.32, 1) both;
@@ -340,7 +340,7 @@
   justify-content: space-between;
   gap: var(--space-2);
   padding: 2px var(--space-2);
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
 
   > span,
@@ -360,11 +360,11 @@
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-4);
     background: transparent;
-    color: var(--color-text-soft);
+    color: var(--color-token-text-secondary);
 
     &:hover {
-      background: var(--state-hover-bg);
-      color: var(--color-text-strong);
+      background: var(--color-token-list-hover-background);
+      color: var(--color-token-foreground);
     }
   }
 }
@@ -382,7 +382,7 @@
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-4);
   background: transparent;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-body);
   text-align: left;
   animation: new-session-suggestion-row-enter 150ms
@@ -390,13 +390,13 @@
   animation-delay: calc(var(--new-session-suggestion-index) * 25ms);
 
   &:hover {
-    background: var(--state-hover-bg);
+    background: var(--color-token-list-hover-background);
   }
 }
 
 .new-session-suggestion-prefix {
   flex: 0 0 auto;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
 }
 
 @keyframes quick-chat-hero-enter {
@@ -545,13 +545,13 @@
   flex: 1 1 auto;
   gap: var(--space-2);
   min-width: 0;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-card-title);
   font-weight: var(--font-weight-label);
 
   .chat-session-title__icon {
     flex: 0 0 auto;
-    color: var(--color-icon);
+    color: var(--color-token-icon-foreground);
   }
 
   span {
@@ -576,12 +576,12 @@
   margin-right: 4px;
 
   .message-action {
-    border: 1px solid var(--color-border-soft);
-    background: var(--color-bg);
+    border: 1px solid var(--color-token-border-light);
+    background: var(--color-token-main-surface-primary);
 
     &:hover,
     &[data-state="open"] {
-      background: var(--color-bg-hover);
+      background: var(--color-token-list-hover-background);
     }
   }
 }
@@ -637,11 +637,11 @@
   align-items: center;
   gap: var(--control-gap);
   padding: 10px 18px;
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-marquee);
-  background: color-mix(in srgb, var(--color-panel-bg) 82%, transparent);
+  background: color-mix(in srgb, var(--color-token-bg-secondary) 82%, transparent);
   backdrop-filter: blur(10px);
-  color: var(--color-text-placeholder);
+  color: var(--color-token-input-placeholder-foreground);
   font-size: var(--type-body);
   font-weight: var(--font-weight-label);
   line-height: 1;
@@ -661,23 +661,23 @@
 
     svg {
       flex: 0 0 auto;
-      color: var(--color-accent);
+      color: var(--color-token-text-link-foreground);
       animation: composer-status-summary-spin 1.2s linear infinite;
     }
   }
 
   &__separator {
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
   }
 
   strong {
-    color: var(--color-diff-added);
+    color: var(--color-token-git-decoration-added-resource-foreground);
     font-weight: var(--font-weight-label);
     margin-left: 5px;
   }
 
   em {
-    color: var(--color-diff-removed);
+    color: var(--color-token-git-decoration-deleted-resource-foreground);
     font-style: normal;
   }
 }

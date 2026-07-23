@@ -1,4 +1,5 @@
 :root {
+  --workspace-fixed-controls-width: 0px;
   --contrast: 0;
   --color-bg: #ffffff;
   --color-bg-pure: #ffffff;
@@ -44,6 +45,7 @@
   --color-text-meta: color-mix(in srgb, var(--color-bg) 45%, var(--color-ink));
   --color-text-soft: color-mix(in srgb, var(--color-bg) 55%, var(--color-ink));
   --color-text-mute: color-mix(in srgb, var(--color-bg) 65%, var(--color-ink));
+  --color-text-muted: var(--color-text-mute);
   --color-text-placeholder: color-mix(in srgb, var(--color-bg) 75%, var(--color-ink));
   --color-text-disabled: color-mix(
     in srgb,
@@ -51,6 +53,7 @@
     var(--color-ink)
   );
   --color-text-on-accent: #ffffff;
+  --color-accent-contrast: var(--color-text-on-accent);
   --color-icon: var(--color-ink);
   --color-icon-soft: color-mix(in srgb, var(--color-bg) 60%, var(--color-ink));
   --color-icon-arrow: color-mix(in srgb, var(--color-bg) 70%, var(--color-ink));

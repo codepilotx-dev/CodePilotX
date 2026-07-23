@@ -8,15 +8,16 @@ import type {
   DesktopThemeVariant,
 } from './types.js'
 
-export const CODEX_THEME_SHARE_PREFIX = 'codex-theme-v1:'
+export const CODEX_THEME_SHARE_PREFIX = 'codex-theme-v2:'
 
-export type CodexThemeShareV1 = {
+export type CodexThemeShareV2 = {
+  version: 2
   variant: DesktopThemeVariant
   codeThemeId: CodexHighlightThemeSlug
   theme: DesktopChromeTheme
 }
 
-export function serializeCodexThemeShare(value: CodexThemeShareV1): string {
+export function serializeCodexThemeShare(value: CodexThemeShareV2): string {
   const normalized = validatePayload(value)
   return `${CODEX_THEME_SHARE_PREFIX}${JSON.stringify(normalized)}`
 }
@@ -24,9 +25,12 @@ export function serializeCodexThemeShare(value: CodexThemeShareV1): string {
 export function parseCodexThemeShare(
   input: string,
   expectedVariant?: DesktopThemeVariant,
-): CodexThemeShareV1 {
+): CodexThemeShareV2 {
+  if (input.startsWith('codex-theme-v1:')) {
+    throw new Error('codex-theme-v1 主题已不再支持，请重新导出 V2 主题')
+  }
   if (!input.startsWith(CODEX_THEME_SHARE_PREFIX)) {
-    throw new Error('主题文本缺少 codex-theme-v1 前缀')
+    throw new Error('主题文本缺少 codex-theme-v2 前缀')
   }
   let decoded: unknown
   try {
@@ -41,8 +45,15 @@ export function parseCodexThemeShare(
   return payload
 }
 
-function validatePayload(value: unknown): CodexThemeShareV1 {
-  const object = strictObject(value, ['variant', 'codeThemeId', 'theme'], '主题')
+function validatePayload(value: unknown): CodexThemeShareV2 {
+  const object = strictObject(
+    value,
+    ['version', 'variant', 'codeThemeId', 'theme'],
+    '主题',
+  )
+  if (object.version !== 2) {
+    throw new Error('主题 version 必须是 2')
+  }
   const variant = object.variant
   if (variant !== 'light' && variant !== 'dark') {
     throw new Error('主题 variant 必须是 light 或 dark')
@@ -59,7 +70,7 @@ function validatePayload(value: unknown): CodexThemeShareV1 {
     throw new Error('主题 codeThemeId 与 variant 不匹配')
   }
   const theme = validateChromeTheme(object.theme)
-  return { variant, codeThemeId: object.codeThemeId, theme }
+  return { version: 2, variant, codeThemeId: object.codeThemeId, theme }
 }
 
 function validateChromeTheme(value: unknown): DesktopChromeTheme {

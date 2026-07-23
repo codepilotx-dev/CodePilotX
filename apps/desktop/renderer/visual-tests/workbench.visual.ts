@@ -10,22 +10,22 @@ type VisualScenario = {
 const SCENARIOS: readonly VisualScenario[] = [
   {
     id: 'empty',
-    route: '/?visualCase=empty#/quick-chat',
+    route: '/?visualCase=empty#/new',
     readyText: '我们应该构建什么？',
   },
   {
     id: 'rich',
-    route: '/?visualCase=rich#/sessions/visual-rich',
+    route: '/?visualCase=rich#/threads/visual-rich',
     readyText: '已完成工作台结构梳理。',
   },
   {
     id: 'permission',
-    route: '/?visualCase=permission#/sessions/visual-permission',
+    route: '/?visualCase=permission#/threads/visual-permission',
     readyText: '已完成工作台结构梳理。',
   },
   {
     id: 'review',
-    route: '/?visualCase=review#/sessions/visual-review',
+    route: '/?visualCase=review#/threads/visual-review',
     readyText: '已完成工作台结构梳理。',
     prepare: async (page) => {
       await page.getByRole('button', { name: '显示右侧面板' }).click()
@@ -92,7 +92,7 @@ for (const viewport of VIEWPORTS) {
   for (const mode of MODES) {
     test(`${viewport.id} ${mode} appearance page`, async ({ page }) => {
       await page.setViewportSize(viewport)
-      await page.goto('/?visualCase=empty#/settings?tab=appearance')
+      await page.goto('/?visualCase=empty#/settings/appearance')
       await closeTransientErrorToast(page)
       await page
         .getByRole('radiogroup', { name: '外观模式' })
@@ -127,7 +127,7 @@ for (const mode of MODES) {
       forcedColors: 'none',
       reducedMotion: 'reduce',
     })
-    await page.goto('/?visualCase=rich#/sessions/visual-rich')
+    await page.goto('/?visualCase=rich#/threads/visual-rich')
     await closeTransientErrorToast(page)
     await expect(
       page.getByText('已完成工作台结构梳理。', { exact: true }),
@@ -210,7 +210,7 @@ test('Markdown file switches between rich and source presentations', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1366, height: 768 })
-  await page.goto('/?visualCase=rich#/sessions/visual-rich')
+  await page.goto('/?visualCase=rich#/threads/visual-rich')
   await closeTransientErrorToast(page)
   await expect(
     page.getByText('已完成工作台结构梳理。', { exact: true }),
@@ -296,7 +296,7 @@ test('session header aligns with the right panel and bottom panel spans the work
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 920 })
-  await page.goto('/?visualCase=rich#/sessions/visual-rich')
+  await page.goto('/?visualCase=rich#/threads/visual-rich')
   await closeTransientErrorToast(page)
   await expect(
     page.getByText('已完成工作台结构梳理。', { exact: true }),
@@ -420,7 +420,7 @@ for (const mode of MODES) {
       forcedColors: 'none',
       reducedMotion: 'reduce',
     })
-    await page.goto('/?visualCase=rich#/sessions/visual-rich')
+    await page.goto('/?visualCase=rich#/threads/visual-rich')
     await closeTransientErrorToast(page)
     await expect(
       page.getByText('已完成工作台结构梳理。', { exact: true }),
@@ -487,7 +487,7 @@ for (const mode of MODES) {
       forcedColors: 'none',
       reducedMotion: 'reduce',
     })
-    await page.goto('/?visualCase=empty#/quick-chat')
+    await page.goto('/?visualCase=empty#/new')
     await closeTransientErrorToast(page)
     await expect(
       page.getByText('我们该做什么？', { exact: true }),
@@ -547,7 +547,7 @@ for (const mode of MODES) {
 test('sidebar keeps one mounted tree across docked and hover preview modes', async ({
   page,
 }) => {
-  await page.goto('/?visualCase=rich#/quick-chat')
+  await page.goto('/?visualCase=rich#/new')
   await closeTransientErrorToast(page)
   const sidebar = page.locator('aside.desktop-sidebar')
   const sidebarTrigger = page.locator('[data-app-shell-sidebar-trigger]')
@@ -577,7 +577,7 @@ test('turn navigation preview matches Codex geometry and output limits', async (
     forcedColors: 'none',
     reducedMotion: 'no-preference',
   })
-  await page.goto('/?visualCase=turn-nav#/sessions/visual-turn-nav')
+  await page.goto('/?visualCase=turn-nav#/threads/visual-turn-nav')
   await closeTransientErrorToast(page)
   await expect(page.getByText('第 4 轮已完成。', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: '取消置顶摘要' }).click()
@@ -626,7 +626,7 @@ test('narrow sidebar uses floating preview without drawer or backdrop', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 720, height: 800 })
-  await page.goto('/?visualCase=empty#/quick-chat')
+  await page.goto('/?visualCase=empty#/new')
   await closeTransientErrorToast(page)
   const sidebar = page.locator('aside.desktop-sidebar')
   await expect(sidebar).toHaveClass(/is-collapsed/)
@@ -645,7 +645,7 @@ test('settings uses the shared full-label sidebar in desktop and narrow previews
   page,
 }) => {
   await page.setViewportSize({ width: 900, height: 800 })
-  await page.goto('/?visualCase=empty#/settings?tab=appearance')
+  await page.goto('/?visualCase=empty#/settings/appearance')
   await closeTransientErrorToast(page)
   const sidebar = page.locator('aside.desktop-sidebar')
   await expect(sidebar).toHaveAttribute('data-sidebar-content', 'settings')
@@ -671,7 +671,7 @@ test('settings uses the shared full-label sidebar in desktop and narrow previews
 test('sidebar trigger does not reopen the preview until the pointer leaves', async ({
   page,
 }) => {
-  await page.goto('/?visualCase=empty#/quick-chat')
+  await page.goto('/?visualCase=empty#/new')
   await closeTransientErrorToast(page)
   const sidebar = page.locator('aside.desktop-sidebar')
   const sidebarTrigger = page.locator('[data-app-shell-sidebar-trigger]')
@@ -688,7 +688,7 @@ test('sidebar trigger does not reopen the preview until the pointer leaves', asy
 })
 
 test('Escape closes the theme picker and restores focus', async ({ page }) => {
-  await page.goto('/?visualCase=empty#/settings?tab=appearance')
+  await page.goto('/?visualCase=empty#/settings/appearance')
   await closeTransientErrorToast(page)
   const picker = page.getByRole('combobox', { name: '浅色代码主题' })
   await picker.click()
@@ -703,7 +703,7 @@ test('Escape closes the theme picker and restores focus', async ({ page }) => {
 test('appearance modes support radio keys, variant editors, and reload persistence', async ({
   page,
 }) => {
-  await page.goto('/?visualCase=empty#/settings?tab=appearance')
+  await page.goto('/?visualCase=empty#/settings/appearance')
   await closeTransientErrorToast(page)
 
   const modeGroup = page.getByRole('radiogroup', { name: '外观模式' })
@@ -738,7 +738,7 @@ test('Dracula code theme applies the recovered Codex runtime hierarchy', async (
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 920 })
-  await page.goto('/?visualCase=empty#/settings?tab=appearance')
+  await page.goto('/?visualCase=empty#/settings/appearance')
   await closeTransientErrorToast(page)
   await page
     .getByRole('radiogroup', { name: '外观模式' })
@@ -773,7 +773,7 @@ test('Dracula code theme applies the recovered Codex runtime hierarchy', async (
   await expect
     .poll(() =>
       page.evaluate(() =>
-        localStorage.getItem('codepilotx.desktop.appearance.v3'),
+        localStorage.getItem('codepilotx.desktop.appearance.v5'),
       ),
     )
     .toContain('"dracula"')
@@ -783,7 +783,7 @@ test('Dracula code theme applies the recovered Codex runtime hierarchy', async (
     'data-code-theme-id',
     'dracula',
   )
-  await page.goto('/?visualCase=rich#/sessions/visual-rich')
+  await page.goto('/?visualCase=rich#/threads/visual-rich')
   await expect(
     page.getByText('已完成工作台结构梳理。', { exact: true }),
   ).toBeVisible()
@@ -803,7 +803,7 @@ test('settings shell search and appearance source contracts', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 920 })
-  await page.goto('/?visualCase=empty#/settings?tab=general')
+  await page.goto('/?visualCase=empty#/settings/general')
   await closeTransientErrorToast(page)
 
   const defaultOpenTarget = page.getByRole('combobox', {
@@ -875,7 +875,7 @@ test('settings shell search and appearance source contracts', async ({
   await expect(page.getByRole('textbox', { name: '搜索语言' })).toBeVisible()
   await page.keyboard.press('Escape')
 
-  await page.goto('/?visualCase=empty#/settings?tab=config')
+  await page.goto('/?visualCase=empty#/settings/config')
   const sandboxDropdown = page.getByRole('combobox', { name: '沙盒设置' })
   await sandboxDropdown.click()
   const sandboxMenu = page.getByRole('listbox')
@@ -912,7 +912,7 @@ test('settings shell search and appearance source contracts', async ({
     labelMatchesForeground: true,
   })
   await page.keyboard.press('Escape')
-  await page.goto('/?visualCase=empty#/settings?tab=general')
+  await page.goto('/?visualCase=empty#/settings/general')
   await closeTransientErrorToast(page)
 
   await expect(

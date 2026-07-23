@@ -136,6 +136,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
 	    githubOAuthClientId: '',
 	    authBaseUrl: '',
 	    installCodePilotXDependencies: true,
+    workspaceDependenciesMigrated: false,
     personality: 'pragmatic',
     customInstructions: '',
     enableMemory: false,
@@ -335,6 +336,10 @@ export function normalizeDesktopStoredSettings(
       typeof parsed.installCodePilotXDependencies === 'boolean'
         ? parsed.installCodePilotXDependencies
         : defaults.installCodePilotXDependencies,
+    workspaceDependenciesMigrated:
+      typeof parsed.workspaceDependenciesMigrated === 'boolean'
+        ? parsed.workspaceDependenciesMigrated
+        : defaults.workspaceDependenciesMigrated,
     personality: isDesktopPersonality(parsed.personality)
       ? parsed.personality
       : defaults.personality,

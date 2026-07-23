@@ -3,11 +3,11 @@
   width: 100%;
   max-width: none;
   padding: 8px 10px;
-  border: 1px solid var(--color-panel-border);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-panel);
-  background: var(--color-panel-bg);
-  box-shadow: var(--color-panel-shadow-soft);
-  color: var(--color-text-soft);
+  background: var(--color-token-bg-secondary);
+  box-shadow: var(--shadow-resting);
+  color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
   line-height: 1.5;
 }
@@ -15,11 +15,11 @@
 .timeline-system-event.error {
   border-color: color-mix(
     in srgb,
-    var(--color-danger) 42%,
-    var(--color-panel-border)
+    var(--color-token-error-foreground) 42%,
+    var(--color-token-border-light)
   );
-  background: color-mix(in srgb, var(--color-danger) 7%, var(--color-panel-bg));
-  color: var(--color-text-strong);
+  background: color-mix(in srgb, var(--color-token-error-foreground) 7%, var(--color-token-bg-secondary));
+  color: var(--color-token-foreground);
 }
 
 .timeline-model-switch-event {
@@ -28,14 +28,14 @@
   grid-template-columns: minmax(24px, 1fr) auto minmax(24px, 1fr);
   align-items: center;
   gap: 14px;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
   line-height: 1.4;
 }
 
 .timeline-model-switch-line {
   height: 1px;
-  background: var(--color-panel-border);
+  background: var(--color-token-border-light);
 }
 
 .timeline-model-switch-content {
@@ -48,7 +48,7 @@
     width: var(--app-icon-size);
     height: var(--app-icon-size);
     flex: 0 0 auto;
-    color: var(--color-icon);
+    color: var(--color-token-icon-foreground);
     stroke-width: var(--app-icon-stroke-width);
   }
 
@@ -65,7 +65,7 @@
   max-width: none;
   display: flex;
   flex-direction: column;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
 }
 
@@ -77,7 +77,7 @@
   padding: 4px 0;
   border: 0;
   background: transparent;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font-size: var(--type-control);
   font-family: inherit;
   text-align: left;
@@ -85,7 +85,7 @@
   transition: color 0.15s ease-out;
 
   &:hover {
-    color: var(--color-text);
+    color: var(--color-token-foreground);
   }
 
   svg {
@@ -93,7 +93,7 @@
     height: var(--app-icon-size);
     display: block;
     flex: 0 0 auto;
-    color: var(--color-icon);
+    color: var(--color-token-icon-foreground);
     stroke-width: var(--app-icon-stroke-width);
   }
 }
@@ -158,13 +158,13 @@
   gap: 6px;
 
   strong {
-    color: var(--color-text);
+    color: var(--color-token-foreground);
     font-size: var(--type-body);
     line-height: 1.45;
   }
 
   span {
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
     font-size: var(--type-secondary);
     line-height: 1.5;
   }
@@ -186,7 +186,7 @@
   transition: color 0.15s ease-out;
 
   &:hover {
-    color: var(--color-text);
+    color: var(--color-token-foreground);
   }
 }
 
@@ -242,8 +242,8 @@
 
 .timeline-command-shell-header {
   padding: 6px 10px;
-  border-bottom: 1px solid var(--color-border-faint);
-  color: var(--color-text-meta);
+  border-bottom: 1px solid var(--color-token-border-light);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
 }
 
@@ -263,30 +263,30 @@
 }
 
 .timeline-command-shell-prompt {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
 }
 
 .timeline-command-shell-footer {
   display: flex;
   justify-content: flex-end;
   padding: 4px 12px 6px;
-  border-top: 1px solid var(--color-border-faint);
+  border-top: 1px solid var(--color-token-border-light);
 }
 
 .timeline-command-shell-status {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--color-diff-added);
+  color: var(--color-token-git-decoration-added-resource-foreground);
   font-size: var(--type-caption);
 }
 
 .timeline-command-shell--error .timeline-command-shell-status {
-  color: var(--color-diff-removed);
+  color: var(--color-token-git-decoration-deleted-resource-foreground);
 }
 
 .timeline-command-shell--running .timeline-command-shell-status {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
 }
 
 .timeline-command-shell-status svg {
@@ -305,7 +305,7 @@
   border-radius: 16px;
   background: color-mix(
     in srgb,
-    var(--color-text-strong) 5%,
+    var(--color-token-foreground) 5%,
     transparent
   );
   box-shadow: none;
@@ -317,7 +317,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
   margin-top: 4px;
   opacity: 0;
@@ -334,7 +334,7 @@
     width: var(--app-icon-size-sm);
     height: var(--app-icon-size-sm);
     border-radius: var(--radius-3);
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
 
     svg {
       width: var(--app-icon-size-sm);
@@ -349,10 +349,10 @@
   flex-direction: column;
   gap: 12px;
   padding: 18px 18px 14px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-user-message);
-  background: var(--color-panel-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-bg-secondary);
+  color: var(--color-token-foreground);
 }
 
 .user-message-editor textarea {
@@ -386,18 +386,18 @@
   line-height: var(--control-line-height);
 
   &.secondary {
-    border: 1px solid var(--color-border-soft);
+    border: 1px solid var(--color-token-border-light);
     background: color-mix(
       in srgb,
-      var(--color-panel-bg) 82%,
-      var(--color-text-strong)
+      var(--color-token-bg-secondary) 82%,
+      var(--color-token-foreground)
     );
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
   }
 
   &.primary {
-    background: var(--color-text-strong);
-    color: var(--color-bg);
+    background: var(--color-token-foreground);
+    color: var(--color-token-main-surface-primary);
   }
 
   &:disabled {
@@ -431,10 +431,10 @@
   align-items: center;
   gap: var(--control-gap-compact);
   padding: var(--control-padding-block-compact) var(--control-padding-inline);
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-full);
-  background: var(--color-bg-soft);
-  color: var(--color-text-soft);
+  background: var(--color-token-text-preformat-background);
+  color: var(--color-token-text-secondary);
   font-size: var(--type-caption);
   line-height: var(--control-line-height);
 }
@@ -449,10 +449,10 @@
   align-items: center;
   gap: 5px;
   padding: 4px 8px 4px 9px;
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-full);
-  background: var(--color-bg-soft);
-  color: var(--color-text-soft);
+  background: var(--color-token-text-preformat-background);
+  color: var(--color-token-text-secondary);
   font-family: inherit;
   font-size: var(--type-caption);
   line-height: 1;
@@ -465,13 +465,13 @@
     width: var(--app-icon-size);
     height: var(--app-icon-size);
     display: block;
-    color: var(--color-accent);
+    color: var(--color-token-text-link-foreground);
     stroke-width: var(--app-icon-stroke-width);
   }
 }
 
 .section-label {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
 }
 
@@ -487,7 +487,7 @@
   max-width: none;
   display: flex;
   flex-direction: column;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
 }
 
@@ -499,7 +499,7 @@
   padding: 4px 0;
   border: 0;
   background: transparent;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font-family: inherit;
   font-size: var(--type-control);
   text-align: left;
@@ -507,7 +507,7 @@
   transition: color 0.15s ease-out;
 
   &:hover {
-    color: var(--color-text);
+    color: var(--color-token-foreground);
   }
 
   svg {
@@ -515,7 +515,7 @@
     height: var(--app-icon-size);
     display: block;
     flex: 0 0 auto;
-    color: var(--color-icon);
+    color: var(--color-token-icon-foreground);
     stroke-width: var(--app-icon-stroke-width);
   }
 }
@@ -564,11 +564,11 @@
   width: 100%;
   max-width: none;
   overflow: hidden;
-  border: 1px solid var(--color-panel-border);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-panel);
-  background: var(--color-panel-bg);
-  box-shadow: var(--color-panel-shadow-soft);
-  color: var(--color-text);
+  background: var(--color-token-bg-secondary);
+  box-shadow: var(--shadow-resting);
+  color: var(--color-token-foreground);
   font-size: var(--type-body);
   margin-top: 10px;
 }
@@ -579,10 +579,10 @@
   justify-content: space-between;
   gap: var(--space-4);
   padding: 11px 12px;
-  border-bottom: 1px solid var(--color-border-soft);
+  border-bottom: 1px solid var(--color-token-border-light);
   background: color-mix(
     in srgb,
-    var(--color-panel-elevated-bg) 42%,
+    var(--color-token-editor-widget-background) 42%,
     transparent
   );
 }
@@ -602,8 +602,8 @@
   justify-content: center;
   flex: 0 0 auto;
   border-radius: var(--radius-4);
-  background: var(--state-hover-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-list-hover-background);
+  color: var(--color-token-foreground);
 
   svg {
     width: var(--app-icon-size-md);
@@ -618,7 +618,7 @@
   gap: 5px;
 
   strong {
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     font-size: var(--type-card-title);
     font-weight: var(--font-weight-label);
     line-height: 1.2;
@@ -654,25 +654,25 @@
   gap: 6px;
   padding: 8px 10px;
   border-radius: var(--radius-4);
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-control);
   font-weight: 600;
   line-height: var(--control-line-height);
 }
 
 .timeline-file-event-ghost-button {
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
 }
 
 .timeline-file-event-ghost-button:hover,
 .timeline-file-event-review-button:hover {
-  background: var(--color-bg-hover);
+  background: var(--color-token-list-hover-background);
 }
 
 .timeline-file-event-review-button {
   padding: 0 14px;
-  border: 1px solid var(--color-border-soft);
-  background: var(--color-bg-soft);
+  border: 1px solid var(--color-token-border-light);
+  background: var(--color-token-text-preformat-background);
 }
 
 .timeline-file-event-ghost-button svg {
@@ -685,7 +685,7 @@
   display: grid;
   margin: 0;
   padding: 2px 12px 10px 46px;
-  background: color-mix(in srgb, var(--color-bg) 58%, transparent);
+  background: color-mix(in srgb, var(--color-token-main-surface-primary) 58%, transparent);
   list-style: none;
 }
 
@@ -696,11 +696,11 @@
   gap: var(--space-4);
   padding: 10px 18px;
   border-top: 1px solid
-    color-mix(in srgb, var(--color-border-soft) 62%, transparent);
+    color-mix(in srgb, var(--color-token-border-light) 62%, transparent);
 }
 
 .timeline-file-event-list li + li {
-  border-top: 1px solid var(--color-border-faint);
+  border-top: 1px solid var(--color-token-border-light);
 }
 
 .timeline-file-event-list li span:first-child {
@@ -708,7 +708,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-body);
 }
 
@@ -724,25 +724,25 @@
   gap: var(--control-gap-compact);
   align-self: flex-start;
   padding: 0 2px;
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-full);
-  background: var(--color-bg-soft);
-  color: var(--color-text-meta);
+  background: var(--color-token-text-preformat-background);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
   line-height: var(--control-line-height);
 }
 
 .timeline-system-event small {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
 }
 
 .diff-added {
-  color: var(--color-diff-added);
+  color: var(--color-token-git-decoration-added-resource-foreground);
 }
 
 .diff-removed {
-  color: var(--color-diff-removed);
+  color: var(--color-token-git-decoration-deleted-resource-foreground);
 }
 
 @keyframes workflow-pulse {
@@ -786,23 +786,23 @@
 }
 
 .timeline-file-event-header {
-  background: var(--surface-raised);
+  background: var(--color-token-editor-widget-background);
 }
 
 .timeline-file-event-list {
-  background: var(--surface-canvas);
+  background: var(--color-token-main-surface-primary);
 }
 
 .timeline-system-event.error {
   border-color: color-mix(
     in srgb,
-    var(--color-danger) 48%,
-    var(--border-control)
+    var(--color-token-error-foreground) 48%,
+    var(--color-token-border)
   );
   background: color-mix(
     in srgb,
-    var(--color-danger) 13%,
-    var(--surface-panel)
+    var(--color-token-error-foreground) 13%,
+    var(--color-token-bg-secondary)
   );
 }
 

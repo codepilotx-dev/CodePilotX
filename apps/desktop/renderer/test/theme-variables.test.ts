@@ -87,18 +87,18 @@ describe('fixed Codex UI themes', () => {
     })
 
     expect(migrated).toMatchObject({
-      version: 3,
-      mode: 'dark',
+      version: 5,
+      mode: 'system',
       codeThemeIds: {
         light: 'codex-light',
-        dark: 'dracula',
+        dark: 'codex-dark',
       },
-      reduceMotion: 'on',
+      reduceMotion: 'system',
       pointerCursorEnabled: false,
-      fontSizes: { ui: 16, code: 15 },
+      fontSizes: { ui: 14, code: 12 },
     })
-    expect(migrated.chromeThemes.light.opaqueWindows).toBeTrue()
-    expect(migrated.chromeThemes.dark.opaqueWindows).toBeTrue()
+    expect(migrated.chromeThemes.light.opaqueWindows).toBeFalse()
+    expect(migrated.chromeThemes.dark.opaqueWindows).toBeFalse()
   })
 
   test('keeps separate light and dark selections and rejects mismatches', () => {
@@ -128,7 +128,7 @@ describe('fixed Codex UI themes', () => {
     })
   })
 
-  test('migrates a previous V2 single selection into its matching slot', () => {
+  test('resets a previous V2 single selection to V5 defaults', () => {
     expect(
       normalizeDesktopThemeSettings({
         version: 2,
@@ -137,7 +137,7 @@ describe('fixed Codex UI themes', () => {
       }).codeThemeIds,
     ).toEqual({
       light: 'codex-light',
-      dark: 'dracula',
+      dark: 'codex-dark',
     })
   })
 

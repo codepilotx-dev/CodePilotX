@@ -126,7 +126,7 @@ import {
 } from './fixtures.js'
 
 const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY =
-  'codepilotx.desktop.appearance.v3'
+  'codepilotx.desktop.appearance.v5'
 
 function noop(): void {}
 

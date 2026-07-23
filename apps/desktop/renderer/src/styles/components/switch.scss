@@ -5,19 +5,19 @@
 .context-menu-switch {
   background: color-mix(
     in srgb,
-    var(--color-text-strong) 16%,
-    var(--color-panel-elevated-bg)
+    var(--color-token-foreground) 16%,
+    var(--color-token-editor-widget-background)
   );
 
   &[data-state="checked"],
   &[aria-checked="true"] {
-    background: var(--color-accent);
+    background: var(--color-token-text-link-foreground);
   }
 }
 
 .chat-input__dropdown-switch-thumb,
 .context-menu-switch-thumb {
-  background: var(--color-bg);
+  background: var(--color-token-main-surface-primary);
 }
 
 /* --- Settings Page Toggle Switch --- */
@@ -41,14 +41,14 @@
 .toggle-knob {
   width: 16px;
   height: 16px;
-  border: 1px solid var(--color-text-strong);
+  border: 1px solid var(--color-token-foreground);
   border-radius: var(--radius-full);
   position: absolute;
   top: 2px;
   left: 0;
   transition: transform 0.15s ease;
   transform: translateX(2px);
-  background: var(--color-text-strong);
+  background: var(--color-token-foreground);
 }
 
 /* --- Chat Input Dropdown Switch --- */
@@ -68,7 +68,7 @@
   height: 16px;
   margin: 3px;
   border-radius: 50%;
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-ink) 15%, transparent);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-token-foreground) 15%, transparent);
   transition: transform 0.15s ease-out;
 }
 

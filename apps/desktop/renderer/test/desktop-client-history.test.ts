@@ -115,14 +115,14 @@ describe('desktop history client', () => {
 
     const loaded = await client.getThemeSettings()
     expect(loaded).toMatchObject({
-      version: 3,
-      mode: 'dark',
-      codeThemeIds: { light: 'codex-light', dark: 'dracula' },
+      version: 5,
+      mode: 'system',
+      codeThemeIds: { light: 'codex-light', dark: 'codex-dark' },
     })
-    expect(loaded.chromeThemes.light.opaqueWindows).toBeTrue()
+    expect(loaded.chromeThemes.light.opaqueWindows).toBeFalse()
 
     await client.saveThemeSettings({ ...loaded, mode: 'light' })
-    expect(stored).toMatchObject({ version: 3, mode: 'light' })
+    expect(stored).toMatchObject({ version: 5, mode: 'light' })
   })
 
   test('uses agent fetch for list, create, get, message, rename, archive, and delete', async () => {

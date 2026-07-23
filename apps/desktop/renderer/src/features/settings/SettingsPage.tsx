@@ -31,7 +31,7 @@ export function SettingsPage({
   let content: React.ReactNode
   if (resolvedTab === 'general') content = <GeneralSettings onNotice={onNotice} />
   else if (resolvedTab === 'appearance') content = <AppearanceSettings onError={onError} onNotice={onNotice} />
-  else if (resolvedTab === 'config') content = <ConfigSettings />
+  else if (resolvedTab === 'config') content = <ConfigSettings onError={onError} onNotice={onNotice} />
   else if (resolvedTab === 'mcp') content = <McpSettings />
   else if (resolvedTab === 'git') content = <GitSettings />
   else if (resolvedTab === 'profile') content = <ProfileSettings />

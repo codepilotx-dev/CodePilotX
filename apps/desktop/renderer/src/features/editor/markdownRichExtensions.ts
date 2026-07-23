@@ -698,8 +698,8 @@ function addLineDecoration(
 
 const markdownRichTheme = EditorView.theme({
   '&.cm-markdown-rich': {
-    color: 'var(--color-text)',
-    backgroundColor: 'var(--surface-canvas)',
+    color: 'var(--color-token-foreground)',
+    backgroundColor: 'var(--color-token-main-surface-primary)',
   },
   '&.cm-markdown-rich .cm-content': {
     fontFamily: 'var(--vscode-font-family)',
@@ -710,7 +710,7 @@ const markdownRichTheme = EditorView.theme({
     lineHeight: '1.65',
   },
   '&.cm-markdown-rich .cm-md-rich-heading': {
-    color: 'var(--color-text)',
+    color: 'var(--color-token-foreground)',
     fontFamily: 'var(--vscode-font-family)',
     fontWeight: '500',
     letterSpacing: '-0.015em',
@@ -744,24 +744,24 @@ const markdownRichTheme = EditorView.theme({
   '&.cm-markdown-rich .cm-md-rich-inline-code': {
     padding: '0.08em 0.3em',
     borderRadius: 'var(--radius-2)',
-    color: 'var(--cm-editor-foreground, var(--color-text))',
+    color: 'var(--cm-editor-foreground, var(--color-token-foreground))',
     backgroundColor:
-      'color-mix(in srgb, var(--cm-editor-background, var(--surface-code-inline)) 88%, var(--color-text) 12%)',
+      'color-mix(in srgb, var(--cm-editor-background, var(--color-token-text-preformat-background)) 88%, var(--color-token-foreground) 12%)',
     fontFamily: 'var(--vscode-editor-font-family)',
     fontSize: 'var(--font-size-code)',
   },
   '&.cm-markdown-rich .cm-md-rich-link': {
-    color: 'var(--color-accent)',
+    color: 'var(--color-token-text-link-foreground)',
     textDecoration: 'underline',
     textDecorationColor:
-      'color-mix(in srgb, var(--color-accent) 55%, transparent)',
+      'color-mix(in srgb, var(--color-token-text-link-foreground) 55%, transparent)',
     textUnderlineOffset: '0.16em',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-blockquote': {
     boxSizing: 'border-box',
-    borderLeft: '3px solid var(--border-strong)',
+    borderLeft: '3px solid var(--color-token-border-heavy)',
     paddingLeft: '12px',
-    color: 'var(--color-text-soft)',
+    color: 'var(--color-token-text-secondary)',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-list-item': {
     paddingBlock: '1px',
@@ -769,22 +769,22 @@ const markdownRichTheme = EditorView.theme({
   '&.cm-markdown-rich .cm-md-rich-list-marker': {
     display: 'inline-block',
     width: '1.25em',
-    color: 'var(--color-text-soft)',
+    color: 'var(--color-token-text-secondary)',
     fontFamily: 'var(--vscode-font-family)',
     fontWeight: '500',
     textAlign: 'center',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-horizontal-rule': {
     minHeight: '1.65em',
-    borderTop: '1px solid var(--border-control)',
+    borderTop: '1px solid var(--color-token-border)',
     color: 'transparent',
     transform: 'translateY(0.8em)',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-code-block': {
     boxSizing: 'border-box',
     paddingInline: '12px',
-    color: 'var(--cm-editor-foreground, var(--color-text))',
-    backgroundColor: 'var(--surface-code-block)',
+    color: 'var(--cm-editor-foreground, var(--color-token-foreground))',
+    backgroundColor: 'var(--color-token-editor-background)',
     fontFamily: 'var(--vscode-editor-font-family)',
     fontSize: 'var(--font-size-code)',
     lineHeight: '1.6',
@@ -804,38 +804,38 @@ const markdownRichTheme = EditorView.theme({
     boxSizing: 'border-box',
     margin: '12px 24px',
     padding: '12px',
-    border: '1px solid var(--border-control)',
+    border: '1px solid var(--color-token-border)',
     borderRadius: 'var(--radius-3)',
     backgroundColor:
-      'var(--cm-editor-background, var(--surface-code-block, var(--surface-code-inline)))',
+      'var(--cm-editor-background, var(--color-token-editor-background, var(--color-token-text-preformat-background)))',
     overflow: 'auto',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-table': {
     boxSizing: 'border-box',
-    borderBottom: '1px solid var(--border-control)',
+    borderBottom: '1px solid var(--color-token-border)',
     paddingInline: '8px',
     fontVariantNumeric: 'tabular-nums',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-table-header': {
-    backgroundColor: 'var(--surface-subtle)',
+    backgroundColor: 'var(--color-token-bg-fog)',
     fontWeight: '650',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-table-row': {
-    backgroundColor: 'var(--surface-code-block)',
+    backgroundColor: 'var(--color-token-editor-background)',
   },
   '&.cm-markdown-rich .cm-md-rich-table-widget': {
     display: 'block',
     boxSizing: 'border-box',
     marginBlock: '12px',
     borderRadius: 'var(--radius-lg, var(--radius-5))',
-    backgroundColor: 'var(--surface-code-block)',
+    backgroundColor: 'var(--color-token-editor-background)',
     overflowX: 'auto',
   },
   '&.cm-markdown-rich .cm-md-rich-table-widget table': {
     width: '100%',
     borderCollapse: 'collapse',
-    backgroundColor: 'var(--surface-code-block)',
-    color: 'var(--color-text)',
+    backgroundColor: 'var(--color-token-editor-background)',
+    color: 'var(--color-token-foreground)',
     fontFamily: 'var(--vscode-font-family)',
     fontSize: 'var(--font-size-ui)',
   },
@@ -843,14 +843,14 @@ const markdownRichTheme = EditorView.theme({
     {
       minWidth: '96px',
       padding: '8px 10px',
-      border: '1px solid var(--border-control)',
+      border: '1px solid var(--color-token-border)',
       verticalAlign: 'top',
     },
   '&.cm-markdown-rich .cm-md-rich-table-widget th': {
-    backgroundColor: 'var(--surface-raised)',
+    backgroundColor: 'var(--color-token-editor-widget-background)',
     fontWeight: '650',
   },
   '&.cm-markdown-rich .cm-md-rich-table-widget td': {
-    backgroundColor: 'var(--surface-code-block)',
+    backgroundColor: 'var(--color-token-editor-background)',
   },
 })

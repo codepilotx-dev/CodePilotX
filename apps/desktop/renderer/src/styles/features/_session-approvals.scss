@@ -8,14 +8,14 @@
   padding: var(--inline-approval-card-padding, 24px 14px 12px);
   border: var(
     --inline-approval-card-border,
-    1px solid var(--color-panel-border)
+    1px solid var(--color-token-border-light)
   );
   border-radius: var(--inline-approval-card-radius, var(--radius-panel));
-  background: var(--inline-approval-card-bg, var(--color-panel-bg));
-  color: var(--color-text-strong);
+  background: var(--inline-approval-card-bg, var(--color-token-bg-secondary));
+  color: var(--color-token-foreground);
   box-shadow: var(
     --inline-approval-card-shadow,
-    var(--color-panel-shadow-raised)
+    var(--shadow-raised)
   );
 }
 
@@ -24,7 +24,7 @@
 
   h2 {
     margin: 0;
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
     font-size: var(--type-card-title);
     font-weight: var(--font-weight-heading);
     line-height: 1.4;
@@ -56,7 +56,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font-size: var(--type-secondary);
   font-weight: var(--font-weight-label);
 
@@ -68,15 +68,15 @@
     border: 0;
     border-radius: var(--radius-4);
     background: transparent;
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
     font-size: var(--type-control);
     font-weight: var(--font-weight-label);
     line-height: var(--control-line-height);
     cursor: pointer;
 
     &:hover {
-      background: var(--color-bg-hover);
-      color: var(--color-text-strong);
+      background: var(--color-token-list-hover-background);
+      color: var(--color-token-foreground);
     }
   }
 }
@@ -88,7 +88,7 @@
   max-height: var(--inline-approval-command-max-height, none);
   overflow: auto;
   padding: 0;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   font-family: var(--font-family-mono);
   font-size: var(--type-code);
   font-weight: 500;
@@ -107,21 +107,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--color-accent);
+  color: var(--color-token-text-link-foreground);
   font-weight: 500;
 
   &.tool {
-    color: var(--color-text-soft);
+    color: var(--color-token-text-secondary);
   }
 }
 
 .inline-approval-additions {
-  color: var(--color-diff-added);
+  color: var(--color-token-git-decoration-added-resource-foreground);
   font-weight: var(--font-weight-emphasis);
 }
 
 .inline-approval-deletions {
-  color: var(--color-diff-removed);
+  color: var(--color-token-git-decoration-deleted-resource-foreground);
   font-weight: var(--font-weight-emphasis);
 }
 
@@ -130,7 +130,7 @@
   height: 6px;
   flex: 0 0 auto;
   border-radius: var(--radius-full);
-  background: var(--color-text-strong);
+  background: var(--color-token-foreground);
 }
 
 .inline-approval-options {
@@ -148,7 +148,7 @@
   border: 1px transparent solid;
   border-radius: var(--radius-6);
   background: transparent;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-control);
   font-weight: var(--font-weight-label);
   line-height: var(--control-line-height);
@@ -158,12 +158,12 @@
     border-color: var(--inline-approval-option-selected-border, transparent);
     background: var(
       --inline-approval-option-selected-bg,
-      var(--color-bg-hover)
+      var(--color-token-list-hover-background)
     );
   }
 
   &.muted {
-    color: var(--color-text-placeholder);
+    color: var(--color-token-input-placeholder-foreground);
     font-weight: 500;
   }
 }
@@ -175,8 +175,8 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-full);
-  background: var(--inline-approval-option-index-bg, var(--color-bg-soft));
-  color: var(--inline-approval-option-index-color, var(--color-text-meta));
+  background: var(--inline-approval-option-index-bg, var(--color-token-text-preformat-background));
+  color: var(--inline-approval-option-index-color, var(--color-token-description-foreground));
   font-size: var(--type-caption);
   font-weight: var(--font-weight-label);
 }
@@ -184,9 +184,9 @@
 .inline-approval-option.selected .inline-approval-option-index {
   background: var(
     --inline-approval-option-selected-index-bg,
-    var(--color-text-strong)
+    var(--color-token-foreground)
   );
-  color: var(--inline-approval-option-selected-index-color, var(--color-bg));
+  color: var(--inline-approval-option-selected-index-color, var(--color-token-main-surface-primary));
 }
 
 .inline-approval-option-custom-icon {
@@ -196,8 +196,8 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-full);
-  background: var(--color-bg-soft);
-  color: var(--color-text-meta);
+  background: var(--color-token-text-preformat-background);
+  color: var(--color-token-description-foreground);
   flex: 0 0 auto;
 }
 
@@ -208,8 +208,8 @@
 
 .inline-approval-option.custom.selected .inline-approval-option-custom-icon,
 .inline-approval-option.custom.filled .inline-approval-option-custom-icon {
-  background: var(--color-text-strong);
-  color: var(--color-bg);
+  background: var(--color-token-foreground);
+  color: var(--color-token-main-surface-primary);
 }
 
 .inline-approval-option.custom {
@@ -229,7 +229,7 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: var(--color-text-placeholder);
+  color: var(--color-token-input-placeholder-foreground);
 }
 
 .inline-approval-option-checkbox {
@@ -238,14 +238,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-color: var(--color-border);
+  border-color: var(--color-token-border);
   border-radius: var(--radius-2);
-  color: var(--color-bg);
+  color: var(--color-token-main-surface-primary);
   background: transparent;
 
   &.selected {
-    border-color: var(--color-text-strong);
-    background: var(--color-text-strong);
+    border-color: var(--color-token-foreground);
+    background: var(--color-token-foreground);
   }
 }
 
@@ -267,7 +267,7 @@
     --inline-approval-note-padding,
     var(--control-padding-block) var(--control-padding-inline)
   );
-  background: var(--inline-approval-note-bg, var(--color-bg));
+  background: var(--inline-approval-note-bg, var(--color-token-main-surface-primary));
   border: var(--inline-approval-note-border, 1px solid transparent);
   border-radius: var(--inline-approval-note-radius, var(--radius-5));
   transition:
@@ -275,20 +275,20 @@
     box-shadow 0.15s;
 
   &:hover {
-    background: var(--color-bg-soft);
+    background: var(--color-token-text-preformat-background);
   }
 
   &:focus-within {
-    border-color: var(--inline-approval-note-focus-border, var(--color-accent));
-    background: var(--color-bg);
+    border-color: var(--inline-approval-note-focus-border, var(--color-token-text-link-foreground));
+    background: var(--color-token-main-surface-primary);
     box-shadow: var(
       --inline-approval-note-focus-shadow,
-      0 0 0 3px var(--color-accent-a3)
+      0 0 0 3px var(--color-token-text-link-foreground)
     );
   }
 
   &.filled {
-    border-color: var(--color-border);
+    border-color: var(--color-token-border);
   }
 }
 
@@ -297,7 +297,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
 }
 
 .inline-approval-actions {
@@ -317,7 +317,7 @@
 }
 
 .inline-approval-option-hint {
-  color: var(--color-text-placeholder);
+  color: var(--color-token-input-placeholder-foreground);
   font-weight: 500;
 }
 
@@ -327,12 +327,12 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-full);
-  background: var(--color-bg-soft);
-  color: var(--color-text-meta);
+  background: var(--color-token-text-preformat-background);
+  color: var(--color-token-description-foreground);
   flex: 0 0 auto;
 
   &:hover {
-    color: var(--color-text-strong);
+    color: var(--color-token-foreground);
   }
 
   svg {
@@ -364,7 +364,7 @@
   line-height: 1.5;
 
   &::placeholder {
-    color: var(--color-text-placeholder);
+    color: var(--color-token-input-placeholder-foreground);
   }
 }
 
@@ -386,17 +386,17 @@
   overflow-wrap: anywhere;
 
   &::placeholder {
-    color: var(--color-text-placeholder);
+    color: var(--color-token-input-placeholder-foreground);
   }
 }
 
 .ask-user-question-error {
   margin: 0 12px;
   padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-token-error-foreground) 40%, transparent);
   border-radius: var(--radius-4);
-  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
-  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-token-error-foreground) 10%, transparent);
+  color: var(--color-token-error-foreground);
   font-size: var(--type-secondary);
   line-height: 1.4;
 }
@@ -414,7 +414,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--control-gap-compact);
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
   font-weight: var(--font-weight-label);
 }
@@ -422,10 +422,10 @@
 .inline-approval-footer-key {
   min-width: var(--control-size-sm);
   padding: 0.167em 0.5em;
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-3);
-  background: var(--color-bg-soft);
-  color: var(--color-text-soft);
+  background: var(--color-token-text-preformat-background);
+  color: var(--color-token-text-secondary);
   font-family: inherit;
   font-size: var(--type-caption);
   font-weight: var(--font-weight-emphasis);
@@ -438,7 +438,7 @@
   border: 0;
   border-radius: var(--radius-6);
   background: transparent;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-control);
   font-weight: 500;
   line-height: var(--control-line-height);
@@ -448,8 +448,8 @@
     color 0.15s;
 
   &:hover {
-    background: var(--color-bg-soft);
-    color: var(--color-text-soft);
+    background: var(--color-token-text-preformat-background);
+    color: var(--color-token-text-secondary);
   }
 }
 
@@ -462,10 +462,10 @@
     var(--control-padding-block)
       calc(var(--control-padding-inline) + var(--control-padding-inline))
   );
-  border: var(--inline-approval-submit-border, 1px solid var(--color-send-bg));
+  border: var(--inline-approval-submit-border, 1px solid var(--color-token-button-background));
   border-radius: var(--inline-approval-submit-radius, var(--radius-button));
-  background: var(--inline-approval-submit-bg, var(--color-send-bg));
-  color: var(--inline-approval-submit-color, var(--color-text-on-accent));
+  background: var(--inline-approval-submit-bg, var(--color-token-button-background));
+  color: var(--inline-approval-submit-color, var(--color-token-button-foreground));
   font-size: var(--type-control);
   font-weight: var(--font-weight-label);
   line-height: var(--control-line-height);
@@ -475,15 +475,15 @@
   &:hover {
     background: var(
       --inline-approval-submit-hover-bg,
-      var(--color-send-bg-hover)
+      var(--color-token-button-background)
     );
     border-color: var(
       --inline-approval-submit-hover-border,
-      var(--color-send-bg-hover)
+      var(--color-token-button-background)
     );
     color: var(
       --inline-approval-submit-hover-color,
-      var(--inline-approval-submit-color, var(--color-text-on-accent))
+      var(--inline-approval-submit-color, var(--color-token-button-foreground))
     );
   }
 }
@@ -493,10 +493,10 @@
 .workflow-composer-card {
   gap: 10px;
   padding: 10px;
-  border-color: var(--color-panel-border);
+  border-color: var(--color-token-border-light);
   border-radius: var(--radius-panel);
-  background: var(--color-panel-bg);
-  box-shadow: var(--color-panel-shadow-raised);
+  background: var(--color-token-bg-secondary);
+  box-shadow: var(--shadow-raised);
   animation: workflow-card-in 0.24s cubic-bezier(0.4, 0, 0.2, 1);
   transform-origin: bottom center;
 }
@@ -504,11 +504,11 @@
 .inline-approval-card[data-variant="question"],
 .inline-approval-card[data-variant="plan"] {
   --inline-approval-header-padding: 0;
-  --inline-approval-option-hover-bg: var(--state-hover-bg);
-  --inline-approval-option-selected-bg: var(--state-active-bg);
-  --inline-approval-option-selected-border: var(--color-border);
-  --inline-approval-option-selected-index-bg: var(--color-bg);
-  --inline-approval-option-selected-index-color: var(--color-text-strong);
+  --inline-approval-option-hover-bg: var(--color-token-list-hover-background);
+  --inline-approval-option-selected-bg: var(--color-token-list-active-selection-background);
+  --inline-approval-option-selected-border: var(--color-token-border);
+  --inline-approval-option-selected-index-bg: var(--color-token-main-surface-primary);
+  --inline-approval-option-selected-index-color: var(--color-token-foreground);
   display: flex;
   flex-direction: column;
 }
@@ -528,7 +528,7 @@
 
 .ask-user-question-heading {
   margin: 0;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
 }
 
 .exit-plan-mode-approval {
@@ -551,13 +551,13 @@
   margin: 0;
   font-size: var(--type-section-title);
   font-weight: var(--font-weight-label);
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
 }
 
 .exit-plan-mode-header p {
   margin: 0;
   font-size: var(--type-secondary);
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
 }
 
 .exit-plan-mode-icon {
@@ -567,15 +567,15 @@
   width: var(--control-size-md);
   height: var(--control-size-md);
   border-radius: 50%;
-  background: var(--color-accent-a3);
-  color: var(--color-accent-11);
+  background: var(--color-token-text-link-foreground);
+  color: var(--color-token-text-link-foreground);
   flex-shrink: 0;
 }
 
 .exit-plan-mode-empty {
   margin: 0;
   font-size: var(--type-secondary);
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
 }
 
 .exit-plan-mode-actions {
@@ -599,16 +599,16 @@
   font-size: var(--type-control);
   line-height: var(--control-line-height);
   cursor: pointer;
-  border: 1px solid var(--color-border-soft);
-  background: var(--color-bg);
-  color: var(--color-text-strong);
+  border: 1px solid var(--color-token-border-light);
+  background: var(--color-token-main-surface-primary);
+  color: var(--color-token-foreground);
   transition:
     background 120ms ease,
     border-color 120ms ease;
 
   &:hover {
-    background: var(--color-bg-hover);
-    border-color: var(--color-border);
+    background: var(--color-token-list-hover-background);
+    border-color: var(--color-token-border);
   }
 
   &.is-secondary {
@@ -616,13 +616,13 @@
   }
 
   &.is-primary {
-    background: var(--color-text-strong);
-    color: var(--color-bg);
-    border-color: var(--color-text-strong);
+    background: var(--color-token-foreground);
+    color: var(--color-token-main-surface-primary);
+    border-color: var(--color-token-foreground);
 
     &:hover {
-      background: var(--color-send-bg-hover);
-      border-color: var(--color-send-bg-hover);
+      background: var(--color-token-button-background);
+      border-color: var(--color-token-button-background);
     }
   }
 }
@@ -637,7 +637,7 @@
 
 .exit-plan-mode-title {
   margin: 0;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-card-title);
   font-weight: var(--font-weight-label);
   line-height: 1.6;
@@ -648,7 +648,7 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-control);
   font-weight: var(--font-weight-label);
   line-height: 1.6;
@@ -678,7 +678,7 @@
   border: 0;
   border-radius: var(--radius-6);
   background: transparent;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-control);
   font-weight: var(--font-weight-label);
   line-height: var(--control-line-height);
@@ -687,14 +687,14 @@
   transition: background 120ms ease;
 
   &:hover {
-    background: var(--inline-approval-option-hover-bg, var(--color-bg-hover));
+    background: var(--inline-approval-option-hover-bg, var(--color-token-list-hover-background));
   }
 
   &.selected {
     border-color: var(--inline-approval-option-selected-border, transparent);
     background: var(
       --inline-approval-option-selected-bg,
-      var(--color-bg-hover)
+      var(--color-token-list-hover-background)
     );
   }
 }
@@ -706,8 +706,8 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-full);
-  background: var(--color-bg-soft);
-  color: var(--color-text-meta);
+  background: var(--color-token-text-preformat-background);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-label);
 }
@@ -715,9 +715,9 @@
 .exit-plan-mode-option.selected .exit-plan-mode-badge {
   background: var(
     --inline-approval-option-selected-index-bg,
-    var(--color-text-strong)
+    var(--color-token-foreground)
   );
-  color: var(--inline-approval-option-selected-index-color, var(--color-bg));
+  color: var(--inline-approval-option-selected-index-color, var(--color-token-main-surface-primary));
 }
 
 .exit-plan-mode-label {
@@ -731,7 +731,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-secondary);
   font-weight: 500;
 
@@ -756,12 +756,12 @@
 
   &:hover,
   &:focus-within {
-    background: var(--color-bg-soft);
+    background: var(--color-token-text-preformat-background);
   }
 }
 
 .exit-plan-mode-note-icon {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   flex: 0 0 auto;
 }
 
@@ -772,7 +772,7 @@
   outline: 0;
   resize: none;
   background: transparent;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-family: inherit;
   font-size: var(--type-message);
   font-style: inherit;
@@ -781,7 +781,7 @@
   line-height: 1.5;
 
   &::placeholder {
-    color: var(--color-text-placeholder);
+    color: var(--color-token-input-placeholder-foreground);
   }
 }
 
@@ -793,7 +793,7 @@
   border: 0;
   border-radius: var(--radius-6);
   background: transparent;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-control);
   font-weight: 500;
   line-height: var(--control-line-height);
@@ -803,8 +803,8 @@
     color 0.15s;
 
   &:hover {
-    background: var(--color-bg-soft);
-    color: var(--color-text-soft);
+    background: var(--color-token-text-preformat-background);
+    color: var(--color-token-text-secondary);
   }
 }
 
@@ -816,8 +816,8 @@
   padding: var(--control-padding-block-compact)
     var(--control-padding-inline-compact);
   border-radius: var(--radius-4);
-  background: var(--color-bg-soft);
-  color: var(--color-text-soft);
+  background: var(--color-token-text-preformat-background);
+  color: var(--color-token-text-secondary);
   font-family: inherit;
   font-size: var(--type-caption);
   font-style: inherit;
@@ -838,8 +838,8 @@
   }
 
   &:hover {
-    background: var(--color-send-bg-hover);
-    border-color: var(--color-send-bg-hover);
+    background: var(--color-token-button-background);
+    border-color: var(--color-token-button-background);
   }
 }
 
@@ -856,69 +856,69 @@
 .workflow-composer-card-question,
 .workflow-composer-card-permission,
 .workflow-composer-card-plan {
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
 }
 
 .inline-approval-card[data-variant="permission"] {
   --inline-approval-card-gap: 8px;
   --inline-approval-card-padding: 16px 10px 10px;
-  --inline-approval-card-border: 1px solid var(--color-border-soft);
-  --inline-approval-card-bg: var(--color-panel-bg);
-  --inline-approval-card-shadow: var(--color-panel-shadow);
+  --inline-approval-card-border: 1px solid var(--color-token-border-light);
+  --inline-approval-card-bg: var(--color-token-bg-secondary);
+  --inline-approval-card-shadow: var(--shadow-float);
   --inline-approval-header-padding: 0 12px 2px;
   --inline-approval-summary-padding: 0;
   --inline-approval-command-preview-padding: 10px 12px;
   --inline-approval-command-preview-border: 1px solid
-    color-mix(in srgb, var(--color-border-soft) 70%, transparent);
+    color-mix(in srgb, var(--color-token-border-light) 70%, transparent);
   --inline-approval-command-preview-radius: var(--radius-5);
   --inline-approval-command-preview-bg: color-mix(
     in srgb,
-    var(--color-bg-soft) 72%,
-    var(--color-panel-bg)
+    var(--color-token-text-preformat-background) 72%,
+    var(--color-token-bg-secondary)
   );
   --inline-approval-command-max-height: 96px;
   --inline-approval-command-expanded-max-height: min(34vh, 360px);
   --inline-approval-note-padding: var(--control-padding-block-compact)
     var(--control-padding-inline);
-  --inline-approval-note-border: 1px solid var(--color-border-soft);
+  --inline-approval-note-border: 1px solid var(--color-token-border-light);
   --inline-approval-note-radius: var(--radius-5);
   --inline-approval-note-bg: color-mix(
     in srgb,
-    var(--color-bg) 74%,
+    var(--color-token-main-surface-primary) 74%,
     transparent
   );
-  --inline-approval-note-focus-border: var(--color-accent);
-  --inline-approval-note-focus-shadow: 0 0 0 2px var(--color-accent-a3);
+  --inline-approval-note-focus-border: var(--color-token-text-link-foreground);
+  --inline-approval-note-focus-shadow: 0 0 0 2px var(--color-token-text-link-foreground);
   --inline-approval-actions-gap: var(--control-gap-compact);
   --inline-approval-option-selected-bg: color-mix(
     in srgb,
-    var(--color-text-strong) 8%,
+    var(--color-token-foreground) 8%,
     transparent
   );
   --inline-approval-option-index-bg: color-mix(
     in srgb,
-    var(--color-text-strong) 12%,
+    var(--color-token-foreground) 12%,
     transparent
   );
-  --inline-approval-option-index-color: var(--color-text-soft);
+  --inline-approval-option-index-color: var(--color-token-text-secondary);
   --inline-approval-submit-padding: var(--control-padding-block)
     var(--control-padding-inline);
   --inline-approval-submit-border: 1px solid
-    color-mix(in srgb, var(--color-text-strong) 18%, transparent);
+    color-mix(in srgb, var(--color-token-foreground) 18%, transparent);
   --inline-approval-submit-radius: var(--radius-full);
-  --inline-approval-submit-bg: var(--color-text-strong);
-  --inline-approval-submit-color: var(--color-bg);
+  --inline-approval-submit-bg: var(--color-token-foreground);
+  --inline-approval-submit-color: var(--color-token-main-surface-primary);
   --inline-approval-submit-hover-bg: color-mix(
     in srgb,
-    var(--color-text-strong) 88%,
-    var(--color-bg)
+    var(--color-token-foreground) 88%,
+    var(--color-token-main-surface-primary)
   );
   --inline-approval-submit-hover-border: color-mix(
     in srgb,
-    var(--color-text-strong) 26%,
+    var(--color-token-foreground) 26%,
     transparent
   );
-  --inline-approval-submit-hover-color: var(--color-bg);
+  --inline-approval-submit-hover-color: var(--color-token-main-surface-primary);
   display: flex;
   flex-direction: column;
 }
@@ -930,18 +930,18 @@
 .workflow-composer-card-plan .exit-plan-mode-info,
 .workflow-composer-card-plan .exit-plan-mode-note-icon,
 .workflow-composer-card-plan .exit-plan-mode-skip {
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
 }
 
 .workflow-composer-card-question .ask-user-question-custom-input::placeholder,
 .workflow-composer-card-question .inline-approval-feedback-input::placeholder,
 .workflow-composer-card-plan .exit-plan-mode-note-input::placeholder {
-  color: var(--color-text-mute);
+  color: var(--color-token-text-tertiary);
 }
 
 .workflow-composer-card-question .inline-approval-option.custom:focus-within,
 .workflow-composer-card-question .inline-approval-option.custom.focused {
-  border: 1px solid var(--color-accent);
+  border: 1px solid var(--color-token-text-link-foreground);
 }
 
 .ask-user-question-approval,
@@ -956,7 +956,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
 }
 
@@ -995,7 +995,7 @@
 
 .ask-user-question-block + .ask-user-question-block {
   padding-top: 10px;
-  border-top: 1px solid var(--color-border-faint);
+  border-top: 1px solid var(--color-token-border-light);
 }
 
 .ask-user-question-navigation {
@@ -1010,9 +1010,9 @@
   gap: var(--control-gap-compact);
   padding: var(--control-padding-block) var(--control-padding-inline);
 
-  background: var(--color-ink);
+  background: var(--color-token-foreground);
   border-radius: var(--radius-6);
-  color: var(--color-bg);
+  color: var(--color-token-main-surface-primary);
 
   font-size: var(--type-control);
   line-height: var(--control-line-height);
@@ -1050,7 +1050,7 @@
 
 .workflow-composer-card-question .inline-approval-footer,
 .workflow-composer-card-question .inline-approval-footer-split {
-  border-top: 1px solid var(--color-border-faint);
+  border-top: 1px solid var(--color-token-border-light);
   padding: 10px 0 0;
 }
 
@@ -1059,18 +1059,18 @@
 }
 
 .workflow-composer-card-permission .inline-approval-command-preview-header {
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
 }
 
 .workflow-composer-card-permission .inline-approval-header h2 {
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-weight: var(--font-weight-label);
   line-height: 1.5;
 }
 
 .workflow-composer-card-permission .inline-approval-command {
   padding: 0;
-  color: var(--color-text-soft);
+  color: var(--color-token-text-secondary);
   max-height: 2.15em;
 }
 
@@ -1081,7 +1081,7 @@
 .workflow-composer-card-permission .inline-approval-option {
   padding: var(--control-padding-block-compact) var(--control-padding-inline);
   border-radius: var(--radius-4);
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
 }
 
 .workflow-composer-card-permission .inline-approval-fixed-option {
@@ -1098,7 +1098,7 @@
 .workflow-composer-card-permission .inline-approval-skip {
   padding: var(--control-padding-block-compact) var(--control-padding-inline);
   border-radius: var(--radius-4);
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
 }
 
 .workflow-composer-card-plan .exit-plan-mode-options {
@@ -1136,8 +1136,8 @@
 }
 
 .workflow-composer-card .md-body :not(pre) > code {
-  border: 1px solid var(--border-control);
-  background: var(--surface-code-inline);
-  color: var(--color-text-strong);
+  border: 1px solid var(--color-token-border);
+  background: var(--color-token-text-preformat-background);
+  color: var(--color-token-foreground);
 }
 

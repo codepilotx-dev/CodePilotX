@@ -11,7 +11,10 @@ import type {
 } from '../../../../shared/types.js'
 import { hasBlockingComposerAttachmentErrors } from '../../../../shared/desktopUserMessage.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { getVisiblePermissionModeOptions } from '../../settings/settingsStorage.js'
+import {
+  getVisiblePermissionModeOptions,
+  permissionConfigForMode,
+} from '../../settings/settingsStorage.js'
 import type { Message } from '../../../uiTypes.js'
 import type {
   ComposerDraft,
@@ -23,6 +26,7 @@ import type {
 import { createComposerDocument } from './composerTypes.js'
 import { executeComposerSubmitTransaction } from './composerSubmitTransaction.js'
 import { composerDraftStore } from './composerDraftStore.js'
+import { ensureSandboxReady } from './sandboxPreflight.js'
 
 type ControllerOptions = {
   input: string
@@ -235,6 +239,21 @@ export function useDesktopComposerController({
     const snapshot: ComposerDraftContentSnapshot = {
       text: input,
       attachments: [...attachments],
+    }
+
+    const sandbox = await ensureSandboxReady(
+      permissionConfigForMode(effectivePermissionMode),
+    )
+    if (sandbox.ready === false) {
+      const failureOutcome: ComposerSubmitOutcome = {
+        status: 'failed',
+        phase: 'prepare',
+        message: sandbox.message,
+        sessionId: routedSessionId,
+      }
+      setLastSubmitOutcome(failureOutcome)
+      composerDraftStore.setSubmitOutcome(sourceDraftKey, failureOutcome)
+      return
     }
 
     if (goalModeEnabled && placement !== 'new-session' && routedSessionId) {
@@ -533,7 +552,7 @@ export function getDesktopComposerBranchName(
 }
 
 function sessionPath(sessionId: string): string {
-  return `/sessions/${encodeURIComponent(sessionId)}`
+  return `/threads/${encodeURIComponent(sessionId)}`
 }
 
 function errorMessageOf(error: unknown): string {

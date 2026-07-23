@@ -15,6 +15,7 @@
 
 @layer tokens {
   @include meta.load-css('design-system/tokens');
+  @include meta.load-css('design-system/codex-semantic-tokens');
 }
 
 @layer primitives {
@@ -69,6 +70,7 @@
   @include meta.load-css('features/automation');
   @include meta.load-css('features/model-center');
   @include meta.load-css('features/file-editor');
+  @include meta.load-css('features/labs');
   @include meta.load-css('model-menu-pilot');
 }
 

@@ -29,11 +29,14 @@
     "--button-padding",
     "--inline-approval-card-margin-bottom",
     "--inline-approval-card-radius",
-    "--popover-overflow-x"
+    "--popover-overflow-x",
+    "--radix-select-trigger-width"
   ],
   "importantDeclarationAllowlist": {
     "src/styles/base.scss": 12,
     "src/styles/popover.scss": 1
   },
-  "dataThemeSelectorAllowlist": {}
+  "dataThemeSelectorAllowlist": {
+    "src/styles/features/model-center.scss": 2
+  }
 }

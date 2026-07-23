@@ -2,9 +2,14 @@ import { forwardRef } from 'react'
 import type React from 'react'
 import { cx } from '../../utils/cx.js'
 
-export type ButtonVariant = 'secondary' | 'primary' | 'ghost' | 'link'
-export type ButtonSize = 'sm' | 'md' | 'icon' | 'compact' | 'toolbar'
-export type ButtonTone = 'default' | 'danger'
+export type ButtonVariant =
+  | 'secondary'
+  | 'primary'
+  | 'ghost'
+  | 'outline'
+  | 'link'
+export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon' | 'compact' | 'toolbar'
+export type ButtonTone = 'default' | 'neutral' | 'accent' | 'danger'
 
 type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   loading?: boolean
@@ -16,6 +21,7 @@ type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 const SIZE_CLASSES: Record<ButtonSize, string> = {
   sm: 'u-type-control',
   md: 'u-type-control',
+  lg: 'u-type-control',
   icon: 'u-type-control',
   compact: '',
   toolbar: 'u-type-control',
@@ -42,7 +48,6 @@ export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
       aria-busy={loading || undefined}
       className={cx(
         'ui-button',
-        'settings-button',
         'u-inline-flex',
         'u-items-center',
         'u-justify-center',

@@ -2,7 +2,7 @@
 .workflow-page {
   --workflow-content-width: min(820px, calc(100vw - 96px));
   --workflow-dock-width: min(980px, calc(100vw - 96px));
-  background: var(--color-bg);
+  background: var(--color-token-main-surface-primary);
   overflow: hidden;
 }
 
@@ -72,11 +72,11 @@
     padding: 4px 0;
     border: 0;
     background: transparent;
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
 
     &:hover {
       background: transparent;
-      color: var(--color-text);
+      color: var(--color-token-foreground);
     }
   }
 
@@ -85,7 +85,7 @@
   }
 
   .timeline-command-shell {
-    background: var(--color-bg-soft);
+    background: var(--color-token-text-preformat-background);
   }
 
   .timeline-file-event {
@@ -111,12 +111,12 @@
   flex-direction: column;
   gap: 10px;
   padding: 15px;
-  border: 1px solid var(--color-panel-border);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-panel);
-  background: var(--color-panel-elevated-bg);
-  color: var(--color-text-strong);
+  background: var(--color-token-editor-widget-background);
+  color: var(--color-token-foreground);
   font-size: var(--type-body);
-  box-shadow: var(--color-panel-shadow-raised);
+  box-shadow: var(--shadow-raised);
   animation: workflow-item-in 0.28s ease-out;
 }
 
@@ -135,7 +135,7 @@
 }
 
 .workflow-plan-card__label {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
   font-weight: 500;
 }
@@ -149,21 +149,21 @@
   border: 0;
   border-radius: var(--radius-3);
   background: transparent;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   cursor: pointer;
   transition:
     background 0.15s ease-out,
     color 0.15s ease-out;
 
   &:hover {
-    background: var(--color-bg-hover);
-    color: var(--color-text-strong);
+    background: var(--color-token-list-hover-background);
+    color: var(--color-token-foreground);
   }
 }
 
 .workflow-plan-card__title {
   margin: 0;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-title-lg);
   font-weight: var(--font-weight-heading);
   line-height: 1.35;
@@ -183,14 +183,14 @@
     height: 40px;
     background: color-mix(
       in srgb,
-      var(--color-panel-elevated-bg) 88%,
+      var(--color-token-editor-widget-background) 88%,
       transparent
     );
   }
 }
 
 .workflow-plan-card__body .md-body {
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-message);
 
   h1:first-child {
@@ -217,8 +217,8 @@
     border-radius: var(--radius-2);
     background: color-mix(
       in srgb,
-      var(--color-bg) 72%,
-      var(--color-border-soft)
+      var(--color-token-main-surface-primary) 72%,
+      var(--color-token-border-light)
     );
   }
 }
@@ -239,12 +239,12 @@
     calc(var(--control-padding-inline) + var(--control-padding-inline-compact));
   border: 0;
   background: transparent;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   cursor: pointer;
   text-align: left;
 
   &:hover {
-    background: var(--color-bg-hover);
+    background: var(--color-token-list-hover-background);
   }
 }
 
@@ -273,10 +273,10 @@
   display: grid;
   gap: 8px;
   padding: 10px;
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-4);
-  background: var(--color-bg-soft);
-  color: var(--color-text);
+  background: var(--color-token-text-preformat-background);
+  color: var(--color-token-foreground);
   font-size: var(--type-body);
 }
 
@@ -290,7 +290,7 @@
 
 .workflow-debug-timeline-header span,
 .workflow-debug-event-header strong {
-  color: var(--color-text);
+  color: var(--color-token-foreground);
   font-weight: var(--font-weight-label);
 }
 
@@ -303,7 +303,7 @@
 .workflow-debug-timeline-header small,
 .workflow-debug-event-header time,
 .workflow-debug-empty {
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
 }
 
@@ -323,31 +323,31 @@
   display: grid;
   gap: 8px;
   padding: 8px;
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-3);
-  background: var(--color-surface);
+  background: var(--color-token-main-surface-primary);
 
   &.error {
     border-color: color-mix(
       in srgb,
-      var(--color-diff-removed) 55%,
-      var(--color-border-soft)
+      var(--color-token-git-decoration-deleted-resource-foreground) 55%,
+      var(--color-token-border-light)
     );
   }
 
   &.success {
     border-color: color-mix(
       in srgb,
-      var(--color-diff-added) 45%,
-      var(--color-border-soft)
+      var(--color-token-git-decoration-added-resource-foreground) 45%,
+      var(--color-token-border-light)
     );
   }
 
   &.warning {
     border-color: color-mix(
       in srgb,
-      var(--color-warning) 45%,
-      var(--color-border-soft)
+      var(--color-token-editor-warning-foreground) 45%,
+      var(--color-token-border-light)
     );
   }
 }
@@ -359,13 +359,13 @@
   align-items: start;
 
   span {
-    color: var(--color-text-meta);
+    color: var(--color-token-description-foreground);
     font-size: var(--type-meta);
   }
 
   code {
     overflow: hidden;
-    color: var(--color-text-soft);
+    color: var(--color-token-text-secondary);
     font-family: var(--font-family-mono);
     font-size: var(--type-code);
     text-overflow: ellipsis;
@@ -397,12 +397,12 @@
 }
 
 .workflow-plan-card {
-  border-color: var(--border-subtle);
-  background: var(--surface-panel);
+  border-color: var(--color-token-border-light);
+  background: var(--color-token-bg-secondary);
 }
 
 .workflow-plan-card__body .md-body code:not(pre code) {
-  border: 1px solid var(--border-control);
-  background: var(--surface-code-inline);
-  color: var(--color-text-strong);
+  border: 1px solid var(--color-token-border);
+  background: var(--color-token-text-preformat-background);
+  color: var(--color-token-foreground);
 }

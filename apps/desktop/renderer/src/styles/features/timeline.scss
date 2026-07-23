@@ -86,8 +86,8 @@
     background: linear-gradient(
       to bottom,
       transparent,
-      color-mix(in srgb, var(--color-bg) 88%, transparent) 32px,
-      var(--color-bg) 100%
+      color-mix(in srgb, var(--color-token-main-surface-primary) 88%, transparent) 32px,
+      var(--color-token-main-surface-primary) 100%
     );
   }
 
@@ -240,11 +240,11 @@
   gap: 6px;
   min-height: var(--control-size-sm);
   padding: 5px 10px;
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-token-border-light);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-panel-bg) 94%, transparent);
+  background: color-mix(in srgb, var(--color-token-bg-secondary) 94%, transparent);
   box-shadow: var(--shadow-card);
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   font-size: var(--type-meta);
   font-weight: var(--font-weight-label);
   cursor: pointer;
@@ -256,13 +256,13 @@
     transform 120ms ease-out;
 
   &:hover {
-    border-color: var(--color-border);
-    background: var(--color-panel-bg);
+    border-color: var(--color-token-border);
+    background: var(--color-token-bg-secondary);
     transform: translateY(-1px);
   }
 
   &:focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 2px solid var(--color-token-text-link-foreground);
     outline-offset: 2px;
   }
 }
@@ -281,7 +281,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   font-size: var(--type-meta);
   font-weight: var(--font-weight-label, 500);
   user-select: none;
@@ -292,7 +292,7 @@
     display: block;
     height: 1px;
     width: 24px;
-    background: var(--color-border-soft);
+    background: var(--color-token-border-light);
   }
 
   &::after {
@@ -406,8 +406,8 @@
   mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    var(--color-ink) 40px,
-    var(--color-ink) calc(100% - 40px),
+    var(--color-token-foreground) 40px,
+    var(--color-token-foreground) calc(100% - 40px),
     transparent 100%
   );
 
@@ -435,7 +435,7 @@
   outline: none;
 
   &:focus-visible {
-    outline: 1px solid var(--color-accent);
+    outline: 1px solid var(--color-token-text-link-foreground);
     outline-offset: 2px;
     border-radius: 2px;
   }
@@ -446,7 +446,7 @@
   width: 26px;
   height: 2px;
   border-radius: 1px;
-  background: var(--color-text-meta, var(--color-text-soft));
+  background: var(--color-token-description-foreground, var(--color-token-text-secondary));
   opacity: 0.4;
   transform: scaleX(0.230769);
   transform-origin: left center;
@@ -467,7 +467,7 @@
   )
   .conversation-turn-nav-marker {
   opacity: 1;
-  background: var(--color-text-strong, var(--color-text));
+  background: var(--color-token-foreground, var(--color-token-foreground));
   transform: scaleX(1);
 }
 
@@ -533,20 +533,20 @@
   width: 320px;
   max-width: calc(100vw - 16px);
   padding: 8px;
-  border: 0.5px solid var(--color-popover-border, var(--color-border-soft));
+  border: 0.5px solid var(--color-token-menu-border, var(--color-token-border-light));
   border-radius: 12px;
-  background-color: var(--color-popover-bg, var(--surface-raised));
+  background-color: var(--color-token-menu-background, var(--color-token-editor-widget-background));
   background-color: color-mix(
     in srgb,
-    var(--color-popover-bg, var(--surface-raised)) 95%,
+    var(--color-token-menu-background, var(--color-token-editor-widget-background)) 95%,
     transparent
   );
-  color: var(--color-text);
+  color: var(--color-token-foreground);
   font-size: 12px;
   line-height: 20px;
   box-shadow:
     0 8px 16px -4px
-    color-mix(in srgb, var(--color-ink) 12%, transparent);
+    color-mix(in srgb, var(--color-token-foreground) 12%, transparent);
   backdrop-filter: blur(8px);
 }
 
@@ -554,7 +554,7 @@
   font-weight: 500;
   font-size: 12px;
   line-height: 20px;
-  color: var(--color-text-strong);
+  color: var(--color-token-foreground);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -565,7 +565,7 @@
   margin-top: 4px;
   font-size: 12px;
   line-height: 20px;
-  color: var(--color-text-meta);
+  color: var(--color-token-description-foreground);
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
@@ -594,7 +594,7 @@
     font-size: var(--type-code);
     padding: 0 4px;
     border-radius: 3px;
-    background: color-mix(in srgb, var(--color-text-meta) 10%, transparent);
+    background: color-mix(in srgb, var(--color-token-description-foreground) 10%, transparent);
   }
 
   a {
@@ -613,7 +613,7 @@
   margin-top: 8px;
   font-size: 12px;
   line-height: 20px;
-  color: var(--color-text-mute, var(--color-text-meta));
+  color: var(--color-token-text-tertiary, var(--color-token-description-foreground));
   white-space: nowrap;
   overflow: hidden;
 }
@@ -655,20 +655,20 @@
 
 :root[data-glass-surfaces="on"] {
   .conversation-turn-preview-card {
-    color: var(--glass-surface-text, var(--color-text));
+    color: var(--glass-surface-text, var(--color-token-foreground));
   }
 
   .preview-card-user-text {
-    color: var(--glass-surface-text, var(--color-text-strong));
+    color: var(--glass-surface-text, var(--color-token-foreground));
   }
 
   .preview-card-assistant-text {
-    color: var(--glass-surface-text-meta, var(--color-text-meta));
+    color: var(--glass-surface-text-meta, var(--color-token-description-foreground));
   }
 
   .preview-card-files,
   .preview-card-outputs {
-    color: var(--glass-surface-text-meta, var(--color-text-meta));
+    color: var(--glass-surface-text-meta, var(--color-token-description-foreground));
   }
 }
 
