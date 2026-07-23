@@ -369,6 +369,9 @@ function applyItemDelta(
   let changed = false
   const items = snapshot.items.map((item): Item => {
     if (item.id !== itemId) return item
+    if ((item.type === "text" || item.type === "reasoning") && item.status !== "streaming") return item
+    if (item.type === "tool" && item.state !== "running") return item
+    if (item.type === "plan" && item.state !== "draft") return item
     if (method === "item/agentMessage/delta" && item.type === "text") {
       changed = true
       return { ...item, text: `${item.text}${delta}`, status: "streaming" }

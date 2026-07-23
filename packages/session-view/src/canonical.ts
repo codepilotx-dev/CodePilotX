@@ -413,6 +413,9 @@ function appendItemDelta(
     else if (kind === "plan") state.itemsById.set(itemId, { ...base, type: "plan", title: "计划", markdown: delta, version: 0, state: "draft" })
     return
   }
+  if ((existing.type === "text" || existing.type === "reasoning") && existing.status !== "streaming") return
+  if (existing.type === "tool" && existing.state !== "running") return
+  if (existing.type === "plan" && existing.state !== "draft") return
   if (kind === "text" && existing.type === "text") state.itemsById.set(itemId, { ...existing, text: existing.text + delta, status: "streaming" })
   else if (kind === "reasoning" && existing.type === "reasoning") state.itemsById.set(itemId, { ...existing, text: existing.text + delta, status: "streaming" })
   else if (kind === "plan" && existing.type === "plan") state.itemsById.set(itemId, { ...existing, markdown: existing.markdown + delta, state: "draft" })

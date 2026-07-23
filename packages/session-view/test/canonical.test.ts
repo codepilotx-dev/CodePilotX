@@ -200,6 +200,15 @@ describe("canonical thread state", () => {
       delta: " stale",
     }, 10)
     expect(applyThreadEnvelope(completed, stale)).toBe(completed)
+
+    const sameAnchor = live("live-same-anchor", "item/agentMessage/delta", {
+      itemId: streaming.id,
+      turnId: activeTurn.id,
+      agentId: streaming.agentId,
+      delta: " duplicate",
+    }, 11)
+    const protectedTerminal = applyThreadEnvelope(completed, sameAnchor)
+    expect(protectedTerminal.itemsById.get(streaming.id)).toEqual(terminal)
   })
 
   test("upserts a missing turn from turn/started and ignores replayed durable sequences", () => {
