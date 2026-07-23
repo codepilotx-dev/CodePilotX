@@ -30,12 +30,15 @@ describe("PetService", () => {
           spritesheetPath: "spritesheet.png",
         }),
       ),
-      "https://example.com/pets/whale/spritesheet.png": new Response(atlas, {
+      "https://example.com/pets/whale/spritesheet.png": new Response(
+        responseBody(atlas),
+        {
         headers: {
           "Content-Type": "image/png",
           "Content-Length": String(atlas.byteLength),
         },
-      }),
+        },
+      ),
     })
     const service = new PetService(root)
 
@@ -84,7 +87,7 @@ describe("PetService", () => {
           spritesheetPath: "spritesheet.png",
         }),
       ),
-      "https://example.com/spritesheet.png": new Response(atlas, {
+      "https://example.com/spritesheet.png": new Response(responseBody(atlas), {
         headers: { "Content-Type": "image/png" },
       }),
     })
@@ -107,6 +110,13 @@ function fakePng(width: number, height: number): Uint8Array {
   view.setUint32(16, width)
   view.setUint32(20, height)
   return bytes
+}
+
+function responseBody(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer
 }
 
 function mockFetch(

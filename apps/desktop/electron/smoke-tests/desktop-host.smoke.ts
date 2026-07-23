@@ -11,6 +11,8 @@ import {
   type Page,
 } from "@playwright/test"
 import type { DesktopThemeSettingsV5 } from "@codepilotx/shared/desktop-theme"
+import type { DesktopPetPresentation } from "@codepilotx/shared/desktop-pet-overlay"
+import type { DesktopSettingsPayload } from "@codepilotx/shared/desktop-settings-ipc"
 
 declare global {
   interface Window {
@@ -27,6 +29,20 @@ declare global {
       updatePetDrag(): void
       endPetDrag(): void
       setPetPointerPassthrough(passthrough: boolean): void
+      previewPetPresentation(
+        presentation: DesktopPetPresentation,
+      ): Promise<DesktopPetPresentation>
+      onPetPresentationPreview(
+        listener: (presentation: DesktopPetPresentation) => void,
+      ): () => void
+      getPetGlobalPointerPosition(): Promise<{ x: number; y: number }>
+      getDesktopSettings(): Promise<DesktopSettingsPayload>
+      saveDesktopSettings(
+        settings: DesktopSettingsPayload,
+      ): Promise<DesktopSettingsPayload>
+      onDesktopSettingsChange(
+        listener: (settings: DesktopSettingsPayload) => void,
+      ): () => void
     }
   }
 }
@@ -84,12 +100,87 @@ test.describe("真实 Electron 宿主", () => {
         hasPointerBridge:
           typeof window.codePilotXDesktop.setPetPointerPassthrough ===
           "function",
+        hasPresentationBridge:
+          typeof window.codePilotXDesktop.onPetPresentationPreview ===
+          "function",
+        hasGlobalPointerBridge:
+          typeof window.codePilotXDesktop.getPetGlobalPointerPosition ===
+          "function",
       })),
     ).toEqual({
       hasDesktopBridge: true,
       hasDragBridge: true,
+      hasGlobalPointerBridge: true,
       hasPointerBridge: true,
+      hasPresentationBridge: true,
     })
+    const presentationPreview = overlayPage.evaluate(
+      () =>
+        new Promise<DesktopPetPresentation>(resolve => {
+          const unsubscribe =
+            window.codePilotXDesktop.onPetPresentationPreview(value => {
+              unsubscribe()
+              resolve(value)
+            })
+        }),
+    )
+    expect(
+      await page.evaluate(() =>
+        window.codePilotXDesktop.previewPetPresentation({
+          selectedPetId: "smoke-pet",
+          size: 500,
+        }),
+      ),
+    ).toEqual({ selectedPetId: "smoke-pet", size: 224 })
+    await expect(presentationPreview)
+      .resolves.toEqual({ selectedPetId: "smoke-pet", size: 224 })
+    expect(
+      await overlayPage.evaluate(() =>
+        window.codePilotXDesktop.getPetGlobalPointerPosition(),
+      ),
+    ).toEqual({
+      x: expect.any(Number),
+      y: expect.any(Number),
+    })
+    await expect(
+      page.evaluate(() =>
+        window.codePilotXDesktop.getPetGlobalPointerPosition(),
+      ),
+    ).rejects.toThrow("IPC 调用来源无效")
+    const settingsChanged = page.evaluate(
+      () =>
+        new Promise<DesktopSettingsPayload>(resolve => {
+          const unsubscribe =
+            window.codePilotXDesktop.onDesktopSettingsChange(value => {
+              unsubscribe()
+              resolve(value)
+            })
+        }),
+    )
+    const overlaySettingsChanged = overlayPage.evaluate(
+      () =>
+        new Promise<DesktopSettingsPayload>(resolve => {
+          const unsubscribe =
+            window.codePilotXDesktop.onDesktopSettingsChange(value => {
+              unsubscribe()
+              resolve(value)
+            })
+        }),
+    )
+    const currentDesktopSettings = await page.evaluate(() =>
+      window.codePilotXDesktop.getDesktopSettings(),
+    )
+    await expect(
+      overlayPage.evaluate(value =>
+        window.codePilotXDesktop.saveDesktopSettings(value), currentDesktopSettings),
+    ).rejects.toThrow("IPC 调用来源无效")
+    await page.evaluate(
+      value => window.codePilotXDesktop.saveDesktopSettings(value),
+      currentDesktopSettings,
+    )
+    await expect(settingsChanged).resolves.toEqual(currentDesktopSettings)
+    await expect(overlaySettingsChanged)
+      .resolves.toEqual(currentDesktopSettings)
     await overlayPage.evaluate(() => {
       window.codePilotXDesktop.setPetPointerPassthrough(false)
       window.codePilotXDesktop.beginPetDrag()
@@ -105,6 +196,12 @@ test.describe("真实 Electron 宿主", () => {
       )
       .toMatchObject({ open: true })
     await page.evaluate(() => window.codePilotXDesktop.hidePetOverlay())
+    await page.evaluate(() =>
+      window.codePilotXDesktop.previewPetPresentation({
+        selectedPetId: null,
+        size: 112,
+      }),
+    )
     await expect
       .poll(() =>
         page.evaluate(() =>

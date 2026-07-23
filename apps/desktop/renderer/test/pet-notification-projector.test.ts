@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import type { DesktopSessionSnapshot } from "../shared/types"
 import { defaultDesktopStoredSettings } from "../shared/settingsSchema"
-import { projectPetNotifications } from "../src/features/pet/petNotificationProjector"
+import {
+  projectPetNotifications,
+  resolvePetReplyDelivery,
+} from "../src/features/pet/petNotificationProjector"
 
 function snapshot(
   id: string,
@@ -37,20 +40,29 @@ function snapshot(
   }
 }
 
+test("routes active replies to follow-up and idle replies to a message", () => {
+  expect(resolvePetReplyDelivery("running", false)).toBe("follow-up")
+  expect(resolvePetReplyDelivery("waiting", false)).toBe("follow-up")
+  expect(resolvePetReplyDelivery("queued", false)).toBe("follow-up")
+  expect(resolvePetReplyDelivery("done", false)).toBe("message")
+  expect(resolvePetReplyDelivery("idle", true)).toBe("follow-up")
+})
+
 describe("pet notification projector", () => {
   const preferences = defaultDesktopStoredSettings().pet
 
   test("prioritizes questions and keeps stable blocker IDs", () => {
+    const questionRequest = {
+      requestId: "question-1",
+      toolName: "AskUserQuestion",
+      input: {},
+      description: "请选择一个选项",
+    }
     const notifications = projectPetNotifications({
       previous: [],
       current: [
         snapshot("thread-1", "waiting", [
-          {
-            requestId: "question-1",
-            toolName: "AskUserQuestion",
-            input: {},
-            description: "请选择一个选项",
-          },
+          questionRequest,
           {
             requestId: "approval-1",
             toolName: "PowerShell",
@@ -68,6 +80,7 @@ describe("pet notification projector", () => {
       ["thread-1:question-1", "question"],
       ["thread-1:approval-1", "exec"],
     ])
+    expect(notifications[0]?.request).toBe(questionRequest)
   })
 
   test("emits transition notifications and respects dismissal", () => {
