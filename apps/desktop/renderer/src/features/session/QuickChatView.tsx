@@ -1,4 +1,3 @@
-import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import type { DesktopWorkspace } from "../../../shared/types.js";
@@ -171,9 +170,7 @@ export function QuickChatView(): React.ReactNode {
       >
         <section className="quick-chat-hero-region">
           <div className="quick-chat-hero">
-            <span aria-hidden className="quick-chat-mark">
-              <Sparkles size={32} strokeWidth={1.5} />
-            </span>
+            <span aria-hidden className="quick-chat-mark" />
             {headingUsesProject ? (
               <h1>
                 我们应该在{" "}

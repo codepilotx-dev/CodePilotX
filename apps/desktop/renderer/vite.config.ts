@@ -58,6 +58,11 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    fs: {
+      allow: [
+        resolve(__dirname, '..', 'build'),
+      ],
+    },
     strictPort: true,
     hmr: {
       protocol: 'ws',
