@@ -58,6 +58,7 @@
   @include meta.load-css('features/browser');
   @include meta.load-css('features/review');
   @include meta.load-css('features/timeline');
+  @include meta.load-css('features/canonical-conversation');
   @include meta.load-css('features/settings-core');
   @include meta.load-css('features/settings-profile');
   @include meta.load-css('features/settings-appearance');

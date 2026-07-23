@@ -66,7 +66,6 @@ import {
   type WorkflowConsistencyDiagnostics,
 } from "./workflowConsistency.js";
 import { desktopClient } from "../../services/desktopClient.js";
-import { submitReviewAction } from "./reviewAction.js";
 import { deriveReviewTurns } from "./reviewTurns.js";
 import type { Message } from "../../uiTypes.js";
 import { InlineApprovalCard } from "./InlineApprovalCard.js";
@@ -77,6 +76,7 @@ import {
 } from "./WorkflowPlanCard.js";
 import { parseAskUserQuestions } from "./AskUserQuestionApproval.js";
 import { MarkdownMessage } from "./MarkdownMessage.js";
+import { CollapsibleUserMarkdown } from "./CollapsibleUserMarkdown.js";
 import { ComposerFrame } from "./ComposerSurface.js";
 import { DesktopComposer } from "./DesktopComposer.js";
 import {
@@ -94,7 +94,7 @@ import {
   loadConversationUiState,
   saveConversationUiState,
 } from "../layout/conversationUiState.js";
-import { SessionTimelineView } from "./SessionTimelineView.js";
+import { CanonicalThreadView } from "./CanonicalThreadView.js";
 import { ThreadScrollLayout } from "./ThreadScrollLayout.js";
 import {
   ConversationTurnNavRail,
@@ -110,10 +110,8 @@ import {
 import { useThreadSummaryController } from "./threadSummaryState.js";
 import { deriveThreadSummaryViewModel } from "./threadSummaryViewModel.js";
 import { useConversationController } from "./useConversationController.js";
-import {
-  TimelineSystemNotice,
-  timelineItemSlot,
-} from "./TimelineItemView.js";
+import { useCanonicalThreadConversation } from "./useCanonicalThreadConversation.js";
+import { TimelineSystemNotice } from "./TimelineItemView.js";
 import {
   deriveAssistantActionMessageIds,
   deriveConversationTurnNavItems,
@@ -234,7 +232,6 @@ export function ConversationPage(): React.ReactNode {
     setDefaultOpenTargetId,
     diffMarkerStyle,
     reviewView,
-    model,
   } = useDesktopSettings();
   const [subagents, setSubagents] = React.useState<SubagentProjection[]>([]);
 
@@ -269,16 +266,11 @@ export function ConversationPage(): React.ReactNode {
     [activeSessionId, messages, workflowEvents],
   );
   const {
-    assistantActionMessageIds,
     debugAskUserQuestionRequest,
     debugPlanCardSummary,
-    phaseItems,
     setDebugAskUserQuestionRequest,
     setDebugPlanCardSummary,
-    showThinking,
     timelineEvents,
-    timelineItems,
-    turnNavItems,
     workflowDerivedState,
   } = useConversationController({
     activeSessionId,
@@ -289,6 +281,18 @@ export function ConversationPage(): React.ReactNode {
     sessionStatus,
     workflowEvents,
   });
+  const canonicalConversation = useCanonicalThreadConversation(activeSessionId);
+  const turnNavItems = React.useMemo<ConversationTurnNavItem[]>(
+    () => canonicalConversation.turns.map((entry, rowIndex) => ({
+      id: entry.id,
+      rowIndex,
+      userText: entry.userInputs.map((input) => input.content).join("\n"),
+      assistantText:
+        entry.assistantResultItems.map((item) => item.text).filter(Boolean).join("\n") || null,
+      files: entry.patchItems.flatMap((item) => item.files.map((file) => file.path)),
+    })),
+    [canonicalConversation.turns],
+  );
   const [sessionMenuOpen, setSessionMenuOpen] = React.useState(false);
   const [conversationSelectedText, setConversationSelectedText] =
     React.useState("");
@@ -428,46 +432,6 @@ export function ConversationPage(): React.ReactNode {
           createdAt: m.createdAt,
         })),
     [messages],
-  );
-  const handleRunCodeReview = React.useCallback(() => {
-    onOpenRightDock("review");
-    onRefreshDiff();
-    void submitReviewAction({
-      sessionId: activeSessionId,
-      gitStatus,
-      diff,
-      model,
-    });
-  }, [activeSessionId, diff, gitStatus, model, onOpenRightDock, onRefreshDiff]);
-  const handleDiscardChanges = React.useCallback(
-    async (paths: string[], turnRestoreId?: string | null) => {
-      if (!workspacePath) return;
-      if (paths.length === 0) return;
-      try {
-        const result =
-          turnRestoreId && activeSessionId
-            ? await desktopClient.restoreSessionTurnChanges({
-                sessionId: activeSessionId,
-                turnRestoreId,
-                paths,
-              })
-            : await desktopClient.discardWorkspaceChanges({
-                workspacePath,
-                paths,
-                includeUntracked: true,
-              });
-        if ("error" in result) {
-          window.alert(`放弃编辑失败：${result.error}`);
-          return;
-        }
-        onRefreshDiff();
-      } catch (error) {
-        window.alert(
-          `放弃编辑失败：${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-    },
-    [activeSessionId, onRefreshDiff, workspacePath],
   );
   const [workflowTimelineVisible, setWorkflowTimelineVisible] =
     React.useState(false);
@@ -1147,62 +1111,29 @@ export function ConversationPage(): React.ReactNode {
                               ))}
                             </div>
                           ) : null}
-                          <SessionTimelineView
-                            count={phaseItems.length + (showThinking ? 1 : 0)}
-                            initialScrollOffset={initialTimelineScrollTop}
-                            sessionKey={activeSessionId ?? undefined}
-                            scrollToBottom={
-                              sessionStatus === "running" ||
-                              sessionStatus === "waiting"
-                            }
-                            onScroll={handleTimelineScroll}
-                            listRef={timelineListRef}
-                            scrollRef={threadScrollRef}
-                          >
-                            {phaseItems.map((item) => (
-                              <div
-                                className="session-turn-row tw:mx-auto tw:w-full tw:max-w-[48rem] tw:min-w-0"
-                                data-component="session-turn"
-                                data-slot={timelineItemSlot(item)}
-                                data-turn-navigation-id={
-                                  item.type === "message" &&
-                                  item.role === "user"
-                                    ? item.id
-                                    : undefined
-                                }
-                                key={item.id}
-                              >
-                                <TimelineItem
-                                  item={item}
-                                  rightDockPlanEventId={rightDockPlanEventId}
-                                  showActions={
-                                    item.type === "message" &&
-                                    item.role === "assistant" &&
-                                    assistantActionMessageIds.has(item.id)
-                                  }
-                                  onOpenPlanInRightDock={onOpenPlanInRightDock}
-                                  onDiscardChanges={handleDiscardChanges}
-                                  onReviewCode={handleRunCodeReview}
-                                  onReviewFiles={openReviewSidebar}
-                                />
-                              </div>
-                            ))}
-                            {!isConversationLoading && showThinking ? (
-                              <div
-                                className="chat-thinking-pill session-turn-row"
-                                data-component="session-turn"
-                                data-slot="thinking"
-                                role="status"
-                                aria-live="polite"
-                              >
-                                <Sparkles
-                                  size={APP_ICON_SIZE}
-                                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                                />
-                                <span>正在思考</span>
-                              </div>
-                            ) : null}
-                          </SessionTimelineView>
+                          {activeSessionId ? (
+                            <CanonicalThreadView
+                              active={
+                                sessionStatus === "running" ||
+                                sessionStatus === "waiting"
+                              }
+                              error={canonicalConversation.error}
+                              hasOlder={canonicalConversation.hasOlder}
+                              initialScrollOffset={initialTimelineScrollTop}
+                              listRef={timelineListRef}
+                              loading={canonicalConversation.loading}
+                              loadingOlder={canonicalConversation.loadingOlder}
+                              onLoadOlder={canonicalConversation.loadOlder}
+                              onOpenPlanInRightDock={onOpenPlanInRightDock}
+                              onOpenSubagent={onOpenSubagent}
+                              onReload={canonicalConversation.reload}
+                              onScroll={handleTimelineScroll}
+                              rightDockPlanEventId={rightDockPlanEventId}
+                              scrollRef={threadScrollRef}
+                              threadId={activeSessionId}
+                              turns={canonicalConversation.turns}
+                            />
+                          ) : null}
                         </>
                       )}
                   </div>
@@ -2422,13 +2353,7 @@ function ChatMessage({
   const [isEditing, setIsEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(message.text);
   const [isSubmittingEdit, setIsSubmittingEdit] = React.useState(false);
-  const [isUserMessageExpanded, setIsUserMessageExpanded] =
-    React.useState(false);
-  const [canExpandUserMessage, setCanExpandUserMessage] =
-    React.useState(false);
   const editTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
-  const userMessageContentRef = React.useRef<HTMLDivElement | null>(null);
-  const userMessageContentId = React.useId();
   // Typewriter effect removed: completed messages display immediately.
   // Real streaming output is handled via MarkdownMessage `streaming` prop.
   const shouldTypewrite = false;
@@ -2464,30 +2389,6 @@ function ChatMessage({
       );
     });
   }, [isEditing, message.text]);
-
-  React.useLayoutEffect(() => {
-    if (message.role !== "user") return;
-    const element = userMessageContentRef.current;
-    if (!element) return;
-
-    if (isUserMessageExpanded) {
-      setCanExpandUserMessage(true);
-      return;
-    }
-
-    const updateOverflowState = (): void => {
-      setCanExpandUserMessage(element.scrollHeight > element.clientHeight + 1);
-    };
-    updateOverflowState();
-
-    const observer = new ResizeObserver(updateOverflowState);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [isUserMessageExpanded, message.role, message.text]);
-
-  React.useEffect(() => {
-    setIsUserMessageExpanded(false);
-  }, [message.text]);
 
   async function submitEdit(): Promise<void> {
     if (!canSubmitEdit) return;
@@ -2555,29 +2456,16 @@ function ChatMessage({
     return (
       <article className="chat-message-row user tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-end tw:text-base tw:text-app-text">
         <div
-          className={`user-message-bubble${isUserMessageExpanded ? " is-expanded" : ""} tw:rounded-2xl tw:px-3 tw:py-2 tw:text-base tw:leading-6 tw:text-app-text`}
+          className="user-message-bubble tw:rounded-2xl tw:px-3 tw:py-2 tw:text-base tw:leading-6 tw:text-app-text"
+          data-user-message-bubble
         >
-          <div
-            className="user-message-content"
-            id={userMessageContentId}
-            ref={userMessageContentRef}
-          >
-            {message.text}
-          </div>
-          {canExpandUserMessage ? (
-            <button
-              aria-controls={userMessageContentId}
-              aria-expanded={isUserMessageExpanded}
-              className="user-message-expand-toggle"
-              onClick={() => setIsUserMessageExpanded((expanded) => !expanded)}
-              type="button"
-            >
-              <span>
-                {isUserMessageExpanded ? "收起" : "显示更多"}
-              </span>
-              <ChevronDown aria-hidden="true" />
-            </button>
-          ) : null}
+          <CollapsibleUserMarkdown
+            canCopyFileReferenceContents={canCopyFileReferenceContents}
+            cwd={workspacePath}
+            onCopyFileReferenceContents={onCopyFileReferenceContents}
+            onOpenFileReference={onOpenFileReference}
+            text={message.text}
+          />
         </div>
         <div className="user-message-meta" aria-label="用户消息操作">
           {sentAt ? <time>{sentAt}</time> : null}

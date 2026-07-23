@@ -298,55 +298,19 @@
 /* --- User message --- */
 .user-message-bubble {
   width: fit-content;
-  max-width: min(77%, 42rem);
+  min-width: 0;
+  max-width: 77%;
+  overflow: hidden;
+  border: 0;
+  border-radius: 16px;
   background: color-mix(
     in srgb,
     var(--color-text-strong) 5%,
     transparent
   );
   box-shadow: none;
-
+  text-align: left;
   word-break: break-word;
-  white-space: pre-wrap;
-}
-
-.user-message-content {
-  max-height: 20rem;
-  overflow: hidden;
-}
-
-.user-message-bubble.is-expanded .user-message-content {
-  max-height: none;
-  overflow: visible;
-}
-
-.user-message-expand-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  margin-top: 6px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-text-soft);
-  font: inherit;
-  font-size: var(--type-meta);
-  line-height: var(--control-line-height);
-  cursor: pointer;
-
-  &:hover {
-    color: var(--color-text);
-  }
-
-  svg {
-    width: var(--app-icon-size-sm);
-    height: var(--app-icon-size-sm);
-    transition: transform var(--motion-fast) var(--ease-standard);
-  }
-}
-
-.user-message-bubble.is-expanded .user-message-expand-toggle svg {
-  transform: rotate(180deg);
 }
 
 .user-message-meta {

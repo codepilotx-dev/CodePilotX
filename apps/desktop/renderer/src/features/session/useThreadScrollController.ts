@@ -145,6 +145,7 @@ export function useThreadScrollController({
   const intersectionAtBottomRef = React.useRef(false)
   const previousActiveRef = React.useRef(active)
   const previousCountRef = React.useRef(itemCount)
+  const itemCountRef = React.useRef(itemCount)
   const previousOffsetRef = React.useRef(0)
   const previousScrollSizeRef = React.useRef(0)
   const programmaticScrollUntilRef = React.useRef(0)
@@ -152,6 +153,7 @@ export function useThreadScrollController({
   const sessionKeyRef = React.useRef(sessionKey)
 
   activeRef.current = active
+  itemCountRef.current = itemCount
 
   const setMode = React.useCallback((nextMode: ThreadScrollMode): void => {
     modeRef.current = nextMode
@@ -302,7 +304,7 @@ export function useThreadScrollController({
       ? activeRef.current
       : false
     const metrics = readMetrics(listRef.current, scrollRef.current)
-    previousCountRef.current = itemCount
+    previousCountRef.current = itemCountRef.current
     previousOffsetRef.current = restoredOffset
     previousScrollSizeRef.current = metrics?.scrollSize ?? 0
     updateAtBottom(false)
@@ -320,7 +322,6 @@ export function useThreadScrollController({
     }
   }, [
     initialScrollOffset,
-    itemCount,
     listRef,
     scrollRef,
     sessionKey,
