@@ -1,4 +1,4 @@
-# ADR: Thread RPC v3 architecture
+# ADR: Thread RPC v4 architecture
 
 Status: Accepted
 
@@ -37,7 +37,7 @@ requests. Neither transport topology is copied wholesale.
 
 ### 1. Layering
 
-RPC v3 is split into four layers with one-way dependencies:
+RPC v4 is split into four layers with one-way dependencies:
 
 ```text
 @codepilotx/agent-protocol
@@ -71,11 +71,9 @@ Package dependencies remain acyclic:
 Agent and client adapters
 ```
 
-During migration, `@codepilotx/shared` keeps the accepted v2 RPC exports for
-compatibility while `@codepilotx/agent-protocol` depends on its domain schemas.
-`@codepilotx/shared` must not import or re-export the new protocol package, which
-would create a cycle. After v2 removal, shared retains domain schemas and the
-protocol package remains the sole owner of wire contracts.
+`@codepilotx/shared` owns domain schemas, while `@codepilotx/agent-protocol`
+is the sole owner of v4 wire contracts. Shared must not import or re-export the
+protocol package because that would create a dependency cycle.
 
 The dispatcher owns method semantics but no transport state. Transport adapters
 authenticate, decode frames, enforce connection state, call the dispatcher, and
@@ -84,9 +82,9 @@ encode results. They do not perform business mutations directly.
 ### 2. Wire and product versions
 
 - JSON-RPC wire messages keep `jsonrpc: "2.0"`.
-- The product protocol is identified as `thread-rpc-v3`.
+- The product protocol is identified as `thread-rpc-v4`.
 - The v3 WebSocket endpoint is `/rpc/ws`.
-- WebSocket advertises subprotocol `codepilotx.thread-rpc.v3`.
+- WebSocket advertises subprotocol `codepilotx.thread-rpc.v4`.
 - Every connection must complete `initialize` and then `initialized` before any
   non-initialization call, subscription, or server request.
 - `initialize` exchanges client identity, supported protocol versions, and
@@ -278,7 +276,7 @@ The first valid resolution wins; later responses receive
 ### 10. Compatibility and rollout
 
 - Existing `POST /rpc` and `GET /rpc/events` remain available as v2 transports
-  during migration. V3 connection semantics are exposed by `/rpc/ws`.
+  during rollout. V4 connection semantics are exposed by `/rpc/ws`.
 - The v2 adapter maps v2 requests to the typed dispatcher and maps v3 durable
   events back to the current notification shape and SSE IDs where possible.
 - WebSocket is added only after typed HTTP dispatch and database replay pass.

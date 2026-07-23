@@ -1,6 +1,6 @@
 # CodePilotX v2 stability baseline
 
-Status: Frozen for RPC v3 design
+Status: Frozen for RPC v4 design
 
 Recorded: 2026-07-16 (Asia/Shanghai)
 
@@ -10,7 +10,7 @@ Working-tree content digest: `1b100cb2cac764fd8d6e8e1f766589a5ed803e27`
 
 ## Purpose
 
-This document freezes the accepted v2 behavior before RPC v3 work starts. It
+This document freezes the accepted v2 behavior before RPC v4 work starts. It
 does not turn the uncommitted working tree into a release or a Git commit. It
 defines the implementation and verification boundary that v3 must preserve.
 
@@ -52,11 +52,11 @@ The implementation thread reported the following successful checks:
 - `git diff --check` passed.
 
 The Renderer build still reports the existing single-chunk size warning above
-500 KiB. It is not a v2 acceptance failure and is not part of RPC v3.
+500 KiB. It is not a v2 acceptance failure and is not part of RPC v4.
 
 ## Preserved invariants
 
-RPC v3 must not regress these properties:
+RPC v4 must not regress these properties:
 
 1. Business state and durable outbox events are committed in the same SQLite
    transaction wherever the v2 implementation already guarantees it. V3 must
@@ -88,7 +88,7 @@ RPC v3 must not regress these properties:
 
 - Stage 0-2 work may add architecture documentation only.
 - Runtime, database, shared-contract, desktop, and lock files remain unchanged
-  until the RPC v3 ADR and contract inventory are accepted.
+  until the RPC v4 ADR and contract inventory are accepted.
 - Before the first implementation change, rerun the status/digest check and
   either create an explicitly requested baseline commit or record a restorable
   patch artifact outside the repository.

@@ -1,8 +1,8 @@
-# Thread RPC v3 contract inventory
+# Thread RPC v4 contract inventory
 
 Status: Accepted
 
-Depends on: [Thread RPC v3 architecture](./rpc-v3.md)
+Depends on: [Thread RPC v4 architecture](./rpc-v4.md)
 
 Baseline: [CodePilotX v2 stability baseline](./v2-baseline.md)
 
@@ -54,7 +54,7 @@ validation failures use JSON-RPC `-32602` instead of a domain error.
 
 | Method | Params | Result | Notes |
 |---|---|---|---|
-| `initialize` | `clientInfo`, supported `protocols`, requested `capabilities`, interaction delivery `active` or `observe` | selected protocol, server info, capabilities, limits, `connectionId` | First request on every connection. Selects `thread-rpc-v3`. |
+| `initialize` | `clientInfo`, supported `protocols`, requested `capabilities`, interaction delivery `active` or `observe` | selected protocol, server info, capabilities, limits, `connectionId` | First request on every connection. Selects `thread-rpc-v4`. |
 | `initialized` | negotiated protocol and optional restored client instance ID | none; client notification | Opens the connection for normal calls and server requests. |
 | `shutdown` | `operationId` | `{ ok, acceptedAt }` | Requires `agent.shutdown` and desktop-managed Agent capability. |
 | `event/subscribe` | array of `{ streamId, after: number \| "latest" }`, optional live event filters | `subscriptionId`, per-stream high-watermarks | A number resumes durable replay; `"latest"` is normalized to the captured high-watermark for snapshot-aligned live tailing. After `CURSOR_EXPIRED`, clients reconcile authoritative snapshots before using `"latest"`. |

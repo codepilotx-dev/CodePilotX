@@ -6,11 +6,11 @@ CodePilotX 是一个面向 Windows 的 Electron AI 编程助手。桌面壳只�
 
 ```text
 apps/
-├─ agent/                 Bun + Effect Agent 单体、HTTP/SSE、SQLite 与工具
+├─ agent/                 Bun + Effect Agent 单体；storage/database、repositories、transport/rpc 按职责分目录
 └─ desktop/
-   ├─ electron/           Electron main / preload / Windows 打包
-   └─ renderer/           React 对话流与设置页
-packages/shared/          Effect Schema、API、事件与会话 Part
+   ├─ electron/           Electron composition root；sidecar、windows、ipc、security、settings 分目录
+   └─ renderer/           React feature；session、review、layout 使用二级领域目录
+packages/                 共享契约、RPC v4、会话投影、模型与 Provider runtime
 resources/                内置 models.dev 精简快照
 scripts/                  开发与构建编排
 ```
@@ -50,3 +50,5 @@ bun run package:win
 ## 数据与恢复
 
 Agent 使用 `bun:sqlite`，启用 WAL、foreign keys 和 busy timeout。业务变更和事件 outbox 在同一事务提交；SSE 支持事件游标补发与 heartbeat。异常退出时运行中任务会固化为 interrupted，队列保留但不会自动重放有副作用的工具。
+
+当前开发版本使用 `thread-rpc-v4`，不兼容 v3 客户端。数据代际不匹配时，应用只会删除自己拥有的 SQLite 主文件/WAL/SHM、桌面设置和 Renderer 存储键，然后以默认设置重建；不会备份旧数据，也不会删除整个用户数据目录。
