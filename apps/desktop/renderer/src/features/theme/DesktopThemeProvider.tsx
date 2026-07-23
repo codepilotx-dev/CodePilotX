@@ -1,16 +1,13 @@
 import { desktopClient } from '../../services/desktop-client/index.js'
 import type React from 'react'
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from 'react'
 import type {
-  DesktopThemeConfigV1,
   DesktopThemeMode,
   DesktopThemeSettings,
   DesktopThemeVariant,
@@ -23,31 +20,11 @@ import {
   normalizeDesktopThemeSettings,
 } from '../../../shared/theme.js'
 import { deriveThemeVariables } from './themeVariables.js'
-
-type DesktopThemeContextValue = {
-  settings: DesktopThemeSettings
-  resolvedVariant: DesktopThemeVariant
-  activeTheme: DesktopThemeConfigV1
-  codeThemeId: string
-  backdropSupported: boolean
-  draft: DesktopThemeDraft
-  setMode: (mode: DesktopThemeMode) => Promise<void>
-  saveSettings: (settings: DesktopThemeSettings) => Promise<void>
-}
-
-type DesktopThemeDraft = {
-  settings: DesktopThemeSettings
-  resolvedVariant: DesktopThemeVariant
-  dirty: boolean
-  saving: boolean
-  setSettings: (settings: DesktopThemeSettings) => void
-  setMode: (mode: DesktopThemeMode) => void
-  save: () => Promise<DesktopThemeSettings>
-  reset: () => void
-  autoSave: (settings?: DesktopThemeSettings) => void
-}
-
-const DesktopThemeContext = createContext<DesktopThemeContextValue | null>(null)
+import {
+  DesktopThemeContext,
+  type DesktopThemeContextValue,
+  type DesktopThemeDraft,
+} from './themeContext.js'
 
 const SETTINGS_THEME_VARIABLES = [
   '--font-family-sans',
@@ -333,14 +310,6 @@ export function DesktopThemeProvider({
       {children}
     </DesktopThemeContext.Provider>
   )
-}
-
-export function useDesktopTheme(): DesktopThemeContextValue {
-  const context = useContext(DesktopThemeContext)
-  if (!context) {
-    throw new Error('useDesktopTheme must be used inside DesktopThemeProvider.')
-  }
-  return context
 }
 
 function applyDesktopTheme(
