@@ -60,6 +60,7 @@ export default defineConfig({
   server: {
     fs: {
       allow: [
+        resolve(__dirname),
         resolve(__dirname, '..', 'build'),
       ],
     },
