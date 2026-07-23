@@ -4,9 +4,11 @@ import {
   PET_ANIMATIONS,
   type PetAnimationName,
 } from './petAnimationModel.js'
+import type { PetLookFrame } from './petDirectionModel.js'
 
 type Props = {
   animation: PetAnimationName
+  lookFrame?: PetLookFrame | null
   size: number
   spriteVersionNumber: 1 | 2
   spritesheetUrl: string
@@ -14,6 +16,7 @@ type Props = {
 
 export function PetSprite({
   animation,
+  lookFrame = null,
   size,
   spriteVersionNumber,
   spritesheetUrl,
@@ -29,10 +32,10 @@ export function PetSprite({
     setFrame(0)
     setLoops(0)
     setFinished(false)
-  }, [animation])
+  }, [animation, spritesheetUrl])
 
   useEffect(() => {
-    if (reducedMotion) return
+    if (lookFrame || reducedMotion) return
     const timeout = window.setTimeout(() => {
       const next = frame + 1
       if (next < definition.durations.length) {
@@ -50,9 +53,12 @@ export function PetSprite({
       setFrame(0)
     }, definition.durations[frame] ?? 150)
     return () => window.clearTimeout(timeout)
-  }, [definition, frame, loops, reducedMotion])
+  }, [definition, frame, lookFrame, loops, reducedMotion])
 
   const rows = spriteVersionNumber === 2 ? 11 : 9
+  const visibleFrame = spriteVersionNumber === 2 ? lookFrame : null
+  const columnIndex = visibleFrame?.columnIndex ?? frame
+  const rowIndex = visibleFrame?.rowIndex ?? definition.row
   const width = size
   const height = Math.round(size * 208 / 192)
   return (
@@ -65,7 +71,7 @@ export function PetSprite({
         height,
         backgroundImage: `url("${spritesheetUrl}")`,
         backgroundSize: `800% ${rows * 100}%`,
-        backgroundPosition: `${frame * (100 / 7)}% ${definition.row * (100 / (rows - 1))}%`,
+        backgroundPosition: `${columnIndex * (100 / 7)}% ${rowIndex * (100 / (rows - 1))}%`,
       }}
     />
   )

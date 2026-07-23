@@ -75,7 +75,7 @@ import {
   planTitleFromSummary,
   type OpenPlanInDockRequest,
 } from "../workflow/WorkflowPlanCard.js";
-import { parseAskUserQuestions } from "../approvals/AskUserQuestionApproval.js";
+import { parseAskUserQuestions } from "../approvals/askUserQuestionModel.js";
 import { MarkdownMessage } from "../MarkdownMessage.js";
 import { CollapsibleUserMarkdown } from "./CollapsibleUserMarkdown.js";
 import { ComposerFrame } from "../composer/ComposerSurface.js";

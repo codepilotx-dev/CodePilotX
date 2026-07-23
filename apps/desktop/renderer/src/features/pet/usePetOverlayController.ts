@@ -2,12 +2,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PetDescriptor } from '@codepilotx/agent-protocol'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
-import type { DesktopSessionSnapshot } from '../../../shared/types.js'
+import type {
+  DesktopPermissionDecision,
+  DesktopSessionSnapshot,
+} from '../../../shared/types.js'
 import {
   projectPetNotifications,
+  resolvePetReplyDelivery,
   type PetNotification,
 } from './petNotificationProjector.js'
 import type { PetAnimationName } from './petAnimationModel.js'
+import {
+  getPetPresentationBridge,
+  presentationFromPetSettings,
+  type PetPresentation,
+} from './petPresentation.js'
 
 export function usePetOverlayController(): {
   animation: PetAnimationName
@@ -15,6 +24,11 @@ export function usePetOverlayController(): {
   notification: PetNotification | null
   openThread: (threadId: string) => Promise<void>
   pet: PetDescriptor | null
+  reply: (notification: PetNotification, text: string) => Promise<void>
+  respond: (
+    notification: PetNotification,
+    decision: DesktopPermissionDecision,
+  ) => Promise<void>
   size: number
 } {
   const { draft } = useDesktopSettings()
@@ -22,8 +36,21 @@ export function usePetOverlayController(): {
   const [pets, setPets] = useState<readonly PetDescriptor[]>([])
   const [sessions, setSessions] = useState<readonly DesktopSessionSnapshot[]>([])
   const [notifications, setNotifications] = useState<PetNotification[]>([])
+  const [presentationPreview, setPresentationPreview] =
+    useState<PetPresentation | null>(null)
   const dismissed = useRef(new Set<string>())
   const previousSessions = useRef<readonly DesktopSessionSnapshot[]>([])
+  const preferencesRef = useRef(preferences)
+  const catalogRequestRef = useRef<Promise<readonly PetDescriptor[]> | null>(null)
+  const missingCatalogReloadRef = useRef<string | null>(null)
+  preferencesRef.current = preferences
+
+  const loadCatalog = useCallback((): Promise<readonly PetDescriptor[]> => {
+    catalogRequestRef.current ??= desktopClient.listPets().finally(() => {
+      catalogRequestRef.current = null
+    })
+    return catalogRequestRef.current
+  }, [])
 
   const updateSessions = useCallback(
     (next: readonly DesktopSessionSnapshot[]) => {
@@ -34,21 +61,29 @@ export function usePetOverlayController(): {
           current: next,
           now,
           dismissedIds: dismissed.current,
-          preferences,
+          preferences: preferencesRef.current,
         }),
       )
       previousSessions.current = next
       setSessions(next)
     },
-    [preferences],
+    [],
   )
 
   useEffect(() => {
-    void Promise.all([
-      desktopClient.listPets(),
-      desktopClient.listSessions(),
-    ]).then(([catalog, snapshots]) => {
-      setPets(catalog)
+    let disposed = false
+    void loadCatalog().then(catalog => {
+      if (!disposed) setPets(catalog)
+    })
+    return () => {
+      disposed = true
+    }
+  }, [loadCatalog])
+
+  useEffect(() => {
+    let disposed = false
+    void desktopClient.listSessions().then(snapshots => {
+      if (disposed) return
       previousSessions.current = snapshots
       setSessions(snapshots)
       setNotifications(
@@ -57,14 +92,45 @@ export function usePetOverlayController(): {
           current: snapshots,
           now: Date.now(),
           dismissedIds: dismissed.current,
-          preferences,
+          preferences: preferencesRef.current,
         }),
       )
     })
-    return desktopClient.onSessionStoreChange(change => {
+    const unsubscribe = desktopClient.onSessionStoreChange(change => {
       updateSessions(change.sessions)
     })
-  }, [preferences, updateSessions])
+    return () => {
+      disposed = true
+      unsubscribe()
+    }
+  }, [updateSessions])
+
+  useEffect(() => {
+    setNotifications(
+      projectPetNotifications({
+        previous: sessions,
+        current: sessions,
+        now: Date.now(),
+        dismissedIds: dismissed.current,
+        preferences,
+      }),
+    )
+  }, [
+    preferences.notifyAttention,
+    preferences.notifyCompletion,
+    preferences.notifyFailure,
+    sessions,
+  ])
+
+  useEffect(() => {
+    const bridge = getPetPresentationBridge()
+    if (typeof bridge?.onPetPresentationPreview !== 'function') return
+    return bridge.onPetPresentationPreview(setPresentationPreview)
+  }, [])
+
+  useEffect(() => {
+    setPresentationPreview(null)
+  }, [preferences.selectedPetId, preferences.size])
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -76,12 +142,32 @@ export function usePetOverlayController(): {
     return () => window.clearInterval(timer)
   }, [])
 
+  const presentation =
+    presentationPreview ?? presentationFromPetSettings(preferences)
+
+  useEffect(() => {
+    const selectedPetId = presentation.selectedPetId
+    if (!selectedPetId || pets.some(item => item.id === selectedPetId)) {
+      missingCatalogReloadRef.current = null
+      return
+    }
+    if (missingCatalogReloadRef.current === selectedPetId) return
+    missingCatalogReloadRef.current = selectedPetId
+    let disposed = false
+    void loadCatalog().then(catalog => {
+      if (!disposed) setPets(catalog)
+    })
+    return () => {
+      disposed = true
+    }
+  }, [loadCatalog, pets, presentation.selectedPetId])
+
   const pet = useMemo(
     () =>
-      pets.find(item => item.id === preferences.selectedPetId)
+      pets.find(item => item.id === presentation.selectedPetId)
       ?? pets[0]
       ?? null,
-    [pets, preferences.selectedPetId],
+    [pets, presentation.selectedPetId],
   )
   const notification = notifications[0] ?? null
   const animation: PetAnimationName = notification
@@ -105,6 +191,31 @@ export function usePetOverlayController(): {
       await window.codePilotXDesktop?.openPetSession(threadId)
     },
     pet,
-    size: preferences.size,
+    reply: async (target, text) => {
+      const snapshot = sessions.find(item => item.item.id === target.threadId)
+      const status = snapshot?.item.status
+      if (resolvePetReplyDelivery(status, Boolean(target.request)) === 'follow-up') {
+        await desktopClient.submitSessionFollowUp(
+          target.threadId,
+          { text },
+          draft.values.followUpBehavior,
+        )
+        return
+      }
+      await desktopClient.sendUserMessage(target.threadId, { text })
+    },
+    respond: async (target, decision) => {
+      if (!target.request) {
+        throw new Error('这条提醒没有可处理的审批请求。')
+      }
+      await desktopClient.respondToPermission(
+        target.threadId,
+        target.request.requestId,
+        decision,
+      )
+      dismissed.current.add(target.id)
+      setNotifications(current => current.filter(item => item.id !== target.id))
+    },
+    size: presentation.size,
   }
 }

@@ -1,6 +1,7 @@
 import type {
   DesktopPetSettings,
   DesktopPermissionRequest,
+  DesktopSessionStatus,
   DesktopSessionSnapshot,
 } from '../../../shared/types.js'
 
@@ -18,6 +19,7 @@ export type PetNotification = {
   id: string
   threadId: string
   requestId?: string
+  request?: DesktopPermissionRequest
   kind: PetNotificationKind
   title: string
   detail?: string
@@ -32,6 +34,18 @@ export type PetProjectionInput = {
   now: number
   dismissedIds: ReadonlySet<string>
   preferences: DesktopPetSettings
+}
+
+export function resolvePetReplyDelivery(
+  status: DesktopSessionStatus | undefined,
+  hasPendingRequest: boolean,
+): 'follow-up' | 'message' {
+  return hasPendingRequest
+    || status === 'running'
+    || status === 'waiting'
+    || status === 'queued'
+    ? 'follow-up'
+    : 'message'
 }
 
 export function projectPetNotifications({
@@ -144,6 +158,7 @@ function blockerNotification(
     id: `${threadId}:${request.requestId}`,
     threadId,
     requestId: request.requestId,
+    request,
     kind,
     title: label,
     detail: request.description || threadTitle,
