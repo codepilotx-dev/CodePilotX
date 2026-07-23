@@ -1,5 +1,8 @@
 .conversation-page {
-  --session-content-w: min(48rem, calc(100% - (var(--session-content-inline-gutter) * 2)));
+  --session-content-w: min(
+    48rem,
+    calc(100% - (var(--session-content-inline-gutter) * 2))
+  );
   --conversation-item-gap: 16px;
   --conversation-grouped-item-gap: 4px;
   --thread-reading-width: 40rem;
@@ -10,7 +13,11 @@
 .conversation-page .chat-session-header {
   min-height: 44px;
   padding-inline: 16px calc(var(--workspace-fixed-controls-width) + 6px);
-  border-bottom-color: color-mix(in srgb, var(--color-border-soft) 76%, transparent);
+  border-bottom-color: color-mix(
+    in srgb,
+    var(--color-border-soft) 76%,
+    transparent
+  );
   background: color-mix(in srgb, var(--surface-canvas) 96%, transparent);
 }
 
@@ -107,7 +114,9 @@
     background: transparent;
     color: var(--color-text-soft);
     cursor: pointer;
-    transition: background 180ms ease-out, color 180ms ease-out;
+    transition:
+      background 180ms ease-out,
+      color 180ms ease-out;
 
     &:hover:not(:disabled) {
       background: var(--color-bg-hover);
@@ -147,7 +156,8 @@
   gap: 10px;
   margin: 12px 0;
   padding: 11px 12px;
-  border: 1px solid color-mix(in srgb, var(--color-danger) 38%, var(--color-border-soft));
+  border: 1px solid
+    color-mix(in srgb, var(--color-danger) 38%, var(--color-border-soft));
   border-radius: var(--radius-panel);
   background: color-mix(in srgb, var(--color-danger) 7%, var(--color-panel-bg));
 
@@ -198,7 +208,8 @@
   align-items: center;
   gap: 7px;
   padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--color-danger) 45%, var(--color-border-soft));
+  border: 1px solid
+    color-mix(in srgb, var(--color-danger) 45%, var(--color-border-soft));
   border-radius: 8px;
   color: var(--color-text-muted);
   font-size: var(--type-caption);
@@ -241,7 +252,9 @@
     border-radius: 7px;
     cursor: pointer;
     list-style: none;
-    transition: background 160ms ease-out, color 160ms ease-out;
+    transition:
+      background 160ms ease-out,
+      color 160ms ease-out;
 
     &::-webkit-details-marker {
       display: none;
@@ -320,7 +333,7 @@
     gap: 8px;
     width: fit-content;
     min-width: 0;
-    max-width: 77%;
+    max-width: 65%;
     padding: 8px 12px;
     overflow: hidden;
     border: 0;
@@ -378,7 +391,8 @@
 
     &:focus-visible {
       border-color: var(--color-accent);
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 22%, transparent);
+      box-shadow: 0 0 0 2px
+        color-mix(in srgb, var(--color-accent) 22%, transparent);
     }
   }
 
@@ -394,8 +408,9 @@
       background: var(--color-panel-bg);
       color: var(--color-text);
       cursor: pointer;
-      transition: background 180ms ease-out, border-color 180ms ease-out;
-
+      transition:
+        background 180ms ease-out,
+        border-color 180ms ease-out;
     }
   }
 }
@@ -466,7 +481,7 @@
     transition: transform var(--motion-fast) var(--ease-standard);
   }
 
-  &[aria-expanded='true'] svg {
+  &[aria-expanded="true"] svg {
     transform: rotate(180deg);
   }
 }
@@ -514,7 +529,9 @@
   background: transparent;
   color: var(--color-text-meta);
   cursor: pointer;
-  transition: background 160ms ease-out, color 160ms ease-out;
+  transition:
+    background 160ms ease-out,
+    color 160ms ease-out;
 
   &:hover {
     background: var(--color-bg-hover);
@@ -557,7 +574,10 @@
     .md-media-grid,
     img,
     video {
-      max-width: calc(var(--session-content-w) - 2 * var(--session-content-inline-gutter, 16px));
+      max-width: calc(
+        var(--session-content-w) - 2 *
+          var(--session-content-inline-gutter, 16px)
+      );
     }
   }
 }
@@ -569,13 +589,19 @@
     margin: 0 0 11px;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     margin-top: 20px;
     margin-bottom: 10px;
     font-weight: 600;
   }
 
-  ul, ol {
+  ul,
+  ol {
     padding-left: 21px;
   }
 
@@ -624,7 +650,9 @@
     border-radius: 7px;
     cursor: pointer;
     list-style: none;
-    transition: background 160ms ease-out, color 160ms ease-out;
+    transition:
+      background 160ms ease-out,
+      color 160ms ease-out;
 
     &::-webkit-details-marker {
       display: none;
@@ -692,7 +720,9 @@
 }
 
 @keyframes canonical-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── Grouped presentation (inside a process group) ── */
@@ -762,7 +792,11 @@
     font-size: var(--type-meta);
 
     &[data-recommended="true"] {
-      border-color: color-mix(in srgb, var(--color-accent) 48%, var(--color-border-soft));
+      border-color: color-mix(
+        in srgb,
+        var(--color-accent) 48%,
+        var(--color-border-soft)
+      );
       color: var(--color-text);
     }
   }
@@ -778,10 +812,14 @@
     cursor: pointer;
     list-style: none;
 
-    &::-webkit-details-marker { display: none; }
+    &::-webkit-details-marker {
+      display: none;
+    }
   }
 
-  > summary svg:last-child { margin-left: auto; }
+  > summary svg:last-child {
+    margin-left: auto;
+  }
 
   &__files {
     display: grid;
@@ -812,9 +850,15 @@
   }
 }
 
-.canonical-diff-add { color: var(--color-diff-added); }
-.canonical-diff-remove { color: var(--color-diff-removed); }
-.canonical-item-error { color: var(--color-danger); }
+.canonical-diff-add {
+  color: var(--color-diff-added);
+}
+.canonical-diff-remove {
+  color: var(--color-diff-removed);
+}
+.canonical-item-error {
+  color: var(--color-danger);
+}
 
 .canonical-subagent-card {
   display: grid;
@@ -830,7 +874,9 @@
   color: var(--color-text);
   text-align: left;
   cursor: pointer;
-  transition: background 180ms ease-out, border-color 180ms ease-out;
+  transition:
+    background 180ms ease-out,
+    border-color 180ms ease-out;
 
   &:hover {
     border-color: var(--color-border);
@@ -863,8 +909,12 @@
 }
 
 @container (max-width: 520px) {
-  .canonical-turn { padding-block: 14px 20px; }
-  .canonical-process-card__body { margin-left: 14px; }
+  .canonical-turn {
+    padding-block: 14px 20px;
+  }
+  .canonical-process-card__body {
+    margin-left: 14px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -896,7 +946,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .canonical-spin { animation: none; }
+  .canonical-spin {
+    animation: none;
+  }
   .canonical-message-actions,
   .canonical-icon-button,
   .canonical-process-card > summary,
@@ -911,7 +963,9 @@
 }
 
 :root[data-reduce-motion="on"] {
-  .canonical-spin { animation: none; }
+  .canonical-spin {
+    animation: none;
+  }
   .canonical-message-actions,
   .canonical-icon-button,
   .canonical-process-card > summary,
