@@ -29,7 +29,7 @@ export const piToolResultText = (value: unknown, options: { tool: string; progre
   const result = value as ToolResultLike
   const message = detailText(result.details, "message")
   if (options.progress && message) return message
-  if (/^(shell|bash|command|exec)/i.test(options.tool)) {
+  if (/^(shell|bash|powershell|pwsh|command|exec)/i.test(options.tool)) {
     const output = [detailText(result.details, "stdout"), detailText(result.details, "stderr")]
       .filter(Boolean)
       .join("\n")

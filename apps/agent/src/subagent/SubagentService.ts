@@ -370,7 +370,7 @@ export class SubagentService {
         ? {
             state: permissionCheckpoint.payload.runState,
             interruption: permissionCheckpoint.payload.interruption,
-            answer: null,
+            answer: permissionCheckpoint.payload.resolution?.feedback ?? null,
             decision: permissionCheckpoint.decision,
             toolCallID: permissionCheckpoint.toolCallID,
             approvalID: permissionCheckpoint.approvalID,

@@ -83,7 +83,7 @@ export type ApprovalCheckpointPayload = {
   review: Record<string, unknown>
   runState?: string
   interruption?: unknown
-  resolution?: { decision: "allow" | "deny"; resolvedAt: number }
+  resolution?: { decision: "allow" | "deny"; feedback?: string; resolvedAt: number }
   claimedAt?: number
 }
 
@@ -1663,7 +1663,7 @@ export class AgentDatabase {
     return { checkpoint: this.getApprovalCheckpoint(approvalID)!, events }
   }
 
-  resolveApprovalCheckpoint(approvalID: string, decision: "allow" | "deny"):
+  resolveApprovalCheckpoint(approvalID: string, decision: "allow" | "deny", feedback?: string):
     | { state: "resolved"; checkpoint: StoredApprovalCheckpoint; events: EventEnvelope[] }
     | { state: "missing" | "not-ready" | "already-resolved"; threadID?: string; turnID?: string; agentID?: string }
     | { state: "invalid-checkpoint"; threadID: string; turnID: string; agentID: string; events: EventEnvelope[] } {
@@ -1681,7 +1681,8 @@ export class AgentDatabase {
     this.transaction(() => {
       const updated = this.sqlite.query("UPDATE approval_requests SET status = 'resolved', reply = ?, resolved_at = ? WHERE id = ? AND status = 'pending'").run(decision, timestamp, approvalID)
       if (updated.changes !== 1) throw new Error(`审批 ${approvalID} 已被并发处理`)
-      this.sqlite.query("UPDATE approval_checkpoints SET payload = ?, updated_at = ? WHERE approval_id = ?").run(stringify({ ...checkpoint.payload, resolution: { decision, resolvedAt: timestamp } }), timestamp, approvalID)
+      const resolution = { decision, ...(feedback ? { feedback } : {}), resolvedAt: timestamp }
+      this.sqlite.query("UPDATE approval_checkpoints SET payload = ?, updated_at = ? WHERE approval_id = ?").run(stringify({ ...checkpoint.payload, resolution }), timestamp, approvalID)
       this.updateTurnStatus(request.turn_id, "queued")
       this.updateAgentStatus(request.agent_id, "queued")
       events.push(this.insertEvent(request.thread_id, request.turn_id, "agent/upserted", { agent: this.getAgentExecution(request.agent_id) }))

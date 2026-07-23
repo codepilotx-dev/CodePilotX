@@ -179,8 +179,13 @@ describe("可恢复审批 checkpoint", () => {
     db = new AgentDatabase(path)
     databases.push(db)
     service = new ApprovalService(db, await Effect.runPromise(EventHub.make), tools)
-    await service.respond(prepared.approvalID, "deny")
-    expect(service.claimResume(turn.turnID)).toMatchObject({ status: "claimed", decision: "deny", toolCallID: "tool-deny" })
+    await service.respond(prepared.approvalID, "deny", "  Authorization: Bearer abc.def.ghi\n请改用只读命令  ")
+    expect(service.claimResume(turn.turnID)).toMatchObject({
+      status: "claimed",
+      decision: "deny",
+      toolCallID: "tool-deny",
+      payload: { resolution: { decision: "deny", feedback: "Authorization: <redacted>\n请改用只读命令" } },
+    })
     expect(service.claimResume(turn.turnID)).toBeNull()
   })
 

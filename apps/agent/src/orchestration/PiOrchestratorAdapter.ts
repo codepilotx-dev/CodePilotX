@@ -12,6 +12,7 @@ import {
 import type { AgentRuntimeRequest, PendingApproval } from "./AgentRuntimeTypes";
 import {
   PiAgentRuntime,
+  piToolResultText,
   type PiRuntimeEventContext,
   type PiRuntimeEventSink,
 } from "./pi";
@@ -27,6 +28,7 @@ import { PI_LIFECYCLE_TOOLS, type ToolExposureInput } from "../tool/ToolExposure
 import type { Item, SubagentResult } from "../domain";
 import { createLiveEvent } from "../storage/EventPublisher";
 import { WorkspaceService } from "../workspace/WorkspaceService";
+import { secretScrubber } from "../security/SecretScrubber";
 
 export type {
   DelegationController,
@@ -52,6 +54,16 @@ const commandFromInput = (input: unknown) => input && typeof input === "object"
   && typeof (input as Record<string, unknown>).command === "string"
   ? (input as Record<string, unknown>).command as string
   : null;
+
+const resumedToolResultText = (value: unknown, tool: string) => {
+  if (typeof value === "string") return value;
+  const safe = secretScrubber.scrub(value);
+  const content = safe == null ? "" : JSON.stringify(safe, null, 2);
+  return piToolResultText({
+    content: content ? [{ type: "text", text: content }] : [],
+    details: safe,
+  }, { tool }) || "工具执行完成（无输出）";
+};
 
 export const piToolItemPayload = (item: Item) => {
   const data = item.data;
@@ -82,6 +94,40 @@ export const piToolItemPayload = (item: Item) => {
 };
 
 const reasoningItemID = (turnID: string) => `${turnID}:pi:reasoning`;
+
+export const finishedPiToolItem = (input: {
+  current: Item | null;
+  turnID: string;
+  agentID: string;
+  toolCallID: string;
+  tool: string;
+  output: string;
+  isError: boolean;
+  timestamp: number;
+}): Item | null => {
+  if (input.current && ["completed", "error", "interrupted"].includes(input.current.status)) return null;
+  const createdAt = input.current?.createdAt ?? input.timestamp;
+  return {
+    id: input.toolCallID,
+    turnID: input.turnID,
+    agentID: input.agentID,
+    type: "tool",
+    status: input.isError ? "error" : "completed",
+    data: {
+      ...(input.current?.data ?? {}),
+      callID: input.toolCallID,
+      tool: input.tool,
+      title: input.tool,
+      state: input.isError ? "error" : "completed",
+      output: input.isError ? null : input.output,
+      error: input.isError ? input.output : null,
+      finishedAt: input.timestamp,
+      durationMs: input.timestamp - createdAt,
+    },
+    createdAt,
+    updatedAt: input.timestamp,
+  };
+};
 
 export const piItemDeltaPayload = (input: {
   itemID: string;
@@ -131,6 +177,32 @@ export class PiOrchestratorAdapter {
 
   private async publish(event: ReturnType<AgentDatabase["insertEvent"]>) {
     await Effect.runPromise(this.options.hub.publish(event));
+  }
+
+  private async finishTool(context: PiRuntimeEventContext, input: {
+    toolCallID: string;
+    tool: string;
+    output: string;
+    isError: boolean;
+  }) {
+    const item = finishedPiToolItem({
+      current: this.options.db.getItem(input.toolCallID),
+      turnID: context.turnID,
+      agentID: context.agentID,
+      ...input,
+      timestamp: Date.now(),
+    });
+    if (!item) return;
+    const projected = piToolItemPayload(item);
+    const persisted = this.options.db.upsertItemWithEvent(
+      context.threadID,
+      item,
+      input.isError ? "tool/error" : "tool/callCompleted",
+      input.isError
+        ? { item: projected, error: { code: "TOOL_EXECUTION_ERROR", message: input.output || "工具执行失败", retryable: false } }
+        : { item: projected },
+    );
+    await this.publish(persisted.event);
   }
 
   private eventSink(storage: SqlitePiSessionStorage): PiRuntimeEventSink {
@@ -252,39 +324,8 @@ export class PiOrchestratorAdapter {
         );
       },
       toolFinished: async (context, input) => {
-        const timestamp = Date.now();
-        const current = this.options.db.getItem(input.toolCallID);
         const output = typeof input.result === "string" ? input.result : "";
-        const item: Item = {
-          id: input.toolCallID,
-          turnID: context.turnID,
-          agentID: context.agentID,
-          type: "tool",
-          status: input.isError ? "error" : "completed",
-          data: {
-            ...(current?.data ?? {}),
-            callID: input.toolCallID,
-            tool: input.tool,
-            title: input.tool,
-            state: input.isError ? "error" : "completed",
-            output: input.isError ? null : output,
-            error: input.isError ? output : null,
-            finishedAt: timestamp,
-            durationMs: current ? timestamp - current.createdAt : null,
-          },
-          createdAt: current?.createdAt ?? timestamp,
-          updatedAt: timestamp,
-        };
-        const projected = piToolItemPayload(item);
-        const persisted = this.options.db.upsertItemWithEvent(
-          context.threadID,
-          item,
-          input.isError ? "tool/error" : "tool/callCompleted",
-          input.isError
-            ? { item: projected, error: { code: "TOOL_EXECUTION_ERROR", message: output || "工具执行失败", retryable: false } }
-            : { item: projected },
-        );
-        await this.publish(persisted.event);
+        await this.finishTool(context, { ...input, output });
       },
       savePoint: async (context) => {
         const pending = this.pending.get(context.threadID);
@@ -373,8 +414,12 @@ export class PiOrchestratorAdapter {
       if (!assistantEntry || !toolCall || toolCall.type !== "toolCall")
         throw new Error("Pi checkpoint 中找不到待恢复的 tool call");
       await session.moveTo(assistantEntry.id);
-      let resolution: unknown =
-        request.resume.answer ?? request.resume.decision ?? "continue";
+      let resolutionText = request.resume.decision === "deny"
+        ? request.resume.answer
+          ? `用户拒绝了此工具调用，并要求：${request.resume.answer}`
+          : "用户拒绝了此工具调用，请改用其他方案。"
+        : request.resume.answer ?? request.resume.decision ?? "continue";
+      let isError = request.resume.decision === "deny";
       const lifecycleNames = new Set([
         "request_user_input",
         "spawn_agents",
@@ -388,25 +433,41 @@ export class PiOrchestratorAdapter {
         request.resume.decision === "allow" &&
         !lifecycleNames.has(toolCall.name)
       ) {
-        resolution = await this.options.toolExecutor.execute(
-          toolCall.name,
-          toolCall.arguments as Record<string, unknown>,
-          {
-            threadID: request.threadID,
-            turnID: request.turnID,
-            agentID: request.agentID,
-            profile: request.profile ?? "main",
-            taskMode: request.continueFromPlan ? "chat" : request.taskMode,
-            signal: request.signal,
-            workspace: request.workspace,
-            permissionConfig: request.permissionConfig,
-            model: request.fallbackModel,
-            taskSummary: request.content,
-            toolCallID: request.resume.toolCallID,
-            approvedToolCallID: request.resume.toolCallID,
-          },
-        );
+        try {
+          const resolution = await this.options.toolExecutor.execute(
+            toolCall.name,
+            toolCall.arguments as Record<string, unknown>,
+            {
+              threadID: request.threadID,
+              turnID: request.turnID,
+              agentID: request.agentID,
+              profile: request.profile ?? "main",
+              taskMode: request.continueFromPlan ? "chat" : request.taskMode,
+              signal: request.signal,
+              workspace: request.workspace,
+              permissionConfig: request.permissionConfig,
+              model: request.fallbackModel,
+              taskSummary: request.content,
+              toolCallID: request.resume.toolCallID,
+              approvedToolCallID: request.resume.toolCallID,
+            },
+          );
+          resolutionText = resumedToolResultText(resolution, toolCall.name);
+        } catch (cause) {
+          isError = true;
+          resolutionText = secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause));
+        }
       }
+      await this.finishTool({
+        threadID: request.threadID,
+        turnID: request.turnID,
+        agentID: request.agentID,
+      }, {
+        toolCallID: request.resume.toolCallID,
+        tool: toolCall.name,
+        output: resolutionText,
+        isError,
+      });
       await session.appendMessage({
         role: "toolResult",
         toolCallId: request.resume.toolCallID,
@@ -414,13 +475,10 @@ export class PiOrchestratorAdapter {
         content: [
           {
             type: "text",
-            text:
-              typeof resolution === "string"
-                ? resolution
-                : JSON.stringify(resolution),
+            text: resolutionText,
           },
         ],
-        isError: request.resume.decision === "deny",
+        isError,
         timestamp: Date.now(),
       });
       this.options.db.transaction(() => storage.flush());
@@ -592,7 +650,7 @@ export class PiOrchestratorAdapter {
     });
     this.active.set(request.threadID, runtime);
     const resumedContent = request.resume
-      ? `<interaction_resolution toolCallId=${JSON.stringify(request.resume.toolCallID ?? "unknown")}>${JSON.stringify({ answer: request.resume.answer, decision: request.resume.decision ?? null })}</interaction_resolution>\n继续处理已恢复的 Pi session；不要重新执行已经完成的工具调用。`
+      ? `<interaction_resolution toolCallId=${JSON.stringify(request.resume.toolCallID ?? "unknown")}>${JSON.stringify({ answer: request.resume.answer, decision: request.resume.decision ?? null })}</interaction_resolution>\n继续处理已恢复的 Pi session；不得重新执行已完成或已被用户拒绝的同一个工具调用。若用户给出调整要求，必须据此改用其他方案。`
       : request.content;
     const result = await runtime.run({
       threadID: request.threadID,

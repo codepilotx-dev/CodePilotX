@@ -3,7 +3,7 @@ import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
 import { EventManifest } from "@codepilotx/agent-protocol"
 import { Schema } from "effect"
 import { PiEventAdapter, piToolResultText } from "../src/orchestration/pi/PiEventAdapter"
-import { piCompactionEventPayload, piItemDeltaPayload, piToolItemPayload } from "../src/orchestration/PiOrchestratorAdapter"
+import { finishedPiToolItem, piCompactionEventPayload, piItemDeltaPayload, piToolItemPayload } from "../src/orchestration/PiOrchestratorAdapter"
 
 describe("PiEventAdapter", () => {
   test("routes live text and reasoning deltas without inventing durable events", async () => {
@@ -67,6 +67,10 @@ describe("PiEventAdapter", () => {
       content: [{ type: "text", text: "fallback" }],
       details: { stdout: "out", stderr: "warning" },
     }, { tool: "shell" })).toBe("out\nwarning")
+    expect(piToolResultText({
+      content: [{ type: "text", text: "fallback" }],
+      details: { stdout: "pwsh output", stderr: "" },
+    }, { tool: "PowerShell" })).toBe("pwsh output")
   })
 
   test("builds protocol-valid public tool items", () => {
@@ -81,6 +85,40 @@ describe("PiEventAdapter", () => {
       item: { ...item, state: "error", output: null, error: "failed" },
       error: { code: "TOOL_EXECUTION_ERROR", message: "failed", retryable: false },
     })).not.toThrow()
+  })
+
+  test("finalizes a resumed tool once and stops its elapsed timer", () => {
+    const running = {
+      id: "call-1", turnID: "turn", agentID: "agent", type: "tool" as const, status: "running" as const,
+      data: { callID: "call-1", tool: "PowerShell", input: { command: "bun test" }, command: "bun test", startedAt: 100 },
+      createdAt: 100, updatedAt: 100,
+    }
+    const finished = finishedPiToolItem({
+      current: running,
+      turnID: "turn",
+      agentID: "agent",
+      toolCallID: "call-1",
+      tool: "PowerShell",
+      output: "用户拒绝了此工具调用，请改用其他方案。",
+      isError: true,
+      timestamp: 125,
+    })
+
+    expect(finished).toMatchObject({
+      id: "call-1",
+      status: "error",
+      data: { state: "error", finishedAt: 125, durationMs: 25 },
+    })
+    expect(finishedPiToolItem({
+      current: finished!,
+      turnID: "turn",
+      agentID: "agent",
+      toolCallID: "call-1",
+      tool: "PowerShell",
+      output: "duplicate",
+      isError: true,
+      timestamp: 150,
+    })).toBeNull()
   })
 
   test("maps Pi compaction metadata to the existing protocol payload", () => {

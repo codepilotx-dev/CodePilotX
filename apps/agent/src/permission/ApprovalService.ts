@@ -137,13 +137,16 @@ export class ApprovalService {
     return { ...review, decision: "ask", reason: review.reason }
   }
 
-  async respond(id: string, decision: "allow" | "deny") {
+  async respond(id: string, decision: "allow" | "deny", feedback?: string) {
     try { this.load(id) } catch (cause) {
       const invalidated = this.db.invalidateApprovalCheckpoint(id, "审批 checkpoint 校验失败")
       for (const event of invalidated?.events ?? []) await Effect.runPromise(this.hub.publish(event))
       throw cause
     }
-    const result = this.db.resolveApprovalCheckpoint(id, decision)
+    const safeFeedback = feedback?.trim()
+      ? secretScrubber.scrubText(feedback.trim().slice(0, 4_000))
+      : undefined
+    const result = this.db.resolveApprovalCheckpoint(id, decision, safeFeedback)
     if (result.state === "missing") throw new AgentError("APPROVAL_NOT_FOUND", "审批请求不存在", 404)
     if (result.state === "not-ready") throw new AgentError("APPROVAL_NOT_READY", "审批 RunState 尚未完整落盘", 409)
     if (result.state === "already-resolved") throw new AgentError("APPROVAL_ALREADY_RESOLVED", "审批请求已经处理", 409)

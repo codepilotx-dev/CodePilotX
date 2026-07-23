@@ -35,6 +35,7 @@ import type { GitReviewService } from "../review/GitReviewService"
 import type { GithubService } from "../github/GithubService"
 import { ToolingError, type ManagedToolID, type ToolingManager, type ToolingPreference } from "../tool/ToolingManager"
 import { EventSubscriptionRegistry } from "./EventSubscriptionRegistry"
+import { secretScrubber } from "../security/SecretScrubber"
 import {
   ReviewApplyParamsSchema,
   ReviewAiStartParamsSchema,
@@ -1223,7 +1224,16 @@ export class RpcRouter {
           await threads.stop(checkpoint.threadID)
         }
       } else {
-        const resolved = await approvals.respond(interactionId, decision === "allow-once" ? "allow" : "deny")
+        const rawFeedback = response.feedback
+        if (rawFeedback !== undefined && typeof rawFeedback !== "string") {
+          throw new AgentError("INVALID_REQUEST", "response.feedback 参数无效", 400)
+        }
+        if (decision !== "deny" && rawFeedback?.trim()) {
+          throw new AgentError("INVALID_REQUEST", "只有拒绝审批时才能提交调整意见", 400)
+        }
+        const trimmedFeedback = rawFeedback?.trim().slice(0, 4_000)
+        const feedback = trimmedFeedback ? secretScrubber.scrubText(trimmedFeedback) : undefined
+        const resolved = await approvals.respond(interactionId, decision === "allow-once" ? "allow" : "deny", feedback)
         const execution = db.getAgentExecution(resolved.agentID)
         if (execution?.subagentRunID) await subagents.resumeTurn(resolved.threadID, resolved.turnID)
         else threads.resumeTurn(resolved.threadID, resolved.turnID)
