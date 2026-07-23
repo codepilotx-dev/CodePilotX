@@ -1,4 +1,4 @@
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import type { DesktopGitStatus } from '../../../shared/types.js'
 import { normalizeOptionalText } from '../settings/settingsStorage.js'
 

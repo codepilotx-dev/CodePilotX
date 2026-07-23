@@ -1,4 +1,4 @@
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import { useEffect } from 'react'
 import type { DesktopUiCommand } from '../../../shared/types.js'
 

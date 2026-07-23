@@ -3,7 +3,7 @@ import { cloneElement, isValidElement } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { preventOutsideDismissWhenDebug } from './debugDropdown.js'
 import { buildPopoverSizingStyle, type PopoverSizingProps } from './popoverSizing.js'
-import { readDesktopBrowserDebugMode } from '../../services/desktopClient.js'
+import { readDesktopBrowserDebugMode } from '../../services/desktop-client/index.js'
 
 type Props = {
   children: React.ReactNode

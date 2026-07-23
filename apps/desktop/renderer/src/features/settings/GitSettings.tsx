@@ -4,7 +4,7 @@ import { SettingsSection } from './SettingsSection.js'
 import { SegmentedControl } from './SegmentedControl.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import type {
   DesktopGithubAuthStatus,

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Download, Search, RotateCcw, Trash2, Wrench } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import { PERMISSION_MODE_OPTIONS, permissionConfigForMode, permissionModeForConfig } from './settingsStorage.js'
 import type {

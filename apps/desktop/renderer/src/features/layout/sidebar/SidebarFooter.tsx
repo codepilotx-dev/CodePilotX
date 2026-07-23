@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
-import { desktopClient } from '../../../services/desktopClient.js'
+import { desktopClient } from '../../../services/desktop-client/index.js'
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
 import { motionTransition, standardTween } from '../../motion/motionTransitions.js'
 import type {

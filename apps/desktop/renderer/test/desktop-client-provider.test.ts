@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { createDesktopClient } from '../src/services/desktopClient.js'
+import { createDesktopClient } from '../src/services/desktop-client/index.js'
 
 const provider = {
   provider: {
@@ -177,7 +177,7 @@ function rpc(id: string | number, result: unknown): Response {
 
 function initializedResult(capabilities: string[] = ['rpc.typed.v1']) {
   return {
-    protocol: 'thread-rpc-v3',
+    protocol: 'thread-rpc-v4',
     serverInfo: { name: 'test-agent', version: '1.0.0' },
     capabilities,
     limits: {

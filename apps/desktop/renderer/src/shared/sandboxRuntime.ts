@@ -44,13 +44,13 @@ function ensureSandboxRpcReady(): Promise<void> {
           typeof navigator === 'undefined' ? 'desktop' : navigator.platform,
         instanceId: sandboxClientInstanceId,
       },
-      protocols: ['thread-rpc-v3'],
+      protocols: ['thread-rpc-v4'],
       capabilities: ['rpc.typed.v1', 'sandbox.management.v1'],
       interactionDelivery: 'observe',
     })
     rpc.setConnectionId(initialized.connectionId)
     await rpc.initialized({
-      protocol: 'thread-rpc-v3',
+      protocol: 'thread-rpc-v4',
       clientInstanceId: sandboxClientInstanceId,
     })
   })().catch(error => {

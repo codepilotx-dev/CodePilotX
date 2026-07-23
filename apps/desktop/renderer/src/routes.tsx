@@ -1,6 +1,6 @@
 import { lazy, Suspense, type ReactNode } from 'react'
 import { createHashRouter, Navigate } from 'react-router-dom'
-import { DesktopLayout } from './features/layout/DesktopLayout.js'
+import { DesktopLayout } from './features/layout/shell/DesktopLayout.js'
 import { QuickChatView } from './features/session/QuickChatView.js'
 
 const AutomationView = lazy(() =>
@@ -9,7 +9,7 @@ const AutomationView = lazy(() =>
   })),
 )
 const ConversationPage = lazy(() =>
-  import('./features/session/ConversationPage.js').then(module => ({
+  import('./features/session/conversation/ConversationPage.js').then(module => ({
     default: module.ConversationPage,
   })),
 )

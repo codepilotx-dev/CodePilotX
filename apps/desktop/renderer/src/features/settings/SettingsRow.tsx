@@ -2,7 +2,7 @@ import React from 'react'
 import {
   DESKTOP_BROWSER_DEBUG_MODE_EVENT,
   readDesktopBrowserDebugMode,
-} from '../../services/desktopClient.js'
+} from '../../services/desktop-client/index.js'
 
 type Props = {
   title: string

@@ -7,11 +7,11 @@ import {
   deriveConversationTurnNavItems,
   groupTimelineExecutionPhases,
   groupTimelineToolEvents,
-} from '../src/features/session/timelineModel.js'
+} from '../src/features/session/timeline/timelineModel.js'
 import {
   markdownToTurnPreview,
   shouldShowTurnNavigation,
-} from '../src/features/session/ConversationTurnNavRail.js'
+} from '../src/features/session/conversation/ConversationTurnNavRail.js'
 
 function event(
   id: string,

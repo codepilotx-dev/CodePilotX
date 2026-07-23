@@ -2,7 +2,7 @@ import type { DesktopExternalOpenTarget } from '../../shared/types.js'
 import {
   desktopClient,
   type CodePilotXDesktopClient,
-} from './desktopClient.js'
+} from './desktop-client/index.js'
 import { AgentRpcError } from './agentRpcClient.js'
 
 const DEFAULT_EXTERNAL_OPEN_TARGETS_TTL_MS = 60_000

@@ -15,13 +15,13 @@ import type {
   DesktopFileEntry,
   DesktopWorkspace,
 } from '../../../shared/types.js'
-import { createWorkspaceFileTabId } from './workspaceFileTabId.js'
+import { createWorkspaceFileTabId } from './tabs/workspaceFileTabId.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 import { buildPopoverSizingStyle } from '../../components/ui/popoverSizing.js'
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import { cx } from '../../utils/cx.js'
 import { FileTypeIcon } from './FileTypeIcon.js'
 

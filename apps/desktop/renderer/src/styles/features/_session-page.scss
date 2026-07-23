@@ -51,13 +51,14 @@
 .quick-chat-hero-region,
 .quick-chat-composer-region {
   display: flex;
+
   // flex: 1 1 0;
   min-width: 0;
   width: 100%;
 }
 
 .quick-chat-hero-region {
-  min-height: 320px;
+  // min-height: 320px;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;

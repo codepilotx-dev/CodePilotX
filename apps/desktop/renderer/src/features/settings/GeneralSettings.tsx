@@ -1,4 +1,4 @@
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import React, { useCallback, useEffect, useState } from 'react';
 import * as RadioGroup from '@radix-ui/react-radio-group';
 import {

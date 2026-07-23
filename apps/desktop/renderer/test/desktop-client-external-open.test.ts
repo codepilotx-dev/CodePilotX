@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { defaultDesktopStoredSettings } from '../shared/settingsSchema.js'
-import { createDesktopClient } from '../src/services/desktopClient.js'
+import { createDesktopClient } from '../src/services/desktop-client/index.js'
 
 describe('desktop external open client', () => {
   test('maps the Electron targetId wire shape and marks the persisted preference', async () => {

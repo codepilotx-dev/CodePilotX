@@ -6,7 +6,7 @@ import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
 } from '../../components/ui/popoverSizing.js'
-import { readDesktopBrowserDebugMode } from '../../services/desktopClient.js'
+import { readDesktopBrowserDebugMode } from '../../services/desktop-client/index.js'
 import { Input } from '../../components/ui/Input.js'
 
 type Option = {

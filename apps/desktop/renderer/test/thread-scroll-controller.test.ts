@@ -6,7 +6,7 @@ import {
   resolveThreadScrollMode,
   scrollOffsetForThreadBottomDistance,
   THREAD_BOTTOM_THRESHOLD_PX,
-} from '../src/features/session/useThreadScrollController.js'
+} from '../src/features/session/conversation/useThreadScrollController.js'
 
 describe('thread scroll controller', () => {
   test('computes and clamps distance from the bottom', () => {

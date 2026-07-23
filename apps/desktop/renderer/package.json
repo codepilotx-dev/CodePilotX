@@ -9,7 +9,7 @@
     "styles:codex:check": "bun run scripts/inventory-codex-styles.ts --check --fail-on-parse-error",
     "themes:codex:generate": "bun run scripts/generate-codex-themes.ts",
     "themes:codex:check": "bun run scripts/generate-codex-themes.ts --check",
-    "dev": "vite --host 127.0.0.1 --port 5173",
+    "dev": "vite --host 127.0.0.1 --port 7788",
     "typecheck": "tsc -b",
     "test": "bun test test",
     "test:visual": "playwright test --config playwright.config.ts",

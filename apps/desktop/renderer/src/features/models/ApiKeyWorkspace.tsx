@@ -19,7 +19,7 @@ import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 import { Dropdown } from '../../components/ui/Dropdown.js'
 import { Input } from '../../components/ui/Input.js'
 import { PopoverItem } from '../../components/ui/PopoverItem.js'
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import { fullErrorMessage } from '../../utils/errors.js'
 import { SettingsDropdown } from '../settings/SettingsDropdown.js'
 import {

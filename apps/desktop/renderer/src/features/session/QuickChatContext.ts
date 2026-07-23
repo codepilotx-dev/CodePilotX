@@ -11,12 +11,12 @@ import type {
   DesktopWorkflowEvent,
   DesktopWorkspace,
 } from '../../../shared/types.js'
-import type { OpenPlanInDockRequest } from './WorkflowPlanCard.js'
+import type { OpenPlanInDockRequest } from './workflow/WorkflowPlanCard.js'
 import type {
   MarkdownFileOpenOptions,
   MarkdownFileReference,
 } from '../markdown/index.js'
-import type { DesktopComposerProps } from './DesktopComposer.js'
+import type { DesktopComposerProps } from './composer/DesktopComposer.js'
 
 export type ProviderModelOption = {
   providerID: string

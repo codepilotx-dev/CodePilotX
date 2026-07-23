@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import type { DesktopWorkspace } from "../../../../shared/types.js";
-import { desktopClient } from "../../../services/desktopClient.js";
+import { desktopClient } from "../../../services/desktop-client/index.js";
 import type { SessionListItem } from "../../../uiTypes.js";
 import { IconButton } from "../../../components/ui/IconButton.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";

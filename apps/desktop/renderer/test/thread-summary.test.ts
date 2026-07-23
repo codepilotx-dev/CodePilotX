@@ -6,12 +6,12 @@ import {
   THREAD_SUMMARY_SHIFT_PX,
   toggleThreadSummaryPreference,
   transitionThreadSummaryMode,
-} from "../src/features/session/threadSummaryState.js";
+} from "../src/features/session/summary/threadSummaryState.js";
 import {
   deriveThreadSummaryViewModel,
   findLatestThreadSummaryPlan,
   previewThreadSummarySources,
-} from "../src/features/session/threadSummaryViewModel.js";
+} from "../src/features/session/summary/threadSummaryViewModel.js";
 
 describe("thread summary state", () => {
   test("resolves the exact responsive boundaries", () => {

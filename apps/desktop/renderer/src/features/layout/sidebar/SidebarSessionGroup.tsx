@@ -8,7 +8,7 @@ import { IconButton } from "../../../components/ui/IconButton.js";
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
 import { motionTransition, standardTween } from '../../motion/motionTransitions.js'
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
-import { sortSessionsForSidebar } from '../../session/sessionSorting.js'
+import { sortSessionsForSidebar } from '../../session/state/sessionSorting.js'
 import { SidebarRow } from "./SidebarRow.js";
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { cx } from "../../../utils/cx.js";

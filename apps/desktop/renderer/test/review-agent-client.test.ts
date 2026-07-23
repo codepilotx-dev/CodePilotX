@@ -5,13 +5,13 @@ import {
   retainCurrentReviewFileDiffs,
   ReviewFileRequestCoordinator,
   reviewLoadStateForError,
-} from '../src/features/review/reviewAgentClient.js'
-import { formatReviewCount } from '../src/features/review/reviewFormat.js'
+} from '../src/features/review/source/reviewAgentClient.js'
+import { formatReviewCount } from '../src/features/review/diff/reviewFormat.js'
 import type {
   ReviewFileDiff,
   ReviewFileSummary,
   ReviewSummarySnapshot,
-} from '../src/features/review/reviewAgentClient.js'
+} from '../src/features/review/source/reviewAgentClient.js'
 
 describe('review load state', () => {
   test('审阅统计使用精确千分位而不是截断为 999+', () => {

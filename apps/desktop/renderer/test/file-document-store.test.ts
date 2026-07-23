@@ -5,7 +5,7 @@ import {
   prefetchFileDocument,
   startFileDocumentExternalChecks,
 } from '../src/features/workspace/fileDocumentStore.js'
-import { desktopClient } from '../src/services/desktopClient.js'
+import { desktopClient } from '../src/services/desktop-client/index.js'
 
 const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
   globalThis,

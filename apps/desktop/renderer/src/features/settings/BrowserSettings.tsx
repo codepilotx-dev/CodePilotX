@@ -1,7 +1,7 @@
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import type { DesktopBrowserSitePermission } from '../../../shared/types.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'

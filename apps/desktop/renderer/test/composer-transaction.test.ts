@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { ComposerDraftStore } from '../src/features/session/composerDraftStore.js'
+import { ComposerDraftStore } from '../src/features/session/composer/composerDraftStore.js'
 import {
   executeComposerSubmitTransaction,
   prepareComposerSubmission,
-} from '../src/features/session/composerSubmitTransaction.js'
-import type { ComposerDraft } from '../src/features/session/composerTypes.js'
-import { createComposerDocument } from '../src/features/session/composerTypes.js'
+} from '../src/features/session/composer/composerSubmitTransaction.js'
+import type { ComposerDraft } from '../src/features/session/composer/composerTypes.js'
+import { createComposerDocument } from '../src/features/session/composer/composerTypes.js'
 
 function draft(overrides: Partial<ComposerDraft> = {}): ComposerDraft {
   return {

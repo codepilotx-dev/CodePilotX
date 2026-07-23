@@ -3,18 +3,18 @@ import {
   applyWorkbenchPanelAction,
   createDefaultWorkbenchTabsState,
   type WorkbenchTabDescriptor,
-} from '../src/features/layout/rightDockState.js'
-import { getWorkbenchTabDefinition } from '../src/features/layout/workbenchTabRegistry.js'
+} from '../src/features/layout/dock/rightDockState.js'
+import { getWorkbenchTabDefinition } from '../src/features/layout/tabs/workbenchTabRegistry.js'
 import {
   isReviewDiffExpanded,
   toggleReviewDiffExpansion,
   validateConversationUiState,
-} from '../src/features/layout/conversationUiState.js'
+} from '../src/features/layout/tabs/conversationUiState.js'
 import {
   getResponsiveRightDockDefaultWidth,
   rightDockWidthFromRatio,
   rightDockWidthToRatio,
-} from '../src/features/layout/useWorkbenchShellController.js'
+} from '../src/features/layout/shell/useWorkbenchShellController.js'
 
 const review = { id: 'review', kind: 'review' } as const
 const browser = { id: 'browser', kind: 'browser' } as const
@@ -329,7 +329,7 @@ describe('workbench dynamic tab state', () => {
     expect(state.restoreRightFullWidthOnNextOpen).toBe(false)
   })
 
-  test('migrates legacy tools and plan while dropping Terminal', () => {
+  test('resets pre-v4 workbench state instead of migrating legacy tools', () => {
     const state = validateConversationUiState(
       {
         rightDock: {
@@ -351,17 +351,13 @@ describe('workbench dynamic tab state', () => {
       selectedFile: null,
       viewedRevisions: {},
     })
-    expect(state.workbench.right.tabIds).toEqual(['review', 'plan:legacy'])
-    expect(state.workbench.right.activeTabId).toBe('plan:legacy')
-    expect(state.workbench.tabsById['plan:legacy']).toMatchObject({
-      kind: 'plan',
-      legacyContent: '旧正文',
-    })
-    expect(Object.keys(state.workbench.tabsById)).not.toContain('terminal')
+    expect(state.workbench.right.tabIds).toEqual([])
+    expect(state.workbench.right.activeTabId).toBeNull()
+    expect(state.workbench.tabsById).toEqual({})
     expect(state.workbench.bottom.tabIds).toEqual([])
   })
 
-  test('validates v2 descriptors, duplicate ownership, and debug gating', () => {
+  test('resets v2 descriptors after the renderer data epoch change', () => {
     const state = validateConversationUiState(
       {
         schemaVersion: 2,
@@ -394,16 +390,16 @@ describe('workbench dynamic tab state', () => {
       { debugMode: false },
     )
 
-    expect(state.workbench.right.tabIds).toEqual(['review'])
-    expect(state.workbench.bottom.tabIds).toEqual(['browser'])
+    expect(state.workbench.right.tabIds).toEqual([])
+    expect(state.workbench.bottom.tabIds).toEqual([])
     expect(state.workbench.tabsById['tool-probe']).toBeUndefined()
-    expect(state.workbench.focusArea).toBe('bottom-panel')
+    expect(state.workbench.focusArea).toBe('main')
     expect(state.schemaVersion).toBe(4)
   })
 
-  test('migrates v3 Review expansion state and validates the remaining fields', () => {
+  test('validates canonical v4 Review expansion state and remaining fields', () => {
     const state = validateConversationUiState({
-      schemaVersion: 3,
+      schemaVersion: 4,
       workbench: createDefaultWorkbenchTabsState(),
       mainScrollTop: 0,
       sideChatInput: '',
@@ -413,7 +409,10 @@ describe('workbench dynamic tab state', () => {
         selectedFile: 'src/main.ts',
         selectedCommentId: 'comment-1',
         scrollTop: 128,
-        expandedFiles: ['src/main.ts', 'src/main.ts'],
+        diffExpansion: {
+          mode: 'custom',
+          expandedFiles: ['src/main.ts', 'src/main.ts'],
+        },
         viewedRevisions: { 'src/main.ts': 'revision-1', bad: 1 },
         fileTreeVisible: false,
         fileTreeWidth: 9_999,
@@ -447,11 +446,6 @@ describe('workbench dynamic tab state', () => {
   })
 
   test('distinguishes all, none, and custom Review diff expansion states', () => {
-    const v3All = validateConversationUiState({
-      schemaVersion: 3,
-      workbench: createDefaultWorkbenchTabsState(),
-      review: { expandedFiles: [] },
-    })
     const v4None = validateConversationUiState({
       schemaVersion: 4,
       workbench: createDefaultWorkbenchTabsState(),
@@ -468,7 +462,6 @@ describe('workbench dynamic tab state', () => {
       },
     })
 
-    expect(v3All.review.diffExpansion).toEqual({ mode: 'all' })
     expect(v4None.review.diffExpansion).toEqual({ mode: 'none' })
     expect(v4Custom.review.diffExpansion).toEqual({
       mode: 'custom',
@@ -503,7 +496,7 @@ describe('workbench dynamic tab state', () => {
 
   test('restores only valid Markdown view modes from session UI state', () => {
     const state = validateConversationUiState({
-      schemaVersion: 2,
+      schemaVersion: 4,
       workbench: {
         schemaVersion: 2,
         tabsById: {

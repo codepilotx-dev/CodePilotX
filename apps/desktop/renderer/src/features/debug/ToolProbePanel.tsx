@@ -1,7 +1,7 @@
 import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Play, Square, Copy, Check, AlertTriangle, Clock, Cpu, Folder, Terminal, Database, FileCode } from 'lucide-react'
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import type {
   DebugToolProbeMode,
   DebugToolProbeReport,

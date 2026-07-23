@@ -10,7 +10,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import type { DesktopBrowserState } from '../../../shared/types.js'
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import { formatBrowserDisplayURL } from './browserDisplayURL.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { IconButton } from '../../components/ui/IconButton.js'

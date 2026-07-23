@@ -10,7 +10,13 @@ import {
   type RpcResult,
   type RpcTransport,
 } from '@codepilotx/agent-protocol'
-import type { AgentNotification } from '@codepilotx/shared/thread'
+
+export type AgentNotification = {
+  jsonrpc: '2.0'
+  id?: string | number
+  method: string
+  params: Record<string, unknown>
+}
 
 export type AgentRpcClientEnvironment = {
   fetch?: (input: string, init?: RequestInit) => Promise<Response>

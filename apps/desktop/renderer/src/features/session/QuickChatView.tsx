@@ -13,8 +13,8 @@ import type {
   NewSessionSuggestionCategory,
   NewSessionSuggestionTask,
 } from "./newSessionSuggestions.js";
-import { ProjectSwitcherPopover } from "./ProjectSwitcherPopover.js";
-import { DesktopComposer } from "./DesktopComposer.js";
+import { ProjectSwitcherPopover } from "./composer/ProjectSwitcherPopover.js";
+import { DesktopComposer } from "./composer/DesktopComposer.js";
 import { useQuickChatContext } from "./QuickChatContext.js";
 
 export function QuickChatView(): React.ReactNode {

@@ -1,4 +1,4 @@
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import React, { useEffect, useMemo, useState } from 'react'
 import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'

@@ -19,7 +19,7 @@ import {
   buildSidebarViewModel,
   deriveSidebarSessionVisualState,
 } from '../src/features/layout/sidebar/sidebarViewModel.js'
-import { sortSessionsForSidebar } from '../src/features/session/sessionSorting.js'
+import { sortSessionsForSidebar } from '../src/features/session/state/sessionSorting.js'
 import { TOP_NAV_ITEMS } from '../src/features/layout/sidebar/SidebarTopNav.js'
 import { legacySettingsRedirect } from '../src/features/settings/SettingsLayout.js'
 import { SETTINGS_ITEMS } from '../src/features/settings/settingsRegistry.js'

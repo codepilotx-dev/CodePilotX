@@ -6,7 +6,7 @@ import type {
 import {
   desktopClient,
   WORKSPACE_FILE_CHANGED_EVENT,
-} from '../../services/desktopClient.js'
+} from '../../services/desktop-client/index.js'
 
 const AUTOSAVE_DELAY_MS = 3_000
 const EXTERNAL_CHECK_INTERVAL_MS = 4_000

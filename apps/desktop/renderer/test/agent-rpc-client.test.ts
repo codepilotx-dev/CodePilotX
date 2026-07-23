@@ -4,7 +4,7 @@ import {
   createAgentRpcClient,
 } from '../src/services/agentRpcClient.js'
 
-describe('agent RPC v3 client', () => {
+describe('agent RPC v4 client', () => {
   test('并发业务请求统一等待首次 initialized 握手完成', async () => {
     const methods: string[] = []
     let initialized = false
@@ -15,12 +15,12 @@ describe('agent RPC v3 client', () => {
           version: '1.0.0',
           instanceId: 'renderer-automatic',
         },
-        protocols: ['thread-rpc-v3'] as const,
+        protocols: ['thread-rpc-v4'] as const,
         capabilities: ['rpc.typed.v1'],
         interactionDelivery: 'active' as const,
       },
       initialized: {
-        protocol: 'thread-rpc-v3' as const,
+        protocol: 'thread-rpc-v4' as const,
         clientInstanceId: 'renderer-automatic',
       },
     }
@@ -37,7 +37,7 @@ describe('agent RPC v3 client', () => {
             jsonrpc: '2.0',
             id: body.id,
             result: {
-              protocol: 'thread-rpc-v3',
+              protocol: 'thread-rpc-v4',
               serverInfo: { name: 'test-agent', version: '1.0.0' },
               capabilities: ['rpc.typed.v1'],
               limits: {
@@ -92,12 +92,12 @@ describe('agent RPC v3 client', () => {
             version: '1.0.0',
             instanceId: 'renderer-rejected',
           },
-          protocols: ['thread-rpc-v3'],
+          protocols: ['thread-rpc-v4'],
           capabilities: ['rpc.typed.v1'],
           interactionDelivery: 'active',
         },
         initialized: {
-          protocol: 'thread-rpc-v3',
+          protocol: 'thread-rpc-v4',
           clientInstanceId: 'renderer-rejected',
         },
       },
@@ -111,7 +111,7 @@ describe('agent RPC v3 client', () => {
             jsonrpc: '2.0',
             id: body.id,
             result: {
-              protocol: 'thread-rpc-v3',
+              protocol: 'thread-rpc-v4',
               serverInfo: { name: 'test-agent', version: '1.0.0' },
               capabilities: ['rpc.typed.v1'],
               limits: {
@@ -161,7 +161,7 @@ describe('agent RPC v3 client', () => {
             jsonrpc: '2.0',
             id: body.id,
             result: {
-              protocol: 'thread-rpc-v3',
+              protocol: 'thread-rpc-v4',
               serverInfo: { name: 'test-agent', version: '1.0.0' },
               capabilities: ['rpc.typed.v1', 'git.review.v1'],
               limits: {
@@ -184,13 +184,13 @@ describe('agent RPC v3 client', () => {
         version: '1.0.0',
         instanceId: 'renderer-1',
       },
-      protocols: ['thread-rpc-v3'],
+      protocols: ['thread-rpc-v4'],
       capabilities: ['rpc.typed.v1', 'git.review.v1'],
       interactionDelivery: 'active',
     })
     client.setConnectionId(initialized.connectionId)
     await client.initialized({
-      protocol: 'thread-rpc-v3',
+      protocol: 'thread-rpc-v4',
       clientInstanceId: 'renderer-1',
     })
 
@@ -198,7 +198,7 @@ describe('agent RPC v3 client', () => {
       jsonrpc: '2.0',
       method: 'initialize',
       params: {
-        protocols: ['thread-rpc-v3'],
+        protocols: ['thread-rpc-v4'],
         interactionDelivery: 'active',
       },
     })
@@ -206,7 +206,7 @@ describe('agent RPC v3 client', () => {
       jsonrpc: '2.0',
       method: 'initialized',
       params: {
-        protocol: 'thread-rpc-v3',
+        protocol: 'thread-rpc-v4',
         clientInstanceId: 'renderer-1',
       },
     })
@@ -237,7 +237,7 @@ describe('agent RPC v3 client', () => {
             jsonrpc: '2.0',
             id: body.id,
             result: {
-              protocol: 'thread-rpc-v3',
+              protocol: 'thread-rpc-v4',
               serverInfo: { name: 'test-agent', version: '1.0.0' },
               capabilities: ['rpc.typed.v1'],
               limits: {
@@ -288,13 +288,13 @@ describe('agent RPC v3 client', () => {
         version: '1.0.0',
         instanceId: 'renderer-1',
       },
-      protocols: ['thread-rpc-v3'],
+      protocols: ['thread-rpc-v4'],
       capabilities: ['rpc.typed.v1'],
       interactionDelivery: 'active',
     })
     client.setConnectionId(initialized.connectionId)
     await client.initialized({
-      protocol: 'thread-rpc-v3',
+      protocol: 'thread-rpc-v4',
       clientInstanceId: 'renderer-1',
     })
     expect(await client.call('project/list', {})).toEqual({
@@ -686,12 +686,12 @@ function automaticHandshake(instanceId: string) {
         version: '1.0.0',
         instanceId,
       },
-      protocols: ['thread-rpc-v3'] as const,
+      protocols: ['thread-rpc-v4'] as const,
       capabilities: ['rpc.typed.v1'],
       interactionDelivery: 'active' as const,
     },
     initialized: {
-      protocol: 'thread-rpc-v3' as const,
+      protocol: 'thread-rpc-v4' as const,
       clientInstanceId: instanceId,
     },
   }
@@ -699,7 +699,7 @@ function automaticHandshake(instanceId: string) {
 
 function initializeResult(connectionId: string) {
   return {
-    protocol: 'thread-rpc-v3',
+    protocol: 'thread-rpc-v4',
     serverInfo: { name: 'test-agent', version: '1.0.0' },
     capabilities: ['rpc.typed.v1'],
     limits: {

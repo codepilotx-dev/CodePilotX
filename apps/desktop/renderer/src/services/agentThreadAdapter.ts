@@ -1,5 +1,4 @@
 import type {
-  AgentNotification,
   ApprovalRequest,
   Input,
   Item,
@@ -11,6 +10,7 @@ import type {
   ThreadWorkspace,
   Turn,
 } from '@codepilotx/shared/thread'
+import type { AgentNotification } from './agentRpcClient.js'
 import { collaborationModeFromPlanModeActive } from '../shims/core/agent/codepilotxSessionContract.js'
 import type {
   DesktopAgentEvent,

@@ -17,7 +17,7 @@ import type {
   DesktopGithubProfileOverview,
   DesktopGithubProfileRepository,
 } from '../../../shared/types.js'
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import { Button } from '../../components/ui/Button.js'
 
 export function ProfileSettings(): React.ReactNode {

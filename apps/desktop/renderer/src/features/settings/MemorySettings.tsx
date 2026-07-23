@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { RefreshCw, Save, Trash2 } from 'lucide-react'
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import type {
   DesktopMemoryRecallEvent,

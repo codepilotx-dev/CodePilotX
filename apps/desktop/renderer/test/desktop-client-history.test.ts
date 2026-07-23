@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import type { Project } from '@codepilotx/shared'
 import type { ThreadListItem, ThreadSnapshot } from '@codepilotx/shared/thread'
-import { createDesktopClient } from '../src/services/desktopClient.js'
+import { createDesktopClient } from '../src/services/desktop-client/index.js'
 
 const now = 1_700_000_000_000
 const defaultThreadSettings = {
@@ -27,11 +27,19 @@ const project: Project = {
     reviewerModel: null,
   },
 }
+const projectWorkspace = {
+  kind: 'project' as const,
+  projectID: project.id,
+  workspaceRoot: project.rootPath,
+  cwd: project.rootPath,
+  outputDirectory: null,
+}
 
 function sessionItem(overrides: Partial<ThreadListItem> = {}): ThreadListItem {
   return {
     id: 'session-1',
     projectID: project.id,
+    workspace: projectWorkspace,
     title: '历史会话',
     preview: '预览',
     firstUserMessage: '第一条消息',
@@ -51,6 +59,7 @@ function sessionSnapshot(overrides: Partial<ThreadSnapshot['thread']> = {}): Thr
       id: 'session-1',
       title: '历史会话',
       projectID: project.id,
+      workspace: projectWorkspace,
       settings: defaultThreadSettings,
       createdAt: now,
       updatedAt: now + 1000,
@@ -144,7 +153,7 @@ describe('desktop history client', () => {
       }
       if (rpcMethod === 'thread/create') {
         expect(params).toEqual({
-          projectId: project.id,
+          workspace: { kind: 'project', projectId: project.id },
           settings: defaultThreadSettings,
           title: '新会话',
           operationId: expect.any(String),
@@ -364,7 +373,7 @@ function snapshotResult(snapshot: ThreadSnapshot) {
 
 function initializedResult() {
   return {
-    protocol: 'thread-rpc-v3',
+    protocol: 'thread-rpc-v4',
     serverInfo: { name: 'test-agent', version: '1.0.0' },
     capabilities: ['rpc.typed.v1'],
     limits: {

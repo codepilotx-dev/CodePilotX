@@ -1,5 +1,9 @@
 .conversation-page {
   --session-content-w: min(48rem, calc(100% - (var(--session-content-inline-gutter) * 2)));
+  --conversation-item-gap: 16px;
+  --conversation-grouped-item-gap: 4px;
+  --thread-reading-width: 40rem;
+  --thread-resource-row-padding-x: 12px;
   background: var(--color-bg);
 }
 
@@ -214,7 +218,95 @@
 }
 
 .canonical-turn__process {
-  gap: 3px;
+  gap: var(--conversation-grouped-item-gap);
+}
+
+/* ── Process group (wraps reasoning / activity / tool / subagent items) ── */
+
+.canonical-process-group {
+  min-width: 0;
+  color: var(--color-text-soft);
+  font-size: var(--type-secondary);
+  animation: process-group-enter 220ms ease-out;
+
+  > summary {
+    display: grid;
+    grid-template-columns: 18px minmax(0, auto) minmax(0, 1fr) 18px;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    width: fit-content;
+    max-width: 100%;
+    padding: 4px 6px;
+    border-radius: 7px;
+    cursor: pointer;
+    list-style: none;
+    transition: background 160ms ease-out, color 160ms ease-out;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    &:hover {
+      background: var(--color-bg-hover);
+      color: var(--color-text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 1px;
+    }
+
+    svg {
+      width: 15px;
+      height: 15px;
+      stroke-width: var(--app-icon-stroke-width);
+    }
+
+    > span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &[open] .canonical-process-group__chevron {
+    transform: rotate(180deg);
+  }
+
+  &__chevron {
+    transition: transform 180ms ease-out;
+  }
+
+  &__items {
+    display: grid;
+    gap: var(--conversation-grouped-item-gap);
+    margin: 3px 0 5px 25px;
+  }
+
+  /* Semantic state colours */
+  &[data-state="failed"] > summary svg:first-child {
+    color: var(--color-danger);
+  }
+
+  &[data-state="active"] > summary .canonical-spin {
+    color: var(--color-accent);
+  }
+
+  &[data-state="completed"] > summary svg:first-child {
+    color: var(--color-success);
+  }
+}
+
+@keyframes process-group-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .canonical-user-message {
@@ -451,6 +543,70 @@
   }
 }
 
+/* ── Markdown overrides for canonical result text ── */
+
+.canonical-text-item--result {
+  max-width: var(--thread-reading-width);
+
+  > .md-body {
+    max-width: none;
+
+    /* Allow code blocks, tables, media to expand to the full turn width */
+    .md-code-block,
+    .md-table-block,
+    .md-media-grid,
+    img,
+    video {
+      max-width: calc(var(--session-content-w) - 2 * var(--session-content-inline-gutter, 16px));
+    }
+  }
+}
+
+/* Tighter markdown spacing for result paragraphs */
+.canonical-text-item--result .md-body,
+.canonical-text-item--process .md-body {
+  p {
+    margin: 0 0 11px;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+
+  ul, ol {
+    padding-left: 21px;
+  }
+
+  li {
+    margin: 8px 0;
+
+    > p {
+      margin: 0;
+    }
+  }
+
+  blockquote {
+    margin: 0 0 11px;
+    padding: 0 0 0 12px;
+    border-left: 4px solid var(--color-border);
+    background: transparent;
+    border-radius: 0;
+  }
+
+  hr {
+    margin: 28px 0;
+  }
+
+  :not(pre) > code {
+    padding: 1px 6px;
+    border: 1px solid var(--color-border-faint);
+    border-radius: 6px;
+    background: var(--surface-code-inline);
+  }
+}
+
 .canonical-process-card {
   min-width: 0;
   color: var(--color-text-soft);
@@ -537,6 +693,27 @@
 
 @keyframes canonical-spin {
   to { transform: rotate(360deg); }
+}
+
+/* ── Grouped presentation (inside a process group) ── */
+
+.canonical-process-group__items {
+  .canonical-process-card {
+    > summary {
+      min-height: 26px;
+      padding: 1px 4px;
+    }
+
+    &__body {
+      margin-left: 25px;
+      padding: 6px 10px;
+    }
+  }
+
+  .canonical-subagent-card {
+    min-height: 38px;
+    padding: 5px 10px;
+  }
 }
 
 .canonical-blocker-card,
@@ -694,6 +871,10 @@
   .user-message-markdown__toggle svg {
     transition: none;
   }
+
+  .canonical-process-group {
+    animation: none;
+  }
 }
 
 @media (max-width: 760px) {
@@ -723,6 +904,10 @@
   .canonical-subagent-card {
     transition: none;
   }
+
+  .canonical-process-group {
+    animation: none;
+  }
 }
 
 :root[data-reduce-motion="on"] {
@@ -733,5 +918,9 @@
   .canonical-process-card__chevron,
   .canonical-subagent-card {
     transition: none;
+  }
+
+  .canonical-process-group {
+    animation: none;
   }
 }

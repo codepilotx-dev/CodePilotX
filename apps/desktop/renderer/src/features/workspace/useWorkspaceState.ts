@@ -1,4 +1,4 @@
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   DesktopAuthStatus,

@@ -1,4 +1,4 @@
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArchiveRestore, Trash2 } from 'lucide-react'

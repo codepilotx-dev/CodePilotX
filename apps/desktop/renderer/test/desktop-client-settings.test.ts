@@ -5,7 +5,7 @@ import type {
   ThreadSettings,
   ThreadSnapshot,
 } from '@codepilotx/shared/thread'
-import { createDesktopClient } from '../src/services/desktopClient.js'
+import { createDesktopClient } from '../src/services/desktop-client/index.js'
 
 const now = 1_700_000_000_000
 const defaultSettings: ThreadSettings = {
@@ -30,6 +30,13 @@ const project: Project = {
     reviewerModel: null,
   },
 }
+const projectWorkspace = {
+  kind: 'project' as const,
+  projectID: project.id,
+  workspaceRoot: project.rootPath,
+  cwd: project.rootPath,
+  outputDirectory: null,
+}
 
 describe('desktop thread settings client', () => {
   test('uses initial settings for the first turn and serializes immediate updates', async () => {
@@ -53,7 +60,7 @@ describe('desktop thread settings client', () => {
       if (body?.method === 'project/list') return rpc(body.id, { projects: [project], nextCursor: null })
       if (body?.method === 'thread/create') {
         expect(params).toEqual({
-          projectId: project.id,
+          workspace: { kind: 'project', projectId: project.id },
           settings,
           title: 'Plan 会话',
           operationId: expect.any(String),
@@ -757,6 +764,7 @@ function listItem(id: string, settings: ThreadSettings): ThreadListItem {
   return {
     id,
     projectID: project.id,
+    workspace: projectWorkspace,
     title: 'Session',
     preview: null,
     firstUserMessage: null,
@@ -775,6 +783,7 @@ function snapshot(id: string, settings: ThreadSettings): ThreadSnapshot {
       id,
       title: 'Session',
       projectID: project.id,
+      workspace: projectWorkspace,
       settings,
       createdAt: now,
       updatedAt: now,
@@ -838,7 +847,7 @@ function rpc(id: string | number, result: unknown): Response {
 
 function initializedResult() {
   return {
-    protocol: 'thread-rpc-v3',
+    protocol: 'thread-rpc-v4',
     serverInfo: { name: 'test-agent', version: '1.0.0' },
     capabilities: [
       'rpc.typed.v1',

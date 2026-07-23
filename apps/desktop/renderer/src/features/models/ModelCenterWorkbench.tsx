@@ -1,5 +1,5 @@
 
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import { withModelCatalogLoading } from '../../hooks/useModelCatalogLoading.js'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import type {

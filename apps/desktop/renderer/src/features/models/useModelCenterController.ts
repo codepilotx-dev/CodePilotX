@@ -12,7 +12,7 @@ import type {
   DesktopModelProviderState,
   DesktopModelProviderSummary,
 } from '../../../shared/types.js'
-import { desktopClient } from '../../services/desktopClient.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 import { fullErrorMessage } from '../../utils/errors.js'
 
 type Options = {

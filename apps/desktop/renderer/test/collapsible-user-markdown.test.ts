@@ -6,7 +6,7 @@ import {
   CollapsibleUserMarkdown,
   resolveCollapseState,
   setFocusableElementVisibility,
-} from "../src/features/session/CollapsibleUserMarkdown.js";
+} from "../src/features/session/conversation/CollapsibleUserMarkdown.js";
 
 describe("collapsible user Markdown", () => {
   test("renders the user message through the shared Markdown renderer", () => {

@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test'
-import { loadCachedSlashCommands } from '../src/features/session/DesktopComposer.js'
+import { loadCachedSlashCommands } from '../src/features/session/composer/DesktopComposer.js'
 import {
   getActiveComposerMention,
   shouldSubmitComposerKey,
-} from '../src/features/session/ComposerCard.js'
+} from '../src/features/session/composer/ComposerCard.js'
 import {
   removeGeneratedSuggestionStarter,
   selectNewSessionSuggestionCategory,

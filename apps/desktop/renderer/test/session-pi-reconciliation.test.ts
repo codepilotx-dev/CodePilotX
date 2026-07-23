@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { handleSessionAgentEvent, type SessionEventContext } from '../src/features/session/sessionEvents.js'
-import { createEmptySessionView } from '../src/features/session/sessionViewState.js'
+import { handleSessionAgentEvent, type SessionEventContext } from '../src/features/session/state/sessionEvents.js'
+import { createEmptySessionView } from '../src/features/session/state/sessionViewState.js'
 
 describe('Pi session event reconciliation', () => {
   test('accumulates text and reasoning independently, then replaces only the matching terminal item', () => {
