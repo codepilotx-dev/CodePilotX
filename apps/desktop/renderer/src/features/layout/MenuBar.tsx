@@ -75,6 +75,8 @@ export type HelpMenuAction =
 type Props = {
   sidebarCollapsed: boolean
   isMaximized: boolean
+  canNavigateBack: boolean
+  canNavigateForward: boolean
   onToggleSidebar: () => void
   onSidebarTriggerPointerEnter: () => void
   onSidebarTriggerPointerLeave: () => void
@@ -195,6 +197,8 @@ function AppMenu({
 export function MenuBar({
   sidebarCollapsed,
   isMaximized,
+  canNavigateBack,
+  canNavigateForward,
   onToggleSidebar,
   onSidebarTriggerPointerEnter,
   onSidebarTriggerPointerLeave,
@@ -228,10 +232,22 @@ export function MenuBar({
               <PanelLeftClose size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             )}
           </IconButton>
-          <IconButton size="sm" title="后退" variant="toolbar">
+          <IconButton
+            disabled={!canNavigateBack}
+            onClick={() => onViewMenuAction('back')}
+            size="sm"
+            title="后退"
+            variant="toolbar"
+          >
             <ChevronLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
-          <IconButton size="sm" title="前进" variant="toolbar">
+          <IconButton
+            disabled={!canNavigateForward}
+            onClick={() => onViewMenuAction('forward')}
+            size="sm"
+            title="前进"
+            variant="toolbar"
+          >
             <ChevronRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
 
@@ -354,10 +370,18 @@ export function MenuBar({
               >
                 下一个聊天
               </MenuItem>
-              <MenuItem shortcut="Ctrl+[" onSelect={() => onViewMenuAction('back')}>
+              <MenuItem
+                disabled={!canNavigateBack}
+                shortcut="Ctrl+["
+                onSelect={() => onViewMenuAction('back')}
+              >
                 后退
               </MenuItem>
-              <MenuItem shortcut="Ctrl+]" onSelect={() => onViewMenuAction('forward')}>
+              <MenuItem
+                disabled={!canNavigateForward}
+                shortcut="Ctrl+]"
+                onSelect={() => onViewMenuAction('forward')}
+              >
                 前进
               </MenuItem>
               <MenuSeparator />

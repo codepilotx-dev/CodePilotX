@@ -449,6 +449,10 @@ export function DesktopLayout(): React.ReactNode {
 
   const {
     navigate,
+    canNavigateBack,
+    canNavigateForward,
+    navigateBack,
+    navigateForward,
     routedSessionId,
     isQuickChatPage,
     isConversationRoute,
@@ -1074,6 +1078,20 @@ export function DesktopLayout(): React.ReactNode {
       } else if (!event.shiftKey && event.altKey && key === 's') {
         event.preventDefault()
         handleOpenSideChat()
+      } else if (
+        !event.shiftKey &&
+        !event.altKey &&
+        event.code === 'BracketLeft'
+      ) {
+        event.preventDefault()
+        navigateBack()
+      } else if (
+        !event.shiftKey &&
+        !event.altKey &&
+        event.code === 'BracketRight'
+      ) {
+        event.preventDefault()
+        navigateForward()
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -1083,9 +1101,36 @@ export function DesktopLayout(): React.ReactNode {
     handleOpenFilesDock,
     handleOpenReview,
     handleOpenSideChat,
+    navigateBack,
+    navigateForward,
     togglePanel,
     toggleSidebarCollapsed,
   ])
+
+  useEffect(() => {
+    const preventMouseNavigationDefault = (event: MouseEvent): void => {
+      if (event.button !== 3 && event.button !== 4) return
+      event.preventDefault()
+      event.stopPropagation()
+    }
+    const handleMouseNavigation = (event: MouseEvent): void => {
+      preventMouseNavigationDefault(event)
+      if (event.button === 3) {
+        navigateBack()
+      } else if (event.button === 4) {
+        navigateForward()
+      }
+    }
+
+    window.addEventListener('mousedown', preventMouseNavigationDefault, true)
+    window.addEventListener('mouseup', handleMouseNavigation, true)
+    window.addEventListener('auxclick', preventMouseNavigationDefault, true)
+    return () => {
+      window.removeEventListener('mousedown', preventMouseNavigationDefault, true)
+      window.removeEventListener('mouseup', handleMouseNavigation, true)
+      window.removeEventListener('auxclick', preventMouseNavigationDefault, true)
+    }
+  }, [navigateBack, navigateForward])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -1172,11 +1217,21 @@ export function DesktopLayout(): React.ReactNode {
         handleReloadBrowser()
         return
       }
+      if (action === 'back') {
+        navigateBack()
+        return
+      }
+      if (action === 'forward') {
+        navigateForward()
+        return
+      }
     },
     [
       handleOpenBrowser,
       handleOpenFilesDock,
       handleReloadBrowser,
+      navigateBack,
+      navigateForward,
       togglePanel,
       toggleSidebarCollapsed,
     ],
@@ -1761,6 +1816,8 @@ export function DesktopLayout(): React.ReactNode {
     <MenuBar
       sidebarCollapsed={sidebarShell.mode !== 'docked'}
       isMaximized={isWindowMaximized}
+      canNavigateBack={canNavigateBack}
+      canNavigateForward={canNavigateForward}
       onToggleSidebar={toggleSidebarCollapsed}
       onSidebarTriggerPointerEnter={sidebarShell.onTriggerPointerEnter}
       onSidebarTriggerPointerLeave={sidebarShell.onTriggerPointerLeave}
