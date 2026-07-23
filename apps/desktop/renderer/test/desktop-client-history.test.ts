@@ -154,7 +154,7 @@ describe('desktop history client', () => {
       if (rpcMethod === 'thread/read') {
         return rpc(body.id, snapshotResult(sessionSnapshot()))
       }
-      if (rpcMethod === 'model/list') {
+      if (rpcMethod === 'model/list' || rpcMethod === 'model/refresh') {
         return rpc(body.id, {
           providers: [
             {
@@ -185,6 +185,12 @@ describe('desktop history client', () => {
           defaultModel: { providerID: 'openai', id: 'gpt-5' },
           reviewerModel: null,
           catalogVersion: 1,
+        })
+      }
+      if (rpcMethod === 'model/setReviewer') {
+        return rpc(body.id, {
+          reviewerModel: params.model,
+          settingsVersion: 2,
         })
       }
       if (rpcMethod === 'turn/start') {
@@ -231,6 +237,7 @@ describe('desktop history client', () => {
     const created = await client.createSession({
       workspacePath: project.rootPath,
       sessionName: '新会话',
+      permissionConfig: defaultThreadSettings.permissionConfig,
     })
     expect(created).toMatchObject({ sessionId: 'session-1', standalone: false })
 
@@ -277,6 +284,14 @@ describe('desktop history client', () => {
       if (body?.method === 'project/open') {
         openedPaths.push(params.rootPath)
         return rpc(body.id, { project })
+      }
+      if (body?.method === 'model/list') {
+        return rpc(body.id, {
+          providers: [],
+          defaultModel: null,
+          reviewerModel: null,
+          catalogVersion: 1,
+        })
       }
       throw new Error(`Unhandled RPC method: ${body?.method}`)
     }

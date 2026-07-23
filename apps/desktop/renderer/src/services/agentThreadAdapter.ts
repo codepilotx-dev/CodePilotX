@@ -473,13 +473,23 @@ function approvalToRequest(approval: ApprovalRequest): DesktopPermissionRequest 
 }
 
 function approvalParamsToRequest(params: Record<string, unknown>): DesktopPermissionRequest {
+  const originalInput = record(params.input)
+  const command = stringValue(params.command)
+    || stringValue(originalInput.command)
+    || stringValue(originalInput.cmd)
+  const cwd = stringValue(params.cwd) || stringValue(originalInput.cwd)
+  const input = {
+    ...originalInput,
+    ...(command ? { command } : {}),
+    ...(cwd ? { cwd } : {}),
+  }
   return {
     requestId: stringValue(params.interactionId) || stringValue(params.id),
     toolName: stringValue(params.tool) || 'tool',
     toolUseId: stringValue(params.toolCallId) || stringValue(params.toolCallID) || stringValue(params.itemId),
-    input: { command: params.command, cwd: params.cwd, requestedPermissions: params.requestedPermissions, risk: params.risk },
+    input,
     description: stringValue(params.reason) || '需要批准工具调用',
-    requestKind: typeof params.command === 'string' ? 'shell-command' : 'tool',
+    requestKind: command ? 'shell-command' : 'tool',
   }
 }
 

@@ -143,6 +143,10 @@ const RENDERER_CAPABILITIES = [
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 type PendingInteraction =
   RpcResult<'interaction/listPending'>['interactions'][number]
+type ApprovalInteractionResponse = Extract<
+  RpcResult<'interaction/respond'>['response'],
+  { kind: 'approval' }
+>
 
 type DesktopClientWindow = {
   desktopApi?: DesktopApi
@@ -1235,6 +1239,49 @@ function createAgentSessionDesktopClient(
     throw new Error('没有可用模型，请先配置模型提供商。')
   }
 
+  function resolveReviewerModelRef(
+    selection: string,
+    catalog: RpcResult<'model/list'>,
+  ): ModelRef | null {
+    const value = selection.trim()
+    if (!value) return null
+    const separator = value.indexOf('/')
+    if (separator <= 0 || separator === value.length - 1) {
+      throw new Error(`权限审核模型格式无效：${value}`)
+    }
+    const providerID = value.slice(0, separator)
+    const modelID = value.slice(separator + 1)
+    const provider = catalog.providers.find(item => item.provider.id === providerID)
+    const model = provider?.models.find(item => item.id === modelID)
+    if (!provider || !model) {
+      throw new Error(`未找到权限审核模型：${providerID}/${modelID}`)
+    }
+    return { providerID: provider.provider.id, id: model.id }
+  }
+
+  async function syncReviewerModel(
+    selection: string,
+    refreshCatalog = false,
+  ): Promise<void> {
+    // Keep the saved desktop value while the Agent is offline. Task creation
+    // retries this reconciliation after the Agent becomes available again.
+    if (!(await isAgentAvailable())) return
+    const catalog = await loadModelCatalog(refreshCatalog)
+    const model = resolveReviewerModelRef(selection, catalog)
+    if (
+      catalog.reviewerModel?.providerID === model?.providerID
+      && catalog.reviewerModel?.id === model?.id
+      && catalog.reviewerModel?.variant === model?.variant
+    ) {
+      return
+    }
+    await rpc.call('model/setReviewer', {
+      model,
+      operationId: crypto.randomUUID(),
+    })
+    invalidateModelCatalog()
+  }
+
   function eventSourceFactory(): ((url: string) => EventSource) | null {
     if (environment.eventSourceFactory) return environment.eventSourceFactory
     if (typeof EventSource === 'undefined') return null
@@ -1882,11 +1929,11 @@ function createAgentSessionDesktopClient(
       const normalized = normalizeDesktopStoredSettings(settings)
       const saver =
         environment.window?.codePilotXDesktop?.saveDesktopSettings
-      if (!saver) return mockClient.saveDesktopSettings(normalized)
-      const saved = normalizeDesktopStoredSettings(
-        await saver(normalized),
-      )
+      const saved = saver
+        ? normalizeDesktopStoredSettings(await saver(normalized))
+        : await mockClient.saveDesktopSettings(normalized)
       await mockClient.saveDesktopSettings(saved)
+      await syncReviewerModel(saved.reviewModel)
       return saved
     },
     listProjectMemories: workspacePath =>
@@ -2169,6 +2216,7 @@ function createAgentSessionDesktopClient(
             planModeActive: options.planModeActive,
           })
           const stored = await desktopClient.getDesktopSettings()
+          await syncReviewerModel(options.reviewModel ?? stored.reviewModel, true)
           const advancedPermission: PermissionConfig = options.permissionConfig ?? stored.permissionConfig
           const settings: ThreadSettings = {
             taskMode: planModeActiveFromCollaborationMode(collaborationMode)
@@ -2184,6 +2232,7 @@ function createAgentSessionDesktopClient(
           })
           const snapshot = agentThreadSnapshotToDesktop(sharedSnapshot, project)
           sessionSnapshots.set(snapshot.item.id, snapshot)
+          sessionPermissionConfigs.set(snapshot.item.id, settings.permissionConfig)
           activeSessionId = snapshot.item.id
           await refreshAgentSessionStoreChange().catch(() => emitSessionStoreChange())
           return {
@@ -2580,9 +2629,13 @@ function createAgentSessionDesktopClient(
               decision.behavior === 'deny',
             )
           } else if (interaction.kind === 'approval') {
-            await respondToInteraction(interaction, {
+            const feedback = typeof decision.updatedInput?.feedback === 'string'
+              ? decision.updatedInput.feedback.trim().slice(0, 4_000)
+              : ''
+            const response: ApprovalInteractionResponse = {
               kind: 'approval',
               decision: decision.behavior === 'allow' ? 'allow-once' : 'deny',
+              ...(decision.behavior === 'deny' && feedback ? { feedback } : {}),
               ...(decision.alwaysAllow
                 ? {
                     remember: {
@@ -2591,7 +2644,8 @@ function createAgentSessionDesktopClient(
                     },
                   }
                 : {}),
-            })
+            }
+            await respondToInteraction(interaction, response)
           }
           await loadAgentSessionSnapshot(sessionId).catch(() => null)
           emitSessionStoreChange()

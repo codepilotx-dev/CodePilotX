@@ -222,14 +222,14 @@ describe('agent thread adapter', () => {
   test('projects Pi interaction payloads using persisted interaction and question ids', () => {
     const approval = agentEventsFromNotification({
       jsonrpc: '2.0', method: 'approval/requested',
-      params: { threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1', interactionId: 'approval-1', createdAt: 1, version: 1, kind: 'approval', toolCallId: 'call-1', tool: 'shell_command', command: 'bun test', risk: 'medium', reason: '需要执行', requestedPermissions: { readPaths: [], writePaths: [], networkDomains: [] }, allowedChoices: ['allow-once', 'deny'] },
+      params: { threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1', interactionId: 'approval-1', createdAt: 1, version: 1, kind: 'approval', toolCallId: 'call-1', tool: 'shell_command', input: { command: 'bun test', cwd: 'F:\\CodeProject\\CodePilotX-Ts' }, risk: 'medium', reason: '需要执行', requestedPermissions: { readPaths: [], writePaths: [], networkDomains: [] }, allowedChoices: ['allow-once', 'deny'] },
     })[0]!
     const question = agentEventsFromNotification({
       jsonrpc: '2.0', method: 'question/requested',
       params: { threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1', interactionId: 'interaction-1', createdAt: 1, version: 1, kind: 'question', questions: [{ id: 'question-1', header: '方式', prompt: '如何继续？', choices: [{ id: 'safe', label: '安全模式', description: '只读', recommended: true }, { id: 'fast', label: '快速模式', description: '可写', recommended: false }], allowFreeform: false, required: true }] },
     })[0]!
 
-    expect(approval).toMatchObject({ type: 'permission_request', request: { requestId: 'approval-1', toolUseId: 'call-1', toolName: 'shell_command', requestKind: 'shell-command' } })
+    expect(approval).toMatchObject({ type: 'permission_request', request: { requestId: 'approval-1', toolUseId: 'call-1', toolName: 'shell_command', input: { command: 'bun test', cwd: 'F:\\CodeProject\\CodePilotX-Ts' }, requestKind: 'shell-command' } })
     expect(question).toMatchObject({ type: 'permission_request', request: { requestId: 'question:question-1', toolUseId: 'question-1', description: '如何继续？' } })
   })
 })

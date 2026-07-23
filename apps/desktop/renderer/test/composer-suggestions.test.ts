@@ -1,7 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import { loadCachedSlashCommands } from '../src/features/session/DesktopComposer.js'
 import {
+  buildInlineApprovalCommand,
+} from '../src/features/session/InlineApprovalCard.js'
+import {
   getActiveComposerMention,
+  resolveDoubleEscapeInterrupt,
   shouldSubmitComposerKey,
 } from '../src/features/session/ComposerCard.js'
 import {
@@ -67,5 +71,35 @@ describe('composer suggestions', () => {
     expect(
       shouldSubmitComposerKey({ ...event, isComposing: true }, 'enter', '输入中'),
     ).toBe(false)
+  })
+
+  test('requires two Escape presses within 1.2 seconds to interrupt', () => {
+    expect(resolveDoubleEscapeInterrupt(null, 1_000)).toEqual({
+      interrupt: false,
+      nextEscapeAt: 1_000,
+    })
+    expect(resolveDoubleEscapeInterrupt(1_000, 2_200)).toEqual({
+      interrupt: true,
+      nextEscapeAt: null,
+    })
+    expect(resolveDoubleEscapeInterrupt(1_000, 2_201)).toEqual({
+      interrupt: false,
+      nextEscapeAt: 2_201,
+    })
+  })
+
+  test('shows the real Shell command without serializing approval metadata', () => {
+    expect(buildInlineApprovalCommand({
+      requestId: 'approval-1',
+      toolName: 'shell_command',
+      toolUseId: 'call-1',
+      input: {
+        command: 'bun test',
+        paths: [],
+        risk: 'high',
+      },
+      description: '需要执行',
+      requestKind: 'shell-command',
+    })).toMatchObject({ full: 'bun test' })
   })
 })

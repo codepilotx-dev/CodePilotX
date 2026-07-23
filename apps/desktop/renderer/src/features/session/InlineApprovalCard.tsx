@@ -366,6 +366,13 @@ export function buildInlineApprovalCommand(
 
 function formatCommandLine(request: DesktopPermissionRequest): string {
   const { toolName, input } = request
+  const command = stringValue(input.command) ?? stringValue(input.cmd)
+  if (
+    command &&
+    (request.requestKind === 'shell-command' || isShellTool(toolName))
+  ) {
+    return command
+  }
   const filePath = stringValue(input.file_path) ?? stringValue(input.filePath)
   const isFileTool =
     toolName === 'Edit' ||
@@ -390,6 +397,10 @@ function formatCommandLine(request: DesktopPermissionRequest): string {
     }
   }
   return parts.join(' ')
+}
+
+function isShellTool(toolName: string): boolean {
+  return ['Bash', 'PowerShell', 'Shell', 'shell', 'shell_command'].includes(toolName)
 }
 
 function quoteIfNeeded(value: string): string {
