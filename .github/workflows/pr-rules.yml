@@ -1,0 +1,27 @@
+name: PR rules
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  changelog-check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - name: Version consistency check
+        run: bun run version:check
+      - name: Changelog Unreleased entry check
+        shell: pwsh
+        run: |
+          $baseSha = "${{ github.event.pull_request.base.sha }}"
+          bun run version:check -- --base $baseSha

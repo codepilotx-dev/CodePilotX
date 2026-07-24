@@ -10,7 +10,7 @@
     },
     "apps/agent": {
       "name": "@codepilotx/agent",
-      "version": "0.1.0",
+      "version": "0.2.0-beta.1",
       "dependencies": {
         "@anthropic-ai/sandbox-runtime": "0.0.65",
         "@codepilotx/agent-protocol": "workspace:*",
@@ -33,7 +33,7 @@
     },
     "apps/desktop/electron": {
       "name": "@codepilotx/desktop-electron",
-      "version": "0.1.1",
+      "version": "0.2.0-beta.1",
       "devDependencies": {
         "@codepilotx/shared": "workspace:*",
         "@playwright/test": "1.55.1",
@@ -45,7 +45,7 @@
     },
     "apps/desktop/renderer": {
       "name": "@codepilotx/renderer",
-      "version": "0.2.0",
+      "version": "0.2.0-beta.1",
       "dependencies": {
         "@codemirror/autocomplete": "^6.20.3",
         "@codemirror/commands": "^6.10.4",
