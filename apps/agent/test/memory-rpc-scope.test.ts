@@ -129,7 +129,7 @@ describe("Memory RPC 项目作用域", () => {
     const subagents = { setParentResumeHandler: () => undefined }
     const service = new ThreadService(
       db, null as never, null as never, null as never, questions as never, null as never,
-      subagents as never, null as never, ".", memory, null as never, null as never,
+      subagents as never, null as never, { dataRoot: ".", userHome: "." }, memory, null as never, null as never,
     )
     await Bun.sleep(0)
     const thread = db.createThread("snapshot")

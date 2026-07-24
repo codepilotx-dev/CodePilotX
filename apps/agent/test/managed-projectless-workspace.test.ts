@@ -65,7 +65,7 @@ describe("ManagedProjectlessWorkspaceService", () => {
     const subagents = { setParentResumeHandler: () => undefined }
     const threads = new ThreadService(
       db, null as never, null as never, null as never, questions as never, null as never,
-      subagents as never, null as never, root, null as never, null as never, resolver,
+      subagents as never, null as never, { dataRoot: root, userHome: root }, null as never, null as never, resolver,
     )
     try {
       const operationID = crypto.randomUUID()

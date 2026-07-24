@@ -22,6 +22,7 @@ import type { GitReviewService } from "../review/GitReviewService"
 import type { ThreadWorkspaceResolver, ResolvedThreadWorkspace } from "../workspace/ThreadWorkspaceResolver"
 
 type ThreadPromptSettingsSnapshot = { engine: "prompt-engine-v2"; version: 2; snapshottedAt: number; settings: Record<string, unknown>; baseHash?: string; contextHash?: string; cacheKey?: string }
+type PromptStorageRoots = { dataRoot: string; userHome: string }
 
 export class ThreadService {
   private readonly controllers = new Map<string, AbortController>()
@@ -35,7 +36,7 @@ export class ThreadService {
     private readonly orchestrator: PiOrchestratorAdapter,
     private readonly subagents: SubagentService,
     private readonly attachments: AttachmentService,
-    private readonly promptDataRoot: string,
+    private readonly promptStorage: PromptStorageRoots,
     private readonly memory: MemoryService,
     private readonly hooks: HookService,
     private readonly workspaceResolver: ThreadWorkspaceResolver,
@@ -198,7 +199,12 @@ export class ThreadService {
       ? await new InstructionDiscoveryService().discover(runtime.workspaceRoot)
       : { sources: [] }
     const skillService = new SkillService()
-    const skills = await skillService.scan(runtime.workspaceRoot, this.promptDataRoot, { includeWorkspace: runtime.kind === "project" })
+    const skills = await skillService.scan({
+      workspaceRoot: runtime.workspaceRoot,
+      dataRoot: this.promptStorage.dataRoot,
+      userHome: this.promptStorage.userHome,
+      includeWorkspace: runtime.kind === "project",
+    })
     const latest = this.db.sqlite.query("SELECT content, model_ref FROM inputs WHERE thread_id = ? ORDER BY created_at DESC LIMIT 1").get(threadID) as { content: string; model_ref: string } | null
     const userMessage = latest?.content ?? ""
     const memories = this.memory.recall({ query: userMessage, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.workspaceRoot) } : {}) })
@@ -420,7 +426,7 @@ export class ThreadService {
         }).catch(() => undefined)
       }
       this.hooks.load({
-        userConfigPath: join(this.promptDataRoot, "hooks.json"),
+        userConfigPath: join(this.promptStorage.dataRoot, "hooks.json"),
         projectRoot: runtime.workspaceRoot,
         includeProjectHooks: runtime.kind === "project",
       })
@@ -438,7 +444,12 @@ export class ThreadService {
         ? await new InstructionDiscoveryService().discover(runtime.workspaceRoot)
         : { sources: [] }
       const skillService = new SkillService()
-      const skillCatalog = await skillService.scan(runtime.workspaceRoot, this.promptDataRoot, { includeWorkspace: runtime.kind === "project" })
+      const skillCatalog = await skillService.scan({
+        workspaceRoot: runtime.workspaceRoot,
+        dataRoot: this.promptStorage.dataRoot,
+        userHome: this.promptStorage.userHome,
+        includeWorkspace: runtime.kind === "project",
+      })
       const invokedSkill = skillService.resolveInvocation(content)
       const invokedSkillData = invokedSkill ? [`用户显式调用 Skill $${invokedSkill.name}：\n${(await skillService.read(invokedSkill.name)).content}`] : []
       const memories = this.memory.recall({ query: content, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.workspaceRoot) } : {}) })

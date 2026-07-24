@@ -39,6 +39,7 @@ type RootContext = {
   workspaceRoot: string
   projectless?: boolean
 }
+type PromptStorageRoots = { dataRoot: string; userHome: string }
 
 export class SubagentService {
   readonly repository: SubagentRepository
@@ -54,7 +55,7 @@ export class SubagentService {
     private readonly orchestrator: PiOrchestratorAdapter,
     private readonly attachments: AttachmentService,
     private readonly workspaces?: SubagentWorkspaceProvider,
-    private readonly promptDataRoot?: string,
+    private readonly promptStorage?: PromptStorageRoots,
     private readonly memory?: MemoryService,
     private readonly hooks?: HookService,
   ) {
@@ -384,7 +385,13 @@ export class SubagentService {
       const parentMode = (this.db.sqlite.query("SELECT mode FROM turns WHERE id = ?").get(task.parentTurnId) as { mode: "chat" | "plan" } | null)?.mode ?? "chat"
       const instructionSources = await new InstructionDiscoveryService().discover(workspace.rootPath)
       const skillService = new SkillService()
-      const skillCatalog = this.promptDataRoot ? await skillService.scan(workspace.rootPath, this.promptDataRoot) : { skills: [], shadowed: [] }
+      const skillCatalog = this.promptStorage
+        ? await skillService.scan({
+            workspaceRoot: workspace.rootPath,
+            dataRoot: this.promptStorage.dataRoot,
+            userHome: this.promptStorage.userHome,
+          })
+        : { skills: [], shadowed: [] }
       const invokedSkill = skillService.resolveInvocation(input.content)
       const invokedSkillData = invokedSkill ? [`用户显式调用 Skill $${invokedSkill.name}：\n${(await skillService.read(invokedSkill.name)).content}`] : []
       const memories = this.memory?.recall({ query: input.content, projectKey: projectMemoryKey(rootPath), subagent: true }) ?? []

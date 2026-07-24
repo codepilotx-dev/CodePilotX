@@ -9,7 +9,10 @@ import {
 } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { migrateLegacyAgentData } from "../src/config/DataDirectoryMigration"
+import {
+  migrateLegacyAgentData,
+  relocateAgentDataRoot,
+} from "../src/config/DataDirectoryMigration"
 
 const temporaryDirectories: string[] = []
 
@@ -183,6 +186,52 @@ describe("legacy Agent data migration", () => {
     expect(
       await readText(join(target, "pets", ".install-partial", "pet.json")),
     ).toBeNull()
+  })
+})
+
+describe("active Agent data relocation", () => {
+  test("publishes the owned data atomically and preserves the source", async () => {
+    const root = await temporaryRoot()
+    const source = join(root, "source", ".codepilotx")
+    const target = join(root, "target", ".codepilotx")
+    await Promise.all([
+      mkdir(join(source, "skills", "demo"), { recursive: true }),
+      mkdir(join(source, "tooling", "nodejs"), { recursive: true }),
+      mkdir(join(source, "pets", "pet"), { recursive: true }),
+      mkdir(join(target, ".."), { recursive: true }),
+    ])
+    await Promise.all([
+      writeFile(join(source, "history.sqlite"), "history"),
+      writeFile(join(source, "history.sqlite-wal"), "wal"),
+      writeFile(join(source, "profile.sqlite"), "profile"),
+      writeFile(join(source, "hooks.json"), "{}"),
+      writeFile(join(source, "skills", "demo", "SKILL.md"), "skill"),
+      writeFile(join(source, "tooling", "nodejs", "node.exe"), "node"),
+      writeFile(join(source, "pets", "pet", "pet.json"), "pet"),
+      writeFile(join(source, "unowned.txt"), "skip"),
+    ])
+
+    await relocateAgentDataRoot({
+      sourceDir: source,
+      targetDir: target,
+      operationId: "relocation-test-0001",
+    })
+
+    expect(await readText(join(target, "history.sqlite"))).toBe("history")
+    expect(await readText(join(target, "history.sqlite-wal"))).toBe("wal")
+    expect(await readText(join(target, "profile.sqlite"))).toBe("profile")
+    expect(await readText(join(target, "hooks.json"))).toBe("{}")
+    expect(await readText(join(target, "skills", "demo", "SKILL.md"))).toBe("skill")
+    expect(await readText(join(target, "tooling", "nodejs", "node.exe"))).toBe("node")
+    expect(await readText(join(target, "unowned.txt"))).toBeNull()
+    expect(await readText(join(source, "history.sqlite"))).toBe("history")
+
+    await relocateAgentDataRoot({
+      sourceDir: source,
+      targetDir: target,
+      operationId: "relocation-test-0001",
+    })
+    expect(await readText(join(target, "history.sqlite"))).toBe("history")
   })
 })
 

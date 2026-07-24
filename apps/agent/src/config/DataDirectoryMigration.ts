@@ -8,9 +8,10 @@ import {
   readdir,
   rename,
   rm,
+  rmdir,
   writeFile,
 } from "node:fs/promises"
-import { basename, join, relative, resolve, sep } from "node:path"
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path"
 
 const MARKER_FILE_NAME = ".data-location-v1.json"
 const PET_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/
@@ -20,6 +21,21 @@ const DATABASE_DIRECTORIES = [
   "subagent-isolation",
   "workspaces",
 ] as const
+const RELOCATION_DIRECTORIES = [
+  "attachments",
+  "pets",
+  "skills",
+  "tooling",
+  "workspaces",
+  "logs",
+] as const
+const RELOCATION_FILES = [
+  "models.cache.json",
+  "hooks.json",
+  ".data-location-v1.json",
+] as const
+const RELOCATION_MARKER_FILE_NAME = ".data-location-v2.json"
+const OPERATION_ID_PATTERN = /^[a-zA-Z0-9-]{8,128}$/
 
 type MigrationMarker = {
   version: 1
@@ -34,6 +50,76 @@ export type DataDirectoryMigrationInput = {
   dataDir: string
   legacyDataDir: string | null
   legacyPetsDir: string | null
+}
+
+export type DataRootRelocationInput = {
+  sourceDir: string
+  targetDir: string
+  operationId: string
+}
+
+export async function relocateAgentDataRoot(
+  input: DataRootRelocationInput,
+): Promise<void> {
+  if (!OPERATION_ID_PATTERN.test(input.operationId)) {
+    throw new Error("数据目录迁移操作 ID 无效")
+  }
+  const sourceRoot = resolve(input.sourceDir)
+  const targetRoot = resolve(input.targetDir)
+  if (samePath(sourceRoot, targetRoot)) return
+  if (
+    isWithin(sourceRoot, targetRoot)
+    || isWithin(targetRoot, sourceRoot)
+  ) {
+    throw new Error("新旧数据目录不能互相包含")
+  }
+  if (!(await isDirectory(sourceRoot))) {
+    throw new Error("原用户数据目录不存在")
+  }
+  if (await relocationAlreadyPublished(targetRoot, input.operationId)) return
+  if (await pathExists(targetRoot)) {
+    if (!(await isEmptyDirectory(targetRoot))) {
+      throw new Error("目标用户数据目录不是空目录")
+    }
+    await rmdir(targetRoot)
+  }
+
+  const stagingRoot = join(
+    dirname(targetRoot),
+    `.${basename(targetRoot)}.migration-${input.operationId}`,
+  )
+  if (!isAbsolute(stagingRoot)) throw new Error("迁移暂存目录无效")
+  await rm(stagingRoot, { recursive: true, force: true })
+  try {
+    await mkdir(stagingRoot, { recursive: false })
+    for (const name of ["history.sqlite", "profile.sqlite"] as const) {
+      await migrateDatabaseGroup(sourceRoot, stagingRoot, name)
+    }
+    for (const name of RELOCATION_DIRECTORIES) {
+      await copyTreeIfMissing(
+        join(sourceRoot, name),
+        join(stagingRoot, name),
+      )
+    }
+    for (const name of RELOCATION_FILES) {
+      await copyFileIfMissing(
+        join(sourceRoot, name),
+        join(stagingRoot, name),
+      )
+    }
+    await writeFile(
+      join(stagingRoot, RELOCATION_MARKER_FILE_NAME),
+      `${JSON.stringify({
+        version: 2,
+        operation: operationHash(input.operationId),
+      }, null, 2)}\n`,
+      "utf8",
+    )
+    await rename(stagingRoot, targetRoot)
+  } catch (cause) {
+    await rm(stagingRoot, { recursive: true, force: true }).catch(() => undefined)
+    throw cause
+  }
 }
 
 export async function migrateLegacyAgentData(
@@ -269,6 +355,39 @@ function samePath(left: string, right: string): boolean {
   return process.platform === "win32"
     ? left.toLowerCase() === right.toLowerCase()
     : left === right
+}
+
+function isWithin(parent: string, child: string): boolean {
+  const relation = relative(resolve(parent), resolve(child))
+  return relation === ""
+    || (relation !== ".." && !relation.startsWith(`..${sep}`))
+}
+
+function operationHash(operationId: string): string {
+  return createHash("sha256").update(operationId).digest("hex")
+}
+
+async function relocationAlreadyPublished(
+  targetRoot: string,
+  operationId: string,
+): Promise<boolean> {
+  try {
+    const value = JSON.parse(
+      await readFile(join(targetRoot, RELOCATION_MARKER_FILE_NAME), "utf8"),
+    ) as { version?: unknown; operation?: unknown }
+    return value.version === 2
+      && value.operation === operationHash(operationId)
+  } catch {
+    return false
+  }
+}
+
+async function isEmptyDirectory(path: string): Promise<boolean> {
+  try {
+    return (await readdir(path)).length === 0
+  } catch {
+    return false
+  }
 }
 
 async function pathExists(path: string): Promise<boolean> {

@@ -1,9 +1,9 @@
 import { createHash, randomUUID } from "node:crypto"
 import { spawn } from "node:child_process"
 import { access, mkdir, open, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
-import { homedir } from "node:os"
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path"
 import extractZip from "extract-zip"
+import { resolveAgentStorageLayout } from "../config/Config"
 
 export type ToolingID = "nodejs" | "python" | "git-bash" | "ripgrep"
 /** @deprecated Use ToolingID. Kept for compatibility with existing Agent internals. */
@@ -172,7 +172,10 @@ export class ToolingManager {
   private settingsSave: Promise<void> = Promise.resolve()
 
   constructor(options: ToolingManagerOptions = {}) {
-    this.root = resolve(options.root ?? (process.env.CODEPILOTX_TOOLING_HOME?.trim() || join(homedir(), ".codepilotx", "tooling")))
+    this.root = resolve(
+      options.root
+        ?? resolveAgentStorageLayout().toolingRoot,
+    )
     this.fetchImpl = options.fetch ?? fetch
     this.legacyInstallCodePilotXDependencies = options.legacyInstallCodePilotXDependencies
   }

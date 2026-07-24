@@ -4,6 +4,7 @@ import {
   resolveAgentDataDirectory,
   resolveAgentLogDirectory,
   resolveAgentPetsDirectory,
+  resolveAgentStorageLayout,
 } from "../src/config/Config"
 
 describe("Agent data directories", () => {
@@ -39,5 +40,24 @@ describe("Agent data directories", () => {
     expect(resolveAgentPetsDirectory(environment)).toBe(
       environment.CODEPILOTX_PETS_DIR,
     )
+  })
+
+  test("derives every managed directory from the selected data root", () => {
+    const dataRoot = resolve("D:/CodePilotXData/.codepilotx")
+    const layout = resolveAgentStorageLayout(
+      { CODEPILOTX_DATA_DIR: dataRoot },
+      resolve("C:/Users/Example"),
+    )
+
+    expect(layout).toMatchObject({
+      dataRoot,
+      hooksFile: join(dataRoot, "hooks.json"),
+      skillsRoot: join(dataRoot, "skills"),
+      attachmentsRoot: join(dataRoot, "attachments"),
+      petsRoot: join(dataRoot, "pets"),
+      toolingRoot: join(dataRoot, "tooling"),
+      workspacesRoot: join(dataRoot, "workspaces"),
+      logsRoot: join(dataRoot, "logs"),
+    })
   })
 })

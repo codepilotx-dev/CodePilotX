@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto"
-import { homedir } from "node:os"
 import { isAbsolute, join, relative, resolve } from "node:path"
 import { AgentError } from "../domain"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
@@ -27,7 +26,7 @@ const within = (parent: string, child: string) => {
 export class SubagentWorkspaceCoordinator implements SubagentWorkspaceProvider {
   private readonly services = new Map<string, Promise<WorkspaceIsolationService>>()
 
-  constructor(private readonly db: AgentDatabase, private readonly dataDir: string) {}
+  constructor(private readonly db: AgentDatabase, private readonly workspacesRoot: string) {}
 
   async prepare(taskID: string, rootPath: string, mode: "shared" | "worktree") {
     const service = await this.service(rootPath)
@@ -122,12 +121,16 @@ export class SubagentWorkspaceCoordinator implements SubagentWorkspaceProvider {
     const canonical = resolve(rootPath)
     let opened = this.services.get(canonical)
     if (!opened) {
-      const configured = resolve(this.dataDir)
-      const base = within(canonical, configured) || within(configured, canonical)
-        ? join(homedir(), ".codepilotx", "subagent-data")
-        : configured
+      const configured = resolve(this.workspacesRoot)
+      if (within(canonical, configured) || within(configured, canonical)) {
+        throw new AgentError(
+          "WORKSPACE_DATA_ROOT_CONFLICT",
+          "工作区不能与 CodePilotX 用户数据目录互相包含",
+          409,
+        )
+      }
       const key = createHash("sha256").update(canonical.toLowerCase()).digest("hex").slice(0, 16)
-      opened = WorkspaceIsolationService.open(canonical, join(base, "workspaces", key))
+      opened = WorkspaceIsolationService.open(canonical, join(configured, key))
       this.services.set(canonical, opened)
     }
     return opened

@@ -35,7 +35,7 @@ import { secretScrubber } from "./security/SecretScrubber";
 import { HookService } from "./hooks/HookService";
 import { z } from "zod";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { GitReviewService } from "./review/GitReviewService";
 import { GithubService } from "./github/GithubService";
@@ -43,7 +43,10 @@ import type { Models } from "@earendil-works/pi-ai";
 import { ManagedProjectlessWorkspaceService } from "./workspace/ManagedProjectlessWorkspaceService";
 import { ThreadWorkspaceResolver } from "./workspace/ThreadWorkspaceResolver";
 import { PetService } from "./pet/PetService";
-import { migrateLegacyAgentData } from "./config/DataDirectoryMigration";
+import {
+  migrateLegacyAgentData,
+  relocateAgentDataRoot,
+} from "./config/DataDirectoryMigration";
 
 export interface BootstrapOptions {
   models?: Models;
@@ -53,6 +56,15 @@ export interface BootstrapOptions {
 export const createBootstrap = (options: BootstrapOptions = {}) =>
   Effect.gen(function* () {
     const config = yield* loadConfig;
+    if (config.relocationSourceDir && config.relocationOperationId) {
+      yield* Effect.promise(() =>
+        relocateAgentDataRoot({
+          sourceDir: config.relocationSourceDir!,
+          targetDir: config.dataDir,
+          operationId: config.relocationOperationId!,
+        }),
+      );
+    }
     yield* Effect.promise(() =>
       migrateLegacyAgentData({
         dataDir: config.dataDir,
@@ -86,8 +98,9 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           : undefined;
     const tooling = getToolingManager(
       legacyToolingPreference === undefined
-        ? {}
+        ? { root: config.storage.toolingRoot }
         : {
+            root: config.storage.toolingRoot,
             legacyInstallCodePilotXDependencies: legacyToolingPreference,
           },
     );
@@ -292,7 +305,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     });
     const subagentWorkspaces = new SubagentWorkspaceCoordinator(
       db,
-      config.dataDir,
+      config.storage.workspacesRoot,
     );
     const subagents = new SubagentService(
       db,
@@ -303,7 +316,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       orchestrator,
       attachments,
       subagentWorkspaces,
-      config.dataDir,
+      {
+        dataRoot: config.dataDir,
+        userHome: homedir(),
+      },
       memory,
       hooks,
     );
@@ -316,7 +332,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       orchestrator,
       subagents,
       attachments,
-      config.dataDir,
+      {
+        dataRoot: config.dataDir,
+        userHome: homedir(),
+      },
       memory,
       hooks,
       workspaceResolver,

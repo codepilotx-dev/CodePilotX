@@ -9,6 +9,7 @@ const COMPATIBILITY_DIRS = [
   ".codex",
   ".claude",
 ] as const;
+const USER_COMPATIBILITY_DIRS = [".agents", ".codex", ".claude"] as const;
 const MAX_SKILL_BYTES = 1024 * 1024;
 const decoder = new TextDecoder("utf-8", { fatal: true });
 const skillNamePattern = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
@@ -33,6 +34,13 @@ export interface LoadedSkill extends SkillMetadata {
 export interface SkillCatalog {
   skills: SkillMetadata[];
   shadowed: Array<{ name: string; selectedPath: string; ignoredPath: string }>;
+}
+
+export interface SkillScanOptions {
+  workspaceRoot: string;
+  dataRoot: string;
+  userHome: string;
+  includeWorkspace?: boolean;
 }
 
 const contained = (root: string, candidate: string) => {
@@ -81,86 +89,101 @@ const parseAllowedTools = (metadata: Record<string, unknown>) => {
 export class SkillService {
   private catalog = new Map<string, SkillMetadata>();
 
-  async scan(workspaceRoot: string, userRoot: string, options: { includeWorkspace?: boolean } = {}): Promise<SkillCatalog> {
-    const workspace = await realpath(resolve(workspaceRoot));
-    const user = await realpath(resolve(userRoot));
+  async scan(options: SkillScanOptions): Promise<SkillCatalog> {
+    const workspace = await realpath(resolve(options.workspaceRoot));
+    const dataRoot = await realpath(resolve(options.dataRoot));
+    const userHome = await realpath(resolve(options.userHome));
     const found = new Map<string, SkillMetadata>();
     const shadowed: SkillCatalog["shadowed"] = [];
     const bases = [
       ...(options.includeWorkspace === false
         ? []
-        : [{ root: workspace, origin: "workspace" as const }]),
-      { root: user, origin: "user" as const },
+        : COMPATIBILITY_DIRS.map(compatibilityDir => ({
+            containmentRoot: workspace,
+            skillsRoot: join(workspace, compatibilityDir, "skills"),
+            origin: "workspace" as const,
+            format: compatibilityDir.slice(1) as SkillMetadata["format"],
+          }))),
+      {
+        containmentRoot: dataRoot,
+        skillsRoot: join(dataRoot, "skills"),
+        origin: "user" as const,
+        format: "codepilotx" as const,
+      },
+      ...USER_COMPATIBILITY_DIRS.map(compatibilityDir => ({
+        containmentRoot: userHome,
+        skillsRoot: join(userHome, compatibilityDir, "skills"),
+        origin: "user" as const,
+        format: compatibilityDir.slice(1) as SkillMetadata["format"],
+      })),
     ];
 
     for (const base of bases) {
-      for (const compatibilityDir of COMPATIBILITY_DIRS) {
-        const skillsRoot = join(base.root, compatibilityDir, "skills");
-        let canonicalSkillsRoot: string;
+      const skillsRoot = base.skillsRoot;
+      let canonicalSkillsRoot: string;
+      try {
+        canonicalSkillsRoot = await realpath(skillsRoot);
+      } catch (cause) {
+        if (missing(cause)) continue;
+        throw cause;
+      }
+      if (!contained(base.containmentRoot, canonicalSkillsRoot))
+        throw new Error(`Skills 根目录逃出配置根: ${skillsRoot}`);
+      const entries = (
+        await readdir(canonicalSkillsRoot, { withFileTypes: true })
+      ).sort((a, b) => a.name.localeCompare(b.name));
+      for (const entry of entries) {
+        if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+        const directory = await realpath(
+          join(canonicalSkillsRoot, entry.name),
+        );
+        if (!contained(canonicalSkillsRoot, directory))
+          throw new Error(`Skill 目录逃出 Skills 根: ${entry.name}`);
+        const documentPath = join(directory, "SKILL.md");
+        let canonicalDocument: string;
         try {
-          canonicalSkillsRoot = await realpath(skillsRoot);
+          canonicalDocument = await realpath(documentPath);
         } catch (cause) {
           if (missing(cause)) continue;
           throw cause;
         }
-        if (!contained(base.root, canonicalSkillsRoot))
-          throw new Error(`Skills 根目录逃出配置根: ${skillsRoot}`);
-        const entries = (
-          await readdir(canonicalSkillsRoot, { withFileTypes: true })
-        ).sort((a, b) => a.name.localeCompare(b.name));
-        for (const entry of entries) {
-          if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
-          const directory = await realpath(
-            join(canonicalSkillsRoot, entry.name),
-          );
-          if (!contained(canonicalSkillsRoot, directory))
-            throw new Error(`Skill 目录逃出 Skills 根: ${entry.name}`);
-          const documentPath = join(directory, "SKILL.md");
-          let canonicalDocument: string;
-          try {
-            canonicalDocument = await realpath(documentPath);
-          } catch (cause) {
-            if (missing(cause)) continue;
-            throw cause;
-          }
-          if (!contained(directory, canonicalDocument))
-            throw new Error(`SKILL.md 逃出 Skill 根: ${documentPath}`);
-          const bytes = await readFile(canonicalDocument);
-          if (bytes.byteLength > MAX_SKILL_BYTES)
-            throw new Error(`SKILL.md 超过 1 MiB: ${canonicalDocument}`);
-          const content = decoder.decode(bytes);
-          const parsed = parseSkillDocument(content);
-          const declaredName = parsed.metadata.name;
-          const name =
-            typeof declaredName === "string" && declaredName
-              ? declaredName
-              : entry.name;
-          if (!skillNamePattern.test(name))
-            throw new Error(`无效 Skill 名称: ${name}`);
-          const declaredDescription = parsed.metadata.description;
-          const description =
-            typeof declaredDescription === "string" ? declaredDescription : "";
-          const allowedTools = parseAllowedTools(parsed.metadata);
-          const metadata: SkillMetadata = {
+        if (!contained(directory, canonicalDocument))
+          throw new Error(`SKILL.md 逃出 Skill 根: ${documentPath}`);
+        const bytes = await readFile(canonicalDocument);
+        if (bytes.byteLength > MAX_SKILL_BYTES)
+          throw new Error(`SKILL.md 超过 1 MiB: ${canonicalDocument}`);
+        const content = decoder.decode(bytes);
+        const parsed = parseSkillDocument(content);
+        const declaredName = parsed.metadata.name;
+        const name =
+          typeof declaredName === "string" && declaredName
+            ? declaredName
+            : entry.name;
+        if (!skillNamePattern.test(name))
+          throw new Error(`无效 Skill 名称: ${name}`);
+        const declaredDescription = parsed.metadata.description;
+        const description =
+          typeof declaredDescription === "string" ? declaredDescription : "";
+        const allowedTools = parseAllowedTools(parsed.metadata);
+        const metadata: SkillMetadata = {
+          name,
+          description,
+          path: canonicalDocument,
+          root: directory,
+          origin: base.origin,
+          format: base.format,
+          hash: sha256(bytes),
+          metadata: parsed.metadata,
+          ...(allowedTools ? { allowedTools } : {}),
+        };
+        const current = found.get(name);
+        if (current)
+          shadowed.push({
             name,
-            description,
-            path: canonicalDocument,
-            root: directory,
-            origin: base.origin,
-            format: compatibilityDir.slice(1) as SkillMetadata["format"],
-            hash: sha256(bytes),
-            metadata: parsed.metadata,
-            ...(allowedTools ? { allowedTools } : {}),
-          };
-          const current = found.get(name);
-          if (current)
-            shadowed.push({
-              name,
-              selectedPath: current.path,
-              ignoredPath: metadata.path,
-            });
-          else found.set(name, metadata);
-        }
+            selectedPath: current.path,
+            ignoredPath: metadata.path,
+          });
+        else found.set(name, metadata);
       }
     }
     this.catalog = found;
