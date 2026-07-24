@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { PetService } from "../src/pet/PetService"
+import { asPetStorageError } from "../src/pet/PetStorageError"
 
 const originalFetch = globalThis.fetch
 const temporaryDirectories: string[] = []
@@ -18,7 +19,7 @@ afterEach(async () => {
 
 describe("PetService", () => {
   test("previews, installs, lists and serves a v2 package", async () => {
-    const root = await temporaryRoot()
+    const root = join(await temporaryRoot(), "missing", "pets")
     const atlas = fakePng(1536, 2288)
     globalThis.fetch = mockFetch({
       "https://example.com/pets/whale/pet.json": new Response(
@@ -62,6 +63,21 @@ describe("PetService", () => {
 
     await service.remove("little-whale")
     expect(await service.list()).toEqual([])
+  })
+
+  test("maps filesystem failures to safe actionable storage errors", () => {
+    const permission = asPetStorageError(
+      Object.assign(new Error("sensitive path"), { code: "EACCES" }),
+    )
+    expect(permission.code).toBe("PET_STORAGE_FAILED")
+    expect(permission.message).toBe("宠物数据目录不可写，请检查目录权限")
+    expect(permission.message).not.toContain("sensitive path")
+
+    const capacity = asPetStorageError(
+      Object.assign(new Error("disk"), { code: "ENOSPC" }),
+    )
+    expect(capacity.code).toBe("PET_STORAGE_FAILED")
+    expect(capacity.message).toContain("磁盘空间不足")
   })
 
   test("rejects redirects and atlas dimensions that do not match the version", async () => {

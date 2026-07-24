@@ -56,6 +56,7 @@ export const ApplicationErrorCodeSchema = Schema.Literals([
   "PET_NOT_FOUND",
   "PET_INVALID",
   "PET_DOWNLOAD_FAILED",
+  "PET_STORAGE_FAILED",
   "SUBAGENT_NOT_FOUND",
   "WORKSPACE_CONFLICT",
   "PROVIDER_UNAVAILABLE",

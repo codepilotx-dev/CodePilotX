@@ -4,6 +4,10 @@ import { basename, dirname, join, relative, resolve, sep } from "node:path"
 import type { PetCatalogResult } from "@codepilotx/agent-protocol"
 import { AgentError } from "../domain"
 import { PetCatalogService } from "./PetCatalogService"
+import {
+  asPetStorageError,
+  isNodeErrorCode,
+} from "./PetStorageError"
 
 const MAX_MANIFEST_BYTES = 64 * 1024
 const MAX_SPRITESHEET_BYTES = 20 * 1024 * 1024
@@ -44,8 +48,13 @@ export class PetService {
   }
 
   async list(): Promise<PetDescriptor[]> {
-    await mkdir(this.rootDirectory, { recursive: true })
-    const entries = await readdir(this.rootDirectory, { withFileTypes: true })
+    let entries
+    try {
+      await mkdir(this.rootDirectory, { recursive: true })
+      entries = await readdir(this.rootDirectory, { withFileTypes: true })
+    } catch (cause) {
+      throw asPetStorageError(cause)
+    }
     const pets: PetDescriptor[] = []
     for (const entry of entries) {
       if (!entry.isDirectory() || !PET_ID_PATTERN.test(entry.name)) continue
@@ -114,8 +123,9 @@ export class PetService {
       this.rootDirectory,
       `.install-${downloaded.manifest.id}-${crypto.randomUUID()}`,
     )
-    await mkdir(stagingDirectory, { recursive: true })
     try {
+      await mkdir(this.rootDirectory, { recursive: true })
+      await mkdir(stagingDirectory, { recursive: true })
       const extension = downloaded.contentType === "image/png" ? ".png" : ".webp"
       const spritesheetName = `spritesheet${extension}`
       const manifest: PetManifest = {
@@ -135,7 +145,7 @@ export class PetService {
       await rm(stagingDirectory, { recursive: true, force: true }).catch(
         () => undefined,
       )
-      throw cause
+      throw asPetStorageError(cause)
     }
   }
 
@@ -143,10 +153,15 @@ export class PetService {
     const directory = this.petDirectory(id)
     try {
       await readFile(join(directory, "pet.json"))
-    } catch {
+    } catch (cause) {
+      if (!isNodeErrorCode(cause, "ENOENT")) throw asPetStorageError(cause)
       throw new AgentError("PET_NOT_FOUND", "宠物不存在", 404)
     }
-    await rm(directory, { recursive: true, force: true })
+    try {
+      await rm(directory, { recursive: true, force: true })
+    } catch (cause) {
+      throw asPetStorageError(cause)
+    }
   }
 
   async spritesheet(id: string): Promise<{
@@ -156,7 +171,12 @@ export class PetService {
   }> {
     const manifest = await this.readInstalledManifest(id)
     const path = this.resolvePackagePath(this.petDirectory(id), manifest.spritesheetPath)
-    const bytes = new Uint8Array(await readFile(path))
+    let bytes: Uint8Array
+    try {
+      bytes = new Uint8Array(await readFile(path))
+    } catch (cause) {
+      throw asPetStorageError(cause)
+    }
     const contentType = imageContentType(bytes)
     validateAtlas(bytes, contentType, manifest.spriteVersionNumber)
     return {

@@ -7,6 +7,10 @@ import type {
   PetLicenseKind,
 } from "@codepilotx/agent-protocol"
 import { AgentError } from "../domain"
+import {
+  asPetStorageError,
+  isPetStorageError,
+} from "./PetStorageError"
 
 const CATALOG_URL =
   "https://raw.githubusercontent.com/legeling/awesome-codex-pet/main/pets.json"
@@ -65,7 +69,8 @@ export class PetCatalogService {
     try {
       const updated = await this.refresh()
       return this.result(updated, installedPetIDs, "fresh")
-    } catch {
+    } catch (cause) {
+      if (isPetStorageError(cause)) throw cause
       if (cached) return this.result(cached, installedPetIDs, "stale")
       return { pets: [], fetchedAt: null, cacheState: "unavailable" }
     }
@@ -231,18 +236,21 @@ export class PetCatalogService {
   }
 
   private async writeCache(cache: CatalogCache): Promise<void> {
-    await mkdir(this.rootDirectory, { recursive: true })
-    const target = join(this.rootDirectory, CACHE_FILE_NAME)
-    const temporary = join(
-      this.rootDirectory,
-      `${CACHE_FILE_NAME}.${crypto.randomUUID()}.tmp`,
-    )
-    await writeFile(temporary, `${JSON.stringify(cache)}\n`, "utf8")
+    let temporary: string | null = null
     try {
+      await mkdir(this.rootDirectory, { recursive: true })
+      const target = join(this.rootDirectory, CACHE_FILE_NAME)
+      temporary = join(
+        this.rootDirectory,
+        `${CACHE_FILE_NAME}.${crypto.randomUUID()}.tmp`,
+      )
+      await writeFile(temporary, `${JSON.stringify(cache)}\n`, "utf8")
       await rename(temporary, target)
     } catch (cause) {
-      await rm(temporary, { force: true }).catch(() => undefined)
-      throw cause
+      if (temporary) {
+        await rm(temporary, { force: true }).catch(() => undefined)
+      }
+      throw asPetStorageError(cause)
     }
   }
 
