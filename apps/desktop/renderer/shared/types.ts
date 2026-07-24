@@ -947,7 +947,7 @@ export type {
 } from '@codepilotx/shared/desktop-theme'
 import type {
   DesktopChromeTheme,
-  DesktopThemeSettingsV5 as SharedDesktopThemeSettingsV5,
+  DesktopThemeSettingsV6 as SharedDesktopThemeSettingsV6,
   DesktopThemeVariant,
 } from '@codepilotx/shared/desktop-theme'
 
@@ -957,10 +957,10 @@ export type DesktopThemeConfigV1 = {
   variant: DesktopThemeVariant
 }
 
-export type DesktopThemeSettingsV5 =
-  SharedDesktopThemeSettingsV5<CodexHighlightThemeSlug>
+export type DesktopThemeSettingsV6 =
+  SharedDesktopThemeSettingsV6<CodexHighlightThemeSlug>
 
-export type DesktopThemeSettings = DesktopThemeSettingsV5
+export type DesktopThemeSettings = DesktopThemeSettingsV6
 
 export type DesktopPermissionRememberOptionId = 'session' | 'persistentPrefix'
 
