@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 export const SIDEBAR_WIDTH_STORAGE_KEY = "layout.sidebarWidth";
 export const SIDEBAR_COLLAPSED_STORAGE_KEY = "layout.sidebarCollapsed";
+export const SIDEBAR_LAYOUT_RESET_EVENT = "codepilotx:sidebar-layout-reset";
 export const SIDEBAR_MIN_WIDTH = 240;
 export const SIDEBAR_MAX_WIDTH = 520;
 export const DEFAULT_SIDEBAR_WIDTH = 275;
@@ -36,6 +37,16 @@ export function readStoredSidebarCollapsed(): boolean {
   }
 }
 
+export function resetStoredSidebarLayout(): void {
+  try {
+    window.localStorage.removeItem(SIDEBAR_WIDTH_STORAGE_KEY);
+    window.localStorage.removeItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+  } catch {
+    /* localStorage may be disabled; the reset event still restores in-memory state. */
+  }
+  window.dispatchEvent(new Event(SIDEBAR_LAYOUT_RESET_EVENT));
+}
+
 export type UseDesktopLayoutResult = {
   sidebarCollapsed: boolean;
   sidebarWidth: number;
@@ -61,6 +72,20 @@ export function useDesktopLayout(): UseDesktopLayoutResult {
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    function handleSidebarLayoutReset(): void {
+      setSidebarCollapsedState(false);
+      setSidebarWidthState(DEFAULT_SIDEBAR_WIDTH);
+    }
+
+    window.addEventListener(SIDEBAR_LAYOUT_RESET_EVENT, handleSidebarLayoutReset);
+    return () =>
+      window.removeEventListener(
+        SIDEBAR_LAYOUT_RESET_EVENT,
+        handleSidebarLayoutReset,
+      );
   }, []);
 
   const setSidebarWidth = useCallback((nextWidth: number): void => {

@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { defaultDesktopStoredSettings, normalizeDesktopStoredSettings } from "../shared/settingsSchema"
+import {
+  createSidebarStateResetPatch,
+  defaultDesktopStoredSettings,
+  normalizeDesktopStoredSettings,
+  SIDEBAR_STATE_VERSION,
+} from "../shared/settingsSchema"
 
 describe("工作空间依赖项迁移", () => {
   test("默认等待一次性迁移并持久化完成标记", () => {
@@ -87,9 +92,12 @@ describe("侧边栏设置归一化", () => {
     const defaults = normalizeDesktopStoredSettings({})
     expect(defaults).toMatchObject({
       sidebarSort: "priority",
+      sidebarProductMode: "coding",
+      sidebarStateVersion: 0,
       sidebarSessionPins: {},
       collapsedSidebarProjectPaths: [],
-      sidebarSectionOrder: ["pinned", "projects", "conversations"],
+      sidebarSectionOrder: ["pinned", "projects", "recent"],
+      collapsedSidebarSections: ["projects", "recent"],
     })
 
     expect(normalizeDesktopStoredSettings({ sidebarSort: "recent" }).sidebarSort).toBe("updated")
@@ -128,14 +136,14 @@ describe("侧边栏设置归一化", () => {
     expect(
       normalizeDesktopStoredSettings({
         sidebarSectionOrder: [
-          " conversations ",
+          " recent ",
           "invalid",
-          "conversations",
+          "recent",
           "pinned",
           123,
         ],
       }).sidebarSectionOrder,
-    ).toEqual(["conversations", "pinned", "projects"])
+    ).toEqual(["recent", "pinned", "projects"])
   })
 
   test("手动会话顺序规范化 UTF-8 并去重非法值", () => {
@@ -149,5 +157,56 @@ describe("侧边栏设置归一化", () => {
     ).toEqual({
       "projéct": ["séssion"],
     })
+  })
+
+  test("保留合法的产品模式并回退非法值", () => {
+    expect(normalizeDesktopStoredSettings({
+      sidebarProductMode: "working",
+      sidebarStateVersion: SIDEBAR_STATE_VERSION,
+    })).toMatchObject({
+      sidebarProductMode: "working",
+      sidebarStateVersion: SIDEBAR_STATE_VERSION,
+    })
+    expect(normalizeDesktopStoredSettings({
+      sidebarProductMode: "invalid",
+    }).sidebarProductMode).toBe("coding")
+  })
+
+  test("一次性重置只替换侧边栏状态并保留工作空间和其他设置", () => {
+    const settings = normalizeDesktopStoredSettings({
+      model: "keep-model",
+      sidebarProductMode: "working",
+      recentWorkspaces: [{
+        path: "F:\\CodeProject\\CodePilotX",
+        name: "CodePilotX",
+        pinnedAt: "2026-07-25T01:00:00.000Z",
+      }],
+      sidebarOrganization: "flat",
+      sidebarSort: "manual",
+      sidebarManualOrder: { all: ["session-1"] },
+      sidebarSessionPins: { "session-1": "2026-07-25T01:00:00.000Z" },
+      collapsedSidebarProjectPaths: ["F:\\CodeProject\\CodePilotX"],
+      sidebarSectionOrder: ["recent", "projects", "pinned"],
+      collapsedSidebarSections: ["pinned"],
+    })
+
+    const reset = { ...settings, ...createSidebarStateResetPatch(settings) }
+    expect(reset).toMatchObject({
+      model: "keep-model",
+      sidebarProductMode: "working",
+      sidebarStateVersion: SIDEBAR_STATE_VERSION,
+      sidebarOrganization: "projects",
+      sidebarSort: "priority",
+      sidebarManualOrder: {},
+      sidebarSessionPins: {},
+      collapsedSidebarProjectPaths: [],
+      sidebarSectionOrder: ["pinned", "projects", "recent"],
+      collapsedSidebarSections: ["projects", "recent"],
+    })
+    expect(reset.recentWorkspaces).toMatchObject([{
+      path: "F:\\CodeProject\\CodePilotX",
+      name: "CodePilotX",
+      pinnedAt: null,
+    }])
   })
 })

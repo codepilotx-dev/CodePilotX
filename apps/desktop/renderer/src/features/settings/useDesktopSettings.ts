@@ -25,8 +25,14 @@ import type {
   DesktopThinkingMode,
   DesktopWorkspace,
   ModelProviderID,
+  SidebarProductMode,
   SidebarSectionId,
 } from '../../../shared/types.js'
+import {
+  createSidebarStateResetPatch,
+  SIDEBAR_STATE_VERSION,
+} from '../../../shared/settingsSchema.js'
+import { resetStoredSidebarLayout } from '../layout/useDesktopLayout.js'
 import {
   type StoredDesktopSettings,
   permissionConfigForMode,
@@ -89,6 +95,7 @@ export type UseDesktopSettingsResult = {
   diffMarkerStyle: DesktopDiffMarkerStyle
   rustSearchAndDiffKernels: boolean
   sidebarOrganization: DesktopSidebarOrganization
+  sidebarProductMode: SidebarProductMode
   sidebarSort: DesktopSidebarSort
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>
@@ -148,6 +155,7 @@ export type UseDesktopSettingsResult = {
   setDiffMarkerStyle: (value: DesktopDiffMarkerStyle) => void
   setRustSearchAndDiffKernels: (value: boolean) => void
   setSidebarOrganization: (value: DesktopSidebarOrganization) => void
+  setSidebarProductMode: (value: SidebarProductMode) => void
   setSidebarSort: (value: DesktopSidebarSort) => void
   setSidebarManualOrder: (value: Record<string, string[]>) => void
   setSidebarSessionPins: (
@@ -434,6 +442,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   )
   const [sidebarOrganization, setSidebarOrganization] =
     useState<DesktopSidebarOrganization>(initial.sidebarOrganization)
+  const [sidebarProductMode, setSidebarProductMode] =
+    useState<SidebarProductMode>(initial.sidebarProductMode)
   const [sidebarSort, setSidebarSort] = useState<DesktopSidebarSort>(
     initial.sidebarSort,
   )
@@ -476,8 +486,26 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     let mounted = true
     void desktopClient
       .getDesktopSettings()
-      .then(settings => {
+      .then(async loadedSettings => {
         if (!mounted) return
+        const settings =
+          loadedSettings.sidebarStateVersion < SIDEBAR_STATE_VERSION
+            ? {
+                ...loadedSettings,
+                ...createSidebarStateResetPatch(loadedSettings),
+              }
+            : loadedSettings
+        if (loadedSettings.sidebarStateVersion < SIDEBAR_STATE_VERSION) {
+          resetStoredSidebarLayout()
+          if (access === 'read-write') {
+            try {
+              await desktopClient.saveDesktopSettings(settings)
+            } catch {
+              // Best-effort migration; an unchanged old version retries next load.
+            }
+          }
+          if (!mounted) return
+        }
         setEnableParetoCodeRouter(settings.enableParetoCodeRouter ?? false)
         setEnableFusionRouter(settings.enableFusionRouter ?? false)
         setEnableAutoReviewPermissionMode(
@@ -535,6 +563,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setDiffMarkerStyle(settings.diffMarkerStyle)
         setRustSearchAndDiffKernels(settings.rustSearchAndDiffKernels)
         setSidebarOrganization(settings.sidebarOrganization)
+        setSidebarProductMode(settings.sidebarProductMode)
         setSidebarSort(settings.sidebarSort)
         setSidebarManualOrder(settings.sidebarManualOrder)
         setSidebarSessionPins(settings.sidebarSessionPins)
@@ -555,7 +584,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [access])
 
   const effectiveSettings = useMemo<StoredDesktopSettings>(
     () => ({
@@ -612,6 +641,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       reviewDelivery,
       diffMarkerStyle,
       sidebarOrganization,
+      sidebarProductMode,
+      sidebarStateVersion: SIDEBAR_STATE_VERSION,
       sidebarSort,
       sidebarManualOrder,
       sidebarSessionPins,
@@ -676,6 +707,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       reviewDelivery,
       diffMarkerStyle,
       sidebarOrganization,
+      sidebarProductMode,
       sidebarSort,
       sidebarManualOrder,
       sidebarSessionPins,
@@ -793,6 +825,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setReviewDelivery(snapshot.reviewDelivery)
       setDiffMarkerStyle(snapshot.diffMarkerStyle)
       setSidebarOrganization(snapshot.sidebarOrganization)
+      setSidebarProductMode(snapshot.sidebarProductMode)
       setSidebarSort(snapshot.sidebarSort)
       setSidebarManualOrder(snapshot.sidebarManualOrder)
       setSidebarSessionPins(snapshot.sidebarSessionPins)
@@ -944,6 +977,7 @@ defaultOpenTargetId,
       reviewDelivery,
       diffMarkerStyle,
     sidebarOrganization,
+    sidebarProductMode,
     sidebarSort,
     sidebarManualOrder,
     sidebarSessionPins,
@@ -1001,6 +1035,7 @@ defaultOpenTargetId,
     setReviewDelivery,
     setDiffMarkerStyle,
     setSidebarOrganization,
+    setSidebarProductMode,
     setSidebarSort,
     setSidebarManualOrder,
     setSidebarSessionPins,

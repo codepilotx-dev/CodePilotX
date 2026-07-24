@@ -87,6 +87,10 @@ export function SidebarBody({
   const isProjectOrganization = sidebarOrganization === 'projects';
   const expandedSectionsSnapshot = useRef<SidebarSectionId[] | null>(null)
   const [draggedSection, setDraggedSection] = useState<SidebarSectionId | null>(null)
+  const [showAllProjects, setShowAllProjects] = useState(false)
+  const visibleProjectWorkspaces = showAllProjects
+    ? projectWorkspaces
+    : projectWorkspaces.slice(0, 5)
   const sectionOrder = (section: SidebarSectionId): number =>
     sidebarSectionOrder.indexOf(section)
   const moveSection = (section: SidebarSectionId, delta: -1 | 1): void => {
@@ -153,21 +157,6 @@ export function SidebarBody({
             />
             {!collapsedSidebarSections.includes('pinned') ? (
               <>
-                {pinnedSessions.length > 0 ? (
-                  <SidebarSessionGroup
-                    activeSessionId={activeSessionId}
-                    pendingPermissionSessionIds={pendingPermissionSessionIds}
-                    groupKey="pinned"
-                    now={now}
-                    sessionFallbackTitles={sessionFallbackTitles}
-                    sessions={pinnedSessions}
-                    onArchiveSessions={onArchiveSessions}
-                    onPinSession={onPinSession}
-                    onSelectSession={onSelectSession}
-                    onRenameSession={onRenameSession}
-                    onUnpinSession={onUnpinSession}
-                  />
-                ) : null}
                 {pinnedWorkspaces.map((project) => (
                   <SidebarProjectGroup
                     activeSessionId={activeSessionId}
@@ -193,6 +182,21 @@ export function SidebarBody({
                     onUnpinSession={onUnpinSession}
                   />
                 ))}
+                {pinnedSessions.length > 0 ? (
+                  <SidebarSessionGroup
+                    activeSessionId={activeSessionId}
+                    pendingPermissionSessionIds={pendingPermissionSessionIds}
+                    groupKey="pinned"
+                    now={now}
+                    sessionFallbackTitles={sessionFallbackTitles}
+                    sessions={pinnedSessions}
+                    onArchiveSessions={onArchiveSessions}
+                    onPinSession={onPinSession}
+                    onSelectSession={onSelectSession}
+                    onRenameSession={onRenameSession}
+                    onUnpinSession={onUnpinSession}
+                  />
+                ) : null}
               </>
             ) : null}
           </section>
@@ -227,31 +231,42 @@ export function SidebarBody({
             projectWorkspaces.length === 0 ? (
               <SidebarEmptyRow>暂无最近项目</SidebarEmptyRow>
             ) : (
-              projectWorkspaces.map((project) => (
-                <SidebarProjectGroup
-                  activeSessionId={activeSessionId}
-                  pendingPermissionSessionIds={pendingPermissionSessionIds}
-                  collapsedProjectPaths={collapsedProjectPaths}
-                  key={project.path}
-                  isUnavailable={unavailableWorkspacePaths.has(project.path)}
-                  now={now}
-                  project={project}
-                  sessionFallbackTitles={sessionFallbackTitles}
-                  sessions={unpinnedSessions}
-                  workspace={workspace}
-                  onArchiveSessions={onArchiveSessions}
-                  onCreateSession={onCreateSession}
-                  onOpenWorkspace={onOpenWorkspace}
-                  onPinSession={onPinSession}
-                  onPinWorkspace={onPinWorkspace}
-                  onUnpinWorkspace={onUnpinWorkspace}
-                  onRemoveWorkspace={onRemoveWorkspace}
-                  onSelectSession={onSelectSession}
-                  onRenameSession={onRenameSession}
-                  onToggleProjectCollapsed={onToggleProjectCollapsed}
-                  onUnpinSession={onUnpinSession}
-                />
-              ))
+              <>
+                {visibleProjectWorkspaces.map((project) => (
+                  <SidebarProjectGroup
+                    activeSessionId={activeSessionId}
+                    pendingPermissionSessionIds={pendingPermissionSessionIds}
+                    collapsedProjectPaths={collapsedProjectPaths}
+                    key={project.path}
+                    isUnavailable={unavailableWorkspacePaths.has(project.path)}
+                    now={now}
+                    project={project}
+                    sessionFallbackTitles={sessionFallbackTitles}
+                    sessions={unpinnedSessions}
+                    workspace={workspace}
+                    onArchiveSessions={onArchiveSessions}
+                    onCreateSession={onCreateSession}
+                    onOpenWorkspace={onOpenWorkspace}
+                    onPinSession={onPinSession}
+                    onPinWorkspace={onPinWorkspace}
+                    onUnpinWorkspace={onUnpinWorkspace}
+                    onRemoveWorkspace={onRemoveWorkspace}
+                    onSelectSession={onSelectSession}
+                    onRenameSession={onRenameSession}
+                    onToggleProjectCollapsed={onToggleProjectCollapsed}
+                    onUnpinSession={onUnpinSession}
+                  />
+                ))}
+                {projectWorkspaces.length > 5 ? (
+                  <button
+                    className="sidebar-show-more-button"
+                    onClick={() => setShowAllProjects(current => !current)}
+                    type="button"
+                  >
+                    {showAllProjects ? '收起显示' : '展开显示'}
+                  </button>
+                ) : null}
+              </>
             )
           ) : null}
         </section>
@@ -259,16 +274,16 @@ export function SidebarBody({
 
         <section
           className="sidebar-section tw:grid tw:gap-1"
-          style={{ order: sectionOrder('conversations') }}
+          style={{ order: sectionOrder('recent') }}
         >
           <SidebarSectionHeader
             sidebarOrganization={sidebarOrganization}
             sidebarSort={sidebarSort}
             setSidebarOrganization={setSidebarOrganization}
             setSidebarSort={setSidebarSort}
-            title="对话"
-            sectionId="conversations"
-            isCollapsed={collapsedSidebarSections.includes('conversations')}
+            title="最近"
+            sectionId="recent"
+            isCollapsed={collapsedSidebarSections.includes('recent')}
             onAction={() => onCreateSession(null)}
             onToggle={onToggleSidebarSection}
             onMove={moveSection}
@@ -279,7 +294,7 @@ export function SidebarBody({
             onDraggedSectionChange={setDraggedSection}
             onDropSection={dropSection}
           />
-          {!collapsedSidebarSections.includes('conversations') ? (
+          {!collapsedSidebarSections.includes('recent') ? (
             (isProjectOrganization ? standaloneSessions : unpinnedSessions).length === 0 ? (
               <SidebarEmptyRow>暂无对话</SidebarEmptyRow>
             ) : (

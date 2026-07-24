@@ -62,6 +62,7 @@
   @include meta.load-css('features/canonical-conversation');
   @include meta.load-css('features/marketplace');
   @include meta.load-css('features/automation');
+  @include meta.load-css('features/pull-requests');
   @include meta.load-css('features/model-center');
   @include meta.load-css('features/file-editor');
   @include meta.load-css('model-menu-pilot');

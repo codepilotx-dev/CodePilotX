@@ -14,6 +14,7 @@ export type AppView =
   | 'search'
   | 'models'
   | 'plugins'
+  | 'pullRequests'
   | 'automations'
   | 'labs'
 

@@ -6,6 +6,8 @@ import {
   CircleUser,
   Download,
   Gauge,
+  HelpCircle,
+  Keyboard,
   LogOut,
   Settings2,
 } from "lucide-react";
@@ -60,6 +62,7 @@ export const SidebarFooter = forwardRef<HTMLElement>(function SidebarFooter(
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [usageExpanded, setUsageExpanded] = useState(false);
   const reducedMotion = usePrefersReducedMotion()
   const [usage, setUsage] = useState<ProviderUsageState>(EMPTY_USAGE);
@@ -118,7 +121,6 @@ export const SidebarFooter = forwardRef<HTMLElement>(function SidebarFooter(
     () => buildUsageRows(usage),
     [usage],
   );
-
   return (
     <footer
       className="sidebar-footer tw:mt-2 tw:flex tw:w-full tw:shrink-0 tw:items-center tw:gap-1 tw:px-1.5"
@@ -138,7 +140,7 @@ export const SidebarFooter = forwardRef<HTMLElement>(function SidebarFooter(
             labelClassName={cx('sidebar-settings-label', 'u-min-w-0', 'u-truncate')}
             leading={
               <span className="sidebar-settings-icon-wrap">
-                <Settings2 size={APP_ICON_SIZE} />
+                <Settings2 aria-hidden="true" size={APP_ICON_SIZE} />
                 {updateStatus?.phase === 'available' ? (
                   <span className="sidebar-update-dot" />
                 ) : null}
@@ -292,6 +294,41 @@ export const SidebarFooter = forwardRef<HTMLElement>(function SidebarFooter(
             退出登录
           </PopoverItem>
         </div>
+      </PopoverMenu>
+      <PopoverMenu
+        align="end"
+        className="popover-sidebar-help"
+        open={helpMenuOpen}
+        side="top"
+        width={190}
+        trigger={
+          <IconButton
+            className="sidebar-help-button"
+            title="帮助"
+          >
+            <HelpCircle size={APP_ICON_SIZE} />
+          </IconButton>
+        }
+        onOpenChange={setHelpMenuOpen}
+      >
+        <PopoverItem
+          icon={<Keyboard size={APP_ICON_SIZE} />}
+          onClick={() => {
+            setHelpMenuOpen(false)
+            navigate('/settings/shortcuts')
+          }}
+        >
+          键盘快捷键
+        </PopoverItem>
+        <PopoverItem
+          icon={<Settings2 size={APP_ICON_SIZE} />}
+          onClick={() => {
+            setHelpMenuOpen(false)
+            navigate('/settings/general')
+          }}
+        >
+          帮助与设置
+        </PopoverItem>
       </PopoverMenu>
     </footer>
   );

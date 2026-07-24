@@ -26,16 +26,18 @@ import {
   SETTINGS_ITEMS,
 } from '../src/features/settings/settingsRegistry.js'
 
-describe('模型中心导航', () => {
-  test('作为搜索与插件之间的独立顶层入口', () => {
+describe('Codex 侧栏导航', () => {
+  test('按产品入口优先顺序展示且搜索只保留在侧栏头部', () => {
     expect(TOP_NAV_ITEMS.map(item => ({ view: item.view, label: item.label, path: item.path }))).toEqual([
-      { view: 'new', label: '快速对话', path: '/new' },
-      { view: 'search', label: '搜索', path: '/search' },
-      { view: 'models', label: '模型中心', path: '/models' },
-      { view: 'plugins', label: '插件', path: '/plugins' },
+      { view: 'new', label: '新建任务', path: '/new' },
+      { view: 'pullRequests', label: '拉取请求', path: '/pull-requests' },
       { view: 'automations', label: '自动化', path: '/automations' },
+      { view: 'plugins', label: '插件', path: '/plugins' },
+      { view: 'models', label: '模型中心', path: '/models' },
       { view: 'labs', label: 'Codex Labs', path: '/labs' },
     ])
+    expect(TOP_NAV_ITEMS.some(item => item.path === '/search')).toBeFalse()
+    expect(TOP_NAV_ITEMS.some(item => item.path === '/sites')).toBeFalse()
   })
 
   test('从设置目录移除旧 connections 标签', () => {

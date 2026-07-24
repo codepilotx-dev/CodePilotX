@@ -20,6 +20,11 @@ const PluginsView = lazy(() =>
     default: module.PluginsView,
   })),
 )
+const PullRequestsPlaceholder = lazy(() =>
+  import('./features/pull-requests/PullRequestsPlaceholder.js').then(module => ({
+    default: module.PullRequestsPlaceholder,
+  })),
+)
 const SearchView = lazy(() =>
   import('./features/search/SearchView.js').then(module => ({
     default: module.SearchView,
@@ -81,6 +86,10 @@ const router = createHashRouter([
       { path: 'search', element: deferred(<SearchView />) },
       { path: 'models', element: deferred(<ModelCenterView />) },
       { path: 'plugins', element: deferred(<PluginsView />) },
+      {
+        path: 'pull-requests',
+        element: deferred(<PullRequestsPlaceholder />),
+      },
       { path: 'automations', element: deferred(<AutomationView />) },
       { path: 'pets', element: deferred(<PetCatalogPage />) },
       { path: 'settings/:tab', element: deferred(<SettingsLayout />) },

@@ -11,7 +11,7 @@ import type { AppView, SessionListItem } from "../../uiTypes.js";
 import { SidebarBody } from "./sidebar/SidebarBody.js";
 import { SidebarFooter } from "./sidebar/SidebarFooter.js";
 import { SidebarEmptyRow } from "./sidebar/SidebarRow.js";
-import { SidebarTopNav } from "./sidebar/SidebarTopNav.js";
+import { SidebarHeader, SidebarTopNav } from "./sidebar/SidebarTopNav.js";
 import { buildSidebarViewModel } from './sidebar/sidebarViewModel.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
 
@@ -103,6 +103,7 @@ export function DesktopSidebar({
 
   function isActiveView(view: AppView): boolean {
     if (view === "new") return location.pathname === "/new";
+    if (view === "pullRequests") return location.pathname.startsWith("/pull-requests");
     return location.pathname === `/${view}`;
   }
 
@@ -156,6 +157,7 @@ export function DesktopSidebar({
 
   return (
     <div className="sidebar-layout tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:bg-app-chrome tw:py-2">
+      <SidebarHeader />
       <SidebarTopNav isActiveView={isActiveView} />
       {catalogStatus.state === 'loading' ? (
         <SidebarEmptyRow role="status">正在加载任务目录…</SidebarEmptyRow>

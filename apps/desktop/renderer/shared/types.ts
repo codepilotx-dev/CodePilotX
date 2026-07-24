@@ -800,7 +800,8 @@ export type DesktopPetSettings = {
   notifyFailure: boolean
 }
 
-export type SidebarSectionId = 'pinned' | 'projects' | 'conversations'
+export type SidebarProductMode = 'coding' | 'working'
+export type SidebarSectionId = 'pinned' | 'projects' | 'recent'
 
 export type DesktopStoredSettings = {
   enableParetoCodeRouter?: boolean
@@ -866,6 +867,8 @@ gitBranchPrefix: string
   diffMarkerStyle: DesktopDiffMarkerStyle
   rustSearchAndDiffKernels: boolean
   sidebarOrganization: DesktopSidebarOrganization
+  sidebarProductMode: SidebarProductMode
+  sidebarStateVersion: number
   sidebarSort: DesktopSidebarSort
   sidebarManualOrder: Record<string, string[]>
   sidebarSessionPins: Record<string, string>

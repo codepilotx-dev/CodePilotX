@@ -20,6 +20,7 @@ import type {
   DesktopWorkspace,
   LocalRouterMode,
   ModelProviderID,
+  SidebarProductMode,
   SidebarSectionId,
 } from './types.js'
 
@@ -90,11 +91,12 @@ export const DESKTOP_DRAWER_TABS = new Set<DesktopDrawerTab>([
 
 export const MAX_RECENT_WORKSPACES = 5
 export const MAX_REMOVED_WORKSPACES = 50
+export const SIDEBAR_STATE_VERSION = 1
 
 export const VALID_SIDEBAR_SECTION_IDS: readonly SidebarSectionId[] = [
   'pinned',
   'projects',
-  'conversations',
+  'recent',
 ]
 
 export function defaultDesktopStoredSettings(): DesktopStoredSettings {
@@ -151,13 +153,15 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     diffMarkerStyle: 'color',
     rustSearchAndDiffKernels: false,
     sidebarOrganization: 'projects',
+    sidebarProductMode: 'coding',
+    sidebarStateVersion: SIDEBAR_STATE_VERSION,
     sidebarSort: 'priority',
     sidebarManualOrder: {},
     sidebarSessionPins: {},
     collapsedSidebarProjectPaths: [],
     sidebarSectionOrder: [...VALID_SIDEBAR_SECTION_IDS],
 	    browserAllowedSites: [],
-	    collapsedSidebarSections: [],
+	    collapsedSidebarSections: ['projects', 'recent'],
 	    browserSitePermissions: [],
     pet: {
       enabled: false,
@@ -401,6 +405,15 @@ export function normalizeDesktopStoredSettings(
     sidebarOrganization: isDesktopSidebarOrganization(parsed.sidebarOrganization)
       ? parsed.sidebarOrganization
       : defaults.sidebarOrganization,
+    sidebarProductMode: isSidebarProductMode(parsed.sidebarProductMode)
+      ? parsed.sidebarProductMode
+      : defaults.sidebarProductMode,
+    sidebarStateVersion:
+      typeof parsed.sidebarStateVersion === 'number'
+      && Number.isInteger(parsed.sidebarStateVersion)
+      && parsed.sidebarStateVersion >= 0
+        ? parsed.sidebarStateVersion
+        : 0,
     sidebarSort:
       rawSidebarSort === 'recent'
         ? 'updated'
@@ -440,6 +453,30 @@ export function normalizeDesktopStoredSettings(
     ),
     pet: normalizePetSettings(parsed.pet, defaults.pet),
   }
+}
+
+export function createSidebarStateResetPatch(
+  settings: DesktopStoredSettings,
+): Partial<DesktopStoredSettings> {
+  return {
+    recentWorkspaces: settings.recentWorkspaces.map(workspace => ({
+      ...workspace,
+      pinnedAt: null,
+    })),
+    sidebarOrganization: 'projects',
+    sidebarProductMode: settings.sidebarProductMode,
+    sidebarStateVersion: SIDEBAR_STATE_VERSION,
+    sidebarSort: 'priority',
+    sidebarManualOrder: {},
+    sidebarSessionPins: {},
+    collapsedSidebarProjectPaths: [],
+    sidebarSectionOrder: [...VALID_SIDEBAR_SECTION_IDS],
+    collapsedSidebarSections: ['projects', 'recent'],
+  }
+}
+
+function isSidebarProductMode(value: unknown): value is SidebarProductMode {
+  return value === 'coding' || value === 'working'
 }
 
 function normalizePetSettings(
