@@ -40,6 +40,10 @@
     "--inline-approval-card-margin-bottom",
     "--inline-approval-card-radius",
     "--popover-overflow-x",
+    "--radix-context-menu-content-transform-origin",
+    "--radix-dropdown-menu-content-transform-origin",
+    "--radix-popover-content-transform-origin",
+    "--radix-select-content-transform-origin",
     "--radix-select-trigger-width"
   ],
   "forbiddenCustomPropertyPatterns": [

@@ -14,7 +14,8 @@
 .settings-dropdown-content,
 .permission-select-content,
 .appearance-color-popover,
-.rm-model-menu {
+.rm-model-menu,
+.thread-summary-popover {
   z-index: var(--z-popover);
   width: var(--popover-width, max-content);
   max-width: var(--popover-max-width, var(--popover-default-max-width));
@@ -64,14 +65,7 @@
   padding: 4px;
   border: 0;
   border-radius: 12px;
-  background: color-mix(
-    in srgb,
-    var(--color-token-editor-widget-background, var(--color-token-editor-widget-background))
-      90%,
-    transparent
-  );
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background: var(--color-token-menu-background);
   box-shadow:
     0 0 0 0.5px var(--color-token-border),
     0 8px 16px -4px color-mix(
@@ -81,51 +75,37 @@
       );
 }
 
-:root[data-glass-surfaces="on"] {
-  .popover-surface,
-  .sidebar-context-menu-content,
-  .settings-dropdown-content,
-  .permission-select-content,
-  .appearance-color-popover,
-  .rm-model-menu {
-    border-color: var(--glass-surface-border);
-    background-color: var(--glass-surface-bg);
-    color: var(--glass-surface-text, var(--color-token-foreground));
-    -webkit-backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
-    backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
-    box-shadow:
-      0 1px 0 var(--glass-surface-highlight) inset,
-      var(--popover-surface-shadow);
-    --color-icon: var(--glass-surface-text-meta);
-    --color-icon-arrow: var(--glass-surface-text-meta);
-  }
-
-  .popover-surface .search-input {
-    border-color: color-mix(
-      in srgb,
-      var(--glass-surface-text) 10%,
-      transparent
-    );
-    background: color-mix(in srgb, var(--glass-surface-text) 6%, transparent);
-    color: var(--glass-surface-text-meta);
-
-    input {
-      color: var(--glass-surface-text);
-    }
-
-    input::placeholder {
-      color: var(--glass-surface-text-meta);
-    }
-  }
-}
-
 .popover {
-  position: absolute;
-  bottom: 100%;
-  left: 0;
   z-index: var(--z-popover);
   display: inline-block;
-  transform-origin: bottom left;
+}
+
+.popover-surface[data-side],
+.sidebar-context-menu-content[data-side],
+.settings-dropdown-content[data-side],
+.permission-select-content[data-side],
+.appearance-color-popover[data-side],
+.rm-model-menu[data-side],
+.thread-summary-popover[data-side] {
+  transform-origin:
+    var(
+      --radix-select-content-transform-origin,
+      var(
+        --radix-dropdown-menu-content-transform-origin,
+        var(
+          --radix-context-menu-content-transform-origin,
+          var(--radix-popover-content-transform-origin, center)
+        )
+      )
+    );
+
+  &[data-state="open"] {
+    animation: radix-floating-surface-in 150ms var(--ease-out);
+  }
+
+  &[data-state="closed"] {
+    animation: radix-floating-surface-out 100ms var(--ease-in);
+  }
 }
 
 [data-radix-popper-content-wrapper]:has(.popover),
@@ -133,7 +113,8 @@
 [data-radix-popper-content-wrapper]:has(.settings-dropdown-content),
 [data-radix-popper-content-wrapper]:has(.permission-select-content),
 [data-radix-popper-content-wrapper]:has(.appearance-color-popover),
-[data-radix-popper-content-wrapper]:has(.rm-model-menu) {
+[data-radix-popper-content-wrapper]:has(.rm-model-menu),
+[data-radix-popper-content-wrapper]:has(.thread-summary-popover) {
   // Radix portals sit outside the app stacking context.
   z-index: var(--z-popover) !important;
   border-radius: var(--popover-surface-radius);
@@ -157,32 +138,6 @@
 .tooltip-content.popover-item-tooltip {
   border-radius: var(--radius-card);
   box-shadow: var(--popover-surface-shadow);
-}
-
-:root[data-glass-surfaces="on"] {
-  .popover-item-tooltip,
-  .tooltip-content {
-    border-color: var(--glass-surface-border);
-    background-color: var(--glass-surface-bg);
-    color: var(--glass-surface-text-meta, var(--color-token-description-foreground));
-    -webkit-backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
-    backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
-    box-shadow:
-      0 1px 0 var(--glass-surface-highlight) inset,
-      var(--popover-surface-shadow);
-  }
-
-  [data-radix-popper-content-wrapper]:has(.popover),
-  [data-radix-popper-content-wrapper]:has(.sidebar-context-menu-content),
-  [data-radix-popper-content-wrapper]:has(.settings-dropdown-content),
-  [data-radix-popper-content-wrapper]:has(.permission-select-content),
-  [data-radix-popper-content-wrapper]:has(.appearance-color-popover),
-  [data-radix-popper-content-wrapper]:has(.rm-model-menu) {
-    background: transparent;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    box-shadow: none;
-  }
 }
 
 .sidebar-context-menu-item[data-color="red"] {
@@ -304,12 +259,6 @@
   outline: none;
 }
 
-.popover-model,
-.popover-branch {
-  right: 0;
-  left: auto;
-}
-
 .popover-provider-list {
   max-height: min(220px, calc(100vh - 220px));
   overflow-x: hidden;
@@ -318,11 +267,6 @@
 }
 
 .popover-sub-content {
-  position: relative;
-  right: auto;
-  bottom: auto;
-  left: auto;
-  transform-origin: top left;
   padding: 8px;
 }
 
@@ -458,16 +402,6 @@
 .context-plugin-icon-openai {
   border-radius: var(--radius-full);
   background: var(--color-token-text-link-foreground);
-}
-
-.popover-sidebar-project {
-  top: 100%;
-  bottom: auto;
-}
-
-.popover-session-actions {
-  top: 100%;
-  bottom: auto;
 }
 
 .popover-header {
@@ -640,6 +574,13 @@
 }
 
 :root[data-reduce-motion="on"] {
+  .popover-surface[data-side],
+  .sidebar-context-menu-content[data-side],
+  .settings-dropdown-content[data-side],
+  .permission-select-content[data-side],
+  .appearance-color-popover[data-side],
+  .rm-model-menu[data-side],
+  .thread-summary-popover[data-side],
   .popover[data-state="open"],
   .popover[data-state="closed"],
   .popover-item-tooltip {
@@ -651,8 +592,38 @@
   fill: var(--color-token-menu-background);
 }
 
-:root[data-glass-surfaces="on"] .tooltip-arrow {
-  fill: var(--glass-surface-bg);
+@media (prefers-reduced-motion: reduce) {
+  .popover-surface[data-side],
+  .sidebar-context-menu-content[data-side],
+  .settings-dropdown-content[data-side],
+  .permission-select-content[data-side],
+  .appearance-color-popover[data-side],
+  .rm-model-menu[data-side],
+  .thread-summary-popover[data-side] {
+    animation: none;
+  }
+}
+
+@keyframes radix-floating-surface-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes radix-floating-surface-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
 }
 
 @keyframes tooltip-fade-in {
