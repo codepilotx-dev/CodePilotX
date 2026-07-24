@@ -1,9 +1,0 @@
-{
-  "name": "@codepilotx/tui",
-  "private": true,
-  "type": "module",
-  "exports": {
-    "./*.js": "./src/*.js",
-    "./package.json": "./package.json"
-  }
-}

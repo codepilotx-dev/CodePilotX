@@ -1,0 +1,289 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type React from "react";
+import type { DesktopWorkspace } from "../../../shared/types.js";
+import { NewSessionSuggestions } from "./NewSessionSuggestionPanel.js";
+import {
+  createNewSessionSuggestionState,
+  removeGeneratedSuggestionStarter,
+  selectNewSessionSuggestionCategory,
+  syncNewSessionSuggestionState,
+} from "./newSessionSuggestionState.js";
+import type {
+  NewSessionSuggestionCategory,
+  NewSessionSuggestionTask,
+} from "./newSessionSuggestions.js";
+import { ProjectSwitcherPopover } from "./composer/ProjectSwitcherPopover.js";
+import { DesktopComposer } from "./composer/DesktopComposer.js";
+import { useQuickChatContext } from "./QuickChatContext.js";
+
+export function QuickChatView(): React.ReactNode {
+  const {
+    branchName,
+    composerProps,
+    composerDraft,
+    debugMode,
+    gitStatus,
+    recentWorkspaces,
+    workspaceName,
+    workspacePath,
+    onAppendComposerText,
+    onChooseWorkspace,
+    onCloneGithub,
+    onClearWorkspace,
+    onOpenWorkspace,
+  } = useQuickChatContext();
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const [observedComposerValue, setObservedComposerValue] = useState(
+    composerDraft?.value ?? "",
+  );
+  const [suggestionState, setSuggestionState] = useState(() =>
+    createNewSessionSuggestionState(composerDraft?.value ?? ""),
+  );
+  const pageRef = useRef<HTMLDivElement | null>(null);
+  const whaleMarkRef = useRef<HTMLButtonElement | null>(null);
+  const whaleMarkAnimationRef = useRef<Animation | null>(null);
+  const programmaticValueRef = useRef<string | null>(null);
+  const currentWorkspace = useMemo<DesktopWorkspace | null>(() => {
+    if (!workspaceName || !workspacePath) return null;
+    return (
+      recentWorkspaces.find(workspace => workspace.path === workspacePath) ?? {
+        name: workspaceName,
+        path: workspacePath,
+        branchName,
+      }
+    );
+  }, [branchName, recentWorkspaces, workspaceName, workspacePath]);
+
+  const composerDraftValue = composerDraft?.value;
+
+  useEffect(() => {
+    if (composerDraftValue === undefined) return;
+    setObservedComposerValue(composerDraftValue);
+    if (programmaticValueRef.current === composerDraftValue) {
+      programmaticValueRef.current = null;
+      return;
+    }
+    setSuggestionState(current =>
+      syncNewSessionSuggestionState(current, composerDraftValue),
+    );
+  }, [composerDraftValue]);
+
+  const focusComposer = useCallback(() => {
+    if (composerDraft?.focus) {
+      composerDraft.focus();
+      return;
+    }
+    const editor = pageRef.current?.querySelector<HTMLElement>(
+      "textarea, [contenteditable='true']",
+    );
+    editor?.focus();
+  }, [composerDraft]);
+
+  const replaceComposerValue = useCallback(
+    (value: string) => {
+      programmaticValueRef.current = value;
+      setObservedComposerValue(value);
+      if (composerDraft) {
+        composerDraft.replace(value);
+      } else if (observedComposerValue.length === 0) {
+        onAppendComposerText(value);
+      }
+      requestAnimationFrame(focusComposer);
+    }, [composerDraft, focusComposer, observedComposerValue, onAppendComposerText],
+  );
+
+  const handleSelectCategory = useCallback(
+    (category: NewSessionSuggestionCategory) => {
+      setSuggestionState(selectNewSessionSuggestionCategory(category.id));
+      replaceComposerValue(category.starter);
+    },
+    [replaceComposerValue],
+  );
+
+  const handleSelectTask = useCallback(
+    (
+      category: NewSessionSuggestionCategory,
+      task: NewSessionSuggestionTask,
+    ) => {
+      if (!composerDraft && observedComposerValue === category.starter) {
+        const completion = task.prompt.startsWith(category.starter)
+          ? task.prompt.slice(category.starter.length)
+          : task.prompt;
+        programmaticValueRef.current = task.prompt;
+        setObservedComposerValue(task.prompt);
+        onAppendComposerText(completion);
+        requestAnimationFrame(focusComposer);
+        return;
+      }
+      replaceComposerValue(task.prompt);
+    },
+    [
+      composerDraft,
+      focusComposer,
+      observedComposerValue,
+      onAppendComposerText,
+      replaceComposerValue,
+    ],
+  );
+
+  const handleShowAll = useCallback(
+    (category: NewSessionSuggestionCategory) => {
+      const nextValue = removeGeneratedSuggestionStarter(
+        observedComposerValue,
+        category.starter,
+      );
+      setSuggestionState({ kind: "root" });
+      if (nextValue !== observedComposerValue) replaceComposerValue(nextValue);
+    },
+    [observedComposerValue, replaceComposerValue],
+  );
+
+  const handleComposerInputCapture = useCallback(
+    (event: React.FormEvent<HTMLDivElement>) => {
+      const target = event.target;
+      let value: string | null = null;
+      if (
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLInputElement
+      ) {
+        value = target.value;
+      } else if (target instanceof HTMLElement && target.isContentEditable) {
+        value = target.textContent ?? "";
+      }
+      if (value === null) return;
+      programmaticValueRef.current = null;
+      setObservedComposerValue(value);
+      setSuggestionState(current =>
+        syncNewSessionSuggestionState(current, value),
+      );
+    },
+    [],
+  );
+
+  const handleWhaleMarkClick = useCallback(() => {
+    const mark = whaleMarkRef.current;
+    if (
+      !mark ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+    whaleMarkAnimationRef.current?.cancel();
+    whaleMarkAnimationRef.current = mark.animate(
+      [
+        { transform: "scale(1) rotate(0deg)" },
+        { transform: "scale(1.08) rotate(180deg)", offset: 0.5 },
+        { transform: "scale(1) rotate(360deg)" },
+      ],
+      {
+        duration: 420,
+        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+      },
+    );
+  }, []);
+
+  useEffect(
+    () => () => {
+      whaleMarkAnimationRef.current?.cancel();
+    },
+    [],
+  );
+
+  const hasGitWorkspace = Boolean(branchName || gitStatus);
+  const headingUsesProject = Boolean(workspaceName && workspaceName.length <= 15);
+  const headingVerb = hasGitWorkspace ? "构建" : "开展";
+
+  return (
+    <div ref={pageRef} className="quick-chat-workspace">
+      <main
+        className="quick-chat-view"
+        onInputCapture={handleComposerInputCapture}
+      >
+        <section className="quick-chat-hero-region">
+          <div className="quick-chat-hero">
+            <button
+              ref={whaleMarkRef}
+              aria-label="旋转鲸鱼图标"
+              className="quick-chat-mark"
+              type="button"
+              onClick={handleWhaleMarkClick}
+            />
+            {headingUsesProject ? (
+              <h1>
+                我们应该在{" "}
+                <ProjectSwitcherPopover
+                  align="center"
+                  className="popover-project quick-chat-project-popover"
+                  disableOutsideDismiss={debugMode}
+                  maxWidth="min(420px, calc(100vw - 48px))"
+                  open={projectMenuOpen}
+                  recentWorkspaces={recentWorkspaces}
+                  side="top"
+                  sideOffset={6}
+                  trigger={
+                    <button
+                      aria-label="选择项目"
+                      className="project-name"
+                      type="button"
+                    >
+                      {workspaceName}
+                    </button>
+                  }
+                  width={200}
+                  workspace={currentWorkspace}
+                  onChooseWorkspace={() => {
+                    void onChooseWorkspace();
+                    setProjectMenuOpen(false);
+                  }}
+                  onCloneGithub={() => {
+                    onCloneGithub();
+                    setProjectMenuOpen(false);
+                  }}
+                  onClearWorkspace={() => {
+                    onClearWorkspace();
+                    setProjectMenuOpen(false);
+                  }}
+                  onOpenChange={setProjectMenuOpen}
+                  onOpenWorkspace={workspace => {
+                    void onOpenWorkspace(workspace);
+                    setProjectMenuOpen(false);
+                  }}
+                />
+                {" "}
+                中{headingVerb}什么？
+              </h1>
+            ) : (
+              <h1>
+                {hasGitWorkspace ? "我们应该构建什么？" : "我们该做什么？"}
+              </h1>
+            )}
+          </div>
+          {suggestionState.kind === "root" ? (
+            <NewSessionSuggestions
+              state={suggestionState}
+              onSelectCategory={handleSelectCategory}
+              onSelectTask={handleSelectTask}
+              onShowAll={handleShowAll}
+            />
+          ) : null}
+        </section>
+
+        <section className="quick-chat-composer-region">
+          {suggestionState.kind === "category" ? (
+            <NewSessionSuggestions
+              state={suggestionState}
+              onSelectCategory={handleSelectCategory}
+              onSelectTask={handleSelectTask}
+              onShowAll={handleShowAll}
+            />
+          ) : null}
+          {composerProps ? (
+            <div className="chat-composer">
+              <DesktopComposer {...composerProps} />
+            </div>
+          ) : null}
+        </section>
+      </main>
+    </div>
+  );
+}

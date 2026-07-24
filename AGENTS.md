@@ -1,170 +1,101 @@
 # AGENTS.md
 
-## Scope
-These instructions apply to the whole `ClaudeCode` tree unless a nested
-`AGENTS.md` says otherwise.
+## 适用范围与优先级
 
-## Project Shape
-- This is a TypeScript/TSX CLI and terminal UI codebase.
-- Many imports intentionally use `.js` extensions even from `.ts`/`.tsx` files;
-  keep that style when adding or changing imports.
-- Some files in this checkout include inline `sourceMappingURL` blocks and
-  `sourcesContent`. Treat them as part of the current artifact shape: avoid
-  broad formatting passes, and keep edits narrowly focused.
-- The app only needs to support desktop pages; do not spend effort adapting
-  pages for non-desktop viewports unless explicitly requested.
-- This checkout may not include package manager or test configuration files.
-  Discover available commands before claiming a build or test path exists.
+- 本文件适用于整个 CodePilotX 仓库；更深目录中的 `AGENTS.md` 可以补充或覆盖对应目录的规则。
+- 所有文本文件必须按 UTF-8 读取和写入。
+- 开始修改前必须检查当前实现、相关测试和 dirty worktree。现有修改及未跟踪文件默认属于用户，禁止回退、覆盖或顺手整理。
+- 需求、边界或高影响取舍不明确时先询问用户；明确且低风险的仓库内实现步骤可直接执行。
+- 大型或可并行任务使用子代理；小型、强耦合任务由当前 Agent 直接完成。
+- 优先移动、复用或改造现有实现；能安全复制已有逻辑时，不创建平行实现。
+- 只编写能保护本次行为的必要测试，不添加无关测试或大面积快照。
 
-## Desktop UI Design System
-- Desktop UI should use a restrained, professional developer-tool style:
-  dense enough for repeated work, but with clear hierarchy, comfortable reading,
-  and consistent alignment across pages.
-- Keep desktop changes token-driven. Prefer existing global tokens in
-  `apps/desktop/src/renderer/styles/base.css` for radius, elevation, spacing,
-  typography, and icon sizing before adding local values.
-- Preserve the current desktop scope. Do not add mobile adaptations, new
-  appearance settings, route changes, or business APIs unless explicitly asked.
+## 仓库与技术栈
 
-### Surfaces, Radius, and Elevation
-- Use the established radius/elevation scale for panels, cards, inputs, empty
-  states, popovers, modals, selected states, and floating composer surfaces.
-- Main panels and repeated cards may use subtle shadows for depth. Avoid heavy
-  shadows on every sidebar row or dense list item.
-- Popovers, dropdowns, and modals should map to shared radius and shadow tokens;
-  avoid hard-coded one-off shadows scattered through feature CSS.
-- Sidebars remain low elevation. Emphasize current/active rows with background,
-  color, and light elevation only when needed.
+- CodePilotX 是 Windows-first TypeScript monorepo，统一使用 Bun 1.3.14。
+- 未经明确架构决策，不得新增、合并、删除或重新划分 workspace。
+- `apps/agent/` 负责会话、SQLite、provider、工具、权限、编排和 HTTP/SSE。
+- `apps/desktop/electron/` 负责 Electron 主进程、preload、窗口、Agent sidecar 和 Windows 打包。
+- `apps/desktop/renderer/` 负责 React + Vite renderer。
+- `packages/` 负责共享领域契约、RPC 协议、view projection、模型 schema、provider 插件与 runtime。
 
-### Spacing and Layout
-- Use the layout spacing tokens as the default desktop rhythm:
-  `--layout-page-pad-x`, `--layout-page-pad-y`,
-  `--layout-page-pad-bottom`, `--layout-section-gap`,
-  `--layout-card-gap`, `--layout-card-pad`,
-  `--layout-toolbar-gap`, `--layout-composer-bottom`, and
-  `--layout-composer-safe-pad`.
-- Keep quick chat's hero, composer, and main content on the same horizontal
-  center line. Prefer compact professional vertical rhythm over large marketing
-  gaps.
-- Standard desktop pages such as search, plugins, automation, and settings
-  should share outer page padding, section gaps, card gaps, and bottom safe
-  spacing.
-- Sidebars should keep information density while using consistent row padding,
-  row height, section gaps, and list gaps.
+## 当前目录约定
 
-### Typography and Icons
-- Favor reading-first typography with limited bold text. Use body weight `400`,
-  labels and card titles around `500`, headings around `560`, and reserve `600`
-  for critical emphasis or warning/severity states.
-- Desktop page titles should stay near the shared page-title scale, while card
-  and section titles should remain lighter and smaller than hero text.
-- Markdown content should keep readable line height; headings and `strong`
-  should be distinct without becoming overly heavy.
-- Icons should use the shared icon tokens by default: normal UI icons `16px`,
-  small chevrons/status icons `14px`, feature/card icons `18px`, and large empty
-  state icons only where semantically needed. Use the shared stroke width unless
-  a platform control explicitly requires a different size.
-- Align icon and text spacing consistently inside buttons, tabs, cards, menus,
-  and toolbars. Icons should not look visually heavier than adjacent text.
+### Agent
 
-### Desktop Page Patterns
-- Quick chat: the welcome card keeps large radius and subtle elevation; the
-  composer is the highest-priority floating panel and should have clear focus
-  treatment.
-- Conversation pages: user bubbles, plan cards, approval cards, and system
-  event cards should share card radius, light elevation, readable typography,
-  and safe bottom spacing around fixed composers.
-- Search and plugins: search inputs, result columns, and plugin cards use the
-  same card radius/elevation; hover should raise at most one level and must not
-  shift layout.
-- Automation: empty states should read as raised panels; internal shortcuts can
-  stay pill-shaped without creating extra heavy card layers.
-- Settings: section cards, radio cards, and switch rows should keep density.
-  Use section-level cards and subtle shadows instead of giving every row a
-  strong separate shadow.
+- `apps/agent/src/bootstrap.ts` 只能作为 composition root，不放业务逻辑。
+- `storage/database/` 负责连接、最终 schema、数据代际和事务基础设施。
+- `storage/repositories/` 按领域保存实际 SQL。
+- `storage/events/` 负责 event store、outbox 和事件发布。
+- `storage/recovery/` 负责中断运行恢复。
+- `AgentDatabase` 只负责连接、最终 schema、repository 装配和恢复入口；禁止重新堆回领域 SQL。
+- 跨 repository 原子操作必须复用同一 SQLite 连接和 transaction。
+- `transport/rpc/` 使用注册式 handler registry；`RpcRouter` 只负责鉴权、初始化/capability 门禁、方法查找和统一错误编码。
+- RPC handler 负责参数解码和调用 service，禁止直接写 SQL。
+- Review、GitHub、orchestration、subagent 的新职责必须放入对应领域目录，禁止继续扩大单文件聚合服务。
 
-### Right Dock
-- The right dock header uses `.right-dock-tabs` as a compact tool switcher.
-  Keep tab wraps, add buttons, and dock controls on one visual center line.
-- Right dock tabs should be styled as complete tab units: a wrapper owns the
-  active/hover/focus surface, the tab button owns icon+label, and the close
-  button is a small icon button.
-- Right dock tab close buttons should stay visually quiet by default and appear
-  on hover, active, or focus-within states so keyboard access remains clear.
-- Right dock popovers must open below the header without covering the menubar or
-  dock tabs. If a shared popover positioning rule conflicts with Radix
-  positioning, fix the local popover class rather than changing unrelated menus.
+### Electron
 
-## Editing Rules
-- Prefer small, local changes that follow the surrounding file style.
-- Prefer UTF-8 when reading code and project files.
-- Preserve existing public exports and runtime behavior unless the task
-  explicitly asks for an API change.
-- Keep code ASCII unless the file already requires non-ASCII content.
-- Use typed helpers already present in `utils`, `services`, `Tool.ts`, and
-  `types` before adding new utility layers.
-- Do not edit generated files by hand. See nested instructions under
-  `types/generated`.
+- `apps/desktop/electron/src/main.ts` 是唯一启动与依赖装配入口，只保留单实例、生命周期和模块装配。
+- Sidecar、窗口、IPC、安全、设置和日志分别放在 `sidecar/`、`windows/`、`ipc/`、`security/`、`settings/`、`logging/`。
+- 保留 sidecar watchdog、就绪超时、优雅退出、单实例、安全 URL 校验和 API key 剪贴板定时清理。
+- preload 只暴露明确且类型化的方法；禁止向 renderer 暴露 Node、Electron、文件系统或任意 IPC 调用能力。
+- IPC channel、参数和返回类型必须集中维护，并由 main 与 preload 共享。
 
-## Reference Reuse Workflow
-- Before developing any new feature, first inspect `D:\GitHubProject\Agent` for
-  similar implementations.
-- Use UTF-8 when reading files.
-- Search reference repositories with `rg` before writing new logic.
-- Prefer same-stack references first:
-  1. `D:\GitHubProject\Agent\claude-code-master`
-  2. `D:\GitHubProject\Agent\codex-main`
-  3. `D:\GitHubProject\Agent\opencode-dev`
-  4. `D:\GitHubProject\Agent\openai-agents-python`
-- For tasks that explicitly target mobile UI or mobile client behavior, also
-  inspect `D:\GitHubProject\Agent\OpenCodeUI-main` first.
-- If a matching implementation exists, copy or adapt the existing logic instead
-  of inventing a new one.
-- If no suitable implementation exists, write the smallest local implementation
-  that follows this repository's existing patterns.
-- When reusing reference logic, mention the source repository/path in the
-  handoff.
+### Renderer
 
-## Validation
-- First look for nearby existing validation patterns or commands.
-- If no runnable test/build command is available in this checkout, do a
-  targeted TypeScript/style review of the files you changed and state that
-  limitation in the handoff.
+- Renderer 禁止直接访问 Node、Electron、SQLite、凭据或文件系统；系统能力只能经过 typed preload bridge 或 Agent client。
+- Desktop client 的稳定入口是 `services/desktop-client/index.ts`；入口只负责环境选择、组合和公开导出。
+- Session 按 `conversation/`、`composer/`、`timeline/`、`approvals/`、`workflow/`、`summary/`、`subagents/`、`state/` 维护。
+- Review 按 `workspace/`、`diff/`、`comments/`、`source/`、`state/` 维护；diff 解析和展示逻辑只能有一个实现来源。
+- Layout 按 `shell/`、`dock/`、`tabs/`、`panels/` 维护。
+- 保持 `routes.tsx` 与 workbench registry 的 lazy import 和代码分割边界。
+- 新代码不得继续扩大 2000 行以上的聚合组件；修改现有超大组件时，优先抽出本次涉及的独立职责。
+- 不得无意改变视觉设计、快捷键、焦点、主题、reduced-motion、popover 定位或会话恢复行为。
 
-## Debugging Notes
+### Packages
 
-### Conversation Debug Dump Tool Results
-- When desktop debug mode writes
-  `<workspace>/.Temp/conversation-flow-*.json`, inspect both `toolFlow` and
-  the next `model_call_start`/provider request. A tool can succeed locally in
-  `tool_update_message` but still be missing from the next model context.
-- The dump writer lives in `apps/tui/src/utils/conversationDebugDump.ts`.
-  It redacts sensitive keys such as `authorization`, `api-key`, `x-api-key`,
-  `token`, `secret`, `cookie`, and `password`; ordinary `tool_result.content`
-  is not redacted just because it is file content.
-- For "tool result missing" symptoms, check these files first:
-  `apps/tui/src/query.ts`,
-  `apps/tui/src/utils/messages.ts`,
-  `apps/tui/src/services/api/minimax.ts`, and
-  `apps/tui/src/headless/desktopRuntime.ts`.
-- 2026-06-27 root cause: `ensureToolUseResultsForNextTurn()` returned the
-  original `toolResults` array when no synthetic result was needed. The caller
-  then did `toolResults.length = 0` and `toolResults.push(...pairedToolResults)`;
-  because both variables referenced the same array, real tool results were
-  cleared before the next model call. `ensureToolResultPairing()` then inserted
-  `[Tool result missing due to internal error]`, so the model reported an
-  internal tool failure even though the tool had returned content.
-- The fix is intentionally small: in `apps/tui/src/query.ts`,
-  `ensureToolUseResultsForNextTurn()` must return a fresh array
-  (`[...toolResults]`) when no missing results exist, and keep returning
-  `[...]` with appended synthetic results when needed. Do not move this fix
-  into the provider or the dump redaction path.
-- Regression coverage belongs in `apps/tui/src/query.test.ts`. Include a case
-  that stores `pairedResults`, clears the original `results` array, pushes the
-  paired results back, and verifies the real `tool_result` remains.
-- Targeted verification for this class of bug:
-  `bun test apps/tui/src/query.test.ts apps/tui/src/utils/conversationDebugDump.test.ts`.
-  For manual confirmation, inspect the newest `.Temp/conversation-flow-*.json`
-  and verify the next `model_call_start` includes the real `tool_result`, the
-  last provider request does not contain `[Tool result missing due to internal
-  error]`, and the request contains the successful tool result marker.
+- 保留现有包名和 workspace 边界。
+- `@codepilotx/agent-protocol` 是 RPC method、event、wire error 和 capability schema 的唯一来源。
+- `@codepilotx/shared/thread` 只保存 thread 领域模型，不得重新引入 RPC 编排类型。
+- `session-view` 维护 canonical projection 和 thread projection，不新增旧 timeline 兼容层。
+- `provider-runtime` 的凭据解析、provider 构建、模型目录和 failover 必须保持为独立模块。
+- 不为生成型 `material-icon-theme` 或小型 `model-schema` 强行增加无意义目录层级。
+- 只允许包级公开入口和稳定模块门面使用 `index.ts`；禁止建立全仓 barrel。
+
+## 协议、数据代际与兼容策略
+
+- 当前唯一桌面通信协议是 `thread-rpc-v4`。禁止重新加入 v3 dispatcher、adapter、migration、legacy export 或双协议分支。
+- `thread/create` 只接受 `workspace`，不得恢复 `projectId`/`projectID` 兼容参数。
+- v4 错误必须使用统一、安全的 envelope；禁止返回原始异常、凭据、命令环境或敏感绝对路径。
+- 当前升级策略是破坏性开发版本升级，不支持旧客户端、旧数据库或旧设置回退。
+- 数据代际不匹配时，只能删除 CodePilotX 明确拥有的 SQLite 主文件及 `-wal`/`-shm`、`appearance-settings.json`、明确列出的 localStorage/sessionStorage 键或前缀。
+- 禁止删除整个 `userData`、数据目录或浏览器存储；禁止调用 `localStorage.clear()`；禁止创建旧数据备份。
+- 重置日志只能记录无敏感信息的事件和原因，不记录路径、凭据、设置内容或会话内容。
+- 除非用户明确要求新的迁移策略，否则不得新增 legacy/migration 兼容代码。
+
+## 必须保持的架构与安全语义
+
+- 保留 WAL、外键、同源开发代理、事务 outbox、事件顺序、SSE cursor replay、审批/提问 checkpoint 和中断恢复语义。
+- Agent 业务模块不得依赖 renderer 或 Electron。
+- API key 不得写入 SQLite，也不得出现在日志、事件、错误信息或测试快照中。
+- 系统能力必须沿既有方向流动：`renderer -> typed bridge/Agent client -> Electron/Agent service -> repository`。
+
+## 验证规则
+
+- 开发栈：`bun run dev`
+- 全仓类型检查：`bun run typecheck`
+- 分层构建：`bun run build:agent`、`bun run build:renderer`、`bun run build:desktop`
+- Renderer 样式检查：`bun run --cwd apps/desktop/renderer css:check`
+- 默认先运行受影响 workspace 的 typecheck 和相关测试；跨 workspace 契约变化必须验证所有消费者。
+- RPC、共享契约、数据 schema 或 preload 接口变化后，必须运行对应应用测试以及根目录 typecheck。
+- Renderer 目录或 lazy import 变化后必须运行 renderer build，确认 chunk 可解析。
+- 只有修改打包或发布行为，或用户明确要求时，才运行 `bun run package:win`。
+- 不得为了让检查通过而盲目更新 CSS、style 或 test 基线。
+- 交付前搜索旧协议、旧路径和失效 import，并运行 `git diff --check`。
+
+## 提交规则
+
+- 只有用户明确要求时才创建提交。
+- 使用中文 Conventional Commit，格式示例：`feat(desktop)：中文说明`。
+- `feat` 与 scope 必须按实际改动类型和 workspace 调整。
