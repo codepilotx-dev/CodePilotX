@@ -14,6 +14,7 @@ await run([
   "scripts/verify-win-x64-package.ts",
   ...(requireSigning ? ["--require-signing"] : []),
 ])
+await run(["bun", "scripts/smoke-win-x64.ts"])
 
 async function run(command: readonly string[]): Promise<void> {
   const child = Bun.spawn([...command], { cwd: root, stdin: "inherit", stdout: "inherit", stderr: "inherit" })

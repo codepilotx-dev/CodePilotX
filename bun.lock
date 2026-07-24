@@ -33,11 +33,9 @@
     },
     "apps/desktop/electron": {
       "name": "@codepilotx/desktop-electron",
-      "version": "0.1.0",
-      "dependencies": {
-        "@codepilotx/shared": "workspace:*",
-      },
+      "version": "0.1.1",
       "devDependencies": {
+        "@codepilotx/shared": "workspace:*",
         "@playwright/test": "1.55.1",
         "@types/node": "^24.0.0",
         "electron": "^37.0.0",

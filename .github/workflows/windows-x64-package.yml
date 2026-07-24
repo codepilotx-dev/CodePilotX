@@ -20,7 +20,6 @@ jobs:
           bun-version: 1.3.14
       - run: bun install --frozen-lockfile
       - run: bun run package:win
-      - run: bun scripts/smoke-win-x64.ts
       - name: Silent install and installed-layout smoke
         shell: pwsh
         run: |
@@ -56,7 +55,6 @@ jobs:
           CSC_LINK: ${{ runner.temp }}/codepilotx-signing.pfx
           CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: bun run package:win
-      - run: bun scripts/smoke-win-x64.ts
       - name: Silent install and installed-layout smoke
         shell: pwsh
         run: |
