@@ -71,6 +71,14 @@ test.describe("真实 Electron 宿主", () => {
     application = await launchDesktop(userDataDirectory, logDirectory)
     let page = await application.firstWindow()
     await waitForApplication(page)
+    await expect
+      .poll(() =>
+        existsSync(join(userDataDirectory, "agent-home", "history.sqlite")),
+      )
+      .toBe(true)
+    expect(
+      existsSync(join(userDataDirectory, "agent", "history.sqlite")),
+    ).toBe(false)
 
     await expectHostContract(page)
     const settings = await page.evaluate(async () =>
@@ -379,6 +387,7 @@ async function launchDesktop(
       ...process.env,
       CODEPILOTX_BUN_PATH: resolveBunExecutable(),
       CODEPILOTX_USER_DATA_DIR: userDataDirectory,
+      CODEPILOTX_DATA_DIR: join(userDataDirectory, "agent-home"),
       CODEPILOTX_LOG_DIR: logDirectory,
       CODEPILOTX_STATIC_DIR: rendererDist,
       CODEPILOTX_MODEL_SNAPSHOT: modelSnapshot,

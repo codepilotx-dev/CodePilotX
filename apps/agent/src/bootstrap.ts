@@ -43,6 +43,7 @@ import type { Models } from "@earendil-works/pi-ai";
 import { ManagedProjectlessWorkspaceService } from "./workspace/ManagedProjectlessWorkspaceService";
 import { ThreadWorkspaceResolver } from "./workspace/ThreadWorkspaceResolver";
 import { PetService } from "./pet/PetService";
+import { migrateLegacyAgentData } from "./config/DataDirectoryMigration";
 
 export interface BootstrapOptions {
   models?: Models;
@@ -52,6 +53,13 @@ export interface BootstrapOptions {
 export const createBootstrap = (options: BootstrapOptions = {}) =>
   Effect.gen(function* () {
     const config = yield* loadConfig;
+    yield* Effect.promise(() =>
+      migrateLegacyAgentData({
+        dataDir: config.dataDir,
+        legacyDataDir: config.legacyDataDir,
+        legacyPetsDir: config.legacyPetsDir,
+      }),
+    );
     const logger = new AgentLogger(config.logDir);
     const db = new AgentDatabase({
       historyPath: config.historyDatabasePath,

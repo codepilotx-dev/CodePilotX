@@ -1,5 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
 import { app } from "electron"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 import { normalizeOrigin } from "../security/navigation.js"
@@ -202,6 +202,10 @@ export class SidecarSupervisor {
       resourcesPath: process.resourcesPath,
       moduleDirectory: this.#moduleDirectory,
     })
+    const dataDirectory = resolve(
+      process.env.CODEPILOTX_DATA_DIR?.trim()
+        || join(app.getPath("home"), ".codepilotx"),
+    )
     const child = spawn(command.executable, command.args, {
       cwd: command.cwd,
       windowsHide: true,
@@ -212,9 +216,11 @@ export class SidecarSupervisor {
         CODEPILOTX_PORT: String(this.#preferredPort ?? 0),
         CODEPILOTX_AUTH_TOKEN: this.#token,
         CODEPILOTX_DESKTOP_MANAGED: "1",
-        CODEPILOTX_DATA_DIR: join(app.getPath("userData"), "agent"),
+        CODEPILOTX_DATA_DIR: dataDirectory,
+        CODEPILOTX_PETS_DIR: join(dataDirectory, "pets"),
+        CODEPILOTX_LEGACY_DATA_DIR: join(app.getPath("userData"), "agent"),
         CODEPILOTX_DOCUMENTS_DIR: app.getPath("documents"),
-        CODEPILOTX_LOG_DIR: this.#logger.directory,
+        CODEPILOTX_LOG_DIR: join(dataDirectory, "logs"),
         CODEPILOTX_MODEL_SNAPSHOT: app.isPackaged
           ? join(process.resourcesPath, "agent", "models.snapshot.json")
           : process.env.CODEPILOTX_MODEL_SNAPSHOT,

@@ -25,6 +25,7 @@ const child = Bun.spawn([application, `--user-data-dir=${join(isolatedRoot, "pro
     APPDATA: join(isolatedRoot, "appdata"),
     LOCALAPPDATA: join(isolatedRoot, "localappdata"),
     CODEPILOTX_AUTH_TOKEN: token,
+    CODEPILOTX_DATA_DIR: join(isolatedRoot, "agent-home"),
     CODEPILOTX_LOG_DIR: logDirectory,
   },
   stdin: "ignore",

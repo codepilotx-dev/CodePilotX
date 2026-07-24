@@ -1,11 +1,14 @@
 import { fileURLToPath } from "node:url"
 import { createServer } from "node:net"
+import { homedir } from "node:os"
 import { join } from "node:path"
 
 const root = fileURLToPath(new URL("..", import.meta.url))
 const bunExecutable = process.execPath
 const rendererURL = "http://127.0.0.1:7788"
 const logDir = join(root, ".codepilotx", "logs")
+const agentDataDir = join(homedir(), ".codepilotx")
+const agentLogDir = join(agentDataDir, "logs")
 
 function configuredAgentPort() {
   const value = process.env.CODEPILOTX_DEV_AGENT_PORT?.trim()
@@ -132,7 +135,10 @@ const agent = spawn([bunExecutable, "--watch", "apps/agent/src/index.ts"], {
   PORT: String(agentPort),
   CODEPILOTX_PORT: String(agentPort),
   CODEPILOTX_AUTH_TOKEN: authToken,
-  CODEPILOTX_LOG_DIR: logDir,
+  CODEPILOTX_DATA_DIR: agentDataDir,
+  CODEPILOTX_PETS_DIR: join(agentDataDir, "pets"),
+  CODEPILOTX_LEGACY_DATA_DIR: join(root, ".codepilotx"),
+  CODEPILOTX_LOG_DIR: agentLogDir,
   CODEPILOTX_RENDERER_DIST: fileURLToPath(new URL("../dist/renderer", import.meta.url)),
   CODEPILOTX_RENDERER_DEV_URL: rendererURL,
 })

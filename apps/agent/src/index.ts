@@ -1,10 +1,10 @@
 import { Effect } from "effect"
-import { resolve } from "node:path"
 import { bootstrap } from "./bootstrap"
+import { resolveAgentLogDirectory } from "./config/Config"
 import { AgentLogger } from "./observability/AgentLogger"
 
 async function startAgentServer(): Promise<void> {
-  const fallbackLogger = new AgentLogger(resolve(process.env.CODEPILOTX_LOG_DIR ?? resolve(process.env.CODEPILOTX_DATA_DIR ?? "./.codepilotx", "logs")))
+  const fallbackLogger = new AgentLogger(resolveAgentLogDirectory())
   const runtime = await Effect.runPromise(bootstrap).catch((cause) => {
     fallbackLogger.error("agent.startup-failed", { error: cause instanceof Error ? cause.message : String(cause) })
     throw cause
