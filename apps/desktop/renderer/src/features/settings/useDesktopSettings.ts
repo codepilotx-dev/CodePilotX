@@ -35,6 +35,8 @@ import {
   storeDesktopSettings,
 } from './settingsStorage.js'
 
+export type DesktopSettingsAccess = "read-write" | "read-only"
+
 export type UseDesktopSettingsResult = {
   enableParetoCodeRouter: boolean
   enableFusionRouter: boolean
@@ -272,10 +274,12 @@ const DesktopSettingsContext = createContext<UseDesktopSettingsResult | null>(
 
 export function DesktopSettingsProvider({
   children,
+  access = "read-write",
 }: {
   children: ReactNode
+  access?: DesktopSettingsAccess
 }): ReactNode {
-  const settings = useDesktopSettingsState()
+  const settings = useDesktopSettingsState(access)
   return createElement(
     DesktopSettingsContext.Provider,
     { value: settings },
@@ -291,7 +295,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   return useDesktopSettingsState()
 }
 
-  function useDesktopSettingsState(): UseDesktopSettingsResult {
+  function useDesktopSettingsState(access: DesktopSettingsAccess = "read-write"): UseDesktopSettingsResult {
   const initial = readStoredDesktopSettings()
   const [enableParetoCodeRouter, setEnableParetoCodeRouter] = useState<boolean>(
     initial.enableParetoCodeRouter ?? false,
@@ -455,6 +459,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   >(initial.browserSitePermissions)
   const [settingsLoaded, setSettingsLoaded] = useState(false)
   const skipNextAutoSaveRef = useRef(false)
+  const initialLoadRef = useRef(true)
   const [draftValues, setDraftValues] = useState<StoredDesktopSettings>(
     cloneDesktopSettings(initial),
   )
@@ -693,12 +698,18 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
 
   useEffect(() => {
     if (!settingsLoaded) return
+    // 初始加载的设置是 canonical snapshot，不回写
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false
+      return
+    }
     if (skipNextAutoSaveRef.current) {
       skipNextAutoSaveRef.current = false
       return
     }
+    if (access !== "read-write") return
     storeDesktopSettings(effectiveSettings)
-  }, [effectiveSettings, settingsLoaded])
+  }, [effectiveSettings, settingsLoaded, access])
 
   useEffect(() => {
     if (!settingsLoaded || draftDirty) return
@@ -707,12 +718,13 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   }, [draftDirty, effectiveSettings, settingsLoaded])
 
   const flushDesktopSettings = useCallback(async (): Promise<void> => {
+    if (access !== "read-write") return
     try {
       await desktopClient.saveDesktopSettings(effectiveSettings)
     } catch {
       // Persistence is best-effort; the next state change will retry.
     }
-  }, [effectiveSettings])
+  }, [effectiveSettings, access])
 
   const setDraftValue = useCallback<DesktopSettingsDraftSetter>(
     (key, value) => {
@@ -826,6 +838,9 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   }, [syncExternalSettingsPatch])
 
   const saveDraft = useCallback(async (): Promise<StoredDesktopSettings> => {
+    if (access !== "read-write") {
+      throw new Error("此窗口不允许保存桌面设置")
+    }
     const snapshot = mergeDesktopSettingsDraft(
       effectiveSettings,
       draftValuesRef.current,
@@ -843,7 +858,7 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     } finally {
       setDraftSaving(false)
     }
-  }, [applySettingsSnapshot, effectiveSettings])
+  }, [applySettingsSnapshot, effectiveSettings, access])
 
   const resetDraft = useCallback((): void => {
     setDraftValues(cloneDesktopSettings(effectiveSettings))

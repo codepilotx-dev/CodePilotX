@@ -1,5 +1,6 @@
 import { lazy, Suspense, type ReactNode } from 'react'
 import { createHashRouter, Navigate } from 'react-router-dom'
+import { DesktopSettingsProvider } from './features/settings/useDesktopSettings.js'
 import { DesktopLayout } from './features/layout/shell/DesktopLayout.js'
 import { QuickChatView } from './features/session/QuickChatView.js'
 import { NotFoundPage } from './features/routing/NotFoundPage.js'
@@ -57,11 +58,19 @@ function deferred(element: ReactNode): ReactNode {
 const router = createHashRouter([
   {
     path: '/pet-overlay',
-    element: deferred(<PetOverlayPage />),
+    element: deferred(
+      <DesktopSettingsProvider access="read-only">
+        <PetOverlayPage />
+      </DesktopSettingsProvider>
+    ),
   },
   {
     path: '/',
-    element: <DesktopLayout />,
+    element: (
+      <DesktopSettingsProvider access="read-write">
+        <DesktopLayout />
+      </DesktopSettingsProvider>
+    ),
     children: [
       { index: true, element: <Navigate to="/new" replace /> },
       { path: 'new', element: <QuickChatView /> },
