@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/Input.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
+import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { usePetSettingsController } from '../pet/usePetSettingsController.js'
@@ -116,22 +117,22 @@ export function PetSettings({
             autoSave
             control={
               <div className="pet-settings-inline">
-                <select
-                  aria-label="选择宠物"
-                  className="pet-settings-select"
+                <SettingsDropdown
+                  ariaLabel="选择宠物"
                   disabled={!pets.length}
-                  value={settings.selectedPetId ?? ''}
-                  onChange={event =>
-                    void selectPet(event.target.value || null)
+                  onChange={value => void selectPet(value || null)}
+                  options={
+                    pets.length
+                      ? pets.map(pet => ({
+                          value: pet.id,
+                          label: pet.displayName,
+                        }))
+                      : [{ value: '', label: '无可用宠物' }]
                   }
-                >
-                  {!pets.length ? <option value="">无可用宠物</option> : null}
-                  {pets.map(pet => (
-                    <option key={pet.id} value={pet.id}>
-                      {pet.displayName}
-                    </option>
-                  ))}
-                </select>
+                  showSelectedIndicator
+                  value={settings.selectedPetId ?? ''}
+                  width={220}
+                />
                 <Button
                   disabled={busy}
                   onClick={() => void refreshPets()}

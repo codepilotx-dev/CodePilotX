@@ -87,14 +87,11 @@
   color: var(--color-token-foreground);
 }
 
-.pet-catalog-select {
+.pet-catalog-filters .settings-dropdown {
+  width: 100%;
   min-width: 0;
   min-height: var(--control-size-md);
-  padding: 7px 10px;
-  border: 1px solid var(--color-token-border);
-  border-radius: 8px;
   background: var(--color-token-bg-secondary);
-  color: var(--color-token-foreground);
 }
 
 .pet-catalog-status {

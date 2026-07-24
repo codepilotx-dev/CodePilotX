@@ -16,6 +16,7 @@ import {
 } from "../../components/ui/iconTokens.js";
 import { desktopClient } from "../../services/desktop-client/index.js";
 import { WorkspaceHeaderItem } from "../layout/workspace-header/index.js";
+import { SettingsDropdown } from "../settings/SettingsDropdown.js";
 import { PetSprite } from "./PetSprite.js";
 import {
   buildPetCatalogGroups,
@@ -211,32 +212,34 @@ export function PetCatalogSection({
               placeholder="搜索名称、作者或描述"
               value={query}
             />
-            <select
-              aria-label="宠物分类"
-              className="pet-catalog-select"
-              onChange={(event) => setCategory(event.target.value)}
+            <SettingsDropdown
+              ariaLabel="宠物分类"
+              onChange={setCategory}
+              options={[
+                { value: "", label: "全部分类" },
+                ...categories.map((item) => ({
+                  value: item.id,
+                  label: item.label,
+                })),
+              ]}
+              showSelectedIndicator
               value={category}
-            >
-              <option value="">全部分类</option>
-              {categories.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="宠物图集版本"
-              className="pet-catalog-select"
-              onChange={(event) => {
-                const value = event.target.value;
+              width={180}
+            />
+            <SettingsDropdown
+              ariaLabel="宠物图集版本"
+              onChange={(value) => {
                 setVersion(value === "all" ? "all" : (Number(value) as 1 | 2));
               }}
-              value={version}
-            >
-              <option value="all">全部版本</option>
-              <option value="1">v1 动画</option>
-              <option value="2">v2 · 16 方位</option>
-            </select>
+              options={[
+                { value: "all", label: "全部版本" },
+                { value: "1", label: "v1 动画" },
+                { value: "2", label: "v2 · 16 方位" },
+              ]}
+              showSelectedIndicator
+              value={String(version)}
+              width={180}
+            />
           </div>
 
           {catalog.cacheState === "stale" ? (

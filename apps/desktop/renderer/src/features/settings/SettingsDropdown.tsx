@@ -21,6 +21,7 @@ type Props = {
   options: Option[]
   onChange: (value: string) => void
   ariaLabel?: string
+  disabled?: boolean
   variant?: 'default' | 'theme'
   searchable?: boolean
   searchPlaceholder?: string
@@ -35,6 +36,7 @@ export function SettingsDropdown({
   options,
   onChange,
   ariaLabel,
+  disabled = false,
   variant = 'default',
   searchable = false,
   searchPlaceholder = '搜索...',
@@ -71,6 +73,7 @@ export function SettingsDropdown({
 
   return (
     <Select.Root
+      disabled={disabled}
       open={open}
       value={radixValue}
       onOpenChange={setOpen}

@@ -6,13 +6,8 @@
   gap: 8px;
 }
 
-.pet-settings-select {
+.pet-settings-inline .settings-dropdown {
   min-width: 180px;
-  padding: 7px 10px;
-  color: var(--color-token-foreground);
-  background: var(--color-token-bg-secondary);
-  border: 1px solid var(--color-token-border);
-  border-radius: 8px;
 }
 
 .pet-settings-installer {
