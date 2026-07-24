@@ -31,3 +31,4 @@ apps/desktop/renderer/playwright-report/
 *.sln
 *.sw?
 .gstack/
+.zcode/
