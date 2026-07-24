@@ -55,8 +55,6 @@ import type {
   CreateDesktopSessionResult,
   DesktopApi,
   DesktopBrowserState,
-  DesktopDataLocationMigrationResult,
-  DesktopDataLocationState,
   DesktopFollowUpBehavior,
   DesktopFileEntry,
   DesktopFilePreview,

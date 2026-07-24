@@ -56,8 +56,6 @@ import type {
   CreateDesktopSessionResult,
   DesktopApi,
   DesktopBrowserState,
-  DesktopDataLocationMigrationResult,
-  DesktopDataLocationState,
   DesktopFollowUpBehavior,
   DesktopFileEntry,
   DesktopFilePreview,
@@ -1012,6 +1010,18 @@ export function createAgentSessionDesktopClient(
 
   const client: CodePilotXDesktopClient = {
     ...mockClient,
+    getDataLocation: () =>
+      environment.window?.codePilotXDesktop?.getDataLocation
+        ? environment.window.codePilotXDesktop.getDataLocation()
+        : mockClient.getDataLocation(),
+    chooseDataLocation: async () =>
+      environment.window?.codePilotXDesktop?.chooseDataLocation
+        ? environment.window.codePilotXDesktop.chooseDataLocation(
+            [...(await loadProjectsById()).values()]
+              .map(project => project.rootPath)
+              .filter((path): path is string => typeof path === 'string'),
+          )
+        : mockClient.chooseDataLocation(),
     listTooling: async () =>
       withRequiredAgent(async () => {
         requireAgentCapability('tooling.management.v1')

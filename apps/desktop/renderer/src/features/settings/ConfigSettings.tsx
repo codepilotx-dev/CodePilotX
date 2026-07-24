@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Download, Search, Trash2, Wrench } from 'lucide-react'
+import { Download, Trash2, Wrench } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
@@ -37,7 +37,6 @@ function LearnMoreLink() {
 export function ConfigSettings(): React.ReactNode {
   const settings = useDesktopSettings()
   const { draft } = settings
-  const [openingConfig, setOpeningConfig] = useState(false)
   const [dataLocation, setDataLocation] = useState<DesktopDataLocationState | null>(
     null,
   )
@@ -101,31 +100,14 @@ export function ConfigSettings(): React.ReactNode {
     try {
       const result = await desktopClient.chooseDataLocation()
       if (result) {
-        // Migration succeeded: show the pending state
         const newState = await desktopClient.getDataLocation()
         setDataLocation(newState)
-        window.alert(
-          `数据已迁移到：${result.targetDir}\n\n请重启应用使新位置生效。当前会话继续使用旧目录。`,
-        )
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       window.alert(`更改数据位置失败：${message}`)
     } finally {
       setChangingLocation(false)
-    }
-  }
-
-  const handleOpenConfigFile = async (): Promise<void> => {
-    if (openingConfig) return
-    setOpeningConfig(true)
-    try {
-      await desktopClient.openConfigFile()
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      window.alert(`无法打开 config.toml：${message}`)
-    } finally {
-      setOpeningConfig(false)
     }
   }
 
@@ -140,28 +122,7 @@ export function ConfigSettings(): React.ReactNode {
           </p>
         </div>
 
-        <SettingsSection
-          title="自定义 config.toml 设置"
-          actions={
-            <div className="settings-inline-actions">
-              <SettingsDropdown
-                width={240}
-                value="user"
-                ariaLabel="用户配置"
-                options={[{ value: 'user', label: '用户配置' }]}
-                onChange={() => {}}
-              />
-              <Button
-                disabled={openingConfig}
-                onClick={() => void handleOpenConfigFile()}
-                type="button"
-              >
-                <Search size={APP_ICON_SIZE} />
-                打开 config.toml
-              </Button>
-            </div>
-          }
-        >
+        <SettingsSection title="审批">
           <SettingsRow
             title="批准策略"
             description="选择 CodePilotX 何时请求批准"
@@ -460,13 +421,13 @@ export function ConfigSettings(): React.ReactNode {
 
         <SettingsSection
           title="数据位置"
-          description="CodePilotX 配置和会话数据存储位置。更改后需要重启应用才能生效。"
+          description="CodePilotX 的全局配置、会话、宠物和托管工具存储位置。"
         >
           <SettingsRow
             title="当前数据目录"
             description={
               dataLocation
-                ? dataLocation.currentConfigDir
+                ? dataLocation.currentDataDir
                 : '加载中…'
             }
             control={
@@ -475,16 +436,16 @@ export function ConfigSettings(): React.ReactNode {
                   ? dataLocation.isEnvControlled
                     ? '环境变量控制'
                     : dataLocation.controlSource === 'bootstrap'
-                      ? '待生效'
+                      ? '自定义位置'
                       : '默认位置'
                   : '—'}
               </span>
             }
           />
-          {dataLocation?.pendingConfigDir ? (
+          {dataLocation?.pendingDataDir ? (
             <SettingsRow
               title="待生效目录"
-              description={`重启后将使用：${dataLocation.pendingConfigDir}`}
+              description={`重启后将使用：${dataLocation.pendingDataDir}`}
               control={
                 <span className="settings-row-status">等待重启</span>
               }
@@ -494,8 +455,8 @@ export function ConfigSettings(): React.ReactNode {
             title="更改位置"
             description={
               dataLocation?.isEnvControlled
-                ? '当前由环境变量 CODEPILOTX_CONFIG_DIR 或 CLAUDE_CONFIG_DIR 控制。移除环境变量后可使用桌面设置管理。'
-                : '选择新的数据存储目录，系统将自动迁移现有数据。'
+                ? '当前由 CODEPILOTX_DATA_DIR 控制；移除环境变量后才能通过桌面设置迁移。'
+                : '选择父目录后会创建 .codepilotx，并立即重启完成安全迁移。旧目录不会删除。'
             }
             control={
               <Button

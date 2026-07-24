@@ -355,7 +355,7 @@ function resolvedPath(status: ToolingStatus): string {
     return status.system.path ?? '本机路径不可用'
   }
   if (status.activeSource === 'managed') {
-    return `~/.codepilotx/tooling/${status.id}/${
+    return `CodePilotX 托管目录 · ${status.id}/${
       status.managed.version ?? status.pinnedVersion
     }`
   }

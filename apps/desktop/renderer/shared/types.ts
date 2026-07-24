@@ -25,6 +25,11 @@ import type {
   ThreadSnapshot,
 } from '@codepilotx/shared/thread'
 import type {
+  DesktopDataLocationChange,
+  DesktopDataLocationControlSource,
+  DesktopDataLocationState,
+} from '@codepilotx/shared/desktop-data-location-ipc'
+import type {
   ModelMetadata,
   ModelProviderID as CoreModelProviderID,
   ModelProviderKind,
@@ -1338,20 +1343,11 @@ export type DesktopUpdateStatus =
   | { phase: 'error'; message: string }
   | { phase: 'no-update' }
 
-export type DesktopDataLocationControlSource = 'env' | 'bootstrap' | 'default'
-
-export type DesktopDataLocationState = {
-  currentConfigDir: string
-  pendingConfigDir: string | null
-  controlSource: DesktopDataLocationControlSource
-  isEnvControlled: boolean
+export type {
+  DesktopDataLocationControlSource,
+  DesktopDataLocationState,
 }
-
-export type DesktopDataLocationMigrationResult = {
-  sourceDir: string
-  targetDir: string
-  success: boolean
-}
+export type DesktopDataLocationMigrationResult = DesktopDataLocationChange
 
 export type DebugToolProbeMode = 'safe' | 'realManual' | 'realAuto'
 
@@ -1724,7 +1720,6 @@ export type DesktopApi = {
     mode: LocalRouterMode,
   ): Promise<DesktopSessionSnapshot>
   readWorkflowEventLog(): Promise<DesktopWorkflowEvent[]>
-  openConfigFile(): Promise<{ path: string }>
   openExternalURL(url: string): Promise<void>
   sendUserMessage(
     sessionId: string,

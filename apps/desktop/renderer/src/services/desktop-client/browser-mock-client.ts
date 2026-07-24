@@ -617,7 +617,6 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       return next
     },
     readWorkflowEventLog: async () => [],
-    openConfigFile: async () => ({ path: '' }),
     openExternalURL: async url => {
       globalThis.open?.(url, '_blank', 'noopener,noreferrer')
     },
@@ -648,8 +647,9 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     logOut: async () => {},
     exitApp: async () => {},
     getDataLocation: async (): Promise<DesktopDataLocationState> => ({
-      currentConfigDir: '',
-      pendingConfigDir: null,
+      defaultDataDir: '',
+      currentDataDir: '',
+      pendingDataDir: null,
       controlSource: 'default',
       isEnvControlled: false,
     }),
