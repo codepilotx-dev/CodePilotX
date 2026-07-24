@@ -94,6 +94,12 @@
 - 不得为了让检查通过而盲目更新 CSS、style 或 test 基线。
 - 交付前搜索旧协议、旧路径和失效 import，并运行 `git diff --check`。
 
+## 变更记录要求
+
+- 每个修改代码、配置或文档的任务，都必须为 CHANGELOG.md 的 `Unreleased` 区段新增至少一条项目符号，说明"做了什么及影响"；仅修改 CHANGELOG.md 自身可以豁免。
+- 从 CHANGELOG.md 历史区段修改不能代替新增说明。
+- 记录应使用 `- [作用域] 中文说明` 的格式，按 `Added`、`Changed`、`Fixed`、`Deprecated`、`Removed`、`Security` 分类。
+
 ## 提交规则
 
 - 只有用户明确要求时才创建提交。
