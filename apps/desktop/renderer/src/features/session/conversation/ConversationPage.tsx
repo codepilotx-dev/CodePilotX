@@ -630,7 +630,6 @@ export function ConversationPage(): React.ReactNode {
     if (isDebugAskUserQuestionRequest(request)) {
       setDebugAskUserQuestionRequest(null);
       if (updatedInput) {
-        console.info("Debug AskUserQuestion submitted", updatedInput);
       }
       return;
     }
