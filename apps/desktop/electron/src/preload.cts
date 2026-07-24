@@ -8,6 +8,9 @@ import type {
   DesktopSettingsIpcBridge,
   DesktopSettingsPayload,
 } from "@codepilotx/shared/desktop-settings-ipc"
+import type {
+  DesktopDataLocationIpcBridge,
+} from "@codepilotx/shared/desktop-data-location-ipc"
 
 // Sandboxed preload scripts cannot resolve workspace packages at runtime.
 // Keep this literal type-checked against the shared contract so the emitted
@@ -33,6 +36,13 @@ const DESKTOP_SETTINGS_IPC_CHANNELS = {
   save: "desktop-settings:save",
   changed: "desktop-settings:changed",
 } as const satisfies typeof import("@codepilotx/shared/desktop-settings-ipc").DESKTOP_SETTINGS_IPC_CHANNELS
+
+const DESKTOP_DATA_LOCATION_IPC_CHANNELS = {
+  get: "desktop-data-location:get",
+  choose: "desktop-data-location:choose",
+  retry: "desktop-data-location:retry",
+  restore: "desktop-data-location:restore",
+} as const satisfies typeof import("@codepilotx/shared/desktop-data-location-ipc").DESKTOP_DATA_LOCATION_IPC_CHANNELS
 
 type AgentConnectionState = "connected" | "disconnected" | "unknown"
 type SystemThemeVariant = "light" | "dark"
@@ -70,6 +80,17 @@ const desktop = {
     return () => ipcRenderer.removeListener("agent:connection-changed", handler)
   },
   getAgentConnectionState: (): Promise<AgentConnectionState> => ipcRenderer.invoke("agent:connection-state"),
+  getDataLocation: () =>
+    ipcRenderer.invoke(DESKTOP_DATA_LOCATION_IPC_CHANNELS.get),
+  chooseDataLocation: (workspaceRoots?: readonly string[]) =>
+    ipcRenderer.invoke(
+      DESKTOP_DATA_LOCATION_IPC_CHANNELS.choose,
+      workspaceRoots,
+    ),
+  retryDataLocation: (): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_DATA_LOCATION_IPC_CHANNELS.retry),
+  restoreDataLocation: (): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_DATA_LOCATION_IPC_CHANNELS.restore),
   getDesktopSettings: (): Promise<DesktopSettingsPayload> =>
     ipcRenderer.invoke(DESKTOP_SETTINGS_IPC_CHANNELS.get),
   saveDesktopSettings: (
@@ -166,6 +187,7 @@ const desktop = {
   },
 } satisfies DesktopPetOverlayBridge
   & DesktopSettingsIpcBridge
+  & DesktopDataLocationIpcBridge
   & Record<string, unknown>
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)

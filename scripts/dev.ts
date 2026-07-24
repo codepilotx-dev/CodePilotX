@@ -1,13 +1,15 @@
 import { fileURLToPath } from "node:url"
 import { createServer } from "node:net"
 import { homedir } from "node:os"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
 
 const root = fileURLToPath(new URL("..", import.meta.url))
 const bunExecutable = process.execPath
 const rendererURL = "http://127.0.0.1:7788"
-const logDir = join(root, ".codepilotx", "logs")
-const agentDataDir = join(homedir(), ".codepilotx")
+const agentDataDir = resolve(
+  process.env.CODEPILOTX_DATA_DIR?.trim()
+    || join(homedir(), ".codepilotx"),
+)
 const agentLogDir = join(agentDataDir, "logs")
 
 function configuredAgentPort() {
@@ -137,6 +139,7 @@ const agent = spawn([bunExecutable, "--watch", "apps/agent/src/index.ts"], {
   CODEPILOTX_AUTH_TOKEN: authToken,
   CODEPILOTX_DATA_DIR: agentDataDir,
   CODEPILOTX_PETS_DIR: join(agentDataDir, "pets"),
+  CODEPILOTX_TOOLING_HOME: join(agentDataDir, "tooling"),
   CODEPILOTX_LEGACY_DATA_DIR: join(root, ".codepilotx"),
   CODEPILOTX_LOG_DIR: agentLogDir,
   CODEPILOTX_RENDERER_DIST: fileURLToPath(new URL("../dist/renderer", import.meta.url)),
@@ -157,7 +160,7 @@ try {
     CODEPILOTX_AGENT_MANAGED: "1",
     CODEPILOTX_AUTH_TOKEN: authToken,
     CODEPILOTX_BUN_PATH: process.execPath,
-    CODEPILOTX_LOG_DIR: logDir,
+    CODEPILOTX_DATA_DIR: agentDataDir,
   })
   void forwardLines(electron)
   const outcome = await Promise.race([

@@ -35,10 +35,20 @@ export interface SidecarConnection {
   readonly port: number
 }
 
+export interface SidecarDataLocation {
+  dataDir: string
+  relocation: {
+    operationId: string
+    sourceDataDir: string
+    targetDataDir: string
+  } | null
+}
+
 export class SidecarSupervisor {
   readonly #token: string
   readonly #logger: DesktopLogger
   readonly #moduleDirectory: string
+  readonly #dataLocation: SidecarDataLocation
   #child: ChildProcessWithoutNullStreams | undefined
   #connection: SidecarConnection | undefined
   #preferredPort: number | undefined
@@ -52,10 +62,12 @@ export class SidecarSupervisor {
     token: string,
     logger: DesktopLogger,
     moduleDirectory: string,
+    dataLocation: SidecarDataLocation,
   ) {
     this.#token = token
     this.#logger = logger
     this.#moduleDirectory = moduleDirectory
+    this.#dataLocation = dataLocation
   }
 
   onStateChange(listener: (status: ConnectionStatus) => void): void {
@@ -94,6 +106,7 @@ export class SidecarSupervisor {
         this.#connection = undefined
         await this.#disposeChild()
         if (error instanceof SidecarInstallationError) throw error
+        if (this.#dataLocation.relocation) throw error
         const message = formatError(error)
         this.#logger.warn("sidecar.connect-failed", { attempt, message })
         if (this.#stopping) break
@@ -202,10 +215,8 @@ export class SidecarSupervisor {
       resourcesPath: process.resourcesPath,
       moduleDirectory: this.#moduleDirectory,
     })
-    const dataDirectory = resolve(
-      process.env.CODEPILOTX_DATA_DIR?.trim()
-        || join(app.getPath("home"), ".codepilotx"),
-    )
+    const dataDirectory = resolve(this.#dataLocation.dataDir)
+    const relocation = this.#dataLocation.relocation
     const child = spawn(command.executable, command.args, {
       cwd: command.cwd,
       windowsHide: true,
@@ -218,9 +229,21 @@ export class SidecarSupervisor {
         CODEPILOTX_DESKTOP_MANAGED: "1",
         CODEPILOTX_DATA_DIR: dataDirectory,
         CODEPILOTX_PETS_DIR: join(dataDirectory, "pets"),
+        CODEPILOTX_TOOLING_HOME: join(dataDirectory, "tooling"),
         CODEPILOTX_LEGACY_DATA_DIR: join(app.getPath("userData"), "agent"),
         CODEPILOTX_DOCUMENTS_DIR: app.getPath("documents"),
         CODEPILOTX_LOG_DIR: join(dataDirectory, "logs"),
+        ...(relocation
+          ? {
+              CODEPILOTX_RELOCATION_SOURCE_DIR:
+                relocation.sourceDataDir,
+              CODEPILOTX_RELOCATION_OPERATION_ID:
+                relocation.operationId,
+            }
+          : {
+              CODEPILOTX_RELOCATION_SOURCE_DIR: undefined,
+              CODEPILOTX_RELOCATION_OPERATION_ID: undefined,
+            }),
         CODEPILOTX_MODEL_SNAPSHOT: app.isPackaged
           ? join(process.resourcesPath, "agent", "models.snapshot.json")
           : process.env.CODEPILOTX_MODEL_SNAPSHOT,

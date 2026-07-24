@@ -9,6 +9,7 @@ import {
   type DesktopSettingsPayload,
 } from "@codepilotx/shared/desktop-settings-ipc"
 import { registerAppearanceIpc } from "./ipc/register-appearance-ipc.js"
+import { registerDataLocationIpc } from "./ipc/register-data-location-ipc.js"
 import { registerDesktopIpc } from "./ipc/register-desktop-ipc.js"
 import { ExternalOpenTargetService } from "./ipc/external-open-targets.js"
 import {
@@ -23,6 +24,10 @@ import {
   AppearanceSettingsStore,
   DEFAULT_APPEARANCE_SETTINGS,
 } from "./settings/appearance-settings-store.js"
+import {
+  DataLocationStore,
+  type DataLocationLaunch,
+} from "./settings/data-location-store.js"
 import { formatError, sleep } from "./sidecar/readiness.js"
 import {
   type ConnectionStatus,
@@ -58,6 +63,8 @@ let connectionStatus: ConnectionStatus = {
   attempt: 0,
 }
 let connectionTask: Promise<void> | undefined
+let dataLocationStore: DataLocationStore | undefined
+let dataLocationLaunch: DataLocationLaunch | undefined
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
 if (!hasSingleInstanceLock) {
@@ -92,6 +99,12 @@ async function startDesktop(): Promise<void> {
     app.getPath("userData"),
     logger,
   )
+  dataLocationStore = new DataLocationStore(
+    app.getPath("userData"),
+    join(app.getPath("home"), ".codepilotx"),
+    process.env.CODEPILOTX_DATA_DIR?.trim() || null,
+  )
+  dataLocationLaunch = await dataLocationStore.launch()
   const startupTheme = await resolveStartupTheme(appearanceSettings, logger)
   const windowStateStore = new WindowStateStore(app.getPath("userData"), logger)
   const displayWorkAreas = screen.getAllDisplays().map(
@@ -150,12 +163,25 @@ async function startDesktop(): Promise<void> {
     },
   })
   registerAppearanceIpc(appearanceSettings, appearance)
+  registerDataLocationIpc({
+    store: dataLocationStore,
+    windows,
+    installDirectory: app.isPackaged
+      ? dirname(app.getPath("exe"))
+      : app.getAppPath(),
+    relaunch: relaunchApplication,
+  })
   registerPetOverlayIpc(windows, petOverlay)
   windows.createStartupWindow()
 
   const token = process.env.CODEPILOTX_AUTH_TOKEN
     ?? randomBytes(32).toString("base64url")
-  supervisor = new SidecarSupervisor(token, logger, moduleDirectory)
+  supervisor = new SidecarSupervisor(
+    token,
+    logger,
+    moduleDirectory,
+    dataLocationLaunch,
+  )
   supervisor.onStateChange((status) => {
     connectionStatus = status
     logger?.info("desktop.connection-state", { ...status })
@@ -209,6 +235,13 @@ async function runConnectionCycle(token: string): Promise<void> {
         origin: connection.origin,
         port: connection.port,
       })
+      if (dataLocationLaunch?.relocation) {
+        await dataLocationStore?.promotePending()
+        dataLocationLaunch = {
+          dataDir: dataLocationLaunch.dataDir,
+          relocation: null,
+        }
+      }
       windows.send("agent:connection-changed", "connected")
       windows.showApplication()
       supervisor.watch(connection, () => {
@@ -237,6 +270,17 @@ async function runConnectionCycle(token: string): Promise<void> {
         windows.showStartupStatus(
           "安装不完整，请重新安装",
           "CodePilotX Agent 文件缺失",
+          "terminal-error",
+        )
+        return
+      }
+      if (dataLocationLaunch?.relocation) {
+        logger.error("desktop.data-location-relocation-failed", {
+          reason: "agent-startup-failed",
+        })
+        windows.showStartupStatus(
+          "用户数据迁移失败",
+          "可以重试迁移，或恢复原数据位置后重新启动。",
           "terminal-error",
         )
         return
@@ -271,6 +315,11 @@ function broadcastDesktopSettingsChanged(
 }
 
 app.on("window-all-closed", () => app.quit())
+
+function relaunchApplication(): void {
+  app.relaunch()
+  app.quit()
+}
 
 async function resolveStartupTheme(
   settingsStore: AppearanceSettingsStore,

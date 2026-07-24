@@ -274,6 +274,8 @@ export function renderStartupPage({
           <p id="detail" class="startup-detail"></p>
           <div class="startup-actions">
             <button id="logs" type="button">打开日志目录</button>
+            <button id="retry-data-location" type="button" hidden>重试迁移</button>
+            <button id="restore-data-location" type="button" hidden>恢复原位置</button>
             <button id="quit" class="primary" type="button">退出</button>
           </div>
         </section>
@@ -283,6 +285,8 @@ export function renderStartupPage({
       (() => {
         const statusElement = document.getElementById("status");
         const detailElement = document.getElementById("detail");
+        const retryDataLocation = document.getElementById("retry-data-location");
+        const restoreDataLocation = document.getElementById("restore-data-location");
         const revealDiagnostics = () => {
           document.body.dataset.diagnosticsVisible = "true";
         };
@@ -295,6 +299,9 @@ export function renderStartupPage({
         ) => {
           statusElement.textContent = status || "正在启动…";
           detailElement.textContent = detail || "";
+          const relocationFailed = status === "用户数据迁移失败";
+          retryDataLocation.hidden = !relocationFailed;
+          restoreDataLocation.hidden = !relocationFailed;
           if (kind === "terminal-error") {
             window.clearTimeout(diagnosticTimer);
             revealDiagnostics();
@@ -312,6 +319,12 @@ export function renderStartupPage({
         });
         document.getElementById("quit").addEventListener("click", () => {
           window.codePilotXDesktop?.quitDuringStartup();
+        });
+        retryDataLocation.addEventListener("click", () => {
+          window.codePilotXDesktop?.retryDataLocation();
+        });
+        restoreDataLocation.addEventListener("click", () => {
+          window.codePilotXDesktop?.restoreDataLocation();
         });
       })();
     </script>

@@ -13,12 +13,14 @@ import {
 import type { DesktopThemeSettingsV5 } from "@codepilotx/shared/desktop-theme"
 import type { DesktopPetPresentation } from "@codepilotx/shared/desktop-pet-overlay"
 import type { DesktopSettingsPayload } from "@codepilotx/shared/desktop-settings-ipc"
+import type { DesktopDataLocationState } from "@codepilotx/shared/desktop-data-location-ipc"
 
 declare global {
   interface Window {
     codePilotXDesktop: {
       getAppearanceSettings(): Promise<DesktopThemeSettingsV5>
       saveAppearanceSettings(settings: DesktopThemeSettingsV5): Promise<void>
+      getDataLocation(): Promise<DesktopDataLocationState>
       openPetOverlay(): Promise<void>
       hidePetOverlay(): Promise<void>
       getPetOverlayWindowState(): Promise<{
@@ -85,6 +87,13 @@ test.describe("真实 Electron 宿主", () => {
       window.codePilotXDesktop.getAppearanceSettings(),
     )
     expect(settings.version).toBe(5)
+    expect(await page.evaluate(() =>
+      window.codePilotXDesktop.getDataLocation(),
+    )).toMatchObject({
+      currentDataDir: join(userDataDirectory, "agent-home"),
+      controlSource: "env",
+      isEnvControlled: true,
+    })
 
     await page.evaluate(() => window.codePilotXDesktop.openPetOverlay())
     await expect

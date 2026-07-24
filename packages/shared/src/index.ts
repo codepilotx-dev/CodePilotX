@@ -1,6 +1,7 @@
 export * from "./api"
 export * from "./desktop-theme"
 export * from "./desktop-pet-overlay"
+export * from "./desktop-data-location-ipc"
 export * from "./llm-event"
 export * from "./model"
 export * from "./thread"
