@@ -224,50 +224,48 @@ export function PetSettings({
           />
         </SettingsSection>
 
-        <details className="pet-settings-advanced">
-          <summary>高级：从链接安装</summary>
-          <SettingsSection
-            description="输入 pet.json 的 HTTPS 地址；localhost 开发地址可使用 HTTP。"
-          >
-            <div className="pet-settings-installer">
-              <Input
-                value={sourceUrl}
-                onChange={event => {
-                  setSourceUrl(event.target.value)
-                  setPreview(null)
-                }}
-                placeholder="https://example.com/my-pet/pet.json"
-              />
+        <SettingsSection
+          title="从链接安装"
+          description="输入 pet.json 的 HTTPS 地址；localhost 开发地址可使用 HTTP。"
+        >
+          <div className="pet-settings-installer">
+            <Input
+              value={sourceUrl}
+              onChange={event => {
+                setSourceUrl(event.target.value)
+                setPreview(null)
+              }}
+              placeholder="https://example.com/my-pet/pet.json"
+            />
+            <Button
+              disabled={busy || !sourceUrl.trim()}
+              onClick={() => void loadPreview()}
+              type="button"
+            >
+              预览
+            </Button>
+          </div>
+          {preview ? (
+            <div className="pet-settings-preview">
+              <PawPrint size={20} />
+              <div>
+                <strong>{preview.pet.displayName}</strong>
+                <p>
+                  {preview.pet.description || '无描述'} · v
+                  {preview.pet.spriteVersionNumber} ·{' '}
+                  {(preview.sizeBytes / 1024).toFixed(1)} KiB
+                </p>
+              </div>
               <Button
-                disabled={busy || !sourceUrl.trim()}
-                onClick={() => void loadPreview()}
+                disabled={busy}
+                onClick={() => void install()}
                 type="button"
               >
-                预览
+                安装
               </Button>
             </div>
-            {preview ? (
-              <div className="pet-settings-preview">
-                <PawPrint size={20} />
-                <div>
-                  <strong>{preview.pet.displayName}</strong>
-                  <p>
-                    {preview.pet.description || '无描述'} · v
-                    {preview.pet.spriteVersionNumber} ·{' '}
-                    {(preview.sizeBytes / 1024).toFixed(1)} KiB
-                  </p>
-                </div>
-                <Button
-                  disabled={busy}
-                  onClick={() => void install()}
-                  type="button"
-                >
-                  安装
-                </Button>
-              </div>
-            ) : null}
-          </SettingsSection>
-        </details>
+          ) : null}
+        </SettingsSection>
       </div>
     </SettingsContentArea>
   )

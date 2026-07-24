@@ -36,18 +36,3 @@
   color: var(--color-token-description-foreground);
   font-size: 12px;
 }
-
-.pet-settings-advanced {
-  margin-top: 40px;
-}
-
-.pet-settings-advanced > summary {
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-secondary);
-  cursor: pointer;
-  user-select: none;
-}
-
-.pet-settings-advanced[open] > summary {
-  margin-bottom: 12px;
-}
