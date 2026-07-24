@@ -10,9 +10,8 @@
   container-type: inline-size;
   border: 1px solid var(--color-token-border);
   border-radius: 20px;
-  background: color-mix(in srgb, var(--color-token-editor-widget-background) 96%, transparent);
+  background: var(--color-token-editor-widget-background);
   box-shadow: none;
-  backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.04);
 }
 
 .composer-stack {
@@ -36,7 +35,7 @@
   border: 1px solid var(--color-token-border);
   border-bottom: 0;
   border-radius: 16px 16px 0 0;
-  background: color-mix(in srgb, var(--color-token-editor-widget-background) 84%, transparent);
+  background: var(--color-token-editor-widget-background);
   box-shadow: var(--shadow-resting);
   scrollbar-width: none;
   white-space: nowrap;
@@ -308,14 +307,6 @@
 @supports (corner-shape: superellipse(1.5)) {
   .composer {
     corner-shape: superellipse(1.5);
-  }
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  .composer,
-  .composer-utility-bar {
-    background: var(--color-token-editor-widget-background);
-    backdrop-filter: none;
   }
 }
 

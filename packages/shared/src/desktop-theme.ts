@@ -10,7 +10,6 @@ export type DesktopChromeTheme = {
     ui: string | null
   }
   ink: DesktopHexColor
-  opaqueWindows: boolean
   semanticColors: {
     diffAdded: DesktopHexColor
     diffRemoved: DesktopHexColor
@@ -19,8 +18,8 @@ export type DesktopChromeTheme = {
   surface: DesktopHexColor
 }
 
-export type DesktopThemeSettingsV5<CodeThemeId extends string = string> = {
-  version: 5
+export type DesktopThemeSettingsV6<CodeThemeId extends string = string> = {
+  version: 6
   mode: DesktopThemeMode
   chromeThemes: Record<DesktopThemeVariant, DesktopChromeTheme>
   codeThemeIds: Record<DesktopThemeVariant, CodeThemeId>

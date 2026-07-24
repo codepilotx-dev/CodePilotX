@@ -84,7 +84,7 @@ describe("startup page", () => {
     expect(html).toContain("outline: 2px solid var(--startup-accent)")
   })
 
-  test("resolves explicit and system V5 theme variants", () => {
+  test("resolves explicit and system V6 theme variants", () => {
     expect(
       resolveStartupPageTheme(
         { ...DEFAULT_APPEARANCE_SETTINGS, mode: "light" },

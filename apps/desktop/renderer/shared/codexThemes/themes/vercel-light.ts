@@ -12,7 +12,6 @@ const theme = {
       "ui": "Geist, Inter"
     },
     "ink": "#171717",
-    "opaqueWindows": true,
     "semanticColors": {
       "diffAdded": "#28A948",
       "diffRemoved": "#EB001D",

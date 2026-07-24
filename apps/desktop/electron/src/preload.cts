@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron"
-import type { DesktopThemeSettingsV5 } from "./settings/appearance-settings-store.js"
+import type { DesktopThemeSettingsV6 } from "./settings/appearance-settings-store.js"
 import type {
   DesktopPetOverlayBridge,
   DesktopPetPresentation,
@@ -46,11 +46,6 @@ const DESKTOP_DATA_LOCATION_IPC_CHANNELS = {
 
 type AgentConnectionState = "connected" | "disconnected" | "unknown"
 type SystemThemeVariant = "light" | "dark"
-
-interface WindowBackdropCapability {
-  supported: boolean
-  platform: NodeJS.Platform
-}
 
 interface DesktopExternalOpenTarget {
   targetId: string
@@ -123,9 +118,9 @@ const desktop = {
     ipcRenderer.invoke("shell:reveal-path-in-folder", targetPath),
   openLogDirectory: (): Promise<string> => ipcRenderer.invoke("startup:open-logs"),
   quitDuringStartup: (): Promise<void> => ipcRenderer.invoke("startup:quit"),
-  getAppearanceSettings: (): Promise<DesktopThemeSettingsV5> =>
+  getAppearanceSettings: (): Promise<DesktopThemeSettingsV6> =>
     ipcRenderer.invoke("appearance:settings:get"),
-  saveAppearanceSettings: (settings: DesktopThemeSettingsV5): Promise<void> =>
+  saveAppearanceSettings: (settings: DesktopThemeSettingsV6): Promise<void> =>
     ipcRenderer.invoke("appearance:settings:save", settings),
   getSystemTheme: (): Promise<SystemThemeVariant> =>
     ipcRenderer.invoke("appearance:system-theme:get"),
@@ -136,10 +131,6 @@ const desktop = {
     ipcRenderer.on("appearance:system-theme:changed", handler)
     return () => ipcRenderer.removeListener("appearance:system-theme:changed", handler)
   },
-  getWindowBackdropCapability: (): Promise<WindowBackdropCapability> =>
-    ipcRenderer.invoke("appearance:backdrop:get-capability"),
-  applyWindowBackdrop: (enabled: boolean): Promise<boolean> =>
-    ipcRenderer.invoke("appearance:backdrop:apply", enabled),
   openPetOverlay: (): Promise<void> =>
     ipcRenderer.invoke(PET_OVERLAY_CHANNELS.open),
   hidePetOverlay: (): Promise<void> =>

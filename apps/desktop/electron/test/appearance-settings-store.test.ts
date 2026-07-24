@@ -56,28 +56,27 @@ describe("Electron 外观设置存储", () => {
 
   test("保存当前代际时规范化字段并限制数值和颜色", () => {
     const normalized = normalizeAppearanceSettings({
-      version: 5,
+      version: 6,
       mode: "dark",
       codeThemeIds: { light: "auto", dark: "linear-dark" },
-      glassmorphismEnabled: false,
       pointerCursorEnabled: true,
       reduceMotion: "on",
       fontSizes: { ui: 999, code: 1 },
     })
 
     expect(normalized).toMatchObject({
-      version: 5,
+      version: 6,
       mode: "dark",
       codeThemeIds: { light: "codex-light", dark: "linear-dark" },
       pointerCursorEnabled: true,
       reduceMotion: "on",
       fontSizes: { ui: 16, code: 8 },
     })
-    expect(normalized.chromeThemes.light.opaqueWindows).toBe(true)
-    expect(normalized.chromeThemes.dark.opaqueWindows).toBe(true)
+    expect(normalized.chromeThemes.light).not.toHaveProperty("opaqueWindows")
+    expect(normalized.chromeThemes.dark).not.toHaveProperty("opaqueWindows")
   })
 
-  test("读取旧设置时直接覆盖为 V5 默认值", async () => {
+  test("读取旧设置时直接覆盖为 V6 默认值", async () => {
     const root = temporaryRoot()
     const records: Array<{ event: string; fields?: Record<string, unknown> }> = []
     const store = new AppearanceSettingsStore(root, {
@@ -88,7 +87,6 @@ describe("Electron 外观设置存储", () => {
       version: 2,
       mode: "light",
       codeThemeIds: { light: "auto", dark: "codex-dark" },
-      glassmorphismEnabled: true,
       chromeThemes: {
         light: {
           accent: "#ABCDEF",
@@ -106,8 +104,8 @@ describe("Electron 外观设置存储", () => {
     expect(records).toEqual([])
   })
 
-  test("所有已知旧版本都重置为 V5 默认值", () => {
-    for (const version of [1, 2, 3, 4]) {
+  test("所有已知旧版本都重置为 V6 默认值", () => {
+    for (const version of [1, 2, 3, 4, 5]) {
       expect(migrateAppearanceSettings({
         version,
         mode: "dark",
@@ -120,7 +118,7 @@ describe("Electron 外观设置存储", () => {
     const root = temporaryRoot()
     const store = new AppearanceSettingsStore(root)
     const futureSettings = JSON.stringify({
-      version: 6,
+      version: 7,
       mode: "light",
       futureField: "must-survive",
     })

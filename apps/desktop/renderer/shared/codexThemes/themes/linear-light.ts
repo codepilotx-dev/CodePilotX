@@ -9,7 +9,6 @@ const theme = {
       "ui": "Inter"
     },
     "ink": "#1b1b1b",
-    "opaqueWindows": true,
     "semanticColors": {
       "diffAdded": "#52a450",
       "diffRemoved": "#c94446",

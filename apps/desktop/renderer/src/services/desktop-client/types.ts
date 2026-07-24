@@ -42,11 +42,6 @@ type DesktopClientWindow = {
     onSystemThemeChange?(
       listener: (theme: 'light' | 'dark') => void,
     ): () => void
-    getWindowBackdropCapability?(): Promise<{
-      supported: boolean
-      platform: string
-    }>
-    applyWindowBackdrop?(enabled: boolean): Promise<boolean>
     listExternalOpenTargets?(targetPath: string): Promise<Array<{
       targetId: string
       label: string

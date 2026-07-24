@@ -30,11 +30,6 @@ declare global {
       onSystemThemeChange(
         listener: (theme: 'light' | 'dark') => void,
       ): () => void
-      getWindowBackdropCapability(): Promise<{
-        supported: boolean
-        platform: string
-      }>
-      applyWindowBackdrop(enabled: boolean): Promise<boolean>
       getDesktopSettings(): Promise<DesktopStoredSettings>
       saveDesktopSettings(
         settings: DesktopStoredSettings,

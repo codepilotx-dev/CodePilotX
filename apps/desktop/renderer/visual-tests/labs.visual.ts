@@ -3,7 +3,7 @@ import { LAB_DEMOS } from '../src/features/labs/labRegistry.js'
 import {
   DESKTOP_VIEWPORT,
   STABLE_SCREENSHOT_OPTIONS,
-  V5_VISUAL_BASELINES_ENABLED,
+  V6_VISUAL_BASELINES_ENABLED,
   VISUAL_MODES,
   expectNoHorizontalOverflow,
   prepareVisualTheme,
@@ -11,7 +11,7 @@ import {
   type VisualMode,
 } from './visual-test-helpers.js'
 
-const visualTest = V5_VISUAL_BASELINES_ENABLED ? test : test.skip
+const visualTest = V6_VISUAL_BASELINES_ENABLED ? test : test.skip
 
 for (const mode of VISUAL_MODES) {
   for (const demo of LAB_DEMOS) {

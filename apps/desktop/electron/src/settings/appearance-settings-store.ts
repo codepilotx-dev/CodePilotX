@@ -4,13 +4,13 @@ import { randomUUID } from "node:crypto"
 import type {
   DesktopChromeTheme,
   DesktopHexColor,
-  DesktopThemeSettingsV5,
+  DesktopThemeSettingsV6,
   DesktopThemeVariant,
 } from "@codepilotx/shared/desktop-theme"
 
 export type {
   DesktopChromeTheme,
-  DesktopThemeSettingsV5,
+  DesktopThemeSettingsV6,
 } from "@codepilotx/shared/desktop-theme"
 
 type HexColor = DesktopHexColor
@@ -22,7 +22,6 @@ const DEFAULT_CHROME_THEMES: Record<AppearanceVariant, DesktopChromeTheme> = {
     surface: "#ffffff",
     ink: "#1a1c1f",
     contrast: 45,
-    opaqueWindows: false,
     fonts: { ui: null, code: null },
     semanticColors: {
       diffAdded: "#00a240",
@@ -35,7 +34,6 @@ const DEFAULT_CHROME_THEMES: Record<AppearanceVariant, DesktopChromeTheme> = {
     surface: "#181818",
     ink: "#ffffff",
     contrast: 60,
-    opaqueWindows: false,
     fonts: { ui: null, code: null },
     semanticColors: {
       diffAdded: "#40c977",
@@ -45,8 +43,8 @@ const DEFAULT_CHROME_THEMES: Record<AppearanceVariant, DesktopChromeTheme> = {
   },
 }
 
-export const DEFAULT_APPEARANCE_SETTINGS: DesktopThemeSettingsV5 = {
-  version: 5,
+export const DEFAULT_APPEARANCE_SETTINGS: DesktopThemeSettingsV6 = {
+  version: 6,
   mode: "system",
   chromeThemes: DEFAULT_CHROME_THEMES,
   codeThemeIds: { light: "codex-light", dark: "codex-dark" },
@@ -57,7 +55,7 @@ export const DEFAULT_APPEARANCE_SETTINGS: DesktopThemeSettingsV5 = {
 }
 
 type RecordValue = Record<string, unknown>
-const CURRENT_APPEARANCE_SETTINGS_VERSION = 5
+const CURRENT_APPEARANCE_SETTINGS_VERSION = 6
 
 function isRecord(value: unknown): value is RecordValue {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -101,7 +99,6 @@ function normalizeChromeTheme(value: unknown, fallback: DesktopChromeTheme): Des
     surface: colorOr(source.surface, fallback.surface),
     ink: colorOr(source.ink, fallback.ink),
     contrast: numberInRange(source.contrast, fallback.contrast, 0, 100),
-    opaqueWindows: booleanOr(source.opaqueWindows, fallback.opaqueWindows),
     fonts: {
       ui: fontOr(fonts.ui),
       code: fontOr(fonts.code),
@@ -114,7 +111,7 @@ function normalizeChromeTheme(value: unknown, fallback: DesktopChromeTheme): Des
   }
 }
 
-export function normalizeAppearanceSettings(value: unknown): DesktopThemeSettingsV5 {
+export function normalizeAppearanceSettings(value: unknown): DesktopThemeSettingsV6 {
   const source = isRecord(value) ? value : {}
   const mode = source.mode === "light" || source.mode === "dark" || source.mode === "system"
     ? source.mode
@@ -122,23 +119,12 @@ export function normalizeAppearanceSettings(value: unknown): DesktopThemeSetting
   const codeThemeIds = isRecord(source.codeThemeIds) ? source.codeThemeIds : {}
   const chromeThemes = isRecord(source.chromeThemes) ? source.chromeThemes : {}
   const fontSizes = isRecord(source.fontSizes) ? source.fontSizes : {}
-  const legacyOpaque = typeof source.glassmorphismEnabled === "boolean"
-    ? !source.glassmorphismEnabled
-    : undefined
-
-  const normalizeVariant = (variant: AppearanceVariant): DesktopChromeTheme => {
-    const normalized = normalizeChromeTheme(chromeThemes[variant], DEFAULT_CHROME_THEMES[variant])
-    return legacyOpaque === undefined || isRecord(chromeThemes[variant])
-      ? normalized
-      : { ...normalized, opaqueWindows: legacyOpaque }
-  }
-
   return {
-    version: 5,
+    version: 6,
     mode,
     chromeThemes: {
-      light: normalizeVariant("light"),
-      dark: normalizeVariant("dark"),
+      light: normalizeChromeTheme(chromeThemes.light, DEFAULT_CHROME_THEMES.light),
+      dark: normalizeChromeTheme(chromeThemes.dark, DEFAULT_CHROME_THEMES.dark),
     },
     codeThemeIds: {
       light: codeThemeIdOr(codeThemeIds.light, "codex-light"),
@@ -163,11 +149,11 @@ export function normalizeAppearanceSettings(value: unknown): DesktopThemeSetting
 }
 
 /**
- * V5 is an intentional visual-system reset. Known V1-V4 documents are replaced
+ * V6 is an intentional solid-surface reset. Known V1-V5 documents are replaced
  * with the new defaults instead of carrying old palette choices into the new
  * semantic-token contract. Future documents remain protected from downgrade.
  */
-export function migrateAppearanceSettings(value: unknown): DesktopThemeSettingsV5 {
+export function migrateAppearanceSettings(value: unknown): DesktopThemeSettingsV6 {
   if (!isRecord(value)) {
     throw new UnsupportedAppearanceSettingsVersionError(value)
   }
@@ -222,7 +208,7 @@ export class AppearanceSettingsStore {
     return this.#filePath
   }
 
-  async load(): Promise<DesktopThemeSettingsV5> {
+  async load(): Promise<DesktopThemeSettingsV6> {
     try {
       const source = await readFile(this.#filePath, "utf8")
       let parsed: unknown
@@ -252,7 +238,7 @@ export class AppearanceSettingsStore {
     return write
   }
 
-  async #backupCorruptAndReset(): Promise<DesktopThemeSettingsV5> {
+  async #backupCorruptAndReset(): Promise<DesktopThemeSettingsV6> {
     const extension = extname(this.#filePath)
     const stem = basename(this.#filePath, extension)
     const timestamp = new Date().toISOString().replace(/\D/g, "")
@@ -267,7 +253,7 @@ export class AppearanceSettingsStore {
     return fallback
   }
 
-  async #writeAtomically(settings: DesktopThemeSettingsV5): Promise<void> {
+  async #writeAtomically(settings: DesktopThemeSettingsV6): Promise<void> {
     const directory = dirname(this.#filePath)
     const temporaryPath = `${this.#filePath}.${process.pid}.${randomUUID()}.tmp`
     await mkdir(directory, { recursive: true })

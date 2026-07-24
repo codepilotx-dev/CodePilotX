@@ -3,14 +3,14 @@ import {
   COMPACT_VIEWPORT,
   DESKTOP_VIEWPORT,
   STABLE_SCREENSHOT_OPTIONS,
-  V5_VISUAL_BASELINES_ENABLED,
+  V6_VISUAL_BASELINES_ENABLED,
   VISUAL_MODES,
   expectNoHorizontalOverflow,
   prepareVisualTheme,
   waitForVisualPage,
 } from './visual-test-helpers.js'
 
-const visualTest = V5_VISUAL_BASELINES_ENABLED ? test : test.skip
+const visualTest = V6_VISUAL_BASELINES_ENABLED ? test : test.skip
 
 const FORMAL_ROUTES = [
   { id: 'new', route: '/?visualCase=empty#/new', ready: 'main' },

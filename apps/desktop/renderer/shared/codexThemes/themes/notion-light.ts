@@ -8,8 +8,7 @@ const theme = {
     "fonts": {
       "code": null,
       "ui": null
-    },
-    "opaqueWindows": true
+    }
   },
   "colors": {
     "activityBar.activeBorder": "#3183d8",

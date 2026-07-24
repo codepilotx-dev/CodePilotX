@@ -72,7 +72,6 @@ describe('code theme Chrome seed', () => {
         ...DEFAULT_DARK_CHROME_THEME,
         contrast: 73,
         fonts: { ui: 'Inter', code: 'Cascadia Code' },
-        opaqueWindows: true,
       },
       seed,
     )
@@ -80,7 +79,6 @@ describe('code theme Chrome seed', () => {
     expect(merged).toMatchObject({
       contrast: 73,
       fonts: { ui: 'Inter', code: 'Cascadia Code' },
-      opaqueWindows: true,
       surface: '#282a36',
       ink: '#f8f8f2',
       accent: '#ff79c6',

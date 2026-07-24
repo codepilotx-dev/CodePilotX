@@ -22,7 +22,6 @@ export const DEFAULT_LIGHT_CHROME_THEME: DesktopChromeTheme = {
   contrast: 45,
   fonts: { code: null, ui: null },
   ink: '#1a1c1f',
-  opaqueWindows: false,
   semanticColors: {
     diffAdded: '#00a240',
     diffRemoved: '#ba2623',
@@ -36,7 +35,6 @@ export const DEFAULT_DARK_CHROME_THEME: DesktopChromeTheme = {
   contrast: 60,
   fonts: { code: null, ui: null },
   ink: '#ffffff',
-  opaqueWindows: false,
   semanticColors: {
     diffAdded: '#40c977',
     diffRemoved: '#fa423e',
@@ -58,7 +56,7 @@ export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
 }
 
 export const DEFAULT_DESKTOP_THEME_SETTINGS: DesktopThemeSettings = {
-  version: 5,
+  version: 6,
   mode: 'system',
   chromeThemes: {
     light: DEFAULT_LIGHT_CHROME_THEME,
@@ -106,30 +104,24 @@ export function normalizeDesktopThemeSettings(
   value: unknown,
 ): DesktopThemeSettings {
   const record = isRecord(value) ? value : {}
-  if (record.version !== 5) {
+  if (record.version !== 6) {
     return cloneDefaultDesktopThemeSettings()
   }
-  const legacyGlass =
-    typeof record.glassmorphismEnabled === 'boolean'
-      ? record.glassmorphismEnabled
-      : undefined
   const chromeThemes = isRecord(record.chromeThemes)
     ? record.chromeThemes
     : {}
 
   return {
-    version: 5,
+    version: 6,
     mode: normalizeMode(record.mode),
     chromeThemes: {
       light: normalizeChromeTheme(
         chromeThemes.light,
         DEFAULT_LIGHT_CHROME_THEME,
-        legacyGlass,
       ),
       dark: normalizeChromeTheme(
         chromeThemes.dark,
         DEFAULT_DARK_CHROME_THEME,
-        legacyGlass,
       ),
     },
     codeThemeIds: normalizeCodeThemeIds(record),
@@ -183,7 +175,6 @@ function normalizeReducedMotion(
 function normalizeChromeTheme(
   value: unknown,
   fallback: DesktopChromeTheme,
-  legacyGlass: boolean | undefined,
 ): DesktopChromeTheme {
   const record = isRecord(value) ? value : {}
   const fonts = isRecord(record.fonts) ? record.fonts : {}
@@ -198,12 +189,6 @@ function normalizeChromeTheme(
       ui: normalizeOptionalFont(fonts.ui),
     },
     ink: normalizeHex(record.ink, fallback.ink),
-    opaqueWindows:
-      typeof record.opaqueWindows === 'boolean'
-        ? record.opaqueWindows
-        : legacyGlass === undefined
-          ? fallback.opaqueWindows
-          : !legacyGlass,
     semanticColors: {
       diffAdded: normalizeHex(
         semanticColors.diffAdded,

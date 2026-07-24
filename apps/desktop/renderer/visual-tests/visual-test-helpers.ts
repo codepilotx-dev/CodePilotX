@@ -1,8 +1,8 @@
 import { expect, type Page } from '@playwright/test'
 
 export const VISUAL_MODES = ['light', 'dark'] as const
-export const V5_VISUAL_BASELINES_ENABLED =
-  process.env.CODEPILOTX_VISUAL_BASELINES_V5 === '1'
+export const V6_VISUAL_BASELINES_ENABLED =
+  process.env.CODEPILOTX_VISUAL_BASELINES_V6 === '1'
 
 export type VisualMode = (typeof VISUAL_MODES)[number]
 
@@ -18,7 +18,6 @@ export const STABLE_SCREENSHOT_OPTIONS = {
 type ThemeOverrides = {
   codeFontSize?: number
   contrast?: number
-  opaqueWindows?: boolean
   reduceMotion?: 'system' | 'on' | 'off'
   uiFontSize?: number
 }
@@ -40,7 +39,6 @@ export async function prepareVisualTheme(
         contrast: selectedMode === 'light' ? (values.contrast ?? 45) : 45,
         fonts: { code: null, ui: null },
         ink: '#1a1c1f',
-        opaqueWindows: values.opaqueWindows ?? false,
         semanticColors: {
           diffAdded: '#00a240',
           diffRemoved: '#ba2623',
@@ -53,7 +51,6 @@ export async function prepareVisualTheme(
         contrast: selectedMode === 'dark' ? (values.contrast ?? 60) : 60,
         fonts: { code: null, ui: null },
         ink: '#ffffff',
-        opaqueWindows: values.opaqueWindows ?? false,
         semanticColors: {
           diffAdded: '#40c977',
           diffRemoved: '#fa423e',
@@ -62,9 +59,9 @@ export async function prepareVisualTheme(
         surface: '#181818',
       }
       localStorage.setItem(
-        'codepilotx.desktop.appearance.v5',
+        'codepilotx.desktop.appearance.v6',
         JSON.stringify({
-          version: 5,
+          version: 6,
           mode: selectedMode,
           chromeThemes: { light, dark },
           codeThemeIds: {

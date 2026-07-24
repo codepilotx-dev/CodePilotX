@@ -64,7 +64,6 @@ export function DesktopThemeProvider({
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const pendingSavesRef = useRef(0)
   const [draftSaving, setDraftSaving] = useState(false)
-  const [backdropSupported, setBackdropSupported] = useState(false)
   const [systemVariant, setSystemVariant] =
     useState<DesktopThemeVariant>(getSystemThemeVariant)
   const [systemReduceMotion, setSystemReduceMotion] = useState(
@@ -119,21 +118,6 @@ export function DesktopThemeProvider({
   }, [])
 
   useEffect(() => {
-    let mounted = true
-    void window.codePilotXDesktop
-      ?.getWindowBackdropCapability?.()
-      .then(capability => {
-        if (mounted) setBackdropSupported(capability.supported)
-      })
-      .catch(() => {
-        if (mounted) setBackdropSupported(false)
-      })
-    return () => {
-      mounted = false
-    }
-  }, [])
-
-  useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)')
     const handleChange = (): void => {
       setSystemReduceMotion(query.matches)
@@ -156,17 +140,8 @@ export function DesktopThemeProvider({
       draftSettings,
       draftResolvedVariant,
       systemReduceMotion,
-      backdropSupported,
     )
-    const configuredOpaque =
-      draftSettings.chromeThemes[draftResolvedVariant].opaqueWindows
-    if (backdropSupported) {
-      void window.codePilotXDesktop
-        ?.applyWindowBackdrop?.(!configuredOpaque)
-        .catch(() => undefined)
-    }
   }, [
-    backdropSupported,
     draftResolvedVariant,
     draftSettings,
     systemReduceMotion,
@@ -313,14 +288,12 @@ export function DesktopThemeProvider({
         draftSettings,
         draftResolvedVariant,
       ),
-      backdropSupported,
       draft,
       setMode,
       saveSettings,
     }),
     [
       activeTheme,
-      backdropSupported,
       draft,
       draftResolvedVariant,
       draftSettings,
@@ -341,16 +314,12 @@ function applyDesktopTheme(
   settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,
   systemReduceMotion: boolean,
-  backdropSupported: boolean,
 ): void {
   const root = document.documentElement
   const reduceMotion =
     settings.reduceMotion === 'system'
       ? systemReduceMotion
       : settings.reduceMotion === 'on'
-  const opaque =
-    settings.chromeThemes[variant].opaqueWindows || !backdropSupported
-
   root.dataset.theme = variant
   root.dataset.themeId = getDesktopThemeIdForVariant(settings, variant)
   root.dataset.windowType = window.codePilotXDesktop ? 'electron' : 'browser-mock'
@@ -359,8 +328,6 @@ function applyDesktopTheme(
   root.classList.toggle('dark-theme', variant === 'dark')
   root.classList.toggle('electron-light', variant === 'light')
   root.classList.toggle('electron-dark', variant === 'dark')
-  root.classList.toggle('electron-opaque', opaque)
-  root.dataset.glassSurfaces = opaque ? 'off' : 'on'
   root.dataset.pointerCursor = settings.pointerCursorEnabled ? 'on' : 'off'
   root.dataset.reduceMotion = reduceMotion ? 'on' : 'off'
   root.style.setProperty('color-scheme', variant)

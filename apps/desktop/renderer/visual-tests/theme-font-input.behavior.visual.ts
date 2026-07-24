@@ -4,7 +4,7 @@ import {
   waitForVisualPage,
 } from './visual-test-helpers.js'
 
-const THEME_STORAGE_KEY = 'codepilotx.desktop.appearance.v5'
+const THEME_STORAGE_KEY = 'codepilotx.desktop.appearance.v6'
 
 test('theme font inputs preserve rapid edits and keyboard semantics', async ({
   page,

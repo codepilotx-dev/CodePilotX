@@ -8,8 +8,7 @@ const theme = {
     "fonts": {
       "code": null,
       "ui": "ui-monospace, \"SFMono-Regular\", \"SF Mono\", Menlo, Consolas, \"Liberation Mono\", monospace"
-    },
-    "opaqueWindows": true
+    }
   },
   "colors": {
     "activityBar.activeBorder": "#1eff5a",

@@ -162,10 +162,7 @@
 }
 
 .quick-chat-project-popover {
-  position: static;
   display: block;
-  translate: -50% 0;
-  transform-origin: top center;
 }
 
 .quick-chat-hero p,
@@ -639,8 +636,7 @@
   padding: 10px 18px;
   border: 1px solid var(--color-token-border-light);
   border-radius: var(--radius-marquee);
-  background: color-mix(in srgb, var(--color-token-bg-secondary) 82%, transparent);
-  backdrop-filter: blur(10px);
+  background: var(--color-token-bg-secondary);
   color: var(--color-token-input-placeholder-foreground);
   font-size: var(--type-body);
   font-weight: var(--font-weight-label);

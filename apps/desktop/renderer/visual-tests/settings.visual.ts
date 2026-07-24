@@ -3,7 +3,7 @@ import {
   COMPACT_VIEWPORT,
   DESKTOP_VIEWPORT,
   STABLE_SCREENSHOT_OPTIONS,
-  V5_VISUAL_BASELINES_ENABLED,
+  V6_VISUAL_BASELINES_ENABLED,
   VISUAL_MODES,
   expectNoHorizontalOverflow,
   prepareVisualTheme,
@@ -11,7 +11,7 @@ import {
   type VisualMode,
 } from './visual-test-helpers.js'
 
-const visualTest = V5_VISUAL_BASELINES_ENABLED ? test : test.skip
+const visualTest = V6_VISUAL_BASELINES_ENABLED ? test : test.skip
 
 const SETTINGS_TABS = [
   { id: 'general', label: '常规' },
@@ -51,7 +51,6 @@ for (const mode of VISUAL_MODES) {
     })
   }
 }
-
 for (const mode of VISUAL_MODES) {
   visualTest(`settings appearance ${mode} compact`, async ({ page }) => {
     await page.setViewportSize(COMPACT_VIEWPORT)
@@ -72,7 +71,6 @@ for (const mode of VISUAL_MODES) {
     await expectNoHorizontalOverflow(page)
   })
 }
-
 const CONTRAST_BOUNDARIES = [0, 45, 60, 100] as const
 
 for (const contrast of CONTRAST_BOUNDARIES) {
@@ -143,35 +141,6 @@ for (const reduceMotion of ['on', 'off'] as const) {
     )
     await expect(page.locator('body')).toHaveScreenshot(
       `settings-appearance-dark-motion-${reduceMotion}.png`,
-      {
-        ...STABLE_SCREENSHOT_OPTIONS,
-        fullPage: true,
-      },
-    )
-  })
-}
-
-for (const opaqueWindows of [false, true]) {
-  const material = opaqueWindows ? 'opaque' : 'transparent'
-  visualTest(`appearance window material ${material}`, async ({ page }) => {
-    await page.setViewportSize(DESKTOP_VIEWPORT)
-    await prepareVisualTheme(page, 'dark', { opaqueWindows })
-    await page.goto('/?visualCase=empty#/settings/appearance')
-    await waitForVisualPage(
-      page,
-      'dark',
-      page.getByRole('heading', { name: '外观' }),
-    )
-    await page.locator('html').evaluate((root, isOpaque) => {
-      root.classList.toggle('electron-opaque', isOpaque)
-      root.dataset.glassSurfaces = isOpaque ? 'off' : 'on'
-    }, opaqueWindows)
-    await expect(page.locator('html')).toHaveAttribute(
-      'data-glass-surfaces',
-      opaqueWindows ? 'off' : 'on',
-    )
-    await expect(page.locator('body')).toHaveScreenshot(
-      `settings-appearance-dark-${material}.png`,
       {
         ...STABLE_SCREENSHOT_OPTIONS,
         fullPage: true,

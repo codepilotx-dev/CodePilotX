@@ -110,11 +110,6 @@
 }
 
 .popover.popover-thread-summary-branch {
-  position: relative;
-  top: auto;
-  right: auto;
-  bottom: auto;
-  left: auto;
   width: min(360px, calc(100vw - 32px));
   max-height: min(320px, calc(100vh - 96px));
 }

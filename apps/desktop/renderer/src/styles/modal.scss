@@ -28,20 +28,6 @@
   border-radius: var(--radius-panel);
 }
 
-:root[data-glass-surfaces="on"] {
-  .permission-modal,
-  .github-repository-modal,
-  .git-workflow-modal {
-    border-color: var(--glass-surface-border);
-    background: var(--glass-surface-bg);
-    -webkit-backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
-    backdrop-filter: blur(var(--glass-surface-blur)) saturate(1.18);
-    box-shadow:
-      0 1px 0 var(--glass-surface-highlight) inset,
-      var(--shadow-float);
-  }
-}
-
 .permission-modal header span {
   padding: 5px 10px;
   border-radius: var(--radius-full);

@@ -30,7 +30,6 @@ export type DesktopThemeContextValue = {
   resolvedVariant: DesktopThemeVariant
   activeTheme: DesktopThemeConfigV1
   codeThemeId: string
-  backdropSupported: boolean
   draft: DesktopThemeDraft
   setMode: (mode: DesktopThemeMode) => Promise<void>
   saveSettings: (settings: DesktopThemeSettings) => Promise<void>

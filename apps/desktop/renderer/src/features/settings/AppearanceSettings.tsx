@@ -1,23 +1,12 @@
 import React, {
   useEffect,
-  useId,
   useMemo,
   useRef,
   useState,
 } from 'react'
-import * as Dialog from '@radix-ui/react-dialog'
 import * as Popover from '@radix-ui/react-popover'
-import {
-  Download,
-  X,
-} from 'lucide-react'
 
-import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/iconTokens.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import type {
   DesktopChromeTheme,
@@ -26,10 +15,6 @@ import type {
   DesktopThemeSettings,
   DesktopThemeVariant,
 } from '../../../shared/types.js'
-import {
-  parseCodexThemeShare,
-  serializeCodexThemeShare,
-} from '../../../shared/themeShare.js'
 import {
   syntaxTokenStyle,
   useHighlightedCode,
@@ -49,7 +34,6 @@ import { useDesktopSettings } from './useDesktopSettings.js'
 
 type Props = {
   onError?: (message: string) => void
-  onNotice?: (message: string) => void
 }
 
 type ThemeSettingsUpdater = (
@@ -670,92 +654,17 @@ function ThemePreviewSide({
   )
 }
 
-function ThemeShareDialog({
-  open,
-  variant,
-  value,
-  onOpenChange,
-  onImport,
-}: {
-  open: boolean
-  variant: DesktopThemeVariant
-  value: string
-  onOpenChange: (open: boolean) => void
-  onImport: (value: string) => void
-}) {
-  const titleId = useId()
-  const [draft, setDraft] = useState('')
-  useEffect(() => {
-    if (open) setDraft(value)
-  }, [open, value])
-
-  return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="permission-modal-backdrop">
-          <Dialog.Content
-            aria-labelledby={titleId}
-            className="appearance-import-dialog"
-          >
-            <header>
-              <Dialog.Title id={titleId}>
-                导入{variant === 'light' ? '浅色' : '深色'}主题
-              </Dialog.Title>
-              <Dialog.Close asChild>
-                <Button aria-label="关闭导入对话框" size="icon" variant="ghost">
-                  <X
-                    size={APP_ICON_SIZE}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
-                </Button>
-              </Dialog.Close>
-            </header>
-            <Dialog.Description>
-              粘贴以 codex-theme-v2: 开头的主题内容。V1 已停止支持，导入前会严格校验主题类型和所有颜色。
-            </Dialog.Description>
-            <textarea
-              aria-label="Codex 主题内容"
-              autoFocus
-              spellCheck={false}
-              value={draft}
-              onChange={event => setDraft(event.target.value)}
-            />
-            <footer>
-              <Dialog.Close asChild>
-                <Button variant="secondary">取消</Button>
-              </Dialog.Close>
-              <Button
-                disabled={!draft.trim()}
-                variant="primary"
-                onClick={() => onImport(draft)}
-              >
-                <Download size={APP_ICON_SIZE} />
-                导入主题
-              </Button>
-            </footer>
-          </Dialog.Content>
-        </Dialog.Overlay>
-      </Dialog.Portal>
-    </Dialog.Root>
-  )
-}
-
 function VariantThemeEditor({
   variant,
   settings,
   onUpdate,
   onError,
-  onNotice,
-  backdropSupported,
 }: {
   variant: DesktopThemeVariant
   settings: DesktopThemeSettings
   onUpdate: (updater: ThemeSettingsUpdater) => void
   onError: (message: string) => void
-  onNotice: (message: string) => void
-  backdropSupported: boolean
 }) {
-  const [importOpen, setImportOpen] = useState(false)
   const chromeTheme = settings.chromeThemes[variant]
   const codeThemeId = settings.codeThemeIds[variant]
   const variantLabel = variant === 'light' ? '浅色' : '深色'
@@ -851,54 +760,11 @@ function VariantThemeEditor({
     })
   }
 
-  const copyTheme = async (): Promise<void> => {
-    try {
-      const serialized = serializeCodexThemeShare({
-        version: 2,
-        variant,
-        codeThemeId,
-        theme: chromeTheme,
-      })
-      await navigator.clipboard.writeText(serialized)
-      onNotice(`${variantLabel}主题已复制`)
-    } catch (error) {
-      onError(error instanceof Error ? error.message : '复制主题失败')
-    }
-  }
-
-  const importTheme = (raw: string): void => {
-    try {
-      const imported = parseCodexThemeShare(raw, variant)
-      onUpdate(current => ({
-        ...current,
-        codeThemeIds: {
-          ...current.codeThemeIds,
-          [variant]: imported.codeThemeId,
-        },
-        chromeThemes: {
-          ...current.chromeThemes,
-          [variant]: imported.theme,
-        },
-      }))
-      setImportOpen(false)
-      onNotice(`${variantLabel}主题已导入`)
-    } catch (error) {
-      onError(error instanceof Error ? error.message : '主题内容无效')
-    }
-  }
-
   return (
     <article className="appearance-theme-editor">
       <SettingsRow
         title={`${variantLabel}主题`}
         control={
-          <div className="appearance-theme-editor-actions">
-          <Button size="toolbar" variant="ghost" onClick={() => setImportOpen(true)}>
-            导入
-          </Button>
-          <Button size="toolbar" variant="ghost" onClick={() => void copyTheme()}>
-            复制主题
-          </Button>
           <SettingsDropdown
             ariaLabel={`${variantLabel}代码主题`}
             options={codeThemeOptions}
@@ -937,7 +803,6 @@ function VariantThemeEditor({
                 })
             }}
           />
-          </div>
         }
       />
 
@@ -999,21 +864,6 @@ function VariantThemeEditor({
             />
           }
         />
-        {backdropSupported ? (
-          <SettingsRow
-            autoSave
-            title="半透明侧边栏"
-            size="compact"
-            control={
-              <ToggleSwitch
-                checked={!chromeTheme.opaqueWindows}
-                onChange={translucent =>
-                  updateChromeTheme({ opaqueWindows: !translucent })
-                }
-              />
-            }
-          />
-        ) : null}
         <SettingsRow
           title="对比度"
           size="compact"
@@ -1041,20 +891,12 @@ function VariantThemeEditor({
         />
       </div>
 
-      <ThemeShareDialog
-        open={importOpen}
-        value=""
-        variant={variant}
-        onImport={importTheme}
-        onOpenChange={setImportOpen}
-      />
     </article>
   )
 }
 
 export function AppearanceSettings({
   onError,
-  onNotice,
 }: Props): React.ReactNode {
   const theme = useDesktopTheme()
   const desktopSettings = useDesktopSettings()
@@ -1063,7 +905,6 @@ export function AppearanceSettings({
     settings.mode === 'system' ? VARIANTS : ([resolvedVariant] as const)
 
   const reportError = onError ?? (() => undefined)
-  const reportNotice = onNotice ?? (() => undefined)
 
   const saveThemeSettings = (updater: ThemeSettingsUpdater): void => {
     void theme.draft.updateAndAutoSave(updater).catch(error => {
@@ -1162,9 +1003,7 @@ export function AppearanceSettings({
                 key={variant}
                 settings={settings}
                 variant={variant}
-                backdropSupported={theme.backdropSupported}
                 onError={reportError}
-                onNotice={reportNotice}
                 onUpdate={saveThemeSettings}
               />
             ))}

@@ -10,7 +10,6 @@ const theme = {
       "ui": "Inter"
     },
     "ink": "#030303",
-    "opaqueWindows": false,
     "surface": "#ffffff"
   },
   "colors": {

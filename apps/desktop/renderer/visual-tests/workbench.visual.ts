@@ -823,7 +823,7 @@ test('Dracula code theme applies the recovered Codex runtime hierarchy', async (
   await expect
     .poll(() =>
       page.evaluate(() =>
-        localStorage.getItem('codepilotx.desktop.appearance.v5'),
+        localStorage.getItem('codepilotx.desktop.appearance.v6'),
       ),
     )
     .toContain('"dracula"')
@@ -1080,16 +1080,8 @@ test('settings shell search and appearance source contracts', async ({
     '对比度',
   ])
   const lightPicker = page.getByRole('combobox', { name: '浅色代码主题' })
-  await expect(
-    page
-      .getByRole('button', { name: '导入' })
-      .evaluate((button) => getComputedStyle(button).fontSize),
-  ).resolves.toBe('14px')
-  await expect(
-    page
-      .getByRole('button', { name: '复制主题' })
-      .evaluate((button) => getComputedStyle(button).fontSize),
-  ).resolves.toBe('14px')
+  await expect(page.getByRole('button', { name: '导入' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '复制主题' })).toHaveCount(0)
   await lightPicker.click()
   await expect(page.getByRole('option')).toHaveCount(16)
   await expect(

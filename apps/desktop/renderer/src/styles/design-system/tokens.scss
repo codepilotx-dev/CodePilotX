@@ -15,33 +15,6 @@
   --color-danger: var(--color-decoration-deleted);
   --color-warning: #a05a00;
 
-  // Window-material values are consumed only by the glass adaptation layer.
-  --glass-surface-bg: color-mix(
-    in srgb,
-    var(--color-background-surface) 20%,
-    transparent
-  );
-  --glass-surface-border: color-mix(
-    in srgb,
-    var(--color-text-foreground) 10%,
-    transparent
-  );
-  --glass-surface-highlight: color-mix(
-    in srgb,
-    var(--color-text-foreground) 8%,
-    transparent
-  );
-  --glass-surface-text: var(--color-text-foreground);
-  --glass-surface-text-meta: color-mix(
-    in srgb,
-    var(--color-text-foreground) 78%,
-    var(--color-background-surface)
-  );
-  --glass-surface-text-disabled: color-mix(
-    in srgb,
-    var(--color-text-foreground) 52%,
-    var(--color-background-surface)
-  );
   --shadow-resting:
     0 1px 2px color-mix(in srgb, var(--color-token-foreground) 5%, transparent),
     0 1px 0
@@ -166,7 +139,6 @@
   --shadow-card: var(--shadow-resting);
   --shadow-card-lg: var(--shadow-raised);
   --grid-gap: var(--layout-card-gap);
-  --glass-surface-blur: 14px;
   --plan-md-base-size: 0.9em;
 
   --syntax-keyword: var(--color-text-accent);

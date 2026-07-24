@@ -18,22 +18,8 @@
 }
 
 .thread-summary-popover {
-  position: relative;
-  z-index: 80;
-  top: var(--space-4);
   width: 300px;
   max-height: min(680px, calc(100vh - 80px));
-  outline: none;
-  transform-origin: top right;
-
-  &[data-state="open"] {
-    animation: thread-summary-enter var(--motion-emphasis)
-      cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-
-  &[data-state="closed"] {
-    animation: thread-summary-exit var(--motion-exit) ease-in;
-  }
 }
 
 .thread-summary-panel,
@@ -112,6 +98,14 @@
 
 .thread-summary-popover .thread-summary-panel {
   max-height: inherit;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+
+.thread-summary-popover .thread-summary-section > header {
+  background: var(--color-token-menu-background);
 }
 
 .thread-summary-section--first {

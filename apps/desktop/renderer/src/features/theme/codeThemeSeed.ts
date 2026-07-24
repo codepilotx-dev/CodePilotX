@@ -18,7 +18,7 @@ export type DesktopChromeThemeSeed = Pick<
   'accent' | 'ink' | 'semanticColors' | 'surface'
 > &
   Partial<
-    Pick<DesktopChromeTheme, 'contrast' | 'fonts' | 'opaqueWindows'>
+    Pick<DesktopChromeTheme, 'contrast' | 'fonts'>
   >
 
 const DEFAULT_SEEDS: Record<DesktopThemeVariant, DesktopChromeTheme> = {
@@ -27,7 +27,6 @@ const DEFAULT_SEEDS: Record<DesktopThemeVariant, DesktopChromeTheme> = {
     surface: '#ffffff',
     ink: '#1a1c1f',
     contrast: 45,
-    opaqueWindows: false,
     fonts: { ui: null, code: null },
     semanticColors: {
       diffAdded: '#00a240',
@@ -40,7 +39,6 @@ const DEFAULT_SEEDS: Record<DesktopThemeVariant, DesktopChromeTheme> = {
     surface: '#181818',
     ink: '#ffffff',
     contrast: 60,
-    opaqueWindows: false,
     fonts: { ui: null, code: null },
     semanticColors: {
       diffAdded: '#40c977',
@@ -174,9 +172,6 @@ function applyChromeOverride(
       Number.isFinite(override.contrast) && {
         contrast: Math.min(100, Math.max(0, override.contrast)),
       }),
-    ...(typeof override.opaqueWindows === 'boolean' && {
-      opaqueWindows: override.opaqueWindows,
-    }),
     ...(override.fonts && {
       fonts: {
         ui: normalizeFont(override.fonts.ui, null),

@@ -132,19 +132,6 @@
   }
 }
 
-.appearance-theme-editor-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  min-width: 0;
-
-  .settings-button {
-    min-height: 32px;
-    padding-inline: 8px;
-  }
-}
-
 .appearance-theme-seed {
   display: inline-flex;
   width: 28px;
@@ -295,13 +282,8 @@
 }
 
 .appearance-color-popover {
-  z-index: var(--z-popover);
   width: auto;
   padding: 12px;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: 12px;
-  background: var(--color-token-bg-secondary);
-  box-shadow: var(--shadow-float);
 }
 
 .appearance-color-palette {
@@ -438,82 +420,9 @@
   }
 }
 
-.appearance-import-dialog {
-  position: fixed;
-  z-index: var(--z-modal);
-  top: 50%;
-  left: 50%;
-  display: grid;
-  width: min(560px, calc(100vw - 32px));
-  gap: 14px;
-  padding: 20px;
-  border: 1px solid var(--color-token-border);
-  border-radius: 12px;
-  background: var(--color-token-bg-secondary);
-  color: var(--color-token-foreground);
-  box-shadow: var(--shadow-float);
-  transform: translate(-50%, -50%);
-
-  header,
-  footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  h2 {
-    margin: 0;
-    font-size: var(--type-title-sm);
-  }
-
-  p {
-    margin: 0;
-    color: var(--color-token-text-secondary);
-    font-size: var(--type-secondary);
-    line-height: 1.5;
-  }
-
-  textarea {
-    min-height: 180px;
-    resize: vertical;
-    border: 1px solid var(--color-token-border);
-    border-radius: 8px;
-    background: var(--color-token-main-surface-primary);
-    color: var(--color-token-foreground);
-    padding: 10px;
-    font-family: var(--font-family-mono);
-    font-size: var(--type-code);
-    line-height: 1.5;
-
-    &:focus-visible {
-      outline: 2px solid var(--color-token-text-link-foreground);
-      outline-offset: 1px;
-    }
-  }
-
-  footer {
-    justify-content: flex-end;
-
-    .settings-button {
-      gap: 6px;
-    }
-  }
-}
-
 @media (max-width: 760px) {
   .appearance-mode-gallery {
     gap: 8px;
-  }
-
-  .appearance-theme-editor-actions {
-    width: 100%;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
-  .appearance-theme-editor-actions .settings-dropdown {
-    flex: 1;
   }
 
   .appearance-theme-editor-rows .settings-row {

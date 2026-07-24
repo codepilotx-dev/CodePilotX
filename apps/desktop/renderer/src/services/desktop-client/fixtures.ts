@@ -107,9 +107,11 @@ import {
 } from '../agentRpcClient.js'
 
 const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY =
-  'codepilotx.desktop.appearance.v5'
-const LEGACY_BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY =
-  'codepilotx.desktop.appearance.v3'
+  'codepilotx.desktop.appearance.v6'
+const LEGACY_BROWSER_APPEARANCE_SETTINGS_STORAGE_KEYS = [
+  'codepilotx.desktop.appearance.v3',
+  'codepilotx.desktop.appearance.v5',
+] as const
 
 export function emptyBrowserState(): DesktopBrowserState {
   return {
@@ -131,7 +133,9 @@ export function defaultMockThemeSettings(): DesktopThemeSettings {
 
 export function readBrowserThemeSettings(storage?: Storage): DesktopThemeSettings {
   try {
-    storage?.removeItem(LEGACY_BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY)
+    for (const key of LEGACY_BROWSER_APPEARANCE_SETTINGS_STORAGE_KEYS) {
+      storage?.removeItem(key)
+    }
     const value = storage?.getItem(BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY)
     return value
       ? normalizeDesktopThemeSettings(JSON.parse(value))

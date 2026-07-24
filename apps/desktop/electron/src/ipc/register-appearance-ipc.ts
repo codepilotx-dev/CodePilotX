@@ -17,18 +17,5 @@ export function registerAppearanceIpc(
     "appearance:system-theme:get",
     () => appearance.systemThemeVariant(),
   )
-  ipcMain.handle("appearance:backdrop:get-capability", () => ({
-    supported: appearance.supportsWindowBackdrop(),
-    platform: process.platform,
-  }))
-  ipcMain.handle(
-    "appearance:backdrop:apply",
-    (_event, enabled: unknown) => {
-      if (typeof enabled !== "boolean") {
-        throw new Error("窗口背景材质参数无效")
-      }
-      return appearance.applyWindowBackdrop(enabled)
-    },
-  )
   appearance.registerThemeBroadcast()
 }

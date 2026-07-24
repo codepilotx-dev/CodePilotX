@@ -297,8 +297,7 @@
     gap: 0;
     margin-bottom: 2px;
     padding: 4px 8px 4px 12px;
-    background: color-mix(in srgb, var(--color-token-main-surface-primary) 88%, transparent);
-    backdrop-filter: blur(8px);
+    background: var(--color-token-main-surface-primary);
     cursor: pointer;
     outline: 0;
 
@@ -1266,12 +1265,7 @@
 }
 
 .popover.popover-review-scope {
-  position: relative;
-  top: auto;
-  right: auto;
-  bottom: auto;
-  left: auto;
-  transform-origin: top left;
+  display: block;
 }
 
 .review-empty-state {
