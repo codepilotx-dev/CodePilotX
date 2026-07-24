@@ -60,15 +60,38 @@ function spawn(command: string[], env: Record<string, string | undefined> = {}) 
     env: { ...process.env, NO_PROXY: noProxy, no_proxy: noProxy, ...env },
     stdin: "inherit",
     stdout: "pipe",
-    stderr: "inherit",
+    stderr: "pipe",
   })
   children.push(child)
   return child
 }
 
-async function forwardLines(child: Child, onLine?: (line: string) => void) {
-  if (!child.stdout || typeof child.stdout === "number") return
-  const reader = child.stdout.getReader()
+const alreadyTagged = (line: string) =>
+  /^\d{2}:\d{2}:\d{2}\.\d{3} \[(?:agent|desktop)\]/.test(line)
+
+const readySummary = (line: string) => {
+  try {
+    const value = JSON.parse(line) as { type?: unknown; url?: unknown; port?: unknown }
+    if (value.type !== "ready") return null
+    const location = typeof value.url === "string"
+      ? value.url
+      : typeof value.port === "number"
+        ? `port=${value.port}`
+        : "ready"
+    return `[agent] 已就绪：${location}`
+  } catch {
+    return null
+  }
+}
+
+async function forwardStream(
+  stream: ReadableStream<Uint8Array> | number | null,
+  label: string,
+  errorOutput: boolean,
+  onLine?: (line: string) => void,
+) {
+  if (!stream || typeof stream === "number") return
+  const reader = stream.getReader()
   const decoder = new TextDecoder()
   let pending = ""
   while (true) {
@@ -78,10 +101,18 @@ async function forwardLines(child: Child, onLine?: (line: string) => void) {
     const lines = pending.split(/\r?\n/)
     pending = lines.pop() ?? ""
     for (const line of lines) {
-      console.log(line)
+      const formatted = readySummary(line)
+        ?? (alreadyTagged(line) ? line : `[${label}] ${line}`)
+      if (errorOutput) console.error(formatted)
+      else console.log(formatted)
       onLine?.(line)
     }
   }
+}
+
+function forwardLines(child: Child, label: string, onLine?: (line: string) => void) {
+  void forwardStream(child.stdout, label, false, onLine)
+  void forwardStream(child.stderr, label, true)
 }
 
 async function waitForHTTP(name: string, url: string, headers: HeadersInit = {}) {
@@ -128,7 +159,7 @@ const authToken = crypto.randomUUID()
 const agentPort = await allocateLoopbackPort()
 const agentURL = `http://127.0.0.1:${agentPort}`
 const renderer = spawn([bunExecutable, "run", "--cwd", "apps/desktop/renderer", "dev"])
-void forwardLines(renderer)
+forwardLines(renderer, "renderer")
 const rendererExited = renderer.exited.then((code) => {
   throw new Error(`Renderer 开发服务已退出（code=${code}）`)
 })
@@ -142,10 +173,12 @@ const agent = spawn([bunExecutable, "--watch", "apps/agent/src/index.ts"], {
   CODEPILOTX_TOOLING_HOME: join(agentDataDir, "tooling"),
   CODEPILOTX_LEGACY_DATA_DIR: join(root, ".codepilotx"),
   CODEPILOTX_LOG_DIR: agentLogDir,
+  CODEPILOTX_CONSOLE_LOG: "debug",
+  CODEPILOTX_LOG_DETAIL: "development",
   CODEPILOTX_RENDERER_DIST: fileURLToPath(new URL("../dist/renderer", import.meta.url)),
   CODEPILOTX_RENDERER_DEV_URL: rendererURL,
 })
-void forwardLines(agent)
+forwardLines(agent, "agent")
 const agentExited = agent.exited.then((code) => {
   throw new Error(`Agent sidecar 已退出（code=${code}）`)
 })
@@ -161,8 +194,11 @@ try {
     CODEPILOTX_AUTH_TOKEN: authToken,
     CODEPILOTX_BUN_PATH: process.execPath,
     CODEPILOTX_DATA_DIR: agentDataDir,
+    CODEPILOTX_LOG_DIR: agentLogDir,
+    CODEPILOTX_CONSOLE_LOG: "debug",
+    CODEPILOTX_LOG_DETAIL: "development",
   })
-  void forwardLines(electron)
+  forwardLines(electron, "electron")
   const outcome = await Promise.race([
     electron.exited.then((code) => ({ source: "Electron", code })),
     renderer.exited.then((code) => ({ source: "Renderer", code })),

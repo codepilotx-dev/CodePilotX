@@ -9,6 +9,7 @@ import {
 } from "electron"
 import type { DesktopChromeTheme } from "@codepilotx/shared/desktop-theme"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
+import { rendererConsoleRecord } from "../logging/renderer-console.js"
 import {
   isAllowedApplicationUrl,
   isSafeExternalUrl,
@@ -77,13 +78,6 @@ export class WindowManager {
 
   flushWindowState(): Promise<void> {
     return this.#options.windowStateStore.flush()
-  }
-
-  restoreBackgroundColor(): void {
-    const mainWindow = this.#mainWindow
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.setBackgroundColor(this.#options.startupTheme.theme.surface)
-    }
   }
 
   focus(_connectionIsReady: boolean): void {
@@ -241,12 +235,12 @@ export class WindowManager {
     mainWindow.webContents.on(
       "console-message",
       (_event, level, message, line, sourceId) => {
-        this.#logger.info("desktop.renderer-console", {
-          level,
-          message,
-          line,
-          sourceId,
-        })
+        const record = rendererConsoleRecord(level, message, line, sourceId)
+        if (!record) return
+        const write = record.level === "error"
+          ? this.#logger.error.bind(this.#logger)
+          : this.#logger.warn.bind(this.#logger)
+        write("desktop.renderer-console", { details: record })
       },
     )
     mainWindow.on("maximize", () => {
@@ -361,9 +355,7 @@ export class WindowManager {
       })
       const icon = nativeImage.createFromPath(this.#resolveWindowIconPath())
       if (icon.isEmpty()) {
-        this.#logger.warn("desktop.startup-ico-fallback-failed", {
-          path: this.#resolveWindowIconPath(),
-        })
+        this.#logger.warn("desktop.startup-ico-fallback-failed")
         return ""
       }
       return icon.resize({

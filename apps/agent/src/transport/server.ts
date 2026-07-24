@@ -124,7 +124,18 @@ export const createApp = (dependencies: TransportDependencies) => {
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)
-    logger.error("http.error", { method: context.req.method, path: context.req.path, code: error.code, status: error.status, message: error.message })
+    const log = error.status >= 500
+      ? logger.error.bind(logger)
+      : (logger.warn ?? logger.error).bind(logger)
+    log("http.error", {
+      details: {
+        method: context.req.method,
+        path: context.req.path,
+        code: error.code,
+        status: error.status,
+        message: error.message,
+      },
+    })
     return context.json({ error: { code: error.code, message: error.message, retryable: error.status === 429 || error.status >= 500, details: error.details } }, error.status as 400)
   })
 

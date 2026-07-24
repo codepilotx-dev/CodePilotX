@@ -26,7 +26,9 @@ describe("manifest-aware event publisher", () => {
     const hub = await Effect.runPromise(EventHub.make)
     const received: string[] = []
     const unlisten = hub.listen((signal) => received.push(
-      signal.kind === "live" ? signal.event.method : `wake:${signal.sequence}`,
+      signal.kind === "live"
+        ? signal.event.method
+        : `wake:${signal.sequence}:${signal.event.method}`,
     ))
 
     const live = await publishAgentEvent(db, hub, null, null, "catalog/updated", { catalogVersion: 2 })
@@ -37,7 +39,7 @@ describe("manifest-aware event publisher", () => {
     const durable = await publishAgentEvent(db, hub, "thread:1", null, "thread/updated", {})
     expect(durable.id).toBeGreaterThan(0)
     expect(db.eventsAfter(0).map((event) => event.method)).toEqual(["thread/updated"])
-    expect(received).toEqual(["catalog/updated", `wake:${durable.id}`])
+    expect(received).toEqual(["catalog/updated", `wake:${durable.id}:thread/updated`])
 
     const anchored = await publishAgentEvent(db, hub, null, null, "catalog/updated", { catalogVersion: 3 })
     expect(anchored.afterSequence).toBe(durable.id)

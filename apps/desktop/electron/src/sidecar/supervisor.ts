@@ -268,8 +268,6 @@ export class SidecarSupervisor {
     child.stdin.end()
 
     this.#logger.info("sidecar.spawned", {
-      executable: command.executable,
-      cwd: command.cwd,
       pid: child.pid,
       attempt,
       preferredPort: this.#preferredPort ?? null,

@@ -8,6 +8,7 @@ import {
 import {
   AgentHarness,
   SessionError,
+  type AgentHarnessEvent,
 } from "@codepilotx/pi-agent-core";
 import type { AgentRuntimeRequest, PendingApproval } from "./AgentRuntimeTypes";
 import {
@@ -162,6 +163,10 @@ export interface PiOrchestratorAdapterOptions {
   hub: EventHub;
   models: Models;
   toolExecutor: ToolExecutor;
+  observeHarnessEvent?: (
+    context: PiRuntimeEventContext,
+    event: AgentHarnessEvent,
+  ) => void;
 }
 
 /** Adapts the existing product lifecycle to Pi without exposing Pi types to RPC. */
@@ -222,6 +227,9 @@ export class PiOrchestratorAdapter {
       return created;
     };
     return {
+      event: (context, event) => {
+        this.options.observeHarnessEvent?.(context, event);
+      },
       assistantMessageStarted: async (context, input) => {
         const timestamp = Date.now();
         const persisted = this.options.db.upsertItemWithEvent(context.threadID, {

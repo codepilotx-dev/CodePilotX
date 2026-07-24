@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { app, nativeTheme, screen, shell } from "electron"
-import type { DesktopThemeSettingsV5 } from "@codepilotx/shared/desktop-theme"
+import type { DesktopThemeSettingsV6 } from "@codepilotx/shared/desktop-theme"
 import {
   DESKTOP_SETTINGS_IPC_CHANNELS,
   type DesktopSettingsPayload,
@@ -16,6 +16,7 @@ import {
   createDesktopLogger,
   type DesktopLogger,
 } from "./logging/desktop-logger.js"
+import { resolveDesktopLogDirectory } from "./logging/log-directory.js"
 import {
   configureAuthCookie,
   verifyAuthCookie,
@@ -84,9 +85,15 @@ if (!hasSingleInstanceLock) {
 }
 
 async function startDesktop(): Promise<void> {
-  const logDirectory = resolve(
-    process.env.CODEPILOTX_LOG_DIR
-      ?? join(app.getPath("logs"), "codepilotx"),
+  dataLocationStore = new DataLocationStore(
+    app.getPath("userData"),
+    join(app.getPath("home"), ".codepilotx"),
+    process.env.CODEPILOTX_DATA_DIR?.trim() || null,
+  )
+  dataLocationLaunch = await dataLocationStore.launch()
+  const logDirectory = resolveDesktopLogDirectory(
+    dataLocationLaunch,
+    process.env.CODEPILOTX_LOG_DIR,
   )
   logger = createDesktopLogger(logDirectory)
   logger.info("desktop.starting", {
@@ -94,17 +101,10 @@ async function startDesktop(): Promise<void> {
     packaged: app.isPackaged,
     pid: process.pid,
   })
-
   const appearanceSettings = new AppearanceSettingsStore(
     app.getPath("userData"),
     logger,
   )
-  dataLocationStore = new DataLocationStore(
-    app.getPath("userData"),
-    join(app.getPath("home"), ".codepilotx"),
-    process.env.CODEPILOTX_DATA_DIR?.trim() || null,
-  )
-  dataLocationLaunch = await dataLocationStore.launch()
   const startupTheme = await resolveStartupTheme(appearanceSettings, logger)
   const windowStateStore = new WindowStateStore(app.getPath("userData"), logger)
   const displayWorkAreas = screen.getAllDisplays().map(
@@ -135,7 +135,7 @@ async function startDesktop(): Promise<void> {
     petOverlayStateStore,
     initialPetOverlayState,
   )
-  const appearance = new WindowAppearanceController(windows, logger)
+  const appearance = new WindowAppearanceController()
   const externalOpenTargets = new ExternalOpenTargetService({
     platform: process.platform,
     env: process.env,
@@ -265,7 +265,6 @@ async function runConnectionCycle(token: string): Promise<void> {
         logger.error("desktop.startup-failed", {
           code: error.code,
           message: error.message,
-          executable: error.executable,
         })
         windows.showStartupStatus(
           "安装不完整，请重新安装",
@@ -325,7 +324,7 @@ async function resolveStartupTheme(
   settingsStore: AppearanceSettingsStore,
   desktopLogger: DesktopLogger,
 ) {
-  let settings: DesktopThemeSettingsV5
+  let settings: DesktopThemeSettingsV6
   try {
     settings = await settingsStore.load()
   } catch (error) {

@@ -4,7 +4,7 @@ import type { EventEnvelope } from "../../domain"
 
 export type EventHubSignal =
   | { kind: "live"; event: EventEnvelope & { afterSequence: number } }
-  | { kind: "durable"; sequence: number }
+  | { kind: "durable"; sequence: number; event: EventEnvelope }
 
 export class EventHub {
   private readonly pubsub: PubSub.PubSub<EventHubSignal>
@@ -25,7 +25,7 @@ export class EventHub {
     }
     const signal: EventHubSignal = definition?.durability === "live"
       ? { kind: "live", event: event as EventEnvelope & { afterSequence: number } }
-      : { kind: "durable", sequence: event.id }
+      : { kind: "durable", sequence: event.id, event }
     for (const listener of this.listeners) {
       try { listener(signal) } catch { /* one SSE consumer must not block publication */ }
     }

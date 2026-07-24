@@ -163,12 +163,11 @@ export function registerDesktopIpc(
     const openError = await shell.openPath(directory)
     if (openError) {
       logger.error("desktop.open-log-directory-failed", {
-        directory,
-        message: openError,
+        reason: "shell-open-failed",
       })
       throw new Error(`无法打开日志目录：${openError}`)
     }
-    logger.info("desktop.log-directory-opened", { directory })
+    logger.info("desktop.log-directory-opened")
     return directory
   })
   ipcMain.handle("startup:quit", event => {

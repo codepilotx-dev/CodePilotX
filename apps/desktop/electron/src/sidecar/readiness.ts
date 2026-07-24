@@ -18,24 +18,31 @@ export function waitForReadyMessage(
 ): Promise<ReadyMessage> {
   return new Promise((resolveReady, rejectReady) => {
     let buffer = ""
+    let ready = false
     const timer = setTimeout(
-      () => finish(new Error("等待 Agent ready 消息超时")),
+      () => finishBeforeReady(new Error("等待 Agent ready 消息超时")),
       READY_TIMEOUT_MS,
     )
 
-    const finish = (result: ReadyMessage | Error): void => {
+    const finishBeforeReady = (result: Error): void => {
       clearTimeout(timer)
       child.stdout.removeListener("data", onData)
       child.removeListener("error", onError)
       child.removeListener("exit", onEarlyExit)
-      if (result instanceof Error) rejectReady(result)
-      else resolveReady(result)
+      rejectReady(result)
     }
-    const onError = (error: Error): void => finish(error)
+    const finishReady = (result: ReadyMessage): void => {
+      clearTimeout(timer)
+      ready = true
+      child.removeListener("error", onError)
+      child.removeListener("exit", onEarlyExit)
+      resolveReady(result)
+    }
+    const onError = (error: Error): void => finishBeforeReady(error)
     const onEarlyExit = (
       code: number | null,
       signal: NodeJS.Signals | null,
-    ): void => finish(
+    ): void => finishBeforeReady(
       new Error(
         `Agent 在 ready 前退出（code=${String(code)}, signal=${String(signal)}）`,
       ),
@@ -55,16 +62,18 @@ export function waitForReadyMessage(
             && Number.isInteger(parsed.port)
             && Number(parsed.port) > 0
           ) {
-            finish({
-              type: "ready",
-              port: Number(parsed.port),
-              host: parsed.host,
-            })
+            if (!ready) {
+              finishReady({
+                type: "ready",
+                port: Number(parsed.port),
+                host: parsed.host,
+              })
+            }
             return
           }
-          logger.info("sidecar.stdout-json", { line })
+          logger.forwardConsoleLine(line)
         } catch {
-          logger.info("sidecar.stdout", { line })
+          logger.forwardConsoleLine(line)
         }
       }
     }

@@ -10,7 +10,7 @@ import {
   type ElectronApplication,
   type Page,
 } from "@playwright/test"
-import type { DesktopThemeSettingsV5 } from "@codepilotx/shared/desktop-theme"
+import type { DesktopThemeSettingsV6 } from "@codepilotx/shared/desktop-theme"
 import type { DesktopPetPresentation } from "@codepilotx/shared/desktop-pet-overlay"
 import type { DesktopSettingsPayload } from "@codepilotx/shared/desktop-settings-ipc"
 import type { DesktopDataLocationState } from "@codepilotx/shared/desktop-data-location-ipc"
@@ -18,8 +18,8 @@ import type { DesktopDataLocationState } from "@codepilotx/shared/desktop-data-l
 declare global {
   interface Window {
     codePilotXDesktop: {
-      getAppearanceSettings(): Promise<DesktopThemeSettingsV5>
-      saveAppearanceSettings(settings: DesktopThemeSettingsV5): Promise<void>
+      getAppearanceSettings(): Promise<DesktopThemeSettingsV6>
+      saveAppearanceSettings(settings: DesktopThemeSettingsV6): Promise<void>
       getDataLocation(): Promise<DesktopDataLocationState>
       openPetOverlay(): Promise<void>
       hidePetOverlay(): Promise<void>
@@ -69,7 +69,7 @@ test.describe("真实 Electron 宿主", () => {
     await rm(userDataDirectory, { force: true, recursive: true })
   })
 
-  test("使用 preload 应用并持久化 V5 主题，且新路由均可达", async () => {
+  test("使用 preload 应用并持久化 V6 主题，且新路由均可达", async () => {
     application = await launchDesktop(userDataDirectory, logDirectory)
     let page = await application.firstWindow()
     await waitForApplication(page)
@@ -86,7 +86,7 @@ test.describe("真实 Electron 宿主", () => {
     const settings = await page.evaluate(async () =>
       window.codePilotXDesktop.getAppearanceSettings(),
     )
-    expect(settings.version).toBe(5)
+    expect(settings.version).toBe(6)
     expect(await page.evaluate(() =>
       window.codePilotXDesktop.getDataLocation(),
     )).toMatchObject({
@@ -244,13 +244,12 @@ test.describe("真实 Electron 宿主", () => {
         fontSmoothingEnabled: false,
         fontSizes: { ui: 16, code: 24 },
         chromeThemes: {
-          light: { ...current.chromeThemes.light, opaqueWindows: false },
+          light: { ...current.chromeThemes.light },
           dark: {
             ...current.chromeThemes.dark,
             surface: "#121725",
             ink: "#f4f6ff",
             accent: "#8db8ff",
-            opaqueWindows: true,
           },
         },
       })
@@ -331,7 +330,7 @@ test.describe("真实 Electron 宿主", () => {
       window.codePilotXDesktop.getAppearanceSettings(),
     )
     expect(persisted).toMatchObject({
-      version: 5,
+      version: 6,
       mode: "dark",
       pointerCursorEnabled: true,
       reduceMotion: "on",

@@ -35,7 +35,7 @@ const child = Bun.spawn([application, `--user-data-dir=${join(isolatedRoot, "pro
 })
 
 try {
-  const ready = await waitForDesktopReady(join(logDirectory, "desktop.log"), 20_000)
+  const ready = await waitForDesktopReady(join(logDirectory, "desktop.jsonl"), 20_000)
   const response = await fetch(`${ready.origin}/api/ready`, {
     headers: { Authorization: `Bearer ${token}` },
     signal: AbortSignal.timeout(2_000),
@@ -59,13 +59,19 @@ async function waitForDesktopReady(logPath: string, timeoutMs: number): Promise<
     const text = await readFile(logPath, "utf8").catch(() => "")
     if (/ENOENT/i.test(text)) throw new Error("桌面启动日志出现 ENOENT")
     const records = text.split(/\r?\n/).flatMap(line => {
-      try { return line ? [JSON.parse(line) as { event?: string; origin?: string }] : [] }
+      try {
+        return line
+          ? [JSON.parse(line) as { event?: string; details?: { origin?: string } }]
+          : []
+      }
       catch { return [] }
     })
     const failure = records.find(record => record.event === "desktop.startup-failed")
     if (failure) throw new Error("桌面启动记录 desktop.startup-failed")
-    const ready = records.find(record => record.event === "desktop.ready" && typeof record.origin === "string")
-    if (ready?.origin) return { origin: ready.origin }
+    const ready = records.find(record =>
+      record.event === "desktop.ready"
+      && typeof record.details?.origin === "string")
+    if (ready?.details?.origin) return { origin: ready.details.origin }
     await Bun.sleep(100)
   }
   throw new Error(`桌面程序 ${timeoutMs / 1_000} 秒内未记录 desktop.ready`)

@@ -23,6 +23,7 @@ import { PiModelCatalogAdapter } from "./provider/PiModelCatalogAdapter";
 import { generatePiObject } from "./provider/pi/PiStructuredOutput";
 import { createApp } from "./transport/server";
 import { AgentLogger } from "./observability/AgentLogger";
+import { ExecutionLogObserver, HarnessLogObserver } from "./observability/ExecutionLogObserver";
 import { IntegrationService } from "./provider/IntegrationService";
 import { ApiKeyService } from "./provider/ApiKeyService";
 import { AnthropicSandboxRuntimeAdapter } from "./sandbox/SandboxRuntimeAdapter";
@@ -87,6 +88,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       projectlessWorkspaces,
     );
     const hub = yield* EventHub.make;
+    const executionLogs = new ExecutionLogObserver(logger);
+    const unsubscribeExecutionLogs = hub.listen((signal) =>
+      executionLogs.observeSignal(signal),
+    );
+    const harnessLogs = new HarnessLogObserver(logger);
     const desktopSettings = db.getSetting<Record<string, unknown>>(
       "desktop.settings.v1",
     );
@@ -264,6 +270,12 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       hub,
       models: piModels.pi,
       toolExecutor,
+      observeHarnessEvent: (context, event) =>
+        harnessLogs.observe({
+          threadId: context.threadID,
+          turnId: context.turnID,
+          agentId: context.agentID,
+        }, event),
     });
     const attachments = yield* Effect.promise(() =>
       AttachmentService.open(config.dataDir, {
@@ -368,6 +380,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const dispose = async () => {
       if (disposed) return;
       disposed = true;
+      unsubscribeExecutionLogs();
       unsubscribeTooling();
       await toolExecutor.dispose();
       await providers.dispose();
