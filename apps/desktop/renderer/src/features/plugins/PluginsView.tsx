@@ -15,7 +15,6 @@ import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import type {
-  DesktopBuiltinPlugin,
   DesktopSkillCatalogItem,
   DesktopSkillOwnerFilter,
 } from '../../../shared/types.js'
@@ -35,6 +34,7 @@ import {
   type PluginStatusFilter,
 } from './pluginCatalog.js'
 import { groupSkillsForDisplay } from './skillCatalog.js'
+import { useBuiltinPluginCatalog } from './useBuiltinPluginCatalog.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 
 const SKILLS_SH_API_DOCS_URL = 'https://www.skills.sh/docs/api#authentication'
@@ -83,9 +83,13 @@ export function PluginsView(): React.ReactNode {
   const [pluginStatus, setPluginStatus] = useState<PluginStatusFilter>('all')
   const [statusMenuOpen, setStatusMenuOpen] = useState(false)
   const [skillOwner, setSkillOwner] = useState<DesktopSkillOwnerFilter>('official')
-  const [builtinPlugins, setBuiltinPlugins] = useState<DesktopBuiltinPlugin[] | undefined>()
-  const [pluginLoadError, setPluginLoadError] = useState<string | null>(null)
-  const [pluginReloadKey, setPluginReloadKey] = useState(0)
+  const {
+    plugins: builtinPlugins,
+    error: pluginLoadError,
+    loading: pluginsLoading,
+    refresh: refreshBuiltinPlugins,
+    setEnabled: setBuiltinPluginEnabled,
+  } = useBuiltinPluginCatalog()
   const [busyPluginIds, setBusyPluginIds] = useState<Set<string>>(() => new Set())
   const [pluginErrors, setPluginErrors] = useState<Record<string, string>>({})
   const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null)
@@ -101,27 +105,6 @@ export function PluginsView(): React.ReactNode {
   )
   const statusTriggerRef = useRef<HTMLButtonElement | null>(null)
   const scrollRegionRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    setBuiltinPlugins(undefined)
-    setPluginLoadError(null)
-    desktopClient
-      .listBuiltinPlugins()
-      .then(plugins => {
-        if (!cancelled) setBuiltinPlugins([...plugins])
-      })
-      .catch(error => {
-        if (cancelled) return
-        setBuiltinPlugins([])
-        setPluginLoadError(
-          error instanceof Error ? error.message : '插件状态读取失败。',
-        )
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [pluginReloadKey])
 
   useEffect(() => {
     if (tab !== 'skills') return
@@ -190,7 +173,6 @@ export function PluginsView(): React.ReactNode {
   const selectedPlugin = selectedPluginId
     ? pluginItems.find(item => item.id === selectedPluginId) ?? null
     : null
-  const pluginsLoading = builtinPlugins === undefined && pluginLoadError === null
   const selectedStatusLabel =
     STATUS_OPTIONS.find(option => option.id === pluginStatus)?.label ?? '全部状态'
 
@@ -237,17 +219,10 @@ export function PluginsView(): React.ReactNode {
     setBusyPluginIds(current => new Set(current).add(item.id))
     const previousEnabled = item.status === 'enabled'
     try {
-      const result = await desktopClient.setBuiltinPluginEnabled(
+      const result = await setBuiltinPluginEnabled(
         item.builtinPluginId,
         !previousEnabled,
       )
-      setBuiltinPlugins(current => {
-        const next = [...(current ?? [])]
-        const index = next.findIndex(plugin => plugin.id === result.id)
-        if (index >= 0) next[index] = result
-        else next.push(result)
-        return next
-      })
       setAnnouncement(`${item.name}已${result.enabled ? '启用' : '禁用'}。`)
       const remainsVisible =
         pluginStatus === 'all' ||
@@ -307,7 +282,7 @@ export function PluginsView(): React.ReactNode {
 
   function refreshActiveCatalog(): void {
     if (tab === 'plugins') {
-      setPluginReloadKey(current => current + 1)
+      refreshBuiltinPlugins()
       return
     }
     setSkillsReloadKey(current => current + 1)
@@ -472,7 +447,7 @@ export function PluginsView(): React.ReactNode {
                     <strong>无法读取可管理插件状态</strong>
                     <p>{pluginLoadError}</p>
                   </div>
-                  <Button onClick={() => setPluginReloadKey(current => current + 1)} size="sm">
+                  <Button onClick={refreshBuiltinPlugins} size="sm">
                     重试
                   </Button>
                 </div>

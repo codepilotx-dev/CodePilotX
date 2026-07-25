@@ -43,6 +43,18 @@ describe('Codex 侧栏导航', () => {
   test('从设置目录移除旧 connections 标签', () => {
     expect(SETTINGS_ITEMS.some(item => item.routeId === 'connections')).toBeFalse()
   })
+
+  test('使用统一插件页管理扩展并移除独立 MCP 设置入口', () => {
+    const integrations = SETTINGS_GROUPS.find(
+      group => group.id === 'integrations',
+    )
+
+    expect(integrations?.items.map(item => item.routeId)).toEqual([
+      'plugins',
+      'browser',
+    ])
+    expect(SETTINGS_ITEMS.some(item => item.routeId === 'mcp')).toBeFalse()
+  })
 })
 
 describe('设置导航', () => {

@@ -2,6 +2,7 @@ import type {
   ComposerDocument,
   ComposerDraft,
   ComposerDraftKey,
+  ComposerSkillInvocation,
   ComposerSubmitOutcome,
 } from './composerTypes.js'
 import { createComposerDocument } from './composerTypes.js'
@@ -42,6 +43,18 @@ export class ComposerDraftStore {
     update: (draft: ComposerDraft) => ComposerDraft,
   ): ComposerDraft {
     return this.set(key, update(this.get(key)))
+  }
+
+  setSkillInvocation(
+    key: ComposerDraftKey,
+    skillInvocation: ComposerSkillInvocation | undefined,
+  ): ComposerDraft {
+    const next = this.update(key, current => ({
+      ...current,
+      skillInvocation,
+    }))
+    this.#emit()
+    return next
   }
 
   /** Move a HOME draft to its newly-created session without changing its id. */

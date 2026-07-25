@@ -12,6 +12,7 @@ import { WorkspaceService } from "../workspace/WorkspaceService"
 import { SubagentRepository, type SpawnSubagentInput } from "./SubagentRepository"
 import type { AttachmentService } from "./AttachmentService"
 import { InstructionDiscoveryService, SkillService, createPromptSections } from "../prompt"
+import type { SkillManagementService } from "../prompt/SkillManagementService"
 import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
 import { ContextManager, type ContextFragment } from "../context/ContextManager"
@@ -58,6 +59,7 @@ export class SubagentService {
     private readonly promptStorage?: PromptStorageRoots,
     private readonly memory?: MemoryService,
     private readonly hooks?: HookService,
+    private readonly skillManagement?: SkillManagementService,
   ) {
     this.repository = new SubagentRepository(db)
     approvals.setAgentStatusHandler((agentID, status) => { void this.onApprovalStatus(agentID, status) })
@@ -384,7 +386,7 @@ export class SubagentService {
       const checkpoint = permissionResume ? null : this.questions.claimResolvedCheckpoint(agent.turnID)
       const parentMode = (this.db.sqlite.query("SELECT mode FROM turns WHERE id = ?").get(task.parentTurnId) as { mode: "chat" | "plan" } | null)?.mode ?? "chat"
       const instructionSources = await new InstructionDiscoveryService().discover(workspace.rootPath)
-      const skillService = new SkillService()
+      const skillService = this.skillManagement?.runtimeService() ?? new SkillService()
       const skillCatalog = this.promptStorage
         ? await skillService.scan({
             workspaceRoot: workspace.rootPath,

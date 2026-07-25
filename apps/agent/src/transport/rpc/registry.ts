@@ -11,6 +11,7 @@ import { petHandlers } from "./handlers/pet"
 import { permissionHandlers } from "./handlers/permission"
 import { providerHandlers } from "./handlers/provider"
 import { reviewHandlers } from "./handlers/review"
+import { skillHandlers } from "./handlers/skills"
 import { subagentHandlers } from "./handlers/subagent"
 import { systemHandlers } from "./handlers/system"
 import { threadHandlers } from "./handlers/thread"
@@ -29,6 +30,7 @@ const groups: readonly RpcHandlerGroup[] = [
   permissionHandlers,
   workspaceHandlers,
   reviewHandlers,
+  skillHandlers,
   githubHandlers,
   threadHandlers,
   memoryHandlers,

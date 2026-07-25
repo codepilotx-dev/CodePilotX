@@ -14,6 +14,7 @@ import {
   getDesktopComposerBranchName,
   type DesktopComposerProps,
 } from '../../session/composer/DesktopComposer.js'
+import { composerDraftStore } from '../../session/composer/composerDraftStore.js'
 import type { ComposerDraftKey } from '../../session/composer/composerTypes.js'
 import { deriveWorkflowSessionState } from '../../../../shared/workflowReducer.js'
 import {
@@ -74,6 +75,7 @@ import type {
   DesktopModelMetadata,
   DesktopBrowserState,
   DesktopFileEntry,
+  DesktopInstalledSkill,
   DesktopPermissionMode,
   DesktopUserMessageInput,
   DesktopWorkspace,
@@ -88,6 +90,7 @@ import {
   sessionPath,
   useWorkbenchRouteController,
 } from './useWorkbenchRouteController.js'
+import type { DesktopLayoutOutletContextValue } from './desktopLayoutOutletContext.js'
 import {
   RIGHT_DOCK_MAIN_MIN_WIDTH,
   RIGHT_DOCK_MIN_WIDTH,
@@ -940,6 +943,33 @@ export function DesktopLayout(): React.ReactNode {
     setComposerAttachments,
     setInput,
   ])
+
+  const handleUseSkill = useCallback(
+    (skill: DesktopInstalledSkill): void => {
+      activateSessionById(null)
+      setInput('')
+      setComposerAttachments([])
+      composerDraftStore.setSkillInvocation('home', {
+        name: skill.name,
+        path: skill.path,
+      })
+      navigate(QUICK_CHAT_PATH)
+    },
+    [
+      activateSessionById,
+      navigate,
+      setComposerAttachments,
+      setInput,
+    ],
+  )
+
+  const outletContext = useMemo<DesktopLayoutOutletContextValue>(
+    () => ({
+      workspacePath: currentWorkspace?.path ?? null,
+      useSkill: handleUseSkill,
+    }),
+    [currentWorkspace?.path, handleUseSkill],
+  )
 
   useDesktopCommands({
     onNewConversation: () => {
@@ -2730,7 +2760,7 @@ export function DesktopLayout(): React.ReactNode {
                     >
                       <div aria-hidden="true" className="desktop-main-route__header-spacer" />
                       <div className="desktop-main-route__body">
-                        <Outlet />
+                        <Outlet context={outletContext} />
                       </div>
                     </div>
                     {rightDockNode ? (

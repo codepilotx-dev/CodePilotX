@@ -1199,13 +1199,31 @@ export type DesktopRuntimePermissionProfile = {
   description: string | null
 }
 
+export type DesktopSkillFormat =
+  | 'codepilotx'
+  | 'agents'
+  | 'codex'
+  | 'claude'
+
+export type DesktopSkillSource =
+  | 'workspace'
+  | 'user'
+  | 'system'
+  | 'admin'
+
 export type DesktopInstalledSkill = {
   name: string
   description: string
   shortDescription?: string
   path: string
   scope: 'user' | 'repo' | 'system' | 'admin'
+  source: DesktopSkillSource
+  format: DesktopSkillFormat
   enabled: boolean
+}
+
+export type DesktopInstalledSkillDetails = DesktopInstalledSkill & {
+  content: string
 }
 
 export type DesktopRuntimeHook = {
@@ -1787,9 +1805,17 @@ export type DesktopApi = {
     approvalPolicy?: DesktopApprovalPolicy,
   ): Promise<DesktopSessionSnapshot>
   listRuntimeSkills(
-    workspacePath: string,
+    workspacePath?: string | null,
     options?: { forceReload?: boolean },
   ): Promise<DesktopCatalogResult<DesktopInstalledSkill[]>>
+  readRuntimeSkill(
+    path: string,
+    workspacePath?: string | null,
+  ): Promise<DesktopInstalledSkillDetails>
+  setRuntimeSkillEnabled(
+    path: string,
+    enabled: boolean,
+  ): Promise<DesktopInstalledSkill>
   minimizeWindow(): Promise<void>
   toggleWindowMaximized(): Promise<boolean>
   closeWindow(): Promise<void>

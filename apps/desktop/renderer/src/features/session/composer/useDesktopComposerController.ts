@@ -162,8 +162,17 @@ export function useDesktopComposerController({
   }, [onPermissionChange, permissionModeVisible])
 
   useEffect(
-    () => composerDraftStore.subscribe(() => setDraftStoreVersion(value => value + 1)),
-    [],
+    () =>
+      composerDraftStore.subscribe(() => {
+        setDraftStoreVersion(value => value + 1)
+        setSelectedSkillToken(
+          restoreSkillToken(
+            composerDraftStore.get(draftKey).skillInvocation,
+            slashCommands,
+          ),
+        )
+      }),
+    [draftKey, slashCommands],
   )
 
   useEffect(() => {
@@ -442,19 +451,16 @@ export function useDesktopComposerController({
     handleOpenFiles,
     handleRemoveAttachment,
     handleSkillDeselect: () => {
-      composerDraftStore.update(draftKey, current => ({
-        ...current,
-        skillInvocation: undefined,
-      }))
+      composerDraftStore.setSkillInvocation(draftKey, undefined)
       setSelectedSkillToken(null)
     },
     handleSkillSelect: (
       skill: DesktopSlashCommandSuggestion & { skillPath: string },
     ) => {
-      composerDraftStore.update(draftKey, current => ({
-        ...current,
-        skillInvocation: { name: skill.name, path: skill.skillPath },
-      }))
+      composerDraftStore.setSkillInvocation(draftKey, {
+        name: skill.name,
+        path: skill.skillPath,
+      })
       setSelectedSkillToken(skill)
     },
     handleSubmit,

@@ -5,6 +5,7 @@ import { ExtendedRpcMethods } from "./extended"
 import { GithubRpcMethods } from "./github"
 import { PetRpcMethods } from "./pet"
 import { ReviewRpcMethods } from "./review"
+import { SkillRpcMethods } from "./skills"
 import { ToolingRpcMethods } from "./tooling"
 
 export const RpcMethods = {
@@ -13,6 +14,7 @@ export const RpcMethods = {
   ...GithubRpcMethods,
   ...PetRpcMethods,
   ...ReviewRpcMethods,
+  ...SkillRpcMethods,
   ...ToolingRpcMethods,
 } as const
 export const RpcMethodMap = RpcMethods
@@ -29,4 +31,5 @@ export * from "./extended"
 export * from "./github"
 export * from "./pet"
 export * from "./review"
+export * from "./skills"
 export * from "./tooling"

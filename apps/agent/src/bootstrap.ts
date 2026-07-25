@@ -48,6 +48,8 @@ import {
   migrateLegacyAgentData,
   relocateAgentDataRoot,
 } from "./config/DataDirectoryMigration";
+import { SkillManagementService } from "./prompt/SkillManagementService";
+import { SkillSettingsRepository } from "./storage/repositories/skill-settings-repository";
 
 export interface BootstrapOptions {
   models?: Models;
@@ -111,6 +113,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           },
     );
     const pets = new PetService(config.petsDir);
+    const skills = new SkillManagementService(
+      new SkillSettingsRepository(db),
+      { dataRoot: config.dataDir, userHome: homedir() },
+    );
     const unsubscribeTooling = tooling.subscribe((status) => {
       void publishAgentEvent(
         db,
@@ -334,6 +340,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       },
       memory,
       hooks,
+      skills,
     );
     const threads = new ThreadService(
       db,
@@ -352,6 +359,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       hooks,
       workspaceResolver,
       review,
+      skills,
     );
     const history = new ThreadHistoryService(db, hub);
     const app = createApp({
@@ -375,6 +383,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       github,
       tooling,
       pets,
+      skills,
     });
     let disposed = false;
     const dispose = async () => {

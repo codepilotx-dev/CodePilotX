@@ -33,6 +33,26 @@ describe('composer submit transaction', () => {
     expect(store.peek('home')).toBeUndefined()
   })
 
+  test('publishes an externally selected skill invocation to the active composer', () => {
+    const store = new ComposerDraftStore(() => 'draft-1')
+    let updates = 0
+    const unsubscribe = store.subscribe(() => {
+      updates += 1
+    })
+
+    store.setSkillInvocation('home', {
+      name: 'review',
+      path: 'skills/review/SKILL.md',
+    })
+
+    expect(store.get('home').skillInvocation).toEqual({
+      name: 'review',
+      path: 'skills/review/SKILL.md',
+    })
+    expect(updates).toBe(1)
+    unsubscribe()
+  })
+
   test('prepares a structured skill invocation without rewriting text', () => {
     const prepared = prepareComposerSubmission(
       draft({ skillInvocation: { name: 'review', path: 'skills/review' } }),

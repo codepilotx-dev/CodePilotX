@@ -76,6 +76,16 @@ export const EventManifest = {
     capability: "tooling.management.v1",
     reconcilesWith: "tooling/list",
   }),
+  "skill/updated": defineEvent({
+    payload: Schema.Struct({
+      generation: SequenceSchema,
+    }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "skills.manage.v1",
+    reconcilesWith: "skill/list",
+  }),
   "thread/created": defineEvent({
     payload: Schema.Struct({ thread: ThreadSchema }),
     version: 1,

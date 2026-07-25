@@ -26,6 +26,7 @@ import type { GitReviewService } from "../review/GitReviewService"
 import type { GithubService } from "../github/GithubService"
 import type { ToolingManager } from "../tool/ToolingManager"
 import type { PetService } from "../pet/PetService"
+import type { SkillManagementService } from "../prompt/SkillManagementService"
 
 export interface TransportDependencies {
   config: AgentConfig
@@ -47,6 +48,7 @@ export interface TransportDependencies {
   github: GithubService
   tooling: ToolingManager
   pets: PetService
+  skills: SkillManagementService
   logger: AgentLogger
 }
 
@@ -118,9 +120,9 @@ const eventNextNotification = (
 }
 
 export const createApp = (dependencies: TransportDependencies) => {
-  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, logger } = dependencies
+  const { config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, skills, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets })
+  const rpc = new RpcRouter({ db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, skills })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)

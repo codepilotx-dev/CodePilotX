@@ -36,6 +36,7 @@ import type { GitReviewService } from "../../review/GitReviewService"
 import type { GithubService } from "../../github/GithubService"
 import type { ToolingManager } from "../../tool/ToolingManager"
 import type { PetService } from "../../pet/PetService"
+import type { SkillManagementService } from "../../prompt/SkillManagementService"
 import { EventSubscriptionRegistry } from "../EventSubscriptionRegistry"
 import { secretScrubber } from "../../security/SecretScrubber"
 import { createRpcHandlerRegistry } from "./registry"
@@ -102,6 +103,7 @@ export type RpcRouterDependencies = {
   github: GithubService
   tooling: ToolingManager
   pets: PetService
+  skills?: SkillManagementService
 }
 
 export type { RpcRouterContext } from "./request-context"

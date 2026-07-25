@@ -1,4 +1,5 @@
 import React, { Suspense } from 'react'
+import type { DesktopInstalledSkill } from '../../../shared/types.js'
 import { SETTINGS_ITEMS } from './settingsRegistry.js'
 
 const AppearanceSettings = React.lazy(() => import('./AppearanceSettings.js').then(module => ({ default: module.AppearanceSettings })))
@@ -8,7 +9,7 @@ const ConfigSettings = React.lazy(() => import('./ConfigSettings.js').then(modul
 const GeneralSettings = React.lazy(() => import('./GeneralSettings.js').then(module => ({ default: module.GeneralSettings })))
 const GitSettings = React.lazy(() => import('./GitSettings.js').then(module => ({ default: module.GitSettings })))
 const KeyboardShortcutsSettings = React.lazy(() => import('./KeyboardShortcutsSettings.js').then(module => ({ default: module.KeyboardShortcutsSettings })))
-const McpSettings = React.lazy(() => import('./McpSettings.js').then(module => ({ default: module.McpSettings })))
+const PluginsSettingsPage = React.lazy(() => import('./plugins/PluginsSettingsPage.js').then(module => ({ default: module.PluginsSettingsPage })))
 const MemorySettings = React.lazy(() => import('./MemorySettings.js').then(module => ({ default: module.MemorySettings })))
 const PetSettings = React.lazy(() => import('./PetSettings.js').then(module => ({ default: module.PetSettings })))
 const PersonalizationSettings = React.lazy(() => import('./PersonalizationSettings.js').then(module => ({ default: module.PersonalizationSettings })))
@@ -18,12 +19,16 @@ const WorkspaceDependenciesSettings = React.lazy(() => import('./WorkspaceDepend
 
 type Props = {
   activeTab: string
+  workspacePath: string | null
+  onUseSkill: (skill: DesktopInstalledSkill) => void
   onError: (message: string) => void
   onNotice?: (message: string) => void
 }
 
 export function SettingsPage({
   activeTab,
+  workspacePath,
+  onUseSkill,
   onError,
   onNotice,
 }: Props): React.ReactNode {
@@ -34,7 +39,16 @@ export function SettingsPage({
   if (resolvedTab === 'general') content = <GeneralSettings onNotice={onNotice} />
   else if (resolvedTab === 'appearance') content = <AppearanceSettings onError={onError} />
   else if (resolvedTab === 'config') content = <ConfigSettings />
-  else if (resolvedTab === 'mcp') content = <McpSettings />
+  else if (resolvedTab === 'plugins') {
+    content = (
+      <PluginsSettingsPage
+        workspacePath={workspacePath}
+        onUseSkill={onUseSkill}
+        onError={onError}
+        onNotice={onNotice}
+      />
+    )
+  }
   else if (resolvedTab === 'git') content = <GitSettings />
   else if (resolvedTab === 'profile') content = <ProfileSettings />
   else if (resolvedTab === 'personalization') content = <PersonalizationSettings onError={onError} onNotice={onNotice} />

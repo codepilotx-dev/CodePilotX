@@ -736,8 +736,14 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     listRuntimeSkills: async () => ({
       state: 'unavailable',
       data: null,
-      error: 'Browser mock does not support catalog queries.',
+      error: '浏览器预览环境不支持读取本机技能目录。',
     }),
+    readRuntimeSkill: async () => {
+      throw new Error('浏览器预览环境不支持读取本机技能详情。')
+    },
+    setRuntimeSkillEnabled: async () => {
+      throw new Error('浏览器预览环境不支持修改本机技能状态。')
+    },
   }
 
   function emitSessionStoreChange(): void {

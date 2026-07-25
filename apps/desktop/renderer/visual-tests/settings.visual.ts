@@ -22,7 +22,7 @@ const SETTINGS_TABS = [
   { id: 'memory', label: '记忆' },
   { id: 'shortcuts', label: '键盘快捷键' },
   { id: 'billing', label: '使用情况和计费' },
-  { id: 'mcp', label: 'MCP 服务器' },
+  { id: 'plugins', label: '插件' },
   { id: 'browser', label: '浏览器' },
   { id: 'git', label: 'Git' },
   { id: 'archived', label: '已归档对话' },

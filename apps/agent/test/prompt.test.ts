@@ -97,6 +97,45 @@ describe("Skills catalog", () => {
     expect(service.allowedTools("audit")).toEqual(["Read", "workspace_search"])
   })
 
+  test("安全去重指向另一个已配置技能根的 Junction 别名", async () => {
+    const workspace = await temporaryDirectory()
+    const user = await temporaryDirectory()
+    const source = await writeSkill(user, ".agents", "shared", "---\nname: shared\ndescription: shared skill\n---\nbody")
+    const aliasRoot = join(user, ".claude", "skills")
+    await mkdir(aliasRoot, { recursive: true })
+    await symlink(source, join(aliasRoot, "shared"), "junction")
+
+    const service = new SkillService()
+    const catalog = await service.scan({ workspaceRoot: workspace, dataRoot: user, userHome: user })
+
+    expect(catalog.skills.map(skill => ({
+      name: skill.name,
+      origin: skill.origin,
+      format: skill.format,
+    }))).toEqual([{
+      name: "shared",
+      origin: "user",
+      format: "agents",
+    }])
+    expect(catalog.shadowed).toEqual([])
+  })
+
+  test("拒绝指向所有已配置技能根之外的 Junction", async () => {
+    const workspace = await temporaryDirectory()
+    const user = await temporaryDirectory()
+    const outside = await temporaryDirectory()
+    const source = await writeSkill(outside, "", "escape", "---\nname: escape\n---\nbody")
+    const aliasRoot = join(user, ".claude", "skills")
+    await mkdir(aliasRoot, { recursive: true })
+    await symlink(source, join(aliasRoot, "escape"), "junction")
+
+    await expect(new SkillService().scan({
+      workspaceRoot: workspace,
+      dataRoot: user,
+      userHome: user,
+    })).rejects.toThrow("Skill 目录逃出 Skills 根")
+  })
+
   test("相对资源被限制在 Skill 根目录内", async () => {
     const workspace = await temporaryDirectory()
     const user = await temporaryDirectory()

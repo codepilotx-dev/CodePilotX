@@ -612,6 +612,51 @@ const fixtures = {
     force: false,
     operationId: "operation:tooling-install",
   }, { status: toolingStatus }),
+  "skill/list": methodFixture("skill/list", {
+    workspace: "C:\\workspace",
+    forceReload: true,
+  }, {
+    skills: [{
+      name: "fixture-skill",
+      description: "Fixture skill",
+      path: "C:\\workspace\\.codex\\skills\\fixture-skill\\SKILL.md",
+      scope: "workspace",
+      format: "codex",
+      enabled: true,
+    }],
+    generation: 1,
+    updatedAt: 1,
+  }),
+  "skill/read": methodFixture("skill/read", {
+    workspace: "C:\\workspace",
+    path: "C:\\workspace\\.codex\\skills\\fixture-skill\\SKILL.md",
+  }, {
+    skill: {
+      name: "fixture-skill",
+      description: "Fixture skill",
+      path: "C:\\workspace\\.codex\\skills\\fixture-skill\\SKILL.md",
+      scope: "workspace",
+      format: "codex",
+      enabled: true,
+    },
+    content: "---\nname: fixture-skill\n---\nFixture",
+  }),
+  "skill/setEnabled": methodFixture("skill/setEnabled", {
+    path: "C:\\workspace\\.codex\\skills\\fixture-skill\\SKILL.md",
+    enabled: false,
+    operationId: "operation:skill-disable",
+  }, {
+    skill: {
+      name: "fixture-skill",
+      description: "Fixture skill",
+      path: "C:\\workspace\\.codex\\skills\\fixture-skill\\SKILL.md",
+      scope: "workspace",
+      format: "codex",
+      enabled: false,
+    },
+    generation: 2,
+    updatedAt: 2,
+  }),
   "attachment/import": methodFixture("attachment/import", {
     uploads: [{ kind: "text", name: attachment.name, mediaType: attachment.mediaType, encoding: "utf8", data: "fixture" }],
     operationId: "operation:attachment-import",
@@ -1172,9 +1217,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 111 formal methods decodable", () => {
+  test("keeps valid params and results for all 114 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(111)
+    expect(methods).toHaveLength(114)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {

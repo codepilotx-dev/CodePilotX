@@ -46,6 +46,10 @@ export function createSwitchingBrowserDesktopClient(
       return target(...args)
     }) as never
   }
+  client.readRuntimeSkill = (...args) =>
+    currentClient().readRuntimeSkill(...args)
+  client.setRuntimeSkillEnabled = (...args) =>
+    currentClient().setRuntimeSkillEnabled(...args)
   client.onAgentEvent = callback =>
     subscribeWithModeSwitch(environment, () =>
       currentClient().onAgentEvent(callback),

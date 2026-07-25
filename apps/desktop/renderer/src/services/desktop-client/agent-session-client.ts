@@ -80,6 +80,8 @@ import type {
   DesktopGithubRepositoryListResult,
   DesktopGitStatus,
   DesktopGitOperationResult,
+  DesktopInstalledSkill,
+  DesktopInstalledSkillDetails,
   DesktopPullRequestResult,
   DesktopSettingsChange,
   DesktopSessionStoreChange,
@@ -136,9 +138,24 @@ const RENDERER_CAPABILITIES = [
   'prompt.preview.sensitive.v1',
   'model.catalog.paged.v1',
   'tooling.management.v1',
+  'skills.manage.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 type PendingInteraction =
   RpcResult<'interaction/listPending'>['interactions'][number]
+
+type AgentManagedSkill = RpcResult<'skill/list'>['skills'][number]
+
+function desktopInstalledSkill(skill: AgentManagedSkill): DesktopInstalledSkill {
+  return {
+    name: skill.name,
+    description: skill.description,
+    path: skill.path,
+    scope: skill.scope === 'workspace' ? 'repo' : 'user',
+    source: skill.scope,
+    format: skill.format,
+    enabled: skill.enabled,
+  }
+}
 import {
   githubLoginFailure,
   mockThreadHistoryPage,
@@ -277,7 +294,8 @@ export function createAgentSessionDesktopClient(
       | 'github.oauth.v1'
       | 'github.pullRequests.v1'
       | 'tooling.management.v1'
-      | 'pets.management.v1',
+      | 'pets.management.v1'
+      | 'skills.manage.v1',
     version = 1,
   ): void {
     const capabilities: Record<typeof name, string> = {
@@ -291,6 +309,7 @@ export function createAgentSessionDesktopClient(
       'github.pullRequests.v1': 'github.pullRequests.v1',
       'tooling.management.v1': 'tooling.management.v1',
       'pets.management.v1': 'pets.management.v1',
+      'skills.manage.v1': 'skills.manage.v1',
     }
     if (version <= 1 && agentCapabilities.has(capabilities[name])) return
     if (version === 2 && (name === 'prompt' || name === 'memory')) {
@@ -1049,6 +1068,52 @@ export function createAgentSessionDesktopClient(
           })
         ).status
       }),
+    listRuntimeSkills: (workspacePath, options) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('skills.manage.v1')
+          const result = await rpc.call('skill/list', {
+            ...(workspacePath ? { workspace: workspacePath } : {}),
+            ...(options?.forceReload === undefined
+              ? {}
+              : { forceReload: options.forceReload }),
+          })
+          return {
+            state: 'ready' as const,
+            data: result.skills.map(desktopInstalledSkill),
+            updatedAt: new Date(result.updatedAt).toISOString(),
+          }
+        },
+        () => mockClient.listRuntimeSkills(workspacePath, options),
+      ),
+    readRuntimeSkill: (path, workspacePath) =>
+      withAgentOrMock(
+        async (): Promise<DesktopInstalledSkillDetails> => {
+          requireAgentCapability('skills.manage.v1')
+          const result = await rpc.call('skill/read', {
+            path,
+            ...(workspacePath ? { workspace: workspacePath } : {}),
+          })
+          return {
+            ...desktopInstalledSkill(result.skill),
+            content: result.content,
+          }
+        },
+        () => mockClient.readRuntimeSkill(path, workspacePath),
+      ),
+    setRuntimeSkillEnabled: (path, enabled) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('skills.manage.v1')
+          const result = await rpc.call('skill/setEnabled', {
+            path,
+            enabled,
+            operationId: crypto.randomUUID(),
+          })
+          return desktopInstalledSkill(result.skill)
+        },
+        () => mockClient.setRuntimeSkillEnabled(path, enabled),
+      ),
     onToolingUpdated: callback =>
       rpc.subscribeEnvelope({}, event => {
         if (event.type !== 'tooling/updated') return

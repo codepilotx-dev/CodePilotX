@@ -43,6 +43,10 @@ export interface SkillScanOptions {
   includeWorkspace?: boolean;
 }
 
+export type SkillServiceOptions = {
+  enabled?: (skill: SkillMetadata) => boolean
+}
+
 const contained = (root: string, candidate: string) => {
   const path = relative(root, candidate);
   return path === "" || (!path.startsWith("..") && !isAbsolute(path));
@@ -89,13 +93,15 @@ const parseAllowedTools = (metadata: Record<string, unknown>) => {
 export class SkillService {
   private catalog = new Map<string, SkillMetadata>();
 
+  constructor(private readonly options: SkillServiceOptions = {}) {}
+
   async scan(options: SkillScanOptions): Promise<SkillCatalog> {
     const workspace = await realpath(resolve(options.workspaceRoot));
     const dataRoot = await realpath(resolve(options.dataRoot));
     const userHome = await realpath(resolve(options.userHome));
     const found = new Map<string, SkillMetadata>();
     const shadowed: SkillCatalog["shadowed"] = [];
-    const bases = [
+    const configuredBases = [
       ...(options.includeWorkspace === false
         ? []
         : COMPATIBILITY_DIRS.map(compatibilityDir => ({
@@ -118,17 +124,25 @@ export class SkillService {
       })),
     ];
 
-    for (const base of bases) {
-      const skillsRoot = base.skillsRoot;
+    const bases: Array<(typeof configuredBases)[number] & {
+      canonicalSkillsRoot: string;
+    }> = [];
+    for (const base of configuredBases) {
       let canonicalSkillsRoot: string;
       try {
-        canonicalSkillsRoot = await realpath(skillsRoot);
+        canonicalSkillsRoot = await realpath(base.skillsRoot);
       } catch (cause) {
         if (missing(cause)) continue;
         throw cause;
       }
       if (!contained(base.containmentRoot, canonicalSkillsRoot))
-        throw new Error(`Skills 根目录逃出配置根: ${skillsRoot}`);
+        throw new Error(`Skills 根目录逃出配置根: ${base.skillsRoot}`);
+      bases.push({ ...base, canonicalSkillsRoot });
+    }
+
+    const trustedSkillsRoots = bases.map(base => base.canonicalSkillsRoot);
+    for (const base of bases) {
+      const canonicalSkillsRoot = base.canonicalSkillsRoot;
       const entries = (
         await readdir(canonicalSkillsRoot, { withFileTypes: true })
       ).sort((a, b) => a.name.localeCompare(b.name));
@@ -137,8 +151,11 @@ export class SkillService {
         const directory = await realpath(
           join(canonicalSkillsRoot, entry.name),
         );
-        if (!contained(canonicalSkillsRoot, directory))
+        if (!contained(canonicalSkillsRoot, directory)) {
+          if (trustedSkillsRoots.some(root => contained(root, directory)))
+            continue;
           throw new Error(`Skill 目录逃出 Skills 根: ${entry.name}`);
+        }
         const documentPath = join(directory, "SKILL.md");
         let canonicalDocument: string;
         try {
@@ -186,8 +203,10 @@ export class SkillService {
         else found.set(name, metadata);
       }
     }
-    this.catalog = found;
-    return { skills: [...found.values()], shadowed };
+    this.catalog = new Map(
+      [...found].filter(([, skill]) => this.options.enabled?.(skill) !== false),
+    );
+    return { skills: [...this.catalog.values()], shadowed };
   }
 
   list(): SkillMetadata[] {

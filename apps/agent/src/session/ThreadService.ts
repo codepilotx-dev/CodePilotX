@@ -11,6 +11,7 @@ import { SafeBoundaryInterrupt, type PiOrchestratorAdapter } from "../orchestrat
 import type { AttachmentService } from "../subagent/AttachmentService"
 import type { SubagentService } from "../subagent/SubagentService"
 import { InstructionDiscoveryService, PromptComposer, SkillService, createPromptSections, type PromptSection } from "../prompt"
+import type { SkillManagementService } from "../prompt/SkillManagementService"
 import { secretScrubber } from "../security/SecretScrubber"
 import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
@@ -41,6 +42,7 @@ export class ThreadService {
     private readonly hooks: HookService,
     private readonly workspaceResolver: ThreadWorkspaceResolver,
     private readonly review?: GitReviewService,
+    private readonly skillManagement?: SkillManagementService,
   ) {
     this.questions.setResumeHandler((threadID, turnID) => {
       const agent = this.db.agentForTurn(turnID)
@@ -198,7 +200,7 @@ export class ThreadService {
     const projectInstructions = runtime.kind === "project"
       ? await new InstructionDiscoveryService().discover(runtime.workspaceRoot)
       : { sources: [] }
-    const skillService = new SkillService()
+    const skillService = this.skillManagement?.runtimeService() ?? new SkillService()
     const skills = await skillService.scan({
       workspaceRoot: runtime.workspaceRoot,
       dataRoot: this.promptStorage.dataRoot,
@@ -443,7 +445,7 @@ export class ThreadService {
       const projectInstructions = runtime.kind === "project"
         ? await new InstructionDiscoveryService().discover(runtime.workspaceRoot)
         : { sources: [] }
-      const skillService = new SkillService()
+      const skillService = this.skillManagement?.runtimeService() ?? new SkillService()
       const skillCatalog = await skillService.scan({
         workspaceRoot: runtime.workspaceRoot,
         dataRoot: this.promptStorage.dataRoot,

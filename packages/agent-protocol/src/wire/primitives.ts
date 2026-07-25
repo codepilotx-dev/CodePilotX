@@ -53,6 +53,7 @@ export const ApplicationErrorCodeSchema = Schema.Literals([
   "ATTACHMENT_LIMIT",
   "MEMORY_NOT_FOUND",
   "MEMORY_REJECTED",
+  "SKILL_NOT_FOUND",
   "PET_NOT_FOUND",
   "PET_INVALID",
   "PET_DOWNLOAD_FAILED",

@@ -10,6 +10,7 @@ import {
 } from './useDesktopSettings.js'
 import { SETTINGS_ITEMS } from './settingsRegistry.js'
 import { NotFoundPage } from '../routing/NotFoundPage.js'
+import { useDesktopLayoutOutletContext } from '../layout/shell/desktopLayoutOutletContext.js'
 import '../../styles/lazy/settings.scss'
 
 export function SettingsLayout(): React.ReactNode {
@@ -19,6 +20,7 @@ export function SettingsLayout(): React.ReactNode {
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const settings = useDesktopSettings()
   const theme = useDesktopTheme()
+  const { workspacePath, useSkill } = useDesktopLayoutOutletContext()
 
   useEffect(() => {
     const saveSettings = async (): Promise<void> => {
@@ -59,6 +61,8 @@ export function SettingsLayout(): React.ReactNode {
       />
       <SettingsPage
         activeTab={activeTab}
+        workspacePath={workspacePath}
+        onUseSkill={useSkill}
         onError={setErrorMessage}
         onNotice={setNoticeMessage}
       />
