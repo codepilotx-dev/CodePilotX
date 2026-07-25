@@ -8,7 +8,6 @@ import {
   useRef,
   useState,
 } from 'react'
-import * as ContextMenu from '@radix-ui/react-context-menu'
 import {
   Maximize2,
   Minimize2,
@@ -34,6 +33,7 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../../components/ui/iconTokens.js'
+import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
@@ -567,8 +567,54 @@ function WorkbenchTabsHeader({
               state.tabIds[index + 1] !== state.activeTabId
             return (
               <Fragment key={tab.id}>
-                <ContextMenu.Root>
-                  <ContextMenu.Trigger asChild>
+                <AppContextMenu
+                  actions={[
+                    ...(tab.kind === 'file-preview' && tab.preview
+                      ? [
+                          {
+                            kind: 'item' as const,
+                            label: '固定预览',
+                            icon: <Pin size={APP_ICON_SIZE} />,
+                            onSelect: () => onPinTab(tab.id),
+                          },
+                        ]
+                      : []),
+                    {
+                      kind: 'item',
+                      label: '关闭',
+                      onSelect: () => onCloseTab(tab.id),
+                    },
+                    {
+                      kind: 'item',
+                      label: '关闭其他标签',
+                      disabled: state.tabIds.length <= 1,
+                      onSelect: () => onCloseOtherTabs(tab.id),
+                    },
+                    {
+                      kind: 'item',
+                      label: '关闭右侧标签',
+                      disabled: !canCloseRight,
+                      onSelect: () => onCloseTabsToRight(tab.id),
+                    },
+                    { kind: 'separator' },
+                    {
+                      kind: 'item',
+                      label: `移到${target === 'right' ? '底部' : '右侧'}面板`,
+                      icon:
+                        target === 'right' ? (
+                          <MoveDown size={APP_ICON_SIZE} />
+                        ) : (
+                          <MoveRight size={APP_ICON_SIZE} />
+                        ),
+                      onSelect: () =>
+                        onMoveTab(
+                          target,
+                          target === 'right' ? 'bottom' : 'right',
+                          tab.id,
+                        ),
+                    },
+                  ]}
+                  trigger={
                     <div
                       className={`right-dock-tab-wrap${active ? ' active' : ''}${hasDivider ? ' has-divider' : ''}`}
                       data-panel-tab={tab.id}
@@ -648,59 +694,9 @@ function WorkbenchTabsHeader({
                         <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                       </IconButton>
                     </div>
-                  </ContextMenu.Trigger>
-                  <ContextMenu.Portal>
-                    <ContextMenu.Content className="sidebar-context-menu-content">
-                  {tab.kind === 'file-preview' && tab.preview ? (
-                    <ContextMenu.Item
-                      className="sidebar-context-menu-item"
-                      onSelect={() => onPinTab(tab.id)}
-                    >
-                      <Pin size={APP_ICON_SIZE} />
-                      固定预览
-                    </ContextMenu.Item>
-                  ) : null}
-                  <ContextMenu.Item
-                    className="sidebar-context-menu-item"
-                    onSelect={() => onCloseTab(tab.id)}
-                  >
-                    关闭
-                  </ContextMenu.Item>
-                  <ContextMenu.Item
-                    className="sidebar-context-menu-item"
-                    disabled={state.tabIds.length <= 1}
-                    onSelect={() => onCloseOtherTabs(tab.id)}
-                  >
-                    关闭其他标签
-                  </ContextMenu.Item>
-                  <ContextMenu.Item
-                    className="sidebar-context-menu-item"
-                    disabled={!canCloseRight}
-                    onSelect={() => onCloseTabsToRight(tab.id)}
-                  >
-                    关闭右侧标签
-                  </ContextMenu.Item>
-                  <ContextMenu.Separator className="sidebar-context-menu-separator" />
-                  <ContextMenu.Item
-                    className="sidebar-context-menu-item"
-                    onSelect={() =>
-                      onMoveTab(
-                        target,
-                        target === 'right' ? 'bottom' : 'right',
-                        tab.id,
-                      )
-                    }
-                  >
-                    {target === 'right' ? (
-                      <MoveDown size={APP_ICON_SIZE} />
-                    ) : (
-                      <MoveRight size={APP_ICON_SIZE} />
-                    )}
-                    移到{target === 'right' ? '底部' : '右侧'}面板
-                  </ContextMenu.Item>
-                    </ContextMenu.Content>
-                  </ContextMenu.Portal>
-                </ContextMenu.Root>
+                  }
+                  width="auto"
+                />
               </Fragment>
             )
           })}

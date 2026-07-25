@@ -1,11 +1,16 @@
-import type { ReactNode } from 'react'
+import { useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import * as ContextMenu from '@radix-ui/react-context-menu'
 import { ChevronRight } from 'lucide-react'
+import type { DesktopEditAction } from '@codepilotx/shared/desktop-edit-ipc'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './iconTokens.js'
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
 } from './popoverSizing.js'
+import {
+  type CapturedEditCommandContext,
+  useEditCommands,
+} from './EditCommandProvider.js'
 
 export type AppContextMenuItemColor =
   | 'red'
@@ -36,6 +41,7 @@ export type AppContextMenuProps = {
   size?: '1' | '2'
   variant?: 'solid' | 'soft'
   onOpenChange?: (open: boolean) => void
+  includeEditActions?: boolean
 } & PopoverSizingProps
 
 export function AppContextMenu({
@@ -45,10 +51,51 @@ export function AppContextMenu({
   variant = 'soft',
   width,
   onOpenChange,
+  includeEditActions = true,
 }: AppContextMenuProps): ReactNode {
+  const editCommands = useEditCommands()
+  const [editContext, setEditContext] =
+    useState<CapturedEditCommandContext | null>(null)
+  const editActions = useMemo(
+    () =>
+      includeEditActions && editContext
+        ? createEditActions(editContext, action => {
+            void editCommands.perform(action, editContext)
+          })
+        : [],
+    [editCommands, editContext, includeEditActions],
+  )
+  const mergedActions = useMemo(
+    () => mergeActions(actions, editActions),
+    [actions, editActions],
+  )
+
+  function handleContextMenu(event: MouseEvent<HTMLSpanElement>): void {
+    if (event.defaultPrevented) return
+    const nextContext = includeEditActions
+      ? editCommands.captureContext(event.target)
+      : null
+    const nextEditActions = nextContext
+      ? createEditActions(nextContext, action => {
+          void editCommands.perform(action, nextContext)
+        })
+      : []
+    setEditContext(nextContext)
+    if (mergeActions(actions, nextEditActions).length === 0) {
+      event.preventDefault()
+    }
+  }
+
   return (
-    <ContextMenu.Root onOpenChange={onOpenChange}>
-      <ContextMenu.Trigger asChild>{trigger}</ContextMenu.Trigger>
+    <ContextMenu.Root
+      onOpenChange={open => {
+        if (!open) setEditContext(null)
+        onOpenChange?.(open)
+      }}
+    >
+      <ContextMenu.Trigger asChild onContextMenu={handleContextMenu}>
+        {trigger}
+      </ContextMenu.Trigger>
       <ContextMenu.Portal>
         <ContextMenu.Content
           className="app-context-menu-content sidebar-context-menu-content"
@@ -56,7 +103,9 @@ export function AppContextMenu({
           data-variant={variant}
           style={buildPopoverSizingStyle({ width })}
         >
-          {actions.map((action, index) => renderAction(action, index, width))}
+          {mergedActions.map((action, index) =>
+            renderAction(action, index, width),
+          )}
         </ContextMenu.Content>
       </ContextMenu.Portal>
     </ContextMenu.Root>
@@ -131,4 +180,86 @@ function renderAction(
         </ContextMenu.Item>
       )
   }
+}
+
+const EDIT_ACTION_LABELS: Record<DesktopEditAction, string> = {
+  undo: '撤销',
+  redo: '重做',
+  cut: '剪切',
+  copy: '复制',
+  paste: '粘贴',
+  delete: '删除',
+  selectAll: '全选',
+}
+
+const EDIT_ACTION_SHORTCUTS: Record<DesktopEditAction, string> = {
+  undo: 'Ctrl+Z',
+  redo: 'Ctrl+Y',
+  cut: 'Ctrl+X',
+  copy: 'Ctrl+C',
+  paste: 'Ctrl+V',
+  delete: 'Delete',
+  selectAll: 'Ctrl+A',
+}
+
+function createEditActions(
+  context: CapturedEditCommandContext,
+  perform: (action: DesktopEditAction) => void,
+): AppContextMenuAction[] {
+  const capabilities = context.getCapabilities()
+  const item = (action: DesktopEditAction): AppContextMenuAction => ({
+    kind: 'item',
+    label: EDIT_ACTION_LABELS[action],
+    shortcut: EDIT_ACTION_SHORTCUTS[action],
+    disabled: !capabilities[action],
+    onSelect: () => perform(action),
+  })
+
+  if (context.kind === 'selection') return [item('copy')]
+  if (context.kind === 'readonly-editor') {
+    return [item('copy'), item('selectAll')]
+  }
+  return [
+    item('undo'),
+    item('redo'),
+    { kind: 'separator' },
+    item('cut'),
+    item('copy'),
+    item('paste'),
+    item('delete'),
+    { kind: 'separator' },
+    item('selectAll'),
+  ]
+}
+
+function mergeActions(
+  primary: AppContextMenuAction[],
+  secondary: AppContextMenuAction[],
+): AppContextMenuAction[] {
+  const merged = [
+    ...trimSeparators(primary),
+    ...(hasItems(primary) && hasItems(secondary)
+      ? [{ kind: 'separator' as const }]
+      : []),
+    ...trimSeparators(secondary),
+  ]
+  return merged.filter(
+    (action, index) =>
+      action.kind !== 'separator' ||
+      (index > 0 && merged[index - 1]?.kind !== 'separator'),
+  )
+}
+
+function trimSeparators(
+  actions: AppContextMenuAction[],
+): AppContextMenuAction[] {
+  let start = 0
+  let end = actions.length
+  while (actions[start]?.kind === 'separator') start += 1
+  while (actions[end - 1]?.kind === 'separator') end -= 1
+  return actions.slice(start, end)
+}
+
+function hasItems(actions: AppContextMenuAction[]): boolean {
+  return actions.some(action => action.kind !== 'separator')
 }

@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
-import * as ContextMenu from '@radix-ui/react-context-menu'
 import { Folder, FolderOpen, ListChecks } from 'lucide-react'
 import type {
   DesktopFileEntry,
   DesktopWorkspace,
 } from '../../../../shared/types.js'
-import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
+import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import { ComposerFrame } from '../../session/composer/ComposerSurface.js'
 import { MarkdownMessage } from '../../session/MarkdownMessage.js'
@@ -535,8 +534,19 @@ export function RightDockFilePreviewPanel({
             } as React.CSSProperties
           }
         >
-          <ContextMenu.Root>
-            <ContextMenu.Trigger asChild>
+          <AppContextMenu
+            actions={
+              shouldShowSelectionSendAction(selectedText)
+                ? [
+                    {
+                      kind: 'item',
+                      label: '发送到对话框',
+                      onSelect: sendSelectedTextToComposer,
+                    },
+                  ]
+                : []
+            }
+            trigger={
               <div
                 className="right-dock-file-selection-target"
                 onContextMenu={() =>
@@ -595,23 +605,9 @@ export function RightDockFilePreviewPanel({
                   />
                 )}
               </div>
-            </ContextMenu.Trigger>
-            {shouldShowSelectionSendAction(selectedText) ? (
-              <ContextMenu.Portal>
-                <ContextMenu.Content
-                  className="sidebar-context-menu-content"
-                  style={buildPopoverSizingStyle({ width: 220 })}
-                >
-                  <ContextMenu.Item
-                    className="sidebar-context-menu-item"
-                    onSelect={sendSelectedTextToComposer}
-                  >
-                    发送到对话框
-                  </ContextMenu.Item>
-                </ContextMenu.Content>
-              </ContextMenu.Portal>
-            ) : null}
-          </ContextMenu.Root>
+            }
+            width={220}
+          />
           {treeVisible ? (
             <>
               <div

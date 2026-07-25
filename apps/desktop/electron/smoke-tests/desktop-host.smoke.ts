@@ -14,6 +14,7 @@ import type { DesktopThemeSettingsV6 } from "@codepilotx/shared/desktop-theme"
 import type { DesktopPetPresentation } from "@codepilotx/shared/desktop-pet-overlay"
 import type { DesktopSettingsPayload } from "@codepilotx/shared/desktop-settings-ipc"
 import type { DesktopDataLocationState } from "@codepilotx/shared/desktop-data-location-ipc"
+import type { DesktopEditIpcBridge } from "@codepilotx/shared/desktop-edit-ipc"
 
 declare global {
   interface Window {
@@ -45,7 +46,7 @@ declare global {
       onDesktopSettingsChange(
         listener: (settings: DesktopSettingsPayload) => void,
       ): () => void
-    }
+    } & DesktopEditIpcBridge
   }
 }
 
@@ -83,6 +84,38 @@ test.describe("真实 Electron 宿主", () => {
     ).toBe(false)
 
     await expectHostContract(page)
+    expect(
+      await page.evaluate(async () => {
+        const input = document.createElement("input")
+        input.value = "CodePilotX edit bridge"
+        document.body.append(input)
+        input.focus()
+        input.setSelectionRange(0, 4)
+
+        await window.codePilotXDesktop.performEditAction("selectAll")
+        const selected = input.value.slice(
+          input.selectionStart ?? 0,
+          input.selectionEnd ?? 0,
+        )
+        await window.codePilotXDesktop.performEditAction("delete")
+        const valueAfterDelete = input.value
+        input.remove()
+
+        return { selected, valueAfterDelete }
+      }),
+    ).toEqual({
+      selected: "CodePilotX edit bridge",
+      valueAfterDelete: "",
+    })
+    await expect(
+      page.evaluate(() =>
+        (
+          window.codePilotXDesktop.performEditAction as (
+            action: string
+          ) => Promise<void>
+        )("invalid"),
+      ),
+    ).rejects.toThrow("编辑命令无效")
     const settings = await page.evaluate(async () =>
       window.codePilotXDesktop.getAppearanceSettings(),
     )
@@ -109,6 +142,11 @@ test.describe("真实 Electron 宿主", () => {
       .find(candidate => candidate.url().endsWith("/#/pet-overlay"))
     if (!overlayPage) throw new Error("Electron smoke 未找到宠物悬浮窗")
     await expect(overlayPage.locator(".pet-overlay-page")).toBeAttached()
+    await expect(
+      overlayPage.evaluate(() =>
+        window.codePilotXDesktop.performEditAction("selectAll"),
+      ),
+    ).rejects.toThrow("IPC 调用来源无效")
     expect(
       await overlayPage.evaluate(() => ({
         hasDesktopBridge: typeof window.codePilotXDesktop === "object",
@@ -424,6 +462,8 @@ async function expectHostContract(page: Page): Promise<void> {
   expect(
     await page.evaluate(() => ({
       hasDesktopBridge: typeof window.codePilotXDesktop === "object",
+      hasEditBridge:
+        typeof window.codePilotXDesktop.performEditAction === "function",
       hasNodeRequire: typeof (window as unknown as { require?: unknown }).require,
       tokenCount: (() => {
         const names = new Set<string>()
@@ -454,6 +494,7 @@ async function expectHostContract(page: Page): Promise<void> {
     })),
   ).toEqual({
     hasDesktopBridge: true,
+    hasEditBridge: true,
     hasNodeRequire: "undefined",
     tokenCount: 117,
   })

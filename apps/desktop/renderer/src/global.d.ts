@@ -5,6 +5,7 @@ import type {
 } from '../shared/types.js'
 import type { DesktopPetOverlayBridge } from '@codepilotx/shared/desktop-pet-overlay'
 import type { DesktopDataLocationIpcBridge } from '@codepilotx/shared/desktop-data-location-ipc'
+import type { DesktopEditIpcBridge } from '@codepilotx/shared/desktop-edit-ipc'
 
 declare global {
   interface Window {
@@ -44,7 +45,9 @@ declare global {
       copyProviderApiKey(
         credentialId: string,
       ): Promise<{ clearAfterMs: 60000 }>
-    } & DesktopPetOverlayBridge & DesktopDataLocationIpcBridge
+    } & DesktopPetOverlayBridge
+      & DesktopDataLocationIpcBridge
+      & DesktopEditIpcBridge
   }
 }
 

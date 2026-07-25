@@ -10,6 +10,11 @@ import {
   DESKTOP_SETTINGS_IPC_CHANNELS,
   type DesktopSettingsPayload,
 } from "@codepilotx/shared/desktop-settings-ipc"
+import {
+  DESKTOP_EDIT_ACTIONS,
+  DESKTOP_EDIT_IPC_CHANNELS,
+  type DesktopEditAction,
+} from "@codepilotx/shared/desktop-edit-ipc"
 import type { DesktopLogger } from "../logging/desktop-logger.js"
 import { isSafeExternalUrl } from "../security/navigation.js"
 import {
@@ -79,6 +84,16 @@ export function registerDesktopIpc(
     requireDesktopRendererSender(event, isDesktopRendererSender)
     return getConnectionState()
   })
+  ipcMain.handle(
+    DESKTOP_EDIT_IPC_CHANNELS.perform,
+    (event, action: unknown) => {
+      requireMainWindowSender(event, windows)
+      if (!isDesktopEditAction(action)) {
+        throw new Error("编辑命令无效")
+      }
+      performDesktopEditAction(event.sender, action)
+    },
+  )
   ipcMain.handle(DESKTOP_SETTINGS_IPC_CHANNELS.get, async (event) => {
     requireDesktopRendererSender(event, isDesktopRendererSender)
     const supervisor = requireSupervisor(getSupervisor())
@@ -186,6 +201,39 @@ export function registerDesktopIpc(
       : await dialog.showOpenDialog(options)
     return result.canceled ? null : (result.filePaths[0] ?? null)
   })
+}
+
+function isDesktopEditAction(value: unknown): value is DesktopEditAction {
+  return typeof value === "string"
+    && (DESKTOP_EDIT_ACTIONS as readonly string[]).includes(value)
+}
+
+function performDesktopEditAction(
+  sender: WebContents,
+  action: DesktopEditAction,
+): void {
+  switch (action) {
+    case "undo":
+      sender.undo()
+      return
+    case "redo":
+      sender.redo()
+      return
+    case "cut":
+      sender.cut()
+      return
+    case "copy":
+      sender.copy()
+      return
+    case "paste":
+      sender.paste()
+      return
+    case "delete":
+      sender.delete()
+      return
+    case "selectAll":
+      sender.selectAll()
+  }
 }
 
 function requireDesktopRendererSender(

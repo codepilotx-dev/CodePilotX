@@ -109,11 +109,78 @@ test('Radix context menu follows the pointer and stays in the viewport', async (
   const content = page.locator('.sidebar-context-menu-content[data-side]')
   await expect(content).toBeVisible()
   await expectSolidSurface(content)
+  await expect(
+    page.locator('.sidebar-context-menu-content[data-state="open"]'),
+  ).toHaveCount(1)
+  await expect(content.getByText('添加到对话', { exact: true })).toBeVisible()
+  await expect(
+    content.getByText('在侧边聊天中提问', { exact: true }),
+  ).toBeVisible()
+  await expect(content.getByText('复制', { exact: true })).toBeVisible()
 
   const contentBox = await content.boundingBox()
   expect(contentBox).not.toBeNull()
   expect(Math.abs(contentBox!.x - pointer.x)).toBeLessThan(300)
   expect(Math.abs(contentBox!.y - pointer.y)).toBeLessThan(300)
+})
+
+test('global context menu exposes editor commands and skips blank areas', async ({
+  page,
+}) => {
+  await page.setViewportSize(COMPACT_VIEWPORT)
+  await prepareVisualTheme(page, 'dark', { reduceMotion: 'off' })
+  await page.goto('/?visualCase=rich#/threads/visual-rich')
+
+  const editor = page.getByRole('textbox', { name: '消息输入框' })
+  await waitForVisualPage(page, 'dark', editor)
+  await editor.click()
+  await editor.fill('context menu edit')
+  await page.keyboard.press('Control+A')
+  await editor.click({ button: 'right' })
+
+  const content = page.locator(
+    '.sidebar-context-menu-content[data-state="open"]',
+  )
+  await expect(content).toBeVisible()
+  for (const label of [
+    '撤销',
+    '重做',
+    '剪切',
+    '复制',
+    '粘贴',
+    '删除',
+    '全选',
+  ]) {
+    await expect(content.getByText(label, { exact: true })).toBeVisible()
+  }
+  await expect(
+    content.getByText('重做', { exact: true }).locator('..'),
+  ).toHaveAttribute('data-disabled')
+  await expect(
+    content.getByText('全选', { exact: true }).locator('..'),
+  ).toHaveAttribute('data-disabled')
+
+  await content.getByText('删除', { exact: true }).click()
+  await expect(editor).not.toContainText('context menu edit')
+
+  await editor.fill('top edit menu')
+  const editMenuTrigger = page
+    .locator('.menubar-trigger')
+    .filter({ hasText: /^编辑$/ })
+  await editMenuTrigger.click()
+  const editMenu = page.locator('.menubar-content[data-state="open"]')
+  await editMenu.getByText('全选', { exact: true }).click()
+  await editMenuTrigger.click()
+  await page
+    .locator('.menubar-content[data-state="open"]')
+    .getByText('删除', { exact: true })
+    .click()
+  await expect(editor).not.toContainText('top edit menu')
+
+  await page.locator('.app-menubar').click({ button: 'right' })
+  await expect(
+    page.locator('.sidebar-context-menu-content[data-state="open"]'),
+  ).toHaveCount(0)
 })
 
 async function expectSolidSurface(content: Locator): Promise<void> {

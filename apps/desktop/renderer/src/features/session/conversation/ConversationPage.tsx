@@ -1,5 +1,4 @@
 import React from "react";
-import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   AppWindow,
@@ -88,6 +87,7 @@ import {
 import { useTypewriterText } from "./TypewriterText.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
+import { AppContextMenu } from "../../../components/ui/AppContextMenu.js";
 import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
 import { Tooltip } from "../../../components/ui/Tooltip.js";
 import { ScrollArea } from "../../../components/ui/ScrollArea.js";
@@ -1065,14 +1065,29 @@ export function ConversationPage(): React.ReactNode {
               footerRef={threadFooterRef}
               scrollRef={threadScrollRef}
             >
-            <ContextMenu.Root
+            <AppContextMenu
+              actions={
+                showConversationContextMenu
+                  ? [
+                      {
+                        kind: "item",
+                        label: "添加到对话",
+                        onSelect: handleAddToConversation,
+                      },
+                      {
+                        kind: "item",
+                        label: "在侧边聊天中提问",
+                        onSelect: handleAskInSideChat,
+                      },
+                    ]
+                  : []
+              }
               onOpenChange={(open) => {
                 if (!open) {
                   clearConversationSelectionHighlight();
                 }
               }}
-            >
-              <ContextMenu.Trigger asChild>
+              trigger={
                 <div
                   className="session-timeline-wrapper"
                   onContextMenu={handleConversationContextMenu}
@@ -1132,29 +1147,9 @@ export function ConversationPage(): React.ReactNode {
                       )}
                   </div>
                 </div>
-              </ContextMenu.Trigger>
-              {showConversationContextMenu ? (
-                <ContextMenu.Portal>
-                  <ContextMenu.Content
-                    className="sidebar-context-menu-content"
-                    style={buildPopoverSizingStyle({ width: 240 })}
-                  >
-                    <ContextMenu.Item
-                      className="sidebar-context-menu-item"
-                      onSelect={handleAddToConversation}
-                    >
-                      添加到对话
-                    </ContextMenu.Item>
-                    <ContextMenu.Item
-                      className="sidebar-context-menu-item"
-                      onSelect={handleAskInSideChat}
-                    >
-                      在侧边聊天中提问
-                    </ContextMenu.Item>
-                  </ContextMenu.Content>
-                </ContextMenu.Portal>
-              ) : null}
-            </ContextMenu.Root>
+              }
+              width={240}
+            />
             </ThreadScrollLayout>
           </div>
           {threadSummary.shouldShowInline ? (

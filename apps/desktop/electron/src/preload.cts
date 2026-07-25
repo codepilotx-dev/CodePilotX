@@ -11,6 +11,10 @@ import type {
 import type {
   DesktopDataLocationIpcBridge,
 } from "@codepilotx/shared/desktop-data-location-ipc"
+import type {
+  DesktopEditAction,
+  DesktopEditIpcBridge,
+} from "@codepilotx/shared/desktop-edit-ipc"
 
 // Sandboxed preload scripts cannot resolve workspace packages at runtime.
 // Keep this literal type-checked against the shared contract so the emitted
@@ -43,6 +47,10 @@ const DESKTOP_DATA_LOCATION_IPC_CHANNELS = {
   retry: "desktop-data-location:retry",
   restore: "desktop-data-location:restore",
 } as const satisfies typeof import("@codepilotx/shared/desktop-data-location-ipc").DESKTOP_DATA_LOCATION_IPC_CHANNELS
+
+const DESKTOP_EDIT_IPC_CHANNELS = {
+  perform: "desktop-edit:perform",
+} as const satisfies typeof import("@codepilotx/shared/desktop-edit-ipc").DESKTOP_EDIT_IPC_CHANNELS
 
 type AgentConnectionState = "connected" | "disconnected" | "unknown"
 type SystemThemeVariant = "light" | "dark"
@@ -86,6 +94,8 @@ const desktop = {
     ipcRenderer.invoke(DESKTOP_DATA_LOCATION_IPC_CHANNELS.retry),
   restoreDataLocation: (): Promise<void> =>
     ipcRenderer.invoke(DESKTOP_DATA_LOCATION_IPC_CHANNELS.restore),
+  performEditAction: (action: DesktopEditAction): Promise<void> =>
+    ipcRenderer.invoke(DESKTOP_EDIT_IPC_CHANNELS.perform, action),
   getDesktopSettings: (): Promise<DesktopSettingsPayload> =>
     ipcRenderer.invoke(DESKTOP_SETTINGS_IPC_CHANNELS.get),
   saveDesktopSettings: (
@@ -179,6 +189,7 @@ const desktop = {
 } satisfies DesktopPetOverlayBridge
   & DesktopSettingsIpcBridge
   & DesktopDataLocationIpcBridge
+  & DesktopEditIpcBridge
   & Record<string, unknown>
 
 contextBridge.exposeInMainWorld("codePilotXDesktop", desktop)

@@ -1,8 +1,14 @@
-import { history, redo, undo } from 'prosemirror-history'
+import {
+  history,
+  redo,
+  redoDepth,
+  undo,
+  undoDepth,
+} from 'prosemirror-history'
 import { baseKeymap, splitBlock } from 'prosemirror-commands'
 import { keymap } from 'prosemirror-keymap'
 import { Schema } from 'prosemirror-model'
-import { EditorState, TextSelection } from 'prosemirror-state'
+import { AllSelection, EditorState, TextSelection } from 'prosemirror-state'
 import { EditorView } from 'prosemirror-view'
 import {
   forwardRef,
@@ -10,6 +16,7 @@ import {
   useImperativeHandle,
   useRef,
 } from 'react'
+import { useEditCommands } from '../../../components/ui/EditCommandProvider.js'
 
 const composerSchema = new Schema({
   nodes: {
@@ -54,6 +61,7 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
     },
     forwardedRef,
   ) {
+    const { registerTarget } = useEditCommands()
     const mountRef = useRef<HTMLDivElement | null>(null)
     const viewRef = useRef<EditorView | null>(null)
     const callbacksRef = useRef({
@@ -147,13 +155,49 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
       })
 
       viewRef.current = view
+      const unregisterEditTarget = registerTarget(view.dom, {
+        getCapabilities: () => {
+          const selection = view.state.selection
+          return {
+            undo: undoDepth(view.state) > 0,
+            redo: redoDepth(view.state) > 0,
+            cut: !selection.empty,
+            copy: !selection.empty,
+            paste: true,
+            delete: !selection.empty,
+            selectAll:
+              view.state.doc.content.size > 0 &&
+              !(selection instanceof AllSelection),
+          }
+        },
+        focus: () => view.focus(),
+        perform: action => {
+          if (action === 'undo') return undo(view.state, view.dispatch)
+          if (action === 'redo') return redo(view.state, view.dispatch)
+          if (action === 'delete') {
+            if (view.state.selection.empty) return false
+            view.dispatch(view.state.tr.deleteSelection().scrollIntoView())
+            return true
+          }
+          if (action === 'selectAll') {
+            view.dispatch(
+              view.state.tr
+                .setSelection(new AllSelection(view.state.doc))
+                .scrollIntoView(),
+            )
+            return true
+          }
+          return false
+        },
+      })
       return () => {
+        unregisterEditTarget()
         viewRef.current = null
         view.destroy()
       }
       // The view owns its lifetime; callback changes flow through callbacksRef.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    }, [registerTarget])
 
     useEffect(() => {
       const view = viewRef.current

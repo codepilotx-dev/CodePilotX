@@ -1,5 +1,6 @@
 import type React from 'react'
 import * as Menubar from '@radix-ui/react-menubar'
+import type { DesktopEditAction } from '@codepilotx/shared/desktop-edit-ipc'
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,6 +20,7 @@ import {
   type PopoverSizingProps,
 } from '../../components/ui/popoverSizing.js'
 import { cx } from '../../utils/cx.js'
+import type { EditCommandCapabilities } from '../../components/ui/EditCommandProvider.js'
 
 export type FileMenuAction =
   | 'close'
@@ -30,14 +32,7 @@ export type FileMenuAction =
   | 'logOut'
   | 'exit'
 
-export type EditMenuAction =
-  | 'undo'
-  | 'redo'
-  | 'cut'
-  | 'copy'
-  | 'paste'
-  | 'delete'
-  | 'selectAll'
+export type EditMenuAction = DesktopEditAction
 
 export type ViewMenuAction =
   | 'toggleSidebar'
@@ -81,6 +76,7 @@ type Props = {
   onSidebarTriggerPointerEnter: () => void
   onSidebarTriggerPointerLeave: () => void
   isDebugMode: boolean
+  editMenuCapabilities: EditCommandCapabilities
   onDebugModeChange: (checked: boolean) => void
   onMinimize: () => void
   onToggleMaximize: () => void
@@ -181,6 +177,7 @@ function AppMenu({
         <Menubar.Content
           align="start"
           className={['popover-surface', 'menubar-content', contentClassName].join(' ')}
+          data-edit-command-preserve-target
           sideOffset={4}
           style={buildPopoverSizingStyle({ width, maxWidth })}
           onPointerDownOutside={event => {
@@ -203,6 +200,7 @@ export function MenuBar({
   onSidebarTriggerPointerEnter,
   onSidebarTriggerPointerLeave,
   isDebugMode,
+  editMenuCapabilities,
   onDebugModeChange,
   onMinimize,
   onToggleMaximize,
@@ -214,7 +212,7 @@ export function MenuBar({
   onHelpMenuAction,
 }: Props): React.ReactNode {
   return (
-    <div className="app-menubar">
+    <div className="app-menubar" data-edit-command-preserve-target>
       <div className="menubar-titlebar">
         <div className="menubar-left">
           <IconButton
@@ -292,27 +290,55 @@ export function MenuBar({
             </AppMenu>
 
             <AppMenu disableOutsideDismiss={isDebugMode} label="编辑" value="edit" width={240}>
-              <MenuItem shortcut="Ctrl+Z" onSelect={() => onEditMenuAction('undo')}>
+              <MenuItem
+                disabled={!editMenuCapabilities.undo}
+                shortcut="Ctrl+Z"
+                onSelect={() => onEditMenuAction('undo')}
+              >
                 撤销
               </MenuItem>
-              <MenuItem shortcut="Ctrl+Y" onSelect={() => onEditMenuAction('redo')}>
+              <MenuItem
+                disabled={!editMenuCapabilities.redo}
+                shortcut="Ctrl+Y"
+                onSelect={() => onEditMenuAction('redo')}
+              >
                 重做
               </MenuItem>
               <MenuSeparator />
-              <MenuItem shortcut="Ctrl+X" onSelect={() => onEditMenuAction('cut')}>
+              <MenuItem
+                disabled={!editMenuCapabilities.cut}
+                shortcut="Ctrl+X"
+                onSelect={() => onEditMenuAction('cut')}
+              >
                 剪切
               </MenuItem>
-              <MenuItem shortcut="Ctrl+C" onSelect={() => onEditMenuAction('copy')}>
+              <MenuItem
+                disabled={!editMenuCapabilities.copy}
+                shortcut="Ctrl+C"
+                onSelect={() => onEditMenuAction('copy')}
+              >
                 复制
               </MenuItem>
-              <MenuItem shortcut="Ctrl+V" onSelect={() => onEditMenuAction('paste')}>
+              <MenuItem
+                disabled={!editMenuCapabilities.paste}
+                shortcut="Ctrl+V"
+                onSelect={() => onEditMenuAction('paste')}
+              >
                 粘贴
               </MenuItem>
-              <MenuItem shortcut="Delete" onSelect={() => onEditMenuAction('delete')}>
+              <MenuItem
+                disabled={!editMenuCapabilities.delete}
+                shortcut="Delete"
+                onSelect={() => onEditMenuAction('delete')}
+              >
                 删除
               </MenuItem>
               <MenuSeparator />
-              <MenuItem shortcut="Ctrl+A" onSelect={() => onEditMenuAction('selectAll')}>
+              <MenuItem
+                disabled={!editMenuCapabilities.selectAll}
+                shortcut="Ctrl+A"
+                onSelect={() => onEditMenuAction('selectAll')}
+              >
                 全选
               </MenuItem>
             </AppMenu>

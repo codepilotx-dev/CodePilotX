@@ -7,7 +7,6 @@ import {
   useState,
 } from 'react'
 import type React from 'react'
-import * as ContextMenu from '@radix-ui/react-context-menu'
 import { FolderIcon } from '@codepilotx/material-icon-theme'
 import { LoaderCircle, RotateCcw, Search } from 'lucide-react'
 import { VList, type VListHandle } from 'virtua'
@@ -20,7 +19,7 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
-import { buildPopoverSizingStyle } from '../../components/ui/popoverSizing.js'
+import { AppContextMenu } from '../../components/ui/AppContextMenu.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { cx } from '../../utils/cx.js'
 import { FileTypeIcon } from './FileTypeIcon.js'
@@ -453,22 +452,17 @@ export function WorkspaceFileTree({
     )
     if (!sendablePath) return treeItem
     return (
-      <ContextMenu.Root>
-        <ContextMenu.Trigger asChild>{treeItem}</ContextMenu.Trigger>
-        <ContextMenu.Portal>
-          <ContextMenu.Content
-            className="sidebar-context-menu-content"
-            style={buildPopoverSizingStyle({ width: 220 })}
-          >
-            <ContextMenu.Item
-              className="sidebar-context-menu-item"
-              onSelect={() => onAddComposerFiles?.([sendablePath])}
-            >
-              发送到对话框
-            </ContextMenu.Item>
-          </ContextMenu.Content>
-        </ContextMenu.Portal>
-      </ContextMenu.Root>
+      <AppContextMenu
+        actions={[
+          {
+            kind: 'item',
+            label: '发送到对话框',
+            onSelect: () => onAddComposerFiles?.([sendablePath]),
+          },
+        ]}
+        trigger={treeItem}
+        width={220}
+      />
     )
   }
 

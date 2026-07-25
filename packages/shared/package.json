@@ -10,6 +10,7 @@
     "./desktop-theme": "./src/desktop-theme.ts",
     "./desktop-pet-overlay": "./src/desktop-pet-overlay.ts",
     "./desktop-data-location-ipc": "./src/desktop-data-location-ipc.ts",
+    "./desktop-edit-ipc": "./src/desktop-edit-ipc.ts",
     "./desktop-settings-ipc": "./src/desktop-settings-ipc.ts",
     "./model": "./src/model.ts",
     "./thread": "./src/thread/index.ts"

@@ -43,6 +43,7 @@ import {
 } from '../tabs/conversationUiState.js'
 import { DesktopSidebar } from '../DesktopSidebar.js'
 import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
+import { useEditCommands } from '../../../components/ui/EditCommandProvider.js'
 import type { GitWorkflowMode } from '../panels/GitWorkflowModal.js'
 import { SidebarFrame } from '../SidebarFrame.js'
 import { MenuBar } from '../MenuBar.js'
@@ -222,6 +223,10 @@ let directoryProbeRequestId = 0
 export function DesktopLayout(): React.ReactNode {
   const location = useLocation()
   const settings = useDesktopSettings()
+  const {
+    activeCapabilities: editMenuCapabilities,
+    perform: performEditCommand,
+  } = useEditCommands()
   const {
     permissionMode,
     model,
@@ -1217,8 +1222,10 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const handleEditMenuAction = useCallback(
-    (_action: EditMenuAction): void => {},
-    [],
+    (action: EditMenuAction): void => {
+      void performEditCommand(action)
+    },
+    [performEditCommand],
   )
 
   const handleViewMenuAction = useCallback(
@@ -1713,7 +1720,6 @@ export function DesktopLayout(): React.ReactNode {
   const isConversationLoading =
     isConversationRoute && (!sessionsHydrated || sessionId !== routedSessionId)
   const branchName = getDesktopComposerBranchName(currentWorkspace)
-
   const quickChatRecentTasks = useMemo(() => {
     const workspaceKey = currentWorkspace?.path
       .replace(/\\/g, '/')
@@ -1891,6 +1897,7 @@ export function DesktopLayout(): React.ReactNode {
           .then(next => setIsWindowMaximized(next))
       }}
       onFileMenuAction={handleFileMenuAction}
+      editMenuCapabilities={editMenuCapabilities}
       onEditMenuAction={handleEditMenuAction}
       onViewMenuAction={handleViewMenuAction}
       onWindowMenuAction={handleWindowMenuAction}
