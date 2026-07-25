@@ -13,8 +13,10 @@ import {
   sandboxStatusFailure,
   toPublicSandboxStatus,
   type SandboxStatus,
+  type SandboxInstallationRecord,
 } from "../src/sandbox/SandboxRuntimeAdapter"
 import { requireAvailableSandbox } from "../src/sandbox/SandboxStatusView"
+import type { SandboxWorkerPool } from "../src/sandbox/SandboxWorkerPool"
 
 const userStatus = (
   overrides: Partial<WindowsSandboxUserStatus> = {},
@@ -31,12 +33,14 @@ const userStatus = (
 
 const wfpStatus = (
   state: WindowsWfpStatusResult["state"],
+  overrides: Partial<WindowsWfpStatusResult> = {},
 ): WindowsWfpStatusResult => ({
   state,
   filters: state === "installed" ? 4 : 0,
   ...(state === "cannot-read"
     ? { hint: "BFE filter enumeration is admin-only" }
     : {}),
+  ...overrides,
 })
 
 const internalStatus = (
@@ -108,14 +112,16 @@ describe("sandbox status", () => {
   })
 
   test("执行前只复核 helper，初始化失败后使状态缓存失效", async () => {
-    const adapter = new AnthropicSandboxRuntimeAdapter()
+    const workerPool = {
+      hasWork: () => false,
+      run: async () => {
+        throw new Error("initialize failed")
+      },
+      recycleIdleWorkers: async () => undefined,
+      dispose: async () => undefined,
+    } as unknown as SandboxWorkerPool
+    const adapter = new AnthropicSandboxRuntimeAdapter({ workerPool })
     const target = adapter as unknown as {
-      api(): Promise<{
-        SandboxManager: {
-          initialize(): Promise<void>
-          reset(): Promise<void>
-        }
-      }>
       probeStatus(): Promise<SandboxStatus>
       resolvedHelper(): Promise<{ path: string; spawn: never }>
       validateHelper(path: string): string
@@ -134,14 +140,6 @@ describe("sandbox status", () => {
       helperValidations += 1
       return "a".repeat(64)
     }
-    target.api = async () => ({
-      SandboxManager: {
-        initialize: async () => {
-          throw new Error("initialize failed")
-        },
-        reset: async () => {},
-      },
-    })
 
     await adapter.refreshStatus()
     await expect(adapter.run({
@@ -192,6 +190,125 @@ describe("sandbox status", () => {
     })
   })
 
+  test("缺失安装代际或 WFP 端口不匹配时要求一次修复", async () => {
+    let record: SandboxInstallationRecord | null = null
+    const adapter = new AnthropicSandboxRuntimeAdapter({
+      installationStore: {
+        get: () => record,
+        set: (value) => {
+          record = value
+        },
+      },
+    })
+    const target = adapter as unknown as {
+      api(): Promise<{
+        getWindowsSandboxUserStatus(): WindowsSandboxUserStatus
+        getWindowsWfpStatus(): WindowsWfpStatusResult
+      }>
+      resolvedHelper(): Promise<{ path: string; spawn: never }>
+      validateHelper(path: string): string
+    }
+    let range: [number, number] = [60080, 60095]
+    target.resolvedHelper = async () => ({
+      path: "C:\\CodePilotX\\srt-win.exe",
+      spawn: undefined as never,
+    })
+    target.validateHelper = () => "a".repeat(64)
+    target.api = async () => ({
+      getWindowsSandboxUserStatus: () => userStatus(),
+      getWindowsWfpStatus: () => wfpStatus("installed", { portRange: range }),
+    })
+
+    await expect(adapter.refreshStatus()).resolves.toMatchObject({
+      state: "repair-required",
+      error: expect.stringContaining("安装代际"),
+    })
+    record = {
+      generation: 2,
+      runtimeVersion: "0.0.65",
+      proxyPortRange: [60080, 60095],
+      maxConcurrentCommands: 8,
+      installed: true,
+    }
+    await expect(adapter.refreshStatus()).resolves.toMatchObject({ state: "available" })
+    range = [60080, 60089]
+    await expect(adapter.refreshStatus()).resolves.toMatchObject({
+      state: "repair-required",
+      error: expect.stringContaining("60080–60095"),
+    })
+  })
+
+  test("运行中维护操作返回 SANDBOX_BUSY，不修改安装状态", async () => {
+    const workerPool = {
+      hasWork: () => true,
+      run: async () => {
+        throw new Error("not used")
+      },
+      recycleIdleWorkers: async () => undefined,
+      dispose: async () => undefined,
+    } as unknown as SandboxWorkerPool
+    const adapter = new AnthropicSandboxRuntimeAdapter({ workerPool })
+    await expect(adapter.install()).rejects.toMatchObject({ code: "SANDBOX_BUSY" })
+    await expect(adapter.uninstall()).rejects.toMatchObject({ code: "SANDBOX_BUSY" })
+  })
+
+  test("安装成功后才写入 generation 2 记录，UAC 取消不写入", async () => {
+    let record: SandboxInstallationRecord | null = null
+    let cancelled = false
+    let installedRange: readonly [number, number] | undefined
+    const workerPool = {
+      hasWork: () => false,
+      run: async () => {
+        throw new Error("not used")
+      },
+      recycleIdleWorkers: async () => undefined,
+      dispose: async () => undefined,
+    } as unknown as SandboxWorkerPool
+    const adapter = new AnthropicSandboxRuntimeAdapter({
+      workerPool,
+      installationStore: {
+        get: () => record,
+        set: (value) => {
+          record = value
+        },
+      },
+    })
+    const target = adapter as unknown as {
+      api(): Promise<{
+        installWindowsSandbox(options: {
+          proxyPortRange: readonly [number, number]
+        }): { cancelled: boolean }
+      }>
+      resolvedHelper(): Promise<{ path: string; spawn: never }>
+      validateHelper(path: string): string
+    }
+    target.resolvedHelper = async () => ({
+      path: "C:\\CodePilotX\\srt-win.exe",
+      spawn: undefined as never,
+    })
+    target.validateHelper = () => "a".repeat(64)
+    target.api = async () => ({
+      installWindowsSandbox: (options) => {
+        installedRange = options.proxyPortRange
+        return { cancelled }
+      },
+    })
+
+    await adapter.install()
+    expect(installedRange).toEqual([60080, 60095])
+    expect(record as SandboxInstallationRecord | null).toEqual({
+      generation: 2,
+      runtimeVersion: "0.0.65",
+      proxyPortRange: [60080, 60095],
+      maxConcurrentCommands: 8,
+      installed: true,
+    })
+    record = null
+    cancelled = true
+    await expect(adapter.install()).rejects.toMatchObject({ code: "SANDBOX_INSTALL_CANCELLED" })
+    expect(record).toBeNull()
+  })
+
   test("公共 RPC view 符合协议并隐藏 helper、SID 和 WFP 诊断", () => {
     const view = toPublicSandboxStatus(internalStatus({
       state: "repair-required",
@@ -202,6 +319,8 @@ describe("sandbox status", () => {
       platform: "win32",
       architecture: "x64",
       runtimeVersion: "0.0.65",
+      maturity: "alpha",
+      maxConcurrentCommands: 8,
       error: "需要修复",
       operations: {
         canInstall: false,

@@ -8,6 +8,7 @@ export const GranularApprovalConfigSchema = Schema.Struct({
   rules: Schema.Boolean,
   skillApproval: Schema.Boolean,
   requestPermissions: Schema.Boolean,
+  mcpTools: Schema.Boolean,
   mcpElicitations: Schema.Boolean,
 })
 export type GranularApprovalConfig = typeof GranularApprovalConfigSchema.Type
@@ -18,6 +19,7 @@ export const GranularApprovalPolicySchema = Schema.Struct({
   rules: Schema.Boolean,
   skillApproval: Schema.Boolean,
   requestPermissions: Schema.Boolean,
+  mcpTools: Schema.Boolean,
   mcpElicitations: Schema.Boolean,
 })
 export type GranularApprovalPolicy = typeof GranularApprovalPolicySchema.Type
@@ -40,9 +42,9 @@ export const decodeApprovalPolicy = (value: unknown): ApprovalPolicy => {
   if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) throw new Error("approvalPolicy 无效")
   const config = candidate as Record<string, unknown>
   if (config.type !== "granular") throw new Error("granular approvalPolicy 无效")
-  const keys = ["sandboxApproval", "rules", "skillApproval", "requestPermissions", "mcpElicitations"] as const
+  const keys = ["sandboxApproval", "rules", "skillApproval", "requestPermissions", "mcpTools", "mcpElicitations"] as const
   if (keys.some((key) => typeof config[key] !== "boolean")) throw new Error("granular approvalPolicy 缺少布尔配置")
-  return { type: "granular", sandboxApproval: config.sandboxApproval as boolean, rules: config.rules as boolean, skillApproval: config.skillApproval as boolean, requestPermissions: config.requestPermissions as boolean, mcpElicitations: config.mcpElicitations as boolean }
+  return { type: "granular", sandboxApproval: config.sandboxApproval as boolean, rules: config.rules as boolean, skillApproval: config.skillApproval as boolean, requestPermissions: config.requestPermissions as boolean, mcpTools: config.mcpTools as boolean, mcpElicitations: config.mcpElicitations as boolean }
 }
 
 export const ApprovalsReviewerSchema = Schema.Literals(["user", "auto_review"])

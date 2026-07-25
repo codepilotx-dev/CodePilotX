@@ -38,8 +38,8 @@ const project = {
 
 const threadListItem = {
   id: "thread:1",
-  gitBranch: "codex/hover-card",
   projectID: project.id,
+  gitBranch: "codex/hover-card",
   workspace: {
     kind: "project",
     projectID: project.id,
@@ -62,8 +62,8 @@ const threadSnapshot = {
   thread: {
     id: threadListItem.id,
     title: threadListItem.title,
-    gitBranch: threadListItem.gitBranch,
     projectID: project.id,
+    gitBranch: threadListItem.gitBranch,
     workspace: threadListItem.workspace,
     settings: threadSettings,
     createdAt: 1,
@@ -95,6 +95,8 @@ const sandboxStatus = {
   platform: "win32",
   architecture: "x64",
   runtimeVersion: "1.0.0",
+  maturity: "alpha",
+  maxConcurrentCommands: 8,
   error: null,
   operations: {
     canInstall: false,
@@ -662,6 +664,115 @@ const fixtures = {
     },
     generation: 2,
     updatedAt: 2,
+  }),
+  "mcp/list": methodFixture("mcp/list", {
+    workspace: "C:\\workspace",
+  }, {
+    servers: [{
+      server: {
+        name: "fixture",
+        scope: "local",
+        enabled: true,
+        diagnosticContext: true,
+        transport: {
+          type: "stdio",
+          command: "bun",
+          args: ["fixture.ts"],
+          envFromHost: { MCP_TOKEN: "CODEPILOTX_MCP_TOKEN" },
+        },
+        startupTimeoutMs: 10_000,
+        toolTimeoutMs: 60_000,
+      },
+      effective: true,
+    }],
+    generation: 1,
+  }),
+  "mcp/status": methodFixture("mcp/status", {
+    workspace: "C:\\workspace",
+  }, {
+    servers: [{
+      name: "fixture",
+      scope: "local",
+      type: "stdio",
+      state: "connected",
+      toolCount: 1,
+      resourceCount: 1,
+      promptCount: 1,
+    }],
+    totalTools: 1,
+    totalResources: 1,
+    totalPrompts: 1,
+    generation: 1,
+  }),
+  "mcp/save": methodFixture("mcp/save", {
+    workspace: "C:\\workspace",
+    server: {
+      name: "fixture",
+      scope: "local",
+      enabled: true,
+      transport: {
+        type: "http",
+        url: "https://example.com/mcp",
+        headerFromEnv: { Authorization: "CODEPILOTX_MCP_AUTHORIZATION" },
+      },
+    },
+    operationId: "operation:mcp-save:1",
+  }, {
+    servers: [{
+      server: {
+        name: "fixture",
+        scope: "local",
+        enabled: true,
+        transport: {
+          type: "http",
+          url: "https://example.com/mcp",
+          headerFromEnv: { Authorization: "CODEPILOTX_MCP_AUTHORIZATION" },
+        },
+      },
+      effective: true,
+    }],
+    generation: 2,
+  }),
+  "mcp/remove": methodFixture("mcp/remove", {
+    workspace: "C:\\workspace",
+    scope: "local",
+    name: "fixture",
+    operationId: "operation:mcp-remove:1",
+  }, {
+    servers: [],
+    generation: 3,
+  }),
+  "mcp/setEnabled": methodFixture("mcp/setEnabled", {
+    workspace: "C:\\workspace",
+    scope: "local",
+    name: "fixture",
+    enabled: false,
+    operationId: "operation:mcp-enabled:1",
+  }, {
+    servers: [{
+      server: {
+        name: "fixture",
+        scope: "local",
+        enabled: false,
+        transport: {
+          type: "stdio",
+          command: "bun",
+        },
+      },
+      effective: true,
+    }],
+    generation: 4,
+  }),
+  "mcp/reload": methodFixture("mcp/reload", {
+    workspace: "C:\\workspace",
+    operationId: "operation:mcp-reload:1",
+  }, {
+    generation: 5,
+    added: ["fixture"],
+    replaced: [],
+    removed: [],
+    unchanged: [],
+    failed: [],
   }),
   "attachment/import": methodFixture("attachment/import", {
     uploads: [{ kind: "text", name: attachment.name, mediaType: attachment.mediaType, encoding: "utf8", data: "fixture" }],
@@ -1284,9 +1395,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 117 formal methods decodable", () => {
+  test("keeps valid params and results for all 123 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(117)
+    expect(methods).toHaveLength(123)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {

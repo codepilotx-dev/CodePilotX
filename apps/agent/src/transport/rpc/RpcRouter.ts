@@ -37,6 +37,7 @@ import type { GithubService } from "../../github/GithubService"
 import type { ToolingManager } from "../../tool/ToolingManager"
 import type { PetService } from "../../pet/PetService"
 import type { SkillManagementService } from "../../prompt/SkillManagementService"
+import type { McpRuntimeService } from "../../mcp/McpRuntimeService"
 import type { TaskSuggestionService } from "../../suggestion/TaskSuggestionService"
 import { EventSubscriptionRegistry } from "../EventSubscriptionRegistry"
 import { secretScrubber } from "../../security/SecretScrubber"
@@ -105,6 +106,7 @@ export type RpcRouterDependencies = {
   tooling: ToolingManager
   pets: PetService
   skills?: SkillManagementService
+  mcp?: McpRuntimeService
   suggestions?: TaskSuggestionService
 }
 

@@ -1,9 +1,4 @@
-import { createHash } from "node:crypto"
-import { existsSync, mkdtempSync, readFileSync } from "node:fs"
-import { join, resolve } from "node:path"
-import { spawn, spawnSync, type ChildProcessByStdio } from "node:child_process"
-import type { Readable } from "node:stream"
-import { tmpdir } from "node:os"
+import { resolve } from "node:path"
 import type {
   SandboxRuntimeConfig,
   SrtWinSpawn,
@@ -11,15 +6,19 @@ import type {
   WindowsWfpStatusResult,
 } from "@anthropic-ai/sandbox-runtime"
 import { AgentError } from "../domain"
+import { validateSrtHelper } from "./SandboxHelper"
+import { runHostCommand, type ProcessResult } from "./SandboxProcess"
+import {
+  SRT_INSTALL_GENERATION,
+  SRT_MAX_CONCURRENT_COMMANDS,
+  SRT_PROXY_PORT_RANGE,
+  SRT_RUNTIME_VERSION,
+  SRT_WINDOWS_MATURITY,
+} from "./SandboxRuntimeManifest"
+import { SandboxWorkerPool } from "./SandboxWorkerPool"
 
-export const SANDBOX_RUNTIME_VERSION = "0.0.65"
-const MAX_OUTPUT_BYTES = 1024 * 1024
-const DEFAULT_TIMEOUT_MS = 120_000
-const MAX_TIMEOUT_MS = 600_000
-const EXPECTED_HELPER_SHA256 = {
-  x64: "777736e17d6cf9b4280f155f5cda731fdff0f789fa16e6cb3adc0006073e241a",
-  arm64: "17a63aa8c010662b3e723f75d13d8672c69beeca8d072f4b2dce7484e850023a",
-} as const
+export { runHostCommand }
+export type { ProcessResult }
 
 export type SandboxState = "unsupported" | "not-installed" | "installing" | "available" | "damaged" | "repair-required"
 
@@ -40,6 +39,8 @@ export interface PublicSandboxStatus {
   platform: string
   architecture: string
   runtimeVersion: string
+  maturity: typeof SRT_WINDOWS_MATURITY
+  maxConcurrentCommands: number
   error: string | null
   operations: {
     canInstall: boolean
@@ -58,34 +59,35 @@ export interface SandboxedProcessRequest {
   signal?: AbortSignal
 }
 
-export interface ProcessResult {
-  exitCode: number | null
-  signal: NodeJS.Signals | null
-  stdout: string
-  stderr: string
-  timedOut: boolean
-  truncated: boolean
-}
-
 export interface SandboxRuntimeAdapter {
   getStatus(): Promise<SandboxStatus>
   refreshStatus(): Promise<SandboxStatus>
   install(): Promise<void>
   uninstall(): Promise<void>
   run(request: SandboxedProcessRequest): Promise<ProcessResult>
-  reset(): Promise<void>
+  dispose(): Promise<void>
 }
 
 type SandboxRuntimeModule = typeof import("@anthropic-ai/sandbox-runtime")
 
-type CapturedChild = ChildProcessByStdio<null, Readable, Readable>
-
-interface CommandShell {
-  exe: string
-  args: readonly string[]
+export type SandboxInstallationRecord = {
+  generation: number
+  runtimeVersion: string
+  proxyPortRange: [number, number]
+  maxConcurrentCommands: number
+  installed: boolean
 }
 
-const unique = (values: readonly string[]) => [...new Set(values.map((value) => resolve(value)))]
+export interface SandboxInstallationStore {
+  get(): SandboxInstallationRecord | null
+  set(value: SandboxInstallationRecord): void
+}
+
+export interface AnthropicSandboxRuntimeAdapterOptions {
+  helperPath?: string | null
+  installationStore?: SandboxInstallationStore
+  workerPool?: SandboxWorkerPool
+}
 
 const errorText = (cause: unknown) => cause instanceof Error ? cause.message : String(cause)
 
@@ -133,23 +135,6 @@ export function sandboxStatusFailure(cause: unknown, phase: "helper" | "runtime-
     : "SRT 状态无法验证，请重启 CodePilotX 后重试。"
 }
 
-const mergeProcessEnvironment = (
-  base: NodeJS.ProcessEnv,
-  additions?: NodeJS.ProcessEnv,
-): NodeJS.ProcessEnv => {
-  if (!additions) return { ...base }
-  const merged = { ...base }
-  for (const [key, value] of Object.entries(additions)) {
-    if (key.toLowerCase() === "path") {
-      for (const existing of Object.keys(merged)) {
-        if (existing.toLowerCase() === "path") delete merged[existing]
-      }
-    }
-    merged[key] = value
-  }
-  return merged
-}
-
 export function classifyWindowsSandboxStatus(
   user: WindowsSandboxUserStatus,
   wfp: WindowsWfpStatusResult,
@@ -190,6 +175,8 @@ export function toPublicSandboxStatus(status: SandboxStatus): PublicSandboxStatu
     platform: status.platform,
     architecture: status.architecture,
     runtimeVersion: status.runtimeVersion,
+    maturity: SRT_WINDOWS_MATURITY,
+    maxConcurrentCommands: SRT_MAX_CONCURRENT_COMMANDS,
     error: status.error,
     operations: { canInstall, canRepair, canUninstall },
   }
@@ -220,117 +207,24 @@ export function sandboxNotReadyError(status: SandboxStatus): AgentError {
   )
 }
 
-function findExecutable(names: readonly string[]) {
-  const pathEntries = (process.env.PATH ?? "").split(";").filter(Boolean)
-  for (const name of names) {
-    for (const directory of pathEntries) {
-      const candidate = join(directory, name)
-      if (existsSync(candidate)) return candidate
-    }
-  }
-  return null
-}
-
-function preferredShell(): CommandShell {
-  const pwsh = findExecutable(["pwsh.exe", "pwsh"])
-  if (pwsh) return { exe: pwsh, args: ["-NoProfile", "-NonInteractive", "-Command"] }
-  const powershell = process.env.SystemRoot
-    ? join(process.env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
-    : "powershell.exe"
-  return { exe: powershell, args: ["-NoProfile", "-NonInteractive", "-Command"] }
-}
-
-function killProcessTree(child: CapturedChild) {
-  if (child.pid === undefined) return
-  if (process.platform === "win32") {
-    spawnSync("taskkill.exe", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true })
-  } else {
-    child.kill("SIGTERM")
-  }
-}
-
-function boundedTimeout(timeoutMs: number | undefined) {
-  if (timeoutMs === undefined) return DEFAULT_TIMEOUT_MS
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new AgentError("INVALID_TIMEOUT", "Shell 超时时间必须是正数", 400)
-  return Math.min(Math.floor(timeoutMs), MAX_TIMEOUT_MS)
-}
-
-async function collectProcess(child: CapturedChild, timeoutMs: number, signal?: AbortSignal): Promise<ProcessResult> {
-  let stdout = ""
-  let stderr = ""
-  let stdoutBytes = 0
-  let stderrBytes = 0
-  let truncated = false
-  let timedOut = false
-  let terminating = false
-
-  const append = (target: "stdout" | "stderr", chunk: Buffer) => {
-    const currentBytes = target === "stdout" ? stdoutBytes : stderrBytes
-    if (currentBytes >= MAX_OUTPUT_BYTES) {
-      truncated = true
-      return
-    }
-    const remaining = MAX_OUTPUT_BYTES - currentBytes
-    const accepted = chunk.subarray(0, remaining)
-    if (target === "stdout") stdoutBytes += accepted.byteLength
-    else stderrBytes += accepted.byteLength
-    if (accepted.byteLength < chunk.byteLength) truncated = true
-    if (target === "stdout") stdout += accepted.toString("utf8")
-    else stderr += accepted.toString("utf8")
-  }
-
-  child.stdout.on("data", (chunk: Buffer) => append("stdout", chunk))
-  child.stderr.on("data", (chunk: Buffer) => append("stderr", chunk))
-
-  const terminate = () => {
-    if (terminating) return
-    terminating = true
-    killProcessTree(child)
-  }
-  const abort = () => terminate()
-  signal?.addEventListener("abort", abort, { once: true })
-  if (signal?.aborted) terminate()
-  const timer = setTimeout(() => {
-    timedOut = true
-    terminate()
-  }, timeoutMs)
-
-  const [exitCode, exitSignal] = await new Promise<[number | null, NodeJS.Signals | null]>((resolveExit, rejectExit) => {
-    child.once("error", rejectExit)
-    child.once("exit", (code, exitSignal) => resolveExit([code, exitSignal]))
-  }).finally(() => {
-    clearTimeout(timer)
-    signal?.removeEventListener("abort", abort)
-  })
-  if (signal?.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
-  return { exitCode, signal: exitSignal, stdout, stderr, timedOut, truncated }
-}
-
-export async function runHostCommand(
-  command: string,
-  cwd: string,
-  timeoutMs?: number,
-  signal?: AbortSignal,
-  env?: NodeJS.ProcessEnv,
-): Promise<ProcessResult> {
-  const shell = preferredShell()
-  const child = spawn(shell.exe, [...shell.args, command], {
-    cwd,
-    env: mergeProcessEnvironment(process.env, env),
-    shell: false,
-    windowsHide: true,
-    stdio: ["ignore", "pipe", "pipe"],
-  })
-  return collectProcess(child, boundedTimeout(timeoutMs), signal)
-}
-
 export class AnthropicSandboxRuntimeAdapter implements SandboxRuntimeAdapter {
   private runtime: SandboxRuntimeModule | null = null
-  private queue = Promise.resolve()
   private statusCache: SandboxStatus | null = null
   private refreshTask: Promise<SandboxStatus> | null = null
+  private readonly helperPath: string | null
+  private readonly installationStore: SandboxInstallationStore | undefined
+  private readonly workerPool: SandboxWorkerPool
 
-  constructor(private readonly helperPath: string | null = process.env.CODEPILOTX_SRT_WIN_PATH?.trim() || null) {}
+  constructor(options: string | null | AnthropicSandboxRuntimeAdapterOptions = process.env.CODEPILOTX_SRT_WIN_PATH?.trim() || null) {
+    if (typeof options === "string" || options === null) {
+      this.helperPath = options
+      this.workerPool = new SandboxWorkerPool()
+      return
+    }
+    this.helperPath = options.helperPath ?? process.env.CODEPILOTX_SRT_WIN_PATH?.trim() ?? null
+    this.installationStore = options.installationStore
+    this.workerPool = options.workerPool ?? new SandboxWorkerPool()
+  }
 
   private async api() {
     return this.runtime ??= await import("@anthropic-ai/sandbox-runtime")
@@ -342,23 +236,8 @@ export class AnthropicSandboxRuntimeAdapter implements SandboxRuntimeAdapter {
     return { path: spawnTarget.exe, spawn: spawnTarget }
   }
 
-  private helperDigest(path: string) {
-    return createHash("sha256").update(readFileSync(path)).digest("hex")
-  }
-
   private validateHelper(path: string) {
-    const expected = EXPECTED_HELPER_SHA256[process.arch as keyof typeof EXPECTED_HELPER_SHA256]
-    if (!expected) throw new AgentError("SANDBOX_HELPER_UNSUPPORTED", `没有 ${process.arch} 的 SRT helper 校验清单`, 503)
-    const digest = this.helperDigest(path)
-    if (digest !== expected) throw new AgentError("SANDBOX_HELPER_INVALID", "SRT helper SHA-256 校验失败", 503, { path, digest, expected })
-    const image = readFileSync(path)
-    if (image.length < 0x40 || image.toString("ascii", 0, 2) !== "MZ") throw new AgentError("SANDBOX_HELPER_INVALID", "SRT helper 不是有效的 Windows PE 文件", 503)
-    const peOffset = image.readUInt32LE(0x3c)
-    if (peOffset + 6 > image.length || image.toString("ascii", peOffset, peOffset + 4) !== "PE\u0000\u0000") throw new AgentError("SANDBOX_HELPER_INVALID", "SRT helper PE 头无效", 503)
-    const machine = image.readUInt16LE(peOffset + 4)
-    const expectedMachine = process.arch === "x64" ? 0x8664 : 0xaa64
-    if (machine !== expectedMachine) throw new AgentError("SANDBOX_HELPER_INVALID", "SRT helper 架构与 Agent 不匹配", 503, { machine, expectedMachine })
-    return digest
+    return validateSrtHelper(path)
   }
 
   async getStatus(): Promise<SandboxStatus> {
@@ -384,7 +263,7 @@ export class AnthropicSandboxRuntimeAdapter implements SandboxRuntimeAdapter {
       state: "unsupported",
       platform: process.platform,
       architecture: process.arch,
-      runtimeVersion: SANDBOX_RUNTIME_VERSION,
+      runtimeVersion: SRT_RUNTIME_VERSION,
       helperPath: null,
       helperSha256: null,
       user: null,
@@ -404,6 +283,19 @@ export class AnthropicSandboxRuntimeAdapter implements SandboxRuntimeAdapter {
       const classified = classifyWindowsSandboxStatus(base.user, base.wfp)
       base.state = classified.state
       base.error = classified.error
+      if (base.state === "available") {
+        const installedRange = base.wfp.state === "installed" ? base.wfp.portRange : undefined
+        if (installedRange && (
+          installedRange[0] !== SRT_PROXY_PORT_RANGE[0]
+          || installedRange[1] !== SRT_PROXY_PORT_RANGE[1]
+        )) {
+          base.state = "repair-required"
+          base.error = `SRT WFP 端口范围需要更新为 ${SRT_PROXY_PORT_RANGE[0]}–${SRT_PROXY_PORT_RANGE[1]}。`
+        } else if (this.installationStore && !this.installationMatches(this.installationStore.get())) {
+          base.state = "repair-required"
+          base.error = "SRT 安装代际或并发端口配置已过期，需要修复。"
+        }
+      }
     } catch (cause) {
       base.helperPath ??= this.helperPath
       base.state = phase === "helper" ? "damaged" : "repair-required"
@@ -414,71 +306,93 @@ export class AnthropicSandboxRuntimeAdapter implements SandboxRuntimeAdapter {
 
   async install() {
     if (process.platform !== "win32") throw new AgentError("SANDBOX_UNSUPPORTED", "当前平台不支持 Windows SRT 安装", 409)
+    this.requireIdleForMaintenance()
     const api = await this.api()
     const helper = await this.resolvedHelper()
     this.validateHelper(helper.path)
-    const result = api.installWindowsSandbox({ srtWin: helper.spawn })
+    const result = api.installWindowsSandbox({
+      srtWin: helper.spawn,
+      proxyPortRange: SRT_PROXY_PORT_RANGE,
+    })
     if (result.cancelled) throw new AgentError("SANDBOX_INSTALL_CANCELLED", "用户取消了 SRT 安装", 409)
+    this.installationStore?.set(this.expectedInstallation(true))
+    this.statusCache = null
+    await this.workerPool.recycleIdleWorkers()
   }
 
   async uninstall() {
     if (process.platform !== "win32") throw new AgentError("SANDBOX_UNSUPPORTED", "当前平台不支持 Windows SRT 卸载", 409)
+    this.requireIdleForMaintenance()
     const api = await this.api()
     const helper = await this.resolvedHelper()
     this.validateHelper(helper.path)
     const result = api.uninstallWindowsSandbox({ srtWin: helper.spawn })
     if (result.cancelled) throw new AgentError("SANDBOX_UNINSTALL_CANCELLED", "用户取消了 SRT 卸载", 409)
+    this.installationStore?.set(this.expectedInstallation(false))
+    this.statusCache = null
+    await this.workerPool.recycleIdleWorkers()
   }
 
   async run(request: SandboxedProcessRequest) {
-    const previous = this.queue
-    let release!: () => void
-    this.queue = new Promise<void>((resolve) => { release = resolve })
-    await previous
+    if (process.platform !== "win32" || !("x64" === process.arch || "arm64" === process.arch)) {
+      throw sandboxNotReadyError(await this.getStatus())
+    }
+    const status = await this.getStatus()
+    if (status.state !== "available") throw sandboxNotReadyError(status)
     try {
-      if (process.platform !== "win32" || !("x64" === process.arch || "arm64" === process.arch)) {
-        throw sandboxNotReadyError(await this.getStatus())
+      const helper = await this.resolvedHelper()
+      this.validateHelper(helper.path)
+      const windows = {
+        ...request.config.windows,
+        sandboxUser: "srt-sandbox",
+        proxyPortRange: [...SRT_PROXY_PORT_RANGE] as [number, number],
+        srtWin: { path: helper.path },
       }
-      let api!: SandboxRuntimeModule
-      try {
-        api = await this.api()
-        const helper = await this.resolvedHelper()
-        this.validateHelper(helper.path)
-        await api.SandboxManager.initialize(request.config)
-      } catch (cause) {
-        this.statusCache = null
-        try {
-          await api.SandboxManager.reset()
-        } catch {
-          // Best-effort cleanup must never replace the actionable initialize error.
-        }
-        throw mapSandboxInitializationError(cause)
+      return await this.workerPool.run({
+        command: request.command,
+        cwd: request.cwd,
+        ...(request.env ? { env: request.env } : {}),
+        ...(request.timeoutMs === undefined ? {} : { timeoutMs: request.timeoutMs }),
+        config: { ...request.config, windows },
+      }, request.signal)
+    } catch (cause) {
+      if (cause instanceof AgentError) {
+        if (cause.code.startsWith("SANDBOX_")) this.statusCache = null
+        throw cause
       }
-      try {
-        const shell = preferredShell()
-        const wrapped = await api.SandboxManager.wrapWithSandboxArgv(request.command, { exe: shell.exe, args: shell.args }, undefined, request.signal, request.cwd)
-        const child = spawn(wrapped.argv[0]!, wrapped.argv.slice(1), {
-          cwd: request.cwd,
-          env: mergeProcessEnvironment(wrapped.env, request.env),
-          shell: false,
-          windowsHide: true,
-          stdio: ["ignore", "pipe", "pipe"],
-        })
-        return await collectProcess(child, boundedTimeout(request.timeoutMs), request.signal)
-      } finally {
-        await api.SandboxManager.reset()
-      }
-    } finally {
-      release()
+      this.statusCache = null
+      throw mapSandboxInitializationError(cause)
     }
   }
 
-  async reset() {
-    if (!this.runtime) return
-    await this.runtime.SandboxManager.reset()
+  async dispose() {
+    await this.workerPool.dispose()
   }
-}
 
-export function createSessionTemp() {
-  return mkdtempSync(join(tmpdir(), "codepilotx-session-"))
+  private requireIdleForMaintenance() {
+    if (this.workerPool.hasWork()) {
+      throw new AgentError("SANDBOX_BUSY", "沙箱仍有活动或排队命令，请停止相关任务后重试", 409)
+    }
+  }
+
+  private expectedInstallation(installed: boolean): SandboxInstallationRecord {
+    return {
+      generation: SRT_INSTALL_GENERATION,
+      runtimeVersion: SRT_RUNTIME_VERSION,
+      proxyPortRange: [...SRT_PROXY_PORT_RANGE],
+      maxConcurrentCommands: SRT_MAX_CONCURRENT_COMMANDS,
+      installed,
+    }
+  }
+
+  private installationMatches(record: SandboxInstallationRecord | null) {
+    return Boolean(
+      record?.installed
+      && record.generation === SRT_INSTALL_GENERATION
+      && record.runtimeVersion === SRT_RUNTIME_VERSION
+      && record.maxConcurrentCommands === SRT_MAX_CONCURRENT_COMMANDS
+      && record.proxyPortRange[0] === SRT_PROXY_PORT_RANGE[0]
+      && record.proxyPortRange[1] === SRT_PROXY_PORT_RANGE[1],
+    )
+  }
 }

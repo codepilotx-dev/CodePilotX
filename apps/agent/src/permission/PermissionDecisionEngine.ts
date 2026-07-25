@@ -35,8 +35,7 @@ const riskFor = (invocation: ToolInvocation, tool: ToolCatalogEntry): Permission
 const approvalCapability = (invocation: ToolInvocation, tool: ToolCatalogEntry) => {
   if (tool.sdkName === "request_permissions") return "requestPermissions" as const
   if (invocation.input.__skillScript === true) return "skillApproval" as const
-  if (invocation.input.__mcpElicitation === true || tool.sdkName.startsWith("mcp_")) return "mcpElicitations" as const
-  if (tool.capabilities.userInteraction) return "mcpElicitations" as const
+  if (tool.origin?.kind === "mcp") return "mcpTools" as const
   if (tool.capabilities.process || tool.capabilities.filesystem === "host-write") return "sandboxApproval" as const
   return "rules" as const
 }
@@ -44,7 +43,7 @@ const approvalCapability = (invocation: ToolInvocation, tool: ToolCatalogEntry) 
 const hardGatedCapability = (invocation: ToolInvocation, tool: ToolCatalogEntry) => {
   if (tool.sdkName === "request_permissions") return "requestPermissions" as const
   if (invocation.input.__skillScript === true) return "skillApproval" as const
-  if (invocation.input.__mcpElicitation === true || tool.sdkName.startsWith("mcp_")) return "mcpElicitations" as const
+  if (tool.origin?.kind === "mcp") return "mcpTools" as const
   return null
 }
 
@@ -75,7 +74,8 @@ export class PermissionDecisionEngine {
     // sandboxMode is the thread's already-selected baseline. Only a per-call
     // scope request is an elevation; danger-full-access is not re-approved on
     // every call merely because it is broad.
-    const elevated = hasRequestedPermissions(invocation.input) || invocation.input.__hookRequiresApproval === true || invocation.input.__ruleRequiresApproval === true || invocation.input.__sandboxFailureEscalation === true
+    const mutatingMcpTool = tool.origin?.kind === "mcp" && tool.capabilities.externalState
+    const elevated = hasRequestedPermissions(invocation.input) || invocation.input.__hookRequiresApproval === true || invocation.input.__ruleRequiresApproval === true || invocation.input.__sandboxFailureEscalation === true || mutatingMcpTool
     if (isGranularApprovalPolicy(policy)) return policy[approvalCapability(invocation, tool)] ? review("细粒度策略要求审批") : elevated ? deny("细粒度策略禁止此权限请求") : allow("细粒度策略允许当前沙箱内执行")
     if (policy === "untrusted") return tool.capabilities.filesystem === "read" && !tool.capabilities.process && !elevated ? allow("可信纯读取操作") : review("untrusted 策略要求审批非纯读取操作")
     if (policy === "on-failure") return elevated ? review("sandbox 失败后的提升需要审批") : allow("先在 sandbox 内执行")

@@ -50,6 +50,12 @@ import {
 } from "./config/DataDirectoryMigration";
 import { SkillManagementService } from "./prompt/SkillManagementService";
 import { SkillSettingsRepository } from "./storage/repositories/skill-settings-repository";
+import { McpSettingsRepository } from "./storage/repositories/mcp-settings-repository";
+import { McpConfigService } from "./mcp/McpConfigService";
+import { McpConnectionManager } from "./mcp/McpConnectionManager";
+import { McpRuntimeService } from "./mcp/McpRuntimeService";
+import { McpDiagnosticContextProvider } from "./mcp/McpDiagnosticContextProvider";
+import { ThreadProjection } from "./transport/ThreadProjection";
 import { TaskSuggestionService } from "./suggestion/TaskSuggestionService";
 
 export interface BootstrapOptions {
@@ -188,7 +194,26 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       await providers.reload();
     });
     const tools = new ToolRegistry();
-    const sandbox = new AnthropicSandboxRuntimeAdapter(config.srtWinPath);
+    const mcpConfigs = new McpConfigService(new McpSettingsRepository(db));
+    const mcpConnections = new McpConnectionManager(
+      mcpConfigs,
+      tools,
+      undefined,
+      async (generation) => {
+        await publishAgentEvent(db, hub, null, null, "mcp/updated", {
+          generation,
+        });
+      },
+      new McpDiagnosticContextProvider(new ThreadProjection(db)),
+    );
+    const mcp = new McpRuntimeService(mcpConfigs, mcpConnections);
+    const sandbox = new AnthropicSandboxRuntimeAdapter({
+      helperPath: config.srtWinPath,
+      installationStore: {
+        get: () => db.getSetting("sandbox.installation.v1"),
+        set: (value) => db.setSetting("sandbox.installation.v1", value),
+      },
+    });
     void sandbox.refreshStatus().catch(() =>
       logger.warn("sandbox.status.warmup.failed", {
         error: "SANDBOX_WARMUP_FAILED",
@@ -356,6 +381,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       memory,
       hooks,
       skills,
+      mcpConnections,
     );
     const threads = new ThreadService(
       db,
@@ -375,6 +401,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       workspaceResolver,
       review,
       skills,
+      mcpConnections,
     );
     const history = new ThreadHistoryService(db, hub);
     const app = createApp({
@@ -399,6 +426,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       tooling,
       pets,
       skills,
+      mcp,
       suggestions,
     });
     let disposed = false;
@@ -408,6 +436,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       unsubscribeExecutionLogs();
       unsubscribeTooling();
       await toolExecutor.dispose();
+      await mcpConnections.dispose();
       await providers.dispose();
       await Effect.runPromise(pluginHost.dispose());
     };

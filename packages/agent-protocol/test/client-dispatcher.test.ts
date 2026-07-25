@@ -19,6 +19,8 @@ const sandboxResult = {
     platform: "win32",
     architecture: "x64",
     runtimeVersion: "1.0.0",
+    maturity: "alpha" as const,
+    maxConcurrentCommands: 8,
     error: null,
     operations: { canInstall: false, canRepair: true, canUninstall: true },
   },

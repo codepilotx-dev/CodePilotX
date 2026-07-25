@@ -30,7 +30,7 @@ const fixture = async () => {
 describe("v8 上下文存储", () => {
   test("创建新表并持久化 granular approval JSON", async () => {
     const { db } = await fixture()
-    const policy = { type: "granular" as const, sandboxApproval: true, rules: false, skillApproval: true, requestPermissions: false, mcpElicitations: true }
+    const policy = { type: "granular" as const, sandboxApproval: true, rules: false, skillApproval: true, requestPermissions: false, mcpTools: true, mcpElicitations: true }
     const thread = db.createThread("granular", undefined, { taskMode: "chat", permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: policy, approvalsReviewer: "user" } })
     expect(db.getThreadSettings(thread.id)?.permissionConfig.approvalPolicy).toEqual(policy)
     expect(db.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })

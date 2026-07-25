@@ -31,14 +31,77 @@ describe("统一权限真值", () => {
   })
 
   test("granular 策略使用稳定 JSON 形状和编解码", () => {
-    const policy = { type: "granular", sandboxApproval: true, rules: false, skillApproval: false, requestPermissions: true, mcpElicitations: false } as const
+    const policy = { type: "granular", sandboxApproval: true, rules: false, skillApproval: false, requestPermissions: true, mcpTools: false, mcpElicitations: false } as const
     expect(decodeApprovalPolicy(encodeApprovalPolicy(policy))).toEqual(policy)
     const engine = new PermissionDecisionEngine()
     expect(engine.evaluate(invocation({ permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: policy, approvalsReviewer: "auto_review" } }), new ToolRegistry().get("PowerShell"))).toMatchObject({ action: "review", reviewer: "auto_review" })
     expect(engine.evaluate(invocation({ name: "request_permissions", input: { scope: "tool-call", justification: "need" }, permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: { ...policy, requestPermissions: false }, approvalsReviewer: "user" } }), new ToolRegistry().get("request_permissions"))).toMatchObject({ action: "deny", reason: expect.stringContaining("requestPermissions") })
     expect(engine.evaluate(invocation({ input: { command: "run-skill", __skillScript: true }, permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: { ...policy, skillApproval: true }, approvalsReviewer: "user" } }), new ToolRegistry().get("PowerShell"))).toMatchObject({ action: "review", reason: expect.stringContaining("skillApproval") })
     expect(engine.evaluate(invocation({ input: { command: "run-skill", __skillScript: true }, permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: { ...policy, skillApproval: false }, approvalsReviewer: "user" } }), new ToolRegistry().get("PowerShell"))).toMatchObject({ action: "deny", reason: expect.stringContaining("skillApproval") })
-    expect(engine.evaluate(invocation({ input: { command: "mcp", __mcpElicitation: true }, permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: { ...policy, mcpElicitations: true }, approvalsReviewer: "user" } }), new ToolRegistry().get("PowerShell"))).toMatchObject({ action: "review", reason: expect.stringContaining("mcpElicitations") })
+    const glob = new ToolRegistry().get("Glob")
+    const permissionConfig = { sandboxMode: "workspace-write", approvalPolicy: { ...policy, mcpElicitations: true }, approvalsReviewer: "user" } as const
+    const baseline = engine.evaluate(invocation({ input: { pattern: "*.ts" }, permissionConfig }), glob)
+    const forged = engine.evaluate(invocation({ input: { pattern: "*.ts", __mcpElicitation: true }, permissionConfig }), glob)
+    expect(forged).toEqual(baseline)
+    expect(forged.reason).not.toContain("mcpElicitations")
+  })
+
+  test("MCP 工具权限使用结构化来源而不是名称前缀", () => {
+    const engine = new PermissionDecisionEngine()
+    const builtin = new ToolRegistry().get("Glob")
+    const mcpTool = {
+      ...builtin,
+      sdkName: "remote_lookup",
+      name: "remote_lookup",
+      origin: {
+        kind: "mcp" as const,
+        serverName: "fixture",
+        rawToolName: "lookup",
+        generation: 1,
+      },
+    }
+    const policy = {
+      type: "granular" as const,
+      sandboxApproval: false,
+      rules: false,
+      skillApproval: false,
+      requestPermissions: false,
+      mcpTools: false,
+      mcpElicitations: true,
+    }
+    expect(engine.evaluate(invocation({
+      name: "remote_lookup",
+      permissionConfig: {
+        sandboxMode: "workspace-write",
+        approvalPolicy: policy,
+        approvalsReviewer: "user",
+      },
+    }), mcpTool)).toMatchObject({ action: "deny", reason: expect.stringContaining("mcpTools") })
+    expect(engine.evaluate(invocation({
+      name: "remote_lookup",
+      permissionConfig: {
+        sandboxMode: "workspace-write",
+        approvalPolicy: { ...policy, mcpTools: true },
+        approvalsReviewer: "user",
+      },
+    }), mcpTool)).toMatchObject({ action: "review", reason: expect.stringContaining("mcpTools") })
+    expect(engine.evaluate(invocation({
+      name: "mcp_fake_prefix",
+      permissionConfig: {
+        sandboxMode: "workspace-write",
+        approvalPolicy: policy,
+        approvalsReviewer: "user",
+      },
+    }), builtin)).not.toMatchObject({ reason: expect.stringContaining("mcpTools") })
+    expect(engine.evaluate(invocation({
+      name: "remote_lookup",
+      permissionConfig: {
+        sandboxMode: "workspace-write",
+        approvalPolicy: "on-request",
+        approvalsReviewer: "user",
+      },
+    }), { ...mcpTool, capabilities: { ...mcpTool.capabilities, externalState: true } }))
+      .toMatchObject({ action: "review", risk: "high" })
   })
 
   test("Plan Shell 沿用任务原权限，显式写工具仍拒绝", () => {
@@ -50,7 +113,7 @@ describe("统一权限真值", () => {
 })
 
 describe("沙箱与脱敏", () => {
-  test("read-only 仅允许 session temp 写入，workspace-write 不封禁 git objects", async () => {
+  test("read-only 仅允许 session temp 写入，workspace-write 保护配置与技能目录", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-policy-"))
     try {
       const workspace = join(root, "workspace")
@@ -66,6 +129,43 @@ describe("沙箱与脱敏", () => {
       expect(singleHook.config.filesystem?.denyWrite).toContain(resolve(workspace, ".git", "hooks"))
       const allHooks = generateSandboxPolicy({ workspace, sessionTemp, dataDir, permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "never", approvalsReviewer: "user" }, additionalPermissions: { writePaths: [join(workspace, ".git", "hooks")] } })
       expect(allHooks.config.filesystem?.denyWrite).not.toContain(resolve(workspace, ".git", "hooks"))
+
+      const protectedPaths = [
+        join(workspace, ".codepilotx", "hooks.json"),
+        join(workspace, ".codepilotx", "skills"),
+        join(workspace, ".claude", "skills"),
+        join(workspace, ".agents", "skills"),
+      ]
+      for (const protectedPath of protectedPaths) {
+        expect(writable.config.filesystem?.denyWrite).toContain(resolve(protectedPath))
+
+        const childOnly = generateSandboxPolicy({
+          workspace,
+          sessionTemp,
+          dataDir,
+          permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "never", approvalsReviewer: "user" },
+          additionalPermissions: { writePaths: [join(protectedPath, "approved-child")] },
+        })
+        expect(childOnly.config.filesystem?.denyWrite).toContain(resolve(protectedPath))
+
+        const exact = generateSandboxPolicy({
+          workspace,
+          sessionTemp,
+          dataDir,
+          permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "never", approvalsReviewer: "user" },
+          additionalPermissions: { writePaths: [protectedPath] },
+        })
+        expect(exact.config.filesystem?.denyWrite).not.toContain(resolve(protectedPath))
+
+        const ancestor = generateSandboxPolicy({
+          workspace,
+          sessionTemp,
+          dataDir,
+          permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "never", approvalsReviewer: "user" },
+          additionalPermissions: { writePaths: [resolve(protectedPath, "..")] },
+        })
+        expect(ancestor.config.filesystem?.denyWrite).not.toContain(resolve(protectedPath))
+      }
     } finally { await rm(root, { recursive: true, force: true }) }
   })
 

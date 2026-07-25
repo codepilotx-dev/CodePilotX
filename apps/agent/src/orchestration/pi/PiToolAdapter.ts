@@ -56,6 +56,7 @@ export function adaptToolDefinition(definition: ToolDefinition, options: PiToolA
         toolCallID,
         ...(request.preapprovedToolCallIDs?.has(toolCallID) ? { approvedToolCallID: toolCallID } : {}),
         ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
+        ...(request.toolCatalog ? { toolCatalog: request.toolCatalog } : {}),
         onProgress: (progress) => onUpdate?.(textResult(progress)),
       })
       if (definition.formatResult) {
@@ -113,6 +114,6 @@ export function createPiTools(options: PiToolAdapterOptions, callbacks: PiLifecy
   const special = new Set(["skill_list", "skill_read", "request_user_input", "request_permissions", "spawn_agents", "wait_agents", "send_agent", "stop_agent", "finalize_plan", "finalize_result"])
   const regular = options.request.exposedTools
     .filter((name) => !special.has(name))
-    .map((name) => adaptToolDefinition(options.executor.definition(name), options))
+    .map((name) => adaptToolDefinition(options.executor.definition(name, options.request.toolCatalog), options))
   return [...regular, ...createLifecycleTools(callbacks, options.request)]
 }

@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
+import { existsSync } from "node:fs"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { basename, join } from "node:path"
 import { FULL_ACCESS_PERMISSION_CONFIG, type PermissionConfig } from "@codepilotx/shared/thread"
 import { shellRuntimeDependencies, ToolExecutor } from "../src/tool/ToolExecutor"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
@@ -22,14 +23,18 @@ const adapter = (onRun: (request: SandboxedProcessRequest) => Promise<ProcessRes
   refreshStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "0.0.65", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
   install: async () => undefined,
   uninstall: async () => undefined,
-  reset: async () => undefined,
+  dispose: async () => undefined,
   run: onRun,
 })
 
-async function context(root: string, permissionConfig = config) {
+async function context(
+  root: string,
+  permissionConfig = config,
+  ids: { threadID?: string; turnID?: string } = {},
+) {
   return {
-    threadID: "thread",
-    turnID: "turn",
+    threadID: ids.threadID ?? "thread",
+    turnID: ids.turnID ?? "turn",
     taskMode: "chat" as const,
     signal: new AbortController().signal,
     workspace: await WorkspaceService.open(root),
@@ -165,6 +170,58 @@ describe("统一 Shell 执行门", () => {
     const policy = received!.config
     expect(policy.filesystem.allowWrite).toContain(root)
     expect(policy.network.allowedDomains).toEqual([])
+  })
+
+  test("同会话与跨会话 Shell 可并行进入独立临时目录且分别清理", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-shell-"))
+    tempPaths.push(root)
+    const entered: Array<{ command: string; temp: string }> = []
+    const releases = new Map<string, () => void>()
+    const executor = new ToolExecutor(new ToolRegistry(), {
+      dataDir: join(root, ".agent-data"),
+      sandbox: adapter(async (request) => {
+        const sandboxTemp = request.config.filesystem.allowWrite.find(
+          (path) => basename(path).startsWith("codepilotx-sandbox-"),
+        )
+        if (!sandboxTemp) throw new Error("未找到调用级沙箱临时目录")
+        entered.push({ command: request.command, temp: sandboxTemp })
+        await new Promise<void>((resolveRun) => releases.set(request.command, resolveRun))
+        return { exitCode: 0, signal: null, stdout: "ok", stderr: "", timedOut: false, truncated: false }
+      }),
+      authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "审核通过" }),
+    })
+    const first = executor.execute(
+      "PowerShell",
+      { command: "Write-Output same-a" },
+      await context(root, config, { threadID: "same", turnID: "turn-a" }),
+    )
+    const second = executor.execute(
+      "PowerShell",
+      { command: "Write-Output same-b" },
+      await context(root, config, { threadID: "same", turnID: "turn-b" }),
+    )
+    const third = executor.execute(
+      "PowerShell",
+      { command: "Write-Output other" },
+      await context(root, config, { threadID: "other", turnID: "turn-c" }),
+    )
+    const deadline = Date.now() + 2_000
+    while (entered.length < 3) {
+      if (Date.now() > deadline) throw new Error("并发沙箱调用未全部启动")
+      await new Promise((resolveWait) => setTimeout(resolveWait, 1))
+    }
+
+    expect(new Set(entered.map(({ temp }) => temp)).size).toBe(3)
+    const firstEntry = entered.find(({ command }) => command.includes("same-a"))!
+    const secondEntry = entered.find(({ command }) => command.includes("same-b"))!
+    releases.get(firstEntry.command)?.()
+    await first
+    expect(existsSync(firstEntry.temp)).toBe(false)
+    expect(existsSync(secondEntry.temp)).toBe(true)
+
+    for (const entry of entered) releases.get(entry.command)?.()
+    await Promise.all([second, third])
+    expect(entered.every(({ temp }) => !existsSync(temp))).toBe(true)
   })
 
   test("沙箱失败时向上返回错误，不回退到宿主进程", async () => {

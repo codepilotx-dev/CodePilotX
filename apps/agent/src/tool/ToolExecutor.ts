@@ -1,12 +1,12 @@
 import { AgentError, type PermissionDecision, type SubagentProfile, type TaskMode, type ToolInvocation } from "../domain"
 import type { WorkspaceService } from "../workspace/WorkspaceService"
-import { toolNameMatches, type ToolProgress, type ToolRegistry } from "./ToolRegistry"
+import { toolNameMatches, type ToolCatalog, type ToolProgress, type ToolRegistry } from "./ToolRegistry"
 import { createToolExposurePlan, type ToolExposureInput } from "./ToolExposurePlan"
 import { DEFAULT_PERMISSION_CONFIG, type PermissionConfig, type ShellInput } from "@codepilotx/shared/thread"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { runHostCommand, type ProcessResult, type SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
 import { generateSandboxPolicy } from "../sandbox/SandboxPolicy"
-import { mkdtemp, readdir, realpath, rm } from "node:fs/promises"
+import { mkdtemp, realpath, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, isAbsolute, join, relative, resolve } from "node:path"
 import { PermissionDecisionEngine } from "../permission/PermissionDecisionEngine"
@@ -78,6 +78,8 @@ export interface ToolExecutionContext {
   /** Optional active Skill ceiling. It can only remove tools from the effective policy. */
   allowedTools?: readonly string[]
   onProgress?: (progress: ToolProgress) => void
+  /** Immutable tool catalog captured for this turn. */
+  toolCatalog?: ToolCatalog
 }
 
 export interface ToolExecutorOptions {
@@ -104,21 +106,19 @@ export interface ToolExecutorOptions {
 export class ToolExecutor {
   private readonly decisions = new PermissionDecisionEngine()
   private readonly readSnapshots = new Map<string, { mtimeMs: number; sha256: string }>()
-  private sandboxTempRoot: string | null = null
-  private sandboxOperations: Promise<void> = Promise.resolve()
   private sandboxDisposed = false
   constructor(private readonly registry: ToolRegistry, private readonly options?: ToolExecutorOptions) {}
 
-  definition(name: string) {
-    return this.registry.get(name)
+  definition(name: string, catalog: ToolCatalog = this.registry) {
+    return catalog.get(name)
   }
 
-  exposurePlan(input: ToolExposureInput) {
-    return createToolExposurePlan(this.registry, input)
+  exposurePlan(input: ToolExposureInput, catalog: ToolCatalog = this.registry) {
+    return createToolExposurePlan(catalog, input)
   }
 
-  deferredDefinitions(input: ToolExposureInput) {
-    return this.exposurePlan(input).deferred.map((name) => this.registry.get(name))
+  deferredDefinitions(input: ToolExposureInput, catalog: ToolCatalog = this.registry) {
+    return this.exposurePlan(input, catalog).deferred.map((name) => catalog.get(name))
   }
 
   async previewApproval(name: string, input: Record<string, unknown>, context: ToolExecutionContext, toolCallID: string) {
@@ -127,7 +127,8 @@ export class ToolExecutor {
 
   async execute<T = unknown>(name: string, input: Record<string, unknown>, context: ToolExecutionContext): Promise<T> {
     if (context.signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
-    const definition = this.registry.get(name)
+    const catalog = context.toolCatalog ?? this.registry
+    const definition = catalog.get(name)
     if (context.allowedTools && !toolNameMatches(definition, context.allowedTools)) throw new AgentError("SKILL_TOOL_NOT_ALLOWED", `当前 Skill 不允许使用工具 ${definition.sdkName}`, 403)
     const parsed = definition.schema.safeParse(input)
     if (!parsed.success) throw new AgentError("INVALID_TOOL_INPUT", parsed.error.message, 400)
@@ -163,10 +164,10 @@ export class ToolExecutor {
       if (progress) context.onProgress?.(progress)
       return await this.executeShell(canonicalName, normalized, context) as T
     }
-    return this.executeRegistered<T>(canonicalName, normalized, context)
+    return this.executeRegistered<T>(canonicalName, normalized, context, catalog)
   }
 
-  private async executeRegistered<T>(name: string, input: Record<string, unknown>, context: ToolExecutionContext) {
+  private async executeRegistered<T>(name: string, input: Record<string, unknown>, context: ToolExecutionContext, catalog: ToolCatalog) {
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
     const pathValue = typeof input.file_path === "string" ? input.file_path : input.path
@@ -175,7 +176,7 @@ export class ToolExecutor {
     const protectedGitWrite = (name === "Write" || name === "Edit") && (relativeToolPath === ".git/config" || relativeToolPath.startsWith(".git/hooks/"))
     const policyInput = sensitiveEnvironment || protectedGitWrite ? { ...input, __ruleRequiresApproval: true } : input
     const invocation: ToolInvocation = { id: context.toolCallID ?? crypto.randomUUID(), threadID: context.threadID, turnID: context.turnID, agentID: context.agentID ?? context.turnID, name, input: policyInput, permissionConfig, model, taskMode: context.taskMode, ...(context.authorizationOnly ? { durableApproval: true } : {}) }
-    const resolved = this.decisions.evaluate(invocation, this.registry.get(name))
+    const resolved = this.decisions.evaluate(invocation, catalog.get(name))
     if (resolved.action === "deny") throw new AgentError("TOOL_PERMISSION_DENIED", resolved.reason, 403, resolved)
     const resumedApproval = context.approvedToolCallID === invocation.id
     const hookResults = context.skipHooks || resumedApproval ? [] : await this.options?.hooks?.run("pre_tool_use", { input, resolved }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: name, workspaceRoot: context.workspace.rootPath }) ?? []
@@ -205,8 +206,8 @@ export class ToolExecutor {
         sandboxMode: permissionConfig.sandboxMode,
         profile: context.profile ?? "main",
         ...(context.allowedTools ? { allowedTools: context.allowedTools } : {}),
-      })
-      const output = await this.registry.execute(name, input, {
+      }, catalog)
+      const output = await catalog.execute(name, input, {
         signal: context.signal,
         taskMode: context.taskMode,
         profile: context.profile ?? "main",
@@ -216,6 +217,12 @@ export class ToolExecutor {
         deferredTools,
         resolveTooling: this.options?.resolveTooling ?? resolveManagedTool,
         runToolProcess: this.options?.runToolProcess ?? runToolProcess,
+        invocation: {
+          threadID: context.threadID,
+          turnID: context.turnID,
+          agentID: context.agentID ?? context.turnID,
+          toolCallID: invocation.id,
+        },
         ...(snapshotKey && this.readSnapshots.has(snapshotKey) ? { readSnapshot: this.readSnapshots.get(snapshotKey)! } : {}),
         ...(this.options?.fileSaved ? { fileSaved: (saved) => this.options!.fileSaved!({ workspaceRoot: context.workspace.rootPath, ...saved }) } : {}),
         ...(context.onProgress ? { onProgress: context.onProgress } : {}),
@@ -399,55 +406,19 @@ export class ToolExecutor {
   async dispose(): Promise<void> {
     if (this.sandboxDisposed) return
     this.sandboxDisposed = true
-    await this.sandboxOperations
-    const root = this.sandboxTempRoot
-    this.sandboxTempRoot = null
-    if (root) await rm(root, { recursive: true, force: true }).catch(() => undefined)
+    await this.options?.sandbox.dispose()
   }
 
-  private withSandboxTemp<T>(operation: (sessionTemp: string) => Promise<T>): Promise<T> {
-    const run = this.sandboxOperations.then(async () => {
-      if (this.sandboxDisposed) throw new AgentError("SHELL_EXECUTOR_DISPOSED", "Shell 执行器已关闭", 503)
-      const sessionTemp = await this.getSandboxTempRoot()
-      try {
-        await this.cleanSandboxTemp(sessionTemp)
-      } catch {
-        await this.invalidateSandboxTemp(sessionTemp)
-        throw new AgentError("SANDBOX_TEMP_CLEANUP_FAILED", "沙箱临时目录清理失败，当前沙箱会话已失效", 500)
-      }
-      try {
-        return await operation(sessionTemp)
-      } finally {
-        try {
-          await this.cleanSandboxTemp(sessionTemp)
-        } catch {
-          // The command may already have produced side effects. Invalidate the
-          // reusable session without turning a successful command into a
-          // retryable tool failure.
-          await this.invalidateSandboxTemp(sessionTemp)
-        }
-      }
-    })
-    this.sandboxOperations = run.then(() => undefined, () => undefined)
-    return run
-  }
-
-  private async getSandboxTempRoot(): Promise<string> {
-    if (!this.sandboxTempRoot) {
-      this.sandboxTempRoot = await mkdtemp(join(tmpdir(), "codepilotx-session-"))
+  private async withSandboxTemp<T>(operation: (sessionTemp: string) => Promise<T>): Promise<T> {
+    if (this.sandboxDisposed) throw new AgentError("SHELL_EXECUTOR_DISPOSED", "Shell 执行器已关闭", 503)
+    const sessionTemp = await mkdtemp(join(tmpdir(), "codepilotx-sandbox-"))
+    try {
+      return await operation(sessionTemp)
+    } finally {
+      // A command may already have produced side effects. Cleanup failure must
+      // not turn a successful command into a retryable tool failure.
+      await rm(sessionTemp, { recursive: true, force: true }).catch(() => undefined)
     }
-    return this.sandboxTempRoot
-  }
-
-  private async cleanSandboxTemp(root: string): Promise<void> {
-    const entries = await readdir(root)
-    await Promise.all(entries.map((entry) => rm(join(root, entry), { recursive: true, force: true })))
-  }
-
-  private async invalidateSandboxTemp(root: string): Promise<void> {
-    if (this.sandboxTempRoot === root) this.sandboxTempRoot = null
-    await this.options?.sandbox.reset().catch(() => undefined)
-    await rm(root, { recursive: true, force: true }).catch(() => undefined)
   }
 
   private parseShellInput(input: Record<string, unknown>): ShellInput {

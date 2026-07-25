@@ -86,6 +86,16 @@ export const EventManifest = {
     capability: "skills.manage.v1",
     reconcilesWith: "skill/list",
   }),
+  "mcp/updated": defineEvent({
+    payload: Schema.Struct({
+      generation: SequenceSchema,
+    }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "mcp.manage.v1",
+    reconcilesWith: "mcp/list",
+  }),
   "thread/created": defineEvent({
     payload: Schema.Struct({ thread: ThreadSchema }),
     version: 1,

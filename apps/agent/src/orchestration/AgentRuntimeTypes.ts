@@ -2,6 +2,7 @@ import type { ModelRef, PermissionConfig, SubagentProfile, SubagentResult, TaskM
 import type { WorkspaceService } from "../workspace/WorkspaceService"
 import type { PromptBundle, PromptSection } from "../prompt/types"
 import type { SkillService } from "../prompt/SkillService"
+import type { ToolCatalog } from "../tool/ToolRegistry"
 
 export interface PlanCheckpoint {
   state: string
@@ -53,6 +54,7 @@ export interface AgentRuntimeRequest {
   promptSections?: PromptSection[]
   skillService?: SkillService
   allowedTools?: readonly string[]
+  toolCatalog?: ToolCatalog
   onPromptComposed?: (bundle: PromptBundle, context: { budgetText: string }) => void | Promise<void>
   onUsage?: (usage: { inputTokens: number; outputTokens: number; totalTokens: number; requests: number }) => void | Promise<void>
   resolveModel(fallback: ModelRef): Promise<{ ref: ModelRef; model: unknown }>

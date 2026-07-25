@@ -21,6 +21,7 @@ import { ContextManager, type ContextFragment } from "../context/ContextManager"
 import { inferPromptCacheCapability } from "../prompt/PromptCache"
 import type { GitReviewService } from "../review/GitReviewService"
 import type { ThreadWorkspaceResolver, ResolvedThreadWorkspace } from "../workspace/ThreadWorkspaceResolver"
+import type { McpConnectionManager, McpTurnLease } from "../mcp/McpConnectionManager"
 
 type ThreadPromptSettingsSnapshot = { engine: "prompt-engine-v2"; version: 2; snapshottedAt: number; settings: Record<string, unknown>; baseHash?: string; contextHash?: string; cacheKey?: string }
 type PromptStorageRoots = { dataRoot: string; userHome: string }
@@ -43,6 +44,7 @@ export class ThreadService {
     private readonly workspaceResolver: ThreadWorkspaceResolver,
     private readonly review?: GitReviewService,
     private readonly skillManagement?: SkillManagementService,
+    private readonly mcp?: McpConnectionManager,
   ) {
     this.questions.setResumeHandler((threadID, turnID) => {
       const agent = this.db.agentForTurn(turnID)
@@ -402,6 +404,7 @@ export class ThreadService {
       : null
     const continueFromPlan = !sideEffectRecovery && storedCheckpoint?.state === "ready" && storedCheckpoint.payload.planDecision === "continue"
     const controller = new AbortController()
+    let mcpLease: McpTurnLease | undefined
     this.controllers.set(turnID, controller)
     const workspace = this.db.threadWorkspace(threadID)
     if (workspace?.kind === "project" && this.review) {
@@ -457,6 +460,7 @@ export class ThreadService {
         userHome: this.promptStorage.userHome,
         includeWorkspace: runtime.kind === "project",
       })
+      mcpLease = await this.mcp?.acquire(runtime.workspaceRoot)
       const invokedSkill = skillService.resolveInvocation(content)
       const invokedSkillData = invokedSkill ? [`用户显式调用 Skill $${invokedSkill.name}：\n${(await skillService.read(invokedSkill.name)).content}`] : []
       const memories = this.memory.recall({ query: content, ...(runtime.kind === "project" ? { projectKey: projectMemoryKey(runtime.workspaceRoot) } : {}) })
@@ -470,6 +474,7 @@ export class ThreadService {
         ...(continueFromPlan ? { continueFromPlan: true } : {}),
         ...(defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : {}),
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
+        ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
       }).exposed
       const permissionInstructions = [
         `Resolved sandbox mode: ${input.permissionConfig.sandboxMode}.`,
@@ -531,6 +536,7 @@ export class ThreadService {
         promptSections,
         skillService,
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
+        ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
         onPromptComposed: async (bundle, context) => {
           budgetText = context.budgetText
           const timestamp = Date.now()
@@ -629,6 +635,7 @@ export class ThreadService {
       const message = cause instanceof Error ? cause.message : String(cause)
       await this.publish(this.db.finalizeTurn({ threadID, turnID, agentID: agent.id, status: "failed", message, pauseReason: "turn_failed" }).events)
     } finally {
+      await mcpLease?.release()
       this.controllers.delete(turnID)
       if (!this.db.activeTurn(threadID)) {
         const next = this.db.nextQueuedTurn(threadID)

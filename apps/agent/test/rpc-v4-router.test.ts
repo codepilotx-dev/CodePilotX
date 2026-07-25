@@ -127,6 +127,109 @@ describe("RPC v4 Router", () => {
     db.close()
   })
 
+  test("dispatches all MCP management methods through the typed runtime service", async () => {
+    const calls: Array<{ method: string; input: unknown }> = []
+    const server = {
+      name: "fixture",
+      scope: "user" as const,
+      enabled: true,
+      transport: {
+        type: "http" as const,
+        url: "http://127.0.0.1:3000/mcp",
+      },
+    }
+    const listResult = {
+      servers: [{ server, effective: true }],
+      generation: 2,
+    }
+    const mcp = {
+      list: async (input: unknown) => {
+        calls.push({ method: "list", input })
+        return listResult
+      },
+      status: async (input: unknown) => {
+        calls.push({ method: "status", input })
+        return {
+          servers: [{
+            name: "fixture",
+            scope: "user",
+            type: "http",
+            state: "connected",
+            toolCount: 1,
+            resourceCount: 1,
+            promptCount: 1,
+          }],
+          totalTools: 1,
+          totalResources: 1,
+          totalPrompts: 1,
+          generation: 2,
+        }
+      },
+      save: async (input: unknown) => {
+        calls.push({ method: "save", input })
+        return { ...listResult, changed: true }
+      },
+      remove: async (input: unknown) => {
+        calls.push({ method: "remove", input })
+        return { servers: [], generation: 3, changed: true }
+      },
+      setEnabled: async (input: unknown) => {
+        calls.push({ method: "setEnabled", input })
+        return { ...listResult, changed: true }
+      },
+      reload: async (input: unknown) => {
+        calls.push({ method: "reload", input })
+        return {
+          generation: 4,
+          added: [],
+          replaced: ["fixture"],
+          removed: [],
+          unchanged: [],
+          failed: [],
+        }
+      },
+    }
+    const { db, call, initialize } = await fixture({ mcp } as never)
+    await initialize()
+    const workspace = "F:\\workspace"
+    expect((await call("mcp/list", { workspace })).result).toEqual(listResult)
+    expect((await call("mcp/status", { workspace })).result.totalTools).toBe(1)
+    expect((await call("mcp/save", {
+      workspace,
+      server,
+      operationId: "save-operation",
+    })).result).toEqual(listResult)
+    expect((await call("mcp/setEnabled", {
+      workspace,
+      scope: "user",
+      name: "fixture",
+      enabled: false,
+      operationId: "enable-operation",
+    })).result).toEqual(listResult)
+    expect((await call("mcp/remove", {
+      workspace,
+      scope: "user",
+      name: "fixture",
+      operationId: "remove-operation",
+    })).result.servers).toEqual([])
+    expect((await call("mcp/reload", {
+      workspace,
+      operationId: "reload-operation",
+    })).result.replaced).toEqual(["fixture"])
+    expect(calls.map((entry) => entry.method)).toEqual([
+      "list",
+      "status",
+      "save",
+      "setEnabled",
+      "remove",
+      "reload",
+    ])
+    expect(calls.every((entry) =>
+      (entry.input as { workspace?: string }).workspace === workspace
+    )).toBe(true)
+    db.close()
+  })
+
   test("thread/history/read 返回分页正文与同事务 streamPosition", async () => {
     const { db, initialize, call } = await fixture()
     await initialize()

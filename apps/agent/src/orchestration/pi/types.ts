@@ -12,6 +12,7 @@ import type { ImageContent, Model, Models } from "@earendil-works/pi-ai"
 import type { ModelRef, PermissionConfig, SubagentProfile, SubagentResult, TaskMode } from "../../domain"
 import type { PromptBundle, PromptSection } from "../../prompt/types"
 import type { ToolExecutor } from "../../tool/ToolExecutor"
+import type { ToolCatalog } from "../../tool/ToolRegistry"
 import type { WorkspaceService } from "../../workspace/WorkspaceService"
 
 export type PiRunResult =
@@ -38,6 +39,7 @@ export interface PiRuntimeRequest {
   promptSections: readonly PromptSection[]
   attachments?: Array<{ kind: "text"; name: string; text: string } | { kind: "image"; name: string; mediaType: string; base64: string }>
   allowedTools?: readonly string[]
+  toolCatalog?: ToolCatalog
   onPromptComposed?: (bundle: PromptBundle) => void | Promise<void>
   preapprovedToolCallIDs?: ReadonlySet<string>
 }

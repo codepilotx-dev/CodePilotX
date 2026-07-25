@@ -16,6 +16,7 @@ import type { SkillManagementService } from "../prompt/SkillManagementService"
 import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
 import { ContextManager, type ContextFragment } from "../context/ContextManager"
+import type { McpConnectionManager, McpTurnLease } from "../mcp/McpConnectionManager"
 
 const terminal = new Set(["completed", "failed", "stopped", "interrupted"])
 export const pausedSubagentStatus = (kind: PendingApproval["kind"] | null) => kind === "permission" ? "waiting_permission" as const : "waiting_question" as const
@@ -60,6 +61,7 @@ export class SubagentService {
     private readonly memory?: MemoryService,
     private readonly hooks?: HookService,
     private readonly skillManagement?: SkillManagementService,
+    private readonly mcp?: McpConnectionManager,
   ) {
     this.repository = new SubagentRepository(db)
     approvals.setAgentStatusHandler((agentID, status) => { void this.onApprovalStatus(agentID, status) })
@@ -353,6 +355,7 @@ export class SubagentService {
     if (!task || !run || !agent) return
     const controller = new AbortController()
     let isolationPrepared = false
+    let mcpLease: McpTurnLease | undefined
     this.controllers.set(runID, controller)
     await this.emit(task.parentThreadId, task.parentTurnId, "subagent/updated", { task, run })
     await this.emit(task.childThreadId, agent.turnID, "agent/upserted", { agent })
@@ -367,6 +370,7 @@ export class SubagentService {
       isolationPrepared = prepared.baselineRef !== null
       if (task.workspace.mode === "worktree" && !this.workspaces) throw new AgentError("WORKTREE_UNAVAILABLE", "worktree 服务未配置", 409)
       const workspace = await WorkspaceService.open(prepared.rootPath)
+      mcpLease = await this.mcp?.acquire(workspace.rootPath)
       const permissionConfig = await this.isGitWorkspace(workspace.rootPath)
         ? run.permissionConfig
         : { ...run.permissionConfig, sandboxMode: "read-only" as const }
@@ -421,6 +425,7 @@ export class SubagentService {
         promptSections,
         skillService,
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
+        ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
         attachments,
         ...(permissionResume ? { resume: permissionResume } : checkpoint ? { resume: checkpoint.approval } : {}),
         resolveModel: async () => ({ ref: run.model, model: piModel }),
@@ -491,6 +496,7 @@ export class SubagentService {
         await this.emit(task.childThreadId, agent.turnID, "turn/failed", { turnId: agent.turnID, rootAgentId: agent.id, message: error, finishedAt: Date.now() })
       }
     } finally {
+      await mcpLease?.release()
       this.controllers.delete(runID)
       await this.resumeSatisfiedParents()
       void this.schedule()
@@ -543,7 +549,7 @@ export class SubagentService {
     const requestedPolicy = requested.approvalPolicy
     if (typeof ceilingPolicy === "object") {
       if (typeof requestedPolicy === "object") {
-        const keys = ["sandboxApproval", "rules", "skillApproval", "requestPermissions", "mcpElicitations"] as const
+        const keys = ["sandboxApproval", "rules", "skillApproval", "requestPermissions", "mcpTools", "mcpElicitations"] as const
         if (keys.some((key) => requestedPolicy[key] && !ceilingPolicy[key])) {
           throw new AgentError("PERMISSION_CEILING_EXCEEDED", "子 Agent granular 审批能力超过任务上限", 403)
         }

@@ -26,7 +26,7 @@ const InteractionErrors = ["REQUEST_NOT_PENDING", "CONFLICT", "CHECKPOINT_UNAVAI
 const ProjectErrors = ["PROJECT_NOT_FOUND", "PATH_DENIED", "CONFLICT", ...CommonErrors] as const
 const WorkspaceFileErrors = ["PROJECT_NOT_FOUND", "PATH_DENIED", "FILE_NOT_FOUND", "FILE_NOT_TEXT", "FILE_TOO_LARGE", "FILE_READONLY", "CONFLICT", ...CommonErrors] as const
 const ThreadErrors = ["THREAD_NOT_FOUND", "TURN_NOT_FOUND", "CONFLICT", "CHECKPOINT_UNAVAILABLE", "MODEL_UNAVAILABLE", ...CommonErrors] as const
-const SandboxErrors = ["SANDBOX_UNAVAILABLE", "PERMISSION_DENIED", "CONFLICT", ...CommonErrors] as const
+const SandboxErrors = ["SANDBOX_UNAVAILABLE", "SANDBOX_BUSY", "PERMISSION_DENIED", "CONFLICT", ...CommonErrors] as const
 const AttachmentErrors = ["ATTACHMENT_NOT_FOUND", "ATTACHMENT_LIMIT", "PERMISSION_DENIED", ...CommonErrors] as const
 const MemoryErrors = ["MEMORY_NOT_FOUND", "MEMORY_REJECTED", "PERMISSION_DENIED", ...CommonErrors] as const
 
@@ -664,6 +664,8 @@ export const SandboxStatusSchema = Schema.Struct({
   platform: NonEmptyStringSchema,
   architecture: NonEmptyStringSchema,
   runtimeVersion: NonEmptyStringSchema,
+  maturity: Schema.Literal("alpha"),
+  maxConcurrentCommands: PositiveIntSchema,
   error: Schema.NullOr(Schema.String),
   operations: Schema.Struct({
     canInstall: Schema.Boolean,

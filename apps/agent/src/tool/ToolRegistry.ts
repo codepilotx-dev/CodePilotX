@@ -23,6 +23,14 @@ export type ToolExecutionMode = PiToolExecutionMode
 export type ToolProgress = { message: string; completed?: number; total?: number; details?: unknown }
 export type ToolStructuredResult = { content: string; details: unknown; addedToolNames?: string[] }
 export type PromptFactory = string | ((context: ToolContext) => string)
+export type ToolOrigin =
+  | { kind: "builtin" }
+  | {
+      kind: "mcp"
+      serverName: string
+      rawToolName: string
+      generation: number
+    }
 
 export interface ToolCatalogEntry<Input = unknown, Output = unknown> {
   /** The sole canonical name exposed to the model. */
@@ -38,6 +46,8 @@ export interface ToolCatalogEntry<Input = unknown, Output = unknown> {
   visibility: ToolVisibility
   executionMode: ToolExecutionMode
   inputSchema: Record<string, unknown>
+  /** Structured provenance used by permission and routing decisions. */
+  origin?: ToolOrigin
   progress?: (input: Input, context: ToolContext) => ToolProgress | undefined
   formatResult?: (output: Output, context: ToolContext) => ToolStructuredResult
 }
@@ -55,6 +65,13 @@ export interface ToolContext {
   fileSaved?: (input: { filePath: string; content: string }) => Promise<void>
   resolveTooling?: ToolingResolver
   runToolProcess?: ToolProcessRunner
+  /** Host-owned identity for this invocation. It is never derived from model input. */
+  invocation?: Readonly<{
+    threadID: string
+    turnID: string
+    agentID: string
+    toolCallID: string
+  }>
 }
 
 export interface ToolDefinition<Input = unknown, Output = unknown> extends ToolCatalogEntry<Input, Output> {
@@ -292,6 +309,10 @@ export class ToolCatalog {
     this.internalNames.set(internalName, tool.sdkName)
   }
 
+  all() {
+    return [...this.tools.values()]
+  }
+
   list(mode?: TaskMode, sandboxMode: SandboxMode = "workspace-write", profile: SubagentProfile = "main") {
     return [...this.tools.values()].filter((tool) => (!mode || tool.allowedModes.includes(mode)) && tool.allowedProfiles.includes(profile) && toolAllowedInSandbox(tool, sandboxMode))
   }
@@ -326,3 +347,10 @@ export const toolNameMatches = (tool: Pick<ToolCatalogEntry, "sdkName">, allowed
 
 /** @deprecated Use ToolCatalog. */
 export class ToolRegistry extends ToolCatalog {}
+
+/** Immutable per-turn view combining process-wide built-ins with scoped tools. */
+export class TurnToolCatalog extends ToolCatalog {
+  constructor(base: ToolCatalog, scoped: readonly ToolDefinition[]) {
+    super([...base.all(), ...scoped])
+  }
+}

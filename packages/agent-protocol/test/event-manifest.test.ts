@@ -63,4 +63,20 @@ describe("event manifest invariants", () => {
     expect(() => decodeDurable({ ...durable, sequence: null })).toThrow()
     expect(() => decodeLive({ ...live, sequence: 0 })).toThrow()
   })
+
+  test("keeps MCP update events path- and configuration-free", () => {
+    const decode = Schema.decodeUnknownSync(
+      EventManifest["mcp/updated"].payload,
+      { onExcessProperty: "error" },
+    )
+    expect(decode({ generation: 2 })).toEqual({ generation: 2 })
+    expect(() => decode({
+      generation: 2,
+      workspace: "C:\\sensitive\\workspace",
+    })).toThrow()
+    expect(() => decode({
+      generation: 2,
+      server: { url: "https://example.com", headers: { Authorization: "secret" } },
+    })).toThrow()
+  })
 })

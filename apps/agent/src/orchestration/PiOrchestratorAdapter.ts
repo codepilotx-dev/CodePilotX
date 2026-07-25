@@ -716,6 +716,7 @@ export class PiOrchestratorAdapter {
       ...(request.attachments ? { attachments: request.attachments } : {}),
       preapprovedToolCallIDs,
       ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
+      ...(request.toolCatalog ? { toolCatalog: request.toolCatalog } : {}),
       onPromptComposed: async (bundle) =>
         request.onPromptComposed?.(bundle, { budgetText: bundle.instructions }),
     });
@@ -734,7 +735,7 @@ export class PiOrchestratorAdapter {
       ...(runtime.continueFromPlan ? { continueFromPlan: true } : "continueFromPlan" in request && request.continueFromPlan ? { continueFromPlan: true } : {}),
       ...(runtime.defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : "defaultModeRequestUserInput" in request && request.defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : {}),
       ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
-    });
+    }, runtime.toolCatalog);
   }
 
   async compact(threadID: string, instructions?: string) {

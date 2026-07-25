@@ -24,7 +24,7 @@ const fixture = async (runtime: { resolveTooling?: ToolingResolver; runToolProce
       refreshStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "test", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
       install: async () => undefined,
       uninstall: async () => undefined,
-      reset: async () => undefined,
+      dispose: async () => undefined,
       run: async () => { throw new Error("not used") },
     },
     authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "test" }),

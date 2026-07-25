@@ -2,6 +2,7 @@ import { existsSync, readdirSync, realpathSync, statSync } from "node:fs"
 import { basename, isAbsolute, join, parse, resolve, sep } from "node:path"
 import type { SandboxRuntimeConfig } from "@anthropic-ai/sandbox-runtime"
 import type { AdditionalPermissions, PermissionConfig } from "@codepilotx/shared/thread"
+import { SRT_PROXY_PORT_RANGE } from "./SandboxRuntimeManifest"
 
 export interface SandboxPolicyOptions {
   workspace: string
@@ -102,6 +103,10 @@ function protectedWorkspacePaths(workspace: string) {
   return [
     join(workspace, ".git", "config"),
     join(workspace, ".git", "hooks"),
+    join(workspace, ".codepilotx", "hooks.json"),
+    join(workspace, ".codepilotx", "skills"),
+    join(workspace, ".claude", "skills"),
+    join(workspace, ".agents", "skills"),
   ]
 }
 
@@ -193,6 +198,7 @@ export function generateSandboxPolicy(options: SandboxPolicyOptions): GeneratedS
   if (process.platform === "win32") {
     base.windows = {
       sandboxUser: "srt-sandbox",
+      proxyPortRange: [...SRT_PROXY_PORT_RANGE],
       ...(options.helperPath ? { srtWin: { path: resolve(options.helperPath) } } : {}),
     }
   }

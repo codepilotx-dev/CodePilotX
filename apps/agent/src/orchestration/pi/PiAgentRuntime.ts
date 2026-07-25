@@ -84,7 +84,7 @@ export class PiAgentRuntime implements PiAgentRuntimeApi {
       sandboxMode: request.permissionConfig.sandboxMode,
       profile: request.profile ?? "main",
       ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
-    })
+    }, request.toolCatalog)
     const deferredToolCatalog = new DeferredToolCatalog(deferredDefinitions.map((definition) => ({
       name: definition.sdkName,
       label: definition.sdkName,
