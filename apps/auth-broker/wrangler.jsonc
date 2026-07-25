@@ -6,12 +6,12 @@
   "workers_dev": false,
   "routes": [
     {
-      "pattern": "auth-staging.codepilotx.com",
+      "pattern": "auth-staging.codepilotx.top",
       "custom_domain": true
     }
   ],
   "vars": {
-    "GITHUB_OAUTH_CLIENT_ID": ""
+    "GITHUB_OAUTH_CLIENT_ID": "Ov23libpTIwI7SBaVpVs"
   },
   "durable_objects": {
     "bindings": [

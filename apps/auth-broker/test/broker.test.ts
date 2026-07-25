@@ -95,7 +95,7 @@ function createEnv(options: { rateLimit?: boolean } = {}): Env {
 }
 
 function post(path: string, body: Record<string, unknown>): Request {
-  return new Request(`https://auth-staging.codepilotx.com${path}`, {
+  return new Request(`https://auth-staging.codepilotx.top${path}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -138,7 +138,7 @@ async function startLogin(
 describe("auth broker", () => {
   test("health 响应不允许缓存且不开放 CORS", async () => {
     const response = await createBroker().fetch(
-      new Request("https://auth-staging.codepilotx.com/health"),
+      new Request("https://auth-staging.codepilotx.top/health"),
       createEnv(),
     )
 
@@ -179,7 +179,7 @@ describe("auth broker", () => {
     expect(authorizationUrl.pathname).toBe("/login/oauth/authorize")
     expect(authorizationUrl.searchParams.get("client_id")).toBe("client-id")
     expect(authorizationUrl.searchParams.get("redirect_uri")).toBe(redirectUri)
-    expect(authorizationUrl.searchParams.get("scope")).toBe("repo read:user")
+    expect(authorizationUrl.searchParams.get("scope")).toBe("repo read:user read:org")
     expect(authorizationUrl.searchParams.get("state")).toBe(result.state)
     expect(authorizationUrl.searchParams.get("code_challenge_method")).toBe(
       "S256",
@@ -197,7 +197,7 @@ describe("auth broker", () => {
       return Response.json({
         access_token: "gho_sensitive",
         token_type: "bearer",
-        scope: "repo,read:user",
+        scope: "repo,read:user,read:org",
       })
     }
     const env = createEnv()
@@ -220,7 +220,7 @@ describe("auth broker", () => {
     expect(await first.json()).toEqual({
       accessToken: "gho_sensitive",
       tokenType: "bearer",
-      scope: "repo,read:user",
+      scope: "repo,read:user,read:org",
     })
     expect([404, 409]).toContain(replay.status)
     expect(exchangeCalls).toBe(1)

@@ -75,7 +75,11 @@ describe("GithubService Device Flow", () => {
         interval: 1,
       }),
       json({ error: "slow_down" }),
-      json({ access_token: "gho_super_secret_token_value", token_type: "bearer", scope: "repo,read:user" }),
+      json({
+        access_token: "gho_super_secret_token_value",
+        token_type: "bearer",
+        scope: "repo,read:user,read:org",
+      }),
       json(user),
     ]
     const service = new GithubService(credentials, {
@@ -96,6 +100,8 @@ describe("GithubService Device Flow", () => {
       verificationUri: "https://github.com/login/device",
     })
     expect(typeof started.loginId).toBe("string")
+    expect(new URLSearchParams(String(requests[0]?.init?.body)).get("scope"))
+      .toBe("repo read:user read:org")
 
     expect((await service.pollDeviceFlow(started.loginId!)).state).toBe("awaiting_auth")
     expect(requests).toHaveLength(1)
@@ -167,7 +173,11 @@ describe("GithubService Device Flow", () => {
             expires_in: 900,
             interval: 1,
           })
-          : json({ access_token: "gho_under_scoped", token_type: "bearer", scope: "read:user" })
+          : json({
+            access_token: "gho_under_scoped",
+            token_type: "bearer",
+            scope: "repo,read:user",
+          })
       },
     })
     const started = await service.startDeviceFlow("client-id")

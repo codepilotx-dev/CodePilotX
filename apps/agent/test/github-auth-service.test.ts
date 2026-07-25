@@ -60,7 +60,7 @@ describe("GithubAuthService PKCE", () => {
     const now = 1_000
     const service = new GithubAuthService(credentials, {
       now: () => now,
-      getBrokerURL: () => "https://auth-staging.codepilotx.com",
+      getBrokerURL: () => "https://auth-staging.codepilotx.top",
       getCallbackURL: () => "http://127.0.0.1:41234/auth/github/callback",
       fetch: async (input, init) => {
         const url = String(input)
@@ -75,7 +75,11 @@ describe("GithubAuthService PKCE", () => {
           })
         }
         if (url.endsWith("/v1/github/oauth/exchange")) {
-          return json({ accessToken: "gho_super_secret", tokenType: "bearer", scope: "repo read:user" })
+          return json({
+            accessToken: "gho_super_secret",
+            tokenType: "bearer",
+            scope: "repo read:user read:org",
+          })
         }
         if (url === "https://api.github.com/user") return json(user)
         throw new Error(`unexpected request ${url}`)
@@ -121,7 +125,7 @@ describe("GithubAuthService PKCE", () => {
     let requests = 0
     const service = new GithubAuthService(credentials, {
       now: () => 1_000,
-      getBrokerURL: () => "https://auth-staging.codepilotx.com",
+      getBrokerURL: () => "https://auth-staging.codepilotx.top",
       getCallbackURL: () => "http://127.0.0.1:41234/auth/github/callback",
       fetch: async () => {
         requests += 1
@@ -148,7 +152,7 @@ describe("GithubAuthService PKCE", () => {
     const { db, credentials } = await repository()
     const service = new GithubAuthService(credentials, {
       now: () => 1_000,
-      getBrokerURL: () => "https://auth-staging.codepilotx.com",
+      getBrokerURL: () => "https://auth-staging.codepilotx.top",
       getCallbackURL: () => "http://127.0.0.1:41234/auth/github/callback",
       fetch: async () => json({
         attemptId: "attempt_123",
@@ -193,7 +197,7 @@ describe("GithubAuthService logout", () => {
       value: { type: "oauth", accessToken: "token", tokenType: "bearer", scope: "repo read:user" },
     }))
     const service = new GithubAuthService(credentials, {
-      getBrokerURL: () => "https://auth-staging.codepilotx.com",
+      getBrokerURL: () => "https://auth-staging.codepilotx.top",
       fetch: async () => new Response(null, { status: 204 }),
     })
     expect(await service.logout()).toMatchObject({ authenticated: false })
@@ -208,7 +212,7 @@ describe("GithubAuthService logout", () => {
       value: { type: "oauth", accessToken: "token", tokenType: "bearer", scope: "repo read:user" },
     }))
     const service = new GithubAuthService(credentials, {
-      getBrokerURL: () => "https://auth-staging.codepilotx.com",
+      getBrokerURL: () => "https://auth-staging.codepilotx.top",
       fetch: async () => { throw new Error("offline") },
     })
     await expect(service.logout()).rejects.toMatchObject({ code: "GITHUB_UNAVAILABLE", status: 503 })
@@ -219,8 +223,8 @@ describe("GithubAuthService logout", () => {
 
 describe("GithubAuthService URL 安全边界", () => {
   test("Broker 仅允许 HTTPS 或 loopback HTTP", () => {
-    expect(__test.validatedBrokerURL("https://auth-staging.codepilotx.com").origin)
-      .toBe("https://auth-staging.codepilotx.com")
+    expect(__test.validatedBrokerURL("https://auth-staging.codepilotx.top").origin)
+      .toBe("https://auth-staging.codepilotx.top")
     expect(__test.validatedBrokerURL("http://127.0.0.1:8787").origin)
       .toBe("http://127.0.0.1:8787")
     expect(() => __test.validatedBrokerURL("http://example.com")).toThrow("地址无效")

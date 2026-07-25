@@ -8,7 +8,7 @@ const GITHUB_API_USER = "https://api.github.com/user"
 const GITHUB_DEVICE_CODE = "https://github.com/login/device/code"
 const GITHUB_ACCESS_TOKEN = "https://github.com/login/oauth/access_token"
 const GITHUB_AUTHORIZE = "https://github.com/login/oauth/authorize"
-const GITHUB_SCOPE = "repo read:user"
+const GITHUB_SCOPE = "repo read:user read:org"
 const BROWSER_ATTEMPT_TTL_MS = 10 * 60 * 1_000
 const BROKER_EXPIRY_TOLERANCE_MS = 30_000
 const MAX_CALLBACK_VALUE_LENGTH = 2_048
@@ -212,7 +212,7 @@ const callbackValue = (value: string | undefined) => {
 
 const hasRequiredScopes = (scope: string) => {
   const scopes = new Set(scope.split(/[\s,]+/).map((item) => item.trim().toLowerCase()).filter(Boolean))
-  return scopes.has("repo") && scopes.has("read:user")
+  return scopes.has("repo") && scopes.has("read:user") && scopes.has("read:org")
 }
 
 const oauthErrorMessage = (value: Record<string, unknown>) => {
@@ -366,7 +366,7 @@ export class GithubAuthService {
       if (!hasRequiredScopes(scope)) {
         await this.revokeRemoteToken(accessToken).catch(() => undefined)
         attempt.state = "failed"
-        attempt.error = "GitHub 授权范围不足，需要 repo 和 read:user 权限。"
+        attempt.error = "GitHub 授权范围不足，需要 repo、read:user 和 read:org 权限。"
         return this.attemptStatus(attempt)
       }
       const user = await this.fetchUser(accessToken)
@@ -515,7 +515,7 @@ export class GithubAuthService {
       if (!hasRequiredScopes(scope)) {
         await this.revokeRemoteToken(body.access_token).catch(() => undefined)
         attempt.state = "failed"
-        attempt.error = "GitHub 授权范围不足，需要 repo 和 read:user 权限。"
+        attempt.error = "GitHub 授权范围不足，需要 repo、read:user 和 read:org 权限。"
         return this.attemptStatus(attempt)
       }
       try {

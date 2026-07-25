@@ -131,7 +131,7 @@ export const loadConfig = Effect.sync((): AgentConfig => {
     modelsDevURL: process.env.CODEPILOTX_MODELS_URL ?? "https://models.dev",
     githubAuthBrokerURL:
       process.env.CODEPILOTX_GITHUB_AUTH_BROKER_URL?.trim()
-      || "https://auth-staging.codepilotx.com",
+      || "https://auth-staging.codepilotx.top",
     githubOAuthClientId:
       process.env.CODEPILOTX_GITHUB_OAUTH_CLIENT_ID?.trim()
       || null,

@@ -17,7 +17,7 @@ export { OAuthAttempt }
 const GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
 const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 const GITHUB_API_URL = "https://api.github.com"
-const GITHUB_SCOPE = "repo read:user"
+const GITHUB_SCOPE = "repo read:user read:org"
 const ATTEMPT_TTL_MS = 10 * 60 * 1_000
 const MAX_JSON_BYTES = 8 * 1_024
 

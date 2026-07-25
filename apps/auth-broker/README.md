@@ -41,13 +41,13 @@ bun run --cwd apps/auth-broker dev
    bunx wrangler@4.36.0 secret put GITHUB_OAUTH_CLIENT_SECRET --config apps/auth-broker/wrangler.jsonc
    ```
 
-4. 确认 Cloudflare zone 已包含 `codepilotx.com`，且 Custom Domain `auth-staging.codepilotx.com` 可创建。
+4. 确认 Cloudflare zone 已包含 `codepilotx.top`，且 Custom Domain `auth-staging.codepilotx.top` 可创建。
 5. 先执行 `typecheck` 和 `test`，再显式部署：
 
    ```powershell
    bun run --cwd apps/auth-broker deploy
    ```
 
-6. 验证 `GET https://auth-staging.codepilotx.com/health` 返回 `{"status":"ok"}`，之后再进行桌面端真实 OAuth 验收。
+6. 验证 `GET https://auth-staging.codepilotx.top/health` 返回 `{"status":"ok"}`，之后再进行桌面端真实 OAuth 验收。
 
 仓库不会自动部署，也不会创建 GitHub Organization、OAuth App、Cloudflare zone、DNS 或 secret。生产环境应使用独立 OAuth App、独立 Worker 配置和独立 secret。
