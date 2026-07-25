@@ -14,6 +14,7 @@ type Option = {
   label: string
   detail?: string
   icon?: React.ReactNode
+  disabled?: boolean
 }
 
 type Props = {
@@ -142,6 +143,7 @@ export function SettingsDropdown({
                 visibleOptions.map((opt) => (
                   <Select.Item
                     className="settings-dropdown-item"
+                    disabled={opt.disabled}
                     key={opt.value}
                     tabIndex={-1}
                     value={opt.value === '' ? EMPTY_VALUE : opt.value}

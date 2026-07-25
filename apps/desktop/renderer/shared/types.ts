@@ -52,7 +52,13 @@ import type {
   ProviderTestResponse,
 } from '@codepilotx/shared'
 import type { CodexHighlightThemeSlug } from './codexThemes/manifest.js'
-import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
+import type {
+  McpRuntimeServerStatus,
+  McpScope,
+  McpTransportConfig,
+  RpcParams,
+  RpcResult,
+} from '@codepilotx/agent-protocol'
 
 export type DesktopAuthStatus = {
   authenticated: boolean
@@ -464,6 +470,7 @@ export type DesktopApprovalPolicy =
       rules: boolean
       skillApproval: boolean
       requestPermissions: boolean
+      mcpTools: boolean
       mcpElicitations: boolean
     }
 
@@ -882,20 +889,10 @@ gitBranchPrefix: string
   pet: DesktopPetSettings
 }
 
-export type DesktopMcpScope =
-  | 'local'
-  | 'user'
-  | 'project'
-  | 'dynamic'
-  | 'enterprise'
-  | 'claudeai'
-  | 'managed'
-
-export type DesktopEditableMcpScope = 'local' | 'user'
-
-export type DesktopMcpTransport = 'stdio' | 'sse' | 'http' | 'ws' | 'sdk' | string
-
-export type DesktopMcpServerConfig = Record<string, unknown>
+export type DesktopMcpScope = McpScope
+export type DesktopEditableMcpScope = McpScope
+export type DesktopMcpTransport = McpTransportConfig['type']
+export type DesktopMcpServerConfig = McpTransportConfig
 
 export type DesktopMcpServerListItem = {
   name: string
@@ -903,43 +900,33 @@ export type DesktopMcpServerListItem = {
   type: DesktopMcpTransport
   summary: string
   enabled: boolean
+  diagnosticContext: boolean
+  effective: boolean
+  shadowedByScope?: DesktopMcpScope
   editable: boolean
   removable: boolean
-  config: DesktopMcpServerConfig
+  transport: DesktopMcpServerConfig
+  startupTimeoutMs?: number
+  toolTimeoutMs?: number
+  runtime?: McpRuntimeServerStatus
 }
 
-export type DesktopMcpRuntimeServerStatus = {
-  name: string
-  scope: DesktopMcpScope
-  type: DesktopMcpTransport
-  status: 'connected' | 'failed' | 'pending' | 'disabled' | 'unsupported'
-  error?: string
-  toolCount: number
-  resourceCount: number
-  promptCount: number
-}
+export type DesktopMcpRuntimeServerStatus = McpRuntimeServerStatus
 
-export type DesktopMcpRuntimeStatus = {
-  servers: DesktopMcpRuntimeServerStatus[]
-  totalTools: number
-  totalResources: number
-  totalPrompts: number
-}
+export type DesktopMcpRuntimeStatus = RpcResult<'mcp/status'>
 
-export type McpReloadResult = {
-  /** Sessions that received the RPC successfully. */
-  refreshed: number
-  /** Sessions that were not running (null session or sidecar not started). */
-  skipped: number
-  /** Sessions where the RPC threw an error. */
-  failed: number
-}
+export type McpReloadResult = RpcResult<'mcp/reload'>
 
 export type SaveDesktopMcpServerOptions = {
   originalName?: string
   name: string
   scope: DesktopEditableMcpScope
-  config: DesktopMcpServerConfig
+  enabled: boolean
+  diagnosticContext: boolean
+  transport: DesktopMcpServerConfig
+  startupTimeoutMs?: number
+  toolTimeoutMs?: number
+  workspacePath?: string
 }
 
 export type {
@@ -1584,12 +1571,12 @@ export type DesktopApi = {
     skill: string | DesktopSkillInstallOptions,
   ): Promise<DesktopSkillInstallResult>
   listSlashCommands(workspacePath?: string): Promise<DesktopSlashCommandSuggestion[]>
-  listMcpServers(): Promise<DesktopMcpServerListItem[]>
-  getMcpRuntimeStatus(sessionId?: string): Promise<DesktopMcpRuntimeStatus>
+  listMcpServers(workspacePath?: string): Promise<DesktopMcpServerListItem[]>
+  getMcpRuntimeStatus(workspacePath?: string): Promise<DesktopMcpRuntimeStatus>
   saveMcpServer(options: SaveDesktopMcpServerOptions): Promise<DesktopMcpServerListItem[]>
-  removeMcpServer(name: string, scope: DesktopEditableMcpScope): Promise<DesktopMcpServerListItem[]>
-  setMcpServerEnabled(name: string, enabled: boolean): Promise<DesktopMcpServerListItem[]>
-  reloadMcpConfiguration(): Promise<McpReloadResult>
+  removeMcpServer(name: string, scope: DesktopEditableMcpScope, workspacePath?: string): Promise<DesktopMcpServerListItem[]>
+  setMcpServerEnabled(name: string, scope: DesktopEditableMcpScope, enabled: boolean, workspacePath?: string): Promise<DesktopMcpServerListItem[]>
+  reloadMcpConfiguration(workspacePath?: string): Promise<McpReloadResult>
   listOpenTargets(): Promise<DesktopOpenTarget[]>
   listExternalOpenTargets(targetPath: string): Promise<DesktopExternalOpenTarget[]>
   openPathWithTarget(targetPath: string, targetId: string): Promise<void>

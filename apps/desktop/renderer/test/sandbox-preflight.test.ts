@@ -21,6 +21,8 @@ function status(
   return {
     state,
     version: state === 'healthy' ? '1.0.0' : null,
+    maturity: 'alpha',
+    maxConcurrentCommands: 8,
     message,
     canInstall: state === 'not-installed',
     canRepair: state === 'damaged' || state === 'needs-repair',
@@ -89,10 +91,15 @@ describe('SRT 提交前预检', () => {
 
   test('损坏或需修复时确认后修复，并保留失败信息', async () => {
     let repairs = 0
+    let confirmation = ''
     const repaired = await ensureSandboxReady(
       sandboxed,
       dependencies({
         loadStatus: async () => status('needs-repair'),
+        confirm: message => {
+          confirmation = message
+          return true
+        },
         repair: async () => {
           repairs += 1
           return status('healthy')
@@ -101,6 +108,7 @@ describe('SRT 提交前预检', () => {
     )
     expect(repaired).toEqual({ ready: true })
     expect(repairs).toBe(1)
+    expect(confirmation).toContain('WFP 回环端口范围更新为 60080–60095')
 
     const failed = await ensureSandboxReady(
       sandboxed,

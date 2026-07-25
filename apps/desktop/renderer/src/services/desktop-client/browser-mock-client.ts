@@ -131,6 +131,14 @@ const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY =
 
 function noop(): void {}
 
+function mcpUnavailable(): never {
+  const error = new Error(
+    'MCP_UNAVAILABLE: 浏览器 mock 模式无法连接 Agent MCP 运行时。',
+  ) as Error & { code: string }
+  error.code = 'MCP_UNAVAILABLE'
+  throw error
+}
+
 export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
   let themeSettings: DesktopThemeSettings = readBrowserThemeSettings(storage)
@@ -328,12 +336,12 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       installPath: '',
     }),
     listSlashCommands: async () => [],
-    listMcpServers: async () => [],
-    getMcpRuntimeStatus: async () => ({ servers: [], totalTools: 0, totalResources: 0, totalPrompts: 0 }),
-    saveMcpServer: async () => [],
-    removeMcpServer: async () => [],
-    setMcpServerEnabled: async () => [],
-    reloadMcpConfiguration: async () => ({ refreshed: 0, skipped: 0, failed: 0 }),
+    listMcpServers: async () => mcpUnavailable(),
+    getMcpRuntimeStatus: async () => mcpUnavailable(),
+    saveMcpServer: async () => mcpUnavailable(),
+    removeMcpServer: async () => mcpUnavailable(),
+    setMcpServerEnabled: async () => mcpUnavailable(),
+    reloadMcpConfiguration: async () => mcpUnavailable(),
     listOpenTargets: async () => [
       { id: 'default-app', label: '系统默认应用', kind: 'default-app' },
     ],

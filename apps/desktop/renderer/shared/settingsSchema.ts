@@ -576,7 +576,7 @@ export function normalizeDesktopApprovalPolicy(
   if (value === 'on-failure') return 'on-request'
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     const policy = value as Record<string, unknown>
-    const keys = ['sandboxApproval', 'rules', 'skillApproval', 'requestPermissions', 'mcpElicitations'] as const
+    const keys = ['sandboxApproval', 'rules', 'skillApproval', 'requestPermissions', 'mcpTools', 'mcpElicitations'] as const
     if (policy.type === 'granular' && keys.every(key => typeof policy[key] === 'boolean')) {
       return {
         type: 'granular',
@@ -584,6 +584,7 @@ export function normalizeDesktopApprovalPolicy(
         rules: policy.rules as boolean,
         skillApproval: policy.skillApproval as boolean,
         requestPermissions: policy.requestPermissions as boolean,
+        mcpTools: policy.mcpTools as boolean,
         mcpElicitations: policy.mcpElicitations as boolean,
       }
     }

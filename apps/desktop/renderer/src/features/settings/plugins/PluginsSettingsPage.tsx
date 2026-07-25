@@ -168,6 +168,14 @@ export function PluginsSettingsPage({
   }, [workspacePath])
 
   useEffect(() => {
+    return desktopClient.subscribeAgentEventEnvelopes({}, event => {
+      if (event.type === 'mcp/updated') void loadServers()
+    })
+    // Reconcile the currently selected workspace whenever the Agent catalog changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspacePath])
+
+  useEffect(() => {
     if (pluginLoadError) onError(pluginLoadError)
   }, [onError, pluginLoadError])
 
@@ -205,7 +213,19 @@ export function PluginsSettingsPage({
   async function loadServers(): Promise<void> {
     setMcpError(null)
     try {
-      setServers(await desktopClient.listMcpServers())
+      const [declarations, runtime] = await Promise.all([
+        desktopClient.listMcpServers(workspacePath ?? undefined),
+        desktopClient.getMcpRuntimeStatus(workspacePath ?? undefined),
+      ])
+      const statuses = new Map(
+        runtime.servers.map(status => [`${status.scope}:${status.name}`, status]),
+      )
+      setServers(
+        declarations.map(server => ({
+          ...server,
+          runtime: statuses.get(mcpKey(server)),
+        })),
+      )
     } catch (error) {
       const message = errorMessageOf(error, 'MCP server 读取失败。')
       setServers([])
@@ -302,16 +322,25 @@ export function PluginsSettingsPage({
       current?.map(item => mcpKey(item) === key ? { ...item, enabled } : item),
     )
     try {
-      setServers(await desktopClient.setMcpServerEnabled(server.name, enabled))
-      await reloadMcpConfiguration()
+      setServers(
+        await desktopClient.setMcpServerEnabled(
+          server.name,
+          server.scope,
+          enabled,
+          workspacePath ?? undefined,
+        ),
+      )
     } catch (error) {
       setServers(previous)
       const message = errorMessageOf(error, `${server.name} 状态更新失败。`)
       setMcpError(message)
       onError(message)
+      return
     } finally {
       setBusyMcpKeys(current => without(current, key))
     }
+    await reloadMcpConfiguration()
+    await loadServers()
   }
 
   async function saveServer(options: SaveDesktopMcpServerOptions): Promise<void> {
@@ -319,9 +348,13 @@ export function PluginsSettingsPage({
     setBusyMcpKeys(current => new Set(current).add(key))
     setMcpError(null)
     try {
-      setServers(await desktopClient.saveMcpServer(options))
+      setServers(await desktopClient.saveMcpServer({
+        ...options,
+        ...(workspacePath ? { workspacePath } : {}),
+      }))
       setMcpDialogOpen(false)
       await reloadMcpConfiguration()
+      await loadServers()
     } catch (error) {
       const message = errorMessageOf(error, 'MCP server 保存失败。')
       setMcpError(message)
@@ -340,11 +373,13 @@ export function PluginsSettingsPage({
       setServers(
         await desktopClient.removeMcpServer(
           server.name,
-          server.scope as 'local' | 'user',
+          server.scope,
+          workspacePath ?? undefined,
         ),
       )
       setServerPendingRemoval(null)
       await reloadMcpConfiguration()
+      await loadServers()
     } catch (error) {
       const message = errorMessageOf(error, 'MCP server 删除失败。')
       setMcpError(message)
@@ -356,7 +391,9 @@ export function PluginsSettingsPage({
 
   async function reloadMcpConfiguration(): Promise<void> {
     try {
-      const result = await desktopClient.reloadMcpConfiguration()
+      const result = await desktopClient.reloadMcpConfiguration(
+        workspacePath ?? undefined,
+      )
       const message = reloadStatusText(result)
       setMcpStatus(message)
       onNotice?.(message)
@@ -385,6 +422,7 @@ export function PluginsSettingsPage({
       server.summary,
       server.type,
       server.scope,
+      server.runtime?.state,
     ),
   )
   const selectedPlugin = selectedPluginId
@@ -558,15 +596,15 @@ export function PluginsSettingsPage({
               <ExtensionManagementRow
                 key={mcpKey(server)}
                 title={server.name}
-                description={server.summary || '未提供命令或 URL。'}
+                description={server.runtime?.error?.message || server.summary || '未提供命令或 URL。'}
                 icon={
                   <Server
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />
                 }
-                metadata={`${server.scope} · ${server.type}${server.editable ? '' : ' · 只读'}`}
-                dimmed={!server.enabled}
+                metadata={mcpMetadata(server)}
+                dimmed={!server.enabled || !server.effective}
                 onActivate={trigger => {
                   setSelectedServer(server)
                   setMcpDialogTrigger(trigger)
@@ -630,6 +668,7 @@ export function PluginsSettingsPage({
         restoreFocusElement={mcpDialogTrigger}
         onOpenChange={setMcpDialogOpen}
         onSave={saveServer}
+        workspaceAvailable={Boolean(workspacePath)}
         onRemove={server => {
           setMcpDialogOpen(false)
           setServerPendingRemoval(server)
@@ -735,12 +774,80 @@ function mcpKey(server: DesktopMcpServerListItem): string {
 
 function reloadStatusText(result: McpReloadResult): string {
   const parts: string[] = []
-  if (result.refreshed > 0) parts.push(`已应用到 ${result.refreshed} 个当前会话`)
-  if (result.skipped > 0) {
-    parts.push(`${result.skipped} 个会话未启动，将在首次消息时生效`)
+  if (result.added.length) parts.push(`新增 ${result.added.length} 个连接`)
+  if (result.replaced.length) parts.push(`替换 ${result.replaced.length} 个连接`)
+  if (result.removed.length) parts.push(`移除 ${result.removed.length} 个连接`)
+  if (result.unchanged.length) parts.push(`${result.unchanged.length} 个连接未变化`)
+  if (result.failed.length) parts.push(`${result.failed.length} 个连接失败`)
+  return parts.join('；') || '配置已保存，将在下一轮任务生效'
+}
+
+function mcpMetadata(server: DesktopMcpServerListItem): React.ReactNode {
+  const source = server.scope === 'local' ? '工作区' : '用户'
+  if (!server.effective) {
+    return (
+      <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1.5 tw:max-[640px]:justify-start">
+        <span>{source} · {server.type}</span>
+        {server.diagnosticContext ? <DiagnosticContextBadge /> : null}
+        <StatusBadge state="shadowed" label="被工作区配置覆盖" />
+      </span>
+    )
   }
-  if (result.failed > 0) parts.push(`${result.failed} 个会话刷新失败`)
-  return parts.join('；') || '配置已保存'
+  const runtime = server.runtime
+  if (!runtime) {
+    return (
+      <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1.5 tw:max-[640px]:justify-start">
+        <span>{source} · {server.type}</span>
+        {server.diagnosticContext ? <DiagnosticContextBadge /> : null}
+      </span>
+    )
+  }
+  const status: Record<typeof runtime.state, string> = {
+    connected: '已连接',
+    starting: '正在连接',
+    needs_auth: '需要认证',
+    failed: '连接失败',
+    disabled: '已禁用',
+    shadowed: '被覆盖',
+  }
+  const counts = runtime.state === 'connected'
+    ? `${runtime.toolCount} 工具 · ${runtime.resourceCount} 资源 · ${runtime.promptCount} Prompt`
+    : null
+  return (
+    <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1.5 tw:max-[640px]:justify-start">
+      <span>{source} · {server.type}</span>
+      {server.diagnosticContext ? <DiagnosticContextBadge /> : null}
+      <StatusBadge state={runtime.state} label={status[runtime.state]} />
+      {counts ? <span>{counts}</span> : null}
+    </span>
+  )
+}
+
+function DiagnosticContextBadge(): React.ReactNode {
+  return (
+    <span className="tw:inline-flex tw:rounded-full tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-xs tw:text-app-text-soft">
+      会话诊断
+    </span>
+  )
+}
+
+function StatusBadge({
+  state,
+  label,
+}: {
+  state: NonNullable<DesktopMcpServerListItem['runtime']>['state']
+  label: string
+}): React.ReactNode {
+  const tone = state === 'connected'
+    ? 'tw:bg-app-success/15 tw:text-app-success'
+    : state === 'failed' || state === 'needs_auth'
+      ? 'tw:bg-app-danger/15 tw:text-app-danger'
+      : 'tw:bg-app-panel tw:text-app-text-soft'
+  return (
+    <span className={`tw:inline-flex tw:rounded-full tw:px-2 tw:py-0.5 tw:text-xs ${tone}`}>
+      {label}
+    </span>
+  )
 }
 
 function looksLikeMissingResource(error: unknown): boolean {

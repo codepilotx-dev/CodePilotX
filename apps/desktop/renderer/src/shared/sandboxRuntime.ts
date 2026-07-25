@@ -11,6 +11,8 @@ export type SandboxRuntimeState =
 export type SandboxRuntimeStatus = {
   state: SandboxRuntimeState
   version: string | null
+  maturity: 'alpha'
+  maxConcurrentCommands: number
   message: string
   canInstall: boolean
   canRepair: boolean
@@ -20,6 +22,8 @@ export type SandboxRuntimeStatus = {
 export const SANDBOX_RUNTIME_STATUS_UNAVAILABLE: SandboxRuntimeStatus = {
   state: 'unavailable',
   version: null,
+  maturity: 'alpha',
+  maxConcurrentCommands: 8,
   message: '桌面端尚未提供 Sandbox runtime 状态接口。',
   canInstall: false,
   canRepair: false,
@@ -29,6 +33,8 @@ export const SANDBOX_RUNTIME_STATUS_UNAVAILABLE: SandboxRuntimeStatus = {
 type BackendSandboxStatus = {
   state: 'unsupported' | 'not-installed' | 'installing' | 'available' | 'damaged' | 'repair-required'
   runtimeVersion: string
+  maturity: 'alpha'
+  maxConcurrentCommands: number
   error: string | null
   operations: {
     canInstall: boolean
@@ -78,6 +84,8 @@ function normalizeStatus(status: BackendSandboxStatus): SandboxRuntimeStatus {
   return {
     state,
     version: status.runtimeVersion,
+    maturity: status.maturity,
+    maxConcurrentCommands: status.maxConcurrentCommands,
     message: status.error ?? (state === 'healthy' ? 'SRT 沙箱可用。' : state === 'not-installed' ? 'SRT 沙箱尚未安装。' : 'SRT 沙箱需要检查或修复。'),
     canInstall: status.operations.canInstall,
     canRepair: status.operations.canRepair,

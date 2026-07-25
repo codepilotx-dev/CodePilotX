@@ -62,7 +62,7 @@ describe("宠物设置归一化", () => {
 
 describe("高级权限设置归一化", () => {
   test("完整保存并回填 granular PermissionConfig", () => {
-    const granular = { type: "granular" as const, sandboxApproval: false, rules: true, skillApproval: false, requestPermissions: true, mcpElicitations: false }
+    const granular = { type: "granular" as const, sandboxApproval: false, rules: true, skillApproval: false, requestPermissions: true, mcpTools: false, mcpElicitations: false }
     const settings = normalizeDesktopStoredSettings({
       permissionMode: "custom", sandboxMode: "danger-full-access", permissionProfile: ":danger-full-access",
       approvalPolicy: granular, approvalsReviewer: "auto_review",

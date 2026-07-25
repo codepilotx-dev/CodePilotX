@@ -53,7 +53,7 @@ export async function ensureSandboxReady(
     if (status.state === 'needs-repair' || status.state === 'damaged') {
       if (
         !dependencies.confirm(
-          'CodePilotX SRT 安全沙盒需要修复。修复过程会请求 Windows 管理员权限，是否继续？',
+          'CodePilotX SRT 安全沙盒需要修复。修复会将 WFP 回环端口范围更新为 60080–60095，并请求 Windows 管理员权限，是否继续？',
         )
       ) {
         return { ready: false, message: '已取消修复安全沙盒' }

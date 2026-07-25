@@ -311,7 +311,6 @@ describe('desktop thread settings client', () => {
     }])
 
     const unsupported: Array<[string, () => Promise<unknown>]> = [
-      ['getMcpRuntimeStatus', () => client.getMcpRuntimeStatus('real-uuid')],
       ['restoreSessionTurnChanges', () => client.restoreSessionTurnChanges({ sessionId: 'real-uuid' } as never)],
       ['saveSessionReviewComment', () => client.saveSessionReviewComment({ sessionId: 'real-uuid' } as never)],
       ['resolveSessionReviewComment', () => client.resolveSessionReviewComment({ sessionId: 'real-uuid' } as never)],
@@ -334,6 +333,102 @@ describe('desktop thread settings client', () => {
         expect(message).not.toContain('Mock session not found')
       }
     }
+  })
+
+  test('routes MCP management through RPC with the current workspace', async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = []
+    const server = {
+      name: 'fixture',
+      scope: 'local' as const,
+      enabled: true,
+      diagnosticContext: true,
+      transport: {
+        type: 'stdio' as const,
+        command: 'bun',
+        args: ['fixture.ts'],
+      },
+    }
+    const listResult = {
+      servers: [{ server, effective: true }],
+      generation: 4,
+    }
+    const client = createDesktopClient({
+      fetch: async (_path, init) => {
+        const body = init?.body ? JSON.parse(String(init.body)) : null
+        if (body?.method === 'initialized') return new Response(null, { status: 204 })
+        if (body?.method === 'initialize') return rpc(body.id, initializedResult())
+        requests.push({ method: body.method, params: body.params })
+        if (body.method === 'mcp/status') {
+          return rpc(body.id, {
+            servers: [{
+              name: 'fixture',
+              scope: 'local',
+              type: 'stdio',
+              state: 'connected',
+              toolCount: 2,
+              resourceCount: 1,
+              promptCount: 1,
+            }],
+            totalTools: 2,
+            totalResources: 1,
+            totalPrompts: 1,
+            generation: 4,
+          })
+        }
+        if (body.method === 'mcp/reload') {
+          return rpc(body.id, {
+            generation: 5,
+            added: [],
+            replaced: ['fixture'],
+            removed: [],
+            unchanged: [],
+            failed: [],
+          })
+        }
+        return rpc(body.id, listResult)
+      },
+    })
+
+    expect(await client.listMcpServers(project.rootPath)).toMatchObject([{
+      name: 'fixture',
+      scope: 'local',
+      effective: true,
+      diagnosticContext: true,
+    }])
+    expect(await client.getMcpRuntimeStatus(project.rootPath)).toMatchObject({
+      servers: [{ name: 'fixture', state: 'connected', toolCount: 2 }],
+    })
+    await client.saveMcpServer({
+      ...server,
+      workspacePath: project.rootPath,
+      originalName: 'old-fixture',
+    })
+    await client.setMcpServerEnabled('fixture', 'local', false, project.rootPath)
+    await client.removeMcpServer('fixture', 'local', project.rootPath)
+    await client.reloadMcpConfiguration(project.rootPath)
+
+    expect(requests.map(request => request.method)).toEqual([
+      'mcp/list',
+      'mcp/status',
+      'mcp/save',
+      'mcp/setEnabled',
+      'mcp/remove',
+      'mcp/reload',
+    ])
+    for (const request of requests) {
+      expect(request.params.workspace).toBe(project.rootPath)
+    }
+    expect(requests[2]?.params).toMatchObject({
+      originalName: 'old-fixture',
+      operationId: expect.any(String),
+      server,
+    })
+    expect(requests[3]?.params).toMatchObject({
+      name: 'fixture',
+      scope: 'local',
+      enabled: false,
+      operationId: expect.any(String),
+    })
   })
 
   test('starts AI Review with the persisted delivery preference', async () => {
@@ -1040,6 +1135,7 @@ function initializedResult() {
       'sandbox.management.v1',
       'prompt.preview.sensitive.v1',
       'tooling.management.v1',
+      'mcp.manage.v1',
     ],
     limits: {
       maxFrameBytes: 1024,

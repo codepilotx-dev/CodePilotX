@@ -84,6 +84,7 @@ import type {
   GenerateDesktopTaskSuggestionsInput,
   DesktopInstalledSkill,
   DesktopInstalledSkillDetails,
+  DesktopMcpServerListItem,
   DesktopPullRequestResult,
   DesktopSettingsChange,
   DesktopSessionStoreChange,
@@ -141,6 +142,7 @@ const RENDERER_CAPABILITIES = [
   'model.catalog.paged.v1',
   'tooling.management.v1',
   'skills.manage.v1',
+  'mcp.manage.v1',
   'task-suggestions.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 type PendingInteraction =
@@ -157,6 +159,36 @@ function desktopInstalledSkill(skill: AgentManagedSkill): DesktopInstalledSkill 
     source: skill.scope,
     format: skill.format,
     enabled: skill.enabled,
+  }
+}
+
+function desktopMcpServer(
+  item: RpcResult<'mcp/list'>['servers'][number],
+): DesktopMcpServerListItem {
+  const server = item.server
+  const summary = server.transport.type === 'stdio'
+    ? [server.transport.command, ...(server.transport.args ?? [])].join(' ')
+    : server.transport.url
+  return {
+    name: server.name,
+    scope: server.scope,
+    type: server.transport.type,
+    summary,
+    enabled: server.enabled,
+    diagnosticContext: server.diagnosticContext ?? false,
+    effective: item.effective,
+    ...(item.shadowedByScope
+      ? { shadowedByScope: item.shadowedByScope }
+      : {}),
+    editable: true,
+    removable: true,
+    transport: server.transport,
+    ...(server.startupTimeoutMs
+      ? { startupTimeoutMs: server.startupTimeoutMs }
+      : {}),
+    ...(server.toolTimeoutMs
+      ? { toolTimeoutMs: server.toolTimeoutMs }
+      : {}),
   }
 }
 import {
@@ -300,6 +332,7 @@ export function createAgentSessionDesktopClient(
       | 'tooling.management.v1'
       | 'pets.management.v1'
       | 'skills.manage.v1'
+      | 'mcp.manage.v1'
       | 'task-suggestions.v1',
     version = 1,
   ): void {
@@ -315,6 +348,7 @@ export function createAgentSessionDesktopClient(
       'tooling.management.v1': 'tooling.management.v1',
       'pets.management.v1': 'pets.management.v1',
       'skills.manage.v1': 'skills.manage.v1',
+      'mcp.manage.v1': 'mcp.manage.v1',
       'task-suggestions.v1': 'task-suggestions.v1',
     }
     if (version <= 1 && agentCapabilities.has(capabilities[name])) return
@@ -1632,10 +1666,112 @@ export function createAgentSessionDesktopClient(
       if (revealPath) return revealPath(targetPath)
       return mockClient.revealPathInFolder(targetPath)
     },
-    getMcpRuntimeStatus: sessionId =>
-      withUnsupportedAgentFallback(
-        'getMcpRuntimeStatus',
-        () => mockClient.getMcpRuntimeStatus(sessionId),
+    listMcpServers: workspacePath =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('mcp.manage.v1')
+          const result = await rpc.call<RpcResult<'mcp/list'>>(
+            'mcp/list',
+            workspacePath ? { workspace: workspacePath } : {},
+          )
+          return result.servers.map(desktopMcpServer)
+        },
+        () => mockClient.listMcpServers(workspacePath),
+      ),
+    getMcpRuntimeStatus: workspacePath =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('mcp.manage.v1')
+          return rpc.call<RpcResult<'mcp/status'>>(
+            'mcp/status',
+            workspacePath ? { workspace: workspacePath } : {},
+          )
+        },
+        () => mockClient.getMcpRuntimeStatus(workspacePath),
+      ),
+    saveMcpServer: options =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('mcp.manage.v1')
+          const result = await rpc.call<RpcResult<'mcp/save'>>(
+            'mcp/save',
+            {
+              operationId: crypto.randomUUID(),
+              server: {
+                name: options.name,
+                scope: options.scope,
+                enabled: options.enabled,
+                ...(options.diagnosticContext
+                  ? { diagnosticContext: true }
+                  : {}),
+                transport: options.transport,
+                ...(options.startupTimeoutMs
+                  ? { startupTimeoutMs: options.startupTimeoutMs }
+                  : {}),
+                ...(options.toolTimeoutMs
+                  ? { toolTimeoutMs: options.toolTimeoutMs }
+                  : {}),
+              },
+              ...(options.originalName
+                ? { originalName: options.originalName }
+                : {}),
+              ...(options.workspacePath
+                ? { workspace: options.workspacePath }
+                : {}),
+            },
+          )
+          return result.servers.map(desktopMcpServer)
+        },
+        () => mockClient.saveMcpServer(options),
+      ),
+    removeMcpServer: (name, scope, workspacePath) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('mcp.manage.v1')
+          const result = await rpc.call<RpcResult<'mcp/remove'>>(
+            'mcp/remove',
+            {
+              name,
+              scope,
+              operationId: crypto.randomUUID(),
+              ...(workspacePath ? { workspace: workspacePath } : {}),
+            },
+          )
+          return result.servers.map(desktopMcpServer)
+        },
+        () => mockClient.removeMcpServer(name, scope, workspacePath),
+      ),
+    setMcpServerEnabled: (name, scope, enabled, workspacePath) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('mcp.manage.v1')
+          const result = await rpc.call<RpcResult<'mcp/setEnabled'>>(
+            'mcp/setEnabled',
+            {
+              name,
+              scope,
+              enabled,
+              operationId: crypto.randomUUID(),
+              ...(workspacePath ? { workspace: workspacePath } : {}),
+            },
+          )
+          return result.servers.map(desktopMcpServer)
+        },
+        () => mockClient.setMcpServerEnabled(name, scope, enabled, workspacePath),
+      ),
+    reloadMcpConfiguration: workspacePath =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('mcp.manage.v1')
+          return rpc.call<RpcResult<'mcp/reload'>>(
+            'mcp/reload',
+            {
+              operationId: crypto.randomUUID(),
+              ...(workspacePath ? { workspace: workspacePath } : {}),
+            },
+          )
+        },
+        () => mockClient.reloadMcpConfiguration(workspacePath),
       ),
     restoreSessionTurnChanges: input =>
       withUnsupportedAgentFallback(

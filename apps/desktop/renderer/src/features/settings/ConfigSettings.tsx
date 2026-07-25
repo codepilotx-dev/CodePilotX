@@ -192,7 +192,7 @@ export function ConfigSettings(): React.ReactNode {
 
         <SettingsSection
           title="沙盒运行环境"
-          description="负责隔离命令进程、文件访问和网络访问。"
+          description={`SRT Windows ${sandboxRuntimeStatus.maturity.replace(/^./, value => value.toUpperCase())}，可并发运行 ${sandboxRuntimeStatus.maxConcurrentCommands} 条命令；负责隔离命令进程、文件访问和网络访问。`}
           actions={
             <Button
               disabled={sandboxRuntimeBusy || sandboxRuntimeRefreshing}
@@ -241,7 +241,7 @@ export function ConfigSettings(): React.ReactNode {
           />
           <SettingsRow
             title="修复沙盒运行环境"
-            description="重新检查专用账户、WFP 规则和 helper。"
+            description="重新检查专用账户、helper，并将 WFP 回环端口范围更新为 60080–60095。"
             control={
               <Button
                 aria-label="修复沙盒运行环境"
@@ -320,7 +320,7 @@ export function ConfigSettings(): React.ReactNode {
                 ]}
                 onChange={value => {
                   const approvalPolicy = value === 'granular'
-                    ? { type: 'granular' as const, sandboxApproval: true, rules: true, skillApproval: true, requestPermissions: true, mcpElicitations: true }
+                    ? { type: 'granular' as const, sandboxApproval: true, rules: true, skillApproval: true, requestPermissions: true, mcpTools: true, mcpElicitations: true }
                     : value as 'untrusted' | 'on-request' | 'never'
                   draft.setValue('permissionConfig', { ...draft.values.permissionConfig, approvalPolicy })
                   draft.autoSave()
@@ -351,6 +351,7 @@ export function ConfigSettings(): React.ReactNode {
                 ['rules', '规则审批'],
                 ['skillApproval', 'Skill 脚本'],
                 ['requestPermissions', '动态权限请求'],
+                ['mcpTools', 'MCP 工具调用'],
                 ['mcpElicitations', 'MCP 交互请求'],
               ] as const).map(([key, label]) => (
                 <SettingsRow

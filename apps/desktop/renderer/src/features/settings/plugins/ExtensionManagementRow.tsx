@@ -36,7 +36,7 @@ export function ExtensionManagementRow({
         </span>
       </span>
       {metadata ? (
-        <span className="tw:max-w-44 tw:shrink-0 tw:truncate tw:text-sm tw:text-app-text-soft tw:max-[640px]:col-start-2 tw:max-[640px]:row-start-2">
+        <span className="tw:max-w-80 tw:shrink-0 tw:text-right tw:text-sm tw:text-app-text-soft tw:max-[640px]:col-start-2 tw:max-[640px]:row-start-2 tw:max-[640px]:text-left">
           {metadata}
         </span>
       ) : null}
