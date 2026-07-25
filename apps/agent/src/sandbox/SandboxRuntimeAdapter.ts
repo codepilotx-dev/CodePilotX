@@ -69,6 +69,7 @@ export interface ProcessResult {
 
 export interface SandboxRuntimeAdapter {
   getStatus(): Promise<SandboxStatus>
+  refreshStatus(): Promise<SandboxStatus>
   install(): Promise<void>
   uninstall(): Promise<void>
   run(request: SandboxedProcessRequest): Promise<ProcessResult>
@@ -326,6 +327,8 @@ export async function runHostCommand(
 export class AnthropicSandboxRuntimeAdapter implements SandboxRuntimeAdapter {
   private runtime: SandboxRuntimeModule | null = null
   private queue = Promise.resolve()
+  private statusCache: SandboxStatus | null = null
+  private refreshTask: Promise<SandboxStatus> | null = null
 
   constructor(private readonly helperPath: string | null = process.env.CODEPILOTX_SRT_WIN_PATH?.trim() || null) {}
 
@@ -359,6 +362,24 @@ export class AnthropicSandboxRuntimeAdapter implements SandboxRuntimeAdapter {
   }
 
   async getStatus(): Promise<SandboxStatus> {
+    return this.statusCache ?? this.refreshStatus()
+  }
+
+  async refreshStatus(): Promise<SandboxStatus> {
+    if (this.refreshTask) return this.refreshTask
+    const task = this.probeStatus()
+      .then((status) => {
+        this.statusCache = status
+        return status
+      })
+      .finally(() => {
+        if (this.refreshTask === task) this.refreshTask = null
+      })
+    this.refreshTask = task
+    return task
+  }
+
+  private async probeStatus(): Promise<SandboxStatus> {
     const base: SandboxStatus = {
       state: "unsupported",
       platform: process.platform,
@@ -415,12 +436,17 @@ export class AnthropicSandboxRuntimeAdapter implements SandboxRuntimeAdapter {
     this.queue = new Promise<void>((resolve) => { release = resolve })
     await previous
     try {
-      const api = await this.api()
-      const status = await this.getStatus()
-      if (status.state !== "available") throw sandboxNotReadyError(status)
+      if (process.platform !== "win32" || !("x64" === process.arch || "arm64" === process.arch)) {
+        throw sandboxNotReadyError(await this.getStatus())
+      }
+      let api!: SandboxRuntimeModule
       try {
+        api = await this.api()
+        const helper = await this.resolvedHelper()
+        this.validateHelper(helper.path)
         await api.SandboxManager.initialize(request.config)
       } catch (cause) {
+        this.statusCache = null
         try {
           await api.SandboxManager.reset()
         } catch {

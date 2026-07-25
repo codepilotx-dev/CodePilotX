@@ -19,6 +19,7 @@ const config: PermissionConfig = {
 
 const adapter = (onRun: (request: SandboxedProcessRequest) => Promise<ProcessResult>) => ({
   getStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "0.0.65", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
+  refreshStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "0.0.65", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
   install: async () => undefined,
   uninstall: async () => undefined,
   reset: async () => undefined,

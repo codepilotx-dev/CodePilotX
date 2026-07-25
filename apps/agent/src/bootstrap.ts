@@ -189,6 +189,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     });
     const tools = new ToolRegistry();
     const sandbox = new AnthropicSandboxRuntimeAdapter(config.srtWinPath);
+    void sandbox.refreshStatus().catch(() =>
+      logger.warn("sandbox.status.warmup.failed", {
+        error: "SANDBOX_WARMUP_FAILED",
+      }),
+    );
     const reviewer = new ReviewerService(db, piModels);
     const approvals = new ApprovalService(
       db,

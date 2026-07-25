@@ -62,6 +62,7 @@ export const systemHandlers = {
   methods: [
     "initialize",
     "sandbox/status",
+    "sandbox/refresh",
     "sandbox/install",
     "sandbox/repair",
     "sandbox/uninstall",
@@ -104,16 +105,18 @@ export const systemHandlers = {
         }
       case "sandbox/status":
         return sandboxResult(await sandbox.getStatus())
+      case "sandbox/refresh":
+        return sandboxResult(await sandbox.refreshStatus())
       case "sandbox/install":
         await sandbox.install()
-        return requireAvailableSandbox(await sandbox.getStatus(), "安装")
+        return requireAvailableSandbox(await sandbox.refreshStatus(), "安装")
       case "sandbox/repair":
         await sandbox.install()
-        return requireAvailableSandbox(await sandbox.getStatus(), "修复")
+        return requireAvailableSandbox(await sandbox.refreshStatus(), "修复")
       case "sandbox/uninstall":
         decodeParams(decodeSandboxUninstall, rawParams, "sandbox/uninstall")
         await sandbox.uninstall()
-        return sandboxResult(await sandbox.getStatus())
+        return sandboxResult(await sandbox.refreshStatus())
       case "shutdown":
         if (process.env.CODEPILOTX_DESKTOP_MANAGED !== "1") throw new AgentError("SHUTDOWN_DENIED", "仅桌面托管的 Agent 可以通过 RPC 关闭", 403)
         setTimeout(() => process.emit("SIGTERM"), 25)

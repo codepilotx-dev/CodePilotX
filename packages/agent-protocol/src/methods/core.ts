@@ -804,6 +804,7 @@ export const CoreRpcMethods = {
   "queue/steer": defineMethod({ params: QueueInputParamsSchema, result: QueueStateResultSchema, errors: ThreadErrors, capability: "turn.queue.management.v1", mutation: true, exactParams: true, exactResult: true }),
   "queue/resume": defineMethod({ params: QueueResumeParamsSchema, result: QueueStateResultSchema, errors: ThreadErrors, capability: "turn.queue.management.v1", mutation: true, exactParams: true, exactResult: true }),
   "sandbox/status": defineMethod({ params: EmptyParamsSchema, result: SandboxResultSchema, errors: SandboxErrors, capability: "sandbox.management.v1", mutation: false, exactResult: true }),
+  "sandbox/refresh": defineMethod({ params: EmptyParamsSchema, result: SandboxResultSchema, errors: SandboxErrors, capability: "sandbox.management.v1", mutation: false, exactResult: true }),
   "sandbox/install": defineMethod({ params: OperationParamsSchema, result: SandboxResultSchema, errors: SandboxErrors, capability: "sandbox.management.v1", mutation: true, exactParams: true, exactResult: true }),
   "sandbox/repair": defineMethod({ params: OperationParamsSchema, result: SandboxResultSchema, errors: SandboxErrors, capability: "sandbox.management.v1", mutation: true, exactParams: true, exactResult: true }),
   "sandbox/uninstall": defineMethod({ params: SandboxUninstallParamsSchema, result: SandboxResultSchema, errors: SandboxErrors, capability: "sandbox.management.v1", mutation: true, exactParams: true, exactResult: true }),

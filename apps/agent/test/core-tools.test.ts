@@ -21,6 +21,7 @@ const fixture = async (runtime: { resolveTooling?: ToolingResolver; runToolProce
     dataDir: join(root, ".agent-data"),
     sandbox: {
       getStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "test", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
+      refreshStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "test", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
       install: async () => undefined,
       uninstall: async () => undefined,
       reset: async () => undefined,

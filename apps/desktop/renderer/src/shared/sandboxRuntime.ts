@@ -91,6 +91,12 @@ export async function loadSandboxRuntimeStatus(): Promise<SandboxRuntimeStatus> 
   return normalizeStatus(response.sandbox)
 }
 
+export async function refreshSandboxRuntimeStatus(): Promise<SandboxRuntimeStatus> {
+  await ensureSandboxRpcReady()
+  const response = await rpc.call('sandbox/refresh', {})
+  return normalizeStatus(response.sandbox)
+}
+
 export async function installSandboxRuntime(): Promise<SandboxRuntimeStatus> {
   await ensureSandboxRpcReady()
   const response = await rpc.call(

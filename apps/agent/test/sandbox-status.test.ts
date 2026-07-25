@@ -6,6 +6,7 @@ import type {
 import { RpcMethods } from "@codepilotx/agent-protocol"
 import { Schema } from "effect"
 import {
+  AnthropicSandboxRuntimeAdapter,
   classifyWindowsSandboxStatus,
   mapSandboxInitializationError,
   sandboxNotReadyError,
@@ -57,6 +58,104 @@ const internalStatus = (
 })
 
 describe("sandbox status", () => {
+  test("状态读取复用缓存，显式刷新合并并发探测且失败保留旧值", async () => {
+    const adapter = new AnthropicSandboxRuntimeAdapter()
+    const probeTarget = adapter as unknown as {
+      probeStatus(): Promise<SandboxStatus>
+    }
+    let probes = 0
+    let releaseProbe: (() => void) | undefined
+    let gate = new Promise<void>((resolve) => {
+      releaseProbe = resolve
+    })
+    probeTarget.probeStatus = async () => {
+      probes += 1
+      await gate
+      return internalStatus({ runtimeVersion: `probe-${probes}` })
+    }
+
+    const startupRefresh = adapter.refreshStatus()
+    const initialRead = adapter.getStatus()
+    await Promise.resolve()
+    releaseProbe?.()
+    const [refreshed, read] = await Promise.all([startupRefresh, initialRead])
+
+    expect(probes).toBe(1)
+    expect(read).toEqual(refreshed)
+    expect(await adapter.getStatus()).toEqual(refreshed)
+    expect(probes).toBe(1)
+
+    gate = new Promise<void>((resolve) => {
+      releaseProbe = resolve
+    })
+    const firstRefresh = adapter.refreshStatus()
+    const secondRefresh = adapter.refreshStatus()
+    await Promise.resolve()
+    releaseProbe?.()
+    const [firstResult, secondResult] = await Promise.all([
+      firstRefresh,
+      secondRefresh,
+    ])
+
+    expect(probes).toBe(2)
+    expect(secondResult).toEqual(firstResult)
+
+    probeTarget.probeStatus = async () => {
+      throw new Error("probe failed")
+    }
+    await expect(adapter.refreshStatus()).rejects.toThrow("probe failed")
+    expect(await adapter.getStatus()).toEqual(firstResult)
+  })
+
+  test("执行前只复核 helper，初始化失败后使状态缓存失效", async () => {
+    const adapter = new AnthropicSandboxRuntimeAdapter()
+    const target = adapter as unknown as {
+      api(): Promise<{
+        SandboxManager: {
+          initialize(): Promise<void>
+          reset(): Promise<void>
+        }
+      }>
+      probeStatus(): Promise<SandboxStatus>
+      resolvedHelper(): Promise<{ path: string; spawn: never }>
+      validateHelper(path: string): string
+    }
+    let probes = 0
+    let helperValidations = 0
+    target.probeStatus = async () => {
+      probes += 1
+      return internalStatus()
+    }
+    target.resolvedHelper = async () => ({
+      path: "C:\\CodePilotX\\srt-win.exe",
+      spawn: undefined as never,
+    })
+    target.validateHelper = () => {
+      helperValidations += 1
+      return "a".repeat(64)
+    }
+    target.api = async () => ({
+      SandboxManager: {
+        initialize: async () => {
+          throw new Error("initialize failed")
+        },
+        reset: async () => {},
+      },
+    })
+
+    await adapter.refreshStatus()
+    await expect(adapter.run({
+      command: "echo sandbox",
+      cwd: "C:\\workspace",
+      config: {} as never,
+    })).rejects.toMatchObject({ code: "SANDBOX_UNAVAILABLE" })
+
+    expect(helperValidations).toBe(1)
+    expect(probes).toBe(1)
+    await adapter.getStatus()
+    expect(probes).toBe(2)
+  })
+
   test("未安装账号优先返回首次安装提示，不泄漏 BFE cannot-read hint", () => {
     expect(classifyWindowsSandboxStatus(
       userStatus({

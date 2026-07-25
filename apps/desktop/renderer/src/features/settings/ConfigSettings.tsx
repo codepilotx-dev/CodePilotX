@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Download, Trash2, Wrench } from 'lucide-react'
+import { Download, RefreshCw, Trash2, Wrench } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
@@ -15,6 +15,7 @@ import {
   SANDBOX_RUNTIME_STATUS_UNAVAILABLE,
   installSandboxRuntime,
   loadSandboxRuntimeStatus,
+  refreshSandboxRuntimeStatus,
   repairSandboxRuntime,
   sandboxRuntimeStateLabel,
   uninstallSandboxRuntime,
@@ -43,6 +44,7 @@ export function ConfigSettings(): React.ReactNode {
   const [changingLocation, setChangingLocation] = useState(false)
   const [sandboxRuntimeStatus, setSandboxRuntimeStatus] = useState<SandboxRuntimeStatus>(SANDBOX_RUNTIME_STATUS_UNAVAILABLE)
   const [sandboxRuntimeBusy, setSandboxRuntimeBusy] = useState(false)
+  const [sandboxRuntimeRefreshing, setSandboxRuntimeRefreshing] = useState(false)
   const [promptPreview, setPromptPreview] = useState<string | null>(null)
 
   useEffect(() => {
@@ -75,7 +77,7 @@ export function ConfigSettings(): React.ReactNode {
   }, [])
 
   const runSandboxRuntimeAction = async (action: () => Promise<SandboxRuntimeStatus>) => {
-    if (sandboxRuntimeBusy) return
+    if (sandboxRuntimeBusy || sandboxRuntimeRefreshing) return
     setSandboxRuntimeBusy(true)
     setSandboxRuntimeStatus({ ...sandboxRuntimeStatus, state: 'installing', message: '正在处理 SRT 沙箱。' })
     try {
@@ -91,6 +93,24 @@ export function ConfigSettings(): React.ReactNode {
       })
     } finally {
       setSandboxRuntimeBusy(false)
+    }
+  }
+
+  const refreshSandboxRuntime = async (): Promise<void> => {
+    if (sandboxRuntimeBusy || sandboxRuntimeRefreshing) return
+    setSandboxRuntimeRefreshing(true)
+    try {
+      setSandboxRuntimeStatus(await refreshSandboxRuntimeStatus())
+    } catch (error) {
+      setSandboxRuntimeStatus(current => ({
+        ...current,
+        message:
+          error instanceof Error && error.message
+            ? error.message
+            : '无法重新扫描 SRT 沙箱状态。',
+      }))
+    } finally {
+      setSandboxRuntimeRefreshing(false)
     }
   }
 
@@ -173,6 +193,21 @@ export function ConfigSettings(): React.ReactNode {
         <SettingsSection
           title="沙盒运行环境"
           description="负责隔离命令进程、文件访问和网络访问。"
+          actions={
+            <Button
+              disabled={sandboxRuntimeBusy || sandboxRuntimeRefreshing}
+              onClick={() => void refreshSandboxRuntime()}
+              title={
+                sandboxRuntimeRefreshing
+                  ? '正在扫描沙盒运行环境'
+                  : '重新扫描'
+              }
+              type="button"
+            >
+              <RefreshCw size={APP_ICON_SIZE} />
+              {sandboxRuntimeRefreshing ? '扫描中…' : '重新扫描'}
+            </Button>
+          }
         >
           <SettingsRow
             title="状态"
@@ -191,7 +226,11 @@ export function ConfigSettings(): React.ReactNode {
             control={
               <Button
                 aria-label="安装沙盒运行环境"
-                disabled={sandboxRuntimeBusy || !sandboxRuntimeStatus.canInstall}
+                disabled={
+                  sandboxRuntimeBusy ||
+                  sandboxRuntimeRefreshing ||
+                  !sandboxRuntimeStatus.canInstall
+                }
                 onClick={() => void runSandboxRuntimeAction(installSandboxRuntime)}
                 type="button"
               >
@@ -206,7 +245,11 @@ export function ConfigSettings(): React.ReactNode {
             control={
               <Button
                 aria-label="修复沙盒运行环境"
-                disabled={sandboxRuntimeBusy || !sandboxRuntimeStatus.canRepair}
+                disabled={
+                  sandboxRuntimeBusy ||
+                  sandboxRuntimeRefreshing ||
+                  !sandboxRuntimeStatus.canRepair
+                }
                 onClick={() => void runSandboxRuntimeAction(repairSandboxRuntime)}
                 type="button"
               >
@@ -221,7 +264,11 @@ export function ConfigSettings(): React.ReactNode {
             control={
               <Button
                 aria-label="卸载沙盒运行环境"
-                disabled={sandboxRuntimeBusy || !sandboxRuntimeStatus.canUninstall}
+                disabled={
+                  sandboxRuntimeBusy ||
+                  sandboxRuntimeRefreshing ||
+                  !sandboxRuntimeStatus.canUninstall
+                }
                 onClick={() => {
                   if (window.confirm('确认卸载 CodePilotX SRT 沙箱吗？')) void runSandboxRuntimeAction(uninstallSandboxRuntime)
                 }}

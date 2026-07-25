@@ -599,6 +599,7 @@ const fixtures = {
     threadId: threadListItem.id, operationId: "operation:queue-resume", expectedVersion: 5,
   }, { threadId: threadListItem.id, version: 6, pauseReason: null, turns: [], inputs: [], streamPosition }),
   "sandbox/status": methodFixture("sandbox/status", {}, { sandbox: sandboxStatus }),
+  "sandbox/refresh": methodFixture("sandbox/refresh", {}, { sandbox: sandboxStatus }),
   "sandbox/install": methodFixture("sandbox/install", { operationId: "operation:sandbox-install" }, { sandbox: sandboxStatus }),
   "sandbox/repair": methodFixture("sandbox/repair", { operationId: "operation:sandbox-repair" }, { sandbox: sandboxStatus }),
   "sandbox/uninstall": methodFixture("sandbox/uninstall", {
@@ -1283,9 +1284,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 116 formal methods decodable", () => {
+  test("keeps valid params and results for all 117 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(116)
+    expect(methods).toHaveLength(117)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
