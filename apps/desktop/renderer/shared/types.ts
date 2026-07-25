@@ -52,6 +52,7 @@ import type {
   ProviderTestResponse,
 } from '@codepilotx/shared'
 import type { CodexHighlightThemeSlug } from './codexThemes/manifest.js'
+import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
 
 export type DesktopAuthStatus = {
   authenticated: boolean
@@ -1450,6 +1451,14 @@ export type DesktopProjectMemoryContent = DesktopProjectMemory & {
   content: string
 }
 
+export type DesktopTaskSuggestion =
+  RpcResult<'task-suggestion/generate'>['suggestions'][number]
+
+export type GenerateDesktopTaskSuggestionsInput = {
+  workspacePath: string | null
+  context: RpcParams<'task-suggestion/generate'>['context']
+}
+
 export type SaveProjectMemoryInput = {
   workspacePath: string
   relativePath: string
@@ -1548,6 +1557,9 @@ export type DesktopApi = {
   saveUserMemory(input: SaveUserMemoryInput): Promise<DesktopProjectMemory>
   deleteUserMemory(input: DeleteUserMemoryInput): Promise<void>
   resetUserMemory(input: ResetUserMemoryInput): Promise<void>
+  generateTaskSuggestions(
+    input: GenerateDesktopTaskSuggestionsInput,
+  ): Promise<RpcResult<'task-suggestion/generate'>>
   exportUserMemory(): Promise<ExportUserMemoryResult>
   importUserMemory(input: ImportUserMemoryInput): Promise<ExportUserMemoryResult>
   getBrowserState(): Promise<DesktopBrowserState>

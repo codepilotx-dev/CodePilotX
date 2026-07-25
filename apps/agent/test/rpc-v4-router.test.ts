@@ -211,6 +211,64 @@ describe("RPC v4 Router", () => {
     db.close()
   })
 
+  test("task suggestion RPC resolves project scope and returns safe service output", async () => {
+    let calls = 0
+    const suggestions = {
+      generate: async (params: any, projectKey?: string) => {
+        calls += 1
+        expect(params.workspace.kind).toBe("project")
+        expect(typeof projectKey).toBe("string")
+        return {
+          contextKey: "context:1",
+          generatedAt: 1,
+          suggestions: [{
+            id: "suggestion:1",
+            categoryId: "codex-review",
+            label: "审查当前改动",
+            prompt: "Review current changes",
+          }],
+        }
+      },
+    }
+    const { db, call, initialize } = await fixture({
+      suggestions,
+    } as unknown as Partial<RpcRouterDependencies>)
+    await initialize()
+    const project = db.createProject({ rootPath: roots.at(-1)! })
+    const context = {
+      workspaceName: "fixture",
+      branchName: "main",
+      git: null,
+      recentTasks: [],
+      localCandidates: [
+        { id: "1", categoryId: "codex-explore", label: "探索", prompt: "Explore" },
+        { id: "2", categoryId: "codex-create", label: "构建", prompt: "Build" },
+        { id: "3", categoryId: "codex-review", label: "审查", prompt: "Review" },
+        { id: "4", categoryId: "codex-fix", label: "修复", prompt: "Fix" },
+      ],
+    }
+    const response = await call("task-suggestion/generate", {
+      workspace: { kind: "project", projectId: project.id },
+      context,
+    })
+    expect(response.error).toBeUndefined()
+    expect(response.result).toMatchObject({
+      contextKey: "context:1",
+      suggestions: [{ categoryId: "codex-review" }],
+    })
+    expect(calls).toBe(1)
+
+    const missing = await call("task-suggestion/generate", {
+      workspace: { kind: "project", projectId: "project:missing" },
+      context,
+    })
+    expect(missing.error).toMatchObject({
+      data: { code: "PROJECT_NOT_FOUND" },
+    })
+    expect(calls).toBe(1)
+    db.close()
+  })
+
   test("workspace file methods expose declared file errors instead of internal workspace codes", async () => {
     const { db, call, initialize } = await fixture()
     await initialize()

@@ -1,6 +1,7 @@
 import type React from "react";
 import {
   ArrowLeft,
+  ChevronRight,
   Bug,
   Hammer,
   ListChecks,
@@ -13,16 +14,21 @@ import {
   type NewSessionSuggestionCategory,
   type NewSessionSuggestionCategoryId,
   type NewSessionSuggestionTask,
+  type NewSessionTaskSuggestion,
 } from "./newSessionSuggestions.js";
 
 type NewSessionSuggestionPanelProps = {
   state: NewSessionSuggestionState;
+  suggestions: readonly NewSessionTaskSuggestion[];
+  onSelectSuggestion: (suggestion: NewSessionTaskSuggestion) => void;
   onSelectCategory: (category: NewSessionSuggestionCategory) => void;
   onSelectTask: (
     category: NewSessionSuggestionCategory,
     task: NewSessionSuggestionTask,
   ) => void;
   onShowAll: (category: NewSessionSuggestionCategory) => void;
+  onShowTemplates: () => void;
+  onShowSuggestions: () => void;
 };
 
 const CATEGORY_ICONS: Record<
@@ -37,18 +43,76 @@ const CATEGORY_ICONS: Record<
 
 export function NewSessionSuggestions({
   state,
+  suggestions,
+  onSelectSuggestion,
   onSelectCategory,
   onSelectTask,
   onShowAll,
+  onShowTemplates,
+  onShowSuggestions,
 }: NewSessionSuggestionPanelProps): React.ReactNode {
   if (state.kind === "hidden") return null;
 
   if (state.kind === "root") {
     return (
       <section
-        aria-label="选择一个任务类型"
+        aria-label="建议任务"
         className="new-session-suggestions is-root"
       >
+        <div className="new-session-suggestion-grid">
+          {suggestions.map((suggestion, index) => {
+            const category = findNewSessionSuggestionCategory(
+              suggestion.categoryId,
+            );
+            const Icon = CATEGORY_ICONS[category.id];
+            return (
+              <button
+                key={suggestion.id}
+                aria-label={suggestion.label}
+                className={`new-session-suggestion-card is-${category.tone}`}
+                style={
+                  {
+                    "--new-session-suggestion-index": index,
+                  } as React.CSSProperties
+                }
+                type="button"
+                onClick={() => onSelectSuggestion(suggestion)}
+              >
+                <span className="new-session-suggestion-icon">
+                  <Icon aria-hidden size={16} />
+                </span>
+                <span className="new-session-suggestion-label">
+                  {suggestion.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <button
+          className="new-session-suggestion-navigation"
+          type="button"
+          onClick={onShowTemplates}
+        >
+          查看全部模板
+          <ChevronRight aria-hidden size={14} />
+        </button>
+      </section>
+    );
+  }
+
+  if (state.kind === "templates") {
+    return (
+      <section
+        aria-label="选择一个任务模板"
+        className="new-session-suggestions is-root is-templates"
+      >
+        <div className="new-session-suggestion-list-heading">
+          <span>任务模板</span>
+          <button type="button" onClick={onShowSuggestions}>
+            <ArrowLeft aria-hidden size={14} />
+            返回建议
+          </button>
+        </div>
         <div className="new-session-suggestion-grid">
           {NEW_SESSION_SUGGESTIONS.map((category, index) => {
             const Icon = CATEGORY_ICONS[category.id];

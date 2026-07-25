@@ -271,6 +271,9 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     }),
     deleteUserMemory: async () => {},
     resetUserMemory: async () => {},
+    generateTaskSuggestions: async () => {
+      throw new Error('TASK_SUGGESTIONS_UNAVAILABLE')
+    },
     exportUserMemory: async () => ({
       memoryDir: 'mock/user-memory/',
       files: [],

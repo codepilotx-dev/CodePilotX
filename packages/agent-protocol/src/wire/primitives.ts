@@ -54,6 +54,7 @@ export const ApplicationErrorCodeSchema = Schema.Literals([
   "MEMORY_NOT_FOUND",
   "MEMORY_REJECTED",
   "SKILL_NOT_FOUND",
+  "SUGGESTION_UNAVAILABLE",
   "PET_NOT_FOUND",
   "PET_INVALID",
   "PET_DOWNLOAD_FAILED",

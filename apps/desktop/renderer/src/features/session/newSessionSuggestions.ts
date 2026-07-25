@@ -16,6 +16,38 @@ export type NewSessionSuggestionTask = {
   prompt: string;
 };
 
+export type NewSessionTaskSuggestion = NewSessionSuggestionTask & {
+  categoryId: NewSessionSuggestionCategoryId;
+};
+
+export type NewSessionRecentTask = {
+  id: string;
+  title: string;
+  firstPrompt: string | null;
+  status:
+    | "idle"
+    | "queued"
+    | "waiting"
+    | "running"
+    | "done"
+    | "error"
+    | "interrupted";
+  updatedAt: number;
+};
+
+export type NewSessionSuggestionGitContext = {
+  clean: boolean;
+  ahead: number;
+  behind: number;
+  totalFiles: number;
+  files: Array<{
+    path: string;
+    status: string;
+    stagedStatus: string;
+    unstagedStatus: string;
+  }>;
+};
+
 export type NewSessionSuggestionCategory = {
   id: NewSessionSuggestionCategoryId;
   label: string;
@@ -143,4 +175,103 @@ export function findNewSessionSuggestionCategory(
   categoryId: NewSessionSuggestionCategoryId,
 ): NewSessionSuggestionCategory {
   return NEW_SESSION_SUGGESTIONS.find(category => category.id === categoryId)!;
+}
+
+const normalizedPrompt = (value: string) =>
+  value.replace(/\s+/g, " ").trim().toLocaleLowerCase("en-US");
+
+const shortTitle = (value: string) => {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  return normalized.length > 26 ? `${normalized.slice(0, 25)}…` : normalized;
+};
+
+const inferCategoryId = (value: string): NewSessionSuggestionCategoryId => {
+  const normalized = value.toLocaleLowerCase();
+  if (/\b(?:fix|debug|repair)\b|修复|排查|错误|失败/u.test(normalized)) {
+    return "codex-fix";
+  }
+  if (/\b(?:review|audit|inspect)\b|审查|检查|评估/u.test(normalized)) {
+    return "codex-review";
+  }
+  if (/\b(?:explore|understand|research)\b|探索|理解|调研/u.test(normalized)) {
+    return "codex-explore";
+  }
+  return "codex-create";
+};
+
+const staticFallbacks = (): NewSessionTaskSuggestion[] =>
+  NEW_SESSION_SUGGESTIONS.map(category => ({
+    ...category.tasks[0],
+    categoryId: category.id,
+  }));
+
+export function buildContextualTaskSuggestions(input: {
+  recentTasks: readonly NewSessionRecentTask[];
+  git: NewSessionSuggestionGitContext | null;
+}): NewSessionTaskSuggestion[] {
+  const candidates: NewSessionTaskSuggestion[] = [];
+  const recentTasks = [...input.recentTasks]
+    .sort((left, right) => right.updatedAt - left.updatedAt)
+    .slice(0, 5);
+  const unfinished = recentTasks.find(
+    task => task.status === "error" || task.status === "interrupted",
+  );
+  if (unfinished) {
+    const title = shortTitle(unfinished.title);
+    candidates.push({
+      id: `recent-unfinished:${unfinished.id}`,
+      categoryId: "codex-fix",
+      label: `继续处理：${title}`,
+      prompt: unfinished.firstPrompt
+        ? `继续处理上次未完成的任务：${unfinished.firstPrompt}`
+        : `继续处理上次未完成的任务“${unfinished.title}”，先确认当前状态，再完成剩余工作。`,
+    });
+  }
+
+  if (input.git && !input.git.clean && input.git.totalFiles > 0) {
+    candidates.push({
+      id: "git:working-tree",
+      categoryId: "codex-review",
+      label: `审查当前 ${input.git.totalFiles} 个文件的改动`,
+      prompt: "审查当前工作区改动，指出风险、遗漏和可以直接改进的地方。",
+    });
+  }
+
+  if (input.git && input.git.behind > 0) {
+    candidates.push({
+      id: "git:behind",
+      categoryId: "codex-explore",
+      label: `检查落后的 ${input.git.behind} 个提交`,
+      prompt: "检查当前分支与上游分支的差异，说明同步风险并给出安全的处理方案。",
+    });
+  }
+
+  if (input.git && input.git.ahead > 0) {
+    candidates.push({
+      id: "git:ahead",
+      categoryId: "codex-review",
+      label: `检查待推送的 ${input.git.ahead} 个提交`,
+      prompt: "审查当前分支尚未推送的提交，检查风险、测试覆盖和提交完整性。",
+    });
+  }
+
+  for (const task of recentTasks) {
+    if (task.status !== "done") continue;
+    const title = shortTitle(task.title);
+    candidates.push({
+      id: `recent-completed:${task.id}`,
+      categoryId: inferCategoryId(`${task.title} ${task.firstPrompt ?? ""}`),
+      label: `继续完善：${title}`,
+      prompt: `基于最近完成的任务“${task.title}”，检查当前实现并完成最有价值的下一步改进。`,
+    });
+  }
+
+  candidates.push(...staticFallbacks());
+  const seen = new Set<string>();
+  return candidates.flatMap(candidate => {
+    const key = normalizedPrompt(candidate.prompt);
+    if (!key || seen.has(key)) return [];
+    seen.add(key);
+    return [candidate];
+  }).slice(0, 4);
 }

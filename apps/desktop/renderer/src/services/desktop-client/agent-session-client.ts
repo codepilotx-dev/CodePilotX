@@ -80,6 +80,7 @@ import type {
   DesktopGithubRepositoryListResult,
   DesktopGitStatus,
   DesktopGitOperationResult,
+  GenerateDesktopTaskSuggestionsInput,
   DesktopInstalledSkill,
   DesktopInstalledSkillDetails,
   DesktopPullRequestResult,
@@ -139,6 +140,7 @@ const RENDERER_CAPABILITIES = [
   'model.catalog.paged.v1',
   'tooling.management.v1',
   'skills.manage.v1',
+  'task-suggestions.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 type PendingInteraction =
   RpcResult<'interaction/listPending'>['interactions'][number]
@@ -295,7 +297,8 @@ export function createAgentSessionDesktopClient(
       | 'github.pullRequests.v1'
       | 'tooling.management.v1'
       | 'pets.management.v1'
-      | 'skills.manage.v1',
+      | 'skills.manage.v1'
+      | 'task-suggestions.v1',
     version = 1,
   ): void {
     const capabilities: Record<typeof name, string> = {
@@ -310,6 +313,7 @@ export function createAgentSessionDesktopClient(
       'tooling.management.v1': 'tooling.management.v1',
       'pets.management.v1': 'pets.management.v1',
       'skills.manage.v1': 'skills.manage.v1',
+      'task-suggestions.v1': 'task-suggestions.v1',
     }
     if (version <= 1 && agentCapabilities.has(capabilities[name])) return
     if (version === 2 && (name === 'prompt' || name === 'memory')) {
@@ -1844,6 +1848,21 @@ export function createAgentSessionDesktopClient(
       withAgentOrMock(async () => { requireAgentCapability('memory', 2); await rpc.call('memory/delete', { id: input.relativePath, scope: 'user', operationId: crypto.randomUUID() }) }, () => mockClient.deleteUserMemory(input)),
     resetUserMemory: input =>
       withAgentOrMock(async () => { requireAgentCapability('memory', 2); await rpc.call('memory/reset', { scope: 'user', includeEventLog: input.includeEventLog, operationId: crypto.randomUUID() }) }, () => mockClient.resetUserMemory(input)),
+    generateTaskSuggestions: (
+      input: GenerateDesktopTaskSuggestionsInput,
+    ) =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('task-suggestions.v1')
+        const project = input.workspacePath
+          ? await loadProjectForPath(input.workspacePath)
+          : null
+        return rpc.call('task-suggestion/generate', {
+          workspace: project
+            ? { kind: 'project', projectId: project.id }
+            : { kind: 'projectless' },
+          context: input.context,
+        })
+      }),
     listModelProviders: async () => {
       const [directory, integrations] = await Promise.all([
         loadProviderCatalog(),

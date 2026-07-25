@@ -1714,6 +1714,32 @@ export function DesktopLayout(): React.ReactNode {
     isConversationRoute && (!sessionsHydrated || sessionId !== routedSessionId)
   const branchName = getDesktopComposerBranchName(currentWorkspace)
 
+  const quickChatRecentTasks = useMemo(() => {
+    const workspaceKey = currentWorkspace?.path
+      .replace(/\\/g, '/')
+      .toLowerCase() ?? null
+    return sessions
+      .filter(item => {
+        if (item.archivedAt) return false
+        if (!workspaceKey) return item.standalone === true
+        return item.workspacePath.replace(/\\/g, '/').toLowerCase() === workspaceKey
+      })
+      .slice(0, 5)
+      .map(item => ({
+        id: item.id,
+        title:
+          item.sessionName ??
+          item.aiTitle ??
+          item.firstPrompt ??
+          '最近任务',
+        firstPrompt: item.firstPrompt ?? null,
+        status: item.status,
+        updatedAt: Date.parse(
+          item.lastMessageAt ?? item.createdAt,
+        ),
+      }))
+  }, [currentWorkspace?.path, sessions])
+
   const search = useDesktopSearch({
     query: searchQuery,
     recentWorkspaces,
@@ -2613,6 +2639,7 @@ export function DesktopLayout(): React.ReactNode {
             diff: workspace.diff,
             gitStatus,
             recentWorkspaces,
+            recentTasks: quickChatRecentTasks,
             onArchiveSession: () => {
               if (!activeSessionItem) return
               void handleArchiveSessions([activeSessionItem.id])

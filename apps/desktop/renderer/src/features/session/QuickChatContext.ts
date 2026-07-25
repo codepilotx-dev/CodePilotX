@@ -17,6 +17,7 @@ import type {
   MarkdownFileReference,
 } from '../markdown/index.js'
 import type { DesktopComposerProps } from './composer/DesktopComposer.js'
+import type { NewSessionRecentTask } from './newSessionSuggestions.js'
 
 export type ProviderModelOption = {
   providerID: string
@@ -45,6 +46,7 @@ export type QuickChatContextValue = {
   diff: string
   gitStatus: DesktopGitStatus | null
   recentWorkspaces: DesktopWorkspace[]
+  recentTasks: NewSessionRecentTask[]
   permissionMode: DesktopPermissionMode
   planModeActive: boolean
   providerModelOptions: ProviderModelOption[]

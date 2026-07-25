@@ -6,15 +6,19 @@ import {
   createNewSessionSuggestionState,
   removeGeneratedSuggestionStarter,
   selectNewSessionSuggestionCategory,
+  showContextualNewSessionSuggestions,
+  showNewSessionSuggestionTemplates,
   syncNewSessionSuggestionState,
 } from "./newSessionSuggestionState.js";
 import type {
   NewSessionSuggestionCategory,
   NewSessionSuggestionTask,
+  NewSessionTaskSuggestion,
 } from "./newSessionSuggestions.js";
 import { ProjectSwitcherPopover } from "./composer/ProjectSwitcherPopover.js";
 import { DesktopComposer } from "./composer/DesktopComposer.js";
 import { useQuickChatContext } from "./QuickChatContext.js";
+import { useContextualTaskSuggestions } from "./useContextualTaskSuggestions.js";
 
 export function QuickChatView(): React.ReactNode {
   const {
@@ -23,6 +27,7 @@ export function QuickChatView(): React.ReactNode {
     composerDraft,
     debugMode,
     gitStatus,
+    recentTasks,
     recentWorkspaces,
     workspaceName,
     workspacePath,
@@ -53,6 +58,16 @@ export function QuickChatView(): React.ReactNode {
       }
     );
   }, [branchName, recentWorkspaces, workspaceName, workspacePath]);
+  const { suggestions, markInteracted } = useContextualTaskSuggestions({
+    active:
+      suggestionState.kind === "root" &&
+      observedComposerValue.trim().length === 0,
+    workspaceName,
+    workspacePath,
+    branchName,
+    gitStatus,
+    recentTasks,
+  });
 
   const composerDraftValue = composerDraft?.value;
 
@@ -94,10 +109,20 @@ export function QuickChatView(): React.ReactNode {
 
   const handleSelectCategory = useCallback(
     (category: NewSessionSuggestionCategory) => {
+      markInteracted();
       setSuggestionState(selectNewSessionSuggestionCategory(category.id));
       replaceComposerValue(category.starter);
     },
-    [replaceComposerValue],
+    [markInteracted, replaceComposerValue],
+  );
+
+  const handleSelectSuggestion = useCallback(
+    (suggestion: NewSessionTaskSuggestion) => {
+      markInteracted();
+      setSuggestionState({ kind: "hidden", reason: "custom-input" });
+      replaceComposerValue(suggestion.prompt);
+    },
+    [markInteracted, replaceComposerValue],
   );
 
   const handleSelectTask = useCallback(
@@ -105,6 +130,7 @@ export function QuickChatView(): React.ReactNode {
       category: NewSessionSuggestionCategory,
       task: NewSessionSuggestionTask,
     ) => {
+      markInteracted();
       if (!composerDraft && observedComposerValue === category.starter) {
         const completion = task.prompt.startsWith(category.starter)
           ? task.prompt.slice(category.starter.length)
@@ -120,6 +146,7 @@ export function QuickChatView(): React.ReactNode {
     [
       composerDraft,
       focusComposer,
+      markInteracted,
       observedComposerValue,
       onAppendComposerText,
       replaceComposerValue,
@@ -128,15 +155,26 @@ export function QuickChatView(): React.ReactNode {
 
   const handleShowAll = useCallback(
     (category: NewSessionSuggestionCategory) => {
+      markInteracted();
       const nextValue = removeGeneratedSuggestionStarter(
         observedComposerValue,
         category.starter,
       );
-      setSuggestionState({ kind: "root" });
+      setSuggestionState(showNewSessionSuggestionTemplates());
       if (nextValue !== observedComposerValue) replaceComposerValue(nextValue);
     },
-    [observedComposerValue, replaceComposerValue],
+    [markInteracted, observedComposerValue, replaceComposerValue],
   );
+
+  const handleShowTemplates = useCallback(() => {
+    markInteracted();
+    setSuggestionState(showNewSessionSuggestionTemplates());
+  }, [markInteracted]);
+
+  const handleShowSuggestions = useCallback(() => {
+    markInteracted();
+    setSuggestionState(showContextualNewSessionSuggestions());
+  }, [markInteracted]);
 
   const handleComposerInputCapture = useCallback(
     (event: React.FormEvent<HTMLDivElement>) => {
@@ -151,13 +189,14 @@ export function QuickChatView(): React.ReactNode {
         value = target.textContent ?? "";
       }
       if (value === null) return;
+      markInteracted();
       programmaticValueRef.current = null;
       setObservedComposerValue(value);
       setSuggestionState(current =>
         syncNewSessionSuggestionState(current, value),
       );
     },
-    [],
+    [markInteracted],
   );
 
   const handleWhaleMarkClick = useCallback(() => {
@@ -258,12 +297,17 @@ export function QuickChatView(): React.ReactNode {
               </h1>
             )}
           </div>
-          {suggestionState.kind === "root" ? (
+          {suggestionState.kind === "root" ||
+          suggestionState.kind === "templates" ? (
             <NewSessionSuggestions
               state={suggestionState}
+              suggestions={suggestions}
+              onSelectSuggestion={handleSelectSuggestion}
               onSelectCategory={handleSelectCategory}
               onSelectTask={handleSelectTask}
               onShowAll={handleShowAll}
+              onShowTemplates={handleShowTemplates}
+              onShowSuggestions={handleShowSuggestions}
             />
           ) : null}
         </section>
@@ -272,9 +316,13 @@ export function QuickChatView(): React.ReactNode {
           {suggestionState.kind === "category" ? (
             <NewSessionSuggestions
               state={suggestionState}
+              suggestions={suggestions}
+              onSelectSuggestion={handleSelectSuggestion}
               onSelectCategory={handleSelectCategory}
               onSelectTask={handleSelectTask}
               onShowAll={handleShowAll}
+              onShowTemplates={handleShowTemplates}
+              onShowSuggestions={handleShowSuggestions}
             />
           ) : null}
           {composerProps ? (

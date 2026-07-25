@@ -701,6 +701,67 @@ const fixtures = {
     includeEventLog: true,
     operationId: "operation:memory-reset",
   }, { deleted: 1 }),
+  "task-suggestion/generate": methodFixture("task-suggestion/generate", {
+    workspace: { kind: "project", projectId: project.id },
+    context: {
+      workspaceName: project.name,
+      branchName: "main",
+      git: {
+        clean: false,
+        ahead: 1,
+        behind: 0,
+        totalFiles: 1,
+        files: [{
+          path: "src/index.ts",
+          status: "modified",
+          stagedStatus: "",
+          unstagedStatus: "M",
+        }],
+      },
+      recentTasks: [{
+        id: threadListItem.id,
+        title: threadListItem.title,
+        firstPrompt: "Implement task suggestions",
+        status: "done",
+        updatedAt: 1,
+      }],
+      localCandidates: [
+        {
+          id: "local:1",
+          categoryId: "codex-review",
+          label: "审查当前改动",
+          prompt: "Review the current changes",
+        },
+        {
+          id: "local:2",
+          categoryId: "codex-fix",
+          label: "修复失败测试",
+          prompt: "Fix the failing tests",
+        },
+        {
+          id: "local:3",
+          categoryId: "codex-explore",
+          label: "理解当前架构",
+          prompt: "Explore the current architecture",
+        },
+        {
+          id: "local:4",
+          categoryId: "codex-create",
+          label: "继续构建功能",
+          prompt: "Build the next feature",
+        },
+      ],
+    },
+  }, {
+    contextKey: "suggestion-context:1",
+    generatedAt: 1,
+    suggestions: [{
+      id: "suggestion:1",
+      categoryId: "codex-review",
+      label: "审查当前任务建议改动",
+      prompt: "Review the current task suggestion implementation",
+    }],
+  }),
   "subagent/list": methodFixture("subagent/list", {
     threadId: threadListItem.id,
     cursor: "cursor:1",
@@ -1218,9 +1279,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 115 formal methods decodable", () => {
+  test("keeps valid params and results for all 116 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(115)
+    expect(methods).toHaveLength(116)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {

@@ -50,6 +50,7 @@ import {
 } from "./config/DataDirectoryMigration";
 import { SkillManagementService } from "./prompt/SkillManagementService";
 import { SkillSettingsRepository } from "./storage/repositories/skill-settings-repository";
+import { TaskSuggestionService } from "./suggestion/TaskSuggestionService";
 
 export interface BootstrapOptions {
   models?: Models;
@@ -326,6 +327,12 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         },
       },
     });
+    const suggestions = new TaskSuggestionService(
+      db,
+      piModels,
+      memory,
+      logger,
+    );
     const subagentWorkspaces = new SubagentWorkspaceCoordinator(
       db,
       config.storage.workspacesRoot,
@@ -389,6 +396,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       tooling,
       pets,
       skills,
+      suggestions,
     });
     let disposed = false;
     const dispose = async () => {

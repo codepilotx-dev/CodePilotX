@@ -2,6 +2,7 @@ import type { NewSessionSuggestionCategoryId } from "./newSessionSuggestions.js"
 
 export type NewSessionSuggestionState =
   | { kind: "root" }
+  | { kind: "templates" }
   | { kind: "category"; categoryId: NewSessionSuggestionCategoryId }
   | { kind: "hidden"; reason: "custom-input" };
 
@@ -19,6 +20,14 @@ export function syncNewSessionSuggestionState(
 ): NewSessionSuggestionState {
   if (state.kind === "category") return state;
   return createNewSessionSuggestionState(composerValue);
+}
+
+export function showNewSessionSuggestionTemplates(): NewSessionSuggestionState {
+  return { kind: "templates" };
+}
+
+export function showContextualNewSessionSuggestions(): NewSessionSuggestionState {
+  return { kind: "root" };
 }
 
 export function selectNewSessionSuggestionCategory(
