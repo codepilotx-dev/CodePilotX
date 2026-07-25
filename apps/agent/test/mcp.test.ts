@@ -41,6 +41,66 @@ afterEach(async () => {
 })
 
 describe("MCP configuration", () => {
+  test("seeds Context7 as an ordinary enabled server and keeps its removal persisted", async () => {
+    const database = new MemorySettings()
+    database.values.set("mcp.settings.v1", { sentinel: "preserved" })
+    const configs = new McpConfigService(new McpSettingsRepository(database))
+
+    expect((await configs.list()).servers).toEqual([{
+      server: {
+        name: "context7",
+        scope: "user",
+        enabled: true,
+        transport: {
+          type: "http",
+          url: "https://mcp.context7.com/mcp",
+          headerFromEnv: {
+            CONTEXT7_API_KEY: "CONTEXT7_API_KEY",
+          },
+        },
+        startupTimeoutMs: 20_000,
+      },
+      effective: true,
+    }])
+
+    await configs.setEnabled({
+      scope: "user",
+      name: "context7",
+      enabled: false,
+      operationId: "disable-context7",
+    })
+    expect((await configs.list()).servers[0]?.server.enabled).toBe(false)
+
+    await configs.save({
+      originalName: "context7",
+      server: {
+        name: "context7-docs",
+        scope: "user",
+        enabled: true,
+        transport: {
+          type: "http",
+          url: "https://mcp.context7.com/mcp",
+          headerFromEnv: {
+            CONTEXT7_API_KEY: "CONTEXT7_API_KEY",
+          },
+        },
+      },
+      operationId: "rename-context7",
+    })
+    expect((await configs.list()).servers.map((item) => item.server.name)).toEqual([
+      "context7-docs",
+    ])
+
+    await configs.remove({
+      scope: "user",
+      name: "context7-docs",
+      operationId: "remove-context7",
+    })
+    const restarted = new McpConfigService(new McpSettingsRepository(database))
+    expect((await restarted.list()).servers).toEqual([])
+    expect(database.values.get("mcp.settings.v1")).toEqual({ sentinel: "preserved" })
+  })
+
   test("keeps user and local declarations while local remains the effective veto", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "codepilotx-mcp-config-"))
     temporaryDirectories.push(workspace)
@@ -55,13 +115,17 @@ describe("MCP configuration", () => {
     })
     const result = await configs.list(workspace)
 
-    expect(result.servers).toHaveLength(2)
-    expect(result.servers[0]).toMatchObject({
+    expect(result.servers).toHaveLength(3)
+    expect(result.servers.find((item) =>
+      item.server.name === "fixture" && item.server.scope === "user"
+    )).toMatchObject({
       server: { scope: "user", enabled: true },
       effective: false,
       shadowedByScope: "local",
     })
-    expect(result.servers[1]).toMatchObject({
+    expect(result.servers.find((item) =>
+      item.server.name === "fixture" && item.server.scope === "local"
+    )).toMatchObject({
       server: { scope: "local", enabled: false },
       effective: true,
     })
@@ -100,7 +164,9 @@ describe("MCP configuration", () => {
       },
       operationId: "diagnostic-stdio",
     })
-    expect((await configs.list()).servers[0]?.server).toMatchObject({
+    expect((await configs.list()).servers.find((item) =>
+      item.server.name === "diagnostic"
+    )?.server).toMatchObject({
       name: "diagnostic",
       diagnosticContext: true,
       transport: { type: "stdio" },
@@ -207,6 +273,11 @@ describe("MCP transports", () => {
 describe("MCP turn catalog", () => {
   test("keeps the active turn on its leased generation and retires connections after release", async () => {
     const configs = new McpConfigService(new McpSettingsRepository(new MemorySettings()))
+    await configs.remove({
+      scope: "user",
+      name: "context7",
+      operationId: "remove-context7-for-isolated-runtime",
+    })
     const baseCatalog = new ToolCatalog([])
     const closed: string[] = []
     let connectionNumber = 0

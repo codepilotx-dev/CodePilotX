@@ -16,20 +16,34 @@ type McpOperation = {
 }
 
 export type McpSettingsState = {
-  version: 1
+  version: 2
   generation: number
   user: Record<string, McpServerDeclaration>
   local: Record<string, Record<string, McpServerDeclaration>>
   operations: McpOperation[]
 }
 
-const SETTINGS_KEY = "mcp.settings.v1"
+const SETTINGS_KEY = "mcp.settings.v2"
 const MAX_OPERATIONS = 100
 
 const defaultState = (): McpSettingsState => ({
-  version: 1,
+  version: 2,
   generation: 1,
-  user: {},
+  user: {
+    context7: {
+      name: "context7",
+      scope: "user",
+      enabled: true,
+      transport: {
+        type: "http",
+        url: "https://mcp.context7.com/mcp",
+        headerFromEnv: {
+          CONTEXT7_API_KEY: "CONTEXT7_API_KEY",
+        },
+      },
+      startupTimeoutMs: 20_000,
+    },
+  },
   local: {},
   operations: [],
 })
@@ -53,7 +67,7 @@ const declarationRecord = (value: unknown): Record<string, McpServerDeclaration>
 }
 
 const normalizeState = (value: McpSettingsState | null): McpSettingsState => {
-  if (!value || value.version !== 1) return defaultState()
+  if (!value || value.version !== 2) return defaultState()
   const local = value.local && typeof value.local === "object" && !Array.isArray(value.local)
     ? Object.fromEntries(
         Object.entries(value.local)
@@ -62,7 +76,7 @@ const normalizeState = (value: McpSettingsState | null): McpSettingsState => {
       )
     : {}
   return {
-    version: 1,
+    version: 2,
     generation: Number.isSafeInteger(value.generation) && value.generation >= 1 ? value.generation : 1,
     user: declarationRecord(value.user),
     local,
