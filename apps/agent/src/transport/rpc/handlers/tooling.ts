@@ -17,6 +17,7 @@ export const toolingHandlers = {
   name: "tooling",
   methods: [
     "tooling/list",
+    "tooling/refresh",
     "tooling/setPreference",
     "tooling/install",
   ],
@@ -26,6 +27,8 @@ export const toolingHandlers = {
       switch (method) {
         case "tooling/list":
           return { statuses: await tooling.listStatuses() }
+        case "tooling/refresh":
+          return { statuses: await tooling.refreshStatuses() }
         case "tooling/setPreference": {
           const params = decodeSetPreference(rawParams)
           return { status: await tooling.setPreference(params.id, params.preference) }

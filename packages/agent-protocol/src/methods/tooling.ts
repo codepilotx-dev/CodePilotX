@@ -80,6 +80,14 @@ export const ToolingRpcMethods = {
     mutation: false,
     exactResult: true,
   }),
+  "tooling/refresh": defineMethod({
+    params: EmptyParamsSchema,
+    result: ToolingListResultSchema,
+    errors: ToolingErrors,
+    capability: "tooling.management.v1",
+    mutation: false,
+    exactResult: true,
+  }),
   "tooling/setPreference": defineMethod({
     params: ToolingSetPreferenceParamsSchema,
     result: ToolingStatusResultSchema,

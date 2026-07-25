@@ -132,6 +132,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         }),
       );
     });
+    void tooling.refreshStatuses().catch(() =>
+      logger.warn("tooling.status.warmup.failed", {
+        error: "TOOLING_WARMUP_FAILED",
+      }),
+    );
     const credentials = new EncryptedCredentialRepository(db);
     yield* credentials.validateAll();
     yield* credentials.backfillApiKeyMetadata();

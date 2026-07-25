@@ -62,6 +62,10 @@ describe('desktop thread settings client', () => {
       if (body?.method === 'tooling/list') {
         return rpc(body.id, { statuses: [toolingStatus] })
       }
+      if (body?.method === 'tooling/refresh') {
+        expect(body.params).toEqual({})
+        return rpc(body.id, { statuses: [toolingStatus] })
+      }
       if (body?.method === 'tooling/setPreference') {
         expect(body.params).toMatchObject({
           id: 'ripgrep',
@@ -103,6 +107,7 @@ describe('desktop thread settings client', () => {
     })
 
     expect(await client.listTooling()).toEqual([toolingStatus])
+    expect(await client.refreshTooling()).toEqual([toolingStatus])
     expect(
       (await client.setToolingPreference('ripgrep', 'system')).preference,
     ).toBe('system')

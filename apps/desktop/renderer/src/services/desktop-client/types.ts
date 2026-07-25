@@ -231,6 +231,7 @@ export type DesktopAgentEventEnvelopeApi = {
 
 export type DesktopToolingApi = {
   listTooling(): Promise<readonly ToolingStatus[]>
+  refreshTooling(): Promise<readonly ToolingStatus[]>
   setToolingPreference(
     id: ToolingID,
     preference: ToolingPreference,

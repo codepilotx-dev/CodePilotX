@@ -1046,6 +1046,11 @@ export function createAgentSessionDesktopClient(
         requireAgentCapability('tooling.management.v1')
         return (await rpc.call('tooling/list', {})).statuses
       }),
+    refreshTooling: async () =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('tooling.management.v1')
+        return (await rpc.call('tooling/refresh', {})).statuses
+      }),
     setToolingPreference: async (id, preference) =>
       withRequiredAgent(async () => {
         requireAgentCapability('tooling.management.v1')

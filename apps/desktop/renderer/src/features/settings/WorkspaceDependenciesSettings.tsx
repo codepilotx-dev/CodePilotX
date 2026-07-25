@@ -1,5 +1,5 @@
 import React from 'react'
-import { Download, RotateCcw } from 'lucide-react'
+import { Download, RefreshCw, RotateCcw } from 'lucide-react'
 import type {
   ToolingID,
   ToolingPreference,
@@ -59,6 +59,7 @@ export function WorkspaceDependenciesSettings({
   const migrationComplete = draft.values.workspaceDependenciesMigrated
   const [statuses, setStatuses] = React.useState<readonly ToolingStatus[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [refreshing, setRefreshing] = React.useState(false)
   const [busyTools, setBusyTools] = React.useState<ReadonlySet<ToolingID>>(
     () => new Set(),
   )
@@ -97,6 +98,19 @@ export function WorkspaceDependenciesSettings({
       setLoading(false)
     }
   }, [onError])
+
+  const rescan = async (): Promise<void> => {
+    if (refreshing || busyTools.size > 0) return
+    setRefreshing(true)
+    try {
+      setStatuses(await desktopClient.refreshTooling())
+      onNotice?.('工作空间依赖项状态已更新。')
+    } catch (error) {
+      onError(errorMessage(error, '无法重新扫描工作空间依赖项。'))
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   React.useEffect(() => {
     let active = true
@@ -146,7 +160,13 @@ export function WorkspaceDependenciesSettings({
     status: ToolingStatus,
     preference: ToolingPreference,
   ): Promise<void> => {
-    if (preference === status.preference || busyTools.has(status.id)) return
+    if (
+      preference === status.preference ||
+      busyTools.has(status.id) ||
+      refreshing
+    ) {
+      return
+    }
     if (
       preference === 'system' &&
       status.managed.installed &&
@@ -176,7 +196,7 @@ export function WorkspaceDependenciesSettings({
   }
 
   const install = async (status: ToolingStatus): Promise<void> => {
-    if (busyTools.has(status.id)) return
+    if (busyTools.has(status.id) || refreshing) return
     setToolBusy(status.id, true)
     try {
       replaceStatus(
@@ -195,7 +215,11 @@ export function WorkspaceDependenciesSettings({
     return (
       <SettingsContentArea>
         <div className="settings-content-inner">
-          <WorkspaceDependenciesHeader />
+          <WorkspaceDependenciesHeader
+            disabled
+            refreshing={refreshing}
+            onRefresh={() => void rescan()}
+          />
           <SettingsSection title="运行环境">
             <SettingsRow title="正在读取依赖项状态…" />
           </SettingsSection>
@@ -207,12 +231,16 @@ export function WorkspaceDependenciesSettings({
   return (
     <SettingsContentArea>
       <div className="settings-content-inner">
-        <WorkspaceDependenciesHeader />
+        <WorkspaceDependenciesHeader
+          disabled={refreshing || busyTools.size > 0}
+          refreshing={refreshing}
+          onRefresh={() => void rescan()}
+        />
         {TOOL_IDS.map(id => {
           const status = statuses.find(item => item.id === id)
           return status ? (
             <DependencySection
-              busy={busyTools.has(id)}
+              busy={busyTools.has(id) || refreshing}
               key={id}
               onInstall={() => void install(status)}
               onPreferenceChange={preference =>
@@ -227,10 +255,29 @@ export function WorkspaceDependenciesSettings({
   )
 }
 
-function WorkspaceDependenciesHeader(): React.ReactNode {
+function WorkspaceDependenciesHeader({
+  disabled,
+  onRefresh,
+  refreshing,
+}: {
+  disabled: boolean
+  onRefresh: () => void
+  refreshing: boolean
+}): React.ReactNode {
   return (
     <div className="settings-page-header">
-      <h2 className="settings-page-title">工作空间依赖项</h2>
+      <div className="settings-section-header">
+        <h2 className="settings-page-title">工作空间依赖项</h2>
+        <Button
+          disabled={disabled}
+          onClick={onRefresh}
+          title={refreshing ? '正在扫描工作空间依赖项' : '重新扫描'}
+          type="button"
+        >
+          <RefreshCw size={APP_ICON_SIZE} />
+          {refreshing ? '扫描中…' : '重新扫描'}
+        </Button>
+      </div>
       <p className="settings-page-desc">
         四项运行环境彼此独立；内置版只在首次使用或手动安装时下载，不会打包进应用。
       </p>

@@ -2,7 +2,11 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { TOOLING_CATALOG, ToolingManager } from "../src/tool/ToolingManager"
+import {
+  TOOLING_CATALOG,
+  ToolingManager,
+  type ToolingStatus,
+} from "../src/tool/ToolingManager"
 
 const roots: string[] = []
 const originalGitBash = process.env.CODEPILOTX_GIT_BASH_PATH
@@ -92,6 +96,87 @@ describe("ToolingManager", () => {
     expect((await reloaded.getStatus("ripgrep")).preference).toBe("managed")
     const saved = JSON.parse(await readFile(join(root, "v2", "settings.json"), "utf8"))
     expect(saved.preferences).toEqual({ nodejs: "system", python: "system", "git-bash": "system", ripgrep: "managed" })
+  })
+
+  test("状态列表复用启动扫描缓存，显式刷新合并并发探测", async () => {
+    const root = await temporaryRoot()
+    const manager = new ToolingManager({ root })
+    const probeTarget = manager as unknown as {
+      probeStatus(id: ToolingStatus["id"]): Promise<ToolingStatus>
+    }
+    let probeCount = 0
+    let generation = 0
+    let releaseProbe: (() => void) | undefined
+    let probeGate = new Promise<void>((resolve) => {
+      releaseProbe = resolve
+    })
+    probeTarget.probeStatus = async (id) => {
+      probeCount += 1
+      await probeGate
+      return {
+        id,
+        preference: "managed",
+        phase: "ready",
+        activeSource: "managed",
+        pinnedVersion: `test-${generation}`,
+        managed: { installed: true, version: `test-${generation}` },
+        system: { available: false, version: null, path: null },
+      }
+    }
+
+    const startupRefresh = manager.refreshStatuses()
+    const initialList = manager.listStatuses()
+    await Promise.resolve()
+    releaseProbe?.()
+    const [refreshed, listed] = await Promise.all([startupRefresh, initialList])
+
+    expect(probeCount).toBe(4)
+    expect(listed).toEqual(refreshed)
+    expect(await manager.listStatuses()).toEqual(refreshed)
+    expect(probeCount).toBe(4)
+
+    generation = 1
+    probeGate = new Promise<void>((resolve) => {
+      releaseProbe = resolve
+    })
+    const firstManualRefresh = manager.refreshStatuses()
+    const secondManualRefresh = manager.refreshStatuses()
+    await Promise.resolve()
+    releaseProbe?.()
+    const [firstResult, secondResult] = await Promise.all([
+      firstManualRefresh,
+      secondManualRefresh,
+    ])
+
+    expect(probeCount).toBe(8)
+    expect(secondResult).toEqual(firstResult)
+    expect(firstResult.every((status) => status.pinnedVersion === "test-1")).toBe(true)
+  })
+
+  test("刷新失败时保留上一次完整状态缓存", async () => {
+    const root = await temporaryRoot()
+    const manager = new ToolingManager({ root })
+    const probeTarget = manager as unknown as {
+      probeStatus(id: ToolingStatus["id"]): Promise<ToolingStatus>
+    }
+    probeTarget.probeStatus = async (id) => ({
+      id,
+      preference: "managed",
+      phase: "idle",
+      activeSource: null,
+      pinnedVersion: "cached",
+      managed: { installed: false, version: null },
+      system: { available: false, version: null, path: null },
+    })
+    const cached = await manager.refreshStatuses()
+
+    probeTarget.probeStatus = async (id) => {
+      if (id === "python") throw new Error("probe failed")
+      return cached.find((status) => status.id === id)!
+    }
+
+    await expect(manager.refreshStatuses()).rejects.toThrow("probe failed")
+    expect(await manager.listStatuses()).toEqual(cached)
   })
 
   test("v1 偏好与旧统一依赖开关会迁移到四项 v2 设置", async () => {

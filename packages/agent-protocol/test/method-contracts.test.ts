@@ -602,6 +602,7 @@ const fixtures = {
     operationId: "operation:sandbox-uninstall",
   }, { sandbox: sandboxStatus }),
   "tooling/list": methodFixture("tooling/list", {}, { statuses: [toolingStatus] }),
+  "tooling/refresh": methodFixture("tooling/refresh", {}, { statuses: [toolingStatus] }),
   "tooling/setPreference": methodFixture("tooling/setPreference", {
     id: "git-bash",
     preference: "managed",
@@ -1217,9 +1218,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 114 formal methods decodable", () => {
+  test("keeps valid params and results for all 115 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(114)
+    expect(methods).toHaveLength(115)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {

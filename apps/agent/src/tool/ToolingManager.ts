@@ -169,6 +169,7 @@ export class ToolingManager {
   private readonly statusCache = new Map<ManagedToolID, ToolingStatus>()
   private settings: ToolingSettings = structuredClone(DEFAULT_SETTINGS)
   private initialization: Promise<void> | undefined
+  private refreshTask: Promise<ToolingStatus[]> | undefined
   private settingsSave: Promise<void> = Promise.resolve()
 
   constructor(options: ToolingManagerOptions = {}) {
@@ -187,11 +188,36 @@ export class ToolingManager {
 
   async listStatuses(): Promise<ToolingStatus[]> {
     await this.initialize()
-    return Promise.all(TOOL_IDS.map((id) => this.getStatus(id)))
+    if (!TOOL_IDS.every((id) => this.statusCache.has(id))) {
+      await this.refreshStatuses()
+    }
+    return TOOL_IDS.map((id) => this.statusCache.get(id)!)
+  }
+
+  async refreshStatuses(): Promise<ToolingStatus[]> {
+    await this.initialize()
+    if (this.refreshTask) return this.refreshTask
+    const task = Promise.all(TOOL_IDS.map((id) => this.probeStatus(id)))
+      .then((statuses) => {
+        for (const status of statuses) this.statusCache.set(status.id, status)
+        for (const status of statuses) this.emit(status)
+        return statuses
+      })
+      .finally(() => {
+        if (this.refreshTask === task) this.refreshTask = undefined
+      })
+    this.refreshTask = task
+    return task
   }
 
   async getStatus(id: ManagedToolID): Promise<ToolingStatus> {
     await this.initialize()
+    const status = await this.probeStatus(id)
+    this.statusCache.set(id, status)
+    return status
+  }
+
+  private async probeStatus(id: ManagedToolID): Promise<ToolingStatus> {
     const [managed, system] = await Promise.all([this.findManaged(id), this.findSystem(id)])
     const preference = this.settings.preferences[id]
     const transient = this.phases.get(id)
@@ -207,7 +233,6 @@ export class ToolingManager {
       ...(transient?.progress ? { progress: transient.progress } : {}),
       ...(transient?.error ? { error: transient.error } : {}),
     }
-    this.statusCache.set(id, status)
     return status
   }
 
