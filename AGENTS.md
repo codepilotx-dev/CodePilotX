@@ -68,9 +68,11 @@
 - 当前唯一桌面通信协议是 `thread-rpc-v4`。禁止重新加入 v3 dispatcher、adapter、migration、legacy export 或双协议分支。
 - `thread/create` 只接受 `workspace`，不得恢复 `projectId`/`projectID` 兼容参数。
 - v4 错误必须使用统一、安全的 envelope；禁止返回原始异常、凭据、命令环境或敏感绝对路径。
-- 当前升级策略是破坏性开发版本升级，不支持旧客户端、旧数据库或旧设置回退。
+- 尚未稳定发布的开发功能允许进行明确、局部的破坏性数据代际升级。
+- 功能进入稳定版本后，schema、设置代际和默认数据变更必须提供前向迁移并保留用户数据；禁止通过更换数据库、setting key 或版本号直接丢弃已有数据。
+- 当前尚未稳定的协议与数据代际不支持旧客户端、旧数据库或旧设置回退。
 - 数据代际不匹配时，只能删除 CodePilotX 明确拥有的 SQLite 主文件及 `-wal`/`-shm`、`appearance-settings.json`、明确列出的 localStorage/sessionStorage 键或前缀。
-- 禁止删除整个 `userData`、数据目录或浏览器存储；禁止调用 `localStorage.clear()`；禁止创建旧数据备份。
+- 无论开发或稳定阶段，都不得删除整个 `userData`、数据目录、浏览器存储或非目标业务数据；禁止调用 `localStorage.clear()`；禁止创建旧数据备份。
 - 重置日志只能记录无敏感信息的事件和原因，不记录路径、凭据、设置内容或会话内容。
 - 除非用户明确要求新的迁移策略，否则不得新增 legacy/migration 兼容代码。
 
