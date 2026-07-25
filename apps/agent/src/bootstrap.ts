@@ -142,14 +142,12 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     yield* credentials.validateAll();
     yield* credentials.backfillApiKeyMetadata();
     const github = new GithubService(credentials, {
-      getConfiguredClientId: () => {
-        const settings = db.getSetting<Record<string, unknown>>(
-          "desktop.settings.v1",
-        );
-        return typeof settings?.githubOAuthClientId === "string"
-          ? settings.githubOAuthClientId
-          : null;
-      },
+      getConfiguredClientId: () => config.githubOAuthClientId,
+      getBrokerURL: () => config.githubAuthBrokerURL,
+      getCallbackURL: () =>
+        config.port > 0
+          ? `http://127.0.0.1:${config.port}/auth/github/callback`
+          : null,
     });
     const review = new GitReviewService(
       db,

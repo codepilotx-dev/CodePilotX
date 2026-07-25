@@ -21,9 +21,13 @@ export const GithubAuthStatusSchema = Schema.Struct({
   error: Schema.optional(Schema.String),
 })
 
+export const GithubAuthModeSchema = Schema.Literals(["browser", "device"])
+
 export const GithubLoginStatusSchema = Schema.Struct({
   loginId: OpaqueIDSchema,
-  state: Schema.Literals(["idle", "starting", "awaiting_auth", "completed", "failed"]),
+  mode: GithubAuthModeSchema,
+  state: Schema.Literals(["starting", "awaiting_auth", "completed", "failed"]),
+  authorizationUrl: Schema.NullOr(NonEmptyStringSchema),
   userCode: Schema.NullOr(NonEmptyStringSchema),
   verificationUri: Schema.NullOr(NonEmptyStringSchema),
   expiresAt: Schema.NullOr(NonEmptyStringSchema),
@@ -178,7 +182,7 @@ const GithubErrors = [
 
 export const GithubRpcMethods = {
   "github/auth/status": defineMethod({ params: EmptyParamsSchema, result: GithubAuthStatusSchema, errors: GithubErrors, capability: "github.oauth.v1", mutation: false, exactResult: true }),
-  "github/auth/start": defineMethod({ params: Schema.Struct({ clientId: NonEmptyStringSchema }), result: GithubLoginStatusSchema, errors: GithubErrors, capability: "github.oauth.v1", mutation: true, exactParams: true, exactResult: true }),
+  "github/auth/start": defineMethod({ params: Schema.Struct({ mode: GithubAuthModeSchema }), result: GithubLoginStatusSchema, errors: GithubErrors, capability: "github.oauth.v1", mutation: true, exactParams: true, exactResult: true }),
   "github/auth/poll": defineMethod({ params: Schema.Struct({ loginId: OpaqueIDSchema }), result: GithubLoginStatusSchema, errors: GithubErrors, capability: "github.oauth.v1", mutation: true, exactParams: true, exactResult: true }),
   "github/auth/logout": defineMethod({ params: EmptyParamsSchema, result: GithubAuthStatusSchema, errors: GithubErrors, capability: "github.oauth.v1", mutation: true, exactResult: true }),
   "github/profile": defineMethod({ params: EmptyParamsSchema, result: Schema.Struct({ user: GithubUserSchema }), errors: GithubErrors, capability: "github.oauth.v1", mutation: false, exactResult: true }),

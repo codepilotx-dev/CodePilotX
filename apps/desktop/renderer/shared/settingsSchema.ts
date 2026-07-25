@@ -135,8 +135,6 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     allowForcePush: false,
     commitMessagePrompt: '',
     pullRequestPrompt: '',
-	    githubOAuthClientId: '',
-	    authBaseUrl: '',
 	    installCodePilotXDependencies: true,
     workspaceDependenciesMigrated: false,
     personality: 'pragmatic',
@@ -336,14 +334,6 @@ export function normalizeDesktopStoredSettings(
       parsed.pullRequestPrompt,
       defaults.pullRequestPrompt,
     ),
-	    githubOAuthClientId: stringOrDefault(
-	      parsed.githubOAuthClientId,
-	      defaults.githubOAuthClientId,
-	    ),
-	    authBaseUrl: stringOrDefault(
-	      parsed.authBaseUrl,
-	      defaults.authBaseUrl,
-	    ),
 	    installCodePilotXDependencies:
       typeof parsed.installCodePilotXDependencies === 'boolean'
         ? parsed.installCodePilotXDependencies

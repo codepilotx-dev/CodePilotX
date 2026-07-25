@@ -210,3 +210,13 @@ describe("侧边栏设置归一化", () => {
     }])
   })
 })
+
+test("不再持久化 GitHub OAuth 客户端与认证服务地址", () => {
+  const settings = normalizeDesktopStoredSettings({
+    githubOAuthClientId: "legacy-client-id",
+    authBaseUrl: "https://legacy.example.com",
+  })
+
+  expect("githubOAuthClientId" in settings).toBe(false)
+  expect("authBaseUrl" in settings).toBe(false)
+})

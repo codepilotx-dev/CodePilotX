@@ -73,6 +73,7 @@ import type {
   DesktopSessionCatalogStatus,
   DesktopSessionMetadataPatch,
   DesktopRuntimeStatus,
+  DesktopGithubAuthMode,
   DesktopGithubAuthStatus,
   DesktopGithubLoginStatus,
   DesktopGithubProfileOverviewResult,
@@ -669,14 +670,16 @@ export function mockCopilotLogin() {
   }
 }
 
-export function mockGithubLogin() {
+export function mockGithubLogin(mode: DesktopGithubAuthMode = 'browser') {
   return {
     loginId: null,
-    state: 'idle' as const,
+    mode,
+    state: 'failed' as const,
+    authorizationUrl: null,
     userCode: null,
     verificationUri: null,
     expiresAt: null,
-    error: null,
+    error: '浏览器 mock 模式无法完成 GitHub 登录。',
     auth: null,
     elapsedMs: 0,
   }
@@ -685,10 +688,13 @@ export function mockGithubLogin() {
 export function githubLoginFailure(
   error: string,
   loginId: string | null = null,
+  mode: DesktopGithubAuthMode = 'browser',
 ): DesktopGithubLoginStatus {
   return {
     loginId,
+    mode,
     state: 'failed',
+    authorizationUrl: null,
     userCode: null,
     verificationUri: null,
     expiresAt: null,

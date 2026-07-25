@@ -5,6 +5,7 @@
   "packageManager": "bun@1.3.14",
   "workspaces": [
     "apps/agent",
+    "apps/auth-broker",
     "apps/desktop/*",
     "packages/*"
   ],
@@ -18,7 +19,7 @@
     "dev:renderer": "bun run --cwd apps/desktop/renderer dev",
     "dev:desktop": "bun run scripts/dev.ts",
     "dev:electron": "bun run --cwd apps/desktop/electron dev",
-    "typecheck": "bun run --cwd packages/material-icon-theme typecheck && bun run --cwd packages/model-schema typecheck && bun run --cwd packages/provider-plugin typecheck && bun run --cwd packages/provider-runtime typecheck && bun run --cwd packages/shared typecheck && bun run --cwd packages/agent-protocol typecheck && bun run --cwd packages/session-view typecheck && bun run --cwd packages/pi-agent-core typecheck && bun run --cwd packages/pi-agent-core build:types && bun run --cwd apps/agent typecheck && bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/electron typecheck",
+    "typecheck": "bun run --cwd packages/material-icon-theme typecheck && bun run --cwd packages/model-schema typecheck && bun run --cwd packages/provider-plugin typecheck && bun run --cwd packages/provider-runtime typecheck && bun run --cwd packages/shared typecheck && bun run --cwd packages/agent-protocol typecheck && bun run --cwd packages/session-view typecheck && bun run --cwd packages/pi-agent-core typecheck && bun run --cwd packages/pi-agent-core build:types && bun run --cwd apps/auth-broker typecheck && bun run --cwd apps/agent typecheck && bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/electron typecheck",
     "models:snapshot": "bun run scripts/update-model-snapshot.ts",
     "build:renderer": "bun run --cwd apps/desktop/renderer build",
     "build:agent": "bun run --cwd apps/agent build",

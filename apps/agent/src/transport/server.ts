@@ -85,6 +85,29 @@ const cookieValue = (header: string | null, name: string) => header?.split(";").
 const DESKTOP_SETTINGS_KEY = "desktop.settings.v1"
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
+const githubCallbackPage = (completed: boolean) => new Response(
+  [
+    "<!doctype html>",
+    '<html lang="zh-CN"><head><meta charset="utf-8">',
+    '<meta name="viewport" content="width=device-width,initial-scale=1">',
+    `<title>${completed ? "GitHub 登录成功" : "GitHub 登录失败"}</title>`,
+    "</head><body>",
+    `<main><h1>${completed ? "GitHub 登录成功" : "GitHub 登录未完成"}</h1>`,
+    `<p>${completed ? "你可以关闭此页面并返回 CodePilotX。" : "请关闭此页面并返回 CodePilotX 查看详情后重试。"}</p>`,
+    "</main></body></html>",
+  ].join(""),
+  {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store, max-age=0",
+      Pragma: "no-cache",
+      "Content-Security-Policy": "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+    },
+  },
+)
 
 const eventNextNotification = (
   subscriptionId: string,
@@ -162,6 +185,22 @@ export const createApp = (dependencies: TransportDependencies) => {
   })
 
   app.get("/health", (context) => context.json({ ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid }))
+
+  app.get("/auth/github/callback", async (context) => {
+    try {
+      const code = context.req.query("code")
+      const state = context.req.query("state")
+      const error = context.req.query("error")
+      const status = await github.handleOAuthCallback({
+        ...(code === undefined ? {} : { code }),
+        ...(state === undefined ? {} : { state }),
+        ...(error === undefined ? {} : { error }),
+      })
+      return githubCallbackPage(status.state === "completed")
+    } catch {
+      return githubCallbackPage(false)
+    }
+  })
 
   app.post("/api/desktop/api-keys/:credentialId/copy-material", async (context) => {
     const bearer = context.req.header("Authorization")?.replace(/^Bearer\s+/i, "")

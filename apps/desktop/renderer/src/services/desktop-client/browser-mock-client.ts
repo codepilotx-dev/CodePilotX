@@ -75,6 +75,7 @@ import type {
   DesktopSessionCatalogStatus,
   DesktopSessionMetadataPatch,
   DesktopRuntimeStatus,
+  DesktopGithubAuthMode,
   DesktopGithubAuthStatus,
   DesktopGithubLoginStatus,
   DesktopGithubProfileOverviewResult,
@@ -134,6 +135,7 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
   let themeSettings: DesktopThemeSettings = readBrowserThemeSettings(storage)
   let browserState: DesktopBrowserState = emptyBrowserState()
+  let githubLoginMode: DesktopGithubAuthMode = 'browser'
   const sessions = new Map<string, DesktopSessionSnapshot>()
   let activeSessionId: string | null = null
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
@@ -401,8 +403,11 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       authenticated: false,
       user: null,
     }),
-    startGithubLogin: async () => mockGithubLogin(),
-    pollGithubLogin: async () => mockGithubLogin(),
+    startGithubLogin: async input => {
+      githubLoginMode = input.mode
+      return mockGithubLogin(githubLoginMode)
+    },
+    pollGithubLogin: async () => mockGithubLogin(githubLoginMode),
     logoutGithub: async () => ({
       configured: false,
       authenticated: false,

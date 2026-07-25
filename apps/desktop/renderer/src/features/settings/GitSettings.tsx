@@ -4,9 +4,13 @@ import { SettingsSection } from './SettingsSection.js'
 import { SegmentedControl } from './SegmentedControl.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
-import { desktopClient } from '../../services/desktop-client/index.js'
+import {
+  desktopClient,
+  startGithubLoginFlow,
+} from '../../services/desktop-client/index.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import type {
+  DesktopGithubAuthMode,
   DesktopGithubAuthStatus,
   DesktopGithubLoginStatus,
 } from '../../../shared/types.js'
@@ -30,7 +34,6 @@ export function GitSettings(): React.ReactNode {
     allowForcePush,
     commitMessagePrompt,
     pullRequestPrompt,
-    githubOAuthClientId,
   } = draft.values
   const [githubAuth, setGithubAuth] =
     useState<DesktopGithubAuthStatus | null>(null)
@@ -62,12 +65,12 @@ export function GitSettings(): React.ReactNode {
     return () => window.clearInterval(timer)
   }, [githubLogin])
 
-  const startGithubLogin = async (): Promise<void> => {
+  const startGithubLogin = async (
+    mode: DesktopGithubAuthMode,
+  ): Promise<void> => {
     setGithubBusy(true)
     try {
-      const status = await desktopClient.startGithubLogin({
-        clientId: githubOAuthClientId,
-      })
+      const status = await startGithubLoginFlow(desktopClient, mode)
       setGithubLogin(status)
       if (status.auth) {
         setGithubAuth(status.auth)
@@ -90,13 +93,13 @@ export function GitSettings(): React.ReactNode {
 
   const githubStatusText = githubAuth?.authenticated
     ? `已登录 ${githubAuth.user?.login ?? 'GitHub'}`
-    : !githubOAuthClientId.trim() && githubAuth?.configured === false
-      ? '未配置 OAuth Client ID'
+    : githubLogin?.state === 'failed'
+      ? '登录失败'
       : '未登录'
-  const githubClientConfigured = Boolean(githubOAuthClientId.trim()) ||
-    githubAuth?.configured === true
   const activeDeviceLogin =
-    githubLogin?.state === 'awaiting_auth' && githubLogin.userCode
+    githubLogin?.mode === 'device' &&
+    githubLogin.state === 'awaiting_auth' &&
+    githubLogin.userCode
 
   const copyGithubCode = async (): Promise<void> => {
     if (!githubLogin?.userCode) return
@@ -296,33 +299,13 @@ export function GitSettings(): React.ReactNode {
             </div>
           ) : null}
           <SettingsRow
-            title="OAuth Client ID"
-            description="GitHub OAuth App 的公开 client_id；需要在 OAuth App 设置里启用 device flow。"
-            control={
-              <Input
-                className="settings-input-narrow"
-                value={githubOAuthClientId}
-                placeholder="Iv1.xxxxxxxxxxxxxxxx"
-                onChange={event => {
-                  const value = event.target.value
-                  draft.setValue('githubOAuthClientId', value)
-                  if (value.trim() && githubAuth?.configured === false) {
-                    setGithubAuth({
-                      configured: true,
-                      authenticated: false,
-                      user: null,
-                    })
-                  }
-                }}
-              />
-            }
-          />
-          <SettingsRow
             title="登录状态"
             description={
-              githubLogin?.state === 'awaiting_auth' && githubLogin.userCode
+              activeDeviceLogin
                 ? `请在打开的 GitHub 页面输入验证码 ${githubLogin.userCode}`
-                : githubAuth?.error ?? 'GitHub token 只保存在本机主进程存储中。'
+                : githubLogin?.error ??
+                  githubAuth?.error ??
+                  '浏览器授权完成后，GitHub token 只会加密保存在本机。'
             }
             control={
               <div className="settings-inline-actions">
@@ -336,14 +319,23 @@ export function GitSettings(): React.ReactNode {
                     退出
                   </Button>
                 ) : (
-                  <Button
-                    variant="primary"
-                    disabled={githubBusy || !githubClientConfigured}
-                    onClick={() => void startGithubLogin()}
-                    type="button"
-                  >
-                    登录 GitHub
-                  </Button>
+                  <>
+                    <Button
+                      variant="primary"
+                      disabled={githubBusy}
+                      onClick={() => void startGithubLogin('browser')}
+                      type="button"
+                    >
+                      登录 GitHub
+                    </Button>
+                    <Button
+                      disabled={githubBusy}
+                      onClick={() => void startGithubLogin('device')}
+                      type="button"
+                    >
+                      使用设备验证码
+                    </Button>
+                  </>
                 )}
               </div>
             }

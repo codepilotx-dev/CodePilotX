@@ -240,7 +240,9 @@ const githubAuth = {
 
 const githubLogin = {
   loginId: "github-login:1",
+  mode: "device",
   state: "awaiting_auth",
+  authorizationUrl: null,
   userCode: "ABCD-EFGH",
   verificationUri: "https://github.com/login/device",
   expiresAt: "2026-07-18T10:00:00.000Z",
@@ -915,7 +917,7 @@ const fixtures = {
   }, { integration: integrationInfo }),
   "github/auth/status": methodFixture("github/auth/status", {}, githubAuth),
   "github/auth/start": methodFixture("github/auth/start", {
-    clientId: "github-client-id",
+    mode: "device",
   }, githubLogin),
   "github/auth/poll": methodFixture("github/auth/poll", { loginId: "github-login:1" }, githubLogin),
   "github/auth/logout": methodFixture("github/auth/logout", {}, {
@@ -1321,6 +1323,29 @@ describe("RPC method schema contracts", () => {
       ...fixtures["turn/start"].params,
       taskMode: "execute",
     })).toThrow()
+    const decodeGithubAuthStart = Schema.decodeUnknownSync(
+      RpcMethods["github/auth/start"].params,
+      { onExcessProperty: "error" },
+    )
+    expect(decodeGithubAuthStart({ mode: "browser" })).toEqual({ mode: "browser" })
+    expect(decodeGithubAuthStart({ mode: "device" })).toEqual({ mode: "device" })
+    expect(() => decodeGithubAuthStart({})).toThrow()
+    expect(() => decodeGithubAuthStart({ mode: "popup" })).toThrow()
+    expect(() => decodeGithubAuthStart({
+      mode: "device",
+      clientId: "legacy-client-id",
+    })).toThrow()
+    expect(Schema.decodeUnknownSync(RpcMethods["github/auth/start"].result)({
+      ...githubLogin,
+      mode: "browser",
+      authorizationUrl: "https://github.com/login/oauth/authorize?client_id=fixture",
+      userCode: null,
+      verificationUri: null,
+    })).toMatchObject({
+      mode: "browser",
+      state: "awaiting_auth",
+      authorizationUrl: expect.stringContaining("github.com/login/oauth/authorize"),
+    })
 
     for (const method of ["review/summary", "review/refresh"] as const) {
       const result = fixtures[method].result

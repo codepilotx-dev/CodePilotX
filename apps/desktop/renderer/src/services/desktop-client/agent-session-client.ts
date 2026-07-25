@@ -74,6 +74,7 @@ import type {
   DesktopSessionCatalogStatus,
   DesktopSessionMetadataPatch,
   DesktopRuntimeStatus,
+  DesktopGithubAuthMode,
   DesktopGithubAuthStatus,
   DesktopGithubLoginStatus,
   DesktopGithubProfileOverviewResult,
@@ -212,6 +213,7 @@ export function createAgentSessionDesktopClient(
   let agentReady = false
   let agentCapabilities = new Set<string>()
   let activeGithubLoginId: string | null = null
+  let activeGithubLoginMode: DesktopGithubAuthMode = 'browser'
   let readyProbe: Promise<boolean> | null = null
   let readinessError: unknown = null
   let projectsByIdCache: Map<string, Project> | null = null
@@ -1182,9 +1184,8 @@ export function createAgentSessionDesktopClient(
           return rpc.call<DesktopGithubAuthStatus>('github/auth/status')
         })
       } catch (error) {
-        const settings = await mockClient.getDesktopSettings()
         return {
-          configured: Boolean(settings.githubOAuthClientId.trim()),
+          configured: false,
           authenticated: false,
           user: null,
           error: operationError(error),
@@ -1195,16 +1196,19 @@ export function createAgentSessionDesktopClient(
       try {
         return await withRequiredAgent(async () => {
           requireAgentCapability('github.oauth.v1')
-          const clientId = input?.clientId?.trim()
-          if (!clientId) throw new Error('请先填写 GitHub OAuth Client ID。')
           const status = await rpc.call('github/auth/start', {
-            clientId,
+            mode: input.mode,
           })
           activeGithubLoginId = status.loginId
+          activeGithubLoginMode = status.mode
           return status
         })
       } catch (error) {
-        return githubLoginFailure(operationError(error), activeGithubLoginId)
+        return githubLoginFailure(
+          operationError(error),
+          activeGithubLoginId,
+          input.mode,
+        )
       }
     },
     pollGithubLogin: async () => {
@@ -1223,7 +1227,11 @@ export function createAgentSessionDesktopClient(
           return status
         })
       } catch (error) {
-        return githubLoginFailure(operationError(error), activeGithubLoginId)
+        return githubLoginFailure(
+          operationError(error),
+          activeGithubLoginId,
+          activeGithubLoginMode,
+        )
       }
     },
     logoutGithub: async (): Promise<DesktopGithubAuthStatus> => {
@@ -1235,9 +1243,8 @@ export function createAgentSessionDesktopClient(
           return status
         })
       } catch (error) {
-        const settings = await mockClient.getDesktopSettings()
         return {
-          configured: Boolean(settings.githubOAuthClientId.trim()),
+          configured: false,
           authenticated: false,
           user: null,
           error: operationError(error),

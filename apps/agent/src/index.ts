@@ -15,6 +15,7 @@ async function startAgentServer(): Promise<void> {
     fetch: runtime.app.fetch,
     idleTimeout: 120,
   })
+  runtime.config.port = server.port ?? runtime.config.port
 
   const url = `http://${server.hostname}:${server.port}`
   runtime.logger.info("agent.started", { host: server.hostname, port: server.port, pid: process.pid })

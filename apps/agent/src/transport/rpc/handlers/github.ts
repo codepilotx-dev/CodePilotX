@@ -81,9 +81,9 @@ export const githubHandlers = {
       case "github/auth/status":
         return github.authStatus()
       case "github/auth/start":
-        return github.startDeviceFlow(typeof params.clientId === "string" ? params.clientId : undefined)
+        return github.startAuth(enumValue(params.mode, ["browser", "device"] as const, "mode"))
       case "github/auth/poll":
-        return github.pollDeviceFlow(stringParam(params, "loginId"))
+        return github.pollAuth(stringParam(params, "loginId"))
       case "github/auth/logout":
         return github.logout()
       case "github/profile":

@@ -1,48 +1,33 @@
 import { Effect } from "effect"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
-import { randomUUID } from "node:crypto"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { AgentError } from "../domain"
 import type { EncryptedCredentialRepository } from "../auth/EncryptedCredentialRepository"
+import {
+  GithubAuthService,
+  githubUserFromApi,
+  type GithubAuthMode,
+  type GithubAuthServiceOptions,
+  type GithubOAuthCallback,
+  type GithubUser,
+  type StoredGithubCredential,
+} from "./auth/GithubAuthService"
+export type {
+  GithubAuthMode,
+  GithubAuthStatus,
+  GithubLoginStatus,
+  GithubUser,
+} from "./auth/GithubAuthService"
 
 const GITHUB_INTEGRATION_ID = "github"
 const GITHUB_API = "https://api.github.com"
 const GITHUB_GRAPHQL = `${GITHUB_API}/graphql`
-const GITHUB_DEVICE_CODE = "https://github.com/login/device/code"
-const GITHUB_ACCESS_TOKEN = "https://github.com/login/oauth/access_token"
-const GITHUB_SCOPE = "repo read:user"
 const MAX_GIT_OUTPUT_BYTES = 1024 * 1024
 const DEFAULT_GIT_TIMEOUT_MS = 120_000
 
 type CredentialRepository = Pick<EncryptedCredentialRepository, "get" | "set" | "remove">
 type Fetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
-
-export type GithubUser = {
-  login: string
-  id: number
-  name: string | null
-  avatarUrl: string | null
-  htmlUrl: string
-}
-
-export type GithubAuthStatus = {
-  configured: boolean
-  authenticated: boolean
-  user: GithubUser | null
-  error?: string
-}
-
-export type GithubLoginStatus = {
-  loginId: string | null
-  state: "idle" | "starting" | "awaiting_auth" | "completed" | "failed"
-  userCode: string | null
-  verificationUri: string | null
-  expiresAt: string | null
-  error: string | null
-  auth: GithubAuthStatus | null
-  elapsedMs: number
-}
 
 export type GithubRepository = {
   id: number
@@ -155,29 +140,7 @@ export type GithubWorkspaceStatus = {
   }>
 }
 
-type StoredGithubCredential = {
-  type: "oauth"
-  accessToken: string
-  tokenType: string
-  scope: string
-}
-
-type DeviceAttempt = {
-  loginId: string
-  clientId: string
-  deviceCode: string
-  userCode: string
-  verificationUri: string
-  createdAt: number
-  expiresAt: number
-  intervalMs: number
-  nextPollAt: number
-}
-
-type GithubServiceOptions = {
-  fetch?: Fetch
-  now?: () => number
-  getConfiguredClientId?: () => string | null | undefined
+type GithubServiceOptions = GithubAuthServiceOptions & {
   gitTimeoutMs?: number
 }
 
@@ -187,19 +150,6 @@ const nonEmpty = (value: string, name: string) => {
   const normalized = value.trim()
   if (!normalized) throw new AgentError("INVALID_REQUEST", `${name} 参数无效`, 400)
   return normalized
-}
-
-const encodeForm = (values: Record<string, string>) => new URLSearchParams(values).toString()
-
-const userFromApi = (value: unknown): GithubUser => {
-  const input = asRecord(value, "GitHub 用户")
-  return {
-    login: stringField(input, "login"),
-    id: numberField(input, "id"),
-    name: nullableStringField(input, "name"),
-    avatarUrl: nullableStringField(input, "avatar_url"),
-    htmlUrl: stringField(input, "html_url"),
-  }
 }
 
 const repositoryFromApi = (value: unknown): GithubRepository => {
@@ -280,152 +230,48 @@ const profileRepositoryFromGraphql = (value: unknown): GithubProfileRepository =
 
 export class GithubService {
   private readonly fetch: Fetch
-  private readonly now: () => number
-  private readonly getConfiguredClientId: () => string | null | undefined
   private readonly gitTimeoutMs: number
-  private attempt: DeviceAttempt | null = null
+  private readonly auth: GithubAuthService
 
   constructor(
     private readonly credentials: CredentialRepository,
     options: GithubServiceOptions = {},
   ) {
     this.fetch = options.fetch ?? globalThis.fetch.bind(globalThis)
-    this.now = options.now ?? Date.now
-    this.getConfiguredClientId = options.getConfiguredClientId ?? (() => null)
     this.gitTimeoutMs = options.gitTimeoutMs ?? DEFAULT_GIT_TIMEOUT_MS
+    this.auth = new GithubAuthService(credentials, options)
   }
 
-  async authStatus(): Promise<GithubAuthStatus> {
-    const configured = Boolean(this.getConfiguredClientId()?.trim() || this.attempt?.clientId)
-    const stored = await this.credential()
-    if (!stored) return { configured, authenticated: false, user: null }
-    try {
-      const user = userFromApi(await this.rest("GET", "/user", undefined, stored.accessToken))
-      return { configured: true, authenticated: true, user }
-    } catch (cause) {
-      if (cause instanceof AgentError && cause.status === 401) {
-        await Effect.runPromise(this.credentials.remove(GITHUB_INTEGRATION_ID))
-        return { configured, authenticated: false, user: null, error: "GitHub 登录已失效，请重新登录。" }
-      }
-      return {
-        configured: true,
-        authenticated: true,
-        user: null,
-        error: cause instanceof Error ? cause.message : "无法连接 GitHub。",
-      }
-    }
+  async authStatus() {
+    return this.auth.authStatus()
   }
 
-  async startDeviceFlow(clientId?: string): Promise<GithubLoginStatus> {
-    const startedAt = this.now()
-    const loginId = randomUUID()
-    const resolvedClientId = nonEmpty(clientId ?? this.getConfiguredClientId() ?? "", "clientId")
-    this.attempt = null
-    const response = await this.fetchJson(GITHUB_DEVICE_CODE, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: encodeForm({ client_id: resolvedClientId, scope: GITHUB_SCOPE }),
-    }, false)
-    const body = asRecord(response, "GitHub Device Flow")
-    if (typeof body.error === "string") {
-      return this.failedLogin(startedAt, oauthErrorMessage(body), loginId)
-    }
-    const createdAt = this.now()
-    const expiresInSeconds = positiveNumberField(body, "expires_in")
-    const intervalSeconds = Math.max(1, optionalNumberField(body, "interval") || 5)
-    this.attempt = {
-      loginId,
-      clientId: resolvedClientId,
-      deviceCode: stringField(body, "device_code"),
-      userCode: stringField(body, "user_code"),
-      verificationUri: stringField(body, "verification_uri"),
-      createdAt,
-      expiresAt: createdAt + expiresInSeconds * 1_000,
-      intervalMs: intervalSeconds * 1_000,
-      nextPollAt: createdAt + intervalSeconds * 1_000,
-    }
-    return this.attemptStatus("awaiting_auth", null, null)
+  async startAuth(mode: GithubAuthMode) {
+    return this.auth.start(mode)
   }
 
-  async pollDeviceFlow(loginId: string): Promise<GithubLoginStatus> {
-    const attempt = this.attempt
-    const expectedLoginId = nonEmpty(loginId, "loginId")
-    if (!attempt || attempt.loginId !== expectedLoginId) {
-      throw new AgentError("CONFLICT", "GitHub 登录尝试已失效，请重新开始登录。", 409)
-    }
-    const now = this.now()
-    if (now >= attempt.expiresAt) {
-      this.attempt = null
-      return this.emptyLogin("failed", "GitHub 验证码已过期，请重新登录。", attempt.createdAt, attempt.loginId)
-    }
-    if (now < attempt.nextPollAt) return this.attemptStatus("awaiting_auth", null, null)
-    attempt.nextPollAt = now + attempt.intervalMs
-    const response = await this.fetchJson(GITHUB_ACCESS_TOKEN, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: encodeForm({
-        client_id: attempt.clientId,
-        device_code: attempt.deviceCode,
-        grant_type: "urn:ietf:params:oauth:grant-type:device_code",
-      }),
-    }, false)
-    const body = asRecord(response, "GitHub Device Flow")
-    if (typeof body.access_token === "string" && body.access_token) {
-      const tokenType = typeof body.token_type === "string" ? body.token_type : "bearer"
-      const scope = typeof body.scope === "string" ? body.scope : ""
-      const grantedScopes = new Set(scope.split(/[\s,]+/).map((item) => item.trim().toLowerCase()).filter(Boolean))
-      if (!grantedScopes.has("repo") || !grantedScopes.has("read:user")) {
-        const createdAt = attempt.createdAt
-        this.attempt = null
-        return this.emptyLogin("failed", "GitHub 授权范围不足，需要 repo 和 read:user 权限。", createdAt, attempt.loginId)
-      }
-      await Effect.runPromise(this.credentials.set({
-        integrationID: GITHUB_INTEGRATION_ID,
-        methodID: "device-flow",
-        label: "GitHub",
-        value: {
-          type: "oauth",
-          accessToken: body.access_token,
-          tokenType,
-          scope,
-        } satisfies StoredGithubCredential,
-      }))
-      const createdAt = attempt.createdAt
-      this.attempt = null
-      return {
-        ...this.emptyLogin("completed", null, createdAt, attempt.loginId),
-        auth: await this.authStatus(),
-      }
-    }
-    const error = typeof body.error === "string" ? body.error : "unknown"
-    if (error === "authorization_pending") return this.attemptStatus("awaiting_auth", null, null)
-    if (error === "slow_down") {
-      attempt.intervalMs += 5_000
-      attempt.nextPollAt = now + attempt.intervalMs
-      return this.attemptStatus("awaiting_auth", null, null)
-    }
-    this.attempt = null
-    return this.emptyLogin("failed", oauthErrorMessage(body), attempt.createdAt, attempt.loginId)
+  async startDeviceFlow(clientId?: string) {
+    return this.auth.start("device", clientId)
   }
 
-  async logout(): Promise<GithubAuthStatus> {
-    this.attempt = null
-    await Effect.runPromise(this.credentials.remove(GITHUB_INTEGRATION_ID))
-    return {
-      configured: Boolean(this.getConfiguredClientId()?.trim()),
-      authenticated: false,
-      user: null,
-    }
+  async pollDeviceFlow(loginId: string) {
+    return this.auth.poll(loginId)
+  }
+
+  async pollAuth(loginId: string) {
+    return this.auth.poll(loginId)
+  }
+
+  async handleOAuthCallback(input: GithubOAuthCallback) {
+    return this.auth.handleCallback(input)
+  }
+
+  async logout() {
+    return this.auth.logout()
   }
 
   async profile() {
-    return { user: userFromApi(await this.rest("GET", "/user")) }
+    return { user: githubUserFromApi(await this.rest("GET", "/user")) }
   }
 
   async profileOverview(): Promise<{ overview: GithubProfileOverview }> {
@@ -909,43 +755,6 @@ export class GithubService {
     return credential
   }
 
-  private attemptStatus(state: GithubLoginStatus["state"], error: string | null, auth: GithubAuthStatus | null): GithubLoginStatus {
-    const attempt = this.attempt
-    if (!attempt) return this.emptyLogin(state, error)
-    return {
-      loginId: attempt.loginId,
-      state,
-      userCode: attempt.userCode,
-      verificationUri: attempt.verificationUri,
-      expiresAt: new Date(attempt.expiresAt).toISOString(),
-      error,
-      auth,
-      elapsedMs: Math.max(0, this.now() - attempt.createdAt),
-    }
-  }
-
-  private emptyLogin(
-    state: GithubLoginStatus["state"],
-    error: string | null,
-    startedAt = this.now(),
-    loginId: string | null = null,
-  ): GithubLoginStatus {
-    return {
-      loginId,
-      state,
-      userCode: null,
-      verificationUri: null,
-      expiresAt: null,
-      error,
-      auth: null,
-      elapsedMs: Math.max(0, this.now() - startedAt),
-    }
-  }
-
-  private failedLogin(startedAt: number, error: string, loginId: string) {
-    return this.emptyLogin("failed", error, startedAt, loginId)
-  }
-
   private assertExpectedHeadRevision(expectedHeadRevision: string, actualHeadRevision: string): void {
     const expected = nonEmpty(expectedHeadRevision, "expectedHeadRevision")
     if (expected === actualHeadRevision) return
@@ -1149,20 +958,6 @@ const safeGitError = (value: string) => {
     : "GitHub Push 失败，请检查分支权限和仓库设置。"
 }
 
-const oauthErrorMessage = (value: Record<string, unknown>) => {
-  const error = typeof value.error === "string" ? value.error : ""
-  if (error === "authorization_pending") return "等待在 GitHub 完成授权。"
-  if (error === "slow_down") return "GitHub 要求降低轮询频率。"
-  if (error === "expired_token" || error === "token_expired") return "GitHub 验证码已过期，请重新登录。"
-  if (error === "access_denied") return "GitHub 登录已被取消。"
-  if (error === "incorrect_client_credentials") return "GitHub OAuth Client ID 无效。"
-  if (error === "incorrect_device_code") return "GitHub Device Code 无效，请重新登录。"
-  if (error === "device_flow_disabled") return "该 GitHub OAuth App 未启用 Device Flow。"
-  return typeof value.error_description === "string" && value.error_description.trim()
-    ? value.error_description.trim()
-    : "GitHub 登录失败，请稍后重试。"
-}
-
 const githubApiMessage = (value: unknown, status: number) => {
   if (value && typeof value === "object" && "message" in value && typeof value.message === "string") {
     return value.message.slice(0, 500)
@@ -1186,11 +981,6 @@ const numberField = (value: Record<string, unknown>, key: string) => {
   return value[key]
 }
 const optionalNumberField = (value: Record<string, unknown>, key: string) => typeof value[key] === "number" && Number.isFinite(value[key]) ? value[key] : 0
-const positiveNumberField = (value: Record<string, unknown>, key: string) => {
-  const result = numberField(value, key)
-  if (result <= 0) throw new AgentError("GITHUB_RESPONSE_INVALID", `GitHub 响应 ${key} 无效`, 502)
-  return result
-}
 const booleanField = (value: Record<string, unknown>, key: string) => {
   if (typeof value[key] !== "boolean") throw new AgentError("GITHUB_RESPONSE_INVALID", `GitHub 响应缺少 ${key}`, 502)
   return value[key]

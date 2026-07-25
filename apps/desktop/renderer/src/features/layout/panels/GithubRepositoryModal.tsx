@@ -2,8 +2,12 @@ import * as Dialog from '@radix-ui/react-dialog'
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { GitFork, Lock, Search, Unlock } from 'lucide-react'
-import { desktopClient } from '../../../services/desktop-client/index.js'
+import {
+  desktopClient,
+  startGithubLoginFlow,
+} from '../../../services/desktop-client/index.js'
 import type {
+  DesktopGithubAuthMode,
   DesktopGithubAuthStatus,
   DesktopGithubLoginStatus,
   DesktopGithubRepository,
@@ -98,10 +102,10 @@ export function GithubRepositoryModal({
     }
   }
 
-  async function startLogin(): Promise<void> {
+  async function startLogin(mode: DesktopGithubAuthMode): Promise<void> {
     setLoading(true)
     try {
-      const status = await desktopClient.startGithubLogin()
+      const status = await startGithubLoginFlow(desktopClient, mode)
       setLogin(status)
       if (status.auth) {
         setAuth(status.auth)
@@ -183,13 +187,17 @@ export function GithubRepositoryModal({
                 <div>
                   <h3>登录 GitHub</h3>
                   <p>
-                    {auth?.configured === false
-                      ? '未配置 GitHub OAuth Client ID。'
-                      : login?.state === 'awaiting_auth' && login.userCode
+                    {login?.error
+                      ? login.error
+                      : login?.mode === 'device' &&
+                          login.state === 'awaiting_auth' &&
+                          login.userCode
                         ? `请在打开的 GitHub 页面输入验证码 ${login.userCode}`
-                        : '使用 GitHub device flow 登录后，可列出并克隆私有仓库。'}
+                        : '在系统浏览器中授权后，可列出并克隆私有仓库。'}
                   </p>
-                  {login?.state === 'awaiting_auth' && login.userCode ? (
+                  {login?.mode === 'device' &&
+                  login.state === 'awaiting_auth' &&
+                  login.userCode ? (
                     <div className="github-device-code-card compact">
                       <div>
                         <div className="github-device-code-label">
@@ -221,14 +229,26 @@ export function GithubRepositoryModal({
                     </div>
                   ) : null}
                 </div>
-                <button
-                  className="settings-button primary"
-                  disabled={loading || auth?.configured === false}
-                  onClick={() => void startLogin()}
-                  type="button"
-                >
-                  登录 GitHub
-                </button>
+                <div className="settings-inline-actions">
+                  <button
+                    className="settings-button primary"
+                    disabled={loading}
+                    onClick={() => void startLogin('browser')}
+                    type="button"
+                  >
+                    登录 GitHub
+                  </button>
+                  {login?.state === 'failed' ? (
+                    <button
+                      className="settings-button"
+                      disabled={loading}
+                      onClick={() => void startLogin('device')}
+                      type="button"
+                    >
+                      使用设备验证码
+                    </button>
+                  ) : null}
+                </div>
               </div>
             ) : (
               <>

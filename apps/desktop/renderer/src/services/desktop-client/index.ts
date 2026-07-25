@@ -11,6 +11,8 @@ export {
   WORKSPACE_FILE_CHANGED_EVENT,
   WORKSPACE_GIT_CHANGED_EVENT,
 } from './agent-session-client.js'
+export { startGithubLoginFlow } from './github-login.js'
+export type { GithubLoginClient } from './github-login.js'
 
 export {
   readDesktopBrowserDebugMode,

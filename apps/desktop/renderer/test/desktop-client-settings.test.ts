@@ -5,7 +5,10 @@ import type {
   ThreadSettings,
   ThreadSnapshot,
 } from '@codepilotx/shared/thread'
-import { createDesktopClient } from '../src/services/desktop-client/index.js'
+import {
+  createDesktopClient,
+  startGithubLoginFlow,
+} from '../src/services/desktop-client/index.js'
 
 const now = 1_700_000_000_000
 const defaultSettings: ThreadSettings = {
@@ -710,9 +713,11 @@ describe('desktop thread settings client', () => {
     const auth = { configured: true, authenticated: true, user: githubUser }
     const login = {
       loginId: 'login-1',
+      mode: 'browser',
       state: 'awaiting_auth',
-      userCode: 'ABCD-EFGH',
-      verificationUri: 'https://github.com/login/device',
+      authorizationUrl: 'https://github.com/login/oauth/authorize?client_id=fixture',
+      userCode: null,
+      verificationUri: null,
       expiresAt: '2026-07-18T00:00:00.000Z',
       error: null,
       auth: null,
@@ -810,7 +815,7 @@ describe('desktop thread settings client', () => {
     const client = createDesktopClient({ fetch: fetcher })
 
     expect(await client.getGithubAuthStatus()).toEqual(auth)
-    expect(await client.startGithubLogin({ clientId: 'client-id' })).toEqual(login)
+    expect(await client.startGithubLogin({ mode: 'browser' })).toEqual(login)
     expect(await client.pollGithubLogin()).toEqual(login)
     expect(await client.listGithubRepositories()).toEqual({ ok: true, repositories: [] })
     expect(await client.getGithubProfileOverview()).toMatchObject({
@@ -840,7 +845,7 @@ describe('desktop thread settings client', () => {
 
     expect(requests).toContainEqual({
       method: 'github/auth/start',
-      params: { clientId: 'client-id' },
+      params: { mode: 'browser' },
     })
     expect(requests).toContainEqual({
       method: 'github/push',
@@ -858,6 +863,66 @@ describe('desktop thread settings client', () => {
         body: 'PR body',
         draft: true,
       },
+    })
+  })
+
+  test('opens browser authorization URLs and preserves launch failures', async () => {
+    const opened: string[] = []
+    const login = {
+      loginId: 'login-browser',
+      mode: 'browser' as const,
+      state: 'awaiting_auth' as const,
+      authorizationUrl: 'https://github.com/login/oauth/authorize?client_id=fixture',
+      userCode: null,
+      verificationUri: null,
+      expiresAt: '2026-07-25T10:00:00.000Z',
+      error: null,
+      auth: null,
+      elapsedMs: 0,
+    }
+
+    expect(await startGithubLoginFlow({
+      startGithubLogin: async input => ({ ...login, mode: input.mode }),
+      openExternalURL: async url => {
+        opened.push(url)
+      },
+    }, 'browser')).toEqual(login)
+    expect(opened).toEqual([login.authorizationUrl])
+
+    const failed = await startGithubLoginFlow({
+      startGithubLogin: async () => login,
+      openExternalURL: async () => {
+        throw new Error('无法打开系统浏览器')
+      },
+    }, 'browser')
+    expect(failed).toMatchObject({
+      loginId: login.loginId,
+      mode: 'browser',
+      state: 'failed',
+      error: '无法打开系统浏览器',
+    })
+
+    const missingUrl = await startGithubLoginFlow({
+      startGithubLogin: async () => ({ ...login, authorizationUrl: null }),
+      openExternalURL: async () => {
+        throw new Error('不应尝试打开空地址')
+      },
+    }, 'browser')
+    expect(missingUrl).toMatchObject({
+      state: 'failed',
+      error: 'GitHub 登录服务未返回浏览器授权地址，请稍后重试。',
+    })
+
+    expect(await startGithubLoginFlow({
+      startGithubLogin: async () => {
+        throw new Error('登录服务不可用')
+      },
+      openExternalURL: async () => {},
+    }, 'browser')).toMatchObject({
+      loginId: null,
+      mode: 'browser',
+      state: 'failed',
+      error: '登录服务不可用',
     })
   })
 })

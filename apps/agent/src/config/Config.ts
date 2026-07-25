@@ -19,6 +19,8 @@ export interface AgentConfig {
   rendererDir: string | null
   rendererDevURL: string | null
   modelsDevURL: string
+  githubAuthBrokerURL: string | null
+  githubOAuthClientId: string | null
   petsDir: string
   legacyDataDir: string | null
   legacyPetsDir: string | null
@@ -127,6 +129,12 @@ export const loadConfig = Effect.sync((): AgentConfig => {
     rendererDir: process.env.CODEPILOTX_RENDERER_DIST ? resolve(process.env.CODEPILOTX_RENDERER_DIST) : process.env.CODEPILOTX_STATIC_DIR ? resolve(process.env.CODEPILOTX_STATIC_DIR) : process.env.CODEPILOTX_RENDERER_DIR ? resolve(process.env.CODEPILOTX_RENDERER_DIR) : null,
     rendererDevURL: process.env.CODEPILOTX_RENDERER_DEV_URL ?? process.env.CODEPILOTX_RENDERER_URL ?? null,
     modelsDevURL: process.env.CODEPILOTX_MODELS_URL ?? "https://models.dev",
+    githubAuthBrokerURL:
+      process.env.CODEPILOTX_GITHUB_AUTH_BROKER_URL?.trim()
+      || "https://auth-staging.codepilotx.com",
+    githubOAuthClientId:
+      process.env.CODEPILOTX_GITHUB_OAUTH_CLIENT_ID?.trim()
+      || null,
     petsDir: storage.petsRoot,
     legacyDataDir: process.env.CODEPILOTX_LEGACY_DATA_DIR?.trim()
       ? resolve(process.env.CODEPILOTX_LEGACY_DATA_DIR)

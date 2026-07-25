@@ -597,15 +597,18 @@ export type DesktopGithubAuthStatus = {
 }
 
 export type DesktopGithubLoginState =
-  | 'idle'
   | 'starting'
   | 'awaiting_auth'
   | 'completed'
   | 'failed'
 
+export type DesktopGithubAuthMode = 'browser' | 'device'
+
 export type DesktopGithubLoginStatus = {
   loginId: string | null
+  mode: DesktopGithubAuthMode
   state: DesktopGithubLoginState
+  authorizationUrl: string | null
   userCode: string | null
   verificationUri: string | null
   expiresAt: string | null
@@ -615,7 +618,7 @@ export type DesktopGithubLoginStatus = {
 }
 
 export type StartGithubLoginInput = {
-  clientId?: string
+  mode: DesktopGithubAuthMode
 }
 
 export type DesktopGithubRepository = {
@@ -849,8 +852,6 @@ gitBranchPrefix: string
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
-	  githubOAuthClientId: string
-	  authBaseUrl: string
 	  /** @deprecated Loader-only legacy input. Normalized settings never serialize this field. */
 	  sandboxMode?: DesktopSandboxMode
   allowNetworkAccess?: boolean
@@ -1656,9 +1657,7 @@ export type DesktopApi = {
   pollCopilotLogin(): Promise<DesktopCopilotLoginStatus>
   cancelCopilotLogin(): Promise<{ cancelled: boolean }>
   getGithubAuthStatus(): Promise<DesktopGithubAuthStatus>
-  startGithubLogin(
-    input?: StartGithubLoginInput,
-  ): Promise<DesktopGithubLoginStatus>
+  startGithubLogin(input: StartGithubLoginInput): Promise<DesktopGithubLoginStatus>
   pollGithubLogin(): Promise<DesktopGithubLoginStatus>
   logoutGithub(): Promise<DesktopGithubAuthStatus>
   listGithubRepositories(): Promise<DesktopGithubRepositoryListResult>
