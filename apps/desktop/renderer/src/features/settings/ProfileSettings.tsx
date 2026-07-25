@@ -75,10 +75,6 @@ export function ProfileSettings(): React.ReactNode {
     [githubOverview],
   )
   const contributionWeeks = githubOverview?.contributions.weeks ?? []
-  const contributionGridWidth =
-    contributionWeeks.length > 0
-      ? contributionWeeks.length * CONTRIBUTION_COL_WIDTH - CONTRIBUTION_GAP
-      : 0
   const currentStatus = githubOverview?.user.status ?? null
 
   const openStatusEditor = (): void => {
@@ -127,7 +123,7 @@ export function ProfileSettings(): React.ReactNode {
     <SettingsContentArea className="profile-dashboard-area">
       <div className="profile-dashboard">
         <header className="profile-dashboard-header">
-          <h2>用户设置</h2>
+          <h2>个人资料</h2>
           <div className="profile-dashboard-actions">
             <button
               className="profile-action-button"
@@ -152,154 +148,164 @@ export function ProfileSettings(): React.ReactNode {
           </div>
         </header>
 
-        <section className="profile-hero">
-          <div className="profile-avatar-wrap">
-            <div className="profile-avatar" aria-hidden="true">
-              {user?.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <User />}
-            </div>
-            {user ? (
-              <button
-                className="profile-avatar-badge"
-                title={currentStatus?.message ?? '设置状态'}
-                onClick={openStatusEditor}
-                type="button"
-              >
-                {statusEmojiGlyph(currentStatus?.emoji)}
-              </button>
-            ) : null}
-          </div>
-          <h1>{user?.name || user?.login || 'GitHub Profile'}</h1>
-          <div className="profile-identity">
-            {user ? `@${user.login}` : '未登录 GitHub'}
-            {githubOverview ? <span>GitHub</span> : null}
-          </div>
-          {githubOverview?.user.bio ? (
-            <p className="profile-bio">{githubOverview.user.bio}</p>
-          ) : null}
-          {currentStatus?.message ? (
-            <div className="profile-status-line">
-              <span>{statusEmojiGlyph(currentStatus.emoji)}</span>
-              {currentStatus.message}
-              {currentStatus.indicatesLimitedAvailability ? (
-                <strong>Busy</strong>
-              ) : null}
-            </div>
-          ) : null}
-          {githubOverview ? (
-            <div className="profile-meta-line">
-              <ProfileMeta icon={<User />} value={`${githubOverview.user.followers} followers`} />
-              <ProfileMeta icon={<GitFork />} value={`${githubOverview.user.following} following`} />
-              <ProfileMeta icon={<MapPin />} value={githubOverview.user.location} />
-              <ProfileMeta icon={<Globe />} value={githubOverview.user.websiteUrl} />
-              <ProfileMeta icon={<Mail />} value={githubOverview.user.email} />
-            </div>
-          ) : null}
-        </section>
-
-        {githubOverview ? (
+        {loading ? (
+          <ProfileLoadingSkeleton />
+        ) : (
           <>
-            <section className="profile-stat-strip" aria-label="GitHub 统计">
-              <ProfileMetric label="公开仓库" value={githubOverview.user.repositoryCount} />
-              <ProfileMetric label="Starred" value={githubOverview.user.starredRepositoryCount} />
-              <ProfileMetric label="今年贡献" value={githubOverview.contributions.totalContributions} />
-              <ProfileMetric label="Commit 贡献" value={githubOverview.contributions.totalCommitContributions} />
-              <ProfileMetric label="受限贡献" value={githubOverview.contributions.restrictedContributionsCount} />
-            </section>
-
-            <section className="profile-activity-panel">
-              <div className="profile-panel-heading">
-                <h3>GitHub 活动</h3>
-              </div>
-              <div className="profile-contribution-map">
-                <div
-                  className="profile-contribution-grid"
-                  style={{ width: contributionGridWidth }}
-                >
-                  {githubOverview.contributions.weeks.map((week, weekIndex) => (
-                    <div className="profile-contribution-week" key={weekIndex}>
-                      {week.days.map(day => (
-                        <span
-                          className="profile-contribution-day"
-                          key={day.date}
-                          style={{
-                            backgroundColor: contributionColor(
-                              day.count,
-                              maxContributionCount,
-                            ),
-                          }}
-                          title={`${day.date}: ${day.count} contributions`}
-                        />
-                      ))}
-                    </div>
-                  ))}
+            <section className="profile-hero">
+              <div className="profile-avatar-wrap">
+                <div className="profile-avatar" aria-hidden="true">
+                  {user?.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <User />}
                 </div>
-                <div
-                  className="profile-contribution-months"
-                  style={{ width: contributionGridWidth }}
-                >
-                  {monthLabels(githubOverview.contributions.weeks).map(item => (
-                    <span
-                      key={`${item.label}-${item.index}`}
-                      style={{ left: item.index * CONTRIBUTION_COL_WIDTH }}
-                    >
-                      {item.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            <section className="profile-lower-grid">
-                <div className="profile-insights">
-                <h3>活动概览</h3>
-                <ProfileInsight label="Commit 贡献" value={githubOverview.contributions.totalCommitContributions} />
-                <ProfileInsight label="Pull request 贡献" value={githubOverview.contributions.totalPullRequestContributions} />
-                <ProfileInsight label="Issue 贡献" value={githubOverview.contributions.totalIssueContributions} />
-                <ProfileInsight label="Review 贡献" value={githubOverview.contributions.totalPullRequestReviewContributions} />
-                <ProfileInsight label="受限贡献" value={githubOverview.contributions.restrictedContributionsCount} />
-              </div>
-
-              <div className="profile-repositories">
-                <h3>常用仓库</h3>
-                {repositories.slice(0, 5).map(repository => (
-                  <ProfileRepositoryRow
-                    key={repository.id}
-                    repository={repository}
-                  />
-                ))}
-                {repositories.length === 0 ? (
-                  <p className="profile-empty-copy">暂无可显示的数据。</p>
+                {user ? (
+                  <button
+                    className="profile-avatar-badge"
+                    title={currentStatus?.message ?? '设置状态'}
+                    onClick={openStatusEditor}
+                    type="button"
+                  >
+                    {statusEmojiGlyph(currentStatus?.emoji)}
+                  </button>
                 ) : null}
               </div>
+              <h1>{user?.name || user?.login || 'GitHub Profile'}</h1>
+              <div className="profile-identity">
+                {user ? `@${user.login}` : '未登录 GitHub'}
+                {githubOverview ? (
+                  <>
+                    <span aria-hidden="true" className="profile-identity-separator">·</span>
+                    <span className="profile-account-label">GitHub</span>
+                  </>
+                ) : null}
+              </div>
+              {githubOverview?.user.bio ? (
+                <p className="profile-bio">{githubOverview.user.bio}</p>
+              ) : null}
+              {currentStatus?.message ? (
+                <div className="profile-status-line">
+                  <span>{statusEmojiGlyph(currentStatus.emoji)}</span>
+                  {currentStatus.message}
+                  {currentStatus.indicatesLimitedAvailability ? (
+                    <strong>Busy</strong>
+                  ) : null}
+                </div>
+              ) : null}
+              {githubOverview ? (
+                <div className="profile-meta-line">
+                  <ProfileMeta icon={<User />} value={`${githubOverview.user.followers} followers`} />
+                  <ProfileMeta icon={<GitFork />} value={`${githubOverview.user.following} following`} />
+                  <ProfileMeta icon={<MapPin />} value={githubOverview.user.location} />
+                  <ProfileMeta icon={<Globe />} value={githubOverview.user.websiteUrl} />
+                  <ProfileMeta icon={<Mail />} value={githubOverview.user.email} />
+                </div>
+              ) : null}
             </section>
+
+            {githubOverview ? (
+              <>
+                <section className="profile-stat-strip" aria-label="GitHub 统计">
+                  <ProfileMetric label="公开仓库" value={githubOverview.user.repositoryCount} />
+                  <ProfileMetric label="Starred" value={githubOverview.user.starredRepositoryCount} />
+                  <ProfileMetric label="今年贡献" value={githubOverview.contributions.totalContributions} />
+                  <ProfileMetric label="Commit 贡献" value={githubOverview.contributions.totalCommitContributions} />
+                  <ProfileMetric label="受限贡献" value={githubOverview.contributions.restrictedContributionsCount} />
+                </section>
+
+                <section className="profile-activity-panel">
+                  <div className="profile-panel-heading">
+                    <h3>GitHub 活动</h3>
+                  </div>
+                  <div className="profile-contribution-map">
+                    <div
+                      className="profile-contribution-grid"
+                      style={{
+                        gridTemplateColumns: `repeat(${Math.max(contributionWeeks.length, 1)}, minmax(1px, 1fr))`,
+                      }}
+                    >
+                      {contributionWeeks.map((week, weekIndex) => (
+                        <div
+                          className="profile-contribution-week"
+                          key={week.days[0]?.date ?? weekIndex}
+                        >
+                          {week.days.map(day => (
+                            <span
+                              className="profile-contribution-day"
+                              data-level={contributionLevel(
+                                day.count,
+                                maxContributionCount,
+                              )}
+                              key={day.date}
+                              title={`${day.date}: ${day.count} contributions`}
+                            />
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="profile-contribution-months">
+                      {monthLabels(contributionWeeks).map(item => (
+                        <span
+                          key={`${item.label}-${item.index}`}
+                          style={{
+                            left: `${monthLabelOffset(item.index, contributionWeeks.length)}%`,
+                          }}
+                        >
+                          {item.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+
+                <section className="profile-lower-grid">
+                  <div className="profile-insights">
+                    <h3>活动概览</h3>
+                    <ProfileInsight label="Commit 贡献" value={githubOverview.contributions.totalCommitContributions} />
+                    <ProfileInsight label="Pull request 贡献" value={githubOverview.contributions.totalPullRequestContributions} />
+                    <ProfileInsight label="Issue 贡献" value={githubOverview.contributions.totalIssueContributions} />
+                    <ProfileInsight label="Review 贡献" value={githubOverview.contributions.totalPullRequestReviewContributions} />
+                    <ProfileInsight label="受限贡献" value={githubOverview.contributions.restrictedContributionsCount} />
+                  </div>
+
+                  <div className="profile-repositories">
+                    <h3>常用仓库</h3>
+                    {repositories.slice(0, 5).map(repository => (
+                      <ProfileRepositoryRow
+                        key={repository.id}
+                        repository={repository}
+                      />
+                    ))}
+                    {repositories.length === 0 ? (
+                      <p className="profile-empty-copy">暂无可显示的数据。</p>
+                    ) : null}
+                  </div>
+                </section>
+              </>
+            ) : (
+              <section className="profile-empty-state">
+                <p>
+                  {githubOverviewError ??
+                    '连接 GitHub 失败，请稍后重试。'
+                  }
+                </p>
+                <div className="profile-empty-actions">
+                  <Button
+                    onClick={() => void loadGithubAuth()}
+                    type="button"
+                  >
+                    <RefreshCw />
+                    刷新
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => navigate('/settings/git')}
+                    type="button"
+                  >
+                    前往 Git 设置
+                  </Button>
+                </div>
+              </section>
+            )}
           </>
-        ) : (
-          <section className="profile-empty-state">
-            <p>
-              {loading
-                ? '正在读取 GitHub 资料...'
-                : githubOverviewError ??
-                  '连接 GitHub 失败，请稍后重试。'
-              }
-            </p>
-            <div className="profile-empty-actions">
-              <Button
-                disabled={loading}
-                onClick={() => void loadGithubAuth()}
-                type="button"
-              >
-                <RefreshCw />
-                刷新
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => navigate('/settings/git')}
-                type="button"
-              >
-                前往 Git 设置
-              </Button>
-            </div>
-          </section>
         )}
         {statusEditorOpen ? (
           <div className="popover-surface profile-status-popover" role="dialog" aria-label="设置 GitHub 状态">
@@ -362,6 +368,55 @@ export function ProfileSettings(): React.ReactNode {
         ) : null}
       </div>
     </SettingsContentArea>
+  )
+}
+
+function ProfileLoadingSkeleton(): React.ReactNode {
+  return (
+    <div
+      aria-busy="true"
+      aria-label="正在读取 GitHub 资料"
+      className="profile-loading"
+    >
+      <section className="profile-loading-hero">
+        <ProfileLoadingBlock className="profile-loading-avatar" />
+        <ProfileLoadingBlock className="profile-loading-name" />
+        <ProfileLoadingBlock className="profile-loading-identity" />
+      </section>
+      <section className="profile-loading-stats" aria-hidden="true">
+        {Array.from({ length: 5 }, (_, index) => (
+          <div key={index}>
+            <ProfileLoadingBlock />
+            <ProfileLoadingBlock />
+          </div>
+        ))}
+      </section>
+      <section className="profile-loading-activity" aria-hidden="true">
+        <ProfileLoadingBlock className="profile-loading-heading" />
+        <div className="profile-loading-contributions">
+          {Array.from({ length: 84 }, (_, index) => (
+            <ProfileLoadingBlock key={index} />
+          ))}
+        </div>
+      </section>
+      <section className="profile-loading-lower" aria-hidden="true">
+        <div>{Array.from({ length: 5 }, (_, index) => <ProfileLoadingBlock key={index} />)}</div>
+        <div>{Array.from({ length: 5 }, (_, index) => <ProfileLoadingBlock key={index} />)}</div>
+      </section>
+    </div>
+  )
+}
+
+function ProfileLoadingBlock({
+  className = '',
+}: {
+  className?: string
+}): React.ReactNode {
+  return (
+    <span
+      aria-hidden="true"
+      className={`profile-loading-block ${className}`.trim()}
+    />
   )
 }
 
@@ -445,17 +500,13 @@ function maxContribution(weeks: DesktopGithubContributionWeek[]): number {
   )
 }
 
-const CONTRIBUTION_CELL = 14
-const CONTRIBUTION_GAP = 5
-const CONTRIBUTION_COL_WIDTH = CONTRIBUTION_CELL + CONTRIBUTION_GAP
-
-function contributionColor(count: number, max: number): string {
-  if (count <= 0) return '#f0f1f3'
+function contributionLevel(count: number, max: number): number {
+  if (count <= 0) return 0
   const ratio = count / max
-  if (ratio < 0.25) return '#cfe8fb'
-  if (ratio < 0.5) return '#8cc8ee'
-  if (ratio < 0.75) return '#45a5e5'
-  return '#1683d8'
+  if (ratio < 0.25) return 1
+  if (ratio < 0.5) return 2
+  if (ratio < 0.75) return 3
+  return 4
 }
 
 function monthLabels(
@@ -474,6 +525,11 @@ function monthLabels(
     }
   })
   return labels.slice(-12)
+}
+
+function monthLabelOffset(index: number, weekCount: number): number {
+  if (weekCount <= 1) return 0
+  return Math.min(100, Math.max(0, (index / (weekCount - 1)) * 100))
 }
 
 function formatCompact(value: number): string {
