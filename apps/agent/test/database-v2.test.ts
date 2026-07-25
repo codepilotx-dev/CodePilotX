@@ -31,6 +31,7 @@ describe("数据库 Pi epoch", () => {
         id INTEGER PRIMARY KEY AUTOINCREMENT, thread_id TEXT, turn_id TEXT,
         method TEXT NOT NULL, params TEXT NOT NULL, created_at INTEGER NOT NULL
       );
+      CREATE TABLE threads (id TEXT PRIMARY KEY, title TEXT NOT NULL);
       PRAGMA user_version = 18;
     `)
     const internalItem = (id: string, type: string, data: Record<string, unknown>, createdAt: number) => ({
@@ -75,7 +76,36 @@ describe("数据库 Pi epoch", () => {
     ])
     expect(rows.map((row) => row.ordinal)).toEqual([0, 1, 2, 3])
     expect(rows.some((row) => row.id === "legacy-unproven")).toBe(true)
-    expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 19 })
+    expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 20 })
+    sqlite.close()
+  })
+
+  test("v19 到 v20 保留会话和消息并新增 nullable 工作分支", () => {
+    const sqlite = new Database(":memory:")
+    sqlite.exec(`
+      CREATE TABLE threads (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+      CREATE TABLE messages (
+        id TEXT PRIMARY KEY,
+        thread_id TEXT NOT NULL,
+        content TEXT NOT NULL
+      );
+      INSERT INTO threads VALUES ('thread-1', '保留的会话');
+      INSERT INTO messages VALUES ('message-1', 'thread-1', '保留的消息');
+      PRAGMA user_version = 19;
+    `)
+
+    initializeSchema(sqlite)
+    initializeSchema(sqlite)
+
+    expect(sqlite.query("SELECT id, title, git_branch FROM threads").get()).toEqual({
+      id: "thread-1",
+      title: "保留的会话",
+      git_branch: null,
+    })
+    expect(sqlite.query("SELECT content FROM messages WHERE id = 'message-1'").get()).toEqual({
+      content: "保留的消息",
+    })
+    expect(sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: 20 })
     sqlite.close()
   })
 
@@ -100,6 +130,7 @@ describe("数据库 Pi epoch", () => {
     const tables = new Set((db.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{ name: string }>).map(({ name }) => name))
     expect(tables.has("pi_sessions")).toBe(true)
     expect(tables.has("pi_session_entries")).toBe(true)
+    expect((db.sqlite.query("PRAGMA table_info(threads)").all() as Array<{ name: string }>).some(column => column.name === "git_branch")).toBe(true)
     db.close()
   })
 

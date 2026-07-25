@@ -160,6 +160,7 @@ export interface Item {
 export interface ThreadSnapshot {
   id: string
   title: string
+  gitBranch: string | null
   settings: ThreadSettings
   createdAt: number
   updatedAt: number

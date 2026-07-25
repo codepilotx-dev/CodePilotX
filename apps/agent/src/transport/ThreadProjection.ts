@@ -60,6 +60,7 @@ type ThreadRow = {
   id: string
   title: string
   project_id: string | null
+  git_branch: string | null
   task_mode: Thread["settings"]["taskMode"]
   sandbox_mode: Thread["settings"]["permissionConfig"]["sandboxMode"]
   approval_policy: string
@@ -213,8 +214,8 @@ export class ThreadProjection {
   }
 
   snapshot(threadId: string): ThreadSnapshot | null {
-    const thread = this.db.sqlite.query("SELECT id, title, project_id, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?").get(threadId) as
-      | { id: string; title: string; project_id: string | null; task_mode: ThreadSnapshot["thread"]["settings"]["taskMode"]; sandbox_mode: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["sandboxMode"]; approval_policy: string; approvals_reviewer: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["approvalsReviewer"]; created_at: number; updated_at: number }
+    const thread = this.db.sqlite.query("SELECT id, title, project_id, git_branch, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?").get(threadId) as
+      | { id: string; title: string; project_id: string | null; git_branch: string | null; task_mode: ThreadSnapshot["thread"]["settings"]["taskMode"]; sandbox_mode: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["sandboxMode"]; approval_policy: string; approvals_reviewer: ThreadSnapshot["thread"]["settings"]["permissionConfig"]["approvalsReviewer"]; created_at: number; updated_at: number }
       | null
     if (!thread) return null
     const threadWorkspace = this.db.threadWorkspace(threadId)
@@ -307,6 +308,7 @@ export class ThreadProjection {
         id: thread.id,
         title: thread.title,
         projectID: thread.project_id,
+        gitBranch: thread.git_branch,
         ...(threadWorkspace ? { workspace: threadWorkspace } : {}),
         settings: {
           taskMode: thread.task_mode,
@@ -331,7 +333,7 @@ export class ThreadProjection {
   }
 
   historyPage(threadId: string, params: { before?: string; limit?: number } = {}): ThreadHistoryPage | null {
-    const thread = this.db.sqlite.query("SELECT id, title, project_id, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?").get(threadId) as ThreadRow | null
+    const thread = this.db.sqlite.query("SELECT id, title, project_id, git_branch, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?").get(threadId) as ThreadRow | null
     if (!thread) return null
     const limit = Math.min(50, Math.max(1, params.limit ?? 10))
     const cursor = params.before ? decodeHistoryCursor(params.before) : null
@@ -482,7 +484,7 @@ export class ThreadProjection {
     const queueMetadata = this.db.queueStateMeta(threadId) ?? { version: 0, pauseReason: null }
     return {
       thread: {
-        id: thread.id, title: thread.title, projectID: thread.project_id, ...(workspace ? { workspace } : {}),
+        id: thread.id, title: thread.title, projectID: thread.project_id, gitBranch: thread.git_branch, ...(workspace ? { workspace } : {}),
         settings: {
           taskMode: thread.task_mode,
           permissionConfig: { sandboxMode: thread.sandbox_mode, approvalPolicy: decodeApprovalPolicy(thread.approval_policy), approvalsReviewer: thread.approvals_reviewer },
@@ -508,7 +510,7 @@ export class ThreadProjection {
       where.push(params.archived ? "t.archived_at IS NOT NULL" : "t.archived_at IS NULL")
     }
     const sql = `
-      SELECT t.id, t.project_id, t.title, t.preview, t.first_user_message, t.message_count,
+      SELECT t.id, t.project_id, t.git_branch, t.title, t.preview, t.first_user_message, t.message_count,
         t.archived_at, t.task_mode, t.sandbox_mode, t.approval_policy, t.approvals_reviewer, t.created_at, t.updated_at,
         (SELECT status FROM turns AS u WHERE u.thread_id = t.id
           ORDER BY CASE WHEN u.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_plan_confirmation', 'waiting_subagents') THEN 0 ELSE 1 END,
@@ -526,6 +528,7 @@ export class ThreadProjection {
       return {
       id,
       projectID: row.project_id == null ? null : String(row.project_id),
+      gitBranch: row.git_branch == null ? null : String(row.git_branch),
       ...(workspace ? { workspace } : {}),
       title: String(row.title),
       preview: row.preview == null ? null : String(row.preview),

@@ -16,6 +16,10 @@ import {
   shouldShowSidebarPreview,
 } from '../src/features/layout/sidebarShellState.js'
 import {
+  buildSidebarSessionHoverCardModel,
+  formatSidebarSessionRelativeTime,
+} from '../src/features/layout/sidebar/SidebarSessionHoverCard.js'
+import {
   buildSidebarViewModel,
   deriveSidebarSessionVisualState,
 } from '../src/features/layout/sidebar/sidebarViewModel.js'
@@ -327,6 +331,44 @@ describe('sidebar view model', () => {
         sort: 'manual',
       }).map(item => item.id),
     ).toEqual(['created-first', 'updated-first'])
+  })
+})
+
+describe('sidebar session hover card projection', () => {
+  test('shows compact time, project, and normalized work branch', () => {
+    const item = {
+      ...session('thread-1', 'F:\\CodeProject\\CodePilotX'),
+      sessionName: '实现 Hover Card',
+      gitBranch: '  codex/hover-card  ',
+    }
+    expect(buildSidebarSessionHoverCardModel(
+      item,
+      undefined,
+      new Date('2026-07-18T00:19:00.000Z').getTime(),
+    )).toEqual({
+      title: '实现 Hover Card',
+      relativeTime: '19 分',
+      projectLabel: 'CodePilotX',
+      gitBranch: 'codex/hover-card',
+    })
+  })
+
+  test('uses 会话 for standalone items and hides an empty branch', () => {
+    const item = {
+      ...session('thread-2', 'C:\\workspace', undefined, true),
+      gitBranch: ' ',
+    }
+    const model = buildSidebarSessionHoverCardModel(
+      item,
+      '无项目会话',
+      new Date('2026-07-18T03:00:00.000Z').getTime(),
+    )
+    expect(model.projectLabel).toBe('会话')
+    expect(model.gitBranch).toBeNull()
+    expect(formatSidebarSessionRelativeTime(
+      '2026-07-16T03:00:00.000Z',
+      new Date('2026-07-18T03:00:00.000Z').getTime(),
+    )).toBe('2 天')
   })
 })
 

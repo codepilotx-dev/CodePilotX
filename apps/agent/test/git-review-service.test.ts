@@ -70,6 +70,14 @@ const fixture = async (options: {
 }
 
 describe("GitReviewService", () => {
+  test("读取项目当前工作分支", async () => {
+    const { root, db, project, review } = await fixture()
+    await git(root, "switch", "-c", "codex/hover-card")
+
+    expect(await review.currentBranch(project.id)).toBe("codex/hover-card")
+    db.close()
+  })
+
   test("生成未暂存摘要和文件级 hunk，并保护过期快照", async () => {
     const { root, db, project, review } = await fixture()
     await writeFile(join(root, "src", "index.ts"), "export const value = 2\nexport const added = true\n", "utf8")

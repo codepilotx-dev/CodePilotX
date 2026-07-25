@@ -12,6 +12,7 @@ export type ThreadMetadataPatch = {
 type ThreadRow = {
   id: string
   project_id: string | null
+  git_branch: string | null
   title: string
   preview: string | null
   first_user_message: string | null
@@ -43,7 +44,7 @@ export class ThreadHistoryService {
 
   getListItem(threadID: string): ThreadListItem | null {
     const row = this.db.sqlite.query(`
-      SELECT t.id, t.project_id, t.title, t.preview, t.first_user_message, t.message_count, t.archived_at,
+      SELECT t.id, t.project_id, t.git_branch, t.title, t.preview, t.first_user_message, t.message_count, t.archived_at,
         t.task_mode, t.sandbox_mode, t.approval_policy, t.approvals_reviewer, t.created_at, t.updated_at,
         (SELECT u.status FROM turns AS u WHERE u.thread_id = t.id ORDER BY u.created_at DESC, u.id DESC LIMIT 1) AS latest_turn_status
       FROM threads AS t
@@ -54,6 +55,7 @@ export class ThreadHistoryService {
     return {
       id: row.id,
       projectID: row.project_id,
+      gitBranch: row.git_branch,
       ...(workspace ? { workspace } : {}),
       title: row.title,
       preview: row.preview,

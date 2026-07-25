@@ -1,5 +1,5 @@
 /** SQLite schema owned by the current Agent data epoch. */
-export const SCHEMA_VERSION = 19
+export const SCHEMA_VERSION = 20
 
 /**
  * A data epoch is deliberately incompatible with every earlier epoch.

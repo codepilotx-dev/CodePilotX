@@ -178,6 +178,7 @@ export type CreatedThreadRecord = {
   id: string
   title: string
   projectID: string | null
+  gitBranch: string | null
   workspace: StoredThreadWorkspace | null
   settings: ThreadSettings
   createdAt: number
@@ -344,17 +345,17 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
         )
         const persistedWorkspace = this.threadWorkspace(id)
         const event = this.insertEvent(id, null, "thread/created", { thread: {
-          id, title, projectID,
+          id, title, projectID, gitBranch: null,
           ...(persistedWorkspace ? { workspace: persistedWorkspace } : {}),
           settings, createdAt: timestamp, updatedAt: timestamp,
         } })
-        return { id, title, projectID, workspace: persistedWorkspace, settings, createdAt: timestamp, updatedAt: timestamp, event }
+        return { id, title, projectID, gitBranch: null, workspace: persistedWorkspace, settings, createdAt: timestamp, updatedAt: timestamp, event }
       })
     }
 
   getThread(threadID: string): ThreadSnapshot | null {
-      const thread = this.sqlite.query("SELECT id, title, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?").get(threadID) as
-        | ({ id: string; title: string; created_at: number; updated_at: number } & ThreadSettingsColumns)
+      const thread = this.sqlite.query("SELECT id, title, git_branch, task_mode, sandbox_mode, approval_policy, approvals_reviewer, created_at, updated_at FROM threads WHERE id = ?").get(threadID) as
+        | ({ id: string; title: string; git_branch: string | null; created_at: number; updated_at: number } & ThreadSettingsColumns)
         | null
       if (!thread) return null
       const turns = this.sqlite.query("SELECT id, root_agent_id, status, mode, started_at, finished_at FROM turns WHERE thread_id = ? ORDER BY created_at").all(threadID) as Array<{
@@ -378,6 +379,7 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
       return {
         id: thread.id,
         title: thread.title,
+        gitBranch: thread.git_branch,
         settings: threadSettingsFromRow(thread),
         createdAt: thread.created_at,
         updatedAt: thread.updated_at,
@@ -404,6 +406,17 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
           return agent ? [agent] : []
         }),
       }
+    }
+
+  updateThreadGitBranch(threadID: string, gitBranch: string): boolean {
+      const normalized = gitBranch.trim()
+      if (!normalized) return false
+      const result = this.sqlite.query(`
+        UPDATE threads
+        SET git_branch = ?
+        WHERE id = ? AND (git_branch IS NULL OR git_branch <> ?)
+      `).run(normalized, threadID, normalized)
+      return result.changes > 0
     }
 
   activeTurn(threadID: string) {

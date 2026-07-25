@@ -16,11 +16,9 @@ import {
   SidebarContextMenu,
   type ContextMenuAction,
 } from "./SidebarContextMenu.js";
+import { SidebarSessionHoverCard } from "./SidebarSessionHoverCard.js";
 
 const GROUP_LIMIT = 5;
-const MINUTE_MS = 60_000;
-const HOUR_MS = 60 * MINUTE_MS;
-const DAY_MS = 24 * HOUR_MS;
 
 type Props = {
   activeSessionId: string | null;
@@ -271,31 +269,30 @@ export function SidebarSessionGroup({
                   <Archive size={APP_ICON_SIZE} />
                 </IconButton>
               </div>
-            ) : (
-              <span className="sidebar-session-time">
-                {formatRelativeConversationTime(
-                  session.lastMessageAt ?? session.createdAt,
-                  now,
-                )}
-              </span>
-            )}
+            ) : null}
           </div>
         }
       >
-        <button
-          className="sidebar-session-button"
-          onClick={() => {
-            onSelectSession(session);
-          }}
-          type="button"
+        <SidebarSessionHoverCard
+          fallbackTitle={sessionFallbackTitles[session.id]}
+          now={now}
+          session={session}
         >
-          <span className={cx('sidebar-session-title', 'u-min-w-0', 'u-truncate')}>
-            {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
-            {session.unreadAt ? (
-              <span aria-label="未读" className="sidebar-session-unread-dot" />
-            ) : null}
-          </span>
-        </button>
+          <button
+            className="sidebar-session-button"
+            onClick={() => {
+              onSelectSession(session);
+            }}
+            type="button"
+          >
+            <span className={cx('sidebar-session-title', 'u-min-w-0', 'u-truncate')}>
+              {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
+              {session.unreadAt ? (
+                <span aria-label="未读" className="sidebar-session-unread-dot" />
+              ) : null}
+            </span>
+          </button>
+        </SidebarSessionHoverCard>
       </SidebarRow>
     );
     return (
@@ -439,67 +436,4 @@ export function getSidebarSessionDisplayGroups<T>(
       : [],
     hasOverflow,
   };
-}
-
-function formatRelativeConversationTime(
-  timestamp: string | null | undefined,
-  now: number,
-): string {
-  const time = new Date(timestamp ?? "").getTime();
-  if (Number.isNaN(time)) return "刚刚";
-
-  const elapsed = Math.max(0, now - time);
-  if (elapsed < MINUTE_MS) return "刚刚";
-  if (elapsed < HOUR_MS) return `${Math.floor(elapsed / MINUTE_MS)} 分钟`;
-  if (elapsed < DAY_MS) return `${Math.floor(elapsed / HOUR_MS)} 小时`;
-
-  // Calendar-based comparison using local timezone date boundaries
-  const from = new Date(time);
-  const to = new Date(now);
-
-  const fromDate = new Date(
-    from.getFullYear(),
-    from.getMonth(),
-    from.getDate(),
-  );
-  const toDate = new Date(to.getFullYear(), to.getMonth(), to.getDate());
-  const calendarDayDiff = Math.round(
-    (toDate.getTime() - fromDate.getTime()) / DAY_MS,
-  );
-
-  if (calendarDayDiff < 7) {
-    return `${calendarDayDiff} 天`;
-  }
-
-  // Check for full natural year
-  const yearDiff = to.getFullYear() - from.getFullYear();
-  const totalMonthDiff =
-    to.getFullYear() * 12 +
-    to.getMonth() -
-    (from.getFullYear() * 12 + from.getMonth());
-
-  if (yearDiff >= 1) {
-    if (
-      to.getMonth() > from.getMonth() ||
-      (to.getMonth() === from.getMonth() && to.getDate() >= from.getDate())
-    ) {
-      return `${yearDiff} 年`;
-    }
-    if (yearDiff > 1) {
-      return `${yearDiff - 1} 年`;
-    }
-  }
-
-  // Check for full natural month
-  if (totalMonthDiff >= 1) {
-    if (to.getDate() >= from.getDate()) {
-      return `${totalMonthDiff} 月`;
-    }
-    if (totalMonthDiff > 1) {
-      return `${totalMonthDiff - 1} 月`;
-    }
-  }
-
-  // Weeks
-  return `${Math.floor(calendarDayDiff / 7)} 周`;
 }

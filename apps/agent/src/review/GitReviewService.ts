@@ -418,6 +418,11 @@ export class GitReviewService {
     return result.code === 0 ? result.stdout.trim() || null : null
   }
 
+  async currentBranch(projectId: string): Promise<string | null> {
+    const { rootPath } = await this.repository(projectId)
+    return this.optionalGit(rootPath, ["branch", "--show-current"])
+  }
+
   private async resolveSource(rootPath: string, source: ReviewSource): Promise<ResolvedSource> {
     const headSha = await this.optionalGit(rootPath, ["rev-parse", "--verify", "HEAD"])
     switch (source.kind) {

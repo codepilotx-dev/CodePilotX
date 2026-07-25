@@ -931,6 +931,7 @@ function listItem(id: string, settings: ThreadSettings): ThreadListItem {
   return {
     id,
     projectID: project.id,
+    gitBranch: null,
     workspace: projectWorkspace,
     title: 'Session',
     preview: null,
@@ -950,6 +951,7 @@ function snapshot(id: string, settings: ThreadSettings): ThreadSnapshot {
       id,
       title: 'Session',
       projectID: project.id,
+      gitBranch: null,
       workspace: projectWorkspace,
       settings,
       createdAt: now,

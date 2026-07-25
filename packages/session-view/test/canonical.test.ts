@@ -28,6 +28,7 @@ const thread: Thread = {
   id: "thread-1",
   title: "测试会话",
   projectID: null,
+  gitBranch: null,
   settings: { taskMode: "chat", permissionConfig },
   createdAt: 1,
   updatedAt: 2,

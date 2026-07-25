@@ -39,6 +39,7 @@ function sessionItem(overrides: Partial<ThreadListItem> = {}): ThreadListItem {
   return {
     id: 'session-1',
     projectID: project.id,
+    gitBranch: null,
     workspace: projectWorkspace,
     title: '历史会话',
     preview: '预览',
@@ -59,6 +60,7 @@ function sessionSnapshot(overrides: Partial<ThreadSnapshot['thread']> = {}): Thr
       id: 'session-1',
       title: '历史会话',
       projectID: project.id,
+      gitBranch: null,
       workspace: projectWorkspace,
       settings: defaultThreadSettings,
       createdAt: now,

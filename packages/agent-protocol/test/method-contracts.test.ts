@@ -38,6 +38,7 @@ const project = {
 
 const threadListItem = {
   id: "thread:1",
+  gitBranch: "codex/hover-card",
   projectID: project.id,
   workspace: {
     kind: "project",
@@ -61,6 +62,7 @@ const threadSnapshot = {
   thread: {
     id: threadListItem.id,
     title: threadListItem.title,
+    gitBranch: threadListItem.gitBranch,
     projectID: project.id,
     workspace: threadListItem.workspace,
     settings: threadSettings,

@@ -403,6 +403,11 @@ export class ThreadService {
     const continueFromPlan = !sideEffectRecovery && storedCheckpoint?.state === "ready" && storedCheckpoint.payload.planDecision === "continue"
     const controller = new AbortController()
     this.controllers.set(turnID, controller)
+    const workspace = this.db.threadWorkspace(threadID)
+    if (workspace?.kind === "project" && this.review) {
+      const branch = await this.review.currentBranch(workspace.projectID).catch(() => null)
+      if (branch) this.db.updateThreadGitBranch(threadID, branch)
+    }
     await this.publish(started.events)
     try {
       let activeModel = input.model

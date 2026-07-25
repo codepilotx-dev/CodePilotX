@@ -40,7 +40,7 @@ describe('agent thread adapter', () => {
 
   test('maps thread list item status and workspace fields', () => {
     const thread: ThreadListItem = {
-      id: 'thread-1', projectID: project.id, workspace: projectWorkspace, title: '历史对话', preview: '预览',
+      id: 'thread-1', projectID: project.id, gitBranch: 'codex/hover-card', workspace: projectWorkspace, title: '历史对话', preview: '预览',
       firstUserMessage: '第一条消息', messageCount: 3, latestTurnStatus: 'waiting-permission',
       settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'auto_review' } },
       archivedAt: null, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_001_000,
@@ -51,6 +51,7 @@ describe('agent thread adapter', () => {
     expect(item.firstPrompt).toBe('第一条消息')
     expect(item.permissionMode).toBe('full-access')
     expect(item.planModeActive).toBe(true)
+    expect(item.gitBranch).toBe('codex/hover-card')
   })
 
   test('maps a projectless thread to a standalone session with its real cwd', () => {
@@ -58,6 +59,7 @@ describe('agent thread adapter', () => {
     const thread: ThreadListItem = {
       id: 'thread-projectless',
       projectID: null,
+      gitBranch: null,
       workspace: {
         kind: 'projectless',
         projectID: null,
@@ -91,7 +93,7 @@ describe('agent thread adapter', () => {
 
   test('maps native snapshot text, plan, tool, patch, approval, and question', () => {
     const snapshot: ThreadSnapshot = {
-      thread: { id: 'thread-1', title: '历史对话', projectID: project.id, workspace: projectWorkspace, settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' } }, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000 },
+      thread: { id: 'thread-1', title: '历史对话', projectID: project.id, gitBranch: 'dev', workspace: projectWorkspace, settings: { taskMode: 'plan', permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' } }, createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000 },
       turns: [{
         id: 'turn-1', threadId: 'thread-1', sourceInputID: 'input-1', status: 'running', mode: 'plan',
         model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }, rootAgentId: 'agent-1',
@@ -141,7 +143,7 @@ describe('agent thread adapter', () => {
   test('uses current thread settings instead of the latest historical turn snapshot', () => {
     const snapshot: ThreadSnapshot = {
       thread: {
-        id: 'thread-settings', title: '设置投影', projectID: project.id, workspace: projectWorkspace,
+        id: 'thread-settings', title: '设置投影', projectID: project.id, gitBranch: null, workspace: projectWorkspace,
         settings: { taskMode: 'chat', permissionConfig: { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'auto_review' } },
         createdAt: 1_700_000_000_000, updatedAt: 1_700_000_008_000,
       },
@@ -170,7 +172,7 @@ describe('agent thread adapter', () => {
     const model = { providerID: 'openai', id: 'gpt-5' }
     const snapshot: ThreadSnapshot = {
       thread: {
-        id: 'thread-queue', title: '队列投影', projectID: project.id, workspace: projectWorkspace,
+        id: 'thread-queue', title: '队列投影', projectID: project.id, gitBranch: null, workspace: projectWorkspace,
         settings: { taskMode: 'chat', permissionConfig },
         createdAt: 1_700_000_000_000, updatedAt: 1_700_000_004_000,
       },

@@ -200,6 +200,19 @@ describe("Thread 历史", () => {
     expect(reopened.getThreadSettings(thread.id)).toEqual(settings)
   })
 
+  test("工作分支更新不改变会话活跃时间且空值不覆盖旧分支", async () => {
+    const { db } = await makeHistory()
+    const thread = db.createThread("分支持久化")
+
+    expect(db.updateThreadGitBranch(thread.id, " codex/hover-card ")).toBe(true)
+    expect(db.updateThreadGitBranch(thread.id, "codex/hover-card")).toBe(false)
+    expect(db.updateThreadGitBranch(thread.id, " ")).toBe(false)
+    expect(db.getThread(thread.id)).toMatchObject({
+      gitBranch: "codex/hover-card",
+      updatedAt: thread.updatedAt,
+    })
+  })
+
   test("创建 Thread 时保存并投影初始设置", async () => {
     const { db, projection } = await makeHistory()
     const settings = {
