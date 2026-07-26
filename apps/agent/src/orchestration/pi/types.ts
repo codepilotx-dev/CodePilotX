@@ -77,6 +77,16 @@ export interface PiRuntimeEventSink {
     content: unknown
     text?: string
     plan?: string | null
+    provider: string
+    api: string
+    model: string
+    usage: {
+      input: number
+      output: number
+      cacheRead: number
+      cacheWrite: number
+      reasoning: number
+    }
   }): void | Promise<void>
   textDelta?(context: PiRuntimeEventContext, input: { itemID: string; delta: string }): void | Promise<void>
   planStarted?(context: PiRuntimeEventContext, input: { itemID: string }): void | Promise<void>

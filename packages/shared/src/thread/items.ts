@@ -70,6 +70,18 @@ export const QuestionChoiceSchema = Schema.Struct({
 })
 export type QuestionChoice = typeof QuestionChoiceSchema.Type
 
+export const ModelUsageSchema = Schema.Struct({
+  provider: Schema.String,
+  model: Schema.String,
+  contextWindow: Schema.Number,
+  input: Schema.Number,
+  output: Schema.Number,
+  cacheRead: Schema.Number,
+  cacheWrite: Schema.Number,
+  reasoning: Schema.Number,
+})
+export type ModelUsage = typeof ModelUsageSchema.Type
+
 export const TextItemSchema = Schema.Struct({
   id: Schema.String,
   messageID: Schema.String,
@@ -79,6 +91,7 @@ export const TextItemSchema = Schema.Struct({
   placement: Schema.Literals(["process", "result"]),
   text: Schema.String,
   status: Schema.Literals(["streaming", "completed", "interrupted"]),
+  usage: Schema.optional(ModelUsageSchema),
   ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })

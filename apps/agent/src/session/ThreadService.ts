@@ -11,7 +11,7 @@ import type { PiOrchestratorAdapter } from "../orchestration/PiOrchestratorAdapt
 import type { AttachmentService } from "../subagent/AttachmentService"
 import type { ProjectSourceService } from "../project/ProjectSourceService"
 import type { SubagentService } from "../subagent/SubagentService"
-import { InstructionDiscoveryService, PromptComposer, SkillService, createPromptSections, type PromptSection } from "../prompt"
+import { InstructionDiscoveryService, PromptComposer, SkillService, createPromptSections, type PromptBundle, type PromptSection } from "../prompt"
 import type { SkillManagementService } from "../prompt/SkillManagementService"
 import { secretScrubber } from "../security/SecretScrubber"
 import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
@@ -306,7 +306,7 @@ export class ThreadService {
       environment: this.workspaceEnvironment(runtime),
       projectInstructions: projectInstructions.sources, skills: skills.skills,
       memories: memories.map((entry) => `可能过期的参考记忆（${entry.scope}）：${entry.content}`),
-      externalData: projectSourceCatalog && projectSourceCatalog.total > 0
+      stableExternalData: projectSourceCatalog && projectSourceCatalog.total > 0
         ? [projectSourceCatalog.content]
         : [],
       userMessage,
@@ -741,12 +741,12 @@ export class ThreadService {
         projectInstructions: projectInstructions.sources,
         skills: skillCatalog.skills,
         memories: memories.map((entry) => `可能过期的参考记忆（${entry.scope}）：${entry.content}`),
+        stableExternalData: projectSourceCatalog && projectSourceCatalog.total > 0
+          ? [projectSourceCatalog.content]
+          : [],
         externalData: [
           ...hookFeedback,
           ...invokedSkillData,
-          ...(projectSourceCatalog && projectSourceCatalog.total > 0
-            ? [projectSourceCatalog.content]
-            : []),
           ...(sideEffectRecovery ? [
             `<untrusted_evidence type="side-effect-recovery">\n上一模型 attempt 在上下文超限前已完成以下副作用。它们只作为恢复证据；不要重复执行相同 tool call：\n${JSON.stringify(sideEffectRecovery.completed ?? [])}\n</untrusted_evidence>`,
           ] : []),
@@ -784,6 +784,7 @@ export class ThreadService {
       const piModel = await this.providers.getModel(selectedModel)
       const attachments = await this.agentAttachments(input.id)
       let budgetText = ""
+      let composedBundle: PromptBundle | null = null
       const result = await this.orchestrator.run({
         threadID,
         turnID,
@@ -811,6 +812,7 @@ export class ThreadService {
         ...(invokedSkill?.allowedTools ? { allowedTools: invokedSkill.allowedTools } : {}),
         ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
         onPromptComposed: async (bundle, context) => {
+          composedBundle = bundle
           budgetText = context.budgetText
           const timestamp = Date.now()
           const previous = contextManager.state(threadID)
@@ -826,6 +828,19 @@ export class ThreadService {
           }))
           if (!previous) contextManager.establishBaseline({ threadID, promptVersion: "prompt-engine-v2", baseHash: bundle.baseHash, contextHash: bundle.contextHash, cacheKey: bundle.cacheKey, fragments })
           else contextManager.appendFragments(threadID, fragments, bundle.contextHash)
+        },
+        onUsage: async (usage) => {
+          if (!composedBundle) return
+          contextManager.recordMeasuredUsage({
+            threadID,
+            turnID,
+            sessionID: agent.sessionID,
+            items: composedBundle.contextItems,
+            promptText: composedBundle.instructions,
+            contextWindowTokens: Math.max(1, Number(piModel.contextWindow) || 1),
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+          })
         },
         profile: "main",
         depth: 0,

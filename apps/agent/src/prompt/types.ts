@@ -47,6 +47,7 @@ export interface PromptSectionDiagnostic {
 export interface PromptBundle {
   instructions: string;
   contextItems: PromptContextItem[];
+  stableContextText: string;
   diagnostics: PromptSectionDiagnostic[];
   cacheSegments: PromptCacheSegment[];
   cacheBoundaries: PromptCacheBoundary[];

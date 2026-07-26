@@ -70,6 +70,52 @@ describe("活动投影", () => {
     })
   })
 
+  test("文本项投影标准模型 usage 并兼容缺失字段", () => {
+    const projection = new ThreadProjection({} as unknown as AgentDatabase)
+    const item: Item = {
+      id: "text-usage",
+      turnID: "turn-1",
+      agentID: "agent-1",
+      type: "text",
+      status: "completed",
+      data: {
+        placement: "result",
+        text: "完成",
+        usage: {
+          provider: "openai",
+          model: "gpt-test",
+          contextWindow: 128_000,
+          input: 10,
+          output: 4,
+          cacheRead: 20,
+          cacheWrite: 5,
+          reasoning: 2,
+        },
+      },
+      createdAt: 1000,
+      updatedAt: 1001,
+    }
+
+    expect(projection.item(item)).toMatchObject({
+      type: "text",
+      usage: {
+        provider: "openai",
+        model: "gpt-test",
+        contextWindow: 128_000,
+        input: 10,
+        output: 4,
+        cacheRead: 20,
+        cacheWrite: 5,
+        reasoning: 2,
+      },
+    })
+    expect(projection.item({
+      ...item,
+      id: "text-without-usage",
+      data: { placement: "result", text: "旧数据" },
+    })).not.toHaveProperty("usage")
+  })
+
   test("工具投影保留调用标识、命令和实际时间", () => {
     const projection = new ThreadProjection({} as unknown as AgentDatabase)
     const item: Item = {

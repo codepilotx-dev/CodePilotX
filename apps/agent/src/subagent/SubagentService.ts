@@ -11,7 +11,7 @@ import type { EventHub } from "../storage/events/EventHub"
 import { WorkspaceService } from "../workspace/WorkspaceService"
 import { SubagentRepository, type SpawnSubagentInput } from "./SubagentRepository"
 import type { AttachmentService } from "./AttachmentService"
-import { InstructionDiscoveryService, SkillService, createPromptSections } from "../prompt"
+import { InstructionDiscoveryService, SkillService, createPromptSections, type PromptBundle } from "../prompt"
 import type { SkillManagementService } from "../prompt/SkillManagementService"
 import { projectMemoryKey, type MemoryService } from "../memory/MemoryService"
 import type { HookService } from "../hooks/HookService"
@@ -437,11 +437,11 @@ export class SubagentService {
         projectInstructions: instructionSources.sources,
         skills: skillCatalog.skills,
         memories: memories.map((entry) => `可能过期的项目参考记忆：${entry.content}`),
+        stableExternalData: projectSourceCatalog && projectSourceCatalog.total > 0
+          ? [projectSourceCatalog.content]
+          : [],
         externalData: [
           ...invokedSkillData,
-          ...(projectSourceCatalog && projectSourceCatalog.total > 0
-            ? [projectSourceCatalog.content]
-            : []),
         ],
         userMessage: input.content,
       })
@@ -473,6 +473,7 @@ export class SubagentService {
       const contextManager = new ContextManager(this.db)
       const attachments = await this.agentAttachments(input.id)
       let budgetText = ""
+      let composedBundle: PromptBundle | null = null
       let pausedKind: PendingApproval["kind"] | null = null
       const result = await this.orchestrator.run({
         threadID: task.childThreadId, turnID: agent.turnID, agentID: agent.id, sessionID: agent.sessionID,
@@ -495,6 +496,7 @@ export class SubagentService {
         ...(permissionResume ? { resume: permissionResume } : checkpoint ? { resume: checkpoint.approval } : {}),
         resolveModel: async () => ({ ref: run.model, model: piModel }),
         onPromptComposed: async (bundle, context) => {
+          composedBundle = bundle
           budgetText = context.budgetText
           const timestamp = Date.now()
           const previous = contextManager.state(task.childThreadId)
@@ -508,6 +510,19 @@ export class SubagentService {
           }))
           if (!previous) contextManager.establishBaseline({ threadID: task.childThreadId, promptVersion: "prompt-engine-v2", baseHash: bundle.baseHash, contextHash: bundle.contextHash, cacheKey: bundle.cacheKey, fragments })
           else contextManager.appendFragments(task.childThreadId, fragments, bundle.contextHash)
+        },
+        onUsage: async (usage) => {
+          if (!composedBundle) return
+          contextManager.recordMeasuredUsage({
+            threadID: task.childThreadId,
+            turnID: agent.turnID,
+            sessionID: agent.sessionID,
+            items: composedBundle.contextItems,
+            promptText: composedBundle.instructions,
+            contextWindowTokens: Math.max(1, Number(piModel.contextWindow) || 1),
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+          })
         },
         pause: async (approval) => {
           pausedKind = approval.kind

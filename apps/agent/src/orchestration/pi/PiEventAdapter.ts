@@ -22,6 +22,11 @@ const detailText = (details: unknown, key: string): string => {
   return typeof value === "string" ? value : ""
 }
 
+const usageNumber = (value: unknown) =>
+  typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.trunc(value))
+    : 0
+
 /** Converts Pi's AgentToolResult wrapper into user-facing semantic text. */
 export const piToolResultText = (value: unknown, options: { tool: string; progress?: boolean }): string => {
   if (typeof value === "string") return value
@@ -150,6 +155,25 @@ export class PiEventAdapter {
       case "message_end":
         if (event.message.role === "assistant") {
           const items = await this.ensureAssistantItems(false)
+          const usage = event.message.usage && typeof event.message.usage === "object"
+            ? event.message.usage as unknown as Record<string, unknown>
+            : {}
+          const completion = {
+            provider: typeof event.message.provider === "string" ? event.message.provider : "",
+            api: typeof event.message.api === "string" ? event.message.api : "",
+            model: typeof event.message.responseModel === "string"
+              ? event.message.responseModel
+              : typeof event.message.model === "string"
+                ? event.message.model
+                : "",
+            usage: {
+              input: usageNumber(usage.input),
+              output: usageNumber(usage.output),
+              cacheRead: usageNumber(usage.cacheRead),
+              cacheWrite: usageNumber(usage.cacheWrite),
+              reasoning: usageNumber(usage.reasoning),
+            },
+          }
           if (this.parser) {
             if (!this.receivedTextDelta) await this.routeChunks(this.parser.push(textContent(event.message.content)))
             const parsed = this.parser.finish()
@@ -160,10 +184,15 @@ export class PiEventAdapter {
               content: event.message.content,
               text: parsed.text,
               plan: parsed.plan,
+              ...completion,
             })
           } else {
             this.completedText = textContent(event.message.content)
-            await this.sink.assistantMessageCompleted?.(this.context, { ...items, content: event.message.content })
+            await this.sink.assistantMessageCompleted?.(this.context, {
+              ...items,
+              content: event.message.content,
+              ...completion,
+            })
           }
           this.assistantItems = null
           this.parser = null

@@ -113,7 +113,11 @@ describe('agent thread adapter', () => {
       }],
       messages: [],
       items: [
-        { id: 'text-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'text', placement: 'result', text: '可以开始。', status: 'completed', createdAt: 1_700_000_002_000 },
+        {
+          id: 'text-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'text', placement: 'result', text: '可以开始。', status: 'completed',
+          usage: { provider: 'openai', model: 'gpt-5', contextWindow: 128_000, input: 2_000, output: 200, cacheRead: 6_000, cacheWrite: 400, reasoning: 50 },
+          createdAt: 1_700_000_002_000,
+        },
         { id: 'tool-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'tool', callID: 'tool-1', tool: 'powershell.exec', title: '运行 PowerShell', state: 'completed', input: { command: 'bun test' }, command: 'bun test', output: 'pass', error: null, startedAt: 1_700_000_003_000, finishedAt: 1_700_000_004_000, durationMs: 1000, createdAt: 1_700_000_003_000 },
         { id: 'plan-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'plan', title: '计划', markdown: '- 改 adapter', status: 'completed', createdAt: 1_700_000_005_000 },
         { id: 'patch-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'patch', files: [{ path: 'a.ts', additions: 1, deletions: 0, patch: 'diff' }], totalAdditions: 1, totalDeletions: 0, createdAt: 1_700_000_006_000 },
@@ -133,6 +137,14 @@ describe('agent thread adapter', () => {
     expect(desktop.events?.some(event => event.type === 'file_patch')).toBe(true)
     expect(desktop.events?.find(event => event.id === 'patch-1')?.metadata?.agentId).toBe('agent-1')
     expect(desktop.events?.find(event => event.id === 'approval-1')?.metadata?.agentId).toBe('agent-1')
+    expect(desktop.view.contextUsage).toMatchObject({
+      usedTokens: 8_400,
+      totalTokens: 8_600,
+      promptCacheReadTokens: 6_000,
+      promptCacheWriteTokens: 400,
+      promptUncachedTokens: 2_000,
+      reasoningTokens: 50,
+    })
     expect(desktop.view.pendingPermissions.map(request => request.toolName)).toEqual(
       expect.arrayContaining(['powershell.exec', 'AskUserQuestion']),
     )
@@ -217,13 +229,55 @@ describe('agent thread adapter', () => {
       method: 'item/completed',
       params: {
         threadId: 'thread-1', turnId: 'turn-1',
-        item: { id: 'text-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'text', placement: 'result', text: '完成', status: 'completed', createdAt: 1_700_000_010_000 },
+        item: {
+          id: 'text-1',
+          messageID: 'turn-1',
+          turnId: 'turn-1',
+          agentId: 'agent-1',
+          type: 'text',
+          placement: 'result',
+          text: '完成',
+          status: 'completed',
+          usage: {
+            provider: 'openai',
+            model: 'gpt-5.6',
+            contextWindow: 200_000,
+            input: 1_000,
+            output: 300,
+            cacheRead: 8_000,
+            cacheWrite: 500,
+            reasoning: 120,
+          },
+          createdAt: 1_700_000_010_000,
+        },
       },
     }
-    expect(agentEventsFromNotification(notification)).toEqual([{
-      type: 'message', sessionId: 'thread-1', role: 'assistant', text: '完成', createdAt: '2023-11-14T22:13:30.000Z',
-      metadata: { itemId: 'text-1', turnId: 'turn-1', agentId: 'agent-1', kind: 'text' },
-    }])
+    expect(agentEventsFromNotification(notification)).toEqual([
+      {
+        type: 'message', sessionId: 'thread-1', role: 'assistant', text: '完成', createdAt: '2023-11-14T22:13:30.000Z',
+        metadata: { itemId: 'text-1', turnId: 'turn-1', agentId: 'agent-1', kind: 'text' },
+      },
+      {
+        type: 'context_usage',
+        sessionId: 'thread-1',
+        createdAt: '2023-11-14T22:13:30.000Z',
+        usage: {
+          provider: 'openai',
+          model: 'gpt-5.6',
+          usedTokens: 9_500,
+          totalTokens: 9_800,
+          contextWindow: 200_000,
+          remainingTokens: 190_500,
+          usedPercent: 4.75,
+          remainingPercent: 95.25,
+          percentUsed: 4.75,
+          promptCacheReadTokens: 8_000,
+          promptCacheWriteTokens: 500,
+          promptUncachedTokens: 1_000,
+          reasoningTokens: 120,
+        },
+      },
+    ])
   })
 
   test('ignores agent upsert notifications until the renderer has an agent tree UI', () => {

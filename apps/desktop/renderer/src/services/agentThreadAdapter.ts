@@ -14,6 +14,7 @@ import type { AgentNotification } from './agentRpcClient.js'
 import { collaborationModeFromPlanModeActive } from '../shims/core/agent/codepilotxSessionContract.js'
 import type {
   DesktopAgentEvent,
+  DesktopContextUsage,
   DesktopPermissionMode,
   DesktopQueuedFollowUp,
   DesktopQueuePauseReason,
@@ -179,7 +180,11 @@ export function agentThreadSnapshotToDesktop(
         })),
       toolLog: snapshot.items.flatMap(itemToToolLog),
       pendingPermissions: pendingPermissionRequests(events),
-      contextUsage: null,
+      contextUsage: latestItemContextUsage(
+        snapshot.items,
+        latestTurn?.model.providerID ?? latestInput?.model.providerID,
+        latestTurn?.model.id ?? latestInput?.model.id,
+      ),
     },
     events,
     eventModelVersion: 1,
@@ -433,7 +438,12 @@ function activityToSessionEvents(threadId: string, item: Extract<Item, { type: '
 function itemToAgentEvents(threadId: string, item: Item): DesktopAgentEvent[] {
   const createdAt = iso(item.createdAt)
   if (item.type === 'text' || item.type === 'reasoning') {
-    return [{ type: item.status === 'streaming' ? 'partial_message' : 'message', sessionId: threadId, role: 'assistant', text: item.text, createdAt, metadata: { itemId: item.id, turnId: item.turnId, agentId: item.agentId, kind: item.type } }]
+    const message = { type: item.status === 'streaming' ? 'partial_message' : 'message', sessionId: threadId, role: 'assistant', text: item.text, createdAt, metadata: { itemId: item.id, turnId: item.turnId, agentId: item.agentId, kind: item.type } }
+    if (item.type !== 'text' || item.status !== 'completed') return [message]
+    const usage = itemContextUsage(item)
+    return usage
+      ? [message, { type: 'context_usage', sessionId: threadId, usage, createdAt }]
+      : [message]
   }
   if (item.type === 'tool') {
     const start = { type: 'tool_start', sessionId: threadId, toolName: item.tool, toolUseId: item.callID, summary: item.title, createdAt: iso(item.startedAt ?? item.createdAt), metadata: { itemId: item.id } }
@@ -444,6 +454,57 @@ function itemToAgentEvents(threadId: string, item: Item): DesktopAgentEvent[] {
   if (item.type === 'patch') return item.files.map(file => ({ type: 'diff', sessionId: threadId, filePath: file.path, patch: file.patch ?? '', createdAt, metadata: { additions: file.additions, deletions: file.deletions, turnScoped: true } }))
   if (item.type === 'question' && item.status === 'pending') return [{ type: 'permission_request', sessionId: threadId, request: questionToRequest(item), createdAt }]
   return []
+}
+
+export function itemContextUsage(
+  item: Item,
+  fallbackProvider?: string,
+  fallbackModel?: string,
+): DesktopContextUsage | null {
+  if (item.type !== 'text' || !item.usage) return null
+  const value = item.usage
+  const input = nonNegativeNumber(value.input) ?? 0
+  const cacheRead = nonNegativeNumber(value.cacheRead) ?? 0
+  const cacheWrite = nonNegativeNumber(value.cacheWrite) ?? 0
+  const output = nonNegativeNumber(value.output) ?? 0
+  const reasoning = nonNegativeNumber(value.reasoning) ?? 0
+  const contextWindow = positiveNumber(value.contextWindow)
+  if (!contextWindow) return null
+
+  const usedTokens = input + cacheRead + cacheWrite
+  const usedPercent = Math.min(100, Math.max(0, (usedTokens / contextWindow) * 100))
+  const provider = stringValue(value.provider) || fallbackProvider
+  const model = stringValue(value.model) || fallbackModel
+
+  return {
+    ...(provider ? { provider } : {}),
+    ...(model ? { model } : {}),
+    usedTokens,
+    totalTokens: usedTokens + output,
+    contextWindow,
+    remainingTokens: Math.max(0, contextWindow - usedTokens),
+    usedPercent,
+    remainingPercent: 100 - usedPercent,
+    percentUsed: usedPercent,
+    promptCacheReadTokens: cacheRead,
+    promptCacheWriteTokens: cacheWrite,
+    promptUncachedTokens: input,
+    reasoningTokens: reasoning,
+  }
+}
+
+function latestItemContextUsage(
+  items: readonly Item[],
+  fallbackProvider?: string,
+  fallbackModel?: string,
+): DesktopContextUsage | null {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    const item = items[index]
+    if (!item || item.type !== 'text' || item.status !== 'completed') continue
+    const usage = itemContextUsage(item, fallbackProvider, fallbackModel)
+    if (usage) return usage
+  }
+  return null
 }
 
 function itemToToolLog(item: Item): DesktopToolLogEntry[] {
@@ -625,6 +686,17 @@ function record(value: unknown): Record<string, any> {
 
 function stringValue(value: unknown): string {
   return typeof value === 'string' ? value : ''
+}
+
+function nonNegativeNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? value
+    : null
+}
+
+function positiveNumber(value: unknown): number | undefined {
+  const number = nonNegativeNumber(value)
+  return number && number > 0 ? number : undefined
 }
 
 function iso(value: number): string {
