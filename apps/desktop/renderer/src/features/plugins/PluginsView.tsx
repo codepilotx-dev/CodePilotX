@@ -450,7 +450,7 @@ export function PluginsView(): React.ReactNode {
                     <strong>无法读取可管理插件状态</strong>
                     <p>{pluginLoadError}</p>
                   </div>
-                  <Button onClick={refreshBuiltinPlugins} size="sm">
+                  <Button onClick={refreshBuiltinPlugins}>
                     重试
                   </Button>
                 </div>
@@ -479,7 +479,7 @@ export function PluginsView(): React.ReactNode {
                         ? `没有找到与“${pluginQuery}”匹配的插件。`
                         : '清除来源或状态筛选后再试。'}
                     </p>
-                    <Button onClick={clearPluginFilters} variant="secondary">
+                    <Button onClick={clearPluginFilters}>
                       清除筛选
                     </Button>
                   </div>
@@ -588,7 +588,6 @@ export function PluginsView(): React.ReactNode {
                   </div>
                   <Button
                     onClick={() => setSkillsReloadKey(current => current + 1)}
-                    size="sm"
                   >
                     重试
                   </Button>
@@ -610,13 +609,11 @@ export function PluginsView(): React.ReactNode {
                     </Button>
                     <Button
                       onClick={() => void desktopClient.openExternalURL('https://skills.sh')}
-                      variant="secondary"
                     >
                       打开 skills.sh
                     </Button>
                     <Button
                       onClick={() => void desktopClient.openExternalURL(SKILLS_SH_API_DOCS_URL)}
-                      variant="secondary"
                     >
                       查看配置文档
                     </Button>

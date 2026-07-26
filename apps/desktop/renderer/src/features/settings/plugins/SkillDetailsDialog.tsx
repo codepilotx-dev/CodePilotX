@@ -149,7 +149,6 @@ export function SkillDetailsDialog({
               </Button>
               <Button
                 disabled={!skill.enabled}
-                variant="primary"
                 onClick={() => onUseSkill(skill)}
               >
                 <Play

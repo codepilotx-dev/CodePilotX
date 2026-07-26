@@ -135,25 +135,21 @@ export function ProfileSettings(): React.ReactNode {
         <header className="profile-dashboard-header">
           <h2>个人资料</h2>
           <div className="profile-dashboard-actions">
-            <button
-              className="profile-action-button"
+            <Button
               disabled={!user?.htmlUrl}
               onClick={() => user?.htmlUrl && void desktopClient.openExternalURL(user.htmlUrl)}
-              type="button"
             >
               <Edit3 />
               编辑
-            </button>
-            <button
-              className="profile-action-button"
+            </Button>
+            <Button
               disabled={loading}
               onClick={() => void loadGithubAuth()}
-              type="button"
               title={loading ? '正在刷新中...' : '刷新'}
             >
               <RefreshCw />
               {loading ? '刷新中...' : '刷新'}
-            </button>
+            </Button>
 
           </div>
         </header>
@@ -314,7 +310,6 @@ export function ProfileSettings(): React.ReactNode {
                     刷新
                   </Button>
                   <Button
-                    variant="primary"
                     onClick={() => navigate('/settings/git')}
                     type="button"
                   >
@@ -374,7 +369,6 @@ export function ProfileSettings(): React.ReactNode {
                 Clear status
               </Button>
               <Button
-                variant="primary"
                 disabled={statusBusy || !statusMessage.trim()}
                 onClick={() => void saveStatus()}
                 type="button"

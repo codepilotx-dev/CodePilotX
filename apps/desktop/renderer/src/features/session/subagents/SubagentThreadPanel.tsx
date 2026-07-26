@@ -34,6 +34,7 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from '../../../components/ui/iconTokens.js'
+import { Button } from '../../../components/ui/Button.js'
 import { MarkdownMessage } from '../MarkdownMessage.js'
 import { CanonicalConversationTurn } from '../timeline/CanonicalThreadView.js'
 
@@ -437,23 +438,19 @@ function PlanRow({
       <MarkdownMessage text={item.markdown} streaming={item.state === 'draft'} />
       {pending ? (
         <div className="subagent-thread-row__actions">
-          <button
-            className="subagent-thread-panel__button"
+          <Button
             disabled={!enabled || !onDecision}
-            type="button"
             onClick={() => onDecision?.(item, 'reject')}
           >
             要求修改
-          </button>
-          <button
-            className="subagent-thread-panel__button is-primary"
+          </Button>
+          <Button
             disabled={!enabled || !onDecision}
-            type="button"
             onClick={() => onDecision?.(item, 'continue')}
           >
             <Check size={APP_ICON_SIZE} />
             继续
-          </button>
+          </Button>
         </div>
       ) : null}
     </article>
@@ -471,23 +468,19 @@ function PlanDecisionActions({
 }): React.ReactNode {
   return (
     <div className="subagent-thread-row__actions subagent-thread-row__actions--plan">
-      <button
-        className="subagent-thread-panel__button"
+      <Button
         disabled={!enabled || !onDecision}
-        type="button"
         onClick={() => onDecision?.(item, 'reject')}
       >
         要求修改
-      </button>
-      <button
-        className="subagent-thread-panel__button is-primary"
+      </Button>
+      <Button
         disabled={!enabled || !onDecision}
-        type="button"
         onClick={() => onDecision?.(item, 'continue')}
       >
         <Check size={APP_ICON_SIZE} />
         继续
-      </button>
+      </Button>
     </div>
   )
 }
@@ -550,23 +543,19 @@ function QuestionRow({
         onChange={(event) => setCustom(event.target.value)}
       />
       <div className="subagent-thread-row__actions">
-        <button
-          className="subagent-thread-panel__button"
+        <Button
           disabled={!enabled || !onRespond}
-          type="button"
           onClick={() => onRespond?.(item, { answer: null, ignored: true })}
         >
           跳过
-        </button>
-        <button
-          className="subagent-thread-panel__button is-primary"
+        </Button>
+        <Button
           disabled={!enabled || !onRespond || !answer}
-          type="button"
           onClick={() => onRespond?.(item, { answer, ignored: false })}
         >
           <Send size={APP_ICON_SIZE} />
           提交
-        </button>
+        </Button>
       </div>
     </article>
   )
@@ -620,22 +609,19 @@ function ApprovalCard({
       {approval.command ? <pre>{approval.command}</pre> : null}
       {approval.paths.length > 0 ? <p>{approval.paths.join('\n')}</p> : null}
       <div className="subagent-thread-row__actions">
-        <button
-          className="subagent-thread-panel__button"
+        <Button
           disabled={!enabled || !onRespond}
-          type="button"
+          tone="danger"
           onClick={() => onRespond?.(approval, 'deny')}
         >
           拒绝
-        </button>
-        <button
-          className="subagent-thread-panel__button is-primary"
+        </Button>
+        <Button
           disabled={!enabled || !onRespond}
-          type="button"
           onClick={() => onRespond?.(approval, 'allow-once')}
         >
           允许一次
-        </button>
+        </Button>
       </div>
     </article>
   )

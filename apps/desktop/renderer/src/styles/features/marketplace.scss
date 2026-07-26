@@ -1113,9 +1113,6 @@ button.plugins-card-title {
 button.plugins-card-title:focus-visible,
 .plugins-card-action:focus-visible,
 .plugins-dialog-close:focus-visible,
-.plugins-button:focus-visible,
-.plugins-view .ui-button:focus-visible,
-.plugin-details-dialog .ui-button:focus-visible,
 .plugin-details-dialog .icon-button:focus-visible {
   outline: 2px solid var(--color-token-text-link-foreground);
   outline-offset: 2px;
@@ -1363,9 +1360,6 @@ button.plugins-card-title:focus-visible,
   button.plugins-card-title:focus-visible,
   .plugins-card-action:focus-visible,
   .plugins-dialog-close:focus-visible,
-  .plugins-button:focus-visible,
-  .plugins-view .ui-button:focus-visible,
-  .plugin-details-dialog .ui-button:focus-visible,
   .plugin-details-dialog .icon-button:focus-visible,
   .plugins-included-overview__item:focus-visible,
   .plugin-catalog-row__title-button:focus-visible {

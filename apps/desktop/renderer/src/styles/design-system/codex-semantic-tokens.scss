@@ -5,10 +5,12 @@
   --vscode-activityBarBadge-foreground: var(--color-text-foreground);
   --vscode-badge-background: var(--color-background-surface);
   --vscode-badge-foreground: var(--color-text-foreground);
-  --vscode-button-background: var(--color-background-button-primary);
-  --vscode-button-border: var(--color-border);
-  --vscode-button-foreground: var(--color-text-accent);
-  --vscode-button-secondaryHoverBackground: var(--color-background-surface);
+  --vscode-button-background: var(--color-background-button-secondary);
+  --vscode-button-border: var(--color-border-light);
+  --vscode-button-foreground: var(--color-text-foreground);
+  --vscode-button-secondaryHoverBackground: var(
+    --color-background-button-secondary-hover
+  );
   --vscode-charts-blue: var(--color-accent-blue);
   --vscode-charts-green: var(--color-decoration-added);
   --vscode-charts-orange: var(--color-warning);

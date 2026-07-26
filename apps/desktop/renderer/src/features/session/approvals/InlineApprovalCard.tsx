@@ -6,6 +6,7 @@ import type {
   DesktopPermissionRememberOptionId,
   DesktopPermissionRequest,
 } from '../../../../shared/types.js'
+import { Button } from '../../../components/ui/Button.js'
 import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
 import { ExitPlanModeApproval } from './ExitPlanModeApproval.js'
 import {
@@ -252,21 +253,17 @@ export function InlineApprovalCard({
         </div>
 
         <div className="inline-approval-actions">
-          <button
-            className="inline-approval-skip"
-            type="button"
+          <Button
             onClick={() => onDecide(request, 'deny')}
           >
             跳过
-          </button>
-          <button
-            className="inline-approval-submit"
-            type="button"
+          </Button>
+          <Button
             onClick={submitChoice}
           >
             提交
             <CornerDownLeft size={14} />
-          </button>
+          </Button>
         </div>
       </div>
     </section>

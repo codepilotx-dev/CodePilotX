@@ -1,5 +1,6 @@
 import { CornerDownLeft, X } from 'lucide-react'
 import React from 'react'
+import { Button } from '../../../components/ui/Button.js'
 import type {
   McpElicitationBooleanSchema,
   McpElicitationConstOption,
@@ -151,29 +152,24 @@ export function McpElicitationForm({
       ) : null}
 
       <div className="mcp-form-actions">
-        <button
-          className="mcp-form-btn mcp-form-btn-decline"
-          type="button"
+        <Button
+          tone="danger"
           onClick={onDecline}
         >
           拒绝
-        </button>
-        <button
-          className="mcp-form-btn mcp-form-btn-cancel"
-          type="button"
+        </Button>
+        <Button
           onClick={onCancel}
         >
           <X size={14} />
           取消
-        </button>
-        <button
-          className="mcp-form-btn mcp-form-btn-submit"
-          type="button"
+        </Button>
+        <Button
           onClick={handleSubmit}
         >
           提交
           <CornerDownLeft size={14} />
-        </button>
+        </Button>
       </div>
     </section>
   )
@@ -216,21 +212,18 @@ export function McpElicitationUnsupported({
       </div>
 
       <div className="mcp-form-actions">
-        <button
-          className="mcp-form-btn mcp-form-btn-decline"
-          type="button"
+        <Button
+          tone="danger"
           onClick={onDecline}
         >
           拒绝
-        </button>
-        <button
-          className="mcp-form-btn mcp-form-btn-cancel"
-          type="button"
+        </Button>
+        <Button
           onClick={onCancel}
         >
           <X size={14} />
           取消
-        </button>
+        </Button>
       </div>
     </section>
   )

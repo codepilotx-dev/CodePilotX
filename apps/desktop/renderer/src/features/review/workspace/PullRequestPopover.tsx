@@ -8,6 +8,7 @@ import {
   X,
 } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { Button } from '../../../components/ui/Button.js'
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
@@ -186,9 +187,8 @@ export function PullRequestPopover({
       </label>
 
       <div className="review-popover-actions">
-        <button
-          className="review-popover-action"
-          type="button"
+        <Button
+          className="tw:w-full tw:justify-between"
           onClick={() => onCreateDraftPR(title, body, pushFirst)}
         >
           <span className="review-popover-action-label">
@@ -196,27 +196,25 @@ export function PullRequestPopover({
             创建草稿 PR
           </span>
           <span className="shortcut">Ctrl+Enter</span>
-        </button>
-        <button
-          className="review-popover-action"
-          type="button"
+        </Button>
+        <Button
+          className="tw:w-full tw:justify-between"
           onClick={() => onCreatePR(title, body, pushFirst)}
         >
           <span className="review-popover-action-label">
             <GitFork size={APP_ICON_SIZE} />
             创建拉取请求
           </span>
-        </button>
-        <button
-          className="review-popover-action"
-          type="button"
+        </Button>
+        <Button
+          className="tw:w-full tw:justify-between"
           onClick={() => onOpenPR()}
         >
           <span className="review-popover-action-label">
             <ExternalLink size={APP_ICON_SIZE} />
             在浏览器中打开 PR
           </span>
-        </button>
+        </Button>
       </div>
     </div>
   )

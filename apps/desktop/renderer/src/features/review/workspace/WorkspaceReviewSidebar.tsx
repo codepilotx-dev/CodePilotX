@@ -51,6 +51,7 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from "../../../components/ui/iconTokens.js";
+import { Button } from "../../../components/ui/Button.js";
 import { PopoverItem } from "../../../components/ui/PopoverItem.js";
 import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
 import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
@@ -1814,28 +1815,26 @@ export function WorkspaceReviewSidebar({
             </button>
           </Tooltip>
           <Tooltip content="提交或推送">
-            <button
+            <Button
               aria-label="提交或推送"
-              className="message-action review-sidebar-primary-action"
+              className="review-sidebar-primary-action"
               ref={commitButtonRef}
-              type="button"
               onClick={() => setCommitPopoverOpen((value) => !value)}
             >
               <GitCommitHorizontal size={APP_ICON_SIZE} />
               <span className="review-sidebar-action-label">提交或推送</span>
-            </button>
+            </Button>
           </Tooltip>
           <Tooltip content="创建拉取请求">
-            <button
+            <Button
               aria-label="创建拉取请求"
-              className="message-action review-sidebar-primary-action"
+              className="review-sidebar-primary-action"
               ref={prButtonRef}
-              type="button"
               onClick={() => setPrPopoverOpen((value) => !value)}
             >
               <GitPullRequestArrow size={APP_ICON_SIZE} />
               <span className="review-sidebar-action-label">创建拉取请求</span>
-            </button>
+            </Button>
           </Tooltip>
         </div>
       </div>
@@ -1843,13 +1842,11 @@ export function WorkspaceReviewSidebar({
       {error ? (
         <div className="review-error-state" role="alert">
           <span>{error}</span>
-          <button
-            className="message-action"
-            type="button"
+          <Button
             onClick={() => void refreshReviewDiff(true)}
           >
             重试
-          </button>
+          </Button>
         </div>
       ) : null}
 
@@ -2022,31 +2019,31 @@ export function WorkspaceReviewSidebar({
           {scope === "unstaged" ? (
             <>
               <Tooltip content="还原所有未暂存变更">
-                <button type="button" onClick={revertAll}>
+                <Button tone="danger" onClick={revertAll}>
                   <Undo2 size={APP_ICON_SIZE} />
                   还原全部
-                </button>
+                </Button>
               </Tooltip>
               <Tooltip content="暂存所有未暂存文件">
-                <button type="button" onClick={stageAll}>
+                <Button onClick={stageAll}>
                   <Plus size={APP_ICON_SIZE} />
                   暂存全部
-                </button>
+                </Button>
               </Tooltip>
             </>
           ) : (
             <>
               <Tooltip content="取消暂存所有已暂存文件">
-                <button type="button" onClick={unstageAll}>
+                <Button onClick={unstageAll}>
                   <Undo2 size={APP_ICON_SIZE} />
                   取消暂存全部
-                </button>
+                </Button>
               </Tooltip>
               <Tooltip content="还原已暂存变更">
-                <button type="button" onClick={revertAll}>
+                <Button tone="danger" onClick={revertAll}>
                   <Undo2 size={APP_ICON_SIZE} />
                   还原全部
-                </button>
+                </Button>
               </Tooltip>
             </>
           )}
@@ -2055,30 +2052,28 @@ export function WorkspaceReviewSidebar({
 
       {source.kind === "pull-request" ? (
         <footer className="review-footer">
-          <button
+          <Button
             disabled={pending || openComments.length === 0}
-            type="button"
             onClick={() => void submitGithubReview("COMMENT")}
           >
             <MessageSquarePlus size={APP_ICON_SIZE} />
             提交评论
-          </button>
-          <button
+          </Button>
+          <Button
             disabled={pending}
-            type="button"
             onClick={() => void submitGithubReview("APPROVE")}
           >
             <CheckCircle2 size={APP_ICON_SIZE} />
             批准
-          </button>
-          <button
+          </Button>
+          <Button
             disabled={pending || openComments.length === 0}
-            type="button"
+            tone="danger"
             onClick={() => void submitGithubReview("REQUEST_CHANGES")}
           >
             <RotateCcw size={APP_ICON_SIZE} />
             请求修改
-          </button>
+          </Button>
         </footer>
       ) : null}
 

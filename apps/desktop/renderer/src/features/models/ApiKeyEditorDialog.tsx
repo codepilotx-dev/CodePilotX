@@ -8,6 +8,7 @@ import type {
   ModelProviderID,
 } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
+import { IconButton } from '../../components/ui/IconButton.js'
 import { Input } from '../../components/ui/Input.js'
 import { SettingsDropdown } from '../settings/SettingsDropdown.js'
 
@@ -103,7 +104,7 @@ export function ApiKeyEditorDialog({
                   </div>
                 </div>
                 <Dialog.Close asChild>
-                  <Button aria-label="关闭" size="icon" variant="ghost"><X aria-hidden /></Button>
+                  <IconButton title="关闭"><X aria-hidden /></IconButton>
                 </Dialog.Close>
               </header>
 
@@ -152,8 +153,8 @@ export function ApiKeyEditorDialog({
               </div>
 
               <footer className="model-center-key-dialog-actions">
-                <Dialog.Close asChild><Button variant="secondary">取消</Button></Dialog.Close>
-                <Button disabled={!canSubmit} loading={busy} type="submit" variant="primary">
+                <Dialog.Close asChild><Button>取消</Button></Dialog.Close>
+                <Button disabled={!canSubmit} loading={busy} type="submit">
                   {editing ? '保存更改' : '安全保存'}
                 </Button>
               </footer>

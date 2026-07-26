@@ -6,6 +6,7 @@ import type {
   DesktopWorkspace,
 } from '../../../../shared/types.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
+import { Button } from '../../../components/ui/Button.js'
 import { cx } from '../../../utils/cx.js'
 
 export type GitWorkflowMode = 'branch' | 'commitPush' | 'pullRequest'
@@ -312,30 +313,28 @@ export function GitWorkflowModal({
                   'u-gap-3',
                 )}
               >
-                <button type="button" onClick={onClose}>
+                <Button onClick={onClose}>
                   取消
-                </button>
+                </Button>
                 {mode === 'commitPush' ? (
                   <>
-                    <button
+                    <Button
                       disabled={isSubmitting || changedFiles.length === 0}
                       type="button"
                       onClick={() => void submitCommit()}
                     >
                       提交选中文件
-                    </button>
-                    <button
-                      className="primary-button"
+                    </Button>
+                    <Button
                       disabled={isSubmitting}
                       type="button"
                       onClick={() => void submitPush()}
                     >
                       推送
-                    </button>
+                    </Button>
                   </>
                 ) : (
-                  <button
-                    className="primary-button"
+                  <Button
                     disabled={isSubmitting}
                     type="button"
                     onClick={() =>
@@ -345,7 +344,7 @@ export function GitWorkflowModal({
                     }
                   >
                     {mode === 'branch' ? '创建并检出' : '创建 PR'}
-                  </button>
+                  </Button>
                 )}
               </div>
             </Dialog.Content>

@@ -15,6 +15,7 @@ import type {
   ModelProviderID,
 } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
+import { IconButton } from '../../components/ui/IconButton.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 import { Dropdown } from '../../components/ui/Dropdown.js'
 import { Input } from '../../components/ui/Input.js'
@@ -252,7 +253,7 @@ export function ApiKeyWorkspace({
           ]}
           onChange={value => setHealthFilter(value as HealthFilter)}
         />
-        <Button disabled={!defaultProviderId} variant="primary" onClick={openCreate}>
+        <Button disabled={!defaultProviderId} onClick={openCreate}>
           <Plus aria-hidden /> 新增 Key
         </Button>
       </div>
@@ -290,20 +291,16 @@ export function ApiKeyWorkspace({
                   return (
                     <article className="model-center-key-row" data-disabled={!key.enabled || undefined} key={key.id}>
                       <div className="model-center-key-order">
-                        <Button
-                          aria-label={`上移 ${key.label}`}
+                        <IconButton
+                          title={`上移 ${key.label}`}
                           disabled={busyId !== null || index <= 0}
-                          size="icon"
-                          variant="ghost"
                           onClick={() => void moveKey(key, -1)}
-                        ><ArrowUp aria-hidden /></Button>
-                        <Button
-                          aria-label={`下移 ${key.label}`}
+                        ><ArrowUp aria-hidden /></IconButton>
+                        <IconButton
+                          title={`下移 ${key.label}`}
                           disabled={busyId !== null || index === providerKeys.length - 1}
-                          size="icon"
-                          variant="ghost"
                           onClick={() => void moveKey(key, 1)}
-                        ><ArrowDown aria-hidden /></Button>
+                        ><ArrowDown aria-hidden /></IconButton>
                       </div>
                       <div className="model-center-key-main">
                         <div className="model-center-key-title">
@@ -335,9 +332,9 @@ export function ApiKeyWorkspace({
                         <Dropdown
                           align="end"
                           trigger={(
-                            <Button aria-label={`更多 ${key.label}`} disabled={busyId !== null} size="icon" variant="ghost">
+                            <IconButton title={`更多 ${key.label}`} disabled={busyId !== null}>
                               <MoreHorizontal aria-hidden />
-                            </Button>
+                            </IconButton>
                           )}
                           width={190}
                         >

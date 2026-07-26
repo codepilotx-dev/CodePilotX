@@ -104,18 +104,6 @@
   gap: 6px;
   flex-shrink: 0;
 
-  .settings-button {
-    padding: var(--control-padding-block-compact)
-      calc(
-        var(--control-padding-inline) + var(--control-padding-inline-compact)
-      );
-    font-size: var(--type-control);
-    line-height: var(--control-line-height);
-
-    svg {
-      margin-right: 4px;
-    }
-  }
 }
 
 .memory-settings-list-scroll-area {

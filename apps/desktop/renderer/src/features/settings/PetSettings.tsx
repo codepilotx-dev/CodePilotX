@@ -4,6 +4,7 @@ import type { PetInstallPreview } from '@codepilotx/agent-protocol'
 import { PawPrint, RefreshCw, Trash2 } from 'lucide-react'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { Button } from '../../components/ui/Button.js'
+import { IconButton } from '../../components/ui/IconButton.js'
 import { Input } from '../../components/ui/Input.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
@@ -133,20 +134,20 @@ export function PetSettings({
                   value={settings.selectedPetId ?? ''}
                   width={220}
                 />
-                <Button
+                <IconButton
                   disabled={busy}
                   onClick={() => void refreshPets()}
-                  type="button"
+                  title="刷新宠物"
                 >
                   <RefreshCw size={APP_ICON_SIZE} />
-                </Button>
-                <Button
+                </IconButton>
+                <IconButton
                   disabled={busy || !settings.selectedPetId}
                   onClick={() => void remove()}
-                  type="button"
+                  title="删除当前宠物"
                 >
                   <Trash2 size={APP_ICON_SIZE} />
-                </Button>
+                </IconButton>
               </div>
             }
           />
@@ -216,7 +217,6 @@ export function PetSettings({
               <Button
                 onClick={() => navigate('/pets')}
                 type="button"
-                variant="primary"
               >
                 打开宠物商店
               </Button>

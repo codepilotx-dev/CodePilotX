@@ -14,6 +14,7 @@ import type {
   DesktopWorkspace,
 } from '../../../../shared/types.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { Button } from '../../../components/ui/Button.js'
 import { cx } from '../../../utils/cx.js'
 
 type Props = {
@@ -211,42 +212,38 @@ export function GithubRepositoryModal({
                         </p>
                       </div>
                       <div className="github-device-code-actions">
-                        <button
-                          className="settings-button"
+                        <Button
                           onClick={() => void copyGithubCode()}
                           type="button"
                         >
                           复制验证码
-                        </button>
-                        <button
-                          className="settings-button"
+                        </Button>
+                        <Button
                           onClick={() => void openGithubDevicePage()}
                           type="button"
                         >
                           打开验证页面
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   ) : null}
                 </div>
                 <div className="settings-inline-actions">
-                  <button
-                    className="settings-button primary"
+                  <Button
                     disabled={loading}
                     onClick={() => void startLogin('browser')}
                     type="button"
                   >
                     登录 GitHub
-                  </button>
+                  </Button>
                   {login?.state === 'failed' ? (
-                    <button
-                      className="settings-button"
+                    <Button
                       disabled={loading}
                       onClick={() => void startLogin('device')}
                       type="button"
                     >
                       使用设备验证码
-                    </button>
+                    </Button>
                   ) : null}
                 </div>
               </div>
@@ -317,14 +314,13 @@ export function GithubRepositoryModal({
                                 : ''}
                             </small>
                           </div>
-                          <button
-                            className="settings-button"
+                          <Button
                             disabled={Boolean(cloningRepo)}
                             onClick={() => void cloneRepository(repository)}
                             type="button"
                           >
                             {cloningRepo === repository.fullName ? '克隆中...' : '克隆'}
-                          </button>
+                          </Button>
                         </div>
                       ))
                     )}

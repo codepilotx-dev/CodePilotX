@@ -206,16 +206,12 @@ export function ConflictMergeEditor({
           <Button
             disabled={saving}
             onClick={onUseDisk}
-            size="sm"
-            variant="secondary"
           >
             使用磁盘版本
           </Button>
           <Button
             loading={saving}
             onClick={() => void onKeepLocal()}
-            size="sm"
-            variant="primary"
           >
             保留本地版本
           </Button>

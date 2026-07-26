@@ -2,29 +2,11 @@ import { forwardRef } from 'react'
 import type React from 'react'
 import { cx } from '../../utils/cx.js'
 
-export type ButtonVariant =
-  | 'secondary'
-  | 'primary'
-  | 'ghost'
-  | 'outline'
-  | 'link'
-export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon' | 'compact' | 'toolbar'
-export type ButtonTone = 'default' | 'neutral' | 'accent' | 'danger'
+export type ButtonTone = 'default' | 'danger'
 
 type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   loading?: boolean
-  size?: ButtonSize
   tone?: ButtonTone
-  variant?: ButtonVariant
-}
-
-const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: 'u-type-control',
-  md: 'u-type-control',
-  lg: 'u-type-control',
-  icon: 'u-type-control',
-  compact: '',
-  toolbar: 'u-type-control',
 }
 
 export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
@@ -33,10 +15,8 @@ export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
     className,
     disabled,
     loading = false,
-    size = 'toolbar',
     tone = 'default',
     type = 'button',
-    variant = 'secondary',
     ...buttonProps
   },
   ref,
@@ -52,13 +32,11 @@ export const Button = forwardRef<HTMLButtonElement, Props>(function Button(
         'u-items-center',
         'u-justify-center',
         'u-nowrap',
-        SIZE_CLASSES[size],
+        'u-type-control',
         className,
       )}
       data-loading={loading || undefined}
-      data-size={size}
       data-tone={tone}
-      data-variant={variant}
       disabled={disabled || loading}
       type={type}
     >

@@ -300,44 +300,6 @@
   }
 }
 
-.settings-button {
-  &.primary {
-    border-color: var(--color-token-text-link-foreground);
-    background: var(--color-token-text-link-foreground);
-    color: var(--color-token-button-foreground);
-
-    &:hover {
-      border-color: var(--color-token-button-background);
-      background: var(--color-token-button-background);
-      color: var(--color-token-button-foreground);
-    }
-  }
-
-  &.ghost {
-    border-color: transparent;
-    background-color: transparent;
-    color: var(--color-token-text-secondary);
-
-    &:hover {
-      color: var(--color-token-foreground);
-      background-color: var(--color-token-list-hover-background);
-    }
-  }
-
-  &.link {
-    border-color: transparent;
-    background-color: transparent;
-    color: var(--color-token-text-link-foreground);
-    padding: var(--control-padding-block-compact)
-      var(--control-padding-inline-compact);
-
-    &:hover {
-      text-decoration: underline;
-      background-color: transparent;
-    }
-  }
-}
-
 .settings-provider-logo {
   width: var(--app-icon-size);
   height: var(--app-icon-size);

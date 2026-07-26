@@ -50,10 +50,6 @@
   gap: var(--layout-toolbar-gap);
 }
 
-.automation-button.is-ghost {
-  background: transparent;
-}
-
 .automation-canvas {
   display: grid;
   grid-template-rows: 1fr auto;
@@ -102,42 +98,6 @@
   gap: var(--layout-card-gap);
   flex-wrap: wrap;
   justify-content: center;
-}
-
-.automation-quick-button {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--control-gap-compact);
-  padding: 0.68em 1.23em;
-  border-radius: 14px;
-  border: 1px solid var(--color-token-border-light);
-  background: var(--color-token-bg-secondary);
-  box-shadow: none;
-  color: var(--color-token-foreground);
-  font-size: var(--type-control);
-  line-height: var(--control-line-height);
-  cursor: pointer;
-  transition:
-    background var(--motion-standard) var(--ease-standard),
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard),
-    color var(--motion-standard) var(--ease-standard);
-
-  &:hover {
-    border-color: var(--color-token-border-light);
-    background: var(--color-token-list-hover-background);
-  }
-}
-
-.automation-button {
-  border-color: var(--color-token-border-light);
-  border-radius: 14px;
-  box-shadow: none;
-
-  &:hover {
-    border-color: var(--color-token-border-light);
-    background: var(--color-token-list-hover-background);
-  }
 }
 
 .automation-quick-icon {

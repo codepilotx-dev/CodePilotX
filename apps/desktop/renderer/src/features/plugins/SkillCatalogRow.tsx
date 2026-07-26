@@ -52,9 +52,7 @@ export function SkillCatalogRow({
           className="skill-catalog-row__action"
           loading={installing}
           onClick={() => onInstall(skill)}
-          size="sm"
           title="添加到 CodePilotX"
-          variant="secondary"
         >
           <Plus aria-hidden="true" size={APP_ICON_SIZE} />
           添加

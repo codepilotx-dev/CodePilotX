@@ -2,7 +2,7 @@ import { ArrowLeft, Server } from 'lucide-react'
 import type React from 'react'
 import { useId, useRef } from 'react'
 import type { ModelProviderID } from '../../../shared/types.js'
-import { Button } from '../../components/ui/Button.js'
+import { IconButton } from '../../components/ui/IconButton.js'
 import { RemoteImage } from '../../components/ui/RemoteImage.js'
 import {
   APP_ICON_SIZE,
@@ -76,15 +76,13 @@ export function ProviderDetail({
     <section className="model-center-provider-detail" aria-labelledby={titleId}>
       <header className="model-center-provider-detail-header">
         {onBack ? (
-          <Button
-            aria-label="返回 Provider 列表"
+          <IconButton
             className="model-center-provider-back"
-            size="icon"
-            variant="ghost"
+            title="返回 Provider 列表"
             onClick={onBack}
           >
             <ArrowLeft aria-hidden size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </Button>
+          </IconButton>
         ) : null}
 
         <div className="model-center-provider-identity">

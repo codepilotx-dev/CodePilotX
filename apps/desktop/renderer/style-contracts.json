@@ -33,10 +33,6 @@
     "src/styles/lazy/settings.scss": "features"
   },
   "customPropertyReferenceAllowlist": [
-    "--button-font-size",
-    "--button-gap",
-    "--button-line-height",
-    "--button-padding",
     "--inline-approval-card-margin-bottom",
     "--inline-approval-card-radius",
     "--popover-overflow-x",

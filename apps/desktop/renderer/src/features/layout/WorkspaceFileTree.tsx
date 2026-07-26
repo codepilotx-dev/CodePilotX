@@ -20,6 +20,7 @@ import {
   APP_ICON_STROKE_WIDTH,
 } from '../../components/ui/iconTokens.js'
 import { AppContextMenu } from '../../components/ui/AppContextMenu.js'
+import { Button } from '../../components/ui/Button.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { cx } from '../../utils/cx.js'
 import { FileTypeIcon } from './FileTypeIcon.js'
@@ -510,9 +511,7 @@ export function WorkspaceFileTree({
       ) : (
         <div className="right-dock-tree-empty">
           {workspace && rootPath && directoryErrors.has(normalizePath(rootPath)) ? (
-            <button
-              className="right-dock-tree-retry"
-              type="button"
+            <Button
               onClick={() => {
                 void loadDirectory(rootPath, -1, { replaceRoot: true }).catch(
                   () => undefined,
@@ -521,7 +520,7 @@ export function WorkspaceFileTree({
             >
               <RotateCcw aria-hidden="true" size={APP_ICON_SIZE} />
               目录加载失败，点击重试
-            </button>
+            </Button>
           ) : workspace ? (
             query ? (
               '没有匹配的文件。'

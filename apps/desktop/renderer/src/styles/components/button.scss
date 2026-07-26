@@ -1,8 +1,17 @@
 /* ===== Shared Button Patterns ===== */
 
 .ui-button {
-  gap: var(--button-gap, var(--control-gap-compact));
+  min-height: var(--control-size-sm);
+  height: var(--control-size-sm);
+  gap: var(--control-gap-compact);
+  padding: 0 var(--control-padding-inline);
+  border: 1px solid var(--color-token-button-border);
   border-radius: var(--radius-button);
+  background: var(--color-token-button-background);
+  color: var(--color-token-button-foreground);
+  font-size: var(--type-control);
+  font-weight: var(--font-weight-label);
+  line-height: var(--control-line-height);
   cursor: pointer;
   transition:
     background var(--motion-standard) var(--ease-standard),
@@ -10,9 +19,65 @@
     box-shadow var(--motion-standard) var(--ease-standard),
     color var(--motion-standard) var(--ease-standard);
 
+  &:hover:not(:disabled) {
+    border-color: var(--color-token-border-heavy);
+    background: var(--color-token-button-secondary-hover-background);
+    box-shadow: var(--shadow-resting);
+  }
+
+  &:active:not(:disabled),
+  &[aria-pressed="true"],
+  &[data-state="open"],
+  &[data-selected="true"] {
+    background: var(--color-token-list-active-selection-background);
+  }
+
   &:focus-visible {
     outline: 2px solid var(--color-token-focus-border);
     outline-offset: 2px;
+  }
+
+  &:disabled {
+    color: var(--color-token-disabled-foreground);
+    cursor: default;
+    opacity: 0.55;
+  }
+
+  &[data-tone="danger"] {
+    border-color: color-mix(
+      in srgb,
+      var(--color-token-error-foreground) 34%,
+      var(--color-token-button-border)
+    );
+    color: var(--color-token-error-foreground);
+  }
+}
+
+.segmented-control-item {
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-token-description-foreground);
+  font-size: var(--type-secondary);
+  font-weight: 400;
+  line-height: 18px;
+  cursor: pointer;
+
+  &[aria-pressed="true"],
+  &[aria-selected="true"] {
+    background: color-mix(
+      in srgb,
+      var(--color-token-foreground) 5%,
+      transparent
+    );
+    color: var(--color-token-foreground);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-token-focus-border);
+    outline-offset: 1px;
   }
 
   &:disabled {
@@ -21,31 +86,6 @@
   }
 }
 
-.ui-button.segmented-control-item {
-  min-height: 24px;
-  padding: 2px 8px;
-  border-color: transparent;
-  border-radius: var(--radius-full);
-  font-size: var(--type-secondary);
-  font-weight: 400;
-  line-height: 18px;
-
-  &[data-variant="secondary"] {
-    border-color: transparent;
-    background: color-mix(
-      in srgb,
-      var(--color-token-foreground) 5%,
-      transparent
-    );
-    box-shadow: none;
-  }
-
-  &[data-variant="ghost"] {
-    color: var(--color-token-description-foreground);
-  }
-}
-
-/* --- Icon Buttons --- */
 .icon-button {
   display: inline-flex;
   align-items: center;
@@ -111,7 +151,6 @@
   stroke-width: var(--app-icon-stroke-width);
 }
 
-/* --- Send Button --- */
 .send-button {
   width: var(--control-size-sm);
   height: var(--control-size-sm);
@@ -129,103 +168,6 @@
   }
 }
 
-/* --- Primary Action Buttons --- */
-.settings-button.is-primary,
-.settings-button.primary,
-.plugins-button.is-primary,
-.plugins-hero-cta,
-.automation-button.is-primary {
-  padding: var(--control-padding-block)
-    calc(var(--control-padding-inline) + var(--control-padding-inline));
-  border: 1px solid var(--color-token-button-background);
-  border-radius: var(--radius-button);
-  background: var(--color-token-button-background);
-  color: var(--color-token-button-foreground);
-  font-size: var(--type-control);
-  font-weight: var(--font-weight-label);
-  line-height: var(--control-line-height);
-}
-
-.settings-button.is-primary:hover:not(:disabled),
-.settings-button.primary:hover:not(:disabled),
-.plugins-button.is-primary:hover,
-.plugins-hero-cta:hover,
-.automation-button.is-primary:hover {
-  border-color: var(--color-token-button-background);
-  background: var(--color-token-button-background);
-  color: var(--color-token-button-foreground);
-}
-
-/* --- Secondary/Default Buttons --- */
-.settings-button {
-  gap: var(--button-gap, var(--control-gap-compact));
-  cursor: pointer;
-  transition:
-    background var(--motion-standard) var(--ease-standard),
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard),
-    color var(--motion-standard) var(--ease-standard);
-}
-
-.settings-button:not(.ui-button) {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
-}
-
-.plugins-button {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--button-gap, var(--control-gap-compact));
-  cursor: pointer;
-  transition:
-    background var(--motion-standard) var(--ease-standard),
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard),
-    color var(--motion-standard) var(--ease-standard);
-}
-
-.automation-button {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--button-gap, var(--control-gap-compact));
-  cursor: pointer;
-  transition:
-    background var(--motion-standard) var(--ease-standard),
-    border-color var(--motion-standard) var(--ease-standard),
-    box-shadow var(--motion-standard) var(--ease-standard),
-    color var(--motion-standard) var(--ease-standard);
-}
-
-.settings-button:not(.ui-button):not(.primary),
-.plugins-button:not(.is-primary),
-.automation-button:not(.is-primary) {
-  padding: var(
-    --button-padding,
-    calc(var(--control-padding-block) + 0.2em)
-      calc(var(--control-padding-inline) + var(--control-padding-inline))
-  );
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-button);
-  background: var(--color-token-main-surface-primary);
-  color: var(--color-token-foreground);
-  font-size: var(--button-font-size, var(--type-control));
-  font-weight: var(--font-weight-label);
-  line-height: var(--button-line-height, var(--control-line-height));
-}
-
-.settings-button:not(.ui-button):hover {
-  background-color: var(--color-token-list-hover-background);
-}
-
-.settings-button svg {
-  width: var(--app-icon-size);
-  height: var(--app-icon-size);
-  display: block;
-  stroke-width: var(--app-icon-stroke-width);
-}
-
 .ui-button-spinner {
   width: var(--app-icon-size-sm);
   height: var(--app-icon-size-sm);
@@ -241,121 +183,6 @@
   }
 }
 
-// {
-//   padding: var(
-//     --button-padding,
-//     calc(var(--control-padding-block) + 0.2em)
-//       calc(var(--control-padding-inline) + var(--control-padding-inline))
-//   );
-//   border: 1px solid var(--color-token-button-border);
-//   border-radius: var(--radius-button);
-//   background: var(--color-token-bg-fog);
-//   color: var(--color-token-foreground);
-//   font-weight: var(--font-weight-label);
-//   line-height: var(--button-line-height, var(--control-line-height));
-// }
-
-.ui-button[data-variant="primary"] {
-  padding: var(--control-padding-block)
-    calc(var(--control-padding-inline) + var(--control-padding-inline));
-  border: 1px solid var(--color-token-button-border);
-  border-radius: var(--radius-button);
-  background: var(--color-token-button-background);
-  color: var(--color-token-button-foreground);
-  font-weight: var(--font-weight-label);
-  line-height: var(--control-line-height);
-}
-
-.ui-button[data-variant="primary"]:hover:not(:disabled) {
-  border-color: var(--color-token-button-border);
-  background: var(--color-token-button-background);
-  color: var(--color-token-button-foreground);
-}
-
-.ui-button[data-variant="secondary"]:hover:not(:disabled) {
-  border-color: var(--color-token-border-heavy);
-  background: var(--color-token-button-secondary-hover-background);
-  box-shadow: var(--shadow-resting);
-}
-
-.ui-button[data-variant="ghost"],
-.ui-button[data-variant="outline"],
-.ui-button[data-variant="link"] {
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
-}
-
-.ui-button[data-variant="outline"] {
-  border-color: var(--color-token-button-border);
-}
-
-.ui-button[data-variant="ghost"]:hover:not(:disabled) {
-  background: var(--color-token-list-hover-background);
-}
-
-.ui-button[data-tone="danger"] {
-  color: var(--color-token-error-foreground);
-}
-
-.ui-button[data-tone="accent"] {
-  color: var(--color-token-text-link-foreground);
-}
-
-.ui-button[data-size="lg"] {
-  min-height: 2.5rem;
-  padding: 0 1rem;
-}
-
-.ui-button[data-size="toolbar"] {
-  min-height: 28px;
-  height: 28px;
-  gap: 4px;
-  padding: 0 8px;
-  border-radius: 8px;
-  font-size: 14px;
-  line-height: 18px;
-}
-
-.ui-button[data-size="toolbar"]:where([data-variant="secondary"]) {
-  border-color: transparent;
-  background: color-mix(in srgb, var(--color-token-foreground) 5%, transparent);
-  color: var(--color-token-foreground);
-  box-shadow: none;
-}
-
-.ui-button[data-size="toolbar"]:where([data-variant="secondary"]):hover:not(
-    :disabled
-  ) {
-  border-color: transparent;
-  background: color-mix(
-    in srgb,
-    var(--color-token-foreground) 10%,
-    transparent
-  );
-  box-shadow: none;
-}
-
-.ui-button[data-size="icon"] {
-  width: var(--control-size-md);
-  height: var(--control-size-md);
-  padding: 12px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--color-token-description-foreground);
-}
-
-.ui-button[data-size="icon"]:hover,
-.ui-button[data-size="icon"][aria-pressed="true"],
-.ui-button[data-size="icon"][data-state="open"] {
-  background: var(--color-token-list-hover-background);
-  color: var(--color-token-foreground);
-}
-
-.settings-button:not(.ui-button):not(.primary),
-.plugins-button:not(.is-primary),
-.automation-button:not(.is-primary),
 .settings-input,
 .settings-textarea,
 .settings-input-number,
@@ -364,42 +191,19 @@
 .plugins-filter,
 .right-dock-search {
   border-color: var(--color-token-border-light);
+  border-radius: var(--radius-input);
   background: var(--color-token-main-surface-primary);
   color: var(--color-token-foreground);
 }
 
-/* --- Button / Control Border Radius --- */
-.settings-button,
-.plugins-button,
-.automation-button,
 .plugins-card-action,
 .message-action,
 .chip-button,
 .meta-chip,
-.settings-dropdown,
-.settings-input,
-.settings-textarea,
-.settings-input-number,
-.plugins-search,
-.plugins-filter,
-.right-dock-search {
+.settings-dropdown {
   border-radius: var(--radius-button);
 }
 
-.settings-input,
-.settings-textarea,
-.settings-input-number,
-.search-input-row,
-.plugins-search,
-.plugins-filter,
-.right-dock-search {
-  border-radius: var(--radius-input);
-}
-
-/* --- Generic Hover Effect for Buttons & Cards --- */
-.settings-button:not(.ui-button):hover,
-.plugins-button.is-ghost:hover,
-.automation-button.is-ghost:hover,
 .utility-card:hover,
 .message-card:hover {
   border-color: var(--color-token-border-light);
@@ -407,7 +211,6 @@
   box-shadow: var(--shadow-resting);
 }
 
-/* --- Message Action Button --- */
 .message-action {
   width: var(--control-size-md);
   height: var(--control-size-md);
@@ -442,7 +245,6 @@
   }
 }
 
-/* --- Window Toolbar Icon --- */
 .icon-button[data-variant="toolbar"] {
   display: inline-flex;
   align-items: center;

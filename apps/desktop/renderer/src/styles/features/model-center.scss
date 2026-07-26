@@ -1070,11 +1070,6 @@
   }
 }
 
-.model-center-shell .ui-button[data-variant="primary"],
-.model-center-key-dialog .ui-button[data-variant="primary"] {
-  color: var(--color-token-button-foreground);
-}
-
 html[data-theme="dark"] .model-center-page,
 html[data-theme="dark"] .model-center-key-dialog {
   --model-center-provider-logo-filter: invert(1) hue-rotate(180deg);

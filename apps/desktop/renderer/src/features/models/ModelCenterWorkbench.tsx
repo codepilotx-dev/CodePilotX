@@ -641,7 +641,6 @@ const nextState = await desktopClient.saveModelProvider({
               aria-label="添加 API Key"
               onClick={() => openApiKeys(true)}
               title="添加 API Key"
-              variant="primary"
             >
               <KeyRound aria-hidden />
               <span className="model-center-header-action-label">添加 API Key</span>
@@ -663,7 +662,6 @@ const nextState = await desktopClient.saveModelProvider({
                 disabled={busy}
                 onClick={() => void saveProvider()}
                 title="保存连接"
-                variant="primary"
               >
                 <Save aria-hidden />
                 <span className="model-center-header-action-label">保存连接</span>
@@ -686,7 +684,6 @@ const nextState = await desktopClient.saveModelProvider({
                 disabled={busy || !model}
                 onClick={() => void saveProvider()}
                 title="保存模型"
-                variant="primary"
               >
                 <Save aria-hidden />
                 <span className="model-center-header-action-label">保存模型</span>
@@ -779,7 +776,7 @@ const nextState = await desktopClient.saveModelProvider({
                       {providerApiKeys.length > 0 ? (
                         <SettingsDropdown width={360} ariaLabel="当前 API Key" value={activeApiKey?.id ?? ''} options={providerApiKeys.filter(key => key.enabled).map(key => ({ value: key.id, label: key.label + ' · ' + key.maskedValue, detail: formatApiKeyHealth(key) }))} onChange={value => void selectActiveApiKey(value)} />
                       ) : <p>尚未保存应用内 API Key；没有可用密钥时仍会使用现有环境变量。</p>}
-                      <div className="model-center-inline-actions"><Button onClick={() => openApiKeys(true)}>添加 Key</Button><Button variant="ghost" onClick={() => openApiKeys()}>管理 Keys</Button></div>
+                      <div className="model-center-inline-actions"><Button onClick={() => openApiKeys(true)}>添加 Key</Button><Button onClick={() => openApiKeys()}>管理 Keys</Button></div>
                     </div>
                   )}
                 </section>

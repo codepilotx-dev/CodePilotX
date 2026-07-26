@@ -13,6 +13,7 @@ import type { DesktopBrowserState } from '../../../shared/types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { formatBrowserDisplayURL } from './browserDisplayURL.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
+import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 
 type Props = {
@@ -252,14 +253,12 @@ export function DesktopBrowserPanel({
 
       {annotationOpen ? (
         <div className="browser-annotation-bar">
-          <button
-            className="browser-annotation-toggle"
-            type="button"
+          <Button
             onClick={() => setAnnotationOpen(current => !current)}
           >
             <MessageSquarePlus size={APP_ICON_SIZE} />
             <span>添加批注</span>
-          </button>
+          </Button>
         </div>
       ) : null}
 
@@ -278,14 +277,13 @@ export function DesktopBrowserPanel({
             value={annotationBody}
             onChange={event => setAnnotationBody(event.target.value)}
           />
-          <button
+          <Button
             disabled={!annotationBody.trim()}
-            type="button"
             onClick={handleSubmitAnnotation}
           >
             <Check size={APP_ICON_SIZE} />
             <span>插入输入框</span>
-          </button>
+          </Button>
         </div>
       ) : null}
     </section>

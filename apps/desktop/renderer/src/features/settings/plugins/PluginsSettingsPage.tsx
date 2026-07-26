@@ -591,7 +591,6 @@ export function PluginsSettingsPage({
             </Button>
             {tab === 'mcps' ? (
               <Button
-                variant="primary"
                 onClick={event => {
                   setSelectedServer(null)
                   setMcpDialogTrigger(event.currentTarget)

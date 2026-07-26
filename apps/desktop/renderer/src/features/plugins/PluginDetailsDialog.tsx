@@ -108,14 +108,13 @@ export function PluginDetailsDialog({
 
             <footer className="plugin-details-dialog__actions">
               <Dialog.Close asChild>
-                <Button variant="secondary">关闭</Button>
+                <Button>关闭</Button>
               </Dialog.Close>
               {action ? (
                 <Button
                   aria-pressed={action.pressed}
                   disabled={action.disabled}
                   loading={busy}
-                  variant="primary"
                   onClick={event => onPrimaryAction(item, event.currentTarget)}
                 >
                   {action.label}

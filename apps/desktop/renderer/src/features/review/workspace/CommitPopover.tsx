@@ -8,6 +8,7 @@ import {
   X,
 } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { Button } from '../../../components/ui/Button.js'
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
@@ -168,10 +169,9 @@ export function CommitPopover({
       </label>
 
       <div className="review-popover-actions">
-        <button
-          className="review-popover-action"
+        <Button
+          className="tw:w-full tw:justify-between"
           disabled={false}
-          type="button"
           onClick={() => onCommit(message, includeUnstaged)}
         >
           <span className="review-popover-action-label">
@@ -179,27 +179,25 @@ export function CommitPopover({
             提交
           </span>
           <span className="shortcut">Ctrl+Enter</span>
-        </button>
-        <button
-          className="review-popover-action"
-          type="button"
+        </Button>
+        <Button
+          className="tw:w-full tw:justify-between"
           onClick={() => onCommitAndPush(message, includeUnstaged)}
         >
           <span className="review-popover-action-label">
             <ArrowUp size={APP_ICON_SIZE} />
             提交并推送
           </span>
-        </button>
-        <button
-          className="review-popover-action"
-          type="button"
+        </Button>
+        <Button
+          className="tw:w-full tw:justify-between"
           onClick={() => onPush()}
         >
           <span className="review-popover-action-label">
             <ArrowDown size={APP_ICON_SIZE} />
             推送
           </span>
-        </button>
+        </Button>
       </div>
     </div>
   )

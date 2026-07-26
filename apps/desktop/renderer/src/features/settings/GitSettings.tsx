@@ -289,7 +289,6 @@ export function GitSettings(): React.ReactNode {
                   复制验证码
                 </Button>
                 <Button
-                  variant="primary"
                   onClick={() => void openGithubDevicePage()}
                   type="button"
                 >
@@ -321,7 +320,6 @@ export function GitSettings(): React.ReactNode {
                 ) : (
                   <>
                     <Button
-                      variant="primary"
                       disabled={githubBusy}
                       onClick={() => void startGithubLogin('browser')}
                       type="button"

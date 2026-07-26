@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import * as AlertDialog from '@radix-ui/react-alert-dialog'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './iconTokens.js'
+import { Button } from './Button.js'
+import { IconButton } from './IconButton.js'
 
 type ConfirmationInput = {
   value: string
@@ -64,12 +66,6 @@ export function ConfirmationDialog({
     onAction()
   }
 
-  const actionClassName = [
-    'confirmation-dialog-action',
-    'tw:inline-flex tw:min-w-19 tw:items-center tw:justify-center tw:rounded-md tw:px-4 tw:py-2 tw:text-sm tw:font-[var(--font-weight-label)] tw:transition-[background-color,opacity] tw:duration-[120ms] tw:hover:opacity-90 tw:disabled:cursor-not-allowed tw:disabled:opacity-50',
-    tone === 'danger' ? 'danger' : 'primary',
-  ].join(' ')
-
   return (
     <AlertDialog.Root
       open={open}
@@ -88,16 +84,15 @@ export function ConfirmationDialog({
                   </h2>
                 </AlertDialog.Title>
                 <AlertDialog.Cancel asChild>
-                  <button
-                    aria-label="关闭对话框"
-                    className="confirmation-dialog-close tw:inline-flex tw:size-8 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full tw:text-app-text-soft tw:transition-colors tw:duration-[120ms] tw:hover:bg-app-panel tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-app-accent"
-                    type="button"
+                  <IconButton
+                    className="tw:shrink-0"
+                    title="关闭对话框"
                   >
                     <X
                       size={APP_ICON_SIZE + 2}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
-                  </button>
+                  </IconButton>
                 </AlertDialog.Cancel>
               </header>
               {description ? (
@@ -122,22 +117,19 @@ export function ConfirmationDialog({
               ) : null}
               <div className="permission-modal-actions confirmation-dialog-actions tw:mt-2 tw:flex tw:items-center tw:justify-between tw:gap-3">
                 <AlertDialog.Cancel asChild>
-                  <button
-                    className="confirmation-cancel tw:inline-flex tw:min-w-19 tw:items-center tw:justify-center tw:rounded-md tw:border tw:border-app-border tw:bg-app-canvas tw:px-4 tw:py-2 tw:text-sm tw:font-[var(--font-weight-label)] tw:text-app-text tw:transition-colors tw:duration-[120ms] tw:hover:bg-app-panel"
-                    type="button"
-                  >
+                  <Button className="tw:min-w-19">
                     {cancelLabel}
-                  </button>
+                  </Button>
                 </AlertDialog.Cancel>
                 <AlertDialog.Action asChild>
-                  <button
-                    className={actionClassName}
+                  <Button
+                    className="tw:min-w-19"
                     disabled={trimmedActionDisabled}
                     onClick={handleActionClick}
-                    type="button"
+                    tone={tone === 'danger' ? 'danger' : 'default'}
                   >
                     {actionLabel}
-                  </button>
+                  </Button>
                 </AlertDialog.Action>
               </div>
             </AlertDialog.Content>

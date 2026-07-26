@@ -45,6 +45,7 @@
 ### Renderer
 
 - Renderer 禁止直接访问 Node、Electron、SQLite、凭据或文件系统；系统能力只能经过 typed preload bridge 或 Agent client。
+- 所有文字动作按钮及“图标 + 文字”动作按钮必须复用 `components/ui/Button`，并使用统一高度、内边距、圆角、边框和主题自适应中性背景；禁止通过 primary/secondary 变体区分视觉层级。危险、选中、禁用、加载和焦点状态可以保留语义差异。纯图标工具按钮、导航、标签页、分段控件和开关必须使用各自组件，不得套用动作按钮容器。
 - Desktop client 的稳定入口是 `services/desktop-client/index.ts`；入口只负责环境选择、组合和公开导出。
 - Session 按 `conversation/`、`composer/`、`timeline/`、`approvals/`、`workflow/`、`summary/`、`subagents/`、`state/` 维护。
 - Review 按 `workspace/`、`diff/`、`comments/`、`source/`、`state/` 维护；diff 解析和展示逻辑只能有一个实现来源。

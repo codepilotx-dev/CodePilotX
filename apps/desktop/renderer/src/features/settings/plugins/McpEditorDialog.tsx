@@ -328,9 +328,7 @@ export function McpEditorDialog({
                   使用结构化字段配置 stdio 或 Streamable HTTP；HTTP 会在协议不兼容时自动回退 SSE。
                 </Dialog.Description>
                 <Button
-                  className="tw:mt-1 tw:h-auto tw:justify-start tw:px-0"
-                  size="compact"
-                  variant="link"
+                  className="tw:mt-1"
                   onClick={onOpenDocumentation}
                 >
                   官方 MCP 文档
@@ -650,7 +648,7 @@ export function McpEditorDialog({
               </span>
               <span className="tw:flex tw:items-center tw:gap-2">
                 <Dialog.Close asChild><Button>关闭</Button></Dialog.Close>
-                <Button disabled={busy} loading={busy} variant="primary" onClick={() => void save()}>
+                <Button disabled={busy} loading={busy} onClick={() => void save()}>
                   保存
                 </Button>
               </span>

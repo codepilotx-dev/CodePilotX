@@ -10,6 +10,7 @@ import {
   PenLine,
 } from 'lucide-react'
 import type { DesktopPermissionRequest } from '../../../../shared/types.js'
+import { Button } from '../../../components/ui/Button.js'
 import {
   CUSTOM_OPTION_ID,
   answerStateForConfirmation,
@@ -170,14 +171,13 @@ export function AskUserQuestionApproval({
         </p>
         <div className="inline-approval-footer inline-approval-footer-split">
           <span className="inline-approval-footer-spacer" aria-hidden="true" />
-          <button
-            className="inline-approval-submit"
-            type="button"
+          <Button
+            tone="danger"
             onClick={onReject}
           >
             拒绝
             <CornerDownLeft size={16} />
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -498,49 +498,41 @@ export function AskUserQuestionApproval({
             )
           })}
           <div className="inline-approval-split ask-user-question-actions">
-            <button
+            <Button
               aria-label="跳过当前问题"
-              className="inline-approval-skip"
               title="按 Esc 跳过"
-              type="button"
               onClick={onReject}
             >
               跳过
-            </button>
+            </Button>
             {controls.showPrevious || controls.showNext ? (
               <div className="ask-user-question-navigation">
                 {controls.showPrevious ? (
-                  <button
-                    className="ask-user-question-nav-button"
-                    type="button"
+                  <Button
                     onClick={() => goToQuestion(-1)}
                   >
                     <ChevronLeft size={14} />
                     上一题
-                  </button>
+                  </Button>
                 ) : null}
                 {controls.showNext ? (
-                  <button
-                    className="ask-user-question-nav-button"
-                    type="button"
+                  <Button
                     onClick={() => goToQuestion(1)}
                   >
                     下一题
                     <ChevronRight size={14} />
-                  </button>
+                  </Button>
                 ) : null}
               </div>
             ) : null}
             {controls.showSubmit ? (
-              <button
-                className="inline-approval-submit"
+              <Button
                 disabled={!canSubmit}
-                type="button"
                 onClick={() => confirmCurrentQuestionAndAdvance(currentQuestion)}
               >
                 提交
                 <CornerDownLeft size={16} />
-              </button>
+              </Button>
             ) : null}
           </div>
         </div>

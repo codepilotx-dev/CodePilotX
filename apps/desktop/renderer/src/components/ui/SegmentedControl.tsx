@@ -1,7 +1,6 @@
 import { useRef } from 'react'
 import type React from 'react'
 import { cx } from '../../utils/cx.js'
-import { Button } from './Button.js'
 
 type Option<T extends string> = {
   value: T
@@ -76,7 +75,7 @@ export function SegmentedControl<T extends string>({
       {options.map((option, index) => {
         const selected = option.value === value
         return (
-          <Button
+          <button
             aria-controls={isTabs ? getPanelId?.(option.value) : undefined}
             aria-pressed={isTabs ? undefined : selected}
             aria-selected={isTabs ? selected : undefined}
@@ -92,12 +91,11 @@ export function SegmentedControl<T extends string>({
               itemRefs.current[index] = element
             }}
             role={isTabs ? 'tab' : undefined}
-            size="compact"
             tabIndex={isTabs ? (selected ? 0 : -1) : undefined}
-            variant={selected ? 'secondary' : 'ghost'}
+            type="button"
           >
             {option.label}
-          </Button>
+          </button>
         )
       })}
     </div>

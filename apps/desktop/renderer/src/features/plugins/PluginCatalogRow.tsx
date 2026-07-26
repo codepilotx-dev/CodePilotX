@@ -62,8 +62,6 @@ export function PluginCatalogRow({
             aria-pressed={action.pressed}
             disabled={action.disabled}
             loading={busy}
-            size="sm"
-            variant={action.kind === 'open-external' ? 'secondary' : 'primary'}
             onClick={event => onPrimaryAction(item, event.currentTarget)}
           >
             {action.label}

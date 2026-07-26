@@ -257,7 +257,6 @@ export function PetCatalogSection({
                   void onEnableOverlay().then(() => setShowWakeAction(false));
                 }}
                 type="button"
-                variant="primary"
               >
                 <Sparkles size={APP_ICON_SIZE} />
                 立即唤醒
@@ -418,7 +417,6 @@ export function PetCatalogSection({
                           loading={installing}
                           onClick={() => choosePet(pet)}
                           type="button"
-                          variant={selected ? "secondary" : "primary"}
                         >
                           {!installing && !installed ? (
                             <Download size={APP_ICON_SIZE} />

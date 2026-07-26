@@ -7,6 +7,7 @@ import type {
 } from '../../../../shared/types.js'
 import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
 import { ExitPlanModeApproval } from './ExitPlanModeApproval.js'
+import { Button } from '../../../components/ui/Button.js'
 
 export type PermissionRequestModalProps = {
   request: DesktopPermissionRequest | null
@@ -87,15 +88,14 @@ export function PermissionRequestModal({
                     </div>
                   </div>
                   <div className="permission-modal-actions tw:flex tw:items-center tw:justify-between tw:gap-3">
-                    <button
-                      className="primary-button"
+                    <Button
                       onClick={() => onDecide(request, 'allow')}
                       type="button"
                     >
                       允许
-                    </button>
+                    </Button>
                     {(request.rememberOptions ?? []).map(option => (
-                      <button
+                      <Button
                         key={option.id}
                         onClick={() =>
                           onDecide(request, 'allow', false, undefined, {
@@ -105,14 +105,15 @@ export function PermissionRequestModal({
                         type="button"
                       >
                         {option.label}
-                      </button>
+                      </Button>
                     ))}
-                    <button
+                    <Button
+                      tone="danger"
                       onClick={() => onDecide(request, 'deny')}
                       type="button"
                     >
                       拒绝
-                    </button>
+                    </Button>
                   </div>
                 </>
               )}

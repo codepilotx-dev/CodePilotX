@@ -15,6 +15,7 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
 } from "../../../components/ui/iconTokens.js";
+import { Button } from "../../../components/ui/Button.js";
 import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
 import {
   useQuickChatContext,
@@ -252,22 +253,19 @@ export function ExitPlanModeApproval({
           />
         </div>
         <div className="exit-plan-mode-actions">
-          <button
-            className="exit-plan-mode-skip"
-            type="button"
+          <Button
+            className="tw:justify-between"
             onClick={onRevise}
           >
             <span>忽略</span>
             <kbd>ESC</kbd>
-          </button>
-          <button
-            className="inline-approval-submit exit-plan-mode-submit"
-            type="button"
+          </Button>
+          <Button
             onClick={handleAccept}
           >
             <span>提交</span>
             <CornerDownLeft size={14} />
-          </button>
+          </Button>
         </div>
       </div>
     </div>

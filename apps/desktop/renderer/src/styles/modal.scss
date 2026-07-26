@@ -173,11 +173,6 @@
   }
 }
 
-.primary-button {
-  background: var(--color-token-text-link-foreground);
-  color: var(--color-token-button-foreground);
-}
-
 /* --- Git Workflow Modal --- */
 .git-workflow-modal {
   width: min(720px, 100%);

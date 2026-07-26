@@ -2,6 +2,7 @@ import { KeyRound, Plus, Search, Server } from 'lucide-react'
 import type React from 'react'
 import type { ModelProviderID } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
+import { IconButton } from '../../components/ui/IconButton.js'
 import { Input } from '../../components/ui/Input.js'
 import { RemoteImage } from '../../components/ui/RemoteImage.js'
 import {
@@ -122,17 +123,14 @@ export function ProviderCatalog({
                   {provider.status.label}
                 </span>
               </button>
-              <Button
-                aria-label={`为 ${provider.name} 添加 API Key`}
+              <IconButton
                 className="provider-card-add-key"
-                size="icon"
-                title="添加 API Key"
-                variant="ghost"
+                title={`为 ${provider.name} 添加 API Key`}
                 onClick={() => onAddKey(provider.id)}
               >
                 <KeyRound aria-hidden size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 <Plus aria-hidden className="provider-card-add-mark" />
-              </Button>
+              </IconButton>
             </article>
           ))}
         </div>
