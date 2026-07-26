@@ -53,7 +53,6 @@ export function PopoverItem({
         'tw:px-2',
         'tw:py-1.5',
         'tw:text-left',
-        'tw:text-sm',
         'tw:text-app-text',
         'tw:outline-none',
         'tw:transition-colors',

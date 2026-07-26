@@ -1931,6 +1931,7 @@ export function DesktopLayout(): React.ReactNode {
       recentWorkspaces={recentWorkspaces}
       removedWorkspaces={removedWorkspaces}
       sessionFallbackTitles={sidebarSessionFallbackTitles}
+      sidebarWidth={sidebarWidth}
       sessions={sessions}
       unavailableWorkspacePaths={unavailableWorkspacePaths}
       workspace={currentWorkspace}

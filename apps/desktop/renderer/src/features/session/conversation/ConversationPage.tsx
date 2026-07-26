@@ -1494,7 +1494,7 @@ function SessionSubmenu({
         <DropdownMenu.SubContent
           alignOffset={-6}
           className="popover-surface popover popover-sub-content"
-          sideOffset={8}
+          sideOffset={16}
           style={buildPopoverSizingStyle({ width: "auto" })}
         >
           {children}

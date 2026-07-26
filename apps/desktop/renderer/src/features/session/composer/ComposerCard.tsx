@@ -1805,7 +1805,7 @@ export function ComposerCard({
                           <DropdownMenu.SubContent
                             className="popover-surface rm-model-menu rm-model-submenu"
                             alignOffset={-6}
-                            sideOffset={8}
+                            sideOffset={16}
                             style={buildPopoverSizingStyle({
                               width: "auto",
                               maxWidth:

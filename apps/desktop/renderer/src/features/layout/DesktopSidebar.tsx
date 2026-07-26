@@ -23,6 +23,7 @@ type Props = {
   recentWorkspaces: DesktopWorkspace[];
   removedWorkspaces: DesktopRemovedWorkspace[];
   sessionFallbackTitles: Record<string, string>;
+  sidebarWidth: number;
   sessions: SessionListItem[];
   unavailableWorkspacePaths: Set<string>;
   workspace: DesktopWorkspace | null;
@@ -49,6 +50,7 @@ export function DesktopSidebar({
   recentWorkspaces,
   removedWorkspaces,
   sessionFallbackTitles,
+  sidebarWidth,
   sessions,
   unavailableWorkspacePaths,
   workspace,
@@ -225,7 +227,7 @@ export function DesktopSidebar({
         onUnpinWorkspace={onUnpinWorkspace}
         onReport={onReport}
       />
-      <SidebarFooter />
+      <SidebarFooter sidebarWidth={sidebarWidth} onReport={onReport} />
     </div>
   );
 }

@@ -2007,7 +2007,7 @@ export function ReviewCommitSourceSubmenu({
         <DropdownMenu.SubContent
           alignOffset={-6}
           className="popover-surface popover popover-sub-content popover-review-commits"
-          sideOffset={8}
+          sideOffset={16}
           style={buildPopoverSizingStyle({ width: 320 })}
         >
           {children}

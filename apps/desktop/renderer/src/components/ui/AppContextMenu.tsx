@@ -146,6 +146,7 @@ function renderAction(
           <ContextMenu.Portal>
             <ContextMenu.SubContent
               className="app-context-menu-content sidebar-context-menu-content"
+              sideOffset={16}
               style={buildPopoverSizingStyle({ width })}
             >
               {action.children.map((child, childKey) =>
