@@ -4,6 +4,7 @@ import {
   type RpcHandlers,
   type RpcMethod,
 } from "@codepilotx/agent-protocol"
+import { configHandlers } from "./handlers/config"
 import { githubHandlers } from "./handlers/github"
 import { interactionHandlers } from "./handlers/interaction"
 import { memoryHandlers } from "./handlers/memory"
@@ -27,6 +28,7 @@ import type { RpcRouter } from "./RpcRouter"
 type MapRpcError = (method: RpcMethod, cause: unknown) => Error
 
 const groups: readonly RpcHandlerGroup[] = [
+  configHandlers,
   systemHandlers,
   interactionHandlers,
   permissionHandlers,

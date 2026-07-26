@@ -14,6 +14,7 @@ import {
   type ShellRiskLevel,
 } from "../security/ShellRiskClassifier";
 import type { AgentDatabase } from "../storage/database/AgentDatabase";
+import type { ConfigService } from "../config/ConfigService";
 import { secretScrubber } from "../security/SecretScrubber";
 import type { PiModelService } from "../provider/pi";
 import { generatePiObject } from "../provider/pi/PiStructuredOutput";
@@ -136,10 +137,19 @@ export class ReviewerService {
   constructor(
     private readonly db: AgentDatabase,
     private readonly providers: PiModelService,
+    private readonly configService?: ConfigService,
   ) {}
 
   private reviewerModels(fallback?: Model.Ref) {
-    const configured = this.db.getSetting<Model.Ref>("reviewerModel");
+    const config = this.configService?.snapshot();
+    const taskModels = config?.task_models && typeof config.task_models === "object" && !Array.isArray(config.task_models)
+      ? config.task_models as Record<string, unknown>
+      : {};
+    const reviewerID = typeof taskModels.reviewer === "string" ? taskModels.reviewer : "";
+    const providerID = typeof config?.model_provider === "string" ? config.model_provider : "";
+    const configured = reviewerID && providerID
+      ? { providerID, id: reviewerID } as Model.Ref
+      : null;
     const refs = [configured, fallback].filter((ref): ref is Model.Ref => Boolean(ref));
     return refs.filter((ref, index) =>
       refs.findIndex((candidate) =>

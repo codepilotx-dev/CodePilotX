@@ -82,7 +82,7 @@ export const providerHandlers = {
     "integration/disconnect",
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, sandbox, review, github } = runtime.dependencies
+    const { config, db, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, sandbox, review, github } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "provider/list":
@@ -95,7 +95,19 @@ export const providerHandlers = {
       case "model/setDefault": {
         const model = modelRefOrNull(params.model)
         if (model) await providers.resolve(model)
-        db.setSetting("defaultModel", model)
+        await config.batchWrite({
+          edits: model
+            ? [
+                { keyPath: ["model"], value: String(model.id) },
+                { keyPath: ["model_provider"], value: String(model.providerID) },
+                { keyPath: ["model_reasoning_effort"], value: model.variant ? String(model.variant) : null },
+              ]
+            : [
+                { keyPath: ["model"], value: null },
+                { keyPath: ["model_provider"], value: null },
+                { keyPath: ["model_reasoning_effort"], value: null },
+              ],
+        })
         const catalog = await runtime.publishCatalogUpdated(false)
         return {
           defaultModel: model,
@@ -105,7 +117,11 @@ export const providerHandlers = {
       case "model/setReviewer": {
         const model = modelRefOrNull(params.model)
         if (model) await providers.resolve(model)
-        db.setSetting("reviewerModel", model)
+        await config.batchWrite({
+          edits: [
+            { keyPath: ["task_models", "reviewer"], value: model ? String(model.id) : null },
+          ],
+        })
         const catalog = await runtime.publishCatalogUpdated(false)
         return {
           reviewerModel: model,
@@ -146,7 +162,20 @@ export const providerHandlers = {
       }
       case "provider/updateSettings": {
         const setting = providerSetting(params)
-        db.setProviderSettings(setting.id, setting.config)
+        const flatten = (
+          value: Record<string, unknown>,
+          prefix: string[],
+        ): Array<{ keyPath: string[]; value: never }> =>
+          Object.entries(value).flatMap(([key, child]) =>
+            child && typeof child === "object" && !Array.isArray(child)
+              ? flatten(child as Record<string, unknown>, [...prefix, key])
+              : [{ keyPath: [...prefix, key], value: child as never }],
+          )
+        const edits = flatten(
+          setting.config as unknown as Record<string, unknown>,
+          ["model_providers", setting.id],
+        )
+        if (edits.length) await config.batchWrite({ edits })
         await providers.reload()
         const catalog = await runtime.publishCatalogUpdated()
         const catalogProvider = catalog.providers.find(({ provider }) => provider.id === setting.id)

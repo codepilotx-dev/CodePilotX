@@ -78,7 +78,7 @@ describe("SkillManagementService", () => {
     })
 
     const stored = database.profileSqlite.query(
-      "SELECT value FROM app_settings WHERE key = 'skills.settings.v1'",
+      "SELECT value FROM app_settings WHERE key = 'skills.runtime.v1'",
     ).get() as { value: string }
     expect(stored.value).not.toContain(workspaceSkillPath)
     expect(stored.value).toContain(skillPathIdentity(workspaceSkillPath))

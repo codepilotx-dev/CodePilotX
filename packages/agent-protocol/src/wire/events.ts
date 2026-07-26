@@ -43,6 +43,23 @@ const ToolTerminalPayloadSchema = Schema.Struct({
 })
 
 export const EventManifest = {
+  "config/updated": defineEvent({
+    payload: Schema.Struct({
+      version: Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/)),
+      changedKeyPaths: Schema.Array(Schema.Array(Schema.String.check(Schema.isMinLength(1)))),
+      scope: Schema.Literals(["user", "project"]),
+      diagnostics: Schema.Array(Schema.Struct({
+        severity: Schema.Literals(["warning", "error"]),
+        code: Schema.String.check(Schema.isMinLength(1)),
+        message: Schema.String.check(Schema.isMinLength(1)),
+      })),
+    }),
+    version: 1,
+    durability: "live",
+    stream: "global",
+    capability: "config.manage.v1",
+    reconcilesWith: "config/read",
+  }),
   "workspace/git/changed": defineEvent({
     payload: Schema.Struct({
       projectId: OpaqueIDSchema,

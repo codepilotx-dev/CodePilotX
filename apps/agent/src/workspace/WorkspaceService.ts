@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto"
 import { watch as watchFileSystem } from "node:fs"
-import { chmod, lstat, readdir, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises"
+import { chmod, lstat, mkdir, readdir, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises"
 import { basename, dirname, isAbsolute, relative, resolve } from "node:path"
 import { AgentError } from "../domain"
 
@@ -102,6 +102,7 @@ const unifiedDiff = (path: string, before: string | null, after: string | null, 
  */
 export class WorkspaceService {
   readonly rootPath: string
+  private readonly editorAliases = new Map<string, string>()
 
   private constructor(rootPath: string) {
     this.rootPath = rootPath
@@ -114,7 +115,22 @@ export class WorkspaceService {
     return new WorkspaceService(resolved)
   }
 
+  grantEditorAlias(alias: "@codepilotx/config.toml", targetPath: string) {
+    if (!isAbsolute(targetPath)) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名目标无效", 403)
+    this.editorAliases.set(alias, resolve(targetPath))
+  }
+
+  private aliasTarget(path: string) {
+    if (path.startsWith("@") && !this.editorAliases.has(path)) {
+      throw new AgentError("WORKSPACE_PATH_DENIED", "未知的 host 编辑器别名", 403)
+    }
+    return this.editorAliases.get(path)
+  }
+
   private displayPath(path: string) {
+    for (const [alias, target] of this.editorAliases) {
+      if (resolve(path) === target) return alias
+    }
     const result = relative(this.rootPath, path)
     return result === "" ? "." : result.replaceAll("\\", "/")
   }
@@ -126,6 +142,8 @@ export class WorkspaceService {
   }
 
   private requestedPath(path: string) {
+    const alias = this.aliasTarget(path)
+    if (alias) return alias
     if (typeof path !== "string" || path.trim() === "" || isAbsolute(path) || path.split(/[\\/]+/).includes("..")) {
       throw new AgentError("WORKSPACE_PATH_DENIED", "路径必须是工作区内的相对路径", 403)
     }
@@ -139,20 +157,37 @@ export class WorkspaceService {
     const canonical = await realpath(requested).catch(() => {
       throw new AgentError("WORKSPACE_PATH_NOT_FOUND", "工作区路径不存在或不可访问", 404)
     })
-    this.ensureWithinRoot(canonical)
+    const alias = this.aliasTarget(path)
+    if (alias) {
+      if (canonical !== alias) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名不能通过符号链接重定向", 403)
+    } else {
+      this.ensureWithinRoot(canonical)
+    }
     return canonical
   }
 
   private async createPath(path: string) {
     const requested = this.requestedPath(path)
+    const alias = this.aliasTarget(path)
+    if (!alias && path.replaceAll("\\", "/").toLowerCase() === ".codepilotx/config.toml") {
+      await mkdir(dirname(requested), { recursive: true })
+    }
     const parent = await realpath(dirname(requested)).catch(() => {
       throw new AgentError("WORKSPACE_PATH_NOT_FOUND", "目标文件的父目录不存在或不可访问", 404)
     })
-    this.ensureWithinRoot(parent)
+    if (alias) {
+      if (parent !== dirname(alias)) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名父目录无效", 403)
+    } else {
+      this.ensureWithinRoot(parent)
+    }
     const metadata = await stat(parent)
     if (!metadata.isDirectory()) throw new AgentError("WORKSPACE_NOT_DIRECTORY", "目标文件的父路径不是目录", 400)
     const canonical = resolve(parent, basename(requested))
-    this.ensureWithinRoot(canonical)
+    if (alias) {
+      if (canonical !== alias) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名目标无效", 403)
+    } else {
+      this.ensureWithinRoot(canonical)
+    }
     try {
       await lstat(canonical)
       throw new AgentError("WORKSPACE_PATH_EXISTS", "目标文件已存在", 409)

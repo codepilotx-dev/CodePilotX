@@ -124,18 +124,27 @@ describe("Memory RPC 项目作用域", () => {
 
   test("新线程冻结 prompt settings，只有显式 refresh 才更新", async () => {
     const { db, memory } = await fixture()
-    db.setSetting("desktop.settings.v1", { systemPrompt: "v1", enableMemory: true })
+    let promptConfig = {
+      system_prompt: "v1",
+      features: { memory: true },
+    }
     const questions = { setResumeHandler: () => undefined }
     const subagents = { setParentResumeHandler: () => undefined }
     const service = new ThreadService(
       db, null as never, null as never, null as never, questions as never, null as never,
       subagents as never, null as never, { dataRoot: ".", userHome: "." }, memory, null as never, null as never,
+      undefined, undefined, undefined, {
+        snapshot: () => promptConfig,
+      } as never,
     )
     await Bun.sleep(0)
     const thread = db.createThread("snapshot")
     service.refreshPromptSettings(thread.id)
     expect(db.getThreadPromptSettings(thread.id)).toMatchObject({ engine: "prompt-engine-v2", version: 2, settings: { systemPrompt: "v1", enableMemory: true } })
-    db.setSetting("desktop.settings.v1", { systemPrompt: "v2", enableMemory: false })
+    promptConfig = {
+      system_prompt: "v2",
+      features: { memory: false },
+    }
     expect(db.getThreadPromptSettings<{ settings: { systemPrompt: string } }>(thread.id)?.settings.systemPrompt).toBe("v1")
     expect(service.refreshPromptSettings(thread.id)).toMatchObject({ settings: { systemPrompt: "v2", enableMemory: false } })
     db.close()

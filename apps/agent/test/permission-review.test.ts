@@ -7,7 +7,24 @@ import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { PermissionDecisionEngine } from "../src/permission/PermissionDecisionEngine"
 import { Model, Provider } from "@codepilotx/model-schema"
 
-const reviewer = (getSetting: AgentDatabase["getSetting"], providers: PiModelService = {} as PiModelService) => new ReviewerService({ getSetting } as AgentDatabase, providers)
+const reviewer = (
+  getSetting: AgentDatabase["getSetting"],
+  providers: PiModelService = {} as PiModelService,
+) => {
+  const configured = getSetting<Model.Ref>("reviewerModel")
+  return new ReviewerService(
+    { getSetting } as AgentDatabase,
+    providers,
+    {
+      snapshot: () => configured
+        ? {
+            model_provider: String(configured.providerID),
+            task_models: { reviewer: String(configured.id) },
+          }
+        : {},
+    } as never,
+  )
+}
 
 describe("Shell ReviewerService", () => {
   test("静态灾难级命令在没有审核模型时也直接拒绝", async () => {

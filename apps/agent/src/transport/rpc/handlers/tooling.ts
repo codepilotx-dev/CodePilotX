@@ -31,6 +31,10 @@ export const toolingHandlers = {
           return { statuses: await tooling.refreshStatuses() }
         case "tooling/setPreference": {
           const params = decodeSetPreference(rawParams)
+          await runtime.dependencies.config.writeValue({
+            keyPath: ["desktop", "tooling", params.id],
+            value: params.preference,
+          })
           return { status: await tooling.setPreference(params.id, params.preference) }
         }
         case "tooling/install": {

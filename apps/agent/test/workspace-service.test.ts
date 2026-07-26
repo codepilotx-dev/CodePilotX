@@ -83,6 +83,32 @@ describe("WorkspaceService.applyPatch", () => {
 })
 
 describe("WorkspaceService editor files", () => {
+  test("只允许精确的用户配置别名，并拒绝别名符号链接重定向", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "codepilotx-config-alias-"))
+    paths.push(parent)
+    const root = join(parent, "project")
+    const userConfig = join(parent, "config.toml")
+    const redirected = join(parent, "redirected.toml")
+    await mkdir(root)
+    await writeFile(userConfig, 'model = "gpt-5"\n', "utf8")
+    await writeFile(redirected, 'model = "other"\n', "utf8")
+    const service = await WorkspaceService.open(root)
+    service.grantEditorAlias("@codepilotx/config.toml", userConfig)
+
+    expect(await service.read("@codepilotx/config.toml")).toBe('model = "gpt-5"\n')
+    await expect(service.read("@codepilotx/other.toml")).rejects.toMatchObject({
+      code: "WORKSPACE_PATH_DENIED",
+    })
+
+    const linkedConfig = join(parent, "linked-config.toml")
+    await symlink(redirected, linkedConfig, "file")
+    const linkedService = await WorkspaceService.open(root)
+    linkedService.grantEditorAlias("@codepilotx/config.toml", linkedConfig)
+    await expect(linkedService.read("@codepilotx/config.toml")).rejects.toMatchObject({
+      code: "WORKSPACE_PATH_DENIED",
+    })
+  })
+
   test("只列出指定目录的直接子项并忽略目录与符号链接", async () => {
     const parent = await mkdtemp(join(tmpdir(), "codepilotx-workspace-"))
     paths.push(parent)

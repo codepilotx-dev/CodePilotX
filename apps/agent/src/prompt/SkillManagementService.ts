@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto"
 import { realpath } from "node:fs/promises"
-import { isAbsolute, resolve } from "node:path"
+import { isAbsolute, join, resolve } from "node:path"
+import type { ConfigObject, ConfigService, ConfigValue } from "../config/ConfigService"
 import type { InstalledSkill } from "@codepilotx/agent-protocol"
 import {
   SkillSettingsConflictError,
@@ -28,6 +29,15 @@ const normalizedIdentityPath = (path: string) => {
   return process.platform === "win32" ? absolute.toLowerCase() : absolute
 }
 
+const workspaceRootForSkill = (path: string) => {
+  const normalized = resolve(path).replaceAll("\\", "/")
+  for (const marker of ["/.codepilotx/skills/", "/.agents/skills/", "/.codex/skills/", "/.claude/skills/"]) {
+    const index = normalized.toLowerCase().indexOf(marker)
+    if (index >= 0) return normalized.slice(0, index)
+  }
+  return null
+}
+
 export const skillPathIdentity = (path: string) =>
   createHash("sha256").update(normalizedIdentityPath(path), "utf8").digest("hex")
 
@@ -49,10 +59,14 @@ export class SkillManagementService {
   constructor(
     private readonly settings: SkillSettingsRepository,
     private readonly roots: SkillStorageRoots,
+    private readonly configService?: ConfigService,
   ) {}
 
   runtimeService() {
-    const disabled = this.settings.disabledPathHashes()
+    const disabled = this.configuredDisabled(
+      this.settings.disabledPathHashes(),
+      this.configService?.snapshot() ?? {},
+    )
     return new SkillService({
       enabled: (skill) => !disabled.has(skillPathIdentity(skill.path)),
     })
@@ -61,11 +75,18 @@ export class SkillManagementService {
   async list(input: { workspace?: string | undefined; forceReload?: boolean | undefined } = {}) {
     const catalog = await this.scan(input.workspace)
     const state = this.settings.state()
+    const config = this.configService
+      ? (await this.configService.read(input.workspace ? { cwd: input.workspace } : {})).config
+      : {}
+    const disabled = this.configuredDisabled(
+      new Set(state.disabledPathHashes),
+      config,
+    )
     for (const skill of catalog.skills) {
       this.knownSkills.set(normalizedIdentityPath(skill.path), skill)
     }
     return {
-      skills: catalog.skills.map((skill) => toInstalledSkill(skill, new Set(state.disabledPathHashes))),
+      skills: catalog.skills.map((skill) => toInstalledSkill(skill, disabled)),
       generation: state.generation,
       updatedAt: state.updatedAt,
     }
@@ -97,6 +118,37 @@ export class SkillManagementService {
         enabled: input.enabled,
         operationId: input.operationId,
       })
+      if (this.configService) {
+        const workspaceRoot = skill.origin === "workspace"
+          ? workspaceRootForSkill(skill.path)
+          : null
+        const target = workspaceRoot
+          ? {
+              filePath: join(workspaceRoot, ".codepilotx", "config.toml"),
+              cwd: workspaceRoot,
+            }
+          : {}
+        const read = await this.configService.read(
+          workspaceRoot ? { cwd: workspaceRoot } : {},
+        )
+        const skills = read.config.skills
+        const existing = skills && typeof skills === "object" && !Array.isArray(skills)
+          && Array.isArray((skills as ConfigObject).config)
+          ? (skills as ConfigObject).config as ConfigValue[]
+          : []
+        const normalizedPath = normalizedIdentityPath(skill.path)
+        const entries = existing.filter((entry) =>
+          !entry
+          || typeof entry !== "object"
+          || Array.isArray(entry)
+          || normalizedIdentityPath(String(entry.path ?? "")) !== normalizedPath)
+        entries.push({ path: skill.path, enabled: input.enabled })
+        await this.configService.writeValue({
+          keyPath: ["skills", "config"],
+          value: entries,
+          ...target,
+        })
+      }
       return {
         result: {
           skill: {
@@ -114,6 +166,26 @@ export class SkillManagementService {
       }
       throw cause
     }
+  }
+
+  private configuredDisabled(
+    base: Set<string>,
+    config: ConfigObject,
+  ) {
+    const disabled = new Set(base)
+    const skills = config.skills
+    if (!skills || typeof skills !== "object" || Array.isArray(skills)) return disabled
+    const entries = Array.isArray((skills as ConfigObject).config)
+      ? (skills as ConfigObject).config as ConfigValue[]
+      : []
+    for (const entry of entries) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue
+      if (typeof entry.path !== "string" || typeof entry.enabled !== "boolean") continue
+      const identity = skillPathIdentity(entry.path)
+      if (entry.enabled) disabled.delete(identity)
+      else disabled.add(identity)
+    }
+    return disabled
   }
 
   private scanOptions(workspace?: string): SkillScanOptions {

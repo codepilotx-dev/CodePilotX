@@ -79,4 +79,26 @@ describe("event manifest invariants", () => {
       server: { url: "https://example.com", headers: { Authorization: "secret" } },
     })).toThrow()
   })
+
+  test("keeps config update events path-, value-, and credential-free", () => {
+    const decode = Schema.decodeUnknownSync(
+      EventManifest["config/updated"].payload,
+      { onExcessProperty: "error" },
+    )
+    const payload = {
+      version: "a".repeat(64),
+      changedKeyPaths: [["desktop", "reviewView"]],
+      scope: "user" as const,
+      diagnostics: [],
+    }
+    expect(decode(payload)).toEqual(payload)
+    for (const forbidden of [
+      { filePath: "C:/Users/example/.codepilotx/config.toml" },
+      { config: { apiKey: "secret" } },
+      { value: "secret" },
+      { token: "secret" },
+    ]) {
+      expect(() => decode({ ...payload, ...forbidden })).toThrow()
+    }
+  })
 })

@@ -26,11 +26,13 @@ export interface AgentConfig {
   legacyPetsDir: string | null
   relocationSourceDir: string | null
   relocationOperationId: string | null
+  legacyAppearanceSettingsPath: string | null
   storage: AgentStorageLayout
 }
 
 export interface AgentStorageLayout {
   dataRoot: string
+  userConfig: string
   historyDatabase: string
   profileDatabase: string
   legacyDatabase: string
@@ -87,6 +89,7 @@ export const resolveAgentStorageLayout = (
   const dataRoot = resolveAgentDataDirectory(environment, userHome)
   return {
     dataRoot,
+    userConfig: resolve(dataRoot, "config.toml"),
     historyDatabase: resolve(dataRoot, "history.sqlite"),
     profileDatabase: resolve(dataRoot, "profile.sqlite"),
     legacyDatabase: resolve(dataRoot, "agent.sqlite"),
@@ -147,6 +150,10 @@ export const loadConfig = Effect.sync((): AgentConfig => {
       : null,
     relocationOperationId:
       process.env.CODEPILOTX_RELOCATION_OPERATION_ID?.trim() || null,
+    legacyAppearanceSettingsPath:
+      process.env.CODEPILOTX_LEGACY_APPEARANCE_SETTINGS_PATH?.trim()
+        ? resolve(process.env.CODEPILOTX_LEGACY_APPEARANCE_SETTINGS_PATH)
+        : null,
     storage,
   }
 })

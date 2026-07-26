@@ -7,6 +7,7 @@ import { ContextManager, contextFingerprint, estimateContextTokens, type AgentIn
 import { HookService } from "../src/hooks/HookService"
 import { MemoryService, projectMemoryKey } from "../src/memory/MemoryService"
 import { AgentDatabase, SCHEMA_VERSION } from "../src/storage/database/AgentDatabase"
+import { ConfigService } from "../src/config/ConfigService"
 
 const roots: string[] = []
 const removeRoot = async (root: string) => {
@@ -66,6 +67,43 @@ describe("v8 上下文存储", () => {
 })
 
 describe("Hooks 与记忆", () => {
+  test("合并 hooks.json 与用户 config.toml 内联 Hook", async () => {
+    const { root, db } = await fixture()
+    const userHooks = join(root, "hooks.json")
+    const configPath = join(root, "config.toml")
+    await writeFile(userHooks, JSON.stringify({
+      hooks: [{ id: "json", event: "pre_tool_use", command: "json-hook" }],
+    }), "utf8")
+    await writeFile(configPath, [
+      "[hooks.inline]",
+      'event = "pre_tool_use"',
+      'command = "inline-hook"',
+      "",
+    ].join("\n"), "utf8")
+    const config = new ConfigService(configPath)
+    await config.initialize()
+    const called: string[] = []
+    const hooks = new HookService(
+      db,
+      {
+        run: async ({ command }) => {
+          called.push(command)
+          return { output: JSON.stringify({ decision: "continue" }) }
+        },
+      },
+      undefined,
+      undefined,
+      config,
+    )
+
+    expect(hooks.load({ userConfigPath: userHooks }).map((hook) => hook.id))
+      .toEqual(["json", "inline"])
+    await hooks.run("pre_tool_use", {})
+    expect(called).toEqual(["json-hook", "inline-hook"])
+    await config.dispose()
+    db.close()
+  })
+
   test("用户 Hook 先执行，未知项目 Hook 暂停且响应后可恢复", async () => {
     const { root, db, thread } = await fixture()
     const userConfig = join(root, "user-hooks.json")

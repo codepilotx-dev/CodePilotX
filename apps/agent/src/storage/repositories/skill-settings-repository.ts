@@ -17,7 +17,7 @@ type SettingsDatabase = {
   setSetting(key: string, value: unknown): void
 }
 
-const SETTINGS_KEY = "skills.settings.v1"
+const SETTINGS_KEY = "skills.runtime.v1"
 const MAX_OPERATIONS = 100
 const defaultState = (): SkillSettingsState => ({
   version: 1,

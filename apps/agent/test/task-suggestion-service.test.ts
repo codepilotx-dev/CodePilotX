@@ -143,7 +143,18 @@ describe("TaskSuggestionService", () => {
         prompts.push(input.prompt)
         return generated
       },
-    })
+    }, {
+      snapshot: () => ({
+        model_provider: "provider:test",
+        task_models: { small_fast: "small", fast: "fast" },
+      }),
+      read: async () => ({
+        config: {
+          model_provider: "provider:test",
+          task_models: { small_fast: "small", fast: "fast" },
+        },
+      }),
+    } as never)
 
     const first = await service.generate(params(project.id), "project:key")
     const second = await service.generate(params(project.id), "project:key")
@@ -192,6 +203,18 @@ describe("TaskSuggestionService", () => {
           return generated
         },
       },
+      {
+        snapshot: () => ({
+          model_provider: "provider:test",
+          task_models: { small_fast: "fast" },
+        }),
+        read: async () => ({
+          config: {
+            model_provider: "provider:test",
+            task_models: { small_fast: "fast" },
+          },
+        }),
+      } as never,
     )
 
     await service.generate(params())

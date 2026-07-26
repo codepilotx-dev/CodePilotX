@@ -39,6 +39,7 @@ import type { PetService } from "../../pet/PetService"
 import type { SkillManagementService } from "../../prompt/SkillManagementService"
 import type { McpRuntimeService } from "../../mcp/McpRuntimeService"
 import type { TaskSuggestionService } from "../../suggestion/TaskSuggestionService"
+import type { ConfigService } from "../../config/ConfigService"
 import { EventSubscriptionRegistry } from "../EventSubscriptionRegistry"
 import { secretScrubber } from "../../security/SecretScrubber"
 import { createRpcHandlerRegistry } from "./registry"
@@ -87,6 +88,7 @@ import {
 } from "@codepilotx/agent-protocol"
 
 export type RpcRouterDependencies = {
+  config: ConfigService
   db: AgentDatabase
   hub: EventHub
   threads: ThreadService
@@ -640,8 +642,17 @@ export class RpcRouter {
   private async configuredModels() {
     const source = await this.loadCatalogSource()
     const first = source.models.find((model) => model.enabled)
-    const configuredDefault = this.dependencies.db.getSetting<Model.Ref>("defaultModel")
-    const configuredReviewer = this.dependencies.db.getSetting<Model.Ref>("reviewerModel")
+    const config = this.dependencies.config.snapshot()
+    const providerID = typeof config.model_provider === "string" ? config.model_provider : ""
+    const taskModels = config.task_models && typeof config.task_models === "object" && !Array.isArray(config.task_models)
+      ? config.task_models as Record<string, unknown>
+      : {}
+    const configuredDefault = providerID && typeof config.model === "string"
+      ? { providerID, id: config.model } as Model.Ref
+      : null
+    const configuredReviewer = providerID && typeof taskModels.reviewer === "string"
+      ? { providerID, id: taskModels.reviewer } as Model.Ref
+      : null
     const available = (ref: Model.Ref | null) => {
       if (!ref) return null
       const match = source.modelsByProvider.get(ref.providerID)?.find((model) => model.id === ref.id)
@@ -808,6 +819,7 @@ export const resolveAiReviewSource = async (
 export const aiReviewModel = async (
   db: AgentDatabase,
   providers: AgentModelCatalog,
+  configService: ConfigService,
   threadId: string,
   projectId: string,
 ): Promise<Model.Ref> => {
@@ -820,11 +832,24 @@ export const aiReviewModel = async (
       latestModel = null
     }
   }
+  const project = db.getProject(projectId)
+  const config = (await configService.read(
+    project ? { cwd: project.rootPath } : {},
+  )).config
+  const taskModels = config.task_models && typeof config.task_models === "object" && !Array.isArray(config.task_models)
+    ? config.task_models as Record<string, unknown>
+    : {}
+  const providerID = typeof config.model_provider === "string" ? config.model_provider : ""
+  const configuredReviewer = providerID && typeof taskModels.reviewer === "string"
+    ? { providerID, id: taskModels.reviewer } as Model.Ref
+    : null
+  const configuredDefault = providerID && typeof config.model === "string"
+    ? { providerID, id: config.model } as Model.Ref
+    : null
   const candidates = [
-    db.getSetting<Model.Ref>("reviewerModel"),
+    configuredReviewer,
     latestModel,
-    db.getProjectSettings(projectId)?.defaultModel,
-    db.getSetting<Model.Ref>("defaultModel"),
+    configuredDefault,
   ]
   for (const candidate of candidates) {
     if (!candidate) continue

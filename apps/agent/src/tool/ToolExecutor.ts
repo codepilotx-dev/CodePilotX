@@ -84,6 +84,8 @@ export interface ToolExecutionContext {
 
 export interface ToolExecutorOptions {
   dataDir: string
+  userConfigPath?: string
+  validateConfigDocument?: (text: string, scope: "user" | "project") => void
   sandbox: SandboxRuntimeAdapter
   authorizeShell: (invocation: ToolInvocation, signal: AbortSignal) => Promise<PermissionDecision>
   recordToolCall?: (invocation: ToolInvocation, status: "running" | "completed" | "error" | "interrupted", output?: unknown, error?: string | null, startedAt?: number) => void
@@ -172,9 +174,40 @@ export class ToolExecutor {
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
     const pathValue = typeof input.file_path === "string" ? input.file_path : input.path
     const relativeToolPath = typeof pathValue === "string" ? pathValue.replaceAll("\\", "/").toLowerCase() : ""
+    if (
+      typeof pathValue === "string"
+      && pathValue === "@codepilotx/config.toml"
+      && this.options?.userConfigPath
+    ) {
+      context.workspace.grantEditorAlias("@codepilotx/config.toml", this.options.userConfigPath)
+    }
     const sensitiveEnvironment = /^\.env(?:\..+)?$/.test(relativeToolPath) && !/^\.env\.(?:example|template)$/.test(relativeToolPath)
     const protectedGitWrite = (name === "Write" || name === "Edit") && (relativeToolPath === ".git/config" || relativeToolPath.startsWith(".git/hooks/"))
-    const policyInput = sensitiveEnvironment || protectedGitWrite ? { ...input, __ruleRequiresApproval: true } : input
+    const protectedConfigWrite = (name === "Write" || name === "Edit")
+      && (relativeToolPath === ".codepilotx/config.toml" || relativeToolPath === "@codepilotx/config.toml")
+    if (protectedConfigWrite && this.options?.validateConfigDocument) {
+      let nextContent = typeof input.content === "string" ? input.content : undefined
+      if (name === "Edit") {
+        const current = await context.workspace.readEditorFile(String(pathValue))
+        const before = typeof input.old_string === "string" ? input.old_string : ""
+        const after = typeof input.new_string === "string" ? input.new_string : ""
+        if (!before || !current.content.includes(before)) {
+          throw new AgentError("PATCH_CONTEXT_NOT_FOUND", "编辑上下文未找到", 409)
+        }
+        nextContent = input.replace_all === true
+          ? current.content.split(before).join(after)
+          : current.content.replace(before, after)
+      }
+      if (nextContent !== undefined) {
+        this.options.validateConfigDocument(
+          nextContent,
+          relativeToolPath.startsWith("@") ? "user" : "project",
+        )
+      }
+    }
+    const policyInput = sensitiveEnvironment || protectedGitWrite || protectedConfigWrite
+      ? { ...input, __ruleRequiresApproval: true }
+      : input
     const invocation: ToolInvocation = { id: context.toolCallID ?? crypto.randomUUID(), threadID: context.threadID, turnID: context.turnID, agentID: context.agentID ?? context.turnID, name, input: policyInput, permissionConfig, model, taskMode: context.taskMode, ...(context.authorizationOnly ? { durableApproval: true } : {}) }
     const resolved = this.decisions.evaluate(invocation, catalog.get(name))
     if (resolved.action === "deny") throw new AgentError("TOOL_PERMISSION_DENIED", resolved.reason, 403, resolved)

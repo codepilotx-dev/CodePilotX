@@ -139,7 +139,13 @@ export const reviewHandlers = {
               operationID: crypto.randomUUID(),
             })
           : sourceThread
-        const model = await aiReviewModel(db, providers, input.threadId, projectID)
+        const model = await aiReviewModel(
+          db,
+          providers,
+          runtime.dependencies.config,
+          input.threadId,
+          projectID,
+        )
         const submitted = await threads.submit(targetThread.id, {
           content: aiReviewPrompt(input.target),
           model,

@@ -313,7 +313,11 @@ class SchemaInitializer {
           18: () => migrateHistory18To19(this.sqlite),
           19: () => migrateHistory19To20(this.sqlite),
         }
-      : {}
+      : {
+          // v2 moves durable preferences to config.toml. The file migration
+          // runs after both profile/config paths are available in bootstrap.
+          1: () => undefined,
+        }
     this.sqlite.transaction(() => {
       let version = from
       while (version < target) {

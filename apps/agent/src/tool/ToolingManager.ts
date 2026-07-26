@@ -121,6 +121,8 @@ export interface ToolingManagerOptions {
   root?: string
   fetch?: typeof fetch
   legacyInstallCodePilotXDependencies?: boolean
+  preferences?: Partial<Record<ManagedToolID, ToolingPreference>>
+  persistPreferences?: boolean
 }
 
 const TOOL_IDS = ["nodejs", "python", "git-bash", "ripgrep"] as const
@@ -162,6 +164,8 @@ export class ToolingManager {
   readonly root: string
   private readonly fetchImpl: typeof fetch
   private readonly legacyInstallCodePilotXDependencies: boolean | undefined
+  private readonly configuredPreferences: Partial<Record<ManagedToolID, ToolingPreference>> | undefined
+  private readonly persistPreferences: boolean
   private readonly phases = new Map<ManagedToolID, Pick<ToolingStatus, "phase" | "progress" | "error">>()
   private readonly installs = new Map<ManagedToolID, Promise<ToolingResolution>>()
   private readonly listeners = new Set<Listener>()
@@ -179,6 +183,8 @@ export class ToolingManager {
     )
     this.fetchImpl = options.fetch ?? fetch
     this.legacyInstallCodePilotXDependencies = options.legacyInstallCodePilotXDependencies
+    this.configuredPreferences = options.preferences
+    this.persistPreferences = options.persistPreferences !== false
   }
 
   subscribe(listener: Listener) {
@@ -239,7 +245,7 @@ export class ToolingManager {
   async setPreference(id: ManagedToolID, preference: ToolingPreference): Promise<ToolingStatus> {
     await this.initialize()
     this.settings.preferences[id] = preference
-    await this.saveSettings()
+    if (this.persistPreferences) await this.saveSettings()
     if (preference === "system") await this.removeManaged(id)
     const status = await this.getStatus(id)
     this.emit(status)
@@ -624,12 +630,18 @@ export class ToolingManager {
     await mkdir(join(this.root, "v2"), { recursive: true })
     await mkdir(join(this.root, ".staging"), { recursive: true })
     await mkdir(join(this.root, ".trash"), { recursive: true })
-    try {
-      const parsed = JSON.parse(await readFile(this.settingsPath(), "utf8")) as Partial<ToolingSettings>
-      this.settings = this.normalizeSettings(parsed)
-    } catch {
-      this.settings = await this.migrateLegacySettings()
-      await this.saveSettings()
+    if (this.configuredPreferences) {
+      this.settings = this.normalizeSettings({
+        preferences: this.configuredPreferences as Record<ManagedToolID, ToolingPreference>,
+      })
+    } else {
+      try {
+        const parsed = JSON.parse(await readFile(this.settingsPath(), "utf8")) as Partial<ToolingSettings>
+        this.settings = this.normalizeSettings(parsed)
+      } catch {
+        this.settings = await this.migrateLegacySettings()
+        if (this.persistPreferences) await this.saveSettings()
+      }
     }
     await this.cleanupDirectory(join(this.root, ".staging"))
     await this.cleanupDirectory(join(this.root, ".trash"))

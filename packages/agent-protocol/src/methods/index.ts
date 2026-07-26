@@ -1,6 +1,7 @@
 import type { Schema } from "effect"
 import type { ParamsOf, ResultOf } from "../wire/definition"
 import { CoreRpcMethods } from "./core"
+import { ConfigRpcMethods } from "./config"
 import { ExtendedRpcMethods } from "./extended"
 import { GithubRpcMethods } from "./github"
 import { McpRpcMethods } from "./mcp"
@@ -12,6 +13,7 @@ import { ToolingRpcMethods } from "./tooling"
 
 export const RpcMethods = {
   ...CoreRpcMethods,
+  ...ConfigRpcMethods,
   ...ExtendedRpcMethods,
   ...GithubRpcMethods,
   ...McpRpcMethods,
@@ -31,6 +33,7 @@ export type RpcParamsSchema<M extends RpcMethod> = (typeof RpcMethods)[M]["param
 export type RpcResultSchema<M extends RpcMethod> = (typeof RpcMethods)[M]["result"] & Schema.Top
 
 export * from "./core"
+export * from "./config"
 export * from "./extended"
 export * from "./github"
 export * from "./mcp"

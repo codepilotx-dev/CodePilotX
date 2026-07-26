@@ -8,5 +8,5 @@ export const SCHEMA_VERSION = 20
 export const DATA_EPOCH = 2
 
 /** Profile data has an independent, never-reset lifecycle. */
-export const PROFILE_SCHEMA_VERSION = 1
+export const PROFILE_SCHEMA_VERSION = 2
 export const PROFILE_APPLICATION_ID = 0x43505850

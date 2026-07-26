@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { z } from "zod"
 import { AgentError } from "../src/domain"
-import { ToolExecutor } from "../src/tool/ToolExecutor"
+import { ToolExecutor, type ToolExecutorOptions } from "../src/tool/ToolExecutor"
 import { ToolRegistry } from "../src/tool/ToolRegistry"
 import { WorkspaceService } from "../src/workspace/WorkspaceService"
 import type { ToolingResolver, ToolProcessRunner } from "../src/tool/ToolingRuntime"
@@ -12,13 +12,22 @@ import type { ToolingResolver, ToolProcessRunner } from "../src/tool/ToolingRunt
 const temporary: string[] = []
 afterEach(async () => Promise.all(temporary.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
 
-const fixture = async (runtime: { resolveTooling?: ToolingResolver; runToolProcess?: ToolProcessRunner } = {}) => {
+const fixture = async (runtime: {
+  resolveTooling?: ToolingResolver
+  runToolProcess?: ToolProcessRunner
+  authorizeShell?: ToolExecutorOptions["authorizeShell"]
+  validateConfigDocument?: ToolExecutorOptions["validateConfigDocument"]
+} = {}) => {
   const root = await mkdtemp(join(tmpdir(), "codepilotx-core-tools-"))
   temporary.push(root)
   const workspace = await WorkspaceService.open(root)
   const toolingCalls: string[][] = []
   const executor = new ToolExecutor(new ToolRegistry(), {
     dataDir: join(root, ".agent-data"),
+    userConfigPath: join(root, "config.toml"),
+    ...(runtime.validateConfigDocument
+      ? { validateConfigDocument: runtime.validateConfigDocument }
+      : {}),
     sandbox: {
       getStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "test", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
       refreshStatus: async () => ({ state: "available" as const, platform: "win32" as const, architecture: "x64", runtimeVersion: "test", helperPath: null, helperSha256: null, user: null, wfp: null, error: null }),
@@ -27,7 +36,8 @@ const fixture = async (runtime: { resolveTooling?: ToolingResolver; runToolProce
       dispose: async () => undefined,
       run: async () => { throw new Error("not used") },
     },
-    authorizeShell: async () => ({ decision: "allow", risk: "low", reason: "test" }),
+    authorizeShell: runtime.authorizeShell
+      ?? (async () => ({ decision: "allow", risk: "low", reason: "test" })),
     resolveTooling: runtime.resolveTooling ?? (async (id) => ({ available: true, path: `${id}.exe`, source: "system", version: "test" })),
     runToolProcess: runtime.runToolProcess ?? (async ({ args }) => {
       toolingCalls.push([...args])
@@ -45,6 +55,67 @@ const fixture = async (runtime: { resolveTooling?: ToolingResolver; runToolProce
 }
 
 describe("核心工具面", () => {
+  test("配置文件写入强制审批并按用户/项目作用域预校验", async () => {
+    const reviewed: Array<Record<string, unknown>> = []
+    const validated: Array<{ text: string; scope: "user" | "project" }> = []
+    const { root, executor, context } = await fixture({
+      authorizeShell: async (invocation) => {
+        reviewed.push(invocation.input)
+        return { decision: "allow", risk: "medium", reason: "approved" }
+      },
+      validateConfigDocument: (text, scope) => validated.push({ text, scope }),
+    })
+    await writeFile(join(root, "config.toml"), 'model = "old"\n', "utf8")
+
+    const userAuthorization = await executor.execute<{ decision: string }>(
+      "Write",
+      { file_path: "@codepilotx/config.toml", content: 'model = "new"\n' },
+      {
+        ...context,
+        authorizationOnly: true,
+        permissionConfig: {
+          sandboxMode: "workspace-write",
+          approvalPolicy: "on-request",
+          approvalsReviewer: "user",
+        },
+      },
+    )
+    expect(userAuthorization.decision).toBe("allow")
+    expect(reviewed.at(-1)?.__ruleRequiresApproval).toBe(true)
+    expect(validated.at(-1)).toEqual({
+      text: 'model = "new"\n',
+      scope: "user",
+    })
+
+    await executor.execute<{ decision: string }>(
+      "Write",
+      { file_path: ".codepilotx/config.toml", content: 'model = "project"\n' },
+      {
+        ...context,
+        authorizationOnly: true,
+        permissionConfig: {
+          sandboxMode: "workspace-write",
+          approvalPolicy: "on-request",
+          approvalsReviewer: "user",
+        },
+      },
+    )
+    expect(validated.at(-1)?.scope).toBe("project")
+    await expect(executor.execute(
+      "Write",
+      { file_path: "@codepilotx/config.toml", content: 'model = "blocked"\n' },
+      {
+        ...context,
+        authorizationOnly: true,
+        permissionConfig: {
+          sandboxMode: "workspace-write",
+          approvalPolicy: "never",
+          approvalsReviewer: "user",
+        },
+      },
+    )).rejects.toMatchObject({ code: "TOOL_PERMISSION_DENIED" })
+  })
+
   test("只暴露规范名称，并用同一计划收紧 Skill allowlist", async () => {
     const { executor, context } = await fixture()
     const plan = executor.exposurePlan({ taskMode: "chat", sandboxMode: "workspace-write", profile: "main", allowedTools: ["Read", "workspace_search"] })

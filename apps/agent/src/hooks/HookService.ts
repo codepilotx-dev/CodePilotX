@@ -3,6 +3,7 @@ import { createHash } from "node:crypto"
 import { isAbsolute, relative, resolve } from "node:path"
 import type { AgentDatabase } from "../storage/database/AgentDatabase"
 import { AgentError, type EventEnvelope } from "../domain"
+import type { ConfigObject, ConfigService } from "../config/ConfigService"
 
 export type HookEvent = "session_start" | "session_resume" | "user_prompt_submit" | "pre_tool_use" | "permission_request" | "post_tool_use" | "post_tool_error" | "pre_compact" | "stop"
 export type HookDecision = "continue" | "ask" | "deny"
@@ -38,16 +39,9 @@ const contained = (root: string, path: string) => {
   return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel))
 }
 
-const readConfig = (path: string, containmentRoot?: string) => {
-  const canonical = realpathSync(path)
-  if (containmentRoot && !contained(realpathSync(containmentRoot), canonical)) throw new Error(`Hook 配置逃出 workspace: ${path}`)
-  const bytes = readFileSync(canonical)
-  if (bytes.byteLength > MAX_CONFIG_BYTES) throw new Error(`Hook 配置超过 ${MAX_CONFIG_BYTES} bytes`)
-  const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes)
-  const parsed = JSON.parse(text) as unknown
-  const hooks = Array.isArray(parsed) ? parsed : (parsed as { hooks?: unknown })?.hooks
-  if (!Array.isArray(hooks)) throw new Error(`Hook 配置必须包含 hooks 数组: ${path}`)
-  const definitions = hooks.map((value, index) => {
+const parseDefinitions = (hooks: unknown, source: string) => {
+  if (!Array.isArray(hooks)) throw new Error(`Hook 配置必须包含 hooks 数组: ${source}`)
+  return hooks.map((value, index) => {
     if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Hook #${index + 1} 无效`)
     const hook = value as Record<string, unknown>
     if (typeof hook.id !== "string" || !hook.id.trim()) throw new Error(`Hook #${index + 1} 缺少 id`)
@@ -57,6 +51,31 @@ const readConfig = (path: string, containmentRoot?: string) => {
     if (hook.matcher !== undefined && typeof hook.matcher !== "string") throw new Error(`Hook ${hook.id} matcher 无效`)
     return { id: hook.id, event: hook.event as HookEvent, command: hook.command, ...(typeof hook.matcher === "string" ? { matcher: hook.matcher } : {}), ...(typeof hook.timeoutMs === "number" ? { timeoutMs: hook.timeoutMs } : {}) }
   })
+}
+
+const inlineHooks = (config: ConfigObject, source: string) => {
+  const hooks = config.hooks
+  if (!hooks) return []
+  if (Array.isArray(hooks)) return parseDefinitions(hooks, source)
+  if (typeof hooks !== "object") throw new Error(`内联 Hook 配置无效: ${source}`)
+  const table = hooks as Record<string, unknown>
+  if (Array.isArray(table.config)) return parseDefinitions(table.config, source)
+  const definitions = Object.entries(table).flatMap(([id, value]) =>
+    value && typeof value === "object" && !Array.isArray(value)
+      ? [{ id, ...(value as Record<string, unknown>) }]
+      : [])
+  return parseDefinitions(definitions, source)
+}
+
+const readConfig = (path: string, containmentRoot?: string) => {
+  const canonical = realpathSync(path)
+  if (containmentRoot && !contained(realpathSync(containmentRoot), canonical)) throw new Error(`Hook 配置逃出 workspace: ${path}`)
+  const bytes = readFileSync(canonical)
+  if (bytes.byteLength > MAX_CONFIG_BYTES) throw new Error(`Hook 配置超过 ${MAX_CONFIG_BYTES} bytes`)
+  const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes)
+  const parsed = JSON.parse(text) as unknown
+  const hooks = Array.isArray(parsed) ? parsed : (parsed as { hooks?: unknown })?.hooks
+  const definitions = parseDefinitions(hooks, path)
   return { definitions, canonical, hash: createHash("sha256").update(bytes).digest("hex") }
 }
 
@@ -91,10 +110,17 @@ export class HookService {
     private readonly runner: HookToolRunner,
     private readonly scrub: HookScrubber = (value) => value,
     private readonly publishEvent?: (event: EventEnvelope) => Promise<void>,
+    private readonly config?: ConfigService,
   ) {}
 
   load(input: { userConfigPath?: string; projectRoot?: string; includeProjectHooks?: boolean }) {
-    const userHooks = input.userConfigPath && existsSync(input.userConfigPath) ? readConfig(input.userConfigPath).definitions : []
+    const layers = this.config?.snapshotLayers(input.projectRoot) ?? []
+    const userLayer = layers.find((layer) => layer.kind === "user")
+    const projectLayer = layers.find((layer) => layer.kind === "project" && layer.trusted)
+    const userHooks = [
+      ...(input.userConfigPath && existsSync(input.userConfigPath) ? readConfig(input.userConfigPath).definitions : []),
+      ...(userLayer ? inlineHooks(userLayer.config, userLayer.filePath ?? "用户 config.toml") : []),
+    ]
     const projectHooks: HookDefinition[] = []
     let projectConfig: ReturnType<typeof readConfig> | null = null
     if (input.projectRoot && input.includeProjectHooks !== false) {
@@ -105,6 +131,15 @@ export class HookService {
         projectConfig = loaded
       }
     }
+    const projectInlineHooks = input.includeProjectHooks !== false && projectLayer
+      ? inlineHooks(projectLayer.config, projectLayer.filePath ?? "项目 config.toml")
+      : []
+    projectHooks.push(...projectInlineHooks)
+    const combinedProjectHash = projectInlineHooks.length
+      ? createHash("sha256")
+          .update(`${projectConfig?.hash ?? ""}:${projectLayer?.version ?? ""}`)
+          .digest("hex")
+      : projectConfig?.hash ?? null
     const hooks = Object.freeze([...userHooks, ...projectHooks])
     const key = input.projectRoot
       ? `workspace:${realpathSync(input.projectRoot)}`
@@ -116,8 +151,10 @@ export class HookService {
       userHooks: Object.freeze([...userHooks]),
       projectHooks: Object.freeze([...projectHooks]),
       workspaceRoot: input.projectRoot ? realpathSync(input.projectRoot) : null,
-      configPath: projectConfig?.canonical ?? null,
-      configHash: projectConfig?.hash ?? null,
+      configPath: projectInlineHooks.length
+        ? projectLayer?.filePath ?? null
+        : projectConfig?.canonical ?? null,
+      configHash: combinedProjectHash,
     })
     return hooks.slice()
   }
