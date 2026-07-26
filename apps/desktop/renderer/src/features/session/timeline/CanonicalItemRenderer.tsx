@@ -26,7 +26,6 @@ import {
   WorkflowPlanCard,
   type OpenPlanInDockRequest,
 } from "../workflow/WorkflowPlanCard.js";
-import { ExecutionPlanCard } from "../workflow/ExecutionPlanCard.js";
 
 type ItemOf<T extends Item["type"]> = Extract<Item, { type: T }>;
 
@@ -179,7 +178,7 @@ export function CanonicalItemRenderer({
         />
       );
     case "execution-plan":
-      return <ExecutionPlanCard item={item} />;
+      return null;
     case "question":
       return <QuestionItemView item={item} />;
     case "patch":

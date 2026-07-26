@@ -223,97 +223,66 @@
   }
 }
 
-/* --- Turn-scoped execution plan --- */
+/* --- Composer execution plan --- */
 .execution-plan-card {
-  width: var(--workflow-composer-width, var(--layout-content-w));
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 15px;
+  position: absolute;
+  z-index: 0;
+  bottom: calc(100% + 5px);
+  left: -40%;
+  width: 100%;
+  padding: 12px 14px;
+  overflow: hidden;
   border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-panel);
-  background: var(--color-token-bg-secondary);
+  border-radius: var(--radius-marquee);
+  background: var(--color-token-editor-widget-background);
   color: var(--color-token-foreground);
   box-shadow: var(--shadow-raised);
   animation: workflow-item-in 0.28s ease-out;
 }
 
-.execution-plan-card__header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-
-  > div {
-    min-width: 0;
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-  }
-
-  strong {
-    color: var(--color-token-description-foreground);
-    font-size: var(--type-meta);
-    font-weight: 500;
-    white-space: nowrap;
-  }
-}
-
-.execution-plan-card__label {
-  color: var(--color-token-foreground);
-  font-size: var(--type-section-title);
-  font-weight: var(--font-weight-label);
-}
-
-.execution-plan-card__progress {
-  height: 4px;
-  min-width: 72px;
-  flex: 1;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--color-token-border-light);
-
-  > span {
-    display: block;
-    height: 100%;
-    border-radius: inherit;
-    background: var(--color-token-focus-border);
-    transition: width 0.2s ease-out;
-  }
-}
-
-.execution-plan-card__explanation {
-  margin: 0;
-  color: var(--color-token-description-foreground);
-  font-size: var(--type-body);
-  line-height: 1.5;
-}
-
 .execution-plan-card__steps {
+  --execution-plan-edge-fade-distance: 2rem;
+
   display: grid;
-  gap: 7px;
+  gap: 4px;
+  max-height: 10rem;
   margin: 0;
   padding: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
   list-style: none;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    var(--color-token-foreground) var(--execution-plan-top-fade)
+      calc(100% - var(--execution-plan-bottom-fade)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    var(--color-token-foreground) var(--execution-plan-top-fade)
+      calc(100% - var(--execution-plan-bottom-fade)),
+    transparent
+  );
+  animation-name: execution-plan-edge-fade;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-timeline: scroll(self y);
 
   li {
     display: grid;
-    grid-template-columns: 18px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 8px;
-    min-height: 24px;
-    color: var(--color-token-foreground);
+    grid-template-columns: 18px max-content minmax(0, 1fr);
+    align-items: start;
+    gap: 7px;
+    min-height: 20px;
+    color: var(--color-token-description-foreground);
     font-size: var(--type-body);
     line-height: 1.4;
   }
 
-  li[data-status="completed"] {
-    color: var(--color-token-description-foreground);
-  }
-
-  small {
-    color: var(--color-token-description-foreground);
-    font-size: var(--type-meta);
-    white-space: nowrap;
+  li[data-status="in_progress"] .execution-plan-card__step-text {
+    color: var(--color-token-foreground);
   }
 }
 
@@ -322,6 +291,7 @@
   align-items: center;
   justify-content: center;
   color: var(--color-token-description-foreground);
+  margin-top: 2px;
 
   svg {
     width: 15px;
@@ -329,9 +299,60 @@
   }
 }
 
+.execution-plan-card__step-index {
+  color: color-mix(
+    in srgb,
+    var(--color-token-description-foreground) 80%,
+    transparent
+  );
+}
+
+.execution-plan-card__step-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.execution-plan-card__steps li[data-status="completed"]
+  .execution-plan-card__step-text {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
 .execution-plan-card__steps li[data-status="in_progress"]
   .execution-plan-card__step-icon {
   color: var(--color-token-focus-border);
+}
+
+@property --execution-plan-top-fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --execution-plan-bottom-fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@keyframes execution-plan-edge-fade {
+  0%,
+  1% {
+    --execution-plan-top-fade: 0;
+    --execution-plan-bottom-fade: var(
+      --execution-plan-edge-fade-distance,
+      2rem
+    );
+  }
+
+  99%,
+  100% {
+    --execution-plan-top-fade: var(
+      --execution-plan-edge-fade-distance,
+      2rem
+    );
+    --execution-plan-bottom-fade: 0;
+  }
 }
 
 .workflow-plan-card--compact {
@@ -501,10 +522,6 @@
   .workflow-plan-card,
   .execution-plan-card {
     animation: none;
-  }
-
-  .execution-plan-card__progress > span {
-    transition: none;
   }
 
   .workflow-page__composer-inner {

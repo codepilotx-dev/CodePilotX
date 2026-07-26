@@ -251,6 +251,9 @@ export function CanonicalConversationTurn({
         if (block.kind === "patch") {
           return <section className="canonical-turn__post" aria-label="文件更改" key={block.id}>{renderItem(block.item)}</section>;
         }
+        if (block.kind === "execution-plan") {
+          return null;
+        }
         return <section className="canonical-turn__post" key={block.id}>{renderItem(block.item)}</section>;
       })}
       {entry.blockers.length ? (

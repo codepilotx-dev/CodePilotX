@@ -78,6 +78,10 @@ import { parseAskUserQuestions } from "../approvals/askUserQuestionModel.js";
 import { MarkdownMessage } from "../MarkdownMessage.js";
 import { CollapsibleUserMarkdown } from "./CollapsibleUserMarkdown.js";
 import { ComposerFrame } from "../composer/ComposerSurface.js";
+import {
+  ComposerChangeSummary,
+  findLatestExecutionPlan,
+} from "../composer/ComposerChangeSummary.js";
 import { DesktopComposer } from "../composer/DesktopComposer.js";
 import {
   clearConversationSelectionHighlight,
@@ -429,11 +433,11 @@ export function ConversationPage(): React.ReactNode {
   const [workflowTimelineVisible, setWorkflowTimelineVisible] =
     React.useState(false);
   const changedFileCount = workspacePath ? (gitStatus?.files.length ?? 0) : 0;
-  const hasComposerPlan = timelineEvents.some(
-    (event) => event.type === "proposed_plan",
+  const composerExecutionPlan = findLatestExecutionPlan(
+    canonicalConversation.turns,
   );
   const showComposerStatusSummary = shouldShowComposerStatusSummary({
-    hasPlan: hasComposerPlan,
+    hasPlan: composerExecutionPlan !== null,
     changedFileCount,
   });
   const composerDiffSummary = React.useMemo(() => summarizeDiff(diff), [diff]);
@@ -483,6 +487,7 @@ export function ConversationPage(): React.ReactNode {
     composerMode,
     activePermissionRequest?.requestId ?? "",
     showComposerStatusSummary,
+    composerExecutionPlan,
     composerProps ? "mounted" : "unmounted",
   ]);
 
@@ -973,33 +978,15 @@ export function ConversationPage(): React.ReactNode {
         style={composerTransition.style}
       >
         {showComposerStatusSummary ? (
-          <div className="composer-change-summary">
-            {hasComposerPlan ? (
-              <span className="composer-change-summary__plan">
-                <LoaderCircle
-                  aria-hidden="true"
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
-                计划
-              </span>
-            ) : null}
-            {hasComposerPlan && changedFileCount > 0 ? (
-              <span
-                aria-hidden="true"
-                className="composer-change-summary__separator"
-              >
-                ·
-              </span>
-            ) : null}
-            {changedFileCount > 0 ? (
-              <span className="composer-change-summary__changes">
-                {changedFileCount} 个文件已更改
-                <strong> +{formatPanelNumber(composerDiffSummary.additions)}</strong>
-                <em> -{formatPanelNumber(composerDiffSummary.deletions)}</em>
-              </span>
-            ) : null}
-          </div>
+          <ComposerChangeSummary
+            active={
+              sessionStatus === "running" || sessionStatus === "waiting"
+            }
+            additions={composerDiffSummary.additions}
+            changedFileCount={changedFileCount}
+            deletions={composerDiffSummary.deletions}
+            executionPlan={composerExecutionPlan}
+          />
         ) : null}
         {activePermissionRequest ? (
           <InlineApprovalCard

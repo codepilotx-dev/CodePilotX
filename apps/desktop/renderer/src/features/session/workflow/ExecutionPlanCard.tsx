@@ -1,5 +1,5 @@
 import React from "react";
-import { Check, Circle, LoaderCircle } from "lucide-react";
+import { Circle, CircleCheck, LoaderCircle } from "lucide-react";
 import type { Item } from "@codepilotx/shared/thread";
 
 type ExecutionPlanItem = Extract<Item, { type: "execution-plan" }>;
@@ -10,43 +10,19 @@ export function ExecutionPlanCard({
 }: {
   item: ExecutionPlanItem;
 }): React.ReactNode {
-  const completed = item.steps.filter((step) => step.status === "completed").length;
-  const active = item.status === "streaming";
-
   return (
     <article
       aria-label="执行计划"
       className="execution-plan-card"
       data-status={item.status}
     >
-      <header className="execution-plan-card__header">
-        <div>
-          <span className="execution-plan-card__label">
-            {active ? "执行计划更新中" : "执行计划"}
-          </span>
-          <strong>
-            {completed}/{item.steps.length} 已完成
-          </strong>
-        </div>
-        <span
-          aria-label={`${completed} / ${item.steps.length} 个步骤已完成`}
-          className="execution-plan-card__progress"
-        >
-          <span
-            style={{
-              width: `${item.steps.length === 0 ? 0 : (completed / item.steps.length) * 100}%`,
-            }}
-          />
-        </span>
-      </header>
-
-      {item.explanation ? (
-        <p className="execution-plan-card__explanation">{item.explanation}</p>
-      ) : null}
-
       <ol className="execution-plan-card__steps">
-        {item.steps.map((step) => (
-          <ExecutionPlanStepView key={step.step} step={step} />
+        {item.steps.map((step, index) => (
+          <ExecutionPlanStepView
+            index={index}
+            key={`${index}:${step.step}`}
+            step={step}
+          />
         ))}
       </ol>
     </article>
@@ -54,8 +30,10 @@ export function ExecutionPlanCard({
 }
 
 function ExecutionPlanStepView({
+  index,
   step,
 }: {
+  index: number;
   step: ExecutionPlanStep;
 }): React.ReactNode {
   const label =
@@ -66,18 +44,23 @@ function ExecutionPlanStepView({
         : "待处理";
 
   return (
-    <li data-status={step.status}>
+    <li
+      aria-label={`第 ${index + 1} 步，${step.step}，${label}`}
+      data-status={step.status}
+    >
       <span className="execution-plan-card__step-icon" aria-hidden="true">
         {step.status === "completed" ? (
-          <Check />
+          <CircleCheck />
         ) : step.status === "in_progress" ? (
           <LoaderCircle className="canonical-spin" />
         ) : (
           <Circle />
         )}
       </span>
-      <span>{step.step}</span>
-      <small>{label}</small>
+      <span className="execution-plan-card__step-index" aria-hidden="true">
+        {index + 1}.
+      </span>
+      <span className="execution-plan-card__step-text">{step.step}</span>
     </li>
   );
 }

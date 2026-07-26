@@ -634,21 +634,47 @@
 /* --- Composer change summary --- */
 .composer-change-summary {
   align-self: center;
-  display: inline-flex;
+  display: flex;
+  position: relative;
   width: fit-content;
-  max-width: calc(100% - 40px);
+  max-width: 100%;
+  flex-direction: column;
   align-items: center;
-  gap: var(--control-gap);
-  padding: 10px 18px;
-  border: 1px solid var(--color-token-border-light);
-  border-radius: var(--radius-marquee);
-  background: var(--color-token-bg-secondary);
-  color: var(--color-token-input-placeholder-foreground);
-  font-size: var(--type-body);
-  font-weight: var(--font-weight-label);
-  line-height: 1;
-  box-shadow: var(--shadow-resting);
   pointer-events: auto;
+
+  &__bar {
+    display: inline-flex;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: auto;
+    min-height: var(--control-size-sm);
+    max-width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: var(--control-gap);
+    box-sizing: border-box;
+    padding: 10px 14px;
+    overflow: hidden;
+    border: 1px solid var(--color-token-border-light);
+    border-radius: var(--radius-marquee);
+    background: var(--color-token-bg-secondary);
+    color: var(--color-token-input-placeholder-foreground);
+    font-size: var(--type-body);
+    font-weight: var(--font-weight-label);
+    line-height: 1;
+    box-shadow: var(--shadow-resting);
+
+    &.ui-button:hover:not(:disabled) {
+      border-color: var(--color-token-border-light);
+      background: color-mix(
+        in srgb,
+        var(--color-token-foreground) 4%,
+        var(--color-token-bg-secondary)
+      );
+      box-shadow: var(--shadow-resting);
+    }
+  }
 
   &__plan,
   &__changes {
@@ -659,33 +685,42 @@
   }
 
   &__plan {
+    flex: 0 0 auto;
     gap: 7px;
+  }
 
-    svg {
-      flex: 0 0 auto;
-      color: var(--color-token-text-link-foreground);
-      animation: composer-status-summary-spin 1.2s linear infinite;
-    }
+  &__changes {
+    gap: var(--control-gap);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__plan-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    color: var(--color-token-text-link-foreground);
   }
 
   &__separator {
+    flex: 0 0 auto;
     color: var(--color-token-description-foreground);
+  }
+
+  &__diff {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 4px;
   }
 
   strong {
     color: var(--color-token-git-decoration-added-resource-foreground);
     font-weight: var(--font-weight-label);
-    margin-left: 5px;
   }
 
   em {
     color: var(--color-token-git-decoration-deleted-resource-foreground);
     font-style: normal;
-  }
-}
-
-@keyframes composer-status-summary-spin {
-  to {
-    transform: rotate(360deg);
   }
 }
