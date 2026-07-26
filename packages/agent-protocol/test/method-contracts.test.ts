@@ -365,6 +365,61 @@ type MethodFixtures = {
 }
 
 const fixtures = {
+  "config/read": methodFixture("config/read", {
+    includeLayers: true,
+    cwd: "F:/CodeProject/example",
+  }, {
+    config: { model: "gpt-5.6", desktop: { showContextUsage: true } },
+    origins: { model: "user", "desktop.showContextUsage": "user" },
+    layers: [{
+      kind: "user",
+      displayName: "用户配置",
+      filePath: "C:/Users/example/.codepilotx/config.toml",
+      version: "a".repeat(64),
+      writable: true,
+      trusted: true,
+      config: { model: "gpt-5.6" },
+    }],
+    diagnostics: [],
+  }),
+  "config/value/write": methodFixture("config/value/write", {
+    keyPath: ["desktop", "showContextUsage"],
+    value: true,
+    expectedVersion: "a".repeat(64),
+  }, {
+    status: "ok",
+    version: "b".repeat(64),
+    filePath: "C:/Users/example/.codepilotx/config.toml",
+  }),
+  "config/batchWrite": methodFixture("config/batchWrite", {
+    edits: [
+      { keyPath: ["model"], value: "gpt-5.6" },
+      { keyPath: ["desktop", "reviewView"], value: "inline" },
+    ],
+    expectedVersion: "b".repeat(64),
+    reloadUserConfig: true,
+  }, {
+    status: "ok-overridden",
+    version: "c".repeat(64),
+    filePath: "C:/Users/example/.codepilotx/config.toml",
+    overridden: [{ keyPath: ["model"], by: "project" }],
+  }),
+  "project/trust/read": methodFixture("project/trust/read", {
+    cwd: "F:/CodeProject/example",
+  }, {
+    projectRoot: "F:/CodeProject/example",
+    trustLevel: "untrusted",
+    hasProjectConfig: true,
+  }),
+  "project/trust/update": methodFixture("project/trust/update", {
+    cwd: "F:/CodeProject/example",
+    trustLevel: "trusted",
+    expectedVersion: "c".repeat(64),
+  }, {
+    status: "ok",
+    version: "d".repeat(64),
+    filePath: "C:/Users/example/.codepilotx/config.toml",
+  }),
   initialize: methodFixture("initialize", {
     clientInfo: { name: "CodePilotX Desktop", version: "0.1.0", platform: "win32", instanceId: "client:1" },
     protocols: ["thread-rpc-v4"],
@@ -674,6 +729,13 @@ const fixtures = {
         scope: "local",
         enabled: true,
         diagnosticContext: true,
+        required: true,
+        enabledTools: ["echo", "read"],
+        disabledTools: ["write"],
+        defaultToolsApprovalMode: "writes",
+        tools: {
+          echo: { approvalMode: "approve" },
+        },
         transport: {
           type: "stdio",
           command: "bun",
@@ -695,6 +757,11 @@ const fixtures = {
       scope: "local",
       type: "stdio",
       state: "connected",
+      auth: {
+        source: "none",
+        canLogin: false,
+        canLogout: false,
+      },
       toolCount: 1,
       resourceCount: 1,
       promptCount: 1,
@@ -713,6 +780,9 @@ const fixtures = {
       transport: {
         type: "http",
         url: "https://example.com/mcp",
+        auth: "oauth",
+        scopes: ["mcp:read", "mcp:write"],
+        oauthResource: "https://example.com/",
         headerFromEnv: { Authorization: "CODEPILOTX_MCP_AUTHORIZATION" },
       },
     },
@@ -726,6 +796,9 @@ const fixtures = {
         transport: {
           type: "http",
           url: "https://example.com/mcp",
+          auth: "oauth",
+          scopes: ["mcp:read", "mcp:write"],
+          oauthResource: "https://example.com/",
           headerFromEnv: { Authorization: "CODEPILOTX_MCP_AUTHORIZATION" },
         },
       },
@@ -773,6 +846,29 @@ const fixtures = {
     removed: [],
     unchanged: [],
     failed: [],
+  }),
+  "mcp/oauth/start": methodFixture("mcp/oauth/start", {
+    workspace: "C:\\workspace",
+    scope: "local",
+    name: "fixture",
+    operationId: "operation:mcp-oauth-start:1",
+  }, {
+    attemptId: "mcp-oauth-attempt:1",
+    authorizationUrl: "https://example.com/oauth/authorize",
+    expiresAt: 1_800_000_000_000,
+  }),
+  "mcp/oauth/status": methodFixture("mcp/oauth/status", {
+    attemptId: "mcp-oauth-attempt:1",
+  }, {
+    state: "pending",
+  }),
+  "mcp/oauth/logout": methodFixture("mcp/oauth/logout", {
+    workspace: "C:\\workspace",
+    scope: "local",
+    name: "fixture",
+    operationId: "operation:mcp-oauth-logout:1",
+  }, {
+    generation: 6,
   }),
   "attachment/import": methodFixture("attachment/import", {
     uploads: [{ kind: "text", name: attachment.name, mediaType: attachment.mediaType, encoding: "utf8", data: "fixture" }],
@@ -1395,9 +1491,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 123 formal methods decodable", () => {
+  test("keeps valid params and results for all 131 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(123)
+    expect(methods).toHaveLength(131)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -1436,6 +1532,43 @@ describe("RPC method schema contracts", () => {
     expect(() => Schema.decodeUnknownSync(RpcMethods["turn/start"].params)({
       ...fixtures["turn/start"].params,
       taskMode: "execute",
+    })).toThrow()
+    const decodeMcpSave = Schema.decodeUnknownSync(
+      RpcMethods["mcp/save"].params,
+      { onExcessProperty: "error" },
+    )
+    expect(decodeMcpSave({
+      server: {
+        name: "fixture",
+        scope: "user",
+        enabled: true,
+        enabledTools: ["", "read"],
+        disabledTools: ["write", ""],
+        transport: {
+          type: "http",
+          url: "https://example.com/mcp",
+          auth: "none",
+          scopes: ["", "profile"],
+        },
+      },
+      operationId: "operation:mcp-save:none",
+    })).toMatchObject({
+      server: {
+        transport: { auth: "none" },
+      },
+    })
+    expect(() => decodeMcpSave({
+      server: {
+        name: "fixture",
+        scope: "user",
+        enabled: true,
+        transport: {
+          type: "http",
+          url: "https://example.com/mcp",
+          auth: "chatgpt",
+        },
+      },
+      operationId: "operation:mcp-save:invalid-auth",
     })).toThrow()
     const decodeGithubAuthStart = Schema.decodeUnknownSync(
       RpcMethods["github/auth/start"].params,

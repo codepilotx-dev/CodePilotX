@@ -27,6 +27,7 @@ describe('MCP editor transport schema', () => {
     }))).toEqual({
       type: 'http',
       url: 'https://example.com/mcp',
+      auth: 'oauth',
       headerFromEnv: { 'X-API-Key': 'MCP_API_KEY' },
       bearerTokenEnvVar: 'MCP_ACCESS_TOKEN',
     })
@@ -87,5 +88,55 @@ describe('MCP editor transport schema', () => {
         url: 'http://127.0.0.1:43121/mcp',
       },
     }))).toThrow('只支持 stdio')
+  })
+
+  test('round-trips OAuth and structured tool policy fields', () => {
+    const config = {
+      name: 'oauth-server',
+      scope: 'user',
+      enabled: true,
+      required: true,
+      enabledTools: ['read'],
+      disabledTools: ['delete'],
+      defaultToolsApprovalMode: 'writes',
+      tools: {
+        publish: { approvalMode: 'prompt' },
+      },
+      transport: {
+        type: 'http',
+        url: 'https://example.com/mcp',
+        auth: 'oauth',
+        scopes: ['mcp.read', 'mcp.write'],
+        oauthResource: 'https://example.com',
+      },
+    }
+
+    expect(parseMcpServerJson(JSON.stringify(config))).toEqual({
+      ...config,
+      diagnosticContext: false,
+    })
+  })
+
+  test('rejects OAuth-only fields without OAuth and preserves deny-list precedence data', () => {
+    expect(() => parseMcpTransportJson(JSON.stringify({
+      type: 'http',
+      url: 'https://example.com/mcp',
+      auth: 'none',
+      scopes: ['mcp.read'],
+    }))).toThrow('仅能用于 OAuth')
+    expect(parseMcpServerJson(JSON.stringify({
+      name: 'conflict',
+      scope: 'user',
+      enabled: true,
+      enabledTools: ['echo'],
+      disabledTools: ['echo'],
+      transport: {
+        type: 'stdio',
+        command: 'bun',
+      },
+    }))).toMatchObject({
+      enabledTools: ['echo'],
+      disabledTools: ['echo'],
+    })
   })
 })

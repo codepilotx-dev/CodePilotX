@@ -115,6 +115,7 @@ export const WORKSPACE_FILE_CHANGED_EVENT =
   'codepilotx-workspace-file-changed'
 export const WORKSPACE_GIT_CHANGED_EVENT =
   'codepilotx-workspace-git-changed'
+export const CONFIG_UPDATED_EVENT = 'codepilotx-config-updated'
 
 const RENDERER_PROTOCOL = 'thread-rpc-v4' as const
 const RENDERER_CAPABILITIES = [
@@ -143,6 +144,8 @@ const RENDERER_CAPABILITIES = [
   'tooling.management.v1',
   'skills.manage.v1',
   'mcp.manage.v1',
+  'mcp.oauth.v1',
+  'config.manage.v1',
   'task-suggestions.v1',
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 type PendingInteraction =
@@ -189,6 +192,13 @@ function desktopMcpServer(
     ...(server.toolTimeoutMs
       ? { toolTimeoutMs: server.toolTimeoutMs }
       : {}),
+    ...(server.required !== undefined ? { required: server.required } : {}),
+    ...(server.enabledTools ? { enabledTools: [...server.enabledTools] } : {}),
+    ...(server.disabledTools ? { disabledTools: [...server.disabledTools] } : {}),
+    ...(server.defaultToolsApprovalMode
+      ? { defaultToolsApprovalMode: server.defaultToolsApprovalMode }
+      : {}),
+    ...(server.tools ? { tools: { ...server.tools } } : {}),
   }
 }
 import {
@@ -333,6 +343,8 @@ export function createAgentSessionDesktopClient(
       | 'pets.management.v1'
       | 'skills.manage.v1'
       | 'mcp.manage.v1'
+      | 'mcp.oauth.v1'
+      | 'config.manage.v1'
       | 'task-suggestions.v1',
     version = 1,
   ): void {
@@ -349,6 +361,8 @@ export function createAgentSessionDesktopClient(
       'pets.management.v1': 'pets.management.v1',
       'skills.manage.v1': 'skills.manage.v1',
       'mcp.manage.v1': 'mcp.manage.v1',
+      'mcp.oauth.v1': 'mcp.oauth.v1',
+      'config.manage.v1': 'config.manage.v1',
       'task-suggestions.v1': 'task-suggestions.v1',
     }
     if (version <= 1 && agentCapabilities.has(capabilities[name])) return
@@ -1711,6 +1725,21 @@ export function createAgentSessionDesktopClient(
                 ...(options.toolTimeoutMs
                   ? { toolTimeoutMs: options.toolTimeoutMs }
                   : {}),
+                ...(options.required !== undefined
+                  ? { required: options.required }
+                  : {}),
+                ...(options.enabledTools?.length
+                  ? { enabledTools: options.enabledTools }
+                  : {}),
+                ...(options.disabledTools?.length
+                  ? { disabledTools: options.disabledTools }
+                  : {}),
+                ...(options.defaultToolsApprovalMode
+                  ? { defaultToolsApprovalMode: options.defaultToolsApprovalMode }
+                  : {}),
+                ...(options.tools && Object.keys(options.tools).length
+                  ? { tools: options.tools }
+                  : {}),
               },
               ...(options.originalName
                 ? { originalName: options.originalName }
@@ -1772,6 +1801,49 @@ export function createAgentSessionDesktopClient(
           )
         },
         () => mockClient.reloadMcpConfiguration(workspacePath),
+      ),
+    startMcpOAuth: (name, scope, workspacePath) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('mcp.oauth.v1')
+          return rpc.call<RpcResult<'mcp/oauth/start'>>(
+            'mcp/oauth/start',
+            {
+              name,
+              scope,
+              operationId: crypto.randomUUID(),
+              ...(workspacePath ? { workspace: workspacePath } : {}),
+            },
+          )
+        },
+        () => mockClient.startMcpOAuth(name, scope, workspacePath),
+      ),
+    getMcpOAuthStatus: attemptId =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('mcp.oauth.v1')
+          return rpc.call<RpcResult<'mcp/oauth/status'>>(
+            'mcp/oauth/status',
+            { attemptId },
+          )
+        },
+        () => mockClient.getMcpOAuthStatus(attemptId),
+      ),
+    logoutMcpOAuth: (name, scope, workspacePath) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('mcp.oauth.v1')
+          return rpc.call<RpcResult<'mcp/oauth/logout'>>(
+            'mcp/oauth/logout',
+            {
+              name,
+              scope,
+              operationId: crypto.randomUUID(),
+              ...(workspacePath ? { workspace: workspacePath } : {}),
+            },
+          )
+        },
+        () => mockClient.logoutMcpOAuth(name, scope, workspacePath),
       ),
     restoreSessionTurnChanges: input =>
       withUnsupportedAgentFallback(
@@ -1884,6 +1956,38 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.unwatchWorkspaceFile(workspacePath, filePath),
       ),
+    readConfig: params =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('config.manage.v1')
+          return rpc.call('config/read', params ?? {})
+        },
+        () => mockClient.readConfig(params),
+      ),
+    writeConfigBatch: params =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('config.manage.v1')
+          return rpc.call('config/batchWrite', params)
+        },
+        () => mockClient.writeConfigBatch(params),
+      ),
+    readProjectTrust: cwd =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('config.manage.v1')
+          return rpc.call('project/trust/read', { cwd })
+        },
+        () => mockClient.readProjectTrust(cwd),
+      ),
+    updateProjectTrust: params =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('config.manage.v1')
+          return rpc.call('project/trust/update', params)
+        },
+        () => mockClient.updateProjectTrust(params),
+      ),
     getDesktopSettings: async () => {
       const getter =
         environment.window?.codePilotXDesktop?.getDesktopSettings
@@ -1891,7 +1995,26 @@ export function createAgentSessionDesktopClient(
         ? normalizeDesktopStoredSettings(await getter())
         : mockClient.getDesktopSettings()
     },
-    getThemeSettings: () => {
+    getThemeSettings: async () => {
+      try {
+        requireAgentCapability('config.manage.v1')
+        const result = await rpc.call('config/read', {})
+        const desktop =
+          result.config.desktop &&
+          typeof result.config.desktop === 'object' &&
+          !Array.isArray(result.config.desktop)
+            ? result.config.desktop as Record<string, unknown>
+            : {}
+        if (
+          desktop.appearance &&
+          typeof desktop.appearance === 'object' &&
+          !Array.isArray(desktop.appearance)
+        ) {
+          return normalizeDesktopThemeSettings(desktop.appearance)
+        }
+      } catch {
+        // The initial Electron value remains the upgrade fallback until Agent migration completes.
+      }
       const getter =
         environment.window?.codePilotXDesktop?.getAppearanceSettings
       return getter
@@ -1900,6 +2023,37 @@ export function createAgentSessionDesktopClient(
     },
     saveThemeSettings: async settings => {
       const normalized = normalizeDesktopThemeSettings(settings)
+      try {
+        requireAgentCapability('config.manage.v1')
+        const current = await rpc.call('config/read', { includeLayers: true })
+        const version = current.layers?.find(layer => layer.kind === 'user')?.version
+        const flatten = (
+          value: Record<string, unknown>,
+          prefix: string[],
+        ): Array<{ keyPath: string[]; value: never }> =>
+          Object.entries(value).flatMap(([key, child]) =>
+            child && typeof child === 'object' && !Array.isArray(child)
+              ? flatten(child as Record<string, unknown>, [...prefix, key])
+              : [{ keyPath: [...prefix, key], value: child as never }],
+          )
+        await rpc.call('config/batchWrite', {
+          edits: flatten(normalized as unknown as Record<string, unknown>, [
+            'desktop',
+            'appearance',
+          ]),
+          ...(version ? { expectedVersion: version } : {}),
+        })
+      } catch (error) {
+        if (
+          environment.window?.codePilotXDesktop
+          && (!error
+            || typeof error !== 'object'
+            || !('code' in error)
+            || error.code !== 'AGENT_OPERATION_UNSUPPORTED')
+        ) {
+          throw error
+        }
+      }
       const saver =
         environment.window?.codePilotXDesktop?.saveAppearanceSettings
       if (saver) {
@@ -2792,6 +2946,16 @@ export function createAgentSessionDesktopClient(
         if (notificationMethod === 'integration/updated') {
           integrationsCache = null
           invalidateModelCatalog()
+        }
+        if (
+          notificationMethod === 'config/updated' &&
+          typeof window !== 'undefined'
+        ) {
+          window.dispatchEvent(
+            new CustomEvent(CONFIG_UPDATED_EVENT, {
+              detail: notification.params,
+            }),
+          )
         }
         if (
           notificationMethod === 'workspace/file/changed' &&

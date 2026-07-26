@@ -83,5 +83,8 @@
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false
     }
+  },
+  "dependencies": {
+    "smol-toml": "^1.7.0"
   }
 }

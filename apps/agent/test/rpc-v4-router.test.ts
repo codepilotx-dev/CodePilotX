@@ -64,7 +64,29 @@ const fixture = async (
       return { configured: false, authenticated: false, user: null }
     },
   }
+  const configDocument: Record<string, unknown> = {}
   const router = new RpcRouter({
+    config: {
+      snapshot: () => configDocument,
+      read: async () => ({ config: configDocument, origins: {}, diagnostics: [] }),
+      batchWrite: async ({ edits }: { edits: Array<{ keyPath: string[]; value: unknown }> }) => {
+        for (const edit of edits) {
+          let cursor = configDocument
+          for (const key of edit.keyPath.slice(0, -1)) {
+            if (!cursor[key] || typeof cursor[key] !== "object") cursor[key] = {}
+            cursor = cursor[key] as Record<string, unknown>
+          }
+          const leaf = edit.keyPath.at(-1)!
+          if (edit.value === null) delete cursor[leaf]
+          else cursor[leaf] = edit.value
+        }
+        return {
+          status: "ok",
+          version: "a".repeat(64),
+          filePath: join(root, "config.toml"),
+        }
+      },
+    },
     db,
     review,
     github,
@@ -106,6 +128,7 @@ const fixture = async (
   }
   return {
     db,
+    configDocument,
     router,
     call,
     initialize,
@@ -155,6 +178,7 @@ describe("RPC v4 Router", () => {
             scope: "user",
             type: "http",
             state: "connected",
+            auth: { source: "none", canLogin: true, canLogout: false },
             toolCount: 1,
             resourceCount: 1,
             promptCount: 1,
@@ -188,6 +212,22 @@ describe("RPC v4 Router", () => {
           failed: [],
         }
       },
+      oauthStart: async (input: unknown) => {
+        calls.push({ method: "oauthStart", input })
+        return {
+          attemptId: "oauth-attempt",
+          authorizationUrl: "https://auth.example/authorize",
+          expiresAt: Date.now() + 60_000,
+        }
+      },
+      oauthStatus: (input: unknown) => {
+        calls.push({ method: "oauthStatus", input })
+        return { state: "pending" }
+      },
+      oauthLogout: async (input: unknown) => {
+        calls.push({ method: "oauthLogout", input })
+        return { generation: 5 }
+      },
     }
     const { db, call, initialize } = await fixture({ mcp } as never)
     await initialize()
@@ -216,6 +256,21 @@ describe("RPC v4 Router", () => {
       workspace,
       operationId: "reload-operation",
     })).result.replaced).toEqual(["fixture"])
+    expect((await call("mcp/oauth/start", {
+      workspace,
+      scope: "user",
+      name: "fixture",
+      operationId: "oauth-start-operation",
+    })).result.attemptId).toBe("oauth-attempt")
+    expect((await call("mcp/oauth/status", {
+      attemptId: "oauth-attempt",
+    })).result.state).toBe("pending")
+    expect((await call("mcp/oauth/logout", {
+      workspace,
+      scope: "user",
+      name: "fixture",
+      operationId: "oauth-logout-operation",
+    })).result.generation).toBe(5)
     expect(calls.map((entry) => entry.method)).toEqual([
       "list",
       "status",
@@ -223,8 +278,11 @@ describe("RPC v4 Router", () => {
       "setEnabled",
       "remove",
       "reload",
+      "oauthStart",
+      "oauthStatus",
+      "oauthLogout",
     ])
-    expect(calls.every((entry) =>
+    expect(calls.filter((entry) => entry.method !== "oauthStatus").every((entry) =>
       (entry.input as { workspace?: string }).workspace === workspace
     )).toBe(true)
     db.close()
@@ -630,7 +688,7 @@ describe("RPC v4 Router", () => {
 
   test("provider methods return the declared v4 health and summary shapes", async () => {
     const provider = Provider.Info.empty(Provider.ID.make("provider:fixture"))
-    const { db, call, initialize } = await fixture({
+    const { db, configDocument, call, initialize } = await fixture({
       providers: {
         list: async () => [provider],
         models: async () => [],
@@ -666,7 +724,9 @@ describe("RPC v4 Router", () => {
       },
       catalogVersion: 2,
     })
-    expect(db.providerSettings<Record<string, unknown>>().get(provider.id)).toMatchObject({
+    expect(
+      (configDocument.model_providers as Record<string, unknown>)[provider.id],
+    ).toMatchObject({
       name: "Fixture provider",
       api: "https://example.com/v1",
     })

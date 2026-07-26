@@ -23,7 +23,7 @@ export type McpSettingsState = {
   operations: McpOperation[]
 }
 
-const SETTINGS_KEY = "mcp.settings.v2"
+const SETTINGS_KEY = "mcp.runtime.v1"
 const MAX_OPERATIONS = 100
 
 const defaultState = (): McpSettingsState => ({
@@ -52,12 +52,95 @@ const decodeDeclaration = Schema.decodeUnknownSync(McpServerDeclarationSchema, {
   onExcessProperty: "error",
 })
 
+const sanitizeUnknownStrings = (value: unknown) => Array.isArray(value)
+  ? value.flatMap((item) => {
+      if (typeof item !== "string") return [item]
+      const normalized = item.trim()
+      return normalized ? [normalized] : []
+    })
+  : value
+
+const sanitizeStoredDeclarationInput = (value: unknown) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value
+  const declaration = { ...value } as Record<string, unknown>
+  declaration.enabledTools = sanitizeUnknownStrings(declaration.enabledTools)
+  declaration.disabledTools = sanitizeUnknownStrings(declaration.disabledTools)
+  if (declaration.tools && typeof declaration.tools === "object" && !Array.isArray(declaration.tools)) {
+    declaration.tools = Object.fromEntries(
+      Object.entries(declaration.tools)
+        .map(([name, policy]) => [name.trim(), policy] as const)
+        .filter(([name]) => Boolean(name)),
+    )
+  }
+  if (declaration.transport && typeof declaration.transport === "object" && !Array.isArray(declaration.transport)) {
+    const transport = { ...declaration.transport } as Record<string, unknown>
+    if ("scopes" in transport) {
+      transport.scopes = sanitizeUnknownStrings(transport.scopes)
+    }
+    if ("oauthResource" in transport && typeof transport.oauthResource === "string") {
+      const resource = transport.oauthResource.trim()
+      if (resource) transport.oauthResource = resource
+      else delete transport.oauthResource
+    }
+    declaration.transport = transport
+  }
+  return declaration
+}
+
+const normalizedStrings = (values: readonly string[] | undefined) =>
+  values ? [...new Set(values.map((value) => value.trim()).filter(Boolean))] : undefined
+
+const normalizeDeclaration = (declaration: McpServerDeclaration): McpServerDeclaration => {
+  const enabledTools = normalizedStrings(declaration.enabledTools)
+  const disabledTools = normalizedStrings(declaration.disabledTools)
+  const tools = declaration.tools
+    ? Object.fromEntries(
+        Object.entries(declaration.tools)
+          .map(([name, policy]) => [name.trim(), policy] as const)
+          .filter(([name]) => Boolean(name)),
+      )
+    : undefined
+  const policy = {
+    ...(enabledTools !== undefined ? { enabledTools } : {}),
+    ...(disabledTools?.length ? { disabledTools } : {}),
+    ...(tools && Object.keys(tools).length ? { tools } : {}),
+  }
+  const {
+    enabledTools: _enabledTools,
+    disabledTools: _disabledTools,
+    tools: _tools,
+    ...base
+  } = declaration
+  if (declaration.transport.type === "stdio") {
+    return { ...base, ...policy }
+  }
+  const scopes = normalizedStrings(declaration.transport.scopes)
+  const {
+    scopes: _scopes,
+    oauthResource: _oauthResource,
+    ...transport
+  } = declaration.transport
+  return {
+    ...base,
+    ...policy,
+    transport: {
+      ...transport,
+      ...(scopes?.length ? { scopes } : {}),
+      ...(declaration.transport.oauthResource
+        ? { oauthResource: declaration.transport.oauthResource.trim() }
+        : {}),
+    },
+  }
+}
+
 const declarationRecord = (value: unknown): Record<string, McpServerDeclaration> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {}
   return Object.fromEntries(
     Object.entries(value).flatMap(([key, server]) => {
       try {
-        const declaration = decodeDeclaration(server)
+        const declaration = normalizeDeclaration(
+          decodeDeclaration(sanitizeStoredDeclarationInput(server)),
+        )
         return key === declaration.name ? [[key, declaration] as const] : []
       } catch {
         return []

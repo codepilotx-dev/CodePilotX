@@ -275,6 +275,7 @@ type Props = {
   onCloneGithub?: () => void;
   onClearWorkspace: () => void;
   onOpenBrowser?: () => void;
+  onOpenMcpSettings?: () => void;
   onBranchSelect: (branch: string) => void;
   onCreateBranch: () => void;
   onStartReview?: (
@@ -371,6 +372,7 @@ export function ComposerCard({
   onCloneGithub,
   onClearWorkspace,
   onOpenBrowser,
+  onOpenMcpSettings,
   onBranchSelect,
   onCreateBranch,
   onStartReview,
@@ -543,12 +545,15 @@ export function ComposerCard({
       {
         group: "添加",
         key: "mcp",
+        commandName: "mcp",
         label: "MCP",
-        hint: "显示 MCP 服务器状态",
+        hint: workspace
+          ? `查看 ${workspace.name} 的 MCP 服务器状态`
+          : "查看用户级 MCP 服务器状态",
         icon: <Paperclip size={14} />,
         matchText: "MCP mcp servers",
-        disabled: true,
-        onSelect: () => {},
+        disabled: !onOpenMcpSettings,
+        onSelect: () => onOpenMcpSettings?.(),
       },
       {
         group: "添加",
@@ -838,6 +843,7 @@ export function ComposerCard({
     onGoalModeChange,
     onPlanModeChange,
     onOpenBrowser,
+    onOpenMcpSettings,
     onStartReview,
     onSkillSelect,
     selectedModelLabel,

@@ -1,10 +1,16 @@
 import React, { useEffect, useState } from 'react'
-import { Download, RefreshCw, Trash2, Wrench } from 'lucide-react'
+import { AlertTriangle, Download, ExternalLink, RefreshCw, Trash2, Wrench } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
-import { desktopClient } from '../../services/desktop-client/index.js'
+import {
+  CONFIG_UPDATED_EVENT,
+  desktopClient,
+} from '../../services/desktop-client/index.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import { PERMISSION_MODE_OPTIONS, permissionConfigForMode, permissionModeForConfig } from './settingsStorage.js'
-import type { DesktopDataLocationState } from '../../../shared/types.js'
+import type {
+  DesktopConfigReadResult,
+  DesktopDataLocationState,
+} from '../../../shared/types.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
@@ -46,6 +52,49 @@ export function ConfigSettings(): React.ReactNode {
   const [sandboxRuntimeBusy, setSandboxRuntimeBusy] = useState(false)
   const [sandboxRuntimeRefreshing, setSandboxRuntimeRefreshing] = useState(false)
   const [promptPreview, setPromptPreview] = useState<string | null>(null)
+  const [configRead, setConfigRead] = useState<DesktopConfigReadResult | null>(null)
+  const [configLayer, setConfigLayer] = useState<'user' | 'project'>('user')
+  const [configBusy, setConfigBusy] = useState(false)
+  const configCwd = draft.values.lastActiveWorkspacePath || undefined
+
+  const reloadConfig = async () => {
+    const read = await desktopClient.readConfig({
+      includeLayers: true,
+      ...(configCwd ? { cwd: configCwd } : {}),
+    })
+    setConfigRead(read)
+    if (configLayer === 'project' && !read.layers?.some(layer => layer.kind === 'project')) {
+      setConfigLayer('user')
+    }
+  }
+
+  useEffect(() => {
+    let mounted = true
+    void desktopClient
+      .readConfig({
+        includeLayers: true,
+        ...(configCwd ? { cwd: configCwd } : {}),
+      })
+      .then(read => {
+        if (mounted) setConfigRead(read)
+      })
+      .catch(() => {
+        if (mounted) setConfigRead(null)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [configCwd])
+
+  useEffect(() => {
+    const refresh = () => void reloadConfig().catch(() => undefined)
+    window.addEventListener(CONFIG_UPDATED_EVENT, refresh)
+    return () => window.removeEventListener(CONFIG_UPDATED_EVENT, refresh)
+  })
+
+  const selectedConfigLayer = configRead?.layers?.find(
+    layer => layer.kind === configLayer,
+  )
 
   useEffect(() => {
     let mounted = true
@@ -141,6 +190,97 @@ export function ConfigSettings(): React.ReactNode {
             <LearnMoreLink />
           </p>
         </div>
+
+        <SettingsSection
+          title="自定义 config.toml 设置"
+          description="设置页、外部编辑和自然语言配置共享同一个 TOML 真源。"
+          actions={
+            <div className="settings-actions">
+              <SettingsDropdown
+                width={150}
+                ariaLabel="配置层"
+                value={configLayer}
+                options={[
+                  { value: 'user', label: '用户配置' },
+                  ...(configRead?.layers?.some(layer => layer.kind === 'project')
+                    ? [{ value: 'project', label: '项目配置' }]
+                    : []),
+                ]}
+                onChange={value => setConfigLayer(value as 'user' | 'project')}
+              />
+              <Button
+                type="button"
+                disabled={!selectedConfigLayer?.filePath || configBusy}
+                onClick={() => {
+                  if (selectedConfigLayer?.filePath) {
+                    void desktopClient.openPathWithDefaultTarget(
+                      selectedConfigLayer.filePath,
+                    )
+                  }
+                }}
+              >
+                <ExternalLink size={APP_ICON_SIZE} />
+                打开 config.toml
+              </Button>
+            </div>
+          }
+        >
+          {configRead?.diagnostics.map(diagnostic => (
+            <SettingsRow
+              key={`${diagnostic.scope}:${diagnostic.code}`}
+              title={diagnostic.code}
+              description={
+                <span>
+                  <AlertTriangle size={APP_ICON_SIZE} /> {diagnostic.message}
+                </span>
+              }
+              control={
+                diagnostic.code === 'CONFIG_PROJECT_UNTRUSTED' && configCwd ? (
+                  <Button
+                    type="button"
+                    disabled={configBusy}
+                    onClick={() => void (async () => {
+                      setConfigBusy(true)
+                      try {
+                        const userVersion = configRead.layers?.find(
+                          layer => layer.kind === 'user',
+                        )?.version
+                        await desktopClient.updateProjectTrust({
+                          cwd: configCwd,
+                          trustLevel: 'trusted',
+                          ...(userVersion ? { expectedVersion: userVersion } : {}),
+                        })
+                        await reloadConfig()
+                      } finally {
+                        setConfigBusy(false)
+                      }
+                    })()}
+                  >
+                    信任项目配置
+                  </Button>
+                ) : undefined
+              }
+            />
+          ))}
+          <SettingsRow
+            title="当前来源"
+            description={
+              selectedConfigLayer
+                ? `${selectedConfigLayer.displayName} · ${selectedConfigLayer.trusted ? '已信任' : '未信任'}`
+                : '当前工作区没有项目配置'
+            }
+            control={
+              <Button
+                type="button"
+                disabled={configBusy}
+                onClick={() => void reloadConfig()}
+              >
+                <RefreshCw size={APP_ICON_SIZE} />
+                刷新
+              </Button>
+            }
+          />
+        </SettingsSection>
 
         <SettingsSection title="审批">
           <SettingsRow

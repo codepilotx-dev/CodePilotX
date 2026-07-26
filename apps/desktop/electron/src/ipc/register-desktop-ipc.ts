@@ -97,7 +97,7 @@ export function registerDesktopIpc(
   ipcMain.handle(DESKTOP_SETTINGS_IPC_CHANNELS.get, async (event) => {
     requireDesktopRendererSender(event, isDesktopRendererSender)
     const supervisor = requireSupervisor(getSupervisor())
-    const response = await supervisor.request("/api/desktop-settings")
+    const response = await supervisor.request("/api/config/desktop-projection")
     return normalizeDesktopSettingsPayload(await response.json())
   })
   ipcMain.handle(
@@ -106,7 +106,7 @@ export function registerDesktopIpc(
       requireMainWindowSender(event, windows)
       const supervisor = requireSupervisor(getSupervisor())
       const normalizedSettings = normalizeDesktopSettingsPayload(settings)
-      const response = await supervisor.request("/api/desktop-settings", {
+      const response = await supervisor.request("/api/config/desktop-projection", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(normalizedSettings),

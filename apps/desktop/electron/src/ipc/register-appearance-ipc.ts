@@ -1,16 +1,21 @@
 import { ipcMain } from "electron"
-import type { AppearanceSettingsStore } from "../settings/appearance-settings-store.js"
+import {
+  normalizeAppearanceSettings,
+  type DesktopThemeSettingsV6,
+} from "../settings/appearance-settings-store.js"
 import type { WindowAppearanceController } from "../windows/appearance.js"
 
 export function registerAppearanceIpc(
-  settingsStore: AppearanceSettingsStore,
+  initialSettings: DesktopThemeSettingsV6,
   appearance: WindowAppearanceController,
 ): void {
-  ipcMain.handle("appearance:settings:get", () => settingsStore.load())
+  let settings = normalizeAppearanceSettings(initialSettings)
+  ipcMain.handle("appearance:settings:get", () => settings)
   ipcMain.handle(
     "appearance:settings:save",
-    async (_event, settings: unknown) => {
-      await settingsStore.save(settings)
+    (_event, value: unknown) => {
+      settings = normalizeAppearanceSettings(value)
+      appearance.broadcastAppearanceSettings(settings)
     },
   )
   ipcMain.handle(

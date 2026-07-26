@@ -55,6 +55,8 @@ import type { CodexHighlightThemeSlug } from './codexThemes/manifest.js'
 import type {
   McpRuntimeServerStatus,
   McpScope,
+  McpToolApprovalMode,
+  McpToolPolicy,
   McpTransportConfig,
   RpcParams,
   RpcResult,
@@ -889,10 +891,17 @@ gitBranchPrefix: string
   pet: DesktopPetSettings
 }
 
+export type DesktopConfigReadResult = RpcResult<'config/read'>
+export type DesktopConfigBatchWriteParams = RpcParams<'config/batchWrite'>
+export type DesktopConfigWriteResult = RpcResult<'config/batchWrite'>
+export type DesktopProjectTrustReadResult = RpcResult<'project/trust/read'>
+
 export type DesktopMcpScope = McpScope
 export type DesktopEditableMcpScope = McpScope
 export type DesktopMcpTransport = McpTransportConfig['type']
 export type DesktopMcpServerConfig = McpTransportConfig
+export type DesktopMcpToolApprovalMode = McpToolApprovalMode
+export type DesktopMcpToolPolicy = McpToolPolicy
 
 export type DesktopMcpServerListItem = {
   name: string
@@ -908,6 +917,11 @@ export type DesktopMcpServerListItem = {
   transport: DesktopMcpServerConfig
   startupTimeoutMs?: number
   toolTimeoutMs?: number
+  required?: boolean
+  enabledTools?: string[]
+  disabledTools?: string[]
+  defaultToolsApprovalMode?: DesktopMcpToolApprovalMode
+  tools?: Record<string, DesktopMcpToolPolicy>
   runtime?: McpRuntimeServerStatus
 }
 
@@ -916,6 +930,9 @@ export type DesktopMcpRuntimeServerStatus = McpRuntimeServerStatus
 export type DesktopMcpRuntimeStatus = RpcResult<'mcp/status'>
 
 export type McpReloadResult = RpcResult<'mcp/reload'>
+export type DesktopMcpOAuthStartResult = RpcResult<'mcp/oauth/start'>
+export type DesktopMcpOAuthStatusResult = RpcResult<'mcp/oauth/status'>
+export type DesktopMcpOAuthLogoutResult = RpcResult<'mcp/oauth/logout'>
 
 export type SaveDesktopMcpServerOptions = {
   originalName?: string
@@ -926,6 +943,11 @@ export type SaveDesktopMcpServerOptions = {
   transport: DesktopMcpServerConfig
   startupTimeoutMs?: number
   toolTimeoutMs?: number
+  required?: boolean
+  enabledTools?: string[]
+  disabledTools?: string[]
+  defaultToolsApprovalMode?: DesktopMcpToolApprovalMode
+  tools?: Record<string, DesktopMcpToolPolicy>
   workspacePath?: string
 }
 
@@ -1529,6 +1551,12 @@ export type DesktopApi = {
   diagnoseDesktopToolchain(): Promise<DesktopToolchainDiagnosticReport>
   reinstallDesktopToolchain(): Promise<DesktopToolchainInstallResult>
   deleteDesktopToolchain(): Promise<DesktopToolchainInstallResult>
+  readConfig(params?: RpcParams<'config/read'>): Promise<DesktopConfigReadResult>
+  writeConfigBatch(params: DesktopConfigBatchWriteParams): Promise<DesktopConfigWriteResult>
+  readProjectTrust(cwd: string): Promise<DesktopProjectTrustReadResult>
+  updateProjectTrust(
+    params: RpcParams<'project/trust/update'>,
+  ): Promise<RpcResult<'project/trust/update'>>
   getDesktopSettings(): Promise<DesktopStoredSettings>
   saveDesktopSettings(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
   listProjectMemories(workspacePath: string): Promise<DesktopProjectMemoryListing>
@@ -1577,6 +1605,9 @@ export type DesktopApi = {
   removeMcpServer(name: string, scope: DesktopEditableMcpScope, workspacePath?: string): Promise<DesktopMcpServerListItem[]>
   setMcpServerEnabled(name: string, scope: DesktopEditableMcpScope, enabled: boolean, workspacePath?: string): Promise<DesktopMcpServerListItem[]>
   reloadMcpConfiguration(workspacePath?: string): Promise<McpReloadResult>
+  startMcpOAuth(name: string, scope: DesktopEditableMcpScope, workspacePath?: string): Promise<DesktopMcpOAuthStartResult>
+  getMcpOAuthStatus(attemptId: string): Promise<DesktopMcpOAuthStatusResult>
+  logoutMcpOAuth(name: string, scope: DesktopEditableMcpScope, workspacePath?: string): Promise<DesktopMcpOAuthLogoutResult>
   listOpenTargets(): Promise<DesktopOpenTarget[]>
   listExternalOpenTargets(targetPath: string): Promise<DesktopExternalOpenTarget[]>
   openPathWithTarget(targetPath: string, targetId: string): Promise<void>

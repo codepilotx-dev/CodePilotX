@@ -1,6 +1,7 @@
 import { Schema } from "effect"
 
 export const Capabilities = [
+  "config.manage.v1",
   "rpc.typed.v1",
   "events.replay.v1",
   "events.live.v1",
@@ -29,6 +30,7 @@ export const Capabilities = [
   "pets.management.v1",
   "skills.manage.v1",
   "mcp.manage.v1",
+  "mcp.oauth.v1",
   "task-suggestions.v1",
 ] as const
 

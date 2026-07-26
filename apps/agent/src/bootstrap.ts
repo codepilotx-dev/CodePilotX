@@ -5,6 +5,9 @@ import {
   createPluginHost,
 } from "@codepilotx/provider-plugin";
 import { loadConfig } from "./config/Config";
+import { ConfigService } from "./config/ConfigService";
+import { ConfigMigrationService } from "./config/ConfigMigrationService";
+import { ConfigMigrationRepository } from "./storage/repositories/config-migration-repository";
 import { AgentDatabase } from "./storage/database/AgentDatabase";
 import { EventHub } from "./storage/events/EventHub";
 import { publishAgentEvent } from "./storage/events/EventPublisher";
@@ -55,6 +58,10 @@ import { McpConfigService } from "./mcp/McpConfigService";
 import { McpConnectionManager } from "./mcp/McpConnectionManager";
 import { McpRuntimeService } from "./mcp/McpRuntimeService";
 import { McpDiagnosticContextProvider } from "./mcp/McpDiagnosticContextProvider";
+import { McpClientFactory } from "./mcp/McpClientFactory";
+import { McpOAuthCredentialRepository } from "./mcp/McpOAuthCredentialRepository";
+import { McpOAuthCoordinator } from "./mcp/McpOAuthCoordinator";
+import { McpOAuthService } from "./mcp/McpOAuthService";
 import { ThreadProjection } from "./transport/ThreadProjection";
 import { TaskSuggestionService } from "./suggestion/TaskSuggestionService";
 
@@ -89,6 +96,16 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       legacyPath: config.legacyDatabasePath,
     });
     options.initializeDatabase?.(db);
+    const configService = new ConfigService(config.storage.userConfig);
+    yield* Effect.promise(() => configService.initialize());
+    yield* Effect.promise(() =>
+      new ConfigMigrationService(
+        configService,
+        new ConfigMigrationRepository(db),
+        config.legacyAppearanceSettingsPath,
+        join(config.storage.toolingRoot, "v2", "settings.json"),
+      ).run(),
+    );
     const projectlessWorkspaces = new ManagedProjectlessWorkspaceService(
       config.documentsDir,
     );
@@ -97,13 +114,35 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       projectlessWorkspaces,
     );
     const hub = yield* EventHub.make;
+    const unsubscribeConfig = configService.subscribe(async (event) => {
+      await publishAgentEvent(db, hub, null, null, "config/updated", {
+        version: event.version,
+        changedKeyPaths: event.changedKeyPaths,
+        scope: event.scope,
+        diagnostics: event.diagnostics.map(({ severity, code, message }) => ({
+          severity,
+          code,
+          message,
+        })),
+      });
+    });
     const executionLogs = new ExecutionLogObserver(logger);
     const unsubscribeExecutionLogs = hub.listen((signal) =>
       executionLogs.observeSignal(signal),
     );
     const harnessLogs = new HarnessLogObserver(logger);
-    const desktopSettings = db.getSetting<Record<string, unknown>>(
-      "desktop.settings.v1",
+    const desktopSettings = configService.snapshot().desktop as Record<string, unknown> | undefined;
+    const configuredTooling = desktopSettings?.tooling && typeof desktopSettings.tooling === "object"
+      && !Array.isArray(desktopSettings.tooling)
+      ? desktopSettings.tooling as Record<string, unknown>
+      : {};
+    const configuredToolingPreferences = Object.fromEntries(
+      ["nodejs", "python", "git-bash", "ripgrep"].flatMap((id) => {
+        const preference = configuredTooling[id];
+        return preference === "managed" || preference === "system"
+          ? [[id, preference]]
+          : [];
+      }),
     );
     const legacyToolingPreference =
       desktopSettings?.workspaceDependenciesMigrated === true
@@ -111,18 +150,33 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         : typeof desktopSettings?.installCodePilotXDependencies === "boolean"
           ? desktopSettings.installCodePilotXDependencies
           : undefined;
+    const toolingPreferences = Object.keys(configuredToolingPreferences).length > 0
+      ? configuredToolingPreferences
+      : legacyToolingPreference === undefined
+        ? {}
+        : {
+            nodejs: legacyToolingPreference ? "managed" : "system",
+            python: legacyToolingPreference ? "managed" : "system",
+          };
     const tooling = getToolingManager(
       legacyToolingPreference === undefined
-        ? { root: config.storage.toolingRoot }
+        ? {
+            root: config.storage.toolingRoot,
+            preferences: toolingPreferences,
+            persistPreferences: false,
+          }
         : {
             root: config.storage.toolingRoot,
             legacyInstallCodePilotXDependencies: legacyToolingPreference,
+            preferences: toolingPreferences,
+            persistPreferences: false,
           },
     );
     const pets = new PetService(config.petsDir);
     const skills = new SkillManagementService(
       new SkillSettingsRepository(db),
       { dataRoot: config.dataDir, userHome: homedir() },
+      configService,
     );
     const unsubscribeTooling = tooling.subscribe((status) => {
       void publishAgentEvent(
@@ -173,7 +227,10 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       ...(options.models ? { models: options.models } : {}),
       config: () => ({
         providers: Object.fromEntries(
-          db.providerSettings<Record<string, unknown>>(),
+          Object.entries(
+            (configService.snapshot().model_providers as Record<string, Record<string, unknown>> | undefined)
+              ?? {},
+          ),
         ),
       }),
     });
@@ -194,19 +251,32 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       await providers.reload();
     });
     const tools = new ToolRegistry();
-    const mcpConfigs = new McpConfigService(new McpSettingsRepository(db));
+    const mcpConfigs = new McpConfigService(
+      new McpSettingsRepository(db),
+      configService,
+    );
+    const mcpOAuthCoordinator = new McpOAuthCoordinator(
+      new McpOAuthCredentialRepository(credentials),
+      `http://127.0.0.1:${config.port}/auth/mcp/callback`,
+    );
     const mcpConnections = new McpConnectionManager(
       mcpConfigs,
       tools,
-      undefined,
+      new McpClientFactory(mcpOAuthCoordinator),
       async (generation) => {
         await publishAgentEvent(db, hub, null, null, "mcp/updated", {
           generation,
         });
       },
       new McpDiagnosticContextProvider(new ThreadProjection(db)),
+      mcpOAuthCoordinator,
     );
-    const mcp = new McpRuntimeService(mcpConfigs, mcpConnections);
+    const mcpOAuth = new McpOAuthService(
+      mcpConfigs,
+      mcpConnections,
+      mcpOAuthCoordinator,
+    );
+    const mcp = new McpRuntimeService(mcpConfigs, mcpConnections, mcpOAuth);
     const sandbox = new AnthropicSandboxRuntimeAdapter({
       helperPath: config.srtWinPath,
       installationStore: {
@@ -219,7 +289,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         error: "SANDBOX_WARMUP_FAILED",
       }),
     );
-    const reviewer = new ReviewerService(db, piModels);
+    const reviewer = new ReviewerService(db, piModels, configService);
     const approvals = new ApprovalService(
       db,
       hub,
@@ -282,9 +352,13 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       async (event) => {
         await Effect.runPromise(hub.publish(event));
       },
+      configService,
     );
     toolExecutor = new ToolExecutor(tools, {
       dataDir: config.dataDir,
+      userConfigPath: config.storage.userConfig,
+      validateConfigDocument: (text, scope) =>
+        configService.validateDocument(text, scope),
       sandbox,
       helperPath: config.srtWinPath,
       resolveTooling: (id, resolveOptions) =>
@@ -303,6 +377,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       completeSandboxEscalation: (token, output) =>
         approvals.completeSandboxEscalation(token, output),
       hooks,
+      fileSaved: ({ workspaceRoot, filePath }) =>
+        configService.notifyFileSaved(workspaceRoot, filePath),
     });
     const questions = new QuestionService(db, hub);
     const orchestrator = new PiOrchestratorAdapter({
@@ -324,12 +400,19 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     );
     const memory = new MemoryService(db, {
       enabled: () =>
-        db.getSetting<Record<string, unknown>>("desktop.settings.v1")
+        (configService.snapshot().features as Record<string, unknown> | undefined)
+          ?.memory === true
+        || (configService.snapshot().desktop as Record<string, unknown> | undefined)
           ?.enableMemory === true,
       scrub: (value) => secretScrubber.scrubText(value),
       extractor: {
         extract: async ({ transcript, projectKey, signal }) => {
-          const ref = db.getSetting<Model.Ref>("defaultModel");
+          const currentConfig = configService.snapshot();
+          const modelID = typeof currentConfig.model === "string" ? currentConfig.model : undefined;
+          const providerID = typeof currentConfig.model_provider === "string" ? currentConfig.model_provider : undefined;
+          const ref = modelID && providerID
+            ? { providerID, id: modelID } as Model.Ref
+            : null;
           if (!ref) return [];
           const model = await piModels.getPiModel(ref);
           const object = await generatePiObject({
@@ -360,6 +443,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       piModels,
       memory,
       logger,
+      {},
+      configService,
     );
     const subagentWorkspaces = new SubagentWorkspaceCoordinator(
       db,
@@ -402,10 +487,12 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       review,
       skills,
       mcpConnections,
+      configService,
     );
     const history = new ThreadHistoryService(db, hub);
     const app = createApp({
       config,
+      configService,
       db,
       hub,
       threads,
@@ -435,6 +522,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       disposed = true;
       unsubscribeExecutionLogs();
       unsubscribeTooling();
+      unsubscribeConfig();
+      await configService.dispose();
       await toolExecutor.dispose();
       await mcpConnections.dispose();
       await providers.dispose();

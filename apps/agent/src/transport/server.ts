@@ -29,9 +29,11 @@ import type { PetService } from "../pet/PetService"
 import type { SkillManagementService } from "../prompt/SkillManagementService"
 import type { McpRuntimeService } from "../mcp/McpRuntimeService"
 import type { TaskSuggestionService } from "../suggestion/TaskSuggestionService"
+import type { ConfigService } from "../config/ConfigService"
 
 export interface TransportDependencies {
   config: AgentConfig
+  configService: ConfigService
   db: AgentDatabase
   hub: EventHub
   threads: ThreadService
@@ -84,9 +86,98 @@ export const deliverAnchoredLive = async (
 }
 
 const cookieValue = (header: string | null, name: string) => header?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1)
-const DESKTOP_SETTINGS_KEY = "desktop.settings.v1"
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
+const DESKTOP_RUNTIME_SETTINGS_KEY = "desktop.runtime-state.v1"
+const DESKTOP_RUNTIME_FIELDS = new Set([
+  "recentWorkspaces",
+  "lastActiveWorkspacePath",
+  "removedWorkspaces",
+  "drawerTab",
+  "sidebarStateVersion",
+  "sidebarManualOrder",
+  "sidebarSessionPins",
+  "collapsedSidebarProjectPaths",
+  "sidebarSectionOrder",
+  "collapsedSidebarSections",
+  "workspaceDependenciesMigrated",
+])
+const desktopProjection = (config: Record<string, unknown>) => {
+  const desktop = isPlainObject(config.desktop) ? { ...config.desktop } : {}
+  const taskModels = isPlainObject(config.task_models) ? config.task_models : {}
+  const features = isPlainObject(config.features) ? config.features : {}
+  const sandbox = isPlainObject(config.sandbox_workspace_write) ? config.sandbox_workspace_write : {}
+  const permissionConfig = isPlainObject(desktop.permissionConfig)
+    ? { ...desktop.permissionConfig }
+    : {}
+  if (typeof config.approval_policy === "string") permissionConfig.approvalPolicy = config.approval_policy
+  if (typeof config.approvals_reviewer === "string") permissionConfig.approvalsReviewer = config.approvals_reviewer
+  if (typeof config.sandbox_mode === "string") permissionConfig.sandboxMode = config.sandbox_mode
+  return {
+    ...desktop,
+    ...(Object.keys(permissionConfig).length ? { permissionConfig } : {}),
+    ...(typeof config.model === "string" ? { model: config.model } : {}),
+    ...(typeof config.model_provider === "string" ? { providerID: config.model_provider } : {}),
+    ...(typeof config.model_reasoning_effort === "string" ? { thinkingMode: config.model_reasoning_effort } : {}),
+    ...(typeof config.personality === "string" ? { personality: config.personality } : {}),
+    ...(typeof config.system_prompt === "string" ? { systemPrompt: config.system_prompt } : {}),
+    ...(typeof config.append_system_prompt === "string" ? { appendSystemPrompt: config.append_system_prompt } : {}),
+    ...(typeof config.custom_instructions === "string" ? { customInstructions: config.custom_instructions } : {}),
+    ...(typeof taskModels.small_fast === "string" ? { smallFastModel: taskModels.small_fast } : {}),
+    ...(typeof taskModels.fast === "string" ? { fastModel: taskModels.fast } : {}),
+    ...(typeof taskModels.default === "string" ? { defaultModel: taskModels.default } : {}),
+    ...(typeof taskModels.deep === "string" ? { deepModel: taskModels.deep } : {}),
+    ...(typeof taskModels.plan === "string" ? { planExecutionModel: taskModels.plan } : {}),
+    ...(typeof taskModels.reviewer === "string" ? { reviewModel: taskModels.reviewer } : {}),
+    ...(typeof features.memory === "boolean" ? { enableMemory: features.memory } : {}),
+    ...(typeof features.pareto_code_router === "boolean" ? { enableParetoCodeRouter: features.pareto_code_router } : {}),
+    ...(typeof features.fusion_router === "boolean" ? { enableFusionRouter: features.fusion_router } : {}),
+    ...(typeof sandbox.network_access === "boolean" ? { allowNetworkAccess: sandbox.network_access } : {}),
+  }
+}
+const desktopCorePath = (key: string): string[] | null => ({
+  model: ["model"],
+  providerID: ["model_provider"],
+  thinkingMode: ["model_reasoning_effort"],
+  personality: ["personality"],
+  systemPrompt: ["system_prompt"],
+  appendSystemPrompt: ["append_system_prompt"],
+  customInstructions: ["custom_instructions"],
+  smallFastModel: ["task_models", "small_fast"],
+  fastModel: ["task_models", "fast"],
+  defaultModel: ["task_models", "default"],
+  deepModel: ["task_models", "deep"],
+  planExecutionModel: ["task_models", "plan"],
+  reviewModel: ["task_models", "reviewer"],
+  enableMemory: ["features", "memory"],
+  enableParetoCodeRouter: ["features", "pareto_code_router"],
+  enableFusionRouter: ["features", "fusion_router"],
+  allowNetworkAccess: ["sandbox_workspace_write", "network_access"],
+} as Record<string, string[]>)[key] ?? null
+const desktopConfigEdits = (
+  value: Record<string, unknown>,
+  prefix: string[] = [],
+): Array<{ keyPath: string[]; value: never }> =>
+  Object.entries(value).flatMap(([key, child]) => {
+    if (prefix.length === 0 && DESKTOP_RUNTIME_FIELDS.has(key)) return []
+    if (prefix.length === 0 && key === "permissionConfig" && isPlainObject(child)) {
+      return Object.entries(child).flatMap(([permissionKey, permissionValue]) => {
+        const path = permissionKey === "approvalPolicy"
+          ? ["approval_policy"]
+          : permissionKey === "approvalsReviewer"
+            ? ["approvals_reviewer"]
+            : permissionKey === "sandboxMode"
+              ? ["sandbox_mode"]
+              : null
+        return path ? [{ keyPath: path, value: permissionValue as never }] : []
+      })
+    }
+    const corePath = prefix.length === 0 ? desktopCorePath(key) : null
+    const path = corePath ?? ["desktop", ...prefix, key]
+    return isPlainObject(child)
+      ? desktopConfigEdits(child, [...prefix, key])
+      : [{ keyPath: path, value: child as never }]
+  })
 const githubCallbackPage = (completed: boolean) => new Response(
   [
     "<!doctype html>",
@@ -96,6 +187,29 @@ const githubCallbackPage = (completed: boolean) => new Response(
     "</head><body>",
     `<main><h1>${completed ? "GitHub 登录成功" : "GitHub 登录未完成"}</h1>`,
     `<p>${completed ? "你可以关闭此页面并返回 CodePilotX。" : "请关闭此页面并返回 CodePilotX 查看详情后重试。"}</p>`,
+    "</main></body></html>",
+  ].join(""),
+  {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store, max-age=0",
+      Pragma: "no-cache",
+      "Content-Security-Policy": "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+    },
+  },
+)
+const mcpCallbackPage = (completed: boolean) => new Response(
+  [
+    "<!doctype html>",
+    '<html lang="zh-CN"><head><meta charset="utf-8">',
+    '<meta name="viewport" content="width=device-width,initial-scale=1">',
+    `<title>${completed ? "MCP 认证成功" : "MCP 认证失败"}</title>`,
+    "</head><body>",
+    `<main><h1>${completed ? "MCP 认证成功" : "MCP 认证未完成"}</h1>`,
+    `<p>${completed ? "你可以关闭此页面并返回 CodePilotX。" : "请关闭此页面，返回 CodePilotX 查看安全错误后重试。"}</p>`,
     "</main></body></html>",
   ].join(""),
   {
@@ -149,7 +263,7 @@ const eventNextNotification = (
 export const createApp = (dependencies: TransportDependencies) => {
   const { config, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, skills, suggestions, logger } = dependencies
   const app = new Hono()
-  const rpc = new RpcRouter({ db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, skills, suggestions, mcp: dependencies.mcp })
+  const rpc = new RpcRouter({ config: dependencies.configService, db, hub, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, hooks, sandbox, review, github, tooling, pets, skills, suggestions, mcp: dependencies.mcp })
 
   app.onError((cause, context) => {
     const error = cause instanceof AgentError ? cause : new AgentError("INTERNAL_ERROR", cause instanceof Error ? cause.message : "未知错误", 500)
@@ -201,6 +315,22 @@ export const createApp = (dependencies: TransportDependencies) => {
       return githubCallbackPage(status.state === "completed")
     } catch {
       return githubCallbackPage(false)
+    }
+  })
+
+  app.get("/auth/mcp/callback", async (context) => {
+    try {
+      const code = context.req.query("code")
+      const state = context.req.query("state")
+      const error = context.req.query("error")
+      const completed = await dependencies.mcp.oauth?.handleCallback({
+        ...(code === undefined ? {} : { code }),
+        ...(state === undefined ? {} : { state }),
+        ...(error === undefined ? {} : { error }),
+      }) ?? false
+      return mcpCallbackPage(completed)
+    } catch {
+      return mcpCallbackPage(false)
     }
   })
 
@@ -403,13 +533,29 @@ export const createApp = (dependencies: TransportDependencies) => {
     return context.json({ ok: true, service: "codepilotx-agent", version: "0.1.0", pid: process.pid, readyAt: Date.now() })
   })
 
-  app.get("/api/desktop-settings", (context) =>
-    context.json(db.getSetting<Record<string, unknown>>(DESKTOP_SETTINGS_KEY) ?? {}))
+  app.get("/api/config/desktop-projection", async (context) => {
+    const result = await dependencies.configService.read()
+    const runtime = db.getSetting<Record<string, unknown>>(DESKTOP_RUNTIME_SETTINGS_KEY) ?? {}
+    return context.json({ ...desktopProjection(result.config), ...runtime })
+  })
 
-  app.put("/api/desktop-settings", async (context) => {
+  app.put("/api/config/desktop-projection", async (context) => {
     const settings = await context.req.json().catch(() => null)
     if (!isPlainObject(settings)) throw new AgentError("INVALID_REQUEST", "桌面设置参数无效", 400)
-    db.setSetting(DESKTOP_SETTINGS_KEY, settings)
+    db.setSetting(
+      DESKTOP_RUNTIME_SETTINGS_KEY,
+      Object.fromEntries(
+        Object.entries(settings).filter(([key]) => DESKTOP_RUNTIME_FIELDS.has(key)),
+      ),
+    )
+    const read = await dependencies.configService.read({ includeLayers: true })
+    const version = read.layers?.find((layer) => layer.kind === "user")?.version
+    const edits = desktopConfigEdits(settings)
+    if (edits.length === 0) return context.json(settings)
+    await dependencies.configService.batchWrite({
+      edits,
+      ...(version ? { expectedVersion: version } : {}),
+    })
     return context.json(settings)
   })
 

@@ -365,6 +365,7 @@ describe('desktop thread settings client', () => {
               scope: 'local',
               type: 'stdio',
               state: 'connected',
+              auth: { source: 'none', canLogin: false, canLogout: false },
               toolCount: 2,
               resourceCount: 1,
               promptCount: 1,
@@ -384,6 +385,19 @@ describe('desktop thread settings client', () => {
             unchanged: [],
             failed: [],
           })
+        }
+        if (body.method === 'mcp/oauth/start') {
+          return rpc(body.id, {
+            attemptId: 'oauth-attempt',
+            authorizationUrl: 'https://example.com/oauth',
+            expiresAt: Date.now() + 60_000,
+          })
+        }
+        if (body.method === 'mcp/oauth/status') {
+          return rpc(body.id, { state: 'completed' })
+        }
+        if (body.method === 'mcp/oauth/logout') {
+          return rpc(body.id, { generation: 6 })
         }
         return rpc(body.id, listResult)
       },
@@ -406,6 +420,14 @@ describe('desktop thread settings client', () => {
     await client.setMcpServerEnabled('fixture', 'local', false, project.rootPath)
     await client.removeMcpServer('fixture', 'local', project.rootPath)
     await client.reloadMcpConfiguration(project.rootPath)
+    const oauth = await client.startMcpOAuth('fixture', 'local', project.rootPath)
+    expect(oauth.attemptId).toBe('oauth-attempt')
+    expect(await client.getMcpOAuthStatus(oauth.attemptId)).toEqual({
+      state: 'completed',
+    })
+    expect(await client.logoutMcpOAuth('fixture', 'local', project.rootPath)).toEqual({
+      generation: 6,
+    })
 
     expect(requests.map(request => request.method)).toEqual([
       'mcp/list',
@@ -414,10 +436,14 @@ describe('desktop thread settings client', () => {
       'mcp/setEnabled',
       'mcp/remove',
       'mcp/reload',
+      'mcp/oauth/start',
+      'mcp/oauth/status',
+      'mcp/oauth/logout',
     ])
-    for (const request of requests) {
+    for (const request of requests.filter(request => request.method !== 'mcp/oauth/status')) {
       expect(request.params.workspace).toBe(project.rootPath)
     }
+    expect(requests[7]?.params).toEqual({ attemptId: 'oauth-attempt' })
     expect(requests[2]?.params).toMatchObject({
       originalName: 'old-fixture',
       operationId: expect.any(String),
@@ -1136,6 +1162,7 @@ function initializedResult() {
       'prompt.preview.sensitive.v1',
       'tooling.management.v1',
       'mcp.manage.v1',
+      'mcp.oauth.v1',
     ],
     limits: {
       maxFrameBytes: 1024,

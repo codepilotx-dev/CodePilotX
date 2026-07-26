@@ -2067,6 +2067,7 @@ export function DesktopLayout(): React.ReactNode {
           onCloneGithub: () => setGithubRepositoryModalOpen(true),
           onClearWorkspace: handleClearWorkspace,
           onOpenBrowser: handleOpenBrowser,
+          onOpenMcpSettings: () => navigate('/settings/plugins?tab=mcps'),
           onBranchSelect: handleBranchSelect,
           onCreateBranch: handleCreateBranch,
           onStartReview: handleStartAiReview,
@@ -2139,6 +2140,7 @@ export function DesktopLayout(): React.ReactNode {
         onCloneGithub={() => setGithubRepositoryModalOpen(true)}
         onClearWorkspace={handleClearWorkspace}
         onOpenBrowser={handleOpenBrowser}
+        onOpenMcpSettings={() => navigate('/settings/plugins?tab=mcps')}
         onBranchSelect={handleBranchSelect}
         onCreateBranch={handleCreateBranch}
         onStartReview={handleStartAiReview}

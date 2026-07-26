@@ -22,12 +22,43 @@ import { inferPromptCacheCapability } from "../prompt/PromptCache"
 import type { GitReviewService } from "../review/GitReviewService"
 import type { ThreadWorkspaceResolver, ResolvedThreadWorkspace } from "../workspace/ThreadWorkspaceResolver"
 import type { McpConnectionManager, McpTurnLease } from "../mcp/McpConnectionManager"
+import { createMcpInstructionSections } from "../mcp/McpPromptSections"
+import type { ConfigService } from "../config/ConfigService"
 
 type ThreadPromptSettingsSnapshot = { engine: "prompt-engine-v2"; version: 2; snapshottedAt: number; settings: Record<string, unknown>; baseHash?: string; contextHash?: string; cacheKey?: string }
 type PromptStorageRoots = { dataRoot: string; userHome: string }
+const configurationScopeSection = (): PromptSection => ({
+  id: "configuration-scope",
+  role: "developer",
+  cache: "global-stable",
+  authority: "builtin",
+  source: { type: "runtime", name: "configuration-scope" },
+  content: [
+    "持久配置以 config.toml 为唯一真源。",
+    "用户说“以后、默认、所有项目”时，先 Read 再 Edit @codepilotx/config.toml。",
+    "用户说“这个项目”时，先 Read 再 Edit .codepilotx/config.toml。",
+    "用户说“当前任务、这次”时只使用当前任务设置，不写 config.toml。",
+    "持久作用域不明确时必须先询问用户；配置写入仍需遵守审批策略。",
+  ].join("\n"),
+})
 
 export class ThreadService {
   private readonly controllers = new Map<string, AbortController>()
+
+  private configuredDefaultModel(): Model.Ref | null {
+    const config = this.configService?.snapshot()
+    return typeof config?.model === "string" && typeof config.model_provider === "string"
+      ? { providerID: config.model_provider, id: config.model } as Model.Ref
+      : null
+  }
+
+  private async effectiveDefaultModel(cwd?: string): Promise<Model.Ref | null> {
+    if (!this.configService) return this.configuredDefaultModel()
+    const config = (await this.configService.read(cwd ? { cwd } : {})).config
+    return typeof config.model === "string" && typeof config.model_provider === "string"
+      ? { providerID: config.model_provider, id: config.model } as Model.Ref
+      : null
+  }
 
   constructor(
     private readonly db: AgentDatabase,
@@ -45,6 +76,7 @@ export class ThreadService {
     private readonly review?: GitReviewService,
     private readonly skillManagement?: SkillManagementService,
     private readonly mcp?: McpConnectionManager,
+    private readonly configService?: ConfigService,
   ) {
     this.questions.setResumeHandler((threadID, turnID) => {
       const agent = this.db.agentForTurn(turnID)
@@ -168,9 +200,23 @@ export class ThreadService {
   }
 
   private currentPromptSettingsSnapshot(): ThreadPromptSettingsSnapshot {
-    const global = this.db.getSetting<Record<string, unknown>>("desktop.settings.v1") ?? {}
-    const keys = ["systemPrompt", "personality", "customInstructions", "appendPrompt", "appendSystemPrompt", "enableMemory", "defaultModeRequestUserInput"] as const
-    const settings = Object.fromEntries(keys.flatMap((key) => global[key] === undefined ? [] : [[key, global[key]]]))
+    const config = this.configService?.snapshot() ?? {}
+    const desktop = (config.desktop && typeof config.desktop === "object" && !Array.isArray(config.desktop))
+      ? config.desktop as Record<string, unknown>
+      : {}
+    const features = (config.features && typeof config.features === "object" && !Array.isArray(config.features))
+      ? config.features as Record<string, unknown>
+      : {}
+    const settings = {
+      ...(typeof config.system_prompt === "string" ? { systemPrompt: config.system_prompt } : {}),
+      ...(typeof config.personality === "string" ? { personality: config.personality } : {}),
+      ...(typeof config.custom_instructions === "string" ? { customInstructions: config.custom_instructions } : {}),
+      ...(typeof config.append_system_prompt === "string" ? { appendSystemPrompt: config.append_system_prompt } : {}),
+      ...(typeof features.memory === "boolean" ? { enableMemory: features.memory } : {}),
+      ...(typeof desktop.defaultModeRequestUserInput === "boolean"
+        ? { defaultModeRequestUserInput: desktop.defaultModeRequestUserInput }
+        : {}),
+    }
     return { engine: "prompt-engine-v2", version: 2, snapshottedAt: Date.now(), settings }
   }
 
@@ -228,15 +274,14 @@ export class ThreadService {
       projectInstructions: projectInstructions.sources, skills: skills.skills,
       memories: memories.map((entry) => `可能过期的参考记忆（${entry.scope}）：${entry.content}`), userMessage,
     })
+    sections.splice(sections.length - 1, 0, configurationScopeSection())
     const bundle = new PromptComposer().compose({ threadID, mode: thread.settings.taskMode, profile: "main", exposedTools, sections })
     let cacheMode = inferPromptCacheCapability("")
     try {
       const latestModel = latest?.model_ref ? JSON.parse(latest.model_ref) as Model.Ref : null
-      const projectSettings = runtime.projectID ? this.db.getProjectSettings(runtime.projectID) : null
       const selected = await this.resolveAvailableModel([
         latestModel,
-        projectSettings?.defaultModel,
-        this.db.getSetting<Model.Ref>("defaultModel"),
+        await this.effectiveDefaultModel(runtime.workspaceRoot),
       ])
       cacheMode = inferPromptCacheCapability(String(selected.providerID))
     } catch {
@@ -435,6 +480,10 @@ export class ThreadService {
           phase: "before",
         }).catch(() => undefined)
       }
+      if (runtime.workspaceRoot) {
+        await this.configService?.resolveUnresolvedMcp(runtime.workspaceRoot)
+        await this.configService?.read({ cwd: runtime.workspaceRoot })
+      }
       this.hooks.load({
         userConfigPath: join(this.promptStorage.dataRoot, "hooks.json"),
         projectRoot: runtime.workspaceRoot,
@@ -504,6 +553,12 @@ export class ThreadService {
         ],
         userMessage: content,
       })
+      promptSections.splice(
+        promptSections.length - 1,
+        0,
+        configurationScopeSection(),
+        ...createMcpInstructionSections(mcpLease?.serverInstructions ?? []),
+      )
       if (continueFromPlan) promptSections.splice(promptSections.length - 1, 0, {
         id: "confirmed-plan",
         role: "developer",
@@ -513,9 +568,8 @@ export class ThreadService {
         content: `以下计划已经用户确认，是当前实施范围与顺序：\n${this.db.currentPlan(turnID) ?? ""}`,
       })
       const contextManager = new ContextManager(this.db)
-      const projectModels = projectID ? this.db.getProjectSettings(projectID) : null
-      const globalDefault = this.db.getSetting<Model.Ref>("defaultModel")
-      const selectedInfo = await this.resolveAvailableModel([projectModels?.defaultModel, globalDefault, activeModel])
+      const configuredDefault = await this.effectiveDefaultModel(runtime.workspaceRoot)
+      const selectedInfo = await this.resolveAvailableModel([configuredDefault, activeModel])
       const selectedModel = Model.Ref.make({ providerID: selectedInfo.providerID, id: selectedInfo.id, ...(selectedInfo.request.variant ? { variant: Model.VariantID.make(selectedInfo.request.variant) } : {}) })
       const piModel = await this.providers.getModel(selectedModel)
       const attachments = (await Promise.all([input.id, ...mailbox.map((item) => item.id)].map((inputID) => this.agentAttachments(inputID)))).flat()

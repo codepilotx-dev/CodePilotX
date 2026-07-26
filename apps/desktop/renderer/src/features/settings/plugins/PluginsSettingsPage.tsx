@@ -50,6 +50,10 @@ export type PluginsSettingsPageProps = {
 }
 
 type Tab = 'plugins' | 'mcps' | 'skills'
+type McpOAuthAttempt = {
+  attemptId: string
+  expiresAt: number
+}
 
 const MANAGED_PLUGIN_DESCRIPTORS = PLUGIN_CATALOG_DESCRIPTORS.filter(
   descriptor => descriptor.category !== 'external',
@@ -101,6 +105,10 @@ export function PluginsSettingsPage({
   const [mcpError, setMcpError] = useState<string | null>(null)
   const [mcpStatus, setMcpStatus] = useState<string | null>(null)
   const [busyMcpKeys, setBusyMcpKeys] = useState<Set<string>>(() => new Set())
+  const [busyMcpAuthKeys, setBusyMcpAuthKeys] =
+    useState<Set<string>>(() => new Set())
+  const [mcpOAuthAttempts, setMcpOAuthAttempts] =
+    useState<Record<string, McpOAuthAttempt>>({})
   const [selectedServer, setSelectedServer] =
     useState<DesktopMcpServerListItem | null>(null)
   const [mcpDialogOpen, setMcpDialogOpen] = useState(false)
@@ -161,6 +169,7 @@ export function PluginsSettingsPage({
   }, [requestedTab, searchParams, setSearchParams, tab])
 
   useEffect(() => {
+    setMcpOAuthAttempts({})
     void loadSkills(false)
     void loadServers()
     // Initial data should be loaded once for the current workspace.
@@ -174,6 +183,50 @@ export function PluginsSettingsPage({
     // Reconcile the currently selected workspace whenever the Agent catalog changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspacePath])
+
+  useEffect(() => {
+    const attempts = Object.entries(mcpOAuthAttempts)
+    if (!attempts.length) return
+    let cancelled = false
+    const timer = window.setInterval(() => {
+      void Promise.all(attempts.map(async ([key, attempt]) => {
+        if (Date.now() >= attempt.expiresAt) {
+          if (!cancelled) {
+            setMcpOAuthAttempts(current => withoutRecordKey(current, key))
+            setMcpError('MCP OAuth 授权已过期，请重试。')
+          }
+          return
+        }
+        try {
+          const status = await desktopClient.getMcpOAuthStatus(attempt.attemptId)
+          if (cancelled || status.state === 'pending') return
+          setMcpOAuthAttempts(current => withoutRecordKey(current, key))
+          if (status.state === 'completed') {
+            onNotice?.('MCP OAuth 登录成功。')
+            await reloadMcpConfiguration()
+            await loadServers()
+            return
+          }
+          const message = status.error?.message
+            ?? (status.state === 'expired'
+              ? 'MCP OAuth 授权已过期，请重试。'
+              : 'MCP OAuth 登录失败。')
+          setMcpError(message)
+          onError(message)
+        } catch (error) {
+          if (cancelled) return
+          const message = errorMessageOf(error, 'MCP OAuth 状态读取失败。')
+          setMcpOAuthAttempts(current => withoutRecordKey(current, key))
+          setMcpError(message)
+          onError(message)
+        }
+      }))
+    }, 1_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [mcpOAuthAttempts, onError, onNotice, workspacePath])
 
   useEffect(() => {
     if (pluginLoadError) onError(pluginLoadError)
@@ -402,6 +455,58 @@ export function PluginsSettingsPage({
     }
   }
 
+  async function startMcpOAuth(server: DesktopMcpServerListItem): Promise<void> {
+    const key = mcpKey(server)
+    if (busyMcpAuthKeys.has(key) || mcpOAuthAttempts[key]) return
+    setBusyMcpAuthKeys(current => new Set(current).add(key))
+    setMcpError(null)
+    try {
+      const attempt = await desktopClient.startMcpOAuth(
+        server.name,
+        server.scope,
+        workspacePath ?? undefined,
+      )
+      setMcpOAuthAttempts(current => ({
+        ...current,
+        [key]: {
+          attemptId: attempt.attemptId,
+          expiresAt: attempt.expiresAt,
+        },
+      }))
+      await desktopClient.openExternalURL(attempt.authorizationUrl)
+      onNotice?.('已打开 MCP OAuth 授权页面，正在等待授权完成。')
+    } catch (error) {
+      const message = errorMessageOf(error, '无法启动 MCP OAuth 登录。')
+      setMcpError(message)
+      onError(message)
+    } finally {
+      setBusyMcpAuthKeys(current => without(current, key))
+    }
+  }
+
+  async function logoutMcpOAuth(server: DesktopMcpServerListItem): Promise<void> {
+    const key = mcpKey(server)
+    if (busyMcpAuthKeys.has(key)) return
+    setBusyMcpAuthKeys(current => new Set(current).add(key))
+    setMcpError(null)
+    try {
+      await desktopClient.logoutMcpOAuth(
+        server.name,
+        server.scope,
+        workspacePath ?? undefined,
+      )
+      onNotice?.(`${server.name} 已退出 OAuth 登录。`)
+      await reloadMcpConfiguration()
+      await loadServers()
+    } catch (error) {
+      const message = errorMessageOf(error, 'MCP OAuth 退出失败。')
+      setMcpError(message)
+      onError(message)
+    } finally {
+      setBusyMcpAuthKeys(current => without(current, key))
+    }
+  }
+
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const visiblePlugins = pluginItems.filter(item =>
     matchesQuery(normalizedQuery, item.name, item.description),
@@ -423,6 +528,7 @@ export function PluginsSettingsPage({
       server.type,
       server.scope,
       server.runtime?.state,
+      server.runtime?.auth.source,
     ),
   )
   const selectedPlugin = selectedPluginId
@@ -611,12 +717,18 @@ export function PluginsSettingsPage({
                   setMcpDialogOpen(true)
                 }}
                 actions={
-                  <ToggleSwitch
-                    ariaLabel={`${server.enabled ? '禁用' : '启用'} ${server.name}`}
-                    checked={server.enabled}
-                    disabled={!server.editable || busyMcpKeys.has(mcpKey(server))}
-                    onChange={enabled => void toggleServer(server, enabled)}
-                  />
+                  <>
+                    {mcpAuthAction(server, mcpOAuthAttempts[mcpKey(server)], busyMcpAuthKeys.has(mcpKey(server)), {
+                      login: () => void startMcpOAuth(server),
+                      logout: () => void logoutMcpOAuth(server),
+                    })}
+                    <ToggleSwitch
+                      ariaLabel={`${server.enabled ? '禁用' : '启用'} ${server.name}`}
+                      checked={server.enabled}
+                      disabled={!server.editable || busyMcpKeys.has(mcpKey(server))}
+                      onChange={enabled => void toggleServer(server, enabled)}
+                    />
+                  </>
                 }
               />
             ))
@@ -672,6 +784,11 @@ export function PluginsSettingsPage({
         onRemove={server => {
           setMcpDialogOpen(false)
           setServerPendingRemoval(server)
+        }}
+        onOpenDocumentation={() => {
+          void desktopClient.openExternalURL(
+            'https://learn.chatgpt.com/docs/extend/mcp?surface=app',
+          )
         }}
         onError={message => {
           setMcpError(message)
@@ -817,10 +934,52 @@ function mcpMetadata(server: DesktopMcpServerListItem): React.ReactNode {
     <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1.5 tw:max-[640px]:justify-start">
       <span>{source} · {server.type}</span>
       {server.diagnosticContext ? <DiagnosticContextBadge /> : null}
+      {runtime.auth.source !== 'none' ? (
+        <AuthSourceBadge source={runtime.auth.source} />
+      ) : null}
       <StatusBadge state={runtime.state} label={status[runtime.state]} />
       {counts ? <span>{counts}</span> : null}
     </span>
   )
+}
+
+function AuthSourceBadge({
+  source,
+}: {
+  source: 'environment' | 'oauth'
+}): React.ReactNode {
+  return (
+    <span className="tw:inline-flex tw:rounded-full tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-xs tw:text-app-text-soft">
+      {source === 'oauth' ? 'OAuth' : '环境凭据'}
+    </span>
+  )
+}
+
+function mcpAuthAction(
+  server: DesktopMcpServerListItem,
+  attempt: McpOAuthAttempt | undefined,
+  busy: boolean,
+  actions: { login: () => void; logout: () => void },
+): React.ReactNode {
+  if (!server.effective || !server.enabled || !server.runtime) return null
+  if (attempt) {
+    return <Button disabled loading title="等待 OAuth 授权">等待授权</Button>
+  }
+  if (server.runtime.auth.canLogout) {
+    return <Button disabled={busy} loading={busy} onClick={actions.logout}>退出登录</Button>
+  }
+  if (server.runtime.auth.canLogin) {
+    return <Button disabled={busy} loading={busy} onClick={actions.login}>登录</Button>
+  }
+  return null
+}
+
+function withoutRecordKey<T>(
+  values: Record<string, T>,
+  key: string,
+): Record<string, T> {
+  const { [key]: _removed, ...next } = values
+  return next
 }
 
 function DiagnosticContextBadge(): React.ReactNode {

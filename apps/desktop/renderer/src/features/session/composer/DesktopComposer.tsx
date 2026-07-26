@@ -110,6 +110,7 @@ export type DesktopComposerProps = {
   onCloneGithub: () => void
   onClearWorkspace: () => void
   onOpenBrowser?: () => void
+  onOpenMcpSettings?: () => void
   onBranchSelect: (branch: string) => Promise<void>
   onCreateBranch: () => void
   onStartReview?: (
@@ -194,6 +195,7 @@ export function DesktopComposer({
   onCloneGithub,
   onClearWorkspace,
   onOpenBrowser,
+  onOpenMcpSettings,
   onBranchSelect,
   onCreateBranch,
   onStartReview,
@@ -332,6 +334,7 @@ export function DesktopComposer({
       onCloneGithub={onCloneGithub}
       onClearWorkspace={onClearWorkspace}
       onOpenBrowser={onOpenBrowser}
+      onOpenMcpSettings={onOpenMcpSettings}
       onBranchSelect={branch => void onBranchSelect(branch)}
       onCreateBranch={onCreateBranch}
       onStartReview={onStartReview}

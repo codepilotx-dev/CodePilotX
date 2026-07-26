@@ -231,6 +231,10 @@ export class SidecarSupervisor {
         CODEPILOTX_PETS_DIR: join(dataDirectory, "pets"),
         CODEPILOTX_TOOLING_HOME: join(dataDirectory, "tooling"),
         CODEPILOTX_LEGACY_DATA_DIR: join(app.getPath("userData"), "agent"),
+        CODEPILOTX_LEGACY_APPEARANCE_SETTINGS_PATH: join(
+          app.getPath("userData"),
+          "appearance-settings.json",
+        ),
         CODEPILOTX_DOCUMENTS_DIR: app.getPath("documents"),
         CODEPILOTX_LOG_DIR: join(dataDirectory, "logs"),
         ...(relocation

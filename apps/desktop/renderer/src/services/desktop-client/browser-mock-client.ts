@@ -41,6 +41,7 @@ import type {
 } from '@codepilotx/shared/thread'
 import type {
   EventEnvelope,
+  JsonValue,
   ProtocolCapability,
   RpcParams,
   RpcResult,
@@ -141,6 +142,10 @@ function mcpUnavailable(): never {
 
 export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
   let settings: DesktopStoredSettings = defaultDesktopStoredSettings()
+  let configDocument: Record<string, JsonValue> = {
+    desktop: { ...settings } as unknown as JsonValue,
+  }
+  let configVersion = '0'.repeat(64)
   let themeSettings: DesktopThemeSettings = readBrowserThemeSettings(storage)
   let browserState: DesktopBrowserState = emptyBrowserState()
   let githubLoginMode: DesktopGithubAuthMode = 'browser'
@@ -223,6 +228,53 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
         pathEntries: [],
         binaries: runtimeStatus.toolchainBinaries,
       },
+    }),
+    readConfig: async params => ({
+      config: configDocument,
+      origins: {},
+      ...(params?.includeLayers
+        ? {
+            layers: [{
+              kind: 'user' as const,
+              displayName: '用户配置',
+              filePath: 'C:/Users/mock/.codepilotx/config.toml',
+              version: configVersion,
+              writable: true,
+              trusted: true,
+              config: configDocument,
+            }],
+          }
+        : {}),
+      diagnostics: [],
+    }),
+    writeConfigBatch: async params => {
+      for (const edit of params.edits) {
+        let target = configDocument
+        for (const part of edit.keyPath.slice(0, -1)) {
+          const next = target[part]
+          if (!next || typeof next !== 'object' || Array.isArray(next)) target[part] = {}
+          target = target[part] as Record<string, JsonValue>
+        }
+        const leaf = edit.keyPath.at(-1)!
+        if (edit.value === null) delete target[leaf]
+        else target[leaf] = edit.value
+      }
+      configVersion = (configVersion[0] === '0' ? '1' : '0').repeat(64)
+      return {
+        status: 'ok',
+        version: configVersion,
+        filePath: params.filePath ?? 'C:/Users/mock/.codepilotx/config.toml',
+      }
+    },
+    readProjectTrust: async cwd => ({
+      projectRoot: cwd,
+      trustLevel: 'untrusted',
+      hasProjectConfig: false,
+    }),
+    updateProjectTrust: async params => ({
+      status: 'ok',
+      version: configVersion,
+      filePath: 'C:/Users/mock/.codepilotx/config.toml',
     }),
     getDesktopSettings: async () => settings,
     saveDesktopSettings: async next => {
@@ -342,6 +394,9 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     removeMcpServer: async () => mcpUnavailable(),
     setMcpServerEnabled: async () => mcpUnavailable(),
     reloadMcpConfiguration: async () => mcpUnavailable(),
+    startMcpOAuth: async () => mcpUnavailable(),
+    getMcpOAuthStatus: async () => mcpUnavailable(),
+    logoutMcpOAuth: async () => mcpUnavailable(),
     listOpenTargets: async () => [
       { id: 'default-app', label: '系统默认应用', kind: 'default-app' },
     ],

@@ -1,4 +1,7 @@
-import { desktopClient } from '../../services/desktop-client/index.js'
+import {
+  CONFIG_UPDATED_EVENT,
+  desktopClient,
+} from '../../services/desktop-client/index.js'
 import {
   createContext,
   createElement,
@@ -828,11 +831,8 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         effectiveSettingsRef.current,
         draftValuesRef.current,
         patch,
+        draftDirtyKeysRef.current,
       )
-      const patchKeys = Object.keys(patch) as Array<keyof StoredDesktopSettings>
-      for (const key of patchKeys) {
-        draftDirtyKeysRef.current.delete(key)
-      }
       if (!next.settingsChanged && !next.draftChanged) {
         return
       }
@@ -851,6 +851,17 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     return desktopClient.onDesktopSettingsChange(change => {
       syncExternalSettingsPatch(change.settings)
     })
+  }, [syncExternalSettingsPatch])
+
+  useEffect(() => {
+    const refresh = () => {
+      void desktopClient
+        .getDesktopSettings()
+        .then(syncExternalSettingsPatch)
+        .catch(() => undefined)
+    }
+    window.addEventListener(CONFIG_UPDATED_EVENT, refresh)
+    return () => window.removeEventListener(CONFIG_UPDATED_EVENT, refresh)
   }, [syncExternalSettingsPatch])
 
   const saveDraft = useCallback(async (): Promise<StoredDesktopSettings> => {
@@ -1084,6 +1095,7 @@ export function mergeExternalDesktopSettingsPatch(
   currentSettings: StoredDesktopSettings,
   currentDraftValues: StoredDesktopSettings,
   patch: Partial<StoredDesktopSettings>,
+  dirtyKeys: ReadonlySet<keyof StoredDesktopSettings> = new Set(),
 ): {
   settings: StoredDesktopSettings
   draftValues: StoredDesktopSettings
@@ -1094,9 +1106,14 @@ export function mergeExternalDesktopSettingsPatch(
     ...currentSettings,
     ...patch,
   })
+  const cleanPatch = Object.fromEntries(
+    Object.entries(patch).filter(
+      ([key]) => !dirtyKeys.has(key as keyof StoredDesktopSettings),
+    ),
+  )
   const draftValues = cloneDesktopSettings({
     ...currentDraftValues,
-    ...patch,
+    ...cleanPatch,
   })
   return {
     settings,

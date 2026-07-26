@@ -3,7 +3,6 @@ import { randomBytes } from "node:crypto"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { app, nativeTheme, screen, shell } from "electron"
-import type { DesktopThemeSettingsV6 } from "@codepilotx/shared/desktop-theme"
 import {
   DESKTOP_SETTINGS_IPC_CHANNELS,
   type DesktopSettingsPayload,
@@ -21,10 +20,7 @@ import {
   configureAuthCookie,
   verifyAuthCookie,
 } from "./security/auth-session.js"
-import {
-  AppearanceSettingsStore,
-  DEFAULT_APPEARANCE_SETTINGS,
-} from "./settings/appearance-settings-store.js"
+import { readStartupAppearanceConfig } from "./settings/startup-appearance-config.js"
 import {
   DataLocationStore,
   type DataLocationLaunch,
@@ -101,11 +97,14 @@ async function startDesktop(): Promise<void> {
     packaged: app.isPackaged,
     pid: process.pid,
   })
-  const appearanceSettings = new AppearanceSettingsStore(
-    app.getPath("userData"),
-    logger,
+  const appearanceSettings = await readStartupAppearanceConfig(
+    join(dataLocationLaunch.dataDir, "config.toml"),
+    join(app.getPath("userData"), "appearance-settings.json"),
   )
-  const startupTheme = await resolveStartupTheme(appearanceSettings, logger)
+  const startupTheme = resolveStartupPageTheme(
+    appearanceSettings,
+    nativeTheme.shouldUseDarkColors ? "dark" : "light",
+  )
   const windowStateStore = new WindowStateStore(app.getPath("userData"), logger)
   const displayWorkAreas = screen.getAllDisplays().map(
     display => display.workArea as DesktopDisplayWorkArea,
@@ -318,21 +317,4 @@ app.on("window-all-closed", () => app.quit())
 function relaunchApplication(): void {
   app.relaunch()
   app.quit()
-}
-
-async function resolveStartupTheme(
-  settingsStore: AppearanceSettingsStore,
-  desktopLogger: DesktopLogger,
-) {
-  let settings: DesktopThemeSettingsV6
-  try {
-    settings = await settingsStore.load()
-  } catch (error) {
-    desktopLogger.warn("appearance-settings.startup-fallback", { error })
-    settings = DEFAULT_APPEARANCE_SETTINGS
-  }
-  return resolveStartupPageTheme(
-    settings,
-    nativeTheme.shouldUseDarkColors ? "dark" : "light",
-  )
 }

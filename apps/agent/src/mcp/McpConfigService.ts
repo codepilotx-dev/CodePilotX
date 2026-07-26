@@ -5,7 +5,8 @@ import type {
 } from "@codepilotx/agent-protocol"
 import { createHash } from "node:crypto"
 import { realpath } from "node:fs/promises"
-import { isAbsolute } from "node:path"
+import { isAbsolute, join } from "node:path"
+import type { ConfigService, ConfigValue } from "../config/ConfigService"
 import {
   McpSettingsConflictError,
   McpSettingsRepository,
@@ -40,8 +41,39 @@ const workspaceHash = (root: string) =>
 
 const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right)
 
+const normalizedStrings = (values: readonly string[] | undefined) => {
+  if (!values) return undefined
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+}
+
+const normalizedToolPolicies = (tools: McpServerDeclaration["tools"]) => {
+  if (!tools) return undefined
+  const normalized = Object.fromEntries(
+    Object.entries(tools)
+      .map(([name, policy]) => [name.trim(), policy] as const)
+      .filter(([name]) => Boolean(name)),
+  )
+  return Object.keys(normalized).length ? normalized : undefined
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
+
+const configLeaves = (
+  value: Record<string, unknown>,
+  prefix: string[],
+): Array<{ keyPath: string[]; value: ConfigValue }> =>
+  Object.entries(value).flatMap(([key, child]) =>
+    isRecord(child)
+      ? configLeaves(child, [...prefix, key])
+      : [{ keyPath: [...prefix, key], value: child as ConfigValue }],
+  )
+
 export class McpConfigService {
-  constructor(private readonly repository: McpSettingsRepository) {}
+  constructor(
+    private readonly repository: McpSettingsRepository,
+    private readonly configService?: ConfigService,
+  ) {}
 
   async workspace(value?: string): Promise<McpWorkspaceIdentity | null> {
     if (!value) return null
@@ -53,7 +85,7 @@ export class McpConfigService {
 
   async list(workspace?: string): Promise<{ servers: McpServerListItem[]; generation: number }> {
     const identity = await this.workspace(workspace)
-    return this.listState(this.repository.state(), identity)
+    return this.listState(await this.effectiveState(identity), identity)
   }
 
   async save(input: {
@@ -77,6 +109,7 @@ export class McpConfigService {
         return changed || Boolean(originalName && originalName !== server.name)
       },
     })
+    await this.persistServer(server, identity, originalName)
     return { ...this.listState(result.state, identity), changed: result.changed }
   }
 
@@ -88,6 +121,9 @@ export class McpConfigService {
   }) {
     const identity = await this.workspace(input.workspace)
     const name = this.validateName(input.name)
+    const before = await this.effectiveState(identity)
+    const existing = this.collection(before, input.scope, identity, false)[name]
+    if (!existing) throw new McpConfigError("MCP_SERVER_NOT_FOUND", "MCP server 不存在", 404)
     const fingerprint = stableFingerprint({ action: "remove", workspace: identity?.hash, scope: input.scope, name })
     const result = this.repository.mutate({
       operationId: input.operationId,
@@ -99,6 +135,7 @@ export class McpConfigService {
         return true
       },
     })
+    await this.deleteServer(existing, identity)
     return { ...this.listState(result.state, identity), changed: result.changed }
   }
 
@@ -111,6 +148,9 @@ export class McpConfigService {
   }) {
     const identity = await this.workspace(input.workspace)
     const name = this.validateName(input.name)
+    const before = await this.effectiveState(identity)
+    const existing = this.collection(before, input.scope, identity, false)[name]
+    if (!existing) throw new McpConfigError("MCP_SERVER_NOT_FOUND", "MCP server 不存在", 404)
     const fingerprint = stableFingerprint({ action: "setEnabled", workspace: identity?.hash, scope: input.scope, name, enabled: input.enabled })
     const result = this.repository.mutate({
       operationId: input.operationId,
@@ -124,11 +164,93 @@ export class McpConfigService {
         return true
       },
     })
+    if (result.changed) {
+      await this.persistServer({ ...existing, enabled: input.enabled }, identity)
+    }
     return { ...this.listState(result.state, identity), changed: result.changed }
   }
 
   generation() {
     return this.repository.state().generation
+  }
+
+  private async effectiveState(identity: McpWorkspaceIdentity | null): Promise<McpSettingsState> {
+    const state = this.repository.state()
+    if (!this.configService) return state
+    const read = await this.configService.read(identity ? { cwd: identity.root } : {})
+    if (!isRecord(read.config.mcp_servers)) return state
+    const user: Record<string, McpServerDeclaration> = {}
+    const local: Record<string, McpServerDeclaration> = {}
+    for (const [name, raw] of Object.entries(read.config.mcp_servers)) {
+      if (!isRecord(raw)) continue
+      const projectScoped = Object.entries(read.origins).some(([path, origin]) =>
+        path.startsWith(`mcp_servers.${name}.`) && origin === "project")
+      try {
+        const declaration = this.validate({
+          ...raw,
+          name,
+          scope: projectScoped ? "local" : "user",
+        } as McpServerDeclaration, identity)
+        ;(projectScoped ? local : user)[name] = declaration
+      } catch {
+        // Invalid external declarations remain diagnostics-only and are not activated.
+      }
+    }
+    return {
+      ...state,
+      user,
+      local: identity ? { [identity.hash]: local } : {},
+    }
+  }
+
+  private target(identity: McpWorkspaceIdentity | null, scope: McpScope) {
+    return scope === "local" && identity
+      ? {
+          filePath: join(identity.root, ".codepilotx", "config.toml"),
+          cwd: identity.root,
+        }
+      : {}
+  }
+
+  private async persistServer(
+    server: McpServerDeclaration,
+    identity: McpWorkspaceIdentity | null,
+    originalName?: string,
+  ) {
+    if (!this.configService) return
+    const edits = configLeaves(
+      server as unknown as Record<string, unknown>,
+      ["mcp_servers", server.name],
+    )
+    if (originalName && originalName !== server.name) {
+      const state = await this.effectiveState(identity)
+      const old = state.user[originalName]
+        ?? (identity ? state.local[identity.hash]?.[originalName] : undefined)
+      if (old) {
+        edits.unshift(...configLeaves(
+          old as unknown as Record<string, unknown>,
+          ["mcp_servers", originalName],
+        ).map((edit) => ({ ...edit, value: null as ConfigValue })))
+      }
+    }
+    await this.configService.batchWrite({
+      edits,
+      ...this.target(identity, server.scope),
+    })
+  }
+
+  private async deleteServer(
+    server: McpServerDeclaration,
+    identity: McpWorkspaceIdentity | null,
+  ) {
+    if (!this.configService) return
+    await this.configService.batchWrite({
+      edits: configLeaves(
+        server as unknown as Record<string, unknown>,
+        ["mcp_servers", server.name],
+      ).map((edit) => ({ ...edit, value: null })),
+      ...this.target(identity, server.scope),
+    })
   }
 
   private listState(state: McpSettingsState, workspace: McpWorkspaceIdentity | null) {
@@ -167,6 +289,18 @@ export class McpConfigService {
     }
     const startupTimeoutMs = this.timeout(server.startupTimeoutMs, "启动")
     const toolTimeoutMs = this.timeout(server.toolTimeoutMs, "工具调用")
+    const enabledTools = normalizedStrings(server.enabledTools)
+    const disabledTools = normalizedStrings(server.disabledTools)
+    const tools = normalizedToolPolicies(server.tools)
+    const policy = {
+      ...(server.required !== undefined ? { required: server.required } : {}),
+      ...(enabledTools !== undefined ? { enabledTools } : {}),
+      ...(disabledTools?.length ? { disabledTools } : {}),
+      ...(server.defaultToolsApprovalMode
+        ? { defaultToolsApprovalMode: server.defaultToolsApprovalMode }
+        : {}),
+      ...(tools ? { tools } : {}),
+    }
     if (server.transport.type === "stdio") {
       const command = server.transport.command.trim()
       if (!command || command.length > 4_096) throw new McpConfigError("MCP_CONFIG_INVALID", "stdio command 无效", 400)
@@ -180,6 +314,7 @@ export class McpConfigService {
         scope: server.scope,
         enabled: server.enabled,
         ...(server.diagnosticContext ? { diagnosticContext: true } : {}),
+        ...policy,
         transport: {
           type: "stdio",
           command,
@@ -214,13 +349,51 @@ export class McpConfigService {
     if (server.transport.bearerTokenEnvVar && !ENV_NAME.test(server.transport.bearerTokenEnvVar)) {
       throw new McpConfigError("MCP_CONFIG_INVALID", "Bearer token 环境变量名无效", 400)
     }
+    const scopes = normalizedStrings(server.transport.scopes)
+    const oauthResource = server.transport.oauthResource?.trim()
+    if (
+      scopes
+      && (scopes.length > 32 || scopes.some((scope) => scope.length > 256))
+    ) {
+      throw new McpConfigError(
+        "MCP_CONFIG_INVALID",
+        "OAuth scopes 最多 32 项且每项不能超过 256 字符",
+        400,
+      )
+    }
+    if (
+      server.transport.auth === "none"
+      && ((scopes?.length ?? 0) > 0 || oauthResource)
+    ) {
+      throw new McpConfigError(
+        "MCP_CONFIG_INVALID",
+        "OAuth scopes 和 resource 只能用于 OAuth 认证",
+        400,
+      )
+    }
+    if (oauthResource) {
+      try {
+        const resource = new URL(oauthResource)
+        if (!resource.protocol) throw new Error("missing protocol")
+      } catch {
+        throw new McpConfigError(
+          "MCP_CONFIG_INVALID",
+          "OAuth resource 必须是有效绝对 URI",
+          400,
+        )
+      }
+    }
     return {
       name,
       scope: server.scope,
       enabled: server.enabled,
+      ...policy,
       transport: {
         type: "http",
         url: url.toString(),
+        ...(server.transport.auth ? { auth: server.transport.auth } : {}),
+        ...(scopes?.length ? { scopes } : {}),
+        ...(oauthResource ? { oauthResource } : {}),
         ...(server.transport.headers && Object.keys(server.transport.headers).length ? { headers: { ...server.transport.headers } } : {}),
         ...(server.transport.headerFromEnv && Object.keys(server.transport.headerFromEnv).length ? { headerFromEnv: { ...server.transport.headerFromEnv } } : {}),
         ...(server.transport.bearerTokenEnvVar ? { bearerTokenEnvVar: server.transport.bearerTokenEnvVar } : {}),

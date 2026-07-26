@@ -8,6 +8,7 @@ import type {
 } from './types.js'
 
 export {
+  CONFIG_UPDATED_EVENT,
   WORKSPACE_FILE_CHANGED_EVENT,
   WORKSPACE_GIT_CHANGED_EVENT,
 } from './agent-session-client.js'

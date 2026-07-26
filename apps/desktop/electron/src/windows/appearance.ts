@@ -13,6 +13,14 @@ export class WindowAppearanceController {
     return nativeTheme.shouldUseDarkColors ? "dark" : "light"
   }
 
+  broadcastAppearanceSettings(settings: unknown): void {
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) {
+        window.webContents.send("appearance:settings:changed", settings)
+      }
+    }
+  }
+
   readonly #broadcastSystemTheme = (): void => {
     const variant = this.systemThemeVariant()
     for (const window of BrowserWindow.getAllWindows()) {
