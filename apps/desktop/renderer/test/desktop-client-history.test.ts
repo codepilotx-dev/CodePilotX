@@ -369,6 +369,55 @@ describe('desktop history client', () => {
     expect(restored.defaultModeRequestUserInput).toBe(true)
   })
 
+  test('coalesces identical desktop settings saves and serializes distinct snapshots', async () => {
+    const savedSessionNames: Array<string | undefined> = []
+    let releaseFirstSave: (() => void) | undefined
+    const firstSaveGate = new Promise<void>(resolve => {
+      releaseFirstSave = resolve
+    })
+    let failRetryOnce = true
+    const client = createDesktopClient({
+      window: {
+        codePilotXDesktop: {
+          getDesktopSettings: async () => null,
+          saveDesktopSettings: async settings => {
+            savedSessionNames.push(settings.sessionName)
+            if (settings.sessionName === 'first') await firstSaveGate
+            if (settings.sessionName === 'retry' && failRetryOnce) {
+              failRetryOnce = false
+              throw new Error('retryable save failure')
+            }
+            return settings
+          },
+        },
+      },
+    })
+    const defaults = await client.getDesktopSettings()
+    const firstSnapshot = { ...defaults, sessionName: 'first' }
+    const secondSnapshot = { ...defaults, sessionName: 'second' }
+
+    const firstSave = client.saveDesktopSettings(firstSnapshot)
+    const duplicateSave = client.saveDesktopSettings({ ...firstSnapshot })
+    const secondSave = client.saveDesktopSettings(secondSnapshot)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(savedSessionNames).toEqual(['first'])
+
+    releaseFirstSave?.()
+    expect(await firstSave).toEqual(await duplicateSave)
+    expect((await secondSave).sessionName).toBe('second')
+    expect(savedSessionNames).toEqual(['first', 'second'])
+
+    await expect(client.saveDesktopSettings({
+      ...defaults,
+      sessionName: 'retry',
+    })).rejects.toThrow('retryable save failure')
+    expect((await client.saveDesktopSettings({
+      ...defaults,
+      sessionName: 'retry',
+    })).sessionName).toBe('retry')
+    expect(savedSessionNames).toEqual(['first', 'second', 'retry', 'retry'])
+  })
+
   test('does not open a project when workspace selection is cancelled', async () => {
     const client = createDesktopClient({
       fetch: async () => {

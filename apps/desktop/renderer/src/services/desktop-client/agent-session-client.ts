@@ -271,6 +271,11 @@ export function createAgentSessionDesktopClient(
   const sessionStoreListeners = new Set<(change: DesktopSessionStoreChange) => void>()
   const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>()
   const pendingSettingsUpdates = new Map<string, Promise<void>>()
+  const pendingDesktopSettingsSaves = new Map<
+    string,
+    Promise<DesktopStoredSettings>
+  >()
+  let desktopSettingsSaveTail: Promise<void> = Promise.resolve()
   let sessionStoreReconcile: Promise<void> | null = null
 
   async function isAgentAvailable(): Promise<boolean> {
@@ -408,6 +413,40 @@ export function createAgentSessionDesktopClient(
 
   async function awaitPendingSettingsUpdate(sessionId: string): Promise<void> {
     await pendingSettingsUpdates.get(sessionId)
+  }
+
+  function queueDesktopSettingsSave(
+    settings: DesktopStoredSettings,
+  ): Promise<DesktopStoredSettings> {
+    const normalized = normalizeDesktopStoredSettings(settings)
+    const fingerprint = JSON.stringify(normalized)
+    const pending = pendingDesktopSettingsSaves.get(fingerprint)
+    if (pending) return pending
+
+    const operation = desktopSettingsSaveTail
+      .catch(() => undefined)
+      .then(async () => {
+        const saver =
+          environment.window?.codePilotXDesktop?.saveDesktopSettings
+        if (!saver) return mockClient.saveDesktopSettings(normalized)
+        const saved = normalizeDesktopStoredSettings(
+          await saver(normalized),
+        )
+        await mockClient.saveDesktopSettings(saved)
+        return saved
+      })
+    desktopSettingsSaveTail = operation.then(
+      () => undefined,
+      () => undefined,
+    )
+    pendingDesktopSettingsSaves.set(fingerprint, operation)
+    const clearPending = () => {
+      if (pendingDesktopSettingsSaves.get(fingerprint) === operation) {
+        pendingDesktopSettingsSaves.delete(fingerprint)
+      }
+    }
+    void operation.then(clearPending, clearPending)
+    return operation
   }
 
   function invalidateModelCatalog(): void {
@@ -2352,17 +2391,7 @@ export function createAgentSessionDesktopClient(
       }
       await mockClient.saveThemeSettings(normalized)
     },
-    saveDesktopSettings: async settings => {
-      const normalized = normalizeDesktopStoredSettings(settings)
-      const saver =
-        environment.window?.codePilotXDesktop?.saveDesktopSettings
-      if (!saver) return mockClient.saveDesktopSettings(normalized)
-      const saved = normalizeDesktopStoredSettings(
-        await saver(normalized),
-      )
-      await mockClient.saveDesktopSettings(saved)
-      return saved
-    },
+    saveDesktopSettings: queueDesktopSettingsSave,
     listProjectMemories: workspacePath =>
       withAgentOrMock(
         async () => {
