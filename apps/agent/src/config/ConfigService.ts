@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto"
 import { watch, type FSWatcher } from "node:fs"
-import { mkdir, readFile, rename, stat, writeFile } from "node:fs/promises"
+import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
 import { dirname, isAbsolute, join, parse as parsePath, relative, resolve } from "node:path"
 import { parse, stringify, type TomlTable } from "smol-toml"
 import { parseForESLint, type AST } from "toml-eslint-parser"
@@ -87,6 +87,13 @@ const PROJECT_FORBIDDEN_ROOTS = new Set([
   "logging",
   "data_dir",
 ])
+const ENVIRONMENT_VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
+const STATIC_SECRET_HEADERS = new Set([
+  "authorization",
+  "proxy-authorization",
+  "cookie",
+  "set-cookie",
+])
 const isSecretMaterialKey = (key: string) => {
   const normalized = key.replace(/[-_]/g, "").toLowerCase()
   if (/(?:env|environment|credentialid|credentialref|secretid)$/.test(normalized)) {
@@ -102,6 +109,27 @@ const isSecretMaterialKey = (key: string) => {
     "privatekey",
   ].some((part) => normalized === part || normalized.endsWith(part))
 }
+
+const isMcpEnvironmentReferencePath = (path: readonly string[]) =>
+  (
+    path.length === 5
+    && path[0] === "mcp_servers"
+    && path[2] === "transport"
+    && (path[3] === "envFromHost" || path[3] === "headerFromEnv")
+  )
+  || (
+    path.length === 4
+    && path[0] === "mcp_servers"
+    && path[2] === "transport"
+    && path[3] === "bearerTokenEnvVar"
+  )
+
+const isStaticMcpSecretHeaderPath = (path: readonly string[]) =>
+  path.length === 5
+  && path[0] === "mcp_servers"
+  && path[2] === "transport"
+  && path[3] === "headers"
+  && STATIC_SECRET_HEADERS.has(path[4]!.toLowerCase())
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
@@ -294,6 +322,21 @@ const validateConfig = (config: ConfigObject, scope: ConfigScope) => {
   const visit = (value: ConfigObject, prefix: string[] = []) => {
     for (const [key, child] of Object.entries(value)) {
       const path = [...prefix, key]
+      if (isMcpEnvironmentReferencePath(path)) {
+        if (typeof child !== "string" || !ENVIRONMENT_VARIABLE_NAME.test(child)) {
+          throw new ConfigServiceError(
+            "CONFIG_VALIDATION_ERROR",
+            `配置 ${path.join(".")} 的环境变量名无效`,
+          )
+        }
+        continue
+      }
+      if (isStaticMcpSecretHeaderPath(path)) {
+        throw new ConfigServiceError(
+          "CONFIG_VALIDATION_ERROR",
+          `配置 ${path.join(".")} 不允许保存密钥材料`,
+        )
+      }
       if (isSecretMaterialKey(key) && typeof child === "string" && child.trim()) {
         throw new ConfigServiceError(
           "CONFIG_VALIDATION_ERROR",
@@ -344,12 +387,31 @@ const readConfigFile = async (
   }
 }
 
+type ConfigBatchWriteInput = {
+  edits: readonly ConfigEdit[]
+  filePath?: string | undefined
+  cwd?: string | undefined
+  expectedVersion?: string | undefined
+  migrationScope?: ConfigScope | undefined
+}
+
+type ConfigWriteTarget = {
+  scope: ConfigScope
+  filePath: string
+}
+
+const writeQueueKey = (filePath: string) => {
+  const normalized = resolve(filePath)
+  return process.platform === "win32" ? normalized.toLowerCase() : normalized
+}
+
 export class ConfigService {
   private user: LoadedFile | undefined
   private projects = new Map<string, LoadedFile>()
   private watchers = new Map<string, FSWatcher>()
   private listeners = new Set<(event: ConfigUpdated) => void | Promise<void>>()
   private refreshTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  private writeQueues = new Map<string, Promise<void>>()
 
   constructor(
     readonly userConfigPath: string,
@@ -571,17 +633,23 @@ export class ConfigService {
     return { scope: "project" as const, filePath: project.filePath }
   }
 
-  async batchWrite(input: {
-    edits: readonly ConfigEdit[]
-    filePath?: string | undefined
-    cwd?: string | undefined
-    expectedVersion?: string | undefined
-    migrationScope?: ConfigScope | undefined
-  }): Promise<ConfigWriteResult> {
-    if (!this.user) await this.initialize()
-    const target = input.migrationScope && input.filePath
-      ? { scope: input.migrationScope, filePath: resolve(input.filePath) }
-      : await this.resolveWriteTarget(input.filePath, input.cwd)
+  private async performBatchWrite(
+    input: ConfigBatchWriteInput,
+    target: ConfigWriteTarget,
+  ): Promise<ConfigWriteResult> {
+    if (target.scope === "project" && !input.migrationScope) {
+      this.user = await readConfigFile(this.userConfigPath, "user", this.user)
+      const projectRoot = resolve(dirname(dirname(target.filePath)))
+      const projects = isObject(this.user.config.projects)
+        ? this.user.config.projects as ConfigObject
+        : {}
+      const trust = isObject(projects[projectRoot])
+        ? (projects[projectRoot] as ConfigObject).trust_level
+        : undefined
+      if (trust !== "trusted") {
+        throw new ConfigServiceError("CONFIG_PROJECT_UNTRUSTED", "项目配置尚未信任")
+      }
+    }
     const previous = await readConfigFile(
       target.filePath,
       target.scope,
@@ -605,8 +673,12 @@ export class ConfigService {
     }
     await mkdir(dirname(target.filePath), { recursive: true })
     const temporary = join(dirname(target.filePath), `.${randomUUID()}.config.tmp`)
-    await writeFile(temporary, text, "utf8")
-    await rename(temporary, target.filePath)
+    try {
+      await writeFile(temporary, text, "utf8")
+      await rename(temporary, target.filePath)
+    } finally {
+      await rm(temporary, { force: true }).catch(() => undefined)
+    }
     const loaded = await this.refreshFile(
       target.filePath,
       target.scope,
@@ -626,6 +698,26 @@ export class ConfigService {
       filePath: target.filePath,
       ...(overridden.length ? { overridden } : {}),
     }
+  }
+
+  async batchWrite(input: ConfigBatchWriteInput): Promise<ConfigWriteResult> {
+    if (!this.user) await this.initialize()
+    const target = input.migrationScope && input.filePath
+      ? { scope: input.migrationScope, filePath: resolve(input.filePath) }
+      : await this.resolveWriteTarget(input.filePath, input.cwd)
+    const pathKey = writeQueueKey(target.filePath)
+    const task = (this.writeQueues.get(pathKey) ?? Promise.resolve())
+      .catch(() => undefined)
+      .then(() => this.performBatchWrite(input, target))
+    const tail = task.then(
+      () => undefined,
+      () => undefined,
+    )
+    this.writeQueues.set(pathKey, tail)
+    void tail.then(() => {
+      if (this.writeQueues.get(pathKey) === tail) this.writeQueues.delete(pathKey)
+    })
+    return task
   }
 
   async writeValue(input: ConfigEdit & {

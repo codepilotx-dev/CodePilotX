@@ -177,6 +177,13 @@ const normalizeState = (value: McpSettingsState | null): McpSettingsState => {
 
 export class McpSettingsConflictError extends Error {}
 
+export type McpPreparedMutation = {
+  baseState: McpSettingsState
+  state: McpSettingsState
+  changed: boolean
+  commitRequired: boolean
+}
+
 export class McpSettingsRepository {
   constructor(private readonly database: SettingsDatabase) {}
 
@@ -184,18 +191,23 @@ export class McpSettingsRepository {
     return normalizeState(this.database.getSetting<McpSettingsState>(SETTINGS_KEY))
   }
 
-  mutate(input: {
+  prepare(input: {
     operationId: string
     fingerprint: string
     apply: (draft: McpSettingsState) => boolean
-  }): { state: McpSettingsState; changed: boolean } {
+  }): McpPreparedMutation {
     const state = this.state()
     const existing = state.operations.find((operation) => operation.operationId === input.operationId)
     if (existing) {
       if (existing.fingerprint !== input.fingerprint) {
         throw new McpSettingsConflictError("operationId 已用于其他 MCP 设置请求")
       }
-      return { state: { ...state, generation: existing.generation }, changed: false }
+      return {
+        baseState: state,
+        state: { ...state, generation: existing.generation },
+        changed: false,
+        commitRequired: false,
+      }
     }
 
     const draft = structuredClone(state)
@@ -213,7 +225,30 @@ export class McpSettingsRepository {
         },
       ].slice(-MAX_OPERATIONS),
     }
-    this.database.setSetting(SETTINGS_KEY, next)
-    return { state: next, changed }
+    return {
+      baseState: state,
+      state: next,
+      changed,
+      commitRequired: true,
+    }
+  }
+
+  commit(prepared: McpPreparedMutation): { state: McpSettingsState; changed: boolean } {
+    if (!prepared.commitRequired) {
+      return { state: prepared.state, changed: prepared.changed }
+    }
+    if (JSON.stringify(this.state()) !== JSON.stringify(prepared.baseState)) {
+      throw new McpSettingsConflictError("MCP 设置已被其他请求更新")
+    }
+    this.database.setSetting(SETTINGS_KEY, prepared.state)
+    return { state: prepared.state, changed: prepared.changed }
+  }
+
+  mutate(input: {
+    operationId: string
+    fingerprint: string
+    apply: (draft: McpSettingsState) => boolean
+  }): { state: McpSettingsState; changed: boolean } {
+    return this.commit(this.prepare(input))
   }
 }

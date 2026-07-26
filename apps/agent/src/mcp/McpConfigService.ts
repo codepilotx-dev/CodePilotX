@@ -6,7 +6,11 @@ import type {
 import { createHash } from "node:crypto"
 import { realpath } from "node:fs/promises"
 import { isAbsolute, join } from "node:path"
-import type { ConfigService, ConfigValue } from "../config/ConfigService"
+import {
+  ConfigServiceError,
+  type ConfigService,
+  type ConfigValue,
+} from "../config/ConfigService"
 import {
   McpSettingsConflictError,
   McpSettingsRepository,
@@ -17,6 +21,7 @@ const SERVER_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const SENSITIVE_NAME = /(?:^|[_-])(authorization|cookie|password|secret|token|api[_-]?key)(?:$|[_-])/i
 const STATIC_SECRET_HEADERS = new Set(["authorization", "proxy-authorization", "cookie", "set-cookie"])
+const LOCAL_TRUST_MESSAGE = "项目 MCP 配置尚未信任，请前往“设置 → 配置”信任项目，或将作用域改为 user"
 
 export type McpWorkspaceIdentity = {
   root: string
@@ -70,6 +75,8 @@ const configLeaves = (
   )
 
 export class McpConfigService {
+  private mutationQueue: Promise<void> = Promise.resolve()
+
   constructor(
     private readonly repository: McpSettingsRepository,
     private readonly configService?: ConfigService,
@@ -98,19 +105,26 @@ export class McpConfigService {
     const server = this.validate(input.server, identity)
     const originalName = input.originalName?.trim()
     const fingerprint = stableFingerprint({ action: "save", workspace: identity?.hash, originalName, server })
-    const result = this.repository.mutate({
-      operationId: input.operationId,
-      fingerprint,
-      apply: (draft) => {
-        const collection = this.collection(draft, server.scope, identity, true)
-        if (originalName && originalName !== server.name) delete collection[originalName]
-        const changed = !same(collection[server.name], server)
-        collection[server.name] = server
-        return changed || Boolean(originalName && originalName !== server.name)
-      },
+    return this.enqueueMutation(async () => {
+      await this.requireProjectTrustWhenLocal(server.scope, identity)
+      const prepared = this.repository.prepare({
+        operationId: input.operationId,
+        fingerprint,
+        apply: (draft) => {
+          const collection = this.collection(draft, server.scope, identity, true)
+          if (originalName && originalName !== server.name) delete collection[originalName]
+          const changed = !same(collection[server.name], server)
+          collection[server.name] = server
+          return changed || Boolean(originalName && originalName !== server.name)
+        },
+      })
+      if (!prepared.commitRequired) {
+        return { ...this.listState(prepared.state, identity), changed: prepared.changed }
+      }
+      await this.persistServer(server, identity, originalName)
+      const result = this.repository.commit(prepared)
+      return { ...this.listState(result.state, identity), changed: result.changed }
     })
-    await this.persistServer(server, identity, originalName)
-    return { ...this.listState(result.state, identity), changed: result.changed }
   }
 
   async remove(input: {
@@ -121,22 +135,29 @@ export class McpConfigService {
   }) {
     const identity = await this.workspace(input.workspace)
     const name = this.validateName(input.name)
-    const before = await this.effectiveState(identity)
-    const existing = this.collection(before, input.scope, identity, false)[name]
-    if (!existing) throw new McpConfigError("MCP_SERVER_NOT_FOUND", "MCP server 不存在", 404)
     const fingerprint = stableFingerprint({ action: "remove", workspace: identity?.hash, scope: input.scope, name })
-    const result = this.repository.mutate({
-      operationId: input.operationId,
-      fingerprint,
-      apply: (draft) => {
-        const collection = this.collection(draft, input.scope, identity, false)
-        if (!collection[name]) throw new McpConfigError("MCP_SERVER_NOT_FOUND", "MCP server 不存在", 404)
-        delete collection[name]
-        return true
-      },
+    return this.enqueueMutation(async () => {
+      await this.requireProjectTrustWhenLocal(input.scope, identity)
+      const prepared = this.repository.prepare({
+        operationId: input.operationId,
+        fingerprint,
+        apply: (draft) => {
+          const collection = this.collection(draft, input.scope, identity, false)
+          if (!collection[name]) throw new McpConfigError("MCP_SERVER_NOT_FOUND", "MCP server 不存在", 404)
+          delete collection[name]
+          return true
+        },
+      })
+      if (!prepared.commitRequired) {
+        return { ...this.listState(prepared.state, identity), changed: prepared.changed }
+      }
+      const before = await this.effectiveState(identity)
+      const existing = this.collection(before, input.scope, identity, false)[name]
+      if (!existing) throw new McpConfigError("MCP_SERVER_NOT_FOUND", "MCP server 不存在", 404)
+      await this.deleteServer(existing, identity)
+      const result = this.repository.commit(prepared)
+      return { ...this.listState(result.state, identity), changed: result.changed }
     })
-    await this.deleteServer(existing, identity)
-    return { ...this.listState(result.state, identity), changed: result.changed }
   }
 
   async setEnabled(input: {
@@ -148,26 +169,33 @@ export class McpConfigService {
   }) {
     const identity = await this.workspace(input.workspace)
     const name = this.validateName(input.name)
-    const before = await this.effectiveState(identity)
-    const existing = this.collection(before, input.scope, identity, false)[name]
-    if (!existing) throw new McpConfigError("MCP_SERVER_NOT_FOUND", "MCP server 不存在", 404)
     const fingerprint = stableFingerprint({ action: "setEnabled", workspace: identity?.hash, scope: input.scope, name, enabled: input.enabled })
-    const result = this.repository.mutate({
-      operationId: input.operationId,
-      fingerprint,
-      apply: (draft) => {
-        const collection = this.collection(draft, input.scope, identity, false)
-        const server = collection[name]
-        if (!server) throw new McpConfigError("MCP_SERVER_NOT_FOUND", "MCP server 不存在", 404)
-        if (server.enabled === input.enabled) return false
-        collection[name] = { ...server, enabled: input.enabled }
-        return true
-      },
+    return this.enqueueMutation(async () => {
+      await this.requireProjectTrustWhenLocal(input.scope, identity)
+      const prepared = this.repository.prepare({
+        operationId: input.operationId,
+        fingerprint,
+        apply: (draft) => {
+          const collection = this.collection(draft, input.scope, identity, false)
+          const server = collection[name]
+          if (!server) throw new McpConfigError("MCP_SERVER_NOT_FOUND", "MCP server 不存在", 404)
+          if (server.enabled === input.enabled) return false
+          collection[name] = { ...server, enabled: input.enabled }
+          return true
+        },
+      })
+      if (!prepared.commitRequired) {
+        return { ...this.listState(prepared.state, identity), changed: prepared.changed }
+      }
+      if (prepared.changed) {
+        const before = await this.effectiveState(identity)
+        const existing = this.collection(before, input.scope, identity, false)[name]
+        if (!existing) throw new McpConfigError("MCP_SERVER_NOT_FOUND", "MCP server 不存在", 404)
+        await this.persistServer({ ...existing, enabled: input.enabled }, identity)
+      }
+      const result = this.repository.commit(prepared)
+      return { ...this.listState(result.state, identity), changed: result.changed }
     })
-    if (result.changed) {
-      await this.persistServer({ ...existing, enabled: input.enabled }, identity)
-    }
-    return { ...this.listState(result.state, identity), changed: result.changed }
   }
 
   generation() {
@@ -177,7 +205,8 @@ export class McpConfigService {
   private async effectiveState(identity: McpWorkspaceIdentity | null): Promise<McpSettingsState> {
     const state = this.repository.state()
     if (!this.configService) return state
-    const read = await this.configService.read(identity ? { cwd: identity.root } : {})
+    const read = await this.configOperation(() =>
+      this.configService!.read(identity ? { cwd: identity.root } : {}))
     if (!isRecord(read.config.mcp_servers)) return state
     const user: Record<string, McpServerDeclaration> = {}
     const local: Record<string, McpServerDeclaration> = {}
@@ -233,10 +262,11 @@ export class McpConfigService {
         ).map((edit) => ({ ...edit, value: null as ConfigValue })))
       }
     }
-    await this.configService.batchWrite({
-      edits,
-      ...this.target(identity, server.scope),
-    })
+    await this.configOperation(() =>
+      this.configService!.batchWrite({
+        edits,
+        ...this.target(identity, server.scope),
+      }))
   }
 
   private async deleteServer(
@@ -244,13 +274,64 @@ export class McpConfigService {
     identity: McpWorkspaceIdentity | null,
   ) {
     if (!this.configService) return
-    await this.configService.batchWrite({
-      edits: configLeaves(
-        server as unknown as Record<string, unknown>,
-        ["mcp_servers", server.name],
-      ).map((edit) => ({ ...edit, value: null })),
-      ...this.target(identity, server.scope),
-    })
+    await this.configOperation(() =>
+      this.configService!.batchWrite({
+        edits: configLeaves(
+          server as unknown as Record<string, unknown>,
+          ["mcp_servers", server.name],
+        ).map((edit) => ({ ...edit, value: null })),
+        ...this.target(identity, server.scope),
+      }))
+  }
+
+  private enqueueMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const task = this.mutationQueue
+      .catch(() => undefined)
+      .then(operation)
+    this.mutationQueue = task.then(
+      () => undefined,
+      () => undefined,
+    )
+    return task
+  }
+
+  private async requireProjectTrustWhenLocal(
+    scope: McpScope,
+    identity: McpWorkspaceIdentity | null,
+  ) {
+    if (scope !== "local") return
+    if (!identity) {
+      throw new McpConfigError("MCP_CONFIG_INVALID", "工作区 MCP 配置需要当前工作区", 400)
+    }
+    if (!this.configService) return
+    const trust = await this.configOperation(() =>
+      this.configService!.trustRead(identity.root))
+    if (trust.trustLevel !== "trusted") {
+      throw new McpConfigError("PATH_DENIED", LOCAL_TRUST_MESSAGE, 403)
+    }
+  }
+
+  private async configOperation<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation()
+    } catch (cause) {
+      if (!(cause instanceof ConfigServiceError)) throw cause
+      switch (cause.code) {
+        case "CONFIG_PROJECT_UNTRUSTED":
+          throw new McpConfigError("PATH_DENIED", LOCAL_TRUST_MESSAGE, 403)
+        case "CONFIG_LAYER_READONLY":
+        case "CONFIG_PATH_NOT_FOUND":
+          throw new McpConfigError(
+            "PATH_DENIED",
+            "MCP 配置路径不可写，请检查工作区或将作用域改为 user",
+            403,
+          )
+        case "CONFIG_VERSION_CONFLICT":
+          throw new McpConfigError("CONFLICT", "MCP 配置已被其他操作更新，请重试", 409)
+        case "CONFIG_VALIDATION_ERROR":
+          throw new McpConfigError("MCP_CONFIG_INVALID", "MCP 配置无效，请检查设置后重试", 400)
+      }
+    }
   }
 
   private listState(state: McpSettingsState, workspace: McpWorkspaceIdentity | null) {

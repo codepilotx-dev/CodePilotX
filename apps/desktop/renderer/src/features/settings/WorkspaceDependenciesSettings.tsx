@@ -123,10 +123,10 @@ export function WorkspaceDependenciesSettings({
           const preference: ToolingPreference = legacyManagedPreference
             ? 'managed'
             : 'system'
-          const migrated = await Promise.all([
-            desktopClient.setToolingPreference('nodejs', preference),
-            desktopClient.setToolingPreference('python', preference),
-          ])
+          const migrated = [
+            await desktopClient.setToolingPreference('nodejs', preference),
+            await desktopClient.setToolingPreference('python', preference),
+          ]
           if (!active) return
           for (const status of migrated) replaceStatus(status)
           await completeMigration()

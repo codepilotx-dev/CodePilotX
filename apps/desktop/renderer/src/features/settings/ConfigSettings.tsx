@@ -10,6 +10,7 @@ import { PERMISSION_MODE_OPTIONS, permissionConfigForMode, permissionModeForConf
 import type {
   DesktopConfigReadResult,
   DesktopDataLocationState,
+  DesktopProjectTrustReadResult,
 } from '../../../shared/types.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
@@ -53,16 +54,23 @@ export function ConfigSettings(): React.ReactNode {
   const [sandboxRuntimeRefreshing, setSandboxRuntimeRefreshing] = useState(false)
   const [promptPreview, setPromptPreview] = useState<string | null>(null)
   const [configRead, setConfigRead] = useState<DesktopConfigReadResult | null>(null)
+  const [projectTrust, setProjectTrust] = useState<DesktopProjectTrustReadResult | null>(null)
   const [configLayer, setConfigLayer] = useState<'user' | 'project'>('user')
   const [configBusy, setConfigBusy] = useState(false)
   const configCwd = draft.values.lastActiveWorkspacePath || undefined
 
   const reloadConfig = async () => {
-    const read = await desktopClient.readConfig({
-      includeLayers: true,
-      ...(configCwd ? { cwd: configCwd } : {}),
-    })
+    const [read, trust] = await Promise.all([
+      desktopClient.readConfig({
+        includeLayers: true,
+        ...(configCwd ? { cwd: configCwd } : {}),
+      }),
+      configCwd
+        ? desktopClient.readProjectTrust(configCwd)
+        : Promise.resolve(null),
+    ])
     setConfigRead(read)
+    setProjectTrust(trust)
     if (configLayer === 'project' && !read.layers?.some(layer => layer.kind === 'project')) {
       setConfigLayer('user')
     }
@@ -70,16 +78,26 @@ export function ConfigSettings(): React.ReactNode {
 
   useEffect(() => {
     let mounted = true
-    void desktopClient
-      .readConfig({
+    void Promise.all([
+      desktopClient.readConfig({
         includeLayers: true,
         ...(configCwd ? { cwd: configCwd } : {}),
-      })
-      .then(read => {
-        if (mounted) setConfigRead(read)
+      }),
+      configCwd
+        ? desktopClient.readProjectTrust(configCwd)
+        : Promise.resolve(null),
+    ])
+      .then(([read, trust]) => {
+        if (mounted) {
+          setConfigRead(read)
+          setProjectTrust(trust)
+        }
       })
       .catch(() => {
-        if (mounted) setConfigRead(null)
+        if (mounted) {
+          setConfigRead(null)
+          setProjectTrust(null)
+        }
       })
     return () => {
       mounted = false
@@ -95,6 +113,27 @@ export function ConfigSettings(): React.ReactNode {
   const selectedConfigLayer = configRead?.layers?.find(
     layer => layer.kind === configLayer,
   )
+
+  const trustCurrentProject = async (): Promise<void> => {
+    if (!configCwd || configBusy) return
+    setConfigBusy(true)
+    try {
+      const userVersion = configRead?.layers?.find(
+        layer => layer.kind === 'user',
+      )?.version
+      await desktopClient.updateProjectTrust({
+        cwd: configCwd,
+        trustLevel: 'trusted',
+        ...(userVersion ? { expectedVersion: userVersion } : {}),
+      })
+      await reloadConfig()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      window.alert(`信任当前工作区失败：${message}`)
+    } finally {
+      setConfigBusy(false)
+    }
+  }
 
   useEffect(() => {
     let mounted = true
@@ -234,34 +273,29 @@ export function ConfigSettings(): React.ReactNode {
                   <AlertTriangle size={APP_ICON_SIZE} /> {diagnostic.message}
                 </span>
               }
-              control={
-                diagnostic.code === 'CONFIG_PROJECT_UNTRUSTED' && configCwd ? (
-                  <Button
-                    type="button"
-                    disabled={configBusy}
-                    onClick={() => void (async () => {
-                      setConfigBusy(true)
-                      try {
-                        const userVersion = configRead.layers?.find(
-                          layer => layer.kind === 'user',
-                        )?.version
-                        await desktopClient.updateProjectTrust({
-                          cwd: configCwd,
-                          trustLevel: 'trusted',
-                          ...(userVersion ? { expectedVersion: userVersion } : {}),
-                        })
-                        await reloadConfig()
-                      } finally {
-                        setConfigBusy(false)
-                      }
-                    })()}
-                  >
-                    信任项目配置
-                  </Button>
-                ) : undefined
-              }
             />
           ))}
+          <SettingsRow
+            title="项目配置信任"
+            description={
+              !configCwd
+                ? '请先打开一个工作空间'
+                : projectTrust?.trustLevel === 'trusted'
+                  ? '当前工作区已信任，可以保存项目级配置'
+                  : '当前工作区未信任；保存 local MCP 前请先显式信任'
+            }
+            control={
+              configCwd && projectTrust?.trustLevel === 'untrusted' ? (
+                <Button
+                  type="button"
+                  disabled={configBusy}
+                  onClick={() => void trustCurrentProject()}
+                >
+                  信任当前工作区
+                </Button>
+              ) : undefined
+            }
+          />
           <SettingsRow
             title="当前来源"
             description={

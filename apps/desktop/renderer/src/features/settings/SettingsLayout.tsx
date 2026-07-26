@@ -30,6 +30,10 @@ export function SettingsLayout(): React.ReactNode {
   const { workspacePath, useSkill } = useDesktopLayoutOutletContext()
 
   useEffect(() => {
+    setErrorMessage(null)
+  }, [activeTab])
+
+  useEffect(() => {
     const saveSettings = async (): Promise<void> => {
       await Promise.all([
         settings.draft.dirty

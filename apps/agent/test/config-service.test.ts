@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises"
-import { join } from "node:path"
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises"
+import { join, resolve } from "node:path"
 import { tmpdir } from "node:os"
 import { createHash } from "node:crypto"
 import {
@@ -61,6 +61,91 @@ describe("ConfigService", () => {
     await service.dispose()
   })
 
+  test("同一 config.toml 的并发写入会串行合并且不残留临时文件", async () => {
+    const root = await temporaryRoot()
+    const filePath = join(root, "config.toml")
+    await writeFile(filePath, "# keep\n", "utf8")
+    const service = new ConfigService(filePath)
+    await service.initialize()
+
+    await Promise.all([
+      service.writeValue({
+        keyPath: ["desktop", "tooling", "nodejs"],
+        value: "managed",
+      }),
+      service.writeValue({
+        keyPath: ["desktop", "tooling", "python"],
+        value: "system",
+      }),
+    ])
+
+    const source = await readFile(filePath, "utf8")
+    expect(source).toContain("# keep")
+    expect(source).toContain('nodejs = "managed"')
+    expect(source).toContain('python = "system"')
+    expect((await readdir(root)).filter((name) =>
+      name.endsWith(".config.tmp"))).toEqual([])
+    await service.dispose()
+  })
+
+  test("排队的项目写入会在落盘前重新检查最新信任状态", async () => {
+    const root = await temporaryRoot()
+    const workspace = join(root, "workspace")
+    const userConfig = join(root, "data", "config.toml")
+    const projectConfig = join(workspace, ".codepilotx", "config.toml")
+    await mkdir(join(workspace, ".codepilotx"), { recursive: true })
+    await writeFile(projectConfig, "# keep\n", "utf8")
+    const service = new ConfigService(userConfig)
+    await service.initialize()
+    await service.trustUpdate(workspace, "trusted")
+
+    let releaseWrite!: () => void
+    const blocker = new Promise<void>((resolveBlocker) => {
+      releaseWrite = resolveBlocker
+    })
+    const queueKey = process.platform === "win32"
+      ? resolve(projectConfig).toLowerCase()
+      : resolve(projectConfig)
+    const writeQueues = (
+      service as unknown as { writeQueues: Map<string, Promise<void>> }
+    ).writeQueues
+    writeQueues.set(queueKey, blocker)
+
+    const pending = service.writeValue({
+      keyPath: ["mcp_servers", "fixture", "enabled"],
+      value: true,
+      filePath: projectConfig,
+      cwd: workspace,
+    })
+    const settled = pending.then(
+      (value) => ({ value }),
+      (error: unknown) => ({ error }),
+    )
+    for (
+      let attempt = 0;
+      attempt < 100 && writeQueues.get(queueKey) === blocker;
+      attempt += 1
+    ) {
+      await Bun.sleep(5)
+    }
+    if (writeQueues.get(queueKey) === blocker) releaseWrite()
+    expect(writeQueues.get(queueKey)).not.toBe(blocker)
+
+    try {
+      await service.trustUpdate(workspace, "untrusted")
+    } finally {
+      releaseWrite()
+    }
+
+    expect(await settled).toMatchObject({
+      error: {
+        code: "CONFIG_PROJECT_UNTRUSTED",
+      },
+    })
+    expect(await readFile(projectConfig, "utf8")).toBe("# keep\n")
+    await service.dispose()
+  })
+
   test("可信项目覆盖用户配置，未信任时忽略项目层", async () => {
     const root = await temporaryRoot()
     const userConfig = join(root, "data", "config.toml")
@@ -103,7 +188,7 @@ describe("ConfigService", () => {
     await service.dispose()
   })
 
-  test("项目层拒绝 Desktop 与凭据字段", async () => {
+  test("项目层拒绝 Desktop，MCP 环境变量引用通过且静态凭据仍被拒绝", async () => {
     const root = await temporaryRoot()
     const filePath = join(root, "config.toml")
     const service = new ConfigService(filePath)
@@ -116,6 +201,41 @@ describe("ConfigService", () => {
       '[model_providers.openai]\napi_key = "secret"\n',
       "user",
     )).toThrow(ConfigServiceError)
+    expect(() => service.validateDocument([
+      "[mcp_servers.context7.transport]",
+      'type = "http"',
+      'url = "https://mcp.context7.com/mcp"',
+      'bearerTokenEnvVar = "CONTEXT7_API_KEY"',
+      "",
+      "[mcp_servers.context7.transport.headerFromEnv]",
+      'CONTEXT7_API_KEY = "CONTEXT7_API_KEY"',
+      "",
+      "[mcp_servers.worker.transport]",
+      'type = "stdio"',
+      'command = "worker"',
+      "",
+      "[mcp_servers.worker.transport.envFromHost]",
+      'API_KEY = "WORKER_API_KEY"',
+      "",
+    ].join("\n"), "user")).not.toThrow()
+    expect(() => service.validateDocument([
+      "[mcp_servers.context7.transport]",
+      'type = "http"',
+      'url = "https://mcp.context7.com/mcp"',
+      "",
+      "[mcp_servers.context7.transport.headers]",
+      'Authorization = "secret"',
+      "",
+    ].join("\n"), "user")).toThrow(ConfigServiceError)
+    expect(() => service.validateDocument([
+      "[mcp_servers.context7.transport]",
+      'type = "http"',
+      'url = "https://mcp.context7.com/mcp"',
+      "",
+      "[mcp_servers.context7.transport.headerFromEnv]",
+      'Authorization = "not an environment variable"',
+      "",
+    ].join("\n"), "user")).toThrow(ConfigServiceError)
     await service.dispose()
   })
 

@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import type { McpServerDeclaration } from "@codepilotx/agent-protocol"
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp, readFile, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import {
+  ConfigService,
+  ConfigServiceError,
+} from "../src/config/ConfigService"
 import {
   MAX_MCP_SERVER_INSTRUCTIONS_BYTES,
   McpClientFactory,
@@ -289,6 +293,272 @@ describe("MCP configuration", () => {
         oauthResource: "https://example.com/resource",
       },
     })
+  })
+
+  test("serializes MCP mutations and commits each prepared state only after its config write", async () => {
+    const database = new MemorySettings()
+    const repository = new McpSettingsRepository(database)
+    const writes: string[] = []
+    let releaseFirstWrite!: () => void
+    const firstWrite = new Promise<void>((resolve) => {
+      releaseFirstWrite = resolve
+    })
+    const configService = {
+      batchWrite: async (input: { edits: Array<{ keyPath: readonly string[] }> }) => {
+        const name = String(input.edits[0]?.keyPath[1])
+        writes.push(name)
+        if (name === "one") await firstWrite
+        return {} as never
+      },
+    } as unknown as ConfigService
+    const configs = new McpConfigService(repository, configService)
+
+    const one = configs.save({
+      server: server("one", "user", true),
+      operationId: "save-one",
+    })
+    const two = configs.save({
+      server: server("two", "user", true),
+      operationId: "save-two",
+    })
+    for (let attempt = 0; attempt < 20 && writes.length === 0; attempt += 1) {
+      await Bun.sleep(0)
+    }
+
+    expect(writes).toEqual(["one"])
+    expect(repository.state().user).not.toHaveProperty("one")
+    expect(repository.state().user).not.toHaveProperty("two")
+
+    releaseFirstWrite()
+    await Promise.all([one, two])
+
+    expect(writes).toEqual(["one", "two"])
+    expect(repository.state()).toMatchObject({
+      generation: 3,
+      user: {
+        one: { name: "one" },
+        two: { name: "two" },
+      },
+      operations: [
+        { operationId: "save-one", generation: 2 },
+        { operationId: "save-two", generation: 3 },
+      ],
+    })
+  })
+
+  test("requires explicit project trust before saving a local MCP declaration", async () => {
+    const root = await mkdtemp(join(process.cwd(), ".codepilotx-mcp-trust-"))
+    temporaryDirectories.push(root)
+    const workspace = await mkdtemp(join(root, "workspace-"))
+    const configService = new ConfigService(join(root, "data", "config.toml"))
+    await configService.initialize()
+    try {
+      const database = new MemorySettings()
+      const repository = new McpSettingsRepository(database)
+      const before = repository.state()
+      const configs = new McpConfigService(repository, configService)
+      const declaration = {
+        name: "codepilotx-debug",
+        scope: "local",
+        enabled: true,
+        transport: {
+          type: "http",
+          url: "http://127.0.0.1:43123/mcp",
+        },
+      } satisfies McpServerDeclaration
+      const projectConfig = join(workspace, ".codepilotx", "config.toml")
+
+      await expect(configs.save({
+        workspace,
+        server: declaration,
+        operationId: "save-local-debug",
+      })).rejects.toMatchObject({
+        code: "PATH_DENIED",
+        status: 403,
+        message: expect.stringContaining("设置 → 配置"),
+      } satisfies Partial<McpConfigError>)
+      expect(repository.state()).toEqual(before)
+      expect(await Bun.file(projectConfig).exists()).toBe(false)
+
+      await configService.trustUpdate(workspace, "trusted")
+      const saved = await configs.save({
+        workspace,
+        server: declaration,
+        operationId: "save-local-debug",
+      })
+
+      expect(saved).toMatchObject({
+        changed: true,
+        generation: 2,
+      })
+      expect(saved.servers.filter(({ server }) =>
+        server.name === "codepilotx-debug"
+      )).toHaveLength(1)
+      expect(repository.state().operations).toEqual([
+        expect.objectContaining({ operationId: "save-local-debug", generation: 2 }),
+      ])
+      expect(await readFile(projectConfig, "utf8")).toContain("[mcp_servers.codepilotx-debug")
+      expect((await configService.read({ cwd: workspace })).config).toMatchObject({
+        mcp_servers: {
+          "codepilotx-debug": {
+            name: "codepilotx-debug",
+            scope: "local",
+            enabled: true,
+            transport: {
+              type: "http",
+              url: "http://127.0.0.1:43123/mcp",
+            },
+          },
+        },
+      })
+    } finally {
+      await configService.dispose()
+    }
+  })
+
+  test("maps config write failures safely and leaves prepared MCP state uncommitted", async () => {
+    const cases = [
+      {
+        cause: new ConfigServiceError("CONFIG_PROJECT_UNTRUSTED", "secret C:\\private\\config.toml"),
+        expected: { code: "PATH_DENIED", status: 403 },
+      },
+      {
+        cause: new ConfigServiceError("CONFIG_LAYER_READONLY", "secret C:\\private\\config.toml"),
+        expected: { code: "PATH_DENIED", status: 403 },
+      },
+      {
+        cause: new ConfigServiceError("CONFIG_PATH_NOT_FOUND", "secret C:\\private\\config.toml"),
+        expected: { code: "PATH_DENIED", status: 403 },
+      },
+      {
+        cause: new ConfigServiceError("CONFIG_VERSION_CONFLICT", "secret C:\\private\\config.toml"),
+        expected: { code: "CONFLICT", status: 409 },
+      },
+      {
+        cause: new ConfigServiceError("CONFIG_VALIDATION_ERROR", "secret C:\\private\\config.toml"),
+        expected: { code: "MCP_CONFIG_INVALID", status: 400 },
+      },
+    ] as const
+
+    for (const [index, fixture] of cases.entries()) {
+      const repository = new McpSettingsRepository(new MemorySettings())
+      const before = repository.state()
+      const configs = new McpConfigService(repository, {
+        batchWrite: async () => {
+          throw fixture.cause
+        },
+      } as unknown as ConfigService)
+
+      let failure: unknown
+      try {
+        await configs.save({
+          server: server(`failed-${index}`, "user", true),
+          operationId: `failed-${index}`,
+        })
+      } catch (cause) {
+        failure = cause
+      }
+      expect(failure).toMatchObject(fixture.expected)
+      expect((failure as Error).message).not.toContain("C:\\private")
+      expect((failure as Error).message).not.toContain("secret")
+      expect(repository.state()).toEqual(before)
+    }
+  })
+
+  test("does not commit remove or enable mutations when config persistence fails", async () => {
+    for (const action of ["remove", "setEnabled"] as const) {
+      const database = new MemorySettings()
+      const repository = new McpSettingsRepository(database)
+      repository.mutate({
+        operationId: `seed-${action}`,
+        fingerprint: `seed-${action}`,
+        apply: (draft) => {
+          draft.user.fixture = server("fixture", "user", true)
+          return true
+        },
+      })
+      const before = repository.state()
+      const configs = new McpConfigService(repository, {
+        read: async () => ({
+          config: {
+            mcp_servers: {
+              fixture: server("fixture", "user", true),
+            },
+          },
+          origins: {
+            "mcp_servers.fixture.name": "user",
+          },
+          diagnostics: [],
+        }),
+        batchWrite: async () => {
+          throw new ConfigServiceError("CONFIG_VALIDATION_ERROR", "invalid")
+        },
+      } as unknown as ConfigService)
+
+      const operation = action === "remove"
+        ? configs.remove({
+            scope: "user",
+            name: "fixture",
+            operationId: "remove-fixture",
+          })
+        : configs.setEnabled({
+            scope: "user",
+            name: "fixture",
+            enabled: false,
+            operationId: "disable-fixture",
+          })
+      await expect(operation).rejects.toMatchObject({
+        code: "MCP_CONFIG_INVALID",
+      } satisfies Partial<McpConfigError>)
+      expect(repository.state()).toEqual(before)
+    }
+  })
+
+  test("persists Context7 credential references as environment variable names", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-mcp-context7-"))
+    temporaryDirectories.push(root)
+    const userConfig = join(root, "data", "config.toml")
+    const configService = new ConfigService(userConfig)
+    await configService.initialize()
+    try {
+      const configs = new McpConfigService(
+        new McpSettingsRepository(new MemorySettings()),
+        configService,
+      )
+      await configs.save({
+        server: {
+          name: "context7",
+          scope: "user",
+          enabled: true,
+          transport: {
+            type: "http",
+            url: "https://mcp.context7.com/mcp",
+            headerFromEnv: {
+              CONTEXT7_API_KEY: "CONTEXT7_API_KEY",
+            },
+          },
+          startupTimeoutMs: 20_000,
+        },
+        operationId: "persist-context7",
+      })
+
+      expect((await configService.read()).config).toMatchObject({
+        mcp_servers: {
+          context7: {
+            transport: {
+              headerFromEnv: {
+                CONTEXT7_API_KEY: "CONTEXT7_API_KEY",
+              },
+            },
+          },
+        },
+      })
+      const source = await readFile(userConfig, "utf8")
+      expect(source).toContain('CONTEXT7_API_KEY = "CONTEXT7_API_KEY"')
+      expect(source).not.toContain("headers")
+    } finally {
+      await configService.dispose()
+    }
   })
 })
 
