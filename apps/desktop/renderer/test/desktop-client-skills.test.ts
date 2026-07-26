@@ -16,6 +16,11 @@ const wireSkill = {
 describe('desktop runtime skills client', () => {
   test('uses the typed skill management RPC and maps workspace scope', async () => {
     const requests: Array<{ method: string; params: unknown }> = []
+    const source = {
+      onmessage: null as ((event: MessageEvent) => void) | null,
+      onerror: null as (() => void) | null,
+      close: () => {},
+    }
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
       if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
       const body = JSON.parse(String(init?.body))
@@ -46,9 +51,27 @@ describe('desktop runtime skills client', () => {
           updatedAt: 1_753_392_001_000,
         })
       }
+      if (body.method === 'event/subscribe') {
+        return rpc(body.id, {
+          subscriptionId: 'skill-subscription',
+          highWatermarks: [{ streamId: 'global', sequence: 2 }],
+        })
+      }
+      if (body.method === 'event/unsubscribe') {
+        return rpc(body.id, { ok: true })
+      }
+      if (body.method === 'event/ack') {
+        return rpc(body.id, {
+          subscriptionId: body.params.subscriptionId,
+          acknowledged: body.params.positions,
+        })
+      }
       throw new Error(`Unhandled RPC method: ${body.method}`)
     }
-    const client = createDesktopClient({ fetch: fetcher })
+    const client = createDesktopClient({
+      fetch: fetcher,
+      eventSourceFactory: () => source as unknown as EventSource,
+    })
 
     const catalog = await client.listRuntimeSkills(workspace, {
       forceReload: true,
@@ -90,6 +113,35 @@ describe('desktop runtime skills client', () => {
       enabled: false,
       operationId: expect.any(String),
     })
+
+    const generations: number[] = []
+    const unsubscribe = client.onRuntimeSkillsUpdated(generation => {
+      generations.push(generation)
+    })
+    for (let index = 0; index < 20 && !source.onmessage; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 0))
+    }
+    source.onmessage?.({
+      data: JSON.stringify({
+        method: 'event/next',
+        params: {
+          subscriptionId: 'skill-subscription',
+          event: {
+            eventId: 'skill-event-3',
+            streamId: 'global',
+            type: 'skill/updated',
+            version: 1,
+            occurredAt: 1_753_392_002_000,
+            durability: 'live',
+            sequence: null,
+            afterSequence: 2,
+            payload: { generation: 3 },
+          },
+        },
+      }),
+    } as MessageEvent)
+    expect(generations).toEqual([3])
+    unsubscribe()
   })
 
   test('browser mock reports local skill management as unavailable', async () => {
@@ -106,6 +158,10 @@ describe('desktop runtime skills client', () => {
     await expect(client.setRuntimeSkillEnabled(skillPath, false)).rejects.toThrow(
       '浏览器预览环境不支持修改本机技能状态。',
     )
+    const unsubscribe = client.onRuntimeSkillsUpdated(() => {
+      throw new Error('browser mock should not emit skill updates')
+    })
+    expect(unsubscribe()).toBeUndefined()
   })
 })
 

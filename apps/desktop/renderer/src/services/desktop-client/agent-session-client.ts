@@ -1173,6 +1173,11 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.setRuntimeSkillEnabled(path, enabled),
       ),
+    onRuntimeSkillsUpdated: callback =>
+      rpc.subscribeEnvelope({}, event => {
+        if (event.type !== 'skill/updated') return
+        callback(event.payload.generation)
+      }),
     onToolingUpdated: callback =>
       rpc.subscribeEnvelope({}, event => {
         if (event.type !== 'tooling/updated') return

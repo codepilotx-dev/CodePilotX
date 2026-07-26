@@ -387,7 +387,6 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       installed: false,
       installPath: '',
     }),
-    listSlashCommands: async () => [],
     listMcpServers: async () => mcpUnavailable(),
     getMcpRuntimeStatus: async () => mcpUnavailable(),
     saveMcpServer: async () => mcpUnavailable(),
@@ -815,6 +814,7 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
     setRuntimeSkillEnabled: async () => {
       throw new Error('浏览器预览环境不支持修改本机技能状态。')
     },
+    onRuntimeSkillsUpdated: () => () => {},
   }
 
   function emitSessionStoreChange(): void {

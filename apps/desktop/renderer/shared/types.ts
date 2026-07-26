@@ -1351,15 +1351,6 @@ export type DesktopSkillInstallResult = {
   installPath: string
 }
 
-export type DesktopSlashCommandSuggestion = {
-  name: string
-  title: string
-  description: string
-  category: 'command' | 'skill'
-  scope?: string
-  skillPath?: string
-}
-
 export type DesktopUiCommand =
   | 'newConversation'
   | 'chooseWorkspace'
@@ -1598,7 +1589,6 @@ export type DesktopApi = {
   installSkill(
     skill: string | DesktopSkillInstallOptions,
   ): Promise<DesktopSkillInstallResult>
-  listSlashCommands(workspacePath?: string): Promise<DesktopSlashCommandSuggestion[]>
   listMcpServers(workspacePath?: string): Promise<DesktopMcpServerListItem[]>
   getMcpRuntimeStatus(workspacePath?: string): Promise<DesktopMcpRuntimeStatus>
   saveMcpServer(options: SaveDesktopMcpServerOptions): Promise<DesktopMcpServerListItem[]>
@@ -1845,6 +1835,9 @@ export type DesktopApi = {
     path: string,
     enabled: boolean,
   ): Promise<DesktopInstalledSkill>
+  onRuntimeSkillsUpdated(
+    callback: (generation: number) => void,
+  ): () => void
   minimizeWindow(): Promise<void>
   toggleWindowMaximized(): Promise<boolean>
   closeWindow(): Promise<void>

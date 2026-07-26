@@ -44,7 +44,6 @@ export const DESKTOP_API_METHODS = [
   'setBuiltinPluginEnabled',
   'listSkillsCatalog',
   'installSkill',
-  'listSlashCommands',
   'listMcpServers',
   'getMcpRuntimeStatus',
   'saveMcpServer',

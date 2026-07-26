@@ -31,7 +31,7 @@ import {
 
 export {
   getDesktopComposerBranchName,
-  loadCachedSlashCommands,
+  loadCachedRuntimeSkills,
 } from './useDesktopComposerController.js'
 export type {
   ComposerCapabilities,
@@ -229,6 +229,8 @@ export function DesktopComposer({
     effectivePermissionMode,
     goalModeEnabled,
     handleAddFilePaths,
+    handleCommandError,
+    handleCompact,
     handleOpenFiles,
     handleRemoveAttachment,
     handleSkillDeselect,
@@ -242,7 +244,7 @@ export function DesktopComposer({
     permissionOptions,
     selectedSkillToken,
     setGoalModeEnabled,
-    slashCommands,
+    skillCommands,
     unsupportedAttachmentReason,
   } = useDesktopComposerController({
     input,
@@ -308,8 +310,9 @@ export function DesktopComposer({
       recentWorkspaces={recentWorkspaces}
       workspace={workspace}
       attachments={attachments}
-      slashCommands={slashCommands}
+      skillCommands={skillCommands}
       selectedSkillToken={selectedSkillToken ?? undefined}
+      hasConversationMessages={hasConversationMessages}
       placeholder={
         modelCatalogLoading
           ? '加载模型列表中……'
@@ -342,6 +345,8 @@ export function DesktopComposer({
       onPlanModeChange={onPlanModeChange}
       onLocalRouterModeChange={onLocalRouterModeChange}
       onSubmit={handleSubmit}
+      onCompact={handleCompact}
+      onCommandError={handleCommandError}
       onThinkingChange={onThinkingChange}
       onSkillSelect={handleSkillSelect}
       onSkillDeselect={handleSkillDeselect}

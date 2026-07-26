@@ -1,9 +1,17 @@
 import { describe, expect, test } from 'bun:test'
-import { loadCachedSlashCommands } from '../src/features/session/composer/DesktopComposer.js'
+import { loadCachedRuntimeSkills } from '../src/features/session/composer/DesktopComposer.js'
 import {
   getActiveComposerMention,
   shouldSubmitComposerKey,
 } from '../src/features/session/composer/ComposerCard.js'
+import {
+  filterComposerCommands,
+  getActiveSkillTokenQuery,
+  mergeSlashCommands,
+  parseSlashInvocation,
+  skillToComposerCommand,
+  type ComposerSlashCommand,
+} from '../src/features/session/composer/composerSlashCommands.js'
 import {
   removeGeneratedSuggestionStarter,
   selectNewSessionSuggestionCategory,
@@ -15,21 +23,89 @@ import { buildContextualTaskSuggestions } from '../src/features/session/newSessi
 import { shouldApplyGeneratedSuggestions } from '../src/features/session/useContextualTaskSuggestions.js'
 
 describe('composer suggestions', () => {
-  test('loads slash commands once per workspace', async () => {
+  test('loads enabled runtime skills once per workspace and refreshes on demand', async () => {
     let calls = 0
     const loader = async () => {
       calls += 1
-      return [{ name: 'review', title: '审查', description: '审查代码', category: 'command' as const }]
+      return [
+        installedSkill('review'),
+        { ...installedSkill('disabled'), enabled: false },
+      ]
     }
     const workspace = `workspace-${crypto.randomUUID()}`
 
     const [first, second] = await Promise.all([
-      loadCachedSlashCommands(workspace, loader),
-      loadCachedSlashCommands(workspace, loader),
+      loadCachedRuntimeSkills(workspace, false, loader),
+      loadCachedRuntimeSkills(workspace, false, loader),
     ])
 
     expect(calls).toBe(1)
     expect(second).toEqual(first)
+    expect(first.map(skill => skill.name)).toEqual(['review'])
+
+    await loadCachedRuntimeSkills(workspace, true, loader)
+    expect(calls).toBe(2)
+  })
+
+  test('merges available commands with skills and keeps builtins on trigger collisions', () => {
+    const builtins = [
+      builtin('model', '模型', '选择模型'),
+      builtin('status', '状态', '显示上下文用量'),
+    ]
+    const skills = [
+      skillToComposerCommand(installedSkill('model')),
+      skillToComposerCommand(installedSkill('review')),
+    ]
+
+    const merged = mergeSlashCommands(builtins, skills)
+    expect(merged.map(command => command.id)).toEqual([
+      'model',
+      'status',
+      'skill:review',
+    ])
+    expect(filterComposerCommands(merged, '上下文').map(item => item.id)).toEqual([
+      'status',
+    ])
+  })
+
+  test('parses only exact registered slash commands', async () => {
+    let executions = 0
+    const status = builtin('status', '状态', '显示状态', true, () => {
+      executions += 1
+    })
+    const compact = builtin(
+      'compact',
+      '压缩',
+      '压缩上下文',
+      false,
+      () => {},
+      '任务运行期间不能压缩上下文',
+    )
+
+    const parsed = parseSlashInvocation('/status', [status, compact])
+    expect(parsed.kind).toBe('builtin')
+    if (parsed.kind === 'builtin') await parsed.command.execute()
+    expect(executions).toBe(1)
+    expect(parseSlashInvocation('/status abc', [status]).kind).toBe('unknown')
+    expect(parseSlashInvocation('/foo', [status]).kind).toBe('unknown')
+    expect(parseSlashInvocation('/compact', [compact])).toMatchObject({
+      kind: 'disabled',
+      reason: '任务运行期间不能压缩上下文',
+    })
+  })
+
+  test('detects the skill token under the cursor', () => {
+    expect(getActiveSkillTokenQuery('请用 $review', 10)).toEqual({
+      start: 3,
+      end: 10,
+      query: 'review',
+    })
+    expect(getActiveSkillTokenQuery('$review 后续', 7)).toEqual({
+      start: 0,
+      end: 7,
+      query: 'review',
+    })
+    expect(getActiveSkillTokenQuery('价格$review', 9)).toBeNull()
   })
 
   test('recognizes only the mention under the cursor', () => {
@@ -163,3 +239,38 @@ describe('composer suggestions', () => {
     ).toBe(false)
   })
 })
+
+function installedSkill(name: string) {
+  return {
+    name,
+    description: `${name} skill`,
+    path: `F:\\skills\\${name}\\SKILL.md`,
+    scope: 'repo' as const,
+    source: 'workspace' as const,
+    format: 'agents' as const,
+    enabled: true,
+  }
+}
+
+function builtin(
+  id: ComposerSlashCommand['id'],
+  title: string,
+  description: string,
+  enabled = true,
+  execute: () => void | Promise<void> = () => {},
+  disabledReason?: string,
+): ComposerSlashCommand {
+  return {
+    id,
+    trigger: id,
+    title,
+    description,
+    source: 'builtin',
+    availability: {
+      visible: true,
+      enabled,
+      ...(disabledReason ? { disabledReason } : {}),
+    },
+    execute,
+  }
+}

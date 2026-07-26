@@ -6,7 +6,6 @@ const undefinedMarker = { [undefinedMarkerKey]: true } as const
 const optionalArgumentIndexes: Partial<Record<DesktopApiMethod, readonly number[]>> = {
   openBrowser: [0],
   listSkillsCatalog: [0],
-  listSlashCommands: [0],
   startGithubLogin: [0],
   sendUserMessage: [2],
 }

@@ -19,10 +19,9 @@ export function desktopUserMessageInputToPreviewText(
 ): string {
   const text = input.text.trim()
   const attachments = input.attachments ?? []
-  const skillInfo = input.skillInvocation
-    ? `[skill: ${input.skillInvocation.name}]`
-    : ''
-  const parts = [skillInfo, text]
+  const parts = [
+    formatCanonicalSkillInvocation(input.skillInvocation, text),
+  ]
   if (attachments.length > 0) {
     const attachmentSummary = attachments
       .map(attachment => `[${attachment.name}]`)
@@ -64,30 +63,21 @@ export function buildDesktopUserMessageContent(
 ): DesktopUserMessageContent {
   const text = input.text.trim()
 
-  // Handle skill invocation: wrap the skill info so the runtime's SkillTool
-  // can process it naturally alongside the user's text.
-  const skillPrefix = input.skillInvocation
-    ? formatSkillInvocation(input.skillInvocation)
-    : ''
-
-  const combinedText = [skillPrefix, text].filter(Boolean).join('\n\n')
-
   return {
-    text: combinedText,
+    text: formatCanonicalSkillInvocation(input.skillInvocation, text),
     attachments: (input.attachments ?? [])
       .filter(a => a.status !== 'error')
       .map(desktopAttachmentToAttachment),
   }
 }
 
-function formatSkillInvocation(invocation: {
-  name: string
-  args?: string
-  skillPath?: string
-}): string {
-  const skillRef = invocation.skillPath
-    ? `[${invocation.name}](${invocation.skillPath})`
-    : invocation.name
-  const args = invocation.args ? ` ${invocation.args}` : ''
-  return `/${skillRef}${args}`
+export function formatCanonicalSkillInvocation(
+  invocation: { name: string; args?: string } | undefined,
+  text = '',
+): string {
+  const body = text.trim()
+  if (!invocation) return body
+  const args = invocation.args?.trim()
+  const command = [`$${invocation.name}`, args].filter(Boolean).join(' ')
+  return [command, body].filter(Boolean).join('\n\n')
 }

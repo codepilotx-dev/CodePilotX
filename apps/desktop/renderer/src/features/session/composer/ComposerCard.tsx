@@ -59,7 +59,6 @@ import type {
   DesktopWorkspace,
   DesktopContextUsage,
   DesktopComposerAttachment,
-  DesktopSlashCommandSuggestion,
   LocalRouterMode,
   ModelProviderID,
 } from "../../../../shared/types.js";
@@ -88,6 +87,17 @@ import {
   type ComposerSubmitOutcome,
   type ComposerSubmitShortcut,
 } from "./composerTypes.js";
+import {
+  getActiveSkillTokenQuery,
+  isSlashCommandQuery,
+  mergeSlashCommands,
+  parseSlashInvocation,
+  type ComposerCommand,
+  type ComposerSkillCommand,
+  type ComposerSlashCommand,
+  type ComposerSlashCommandId,
+} from "./composerSlashCommands.js";
+import { useComposerSlashCommands } from "./useComposerSlashCommands.js";
 
 type Option<T extends string> = {
   value: T;
@@ -192,8 +202,6 @@ type UnifiedMenuItem = {
   label: string;
   hint?: string;
   icon: React.ReactNode;
-  /** Optional slash command name for dedup. Local entries declare ownership. */
-  commandName?: string;
   /** Text for keyword filtering (label + keywords) */
   matchText: string;
   /** Whether the item is active/pressed */
@@ -202,6 +210,7 @@ type UnifiedMenuItem = {
   disabled?: boolean;
   /** Core action, without trigger-text-clearing or dropdown-closing */
   onSelect: () => void;
+  command?: ComposerCommand;
 };
 
 const UNIFIED_GROUP_ORDER: UnifiedMenuGroup[] = [
@@ -256,8 +265,8 @@ type Props = {
   recentWorkspaces: DesktopWorkspace[];
   workspace: DesktopWorkspace | null;
   attachments?: DesktopComposerAttachment[];
-  slashCommands?: DesktopSlashCommandSuggestion[];
-  selectedSkillToken?: DesktopSlashCommandSuggestion & { skillPath: string };
+  skillCommands?: ComposerSkillCommand[];
+  selectedSkillToken?: ComposerSkillCommand;
   placeholder?: string;
   onChooseWorkspace: () => void;
   onInputChange: (value: string) => void;
@@ -287,11 +296,12 @@ type Props = {
   onPlanModeChange?: (active: boolean) => void;
   onLocalRouterModeChange?: (mode: LocalRouterMode) => void;
   onSubmit: () => void;
+  onCompact?: () => Promise<void>;
+  onCommandError?: (message: string) => void;
   onThinkingChange: (value: DesktopThinkingMode) => void;
-  onSkillSelect?: (
-    skill: DesktopSlashCommandSuggestion & { skillPath: string },
-  ) => void;
+  onSkillSelect?: (skill: ComposerSkillCommand) => void;
   onSkillDeselect?: () => void;
+  hasConversationMessages?: boolean;
   routedSessionId?: string | null;
   contextDropdownSide?: "top" | "bottom";
   debugMode?: boolean;
@@ -356,7 +366,7 @@ export function ComposerCard({
   recentWorkspaces,
   workspace,
   attachments = [],
-  slashCommands,
+  skillCommands = [],
   selectedSkillToken,
   placeholder = "随心输入",
   onChooseWorkspace,
@@ -380,9 +390,12 @@ export function ComposerCard({
   onPlanModeChange,
   onLocalRouterModeChange,
   onSubmit,
+  onCompact,
+  onCommandError,
   onThinkingChange,
   onSkillSelect,
   onSkillDeselect,
+  hasConversationMessages = false,
   routedSessionId,
   contextDropdownSide: contextDropdownSideOverride,
   debugMode = false,
@@ -420,6 +433,7 @@ export function ComposerCard({
   const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(
     null,
   );
+  const [reviewMenuRequested, setReviewMenuRequested] = useState(false);
   const [branchSearch, setBranchSearch] = useState("");
   const [providerSearchQueries, setProviderSearchQueries] = useState<
     Record<string, string>
@@ -460,6 +474,9 @@ export function ComposerCard({
     if (submitOutcome?.status === "failed") editorRef.current?.focus();
   }, [submitOutcome]);
   const [dismissedMention, setDismissedMention] = useState<number | null>(null);
+  const [dismissedSkillInput, setDismissedSkillInput] = useState<string | null>(
+    null,
+  );
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const selectedPermission = permissionOptions.find(
     (option) => option.value === permissionMode,
@@ -500,8 +517,31 @@ export function ComposerCard({
         : "高"
     : (selectedThinking?.label ?? "默认");
 
+  const sessionBusy =
+    sessionStatus === "running" || sessionStatus === "waiting";
+  const { commands: builtinSlashCommands, executeCommand } =
+    useComposerSlashCommands({
+      capabilities,
+      planModeActive,
+      goalModeEnabled,
+      hasConversationMessages,
+      hasThread: Boolean(routedSessionId),
+      canReview: Boolean(onStartReview && workspace),
+      subagentMode,
+      sessionBusy,
+      onOpenModel: () => setOpenDropdown("model"),
+      onOpenReasoning: () => setOpenDropdown("model"),
+      onOpenStatus: () => setOpenDropdown("status"),
+      onOpenMcp: onOpenMcpSettings,
+      onPlanModeChange,
+      onGoalModeChange,
+      onOpenReview: () => setReviewMenuRequested(true),
+      onCompact,
+      onError: onCommandError,
+    });
+
   const slashDropdownRequested =
-    input.startsWith("/") && input !== dismissedSlashInput;
+    isSlashCommandQuery(input) && input !== dismissedSlashInput;
 
   const slashSearch = useMemo(() => {
     if (!input.startsWith("/")) return "";
@@ -514,7 +554,13 @@ export function ComposerCard({
     return getActiveComposerMention(input, selectionStart);
   }, [input, isComposing, dismissedMention, selectionStart]);
 
-  const showSlashContextDropdown = slashDropdownRequested && !activeMention;
+  const activeSkillQuery = useMemo(() => {
+    if (isComposing || dismissedSkillInput === input) return null;
+    return getActiveSkillTokenQuery(input, selectionStart);
+  }, [dismissedSkillInput, input, isComposing, selectionStart]);
+
+  const showSlashContextDropdown =
+    slashDropdownRequested && !activeMention && !activeSkillQuery;
 
   const unifiedMenuItems = useMemo((): UnifiedMenuItem[] => {
     const items: UnifiedMenuItem[] = [];
@@ -541,19 +587,6 @@ export function ComposerCard({
         matchText: "IDE 上下文 ide context",
         disabled: true,
         onSelect: () => {},
-      },
-      {
-        group: "添加",
-        key: "mcp",
-        commandName: "mcp",
-        label: "MCP",
-        hint: workspace
-          ? `查看 ${workspace.name} 的 MCP 服务器状态`
-          : "查看用户级 MCP 服务器状态",
-        icon: <Paperclip size={14} />,
-        matchText: "MCP mcp servers",
-        disabled: !onOpenMcpSettings,
-        onSelect: () => onOpenMcpSettings?.(),
       },
       {
         group: "添加",
@@ -618,16 +651,6 @@ export function ComposerCard({
       },
       {
         group: "添加",
-        key: "reasoning",
-        commandName: "effort",
-        label: "推理",
-        hint: selectedThinkingLabel,
-        icon: <Brain size={14} />,
-        matchText: "推理 reasoning thinking",
-        onSelect: () => setOpenDropdown("model"),
-      },
-      {
-        group: "添加",
         key: "worktree",
         label: "新工作树",
         hint: "在新的工作树中运行此任务",
@@ -638,28 +661,7 @@ export function ComposerCard({
       },
       {
         group: "添加",
-        key: "model",
-        commandName: "model",
-        label: "模型",
-        hint: selectedModelLabel,
-        icon: <Box size={14} />,
-        matchText: "模型 model",
-        onSelect: () => setOpenDropdown("model"),
-      },
-      {
-        group: "添加",
-        key: "status",
-        commandName: "status",
-        label: "状态",
-        hint: "显示任务 ID、上下文用量和速率限制",
-        icon: <Activity size={14} />,
-        matchText: "状态 status task id context usage rate limit",
-        onSelect: () => setOpenDropdown("status"),
-      },
-      {
-        group: "添加",
         key: "memory",
-        commandName: "remember",
         label: "记忆",
         hint: "生成 · 开",
         icon: <Brain size={14} />,
@@ -685,37 +687,27 @@ export function ComposerCard({
       });
     }
 
-    // 目标
-    items.push({
-      group: "添加",
-      key: "goal-mode",
-      commandName: "goal",
-      label: "目标",
-      hint: "设置 CodePilotX 将持续努力实现的目标",
-      icon: <Target size={14} />,
-      matchText: "目标 goal",
-      isActive: goalModeEnabled,
-      disabled: subagentMode,
-      onSelect: () => {
-        onGoalModeChange?.(!goalModeEnabled);
-      },
-    });
-
-    // 计划模式
-    items.push({
-      group: "添加",
-      key: "plan-mode",
-      commandName: "plan",
-      label: "计划模式",
-      hint: "开启计划模式",
-      icon: <ListChecks size={14} />,
-      matchText: "计划模式 plan",
-      isActive: planModeActive,
-      disabled: subagentMode,
-      onSelect: () => {
-        onPlanModeChange?.(true);
-      },
-    });
+    for (const id of [
+      "mcp",
+      "reasoning",
+      "model",
+      "status",
+      "goal",
+      "plan",
+    ] satisfies ComposerSlashCommandId[]) {
+      const command = builtinSlashCommands.find((item) => item.id === id);
+      if (!command?.availability.visible) continue;
+      const menuItem = composerCommandMenuItem(
+        command,
+        executeCommand,
+        onSkillSelect,
+      );
+      if (id === "model") menuItem.hint = selectedModelLabel;
+      if (id === "reasoning") menuItem.hint = selectedThinkingLabel;
+      if (id === "goal") menuItem.isActive = goalModeEnabled;
+      if (id === "plan") menuItem.isActive = planModeActive;
+      items.push(menuItem);
+    }
 
     // 智能体
     for (const agent of CONTEXT_AGENT_OPTIONS) {
@@ -774,55 +766,13 @@ export function ComposerCard({
       });
     }
 
-    // Skills + 命令 (from slashCommands) — skip duplicates of local entries
-    // Collect command names owned by local entries + reserved names
-    const ownedCommandNames = new Set<string>();
-    for (const item of items) {
-      if (item.commandName) ownedCommandNames.add(item.commandName);
-    }
-    ownedCommandNames.add("branch"); // reserved — exclude dynamic "派生"
-
-    for (const cmd of slashCommands ?? []) {
-      if (ownedCommandNames.has(cmd.name)) continue;
-      if (cmd.category === "skill") {
-        items.push({
-          group: "Skills",
-          key: `skill-${cmd.name}`,
-          label: cmd.title,
-          hint: cmd.description,
-          icon: <Sparkles size={14} strokeWidth={1.5} />,
-          matchText: `${cmd.title} ${cmd.name}`,
-          disabled: subagentMode,
-          onSelect: () => {
-            if ("skillPath" in cmd && cmd.skillPath) {
-              onSkillSelect?.(
-                cmd as DesktopSlashCommandSuggestion & {
-                  skillPath: string;
-                },
-              );
-            }
-          },
-        });
-      } else if (cmd.category === "command") {
-        items.push({
-          group: "添加",
-          key: `cmd-${cmd.name}`,
-          label: cmd.title,
-          hint: cmd.description,
-          icon: <Search size={14} strokeWidth={1.5} />,
-          matchText: `${cmd.title} ${cmd.name}`,
-          onSelect: () => {},
-        });
-      }
-    }
-
     return items.filter((item) => {
       if (item.disabled) return false;
       if (item.key === "add-files") return capabilities.fileAttachments;
       if (item.key.startsWith("code-review")) return capabilities.review;
-      if (item.key === "goal-mode") return capabilities.goals;
-      if (item.key === "status") return capabilities.status;
-      if (item.key.startsWith("skill-")) return capabilities.skills;
+      if (item.command?.source === "builtin") {
+        return item.command.availability.visible;
+      }
       if (item.key.startsWith("plugin-")) {
         return (
           capabilities.plugins &&
@@ -830,20 +780,20 @@ export function ComposerCard({
           Boolean(onOpenBrowser)
         );
       }
-      if (item.key.startsWith("agent-") || item.key.startsWith("cmd-")) {
+      if (item.key.startsWith("agent-")) {
         return false;
       }
       return true;
     });
   }, [
-    slashCommands,
     goalModeEnabled,
+    builtinSlashCommands,
+    executeCommand,
     planModeActive,
     onOpenFiles,
     onGoalModeChange,
     onPlanModeChange,
     onOpenBrowser,
-    onOpenMcpSettings,
     onStartReview,
     onSkillSelect,
     selectedModelLabel,
@@ -856,17 +806,58 @@ export function ComposerCard({
     capabilities,
   ]);
 
-  const [activeMenuIndex, setActiveMenuIndex] = useState(0);
-  const activeMenuKeyword =
-    openDropdown === "context" ? "" : (activeMention?.query ?? slashSearch);
-  const activeMenuItems = useMemo(
-    () => filterUnifiedMenuItems(unifiedMenuItems, activeMenuKeyword),
-    [activeMenuKeyword, unifiedMenuItems],
+  const slashMenuItems = useMemo(
+    () =>
+      mergeSlashCommands(builtinSlashCommands, skillCommands).map((command) =>
+        composerCommandMenuItem(command, executeCommand, onSkillSelect, "/"),
+      ),
+    [builtinSlashCommands, executeCommand, onSkillSelect, skillCommands],
   );
+  const skillMenuItems = useMemo(
+    () =>
+      skillCommands.map((command) =>
+        composerCommandMenuItem(command, executeCommand, onSkillSelect, "$"),
+      ),
+    [executeCommand, onSkillSelect, skillCommands],
+  );
+  const reviewMenuItems = useMemo(
+    () =>
+      unifiedMenuItems.filter((item) => item.key.startsWith("code-review")),
+    [unifiedMenuItems],
+  );
+  const [activeMenuIndex, setActiveMenuIndex] = useState(0);
+  const activeMenuKeyword = reviewMenuRequested
+    ? ""
+    : openDropdown === "context"
+      ? ""
+      : activeSkillQuery
+        ? activeSkillQuery.query
+        : (activeMention?.query ?? slashSearch);
+  const activeMenuItems = useMemo(() => {
+    const source = reviewMenuRequested
+      ? reviewMenuItems
+      : activeSkillQuery
+        ? skillMenuItems
+        : showSlashContextDropdown
+          ? slashMenuItems
+          : unifiedMenuItems;
+    return filterUnifiedMenuItems(source, activeMenuKeyword);
+  }, [
+    activeMenuKeyword,
+    activeSkillQuery,
+    reviewMenuItems,
+    reviewMenuRequested,
+    showSlashContextDropdown,
+    skillMenuItems,
+    slashMenuItems,
+    unifiedMenuItems,
+  ]);
   const unifiedMenuOpen =
     openDropdown === "context" ||
     showSlashContextDropdown ||
-    Boolean(activeMention);
+    Boolean(activeMention) ||
+    Boolean(activeSkillQuery) ||
+    reviewMenuRequested;
 
   useEffect(() => {
     if (!unifiedMenuOpen) return;
@@ -880,6 +871,12 @@ export function ComposerCard({
   }, [input]);
 
   useEffect(() => {
+    if (dismissedSkillInput !== null && dismissedSkillInput !== input) {
+      setDismissedSkillInput(null);
+    }
+  }, [dismissedSkillInput, input]);
+
+  useEffect(() => {
     // Reset mention dismissal when input changes away from the @ position
     if (dismissedMention !== null) {
       const atIndex = input.lastIndexOf("@", dismissedMention);
@@ -891,6 +888,7 @@ export function ComposerCard({
 
   function closeDropdown(): void {
     setOpenDropdown(null);
+    setReviewMenuRequested(false);
   }
 
   function handleUnifiedPlusSelect(item: UnifiedMenuItem): void {
@@ -899,7 +897,10 @@ export function ComposerCard({
     // not be followed by closeDropdown(), otherwise React batches the two
     // setOpenDropdown calls and the sub-dropdown never opens.
     const managesOwnDropdown =
-      item.key === "status" || item.key === "model" || item.key === "reasoning";
+      item.command?.source === "builtin" &&
+      (item.command.id === "status" ||
+        item.command.id === "model" ||
+        item.command.id === "reasoning");
     item.onSelect();
     if (!managesOwnDropdown) {
       closeDropdown();
@@ -918,7 +919,11 @@ export function ComposerCard({
     // that open a sub-dropown, otherwise React batches both setOpenDropdown
     // calls and the sub-dropdown never opens.
     const managesOwnDropdown =
-      item.key === "status" || item.key === "model" || item.key === "reasoning";
+      item.command?.source === "builtin" &&
+      (item.command.id === "status" ||
+        item.command.id === "model" ||
+        item.command.id === "reasoning" ||
+        item.command.id === "review");
     item.onSelect();
     if (!managesOwnDropdown) {
       closeDropdown();
@@ -936,6 +941,35 @@ export function ComposerCard({
     }
     item.onSelect();
     closeDropdown();
+  }
+
+  function handleSkillQuerySelect(item: UnifiedMenuItem): void {
+    if (item.disabled || !activeSkillQuery) return;
+    const nextInput =
+      input.slice(0, activeSkillQuery.start) +
+      input.slice(activeSkillQuery.end);
+    onInputChange(nextInput);
+    setSelectionStart(activeSkillQuery.start);
+    item.onSelect();
+    closeDropdown();
+  }
+
+  function handleReviewSelect(item: UnifiedMenuItem): void {
+    if (item.disabled) return;
+    item.onSelect();
+    setReviewMenuRequested(false);
+  }
+
+  function handleDirectSlashSubmission(): boolean {
+    const parsed = parseSlashInvocation(input, builtinSlashCommands);
+    if (parsed.kind === "unknown") return false;
+    if (parsed.kind === "disabled") {
+      onCommandError?.(parsed.reason);
+      return true;
+    }
+    onInputChange("");
+    void executeCommand(parsed.command);
+    return true;
   }
 
   function handleFileDrop(event: React.DragEvent<HTMLDivElement>): void {
@@ -1178,13 +1212,15 @@ export function ComposerCard({
                     return true;
                   }
                   if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
                     const item = activeMenuItems[activeMenuIndex];
                     if (item && !item.disabled) {
-                      if (activeMention) handleUnifiedMentionSelect(item);
+                      event.preventDefault();
+                      if (reviewMenuRequested) handleReviewSelect(item);
+                      else if (activeSkillQuery) handleSkillQuerySelect(item);
+                      else if (activeMention) handleUnifiedMentionSelect(item);
                       else handleUnifiedSlashSelect(item);
+                      return true;
                     }
-                    return true;
                   }
                 }
 
@@ -1198,6 +1234,16 @@ export function ComposerCard({
                   if (activeMention) {
                     event.preventDefault();
                     setDismissedMention(activeMention.start);
+                    return true;
+                  }
+                  if (activeSkillQuery) {
+                    event.preventDefault();
+                    setDismissedSkillInput(input);
+                    return true;
+                  }
+                  if (reviewMenuRequested) {
+                    event.preventDefault();
+                    setReviewMenuRequested(false);
                     return true;
                   }
                   if (
@@ -1237,6 +1283,7 @@ export function ComposerCard({
                 if (!shouldSubmitComposerKey(event, submitShortcut, input))
                   return false;
                 event.preventDefault();
+                if (handleDirectSlashSubmission()) return true;
                 if (canSubmit) onSubmit();
                 return true;
               }}
@@ -1264,10 +1311,44 @@ export function ComposerCard({
         >
           <UnifiedMenuContent
             activeIndex={activeMenuIndex}
-            items={unifiedMenuItems}
+            items={slashMenuItems}
             keyword={slashSearch}
             onActiveIndexChange={setActiveMenuIndex}
             onItemSelect={handleUnifiedSlashSelect}
+          />
+        </ChatInputDropdown>
+
+        <ChatInputDropdown
+          open={Boolean(activeSkillQuery)}
+          side="bottom"
+          width="100%"
+          maxWidth="100%"
+          disableOutsideDismiss={debugMode}
+          onClose={() => setDismissedSkillInput(input)}
+        >
+          <UnifiedMenuContent
+            activeIndex={activeMenuIndex}
+            items={skillMenuItems}
+            keyword={activeSkillQuery?.query ?? ""}
+            onActiveIndexChange={setActiveMenuIndex}
+            onItemSelect={handleSkillQuerySelect}
+          />
+        </ChatInputDropdown>
+
+        <ChatInputDropdown
+          open={reviewMenuRequested}
+          side="bottom"
+          width="100%"
+          maxWidth="100%"
+          disableOutsideDismiss={debugMode}
+          onClose={() => setReviewMenuRequested(false)}
+        >
+          <UnifiedMenuContent
+            activeIndex={activeMenuIndex}
+            items={reviewMenuItems}
+            keyword=""
+            onActiveIndexChange={setActiveMenuIndex}
+            onItemSelect={handleReviewSelect}
           />
         </ChatInputDropdown>
 
@@ -2039,6 +2120,65 @@ function formatCompactNumber(value: number): string {
 
 function trimNumber(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function composerCommandMenuItem(
+  command: ComposerCommand,
+  executeCommand: (command: ComposerSlashCommand) => Promise<void>,
+  onSkillSelect: ((skill: ComposerSkillCommand) => void) | undefined,
+  triggerPrefix?: "/" | "$",
+): UnifiedMenuItem {
+  return {
+    group: command.source === "skill" ? "Skills" : "添加",
+    key:
+      command.source === "skill"
+        ? `skill-${command.trigger}`
+        : `slash-${command.id}`,
+    label: triggerPrefix
+      ? `${triggerPrefix}${command.trigger}`
+      : command.title,
+    hint: command.description,
+    icon:
+      command.source === "skill" ? (
+        <Sparkles size={14} strokeWidth={1.5} />
+      ) : (
+        composerSlashCommandIcon(command.id)
+      ),
+    command,
+    matchText: `${command.trigger} ${command.title} ${command.description}`,
+    disabled:
+      command.source === "builtin" && !command.availability.enabled,
+    onSelect: () => {
+      if (command.source === "skill") {
+        onSkillSelect?.(command);
+        return;
+      }
+      void executeCommand(command);
+    },
+  };
+}
+
+function composerSlashCommandIcon(
+  id: ComposerSlashCommandId,
+): React.ReactNode {
+  switch (id) {
+    case "model":
+      return <Box size={14} />;
+    case "reasoning":
+      return <Brain size={14} />;
+    case "plan":
+      return <ListChecks size={14} />;
+    case "goal":
+      return <Target size={14} />;
+    case "review":
+      return <ShieldCheck size={14} />;
+    case "compact":
+      return <Zap size={14} />;
+    case "mcp":
+      return <Paperclip size={14} />;
+    case "status":
+      return <Activity size={14} />;
+  }
 }
 
 function getFilePathsFromFileList(files: FileList): string[] {

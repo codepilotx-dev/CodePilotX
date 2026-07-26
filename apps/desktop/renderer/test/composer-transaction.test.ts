@@ -1,4 +1,8 @@
 import { describe, expect, test } from 'bun:test'
+import {
+  buildDesktopUserMessageContent,
+  desktopUserMessageInputToPreviewText,
+} from '../shared/desktopUserMessage.js'
 import { ComposerDraftStore } from '../src/features/session/composer/composerDraftStore.js'
 import {
   executeComposerSubmitTransaction,
@@ -66,6 +70,40 @@ describe('composer submit transaction', () => {
         skillPath: 'skills/review',
       },
     })
+  })
+
+  test('serializes skill submissions with the canonical $name prefix only', () => {
+    const input = {
+      text: '检查当前改动',
+      attachments: [],
+      skillInvocation: {
+        name: 'review',
+        skillPath: 'F:\\skills\\review\\SKILL.md',
+      },
+    }
+
+    expect(desktopUserMessageInputToPreviewText(input)).toBe(
+      '$review\n\n检查当前改动',
+    )
+    expect(buildDesktopUserMessageContent(input).text).toBe(
+      '$review\n\n检查当前改动',
+    )
+    expect(buildDesktopUserMessageContent(input).text).not.toContain(
+      'SKILL.md',
+    )
+  })
+
+  test('allows a skill-only submission', () => {
+    const prepared = prepareComposerSubmission(
+      draft({
+        document: createComposerDocument(''),
+        skillInvocation: { name: 'review', path: 'skills/review' },
+      }),
+    )
+
+    expect('input' in prepared && prepared.input.skillInvocation?.name).toBe(
+      'review',
+    )
   })
 
   test('navigates before the first send and reports a recoverable send failure', async () => {

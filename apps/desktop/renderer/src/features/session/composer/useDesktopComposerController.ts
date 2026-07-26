@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type {
   DesktopComposerAttachment,
+  DesktopInstalledSkill,
   DesktopModelMetadata,
   DesktopPermissionMode,
-  DesktopSlashCommandSuggestion,
   DesktopUserMessageInput,
   DesktopWorkspace,
   ModelProviderID,
@@ -27,6 +27,10 @@ import { createComposerDocument } from './composerTypes.js'
 import { executeComposerSubmitTransaction } from './composerSubmitTransaction.js'
 import { composerDraftStore } from './composerDraftStore.js'
 import { ensureSandboxReady } from './sandboxPreflight.js'
+import {
+  skillToComposerCommand,
+  type ComposerSkillCommand,
+} from './composerSlashCommands.js'
 
 type ControllerOptions = {
   input: string
@@ -112,12 +116,9 @@ export function useDesktopComposerController({
   const initialDraftRef = useRef(composerDraftStore.get(draftKey))
   const draftClientIdRef = useRef(initialDraftRef.current.clientId)
   const activeDraftKeyRef = useRef<ComposerDraftKey>(draftKey)
-  const [slashCommands, setSlashCommands] = useState<
-    DesktopSlashCommandSuggestion[]
-  >([])
-  const [selectedSkillToken, setSelectedSkillToken] = useState<
-    (DesktopSlashCommandSuggestion & { skillPath: string }) | null
-  >(null)
+  const [skillCommands, setSkillCommands] = useState<ComposerSkillCommand[]>([])
+  const [selectedSkillToken, setSelectedSkillToken] =
+    useState<ComposerSkillCommand | null>(null)
 
   const hasAttachmentErrors = hasBlockingComposerAttachmentErrors(attachments)
   const unsupportedAttachmentReason = getUnsupportedAttachmentReason(
@@ -168,11 +169,11 @@ export function useDesktopComposerController({
         setSelectedSkillToken(
           restoreSkillToken(
             composerDraftStore.get(draftKey).skillInvocation,
-            slashCommands,
+            skillCommands,
           ),
         )
       }),
-    [draftKey, slashCommands],
+    [draftKey, skillCommands],
   )
 
   useEffect(() => {
@@ -181,11 +182,11 @@ export function useDesktopComposerController({
     const nextDraft = composerDraftStore.get(draftKey)
     setGoalModeEnabled(false)
     setSelectedSkillToken(
-      restoreSkillToken(nextDraft.skillInvocation, slashCommands),
+      restoreSkillToken(nextDraft.skillInvocation, skillCommands),
     )
     setLastSubmitOutcome(null)
     draftClientIdRef.current = nextDraft.clientId
-  }, [draftKey, slashCommands])
+  }, [draftKey, skillCommands])
 
   useEffect(() => {
     composerDraftStore.update(draftKey, current => ({
@@ -199,28 +200,35 @@ export function useDesktopComposerController({
 
   useEffect(() => {
     if (subagentMode) {
-      setSlashCommands([])
+      setSkillCommands([])
       setSelectedSkillToken(null)
       return
     }
     let cancelled = false
-    loadCachedSlashCommands(workspace?.path)
-      .then(commands => {
-        if (!cancelled) {
-          setSlashCommands(commands)
-          setSelectedSkillToken(
-            restoreSkillToken(
-              composerDraftStore.get(draftKey).skillInvocation,
-              commands,
-            ),
-          )
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setSlashCommands([])
-      })
+    const load = (forceReload = false) =>
+      loadCachedRuntimeSkills(workspace?.path, forceReload)
+        .then(skills => skills.map(skillToComposerCommand))
+        .then(commands => {
+          if (!cancelled) {
+            setSkillCommands(commands)
+            setSelectedSkillToken(
+              restoreSkillToken(
+                composerDraftStore.get(draftKey).skillInvocation,
+                commands,
+              ),
+            )
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setSkillCommands([])
+        })
+    void load()
+    const unsubscribe = desktopClient.onRuntimeSkillsUpdated(() => {
+      void load(true)
+    })
     return () => {
       cancelled = true
+      unsubscribe()
     }
   }, [draftKey, subagentMode, workspace?.path])
 
@@ -321,8 +329,8 @@ export function useDesktopComposerController({
       attachments,
       skillInvocation: selectedSkillToken
         ? {
-            name: selectedSkillToken.name,
-            path: selectedSkillToken.skillPath,
+            name: selectedSkillToken.skill.name,
+            path: selectedSkillToken.skill.path,
           }
         : undefined,
       collaborationMode: planModeActive ? 'plan' : 'default',
@@ -442,24 +450,40 @@ export function useDesktopComposerController({
     )
   }
 
+  async function handleCompact(): Promise<void> {
+    if (!routedSessionId) throw new Error('请先创建任务后再压缩上下文')
+    await desktopClient.compactSession(routedSessionId)
+  }
+
+  function handleCommandError(message: string): void {
+    const outcome: ComposerSubmitOutcome = {
+      status: 'failed',
+      phase: 'send',
+      message,
+      sessionId: routedSessionId ?? undefined,
+    }
+    setLastSubmitOutcome(outcome)
+    composerDraftStore.setSubmitOutcome(draftKey, outcome)
+  }
+
   return {
     branchName,
     canSubmit,
     effectivePermissionMode,
     goalModeEnabled,
     handleAddFilePaths,
+    handleCommandError,
+    handleCompact,
     handleOpenFiles,
     handleRemoveAttachment,
     handleSkillDeselect: () => {
       composerDraftStore.setSkillInvocation(draftKey, undefined)
       setSelectedSkillToken(null)
     },
-    handleSkillSelect: (
-      skill: DesktopSlashCommandSuggestion & { skillPath: string },
-    ) => {
+    handleSkillSelect: (skill: ComposerSkillCommand) => {
       composerDraftStore.setSkillInvocation(draftKey, {
-        name: skill.name,
-        path: skill.skillPath,
+        name: skill.skill.name,
+        path: skill.skill.path,
       })
       setSelectedSkillToken(skill)
     },
@@ -480,38 +504,47 @@ export function useDesktopComposerController({
     permissionOptions,
     selectedSkillToken,
     setGoalModeEnabled,
-    slashCommands,
+    skillCommands,
     unsupportedAttachmentReason,
   }
 }
 
-const slashCommandCache = new Map<string, DesktopSlashCommandSuggestion[]>()
-const slashCommandRequests = new Map<
-  string,
-  Promise<DesktopSlashCommandSuggestion[]>
->()
+const runtimeSkillCache = new Map<string, DesktopInstalledSkill[]>()
+const runtimeSkillRequests = new Map<string, Promise<DesktopInstalledSkill[]>>()
 
-export function loadCachedSlashCommands(
+export function loadCachedRuntimeSkills(
   workspacePath?: string,
-  loader: (workspacePath?: string) => Promise<DesktopSlashCommandSuggestion[]> =
-    path => desktopClient.listSlashCommands(path),
-): Promise<DesktopSlashCommandSuggestion[]> {
+  forceReload = false,
+  loader: (
+    workspacePath?: string,
+    forceReload?: boolean,
+  ) => Promise<DesktopInstalledSkill[]> = async (path, force) => {
+    const result = await desktopClient.listRuntimeSkills(path, {
+      forceReload: force,
+    })
+    return result.state === 'ready' && result.data
+      ? result.data.filter(skill => skill.enabled)
+      : []
+  },
+): Promise<DesktopInstalledSkill[]> {
   const key = workspacePath?.trim() || '__no_workspace__'
-  const cached = slashCommandCache.get(key)
+  if (forceReload) runtimeSkillCache.delete(key)
+  const cached = runtimeSkillCache.get(key)
   if (cached) return Promise.resolve(cached)
-  const pending = slashCommandRequests.get(key)
+  const pending = runtimeSkillRequests.get(key)
   if (pending) return pending
-  const request = loader(workspacePath)
-    .then(commands => {
-      slashCommandCache.set(key, commands)
-      slashCommandRequests.delete(key)
-      return commands
+  const request = loader(workspacePath, forceReload)
+    .then(skills => {
+      const enabled = skills.filter(skill => skill.enabled)
+      runtimeSkillCache.set(key, enabled)
+      runtimeSkillRequests.delete(key)
+      return enabled
     })
     .catch(error => {
-      slashCommandRequests.delete(key)
+      runtimeSkillRequests.delete(key)
       throw error
     })
-  slashCommandRequests.set(key, request)
+  runtimeSkillRequests.set(key, request)
   return request
 }
 
@@ -567,19 +600,21 @@ function errorMessageOf(error: unknown): string {
 
 function restoreSkillToken(
   invocation: ComposerDraft['skillInvocation'],
-  commands: DesktopSlashCommandSuggestion[],
-): (DesktopSlashCommandSuggestion & { skillPath: string }) | null {
+  commands: ComposerSkillCommand[],
+): ComposerSkillCommand | null {
   if (!invocation) return null
-  const command = commands.find(
-    item => item.name === invocation.name && item.category === 'skill',
-  )
+  const command = commands.find(item => item.skill.name === invocation.name)
   return {
-    name: invocation.name,
+    id: `skill:${invocation.name}`,
+    trigger: invocation.name,
     title: command?.title ?? invocation.name,
     description: command?.description ?? '',
-    category: 'skill',
-    scope: command?.scope,
-    skillPath: invocation.path,
+    source: 'skill',
+    skill: {
+      name: invocation.name,
+      path: invocation.path,
+      scope: command?.skill.scope ?? 'repo',
+    },
   }
 }
 
