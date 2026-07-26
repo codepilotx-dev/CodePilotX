@@ -32,8 +32,9 @@ export type AgentContextUsage = {
   remainingTokens?: number
   usedPercent?: number
   remainingPercent?: number
-  promptCacheHitTokens?: number
-  promptCacheMissTokens?: number
+  promptCacheReadTokens?: number
+  promptCacheWriteTokens?: number
+  promptUncachedTokens?: number
   reasoningTokens?: number
   percentUsed?: number
 }

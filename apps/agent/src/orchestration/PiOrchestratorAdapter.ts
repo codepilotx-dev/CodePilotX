@@ -220,7 +220,11 @@ export class PiOrchestratorAdapter {
     if (event) await this.publish(event);
   }
 
-  private eventSink(storage: SqlitePiSessionStorage): PiRuntimeEventSink {
+  private eventSink(
+    storage: SqlitePiSessionStorage,
+    runtimeModel: PiModel<Api>,
+    onUsage?: AgentRuntimeRequest["onUsage"],
+  ): PiRuntimeEventSink {
     const pendingFor = (context: PiRuntimeEventContext) => {
       const existing = this.pending.get(context.threadID);
       if (existing) return existing;
@@ -303,6 +307,16 @@ export class PiOrchestratorAdapter {
         const text = input.text === undefined
           ? contentText(input.content as never, "\n").trim()
           : input.text.trim();
+        const usage = {
+          provider: input.provider || runtimeModel.provider,
+          model: input.model || runtimeModel.id,
+          contextWindow: Math.max(1, Math.trunc(Number(runtimeModel.contextWindow) || 1)),
+          input: input.usage.input,
+          output: input.usage.output,
+          cacheRead: input.usage.cacheRead,
+          cacheWrite: input.usage.cacheWrite,
+          reasoning: input.usage.reasoning,
+        };
         if (input.text === undefined || text) {
           const currentText = this.options.db.getItem(input.textItemID);
           pending.items.set(input.textItemID, {
@@ -311,7 +325,7 @@ export class PiOrchestratorAdapter {
             agentID: context.agentID,
             type: "text",
             status: "completed",
-            data: { placement: "result", text },
+            data: { placement: "result", text, usage },
             ...(currentText?.ordinal === undefined ? {} : { ordinal: currentText.ordinal }),
             createdAt: currentText?.createdAt ?? timestamp,
             updatedAt: timestamp,
@@ -332,6 +346,13 @@ export class PiOrchestratorAdapter {
             updatedAt: timestamp,
           });
         }
+        const inputTokens = usage.input + usage.cacheRead + usage.cacheWrite;
+        await onUsage?.({
+          inputTokens,
+          outputTokens: usage.output,
+          totalTokens: inputTokens + usage.output,
+          requests: 1,
+        });
         const content = Array.isArray(input.content) ? input.content : [];
         const reasoning = content
           .flatMap((part) => (part.type === "thinking" ? [part.thinking] : []))
@@ -615,7 +636,7 @@ export class PiOrchestratorAdapter {
           session,
         }),
       } as never,
-      eventSink: this.eventSink(storage),
+      eventSink: this.eventSink(storage, model, request.onUsage),
       beforeToolCall: async (_runtimeRequest, input) => {
         if ((PI_LIFECYCLE_TOOLS as readonly string[]).includes(input.tool))
           return undefined;

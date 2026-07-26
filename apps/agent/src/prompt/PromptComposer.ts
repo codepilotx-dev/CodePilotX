@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { createPromptCacheKey } from "./PromptCache";
 import type {
   PromptBundle,
   PromptCacheSegment,
@@ -44,6 +45,9 @@ const contextualItem = (section: PromptSection): PromptContextItem => ({
   ],
 });
 
+const contextualText = (section: PromptSection) =>
+  contextualItem(section).content[0]!.text;
+
 const instructionCacheSegments = (
   sections: readonly PromptSection[],
 ): PromptCacheSegment[] => {
@@ -79,19 +83,26 @@ const instructionCacheSegments = (
 const contextCacheSegments = (
   sections: readonly PromptSection[],
   startIndex: number,
-): PromptCacheSegment[] =>
-  sections.map((section, index) => ({
-    index: startIndex + index,
-    cache: section.cache,
-    role: "context",
-    sectionIDs: [section.id],
-    content: section.content,
-    hash: hash(section.content),
-    start: index,
-    end: index + 1,
-    // Context/evidence is deliberately never provider-cached, even if a caller misclassifies the section.
-    cacheable: false,
-  }));
+): PromptCacheSegment[] => {
+  let offset = 0;
+  return sections.map((section, index) => {
+    const prefix = index === 0 ? "" : "\n\n";
+    const content = `${prefix}${contextualText(section)}`;
+    const segment = {
+      index: startIndex + index,
+      cache: section.cache,
+      role: "context" as const,
+      sectionIDs: [section.id],
+      content,
+      hash: hash(content),
+      start: offset,
+      end: offset + content.length,
+      cacheable: section.cache !== "dynamic",
+    };
+    offset = segment.end;
+    return segment;
+  });
+};
 
 /** Pure prompt assembly. Repository files and external evidence are emitted only as user context items. */
 export class PromptComposer {
@@ -118,9 +129,17 @@ export class PromptComposer {
     const instructionSections = included.filter(
       (section) => section.role !== "contextual-user",
     );
-    const contextSections = included.filter(
+    const rawContextSections = included.filter(
       (section) => section.role === "contextual-user",
     );
+    const contextSections = [
+      ...rawContextSections.filter((section) => section.cache !== "dynamic"),
+      ...rawContextSections.filter((section) => section.cache === "dynamic"),
+    ];
+    const stableContextText = contextSections
+      .filter((section) => section.cache !== "dynamic")
+      .map(contextualText)
+      .join("\n\n");
     const instructions = instructionSections
       .map((section) => section.content)
       .join("\n\n");
@@ -172,6 +191,7 @@ export class PromptComposer {
     return {
       instructions,
       contextItems: contextSections.map(contextualItem),
+      stableContextText,
       diagnostics,
       cacheSegments,
       cacheBoundaries,
@@ -185,7 +205,7 @@ export class PromptComposer {
           )
           .join("\0\0"),
       ),
-      cacheKey: input.threadID,
+      cacheKey: createPromptCacheKey(input.threadID),
     };
   }
 }

@@ -4,8 +4,10 @@ import { z } from "zod"
 import { AgentError } from "../../domain"
 import type { SubagentResult } from "../../domain"
 import { PromptComposer } from "../../prompt/PromptComposer"
+import { inferPromptCacheRuntimePolicy } from "../../prompt/PromptCache"
 import { secretScrubber } from "../../security/SecretScrubber"
 import { PiEventAdapter } from "./PiEventAdapter"
+import { applyPromptCacheRuntimePolicy } from "./PiPromptCacheAdapter"
 import { adaptToolDefinition, createPiTools } from "./PiToolAdapter"
 import type { ActivePiHarness, PiAgentRuntimeApi, PiAgentRuntimeOptions, PiRunResult, PiRuntimeRequest } from "./types"
 
@@ -59,6 +61,7 @@ export class PiAgentRuntime implements PiAgentRuntimeApi {
       exposedTools: request.exposedTools,
       sections: request.promptSections,
     })
+    const initialCachePolicy = inferPromptCacheRuntimePolicy(request.model, bundle.cacheKey)
     await request.onPromptComposed?.(bundle)
 
     let finalizedResult: SubagentResult | undefined
@@ -101,14 +104,21 @@ export class PiAgentRuntime implements PiAgentRuntimeApi {
         timeoutMs: 120_000,
         maxRetries: 2,
         maxRetryDelayMs: 10_000,
-        cacheRetention: "short",
+        cacheRetention: initialCachePolicy.cacheRetention,
         metadata: { threadID: request.threadID, turnID: request.turnID, agentID: request.agentID },
       },
     })
-    harness.on("before_provider_request", () => ({
-      streamOptions: { metadata: { threadID: request.threadID, turnID: request.turnID, agentID: request.agentID } },
+    harness.on("before_provider_request", (event) => ({
+      streamOptions: {
+        cacheRetention: inferPromptCacheRuntimePolicy(event.model, bundle.cacheKey).cacheRetention,
+        metadata: { threadID: request.threadID, turnID: request.turnID, agentID: request.agentID },
+      },
     }))
-    harness.on("before_provider_payload", (event) => ({ payload: secretScrubber.scrub(event.payload) }))
+    harness.on("before_provider_payload", (event) => {
+      const policy = inferPromptCacheRuntimePolicy(event.model, bundle.cacheKey)
+      const applied = applyPromptCacheRuntimePolicy(event.payload, policy, bundle.stableContextText)
+      return { payload: secretScrubber.scrub(applied.payload) }
+    })
     const pausedToolCalls = new Set<string>()
     if (this.options.beforeToolCall) harness.on("tool_call", async (event) => {
       const result = await this.options.beforeToolCall!(request, { toolCallID: event.toolCallId, tool: event.toolName, input: event.input })

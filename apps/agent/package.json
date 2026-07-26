@@ -20,7 +20,7 @@
     "@codepilotx/provider-plugin": "workspace:*",
     "@codepilotx/provider-runtime": "workspace:*",
     "@codepilotx/shared": "workspace:*",
-    "@earendil-works/pi-ai": "0.81.0",
+    "@earendil-works/pi-ai": "0.82.1",
     "@modelcontextprotocol/sdk": "1.29.0",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",

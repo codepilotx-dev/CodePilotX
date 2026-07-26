@@ -42,6 +42,72 @@ describe("PiEventAdapter", () => {
     expect(completed).toEqual(started)
   })
 
+  test("normalizes standard Pi usage and prefers the actual response model", async () => {
+    const completed: unknown[] = []
+    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
+      assistantMessageCompleted: async (_context, input) => { completed.push(input) },
+    })
+
+    await adapter.handle({
+      type: "message_end",
+      message: {
+        role: "assistant",
+        provider: "openai",
+        api: "openai-responses",
+        model: "requested-model",
+        responseModel: "actual-model",
+        content: [{ type: "text", text: "done" }],
+        usage: {
+          input: 10,
+          output: 4,
+          cacheRead: 20,
+          cacheWrite: 5,
+          reasoning: 2,
+        },
+      },
+    } as unknown as AgentHarnessEvent)
+
+    expect(completed).toMatchObject([{
+      provider: "openai",
+      api: "openai-responses",
+      model: "actual-model",
+      usage: {
+        input: 10,
+        output: 4,
+        cacheRead: 20,
+        cacheWrite: 5,
+        reasoning: 2,
+      },
+    }])
+  })
+
+  test("treats missing or invalid Pi usage fields as zero", async () => {
+    const completed: Array<{ usage: Record<string, number> }> = []
+    const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {
+      assistantMessageCompleted: async (_context, input) => { completed.push(input) },
+    })
+
+    await adapter.handle({
+      type: "message_end",
+      message: {
+        role: "assistant",
+        provider: "anthropic",
+        api: "anthropic-messages",
+        model: "claude-test",
+        content: [{ type: "text", text: "done" }],
+        usage: { input: -1, output: Number.NaN, cacheRead: 3.9 },
+      },
+    } as unknown as AgentHarnessEvent)
+
+    expect(completed[0]?.usage).toEqual({
+      input: 0,
+      output: 0,
+      cacheRead: 3,
+      cacheWrite: 0,
+      reasoning: 0,
+    })
+  })
+
   test("Plan 模式流式输出独立计划且不创建空文本项", async () => {
     const seen: string[] = []
     const completed: Array<{ text?: string; plan?: string | null; planItemID: string }> = []

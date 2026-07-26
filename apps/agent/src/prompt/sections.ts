@@ -24,6 +24,7 @@ export interface PromptSectionSetInput {
   projectInstructions?: readonly ProjectInstructionSource[];
   skills?: readonly SkillMetadata[];
   memories?: readonly string[];
+  stableExternalData?: readonly string[];
   externalData?: readonly string[];
   userMessage: string;
 }
@@ -68,11 +69,12 @@ const contextual = (
   authority: PromptSection["authority"],
   source: PromptSection["source"],
   content: string,
+  cache: Extract<PromptSection["cache"], "session-stable" | "dynamic">,
 ): PromptSection =>
   section({
     id,
     role: "contextual-user",
-    cache: "dynamic",
+    cache,
     authority,
     source,
     content,
@@ -189,15 +191,6 @@ export const createPromptSections = (
       }),
     );
 
-  if (input.environment)
-    result.push(
-      contextual(
-        "context.environment",
-        "external-data",
-        { type: "runtime", name: "environment" },
-        input.environment,
-      ),
-    );
   for (const [index, source] of (input.projectInstructions ?? []).entries())
     result.push(
       contextual(
@@ -205,6 +198,7 @@ export const createPromptSections = (
         "project",
         { type: "file", path: source.path, scope: source.scope },
         source.content,
+        "session-stable",
       ),
     );
   if (input.skills?.length)
@@ -219,6 +213,27 @@ export const createPromptSections = (
               `$${skill.name}: ${skill.description || "(无描述)"} [${skill.origin}/${skill.format}]`,
           )
           .join("\n"),
+        "session-stable",
+      ),
+    );
+  for (const [index, data] of (input.stableExternalData ?? []).entries())
+    result.push(
+      contextual(
+        `stable-external-data.${index}`,
+        "external-data",
+        { type: "runtime", name: "stable-external-data" },
+        data,
+        "session-stable",
+      ),
+    );
+  if (input.environment)
+    result.push(
+      contextual(
+        "context.environment",
+        "external-data",
+        { type: "runtime", name: "environment" },
+        input.environment,
+        "dynamic",
       ),
     );
   for (const [index, memory] of (input.memories ?? []).entries())
@@ -228,6 +243,7 @@ export const createPromptSections = (
         "memory",
         { type: "runtime", name: "memory" },
         memory,
+        "dynamic",
       ),
     );
   for (const [index, data] of (input.externalData ?? []).entries())
@@ -237,6 +253,7 @@ export const createPromptSections = (
         "external-data",
         { type: "runtime", name: "external-data" },
         data,
+        "dynamic",
       ),
     );
   result.push(
@@ -245,6 +262,7 @@ export const createPromptSections = (
       "user",
       { type: "runtime", name: "current-user-message" },
       input.userMessage,
+      "dynamic",
     ),
   );
   return result;

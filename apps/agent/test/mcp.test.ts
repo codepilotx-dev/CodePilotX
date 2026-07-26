@@ -392,7 +392,7 @@ describe("MCP turn catalog", () => {
       content: instructions!,
     }])[0]).toMatchObject({
       role: "contextual-user",
-      cache: "dynamic",
+      cache: "session-stable",
       authority: "external-data",
       source: { type: "runtime", name: "mcp:fixture" },
     })

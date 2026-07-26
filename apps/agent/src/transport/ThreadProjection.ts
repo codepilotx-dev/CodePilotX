@@ -37,6 +37,32 @@ const inputState = (status: string): Input["state"] => {
 }
 
 const asText = (value: unknown) => typeof value === "string" ? value : value == null ? null : JSON.stringify(value, null, 2)
+const modelUsage = (value: unknown): Extract<Item, { type: "text" }>["usage"] => {
+  if (!value || typeof value !== "object") return undefined
+  const usage = value as Record<string, unknown>
+  if (
+    typeof usage.provider !== "string"
+    || typeof usage.model !== "string"
+    || typeof usage.contextWindow !== "number"
+    || !Number.isFinite(usage.contextWindow)
+  ) return undefined
+  const token = (key: string) => {
+    const current = usage[key]
+    return typeof current === "number" && Number.isFinite(current)
+      ? Math.max(0, Math.trunc(current))
+      : 0
+  }
+  return {
+    provider: usage.provider,
+    model: usage.model,
+    contextWindow: Math.max(1, Math.trunc(usage.contextWindow)),
+    input: token("input"),
+    output: token("output"),
+    cacheRead: token("cacheRead"),
+    cacheWrite: token("cacheWrite"),
+    reasoning: token("reasoning"),
+  }
+}
 const activityCommandStatus = (value: unknown): "success" | "running" | "error" | "interrupted" | undefined => value === "success" || value === "running" || value === "error" || value === "interrupted" ? value : undefined
 const activityCommands = (value: unknown): Extract<Item, { type: "activity" }>["commands"] => {
   if (!Array.isArray(value)) return undefined
@@ -551,7 +577,22 @@ export class ThreadProjection {
     const order = item.ordinal === undefined ? {} : { ordinal: item.ordinal }
     const status = item.status === "running" || item.status === "pending" ? "streaming" : item.status === "interrupted" ? "interrupted" : "completed"
     if (item.type === "reasoning") return { id: item.id, messageID, turnId: item.turnID, agentId, type: "reasoning", text: asText(item.data.text) ?? "", status, ...order, createdAt: item.createdAt }
-    if (item.type === "text" || (item.type === "activity" && typeof item.data.text === "string")) return { id: item.id, messageID, turnId: item.turnID, agentId, type: "text", placement: item.data.placement === "process" ? "process" : "result", text: asText(item.data.text) ?? "", status, ...order, createdAt: item.createdAt }
+    if (item.type === "text" || (item.type === "activity" && typeof item.data.text === "string")) {
+      const usage = modelUsage(item.data.usage)
+      return {
+        id: item.id,
+        messageID,
+        turnId: item.turnID,
+        agentId,
+        type: "text",
+        placement: item.data.placement === "process" ? "process" : "result",
+        text: asText(item.data.text) ?? "",
+        status,
+        ...(usage ? { usage } : {}),
+        ...order,
+        createdAt: item.createdAt,
+      }
+    }
     if (item.type === "activity") {
       const activity = ["context-compression", "file-edit", "build", "notice"].includes(String(item.data.activity)) ? item.data.activity as "context-compression" | "file-edit" | "build" | "notice" : "notice"
       const commands = activityCommands(item.data.commands)

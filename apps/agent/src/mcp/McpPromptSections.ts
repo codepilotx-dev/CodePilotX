@@ -6,7 +6,7 @@ export const createMcpInstructionSections = (
 ): PromptSection[] => instructions.map(({ serverName, content }) => ({
   id: `mcp.instructions.${serverName}`,
   role: "contextual-user",
-  cache: "dynamic",
+  cache: "session-stable",
   authority: "external-data",
   source: { type: "runtime", name: `mcp:${serverName}` },
   content: [

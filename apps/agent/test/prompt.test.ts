@@ -4,9 +4,13 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { InstructionDiscoveryService } from "../src/prompt/InstructionDiscoveryService"
 import { PromptComposer } from "../src/prompt/PromptComposer"
-import { inferPromptCacheCapability } from "../src/prompt/PromptCache"
+import {
+  inferPromptCacheCapability,
+  inferPromptCacheRuntimePolicy,
+} from "../src/prompt/PromptCache"
 import { createPromptSections } from "../src/prompt/sections"
 import { SkillService } from "../src/prompt/SkillService"
+import { applyPromptCacheRuntimePolicy } from "../src/orchestration/pi/PiPromptCacheAdapter"
 
 const paths: string[] = []
 const temporaryDirectory = async () => {
@@ -179,11 +183,57 @@ describe("PromptComposer", () => {
     expect(bundle.instructions).not.toContain("hidden guidance")
     expect(bundle.instructions).not.toContain("project evidence")
     expect(JSON.stringify(bundle.contextItems)).toContain("project evidence")
-    expect(bundle.cacheKey).toBe("thread-1")
+    expect(bundle.cacheKey).toMatch(/^cpx_[a-f0-9]{60}$/)
+    expect(bundle.cacheKey).not.toContain("thread-1")
+    expect(bundle.stableContextText).toContain("project evidence")
+    expect(bundle.stableContextText).not.toContain("do work")
     expect(bundle.diagnostics.find((item) => item.id === "tool.hidden")?.reason).toBe("required-tools")
-    expect(bundle.cacheSegments.filter((segment) => segment.role === "context").every((segment) => !segment.cacheable)).toBe(true)
+    expect(bundle.cacheSegments.filter((segment) => segment.role === "context").map((segment) => segment.cacheable)).toEqual([true, false])
     expect(bundle.cacheBoundaries.map((boundary) => boundary.cache)).toEqual(["global-stable", "session-stable"])
     expect(bundle.cacheHash).toHaveLength(64)
+  })
+
+  test("稳定 contextual 总是在动态内容之前，且只随稳定内容变化", () => {
+    const compose = (threadID: string, project: string, userMessage: string) =>
+      new PromptComposer().compose({
+        threadID,
+        mode: "chat",
+        profile: "main",
+        exposedTools: [],
+        sections: createPromptSections({
+          permissionInstructions: "resolved",
+          mode: "chat",
+          profile: "main",
+          environment: "dynamic environment",
+          projectInstructions: [{
+            path: "F:\\repo\\AGENTS.md",
+            scope: ".",
+            content: project,
+            hash: "x",
+            bytes: project.length,
+            truncated: false,
+          }],
+          stableExternalData: ["stable project catalog"],
+          externalData: ["dynamic hook output"],
+          userMessage,
+        }),
+      })
+    const first = compose("thread-1", "project v1", "turn one")
+    const nextTurn = compose("thread-1", "project v1", "turn two")
+    const changedProject = compose("thread-1", "project v2", "turn two")
+    const otherThread = compose("thread-2", "project v1", "turn one")
+
+    expect(first.contextItems.map((item) => item.content[0]!.text)).toEqual([
+      expect.stringContaining("project v1"),
+      expect.stringContaining("stable project catalog"),
+      expect.stringContaining("dynamic environment"),
+      expect.stringContaining("dynamic hook output"),
+      expect.stringContaining("turn one"),
+    ])
+    expect(nextTurn.stableContextText).toBe(first.stableContextText)
+    expect(changedProject.stableContextText).not.toBe(first.stableContextText)
+    expect(nextTurn.cacheKey).toBe(first.cacheKey)
+    expect(otherThread.cacheKey).not.toBe(first.cacheKey)
   })
 
   test("按 provider 推导缓存能力", () => {
@@ -192,4 +242,231 @@ describe("PromptComposer", () => {
     expect(inferPromptCacheCapability("openai-compatible.chat").strategy).toBe("stable-prefix")
   })
 
+})
+
+describe("Prompt cache runtime policy", () => {
+  const model = (overrides: Partial<{
+    provider: string
+    api: string
+    id: string
+    baseUrl: string
+    compat: unknown
+  }> = {}) => ({
+    provider: "openai",
+    api: "openai-responses",
+    id: "gpt-5.6-sol",
+    baseUrl: "https://api.openai.com/v1",
+    compat: { supportsExplicitPromptCacheMode: true },
+    ...overrides,
+  })
+
+  test("仅以官方 OpenAI endpoint 和 capability flag 启用显式模式", () => {
+    expect(inferPromptCacheRuntimePolicy(model(), "cache-key")).toEqual({
+      strategy: "openai-explicit",
+      cacheRetention: "short",
+      cacheKey: "cache-key",
+    })
+    expect(inferPromptCacheRuntimePolicy(model({
+      id: "gpt-5.5",
+      compat: {},
+    }), "cache-key").strategy).toBe("openai-automatic")
+    expect(inferPromptCacheRuntimePolicy(model({
+      baseUrl: "https://openai-compatible.example/v1",
+    }), "cache-key")).toEqual({
+      strategy: "upstream-managed",
+      cacheRetention: "short",
+    })
+  })
+
+  test("仅 MiniMax M3 和 Kimi Coding 官方 Anthropic endpoint 禁用主动 marker", () => {
+    const policy = (overrides: Parameters<typeof model>[0]) =>
+      inferPromptCacheRuntimePolicy(model(overrides), "cache-key")
+    expect(policy({
+      provider: "minimax",
+      api: "anthropic-messages",
+      id: "MiniMax-M3",
+      baseUrl: "https://api.minimax.io/anthropic",
+    }).cacheRetention).toBe("none")
+    expect(policy({
+      provider: "minimax-cn",
+      api: "anthropic-messages",
+      id: "MiniMax-M2.7",
+      baseUrl: "https://api.minimaxi.com/anthropic",
+    }).cacheRetention).toBe("short")
+    expect(policy({
+      provider: "kimi-coding",
+      api: "anthropic-messages",
+      id: "kimi-for-coding",
+      baseUrl: "https://api.kimi.com/coding",
+    }).cacheRetention).toBe("none")
+    expect(policy({
+      provider: "anthropic",
+      api: "anthropic-messages",
+      id: "claude",
+      baseUrl: "https://api.anthropic.com",
+    }).cacheRetention).toBe("short")
+    expect(policy({
+      provider: "deepseek",
+      api: "openai-completions",
+      id: "deepseek-chat",
+      baseUrl: "https://api.deepseek.com",
+    }).cacheRetention).toBe("short")
+  })
+
+  test("自动缓存供应商不进入 OpenAI 本地适配", () => {
+    const providers = [
+      {
+        provider: "deepseek",
+        api: "openai-completions",
+        id: "deepseek-chat",
+        baseUrl: "https://api.deepseek.com",
+      },
+      {
+        provider: "zhipuai",
+        api: "openai-completions",
+        id: "glm-5",
+        baseUrl: "https://open.bigmodel.cn/api/paas/v4",
+      },
+      {
+        provider: "xiaomi",
+        api: "openai-completions",
+        id: "mimo-v2.5",
+        baseUrl: "https://api.xiaomimimo.com/v1",
+      },
+      {
+        provider: "moonshotai",
+        api: "openai-completions",
+        id: "kimi-k2.5",
+        baseUrl: "https://api.moonshot.cn/v1",
+      },
+    ]
+    for (const providerModel of providers) {
+      expect(inferPromptCacheRuntimePolicy(
+        model(providerModel),
+        "cache-key",
+      )).toEqual({
+        strategy: "upstream-managed",
+        cacheRetention: "short",
+      })
+    }
+  })
+
+  test("OpenAI Responses 显式模式写入单断点且保持原 payload 不变", () => {
+    const stableContextText = "<context_data>stable</context_data>"
+    const payload = {
+      model: "gpt-5.6-sol",
+      input: [
+        { role: "developer", content: "system instructions" },
+        {
+          role: "user",
+          content: [{
+            type: "input_text",
+            text: `${stableContextText}\n\ndynamic turn`,
+            businessField: "preserved",
+          }],
+        },
+      ],
+      prompt_cache_key: "raw-session-id",
+      prompt_cache_retention: "24h",
+      businessField: { nested: true },
+    }
+    const original = structuredClone(payload)
+    const result = applyPromptCacheRuntimePolicy(
+      payload,
+      {
+        strategy: "openai-explicit",
+        cacheRetention: "short",
+        cacheKey: "cpx_opaque",
+      },
+      stableContextText,
+    )
+    const applied = result.payload as Record<string, unknown>
+
+    expect(payload).toEqual(original)
+    expect(applied.prompt_cache_key).toBe("cpx_opaque")
+    expect(applied.prompt_cache_retention).toBeUndefined()
+    expect(applied.prompt_cache_options).toEqual({ mode: "explicit", ttl: "30m" })
+    expect(JSON.stringify(applied).match(/prompt_cache_breakpoint/g)).toHaveLength(1)
+    expect(JSON.stringify(applied)).toContain("businessField")
+    expect(result.appliedBreakpoints).toBe(1)
+
+    const toolLoop = applyPromptCacheRuntimePolicy({
+      ...payload,
+      input: [
+        ...payload.input,
+        { role: "assistant", content: [{ type: "input_text", text: "tool call" }] },
+        { role: "tool", content: [{ type: "input_text", text: "tool result" }] },
+      ],
+    }, {
+      strategy: "openai-explicit",
+      cacheRetention: "short",
+      cacheKey: "cpx_opaque",
+    }, stableContextText)
+    expect(JSON.stringify(toolLoop.payload).match(/prompt_cache_breakpoint/g)).toHaveLength(1)
+    expect(JSON.stringify(toolLoop.payload).indexOf("prompt_cache_breakpoint"))
+      .toBeLessThan(JSON.stringify(toolLoop.payload).indexOf("tool call"))
+  })
+
+  test("OpenAI Chat 在无稳定 contextual 时标记 system，无法标记时回退 implicit", () => {
+    const policy = {
+      strategy: "openai-explicit" as const,
+      cacheRetention: "short" as const,
+      cacheKey: "cpx_opaque",
+    }
+    const chat = applyPromptCacheRuntimePolicy({
+      messages: [
+        { role: "system", content: "system instructions" },
+        { role: "user", content: "dynamic turn" },
+      ],
+      prompt_cache_retention: "24h",
+    }, policy, "")
+    expect((chat.payload as Record<string, unknown>).prompt_cache_options).toEqual({
+      mode: "explicit",
+      ttl: "30m",
+    })
+    expect(JSON.stringify(chat.payload).match(/prompt_cache_breakpoint/g)).toHaveLength(1)
+
+    const fallback = applyPromptCacheRuntimePolicy({
+      messages: [{ role: "user", content: "dynamic turn" }],
+      prompt_cache_retention: "24h",
+      prompt_cache_options: { mode: "explicit" },
+    }, policy, "missing stable prefix")
+    expect((fallback.payload as Record<string, unknown>).prompt_cache_key).toBe("cpx_opaque")
+    expect((fallback.payload as Record<string, unknown>).prompt_cache_retention).toBeUndefined()
+    expect((fallback.payload as Record<string, unknown>).prompt_cache_options).toBeUndefined()
+    expect(fallback.appliedBreakpoints).toBe(0)
+  })
+
+  test("旧 OpenAI 只覆盖 opaque key，非 OpenAI payload 完全 no-op", () => {
+    const automaticPayload = {
+      messages: [{ role: "user", content: "hello" }],
+      prompt_cache_key: "raw-session",
+      prompt_cache_retention: "24h",
+    }
+    const automatic = applyPromptCacheRuntimePolicy(
+      automaticPayload,
+      {
+        strategy: "openai-automatic",
+        cacheRetention: "short",
+        cacheKey: "cpx_opaque",
+      },
+      "",
+    )
+    expect(automatic.payload).toEqual({
+      ...automaticPayload,
+      prompt_cache_key: "cpx_opaque",
+    })
+    expect(automaticPayload.prompt_cache_key).toBe("raw-session")
+
+    const upstreamPayload = {
+      messages: [{ role: "user", content: "hello" }],
+      cache_control: { type: "ephemeral" },
+    }
+    const upstream = applyPromptCacheRuntimePolicy(
+      upstreamPayload,
+      { strategy: "upstream-managed", cacheRetention: "short" },
+      "",
+    )
+    expect(upstream.payload).toBe(upstreamPayload)
+  })
 })

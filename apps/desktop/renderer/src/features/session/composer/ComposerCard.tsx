@@ -997,12 +997,14 @@ export function ComposerCard({
         contextUsage.contextWindow,
       )} token`
     : "暂无上下文统计";
-  const promptCacheHitTokens = contextUsage?.promptCacheHitTokens ?? 0;
-  const promptCacheMissTokens = contextUsage?.promptCacheMissTokens ?? 0;
-  const promptCacheTotalTokens = promptCacheHitTokens + promptCacheMissTokens;
+  const promptCacheReadTokens = contextUsage?.promptCacheReadTokens ?? 0;
+  const promptCacheWriteTokens = contextUsage?.promptCacheWriteTokens ?? 0;
+  const promptUncachedTokens = contextUsage?.promptUncachedTokens ?? 0;
+  const promptCacheTotalTokens =
+    promptCacheReadTokens + promptCacheWriteTokens + promptUncachedTokens;
   const promptCacheHitRate =
     promptCacheTotalTokens > 0
-      ? Math.round((promptCacheHitTokens / promptCacheTotalTokens) * 100)
+      ? Math.round((promptCacheReadTokens / promptCacheTotalTokens) * 100)
       : 0;
   const reasoningTokens = contextUsage?.reasoningTokens ?? 0;
   const showContextUsageDetails =
@@ -1600,13 +1602,17 @@ export function ComposerCard({
                             <>
                               <span>缓存详情：</span>
                               <span>
-                                命中缓存{" "}
-                                {formatCompactNumber(promptCacheHitTokens)}{" "}
+                                缓存读取{" "}
+                                {formatCompactNumber(promptCacheReadTokens)}{" "}
                                 (命中率 {promptCacheHitRate}%)
                               </span>
                               <span>
-                                未命中缓存{" "}
-                                {formatCompactNumber(promptCacheMissTokens)}
+                                缓存写入{" "}
+                                {formatCompactNumber(promptCacheWriteTokens)}
+                              </span>
+                              <span>
+                                未缓存{" "}
+                                {formatCompactNumber(promptUncachedTokens)}
                               </span>
                             </>
                           ) : null}
