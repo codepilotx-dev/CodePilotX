@@ -25,8 +25,11 @@
 
 ## 存储与安全语义
 
-- 新数据库一次性创建最终 schema；不得恢复逐版本 schema migration。
-- 数据代际重置只能删除配置指向的数据库、`-wal` 和 `-shm`，不得删除父目录或创建备份。
+- 新数据库一次性创建当前最终 schema；已知旧 schema 通过顺序、事务化迁移升级并保留数据。
+- history schema 21、profile schema 3 是向前兼容基线；application ID 是固定所有权标记，不得作为功能版本或清库开关。
+- 新功能优先新增独立表；核心表只能增加 nullable 或带兼容默认值的字段，禁止让新触发器、约束、必填列或枚举值破坏旧客户端读写。
+- 同一应用的更高 schema 必须允许旧客户端使用已知能力，且不得降低 `user_version`、删除未知表字段或重写未知记录。
+- 未知或不受支持的数据文件必须原样保留并拒绝覆盖，不得删除数据库、`-wal`、`-shm` 或父目录来恢复启动。
 - 保留 WAL、外键、busy timeout、transactional outbox、事件顺序、SSE replay、checkpoint 和 interrupted recovery。
 - 凭据必须经过现有加密凭据仓库和 Bun secrets 流程；不得写入 SQLite、event、日志或错误。
 - 新工具必须经过 `ToolRegistry` 和既有审批边界，禁止绕过权限检查。

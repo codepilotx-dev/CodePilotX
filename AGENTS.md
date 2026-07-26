@@ -69,13 +69,16 @@
 - 当前唯一桌面通信协议是 `thread-rpc-v4`。禁止重新加入 v3 dispatcher、adapter、migration、legacy export 或双协议分支。
 - `thread/create` 只接受 `workspace`，不得恢复 `projectId`/`projectID` 兼容参数。
 - v4 错误必须使用统一、安全的 envelope；禁止返回原始异常、凭据、命令环境或敏感绝对路径。
-- 尚未稳定发布的开发功能允许进行明确、局部的破坏性数据代际升级。
-- 功能进入稳定版本后，schema、设置代际和默认数据变更必须提供前向迁移并保留用户数据；禁止通过更换数据库、setting key 或版本号直接丢弃已有数据。
-- 当前尚未稳定的协议与数据代际不支持旧客户端、旧数据库或旧设置回退。
-- 数据代际不匹配时，只能删除 CodePilotX 明确拥有的 SQLite 主文件及 `-wal`/`-shm`、`appearance-settings.json`、明确列出的 localStorage/sessionStorage 键或前缀。
+- history schema 21、profile schema 3 是共享全局数据的向前兼容基线；固定 application ID 只表示 CodePilotX 所有权，禁止因功能或 schema 更新而递增。
+- 新功能优先新增旧客户端可忽略的独立表；核心表新增字段只能 nullable 或提供兼容默认值，禁止新增要求旧写入方提供新字段的触发器、约束或必填列。
+- 禁止删除、重命名兼容基线字段，禁止改变旧代码会读取的枚举值语义；确需不兼容的数据模型时，必须使用独立存储并取得明确架构决策。
+- 旧版本打开同一应用的更高 schema 时必须保留其 `user_version`、未知表、未知字段和未知记录，不得降级、清库或重写不认识的数据。
+- schema、设置代际和默认数据变更必须提供前向迁移并保留用户数据；禁止通过更换数据库、setting key、application ID 或版本号直接丢弃已有数据。
+- `config.toml` 必须继续使用 key-path 局部编辑，保留旧版本不认识的配置键和值。
+- 不受支持或不属于 CodePilotX 的数据文件必须原样保留并拒绝覆盖；不得通过删除文件尝试恢复启动。
 - 无论开发或稳定阶段，都不得删除整个 `userData`、数据目录、浏览器存储或非目标业务数据；禁止调用 `localStorage.clear()`；禁止创建旧数据备份。
 - 重置日志只能记录无敏感信息的事件和原因，不记录路径、凭据、设置内容或会话内容。
-- 除非用户明确要求新的迁移策略，否则不得新增 legacy/migration 兼容代码。
+- 仅允许维护从已知 CodePilotX 数据代际到兼容基线的局部迁移；禁止恢复旧协议、旧客户端 adapter 或平行存储实现。
 
 ## 必须保持的架构与安全语义
 
