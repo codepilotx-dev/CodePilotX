@@ -401,7 +401,7 @@ describe('agent RPC v4 client', () => {
     const envelope = {
       eventId: 'event-8',
       streamId: 'thread-1',
-      type: 'assistant/textDelta',
+      type: 'item/agentMessage/delta',
       version: 1,
       occurredAt: 1_721_000_000_000,
       threadId: 'thread-1',
@@ -409,7 +409,12 @@ describe('agent RPC v4 client', () => {
       durability: 'live',
       sequence: null,
       afterSequence: 7,
-      payload: { itemId: 'item-1', delta: 'hello' },
+      payload: {
+        itemId: 'item-1',
+        turnId: 'turn-1',
+        agentId: 'agent-1',
+        delta: 'hello',
+      },
     }
     sources[0]?.emit({
       jsonrpc: '2.0',
@@ -419,6 +424,16 @@ describe('agent RPC v4 client', () => {
 
     await waitFor(() => received.length === 1)
     expect(received[0]).toEqual(envelope)
+    sources[0]?.emit({
+      jsonrpc: '2.0',
+      method: 'event/next',
+      params: {
+        subscriptionId: 'subscription-1',
+        event: { ...envelope, version: 2 },
+      },
+    })
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(received).toHaveLength(1)
     expect(
       requests.find(request => request.method === 'event/subscribe')?.params,
     ).toEqual({ streams: [{ streamId: 'thread-1', after: 7 }] })

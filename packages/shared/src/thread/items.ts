@@ -148,12 +148,31 @@ export const PlanItemSchema = Schema.Struct({
   type: Schema.Literal("plan"),
   title: Schema.String,
   markdown: Schema.String,
-  version: Schema.Number,
-  state: Schema.Literals(["draft", "awaiting-confirmation", "confirmed", "rejected"]),
+  status: Schema.Literals(["streaming", "completed", "interrupted"]),
   ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })
 export type PlanItem = typeof PlanItemSchema.Type
+
+export const ExecutionPlanStepSchema = Schema.Struct({
+  step: Schema.String,
+  status: Schema.Literals(["pending", "in_progress", "completed"]),
+})
+export type ExecutionPlanStep = typeof ExecutionPlanStepSchema.Type
+
+export const ExecutionPlanItemSchema = Schema.Struct({
+  id: Schema.String,
+  messageID: Schema.String,
+  turnId: Schema.String,
+  agentId: Schema.String,
+  type: Schema.Literal("execution-plan"),
+  explanation: Schema.optional(Schema.String),
+  steps: Schema.Array(ExecutionPlanStepSchema),
+  status: Schema.Literals(["streaming", "completed", "interrupted"]),
+  ordinal: Schema.optional(Schema.Number),
+  createdAt: Schema.Number,
+})
+export type ExecutionPlanItem = typeof ExecutionPlanItemSchema.Type
 
 export const QuestionItemSchema = Schema.Struct({
   id: Schema.String,
@@ -213,6 +232,7 @@ export const ItemSchema = Schema.Union([
   ActivityItemSchema,
   ToolItemSchema,
   PlanItemSchema,
+  ExecutionPlanItemSchema,
   QuestionItemSchema,
   PatchItemSchema,
   SubagentItemSchema,

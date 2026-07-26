@@ -118,7 +118,7 @@ export const EventUnsubscribeParamsSchema = Schema.Struct({
   subscriptionId: OpaqueIDSchema,
 })
 
-export const InteractionKindSchema = Schema.Literals(["approval", "question", "plan", "hookTrust"])
+export const InteractionKindSchema = Schema.Literals(["approval", "question", "hookTrust"])
 export const InteractionStateSchema = Schema.Literals(["pending", "resolved", "cancelled", "expired"])
 
 const InteractionMetadataFields = {
@@ -160,13 +160,6 @@ export const PendingQuestionInteractionSchema = Schema.Struct({
   questions: Schema.Array(InteractionQuestionSchema),
 })
 
-export const PendingPlanInteractionSchema = Schema.Struct({
-  ...InteractionMetadataFields,
-  kind: Schema.Literal("plan"),
-  title: NonEmptyStringSchema,
-  markdown: NonEmptyStringSchema,
-})
-
 export const PendingHookTrustInteractionSchema = Schema.Struct({
   ...InteractionMetadataFields,
   kind: Schema.Literal("hookTrust"),
@@ -183,7 +176,6 @@ export const PendingHookTrustInteractionSchema = Schema.Struct({
 export const PendingInteractionSchema = Schema.Union([
   PendingApprovalInteractionSchema,
   PendingQuestionInteractionSchema,
-  PendingPlanInteractionSchema,
   PendingHookTrustInteractionSchema,
 ])
 
@@ -222,11 +214,6 @@ export const QuestionInteractionResponseSchema = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("question"), status: Schema.Literal("ignored") }),
 ])
 
-export const PlanInteractionResponseSchema = Schema.Struct({
-  kind: Schema.Literal("plan"),
-  decision: Schema.Literals(["continue", "reject"]),
-})
-
 export const HookTrustInteractionResponseSchema = Schema.Struct({
   kind: Schema.Literal("hookTrust"),
   decision: Schema.Literals(["allow", "block"]),
@@ -235,7 +222,6 @@ export const HookTrustInteractionResponseSchema = Schema.Struct({
 export const InteractionResponseSchema = Schema.Union([
   ApprovalInteractionResponseSchema,
   QuestionInteractionResponseSchema,
-  PlanInteractionResponseSchema,
   HookTrustInteractionResponseSchema,
 ])
 

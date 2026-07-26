@@ -6,7 +6,6 @@ import type {
   DesktopPermissionRequest,
 } from '../../../../shared/types.js'
 import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
-import { ExitPlanModeApproval } from './ExitPlanModeApproval.js'
 import { Button } from '../../../components/ui/Button.js'
 
 export type PermissionRequestModalProps = {
@@ -19,21 +18,12 @@ export type PermissionRequestModalProps = {
     updatedInput?: Record<string, unknown>,
     decisionExtras?: Pick<DesktopPermissionDecision, 'rememberOptionId'>,
   ) => void
-  onAcceptExitPlanMode?: (
-    request: DesktopPermissionRequest,
-    options?: {
-      note?: string
-      planExecutionModel?: string
-      savePlanExecutionModel?: boolean
-    },
-  ) => void
 }
 
 export function PermissionRequestModal({
   request,
   currentPermissionMode,
   onDecide,
-  onAcceptExitPlanMode,
 }: PermissionRequestModalProps): React.ReactNode {
   return (
     <Dialog.Root open={Boolean(request)}>
@@ -67,18 +57,6 @@ export function PermissionRequestModal({
                   onSubmit={updatedInput =>
                     onDecide(request, 'allow', false, updatedInput)
                   }
-                />
-              ) : request.toolName === 'ExitPlanMode' ? (
-                <ExitPlanModeApproval
-                  request={request}
-                  onAccept={options => {
-                    if (onAcceptExitPlanMode) {
-                      onAcceptExitPlanMode(request, options)
-                    } else {
-                      onDecide(request, 'allow')
-                    }
-                  }}
-                  onRevise={() => onDecide(request, 'deny')}
                 />
               ) : (
                 <>

@@ -66,7 +66,7 @@ export type AgentTurnCheckpoint = {
   agentID: string
   turnID: string
   threadID: string
-  state: "waiting_question" | "waiting_hook_trust" | "waiting_plan_confirmation" | "waiting_subagents" | "ready"
+  state: "waiting_question" | "waiting_hook_trust" | "waiting_subagents" | "ready"
   payload: Record<string, unknown>
   version: number
   createdAt: number
@@ -379,13 +379,30 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
         this.deleteAgentTurnCheckpoint(input.turnID)
         this.updateTurnStatus(input.turnID, input.status)
         const agent = this.updateAgentStatus(input.agentID, input.status, input.message ?? null)
+        const terminalItemRows = (input.status === "interrupted"
+          ? this.sqlite.query(
+              "SELECT id FROM items WHERE turn_id = ? AND status IN ('pending', 'running') ORDER BY ordinal",
+            )
+          : this.sqlite.query(
+              "SELECT id FROM items WHERE turn_id = ? AND type = 'execution-plan' AND status IN ('pending', 'running') ORDER BY ordinal",
+            )
+        ).all(input.turnID) as Array<{ id: string }>
         if (input.status === "interrupted") {
           this.sqlite.query("UPDATE items SET status = 'interrupted', updated_at = ? WHERE turn_id = ? AND status IN ('pending', 'running')").run(timestamp, input.turnID)
           this.sqlite.query("UPDATE approval_requests SET status = 'cancelled', resolved_at = ? WHERE turn_id = ? AND status IN ('preparing', 'pending', 'resolved', 'claimed')").run(timestamp, input.turnID)
           this.sqlite.query("UPDATE question_requests SET status = 'cancelled', answer = COALESCE(answer, '__stopped__'), resolved_at = ? WHERE turn_id = ? AND status IN ('pending', 'resolved', 'resuming')").run(timestamp, input.turnID)
         }
+        if (terminalItemRows.length && input.status !== "interrupted") {
+          this.sqlite.query(
+            "UPDATE items SET status = ?, updated_at = ? WHERE turn_id = ? AND type = 'execution-plan' AND status IN ('pending', 'running')",
+          ).run(input.status === "completed" ? "completed" : "interrupted", timestamp, input.turnID)
+        }
         const events: EventEnvelope[] = [
           this.insertEvent(input.threadID, input.turnID, "agent/upserted", { agent }),
+          ...terminalItemRows.flatMap(({ id }) => {
+            const item = this.getItem(id)
+            return item ? [this.insertEvent(input.threadID, input.turnID, "item/completed", { item })] : []
+          }),
           this.insertEvent(input.threadID, input.turnID, `turn/${input.status}`, {
             turnId: input.turnID,
             rootAgentId: input.agentID,
@@ -705,30 +722,6 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
       this.sqlite.query("DELETE FROM agent_checkpoints WHERE turn_id = ?").run(turnID)
     }
 
-  currentPlan(turnID: string) {
-      const row = this.sqlite.query("SELECT data FROM items WHERE turn_id = ? AND type = 'plan' ORDER BY created_at DESC LIMIT 1").get(turnID) as { data: string } | null
-      if (!row) return null
-      const data = parse<Record<string, unknown>>(row.data)
-      return typeof data.markdown === "string" ? data.markdown : null
-    }
-
-  setCurrentPlanState(turnID: string, state: "confirmed" | "rejected") {
-      const row = this.sqlite.query("SELECT id, thread_id, agent_id, data, created_at FROM items WHERE turn_id = ? AND type = 'plan' ORDER BY created_at DESC LIMIT 1").get(turnID) as { id: string; thread_id: string; agent_id: string; data: string; created_at: number } | null
-      if (!row) return null
-      const item: Item = {
-        id: row.id,
-        turnID,
-        agentID: row.agent_id,
-        type: "plan",
-        status: "completed",
-        data: { ...parse<Record<string, unknown>>(row.data), state },
-        createdAt: row.created_at,
-        updatedAt: now(),
-      }
-      this.upsertItem(row.thread_id, item)
-      return item
-    }
-
   upsertItem(threadID: string, item: Item) {
       const existing = this.sqlite.query("SELECT ordinal FROM items WHERE id = ?").get(item.id) as { ordinal: number } | null
       const ordinal = item.ordinal ?? existing?.ordinal ?? Number(
@@ -746,6 +739,40 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
         item.createdAt,
         item.updatedAt,
       )
+    }
+
+  updateExecutionPlan(input: {
+      threadID: string
+      turnID: string
+      agentID: string
+      explanation?: string
+      plan: Array<{ step: string; status: "pending" | "in_progress" | "completed" }>
+    }) {
+      const timestamp = now()
+      const itemID = `${input.turnID}:execution-plan`
+      return this.transaction(() => {
+        const existing = this.getItem(itemID)
+        const item: Item = {
+          id: itemID,
+          turnID: input.turnID,
+          agentID: input.agentID,
+          type: "execution-plan",
+          status: "running",
+          data: {
+            ...(input.explanation ? { explanation: input.explanation } : {}),
+            steps: input.plan,
+          },
+          ...(existing?.ordinal === undefined ? {} : { ordinal: existing.ordinal }),
+          createdAt: existing?.createdAt ?? timestamp,
+          updatedAt: timestamp,
+        }
+        this.upsertItem(input.threadID, item)
+        const persisted = this.getItem(itemID) ?? item
+        const events: EventEnvelope[] = []
+        if (!existing) events.push(this.insertEvent(input.threadID, input.turnID, "item/started", { item: persisted }))
+        events.push(this.insertEvent(input.threadID, input.turnID, "turn/plan/updated", { item: persisted }))
+        return { item: persisted, events }
+      })
     }
 
   upsertItemWithEvent(threadID: string, item: Item, method: string, params?: unknown | ((item: Item) => unknown)) {

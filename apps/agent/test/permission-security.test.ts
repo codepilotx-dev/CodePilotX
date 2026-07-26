@@ -104,11 +104,23 @@ describe("统一权限真值", () => {
       .toMatchObject({ action: "review", risk: "high" })
   })
 
-  test("Plan Shell 沿用任务原权限，显式写工具仍拒绝", () => {
+  test("Plan 强制只读且禁止权限提升和外部副作用", () => {
     const catalog = new ToolRegistry()
     const engine = new PermissionDecisionEngine()
-    expect(engine.evaluate(invocation({ taskMode: "plan" }), catalog.get("PowerShell"))).toMatchObject({ action: "allow" })
+    expect(engine.evaluate(invocation({
+      taskMode: "plan",
+      permissionConfig: { sandboxMode: "danger-full-access", approvalPolicy: "on-failure", approvalsReviewer: "user" },
+    }), catalog.get("PowerShell"))).toMatchObject({ action: "allow", sandbox: { mode: "read-only", networkAllowed: false } })
     expect(engine.evaluate(invocation({ name: "Write", taskMode: "plan", input: { file_path: "x", content: "x" } }), catalog.get("Write"))).toMatchObject({ action: "deny" })
+    expect(engine.evaluate(invocation({
+      name: "request_permissions",
+      taskMode: "plan",
+      input: { scope: "turn", justification: "need" },
+    }), catalog.get("request_permissions"))).toMatchObject({ action: "deny", reason: expect.stringContaining("禁止请求") })
+    expect(engine.evaluate(invocation({
+      taskMode: "plan",
+      input: { command: "npm view", additionalPermissions: { networkDomains: ["npmjs.org"] } },
+    }), catalog.get("PowerShell"))).toMatchObject({ action: "deny", reason: expect.stringContaining("网络") })
   })
 })
 

@@ -3,7 +3,6 @@ import { Schema } from "effect"
 import {
   ApprovalRequestResultSchema,
   HookTrustRequestResultSchema,
-  PlanRequestResultSchema,
   QuestionRequestResultSchema,
   createServerRequestMessage,
   decodeServerRequestMessage,
@@ -30,12 +29,6 @@ const responseBranches = [
     invalidResponse: { kind: "question", status: "answered" },
   },
   {
-    method: "plan/request",
-    resultSchema: PlanRequestResultSchema,
-    response: { kind: "plan", decision: "continue" },
-    invalidResponse: { kind: "plan", decision: "allow-once" },
-  },
-  {
     method: "hookTrust/request",
     resultSchema: HookTrustRequestResultSchema,
     response: { kind: "hookTrust", decision: "allow" },
@@ -44,7 +37,7 @@ const responseBranches = [
 ] as const
 
 describe("server request interactions", () => {
-  test("defines exactly the four interaction request kinds", () => {
+  test("defines exactly the three interaction request kinds", () => {
     expect(Object.keys(ServerRequests).sort()).toEqual(responseBranches.map(({ method }) => method).sort())
   })
 
@@ -91,17 +84,16 @@ describe("server request interactions", () => {
 
   test("uses the persisted interactionId as the JSON-RPC request id", () => {
     const params = {
-      kind: "plan" as const,
+      kind: "question" as const,
       interactionId: "interaction-1",
       threadId: "thread-1",
       turnId: "turn-1",
       agentId: "agent-1",
       createdAt: 1,
       version: 1,
-      title: "Implementation plan",
-      markdown: "1. Implement",
+      questions: [],
     }
-    const message = createServerRequestMessage("plan/request", params)
+    const message = createServerRequestMessage("question/request", params)
     expect(message.id).toBe(params.interactionId)
     expect(decodeServerRequestMessage(message)).toEqual(message)
     expect(() => decodeServerRequestMessage({ ...message, id: "different-interaction" })).toThrow()

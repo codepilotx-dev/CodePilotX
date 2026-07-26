@@ -5,7 +5,7 @@ export const SCHEMA_VERSION = 21
  * A data epoch is deliberately incompatible with every earlier epoch.
  * Opening an older database resets only the configured SQLite files.
  */
-export const DATA_EPOCH = 2
+export const DATA_EPOCH = 3
 
 /** Profile data has an independent, never-reset lifecycle. */
 export const PROFILE_SCHEMA_VERSION = 3

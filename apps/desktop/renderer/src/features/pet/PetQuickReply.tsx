@@ -163,17 +163,16 @@ export function PetQuickReply({
     )
   }
 
-  const isPlan = request.toolName === 'ExitPlanMode'
   return (
     <QuickReplyFrame error={error}>
       <p className="tw:m-0 tw:text-sm tw:leading-5 tw:text-app-text">
-        {isPlan ? '是否继续执行这个计划？' : request.description || '是否允许这次操作？'}
+        {request.description || '是否允许这次操作？'}
       </p>
       <div className="tw:grid tw:grid-cols-2 tw:gap-2" role="radiogroup">
         <ActionButton
           checked={action === 'allow'}
           disabled={blocked}
-          label={isPlan ? '执行计划' : '允许一次'}
+          label="允许一次"
           onClick={() => {
             setAction('allow')
             setError(null)
@@ -189,7 +188,7 @@ export function PetQuickReply({
           }}
         />
       </div>
-      {action === 'deny' && !isPlan ? (
+      {action === 'deny' ? (
         <textarea
           className="tw:min-h-16 tw:w-full tw:resize-y tw:rounded-lg tw:border tw:border-app-border tw:bg-app-canvas tw:px-2.5 tw:py-2 tw:text-sm tw:text-app-text tw:outline-none tw:focus:border-app-accent"
           disabled={blocked}

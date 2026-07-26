@@ -163,14 +163,6 @@ export class ExecutionLogObserver {
         details: { status: event.method.endsWith("resolved") ? "resolved" : "requested" },
       })
     }
-    if (event.method === "plan/ready" || event.method === "plan/decision") {
-      return this.log("info", event.method.replace("/", "."), {
-        context: contextFor(event, params),
-        details: {
-          status: event.method.endsWith("ready") ? "ready" : text(params.decision) ?? "decided",
-        },
-      })
-    }
     if (event.method === "queue/updated") {
       return this.log("info", "queue.updated", {
         context: contextFor(event, params),

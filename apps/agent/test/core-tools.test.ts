@@ -125,7 +125,7 @@ describe("核心工具面", () => {
     expect(properties("Read")).toEqual(["file_path", "offset", "limit"])
     expect(properties("Write")).toEqual(["file_path", "content"])
     expect(properties("Edit")).toEqual(["file_path", "old_string", "new_string", "replace_all"])
-    expect(properties("PowerShell")).toEqual(["command", "timeout", "description"])
+    expect(properties("PowerShell")).toEqual(["command", "cwd", "timeout", "description", "additionalPermissions"])
     expect(properties("ToolSearch")).toEqual(["query", "max_results"])
     await Bun.write(join(context.workspace.rootPath, "internal.txt"), "internal")
     await expect(executor.execute<any>("workspace.read", { file_path: "internal.txt" }, context).then((result) => result.content)).resolves.toBe("internal")

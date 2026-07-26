@@ -44,7 +44,6 @@ export interface SubagentThreadCapabilities {
   canRetry: boolean
   canRespondToApprovals: boolean
   canRespondToQuestions: boolean
-  canSubmitPlanDecision: boolean
   canApplyWorktree: boolean
   canDiscardWorktree: boolean
   canRestoreWorkspace: boolean
@@ -64,10 +63,6 @@ export interface SubagentThreadCallbacks {
   onQuestionRespond?: (
     question: Extract<Item, { type: 'question' }>,
     response: { answer: string | null; ignored: boolean },
-  ) => void
-  onPlanDecision?: (
-    plan: Extract<Item, { type: 'plan' }>,
-    decision: 'continue' | 'reject',
   ) => void
 }
 
@@ -109,11 +104,7 @@ export function SubagentThreadPanel({
     () => visibleTurns.flatMap((turn) => turn.items).filter((item): item is Extract<Item, { type: 'question' }> => item.type === 'question' && item.status === 'pending'),
     [visibleTurns],
   )
-  const pendingPlans = React.useMemo(
-    () => visibleTurns.flatMap((turn) => turn.items).filter((item): item is Extract<Item, { type: 'plan' }> => item.type === 'plan' && item.state === 'awaiting-confirmation'),
-    [visibleTurns],
-  )
-  const viewBlocked = pendingApprovals.length + pendingQuestions.length + pendingPlans.length > 0
+  const viewBlocked = pendingApprovals.length + pendingQuestions.length > 0
   const blocked = isBlockedRun(run) || viewBlocked
   const canStop = capabilities.canStop && Boolean(callbacks.onStop) && isActiveRun(run)
   const canRetry = capabilities.canRetry && Boolean(callbacks.onRetry) && isTerminalRun(run)
@@ -250,15 +241,6 @@ export function SubagentThreadPanel({
             />
           ))}
 
-          {pendingPlans.map((plan) => (
-            <PlanDecisionActions
-              key={`decision:${plan.id}`}
-              item={plan}
-              enabled={capabilities.canSubmitPlanDecision}
-              onDecision={callbacks.onPlanDecision}
-            />
-          ))}
-
           {blocked ? <BlockedNotice run={run} viewBlocked={viewBlocked} /> : null}
           {run.error ? (
             <div className="subagent-thread-panel__error" role="alert">
@@ -329,13 +311,10 @@ function ThreadRow({
     return <ToolRow item={row.item} />
   }
   if (row.kind === 'plan') {
-    return (
-      <PlanRow
-        item={row.item}
-        enabled={capabilities.canSubmitPlanDecision}
-        onDecision={callbacks.onPlanDecision}
-      />
-    )
+    return <PlanRow item={row.item} />
+  }
+  if (row.kind === 'execution-plan') {
+    return null
   }
   if (row.kind === 'question') {
     return (
@@ -421,67 +400,20 @@ function ToolRow({ item }: { item: Extract<Item, { type: 'tool' }> }): React.Rea
 
 function PlanRow({
   item,
-  enabled,
-  onDecision,
 }: {
   item: Extract<Item, { type: 'plan' }>
-  enabled: boolean
-  onDecision?: SubagentThreadCallbacks['onPlanDecision']
 }): React.ReactNode {
-  const pending = item.state === 'awaiting-confirmation'
   return (
     <article className="subagent-thread-row subagent-thread-row--plan">
       <header>
         <span>计划</span>
         <strong>{item.title}</strong>
       </header>
-      <MarkdownMessage text={item.markdown} streaming={item.state === 'draft'} />
-      {pending ? (
-        <div className="subagent-thread-row__actions">
-          <Button
-            disabled={!enabled || !onDecision}
-            onClick={() => onDecision?.(item, 'reject')}
-          >
-            要求修改
-          </Button>
-          <Button
-            disabled={!enabled || !onDecision}
-            onClick={() => onDecision?.(item, 'continue')}
-          >
-            <Check size={APP_ICON_SIZE} />
-            继续
-          </Button>
-        </div>
-      ) : null}
+      <MarkdownMessage
+        text={item.markdown}
+        streaming={item.status === 'streaming'}
+      />
     </article>
-  )
-}
-
-function PlanDecisionActions({
-  item,
-  enabled,
-  onDecision,
-}: {
-  item: Extract<Item, { type: 'plan' }>
-  enabled: boolean
-  onDecision?: SubagentThreadCallbacks['onPlanDecision']
-}): React.ReactNode {
-  return (
-    <div className="subagent-thread-row__actions subagent-thread-row__actions--plan">
-      <Button
-        disabled={!enabled || !onDecision}
-        onClick={() => onDecision?.(item, 'reject')}
-      >
-        要求修改
-      </Button>
-      <Button
-        disabled={!enabled || !onDecision}
-        onClick={() => onDecision?.(item, 'continue')}
-      >
-        <Check size={APP_ICON_SIZE} />
-        继续
-      </Button>
-    </div>
   )
 }
 

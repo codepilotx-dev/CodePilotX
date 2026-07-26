@@ -66,7 +66,7 @@ export type AgentTurnCheckpoint = {
   agentID: string
   turnID: string
   threadID: string
-  state: "waiting_question" | "waiting_hook_trust" | "waiting_plan_confirmation" | "waiting_subagents" | "ready"
+  state: "waiting_question" | "waiting_hook_trust" | "waiting_subagents" | "ready"
   payload: Record<string, unknown>
   version: number
   createdAt: number

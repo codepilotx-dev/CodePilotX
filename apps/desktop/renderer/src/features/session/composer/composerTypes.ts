@@ -18,7 +18,6 @@ export type ComposerStackMode =
   | { kind: 'input' }
   | { kind: 'permission'; requestId: string }
   | { kind: 'question'; requestId: string }
-  | { kind: 'plan'; requestId: string }
   | { kind: 'mcp'; requestId: string }
 
 export type ComposerCapabilities = {

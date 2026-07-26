@@ -471,7 +471,7 @@ const fixtures = {
   "event/unsubscribe": methodFixture("event/unsubscribe", { subscriptionId: "subscription:1" }, { ok: true }),
   "interaction/listPending": methodFixture("interaction/listPending", {
     threadId: threadListItem.id,
-    kinds: ["plan"],
+    kinds: ["question"],
     cursor: "cursor:1",
     limit: 20,
   }, {
@@ -481,15 +481,15 @@ const fixtures = {
   "interaction/respond": methodFixture("interaction/respond", {
     interactionId: "interaction:1",
     expectedVersion: 1,
-    response: { kind: "plan", decision: "continue" },
+    response: { kind: "question", status: "ignored" },
     operationId: "operation:interaction",
   }, {
     interactionId: "interaction:1",
-    kind: "plan",
+    kind: "question",
     state: "resolved",
     version: 2,
     resolvedAt: 2,
-    response: { kind: "plan", decision: "continue" },
+    response: { kind: "question", status: "ignored" },
   }),
   "project/list": methodFixture("project/list", { cursor: "cursor:1", limit: 20, folderPath: project.folders[0].path }, { projects: [project], nextCursor: null }),
   "project/create": methodFixture("project/create", {

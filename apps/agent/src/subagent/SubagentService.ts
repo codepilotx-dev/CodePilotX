@@ -37,7 +37,6 @@ type RootContext = {
   turnID: string
   agentID: string
   taskMode: "chat" | "plan"
-  continueFromPlan: boolean
   model: Model.Ref
   permissionConfig: PermissionConfig
   workspaceRoot: string
@@ -171,8 +170,8 @@ export class SubagentService {
 
   async spawn(root: RootContext, agents: Array<{ name?: string; profile: "default" | "explorer" | "worker"; task: string; workspaceMode?: "shared" | "worktree"; model?: Model.Ref }>) {
     if (!agents.length || agents.length > 4) throw new AgentError("SUBAGENT_BATCH_LIMIT", "每批只能创建 1 到 4 个子 Agent", 409)
-    if (root.taskMode === "plan" && !root.continueFromPlan && agents.some((agent) => agent.profile !== "explorer")) {
-      throw new AgentError("PLAN_SUBAGENT_RESTRICTED", "Plan 确认前只能创建 Explorer", 409)
+    if (root.taskMode === "plan" && agents.some((agent) => agent.profile !== "explorer")) {
+      throw new AgentError("PLAN_SUBAGENT_RESTRICTED", "Plan 模式只能创建 Explorer", 409)
     }
     const parent = this.db.getAgentExecution(root.agentID)
     if (!parent || parent.depth !== 0) throw new AgentError("SUBAGENT_DEPTH_EXCEEDED", "子 Agent 不能继续创建子 Agent", 409)

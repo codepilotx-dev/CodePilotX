@@ -31,7 +31,6 @@ const turnStatus = (status: string | null): ThreadListItem["latestTurnStatus"] =
   if (!status) return null
   if (status === "waiting_permission") return "waiting-permission"
   if (status === "waiting_question") return "waiting-question"
-  if (status === "waiting_plan_confirmation") return "waiting-plan-confirmation"
   if (status === "queued" || status === "running" || status === "completed" || status === "failed" || status === "interrupted") return status
   return "stopped"
 }
@@ -132,7 +131,7 @@ export class ThreadHistoryService {
         SELECT turns.id AS turn_id
         FROM turns
         JOIN subtree ON subtree.id = turns.thread_id
-        WHERE turns.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_plan_confirmation', 'waiting_subagents')
+        WHERE turns.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_subagents')
         LIMIT 1
       `).get(threadID) as { turn_id: string } | null
       if (active) throw new AgentError("THREAD_ACTIVE", "运行中的 Thread 或子 Agent Thread 不能删除", 409)

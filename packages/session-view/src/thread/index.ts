@@ -59,6 +59,11 @@ export interface ThreadPlanRow extends ThreadTimelineRowBase {
   item: Extract<Item, { type: "plan" }>
 }
 
+export interface ThreadExecutionPlanRow extends ThreadTimelineRowBase {
+  kind: "execution-plan"
+  item: Extract<Item, { type: "execution-plan" }>
+}
+
 export interface ThreadQuestionRow extends ThreadTimelineRowBase {
   kind: "question"
   item: Extract<Item, { type: "question" }>
@@ -80,6 +85,7 @@ export type ThreadTimelineRow =
   | ThreadActivityRow
   | ThreadToolRow
   | ThreadPlanRow
+  | ThreadExecutionPlanRow
   | ThreadQuestionRow
   | ThreadPatchRow
   | ThreadSubagentRow
@@ -87,7 +93,6 @@ export type ThreadTimelineRow =
 export type ThreadBlocker =
   | { kind: "approval"; id: string; createdAt: number; approval: ApprovalRequest }
   | { kind: "question"; id: string; createdAt: number; question: Extract<Item, { type: "question" }> }
-  | { kind: "plan"; id: string; createdAt: number; plan: Extract<Item, { type: "plan" }> }
 
 export interface ThreadView {
   rows: ThreadTimelineRow[]
@@ -95,7 +100,6 @@ export interface ThreadView {
   blocked: boolean
   pendingApprovals: ApprovalRequest[]
   pendingQuestions: Array<Extract<Item, { type: "question" }>>
-  pendingPlans: Array<Extract<Item, { type: "plan" }>>
 }
 
 export function createThreadView(
@@ -125,13 +129,6 @@ export function createThreadView(
       && item.status === "pending"
       && matchesScope(item.turnId, item.agentId))
     .sort(compareCreated)
-  const pendingPlans = snapshot.items
-    .filter((item): item is Extract<Item, { type: "plan" }> =>
-      item.type === "plan"
-      && item.state === "awaiting-confirmation"
-      && matchesScope(item.turnId, item.agentId))
-    .sort(compareCreated)
-
   const blockers: ThreadBlocker[] = [
     ...pendingApprovals.map((approval): ThreadBlocker => ({
       kind: "approval",
@@ -145,12 +142,6 @@ export function createThreadView(
       question,
       createdAt: question.createdAt,
     })),
-    ...pendingPlans.map((plan): ThreadBlocker => ({
-      kind: "plan",
-      id: `plan:${plan.id}`,
-      plan,
-      createdAt: plan.createdAt,
-    })),
   ].sort(compareCreated)
 
   return {
@@ -159,7 +150,6 @@ export function createThreadView(
     blocked: blockers.length > 0,
     pendingApprovals,
     pendingQuestions,
-    pendingPlans,
   }
 }
 
@@ -237,8 +227,11 @@ export function applyThreadEvent(
     return input ? { ...snapshot, inputs: upsert(snapshot.inputs, input) } : snapshot
   }
 
-  if (notification.method === "plan/ready" || notification.method === "plan/decision") {
-    return applyPlanEvent(snapshot, notification.method, params)
+  if (notification.method === "turn/plan/updated") {
+    const item = normalizeItem(params.item)
+    return item?.type === "execution-plan"
+      ? { ...snapshot, items: upsert(snapshot.items, item) }
+      : snapshot
   }
 
   if (
@@ -351,6 +344,7 @@ function itemRow(item: Item): ThreadTimelineRow {
     case "activity": return { ...base, kind: "activity", item }
     case "tool": return { ...base, kind: "tool", item }
     case "plan": return { ...base, kind: "plan", item }
+    case "execution-plan": return { ...base, kind: "execution-plan", item }
     case "question": return { ...base, kind: "question", item }
     case "patch": return { ...base, kind: "patch", item }
     case "subagent": return { ...base, kind: "subagent", item }
@@ -377,7 +371,7 @@ function applyItemDelta(
     if (item.id !== itemId) return item
     if ((item.type === "text" || item.type === "reasoning") && item.status !== "streaming") return item
     if (item.type === "tool" && item.state !== "running") return item
-    if (item.type === "plan" && item.state !== "draft") return item
+    if (item.type === "plan" && item.status !== "streaming") return item
     if (method === "item/agentMessage/delta" && item.type === "text") {
       changed = true
       return { ...item, text: `${item.text}${delta}`, status: "streaming" }
@@ -388,7 +382,7 @@ function applyItemDelta(
     }
     if (method === "plan/delta" && item.type === "plan") {
       changed = true
-      return { ...item, markdown: `${item.markdown}${delta}`, state: "draft" }
+      return { ...item, markdown: `${item.markdown}${delta}`, status: "streaming" }
     }
     if (method === "tool/outputDelta" && item.type === "tool") {
       changed = true
@@ -401,42 +395,6 @@ function applyItemDelta(
     return item
   })
   return changed ? { ...snapshot, items } : snapshot
-}
-
-function applyPlanEvent(
-  snapshot: ThreadSnapshot,
-  method: "plan/ready" | "plan/decision",
-  params: Record<string, unknown>,
-): ThreadSnapshot {
-  const turnId = stringValue(params.turnId) ?? stringValue(params.turnID)
-  const agentId = stringValue(params.agentId) ?? stringValue(params.agentID)
-  const itemId = stringValue(params.itemId) ?? stringValue(params.id)
-  const decision = stringValue(params.decision)
-  let changed = false
-  const items = snapshot.items.map((item): Item => {
-    if (item.type !== "plan") return item
-    if (itemId ? item.id !== itemId : turnId && item.turnId !== turnId) return item
-    if (agentId && item.agentId !== agentId) return item
-    changed = true
-    if (method === "plan/ready") {
-      return {
-        ...item,
-        markdown: stringValue(params.plan) ?? item.markdown,
-        state: "awaiting-confirmation",
-      }
-    }
-    return {
-      ...item,
-      state: decision === "continue" ? "confirmed" : "rejected",
-    }
-  })
-  const turnStatus = method === "plan/ready"
-    ? "waiting-plan-confirmation"
-    : decision === "continue" ? "queued" : "cancelled"
-  const turns = turnId
-    ? snapshot.turns.map((turn) => turn.id === turnId ? { ...turn, status: turnStatus as Turn["status"] } : turn)
-    : snapshot.turns
-  return changed || turns !== snapshot.turns ? { ...snapshot, items, turns } : snapshot
 }
 
 function resolveServerRequest(
@@ -728,7 +686,6 @@ function agentStatusValue(value: unknown): AgentExecution["status"] {
   return normalized === "running"
     || normalized === "waiting-question"
     || normalized === "waiting-permission"
-    || normalized === "waiting-confirmation"
     || normalized === "completed"
     || normalized === "failed"
     || normalized === "interrupted"
@@ -739,12 +696,10 @@ function agentStatusValue(value: unknown): AgentExecution["status"] {
 
 function turnStatusValue(value: unknown): Turn["status"] | null {
   const normalized = typeof value === "string" ? value.replaceAll("_", "-") : ""
-  if (normalized === "waiting-confirmation") return "waiting-plan-confirmation"
   return normalized === "queued"
     || normalized === "running"
     || normalized === "waiting-permission"
     || normalized === "waiting-question"
-    || normalized === "waiting-plan-confirmation"
     || normalized === "completed"
     || normalized === "failed"
     || normalized === "stopped"
@@ -799,6 +754,7 @@ function isItemType(value: string | undefined): value is Item["type"] {
     || value === "activity"
     || value === "tool"
     || value === "plan"
+    || value === "execution-plan"
     || value === "question"
     || value === "patch"
     || value === "subagent"

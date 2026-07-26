@@ -162,10 +162,6 @@ export type UseSessionStateResult = {
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
     decisionExtras?: {
-      planExecutionModel?: string
-      planExecutionProviderID?: string
-      planExecutionProviderBaseURL?: string
-      savePlanExecutionModel?: boolean
       rememberOptionId?: DesktopPermissionDecision['rememberOptionId']
     },
   ) => Promise<void>
@@ -1011,10 +1007,6 @@ export function useSessionState(
       alwaysAllow = false,
       updatedInput?: Record<string, unknown>,
       decisionExtras?: {
-        planExecutionModel?: string
-        planExecutionProviderID?: string
-        planExecutionProviderBaseURL?: string
-        savePlanExecutionModel?: boolean
         rememberOptionId?: DesktopPermissionDecision['rememberOptionId']
       },
     ): Promise<void> => {

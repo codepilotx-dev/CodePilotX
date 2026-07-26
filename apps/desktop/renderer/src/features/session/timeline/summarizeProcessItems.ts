@@ -45,7 +45,6 @@ function isWaitingStatus(status: TurnStatus): boolean {
   return (
     status === "waiting-permission" ||
     status === "waiting-question" ||
-    status === "waiting-plan-confirmation" ||
     status === "waiting-subagents"
   );
 }

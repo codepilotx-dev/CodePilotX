@@ -185,8 +185,6 @@ const prepareHistoryEpoch = (path: string) => {
   const meta = databaseMeta(path)
   if (meta.applicationID === DATA_EPOCH) return
   checkpoint(path)
-  const backup = `${path}.epoch-${meta.applicationID}.schema-${meta.userVersion}.${timestamp()}.bak`
-  copyFileSync(path, backup, COPYFILE_EXCL)
   removeTemporaryDatabase(path)
 }
 

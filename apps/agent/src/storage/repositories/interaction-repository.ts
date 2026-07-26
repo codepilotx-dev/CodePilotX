@@ -66,7 +66,7 @@ export type AgentTurnCheckpoint = {
   agentID: string
   turnID: string
   threadID: string
-  state: "waiting_question" | "waiting_hook_trust" | "waiting_plan_confirmation" | "waiting_subagents" | "ready"
+  state: "waiting_question" | "waiting_hook_trust" | "waiting_subagents" | "ready"
   payload: Record<string, unknown>
   version: number
   createdAt: number
@@ -516,44 +516,6 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
       this.sqlite.query("DELETE FROM agent_checkpoints WHERE turn_id = (SELECT turn_id FROM question_requests WHERE id = ?)").run(id)
     }
 
-  waitForPlanConfirmation(input: Omit<AgentTurnCheckpoint, "state" | "createdAt" | "updatedAt"> & { plan: string; item: Item }) {
-      return this.transaction(() => {
-        this.upsertItem(input.threadID, input.item)
-        const checkpoint = this.saveAgentTurnCheckpoint({ ...input, state: "waiting_plan_confirmation" })
-        this.updateTurnStatus(input.turnID, "waiting_plan_confirmation")
-        const agent = this.updateAgentStatus(input.agentID, "waiting_confirmation")
-        const events = [
-          this.insertEvent(input.threadID, input.turnID, "agent/upserted", { agent }),
-          this.insertEvent(input.threadID, input.turnID, "plan/ready", { turnId: input.turnID, agentId: input.agentID, plan: input.plan }),
-        ]
-        return { checkpoint, events }
-      })
-    }
-
-  decidePlan(turnID: string, decision: "continue" | "reject") {
-      const row = this.sqlite.query("SELECT thread_id, root_agent_id, status FROM turns WHERE id = ?").get(turnID) as { thread_id: string; root_agent_id: string; status: string } | null
-      if (!row) return null
-      if (row.status !== "waiting_plan_confirmation") return null
-      const nextStatus: TurnStatus = decision === "continue" ? "queued" : "cancelled"
-      return this.transaction(() => {
-        this.updateTurnStatus(turnID, nextStatus)
-        const agent = this.updateAgentStatus(row.root_agent_id, decision === "continue" ? "queued" : "cancelled")
-        const checkpoint = this.getAgentTurnCheckpoint(turnID)
-        if (checkpoint && decision === "continue") this.saveAgentTurnCheckpoint({
-          ...checkpoint,
-          state: "ready",
-          payload: { ...checkpoint.payload, planDecision: decision },
-        })
-        if (decision === "reject") this.deleteAgentTurnCheckpoint(turnID)
-        this.setCurrentPlanState(turnID, decision === "continue" ? "confirmed" : "rejected")
-        const result = { threadID: row.thread_id, turnID, status: nextStatus, decision }
-        const events = [
-          this.insertEvent(row.thread_id, turnID, "agent/upserted", { agent }),
-          this.insertEvent(row.thread_id, turnID, "plan/decision", { ...result, threadId: row.thread_id, turnId: turnID, agentId: agent.id }),
-        ]
-        return { ...result, agent, events }
-      })
-    }
 }
 
 export type InteractionRepository = InteractionRepositoryDatabase

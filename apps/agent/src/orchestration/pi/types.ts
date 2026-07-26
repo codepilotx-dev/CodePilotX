@@ -14,11 +14,11 @@ import type { PromptBundle, PromptSection } from "../../prompt/types"
 import type { ToolExecutor } from "../../tool/ToolExecutor"
 import type { ToolCatalog } from "../../tool/ToolRegistry"
 import type { WorkspaceService } from "../../workspace/WorkspaceService"
+import type { ExecutionPlanInput } from "../plan/ExecutionPlanInput"
 
 export type PiRunResult =
   | { status: "completed"; output: string; result?: SubagentResult }
   | { status: "paused"; output: string }
-  | { status: "plan-ready"; output: string; plan: string }
 
 export interface PiRuntimeRequest {
   threadID: string
@@ -69,8 +69,17 @@ export interface PiRuntimeEventContext {
 export interface PiRuntimeEventSink {
   event?(context: PiRuntimeEventContext, event: AgentHarnessEvent): void | Promise<void>
   assistantMessageStarted?(context: PiRuntimeEventContext, input: { textItemID: string; reasoningItemID: string }): void | Promise<void>
-  assistantMessageCompleted?(context: PiRuntimeEventContext, input: { textItemID: string; reasoningItemID: string; content: unknown }): void | Promise<void>
+  assistantMessageCompleted?(context: PiRuntimeEventContext, input: {
+    textItemID: string
+    reasoningItemID: string
+    planItemID: string
+    content: unknown
+    text?: string
+    plan?: string | null
+  }): void | Promise<void>
   textDelta?(context: PiRuntimeEventContext, input: { itemID: string; delta: string }): void | Promise<void>
+  planStarted?(context: PiRuntimeEventContext, input: { itemID: string }): void | Promise<void>
+  planDelta?(context: PiRuntimeEventContext, input: { itemID: string; delta: string }): void | Promise<void>
   reasoningDelta?(context: PiRuntimeEventContext, input: { itemID: string; delta: string }): void | Promise<void>
   toolStarted?(context: PiRuntimeEventContext, input: { toolCallID: string; tool: string; input: unknown }): void | Promise<void>
   toolUpdated?(context: PiRuntimeEventContext, input: { toolCallID: string; tool: string; update: unknown }): void | Promise<void>
@@ -103,11 +112,11 @@ export interface PiLifecycleCallbacks {
   }>
   requestUserInput?(input: { question: string; options?: string[] }, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   requestPermissions?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
+  updatePlan?(input: ExecutionPlanInput, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   spawnAgents?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   waitAgents?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   sendAgent?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   stopAgent?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
-  finalizePlan?(input: { plan: string }, toolCallID: string): Promise<unknown>
   finalizeResult?(input: SubagentResult, toolCallID: string): Promise<unknown>
 }
 

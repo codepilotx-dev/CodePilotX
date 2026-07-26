@@ -31,6 +31,33 @@ describe("event manifest invariants", () => {
     }
   })
 
+  test("reconciles plan streaming with item completion and publishes execution plan snapshots", () => {
+    expect(EventManifest["plan/delta"].reconcilesWith).toBe("item/completed")
+    expect(EventManifest["turn/plan/updated"]).toMatchObject({
+      durability: "durable",
+      stream: "thread",
+    })
+
+    const decodeUpdate = Schema.decodeUnknownSync(
+      EventManifest["turn/plan/updated"].payload,
+      { onExcessProperty: "error" },
+    )
+    const item = {
+      id: "turn-1:execution-plan",
+      messageID: "message-1",
+      turnId: "turn-1",
+      agentId: "agent-1",
+      type: "execution-plan" as const,
+      explanation: "开始执行",
+      steps: [{ step: "更新契约", status: "in_progress" as const }],
+      status: "streaming" as const,
+      createdAt: 1,
+    }
+
+    expect(decodeUpdate({ item })).toEqual({ item })
+    expect(() => decodeUpdate({ item: { ...item, type: "plan" } })).toThrow()
+  })
+
   test("discriminates durable and live envelopes", () => {
     const decodeDurable = Schema.decodeUnknownSync(DurableEventEnvelopeSchema)
     const decodeLive = Schema.decodeUnknownSync(LiveEventEnvelopeSchema)

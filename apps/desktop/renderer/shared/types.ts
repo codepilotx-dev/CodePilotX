@@ -1093,10 +1093,6 @@ export type DesktopPermissionRememberOption = {
 }
 
 export type DesktopPermissionDecision = AgentPermissionDecision & {
-  planExecutionModel?: string
-  planExecutionProviderID?: string
-  planExecutionProviderBaseURL?: string
-  savePlanExecutionModel?: boolean
   rememberOptionId?: DesktopPermissionRememberOptionId
 }
 

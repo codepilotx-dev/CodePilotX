@@ -1,5 +1,6 @@
 import {
   createRpcClient,
+  decodeEventEnvelope,
   RpcRemoteError,
   type RpcClient,
   type RpcError,
@@ -327,23 +328,13 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
           >
           if (notification.method === 'event/next') {
             const params = asRecord(notification.params)
-            const event = asRecord(params.event)
-            const sequence =
-              typeof event.sequence === 'number'
-                ? event.sequence
-                : typeof event.afterSequence === 'number'
-                  ? event.afterSequence
-                  : null
-            if (sequence !== null) {
-              recordPendingPosition(
-                typeof event.streamId === 'string'
-                  ? event.streamId
-                  : streamId,
-                sequence,
-              )
-              scheduleAck()
-            }
-            callback(event as EventEnvelope)
+            const event = decodeEventEnvelope(params.event)
+            const sequence = event.durability === 'durable'
+              ? event.sequence
+              : event.afterSequence
+            recordPendingPosition(event.streamId, sequence)
+            scheduleAck()
+            callback(event)
             return
           }
           if (notification.method === 'event/replayComplete') {

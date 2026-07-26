@@ -3,6 +3,7 @@ import type { WorkspaceService } from "../workspace/WorkspaceService"
 import type { PromptBundle, PromptSection } from "../prompt/types"
 import type { SkillService } from "../prompt/SkillService"
 import type { ToolCatalog } from "../tool/ToolRegistry"
+import type { ExecutionPlanInput } from "./plan/ExecutionPlanInput"
 
 export interface PlanCheckpoint {
   state: string
@@ -69,8 +70,6 @@ export interface AgentRuntimeRequest {
   workspace: WorkspaceService
   defaultCwd?: string
   resume?: PlanCheckpoint
-  continueFromPlan?: boolean
-  plan?: string
   defaultModeRequestUserInput?: boolean
   promptSections?: PromptSection[]
   skillService?: SkillService
@@ -81,6 +80,7 @@ export interface AgentRuntimeRequest {
   onUsage?: (usage: { inputTokens: number; outputTokens: number; totalTokens: number; requests: number }) => void | Promise<void>
   resolveModel(fallback: ModelRef): Promise<{ ref: ModelRef; model: unknown }>
   pause(approval: PendingApproval): Promise<void>
+  updatePlan?(input: ExecutionPlanInput, toolCallID: string): Promise<unknown>
   checkSafeBoundary?: () => Promise<boolean>
   attachments?: Array<{ kind: "text"; name: string; text: string } | { kind: "image"; name: string; mediaType: string; base64: string }>
 }
@@ -88,7 +88,6 @@ export interface AgentRuntimeRequest {
 export type AgentRuntimeResult =
   | { status: "completed"; output: string; result?: SubagentResult }
   | { status: "paused"; output: string }
-  | { status: "plan-ready"; output: string; plan: string }
 
 export interface AgentRuntime {
   run(request: AgentRuntimeRequest): Promise<AgentRuntimeResult>
@@ -99,6 +98,6 @@ export interface AgentRuntime {
   dispose(): Promise<void>
 }
 
-export function isMainAgentRequestUserInputEnabled(request: Pick<AgentRuntimeRequest, "taskMode" | "continueFromPlan" | "defaultModeRequestUserInput">) {
-  return (request.taskMode === "plan" && !request.continueFromPlan) || request.defaultModeRequestUserInput === true
+export function isMainAgentRequestUserInputEnabled(request: Pick<AgentRuntimeRequest, "taskMode" | "defaultModeRequestUserInput">) {
+  return request.taskMode === "plan" || request.defaultModeRequestUserInput === true
 }

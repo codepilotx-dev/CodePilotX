@@ -22,7 +22,6 @@ const parse = <T>(value: string): T => JSON.parse(value) as T
 const turnStatus = (status: string): Turn["status"] => {
   if (status === "waiting_permission") return "waiting-permission"
   if (status === "waiting_question") return "waiting-question"
-  if (status === "waiting_plan_confirmation") return "waiting-plan-confirmation"
   if (status === "waiting_subagents") return "waiting-subagents"
   if (status === "interrupted") return "interrupted"
   if (status === "queued" || status === "running" || status === "completed" || status === "failed" || status === "cancelled") return status
@@ -152,7 +151,6 @@ export class ThreadProjection {
       rootAgentId: String(row.root_agent_id),
       mergedInputIDs: inputs.slice(1).map((input) => input.id),
       queuePosition: row.queue_position == null ? null : Number(row.queue_position),
-      canContinueFromPlan: status === "waiting_plan_confirmation",
       startedAt,
       finishedAt,
       elapsedSeconds: startedAt == null ? 0 : Math.max(0, Math.floor(((finishedAt ?? Date.now()) - startedAt) / 1000)),
@@ -258,7 +256,6 @@ export class ThreadProjection {
         rootAgentId: String(row.root_agent_id),
         mergedInputIDs: turnInputs.slice(1).map((input) => input.id),
         queuePosition: row.queue_position == null ? null : Number(row.queue_position),
-        canContinueFromPlan: String(row.status) === "waiting_plan_confirmation",
         startedAt,
         finishedAt,
         elapsedSeconds: startedAt == null ? 0 : Math.max(0, Math.floor(((finishedAt ?? Date.now()) - startedAt) / 1000)),
@@ -427,7 +424,6 @@ export class ThreadProjection {
         rootAgentId: String(row.root_agent_id),
         mergedInputIDs: turnInputs.slice(1).map((input) => input.id),
         queuePosition: row.queue_position == null ? null : Number(row.queue_position),
-        canContinueFromPlan: String(row.status) === "waiting_plan_confirmation",
         startedAt,
         finishedAt,
         elapsedSeconds: startedAt == null ? 0 : Math.max(0, Math.floor(((finishedAt ?? Date.now()) - startedAt) / 1000)),
@@ -513,7 +509,7 @@ export class ThreadProjection {
       SELECT t.id, t.project_id, t.git_branch, t.title, t.preview, t.first_user_message, t.message_count,
         t.archived_at, t.task_mode, t.sandbox_mode, t.approval_policy, t.approvals_reviewer, t.created_at, t.updated_at,
         (SELECT status FROM turns AS u WHERE u.thread_id = t.id
-          ORDER BY CASE WHEN u.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_plan_confirmation', 'waiting_subagents') THEN 0 ELSE 1 END,
+          ORDER BY CASE WHEN u.status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_subagents') THEN 0 ELSE 1 END,
             u.created_at DESC LIMIT 1) AS latest_turn_status
       FROM threads AS t
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
@@ -567,7 +563,31 @@ export class ThreadProjection {
       const terminal = item.status === "completed" || item.status === "error" || item.status === "interrupted"
       return { id: item.id, messageID, turnId: item.turnID, agentId, type: "tool", callID: asText(item.data.callID) ?? item.id, tool: toolName, title: asText(item.data.title) ?? `运行了 ${toolName}`, state: item.status === "pending" ? "pending" : item.status === "running" ? "running" : item.status === "error" ? "error" : item.status === "interrupted" ? "interrupted" : "completed", input, command: asText(item.data.command), output: asText(item.data.output), error: asText(item.data.error), startedAt: typeof item.data.startedAt === "number" ? item.data.startedAt : item.createdAt, finishedAt: typeof item.data.finishedAt === "number" ? item.data.finishedAt : terminal ? item.updatedAt : null, durationMs: typeof item.data.durationMs === "number" ? item.data.durationMs : terminal ? item.updatedAt - item.createdAt : null, ...order, createdAt: item.createdAt }
     }
-    if (item.type === "plan") return { id: item.id, messageID, turnId: item.turnID, agentId, type: "plan", title: asText(item.data.title) ?? "实施计划", markdown: asText(item.data.markdown ?? item.data.text) ?? "", version: typeof item.data.version === "number" ? item.data.version : 1, state: ["draft", "awaiting-confirmation", "confirmed", "rejected"].includes(String(item.data.state)) ? String(item.data.state) as "draft" | "awaiting-confirmation" | "confirmed" | "rejected" : "awaiting-confirmation", ...order, createdAt: item.createdAt }
+    if (item.type === "plan") return { id: item.id, messageID, turnId: item.turnID, agentId, type: "plan", title: asText(item.data.title) ?? "实施计划", markdown: asText(item.data.markdown ?? item.data.text) ?? "", status, ...order, createdAt: item.createdAt }
+    if (item.type === "execution-plan") {
+      const steps = Array.isArray(item.data.steps)
+        ? item.data.steps.flatMap((raw) => {
+          if (!raw || typeof raw !== "object" || Array.isArray(raw)) return []
+          const step = raw as Record<string, unknown>
+          const text = asText(step.step)?.trim()
+          const stepStatus = String(step.status)
+          if (!text || !["pending", "in_progress", "completed"].includes(stepStatus)) return []
+          return [{ step: text, status: stepStatus as "pending" | "in_progress" | "completed" }]
+        })
+        : []
+      return {
+        id: item.id,
+        messageID,
+        turnId: item.turnID,
+        agentId,
+        type: "execution-plan",
+        ...(typeof item.data.explanation === "string" ? { explanation: item.data.explanation } : {}),
+        steps,
+        status,
+        ...order,
+        createdAt: item.createdAt,
+      }
+    }
     if (item.type === "question") {
       const options = Array.isArray(item.data.options) ? item.data.options.filter((value): value is string => typeof value === "string") : []
       return { id: item.id, messageID, turnId: item.turnID, agentId, type: "question", prompt: asText(item.data.question) ?? "需要你的选择", choices: options.map((label, index) => ({ id: String(index), label, recommended: index === 0 })), status: item.status === "pending" ? "pending" : item.status === "interrupted" ? "cancelled" : "answered", answer: asText(item.data.answer), ...order, createdAt: item.createdAt }

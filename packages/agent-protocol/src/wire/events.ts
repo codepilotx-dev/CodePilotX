@@ -1,9 +1,9 @@
 import { Integration, Model } from "@codepilotx/model-schema"
 import {
   AgentExecutionSchema,
+  ExecutionPlanItemSchema,
   InputSchema,
   ItemSchema,
-  PlanItemSchema,
   SubagentProjectionSchema,
   ThreadSchema,
   ThreadSettingsSchema,
@@ -17,7 +17,6 @@ import {
   ApprovalRequestParamsSchema,
   HookTrustRequestParamsSchema,
   ServerRequestResultSchema,
-  PlanRequestParamsSchema,
   QuestionRequestParamsSchema,
 } from "./interactions"
 import { JsonValueSchema, OpaqueIDSchema, SequenceSchema, TimestampSchema } from "./primitives"
@@ -297,22 +296,10 @@ export const EventManifest = {
     durability: "live",
     stream: "thread",
     capability: "events.live.v1",
-    reconcilesWith: "plan/ready",
+    reconcilesWith: "item/completed",
   }),
-  "plan/ready": defineEvent({
-    payload: PlanRequestParamsSchema,
-    version: 1,
-    durability: "durable",
-    stream: "thread",
-    capability: "events.replay.v1",
-  }),
-  "plan/decision": defineEvent({
-    payload: Schema.Struct({
-      interactionId: OpaqueIDSchema,
-      plan: PlanItemSchema,
-      decision: Schema.Literals(["continue", "reject"]),
-      decidedAt: TimestampSchema,
-    }),
+  "turn/plan/updated": defineEvent({
+    payload: Schema.Struct({ item: ExecutionPlanItemSchema }),
     version: 1,
     durability: "durable",
     stream: "thread",

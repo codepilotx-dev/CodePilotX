@@ -356,34 +356,6 @@ export class RpcRouter {
       }
     }
 
-    if (!requestedKinds || requestedKinds.has("plan")) {
-      const rows = db.sqlite.query(`
-        SELECT t.id AS turn_id, t.thread_id, t.root_agent_id, t.updated_at
-        FROM turns AS t
-        WHERE t.status = 'waiting_plan_confirmation'
-          AND (? IS NULL OR t.thread_id = ?)
-        ORDER BY t.updated_at, t.id
-      `).all(threadId ?? null, threadId ?? null) as Array<{
-        turn_id: string; thread_id: string; root_agent_id: string; updated_at: number
-      }>
-      for (const row of rows) {
-        const markdown = db.currentPlan(row.turn_id)
-        if (!markdown) continue
-        const item = db.sqlite.query("SELECT id, created_at FROM items WHERE turn_id = ? AND type = 'plan' ORDER BY created_at DESC LIMIT 1").get(row.turn_id) as { id: string; created_at: number } | null
-        interactions.push({
-          interactionId: item?.id ?? `plan:${row.turn_id}`,
-          threadId: row.thread_id,
-          turnId: row.turn_id,
-          agentId: row.root_agent_id,
-          createdAt: item?.created_at ?? row.updated_at,
-          version: db.getAgentTurnCheckpoint(row.turn_id)?.version ?? 1,
-          kind: "plan",
-          title: "实施计划",
-          markdown,
-        })
-      }
-    }
-
     if (!requestedKinds || requestedKinds.has("hookTrust")) {
       const rows = db.sqlite.query(`
         SELECT id FROM hook_trust_requests
@@ -444,7 +416,7 @@ export class RpcRouter {
       }
       return duplicate.result
     }
-    const kind = enumValue(response.kind, ["approval", "question", "plan", "hookTrust"] as const, "response.kind")
+    const kind = enumValue(response.kind, ["approval", "question", "hookTrust"] as const, "response.kind")
     const resolvedAt = Date.now()
 
     if (kind === "approval") {
@@ -482,20 +454,6 @@ export class RpcRouter {
       if (row.payload_version !== expectedVersion) throw new AgentError("CONFLICT", "问题版本已经变化", 409)
       const status = enumValue(response.status, ["answered", "ignored"] as const, "response.status")
       await questions.reply(interactionId, status === "ignored" ? null : response.answers, status === "ignored")
-    } else if (kind === "plan") {
-      const planRow = db.sqlite.query(`
-        SELECT t.id, c.version
-        FROM turns AS t
-        LEFT JOIN agent_checkpoints AS c ON c.turn_id = t.id
-        LEFT JOIN items AS i ON i.turn_id = t.id AND i.type = 'plan'
-        WHERE t.status = 'waiting_plan_confirmation' AND (i.id = ? OR ('plan:' || t.id) = ?)
-        ORDER BY i.created_at DESC LIMIT 1
-      `).get(interactionId, interactionId) as { id: string; version: number | null } | null
-      if (!planRow) throw new AgentError("REQUEST_NOT_PENDING", "当前规划不等待确认", 409)
-      if (Number(planRow.version ?? 1) !== expectedVersion) throw new AgentError("CONFLICT", "规划请求版本已经变化", 409)
-      const decision = enumValue(response.decision, ["continue", "reject"] as const, "response.decision")
-      const result = await threads.submitPlanDecision(planRow.id, decision)
-      if (!result) throw new AgentError("REQUEST_NOT_PENDING", "当前规划不等待确认", 409)
     } else {
       const request = db.getHookTrustRequest(interactionId)
       if (!request || request.status !== "pending") throw new AgentError("REQUEST_NOT_PENDING", "Hook 信任请求不存在或已经处理", 409)

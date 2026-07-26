@@ -1,7 +1,8 @@
 import { isGranularApprovalPolicy } from "@codepilotx/shared/thread"
 import type { PermissionDecision, ToolInvocation } from "../domain"
 import type { ApprovalStrategy, ToolCatalogEntry } from "../tool/ToolRegistry"
-import { toolAllowedInSandbox } from "../tool/ToolRegistry"
+import { toolAllowedInSandbox, toolAllowedInTaskMode } from "../tool/ToolRegistry"
+import { resolveEffectivePermissionConfig } from "./EffectivePermissionConfig"
 
 export interface RequestedPermissions { readPaths: string[]; writePaths: string[]; networkDomains: string[] }
 export interface ResolvedSandboxPolicy {
@@ -50,12 +51,21 @@ const hardGatedCapability = (invocation: ToolInvocation, tool: ToolCatalogEntry)
 /** Pure permission truth source used by prompting, exposure, approval and execution. */
 export class PermissionDecisionEngine {
   evaluate(invocation: ToolInvocation, tool: ToolCatalogEntry): ResolvedPermissionDecision {
+    invocation = {
+      ...invocation,
+      permissionConfig: resolveEffectivePermissionConfig(
+        invocation.taskMode,
+        invocation.permissionConfig,
+      ),
+    }
     const risk = riskFor(invocation, tool)
     const deny = (reason: string): ResolvedPermissionDecision => ({ action: "deny", decision: "deny", risk, reason })
-    if (!tool.allowedModes.includes(invocation.taskMode)) return deny(`工具 ${tool.sdkName} 不允许在 ${invocation.taskMode} 模式执行`)
+    if (!toolAllowedInTaskMode(tool, invocation.taskMode)) return deny(`工具 ${tool.sdkName} 不允许在 ${invocation.taskMode} 模式执行`)
+    if (invocation.taskMode === "plan" && tool.sdkName === "request_permissions") return deny("Plan 模式禁止请求或提升权限")
     if (!toolAllowedInSandbox(tool, invocation.permissionConfig.sandboxMode)) return deny(`${invocation.permissionConfig.sandboxMode} 禁止 ${tool.capabilities.filesystem} 能力`)
     const requested = requestedPermissions(invocation.input)
     if (invocation.permissionConfig.sandboxMode === "read-only" && requested.writePaths.length) return deny("只读沙箱禁止写入路径")
+    if (invocation.taskMode === "plan" && requested.networkDomains.length) return deny("Plan 模式禁止 Shell 网络权限")
     const sandbox: ResolvedSandboxPolicy = { mode: invocation.permissionConfig.sandboxMode, requested, networkAllowed: requested.networkDomains.length > 0 }
     const allow = (reason: string): ResolvedPermissionDecision => ({ action: "allow", sandbox, decision: "allow", risk, reason })
     const review = (reason: string): ResolvedPermissionDecision => ({ action: "review", reviewer: invocation.permissionConfig.approvalsReviewer, sandbox, decision: "ask", risk, reason })

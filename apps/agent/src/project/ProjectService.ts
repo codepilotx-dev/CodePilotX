@@ -200,7 +200,7 @@ export class ProjectService {
       WHERE thread.project_id = ?
         AND turn.status IN (
           'queued', 'running', 'waiting_permission', 'waiting_question',
-          'waiting_plan_confirmation', 'waiting_subagents'
+          'waiting_subagents'
         )
       LIMIT 1
     `).get(input.projectID)

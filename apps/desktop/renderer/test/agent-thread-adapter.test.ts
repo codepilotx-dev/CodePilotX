@@ -97,7 +97,7 @@ describe('agent thread adapter', () => {
       turns: [{
         id: 'turn-1', threadId: 'thread-1', sourceInputID: 'input-1', status: 'running', mode: 'plan',
         model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' }, rootAgentId: 'agent-1',
-        canContinueFromPlan: false, mergedInputIDs: [], startedAt: 1_700_000_001_000,
+        mergedInputIDs: [], startedAt: 1_700_000_001_000,
         finishedAt: null, elapsedSeconds: 7, error: null,
       }],
       agents: [{
@@ -115,7 +115,7 @@ describe('agent thread adapter', () => {
       items: [
         { id: 'text-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'text', placement: 'result', text: '可以开始。', status: 'completed', createdAt: 1_700_000_002_000 },
         { id: 'tool-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'tool', callID: 'tool-1', tool: 'powershell.exec', title: '运行 PowerShell', state: 'completed', input: { command: 'bun test' }, command: 'bun test', output: 'pass', error: null, startedAt: 1_700_000_003_000, finishedAt: 1_700_000_004_000, durationMs: 1000, createdAt: 1_700_000_003_000 },
-        { id: 'plan-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'plan', title: '计划', markdown: '- 改 adapter', version: 1, state: 'awaiting-confirmation', createdAt: 1_700_000_005_000 },
+        { id: 'plan-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'plan', title: '计划', markdown: '- 改 adapter', status: 'completed', createdAt: 1_700_000_005_000 },
         { id: 'patch-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'patch', files: [{ path: 'a.ts', additions: 1, deletions: 0, patch: 'diff' }], totalAdditions: 1, totalDeletions: 0, createdAt: 1_700_000_006_000 },
         { id: 'question-1', messageID: 'turn-1', turnId: 'turn-1', agentId: 'agent-1', type: 'question', prompt: '继续吗？', choices: [{ id: 'yes', label: '继续', description: '继续执行', recommended: true }, { id: 'no', label: '停止', description: '停止执行', recommended: false }], status: 'pending', answer: null, createdAt: 1_700_000_007_000 },
       ],
@@ -134,7 +134,7 @@ describe('agent thread adapter', () => {
     expect(desktop.events?.find(event => event.id === 'patch-1')?.metadata?.agentId).toBe('agent-1')
     expect(desktop.events?.find(event => event.id === 'approval-1')?.metadata?.agentId).toBe('agent-1')
     expect(desktop.view.pendingPermissions.map(request => request.toolName)).toEqual(
-      expect.arrayContaining(['powershell.exec', 'ExitPlanMode', 'AskUserQuestion']),
+      expect.arrayContaining(['powershell.exec', 'AskUserQuestion']),
     )
     const question = desktop.view.pendingPermissions.find(request => request.toolName === 'AskUserQuestion')
     expect(agentQuestionIdFromRequestId(question!.requestId)).toBe('question-1')
@@ -150,7 +150,7 @@ describe('agent thread adapter', () => {
       turns: [{
         id: 'turn-old', threadId: 'thread-settings', sourceInputID: 'input-old', status: 'completed', mode: 'plan',
         model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' }, rootAgentId: 'agent-old',
-        canContinueFromPlan: false, mergedInputIDs: [], startedAt: 1_700_000_001_000,
+        mergedInputIDs: [], startedAt: 1_700_000_001_000,
         finishedAt: 1_700_000_002_000, elapsedSeconds: 1, error: null,
       }],
       agents: [{
@@ -180,17 +180,17 @@ describe('agent thread adapter', () => {
       turns: [
         {
           id: 'turn-active', threadId: 'thread-queue', sourceInputID: 'input-active', status: 'running', mode: 'chat', model, permissionConfig,
-          rootAgentId: 'agent-active', canContinueFromPlan: false, mergedInputIDs: [], startedAt: 1_700_000_001_000,
+          rootAgentId: 'agent-active', mergedInputIDs: [], startedAt: 1_700_000_001_000,
           finishedAt: null, elapsedSeconds: 3, error: null,
         },
         {
           id: 'turn-third', threadId: 'thread-queue', sourceInputID: 'input-third', status: 'queued', mode: 'chat', model, permissionConfig,
-          rootAgentId: 'agent-third', canContinueFromPlan: false, mergedInputIDs: [], queuePosition: 2, startedAt: null,
+          rootAgentId: 'agent-third', mergedInputIDs: [], queuePosition: 2, startedAt: null,
           finishedAt: null, elapsedSeconds: 0, error: null,
         },
         {
           id: 'turn-second', threadId: 'thread-queue', sourceInputID: 'input-second', status: 'queued', mode: 'chat', model, permissionConfig,
-          rootAgentId: 'agent-second', canContinueFromPlan: false, mergedInputIDs: [], queuePosition: 1, startedAt: null,
+          rootAgentId: 'agent-second', mergedInputIDs: [], queuePosition: 1, startedAt: null,
           finishedAt: null, elapsedSeconds: 0, error: null,
         },
       ],
@@ -252,6 +252,10 @@ describe('agent thread adapter', () => {
       jsonrpc: '2.0', method: 'reasoning/textDelta',
       params: { threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1', itemId: 'reasoning-1', delta: '分析' },
     })[0]!
+    const plan = agentEventsFromNotification({
+      jsonrpc: '2.0', method: 'plan/delta',
+      params: { threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1', itemId: 'plan-1', delta: '# 计划' },
+    })[0]!
     const output = agentEventsFromNotification({
       jsonrpc: '2.0', method: 'tool/outputDelta',
       params: { threadId: 'thread-1', turnId: 'turn-1', agentId: 'agent-1', itemId: 'tool-1', delta: '50%' },
@@ -266,6 +270,7 @@ describe('agent thread adapter', () => {
 
     expect(text).toMatchObject({ type: 'partial_message', text: '你好', metadata: { itemId: 'text-1', kind: 'text' } })
     expect(reasoning).toMatchObject({ type: 'partial_message', text: '分析', metadata: { itemId: 'reasoning-1', kind: 'reasoning' } })
+    expect(plan).toMatchObject({ type: 'proposed_plan', text: '# 计划', streaming: true, metadata: { itemId: 'plan-1', kind: 'plan' } })
     expect(output).toMatchObject({ type: 'tool_output_delta', toolUseId: 'tool-1', delta: '50%', metadata: { itemId: 'tool-1' } })
     expect(terminal).toMatchObject({ type: 'tool_result', toolName: 'shell_command', toolUseId: 'call-1', summary: '完成', metadata: { itemId: 'tool-1' } })
   })

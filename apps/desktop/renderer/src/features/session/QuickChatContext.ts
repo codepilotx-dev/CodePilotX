@@ -88,18 +88,8 @@ export type QuickChatContextValue = {
     updatedInput?: Record<string, unknown>,
     decisionExtras?: Pick<
       DesktopPermissionDecision,
-      'rememberOptionId' | 'planExecutionModel' | 'planExecutionProviderID' | 'planExecutionProviderBaseURL' | 'savePlanExecutionModel'
+      'rememberOptionId'
     >,
-  ) => void
-  onAcceptExitPlanMode: (
-    request: DesktopPermissionRequest,
-    options?: {
-      note?: string
-      planExecutionModel?: string
-      planExecutionProviderID?: string
-      planExecutionProviderBaseURL?: string
-      savePlanExecutionModel?: boolean
-    },
   ) => void
   events: DesktopSessionEvent[]
   workflowEvents: DesktopWorkflowEvent[]

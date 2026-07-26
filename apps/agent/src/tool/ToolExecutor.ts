@@ -10,6 +10,7 @@ import { mkdtemp, realpath, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, isAbsolute, join, resolve } from "node:path"
 import { PermissionDecisionEngine } from "../permission/PermissionDecisionEngine"
+import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig"
 import { analyzeShellRisk } from "../security/ShellRiskClassifier"
 import { secretScrubber } from "../security/SecretScrubber"
 import { resolveManagedTool, resolveToolingEnvironment, runToolProcess, toolingPathOverride, type ToolingEnvironmentResolver, type ToolingResolver, type ToolProcessRunner } from "./ToolingRuntime"
@@ -129,6 +130,13 @@ export class ToolExecutor {
 
   async execute<T = unknown>(name: string, input: Record<string, unknown>, context: ToolExecutionContext): Promise<T> {
     if (context.signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
+    context = {
+      ...context,
+      permissionConfig: resolveEffectivePermissionConfig(
+        context.taskMode,
+        context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG,
+      ),
+    }
     const catalog = context.toolCatalog ?? this.registry
     const definition = catalog.get(name)
     if (context.allowedTools && !toolNameMatches(definition, context.allowedTools)) throw new AgentError("SKILL_TOOL_NOT_ALLOWED", `当前 Skill 不允许使用工具 ${definition.sdkName}`, 403)
@@ -138,9 +146,14 @@ export class ToolExecutor {
     const parsedInput = parsed.data as Record<string, unknown>
     const normalized = canonicalName === "Bash" || canonicalName === "PowerShell" ? {
       command: parsedInput.command,
+      ...(parsedInput.cwd === undefined ? {} : { cwd: parsedInput.cwd }),
       ...(parsedInput.timeout === undefined ? {} : { timeoutMs: parsedInput.timeout }),
       ...(parsedInput.description === undefined ? {} : { justification: parsedInput.description }),
+      ...(parsedInput.additionalPermissions === undefined ? {} : { additionalPermissions: parsedInput.additionalPermissions }),
     } : parsedInput
+    if (context.taskMode === "plan" && canonicalName === "request_permissions") {
+      throw new AgentError("TOOL_NOT_ALLOWED_IN_MODE", "Plan 模式禁止请求或提升权限", 403)
+    }
     if (context.toolCallID && !context.authorizationOnly) {
       const completed = this.options?.completedToolCall?.(context.toolCallID)
       if (completed) {
@@ -283,6 +296,15 @@ export class ToolExecutor {
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
     const model = context.model ?? Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("gpt-5") })
     const parsedShell = this.parseShellInput(input)
+    if (
+      context.taskMode === "plan"
+      && (
+        (parsedShell.additionalPermissions?.writePaths?.length ?? 0) > 0
+        || (parsedShell.additionalPermissions?.networkDomains?.length ?? 0) > 0
+      )
+    ) {
+      throw new AgentError("PLAN_READ_ONLY_PERMISSION_DENIED", "Plan 模式的 Shell 只允许申请额外读取路径", 403)
+    }
     const workspaceRoot = await realpath(context.workspace.rootPath)
     const additionalPermissions = parsedShell.additionalPermissions ? {
       ...(parsedShell.additionalPermissions.readPaths ? { readPaths: await Promise.all(parsedShell.additionalPermissions.readPaths.map((path) => this.canonicalPath(workspaceRoot, path, false))) } : {}),
@@ -394,6 +416,7 @@ export class ToolExecutor {
   }
 
   async executeSandboxEscalation(token: string, context: ToolExecutionContext): Promise<ProcessResult> {
+    if (context.taskMode === "plan") throw new AgentError("TOOL_NOT_ALLOWED_IN_MODE", "Plan 模式禁止宿主执行升级", 403)
     if (!this.options?.claimSandboxEscalation || !this.options.completeSandboxEscalation) throw new AgentError("SANDBOX_ESCALATION_UNAVAILABLE", "Sandbox escalation 服务未配置", 503)
     const agentID = context.agentID ?? context.turnID
     const escalation = this.options.claimSandboxEscalation(token, { threadID: context.threadID, turnID: context.turnID, agentID })

@@ -30,6 +30,8 @@ import type { Item, SubagentResult } from "../domain";
 import { createLiveEvent } from "../storage/events/EventPublisher";
 import { WorkspaceService } from "../workspace/WorkspaceService";
 import { secretScrubber } from "../security/SecretScrubber";
+import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig";
+import { proposedPlanTitle } from "./plan/ProposedPlanStreamParser";
 
 export type {
   DelegationController,
@@ -244,6 +246,20 @@ export class PiOrchestratorAdapter {
         }, "item/started");
         await this.publish(persisted.event);
       },
+      planStarted: async (context, input) => {
+        const timestamp = Date.now();
+        const persisted = this.options.db.upsertItemWithEvent(context.threadID, {
+          id: input.itemID,
+          turnID: context.turnID,
+          agentID: context.agentID,
+          type: "plan",
+          status: "running",
+          data: { title: "实施计划", markdown: "" },
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        }, "item/started");
+        await this.publish(persisted.event);
+      },
       textDelta: async (context, input) => {
         await this.publish(
           createLiveEvent(
@@ -251,6 +267,17 @@ export class PiOrchestratorAdapter {
             context.threadID,
             context.turnID,
             "item/agentMessage/delta",
+            piItemDeltaPayload({ itemID: input.itemID, context, delta: input.delta }),
+          ),
+        );
+      },
+      planDelta: async (context, input) => {
+        await this.publish(
+          createLiveEvent(
+            this.options.db,
+            context.threadID,
+            context.turnID,
+            "plan/delta",
             piItemDeltaPayload({ itemID: input.itemID, context, delta: input.delta }),
           ),
         );
@@ -273,21 +300,38 @@ export class PiOrchestratorAdapter {
       assistantMessageCompleted: async (context, input) => {
         const timestamp = Date.now();
         const pending = pendingFor(context);
-        const currentText = this.options.db.getItem(input.textItemID);
-        pending.items.set(input.textItemID, {
-          id: input.textItemID,
-          turnID: context.turnID,
-          agentID: context.agentID,
-          type: "text",
-          status: "completed",
-          data: {
-            placement: "result",
-            text: contentText(input.content as never, "\n").trim(),
-          },
-          ...(currentText?.ordinal === undefined ? {} : { ordinal: currentText.ordinal }),
-          createdAt: currentText?.createdAt ?? timestamp,
-          updatedAt: timestamp,
-        });
+        const text = input.text === undefined
+          ? contentText(input.content as never, "\n").trim()
+          : input.text.trim();
+        if (input.text === undefined || text) {
+          const currentText = this.options.db.getItem(input.textItemID);
+          pending.items.set(input.textItemID, {
+            id: input.textItemID,
+            turnID: context.turnID,
+            agentID: context.agentID,
+            type: "text",
+            status: "completed",
+            data: { placement: "result", text },
+            ...(currentText?.ordinal === undefined ? {} : { ordinal: currentText.ordinal }),
+            createdAt: currentText?.createdAt ?? timestamp,
+            updatedAt: timestamp,
+          });
+        }
+        const plan = input.plan?.trim();
+        if (plan) {
+          const currentPlan = this.options.db.getItem(input.planItemID);
+          pending.items.set(input.planItemID, {
+            id: input.planItemID,
+            turnID: context.turnID,
+            agentID: context.agentID,
+            type: "plan",
+            status: "completed",
+            data: { title: proposedPlanTitle(plan), markdown: plan },
+            ...(currentPlan?.ordinal === undefined ? {} : { ordinal: currentPlan.ordinal }),
+            createdAt: currentPlan?.createdAt ?? timestamp,
+            updatedAt: timestamp,
+          });
+        }
         const content = Array.isArray(input.content) ? input.content : [];
         const reasoning = content
           .flatMap((part) => (part.type === "thinking" ? [part.thinking] : []))
@@ -410,6 +454,18 @@ export class PiOrchestratorAdapter {
     // Serialized OpenAI RunState cannot be replayed safely. Continue only from
     // durable Pi session context; side effects remain protected by toolCallID.
     const resolved = await request.resolveModel(request.fallbackModel);
+    const effectivePermissionConfig = resolveEffectivePermissionConfig(
+      request.taskMode,
+      request.permissionConfig,
+    );
+    const effectivePromptSections = (request.promptSections ?? []).map((section) =>
+      section.id === "permission.resolved"
+        ? {
+            ...section,
+            content: `Resolved permission config: ${JSON.stringify(effectivePermissionConfig)}.`,
+          }
+        : section
+    );
     const model = resolved.model as unknown as PiModel<Api>;
     let session;
     try {
@@ -461,7 +517,7 @@ export class PiOrchestratorAdapter {
         "wait_agents",
         "send_agent",
         "stop_agent",
-        "finalize_plan",
+        "update_plan",
         "finalize_result",
       ]);
       if (
@@ -477,11 +533,11 @@ export class PiOrchestratorAdapter {
               turnID: request.turnID,
               agentID: request.agentID,
               profile: request.profile ?? "main",
-              taskMode: request.continueFromPlan ? "chat" : request.taskMode,
+              taskMode: request.taskMode,
               signal: request.signal,
               workspace: request.workspace,
               ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
-              permissionConfig: request.permissionConfig,
+              permissionConfig: effectivePermissionConfig,
               model: request.fallbackModel,
               taskSummary: request.content,
               toolCallID: request.resume.toolCallID,
@@ -526,7 +582,10 @@ export class PiOrchestratorAdapter {
     }
     const previousRuntime = this.active.get(request.threadID);
     if (previousRuntime) await previousRuntime.dispose();
-    const exposedTools = this.toolExposure(request).exposed;
+    const exposedTools = this.toolExposure({
+      ...request,
+      permissionConfig: effectivePermissionConfig,
+    }).exposed;
     let paused = false;
     const preapprovedToolCallIDs = new Set<string>();
     const pause = async (approval: PendingApproval) => {
@@ -538,11 +597,11 @@ export class PiOrchestratorAdapter {
       turnID: request.turnID,
       agentID: request.agentID,
       profile: request.profile ?? "main",
-      taskMode: request.continueFromPlan ? ("chat" as const) : request.taskMode,
+      taskMode: request.taskMode,
       signal: request.signal,
       workspace: request.workspace,
       ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
-      permissionConfig: request.permissionConfig,
+      permissionConfig: effectivePermissionConfig,
       model: request.fallbackModel,
       taskSummary: request.content,
     };
@@ -635,6 +694,8 @@ export class PiOrchestratorAdapter {
           return { __piPause: true, status: "waiting_for_user" };
         },
         requestPermissions: async (input, toolCallID) => {
+          if (request.taskMode === "plan")
+            throw new Error("Plan 模式禁止请求或提升权限");
           const decision = await this.options.toolExecutor.previewApproval(
             "request_permissions",
             input,
@@ -667,7 +728,24 @@ export class PiOrchestratorAdapter {
           });
           return { __piPause: true, status: "waiting_for_permission" };
         },
-        spawnAgents: async (input) => request.delegation?.spawn(input as never),
+        updatePlan: async (input, toolCallID) => {
+          if (request.taskMode !== "chat" || (request.profile ?? "main") !== "main")
+            throw new Error("update_plan 仅允许 Chat 模式的主 Agent 使用");
+          if (!request.updatePlan) throw new Error("当前 turn 未配置执行计划服务");
+          return request.updatePlan(input, toolCallID);
+        },
+        spawnAgents: async (input) => {
+          const agents = Array.isArray(input.agents) ? input.agents : [];
+          if (
+            request.taskMode === "plan"
+            && agents.some((agent) =>
+              !agent
+              || typeof agent !== "object"
+              || (agent as Record<string, unknown>).profile !== "explorer"
+            )
+          ) throw new Error("Plan 模式只能创建 Explorer 子 Agent");
+          return request.delegation?.spawn(input as never);
+        },
         waitAgents: async (input, toolCallID) => {
           const runIDs = Array.isArray(input.runIDs)
             ? input.runIDs.map(String)
@@ -701,7 +779,6 @@ export class PiOrchestratorAdapter {
           request.delegation?.stop({
             taskID: String(input.taskID ?? input.taskId ?? ""),
           }),
-        finalizePlan: async (input) => input,
         finalizeResult: async (input: SubagentResult) => input,
       },
     });
@@ -716,8 +793,8 @@ export class PiOrchestratorAdapter {
       sessionID: request.sessionID,
       ...(request.profile ? { profile: request.profile } : {}),
       content: resumedContent,
-      taskMode: request.continueFromPlan ? "chat" : request.taskMode,
-      permissionConfig: request.permissionConfig,
+      taskMode: request.taskMode,
+      permissionConfig: effectivePermissionConfig,
       signal: request.signal,
       workspace: request.workspace,
       ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
@@ -727,7 +804,7 @@ export class PiOrchestratorAdapter {
         ? { thinkingLevel: String(resolved.ref.variant) as import("@codepilotx/pi-agent-core").ThinkingLevel }
         : {}),
       exposedTools,
-      promptSections: request.promptSections ?? [],
+      promptSections: effectivePromptSections,
       ...(request.attachments ? { attachments: request.attachments } : {}),
       preapprovedToolCallIDs,
       ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
@@ -743,12 +820,15 @@ export class PiOrchestratorAdapter {
   toolExposure(request: AgentRuntimeRequest | (ToolExposureInput & { permissionConfig?: never })) {
     const runtime = request as AgentRuntimeRequest;
     return this.options.toolExecutor.exposurePlan({
-      taskMode: runtime.continueFromPlan ? "chat" : request.taskMode,
-      sandboxMode: "permissionConfig" in request ? request.permissionConfig.sandboxMode : request.sandboxMode,
+      taskMode: request.taskMode,
+      sandboxMode: request.taskMode === "plan"
+        ? "read-only"
+        : "permissionConfig" in request
+          ? request.permissionConfig.sandboxMode
+          : request.sandboxMode,
       ...(request.profile ? { profile: request.profile } : {}),
       ...(runtime.skillService ? { hasSkillService: true } : "hasSkillService" in request && request.hasSkillService ? { hasSkillService: true } : {}),
       ...(runtime.projectSources ? { hasProjectSources: true } : "hasProjectSources" in request && request.hasProjectSources ? { hasProjectSources: true } : {}),
-      ...(runtime.continueFromPlan ? { continueFromPlan: true } : "continueFromPlan" in request && request.continueFromPlan ? { continueFromPlan: true } : {}),
       ...(runtime.defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : "defaultModeRequestUserInput" in request && request.defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : {}),
       ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
     }, runtime.toolCatalog);

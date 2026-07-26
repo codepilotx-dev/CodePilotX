@@ -67,7 +67,7 @@ function assertTypes(transport: RpcTransport) {
   // @ts-expect-error only declared application errors are accepted
   const invalidError: RpcErrors<"memory/read"> = "SANDBOX_UNAVAILABLE"
   // @ts-expect-error server request results are tied to their request method
-  const invalidServerResult: ServerRequestResult<"plan/request"> = { kind: "approval", decision: "deny" }
+  const invalidServerResult: ServerRequestResult<"question/request"> = { kind: "approval", decision: "deny" }
   // @ts-expect-error RpcMethod is a closed union
   const invalidMethod: RpcMethod = "arbitrary/method"
 

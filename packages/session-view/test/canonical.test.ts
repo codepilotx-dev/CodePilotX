@@ -16,6 +16,7 @@ import {
   type ThreadEventEnvelopeLike,
   type ThreadHistoryPageLike,
 } from "../src/canonical/index"
+import { applyThreadEvent, createThreadView } from "../src/thread/index"
 
 const model = { providerID: "openai", id: "gpt-test" }
 const permissionConfig = {
@@ -44,7 +45,6 @@ function turn(id: string, sourceInputID = `input-${id}`): Turn {
     model,
     permissionConfig,
     rootAgentId: `agent-${id}`,
-    canContinueFromPlan: false,
     mergedInputIDs: [],
     startedAt: 10,
     finishedAt: null,
@@ -210,6 +210,105 @@ describe("canonical thread state", () => {
     }, 11)
     const protectedTerminal = applyThreadEnvelope(completed, sameAnchor)
     expect(protectedTerminal.itemsById.get(streaming.id)).toEqual(terminal)
+  })
+
+  test("projects final plans as content and upserts execution plan snapshots by item id", () => {
+    const activeTurn = turn("turn-plan")
+    const finalPlan: Extract<Item, { type: "plan" }> = {
+      id: "plan-1",
+      messageID: "message-plan",
+      turnId: activeTurn.id,
+      agentId: "agent-turn-plan",
+      type: "plan",
+      title: "实施计划",
+      markdown: "第一步",
+      status: "streaming",
+      createdAt: 20,
+    }
+    const state = createCanonicalThreadState(page([{
+      turn: activeTurn,
+      inputs: [],
+      messages: [],
+      agents: [agent("agent-turn-plan", activeTurn.id)],
+      items: [finalPlan],
+      approvals: [],
+    }]))
+
+    const streamed = applyThreadEnvelope(state, live("plan-live", "plan/delta", {
+      itemId: finalPlan.id,
+      turnId: activeTurn.id,
+      agentId: finalPlan.agentId,
+      delta: "，第二步",
+    }))
+    expect(streamed.itemsById.get(finalPlan.id)).toMatchObject({
+      markdown: "第一步，第二步",
+      status: "streaming",
+    })
+
+    const completedPlan = { ...finalPlan, markdown: "权威计划", status: "completed" as const }
+    const completed = applyThreadEnvelope(streamed, durable(11, "item/completed", { item: completedPlan }))
+    expect(completed.itemsById.get(finalPlan.id)).toEqual(completedPlan)
+    expect(selectRenderTurnEntries(completed)[0]?.blockers).toEqual([])
+
+    const executionPlan: Extract<Item, { type: "execution-plan" }> = {
+      id: `${activeTurn.id}:execution-plan`,
+      messageID: "message-plan",
+      turnId: activeTurn.id,
+      agentId: finalPlan.agentId,
+      type: "execution-plan",
+      explanation: "开始执行",
+      steps: [{ step: "实现契约", status: "in_progress" }],
+      status: "streaming",
+      createdAt: 21,
+    }
+    const firstUpdate = applyThreadEnvelope(completed, durable(12, "turn/plan/updated", { item: executionPlan }))
+    const secondUpdate = applyThreadEnvelope(firstUpdate, durable(13, "turn/plan/updated", {
+      item: {
+        ...executionPlan,
+        explanation: "契约已完成",
+        steps: [{ step: "实现契约", status: "completed" }],
+      },
+    }))
+    const rendered = selectRenderTurnEntries(secondUpdate)[0]
+
+    expect([...secondUpdate.itemsById.values()].filter((item) => item.type === "execution-plan")).toHaveLength(1)
+    expect(secondUpdate.itemsById.get(executionPlan.id)).toMatchObject({
+      explanation: "契约已完成",
+      steps: [{ step: "实现契约", status: "completed" }],
+    })
+    expect(rendered?.executionPlanItems.map((item) => item.id)).toEqual([executionPlan.id])
+    expect(rendered?.contentBlocks.map((block) => block.kind)).toEqual(["plan", "execution-plan"])
+
+    const snapshot = {
+      thread,
+      turns: [activeTurn],
+      agents: [agent("agent-turn-plan", activeTurn.id)],
+      subagents: [],
+      inputs: [],
+      messages: [],
+      items: [completedPlan],
+      approvals: [],
+    }
+    const projectedOnce = applyThreadEvent(snapshot, {
+      jsonrpc: "2.0",
+      method: "turn/plan/updated",
+      params: { item: executionPlan },
+    })
+    const projectedTwice = applyThreadEvent(projectedOnce, {
+      jsonrpc: "2.0",
+      method: "turn/plan/updated",
+      params: {
+        item: {
+          ...executionPlan,
+          steps: [{ step: "实现契约", status: "completed" }],
+        },
+      },
+    })
+    const threadView = createThreadView(projectedTwice)
+
+    expect(threadView.blockers).toEqual([])
+    expect(threadView.rows.map((row) => row.kind)).toEqual(["plan", "execution-plan"])
+    expect(projectedTwice.items.filter((item) => item.type === "execution-plan")).toHaveLength(1)
   })
 
   test("upserts a missing turn from turn/started and ignores replayed durable sequences", () => {

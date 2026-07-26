@@ -1,5 +1,5 @@
 import { AgentHarness, DeferredToolCatalog } from "@codepilotx/pi-agent-core"
-import { contentText, type AssistantMessage, type ImageContent } from "@earendil-works/pi-ai"
+import { type AssistantMessage, type ImageContent } from "@earendil-works/pi-ai"
 import { z } from "zod"
 import { AgentError } from "../../domain"
 import type { SubagentResult } from "../../domain"
@@ -61,16 +61,9 @@ export class PiAgentRuntime implements PiAgentRuntimeApi {
     })
     await request.onPromptComposed?.(bundle)
 
-    let finalizedPlan: string | undefined
     let finalizedResult: SubagentResult | undefined
     const lifecycle = {
       ...this.options.lifecycle,
-      ...(this.options.lifecycle?.finalizePlan ? {
-        finalizePlan: async (input: { plan: string }, id: string) => {
-          finalizedPlan = input.plan
-          return this.options.lifecycle!.finalizePlan!(input, id)
-        },
-      } : {}),
       ...(this.options.lifecycle?.finalizeResult ? {
         finalizeResult: async (input: SubagentResult, id: string) => {
           finalizedResult = subagentResultSchema.parse(input) as SubagentResult
@@ -123,7 +116,11 @@ export class PiAgentRuntime implements PiAgentRuntimeApi {
       return result ? { ...(result.block === undefined ? {} : { block: result.block }), ...(result.reason === undefined ? {} : { reason: result.reason }) } : undefined
     })
     harness.on("tool_result", (event) => pausedToolCalls.has(event.toolCallId) ? { terminate: true } : undefined)
-    const adapter = new PiEventAdapter({ threadID: request.threadID, turnID: request.turnID, agentID: request.agentID }, this.options.eventSink ?? {})
+    const adapter = new PiEventAdapter(
+      { threadID: request.threadID, turnID: request.turnID, agentID: request.agentID },
+      this.options.eventSink ?? {},
+      { parseProposedPlan: request.taskMode === "plan" },
+    )
     const unsubscribe = harness.subscribe((event) => adapter.handle(event))
     this.harnesses.set(request.threadID, { harness, unsubscribe })
     const onAbort = () => { void harness.abort() }
@@ -133,8 +130,7 @@ export class PiAgentRuntime implements PiAgentRuntimeApi {
       const message: AssistantMessage = await harness.prompt(promptContext(request, bundle.contextItems), images.length > 0 ? { images } : undefined)
       if (message.stopReason === "error") throw new AgentError("PI_AGENT_FAILED", message.errorMessage ?? "Pi Agent 执行失败", 502)
       if (message.stopReason === "aborted" || request.signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
-      const output = contentText(message.content, "\n").trim()
-      if (finalizedPlan !== undefined) return { status: "plan-ready", output, plan: finalizedPlan }
+      const output = adapter.outputText(message.content)
       return { status: "completed", output, ...(finalizedResult ? { result: finalizedResult } : {}) }
     } finally {
       request.signal.removeEventListener("abort", onAbort)

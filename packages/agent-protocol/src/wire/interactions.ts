@@ -8,9 +8,7 @@ import {
   InteractionResponseSchema as SharedInteractionResponseSchema,
   PendingApprovalInteractionSchema,
   PendingHookTrustInteractionSchema,
-  PendingPlanInteractionSchema,
   PendingQuestionInteractionSchema,
-  PlanInteractionResponseSchema,
   QuestionInteractionResponseSchema,
 } from "../methods/core"
 
@@ -26,11 +24,6 @@ export const QuestionRequestParamsSchema = PendingQuestionInteractionSchema
 export const QuestionRequestResultSchema = QuestionInteractionResponseSchema
 export type QuestionRequestParams = typeof QuestionRequestParamsSchema.Type
 export type QuestionRequestResult = typeof QuestionRequestResultSchema.Type
-
-export const PlanRequestParamsSchema = PendingPlanInteractionSchema
-export const PlanRequestResultSchema = PlanInteractionResponseSchema
-export type PlanRequestParams = typeof PlanRequestParamsSchema.Type
-export type PlanRequestResult = typeof PlanRequestResultSchema.Type
 
 export const HookTrustRequestParamsSchema = PendingHookTrustInteractionSchema
 export const HookTrustRequestResultSchema = HookTrustInteractionResponseSchema
@@ -49,11 +42,6 @@ export const ServerRequests = {
   "question/request": defineServerRequest({
     params: QuestionRequestParamsSchema,
     result: QuestionRequestResultSchema,
-    capability: "interactions.serverRequests.v1",
-  }),
-  "plan/request": defineServerRequest({
-    params: PlanRequestParamsSchema,
-    result: PlanRequestResultSchema,
     capability: "interactions.serverRequests.v1",
   }),
   "hookTrust/request": defineServerRequest({

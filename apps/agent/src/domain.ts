@@ -9,7 +9,6 @@ export type TurnStatus =
   | "running"
   | "waiting_permission"
   | "waiting_question"
-  | "waiting_plan_confirmation"
   | "waiting_subagents"
   | "completed"
   | "failed"
@@ -26,7 +25,7 @@ export interface SubmitMessage {
   taskMode: TaskMode
 }
 
-export type ItemType = "reasoning" | "activity" | "text" | "tool" | "plan" | "question" | "patch" | "subagent"
+export type ItemType = "reasoning" | "activity" | "text" | "tool" | "plan" | "execution-plan" | "question" | "patch" | "subagent"
 
 export type SubagentProfile = "main" | "default" | "explorer" | "worker"
 export type SubagentWorkspaceMode = "shared" | "worktree"
@@ -120,7 +119,6 @@ export type AgentExecutionStatus =
   | "running"
   | "waiting_question"
   | "waiting_permission"
-  | "waiting_confirmation"
   | "waiting_subagents"
   | "completed"
   | "failed"

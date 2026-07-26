@@ -31,7 +31,7 @@ describe('PetQuickReply', () => {
     expect(html).toMatch(/disabled=""[^>]*>提交回答</)
   })
 
-  test('renders one-shot approval and plan choices', () => {
+  test('renders one-shot approval choices', () => {
     const approval = renderToStaticMarkup(
       <PetQuickReply
         request={{
@@ -45,20 +45,6 @@ describe('PetQuickReply', () => {
     )
     expect(approval).toContain('允许一次')
     expect(approval).toContain('拒绝')
-
-    const plan = renderToStaticMarkup(
-      <PetQuickReply
-        request={{
-          requestId: 'plan-1',
-          toolName: 'ExitPlanMode',
-          description: '执行计划',
-          input: {},
-        }}
-        onRespond={() => undefined}
-      />,
-    )
-    expect(plan).toContain('执行计划')
-    expect(plan).toContain('拒绝')
   })
 
   test('offers a safe fallback for malformed question requests', () => {

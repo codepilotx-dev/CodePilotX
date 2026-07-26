@@ -101,7 +101,6 @@ import type {
 } from '../../../shared/types.js'
 import {
   agentEventsFromNotification,
-  agentPlanRunIdFromRequestId,
   agentQuestionIdFromRequestId,
   agentThreadListItemToDesktopSnapshot,
   agentThreadSnapshotToDesktop,
@@ -3151,24 +3150,16 @@ export function createAgentSessionDesktopClient(
       withAgentOrMock(
         async () => {
           const questionId = agentQuestionIdFromRequestId(requestId)
-          const planRunId = agentPlanRunIdFromRequestId(requestId)
           const interaction = await findPendingInteraction(
             candidate =>
-              planRunId
-                ? candidate.kind === 'plan' && candidate.turnId === planRunId
-                : questionId
-                  ? candidate.kind === 'question' &&
-                    candidate.questions.some(question => question.id === questionId)
-                  : candidate.kind === 'approval' &&
-                    candidate.interactionId === requestId,
+              questionId
+                ? candidate.kind === 'question' &&
+                  candidate.questions.some(question => question.id === questionId)
+                : candidate.kind === 'approval' &&
+                  candidate.interactionId === requestId,
             sessionId,
           )
-          if (interaction.kind === 'plan') {
-            await respondToInteraction(interaction, {
-              kind: 'plan',
-              decision: decision.behavior === 'allow' ? 'continue' : 'reject',
-            })
-          } else if (interaction.kind === 'question') {
+          if (interaction.kind === 'question') {
             await respondToQuestionInteraction(
               interaction,
               questionAnswerFromDecision(decision),
@@ -3294,6 +3285,7 @@ export function createAgentSessionDesktopClient(
             'turn/failed',
             'turn/interrupted',
             'item/completed',
+            'turn/plan/updated',
             'approval/requested',
             'question/requested',
           ].includes(notificationMethod)

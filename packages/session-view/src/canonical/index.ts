@@ -115,13 +115,13 @@ export type RenderContentBlock =
   | { kind: "assistant"; id: string; items: Array<Extract<Item, { type: "text" }>> }
   | { kind: "process"; id: string; items: RenderItem[] }
   | { kind: "plan"; id: string; item: Extract<Item, { type: "plan" }> }
+  | { kind: "execution-plan"; id: string; item: Extract<Item, { type: "execution-plan" }> }
   | { kind: "patch"; id: string; item: Extract<Item, { type: "patch" }> }
   | { kind: "post"; id: string; item: RenderItem }
 
 export type RenderBlocker =
   | { kind: "approval"; id: string; createdAt: number; approval: ApprovalRequest }
   | { kind: "question"; id: string; createdAt: number; question: Extract<Item, { type: "question" }> }
-  | { kind: "plan"; id: string; createdAt: number; plan: Extract<Item, { type: "plan" }> }
 
 export interface RenderTurnEntry extends VisibleTurnEntry {
   userItems: Input[]
@@ -130,6 +130,7 @@ export interface RenderTurnEntry extends VisibleTurnEntry {
   postAssistantItems: RenderItem[]
   patchItems: Array<Extract<Item, { type: "patch" }>>
   planItem: Extract<Item, { type: "plan" }> | null
+  executionPlanItems: Array<Extract<Item, { type: "execution-plan" }>>
   contentBlocks: RenderContentBlock[]
   blockers: RenderBlocker[]
   systemItems: RenderItem[]
@@ -275,6 +276,7 @@ export function selectRenderTurnEntries(
     const assistantResultItems: Array<Extract<Item, { type: "text" }>> = []
     const postAssistantItems: Item[] = []
     const patchItems: Array<Extract<Item, { type: "patch" }>> = []
+    const executionPlanItems: Array<Extract<Item, { type: "execution-plan" }>> = []
     const contentBlocks: RenderContentBlock[] = []
     let planItem: Extract<Item, { type: "plan" }> | null = null
 
@@ -296,6 +298,9 @@ export function selectRenderTurnEntries(
       } else if (item.type === "plan") {
         planItem = item
         contentBlocks.push({ kind: "plan", id: `plan:${item.id}`, item })
+      } else if (item.type === "execution-plan") {
+        executionPlanItems.push(item)
+        contentBlocks.push({ kind: "execution-plan", id: `execution-plan:${item.id}`, item })
       } else if (item.type === "question" && item.status !== "pending") {
         postAssistantItems.push(item)
         contentBlocks.push({ kind: "post", id: `post:${item.id}`, item })
@@ -312,9 +317,6 @@ export function selectRenderTurnEntries(
       ...entry.items
         .filter((item): item is Extract<Item, { type: "question" }> => item.type === "question" && item.status === "pending")
         .map((question): RenderBlocker => ({ kind: "question", id: `question:${question.id}`, createdAt: question.createdAt, question })),
-      ...(planItem?.state === "awaiting-confirmation"
-        ? [{ kind: "plan", id: `plan:${planItem.id}`, createdAt: planItem.createdAt, plan: planItem } as const]
-        : []),
     ].sort(compareCreated)
 
     return {
@@ -325,6 +327,7 @@ export function selectRenderTurnEntries(
       postAssistantItems,
       patchItems,
       planItem,
+      executionPlanItems,
       contentBlocks,
       blockers,
       systemItems: [],
@@ -394,11 +397,8 @@ function applyEnvelopePayload(state: CanonicalThreadState, envelope: ThreadEvent
     case "plan/delta":
       appendItemDelta(state, payload.itemId, payload.delta, "plan", payload, envelope.occurredAt)
       return
-    case "plan/ready":
-      applyPlanReady(state, payload)
-      return
-    case "plan/decision":
-      state.itemsById.set(payload.plan.id, payload.plan)
+    case "turn/plan/updated":
+      state.itemsById.set(payload.item.id, payload.item)
       return
     case "tool/callStarted":
     case "tool/callCompleted":
@@ -443,43 +443,16 @@ function appendItemDelta(
     const base = { id: itemId, messageID: itemId, turnId: identity.turnId, agentId: identity.agentId, createdAt: occurredAt }
     if (kind === "text") state.itemsById.set(itemId, { ...base, type: "text", placement: "result", text: delta, status: "streaming" })
     else if (kind === "reasoning") state.itemsById.set(itemId, { ...base, type: "reasoning", text: delta, status: "streaming" })
-    else if (kind === "plan") state.itemsById.set(itemId, { ...base, type: "plan", title: "计划", markdown: delta, version: 0, state: "draft" })
+    else if (kind === "plan") state.itemsById.set(itemId, { ...base, type: "plan", title: "计划", markdown: delta, status: "streaming" })
     return
   }
   if ((existing.type === "text" || existing.type === "reasoning") && existing.status !== "streaming") return
   if (existing.type === "tool" && existing.state !== "running") return
-  if (existing.type === "plan" && existing.state !== "draft") return
+  if (existing.type === "plan" && existing.status !== "streaming") return
   if (kind === "text" && existing.type === "text") state.itemsById.set(itemId, { ...existing, text: existing.text + delta, status: "streaming" })
   else if (kind === "reasoning" && existing.type === "reasoning") state.itemsById.set(itemId, { ...existing, text: existing.text + delta, status: "streaming" })
-  else if (kind === "plan" && existing.type === "plan") state.itemsById.set(itemId, { ...existing, markdown: existing.markdown + delta, state: "draft" })
+  else if (kind === "plan" && existing.type === "plan") state.itemsById.set(itemId, { ...existing, markdown: existing.markdown + delta, status: "streaming" })
   else if (kind === "tool" && existing.type === "tool") state.itemsById.set(itemId, { ...existing, output: (existing.output ?? "") + delta, state: "running" })
-}
-
-function applyPlanReady(state: CanonicalThreadState, payload: {
-  interactionId: string
-  threadId: string
-  turnId: string
-  agentId: string
-  title: string
-  markdown: string
-  createdAt: number
-  version: number
-}): void {
-  const existing = [...state.itemsById.values()].find((item) => item.type === "plan" && item.turnId === payload.turnId && item.agentId === payload.agentId)
-  const item: Extract<Item, { type: "plan" }> = {
-    id: existing?.id ?? payload.interactionId,
-    messageID: existing?.messageID ?? payload.interactionId,
-    turnId: payload.turnId,
-    agentId: payload.agentId,
-    type: "plan",
-    title: payload.title,
-    markdown: payload.markdown,
-    version: payload.version,
-    state: "awaiting-confirmation",
-    createdAt: existing?.createdAt ?? payload.createdAt,
-  }
-  if (existing && existing.id !== item.id) state.itemsById.delete(existing.id)
-  state.itemsById.set(item.id, item)
 }
 
 function approvalFromPayload(payload: {
@@ -538,7 +511,7 @@ function questionsFromPayload(payload: {
 
 function resolveInteraction(state: CanonicalThreadState, result: {
   interactionId: string
-  response: { kind: "approval" | "question" | "plan" | "hookTrust"; [key: string]: unknown }
+  response: { kind: "approval" | "question" | "hookTrust"; [key: string]: unknown }
 }): void {
   if (result.response.kind === "approval") {
     const approval = state.approvalsById.get(result.interactionId)

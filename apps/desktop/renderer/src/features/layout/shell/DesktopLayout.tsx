@@ -2763,21 +2763,6 @@ export function DesktopLayout(): React.ReactNode {
                 decisionExtras,
               )
             },
-            onAcceptExitPlanMode: (request, options) => {
-              handlePlanModeChange(false)
-              void decidePermission(
-                request,
-                'allow',
-                false,
-                options?.note ? { feedback: options.note } : undefined,
-                {
-                  planExecutionModel: options?.planExecutionModel,
-                  planExecutionProviderID: options?.planExecutionProviderID,
-                  planExecutionProviderBaseURL: options?.planExecutionProviderBaseURL,
-                  savePlanExecutionModel: options?.savePlanExecutionModel,
-                },
-              )
-            },
             permissionMode: effectivePermissionMode,
             planModeActive,
             providerModelOptions,

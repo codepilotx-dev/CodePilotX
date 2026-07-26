@@ -77,7 +77,6 @@ export const RunStatusSchema = Schema.Literals([
   "running",
   "waiting-permission",
   "waiting-question",
-  "waiting-plan-confirmation",
   "completed",
   "failed",
   "stopped",
@@ -117,7 +116,6 @@ export const RunSchema = Schema.Struct({
   model: Model.Ref,
   permissionMode: PermissionModeSchema,
   currentStage: Schema.NullOr(AgentRoleSchema),
-  canContinueFromPlan: Schema.Boolean,
   stages: Schema.Array(WorkflowStageSchema),
   mergedInputIDs: Schema.Array(Schema.String),
   startedAt: Schema.NullOr(Schema.Number),
@@ -248,8 +246,7 @@ export const PlanPartSchema = Schema.Struct({
   type: Schema.Literal("plan"),
   title: Schema.String,
   markdown: Schema.String,
-  version: Schema.Number,
-  state: Schema.Literals(["draft", "awaiting-confirmation", "confirmed", "rejected"]),
+  status: Schema.Literals(["streaming", "completed", "interrupted"]),
   createdAt: Schema.Number,
 })
 export type PlanPart = typeof PlanPartSchema.Type

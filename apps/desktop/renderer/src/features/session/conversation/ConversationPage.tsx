@@ -219,7 +219,6 @@ export function ConversationPage(): React.ReactNode {
     onCommitOrPush,
     onCreatePullRequest,
     onDecidePermission,
-    onAcceptExitPlanMode,
     onOpenRightDock,
     onOpenPlanInRightDock,
     onAppendComposerText,
@@ -1007,7 +1006,6 @@ export function ConversationPage(): React.ReactNode {
             request={activePermissionRequest}
             currentPermissionMode={permissionMode}
             onDecide={decideInlinePermission}
-            onAcceptExitPlanMode={onAcceptExitPlanMode}
           />
         ) : (
           <DesktopComposer {...composerProps} />
@@ -1553,7 +1551,6 @@ function workflowComposerMode(
 ): WorkflowComposerMode {
   if (!request) return "chat";
   if (request.toolName === "AskUserQuestion") return "brainstorm";
-  if (request.toolName === "ExitPlanMode") return "plan";
   return "permission";
 }
 
@@ -1690,13 +1687,11 @@ function workflowNodeKindForPermission(
   request: DesktopPermissionRequest,
 ): WorkflowNodeKind {
   if (request.toolName === "AskUserQuestion") return "question";
-  if (request.toolName === "ExitPlanMode") return "plan";
   return "permission";
 }
 
 function workflowTitleForPermission(request: DesktopPermissionRequest): string {
   if (request.toolName === "AskUserQuestion") return "等待用户回答问题";
-  if (request.toolName === "ExitPlanMode") return "确认计划";
   return "等待权限确认";
 }
 

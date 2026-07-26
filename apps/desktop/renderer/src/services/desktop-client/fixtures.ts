@@ -94,7 +94,6 @@ import type {
 } from '../../../shared/types.js'
 import {
   agentEventsFromNotification,
-  agentPlanRunIdFromRequestId,
   agentQuestionIdFromRequestId,
   agentThreadListItemToDesktopSnapshot,
   agentThreadSnapshotToDesktop,
@@ -229,7 +228,6 @@ export function mockThreadHistoryPage(
           model,
           permissionConfig,
           rootAgentId: agentId,
-          canContinueFromPlan: false,
           mergedInputIDs: [],
           startedAt: messageCreatedAt,
           finishedAt: messageCreatedAt,
@@ -383,13 +381,9 @@ export function mockThreadHistoryPage(
         title: '实施计划',
         markdown: event.content,
         version: 0,
-        state: 'awaiting-confirmation',
+        status: 'completed',
         createdAt: eventCreatedAt,
       })
-      if (current.turn.status === 'completed') {
-        current.turn.status = 'running'
-        current.turn.finishedAt = null
-      }
     }
   }
 

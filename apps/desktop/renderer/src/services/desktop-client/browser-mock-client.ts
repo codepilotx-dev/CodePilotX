@@ -97,7 +97,6 @@ import type {
 } from '../../../shared/types.js'
 import {
   agentEventsFromNotification,
-  agentPlanRunIdFromRequestId,
   agentQuestionIdFromRequestId,
   agentThreadListItemToDesktopSnapshot,
   agentThreadSnapshotToDesktop,

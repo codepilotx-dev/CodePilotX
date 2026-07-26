@@ -289,7 +289,6 @@ function CanonicalBlocker({
   renderItem: (item: RenderTurnEntry["items"][number]) => React.ReactNode;
 }): React.ReactNode {
   if (blocker.kind === "question") return renderItem(blocker.question);
-  if (blocker.kind === "plan") return null;
   return (
     <article className="canonical-blocker-card" data-state={blocker.approval.status}>
       <header>
@@ -305,6 +304,5 @@ function isActiveTurn(status: RenderTurnEntry["turn"]["status"]): boolean {
   return status === "running"
     || status === "waiting-permission"
     || status === "waiting-question"
-    || status === "waiting-plan-confirmation"
     || status === "waiting-subagents";
 }

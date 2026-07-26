@@ -97,8 +97,9 @@ exported by `@codepilotx/agent-protocol` v3.
 | `turn/interrupt` | `threadId`, optional `turnId`, `operationId` | `{ threadId, turnId?, status }` | Keep; terminal or already-terminal response is idempotent. |
 | `turn/resume` | `threadId`, `turnId`, `operationId` | `{ threadId, turnId, status }` | Keep as checkpoint recovery operation, not general retry. |
 
-V2 `turn/submitPlanDecision` is replaced by the `plan/request` server request
-and the generic `interaction/respond` recovery path.
+V2 `turn/submitPlanDecision` is removed. Plan output is regular assistant
+content and does not create a pending interaction; users continue by sending a
+new Turn.
 
 `turn/start` canonical admission data includes all fields that can change model
 behavior. Attachments must be validated and bound in the same admission
@@ -177,7 +178,6 @@ result schemas are also accepted by `interaction/respond`.
 |---|---|---|---|
 | `approval/request` | interaction metadata, Thread/Turn/Agent/tool IDs, risk, reason, requested permissions, allowed choices, version | decision `allow-once`, `deny`, or `stop`; optional safe remember rule | Request, checkpoint, and resolution are durable. |
 | `question/request` | interaction metadata, one or more typed questions, answer constraints, version | typed answers or `ignored` | Request, answer, and resume checkpoint are durable. |
-| `plan/request` | interaction metadata, complete plan, version | `continue` or `reject` | Plan and decision are durable. |
 | `hookTrust/request` | interaction metadata, canonical config path, SHA-256, Hook summary, version | `allow` or `block` | Trust decision is bound to path/hash and durable. |
 
 Every server request includes `interactionId`, `kind`, `threadId`, `turnId`,
@@ -225,8 +225,7 @@ stable across versions.
 | `reasoning/summaryPartAdded` | Thread | Live | Display-only structure; completed Item is authoritative. |
 | `reasoning/summaryTextDelta` | Thread | Live | Display-only summary delta. |
 | `plan/delta` | Thread | Live | Display-only plan delta. |
-| `plan/ready` | Thread | Durable | Complete plan and interaction identity; keep. |
-| `plan/decision` | Thread | Durable | Terminal plan decision; keep. |
+| `turn/plan/updated` | Thread | Durable | Complete execution-plan Item projection; the newest snapshot is authoritative. |
 | `tool/callStarted` | Thread | Durable | Tool identity, sanitized input summary, and Item state. |
 | `tool/outputDelta` | Thread | Live | Bounded display output; final tool Item is authoritative. |
 | `tool/callCompleted` | Thread | Durable | Complete sanitized terminal Tool Item. |
@@ -285,7 +284,7 @@ an unavailable capability fails with `CAPABILITY_REQUIRED` before mutation.
 | One global event row ID | Globally unique `eventId` plus per-stream gap-free sequence |
 | All notifications persisted | Manifest-declared durable events; bounded live deltas |
 | `turn/start strategy: guide` | `turn/steer` |
-| `turn/submitPlanDecision` | `plan/request` response or `interaction/respond` |
+| `turn/submitPlanDecision` | Removed; Plan is regular assistant content and the next user message starts a new Turn |
 | `approval/respond` | `approval/request` response or `interaction/respond` |
 | `question/respond` | `question/request` response or `interaction/respond` |
 | `hook/trust/respond` | `hookTrust/request` response or `interaction/respond` |

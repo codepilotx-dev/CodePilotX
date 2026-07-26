@@ -83,10 +83,30 @@ const noCapabilities = (): ToolCapabilities => ({ filesystem: "none", network: "
 const jsonObject = (properties: Record<string, unknown>, required?: string[]) => ({ type: "object", properties, additionalProperties: false, ...(required ? { required } : {}) })
 const shellSchema = z.object({
   command: z.string().min(1).max(32_000),
+  cwd: z.string().min(1).optional(),
   timeout: z.number().positive().max(600_000).optional(),
   description: z.string().max(2_000).optional(),
+  additionalPermissions: z.object({
+    readPaths: z.array(z.string().min(1)).optional(),
+    writePaths: z.array(z.string().min(1)).optional(),
+    networkDomains: z.array(z.string().min(1)).optional(),
+  }).strict().optional(),
 }).strict()
-const shellInputSchema = jsonObject({ command: { type: "string", maxLength: 32_000 }, timeout: { type: "number", maximum: 600_000 }, description: { type: "string", maxLength: 2_000 } }, ["command"])
+const shellInputSchema = jsonObject({
+  command: { type: "string", maxLength: 32_000 },
+  cwd: { type: "string" },
+  timeout: { type: "number", maximum: 600_000 },
+  description: { type: "string", maxLength: 2_000 },
+  additionalPermissions: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      readPaths: { type: "array", items: { type: "string" } },
+      writePaths: { type: "array", items: { type: "string" } },
+      networkDomains: { type: "array", items: { type: "string" } },
+    },
+  },
+}, ["command"])
 
 const searchPaths = async (context: ToolContext, value?: string) => {
   if (!value?.trim()) {
@@ -336,7 +356,14 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
 ]
 
 export const toolMayMutate = (tool: ToolCatalogEntry) => tool.capabilities.filesystem === "workspace-write" || tool.capabilities.filesystem === "host-write" || tool.capabilities.externalState
-export const toolAllowedInSandbox = (tool: ToolCatalogEntry, mode: SandboxMode) => mode !== "read-only" || tool.capabilities.filesystem !== "workspace-write"
+const isShell = (tool: ToolCatalogEntry) => tool.sdkName === "Bash" || tool.sdkName === "PowerShell"
+export const toolAllowedInTaskMode = (tool: ToolCatalogEntry, mode: TaskMode) =>
+  tool.allowedModes.includes(mode)
+  && (mode !== "plan" || isShell(tool) || !toolMayMutate(tool))
+export const toolAllowedInSandbox = (tool: ToolCatalogEntry, mode: SandboxMode) =>
+  mode !== "read-only"
+  || isShell(tool)
+  || (tool.capabilities.filesystem !== "workspace-write" && tool.capabilities.filesystem !== "host-write")
 
 export class ToolCatalog {
   private readonly tools = new Map<string, ToolDefinition<any, any>>()
@@ -360,7 +387,7 @@ export class ToolCatalog {
   }
 
   list(mode?: TaskMode, sandboxMode: SandboxMode = "workspace-write", profile: SubagentProfile = "main") {
-    return [...this.tools.values()].filter((tool) => (!mode || tool.allowedModes.includes(mode)) && tool.allowedProfiles.includes(profile) && toolAllowedInSandbox(tool, sandboxMode))
+    return [...this.tools.values()].filter((tool) => (!mode || toolAllowedInTaskMode(tool, mode)) && tool.allowedProfiles.includes(profile) && toolAllowedInSandbox(tool, sandboxMode))
   }
 
   deferred(mode?: TaskMode, sandboxMode: SandboxMode = "workspace-write", profile: SubagentProfile = "main") {
@@ -375,7 +402,7 @@ export class ToolCatalog {
 
   async execute(name: string, input: Record<string, unknown>, context: ToolContext) {
     const tool = this.get(name)
-    if (!tool.allowedModes.includes(context.taskMode)) throw new AgentError("TOOL_NOT_ALLOWED_IN_MODE", `工具 ${name} 不允许在 ${context.taskMode} 模式执行`, 403)
+    if (!toolAllowedInTaskMode(tool, context.taskMode)) throw new AgentError("TOOL_NOT_ALLOWED_IN_MODE", `工具 ${name} 不允许在 ${context.taskMode} 模式执行`, 403)
     if (!tool.allowedProfiles.includes(context.profile ?? "main")) throw new AgentError("TOOL_NOT_ALLOWED_FOR_PROFILE", `工具 ${name} 不允许当前 Agent profile 使用`, 403)
     if (!toolAllowedInSandbox(tool, context.permissionConfig.sandboxMode)) throw new AgentError("TOOL_NOT_ALLOWED_IN_SANDBOX", `工具 ${name} 不允许在 ${context.permissionConfig.sandboxMode} 沙箱执行`, 403)
     if (context.signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)

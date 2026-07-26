@@ -8,7 +8,6 @@ import type {
 export type PetNotificationKind =
   | 'approval'
   | 'question'
-  | 'plan'
   | 'exec'
   | 'network'
   | 'tool'
@@ -149,7 +148,6 @@ function blockerNotification(
   const label = {
     approval: '等待你的批准',
     question: '有一个问题',
-    plan: '计划等待确认',
     exec: '命令等待批准',
     network: '联网请求等待批准',
     tool: '工具调用等待批准',
@@ -164,7 +162,7 @@ function blockerNotification(
     detail: request.description || threadTitle,
     createdAt: now,
     expiresAt: null,
-    priority: kind === 'question' || kind === 'plan' ? 100 : 90,
+    priority: kind === 'question' ? 100 : 90,
   }
 }
 
@@ -172,7 +170,6 @@ function blockerKind(
   request: DesktopPermissionRequest,
 ): Exclude<PetNotificationKind, 'completed' | 'failed'> {
   if (request.toolName === 'AskUserQuestion') return 'question'
-  if (request.toolName === 'ExitPlanMode') return 'plan'
   if (request.requestKind === 'network') return 'network'
   if (request.requestKind === 'shell-command') return 'exec'
   if (request.requestKind === 'tool') return 'tool'

@@ -9,6 +9,7 @@
     "build": "tsc -p tsconfig.json && bun build src/main.ts --target=node --format=esm --outdir=dist --external electron --sourcemap=external",
     "dev": "bun run build && electron .",
     "test:smoke": "playwright test --config playwright.smoke.config.ts",
+    "test:plan": "playwright test --config playwright.plan.config.ts",
     "package:win": "electron-builder --win --x64"
   },
   "devDependencies": {

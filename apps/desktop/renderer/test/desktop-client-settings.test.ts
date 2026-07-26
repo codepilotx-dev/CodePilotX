@@ -580,7 +580,7 @@ describe('desktop thread settings client', () => {
       turns: [{
         id: 'turn-active', threadId: 'thread-active', sourceInputID: 'input-active', status: 'running', mode: 'chat',
         model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: defaultSettings.permissionConfig,
-        rootAgentId: 'agent-active', canContinueFromPlan: false, mergedInputIDs: [],
+        rootAgentId: 'agent-active', mergedInputIDs: [],
         startedAt: now, finishedAt: null, elapsedSeconds: 1, error: null,
       }],
     })
@@ -713,6 +713,7 @@ describe('desktop thread settings client', () => {
           subscriptionId: 'subscription-1',
           event: {
             eventId: 'event-13',
+            streamId: 'session-2',
             type: 'thread/settings/updated',
             version: 1,
             occurredAt: now,
@@ -754,7 +755,6 @@ describe('desktop thread settings client', () => {
         model: { providerID: 'openai', id: 'gpt-5' },
         permissionConfig: defaultSettings.permissionConfig,
         rootAgentId: 'agent-1',
-        canContinueFromPlan: false,
         mergedInputIDs: [],
         startedAt: now,
         finishedAt: completed ? now + 1_000 : null,

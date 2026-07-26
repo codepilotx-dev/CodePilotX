@@ -27,7 +27,6 @@ import type {
 } from '../../shared/types.js'
 
 export const AGENT_QUESTION_REQUEST_ID_PREFIX = 'question:'
-export const AGENT_PLAN_REQUEST_ID_PREFIX = 'plan:'
 
 export function agentQuestionRequestId(questionId: string): string {
   return `${AGENT_QUESTION_REQUEST_ID_PREFIX}${questionId}`
@@ -36,16 +35,6 @@ export function agentQuestionRequestId(questionId: string): string {
 export function agentQuestionIdFromRequestId(requestId: string): string | null {
   return requestId.startsWith(AGENT_QUESTION_REQUEST_ID_PREFIX)
     ? requestId.slice(AGENT_QUESTION_REQUEST_ID_PREFIX.length)
-    : null
-}
-
-export function agentPlanRequestId(turnId: string): string {
-  return `${AGENT_PLAN_REQUEST_ID_PREFIX}${turnId}`
-}
-
-export function agentPlanRunIdFromRequestId(requestId: string): string | null {
-  return requestId.startsWith(AGENT_PLAN_REQUEST_ID_PREFIX)
-    ? requestId.slice(AGENT_PLAN_REQUEST_ID_PREFIX.length)
     : null
 }
 
@@ -291,12 +280,12 @@ export function agentEventsFromNotification(
   ) {
     return [{ ...base, type: 'partial_message', role: 'assistant', text: stringValue(params.delta), metadata: liveItemMetadata(params, 'reasoning') }]
   }
-  if (notification.method === 'plan/delta' || notification.method === 'plan/ready') {
+  if (notification.method === 'plan/delta') {
     return [{
       ...base,
       type: 'proposed_plan',
-      text: stringValue(params.delta) || stringValue(params.markdown) || stringValue(params.plan),
-      streaming: notification.method === 'plan/delta',
+      text: stringValue(params.delta),
+      streaming: true,
       metadata: liveItemMetadata(params, 'plan'),
     }]
   }
@@ -368,26 +357,22 @@ function itemToSessionEvents(threadId: string, item: Item): DesktopSessionEvent[
   if (item.type === 'tool') return toolToSessionEvents(threadId, item)
   if (item.type === 'activity') return activityToSessionEvents(threadId, item)
   if (item.type === 'plan') {
-    const events: DesktopSessionEvent[] = [{
+    return [{
       id: item.id,
       sessionId: threadId,
       type: 'proposed_plan',
       role: 'assistant',
       content: item.markdown,
       createdAt: iso(item.createdAt),
-      metadata: { itemId: item.id, turnId: item.turnId, agentId: item.agentId, title: item.title, state: item.state, version: item.version, streaming: item.state === 'draft' },
+      metadata: {
+        itemId: item.id,
+        turnId: item.turnId,
+        agentId: item.agentId,
+        title: item.title,
+        status: item.status,
+        streaming: item.status === 'streaming',
+      },
     }]
-    if (item.state === 'awaiting-confirmation') {
-      events.push({
-        id: `${item.id}:permission`,
-        sessionId: threadId,
-        type: 'permission_request',
-        content: '确认计划',
-        createdAt: iso(item.createdAt),
-        metadata: { request: planToRequest(item), agentId: item.agentId },
-      })
-    }
-    return events
   }
   if (item.type === 'question' && item.status === 'pending') {
     return [{
@@ -450,7 +435,7 @@ function itemToAgentEvents(threadId: string, item: Item): DesktopAgentEvent[] {
     if (['pending', 'running', 'waiting-permission'].includes(item.state)) return [start]
     return [start, { type: 'tool_result', sessionId: threadId, toolName: item.tool, toolUseId: item.callID, summary: item.error ?? item.output ?? item.title, isError: item.state === 'error', createdAt: iso(item.finishedAt ?? item.createdAt), metadata: { itemId: item.id } }]
   }
-  if (item.type === 'plan') return [{ type: 'proposed_plan', sessionId: threadId, text: item.markdown, streaming: item.state === 'draft', createdAt, metadata: { itemId: item.id, turnId: item.turnId, agentId: item.agentId, kind: 'plan' } }]
+  if (item.type === 'plan') return [{ type: 'proposed_plan', sessionId: threadId, text: item.markdown, streaming: item.status === 'streaming', createdAt, metadata: { itemId: item.id, turnId: item.turnId, agentId: item.agentId, kind: 'plan' } }]
   if (item.type === 'patch') return item.files.map(file => ({ type: 'diff', sessionId: threadId, filePath: file.path, patch: file.patch ?? '', createdAt, metadata: { additions: file.additions, deletions: file.deletions, turnScoped: true } }))
   if (item.type === 'question' && item.status === 'pending') return [{ type: 'permission_request', sessionId: threadId, request: questionToRequest(item), createdAt }]
   return []
@@ -468,10 +453,6 @@ function itemToToolLog(item: Item): DesktopToolLogEntry[] {
     { id: `${item.id}:start`, kind: 'start', toolName: item.tool, summary: item.title, input: item.input, createdAt: iso(item.startedAt ?? item.createdAt) },
     ...(['pending', 'running', 'waiting-permission'].includes(item.state) ? [] : [{ id: `${item.id}:result`, kind: 'result', toolName: item.tool, summary: item.error ?? item.output ?? item.title, output: item.output, error: item.error ?? undefined, isError: item.state === 'error', createdAt: iso(item.finishedAt ?? item.createdAt) }]),
   ]
-}
-
-function planToRequest(item: Extract<Item, { type: 'plan' }>): DesktopPermissionRequest {
-  return { requestId: agentPlanRequestId(item.turnId), toolName: 'ExitPlanMode', toolUseId: item.id, input: { plan: item.markdown }, description: '确认计划', requestKind: 'tool' }
 }
 
 function toolToRequest(item: Extract<Item, { type: 'tool' }>): DesktopPermissionRequest {

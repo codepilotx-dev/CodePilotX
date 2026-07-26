@@ -8,7 +8,6 @@ import type {
 } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
 import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
-import { ExitPlanModeApproval } from './ExitPlanModeApproval.js'
 import {
   McpElicitationForm,
   McpElicitationUnsupported,
@@ -35,14 +34,6 @@ export type InlineApprovalCardProps = {
     updatedInput?: Record<string, unknown>,
     decisionExtras?: Pick<DesktopPermissionDecision, 'rememberOptionId'>,
   ) => void
-  onAcceptExitPlanMode?: (
-    request: DesktopPermissionRequest,
-    options?: {
-      note?: string
-      planExecutionModel?: string
-      savePlanExecutionModel?: boolean
-    },
-  ) => void
 }
 
 const COMMAND_HINT_MAX_LENGTH = 56
@@ -51,7 +42,6 @@ export function InlineApprovalCard({
   request,
   currentPermissionMode,
   onDecide,
-  onAcceptExitPlanMode,
 }: InlineApprovalCardProps): React.ReactNode {
   const [selectedChoice, setSelectedChoice] =
     React.useState<ApprovalChoice>('allow')
@@ -74,28 +64,6 @@ export function InlineApprovalCard({
           onSubmit={updatedInput =>
             onDecide(request, 'allow', false, updatedInput)
           }
-        />
-      </section>
-    )
-  }
-
-  if (request.toolName === 'ExitPlanMode') {
-    return (
-      <section
-        className="inline-approval-card workflow-composer-card workflow-composer-card-plan tw:w-full tw:max-w-[48rem] tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text tw:shadow-sm"
-        data-variant="plan"
-        aria-label="接受计划"
-      >
-        <ExitPlanModeApproval
-          request={request}
-          onAccept={options => {
-            if (onAcceptExitPlanMode) {
-              onAcceptExitPlanMode(request, options)
-              return
-            }
-            onDecide(request, 'allow')
-          }}
-          onRevise={() => onDecide(request, 'deny')}
         />
       </section>
     )

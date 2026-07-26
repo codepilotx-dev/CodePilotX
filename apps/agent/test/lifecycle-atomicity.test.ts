@@ -80,53 +80,52 @@ describe("Turn 生命周期事务", () => {
     expect(db.getAgentTurnCheckpoint(turn.turnID)).not.toBeNull()
   })
 
-  test("plan ready 和 decision 的 projection 与 outbox 同事务", () => {
+  test("execution plan 快照、终态与 outbox 保持原子和有序", () => {
     const path = join(tmpdir(), `codepilotx-plan-lifecycle-${crypto.randomUUID()}.sqlite`)
     paths.push(path)
     const db = new AgentDatabase(path)
     databases.push(db)
     const thread = db.createThread()
-    const turn = db.createTurn(thread.id, { ...input, taskMode: "plan" })
+    const turn = db.createTurn(thread.id, input)
     db.claimTurnExecution(turn.turnID)
-    const createdAt = Date.now()
-    const planItem = {
-      id: `${turn.turnID}:plan`,
-      turnID: turn.turnID,
-      agentID: turn.agentID,
-      type: "plan" as const,
-      status: "pending" as const,
-      data: { title: "计划", markdown: "step", version: 1, state: "awaiting-confirmation" },
-      createdAt,
-      updatedAt: createdAt,
-    }
-    db.sqlite.exec(`CREATE TRIGGER fail_plan_ready BEFORE INSERT ON events WHEN NEW.method = 'plan/ready' BEGIN SELECT RAISE(ABORT, 'plan ready outbox unavailable'); END`)
-    expect(() => db.waitForPlanConfirmation({
-      agentID: turn.agentID,
-      turnID: turn.turnID,
+    db.sqlite.exec(`CREATE TRIGGER fail_plan_updated BEFORE INSERT ON events WHEN NEW.method = 'turn/plan/updated' BEGIN SELECT RAISE(ABORT, 'plan update outbox unavailable'); END`)
+    expect(() => db.updateExecutionPlan({
       threadID: thread.id,
-      payload: { plan: "step" },
-      version: 1,
-      plan: "step",
-      item: planItem,
-    })).toThrow("plan ready outbox unavailable")
-    expect(db.getItem(planItem.id)).toBeNull()
-    expect(db.getAgentTurnCheckpoint(turn.turnID)).toBeNull()
-    expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(turn.turnID)).toEqual({ status: "running" })
-    db.sqlite.exec("DROP TRIGGER fail_plan_ready")
+      turnID: turn.turnID,
+      agentID: turn.agentID,
+      explanation: "准备执行",
+      plan: [{ step: "实现", status: "in_progress" }],
+    })).toThrow("plan update outbox unavailable")
+    expect(db.getItem(`${turn.turnID}:execution-plan`)).toBeNull()
+    db.sqlite.exec("DROP TRIGGER fail_plan_updated")
 
-    db.waitForPlanConfirmation({
-      agentID: turn.agentID,
-      turnID: turn.turnID,
+    db.updateExecutionPlan({
       threadID: thread.id,
-      payload: { plan: "step" },
-      version: 1,
-      plan: "step",
-      item: planItem,
+      turnID: turn.turnID,
+      agentID: turn.agentID,
+      explanation: "准备执行",
+      plan: [{ step: "实现", status: "in_progress" }],
     })
-    db.sqlite.exec(`CREATE TRIGGER fail_plan_decision BEFORE INSERT ON events WHEN NEW.method = 'plan/decision' BEGIN SELECT RAISE(ABORT, 'plan decision outbox unavailable'); END`)
-    expect(() => db.decidePlan(turn.turnID, "continue")).toThrow("plan decision outbox unavailable")
-    expect(db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(turn.turnID)).toEqual({ status: "waiting_plan_confirmation" })
-    expect(db.getAgentTurnCheckpoint(turn.turnID)?.state).toBe("waiting_plan_confirmation")
+    db.finalizeTurn({ threadID: thread.id, turnID: turn.turnID, agentID: turn.agentID, status: "completed" })
+    expect(db.getItem(`${turn.turnID}:execution-plan`)?.status).toBe("completed")
+    const events = db.sqlite.query(
+      "SELECT method FROM events WHERE turn_id = ? AND method IN ('item/completed', 'turn/completed') ORDER BY id",
+    ).all(turn.turnID) as Array<{ method: string }>
+    expect(events.map(({ method }) => method)).toEqual(["item/completed", "turn/completed"])
+
+    const interrupted = db.createTurn(thread.id, { ...input, content: "中断" })
+    db.claimTurnExecution(interrupted.turnID)
+    db.updateExecutionPlan({
+      threadID: thread.id,
+      turnID: interrupted.turnID,
+      agentID: interrupted.agentID,
+      plan: [{ step: "未完成", status: "in_progress" }],
+    })
+    db.finalizeTurn({ threadID: thread.id, turnID: interrupted.turnID, agentID: interrupted.agentID, status: "interrupted" })
+    expect(db.getItem(`${interrupted.turnID}:execution-plan`)?.status).toBe("interrupted")
+    expect(db.sqlite.query(
+      "SELECT method FROM events WHERE turn_id = ? AND method = 'item/completed'",
+    ).get(interrupted.turnID)).toEqual({ method: "item/completed" })
   })
 
   test("重启中断写入 turn、agent、item 和 queue durable events 且只执行一次", () => {

@@ -26,6 +26,7 @@ import {
   WorkflowPlanCard,
   type OpenPlanInDockRequest,
 } from "../workflow/WorkflowPlanCard.js";
+import { ExecutionPlanCard } from "../workflow/ExecutionPlanCard.js";
 
 type ItemOf<T extends Item["type"]> = Extract<Item, { type: T }>;
 
@@ -172,11 +173,13 @@ export function CanonicalItemRenderer({
         <WorkflowPlanCard
           eventId={item.id}
           summary={item.markdown}
-          streaming={item.state === "draft"}
+          streaming={item.status === "streaming"}
           isDocked={rightDockPlanEventId === item.id}
           onOpenInRightDock={onOpenPlanInRightDock}
         />
       );
+    case "execution-plan":
+      return <ExecutionPlanCard item={item} />;
     case "question":
       return <QuestionItemView item={item} />;
     case "patch":

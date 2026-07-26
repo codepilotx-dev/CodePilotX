@@ -152,7 +152,7 @@ describe("数据库 Pi epoch", () => {
     expect((await stat(path)).size).toBe(originalSize)
   })
 
-  test("旧 history epoch 备份后重建", async () => {
+  test("旧 history epoch 仅重建 CodePilotX 会话库", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-reset-pi-epoch-"))
     paths.push(root)
     const path = join(root, "agent.sqlite")
@@ -172,7 +172,7 @@ describe("数据库 Pi epoch", () => {
     expect(tables.has("pi_sessions")).toBe(true)
     db.close()
 
-    expect((await readdir(root)).some((name) => name.startsWith("agent.sqlite.epoch-0.") && name.endsWith(".bak"))).toBe(true)
+    expect((await readdir(root)).some((name) => name.startsWith("agent.sqlite.epoch-0.") && name.endsWith(".bak"))).toBe(false)
   })
 
   test("当前 Pi epoch 重开时保留数据", async () => {
@@ -233,7 +233,7 @@ describe("数据库 Pi epoch", () => {
     expect(names).toContain("agent.sqlite")
   })
 
-  test("history epoch 更换只备份并重建会话库", async () => {
+  test("history epoch 更换只重建 CodePilotX 会话库", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-history-epoch-"))
     paths.push(root)
     const pathsForDatabase = {
@@ -253,7 +253,7 @@ describe("数据库 Pi epoch", () => {
     expect(reopened.getThread(staleThread.id)).toBeNull()
     expect(reopened.getSetting<{ fontSize: number }>("desktop.settings.v1")).toEqual({ fontSize: 16 })
     reopened.close()
-    expect((await readdir(root)).some((name) => name.startsWith("history.sqlite.epoch-1.") && name.endsWith(".bak"))).toBe(true)
+    expect((await readdir(root)).some((name) => name.startsWith("history.sqlite.epoch-1.") && name.endsWith(".bak"))).toBe(false)
   })
 
   test("资料迁移校验失败时保留旧库且不发布正式双库", async () => {

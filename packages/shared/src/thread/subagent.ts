@@ -115,7 +115,6 @@ export const AgentExecutionStatusSchema = Schema.Literals([
   "running",
   "waiting-question",
   "waiting-permission",
-  "waiting-confirmation",
   "waiting-subagents",
   "completed",
   "failed",

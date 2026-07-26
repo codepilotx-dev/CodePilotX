@@ -66,7 +66,7 @@ export type AgentTurnCheckpoint = {
   agentID: string
   turnID: string
   threadID: string
-  state: "waiting_question" | "waiting_hook_trust" | "waiting_plan_confirmation" | "waiting_subagents" | "ready"
+  state: "waiting_question" | "waiting_hook_trust" | "waiting_subagents" | "ready"
   payload: Record<string, unknown>
   version: number
   createdAt: number
@@ -432,7 +432,7 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
     }
 
   activeTurn(threadID: string) {
-      return this.sqlite.query(`SELECT id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref FROM turns WHERE thread_id = ? AND status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_plan_confirmation', 'waiting_subagents') ORDER BY created_at DESC LIMIT 1`).get(threadID) as
+      return this.sqlite.query(`SELECT id, status, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref FROM turns WHERE thread_id = ? AND status IN ('running', 'waiting_permission', 'waiting_question', 'waiting_subagents') ORDER BY created_at DESC LIMIT 1`).get(threadID) as
         | ({ id: string; status: TurnStatus; mode: TaskMode; model_ref: string } & PermissionColumns)
         | null
     }

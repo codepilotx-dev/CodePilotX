@@ -22,8 +22,6 @@ describe("单主 Agent 编排", () => {
     expect(isMainAgentRequestUserInputEnabled({ taskMode: "plan" })).toBe(true)
     expect(isMainAgentRequestUserInputEnabled({ taskMode: "chat" })).toBe(false)
     expect(isMainAgentRequestUserInputEnabled({ taskMode: "chat", defaultModeRequestUserInput: true })).toBe(true)
-    expect(isMainAgentRequestUserInputEnabled({ taskMode: "plan", continueFromPlan: true })).toBe(false)
-    expect(isMainAgentRequestUserInputEnabled({ taskMode: "plan", continueFromPlan: true, defaultModeRequestUserInput: true })).toBe(true)
   })
 
   test("每个 Turn 只有一个 main 根 Agent，并复用线程级 Session", () => {

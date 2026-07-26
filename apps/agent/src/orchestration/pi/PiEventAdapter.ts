@@ -1,4 +1,5 @@
 import type { AgentHarnessEvent } from "@codepilotx/pi-agent-core"
+import { ProposedPlanStreamParser, type ProposedPlanChunk } from "../plan/ProposedPlanStreamParser"
 import type { PiRuntimeEventContext, PiRuntimeEventSink } from "./types"
 
 type ToolResultLike = {
@@ -45,23 +46,82 @@ export const piToolResultText = (value: unknown, options: { tool: string; progre
 /** Converts Pi's protocol into stable semantic callbacks used by the Agent persistence layer. */
 export class PiEventAdapter {
   private beforeCompactionCount: number | undefined
-  private assistantItems: { textItemID: string; reasoningItemID: string } | null = null
+  private assistantItems: { textItemID: string; reasoningItemID: string; planItemID: string } | null = null
+  private parser: ProposedPlanStreamParser | null = null
+  private receivedTextDelta = false
+  private textStarted = false
+  private planStarted = false
+  private pendingText = ""
+  private pendingPlan = ""
+  private completedText = ""
 
-  constructor(private readonly context: PiRuntimeEventContext, private readonly sink: PiRuntimeEventSink) {}
+  constructor(
+    private readonly context: PiRuntimeEventContext,
+    private readonly sink: PiRuntimeEventSink,
+    private readonly options: { parseProposedPlan?: boolean } = {},
+  ) {}
 
   private newAssistantItems() {
     const segmentID = crypto.randomUUID()
     return {
       textItemID: `${this.context.turnID}:pi:text:${segmentID}`,
       reasoningItemID: `${this.context.turnID}:pi:reasoning:${segmentID}`,
+      planItemID: `${this.context.turnID}:pi:text:${segmentID}:plan`,
     }
   }
 
-  private async ensureAssistantItems() {
+  private resetAssistantMessage() {
+    const items = this.newAssistantItems()
+    this.assistantItems = items
+    this.parser = this.options.parseProposedPlan ? new ProposedPlanStreamParser() : null
+    this.receivedTextDelta = false
+    this.textStarted = false
+    this.planStarted = false
+    this.pendingText = ""
+    this.pendingPlan = ""
+    return items
+  }
+
+  private async ensureAssistantItems(startText = !this.options.parseProposedPlan) {
     if (this.assistantItems) return this.assistantItems
-    this.assistantItems = this.newAssistantItems()
-    await this.sink.assistantMessageStarted?.(this.context, this.assistantItems)
-    return this.assistantItems
+    const items = this.resetAssistantMessage()
+    if (startText) await this.startText()
+    return items
+  }
+
+  private async startText() {
+    const items = this.assistantItems ?? this.resetAssistantMessage()
+    if (this.textStarted) return
+    this.textStarted = true
+    await this.sink.assistantMessageStarted?.(this.context, items)
+  }
+
+  private async routeChunks(chunks: readonly ProposedPlanChunk[]) {
+    const items = await this.ensureAssistantItems(false)
+    for (const chunk of chunks) {
+      if (chunk.kind === "text") {
+        this.pendingText += chunk.delta
+        if (!this.textStarted && /\S/.test(this.pendingText)) await this.startText()
+        if (this.textStarted && this.pendingText) {
+          await this.sink.textDelta?.(this.context, { itemID: items.textItemID, delta: this.pendingText })
+          this.pendingText = ""
+        }
+        continue
+      }
+      this.pendingPlan += chunk.delta
+      if (!this.planStarted && /\S/.test(this.pendingPlan)) {
+        this.planStarted = true
+        await this.sink.planStarted?.(this.context, { itemID: items.planItemID })
+      }
+      if (this.planStarted && this.pendingPlan) {
+        await this.sink.planDelta?.(this.context, { itemID: items.planItemID, delta: this.pendingPlan })
+        this.pendingPlan = ""
+      }
+    }
+  }
+
+  outputText(content: unknown) {
+    return this.options.parseProposedPlan ? this.completedText : textContent(content)
   }
 
   async handle(event: AgentHarnessEvent) {
@@ -69,8 +129,8 @@ export class PiEventAdapter {
     switch (event.type) {
       case "message_start":
         if (event.message.role === "assistant") {
-          this.assistantItems = this.newAssistantItems()
-          await this.sink.assistantMessageStarted?.(this.context, this.assistantItems)
+          this.resetAssistantMessage()
+          if (!this.options.parseProposedPlan) await this.startText()
         }
         break
       case "session_before_compact":
@@ -79,15 +139,34 @@ export class PiEventAdapter {
       case "message_update": {
         const update = event.assistantMessageEvent
         const items = await this.ensureAssistantItems()
-        if (update.type === "text_delta") await this.sink.textDelta?.(this.context, { itemID: items.textItemID, delta: update.delta })
+        if (update.type === "text_delta") {
+          this.receivedTextDelta = true
+          if (this.parser) await this.routeChunks(this.parser.push(update.delta))
+          else await this.sink.textDelta?.(this.context, { itemID: items.textItemID, delta: update.delta })
+        }
         if (update.type === "thinking_delta") await this.sink.reasoningDelta?.(this.context, { itemID: items.reasoningItemID, delta: update.delta })
         break
       }
       case "message_end":
         if (event.message.role === "assistant") {
-          const items = await this.ensureAssistantItems()
-          await this.sink.assistantMessageCompleted?.(this.context, { ...items, content: event.message.content })
+          const items = await this.ensureAssistantItems(false)
+          if (this.parser) {
+            if (!this.receivedTextDelta) await this.routeChunks(this.parser.push(textContent(event.message.content)))
+            const parsed = this.parser.finish()
+            await this.routeChunks(parsed.chunks)
+            this.completedText = parsed.text
+            await this.sink.assistantMessageCompleted?.(this.context, {
+              ...items,
+              content: event.message.content,
+              text: parsed.text,
+              plan: parsed.plan,
+            })
+          } else {
+            this.completedText = textContent(event.message.content)
+            await this.sink.assistantMessageCompleted?.(this.context, { ...items, content: event.message.content })
+          }
           this.assistantItems = null
+          this.parser = null
         }
         break
       case "tool_execution_start":

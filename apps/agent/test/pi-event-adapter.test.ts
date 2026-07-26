@@ -42,6 +42,35 @@ describe("PiEventAdapter", () => {
     expect(completed).toEqual(started)
   })
 
+  test("Plan 模式流式输出独立计划且不创建空文本项", async () => {
+    const seen: string[] = []
+    const completed: Array<{ text?: string; plan?: string | null; planItemID: string }> = []
+    const adapter = new PiEventAdapter(
+      { threadID: "thread", turnID: "turn", agentID: "agent" },
+      {
+        assistantMessageStarted: async () => { seen.push("text-start") },
+        textDelta: async (_context, input) => { seen.push(`text:${input.delta}`) },
+        planStarted: async () => { seen.push("plan-start") },
+        planDelta: async (_context, input) => { seen.push(`plan:${input.delta}`) },
+        assistantMessageCompleted: async (_context, input) => { completed.push(input) },
+      },
+      { parseProposedPlan: true },
+    )
+    const assistant = (text: string) => ({ role: "assistant", content: [{ type: "text", text }] })
+
+    await adapter.handle({ type: "message_start", message: assistant("") } as unknown as AgentHarnessEvent)
+    await adapter.handle({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "<proposed_" } } as AgentHarnessEvent)
+    await adapter.handle({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "plan>\n# 方案\n" } } as AgentHarnessEvent)
+    await adapter.handle({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "</proposed_plan>" } } as AgentHarnessEvent)
+    await adapter.handle({ type: "message_end", message: assistant("<proposed_plan>\n# 方案\n</proposed_plan>") } as unknown as AgentHarnessEvent)
+
+    expect(seen).toEqual(["plan-start", "plan:# 方案\n"])
+    expect(completed).toHaveLength(1)
+    expect(completed[0]).toMatchObject({ text: "", plan: "# 方案" })
+    expect(completed[0]!.planItemID).toEndWith(":plan")
+    expect(adapter.outputText([])).toBe("")
+  })
+
   test("routes transaction boundaries and queue counts", async () => {
     const seen: unknown[] = []
     const adapter = new PiEventAdapter({ threadID: "thread", turnID: "turn", agentID: "agent" }, {

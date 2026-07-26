@@ -10,6 +10,33 @@ const paths: string[] = []
 afterEach(async () => Promise.all(paths.splice(0).map((path) => rm(path, { recursive: true, force: true }))))
 
 describe("工作区工具", () => {
+  test("Plan 暴露面固定为只读并与 Chat update_plan 分离", () => {
+    const executor = new ToolExecutor(new ToolRegistry())
+    const plan = executor.exposurePlan({
+      taskMode: "plan",
+      sandboxMode: "danger-full-access",
+      profile: "main",
+    })
+    expect(plan.exposed).toContain("PowerShell")
+    expect(plan.exposed).toContain("request_user_input")
+    expect(plan.exposed).not.toContain("Write")
+    expect(plan.exposed).not.toContain("request_permissions")
+    expect(plan.exposed).not.toContain("update_plan")
+    expect(plan.exposed).not.toContain("finalize_plan")
+
+    const chat = executor.exposurePlan({
+      taskMode: "chat",
+      sandboxMode: "workspace-write",
+      profile: "main",
+    })
+    expect(chat.exposed).toContain("update_plan")
+    expect(executor.exposurePlan({
+      taskMode: "chat",
+      sandboxMode: "workspace-write",
+      profile: "worker",
+    }).exposed).not.toContain("update_plan")
+  })
+
   test("普通模式直接应用补丁，Plan 模式拒绝写入", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-workspace-"))
     paths.push(root)
