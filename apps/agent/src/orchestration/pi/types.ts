@@ -15,6 +15,7 @@ import type { ToolExecutor } from "../../tool/ToolExecutor"
 import type { ToolCatalog } from "../../tool/ToolRegistry"
 import type { WorkspaceService } from "../../workspace/WorkspaceService"
 import type { ExecutionPlanInput } from "../plan/ExecutionPlanInput"
+import type { RequestUserInput } from "../../session/QuestionInput"
 
 export type PiRunResult =
   | { status: "completed"; output: string; result?: SubagentResult }
@@ -85,6 +86,7 @@ export interface PiRuntimeEventSink {
   toolUpdated?(context: PiRuntimeEventContext, input: { toolCallID: string; tool: string; update: unknown }): void | Promise<void>
   toolFinished?(context: PiRuntimeEventContext, input: { toolCallID: string; tool: string; result: unknown; isError: boolean }): void | Promise<void>
   queueUpdated?(context: PiRuntimeEventContext, input: { steer: number; followUp: number; nextTurn: number }): void | Promise<void>
+  queueConsumed?(context: PiRuntimeEventContext, input: { delivery: "steer" | "follow-up" | "next-turn"; inputIDs: string[] }): void | Promise<void>
   compacted?(context: PiRuntimeEventContext, input: { entryID: string; summary: string; tokensBefore: number; beforeCount: number }): void | Promise<void>
   savePoint?(context: PiRuntimeEventContext, input: { hadPendingMutations: boolean }): void | Promise<void>
   settled?(context: PiRuntimeEventContext, input: { nextTurnCount: number }): void | Promise<void>
@@ -110,7 +112,7 @@ export interface PiLifecycleCallbacks {
     mediaType: string
     range: { offset: number; length: number; total: number }
   }>
-  requestUserInput?(input: { question: string; options?: string[] }, toolCallID: string, signal?: AbortSignal): Promise<unknown>
+  requestUserInput?(input: RequestUserInput & { question?: string; options?: string[] }, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   requestPermissions?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   updatePlan?(input: ExecutionPlanInput, toolCallID: string, signal?: AbortSignal): Promise<unknown>
   spawnAgents?(input: Record<string, unknown>, toolCallID: string, signal?: AbortSignal): Promise<unknown>
@@ -135,7 +137,7 @@ export interface ActivePiHarness {
 
 export interface PiAgentRuntimeApi {
   run(request: PiRuntimeRequest): Promise<PiRunResult>
-  steer(threadID: string, content: string, images?: ImageContent[]): Promise<void>
+  steer(threadID: string, content: string, images?: ImageContent[], inputID?: string): Promise<void>
   followUp(threadID: string, content: string, images?: ImageContent[]): Promise<void>
   abort(threadID: string): Promise<void>
   compact(threadID: string, instructions?: string): Promise<CompactResult>

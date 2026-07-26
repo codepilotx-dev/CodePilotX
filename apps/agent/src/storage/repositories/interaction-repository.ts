@@ -10,7 +10,7 @@ import type {
   Item,
   ModelRef,
   PermissionConfig,
-  SendStrategy,
+  StoredInputDelivery,
   SubmitMessage,
   TaskMode,
   ThreadSnapshot,
@@ -158,6 +158,12 @@ const containedPath = (root: string, candidate: string) => {
 }
 export type QueuePauseReason = "interrupted" | "turn_failed" | null
 export type QueueMutationMeta = { operationID: string; expectedVersion?: number }
+export type InteractionOperationInput = {
+  operationID: string
+  interactionID: string
+  response: Record<string, unknown>
+  result: Record<string, unknown>
+}
 
 export type StoredThreadWorkspace =
   | { kind: "project"; projectID: string; cwd: string; runtimeWorkspaceRoots: Array<{ folderId: string; path: string; role: "primary" | "secondary" }>; instructionSources: string[]; outputDirectory: null }
@@ -214,6 +220,30 @@ const defaultThreadSettings = (): ThreadSettings => ({
 import { ExecutionRepositoryDatabase } from "./execution-repository"
 
 export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryDatabase {
+  interactionOperation(operationID: string) {
+      const row = this.sqlite.query("SELECT interaction_id, response, result FROM interaction_operations WHERE operation_id = ?").get(operationID) as {
+        interaction_id: string
+        response: string
+        result: string
+      } | null
+      return row ? {
+        interactionID: row.interaction_id,
+        response: parse<Record<string, unknown>>(row.response),
+        result: parse<Record<string, unknown>>(row.result),
+      } : null
+    }
+
+  saveInteractionOperation(input: InteractionOperationInput) {
+      const existing = this.interactionOperation(input.operationID)
+      if (existing) return existing
+      this.sqlite.query(`
+        INSERT INTO interaction_operations (
+          operation_id, interaction_id, response, result, created_at
+        ) VALUES (?, ?, ?, ?, ?)
+      `).run(input.operationID, input.interactionID, stringify(input.response), stringify(input.result), now())
+      return this.interactionOperation(input.operationID)!
+    }
+
   persistApprovalCheckpoint(input: {
       approvalID: string
       invocation: ToolInvocation
@@ -272,12 +302,22 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
         this.updateTurnStatus(row.turn_id, "waiting_permission")
         this.updateAgentStatus(row.agent_id, "waiting_permission")
         events.push(this.insertEvent(payload.invocation.threadID, row.turn_id, "agent/upserted", { agent: this.getAgentExecution(row.agent_id) }))
-        events.push(this.insertEvent(payload.invocation.threadID, row.turn_id, "approval/requested", requestedParams))
+        events.push(this.insertEvent(
+          payload.invocation.threadID,
+          row.turn_id,
+          payload.invocation.name === "request_permissions" ? "permission/requested" : "approval/requested",
+          requestedParams,
+        ))
       })
       return { checkpoint: this.getApprovalCheckpoint(approvalID)!, events }
     }
 
-  resolveApprovalCheckpoint(approvalID: string, decision: "allow" | "deny", feedback?: string):
+  resolveApprovalCheckpoint(
+    approvalID: string,
+    decision: "allow" | "deny",
+    feedback?: string,
+    operation?: InteractionOperationInput,
+  ):
       | { state: "resolved"; checkpoint: StoredApprovalCheckpoint; events: EventEnvelope[] }
       | { state: "missing" | "not-ready" | "already-resolved"; threadID?: string; turnID?: string; agentID?: string }
       | { state: "invalid-checkpoint"; threadID: string; turnID: string; agentID: string; events: EventEnvelope[] } {
@@ -301,6 +341,7 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
         this.updateAgentStatus(request.agent_id, "queued")
         events.push(this.insertEvent(request.thread_id, request.turn_id, "agent/upserted", { agent: this.getAgentExecution(request.agent_id) }))
         events.push(this.insertEvent(request.thread_id, request.turn_id, "serverRequest/resolved", { id: approvalID, turnId: request.turn_id, kind: "approval", decision }))
+        if (operation) this.saveInteractionOperation(operation)
       })
       return { state: "resolved", checkpoint: this.getApprovalCheckpoint(approvalID)!, events }
     }
@@ -390,7 +431,7 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
       } : null
     }
 
-  resolveHookTrustRequest(id: string, decision: "allow" | "block") {
+  resolveHookTrustRequest(id: string, decision: "allow" | "block", operation?: InteractionOperationInput) {
       const pending = this.getHookTrustRequest(id)
       if (pending?.status === "pending") {
         const timestamp = now()
@@ -420,6 +461,7 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
           }
           return this.insertEvent(waiter.threadID, waiter.turnID, "hook/trust/resolved", { request: resolved, decision, resumed: true })
         }) : [this.insertEvent(resolved.threadID, resolved.turnID, "hook/trust/resolved", { request: resolved, decision, resumed: false })]
+        if (operation) this.saveInteractionOperation(operation)
         return { state: "resolved" as const, request: resolved, events, resumed }
       })
     }
@@ -480,13 +522,30 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
         const question = { id, threadID: input.threadID, turnID: input.turnID, toolCallID: input.toolCallID, payload: input.payload, payloadVersion: input.payloadVersion, createdAt } satisfies ResumableQuestion
         const events = [
           this.insertEvent(input.threadID, input.turnID, "agent/upserted", { agent: this.getAgentExecution(input.agentID) }),
-          this.insertEvent(input.threadID, input.turnID, "question/requested", { id, turnId: input.turnID, agentId: input.agentID, ...input.payload, createdAt }),
+          this.insertEvent(input.threadID, input.turnID, "question/requested", {
+            interactionId: id,
+            threadId: input.threadID,
+            turnId: input.turnID,
+            agentId: input.agentID,
+            createdAt,
+            version: input.payloadVersion,
+            kind: "question",
+            questions: input.payload.questions,
+            ...(typeof input.payload.autoResolutionMs === "number"
+              ? { autoResolutionMs: input.payload.autoResolutionMs }
+              : {}),
+          }),
         ]
         return { question, events }
       })
     }
 
-  resolveResumableQuestion(id: string, answer: unknown, ignored = false) {
+  resolveResumableQuestion(
+    id: string,
+    answer: unknown,
+    ignored = false,
+    operation?: InteractionOperationInput,
+  ) {
       const row = this.sqlite.query("SELECT thread_id, turn_id, status FROM question_requests WHERE id = ?").get(id) as { thread_id: string; turn_id: string; status: string } | null
       if (!row || row.status !== "pending") return null
       const timestamp = now()
@@ -507,6 +566,7 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
           this.insertEvent(row.thread_id, row.turn_id, "agent/upserted", { agent: this.getAgentExecution(checkpoint.agentID) }),
           this.insertEvent(row.thread_id, row.turn_id, "serverRequest/resolved", { id, turnId: row.turn_id, kind: "question", answer, ignored }),
         ]
+        if (operation) this.saveInteractionOperation(operation)
         return { threadID: row.thread_id, turnID: row.turn_id, events }
       })
     }

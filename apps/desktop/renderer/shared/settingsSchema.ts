@@ -8,7 +8,6 @@ import type { AgentPermissionPolicy } from '../src/shims/core/agent/permissions.
 import type {
   DesktopDrawerTab,
   DesktopDiffMarkerStyle,
-  DesktopFollowUpBehavior,
   DesktopPermissionMode,
   DesktopPersonality,
   ProjectAppearance,
@@ -66,11 +65,6 @@ export const DESKTOP_REVIEW_DELIVERIES = new Set([
   'inline',
   'detached',
 ] as const)
-
-export const DESKTOP_FOLLOW_UP_BEHAVIORS = new Set<DesktopFollowUpBehavior>([
-  'steer',
-  'queue',
-])
 
 export const DESKTOP_SIDEBAR_ORGANIZATIONS = new Set<DesktopSidebarOrganization>([
   'projects',
@@ -170,7 +164,6 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     deepModel: '',
     sessionName: '',
     thinkingMode: 'default',
-    followUpBehavior: 'steer',
     systemPrompt: '',
     appendSystemPrompt: '',
     additionalDirectories: '',
@@ -314,11 +307,6 @@ export function normalizeDesktopStoredSettings(
     thinkingMode: isDesktopThinkingMode(parsed.thinkingMode)
       ? parsed.thinkingMode
       : defaults.thinkingMode,
-    followUpBehavior: DESKTOP_FOLLOW_UP_BEHAVIORS.has(
-      parsed.followUpBehavior as DesktopFollowUpBehavior,
-    )
-      ? (parsed.followUpBehavior as DesktopFollowUpBehavior)
-      : defaults.followUpBehavior,
     systemPrompt: stringOrDefault(parsed.systemPrompt, defaults.systemPrompt),
     appendSystemPrompt: stringOrDefault(
       parsed.appendSystemPrompt,

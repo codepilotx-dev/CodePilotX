@@ -41,31 +41,31 @@ describe("manifest-driven event decoding", () => {
     })).toThrow()
   })
 
-  test("兼容 queue/updated 的局部 outbox payload", () => {
+  test("queue/updated 明确声明队列动作", () => {
     const event = {
       eventId: "event-queue-1",
       streamId: "thread-1",
       type: "queue/updated",
-      version: 1,
+      version: 2,
       occurredAt: 1,
       durability: "durable",
       sequence: 3,
-      payload: { threadId: "thread-1", pauseReason: "interrupted" },
+      payload: { threadId: "thread-1", action: "paused", pauseReason: "interrupted" },
     } as const
     expect(decodeEventEnvelope(event)).toEqual(event)
   })
 
-  test("兼容历史 guide mailbox 事件未重复携带 threadId", () => {
+  test("queue/updated 拒绝没有线程和动作的模糊 payload", () => {
     const event = {
       eventId: "event-queue-guide-1",
       streamId: "thread-1",
       type: "queue/updated",
-      version: 1,
+      version: 2,
       occurredAt: 1,
       durability: "durable",
       sequence: 4,
       payload: {},
     } as const
-    expect(decodeEventEnvelope(event)).toEqual(event)
+    expect(() => decodeEventEnvelope(event)).toThrow()
   })
 })

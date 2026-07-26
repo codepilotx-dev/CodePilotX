@@ -91,7 +91,7 @@ function sessionSnapshot(overrides: Partial<ThreadSnapshot['thread']> = {}): Thr
         threadId: 'session-1',
         turnId: null,
         content: '第一条消息',
-        strategy: 'queue',
+        delivery: 'start',
         mode: 'chat',
         model: { providerID: 'openai', id: 'gpt-5' },
         permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },

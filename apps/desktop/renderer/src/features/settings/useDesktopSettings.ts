@@ -16,7 +16,6 @@ import {
 import type { DrawerTab } from '../../uiTypes.js'
 import type {
   DesktopDiffMarkerStyle,
-  DesktopFollowUpBehavior,
   DesktopPermissionMode,
   DesktopPersonality,
   DesktopReviewView,
@@ -62,7 +61,6 @@ export type UseDesktopSettingsResult = {
   deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
-  followUpBehavior: DesktopFollowUpBehavior
   systemPrompt: string
   appendSystemPrompt: string
   additionalDirectories: string
@@ -120,7 +118,6 @@ export type UseDesktopSettingsResult = {
   setDeepModel: (value: string) => void
   setSessionName: (value: string) => void
   setThinkingMode: (value: DesktopThinkingMode) => void
-  setFollowUpBehavior: (value: DesktopFollowUpBehavior) => void
   setSystemPrompt: (value: string) => void
   setAppendSystemPrompt: (value: string) => void
   setAdditionalDirectories: (value: string) => void
@@ -340,9 +337,6 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
   const [thinkingMode, setThinkingMode] = useState<DesktopThinkingMode>(
     initial.thinkingMode,
   )
-  const [followUpBehavior, setFollowUpBehavior] = useState<DesktopFollowUpBehavior>(
-    initial.followUpBehavior,
-  )
   const [systemPrompt, setSystemPrompt] = useState(initial.systemPrompt)
   const [appendSystemPrompt, setAppendSystemPrompt] = useState(
     initial.appendSystemPrompt,
@@ -528,7 +522,6 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
         setDeepModel(settings.deepModel)
         setSessionName(settings.sessionName)
         setThinkingMode(settings.thinkingMode)
-        setFollowUpBehavior(settings.followUpBehavior)
         setSystemPrompt(settings.systemPrompt)
         setAppendSystemPrompt(settings.appendSystemPrompt)
         setAdditionalDirectories(settings.additionalDirectories)
@@ -606,7 +599,6 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       deepModel,
       sessionName,
       thinkingMode,
-      followUpBehavior,
       systemPrompt,
       appendSystemPrompt,
       additionalDirectories,
@@ -671,7 +663,6 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       deepModel,
       sessionName,
       thinkingMode,
-      followUpBehavior,
       systemPrompt,
       appendSystemPrompt,
       additionalDirectories,
@@ -789,7 +780,6 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
       setDeepModel(snapshot.deepModel)
       setSessionName(snapshot.sessionName)
       setThinkingMode(snapshot.thinkingMode)
-      setFollowUpBehavior(snapshot.followUpBehavior)
       setSystemPrompt(snapshot.systemPrompt)
       setAppendSystemPrompt(snapshot.appendSystemPrompt)
       setAdditionalDirectories(snapshot.additionalDirectories)
@@ -951,7 +941,6 @@ export function useDesktopSettings(): UseDesktopSettingsResult {
     deepModel,
     sessionName,
     thinkingMode,
-    followUpBehavior,
     systemPrompt,
     appendSystemPrompt,
     additionalDirectories,
@@ -1009,7 +998,6 @@ defaultOpenTargetId,
     setDeepModel,
     setSessionName,
     setThinkingMode,
-    setFollowUpBehavior,
     setSystemPrompt,
     setAppendSystemPrompt,
     setAdditionalDirectories,

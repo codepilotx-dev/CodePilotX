@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { loadCachedRuntimeSkills } from '../src/features/session/composer/DesktopComposer.js'
 import {
   getActiveComposerMention,
+  resolveComposerSubmitIntent,
   shouldSubmitComposerKey,
 } from '../src/features/session/composer/ComposerCard.js'
 import {
@@ -237,6 +238,21 @@ describe('composer suggestions', () => {
     expect(
       shouldSubmitComposerKey({ ...event, isComposing: true }, 'enter', '输入中'),
     ).toBe(false)
+    expect(resolveComposerSubmitIntent(event, 'enter', '单行')).toBe('default')
+    expect(
+      resolveComposerSubmitIntent(
+        { ...event, ctrlKey: true },
+        'enter',
+        '下一轮',
+      ),
+    ).toBe('follow-up')
+    expect(
+      resolveComposerSubmitIntent(
+        { ...event, isComposing: true },
+        'enter',
+        '输入中',
+      ),
+    ).toBeNull()
   })
 })
 

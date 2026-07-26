@@ -36,6 +36,9 @@ const inputState = (status: string): Input["state"] => {
   return "active"
 }
 
+const inputDelivery = (strategy: string | number | null | undefined): Input["delivery"] =>
+  strategy === "guide" ? "steer" : strategy === "queue" ? "follow-up" : "start"
+
 const asText = (value: unknown) => typeof value === "string" ? value : value == null ? null : JSON.stringify(value, null, 2)
 const activityCommandStatus = (value: unknown): "success" | "running" | "error" | "interrupted" | undefined => value === "success" || value === "running" || value === "error" || value === "interrupted" ? value : undefined
 const activityCommands = (value: unknown): Extract<Item, { type: "activity" }>["commands"] => {
@@ -119,7 +122,7 @@ export class ThreadProjection {
       threadId: String(row.thread_id),
       turnId: row.turn_id == null ? null : String(row.turn_id),
       content: String(row.content),
-      strategy: String(row.strategy) as Input["strategy"],
+      delivery: inputDelivery(row.strategy),
       mode: String(row.task_mode) as Input["mode"],
       model: parse(String(row.model_ref)),
       permissionConfig: {
@@ -225,7 +228,7 @@ export class ThreadProjection {
       threadId: String(row.thread_id),
       turnId: row.turn_id ? String(row.turn_id) : null,
       content: String(row.content),
-      strategy: String(row.strategy) as Input["strategy"],
+      delivery: inputDelivery(row.strategy),
       mode: String(row.task_mode) as Input["mode"],
       model: parse(String(row.model_ref)),
       permissionConfig: {
@@ -388,7 +391,7 @@ export class ThreadProjection {
       threadId: String(row.thread_id),
       turnId: row.turn_id == null ? null : String(row.turn_id),
       content: String(row.content),
-      strategy: String(row.strategy) as Input["strategy"],
+      delivery: inputDelivery(row.strategy),
       mode: String(row.task_mode) as Input["mode"],
       model: parse(String(row.model_ref)),
       permissionConfig: {

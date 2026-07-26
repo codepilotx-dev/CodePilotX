@@ -191,6 +191,7 @@ export class AgentHarness<
 	private followUpQueue: UserMessage[] = [];
 	private followUpQueueMode: QueueMode;
 	private nextTurnQueue: AgentMessage[] = [];
+	private readonly queuedInputIds = new WeakMap<AgentMessage, string>();
 	private handlers = new Map<string, Set<AgentHarnessHandler>>();
 
 	constructor(options: AgentHarnessOptions<TSkill, TPromptTemplate, TTool>) {
@@ -423,11 +424,20 @@ export class AgentHarness<
 		};
 	}
 
-	private async drainQueuedMessages(queue: AgentMessage[], mode: QueueMode): Promise<AgentMessage[]> {
+	private async drainQueuedMessages(
+		queue: AgentMessage[],
+		mode: QueueMode,
+		delivery: "steer" | "follow-up" | "next-turn",
+	): Promise<AgentMessage[]> {
 		const messages = mode === "all" ? queue.splice(0) : queue.splice(0, 1);
 		if (messages.length === 0) return messages;
 		try {
 			await this.emitQueueUpdate();
+			const inputIds = messages.flatMap((message) => {
+				const inputId = this.queuedInputIds.get(message);
+				return inputId ? [inputId] : [];
+			});
+			if (inputIds.length > 0) await this.emitOwn({ type: "queue_consumed", delivery, inputIds });
 			return messages;
 		} catch (error) {
 			queue.unshift(...messages);
@@ -493,8 +503,8 @@ export class AgentHarness<
 					thinkingLevel: nextTurnState.thinkingLevel,
 				};
 			},
-			getSteeringMessages: async () => this.drainQueuedMessages(this.steerQueue, this.steeringQueueMode),
-			getFollowUpMessages: async () => this.drainQueuedMessages(this.followUpQueue, this.followUpQueueMode),
+			getSteeringMessages: async () => this.drainQueuedMessages(this.steerQueue, this.steeringQueueMode, "steer"),
+			getFollowUpMessages: async () => this.drainQueuedMessages(this.followUpQueue, this.followUpQueueMode, "follow-up"),
 		};
 	}
 
@@ -732,20 +742,26 @@ export class AgentHarness<
 		}
 	}
 
-	async steer(text: string, options?: { images?: ImageContent[] }): Promise<void> {
+	async steer(text: string, options?: { images?: ImageContent[]; inputId?: string }): Promise<void> {
 		if (this.phase === "idle") throw new AgentHarnessError("invalid_state", "Cannot steer while idle");
-		this.steerQueue.push(createUserMessage(text, options?.images));
+		const message = createUserMessage(text, options?.images);
+		if (options?.inputId) this.queuedInputIds.set(message, options.inputId);
+		this.steerQueue.push(message);
 		await this.emitQueueUpdate();
 	}
 
-	async followUp(text: string, options?: { images?: ImageContent[] }): Promise<void> {
+	async followUp(text: string, options?: { images?: ImageContent[]; inputId?: string }): Promise<void> {
 		if (this.phase === "idle") throw new AgentHarnessError("invalid_state", "Cannot follow up while idle");
-		this.followUpQueue.push(createUserMessage(text, options?.images));
+		const message = createUserMessage(text, options?.images);
+		if (options?.inputId) this.queuedInputIds.set(message, options.inputId);
+		this.followUpQueue.push(message);
 		await this.emitQueueUpdate();
 	}
 
-	async nextTurn(text: string, options?: { images?: ImageContent[] }): Promise<void> {
-		this.nextTurnQueue.push(createUserMessage(text, options?.images));
+	async nextTurn(text: string, options?: { images?: ImageContent[]; inputId?: string }): Promise<void> {
+		const message = createUserMessage(text, options?.images);
+		if (options?.inputId) this.queuedInputIds.set(message, options.inputId);
+		this.nextTurnQueue.push(message);
 		await this.emitQueueUpdate();
 	}
 

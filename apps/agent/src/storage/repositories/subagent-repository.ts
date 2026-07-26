@@ -10,7 +10,7 @@ import type {
   Item,
   ModelRef,
   PermissionConfig,
-  SendStrategy,
+  StoredInputDelivery,
   SubmitMessage,
   TaskMode,
   ThreadSnapshot,

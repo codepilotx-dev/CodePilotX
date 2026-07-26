@@ -143,8 +143,11 @@ export class PiAgentRuntime implements PiAgentRuntimeApi {
     return active.harness
   }
 
-  steer(threadID: string, content: string, images?: ImageContent[]) {
-    return this.active(threadID).steer(content, images ? { images } : undefined)
+  steer(threadID: string, content: string, images?: ImageContent[], inputID?: string) {
+    return this.active(threadID).steer(content, {
+      ...(images ? { images } : {}),
+      ...(inputID ? { inputId: inputID } : {}),
+    })
   }
 
   followUp(threadID: string, content: string, images?: ImageContent[]) {

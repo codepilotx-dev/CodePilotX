@@ -2,20 +2,24 @@ import {
   PermissionConfigSchema,
   ThreadSettingsPatchSchema,
   ThreadSettingsSchema,
-  TurnStartParamsSchema,
-  QueueUpdateParamsSchema,
-  QueueInputParamsSchema,
-  QueueReorderParamsSchema,
-  QueueResumeParamsSchema,
   type PermissionConfig,
 } from "@codepilotx/shared/thread"
-import { SandboxUninstallParamsSchema } from "@codepilotx/agent-protocol"
+import {
+  QueueAddParamsSchema,
+  QueueInputParamsSchema,
+  QueueResumeParamsSchema,
+  QueueUpdateParamsSchema,
+  SandboxUninstallParamsSchema,
+  TurnInterruptParamsSchema,
+  TurnStartParamsSchema,
+  TurnSteerParamsSchema,
+} from "@codepilotx/agent-protocol"
 import { Effect, Schema } from "effect"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { createHash } from "node:crypto"
 import type { ProviderConfig } from "@codepilotx/provider-runtime"
 import type { AgentModelCatalog } from "../../provider/AgentModelCatalog"
-import { AgentError, type SendStrategy, type SubmitMessage, type TaskMode } from "../../domain"
+import { AgentError, type SubmitMessage, type TaskMode } from "../../domain"
 import type { ApprovalService } from "../../permission/ApprovalService"
 import type { QuestionService } from "../../session/QuestionService"
 import type { IntegrationService } from "../../provider/IntegrationService"
@@ -133,9 +137,11 @@ export const enumValue = <T extends string>(value: unknown, allowed: readonly T[
 }
 
 export const decodeTurnStart = Schema.decodeUnknownSync(TurnStartParamsSchema)
+export const decodeTurnSteer = Schema.decodeUnknownSync(TurnSteerParamsSchema)
+export const decodeTurnInterrupt = Schema.decodeUnknownSync(TurnInterruptParamsSchema)
+export const decodeQueueAdd = Schema.decodeUnknownSync(QueueAddParamsSchema)
 export const decodeQueueUpdate = Schema.decodeUnknownSync(QueueUpdateParamsSchema)
 export const decodeQueueInput = Schema.decodeUnknownSync(QueueInputParamsSchema)
-export const decodeQueueReorder = Schema.decodeUnknownSync(QueueReorderParamsSchema)
 export const decodeQueueResume = Schema.decodeUnknownSync(QueueResumeParamsSchema)
 export const decodeThreadSettings = Schema.decodeUnknownSync(ThreadSettingsSchema)
 export const decodeThreadSettingsPatch = Schema.decodeUnknownSync(ThreadSettingsPatchSchema)
@@ -212,7 +218,7 @@ export const submitMessage = (raw: unknown): SubmitMessage => {
     content: body.content,
     model: body.model,
     permissionConfig: supportedPermissionConfig(body.permissionConfig),
-    strategy: enumValue<SendStrategy>(body.strategy ?? "queue", ["queue", "guide"], "strategy"),
+    strategy: "start",
     taskMode: enumValue<TaskMode>(body.taskMode, ["chat", "plan"], "taskMode"),
   }
 }
@@ -282,7 +288,7 @@ export class RpcRouter {
       : null
     const interactions: Array<Record<string, unknown>> = []
 
-    if (!requestedKinds || requestedKinds.has("approval")) {
+    if (!requestedKinds || requestedKinds.has("approval") || requestedKinds.has("permission")) {
       const rows = db.sqlite.query(`
         SELECT id FROM approval_requests
         WHERE status = 'pending' AND (? IS NULL OR thread_id = ?)
@@ -292,28 +298,52 @@ export class RpcRouter {
         const checkpoint = db.getApprovalCheckpoint(row.id)
         if (!checkpoint) continue
         const invocation = checkpoint.payload.invocation
-        const additional = record(invocation.input.additionalPermissions ?? {}, "requestedPermissions")
-        interactions.push({
+        const isPermission = invocation.name === "request_permissions"
+        if (requestedKinds && !requestedKinds.has(isPermission ? "permission" : "approval")) continue
+        const permissionSource = isPermission
+          ? invocation.input
+          : record(invocation.input.additionalPermissions ?? {}, "requestedPermissions")
+        const requestedPermissions = {
+          ...(Array.isArray(permissionSource.readPaths) ? { readPaths: permissionSource.readPaths } : {}),
+          ...(Array.isArray(permissionSource.writePaths) ? { writePaths: permissionSource.writePaths } : {}),
+          ...(Array.isArray(permissionSource.networkDomains) ? { networkDomains: permissionSource.networkDomains } : {}),
+        }
+        const metadata = {
           interactionId: checkpoint.approvalID,
           threadId: checkpoint.threadID,
           turnId: checkpoint.turnID,
           agentId: checkpoint.agentID,
           createdAt: checkpoint.createdAt,
           version: checkpoint.version,
-          kind: "approval",
           toolCallId: checkpoint.toolCallID,
           tool: invocation.name,
-          risk: ["low", "medium", "high", "critical"].includes(checkpoint.risk) ? checkpoint.risk : "high",
-          reason: checkpoint.reason || "需要批准工具调用",
-          ...(typeof invocation.input.command === "string" ? { command: invocation.input.command } : {}),
-          ...(typeof invocation.input.cwd === "string" ? { cwd: invocation.input.cwd } : {}),
-          requestedPermissions: {
-            ...(Array.isArray(additional.readPaths) ? { readPaths: additional.readPaths } : {}),
-            ...(Array.isArray(additional.writePaths) ? { writePaths: additional.writePaths } : {}),
-            ...(Array.isArray(additional.networkDomains) ? { networkDomains: additional.networkDomains } : {}),
-          },
-          allowedChoices: ["allow-once", "deny", "stop"],
-        })
+          reason: typeof invocation.input.justification === "string"
+            ? invocation.input.justification
+            : checkpoint.reason || "需要批准工具调用",
+          requestedPermissions,
+        }
+        if (isPermission) {
+          const requestedScope = enumValue(invocation.input.scope, ["tool-call", "turn", "session"] as const, "permission.scope")
+          interactions.push({
+            ...metadata,
+            kind: "permission",
+            requestedScope,
+            allowedScopes: requestedScope === "session"
+              ? ["tool-call", "turn", "session"]
+              : requestedScope === "turn"
+                ? ["tool-call", "turn"]
+                : ["tool-call"],
+          })
+        } else {
+          interactions.push({
+            ...metadata,
+            kind: "approval",
+            risk: ["low", "medium", "high", "critical"].includes(checkpoint.risk) ? checkpoint.risk : "high",
+            ...(typeof invocation.input.command === "string" ? { command: invocation.input.command } : {}),
+            ...(typeof invocation.input.cwd === "string" ? { cwd: invocation.input.cwd } : {}),
+            allowedChoices: ["allow-once", "deny", "stop"],
+          })
+        }
       }
     }
 
@@ -329,12 +359,41 @@ export class RpcRouter {
       }>
       for (const row of rows) {
         const payload = parseJsonRecord(row.payload)
-        const prompt = typeof payload.question === "string" && payload.question.trim()
-          ? payload.question
-          : "需要你的确认"
-        const options = Array.isArray(payload.options)
-          ? payload.options.filter((option): option is string => typeof option === "string")
+        const questions = Array.isArray(payload.questions)
+          ? payload.questions.flatMap((entry) => {
+              const question = record(entry, "question")
+              if (
+                typeof question.id !== "string"
+                || typeof question.header !== "string"
+                || typeof question.prompt !== "string"
+                || !Array.isArray(question.choices)
+              ) return []
+              const choices = question.choices.flatMap((entry) => {
+                const choice = record(entry, "choice")
+                return typeof choice.id === "string"
+                  && typeof choice.label === "string"
+                  && typeof choice.description === "string"
+                  ? [{
+                      id: choice.id,
+                      label: choice.label,
+                      description: choice.description,
+                      recommended: choice.recommended === true,
+                    }]
+                  : []
+              })
+              return choices.length >= 2 && choices.length <= 3
+                ? [{
+                    id: question.id,
+                    header: question.header,
+                    prompt: question.prompt,
+                    choices,
+                    allowFreeform: true,
+                    required: true,
+                  }]
+                : []
+            })
           : []
+        if (questions.length === 0) continue
         interactions.push({
           interactionId: row.id,
           threadId: row.thread_id,
@@ -343,17 +402,8 @@ export class RpcRouter {
           createdAt: row.created_at,
           version: row.payload_version,
           kind: "question",
-          questions: [{
-            id: row.id,
-            prompt,
-            choices: options.map((label, index) => ({
-              id: `${row.id}:${index}`,
-              label,
-              recommended: index === 0,
-            })),
-            allowFreeform: true,
-            required: true,
-          }],
+          questions,
+          ...(typeof payload.autoResolutionMs === "number" ? { autoResolutionMs: payload.autoResolutionMs } : {}),
         })
       }
     }
@@ -418,8 +468,24 @@ export class RpcRouter {
       }
       return duplicate.result
     }
-    const kind = enumValue(response.kind, ["approval", "question", "hookTrust"] as const, "response.kind")
+    const kind = enumValue(response.kind, ["approval", "permission", "question", "hookTrust"] as const, "response.kind")
     const resolvedAt = Date.now()
+    const resumeActions: Array<() => void | Promise<void>> = []
+    const result = {
+      interactionId,
+      kind,
+      state: "resolved",
+      version: Number(expectedVersion) + 1,
+      resolvedAt,
+      response,
+    }
+    const operation = {
+      operationID: operationId,
+      interactionID: interactionId,
+      response,
+      result,
+    }
+    let operationPersistedWithResolution = false
 
     if (kind === "approval") {
       const checkpoint = db.getApprovalCheckpoint(interactionId)
@@ -433,7 +499,7 @@ export class RpcRouter {
           if (!task) throw new AgentError("SUBAGENT_NOT_FOUND", "子 Agent 不存在", 404)
           await subagents.stop(task.task_id, operationId)
         } else {
-          await threads.stop(checkpoint.threadID)
+          await threads.stop(checkpoint.threadID, checkpoint.turnID)
         }
       } else {
         const rawFeedback = response.feedback
@@ -445,45 +511,109 @@ export class RpcRouter {
         }
         const trimmedFeedback = rawFeedback?.trim().slice(0, 4_000)
         const feedback = trimmedFeedback ? secretScrubber.scrubText(trimmedFeedback) : undefined
-        const resolved = await approvals.respond(interactionId, decision === "allow-once" ? "allow" : "deny", feedback)
+        const resolved = await approvals.respond(
+          interactionId,
+          decision === "allow-once" ? "allow" : "deny",
+          feedback,
+          operation,
+        )
+        operationPersistedWithResolution = true
         const execution = db.getAgentExecution(resolved.agentID)
-        if (execution?.subagentRunID) await subagents.resumeTurn(resolved.threadID, resolved.turnID)
-        else threads.resumeTurn(resolved.threadID, resolved.turnID)
+        resumeActions.push(() => execution?.subagentRunID
+          ? subagents.resumeTurn(resolved.threadID, resolved.turnID)
+          : threads.resumeTurn(resolved.threadID, resolved.turnID))
+      }
+    } else if (kind === "permission") {
+      const checkpoint = db.getApprovalCheckpoint(interactionId)
+      if (
+        !checkpoint
+        || checkpoint.status !== "pending"
+        || checkpoint.payload.invocation.name !== "request_permissions"
+      ) throw new AgentError("REQUEST_NOT_PENDING", "权限请求不存在或已处理", 409)
+      if (checkpoint.version !== expectedVersion) throw new AgentError("CONFLICT", "权限请求版本已经变化", 409)
+      const decision = enumValue(response.decision, ["grant", "deny", "stop"] as const, "response.decision")
+      if (decision === "stop") {
+        const execution = db.getAgentExecution(checkpoint.agentID)
+        if (execution?.subagentRunID) {
+          const task = db.sqlite.query("SELECT task_id FROM subagent_runs WHERE id = ?").get(execution.subagentRunID) as { task_id: string } | null
+          if (!task) throw new AgentError("SUBAGENT_NOT_FOUND", "子 Agent 不存在", 404)
+          await subagents.stop(task.task_id, operationId)
+        } else {
+          await threads.stop(checkpoint.threadID, checkpoint.turnID)
+        }
+      } else {
+        let resolved
+        if (decision === "grant") {
+          const requestedScope = enumValue(
+            checkpoint.payload.invocation.input.scope,
+            ["tool-call", "turn", "session"] as const,
+            "permission.requestedScope",
+          )
+          const scope = enumValue(response.scope, ["tool-call", "turn", "session"] as const, "response.scope")
+          const scopeRank = { "tool-call": 0, turn: 1, session: 2 } as const
+          if (scopeRank[scope] > scopeRank[requestedScope]) {
+            throw new AgentError("INVALID_REQUEST", "授予范围不能高于工具请求范围", 400)
+          }
+          resolved = await approvals.respondPermission(
+            interactionId,
+            "allow",
+            {
+              scope,
+              grantedPermissions: record(response.grantedPermissions, "response.grantedPermissions"),
+            },
+            operation,
+          )
+        } else {
+          resolved = await approvals.respondPermission(interactionId, "deny", undefined, operation)
+        }
+        operationPersistedWithResolution = true
+        const execution = db.getAgentExecution(resolved.agentID)
+        resumeActions.push(() => execution?.subagentRunID
+          ? subagents.resumeTurn(resolved.threadID, resolved.turnID)
+          : threads.resumeTurn(resolved.threadID, resolved.turnID))
       }
     } else if (kind === "question") {
       const row = db.sqlite.query("SELECT payload_version, status FROM question_requests WHERE id = ?").get(interactionId) as { payload_version: number; status: string } | null
       if (!row || row.status !== "pending") throw new AgentError("REQUEST_NOT_PENDING", "问题不存在或已经回答", 409)
       if (row.payload_version !== expectedVersion) throw new AgentError("CONFLICT", "问题版本已经变化", 409)
       const status = enumValue(response.status, ["answered", "ignored"] as const, "response.status")
-      await questions.reply(interactionId, status === "ignored" ? null : response.answers, status === "ignored")
+      const resolved = await questions.reply(
+        interactionId,
+        status === "ignored" ? null : response.answers,
+        status === "ignored",
+        status === "answered"
+          ? enumValue(response.resolution, ["user", "auto"] as const, "response.resolution")
+          : "user",
+        false,
+        operation,
+      )
+      operationPersistedWithResolution = true
+      const execution = db.agentForTurn(resolved.turnID)
+      resumeActions.push(() => execution?.subagentRunID
+        ? subagents.resumeTurn(resolved.threadID, resolved.turnID)
+        : threads.resumeTurn(resolved.threadID, resolved.turnID))
     } else {
       const request = db.getHookTrustRequest(interactionId)
       if (!request || request.status !== "pending") throw new AgentError("REQUEST_NOT_PENDING", "Hook 信任请求不存在或已经处理", 409)
       if (expectedVersion !== 1) throw new AgentError("CONFLICT", "Hook 信任请求版本已经变化", 409)
       const decision = enumValue(response.decision, ["allow", "block"] as const, "response.decision")
-      const result = db.resolveHookTrustRequest(interactionId, decision)
-      for (const event of result.events) await Effect.runPromise(this.dependencies.hub.publish(event))
-      for (const resumed of result.resumed) {
+      const resolved = db.resolveHookTrustRequest(interactionId, decision, operation)
+      operationPersistedWithResolution = true
+      for (const event of resolved.events) await Effect.runPromise(this.dependencies.hub.publish(event))
+      for (const resumed of resolved.resumed) {
         const execution = db.getAgentExecution(resumed.agentID)
-        if (execution?.subagentRunID) await subagents.resumeTurn(resumed.threadID, resumed.turnID)
-        else threads.resumeHookTrust(resumed.threadID, resumed.turnID)
+        resumeActions.push(() => execution?.subagentRunID
+          ? subagents.resumeTurn(resumed.threadID, resumed.turnID)
+          : threads.resumeHookTrust(resumed.threadID, resumed.turnID))
       }
     }
 
-    const result = {
-      interactionId,
-      kind,
-      state: "resolved",
-      version: Number(expectedVersion) + 1,
-      resolvedAt,
-      response,
-    }
-    return db.saveInteractionOperation({
-      operationID: operationId,
-      interactionID: interactionId,
-      response,
-      result,
-    }).result
+    const storedOperation = operationPersistedWithResolution
+      ? db.interactionOperation(operationId)
+      : null
+    const stored = (storedOperation ?? db.saveInteractionOperation(operation)).result
+    for (const resume of resumeActions) await resume()
+    return stored
   }
 
   private applicationError(method: RpcMethod, cause: unknown) {

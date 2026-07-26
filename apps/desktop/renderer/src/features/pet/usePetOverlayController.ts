@@ -198,7 +198,7 @@ export function usePetOverlayController(): {
         await desktopClient.submitSessionFollowUp(
           target.threadId,
           { text },
-          draft.values.followUpBehavior,
+          'steer',
         )
         return
       }

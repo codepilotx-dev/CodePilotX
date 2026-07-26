@@ -4,6 +4,7 @@ import {
   ExecutionPlanItemSchema,
   InputSchema,
   ItemSchema,
+  QueueActionSchema,
   SubagentProjectionSchema,
   ThreadSchema,
   ThreadSettingsSchema,
@@ -16,6 +17,7 @@ import { defineEvent, type EventPayloadOf } from "./definition"
 import {
   ApprovalRequestParamsSchema,
   HookTrustRequestParamsSchema,
+  PermissionRequestParamsSchema,
   ServerRequestResultSchema,
   QuestionRequestParamsSchema,
 } from "./interactions"
@@ -356,6 +358,13 @@ export const EventManifest = {
     stream: "thread",
     capability: "events.replay.v1",
   }),
+  "permission/requested": defineEvent({
+    payload: PermissionRequestParamsSchema,
+    version: 1,
+    durability: "durable",
+    stream: "thread",
+    capability: "events.replay.v1",
+  }),
   "question/requested": defineEvent({
     payload: QuestionRequestParamsSchema,
     version: 1,
@@ -426,13 +435,16 @@ export const EventManifest = {
   }),
   "queue/updated": defineEvent({
     payload: Schema.Struct({
-      threadId: Schema.optional(OpaqueIDSchema),
+      threadId: OpaqueIDSchema,
+      action: QueueActionSchema,
+      inputId: Schema.optional(OpaqueIDSchema),
+      turnId: Schema.optional(OpaqueIDSchema),
       turns: Schema.optional(Schema.Array(TurnSchema)),
       inputs: Schema.optional(Schema.Array(InputSchema)),
       version: Schema.optional(VersionSchema),
       pauseReason: Schema.optional(Schema.NullOr(Schema.Literals(["interrupted", "turn_failed"]))),
     }),
-    version: 1,
+    version: 2,
     durability: "durable",
     stream: "thread",
     capability: "events.replay.v1",

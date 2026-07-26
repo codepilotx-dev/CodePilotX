@@ -32,12 +32,10 @@ import type {
 } from '@codepilotx/shared'
 import type {
   PermissionConfig,
-  QueueStateResult,
   SubagentProjection,
   ThreadListItem,
   ThreadSettings,
   ThreadSettingsPatch,
-  ThreadSnapshot,
 } from '@codepilotx/shared/thread'
 import type {
   EventEnvelope,
@@ -56,7 +54,7 @@ import type {
   CreateDesktopSessionResult,
   DesktopApi,
   DesktopBrowserState,
-  DesktopFollowUpBehavior,
+  DesktopMessageDelivery,
   DesktopFileEntry,
   DesktopFilePreview,
   DesktopFileRevision,
@@ -111,6 +109,7 @@ import {
   createAgentRpcClient,
   type AgentRpcSubscription,
 } from '../agentRpcClient.js'
+import { createAgentTurnQueueClient } from './agent-turn-queue-client.js'
 
 export const WORKSPACE_FILE_CHANGED_EVENT =
   'codepilotx-workspace-file-changed'
@@ -957,77 +956,6 @@ export function createAgentSessionDesktopClient(
     })
   }
 
-  async function submitAgentMessage(
-    sessionId: string,
-    input: DesktopUserMessageInput,
-    strategy: 'queue' | 'guide',
-    model?: string | DesktopModelSelection,
-  ): Promise<unknown> {
-    await awaitPendingSettingsUpdate(sessionId)
-    const attachmentIds = await importAgentAttachments(input)
-    const content = desktopUserMessageInputToPreviewText(input)
-    const inputId = crypto.randomUUID()
-    let response: unknown
-    if (strategy === 'guide') {
-      const { snapshot: current } = await rpc.call('thread/read', {
-        threadId: sessionId,
-      })
-      const activeTurn = [...current.turns].reverse().find(turn =>
-        turn.status === 'running' || turn.status.startsWith('waiting-'),
-      )
-      response = activeTurn
-        ? await rpc.call('turn/steer', {
-            threadId: sessionId,
-            turnId: activeTurn.id,
-            inputId,
-            content,
-            ...(attachmentIds.length ? { attachmentIds } : {}),
-          })
-        : await rpc.call('turn/start', {
-            threadId: sessionId,
-            inputId,
-            content,
-            model: await resolveAgentModelRef(model, sessionId),
-            permissionConfig: permissionConfigForSession(sessionId),
-            taskMode: taskModeForSession(sessionId),
-            ...(attachmentIds.length ? { attachmentIds } : {}),
-          })
-    } else {
-      response = await rpc.call('turn/start', {
-        threadId: sessionId,
-        inputId,
-        content,
-        model: await resolveAgentModelRef(model, sessionId),
-        permissionConfig: permissionConfigForSession(sessionId),
-        taskMode: taskModeForSession(sessionId),
-        ...(attachmentIds.length ? { attachmentIds } : {}),
-      })
-    }
-    await loadAgentSessionSnapshot(sessionId).catch(() => null)
-    emitSessionStoreChange()
-    return response
-  }
-
-  async function callQueueMutation(
-    sessionId: string,
-    method: 'queue/update' | 'queue/remove' | 'queue/reorder' | 'queue/steer' | 'queue/resume',
-    params: Record<string, unknown>,
-  ): Promise<QueueStateResult> {
-    const expectedVersion = sessionSnapshots.get(sessionId)?.queueVersion
-    try {
-      return await rpc.call<QueueStateResult>(method, {
-        threadId: sessionId,
-        ...params,
-        operationId: crypto.randomUUID(),
-        ...(typeof expectedVersion === 'number' ? { expectedVersion } : {}),
-      })
-    } catch (error) {
-      await loadAgentSessionSnapshot(sessionId).catch(() => null)
-      emitSessionStoreChange()
-      throw error
-    }
-  }
-
   async function importAgentAttachments(input: DesktopUserMessageInput) {
     const source = input.attachments ?? []
     if (!source.length) return []
@@ -1109,6 +1037,7 @@ export function createAgentSessionDesktopClient(
       kind: 'question',
       status: 'answered',
       answers,
+      resolution: 'user',
     })
   }
 
@@ -1175,6 +1104,21 @@ export function createAgentSessionDesktopClient(
     }
     throw new Error('没有可用模型，请先配置模型提供商。')
   }
+
+  const turnQueueClient = createAgentTurnQueueClient({
+    rpc,
+    awaitPendingSettingsUpdate,
+    importAttachments: importAgentAttachments,
+    resolveModelRef: resolveAgentModelRef,
+    permissionConfigForSession,
+    taskModeForSession,
+    queueVersionForSession: sessionId =>
+      sessionSnapshots.get(sessionId)?.queueVersion,
+    loadThreadSnapshot: async sessionId =>
+      (await rpc.call('thread/read', { threadId: sessionId })).snapshot,
+    refreshSession: loadAgentSessionSnapshot,
+    emitSessionStoreChange,
+  })
 
   function eventSourceFactory(): ((url: string) => EventSource) | null {
     if (environment.eventSourceFactory) return environment.eventSourceFactory
@@ -3053,25 +2997,33 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.disposeSession(sessionId),
       ),
-    sendUserMessage: async (sessionId, input, model) =>
+    sendUserMessage: async (sessionId, input, model, inputId) =>
       withAgentOrMock(
         async () => {
-          await submitAgentMessage(sessionId, input, 'queue', model)
+          await turnQueueClient.submitMessage(sessionId, input, 'start', {
+            model,
+            inputId,
+          })
         },
         () => mockClient.sendUserMessage(sessionId, input, model),
       ),
     submitSessionFollowUp: async (
       sessionId: string,
       input: DesktopUserMessageInput,
-      behavior: DesktopFollowUpBehavior,
+      delivery: DesktopMessageDelivery,
+      inputId?: string,
     ) =>
       withAgentOrMock(
         async () => {
-          const strategy = behavior === 'steer' ? 'guide' : 'queue'
-          await submitAgentMessage(sessionId, input, strategy)
-          return behavior === 'steer' ? 'steered' as const : 'queued' as const
+          const admission = await turnQueueClient.submitMessage(
+            sessionId,
+            input,
+            delivery,
+            { inputId },
+          )
+          return admission.outcome
         },
-        () => mockClient.submitSessionFollowUp(sessionId, input, behavior),
+        () => mockClient.submitSessionFollowUp(sessionId, input, delivery),
       ),
     updateQueuedFollowUp: (sessionId, followUpId, input) =>
       withAgentOrMock(
@@ -3080,7 +3032,7 @@ export function createAgentSessionDesktopClient(
           const attachmentIds = shouldReplaceAttachments
             ? await importAgentAttachments(input)
             : undefined
-          await callQueueMutation(sessionId, 'queue/update', {
+          await turnQueueClient.callQueueMutation(sessionId, 'queue/update', {
             inputId: followUpId,
             content: desktopUserMessageInputToPreviewText(input),
             ...(shouldReplaceAttachments ? { attachmentIds } : {}),
@@ -3094,7 +3046,7 @@ export function createAgentSessionDesktopClient(
     removeQueuedFollowUp: (sessionId, followUpId) =>
       withAgentOrMock(
         async () => {
-          await callQueueMutation(sessionId, 'queue/remove', {
+          await turnQueueClient.callQueueMutation(sessionId, 'queue/remove', {
             inputId: followUpId,
           })
           const snapshot = await loadAgentSessionSnapshot(sessionId)
@@ -3103,33 +3055,10 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.removeQueuedFollowUp(sessionId, followUpId),
       ),
-    sendQueuedFollowUpNow: (sessionId, followUpId) =>
-      withAgentOrMock(
-        async () => {
-          await callQueueMutation(sessionId, 'queue/steer', {
-            inputId: followUpId,
-          })
-          await loadAgentSessionSnapshot(sessionId).catch(() => null)
-          emitSessionStoreChange()
-        },
-        () => mockClient.sendQueuedFollowUpNow(sessionId, followUpId),
-      ),
-    reorderQueuedFollowUps: (sessionId, followUpIds) =>
-      withAgentOrMock(
-        async () => {
-          await callQueueMutation(sessionId, 'queue/reorder', {
-            inputIds: followUpIds,
-          })
-          const snapshot = await loadAgentSessionSnapshot(sessionId)
-          emitSessionStoreChange()
-          return snapshot
-        },
-        () => mockClient.reorderQueuedFollowUps(sessionId, followUpIds),
-      ),
     resumeQueuedFollowUps: sessionId =>
       withAgentOrMock(
         async () => {
-          await callQueueMutation(sessionId, 'queue/resume', {})
+          await turnQueueClient.callQueueMutation(sessionId, 'queue/resume', {})
           const snapshot = await loadAgentSessionSnapshot(sessionId)
           emitSessionStoreChange()
           return snapshot
@@ -3260,10 +3189,7 @@ export function createAgentSessionDesktopClient(
     interruptSession: async sessionId =>
       withAgentOrMock(
         async () => {
-          await rpc.call('turn/interrupt', {
-            threadId: sessionId,
-            operationId: crypto.randomUUID(),
-          })
+          await turnQueueClient.interrupt(sessionId)
           scheduleSessionRefresh(sessionId)
         },
         () => mockClient.interruptSession(sessionId),

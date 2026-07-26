@@ -4,6 +4,7 @@ import type { PromptBundle, PromptSection } from "../prompt/types"
 import type { SkillService } from "../prompt/SkillService"
 import type { ToolCatalog } from "../tool/ToolRegistry"
 import type { ExecutionPlanInput } from "./plan/ExecutionPlanInput"
+import type { RichQuestion } from "../session/QuestionInput"
 
 export interface PlanCheckpoint {
   state: string
@@ -13,6 +14,14 @@ export interface PlanCheckpoint {
   toolCallID?: string
   approvalID?: string
   checkpointID?: string
+  permissionGrant?: {
+    scope: "tool-call" | "turn" | "session"
+    grantedPermissions: {
+      readPaths?: string[]
+      writePaths?: string[]
+      networkDomains?: string[]
+    }
+  }
 }
 
 export interface PendingApproval {
@@ -20,6 +29,8 @@ export interface PendingApproval {
   kind: "clarification" | "subagents" | "permission"
   question?: string
   options?: string[]
+  questions?: RichQuestion[]
+  autoResolutionMs?: number
   runIDs?: string[]
   waitMode?: "all" | "any"
   toolCallID?: string
@@ -78,9 +89,11 @@ export interface AgentRuntimeRequest {
   toolCatalog?: ToolCatalog
   onPromptComposed?: (bundle: PromptBundle, context: { budgetText: string }) => void | Promise<void>
   onUsage?: (usage: { inputTokens: number; outputTokens: number; totalTokens: number; requests: number }) => void | Promise<void>
+  onRuntimeReady?: () => void | Promise<void>
   resolveModel(fallback: ModelRef): Promise<{ ref: ModelRef; model: unknown }>
   pause(approval: PendingApproval): Promise<void>
   updatePlan?(input: ExecutionPlanInput, toolCallID: string): Promise<unknown>
+  /** Subagent-only safe-boundary control; main Chat steer does not use this callback. */
   checkSafeBoundary?: () => Promise<boolean>
   attachments?: Array<{ kind: "text"; name: string; text: string } | { kind: "image"; name: string; mediaType: string; base64: string }>
 }
@@ -91,7 +104,12 @@ export type AgentRuntimeResult =
 
 export interface AgentRuntime {
   run(request: AgentRuntimeRequest): Promise<AgentRuntimeResult>
-  steer(threadID: string, content: string): Promise<void>
+  steer(
+    threadID: string,
+    content: string,
+    images?: Array<{ type: "image"; data: string; mimeType: string }>,
+    inputID?: string,
+  ): Promise<void>
   followUp(threadID: string, content: string): Promise<void>
   abort(threadID: string): Promise<void>
   compact(threadID: string, instructions?: string): Promise<unknown>

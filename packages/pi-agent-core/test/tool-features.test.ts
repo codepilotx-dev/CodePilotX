@@ -194,3 +194,45 @@ describe("AgentHarness deferred activation", () => {
 		expect(restored.getActiveToolNames()).toEqual(["discover", "deferred"]);
 	});
 });
+
+describe("AgentHarness live steering", () => {
+	test("consumes stable input ids one at a time at model boundaries", async () => {
+		let harness!: AgentHarness;
+		const queued: Promise<void>[] = [];
+		let requested = false;
+		const setup = setupProvider([
+			() => {
+				if (!requested) {
+					requested = true;
+					queued.push(harness.steer("first steer", { inputId: "input:steer:first" }));
+					queued.push(harness.steer("second steer", { inputId: "input:steer:second" }));
+				}
+				return fauxAssistantMessage("first sample");
+			},
+			fauxAssistantMessage("second sample"),
+			fauxAssistantMessage("done"),
+		]);
+		const repo = new InMemorySessionRepo();
+		const session = await repo.create({ id: crypto.randomUUID() });
+		harness = new AgentHarness({
+			env: createEnv(),
+			session,
+			models: setup.models,
+			model: setup.faux.getModel(),
+		});
+		const consumed: string[][] = [];
+		harness.subscribe((event) => {
+			if (event.type === "queue_consumed" && event.delivery === "steer") {
+				consumed.push(event.inputIds);
+			}
+		});
+
+		await harness.prompt("start");
+		await Promise.all(queued);
+
+		expect(consumed).toEqual([
+			["input:steer:first"],
+			["input:steer:second"],
+		]);
+	});
+});

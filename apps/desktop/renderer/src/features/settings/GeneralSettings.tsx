@@ -60,11 +60,6 @@ const SPEED_OPTIONS = [
   { value: 'thorough', label: '深入' },
 ];
 
-const FOLLOW_UP_OPTIONS: Array<{ value: 'queue' | 'steer'; label: string }> = [
-  { value: 'queue', label: '排队' },
-  { value: 'steer', label: '引导' },
-];
-
 const REVIEW_OPTIONS: Array<{ value: DesktopReviewView; label: string }> = [
   { value: 'inline', label: '行内视图' },
   { value: 'split', label: '分离视图' },
@@ -132,7 +127,6 @@ export function GeneralSettings({
     rustSearchAndDiffKernels,
     enableParetoCodeRouter,
     enableFusionRouter,
-    followUpBehavior,
     defaultModeRequestUserInput,
   } = draft.values;
   const permissionMode = permissionModeForConfig(permissionConfig)
@@ -389,25 +383,6 @@ export function GeneralSettings({
                 options={SPEED_OPTIONS}
                 onChange={setSpeed}
                 ariaLabel='速度'
-              />
-            }
-          />
-          <SettingsRow
-            title='跟进行为'
-            description={
-              <>
-                在 CodePilotX
-                运行时将后续操作加入队列，或引导当前运行。按下'Ctrl+↵'可对单条消息执行相反操作
-              </>
-            }
-            control={
-              <SegmentedControl
-                value={followUpBehavior}
-                options={FOLLOW_UP_OPTIONS}
-                onChange={value => {
-                  draft.setValue('followUpBehavior', value)
-                  draft.autoSave()
-                }}
               />
             }
           />

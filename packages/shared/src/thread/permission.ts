@@ -82,6 +82,9 @@ export const AdditionalPermissionsSchema = Schema.Struct({
 })
 export type AdditionalPermissions = typeof AdditionalPermissionsSchema.Type
 
+export const PermissionGrantScopeSchema = Schema.Literals(["tool-call", "turn", "session"])
+export type PermissionGrantScope = typeof PermissionGrantScopeSchema.Type
+
 export const ShellInputSchema = Schema.Struct({
   command: Schema.String,
   cwd: Schema.optional(Schema.String),

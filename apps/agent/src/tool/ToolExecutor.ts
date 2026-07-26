@@ -2,15 +2,16 @@ import { AgentError, type PermissionDecision, type SubagentProfile, type TaskMod
 import type { WorkspaceService } from "../workspace/WorkspaceService"
 import { toolNameMatches, type ToolCatalog, type ToolProgress, type ToolRegistry } from "./ToolRegistry"
 import { createToolExposurePlan, type ToolExposureInput } from "./ToolExposurePlan"
-import { DEFAULT_PERMISSION_CONFIG, type PermissionConfig, type ShellInput } from "@codepilotx/shared/thread"
+import { DEFAULT_PERMISSION_CONFIG, type AdditionalPermissions, type PermissionConfig, type PermissionGrantScope, type ShellInput } from "@codepilotx/shared/thread"
 import { Model, Provider } from "@codepilotx/model-schema"
 import { runHostCommand, type ProcessResult, type SandboxRuntimeAdapter } from "../sandbox/SandboxRuntimeAdapter"
 import { generateSandboxPolicy, pathContains } from "../sandbox/SandboxPolicy"
 import { mkdtemp, realpath, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, isAbsolute, join, resolve } from "node:path"
-import { PermissionDecisionEngine } from "../permission/PermissionDecisionEngine"
+import { PermissionDecisionEngine, hasRequestedPermissions, requestedPermissions } from "../permission/PermissionDecisionEngine"
 import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig"
+import { PermissionGrantStore } from "../permission/PermissionGrantStore"
 import { analyzeShellRisk } from "../security/ShellRiskClassifier"
 import { secretScrubber } from "../security/SecretScrubber"
 import { resolveManagedTool, resolveToolingEnvironment, runToolProcess, toolingPathOverride, type ToolingEnvironmentResolver, type ToolingResolver, type ToolProcessRunner } from "./ToolingRuntime"
@@ -103,14 +104,18 @@ export interface ToolExecutorOptions {
   resolveToolingEnvironment?: ToolingEnvironmentResolver
   runToolProcess?: ToolProcessRunner
   fileSaved?: (input: { workspaceRoot: string; filePath: string; content: string }) => Promise<void>
+  permissionGrants?: PermissionGrantStore
 }
 
 /** The sole host-capability entrypoint. Later stages add approval and SRT gates here. */
 export class ToolExecutor {
   private readonly decisions = new PermissionDecisionEngine()
+  readonly permissionGrants: PermissionGrantStore
   private readonly readSnapshots = new Map<string, { mtimeMs: number; sha256: string }>()
   private sandboxDisposed = false
-  constructor(private readonly registry: ToolRegistry, private readonly options?: ToolExecutorOptions) {}
+  constructor(private readonly registry: ToolRegistry, private readonly options?: ToolExecutorOptions) {
+    this.permissionGrants = options?.permissionGrants ?? new PermissionGrantStore()
+  }
 
   definition(name: string, catalog: ToolCatalog = this.registry) {
     return catalog.get(name)
@@ -144,13 +149,17 @@ export class ToolExecutor {
     if (!parsed.success) throw new AgentError("INVALID_TOOL_INPUT", parsed.error.message, 400)
     const canonicalName = definition.sdkName
     const parsedInput = parsed.data as Record<string, unknown>
-    const normalized = canonicalName === "Bash" || canonicalName === "PowerShell" ? {
-      command: parsedInput.command,
-      ...(parsedInput.cwd === undefined ? {} : { cwd: parsedInput.cwd }),
-      ...(parsedInput.timeout === undefined ? {} : { timeoutMs: parsedInput.timeout }),
-      ...(parsedInput.description === undefined ? {} : { justification: parsedInput.description }),
-      ...(parsedInput.additionalPermissions === undefined ? {} : { additionalPermissions: parsedInput.additionalPermissions }),
-    } : parsedInput
+    const normalized = canonicalName === "Bash" || canonicalName === "PowerShell"
+      ? {
+          command: parsedInput.command,
+          ...(parsedInput.cwd === undefined ? {} : { cwd: parsedInput.cwd }),
+          ...(parsedInput.timeout === undefined ? {} : { timeoutMs: parsedInput.timeout }),
+          ...(parsedInput.description === undefined ? {} : { justification: parsedInput.description }),
+          ...(parsedInput.additionalPermissions === undefined ? {} : { additionalPermissions: parsedInput.additionalPermissions }),
+        }
+      : canonicalName === "request_permissions"
+        ? await this.normalizePermissionRequest(parsedInput, context)
+        : parsedInput
     if (context.taskMode === "plan" && canonicalName === "request_permissions") {
       throw new AgentError("TOOL_NOT_ALLOWED_IN_MODE", "Plan 模式禁止请求或提升权限", 403)
     }
@@ -177,7 +186,7 @@ export class ToolExecutor {
         ...(context.onProgress ? { onProgress: context.onProgress } : {}),
       })
       if (progress) context.onProgress?.(progress)
-      return await this.executeShell(canonicalName, normalized, context) as T
+      return await this.executeShell(canonicalName, normalized, context, catalog) as T
     }
     return this.executeRegistered<T>(canonicalName, normalized, context, catalog)
   }
@@ -222,7 +231,8 @@ export class ToolExecutor {
       ? { ...input, __ruleRequiresApproval: true }
       : input
     const invocation: ToolInvocation = { id: context.toolCallID ?? crypto.randomUUID(), threadID: context.threadID, turnID: context.turnID, agentID: context.agentID ?? context.turnID, name, input: policyInput, permissionConfig, model, taskMode: context.taskMode, ...(context.authorizationOnly ? { durableApproval: true } : {}) }
-    const resolved = this.decisions.evaluate(invocation, catalog.get(name))
+    const definition = catalog.get(name)
+    const resolved = this.decisions.evaluate(invocation, definition)
     if (resolved.action === "deny") throw new AgentError("TOOL_PERMISSION_DENIED", resolved.reason, 403, resolved)
     const resumedApproval = context.approvedToolCallID === invocation.id
     const hookResults = context.skipHooks || resumedApproval ? [] : await this.options?.hooks?.run("pre_tool_use", { input, resolved }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: name, workspaceRoot: context.workspace.rootPath }) ?? []
@@ -235,8 +245,15 @@ export class ToolExecutor {
     }
     const hookAsked = hookResults.some(({ result }) => result.decision === "ask")
     if (hookAsked) invocation.input = { ...invocation.input, __hookRequiresApproval: true }
-    let authorization: PermissionDecision = { decision: "allow", risk: resolved.risk, reason: "统一权限策略允许" }
-    if ((resolved.action === "review" || hookAsked) && !resumedApproval) {
+    const grant = !resumedApproval && !hookAsked && resolved.action === "review"
+      ? this.permissionGrantFor(invocation, definition, !context.authorizationOnly)
+      : null
+    let authorization: PermissionDecision = {
+      decision: "allow",
+      risk: resolved.risk,
+      reason: grant ? `已使用 ${grant.scope} 临时权限` : "统一权限策略允许",
+    }
+    if ((resolved.action === "review" || hookAsked) && !resumedApproval && !grant) {
       if (!this.options) throw new AgentError("TOOL_REVIEW_REQUIRED", "工具需要审批但执行器未配置审批服务", 403)
       authorization = await this.options.authorizeShell(secretScrubber.scrub(invocation), context.signal)
     }
@@ -253,7 +270,7 @@ export class ToolExecutor {
         profile: context.profile ?? "main",
         ...(context.allowedTools ? { allowedTools: context.allowedTools } : {}),
       }, catalog)
-      const output = await catalog.execute(name, input, {
+      let output = await catalog.execute(name, input, {
         signal: context.signal,
         taskMode: context.taskMode,
         profile: context.profile ?? "main",
@@ -273,6 +290,21 @@ export class ToolExecutor {
         ...(this.options?.fileSaved ? { fileSaved: (saved) => this.options!.fileSaved!({ workspaceRoot: context.workspace.rootPath, ...saved }) } : {}),
         ...(context.onProgress ? { onProgress: context.onProgress } : {}),
       })
+      if (name === "request_permissions") {
+        const grantResult = await this.applyPermissionGrant({
+          scope: input.scope,
+          requestedPermissions: input,
+          grantedPermissions: input,
+        }, context)
+        const escalation = typeof input.escalationToken === "string"
+          ? await this.executeSandboxEscalation(input.escalationToken, context)
+          : undefined
+        output = {
+          ...(output && typeof output === "object" ? output : {}),
+          grant: grantResult,
+          ...(escalation ? { escalation } : {}),
+        }
+      }
       if (snapshotKey && ["Read", "Write", "Edit"].includes(name)) {
         const revision = (output as { snapshot?: { mtimeMs: number; sha256: string }; revision?: { mtimeMs: number; sha256: string } }).snapshot ?? (output as { revision?: { mtimeMs: number; sha256: string } }).revision
           ?? (await context.workspace.readEditorFile(String(input.file_path))).revision
@@ -290,7 +322,7 @@ export class ToolExecutor {
     }
   }
 
-  private async executeShell(shellTool: "Bash" | "PowerShell", input: Record<string, unknown>, context: ToolExecutionContext): Promise<ProcessResult | PermissionDecision> {
+  private async executeShell(shellTool: "Bash" | "PowerShell", input: Record<string, unknown>, context: ToolExecutionContext, catalog: ToolCatalog): Promise<ProcessResult | PermissionDecision> {
     const options = this.options
     if (!options) throw new AgentError("SHELL_EXECUTOR_REQUIRED", "Shell 执行器未配置", 500)
     const permissionConfig = context.permissionConfig ?? DEFAULT_PERMISSION_CONFIG
@@ -349,12 +381,17 @@ export class ToolExecutor {
       const narrowed = hookResults.map(({ result }) => result.narrowedInput).filter((value): value is Record<string, unknown> => Boolean(value)).at(-1)
       if (narrowed && JSON.stringify(narrowed) !== JSON.stringify(input)) {
         if ((context.hookDepth ?? 0) >= 2) throw new AgentError("HOOK_REWRITE_LIMIT", "Hook 重写 Shell 输入次数过多", 409)
-        return this.executeShell(shellTool, { ...input, ...narrowed }, { ...context, hookDepth: (context.hookDepth ?? 0) + 1 })
+        return this.executeShell(shellTool, { ...input, ...narrowed }, { ...context, hookDepth: (context.hookDepth ?? 0) + 1 }, catalog)
       }
       if (hookResults.some(({ result }) => result.decision === "ask")) invocation.input = { ...invocation.input, __hookRequiresApproval: true }
+      const grant = resumedApproval
+        ? null
+        : this.permissionGrantFor(invocation, catalog.get(shellTool), !context.authorizationOnly)
       const decision = resumedApproval
         ? { decision: "allow", risk: staticRisk.risk, reason: "已恢复并校验一次性审批" } satisfies PermissionDecision
-        : await this.options.authorizeShell(secretScrubber.scrub(invocation), context.signal)
+        : grant
+          ? { decision: "allow", risk: staticRisk.risk, reason: `已使用 ${grant.scope} 临时权限` } satisfies PermissionDecision
+          : await this.options.authorizeShell(secretScrubber.scrub(invocation), context.signal)
       if (context.authorizationOnly) return decision
       if (decision.decision !== "allow") throw new AgentError("SHELL_PERMISSION_DENIED", decision.reason, 403, decision)
       const runtime = await this.commandForShell(shellTool, parsedShell.command, context.signal)
@@ -413,6 +450,39 @@ export class ToolExecutor {
       if (!context.skipHooks && !context.authorizationOnly) await this.options.hooks?.run("post_tool_error", { input: invocation.input, error: secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause)) }, { threadID: context.threadID, turnID: context.turnID, toolCallID: invocation.id, toolName: shellTool, workspaceRoot: context.workspace.rootPath }).catch(() => undefined)
       throw cause
     }
+  }
+
+  async applyPermissionGrant(input: {
+    scope: unknown
+    requestedPermissions: Record<string, unknown>
+    grantedPermissions: Record<string, unknown>
+  }, context: ToolExecutionContext) {
+    if (context.taskMode === "plan") throw new AgentError("TOOL_NOT_ALLOWED_IN_MODE", "Plan 模式禁止请求或提升权限", 403)
+    if (!["tool-call", "turn", "session"].includes(String(input.scope))) {
+      throw new AgentError("INVALID_TOOL_INPUT", "权限 scope 无效", 400)
+    }
+    const workspaceRoot = await realpath(context.workspace.rootPath)
+    const requested = await this.normalizeAdditionalPermissions(input.requestedPermissions, workspaceRoot)
+    const granted = await this.normalizeAdditionalPermissions(input.grantedPermissions, workspaceRoot)
+    const grant = this.permissionGrants.grant({
+      threadID: context.threadID,
+      turnID: context.turnID,
+      agentID: context.agentID ?? context.turnID,
+      scope: input.scope as PermissionGrantScope,
+      requested,
+      granted,
+    })
+    return grant
+      ? { granted: true, grantId: grant.id, scope: grant.scope, permissions: grant.permissions }
+      : { granted: false, scope: input.scope, permissions: { readPaths: [], writePaths: [], networkDomains: [] } }
+  }
+
+  clearTurnPermissionGrants(threadID: string, turnID: string) {
+    this.permissionGrants.clearTurn(threadID, turnID)
+  }
+
+  clearThreadPermissionGrants(threadID: string) {
+    this.permissionGrants.clearThread(threadID)
   }
 
   async executeSandboxEscalation(token: string, context: ToolExecutionContext): Promise<ProcessResult> {
@@ -503,6 +573,64 @@ export class ToolExecutor {
         },
       } : {}),
       ...(typeof input.justification === "string" ? { justification: input.justification } : {}),
+    }
+  }
+
+  private permissionGrantFor(
+    invocation: ToolInvocation,
+    tool: ReturnType<ToolCatalog["get"]>,
+    consumeToolCall: boolean,
+  ) {
+    if (!hasRequestedPermissions(invocation.input)) return null
+    const requestedDecision = this.decisions.evaluate(invocation, tool)
+    if (requestedDecision.action !== "review") return null
+    const baselineInput = { ...invocation.input }
+    delete baselineInput.additionalPermissions
+    const baseline = this.decisions.evaluate({ ...invocation, input: baselineInput }, tool)
+    if (baseline.action !== "allow") return null
+    return this.permissionGrants.authorize({
+      threadID: invocation.threadID,
+      turnID: invocation.turnID,
+      agentID: invocation.agentID,
+      requested: requestedPermissions(invocation.input),
+      consumeToolCall,
+    })
+  }
+
+  private async normalizePermissionRequest(input: Record<string, unknown>, context: ToolExecutionContext) {
+    const workspaceRoot = await realpath(context.workspace.rootPath)
+    const permissions = await this.normalizeAdditionalPermissions(input, workspaceRoot)
+    return {
+      scope: input.scope,
+      ...permissions,
+      ...(typeof input.escalationToken === "string" ? { escalationToken: input.escalationToken } : {}),
+      justification: input.justification,
+    }
+  }
+
+  private async normalizeAdditionalPermissions(input: Record<string, unknown>, workspaceRoot: string): Promise<AdditionalPermissions> {
+    const strings = (name: "readPaths" | "writePaths" | "networkDomains") => {
+      const value = input[name]
+      if (value === undefined) return []
+      if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || !item.trim())) {
+        throw new AgentError("INVALID_TOOL_INPUT", `${name} 必须是非空字符串数组`, 400)
+      }
+      return [...new Set(value.map((item) => String(item).trim()))]
+    }
+    const readPaths = await Promise.all(strings("readPaths").map((path) => this.canonicalPath(workspaceRoot, path, false)))
+    const writePaths = await Promise.all(strings("writePaths").map((path) => this.canonicalPath(workspaceRoot, path, true)))
+    const networkDomains = strings("networkDomains").map((domain) => {
+      const normalized = domain.toLowerCase().replace(/\.$/, "")
+      if (
+        normalized === "localhost"
+        || /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(normalized)
+      ) return normalized
+      throw new AgentError("INVALID_TOOL_INPUT", `networkDomains 包含无效域名：${domain}`, 400)
+    })
+    return {
+      ...(readPaths.length ? { readPaths } : {}),
+      ...(writePaths.length ? { writePaths } : {}),
+      ...(networkDomains.length ? { networkDomains } : {}),
     }
   }
 

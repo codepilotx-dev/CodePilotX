@@ -32,7 +32,6 @@ import type {
 } from '@codepilotx/shared'
 import type {
   PermissionConfig,
-  QueueStateResult,
   SubagentProjection,
   ThreadListItem,
   ThreadSettings,
@@ -55,7 +54,6 @@ import type {
   CreateDesktopSessionResult,
   DesktopApi,
   DesktopBrowserState,
-  DesktopFollowUpBehavior,
   DesktopFileEntry,
   DesktopFilePreview,
   DesktopFileRevision,
@@ -239,7 +237,7 @@ export function mockThreadHistoryPage(
           threadId,
           turnId,
           content: message.text,
-          strategy: 'queue',
+          delivery: 'start',
           mode,
           model,
           permissionConfig,

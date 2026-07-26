@@ -11,7 +11,6 @@ import type {
   DesktopPermissionRequest,
   DesktopQueuedFollowUp,
   DesktopQueuePauseReason,
-  DesktopFollowUpBehavior,
   DesktopSessionEvent,
   DesktopSessionMetadataPatch,
   DesktopSessionStatus,
@@ -95,7 +94,6 @@ export type UseSessionStateOptions = {
   installCodePilotXDependencies: boolean
   enableMemory: boolean
   rustSearchAndDiffKernels: boolean
-  followUpBehavior: DesktopFollowUpBehavior
   onError: (message: string) => void
   onDiffForActive: (patch: string) => void
   onRefreshActiveWorkspace: (sessionId: string) => void
@@ -153,7 +151,11 @@ export type UseSessionStateResult = {
   submitToSession: (
     targetSessionId: string,
     value: DesktopUserMessageInput,
-    options?: { propagateError?: boolean },
+    options?: {
+      delivery?: 'default' | 'follow-up'
+      inputId?: string
+      propagateError?: boolean
+    },
   ) => Promise<'sent' | 'queued' | 'steered' | null>
   interrupt: () => Promise<void>
   decidePermission: (
@@ -219,7 +221,6 @@ export function useSessionState(
     installCodePilotXDependencies,
     enableMemory,
     rustSearchAndDiffKernels,
-    followUpBehavior,
     onError,
     onDiffForActive,
     onRefreshActiveWorkspace,
@@ -957,7 +958,11 @@ export function useSessionState(
   const submitToSession = useCallback(async (
     targetSessionId: string,
     value: DesktopUserMessageInput,
-    options?: { propagateError?: boolean },
+    options?: {
+      delivery?: 'default' | 'follow-up'
+      inputId?: string
+      propagateError?: boolean
+    },
   ): Promise<'sent' | 'queued' | 'steered' | null> => {
     const targetStatus =
       sessionsRef.current.find(session => session.id === targetSessionId)
@@ -978,11 +983,12 @@ export function useSessionState(
       settingsSnapshot,
       {
         sessionStatus: targetStatus,
-        followUpBehavior,
+        delivery: options?.delivery,
+        inputId: options?.inputId,
         propagateError: options?.propagateError,
       },
     )
-  }, [followUpBehavior, settingsSnapshot])
+  }, [settingsSnapshot])
 
   const submit = useCallback(async (target?: DesktopWorkspace | null): Promise<void> => {
     const targetSessionId =

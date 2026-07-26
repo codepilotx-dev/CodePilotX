@@ -10,7 +10,7 @@ import type {
   Item,
   ModelRef,
   PermissionConfig,
-  SendStrategy,
+  StoredInputDelivery,
   SubmitMessage,
   TaskMode,
   ThreadSnapshot,
@@ -249,35 +249,6 @@ export abstract class WorkspaceRepositoryDatabase extends ProjectRepositoryDatab
 
   run(sql: string, ...params: SqlValue[]) {
       return this.sqlite.query(sql).run(...params)
-    }
-
-  interactionOperation(operationID: string) {
-      const row = this.sqlite.query("SELECT interaction_id, response, result FROM interaction_operations WHERE operation_id = ?").get(operationID) as {
-        interaction_id: string
-        response: string
-        result: string
-      } | null
-      return row ? {
-        interactionID: row.interaction_id,
-        response: parse<Record<string, unknown>>(row.response),
-        result: parse<Record<string, unknown>>(row.result),
-      } : null
-    }
-
-  saveInteractionOperation(input: {
-      operationID: string
-      interactionID: string
-      response: Record<string, unknown>
-      result: Record<string, unknown>
-    }) {
-      const existing = this.interactionOperation(input.operationID)
-      if (existing) return existing
-      this.sqlite.query(`
-        INSERT INTO interaction_operations (
-          operation_id, interaction_id, response, result, created_at
-        ) VALUES (?, ?, ?, ?, ?)
-      `).run(input.operationID, input.interactionID, stringify(input.response), stringify(input.result), now())
-      return this.interactionOperation(input.operationID)!
     }
 
   threadProjectID(threadID: string) {

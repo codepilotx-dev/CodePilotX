@@ -1,7 +1,7 @@
 import { Model } from "@codepilotx/model-schema"
 import { Schema } from "effect"
 import { PermissionConfigSchema } from "./permission"
-import { SendStrategySchema, TaskModeSchema, ThreadSettingsSchema } from "./settings"
+import { TaskModeSchema, ThreadSettingsSchema } from "./settings"
 
 export const ProjectSettingsSchema = Schema.Struct({
   defaultModel: Schema.NullOr(Model.Ref),

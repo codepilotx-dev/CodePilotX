@@ -94,7 +94,7 @@ describe("持久化队列", () => {
     db.close()
   })
 
-  test("重排顺序持久化并参与下一条 Turn 选择", async () => {
+  test("FIFO 顺序在重启后保持不变", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-db-"))
     paths.push(root)
     const databasePath = join(root, "agent.sqlite")
@@ -102,13 +102,12 @@ describe("持久化队列", () => {
     const db = new AgentDatabase(databasePath)
     const thread = db.createThread()
     const first = db.createTurn(thread.id, input)
-    const second = db.createTurn(thread.id, { ...input, content: "second" })
-    const third = db.createTurn(thread.id, { ...input, content: "third" })
-    db.reorderQueuedInputs(thread.id, [third.inputID, first.inputID, second.inputID], { operationID: "reorder-1", expectedVersion: 3 })
+    db.createTurn(thread.id, { ...input, content: "second" })
+    db.createTurn(thread.id, { ...input, content: "third" })
     db.close()
 
     const reopened = new AgentDatabase(databasePath)
-    expect(reopened.nextQueuedTurn(thread.id)?.id).toBe(third.turnID)
+    expect(reopened.nextQueuedTurn(thread.id)?.id).toBe(first.turnID)
     reopened.close()
   })
 
@@ -143,6 +142,39 @@ describe("持久化队列", () => {
     db.close()
   })
 
+  test("中断时未消费的 steer 以原 inputId 转为队首 follow-up", async () => {
+    const root = await mkdtemp(join(tmpdir(), "codepilotx-db-"))
+    paths.push(root)
+    const db = new AgentDatabase(join(root, "agent.sqlite"))
+    const thread = db.createThread()
+    const input = { content: "active", model: modelRef("openai", "gpt"), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "auto_review" }, strategy: "start", taskMode: "chat" } as const
+    const active = db.createTurn(thread.id, input)
+    const agent = db.claimTurnExecution(active.turnID)
+    expect(agent).not.toBeNull()
+    const firstSteer = db.appendGuide(thread.id, active.turnID, { ...input, content: "first steer", strategy: "guide" }, "input:steer:first")
+    const secondSteer = db.appendGuide(thread.id, active.turnID, { ...input, content: "second steer", strategy: "guide" }, "input:steer:second")
+    const existing = db.createTurn(thread.id, { ...input, content: "existing follow-up", strategy: "queue" })
+
+    db.finalizeTurn({
+      threadID: thread.id,
+      turnID: active.turnID,
+      agentID: agent!.id,
+      status: "interrupted",
+      pauseReason: "interrupted",
+    })
+
+    const queued = db.sqlite.query(`
+      SELECT i.id
+      FROM inputs AS i
+      JOIN turns AS t ON t.id = i.turn_id
+      WHERE i.thread_id = ? AND i.status = 'queued' AND t.status = 'queued'
+      ORDER BY t.queue_position, t.created_at, t.id
+    `).all(thread.id) as Array<{ id: string }>
+    expect(queued.map(({ id }) => id)).toEqual([firstSteer.inputID, secondSteer.inputID, existing.inputID])
+    expect(db.queueStateMeta(thread.id)?.pauseReason).toBe("interrupted")
+    db.close()
+  })
+
   test("删除暂停队列最后一条消息会清除暂停原因", async () => {
     const root = await mkdtemp(join(tmpdir(), "codepilotx-db-"))
     paths.push(root)
@@ -153,24 +185,6 @@ describe("持久化队列", () => {
     db.pauseQueue(thread.id, "interrupted")
     db.removeQueuedInput(thread.id, queued.inputID, { operationID: "remove-last", expectedVersion: 2 })
     expect(db.queueStateMeta(thread.id)).toEqual({ version: 3, pauseReason: null })
-    db.close()
-  })
-
-  test("Steer 原子转移 queued input 到活动 Turn mailbox", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-db-"))
-    paths.push(root)
-    const db = new AgentDatabase(join(root, "agent.sqlite"))
-    const thread = db.createThread()
-    const input = { content: "active", model: modelRef("openai", "gpt"), permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "auto_review" }, strategy: "queue", taskMode: "chat" } as const
-    const active = db.createTurn(thread.id, input)
-    db.claimTurnExecution(active.turnID)
-    const queued = db.createTurn(thread.id, { ...input, content: "steer me" })
-    expect(new ThreadProjection(db).list().find((item) => item.id === thread.id)?.latestTurnStatus).toBe("running")
-    db.steerQueuedInput(thread.id, queued.inputID, { operationID: "steer-1", expectedVersion: 3 })
-    expect(db.activeTurn(thread.id)?.id).toBe(active.turnID)
-    expect(db.hasGuideMailbox(active.turnID)).toBe(true)
-    expect(db.sqlite.query("SELECT turn_id, status FROM inputs WHERE id = ?").get(queued.inputID)).toEqual({ turn_id: active.turnID, status: "mailbox" })
-    expect(db.sqlite.query("SELECT 1 FROM turns WHERE id = ?").get(queued.turnID)).toBeNull()
     db.close()
   })
 

@@ -376,6 +376,11 @@ export interface QueueUpdateEvent {
     followUp: AgentMessage[];
     nextTurn: AgentMessage[];
 }
+export interface QueueConsumedEvent {
+    type: "queue_consumed";
+    delivery: "steer" | "follow-up" | "next-turn";
+    inputIds: string[];
+}
 export interface SavePointEvent {
     type: "save_point";
     hadPendingMutations: boolean;
@@ -484,7 +489,7 @@ export interface ResourcesUpdateEvent<TSkill extends Skill = Skill, TPromptTempl
     resources: AgentHarnessResources<TSkill, TPromptTemplate>;
     previousResources: AgentHarnessResources<TSkill, TPromptTemplate>;
 }
-export type AgentHarnessOwnEvent<TSkill extends Skill = Skill, TPromptTemplate extends PromptTemplate = PromptTemplate> = QueueUpdateEvent | SavePointEvent | AbortEvent | SettledEvent | BeforeAgentStartEvent<TSkill, TPromptTemplate> | ContextEvent | BeforeProviderRequestEvent | BeforeProviderPayloadEvent | AfterProviderResponseEvent | ToolCallEvent | ToolResultEvent | SessionBeforeCompactEvent | SessionCompactEvent | SessionBeforeTreeEvent | SessionTreeEvent | ModelUpdateEvent | ThinkingLevelUpdateEvent | ResourcesUpdateEvent<TSkill, TPromptTemplate> | ToolsUpdateEvent;
+export type AgentHarnessOwnEvent<TSkill extends Skill = Skill, TPromptTemplate extends PromptTemplate = PromptTemplate> = QueueUpdateEvent | QueueConsumedEvent | SavePointEvent | AbortEvent | SettledEvent | BeforeAgentStartEvent<TSkill, TPromptTemplate> | ContextEvent | BeforeProviderRequestEvent | BeforeProviderPayloadEvent | AfterProviderResponseEvent | ToolCallEvent | ToolResultEvent | SessionBeforeCompactEvent | SessionCompactEvent | SessionBeforeTreeEvent | SessionTreeEvent | ModelUpdateEvent | ThinkingLevelUpdateEvent | ResourcesUpdateEvent<TSkill, TPromptTemplate> | ToolsUpdateEvent;
 export type AgentHarnessEvent<TSkill extends Skill = Skill, TPromptTemplate extends PromptTemplate = PromptTemplate> = AgentEvent | AgentHarnessOwnEvent<TSkill, TPromptTemplate>;
 export interface BeforeAgentStartResult {
     messages?: AgentMessage[];
@@ -545,6 +550,7 @@ export type AgentHarnessEventResultMap = {
     resources_update: undefined;
     tools_update: undefined;
     queue_update: undefined;
+    queue_consumed: undefined;
     save_point: undefined;
     abort: undefined;
     settled: undefined;

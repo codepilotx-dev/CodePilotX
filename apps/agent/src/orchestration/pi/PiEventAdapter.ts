@@ -190,6 +190,9 @@ export class PiEventAdapter {
       case "queue_update":
         await this.sink.queueUpdated?.(this.context, { steer: event.steer.length, followUp: event.followUp.length, nextTurn: event.nextTurn.length })
         break
+      case "queue_consumed":
+        await this.sink.queueConsumed?.(this.context, { delivery: event.delivery, inputIDs: event.inputIds })
+        break
       case "session_compact":
         await this.sink.compacted?.(this.context, {
           entryID: event.compactionEntry.id,

@@ -3,6 +3,7 @@ import { Schema } from "effect"
 import {
   ApprovalRequestResultSchema,
   HookTrustRequestResultSchema,
+  PermissionRequestResultSchema,
   QuestionRequestResultSchema,
   createServerRequestMessage,
   decodeServerRequestMessage,
@@ -19,11 +20,23 @@ const responseBranches = [
     invalidResponse: { kind: "approval", decision: "continue" },
   },
   {
+    method: "permission/request",
+    resultSchema: PermissionRequestResultSchema,
+    response: {
+      kind: "permission",
+      decision: "grant",
+      scope: "turn",
+      grantedPermissions: { readPaths: ["C:\\workspace"] },
+    },
+    invalidResponse: { kind: "permission", decision: "grant", scope: "workspace" },
+  },
+  {
     method: "question/request",
     resultSchema: QuestionRequestResultSchema,
     response: {
       kind: "question",
       status: "answered",
+      resolution: "user",
       answers: [{ questionId: "question-1", choiceIds: ["choice-1"], text: "details" }],
     },
     invalidResponse: { kind: "question", status: "answered" },
@@ -37,7 +50,7 @@ const responseBranches = [
 ] as const
 
 describe("server request interactions", () => {
-  test("defines exactly the three interaction request kinds", () => {
+  test("defines exactly the four interaction request kinds", () => {
     expect(Object.keys(ServerRequests).sort()).toEqual(responseBranches.map(({ method }) => method).sort())
   })
 
@@ -91,8 +104,18 @@ describe("server request interactions", () => {
       agentId: "agent-1",
       createdAt: 1,
       version: 1,
-      questions: [],
-    }
+      questions: [{
+        id: "question-1",
+        header: "执行方式",
+        prompt: "如何继续？",
+        choices: [
+          { id: "choice-1", label: "安全模式", description: "仅执行只读操作", recommended: true },
+          { id: "choice-2", label: "完整模式", description: "允许工作区写入", recommended: false },
+        ],
+        allowFreeform: true,
+        required: true,
+      }],
+    } as const
     const message = createServerRequestMessage("question/request", params)
     expect(message.id).toBe(params.interactionId)
     expect(decodeServerRequestMessage(message)).toEqual(message)
@@ -103,5 +126,63 @@ describe("server request interactions", () => {
     const decode = Schema.decodeUnknownSync(ApprovalRequestResultSchema)
     expect(decode({ kind: "approval", decision: "deny", feedback: "调".repeat(4_000) })).toMatchObject({ decision: "deny" })
     expect(() => decode({ kind: "approval", decision: "deny", feedback: "调".repeat(4_001) })).toThrow()
+  })
+
+  test("bounds rich questions and automatic resolution", () => {
+    const decode = Schema.decodeUnknownSync(ServerRequests["question/request"].params)
+    const question = {
+      id: "question-1",
+      header: "方案",
+      prompt: "选择实现方案",
+      choices: [
+        { id: "choice-1", label: "方案一", description: "推荐方案", recommended: true },
+        { id: "choice-2", label: "方案二", description: "替代方案", recommended: false },
+      ],
+      allowFreeform: true as const,
+      required: true as const,
+    }
+    const base = {
+      kind: "question" as const,
+      interactionId: "interaction-1",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      agentId: "agent-1",
+      createdAt: 1,
+      version: 1,
+      autoResolutionMs: 60_000,
+      questions: [question],
+    }
+
+    expect(decode(base)).toEqual(base)
+    expect(() => decode({ ...base, questions: [] })).toThrow()
+    expect(() => decode({ ...base, autoResolutionMs: 59_999 })).toThrow()
+    expect(() => decode({ ...base, autoResolutionMs: 240_001 })).toThrow()
+    expect(() => decode({
+      ...base,
+      questions: [{ ...question, choices: question.choices.slice(0, 1) }],
+    })).toThrow()
+  })
+
+  test("carries requested and grantable permission scopes separately", () => {
+    const decode = Schema.decodeUnknownSync(ServerRequests["permission/request"].params)
+    const request = {
+      kind: "permission" as const,
+      interactionId: "interaction-permission-1",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      agentId: "agent-1",
+      createdAt: 1,
+      version: 1,
+      toolCallId: "tool-call-1",
+      tool: "shell",
+      reason: "需要读取额外目录",
+      requestedPermissions: { readPaths: ["C:\\workspace"] },
+      requestedScope: "turn" as const,
+      allowedScopes: ["tool-call", "turn"] as const,
+    }
+
+    expect(decode(request)).toEqual(request)
+    expect(() => decode({ ...request, allowedScopes: [] })).toThrow()
+    expect(() => decode({ ...request, requestedScope: "workspace" })).toThrow()
   })
 })

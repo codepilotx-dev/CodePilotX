@@ -106,7 +106,7 @@ export const recoverInterruptedRuns = (database: AgentDatabase) => {
     }
     const pausedThreads = database.sqlite.query("SELECT id, queue_version, queue_pause_reason FROM threads WHERE queue_pause_reason = 'interrupted' AND updated_at = ?").all(timestamp) as Array<{ id: string; queue_version: number; queue_pause_reason: string }>
     for (const thread of pausedThreads) {
-      database.insertEvent(thread.id, null, "queue/updated", { threadId: thread.id, version: thread.queue_version, pauseReason: thread.queue_pause_reason, action: "queue/pause" })
+      database.insertEvent(thread.id, null, "queue/updated", { threadId: thread.id, version: thread.queue_version, pauseReason: thread.queue_pause_reason, action: "paused" })
     }
     database.sqlite.query(`DELETE FROM workspace_writer_leases WHERE run_id NOT IN (SELECT id FROM subagent_runs WHERE status IN ('preparing', 'running', 'steering', 'waiting_question', 'waiting_permission'))`)
     database.sqlite.query(`UPDATE memory_jobs SET status = 'queued', started_at = NULL, updated_at = ? WHERE status = 'running'`).run(timestamp)

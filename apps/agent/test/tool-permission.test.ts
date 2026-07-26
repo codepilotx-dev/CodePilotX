@@ -30,11 +30,24 @@ describe("工作区工具", () => {
       profile: "main",
     })
     expect(chat.exposed).toContain("update_plan")
+    expect(chat.exposed).not.toContain("request_user_input")
+    expect(executor.exposurePlan({
+      taskMode: "chat",
+      sandboxMode: "workspace-write",
+      profile: "main",
+      defaultModeRequestUserInput: true,
+    }).exposed).toContain("request_user_input")
     expect(executor.exposurePlan({
       taskMode: "chat",
       sandboxMode: "workspace-write",
       profile: "worker",
     }).exposed).not.toContain("update_plan")
+    expect(executor.exposurePlan({
+      taskMode: "chat",
+      sandboxMode: "workspace-write",
+      profile: "worker",
+      defaultModeRequestUserInput: true,
+    }).exposed).not.toContain("request_user_input")
   })
 
   test("普通模式直接应用补丁，Plan 模式拒绝写入", async () => {

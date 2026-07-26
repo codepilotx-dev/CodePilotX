@@ -304,6 +304,16 @@
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.composer-send-options {
+  width: var(--control-size-sm);
+  height: var(--control-size-sm);
+  color: var(--color-token-description-foreground);
+
+  &:hover:not(:disabled) {
+    color: var(--color-token-foreground);
+  }
+}
+
 @supports (corner-shape: superellipse(1.5)) {
   .composer {
     corner-shape: superellipse(1.5);

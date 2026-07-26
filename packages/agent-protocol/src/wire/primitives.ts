@@ -53,6 +53,8 @@ export const ApplicationErrorCodeSchema = Schema.Literals([
   "FILE_READONLY",
   "THREAD_NOT_FOUND",
   "TURN_NOT_FOUND",
+  "TURN_ACTIVE",
+  "TURN_ID_MISMATCH",
   "MODEL_UNAVAILABLE",
   "SANDBOX_UNAVAILABLE",
   "SANDBOX_BUSY",

@@ -3,11 +3,23 @@ import { createHash } from "node:crypto"
 import { AgentError, type PermissionDecision, type ToolInvocation } from "../domain"
 import type { AgentDatabase, ApprovalCheckpointPayload, StoredApprovalCheckpoint } from "../storage/database/AgentDatabase"
 import type { EventHub } from "../storage/events/EventHub"
+import type { InteractionOperationInput } from "../storage/repositories/interaction-repository"
 import type { ToolRegistry } from "../tool/ToolRegistry"
 import { PermissionDecisionEngine, requestedPermissions, type ResolvedPermissionDecision } from "./PermissionDecisionEngine"
 import { secretScrubber } from "../security/SecretScrubber"
 
 export type Reviewer = (invocation: ToolInvocation, signal: AbortSignal) => Promise<PermissionDecision>
+
+export type PermissionGrantResolution = {
+  scope: "tool-call" | "turn" | "session"
+  grantedPermissions: {
+    readPaths?: string[]
+    writePaths?: string[]
+    networkDomains?: string[]
+  }
+}
+
+const PERMISSION_GRANT_PREFIX = "__permission_grant_v1__:"
 
 export type PreparedApprovalCheckpoint = {
   approvalID: string
@@ -27,6 +39,12 @@ const stable = (value: unknown): string => {
 
 const checkpointHash = (payload: Omit<ApprovalCheckpointPayload, "invocationHash" | "resolution" | "claimedAt">, version: number) => createHash("sha256").update(stable({ ...payload, version }), "utf8").digest("hex")
 const sandboxEscalationHash = (invocation: ToolInvocation, failure: string) => createHash("sha256").update(stable({ invocation, failure }), "utf8").digest("hex")
+const allowedPermissionScopes = (requested: unknown): Array<PermissionGrantResolution["scope"]> =>
+  requested === "session"
+    ? ["tool-call", "turn", "session"]
+    : requested === "turn"
+      ? ["tool-call", "turn"]
+      : ["tool-call"]
 
 export class ApprovalService {
   private readonly decisions = new PermissionDecisionEngine()
@@ -106,11 +124,43 @@ export class ApprovalService {
     const nextBase = { ...base, runState: scrubbedState, interruption: safeInterruption }
     const payload: ApprovalCheckpointPayload = { ...nextBase, invocationHash: checkpointHash(nextBase, stored.version) }
     const invocation = payload.invocation
-    const requestedParams = {
-      id: stored.approvalID, turnId: stored.turnID, itemId: stored.toolCallID, toolCallID: stored.toolCallID,
-      tool: invocation.name, input: invocation.input, requestedPermissions: requestedPermissions(invocation.input),
-      review: payload.review.review ?? null, risk: stored.risk, reason: stored.reason, createdAt: stored.createdAt,
-    }
+    const requestedParams = invocation.name === "request_permissions"
+      ? {
+          interactionId: stored.approvalID,
+          threadId: stored.threadID,
+          turnId: stored.turnID,
+          agentId: stored.agentID,
+          createdAt: stored.createdAt,
+          version: stored.version,
+          kind: "permission",
+          toolCallId: stored.toolCallID,
+          tool: invocation.name,
+          reason: typeof invocation.input.justification === "string"
+            ? invocation.input.justification
+            : stored.reason,
+          requestedPermissions: requestedPermissions(invocation.input),
+          requestedScope: ["tool-call", "turn", "session"].includes(String(invocation.input.scope))
+            ? invocation.input.scope
+            : "tool-call",
+          allowedScopes: allowedPermissionScopes(invocation.input.scope),
+        }
+      : {
+          interactionId: stored.approvalID,
+          threadId: stored.threadID,
+          turnId: stored.turnID,
+          agentId: stored.agentID,
+          createdAt: stored.createdAt,
+          version: stored.version,
+          kind: "approval",
+          toolCallId: stored.toolCallID,
+          tool: invocation.name,
+          risk: ["low", "medium", "high", "critical"].includes(stored.risk) ? stored.risk : "high",
+          reason: stored.reason || "需要批准工具调用",
+          ...(typeof invocation.input.command === "string" ? { command: invocation.input.command } : {}),
+          ...(typeof invocation.input.cwd === "string" ? { cwd: invocation.input.cwd } : {}),
+          requestedPermissions: requestedPermissions(invocation.input),
+          allowedChoices: ["allow-once", "deny", "stop"],
+        }
     const { checkpoint, events } = this.db.activateApprovalCheckpoint(stored.approvalID, payload, requestedParams)
     for (const event of events) await Effect.runPromise(this.hub.publish(event))
     this.agentStatusHandler?.(checkpoint.agentID, "waiting_permission")
@@ -128,7 +178,12 @@ export class ApprovalService {
     return { ...review, decision: "ask", reason: review.reason }
   }
 
-  async respond(id: string, decision: "allow" | "deny", feedback?: string) {
+  async respond(
+    id: string,
+    decision: "allow" | "deny",
+    feedback?: string,
+    operation?: InteractionOperationInput,
+  ) {
     try { this.load(id) } catch (cause) {
       const invalidated = this.db.invalidateApprovalCheckpoint(id, "审批 checkpoint 校验失败")
       for (const event of invalidated?.events ?? []) await Effect.runPromise(this.hub.publish(event))
@@ -137,7 +192,7 @@ export class ApprovalService {
     const safeFeedback = feedback?.trim()
       ? secretScrubber.scrubText(feedback.trim().slice(0, 4_000))
       : undefined
-    const result = this.db.resolveApprovalCheckpoint(id, decision, safeFeedback)
+    const result = this.db.resolveApprovalCheckpoint(id, decision, safeFeedback, operation)
     if (result.state === "missing") throw new AgentError("APPROVAL_NOT_FOUND", "审批请求不存在", 404)
     if (result.state === "not-ready") throw new AgentError("APPROVAL_NOT_READY", "审批 RunState 尚未完整落盘", 409)
     if (result.state === "already-resolved") throw new AgentError("APPROVAL_ALREADY_RESOLVED", "审批请求已经处理", 409)
@@ -149,6 +204,32 @@ export class ApprovalService {
     const checkpoint = result.checkpoint
     for (const event of result.events) await Effect.runPromise(this.hub.publish(event))
     return checkpoint
+  }
+
+  respondPermission(
+    id: string,
+    decision: "allow" | "deny",
+    grant?: PermissionGrantResolution,
+    operation?: InteractionOperationInput,
+  ) {
+    const feedback = decision === "allow" && grant
+      ? `${PERMISSION_GRANT_PREFIX}${JSON.stringify(grant)}`
+      : undefined
+    return this.respond(id, decision, feedback, operation)
+  }
+
+  permissionGrantResolution(checkpoint: StoredApprovalCheckpoint): PermissionGrantResolution | undefined {
+    if (checkpoint.payload.invocation.name !== "request_permissions") return undefined
+    const feedback = checkpoint.payload.resolution?.feedback
+    if (!feedback?.startsWith(PERMISSION_GRANT_PREFIX)) return undefined
+    try {
+      const value = JSON.parse(feedback.slice(PERMISSION_GRANT_PREFIX.length)) as PermissionGrantResolution
+      return ["tool-call", "turn", "session"].includes(value.scope) && value.grantedPermissions && typeof value.grantedPermissions === "object"
+        ? value
+        : undefined
+    } catch {
+      return undefined
+    }
   }
 
   claimResume(turnID: string): StoredApprovalCheckpoint | null {

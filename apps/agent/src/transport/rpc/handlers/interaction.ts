@@ -18,7 +18,6 @@ import {
   decodeOffsetCursor,
   decodePermissionConfig,
   decodeQueueInput,
-  decodeQueueReorder,
   decodeQueueResume,
   decodeQueueUpdate,
   decodeReviewAiStart,

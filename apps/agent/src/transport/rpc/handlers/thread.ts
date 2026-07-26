@@ -17,9 +17,8 @@ import {
   attachmentView,
   booleanParam,
   decodeOffsetCursor,
-  decodePermissionConfig,
+  decodeQueueAdd,
   decodeQueueInput,
-  decodeQueueReorder,
   decodeQueueResume,
   decodeQueueUpdate,
   decodeReviewAiStart,
@@ -36,13 +35,14 @@ import {
   decodeSandboxUninstall,
   decodeThreadSettings,
   decodeThreadSettingsPatch,
+  decodeTurnInterrupt,
   decodeTurnStart,
+  decodeTurnSteer,
   encodeOffsetCursor,
   enumValue,
   githubPullRequestIdentity,
   githubRepositoryIdentity,
   memoryEntryView,
-  modelRef,
   modelRefOrNull,
   parseJsonRecord,
   positiveIntegerParam,
@@ -75,16 +75,15 @@ export const threadHandlers = {
     "turn/steer",
     "turn/interrupt",
     "turn/resume",
+    "queue/add",
     "queue/update",
     "queue/remove",
-    "queue/reorder",
-    "queue/steer",
     "queue/resume",
     "attachment/import",
     "attachment/read",
   ],
   async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, context: RpcRouterContext): Promise<unknown> {
-    const { db, threads, history, approvals, questions, subagents, attachments, providers, integrations, apiKeys, memory, sandbox, review, github } = runtime.dependencies
+    const { db, threads, history, approvals, questions, subagents, attachments, integrations, apiKeys, memory, sandbox, review, github } = runtime.dependencies
     const params = optionalRecord(rawParams)
     switch (method) {
       case "thread/list": {
@@ -166,18 +165,12 @@ export const threadHandlers = {
       case "turn/start": {
         const start = decodeParams(decodeTurnStart, rawParams, "turn/start")
         const threadId = start.threadId
-        const attachmentIds = start.attachmentIds ? [...start.attachmentIds] : []
-        if (attachmentIds.length) {
-          if (new Set(attachmentIds).size !== attachmentIds.length || attachmentIds.length > 8) throw new AgentError("ATTACHMENT_COUNT_LIMIT", "每个 Turn 最多包含 8 个不重复附件", 413)
-          const records = await Promise.all(attachmentIds.map((id) => attachments.read(id).then((value) => value.record)))
-          if (records.some((record) => record.binding !== null)) throw new AgentError("ATTACHMENT_ALREADY_BOUND", "附件已绑定到其他 Turn", 409)
-          if (records.some((record) => record.kind === "image")) {
-            const model = await providers.resolve(start.model)
-            if (!model.capabilities.input.includes("image")) throw new AgentError("MODEL_IMAGE_UNSUPPORTED", "当前模型不支持图片输入", 409)
-          }
-        }
-        const submitted = await threads.submit(threadId, submitMessage(start), stringParam(params, "inputId"))
-        if (attachmentIds.length) await attachments.bind(attachmentIds, { type: "input", id: submitted.inputID })
+        const submitted = await threads.startTurn(
+          threadId,
+          submitMessage(start),
+          start.inputId,
+          start.attachmentIds ?? [],
+        )
         const sequence = globalEventSequence(db)
         return {
           inputId: submitted.inputID,
@@ -187,49 +180,29 @@ export const threadHandlers = {
         }
       }
       case "turn/steer": {
-        const threadId = stringParam(params, "threadId")
-        const turnId = stringParam(params, "turnId")
-        const inputId = stringParam(params, "inputId")
-        const existing = db.inputAdmission(inputId)
-        if (existing) {
-          if (existing.thread_id !== threadId || existing.turn_id !== turnId || existing.content !== stringParam(params, "content")) {
-            throw new AgentError("CONFLICT", "inputId 已被其他请求使用", 409)
-          }
-          const sequence = globalEventSequence(db)
-          return {
-            inputId,
-            turnId,
-            disposition: "duplicate",
-            streamPosition: { streamId: threadId, sequence },
-          }
-        }
-        const active = db.activeTurn(threadId)
-        if (!active || active.id !== turnId) throw new AgentError("TURN_NOT_FOUND", "当前 Turn 不可引导", 404)
-        const row = db.sqlite.query("SELECT model_ref FROM turns WHERE id = ? AND thread_id = ?").get(turnId, threadId) as { model_ref: string } | null
-        if (!row) throw new AgentError("TURN_NOT_FOUND", "Turn 不存在", 404)
-        const thread = threads.get(threadId)
-        const submitted = await threads.submit(threadId, {
-          content: stringParam(params, "content"),
-          model: modelRef(record(JSON.parse(row.model_ref), "model")),
-          permissionConfig: thread.settings.permissionConfig,
+        const request = decodeParams(decodeTurnSteer, rawParams, "turn/steer")
+        const activeInput = db.getTurnInput(request.turnId)
+        if (!activeInput) throw new AgentError("TURN_ID_MISMATCH", "活动 Turn 已变化，请刷新后重试", 409)
+        const submitted = await threads.steerTurn(request.threadId, request.turnId, {
+          content: request.content,
+          model: activeInput.model,
+          permissionConfig: activeInput.permissionConfig,
           strategy: "guide",
-          taskMode: thread.settings.taskMode,
-        }, inputId)
+          taskMode: activeInput.taskMode,
+        }, request.inputId, request.attachmentIds ?? [])
         const sequence = globalEventSequence(db)
         return {
-          inputId: submitted.inputID,
+          inputId: request.inputId,
           turnId: submitted.turnID,
           disposition: submitted.disposition === "duplicate" ? "duplicate" : "accepted",
-          streamPosition: { streamId: threadId, sequence },
+          streamPosition: { streamId: request.threadId, sequence },
         }
       }
-      case "turn/interrupt":
-        {
-          const threadId = stringParam(params, "threadId")
-          const turnId = typeof params.turnId === "string" ? params.turnId : db.activeTurn(threadId)?.id
-          await threads.stop(threadId)
-          return { threadId, ...(turnId ? { turnId } : {}), status: "interrupted" }
-        }
+      case "turn/interrupt": {
+        const request = decodeParams(decodeTurnInterrupt, rawParams, "turn/interrupt")
+        const status = await threads.stop(request.threadId, request.turnId)
+        return { threadId: request.threadId, turnId: request.turnId, status }
+      }
       case "turn/resume": {
         const threadId = stringParam(params, "threadId")
         const turnId = stringParam(params, "turnId")
@@ -241,19 +214,37 @@ export const threadHandlers = {
         const mutation = await threads.updateQueue(request.threadId, request.inputId, request.content, request.attachmentIds, { operationID: request.operationId, ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }) })
         return runtime.queueStateResult(request.threadId, mutation.event?.id)
       }
+      case "queue/add": {
+        const request = decodeParams(decodeQueueAdd, rawParams, "queue/add")
+        const submitted = await threads.enqueueFollowUp(request.threadId, {
+          content: request.content,
+          model: request.model,
+          permissionConfig: request.permissionConfig,
+          strategy: "queue",
+          taskMode: request.taskMode,
+        }, request.inputId, request.attachmentIds ?? [], {
+          operationID: request.operationId,
+          ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }),
+        })
+        const sequence = globalEventSequence(db)
+        const turn = db.sqlite.query("SELECT status FROM turns WHERE id = ?").get(submitted.turnID) as { status: string } | null
+        return {
+          inputId: submitted.inputID,
+          turnId: submitted.turnID,
+          disposition: submitted.disposition === "duplicate" ? "duplicate" : "accepted",
+          admission: submitted.disposition === "started"
+            ? "started"
+            : submitted.disposition === "queued"
+              ? "queued"
+              : turn?.status === "queued"
+                ? "queued"
+                : "started",
+          streamPosition: { streamId: request.threadId, sequence },
+        }
+      }
       case "queue/remove": {
         const request = decodeParams(decodeQueueInput, rawParams, "queue/remove")
         const mutation = await threads.removeQueue(request.threadId, request.inputId, { operationID: request.operationId, ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }) })
-        return runtime.queueStateResult(request.threadId, mutation.event?.id)
-      }
-      case "queue/reorder": {
-        const request = decodeParams(decodeQueueReorder, rawParams, "queue/reorder")
-        const mutation = await threads.reorderQueue(request.threadId, request.inputIds, { operationID: request.operationId, ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }) })
-        return runtime.queueStateResult(request.threadId, mutation.event?.id)
-      }
-      case "queue/steer": {
-        const request = decodeParams(decodeQueueInput, rawParams, "queue/steer")
-        const mutation = await threads.steerQueue(request.threadId, request.inputId, { operationID: request.operationId, ...(request.expectedVersion === undefined ? {} : { expectedVersion: request.expectedVersion }) })
         return runtime.queueStateResult(request.threadId, mutation.event?.id)
       }
       case "queue/resume": {

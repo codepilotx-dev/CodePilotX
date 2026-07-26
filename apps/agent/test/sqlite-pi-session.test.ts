@@ -142,6 +142,40 @@ describe("SqlitePiSessionRepo", () => {
     expect((await repo.openByID("rollback")).getEntries()).resolves.toHaveLength(1)
   })
 
+  test("Pi session flush 与 steer mailbox consumed 在同一事务提交", async () => {
+    const { db, repo, threadID } = await setup()
+    const input = {
+      content: "initial",
+      model: Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("test") }),
+      permissionConfig: { sandboxMode: "workspace-write", approvalPolicy: "on-request", approvalsReviewer: "user" },
+      strategy: "queue",
+      taskMode: "chat",
+    } as const
+    const turn = db.createTurn(threadID, input)
+    db.claimTurnExecution(turn.turnID)
+    const steer = db.appendGuide(threadID, turn.turnID, { ...input, content: "steer", strategy: "guide" }, "input:steer:atomic")
+    const session = await repo.create({ id: "steer-settlement", threadID, agentID: turn.agentID })
+    await session.appendMessage({ role: "user", content: "steer", timestamp: 1 })
+    const storage = session.getStorage() as SqlitePiSessionStorage
+
+    expect(() => db.transaction(() => {
+      storage.flush()
+      db.consumeGuideMailbox(turn.turnID, [steer.inputID])
+      throw new Error("steer settlement failed")
+    })).toThrow("steer settlement failed")
+    expect(storage.pendingCount).toBe(1)
+    expect(db.guideMailbox(turn.turnID).map(({ id }) => id)).toEqual([steer.inputID])
+    expect((await repo.openByID("steer-settlement")).getEntries()).resolves.toHaveLength(0)
+
+    db.transaction(() => {
+      storage.flush()
+      db.consumeGuideMailbox(turn.turnID, [steer.inputID])
+    })
+    expect(storage.pendingCount).toBe(0)
+    expect(db.guideMailbox(turn.turnID)).toEqual([])
+    expect((await repo.openByID("steer-settlement")).getEntries()).resolves.toHaveLength(1)
+  })
+
   test("按 Thread 打开时拒绝 session owner 串线", async () => {
     const { db, repo, threadID } = await setup()
     const other = db.createThread("Other")

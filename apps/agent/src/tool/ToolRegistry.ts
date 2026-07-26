@@ -347,9 +347,13 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     formatResult: (output) => ({ content: JSON.stringify(output, null, 2), details: output, addedToolNames: output.addedToolNames }),
   },
   {
-    sdkName: "request_permissions", name: "request_permissions", description: "为当前调用或 turn 请求临时权限。",
-    schema: z.object({ scope: z.enum(["tool-call", "turn"]), readPaths: z.array(z.string()).optional(), writePaths: z.array(z.string()).optional(), networkDomains: z.array(z.string()).optional(), escalationToken: z.string().uuid().optional(), justification: z.string().min(1) }).strict(),
-    inputSchema: jsonObject({ scope: { enum: ["tool-call", "turn"] }, readPaths: { type: "array", items: { type: "string" } }, writePaths: { type: "array", items: { type: "string" } }, networkDomains: { type: "array", items: { type: "string" } }, escalationToken: { type: "string", format: "uuid" }, justification: { type: "string" } }, ["scope", "justification"]),
+    sdkName: "request_permissions", name: "request_permissions", description: "为下一次工具调用、当前 turn 或当前运行会话请求临时权限。",
+    schema: z.object({ scope: z.enum(["tool-call", "turn", "session"]), readPaths: z.array(z.string()).optional(), writePaths: z.array(z.string()).optional(), networkDomains: z.array(z.string()).optional(), escalationToken: z.string().uuid().optional(), justification: z.string().min(1) }).strict().superRefine((input, context) => {
+      if (!input.escalationToken && !input.readPaths?.length && !input.writePaths?.length && !input.networkDomains?.length) {
+        context.addIssue({ code: "custom", message: "至少需要申请一项路径、网络或 sandbox escalation 权限" })
+      }
+    }),
+    inputSchema: jsonObject({ scope: { enum: ["tool-call", "turn", "session"] }, readPaths: { type: "array", items: { type: "string" } }, writePaths: { type: "array", items: { type: "string" } }, networkDomains: { type: "array", items: { type: "string" } }, escalationToken: { type: "string", format: "uuid" }, justification: { type: "string" } }, ["scope", "justification"]),
     capabilities: { ...noCapabilities(), userInteraction: true }, allowedModes: allModes, allowedProfiles: allProfiles, approvalStrategy: "always-review", visibility: "internal", executionMode: "sequential",
     execute: async (input) => ({ granted: true, ...input }),
   },

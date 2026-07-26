@@ -257,7 +257,6 @@ export function DesktopLayout(): React.ReactNode {
     providerID,
     providerBaseURL,
     showContextUsage,
-    followUpBehavior,
     diffMarkerStyle,
     reviewView,
     gitBranchPrefix,
@@ -406,7 +405,6 @@ export function DesktopLayout(): React.ReactNode {
     installCodePilotXDependencies,
     enableMemory,
     rustSearchAndDiffKernels,
-    followUpBehavior,
     onError: (message: string) => setErrorMessage(message),
     onDiffForActive: (patch: string) => setDiffState(patch),
     onRefreshActiveWorkspace: (sessionId: string) => {
@@ -1985,30 +1983,6 @@ export function DesktopLayout(): React.ReactNode {
     [sessionId],
   )
 
-  const handleFollowUpSteer = useCallback(
-    async (followUpId: string): Promise<void> => {
-      if (!sessionId) return
-      try {
-        await desktopClient.sendQueuedFollowUpNow(sessionId, followUpId)
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : String(error))
-      }
-    },
-    [sessionId],
-  )
-
-  const handleFollowUpReorder = useCallback(
-    async (followUpIds: string[]): Promise<void> => {
-      if (!sessionId) return
-      try {
-        await desktopClient.reorderQueuedFollowUps(sessionId, followUpIds)
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : String(error))
-      }
-    },
-    [sessionId],
-  )
-
   const handleFollowUpResume = useCallback(async (): Promise<void> => {
     if (!sessionId) return
     try {
@@ -2101,10 +2075,6 @@ export function DesktopLayout(): React.ReactNode {
             void handleFollowUpEdit(followUpId, value),
           onFollowUpRemove: followUpId =>
             void handleFollowUpRemove(followUpId),
-          onFollowUpSendNow: followUpId =>
-            void handleFollowUpSteer(followUpId),
-          onFollowUpReorder: followUpIds =>
-            void handleFollowUpReorder(followUpIds),
           onFollowUpResume: () => void handleFollowUpResume(),
         }
       : null

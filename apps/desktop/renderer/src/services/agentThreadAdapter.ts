@@ -337,7 +337,12 @@ function inputToSessionEvent(input: Input): DesktopSessionEvent {
     role: 'user',
     content: input.content,
     createdAt: iso(input.createdAt),
-    metadata: { inputID: input.id, turnId: input.turnId, state: input.state, strategy: input.strategy },
+    metadata: {
+      inputID: input.id,
+      turnId: input.turnId,
+      state: input.state,
+      delivery: input.delivery,
+    },
   }
 }
 

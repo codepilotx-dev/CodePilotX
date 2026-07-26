@@ -107,7 +107,7 @@ describe('agent thread adapter', () => {
         createdAt: 1_700_000_001_000, updatedAt: 1_700_000_008_000,
       }],
       inputs: [{
-        id: 'input-1', threadId: 'thread-1', turnId: 'turn-1', content: '实现历史对话', strategy: 'queue',
+        id: 'input-1', threadId: 'thread-1', turnId: 'turn-1', content: '实现历史对话', delivery: 'start',
         mode: 'plan', model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' },
         state: 'active', createdAt: 1_700_000_001_000,
       }],
@@ -196,9 +196,9 @@ describe('agent thread adapter', () => {
       ],
       agents: [],
       inputs: [
-        { id: 'input-active', threadId: 'thread-queue', turnId: 'turn-active', content: '正在执行', strategy: 'queue', mode: 'chat', model, permissionConfig, state: 'active', createdAt: 1_700_000_001_000 },
-        { id: 'input-third', threadId: 'thread-queue', turnId: 'turn-third', content: '第三条', strategy: 'queue', mode: 'chat', model, permissionConfig, state: 'queued', createdAt: 1_700_000_003_000 },
-        { id: 'input-second', threadId: 'thread-queue', turnId: 'turn-second', content: '第二条', strategy: 'queue', mode: 'chat', model, permissionConfig, state: 'queued', createdAt: 1_700_000_002_000 },
+        { id: 'input-active', threadId: 'thread-queue', turnId: 'turn-active', content: '正在执行', delivery: 'start', mode: 'chat', model, permissionConfig, state: 'active', createdAt: 1_700_000_001_000 },
+        { id: 'input-third', threadId: 'thread-queue', turnId: 'turn-third', content: '第三条', delivery: 'follow-up', mode: 'chat', model, permissionConfig, state: 'queued', createdAt: 1_700_000_003_000 },
+        { id: 'input-second', threadId: 'thread-queue', turnId: 'turn-second', content: '第二条', delivery: 'follow-up', mode: 'chat', model, permissionConfig, state: 'queued', createdAt: 1_700_000_002_000 },
       ],
       messages: [], items: [], approvals: [],
     }

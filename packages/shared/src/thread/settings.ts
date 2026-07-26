@@ -1,9 +1,6 @@
 import { Schema } from "effect"
 import { PermissionConfigSchema } from "./permission"
 
-export const SendStrategySchema = Schema.Literals(["queue", "guide"])
-export type SendStrategy = typeof SendStrategySchema.Type
-
 export const TaskModeSchema = Schema.Literals(["chat", "plan"])
 export type TaskMode = typeof TaskModeSchema.Type
 

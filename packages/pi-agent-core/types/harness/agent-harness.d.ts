@@ -25,6 +25,7 @@ export declare class AgentHarness<TSkill extends Skill = Skill, TPromptTemplate 
     private followUpQueue;
     private followUpQueueMode;
     private nextTurnQueue;
+    private readonly queuedInputIds;
     private handlers;
     constructor(options: AgentHarnessOptions<TSkill, TPromptTemplate, TTool>);
     private getHandlers;
@@ -54,12 +55,15 @@ export declare class AgentHarness<TSkill extends Skill = Skill, TPromptTemplate 
     promptFromTemplate(name: string, args?: string[]): Promise<AssistantMessage>;
     steer(text: string, options?: {
         images?: ImageContent[];
+        inputId?: string;
     }): Promise<void>;
     followUp(text: string, options?: {
         images?: ImageContent[];
+        inputId?: string;
     }): Promise<void>;
     nextTurn(text: string, options?: {
         images?: ImageContent[];
+        inputId?: string;
     }): Promise<void>;
     appendMessage(message: AgentMessage): Promise<void>;
     compact(customInstructions?: string): Promise<CompactResult>;

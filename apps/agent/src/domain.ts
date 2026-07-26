@@ -2,7 +2,8 @@ import type { PermissionConfig, ShellReview, ThreadSettings } from "@codepilotx/
 import type { Model } from "@codepilotx/model-schema"
 
 export type { PermissionConfig } from "@codepilotx/shared/thread"
-export type SendStrategy = "queue" | "guide"
+/** SQLite-private delivery encoding; public RPC/view models expose InputDelivery. */
+export type StoredInputDelivery = "start" | "queue" | "guide"
 export type TaskMode = "chat" | "plan"
 export type TurnStatus =
   | "queued"
@@ -21,7 +22,7 @@ export interface SubmitMessage {
   content: string
   model: ModelRef
   permissionConfig: PermissionConfig
-  strategy: SendStrategy
+  strategy: StoredInputDelivery
   taskMode: TaskMode
 }
 

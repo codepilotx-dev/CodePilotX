@@ -433,10 +433,10 @@ function approvalFromParams(
   snapshot: ThreadSnapshot,
   params: Record<string, unknown>,
 ): ApprovalRequest | null {
-  const id = stringValue(params.id)
+  const id = stringValue(params.interactionId) ?? stringValue(params.id)
   const threadId = stringValue(params.threadId) ?? snapshot.thread.id
   const turnId = stringValue(params.turnId) ?? stringValue(params.turnID)
-  const toolCallID = stringValue(params.toolCallID) ?? stringValue(params.itemId)
+  const toolCallID = stringValue(params.toolCallId) ?? stringValue(params.toolCallID) ?? stringValue(params.itemId)
   const tool = stringValue(params.tool) ?? "tool"
   const item = snapshot.items.find((candidate) => candidate.id === toolCallID)
   const agentId = stringValue(params.agentId) ?? stringValue(params.agentID) ?? item?.agentId
@@ -470,11 +470,16 @@ function questionFromParams(
   snapshot: ThreadSnapshot,
   params: Record<string, unknown>,
 ): Extract<Item, { type: "question" }> | null {
-  const id = stringValue(params.id)
+  const id = stringValue(params.interactionId) ?? stringValue(params.id)
   const turnId = stringValue(params.turnId) ?? stringValue(params.turnID)
   const agentId = stringValue(params.agentId) ?? stringValue(params.agentID)
   if (!id || !turnId || !agentId) return null
-  const rawOptions = Array.isArray(params.options) ? params.options : []
+  const firstQuestion = Array.isArray(params.questions) ? record(params.questions[0]) : {}
+  const rawOptions = Array.isArray(firstQuestion.choices)
+    ? firstQuestion.choices
+    : Array.isArray(params.options)
+      ? params.options
+      : []
   const choices = rawOptions.map((choice, index): QuestionChoice => {
     const option = record(choice)
     const label = stringValue(option.label) ?? stringValue(choice) ?? `选项 ${index + 1}`
@@ -491,7 +496,7 @@ function questionFromParams(
     turnId,
     agentId,
     type: "question",
-    prompt: stringValue(params.question) ?? stringValue(params.prompt) ?? "需要你的确认",
+    prompt: stringValue(firstQuestion.prompt) ?? stringValue(params.question) ?? stringValue(params.prompt) ?? "需要你的确认",
     choices,
     status: "pending",
     answer: null,
@@ -507,7 +512,7 @@ function inputFromParams(snapshot: ThreadSnapshot, params: Record<string, unknow
   const existing = snapshot.inputs.find((input) => input.id === id)
   if (existing) {
     const action = stringValue(params.action)
-    return { ...existing, state: action === "guide-consumed" ? "merged" : existing.state }
+    return { ...existing, state: action === "steer-consumed" ? "merged" : existing.state }
   }
   if (!isModelRef(source.model) || !isPermissionConfig(source.permissionConfig)) return null
   const action = stringValue(params.action)
@@ -516,11 +521,15 @@ function inputFromParams(snapshot: ThreadSnapshot, params: Record<string, unknow
     threadId: snapshot.thread.id,
     turnId,
     content: source.content,
-    strategy: source.strategy === "guide" ? "guide" : "queue",
+    delivery: source.strategy === "guide"
+      ? "steer"
+      : source.strategy === "queue"
+        ? "follow-up"
+        : "start",
     mode: source.taskMode === "plan" || source.mode === "plan" ? "plan" : "chat",
     model: source.model,
     permissionConfig: source.permissionConfig,
-    state: action === "guide-consumed" ? "merged" : "active",
+    state: action === "steer-consumed" ? "merged" : "active",
     createdAt: numberValue(params.createdAt) ?? snapshot.thread.updatedAt,
   }
 }

@@ -4,8 +4,8 @@ import { Schema } from "effect"
 export const PermissionModeSchema = Schema.Literals(["ask", "review", "full"])
 export type PermissionMode = typeof PermissionModeSchema.Type
 
-export const SendStrategySchema = Schema.Literals(["queue", "guide"])
-export type SendStrategy = typeof SendStrategySchema.Type
+export const InputDeliverySchema = Schema.Literals(["start", "steer", "follow-up"])
+export type InputDelivery = typeof InputDeliverySchema.Type
 
 export const TaskModeSchema = Schema.Literals(["chat", "plan"])
 export type TaskMode = typeof TaskModeSchema.Type
@@ -130,7 +130,7 @@ export const InputSchema = Schema.Struct({
   sessionID: Schema.String,
   runID: Schema.NullOr(Schema.String),
   content: Schema.String,
-  strategy: SendStrategySchema,
+  delivery: InputDeliverySchema,
   mode: TaskModeSchema,
   model: Model.Ref,
   permissionMode: PermissionModeSchema,

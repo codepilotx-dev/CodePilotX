@@ -20,6 +20,7 @@ type SubmitTransactionOptions = {
   submitToSession: (
     sessionId: string,
     input: DesktopUserMessageInput,
+    metadata: { inputId: string },
   ) => Promise<ComposerDeliveryStatus | void>
 }
 
@@ -85,7 +86,11 @@ export async function executeComposerSubmitTransaction({
   }
 
   try {
-    const deliveryStatus = await submitToSession(sessionId, prepared.input)
+    const deliveryStatus = await submitToSession(
+      sessionId,
+      prepared.input,
+      { inputId: prepared.clientId },
+    )
     return {
       status: deliveryStatus === 'queued' ? 'queued' : 'sent',
       sessionId,

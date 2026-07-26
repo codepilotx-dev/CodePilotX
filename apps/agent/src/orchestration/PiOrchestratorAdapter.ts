@@ -49,6 +49,7 @@ export class SafeBoundaryInterrupt extends Error {
 type PendingTurn = {
   items: Map<string, Item>;
   storage: SqlitePiSessionStorage;
+  consumedInputIDs: Set<string>;
 };
 
 const outputDelta = (value: unknown) => typeof value === "string" ? value : "";
@@ -224,7 +225,7 @@ export class PiOrchestratorAdapter {
     const pendingFor = (context: PiRuntimeEventContext) => {
       const existing = this.pending.get(context.threadID);
       if (existing) return existing;
-      const created = { storage, items: new Map<string, Item>() };
+      const created = { storage, items: new Map<string, Item>(), consumedInputIDs: new Set<string>() };
       this.pending.set(context.threadID, created);
       return created;
     };
@@ -404,6 +405,11 @@ export class PiOrchestratorAdapter {
         const output = typeof input.result === "string" ? input.result : "";
         await this.finishTool(context, { ...input, output });
       },
+      queueConsumed: async (context, input) => {
+        if (input.delivery !== "steer") return;
+        const pending = pendingFor(context);
+        for (const inputID of input.inputIDs) pending.consumedInputIDs.add(inputID);
+      },
       savePoint: async (context) => {
         const pending = this.pending.get(context.threadID);
         const durable: Array<ReturnType<AgentDatabase["insertEvent"]>> = [];
@@ -421,6 +427,23 @@ export class PiOrchestratorAdapter {
                   { item: persisted },
                 ),
               );
+            }
+            const consumedInputIDs = this.options.db.consumeGuideMailbox(
+              context.turnID,
+              [...pending.consumedInputIDs],
+            );
+            for (const inputID of consumedInputIDs) {
+              durable.push(this.options.db.insertEvent(
+                context.threadID,
+                context.turnID,
+                "queue/updated",
+                {
+                  threadId: context.threadID,
+                  turnId: context.turnID,
+                  inputId: inputID,
+                  action: "steer-consumed",
+                },
+              ));
             }
           }
         });
@@ -513,6 +536,7 @@ export class PiOrchestratorAdapter {
       let isError = request.resume.decision === "deny";
       const lifecycleNames = new Set([
         "request_user_input",
+        "request_permissions",
         "spawn_agents",
         "wait_agents",
         "send_agent",
@@ -520,6 +544,36 @@ export class PiOrchestratorAdapter {
         "update_plan",
         "finalize_result",
       ]);
+      if (
+        request.resume.decision === "allow"
+        && toolCall.name === "request_permissions"
+        && request.resume.permissionGrant
+      ) {
+        try {
+          const grant = await this.options.toolExecutor.applyPermissionGrant({
+            scope: request.resume.permissionGrant.scope,
+            requestedPermissions: toolCall.arguments as Record<string, unknown>,
+            grantedPermissions: request.resume.permissionGrant.grantedPermissions,
+          }, {
+            threadID: request.threadID,
+            turnID: request.turnID,
+            agentID: request.agentID,
+            profile: request.profile ?? "main",
+            taskMode: request.taskMode,
+            signal: request.signal,
+            workspace: request.workspace,
+            ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
+            permissionConfig: effectivePermissionConfig,
+            model: request.fallbackModel,
+            taskSummary: request.content,
+            toolCallID: request.resume.toolCallID,
+          });
+          resolutionText = resumedToolResultText(grant, toolCall.name);
+        } catch (cause) {
+          isError = true;
+          resolutionText = secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause));
+        }
+      }
       if (
         request.resume.decision === "allow" &&
         !lifecycleNames.has(toolCall.name)
@@ -679,8 +733,8 @@ export class PiOrchestratorAdapter {
         requestUserInput: async (input, toolCallID) => {
           await pause({
             kind: "clarification",
-            question: input.question,
-            ...(input.options ? { options: input.options } : {}),
+            questions: input.questions,
+            ...(input.autoResolutionMs === undefined ? {} : { autoResolutionMs: input.autoResolutionMs }),
             toolCallID,
             checkpoint: {
               state: JSON.stringify({
@@ -783,6 +837,7 @@ export class PiOrchestratorAdapter {
       },
     });
     this.active.set(request.threadID, runtime);
+    await request.onRuntimeReady?.();
     const resumedContent = request.resume
       ? `<interaction_resolution toolCallId=${JSON.stringify(request.resume.toolCallID ?? "unknown")}>${JSON.stringify({ answer: request.resume.answer, decision: request.resume.decision ?? null })}</interaction_resolution>\n继续处理已恢复的 Pi session；不得重新执行已完成或已被用户拒绝的同一个工具调用。若用户给出调整要求，必须据此改用其他方案。`
       : request.content;
@@ -917,10 +972,10 @@ export class PiOrchestratorAdapter {
     }
   }
 
-  async steer(threadID: string, content: string) {
+  async steer(threadID: string, content: string, images?: import("@earendil-works/pi-ai").ImageContent[], inputID?: string) {
     const runtime = this.active.get(threadID);
     if (!runtime) throw new Error("Pi Harness 尚未启动");
-    await runtime.steer(threadID, content);
+    await runtime.steer(threadID, content, images, inputID);
   }
 
   async followUp(threadID: string, content: string) {
@@ -932,6 +987,10 @@ export class PiOrchestratorAdapter {
   async abort(threadID: string) {
     const runtime = this.active.get(threadID);
     if (runtime) await runtime.abort(threadID);
+  }
+
+  clearTurnPermissionGrants(threadID: string, turnID: string) {
+    this.options.toolExecutor.clearTurnPermissionGrants(threadID, turnID);
   }
 
   async dispose() {

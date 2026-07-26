@@ -14,6 +14,8 @@ export type ComposerSubmitShortcut =
   | 'multiline-ctrl-enter'
   | 'ctrl-enter'
 
+export type ComposerDeliveryIntent = 'default' | 'follow-up'
+
 export type ComposerStackMode =
   | { kind: 'input' }
   | { kind: 'permission'; requestId: string }

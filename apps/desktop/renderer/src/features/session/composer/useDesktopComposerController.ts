@@ -20,6 +20,7 @@ import type {
   ComposerDraft,
   ComposerDraftContentSnapshot,
   ComposerDraftKey,
+  ComposerDeliveryIntent,
   ComposerPlacement,
   ComposerSubmitOutcome,
 } from './composerTypes.js'
@@ -74,7 +75,11 @@ type ControllerOptions = {
   submitToSession: (
     targetSessionId: string,
     value: DesktopUserMessageInput,
-    options?: { propagateError?: boolean },
+    options?: {
+      delivery?: ComposerDeliveryIntent
+      inputId?: string
+      propagateError?: boolean
+    },
   ) => Promise<'sent' | 'queued' | 'steered' | null>
 }
 
@@ -232,7 +237,7 @@ export function useDesktopComposerController({
     }
   }, [draftKey, subagentMode, workspace?.path])
 
-  function handleSubmit(): void {
+  function handleSubmit(delivery: ComposerDeliveryIntent = 'default'): void {
     if (
       submittingRef.current ||
       composingRef.current ||
@@ -245,13 +250,15 @@ export function useDesktopComposerController({
     setIsSubmitting(true)
     setLastSubmitOutcome(null)
     composerDraftStore.clearSubmitOutcome(draftKey)
-    void performSubmit().finally(() => {
+    void performSubmit(delivery).finally(() => {
       submittingRef.current = false
       setIsSubmitting(false)
     })
   }
 
-  async function performSubmit(): Promise<void> {
+  async function performSubmit(
+    delivery: ComposerDeliveryIntent,
+  ): Promise<void> {
     const sourceDraftKey = draftKey
     const snapshot: ComposerDraftContentSnapshot = {
       text: input,
@@ -353,13 +360,15 @@ export function useDesktopComposerController({
         {
           composerDraftStore.move(sourceDraftKey, `session:${nextSessionId}`)
           navigate(sessionPath(nextSessionId))
-        },
-      submitToSession: async (targetSessionId, value) => {
-        const delivery = await submitToSession(targetSessionId, value, {
+      },
+      submitToSession: async (targetSessionId, value, metadata) => {
+        const result = await submitToSession(targetSessionId, value, {
+          delivery,
+          inputId: metadata.inputId,
           propagateError: true,
         })
-        if (!delivery) throw new Error('发送失败，请重试')
-        return delivery === 'queued' ? 'queued' : 'sent'
+        if (!result) throw new Error('发送失败，请重试')
+        return result === 'queued' ? 'queued' : 'sent'
       },
     })
     setLastSubmitOutcome(outcome)

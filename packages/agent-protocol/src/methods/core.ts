@@ -37,7 +37,16 @@ const ProjectErrors = [
   ...CommonErrors,
 ] as const
 const WorkspaceFileErrors = ["PROJECT_NOT_FOUND", "PROJECT_REMOVED", "PROJECT_FOLDER_NOT_FOUND", "PATH_DENIED", "FILE_NOT_FOUND", "FILE_NOT_TEXT", "FILE_TOO_LARGE", "FILE_READONLY", "CONFLICT", ...CommonErrors] as const
-const ThreadErrors = ["THREAD_NOT_FOUND", "TURN_NOT_FOUND", "CONFLICT", "CHECKPOINT_UNAVAILABLE", "MODEL_UNAVAILABLE", ...CommonErrors] as const
+const ThreadErrors = [
+  "THREAD_NOT_FOUND",
+  "TURN_NOT_FOUND",
+  "TURN_ACTIVE",
+  "TURN_ID_MISMATCH",
+  "CONFLICT",
+  "CHECKPOINT_UNAVAILABLE",
+  "MODEL_UNAVAILABLE",
+  ...CommonErrors,
+] as const
 const SandboxErrors = ["SANDBOX_UNAVAILABLE", "SANDBOX_BUSY", "PERMISSION_DENIED", "CONFLICT", ...CommonErrors] as const
 const AttachmentErrors = ["ATTACHMENT_NOT_FOUND", "ATTACHMENT_LIMIT", "PERMISSION_DENIED", ...CommonErrors] as const
 const MemoryErrors = ["MEMORY_NOT_FOUND", "MEMORY_REJECTED", "PERMISSION_DENIED", ...CommonErrors] as const
@@ -118,7 +127,7 @@ export const EventUnsubscribeParamsSchema = Schema.Struct({
   subscriptionId: OpaqueIDSchema,
 })
 
-export const InteractionKindSchema = Schema.Literals(["approval", "question", "hookTrust"])
+export const InteractionKindSchema = Schema.Literals(["approval", "permission", "question", "hookTrust"])
 export const InteractionStateSchema = Schema.Literals(["pending", "resolved", "cancelled", "expired"])
 
 const InteractionMetadataFields = {
@@ -143,21 +152,44 @@ export const PendingApprovalInteractionSchema = Schema.Struct({
   allowedChoices: Schema.Array(Schema.Literals(["allow-once", "deny", "stop"])),
 })
 
+export const PendingPermissionInteractionSchema = Schema.Struct({
+  ...InteractionMetadataFields,
+  kind: Schema.Literal("permission"),
+  toolCallId: OpaqueIDSchema,
+  tool: NonEmptyStringSchema,
+  reason: NonEmptyStringSchema,
+  requestedPermissions: AgentThread.AdditionalPermissionsSchema,
+  requestedScope: AgentThread.PermissionGrantScopeSchema,
+  allowedScopes: Schema.Array(AgentThread.PermissionGrantScopeSchema)
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(3)),
+})
+
+export const InteractionQuestionChoiceSchema = Schema.Struct({
+  id: OpaqueIDSchema,
+  label: NonEmptyStringSchema,
+  description: NonEmptyStringSchema,
+  recommended: Schema.Boolean,
+})
+
 export const InteractionQuestionSchema = Schema.Struct({
   id: OpaqueIDSchema,
-  header: Schema.optional(Schema.String),
+  header: NonEmptyStringSchema.check(Schema.isMaxLength(12)),
   prompt: NonEmptyStringSchema,
-  choices: Schema.Array(AgentThread.QuestionChoiceSchema),
-  allowFreeform: Schema.Boolean,
-  required: Schema.Boolean,
-  minAnswers: Schema.optional(NonNegativeIntSchema),
-  maxAnswers: Schema.optional(PositiveIntSchema),
+  choices: Schema.Array(InteractionQuestionChoiceSchema)
+    .check(Schema.isMinLength(2))
+    .check(Schema.isMaxLength(3)),
+  allowFreeform: Schema.Literal(true),
+  required: Schema.Literal(true),
 })
 
 export const PendingQuestionInteractionSchema = Schema.Struct({
   ...InteractionMetadataFields,
   kind: Schema.Literal("question"),
-  questions: Schema.Array(InteractionQuestionSchema),
+  questions: Schema.Array(InteractionQuestionSchema)
+    .check(Schema.isMinLength(1))
+    .check(Schema.isMaxLength(3)),
+  autoResolutionMs: Schema.optional(Schema.Int.check(Schema.isBetween({ minimum: 60_000, maximum: 240_000 }))),
 })
 
 export const PendingHookTrustInteractionSchema = Schema.Struct({
@@ -175,6 +207,7 @@ export const PendingHookTrustInteractionSchema = Schema.Struct({
 
 export const PendingInteractionSchema = Schema.Union([
   PendingApprovalInteractionSchema,
+  PendingPermissionInteractionSchema,
   PendingQuestionInteractionSchema,
   PendingHookTrustInteractionSchema,
 ])
@@ -201,15 +234,31 @@ export const ApprovalInteractionResponseSchema = Schema.Struct({
   })),
 })
 
+export const PermissionInteractionResponseSchema = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal("permission"),
+    decision: Schema.Literal("grant"),
+    scope: AgentThread.PermissionGrantScopeSchema,
+    grantedPermissions: AgentThread.AdditionalPermissionsSchema,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("permission"),
+    decision: Schema.Literals(["deny", "stop"]),
+  }),
+])
+
 export const QuestionInteractionResponseSchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("question"),
     status: Schema.Literal("answered"),
+    resolution: Schema.Literals(["user", "auto"]),
     answers: Schema.Array(Schema.Struct({
       questionId: OpaqueIDSchema,
-      choiceIds: Schema.Array(OpaqueIDSchema),
+      choiceIds: Schema.Array(OpaqueIDSchema).check(Schema.isMaxLength(1)),
       text: Schema.optional(Schema.String),
-    })),
+    }))
+      .check(Schema.isMinLength(1))
+      .check(Schema.isMaxLength(3)),
   }),
   Schema.Struct({ kind: Schema.Literal("question"), status: Schema.Literal("ignored") }),
 ])
@@ -221,6 +270,7 @@ export const HookTrustInteractionResponseSchema = Schema.Struct({
 
 export const InteractionResponseSchema = Schema.Union([
   ApprovalInteractionResponseSchema,
+  PermissionInteractionResponseSchema,
   QuestionInteractionResponseSchema,
   HookTrustInteractionResponseSchema,
 ])
@@ -736,6 +786,21 @@ export const TurnStartParamsSchema = Schema.Struct({
   taskMode: AgentThread.TaskModeSchema,
 })
 
+export const QueueAddParamsSchema = Schema.Struct({
+  threadId: OpaqueIDSchema,
+  inputId: OpaqueIDSchema,
+  ...TurnContentFields,
+  model: Model.Ref,
+  permissionConfig: AgentThread.PermissionConfigSchema,
+  taskMode: AgentThread.TaskModeSchema,
+  ...MutationMetaSchema.fields,
+})
+
+export const QueueAdmissionResultSchema = Schema.Struct({
+  ...AdmissionSchema.fields,
+  admission: Schema.Literals(["started", "queued"]),
+})
+
 export const TurnSteerParamsSchema = Schema.Struct({
   threadId: OpaqueIDSchema,
   turnId: OpaqueIDSchema,
@@ -761,11 +826,6 @@ export const QueueInputParamsSchema = Schema.Struct({
   inputId: OpaqueIDSchema,
 })
 
-export const QueueReorderParamsSchema = Schema.Struct({
-  ...QueueMutationFields,
-  inputIds: Schema.Array(OpaqueIDSchema),
-})
-
 export const QueueResumeParamsSchema = Schema.Struct(QueueMutationFields)
 
 export const QueueStateResultSchema = Schema.Struct({
@@ -779,13 +839,13 @@ export const QueueStateResultSchema = Schema.Struct({
 
 export const TurnInterruptParamsSchema = Schema.Struct({
   threadId: OpaqueIDSchema,
-  turnId: Schema.optional(OpaqueIDSchema),
+  turnId: OpaqueIDSchema,
   ...OperationParamsSchema.fields,
 })
 
 export const TurnInterruptResultSchema = Schema.Struct({
   threadId: OpaqueIDSchema,
-  turnId: Schema.optional(OpaqueIDSchema),
+  turnId: OpaqueIDSchema,
   status: AgentThread.TurnStatusSchema,
 })
 
@@ -953,12 +1013,11 @@ export const CoreRpcMethods = {
   "thread/compact": defineMethod({ params: ThreadCompactParamsSchema, result: ThreadCompactResultSchema, errors: ThreadErrors, capability: "context.compact.v1", mutation: true, exactResult: true }),
   "turn/start": defineMethod({ params: TurnStartParamsSchema, result: AdmissionSchema, errors: ThreadErrors, capability: "turn.admission.v1", mutation: true, exactParams: true }),
   "turn/steer": defineMethod({ params: TurnSteerParamsSchema, result: AdmissionSchema, errors: ThreadErrors, capability: "turn.steer.v1", mutation: true, exactParams: true }),
-  "turn/interrupt": defineMethod({ params: TurnInterruptParamsSchema, result: TurnInterruptResultSchema, errors: ThreadErrors, capability: null, mutation: true }),
+  "turn/interrupt": defineMethod({ params: TurnInterruptParamsSchema, result: TurnInterruptResultSchema, errors: ThreadErrors, capability: null, mutation: true, exactParams: true, exactResult: true }),
   "turn/resume": defineMethod({ params: TurnResumeParamsSchema, result: TurnResumeResultSchema, errors: ThreadErrors, capability: "turn.resume.v1", mutation: true }),
+  "queue/add": defineMethod({ params: QueueAddParamsSchema, result: QueueAdmissionResultSchema, errors: ThreadErrors, capability: "turn.queue.management.v1", mutation: true, exactParams: true, exactResult: true }),
   "queue/update": defineMethod({ params: QueueUpdateParamsSchema, result: QueueStateResultSchema, errors: ThreadErrors, capability: "turn.queue.management.v1", mutation: true, exactParams: true, exactResult: true }),
   "queue/remove": defineMethod({ params: QueueInputParamsSchema, result: QueueStateResultSchema, errors: ThreadErrors, capability: "turn.queue.management.v1", mutation: true, exactParams: true, exactResult: true }),
-  "queue/reorder": defineMethod({ params: QueueReorderParamsSchema, result: QueueStateResultSchema, errors: ThreadErrors, capability: "turn.queue.management.v1", mutation: true, exactParams: true, exactResult: true }),
-  "queue/steer": defineMethod({ params: QueueInputParamsSchema, result: QueueStateResultSchema, errors: ThreadErrors, capability: "turn.queue.management.v1", mutation: true, exactParams: true, exactResult: true }),
   "queue/resume": defineMethod({ params: QueueResumeParamsSchema, result: QueueStateResultSchema, errors: ThreadErrors, capability: "turn.queue.management.v1", mutation: true, exactParams: true, exactResult: true }),
   "sandbox/status": defineMethod({ params: EmptyParamsSchema, result: SandboxResultSchema, errors: SandboxErrors, capability: "sandbox.management.v1", mutation: false, exactResult: true }),
   "sandbox/refresh": defineMethod({ params: EmptyParamsSchema, result: SandboxResultSchema, errors: SandboxErrors, capability: "sandbox.management.v1", mutation: false, exactResult: true }),

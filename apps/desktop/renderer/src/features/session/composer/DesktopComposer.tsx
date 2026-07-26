@@ -20,6 +20,7 @@ import type { Message } from '../../../uiTypes.js'
 import { ComposerCard } from './ComposerCard.js'
 import type {
   ComposerCapabilities,
+  ComposerDeliveryIntent,
   ComposerDraftContentSnapshot,
   ComposerDraftKey,
   ComposerPlacement,
@@ -130,14 +131,16 @@ export type DesktopComposerProps = {
   submitToSession: (
     targetSessionId: string,
     value: DesktopUserMessageInput,
-    options?: { propagateError?: boolean },
+    options?: {
+      delivery?: ComposerDeliveryIntent
+      inputId?: string
+      propagateError?: boolean
+    },
   ) => Promise<'sent' | 'queued' | 'steered' | null>
   queuedFollowUps?: DesktopQueuedFollowUp[]
   queuePauseReason?: DesktopQueuePauseReason | null
   onFollowUpEdit?: (followUpId: string, input: DesktopUserMessageInput) => void
   onFollowUpRemove?: (followUpId: string) => void
-  onFollowUpSendNow?: (followUpId: string) => void
-  onFollowUpReorder?: (followUpIds: string[]) => void
   onFollowUpResume?: () => void
   threadGoal?: DesktopThreadGoal | null
   onGoalPause?: () => void
@@ -209,8 +212,6 @@ export function DesktopComposer({
   queuePauseReason,
   onFollowUpEdit,
   onFollowUpRemove,
-  onFollowUpSendNow,
-  onFollowUpReorder,
   onFollowUpResume,
   threadGoal,
   onGoalPause,
@@ -356,8 +357,6 @@ export function DesktopComposer({
       queuePauseReason={queuePauseReason}
       onFollowUpEdit={onFollowUpEdit}
       onFollowUpRemove={onFollowUpRemove}
-      onFollowUpSendNow={onFollowUpSendNow}
-      onFollowUpReorder={onFollowUpReorder}
       onFollowUpResume={onFollowUpResume}
       threadGoal={threadGoal}
       onGoalPause={onGoalPause}

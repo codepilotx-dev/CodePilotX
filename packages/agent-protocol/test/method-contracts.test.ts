@@ -742,21 +742,30 @@ const fixtures = {
     turnId: admission.turnId,
     status: "running",
   }),
+  "queue/add": methodFixture("queue/add", {
+    threadId: threadListItem.id,
+    inputId: "input:queued:1",
+    content: "Queue the fixture follow-up.",
+    attachmentIds: [attachment.id],
+    model: modelRef,
+    permissionConfig,
+    taskMode: "chat",
+    operationId: "operation:queue-add",
+    expectedVersion: 1,
+  }, {
+    ...admission,
+    inputId: "input:queued:1",
+    admission: "queued",
+  }),
   "queue/update": methodFixture("queue/update", {
     threadId: threadListItem.id, inputId: "input:queued:1", content: "edited", operationId: "operation:queue-update", expectedVersion: 1,
   }, { threadId: threadListItem.id, version: 2, pauseReason: null, turns: [], inputs: [], streamPosition }),
   "queue/remove": methodFixture("queue/remove", {
     threadId: threadListItem.id, inputId: "input:queued:1", operationId: "operation:queue-remove", expectedVersion: 2,
   }, { threadId: threadListItem.id, version: 3, pauseReason: null, turns: [], inputs: [], streamPosition }),
-  "queue/reorder": methodFixture("queue/reorder", {
-    threadId: threadListItem.id, inputIds: ["input:queued:2", "input:queued:1"], operationId: "operation:queue-reorder", expectedVersion: 3,
-  }, { threadId: threadListItem.id, version: 4, pauseReason: null, turns: [], inputs: [], streamPosition }),
-  "queue/steer": methodFixture("queue/steer", {
-    threadId: threadListItem.id, inputId: "input:queued:1", operationId: "operation:queue-steer", expectedVersion: 4,
-  }, { threadId: threadListItem.id, version: 5, pauseReason: null, turns: [], inputs: [], streamPosition }),
   "queue/resume": methodFixture("queue/resume", {
-    threadId: threadListItem.id, operationId: "operation:queue-resume", expectedVersion: 5,
-  }, { threadId: threadListItem.id, version: 6, pauseReason: null, turns: [], inputs: [], streamPosition }),
+    threadId: threadListItem.id, operationId: "operation:queue-resume", expectedVersion: 3,
+  }, { threadId: threadListItem.id, version: 4, pauseReason: null, turns: [], inputs: [], streamPosition }),
   "sandbox/status": methodFixture("sandbox/status", {}, { sandbox: sandboxStatus }),
   "sandbox/refresh": methodFixture("sandbox/refresh", {}, { sandbox: sandboxStatus }),
   "sandbox/install": methodFixture("sandbox/install", { operationId: "operation:sandbox-install" }, { sandbox: sandboxStatus }),
@@ -1770,9 +1779,9 @@ const fixtures = {
 } satisfies MethodFixtures
 
 describe("RPC method schema contracts", () => {
-  test("keeps valid params and results for all 148 formal methods decodable", () => {
+  test("keeps valid params and results for all 147 formal methods decodable", () => {
     const methods = Object.keys(RpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(148)
+    expect(methods).toHaveLength(147)
     expect(Object.keys(fixtures).sort()).toEqual([...methods].sort())
 
     for (const method of methods) {
@@ -1811,6 +1820,14 @@ describe("RPC method schema contracts", () => {
     expect(() => Schema.decodeUnknownSync(RpcMethods["turn/start"].params)({
       ...fixtures["turn/start"].params,
       taskMode: "execute",
+    })).toThrow()
+    expect(() => Schema.decodeUnknownSync(RpcMethods["turn/interrupt"].params)({
+      threadId: threadListItem.id,
+      operationId: "operation:turn-interrupt-without-turn",
+    })).toThrow()
+    expect(() => Schema.decodeUnknownSync(RpcMethods["queue/add"].result)({
+      ...fixtures["queue/add"].result,
+      admission: "steered",
     })).toThrow()
     const decodeMcpSave = Schema.decodeUnknownSync(
       RpcMethods["mcp/save"].params,
@@ -1885,6 +1902,15 @@ describe("RPC method schema contracts", () => {
         withoutCacheState,
       ), `${method} requires cacheState`).toThrow()
     }
+  })
+
+  test("uses explicit FIFO queue methods without reorder or queue-to-steer mutations", () => {
+    expect("queue/add" in RpcMethods).toBe(true)
+    expect("queue/update" in RpcMethods).toBe(true)
+    expect("queue/remove" in RpcMethods).toBe(true)
+    expect("queue/resume" in RpcMethods).toBe(true)
+    expect("queue/reorder" in RpcMethods).toBe(false)
+    expect("queue/steer" in RpcMethods).toBe(false)
   })
 
   test("accepts bounded deny feedback for approval interactions", () => {

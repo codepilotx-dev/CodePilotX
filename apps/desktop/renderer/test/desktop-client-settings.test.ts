@@ -528,6 +528,7 @@ describe('desktop thread settings client', () => {
       if (body?.method === 'initialized') return new Response(null, { status: 204 })
       if (body?.method === 'initialize') return rpc(body.id, initializedResult())
       if (body?.method === 'project/list') return rpc(body.id, { projects: [project], nextCursor: null })
+      if (body?.method === 'model/list') return rpc(body.id, modelCatalog())
       if (body?.method === 'thread/read') {
         return rpc(body.id, snapshotResult({
           ...snapshot(body.params.threadId, defaultSettings),
@@ -536,6 +537,15 @@ describe('desktop thread settings client', () => {
       }
       if (typeof body?.method === 'string' && body.method.startsWith('queue/')) {
         queueRequests.push({ method: body.method, params: body.params })
+        if (body.method === 'queue/add') {
+          return rpc(body.id, {
+            inputId: body.params.inputId,
+            turnId: 'turn-queued',
+            disposition: 'accepted',
+            admission: 'queued',
+            streamPosition: { streamId: 'stream-1', sequence: 8 },
+          })
+        }
         return rpc(body.id, {
           threadId: body.params.threadId,
           version: 8,
@@ -550,17 +560,20 @@ describe('desktop thread settings client', () => {
     const client = createDesktopClient({ fetch: fetcher })
     await client.getSession('thread-queue')
 
+    await client.submitSessionFollowUp(
+      'thread-queue',
+      { text: '下一轮' },
+      'follow-up',
+      'input-follow-up',
+    )
     await client.updateQueuedFollowUp('thread-queue', 'input-1', { text: '更新' })
     await client.removeQueuedFollowUp('thread-queue', 'input-2')
-    await client.sendQueuedFollowUpNow('thread-queue', 'input-3')
-    await client.reorderQueuedFollowUps('thread-queue', ['input-3', 'input-1'])
     await client.resumeQueuedFollowUps('thread-queue')
 
     expect(queueRequests.map(request => request.method)).toEqual([
+      'queue/add',
       'queue/update',
       'queue/remove',
-      'queue/steer',
-      'queue/reorder',
       'queue/resume',
     ])
     for (const request of queueRequests) {
@@ -570,7 +583,11 @@ describe('desktop thread settings client', () => {
         expectedVersion: 7,
       })
     }
-    expect(queueRequests[0]?.params).not.toHaveProperty('attachmentIds')
+    expect(queueRequests[0]?.params).toMatchObject({
+      inputId: 'input-follow-up',
+      content: '下一轮',
+    })
+    expect(queueRequests[1]?.params).not.toHaveProperty('attachmentIds')
   })
 
   test('uses turn steer for an active follow-up without legacy strategy params', async () => {
@@ -609,12 +626,17 @@ describe('desktop thread settings client', () => {
       },
     })
     await client.getSession('thread-active')
-    await client.submitSessionFollowUp('thread-active', { text: '补充要求' }, 'steer')
+    await client.submitSessionFollowUp(
+      'thread-active',
+      { text: '补充要求' },
+      'steer',
+      'draft-steer',
+    )
 
     expect(steerParams).toMatchObject({
       threadId: 'thread-active',
       turnId: 'turn-active',
-      inputId: expect.any(String),
+      inputId: 'draft-steer',
       content: '补充要求',
     })
     expect(steerParams).not.toHaveProperty('strategy')

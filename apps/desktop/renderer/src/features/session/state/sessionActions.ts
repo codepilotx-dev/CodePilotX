@@ -1,7 +1,6 @@
 import { desktopClient } from '../../../services/desktop-client/index.js'
 ﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type {
-  DesktopFollowUpBehavior,
   DesktopPermissionDecision,
   LocalRouterMode,
   ModelProviderID,
@@ -185,36 +184,61 @@ export async function submitSessionMessageAction(
   settings: SessionSettingsSnapshot,
   options?: {
     sessionStatus?: DesktopSessionStatus
-    followUpBehavior?: DesktopFollowUpBehavior
-    followUpOverride?: DesktopFollowUpBehavior
+    delivery?: 'default' | 'follow-up'
+    inputId?: string
     propagateError?: boolean
   },
 ): Promise<'sent' | 'queued' | 'steered' | null> {
   if (!canSubmit || !sessionId) return null
-  const isActive = options?.sessionStatus === 'running' || options?.sessionStatus === 'waiting'
+  const delivery = resolveSessionMessageDelivery(
+    options?.sessionStatus,
+    options?.delivery,
+  )
   try {
-    if (isActive) {
-      const behavior = options?.followUpOverride ?? options?.followUpBehavior ?? 'steer'
-      return await desktopClient.submitSessionFollowUp(sessionId, input, behavior)
-    } else {
-      await desktopClient.sendUserMessage(
+    if (delivery === 'follow-up') {
+      return await desktopClient.submitSessionFollowUp(
         sessionId,
         input,
-        {
-          providerID: settings.providerID,
-          providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
-          model: normalizeOptionalText(settings.model),
-          debugConversationDump: settings.debugConversationDump,
-          localRouterMode: settings.localRouterMode === 'off' ? undefined : settings.localRouterMode,
-        },
+        'follow-up',
+        options?.inputId,
       )
-      return 'sent'
     }
+    if (delivery === 'steer') {
+      return await desktopClient.submitSessionFollowUp(
+        sessionId,
+        input,
+        'steer',
+        options?.inputId,
+      )
+    }
+    await desktopClient.sendUserMessage(
+      sessionId,
+      input,
+      {
+        providerID: settings.providerID,
+        providerBaseURL: normalizeOptionalText(settings.providerBaseURL),
+        model: normalizeOptionalText(settings.model),
+        debugConversationDump: settings.debugConversationDump,
+        localRouterMode: settings.localRouterMode === 'off' ? undefined : settings.localRouterMode,
+      },
+      options?.inputId,
+    )
+    return 'sent'
   } catch (error) {
     onErrorRef.current(errorMessageOf(error))
     if (options?.propagateError) throw error
     return null
   }
+}
+
+export function resolveSessionMessageDelivery(
+  sessionStatus: DesktopSessionStatus | undefined,
+  intent: 'default' | 'follow-up' | undefined,
+): 'start' | 'steer' | 'follow-up' {
+  if (intent === 'follow-up') return 'follow-up'
+  return sessionStatus === 'running' || sessionStatus === 'waiting'
+    ? 'steer'
+    : 'start'
 }
 
 export async function interruptSessionAction(

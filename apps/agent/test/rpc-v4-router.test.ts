@@ -137,6 +137,79 @@ const fixture = async (
 }
 
 describe("RPC v4 Router", () => {
+  test("Chat admission 使用独立 start、steer、queue/add 和精确 interrupt 入口", async () => {
+    const calls: Array<{ method: string; args: unknown[] }> = []
+    const threads = {
+      startTurn: async (...args: unknown[]) => {
+        calls.push({ method: "start", args })
+        return { disposition: "started" as const, turnID: "turn:start", inputID: "input:start" }
+      },
+      steerTurn: async (...args: unknown[]) => {
+        calls.push({ method: "steer", args })
+        return { disposition: "steered" as const, turnID: "turn:active", inputID: "input:steer" }
+      },
+      enqueueFollowUp: async (...args: unknown[]) => {
+        calls.push({ method: "queue", args })
+        return { disposition: "queued" as const, turnID: "turn:queued", inputID: "input:queued" }
+      },
+      stop: async (...args: unknown[]) => {
+        calls.push({ method: "interrupt", args })
+        return "interrupted" as const
+      },
+      resumeHookTrust: () => undefined,
+    }
+    const value = await fixture({ threads: threads as never })
+    await value.initialize()
+    const model = Model.Ref.make({ providerID: Provider.ID.make("openai"), id: Model.ID.make("test") })
+    const thread = value.db.createThread()
+    const active = value.db.createTurn(thread.id, {
+      content: "active",
+      model,
+      permissionConfig: DEFAULT_PERMISSION_CONFIG,
+      strategy: "start",
+      taskMode: "chat",
+    })
+    value.db.claimTurnExecution(active.turnID)
+
+    const start = await value.call("turn/start", {
+      threadId: "thread:start",
+      inputId: "input:start",
+      content: "start",
+      model,
+      permissionConfig: DEFAULT_PERMISSION_CONFIG,
+      taskMode: "chat",
+    })
+    const steer = await value.call("turn/steer", {
+      threadId: thread.id,
+      turnId: active.turnID,
+      inputId: "input:steer",
+      content: "steer",
+      attachmentIds: ["attachment:steer"],
+    })
+    const queued = await value.call("queue/add", {
+      threadId: thread.id,
+      inputId: "input:queued",
+      content: "later",
+      model,
+      permissionConfig: DEFAULT_PERMISSION_CONFIG,
+      taskMode: "chat",
+      operationId: "operation:queue",
+    })
+    const interrupted = await value.call("turn/interrupt", {
+      threadId: thread.id,
+      turnId: active.turnID,
+      operationId: "operation:interrupt",
+    })
+
+    expect(start.result.disposition).toBe("accepted")
+    expect(steer.result.disposition).toBe("accepted")
+    expect(queued.result.admission).toBe("queued")
+    expect(interrupted.result).toMatchObject({ turnId: active.turnID, status: "interrupted" })
+    expect(calls.map(({ method }) => method)).toEqual(["start", "steer", "queue", "interrupt"])
+    expect(calls.at(-1)?.args).toEqual([thread.id, active.turnID])
+    value.db.close()
+  })
+
   test("initialize negotiates thread-rpc-v4 and returns formal capabilities", async () => {
     const { db, initialize } = await fixture()
     const response = await initialize()

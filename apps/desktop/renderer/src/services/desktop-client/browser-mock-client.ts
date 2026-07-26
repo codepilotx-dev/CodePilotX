@@ -32,7 +32,6 @@ import type {
 } from '@codepilotx/shared'
 import type {
   PermissionConfig,
-  QueueStateResult,
   SubagentProjection,
   ThreadListItem,
   ThreadSettings,
@@ -58,7 +57,6 @@ import type {
   DesktopBrowserState,
   DesktopDataLocationMigrationResult,
   DesktopDataLocationState,
-  DesktopFollowUpBehavior,
   DesktopFileEntry,
   DesktopFilePreview,
   DesktopFileRevision,
@@ -797,11 +795,10 @@ export function createBrowserMockDesktopClient(storage?: Storage): DesktopApi {
       items: [],
     }),
     cancelDebugToolProbe: async () => {},
-    submitSessionFollowUp: async () => 'queued' as const,
+    submitSessionFollowUp: async (_sessionId, _input, delivery) =>
+      delivery === 'steer' ? 'steered' as const : 'queued' as const,
     updateQueuedFollowUp: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
     removeQueuedFollowUp: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
-    sendQueuedFollowUpNow: async () => {},
-    reorderQueuedFollowUps: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
     resumeQueuedFollowUps: async () => mockSessionSnapshot('mock', { path: '', name: 'Mock', branchName: null }, {}),
     compactSession: async () => {},
     getSessionPromptPreview: async () => null,

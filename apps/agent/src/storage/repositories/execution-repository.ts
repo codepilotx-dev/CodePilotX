@@ -10,7 +10,7 @@ import type {
   Item,
   ModelRef,
   PermissionConfig,
-  SendStrategy,
+  StoredInputDelivery,
   SubmitMessage,
   TaskMode,
   ThreadSnapshot,
@@ -214,12 +214,27 @@ const defaultThreadSettings = (): ThreadSettings => ({
 import { ThreadRepositoryDatabase } from "./thread-repository"
 
 export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDatabase {
-  createTurn(threadID: string, input: SubmitMessage, status: TurnStatus = "queued", ids: { inputID?: string } = {}) {
+  createTurn(
+    threadID: string,
+    input: SubmitMessage,
+    status: TurnStatus = "queued",
+    ids: { inputID?: string; queueOperation?: QueueMutationMeta } = {},
+  ) {
       const turnID = crypto.randomUUID()
       const agentID = crypto.randomUUID()
       const inputID = ids.inputID ?? crypto.randomUUID()
       const timestamp = now()
       return this.transaction(() => {
+        if (ids.queueOperation) {
+          const state = this.queueStateMeta(threadID)
+          if (!state) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
+          if (ids.queueOperation.expectedVersion !== undefined && ids.queueOperation.expectedVersion !== state.version) {
+            throw new AgentError("QUEUE_VERSION_CONFLICT", "队列版本已变化，请刷新后重试", 409, {
+              expectedVersion: ids.queueOperation.expectedVersion,
+              actualVersion: state.version,
+            })
+          }
+        }
         const queuePosition = status === "queued"
           ? (this.sqlite.query("SELECT COALESCE(MAX(queue_position), 0) AS position FROM turns WHERE thread_id = ? AND status = 'queued'").get(threadID) as { position: number }).position + 1
           : null
@@ -270,9 +285,31 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
         this.appendUserMessage({ id: inputID, threadID, turnID, content: input.content, createdAt: timestamp })
         const method = status === "queued" ? "turn/queued" : "turn/started"
         const event = this.insertEvent(threadID, turnID, method, { turnId: turnID, inputID, input, createdAt: timestamp })
-        if (status === "queued") this.sqlite.query("UPDATE threads SET queue_version = queue_version + 1 WHERE id = ?").run(threadID)
+        let queueEvent: EventEnvelope | null = null
+        if (status === "queued") {
+          this.sqlite.query("UPDATE threads SET queue_version = queue_version + 1 WHERE id = ?").run(threadID)
+          if (input.strategy === "queue") {
+            const queue = this.queueStateMeta(threadID)!
+            queueEvent = this.insertEvent(threadID, turnID, "queue/updated", {
+              threadId: threadID,
+              turnId: turnID,
+              inputId: inputID,
+              version: queue.version,
+              pauseReason: queue.pauseReason,
+              action: "added",
+            })
+            if (ids.queueOperation) {
+              this.sqlite.query("INSERT INTO queue_operations (operation_id, thread_id, method, event_id, created_at) VALUES (?, ?, 'queue/add', ?, ?)").run(
+                ids.queueOperation.operationID,
+                threadID,
+                queueEvent.id,
+                timestamp,
+              )
+            }
+          }
+        }
         const agentEvent = this.insertEvent(threadID, turnID, "agent/upserted", { agent: this.getAgentExecution(agentID) })
-        return { turnID, agentID, inputID, settingsEvent: settingsUpdate.event, event, agentEvent }
+        return { turnID, agentID, inputID, settingsEvent: settingsUpdate.event, event, queueEvent, agentEvent }
       })
     }
 
@@ -297,7 +334,12 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
           timestamp,
         )
         this.appendUserMessage({ id, threadID, turnID, content: input.content, createdAt: timestamp })
-        const event = this.insertEvent(threadID, turnID, "queue/updated", { turnId: turnID, inputID: id, input, action: "guide-appended", createdAt: timestamp })
+        const event = this.insertEvent(threadID, turnID, "queue/updated", {
+          threadId: threadID,
+          turnId: turnID,
+          inputId: id,
+          action: "steer-accepted",
+        })
         return { inputID: id, settingsEvent: settingsUpdate.event, event }
       })
     }
@@ -317,17 +359,35 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
 
   takeGuideMailbox(turnID: string) {
       return this.transaction(() => {
-        const rows = this.sqlite.query("SELECT id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, task_mode FROM inputs WHERE turn_id = ? AND status = 'mailbox' ORDER BY created_at").all(turnID) as Array<{
-          id: string
-          content: string
-          model_ref: string
-          task_mode: TaskMode
-        } & PermissionColumns>
+        const rows = this.guideMailbox(turnID)
         if (rows.length) {
           const placeholders = rows.map(() => "?").join(",")
           this.sqlite.query(`UPDATE inputs SET status = 'consumed' WHERE id IN (${placeholders})`).run(...rows.map((row) => row.id))
         }
-        return rows.map((row) => ({ id: row.id, content: row.content, model: parse<ModelRef>(row.model_ref), permissionConfig: permissionConfigFromRow(row), taskMode: row.task_mode }))
+        return rows
+      })
+    }
+
+  guideMailbox(turnID: string) {
+      const rows = this.sqlite.query("SELECT id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, task_mode FROM inputs WHERE turn_id = ? AND status = 'mailbox' ORDER BY created_at, id").all(turnID) as Array<{
+        id: string
+        content: string
+        model_ref: string
+        task_mode: TaskMode
+      } & PermissionColumns>
+      return rows.map((row) => ({ id: row.id, content: row.content, model: parse<ModelRef>(row.model_ref), permissionConfig: permissionConfigFromRow(row), taskMode: row.task_mode }))
+    }
+
+  consumeGuideMailbox(turnID: string, inputIDs: readonly string[]) {
+      if (inputIDs.length === 0) return []
+      return this.transaction(() => {
+        const placeholders = inputIDs.map(() => "?").join(",")
+        const rows = this.sqlite.query(`SELECT id FROM inputs WHERE turn_id = ? AND status = 'mailbox' AND id IN (${placeholders})`).all(turnID, ...inputIDs) as Array<{ id: string }>
+        if (rows.length) {
+          const consumed = rows.map((row) => row.id)
+          this.sqlite.query(`UPDATE inputs SET status = 'consumed' WHERE turn_id = ? AND status = 'mailbox' AND id IN (${consumed.map(() => "?").join(",")})`).run(turnID, ...consumed)
+        }
+        return rows.map((row) => row.id)
       })
     }
 
@@ -376,6 +436,73 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
     }) {
       const timestamp = now()
       return this.transaction(() => {
+        const interruptedMailbox = input.status === "interrupted"
+          ? this.sqlite.query(`
+              SELECT id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, task_mode, created_at
+              FROM inputs
+              WHERE thread_id = ? AND turn_id = ? AND status = 'mailbox'
+              ORDER BY created_at, id
+            `).all(input.threadID, input.turnID) as Array<{
+              id: string
+              content: string
+              model_ref: string
+              sandbox_mode: PermissionConfig["sandboxMode"]
+              approval_policy: string
+              approvals_reviewer: PermissionConfig["approvalsReviewer"]
+              task_mode: TaskMode
+              created_at: number
+            }>
+          : []
+        const requeuedSteers: Array<{ turnID: string; agentID: string; inputID: string }> = []
+        if (interruptedMailbox.length > 0) {
+          this.sqlite.query("UPDATE turns SET queue_position = queue_position + ?, updated_at = ? WHERE thread_id = ? AND status = 'queued'").run(
+            interruptedMailbox.length,
+            timestamp,
+            input.threadID,
+          )
+          interruptedMailbox.forEach((mailbox, index) => {
+            const nextTurnID = crypto.randomUUID()
+            const nextAgentID = crypto.randomUUID()
+            this.sqlite.query(`INSERT INTO turns (
+              id, thread_id, root_agent_id, status, mode, sandbox_mode, approval_policy,
+              approvals_reviewer, model_ref, strategy, queue_position, started_at, finished_at,
+              created_at, updated_at
+            ) VALUES (?, ?, ?, 'queued', ?, ?, ?, ?, ?, 'queue', ?, NULL, NULL, ?, ?)`).run(
+              nextTurnID,
+              input.threadID,
+              nextAgentID,
+              mailbox.task_mode,
+              mailbox.sandbox_mode,
+              mailbox.approval_policy,
+              mailbox.approvals_reviewer,
+              mailbox.model_ref,
+              index + 1,
+              mailbox.created_at,
+              timestamp,
+            )
+            this.sqlite.query(`INSERT INTO agent_executions (
+              id, thread_id, turn_id, parent_agent_id, profile, task, model_ref, session_id,
+              depth, status, error, created_at, updated_at
+            ) VALUES (?, ?, ?, NULL, 'main', ?, ?, ?, 0, 'queued', NULL, ?, ?)`).run(
+              nextAgentID,
+              input.threadID,
+              nextTurnID,
+              mailbox.content,
+              mailbox.model_ref,
+              `${input.threadID}:main`,
+              mailbox.created_at,
+              timestamp,
+            )
+            this.sqlite.query("UPDATE inputs SET turn_id = ?, strategy = 'queue', status = 'queued' WHERE id = ? AND status = 'mailbox'").run(nextTurnID, mailbox.id)
+            this.sqlite.query("UPDATE messages SET turn_id = ? WHERE id = ?").run(nextTurnID, mailbox.id)
+            requeuedSteers.push({ turnID: nextTurnID, agentID: nextAgentID, inputID: mailbox.id })
+          })
+          this.sqlite.query("UPDATE threads SET queue_version = queue_version + ?, updated_at = ? WHERE id = ?").run(
+            interruptedMailbox.length,
+            timestamp,
+            input.threadID,
+          )
+        }
         this.deleteAgentTurnCheckpoint(input.turnID)
         this.updateTurnStatus(input.turnID, input.status)
         const agent = this.updateAgentStatus(input.agentID, input.status, input.message ?? null)
@@ -399,6 +526,16 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
         }
         const events: EventEnvelope[] = [
           this.insertEvent(input.threadID, input.turnID, "agent/upserted", { agent }),
+          ...requeuedSteers.flatMap((queued) => [
+            this.insertEvent(input.threadID, queued.turnID, "turn/queued", {
+              turnId: queued.turnID,
+              inputId: queued.inputID,
+              createdAt: timestamp,
+            }),
+            this.insertEvent(input.threadID, queued.turnID, "agent/upserted", {
+              agent: this.getAgentExecution(queued.agentID),
+            }),
+          ]),
           ...terminalItemRows.flatMap(({ id }) => {
             const item = this.getItem(id)
             return item ? [this.insertEvent(input.threadID, input.turnID, "item/completed", { item })] : []
@@ -415,14 +552,14 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
           if (current?.pauseReason !== input.pauseReason) {
             this.sqlite.query("UPDATE threads SET queue_pause_reason = ?, queue_version = queue_version + 1, updated_at = ? WHERE id = ?").run(input.pauseReason, timestamp, input.threadID)
             const next = this.queueStateMeta(input.threadID)!
-            events.push(this.insertEvent(input.threadID, null, "queue/updated", { threadId: input.threadID, version: next.version, pauseReason: next.pauseReason, action: "queue/pause" }))
+            events.push(this.insertEvent(input.threadID, null, "queue/updated", { threadId: input.threadID, version: next.version, pauseReason: next.pauseReason, action: "paused" }))
           }
         }
         return { agent, events }
       })
     }
 
-  requeueTurnForSteer(turnID: string) {
+  prepareSteerContinuation(turnID: string) {
       const timestamp = now()
       return this.transaction(() => {
         const row = this.sqlite.query("SELECT thread_id, root_agent_id FROM turns WHERE id = ? AND status = 'running'").get(turnID) as { thread_id: string; root_agent_id: string } | null
@@ -515,7 +652,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
           i.approvals_reviewer, i.strategy, i.task_mode, t.queue_position
         FROM inputs AS i JOIN turns AS t ON t.id = i.turn_id
         WHERE i.id = ? AND i.status = 'queued' AND t.status = 'queued'
-      `).get(inputID) as ({ id: string; thread_id: string; turn_id: string; content: string; model_ref: string; strategy: SendStrategy; task_mode: TaskMode; queue_position: number | null } & PermissionColumns) | null
+      `).get(inputID) as ({ id: string; thread_id: string; turn_id: string; content: string; model_ref: string; strategy: StoredInputDelivery; task_mode: TaskMode; queue_position: number | null } & PermissionColumns) | null
     }
 
   private eventByID(id: number): EventEnvelope | null {
@@ -530,7 +667,13 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
       return { duplicate: true as const, event: existing.event_id == null ? null : this.eventByID(existing.event_id), details: {}, ...this.queueStateMeta(threadID)! }
     }
 
-  private mutateQueue<T extends Record<string, unknown>>(threadID: string, method: string, meta: QueueMutationMeta, mutate: () => T) {
+  private mutateQueue<T extends Record<string, unknown>>(
+    threadID: string,
+    method: "queue/update" | "queue/remove" | "queue/resume",
+    action: "edited" | "removed" | "resumed",
+    meta: QueueMutationMeta,
+    mutate: () => T,
+  ) {
       return this.transaction(() => {
         const state = this.queueStateMeta(threadID)
         if (!state) throw new AgentError("THREAD_NOT_FOUND", "Thread 不存在", 404)
@@ -545,14 +688,14 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
         const details = mutate()
         this.sqlite.query("UPDATE threads SET queue_version = queue_version + 1, updated_at = ? WHERE id = ?").run(now(), threadID)
         const next = this.queueStateMeta(threadID)!
-        const event = this.insertEvent(threadID, null, "queue/updated", { threadId: threadID, version: next.version, pauseReason: next.pauseReason, action: method, ...details })
+        const event = this.insertEvent(threadID, null, "queue/updated", { threadId: threadID, version: next.version, pauseReason: next.pauseReason, action, ...details })
         this.sqlite.query("INSERT INTO queue_operations (operation_id, thread_id, method, event_id, created_at) VALUES (?, ?, ?, ?, ?)").run(meta.operationID, threadID, method, event.id, now())
         return { duplicate: false as const, event, details, ...next }
       })
     }
 
   updateQueuedInput(threadID: string, inputID: string, content: string, meta: QueueMutationMeta) {
-      return this.mutateQueue(threadID, "queue/update", meta, () => {
+      return this.mutateQueue(threadID, "queue/update", "edited", meta, () => {
         const input = this.queuedInput(inputID)
         if (!input || input.thread_id !== threadID) throw new AgentError("QUEUED_INPUT_NOT_FOUND", "排队消息不存在或已开始执行", 409)
         const timestamp = now()
@@ -566,7 +709,7 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
     }
 
   removeQueuedInput(threadID: string, inputID: string, meta: QueueMutationMeta) {
-      return this.mutateQueue(threadID, "queue/remove", meta, () => {
+      return this.mutateQueue(threadID, "queue/remove", "removed", meta, () => {
         const input = this.queuedInput(inputID)
         if (!input || input.thread_id !== threadID) throw new AgentError("QUEUED_INPUT_NOT_FOUND", "排队消息不存在或已开始执行", 409)
         const timestamp = now()
@@ -586,36 +729,8 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
       })
     }
 
-  reorderQueuedInputs(threadID: string, inputIDs: readonly string[], meta: QueueMutationMeta) {
-      return this.mutateQueue(threadID, "queue/reorder", meta, () => {
-        if (new Set(inputIDs).size !== inputIDs.length) throw new AgentError("QUEUE_ORDER_INVALID", "队列顺序包含重复 inputId", 409)
-        const queued = this.sqlite.query(`SELECT i.id FROM inputs AS i JOIN turns AS t ON t.id = i.turn_id WHERE i.thread_id = ? AND i.status = 'queued' AND t.status = 'queued' ORDER BY t.queue_position, t.created_at, t.id`).all(threadID) as Array<{ id: string }>
-        const current = queued.map((row) => row.id)
-        if (current.length !== inputIDs.length || current.some((id) => !inputIDs.includes(id))) throw new AgentError("QUEUE_ORDER_CONFLICT", "排序必须包含当前线程全部排队消息", 409, { current })
-        inputIDs.forEach((inputID, index) => this.sqlite.query("UPDATE turns SET queue_position = ?, updated_at = ? WHERE id = (SELECT turn_id FROM inputs WHERE id = ?)").run(index + 1, now(), inputID))
-        return { inputIds: [...inputIDs] }
-      })
-    }
-
-  steerQueuedInput(threadID: string, inputID: string, meta: QueueMutationMeta) {
-      return this.mutateQueue(threadID, "queue/steer", meta, () => {
-        const input = this.queuedInput(inputID)
-        if (!input || input.thread_id !== threadID) throw new AgentError("QUEUED_INPUT_NOT_FOUND", "排队消息不存在或已开始执行", 409)
-        const active = this.activeTurn(threadID)
-        if (!active) {
-          this.sqlite.query("UPDATE threads SET queue_pause_reason = NULL WHERE id = ?").run(threadID)
-          this.sqlite.query("UPDATE turns SET queue_position = 0, updated_at = ? WHERE id = ?").run(now(), input.turn_id)
-          return { inputId: inputID, turnId: input.turn_id, disposition: "started" }
-        }
-        this.sqlite.query("UPDATE inputs SET turn_id = ?, strategy = 'guide', status = 'mailbox' WHERE id = ?").run(active.id, inputID)
-        this.sqlite.query("UPDATE messages SET turn_id = ? WHERE id = ?").run(active.id, inputID)
-        this.sqlite.query("DELETE FROM turns WHERE id = ?").run(input.turn_id)
-        return { inputId: inputID, turnId: active.id, disposition: "guide" }
-      })
-    }
-
   resumeQueue(threadID: string, meta: QueueMutationMeta) {
-      return this.mutateQueue(threadID, "queue/resume", meta, () => {
+      return this.mutateQueue(threadID, "queue/resume", "resumed", meta, () => {
         this.sqlite.query("UPDATE threads SET queue_pause_reason = NULL WHERE id = ?").run(threadID)
         return { resumed: true }
       })
@@ -628,13 +743,13 @@ export abstract class ExecutionRepositoryDatabase extends ThreadRepositoryDataba
         if (!current || current.pauseReason === reason) return null
         this.sqlite.query("UPDATE threads SET queue_pause_reason = ?, queue_version = queue_version + 1, updated_at = ? WHERE id = ?").run(reason, now(), threadID)
         const next = this.queueStateMeta(threadID)!
-        return this.insertEvent(threadID, null, "queue/updated", { threadId: threadID, version: next.version, pauseReason: next.pauseReason, action: "queue/pause" })
+        return this.insertEvent(threadID, null, "queue/updated", { threadId: threadID, version: next.version, pauseReason: next.pauseReason, action: "paused" })
       })
     }
 
   getTurnInput(turnID: string) {
       const row = this.sqlite.query("SELECT id, content, model_ref, sandbox_mode, approval_policy, approvals_reviewer, strategy, task_mode FROM inputs WHERE turn_id = ? ORDER BY created_at LIMIT 1").get(turnID) as
-        | ({ id: string; content: string; model_ref: string; strategy: SendStrategy; task_mode: TaskMode } & PermissionColumns)
+        | ({ id: string; content: string; model_ref: string; strategy: StoredInputDelivery; task_mode: TaskMode } & PermissionColumns)
         | null
       if (!row) return null
       return { id: row.id, content: row.content, model: parse(row.model_ref), permissionConfig: permissionConfigFromRow(row), strategy: row.strategy, taskMode: row.task_mode } as SubmitMessage & { id: string }

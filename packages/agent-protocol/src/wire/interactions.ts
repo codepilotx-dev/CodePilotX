@@ -8,7 +8,9 @@ import {
   InteractionResponseSchema as SharedInteractionResponseSchema,
   PendingApprovalInteractionSchema,
   PendingHookTrustInteractionSchema,
+  PendingPermissionInteractionSchema,
   PendingQuestionInteractionSchema,
+  PermissionInteractionResponseSchema,
   QuestionInteractionResponseSchema,
 } from "../methods/core"
 
@@ -19,6 +21,11 @@ export const ApprovalRequestParamsSchema = PendingApprovalInteractionSchema
 export const ApprovalRequestResultSchema = ApprovalInteractionResponseSchema
 export type ApprovalRequestParams = typeof ApprovalRequestParamsSchema.Type
 export type ApprovalRequestResult = typeof ApprovalRequestResultSchema.Type
+
+export const PermissionRequestParamsSchema = PendingPermissionInteractionSchema
+export const PermissionRequestResultSchema = PermissionInteractionResponseSchema
+export type PermissionRequestParams = typeof PermissionRequestParamsSchema.Type
+export type PermissionRequestResult = typeof PermissionRequestResultSchema.Type
 
 export const QuestionRequestParamsSchema = PendingQuestionInteractionSchema
 export const QuestionRequestResultSchema = QuestionInteractionResponseSchema
@@ -37,6 +44,11 @@ export const ServerRequests = {
   "approval/request": defineServerRequest({
     params: ApprovalRequestParamsSchema,
     result: ApprovalRequestResultSchema,
+    capability: "interactions.serverRequests.v1",
+  }),
+  "permission/request": defineServerRequest({
+    params: PermissionRequestParamsSchema,
+    result: PermissionRequestResultSchema,
     capability: "interactions.serverRequests.v1",
   }),
   "question/request": defineServerRequest({

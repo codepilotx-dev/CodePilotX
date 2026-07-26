@@ -119,8 +119,6 @@ export const DESKTOP_API_METHODS = [
   'submitSessionFollowUp',
   'updateQueuedFollowUp',
   'removeQueuedFollowUp',
-  'sendQueuedFollowUpNow',
-  'reorderQueuedFollowUps',
   'resumeQueuedFollowUps',
   'compactSession',
   'rollbackSession',

@@ -59,7 +59,7 @@ function input(id: string, turnId: string, createdAt: number): Input {
     threadId: thread.id,
     turnId,
     content: id,
-    strategy: "queue",
+    delivery: "follow-up",
     mode: "chat",
     model,
     permissionConfig,

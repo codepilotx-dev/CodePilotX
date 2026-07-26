@@ -7,6 +7,7 @@ import type {
 } from '../../../../shared/types.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type {
+  ComposerDeliveryIntent,
   ComposerDraftContentSnapshot,
   ComposerDraftKey,
 } from '../../session/composer/composerTypes.js'
@@ -30,7 +31,11 @@ export function useSubagentDockController({
   submitToSession: (
     sessionId: string,
     input: DesktopUserMessageInput,
-    options?: { propagateError?: boolean },
+    options?: {
+      delivery?: ComposerDeliveryIntent
+      inputId?: string
+      propagateError?: boolean
+    },
   ) => Promise<'sent' | 'queued' | 'steered' | null>
   onError: (message: string) => void
 }) {
@@ -87,7 +92,11 @@ export function useSubagentDockController({
     async (
       sessionId: string,
       value: DesktopUserMessageInput,
-      options?: { propagateError?: boolean },
+      options?: {
+        delivery?: ComposerDeliveryIntent
+        inputId?: string
+        propagateError?: boolean
+      },
     ): Promise<'sent' | 'queued'> => {
       if (selectedSubagentTaskId && desktopClient.sendSubagent) {
         await desktopClient.sendSubagent(

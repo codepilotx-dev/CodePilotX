@@ -541,6 +541,12 @@ export interface QueueUpdateEvent {
 	nextTurn: AgentMessage[];
 }
 
+export interface QueueConsumedEvent {
+	type: "queue_consumed";
+	delivery: "steer" | "follow-up" | "next-turn";
+	inputIds: string[];
+}
+
 export interface SavePointEvent {
 	type: "save_point";
 	hadPendingMutations: boolean;
@@ -678,6 +684,7 @@ export type AgentHarnessOwnEvent<
 	TPromptTemplate extends PromptTemplate = PromptTemplate,
 > =
 	| QueueUpdateEvent
+	| QueueConsumedEvent
 	| SavePointEvent
 	| AbortEvent
 	| SettledEvent
@@ -768,6 +775,7 @@ export type AgentHarnessEventResultMap = {
 	resources_update: undefined;
 	tools_update: undefined;
 	queue_update: undefined;
+	queue_consumed: undefined;
 	save_point: undefined;
 	abort: undefined;
 	settled: undefined;

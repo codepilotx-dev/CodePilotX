@@ -83,6 +83,7 @@ import type {
 import {
   DEFAULT_COMPOSER_CAPABILITIES,
   type ComposerCapabilities,
+  type ComposerDeliveryIntent,
   type ComposerPlacement,
   type ComposerSubmitOutcome,
   type ComposerSubmitShortcut,
@@ -295,7 +296,7 @@ type Props = {
   onPermissionChange: (value: DesktopPermissionMode) => void;
   onPlanModeChange?: (active: boolean) => void;
   onLocalRouterModeChange?: (mode: LocalRouterMode) => void;
-  onSubmit: () => void;
+  onSubmit: (delivery?: ComposerDeliveryIntent) => void;
   onCompact?: () => Promise<void>;
   onCommandError?: (message: string) => void;
   onThinkingChange: (value: DesktopThinkingMode) => void;
@@ -309,8 +310,6 @@ type Props = {
   queuePauseReason?: DesktopQueuePauseReason | null;
   onFollowUpEdit?: (followUpId: string, input: DesktopUserMessageInput) => void;
   onFollowUpRemove?: (followUpId: string) => void;
-  onFollowUpSendNow?: (followUpId: string) => void;
-  onFollowUpReorder?: (followUpIds: string[]) => void;
   onFollowUpResume?: () => void;
   threadGoal?: DesktopThreadGoal | null;
   onGoalPause?: () => void;
@@ -403,8 +402,6 @@ export function ComposerCard({
   queuePauseReason,
   onFollowUpEdit,
   onFollowUpRemove,
-  onFollowUpSendNow,
-  onFollowUpReorder,
   onFollowUpResume,
   threadGoal,
   onGoalPause,
@@ -1280,11 +1277,15 @@ export function ComposerCard({
                   }
                 }
 
-                if (!shouldSubmitComposerKey(event, submitShortcut, input))
-                  return false;
+                const delivery = resolveComposerSubmitIntent(
+                  event,
+                  submitShortcut,
+                  input,
+                );
+                if (!delivery) return false;
                 event.preventDefault();
                 if (handleDirectSlashSubmission()) return true;
-                if (canSubmit) onSubmit();
+                if (canSubmit) onSubmit(delivery);
                 return true;
               }}
               onPasteFiles={(files) => {
@@ -1874,6 +1875,44 @@ export function ComposerCard({
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
 
+            {routedSessionId ? (
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger asChild>
+                  <IconButton
+                    aria-label="发送选项"
+                    className="composer-send-options"
+                    disabled={!canSubmit || submitting}
+                    title="发送选项"
+                  >
+                    <ChevronDown
+                      size={APP_ICON_SIZE}
+                      strokeWidth={APP_ICON_STROKE_WIDTH}
+                    />
+                  </IconButton>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Portal>
+                  <DropdownMenu.Content
+                    align="end"
+                    className="popover-surface rm-model-menu"
+                    onPointerDownOutside={(event) => {
+                      preventOutsideDismissWhenDebug(debugMode, event);
+                    }}
+                    side="top"
+                    sideOffset={6}
+                    style={buildPopoverSizingStyle({ width: 210 })}
+                  >
+                    <DropdownMenu.Item
+                      className="rm-menu-item"
+                      onSelect={() => onSubmit("follow-up")}
+                    >
+                      <span className="rm-item-label">排队到下一轮</span>
+                      <span className="shortcut">Ctrl+Enter</span>
+                    </DropdownMenu.Item>
+                  </DropdownMenu.Content>
+                </DropdownMenu.Portal>
+              </DropdownMenu.Root>
+            ) : null}
+
             <button
               aria-label={
                 submitting
@@ -1884,7 +1923,11 @@ export function ComposerCard({
               }
               className={`send-button${submitting ? " is-submitting" : ""}`}
               disabled={!isRunning && !canSubmit}
-              onClick={isRunning && !canSubmit ? onInterrupt : onSubmit}
+              onClick={
+                isRunning && !canSubmit
+                  ? onInterrupt
+                  : () => onSubmit("default")
+              }
               title={
                 isRunning && !canSubmit
                   ? "停止 Esc"
@@ -2100,8 +2143,6 @@ export function ComposerCard({
         pauseReason={queuePauseReason}
         onEdit={onFollowUpEdit ?? (() => {})}
         onRemove={onFollowUpRemove ?? (() => {})}
-        onSendNow={onFollowUpSendNow ?? (() => {})}
-        onReorder={onFollowUpReorder ?? (() => {})}
         onResume={onFollowUpResume ?? (() => {})}
       />
     </div>
@@ -2211,6 +2252,18 @@ export function shouldSubmitComposerKey(
     return modifierPressed;
   }
   return true;
+}
+
+export function resolveComposerSubmitIntent(
+  event: Pick<
+    KeyboardEvent,
+    "key" | "shiftKey" | "ctrlKey" | "metaKey" | "isComposing" | "keyCode"
+  >,
+  shortcut: ComposerSubmitShortcut,
+  input: string,
+): ComposerDeliveryIntent | null {
+  if (!shouldSubmitComposerKey(event, shortcut, input)) return null;
+  return event.ctrlKey || event.metaKey ? "follow-up" : "default";
 }
 
 function filterUnifiedMenuItems(

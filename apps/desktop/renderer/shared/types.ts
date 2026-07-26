@@ -841,7 +841,7 @@ export type DesktopPersonality =
 
 export type DesktopReviewView = 'inline' | 'split'
 export type DesktopDiffMarkerStyle = 'color' | 'symbol'
-export type DesktopFollowUpBehavior = 'steer' | 'queue'
+export type DesktopMessageDelivery = 'steer' | 'follow-up'
 export type DesktopSidebarOrganization = 'projects' | 'flat'
 export type DesktopSidebarSort =
   | 'priority'
@@ -937,7 +937,6 @@ export type DesktopStoredSettings = {
   deepModel: string
   sessionName: string
   thinkingMode: DesktopThinkingMode
-  followUpBehavior: DesktopFollowUpBehavior
   systemPrompt: string
   appendSystemPrompt: string
   additionalDirectories: string
@@ -1898,6 +1897,7 @@ export type DesktopApi = {
     sessionId: string,
     content: DesktopUserMessageInput,
     model?: string | DesktopModelSelection,
+    inputId?: string,
   ): Promise<void>
   respondToPermission(
     sessionId: string,
@@ -1909,8 +1909,9 @@ export type DesktopApi = {
   submitSessionFollowUp(
     sessionId: string,
     input: DesktopUserMessageInput,
-    behavior: DesktopFollowUpBehavior,
-  ): Promise<'steered' | 'queued'>
+    delivery: DesktopMessageDelivery,
+    inputId?: string,
+  ): Promise<'sent' | 'steered' | 'queued'>
   updateQueuedFollowUp(
     sessionId: string,
     followUpId: string,
@@ -1919,14 +1920,6 @@ export type DesktopApi = {
   removeQueuedFollowUp(
     sessionId: string,
     followUpId: string,
-  ): Promise<DesktopSessionSnapshot>
-  sendQueuedFollowUpNow(
-    sessionId: string,
-    followUpId: string,
-  ): Promise<void>
-  reorderQueuedFollowUps(
-    sessionId: string,
-    followUpIds: string[],
   ): Promise<DesktopSessionSnapshot>
   resumeQueuedFollowUps(sessionId: string): Promise<DesktopSessionSnapshot>
   compactSession(sessionId: string): Promise<void>

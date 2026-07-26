@@ -180,12 +180,17 @@ describe('composer submit transaction', () => {
   })
 
   test('preserves the queued delivery outcome', async () => {
+    let submittedInputId: string | null = null
     const outcome = await executeComposerSubmitTransaction({
       draft: draft(),
       targetSessionId: 'session-running',
-      submitToSession: async () => 'queued',
+      submitToSession: async (_sessionId, _input, metadata) => {
+        submittedInputId = metadata.inputId
+        return 'queued'
+      },
     })
 
+    expect(submittedInputId).toBe('draft-1')
     expect(outcome).toEqual({
       status: 'queued',
       sessionId: 'session-running',
